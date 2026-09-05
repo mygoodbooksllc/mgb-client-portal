@@ -1,0 +1,13 @@
+{
+  "namespace": "MygoodbooksDS",
+  "source": "mygoodbooks-ds@0.1.0",
+  "shape": "package",
+  "provider": null,
+  "componentCount": 12,
+  "skippedStoryIds": [],
+  "runtimeFontPrefixes": [
+    "Bitter",
+    "IBM Plex Sans",
+    "IBM Plex Mono"
+  ]
+}

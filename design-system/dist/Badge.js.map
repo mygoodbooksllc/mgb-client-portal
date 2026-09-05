@@ -1,0 +1,7 @@
+{
+  "version": 3,
+  "sources": ["../src/Badge.tsx"],
+  "sourcesContent": ["import React from \"react\";\n\n/** Props for {@link Badge}. */\nexport interface BadgeProps {\n  /** Text shown next to the status dot (e.g. \"Prototype \u00B7 Sample Data\"). */\n  label: string;\n  /** Additional class name(s) appended to the root element. */\n  className?: string;\n}\n\n/**\n * Pill badge with a small leading status dot. Synthesized from the\n * `.badge-live` / `.badge-dot` classes \u2014 in app.jsx these only appear once,\n * in the page header (\"Prototype \u00B7 Sample Data\"), so there is no evidence of\n * color/tone variants; this component intentionally exposes just `label`\n * rather than inventing a `tone` prop with no real usage site to confirm it.\n */\nexport function Badge({ label, className }: BadgeProps) {\n  return (\n    <span className={\"badge-live\" + (className ? \" \" + className : \"\")}>\n      <span className=\"badge-dot\"></span>\n      {label}\n    </span>\n  );\n}\n"],
+  "mappings": ";AAmBI,SACE,KADF;AAFG,SAAS,MAAM,EAAE,OAAO,UAAU,GAAe;AACtD,SACE,qBAAC,UAAK,WAAW,gBAAgB,YAAY,MAAM,YAAY,KAC7D;AAAA,wBAAC,UAAK,WAAU,aAAY;AAAA,IAC3B;AAAA,KACH;AAEJ;",
+  "names": []
+}

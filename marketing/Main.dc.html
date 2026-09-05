@@ -1,0 +1,405 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Bitter:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400;1,500;1,600&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --navy: #243746;
+      --navy-deep: #1a2830;
+      --gold: #c7ae86;
+      --gold-deep: #b3925f;
+      --bg: #faf9f6;
+      --surface: #ffffff;
+      --border: #e8e2d6;
+      --text: #26343d;
+      --text-muted: #7a7369;
+      --good: #3f6b52;
+      --good-soft: #e9f0ea;
+      --mesh-1: #e3d3ab;
+      --mesh-2: #cfe0d6;
+      --mesh-3: #e6c9c2;
+      --glass-bg: rgba(255, 255, 255, 0.55);
+      --glass-border: rgba(255, 255, 255, 0.55);
+      --shadow: 0 8px 18px rgba(36, 55, 70, 0.08), 0 1px 3px rgba(36, 55, 70, 0.06);
+      --font-heading: "Bitter", Georgia, serif;
+      --font-body: "IBM Plex Sans", system-ui, -apple-system, sans-serif;
+      --font-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: var(--font-body);
+      color: var(--text);
+      background: var(--bg);
+    }
+    a { color: var(--navy); text-decoration: none; }
+    a:hover { color: var(--gold-deep); }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      font-family: var(--font-body);
+      font-weight: 600;
+      font-size: 14.5px;
+      padding: 12px 22px;
+      border-radius: 100px;
+      cursor: pointer;
+      border: 1px solid transparent;
+    }
+    .btn-primary { background: var(--navy); color: #fff; }
+    .btn-primary:hover { background: var(--navy-deep); color: #fff; }
+    .btn-ghost { background: transparent; color: var(--navy); border-color: var(--border); }
+    .btn-ghost:hover { background: rgba(36,55,70,0.05); color: var(--navy); }
+    .eyebrow {
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.11em;
+      text-transform: uppercase;
+      color: var(--gold-deep);
+    }
+    .icon-badge {
+      width: 44px;
+      height: 44px;
+      border-radius: 12px;
+      background: rgba(36,55,70,0.06);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex: none;
+      color: var(--navy);
+    }
+    .glass-card {
+      background: var(--glass-bg);
+      border: 1px solid var(--glass-border);
+      border-radius: 20px;
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(16px) saturate(1.3);
+    }
+    /* Feature/mockup tiles pop on hover — shadow eases, the lift itself is
+       instant so it reads as responsive rather than syrupy. */
+    .tile { transition: box-shadow 0.2s ease; }
+    .tile:hover {
+      transform: translateY(-4px) scale(1.02);
+      box-shadow: 0 20px 36px rgba(36,55,70,0.18), 0 4px 10px rgba(36,55,70,0.12);
+    }
+    .dark-zone .tile:hover {
+      box-shadow: 0 20px 40px rgba(0,0,0,0.5), 0 6px 14px rgba(0,0,0,0.4);
+    }
+    /* From "How it works" down, the page settles into a dark palette —
+       redefining the same tokens the light half uses, so every element
+       that already reads var(--navy)/var(--text-muted)/etc. just inherits
+       the dark values instead of needing separate dark-mode markup. */
+    .dark-zone {
+      --navy: #eef1ec;
+      --text: #dfe6e0;
+      --text-muted: #93a3ac;
+      --border: rgba(255,255,255,0.14);
+      --glass-bg: rgba(255,255,255,0.07);
+      --glass-border: rgba(255,255,255,0.14);
+      --gold-deep: #d8c39f;
+      --good: #5fbf7a;
+    }
+    .dark-zone .btn-primary { background: var(--gold); color: var(--navy-deep); }
+    .dark-zone .btn-primary:hover { background: #d8c39f; color: var(--navy-deep); }
+    .dark-zone .btn-ghost { color: #eef1ec; }
+    .dark-zone .btn-ghost:hover { background: rgba(255,255,255,0.08); color: #eef1ec; }
+    .dark-zone .icon-badge { background: rgba(255,255,255,0.08); color: var(--gold); }
+    .icon-badge-gold {
+      width: 44px;
+      height: 44px;
+      border-radius: 12px;
+      background: rgba(199,174,134,0.22);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex: none;
+      color: var(--gold-deep);
+    }
+    .premium-pill {
+      display: inline-flex;
+      align-items: center;
+      font-size: 10px;
+      font-weight: 800;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      color: var(--navy-deep);
+      background: linear-gradient(120deg, #e9d5a8, var(--gold));
+      padding: 3px 9px;
+      border-radius: 999px;
+    }
+    a.premium-pill:hover { color: var(--navy-deep); opacity: 0.85; }
+  </style>
+</helmet>
+
+<div style="position: relative; width: 1440px; min-height: 3450px; overflow: hidden; background: linear-gradient(180deg, var(--bg) 0%, var(--bg) 44%, #1a2830 56%, #141f27 100%);">
+
+  <!-- Ambient mesh background, matching the product shell -->
+  <div style="position: absolute; inset: 0; overflow: hidden; pointer-events: none; z-index: 0;">
+    <div style="position: absolute; width: 720px; height: 720px; left: -200px; top: -220px; border-radius: 50%; filter: blur(80px); opacity: 0.6; background: radial-gradient(circle, var(--mesh-1), transparent 70%);"></div>
+    <div style="position: absolute; width: 620px; height: 620px; right: -160px; top: 60px; border-radius: 50%; filter: blur(80px); opacity: 0.55; background: radial-gradient(circle, var(--mesh-2), transparent 70%);"></div>
+    <div style="position: absolute; width: 760px; height: 760px; left: 28%; top: 720px; border-radius: 50%; filter: blur(90px); opacity: 0.5; background: radial-gradient(circle, var(--mesh-3), transparent 70%);"></div>
+    <div style="position: absolute; width: 640px; height: 640px; right: 6%; top: 1680px; border-radius: 50%; filter: blur(85px); opacity: 0.45; background: radial-gradient(circle, var(--mesh-1), transparent 70%);"></div>
+    <div style="position: absolute; width: 700px; height: 700px; left: 4%; top: 2960px; border-radius: 50%; filter: blur(90px); opacity: 0.4; background: radial-gradient(circle, var(--mesh-2), transparent 70%);"></div>
+  </div>
+
+  <div style="position: relative; z-index: 1;">
+
+    <!-- Nav -->
+    <div style="display: flex; align-items: center; justify-content: space-between; padding: 20px 64px; position: sticky; top: 0; background: rgba(250,249,246,0.75); backdrop-filter: blur(14px); border-bottom: 1px solid var(--border); z-index: 10;">
+      <div style="display: flex; align-items: center; gap: 12px;">
+        <img src="logo.webp" alt="MyGoodBooks" style="width: 40px; height: 40px; border-radius: 10px; box-shadow: 0 3px 8px rgba(0,0,0,0.15);">
+        <div style="display: flex; flex-direction: column; line-height: 1.15;">
+          <span style="font-family: var(--font-heading); font-weight: 700; font-size: 17px; color: var(--navy);">MyGoodBooks</span>
+          <span style="font-size: 10.5px; color: var(--text-muted);">Bookkeeping for churches &amp; nonprofits</span>
+        </div>
+      </div>
+      <div style="display: flex; align-items: center; gap: 36px;">
+        <a href="#features" style="font-size: 14px; font-weight: 500; color: var(--text);">Features</a>
+        <a href="#enterprise" style="font-size: 14px; font-weight: 600; color: var(--gold-deep);">Enterprise Tools</a>
+        <a href="#how-it-works" style="font-size: 14px; font-weight: 500; color: var(--text);">How it works</a>
+        <a href="#referral" style="font-size: 14px; font-weight: 500; color: var(--text);">Referral program</a>
+      </div>
+      <div style="display: flex; align-items: center; gap: 14px;">
+        <a href="#" style="font-size: 14px; font-weight: 500; color: var(--text);">Client login</a>
+        <div class="btn btn-primary">Get Started</div>
+      </div>
+    </div>
+
+    <!-- Hero -->
+    <div style="display: flex; align-items: center; gap: 56px; padding: 96px 64px 88px;">
+      <div style="flex: 1.05; display: flex; flex-direction: column; align-items: flex-start; gap: 22px;">
+        <a href="#enterprise" class="premium-pill" style="gap: 6px;">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0c0 6.075 3.373 9.526 9 9.526-5.627 0-9 3.921-9 10.474 0-6.553-3.373-10.474-9-10.474 5.627 0 9-3.451 9-9.526z"/></svg>
+          New &middot; Enterprise Tools add-on
+        </a>
+        <div class="eyebrow">Bookkeeping for churches &amp; nonprofits</div>
+        <h1 style="font-family: var(--font-heading); font-size: 54px; line-height: 1.08; font-weight: 700; color: var(--navy); margin: 0; max-width: 620px;">Leave the bookkeeping to us.</h1>
+        <p style="font-size: 17px; line-height: 1.6; color: var(--text-muted); max-width: 520px; margin: 0;">A dedicated bookkeeper handles the categorizing, reconciling, and fund tracking — and your board, staff, and treasurer get a live portal that always shows where the money stands.</p>
+        <div style="display: flex; align-items: center; gap: 14px; margin-top: 8px;">
+          <div class="btn btn-primary" style="padding: 14px 26px; font-size: 15px;">Get Started</div>
+          <div class="btn btn-ghost" style="padding: 14px 26px; font-size: 15px;">See a sample report</div>
+        </div>
+        <div style="display: flex; align-items: center; gap: 10px; margin-top: 18px; font-size: 12.5px; color: var(--text-muted);">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--good)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 12l2 2 4-4"/><circle cx="12" cy="12" r="9"/></svg>
+          Built specifically for churches, food pantries, and mission-driven nonprofits
+        </div>
+      </div>
+
+      <!-- Hero visual: recreated dashboard glass cards -->
+      <div style="flex: 1; position: relative; height: 480px;">
+        <div class="glass-card tile" style="position: absolute; width: 380px; padding: 22px; top: 30px; left: 60px; transform: rotate(-2deg);">
+          <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 6px;">Cash on Hand</div>
+          <div style="font-family: var(--font-mono); font-size: 30px; font-weight: 600; color: var(--navy); letter-spacing: -0.01em;">$83,201</div>
+          <div style="font-size: 12px; font-weight: 600; color: var(--good); margin-top: 4px;">▲ $20 vs. yesterday</div>
+          <div style="margin-top: 16px; height: 1px; background: var(--border);"></div>
+          <div style="display: flex; align-items: center; justify-content: space-between; margin-top: 16px;">
+            <div>
+              <div style="font-size: 11.5px; color: var(--text-muted);">Cash Runway</div>
+              <div style="font-family: var(--font-heading); font-size: 15px; font-weight: 600; color: var(--good); margin-top: 2px;">Healthy</div>
+            </div>
+            <svg width="52" height="52" viewBox="0 0 52 52">
+              <circle cx="26" cy="26" r="21" fill="none" stroke="var(--good-soft)" stroke-width="6"/>
+              <circle cx="26" cy="26" r="21" fill="none" stroke="var(--good)" stroke-width="6" stroke-linecap="round" stroke-dasharray="132" stroke-dashoffset="16" transform="rotate(-90 26 26)"/>
+            </svg>
+          </div>
+        </div>
+        <div class="glass-card tile" style="position: absolute; width: 320px; padding: 20px; top: 260px; left: 190px; transform: rotate(2deg);">
+          <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 10px;">Income vs. Expenses</div>
+          <svg width="100%" height="90" viewBox="0 0 280 90" preserveAspectRatio="none">
+            <defs>
+              <linearGradient id="hf1" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stop-color="#243746" stop-opacity="0.32"/>
+                <stop offset="100%" stop-color="#243746" stop-opacity="0.02"/>
+              </linearGradient>
+            </defs>
+            <path d="M0 78 L0 60 C 25 55, 25 48, 50 48 C 78 48, 78 32, 106 32 C 134 32, 134 42, 162 42 C 190 42, 190 20, 218 20 C 246 20, 246 30, 280 26 L280 78 Z" fill="url(#hf1)"/>
+            <path d="M0 60 C 25 55, 25 48, 50 48 C 78 48, 78 32, 106 32 C 134 32, 134 42, 162 42 C 190 42, 190 20, 218 20 C 246 20, 246 30, 280 26" fill="none" stroke="#243746" stroke-width="2.5"/>
+          </svg>
+          <div style="font-size: 11px; color: var(--text-muted); margin-top: 6px;">Sample data</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Trust line -->
+    <div style="text-align: center; padding: 8px 64px 72px;">
+      <p style="font-family: var(--font-heading); font-style: italic; font-size: 19px; color: var(--text-muted); max-width: 680px; margin: 0 auto;">"Built for treasurers and finance committees who'd rather focus on the mission than the ledger."</p>
+    </div>
+
+    <!-- Features -->
+    <div id="features" style="padding: 60px 64px 40px;">
+      <div style="text-align: center; display: flex; flex-direction: column; align-items: center; gap: 12px; margin-bottom: 48px;">
+        <div class="eyebrow">What you get</div>
+        <h2 style="font-family: var(--font-heading); font-size: 34px; font-weight: 700; color: var(--navy); margin: 0; max-width: 620px;">Everything your treasurer wishes they had time for</h2>
+      </div>
+
+      <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 22px;">
+
+        <div class="glass-card tile" style="padding: 26px;">
+          <div class="icon-badge">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V10M9.5 20V4M15 20V13M20.5 20V7"/></svg>
+          </div>
+          <h3 style="font-family: var(--font-heading); font-size: 17px; font-weight: 700; color: var(--navy); margin: 16px 0 8px;">Budget vs. Actual</h3>
+          <p style="font-size: 14px; line-height: 1.55; color: var(--text-muted); margin: 0;">Every category tracked against budget in real time, with the ones running over flagged automatically.</p>
+        </div>
+
+        <div class="glass-card tile" style="padding: 26px;">
+          <div class="icon-badge">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20s-7-4.35-9.5-9A5.5 5.5 0 0 1 12 6a5.5 5.5 0 0 1 9.5 5c-2.5 4.65-9.5 9-9.5 9z"/></svg>
+          </div>
+          <h3 style="font-family: var(--font-heading); font-size: 17px; font-weight: 700; color: var(--navy); margin: 16px 0 8px;">Giving &amp; Funds</h3>
+          <p style="font-size: 14px; line-height: 1.55; color: var(--text-muted); margin: 0;">Track restricted and unrestricted funds separately, down to the donor — built for how nonprofits actually account for gifts.</p>
+        </div>
+
+        <div class="glass-card tile" style="padding: 26px;">
+          <div class="icon-badge">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10l9-6 9 6M5 10v9M9.5 10v9M14.5 10v9M19 10v9M3 21h18"/></svg>
+          </div>
+          <h3 style="font-family: var(--font-heading); font-size: 17px; font-weight: 700; color: var(--navy); margin: 16px 0 8px;">Bank &amp; Receivables</h3>
+          <p style="font-size: 14px; line-height: 1.55; color: var(--text-muted); margin: 0;">Every account, invoice, and bill in one place, reconciled by your bookkeeper — not by you.</p>
+        </div>
+
+        <div class="glass-card tile" style="padding: 26px;">
+          <div class="icon-badge">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16v11H8l-4 4V5z"/></svg>
+          </div>
+          <h3 style="font-family: var(--font-heading); font-size: 17px; font-weight: 700; color: var(--navy); margin: 16px 0 8px;">Secure Messaging</h3>
+          <p style="font-size: 14px; line-height: 1.55; color: var(--text-muted); margin: 0;">Ask your bookkeeper a question right from the portal — no more digging through email threads.</p>
+        </div>
+
+        <div class="glass-card tile" style="padding: 26px;">
+          <div class="icon-badge">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6l7-3z"/><path d="M9 12l2 2 4-4"/></svg>
+          </div>
+          <h3 style="font-family: var(--font-heading); font-size: 17px; font-weight: 700; color: var(--navy); margin: 16px 0 8px;">Role-Based Access</h3>
+          <p style="font-size: 14px; line-height: 1.55; color: var(--text-muted); margin: 0;">Give your board a read-only view and your staff exactly the categories they need — nothing more.</p>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Enterprise Tools — highlighted premium add-on -->
+    <div id="enterprise" style="padding: 40px 64px 84px;">
+      <div class="glass-card" style="padding: 56px 60px; background: linear-gradient(165deg, rgba(199,174,134,0.16), rgba(255,255,255,0.55) 55%); border-color: rgba(199,174,134,0.4);">
+
+        <div style="text-align: center; display: flex; flex-direction: column; align-items: center; gap: 12px; margin-bottom: 44px;">
+          <span class="premium-pill">Enterprise Tools &middot; Add-on</span>
+          <h2 style="font-family: var(--font-heading); font-size: 34px; font-weight: 700; color: var(--navy); margin: 4px 0 0; max-width: 640px;">Give your board what they actually want to see</h2>
+          <p style="font-size: 15.5px; line-height: 1.6; color: var(--text-muted); max-width: 560px; margin: 0;">Three tools for organizations that want more than a monthly statement — a daily pulse on the numbers, a board-ready report in minutes, and a shared space to plan next period's budget.</p>
+        </div>
+
+        <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 22px; margin-bottom: 36px;">
+
+          <div class="glass-card tile" style="padding: 26px; background: rgba(255,255,255,0.6);">
+            <div class="icon-badge-gold">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 8h6M9 12h6M9 16h4"/></svg>
+            </div>
+            <h3 style="font-family: var(--font-heading); font-size: 17px; font-weight: 700; color: var(--navy); margin: 16px 0 8px;">Daily Report</h3>
+            <p style="font-size: 14px; line-height: 1.55; color: var(--text-muted); margin: 0;">A fresh financial snapshot every morning — cash on hand, receivables, what's due — before you've had your coffee.</p>
+          </div>
+
+          <div class="glass-card tile" style="padding: 26px; background: rgba(255,255,255,0.6);">
+            <div class="icon-badge-gold">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M8 16v-4M12 16V9M16 16v-7"/></svg>
+            </div>
+            <h3 style="font-family: var(--font-heading); font-size: 17px; font-weight: 700; color: var(--navy); margin: 16px 0 8px;">Report Builder</h3>
+            <p style="font-size: 14px; line-height: 1.55; color: var(--text-muted); margin: 0;">Assemble a formatted board report from your own numbers in a couple of clicks — pick a period, a scope, and the sections that matter this quarter.</p>
+          </div>
+
+          <div class="glass-card tile" style="padding: 26px; background: rgba(255,255,255,0.6);">
+            <div class="icon-badge-gold">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 4.5l5 5L9 20H4v-5z"/><path d="M13 6l5 5"/></svg>
+            </div>
+            <h3 style="font-family: var(--font-heading); font-size: 17px; font-weight: 700; color: var(--navy); margin: 16px 0 8px;">Budgeting Tool</h3>
+            <p style="font-size: 14px; line-height: 1.55; color: var(--text-muted); margin: 0;">Draft next period's budget together with your bookkeeper, category by category, before it's locked in.</p>
+          </div>
+
+        </div>
+
+        <div style="display: flex; align-items: center; justify-content: center; gap: 14px;">
+          <div class="btn btn-primary" style="padding: 14px 26px; font-size: 15px;">Upgrade to Enterprise</div>
+          <div class="btn btn-ghost" style="padding: 14px 26px; font-size: 15px; background: rgba(255,255,255,0.5);">See it in your portal</div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- From here down: dark half of the page (see .dark-zone in <helmet>) -->
+    <div class="dark-zone">
+
+    <!-- How it works -->
+    <div id="how-it-works" style="padding: 84px 64px 60px;">
+      <div style="text-align: center; display: flex; flex-direction: column; align-items: center; gap: 12px; margin-bottom: 48px;">
+        <div class="eyebrow">How it works</div>
+        <h2 style="font-family: var(--font-heading); font-size: 34px; font-weight: 700; color: var(--navy); margin: 0;">Three steps to a clean set of books</h2>
+      </div>
+
+      <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 28px;">
+        <div style="display: flex; flex-direction: column; align-items: flex-start; gap: 10px; padding: 0 12px;">
+          <div style="font-family: var(--font-heading); font-size: 36px; font-weight: 700; color: var(--gold-deep);">01</div>
+          <h3 style="font-family: var(--font-heading); font-size: 18px; font-weight: 700; color: var(--navy); margin: 4px 0 0;">Connect your accounts</h3>
+          <p style="font-size: 14px; line-height: 1.55; color: var(--text-muted); margin: 0;">We link your bank and giving platform to your existing books — no new software for your team to learn.</p>
+        </div>
+        <div style="display: flex; flex-direction: column; align-items: flex-start; gap: 10px; padding: 0 12px;">
+          <div style="font-family: var(--font-heading); font-size: 36px; font-weight: 700; color: var(--gold-deep);">02</div>
+          <h3 style="font-family: var(--font-heading); font-size: 18px; font-weight: 700; color: var(--navy); margin: 4px 0 0;">We do the bookkeeping</h3>
+          <p style="font-size: 14px; line-height: 1.55; color: var(--text-muted); margin: 0;">A dedicated bookkeeper categorizes transactions, reconciles accounts, and tracks your funds every week.</p>
+        </div>
+        <div style="display: flex; flex-direction: column; align-items: flex-start; gap: 10px; padding: 0 12px;">
+          <div style="font-family: var(--font-heading); font-size: 36px; font-weight: 700; color: var(--gold-deep);">03</div>
+          <h3 style="font-family: var(--font-heading); font-size: 18px; font-weight: 700; color: var(--navy); margin: 4px 0 0;">You get clarity, daily</h3>
+          <p style="font-size: 14px; line-height: 1.55; color: var(--text-muted); margin: 0;">Log into your portal any time, or let the daily report land in your inbox.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Referral banner -->
+    <div id="referral" style="padding: 40px 64px 84px;">
+      <div class="glass-card" style="display: flex; align-items: center; justify-content: space-between; gap: 24px; padding: 34px 44px; background: linear-gradient(135deg, rgba(199,174,134,0.24), rgba(255,255,255,0.04));">
+        <div style="display: flex; flex-direction: column; gap: 6px;">
+          <div class="eyebrow">Referral program</div>
+          <h3 style="font-family: var(--font-heading); font-size: 24px; font-weight: 700; color: var(--navy); margin: 0;">Give $100, Get $100</h3>
+          <p style="font-size: 14px; color: var(--text-muted); margin: 4px 0 0; max-width: 460px;">Know a nonprofit that needs this? Refer them, and you'll both get $100 once they're onboarded.</p>
+        </div>
+        <div class="btn btn-primary" style="padding: 14px 26px; font-size: 15px; flex: none;">Refer a Friend</div>
+      </div>
+    </div>
+
+    <!-- Final CTA -->
+    <div style="text-align: center; padding: 40px 64px 100px; display: flex; flex-direction: column; align-items: center; gap: 22px;">
+      <h2 style="font-family: var(--font-heading); font-size: 36px; font-weight: 700; color: var(--navy); margin: 0; max-width: 560px;">Ready to stop dreading the books?</h2>
+      <p style="font-size: 15.5px; color: var(--text-muted); margin: 0; max-width: 460px;">Tell us about your church or nonprofit, and we'll show you what your portal would look like.</p>
+      <div class="btn btn-primary" style="padding: 15px 30px; font-size: 15.5px;">Get Started</div>
+    </div>
+
+    <!-- Footer -->
+    <div style="border-top: 1px solid var(--border); padding: 36px 64px; display: flex; align-items: center; justify-content: space-between;">
+      <div style="display: flex; align-items: center; gap: 12px;">
+        <img src="logo.webp" alt="MyGoodBooks" style="width: 30px; height: 30px; border-radius: 8px;">
+        <span style="font-family: var(--font-heading); font-weight: 700; font-size: 14px; color: var(--navy);">MyGoodBooks</span>
+        <span style="font-size: 12.5px; color: var(--text-muted);">— Leave the bookkeeping to us.</span>
+      </div>
+      <div style="display: flex; align-items: center; gap: 28px;">
+        <a href="#features" style="font-size: 13px; color: var(--text-muted);">Features</a>
+        <a href="#enterprise" style="font-size: 13px; color: var(--text-muted);">Enterprise Tools</a>
+        <a href="#how-it-works" style="font-size: 13px; color: var(--text-muted);">How it works</a>
+        <a href="#referral" style="font-size: 13px; color: var(--text-muted);">Referral program</a>
+      </div>
+    </div>
+
+    </div>
+    <!-- /dark-zone -->
+
+  </div>
+</div>
+</x-dc>
+</body>
+</html>

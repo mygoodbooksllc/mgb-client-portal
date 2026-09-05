@@ -1,0 +1,7 @@
+{
+  "version": 3,
+  "sources": ["../src/Button.tsx"],
+  "sourcesContent": ["import React from \"react\";\n\n/** Props for {@link Button}. */\nexport interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {\n  /** Visual style \u2014 \"primary\" is the solid navy pill (`.btn-primary`), \"secondary\" the outlined pill (`.btn-secondary`). Defaults to \"primary\". */\n  variant?: \"primary\" | \"secondary\";\n}\n\n/**\n * Pill-shaped action button. Synthesized from the `.btn-primary` /\n * `.btn-secondary` classes used directly on `<button>` elements throughout\n * app.jsx (e.g. \"Download PDF\", \"Export CSV\", modal save/cancel actions) \u2014\n * there was no single shared Button component in the original app.\n */\nexport function Button({ variant = \"primary\", className, children, ...rest }: ButtonProps) {\n  const base = variant === \"secondary\" ? \"btn-secondary\" : \"btn-primary\";\n  return (\n    <button className={base + (className ? \" \" + className : \"\")} {...rest}>\n      {children}\n    </button>\n  );\n}\n"],
+  "mappings": ";AAiBI;AAHG,SAAS,OAAO,EAAE,UAAU,WAAW,WAAW,UAAU,GAAG,KAAK,GAAgB;AACzF,QAAM,OAAO,YAAY,cAAc,kBAAkB;AACzD,SACE,oBAAC,YAAO,WAAW,QAAQ,YAAY,MAAM,YAAY,KAAM,GAAG,MAC/D,UACH;AAEJ;",
+  "names": []
+}

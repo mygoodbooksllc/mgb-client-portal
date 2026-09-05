@@ -1,0 +1,121 @@
+{
+  "global": "MygoodbooksDS",
+  "pkg": "mygoodbooks-ds",
+  "pkgDir": "/Users/holdengray/Desktop/Mygoodbooks-app-code/client-dashboard/design-system",
+  "extraEntries": [],
+  "exported": [
+    "AccountCashDonut",
+    "Badge",
+    "Button",
+    "Card",
+    "CardSubtitle",
+    "CardTitle",
+    "IncomeExpenseChart",
+    "MockBanner",
+    "ReportBarRows",
+    "RunwayRing",
+    "ToastProvider",
+    "TrendPill"
+  ],
+  "storybookStatic": null,
+  "keyRecipe": 7,
+  "cfgSliceGlobal": "a139d95ad8ab0a8ba08b44a258c54602e36090304087f48fe923c61aa5a8ae08",
+  "components": [
+    {
+      "name": "AccountCashDonut",
+      "group": "general",
+      "srcSha": null,
+      "sourceKey": "0df6995c8bbc6f88",
+      "cfgSlice": "5ff899b099eb6923833804cda955efdd69101524bec86f67dac5537cd81802e8",
+      "stories": []
+    },
+    {
+      "name": "Badge",
+      "group": "general",
+      "srcSha": null,
+      "sourceKey": "9ebb5e3cb294139a",
+      "cfgSlice": "5ff899b099eb6923833804cda955efdd69101524bec86f67dac5537cd81802e8",
+      "stories": []
+    },
+    {
+      "name": "Button",
+      "group": "general",
+      "srcSha": null,
+      "sourceKey": "2b690e3890956315",
+      "cfgSlice": "5ff899b099eb6923833804cda955efdd69101524bec86f67dac5537cd81802e8",
+      "stories": []
+    },
+    {
+      "name": "Card",
+      "group": "general",
+      "srcSha": null,
+      "sourceKey": "24108b4a00acc19a",
+      "cfgSlice": "5ff899b099eb6923833804cda955efdd69101524bec86f67dac5537cd81802e8",
+      "stories": []
+    },
+    {
+      "name": "CardSubtitle",
+      "group": "general",
+      "srcSha": null,
+      "sourceKey": "7663a47994de9edb",
+      "cfgSlice": "5ff899b099eb6923833804cda955efdd69101524bec86f67dac5537cd81802e8",
+      "stories": []
+    },
+    {
+      "name": "CardTitle",
+      "group": "general",
+      "srcSha": null,
+      "sourceKey": "a70abb5738741760",
+      "cfgSlice": "5ff899b099eb6923833804cda955efdd69101524bec86f67dac5537cd81802e8",
+      "stories": []
+    },
+    {
+      "name": "IncomeExpenseChart",
+      "group": "general",
+      "srcSha": null,
+      "sourceKey": "3e3ad44bdcd86506",
+      "cfgSlice": "5ff899b099eb6923833804cda955efdd69101524bec86f67dac5537cd81802e8",
+      "stories": []
+    },
+    {
+      "name": "MockBanner",
+      "group": "general",
+      "srcSha": null,
+      "sourceKey": "c0aaffa1ebbc154f",
+      "cfgSlice": "5ff899b099eb6923833804cda955efdd69101524bec86f67dac5537cd81802e8",
+      "stories": []
+    },
+    {
+      "name": "ReportBarRows",
+      "group": "general",
+      "srcSha": null,
+      "sourceKey": "20cc4617eb397180",
+      "cfgSlice": "5ff899b099eb6923833804cda955efdd69101524bec86f67dac5537cd81802e8",
+      "stories": []
+    },
+    {
+      "name": "RunwayRing",
+      "group": "general",
+      "srcSha": null,
+      "sourceKey": "7e64e90042af3f0e",
+      "cfgSlice": "5ff899b099eb6923833804cda955efdd69101524bec86f67dac5537cd81802e8",
+      "stories": []
+    },
+    {
+      "name": "ToastProvider",
+      "group": "general",
+      "srcSha": null,
+      "sourceKey": "94356b4a14d79bf6",
+      "cfgSlice": "5ff899b099eb6923833804cda955efdd69101524bec86f67dac5537cd81802e8",
+      "stories": []
+    },
+    {
+      "name": "TrendPill",
+      "group": "general",
+      "srcSha": null,
+      "sourceKey": "d1fde6db05182e0f",
+      "cfgSlice": "5ff899b099eb6923833804cda955efdd69101524bec86f67dac5537cd81802e8",
+      "stories": []
+    }
+  ]
+}

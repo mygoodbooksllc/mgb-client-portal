@@ -1,0 +1,883 @@
+/*
+  DailyClose styles — adapted from the original DailyClose.module.css.
+
+  This project has no bundler, so CSS Modules aren't available. Every class is
+  prefixed `dc-` instead, and DailyClose.tsx maps `styles.foo` -> "dc-foo".
+  Design tokens stay scoped to .dc-dailyClose (never :root), so nothing here
+  can leak into styles.css.
+*/
+.dc-dailyClose {
+  --paper-0: #eef1ec;
+  --surface: #f9faf6;
+  --surface-2: #f0f2ec;
+  --ink-900: #16201d;
+  --ink-600: #4b564e;
+  --ink-500: #5c6860;
+  --ink-400: #838f85;
+  --line: #dbe0d7;
+  --line-strong: #c7cec2;
+  --accent: #24425f;
+  --accent-strong: #152c40;
+  --accent-tint: #e2e9ee;
+  --good: #0ca30c;
+  --good-text: #006300;
+  --warning: #fab219;
+  --serious: #ec835a;
+  --critical: #d03b3b;
+  --series-revenue: #2a78d6;
+  --series-expense: #eb6834;
+  --shadow: 0 1px 2px rgba(22, 32, 29, 0.04), 0 8px 24px -12px rgba(22, 32, 29, 0.14);
+  --shadow-hover: 0 20px 36px rgba(22, 32, 29, 0.16), 0 4px 10px rgba(22, 32, 29, 0.1);
+  /* Glass surface for tiles/panels (matches the shell's --glass-bg/-border in
+     styles.css) — the root goes transparent so the shell's .mesh-bg shows
+     through behind this panel, same as every other page. */
+  --glass-bg: rgba(255, 255, 255, 0.55);
+  --glass-border: rgba(255, 255, 255, 0.4);
+
+  color-scheme: light;
+  background: transparent;
+  color: var(--ink-900);
+  font-family: "IBM Plex Sans", system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  border-radius: 16px;
+
+  /* This panel was designed as a full-width page. Embedded here it sits in a
+     ~590px column beside the app sidebar, where the viewport-based breakpoint
+     below never fires and the four KPI tiles squeeze to ~128px — too narrow for
+     a figure like "$210,720.55". Declaring a container lets the rules at the
+     bottom of this file respond to the panel's own width instead. */
+  container-type: inline-size;
+  container-name: dailyclose;
+}
+
+@media (prefers-color-scheme: dark) {
+  .dc-dailyClose:not([data-theme="light"]) {
+    color-scheme: dark;
+    --paper-0: #0f1512;
+    --surface: #161d1a;
+    --surface-2: #1c2420;
+    --ink-900: #e9ece6;
+    --ink-600: #aab4ac;
+    --ink-500: #9aa59c;
+    --ink-400: #7c8880;
+    --line: #293530;
+    --line-strong: #374139;
+    --accent: #7fa9c9;
+    --accent-strong: #a3c4df;
+    --accent-tint: #1d2c36;
+    --good: #0ca30c;
+    --good-text: #0ca30c;
+    --warning: #fab219;
+    --serious: #ec835a;
+    --critical: #e2635f;
+    --series-revenue: #3987e5;
+    --series-expense: #d95926;
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 8px 24px -12px rgba(0, 0, 0, 0.5);
+    --shadow-hover: 0 20px 40px rgba(0, 0, 0, 0.5), 0 6px 14px rgba(0, 0, 0, 0.4);
+    --glass-bg: rgba(28, 36, 32, 0.72);
+    --glass-border: rgba(255, 255, 255, 0.1);
+  }
+}
+.dc-dailyClose[data-theme="dark"] {
+  color-scheme: dark;
+  --paper-0: #0f1512;
+  --surface: #161d1a;
+  --surface-2: #1c2420;
+  --ink-900: #e9ece6;
+  --ink-600: #aab4ac;
+  --ink-500: #9aa59c;
+  --ink-400: #7c8880;
+  --line: #293530;
+  --line-strong: #374139;
+  --accent: #7fa9c9;
+  --accent-strong: #a3c4df;
+  --accent-tint: #1d2c36;
+  --good: #0ca30c;
+  --good-text: #0ca30c;
+  --warning: #fab219;
+  --serious: #ec835a;
+  --critical: #e2635f;
+  --series-revenue: #3987e5;
+  --series-expense: #d95926;
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 8px 24px -12px rgba(0, 0, 0, 0.5);
+  --shadow-hover: 0 20px 40px rgba(0, 0, 0, 0.5), 0 6px 14px rgba(0, 0, 0, 0.4);
+  --glass-bg: rgba(28, 36, 32, 0.72);
+  --glass-border: rgba(255, 255, 255, 0.1);
+}
+
+.dc-dailyClose * {
+  box-sizing: border-box;
+}
+
+.dc-page {
+  /* No max-width: the component's original 820px cap made this page visibly
+     narrower than every other page in the app, which fills the whole content
+     column. The container queries at the end of this file handle the layout at
+     every width, so the cap has nothing left to do. */
+  max-width: none;
+  margin: 0 auto;
+  padding: 28px 20px 40px;
+}
+
+.dc-dailyClose h1,
+.dc-dailyClose h2,
+.dc-dailyClose h3 {
+  font-family: "Bitter", Georgia, serif;
+  font-weight: 600;
+  margin: 0;
+}
+
+.dc-mono {
+  font-family: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+.dc-num {
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- Masthead ---------- */
+.dc-masthead {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 20px;
+  padding-bottom: 18px;
+  border-bottom: 1px solid var(--line-strong);
+  flex-wrap: wrap;
+}
+.dc-brandEyebrow {
+  font-size: 11px;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+  color: var(--ink-500);
+  font-weight: 600;
+}
+.dc-brandTitle {
+  font-size: 26px;
+  color: var(--ink-900);
+  margin-top: 2px;
+}
+.dc-accentword {
+  color: var(--accent);
+}
+.dc-mastheadRight {
+  text-align: right;
+}
+.dc-clientName {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--ink-900);
+  font-family: "IBM Plex Sans";
+}
+.dc-asof {
+  font-size: 12.5px;
+  color: var(--ink-600);
+  margin-top: 3px;
+}
+.dc-syncChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--ink-600);
+  margin-top: 8px;
+  border: 1px solid var(--line);
+  padding: 3px 9px 3px 7px;
+  border-radius: 100px;
+  background: var(--surface);
+}
+.dc-syncDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--good);
+  flex: none;
+  position: relative;
+}
+
+/* A live broadcast pulse — this now updates on a real interval (see
+   DailyClose.tsx), not just once when the page happens to load. */
+.dc-syncDot::after {
+  content: "";
+  position: absolute;
+  inset: -4px;
+  border-radius: 50%;
+  background: var(--good);
+  opacity: 0.55;
+  animation: dcLivePulse 2.2s ease-out infinite;
+}
+
+@keyframes dcLivePulse {
+  0% { transform: scale(0.6); opacity: 0.55; }
+  100% { transform: scale(2.2); opacity: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dc-syncDot::after { animation: none; display: none; }
+}
+.dc-demoTag {
+  background: var(--accent-tint);
+  color: var(--accent-strong);
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  padding: 2px 7px;
+  border-radius: 5px;
+  margin-left: 8px;
+  text-transform: uppercase;
+}
+
+/* ---------- KPI row ---------- */
+.dc-kpiRow {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin-top: 22px;
+}
+.dc-kpiTile {
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: 18px;
+  padding: 14px 14px 13px;
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(16px) saturate(1.3);
+  -webkit-backdrop-filter: blur(16px) saturate(1.3);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+  position: relative;
+  overflow: hidden;
+  /* Only the shadow eases — the hover pop itself is instant, not animated. */
+  transition: box-shadow 0.2s ease;
+}
+.dc-kpiLabel {
+  font-size: 11.5px;
+  color: var(--ink-600);
+  font-weight: 500;
+}
+.dc-kpiValue {
+  font-size: 22px;
+  font-weight: 600;
+  color: var(--ink-900);
+  line-height: 1.1;
+  letter-spacing: -0.01em;
+}
+.dc-kpiValue small {
+  font-size: 13px;
+  color: var(--ink-400);
+  font-weight: 500;
+}
+.dc-delta {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  width: fit-content;
+}
+.dc-deltaUp {
+  color: var(--good-text);
+}
+.dc-deltaDown {
+  color: var(--critical);
+}
+.dc-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 6px;
+  width: fit-content;
+}
+.dc-chip .dc-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex: none;
+}
+.dc-chipWarn {
+  background: color-mix(in srgb, var(--warning) 16%, var(--surface));
+  color: var(--ink-900);
+}
+.dc-chipWarn .dc-dot {
+  background: var(--warning);
+}
+.dc-chipCritical {
+  background: color-mix(in srgb, var(--critical) 14%, var(--surface));
+  color: var(--ink-900);
+}
+.dc-chipCritical .dc-dot {
+  background: var(--critical);
+}
+.dc-chipGood {
+  background: color-mix(in srgb, var(--good) 14%, var(--surface));
+  color: var(--ink-900);
+}
+.dc-chipGood .dc-dot {
+  background: var(--good);
+}
+.dc-kpiMeter {
+  height: 6px;
+  border-radius: 4px;
+  background: var(--surface-2);
+  overflow: hidden;
+  margin-top: auto;
+  position: relative;
+}
+.dc-kpiMeterFill {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  background: var(--accent);
+  border-radius: 4px;
+}
+.dc-kpiFoot {
+  font-size: 10.5px;
+  color: var(--ink-500);
+}
+
+/* ---------- Panels ---------- */
+.dc-grid2 {
+  display: grid;
+  grid-template-columns: 1.55fr 1fr;
+  gap: 12px;
+  margin-top: 12px;
+  align-items: stretch;
+}
+.dc-panel {
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: 18px;
+  padding: 16px 18px 14px;
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(16px) saturate(1.3);
+  -webkit-backdrop-filter: blur(16px) saturate(1.3);
+  min-width: 0;
+  position: relative;
+  overflow: hidden;
+  /* Only the shadow eases — the hover pop itself is instant, not animated. */
+  transition: box-shadow 0.2s ease;
+}
+
+.dc-kpiTile:hover,
+.dc-panel:hover {
+  transform: translateY(-4px) scale(1.015);
+  box-shadow: var(--shadow-hover);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dc-kpiTile:hover,
+  .dc-panel:hover {
+    transform: none;
+  }
+}
+
+/* Same slow, soft light glide used on the shell's glass cards (styles.css
+   .card::after) — kept in sync by hand since this file's tokens are
+   deliberately scoped and don't share a stylesheet with the shell. */
+.dc-kpiTile > *,
+.dc-panel > * {
+  position: relative;
+  z-index: 1;
+}
+
+/* No `filter: blur()` here on purpose — see .card::after in styles.css for
+   why (it flashed in light mode, stacked on this element's own
+   backdrop-filter). A radial ellipse fades to transparent in every
+   direction on its own, so it stays soft-edged without `filter` — a
+   linear-gradient band only fades along its own axis and left a visible
+   hard edge on the other two sides. */
+.dc-kpiTile::after,
+.dc-panel::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: -70%;
+  width: 85%;
+  height: 260%;
+  transform: translateY(-50%) rotate(12deg);
+  background: radial-gradient(ellipse at center, rgba(255, 255, 255, 0.07) 0%, rgba(255, 255, 255, 0.025) 45%, transparent 72%);
+  pointer-events: none;
+  animation: dcCardShimmer 42s ease-in-out infinite;
+}
+
+.dc-panel::after { animation-delay: -14s; }
+
+@keyframes dcCardShimmer {
+  0%, 35% { left: -70%; }
+  65%, 100% { left: 140%; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dc-kpiTile::after,
+  .dc-panel::after {
+    animation: none;
+    display: none;
+  }
+}
+.dc-panelHead {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 10px;
+  margin-bottom: 2px;
+  flex-wrap: wrap;
+}
+.dc-panelTitle {
+  font-size: 14.5px;
+  font-weight: 600;
+  font-family: "IBM Plex Sans";
+  color: var(--ink-900);
+}
+.dc-panelSub {
+  font-size: 11.5px;
+  color: var(--ink-500);
+}
+.dc-legend {
+  display: flex;
+  gap: 14px;
+  font-size: 11.5px;
+  color: var(--ink-600);
+  margin-top: 2px;
+}
+.dc-legendItem {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.dc-legendSwatchLine {
+  height: 2px;
+  width: 14px;
+  border-radius: 1px;
+  flex: none;
+}
+.dc-legendSwatchDashed {
+  background: transparent;
+  border-top: 2px dashed var(--ink-400);
+  width: 14px;
+  height: 0;
+}
+
+.dc-chartWrap {
+  position: relative;
+  margin-top: 6px;
+}
+.dc-chartWrap svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+.dc-tooltip {
+  position: absolute;
+  pointer-events: none;
+  z-index: 5;
+  background: var(--ink-900);
+  color: var(--paper-0);
+  font-size: 11.5px;
+  padding: 7px 9px;
+  border-radius: 7px;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.22);
+  transform: translate(-50%, -115%);
+  white-space: nowrap;
+  opacity: 0;
+  transition: opacity 0.08s ease;
+}
+.dc-tooltipShow {
+  opacity: 1;
+}
+.dc-tRow {
+  display: flex;
+  gap: 10px;
+  justify-content: space-between;
+}
+.dc-tDate {
+  color: var(--ink-400);
+  font-size: 10.5px;
+  margin-bottom: 3px;
+}
+
+.dc-barRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 0;
+}
+.dc-bLabel {
+  width: 104px;
+  flex: none;
+  font-size: 12px;
+  color: var(--ink-600);
+}
+.dc-bTrack {
+  flex: 1;
+  background: var(--surface-2);
+  border-radius: 4px;
+  height: 16px;
+  position: relative;
+  overflow: hidden;
+}
+.dc-bFill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  background: var(--series-revenue);
+  border-radius: 4px;
+}
+.dc-bValue {
+  width: 64px;
+  flex: none;
+  text-align: right;
+  font-size: 12px;
+  color: var(--ink-900);
+  font-weight: 500;
+}
+
+.dc-aging {
+  display: flex;
+  height: 20px;
+  border-radius: 5px;
+  overflow: hidden;
+  margin-top: 8px;
+}
+.dc-agingSeg {
+  height: 100%;
+}
+.dc-agingKey {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 9px 16px;
+  margin-top: 9px;
+}
+.dc-agingKeyItem {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--ink-600);
+}
+.dc-agingSwatch {
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  flex: none;
+}
+
+/* ---------- Outlook / predictive ---------- */
+.dc-outlook {
+  margin-top: 12px;
+}
+.dc-tabs {
+  display: flex;
+  gap: 6px;
+  background: var(--surface-2);
+  padding: 4px;
+  border-radius: 10px;
+  width: fit-content;
+}
+.dc-tab {
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-family: "IBM Plex Sans";
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--ink-600);
+  padding: 7px 13px;
+  border-radius: 7px;
+  transition: background 0.12s ease, color 0.12s ease;
+}
+.dc-tab:hover {
+  color: var(--ink-900);
+}
+.dc-tabActive {
+  background: var(--surface);
+  color: var(--accent-strong);
+  box-shadow: var(--shadow);
+}
+.dc-tab:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.dc-callout {
+  display: flex;
+  gap: 9px;
+  align-items: flex-start;
+  background: var(--accent-tint);
+  border-radius: 9px;
+  padding: 10px 12px;
+  font-size: 12.5px;
+  color: var(--ink-900);
+  margin-top: 12px;
+}
+.dc-methodology {
+  font-size: 11.5px;
+  color: var(--ink-500);
+  margin-top: 10px;
+  line-height: 1.5;
+}
+
+.dc-anomalyList {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  margin-top: 4px;
+}
+.dc-anomaly {
+  display: flex;
+  gap: 12px;
+  padding: 12px 2px;
+  border-top: 1px solid var(--line);
+}
+.dc-anomaly:first-child {
+  border-top: none;
+}
+.dc-sevStripe {
+  width: 3px;
+  border-radius: 2px;
+  flex: none;
+  align-self: stretch;
+}
+.dc-sevCritical {
+  background: var(--critical);
+}
+.dc-sevSerious {
+  background: var(--serious);
+}
+.dc-sevWarn {
+  background: var(--warning);
+}
+.dc-sevGood {
+  background: var(--good);
+}
+.dc-anomalyBody {
+  flex: 1;
+  min-width: 0;
+}
+.dc-anomalyTop {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  align-items: baseline;
+  flex-wrap: wrap;
+}
+.dc-anomalyTitle {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink-900);
+}
+.dc-anomalyAmt {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink-900);
+  flex: none;
+}
+.dc-anomalyDesc {
+  font-size: 12px;
+  color: var(--ink-600);
+  margin-top: 3px;
+  line-height: 1.45;
+}
+.dc-sevLabel {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-top: 4px;
+  display: inline-block;
+}
+.dc-sevLabelCritical {
+  color: var(--critical);
+}
+.dc-sevLabelSerious {
+  color: var(--serious);
+}
+.dc-sevLabelWarn {
+  color: #9c6c00;
+}
+.dc-dailyClose[data-theme="dark"] .dc-sevLabelWarn {
+  color: var(--warning);
+}
+@media (prefers-color-scheme: dark) {
+  .dc-dailyClose:not([data-theme="light"]) .dc-sevLabelWarn {
+    color: var(--warning);
+  }
+}
+.dc-sevLabelGood {
+  color: var(--good-text);
+}
+
+.dc-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 20px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+  font-size: 11px;
+  color: var(--ink-400);
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+@media (max-width: 720px) {
+  .dc-kpiRow {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .dc-grid2 {
+    grid-template-columns: 1fr;
+  }
+  .dc-masthead {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .dc-mastheadRight {
+    text-align: left;
+  }
+  .dc-tabs {
+    width: 100%;
+  }
+  .dc-tab {
+    flex: 1;
+    padding: 7px 6px;
+    font-size: 11.5px;
+    white-space: nowrap;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   Container-relative layout. These come last so they win over the viewport
+   media query above wherever container queries are supported; that query stays
+   as the fallback for the phone case.
+   --------------------------------------------------------------------------- */
+@container dailyclose (max-width: 780px) {
+  .dc-kpiRow {
+    /* 2x2 rather than auto-fit, which would leave an unbalanced 3 + 1. */
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .dc-grid2 {
+    grid-template-columns: 1fr;
+  }
+}
+
+@container dailyclose (max-width: 400px) {
+  .dc-kpiRow {
+    grid-template-columns: 1fr;
+  }
+  .dc-tabs {
+    width: 100%;
+  }
+  .dc-tab {
+    flex: 1;
+    white-space: nowrap;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   Chart entrance animations, matching the shell's (see styles.css).
+
+   The Outlook tabs render their panels conditionally, so switching between
+   Cash Flow Forecast / Revenue Trend / Anomalies unmounts one and mounts the
+   next — these replay on every tab switch without needing a key.
+
+   Same clip-path trick as the shell: negative insets on three sides, because
+   `.dc-chartWrap svg` is `overflow: visible` and draws end labels and the low
+   point marker outside its own box.
+   --------------------------------------------------------------------------- */
+@keyframes dc-wipe-in {
+  from {
+    clip-path: inset(-50% 100% -50% -50%);
+  }
+  to {
+    clip-path: inset(-50% -50% -50% -50%);
+  }
+}
+
+@keyframes dc-grow-x {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+@keyframes dc-rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  /* Held in pre-reveal state until an ancestor .dc-kpiTile/.dc-panel gets
+     .in-view — added once, by the same IntersectionObserver in App()
+     (app.jsx) that drives the shell's charts, so both play by the same
+     rule: only once visible, and each card's own --reveal-dur (also set
+     there) instead of one fixed speed for everything. */
+  .dc-chartWrap svg,
+  .dc-kpiSpark {
+    clip-path: inset(-50% 100% -50% -50%);
+  }
+
+  .dc-kpiTile[data-in-view] .dc-kpiSpark,
+  .dc-panel[data-in-view] .dc-chartWrap svg {
+    animation: dc-wipe-in var(--reveal-dur, 2200ms) cubic-bezier(0.22, 0.61, 0.36, 1) both;
+  }
+
+  /* The four sparklines stagger across the KPI row. */
+  .dc-kpiRow > *:nth-child(2) .dc-kpiSpark { animation-delay: 70ms; }
+  .dc-kpiRow > *:nth-child(3) .dc-kpiSpark { animation-delay: 140ms; }
+  .dc-kpiRow > *:nth-child(4) .dc-kpiSpark { animation-delay: 210ms; }
+
+  .dc-kpiMeterFill,
+  .dc-bFill {
+    transform-origin: left center;
+    transform: scaleX(0);
+  }
+
+  .dc-kpiTile[data-in-view] .dc-kpiMeterFill,
+  .dc-panel[data-in-view] .dc-bFill {
+    animation: dc-grow-x var(--reveal-dur, 1800ms) cubic-bezier(0.22, 0.61, 0.36, 1) both;
+  }
+
+  /* Expense breakdown bars cascade down the list. */
+  .dc-barRow:nth-child(1) .dc-bFill { animation-delay: 60ms; }
+  .dc-barRow:nth-child(2) .dc-bFill { animation-delay: 110ms; }
+  .dc-barRow:nth-child(3) .dc-bFill { animation-delay: 160ms; }
+  .dc-barRow:nth-child(4) .dc-bFill { animation-delay: 210ms; }
+  .dc-barRow:nth-child(5) .dc-bFill { animation-delay: 260ms; }
+  .dc-barRow:nth-child(n + 6) .dc-bFill { animation-delay: 310ms; }
+
+  /* The aging bar is a flex row of segments — scaling each one in place would
+     leave gaps, so the whole bar wipes in as a unit. */
+  .dc-aging {
+    transform-origin: left center;
+    transform: scaleX(0);
+  }
+
+  .dc-panel[data-in-view] .dc-aging {
+    animation: dc-grow-x var(--reveal-dur, 1960ms) cubic-bezier(0.22, 0.61, 0.36, 1) both;
+  }
+
+  .dc-callout,
+  .dc-anomaly {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+
+  .dc-panel[data-in-view] .dc-callout,
+  .dc-panel[data-in-view] .dc-anomaly {
+    animation: dc-rise-in var(--reveal-dur, 1440ms) cubic-bezier(0.22, 0.61, 0.36, 1) both;
+  }
+  .dc-anomaly:nth-child(2) { animation-delay: 80ms; }
+  .dc-anomaly:nth-child(3) { animation-delay: 160ms; }
+  .dc-anomaly:nth-child(n + 4) { animation-delay: 240ms; }
+}

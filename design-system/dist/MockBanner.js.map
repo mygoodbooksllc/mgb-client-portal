@@ -1,0 +1,7 @@
+{
+  "version": 3,
+  "sources": ["../src/MockBanner.tsx"],
+  "sourcesContent": ["import React from \"react\";\n\n/** Props for {@link MockBanner}. */\nexport interface MockBannerProps {\n  /** Explanatory text shown next to the flask icon (e.g. what data on this page is fabricated). */\n  text: string;\n}\n\n/**\n * Small inline banner used at the top of pages built on prototype/sample\n * data, to make clear to the viewer that the numbers aren't live yet.\n */\nexport function MockBanner({ text }: MockBannerProps) {\n  return <div className=\"mock-banner\">\uD83E\uDDEA {text}</div>;\n}\n"],
+  "mappings": ";AAaS;AADF,SAAS,WAAW,EAAE,KAAK,GAAoB;AACpD,SAAO,qBAAC,SAAI,WAAU,eAAc;AAAA;AAAA,IAAI;AAAA,KAAK;AAC/C;",
+  "names": []
+}

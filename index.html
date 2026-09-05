@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>MyGoodBooks — Client Dashboard (Prototype)</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <!-- One request for the whole app. Bitter / IBM Plex Sans / IBM Plex Mono are
+         shared with <DailyClose />; the shell additionally needs Bitter italic and
+         weight 800. No next/font here (no Next.js, no bundler), so they load the
+         <link> way, per the component's integration notes. Lato is gone. -->
+    <link
+      href="https://fonts.googleapis.com/css2?family=Bitter:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400;1,500;1,600&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&family=IBM+Plex+Mono:wght@400;500;600&display=swap"
+      rel="stylesheet"
+    />
+    <script>
+      // Cache-bust so local edits to styles.css always show up on reload.
+      document.write('<link rel="stylesheet" href="styles.css?v=' + Date.now() + '">');
+      document.write(
+        '<link rel="stylesheet" href="components/daily-close/DailyClose.css?v=' + Date.now() + '">'
+      );
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.4/dist/jspdf.plugin.autotable.min.js"></script>
+
+    <script>
+      // Manually fetch + transform each file so we can force Babel's
+      // "classic" JSX runtime (the default "automatic" runtime needs a
+      // real module bundler, which we intentionally don't have here).
+      async function loadBabelScript(path) {
+        const src = await fetch(path, { cache: "no-store" }).then((r) => r.text());
+        // DailyClose ships as TypeScript. The preset only strips the types
+        // (no type-checking) and infers JSX from the filename we pass below,
+        // so a plain .ts file never gets the JSX plugin it would reject.
+        const presets = [];
+        if (/\.tsx?$/.test(path)) presets.push("typescript");
+        if (/\.(jsx|tsx)$/.test(path)) presets.push(["react", { runtime: "classic" }]);
+        if (/\.js$/.test(path)) presets.push(["react", { runtime: "classic" }]);
+        const code = Babel.transform(src, { filename: path, presets }).code;
+        const script = document.createElement("script");
+        script.text = code;
+        document.body.appendChild(script);
+      }
+
+      (async () => {
+        await loadBabelScript("data.js");
+        // DailyClose must be defined before app.jsx renders it.
+        await loadBabelScript("components/daily-close/sampleData.ts");
+        await loadBabelScript("components/daily-close/DailyClose.tsx");
+        await loadBabelScript("components/daily-close/fromClient.js");
+        await loadBabelScript("app.jsx");
+      })();
+    </script>
+  </body>
+</html>

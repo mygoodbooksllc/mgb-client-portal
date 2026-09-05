@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "client-dashboard",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["/Users/holdengray/Desktop/Mygoodbooks-app-code/client-dashboard/.claude/serve.js"],
+      "port": 8420
+    }
+  ]
+}

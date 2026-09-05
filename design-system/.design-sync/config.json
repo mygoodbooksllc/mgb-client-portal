@@ -1,0 +1,19 @@
+{
+  "projectId": "b5c754f7-266e-4cf2-98a4-f1445fca1cc8",
+  "shape": "package",
+  "pkg": "mygoodbooks-ds",
+  "globalName": "MygoodbooksDS",
+  "buildCmd": "npm run build",
+  "cssEntry": "dist/styles.css",
+  "runtimeFontPrefixes": ["Bitter", "IBM Plex Sans", "IBM Plex Mono"],
+  "readmeHeader": ".design-sync/conventions.md",
+  "overrides": {
+    "AccountCashDonut": { "cardMode": "column" },
+    "Card": { "cardMode": "column" },
+    "CardSubtitle": { "cardMode": "column" },
+    "CardTitle": { "cardMode": "column" },
+    "IncomeExpenseChart": { "cardMode": "column" },
+    "ReportBarRows": { "cardMode": "column" },
+    "ToastProvider": { "cardMode": "single", "primaryStory": "WithToast" }
+  }
+}
