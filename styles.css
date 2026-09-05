@@ -2718,6 +2718,11 @@ body.rb-presenting .main {
 
 .draggable-card {
   cursor: grab;
+  /* Touch reorder is a press-and-hold (see useDragReorder in app.jsx), and
+     iOS answers a long press on content with the text-selection callout —
+     which would fight the drag. Suppressed here, not globally, so text
+     elsewhere stays selectable. */
+  -webkit-touch-callout: none;
 }
 
 .draggable-card.card-dragging {
@@ -2727,6 +2732,9 @@ body.rb-presenting .main {
   box-shadow: var(--shadow-hover);
   z-index: 5;
   animation: none !important;
+  /* Belt and braces with the non-passive touchmove blocker: once a card is
+     actually held, the browser must not claim the gesture for scrolling. */
+  touch-action: none;
 }
 
 /* iPhone-homescreen wiggle: every other card in the grid jiggles in place
@@ -3388,6 +3396,68 @@ body.rb-presenting .main {
   .account-tab {
     min-width: 0;
     flex: 1 1 45%;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   Touch tap targets.
+
+   Keyed off the input device, not the screen width: a touch laptop or tablet
+   showing the full desktop layout needs finger-sized controls just as much as
+   a phone does, and a narrow desktop window driven by a mouse does not. These
+   controls all measured between 16px and 32px tall in a mobile audit, well
+   under the ~44px both Apple and Google call the minimum comfortable target.
+   Only the hit area grows — type sizes and the desktop layout are untouched.
+   --------------------------------------------------------------------------- */
+@media (pointer: coarse) {
+  .dc-tab,
+  .visibility-toggle,
+  .customize-dashboard-btn,
+  .btn-secondary,
+  .account-tab,
+  .thread-tab {
+    min-height: 44px;
+  }
+
+  .row-remove-btn {
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  /* The input itself is short; padding the row makes the whole search bar a
+     comfortable target without changing how it looks. */
+  .global-search-input {
+    min-height: 40px;
+  }
+
+  /* Checkboxes are the smallest targets in the app (16px). Bigger boxes plus a
+     taller row so the label is comfortably tappable too. */
+  .rb-checklist input[type="checkbox"],
+  .widget-picker-label input[type="checkbox"] {
+    width: 22px;
+    height: 22px;
+  }
+
+  .rb-checklist li,
+  .widget-picker-row {
+    min-height: 44px;
+  }
+
+  /* The label is what actually toggles the box, so it has to fill the row —
+     a 44px row wrapping a 28px label leaves a dead band top and bottom that
+     silently swallows taps. */
+  .rb-checklist label,
+  .widget-picker-label {
+    min-height: 44px;
+    flex: 1;
+  }
+
+  .rb-segmented button {
+    min-height: 44px;
+  }
+
+  .budget-input {
+    min-height: 44px;
   }
 }
 

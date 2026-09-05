@@ -3583,13 +3583,52 @@ function useWidgetLayout(scopeKey, allIds) {
 // picked up and dropped to reorder — same underlying layout.reorder, just
 // driven by dragging the card itself. dragProps(id) spreads onto the card's
 // wrapper div; dragClass(id) adds the visual feedback classes.
+// How long a finger has to rest on a card before it's picked up. Long enough
+// that a normal scroll swipe never trips it, short enough not to feel stuck.
+const CARD_LONG_PRESS_MS = 350;
+
 function useDragReorder(layout) {
   const [draggedId, setDraggedId] = useState(null);
+  // Touch bookkeeping lives in a ref, not state: it changes on every pointer
+  // move and must not re-render the grid on its own.
+  const touch = useRef({ id: null, x: 0, y: 0, timer: null, active: false, el: null, pointerId: null });
+
+  const resetTouch = () => {
+    const t = touch.current;
+    if (t.timer) clearTimeout(t.timer);
+    if (t.el && t.pointerId != null) {
+      try {
+        t.el.releasePointerCapture(t.pointerId);
+      } catch (e) {
+        /* capture was already released, or never taken */
+      }
+    }
+    touch.current = { id: null, x: 0, y: 0, timer: null, active: false, el: null, pointerId: null };
+  };
+
+  const endTouchDrag = () => {
+    resetTouch();
+    setDraggedId(null);
+  };
+
+  // A live touch drag has to stop the page scrolling out from under the
+  // finger. React's own touchmove listener is passive, so preventDefault has
+  // to come from a native non-passive one — attached only for the life of the
+  // drag so ordinary scrolling is never touched.
+  useEffect(() => {
+    if (!draggedId) return;
+    const block = (e) => {
+      if (touch.current.active) e.preventDefault();
+    };
+    document.addEventListener("touchmove", block, { passive: false });
+    return () => document.removeEventListener("touchmove", block);
+  }, [draggedId]);
 
   return {
     // iPhone-homescreen-style: cards shuffle live the instant you drag over
     // a neighbor, not just when you release — dropping only ends the grab.
     dragProps: (id) => ({
+      // --- Mouse: the browser's own drag-and-drop, ghost image and all. ---
       draggable: true,
       onDragStart: () => setDraggedId(id),
       onDragOver: (e) => {
@@ -3601,6 +3640,51 @@ function useDragReorder(layout) {
         setDraggedId(null);
       },
       onDragEnd: () => setDraggedId(null),
+
+      // --- Touch: HTML5 drag events are never fired from a finger, on any
+      // mobile browser, so a pointer-based path stands in for them. Press and
+      // hold to pick a card up (a plain swipe still scrolls the page), then
+      // slide over a neighbour to shuffle it, exactly as the mouse path does.
+      // elementFromPoint is what finds the card under the finger: pointer
+      // capture routes every move back to the held card, so hit-testing by
+      // hand is the only way to know what it's over. ---
+      "data-widget-id": id,
+      onPointerDown: (e) => {
+        if (e.pointerType === "mouse") return;
+        const el = e.currentTarget;
+        const pointerId = e.pointerId;
+        resetTouch();
+        touch.current = { id, x: e.clientX, y: e.clientY, timer: null, active: false, el, pointerId };
+        touch.current.timer = setTimeout(() => {
+          touch.current.active = true;
+          try {
+            el.setPointerCapture(pointerId);
+          } catch (err) {
+            /* element left the DOM mid-press */
+          }
+          setDraggedId(id);
+        }, CARD_LONG_PRESS_MS);
+      },
+      onPointerMove: (e) => {
+        if (e.pointerType === "mouse") return;
+        const t = touch.current;
+        if (!t.id) return;
+        if (!t.active) {
+          // Moved before the hold landed — that's a scroll, not a pick-up.
+          if (Math.abs(e.clientX - t.x) + Math.abs(e.clientY - t.y) > 10) resetTouch();
+          return;
+        }
+        const under = document.elementFromPoint(e.clientX, e.clientY);
+        const targetEl = under && under.closest ? under.closest("[data-widget-id]") : null;
+        const targetId = targetEl && targetEl.getAttribute("data-widget-id");
+        if (targetId && targetId !== t.id) layout.reorder(t.id, targetId);
+      },
+      onPointerUp: (e) => {
+        if (e.pointerType !== "mouse") endTouchDrag();
+      },
+      onPointerCancel: (e) => {
+        if (e.pointerType !== "mouse") endTouchDrag();
+      },
     }),
     // The card being held stops jiggling and lifts; every other card in the
     // grid jiggles in place, same as iOS's wiggle-to-rearrange mode.
@@ -3625,6 +3709,7 @@ function WidgetPickerModal({ widgets, layout, onClose }) {
         </div>
         <p className="card-subtitle" style={{ marginBottom: 16 }}>
           Pull in any card you have access to from across the app, and drag the handle to reorder them — make this your hub.
+          On the dashboard itself, drag a card to move it, or press and hold on a touch screen.
         </p>
         <div className="widget-picker-list">
           {layout.order.map((id) => {
