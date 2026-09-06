@@ -3418,6 +3418,32 @@ body.rb-presenting .main {
    Only the hit area grows — type sizes and the desktop layout are untouched.
    --------------------------------------------------------------------------- */
 @media (pointer: coarse) {
+  /* iOS Safari auto-zooms the whole page on focus for any text-entry field
+     under 16px — and never zooms back out on its own. Every text/number
+     input and <select> in this app renders at 13.5-14px, so focusing any of
+     them (the search bar, the client picker, a budget cell, a Report Builder
+     dropdown) left the page zoomed in with no way back except a manual
+     pinch — which is what "isn't fitting right, scrolling all around" was.
+     16px is the documented threshold; raised exactly to it, nothing more,
+     so type sizes elsewhere are otherwise untouched. Checkboxes/radios are
+     excluded — they don't trigger this and don't render text at this size. */
+  input[type="text"],
+  input[type="number"],
+  input[type="email"],
+  input[type="tel"],
+  input[type="search"],
+  input:not([type]),
+  textarea,
+  select,
+  /* These set their own font-size by class, which otherwise outranks the
+     plain element selectors above on specificity alone. */
+  .client-select,
+  .global-search-input,
+  .rb-select,
+  .budget-input {
+    font-size: 16px;
+  }
+
   .dc-tab,
   .visibility-toggle,
   .customize-dashboard-btn,
