@@ -1665,25 +1665,34 @@ body.rb-presenting .main {
 
 /* ---------------- Global search ---------------- */
 
+/* The search bar borrows the cards' glass surface but is deliberately NOT a
+   .card. It used to carry that class and kept colliding with behaviour meant
+   for content cards, because .card assumes nothing ever escapes its box and
+   the dropdown does exactly that:
+     - overflow:hidden silently clipped the dropdown and made it unclickable;
+     - overriding that to visible then let .card::after's shimmer — 131px tall
+       on a 53px bar — spill ~39px past the rounded corners;
+     - backdrop-filter creates a stacking context, trapping the dropdown's
+       z-index inside the bar so the (also backdrop-filtered, also auto)
+       content cards below painted over the open results by DOM order;
+     - .card:hover lifted and scaled the whole search bar like a tile.
+   So it takes the surface it wants and none of the rest. Anything added to
+   .card from here on should be a deliberate choice to repeat here, not
+   something the search bar inherits by accident. */
 .global-search {
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: 20px;
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(16px) saturate(1.3);
+  -webkit-backdrop-filter: blur(16px) saturate(1.3);
   position: relative;
   margin-bottom: 20px;
   padding: 12px 16px;
-  /* Overrides .card's overflow:hidden (needed there to clip the shimmer
-     sweep to the rounded corners). The results dropdown below is an
-     absolutely-positioned child that extends past this card's own box —
-     with overflow:hidden inherited, it was being silently clipped AND made
-     unclickable, on every screen size, not just mobile. Confirmed via
-     elementFromPoint returning the page background instead of a result
-     button at the button's own reported coordinates. */
-  overflow: visible;
-  /* This card owns the dropdown's stacking layer, and it has to: .card sets
-     backdrop-filter, which creates a stacking context, so the dropdown's own
-     z-index can only order it against its siblings inside this card — it can
-     never lift it above anything outside. Every KPI/content card below is
-     also backdrop-filtered and also z-index:auto, so with this left at auto
-     they won by DOM order and painted straight over the open results.
-     Keep this above content and below the drawer (1700) and modals (2000). */
+  /* backdrop-filter above makes this a stacking context regardless, so it has
+     to carry the layer itself — a z-index on the dropdown alone can never lift
+     it out of here. Above page content, below the drawer (1700) and modals
+     (2000). */
   z-index: 800;
 }
 

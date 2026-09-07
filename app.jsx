@@ -589,7 +589,7 @@ function GlobalSearch({ client, messages, visibleKeys, onNavigate }) {
   };
 
   return (
-    <div className="global-search card" ref={wrapRef}>
+    <div className="global-search" ref={wrapRef}>
       <div className="global-search-row">
         <span className="global-search-icon">🔍</span>
         <input
