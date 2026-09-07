@@ -133,6 +133,23 @@ def build(out_path: pathlib.Path, refresh: bool) -> None:
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="{FONTS}" rel="stylesheet" />
+<script>
+// Mirrors the same block in index.html. Dark is the product default; light is
+// opt-in. This has to run before the stylesheet below is applied, otherwise a
+// light-OS machine renders the light palette until React mounts and sets the
+// attribute itself — which in this bundle means until Babel has compiled the
+// whole app, so the flash is very visible.
+(function () {{
+  var stored = null;
+  try {{
+    stored = localStorage.getItem("mygoodbooks_theme_v1");
+  }} catch (e) {{}}
+  document.documentElement.setAttribute(
+    "data-theme",
+    stored === "light" ? "light" : "dark"
+  );
+}})();
+</script>
 <style>
 {css}
 </style>

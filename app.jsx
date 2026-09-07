@@ -3954,6 +3954,11 @@ function App() {
   // nothing steals focus with the chat popup on first load.
   const [selectedClientId, setSelectedClientId] = useState("riverside-pantry");
   const [page, setPage] = useState("daily-close");
+  // Count-up gating (see the effect further down). Armed for the page the user
+  // lands on, disarmed the moment they navigate away from it.
+  const countUpArmed = useRef(true);
+  const countUpTeardown = useRef(null);
+  const countUpFirstPage = useRef(true);
   const [tabConfig, setTabConfig] = useState(loadTabConfig);
   const [tabOrder, setTabOrder] = useState(loadTabOrder);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -4261,9 +4266,6 @@ function App() {
   // at different times and read as jitter; they're uniform now.
   useEffect(() => {
     const seen = new WeakSet();
-    // After this window, numbers simply render at their real value.
-    const INTRO_MS = 2000;
-    const mountedAt = performance.now();
     const animate = (textNode, prefix, suffix, target, decimals) => {
       const duration = 650;
       const start = performance.now();
@@ -4277,7 +4279,7 @@ function App() {
       requestAnimationFrame(frame);
     };
     const trigger = (el) => {
-      if (performance.now() - mountedAt > INTRO_MS) return;
+      if (!countUpArmed.current) return;
       const candidates = Array.from(el.childNodes).filter((n) => n.nodeType === Node.TEXT_NODE && n.data.trim());
       const textNode = candidates.find((n) => /\d/.test(n.data)) || candidates[0];
       if (!textNode) return;
@@ -4305,19 +4307,36 @@ function App() {
     scan();
     const mo = new MutationObserver(scan);
     mo.observe(document.body, { childList: true, subtree: true });
-    // Once the intro window has passed there is nothing left to animate, so
-    // stop watching the whole document rather than re-scanning on every
-    // render for the rest of the session.
-    const stop = setTimeout(() => {
+    // Handed to the disarm effect below so it can stop watching the document
+    // once there's nothing left to animate.
+    countUpTeardown.current = () => {
       io.disconnect();
       mo.disconnect();
-    }, INTRO_MS + 100);
+    };
     return () => {
-      clearTimeout(stop);
       io.disconnect();
       mo.disconnect();
     };
   }, []);
+
+  // Disarm on the first navigation. This used to be a 2s wall clock, which
+  // quietly killed the animation on the real site: a cold load saturates the
+  // main thread right after mount (Babel has just compiled the app, React is
+  // rendering the whole dashboard), IntersectionObserver callbacks are only
+  // delivered once that work lets go, and past the deadline every number was
+  // skipped and rendered flat. Localhost with a warm cache was always fast
+  // enough to hide it. Nothing here depends on how long the first paint takes.
+  useEffect(() => {
+    if (countUpFirstPage.current) {
+      countUpFirstPage.current = false;
+      return;
+    }
+    countUpArmed.current = false;
+    if (countUpTeardown.current) {
+      countUpTeardown.current();
+      countUpTeardown.current = null;
+    }
+  }, [page]);
 
   // Greet whoever's actually being previewed; otherwise fall back to the
   // client's first listed contact, since that's who'd land on this portal.
