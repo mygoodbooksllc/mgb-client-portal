@@ -19,34 +19,16 @@ exact instructions for each item.*
   sidebar, Daily Report panel all render correctly with sample data. Live at
   `mgb-client-portal-jlkwhzwlc-mygoodbooks-llc.vercel.app` (and stable alias
   `mgb-client-portal.vercel.app`).
-- **Started `app.mygoodbooks.org` domain setup**: domain added in Vercel → Settings →
-  Domains, status "Invalid Configuration" (expected — DNS not added yet). Paused here
-  because GoDaddy access wasn't available; pick up tomorrow.
-
----
-
-## Next up: finish the domain, right where we left off
-
-Vercel wants this exact DNS record (already generated, won't change unless you remove and
-re-add the domain in Vercel):
-
-| Type  | Name | Value |
-|-------|------|-------|
-| CNAME | `app` | `283ce79c9b92b552.vercel-dns-017.com` |
-
-Steps:
-1. [dcc.godaddy.com](https://dcc.godaddy.com) → `mygoodbooks.org` → DNS → Add a record.
-2. Type **CNAME**, Name **app**, Value as above (drop the trailing dot if GoDaddy errors on
-   it), TTL default.
-3. Save. Propagation can take minutes to an hour; Vercel auto-detects and flips the domain
-   status to verified once it sees it. Doesn't touch `@` or `www` — the live Squarespace
-   site at the bare domain is untouched.
+- **`app.mygoodbooks.org` is live** — CNAME record added in GoDaddy (`app` →
+  `283ce79c9b92b552.vercel-dns-017.com`), propagated within minutes, Vercel shows "Valid
+  Configuration," and the domain serves the full dashboard correctly. Confirmed by loading
+  it directly. Doesn't touch `@` or `www` — the Squarespace site at the bare domain is
+  untouched.
 
 ---
 
 ## Full to-do list
 
-- [ ] **Finish `app.mygoodbooks.org` DNS** — see above, blocked on GoDaddy access.
 - [ ] **Add a "Client Portal" button to the live Squarespace site** — a nav link or button
       block pointing at `https://app.mygoodbooks.org`. Squarespace dashboard → Pages →
       Navigation (add a link, not a page) or a Button block on any section. I can drive
