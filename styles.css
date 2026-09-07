@@ -1677,6 +1677,14 @@ body.rb-presenting .main {
      elementFromPoint returning the page background instead of a result
      button at the button's own reported coordinates. */
   overflow: visible;
+  /* This card owns the dropdown's stacking layer, and it has to: .card sets
+     backdrop-filter, which creates a stacking context, so the dropdown's own
+     z-index can only order it against its siblings inside this card — it can
+     never lift it above anything outside. Every KPI/content card below is
+     also backdrop-filtered and also z-index:auto, so with this left at auto
+     they won by DOM order and painted straight over the open results.
+     Keep this above content and below the drawer (1700) and modals (2000). */
+  z-index: 800;
 }
 
 .global-search-row {
@@ -1717,7 +1725,10 @@ body.rb-presenting .main {
   box-shadow: 0 12px 30px rgba(0, 0, 0, 0.15);
   max-height: 340px;
   overflow-y: auto;
-  z-index: 800;
+  /* Local only — it orders the dropdown above the search row beside it. The
+     layer that lifts it over the page's cards is z-index on .global-search,
+     which is the stacking context this sits in. */
+  z-index: 1;
 }
 
 .global-search-empty {
