@@ -79,8 +79,22 @@ const timeOfDayGreeting = () => {
 
 const totalCash = (client) => client.bankAccounts.reduce((s, a) => s + a.balance, 0);
 
-const avgMonthlyBurn = (client) =>
-  client.monthly.reduce((sum, m) => sum + Math.max(m.expenses - m.income, 0), 0) / client.monthly.length;
+const avgMonthlyExpenses = (client) =>
+  client.monthly.reduce((sum, m) => sum + m.expenses, 0) / client.monthly.length;
+
+// Months of operating reserve: how long cash on hand would cover normal
+// operating costs if income stopped. This is the standard nonprofit measure,
+// and it always yields a comparable number.
+//
+// It replaces an earlier "burn rate" that averaged only the deficit months
+// (max(expenses - income, 0)) across ALL months. One bad month in six was
+// divided by six, so Riverside — a pantry with a single $2,700 shortfall —
+// reported 184.9 months (15 years) of runway, and the two clients that never
+// ran a deficit divided by zero and fell through to a bare "Healthy".
+const runwayMonthsFor = (client) => {
+  const monthlyExpenses = avgMonthlyExpenses(client);
+  return monthlyExpenses > 0 ? totalCash(client) / monthlyExpenses : null;
+};
 
 const lastMessageFromBookkeeper = (client) => {
   const msgs = client.messages || [];
@@ -100,12 +114,10 @@ const seedThread = (clientId, userId) => {
 function computeAlerts(client) {
   const alerts = [];
   const current = client.monthly[client.monthly.length - 1];
-  const cash = totalCash(client);
-  const burn = avgMonthlyBurn(client);
-  const runway = burn > 0 ? cash / burn : null;
+  const runway = runwayMonthsFor(client);
 
   if (runway !== null && runway < 3) {
-    alerts.push(`Cash runway is under 3 months (${runway.toFixed(1)} mo) at the recent burn rate.`);
+    alerts.push(`Cash on hand covers under 3 months of operating expenses (${runway.toFixed(1)} mo).`);
   }
   if (current.income - current.expenses < 0) {
     alerts.push(`This month ran a deficit of ${fmtMoney(Math.abs(current.income - current.expenses))}.`);
@@ -453,10 +465,17 @@ function Sidebar({
       </nav>
 
       <div className="sidebar-utility-row">
-        {isBookkeeper && (
+        {isBookkeeper ? (
           <button className="customize-tabs-btn" onClick={onOpenSettings}>
             ⚙ Manage access
           </button>
+        ) : (
+          // Clients don't get "Manage access", and the toggle's margin-left:auto
+          // left it floating alone against the right edge above a tall empty
+          // gap. Labelling it fills the row and says what the button does.
+          <span className="sidebar-utility-label">
+            {effectiveTheme === "dark" ? "Dark mode" : "Light mode"}
+          </span>
         )}
         <button
           className="theme-toggle theme-toggle-signature"
@@ -779,7 +798,7 @@ function ReferralPopup({ isBookkeeper, promoText, onSave }) {
   );
 }
 
-// Circular progress ring used for the Cash Runway KPI (Option C direction).
+// Circular progress ring used for the Operating Reserve KPI (Option C direction).
 // `pct` is 0-1; `tone` picks the good/bad color via the existing --good/--bad
 // tokens so it stays in sync with the text tone used elsewhere on the card.
 function RunwayRing({ pct, tone, children }) {
@@ -1111,7 +1130,7 @@ function crossTabWidgetDefs(client, access) {
 // ----------------------------------------------------------------------------
 
 // Dashboard for someone scoped to specific ministry areas. Deliberately omits
-// org-wide figures (total cash, revenue, runway) — those aren't theirs to see.
+// org-wide figures (total cash, revenue, operating reserve) — not theirs to see.
 function ScopedDashboardPage({ client, access, isBookkeeper, promoText, onSaveReferralPromo }) {
   const budgeted = client.budget.reduce((s, b) => s + b.budgeted, 0);
   const spent = client.budget.reduce((s, b) => s + b.actual, 0);
@@ -1204,7 +1223,7 @@ function ScopedDashboardPage({ client, access, isBookkeeper, promoText, onSaveRe
                   <h3 className="card-title">Your Budget</h3>
                   <p className="card-subtitle">Budgeted vs. actual, current month</p>
                   <div className="table-scroll">
-                    <table className="budget-table">
+                    <table className="budget-table tx-table-labeled">
                       <thead>
                         <tr>
                           <th style={{ width: "40%" }}>Category</th>
@@ -1220,7 +1239,7 @@ function ScopedDashboardPage({ client, access, isBookkeeper, promoText, onSaveRe
                           const pct = (b.actual / b.budgeted) * 100;
                           return (
                             <tr key={b.category}>
-                              <td>
+                              <td data-primary="">
                                 <div className="category-name">{b.category}</div>
                                 <div className="bar-track">
                                   <div
@@ -1229,9 +1248,9 @@ function ScopedDashboardPage({ client, access, isBookkeeper, promoText, onSaveRe
                                   ></div>
                                 </div>
                               </td>
-                              <td className="num">{fmtMoney(b.budgeted)}</td>
-                              <td className="num">{fmtMoney(b.actual)}</td>
-                              <td className="num">
+                              <td className="num" data-label="Budgeted">{fmtMoney(b.budgeted)}</td>
+                              <td className="num" data-label="Actual">{fmtMoney(b.actual)}</td>
+                              <td className="num" data-label="Variance">
                                 {b.actual - b.budgeted >= 0 ? "+" : ""}
                                 {fmtMoney(b.actual - b.budgeted)}
                               </td>
@@ -1292,8 +1311,7 @@ function DashboardPage({ client, access, isBookkeeper, promoText, onSaveReferral
   const prevNetIncome = prev.income - prev.expenses;
   const netChangePct = prevNetIncome !== 0 ? ((netIncome - prevNetIncome) / Math.abs(prevNetIncome)) * 100 : 0;
 
-  const burn = avgMonthlyBurn(client);
-  const runwayMonths = burn > 0 ? cash / burn : null;
+  const runwayMonths = runwayMonthsFor(client);
   const alerts = computeAlerts(client);
 
   const kpis = [
@@ -1311,13 +1329,15 @@ function DashboardPage({ client, access, isBookkeeper, promoText, onSaveReferral
       tone: current.income >= prev.income ? "positive" : "negative",
     },
     {
-      label: "Cash Runway",
-      value: runwayMonths ? `${runwayMonths.toFixed(1)} mo` : "Healthy",
-      sub: runwayMonths ? "at recent burn rate" : "spending below income",
-      tone: runwayMonths && runwayMonths < 3 ? "negative" : "positive",
+      label: "Operating Reserve",
+      value: runwayMonths == null ? "—" : `${runwayMonths.toFixed(1)} mo`,
+      sub: "of expenses covered by cash",
+      tone: runwayMonths != null && runwayMonths < 3 ? "negative" : "positive",
       ring: {
-        pct: runwayMonths == null ? 1 : Math.max(0.08, Math.min(runwayMonths / 12, 1)),
-        status: runwayMonths && runwayMonths < 3 ? "Monitor" : "Healthy",
+        // Six months of reserve is the common healthy target, so the ring
+        // fills against that rather than an arbitrary 12.
+        pct: runwayMonths == null ? 1 : Math.max(0.08, Math.min(runwayMonths / 6, 1)),
+        status: runwayMonths != null && runwayMonths < 3 ? "Monitor" : "Healthy",
       },
     },
   ];
@@ -1332,7 +1352,7 @@ function DashboardPage({ client, access, isBookkeeper, promoText, onSaveReferral
     { id: "kpi-cash", group: "kpi", label: "Cash on Hand", description: "Total across all bank accounts" },
     { id: "kpi-net", group: "kpi", label: "Net Surplus / (Deficit)", description: "This month's income minus expenses" },
     { id: "kpi-revenue", group: "kpi", label: "Revenue (this month)", description: "Compared to last month" },
-    { id: "kpi-runway", group: "kpi", label: "Cash Runway", description: "Months of runway at recent burn rate" },
+    { id: "kpi-runway", group: "kpi", label: "Operating Reserve", description: "Months of expenses covered by cash on hand" },
     { id: "income-expenses", group: "content", label: "Income vs. Expenses", description: "6-month trend chart" },
     { id: "recent-activity", group: "content", label: "Recent Activity", description: "Latest transactions across all accounts" },
     ...crossTabWidgetDefs(client, access),
@@ -1485,7 +1505,7 @@ function BudgetPage({ client }) {
         <h3 className="card-title">Spending by Category</h3>
         <p className="card-subtitle">Budgeted vs. actual, current month</p>
         <div className="table-scroll">
-<table className="budget-table">
+<table className="budget-table tx-table-labeled">
           <thead>
             <tr>
               <th style={{ width: "34%" }}>Category</th>
@@ -1502,7 +1522,7 @@ function BudgetPage({ client }) {
               const over = b.actual > b.budgeted;
               return (
                 <tr key={b.category}>
-                  <td>
+                  <td data-primary="">
                     <div className="category-name">{b.category}</div>
                     <div className="bar-track">
                       <div
@@ -1511,13 +1531,13 @@ function BudgetPage({ client }) {
                       ></div>
                     </div>
                   </td>
-                  <td className="num">{fmtMoney(b.budgeted)}</td>
-                  <td className="num">{fmtMoney(b.actual)}</td>
-                  <td className="num">
+                  <td className="num" data-label="Budgeted">{fmtMoney(b.budgeted)}</td>
+                  <td className="num" data-label="Actual">{fmtMoney(b.actual)}</td>
+                  <td className="num" data-label="Variance">
                     {b.actual - b.budgeted >= 0 ? "+" : ""}
                     {fmtMoney(b.actual - b.budgeted)}
                   </td>
-                  <td>{pct.toFixed(0)}%</td>
+                  <td data-label="% Used">{pct.toFixed(0)}%</td>
                   <td>
                     <span className={"pill " + (over ? "over" : "under")}>{over ? "Over" : "On Track"}</span>
                   </td>
@@ -1650,7 +1670,7 @@ function ReceivablesPayablesPage({ client }) {
           <h3 className="card-title">Receivables</h3>
           <p className="card-subtitle">Grants, pledges, and reimbursements coming in</p>
           <div className="table-scroll">
-<table className="tx-table">
+<table className="tx-table tx-table-labeled">
             <thead>
               <tr>
                 <th>Description</th>
@@ -1661,9 +1681,9 @@ function ReceivablesPayablesPage({ client }) {
             <tbody>
               {client.receivables.map((r, i) => (
                 <tr key={i}>
-                  <td>{r.description}</td>
-                  <td>{fmtDate(r.dueDate)}</td>
-                  <td className="num tx-amount positive">{fmtMoney(r.amount, { cents: true })}</td>
+                  <td data-primary="">{r.description}</td>
+                  <td data-label="Due">{fmtDate(r.dueDate)}</td>
+                  <td className="num tx-amount positive" data-label="Amount">{fmtMoney(r.amount, { cents: true })}</td>
                 </tr>
               ))}
             </tbody>
@@ -1675,7 +1695,7 @@ function ReceivablesPayablesPage({ client }) {
           <h3 className="card-title">Payables</h3>
           <p className="card-subtitle">Bills and commitments going out</p>
           <div className="table-scroll">
-<table className="tx-table">
+<table className="tx-table tx-table-labeled">
             <thead>
               <tr>
                 <th>Vendor</th>
@@ -1686,12 +1706,12 @@ function ReceivablesPayablesPage({ client }) {
             <tbody>
               {client.payables.map((p, i) => (
                 <tr key={i}>
-                  <td>
+                  <td data-primary="">
                     {p.vendor}
                     <div className="tx-meta">{p.description}</div>
                   </td>
-                  <td>{fmtDate(p.dueDate)}</td>
-                  <td className="num tx-amount negative">-{fmtMoney(p.amount, { cents: true })}</td>
+                  <td data-label="Due">{fmtDate(p.dueDate)}</td>
+                  <td className="num tx-amount negative" data-label="Amount">-{fmtMoney(p.amount, { cents: true })}</td>
                 </tr>
               ))}
             </tbody>
@@ -2306,11 +2326,11 @@ function reportPeriodOptions(monthly) {
 }
 
 const REPORT_SECTION_DEFS = [
-  { key: "revenue", label: "Revenue &amp; Expenses" },
+  { key: "revenue", label: "Revenue & Expenses" },
   { key: "budget", label: "Budget vs. Actual" },
   { key: "cash", label: "Cash Position" },
-  { key: "receivables", label: "Receivables &amp; Payables" },
-  { key: "giving", label: "Giving &amp; Funds" },
+  { key: "receivables", label: "Receivables & Payables" },
+  { key: "giving", label: "Giving & Funds" },
   { key: "outlook", label: "Outlook" },
 ];
 
@@ -2366,8 +2386,8 @@ function ReportBuilderPage({ client }) {
   const netPrior = priorSlice.length ? revenuePrior - expensePrior : null;
 
   const cash = totalCash(client);
-  const burn = avgMonthlyBurn(client);
-  const runwayMonths = burn > 0 ? cash / burn : null;
+  const monthlyExpenses = avgMonthlyExpenses(client);
+  const runwayMonths = runwayMonthsFor(client);
 
   const totalReceivable = client.receivables.reduce((s, r) => s + r.amount, 0);
   const totalPayable = client.payables.reduce((s, p) => s + p.amount, 0);
@@ -2454,7 +2474,7 @@ function ReportBuilderPage({ client }) {
                   <li key={s.key}>
                     <label>
                       <input type="checkbox" checked={sections[s.key]} onChange={() => toggleSection(s.key)} />
-                      <span dangerouslySetInnerHTML={{ __html: s.label }} />
+                      <span>{s.label}</span>
                     </label>
                   </li>
                 ))}
@@ -2505,7 +2525,7 @@ function ReportBuilderPage({ client }) {
               <div className="rb-preview-pills">
                 <span className="pill neutral">Executive Summary</span>
                 {REPORT_SECTION_DEFS.filter((s) => sections[s.key] && (s.key !== "giving" || hasFunds || contributions.length > 0)).map((s) => (
-                  <span className="pill neutral" key={s.key} dangerouslySetInnerHTML={{ __html: s.label }} />
+                  <span className="pill neutral" key={s.key}>{s.label}</span>
                 ))}
               </div>
             </div>
@@ -2746,18 +2766,18 @@ function ReportBuilderPage({ client }) {
         {sections.outlook && (
           <div className="rb-section">
             <h2>Outlook</h2>
-            <p className="rb-section-sub">Cash runway at the recent burn rate</p>
+            <p className="rb-section-sub">Months of operating reserve</p>
             <div className="rb-runway-row">
-              <RunwayRing pct={runwayMonths == null ? 1 : Math.max(0.08, Math.min(runwayMonths / 12, 1))} tone={runwayMonths && runwayMonths < 3 ? "negative" : "positive"}>
-                <div className="runway-ring-value">{runwayMonths ? `${runwayMonths.toFixed(1)} mo` : "Healthy"}</div>
-                <div className={"runway-ring-status " + (runwayMonths && runwayMonths < 3 ? "negative" : "positive")}>
-                  {runwayMonths && runwayMonths < 3 ? "Monitor" : "Healthy"}
+              <RunwayRing pct={runwayMonths == null ? 1 : Math.max(0.08, Math.min(runwayMonths / 6, 1))} tone={runwayMonths != null && runwayMonths < 3 ? "negative" : "positive"}>
+                <div className="runway-ring-value">{runwayMonths == null ? "—" : `${runwayMonths.toFixed(1)} mo`}</div>
+                <div className={"runway-ring-status " + (runwayMonths != null && runwayMonths < 3 ? "negative" : "positive")}>
+                  {runwayMonths != null && runwayMonths < 3 ? "Monitor" : "Healthy"}
                 </div>
               </RunwayRing>
               <p className="rb-commentary" style={{ flex: 1, minWidth: 220 }}>
-                {runwayMonths
-                  ? `At the recent burn rate of ${fmtMoney(burn)}/mo, cash on hand covers approximately ${runwayMonths.toFixed(1)} months of spending.`
-                  : "Spending is currently below income, so no burn-rate runway applies — cash on hand is building rather than depleting."}
+                {runwayMonths == null
+                  ? "Not enough expense history to calculate an operating reserve."
+                  : `At average operating expenses of ${fmtMoney(monthlyExpenses)}/mo, cash on hand covers approximately ${runwayMonths.toFixed(1)} months. Six months is a common target for an operating reserve.`}
               </p>
             </div>
           </div>
@@ -2824,7 +2844,7 @@ function BudgetingToolPage({ client }) {
         <h3 className="card-title">Draft Budget by Category</h3>
         <p className="card-subtitle">Adjust proposed amounts for next period. This year's actual is shown for reference.</p>
         <div className="table-scroll">
-<table className="tx-table">
+<table className="tx-table tx-table-labeled">
           <thead>
             <tr>
               <th>Category</th>
@@ -2837,10 +2857,10 @@ function BudgetingToolPage({ client }) {
           <tbody>
             {rows.map((r, i) => (
               <tr key={i}>
-                <td>{r.category}</td>
-                <td className="num">{fmtMoney(r.actual)}</td>
-                <td className="num">{fmtMoney(r.current)}</td>
-                <td className="num">
+                <td data-primary="">{r.category}</td>
+                <td className="num" data-label="This year's actual">{fmtMoney(r.actual)}</td>
+                <td className="num" data-label="Current budget">{fmtMoney(r.current)}</td>
+                <td className="num" data-label="Proposed budget">
                   <input
                     type="number"
                     className="budget-input"
@@ -2848,8 +2868,8 @@ function BudgetingToolPage({ client }) {
                     onChange={(e) => updateProposed(i, e.target.value)}
                   />
                 </td>
-                <td>
-                  <button className="row-remove-btn" onClick={() => removeRow(i)} aria-label="Remove category">
+                <td className="row-remove-cell">
+                  <button className="row-remove-btn" onClick={() => removeRow(i)} aria-label={`Remove ${r.category}`}>
                     ×
                   </button>
                 </td>
@@ -2982,7 +3002,7 @@ function DocumentsPage({ client, isBookkeeper }) {
         <h3 className="card-title">All Documents</h3>
         <p className="card-subtitle">{docs.length} file{docs.length !== 1 ? "s" : ""}</p>
         <div className="table-scroll">
-<table className="tx-table">
+<table className="tx-table tx-table-labeled">
           <thead>
             <tr>
               <th>Name</th>
@@ -2996,14 +3016,14 @@ function DocumentsPage({ client, isBookkeeper }) {
           <tbody>
             {docs.map((d, i) => (
               <tr key={i}>
-                <td>{d.name}</td>
-                <td>
+                <td data-primary="">{d.name}</td>
+                <td data-label="Category">
                   <span className="category-tag">{d.category}</span>
                 </td>
-                <td>{d.uploadedBy}</td>
-                <td>{fmtDate(d.date)}</td>
+                <td data-label="Uploaded by">{d.uploadedBy}</td>
+                <td data-label="Date">{fmtDate(d.date)}</td>
                 {isBookkeeper && (
-                  <td>
+                  <td data-label="Visible to">
                     <button
                       className={"visibility-toggle" + (d.visibility === "full" ? " restricted" : "")}
                       onClick={() => toggleVisibility(i)}
@@ -3013,7 +3033,7 @@ function DocumentsPage({ client, isBookkeeper }) {
                     </button>
                   </td>
                 )}
-                <td className="num">{d.size}</td>
+                <td className="num" data-label="Size">{d.size}</td>
               </tr>
             ))}
           </tbody>
@@ -3236,7 +3256,7 @@ function UserAccessEditor({ client, user, orgAllowedKeys, userAccess, onToggleUs
           ‹
         </button>
         <div style={{ flex: 1 }}>
-          <h3 className="card-title" style={{ margin: 0 }}>{user.name}</h3>
+          <h3 className="card-title" id="user-access-editor-title" style={{ margin: 0 }}>{user.name}</h3>
           <p className="card-subtitle" style={{ margin: 0 }}>{user.role} · {user.email}</p>
         </div>
       </div>
@@ -3317,6 +3337,73 @@ function UserAccessEditor({ client, user, orgAllowedKeys, userAccess, onToggleUs
   );
 }
 
+// Shared chrome for every modal in the app. Previously each one rendered a bare
+// overlay div: Escape did nothing, focus stayed on whatever was behind the
+// dialog, Tab walked the page underneath, and screen readers announced no
+// dialog at all. Anything that puts a modal on screen should go through here.
+function ModalShell({ onClose, labelledBy, className = "", children }) {
+  const panelRef = useRef(null);
+  const restoreFocusRef = useRef(null);
+
+  useEffect(() => {
+    const panel = panelRef.current;
+    restoreFocusRef.current = document.activeElement;
+
+    const focusables = () =>
+      [...panel.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])')].filter(
+        (el) => !el.disabled && el.offsetParent !== null
+      );
+
+    // Land the caret inside the dialog rather than leaving it behind the scrim.
+    const first = focusables()[0];
+    (first || panel).focus();
+
+    const onKeyDown = (e) => {
+      if (e.key === "Escape") {
+        e.stopPropagation();
+        onClose();
+        return;
+      }
+      if (e.key !== "Tab") return;
+      const items = focusables();
+      if (!items.length) return;
+      const firstEl = items[0];
+      const lastEl = items[items.length - 1];
+      // Wrap at both ends so Tab can't walk out into the page behind.
+      if (e.shiftKey && document.activeElement === firstEl) {
+        e.preventDefault();
+        lastEl.focus();
+      } else if (!e.shiftKey && document.activeElement === lastEl) {
+        e.preventDefault();
+        firstEl.focus();
+      }
+    };
+
+    document.addEventListener("keydown", onKeyDown, true);
+    return () => {
+      document.removeEventListener("keydown", onKeyDown, true);
+      const prev = restoreFocusRef.current;
+      if (prev && typeof prev.focus === "function") prev.focus();
+    };
+  }, [onClose]);
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div
+        className={"modal-panel" + (className ? " " + className : "")}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={labelledBy}
+        tabIndex={-1}
+        ref={panelRef}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {children}
+      </div>
+    </div>
+  );
+}
+
 function TabSettingsModal({
   client,
   visibleKeys,
@@ -3339,8 +3426,7 @@ function TabSettingsModal({
 
   if (editingUser) {
     return (
-      <div className="modal-overlay" onClick={onClose}>
-        <div className="modal-panel" onClick={(e) => e.stopPropagation()}>
+      <ModalShell onClose={onClose} labelledBy="user-access-editor-title">
           <UserAccessEditor
             client={client}
             user={editingUser}
@@ -3356,16 +3442,14 @@ function TabSettingsModal({
               Done
             </button>
           </div>
-        </div>
-      </div>
+      </ModalShell>
     );
   }
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-panel" onClick={(e) => e.stopPropagation()}>
+    <ModalShell onClose={onClose} labelledBy="manage-access-title">
         <div className="modal-header">
-          <h3 className="card-title" style={{ margin: 0 }}>Manage access</h3>
+          <h3 className="card-title" id="manage-access-title" style={{ margin: 0 }}>Manage access</h3>
           <button className="modal-close" onClick={onClose} aria-label="Close">
             ×
           </button>
@@ -3469,8 +3553,7 @@ function TabSettingsModal({
             Done
           </button>
         </div>
-      </div>
-    </div>
+    </ModalShell>
   );
 }
 
@@ -3701,10 +3784,9 @@ function WidgetPickerModal({ widgets, layout, onClose }) {
   const [dragOverId, setDragOverId] = useState(null);
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-panel widget-picker-modal" onClick={(e) => e.stopPropagation()}>
+    <ModalShell onClose={onClose} labelledBy="widget-picker-title" className="widget-picker-modal">
         <div className="modal-header">
-          <h3>Customize your dashboard</h3>
+          <h3 id="widget-picker-title">Customize your dashboard</h3>
           <button className="modal-close" onClick={onClose}>✕</button>
         </div>
         <p className="card-subtitle" style={{ marginBottom: 16 }}>
@@ -3760,8 +3842,7 @@ function WidgetPickerModal({ widgets, layout, onClose }) {
           <button className="btn-secondary" onClick={layout.reset}>Reset to default</button>
           <button className="btn-primary" onClick={onClose}>Done</button>
         </div>
-      </div>
-    </div>
+    </ModalShell>
   );
 }
 
@@ -3883,11 +3964,8 @@ function App() {
   const [userAccess, setUserAccess] = useState({});
   const [referralPromo, setReferralPromo] = useState(loadReferralPromo);
   // null until the header toggle is used, at which point it pins the choice
-  // (see the effects below) instead of following the OS setting.
+  // (see the effects below). Null means dark — the product default.
   const [theme, setTheme] = useState(loadTheme);
-  const [systemPrefersDark, setSystemPrefersDark] = useState(
-    () => typeof window !== "undefined" && window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches
-  );
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [messagesByClient, setMessagesByClient] = useState({});
   const [chatWidgetOpen, setChatWidgetOpen] = useState(false);
@@ -3946,29 +4024,19 @@ function App() {
     } catch (e) {}
   }, [tabOrder]);
 
-  // Keeps the toggle's icon correct even before it's ever been clicked, if
-  // the OS setting changes underneath the app (e.g. sunset auto dark mode).
+  // Dark is the product default. data-theme is always set (never removed), so the
+  // OS preference no longer decides the theme — only a stored choice does, and the
+  // absence of one means dark. index.html sets the same attribute before first
+  // paint; this keeps it in sync once React owns the state.
   useEffect(() => {
-    if (!window.matchMedia) return;
-    const mq = window.matchMedia("(prefers-color-scheme: dark)");
-    const handler = (e) => setSystemPrefersDark(e.matches);
-    mq.addEventListener("change", handler);
-    return () => mq.removeEventListener("change", handler);
-  }, []);
-
-  useEffect(() => {
-    if (theme) {
-      document.documentElement.setAttribute("data-theme", theme);
-    } else {
-      document.documentElement.removeAttribute("data-theme");
-    }
+    document.documentElement.setAttribute("data-theme", theme || "dark");
     try {
       if (theme) localStorage.setItem(THEME_STORAGE_KEY, theme);
       else localStorage.removeItem(THEME_STORAGE_KEY);
     } catch (e) {}
   }, [theme]);
 
-  const effectiveTheme = theme || (systemPrefersDark ? "dark" : "light");
+  const effectiveTheme = theme || "dark";
 
   const baseClient = useMemo(() => CLIENTS.find((c) => c.id === selectedClientId) || CLIENTS[0], [selectedClientId]);
 
@@ -4177,19 +4245,27 @@ function App() {
   }, []);
 
   // Every prominent stat (KPI tiles, Report Builder's big numbers, fund
-  // balances, Daily Report's own KPI row) counts up from zero the moment it
-  // first appears — on initial load and on every later page swap, since
-  // React mounts a fresh instance either way. This works on the already-
-  // rendered text rather than routing every number through a component:
-  // find the first real text node inside the target, pull the numeric run
-  // out of it with a regex, and animate that node's data from 0 up to it,
-  // leaving any prefix ("$", "-"), suffix (" mo", "%"), and sibling markup
-  // (Daily Report's cents <small>) untouched. A value with no number in it
-  // (e.g. the runway ring showing "Healthy") is simply left alone.
+  // balances, Daily Report's own KPI row) counts up from zero as the page
+  // first loads. This works on the already-rendered text rather than routing
+  // every number through a component: find the first real text node inside
+  // the target, pull the numeric run out of it with a regex, and animate that
+  // node's data from 0 up to it, leaving any prefix ("$", "-"), suffix
+  // (" mo", "%"), and sibling markup (Daily Report's cents <small>)
+  // untouched. A value with no number in it (e.g. a runway ring reading
+  // "Healthy") is simply left alone.
+  //
+  // It runs for the opening moments only. It used to fire on every page swap
+  // too, because React mounts fresh nodes each time — so every tab change made
+  // the whole dashboard spin up from $0 before it could be read. Durations
+  // were also randomised per number, which landed figures in the same KPI row
+  // at different times and read as jitter; they're uniform now.
   useEffect(() => {
     const seen = new WeakSet();
+    // After this window, numbers simply render at their real value.
+    const INTRO_MS = 2000;
+    const mountedAt = performance.now();
     const animate = (textNode, prefix, suffix, target, decimals) => {
-      const duration = Math.round(450 + Math.random() * 500);
+      const duration = 650;
       const start = performance.now();
       const fmt = (n) => n.toLocaleString("en-US", { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
       const frame = (now) => {
@@ -4201,6 +4277,7 @@ function App() {
       requestAnimationFrame(frame);
     };
     const trigger = (el) => {
+      if (performance.now() - mountedAt > INTRO_MS) return;
       const candidates = Array.from(el.childNodes).filter((n) => n.nodeType === Node.TEXT_NODE && n.data.trim());
       const textNode = candidates.find((n) => /\d/.test(n.data)) || candidates[0];
       if (!textNode) return;
@@ -4228,7 +4305,15 @@ function App() {
     scan();
     const mo = new MutationObserver(scan);
     mo.observe(document.body, { childList: true, subtree: true });
+    // Once the intro window has passed there is nothing left to animate, so
+    // stop watching the whole document rather than re-scanning on every
+    // render for the rest of the session.
+    const stop = setTimeout(() => {
+      io.disconnect();
+      mo.disconnect();
+    }, INTRO_MS + 100);
     return () => {
+      clearTimeout(stop);
       io.disconnect();
       mo.disconnect();
     };
@@ -4384,7 +4469,7 @@ function App() {
             // choice is passed through so both sides stay in step.
             // Data is derived from the selected client rather than the shipped
             // Bramblewood sample, so the panel and the rest of the app agree.
-            <DailyClose data={dailyCloseFromClient(client)} theme={theme || undefined} key={"daily-close-" + client.id} />
+            <DailyClose data={dailyCloseFromClient(client)} theme={effectiveTheme} key={"daily-close-" + client.id} />
           )}
           {effectivePage === "budget" && <BudgetPage client={scopedClient} />}
           {effectivePage === "giving" && <GivingFundsPage client={scopedClient} />}

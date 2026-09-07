@@ -63,7 +63,8 @@
 }
 
 /* ---------------------------------------------------------------------------
-   Dark mode. Follows the device setting by default; the toggle in the page
+   Dark mode. Dark is the product default (index.html pins data-theme before
+   first paint, and the app never removes the attribute); the toggle in the page
    header (see .theme-toggle) sets data-theme on <html> to override it. The
    :not([data-theme="light"]) guard lets an explicit light choice win even
    when the OS is in dark mode. Palette is shared with <DailyClose />
@@ -366,13 +367,19 @@ body {
   background: rgba(255,255,255,0.06);
   border: 1px solid rgba(255,255,255,0.1);
   color: white;
-  padding: 10px 12px;
+  /* Right padding clears the chevron drawn at "right 12px" below (10px wide,
+     plus breathing room). At 12px the selected text ran underneath the arrow. */
+  padding: 10px 30px 10px 12px;
   border-radius: 10px;
   font-size: 14px;
   font-weight: 500;
   margin-bottom: 24px;
   cursor: pointer;
   appearance: none;
+  /* Long organization names truncate instead of colliding with the chevron. */
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  overflow: hidden;
   background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6'><path d='M0 0l5 6 5-6z' fill='%2394a3b8'/></svg>");
   background-repeat: no-repeat;
   background-position: right 12px center;
@@ -725,6 +732,17 @@ body {
   border-radius: 6px;
   cursor: pointer;
   text-align: left;
+}
+
+/* Client-side counterpart to .customize-tabs-btn: labels the theme toggle so
+   that row isn't just a lone button floating at the right edge. */
+.sidebar-utility-label {
+  align-self: center;
+  color: var(--sidebar-text-muted);
+  font-size: 11px;
+  font-weight: 600;
+  padding: 4px 6px;
+  letter-spacing: 0.02em;
 }
 
 .customize-tabs-btn:hover {
@@ -2352,10 +2370,17 @@ body.rb-presenting .main {
   margin-top: 16px;
   padding-top: 16px;
   border-top: 1px solid var(--border);
+  /* Without wrap the row can't break, and the input below can't shrink past its
+     placeholder, so on a phone the "+ Add Category" button was pushed 37px past
+     the card edge and clipped. */
+  flex-wrap: wrap;
 }
 
 .add-category-row input {
   flex: 1;
+  /* Flex items default to min-width:auto, which refuses to shrink below the
+     placeholder's intrinsic width. */
+  min-width: 0;
   border: 1px solid var(--border);
   border-radius: 8px;
   padding: 9px 12px;
@@ -3115,8 +3140,13 @@ body.rb-presenting .main {
   max-width: 100%;
 }
 
+/* Wide enough to stop columns collapsing into each other, narrow enough to fit
+   the app's narrowest card. Was 480px, which overflowed the 415px Payables card
+   at full desktop width and pushed its Amount column behind a hidden scrollbar —
+   the one number that page exists to show. Below 760px every table restacks
+   (see below) and drops this entirely. */
 .budget-table, .tx-table {
-  min-width: 480px;
+  min-width: 360px;
 }
 
 /* On phones, tables marked .tx-table-stack restack into a few lines per record
@@ -3162,6 +3192,95 @@ body.rb-presenting .main {
     text-align: right;
     white-space: nowrap;
     font-weight: 700;
+  }
+
+  /* Label-based stacking, for tables whose columns are values that mean nothing
+     without their header ($11,000 / $11,400 / +$400 are indistinguishable once
+     <thead> is hidden). Each cell carries its own header text in data-label and
+     renders as "label ....... value". Unlike the grid-area stacks above this
+     doesn't depend on nth-child, so it survives a conditional column — the
+     Documents table drops "Visible To" for non-bookkeepers. */
+  .tx-table-labeled {
+    min-width: 0;
+  }
+
+  .tx-table-labeled thead {
+    display: none;
+  }
+
+  .tx-table-labeled,
+  .tx-table-labeled tbody {
+    display: block;
+    width: 100%;
+  }
+
+  .tx-table-labeled tbody tr {
+    display: block;
+    position: relative;
+    padding: 12px 0;
+    border-bottom: 1px solid var(--border);
+  }
+
+  /* Row actions belong beside the record they act on, not stranded on a line of
+     their own below it. Pinned to the row's top-right, level with the name. */
+  .tx-table-labeled tbody td.row-remove-cell {
+    position: absolute;
+    top: 8px;
+    right: 0;
+    padding: 0;
+  }
+
+  .tx-table-labeled tbody tr:last-child {
+    border-bottom: none;
+  }
+
+  .tx-table-labeled tbody td {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 3px 0;
+    border: none;
+    min-width: 0;
+    text-align: right;
+  }
+
+  .tx-table-labeled tbody td::before {
+    content: attr(data-label);
+    flex: 0 1 auto;
+    text-align: left;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--text-muted);
+  }
+
+  /* The record's name/title: full width, no label, sets up the row. */
+  .tx-table-labeled tbody td[data-primary] {
+    display: block;
+    text-align: left;
+    font-weight: 600;
+    line-height: 1.35;
+    padding-bottom: 5px;
+  }
+
+  .tx-table-labeled tbody td[data-primary]::before {
+    content: none;
+  }
+
+  /* Cells with neither label nor primary flag (action buttons, status pills). */
+  .tx-table-labeled tbody td:not([data-label]):not([data-primary]) {
+    justify-content: flex-start;
+    text-align: left;
+  }
+
+  .tx-table-labeled tbody td.num {
+    white-space: nowrap;
+    font-weight: 700;
+  }
+
+  /* Inputs inside a stacked row shouldn't stretch edge to edge. */
+  .tx-table-labeled tbody td .budget-input {
+    max-width: 130px;
   }
 
   /* Bank → Recent Transactions: date, description, category, amount. */
@@ -3289,13 +3408,18 @@ body.rb-presenting .main {
     text-overflow: ellipsis;
   }
 
+  /* 44x44 is the iOS/Android minimum touch target. The bars stay 32px wide;
+     the extra space is padding, so the control looks identical but is reliably
+     tappable. Negative margin keeps it optically aligned with the title. */
   .hamburger-btn {
     display: flex;
     flex-direction: column;
     justify-content: center;
+    align-items: center;
     gap: 4px;
-    width: 32px;
-    height: 32px;
+    width: 44px;
+    height: 44px;
+    margin-left: -6px;
     background: transparent;
     border: none;
     cursor: pointer;
@@ -3305,7 +3429,7 @@ body.rb-presenting .main {
 
   .hamburger-btn span {
     display: block;
-    width: 100%;
+    width: 32px;
     height: 2px;
     background: white;
     border-radius: 2px;
@@ -3328,14 +3452,19 @@ body.rb-presenting .main {
   }
 
   .sidebar-close {
-    display: block;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     margin-left: auto;
+    margin-right: -10px;
+    width: 44px;
+    height: 44px;
     background: transparent;
     border: none;
     color: white;
     font-size: 16px;
     cursor: pointer;
-    padding: 4px 6px;
+    padding: 0;
     flex-shrink: 0;
   }
 
@@ -3345,6 +3474,20 @@ body.rb-presenting .main {
     inset: 0;
     background: rgba(20, 28, 34, 0.5);
     z-index: 1600;
+  }
+
+  /* The drawer scrolls as one column. It used to pin the header, both
+     switchers and the footer, leaving the nav a ~350px window with its own
+     scrollbar — so Messages and Documents sat below a fold most people never
+     found. One gesture now reaches everything. */
+  .sidebar {
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .nav {
+    overflow-y: visible;
+    flex: 0 0 auto;
   }
 
   .main {
@@ -3447,10 +3590,36 @@ body.rb-presenting .main {
   .dc-tab,
   .visibility-toggle,
   .customize-dashboard-btn,
+  .btn-primary,
   .btn-secondary,
   .account-tab,
   .thread-tab {
     min-height: 44px;
+  }
+
+  /* Sidebar controls. The drawer is the only way to move around the app on a
+     phone, and its rows measured 36px (nav), 32px (theme toggle), 22px
+     (section collapse) and 21px ("Manage access"). */
+  .nav-item {
+    min-height: 44px;
+    padding-top: 11px;
+    padding-bottom: 11px;
+  }
+
+  .theme-toggle {
+    width: 44px;
+    height: 44px;
+  }
+
+  .client-select {
+    min-height: 44px;
+  }
+
+  .nav-section-label,
+  .customize-tabs-btn {
+    min-height: 44px;
+    display: flex;
+    align-items: center;
   }
 
   .row-remove-btn {
@@ -3617,4 +3786,63 @@ body.rb-presenting .main {
   color: var(--text-muted);
   line-height: 1.55;
   margin-bottom: 20px;
+}
+
+/* ---------------- Boot splash ----------------
+   Sits inside #root in index.html and is replaced the moment React renders.
+   Uses the theme tokens, so it matches whichever theme <head> just pinned
+   instead of flashing a different colour before the app appears. */
+
+.boot-splash {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-body, system-ui, sans-serif);
+  padding: 24px;
+  text-align: center;
+}
+
+.boot-splash-mark {
+  font-family: var(--font-heading, Georgia, serif);
+  font-weight: 800;
+  font-size: 22px;
+  letter-spacing: 0.01em;
+  color: var(--ink-strong);
+}
+
+.boot-splash-sub {
+  font-size: 13.5px;
+  color: var(--text-muted);
+}
+
+.boot-splash-bar {
+  margin-top: 6px;
+  width: 160px;
+  height: 3px;
+  border-radius: 999px;
+  background: var(--border);
+  overflow: hidden;
+}
+
+.boot-splash-bar span {
+  display: block;
+  width: 40%;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--gold);
+  animation: boot-splash-slide 1.1s ease-in-out infinite;
+}
+
+@keyframes boot-splash-slide {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(350%); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .boot-splash-bar span { animation: none; width: 100%; }
 }

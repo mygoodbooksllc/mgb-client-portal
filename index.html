@@ -15,28 +15,76 @@
       rel="stylesheet"
     />
     <script>
+      // Dark is the product default; light is opt-in via the sidebar toggle.
+      // Set data-theme before any stylesheet lands so the first painted frame is
+      // already the right theme — otherwise a light-OS machine flashes the light
+      // palette until React mounts and applies the same attribute.
+      (function () {
+        var stored = null;
+        try {
+          stored = localStorage.getItem("mygoodbooks_theme_v1");
+        } catch (e) {}
+        document.documentElement.setAttribute(
+          "data-theme",
+          stored === "light" ? "light" : "dark"
+        );
+      })();
+
       // Cache-bust so local edits to styles.css always show up on reload.
       document.write('<link rel="stylesheet" href="styles.css?v=' + Date.now() + '">');
       document.write(
         '<link rel="stylesheet" href="components/daily-close/DailyClose.css?v=' + Date.now() + '">'
       );
+
+      // Kick every source fetch off HERE, in <head>, so all five download in
+      // parallel with React/Babel/jsPDF instead of after them. Previously each
+      // file was fetched only once the previous one had finished compiling, so
+      // app.jsx — the big one — wasn't even requested until ~17s in. Babel still
+      // has to compile them in dependency order, but the network is no longer
+      // the bottleneck. window.__sources holds text promises, not text.
+      window.__SOURCE_ORDER = [
+        "data.js",
+        "components/daily-close/sampleData.ts",
+        "components/daily-close/DailyClose.tsx",
+        "components/daily-close/fromClient.js",
+        "app.jsx",
+      ];
+      window.__sources = {};
+      window.__SOURCE_ORDER.forEach(function (path) {
+        window.__sources[path] = fetch(path + "?v=" + Date.now(), { cache: "no-store" })
+          .then(function (r) {
+            if (!r.ok) throw new Error(r.status + " " + r.statusText);
+            return r.text();
+          });
+      });
     </script>
   </head>
   <body>
-    <div id="root"></div>
+    <!-- Replaced by React on first render. Without this the page is a blank
+         black rectangle for the whole boot, which reads as "the site is broken". -->
+    <div id="root">
+      <div class="boot-splash" role="status" aria-live="polite">
+        <div class="boot-splash-mark">MyGoodBooks</div>
+        <div class="boot-splash-sub">Loading your portal…</div>
+        <div class="boot-splash-bar"><span></span></div>
+      </div>
+    </div>
 
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script crossorigin src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.4/dist/jspdf.plugin.autotable.min.js"></script>
+    <!-- defer: only needed when someone clicks Download PDF, long after boot.
+         Undeferred these blocked React and Babel from executing. -->
+    <script defer src="https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.4/dist/jspdf.plugin.autotable.min.js"></script>
 
     <script>
       // Manually fetch + transform each file so we can force Babel's
       // "classic" JSX runtime (the default "automatic" runtime needs a
       // real module bundler, which we intentionally don't have here).
       async function loadBabelScript(path) {
-        const src = await fetch(path, { cache: "no-store" }).then((r) => r.text());
+        // Text was already requested in <head>; this just awaits that promise.
+        const src = await window.__sources[path];
         // DailyClose ships as TypeScript. The preset only strips the types
         // (no type-checking) and infers JSX from the filename we pass below,
         // so a plain .ts file never gets the JSX plugin it would reject.
@@ -51,12 +99,22 @@
       }
 
       (async () => {
-        await loadBabelScript("data.js");
-        // DailyClose must be defined before app.jsx renders it.
-        await loadBabelScript("components/daily-close/sampleData.ts");
-        await loadBabelScript("components/daily-close/DailyClose.tsx");
-        await loadBabelScript("components/daily-close/fromClient.js");
-        await loadBabelScript("app.jsx");
+        try {
+          // Order still matters — data.js and DailyClose must exist before
+          // app.jsx runs — but every file is already in flight by now.
+          for (const path of window.__SOURCE_ORDER) {
+            await loadBabelScript(path);
+          }
+        } catch (err) {
+          const root = document.getElementById("root");
+          if (root) {
+            root.innerHTML =
+              '<div class="boot-splash"><div class="boot-splash-mark">MyGoodBooks</div>' +
+              '<div class="boot-splash-sub">Something went wrong loading the portal. ' +
+              "Please refresh.</div></div>";
+          }
+          throw err;
+        }
       })();
     </script>
   </body>
