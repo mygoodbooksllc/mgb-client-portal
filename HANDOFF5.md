@@ -24,17 +24,16 @@ exact instructions for each item.*
   Configuration," and the domain serves the full dashboard correctly. Confirmed by loading
   it directly. Doesn't touch `@` or `www` — the Squarespace site at the bare domain is
   untouched.
+- **"Client Portal (Preview)" nav link added on the live Squarespace site** — points at
+  `https://app.mygoodbooks.org`, confirmed live in the main nav. Labeled "(Preview)"
+  deliberately since there's no auth yet and the prototype is sample data — trivial to
+  rename later (just edit the nav link label in Squarespace, no code/deploy involved) once
+  Supabase auth exists and it's ready to be a real client-facing portal.
 
 ---
 
 ## Full to-do list
 
-- [ ] **Add a "Client Portal" button to the live Squarespace site** — a nav link or button
-      block pointing at `https://app.mygoodbooks.org`. Squarespace dashboard → Pages →
-      Navigation (add a link, not a page) or a Button block on any section. I can drive
-      this myself via your Squarespace login (password-manager sign-in, I never see the
-      password) if you'd rather I do the edit — say so and I'll walk you through approving
-      it before anything publishes.
 - [ ] **Real-device touch check** — the touch drag-and-drop fix (HANDOFF4 §5) was verified
       via viewport emulation and synthetic pointer events, not a real finger. Worth five
       minutes on an actual iPhone/Android.
