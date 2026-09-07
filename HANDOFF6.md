@@ -73,10 +73,29 @@ light, run against both localhost and the live site. Everything below came out o
   mobile drawer now scrolls as one column instead of hiding Messages and Documents behind a
   short inner scrollbar; "+ Add Category" no longer overflows its card (`.add-category-row`
   had no `flex-wrap` and its input no `min-width: 0`); select text no longer collides with
-  its chevron; the count-up runs for the opening 2s at a uniform duration instead of
-  respinning every stat on every tab change; the theme toggle is labelled in client view
+  its chevron; the count-up no longer respins every stat on every tab change and uses a
+  uniform duration instead of a random one per number (see the entry below); the theme
+  toggle is labelled in client view
   instead of floating alone; and the `dangerouslySetInnerHTML`-to-decode-an-ampersand hack
   is gone.
+
+- **Count-up regression, caught and fixed after the first push.** Scoping the animation to a
+  2000ms window measured from effect mount worked locally and silently killed it in
+  production: a cold load saturates the main thread right after mount, IntersectionObserver
+  callbacks are only delivered once that work lets go, and past the deadline every number
+  rendered flat. It's now gated on navigation instead — armed for the page the viewer lands
+  on, disarmed the moment they navigate away — so nothing depends on how long first paint
+  takes. **Don't reintroduce a time-based gate here.**
+
+- **The tab now survives a refresh.** `page` is persisted to `mygoodbooks_page_v1` and
+  restored on load, validated against the known tab keys. The raw choice is stored rather
+  than the rendered one, so a bookkeeper previewing as someone without access to that tab
+  still gets it back on exiting the preview; the existing `effectivePage` guard handles
+  rendering a tab the current viewer can't see.
+
+- **`build.py` now mirrors index.html's theme bootstrap.** The bundle doesn't use
+  index.html, so the single-file build had no `data-theme` until React mounted — on a
+  light-OS machine that meant the light palette showed until Babel finished compiling.
 
 ---
 
@@ -98,11 +117,11 @@ light, run against both localhost and the live site. Everything below came out o
 
 ## Full to-do list
 
-- [ ] **Republish the Artifact and rebuild `dist/`.** Both predate this session —
-      `dist/mygoodbooks-dashboard.html` was built 2026-09-06 and the Artifact
-      (`https://claude.ai/code/artifact/ffe4688e-ddd4-459f-9662-a65937a2ffa2`) was last
-      republished then too. Neither has any of today's fixes. `python3 build.py` regenerates
-      the bundle. **The live site is current; only these two are stale.**
+- [x] ~~Republish the Artifact and rebuild `dist/`.~~ Both done — `python3 build.py`
+      regenerates the bundle, and the Artifact
+      (`https://claude.ai/code/artifact/ffe4688e-ddd4-459f-9662-a65937a2ffa2`) was
+      republished to the same URL. **Re-run both after any future change**; neither updates
+      itself, and the live site deploying is not the same as these being current.
 - [ ] **Real-device touch check** — still outstanding from HANDOFF5, and now there's more to
       check: the touch drag-and-drop fix plus the new 44px targets, single-scroll drawer and
       stacked tables were all verified via emulation, not a real finger.

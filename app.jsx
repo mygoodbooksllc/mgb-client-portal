@@ -3574,6 +3574,23 @@ function loadTheme() {
   }
 }
 
+const PAGE_STORAGE_KEY = "mygoodbooks_page_v1";
+
+// Which tab the viewer was last on, so a refresh doesn't dump them back on the
+// default page. Validated against the known tabs on the way out — a key from an
+// older build (or a hand-edited value) falls back to the default rather than
+// rendering nothing. Access is checked separately at render time via
+// effectivePage, so a stored tab the current viewer can't see is handled there.
+function loadPage() {
+  try {
+    const raw = localStorage.getItem(PAGE_STORAGE_KEY);
+    if (raw === "enterprise-upgrade" || ALL_TAB_KEYS.includes(raw)) return raw;
+    return null;
+  } catch (e) {
+    return null;
+  }
+}
+
 const TAB_CONFIG_STORAGE_KEY = "mygoodbooks_tab_config_v2";
 
 function loadTabConfig() {
@@ -3953,7 +3970,7 @@ function App() {
   // thread fixes in data.js, no thread whose last message is unread —
   // nothing steals focus with the chat popup on first load.
   const [selectedClientId, setSelectedClientId] = useState("riverside-pantry");
-  const [page, setPage] = useState("daily-close");
+  const [page, setPage] = useState(() => loadPage() || "daily-close");
   // Count-up gating (see the effect further down). Armed for the page the user
   // lands on, disarmed the moment they navigate away from it.
   const countUpArmed = useRef(true);
@@ -4016,6 +4033,16 @@ function App() {
       }));
     }, 900);
   };
+
+  // Remember the tab across refreshes. Stores the raw `page` rather than
+  // `effectivePage`: if a bookkeeper is previewing as someone without access to
+  // the current tab, the render falls back to the dashboard, but their own
+  // choice should survive exiting the preview.
+  useEffect(() => {
+    try {
+      localStorage.setItem(PAGE_STORAGE_KEY, page);
+    } catch (e) {}
+  }, [page]);
 
   useEffect(() => {
     try {
