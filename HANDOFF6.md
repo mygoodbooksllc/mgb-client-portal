@@ -143,9 +143,11 @@ light, run against both localhost and the live site. Everything below came out o
 
 ## State as of this handoff
 
-- Local git: 11 commits, working tree clean, `main` pushed and tracking `origin/main`.
-  This session added three: `e312119` (dark default + QA fixes), `07bf3e7` (search dropdown
-  layer), `c0140f8` (search bar stops inheriting `.card`).
+- Local git: 14 commits, working tree clean, `main` pushed and tracking `origin/main`.
+  This session added five: `e312119` (dark default + QA fixes), `07bf3e7` (search dropdown
+  layer), `c0140f8` (search bar stops inheriting `.card`), `a895e17` (count-up regression
+  fix, caught after the first push — see the entry above), and `7abf78a` (tab survives a
+  refresh).
 - **Live and verified at app.mygoodbooks.org** — loaded the production site after each push
   and confirmed the behaviour there, not just that the files deployed.
 - Note: the browser will happily serve a cached `index.html` even though that file
