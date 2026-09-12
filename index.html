@@ -43,6 +43,9 @@
       // has to compile them in dependency order, but the network is no longer
       // the bottleneck. window.__sources holds text promises, not text.
       window.__SOURCE_ORDER = [
+        "auth-config.js",
+        "components/auth/supabaseClient.js",
+        "components/auth/AuthGate.jsx",
         "data.js",
         "components/daily-close/sampleData.ts",
         "components/daily-close/DailyClose.tsx",
@@ -73,6 +76,9 @@
     <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script crossorigin src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <!-- Staff login gate (Phase 1 of the auth plan). Exposes window.supabase,
+         read by components/auth/supabaseClient.js. -->
+    <script crossorigin src="https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
     <!-- defer: only needed when someone clicks Download PDF, long after boot.
          Undeferred these blocked React and Babel from executing. -->
     <script defer src="https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js"></script>

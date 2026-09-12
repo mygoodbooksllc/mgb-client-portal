@@ -39,6 +39,15 @@ const monthsAgoLocal = (n) => {
   return `${d.getFullYear()}-${month}-${day}`;
 };
 
+// Whole days from `fromIso` to `toIso` (positive = toIso is in the future).
+// Used by AP Command Center to bucket payables by due date without drifting
+// on timezone — both sides are parsed as local midnight, same as fmtDate.
+const daysUntil = (toIso, fromIso) => {
+  const to = new Date(toIso + "T00:00:00");
+  const from = new Date(fromIso + "T00:00:00");
+  return Math.round((to - from) / 86400000);
+};
+
 // Bar-fill entrance duration scales with how far the bar travels, so a
 // near-empty bar doesn't take as long to grow as a full one — matching
 // DailyClose.tsx's growDuration.
@@ -174,6 +183,7 @@ const NAV_SECTIONS = [
       { key: "daily-close", label: "Daily Report", premium: true },
       { key: "report-builder", label: "Report Builder", premium: true },
       { key: "budgeting-tool", label: "Budgeting Tool", premium: true },
+      { key: "ap-command-center", label: "AP Command Center", premium: true },
     ],
   },
   {
@@ -207,7 +217,18 @@ const ALWAYS_VISIBLE_KEY = "dashboard";
 // Tabs that show whole-organization figures with no category dimension, so
 // they can't be meaningfully narrowed to one person's ministry area. A
 // category-scoped user is never given these, even if their tab list names one.
-const ORG_WIDE_TABS = new Set(["bank", "receivables", "reports", "report-builder", "budgeting-tool", "daily-close"]);
+const ORG_WIDE_TABS = new Set([
+  "bank",
+  "receivables",
+  "reports",
+  "report-builder",
+  "budgeting-tool",
+  "daily-close",
+  // Same payables array as Receivables & Payables, which has no category
+  // dimension either — a category-scoped user (e.g. Luis, Youth Ministry)
+  // has no meaningful "their" bills to filter this down to.
+  "ap-command-center",
+]);
 
 const BOOKKEEPER_VIEW = "__bookkeeper__";
 
@@ -316,6 +337,8 @@ function Sidebar({
   onCloseMobile,
   effectiveTheme,
   onToggleTheme,
+  staffUser,
+  onSignOut,
 }) {
   // Must match App's `isPreviewingUser` guard: a viewAsUserId that no longer
   // resolves to a user (stale id, user removed) falls back to the bookkeeper
@@ -365,9 +388,27 @@ function Sidebar({
             ))}
           </select>
 
+          {staffUser && (
+            <div className="client-picker-label" style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+              <span>{staffUser.name}</span>
+              <button
+                onClick={onSignOut}
+                style={{ background: "none", border: "none", color: "inherit", textDecoration: "underline", cursor: "pointer", font: "inherit", padding: 0 }}
+              >
+                Sign out
+              </button>
+            </div>
+          )}
+
           <div className="client-picker-label">Preview as</div>
           <select className="client-select" value={viewAsUserId} onChange={(e) => onSelectViewAs(e.target.value)}>
-            <option value={BOOKKEEPER_VIEW}>MyGoodBooks (full access)</option>
+            {/* Real name/email for the signed-in staffer replaces the old
+                shared "MyGoodBooks (full access)" sentinel label — the
+                underlying value stays BOOKKEEPER_VIEW so resolveAccess() and
+                everything downstream is untouched. */}
+            <option value={BOOKKEEPER_VIEW}>
+              {staffUser ? `${staffUser.name} (full access)` : "MyGoodBooks (full access)"}
+            </option>
             {(client.users || []).map((u) => (
               <option key={u.id} value={u.id}>
                 {u.name} — {u.role}
@@ -2914,6 +2955,234 @@ function BudgetingToolPage({ client }) {
 }
 
 // ----------------------------------------------------------------------------
+// AP Command Center — a bookkeeper-grade view of the same payables shown
+// under Receivables & Payables: status filters, an aging summary, and a
+// next-due list. Same client.payables array, not a second data set — see
+// [[project-mock-data-inconsistencies]] on why nothing here should sum
+// bankAccounts[].transactions instead.
+// ----------------------------------------------------------------------------
+
+const AP_SOON_DAYS = 7;
+
+const AP_STATUS_META = {
+  overdue: { label: "Overdue", pill: "bad" },
+  soon: { label: "Due soon", pill: "warm" },
+  scheduled: { label: "Scheduled", pill: "neutral" },
+};
+
+const AP_STATUS_FILTERS = [
+  { key: "all", label: "All" },
+  { key: "overdue", label: "Overdue" },
+  { key: "soon", label: "Due soon" },
+  { key: "scheduled", label: "Scheduled" },
+];
+
+function apDueText(diff) {
+  if (diff < 0) return `${Math.abs(diff)}d overdue`;
+  if (diff === 0) return "Due today";
+  return `in ${diff}d`;
+}
+
+function APCommandCenterPage({ client }) {
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [query, setQuery] = useState("");
+  const today = todayLocal();
+
+  const rows = useMemo(() => {
+    return client.payables.map((p) => {
+      const diff = daysUntil(p.dueDate, today);
+      const status = diff < 0 ? "overdue" : diff <= AP_SOON_DAYS ? "soon" : "scheduled";
+      return { ...p, diff, status };
+    });
+  }, [client.payables, today]);
+
+  const byStatus = (key) => rows.filter((r) => key === "all" || r.status === key);
+
+  const totals = useMemo(() => {
+    const sum = (list) => list.reduce((s, r) => s + r.amount, 0);
+    return Object.fromEntries(
+      ["all", "overdue", "soon", "scheduled"].map((key) => {
+        const list = byStatus(key);
+        return [key, { amount: sum(list), count: list.length }];
+      })
+    );
+  }, [rows]);
+
+  const filteredRows = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return byStatus(statusFilter)
+      .filter((r) => !q || r.vendor.toLowerCase().includes(q) || r.description.toLowerCase().includes(q))
+      .sort((a, b) => a.diff - b.diff);
+  }, [rows, statusFilter, query]);
+
+  const agingBuckets = useMemo(() => {
+    const buckets = [
+      { key: "current", label: "Current", test: (d) => d >= 0, color: "var(--good)" },
+      { key: "d1_7", label: "1–7 days over", test: (d) => d < 0 && d >= -7, color: "var(--warm-text)" },
+      { key: "d8_30", label: "8–30 days over", test: (d) => d < -7 && d >= -30, color: "var(--bad)" },
+      { key: "d30plus", label: "30+ days over", test: (d) => d < -30, color: "var(--bad)" },
+    ];
+    return buckets.map((b) => ({ ...b, amount: rows.filter((r) => b.test(r.diff)).reduce((s, r) => s + r.amount, 0) }));
+  }, [rows]);
+  const maxBucket = Math.max(...agingBuckets.map((b) => b.amount), 1);
+
+  const nextDue = useMemo(() => [...rows].sort((a, b) => a.diff - b.diff).slice(0, 5), [rows]);
+  const shownTotal = filteredRows.reduce((s, r) => s + r.amount, 0);
+
+  return (
+    <div>
+      <MockBanner text="These are the same sample payables shown under Receivables & Payables. Connect QuickBooks to replace this with live AP data." />
+
+      <div className="kpi-grid">
+        <div className="card kpi-card">
+          <span className="kpi-label">Total Payable</span>
+          <span className="kpi-value">{fmtMoney(totals.all.amount)}</span>
+          <span className="kpi-sub neutral">
+            {totals.all.count} open bill{totals.all.count !== 1 ? "s" : ""}
+          </span>
+        </div>
+        <div className="card kpi-card">
+          <span className="kpi-label">Overdue</span>
+          <span className="kpi-value negative">{fmtMoney(totals.overdue.amount)}</span>
+          <span className="kpi-sub negative">
+            {totals.overdue.count} bill{totals.overdue.count !== 1 ? "s" : ""} past due
+          </span>
+        </div>
+        <div className="card kpi-card">
+          <span className="kpi-label">Due Within {AP_SOON_DAYS} Days</span>
+          <span className="kpi-value warm">{fmtMoney(totals.soon.amount)}</span>
+          <span className="kpi-sub warm">
+            {totals.soon.count} bill{totals.soon.count !== 1 ? "s" : ""}
+          </span>
+        </div>
+        <div className="card kpi-card">
+          <span className="kpi-label">Scheduled</span>
+          <span className="kpi-value">{fmtMoney(totals.scheduled.amount)}</span>
+          <span className="kpi-sub neutral">
+            {totals.scheduled.count} bill{totals.scheduled.count !== 1 ? "s" : ""}
+          </span>
+        </div>
+      </div>
+
+      <div className="card">
+        <div className="ap-cc-toolbar">
+          <div>
+            <h3 className="card-title">Open Bills</h3>
+            <p className="card-subtitle">Every payable on file for {client.name}</p>
+          </div>
+          <div className="ap-cc-filters">
+            <input
+              className="ap-cc-search"
+              type="text"
+              placeholder="Search vendor or memo"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+            />
+            <div className="rb-segmented ap-cc-segmented">
+              {AP_STATUS_FILTERS.map((f) => (
+                <button
+                  key={f.key}
+                  type="button"
+                  aria-pressed={statusFilter === f.key}
+                  onClick={() => setStatusFilter(f.key)}
+                >
+                  {f.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        <div className="table-scroll">
+          <table className="tx-table tx-table-labeled">
+            <thead>
+              <tr>
+                <th>Vendor</th>
+                <th>Status</th>
+                <th className="num">Amount</th>
+                <th>Due</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredRows.map((r, i) => {
+                const meta = AP_STATUS_META[r.status];
+                return (
+                  <tr key={i}>
+                    <td data-primary="">
+                      {r.vendor}
+                      <div className="tx-meta">{r.description}</div>
+                    </td>
+                    <td data-label="Status">
+                      <span className={"pill " + meta.pill}>{meta.label}</span>
+                    </td>
+                    <td className="num tx-amount negative" data-label="Amount">
+                      -{fmtMoney(r.amount, { cents: true })}
+                    </td>
+                    <td data-label="Due">
+                      {fmtDate(r.dueDate)}
+                      <div className={"ap-cc-due-days" + (r.diff < 0 ? " overdue" : "")}>{apDueText(r.diff)}</div>
+                    </td>
+                  </tr>
+                );
+              })}
+              {filteredRows.length === 0 && (
+                <tr>
+                  <td colSpan={4} className="ap-cc-empty">
+                    No bills match this filter.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+            <tfoot>
+              <tr>
+                <td colSpan={2}>Total shown</td>
+                <td className="num tx-amount negative">-{fmtMoney(shownTotal, { cents: true })}</td>
+                <td></td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      </div>
+
+      <div className="content-grid">
+        <div className="card">
+          <h3 className="card-title">Aging Summary</h3>
+          <p className="card-subtitle">Payables by how overdue they are</p>
+          <div className="ap-cc-aging">
+            {agingBuckets.map((b) => (
+              <div className="ap-cc-age-row" key={b.key}>
+                <span className="ap-cc-age-label">{b.label}</span>
+                <span className="ap-cc-age-track">
+                  <span className="ap-cc-age-fill" style={{ width: `${(b.amount / maxBucket) * 100}%`, background: b.color }} />
+                </span>
+                <span className="ap-cc-age-amt">{fmtMoney(b.amount)}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="card">
+          <h3 className="card-title">Next 5 Due</h3>
+          <p className="card-subtitle">Coming up soonest</p>
+          <div className="ap-cc-upcoming">
+            {nextDue.map((r, i) => (
+              <div className="ap-cc-upcoming-item" key={i}>
+                <div>
+                  <div className="ap-cc-upcoming-who">{r.vendor}</div>
+                  <div className="ap-cc-upcoming-when">{apDueText(r.diff)}</div>
+                </div>
+                <span className="ap-cc-upcoming-amt">{fmtMoney(r.amount, { cents: true })}</span>
+              </div>
+            ))}
+            {nextDue.length === 0 && <p className="card-subtitle">No open bills.</p>}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ----------------------------------------------------------------------------
 // Documents page (upload)
 // ----------------------------------------------------------------------------
 
@@ -3922,6 +4191,7 @@ const PAGE_META = {
   reports: { title: "Reports", subtitle: "Download statements and summaries" },
   "report-builder": { title: "Report Builder", subtitle: "Assemble a formatted report for your board or leadership" },
   "budgeting-tool": { title: "Budgeting Tool", subtitle: "Draft next period's budget with your bookkeeper" },
+  "ap-command-center": { title: "AP Command Center", subtitle: "Every open bill, aging, and what's due next" },
   "enterprise-upgrade": { title: "Enterprise Tools", subtitle: "See what's included, and what upgrading unlocks" },
   documents: { title: "Documents", subtitle: "Shared files between you and your bookkeeper" },
   messages: { title: "Messages", subtitle: "Talk directly with your bookkeeping team" },
@@ -3965,7 +4235,7 @@ class ErrorBoundary extends React.Component {
   }
 }
 
-function App() {
+function App({ staffUser, onSignOut }) {
   // Riverside: premium plan (so Daily Report is reachable) and, as of the
   // thread fixes in data.js, no thread whose last message is unread —
   // nothing steals focus with the chat popup on first load.
@@ -4450,6 +4720,8 @@ function App() {
           onCloseMobile={() => setMobileNavOpen(false)}
           effectiveTheme={effectiveTheme}
           onToggleTheme={() => setTheme(effectiveTheme === "dark" ? "light" : "dark")}
+          staffUser={staffUser}
+          onSignOut={onSignOut}
         />
         <main className="main">
           {isPreviewingUser && (
@@ -4525,6 +4797,9 @@ function App() {
           {effectivePage === "report-builder" && <ReportBuilderPage client={scopedClient} key={"report-builder-" + client.id} />}
           {effectivePage === "enterprise-upgrade" && <EnterpriseUpgradePage client={scopedClient} key={"enterprise-upgrade-" + client.id} />}
           {effectivePage === "budgeting-tool" && <BudgetingToolPage client={scopedClient} key={"budgeting-tool-" + client.id} />}
+          {effectivePage === "ap-command-center" && (
+            <APCommandCenterPage client={scopedClient} key={"ap-command-center-" + client.id} />
+          )}
           {effectivePage === "documents" && (
             <DocumentsPage client={scopedClient} isBookkeeper={!isPreviewingUser} key={"docs-" + client.id} />
           )}
@@ -4574,8 +4849,15 @@ function App() {
   );
 }
 
+// AuthGate (components/auth/AuthGate.jsx) is the Phase-1 login gate: it only
+// calls this render prop once a Supabase session exists AND that email is an
+// active row in the `staff` table. Until auth-config.js has real Supabase
+// credentials, AuthGate shows a "not configured" screen instead — the rest of
+// the app is unreachable either way, by design.
 ReactDOM.createRoot(document.getElementById("root")).render(
   <ErrorBoundary>
-    <App />
+    <AuthGate>
+      {(staffUser, onSignOut) => <App staffUser={staffUser} onSignOut={onSignOut} />}
+    </AuthGate>
   </ErrorBoundary>
 );

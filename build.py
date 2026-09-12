@@ -53,6 +53,7 @@ VENDOR = {
     "babel": "https://unpkg.com/@babel/standalone@7.24.7/babel.min.js",
     "jspdf": "https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js",
     "autotable": "https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.4/dist/jspdf.plugin.autotable.min.js",
+    "supabase": "https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.js",
 }
 
 # Matches the title already published at the shared link. Artifact titles should
@@ -99,6 +100,9 @@ def build(out_path: pathlib.Path, refresh: bool) -> None:
     app_src = read("app.jsx")
     data_src = read("data.js")
     css = read("styles.css")
+    auth_config_src = read("auth-config.js")
+    supabase_client_src = read("components/auth/supabaseClient.js")
+    auth_gate_src = read("components/auth/AuthGate.jsx")
 
     # The Daily Close ships as its own component directory. Its CSS is already
     # `dc-` prefixed and scoped to .dc-dailyClose, so it can simply be appended.
@@ -120,6 +124,9 @@ def build(out_path: pathlib.Path, refresh: bool) -> None:
 
     payload = {
         **{name: b64(code) for name, code in libs.items()},
+        "authConfig": b64(auth_config_src),
+        "supabaseClient": b64(supabase_client_src),
+        "authGate": b64(auth_gate_src),
         "data": b64(data_src),
         "app": b64(app_src),
         "dcSample": b64(daily_close_sample),
@@ -184,6 +191,7 @@ try {{
   run(decodeSource(BUNDLE.babel));
   run(decodeSource(BUNDLE.jspdf));
   run(decodeSource(BUNDLE.autotable));
+  run(decodeSource(BUNDLE.supabase));
 
   // Force Babel's "classic" JSX runtime; "automatic" expects a real bundler.
   var jsx = ["react", {{ runtime: "classic" }}];
@@ -192,6 +200,14 @@ try {{
     return Babel.transform(decodeSource(source), {{ filename: filename, presets: presets }}).code;
   }}
 
+  // NOTE: this makes the login gate present in the bundle, but a published
+  // Artifact's CSP blocks fetch/XHR to any host outside its CDN allowlist —
+  // Supabase's API is not on it. AuthGate will load and render, but
+  // supabase.auth calls will silently fail there. The gate only actually
+  // works from app.mygoodbooks.org (Vercel), not from an Artifact link.
+  run(compile(BUNDLE.authConfig, "auth-config.js", [jsx]));
+  run(compile(BUNDLE.supabaseClient, "supabaseClient.js", [jsx]));
+  run(compile(BUNDLE.authGate, "AuthGate.jsx", [jsx]));
   run(compile(BUNDLE.data, "data.js", [jsx]));
   // The Daily Close is TypeScript. A plain .ts file must NOT get the JSX plugin
   // — Babel rejects that pair — and both must be defined before app.jsx renders.

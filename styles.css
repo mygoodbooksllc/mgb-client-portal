@@ -976,9 +976,11 @@ body {
 .kpi-sub.positive { color: var(--good); }
 .kpi-sub.negative { color: var(--bad); }
 .kpi-sub.neutral { color: var(--text-muted); }
+.kpi-sub.warm { color: var(--warm-text); }
 
 .kpi-value.positive { color: var(--good); }
 .kpi-value.negative { color: var(--bad); }
+.kpi-value.warm { color: var(--warm-text); }
 
 /* Cash Runway progress ring (Option C direction). */
 .runway-ring-card {
@@ -1249,6 +1251,7 @@ body {
 .pill.good { background: var(--good-soft); color: var(--good); }
 .pill.bad { background: var(--bad-soft); color: var(--bad); }
 .pill.neutral { background: var(--surface-2); color: var(--text-muted); }
+.pill.warm { background: var(--warm-bg); color: var(--warm-text); }
 
 /* ---------------- Report Builder ---------------- */
 
@@ -3865,4 +3868,147 @@ body.rb-presenting .main {
 
 @media (prefers-reduced-motion: reduce) {
   .boot-splash-bar span { animation: none; width: 100%; }
+}
+
+/* ----------------------------------------------------------------------------
+   AP Command Center — status filter toolbar, aging bars, next-due list.
+   Reuses .card/.kpi-grid/.tx-table-labeled/.pill/.rb-segmented from the rest
+   of the app; only the pieces with no existing equivalent are new here.
+   ---------------------------------------------------------------------------- */
+
+.ap-cc-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 18px;
+}
+
+.ap-cc-filters {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.ap-cc-search {
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  font-family: var(--font-body);
+  font-size: 13px;
+  padding: 7px 12px;
+  border-radius: 9px;
+  width: 190px;
+}
+
+.ap-cc-search:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+/* .rb-segmented's buttons default to flex:1, which is right for Report
+   Builder's fixed 2-3 option toggles but would stretch 4 filter labels of
+   very different lengths evenly here — let each button size to its label. */
+.ap-cc-segmented button {
+  flex: 0 0 auto;
+  padding: 8px 12px;
+}
+
+.ap-cc-due-days {
+  font-size: 11.5px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+.ap-cc-due-days.overdue {
+  color: var(--bad);
+  font-weight: 600;
+}
+
+.ap-cc-empty {
+  text-align: center;
+  color: var(--text-muted);
+  padding: 32px 0 !important;
+}
+
+/* Aging summary bars */
+.ap-cc-age-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 13px;
+}
+
+.ap-cc-age-row:last-child {
+  margin-bottom: 0;
+}
+
+.ap-cc-age-label {
+  width: 108px;
+  flex-shrink: 0;
+  font-size: 12.5px;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.ap-cc-age-track {
+  flex: 1;
+  height: 9px;
+  border-radius: 5px;
+  background: var(--surface-2);
+  overflow: hidden;
+}
+
+.ap-cc-age-fill {
+  display: block;
+  height: 100%;
+  border-radius: 5px;
+  transition: width 0.4s ease;
+}
+
+.ap-cc-age-amt {
+  width: 78px;
+  flex-shrink: 0;
+  text-align: right;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+/* Next-due list */
+.ap-cc-upcoming-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.ap-cc-upcoming-item:last-child {
+  border-bottom: none;
+}
+
+.ap-cc-upcoming-who {
+  font-size: 13.5px;
+  font-weight: 600;
+}
+
+.ap-cc-upcoming-when {
+  font-size: 11.5px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+.ap-cc-upcoming-amt {
+  font-size: 13.5px;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+@media (max-width: 480px) {
+  .ap-cc-toolbar { flex-direction: column; align-items: stretch; }
+  .ap-cc-search { width: 100%; }
 }
