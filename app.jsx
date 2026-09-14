@@ -5898,7 +5898,12 @@ function App({ staffUser, onSignOut }) {
     : null;
 
   useEffect(() => {
-    const canShow = access.tabs.has("messages") && effectivePage !== "messages";
+    // Home already has its own cross-client "Unread messages" card — the
+    // floating widget popping up on top of it would be redundant (and,
+    // since it's scoped to whatever client happened to be last selected,
+    // misleading about which client actually has the unread thread).
+    const canShow =
+      access.tabs.has("messages") && effectivePage !== "messages" && effectivePage !== "bookkeeper-home";
     const signature = unreadSignature;
 
     if (!signature || !canShow) {
