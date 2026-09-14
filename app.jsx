@@ -3502,7 +3502,7 @@ function StaffAccessPage({ staffUser }) {
         is sample data.
       </div>
 
-      <div className="card">
+      <div className="card" style={{ marginBottom: 20 }}>
         <h3 className="card-title">Add staff</h3>
         <p className="card-subtitle">
           They'll sign in with Google using this exact address — add them here first, or Google will let them in and
@@ -3529,7 +3529,7 @@ function StaffAccessPage({ staffUser }) {
         </div>
       </div>
 
-      <div className="card">
+      <div className="card" style={{ marginBottom: 20 }}>
         <h3 className="card-title">Staff roster</h3>
         <p className="card-subtitle">Who can sign in to the portal, and with what role. You can't change your own row.</p>
 
@@ -3615,7 +3615,7 @@ function StaffAccessPage({ staffUser }) {
         {rows && rows.length === 0 && !loadError && <p className="card-subtitle">No staff rows yet.</p>}
       </div>
 
-      <div className="card">
+      <div className="card" style={{ marginBottom: 20 }}>
         <h3 className="card-title">Recent activity</h3>
         <p className="card-subtitle">
           Every change to the staff table, logged automatically by Postgres — not just the ones made from this page.
@@ -3644,7 +3644,7 @@ function StaffAccessPage({ staffUser }) {
         )}
       </div>
 
-      <div className="content-grid">
+      <div className="content-grid" style={{ marginBottom: 20 }}>
         <div className="card">
           <h3 className="card-title">System info</h3>
           <p className="card-subtitle">What this page is actually talking to, for debugging a broken login or a stale deploy.</p>
@@ -3979,16 +3979,25 @@ function BookkeeperHomePage({ staffUser, clients, messagesByClient, readMessageC
           <span className="kpi-value warm">{soonCount}</span>
           <span className="kpi-sub warm">across all your clients</span>
         </div>
-        <div className="card kpi-card">
-          <span className="kpi-label">Unread messages</span>
-          <span className={"kpi-value" + (unreadAcrossClients.length > 0 ? " warm" : "")}>
-            {unreadAcrossClients.length}
-          </span>
-          <span className="kpi-sub neutral">across all your clients</span>
-        </div>
+        {unreadAcrossClients.length > 0 ? (
+          <button
+            className="card kpi-card kpi-card-clickable"
+            onClick={() => onNavigateToClient(unreadAcrossClients[0].clientId, "messages")}
+          >
+            <span className="kpi-label">Unread messages</span>
+            <span className="kpi-value warm">{unreadAcrossClients.length}</span>
+            <span className="kpi-sub warm">across all your clients — click to open the oldest</span>
+          </button>
+        ) : (
+          <div className="card kpi-card">
+            <span className="kpi-label">Unread messages</span>
+            <span className="kpi-value">0</span>
+            <span className="kpi-sub neutral">across all your clients</span>
+          </div>
+        )}
       </div>
 
-      <div className="content-grid">
+      <div className="content-grid" style={{ marginBottom: 20 }}>
         <div className="card">
           <h3 className="card-title">Needs attention</h3>
           <p className="card-subtitle">Overdue or due soon, across every client you can see.</p>
@@ -4037,7 +4046,7 @@ function BookkeeperHomePage({ staffUser, clients, messagesByClient, readMessageC
         </div>
       </div>
 
-      <div className="content-grid">
+      <div className="content-grid" style={{ marginBottom: 20 }}>
         <div className="card">
           <h3 className="card-title">Recently viewed</h3>
           <p className="card-subtitle">The clients you've had open most recently, on this device.</p>
@@ -4076,7 +4085,7 @@ function BookkeeperHomePage({ staffUser, clients, messagesByClient, readMessageC
         </div>
       </div>
 
-      <div className="card">
+      <div className="card" style={{ marginBottom: 20 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", flexWrap: "wrap", gap: 8 }}>
           <div>
             <h3 className="card-title">Your clients</h3>
