@@ -5123,13 +5123,41 @@ function useDragReorder(layout) {
   // finger. React's own touchmove listener is passive, so preventDefault has
   // to come from a native non-passive one — attached only for the life of the
   // drag so ordinary scrolling is never touched.
+  //
+  // This is also the one place the whole page can get stuck unable to
+  // scroll: onPointerUp/onPointerCancel below are bound to the SPECIFIC card
+  // element that was picked up, via React's synthetic events — but
+  // onPointerMove calls layout.reorder() on every card it passes over, which
+  // changes widget order state and can cause React to swap out that exact
+  // DOM node (a reorder, or losing/regaining premium-gated widgets) mid-
+  // drag. Pointer capture and its bound handlers are lost with the old node,
+  // and if the browser doesn't cleanly deliver a pointercancel for that,
+  // draggedId never resets — and this effect's touchmove blocker, being
+  // keyed only to draggedId, keeps calling preventDefault() on every scroll
+  // attempt on the ENTIRE page, forever, since nothing ever set it back to
+  // null. Document-level pointerup/pointercancel/pointerleave listeners
+  // below are the safety net: they fire regardless of which element the
+  // capture was on, so a drag can never get permanently stuck this way. A
+  // hard 5s ceiling is a second, even-more-defensive backstop in case a
+  // browser drops pointer events entirely mid-gesture.
   useEffect(() => {
     if (!draggedId) return;
     const block = (e) => {
       if (touch.current.active) e.preventDefault();
     };
+    const forceEnd = () => endTouchDrag();
     document.addEventListener("touchmove", block, { passive: false });
-    return () => document.removeEventListener("touchmove", block);
+    document.addEventListener("pointerup", forceEnd, true);
+    document.addEventListener("pointercancel", forceEnd, true);
+    document.addEventListener("pointerleave", forceEnd, true);
+    const ceiling = setTimeout(forceEnd, 5000);
+    return () => {
+      document.removeEventListener("touchmove", block);
+      document.removeEventListener("pointerup", forceEnd, true);
+      document.removeEventListener("pointercancel", forceEnd, true);
+      document.removeEventListener("pointerleave", forceEnd, true);
+      clearTimeout(ceiling);
+    };
   }, [draggedId]);
 
   return {
