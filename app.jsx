@@ -3166,7 +3166,7 @@ function APCommandCenterPage({ client }) {
         </div>
       </div>
 
-      <div className="card">
+      <div className="card" style={{ marginBottom: 20 }}>
         <div className="ap-cc-toolbar">
           <div>
             <h3 className="card-title">Open Bills</h3>
@@ -4261,6 +4261,7 @@ function DocumentsPage({ client, isBookkeeper }) {
 
       <div
         className={"card upload-card dropzone" + (isDragging ? " dragging" : "")}
+        style={{ marginBottom: 20 }}
         onClick={() => fileInputRef.current.click()}
         onDragOver={(e) => {
           e.preventDefault();
@@ -4681,6 +4682,14 @@ function UserAccessEditor({
 function ModalShell({ onClose, labelledBy, className = "", children }) {
   const panelRef = useRef(null);
   const restoreFocusRef = useRef(null);
+  // Read the latest onClose without it being an effect dependency — a modal
+  // whose OWN invoking component also owns fast-changing state (e.g. a
+  // textarea inside it) passes a new inline `onClose` identity on every
+  // keystroke; depending on it here would re-run this effect that often,
+  // and its cleanup restores focus to whatever was focused before the modal
+  // opened, kicking the caret out after every single character typed.
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
 
   useEffect(() => {
     const panel = panelRef.current;
@@ -4698,7 +4707,7 @@ function ModalShell({ onClose, labelledBy, className = "", children }) {
     const onKeyDown = (e) => {
       if (e.key === "Escape") {
         e.stopPropagation();
-        onClose();
+        onCloseRef.current();
         return;
       }
       if (e.key !== "Tab") return;
@@ -4722,7 +4731,11 @@ function ModalShell({ onClose, labelledBy, className = "", children }) {
       const prev = restoreFocusRef.current;
       if (prev && typeof prev.focus === "function") prev.focus();
     };
-  }, [onClose]);
+    // Deliberately mount/unmount only (see onCloseRef above) — this must NOT
+    // re-run on every render, or the cleanup's focus-restore fires on every
+    // keystroke in a text field elsewhere in the modal.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <div className="modal-overlay" onClick={onClose}>
@@ -4924,11 +4937,43 @@ const PAGE_STORAGE_KEY = "mygoodbooks_page_v1";
 function loadPage() {
   try {
     const raw = localStorage.getItem(PAGE_STORAGE_KEY);
-    if (raw === "enterprise-upgrade" || ALL_TAB_KEYS.includes(raw)) return raw;
+    if (raw === "enterprise-upgrade" || raw === "staff-access" || raw === "bookkeeper-home" || ALL_TAB_KEYS.includes(raw)) {
+      return raw;
+    }
     return null;
   } catch (e) {
     return null;
   }
+}
+
+const SELECTED_CLIENT_STORAGE_KEY = "mygoodbooks_selected_client_v1";
+
+function loadSelectedClientId() {
+  try {
+    const raw = localStorage.getItem(SELECTED_CLIENT_STORAGE_KEY);
+    return raw && CLIENTS.some((c) => c.id === raw) ? raw : null;
+  } catch (e) {
+    return null;
+  }
+}
+
+// Set once per browser TAB (sessionStorage, not localStorage — a new tab or
+// window gets a fresh one, closing the tab clears it, but a plain refresh of
+// the same tab keeps it). Lets the very first render of a tab distinguish
+// "just opened/signed in" (land on Home) from "refreshed mid-work" (restore
+// exactly where they were) without hooking into Supabase auth events, which
+// fire ambiguously between a real new sign-in and a silently-restored
+// existing session on a page load.
+const SESSION_STARTED_KEY = "mygoodbooks_session_started_v1";
+
+function initialPage() {
+  try {
+    if (!sessionStorage.getItem(SESSION_STARTED_KEY)) {
+      sessionStorage.setItem(SESSION_STARTED_KEY, "1");
+      return "bookkeeper-home";
+    }
+  } catch (e) {}
+  return loadPage() || "daily-close";
 }
 
 // When THIS browser last viewed each client — per-device, not shared across
@@ -5334,9 +5379,12 @@ class ErrorBoundary extends React.Component {
 function App({ staffUser, onSignOut }) {
   // Riverside: premium plan (so Daily Report is reachable) and, as of the
   // thread fixes in data.js, no thread whose last message is unread —
-  // nothing steals focus with the chat popup on first load.
-  const [selectedClientId, setSelectedClientId] = useState("riverside-pantry");
-  const [page, setPage] = useState(() => loadPage() || "daily-close");
+  // nothing steals focus with the chat popup on first load. Only the
+  // fallback when nothing was ever persisted (loadSelectedClientId returns
+  // null) — a returning staffer lands back on whatever client they last had
+  // open, per initialPage's refresh-vs-fresh-open distinction below.
+  const [selectedClientId, setSelectedClientId] = useState(() => loadSelectedClientId() || "riverside-pantry");
+  const [page, setPage] = useState(initialPage);
   // Count-up gating (see the effect further down). Armed for the page the user
   // lands on, disarmed the moment they navigate away from it.
   const countUpArmed = useRef(true);
@@ -5441,6 +5489,12 @@ function App({ staffUser, onSignOut }) {
       localStorage.setItem(PAGE_STORAGE_KEY, page);
     } catch (e) {}
   }, [page]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(SELECTED_CLIENT_STORAGE_KEY, selectedClientId);
+    } catch (e) {}
+  }, [selectedClientId]);
 
   useEffect(() => {
     try {
