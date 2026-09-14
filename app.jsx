@@ -263,6 +263,23 @@ const FEATURE_FLAGS = [
   },
 ];
 
+// A directory, not a vault: where each piece of infrastructure lives and
+// which shared password manager vault holds the real credentials for it.
+// Deliberately never a place to store an actual secret — a bespoke
+// in-app credential store has no MFA, no breach monitoring, and no audit
+// trail, and if its encryption key ever lived in the same Supabase project
+// it's protecting, one compromise exposes everything. Edit this list by
+// hand as accounts change; it's just links and a pointer to where the real
+// password lives.
+const INFRA_LINKS = [
+  { name: "GitHub", url: "https://github.com/mygoodbooksllc/mgb-client-portal", note: "Credentials: 1Password vault “MGB Infra”" },
+  { name: "Supabase", url: "https://supabase.com/dashboard", note: "Project “MGB Client Portal” · org “Mygoodbooks LLC” · credentials: 1Password vault “MGB Infra”" },
+  { name: "Vercel", url: "https://vercel.com/dashboard", note: "Deploys app.mygoodbooks.org from main · credentials: 1Password vault “MGB Infra”" },
+  { name: "Google Cloud (OAuth)", url: "https://console.cloud.google.com", note: "Project “MyGoodBooks Auth” · credentials: 1Password vault “MGB Infra”" },
+  { name: "GoDaddy", url: "https://dcc.godaddy.com", note: "Domain mygoodbooks.org · credentials: 1Password vault “MGB Infra”" },
+  { name: "Squarespace", url: "https://account.squarespace.com", note: "The real mygoodbooks.org site · credentials: 1Password vault “MGB Infra”" },
+];
+
 function isFlagOn(key) {
   try {
     return localStorage.getItem(key) === "1";
@@ -447,6 +464,19 @@ function Sidebar({
                 Sign out
               </button>
             </div>
+          )}
+
+          {staffUser && (
+            <button
+              type="button"
+              className={"staff-access-link" + (page === "bookkeeper-home" ? " active" : "")}
+              onClick={() => {
+                onSelectPage("bookkeeper-home");
+                onCloseMobile();
+              }}
+            >
+              Home
+            </button>
           )}
 
           {staffUser && staffUser.role === "admin" && (
@@ -3294,6 +3324,44 @@ function StaffAccessPage({ staffUser }) {
   const [auditRows, setAuditRows] = useState(null);
   const [auditError, setAuditError] = useState("");
   const [flagVersion, setFlagVersion] = useState(0); // bumped to force a re-read of localStorage
+  const [clientAccessFor, setClientAccessFor] = useState(null); // the staff row being edited, or null
+  const [clientAccessSet, setClientAccessSet] = useState(new Set());
+  const [clientAccessLoading, setClientAccessLoading] = useState(false);
+
+  function openClientAccess(row) {
+    setClientAccessFor(row);
+    setClientAccessLoading(true);
+    supabase
+      .from("staff_client_access")
+      .select("client_id")
+      .eq("staff_email", row.email)
+      .then(({ data, error }) => {
+        setClientAccessLoading(false);
+        if (error) {
+          showToast(`Couldn't load ${row.name}'s client access: ${error.message}`);
+          setClientAccessFor(null);
+          return;
+        }
+        setClientAccessSet(new Set(data.map((r) => r.client_id)));
+      });
+  }
+
+  async function toggleClientAccess(clientId) {
+    const wasChecked = clientAccessSet.has(clientId);
+    const { error } = wasChecked
+      ? await supabase.from("staff_client_access").delete().eq("staff_email", clientAccessFor.email).eq("client_id", clientId)
+      : await supabase.from("staff_client_access").insert({ staff_email: clientAccessFor.email, client_id: clientId });
+    if (error) {
+      showToast(`Couldn't update client access: ${error.message}`);
+      return;
+    }
+    setClientAccessSet((prev) => {
+      const next = new Set(prev);
+      if (wasChecked) next.delete(clientId);
+      else next.add(clientId);
+      return next;
+    });
+  }
 
   const loadAudit = useCallback(() => {
     if (!supabase) return;
@@ -3467,6 +3535,7 @@ function StaffAccessPage({ staffUser }) {
                   <th>Email</th>
                   <th>Role</th>
                   <th>Active</th>
+                  <th>Clients</th>
                   <th></th>
                 </tr>
               </thead>
@@ -3501,6 +3570,15 @@ function StaffAccessPage({ staffUser }) {
                           />
                           <span>{row.active ? "Active" : "Deactivated"}</span>
                         </label>
+                      </td>
+                      <td data-label="Clients">
+                        {row.role === "admin" ? (
+                          <span className="staff-self-note">All (admin)</span>
+                        ) : (
+                          <button className="btn-secondary staff-clients-btn" onClick={() => openClientAccess(row)}>
+                            Manage
+                          </button>
+                        )}
                       </td>
                       <td className="row-remove-cell">
                         {isSelf ? (
@@ -3616,6 +3694,270 @@ function StaffAccessPage({ staffUser }) {
             </p>
           </div>
         </div>
+      </div>
+
+      <div className="card">
+        <h3 className="card-title">Where things live</h3>
+        <p className="card-subtitle">
+          A directory, not a vault — this doesn't store any real credentials. Edit <code>INFRA_LINKS</code> in
+          app.jsx when an account changes.
+        </p>
+        <div className="staff-audit-list">
+          {INFRA_LINKS.map((l) => (
+            <a className="staff-due-row" href={l.url} target="_blank" rel="noopener noreferrer" key={l.name}>
+              <span className="staff-flag-label">{l.name}</span>
+              <span className="staff-flag-desc">{l.note}</span>
+            </a>
+          ))}
+        </div>
+      </div>
+
+      {clientAccessFor && (
+        <ModalShell onClose={() => setClientAccessFor(null)} labelledBy="client-access-title">
+          <div className="modal-header">
+            <h3 className="card-title" id="client-access-title" style={{ margin: 0 }}>
+              {clientAccessFor.name}'s clients
+            </h3>
+            <button className="modal-close" onClick={() => setClientAccessFor(null)} aria-label="Close">
+              ×
+            </button>
+          </div>
+          <p className="card-subtitle">
+            Unchecked means they can't see this client at all — not just a restricted view, the client won't appear
+            in their switcher.
+          </p>
+          <div className="modal-body">
+            {clientAccessLoading && <p className="card-subtitle">Loading…</p>}
+            {!clientAccessLoading &&
+              CLIENTS.map((c) => (
+                <label className="tab-toggle-row" key={c.id}>
+                  <input
+                    type="checkbox"
+                    checked={clientAccessSet.has(c.id)}
+                    onChange={() => toggleClientAccess(c.id)}
+                  />
+                  <span>{c.name}</span>
+                </label>
+              ))}
+          </div>
+          <div className="modal-footer">
+            <button className="btn-primary" onClick={() => setClientAccessFor(null)}>
+              Done
+            </button>
+          </div>
+        </ModalShell>
+      )}
+    </div>
+  );
+}
+
+// ----------------------------------------------------------------------------
+// Bookkeeper Home — every signed-in staffer's landing page (not admin-only,
+// unlike Staff Access). Aggregates what's due across every client they can
+// see (visibleClients, already narrowed by staff_client_access for a
+// bookkeeper — an admin sees all), and a personal reminders list backed by
+// staff_reminders. Neither table has cross-staff visibility: reminders are
+// private per person, and clients here are exactly whatever the sidebar
+// switcher already shows this signed-in person.
+// ----------------------------------------------------------------------------
+
+function BookkeeperHomePage({ staffUser, clients, onNavigateToClient }) {
+  const showToast = useToast();
+  const supabase = window.mgbSupabase;
+  const today = todayLocal();
+
+  const [reminders, setReminders] = useState(null);
+  const [reminderError, setReminderError] = useState("");
+  const [newReminder, setNewReminder] = useState("");
+  const [newReminderDate, setNewReminderDate] = useState("");
+  const [adding, setAdding] = useState(false);
+
+  const loadReminders = useCallback(() => {
+    if (!supabase) return;
+    supabase
+      .from("staff_reminders")
+      .select("id, text, due_date, done, created_at")
+      .eq("staff_email", staffUser.email)
+      .order("done", { ascending: true })
+      .order("due_date", { ascending: true, nullsFirst: false })
+      .then(({ data, error }) => {
+        if (error) {
+          setReminderError("Couldn't load reminders. Has staff-reminders.sql been run? " + error.message);
+          setReminders([]);
+        } else {
+          setReminderError("");
+          setReminders(data);
+        }
+      });
+  }, [supabase, staffUser.email]);
+
+  useEffect(() => {
+    loadReminders();
+  }, [loadReminders]);
+
+  async function addReminder() {
+    const text = newReminder.trim();
+    if (!text) return;
+    setAdding(true);
+    const { error } = await supabase
+      .from("staff_reminders")
+      .insert({ staff_email: staffUser.email, text, due_date: newReminderDate || null });
+    setAdding(false);
+    if (error) {
+      showToast(`Couldn't add reminder: ${error.message}`);
+      return;
+    }
+    setNewReminder("");
+    setNewReminderDate("");
+    loadReminders();
+  }
+
+  async function toggleReminder(reminder) {
+    const { error } = await supabase.from("staff_reminders").update({ done: !reminder.done }).eq("id", reminder.id);
+    if (error) {
+      showToast(`Couldn't update reminder: ${error.message}`);
+      return;
+    }
+    loadReminders();
+  }
+
+  async function removeReminder(reminder) {
+    const { error } = await supabase.from("staff_reminders").delete().eq("id", reminder.id);
+    if (error) {
+      showToast(`Couldn't remove reminder: ${error.message}`);
+      return;
+    }
+    loadReminders();
+  }
+
+  // Every open bill across every client this person can see, newest-due
+  // first — same overdue/soon/scheduled split as AP Command Center, just
+  // rolled up across clients instead of scoped to one.
+  const dueAcrossClients = useMemo(() => {
+    const rows = [];
+    clients.forEach((client) => {
+      (client.payables || []).forEach((p) => {
+        const diff = daysUntil(p.dueDate, today);
+        const status = diff < 0 ? "overdue" : diff <= AP_SOON_DAYS ? "soon" : "scheduled";
+        if (status === "scheduled") return; // only surface what actually needs attention
+        rows.push({ ...p, diff, status, clientId: client.id, clientName: client.name });
+      });
+    });
+    return rows.sort((a, b) => a.diff - b.diff);
+  }, [clients, today]);
+
+  const overdueCount = dueAcrossClients.filter((r) => r.status === "overdue").length;
+  const soonCount = dueAcrossClients.filter((r) => r.status === "soon").length;
+
+  return (
+    <div>
+      <div className="kpi-grid">
+        <div className="card kpi-card">
+          <span className="kpi-label">Your clients</span>
+          <span className="kpi-value">{clients.length}</span>
+          <span className="kpi-sub neutral">
+            {clients.length === 0 ? "none assigned yet" : `client${clients.length === 1 ? "" : "s"} you can see`}
+          </span>
+        </div>
+        <div className="card kpi-card">
+          <span className="kpi-label">Overdue bills</span>
+          <span className="kpi-value negative">{overdueCount}</span>
+          <span className="kpi-sub negative">across all your clients</span>
+        </div>
+        <div className="card kpi-card">
+          <span className="kpi-label">Due within {AP_SOON_DAYS} days</span>
+          <span className="kpi-value warm">{soonCount}</span>
+          <span className="kpi-sub warm">across all your clients</span>
+        </div>
+      </div>
+
+      <div className="content-grid">
+        <div className="card">
+          <h3 className="card-title">Needs attention</h3>
+          <p className="card-subtitle">Overdue or due soon, across every client you can see.</p>
+          {dueAcrossClients.length === 0 && <p className="card-subtitle">Nothing due soon — you're caught up.</p>}
+          {dueAcrossClients.length > 0 && (
+            <div className="staff-audit-list">
+              {dueAcrossClients.slice(0, 12).map((r, i) => (
+                <button
+                  className="staff-due-row"
+                  key={i}
+                  onClick={() => onNavigateToClient(r.clientId, "ap-command-center")}
+                >
+                  <span>
+                    <span className="staff-flag-label">{r.vendor}</span>
+                    <span className="staff-flag-desc">
+                      {r.clientName} · {apDueText(r.diff)}
+                    </span>
+                  </span>
+                  <span className={"pill " + (r.status === "overdue" ? "bad" : "warm")}>
+                    {fmtMoney(r.amount, { cents: true })}
+                  </span>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className="card">
+          <h3 className="card-title">Your clients</h3>
+          <p className="card-subtitle">Click through to any of them.</p>
+          {clients.length === 0 && <p className="card-subtitle">None assigned yet — ask an admin.</p>}
+          <div className="staff-audit-list">
+            {clients.map((c) => (
+              <button className="staff-due-row" key={c.id} onClick={() => onNavigateToClient(c.id, "dashboard")}>
+                <span className="staff-flag-label">{c.name}</span>
+                <span className="staff-flag-desc">{c.plan === "premium" ? "Premium" : "Standard"} plan</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <div className="card">
+        <h3 className="card-title">Your reminders</h3>
+        <p className="card-subtitle">Private to you — nobody else, including admins, can see these.</p>
+
+        <div className="staff-add-row">
+          <input
+            type="text"
+            placeholder="Follow up with Grace Community about..."
+            value={newReminder}
+            onChange={(e) => setNewReminder(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") addReminder();
+            }}
+          />
+          <input type="date" value={newReminderDate} onChange={(e) => setNewReminderDate(e.target.value)} />
+          <button className="btn-primary" disabled={adding || !newReminder.trim()} onClick={addReminder}>
+            + Add
+          </button>
+        </div>
+
+        {reminderError && <p className="card-subtitle negative" style={{ marginTop: 16 }}>{reminderError}</p>}
+        {reminders === null && !reminderError && <p className="card-subtitle" style={{ marginTop: 16 }}>Loading…</p>}
+        {reminders && reminders.length === 0 && !reminderError && (
+          <p className="card-subtitle" style={{ marginTop: 16 }}>No reminders yet.</p>
+        )}
+
+        {reminders && reminders.length > 0 && (
+          <ul className="staff-audit-list">
+            {reminders.map((r) => (
+              <li className="staff-audit-row" key={r.id}>
+                <label className="staff-active-toggle" style={{ flex: 1 }}>
+                  <input type="checkbox" checked={r.done} onChange={() => toggleReminder(r)} />
+                  <span style={{ textDecoration: r.done ? "line-through" : "none" }}>
+                    {r.text}
+                    {r.due_date ? ` — due ${fmtDate(r.due_date)}` : ""}
+                  </span>
+                </label>
+                <button className="row-remove-btn" onClick={() => removeReminder(r)} aria-label={`Remove reminder: ${r.text}`}>
+                  ×
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
     </div>
   );
@@ -4667,6 +5009,7 @@ const PAGE_META = {
   "ap-command-center": { title: "AP Command Center", subtitle: "Every open bill, aging, and what's due next" },
   "enterprise-upgrade": { title: "Enterprise Tools", subtitle: "See what's included, and what upgrading unlocks" },
   "staff-access": { title: "Staff Access", subtitle: "Who can sign in to the portal, and with what role" },
+  "bookkeeper-home": { title: "Home", subtitle: "What needs attention across every client you can see" },
   documents: { title: "Documents", subtitle: "Shared files between you and your bookkeeper" },
   messages: { title: "Messages", subtitle: "Talk directly with your bookkeeping team" },
 };
@@ -4738,6 +5081,38 @@ function App({ staffUser, onSignOut }) {
   // Which person's thread the bookkeeper is reading (clients only ever see
   // their own, so this is unused while previewing as someone).
   const [bookkeeperThreadUserId, setBookkeeperThreadUserId] = useState(null);
+
+  // Which clients THIS staffer may see. null means "unrestricted" — true for
+  // every admin (assignment never applies to them), and also the safe
+  // fail-open value while the fetch is in flight or if it errors (e.g. the
+  // staff-client-access.sql migration hasn't been run yet) — a broken query
+  // should never look the same as an admin having deliberately assigned zero
+  // clients. Only a SUCCESSFUL fetch that returns zero rows sets an actual
+  // empty Set, which does restrict a bookkeeper to nothing until an admin
+  // checks at least one client for them.
+  const [assignedClientIds, setAssignedClientIds] = useState(null);
+
+  useEffect(() => {
+    if (staffUser.role === "admin") return;
+    const supabase = window.mgbSupabase;
+    if (!supabase) return;
+    supabase
+      .from("staff_client_access")
+      .select("client_id")
+      .eq("staff_email", staffUser.email)
+      .then(({ data, error }) => {
+        if (error) {
+          console.warn("Couldn't load client access (staff-client-access.sql may not be run yet):", error.message);
+          return;
+        }
+        setAssignedClientIds(new Set(data.map((r) => r.client_id)));
+      });
+  }, [staffUser]);
+
+  const visibleClients = useMemo(
+    () => (assignedClientIds ? CLIENTS.filter((c) => assignedClientIds.has(c.id)) : CLIENTS),
+    [assignedClientIds]
+  );
 
   const saveReferralPromo = (text) => {
     setReferralPromo(text);
@@ -4814,7 +5189,23 @@ function App({ staffUser, onSignOut }) {
 
   const effectiveTheme = theme || "dark";
 
-  const baseClient = useMemo(() => CLIENTS.find((c) => c.id === selectedClientId) || CLIENTS[0], [selectedClientId]);
+  const baseClient = useMemo(
+    () => visibleClients.find((c) => c.id === selectedClientId) || visibleClients[0] || CLIENTS[0],
+    [selectedClientId, visibleClients]
+  );
+
+  // A restricted bookkeeper's selectedClientId can point at a client that
+  // isn't (or is no longer) assigned to them — the very first render before
+  // assignedClientIds loads, or an admin having just unchecked one out from
+  // under them. baseClient above already falls back safely so nothing
+  // crashes, but this brings the URL/localStorage-persisted selection back
+  // in sync once we know the real list.
+  useEffect(() => {
+    if (visibleClients.length === 0) return;
+    if (!visibleClients.find((c) => c.id === selectedClientId)) {
+      setSelectedClientId(visibleClients[0].id);
+    }
+  }, [visibleClients]);
 
   // Apply any access edits the bookkeeper made in this session on top of the
   // access records that ship with the data.
@@ -4927,6 +5318,8 @@ function App({ staffUser, onSignOut }) {
     page === "enterprise-upgrade"
       ? page
       : page === "staff-access" && staffUser.role === "admin"
+      ? page
+      : page === "bookkeeper-home"
       ? page
       : access.tabs.has(page)
       ? page
@@ -5188,6 +5581,37 @@ function App({ staffUser, onSignOut }) {
     }));
   };
 
+  // A bookkeeper with a real (successful, non-null) assignment fetch but
+  // zero checked clients — the opt-in default from staff-client-access.sql.
+  // Nothing below this point has a sensible client to show, so stop here
+  // rather than let baseClient's CLIENTS[0] fallback silently show data
+  // nobody granted them.
+  if (assignedClientIds && visibleClients.length === 0) {
+    return (
+      <div className="boot-splash" role="main">
+        <div className="boot-splash-mark">MyGoodBooks</div>
+        <div className="boot-splash-sub">
+          {staffUser.name}, you're signed in but no clients are assigned to you yet. Ask an admin to check off at
+          least one client for you under Staff Access.
+        </div>
+        <button
+          onClick={onSignOut}
+          style={{
+            marginTop: 16,
+            background: "none",
+            border: "none",
+            color: "inherit",
+            textDecoration: "underline",
+            cursor: "pointer",
+            font: "inherit",
+          }}
+        >
+          Sign out
+        </button>
+      </div>
+    );
+  }
+
   return (
     <ToastProvider>
       <div className="mesh-bg" aria-hidden="true">
@@ -5209,7 +5633,7 @@ function App({ staffUser, onSignOut }) {
           onClick={() => setMobileNavOpen(false)}
         ></div>
         <Sidebar
-          clients={CLIENTS}
+          clients={visibleClients}
           selectedClientId={selectedClientId}
           onSelectClient={setSelectedClientId}
           client={client}
@@ -5303,6 +5727,16 @@ function App({ staffUser, onSignOut }) {
           {effectivePage === "report-builder" && <ReportBuilderPage client={scopedClient} key={"report-builder-" + client.id} />}
           {effectivePage === "enterprise-upgrade" && <EnterpriseUpgradePage client={scopedClient} key={"enterprise-upgrade-" + client.id} />}
           {effectivePage === "staff-access" && <StaffAccessPage staffUser={staffUser} />}
+          {effectivePage === "bookkeeper-home" && (
+            <BookkeeperHomePage
+              staffUser={staffUser}
+              clients={visibleClients}
+              onNavigateToClient={(clientId, targetPage) => {
+                setSelectedClientId(clientId);
+                setPage(targetPage);
+              }}
+            />
+          )}
           {effectivePage === "budgeting-tool" && <BudgetingToolPage client={scopedClient} key={"budgeting-tool-" + client.id} />}
           {effectivePage === "ap-command-center" && (
             <APCommandCenterPage client={scopedClient} key={"ap-command-center-" + client.id} />
