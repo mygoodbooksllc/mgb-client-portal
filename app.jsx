@@ -492,21 +492,25 @@ function Sidebar({
             </button>
           )}
 
-          <div className="client-picker-label">Preview as</div>
-          <select className="client-select" value={viewAsUserId} onChange={(e) => onSelectViewAs(e.target.value)}>
-            {/* Real name/email for the signed-in staffer replaces the old
-                shared "MyGoodBooks (full access)" sentinel label — the
-                underlying value stays BOOKKEEPER_VIEW so resolveAccess() and
-                everything downstream is untouched. */}
-            <option value={BOOKKEEPER_VIEW}>
-              {staffUser ? `${staffUser.name} (full access)` : "MyGoodBooks (full access)"}
-            </option>
-            {(client.users || []).map((u) => (
-              <option key={u.id} value={u.id}>
-                {u.name} — {u.role}
-              </option>
-            ))}
-          </select>
+          {page !== "bookkeeper-home" && (
+            <React.Fragment>
+              <div className="client-picker-label">Preview as</div>
+              <select className="client-select" value={viewAsUserId} onChange={(e) => onSelectViewAs(e.target.value)}>
+                {/* Real name/email for the signed-in staffer replaces the old
+                    shared "MyGoodBooks (full access)" sentinel label — the
+                    underlying value stays BOOKKEEPER_VIEW so resolveAccess() and
+                    everything downstream is untouched. */}
+                <option value={BOOKKEEPER_VIEW}>
+                  {staffUser ? `${staffUser.name} (full access)` : "MyGoodBooks (full access)"}
+                </option>
+                {(client.users || []).map((u) => (
+                  <option key={u.id} value={u.id}>
+                    {u.name} — {u.role}
+                  </option>
+                ))}
+              </select>
+            </React.Fragment>
+          )}
         </React.Fragment>
       ) : (
         <div className="signed-in-as">
@@ -524,6 +528,9 @@ function Sidebar({
         </div>
       )}
 
+      {page === "bookkeeper-home" ? (
+        <div className="sidebar-home-note">Pick a client above to see their tabs.</div>
+      ) : (
       <nav className="nav">
         {NAV_SECTIONS.map((section) => {
           const isSignature = section.label === "Enterprise Tools";
@@ -596,12 +603,15 @@ function Sidebar({
           );
         })}
       </nav>
+      )}
 
       <div className="sidebar-utility-row">
-        {isBookkeeper ? (
+        {isBookkeeper && page !== "bookkeeper-home" ? (
           <button className="customize-tabs-btn" onClick={onOpenSettings}>
             ⚙ Manage access
           </button>
+        ) : isBookkeeper ? (
+          <span className="sidebar-utility-label">{effectiveTheme === "dark" ? "Dark mode" : "Light mode"}</span>
         ) : (
           // Clients don't get "Manage access", and the toggle's margin-left:auto
           // left it floating alone against the right edge above a tall empty
