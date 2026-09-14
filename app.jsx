@@ -18,6 +18,14 @@ const fmtDate = (iso) => {
   return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
 };
 
+// For a real timestamp (e.g. Postgres's created_at, "2026-09-14T02:58:03Z"),
+// not the plain YYYY-MM-DD strings fmtDate above expects — appending
+// "T00:00:00" to one of these would double up the time component.
+const fmtDateTime = (iso) => {
+  const d = new Date(iso);
+  return d.toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
+};
+
 // Today as YYYY-MM-DD in the viewer's own timezone. Deliberately not
 // toISOString(), which returns the UTC date — west of UTC that stamps
 // anything created after ~7pm with tomorrow's date, and fmtDate above reads
@@ -237,11 +245,44 @@ const PREMIUM_TAB_KEYS = new Set(
   NAV_SECTIONS.flatMap((section) => section.items.filter((i) => i.premium).map((i) => i.key))
 );
 
+// Per-browser dev/QA toggles, set from Staff Access's "Developer Tools" card.
+// Deliberately localStorage-only, not a Supabase table: these are throwaway
+// testing aids for whoever's browser they're set in, not team-wide settings
+// (a "hide Staff Access for everyone" flag would be a much bigger footgun
+// than this file wants to hold).
+const FEATURE_FLAGS = [
+  {
+    key: "mygoodbooks_ff_force_premium_v1",
+    label: "Force premium plan",
+    description: "Treat every client as premium, so Enterprise Tools are reachable regardless of their real plan.",
+  },
+  {
+    key: "mygoodbooks_ff_verbose_logging_v1",
+    label: "Verbose console logging",
+    description: "Log the current page and client id to the console on every navigation, for bug reports.",
+  },
+];
+
+function isFlagOn(key) {
+  try {
+    return localStorage.getItem(key) === "1";
+  } catch (e) {
+    return false;
+  }
+}
+
+function setFlag(key, on) {
+  try {
+    if (on) localStorage.setItem(key, "1");
+    else localStorage.removeItem(key);
+  } catch (e) {}
+}
+
 // The billing gate. Deliberately outside <DailyClose />, which has no billing
 // logic of its own — same split we will need once this is a real route loader
 // checking a subscription record instead of a field on the mock client.
 function hasPremiumPlan(client) {
-  return client.plan === "premium";
+  return client.plan === "premium" || isFlagOn(FEATURE_FLAGS[0].key);
 }
 
 // Resolves what a given person may see: the org-level baseline the bookkeeper
@@ -3214,6 +3255,31 @@ function APCommandCenterPage({ client }) {
 
 const STAFF_ROLES = ["bookkeeper", "admin"];
 
+const STAFF_AUDIT_VERBS = {
+  added: "added",
+  removed: "removed",
+  role_changed: "changed the role of",
+  activated: "reactivated",
+  deactivated: "deactivated",
+};
+
+function staffAuditVerb(action) {
+  return STAFF_AUDIT_VERBS[action] || action;
+}
+
+// Cleared by Staff Access's "Reset local state" button. Everything here is a
+// per-browser viewer preference (theme, tab layout, per-client-user access
+// overrides, ...), never anything from Supabase, so clearing it can't lose
+// real data — only whatever local customization got the browser stuck.
+const RESETTABLE_STORAGE_KEYS = [
+  "mygoodbooks_theme_v1",
+  "mygoodbooks_page_v1",
+  "mygoodbooks_tab_config_v2",
+  "mygoodbooks_tab_order_v1",
+  "mygoodbooks_dashboard_widgets_v1",
+  "mygoodbooks_referral_promo_v1",
+];
+
 function StaffAccessPage({ staffUser }) {
   const showToast = useToast();
   const supabase = window.mgbSupabase;
@@ -3225,6 +3291,34 @@ function StaffAccessPage({ staffUser }) {
   const [newName, setNewName] = useState("");
   const [newRole, setNewRole] = useState("bookkeeper");
   const [adding, setAdding] = useState(false);
+  const [auditRows, setAuditRows] = useState(null);
+  const [auditError, setAuditError] = useState("");
+  const [flagVersion, setFlagVersion] = useState(0); // bumped to force a re-read of localStorage
+
+  const loadAudit = useCallback(() => {
+    if (!supabase) return;
+    supabase
+      .from("staff_audit_log")
+      .select("id, actor_email, action, target_email, detail, created_at")
+      .order("created_at", { ascending: false })
+      .limit(20)
+      .then(({ data, error }) => {
+        if (error) {
+          // Most likely cause: supabase/staff-audit-log.sql hasn't been run
+          // yet. Not fatal to the rest of the page, so this stays quiet
+          // rather than another red banner on top of the roster's own.
+          setAuditError("Couldn't load recent activity. " + error.message);
+          setAuditRows([]);
+        } else {
+          setAuditError("");
+          setAuditRows(data);
+        }
+      });
+  }, [supabase]);
+
+  useEffect(() => {
+    loadAudit();
+  }, [loadAudit]);
 
   const load = useCallback(() => {
     if (!supabase) {
@@ -3273,6 +3367,7 @@ function StaffAccessPage({ staffUser }) {
     setNewRole("bookkeeper");
     showToast(`Added ${name} to the staff list.`);
     load();
+    loadAudit();
   }
 
   async function updateRow(row, patch) {
@@ -3284,6 +3379,7 @@ function StaffAccessPage({ staffUser }) {
       return;
     }
     load();
+    loadAudit();
   }
 
   async function removeRow(row) {
@@ -3297,6 +3393,28 @@ function StaffAccessPage({ staffUser }) {
     }
     showToast(`Removed ${row.name}.`);
     load();
+    loadAudit();
+  }
+
+  function resetLocalState() {
+    if (
+      !window.confirm(
+        "Reset this browser's local MyGoodBooks state (theme, tab layout, dashboard widgets, per-person access overrides)? This only affects this browser — nothing in Supabase is touched. The page will reload."
+      )
+    ) {
+      return;
+    }
+    RESETTABLE_STORAGE_KEYS.forEach((key) => {
+      try {
+        localStorage.removeItem(key);
+      } catch (e) {}
+    });
+    window.location.reload();
+  }
+
+  function toggleFlag(key) {
+    setFlag(key, !isFlagOn(key));
+    setFlagVersion((v) => v + 1);
   }
 
   return (
@@ -3407,6 +3525,97 @@ function StaffAccessPage({ staffUser }) {
         )}
 
         {rows && rows.length === 0 && !loadError && <p className="card-subtitle">No staff rows yet.</p>}
+      </div>
+
+      <div className="card">
+        <h3 className="card-title">Recent activity</h3>
+        <p className="card-subtitle">
+          Every change to the staff table, logged automatically by Postgres — not just the ones made from this page.
+        </p>
+
+        {auditRows === null && !auditError && <p className="card-subtitle">Loading…</p>}
+        {auditError && <p className="card-subtitle negative">{auditError}</p>}
+
+        {auditRows && auditRows.length > 0 && (
+          <ul className="staff-audit-list">
+            {auditRows.map((entry) => (
+              <li className="staff-audit-row" key={entry.id}>
+                <span className="staff-audit-text">
+                  <strong>{entry.actor_email || "Unknown"}</strong> {staffAuditVerb(entry.action)}{" "}
+                  <strong>{entry.target_email}</strong>
+                  {entry.detail ? ` (${entry.detail})` : ""}
+                </span>
+                <span className="staff-audit-time">{fmtDateTime(entry.created_at)}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+
+        {auditRows && auditRows.length === 0 && !auditError && (
+          <p className="card-subtitle">No activity recorded yet.</p>
+        )}
+      </div>
+
+      <div className="content-grid">
+        <div className="card">
+          <h3 className="card-title">System info</h3>
+          <p className="card-subtitle">What this page is actually talking to, for debugging a broken login or a stale deploy.</p>
+          <dl className="staff-info-list">
+            <div>
+              <dt>App version</dt>
+              <dd>
+                {window.MGB_VERSION ? `${window.MGB_VERSION.label} — ${window.MGB_VERSION.note}` : "Not set"}
+              </dd>
+            </div>
+            <div>
+              <dt>Supabase project</dt>
+              <dd>{supabase && window.SUPABASE_CONFIG ? new URL(window.SUPABASE_CONFIG.url).host : "Not configured"}</dd>
+            </div>
+            <div>
+              <dt>Staff table read</dt>
+              <dd className={loadError ? "negative" : rows ? "positive" : ""}>
+                {loadError ? "Failing — see the roster card above" : rows ? "OK" : "Checking…"}
+              </dd>
+            </div>
+            <div>
+              <dt>Audit log read</dt>
+              <dd className={auditError ? "negative" : auditRows ? "positive" : ""}>
+                {auditError ? "Failing — run staff-audit-log.sql" : auditRows ? "OK" : "Checking…"}
+              </dd>
+            </div>
+            <div>
+              <dt>Signed in as</dt>
+              <dd>
+                {staffUser.name} ({staffUser.email}) · {staffUser.role}
+              </dd>
+            </div>
+          </dl>
+        </div>
+
+        <div className="card">
+          <h3 className="card-title">Developer tools</h3>
+          <p className="card-subtitle">Per-browser testing aids — nothing here is shared with other staff or written to Supabase.</p>
+
+          {FEATURE_FLAGS.map((f) => (
+            <label className="staff-flag-row" key={f.key}>
+              <input type="checkbox" checked={isFlagOn(f.key)} onChange={() => toggleFlag(f.key)} />
+              <span>
+                <span className="staff-flag-label">{f.label}</span>
+                <span className="staff-flag-desc">{f.description}</span>
+              </span>
+            </label>
+          ))}
+
+          <div className="staff-reset-row">
+            <button className="btn-secondary" onClick={resetLocalState}>
+              Reset local state
+            </button>
+            <p className="card-subtitle" style={{ margin: 0 }}>
+              Clears this browser's saved theme, tab layout, dashboard widgets, and per-person access overrides, then
+              reloads. Doesn't touch Supabase or any other browser.
+            </p>
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -4777,6 +4986,12 @@ function App({ staffUser, onSignOut }) {
   // sticky, so it's the window/body that actually scrolls.
   useEffect(() => {
     window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+  }, [effectivePage, selectedClientId]);
+
+  useEffect(() => {
+    if (isFlagOn(FEATURE_FLAGS[1].key)) {
+      console.log("[MyGoodBooks debug]", { page: effectivePage, clientId: selectedClientId });
+    }
   }, [effectivePage, selectedClientId]);
 
   // Daily Report reads as continuously live, not a once-a-day snapshot —
