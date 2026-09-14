@@ -5155,6 +5155,20 @@ function useDragReorder(layout) {
   // Touch bookkeeping lives in a ref, not state: it changes on every pointer
   // move and must not re-render the grid on its own.
   const touch = useRef({ id: null, x: 0, y: 0, timer: null, active: false, el: null, pointerId: null });
+  // The last target reorder() was actually called against, for both paths.
+  // dragover/pointermove fire continuously (many times a second) while
+  // hovering, and layout.reorder(draggedId, targetId) is NOT idempotent for
+  // a stationary hover — calling it twice in a row on the same pair swaps
+  // them, then swaps them right back (the dragged item's index vs. the
+  // target's flips after the first call, which flips which branch the
+  // insert-position math takes). Repeated firing during any hover longer
+  // than one event tick — i.e. any real, deliberate drag — oscillates
+  // between two arrangements and can land back where it started by the
+  // time you release, which reads as "picks up fine, never actually
+  // swaps." Only reordering once per newly-entered target (reset when the
+  // drag starts or ends) restores the intended "shuffle the instant you
+  // drag over a neighbor" behavior.
+  const lastTarget = useRef(null);
 
   const resetTouch = () => {
     const t = touch.current;
@@ -5167,6 +5181,7 @@ function useDragReorder(layout) {
       }
     }
     touch.current = { id: null, x: 0, y: 0, timer: null, active: false, el: null, pointerId: null };
+    lastTarget.current = null;
   };
 
   const endTouchDrag = () => {
@@ -5221,16 +5236,26 @@ function useDragReorder(layout) {
     dragProps: (id) => ({
       // --- Mouse: the browser's own drag-and-drop, ghost image and all. ---
       draggable: true,
-      onDragStart: () => setDraggedId(id),
+      onDragStart: () => {
+        lastTarget.current = null;
+        setDraggedId(id);
+      },
       onDragOver: (e) => {
         e.preventDefault();
-        if (draggedId && draggedId !== id) layout.reorder(draggedId, id);
+        if (draggedId && draggedId !== id && lastTarget.current !== id) {
+          lastTarget.current = id;
+          layout.reorder(draggedId, id);
+        }
       },
       onDrop: (e) => {
         e.preventDefault();
+        lastTarget.current = null;
         setDraggedId(null);
       },
-      onDragEnd: () => setDraggedId(null),
+      onDragEnd: () => {
+        lastTarget.current = null;
+        setDraggedId(null);
+      },
 
       // --- Touch: HTML5 drag events are never fired from a finger, on any
       // mobile browser, so a pointer-based path stands in for them. Press and
@@ -5268,7 +5293,10 @@ function useDragReorder(layout) {
         const under = document.elementFromPoint(e.clientX, e.clientY);
         const targetEl = under && under.closest ? under.closest("[data-widget-id]") : null;
         const targetId = targetEl && targetEl.getAttribute("data-widget-id");
-        if (targetId && targetId !== t.id) layout.reorder(t.id, targetId);
+        if (targetId && targetId !== t.id && lastTarget.current !== targetId) {
+          lastTarget.current = targetId;
+          layout.reorder(t.id, targetId);
+        }
       },
       onPointerUp: (e) => {
         if (e.pointerType !== "mouse") endTouchDrag();
@@ -6106,8 +6134,10 @@ function App({ staffUser, onSignOut }) {
 
           <div className="page-header">
             <div>
-              <div className="portal-greeting">{effectivePage === "bookkeeper-home" ? "MyGoodBooks" : client.name}</div>
-              {effectivePage === "bookkeeper-home" ? (
+              <div className="portal-greeting">
+                {effectivePage === "bookkeeper-home" || effectivePage === "staff-access" ? "MyGoodBooks" : client.name}
+              </div>
+              {effectivePage === "bookkeeper-home" || effectivePage === "staff-access" ? (
                 <h1 className="page-title">
                   {timeOfDayGreeting()}, {firstNameOf(staffUser.name)}
                 </h1>
