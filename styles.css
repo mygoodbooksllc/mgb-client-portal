@@ -202,6 +202,12 @@ body {
   background: transparent;
   color: var(--text);
   -webkit-font-smoothing: antialiased;
+  /* Chrome (mobile especially) can hand a scroll gesture off to whatever
+     nested scrollable container it started over and not hand it back
+     cleanly, which reads as "stuck, can't scroll to the top" — contain
+     stops that handoff at the page boundary. See also .tx-list-scroll and
+     .modal-panel below, the two most common nested-scroll containers. */
+  overscroll-behavior-y: contain;
 }
 
 /* Ambient gradient mesh behind the glass cards (Option C direction). A fixed
@@ -1127,6 +1133,7 @@ body {
   max-height: 360px;
   overflow-y: auto;
   padding-right: 4px;
+  overscroll-behavior-y: contain;
 }
 
 .tx-row {
@@ -2780,6 +2787,7 @@ body.rb-presenting .main {
   display: flex;
   flex-direction: column;
   gap: 18px;
+  overscroll-behavior-y: contain;
 }
 
 .modal-section {
