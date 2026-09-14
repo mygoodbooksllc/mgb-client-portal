@@ -34,7 +34,25 @@
       // step to inject a real commit SHA into (see the no-bundler note up
       // top). Shown in Staff Access's System Info card so staff can confirm
       // which version they're looking at without guessing from Vercel's UI.
-      window.MGB_VERSION = { label: "2026-09-14c", note: "Home page: unread rollup, visits, client notes" };
+      window.MGB_VERSION = { label: "2026-09-14d", note: "Home cards draggable, adaptive card grids" };
+
+      // No pinch-to-zoom, blocked at the gesture level (only when a SECOND
+      // finger joins) rather than via touch-action CSS — an earlier attempt
+      // set touch-action on <html>, which made the browser commit to
+      // handling every single-finger touch as native panning right from
+      // touchstart, and that pre-empted the dashboard/Home drag-and-drop's
+      // own long-press-then-drag logic (pointer capture + preventDefault)
+      // from ever getting a clean shot at the gesture — cards could be
+      // picked up but never actually reordered. This only ever calls
+      // preventDefault on a touchmove that already has 2+ touches, so a
+      // normal one-finger scroll or drag is never touched.
+      document.addEventListener(
+        "touchmove",
+        function (e) {
+          if (e.touches && e.touches.length > 1) e.preventDefault();
+        },
+        { passive: false }
+      );
 
       // Cache-bust so local edits to styles.css always show up on reload.
       document.write('<link rel="stylesheet" href="styles.css?v=' + Date.now() + '">');

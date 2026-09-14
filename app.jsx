@@ -445,14 +445,23 @@ function Sidebar({
 
       {isBookkeeper ? (
         <React.Fragment>
-          <div className="client-picker-label">Viewing client</div>
-          <select className="client-select" value={selectedClientId} onChange={(e) => onSelectClient(e.target.value)}>
-            {clients.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
-              </option>
-            ))}
-          </select>
+          {/* Staff Access isn't about any client — showing a client picker
+              there (and whichever client happened to be last selected) is
+              exactly the confusing "why is a client's sidebar showing, I
+              didn't pick one" report. Home keeps the picker on purpose, for
+              jumping straight into a client. */}
+          {page !== "staff-access" && (
+            <React.Fragment>
+              <div className="client-picker-label">Viewing client</div>
+              <select className="client-select" value={selectedClientId} onChange={(e) => onSelectClient(e.target.value)}>
+                {clients.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                  </option>
+                ))}
+              </select>
+            </React.Fragment>
+          )}
 
           {staffUser && (
             <div className="client-picker-label" style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
@@ -492,7 +501,7 @@ function Sidebar({
             </button>
           )}
 
-          {page !== "bookkeeper-home" && (
+          {page !== "bookkeeper-home" && page !== "staff-access" && (
             <React.Fragment>
               <div className="client-picker-label">Preview as</div>
               <select className="client-select" value={viewAsUserId} onChange={(e) => onSelectViewAs(e.target.value)}>
@@ -530,7 +539,7 @@ function Sidebar({
 
       {page === "bookkeeper-home" ? (
         <div className="sidebar-home-note">Pick a client above to see their tabs.</div>
-      ) : (
+      ) : page === "staff-access" ? null : (
       <nav className="nav">
         {NAV_SECTIONS.map((section) => {
           const isSignature = section.label === "Enterprise Tools";
@@ -606,7 +615,7 @@ function Sidebar({
       )}
 
       <div className="sidebar-utility-row">
-        {isBookkeeper && page !== "bookkeeper-home" ? (
+        {isBookkeeper && page !== "bookkeeper-home" && page !== "staff-access" ? (
           <button className="customize-tabs-btn" onClick={onOpenSettings}>
             ⚙ Manage access
           </button>

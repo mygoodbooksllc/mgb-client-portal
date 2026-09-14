@@ -187,13 +187,7 @@ html, body, #root {
   height: 100%;
 }
 
-/* No pinch-to-zoom. The viewport meta tag (index.html/build.py) sets
-   user-scalable=no for browsers that respect it, but several modern mobile
-   browsers ignore that on purpose for accessibility and only honor
-   touch-action — pan-x/pan-y still allow normal scrolling and drag-and-drop,
-   just not the pinch gesture itself. */
 html {
-  touch-action: pan-x pan-y;
   /* Chrome specifically reads overscroll-behavior off the document element
      (html), not body, to decide whether to show its native pull-to-refresh
      UI at the top of the page — setting it only on body (below) wasn't
@@ -1083,6 +1077,14 @@ body {
 .content-grid-adaptive {
   grid-template-columns: repeat(2, minmax(320px, 1fr));
   align-items: start;
+}
+
+/* Same overflow guard as .content-grid above — without it, wide content
+   inside a card (a table, a long unbroken string) refuses to shrink below
+   its own intrinsic width and pushes the grid track wider than the column,
+   instead of scrolling inside the card via .table-scroll/.staff-audit-list. */
+.content-grid-adaptive > * {
+  min-width: 0;
 }
 
 .content-card-full {
