@@ -3959,225 +3959,278 @@ function BookkeeperHomePage({ staffUser, clients, messagesByClient, readMessageC
     return map;
   }, [dueAcrossClients]);
 
+  // Same drag-to-reorder / hide-and-show system the client Dashboard uses
+  // (useWidgetLayout + useDragReorder + CustomizeDashboardButton) — a fixed
+  // scope key rather than a per-client one, since Home isn't about any one
+  // client. Long-press (touch) or drag (mouse) any card by its body to pick
+  // it up; a plain tap/click still reaches the card's own buttons and links.
+  const widgets = [
+    { id: "kpi-clients", group: "kpi", label: "Your clients", description: "How many clients you can see" },
+    { id: "kpi-overdue", group: "kpi", label: "Overdue bills", description: "Across all your clients" },
+    { id: "kpi-soon", group: "kpi", label: `Due within ${AP_SOON_DAYS} days`, description: "Across all your clients" },
+    { id: "kpi-unread", group: "kpi", label: "Unread messages", description: "Across all your clients" },
+    { id: "needs-attention", group: "content", label: "Needs attention", description: "Overdue or due-soon bills" },
+    { id: "unread-list", group: "content", label: "Unread messages", description: "Threads waiting on a reply" },
+    { id: "recently-viewed", group: "content", label: "Recently viewed", description: "Clients you've had open recently on this device" },
+    { id: "needs-visit", group: "content", label: "Needs a visit", description: "Clients not opened in a while" },
+    { id: "your-clients", group: "content", label: "Your clients", description: "Full client list, with search and notes" },
+    { id: "your-reminders", group: "content", label: "Your reminders", description: "Your private personal reminders" },
+  ];
+  const layout = useWidgetLayout("bookkeeper-home", widgets.map((w) => w.id));
+  const drag = useDragReorder(layout);
+  const kpiOrder = layout.visibleOrder.filter((id) => id.startsWith("kpi-"));
+  const contentOrder = layout.visibleOrder.filter((id) => !id.startsWith("kpi-"));
+
   return (
     <div>
+      <CustomizeDashboardButton widgets={widgets} layout={layout} />
+
       <div className="kpi-grid">
-        <div className="card kpi-card">
-          <span className="kpi-label">Your clients</span>
-          <span className="kpi-value">{clients.length}</span>
-          <span className="kpi-sub neutral">
-            {clients.length === 0 ? "none assigned yet" : `client${clients.length === 1 ? "" : "s"} you can see`}
-          </span>
-        </div>
-        <div className="card kpi-card">
-          <span className="kpi-label">Overdue bills</span>
-          <span className="kpi-value negative">{overdueCount}</span>
-          <span className="kpi-sub negative">across all your clients</span>
-        </div>
-        <div className="card kpi-card">
-          <span className="kpi-label">Due within {AP_SOON_DAYS} days</span>
-          <span className="kpi-value warm">{soonCount}</span>
-          <span className="kpi-sub warm">across all your clients</span>
-        </div>
-        {unreadAcrossClients.length > 0 ? (
-          <button
-            className="card kpi-card kpi-card-clickable"
-            onClick={() => onNavigateToClient(unreadAcrossClients[0].clientId, "messages")}
-          >
-            <span className="kpi-label">Unread messages</span>
-            <span className="kpi-value warm">{unreadAcrossClients.length}</span>
-            <span className="kpi-sub warm">across all your clients — click to open the oldest</span>
-          </button>
-        ) : (
-          <div className="card kpi-card">
-            <span className="kpi-label">Unread messages</span>
-            <span className="kpi-value">0</span>
-            <span className="kpi-sub neutral">across all your clients</span>
-          </div>
-        )}
-      </div>
-
-      <div className="content-grid" style={{ marginBottom: 20 }}>
-        <div className="card">
-          <h3 className="card-title">Needs attention</h3>
-          <p className="card-subtitle">Overdue or due soon, across every client you can see.</p>
-          {dueAcrossClients.length === 0 && <p className="card-subtitle">Nothing due soon — you're caught up.</p>}
-          {dueAcrossClients.length > 0 && (
-            <div className="staff-audit-list">
-              {dueAcrossClients.slice(0, 12).map((r, i) => (
-                <button
-                  className="staff-due-row"
-                  key={i}
-                  onClick={() => onNavigateToClient(r.clientId, "ap-command-center")}
-                >
-                  <span>
-                    <span className="staff-flag-label">{r.vendor}</span>
-                    <span className="staff-flag-desc">
-                      {r.clientName} · {apDueText(r.diff)}
-                    </span>
-                  </span>
-                  <span className={"pill " + (r.status === "overdue" ? "bad" : "warm")}>
-                    {fmtMoney(r.amount, { cents: true })}
-                  </span>
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-
-        <div className="card">
-          <h3 className="card-title">Unread messages</h3>
-          <p className="card-subtitle">Waiting on a reply, across every client you can see.</p>
-          {unreadAcrossClients.length === 0 && <p className="card-subtitle">Nothing unread.</p>}
-          {unreadAcrossClients.length > 0 && (
-            <div className="staff-audit-list">
-              {unreadAcrossClients.slice(0, 12).map((r) => (
-                <button
-                  className="staff-due-row"
-                  key={r.clientId + r.userId}
-                  onClick={() => onNavigateToClient(r.clientId, "messages")}
-                >
-                  <span className="staff-flag-label">{r.userName}</span>
-                  <span className="staff-flag-desc">{r.clientName}</span>
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
-
-      <div className="content-grid" style={{ marginBottom: 20 }}>
-        <div className="card">
-          <h3 className="card-title">Recently viewed</h3>
-          <p className="card-subtitle">The clients you've had open most recently, on this device.</p>
-          {recentlyViewed.length === 0 && <p className="card-subtitle">Nothing viewed yet this device.</p>}
-          {recentlyViewed.length > 0 && (
-            <div className="staff-audit-list">
-              {recentlyViewed.map((c) => (
-                <button className="staff-due-row" key={c.id} onClick={() => onNavigateToClient(c.id, "dashboard")}>
-                  <span className="staff-flag-label">{c.name}</span>
-                  <span className="staff-flag-desc">{fmtDateTime(new Date(clientVisits[c.id]).toISOString())}</span>
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-
-        <div className="card">
-          <h3 className="card-title">Needs a visit</h3>
-          <p className="card-subtitle">
-            Not opened on this device in {CLIENT_VISIT_STALE_DAYS}+ days (or ever) — nothing to imply they need
-            anything urgent, just a nudge not to lose track.
-          </p>
-          {needsVisit.length === 0 && <p className="card-subtitle">You're caught up with all of them.</p>}
-          {needsVisit.length > 0 && (
-            <div className="staff-audit-list">
-              {needsVisit.slice(0, 8).map((c) => (
-                <button className="staff-due-row" key={c.id} onClick={() => onNavigateToClient(c.id, "dashboard")}>
-                  <span className="staff-flag-label">{c.name}</span>
-                  <span className="staff-flag-desc">
-                    {clientVisits[c.id] ? fmtDateTime(new Date(clientVisits[c.id]).toISOString()) : "Never viewed"}
-                  </span>
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
-
-      <div className="card" style={{ marginBottom: 20 }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", flexWrap: "wrap", gap: 8 }}>
-          <div>
-            <h3 className="card-title">Your clients</h3>
-            <p className="card-subtitle" style={{ marginTop: 0 }}>
-              Click through to any of them, or add a note for yourself or a colleague.
-            </p>
-          </div>
-          <input
-            type="text"
-            placeholder="Search your clients…"
-            value={clientSearch}
-            onChange={(e) => setClientSearch(e.target.value)}
-            style={{ maxWidth: 220 }}
-          />
-        </div>
-        {clients.length === 0 && <p className="card-subtitle">None assigned yet — ask an admin.</p>}
-        {clients.length > 0 && filteredClients.length === 0 && (
-          <p className="card-subtitle">No client matches "{clientSearch}".</p>
-        )}
-        {noteError && <p className="card-subtitle negative">{noteError}</p>}
-        <div className="staff-audit-list">
-          {filteredClients.map((c) => {
-            const due = dueCountByClient[c.id];
-            const note = notes[c.id];
+        {kpiOrder.map((id) => {
+          if (id === "kpi-clients")
             return (
-              <div className="staff-due-row" key={c.id} style={{ cursor: "default" }}>
-                <button
-                  className="staff-client-jump"
-                  onClick={() => onNavigateToClient(c.id, "dashboard")}
-                  style={{ textAlign: "left", flex: 1 }}
-                >
-                  <span className="staff-flag-label">{c.name}</span>
-                  <span className="staff-flag-desc">
-                    {c.plan === "premium" ? "Premium" : "Standard"} plan
-                    {due && due.overdue > 0 ? ` · ${due.overdue} overdue` : ""}
-                    {due && due.soon > 0 ? ` · ${due.soon} due soon` : ""}
-                    {note && note.note ? ` · has a note` : ""}
-                  </span>
-                </button>
-                <button className="btn-secondary" onClick={() => openNoteEditor(c)}>
-                  {note && note.note ? "Edit note" : "+ Note"}
-                </button>
+              <div className={"card kpi-card " + drag.dragClass(id)} key={id} {...drag.dragProps(id)}>
+                <span className="kpi-label">Your clients</span>
+                <span className="kpi-value">{clients.length}</span>
+                <span className="kpi-sub neutral">
+                  {clients.length === 0 ? "none assigned yet" : `client${clients.length === 1 ? "" : "s"} you can see`}
+                </span>
               </div>
             );
-          })}
-        </div>
+          if (id === "kpi-overdue")
+            return (
+              <div className={"card kpi-card " + drag.dragClass(id)} key={id} {...drag.dragProps(id)}>
+                <span className="kpi-label">Overdue bills</span>
+                <span className="kpi-value negative">{overdueCount}</span>
+                <span className="kpi-sub negative">across all your clients</span>
+              </div>
+            );
+          if (id === "kpi-soon")
+            return (
+              <div className={"card kpi-card " + drag.dragClass(id)} key={id} {...drag.dragProps(id)}>
+                <span className="kpi-label">Due within {AP_SOON_DAYS} days</span>
+                <span className="kpi-value warm">{soonCount}</span>
+                <span className="kpi-sub warm">across all your clients</span>
+              </div>
+            );
+          if (id === "kpi-unread")
+            return unreadAcrossClients.length > 0 ? (
+              <button
+                className={"card kpi-card kpi-card-clickable " + drag.dragClass(id)}
+                key={id}
+                {...drag.dragProps(id)}
+                onClick={() => onNavigateToClient(unreadAcrossClients[0].clientId, "messages")}
+              >
+                <span className="kpi-label">Unread messages</span>
+                <span className="kpi-value warm">{unreadAcrossClients.length}</span>
+                <span className="kpi-sub warm">across all your clients — click to open the oldest</span>
+              </button>
+            ) : (
+              <div className={"card kpi-card " + drag.dragClass(id)} key={id} {...drag.dragProps(id)}>
+                <span className="kpi-label">Unread messages</span>
+                <span className="kpi-value">0</span>
+                <span className="kpi-sub neutral">across all your clients</span>
+              </div>
+            );
+          return null;
+        })}
       </div>
 
-      <div className="card">
-        <h3 className="card-title">Your reminders</h3>
-        <p className="card-subtitle">Private to you — nobody else, including admins, can see these.</p>
+      <div className="content-grid content-grid-adaptive" style={{ marginBottom: 20 }}>
+        {contentOrder.map((id) => {
+          if (id === "needs-attention")
+            return (
+              <div className={"card " + drag.dragClass(id)} key={id} {...drag.dragProps(id)}>
+                <h3 className="card-title">Needs attention</h3>
+                <p className="card-subtitle">Overdue or due soon, across every client you can see.</p>
+                {dueAcrossClients.length === 0 && <p className="card-subtitle">Nothing due soon — you're caught up.</p>}
+                {dueAcrossClients.length > 0 && (
+                  <div className="staff-audit-list">
+                    {dueAcrossClients.slice(0, 12).map((r, i) => (
+                      <button
+                        className="staff-due-row"
+                        key={i}
+                        onClick={() => onNavigateToClient(r.clientId, "ap-command-center")}
+                      >
+                        <span>
+                          <span className="staff-flag-label">{r.vendor}</span>
+                          <span className="staff-flag-desc">
+                            {r.clientName} · {apDueText(r.diff)}
+                          </span>
+                        </span>
+                        <span className={"pill " + (r.status === "overdue" ? "bad" : "warm")}>
+                          {fmtMoney(r.amount, { cents: true })}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          if (id === "unread-list")
+            return (
+              <div className={"card " + drag.dragClass(id)} key={id} {...drag.dragProps(id)}>
+                <h3 className="card-title">Unread messages</h3>
+                <p className="card-subtitle">Waiting on a reply, across every client you can see.</p>
+                {unreadAcrossClients.length === 0 && <p className="card-subtitle">Nothing unread.</p>}
+                {unreadAcrossClients.length > 0 && (
+                  <div className="staff-audit-list">
+                    {unreadAcrossClients.slice(0, 12).map((r) => (
+                      <button
+                        className="staff-due-row"
+                        key={r.clientId + r.userId}
+                        onClick={() => onNavigateToClient(r.clientId, "messages")}
+                      >
+                        <span className="staff-flag-label">{r.userName}</span>
+                        <span className="staff-flag-desc">{r.clientName}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          if (id === "recently-viewed")
+            return (
+              <div className={"card " + drag.dragClass(id)} key={id} {...drag.dragProps(id)}>
+                <h3 className="card-title">Recently viewed</h3>
+                <p className="card-subtitle">The clients you've had open most recently, on this device.</p>
+                {recentlyViewed.length === 0 && <p className="card-subtitle">Nothing viewed yet this device.</p>}
+                {recentlyViewed.length > 0 && (
+                  <div className="staff-audit-list">
+                    {recentlyViewed.map((c) => (
+                      <button className="staff-due-row" key={c.id} onClick={() => onNavigateToClient(c.id, "dashboard")}>
+                        <span className="staff-flag-label">{c.name}</span>
+                        <span className="staff-flag-desc">{fmtDateTime(new Date(clientVisits[c.id]).toISOString())}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          if (id === "needs-visit")
+            return (
+              <div className={"card " + drag.dragClass(id)} key={id} {...drag.dragProps(id)}>
+                <h3 className="card-title">Needs a visit</h3>
+                <p className="card-subtitle">
+                  Not opened on this device in {CLIENT_VISIT_STALE_DAYS}+ days (or ever) — nothing to imply they need
+                  anything urgent, just a nudge not to lose track.
+                </p>
+                {needsVisit.length === 0 && <p className="card-subtitle">You're caught up with all of them.</p>}
+                {needsVisit.length > 0 && (
+                  <div className="staff-audit-list">
+                    {needsVisit.slice(0, 8).map((c) => (
+                      <button className="staff-due-row" key={c.id} onClick={() => onNavigateToClient(c.id, "dashboard")}>
+                        <span className="staff-flag-label">{c.name}</span>
+                        <span className="staff-flag-desc">
+                          {clientVisits[c.id] ? fmtDateTime(new Date(clientVisits[c.id]).toISOString()) : "Never viewed"}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          if (id === "your-clients")
+            return (
+              <div className={"card " + drag.dragClass(id)} key={id} {...drag.dragProps(id)}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", flexWrap: "wrap", gap: 8 }}>
+                  <div>
+                    <h3 className="card-title">Your clients</h3>
+                    <p className="card-subtitle" style={{ marginTop: 0 }}>
+                      Click through to any of them, or add a note for yourself or a colleague.
+                    </p>
+                  </div>
+                  <input
+                    type="text"
+                    placeholder="Search your clients…"
+                    value={clientSearch}
+                    onChange={(e) => setClientSearch(e.target.value)}
+                    style={{ maxWidth: 220 }}
+                  />
+                </div>
+                {clients.length === 0 && <p className="card-subtitle">None assigned yet — ask an admin.</p>}
+                {clients.length > 0 && filteredClients.length === 0 && (
+                  <p className="card-subtitle">No client matches "{clientSearch}".</p>
+                )}
+                {noteError && <p className="card-subtitle negative">{noteError}</p>}
+                <div className="staff-audit-list">
+                  {filteredClients.map((c) => {
+                    const due = dueCountByClient[c.id];
+                    const note = notes[c.id];
+                    return (
+                      <div className="staff-due-row" key={c.id} style={{ cursor: "default" }}>
+                        <button
+                          className="staff-client-jump"
+                          onClick={() => onNavigateToClient(c.id, "dashboard")}
+                          style={{ textAlign: "left", flex: 1 }}
+                        >
+                          <span className="staff-flag-label">{c.name}</span>
+                          <span className="staff-flag-desc">
+                            {c.plan === "premium" ? "Premium" : "Standard"} plan
+                            {due && due.overdue > 0 ? ` · ${due.overdue} overdue` : ""}
+                            {due && due.soon > 0 ? ` · ${due.soon} due soon` : ""}
+                            {note && note.note ? ` · has a note` : ""}
+                          </span>
+                        </button>
+                        <button className="btn-secondary" onClick={() => openNoteEditor(c)}>
+                          {note && note.note ? "Edit note" : "+ Note"}
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          if (id === "your-reminders")
+            return (
+              <div className={"card " + drag.dragClass(id)} key={id} {...drag.dragProps(id)}>
+                <h3 className="card-title">Your reminders</h3>
+                <p className="card-subtitle">Private to you — nobody else, including admins, can see these.</p>
 
-        <div className="staff-add-row">
-          <input
-            type="text"
-            placeholder="Follow up with Grace Community about..."
-            value={newReminder}
-            onChange={(e) => setNewReminder(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") addReminder();
-            }}
-          />
-          <input type="date" value={newReminderDate} onChange={(e) => setNewReminderDate(e.target.value)} />
-          <button className="btn-primary" disabled={adding || !newReminder.trim()} onClick={addReminder}>
-            + Add
-          </button>
-        </div>
+                <div className="staff-add-row">
+                  <input
+                    type="text"
+                    placeholder="Follow up with Grace Community about..."
+                    value={newReminder}
+                    onChange={(e) => setNewReminder(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") addReminder();
+                    }}
+                  />
+                  <input type="date" value={newReminderDate} onChange={(e) => setNewReminderDate(e.target.value)} />
+                  <button className="btn-primary" disabled={adding || !newReminder.trim()} onClick={addReminder}>
+                    + Add
+                  </button>
+                </div>
 
-        {reminderError && <p className="card-subtitle negative" style={{ marginTop: 16 }}>{reminderError}</p>}
-        {reminders === null && !reminderError && <p className="card-subtitle" style={{ marginTop: 16 }}>Loading…</p>}
-        {reminders && reminders.length === 0 && !reminderError && (
-          <p className="card-subtitle" style={{ marginTop: 16 }}>No reminders yet.</p>
-        )}
+                {reminderError && <p className="card-subtitle negative" style={{ marginTop: 16 }}>{reminderError}</p>}
+                {reminders === null && !reminderError && <p className="card-subtitle" style={{ marginTop: 16 }}>Loading…</p>}
+                {reminders && reminders.length === 0 && !reminderError && (
+                  <p className="card-subtitle" style={{ marginTop: 16 }}>No reminders yet.</p>
+                )}
 
-        {reminders && reminders.length > 0 && (
-          <ul className="staff-audit-list">
-            {reminders.map((r) => (
-              <li className="staff-audit-row" key={r.id}>
-                <label className="staff-active-toggle" style={{ flex: 1 }}>
-                  <input type="checkbox" checked={r.done} onChange={() => toggleReminder(r)} />
-                  <span style={{ textDecoration: r.done ? "line-through" : "none" }}>
-                    {r.text}
-                    {r.due_date ? ` — due ${fmtDate(r.due_date)}` : ""}
-                  </span>
-                </label>
-                <button className="row-remove-btn" onClick={() => removeReminder(r)} aria-label={`Remove reminder: ${r.text}`}>
-                  ×
-                </button>
-              </li>
-            ))}
-          </ul>
-        )}
+                {reminders && reminders.length > 0 && (
+                  <ul className="staff-audit-list">
+                    {reminders.map((r) => (
+                      <li className="staff-audit-row" key={r.id}>
+                        <label className="staff-active-toggle" style={{ flex: 1 }}>
+                          <input type="checkbox" checked={r.done} onChange={() => toggleReminder(r)} />
+                          <span style={{ textDecoration: r.done ? "line-through" : "none" }}>
+                            {r.text}
+                            {r.due_date ? ` — due ${fmtDate(r.due_date)}` : ""}
+                          </span>
+                        </label>
+                        <button className="row-remove-btn" onClick={() => removeReminder(r)} aria-label={`Remove reminder: ${r.text}`}>
+                          ×
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            );
+          return null;
+        })}
       </div>
 
       {editingNoteFor && (
