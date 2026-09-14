@@ -3771,7 +3771,9 @@ function StaffAccessPage({ staffUser }) {
 // switcher already shows this signed-in person.
 // ----------------------------------------------------------------------------
 
-function BookkeeperHomePage({ staffUser, clients, onNavigateToClient }) {
+const CLIENT_VISIT_STALE_DAYS = 7;
+
+function BookkeeperHomePage({ staffUser, clients, messagesByClient, readMessageClients, onNavigateToClient }) {
   const showToast = useToast();
   const supabase = window.mgbSupabase;
   const today = todayLocal();
@@ -3781,6 +3783,12 @@ function BookkeeperHomePage({ staffUser, clients, onNavigateToClient }) {
   const [newReminder, setNewReminder] = useState("");
   const [newReminderDate, setNewReminderDate] = useState("");
   const [adding, setAdding] = useState(false);
+  const [notes, setNotes] = useState({}); // client_id -> { note, updated_by, updated_at }
+  const [noteError, setNoteError] = useState("");
+  const [editingNoteFor, setEditingNoteFor] = useState(null); // client object, or null
+  const [noteDraft, setNoteDraft] = useState("");
+  const [savingNote, setSavingNote] = useState(false);
+  const [clientSearch, setClientSearch] = useState("");
 
   const loadReminders = useCallback(() => {
     if (!supabase) return;
@@ -3840,6 +3848,89 @@ function BookkeeperHomePage({ staffUser, clients, onNavigateToClient }) {
     loadReminders();
   }
 
+  const loadNotes = useCallback(() => {
+    if (!supabase || clients.length === 0) return;
+    supabase
+      .from("client_notes")
+      .select("client_id, note, updated_by, updated_at")
+      .in("client_id", clients.map((c) => c.id))
+      .then(({ data, error }) => {
+        if (error) {
+          setNoteError("Couldn't load client notes. Has client-notes.sql been run? " + error.message);
+          return;
+        }
+        setNoteError("");
+        setNotes(Object.fromEntries(data.map((n) => [n.client_id, n])));
+      });
+  }, [supabase, clients]);
+
+  useEffect(() => {
+    loadNotes();
+  }, [loadNotes]);
+
+  function openNoteEditor(client) {
+    setEditingNoteFor(client);
+    setNoteDraft((notes[client.id] && notes[client.id].note) || "");
+  }
+
+  async function saveNote() {
+    setSavingNote(true);
+    const { error } = await supabase
+      .from("client_notes")
+      .upsert({ client_id: editingNoteFor.id, note: noteDraft, updated_by: staffUser.email, updated_at: new Date().toISOString() });
+    setSavingNote(false);
+    if (error) {
+      showToast(`Couldn't save note: ${error.message}`);
+      return;
+    }
+    setEditingNoteFor(null);
+    loadNotes();
+  }
+
+  // Same "last message is from the bookkeeper, and the viewer hasn't seen it
+  // yet" check the sidebar badge uses for one client (see App's
+  // threadHasUnread), just run across every client/person this staffer can
+  // see instead of only the selected client.
+  const unreadAcrossClients = useMemo(() => {
+    const rows = [];
+    clients.forEach((client) => {
+      (client.users || []).forEach((u) => {
+        const key = threadKeyFor(client.id, u.id);
+        const msgs = messagesByClient[key] || seedThread(client.id, u.id);
+        const unread = lastMessageFromBookkeeper({ messages: msgs }) && msgs.length > (readMessageClients[key] || 0);
+        if (unread) rows.push({ clientId: client.id, clientName: client.name, userId: u.id, userName: u.name });
+      });
+    });
+    return rows;
+  }, [clients, messagesByClient, readMessageClients]);
+
+  // Per-browser visit history (see recordClientVisit / App's effect that
+  // stamps it on every client switch) — not real-time, just whatever this
+  // browser last recorded, refreshed on mount.
+  const clientVisits = useMemo(() => loadClientVisits(), []);
+  const recentlyViewed = useMemo(
+    () =>
+      clients
+        .filter((c) => clientVisits[c.id])
+        .sort((a, b) => clientVisits[b.id] - clientVisits[a.id])
+        .slice(0, 5),
+    [clients, clientVisits]
+  );
+  const staleMs = CLIENT_VISIT_STALE_DAYS * 24 * 60 * 60 * 1000;
+  const needsVisit = useMemo(
+    () =>
+      clients
+        .filter((c) => !clientVisits[c.id] || Date.now() - clientVisits[c.id] > staleMs)
+        .sort((a, b) => (clientVisits[a.id] || 0) - (clientVisits[b.id] || 0)),
+    [clients, clientVisits]
+  );
+
+  const filteredClients = useMemo(() => {
+    const q = clientSearch.trim().toLowerCase();
+    if (!q) return clients;
+    return clients.filter((c) => c.name.toLowerCase().includes(q));
+  }, [clients, clientSearch]);
+
   // Every open bill across every client this person can see, newest-due
   // first — same overdue/soon/scheduled split as AP Command Center, just
   // rolled up across clients instead of scoped to one.
@@ -3858,6 +3949,15 @@ function BookkeeperHomePage({ staffUser, clients, onNavigateToClient }) {
 
   const overdueCount = dueAcrossClients.filter((r) => r.status === "overdue").length;
   const soonCount = dueAcrossClients.filter((r) => r.status === "soon").length;
+
+  const dueCountByClient = useMemo(() => {
+    const map = {};
+    dueAcrossClients.forEach((r) => {
+      map[r.clientId] = map[r.clientId] || { overdue: 0, soon: 0 };
+      map[r.clientId][r.status]++;
+    });
+    return map;
+  }, [dueAcrossClients]);
 
   return (
     <div>
@@ -3878,6 +3978,13 @@ function BookkeeperHomePage({ staffUser, clients, onNavigateToClient }) {
           <span className="kpi-label">Due within {AP_SOON_DAYS} days</span>
           <span className="kpi-value warm">{soonCount}</span>
           <span className="kpi-sub warm">across all your clients</span>
+        </div>
+        <div className="card kpi-card">
+          <span className="kpi-label">Unread messages</span>
+          <span className={"kpi-value" + (unreadAcrossClients.length > 0 ? " warm" : "")}>
+            {unreadAcrossClients.length}
+          </span>
+          <span className="kpi-sub neutral">across all your clients</span>
         </div>
       </div>
 
@@ -3910,17 +4017,111 @@ function BookkeeperHomePage({ staffUser, clients, onNavigateToClient }) {
         </div>
 
         <div className="card">
-          <h3 className="card-title">Your clients</h3>
-          <p className="card-subtitle">Click through to any of them.</p>
-          {clients.length === 0 && <p className="card-subtitle">None assigned yet — ask an admin.</p>}
-          <div className="staff-audit-list">
-            {clients.map((c) => (
-              <button className="staff-due-row" key={c.id} onClick={() => onNavigateToClient(c.id, "dashboard")}>
-                <span className="staff-flag-label">{c.name}</span>
-                <span className="staff-flag-desc">{c.plan === "premium" ? "Premium" : "Standard"} plan</span>
-              </button>
-            ))}
+          <h3 className="card-title">Unread messages</h3>
+          <p className="card-subtitle">Waiting on a reply, across every client you can see.</p>
+          {unreadAcrossClients.length === 0 && <p className="card-subtitle">Nothing unread.</p>}
+          {unreadAcrossClients.length > 0 && (
+            <div className="staff-audit-list">
+              {unreadAcrossClients.slice(0, 12).map((r) => (
+                <button
+                  className="staff-due-row"
+                  key={r.clientId + r.userId}
+                  onClick={() => onNavigateToClient(r.clientId, "messages")}
+                >
+                  <span className="staff-flag-label">{r.userName}</span>
+                  <span className="staff-flag-desc">{r.clientName}</span>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+
+      <div className="content-grid">
+        <div className="card">
+          <h3 className="card-title">Recently viewed</h3>
+          <p className="card-subtitle">The clients you've had open most recently, on this device.</p>
+          {recentlyViewed.length === 0 && <p className="card-subtitle">Nothing viewed yet this device.</p>}
+          {recentlyViewed.length > 0 && (
+            <div className="staff-audit-list">
+              {recentlyViewed.map((c) => (
+                <button className="staff-due-row" key={c.id} onClick={() => onNavigateToClient(c.id, "dashboard")}>
+                  <span className="staff-flag-label">{c.name}</span>
+                  <span className="staff-flag-desc">{fmtDateTime(new Date(clientVisits[c.id]).toISOString())}</span>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className="card">
+          <h3 className="card-title">Needs a visit</h3>
+          <p className="card-subtitle">
+            Not opened on this device in {CLIENT_VISIT_STALE_DAYS}+ days (or ever) — nothing to imply they need
+            anything urgent, just a nudge not to lose track.
+          </p>
+          {needsVisit.length === 0 && <p className="card-subtitle">You're caught up with all of them.</p>}
+          {needsVisit.length > 0 && (
+            <div className="staff-audit-list">
+              {needsVisit.slice(0, 8).map((c) => (
+                <button className="staff-due-row" key={c.id} onClick={() => onNavigateToClient(c.id, "dashboard")}>
+                  <span className="staff-flag-label">{c.name}</span>
+                  <span className="staff-flag-desc">
+                    {clientVisits[c.id] ? fmtDateTime(new Date(clientVisits[c.id]).toISOString()) : "Never viewed"}
+                  </span>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+
+      <div className="card">
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", flexWrap: "wrap", gap: 8 }}>
+          <div>
+            <h3 className="card-title">Your clients</h3>
+            <p className="card-subtitle" style={{ marginTop: 0 }}>
+              Click through to any of them, or add a note for yourself or a colleague.
+            </p>
           </div>
+          <input
+            type="text"
+            placeholder="Search your clients…"
+            value={clientSearch}
+            onChange={(e) => setClientSearch(e.target.value)}
+            style={{ maxWidth: 220 }}
+          />
+        </div>
+        {clients.length === 0 && <p className="card-subtitle">None assigned yet — ask an admin.</p>}
+        {clients.length > 0 && filteredClients.length === 0 && (
+          <p className="card-subtitle">No client matches "{clientSearch}".</p>
+        )}
+        {noteError && <p className="card-subtitle negative">{noteError}</p>}
+        <div className="staff-audit-list">
+          {filteredClients.map((c) => {
+            const due = dueCountByClient[c.id];
+            const note = notes[c.id];
+            return (
+              <div className="staff-due-row" key={c.id} style={{ cursor: "default" }}>
+                <button
+                  className="staff-client-jump"
+                  onClick={() => onNavigateToClient(c.id, "dashboard")}
+                  style={{ textAlign: "left", flex: 1 }}
+                >
+                  <span className="staff-flag-label">{c.name}</span>
+                  <span className="staff-flag-desc">
+                    {c.plan === "premium" ? "Premium" : "Standard"} plan
+                    {due && due.overdue > 0 ? ` · ${due.overdue} overdue` : ""}
+                    {due && due.soon > 0 ? ` · ${due.soon} due soon` : ""}
+                    {note && note.note ? ` · has a note` : ""}
+                  </span>
+                </button>
+                <button className="btn-secondary" onClick={() => openNoteEditor(c)}>
+                  {note && note.note ? "Edit note" : "+ Note"}
+                </button>
+              </div>
+            );
+          })}
         </div>
       </div>
 
@@ -3969,6 +4170,42 @@ function BookkeeperHomePage({ staffUser, clients, onNavigateToClient }) {
           </ul>
         )}
       </div>
+
+      {editingNoteFor && (
+        <ModalShell onClose={() => setEditingNoteFor(null)} labelledBy="client-note-title">
+          <div className="modal-header">
+            <h3 className="card-title" id="client-note-title" style={{ margin: 0 }}>
+              Note for {editingNoteFor.name}
+            </h3>
+            <button className="modal-close" onClick={() => setEditingNoteFor(null)} aria-label="Close">
+              ×
+            </button>
+          </div>
+          <p className="card-subtitle">
+            Visible to every active staff member, not just you — for handing off context on this client.
+            {notes[editingNoteFor.id] &&
+              notes[editingNoteFor.id].updated_by &&
+              ` Last edited by ${notes[editingNoteFor.id].updated_by}.`}
+          </p>
+          <div className="modal-body">
+            <textarea
+              className="client-note-textarea"
+              rows={6}
+              value={noteDraft}
+              onChange={(e) => setNoteDraft(e.target.value)}
+              placeholder="Waiting on March bank statement, flagged for QuickBooks migration, ..."
+            />
+          </div>
+          <div className="modal-footer">
+            <button className="btn-secondary" onClick={() => setEditingNoteFor(null)}>
+              Cancel
+            </button>
+            <button className="btn-primary" disabled={savingNote} onClick={saveNote}>
+              Save
+            </button>
+          </div>
+        </ModalShell>
+      )}
     </div>
   );
 }
@@ -4685,6 +4922,29 @@ function loadPage() {
   }
 }
 
+// When THIS browser last viewed each client — per-device, not shared across
+// staff or synced anywhere. Powers Home's "Recently viewed" and "Needs a
+// visit" lists. Deliberately not a Supabase table: it's a personal working
+// aid, not something anyone needs to see about anyone else.
+const CLIENT_VISITS_STORAGE_KEY = "mygoodbooks_client_visits_v1";
+
+function loadClientVisits() {
+  try {
+    const raw = localStorage.getItem(CLIENT_VISITS_STORAGE_KEY);
+    return raw ? JSON.parse(raw) : {};
+  } catch (e) {
+    return {};
+  }
+}
+
+function recordClientVisit(clientId) {
+  try {
+    const visits = loadClientVisits();
+    visits[clientId] = Date.now();
+    localStorage.setItem(CLIENT_VISITS_STORAGE_KEY, JSON.stringify(visits));
+  } catch (e) {}
+}
+
 const TAB_CONFIG_STORAGE_KEY = "mygoodbooks_tab_config_v2";
 
 function loadTabConfig() {
@@ -5233,6 +5493,15 @@ function App({ staffUser, onSignOut }) {
     setBookkeeperThreadUserId(null);
   }, [selectedClientId]);
 
+  // Only counts as "visiting" a client while actually looking at one of its
+  // pages, not while browsing Home/Staff Access (which don't belong to any
+  // client, and would otherwise stamp whatever client was last selected
+  // every time someone just checks their reminders).
+  useEffect(() => {
+    if (page === "bookkeeper-home" || page === "staff-access") return;
+    recordClientVisit(selectedClientId);
+  }, [selectedClientId, page]);
+
   // tabConfig stores HIDDEN keys per client (not visible ones) so that any
   // tab added later in the app defaults to visible for every client, rather
   // than silently staying hidden because it's missing from an old snapshot.
@@ -5747,6 +6016,8 @@ function App({ staffUser, onSignOut }) {
             <BookkeeperHomePage
               staffUser={staffUser}
               clients={visibleClients}
+              messagesByClient={messagesByClient}
+              readMessageClients={readMessageClients}
               onNavigateToClient={(clientId, targetPage) => {
                 setSelectedClientId(clientId);
                 setPage(targetPage);
