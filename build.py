@@ -159,7 +159,17 @@ def build(out_path: pathlib.Path, refresh: bool) -> None:
 
 // Mirrors the stamp in index.html — bumped by hand alongside this file,
 // since there's no build step to inject a real commit SHA into.
-window.MGB_VERSION = {{ label: "2026-09-14c", note: "Home page: unread rollup, visits, client notes" }};
+window.MGB_VERSION = {{ label: "2026-09-14d", note: "Home cards draggable, adaptive card grids" }};
+
+// Mirrors index.html's pinch-block — see that file's comment for why this
+// is gesture-level (2+ touches) rather than touch-action CSS.
+document.addEventListener(
+  "touchmove",
+  function (e) {{
+    if (e.touches && e.touches.length > 1) e.preventDefault();
+  }},
+  {{ passive: false }}
+);
 </script>
 <style>
 {css}
