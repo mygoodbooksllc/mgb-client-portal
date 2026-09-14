@@ -3830,8 +3830,9 @@ function TabSettingsModal({
 // App
 // ----------------------------------------------------------------------------
 
-// Explicit theme choice from the header toggle. Null means "follow the OS
-// setting" (styles.css's @media block), same as before the toggle existed.
+// Explicit theme choice from the header toggle. Null means "use the product
+// default" (dark) — the OS setting no longer decides this (see index.html's
+// pre-hydration script and styles.css's data-theme guard).
 const THEME_STORAGE_KEY = "mygoodbooks_theme_v1";
 
 function loadTheme() {
