@@ -4012,3 +4012,85 @@ body.rb-presenting .main {
   .ap-cc-toolbar { flex-direction: column; align-items: stretch; }
   .ap-cc-search { width: 100%; }
 }
+
+/* ---------------- Staff Access (admin) ---------------- */
+
+.staff-access-link {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  color: var(--sidebar-text-muted);
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 8px;
+  margin-bottom: 8px;
+  border-radius: 8px;
+}
+
+.staff-access-link:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: white;
+}
+
+.staff-access-link.active {
+  background: rgba(199, 174, 134, 0.18);
+  color: var(--gold);
+  font-weight: 700;
+}
+
+.staff-add-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+
+.staff-add-row input,
+.staff-add-row select {
+  flex: 1;
+  min-width: 160px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 9px 12px;
+  font-size: 13.5px;
+  font: inherit;
+  color: var(--text);
+  background: var(--surface);
+}
+
+.staff-add-row input:focus,
+.staff-add-row select:focus {
+  outline: 2px solid rgba(199, 174, 134, 0.5);
+  border-color: var(--gold);
+}
+
+.staff-add-row button {
+  flex-shrink: 0;
+}
+
+.staff-active-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12.5px;
+  cursor: pointer;
+}
+
+.staff-active-toggle input[disabled] {
+  cursor: not-allowed;
+}
+
+.staff-self-note {
+  font-size: 11.5px;
+  color: var(--text-muted);
+}
+
+.card-subtitle.negative {
+  color: var(--bad);
+}
