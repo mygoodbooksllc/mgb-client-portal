@@ -4045,7 +4045,7 @@ function BookkeeperHomePage({ staffUser, clients, messagesByClient, readMessageC
         })}
       </div>
 
-      <div className="content-grid content-grid-adaptive" style={{ marginBottom: 20 }}>
+      <div className="content-masonry" style={{ marginBottom: 20 }}>
         {contentOrder.map((id) => {
           if (id === "needs-attention")
             return (
