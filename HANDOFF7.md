@@ -348,24 +348,28 @@ again, don't re-attempt an `overscroll-behavior` fix — point straight at this 
 
 ## To do, next session
 
-1. **Retest on real devices**, now that a batch of mobile-facing fixes shipped: the modal
-   focus-steal fix (try typing a client note or managing a bookkeeper's clients on a phone),
-   login-lands-on-Home / refresh-restores-your-page, pinch-zoom actually disabled, and the
-   dashboard drag-and-drop reorder (long-press, drag across several cards, release, confirm
-   the page scrolls normally after). This is on top of the still-outstanding item 5 below.
-2. **Add real bookkeeper staff rows and test per-bookkeeper access for real** — so far only
-   Holden (admin) has been fully exercised. Sign in as Gillian (or another `bookkeeper`-role
-   account) and confirm: only her assigned clients (Grace Community, New Hope) show in the
-   sidebar switcher and on her Home page; she can't see Staff Access; client notes she leaves
-   are visible to other staff.
+1. ~~Retest on real devices~~ — **done**, confirmed working (modal focus-steal fix, login-lands-
+   on-Home/refresh-restores-your-page, pinch-zoom, drag-and-drop reorder).
+2. ~~Add real bookkeeper staff rows and test per-bookkeeper access for real~~ — **done**,
+   confirmed working (Gillian's restricted client list, Staff Access hidden from her, shared
+   client notes visible across staff).
 3. **Decide on Google Meet / real video meetings** — on hold, see above. Needs a decision on
    the broader Google OAuth consent scope before any code starts.
-4. Everything still open from §5/§6, unchanged: **Phase 2** (client-side magic-link auth),
-   **receipt-capture/digitization** approach, and the lower-priority Developer Tools follow-ups
-   (bulk staff CSV import, a real invite/email flow, impersonating another staff member's
-   view). **Cmd+K** stays parked per §6 — revisit only if the client search box + rollups on
-   Home stop being enough.
-5. No SQL migrations are currently pending — `staff-schema.sql`, `staff-admin-policies.sql`,
+4. Everything still open from §5/§6: **Phase 2** (client-side magic-link auth) and the
+   lower-priority Developer Tools follow-ups (bulk staff CSV import, a real invite/email flow,
+   impersonating another staff member's view). **Cmd+K** stays parked per §6 — revisit only if
+   the client search box + rollups on Home stop being enough.
+5. **Receipt-capture / document digitization — dropped.** Was open since HANDOFF5 with three
+   unresolved options (plain attachment, simulated extraction, real OCR); decided not to
+   pursue it. No longer on the list.
+6. No SQL migrations are currently pending — `staff-schema.sql`, `staff-admin-policies.sql`,
    `staff-audit-log.sql`, `staff-client-access.sql`, `staff-reminders.sql`, and
    `client-notes.sql` have all been run against the live Supabase project and verified
    working. Only a *new* feature would add another one.
+
+**Update, later the same day:** items 1 and 2 above confirmed done. Receipt-capture/
+digitization (item 5, and the open question in HANDOFF5/HANDOFF6/§5.8 before that) is
+dropped — not being pursued. Home's cards also gained the same drag-and-drop
+reorder/hide/show system the client Dashboard already had (`useWidgetLayout` +
+`useDragReorder` + `CustomizeDashboardButton`, scoped to `"bookkeeper-home"` rather than a
+client id) — click "Customize dashboard" on Home to rearrange or hide any of its 10 cards.
