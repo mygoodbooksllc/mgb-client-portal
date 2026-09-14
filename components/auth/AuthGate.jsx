@@ -82,6 +82,12 @@
     }
 
     function signOut() {
+      // So signing back in within the same tab lands on Home again too —
+      // otherwise app.jsx's initialPage() would see the flag still set from
+      // before and treat the new sign-in as a mid-session refresh instead.
+      try {
+        sessionStorage.removeItem("mygoodbooks_session_started_v1");
+      } catch (e) {}
       supabase.auth.signOut();
     }
 
