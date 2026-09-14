@@ -373,3 +373,52 @@ dropped — not being pursued. Home's cards also gained the same drag-and-drop
 reorder/hide/show system the client Dashboard already had (`useWidgetLayout` +
 `useDragReorder` + `CustomizeDashboardButton`, scoped to `"bookkeeper-home"` rather than a
 client id) — click "Customize dashboard" on Home to rearrange or hide any of its 10 cards.
+
+---
+
+## 8. Update, same night, one more round: two real bugs, both found via screen recordings
+
+Both diagnosed from recordings you sent rather than guessed at — worth doing that early
+again next time a UI report doesn't resolve after one fix attempt.
+
+- **Drag-and-drop never actually swapped anything, on any page, mouse or touch.** Confirmed
+  by recording: a card picks up, the ghost correctly hovers over a different card, but the
+  order is unchanged after dropping. Root cause: `dragover`/`pointermove` fire continuously
+  (many times a second) while hovering, and `layout.reorder(draggedId, targetId)` in
+  `useDragReorder` (app.jsx) is **not idempotent** for a stationary hover — calling it twice
+  in a row on the same pair swaps the two cards, then swaps them right back, because the
+  dragged item's index relative to the target flips after the first call, which flips which
+  branch of the insert-position math runs. Any hover longer than one event tick — i.e. any
+  real, deliberate drag, not just Home's — oscillates between two arrangements and can land
+  back at the start by the time you release. This means the client Dashboard's widget
+  drag-and-drop was very likely never fully working either, not just Home's new one — worth
+  keeping in mind if that's ever come up as "kind of works, kind of doesn't." Fixed by only
+  calling `reorder` once per newly-entered target (tracked in a ref, reset on drag start/end),
+  for both the mouse and touch paths.
+- **Two more spots greeted with the wrong name.** The full-access bookkeeper view (nobody
+  being previewed) said "Good morning, John" — borrowed from the org's first listed contact,
+  even though nobody named John is actually signed in. Now shows the org's own name instead
+  ("Good morning, Grace Community Church"). Staff Access had the same "wrong greeting" issue
+  Home did before it was fixed — greets the signed-in staffer now, not whatever client
+  happened to be last selected. Real previewed-person greetings ("Preview as" in the sidebar)
+  are unaffected — those legitimately show the real person's name.
+- Masonry (§7's fix) was also extended to every other `.content-grid` pairing that could show
+  the same dead-gap problem: Dashboard, Scoped Dashboard (removing the now-unneeded
+  `contentCardClass`/`COMPACT_CONTENT_CARDS` mechanism and the dead
+  `.content-grid-adaptive`/`.content-card-full` CSS it required), Receivables & Payables, AP
+  Command Center, and Staff Access. This is the single biggest-blast-radius change of the
+  night, since it touches Dashboard — the most-used page in the app.
+- Also fixed along the way: Staff Access showed the sidebar's client picker/nav/Preview-as/
+  Manage-access for whatever client happened to be last selected, same issue Home had before
+  it got the same treatment — Staff Access now hides all of it (including the picker itself,
+  unlike Home, which keeps it on purpose for jumping into a client). And an earlier attempt at
+  disabling pinch-to-zoom (`touch-action: pan-x pan-y` on `<html>`) turned out to be the actual
+  cause of the drag-and-drop symptom above being *worse* for a few commits in the middle of
+  tonight — replaced with a gesture-level fix (block only when a second finger joins) that
+  doesn't touch single-finger interaction at all. If pinch-zoom or drag-and-drop ever act up
+  together again, check `touch-action` first.
+
+**Stopping here for the night.** Nothing urgent left blocking — the to-do list above (Google
+Meet decision, Phase 2, the lower-priority Developer Tools items) is unchanged from earlier
+today. Worth a fresh real-device pass next session on the drag-and-drop fix specifically,
+since it went through several wrong turns before the actual root cause was found.
