@@ -136,7 +136,7 @@ def build(out_path: pathlib.Path, refresh: bool) -> None:
     blobs = ",\n".join(f'  {name}: "{value}"' for name, value in payload.items())
 
     html = f"""<title>{TITLE}</title>
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="{FONTS}" rel="stylesheet" />
