@@ -5668,11 +5668,17 @@ function App({ staffUser, onSignOut }) {
 
           <div className="page-header">
             <div>
-              <div className="portal-greeting">{client.name}</div>
-              {greetingUser && (
+              <div className="portal-greeting">{effectivePage === "bookkeeper-home" ? "MyGoodBooks" : client.name}</div>
+              {effectivePage === "bookkeeper-home" ? (
                 <h1 className="page-title">
-                  {timeOfDayGreeting()}, {firstNameOf(greetingUser.name)}
+                  {timeOfDayGreeting()}, {firstNameOf(staffUser.name)}
                 </h1>
+              ) : (
+                greetingUser && (
+                  <h1 className="page-title">
+                    {timeOfDayGreeting()}, {firstNameOf(greetingUser.name)}
+                  </h1>
+                )
               )}
               <div className="page-subtitle">{meta.subtitle}</div>
             </div>
