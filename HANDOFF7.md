@@ -210,3 +210,43 @@ decided yet.
 - **Housekeeping note:** this repo's git required Xcode Command Line Tools, which needed the
   license accepted (`sudo xcodebuild -license`) before `git` would run at all on this
   machine — worth remembering if a fresh checkout on another Mac hits the same wall.
+
+---
+
+## 6. Update, 2026-09-14: everything in §5's open list got worked through
+
+All pushed and merged into `main` via PRs #1–#4, deployed live at `app.mygoodbooks.org`:
+
+- **Staff Access page shipped** (§5.3) — an admin-only page for adding/editing/removing
+  staff rows from the UI instead of hand-writing SQL, enforced by a Postgres RLS policy
+  (`supabase/staff-admin-policies.sql`), not client code. Hit and fixed an infinite-recursion
+  bug in that policy along the way (`SECURITY DEFINER` function instead of a raw
+  self-referencing subquery) — worth knowing about if `staff` lookups ever start failing
+  with a vague "Couldn't verify staff access" error again.
+- **Scoped-view fund bug fixed** (§5.7) — a category-scoped client user (e.g. a Worship
+  Lead, a Warehouse Manager) with no explicit `funds` list defaulted to seeing every fund in
+  the org on their own dashboard, contradicting the page's own "org-wide figures aren't
+  theirs to see" rule. Two real mock users hit this. Now defaults to none, and a "Funds they
+  can see" section in the per-person access editor lets a bookkeeper grant specific funds.
+- **Artifact link retired** (§5.2) — decided against keeping it as a no-login demo (a fix
+  was built and then reverted once the decision changed). The link
+  (`https://claude.ai/code/artifact/ffe4688e-ddd4-459f-9662-a65937a2ffa2`, referenced in
+  HANDOFF2–6) is permanently deleted and no longer resolves. `build.py`/`dist/` still exist
+  in the repo (nothing currently uses them) in case a similar single-file bundle is wanted
+  again later — no decision made on removing them outright.
+- **Developer Tools added to Staff Access** — three more admin-only cards: a Recent Activity
+  audit feed (`supabase/staff-audit-log.sql`, logged by a Postgres trigger so it's accurate
+  regardless of how a change was made), a System Info panel (app version, Supabase
+  connectivity, who's signed in — meant to shortcut exactly the kind of manual debugging the
+  RLS recursion bug above required), and two per-browser dev flags (force premium plan,
+  verbose console logging) plus a "reset local state" button. All three still open items,
+  lower priority: bulk staff CSV import, a real invite/email flow, and impersonating another
+  staff member's view.
+- **Staff-to-client messaging** — asked about and deliberately deferred. The in-app Messages
+  tab already exists and is the intended real channel (keeps conversations attached to a
+  client's financial context, unlike separate email); an email *notification* when a new
+  portal message arrives is the one addition worth adding, once Phase 3 (§4) gives the app a
+  real backend to send from.
+
+Still open, unchanged from §5: Phase 2 (client-side magic-link auth), real-device touch
+testing, and the receipt-capture/digitization decision.
