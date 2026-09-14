@@ -1143,13 +1143,6 @@ function CategoryLedger({ client }) {
 
 const MONTH_ABBR = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
-// Content-grid cards that are just a couple of stat rows or a short list —
-// these shrink to their own content and pair up two-per-row (see
-// .content-card-full in styles.css) instead of stretching full width like a
-// chart or a long transaction list.
-const COMPACT_CONTENT_CARDS = new Set(["xt-budget-summary", "xt-receivables-payables", "xt-bank-accounts", "xt-giving-summary"]);
-const contentCardClass = (id) => (COMPACT_CONTENT_CARDS.has(id) ? "" : "content-card-full");
-
 // Cards pulled in from other tabs so a client can build their dashboard into
 // a single hub for everything they might want to see — gated by access.tabs,
 // so a widget only shows up as an option if the client can already see that
@@ -1365,13 +1358,13 @@ function ScopedDashboardPage({ client, access, isBookkeeper, promoText, onSaveRe
         })}
       </div>
 
-      <div className="content-grid content-grid-adaptive">
+      <div className="content-masonry">
         {layout.visibleOrder
           .filter((id) => !id.startsWith("kpi-"))
           .map((id) => {
             if (id === "your-budget")
               return (
-                <div className={"card " + contentCardClass(id) + " " + drag.dragClass(id)} key={id} {...drag.dragProps(id)}>
+                <div className={"card " + drag.dragClass(id)} key={id} {...drag.dragProps(id)}>
                   <h3 className="card-title">Your Budget</h3>
                   <p className="card-subtitle">Budgeted vs. actual, current month</p>
                   <div className="table-scroll">
@@ -1419,7 +1412,7 @@ function ScopedDashboardPage({ client, access, isBookkeeper, promoText, onSaveRe
               );
             if (id === "recent-activity")
               return (
-                <div className={"card " + contentCardClass(id) + " " + drag.dragClass(id)} key={id} {...drag.dragProps(id)}>
+                <div className={"card " + drag.dragClass(id)} key={id} {...drag.dragProps(id)}>
                   <h3 className="card-title">Your Recent Activity</h3>
                   <p className="card-subtitle">Transactions in your areas, last 2 months</p>
                   <div className="tx-list tx-list-scroll">
@@ -1443,7 +1436,7 @@ function ScopedDashboardPage({ client, access, isBookkeeper, promoText, onSaveRe
               );
             if (crossTabById[id])
               return (
-                <div className={"card " + contentCardClass(id) + " " + drag.dragClass(id)} key={id} {...drag.dragProps(id)}>
+                <div className={"card " + drag.dragClass(id)} key={id} {...drag.dragProps(id)}>
                   {crossTabById[id].render()}
                 </div>
               );
@@ -1568,13 +1561,13 @@ function DashboardPage({ client, access, isBookkeeper, promoText, onSaveReferral
         })}
       </div>
 
-      <div className="content-grid content-grid-adaptive">
+      <div className="content-masonry">
         {layout.visibleOrder
           .filter((id) => !id.startsWith("kpi-"))
           .map((id) => {
             if (id === "income-expenses")
               return (
-                <div className={"card " + contentCardClass(id) + " " + drag.dragClass(id)} key={id} {...drag.dragProps(id)}>
+                <div className={"card " + drag.dragClass(id)} key={id} {...drag.dragProps(id)}>
                   <h3 className="card-title">Income vs. Expenses</h3>
                   <p className="card-subtitle">Last 6 months</p>
                   <IncomeExpenseChart monthly={client.monthly} />
@@ -1583,7 +1576,7 @@ function DashboardPage({ client, access, isBookkeeper, promoText, onSaveReferral
               );
             if (id === "recent-activity")
               return (
-                <div className={"card " + contentCardClass(id) + " " + drag.dragClass(id)} key={id} {...drag.dragProps(id)}>
+                <div className={"card " + drag.dragClass(id)} key={id} {...drag.dragProps(id)}>
                   <h3 className="card-title">Recent Activity</h3>
                   <p className="card-subtitle">Across all accounts, last 2 months</p>
                   <div className="tx-list tx-list-scroll">
@@ -1606,7 +1599,7 @@ function DashboardPage({ client, access, isBookkeeper, promoText, onSaveReferral
               );
             if (crossTabById[id])
               return (
-                <div className={"card " + contentCardClass(id) + " " + drag.dragClass(id)} key={id} {...drag.dragProps(id)}>
+                <div className={"card " + drag.dragClass(id)} key={id} {...drag.dragProps(id)}>
                   {crossTabById[id].render()}
                 </div>
               );
@@ -1817,7 +1810,7 @@ function ReceivablesPayablesPage({ client }) {
         </div>
       </div>
 
-      <div className="content-grid">
+      <div className="content-masonry">
         <div className="card">
           <h3 className="card-title">Receivables</h3>
           <p className="card-subtitle">Grants, pledges, and reimbursements coming in</p>
@@ -3255,7 +3248,7 @@ function APCommandCenterPage({ client }) {
         </div>
       </div>
 
-      <div className="content-grid">
+      <div className="content-masonry">
         <div className="card">
           <h3 className="card-title">Aging Summary</h3>
           <p className="card-subtitle">Payables by how overdue they are</p>
@@ -3653,7 +3646,7 @@ function StaffAccessPage({ staffUser }) {
         )}
       </div>
 
-      <div className="content-grid" style={{ marginBottom: 20 }}>
+      <div className="content-masonry" style={{ marginBottom: 20 }}>
         <div className="card">
           <h3 className="card-title">System info</h3>
           <p className="card-subtitle">What this page is actually talking to, for debugging a broken login or a stale deploy.</p>

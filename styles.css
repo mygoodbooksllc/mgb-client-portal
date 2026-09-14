@@ -1065,44 +1065,18 @@ body {
   .content-grid { grid-template-columns: 1fr; }
 }
 
-/* Dashboard's content-grid can hold anywhere from 1 to 6 cards now that
-   clients pull widgets in from other tabs — the fixed 1.6fr/1fr split above
-   was sized for exactly two. A fixed 2-column grid (not auto-fit) plus
-   align-items:start lets a short card (a couple of KPI-style rows, like
-   Bank Accounts or Budget Totals) size to its own content instead of being
-   stretched to match a tall neighbor — and because grid auto-placement
-   fills row tracks left-to-right, two short "compact" cards naturally land
-   side by side. A "full" card (.content-card-full) spans both columns, so
-   it always gets its own row instead of pairing with something short. */
-.content-grid-adaptive {
-  grid-template-columns: repeat(2, minmax(320px, 1fr));
-  align-items: start;
-}
-
-/* Same overflow guard as .content-grid above — without it, wide content
-   inside a card (a table, a long unbroken string) refuses to shrink below
-   its own intrinsic width and pushes the grid track wider than the column,
-   instead of scrolling inside the card via .table-scroll/.staff-audit-list. */
-.content-grid-adaptive > * {
-  min-width: 0;
-}
-
-.content-card-full {
-  grid-column: 1 / -1;
-}
-
-@media (max-width: 900px) {
-  .content-grid-adaptive { grid-template-columns: 1fr; }
-  .content-card-full { grid-column: 1; }
-}
-
-/* True masonry (Home's cards) — CSS Grid pairs cards into fixed rows, so a
-   short card next to a tall one leaves a big dead gap for the rest of that
-   row's height (align-items:start does NOT fix this; it only stops the
-   short card from being stretched, the empty space is still there). Multi-
-   column layout has no row concept: each card just drops into the
-   shortest/next available column, so cards of any length pack tightly with
-   no gaps, and it adapts to any screen width on its own via column-width. */
+/* True masonry — Dashboard, Scoped Dashboard, Receivables & Payables, AP
+   Command Center, Staff Access, and Home all use this now (replacing the
+   old .content-grid-adaptive/.content-card-full pair, which used CSS Grid
+   and needed a hand-picked "compact vs full-width" class per card to avoid
+   pairing a tall card with a short one). CSS Grid pairs cards into fixed
+   rows, so a short card next to a tall one leaves a big dead gap for the
+   rest of that row's height (align-items:start does NOT fix this; it only
+   stops the short card from being stretched, the empty space is still
+   there). Multi-column layout has no row concept: each card just drops
+   into the shortest/next available column, so cards of any length pack
+   tightly with no gaps, and it adapts to any screen width on its own via
+   column-width. */
 .content-masonry {
   columns: 380px 2;
   column-gap: 20px;
