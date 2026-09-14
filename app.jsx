@@ -5926,12 +5926,16 @@ function App({ staffUser, onSignOut }) {
     : null;
 
   useEffect(() => {
-    // Home already has its own cross-client "Unread messages" card — the
-    // floating widget popping up on top of it would be redundant (and,
-    // since it's scoped to whatever client happened to be last selected,
-    // misleading about which client actually has the unread thread).
+    // Home already has its own cross-client "Unread messages" card, and
+    // Staff Access isn't about any client at all — the floating widget
+    // popping up over either is redundant at best (Home) and outright
+    // confusing at worst (Staff Access: it's scoped to whatever client
+    // happened to be last selected, which has nothing to do with that page).
     const canShow =
-      access.tabs.has("messages") && effectivePage !== "messages" && effectivePage !== "bookkeeper-home";
+      access.tabs.has("messages") &&
+      effectivePage !== "messages" &&
+      effectivePage !== "bookkeeper-home" &&
+      effectivePage !== "staff-access";
     const signature = unreadSignature;
 
     if (!signature || !canShow) {

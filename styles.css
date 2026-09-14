@@ -194,6 +194,11 @@ html, body, #root {
    just not the pinch gesture itself. */
 html {
   touch-action: pan-x pan-y;
+  /* Chrome specifically reads overscroll-behavior off the document element
+     (html), not body, to decide whether to show its native pull-to-refresh
+     UI at the top of the page — setting it only on body (below) wasn't
+     enough to suppress it there, confirmed via screen recording. */
+  overscroll-behavior-y: contain;
 }
 
 body {
