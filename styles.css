@@ -1096,6 +1096,25 @@ body {
   .content-card-full { grid-column: 1; }
 }
 
+/* True masonry (Home's cards) — CSS Grid pairs cards into fixed rows, so a
+   short card next to a tall one leaves a big dead gap for the rest of that
+   row's height (align-items:start does NOT fix this; it only stops the
+   short card from being stretched, the empty space is still there). Multi-
+   column layout has no row concept: each card just drops into the
+   shortest/next available column, so cards of any length pack tightly with
+   no gaps, and it adapts to any screen width on its own via column-width. */
+.content-masonry {
+  columns: 380px 2;
+  column-gap: 20px;
+}
+
+.content-masonry > * {
+  break-inside: avoid;
+  -webkit-column-break-inside: avoid;
+  margin-bottom: 20px;
+  min-width: 0;
+}
+
 .card-title {
   font-family: var(--font-heading);
   font-size: 16px;
