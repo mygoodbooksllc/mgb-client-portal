@@ -200,11 +200,14 @@ try {{
     return Babel.transform(decodeSource(source), {{ filename: filename, presets: presets }}).code;
   }}
 
-  // NOTE: this makes the login gate present in the bundle, but a published
-  // Artifact's CSP blocks fetch/XHR to any host outside its CDN allowlist —
-  // Supabase's API is not on it. AuthGate will load and render, but
-  // supabase.auth calls will silently fail there. The gate only actually
-  // works from app.mygoodbooks.org (Vercel), not from an Artifact link.
+  // A published Artifact's CSP blocks fetch/XHR to any host outside its CDN
+  // allowlist, and Supabase's API isn't on it — the real login gate can
+  // never complete here. Rather than let AuthGate hang forever on "Checking
+  // sign-in…" waiting on a request that can't succeed, this flag (set only
+  // in this bundle, never in index.html) tells it to skip straight to the
+  // app. Deliberate: this link is a legacy unauthenticated demo, not a path
+  // to the real staff portal — that's app.mygoodbooks.org (Vercel) only.
+  window.MGB_DEMO_NO_AUTH = true;
   run(compile(BUNDLE.authConfig, "auth-config.js", [jsx]));
   run(compile(BUNDLE.supabaseClient, "supabaseClient.js", [jsx]));
   run(compile(BUNDLE.authGate, "AuthGate.jsx", [jsx]));
