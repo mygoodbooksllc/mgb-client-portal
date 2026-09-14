@@ -1,4 +1,4 @@
-const { useState, useMemo, useRef, useContext, useEffect } = React;
+const { useState, useMemo, useRef, useContext, useEffect, useCallback } = React;
 
 const fmtMoney = (n, opts = {}) => {
   const sign = n < 0 ? "-" : "";
@@ -398,6 +398,19 @@ function Sidebar({
                 Sign out
               </button>
             </div>
+          )}
+
+          {staffUser && staffUser.role === "admin" && (
+            <button
+              type="button"
+              className={"staff-access-link" + (page === "staff-access" ? " active" : "")}
+              onClick={() => {
+                onSelectPage("staff-access");
+                onCloseMobile();
+              }}
+            >
+              Staff Access
+            </button>
           )}
 
           <div className="client-picker-label">Preview as</div>
@@ -3183,6 +3196,215 @@ function APCommandCenterPage({ client }) {
 }
 
 // ----------------------------------------------------------------------------
+// Staff Access (admin only) — manage who can sign in to the portal at all.
+// Reads/writes the real `staff` table in Supabase directly (not mock data).
+// Authorization is enforced by Postgres RLS (see
+// supabase/staff-admin-policies.sql), not by this component: a non-admin who
+// somehow rendered this page would still have every request rejected by the
+// database, since only an active admin's own row satisfies the write policy.
+// ----------------------------------------------------------------------------
+
+const STAFF_ROLES = ["bookkeeper", "admin"];
+
+function StaffAccessPage({ staffUser }) {
+  const showToast = useToast();
+  const supabase = window.mgbSupabase;
+
+  const [rows, setRows] = useState(null); // null while loading
+  const [loadError, setLoadError] = useState("");
+  const [busyId, setBusyId] = useState(null);
+  const [newEmail, setNewEmail] = useState("");
+  const [newName, setNewName] = useState("");
+  const [newRole, setNewRole] = useState("bookkeeper");
+  const [adding, setAdding] = useState(false);
+
+  const load = useCallback(() => {
+    if (!supabase) {
+      setLoadError("Supabase isn't configured — see auth-config.js.");
+      setRows([]);
+      return;
+    }
+    supabase
+      .from("staff")
+      .select("id, email, name, role, active, created_at")
+      .order("created_at", { ascending: true })
+      .then(({ data, error }) => {
+        if (error) {
+          // Most likely cause: supabase/staff-admin-policies.sql hasn't been
+          // run yet, so only your own row is readable, not the full roster.
+          setLoadError("Couldn't load the staff list. " + error.message);
+          setRows([]);
+        } else {
+          setLoadError("");
+          setRows(data);
+        }
+      });
+  }, [supabase]);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  async function addStaff() {
+    const email = newEmail.trim().toLowerCase();
+    const name = newName.trim();
+    if (!email || !name) return;
+    if (!email.endsWith("@mygoodbooks.org")) {
+      showToast("Staff email must be a mygoodbooks.org address — Google sign-in will reject anything else.");
+      return;
+    }
+    setAdding(true);
+    const { error } = await supabase.from("staff").insert({ email, name, role: newRole, active: true });
+    setAdding(false);
+    if (error) {
+      showToast(`Couldn't add ${email}: ${error.message}`);
+      return;
+    }
+    setNewEmail("");
+    setNewName("");
+    setNewRole("bookkeeper");
+    showToast(`Added ${name} to the staff list.`);
+    load();
+  }
+
+  async function updateRow(row, patch) {
+    setBusyId(row.id);
+    const { error } = await supabase.from("staff").update(patch).eq("id", row.id);
+    setBusyId(null);
+    if (error) {
+      showToast(`Couldn't update ${row.email}: ${error.message}`);
+      return;
+    }
+    load();
+  }
+
+  async function removeRow(row) {
+    if (!window.confirm(`Remove ${row.name} (${row.email})? They'll lose portal access immediately.`)) return;
+    setBusyId(row.id);
+    const { error } = await supabase.from("staff").delete().eq("id", row.id);
+    setBusyId(null);
+    if (error) {
+      showToast(`Couldn't remove ${row.email}: ${error.message}`);
+      return;
+    }
+    showToast(`Removed ${row.name}.`);
+    load();
+  }
+
+  return (
+    <div>
+      <div className="mock-banner">
+        ⚠️ This page writes directly to the real staff table in Supabase — unlike the rest of the app, nothing here
+        is sample data.
+      </div>
+
+      <div className="card">
+        <h3 className="card-title">Add staff</h3>
+        <p className="card-subtitle">
+          They'll sign in with Google using this exact address — add them here first, or Google will let them in and
+          this app will turn them away.
+        </p>
+        <div className="staff-add-row">
+          <input
+            type="email"
+            placeholder="name@mygoodbooks.org"
+            value={newEmail}
+            onChange={(e) => setNewEmail(e.target.value)}
+          />
+          <input type="text" placeholder="Full name" value={newName} onChange={(e) => setNewName(e.target.value)} />
+          <select value={newRole} onChange={(e) => setNewRole(e.target.value)}>
+            {STAFF_ROLES.map((r) => (
+              <option key={r} value={r}>
+                {r}
+              </option>
+            ))}
+          </select>
+          <button className="btn-primary" disabled={adding || !newEmail.trim() || !newName.trim()} onClick={addStaff}>
+            + Add
+          </button>
+        </div>
+      </div>
+
+      <div className="card">
+        <h3 className="card-title">Staff roster</h3>
+        <p className="card-subtitle">Who can sign in to the portal, and with what role. You can't change your own row.</p>
+
+        {rows === null && !loadError && <p className="card-subtitle">Loading…</p>}
+        {loadError && <p className="card-subtitle negative">{loadError}</p>}
+
+        {rows && rows.length > 0 && (
+          <div className="table-scroll">
+            <table className="tx-table tx-table-labeled">
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Email</th>
+                  <th>Role</th>
+                  <th>Active</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((row) => {
+                  const isSelf = row.email === staffUser.email;
+                  const busy = busyId === row.id;
+                  return (
+                    <tr key={row.id}>
+                      <td data-primary="">{row.name}</td>
+                      <td data-label="Email">{row.email}</td>
+                      <td data-label="Role">
+                        <select
+                          value={row.role}
+                          disabled={isSelf || busy}
+                          onChange={(e) => updateRow(row, { role: e.target.value })}
+                        >
+                          {STAFF_ROLES.map((r) => (
+                            <option key={r} value={r}>
+                              {r}
+                            </option>
+                          ))}
+                        </select>
+                      </td>
+                      <td data-label="Active">
+                        <label className="staff-active-toggle">
+                          <input
+                            type="checkbox"
+                            checked={row.active}
+                            disabled={isSelf || busy}
+                            onChange={(e) => updateRow(row, { active: e.target.checked })}
+                          />
+                          <span>{row.active ? "Active" : "Deactivated"}</span>
+                        </label>
+                      </td>
+                      <td className="row-remove-cell">
+                        {isSelf ? (
+                          <span className="staff-self-note">You</span>
+                        ) : (
+                          <button
+                            className="row-remove-btn"
+                            onClick={() => removeRow(row)}
+                            disabled={busy}
+                            aria-label={`Remove ${row.name}`}
+                          >
+                            ×
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {rows && rows.length === 0 && !loadError && <p className="card-subtitle">No staff rows yet.</p>}
+      </div>
+    </div>
+  );
+}
+
+// ----------------------------------------------------------------------------
 // Documents page (upload)
 // ----------------------------------------------------------------------------
 
@@ -3830,8 +4052,9 @@ function TabSettingsModal({
 // App
 // ----------------------------------------------------------------------------
 
-// Explicit theme choice from the header toggle. Null means "follow the OS
-// setting" (styles.css's @media block), same as before the toggle existed.
+// Explicit theme choice from the header toggle. Null means "use the product
+// default" (dark) — the OS setting no longer decides this (see index.html's
+// pre-hydration script and styles.css's data-theme guard).
 const THEME_STORAGE_KEY = "mygoodbooks_theme_v1";
 
 function loadTheme() {
@@ -4193,6 +4416,7 @@ const PAGE_META = {
   "budgeting-tool": { title: "Budgeting Tool", subtitle: "Draft next period's budget with your bookkeeper" },
   "ap-command-center": { title: "AP Command Center", subtitle: "Every open bill, aging, and what's due next" },
   "enterprise-upgrade": { title: "Enterprise Tools", subtitle: "See what's included, and what upgrading unlocks" },
+  "staff-access": { title: "Staff Access", subtitle: "Who can sign in to the portal, and with what role" },
   documents: { title: "Documents", subtitle: "Shared files between you and your bookkeeper" },
   messages: { title: "Messages", subtitle: "Talk directly with your bookkeeping team" },
 };
@@ -4427,10 +4651,22 @@ function App({ staffUser, onSignOut }) {
 
   const scopedClient = useMemo(() => scopeClientData(client, access), [client, access]);
 
-  // "enterprise-upgrade" is a synthetic page, not a real tab — it isn't in
-  // ALL_TAB_KEYS/access.tabs, so it needs its own bypass here or the normal
-  // fallback would bounce it straight back to the dashboard.
-  const effectivePage = page === "enterprise-upgrade" ? page : access.tabs.has(page) ? page : ALWAYS_VISIBLE_KEY;
+  // "enterprise-upgrade" and "staff-access" are synthetic pages, not real
+  // tabs — neither is in ALL_TAB_KEYS/access.tabs, so each needs its own
+  // bypass here or the normal fallback would bounce it straight back to the
+  // dashboard. staff-access additionally requires admin, matching the
+  // sidebar link that's the only way to reach it — Postgres RLS is the real
+  // enforcement (see supabase/staff-admin-policies.sql), this is just so a
+  // demoted admin's stale stored page doesn't render a fetch that RLS then
+  // silently empties.
+  const effectivePage =
+    page === "enterprise-upgrade"
+      ? page
+      : page === "staff-access" && staffUser.role === "admin"
+      ? page
+      : access.tabs.has(page)
+      ? page
+      : ALWAYS_VISIBLE_KEY;
   const meta = PAGE_META[effectivePage];
   const isPreviewingUser = viewAsUserId !== BOOKKEEPER_VIEW && access.user;
 
@@ -4796,6 +5032,7 @@ function App({ staffUser, onSignOut }) {
           {effectivePage === "reports" && <ReportsPage client={scopedClient} />}
           {effectivePage === "report-builder" && <ReportBuilderPage client={scopedClient} key={"report-builder-" + client.id} />}
           {effectivePage === "enterprise-upgrade" && <EnterpriseUpgradePage client={scopedClient} key={"enterprise-upgrade-" + client.id} />}
+          {effectivePage === "staff-access" && <StaffAccessPage staffUser={staffUser} />}
           {effectivePage === "budgeting-tool" && <BudgetingToolPage client={scopedClient} key={"budgeting-tool-" + client.id} />}
           {effectivePage === "ap-command-center" && (
             <APCommandCenterPage client={scopedClient} key={"ap-command-center-" + client.id} />
