@@ -13,19 +13,10 @@
 (function () {
   const { useEffect, useState } = React;
 
-  // The published Artifact link's CSP blocks Supabase's API host, so the
-  // real gate can never complete there — build.py sets this flag only in
-  // that bundle (never in index.html, so app.mygoodbooks.org is unaffected)
-  // so it opens straight into the app instead of hanging forever on
-  // "Checking sign-in…" waiting on a request that can't succeed. This is a
-  // deliberate, permanent choice for that link (a legacy unauthenticated
-  // demo), not a workaround to remove later.
-  const DEMO_STAFF_USER = { email: "demo@mygoodbooks.org", name: "Demo (no login)", role: "admin" };
-
   function AuthGate({ children }) {
     // "loading" -> "signed-out" -> "checking-staff" -> "authorized" | "denied"
-    const [status, setStatus] = useState(window.MGB_DEMO_NO_AUTH ? "authorized" : "loading");
-    const [staffUser, setStaffUser] = useState(window.MGB_DEMO_NO_AUTH ? DEMO_STAFF_USER : null);
+    const [status, setStatus] = useState("loading");
+    const [staffUser, setStaffUser] = useState(null);
     const [errorMsg, setErrorMsg] = useState("");
 
     const supabase = window.mgbSupabase;
@@ -55,26 +46,15 @@
     }
 
     useEffect(() => {
-      if (window.MGB_DEMO_NO_AUTH) return;
-
       if (!supabase) {
         setStatus("not-configured");
         return;
       }
 
-      // Supabase's client rejects rather than resolving when the request
-      // itself can't go out (e.g. a CSP block) — without a .catch here that
-      // leaves the "Checking sign-in…" splash up forever with no way out.
-      supabase.auth
-        .getSession()
-        .then(({ data }) => {
-          if (data.session) checkStaffRow(data.session);
-          else setStatus("signed-out");
-        })
-        .catch(() => {
-          setErrorMsg("Couldn't reach the sign-in service. Try again in a moment.");
-          setStatus("denied");
-        });
+      supabase.auth.getSession().then(({ data }) => {
+        if (data.session) checkStaffRow(data.session);
+        else setStatus("signed-out");
+      });
 
       const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
         if (session) checkStaffRow(session);
@@ -102,7 +82,6 @@
     }
 
     function signOut() {
-      if (window.MGB_DEMO_NO_AUTH) return;
       supabase.auth.signOut();
     }
 
