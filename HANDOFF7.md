@@ -248,5 +248,23 @@ All pushed and merged into `main` via PRs #1–#4, deployed live at `app.mygoodb
   portal message arrives is the one addition worth adding, once Phase 3 (§4) gives the app a
   real backend to send from.
 
+- **Per-bookkeeper client access + Home page** — admins can check/uncheck which clients each
+  bookkeeper sees (`supabase/staff-client-access.sql`, opt-in default — zero checked means
+  zero visible, until an admin grants some). Every signed-in staffer also gets a "Home" link:
+  overdue/due-soon bills and unread messages rolled up across every client they can see,
+  recently-viewed/needs-a-visit lists (per-device, `localStorage` only), shared per-client
+  notes (`supabase/client-notes.sql` — any active staff member, not just the author, can read
+  and write these), and a search box over the client list. The sidebar hides the per-client
+  nav while on Home, since none of it applies there.
+- **A directory, not a vault** — discussed and declined building an in-app password vault for
+  GitHub/Supabase/Vercel/GoDaddy credentials (no MFA, no breach monitoring, a real single
+  point of failure). Added a "Where things live" card to Developer Tools instead — links to
+  each service plus a pointer to the real password manager vault holding its credentials.
+  `INFRA_LINKS` in `app.jsx` — edit by hand as accounts change.
+- **Cmd+K command palette — parked for later.** Considered as a cross-page/cross-client quick
+  jump; built a simpler in-page client search box on Home instead, since the new due-bills/
+  unread/badge rollups already cover most of the "where do I need to look" need. Worth
+  revisiting if that turns out not to be enough once there are more clients or more staff.
+
 Still open, unchanged from §5: Phase 2 (client-side magic-link auth), real-device touch
 testing, and the receipt-capture/digitization decision.
