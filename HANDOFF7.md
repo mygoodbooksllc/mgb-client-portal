@@ -268,3 +268,104 @@ All pushed and merged into `main` via PRs #1–#4, deployed live at `app.mygoodb
 
 Still open, unchanged from §5: Phase 2 (client-side magic-link auth), real-device touch
 testing, and the receipt-capture/digitization decision.
+
+---
+
+## 7. Update, 2026-09-14 (later the same day): real bugs found and fixed via a screen recording
+
+All pushed and merged into `main` via PRs #7–16, deployed live. Two categories: Home page
+polish, and real bugs — several found only because you sent a screen recording when a
+described symptom ("scroll gets stuck") didn't match what two rounds of guessed CSS fixes
+actually addressed. Worth remembering that pattern: when a UI bug report doesn't resolve after
+one targeted fix, ask for a recording rather than keep guessing.
+
+**Home page polish:**
+- Greets the signed-in staffer by name ("Good evening, Holden"), not a client contact's name —
+  the shared page-header greeting used to pull from whatever client was last selected, which
+  made no sense on a page that isn't about any one client.
+- Sidebar hides the per-client tab nav, "Preview as," and "Manage access" while on Home,
+  replaced by a one-line "pick a client above" note — those never applied there anyway.
+- The Unread Messages KPI tile is now clickable (jumps to the oldest unread thread).
+- Fixed several `.card`/`.content-grid` blocks butting directly against their next sibling
+  with no gap, on Home, Staff Access, AP Command Center, and Documents — this codebase spaces
+  stacked top-level blocks with an inline `style={{ marginBottom: 20 }}` per block (see e.g.
+  `GivingFundsPage`'s Fund Balances card), not a shared CSS rule, and several pages missed it.
+- The floating chat widget no longer auto-opens over Home or Staff Access — it's scoped to
+  whatever client was last selected, which is irrelevant on either page.
+
+**Real bugs found and fixed:**
+- **Modal focus-steal bug** (root cause, not a patch): `ModalShell`'s focus-management effect
+  depended on `onClose`. Any modal whose *own* invoking component also owns fast-changing
+  state (e.g. typing in the client-note textarea) passed a fresh inline `onClose` identity
+  every keystroke, re-running the effect — whose cleanup restores focus to whatever was
+  focused before the modal opened. That's what caused "type one letter, get kicked out of the
+  field." Fixed by reading `onClose` from a ref instead of depending on it, so the effect only
+  runs on mount/unmount. Fixes every current and future `ModalShell` user, not just the note
+  editor.
+- **Login vs. refresh routing.** A fresh sign-in (or a brand-new tab/window) now lands on Home;
+  refreshing mid-work restores exactly the page *and client* you were on. Distinguished via a
+  `sessionStorage` flag (per-tab, cleared on sign-out), not Supabase auth events, which fire
+  ambiguously between a real new sign-in and a silently-restored existing session.
+  `selectedClientId` is now actually persisted across refreshes too — previously only the page
+  was saved, so a refresh silently reset back to Riverside regardless of which client was open.
+- **Dashboard drag-and-drop could permanently block page scroll.** `useDragReorder`'s touch
+  path blocks page scroll for the whole duration a card is picked up, and only cleared that
+  state via pointer events bound to the *specific* card DOM element — but reordering live
+  during the drag can cause React to swap that exact node out from under the gesture, losing
+  the pointer capture and its handlers. If the browser then doesn't cleanly deliver a
+  `pointercancel`, the drag state never resets and the scroll-blocker stays attached forever.
+  Added document-level pointerup/pointercancel/pointerleave listeners as a safety net (fire
+  regardless of which element the capture was on) plus a hard 5s ceiling as a second backstop.
+  Not confirmed as *the* cause of any specific report, but a genuine bug worth having fixed
+  regardless.
+- **Pinch-to-zoom disabled** — viewport meta (`maximum-scale=1.0, user-scalable=no`) plus
+  `touch-action: pan-x pan-y` on `<html>` as the modern fallback, since some mobile browsers
+  ignore `user-scalable=no` on purpose for accessibility.
+
+**The "Chrome scroll stuck" saga — worth reading if it comes up again:** reported as "on
+mobile, page is getting stuck, can't scroll to the top." Two rounds of plausible-sounding CSS
+fixes (`overscroll-behavior-y: contain` on `body`, then on `html` too, since Chrome reads it
+off the document element specifically) did not resolve it. A screen recording settled it: the
+icons appearing on pull-down (+ / ⟳ / ✕) aren't a refresh spinner — they're **Chrome-for-iOS's
+own tab-strip quick actions** (new tab / reload / close tab), a browser-chrome-level gesture
+that lives above the web page entirely. Confirmed by elimination: it didn't respond to
+`overscroll-behavior` (which reliably suppresses true pull-to-refresh), and Safari — same
+underlying WebKit engine, different browser chrome — doesn't have it. **Concluded: not fixable
+from the app.** No CSS or JS on a web page can reach Chrome's own UI gestures. If this comes up
+again, don't re-attempt an `overscroll-behavior` fix — point straight at this section.
+
+**Discussed, explicitly declined or parked:**
+- An in-app password vault for GitHub/Supabase/Vercel/GoDaddy credentials — declined (no MFA,
+  no breach monitoring, a real single point of failure). Built a "Where things live" directory
+  instead (`INFRA_LINKS` in `app.jsx`) — links only, real credentials stay in your password
+  manager.
+- Google Meet / video meetings inside the app — scoped (needs a `calendar.events` OAuth scope
+  beyond today's identity-only Google sign-in, and clients don't have real accounts to receive
+  a native "join" link through until Phase 2) but **put on hold, not started**, per your call
+  mid-conversation. Revisit when you're ready.
+
+---
+
+## To do, next session
+
+1. **Retest on real devices**, now that a batch of mobile-facing fixes shipped: the modal
+   focus-steal fix (try typing a client note or managing a bookkeeper's clients on a phone),
+   login-lands-on-Home / refresh-restores-your-page, pinch-zoom actually disabled, and the
+   dashboard drag-and-drop reorder (long-press, drag across several cards, release, confirm
+   the page scrolls normally after). This is on top of the still-outstanding item 5 below.
+2. **Add real bookkeeper staff rows and test per-bookkeeper access for real** — so far only
+   Holden (admin) has been fully exercised. Sign in as Gillian (or another `bookkeeper`-role
+   account) and confirm: only her assigned clients (Grace Community, New Hope) show in the
+   sidebar switcher and on her Home page; she can't see Staff Access; client notes she leaves
+   are visible to other staff.
+3. **Decide on Google Meet / real video meetings** — on hold, see above. Needs a decision on
+   the broader Google OAuth consent scope before any code starts.
+4. Everything still open from §5/§6, unchanged: **Phase 2** (client-side magic-link auth),
+   **receipt-capture/digitization** approach, and the lower-priority Developer Tools follow-ups
+   (bulk staff CSV import, a real invite/email flow, impersonating another staff member's
+   view). **Cmd+K** stays parked per §6 — revisit only if the client search box + rollups on
+   Home stop being enough.
+5. No SQL migrations are currently pending — `staff-schema.sql`, `staff-admin-policies.sql`,
+   `staff-audit-log.sql`, `staff-client-access.sql`, `staff-reminders.sql`, and
+   `client-notes.sql` have all been run against the live Supabase project and verified
+   working. Only a *new* feature would add another one.
