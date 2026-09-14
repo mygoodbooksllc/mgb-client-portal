@@ -273,7 +273,15 @@ function resolveAccess(client, viewAsUserId, orgHiddenKeys) {
     user,
     tabs: new Set(tabs),
     categories: isCategoryScoped ? new Set(user.categories) : null,
-    funds: user.funds ? new Set(user.funds) : null,
+    // A category-scoped person only ever sees funds explicitly listed for
+    // them — no list means none, not "every fund" (unlike categories/tabs,
+    // where an empty list falls back to the org default). Getting this
+    // backwards is exactly how a ministry-area-scoped user ends up seeing
+    // the org-wide fund total on their own dashboard, which the whole point
+    // of scoping them says they shouldn't. A non-category-scoped restricted
+    // user (tabs-only) isn't affected — they're on the unscoped dashboard,
+    // where org-wide figures are expected.
+    funds: user.funds ? new Set(user.funds) : isCategoryScoped ? new Set() : null,
     isCategoryScoped,
     isFullAccess: false,
   };
@@ -3733,12 +3741,23 @@ function MessagesPage({ client, messages, onSend, users, activeUserId, onSelectU
 // organization gets, and what each named person at that org may see.
 // ----------------------------------------------------------------------------
 
-function UserAccessEditor({ client, user, orgAllowedKeys, userAccess, onToggleUserTab, onToggleUserCategory, onSetAccessLevel, onBack }) {
+function UserAccessEditor({
+  client,
+  user,
+  orgAllowedKeys,
+  userAccess,
+  onToggleUserTab,
+  onToggleUserCategory,
+  onToggleUserFund,
+  onSetAccessLevel,
+  onBack,
+}) {
   const isFull = user.access === "full";
   const effective = userAccess[user.id] || {};
   const userTabs = new Set(effective.tabs || user.tabs || orgAllowedKeys);
   const userCats = new Set(effective.categories || user.categories || []);
   const isCategoryScoped = Boolean(effective.categories || user.categories);
+  const userFunds = new Set(effective.funds || user.funds || []);
 
   return (
     <React.Fragment>
@@ -3813,6 +3832,26 @@ function UserAccessEditor({ client, user, orgAllowedKeys, userAccess, onToggleUs
               </label>
             ))}
           </div>
+
+          {isCategoryScoped && (
+            <div className="modal-section">
+              <div className="nav-section-label modal-section-label">Funds they can see</div>
+              <p className="card-subtitle" style={{ marginTop: 0, marginBottom: 8 }}>
+                Their dashboard never shows the org-wide fund total — leave all unchecked to hide the Funds widget
+                for them entirely, rather than showing every fund by default.
+              </p>
+              {(client.funds || []).map((f) => (
+                <label className="tab-toggle-row" key={f.name}>
+                  <input
+                    type="checkbox"
+                    checked={userFunds.has(f.name)}
+                    onChange={() => onToggleUserFund(user.id, f.name)}
+                  />
+                  <span>{f.name}</span>
+                </label>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
@@ -3904,6 +3943,7 @@ function TabSettingsModal({
   onReorder,
   onToggleUserTab,
   onToggleUserCategory,
+  onToggleUserFund,
   onSetAccessLevel,
   onClose,
 }) {
@@ -3925,6 +3965,7 @@ function TabSettingsModal({
             userAccess={userAccess}
             onToggleUserTab={onToggleUserTab}
             onToggleUserCategory={onToggleUserCategory}
+            onToggleUserFund={onToggleUserFund}
             onSetAccessLevel={onSetAccessLevel}
             onBack={() => setEditingUserId(null)}
           />
@@ -4644,6 +4685,20 @@ function App({ staffUser, onSignOut }) {
     });
   };
 
+  // Unlike categories, an empty fund list stays an empty list (stored as
+  // null, same "nothing set" representation) rather than falling back to
+  // every fund — see the comment on resolveAccess's funds line.
+  const toggleUserFund = (userId, fundName) => {
+    const user = client.users.find((u) => u.id === userId);
+    setUserAccess((prev) => {
+      const current = new Set((prev[userId] && prev[userId].funds) || user.funds || []);
+      if (current.has(fundName)) current.delete(fundName);
+      else current.add(fundName);
+      const next = Array.from(current);
+      return { ...prev, [userId]: { ...(prev[userId] || {}), funds: next.length ? next : null } };
+    });
+  };
+
   const access = useMemo(
     () => resolveAccess(client, viewAsUserId, new Set(tabConfig[selectedClientId] || [])),
     [client, viewAsUserId, tabConfig, selectedClientId]
@@ -5078,6 +5133,7 @@ function App({ staffUser, onSignOut }) {
           onReorder={reorderTab}
           onToggleUserTab={toggleUserTab}
           onToggleUserCategory={toggleUserCategory}
+          onToggleUserFund={toggleUserFund}
           onSetAccessLevel={setAccessLevel}
           onClose={() => setSettingsOpen(false)}
         />
