@@ -5961,7 +5961,11 @@ function App({ staffUser, onSignOut }) {
 
   // Greet whoever's actually being previewed; otherwise fall back to the
   // client's first listed contact, since that's who'd land on this portal.
-  const greetingUser = access.user || (client.users && client.users[0]);
+  // Only a real previewed person's own name when one is actually being
+  // previewed — a signed-in staffer looking at the org with full access
+  // isn't John, so "Good morning, John" was flatly wrong (nobody named
+  // John is actually there). Falls back to the org's own name instead.
+  const greetingName = access.user ? firstNameOf(access.user.name) : client.name;
 
   // Pop the floating chat widget open when an unread reply arrives — but only
   // once per unread reply. The previous version re-ran on every page change and
@@ -6108,11 +6112,9 @@ function App({ staffUser, onSignOut }) {
                   {timeOfDayGreeting()}, {firstNameOf(staffUser.name)}
                 </h1>
               ) : (
-                greetingUser && (
-                  <h1 className="page-title">
-                    {timeOfDayGreeting()}, {firstNameOf(greetingUser.name)}
-                  </h1>
-                )
+                <h1 className="page-title">
+                  {timeOfDayGreeting()}, {greetingName}
+                </h1>
               )}
               <div className="page-subtitle">{meta.subtitle}</div>
             </div>
