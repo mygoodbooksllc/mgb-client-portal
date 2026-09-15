@@ -6283,7 +6283,15 @@ function App({ staffUser, onSignOut }) {
         <Sidebar
           clients={visibleClients}
           selectedClientId={selectedClientId}
-          onSelectClient={setSelectedClientId}
+          onSelectClient={(id) => {
+            setSelectedClientId(id);
+            // The picker's whole reason for staying on Home (see Sidebar's
+            // comment above it) is jumping straight into a client — without
+            // this, picking one here just changes which client is "selected"
+            // behind the scenes and the screen never moves, which reads as
+            // the picker being broken.
+            if (page === "bookkeeper-home") setPage("dashboard");
+          }}
           client={client}
           viewAsUserId={viewAsUserId}
           onSelectViewAs={setViewAsUserId}
