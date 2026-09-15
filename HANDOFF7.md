@@ -526,3 +526,44 @@ doesn't have to be re-derived from scratch next time it comes up.
 **Stopping here.** Open items unchanged: Google Meet decision (on hold), Phase 2 client auth
 (now with a concrete shape, above), Cmd+K (parked), a real-device retest of the drag-and-drop
 fix.
+
+---
+
+## 11. Update, 2026-09-15: Client Access — the roster half of Phase 2, built ahead of the rest
+
+Decided the per-contact-login question from §10 (per-contact, not one shared org email — lines
+up with the access-control work already built) and built the piece of it that's safe to ship
+without wiring real client login yet: a **Client Access** admin page, `staff-access`'s sibling.
+
+- New table `supabase/client-users.sql` → `client_users` (email primary key, client_id, name,
+  role, active). Applied directly to the live project via the Supabase MCP. Admin-only RLS for
+  now (`is_active_staff_admin()`, same helper Staff Access already uses) — there's no login
+  gate reading this table yet, so nobody else has a reason to touch it.
+- **This is authentication roster data, not authorization.** `CLIENTS[].users` in `data.js`
+  still owns what a person can see (tabs, categories, funds) via the existing "Manage access"
+  editor — that's unchanged and stays. Client Access only controls *who will be able to sign
+  in at all* once Phase 2's actual login gate exists. Said explicitly in the page's own
+  warning banner so it's not mistaken for already being live.
+- New `ClientAccessPage` component, reachable from the sidebar (admin-only, same gating
+  pattern as Staff Access): add-a-contact form (pick client from a dropdown, email/name/role),
+  bulk CSV import (`client_id, email, name, role` — client_id must be the exact slug, not the
+  display name), a searchable roster table, active/inactive toggle, remove. Deliberately
+  **no "Email invite" button** here, unlike Staff Access's — reused that mailto builder at
+  first and caught that its message text promises Google Workspace sign-in, which is wrong for
+  client contacts and describes a login flow that doesn't exist yet. Left out rather than ship
+  something misleading; add a client-appropriate version once Phase 2's login page is real.
+- Added a search box up front, not as an afterthought — asked directly whether this holds up
+  at 100+ clients and many more logins. Backend-wise yes, trivially (Postgres/Supabase Auth
+  aren't close to any real ceiling at that scale, and it's still within the free/Pro-plan MAU
+  allowance). The one thing that doesn't scale unpaginated is an admin table, so Client Access
+  got the same client-side search treatment Home's client list already has.
+- **The real ceiling isn't this feature** — it's that `CLIENTS` is still a hardcoded array in
+  `data.js`, not a real table. Fine for a handful of clients; if 100+ becomes real, Phase 3
+  (replacing `data.js` with real Supabase tables) stops being optional.
+- `MGB_VERSION` bumped to `2026-09-15e`.
+
+**Still not done, and this doesn't change that:** there is still no actual client login. Client
+Access just makes sure the roster exists and is ready — the magic-link sign-in page, session
+handling, and wiring `AuthGate`-equivalent logic for clients (the "replacing today's implicit
+trust" part of §10's plan) haven't been started. That's the next real Phase 2 step whenever
+you're ready for it.

@@ -453,7 +453,7 @@ function Sidebar({
               second, redundant way to do the same jump wasn't worth the
               sidebar space, and a dropdown is a worse version of that card
               on mobile besides. */}
-          {page !== "staff-access" && page !== "bookkeeper-home" && (
+          {page !== "staff-access" && page !== "client-access" && page !== "bookkeeper-home" && (
             <React.Fragment>
               <div className="client-picker-label">Viewing client</div>
               <select className="client-select" value={selectedClientId} onChange={(e) => onSelectClient(e.target.value)}>
@@ -504,7 +504,20 @@ function Sidebar({
             </button>
           )}
 
-          {page !== "bookkeeper-home" && page !== "staff-access" && (
+          {staffUser && staffUser.role === "admin" && (
+            <button
+              type="button"
+              className={"staff-access-link" + (page === "client-access" ? " active" : "")}
+              onClick={() => {
+                onSelectPage("client-access");
+                onCloseMobile();
+              }}
+            >
+              Client Access
+            </button>
+          )}
+
+          {page !== "bookkeeper-home" && page !== "staff-access" && page !== "client-access" && (
             <React.Fragment>
               <div className="client-picker-label">Preview as</div>
               <select className="client-select" value={viewAsUserId} onChange={(e) => onSelectViewAs(e.target.value)}>
@@ -542,7 +555,7 @@ function Sidebar({
 
       {page === "bookkeeper-home" ? (
         <div className="sidebar-home-note">Pick a client above to see their tabs.</div>
-      ) : page === "staff-access" ? null : (
+      ) : page === "staff-access" || page === "client-access" ? null : (
       <nav className="nav">
         {NAV_SECTIONS.map((section) => {
           const isSignature = section.label === "Enterprise Tools";
@@ -618,7 +631,7 @@ function Sidebar({
       )}
 
       <div className="sidebar-utility-row">
-        {isBookkeeper && page !== "bookkeeper-home" && page !== "staff-access" ? (
+        {isBookkeeper && page !== "bookkeeper-home" && page !== "staff-access" && page !== "client-access" ? (
           <button className="customize-tabs-btn" onClick={onOpenSettings}>
             ⚙ Manage access
           </button>
@@ -3909,6 +3922,339 @@ function StaffAccessPage({ staffUser, onImpersonate }) {
   );
 }
 
+// Parses pasted CSV for bulk client-contact import: client_id,email,name,role
+// per line. Same tiny/no-quoted-fields approach as parseStaffCsv, plus a
+// client_id column checked against the real CLIENTS list instead of a fixed
+// role enum. client_id has to be the exact slug (e.g. "grace-community"),
+// not the display name — there's no fuzzy matching here.
+function parseClientUserCsv(text) {
+  const lines = text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+  const rows = [];
+  lines.forEach((line, i) => {
+    const [rawClientId, rawEmail, rawName, rawRole] = line.split(",").map((f) => (f || "").trim());
+    if (i === 0 && rawEmail && !rawEmail.includes("@")) return; // header row
+    const clientId = rawClientId || "";
+    const email = (rawEmail || "").toLowerCase();
+    const name = rawName || "";
+    const role = rawRole || "";
+    const errors = [];
+    const client = CLIENTS.find((c) => c.id === clientId);
+    if (!clientId || !client) errors.push("unknown client id");
+    if (!email || !email.includes("@")) errors.push("missing/invalid email");
+    if (!name) errors.push("missing name");
+    if (!role) errors.push("missing role");
+    rows.push({ line, clientId, clientName: client ? client.name : clientId, email, name, role, errors });
+  });
+  return rows;
+}
+
+function ClientAccessPage() {
+  const showToast = useToast();
+  const supabase = window.mgbSupabase;
+
+  const [rows, setRows] = useState(null);
+  const [loadError, setLoadError] = useState("");
+  const [busyEmail, setBusyEmail] = useState(null);
+  const [search, setSearch] = useState("");
+  const [newClientId, setNewClientId] = useState(CLIENTS[0] ? CLIENTS[0].id : "");
+  const [newEmail, setNewEmail] = useState("");
+  const [newName, setNewName] = useState("");
+  const [newRole, setNewRole] = useState("");
+  const [adding, setAdding] = useState(false);
+  const [csvText, setCsvText] = useState("");
+  const [csvImporting, setCsvImporting] = useState(false);
+  const [csvResults, setCsvResults] = useState(null);
+
+  const csvPreview = useMemo(() => (csvText.trim() ? parseClientUserCsv(csvText) : []), [csvText]);
+  const csvValidCount = csvPreview.filter((r) => r.errors.length === 0).length;
+
+  const load = useCallback(() => {
+    if (!supabase) {
+      setLoadError("Supabase isn't configured — see auth-config.js.");
+      setRows([]);
+      return;
+    }
+    supabase
+      .from("client_users")
+      .select("email, client_id, name, role, active, created_at")
+      .order("created_at", { ascending: true })
+      .then(({ data, error }) => {
+        if (error) {
+          // Most likely cause: supabase/client-users.sql hasn't been run yet.
+          setLoadError("Couldn't load client contacts. " + error.message);
+          setRows([]);
+        } else {
+          setLoadError("");
+          setRows(data);
+        }
+      });
+  }, [supabase]);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  const filteredRows = useMemo(() => {
+    if (!rows) return [];
+    const q = search.trim().toLowerCase();
+    if (!q) return rows;
+    return rows.filter(
+      (r) =>
+        r.name.toLowerCase().includes(q) ||
+        r.email.toLowerCase().includes(q) ||
+        clientNameFor(r.client_id).toLowerCase().includes(q)
+    );
+  }, [rows, search]);
+
+  function clientNameFor(clientId) {
+    const c = CLIENTS.find((c) => c.id === clientId);
+    return c ? c.name : clientId;
+  }
+
+  async function addContact() {
+    const email = newEmail.trim().toLowerCase();
+    const name = newName.trim();
+    const role = newRole.trim();
+    if (!email || !name || !role || !newClientId) return;
+    setAdding(true);
+    const { error } = await supabase
+      .from("client_users")
+      .insert({ email, client_id: newClientId, name, role, active: true });
+    setAdding(false);
+    if (error) {
+      showToast(`Couldn't add ${email}: ${error.message}`);
+      return;
+    }
+    setNewEmail("");
+    setNewName("");
+    setNewRole("");
+    showToast(`Added ${name} (${clientNameFor(newClientId)}).`);
+    load();
+  }
+
+  async function toggleActive(row) {
+    setBusyEmail(row.email);
+    const { error } = await supabase.from("client_users").update({ active: !row.active }).eq("email", row.email);
+    setBusyEmail(null);
+    if (error) {
+      showToast(`Couldn't update ${row.email}: ${error.message}`);
+      return;
+    }
+    load();
+  }
+
+  async function removeContact(row) {
+    if (!window.confirm(`Remove ${row.name} (${row.email}) from ${clientNameFor(row.client_id)}?`)) return;
+    setBusyEmail(row.email);
+    const { error } = await supabase.from("client_users").delete().eq("email", row.email);
+    setBusyEmail(null);
+    if (error) {
+      showToast(`Couldn't remove ${row.email}: ${error.message}`);
+      return;
+    }
+    showToast(`Removed ${row.name}.`);
+    load();
+  }
+
+  async function importCsv() {
+    const validRows = csvPreview.filter((r) => r.errors.length === 0);
+    if (validRows.length === 0) return;
+    setCsvImporting(true);
+    const results = [];
+    for (const r of validRows) {
+      const { error } = await supabase
+        .from("client_users")
+        .insert({ email: r.email, client_id: r.clientId, name: r.name, role: r.role, active: true });
+      results.push({ email: r.email, name: r.name, ok: !error, message: error ? error.message : "" });
+    }
+    setCsvImporting(false);
+    setCsvResults(results);
+    const okCount = results.filter((r) => r.ok).length;
+    showToast(
+      okCount === results.length
+        ? `Imported ${okCount} client contacts.`
+        : `Imported ${okCount} of ${results.length} — see the results below for what failed.`
+    );
+    if (okCount === results.length) setCsvText("");
+    load();
+  }
+
+  return (
+    <div>
+      <div className="mock-banner">
+        ⚠️ This page writes directly to the real client_users table in Supabase. It only
+        controls who WILL be able to sign in once Phase 2's client login gate is built — until
+        then, nothing here changes who can actually access a client's data (see "Manage
+        access" on each client's dashboard for that).
+      </div>
+
+      <div className="card" style={{ marginBottom: 20 }}>
+        <h3 className="card-title">Add a contact</h3>
+        <p className="card-subtitle">
+          One row per person, not per organization — each contact signs in with their own
+          address once Phase 2 is live.
+        </p>
+        <div className="staff-add-row">
+          <select value={newClientId} onChange={(e) => setNewClientId(e.target.value)}>
+            {CLIENTS.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name}
+              </option>
+            ))}
+          </select>
+          <input
+            type="email"
+            placeholder="name@theirdomain.org"
+            value={newEmail}
+            onChange={(e) => setNewEmail(e.target.value)}
+          />
+          <input type="text" placeholder="Full name" value={newName} onChange={(e) => setNewName(e.target.value)} />
+          <input type="text" placeholder="Role (e.g. Board Treasurer)" value={newRole} onChange={(e) => setNewRole(e.target.value)} />
+          <button
+            className="btn-primary"
+            disabled={adding || !newEmail.trim() || !newName.trim() || !newRole.trim()}
+            onClick={addContact}
+          >
+            + Add
+          </button>
+        </div>
+      </div>
+
+      <div className="card" style={{ marginBottom: 20 }}>
+        <h3 className="card-title">Bulk import</h3>
+        <p className="card-subtitle">
+          Paste rows as <code>client_id, email, name, role</code> — client_id must match a
+          client's id exactly (e.g. <code>grace-community</code>), not its display name.
+        </p>
+        <textarea
+          className="staff-csv-textarea"
+          rows={4}
+          placeholder={"grace-community, john@gracecommunity.org, Pastor John Whitfield, Lead Pastor\nnew-hope, mia@newhopeoutreach.org, Mia Alvarez, Executive Director"}
+          value={csvText}
+          onChange={(e) => {
+            setCsvText(e.target.value);
+            setCsvResults(null);
+          }}
+        />
+        {csvPreview.length > 0 && (
+          <React.Fragment>
+            <ul className="staff-csv-preview">
+              {csvPreview.map((r, i) => (
+                <li key={i} className={r.errors.length ? "negative" : "positive"}>
+                  {r.errors.length ? (
+                    <React.Fragment>
+                      <strong>{r.line}</strong> — {r.errors.join(", ")}
+                    </React.Fragment>
+                  ) : (
+                    <React.Fragment>
+                      {r.name} ({r.email}) · {r.role} · {r.clientName}
+                    </React.Fragment>
+                  )}
+                </li>
+              ))}
+            </ul>
+            <div className="staff-reset-row">
+              <button className="btn-primary" disabled={csvImporting || csvValidCount === 0} onClick={importCsv}>
+                {csvImporting ? "Importing…" : `Import ${csvValidCount} contacts`}
+              </button>
+              {csvValidCount < csvPreview.length && (
+                <p className="card-subtitle" style={{ margin: 0 }}>
+                  {csvPreview.length - csvValidCount} row(s) above have errors and will be skipped.
+                </p>
+              )}
+            </div>
+          </React.Fragment>
+        )}
+        {csvResults && (
+          <ul className="staff-csv-preview" style={{ marginTop: 12 }}>
+            {csvResults.map((r, i) => (
+              <li key={i} className={r.ok ? "positive" : "negative"}>
+                {r.ok ? `Added ${r.name}` : `${r.name || r.email} — ${r.message}`}
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+
+      <div className="card" style={{ marginBottom: 20 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", flexWrap: "wrap", gap: 8 }}>
+          <div>
+            <h3 className="card-title">Client contacts</h3>
+            <p className="card-subtitle">Everyone registered to sign in, across every client.</p>
+          </div>
+          <input
+            type="text"
+            placeholder="Search name, email, or client…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            style={{ maxWidth: 240 }}
+          />
+        </div>
+
+        {rows === null && !loadError && <p className="card-subtitle">Loading…</p>}
+        {loadError && <p className="card-subtitle negative">{loadError}</p>}
+
+        {rows && rows.length > 0 && filteredRows.length === 0 && (
+          <p className="card-subtitle">No contact matches "{search}".</p>
+        )}
+
+        {filteredRows.length > 0 && (
+          <div className="table-scroll">
+            <table className="tx-table tx-table-labeled">
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Email</th>
+                  <th>Client</th>
+                  <th>Role</th>
+                  <th>Active</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredRows.map((row) => {
+                  const busy = busyEmail === row.email;
+                  return (
+                    <tr key={row.email}>
+                      <td data-primary="">{row.name}</td>
+                      <td data-label="Email">{row.email}</td>
+                      <td data-label="Client">{clientNameFor(row.client_id)}</td>
+                      <td data-label="Role">{row.role}</td>
+                      <td data-label="Active">
+                        <label className="staff-active-toggle">
+                          <input
+                            type="checkbox"
+                            checked={row.active}
+                            disabled={busy}
+                            onChange={() => toggleActive(row)}
+                          />
+                          <span>{row.active ? "Active" : "Deactivated"}</span>
+                        </label>
+                      </td>
+                      <td className="row-remove-cell">
+                        <button
+                          className="row-remove-btn"
+                          onClick={() => removeContact(row)}
+                          disabled={busy}
+                          aria-label={`Remove ${row.name}`}
+                        >
+                          ×
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {rows && rows.length === 0 && !loadError && <p className="card-subtitle">No client contacts yet.</p>}
+      </div>
+    </div>
+  );
+}
+
 // ----------------------------------------------------------------------------
 // Bookkeeper Home — every signed-in staffer's landing page (not admin-only,
 // unlike Staff Access). Aggregates what's due across every client they can
@@ -5138,7 +5484,13 @@ const PAGE_STORAGE_KEY = "mygoodbooks_page_v1";
 function loadPage() {
   try {
     const raw = localStorage.getItem(PAGE_STORAGE_KEY);
-    if (raw === "enterprise-upgrade" || raw === "staff-access" || raw === "bookkeeper-home" || ALL_TAB_KEYS.includes(raw)) {
+    if (
+      raw === "enterprise-upgrade" ||
+      raw === "staff-access" ||
+      raw === "client-access" ||
+      raw === "bookkeeper-home" ||
+      ALL_TAB_KEYS.includes(raw)
+    ) {
       return raw;
     }
     return null;
@@ -5590,6 +5942,7 @@ const PAGE_META = {
   "ap-command-center": { title: "AP Command Center", subtitle: "Every open bill, aging, and what's due next" },
   "enterprise-upgrade": { title: "Enterprise Tools", subtitle: "See what's included, and what upgrading unlocks" },
   "staff-access": { title: "Staff Access", subtitle: "Who can sign in to the portal, and with what role" },
+  "client-access": { title: "Client Access", subtitle: "Who at each organization is registered to sign in" },
   "bookkeeper-home": { title: "Home", subtitle: "What needs attention across every client you can see" },
   documents: { title: "Documents", subtitle: "Shared files between you and your bookkeeper" },
   messages: { title: "Messages", subtitle: "Talk directly with your bookkeeping team" },
@@ -5841,7 +6194,7 @@ function App({ staffUser, onSignOut }) {
   // client, and would otherwise stamp whatever client was last selected
   // every time someone just checks their reminders).
   useEffect(() => {
-    if (page === "bookkeeper-home" || page === "staff-access") return;
+    if (page === "bookkeeper-home" || page === "staff-access" || page === "client-access") return;
     recordClientVisit(selectedClientId);
   }, [selectedClientId, page]);
 
@@ -5939,7 +6292,7 @@ function App({ staffUser, onSignOut }) {
   const effectivePage =
     page === "enterprise-upgrade"
       ? page
-      : page === "staff-access" && staffUser.role === "admin" && !impersonating
+      : (page === "staff-access" || page === "client-access") && staffUser.role === "admin" && !impersonating
       ? page
       : page === "bookkeeper-home"
       ? page
@@ -6191,7 +6544,8 @@ function App({ staffUser, onSignOut }) {
       access.tabs.has("messages") &&
       effectivePage !== "messages" &&
       effectivePage !== "bookkeeper-home" &&
-      effectivePage !== "staff-access";
+      effectivePage !== "staff-access" &&
+      effectivePage !== "client-access";
     const signature = unreadSignature;
 
     if (!signature || !canShow) {
@@ -6331,9 +6685,11 @@ function App({ staffUser, onSignOut }) {
           <div className="page-header">
             <div>
               <div className="portal-greeting">
-                {effectivePage === "bookkeeper-home" || effectivePage === "staff-access" ? "MyGoodBooks" : client.name}
+                {effectivePage === "bookkeeper-home" || effectivePage === "staff-access" || effectivePage === "client-access"
+                  ? "MyGoodBooks"
+                  : client.name}
               </div>
-              {effectivePage === "bookkeeper-home" || effectivePage === "staff-access" ? (
+              {effectivePage === "bookkeeper-home" || effectivePage === "staff-access" || effectivePage === "client-access" ? (
                 <h1 className="page-title">
                   {timeOfDayGreeting()}, {firstNameOf(effectiveStaffUser.name)}
                 </h1>
@@ -6397,6 +6753,7 @@ function App({ staffUser, onSignOut }) {
           {effectivePage === "staff-access" && (
             <StaffAccessPage staffUser={staffUser} onImpersonate={startImpersonating} />
           )}
+          {effectivePage === "client-access" && <ClientAccessPage />}
           {effectivePage === "bookkeeper-home" && (
             <BookkeeperHomePage
               staffUser={effectiveStaffUser}
