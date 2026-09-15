@@ -422,3 +422,36 @@ again next time a UI report doesn't resolve after one fix attempt.
 Meet decision, Phase 2, the lower-priority Developer Tools items) is unchanged from earlier
 today. Worth a fresh real-device pass next session on the drag-and-drop fix specifically,
 since it went through several wrong turns before the actual root cause was found.
+
+---
+
+## 9. Update, 2026-09-15: staff impersonation ("View as")
+
+First of the three lower-priority Developer Tools items from §6/§8 — picked "impersonate
+another staff member's view" over the CSV import and invite/email flow, since it's the most
+useful one for verifying the per-bookkeeper client-access restriction actually works without
+needing a second Google account to test with.
+
+- Staff Access roster now has a **"View as"** button next to every active, non-admin staffer.
+  Clicking it drops the signed-in admin into that person's view: their assigned clients only
+  (`staff_client_access`), Home's rollups scoped to those clients, their own name in the
+  greeting. A banner ("Viewing as ___ — Exit") stays pinned across every page while
+  impersonating; Exit returns to the admin's own view and Home.
+- Staff Access itself is unreachable while impersonating — the page gate checks the *real*
+  signed-in admin's role, not the impersonated person's, so there's no path from a
+  bookkeeper's-eye view back into staff management.
+- **One real limitation, worth remembering:** this only changes what's read and displayed, not
+  the underlying Supabase auth session. Writes made while impersonating (a client note) still
+  happen under the real admin's login, and anything gated by RLS to the actual signed-in
+  email — the impersonated bookkeeper's own private reminders, specifically — won't show
+  through, since Postgres is still checking the admin's `auth.jwt()`, not the person being
+  viewed as. Due bills, unread messages, and client assignment are all computed client-side
+  from data the admin can already see, so those work correctly; reminders are the one card on
+  Home that'll look emptier than the real bookkeeper would see it. Fine for what this tool is
+  for (checking client-access scoping), but don't mistake it for a full "log in as" — if that's
+  ever needed, it'd have to go through Supabase's actual admin API to mint a session for that
+  user, not this.
+- Shipped in PR #24. `MGB_VERSION` bumped to `2026-09-15a`.
+
+Remaining Developer Tools follow-ups, still open: bulk staff CSV import, a real invite/email
+flow. Everything else unchanged from §8.
