@@ -1,7 +1,12 @@
 :root {
-  /* Palette pulled from mygoodbooks.org: deep navy + warm gold on a warm cream base */
-  --navy: #243746;
-  --navy-deep: #1a2830;
+  /* Deep navy + warm gold on a warm cream base. Navy was darkened from the
+     original mygoodbooks.org #243746 (kept below, commented, for reference)
+     to a near-black navy — still the same blue hue family, not a neutral
+     black or a warm one, chosen after a round of side-by-side mockups. */
+  --navy: #05080d;
+  --navy-deep: #020306;
+  /* --navy: #243746;    original mygoodbooks.org navy, pre-2026-09-15 */
+  /* --navy-deep: #1a2830; */
   --gold: #c7ae86;
   --gold-deep: #b3925f;
 
