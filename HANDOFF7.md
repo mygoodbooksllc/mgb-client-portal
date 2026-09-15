@@ -469,3 +469,60 @@ needing a second Google account to test with.
 All three Developer Tools follow-ups from §6/§8 are now done. Nothing new left on that list —
 next open items are unchanged from §8: Google Meet decision (on hold), Phase 2 client auth,
 Cmd+K (parked), and a real-device retest of the drag-and-drop fix.
+
+---
+
+## 10. Update, 2026-09-15 (later the same day): a real bug from testing "View as", and a Phase 2 design conversation
+
+**Bug: Home's client picker was a no-op.** First real-world use of staff impersonation (§9)
+turned up a genuine bug, not an impersonation-specific one. Report was "viewed as a bookkeeper,
+it wouldn't let me look at their clients when I toggled through." Checked the live Supabase data
+first to rule out an assignment/RLS problem (`gillian@mygoodbooks.org` → `grace-community`,
+`new-hope`, both real, both correctly scoped) — the assignment was fine. The actual bug: the
+sidebar's "Viewing client" dropdown, which stays visible on Home on purpose ("for jumping
+straight into a client," per its own code comment), only ever updated which client was
+*selected* — it never changed the page away from Home, so picking a client from it did
+nothing visible. Fixed in PR #28 by having Home navigate to that client's dashboard on
+selection, restoring what the comment always promised.
+
+**Then simplified further (PR #29):** once the picker actually worked, it was just a worse,
+mobile-unfriendly duplicate of Home's own "Your clients" card (search box, per-client status,
+already there). Dropped the sidebar picker from Home entirely rather than keep two paths to
+the same thing — it's unchanged on every other page. `onSelectClient` went back to a plain
+`setSelectedClientId` since the Home-only navigation branch had nothing left to trigger it.
+
+`MGB_VERSION`: `2026-09-15c` (picker fix) → `2026-09-15d` (picker removed from Home).
+
+**Design conversation, not yet built: Phase 2 client login.** Walked through how client-side
+magic-link auth would actually work day to day, since it's been on the to-do list without a
+concrete shape. Landed on:
+- Client enters their email on a separate client sign-in page; Supabase's `signInWithOtp` emails
+  them a one-time link — no password, ever.
+- Clicking it drops them straight into their own org's view. No client picker needed on that
+  side — a client only ever belongs to one org.
+- Sessions persist normally after that (access + refresh token, same mechanism staff already get
+  from Google sign-in) — a client is NOT re-emailed a link on every visit, only when their
+  session is actually gone (signed out, cleared site data, new device, or a long enough gap that
+  the refresh token expired). An active client might go months between seeing the login screen
+  again.
+- Getting a new link is fully self-service — an email field and "send me a link" button on their
+  end, same pattern as any "forgot password" flow. Never anything staff has to manually send.
+- Security level is deliberately email-possession-based, not full MFA — judged to match the
+  industry-normal bar for a "view your own financials" client portal (QBO client access,
+  Bill.com, etc.), and true TOTP MFA would be real friction for non-technical church/nonprofit
+  contacts. Staff, by contrast, already ride on whatever MFA policy the `mygoodbooks.org` Google
+  Workspace admin console enforces — worth confirming that's actually turned on there, since
+  that's staff's real second factor, not anything this app controls.
+- One open decision, flagged for whenever this gets built rather than decided now: one shared
+  login per org (e.g. `info@gracecommunity.org`) vs. a separate magic-link login per named
+  contact in `client.users`. Per-person logins line up better with the access-control work
+  already built (different users already have different tab/fund access), but need an actual
+  `auth.users` row per contact matched to the right `client.users` record — more Supabase setup
+  than a single shared org email.
+
+Nothing built from this yet — still Phase 2, still unscheduled. Recorded here so the shape
+doesn't have to be re-derived from scratch next time it comes up.
+
+**Stopping here.** Open items unchanged: Google Meet decision (on hold), Phase 2 client auth
+(now with a concrete shape, above), Cmd+K (parked), a real-device retest of the drag-and-drop
+fix.
