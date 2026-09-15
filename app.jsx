@@ -3322,7 +3322,7 @@ const RESETTABLE_STORAGE_KEYS = [
   "mygoodbooks_referral_promo_v1",
 ];
 
-function StaffAccessPage({ staffUser }) {
+function StaffAccessPage({ staffUser, onImpersonate }) {
   const showToast = useToast();
   const supabase = window.mgbSupabase;
 
@@ -3549,6 +3549,7 @@ function StaffAccessPage({ staffUser }) {
                   <th>Active</th>
                   <th>Clients</th>
                   <th></th>
+                  <th></th>
                 </tr>
               </thead>
               <tbody>
@@ -3589,6 +3590,13 @@ function StaffAccessPage({ staffUser }) {
                         ) : (
                           <button className="btn-secondary staff-clients-btn" onClick={() => openClientAccess(row)}>
                             Manage
+                          </button>
+                        )}
+                      </td>
+                      <td data-label="">
+                        {!isSelf && row.role !== "admin" && row.active && (
+                          <button className="btn-secondary staff-view-as-btn" onClick={() => onImpersonate(row)}>
+                            View as
                           </button>
                         )}
                       </td>
@@ -5530,14 +5538,37 @@ function App({ staffUser, onSignOut }) {
   // checks at least one client for them.
   const [assignedClientIds, setAssignedClientIds] = useState(null);
 
+  // Lets an admin see the app exactly as one specific bookkeeper would —
+  // their assigned clients, their Home rollups, their own private reminders
+  // — without needing that person's Google login. Set from the roster's
+  // "View as" button (StaffAccessPage) and cleared from the banner below.
+  // Only ever holds a {email, name, role} row from the staff table, never
+  // the real admin's own — nothing here touches Supabase auth, so writes
+  // made while impersonating (a note, a reminder) still carry the real
+  // signed-in admin's session for RLS purposes; only what's DISPLAYED and
+  // which rows get READ (assigned clients, that person's own reminders)
+  // change.
+  const [impersonating, setImpersonating] = useState(null);
+  const effectiveStaffUser = impersonating || staffUser;
+
+  const startImpersonating = (row) => {
+    setImpersonating({ email: row.email, name: row.name, role: row.role });
+    setPage("bookkeeper-home");
+  };
+  const stopImpersonating = () => {
+    setImpersonating(null);
+    setPage("bookkeeper-home");
+  };
+
   useEffect(() => {
-    if (staffUser.role === "admin") return;
+    setAssignedClientIds(null);
+    if (effectiveStaffUser.role === "admin") return;
     const supabase = window.mgbSupabase;
     if (!supabase) return;
     supabase
       .from("staff_client_access")
       .select("client_id")
-      .eq("staff_email", staffUser.email)
+      .eq("staff_email", effectiveStaffUser.email)
       .then(({ data, error }) => {
         if (error) {
           console.warn("Couldn't load client access (staff-client-access.sql may not be run yet):", error.message);
@@ -5545,7 +5576,7 @@ function App({ staffUser, onSignOut }) {
         }
         setAssignedClientIds(new Set(data.map((r) => r.client_id)));
       });
-  }, [staffUser]);
+  }, [effectiveStaffUser.email, effectiveStaffUser.role]);
 
   const visibleClients = useMemo(
     () => (assignedClientIds ? CLIENTS.filter((c) => assignedClientIds.has(c.id)) : CLIENTS),
@@ -5770,7 +5801,7 @@ function App({ staffUser, onSignOut }) {
   const effectivePage =
     page === "enterprise-upgrade"
       ? page
-      : page === "staff-access" && staffUser.role === "admin"
+      : page === "staff-access" && staffUser.role === "admin" && !impersonating
       ? page
       : page === "bookkeeper-home"
       ? page
@@ -6057,9 +6088,25 @@ function App({ staffUser, onSignOut }) {
       <div className="boot-splash" role="main">
         <div className="boot-splash-mark">MyGoodBooks</div>
         <div className="boot-splash-sub">
-          {staffUser.name}, you're signed in but no clients are assigned to you yet. Ask an admin to check off at
-          least one client for you under Staff Access.
+          {effectiveStaffUser.name}, you're signed in but no clients are assigned to you yet. Ask an admin to check
+          off at least one client for you under Staff Access.
         </div>
+        {impersonating && (
+          <button
+            onClick={stopImpersonating}
+            style={{
+              marginTop: 16,
+              background: "none",
+              border: "none",
+              color: "inherit",
+              textDecoration: "underline",
+              cursor: "pointer",
+              font: "inherit",
+            }}
+          >
+            Exit "View as {impersonating.name}"
+          </button>
+        )}
         <button
           onClick={onSignOut}
           style={{
@@ -6116,10 +6163,21 @@ function App({ staffUser, onSignOut }) {
           onCloseMobile={() => setMobileNavOpen(false)}
           effectiveTheme={effectiveTheme}
           onToggleTheme={() => setTheme(effectiveTheme === "dark" ? "light" : "dark")}
-          staffUser={staffUser}
+          staffUser={effectiveStaffUser}
           onSignOut={onSignOut}
         />
         <main className="main">
+          {impersonating && (
+            <div className="preview-bar">
+              <span>
+                Viewing as <strong>{impersonating.name}</strong> — {impersonating.role}. This is exactly what they see
+                when they sign in, including their assigned clients and their own reminders.
+              </span>
+              <button className="preview-exit" onClick={stopImpersonating}>
+                Exit "View as"
+              </button>
+            </div>
+          )}
           {isPreviewingUser && (
             <div className="preview-bar">
               <span>
@@ -6139,7 +6197,7 @@ function App({ staffUser, onSignOut }) {
               </div>
               {effectivePage === "bookkeeper-home" || effectivePage === "staff-access" ? (
                 <h1 className="page-title">
-                  {timeOfDayGreeting()}, {firstNameOf(staffUser.name)}
+                  {timeOfDayGreeting()}, {firstNameOf(effectiveStaffUser.name)}
                 </h1>
               ) : (
                 <h1 className="page-title">
@@ -6198,10 +6256,12 @@ function App({ staffUser, onSignOut }) {
           {effectivePage === "reports" && <ReportsPage client={scopedClient} />}
           {effectivePage === "report-builder" && <ReportBuilderPage client={scopedClient} key={"report-builder-" + client.id} />}
           {effectivePage === "enterprise-upgrade" && <EnterpriseUpgradePage client={scopedClient} key={"enterprise-upgrade-" + client.id} />}
-          {effectivePage === "staff-access" && <StaffAccessPage staffUser={staffUser} />}
+          {effectivePage === "staff-access" && (
+            <StaffAccessPage staffUser={staffUser} onImpersonate={startImpersonating} />
+          )}
           {effectivePage === "bookkeeper-home" && (
             <BookkeeperHomePage
-              staffUser={staffUser}
+              staffUser={effectiveStaffUser}
               clients={visibleClients}
               messagesByClient={messagesByClient}
               readMessageClients={readMessageClients}
