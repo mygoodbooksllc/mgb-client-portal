@@ -453,5 +453,19 @@ needing a second Google account to test with.
   user, not this.
 - Shipped in PR #24. `MGB_VERSION` bumped to `2026-09-15a`.
 
-Remaining Developer Tools follow-ups, still open: bulk staff CSV import, a real invite/email
-flow. Everything else unchanged from §8.
+**Also shipped, same session: the other two Developer Tools follow-ups (PR #26).**
+- **Bulk staff CSV import** — a "Bulk import" card above the roster: paste `email, name, role`
+  rows straight out of a spreadsheet (header row auto-detected and skipped, role optional,
+  defaults to bookkeeper), see a live per-row preview with validation, import just the valid
+  rows. Each row inserts individually rather than as one batch, so a single bad/duplicate row
+  doesn't block the rest — results are shown per row after the import runs.
+- **Email invites** — every non-self roster row (freshly bulk-imported ones included) now has
+  an "Email invite" link. It's a `mailto:` link, not an automated send — there's no backend to
+  send real email from yet (that's Phase 3 territory), so this opens the admin's own mail
+  client with the recipient, subject, and a ready-to-send sign-in message already filled in.
+  Honest about what it actually does rather than pretending to have sent something.
+- `MGB_VERSION` bumped to `2026-09-15b`.
+
+All three Developer Tools follow-ups from §6/§8 are now done. Nothing new left on that list —
+next open items are unchanged from §8: Google Meet decision (on hold), Phase 2 client auth,
+Cmd+K (parked), and a real-device retest of the drag-and-drop fix.
