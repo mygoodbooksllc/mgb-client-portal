@@ -448,9 +448,12 @@ function Sidebar({
           {/* Staff Access isn't about any client — showing a client picker
               there (and whichever client happened to be last selected) is
               exactly the confusing "why is a client's sidebar showing, I
-              didn't pick one" report. Home keeps the picker on purpose, for
-              jumping straight into a client. */}
-          {page !== "staff-access" && (
+              didn't pick one" report. Home drops it too, now that it has its
+              own "Your clients" card (search + status at a glance) — a
+              second, redundant way to do the same jump wasn't worth the
+              sidebar space, and a dropdown is a worse version of that card
+              on mobile besides. */}
+          {page !== "staff-access" && page !== "bookkeeper-home" && (
             <React.Fragment>
               <div className="client-picker-label">Viewing client</div>
               <select className="client-select" value={selectedClientId} onChange={(e) => onSelectClient(e.target.value)}>
@@ -6283,15 +6286,7 @@ function App({ staffUser, onSignOut }) {
         <Sidebar
           clients={visibleClients}
           selectedClientId={selectedClientId}
-          onSelectClient={(id) => {
-            setSelectedClientId(id);
-            // The picker's whole reason for staying on Home (see Sidebar's
-            // comment above it) is jumping straight into a client — without
-            // this, picking one here just changes which client is "selected"
-            // behind the scenes and the screen never moves, which reads as
-            // the picker being broken.
-            if (page === "bookkeeper-home") setPage("dashboard");
-          }}
+          onSelectClient={setSelectedClientId}
           client={client}
           viewAsUserId={viewAsUserId}
           onSelectViewAs={setViewAsUserId}
