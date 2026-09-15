@@ -567,3 +567,43 @@ Access just makes sure the roster exists and is ready — the magic-link sign-in
 handling, and wiring `AuthGate`-equivalent logic for clients (the "replacing today's implicit
 trust" part of §10's plan) haven't been started. That's the next real Phase 2 step whenever
 you're ready for it.
+
+---
+
+## 12. Update, 2026-09-15: navy darkened to near-black (light mode)
+
+Unrelated to Phase 2 — a design change, requested and iterated live via a mockup rather than
+edited blind in the CSS. Built a small Artifact showing the real sidebar/header/KPI/table layout
+with real sample data (not swatches), with a toggle to compare the shipped navy against a
+proposed replacement, and revised it twice on request: first a warm black, then (your call) a
+much darker version of the same navy hue kept intentionally blue rather than going neutral.
+Landed on `#05080d` / `#020306`.
+
+- **Only light mode changes.** Dark mode already uses its own separate dark-green chrome
+  (`--navy: #1f2a24` there), untouched either way — this only touches the bare `:root` block's
+  `--navy`/`--navy-deep`.
+- **Every consumer of those two tokens picks it up automatically** — sidebar chrome, headings,
+  primary buttons, KPI values, `<DailyClose />` (shares the same token set via
+  `components/daily-close/DailyClose.css`). Nothing else needed editing.
+- **`--chart-income` was deliberately left alone**, still the old `#243746` — it was already
+  decoupled from `--navy` for exactly this reason (a chart series has to stay a legible blue
+  regardless of what the chrome color is doing, per the comment already on that line).
+- **The company design-system package also updated** (`design-system/src/styles.css`, which the
+  README says is a manual copy extracted from this app's `styles.css`, not an import) — same two
+  values, same reasoning comment, kept in sync. Ran `npm install && npm run build` there to
+  regenerate `design-system/dist/` (including `dist/styles.css`) from the new source; confirmed
+  the brace-balance check from `.design-sync/NOTES.md` still passes (0) since I'd hand-edited the
+  file, per that doc's own warning about silent CSS breakage from an unbalanced edit.
+- **`design-system/ds-bundle/` was deliberately NOT hand-edited.** That directory is a synced
+  snapshot of a claude.ai design-system project (see `.design-sync/config.json`'s `projectId`),
+  managed by the `/design-sync` skill with its own build/verdict/hash tracking — it'll go stale
+  until that skill is run again, which is expected and correct; hand-editing it would desync its
+  tracking metadata from what's actually there. Run `/design-sync` when you want this pushed to
+  the remote design-system project.
+- Old navy (`#243746`/`#1a2830`) kept as a commented-out reference right next to the new values
+  in both `styles.css` files, in case this needs reverting or comparing later.
+- `MGB_VERSION` bumped to `2026-09-15f`.
+
+Recommended before calling this fully done: click through the real app in light mode (not just
+the mockup) — a sidebar full of real nav items, badges, and hover states can read differently
+than three curated screenshots did.
