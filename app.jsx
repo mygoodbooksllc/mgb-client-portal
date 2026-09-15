@@ -513,7 +513,7 @@ function Sidebar({
                 onCloseMobile();
               }}
             >
-              Client Access
+              Client Roster
             </button>
           )}
 
@@ -5942,7 +5942,7 @@ const PAGE_META = {
   "ap-command-center": { title: "AP Command Center", subtitle: "Every open bill, aging, and what's due next" },
   "enterprise-upgrade": { title: "Enterprise Tools", subtitle: "See what's included, and what upgrading unlocks" },
   "staff-access": { title: "Staff Access", subtitle: "Who can sign in to the portal, and with what role" },
-  "client-access": { title: "Client Access", subtitle: "Who at each organization is registered to sign in" },
+  "client-access": { title: "Client Roster", subtitle: "Who at each organization is registered to sign in" },
   "bookkeeper-home": { title: "Home", subtitle: "What needs attention across every client you can see" },
   documents: { title: "Documents", subtitle: "Shared files between you and your bookkeeper" },
   messages: { title: "Messages", subtitle: "Talk directly with your bookkeeping team" },
