@@ -3309,6 +3309,46 @@ function staffAuditVerb(action) {
   return STAFF_AUDIT_VERBS[action] || action;
 }
 
+// Opens the admin's own mail client with a ready-to-send invite. There's no
+// backend to send real email from yet (Phase 3), so this is the honest
+// version of "real" available right now: an actual email the admin reviews
+// and hits send on, rather than a simulated toast that claims to have sent
+// something it didn't.
+function buildInviteMailto(row) {
+  const firstName = firstNameOf(row.name);
+  const subject = "You're set up on the MyGoodBooks client portal";
+  const body =
+    `Hi ${firstName},\n\n` +
+    `You've been added to the MyGoodBooks client portal as a ${row.role}. ` +
+    `Sign in at https://app.mygoodbooks.org with your Google Workspace account (${row.email}) — ` +
+    `click "Sign in with Google" and you're in, nothing else to set up.\n\n` +
+    `Questions, just reply here.`;
+  return `mailto:${row.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+}
+
+// Parses pasted CSV for bulk staff import: email,name,role per line, with an
+// optional header row (detected by its first field not being an email) and
+// blank lines skipped. Deliberately tiny — no quoted-field/embedded-comma
+// support — since this is for pasting out of a simple roster spreadsheet,
+// not accepting arbitrary CSV exports.
+function parseStaffCsv(text) {
+  const lines = text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+  const rows = [];
+  lines.forEach((line, i) => {
+    const [rawEmail, rawName, rawRole] = line.split(",").map((f) => (f || "").trim());
+    if (i === 0 && rawEmail && !rawEmail.includes("@")) return; // header row
+    const email = (rawEmail || "").toLowerCase();
+    const name = rawName || "";
+    const role = STAFF_ROLES.includes((rawRole || "").toLowerCase()) ? rawRole.toLowerCase() : "bookkeeper";
+    const errors = [];
+    if (!email || !email.includes("@")) errors.push("missing/invalid email");
+    else if (!email.endsWith("@mygoodbooks.org")) errors.push("must be a mygoodbooks.org address");
+    if (!name) errors.push("missing name");
+    rows.push({ line, email, name, role, errors });
+  });
+  return rows;
+}
+
 // Cleared by Staff Access's "Reset local state" button. Everything here is a
 // per-browser viewer preference (theme, tab layout, per-client-user access
 // overrides, ...), never anything from Supabase, so clearing it can't lose
@@ -3339,6 +3379,12 @@ function StaffAccessPage({ staffUser, onImpersonate }) {
   const [clientAccessFor, setClientAccessFor] = useState(null); // the staff row being edited, or null
   const [clientAccessSet, setClientAccessSet] = useState(new Set());
   const [clientAccessLoading, setClientAccessLoading] = useState(false);
+  const [csvText, setCsvText] = useState("");
+  const [csvImporting, setCsvImporting] = useState(false);
+  const [csvResults, setCsvResults] = useState(null); // per-row outcome after an import run
+
+  const csvPreview = useMemo(() => (csvText.trim() ? parseStaffCsv(csvText) : []), [csvText]);
+  const csvValidCount = csvPreview.filter((r) => r.errors.length === 0).length;
 
   function openClientAccess(row) {
     setClientAccessFor(row);
@@ -3450,6 +3496,31 @@ function StaffAccessPage({ staffUser, onImpersonate }) {
     loadAudit();
   }
 
+  async function importCsv() {
+    const validRows = csvPreview.filter((r) => r.errors.length === 0);
+    if (validRows.length === 0) return;
+    setCsvImporting(true);
+    // One insert per row, not a single batch insert, so one bad row (a typo'd
+    // duplicate email, most likely) doesn't fail the whole import — matches
+    // how addStaff() already reports failures per person.
+    const results = [];
+    for (const r of validRows) {
+      const { error } = await supabase.from("staff").insert({ email: r.email, name: r.name, role: r.role, active: true });
+      results.push({ email: r.email, name: r.name, ok: !error, message: error ? error.message : "" });
+    }
+    setCsvImporting(false);
+    setCsvResults(results);
+    const okCount = results.filter((r) => r.ok).length;
+    showToast(
+      okCount === results.length
+        ? `Imported ${okCount} staff.`
+        : `Imported ${okCount} of ${results.length} — see the results below for what failed.`
+    );
+    if (okCount === results.length) setCsvText("");
+    load();
+    loadAudit();
+  }
+
   async function updateRow(row, patch) {
     setBusyId(row.id);
     const { error } = await supabase.from("staff").update(patch).eq("id", row.id);
@@ -3532,6 +3603,62 @@ function StaffAccessPage({ staffUser, onImpersonate }) {
       </div>
 
       <div className="card" style={{ marginBottom: 20 }}>
+        <h3 className="card-title">Bulk import</h3>
+        <p className="card-subtitle">
+          Paste rows as <code>email, name, role</code> (role optional, defaults to bookkeeper) — one person per line,
+          straight out of a spreadsheet. A header row is fine, it's detected and skipped.
+        </p>
+        <textarea
+          className="staff-csv-textarea"
+          rows={4}
+          placeholder={"jane@mygoodbooks.org, Jane Alvarez, bookkeeper\nmark@mygoodbooks.org, Mark Chen, admin"}
+          value={csvText}
+          onChange={(e) => {
+            setCsvText(e.target.value);
+            setCsvResults(null);
+          }}
+        />
+        {csvPreview.length > 0 && (
+          <React.Fragment>
+            <ul className="staff-csv-preview">
+              {csvPreview.map((r, i) => (
+                <li key={i} className={r.errors.length ? "negative" : "positive"}>
+                  {r.errors.length ? (
+                    <React.Fragment>
+                      <strong>{r.line}</strong> — {r.errors.join(", ")}
+                    </React.Fragment>
+                  ) : (
+                    <React.Fragment>
+                      {r.name} ({r.email}) · {r.role}
+                    </React.Fragment>
+                  )}
+                </li>
+              ))}
+            </ul>
+            <div className="staff-reset-row">
+              <button className="btn-primary" disabled={csvImporting || csvValidCount === 0} onClick={importCsv}>
+                {csvImporting ? "Importing…" : `Import ${csvValidCount} staff`}
+              </button>
+              {csvValidCount < csvPreview.length && (
+                <p className="card-subtitle" style={{ margin: 0 }}>
+                  {csvPreview.length - csvValidCount} row(s) above have errors and will be skipped.
+                </p>
+              )}
+            </div>
+          </React.Fragment>
+        )}
+        {csvResults && (
+          <ul className="staff-csv-preview" style={{ marginTop: 12 }}>
+            {csvResults.map((r, i) => (
+              <li key={i} className={r.ok ? "positive" : "negative"}>
+                {r.ok ? `Added ${r.name}` : `${r.name || r.email} — ${r.message}`}
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+
+      <div className="card" style={{ marginBottom: 20 }}>
         <h3 className="card-title">Staff roster</h3>
         <p className="card-subtitle">Who can sign in to the portal, and with what role. You can't change your own row.</p>
 
@@ -3548,6 +3675,7 @@ function StaffAccessPage({ staffUser, onImpersonate }) {
                   <th>Role</th>
                   <th>Active</th>
                   <th>Clients</th>
+                  <th></th>
                   <th></th>
                   <th></th>
                 </tr>
@@ -3598,6 +3726,13 @@ function StaffAccessPage({ staffUser, onImpersonate }) {
                           <button className="btn-secondary staff-view-as-btn" onClick={() => onImpersonate(row)}>
                             View as
                           </button>
+                        )}
+                      </td>
+                      <td data-label="">
+                        {!isSelf && (
+                          <a className="btn-secondary staff-invite-btn" href={buildInviteMailto(row)}>
+                            Email invite
+                          </a>
                         )}
                       </td>
                       <td className="row-remove-cell">
