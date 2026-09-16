@@ -1039,3 +1039,48 @@ occurrences left in `components/daily-close/`.
   section now falls back to the same `margin-bottom: 2px` every other `.nav-section` uses.
 
 `MGB_VERSION` bumped to `2026-09-16w`.
+
+## §24 — Live Report gets the same "maximize it" treatment as AP Command Center
+
+Brainstormed what would make Live Report feel worth a premium price the same way AP Command
+Center's pay runs/vendor summary/duplicate detection did. User said build all of it.
+
+- **Click-to-jump KPI tiles.** Accounts Receivable jumps to the Receivables Aging panel below;
+  Net Income jumps to the Outlook section's Revenue Trend tab. Accounts Payable cross-navigates
+  to AP Command Center itself via a new optional `onNavigate` prop (wired to `setPage` at the
+  `<DailyClose />` call site in `app.jsx`) — full AP detail already lives there, so this points at
+  it instead of duplicating it. `onNavigate` is optional so the standalone prototype (which has
+  nowhere to navigate to) still renders the tile, just non-interactive (`disabled`).
+- **Cash on hand gets a threshold alert instead of a jump.** It's the one KPI tile that stayed a
+  `<div>` — nesting a button-triggered editor inside a `<button>` tile isn't valid HTML, and a
+  low-cash alert is a more useful interaction for that number than jumping somewhere anyway. An
+  "Alert" toggle opens an inline "Alert below $___" input; the threshold is stored in
+  `localStorage` per client (`mygoodbooks_cash_floor_v1:<clientId>`, same throwaway-per-browser
+  posture as `app.jsx`'s own `FEATURE_FLAGS`) and the tile gets a red outline + warning line once
+  today's cash total drops under it.
+- **Collections queue on Receivables Aging.** `fromClient.js` now also emits row-level
+  `receivables.list` (description/amount/due date/days overdue/aging tone) alongside the existing
+  bucket totals — the buckets alone had no individual line items to select from. Overdue rows get
+  checkboxes; "Draft Reminder" opens a `mailto:` draft (no recipient — the data has no customer
+  email field yet, so this hands off to the browser's own mail client for the client to address
+  themselves, same "real email you review and hit send on" posture as the staff-invite flow in
+  `app.jsx`) listing the selected balances and total.
+- **Anomaly review workflow.** Each "Needs a look" item gets a "Mark reviewed" / "Undo" toggle
+  (local component state, not persisted); reviewed items fade and sort to the bottom, so the list
+  reads as a working queue instead of a static log.
+- **One-click PDF snapshot.** "Download Live Report" in the masthead builds a PDF (KPI summary,
+  aging table, flagged items) using `window.jspdf` directly, styled to match the app's navy theme
+  (`rgb(5, 8, 13)`, same fix as the rest of the app's PDF exports) — this file is a separate
+  vendored component, so it builds its own small PDF rather than importing `app.jsx`'s
+  `PDF_TABLE_THEME`/`newReportDoc` (also avoids introducing a cross-file dependency into a
+  component whose module wiring is explicitly kept self-contained).
+- **Not built: a period comparison toggle.** The brainstormed "vs. last year" option needs a full
+  year of prior-period actuals; `client.monthly` only carries the trailing ~8 months, so a toggle
+  would either be disabled most of the time or fabricate numbers the app has no real basis for —
+  same reasoning that dropped recurring-bill detection from AP Command Center's brainstorm.
+
+`components/daily-close/types.ts` gained two optional fields to carry this: `client.id` (namespaces
+the cash-floor setting) and `receivables.list` (row-level backing for the Collections queue). Both
+are optional so a consumer of this component that doesn't supply them (or the standalone
+prototype's own sample data, now filled in for both) still renders correctly, just without the
+alert/collections features. `MGB_VERSION` bumped to `2026-09-16x`.

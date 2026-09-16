@@ -7429,7 +7429,12 @@ function App({ staffUser, onSignOut }) {
               // passed through so both sides stay in step. Data is derived
               // from the selected client rather than the shipped Bramblewood
               // sample, so the panel and the rest of the app agree.
-              <DailyClose data={dailyCloseFromClient(client)} theme={effectiveTheme} key={"daily-close-" + client.id} />
+              <DailyClose
+                data={dailyCloseFromClient(client)}
+                theme={effectiveTheme}
+                onNavigate={setPage}
+                key={"daily-close-" + client.id}
+              />
             ) : access.isCategoryScoped ? (
               <ScopedDashboardPage
                 client={scopedClient}

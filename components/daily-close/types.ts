@@ -16,6 +16,8 @@ export interface DailyCloseData {
     name: string;
   };
   client: {
+    /** Used to namespace the cash-floor alert threshold in localStorage. Omit and the setting is shared across clients. */
+    id?: string;
     name: string;
     /** e.g. "Snapshot for Sunday, August 30, 2026 · 7:42 AM" — format however your app does dates/timezones. */
     asOfLabel: string;
@@ -42,6 +44,16 @@ export interface DailyCloseData {
     customerCount: number;
     /** Ordered buckets, e.g. Current / 1-30 / 31-60 / 60+. Amounts should sum to `total`. */
     aging: { label: string; amount: number; tone: AgingTone }[];
+    /** Row-level line items backing the Collections queue. Omit to hide that panel. */
+    list?: {
+      id: number | string;
+      description: string;
+      amount: number;
+      dueDate: string;
+      daysOverdue: number;
+      tone: AgingTone;
+      bucketLabel: string;
+    }[];
   };
 
   payables: {

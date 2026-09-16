@@ -8,6 +8,7 @@
 const sampleDailyCloseData = {
   firm: { name: "MyGoodBooks" },
   client: {
+    id: "sample-bramblewood",
     name: "Bramblewood Coffee Roasters",
     asOfLabel: "Snapshot for Sunday, August 30, 2026 · 7:42 AM",
     syncedLabel: "Synced with QuickBooks Online",
@@ -32,6 +33,12 @@ const sampleDailyCloseData = {
       { label: "1–30 days", amount: 5050, tone: "neutral" },
       { label: "31–60 days", amount: 5000, tone: "warning" },
       { label: "60+ days", amount: 4200, tone: "critical" },
+    ],
+    list: [
+      { id: 1, description: "Sable & Vine Cafe — wholesale order #1042", amount: 5050, dueDate: "2026-08-15", daysOverdue: 15, tone: "neutral", bucketLabel: "1–30 days" },
+      { id: 2, description: "Harbor Market — wholesale order #1038", amount: 5000, dueDate: "2026-07-25", daysOverdue: 36, tone: "warning", bucketLabel: "31–60 days" },
+      { id: 3, description: "The Reading Room — wholesale order #1021", amount: 4200, dueDate: "2026-06-10", daysOverdue: 81, tone: "critical", bucketLabel: "60+ days" },
+      { id: 4, description: "Northside Roastery Co-op — quarterly settlement", amount: 14200, dueDate: "2026-09-20", daysOverdue: 0, tone: "good", bucketLabel: "Current" },
     ],
   },
   payables: {

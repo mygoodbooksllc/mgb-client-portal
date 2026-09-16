@@ -14,7 +14,7 @@
 */
 
 (function () {
-const { useMemo, useState } = React;
+const { useMemo, useRef, useState } = React;
 
 const styles = new Proxy(
   {},
@@ -27,6 +27,11 @@ interface DailyCloseProps {
   className?: string;
   /** Force a theme regardless of the viewer's OS setting. Omit to follow the system. */
   theme?: "light" | "dark";
+  /** Cross-navigates the host app to another tab (e.g. the Accounts Payable
+      KPI tile jumping to AP Command Center). Omit to render that tile as
+      non-interactive — used by the standalone prototype, which has nowhere
+      to navigate to. */
+  onNavigate?: (page: string) => void;
 }
 
 /* ============================================================
@@ -49,6 +54,34 @@ function pct(n: number, digits = 1): string {
 function growDuration(fillPct: number): number {
   const clamped = Math.min(100, Math.max(0, fillPct));
   return 450 + (clamped / 100) * 450;
+}
+
+/* ============================================================
+   Cash-floor alert threshold — per-client, browser-local only (same
+   throwaway-localStorage posture app.jsx's own FEATURE_FLAGS use, not a
+   real backend setting).
+   ============================================================ */
+
+function cashFloorKey(clientId?: string): string {
+  return `mygoodbooks_cash_floor_v1:${clientId || "default"}`;
+}
+
+function readCashFloor(clientId?: string): number | null {
+  try {
+    const raw = localStorage.getItem(cashFloorKey(clientId));
+    if (!raw) return null;
+    const n = Number(raw);
+    return Number.isFinite(n) ? n : null;
+  } catch (e) {
+    return null;
+  }
+}
+
+function writeCashFloor(clientId: string | undefined, value: number | null): void {
+  try {
+    if (value === null) localStorage.removeItem(cashFloorKey(clientId));
+    else localStorage.setItem(cashFloorKey(clientId), String(value));
+  } catch (e) {}
 }
 
 /* ============================================================
@@ -350,6 +383,20 @@ const AGING_TONE_VAR: Record<AgingTone, string> = {
   critical: "var(--critical)",
 };
 
+// Reuses the anomaly severity pill styling for aging-bucket tags in the
+// Collections queue, rather than inventing a second pill class for the
+// same visual language. Defined after AnomalyList's own SEV_LABEL_CLASS
+// exists below, so it's declared as a function to defer the styles.* lookup.
+function sevLabelClassByTone(tone: AgingTone): string {
+  const map: Record<AgingTone, string> = {
+    good: styles.sevLabelGood,
+    neutral: styles.sevLabelWarn,
+    warning: styles.sevLabelWarn,
+    critical: styles.sevLabelCritical,
+  };
+  return map[tone];
+}
+
 function AgingBar({ items }: { items: { label: string; amount: number; tone: AgingTone }[] }) {
   const total = items.reduce((a, b) => a + b.amount, 0);
   return (
@@ -377,6 +424,78 @@ function AgingBar({ items }: { items: { label: string; amount: number; tone: Agi
 }
 
 /* ============================================================
+   Collections queue — select overdue receivables and draft a reminder
+   ============================================================ */
+
+function CollectionsQueue({
+  items,
+  clientName,
+}: {
+  items: NonNullable<DailyCloseData["receivables"]["list"]>;
+  clientName: string;
+}) {
+  const [selected, setSelected] = useState<Set<number | string>>(new Set());
+  const overdue = items.filter((r) => r.tone !== "good");
+
+  if (overdue.length === 0) return null;
+
+  const toggle = (id: number | string) => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const selectedRows = overdue.filter((r) => selected.has(r.id));
+  const selectedTotal = selectedRows.reduce((s, r) => s + r.amount, 0);
+
+  const draftReminder = () => {
+    const rows = selectedRows.length ? selectedRows : overdue;
+    const subject = `Payment reminder — ${clientName}`;
+    const lines = rows.map((r) => `- ${r.description}: ${fmtMoney(r.amount)}, due ${r.dueDate} (${r.daysOverdue} days overdue)`);
+    const body =
+      `Hi,\n\nThis is a friendly reminder that the following balance${rows.length > 1 ? "s are" : " is"} still outstanding:\n\n` +
+      lines.join("\n") +
+      `\n\nTotal: ${fmtMoney(rows.reduce((s, r) => s + r.amount, 0))}\n\nPlease let us know if you have any questions.\n\nThank you,\n${clientName}`;
+    // No customer email address is in the underlying data yet — this opens a
+    // blank-recipient draft in the browser's own mail client for the client
+    // to address and send themselves, same honest-mock posture as the rest
+    // of the app's "real email you review and hit send on" flows.
+    window.open(`mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`, "_self");
+  };
+
+  return (
+    <div className={styles.collectionsQueue}>
+      <div className={styles.panelHead}>
+        <div>
+          <div className={styles.panelTitle}>Collections Queue</div>
+          <div className={styles.panelSub}>
+            {selectedRows.length > 0
+              ? `${selectedRows.length} selected · ${fmtMoney(selectedTotal)}`
+              : `${overdue.length} overdue invoice${overdue.length !== 1 ? "s" : ""}`}
+          </div>
+        </div>
+        <button type="button" className={styles.collectionsDraftBtn} onClick={draftReminder}>
+          Draft Reminder{selectedRows.length > 1 ? " Email" : ""}
+        </button>
+      </div>
+      <div className={styles.collectionsList}>
+        {overdue.map((r) => (
+          <label className={styles.collectionsRow} key={r.id}>
+            <input type="checkbox" checked={selected.has(r.id)} onChange={() => toggle(r.id)} />
+            <span className={styles.collectionsDesc}>{r.description}</span>
+            <span className={`${styles.sevLabel} ${sevLabelClassByTone(r.tone)}`}>{r.bucketLabel}</span>
+            <span className={`${styles.num} ${styles.collectionsAmt}`}>{fmtMoney(r.amount)}</span>
+          </label>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* ============================================================
    Anomalies / flags list
    ============================================================ */
 
@@ -399,22 +518,44 @@ const SEV_COPY: Record<Severity, string> = {
   good: "Nice to see",
 };
 
-function AnomalyList({ items }: { items: DailyCloseData["anomalies"] }) {
+function AnomalyList({
+  items,
+  reviewed,
+  onToggleReviewed,
+}: {
+  items: DailyCloseData["anomalies"];
+  reviewed: Set<number>;
+  onToggleReviewed: (index: number) => void;
+}) {
+  // Unreviewed first, so the working queue reads top-to-bottom as "what's
+  // left," not in whatever order the flags happened to generate in.
+  const ordered = items
+    .map((a, i) => ({ a, i }))
+    .sort((x, y) => Number(reviewed.has(x.i)) - Number(reviewed.has(y.i)));
+
   return (
     <div className={styles.anomalyList}>
-      {items.map((a, i) => (
-        <div className={styles.anomaly} key={i}>
-          <div className={`${styles.sevStripe} ${SEV_STRIPE[a.severity]}`} />
-          <div className={styles.anomalyBody}>
-            <div className={styles.anomalyTop}>
-              <div className={styles.anomalyTitle}>{a.title}</div>
-              <div className={`${styles.anomalyAmt} ${styles.num}`}>{a.amount}</div>
+      {ordered.map(({ a, i }) => {
+        const isReviewed = reviewed.has(i);
+        return (
+          <div className={`${styles.anomaly} ${isReviewed ? styles.anomalyReviewed : ""}`} key={i}>
+            <div className={`${styles.sevStripe} ${SEV_STRIPE[a.severity]}`} />
+            <div className={styles.anomalyBody}>
+              <div className={styles.anomalyTop}>
+                <div className={styles.anomalyTitle}>{a.title}</div>
+                <div className={`${styles.anomalyAmt} ${styles.num}`}>{a.amount}</div>
+              </div>
+              <div className={styles.anomalyDesc}>{a.description}</div>
+              <div className={styles.anomalyFoot}>
+                <div className={`${styles.sevLabel} ${SEV_LABEL_CLASS[a.severity]}`}>{SEV_COPY[a.severity]}</div>
+                <button type="button" className={styles.anomalyReviewBtn} onClick={() => onToggleReviewed(i)}>
+                  {isReviewed ? "Undo" : "Mark reviewed"}
+                </button>
+              </div>
             </div>
-            <div className={styles.anomalyDesc}>{a.description}</div>
-            <div className={`${styles.sevLabel} ${SEV_LABEL_CLASS[a.severity]}`}>{SEV_COPY[a.severity]}</div>
           </div>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 }
@@ -425,8 +566,15 @@ function AnomalyList({ items }: { items: DailyCloseData["anomalies"] }) {
 
 type OutlookTab = "forecast" | "trend" | "anomalies";
 
-function DailyClose({ data, className, theme }: DailyCloseProps) {
+function DailyClose({ data, className, theme, onNavigate }: DailyCloseProps) {
   const [tab, setTab] = useState<OutlookTab>("forecast");
+  const [reviewedAnomalies, setReviewedAnomalies] = useState<Set<number>>(new Set());
+  const [cashFloor, setCashFloor] = useState<number | null>(() => readCashFloor(data.client.id));
+  const [editingFloor, setEditingFloor] = useState(false);
+  const [floorDraft, setFloorDraft] = useState("");
+
+  const agingRef = useRef<HTMLDivElement>(null);
+  const outlookRef = useRef<HTMLDivElement>(null);
 
   const trendLabels = [...data.trend.months, ...data.trend.projectedMonths];
   const trendRevenue = [...data.trend.revenue, ...data.trend.projectedRevenue];
@@ -434,6 +582,98 @@ function DailyClose({ data, className, theme }: DailyCloseProps) {
 
   const marginMeterPct = Math.min(100, (data.netIncome.marginPct / (data.netIncome.marginTargetPct * 2)) * 100);
   const marginTargetPct = 50; // target sits at the midpoint of the 0..2x-target scale
+
+  const toggleReviewed = (index: number) => {
+    setReviewedAnomalies((prev) => {
+      const next = new Set(prev);
+      if (next.has(index)) next.delete(index);
+      else next.add(index);
+      return next;
+    });
+  };
+
+  const jumpToAging = () => agingRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  const jumpToOutlook = (nextTab: OutlookTab) => {
+    setTab(nextTab);
+    outlookRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+
+  const saveFloor = () => {
+    const n = Number(floorDraft);
+    const next = floorDraft.trim() === "" || !Number.isFinite(n) ? null : n;
+    setCashFloor(next);
+    writeCashFloor(data.client.id, next);
+    setEditingFloor(false);
+  };
+
+  const belowFloor = cashFloor !== null && data.cash.total < cashFloor;
+
+  // Snapshot PDF — mirrors the navy theme app.jsx's own report PDFs use
+  // (rgb(5, 8, 13) is --navy, #05080d). jsPDF/autoTable are loaded globally
+  // by index.html the same way app.jsx's PDF builders rely on them.
+  const downloadPdf = () => {
+    const w = window as any;
+    if (!w.jspdf) return;
+    const doc = new w.jspdf.jsPDF();
+    const pageWidth = doc.internal.pageSize.getWidth();
+
+    doc.setFillColor(5, 8, 13);
+    doc.rect(0, 0, pageWidth, 28, "F");
+    doc.setTextColor(250, 249, 246);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(16);
+    doc.text("MyGoodBooks", 14, 12);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(9);
+    doc.text(data.client.name, 14, 19.5);
+
+    doc.setTextColor(5, 8, 13);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(14);
+    doc.text("Live Report", 14, 40);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(10);
+    doc.setTextColor(110, 110, 110);
+    doc.text(data.client.asOfLabel, 14, 47);
+
+    const tableTheme = {
+      theme: "striped",
+      styles: { fontSize: 9, cellPadding: 3, textColor: [5, 8, 13] },
+      headStyles: { fillColor: [5, 8, 13], textColor: [250, 249, 246], fontStyle: "bold" },
+      margin: { left: 14, right: 14 },
+    };
+
+    doc.autoTable({
+      startY: 55,
+      head: [["Key metric", "Value"]],
+      body: [
+        ["Cash on hand", fmtMoney(data.cash.total)],
+        ["Accounts receivable", fmtMoney(data.receivables.total) + ` (${fmtMoney(data.receivables.overdueAmount)} overdue)`],
+        ["Accounts payable", fmtMoney(data.payables.total)],
+        ["Net income, MTD", fmtMoney(data.netIncome.mtd)],
+      ],
+      columnStyles: { 1: { halign: "right" } },
+      ...tableTheme,
+    });
+
+    doc.autoTable({
+      startY: doc.lastAutoTable.finalY + 8,
+      head: [["Receivables aging", "Amount"]],
+      body: data.receivables.aging.map((b) => [b.label, fmtMoney(b.amount)]),
+      columnStyles: { 1: { halign: "right" } },
+      ...tableTheme,
+    });
+
+    doc.autoTable({
+      startY: doc.lastAutoTable.finalY + 8,
+      head: [["Flagged for review", "Amount"]],
+      body: data.anomalies.map((a) => [a.title, a.amount]),
+      columnStyles: { 1: { halign: "right" } },
+      ...tableTheme,
+    });
+
+    doc.save(`${data.client.name.replace(/\s+/g, "_")}_Live_Report.pdf`);
+  };
 
   return (
     <div className={`${styles.dailyClose} ${className ?? ""}`} data-theme={theme}>
@@ -456,24 +696,67 @@ function DailyClose({ data, className, theme }: DailyCloseProps) {
                 {data.client.isSampleData && <span className={styles.demoTag}>Sample data</span>}
               </div>
             )}
+            <button type="button" className={styles.downloadBtn} onClick={downloadPdf}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M12 3v12m0 0l-4-4m4 4l4-4" />
+                <path d="M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2" />
+              </svg>
+              Download Live Report
+            </button>
           </div>
         </header>
 
         {/* ---------- KPI row ---------- */}
         <section className={styles.kpiRow} aria-label="Key metrics">
-          <div className={styles.kpiTile}>
-            <div className={styles.kpiLabel}>Cash on hand</div>
-            <div className={styles.kpiValue}>
-              {fmtMoney(data.cash.total)}
-              {data.cash.cents !== undefined && <small>.{String(data.cash.cents).padStart(2, "0")}</small>}
+          <div className={`${styles.kpiTile} ${belowFloor ? styles.kpiTileAlert : ""}`}>
+            <div className={styles.kpiTileTop}>
+              <div className={styles.kpiLabel}>Cash on hand</div>
+              <button
+                type="button"
+                className={styles.cashFloorTrigger}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setFloorDraft(cashFloor !== null ? String(cashFloor) : "");
+                  setEditingFloor((v) => !v);
+                }}
+                title="Set a low-cash alert"
+              >
+                Alert
+              </button>
             </div>
-            <div className={`${styles.delta} ${data.cash.deltaVsYesterday >= 0 ? styles.deltaUp : styles.deltaDown}`}>
-              {data.cash.deltaVsYesterday >= 0 ? "▲" : "▼"} {fmtMoney(Math.abs(data.cash.deltaVsYesterday))} vs. yesterday
-            </div>
-            <Sparkline values={data.cash.sparkline14d} color="var(--series-revenue)" />
+            {editingFloor ? (
+              <div className={styles.cashFloorEditor} onClick={(e) => e.stopPropagation()}>
+                <span>Alert below $</span>
+                <input
+                  type="number"
+                  className={styles.cashFloorInput}
+                  value={floorDraft}
+                  onChange={(e) => setFloorDraft(e.target.value)}
+                  placeholder="e.g. 10000"
+                  autoFocus
+                />
+                <button type="button" className={styles.cashFloorSave} onClick={saveFloor}>
+                  Save
+                </button>
+              </div>
+            ) : (
+              <React.Fragment>
+                <div className={styles.kpiValue}>
+                  {fmtMoney(data.cash.total)}
+                  {data.cash.cents !== undefined && <small>.{String(data.cash.cents).padStart(2, "0")}</small>}
+                </div>
+                <div className={`${styles.delta} ${data.cash.deltaVsYesterday >= 0 ? styles.deltaUp : styles.deltaDown}`}>
+                  {data.cash.deltaVsYesterday >= 0 ? "▲" : "▼"} {fmtMoney(Math.abs(data.cash.deltaVsYesterday))} vs. yesterday
+                </div>
+                {belowFloor && (
+                  <div className={styles.cashFloorWarning}>Below your {fmtMoney(cashFloor as number)} alert threshold</div>
+                )}
+                <Sparkline values={data.cash.sparkline14d} color="var(--series-revenue)" />
+              </React.Fragment>
+            )}
           </div>
 
-          <div className={styles.kpiTile}>
+          <button type="button" className={`${styles.kpiTile} ${styles.kpiTileClickable}`} onClick={jumpToAging}>
             <div className={styles.kpiLabel}>Accounts receivable</div>
             <div className={styles.kpiValue}>{fmtMoney(data.receivables.total)}</div>
             <div className={`${styles.chip} ${styles.chipWarn}`}>
@@ -483,9 +766,14 @@ function DailyClose({ data, className, theme }: DailyCloseProps) {
             <div className={styles.kpiFoot} style={{ marginTop: "auto" }}>
               {data.receivables.openInvoiceCount} open invoices, {data.receivables.customerCount} customers
             </div>
-          </div>
+          </button>
 
-          <div className={styles.kpiTile}>
+          <button
+            type="button"
+            className={`${styles.kpiTile} ${onNavigate ? styles.kpiTileClickable : ""}`}
+            onClick={() => onNavigate && onNavigate("ap-command-center")}
+            disabled={!onNavigate}
+          >
             <div className={styles.kpiLabel}>Accounts payable</div>
             <div className={styles.kpiValue}>{fmtMoney(data.payables.total)}</div>
             <div className={`${styles.chip} ${data.payables.hasPastDue ? styles.chipCritical : styles.chipGood}`}>
@@ -501,11 +789,11 @@ function DailyClose({ data, className, theme }: DailyCloseProps) {
               {data.payables.hasPastDue ? "Some past due" : "Nothing past due"}
             </div>
             <div className={styles.kpiFoot} style={{ marginTop: "auto" }}>
-              {fmtMoney(data.payables.dueWithin7Days)} due within 7 days
+              {fmtMoney(data.payables.dueWithin7Days)} due within 7 days{onNavigate ? " · view in AP Command Center" : ""}
             </div>
-          </div>
+          </button>
 
-          <div className={styles.kpiTile}>
+          <button type="button" className={`${styles.kpiTile} ${styles.kpiTileClickable}`} onClick={() => jumpToOutlook("trend")}>
             <div className={styles.kpiLabel}>Net income, MTD</div>
             <div className={styles.kpiValue}>{fmtMoney(data.netIncome.mtd)}</div>
             <div className={`${styles.delta} ${data.netIncome.deltaPctVsPriorMonth >= 0 ? styles.deltaUp : styles.deltaDown}`}>
@@ -520,7 +808,7 @@ function DailyClose({ data, className, theme }: DailyCloseProps) {
             <div className={styles.kpiFoot}>
               {pct(data.netIncome.marginPct)} margin &middot; target {pct(data.netIncome.marginTargetPct, 0)}
             </div>
-          </div>
+          </button>
         </section>
 
         {/* ---------- Revenue vs expenses + expense breakdown ---------- */}
@@ -581,7 +869,7 @@ function DailyClose({ data, className, theme }: DailyCloseProps) {
         </section>
 
         {/* ---------- Receivables aging ---------- */}
-        <section className={styles.panel} style={{ marginTop: 12 }}>
+        <section className={styles.panel} style={{ marginTop: 12 }} ref={agingRef}>
           <div className={styles.panelHead}>
             <div>
               <div className={styles.panelTitle}>Receivables aging</div>
@@ -589,10 +877,11 @@ function DailyClose({ data, className, theme }: DailyCloseProps) {
             </div>
           </div>
           <AgingBar items={data.receivables.aging} />
+          {data.receivables.list && <CollectionsQueue items={data.receivables.list} clientName={data.client.name} />}
         </section>
 
         {/* ---------- Outlook (predictive) ---------- */}
-        <section className={styles.outlook}>
+        <section className={styles.outlook} ref={outlookRef}>
           <div className={styles.tabs} role="tablist" aria-label="Outlook view">
             <button
               type="button"
@@ -716,7 +1005,7 @@ function DailyClose({ data, className, theme }: DailyCloseProps) {
                   <div className={styles.panelSub}>Flagged automatically from this month&apos;s activity</div>
                 </div>
               </div>
-              <AnomalyList items={data.anomalies} />
+              <AnomalyList items={data.anomalies} reviewed={reviewedAnomalies} onToggleReviewed={toggleReviewed} />
             </div>
           )}
         </section>
