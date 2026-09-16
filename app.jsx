@@ -4601,16 +4601,29 @@ function BookkeeperHomePage({ staffUser, clients, messagesByClient, readMessageC
 
       <div className="kpi-grid">
         {kpiOrder.map((id) => {
-          if (id === "kpi-clients")
+          if (id === "kpi-clients") {
+            const jumpToClients = layout.hidden.has("your-clients")
+              ? null
+              : () => {
+                  const el = document.getElementById("home-your-clients-card");
+                  if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+                };
+            const Tag = jumpToClients ? "button" : "div";
             return (
-              <div className={"card kpi-card " + drag.dragClass(id)} key={id} {...drag.dragProps(id)}>
+              <Tag
+                className={"card kpi-card " + (jumpToClients ? "kpi-card-clickable " : "") + drag.dragClass(id)}
+                key={id}
+                {...drag.dragProps(id)}
+                {...(jumpToClients ? { onClick: jumpToClients } : {})}
+              >
                 <span className="kpi-label">Your clients</span>
                 <span className="kpi-value">{clients.length}</span>
                 <span className="kpi-sub neutral">
                   {clients.length === 0 ? "none assigned yet" : `client${clients.length === 1 ? "" : "s"} you can see`}
                 </span>
-              </div>
+              </Tag>
             );
+          }
           if (id === "kpi-overdue")
             return (
               <div className={"card kpi-card " + drag.dragClass(id)} key={id} {...drag.dragProps(id)}>
@@ -4746,7 +4759,7 @@ function BookkeeperHomePage({ staffUser, clients, messagesByClient, readMessageC
             );
           if (id === "your-clients")
             return (
-              <div className={"card " + drag.dragClass(id)} key={id} {...drag.dragProps(id)}>
+              <div className={"card " + drag.dragClass(id)} key={id} id="home-your-clients-card" {...drag.dragProps(id)}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", flexWrap: "wrap", gap: 8 }}>
                   <div>
                     <h3 className="card-title">Your clients</h3>
