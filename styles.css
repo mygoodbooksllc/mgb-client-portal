@@ -537,11 +537,12 @@ body {
 }
 
 /* Signature Tools — the paid add-on section, dressed up to read as premium
-   rather than just another nav group. */
+   rather than just another nav group. padding-bottom/margin-bottom used to
+   size the gold divider rule that sat under this section; now that the rule
+   is gone (it clashed with the theme), drop back to the same spacing every
+   other section uses instead of leaving that gap empty. */
 .nav-section-signature {
   position: relative;
-  padding-bottom: 14px;
-  margin-bottom: 16px;
 }
 
 .nav-section-label-signature {

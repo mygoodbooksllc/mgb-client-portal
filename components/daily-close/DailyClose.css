@@ -158,7 +158,13 @@
   margin-top: 2px;
 }
 .dc-accentword {
-  color: var(--accent);
+  /* Fixed to the shell's --gold (#c7ae86) rather than this component's own
+     --accent (a blue, #24425f light / #7fa9c9 dark) so the masthead's accent
+     word matches the app-wide navy/gold theme instead of clashing with it.
+     Scoped to just this word, not a --accent reassignment, since --accent is
+     also used for the tab indicator bar and focus outline elsewhere in this
+     file, and only the masthead text was reported as off-theme. */
+  color: #c7ae86;
 }
 .dc-mastheadRight {
   text-align: right;
