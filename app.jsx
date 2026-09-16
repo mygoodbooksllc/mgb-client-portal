@@ -186,6 +186,16 @@ function ToastProvider({ children }) {
 
 const NAV_SECTIONS = [
   {
+    // Its own section at the very top, above even Enterprise Tools — an
+    // unread-message badge is easy to miss buried under three other
+    // sections, and a new message from the bookkeeper is exactly the kind
+    // of thing a client shouldn't have to go hunting for.
+    label: "Messages",
+    items: [
+      { key: "messages", label: "Messages", icon: <ChatIcon width="16" height="16" strokeWidth="1.8" /> },
+    ],
+  },
+  {
     label: "Enterprise Tools",
     // Live Report ("daily-close") isn't a nav item here on purpose — a
     // premium, full-access client's Dashboard tab IS the Live Report, one
@@ -214,11 +224,8 @@ const NAV_SECTIONS = [
     ],
   },
   {
-    label: "Client Tools",
-    items: [
-      { key: "messages", label: "Messages", icon: <ChatIcon width="16" height="16" strokeWidth="1.8" /> },
-      { key: "documents", label: "Documents", icon: <FolderIcon /> },
-    ],
+    label: "Documents",
+    items: [{ key: "documents", label: "Documents", icon: <FolderIcon /> }],
   },
 ];
 
@@ -628,7 +635,11 @@ function Sidebar({
                     }}
                   >
                     {item.icon}
-                    <span>{item.label}</span>
+                    <span>
+                      {item.key === "dashboard" && hasPremiumPlan(client) && access && !access.isCategoryScoped
+                        ? "Dashboard Live"
+                        : item.label}
+                    </span>
                     {badges[item.key] && <span className="nav-badge-dot" aria-label="Unread"></span>}
                   </button>
                 ))}

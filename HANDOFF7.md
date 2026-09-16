@@ -985,3 +985,29 @@ Rows in "All Documents" are now clickable (and keyboard-operable — `tabIndex` 
   to the design-system package.
 
 `MGB_VERSION` bumped to `2026-09-16t`.
+
+## §21 — Sidebar polish: no more gold divider, Messages moved to top, "Dashboard Live"
+
+Three small sidebar requests, all in `NAV_SECTIONS`/`Sidebar`:
+
+- **Removed the gold line under Enterprise Tools.** `.nav-section-signature`'s `border-bottom:
+  1px solid rgba(199, 174, 134, 0.4)` is gone; the section still keeps its bottom padding/margin
+  so spacing before the next section is unchanged, just without the rule.
+- **Messages moved to its own section at the very top of the sidebar** — above even Enterprise
+  Tools. Previously it lived at the bottom, inside "Client Tools" alongside Documents; a client
+  could easily miss an unread-message badge buried under three sections above it. `NAV_SECTIONS`
+  now starts with a single-item `Messages` section; the old `Client Tools` section, now holding
+  only Documents, was renamed `Documents` since "tools" (plural) no longer fit a lone item.
+  Non-signature sections render no visible heading (confirmed by re-reading `Sidebar`'s render —
+  only the collapsible Enterprise Tools section gets a label button), so this reads as the
+  Messages nav item simply being first, not an extra header taking up space.
+- **Premium Dashboard tab reads "Dashboard Live."** The sidebar label for the `dashboard` key is
+  now computed per-viewer: `"Dashboard Live"` when `hasPremiumPlan(client) && !access.isCategoryScoped`
+  (the same condition `showsLiveReport` in `App` already uses to decide whether that tab renders
+  the Live Report), otherwise the plain `"Dashboard"` label from `NAV_SECTIONS`. The page itself
+  was already titled "Live Report" (renamed in §18) — this only changes what the sidebar *tab*
+  is called, so a premium client sees "Dashboard Live" in the nav and lands on a page titled
+  "Live Report," rather than a tab called plain "Dashboard" that opens something called "Live
+  Report."
+
+`MGB_VERSION` bumped to `2026-09-16u`.
