@@ -552,7 +552,8 @@ body {
 }
 
 .nav-signature-badge {
-  margin-left: auto;
+  /* Sits right next to the "Enterprise" label, not pushed to the far edge
+     of the row — the upgrade icon below is what claims the right edge now. */
   font-size: 9px;
   font-weight: 800;
   letter-spacing: 0.05em;
@@ -561,6 +562,14 @@ body {
   background: linear-gradient(120deg, #e9d5a8, var(--gold));
   padding: 2px 7px;
   border-radius: 999px;
+  flex-shrink: 0;
+}
+
+/* The diagonal arrow at the far right of the upsell row — reads as
+   "upgrade" / "add-on" at a glance, same idea as an external-link icon. */
+.nav-upsell-icon {
+  margin-left: auto;
+  color: var(--gold);
   flex-shrink: 0;
 }
 
