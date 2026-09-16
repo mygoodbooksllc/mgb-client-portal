@@ -853,6 +853,22 @@ function WrenchIcon(props) {
   );
 }
 
+function ChevronUpIcon(props) {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+      <path d="M5 15l7-7 7 7" />
+    </svg>
+  );
+}
+
+function ChevronDownIcon(props) {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+      <path d="M5 9l7 7 7-7" />
+    </svg>
+  );
+}
+
 function GridIcon(props) {
   return (
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" {...props}>
@@ -6824,7 +6840,7 @@ function WidgetPickerModal({ widgets, layout, onClose }) {
                     onClick={() => layout.move(id, -1)}
                     aria-label={`Move ${w.label} up`}
                   >
-                    ▲
+                    <ChevronUpIcon />
                   </button>
                   <button
                     type="button"
@@ -6833,7 +6849,7 @@ function WidgetPickerModal({ widgets, layout, onClose }) {
                     onClick={() => layout.move(id, 1)}
                     aria-label={`Move ${w.label} down`}
                   >
-                    ▼
+                    <ChevronDownIcon />
                   </button>
                 </div>
                 <label className="widget-picker-label">

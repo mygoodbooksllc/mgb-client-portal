@@ -3165,9 +3165,12 @@ body.rb-presenting .main {
   border: 1px solid var(--border);
   background: var(--surface);
   color: var(--text-muted);
-  width: 26px;
-  height: 22px;
+  width: 28px;
+  height: 24px;
   border-radius: 5px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   font-size: 10px;
   line-height: 1;
   cursor: pointer;
@@ -3954,6 +3957,17 @@ body.rb-presenting .main {
   .rb-checklist li,
   .widget-picker-row {
     min-height: 44px;
+  }
+
+  /* The move buttons were left out of this row's touch sizing — 26x22 with a
+     10px glyph, easy to miss and hard to read on a phone. */
+  .widget-picker-move-btn {
+    width: 38px;
+    height: 36px;
+  }
+  .widget-picker-move-btn svg {
+    width: 18px;
+    height: 18px;
   }
 
   /* The label is what actually toggles the box, so it has to fill the row —

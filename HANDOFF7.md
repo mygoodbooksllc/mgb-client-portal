@@ -1326,3 +1326,22 @@ Built all four dev-tool suggestions from the Developer Tools split-out.
   instead of its own separate full-width card below, so the two now sit side by side.
 
 `MGB_VERSION` bumped to `2026-09-16aj`.
+
+## §37 — Customize move buttons: SVG chevrons, bigger mobile touch targets
+
+Replaced the "▲"/"▼" text-glyph move buttons in both Customize dashboard's `WidgetPickerModal`
+(app.jsx) and Live Report's `LiveReportCustomizeModal` (DailyClose.tsx) with proper thin-line SVG
+chevrons (new `ChevronUpIcon`/`ChevronDownIcon` in app.jsx; DailyClose gets its own inline copies,
+same self-containment reasoning as its other icons) — a Unicode triangle glyph at font-size 10px
+renders inconsistently small across devices/fonts, which is what made these read as "too small on
+mobile."
+
+- `.widget-picker-move-btn` bumped from 26×22px to 28×24px at desktop, and gets its own mobile
+  touch-target override (38×36px, 18×18px icon) in the same `min-height: 44px` media-query block
+  every other touch control in the app already uses — it had been left out of that block entirely,
+  which is the real reason it stayed small on a phone regardless of the glyph swap.
+- `.dc-customizeMoveGroup button` bumped from 26×26px to 34×34px (Live Report's customize modal
+  has no separate mobile breakpoint yet, so this is just a larger base size, flex-centered around
+  the new icon).
+
+`MGB_VERSION` bumped to `2026-09-16ak`.
