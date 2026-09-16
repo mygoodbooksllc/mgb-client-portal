@@ -186,9 +186,22 @@ function ToastProvider({ children }) {
 
 const NAV_SECTIONS = [
   {
-    // The premium add-on now leads the sidebar — the most visible spot,
-    // ahead of even Dashboard/Messages, so the thing clients are paying
-    // extra for reads as the headline, not something tucked further down.
+    // The most-visited page leads the sidebar (and, for premium clients,
+    // the one that reads "Dashboard Live" — see the label override in
+    // Sidebar), ahead of even Enterprise.
+    label: "Dashboard",
+    items: [{ key: "dashboard", label: "Dashboard", icon: <GridIcon /> }],
+  },
+  {
+    // Right under Dashboard — an unread-message badge is easy to miss
+    // buried under other sections, and a new message from the bookkeeper is
+    // exactly the kind of thing a client shouldn't have to go hunting for.
+    label: "Messages",
+    items: [
+      { key: "messages", label: "Messages", icon: <ChatIcon width="16" height="16" strokeWidth="1.8" /> },
+    ],
+  },
+  {
     label: "Enterprise",
     // Live Report ("daily-close") isn't a nav item here on purpose — a
     // premium, full-access client's Dashboard tab IS the Live Report, one
@@ -198,22 +211,6 @@ const NAV_SECTIONS = [
       { key: "report-builder", label: "Report Builder", premium: true, icon: <BarChartIcon /> },
       { key: "budgeting-tool", label: "Budgeting Tool", premium: true, icon: <CalculatorIcon /> },
       { key: "ap-command-center", label: "Cash Flow Pro", premium: true, icon: <StackedBillsIcon /> },
-    ],
-  },
-  {
-    // The most-visited page (and, for premium clients, the one that reads
-    // "Dashboard Live" in the sidebar — see the label override in Sidebar).
-    label: "Dashboard",
-    items: [{ key: "dashboard", label: "Dashboard", icon: <GridIcon /> }],
-  },
-  {
-    // Right under Dashboard — an unread-message badge is easy to miss
-    // buried under three other sections, and a new message from the
-    // bookkeeper is exactly the kind of thing a client shouldn't have to go
-    // hunting for.
-    label: "Messages",
-    items: [
-      { key: "messages", label: "Messages", icon: <ChatIcon width="16" height="16" strokeWidth="1.8" /> },
     ],
   },
   {
