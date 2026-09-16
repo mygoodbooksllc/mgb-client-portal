@@ -600,9 +600,9 @@ function Sidebar({
           // (stripped out of access.tabs in resolveAccess), so `items`
           // below already narrows itself to just Dashboard/Messages for
           // them — no separate branch needed to keep those two reachable.
-          // A single upsell row is appended after whatever did make it
-          // through, so the locked tools stay discoverable rather than
-          // just quietly missing.
+          // The Premium badge + lock live on the section heading itself
+          // (clickable, opens the upgrade page) rather than a separate row
+          // spelling out which tools are locked.
           const showUpsell = isSignature && !hasPremiumPlan(client);
           const items = orderedSectionItems(section, tabOrder, selectedClientId).filter((item) => visibleKeys.has(item.key));
           if (items.length === 0 && !showUpsell) return null;
@@ -612,11 +612,25 @@ function Sidebar({
           const sectionId = "nav-section-" + slugify(section.label);
           return (
             <div className={"nav-section" + (isSignature ? " nav-section-signature" : "")} key={section.label}>
-              {isSignature ? (
-                <div className="nav-section-label nav-section-label-signature nav-section-label-static">
-                  <span>{section.label}</span>
-                </div>
-              ) : null}
+              {isSignature &&
+                (showUpsell ? (
+                  <button
+                    type="button"
+                    className="nav-section-label nav-section-label-signature nav-upsell-trigger"
+                    onClick={() => {
+                      onSelectPage("enterprise-upgrade");
+                      onCloseMobile();
+                    }}
+                  >
+                    <span>{section.label}</span>
+                    <span className="nav-signature-badge">Premium</span>
+                    <LockIcon className="nav-upsell-icon" />
+                  </button>
+                ) : (
+                  <div className="nav-section-label nav-section-label-signature nav-section-label-static">
+                    <span>{section.label}</span>
+                  </div>
+                ))}
               <div className="nav-section-items" id={sectionId}>
                 {items.map((item) => (
                   <button
@@ -636,20 +650,6 @@ function Sidebar({
                     {badges[item.key] && <span className="nav-badge-dot" aria-label="Unread"></span>}
                   </button>
                 ))}
-                {showUpsell && (
-                  <button
-                    type="button"
-                    className="nav-item nav-item-signature nav-upsell-trigger"
-                    onClick={() => {
-                      onSelectPage("enterprise-upgrade");
-                      onCloseMobile();
-                    }}
-                  >
-                    <span>Premium tools</span>
-                    <span className="nav-signature-badge">Premium</span>
-                    <LockIcon className="nav-upsell-icon" />
-                  </button>
-                )}
               </div>
             </div>
           );
