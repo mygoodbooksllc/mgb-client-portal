@@ -1364,3 +1364,22 @@ in `.widget-picker-list` (4px → 10px), top-aligned columns instead of centered
 and a bit more row padding.
 
 `MGB_VERSION` bumped to `2026-09-16al`.
+
+## §39 — Move buttons side by side; chat widget never renders over an open modal
+
+- **Widget picker move buttons are now side by side** (`.widget-picker-move` switched from
+  `flex-direction: column` to `row`) instead of stacked — also shrinks the column's height back
+  down to just the button height, which reduces the vertical cramping §38 was already fighting
+  with extra row spacing.
+- **The floating chat FAB/widget could render in front of an open modal** (reported: the Customize
+  dashboard modal's "Done" button on a phone). `.modal-overlay` (z-index 2000) already outranks
+  `.chat-fab-wrap`/`.chat-widget` (z-index 900) on paper, but a modal mounted deep in the component
+  tree can still lose that comparison in practice depending on ancestor stacking contexts, and
+  chasing that case by case isn't worth it when the fab has no reason to be visible at all while a
+  modal has focus. Fixed with `body:has(.modal-overlay) .chat-fab-wrap, body:has(.modal-overlay)
+  .chat-widget { display: none; }` — every modal in the app renders through the shared
+  `ModalShell`, which always wraps itself in `.modal-overlay`, so this one CSS rule covers every
+  current and future modal without threading each one's own open state up to `App` just to gate
+  this.
+
+`MGB_VERSION` bumped to `2026-09-16am`.

@@ -2737,6 +2737,21 @@ body.rb-presenting .main {
   gap: 8px;
 }
 
+/* Every modal in the app renders through ModalShell, which always wraps
+   itself in .modal-overlay — so this one selector hides the floating chat
+   FAB/widget behind (technically: not at all, simpler than fighting stacking
+   contexts) whatever modal is open, for every current and future modal,
+   without each modal's own open state needing to be threaded up to App just
+   to gate this. z-index alone (modal-overlay: 2000, chat-fab-wrap: 900)
+   should already win the stacking order, but a modal rendered deep in the
+   tree can still end up in front in practice depending on ancestor stacking
+   contexts — not worth chasing case by case when the fab has no reason to
+   be visible at all while a modal has focus. */
+body:has(.modal-overlay) .chat-fab-wrap,
+body:has(.modal-overlay) .chat-widget {
+  display: none;
+}
+
 .chat-fab {
   position: relative;
   width: 52px;
@@ -3155,8 +3170,8 @@ body.rb-presenting .main {
 
 .widget-picker-move {
   display: flex;
-  flex-direction: column;
-  gap: 2px;
+  flex-direction: row;
+  gap: 4px;
   flex-shrink: 0;
 }
 
