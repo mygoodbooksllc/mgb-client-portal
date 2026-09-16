@@ -85,6 +85,169 @@ function writeCashFloor(clientId: string | undefined, value: number | null): voi
 }
 
 /* ============================================================
+   Widget layout — "customize your Live Report," same idea as the
+   Dashboard's own customize feature in app.jsx (show/hide + reorder via
+   move buttons). Not a call into app.jsx's useWidgetLayout/WidgetPickerModal:
+   this file is deliberately self-contained (loads before app.jsx even
+   exists, and the module comment at the top of this file says why), so this
+   is a small parallel implementation rather than a cross-file dependency on
+   another script's internals.
+   ============================================================ */
+
+type LiveReportWidgetId = "kpi-cash" | "kpi-ar" | "kpi-ap" | "kpi-net" | "trend" | "expense-breakdown" | "aging" | "outlook";
+
+const LIVE_REPORT_WIDGETS: { id: LiveReportWidgetId; label: string; description: string }[] = [
+  { id: "kpi-cash", label: "Cash on Hand", description: "Current balance, delta vs. yesterday, 14-day trend" },
+  { id: "kpi-ar", label: "Accounts Receivable", description: "Outstanding balance and overdue amount" },
+  { id: "kpi-ap", label: "Accounts Payable", description: "Outstanding balance and amount due within 7 days" },
+  { id: "kpi-net", label: "Net Income, MTD", description: "Month-to-date net income and margin" },
+  { id: "trend", label: "Revenue vs. Expenses", description: "6-month trend chart" },
+  { id: "expense-breakdown", label: "Where the Money Went", description: "Expenses by category, this month" },
+  { id: "aging", label: "Receivables Aging", description: "Aging buckets and the collections queue" },
+  { id: "outlook", label: "Outlook", description: "Cash flow forecast, revenue trend, and flagged anomalies" },
+];
+const LIVE_REPORT_WIDGET_IDS = LIVE_REPORT_WIDGETS.map((w) => w.id);
+
+function liveReportLayoutKey(clientId?: string): string {
+  return `mygoodbooks_live_report_layout_v1:${clientId || "default"}`;
+}
+
+function readLiveReportLayout(clientId?: string): { order: string[]; hidden: string[] } | null {
+  try {
+    const raw = localStorage.getItem(liveReportLayoutKey(clientId));
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed.order) || !Array.isArray(parsed.hidden)) return null;
+    return parsed;
+  } catch (e) {
+    return null;
+  }
+}
+
+function writeLiveReportLayout(clientId: string | undefined, order: string[], hidden: string[]): void {
+  try {
+    localStorage.setItem(liveReportLayoutKey(clientId), JSON.stringify({ order, hidden }));
+  } catch (e) {}
+}
+
+function useLiveReportLayout(clientId?: string) {
+  const [saved, setSaved] = useState(() => readLiveReportLayout(clientId));
+  const order = saved ? saved.order.filter((id) => LIVE_REPORT_WIDGET_IDS.includes(id as LiveReportWidgetId)).concat(LIVE_REPORT_WIDGET_IDS.filter((id) => !saved!.order.includes(id))) : LIVE_REPORT_WIDGET_IDS.slice();
+  const hidden = new Set(saved ? saved.hidden.filter((id) => LIVE_REPORT_WIDGET_IDS.includes(id as LiveReportWidgetId)) : []);
+
+  const update = (nextOrder: string[], nextHidden: Set<string>) => {
+    const nextHiddenArr = Array.from(nextHidden);
+    writeLiveReportLayout(clientId, nextOrder, nextHiddenArr);
+    setSaved({ order: nextOrder, hidden: nextHiddenArr });
+  };
+
+  return {
+    order,
+    hidden,
+    visibleOrder: order.filter((id) => !hidden.has(id)),
+    toggle: (id: string) => {
+      const next = new Set(hidden);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      update(order, next);
+    },
+    move: (id: string, direction: -1 | 1) => {
+      const index = order.indexOf(id);
+      const targetIndex = index + direction;
+      if (index === -1 || targetIndex < 0 || targetIndex >= order.length) return;
+      const next = order.slice();
+      [next[index], next[targetIndex]] = [next[targetIndex], next[index]];
+      update(next, hidden);
+    },
+    reset: () => update(LIVE_REPORT_WIDGET_IDS.slice(), new Set()),
+  };
+}
+
+// Lightweight modal — not ModalShell (also an app.jsx internal, same
+// self-containment reasoning as the layout hook above). Handles Escape and
+// backdrop click; doesn't bother with a full focus trap, since this is a
+// small settings list, not a form with anything to lose by tabbing out of it.
+function LiveReportCustomizeModal({
+  layout,
+  onClose,
+}: {
+  layout: ReturnType<typeof useLiveReportLayout>;
+  onClose: () => void;
+}) {
+  React.useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [onClose]);
+
+  return (
+    <div className={styles.customizeOverlay} onClick={onClose}>
+      <div className={styles.customizePanel} role="dialog" aria-modal="true" aria-labelledby="live-report-customize-title" onClick={(e) => e.stopPropagation()}>
+        <div className={styles.customizeHeader}>
+          <h3 id="live-report-customize-title">Customize your Live Report</h3>
+          <button type="button" className={styles.customizeClose} onClick={onClose} aria-label="Close">
+            ×
+          </button>
+        </div>
+        <div className={styles.customizeList}>
+          {layout.order.map((id, index) => {
+            const meta = LIVE_REPORT_WIDGETS.find((w) => w.id === id)!;
+            const isHidden = layout.hidden.has(id);
+            return (
+              <div className={styles.customizeRow} key={id}>
+                <label className={styles.customizeCheckboxLabel}>
+                  <input type="checkbox" checked={!isHidden} onChange={() => layout.toggle(id)} />
+                  <span>
+                    <span className={styles.customizeRowLabel}>{meta.label}</span>
+                    <span className={styles.customizeRowDesc}>{meta.description}</span>
+                  </span>
+                </label>
+                <div className={styles.customizeMoveGroup}>
+                  <button type="button" disabled={index === 0} onClick={() => layout.move(id, -1)} aria-label={`Move ${meta.label} up`}>
+                    ▲
+                  </button>
+                  <button type="button" disabled={index === layout.order.length - 1} onClick={() => layout.move(id, 1)} aria-label={`Move ${meta.label} down`}>
+                    ▼
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+        <div className={styles.customizeFooter}>
+          <button type="button" className={styles.customizeReset} onClick={layout.reset}>
+            Reset to default
+          </button>
+          <button type="button" className={styles.customizeDone} onClick={onClose}>
+            Done
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function LiveReportCustomizeButton({ layout }: { layout: ReturnType<typeof useLiveReportLayout> }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <React.Fragment>
+      <button type="button" className={styles.customizeTrigger} onClick={() => setOpen(true)}>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M4 6h16M8 12h12M4 18h16" />
+          <circle cx="6" cy="6" r="1.6" fill="currentColor" stroke="none" />
+          <circle cx="16" cy="12" r="1.6" fill="currentColor" stroke="none" />
+          <circle cx="9" cy="18" r="1.6" fill="currentColor" stroke="none" />
+        </svg>
+        Customize Live Report
+      </button>
+      {open && <LiveReportCustomizeModal layout={layout} onClose={() => setOpen(false)} />}
+    </React.Fragment>
+  );
+}
+
+/* ============================================================
    Sparkline (KPI tile trend)
    ============================================================ */
 
@@ -572,6 +735,7 @@ function DailyClose({ data, className, theme, onNavigate }: DailyCloseProps) {
   const [cashFloor, setCashFloor] = useState<number | null>(() => readCashFloor(data.client.id));
   const [editingFloor, setEditingFloor] = useState(false);
   const [floorDraft, setFloorDraft] = useState("");
+  const layout = useLiveReportLayout(data.client.id);
 
   const agingRef = useRef<HTMLDivElement>(null);
   const outlookRef = useRef<HTMLDivElement>(null);
@@ -706,309 +870,344 @@ function DailyClose({ data, className, theme, onNavigate }: DailyCloseProps) {
           </div>
         </header>
 
+        <LiveReportCustomizeButton layout={layout} />
+
         {/* ---------- KPI row ---------- */}
         <section className={styles.kpiRow} aria-label="Key metrics">
-          <div className={`${styles.kpiTile} ${belowFloor ? styles.kpiTileAlert : ""}`}>
-            <div className={styles.kpiTileTop}>
-              <div className={styles.kpiLabel}>Cash on hand</div>
-              <button
-                type="button"
-                className={styles.cashFloorTrigger}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setFloorDraft(cashFloor !== null ? String(cashFloor) : "");
-                  setEditingFloor((v) => !v);
-                }}
-                title="Set a low-cash alert"
-              >
-                Alert
-              </button>
-            </div>
-            {editingFloor ? (
-              <div className={styles.cashFloorEditor} onClick={(e) => e.stopPropagation()}>
-                <span>Alert below $</span>
-                <input
-                  type="number"
-                  className={styles.cashFloorInput}
-                  value={floorDraft}
-                  onChange={(e) => setFloorDraft(e.target.value)}
-                  placeholder="e.g. 10000"
-                  autoFocus
-                />
-                <button type="button" className={styles.cashFloorSave} onClick={saveFloor}>
-                  Save
+          {layout.visibleOrder
+            .filter((id) => id.startsWith("kpi-"))
+            .map((id) => {
+              if (id === "kpi-cash")
+                return (
+                  <div className={`${styles.kpiTile} ${belowFloor ? styles.kpiTileAlert : ""}`} key={id}>
+                    <div className={styles.kpiTileTop}>
+                      <div className={styles.kpiLabel}>Cash on hand</div>
+                      <button
+                        type="button"
+                        className={styles.cashFloorTrigger}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setFloorDraft(cashFloor !== null ? String(cashFloor) : "");
+                          setEditingFloor((v) => !v);
+                        }}
+                        title="Set a low-cash alert"
+                      >
+                        Alert
+                      </button>
+                    </div>
+                    {editingFloor ? (
+                      <div className={styles.cashFloorEditor} onClick={(e) => e.stopPropagation()}>
+                        <span>Alert below $</span>
+                        <input
+                          type="number"
+                          className={styles.cashFloorInput}
+                          value={floorDraft}
+                          onChange={(e) => setFloorDraft(e.target.value)}
+                          placeholder="e.g. 10000"
+                          autoFocus
+                        />
+                        <button type="button" className={styles.cashFloorSave} onClick={saveFloor}>
+                          Save
+                        </button>
+                      </div>
+                    ) : (
+                      <React.Fragment>
+                        <div className={styles.kpiValue}>
+                          {fmtMoney(data.cash.total)}
+                          {data.cash.cents !== undefined && <small>.{String(data.cash.cents).padStart(2, "0")}</small>}
+                        </div>
+                        <div className={`${styles.delta} ${data.cash.deltaVsYesterday >= 0 ? styles.deltaUp : styles.deltaDown}`}>
+                          {data.cash.deltaVsYesterday >= 0 ? "▲" : "▼"} {fmtMoney(Math.abs(data.cash.deltaVsYesterday))} vs. yesterday
+                        </div>
+                        {belowFloor && (
+                          <div className={styles.cashFloorWarning}>Below your {fmtMoney(cashFloor as number)} alert threshold</div>
+                        )}
+                        <Sparkline values={data.cash.sparkline14d} color="var(--series-revenue)" />
+                      </React.Fragment>
+                    )}
+                  </div>
+                );
+
+              if (id === "kpi-ar")
+                return (
+                  <button type="button" className={`${styles.kpiTile} ${styles.kpiTileClickable}`} onClick={jumpToAging} key={id}>
+                    <div className={styles.kpiLabel}>Accounts receivable</div>
+                    <div className={styles.kpiValue}>{fmtMoney(data.receivables.total)}</div>
+                    <div className={`${styles.chip} ${styles.chipWarn}`}>
+                      <span className="dot" style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--warning)" }} />
+                      {fmtMoney(data.receivables.overdueAmount)} overdue
+                    </div>
+                    <div className={styles.kpiFoot} style={{ marginTop: "auto" }}>
+                      {data.receivables.openInvoiceCount} open invoices, {data.receivables.customerCount} customers
+                    </div>
+                  </button>
+                );
+
+              if (id === "kpi-ap")
+                return (
+                  <button
+                    type="button"
+                    className={`${styles.kpiTile} ${onNavigate ? styles.kpiTileClickable : ""}`}
+                    onClick={() => onNavigate && onNavigate("ap-command-center")}
+                    disabled={!onNavigate}
+                    key={id}
+                  >
+                    <div className={styles.kpiLabel}>Accounts payable</div>
+                    <div className={styles.kpiValue}>{fmtMoney(data.payables.total)}</div>
+                    <div className={`${styles.chip} ${data.payables.hasPastDue ? styles.chipCritical : styles.chipGood}`}>
+                      <span
+                        className="dot"
+                        style={{
+                          width: 6,
+                          height: 6,
+                          borderRadius: "50%",
+                          background: data.payables.hasPastDue ? "var(--critical)" : "var(--good)",
+                        }}
+                      />
+                      {data.payables.hasPastDue ? "Some past due" : "Nothing past due"}
+                    </div>
+                    <div className={styles.kpiFoot} style={{ marginTop: "auto" }}>
+                      {fmtMoney(data.payables.dueWithin7Days)} due within 7 days{onNavigate ? " · view in AP Command Center" : ""}
+                    </div>
+                  </button>
+                );
+
+              // kpi-net
+              return (
+                <button type="button" className={`${styles.kpiTile} ${styles.kpiTileClickable}`} onClick={() => jumpToOutlook("trend")} key={id}>
+                  <div className={styles.kpiLabel}>Net income, MTD</div>
+                  <div className={styles.kpiValue}>{fmtMoney(data.netIncome.mtd)}</div>
+                  <div className={`${styles.delta} ${data.netIncome.deltaPctVsPriorMonth >= 0 ? styles.deltaUp : styles.deltaDown}`}>
+                    {data.netIncome.deltaPctVsPriorMonth >= 0 ? "▲" : "▼"} {pct(Math.abs(data.netIncome.deltaPctVsPriorMonth))} vs. last month
+                  </div>
+                  <div className={styles.kpiMeter}>
+                    <div
+                      className={styles.kpiMeterFill}
+                      style={{ width: `${marginMeterPct}%`, animationDuration: `${growDuration(marginMeterPct)}ms` }}
+                    />
+                  </div>
+                  <div className={styles.kpiFoot}>
+                    {pct(data.netIncome.marginPct)} margin &middot; target {pct(data.netIncome.marginTargetPct, 0)}
+                  </div>
                 </button>
-              </div>
-            ) : (
-              <React.Fragment>
-                <div className={styles.kpiValue}>
-                  {fmtMoney(data.cash.total)}
-                  {data.cash.cents !== undefined && <small>.{String(data.cash.cents).padStart(2, "0")}</small>}
-                </div>
-                <div className={`${styles.delta} ${data.cash.deltaVsYesterday >= 0 ? styles.deltaUp : styles.deltaDown}`}>
-                  {data.cash.deltaVsYesterday >= 0 ? "▲" : "▼"} {fmtMoney(Math.abs(data.cash.deltaVsYesterday))} vs. yesterday
-                </div>
-                {belowFloor && (
-                  <div className={styles.cashFloorWarning}>Below your {fmtMoney(cashFloor as number)} alert threshold</div>
-                )}
-                <Sparkline values={data.cash.sparkline14d} color="var(--series-revenue)" />
-              </React.Fragment>
-            )}
-          </div>
-
-          <button type="button" className={`${styles.kpiTile} ${styles.kpiTileClickable}`} onClick={jumpToAging}>
-            <div className={styles.kpiLabel}>Accounts receivable</div>
-            <div className={styles.kpiValue}>{fmtMoney(data.receivables.total)}</div>
-            <div className={`${styles.chip} ${styles.chipWarn}`}>
-              <span className="dot" style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--warning)" }} />
-              {fmtMoney(data.receivables.overdueAmount)} overdue
-            </div>
-            <div className={styles.kpiFoot} style={{ marginTop: "auto" }}>
-              {data.receivables.openInvoiceCount} open invoices, {data.receivables.customerCount} customers
-            </div>
-          </button>
-
-          <button
-            type="button"
-            className={`${styles.kpiTile} ${onNavigate ? styles.kpiTileClickable : ""}`}
-            onClick={() => onNavigate && onNavigate("ap-command-center")}
-            disabled={!onNavigate}
-          >
-            <div className={styles.kpiLabel}>Accounts payable</div>
-            <div className={styles.kpiValue}>{fmtMoney(data.payables.total)}</div>
-            <div className={`${styles.chip} ${data.payables.hasPastDue ? styles.chipCritical : styles.chipGood}`}>
-              <span
-                className="dot"
-                style={{
-                  width: 6,
-                  height: 6,
-                  borderRadius: "50%",
-                  background: data.payables.hasPastDue ? "var(--critical)" : "var(--good)",
-                }}
-              />
-              {data.payables.hasPastDue ? "Some past due" : "Nothing past due"}
-            </div>
-            <div className={styles.kpiFoot} style={{ marginTop: "auto" }}>
-              {fmtMoney(data.payables.dueWithin7Days)} due within 7 days{onNavigate ? " · view in AP Command Center" : ""}
-            </div>
-          </button>
-
-          <button type="button" className={`${styles.kpiTile} ${styles.kpiTileClickable}`} onClick={() => jumpToOutlook("trend")}>
-            <div className={styles.kpiLabel}>Net income, MTD</div>
-            <div className={styles.kpiValue}>{fmtMoney(data.netIncome.mtd)}</div>
-            <div className={`${styles.delta} ${data.netIncome.deltaPctVsPriorMonth >= 0 ? styles.deltaUp : styles.deltaDown}`}>
-              {data.netIncome.deltaPctVsPriorMonth >= 0 ? "▲" : "▼"} {pct(Math.abs(data.netIncome.deltaPctVsPriorMonth))} vs. last month
-            </div>
-            <div className={styles.kpiMeter}>
-              <div
-                className={styles.kpiMeterFill}
-                style={{ width: `${marginMeterPct}%`, animationDuration: `${growDuration(marginMeterPct)}ms` }}
-              />
-            </div>
-            <div className={styles.kpiFoot}>
-              {pct(data.netIncome.marginPct)} margin &middot; target {pct(data.netIncome.marginTargetPct, 0)}
-            </div>
-          </button>
+              );
+            })}
         </section>
 
-        {/* ---------- Revenue vs expenses + expense breakdown ---------- */}
-        <section className={styles.grid2}>
-          <div className={styles.panel}>
-            <div className={styles.panelHead}>
-              <div>
-                <div className={styles.panelTitle}>Revenue vs. expenses</div>
-                <div className={styles.panelSub}>Last {data.trend.months.length} months, actuals</div>
-              </div>
-              <div className={styles.legend}>
-                <span className={styles.legendItem}>
-                  <span className={styles.legendSwatchLine} style={{ background: "var(--series-revenue)" }} />
-                  Revenue
-                </span>
-                <span className={styles.legendItem}>
-                  <span className={styles.legendSwatchLine} style={{ background: "var(--series-expense)" }} />
-                  Expenses
-                </span>
-              </div>
-            </div>
-            <LineChart
-              ariaLabel="Revenue versus expenses"
-              labels={trendLabels}
-              series={[
-                {
-                  name: "Revenue",
-                  color: "var(--series-revenue)",
-                  data: trendRevenue,
-                  dashFrom: data.trend.months.length,
-                  labelEnd: true,
-                  labelAbove: true,
-                },
-                {
-                  name: "Expenses",
-                  color: "var(--series-expense)",
-                  data: trendExpense,
-                  dashFrom: data.trend.months.length,
-                  labelEnd: true,
-                  labelAbove: false,
-                },
-              ]}
-              floorZero
-            />
-          </div>
+        {/* ---------- Everything below the KPI row is order/visibility-driven
+             by the Customize Live Report layout, same idea as Dashboard's
+             own customizable content-masonry in app.jsx. ---------- */}
+        <div className={styles.contentMasonry}>
+          {layout.visibleOrder
+            .filter((id) => !id.startsWith("kpi-"))
+            .map((id) => {
+              if (id === "trend")
+                return (
+                  <div className={styles.panel} key={id}>
+                    <div className={styles.panelHead}>
+                      <div>
+                        <div className={styles.panelTitle}>Revenue vs. expenses</div>
+                        <div className={styles.panelSub}>Last {data.trend.months.length} months, actuals</div>
+                      </div>
+                      <div className={styles.legend}>
+                        <span className={styles.legendItem}>
+                          <span className={styles.legendSwatchLine} style={{ background: "var(--series-revenue)" }} />
+                          Revenue
+                        </span>
+                        <span className={styles.legendItem}>
+                          <span className={styles.legendSwatchLine} style={{ background: "var(--series-expense)" }} />
+                          Expenses
+                        </span>
+                      </div>
+                    </div>
+                    <LineChart
+                      ariaLabel="Revenue versus expenses"
+                      labels={trendLabels}
+                      series={[
+                        {
+                          name: "Revenue",
+                          color: "var(--series-revenue)",
+                          data: trendRevenue,
+                          dashFrom: data.trend.months.length,
+                          labelEnd: true,
+                          labelAbove: true,
+                        },
+                        {
+                          name: "Expenses",
+                          color: "var(--series-expense)",
+                          data: trendExpense,
+                          dashFrom: data.trend.months.length,
+                          labelEnd: true,
+                          labelAbove: false,
+                        },
+                      ]}
+                      floorZero
+                    />
+                  </div>
+                );
 
-          <div className={styles.panel}>
-            <div className={styles.panelHead}>
-              <div>
-                <div className={styles.panelTitle}>Where the money went</div>
-                <div className={styles.panelSub}>Expenses, this month</div>
-              </div>
-            </div>
-            <div style={{ marginTop: 8 }}>
-              <BarList items={data.expenseBreakdown} />
-            </div>
-          </div>
-        </section>
+              if (id === "expense-breakdown")
+                return (
+                  <div className={styles.panel} key={id}>
+                    <div className={styles.panelHead}>
+                      <div>
+                        <div className={styles.panelTitle}>Where the money went</div>
+                        <div className={styles.panelSub}>Expenses, this month</div>
+                      </div>
+                    </div>
+                    <div style={{ marginTop: 8 }}>
+                      <BarList items={data.expenseBreakdown} />
+                    </div>
+                  </div>
+                );
 
-        {/* ---------- Receivables aging ---------- */}
-        <section className={styles.panel} style={{ marginTop: 12 }} ref={agingRef}>
-          <div className={styles.panelHead}>
-            <div>
-              <div className={styles.panelTitle}>Receivables aging</div>
-              <div className={styles.panelSub}>{fmtMoney(data.receivables.total)} outstanding across {data.receivables.openInvoiceCount} invoices</div>
-            </div>
-          </div>
-          <AgingBar items={data.receivables.aging} />
-          {data.receivables.list && <CollectionsQueue items={data.receivables.list} clientName={data.client.name} />}
-        </section>
+              if (id === "aging")
+                return (
+                  <div className={styles.panel} ref={agingRef} key={id}>
+                    <div className={styles.panelHead}>
+                      <div>
+                        <div className={styles.panelTitle}>Receivables aging</div>
+                        <div className={styles.panelSub}>{fmtMoney(data.receivables.total)} outstanding across {data.receivables.openInvoiceCount} invoices</div>
+                      </div>
+                    </div>
+                    <AgingBar items={data.receivables.aging} />
+                    {data.receivables.list && <CollectionsQueue items={data.receivables.list} clientName={data.client.name} />}
+                  </div>
+                );
 
-        {/* ---------- Outlook (predictive) ---------- */}
-        <section className={styles.outlook} ref={outlookRef}>
-          <div className={styles.tabs} role="tablist" aria-label="Outlook view">
-            <button
-              type="button"
-              className={`${styles.tab} ${tab === "forecast" ? styles.tabActive : ""}`}
-              role="tab"
-              aria-selected={tab === "forecast"}
-              onClick={() => setTab("forecast")}
-            >
-              Cash Flow Forecast
-            </button>
-            <button
-              type="button"
-              className={`${styles.tab} ${tab === "trend" ? styles.tabActive : ""}`}
-              role="tab"
-              aria-selected={tab === "trend"}
-              onClick={() => setTab("trend")}
-            >
-              Revenue Trend
-            </button>
-            <button
-              type="button"
-              className={`${styles.tab} ${tab === "anomalies" ? styles.tabActive : ""}`}
-              role="tab"
-              aria-selected={tab === "anomalies"}
-              onClick={() => setTab("anomalies")}
-            >
-              Anomalies &amp; Flags
-            </button>
-          </div>
+              // outlook
+              return (
+                <div className={styles.outlook} ref={outlookRef} key={id}>
+                  <div className={styles.tabs} role="tablist" aria-label="Outlook view">
+                    <button
+                      type="button"
+                      className={`${styles.tab} ${tab === "forecast" ? styles.tabActive : ""}`}
+                      role="tab"
+                      aria-selected={tab === "forecast"}
+                      onClick={() => setTab("forecast")}
+                    >
+                      Cash Flow Forecast
+                    </button>
+                    <button
+                      type="button"
+                      className={`${styles.tab} ${tab === "trend" ? styles.tabActive : ""}`}
+                      role="tab"
+                      aria-selected={tab === "trend"}
+                      onClick={() => setTab("trend")}
+                    >
+                      Revenue Trend
+                    </button>
+                    <button
+                      type="button"
+                      className={`${styles.tab} ${tab === "anomalies" ? styles.tabActive : ""}`}
+                      role="tab"
+                      aria-selected={tab === "anomalies"}
+                      onClick={() => setTab("anomalies")}
+                    >
+                      Anomalies &amp; Flags
+                    </button>
+                  </div>
 
-          {tab === "forecast" && (
-            <div className={styles.panel} style={{ marginTop: 14 }}>
-              <div className={styles.panelHead}>
-                <div>
-                  <div className={styles.panelTitle}>90-day cash flow forecast</div>
-                  <div className={styles.panelSub}>Solid = actual &middot; dashed = projected</div>
+                  {tab === "forecast" && (
+                    <div className={styles.panel} style={{ marginTop: 14 }}>
+                      <div className={styles.panelHead}>
+                        <div>
+                          <div className={styles.panelTitle}>90-day cash flow forecast</div>
+                          <div className={styles.panelSub}>Solid = actual &middot; dashed = projected</div>
+                        </div>
+                        <div className={styles.legend}>
+                          <span className={styles.legendItem}>
+                            <span className={styles.legendSwatchLine} style={{ background: "var(--series-revenue)" }} />
+                            Actual
+                          </span>
+                          <span className={styles.legendItem}>
+                            <span className={styles.legendSwatchDashed} />
+                            Projected
+                          </span>
+                        </div>
+                      </div>
+                      <LineChart
+                        ariaLabel="Ninety day cash flow forecast"
+                        labels={data.forecast90d.labels}
+                        floorZero={false}
+                        lowPointIndex={data.forecast90d.cashBalances.indexOf(
+                          Math.min(...data.forecast90d.cashBalances.slice(1))
+                        )}
+                        series={[
+                          {
+                            name: "Cash balance",
+                            color: "var(--series-revenue)",
+                            data: data.forecast90d.cashBalances,
+                            dashFrom: data.forecast90d.actualCount,
+                            area: true,
+                          },
+                        ]}
+                      />
+                      <div className={styles.callout}>
+                        {/* Thin-line, currentColor icon — matches the rest of the app's icon style,
+                            no emoji. */}
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+                          <path d="M9 18h6M10 21h4" />
+                          <path d="M12 3a6 6 0 00-3.6 10.8c.6.45 1.1 1.2 1.1 2.2h5c0-1 .5-1.75 1.1-2.2A6 6 0 0012 3z" />
+                        </svg>
+                        <span>{data.forecast90d.narrative}</span>
+                      </div>
+                      <div className={styles.methodology}>{data.forecast90d.methodology}</div>
+                    </div>
+                  )}
+
+                  {tab === "trend" && (
+                    <div className={styles.panel} style={{ marginTop: 14 }}>
+                      <div className={styles.panelHead}>
+                        <div>
+                          <div className={styles.panelTitle}>Revenue trend &amp; projection</div>
+                          <div className={styles.panelSub}>Solid = actual &middot; dashed = next {data.trend.projectedMonths.length} months</div>
+                        </div>
+                        <div className={styles.legend}>
+                          <span className={styles.legendItem}>
+                            <span className={styles.legendSwatchLine} style={{ background: "var(--series-revenue)" }} />
+                            Actual
+                          </span>
+                          <span className={styles.legendItem}>
+                            <span className={styles.legendSwatchDashed} />
+                            Projected
+                          </span>
+                        </div>
+                      </div>
+                      <LineChart
+                        ariaLabel="Revenue trend and projection"
+                        labels={trendLabels}
+                        floorZero={false}
+                        series={[
+                          {
+                            name: "Revenue",
+                            color: "var(--series-revenue)",
+                            data: trendRevenue,
+                            dashFrom: data.trend.months.length,
+                            area: true,
+                            labelEnd: true,
+                            labelAbove: true,
+                          },
+                        ]}
+                      />
+                    </div>
+                  )}
+
+                  {tab === "anomalies" && (
+                    <div className={styles.panel} style={{ marginTop: 14 }}>
+                      <div className={styles.panelHead}>
+                        <div>
+                          <div className={styles.panelTitle}>Needs a look</div>
+                          <div className={styles.panelSub}>Flagged automatically from this month&apos;s activity</div>
+                        </div>
+                      </div>
+                      <AnomalyList items={data.anomalies} reviewed={reviewedAnomalies} onToggleReviewed={toggleReviewed} />
+                    </div>
+                  )}
                 </div>
-                <div className={styles.legend}>
-                  <span className={styles.legendItem}>
-                    <span className={styles.legendSwatchLine} style={{ background: "var(--series-revenue)" }} />
-                    Actual
-                  </span>
-                  <span className={styles.legendItem}>
-                    <span className={styles.legendSwatchDashed} />
-                    Projected
-                  </span>
-                </div>
-              </div>
-              <LineChart
-                ariaLabel="Ninety day cash flow forecast"
-                labels={data.forecast90d.labels}
-                floorZero={false}
-                lowPointIndex={data.forecast90d.cashBalances.indexOf(
-                  Math.min(...data.forecast90d.cashBalances.slice(1))
-                )}
-                series={[
-                  {
-                    name: "Cash balance",
-                    color: "var(--series-revenue)",
-                    data: data.forecast90d.cashBalances,
-                    dashFrom: data.forecast90d.actualCount,
-                    area: true,
-                  },
-                ]}
-              />
-              <div className={styles.callout}>
-                {/* Thin-line, currentColor icon — matches the rest of the app's icon style,
-                    no emoji. */}
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
-                  <path d="M9 18h6M10 21h4" />
-                  <path d="M12 3a6 6 0 00-3.6 10.8c.6.45 1.1 1.2 1.1 2.2h5c0-1 .5-1.75 1.1-2.2A6 6 0 0012 3z" />
-                </svg>
-                <span>{data.forecast90d.narrative}</span>
-              </div>
-              <div className={styles.methodology}>{data.forecast90d.methodology}</div>
-            </div>
-          )}
-
-          {tab === "trend" && (
-            <div className={styles.panel} style={{ marginTop: 14 }}>
-              <div className={styles.panelHead}>
-                <div>
-                  <div className={styles.panelTitle}>Revenue trend &amp; projection</div>
-                  <div className={styles.panelSub}>Solid = actual &middot; dashed = next {data.trend.projectedMonths.length} months</div>
-                </div>
-                <div className={styles.legend}>
-                  <span className={styles.legendItem}>
-                    <span className={styles.legendSwatchLine} style={{ background: "var(--series-revenue)" }} />
-                    Actual
-                  </span>
-                  <span className={styles.legendItem}>
-                    <span className={styles.legendSwatchDashed} />
-                    Projected
-                  </span>
-                </div>
-              </div>
-              <LineChart
-                ariaLabel="Revenue trend and projection"
-                labels={trendLabels}
-                floorZero={false}
-                series={[
-                  {
-                    name: "Revenue",
-                    color: "var(--series-revenue)",
-                    data: trendRevenue,
-                    dashFrom: data.trend.months.length,
-                    area: true,
-                    labelEnd: true,
-                    labelAbove: true,
-                  },
-                ]}
-              />
-            </div>
-          )}
-
-          {tab === "anomalies" && (
-            <div className={styles.panel} style={{ marginTop: 14 }}>
-              <div className={styles.panelHead}>
-                <div>
-                  <div className={styles.panelTitle}>Needs a look</div>
-                  <div className={styles.panelSub}>Flagged automatically from this month&apos;s activity</div>
-                </div>
-              </div>
-              <AnomalyList items={data.anomalies} reviewed={reviewedAnomalies} onToggleReviewed={toggleReviewed} />
-            </div>
-          )}
-        </section>
+              );
+            })}
+        </div>
 
         <div className={styles.footer}>
           <span>Prepared by {data.firm.name} &middot; data refreshes automatically each morning</span>

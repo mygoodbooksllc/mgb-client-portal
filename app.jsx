@@ -186,17 +186,25 @@ function ToastProvider({ children }) {
 
 const NAV_SECTIONS = [
   {
-    // Its own section at the very top, above even Enterprise Tools — an
-    // unread-message badge is easy to miss buried under three other
-    // sections, and a new message from the bookkeeper is exactly the kind
-    // of thing a client shouldn't have to go hunting for.
+    // Its own section at the very top, above everything else — the most-
+    // visited page (and, for premium clients, the one that reads "Dashboard
+    // Live" in the sidebar — see the label override in Sidebar) shouldn't be
+    // buried under Enterprise/Overview headings.
+    label: "Dashboard",
+    items: [{ key: "dashboard", label: "Dashboard", icon: <GridIcon /> }],
+  },
+  {
+    // Right under Dashboard — an unread-message badge is easy to miss
+    // buried under three other sections, and a new message from the
+    // bookkeeper is exactly the kind of thing a client shouldn't have to go
+    // hunting for.
     label: "Messages",
     items: [
       { key: "messages", label: "Messages", icon: <ChatIcon width="16" height="16" strokeWidth="1.8" /> },
     ],
   },
   {
-    label: "Enterprise Tools",
+    label: "Enterprise",
     // Live Report ("daily-close") isn't a nav item here on purpose — a
     // premium, full-access client's Dashboard tab IS the Live Report, one
     // cohesive page instead of two separate tabs both claiming to be "the
@@ -208,11 +216,8 @@ const NAV_SECTIONS = [
     ],
   },
   {
-    label: "Overview",
-    items: [
-      { key: "dashboard", label: "Dashboard", icon: <GridIcon /> },
-      { key: "budget", label: "Budget vs. Actual", icon: <PieChartIcon /> },
-    ],
+    label: "Budget",
+    items: [{ key: "budget", label: "Budget vs. Actual", icon: <PieChartIcon /> }],
   },
   {
     label: "Finances",
@@ -573,7 +578,7 @@ function Sidebar({
       ) : page === "staff-access" || page === "client-access" ? null : (
       <nav className="nav">
         {NAV_SECTIONS.map((section) => {
-          const isSignature = section.label === "Enterprise Tools";
+          const isSignature = section.label === "Enterprise";
           // Standard-plan clients don't have these tabs at all (stripped out
           // of access.tabs in resolveAccess), so the section would normally
           // just vanish. Show a single upsell row instead, so the add-on is

@@ -1113,3 +1113,44 @@ timing.
   is always already on the right conversation.
 
 `MGB_VERSION` bumped to `2026-09-16y`.
+
+## §26 — Live Report: animated masthead line + customizable layout; sidebar reorder + rename
+
+- **Animated masthead line.** `.dc-masthead`'s plain `border-bottom` is now an absolutely
+  positioned `::after` with a `repeating-linear-gradient` dashed pattern, animated via
+  `background-position-x` (`0` → `24px`, matching the pattern's own tile size) on a 1.1s linear
+  infinite loop — a continuously scrolling dashed line under the title, not just a static rule.
+  Respects `prefers-reduced-motion`.
+- **Live Report is now customizable, same idea as Dashboard's customize feature in app.jsx** (hide
+  widgets, reorder via ▲/▼). Not a call into app.jsx's `useWidgetLayout`/`WidgetPickerModal`/
+  `ModalShell` — `DailyClose.tsx` is deliberately self-contained (its own header comment explains
+  why: it loads before app.jsx even exists), so this is a small parallel implementation:
+  `useLiveReportLayout(clientId)` (order/hidden state, `localStorage` key
+  `mygoodbooks_live_report_layout_v1:<clientId>`, same shape as the Dashboard's own layout
+  storage) plus a self-built `LiveReportCustomizeModal`/`LiveReportCustomizeButton` (not
+  `ModalShell` — a lighter one with just Escape-to-close and backdrop click, no full focus trap).
+  Eight widgets: the four KPI tiles (`kpi-cash`, `kpi-ar`, `kpi-ap`, `kpi-net`) and four content
+  sections (`trend`, `expense-breakdown`, `aging`, `outlook`).
+- The KPI row and every content section below it now render by mapping over
+  `layout.visibleOrder` instead of being hardcoded JSX in a fixed sequence — each KPI tile's
+  distinct behavior (the cash-floor editor, the AR/AP/Net-income click targets) is preserved
+  exactly, just selected by id inside the map instead of written out four times in a row.
+- **The old fixed 2-column `.dc-grid2` (Revenue vs. Expenses beside Where the Money Went) is
+  gone**, replaced by `.dc-contentMasonry` — a CSS-columns masonry (`columns: 420px 2`), the same
+  pattern `app.jsx`'s own `.content-masonry` already uses for Dashboard's customizable widgets.
+  A fixed 2-up grid assumes exactly two children in a fixed order; once any of the four sections
+  can be hidden or reordered relative to the others, that assumption breaks. At the default order
+  the masonry still lands Revenue vs. Expenses and Where the Money Went in the first two column
+  slots, so the common case looks close to before — but it's no longer a special-cased pair.
+
+**Sidebar:** "Enterprise Tools" renamed to "Enterprise" (the `isSignature` check in `Sidebar`
+updated to match). Dashboard pulled out of the "Overview" section into its own top-level section,
+placed first — above Messages, which was already its own top section from §21 — so the order is
+now Dashboard, Messages, Enterprise, Budget (renamed from "Overview," which held only Budget vs.
+Actual once Dashboard moved out), Finances, Documents. A bookkeeper's previously-saved custom tab
+order for the old "Overview"/"Enterprise Tools" section labels (`tabOrder[clientId][sectionLabel]`)
+will no longer match these renamed keys and silently falls back to default order for those two
+sections — the same graceful-degradation behavior the app already relies on for any stored order
+that doesn't fully match its current widget set, not a new failure mode.
+
+`MGB_VERSION` bumped to `2026-09-16z`.

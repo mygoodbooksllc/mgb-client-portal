@@ -142,8 +142,41 @@
   align-items: flex-end;
   gap: 20px;
   padding-bottom: 18px;
-  border-bottom: 1px solid var(--line-strong);
   flex-wrap: wrap;
+  position: relative;
+}
+/* Replaces a plain border-bottom with a dashed line that scrolls right,
+   forever — a small nod to "Live" in the masthead actually reading as
+   live/streaming rather than a static rule under the title. */
+.dc-masthead::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 1px;
+  background-image: repeating-linear-gradient(
+    to right,
+    var(--line-strong) 0,
+    var(--line-strong) 6px,
+    transparent 6px,
+    transparent 12px
+  );
+  background-size: 24px 1px;
+  animation: dcMastheadScroll 1.1s linear infinite;
+}
+@keyframes dcMastheadScroll {
+  from {
+    background-position-x: 0;
+  }
+  to {
+    background-position-x: 24px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .dc-masthead::after {
+    animation: none;
+  }
 }
 .dc-brandEyebrow {
   font-size: 11px;
@@ -213,6 +246,168 @@
   background: var(--surface-2);
   border-color: #c7ae86;
 }
+
+/* ---------- Customize Live Report ---------- */
+.dc-customizeTrigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--ink-900);
+  margin-top: 12px;
+  border: 1px solid var(--line-strong);
+  padding: 5px 11px;
+  border-radius: 100px;
+  background: var(--surface);
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+.dc-customizeTrigger:hover {
+  background: var(--surface-2);
+  border-color: #c7ae86;
+}
+.dc-customizeOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(8, 12, 10, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 200;
+  padding: 20px;
+}
+.dc-customizePanel {
+  background: var(--surface);
+  color: var(--ink-900);
+  border: 1px solid var(--line-strong);
+  border-radius: 16px;
+  box-shadow: var(--shadow-hover);
+  width: min(480px, 100%);
+  max-height: 82vh;
+  display: flex;
+  flex-direction: column;
+  font-family: "IBM Plex Sans", system-ui, sans-serif;
+}
+.dc-customizeHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 18px;
+  border-bottom: 1px solid var(--line);
+}
+.dc-customizeHeader h3 {
+  font-size: 15.5px;
+  font-weight: 600;
+  margin: 0;
+}
+.dc-customizeClose {
+  font-size: 18px;
+  line-height: 1;
+  color: var(--ink-500);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px;
+}
+.dc-customizeClose:hover {
+  color: var(--ink-900);
+}
+.dc-customizeList {
+  overflow-y: auto;
+  padding: 6px 10px;
+}
+.dc-customizeRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 8px;
+  border-bottom: 1px solid var(--line);
+}
+.dc-customizeRow:last-child {
+  border-bottom: none;
+}
+.dc-customizeCheckboxLabel {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  cursor: pointer;
+  min-width: 0;
+}
+.dc-customizeCheckboxLabel input {
+  margin-top: 3px;
+  flex-shrink: 0;
+}
+.dc-customizeRowLabel {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+}
+.dc-customizeRowDesc {
+  display: block;
+  font-size: 11.5px;
+  color: var(--ink-500);
+  margin-top: 1px;
+}
+.dc-customizeMoveGroup {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+}
+.dc-customizeMoveGroup button {
+  width: 26px;
+  height: 26px;
+  border-radius: 6px;
+  border: 1px solid var(--line-strong);
+  background: var(--surface-2);
+  color: var(--ink-600);
+  font-size: 10px;
+  cursor: pointer;
+}
+.dc-customizeMoveGroup button:hover:not(:disabled) {
+  color: var(--ink-900);
+  border-color: #c7ae86;
+}
+.dc-customizeMoveGroup button:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+.dc-customizeFooter {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 12px 18px;
+  border-top: 1px solid var(--line);
+}
+.dc-customizeReset {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink-600);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px;
+}
+.dc-customizeReset:hover {
+  color: var(--ink-900);
+}
+.dc-customizeDone {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--ink-900);
+  background: #c7ae86;
+  border: none;
+  border-radius: 100px;
+  padding: 7px 16px;
+  cursor: pointer;
+}
+.dc-customizeDone:hover {
+  background: #d8c39f;
+}
+
 .dc-syncDot {
   width: 6px;
   height: 6px;
@@ -454,12 +649,20 @@
 }
 
 /* ---------- Panels ---------- */
-.dc-grid2 {
-  display: grid;
-  grid-template-columns: 1.55fr 1fr;
-  gap: 12px;
+/* Every content section below the KPI row (trend, expense breakdown, aging,
+   outlook) renders here, in Customize Live Report's order — a CSS-columns
+   masonry, not a fixed 2-up grid, since the set of visible sections and
+   their order are no longer fixed. Matches app.jsx's own .content-masonry
+   pattern for Dashboard's customizable widgets. */
+.dc-contentMasonry {
+  columns: 420px 2;
+  column-gap: 12px;
   margin-top: 12px;
-  align-items: stretch;
+}
+.dc-contentMasonry > * {
+  break-inside: avoid;
+  -webkit-column-break-inside: avoid;
+  margin-bottom: 12px;
 }
 .dc-panel {
   background: var(--glass-bg);
@@ -917,8 +1120,8 @@
   .dc-kpiRow {
     grid-template-columns: repeat(2, 1fr);
   }
-  .dc-grid2 {
-    grid-template-columns: 1fr;
+  .dc-contentMasonry {
+    columns: 1;
   }
   .dc-masthead {
     flex-direction: column;
@@ -948,8 +1151,8 @@
     /* 2x2 rather than auto-fit, which would leave an unbalanced 3 + 1. */
     grid-template-columns: repeat(2, 1fr);
   }
-  .dc-grid2 {
-    grid-template-columns: 1fr;
+  .dc-contentMasonry {
+    columns: 1;
   }
 }
 
