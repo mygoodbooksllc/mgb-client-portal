@@ -633,7 +633,7 @@ function Sidebar({
       <div className="sidebar-utility-row">
         {isBookkeeper && page !== "bookkeeper-home" && page !== "staff-access" && page !== "client-access" ? (
           <button className="customize-tabs-btn" onClick={onOpenSettings}>
-            ⚙ Manage access
+            <GearIcon /> Manage access
           </button>
         ) : isBookkeeper ? (
           <span className="sidebar-utility-label">{effectiveTheme === "dark" ? "Dark mode" : "Light mode"}</span>
@@ -729,6 +729,15 @@ function MoonIcon(props) {
   return (
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" {...props}>
       <path d="M20 14.5A8.5 8.5 0 1 1 9.5 4a7 7 0 0 0 10.5 10.5z" />
+    </svg>
+  );
+}
+
+function GearIcon(props) {
+  return (
+    <svg className="icon-inline" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" {...props}>
+      <circle cx="12" cy="12" r="3.2" />
+      <path d="M19.4 13.5a1.8 1.8 0 0 0 .36 1.98l.06.06a2.15 2.15 0 1 1-3.04 3.04l-.06-.06a1.8 1.8 0 0 0-1.98-.36 1.8 1.8 0 0 0-1.09 1.65v.17a2.15 2.15 0 1 1-4.3 0v-.09a1.8 1.8 0 0 0-1.18-1.65 1.8 1.8 0 0 0-1.98.36l-.06.06a2.15 2.15 0 1 1-3.04-3.04l.06-.06a1.8 1.8 0 0 0 .36-1.98 1.8 1.8 0 0 0-1.65-1.09h-.17a2.15 2.15 0 1 1 0-4.3h.09a1.8 1.8 0 0 0 1.65-1.18 1.8 1.8 0 0 0-.36-1.98l-.06-.06a2.15 2.15 0 1 1 3.04-3.04l.06.06a1.8 1.8 0 0 0 1.98.36h.08a1.8 1.8 0 0 0 1.09-1.65v-.17a2.15 2.15 0 1 1 4.3 0v.09a1.8 1.8 0 0 0 1.09 1.65h.08a1.8 1.8 0 0 0 1.98-.36l.06-.06a2.15 2.15 0 1 1 3.04 3.04l-.06.06a1.8 1.8 0 0 0-.36 1.98v.08a1.8 1.8 0 0 0 1.65 1.09h.17a2.15 2.15 0 1 1 0 4.3h-.09a1.8 1.8 0 0 0-1.65 1.09z" />
     </svg>
   );
 }
@@ -5984,7 +5993,7 @@ function CustomizeDashboardButton({ widgets, layout }) {
   return (
     <>
       <button className="customize-dashboard-btn" onClick={() => setOpen(true)}>
-        ⚙ Customize dashboard
+        <GearIcon /> Customize dashboard
       </button>
       {open && <WidgetPickerModal widgets={widgets} layout={layout} onClose={() => setOpen(false)} />}
     </>
