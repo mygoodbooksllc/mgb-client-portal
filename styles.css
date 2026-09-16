@@ -3970,6 +3970,13 @@ body.rb-presenting .main {
     height: 18px;
   }
 
+  /* Dragging is mouse-only (see useDragReorder's own comment on why) — the
+     drag handle does nothing on a touch device, just crowds the row next to
+     the move buttons at phone width. Move is the only way to reorder here. */
+  .widget-picker-row .drag-handle {
+    display: none;
+  }
+
   /* The label is what actually toggles the box, so it has to fill the row —
      a 44px row wrapping a 28px label leaves a dead band top and bottom that
      silently swallows taps. */
@@ -3977,6 +3984,23 @@ body.rb-presenting .main {
   .widget-picker-label {
     min-height: 44px;
     flex: 1;
+  }
+
+  /* Every widget's label/description wraps to 2-3 lines at phone width, and
+     the move buttons stack to ~76px tall — vertically centering either
+     against the other reads as cramped, close to overlapping. More room
+     between rows, top-aligned columns, and a bit more side padding gives
+     wrapped text and the button stack their own clear space. */
+  .widget-picker-list {
+    gap: 10px;
+  }
+  .widget-picker-row {
+    align-items: flex-start;
+    padding: 12px 10px;
+    gap: 12px;
+  }
+  .widget-picker-move {
+    margin-top: 2px;
   }
 
   .rb-segmented button {
