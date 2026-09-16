@@ -2823,10 +2823,16 @@ body.rb-presenting .main {
 .draggable-card {
   cursor: grab;
   /* Touch reorder is a press-and-hold (see useDragReorder in app.jsx), and
-     iOS answers a long press on content with the text-selection callout —
-     which would fight the drag. Suppressed here, not globally, so text
-     elsewhere stays selectable. */
+     iOS answers a long press on content with two separate things: the
+     text-selection highlight itself, AND (if that selection completes) the
+     copy/lookup/share callout menu — both fight the drag. -webkit-touch-
+     callout only suppresses the second one; without user-select too, a
+     long-press-and-hold on a card was highlighting its text and never
+     starting the drag at all, even before the callout menu could show.
+     Suppressed here, not globally, so text elsewhere stays selectable. */
   -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
 }
 
 .draggable-card.card-dragging {
