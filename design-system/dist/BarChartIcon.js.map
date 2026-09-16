@@ -1,0 +1,7 @@
+{
+  "version": 3,
+  "sources": ["../src/BarChartIcon.tsx"],
+  "sourcesContent": ["import React from \"react\";\n\n/** Props for {@link BarChartIcon}. Any native `<svg>` attribute can be\n * passed through and overrides the default. */\nexport type BarChartIconProps = React.SVGProps<SVGSVGElement>;\n\n/**\n * Bar chart (four uneven bars). Thin-line, `stroke=\"currentColor\"` house\n * style. Used for the \"Report Builder\" entry in the Enterprise Tools\n * feature list.\n */\nexport function BarChartIcon(props: BarChartIconProps) {\n  return (\n    <svg\n      width=\"22\"\n      height=\"22\"\n      viewBox=\"0 0 24 24\"\n      fill=\"none\"\n      stroke=\"currentColor\"\n      strokeWidth=\"1.6\"\n      strokeLinecap=\"round\"\n      strokeLinejoin=\"round\"\n      {...props}\n    >\n      <path d=\"M4 20V10M9.5 20V4M15 20V13M20.5 20V7\" />\n    </svg>\n  );\n}\n"],
+  "mappings": ";AAwBM;AAbC,SAAS,aAAa,OAA0B;AACrD,SACE;AAAA,IAAC;AAAA;AAAA,MACC,OAAM;AAAA,MACN,QAAO;AAAA,MACP,SAAQ;AAAA,MACR,MAAK;AAAA,MACL,QAAO;AAAA,MACP,aAAY;AAAA,MACZ,eAAc;AAAA,MACd,gBAAe;AAAA,MACd,GAAG;AAAA,MAEJ,8BAAC,UAAK,GAAE,wCAAuC;AAAA;AAAA,EACjD;AAEJ;",
+  "names": []
+}

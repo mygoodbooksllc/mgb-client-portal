@@ -1,0 +1,7 @@
+{
+  "version": 3,
+  "sources": ["../src/ChatIcon.tsx"],
+  "sourcesContent": ["import React from \"react\";\n\n/** Props for {@link ChatIcon}. Any native `<svg>` attribute can be passed\n * through and overrides the default. */\nexport type ChatIconProps = React.SVGProps<SVGSVGElement>;\n\n/**\n * Chat bubble. Thin-line, `stroke=\"currentColor\"` house style. Used by the\n * desktop floating chat widget's header and the mobile chat FAB.\n */\nexport function ChatIcon(props: ChatIconProps) {\n  return (\n    <svg\n      width=\"20\"\n      height=\"20\"\n      viewBox=\"0 0 24 24\"\n      fill=\"none\"\n      stroke=\"currentColor\"\n      strokeWidth=\"1.7\"\n      strokeLinecap=\"round\"\n      strokeLinejoin=\"round\"\n      {...props}\n    >\n      <path d=\"M4 5h16v11H8l-4 4V5z\" />\n      <path d=\"M8 10h8M8 13h5\" />\n    </svg>\n  );\n}\n"],
+  "mappings": ";AAYI,SAWE,KAXF;AAFG,SAAS,SAAS,OAAsB;AAC7C,SACE;AAAA,IAAC;AAAA;AAAA,MACC,OAAM;AAAA,MACN,QAAO;AAAA,MACP,SAAQ;AAAA,MACR,MAAK;AAAA,MACL,QAAO;AAAA,MACP,aAAY;AAAA,MACZ,eAAc;AAAA,MACd,gBAAe;AAAA,MACd,GAAG;AAAA,MAEJ;AAAA,4BAAC,UAAK,GAAE,wBAAuB;AAAA,QAC/B,oBAAC,UAAK,GAAE,kBAAiB;AAAA;AAAA;AAAA,EAC3B;AAEJ;",
+  "names": []
+}

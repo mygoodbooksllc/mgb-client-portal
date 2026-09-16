@@ -1,0 +1,7 @@
+{
+  "version": 3,
+  "sources": ["../src/MoonIcon.tsx"],
+  "sourcesContent": ["import React from \"react\";\n\n/** Props for {@link MoonIcon}. Any native `<svg>` attribute can be passed\n * through and overrides the default. */\nexport type MoonIconProps = React.SVGProps<SVGSVGElement>;\n\n/**\n * Crescent moon. Thin-line, `stroke=\"currentColor\"` house style. Shown in\n * the sidebar theme toggle when the current theme is light (click to switch\n * to dark).\n */\nexport function MoonIcon(props: MoonIconProps) {\n  return (\n    <svg\n      width=\"16\"\n      height=\"16\"\n      viewBox=\"0 0 24 24\"\n      fill=\"none\"\n      stroke=\"currentColor\"\n      strokeWidth=\"1.8\"\n      strokeLinecap=\"round\"\n      strokeLinejoin=\"round\"\n      {...props}\n    >\n      <path d=\"M20 14.5A8.5 8.5 0 1 1 9.5 4a7 7 0 0 0 10.5 10.5z\" />\n    </svg>\n  );\n}\n"],
+  "mappings": ";AAwBM;AAbC,SAAS,SAAS,OAAsB;AAC7C,SACE;AAAA,IAAC;AAAA;AAAA,MACC,OAAM;AAAA,MACN,QAAO;AAAA,MACP,SAAQ;AAAA,MACR,MAAK;AAAA,MACL,QAAO;AAAA,MACP,aAAY;AAAA,MACZ,eAAc;AAAA,MACd,gBAAe;AAAA,MACd,GAAG;AAAA,MAEJ,8BAAC,UAAK,GAAE,qDAAoD;AAAA;AAAA,EAC9D;AAEJ;",
+  "names": []
+}

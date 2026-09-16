@@ -1,0 +1,7 @@
+{
+  "version": 3,
+  "sources": ["../src/DocumentIcon.tsx"],
+  "sourcesContent": ["import React from \"react\";\n\n/** Props for {@link DocumentIcon}. Any native `<svg>` attribute can be\n * passed through and overrides the default. */\nexport type DocumentIconProps = React.SVGProps<SVGSVGElement>;\n\n/**\n * Document/report sheet. Thin-line, `stroke=\"currentColor\"` house style.\n * Used for the \"Daily Report\" entry in the Enterprise Tools feature list.\n */\nexport function DocumentIcon(props: DocumentIconProps) {\n  return (\n    <svg\n      width=\"22\"\n      height=\"22\"\n      viewBox=\"0 0 24 24\"\n      fill=\"none\"\n      stroke=\"currentColor\"\n      strokeWidth=\"1.6\"\n      strokeLinecap=\"round\"\n      strokeLinejoin=\"round\"\n      {...props}\n    >\n      <rect x=\"5\" y=\"3\" width=\"14\" height=\"18\" rx=\"2\" />\n      <path d=\"M9 8h6M9 12h6M9 16h4\" />\n    </svg>\n  );\n}\n"],
+  "mappings": ";AAYI,SAWE,KAXF;AAFG,SAAS,aAAa,OAA0B;AACrD,SACE;AAAA,IAAC;AAAA;AAAA,MACC,OAAM;AAAA,MACN,QAAO;AAAA,MACP,SAAQ;AAAA,MACR,MAAK;AAAA,MACL,QAAO;AAAA,MACP,aAAY;AAAA,MACZ,eAAc;AAAA,MACd,gBAAe;AAAA,MACd,GAAG;AAAA,MAEJ;AAAA,4BAAC,UAAK,GAAE,KAAI,GAAE,KAAI,OAAM,MAAK,QAAO,MAAK,IAAG,KAAI;AAAA,QAChD,oBAAC,UAAK,GAAE,wBAAuB;AAAA;AAAA;AAAA,EACjC;AAEJ;",
+  "names": []
+}

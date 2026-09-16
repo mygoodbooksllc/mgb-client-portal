@@ -1,0 +1,7 @@
+{
+  "version": 3,
+  "sources": ["../src/SearchIcon.tsx"],
+  "sourcesContent": ["import React from \"react\";\n\n/** Props for {@link SearchIcon}. Any native `<svg>` attribute can be passed\n * through and overrides the default. */\nexport type SearchIconProps = React.SVGProps<SVGSVGElement>;\n\n/**\n * Magnifying glass. Thin-line, `stroke=\"currentColor\"` house style. Used in\n * the global search bar.\n */\nexport function SearchIcon(props: SearchIconProps) {\n  return (\n    <svg\n      className=\"icon-inline\"\n      width=\"16\"\n      height=\"16\"\n      viewBox=\"0 0 24 24\"\n      fill=\"none\"\n      stroke=\"currentColor\"\n      strokeWidth=\"1.8\"\n      strokeLinecap=\"round\"\n      strokeLinejoin=\"round\"\n      {...props}\n    >\n      <circle cx=\"10.5\" cy=\"10.5\" r=\"6.5\" />\n      <path d=\"M20 20l-4.8-4.8\" />\n    </svg>\n  );\n}\n"],
+  "mappings": ";AAYI,SAYE,KAZF;AAFG,SAAS,WAAW,OAAwB;AACjD,SACE;AAAA,IAAC;AAAA;AAAA,MACC,WAAU;AAAA,MACV,OAAM;AAAA,MACN,QAAO;AAAA,MACP,SAAQ;AAAA,MACR,MAAK;AAAA,MACL,QAAO;AAAA,MACP,aAAY;AAAA,MACZ,eAAc;AAAA,MACd,gBAAe;AAAA,MACd,GAAG;AAAA,MAEJ;AAAA,4BAAC,YAAO,IAAG,QAAO,IAAG,QAAO,GAAE,OAAM;AAAA,QACpC,oBAAC,UAAK,GAAE,mBAAkB;AAAA;AAAA;AAAA,EAC5B;AAEJ;",
+  "names": []
+}

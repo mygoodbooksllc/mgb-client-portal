@@ -1,0 +1,7 @@
+{
+  "version": 3,
+  "sources": ["../src/ShieldCheckIcon.tsx"],
+  "sourcesContent": ["import React from \"react\";\n\n/** Props for {@link ShieldCheckIcon}. Any native `<svg>` attribute can be\n * passed through and overrides the default. */\nexport type ShieldCheckIconProps = React.SVGProps<SVGSVGElement>;\n\n/**\n * Shield with a checkmark. Thin-line, `stroke=\"currentColor\"` house style.\n * Used for the \"Budgeting Tool\" entry in the Enterprise Tools feature list.\n */\nexport function ShieldCheckIcon(props: ShieldCheckIconProps) {\n  return (\n    <svg\n      width=\"22\"\n      height=\"22\"\n      viewBox=\"0 0 24 24\"\n      fill=\"none\"\n      stroke=\"currentColor\"\n      strokeWidth=\"1.6\"\n      strokeLinecap=\"round\"\n      strokeLinejoin=\"round\"\n      {...props}\n    >\n      <path d=\"M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6l7-3z\" />\n      <path d=\"M9 12l2 2 4-4\" />\n    </svg>\n  );\n}\n"],
+  "mappings": ";AAYI,SAWE,KAXF;AAFG,SAAS,gBAAgB,OAA6B;AAC3D,SACE;AAAA,IAAC;AAAA;AAAA,MACC,OAAM;AAAA,MACN,QAAO;AAAA,MACP,SAAQ;AAAA,MACR,MAAK;AAAA,MACL,QAAO;AAAA,MACP,aAAY;AAAA,MACZ,eAAc;AAAA,MACd,gBAAe;AAAA,MACd,GAAG;AAAA,MAEJ;AAAA,4BAAC,UAAK,GAAE,sDAAqD;AAAA,QAC7D,oBAAC,UAAK,GAAE,iBAAgB;AAAA;AAAA;AAAA,EAC1B;AAEJ;",
+  "names": []
+}
