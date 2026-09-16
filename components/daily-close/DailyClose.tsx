@@ -206,10 +206,14 @@ function LiveReportCustomizeModal({
                 </label>
                 <div className={styles.customizeMoveGroup}>
                   <button type="button" disabled={index === 0} onClick={() => layout.move(id, -1)} aria-label={`Move ${meta.label} up`}>
-                    ▲
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M5 15l7-7 7 7" />
+                    </svg>
                   </button>
                   <button type="button" disabled={index === layout.order.length - 1} onClick={() => layout.move(id, 1)} aria-label={`Move ${meta.label} down`}>
-                    ▼
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M5 9l7 7 7-7" />
+                    </svg>
                   </button>
                 </div>
               </div>

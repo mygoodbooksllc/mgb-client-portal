@@ -357,13 +357,15 @@
   flex-shrink: 0;
 }
 .dc-customizeMoveGroup button {
-  width: 26px;
-  height: 26px;
+  width: 34px;
+  height: 34px;
   border-radius: 6px;
   border: 1px solid var(--line-strong);
   background: var(--surface-2);
   color: var(--ink-600);
-  font-size: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   cursor: pointer;
 }
 .dc-customizeMoveGroup button:hover:not(:disabled) {
