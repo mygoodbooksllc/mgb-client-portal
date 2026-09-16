@@ -186,10 +186,23 @@ function ToastProvider({ children }) {
 
 const NAV_SECTIONS = [
   {
-    // Its own section at the very top, above everything else — the most-
-    // visited page (and, for premium clients, the one that reads "Dashboard
-    // Live" in the sidebar — see the label override in Sidebar) shouldn't be
-    // buried under Enterprise/Overview headings.
+    // The premium add-on now leads the sidebar — the most visible spot,
+    // ahead of even Dashboard/Messages, so the thing clients are paying
+    // extra for reads as the headline, not something tucked further down.
+    label: "Enterprise",
+    // Live Report ("daily-close") isn't a nav item here on purpose — a
+    // premium, full-access client's Dashboard tab IS the Live Report, one
+    // cohesive page instead of two separate tabs both claiming to be "the
+    // overview." See showsLiveReport in App.
+    items: [
+      { key: "report-builder", label: "Report Builder", premium: true, icon: <BarChartIcon /> },
+      { key: "budgeting-tool", label: "Budgeting Tool", premium: true, icon: <CalculatorIcon /> },
+      { key: "ap-command-center", label: "AP Command Center", premium: true, icon: <StackedBillsIcon /> },
+    ],
+  },
+  {
+    // The most-visited page (and, for premium clients, the one that reads
+    // "Dashboard Live" in the sidebar — see the label override in Sidebar).
     label: "Dashboard",
     items: [{ key: "dashboard", label: "Dashboard", icon: <GridIcon /> }],
   },
@@ -201,18 +214,6 @@ const NAV_SECTIONS = [
     label: "Messages",
     items: [
       { key: "messages", label: "Messages", icon: <ChatIcon width="16" height="16" strokeWidth="1.8" /> },
-    ],
-  },
-  {
-    label: "Enterprise",
-    // Live Report ("daily-close") isn't a nav item here on purpose — a
-    // premium, full-access client's Dashboard tab IS the Live Report, one
-    // cohesive page instead of two separate tabs both claiming to be "the
-    // overview." See showsLiveReport in App.
-    items: [
-      { key: "report-builder", label: "Report Builder", premium: true, icon: <BarChartIcon /> },
-      { key: "budgeting-tool", label: "Budgeting Tool", premium: true, icon: <CalculatorIcon /> },
-      { key: "ap-command-center", label: "AP Command Center", premium: true, icon: <StackedBillsIcon /> },
     ],
   },
   {

@@ -1164,3 +1164,10 @@ report or message your bookkeeper" → "Message your bookkeeper" (there's no act
 channel — messaging is the one real path, so the copy shouldn't imply a second one).
 
 `MGB_VERSION` bumped to `2026-09-16aa`.
+
+## §28 — Enterprise section moved to the top of the sidebar
+
+`NAV_SECTIONS` reordered so `Enterprise` leads the sidebar, ahead of Dashboard and Messages —
+the premium add-on section is now the first thing in the nav, not sandwiched between them.
+`isSignature`'s collapsible/gold styling is unaffected by section order, so this is purely a
+`NAV_SECTIONS` array reorder. `MGB_VERSION` bumped to `2026-09-16ab`.
