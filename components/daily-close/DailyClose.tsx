@@ -443,7 +443,7 @@ function DailyClose({ data, className, theme }: DailyCloseProps) {
           <div>
             <div className={styles.brandEyebrow}>{data.firm.name}</div>
             <h1 className={styles.brandTitle}>
-              Daily <span className={styles.accentword}>Report</span>
+              Live <span className={styles.accentword}>Report</span>
             </h1>
           </div>
           <div className={styles.mastheadRight}>

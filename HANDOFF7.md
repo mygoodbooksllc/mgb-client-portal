@@ -1011,3 +1011,15 @@ Three small sidebar requests, all in `NAV_SECTIONS`/`Sidebar`:
   Report."
 
 `MGB_VERSION` bumped to `2026-09-16u`.
+
+## §22 — Fix: Live Report's own masthead still said "Daily Report"
+
+§18/§21 renamed the page everywhere the app shell controls text (`PAGE_META`, the sidebar tab),
+but `<DailyClose />` (`components/daily-close/DailyClose.tsx`) renders its own masthead with a
+hardcoded `<h1>` — "Daily <span>Report</span>" — independent of any prop or `PAGE_META` lookup.
+That heading is the big styled title actually visible at the top of the page, so the rename
+never reached what the user was looking at. Changed the literal text to "Live <span>Report</span>"
+(kept the same `accentword` span/styling, just swapped the word). No other "Daily Report"
+occurrences left in `components/daily-close/`.
+
+`MGB_VERSION` bumped to `2026-09-16v`.
