@@ -336,6 +336,10 @@
 .rb-bar-fill { background: var(--gold); }
 
 /* ---------------- Mock banner ---------------- */
+.icon-inline {
+  flex-shrink: 0;
+}
+
 .mock-banner {
   background: var(--warm-bg);
   border: 1px solid var(--warm-border);
