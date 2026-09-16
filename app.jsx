@@ -5665,6 +5665,21 @@ function useWidgetLayout(scopeKey, allIds) {
       next.splice(insertAt, 0, draggedId);
       update(next, hidden);
     },
+    // Swaps id with its immediate neighbor, direction -1 (up/earlier) or +1
+    // (down/later). The button-based reorder path (WidgetPickerModal) —
+    // works identically for a hidden widget (moves it within the full
+    // order, same as reorder above) or a visible one; the modal only ever
+    // calls this on adjacent rows as rendered, so a plain swap is exactly
+    // equivalent to reorder()'s shift-based math for that one-step case,
+    // without needing the shift logic at all.
+    move: (id, direction) => {
+      const index = order.indexOf(id);
+      const targetIndex = index + direction;
+      if (index === -1 || targetIndex < 0 || targetIndex >= order.length) return;
+      const next = order.slice();
+      [next[index], next[targetIndex]] = [next[targetIndex], next[index]];
+      update(next, hidden);
+    },
     reset: () => update(allIds.slice(), new Set()),
   };
 }
@@ -5673,95 +5688,40 @@ function useWidgetLayout(scopeKey, allIds) {
 // picked up and dropped to reorder — same underlying layout.reorder, just
 // driven by dragging the card itself. dragProps(id) spreads onto the card's
 // wrapper div; dragClass(id) adds the visual feedback classes.
-// How long a finger has to rest on a card before it's picked up. Long enough
-// that a normal scroll swipe never trips it, short enough not to feel stuck.
-const CARD_LONG_PRESS_MS = 350;
-
+//
+// Mouse-only, deliberately. An earlier version simulated touch dragging with
+// pointer capture + document.elementFromPoint() hit-testing, long-press to
+// pick up. Four different real-device bugs in a row (never actually
+// reordering, then selecting text instead of dragging, then the browser's
+// own scroll gesture winning the race against the long-press timer every
+// time) made clear that reimplementing native drag-and-drop over touch is
+// fragile in a way that's genuinely hard to fully close out. Touch users
+// reorder via the ▲/▼ buttons in the "Customize dashboard" modal
+// (WidgetPickerModal) instead — see layout.move() — which needs no gesture
+// recognition at all and can't conflict with scrolling, text selection, or
+// anything else the OS is doing with the same touch.
 function useDragReorder(layout) {
   const [draggedId, setDraggedId] = useState(null);
-  // Touch bookkeeping lives in a ref, not state: it changes on every pointer
-  // move and must not re-render the grid on its own.
-  const touch = useRef({ id: null, x: 0, y: 0, timer: null, active: false, el: null, pointerId: null });
-  // The last target reorder() was actually called against, for both paths.
-  // dragover/pointermove fire continuously (many times a second) while
-  // hovering, and layout.reorder(draggedId, targetId) is NOT idempotent for
-  // a stationary hover — calling it twice in a row on the same pair swaps
-  // them, then swaps them right back (the dragged item's index vs. the
-  // target's flips after the first call, which flips which branch the
-  // insert-position math takes). Repeated firing during any hover longer
-  // than one event tick — i.e. any real, deliberate drag — oscillates
-  // between two arrangements and can land back where it started by the
-  // time you release, which reads as "picks up fine, never actually
-  // swaps." Only reordering once per newly-entered target (reset when the
-  // drag starts or ends) restores the intended "shuffle the instant you
-  // drag over a neighbor" behavior.
+  // The last target reorder() was actually called against. dragover fires
+  // continuously (many times a second) while hovering, and
+  // layout.reorder(draggedId, targetId) is NOT idempotent for a stationary
+  // hover — calling it twice in a row on the same pair swaps them, then
+  // swaps them right back (the dragged item's index vs. the target's flips
+  // after the first call, which flips which branch the insert-position math
+  // takes). Repeated firing during any hover longer than one event tick —
+  // i.e. any real, deliberate drag — oscillates between two arrangements and
+  // can land back where it started by the time you release, which reads as
+  // "picks up fine, never actually swaps." Only reordering once per
+  // newly-entered target (reset when the drag starts or ends) restores the
+  // intended "shuffle the instant you drag over a neighbor" behavior.
   const lastTarget = useRef(null);
-
-  const resetTouch = () => {
-    const t = touch.current;
-    if (t.timer) clearTimeout(t.timer);
-    if (t.el && t.pointerId != null) {
-      try {
-        t.el.releasePointerCapture(t.pointerId);
-      } catch (e) {
-        /* capture was already released, or never taken */
-      }
-    }
-    touch.current = { id: null, x: 0, y: 0, timer: null, active: false, el: null, pointerId: null };
-    lastTarget.current = null;
-  };
-
-  const endTouchDrag = () => {
-    resetTouch();
-    setDraggedId(null);
-  };
-
-  // A live touch drag has to stop the page scrolling out from under the
-  // finger. React's own touchmove listener is passive, so preventDefault has
-  // to come from a native non-passive one — attached only for the life of the
-  // drag so ordinary scrolling is never touched.
-  //
-  // This is also the one place the whole page can get stuck unable to
-  // scroll: onPointerUp/onPointerCancel below are bound to the SPECIFIC card
-  // element that was picked up, via React's synthetic events — but
-  // onPointerMove calls layout.reorder() on every card it passes over, which
-  // changes widget order state and can cause React to swap out that exact
-  // DOM node (a reorder, or losing/regaining premium-gated widgets) mid-
-  // drag. Pointer capture and its bound handlers are lost with the old node,
-  // and if the browser doesn't cleanly deliver a pointercancel for that,
-  // draggedId never resets — and this effect's touchmove blocker, being
-  // keyed only to draggedId, keeps calling preventDefault() on every scroll
-  // attempt on the ENTIRE page, forever, since nothing ever set it back to
-  // null. Document-level pointerup/pointercancel/pointerleave listeners
-  // below are the safety net: they fire regardless of which element the
-  // capture was on, so a drag can never get permanently stuck this way. A
-  // hard 5s ceiling is a second, even-more-defensive backstop in case a
-  // browser drops pointer events entirely mid-gesture.
-  useEffect(() => {
-    if (!draggedId) return;
-    const block = (e) => {
-      if (touch.current.active) e.preventDefault();
-    };
-    const forceEnd = () => endTouchDrag();
-    document.addEventListener("touchmove", block, { passive: false });
-    document.addEventListener("pointerup", forceEnd, true);
-    document.addEventListener("pointercancel", forceEnd, true);
-    document.addEventListener("pointerleave", forceEnd, true);
-    const ceiling = setTimeout(forceEnd, 5000);
-    return () => {
-      document.removeEventListener("touchmove", block);
-      document.removeEventListener("pointerup", forceEnd, true);
-      document.removeEventListener("pointercancel", forceEnd, true);
-      document.removeEventListener("pointerleave", forceEnd, true);
-      clearTimeout(ceiling);
-    };
-  }, [draggedId]);
 
   return {
     // iPhone-homescreen-style: cards shuffle live the instant you drag over
     // a neighbor, not just when you release — dropping only ends the grab.
+    // The browser's own drag-and-drop, ghost image and all — mouse only,
+    // see the hook comment above for why there's no touch equivalent here.
     dragProps: (id) => ({
-      // --- Mouse: the browser's own drag-and-drop, ghost image and all. ---
       draggable: true,
       onDragStart: () => {
         lastTarget.current = null;
@@ -5782,66 +5742,6 @@ function useDragReorder(layout) {
       onDragEnd: () => {
         lastTarget.current = null;
         setDraggedId(null);
-      },
-
-      // --- Touch: HTML5 drag events are never fired from a finger, on any
-      // mobile browser, so a pointer-based path stands in for them. Press and
-      // hold to pick a card up, then slide over a neighbour to shuffle it,
-      // exactly as the mouse path does. elementFromPoint is what finds the
-      // card under the finger: pointer capture routes every move back to
-      // the held card, so hit-testing by hand is the only way to know what
-      // it's over.
-      //
-      // .draggable-card sets touch-action: none unconditionally (see its
-      // CSS) so the browser's native scroll-gesture recognizer never wins
-      // the race against the long-press timer below — the consequence is a
-      // scroll can no longer start with a finger placed directly ON a
-      // card, only from the gaps around them. The `active` check just
-      // below still cancels the pending long-press if the finger drifts
-      // before the hold completes (so a quick tap-and-slight-wobble isn't
-      // mistaken for a hold-in-progress), but it no longer hands the touch
-      // back to the browser for scrolling — there's nothing to hand back
-      // to once touch-action: none has already told the browser not to
-      // treat this element's touches as a scroll gesture at all. ---
-      "data-widget-id": id,
-      onPointerDown: (e) => {
-        if (e.pointerType === "mouse") return;
-        const el = e.currentTarget;
-        const pointerId = e.pointerId;
-        resetTouch();
-        touch.current = { id, x: e.clientX, y: e.clientY, timer: null, active: false, el, pointerId };
-        touch.current.timer = setTimeout(() => {
-          touch.current.active = true;
-          try {
-            el.setPointerCapture(pointerId);
-          } catch (err) {
-            /* element left the DOM mid-press */
-          }
-          setDraggedId(id);
-        }, CARD_LONG_PRESS_MS);
-      },
-      onPointerMove: (e) => {
-        if (e.pointerType === "mouse") return;
-        const t = touch.current;
-        if (!t.id) return;
-        if (!t.active) {
-          // Moved before the hold landed — that's a scroll, not a pick-up.
-          if (Math.abs(e.clientX - t.x) + Math.abs(e.clientY - t.y) > 10) resetTouch();
-          return;
-        }
-        const under = document.elementFromPoint(e.clientX, e.clientY);
-        const targetEl = under && under.closest ? under.closest("[data-widget-id]") : null;
-        const targetId = targetEl && targetEl.getAttribute("data-widget-id");
-        if (targetId && targetId !== t.id && lastTarget.current !== targetId) {
-          lastTarget.current = targetId;
-          layout.reorder(t.id, targetId);
-        }
-      },
-      onPointerUp: (e) => {
-        if (e.pointerType !== "mouse") endTouchDrag();
-      },
-      onPointerCancel: (e) => {
-        if (e.pointerType !== "mouse") endTouchDrag();
       },
     }),
     // The card being held stops jiggling and lifts; every other card in the
@@ -5865,11 +5765,12 @@ function WidgetPickerModal({ widgets, layout, onClose }) {
           <button className="modal-close" onClick={onClose}>✕</button>
         </div>
         <p className="card-subtitle" style={{ marginBottom: 16 }}>
-          Pull in any card you have access to from across the app, and drag the handle to reorder them — make this your hub.
-          On the dashboard itself, drag a card to move it, or press and hold on a touch screen.
+          Pull in any card you have access to from across the app. Use the ▲▼ buttons below to
+          reorder them, or drag the handle with a mouse — make this your hub. On the dashboard
+          itself, drag a card with a mouse to move it directly.
         </p>
         <div className="widget-picker-list">
-          {layout.order.map((id) => {
+          {layout.order.map((id, index) => {
             const w = widgets.find((x) => x.id === id);
             if (!w) return null;
             const isHidden = layout.hidden.has(id);
@@ -5901,6 +5802,26 @@ function WidgetPickerModal({ widgets, layout, onClose }) {
                 }}
               >
                 <span className="drag-handle" aria-hidden="true">⠿</span>
+                <div className="widget-picker-move">
+                  <button
+                    type="button"
+                    className="widget-picker-move-btn"
+                    disabled={index === 0}
+                    onClick={() => layout.move(id, -1)}
+                    aria-label={`Move ${w.label} up`}
+                  >
+                    ▲
+                  </button>
+                  <button
+                    type="button"
+                    className="widget-picker-move-btn"
+                    disabled={index === layout.order.length - 1}
+                    onClick={() => layout.move(id, 1)}
+                    aria-label={`Move ${w.label} down`}
+                  >
+                    ▼
+                  </button>
+                </div>
                 <label className="widget-picker-label">
                   <input type="checkbox" checked={!isHidden} onChange={() => layout.toggle(id)} />
                   <span>
