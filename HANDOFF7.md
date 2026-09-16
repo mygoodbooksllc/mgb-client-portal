@@ -921,3 +921,43 @@ built yet.
 Also asked, separately: what would make AP Command Center itself feel worth a premium price
 (brainstormed, not yet built — pending which direction is picked), and the downloadable PDF
 export needs to match the new near-black navy theme (also not yet built as of this entry).
+
+## §19 — AP Command Center premium features; PDF exports match the navy theme
+
+Brainstormed what would make AP Command Center feel worth a premium price (batch pay runs,
+approval workflow, vendor profiles, duplicate detection, ACH/bank export, cash-impact forecast).
+User said to build all of it and they'd weed out anything unneeded later, rather than picking one.
+
+- **Bill selection + batch pay runs.** Checkboxes per row (plus a header "select all shown") on
+  the Open Bills table. Selecting bills surfaces a new "Pay Run" card showing the selected count/
+  total, cash on hand today, and the projected balance after paying (`totalCash(client) -
+  selectedTotal`) — the cash-impact forecast idea.
+- **Lightweight approval workflow.** "Send for Approval" turns the selection into a `payRun`
+  object (`{ ids, total, status }`) and shows an "Awaiting Treasurer approval" pill; "Approve Pay
+  Run" flips it to an "Approved" pill. There's no real multi-user sign-off backend here (same
+  honest-mock-data posture as the rest of the app) — it's a state machine on the client, not a
+  notification sent to anyone.
+- **ACH/bank export.** "Export ACH Batch (CSV)" downloads the selected (or active pay run's)
+  bills as a CSV — vendor, description, amount, due date — same `Blob`/`URL.createObjectURL`
+  pattern `BankPage`'s existing CSV export already used.
+- **Vendor Summary card.** New card grouping `client.payables` by vendor (total open balance,
+  bill count, overdue count), sorted by total descending, top 6 shown — the vendor-profile idea,
+  scoped down to what the existing table already has rather than inventing a vendor detail page.
+- **Duplicate detection.** Any two bills sharing the same vendor + amount are flagged with a
+  "Possible duplicate" pill next to the description — a same-vendor-same-amount collision is a
+  much stronger duplicate-entry signal than coincidence for a bookkeeping app's bill list.
+- Recurring-bill detection was in the original brainstorm list but not built — there isn't
+  enough historical/dated bill data in the mock payables to detect a real recurrence pattern
+  from (a single current snapshot, not a paid-bill history), so it'd just be a fake toggle.
+
+**PDF exports now match the navy theme.** `PDF_TABLE_THEME` and `newReportDoc()` (shared by every
+report: Profit & Loss, Balance Sheet, Budget vs. Actual, Contribution Statement, Draft Budget)
+were still hardcoded to the old mygoodbooks.org navy, `rgb(36, 55, 70)` / `#243746`, from before
+the 2026-09-15 theme change. Replaced every occurrence with `rgb(5, 8, 13)` — `--navy` (`#05080d`)
+— so the downloaded PDF's header band and heading text match the app's current near-black navy
+instead of the old lighter navy. jsPDF only takes RGB triples, not CSS custom properties, so this
+has to be kept in sync by hand if the theme color changes again (left a comment to that effect
+above `PDF_TABLE_THEME`). The gold footer color (`rgb(199, 174, 134)`, `--gold`) was already
+correct and untouched.
+
+`MGB_VERSION` bumped to `2026-09-16s`.

@@ -2351,11 +2351,14 @@ function BankPage({ client }) {
 
 const sanitizeFilename = (s) => s.replace(/[\\/:*?"<>|]/g, "");
 
+// [5, 8, 13] is --navy (#05080d), the near-black navy the app switched to on
+// 2026-09-15. jsPDF only takes RGB triples, not CSS custom properties, so
+// these have to be kept in sync by hand if the theme color ever changes again.
 const PDF_TABLE_THEME = {
   theme: "striped",
-  styles: { fontSize: 9, cellPadding: 3, textColor: [36, 55, 70] },
-  headStyles: { fillColor: [36, 55, 70], textColor: [250, 249, 246], fontStyle: "bold" },
-  footStyles: { fillColor: [199, 174, 134], textColor: [36, 55, 70], fontStyle: "bold" },
+  styles: { fontSize: 9, cellPadding: 3, textColor: [5, 8, 13] },
+  headStyles: { fillColor: [5, 8, 13], textColor: [250, 249, 246], fontStyle: "bold" },
+  footStyles: { fillColor: [199, 174, 134], textColor: [5, 8, 13], fontStyle: "bold" },
   margin: { left: 14, right: 14 },
 };
 
@@ -2363,7 +2366,7 @@ function newReportDoc(title, subtitle, client) {
   const doc = new window.jspdf.jsPDF();
   const pageWidth = doc.internal.pageSize.getWidth();
 
-  doc.setFillColor(36, 55, 70);
+  doc.setFillColor(5, 8, 13);
   doc.rect(0, 0, pageWidth, 28, "F");
   doc.setTextColor(250, 249, 246);
   doc.setFont("helvetica", "bold");
@@ -2373,7 +2376,7 @@ function newReportDoc(title, subtitle, client) {
   doc.setFontSize(9);
   doc.text(client.name, 14, 19.5);
 
-  doc.setTextColor(36, 55, 70);
+  doc.setTextColor(5, 8, 13);
   doc.setFont("helvetica", "bold");
   doc.setFontSize(14);
   doc.text(title, 14, 40);
@@ -2423,7 +2426,7 @@ function buildProfitAndLossPdf(client) {
   let y = doc.lastAutoTable.finalY + 12;
   doc.setFont("helvetica", "bold");
   doc.setFontSize(11);
-  doc.setTextColor(36, 55, 70);
+  doc.setTextColor(5, 8, 13);
   doc.text(`Total Income (${period}): ${fmtMoney(latestMonth.income)}`, 14, y);
   doc.text(`Total Expenses (${period}): ${fmtMoney(latestMonth.expenses)}`, 14, y + 7);
   doc.text(
@@ -2466,7 +2469,7 @@ function buildBalanceSheetPdf(client) {
   let y = doc.lastAutoTable.finalY + 12;
   doc.setFont("helvetica", "bold");
   doc.setFontSize(11);
-  doc.setTextColor(36, 55, 70);
+  doc.setTextColor(5, 8, 13);
   doc.text(`Net Assets: ${fmtMoney(totalAssets - totalLiabilities, { cents: true })}`, 14, y);
 
   const unrestricted = client.funds.filter((f) => !f.restricted).reduce((s, f) => s + f.balance, 0);
@@ -3407,7 +3410,10 @@ function apDueText(diff) {
 function APCommandCenterPage({ client }) {
   const [statusFilter, setStatusFilter] = useState("all");
   const [query, setQuery] = useState("");
+  const [selected, setSelected] = useState(() => new Set());
+  const [payRun, setPayRun] = useState(null); // { ids, total, status: "awaiting_approval" | "approved" }
   const today = todayLocal();
+  const showToast = useToast();
   const { flashCardId, jumpToCard } = useCardFlash();
   const jumpToBills = (status) => {
     setStatusFilter(status);
@@ -3415,12 +3421,39 @@ function APCommandCenterPage({ client }) {
   };
 
   const rows = useMemo(() => {
-    return client.payables.map((p) => {
+    return client.payables.map((p, i) => {
       const diff = daysUntil(p.dueDate, today);
       const status = diff < 0 ? "overdue" : diff <= AP_SOON_DAYS ? "soon" : "scheduled";
-      return { ...p, diff, status };
+      return { ...p, diff, status, rowId: p.id != null ? p.id : i };
     });
   }, [client.payables, today]);
+
+  // Same vendor + same amount showing up more than once usually means a bill
+  // was entered twice, not that the vendor billed the same amount by chance.
+  const duplicateRowIds = useMemo(() => {
+    const seen = new Map();
+    rows.forEach((r) => {
+      const key = r.vendor + "|" + r.amount;
+      seen.set(key, (seen.get(key) || []).concat(r.rowId));
+    });
+    const flagged = new Set();
+    seen.forEach((ids) => {
+      if (ids.length > 1) ids.forEach((id) => flagged.add(id));
+    });
+    return flagged;
+  }, [rows]);
+
+  const vendorSummary = useMemo(() => {
+    const byVendor = new Map();
+    rows.forEach((r) => {
+      const v = byVendor.get(r.vendor) || { vendor: r.vendor, total: 0, count: 0, overdue: 0 };
+      v.total += r.amount;
+      v.count += 1;
+      if (r.status === "overdue") v.overdue += 1;
+      byVendor.set(r.vendor, v);
+    });
+    return [...byVendor.values()].sort((a, b) => b.total - a.total);
+  }, [rows]);
 
   const byStatus = (key) => rows.filter((r) => key === "all" || r.status === key);
 
@@ -3454,6 +3487,67 @@ function APCommandCenterPage({ client }) {
 
   const nextDue = useMemo(() => [...rows].sort((a, b) => a.diff - b.diff).slice(0, 5), [rows]);
   const shownTotal = filteredRows.reduce((s, r) => s + r.amount, 0);
+
+  const toggleRow = (rowId) => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(rowId)) next.delete(rowId);
+      else next.add(rowId);
+      return next;
+    });
+  };
+  const allShownSelected = filteredRows.length > 0 && filteredRows.every((r) => selected.has(r.rowId));
+  const toggleAllShown = () => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (allShownSelected) filteredRows.forEach((r) => next.delete(r.rowId));
+      else filteredRows.forEach((r) => next.add(r.rowId));
+      return next;
+    });
+  };
+
+  const selectedRows = rows.filter((r) => selected.has(r.rowId));
+  const selectedTotal = selectedRows.reduce((s, r) => s + r.amount, 0);
+  const cashOnHand = totalCash(client);
+  const cashAfterPayRun = cashOnHand - selectedTotal;
+
+  const startPayRun = () => {
+    if (selectedRows.length === 0) return;
+    setPayRun({ ids: [...selected], total: selectedTotal, status: "awaiting_approval" });
+    showToast(
+      `Pay run of ${selectedRows.length} bill${selectedRows.length !== 1 ? "s" : ""} (${fmtMoney(selectedTotal, {
+        cents: true,
+      })}) sent for approval.`
+    );
+  };
+  const approvePayRun = () => {
+    setPayRun((prev) => (prev ? { ...prev, status: "approved" } : prev));
+    showToast("Pay run approved — ready to send to the bank.");
+  };
+  const cancelPayRun = () => {
+    setPayRun(null);
+    setSelected(new Set());
+  };
+
+  const exportPayRunCsv = () => {
+    const list = payRun ? rows.filter((r) => payRun.ids.includes(r.rowId)) : selectedRows;
+    if (list.length === 0) return;
+    const csvRows = [
+      ["Vendor", "Description", "Amount", "Due Date"],
+      ...list.map((r) => [r.vendor, r.description, r.amount.toFixed(2), r.dueDate]),
+    ];
+    const csv = csvRows.map((r) => r.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(",")).join("\n");
+    const blob = new Blob([csv], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${client.name.replace(/\s+/g, "_")}_ACH_batch.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    showToast(`Exported ${list.length} bill${list.length !== 1 ? "s" : ""} for bank upload.`);
+  };
 
   return (
     <div>
@@ -3527,6 +3621,14 @@ function APCommandCenterPage({ client }) {
           <table className="tx-table tx-table-labeled">
             <thead>
               <tr>
+                <th style={{ width: 28 }}>
+                  <input
+                    type="checkbox"
+                    checked={allShownSelected}
+                    onChange={toggleAllShown}
+                    aria-label="Select all shown bills"
+                  />
+                </th>
                 <th>Vendor</th>
                 <th>Status</th>
                 <th className="num">Amount</th>
@@ -3534,13 +3636,28 @@ function APCommandCenterPage({ client }) {
               </tr>
             </thead>
             <tbody>
-              {filteredRows.map((r, i) => {
+              {filteredRows.map((r) => {
                 const meta = AP_STATUS_META[r.status];
                 return (
-                  <tr key={i}>
+                  <tr key={r.rowId}>
+                    <td>
+                      <input
+                        type="checkbox"
+                        checked={selected.has(r.rowId)}
+                        onChange={() => toggleRow(r.rowId)}
+                        aria-label={`Select ${r.vendor} bill`}
+                      />
+                    </td>
                     <td data-primary="">
                       {r.vendor}
-                      <div className="tx-meta">{r.description}</div>
+                      <div className="tx-meta">
+                        {r.description}
+                        {duplicateRowIds.has(r.rowId) && (
+                          <span className="pill warm" style={{ marginLeft: 6 }}>
+                            Possible duplicate
+                          </span>
+                        )}
+                      </div>
                     </td>
                     <td data-label="Status">
                       <span className={"pill " + meta.pill}>{meta.label}</span>
@@ -3557,7 +3674,7 @@ function APCommandCenterPage({ client }) {
               })}
               {filteredRows.length === 0 && (
                 <tr>
-                  <td colSpan={4} className="ap-cc-empty">
+                  <td colSpan={5} className="ap-cc-empty">
                     No bills match this filter.
                   </td>
                 </tr>
@@ -3565,7 +3682,7 @@ function APCommandCenterPage({ client }) {
             </tbody>
             <tfoot>
               <tr>
-                <td colSpan={2}>Total shown</td>
+                <td colSpan={3}>Total shown</td>
                 <td className="num tx-amount negative">-{fmtMoney(shownTotal, { cents: true })}</td>
                 <td></td>
               </tr>
@@ -3574,7 +3691,85 @@ function APCommandCenterPage({ client }) {
         </div>
       </div>
 
+      {(selected.size > 0 || payRun) && (
+        <div className="card" style={{ marginBottom: 20 }}>
+          <h3 className="card-title">Pay Run</h3>
+          <p className="card-subtitle">
+            {payRun
+              ? `${payRun.ids.length} bill${payRun.ids.length !== 1 ? "s" : ""} · ${fmtMoney(payRun.total, {
+                  cents: true,
+                })}`
+              : `${selectedRows.length} bill${selectedRows.length !== 1 ? "s" : ""} selected · ${fmtMoney(
+                  selectedTotal,
+                  { cents: true }
+                )}`}
+          </p>
+
+          <div className="ap-cc-payrun-impact">
+            <div>
+              <span className="ap-cc-age-label">Cash on hand today</span>
+              <div className="kpi-value" style={{ fontSize: 20 }}>{fmtMoney(cashOnHand, { cents: true })}</div>
+            </div>
+            <div>
+              <span className="ap-cc-age-label">Balance after this pay run</span>
+              <div className={"kpi-value " + (cashAfterPayRun < 0 ? "negative" : "")} style={{ fontSize: 20 }}>
+                {fmtMoney(cashAfterPayRun, { cents: true })}
+              </div>
+            </div>
+          </div>
+
+          {payRun && (
+            <div className="ap-cc-approval-row">
+              <span className={"pill " + (payRun.status === "approved" ? "good" : "warm")}>
+                {payRun.status === "approved" ? "Approved" : "Awaiting Treasurer approval"}
+              </span>
+            </div>
+          )}
+
+          <div className="ap-cc-payrun-actions">
+            {!payRun && (
+              <button className="btn-primary" onClick={startPayRun} disabled={selectedRows.length === 0}>
+                Send for Approval
+              </button>
+            )}
+            {payRun && payRun.status === "awaiting_approval" && (
+              <button className="btn-primary" onClick={approvePayRun}>
+                Approve Pay Run
+              </button>
+            )}
+            <button className="btn-secondary" onClick={exportPayRunCsv} disabled={selectedRows.length === 0 && !payRun}>
+              Export ACH Batch (CSV)
+            </button>
+            {payRun && (
+              <button className="btn-secondary" onClick={cancelPayRun}>
+                Clear Pay Run
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
       <div className="content-masonry">
+        <div className="card">
+          <h3 className="card-title">Vendor Summary</h3>
+          <p className="card-subtitle">Open balance by vendor</p>
+          <div className="ap-cc-upcoming">
+            {vendorSummary.slice(0, 6).map((v) => (
+              <div className="ap-cc-upcoming-item" key={v.vendor}>
+                <div>
+                  <div className="ap-cc-upcoming-who">{v.vendor}</div>
+                  <div className="ap-cc-upcoming-when">
+                    {v.count} bill{v.count !== 1 ? "s" : ""}
+                    {v.overdue > 0 ? ` · ${v.overdue} overdue` : ""}
+                  </div>
+                </div>
+                <span className="ap-cc-upcoming-amt">{fmtMoney(v.total, { cents: true })}</span>
+              </div>
+            ))}
+            {vendorSummary.length === 0 && <p className="card-subtitle">No open bills.</p>}
+          </div>
+        </div>
+
         <div className="card">
           <h3 className="card-title">Aging Summary</h3>
           <p className="card-subtitle">Payables by how overdue they are</p>

@@ -4199,6 +4199,24 @@ body.rb-presenting .main {
   .ap-cc-search { width: 100%; }
 }
 
+/* Pay run panel: selected bills, cash-impact forecast, approval + export */
+.ap-cc-payrun-impact {
+  display: flex;
+  gap: 28px;
+  margin: 14px 0;
+  flex-wrap: wrap;
+}
+
+.ap-cc-approval-row {
+  margin-bottom: 14px;
+}
+
+.ap-cc-payrun-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
 /* ---------------- Staff Access (admin) ---------------- */
 
 .staff-access-link {
