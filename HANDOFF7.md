@@ -770,3 +770,45 @@ word if full icon consistency there is wanted too.
     original complaint that led to the disarm logic in the first place), that's the tradeoff
     being knowingly taken here at the user's explicit request, not a fresh bug.
   - `MGB_VERSION` → `2026-09-16l`.
+
+---
+
+## 15. Update, 2026-09-16 (later still): click-to-jump KPI cards, everywhere it fits
+
+Started as two small asks — make Home's "Your clients" KPI flash longer, and check the rest of
+the app for the same opportunity — and turned into extracting a real, reusable pattern.
+
+- **`useCardFlash()`** — a small shared hook (scroll-to + timed highlight), factored out of the
+  one-off flash logic written for "Your clients" earlier today. Returns `{ flashCardId,
+  jumpToCard }`; `jumpToCard(domId, cardId)` scrolls smoothly to `domId` and sets `flashCardId`
+  for `CARD_FLASH_HOLD_MS`.
+- **Flash duration is now 2600ms** (was 900ms) — long enough to actually read after a
+  smooth-scroll lands, not just a blink. `.card-flash`'s CSS keyframes were redesigned to match:
+  ring appears fast (~8%), **holds** through most of the duration, then fades — rather than the
+  original quick pulse-and-gone.
+- **Every page with a KPI grid now has its KPIs jump to the specific content card they
+  summarize**, where one exists on the same page:
+  - **Home** (already had "Your clients" from earlier): added Overdue bills / Due within N
+    days → the "Needs attention" card.
+  - **AP Command Center**: all four totals (Total Payable, Overdue, Due Within N Days,
+    Scheduled) now both **filter** the Open Bills table to that status AND jump+flash to it —
+    reuses the page's own existing status-filter control rather than adding a second one.
+  - **Receivables & Payables**: Money Owed To You → Receivables table, Money You Owe →
+    Payables table. Net Position stays non-clickable (it's a derived combination, no single
+    card it belongs to).
+  - **Giving & Funds**: Recent Giving → Recent Contributions table; Unrestricted/Restricted
+    Funds → Fund Balances card (same target for both).
+  - **Budget vs. Actual**: all three (Budgeted/Actual/Variance) → Spending by Category table.
+  - **Budgeting Tool**: all three (Current/Proposed/Change) → Draft Budget by Category table.
+  - **Dashboard**: Net Surplus and Revenue → Income vs. Expenses chart; Cash on Hand → Recent
+    Activity. Operating Reserve (the runway ring) intentionally left alone — no single content
+    card on the page summarizes it.
+  - **Scoped Dashboard** (category-restricted client view): Budgeted/Spent/Remaining → Your
+    Budget table. Your Funds KPI left alone — nothing on this page shows fund detail to jump to.
+- Every jump target respects `layout.hidden` — if a bookkeeper/client has hidden the content
+  card via Customize dashboard, the KPI quietly stops being clickable rather than jumping
+  nowhere.
+- Deliberately **not** added anywhere a KPI's target would be a guess rather than an obvious
+  1:1 (or clean many-to-one) match — e.g., nothing on Report Builder, since its "KPI" numbers
+  live inside the Live Preview panel itself, not a separate card to jump to.
+- `MGB_VERSION` bumped to `2026-09-16o`.

@@ -1412,6 +1412,8 @@ function ScopedDashboardPage({ client, access, isBookkeeper, promoText, onSaveRe
   const layout = useWidgetLayout(`${client.id}:scoped:${Array.from(access.categories).sort().join(",")}`, widgets.map((w) => w.id));
   const drag = useDragReorder(layout);
   const kpiOrder = layout.visibleOrder.filter((id) => id.startsWith("kpi-"));
+  const { flashCardId, jumpToCard } = useCardFlash();
+  const jumpToBudget = layout.hidden.has("your-budget") ? null : () => jumpToCard("sdp-your-budget-card", "your-budget");
 
   return (
     <div>
@@ -1427,32 +1429,53 @@ function ScopedDashboardPage({ client, access, isBookkeeper, promoText, onSaveRe
 
       <div className="kpi-grid">
         {kpiOrder.map((id) => {
-          if (id === "kpi-budgeted")
+          if (id === "kpi-budgeted") {
+            const Tag = jumpToBudget ? "button" : "div";
             return (
-              <div className={"card kpi-card " + drag.dragClass(id)} key={id} {...drag.dragProps(id)}>
+              <Tag
+                className={"card kpi-card " + (jumpToBudget ? "kpi-card-clickable " : "") + drag.dragClass(id)}
+                key={id}
+                {...drag.dragProps(id)}
+                {...(jumpToBudget ? { onClick: jumpToBudget } : {})}
+              >
                 <span className="kpi-label">Budgeted (your areas)</span>
                 <span className="kpi-value">{fmtMoney(budgeted)}</span>
                 <span className="kpi-sub neutral">this month</span>
-              </div>
+              </Tag>
             );
-          if (id === "kpi-spent")
+          }
+          if (id === "kpi-spent") {
+            const Tag = jumpToBudget ? "button" : "div";
             return (
-              <div className={"card kpi-card " + drag.dragClass(id)} key={id} {...drag.dragProps(id)}>
+              <Tag
+                className={"card kpi-card " + (jumpToBudget ? "kpi-card-clickable " : "") + drag.dragClass(id)}
+                key={id}
+                {...drag.dragProps(id)}
+                {...(jumpToBudget ? { onClick: jumpToBudget } : {})}
+              >
                 <span className="kpi-label">Spent (your areas)</span>
                 <span className="kpi-value">{fmtMoney(spent)}</span>
                 <span className={"kpi-sub " + (spent > budgeted ? "negative" : "positive")}>
                   {spent > budgeted ? "Over budget" : "Within budget"}
                 </span>
-              </div>
+              </Tag>
             );
-          if (id === "kpi-remaining")
+          }
+          if (id === "kpi-remaining") {
+            const Tag = jumpToBudget ? "button" : "div";
             return (
-              <div className={"card kpi-card " + drag.dragClass(id)} key={id} {...drag.dragProps(id)}>
+              <Tag
+                className={"card kpi-card " + (jumpToBudget ? "kpi-card-clickable " : "") + drag.dragClass(id)}
+                key={id}
+                {...drag.dragProps(id)}
+                {...(jumpToBudget ? { onClick: jumpToBudget } : {})}
+              >
                 <span className="kpi-label">Remaining</span>
                 <span className="kpi-value">{fmtMoney(remaining)}</span>
                 <span className="kpi-sub neutral">{budgeted > 0 ? `${Math.round((spent / budgeted) * 100)}% used` : "—"}</span>
-              </div>
+              </Tag>
             );
+          }
           if (id === "kpi-funds" && myFunds.length > 0)
             return (
               <div className={"card kpi-card " + drag.dragClass(id)} key={id} {...drag.dragProps(id)}>
@@ -1471,7 +1494,12 @@ function ScopedDashboardPage({ client, access, isBookkeeper, promoText, onSaveRe
           .map((id) => {
             if (id === "your-budget")
               return (
-                <div className={"card " + drag.dragClass(id)} key={id} {...drag.dragProps(id)}>
+                <div
+                  className={"card " + (flashCardId === "your-budget" ? "card-flash " : "") + drag.dragClass(id)}
+                  key={id}
+                  id="sdp-your-budget-card"
+                  {...drag.dragProps(id)}
+                >
                   <h3 className="card-title">Your Budget</h3>
                   <p className="card-subtitle">Budgeted vs. actual, current month</p>
                   <div className="table-scroll">
@@ -1621,6 +1649,15 @@ function DashboardPage({ client, access, isBookkeeper, promoText, onSaveReferral
     "kpi-runway": kpis[3],
   };
 
+  const { flashCardId, jumpToCard } = useCardFlash();
+  // Operating Reserve (the runway ring) has no single content card below it
+  // that summarizes it, so it's left out — stays a plain, non-clickable tile.
+  const KPI_DASHBOARD_JUMP_TARGETS = {
+    "kpi-cash": { domId: "dp-recent-activity-card", contentId: "recent-activity" },
+    "kpi-net": { domId: "dp-income-expenses-card", contentId: "income-expenses" },
+    "kpi-revenue": { domId: "dp-income-expenses-card", contentId: "income-expenses" },
+  };
+
   return (
     <div>
       <MockBanner text="Every number on this page is sample data for prototyping — no QuickBooks or bank connection yet." />
@@ -1645,6 +1682,8 @@ function DashboardPage({ client, access, isBookkeeper, promoText, onSaveReferral
       <div className="kpi-grid">
         {kpiOrder.map((id) => {
           const k = kpiById[id];
+          const jumpTarget = KPI_DASHBOARD_JUMP_TARGETS[id];
+          const jump = jumpTarget && !layout.hidden.has(jumpTarget.contentId) ? () => jumpToCard(jumpTarget.domId, jumpTarget.contentId) : null;
           return k.ring ? (
             <div className={"card kpi-card runway-ring-card " + drag.dragClass(id)} key={id} {...drag.dragProps(id)}>
               <span className="kpi-label">{k.label}</span>
@@ -1654,17 +1693,27 @@ function DashboardPage({ client, access, isBookkeeper, promoText, onSaveReferral
               </RunwayRing>
               <span className={"kpi-sub " + k.tone}>{k.sub}</span>
             </div>
-          ) : (
-            <div
-              className={"card kpi-card" + (k.cardTone ? " kpi-card-" + k.cardTone : "") + " " + drag.dragClass(id)}
-              key={id}
-              {...drag.dragProps(id)}
-            >
-              <span className="kpi-label">{k.label}</span>
-              <span className="kpi-value">{k.value}</span>
-              <span className={"kpi-sub " + k.tone}>{k.sub}</span>
-            </div>
-          );
+          ) : (() => {
+            const Tag = jump ? "button" : "div";
+            return (
+              <Tag
+                className={
+                  "card kpi-card" +
+                  (k.cardTone ? " kpi-card-" + k.cardTone : "") +
+                  (jump ? " kpi-card-clickable" : "") +
+                  " " +
+                  drag.dragClass(id)
+                }
+                key={id}
+                {...drag.dragProps(id)}
+                {...(jump ? { onClick: jump } : {})}
+              >
+                <span className="kpi-label">{k.label}</span>
+                <span className="kpi-value">{k.value}</span>
+                <span className={"kpi-sub " + k.tone}>{k.sub}</span>
+              </Tag>
+            );
+          })();
         })}
       </div>
 
@@ -1674,7 +1723,12 @@ function DashboardPage({ client, access, isBookkeeper, promoText, onSaveReferral
           .map((id) => {
             if (id === "income-expenses")
               return (
-                <div className={"card " + drag.dragClass(id)} key={id} {...drag.dragProps(id)}>
+                <div
+                  className={"card " + (flashCardId === "income-expenses" ? "card-flash " : "") + drag.dragClass(id)}
+                  key={id}
+                  id="dp-income-expenses-card"
+                  {...drag.dragProps(id)}
+                >
                   <h3 className="card-title">Income vs. Expenses</h3>
                   <p className="card-subtitle">Last 6 months</p>
                   <IncomeExpenseChart monthly={client.monthly} />
@@ -1683,7 +1737,12 @@ function DashboardPage({ client, access, isBookkeeper, promoText, onSaveReferral
               );
             if (id === "recent-activity")
               return (
-                <div className={"card " + drag.dragClass(id)} key={id} {...drag.dragProps(id)}>
+                <div
+                  className={"card " + (flashCardId === "recent-activity" ? "card-flash " : "") + drag.dragClass(id)}
+                  key={id}
+                  id="dp-recent-activity-card"
+                  {...drag.dragProps(id)}
+                >
                   <h3 className="card-title">Recent Activity</h3>
                   <p className="card-subtitle">Across all accounts, last 2 months</p>
                   <div className="tx-list tx-list-scroll">
@@ -1731,29 +1790,32 @@ function BudgetPage({ client }) {
     { budgeted: 0, actual: 0 }
   );
 
+  const { flashCardId, jumpToCard } = useCardFlash();
+  const jumpToSpending = () => jumpToCard("budget-spending-card", "spending");
+
   return (
     <div>
       <MockBanner text="Budget figures are hardcoded for this prototype. In Phase 2 these will sync from QuickBooks budgets." />
 
       <div className="kpi-grid">
-        <div className="card kpi-card">
+        <button className="card kpi-card kpi-card-clickable" onClick={jumpToSpending}>
           <span className="kpi-label">Total Budgeted (this month)</span>
           <span className="kpi-value">{fmtMoney(totals.budgeted)}</span>
-        </div>
-        <div className="card kpi-card">
+        </button>
+        <button className="card kpi-card kpi-card-clickable" onClick={jumpToSpending}>
           <span className="kpi-label">Total Actual (this month)</span>
           <span className="kpi-value">{fmtMoney(totals.actual)}</span>
-        </div>
-        <div className="card kpi-card">
+        </button>
+        <button className="card kpi-card kpi-card-clickable" onClick={jumpToSpending}>
           <span className="kpi-label">Variance</span>
           <span className="kpi-value">{fmtMoney(totals.actual - totals.budgeted)}</span>
           <span className={"kpi-sub " + (totals.actual > totals.budgeted ? "negative" : "positive")}>
             {totals.actual > totals.budgeted ? "Over budget" : "Under budget"}
           </span>
-        </div>
+        </button>
       </div>
 
-      <div className="card">
+      <div className={"card " + (flashCardId === "spending" ? "card-flash" : "")} id="budget-spending-card">
         <h3 className="card-title">Spending by Category</h3>
         <p className="card-subtitle">Budgeted vs. actual, current month</p>
         <div className="table-scroll">
@@ -1812,30 +1874,35 @@ function GivingFundsPage({ client }) {
   const totalGiving = client.contributions.reduce((s, c) => s + c.amount, 0);
   const restrictedTotal = client.funds.filter((f) => f.restricted).reduce((s, f) => s + f.balance, 0);
   const unrestrictedTotal = client.funds.filter((f) => !f.restricted).reduce((s, f) => s + f.balance, 0);
+  const { flashCardId, jumpToCard } = useCardFlash();
 
   return (
     <div>
       <MockBanner text="Giving records and fund balances shown here are fabricated for this prototype." />
 
       <div className="kpi-grid">
-        <div className="card kpi-card">
+        <button className="card kpi-card kpi-card-clickable" onClick={() => jumpToCard("gf-contributions-card", "contributions")}>
           <span className="kpi-label">Recent Giving</span>
           <span className="kpi-value">{fmtMoney(totalGiving)}</span>
           <span className="kpi-sub neutral">{client.contributions.length} gifts shown below</span>
-        </div>
-        <div className="card kpi-card">
+        </button>
+        <button className="card kpi-card kpi-card-clickable" onClick={() => jumpToCard("gf-fund-balances-card", "fund-balances")}>
           <span className="kpi-label">Unrestricted Funds</span>
           <span className="kpi-value">{fmtMoney(unrestrictedTotal)}</span>
           <span className="kpi-sub positive">Available for general use</span>
-        </div>
-        <div className="card kpi-card">
+        </button>
+        <button className="card kpi-card kpi-card-clickable" onClick={() => jumpToCard("gf-fund-balances-card", "fund-balances")}>
           <span className="kpi-label">Restricted Funds</span>
           <span className="kpi-value">{fmtMoney(restrictedTotal)}</span>
           <span className="kpi-sub neutral">Designated for specific purposes</span>
-        </div>
+        </button>
       </div>
 
-      <div className="card" style={{ marginBottom: 20 }}>
+      <div
+        className={"card " + (flashCardId === "fund-balances" ? "card-flash" : "")}
+        id="gf-fund-balances-card"
+        style={{ marginBottom: 20 }}
+      >
         <h3 className="card-title">Fund Balances</h3>
         <p className="card-subtitle">What the money in the bank is designated for</p>
         <div className="fund-grid">
@@ -1853,7 +1920,7 @@ function GivingFundsPage({ client }) {
         </div>
       </div>
 
-      <div className="card">
+      <div className={"card " + (flashCardId === "contributions" ? "card-flash" : "")} id="gf-contributions-card">
         <h3 className="card-title">Recent Contributions</h3>
         <p className="card-subtitle">Individual gifts and grants received</p>
         <div className="table-scroll">
@@ -1894,22 +1961,23 @@ function GivingFundsPage({ client }) {
 function ReceivablesPayablesPage({ client }) {
   const totalReceivable = client.receivables.reduce((s, r) => s + r.amount, 0);
   const totalPayable = client.payables.reduce((s, p) => s + p.amount, 0);
+  const { flashCardId, jumpToCard } = useCardFlash();
 
   return (
     <div>
       <MockBanner text="These balances are hardcoded for the prototype. Real amounts will come from QuickBooks in Phase 2." />
 
       <div className="kpi-grid">
-        <div className="card kpi-card">
+        <button className="card kpi-card kpi-card-clickable" onClick={() => jumpToCard("rp-receivables-card", "receivables")}>
           <span className="kpi-label">Money Owed To You</span>
           <span className="kpi-value">{fmtMoney(totalReceivable)}</span>
           <span className="kpi-sub positive">{client.receivables.length} open item{client.receivables.length !== 1 ? "s" : ""}</span>
-        </div>
-        <div className="card kpi-card">
+        </button>
+        <button className="card kpi-card kpi-card-clickable" onClick={() => jumpToCard("rp-payables-card", "payables")}>
           <span className="kpi-label">Money You Owe</span>
           <span className="kpi-value">{fmtMoney(totalPayable)}</span>
           <span className="kpi-sub negative">{client.payables.length} open item{client.payables.length !== 1 ? "s" : ""}</span>
-        </div>
+        </button>
         <div className="card kpi-card">
           <span className="kpi-label">Net Position</span>
           <span className="kpi-value">{fmtMoney(totalReceivable - totalPayable)}</span>
@@ -1918,7 +1986,7 @@ function ReceivablesPayablesPage({ client }) {
       </div>
 
       <div className="content-masonry">
-        <div className="card">
+        <div className={"card " + (flashCardId === "receivables" ? "card-flash" : "")} id="rp-receivables-card">
           <h3 className="card-title">Receivables</h3>
           <p className="card-subtitle">Grants, pledges, and reimbursements coming in</p>
           <div className="table-scroll">
@@ -1943,7 +2011,7 @@ function ReceivablesPayablesPage({ client }) {
         </div>
         </div>
 
-        <div className="card">
+        <div className={"card " + (flashCardId === "payables" ? "card-flash" : "")} id="rp-payables-card">
           <h3 className="card-title">Payables</h3>
           <p className="card-subtitle">Bills and commitments going out</p>
           <div className="table-scroll">
@@ -3070,29 +3138,32 @@ function BudgetingToolPage({ client }) {
   const totalProposed = rows.reduce((s, r) => s + r.proposed, 0);
   const pctChange = totalCurrent > 0 ? ((totalProposed - totalCurrent) / totalCurrent) * 100 : 0;
 
+  const { flashCardId, jumpToCard } = useCardFlash();
+  const jumpToDraft = () => jumpToCard("budgeting-tool-draft-card", "draft");
+
   return (
     <div>
       <MockBanner text="This is a working draft space — nothing here is saved anywhere real yet, and submitting doesn't notify anyone." />
 
       <div className="kpi-grid">
-        <div className="card kpi-card">
+        <button className="card kpi-card kpi-card-clickable" onClick={jumpToDraft}>
           <span className="kpi-label">Current Budget Total</span>
           <span className="kpi-value">{fmtMoney(totalCurrent)}</span>
-        </div>
-        <div className="card kpi-card">
+        </button>
+        <button className="card kpi-card kpi-card-clickable" onClick={jumpToDraft}>
           <span className="kpi-label">Proposed Budget Total</span>
           <span className="kpi-value">{fmtMoney(totalProposed)}</span>
-        </div>
-        <div className="card kpi-card">
+        </button>
+        <button className="card kpi-card kpi-card-clickable" onClick={jumpToDraft}>
           <span className="kpi-label">Change</span>
           <span className="kpi-value">
             {(pctChange >= 0 ? "+" : "") + pctChange.toFixed(1)}%
           </span>
           <span className="kpi-sub neutral">vs. current budget</span>
-        </div>
+        </button>
       </div>
 
-      <div className="card">
+      <div className={"card " + (flashCardId === "draft" ? "card-flash" : "")} id="budgeting-tool-draft-card">
         <h3 className="card-title">Draft Budget by Category</h3>
         <p className="card-subtitle">Adjust proposed amounts for next period. This year's actual is shown for reference.</p>
         <div className="table-scroll">
@@ -3198,6 +3269,11 @@ function APCommandCenterPage({ client }) {
   const [statusFilter, setStatusFilter] = useState("all");
   const [query, setQuery] = useState("");
   const today = todayLocal();
+  const { flashCardId, jumpToCard } = useCardFlash();
+  const jumpToBills = (status) => {
+    setStatusFilter(status);
+    jumpToCard("ap-cc-open-bills-card", "open-bills");
+  };
 
   const rows = useMemo(() => {
     return client.payables.map((p) => {
@@ -3245,37 +3321,41 @@ function APCommandCenterPage({ client }) {
       <MockBanner text="These are the same sample payables shown under Receivables & Payables. Connect QuickBooks to replace this with live AP data." />
 
       <div className="kpi-grid">
-        <div className="card kpi-card">
+        <button className="card kpi-card kpi-card-clickable" onClick={() => jumpToBills("all")}>
           <span className="kpi-label">Total Payable</span>
           <span className="kpi-value">{fmtMoney(totals.all.amount)}</span>
           <span className="kpi-sub neutral">
             {totals.all.count} open bill{totals.all.count !== 1 ? "s" : ""}
           </span>
-        </div>
-        <div className="card kpi-card">
+        </button>
+        <button className="card kpi-card kpi-card-clickable" onClick={() => jumpToBills("overdue")}>
           <span className="kpi-label">Overdue</span>
           <span className="kpi-value negative">{fmtMoney(totals.overdue.amount)}</span>
           <span className="kpi-sub negative">
             {totals.overdue.count} bill{totals.overdue.count !== 1 ? "s" : ""} past due
           </span>
-        </div>
-        <div className="card kpi-card">
+        </button>
+        <button className="card kpi-card kpi-card-clickable" onClick={() => jumpToBills("soon")}>
           <span className="kpi-label">Due Within {AP_SOON_DAYS} Days</span>
           <span className="kpi-value warm">{fmtMoney(totals.soon.amount)}</span>
           <span className="kpi-sub warm">
             {totals.soon.count} bill{totals.soon.count !== 1 ? "s" : ""}
           </span>
-        </div>
-        <div className="card kpi-card">
+        </button>
+        <button className="card kpi-card kpi-card-clickable" onClick={() => jumpToBills("scheduled")}>
           <span className="kpi-label">Scheduled</span>
           <span className="kpi-value">{fmtMoney(totals.scheduled.amount)}</span>
           <span className="kpi-sub neutral">
             {totals.scheduled.count} bill{totals.scheduled.count !== 1 ? "s" : ""}
           </span>
-        </div>
+        </button>
       </div>
 
-      <div className="card" style={{ marginBottom: 20 }}>
+      <div
+        className={"card " + (flashCardId === "open-bills" ? "card-flash " : "")}
+        id="ap-cc-open-bills-card"
+        style={{ marginBottom: 20 }}
+      >
         <div className="ap-cc-toolbar">
           <div>
             <h3 className="card-title">Open Bills</h3>
@@ -4387,6 +4467,30 @@ function ClientAccessPage() {
 
 const CLIENT_VISIT_STALE_DAYS = 7;
 
+// How long a KPI's click-to-jump target card holds its flash — kept in sync
+// with .card-flash's animation-duration in styles.css (the JS timeout is
+// what actually removes the class; the CSS duration just needs to match so
+// the fade-out finishes before the class disappears mid-animation).
+const CARD_FLASH_HOLD_MS = 2600;
+
+// Shared by every page with KPI tiles that summarize a specific content card
+// further down the same page (Home's KPI row, AP Command Center's totals) —
+// scrolls to that card and briefly highlights it (.card-flash), so clicking
+// a summary number doesn't just quietly move the page somewhere.
+function useCardFlash() {
+  const [flashCardId, setFlashCardId] = useState(null);
+  const flashTimeoutRef = useRef(null);
+  useEffect(() => () => clearTimeout(flashTimeoutRef.current), []);
+  const jumpToCard = (domId, cardId) => {
+    const el = document.getElementById(domId);
+    if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+    if (flashTimeoutRef.current) clearTimeout(flashTimeoutRef.current);
+    setFlashCardId(cardId);
+    flashTimeoutRef.current = setTimeout(() => setFlashCardId(null), CARD_FLASH_HOLD_MS);
+  };
+  return { flashCardId, jumpToCard };
+}
+
 function BookkeeperHomePage({ staffUser, clients, messagesByClient, readMessageClients, onNavigateToClient }) {
   const showToast = useToast();
   const supabase = window.mgbSupabase;
@@ -4402,14 +4506,7 @@ function BookkeeperHomePage({ staffUser, clients, messagesByClient, readMessageC
   const [editingNoteFor, setEditingNoteFor] = useState(null); // client object, or null
   const [noteDraft, setNoteDraft] = useState("");
   const [savingNote, setSavingNote] = useState(false);
-  // Briefly true right after the "Your clients" KPI jumps down to this
-  // card, to draw the eye to where the scroll landed — cleared on a timer
-  // matching the CSS animation's own duration (see .card-flash), not on
-  // animationend, since the class is also removed before the animation
-  // would naturally replay if the KPI is clicked again mid-flash.
-  const [flashClients, setFlashClients] = useState(false);
-  const flashTimeoutRef = useRef(null);
-  useEffect(() => () => clearTimeout(flashTimeoutRef.current), []);
+  const { flashCardId, jumpToCard } = useCardFlash();
   const [clientSearch, setClientSearch] = useState("");
 
   const loadReminders = useCallback(() => {
@@ -4609,23 +4706,21 @@ function BookkeeperHomePage({ staffUser, clients, messagesByClient, readMessageC
 
       <div className="kpi-grid">
         {kpiOrder.map((id) => {
+          // Every KPI here jumps to the content card it summarizes, when
+          // that card is actually on the page (not hidden via Customize
+          // dashboard) — a plain, non-clickable tile otherwise, since
+          // there'd be nothing to jump to.
           if (id === "kpi-clients") {
-            const jumpToClients = layout.hidden.has("your-clients")
+            const jump = layout.hidden.has("your-clients")
               ? null
-              : () => {
-                  const el = document.getElementById("home-your-clients-card");
-                  if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
-                  if (flashTimeoutRef.current) clearTimeout(flashTimeoutRef.current);
-                  setFlashClients(true);
-                  flashTimeoutRef.current = setTimeout(() => setFlashClients(false), 900);
-                };
-            const Tag = jumpToClients ? "button" : "div";
+              : () => jumpToCard("home-your-clients-card", "your-clients");
+            const Tag = jump ? "button" : "div";
             return (
               <Tag
-                className={"card kpi-card " + (jumpToClients ? "kpi-card-clickable " : "") + drag.dragClass(id)}
+                className={"card kpi-card " + (jump ? "kpi-card-clickable " : "") + drag.dragClass(id)}
                 key={id}
                 {...drag.dragProps(id)}
-                {...(jumpToClients ? { onClick: jumpToClients } : {})}
+                {...(jump ? { onClick: jump } : {})}
               >
                 <span className="kpi-label">Your clients</span>
                 <span className="kpi-value">{clients.length}</span>
@@ -4635,22 +4730,42 @@ function BookkeeperHomePage({ staffUser, clients, messagesByClient, readMessageC
               </Tag>
             );
           }
-          if (id === "kpi-overdue")
+          if (id === "kpi-overdue") {
+            const jump = layout.hidden.has("needs-attention")
+              ? null
+              : () => jumpToCard("home-needs-attention-card", "needs-attention");
+            const Tag = jump ? "button" : "div";
             return (
-              <div className={"card kpi-card " + drag.dragClass(id)} key={id} {...drag.dragProps(id)}>
+              <Tag
+                className={"card kpi-card " + (jump ? "kpi-card-clickable " : "") + drag.dragClass(id)}
+                key={id}
+                {...drag.dragProps(id)}
+                {...(jump ? { onClick: jump } : {})}
+              >
                 <span className="kpi-label">Overdue bills</span>
                 <span className="kpi-value negative">{overdueCount}</span>
                 <span className="kpi-sub negative">across all your clients</span>
-              </div>
+              </Tag>
             );
-          if (id === "kpi-soon")
+          }
+          if (id === "kpi-soon") {
+            const jump = layout.hidden.has("needs-attention")
+              ? null
+              : () => jumpToCard("home-needs-attention-card", "needs-attention");
+            const Tag = jump ? "button" : "div";
             return (
-              <div className={"card kpi-card " + drag.dragClass(id)} key={id} {...drag.dragProps(id)}>
+              <Tag
+                className={"card kpi-card " + (jump ? "kpi-card-clickable " : "") + drag.dragClass(id)}
+                key={id}
+                {...drag.dragProps(id)}
+                {...(jump ? { onClick: jump } : {})}
+              >
                 <span className="kpi-label">Due within {AP_SOON_DAYS} days</span>
                 <span className="kpi-value warm">{soonCount}</span>
                 <span className="kpi-sub warm">across all your clients</span>
-              </div>
+              </Tag>
             );
+          }
           if (id === "kpi-unread")
             return unreadAcrossClients.length > 0 ? (
               <button
@@ -4678,7 +4793,12 @@ function BookkeeperHomePage({ staffUser, clients, messagesByClient, readMessageC
         {contentOrder.map((id) => {
           if (id === "needs-attention")
             return (
-              <div className={"card " + drag.dragClass(id)} key={id} {...drag.dragProps(id)}>
+              <div
+                className={"card " + (flashCardId === "needs-attention" ? "card-flash " : "") + drag.dragClass(id)}
+                key={id}
+                id="home-needs-attention-card"
+                {...drag.dragProps(id)}
+              >
                 <h3 className="card-title">Needs attention</h3>
                 <p className="card-subtitle">Overdue or due soon, across every client you can see.</p>
                 {dueAcrossClients.length === 0 && <p className="card-subtitle">Nothing due soon — you're caught up.</p>}
@@ -4771,7 +4891,7 @@ function BookkeeperHomePage({ staffUser, clients, messagesByClient, readMessageC
           if (id === "your-clients")
             return (
               <div
-                className={"card " + (flashClients ? "card-flash " : "") + drag.dragClass(id)}
+                className={"card " + (flashCardId === "your-clients" ? "card-flash " : "") + drag.dragClass(id)}
                 key={id}
                 id="home-your-clients-card"
                 {...drag.dragProps(id)}
