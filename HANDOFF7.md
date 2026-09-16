@@ -1154,3 +1154,13 @@ sections — the same graceful-degradation behavior the app already relies on fo
 that doesn't fully match its current widget set, not a new failure mode.
 
 `MGB_VERSION` bumped to `2026-09-16z`.
+
+## §27 — Live Report footer copy
+
+Small wording fix in `DailyClose.tsx`'s footer: "data refreshes automatically each morning" →
+"data refreshes live, automatically" (the old copy read like a once-a-day batch job, which is
+exactly the framing "Live Report" replaced "Daily Report" to get away from), and "Reply to this
+report or message your bookkeeper" → "Message your bookkeeper" (there's no actual reply-to-report
+channel — messaging is the one real path, so the copy shouldn't imply a second one).
+
+`MGB_VERSION` bumped to `2026-09-16aa`.

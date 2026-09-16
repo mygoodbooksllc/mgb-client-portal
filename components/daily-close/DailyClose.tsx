@@ -1210,8 +1210,8 @@ function DailyClose({ data, className, theme, onNavigate }: DailyCloseProps) {
         </div>
 
         <div className={styles.footer}>
-          <span>Prepared by {data.firm.name} &middot; data refreshes automatically each morning</span>
-          <span>Questions? Reply to this report or message your bookkeeper.</span>
+          <span>Prepared by {data.firm.name} &middot; data refreshes live, automatically</span>
+          <span>Questions? Message your bookkeeper.</span>
         </div>
       </div>
     </div>
