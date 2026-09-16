@@ -904,6 +904,24 @@ function FolderIcon(props) {
   );
 }
 
+function UploadIcon(props) {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" {...props}>
+      <path d="M12 16V4M12 4l-4 4M12 4l4 4" />
+      <path d="M4 16v3a2 2 0 002 2h12a2 2 0 002-2v-3" />
+    </svg>
+  );
+}
+
+function FileIcon(props) {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" {...props}>
+      <path d="M6 3h8l5 5v13a1 1 0 01-1 1H6a1 1 0 01-1-1V4a1 1 0 011-1z" />
+      <path d="M14 3v5h5" />
+    </svg>
+  );
+}
+
 function MockBanner({ text }) {
   return (
     <div className="mock-banner">
@@ -5376,6 +5394,7 @@ function BookkeeperHomePage({ staffUser, clients, messagesByClient, readMessageC
 function DocumentsPage({ client, isBookkeeper }) {
   const [docs, setDocs] = useState(client.documents);
   const [isDragging, setIsDragging] = useState(false);
+  const [previewIndex, setPreviewIndex] = useState(null);
   const fileInputRef = useRef(null);
   const showToast = useToast();
 
@@ -5392,6 +5411,10 @@ function DocumentsPage({ client, isBookkeeper }) {
       // Org-wide by default, so whoever just uploaded a file can still see it.
       // MyGoodBooks can restrict it afterwards.
       visibility: "all",
+      // Kept only for real files uploaded this session, so the preview modal
+      // has actual bytes to show. Pre-loaded sample documents never had a
+      // real file behind them, so they fall back to a metadata-only preview.
+      file: f,
     }));
     setDocs((d) => [...newDocs, ...d]);
     showToast(`Uploaded ${files.length} file${files.length > 1 ? "s" : ""}.`);
@@ -5423,10 +5446,11 @@ function DocumentsPage({ client, isBookkeeper }) {
           setIsDragging(false);
           addFiles(e.dataTransfer.files);
         }}
-        style={{ marginBottom: 20 }}
       >
         <div className="upload-content">
-          <div className="dropzone-icon">⬆</div>
+          <div className="dropzone-icon">
+            <UploadIcon width="22" height="22" strokeWidth="1.6" />
+          </div>
           <div>
             <h3 className="card-title">Share a document</h3>
             <p className="card-subtitle" style={{ margin: 0 }}>
@@ -5457,7 +5481,7 @@ function DocumentsPage({ client, isBookkeeper }) {
 
       <div className="card">
         <h3 className="card-title">All Documents</h3>
-        <p className="card-subtitle">{docs.length} file{docs.length !== 1 ? "s" : ""}</p>
+        <p className="card-subtitle">{docs.length} file{docs.length !== 1 ? "s" : ""} · click a document to preview it</p>
         <div className="table-scroll">
 <table className="tx-table tx-table-labeled">
           <thead>
@@ -5472,8 +5496,14 @@ function DocumentsPage({ client, isBookkeeper }) {
           </thead>
           <tbody>
             {docs.map((d, i) => (
-              <tr key={i}>
-                <td data-primary="">{d.name}</td>
+              <tr key={i} className="doc-row" onClick={() => setPreviewIndex(i)} tabIndex={0}
+                onKeyDown={(e) => { if (e.key === "Enter") setPreviewIndex(i); }}>
+                <td data-primary="">
+                  <span className="doc-name-link">
+                    <FileIcon width="15" height="15" strokeWidth="1.7" className="icon-inline" />
+                    {d.name}
+                  </span>
+                </td>
                 <td data-label="Category">
                   <span className="category-tag">{d.category}</span>
                 </td>
@@ -5483,7 +5513,10 @@ function DocumentsPage({ client, isBookkeeper }) {
                   <td data-label="Visible to">
                     <button
                       className={"visibility-toggle" + (d.visibility === "full" ? " restricted" : "")}
-                      onClick={() => toggleVisibility(i)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        toggleVisibility(i);
+                      }}
                       title="Click to change who at this organization can see this file"
                     >
                       {d.visibility === "full" ? (
@@ -5503,7 +5536,90 @@ function DocumentsPage({ client, isBookkeeper }) {
         </table>
         </div>
       </div>
+
+      {previewIndex !== null && docs[previewIndex] && (
+        <DocumentPreviewModal doc={docs[previewIndex]} onClose={() => setPreviewIndex(null)} />
+      )}
     </div>
+  );
+}
+
+// File extensions we know how to render inline. Anything else — real upload
+// or sample document alike — falls back to the metadata-only preview panel
+// rather than guessing at a MIME type from the extension.
+const PREVIEWABLE_IMAGE_EXT = /\.(png|jpe?g|gif|webp|svg)$/i;
+const PREVIEWABLE_PDF_EXT = /\.pdf$/i;
+
+function docExtension(name) {
+  const match = /\.([a-z0-9]+)$/i.exec(name || "");
+  return match ? match[1].toUpperCase() : "FILE";
+}
+
+function DocumentPreviewModal({ doc, onClose }) {
+  const objectUrl = useMemo(() => (doc.file ? URL.createObjectURL(doc.file) : null), [doc.file]);
+  useEffect(() => () => { if (objectUrl) URL.revokeObjectURL(objectUrl); }, [objectUrl]);
+
+  const isImage = PREVIEWABLE_IMAGE_EXT.test(doc.name);
+  const isPdf = PREVIEWABLE_PDF_EXT.test(doc.name);
+
+  return (
+    <ModalShell onClose={onClose} labelledBy="doc-preview-title" className="doc-preview-modal">
+      <div className="modal-header">
+        <h3 className="card-title" id="doc-preview-title" style={{ margin: 0 }}>
+          <FileIcon width="17" height="17" strokeWidth="1.7" className="icon-inline" />
+          {doc.name}
+        </h3>
+        <button className="modal-close" onClick={onClose} aria-label="Close">
+          ×
+        </button>
+      </div>
+
+      <div className="modal-body doc-preview-body">
+        {objectUrl && isImage && (
+          <img src={objectUrl} alt={doc.name} className="doc-preview-image" />
+        )}
+        {objectUrl && isPdf && (
+          <iframe src={objectUrl} title={doc.name} className="doc-preview-frame" />
+        )}
+        {!objectUrl && (
+          <div className="doc-preview-placeholder">
+            <FileIcon width="40" height="40" strokeWidth="1.3" />
+            <p className="card-subtitle" style={{ margin: "10px 0 0", textAlign: "center" }}>
+              {doc.file
+                ? `Preview isn't available for .${docExtension(doc.name).toLowerCase()} files yet — download to open it.`
+                : "This is sample data — there's no real file behind it to preview yet."}
+            </p>
+          </div>
+        )}
+        {objectUrl && !isImage && !isPdf && (
+          <div className="doc-preview-placeholder">
+            <FileIcon width="40" height="40" strokeWidth="1.3" />
+            <p className="card-subtitle" style={{ margin: "10px 0 0", textAlign: "center" }}>
+              Preview isn't available for .{docExtension(doc.name).toLowerCase()} files yet — download to open it.
+            </p>
+          </div>
+        )}
+      </div>
+
+      <div className="modal-footer doc-preview-footer">
+        <div className="doc-preview-meta">
+          <span className="category-tag">{doc.category}</span>
+          <span>{doc.uploadedBy}</span>
+          <span>{fmtDate(doc.date)}</span>
+          <span>{doc.size}</span>
+        </div>
+        <div className="doc-preview-actions">
+          {objectUrl && (
+            <a className="btn-secondary" href={objectUrl} download={doc.name}>
+              Download
+            </a>
+          )}
+          <button className="btn-primary" onClick={onClose}>
+            Close
+          </button>
+        </div>
+      </div>
+    </ModalShell>
   );
 }
 

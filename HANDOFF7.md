@@ -961,3 +961,27 @@ above `PDF_TABLE_THEME`). The gold footer color (`rgb(199, 174, 134)`, `--gold`)
 correct and untouched.
 
 `MGB_VERSION` bumped to `2026-09-16s`.
+
+## §20 — Documents tab: click a document to open a preview
+
+Rows in "All Documents" are now clickable (and keyboard-operable — `tabIndex` + Enter) and open a
+`DocumentPreviewModal` via the shared `ModalShell`.
+
+- **Real uploads get a real preview.** `addFiles()` now keeps the actual `File` object on the doc
+  record, not just its derived metadata. The modal creates an object URL from it (cleaned up with
+  `URL.revokeObjectURL` on unmount) and renders an `<img>` for image extensions or an `<iframe>`
+  for `.pdf`; anything else falls back to a placeholder with a Download link — there's no way to
+  render a `.xlsx` or `.docx` inline without a real viewer library, and this prototype doesn't
+  have one.
+- **Pre-loaded sample documents have no real file behind them** (`data.js`'s `documents` arrays
+  are just name/category/date/size — no bytes, no URL), so those get the same placeholder panel
+  with an honest "this is sample data, there's no real file to preview yet" message instead of
+  pretending to show a document. Consistent with the page's existing `MockBanner` framing.
+- The "Visible To" toggle button inside each row calls `e.stopPropagation()` so clicking it
+  doesn't also open the preview modal for the row it sits in.
+- Swapped the dropzone's "⬆" emoji for a new `UploadIcon` (thin-line, matches the rest of the
+  icon set) while touching this page — new icons `UploadIcon` and `FileIcon` (used as the
+  document-row prefix and the modal's placeholder/header icon) were added net new, not yet ported
+  to the design-system package.
+
+`MGB_VERSION` bumped to `2026-09-16t`.
