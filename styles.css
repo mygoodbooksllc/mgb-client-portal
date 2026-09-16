@@ -1298,6 +1298,14 @@ body {
 
 @media (max-width: 900px) {
   .rb-layout { grid-template-columns: 1fr; }
+  /* Sticky only makes sense in the two-column desktop layout, where the
+     config panel stays put while the long report scrolls past beside it.
+     Single-column mobile has nothing beside it to scroll independently, so
+     the panel (with the Live Preview card at its bottom) was instead
+     riding along pinned near the top of the viewport as the page scrolled,
+     then releasing abruptly once its own content passed — reading as the
+     bottom card sliding up too far. */
+  .rb-panel { position: static; top: auto; }
 }
 
 .rb-panel { position: sticky; top: 20px; }
@@ -2826,6 +2834,19 @@ body.rb-presenting .main {
   /* Belt and braces with the non-passive touchmove blocker: once a card is
      actually held, the browser must not claim the gesture for scrolling. */
   touch-action: none;
+  /* The touch drag path (useDragReorder in app.jsx) hit-tests with
+     document.elementFromPoint(finger x/y) on every move to find which card
+     to swap with — but this card doesn't move with the finger, it stays
+     lifted in its original slot (scaled up, elevated z-index). Without
+     this, elementFromPoint over that slightly-larger footprint just finds
+     itself again instead of seeing through to whatever the finger has
+     actually moved onto, which reads as "picks up fine, dragging over a
+     neighbor does nothing." Pointer capture (setPointerCapture in the
+     onPointerDown handler) still routes move/up events to this exact
+     element regardless of pointer-events, so the drag gesture itself is
+     unaffected — only the separate elementFromPoint hit-test sees through
+     it now. */
+  pointer-events: none;
 }
 
 /* iPhone-homescreen wiggle: every other card in the grid jiggles in place
