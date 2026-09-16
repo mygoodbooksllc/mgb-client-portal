@@ -1019,6 +1019,37 @@ body {
   }
 }
 
+/* Same hold-then-fade shape as .card-flash, but for a single row (a table
+   row, a message bubble) that a global-search result scrolled to — a ring
+   would be lost inside a table, so this tints the row's background instead.
+   Uses the same 2600ms/CARD_FLASH_HOLD_MS timing so the class is removed
+   right as the fade finishes. */
+@keyframes rowFlash {
+  0% {
+    background-color: rgba(199, 174, 134, 0);
+  }
+  8% {
+    background-color: rgba(199, 174, 134, 0.28);
+  }
+  80% {
+    background-color: rgba(199, 174, 134, 0.28);
+  }
+  100% {
+    background-color: rgba(199, 174, 134, 0);
+  }
+}
+
+.row-flash {
+  animation: rowFlash 2600ms ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .row-flash {
+    animation: none;
+    background-color: rgba(199, 174, 134, 0.28);
+  }
+}
+
 .kpi-label {
   font-size: 12.5px;
   color: var(--text-muted);

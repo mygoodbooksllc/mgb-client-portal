@@ -1084,3 +1084,32 @@ the cash-floor setting) and `receivables.list` (row-level backing for the Collec
 are optional so a consumer of this component that doesn't supply them (or the standalone
 prototype's own sample data, now filled in for both) still renders correctly, just without the
 alert/collections features. `MGB_VERSION` bumped to `2026-09-16x`.
+
+## §25 — Global search results jump to and highlight the exact row
+
+Previously a search result click only navigated to the right tab and left the client to scan the
+whole page for what they searched. Now it scrolls straight to the matching row and flashes it,
+reusing the same `useCardFlash`/`.card-flash` mechanism KPI click-to-jump already uses elsewhere
+in the app — just with a new `.row-flash` variant (background-color tint instead of a box-shadow
+ring, since a ring reads poorly around a single table row) sharing the same 2600ms hold-then-fade
+timing.
+
+- `GlobalSearch`'s result builder now attaches a `highlightKey` to every result (and `accountId`
+  for bank transactions, since a transaction only exists in the DOM once its account tab is
+  active): `"tx-" + i`, `"budget-row-" + slugify(category)`, `"doc-row-" + slugify(name)`,
+  `"msg-" + i`. Clicking a result calls the existing `onNavigate` (tab switch) plus a new
+  `onHighlightResult` prop.
+- `App` holds a `searchTarget` state (`{ ...result, nonce }` — the nonce forces the effect on the
+  receiving page to re-fire even if the same row is clicked twice), passed down only to the four
+  pages that can act on it (`BudgetPage`, `BankPage`, `DocumentsPage`, `MessagesPage`), each only
+  when `searchTarget.page` matches that page's own key.
+- Each of those four pages gained (or reused, for `BudgetPage`, which already had one for its KPI
+  jump) a `useCardFlash()` instance, an effect that calls `jumpToCard` when `searchTarget.nonce`
+  changes, and `id`/flash-class wiring on the actual row. `BankPage` additionally switches
+  `activeAccountId` first when the hit belongs to a different account tab than the one currently
+  open, in a separate effect, before the scroll/flash effect fires.
+- Messages didn't need a thread-switch step: `GlobalSearch` only ever searches the currently open
+  thread's messages (a pre-existing scoping choice, not something this changed), so a message hit
+  is always already on the right conversation.
+
+`MGB_VERSION` bumped to `2026-09-16y`.
