@@ -736,3 +736,37 @@ instances plus the gear to SVG would be a much larger, separate refactor for som
 wasn't actually causing the reported problem — flagged rather than done speculatively; say the
 word if full icon consistency there is wanted too.
 `MGB_VERSION` bumped to `2026-09-16i`.
+
+---
+
+## 14. Update, 2026-09-16 (later): gear/sliders icon swap, and count-up scope changed
+
+- ⚙ (the gear next to "Manage access" and "Customize dashboard") turned out to still render as
+  a colorful emoji on the user's actual device despite having no Unicode variation selector —
+  the "default text presentation" rule isn't honored by every font/platform in practice.
+  Replaced with `GearIcon`, same house style. `MGB_VERSION` → `2026-09-16j`.
+- Asked for alternatives to the gear specifically on "Customize dashboard." Published a quick
+  Artifact comparing six options (sliders, grid, pencil, layers, drag-dots, the gear) in the
+  real button style rather than describing them in text — picked **sliders**. `SlidersIcon`
+  added; "Customize dashboard" uses it, "Manage access" keeps the gear. `MGB_VERSION` →
+  `2026-09-16k`.
+- **Reported "the numbers stopped counting up."** Checked git history first — `countUpArmed`
+  (the count-up gating logic) had been touched by exactly one commit in the repo's entire
+  history: the one that introduced it. None of the session's other work had touched it; nothing
+  was accidentally broken. The actual, unchanged-since-before behavior: numbers only ever
+  counted up on the very first page landed on after a fresh load, then stayed silent for the
+  rest of that session — a deliberate fix from earlier (§ recorded in an earlier handoff) for
+  the animation re-firing (and looking like jitter) on every tab click. Asked directly whether
+  to keep that scope or widen it — **answer: animate every time, no exceptions.**
+  - Removed the disarm-on-navigation effect and the `countUpArmed`/`countUpTeardown`/
+    `countUpFirstPage` refs entirely, rather than just loosening the condition — they're not
+    needed: each page is conditionally rendered (`effectivePage === "x" && <Page />`), so
+    switching pages or clients already mounts brand-new DOM nodes every time, which the
+    existing `MutationObserver` scan picks up and animates fresh regardless. The only thing
+    preventing that from already happening was the deliberate disarm logic — deleting it was
+    sufficient, no new mechanism needed.
+  - Worth knowing since it's a reversion of a considered decision: if "every number resets to
+    $0 and counts up on every single tab click" starts feeling like jitter/noise again (the
+    original complaint that led to the disarm logic in the first place), that's the tradeoff
+    being knowingly taken here at the user's explicit request, not a fresh bug.
+  - `MGB_VERSION` → `2026-09-16l`.

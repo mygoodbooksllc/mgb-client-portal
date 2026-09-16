@@ -6115,11 +6115,6 @@ function App({ staffUser, onSignOut }) {
   // open, per initialPage's refresh-vs-fresh-open distinction below.
   const [selectedClientId, setSelectedClientId] = useState(() => loadSelectedClientId() || "riverside-pantry");
   const [page, setPage] = useState(initialPage);
-  // Count-up gating (see the effect further down). Armed for the page the user
-  // lands on, disarmed the moment they navigate away from it.
-  const countUpArmed = useRef(true);
-  const countUpTeardown = useRef(null);
-  const countUpFirstPage = useRef(true);
   const [tabConfig, setTabConfig] = useState(loadTabConfig);
   const [tabOrder, setTabOrder] = useState(loadTabOrder);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -6550,11 +6545,13 @@ function App({ staffUser, onSignOut }) {
   // untouched. A value with no number in it (e.g. a runway ring reading
   // "Healthy") is simply left alone.
   //
-  // It runs for the opening moments only. It used to fire on every page swap
-  // too, because React mounts fresh nodes each time — so every tab change made
-  // the whole dashboard spin up from $0 before it could be read. Durations
-  // were also randomised per number, which landed figures in the same KPI row
-  // at different times and read as jitter; they're uniform now.
+  // Runs for the life of the whole session, not just the opening moments —
+  // every page swap mounts fresh KPI/stat DOM nodes (each page component is
+  // conditionally rendered, not kept alive off-screen), so the same
+  // MutationObserver-driven scan that catches the first page's numbers
+  // catches every later page's too, with no separate re-arming needed.
+  // Durations are uniform (not randomised per number) so figures in the same
+  // KPI row don't land at visibly different times and read as jitter.
   useEffect(() => {
     const seen = new WeakSet();
     const animate = (textNode, prefix, suffix, target, decimals) => {
@@ -6570,7 +6567,6 @@ function App({ staffUser, onSignOut }) {
       requestAnimationFrame(frame);
     };
     const trigger = (el) => {
-      if (!countUpArmed.current) return;
       const candidates = Array.from(el.childNodes).filter((n) => n.nodeType === Node.TEXT_NODE && n.data.trim());
       const textNode = candidates.find((n) => /\d/.test(n.data)) || candidates[0];
       if (!textNode) return;
@@ -6598,36 +6594,11 @@ function App({ staffUser, onSignOut }) {
     scan();
     const mo = new MutationObserver(scan);
     mo.observe(document.body, { childList: true, subtree: true });
-    // Handed to the disarm effect below so it can stop watching the document
-    // once there's nothing left to animate.
-    countUpTeardown.current = () => {
-      io.disconnect();
-      mo.disconnect();
-    };
     return () => {
       io.disconnect();
       mo.disconnect();
     };
   }, []);
-
-  // Disarm on the first navigation. This used to be a 2s wall clock, which
-  // quietly killed the animation on the real site: a cold load saturates the
-  // main thread right after mount (Babel has just compiled the app, React is
-  // rendering the whole dashboard), IntersectionObserver callbacks are only
-  // delivered once that work lets go, and past the deadline every number was
-  // skipped and rendered flat. Localhost with a warm cache was always fast
-  // enough to hide it. Nothing here depends on how long the first paint takes.
-  useEffect(() => {
-    if (countUpFirstPage.current) {
-      countUpFirstPage.current = false;
-      return;
-    }
-    countUpArmed.current = false;
-    if (countUpTeardown.current) {
-      countUpTeardown.current();
-      countUpTeardown.current = null;
-    }
-  }, [page]);
 
   // Greet whoever's actually being previewed; otherwise fall back to the
   // client's first listed contact, since that's who'd land on this portal.
