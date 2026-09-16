@@ -4402,6 +4402,14 @@ function BookkeeperHomePage({ staffUser, clients, messagesByClient, readMessageC
   const [editingNoteFor, setEditingNoteFor] = useState(null); // client object, or null
   const [noteDraft, setNoteDraft] = useState("");
   const [savingNote, setSavingNote] = useState(false);
+  // Briefly true right after the "Your clients" KPI jumps down to this
+  // card, to draw the eye to where the scroll landed — cleared on a timer
+  // matching the CSS animation's own duration (see .card-flash), not on
+  // animationend, since the class is also removed before the animation
+  // would naturally replay if the KPI is clicked again mid-flash.
+  const [flashClients, setFlashClients] = useState(false);
+  const flashTimeoutRef = useRef(null);
+  useEffect(() => () => clearTimeout(flashTimeoutRef.current), []);
   const [clientSearch, setClientSearch] = useState("");
 
   const loadReminders = useCallback(() => {
@@ -4607,6 +4615,9 @@ function BookkeeperHomePage({ staffUser, clients, messagesByClient, readMessageC
               : () => {
                   const el = document.getElementById("home-your-clients-card");
                   if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+                  if (flashTimeoutRef.current) clearTimeout(flashTimeoutRef.current);
+                  setFlashClients(true);
+                  flashTimeoutRef.current = setTimeout(() => setFlashClients(false), 900);
                 };
             const Tag = jumpToClients ? "button" : "div";
             return (
@@ -4759,7 +4770,12 @@ function BookkeeperHomePage({ staffUser, clients, messagesByClient, readMessageC
             );
           if (id === "your-clients")
             return (
-              <div className={"card " + drag.dragClass(id)} key={id} id="home-your-clients-card" {...drag.dragProps(id)}>
+              <div
+                className={"card " + (flashClients ? "card-flash " : "") + drag.dragClass(id)}
+                key={id}
+                id="home-your-clients-card"
+                {...drag.dragProps(id)}
+              >
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", flexWrap: "wrap", gap: 8 }}>
                   <div>
                     <h3 className="card-title">Your clients</h3>
