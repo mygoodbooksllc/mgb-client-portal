@@ -1,0 +1,7 @@
+{
+  "version": 3,
+  "sources": ["../src/DownloadIcon.tsx"],
+  "sourcesContent": ["import React from \"react\";\n\nexport type DownloadIconProps = React.SVGProps<SVGSVGElement>;\n\n/** Download arrow. Thin-line, `stroke=\"currentColor\"` house style. Sidebar's Reports link. */\nexport function DownloadIcon(props: DownloadIconProps) {\n  return (\n    <svg\n      width=\"16\"\n      height=\"16\"\n      viewBox=\"0 0 24 24\"\n      fill=\"none\"\n      stroke=\"currentColor\"\n      strokeWidth=\"1.8\"\n      strokeLinecap=\"round\"\n      strokeLinejoin=\"round\"\n      {...props}\n    >\n      <path d=\"M12 3v13M7 12l5 5 5-5\" />\n      <path d=\"M4 20h16\" />\n    </svg>\n  );\n}\n"],
+  "mappings": ";AAOI,SAWE,KAXF;AAFG,SAAS,aAAa,OAA0B;AACrD,SACE;AAAA,IAAC;AAAA;AAAA,MACC,OAAM;AAAA,MACN,QAAO;AAAA,MACP,SAAQ;AAAA,MACR,MAAK;AAAA,MACL,QAAO;AAAA,MACP,aAAY;AAAA,MACZ,eAAc;AAAA,MACd,gBAAe;AAAA,MACd,GAAG;AAAA,MAEJ;AAAA,4BAAC,UAAK,GAAE,yBAAwB;AAAA,QAChC,oBAAC,UAAK,GAAE,YAAW;AAAA;AAAA;AAAA,EACrB;AAEJ;",
+  "names": []
+}

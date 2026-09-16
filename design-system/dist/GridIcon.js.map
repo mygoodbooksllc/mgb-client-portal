@@ -1,0 +1,7 @@
+{
+  "version": 3,
+  "sources": ["../src/GridIcon.tsx"],
+  "sourcesContent": ["import React from \"react\";\n\nexport type GridIconProps = React.SVGProps<SVGSVGElement>;\n\n/** Four-square grid. Thin-line, `stroke=\"currentColor\"` house style. Sidebar's Dashboard link. */\nexport function GridIcon(props: GridIconProps) {\n  return (\n    <svg\n      width=\"16\"\n      height=\"16\"\n      viewBox=\"0 0 24 24\"\n      fill=\"none\"\n      stroke=\"currentColor\"\n      strokeWidth=\"1.8\"\n      strokeLinecap=\"round\"\n      strokeLinejoin=\"round\"\n      {...props}\n    >\n      <rect x=\"3.5\" y=\"3.5\" width=\"7\" height=\"7\" rx=\"1.3\" />\n      <rect x=\"13.5\" y=\"3.5\" width=\"7\" height=\"7\" rx=\"1.3\" />\n      <rect x=\"3.5\" y=\"13.5\" width=\"7\" height=\"7\" rx=\"1.3\" />\n      <rect x=\"13.5\" y=\"13.5\" width=\"7\" height=\"7\" rx=\"1.3\" />\n    </svg>\n  );\n}\n"],
+  "mappings": ";AAOI,SAWE,KAXF;AAFG,SAAS,SAAS,OAAsB;AAC7C,SACE;AAAA,IAAC;AAAA;AAAA,MACC,OAAM;AAAA,MACN,QAAO;AAAA,MACP,SAAQ;AAAA,MACR,MAAK;AAAA,MACL,QAAO;AAAA,MACP,aAAY;AAAA,MACZ,eAAc;AAAA,MACd,gBAAe;AAAA,MACd,GAAG;AAAA,MAEJ;AAAA,4BAAC,UAAK,GAAE,OAAM,GAAE,OAAM,OAAM,KAAI,QAAO,KAAI,IAAG,OAAM;AAAA,QACpD,oBAAC,UAAK,GAAE,QAAO,GAAE,OAAM,OAAM,KAAI,QAAO,KAAI,IAAG,OAAM;AAAA,QACrD,oBAAC,UAAK,GAAE,OAAM,GAAE,QAAO,OAAM,KAAI,QAAO,KAAI,IAAG,OAAM;AAAA,QACrD,oBAAC,UAAK,GAAE,QAAO,GAAE,QAAO,OAAM,KAAI,QAAO,KAAI,IAAG,OAAM;AAAA;AAAA;AAAA,EACxD;AAEJ;",
+  "names": []
+}

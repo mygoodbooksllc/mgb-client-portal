@@ -4202,7 +4202,9 @@ body.rb-presenting .main {
 /* ---------------- Staff Access (admin) ---------------- */
 
 .staff-access-link {
-  display: block;
+  display: flex;
+  align-items: center;
+  gap: 9px;
   width: 100%;
   text-align: left;
   background: none;
@@ -4215,6 +4217,10 @@ body.rb-presenting .main {
   padding: 8px;
   margin-bottom: 8px;
   border-radius: 8px;
+}
+
+.staff-access-link svg {
+  flex-shrink: 0;
 }
 
 .staff-access-link:hover {

@@ -1,0 +1,7 @@
+{
+  "version": 3,
+  "sources": ["../src/CalculatorIcon.tsx"],
+  "sourcesContent": ["import React from \"react\";\n\nexport type CalculatorIconProps = React.SVGProps<SVGSVGElement>;\n\n/** Calculator. Thin-line, `stroke=\"currentColor\"` house style. Sidebar's Budgeting Tool link. */\nexport function CalculatorIcon(props: CalculatorIconProps) {\n  return (\n    <svg\n      width=\"16\"\n      height=\"16\"\n      viewBox=\"0 0 24 24\"\n      fill=\"none\"\n      stroke=\"currentColor\"\n      strokeWidth=\"1.8\"\n      strokeLinecap=\"round\"\n      strokeLinejoin=\"round\"\n      {...props}\n    >\n      <rect x=\"5\" y=\"3\" width=\"14\" height=\"18\" rx=\"2\" />\n      <path d=\"M8 8h8M8 12h1M12 12h1M16 12h1M8 16h1M12 16h1M16 16h1\" />\n    </svg>\n  );\n}\n"],
+  "mappings": ";AAOI,SAWE,KAXF;AAFG,SAAS,eAAe,OAA4B;AACzD,SACE;AAAA,IAAC;AAAA;AAAA,MACC,OAAM;AAAA,MACN,QAAO;AAAA,MACP,SAAQ;AAAA,MACR,MAAK;AAAA,MACL,QAAO;AAAA,MACP,aAAY;AAAA,MACZ,eAAc;AAAA,MACd,gBAAe;AAAA,MACd,GAAG;AAAA,MAEJ;AAAA,4BAAC,UAAK,GAAE,KAAI,GAAE,KAAI,OAAM,MAAK,QAAO,MAAK,IAAG,KAAI;AAAA,QAChD,oBAAC,UAAK,GAAE,wDAAuD;AAAA;AAAA;AAAA,EACjE;AAEJ;",
+  "names": []
+}

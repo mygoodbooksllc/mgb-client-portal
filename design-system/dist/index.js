@@ -530,31 +530,315 @@ function LightbulbIcon(props) {
     }
   );
 }
+
+// src/HomeIcon.tsx
+import { jsx as jsx23, jsxs as jsxs19 } from "react/jsx-runtime";
+function HomeIcon(props) {
+  return /* @__PURE__ */ jsxs19(
+    "svg",
+    {
+      width: "16",
+      height: "16",
+      viewBox: "0 0 24 24",
+      fill: "none",
+      stroke: "currentColor",
+      strokeWidth: "1.8",
+      strokeLinecap: "round",
+      strokeLinejoin: "round",
+      ...props,
+      children: [
+        /* @__PURE__ */ jsx23("path", { d: "M4 11.5L12 4l8 7.5" }),
+        /* @__PURE__ */ jsx23("path", { d: "M6 10v9h12v-9" })
+      ]
+    }
+  );
+}
+
+// src/UsersIcon.tsx
+import { jsx as jsx24, jsxs as jsxs20 } from "react/jsx-runtime";
+function UsersIcon(props) {
+  return /* @__PURE__ */ jsxs20(
+    "svg",
+    {
+      width: "16",
+      height: "16",
+      viewBox: "0 0 24 24",
+      fill: "none",
+      stroke: "currentColor",
+      strokeWidth: "1.8",
+      strokeLinecap: "round",
+      strokeLinejoin: "round",
+      ...props,
+      children: [
+        /* @__PURE__ */ jsx24("circle", { cx: "9", cy: "8", r: "3" }),
+        /* @__PURE__ */ jsx24("path", { d: "M2 20c0-3.5 3-6 7-6s7 2.5 7 6" }),
+        /* @__PURE__ */ jsx24("path", { d: "M16 8a3 3 0 100-6" }),
+        /* @__PURE__ */ jsx24("path", { d: "M22 20c0-2.8-2-5-5-5.7" })
+      ]
+    }
+  );
+}
+
+// src/ClientRosterIcon.tsx
+import { jsx as jsx25, jsxs as jsxs21 } from "react/jsx-runtime";
+function ClientRosterIcon(props) {
+  return /* @__PURE__ */ jsxs21(
+    "svg",
+    {
+      width: "16",
+      height: "16",
+      viewBox: "0 0 24 24",
+      fill: "none",
+      stroke: "currentColor",
+      strokeWidth: "1.8",
+      strokeLinecap: "round",
+      strokeLinejoin: "round",
+      ...props,
+      children: [
+        /* @__PURE__ */ jsx25("rect", { x: "3", y: "4", width: "18", height: "16", rx: "2" }),
+        /* @__PURE__ */ jsx25("path", { d: "M3 9h18M8 4v5" })
+      ]
+    }
+  );
+}
+
+// src/GridIcon.tsx
+import { jsx as jsx26, jsxs as jsxs22 } from "react/jsx-runtime";
+function GridIcon(props) {
+  return /* @__PURE__ */ jsxs22(
+    "svg",
+    {
+      width: "16",
+      height: "16",
+      viewBox: "0 0 24 24",
+      fill: "none",
+      stroke: "currentColor",
+      strokeWidth: "1.8",
+      strokeLinecap: "round",
+      strokeLinejoin: "round",
+      ...props,
+      children: [
+        /* @__PURE__ */ jsx26("rect", { x: "3.5", y: "3.5", width: "7", height: "7", rx: "1.3" }),
+        /* @__PURE__ */ jsx26("rect", { x: "13.5", y: "3.5", width: "7", height: "7", rx: "1.3" }),
+        /* @__PURE__ */ jsx26("rect", { x: "3.5", y: "13.5", width: "7", height: "7", rx: "1.3" }),
+        /* @__PURE__ */ jsx26("rect", { x: "13.5", y: "13.5", width: "7", height: "7", rx: "1.3" })
+      ]
+    }
+  );
+}
+
+// src/PieChartIcon.tsx
+import { jsx as jsx27, jsxs as jsxs23 } from "react/jsx-runtime";
+function PieChartIcon(props) {
+  return /* @__PURE__ */ jsxs23(
+    "svg",
+    {
+      width: "16",
+      height: "16",
+      viewBox: "0 0 24 24",
+      fill: "none",
+      stroke: "currentColor",
+      strokeWidth: "1.8",
+      strokeLinecap: "round",
+      strokeLinejoin: "round",
+      ...props,
+      children: [
+        /* @__PURE__ */ jsx27("path", { d: "M12 12V3a9 9 0 019 9h-9z" }),
+        /* @__PURE__ */ jsx27("path", { d: "M20.5 15A9 9 0 1112 3v9l8.5 3z" })
+      ]
+    }
+  );
+}
+
+// src/BankIcon.tsx
+import { jsx as jsx28, jsxs as jsxs24 } from "react/jsx-runtime";
+function BankIcon(props) {
+  return /* @__PURE__ */ jsxs24(
+    "svg",
+    {
+      width: "16",
+      height: "16",
+      viewBox: "0 0 24 24",
+      fill: "none",
+      stroke: "currentColor",
+      strokeWidth: "1.8",
+      strokeLinecap: "round",
+      strokeLinejoin: "round",
+      ...props,
+      children: [
+        /* @__PURE__ */ jsx28("path", { d: "M3 10l9-6 9 6" }),
+        /* @__PURE__ */ jsx28("path", { d: "M5 10v9M10 10v9M14 10v9M19 10v9" }),
+        /* @__PURE__ */ jsx28("path", { d: "M3 19h18" })
+      ]
+    }
+  );
+}
+
+// src/SwapIcon.tsx
+import { jsx as jsx29 } from "react/jsx-runtime";
+function SwapIcon(props) {
+  return /* @__PURE__ */ jsx29(
+    "svg",
+    {
+      width: "16",
+      height: "16",
+      viewBox: "0 0 24 24",
+      fill: "none",
+      stroke: "currentColor",
+      strokeWidth: "1.8",
+      strokeLinecap: "round",
+      strokeLinejoin: "round",
+      ...props,
+      children: /* @__PURE__ */ jsx29("path", { d: "M7 7h11l-3-3M17 17H6l3 3" })
+    }
+  );
+}
+
+// src/CalculatorIcon.tsx
+import { jsx as jsx30, jsxs as jsxs25 } from "react/jsx-runtime";
+function CalculatorIcon(props) {
+  return /* @__PURE__ */ jsxs25(
+    "svg",
+    {
+      width: "16",
+      height: "16",
+      viewBox: "0 0 24 24",
+      fill: "none",
+      stroke: "currentColor",
+      strokeWidth: "1.8",
+      strokeLinecap: "round",
+      strokeLinejoin: "round",
+      ...props,
+      children: [
+        /* @__PURE__ */ jsx30("rect", { x: "5", y: "3", width: "14", height: "18", rx: "2" }),
+        /* @__PURE__ */ jsx30("path", { d: "M8 8h8M8 12h1M12 12h1M16 12h1M8 16h1M12 16h1M16 16h1" })
+      ]
+    }
+  );
+}
+
+// src/StackedBillsIcon.tsx
+import { jsx as jsx31, jsxs as jsxs26 } from "react/jsx-runtime";
+function StackedBillsIcon(props) {
+  return /* @__PURE__ */ jsxs26(
+    "svg",
+    {
+      width: "16",
+      height: "16",
+      viewBox: "0 0 24 24",
+      fill: "none",
+      stroke: "currentColor",
+      strokeWidth: "1.8",
+      strokeLinecap: "round",
+      strokeLinejoin: "round",
+      ...props,
+      children: [
+        /* @__PURE__ */ jsx31("rect", { x: "4", y: "4", width: "14", height: "10", rx: "1.5" }),
+        /* @__PURE__ */ jsx31("rect", { x: "7", y: "9", width: "14", height: "10", rx: "1.5" })
+      ]
+    }
+  );
+}
+
+// src/DownloadIcon.tsx
+import { jsx as jsx32, jsxs as jsxs27 } from "react/jsx-runtime";
+function DownloadIcon(props) {
+  return /* @__PURE__ */ jsxs27(
+    "svg",
+    {
+      width: "16",
+      height: "16",
+      viewBox: "0 0 24 24",
+      fill: "none",
+      stroke: "currentColor",
+      strokeWidth: "1.8",
+      strokeLinecap: "round",
+      strokeLinejoin: "round",
+      ...props,
+      children: [
+        /* @__PURE__ */ jsx32("path", { d: "M12 3v13M7 12l5 5 5-5" }),
+        /* @__PURE__ */ jsx32("path", { d: "M4 20h16" })
+      ]
+    }
+  );
+}
+
+// src/GiftHeartIcon.tsx
+import { jsx as jsx33 } from "react/jsx-runtime";
+function GiftHeartIcon(props) {
+  return /* @__PURE__ */ jsx33(
+    "svg",
+    {
+      width: "16",
+      height: "16",
+      viewBox: "0 0 24 24",
+      fill: "none",
+      stroke: "currentColor",
+      strokeWidth: "1.8",
+      strokeLinecap: "round",
+      strokeLinejoin: "round",
+      ...props,
+      children: /* @__PURE__ */ jsx33("path", { d: "M12 21s-7-4.5-9.5-9A5 5 0 0112 6a5 5 0 019.5 6c-2.5 4.5-9.5 9-9.5 9z" })
+    }
+  );
+}
+
+// src/FolderIcon.tsx
+import { jsx as jsx34 } from "react/jsx-runtime";
+function FolderIcon(props) {
+  return /* @__PURE__ */ jsx34(
+    "svg",
+    {
+      width: "16",
+      height: "16",
+      viewBox: "0 0 24 24",
+      fill: "none",
+      stroke: "currentColor",
+      strokeWidth: "1.8",
+      strokeLinecap: "round",
+      strokeLinejoin: "round",
+      ...props,
+      children: /* @__PURE__ */ jsx34("path", { d: "M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V7z" })
+    }
+  );
+}
 export {
   AccountCashDonut,
   Badge,
+  BankIcon,
   BarChartIcon,
   Button,
+  CalculatorIcon,
   Card,
   CardSubtitle,
   CardTitle,
   ChatIcon,
+  ClientRosterIcon,
   DocumentIcon,
+  DownloadIcon,
   FlaskIcon,
+  FolderIcon,
+  GiftHeartIcon,
+  GridIcon,
+  HomeIcon,
   IncomeExpenseChart,
   LightbulbIcon,
   LockIcon,
   MockBanner,
   MoonIcon,
   PaperclipIcon,
+  PieChartIcon,
   ReportBarRows,
   RunwayRing,
   SearchIcon,
   ShieldCheckIcon,
   SlidersIcon,
+  StackedBillsIcon,
   SunIcon,
+  SwapIcon,
   ToastProvider,
   TrendPill,
+  UsersIcon,
   WarningIcon,
   fmtMoney,
   useToast

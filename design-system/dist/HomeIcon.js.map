@@ -1,0 +1,7 @@
+{
+  "version": 3,
+  "sources": ["../src/HomeIcon.tsx"],
+  "sourcesContent": ["import React from \"react\";\n\nexport type HomeIconProps = React.SVGProps<SVGSVGElement>;\n\n/** House. Thin-line, `stroke=\"currentColor\"` house style. Sidebar's Home link. */\nexport function HomeIcon(props: HomeIconProps) {\n  return (\n    <svg\n      width=\"16\"\n      height=\"16\"\n      viewBox=\"0 0 24 24\"\n      fill=\"none\"\n      stroke=\"currentColor\"\n      strokeWidth=\"1.8\"\n      strokeLinecap=\"round\"\n      strokeLinejoin=\"round\"\n      {...props}\n    >\n      <path d=\"M4 11.5L12 4l8 7.5\" />\n      <path d=\"M6 10v9h12v-9\" />\n    </svg>\n  );\n}\n"],
+  "mappings": ";AAOI,SAWE,KAXF;AAFG,SAAS,SAAS,OAAsB;AAC7C,SACE;AAAA,IAAC;AAAA;AAAA,MACC,OAAM;AAAA,MACN,QAAO;AAAA,MACP,SAAQ;AAAA,MACR,MAAK;AAAA,MACL,QAAO;AAAA,MACP,aAAY;AAAA,MACZ,eAAc;AAAA,MACd,gBAAe;AAAA,MACd,GAAG;AAAA,MAEJ;AAAA,4BAAC,UAAK,GAAE,sBAAqB;AAAA,QAC7B,oBAAC,UAAK,GAAE,iBAAgB;AAAA;AAAA;AAAA,EAC1B;AAEJ;",
+  "names": []
+}

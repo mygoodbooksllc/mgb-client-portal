@@ -1,0 +1,7 @@
+{
+  "version": 3,
+  "sources": ["../src/SwapIcon.tsx"],
+  "sourcesContent": ["import React from \"react\";\n\nexport type SwapIconProps = React.SVGProps<SVGSVGElement>;\n\n/** Two crossing arrows. Thin-line, `stroke=\"currentColor\"` house style.\n * Sidebar's Receivables & Payables link \u2014 money moving both directions. */\nexport function SwapIcon(props: SwapIconProps) {\n  return (\n    <svg\n      width=\"16\"\n      height=\"16\"\n      viewBox=\"0 0 24 24\"\n      fill=\"none\"\n      stroke=\"currentColor\"\n      strokeWidth=\"1.8\"\n      strokeLinecap=\"round\"\n      strokeLinejoin=\"round\"\n      {...props}\n    >\n      <path d=\"M7 7h11l-3-3M17 17H6l3 3\" />\n    </svg>\n  );\n}\n"],
+  "mappings": ";AAmBM;AAbC,SAAS,SAAS,OAAsB;AAC7C,SACE;AAAA,IAAC;AAAA;AAAA,MACC,OAAM;AAAA,MACN,QAAO;AAAA,MACP,SAAQ;AAAA,MACR,MAAK;AAAA,MACL,QAAO;AAAA,MACP,aAAY;AAAA,MACZ,eAAc;AAAA,MACd,gBAAe;AAAA,MACd,GAAG;AAAA,MAEJ,8BAAC,UAAK,GAAE,4BAA2B;AAAA;AAAA,EACrC;AAEJ;",
+  "names": []
+}

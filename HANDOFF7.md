@@ -849,3 +849,31 @@ ported to the design system
 Also asked for, not yet done: icon **options** for each sidebar nav item (the sidebar currently
 shows a plain dot next to each tab, no icon at all) — next up, as a visual comparison rather
 than guessing which icon fits which tab.
+
+---
+
+## 17. Update, 2026-09-16 (night): icons on every sidebar tab
+
+Published a mockup (real sidebar, all sections, Home/Staff Access/Client Roster included) with
+one icon proposed per tab, plus alternates for four tabs that had more than one reasonable
+option (Budgeting Tool, AP Command Center, Receivables & Payables, Reports). Picked: the
+alternate "C" for Budgeting Tool (calculator, not shield-check) and AP Command Center (stacked
+bills, not checklist), alternate "B" for Reports (download arrow, not folded-corner doc), and
+the originally-proposed icon everywhere else.
+
+- 12 new icon components (`HomeIcon`, `UsersIcon`, `ClientRosterIcon`, `GridIcon`,
+  `PieChartIcon`, `BankIcon`, `SwapIcon`, `CalculatorIcon`, `StackedBillsIcon`, `DownloadIcon`,
+  `GiftHeartIcon`, `FolderIcon`), same thin-line house style as everything else. `ChatIcon` and
+  `DocumentIcon`/`BarChartIcon` (from the icon-porting work earlier today) got reused rather
+  than duplicated — same icon for Messages/Daily Report/Report Builder in both the sidebar and
+  their original spots.
+- `NAV_SECTIONS` items each carry an `icon` field now (a JSX element); the nav-item button
+  renders it before the label. Home/Staff Access/Client Roster's own buttons (rendered
+  separately, above the main nav) got icons the same way. `.staff-access-link` switched from
+  `display: block` to a flex row so its icon and label sit side by side.
+- All 12 new icons also ported into the `mygoodbooks-ds` design-system package, same as the
+  rest of the icon set — `design-system/dist/` rebuilt, README updated with the full sidebar
+  icon list.
+- Confirmed via a follow-up screenshot that the earlier paperclip-emoji fix is genuinely live
+  (was a stale-cache concern, not a real regression — see §16).
+- `MGB_VERSION` bumped to `2026-09-16q`.
