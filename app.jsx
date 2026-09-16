@@ -645,7 +645,7 @@ function Sidebar({
                       onCloseMobile();
                     }}
                   >
-                    <span>Report Builder, Budgeting Tool &amp; Cash Flow Pro</span>
+                    <span>Premium tools</span>
                     <span className="nav-signature-badge">Premium</span>
                     <LockIcon className="nav-upsell-icon" />
                   </button>
