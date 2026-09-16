@@ -1296,6 +1296,8 @@ body {
   align-items: start;
 }
 
+.rb-panel { position: sticky; top: 20px; }
+
 @media (max-width: 900px) {
   .rb-layout { grid-template-columns: 1fr; }
   /* Sticky only makes sense in the two-column desktop layout, where the
@@ -1304,11 +1306,14 @@ body {
      the panel (with the Live Preview card at its bottom) was instead
      riding along pinned near the top of the viewport as the page scrolled,
      then releasing abruptly once its own content passed — reading as the
-     bottom card sliding up too far. */
+     bottom card sliding up too far.
+     MUST come after the unconditional `.rb-panel` rule above: two rules of
+     equal specificity where both conditions are true resolve by source
+     order, not by which one "sounds like" the override — putting this
+     media query first (as an earlier attempt did) meant the plain rule
+     below it always won on mobile too, silently no-op'ing this block. */
   .rb-panel { position: static; top: auto; }
 }
-
-.rb-panel { position: sticky; top: 20px; }
 
 .rb-panel-sub { font-size: 12.5px; color: var(--text-muted); margin: 0 0 18px 0; }
 
