@@ -611,3 +611,78 @@ than three curated screenshots did.
 **Also renamed the same day: "Client Access" → "Client Roster."** Sidebar link and page title
 only — the internal page key (`client-access`) and the `ClientAccessPage` component name are
 unchanged, so this was a display-label-only edit. `MGB_VERSION` bumped to `2026-09-15g`.
+
+---
+
+## 13. Update, 2026-09-16: the real-device touch check (§5 item, finally done), and touch
+drag-and-drop replaced entirely
+
+Item 1 from HANDOFF5's original open list — a real phone, not emulation — finally happened.
+Found four real bugs, three of them clustered around the same feature.
+
+**First pass, three bugs from one screenshot + description (PRs #36–37, one fix-of-a-fix):**
+- Mobile topbar showed the last-selected client's name on Home/Staff Access/Client Roster,
+  none of which are about any client — same missing `effectivePage` check that the page-header
+  greeting already had elsewhere. Fixed.
+- Report Builder's config panel stayed `position: sticky` even in the single-column mobile
+  layout, reading as the bottom "Live Preview" card sliding up over the Sections checklist.
+  First attempt at disabling it on mobile (PR #36) put the `@media` override *before* the
+  unconditional `.rb-panel { position: sticky }` rule — two rules of equal specificity where
+  both conditions are true resolve by source order, not by which one reads as "the override,"
+  so the plain rule always won and the fix silently no-op'ed. A follow-up screenshot caught it
+  still broken; PR #37 reordered the rules correctly. Worth remembering: **CSS override order
+  bugs look identical to "the fix didn't work" until you check source order specifically.**
+- Mobile drag-and-drop picked cards up (jiggle mode engaged) but never reordered them.
+  Diagnosed as `document.elementFromPoint()` (the touch path's hit-test) finding the lifted
+  card itself instead of seeing through to whatever was actually under the finger, since the
+  lifted card doesn't move with the finger. Fixed with `pointer-events: none` on
+  `.card-dragging` — correct, but not sufficient, per below.
+
+**Then two more real bugs on the same feature, each only surfacing once the previous one was
+fixed (PRs #38–39):**
+- With the hit-test fixed, a long-press instead triggered iOS's text-selection highlight
+  before the drag's own timer ever got a shot at the gesture. `-webkit-touch-callout: none`
+  (already present) only suppresses the copy/share *menu* that follows a completed selection —
+  it does nothing about the selection itself. Added `user-select: none`.
+- With text selection suppressed, a long-press instead started a native page scroll. Real
+  cause: `touch-action` was left at its default until `.card-dragging` set it to `none`, but
+  that only applied *after* the 350ms long-press timer fired — and a real scroll gesture gets
+  recognized by the browser in well under 100ms, so native scroll was winning that race every
+  single time, no matter how still someone held their finger. Set `touch-action: none`
+  unconditionally on `.draggable-card` instead of only once picked up.
+
+**At that point the user asked a better question than "keep patching it": is there a
+non-drag option just for mobile?** Also flagged, separately, that the *other* drag-and-drop
+surface — the "Customize dashboard" widget picker modal — had never worked on touch either,
+for a much simpler reason: it only ever used plain HTML5 `draggable`, and HTML5 drag events
+are never fired from a touch on any mobile browser, full stop. Two different drag
+implementations, two different flavors of "doesn't work on touch," in the same feature.
+
+**Decision: stop trying to make touch drag-and-drop work, replace it.** Four real, distinct
+bugs in a row on the card-level touch drag — each one a genuine, separate root cause, not the
+same bug recurring — was the signal that reimplementing native drag-and-drop over touch
+(pointer capture + `elementFromPoint` hit-testing + a long-press timer racing the OS's own
+gesture recognizers) is fragile in a way that's realistically never fully closed out, only
+patched hole by hole. Replaced with something that can't have this whole class of bug at all:
+
+- **`useDragReorder` is now mouse-only.** All the touch-simulation code (pointer capture,
+  `elementFromPoint`, the long-press timer, the stuck-drag safety-net effect) is deleted
+  outright, not just disabled — it was pure liability once nothing used it. Desktop/mouse
+  drag-and-drop on the actual dashboard cards is completely unchanged.
+- **`useWidgetLayout` gained a `move(id, direction)` method** — swaps a widget with its
+  immediate neighbor, ±1. A plain swap, not the shift-based math `reorder()` needs, since a
+  button only ever acts on one already-adjacent step.
+- **The "Customize dashboard" modal (`WidgetPickerModal`) now has ▲▼ buttons on every row**,
+  using `layout.move()`. This is the one place a person on any device — mouse or touch —
+  reorders their dashboard/Home cards now; the modal's own mouse-drag-to-reorder is left in
+  place as a bonus for desktop, since it cost nothing to keep.
+- Reordering the actual cards in place (drag the card itself) is mouse-only now. Touch users
+  go through Customize dashboard's arrows instead. This is a real, deliberate scope reduction,
+  not a bug — flagging it in case "why can't I drag the card anymore on my phone" comes up:
+  that was never reliable to begin with, per the four bugs above.
+- `MGB_VERSION` bumped through `2026-09-16b` → `2026-09-16f` across this whole sequence.
+
+**Real-device check (§5 item 1) is now genuinely done** — it's what surfaced every bug in this
+section. Still outstanding from the original checklist: light-mode contrast on the gold text
+(§5 item 6, needs a human eye, can't be script-measured) and the Google Meet /
+Phase 2 items already tracked elsewhere in this document.

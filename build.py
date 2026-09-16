@@ -159,7 +159,7 @@ def build(out_path: pathlib.Path, refresh: bool) -> None:
 
 // Mirrors the stamp in index.html — bumped by hand alongside this file,
 // since there's no build step to inject a real commit SHA into.
-window.MGB_VERSION = {{ label: "2026-09-16e", note: "Fix: native scroll was winning the race against the drag long-press" }};
+window.MGB_VERSION = {{ label: "2026-09-16f", note: "Mobile reorder: move buttons replace touch drag-and-drop" }};
 
 // Mirrors index.html's pinch-block — see that file's comment for why this
 // is gesture-level (2+ touches) rather than touch-action CSS.
