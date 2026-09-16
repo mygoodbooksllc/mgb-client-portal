@@ -7178,9 +7178,22 @@ function App({ staffUser, onSignOut }) {
   }, [baseClient, userAccess]);
 
   // Switching client resets the preview — a person at one org is meaningless at another.
+  // Also lands on Dashboard for the newly-selected client (Live Report for a
+  // premium, full-access client; the plain Dashboard otherwise) rather than
+  // keeping whatever tab happened to be open for the PREVIOUS client — e.g.
+  // staying on Report Builder after switching to a standard-plan client that
+  // doesn't even have that tab. Skips its own first run so a page refresh
+  // still restores the last-viewed tab as before; this only fires on an
+  // actual client switch, after mount.
+  const skipFirstClientSwitch = useRef(true);
   useEffect(() => {
     setViewAsUserId(BOOKKEEPER_VIEW);
     setBookkeeperThreadUserId(null);
+    if (skipFirstClientSwitch.current) {
+      skipFirstClientSwitch.current = false;
+    } else {
+      setPage("dashboard");
+    }
   }, [selectedClientId]);
 
   // Only counts as "visiting" a client while actually looking at one of its

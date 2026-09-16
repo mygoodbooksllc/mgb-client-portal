@@ -1383,3 +1383,22 @@ and a bit more row padding.
   this.
 
 `MGB_VERSION` bumped to `2026-09-16am`.
+
+## §40 — Switching clients lands on Dashboard; sidebar order confirmed
+
+- **Sidebar order**: Dashboard already sits immediately below the Enterprise section (moved there
+  in §31/§32), so "Dashboard Live is the first tab under Enterprise" for a premium client was
+  already true structurally — checked, not changed. It can't literally live *inside* the
+  Enterprise section's own item list: that section's items are entirely replaced by a single
+  upsell button for standard-plan clients (`isSignature && !hasPremiumPlan(client)`), which would
+  make Dashboard vanish from a standard client's sidebar entirely if it were nested there.
+- **New behavior**: switching which client is selected now resets `page` to `"dashboard"` — this
+  app is browsed by staff via the client picker, not separate per-client client logins, so "first
+  page that loads for premium/standard clients" means what shows right after picking a different
+  client, not a distinct login flow per client. Previously the current tab carried over across a
+  client switch (e.g., staying on Report Builder after switching to a standard-plan client that
+  doesn't even have that tab). A `skipFirstClientSwitch` ref skips the very first run of this
+  effect (on mount) so a plain page refresh still restores the last-viewed tab as before — this
+  only fires on an actual switch.
+
+`MGB_VERSION` bumped to `2026-09-16an`.
