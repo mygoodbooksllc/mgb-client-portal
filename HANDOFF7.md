@@ -1039,3 +1039,118 @@ occurrences left in `components/daily-close/`.
   section now falls back to the same `margin-bottom: 2px` every other `.nav-section` uses.
 
 `MGB_VERSION` bumped to `2026-09-16w`.
+
+## §24 — Live Report gets the same "maximize it" treatment as AP Command Center
+
+Brainstormed what would make Live Report feel worth a premium price the same way AP Command
+Center's pay runs/vendor summary/duplicate detection did. User said build all of it.
+
+- **Click-to-jump KPI tiles.** Accounts Receivable jumps to the Receivables Aging panel below;
+  Net Income jumps to the Outlook section's Revenue Trend tab. Accounts Payable cross-navigates
+  to AP Command Center itself via a new optional `onNavigate` prop (wired to `setPage` at the
+  `<DailyClose />` call site in `app.jsx`) — full AP detail already lives there, so this points at
+  it instead of duplicating it. `onNavigate` is optional so the standalone prototype (which has
+  nowhere to navigate to) still renders the tile, just non-interactive (`disabled`).
+- **Cash on hand gets a threshold alert instead of a jump.** It's the one KPI tile that stayed a
+  `<div>` — nesting a button-triggered editor inside a `<button>` tile isn't valid HTML, and a
+  low-cash alert is a more useful interaction for that number than jumping somewhere anyway. An
+  "Alert" toggle opens an inline "Alert below $___" input; the threshold is stored in
+  `localStorage` per client (`mygoodbooks_cash_floor_v1:<clientId>`, same throwaway-per-browser
+  posture as `app.jsx`'s own `FEATURE_FLAGS`) and the tile gets a red outline + warning line once
+  today's cash total drops under it.
+- **Collections queue on Receivables Aging.** `fromClient.js` now also emits row-level
+  `receivables.list` (description/amount/due date/days overdue/aging tone) alongside the existing
+  bucket totals — the buckets alone had no individual line items to select from. Overdue rows get
+  checkboxes; "Draft Reminder" opens a `mailto:` draft (no recipient — the data has no customer
+  email field yet, so this hands off to the browser's own mail client for the client to address
+  themselves, same "real email you review and hit send on" posture as the staff-invite flow in
+  `app.jsx`) listing the selected balances and total.
+- **Anomaly review workflow.** Each "Needs a look" item gets a "Mark reviewed" / "Undo" toggle
+  (local component state, not persisted); reviewed items fade and sort to the bottom, so the list
+  reads as a working queue instead of a static log.
+- **One-click PDF snapshot.** "Download Live Report" in the masthead builds a PDF (KPI summary,
+  aging table, flagged items) using `window.jspdf` directly, styled to match the app's navy theme
+  (`rgb(5, 8, 13)`, same fix as the rest of the app's PDF exports) — this file is a separate
+  vendored component, so it builds its own small PDF rather than importing `app.jsx`'s
+  `PDF_TABLE_THEME`/`newReportDoc` (also avoids introducing a cross-file dependency into a
+  component whose module wiring is explicitly kept self-contained).
+- **Not built: a period comparison toggle.** The brainstormed "vs. last year" option needs a full
+  year of prior-period actuals; `client.monthly` only carries the trailing ~8 months, so a toggle
+  would either be disabled most of the time or fabricate numbers the app has no real basis for —
+  same reasoning that dropped recurring-bill detection from AP Command Center's brainstorm.
+
+`components/daily-close/types.ts` gained two optional fields to carry this: `client.id` (namespaces
+the cash-floor setting) and `receivables.list` (row-level backing for the Collections queue). Both
+are optional so a consumer of this component that doesn't supply them (or the standalone
+prototype's own sample data, now filled in for both) still renders correctly, just without the
+alert/collections features. `MGB_VERSION` bumped to `2026-09-16x`.
+
+## §25 — Global search results jump to and highlight the exact row
+
+Previously a search result click only navigated to the right tab and left the client to scan the
+whole page for what they searched. Now it scrolls straight to the matching row and flashes it,
+reusing the same `useCardFlash`/`.card-flash` mechanism KPI click-to-jump already uses elsewhere
+in the app — just with a new `.row-flash` variant (background-color tint instead of a box-shadow
+ring, since a ring reads poorly around a single table row) sharing the same 2600ms hold-then-fade
+timing.
+
+- `GlobalSearch`'s result builder now attaches a `highlightKey` to every result (and `accountId`
+  for bank transactions, since a transaction only exists in the DOM once its account tab is
+  active): `"tx-" + i`, `"budget-row-" + slugify(category)`, `"doc-row-" + slugify(name)`,
+  `"msg-" + i`. Clicking a result calls the existing `onNavigate` (tab switch) plus a new
+  `onHighlightResult` prop.
+- `App` holds a `searchTarget` state (`{ ...result, nonce }` — the nonce forces the effect on the
+  receiving page to re-fire even if the same row is clicked twice), passed down only to the four
+  pages that can act on it (`BudgetPage`, `BankPage`, `DocumentsPage`, `MessagesPage`), each only
+  when `searchTarget.page` matches that page's own key.
+- Each of those four pages gained (or reused, for `BudgetPage`, which already had one for its KPI
+  jump) a `useCardFlash()` instance, an effect that calls `jumpToCard` when `searchTarget.nonce`
+  changes, and `id`/flash-class wiring on the actual row. `BankPage` additionally switches
+  `activeAccountId` first when the hit belongs to a different account tab than the one currently
+  open, in a separate effect, before the scroll/flash effect fires.
+- Messages didn't need a thread-switch step: `GlobalSearch` only ever searches the currently open
+  thread's messages (a pre-existing scoping choice, not something this changed), so a message hit
+  is always already on the right conversation.
+
+`MGB_VERSION` bumped to `2026-09-16y`.
+
+## §26 — Live Report: animated masthead line + customizable layout; sidebar reorder + rename
+
+- **Animated masthead line.** `.dc-masthead`'s plain `border-bottom` is now an absolutely
+  positioned `::after` with a `repeating-linear-gradient` dashed pattern, animated via
+  `background-position-x` (`0` → `24px`, matching the pattern's own tile size) on a 1.1s linear
+  infinite loop — a continuously scrolling dashed line under the title, not just a static rule.
+  Respects `prefers-reduced-motion`.
+- **Live Report is now customizable, same idea as Dashboard's customize feature in app.jsx** (hide
+  widgets, reorder via ▲/▼). Not a call into app.jsx's `useWidgetLayout`/`WidgetPickerModal`/
+  `ModalShell` — `DailyClose.tsx` is deliberately self-contained (its own header comment explains
+  why: it loads before app.jsx even exists), so this is a small parallel implementation:
+  `useLiveReportLayout(clientId)` (order/hidden state, `localStorage` key
+  `mygoodbooks_live_report_layout_v1:<clientId>`, same shape as the Dashboard's own layout
+  storage) plus a self-built `LiveReportCustomizeModal`/`LiveReportCustomizeButton` (not
+  `ModalShell` — a lighter one with just Escape-to-close and backdrop click, no full focus trap).
+  Eight widgets: the four KPI tiles (`kpi-cash`, `kpi-ar`, `kpi-ap`, `kpi-net`) and four content
+  sections (`trend`, `expense-breakdown`, `aging`, `outlook`).
+- The KPI row and every content section below it now render by mapping over
+  `layout.visibleOrder` instead of being hardcoded JSX in a fixed sequence — each KPI tile's
+  distinct behavior (the cash-floor editor, the AR/AP/Net-income click targets) is preserved
+  exactly, just selected by id inside the map instead of written out four times in a row.
+- **The old fixed 2-column `.dc-grid2` (Revenue vs. Expenses beside Where the Money Went) is
+  gone**, replaced by `.dc-contentMasonry` — a CSS-columns masonry (`columns: 420px 2`), the same
+  pattern `app.jsx`'s own `.content-masonry` already uses for Dashboard's customizable widgets.
+  A fixed 2-up grid assumes exactly two children in a fixed order; once any of the four sections
+  can be hidden or reordered relative to the others, that assumption breaks. At the default order
+  the masonry still lands Revenue vs. Expenses and Where the Money Went in the first two column
+  slots, so the common case looks close to before — but it's no longer a special-cased pair.
+
+**Sidebar:** "Enterprise Tools" renamed to "Enterprise" (the `isSignature` check in `Sidebar`
+updated to match). Dashboard pulled out of the "Overview" section into its own top-level section,
+placed first — above Messages, which was already its own top section from §21 — so the order is
+now Dashboard, Messages, Enterprise, Budget (renamed from "Overview," which held only Budget vs.
+Actual once Dashboard moved out), Finances, Documents. A bookkeeper's previously-saved custom tab
+order for the old "Overview"/"Enterprise Tools" section labels (`tabOrder[clientId][sectionLabel]`)
+will no longer match these renamed keys and silently falls back to default order for those two
+sections — the same graceful-degradation behavior the app already relies on for any stored order
+that doesn't fully match its current widget set, not a new failure mode.
+
+`MGB_VERSION` bumped to `2026-09-16z`.

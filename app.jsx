@@ -186,17 +186,25 @@ function ToastProvider({ children }) {
 
 const NAV_SECTIONS = [
   {
-    // Its own section at the very top, above even Enterprise Tools — an
-    // unread-message badge is easy to miss buried under three other
-    // sections, and a new message from the bookkeeper is exactly the kind
-    // of thing a client shouldn't have to go hunting for.
+    // Its own section at the very top, above everything else — the most-
+    // visited page (and, for premium clients, the one that reads "Dashboard
+    // Live" in the sidebar — see the label override in Sidebar) shouldn't be
+    // buried under Enterprise/Overview headings.
+    label: "Dashboard",
+    items: [{ key: "dashboard", label: "Dashboard", icon: <GridIcon /> }],
+  },
+  {
+    // Right under Dashboard — an unread-message badge is easy to miss
+    // buried under three other sections, and a new message from the
+    // bookkeeper is exactly the kind of thing a client shouldn't have to go
+    // hunting for.
     label: "Messages",
     items: [
       { key: "messages", label: "Messages", icon: <ChatIcon width="16" height="16" strokeWidth="1.8" /> },
     ],
   },
   {
-    label: "Enterprise Tools",
+    label: "Enterprise",
     // Live Report ("daily-close") isn't a nav item here on purpose — a
     // premium, full-access client's Dashboard tab IS the Live Report, one
     // cohesive page instead of two separate tabs both claiming to be "the
@@ -208,11 +216,8 @@ const NAV_SECTIONS = [
     ],
   },
   {
-    label: "Overview",
-    items: [
-      { key: "dashboard", label: "Dashboard", icon: <GridIcon /> },
-      { key: "budget", label: "Budget vs. Actual", icon: <PieChartIcon /> },
-    ],
+    label: "Budget",
+    items: [{ key: "budget", label: "Budget vs. Actual", icon: <PieChartIcon /> }],
   },
   {
     label: "Finances",
@@ -573,7 +578,7 @@ function Sidebar({
       ) : page === "staff-access" || page === "client-access" ? null : (
       <nav className="nav">
         {NAV_SECTIONS.map((section) => {
-          const isSignature = section.label === "Enterprise Tools";
+          const isSignature = section.label === "Enterprise";
           // Standard-plan clients don't have these tabs at all (stripped out
           // of access.tabs in resolveAccess), so the section would normally
           // just vanish. Show a single upsell row instead, so the add-on is
@@ -944,7 +949,7 @@ function MockBanner({ text }) {
 // Real (non-AI) search — filters this client's own transactions, budget
 // categories, documents, and messages by keyword and jumps to the right
 // page. Only searches within tabs the current viewer actually has access to.
-function GlobalSearch({ client, messages, visibleKeys, onNavigate }) {
+function GlobalSearch({ client, messages, visibleKeys, onNavigate, onHighlightResult }) {
   const [query, setQuery] = useState("");
   const [isOpen, setIsOpen] = useState(false);
   const wrapRef = useRef(null);
@@ -964,13 +969,15 @@ function GlobalSearch({ client, messages, visibleKeys, onNavigate }) {
 
     if (visibleKeys.has("bank")) {
       client.bankAccounts.forEach((a) => {
-        a.transactions.forEach((t) => {
+        a.transactions.forEach((t, i) => {
           if (t.description.toLowerCase().includes(q) || t.category.toLowerCase().includes(q)) {
             out.push({
               type: "Transaction",
               label: t.description,
               meta: `${fmtDate(t.date)} · ${fmtMoney(t.amount, { cents: true })} · ${a.accountName}`,
               page: "bank",
+              highlightKey: "tx-" + i,
+              accountId: a.id,
             });
           }
         });
@@ -985,6 +992,7 @@ function GlobalSearch({ client, messages, visibleKeys, onNavigate }) {
             label: b.category,
             meta: `${fmtMoney(b.actual)} of ${fmtMoney(b.budgeted)} budgeted`,
             page: "budget",
+            highlightKey: "budget-row-" + slugify(b.category),
           });
         }
       });
@@ -998,19 +1006,21 @@ function GlobalSearch({ client, messages, visibleKeys, onNavigate }) {
             label: d.name,
             meta: `${d.category} · ${fmtDate(d.date)}`,
             page: "documents",
+            highlightKey: "doc-row-" + slugify(d.name),
           });
         }
       });
     }
 
     if (visibleKeys.has("messages")) {
-      messages.forEach((m) => {
+      messages.forEach((m, i) => {
         if (m.text && m.text.toLowerCase().includes(q)) {
           out.push({
             type: "Message",
             label: m.text.length > 70 ? m.text.slice(0, 70) + "…" : m.text,
             meta: `${m.author} · ${fmtDate(m.date)}`,
             page: "messages",
+            highlightKey: "msg-" + i,
           });
         }
       });
@@ -1019,8 +1029,9 @@ function GlobalSearch({ client, messages, visibleKeys, onNavigate }) {
     return out.slice(0, 8);
   }, [query, client, messages, visibleKeys]);
 
-  const go = (page) => {
-    onNavigate(page);
+  const go = (r) => {
+    onNavigate(r.page);
+    if (onHighlightResult) onHighlightResult(r);
     setIsOpen(false);
     setQuery("");
   };
@@ -1050,7 +1061,7 @@ function GlobalSearch({ client, messages, visibleKeys, onNavigate }) {
             <div className="global-search-empty">No matches for "{query.trim()}".</div>
           ) : (
             results.map((r, i) => (
-              <button className="global-search-result" key={i} onClick={() => go(r.page)}>
+              <button className="global-search-result" key={i} onClick={() => go(r)}>
                 <span className="global-search-result-type">{r.type}</span>
                 <span className="global-search-result-body">
                   <span className="global-search-result-label">{r.label}</span>
@@ -1960,7 +1971,7 @@ function DashboardPage({ client, access, isBookkeeper, promoText, onSaveReferral
 // Budget vs Actual page
 // ----------------------------------------------------------------------------
 
-function BudgetPage({ client }) {
+function BudgetPage({ client, searchTarget }) {
   const totals = client.budget.reduce(
     (acc, b) => {
       acc.budgeted += b.budgeted;
@@ -1972,6 +1983,14 @@ function BudgetPage({ client }) {
 
   const { flashCardId, jumpToCard } = useCardFlash();
   const jumpToSpending = () => jumpToCard("budget-spending-card", "spending");
+
+  // A global-search hit on a budget category scrolls straight to that row
+  // and flashes it, rather than just landing on the page and leaving the
+  // client to find it themselves in the table.
+  useEffect(() => {
+    if (searchTarget) jumpToCard(searchTarget.highlightKey, searchTarget.highlightKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchTarget && searchTarget.nonce]);
 
   return (
     <div>
@@ -2014,8 +2033,9 @@ function BudgetPage({ client }) {
             {client.budget.map((b) => {
               const pct = (b.actual / b.budgeted) * 100;
               const over = b.actual > b.budgeted;
+              const rowId = "budget-row-" + slugify(b.category);
               return (
-                <tr key={b.category}>
+                <tr key={b.category} id={rowId} className={flashCardId === rowId ? "row-flash" : ""}>
                   <td data-primary="">
                     <div className="category-name">{b.category}</div>
                     <div className="bar-track">
@@ -2261,11 +2281,26 @@ function AccountCashDonut({ accounts }) {
 // Bank Accounts page (multiple accounts + CSV export)
 // ----------------------------------------------------------------------------
 
-function BankPage({ client }) {
+function BankPage({ client, searchTarget }) {
   const [activeAccountId, setActiveAccountId] = useState(client.bankAccounts[0].id);
   const showToast = useToast();
   const account = client.bankAccounts.find((a) => a.id === activeAccountId) || client.bankAccounts[0];
   const cash = totalCash(client);
+  const { flashCardId, jumpToCard } = useCardFlash();
+
+  // A transaction hit lives on one specific account's tab, so switch to it
+  // first — the row won't exist in the DOM until that tab is active.
+  useEffect(() => {
+    if (searchTarget && searchTarget.accountId && searchTarget.accountId !== activeAccountId) {
+      setActiveAccountId(searchTarget.accountId);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchTarget && searchTarget.nonce]);
+
+  useEffect(() => {
+    if (searchTarget) jumpToCard(searchTarget.highlightKey, searchTarget.highlightKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchTarget && searchTarget.nonce, activeAccountId]);
 
   const exportCSV = () => {
     const rows = [
@@ -2351,8 +2386,10 @@ function BankPage({ client }) {
             </tr>
           </thead>
           <tbody>
-            {account.transactions.map((t, i) => (
-              <tr key={i}>
+            {account.transactions.map((t, i) => {
+              const rowId = "tx-" + i;
+              return (
+              <tr key={i} id={rowId} className={flashCardId === rowId ? "row-flash" : ""}>
                 <td>{fmtDate(t.date)}</td>
                 <td>{t.description}</td>
                 <td>
@@ -2363,7 +2400,8 @@ function BankPage({ client }) {
                   {fmtMoney(t.amount, { cents: true })}
                 </td>
               </tr>
-            ))}
+              );
+            })}
           </tbody>
         </table>
         </div>
@@ -5402,12 +5440,18 @@ function BookkeeperHomePage({ staffUser, clients, messagesByClient, readMessageC
 // Documents page (upload)
 // ----------------------------------------------------------------------------
 
-function DocumentsPage({ client, isBookkeeper }) {
+function DocumentsPage({ client, isBookkeeper, searchTarget }) {
   const [docs, setDocs] = useState(client.documents);
   const [isDragging, setIsDragging] = useState(false);
   const [previewIndex, setPreviewIndex] = useState(null);
   const fileInputRef = useRef(null);
   const showToast = useToast();
+  const { flashCardId, jumpToCard } = useCardFlash();
+
+  useEffect(() => {
+    if (searchTarget) jumpToCard(searchTarget.highlightKey, searchTarget.highlightKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchTarget && searchTarget.nonce]);
 
   const addFiles = (fileList) => {
     const files = Array.from(fileList || []);
@@ -5506,8 +5550,10 @@ function DocumentsPage({ client, isBookkeeper }) {
             </tr>
           </thead>
           <tbody>
-            {docs.map((d, i) => (
-              <tr key={i} className="doc-row" onClick={() => setPreviewIndex(i)} tabIndex={0}
+            {docs.map((d, i) => {
+              const rowId = "doc-row-" + slugify(d.name);
+              return (
+              <tr key={i} id={rowId} className={"doc-row" + (flashCardId === rowId ? " row-flash" : "")} onClick={() => setPreviewIndex(i)} tabIndex={0}
                 onKeyDown={(e) => { if (e.key === "Enter") setPreviewIndex(i); }}>
                 <td data-primary="">
                   <span className="doc-name-link">
@@ -5542,7 +5588,8 @@ function DocumentsPage({ client, isBookkeeper }) {
                 )}
                 <td className="num" data-label="Size">{d.size}</td>
               </tr>
-            ))}
+              );
+            })}
           </tbody>
         </table>
         </div>
@@ -5732,11 +5779,20 @@ function ChatWidget({ messages, onSend, onOpenFull, onClose }) {
 // Messages page
 // ----------------------------------------------------------------------------
 
-function MessagesPage({ client, messages, onSend, users, activeUserId, onSelectUser, unreadUserIds, isBookkeeper }) {
+function MessagesPage({ client, messages, onSend, users, activeUserId, onSelectUser, unreadUserIds, isBookkeeper, searchTarget }) {
   const [draft, setDraft] = useState("");
   const [pendingAttachment, setPendingAttachment] = useState(null);
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef(null);
+  const { flashCardId, jumpToCard } = useCardFlash();
+
+  // Search only ever looks within the currently-open thread (see
+  // GlobalSearch), so there's no other person's conversation to switch to
+  // first — just scroll to and flash the matching bubble.
+  useEffect(() => {
+    if (searchTarget) jumpToCard(searchTarget.highlightKey, searchTarget.highlightKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchTarget && searchTarget.nonce]);
 
   const stageFile = (file) => {
     if (!file) return;
@@ -5797,9 +5853,11 @@ function MessagesPage({ client, messages, onSend, users, activeUserId, onSelectU
           <p className="card-subtitle">No messages yet in this conversation.</p>
         )}
         <div className="message-thread">
-          {messages.map((m, i) => (
-            <div className={"message-bubble-row " + m.from} key={i}>
-              <div className="message-bubble">
+          {messages.map((m, i) => {
+            const rowId = "msg-" + i;
+            return (
+            <div className={"message-bubble-row " + m.from} id={rowId} key={i}>
+              <div className={"message-bubble" + (flashCardId === rowId ? " row-flash" : "")}>
                 <div className="message-author">{m.author}</div>
                 {m.text && <div className="message-text">{m.text}</div>}
                 {m.attachment && (
@@ -5811,7 +5869,8 @@ function MessagesPage({ client, messages, onSend, users, activeUserId, onSelectU
                 <div className="message-date">{fmtDate(m.date)}</div>
               </div>
             </div>
-          ))}
+            );
+          })}
         </div>
 
         {pendingAttachment && (
@@ -6716,6 +6775,11 @@ function App({ staffUser, onSignOut }) {
   // open, per initialPage's refresh-vs-fresh-open distinction below.
   const [selectedClientId, setSelectedClientId] = useState(() => loadSelectedClientId() || "riverside-pantry");
   const [page, setPage] = useState(initialPage);
+  // Set when a global-search result is clicked, so the destination page
+  // knows exactly which row to scroll to and flash — not just which tab to
+  // open. `nonce` forces the effect on the receiving page to re-fire even
+  // when the same result is clicked twice in a row (same key, same page).
+  const [searchTarget, setSearchTarget] = useState(null);
   const [tabConfig, setTabConfig] = useState(loadTabConfig);
   const [tabOrder, setTabOrder] = useState(loadTabOrder);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -7415,6 +7479,7 @@ function App({ staffUser, onSignOut }) {
             messages={liveMessages}
             visibleKeys={access.tabs}
             onNavigate={setPage}
+            onHighlightResult={(r) => setSearchTarget({ ...r, nonce: Date.now() })}
             key={"search-" + client.id}
           />
 
@@ -7429,7 +7494,12 @@ function App({ staffUser, onSignOut }) {
               // passed through so both sides stay in step. Data is derived
               // from the selected client rather than the shipped Bramblewood
               // sample, so the panel and the rest of the app agree.
-              <DailyClose data={dailyCloseFromClient(client)} theme={effectiveTheme} key={"daily-close-" + client.id} />
+              <DailyClose
+                data={dailyCloseFromClient(client)}
+                theme={effectiveTheme}
+                onNavigate={setPage}
+                key={"daily-close-" + client.id}
+              />
             ) : access.isCategoryScoped ? (
               <ScopedDashboardPage
                 client={scopedClient}
@@ -7447,10 +7517,21 @@ function App({ staffUser, onSignOut }) {
                 onSaveReferralPromo={saveReferralPromo}
               />
             ))}
-          {effectivePage === "budget" && <BudgetPage client={scopedClient} />}
+          {effectivePage === "budget" && (
+            <BudgetPage
+              client={scopedClient}
+              searchTarget={searchTarget && searchTarget.page === "budget" ? searchTarget : null}
+            />
+          )}
           {effectivePage === "giving" && <GivingFundsPage client={scopedClient} />}
           {effectivePage === "receivables" && <ReceivablesPayablesPage client={scopedClient} />}
-          {effectivePage === "bank" && <BankPage client={scopedClient} key={"bank-" + client.id} />}
+          {effectivePage === "bank" && (
+            <BankPage
+              client={scopedClient}
+              searchTarget={searchTarget && searchTarget.page === "bank" ? searchTarget : null}
+              key={"bank-" + client.id}
+            />
+          )}
           {effectivePage === "reports" && <ReportsPage client={scopedClient} />}
           {effectivePage === "report-builder" && <ReportBuilderPage client={scopedClient} key={"report-builder-" + client.id} />}
           {effectivePage === "enterprise-upgrade" && <EnterpriseUpgradePage client={scopedClient} key={"enterprise-upgrade-" + client.id} />}
@@ -7475,7 +7556,12 @@ function App({ staffUser, onSignOut }) {
             <APCommandCenterPage client={scopedClient} key={"ap-command-center-" + client.id} />
           )}
           {effectivePage === "documents" && (
-            <DocumentsPage client={scopedClient} isBookkeeper={!isPreviewingUser} key={"docs-" + client.id} />
+            <DocumentsPage
+              client={scopedClient}
+              isBookkeeper={!isPreviewingUser}
+              searchTarget={searchTarget && searchTarget.page === "documents" ? searchTarget : null}
+              key={"docs-" + client.id}
+            />
           )}
           {effectivePage === "messages" && (
             <MessagesPage
@@ -7487,6 +7573,7 @@ function App({ staffUser, onSignOut }) {
               onSelectUser={setBookkeeperThreadUserId}
               unreadUserIds={unreadThreadUserIds}
               isBookkeeper={!isPreviewingUser}
+              searchTarget={searchTarget && searchTarget.page === "messages" ? searchTarget : null}
               key={"msgs-" + client.id + "-" + activeThreadUserId}
             />
           )}

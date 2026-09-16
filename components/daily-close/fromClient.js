@@ -85,21 +85,45 @@
     return hash / 100000;
   }
 
+  const AGING_BUCKET_META = [
+    { label: "Current", tone: "good" },
+    { label: "1–30 days", tone: "neutral" },
+    { label: "31–60 days", tone: "warning" },
+    { label: "60+ days", tone: "critical" },
+  ];
+
+  function agingBucketIndex(overdueBy) {
+    return overdueBy <= 0 ? 0 : overdueBy <= 30 ? 1 : overdueBy <= 60 ? 2 : 3;
+  }
+
   function receivableAging(receivables, today) {
-    const buckets = [
-      { label: "Current", amount: 0, tone: "good" },
-      { label: "1–30 days", amount: 0, tone: "neutral" },
-      { label: "31–60 days", amount: 0, tone: "warning" },
-      { label: "60+ days", amount: 0, tone: "critical" },
-    ];
+    const buckets = AGING_BUCKET_META.map((b) => ({ ...b, amount: 0 }));
     receivables.forEach((r) => {
       const overdueBy = daysBetween(parseLocalDate(r.dueDate), today);
-      const index = overdueBy <= 0 ? 0 : overdueBy <= 30 ? 1 : overdueBy <= 60 ? 2 : 3;
-      buckets[index].amount += r.amount;
+      buckets[agingBucketIndex(overdueBy)].amount += r.amount;
     });
     // The component renders every bucket it's given, so drop the empty ones
     // rather than showing four segments where only one has money in it.
     return buckets.filter((b) => b.amount > 0);
+  }
+
+  // Row-level view of the same receivables the aging buckets summarize —
+  // the Collections queue needs individual line items to select from, not
+  // just bucket totals.
+  function receivablesList(receivables, today) {
+    return receivables.map((r, i) => {
+      const overdueBy = daysBetween(parseLocalDate(r.dueDate), today);
+      const bucket = AGING_BUCKET_META[agingBucketIndex(overdueBy)];
+      return {
+        id: i,
+        description: r.description,
+        amount: Math.round(r.amount),
+        dueDate: r.dueDate,
+        daysOverdue: Math.max(0, overdueBy),
+        tone: bucket.tone,
+        bucketLabel: bucket.label,
+      };
+    });
   }
 
   function projectMonths(lastMonthLabel, count) {
@@ -295,6 +319,7 @@
     return {
       firm: { name: "MyGoodBooks" },
       client: {
+        id: client.id,
         name: client.name,
         asOfLabel: asOfLabel(new Date()),
         // The component nests its "Sample data" tag inside the sync chip, so the
@@ -317,6 +342,7 @@
         openInvoiceCount: receivables.length,
         customerCount: receivables.length,
         aging: aging.map((b) => ({ ...b, amount: Math.round(b.amount) })),
+        list: receivablesList(receivables, today),
       },
       payables: {
         total: Math.round(sum(payables, (p) => p.amount)),
