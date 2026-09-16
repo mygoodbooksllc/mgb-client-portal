@@ -1171,3 +1171,11 @@ channel — messaging is the one real path, so the copy shouldn't imply a second
 the premium add-on section is now the first thing in the nav, not sandwiched between them.
 `isSignature`'s collapsible/gold styling is unaffected by section order, so this is purely a
 `NAV_SECTIONS` array reorder. `MGB_VERSION` bumped to `2026-09-16ab`.
+
+## §29 — Live Report footer: "Message your bookkeeper" links to Messages
+
+The footer's "Message your bookkeeper" was plain text. Now a button (styled as an inline gold
+link, matching the accent word) that calls the existing `onNavigate` prop to jump straight to the
+Messages tab — same prop already wired for the Accounts Payable KPI tile's cross-navigation to AP
+Command Center. Falls back to plain text when `onNavigate` isn't provided (the standalone
+prototype), same guard pattern as that KPI tile. `MGB_VERSION` bumped to `2026-09-16ac`.

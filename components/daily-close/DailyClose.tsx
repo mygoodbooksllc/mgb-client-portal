@@ -1211,7 +1211,16 @@ function DailyClose({ data, className, theme, onNavigate }: DailyCloseProps) {
 
         <div className={styles.footer}>
           <span>Prepared by {data.firm.name} &middot; data refreshes live, automatically</span>
-          <span>Questions? Message your bookkeeper.</span>
+          <span>
+            Questions?{" "}
+            {onNavigate ? (
+              <button type="button" className={styles.footerLink} onClick={() => onNavigate("messages")}>
+                Message your bookkeeper.
+              </button>
+            ) : (
+              "Message your bookkeeper."
+            )}
+          </span>
         </div>
       </div>
     </div>

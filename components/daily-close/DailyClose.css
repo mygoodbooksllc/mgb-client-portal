@@ -1115,6 +1115,20 @@
   flex-wrap: wrap;
   gap: 8px;
 }
+.dc-footerLink {
+  color: #c7ae86;
+  font: inherit;
+  font-weight: 600;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.dc-footerLink:hover {
+  color: #d8c39f;
+}
 
 @media (max-width: 720px) {
   .dc-kpiRow {
