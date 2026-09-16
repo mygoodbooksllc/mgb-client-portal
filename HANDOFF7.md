@@ -1202,3 +1202,27 @@ style as every other icon) at the far right instead — `margin-left: auto` move
 `.nav-upsell-icon` class on it, so the row now reads "Enterprise · Premium ⤴" — the badge
 explains what's next to it, the icon on the far edge reads as "upgrade/add-on" at a glance.
 `MGB_VERSION` bumped to `2026-09-16ae`.
+
+## §32 — Enterprise upgrade page caught up with everything built since it was written
+
+`EnterpriseUpgradePage`/`ENTERPRISE_FEATURES` hadn't been touched since the original 3-tool
+version — missing AP Command Center entirely (built and maximized in §17/§24) and still saying
+"Enterprise Tools" everywhere after the §21 rename to "Enterprise."
+
+- Added a fourth feature card, **AP Command Center**, with `StackedBillsIcon` (matches its
+  sidebar icon) and a description covering what actually got built: aging + vendor summaries,
+  batch pay runs with approval and a cash-impact forecast, duplicate-bill detection, ACH export.
+- Fixed **Budgeting Tool's icon** — it was `ShieldCheckIcon` (a security/trust glyph with no
+  connection to budgeting), swapped for `CalculatorIcon`, the same icon the sidebar already uses
+  for that tab.
+- Updated **Live Report's description** to mention what it actually does now (click-to-jump KPIs,
+  cash alert, collections queue, PDF export, customizable layout) instead of just the original
+  "continuously-live snapshot" line.
+- Renamed every "Enterprise Tools" string on this page and its supporting code to "Enterprise":
+  the `MockBanner` text, the eyebrow badge, the "Unlock ___ for {client.name}" heading,
+  `PAGE_META["enterprise-upgrade"].title`, the `FEATURE_FLAGS` dev-tools description, and a code
+  comment. "Three tools" → "Four tools" in the intro paragraph.
+- `.report-grid` already uses `repeat(auto-fit, minmax(240px, 1fr))`, so the fourth card needed no
+  CSS changes to lay out cleanly.
+
+`MGB_VERSION` bumped to `2026-09-16af`.

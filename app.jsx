@@ -272,7 +272,7 @@ const FEATURE_FLAGS = [
   {
     key: "mygoodbooks_ff_force_premium_v1",
     label: "Force premium plan",
-    description: "Treat every client as premium, so Enterprise Tools are reachable regardless of their real plan.",
+    description: "Treat every client as premium, so Enterprise is reachable regardless of their real plan.",
   },
   {
     key: "mygoodbooks_ff_verbose_logging_v1",
@@ -2732,7 +2732,7 @@ function ReportBarRows({ items }) {
 }
 
 // ----------------------------------------------------------------------------
-// Enterprise Tools upgrade preview — what a standard-plan client's "+" in the
+// Enterprise upgrade preview — what a standard-plan client's "+" in the
 // sidebar opens instead of the real Report Builder/Budgeting Tool pages
 // (stripped out of their access.tabs entirely) and the richer Live Report
 // dashboard (a premium client's plain Dashboard becomes the Live Report —
@@ -2743,7 +2743,7 @@ const ENTERPRISE_FEATURES = [
   {
     icon: <DocumentIcon />,
     title: "Live Report",
-    description: "Your dashboard becomes a continuously-live financial snapshot — cash on hand, receivables, what's due — instead of a static once-a-day view.",
+    description: "Your dashboard becomes a continuously-live financial snapshot — cash on hand, receivables, what's due — instead of a static once-a-day view. Click-to-jump KPIs, a low-cash alert, a collections queue, and a one-click PDF snapshot, all customizable to how you work.",
   },
   {
     icon: <BarChartIcon />,
@@ -2751,9 +2751,14 @@ const ENTERPRISE_FEATURES = [
     description: "Assemble a formatted board report from your own numbers in a couple of clicks — pick a period, a scope, and the sections that matter this quarter.",
   },
   {
-    icon: <ShieldCheckIcon />,
+    icon: <CalculatorIcon />,
     title: "Budgeting Tool",
     description: "Draft next period's budget together with your bookkeeper, category by category, before it's locked in.",
+  },
+  {
+    icon: <StackedBillsIcon />,
+    title: "AP Command Center",
+    description: "Every bill in one place with aging and vendor summaries, batch pay runs with an approval step and a cash-impact forecast, duplicate-bill detection, and a ready-to-upload ACH export.",
   },
 ];
 
@@ -2762,16 +2767,17 @@ function EnterpriseUpgradePage({ client }) {
 
   return (
     <div>
-      <MockBanner text="This is a preview of what Enterprise Tools includes — nothing here is connected to a real upgrade flow yet." />
+      <MockBanner text="This is a preview of what Enterprise includes — nothing here is connected to a real upgrade flow yet." />
 
       <div className="card" style={{ marginBottom: 20, textAlign: "center", padding: "36px 28px" }}>
-        <div className="eyebrow-badge">Enterprise Tools · Add-on</div>
+        <div className="eyebrow-badge">Enterprise · Add-on</div>
         <h2 style={{ fontFamily: "var(--font-heading)", fontSize: 26, margin: "10px 0 8px", color: "var(--ink-strong)" }}>
-          Unlock Enterprise Tools for {client.name}
+          Unlock Enterprise for {client.name}
         </h2>
-        <p style={{ color: "var(--text-muted)", maxWidth: 520, margin: "0 auto" }}>
-          Three tools built for organizations that want more than a monthly statement — a daily pulse on the numbers, a
-          board-ready report in minutes, and a shared space to plan next period's budget.
+        <p style={{ color: "var(--text-muted)", maxWidth: 560, margin: "0 auto" }}>
+          Four tools built for organizations that want more than a monthly statement — a live pulse on the numbers, a
+          board-ready report in minutes, a shared space to plan next period's budget, and a command center for what
+          you owe.
         </p>
       </div>
 
@@ -6700,7 +6706,7 @@ const PAGE_META = {
   "report-builder": { title: "Report Builder", subtitle: "Assemble a formatted report for your board or leadership" },
   "budgeting-tool": { title: "Budgeting Tool", subtitle: "Draft next period's budget with your bookkeeper" },
   "ap-command-center": { title: "AP Command Center", subtitle: "Every open bill, aging, and what's due next" },
-  "enterprise-upgrade": { title: "Enterprise Tools", subtitle: "See what's included, and what upgrading unlocks" },
+  "enterprise-upgrade": { title: "Enterprise", subtitle: "See what's included, and what upgrading unlocks" },
   "staff-access": { title: "Staff Access", subtitle: "Who can sign in to the portal, and with what role" },
   "client-access": { title: "Client Roster", subtitle: "Who at each organization is registered to sign in" },
   "bookkeeper-home": { title: "Home", subtitle: "What needs attention across every client you can see" },
