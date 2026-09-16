@@ -1,0 +1,7 @@
+{
+  "version": 3,
+  "sources": ["../src/UsersIcon.tsx"],
+  "sourcesContent": ["import React from \"react\";\n\nexport type UsersIconProps = React.SVGProps<SVGSVGElement>;\n\n/** Two people. Thin-line, `stroke=\"currentColor\"` house style. Sidebar's Staff Access link. */\nexport function UsersIcon(props: UsersIconProps) {\n  return (\n    <svg\n      width=\"16\"\n      height=\"16\"\n      viewBox=\"0 0 24 24\"\n      fill=\"none\"\n      stroke=\"currentColor\"\n      strokeWidth=\"1.8\"\n      strokeLinecap=\"round\"\n      strokeLinejoin=\"round\"\n      {...props}\n    >\n      <circle cx=\"9\" cy=\"8\" r=\"3\" />\n      <path d=\"M2 20c0-3.5 3-6 7-6s7 2.5 7 6\" />\n      <path d=\"M16 8a3 3 0 100-6\" />\n      <path d=\"M22 20c0-2.8-2-5-5-5.7\" />\n    </svg>\n  );\n}\n"],
+  "mappings": ";AAOI,SAWE,KAXF;AAFG,SAAS,UAAU,OAAuB;AAC/C,SACE;AAAA,IAAC;AAAA;AAAA,MACC,OAAM;AAAA,MACN,QAAO;AAAA,MACP,SAAQ;AAAA,MACR,MAAK;AAAA,MACL,QAAO;AAAA,MACP,aAAY;AAAA,MACZ,eAAc;AAAA,MACd,gBAAe;AAAA,MACd,GAAG;AAAA,MAEJ;AAAA,4BAAC,YAAO,IAAG,KAAI,IAAG,KAAI,GAAE,KAAI;AAAA,QAC5B,oBAAC,UAAK,GAAE,iCAAgC;AAAA,QACxC,oBAAC,UAAK,GAAE,qBAAoB;AAAA,QAC5B,oBAAC,UAAK,GAAE,0BAAyB;AAAA;AAAA;AAAA,EACnC;AAEJ;",
+  "names": []
+}

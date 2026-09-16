@@ -1,0 +1,7 @@
+{
+  "version": 3,
+  "sources": ["../src/PieChartIcon.tsx"],
+  "sourcesContent": ["import React from \"react\";\n\nexport type PieChartIconProps = React.SVGProps<SVGSVGElement>;\n\n/** Pie chart. Thin-line, `stroke=\"currentColor\"` house style. Sidebar's Budget vs. Actual link. */\nexport function PieChartIcon(props: PieChartIconProps) {\n  return (\n    <svg\n      width=\"16\"\n      height=\"16\"\n      viewBox=\"0 0 24 24\"\n      fill=\"none\"\n      stroke=\"currentColor\"\n      strokeWidth=\"1.8\"\n      strokeLinecap=\"round\"\n      strokeLinejoin=\"round\"\n      {...props}\n    >\n      <path d=\"M12 12V3a9 9 0 019 9h-9z\" />\n      <path d=\"M20.5 15A9 9 0 1112 3v9l8.5 3z\" />\n    </svg>\n  );\n}\n"],
+  "mappings": ";AAOI,SAWE,KAXF;AAFG,SAAS,aAAa,OAA0B;AACrD,SACE;AAAA,IAAC;AAAA;AAAA,MACC,OAAM;AAAA,MACN,QAAO;AAAA,MACP,SAAQ;AAAA,MACR,MAAK;AAAA,MACL,QAAO;AAAA,MACP,aAAY;AAAA,MACZ,eAAc;AAAA,MACd,gBAAe;AAAA,MACd,GAAG;AAAA,MAEJ;AAAA,4BAAC,UAAK,GAAE,4BAA2B;AAAA,QACnC,oBAAC,UAAK,GAAE,kCAAiC;AAAA;AAAA;AAAA,EAC3C;AAEJ;",
+  "names": []
+}

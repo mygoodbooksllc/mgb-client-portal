@@ -1,0 +1,7 @@
+{
+  "version": 3,
+  "sources": ["../src/GiftHeartIcon.tsx"],
+  "sourcesContent": ["import React from \"react\";\n\nexport type GiftHeartIconProps = React.SVGProps<SVGSVGElement>;\n\n/** Heart. Thin-line, `stroke=\"currentColor\"` house style. Sidebar's Giving & Funds link. */\nexport function GiftHeartIcon(props: GiftHeartIconProps) {\n  return (\n    <svg\n      width=\"16\"\n      height=\"16\"\n      viewBox=\"0 0 24 24\"\n      fill=\"none\"\n      stroke=\"currentColor\"\n      strokeWidth=\"1.8\"\n      strokeLinecap=\"round\"\n      strokeLinejoin=\"round\"\n      {...props}\n    >\n      <path d=\"M12 21s-7-4.5-9.5-9A5 5 0 0112 6a5 5 0 019.5 6c-2.5 4.5-9.5 9-9.5 9z\" />\n    </svg>\n  );\n}\n"],
+  "mappings": ";AAkBM;AAbC,SAAS,cAAc,OAA2B;AACvD,SACE;AAAA,IAAC;AAAA;AAAA,MACC,OAAM;AAAA,MACN,QAAO;AAAA,MACP,SAAQ;AAAA,MACR,MAAK;AAAA,MACL,QAAO;AAAA,MACP,aAAY;AAAA,MACZ,eAAc;AAAA,MACd,gBAAe;AAAA,MACd,GAAG;AAAA,MAEJ,8BAAC,UAAK,GAAE,wEAAuE;AAAA;AAAA,EACjF;AAEJ;",
+  "names": []
+}

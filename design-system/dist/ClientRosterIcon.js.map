@@ -1,0 +1,7 @@
+{
+  "version": 3,
+  "sources": ["../src/ClientRosterIcon.tsx"],
+  "sourcesContent": ["import React from \"react\";\n\nexport type ClientRosterIconProps = React.SVGProps<SVGSVGElement>;\n\n/** Table/roster outline. Thin-line, `stroke=\"currentColor\"` house style.\n * Sidebar's Client Roster link. */\nexport function ClientRosterIcon(props: ClientRosterIconProps) {\n  return (\n    <svg\n      width=\"16\"\n      height=\"16\"\n      viewBox=\"0 0 24 24\"\n      fill=\"none\"\n      stroke=\"currentColor\"\n      strokeWidth=\"1.8\"\n      strokeLinecap=\"round\"\n      strokeLinejoin=\"round\"\n      {...props}\n    >\n      <rect x=\"3\" y=\"4\" width=\"18\" height=\"16\" rx=\"2\" />\n      <path d=\"M3 9h18M8 4v5\" />\n    </svg>\n  );\n}\n"],
+  "mappings": ";AAQI,SAWE,KAXF;AAFG,SAAS,iBAAiB,OAA8B;AAC7D,SACE;AAAA,IAAC;AAAA;AAAA,MACC,OAAM;AAAA,MACN,QAAO;AAAA,MACP,SAAQ;AAAA,MACR,MAAK;AAAA,MACL,QAAO;AAAA,MACP,aAAY;AAAA,MACZ,eAAc;AAAA,MACd,gBAAe;AAAA,MACd,GAAG;AAAA,MAEJ;AAAA,4BAAC,UAAK,GAAE,KAAI,GAAE,KAAI,OAAM,MAAK,QAAO,MAAK,IAAG,KAAI;AAAA,QAChD,oBAAC,UAAK,GAAE,iBAAgB;AAAA;AAAA;AAAA,EAC1B;AAEJ;",
+  "names": []
+}

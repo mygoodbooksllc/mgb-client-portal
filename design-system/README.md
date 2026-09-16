@@ -43,13 +43,29 @@ overrides that icon's own default sizing/weight.
 - `FlaskIcon` — lab flask (`MockBanner`'s own icon).
 - `SunIcon` / `MoonIcon` — theme toggle (sidebar).
 - `SlidersIcon` — "Manage access" and "Customize dashboard."
-- `ChatIcon` — the floating chat widget's header and the mobile chat FAB.
+- `ChatIcon` — the floating chat widget's header, the mobile chat FAB, and the sidebar's Messages link.
 - `DocumentIcon`, `BarChartIcon`, `ShieldCheckIcon` — the three Enterprise
   Tools feature cards (Daily Report, Report Builder, Budgeting Tool).
+  `DocumentIcon` and `BarChartIcon` are reused for the sidebar's Daily
+  Report and Report Builder links respectively — same icon, same meaning,
+  two places it shows up.
 - `LightbulbIcon` — Daily Report's forecast callout. That component
   (`components/daily-close/DailyClose.tsx`) is vendored with its own
   styling scope and keeps its own inline copy rather than importing this
   one — exported here so it's still part of the shared set.
+
+**Sidebar nav icons** — one per tab, plus Home/Staff Access/Client Roster:
+
+- `HomeIcon`, `UsersIcon`, `ClientRosterIcon` — Home, Staff Access, Client Roster.
+- `GridIcon` — Dashboard.
+- `PieChartIcon` — Budget vs. Actual.
+- `CalculatorIcon` — Budgeting Tool.
+- `StackedBillsIcon` — AP Command Center.
+- `BankIcon` — Bank Accounts.
+- `SwapIcon` — Receivables & Payables.
+- `DownloadIcon` — Reports.
+- `GiftHeartIcon` — Giving & Funds.
+- `FolderIcon` — Documents.
 
 ## Usage
 
