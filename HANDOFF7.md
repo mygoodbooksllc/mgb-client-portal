@@ -1421,3 +1421,11 @@ same internal-key-survives-the-rename pattern as the earlier Dashboard/Live Repo
 nothing about routing, `ORG_WIDE_TABS`, `PREMIUM_TAB_KEYS`, or stored tab config broke.
 
 `MGB_VERSION` bumped to `2026-09-16ao`.
+
+## §42 — Dashboard and Messages moved above Enterprise
+
+Reverses §31's "Enterprise leads the sidebar" ordering: `NAV_SECTIONS` now starts with Dashboard,
+then Messages, then Enterprise, then the rest — unchanged otherwise. Enterprise keeps its static
+gold heading (§30) and its own item order.
+
+`MGB_VERSION` bumped to `2026-09-16ap`.
