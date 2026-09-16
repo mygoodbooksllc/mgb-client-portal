@@ -1226,3 +1226,29 @@ version — missing AP Command Center entirely (built and maximized in §17/§24
   CSS changes to lay out cleanly.
 
 `MGB_VERSION` bumped to `2026-09-16af`.
+
+## §33 — Developer Tools is now its own sidebar page; upsell icon swapped for a padlock
+
+- **Feature flags + "Reset local state" moved out of Staff Access into a new `DeveloperToolsPage`,**
+  reachable from a new admin-only sidebar link (Home / Staff Access / Client Roster / **Developer
+  Tools**, new `WrenchIcon`). It didn't belong buried in the middle of the one page that writes
+  directly to the real Supabase staff table — Developer Tools touches only this browser's own
+  `localStorage`, and mixing the two made it easy to mistake one for the other. Staff Access keeps
+  its "System info" card (app version, Supabase project, staff/audit table read status) since
+  that's diagnosing Staff Access's own Supabase connectivity, not a generic dev toggle.
+- New synthetic page `"developer-tools"`, gated the same way as `staff-access`/`client-access`
+  (admin role, not impersonating) in `effectivePage`'s bypass logic, with its own `PAGE_META` entry.
+- **Introduced `NON_CLIENT_PAGES`** (`bookkeeper-home`, `staff-access`, `client-access`,
+  `developer-tools`) — every place that used to special-case "is this one of the synthetic
+  staff-only pages" with an ad-hoc `page !== "x" && page !== "y"` chain (the client picker, the
+  "preview as" picker, the "Manage access" button, whether to stamp a client visit, both header
+  greeting spots, the mobile topbar title, the nav's own render branch) now reads
+  `NON_CLIENT_PAGES.has(page)`. Adding developer-tools by hand-editing every one of those checks
+  is exactly the kind of place a spot gets missed; one shared set closes that off for whatever
+  gets added next too.
+- **Swapped the standard-plan upsell row's icon** from the diagonal arrow (§31) to `LockIcon` —
+  the app already had this icon (used on Documents' "Full access only" pill), and a padlock is a
+  more literal match for "this is behind a paywall" than a generic external-link-style arrow.
+  `UpgradeIcon` deleted as dead code now that nothing uses it.
+
+`MGB_VERSION` bumped to `2026-09-16ag`.

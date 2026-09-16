@@ -258,6 +258,16 @@ const ORG_WIDE_TABS = new Set([
 
 const BOOKKEEPER_VIEW = "__bookkeeper__";
 
+// Synthetic staff-only pages that don't belong to any client — not in
+// ALL_TAB_KEYS/NAV_SECTIONS, reachable only via the sidebar's staff utility
+// links, and excluded everywhere the app assumes "the current page is one of
+// a client's tabs" (the client picker, the "preview as" picker, whether to
+// stamp a client visit, the page-header greeting). One shared set instead of
+// repeating the same three-or-four-way `page !== "x" && page !== "y"` check
+// at every one of those call sites, which is exactly how developer-tools
+// nearly got left out of one of them when it was added.
+const NON_CLIENT_PAGES = new Set(["bookkeeper-home", "staff-access", "client-access", "developer-tools"]);
+
 // Tabs that are part of a paid add-on rather than the base product.
 const PREMIUM_TAB_KEYS = new Set(
   NAV_SECTIONS.flatMap((section) => section.items.filter((i) => i.premium).map((i) => i.key))
@@ -458,7 +468,7 @@ function Sidebar({
               second, redundant way to do the same jump wasn't worth the
               sidebar space, and a dropdown is a worse version of that card
               on mobile besides. */}
-          {page !== "staff-access" && page !== "client-access" && page !== "bookkeeper-home" && (
+          {!NON_CLIENT_PAGES.has(page) && (
             <React.Fragment>
               <div className="client-picker-label">Viewing client</div>
               <select className="client-select" value={selectedClientId} onChange={(e) => onSelectClient(e.target.value)}>
@@ -525,7 +535,21 @@ function Sidebar({
             </button>
           )}
 
-          {page !== "bookkeeper-home" && page !== "staff-access" && page !== "client-access" && (
+          {staffUser && staffUser.role === "admin" && (
+            <button
+              type="button"
+              className={"staff-access-link" + (page === "developer-tools" ? " active" : "")}
+              onClick={() => {
+                onSelectPage("developer-tools");
+                onCloseMobile();
+              }}
+            >
+              <WrenchIcon />
+              Developer Tools
+            </button>
+          )}
+
+          {!NON_CLIENT_PAGES.has(page) && (
             <React.Fragment>
               <div className="client-picker-label">Preview as</div>
               <select className="client-select" value={viewAsUserId} onChange={(e) => onSelectViewAs(e.target.value)}>
@@ -563,7 +587,7 @@ function Sidebar({
 
       {page === "bookkeeper-home" ? (
         <div className="sidebar-home-note">Pick a client above to see their tabs.</div>
-      ) : page === "staff-access" || page === "client-access" ? null : (
+      ) : page === "staff-access" || page === "client-access" || page === "developer-tools" ? null : (
       <nav className="nav">
         {NAV_SECTIONS.map((section) => {
           const isSignature = section.label === "Enterprise";
@@ -584,7 +608,7 @@ function Sidebar({
                 >
                   <span>{section.label}</span>
                   <span className="nav-signature-badge">Premium</span>
-                  <UpgradeIcon className="nav-upsell-icon" />
+                  <LockIcon className="nav-upsell-icon" />
                 </button>
               </div>
             );
@@ -629,7 +653,7 @@ function Sidebar({
       )}
 
       <div className="sidebar-utility-row">
-        {isBookkeeper && page !== "bookkeeper-home" && page !== "staff-access" && page !== "client-access" ? (
+        {isBookkeeper && !NON_CLIENT_PAGES.has(page) ? (
           <button className="customize-tabs-btn" onClick={onOpenSettings}>
             <SlidersIcon /> Manage access
           </button>
@@ -812,6 +836,14 @@ function ClientRosterIcon(props) {
   );
 }
 
+function WrenchIcon(props) {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" {...props}>
+      <path d="M14.7 6.3a4 4 0 00-5.4 5.4L4 17v3h3l5.3-5.3a4 4 0 005.4-5.4l-2.6 2.6-2-2z" />
+    </svg>
+  );
+}
+
 function GridIcon(props) {
   return (
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" {...props}>
@@ -907,14 +939,6 @@ function FileIcon(props) {
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" {...props}>
       <path d="M6 3h8l5 5v13a1 1 0 01-1 1H6a1 1 0 01-1-1V4a1 1 0 011-1z" />
       <path d="M14 3v5h5" />
-    </svg>
-  );
-}
-
-function UpgradeIcon(props) {
-  return (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" {...props}>
-      <path d="M7 17L17 7M17 7H9M17 7V15" />
     </svg>
   );
 }
@@ -3969,7 +3993,6 @@ function StaffAccessPage({ staffUser, onImpersonate }) {
   const [adding, setAdding] = useState(false);
   const [auditRows, setAuditRows] = useState(null);
   const [auditError, setAuditError] = useState("");
-  const [flagVersion, setFlagVersion] = useState(0); // bumped to force a re-read of localStorage
   const [clientAccessFor, setClientAccessFor] = useState(null); // the staff row being edited, or null
   const [clientAccessSet, setClientAccessSet] = useState(new Set());
   const [clientAccessLoading, setClientAccessLoading] = useState(false);
@@ -4139,27 +4162,6 @@ function StaffAccessPage({ staffUser, onImpersonate }) {
     showToast(`Removed ${row.name}.`);
     load();
     loadAudit();
-  }
-
-  function resetLocalState() {
-    if (
-      !window.confirm(
-        "Reset this browser's local MyGoodBooks state (theme, tab layout, dashboard widgets, per-person access overrides)? This only affects this browser — nothing in Supabase is touched. The page will reload."
-      )
-    ) {
-      return;
-    }
-    RESETTABLE_STORAGE_KEYS.forEach((key) => {
-      try {
-        localStorage.removeItem(key);
-      } catch (e) {}
-    });
-    window.location.reload();
-  }
-
-  function toggleFlag(key) {
-    setFlag(key, !isFlagOn(key));
-    setFlagVersion((v) => v + 1);
   }
 
   return (
@@ -4428,31 +4430,6 @@ function StaffAccessPage({ staffUser, onImpersonate }) {
             </div>
           </dl>
         </div>
-
-        <div className="card">
-          <h3 className="card-title">Developer tools</h3>
-          <p className="card-subtitle">Per-browser testing aids — nothing here is shared with other staff or written to Supabase.</p>
-
-          {FEATURE_FLAGS.map((f) => (
-            <label className="staff-flag-row" key={f.key}>
-              <input type="checkbox" checked={isFlagOn(f.key)} onChange={() => toggleFlag(f.key)} />
-              <span>
-                <span className="staff-flag-label">{f.label}</span>
-                <span className="staff-flag-desc">{f.description}</span>
-              </span>
-            </label>
-          ))}
-
-          <div className="staff-reset-row">
-            <button className="btn-secondary" onClick={resetLocalState}>
-              Reset local state
-            </button>
-            <p className="card-subtitle" style={{ margin: 0 }}>
-              Clears this browser's saved theme, tab layout, dashboard widgets, and per-person access overrides, then
-              reloads. Doesn't touch Supabase or any other browser.
-            </p>
-          </div>
-        </div>
       </div>
 
       <div className="card">
@@ -4534,6 +4511,70 @@ function parseClientUserCsv(text) {
     rows.push({ line, clientId, clientName: client ? client.name : clientId, email, name, role, errors });
   });
   return rows;
+}
+
+// ----------------------------------------------------------------------------
+// Developer Tools (admin only) — per-browser QA toggles and local-state
+// reset. Split out of Staff Access into its own sidebar page: it has nothing
+// to do with who can sign in, and burying browser-only debugging aids in
+// the middle of a page that writes to the real staff table made them easy
+// to overlook and easy to confuse for something that affects other staff.
+// ----------------------------------------------------------------------------
+
+function DeveloperToolsPage() {
+  const [, forceRerender] = useState(0);
+
+  function toggleFlag(key) {
+    setFlag(key, !isFlagOn(key));
+    forceRerender((v) => v + 1);
+  }
+
+  function resetLocalState() {
+    if (
+      !window.confirm(
+        "Reset this browser's local MyGoodBooks state (theme, tab layout, dashboard widgets, per-person access overrides)? This only affects this browser — nothing in Supabase is touched. The page will reload."
+      )
+    ) {
+      return;
+    }
+    RESETTABLE_STORAGE_KEYS.forEach((key) => {
+      try {
+        localStorage.removeItem(key);
+      } catch (e) {}
+    });
+    window.location.reload();
+  }
+
+  return (
+    <div>
+      <MockBanner text="Per-browser testing aids — nothing here is shared with other staff or written to Supabase." />
+
+      <div className="card">
+        <h3 className="card-title">Feature flags</h3>
+        <p className="card-subtitle">Stored in this browser's localStorage only.</p>
+
+        {FEATURE_FLAGS.map((f) => (
+          <label className="staff-flag-row" key={f.key}>
+            <input type="checkbox" checked={isFlagOn(f.key)} onChange={() => toggleFlag(f.key)} />
+            <span>
+              <span className="staff-flag-label">{f.label}</span>
+              <span className="staff-flag-desc">{f.description}</span>
+            </span>
+          </label>
+        ))}
+
+        <div className="staff-reset-row">
+          <button className="btn-secondary" onClick={resetLocalState}>
+            Reset local state
+          </button>
+          <p className="card-subtitle" style={{ margin: 0 }}>
+            Clears this browser's saved theme, tab layout, dashboard widgets, and per-person access overrides, then
+            reloads. Doesn't touch Supabase or any other browser.
+          </p>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 function ClientAccessPage() {
@@ -6709,6 +6750,7 @@ const PAGE_META = {
   "enterprise-upgrade": { title: "Enterprise", subtitle: "See what's included, and what upgrading unlocks" },
   "staff-access": { title: "Staff Access", subtitle: "Who can sign in to the portal, and with what role" },
   "client-access": { title: "Client Roster", subtitle: "Who at each organization is registered to sign in" },
+  "developer-tools": { title: "Developer Tools", subtitle: "Per-browser testing aids — nothing here is shared with other staff or written to Supabase" },
   "bookkeeper-home": { title: "Home", subtitle: "What needs attention across every client you can see" },
   documents: { title: "Documents", subtitle: "Shared files between you and your bookkeeper" },
   messages: { title: "Messages", subtitle: "Talk directly with your bookkeeping team" },
@@ -6961,7 +7003,7 @@ function App({ staffUser, onSignOut }) {
   // client, and would otherwise stamp whatever client was last selected
   // every time someone just checks their reminders).
   useEffect(() => {
-    if (page === "bookkeeper-home" || page === "staff-access" || page === "client-access") return;
+    if (NON_CLIENT_PAGES.has(page)) return;
     recordClientVisit(selectedClientId);
   }, [selectedClientId, page]);
 
@@ -7048,18 +7090,21 @@ function App({ staffUser, onSignOut }) {
 
   const scopedClient = useMemo(() => scopeClientData(client, access), [client, access]);
 
-  // "enterprise-upgrade" and "staff-access" are synthetic pages, not real
-  // tabs — neither is in ALL_TAB_KEYS/access.tabs, so each needs its own
-  // bypass here or the normal fallback would bounce it straight back to the
-  // dashboard. staff-access additionally requires admin, matching the
-  // sidebar link that's the only way to reach it — Postgres RLS is the real
-  // enforcement (see supabase/staff-admin-policies.sql), this is just so a
-  // demoted admin's stale stored page doesn't render a fetch that RLS then
-  // silently empties.
+  // "enterprise-upgrade" and "staff-access"/"client-access"/"developer-tools"
+  // are synthetic pages, not real tabs — none is in ALL_TAB_KEYS/access.tabs,
+  // so each needs its own bypass here or the normal fallback would bounce it
+  // straight back to the dashboard. The admin-only three additionally
+  // require the role, matching the sidebar links that are the only way to
+  // reach them — Postgres RLS is the real enforcement for staff-access (see
+  // supabase/staff-admin-policies.sql) and developer-tools only ever touches
+  // this browser's own localStorage, but the page-level gate still keeps a
+  // demoted admin's stale stored page from rendering either.
   const effectivePage =
     page === "enterprise-upgrade"
       ? page
-      : (page === "staff-access" || page === "client-access") && staffUser.role === "admin" && !impersonating
+      : (page === "staff-access" || page === "client-access" || page === "developer-tools") &&
+        staffUser.role === "admin" &&
+        !impersonating
       ? page
       : page === "bookkeeper-home"
       ? page
@@ -7381,9 +7426,7 @@ function App({ staffUser, onSignOut }) {
             <span></span>
           </button>
           <span className="mobile-topbar-title">
-            {effectivePage === "bookkeeper-home" || effectivePage === "staff-access" || effectivePage === "client-access"
-              ? "MyGoodBooks"
-              : client.name}
+            {NON_CLIENT_PAGES.has(effectivePage) ? "MyGoodBooks" : client.name}
           </span>
         </div>
         <div
@@ -7438,11 +7481,9 @@ function App({ staffUser, onSignOut }) {
           <div className="page-header">
             <div>
               <div className="portal-greeting">
-                {effectivePage === "bookkeeper-home" || effectivePage === "staff-access" || effectivePage === "client-access"
-                  ? "MyGoodBooks"
-                  : client.name}
+                {NON_CLIENT_PAGES.has(effectivePage) ? "MyGoodBooks" : client.name}
               </div>
-              {effectivePage === "bookkeeper-home" || effectivePage === "staff-access" || effectivePage === "client-access" ? (
+              {NON_CLIENT_PAGES.has(effectivePage) ? (
                 <h1 className="page-title">
                   {timeOfDayGreeting()}, {firstNameOf(effectiveStaffUser.name)}
                 </h1>
@@ -7526,6 +7567,7 @@ function App({ staffUser, onSignOut }) {
             <StaffAccessPage staffUser={staffUser} onImpersonate={startImpersonating} />
           )}
           {effectivePage === "client-access" && <ClientAccessPage />}
+          {effectivePage === "developer-tools" && <DeveloperToolsPage />}
           {effectivePage === "bookkeeper-home" && (
             <BookkeeperHomePage
               staffUser={effectiveStaffUser}
