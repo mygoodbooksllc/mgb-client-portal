@@ -4928,8 +4928,34 @@ function DocumentsPage({ client, isBookkeeper }) {
 }
 
 // ----------------------------------------------------------------------------
+// Mobile's stand-in for ChatWidget below — a plain round tap target instead
+// of a floating mini-thread. A fixed-position panel and the on-screen
+// keyboard fight each other in inconsistent, hard-to-fully-fix ways on a
+// small screen (the same category of real-device problem the touch
+// drag-and-drop work this week kept running into), and a 3-message preview
+// doesn't have much room to be useful at phone width anyway — tapping
+// straight through to the real Messages page is a better mobile experience
+// on its own merits, not just a workaround.
+// ----------------------------------------------------------------------------
+
+function ChatFab({ unreadCount, onOpen, onDismiss }) {
+  return (
+    <div className="chat-fab-wrap">
+      <button className="chat-fab" onClick={onOpen} aria-label="Open messages">
+        💬
+        {unreadCount > 0 && <span className="chat-fab-badge">{unreadCount}</span>}
+      </button>
+      <button className="chat-fab-dismiss" onClick={onDismiss} aria-label="Dismiss">
+        ×
+      </button>
+    </div>
+  );
+}
+
+// ----------------------------------------------------------------------------
 // Floating chat widget — surfaces an active conversation from any page so
 // the client doesn't have to be sitting on the Messages tab to see it.
+// Desktop only — see ChatFab above for mobile's equivalent.
 // ----------------------------------------------------------------------------
 
 function ChatWidget({ messages, onSend, onOpenFull, onClose }) {
@@ -5684,6 +5710,25 @@ function useWidgetLayout(scopeKey, allIds) {
   };
 }
 
+// Same breakpoint the phone layout already switches on (.app-shell/
+// .mobile-topbar in styles.css). matchMedia + a change listener, not a
+// resize listener + innerWidth check — matchMedia only fires when the
+// query's truthiness actually flips, not on every pixel of a resize/rotate.
+const MOBILE_BREAKPOINT_QUERY = "(max-width: 760px)";
+
+function useIsMobile() {
+  const [isMobile, setIsMobile] = useState(
+    () => typeof window !== "undefined" && window.matchMedia(MOBILE_BREAKPOINT_QUERY).matches
+  );
+  useEffect(() => {
+    const mql = window.matchMedia(MOBILE_BREAKPOINT_QUERY);
+    const onChange = (e) => setIsMobile(e.matches);
+    mql.addEventListener("change", onChange);
+    return () => mql.removeEventListener("change", onChange);
+  }, []);
+  return isMobile;
+}
+
 // Lets the actual cards on a page (not just the picker modal's rows) be
 // picked up and dropped to reorder — same underlying layout.reorder, just
 // driven by dragging the card itself. dragProps(id) spreads onto the card's
@@ -5949,6 +5994,7 @@ class ErrorBoundary extends React.Component {
 }
 
 function App({ staffUser, onSignOut }) {
+  const isMobile = useIsMobile();
   // Riverside: premium plan (so Daily Report is reachable) and, as of the
   // thread fixes in data.js, no thread whose last message is unread —
   // nothing steals focus with the chat popup on first load. Only the
@@ -6755,17 +6801,32 @@ function App({ staffUser, onSignOut }) {
         </main>
       </div>
 
-      {chatWidgetOpen && (
-        <ChatWidget
-          // Keyed by thread so an unsent draft can't follow the bookkeeper to
-          // another person's conversation and be sent to the wrong recipient.
-          key={"chat-" + threadKeyFor(selectedClientId, activeThreadUserId)}
-          messages={liveMessages}
-          onSend={(text) => sendMessage(selectedClientId, activeThreadUserId, text)}
-          onOpenFull={() => setPage("messages")}
-          onClose={closeChatWidget}
-        />
-      )}
+      {chatWidgetOpen &&
+        (isMobile ? (
+          // Mobile gets a plain tap-to-open button instead of the floating
+          // mini-thread — see ChatFab's own comment for why: a fixed-position
+          // panel plus the on-screen keyboard is a bad combination on a small
+          // screen, and there's no benefit to a 3-message preview when the
+          // real Messages page is one tap away regardless.
+          <ChatFab
+            unreadCount={unreadThreadUserIds.length}
+            onOpen={() => {
+              setPage("messages");
+              closeChatWidget();
+            }}
+            onDismiss={closeChatWidget}
+          />
+        ) : (
+          <ChatWidget
+            // Keyed by thread so an unsent draft can't follow the bookkeeper to
+            // another person's conversation and be sent to the wrong recipient.
+            key={"chat-" + threadKeyFor(selectedClientId, activeThreadUserId)}
+            messages={liveMessages}
+            onSend={(text) => sendMessage(selectedClientId, activeThreadUserId, text)}
+            onOpenFull={() => setPage("messages")}
+            onClose={closeChatWidget}
+          />
+        ))}
 
       {settingsOpen && (
         <TabSettingsModal

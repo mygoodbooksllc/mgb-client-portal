@@ -686,3 +686,21 @@ patched hole by hole. Replaced with something that can't have this whole class o
 section. Still outstanding from the original checklist: light-mode contrast on the gold text
 (§5 item 6, needs a human eye, can't be script-measured) and the Google Meet /
 Phase 2 items already tracked elsewhere in this document.
+
+**Follow-up the same day: the floating chat widget also got a mobile-specific treatment,** for
+the same underlying reason as the drag-and-drop decision above — a `position: fixed` panel and
+the on-screen keyboard don't reliably agree on mobile, and a 320px floating box doesn't have
+much room to be a useful 3-message preview on a phone screen anyway. Rather than fight that,
+mobile now gets a completely different, simpler design:
+
+- New `useIsMobile()` hook — `matchMedia("(max-width: 760px)")` plus a change listener, the
+  same breakpoint the phone sidebar-drawer layout already switches on. Not a resize listener +
+  `innerWidth` check, since `matchMedia`'s `change` event only fires when the query's
+  truthiness actually flips.
+- New `ChatFab` component: a round tap-to-open button (with an unread-count badge) plus a
+  small separate dismiss button, fixed to the bottom-right corner respecting the safe-area
+  inset. Tapping it navigates straight to the real Messages page — no mini-thread, no compose
+  box, no fixed-panel-vs-keyboard problem to have in the first place.
+- `ChatWidget` (the desktop floating mini-thread) is completely unchanged and unaffected —
+  `App` just chooses which of the two to render based on `isMobile`.
+- `MGB_VERSION` bumped to `2026-09-16g`.
