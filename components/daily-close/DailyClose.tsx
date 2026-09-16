@@ -28,7 +28,7 @@ interface DailyCloseProps {
   /** Force a theme regardless of the viewer's OS setting. Omit to follow the system. */
   theme?: "light" | "dark";
   /** Cross-navigates the host app to another tab (e.g. the Accounts Payable
-      KPI tile jumping to AP Command Center). Omit to render that tile as
+      KPI tile jumping to Cash Flow Pro). Omit to render that tile as
       non-interactive — used by the standalone prototype, which has nowhere
       to navigate to. */
   onNavigate?: (page: string) => void;
@@ -971,7 +971,7 @@ function DailyClose({ data, className, theme, onNavigate }: DailyCloseProps) {
                       {data.payables.hasPastDue ? "Some past due" : "Nothing past due"}
                     </div>
                     <div className={styles.kpiFoot} style={{ marginTop: "auto" }}>
-                      {fmtMoney(data.payables.dueWithin7Days)} due within 7 days{onNavigate ? " · view in AP Command Center" : ""}
+                      {fmtMoney(data.payables.dueWithin7Days)} due within 7 days{onNavigate ? " · view in Cash Flow Pro" : ""}
                     </div>
                   </button>
                 );

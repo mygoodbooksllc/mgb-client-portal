@@ -1402,3 +1402,22 @@ and a bit more row padding.
   only fires on an actual switch.
 
 `MGB_VERSION` bumped to `2026-09-16an`.
+
+## §41 — Renamed: Receivables & Payables → Cash Flow, AP Command Center → Cash Flow Pro
+
+Standard-plan "Receivables & Payables" → **Cash Flow**; premium-only "AP Command Center" →
+**Cash Flow Pro**. Chosen over keeping "Command Center" or "AP" in the name so the premium tab
+reads as an upgraded tier of the standard one (same relationship the naming already implies
+between them) rather than a narrower AP-only tool.
+
+Blanket string replacement across every user-facing occurrence: `NAV_SECTIONS` labels,
+`PAGE_META` titles (`receivables`/`ap-command-center` keys, unchanged — display text only),
+`ENTERPRISE_FEATURES`' Cash Flow Pro card, Report Builder's section picker
+(`REPORT_SECTION_DEFS`) and its rendered `<h2>`, the cross-tab "Cash Flow" widget on Bookkeeper
+Home, the page's own `MockBanner` text, and every code comment mentioning either name — plus the
+matching swap in `DailyClose.tsx`'s Live Report (its Accounts Payable KPI tile's "view in ___"
+cross-navigation label). Internal keys (`"receivables"`, `"ap-command-center"`) are untouched —
+same internal-key-survives-the-rename pattern as the earlier Dashboard/Live Report rename, so
+nothing about routing, `ORG_WIDE_TABS`, `PREMIUM_TAB_KEYS`, or stored tab config broke.
+
+`MGB_VERSION` bumped to `2026-09-16ao`.
