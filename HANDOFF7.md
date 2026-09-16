@@ -1345,3 +1345,22 @@ mobile."
   the new icon).
 
 `MGB_VERSION` bumped to `2026-09-16ak`.
+
+## §38 — Customize dashboard rows get real breathing room on mobile
+
+The ⠿ drag handle next to each row's move buttons does nothing on a touch device — dragging is
+mouse-only (`useDragReorder`'s own comment explains why: four different real-device bugs made
+reimplementing native drag-and-drop over touch not worth it). At phone width it just crowded the
+row next to the move buttons, reported as looking overlapped. Hidden via
+`.widget-picker-row .drag-handle { display: none; }` in the existing mobile touch-target media
+query — move is already the only way to reorder on a phone, so nothing is lost.
+
+That alone didn't fully fix the cramped feel: every widget's label/description wraps to 2-3 lines
+at phone width, and the move-button stack (§37's mobile bump) runs ~76px tall — vertically
+centering either against the other, at the original tight spacing, still read as nearly
+overlapping. Given the OK to let rows spread out for the sake of it, added: more gap between rows
+in `.widget-picker-list` (4px → 10px), top-aligned columns instead of centered
+(`align-items: flex-start`) so wrapped text and the button stack each keep their own clear space,
+and a bit more row padding.
+
+`MGB_VERSION` bumped to `2026-09-16al`.
