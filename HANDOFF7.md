@@ -607,3 +607,7 @@ Landed on `#05080d` / `#020306`.
 Recommended before calling this fully done: click through the real app in light mode (not just
 the mockup) — a sidebar full of real nav items, badges, and hover states can read differently
 than three curated screenshots did.
+
+**Also renamed the same day: "Client Access" → "Client Roster."** Sidebar link and page title
+only — the internal page key (`client-access`) and the `ClientAccessPage` component name are
+unchanged, so this was a display-label-only edit. `MGB_VERSION` bumped to `2026-09-15g`.
