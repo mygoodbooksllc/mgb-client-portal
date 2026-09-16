@@ -186,6 +186,16 @@ function ToastProvider({ children }) {
 
 const NAV_SECTIONS = [
   {
+    // Its own section at the very top, above even Enterprise Tools — an
+    // unread-message badge is easy to miss buried under three other
+    // sections, and a new message from the bookkeeper is exactly the kind
+    // of thing a client shouldn't have to go hunting for.
+    label: "Messages",
+    items: [
+      { key: "messages", label: "Messages", icon: <ChatIcon width="16" height="16" strokeWidth="1.8" /> },
+    ],
+  },
+  {
     label: "Enterprise Tools",
     // Live Report ("daily-close") isn't a nav item here on purpose — a
     // premium, full-access client's Dashboard tab IS the Live Report, one
@@ -214,11 +224,8 @@ const NAV_SECTIONS = [
     ],
   },
   {
-    label: "Client Tools",
-    items: [
-      { key: "messages", label: "Messages", icon: <ChatIcon width="16" height="16" strokeWidth="1.8" /> },
-      { key: "documents", label: "Documents", icon: <FolderIcon /> },
-    ],
+    label: "Documents",
+    items: [{ key: "documents", label: "Documents", icon: <FolderIcon /> }],
   },
 ];
 
@@ -628,7 +635,11 @@ function Sidebar({
                     }}
                   >
                     {item.icon}
-                    <span>{item.label}</span>
+                    <span>
+                      {item.key === "dashboard" && hasPremiumPlan(client) && access && !access.isCategoryScoped
+                        ? "Dashboard Live"
+                        : item.label}
+                    </span>
                     {badges[item.key] && <span className="nav-badge-dot" aria-label="Unread"></span>}
                   </button>
                 ))}
@@ -900,6 +911,24 @@ function FolderIcon(props) {
   return (
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" {...props}>
       <path d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V7z" />
+    </svg>
+  );
+}
+
+function UploadIcon(props) {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" {...props}>
+      <path d="M12 16V4M12 4l-4 4M12 4l4 4" />
+      <path d="M4 16v3a2 2 0 002 2h12a2 2 0 002-2v-3" />
+    </svg>
+  );
+}
+
+function FileIcon(props) {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" {...props}>
+      <path d="M6 3h8l5 5v13a1 1 0 01-1 1H6a1 1 0 01-1-1V4a1 1 0 011-1z" />
+      <path d="M14 3v5h5" />
     </svg>
   );
 }
@@ -2351,11 +2380,14 @@ function BankPage({ client }) {
 
 const sanitizeFilename = (s) => s.replace(/[\\/:*?"<>|]/g, "");
 
+// [5, 8, 13] is --navy (#05080d), the near-black navy the app switched to on
+// 2026-09-15. jsPDF only takes RGB triples, not CSS custom properties, so
+// these have to be kept in sync by hand if the theme color ever changes again.
 const PDF_TABLE_THEME = {
   theme: "striped",
-  styles: { fontSize: 9, cellPadding: 3, textColor: [36, 55, 70] },
-  headStyles: { fillColor: [36, 55, 70], textColor: [250, 249, 246], fontStyle: "bold" },
-  footStyles: { fillColor: [199, 174, 134], textColor: [36, 55, 70], fontStyle: "bold" },
+  styles: { fontSize: 9, cellPadding: 3, textColor: [5, 8, 13] },
+  headStyles: { fillColor: [5, 8, 13], textColor: [250, 249, 246], fontStyle: "bold" },
+  footStyles: { fillColor: [199, 174, 134], textColor: [5, 8, 13], fontStyle: "bold" },
   margin: { left: 14, right: 14 },
 };
 
@@ -2363,7 +2395,7 @@ function newReportDoc(title, subtitle, client) {
   const doc = new window.jspdf.jsPDF();
   const pageWidth = doc.internal.pageSize.getWidth();
 
-  doc.setFillColor(36, 55, 70);
+  doc.setFillColor(5, 8, 13);
   doc.rect(0, 0, pageWidth, 28, "F");
   doc.setTextColor(250, 249, 246);
   doc.setFont("helvetica", "bold");
@@ -2373,7 +2405,7 @@ function newReportDoc(title, subtitle, client) {
   doc.setFontSize(9);
   doc.text(client.name, 14, 19.5);
 
-  doc.setTextColor(36, 55, 70);
+  doc.setTextColor(5, 8, 13);
   doc.setFont("helvetica", "bold");
   doc.setFontSize(14);
   doc.text(title, 14, 40);
@@ -2423,7 +2455,7 @@ function buildProfitAndLossPdf(client) {
   let y = doc.lastAutoTable.finalY + 12;
   doc.setFont("helvetica", "bold");
   doc.setFontSize(11);
-  doc.setTextColor(36, 55, 70);
+  doc.setTextColor(5, 8, 13);
   doc.text(`Total Income (${period}): ${fmtMoney(latestMonth.income)}`, 14, y);
   doc.text(`Total Expenses (${period}): ${fmtMoney(latestMonth.expenses)}`, 14, y + 7);
   doc.text(
@@ -2466,7 +2498,7 @@ function buildBalanceSheetPdf(client) {
   let y = doc.lastAutoTable.finalY + 12;
   doc.setFont("helvetica", "bold");
   doc.setFontSize(11);
-  doc.setTextColor(36, 55, 70);
+  doc.setTextColor(5, 8, 13);
   doc.text(`Net Assets: ${fmtMoney(totalAssets - totalLiabilities, { cents: true })}`, 14, y);
 
   const unrestricted = client.funds.filter((f) => !f.restricted).reduce((s, f) => s + f.balance, 0);
@@ -3407,7 +3439,10 @@ function apDueText(diff) {
 function APCommandCenterPage({ client }) {
   const [statusFilter, setStatusFilter] = useState("all");
   const [query, setQuery] = useState("");
+  const [selected, setSelected] = useState(() => new Set());
+  const [payRun, setPayRun] = useState(null); // { ids, total, status: "awaiting_approval" | "approved" }
   const today = todayLocal();
+  const showToast = useToast();
   const { flashCardId, jumpToCard } = useCardFlash();
   const jumpToBills = (status) => {
     setStatusFilter(status);
@@ -3415,12 +3450,39 @@ function APCommandCenterPage({ client }) {
   };
 
   const rows = useMemo(() => {
-    return client.payables.map((p) => {
+    return client.payables.map((p, i) => {
       const diff = daysUntil(p.dueDate, today);
       const status = diff < 0 ? "overdue" : diff <= AP_SOON_DAYS ? "soon" : "scheduled";
-      return { ...p, diff, status };
+      return { ...p, diff, status, rowId: p.id != null ? p.id : i };
     });
   }, [client.payables, today]);
+
+  // Same vendor + same amount showing up more than once usually means a bill
+  // was entered twice, not that the vendor billed the same amount by chance.
+  const duplicateRowIds = useMemo(() => {
+    const seen = new Map();
+    rows.forEach((r) => {
+      const key = r.vendor + "|" + r.amount;
+      seen.set(key, (seen.get(key) || []).concat(r.rowId));
+    });
+    const flagged = new Set();
+    seen.forEach((ids) => {
+      if (ids.length > 1) ids.forEach((id) => flagged.add(id));
+    });
+    return flagged;
+  }, [rows]);
+
+  const vendorSummary = useMemo(() => {
+    const byVendor = new Map();
+    rows.forEach((r) => {
+      const v = byVendor.get(r.vendor) || { vendor: r.vendor, total: 0, count: 0, overdue: 0 };
+      v.total += r.amount;
+      v.count += 1;
+      if (r.status === "overdue") v.overdue += 1;
+      byVendor.set(r.vendor, v);
+    });
+    return [...byVendor.values()].sort((a, b) => b.total - a.total);
+  }, [rows]);
 
   const byStatus = (key) => rows.filter((r) => key === "all" || r.status === key);
 
@@ -3454,6 +3516,67 @@ function APCommandCenterPage({ client }) {
 
   const nextDue = useMemo(() => [...rows].sort((a, b) => a.diff - b.diff).slice(0, 5), [rows]);
   const shownTotal = filteredRows.reduce((s, r) => s + r.amount, 0);
+
+  const toggleRow = (rowId) => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(rowId)) next.delete(rowId);
+      else next.add(rowId);
+      return next;
+    });
+  };
+  const allShownSelected = filteredRows.length > 0 && filteredRows.every((r) => selected.has(r.rowId));
+  const toggleAllShown = () => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (allShownSelected) filteredRows.forEach((r) => next.delete(r.rowId));
+      else filteredRows.forEach((r) => next.add(r.rowId));
+      return next;
+    });
+  };
+
+  const selectedRows = rows.filter((r) => selected.has(r.rowId));
+  const selectedTotal = selectedRows.reduce((s, r) => s + r.amount, 0);
+  const cashOnHand = totalCash(client);
+  const cashAfterPayRun = cashOnHand - selectedTotal;
+
+  const startPayRun = () => {
+    if (selectedRows.length === 0) return;
+    setPayRun({ ids: [...selected], total: selectedTotal, status: "awaiting_approval" });
+    showToast(
+      `Pay run of ${selectedRows.length} bill${selectedRows.length !== 1 ? "s" : ""} (${fmtMoney(selectedTotal, {
+        cents: true,
+      })}) sent for approval.`
+    );
+  };
+  const approvePayRun = () => {
+    setPayRun((prev) => (prev ? { ...prev, status: "approved" } : prev));
+    showToast("Pay run approved — ready to send to the bank.");
+  };
+  const cancelPayRun = () => {
+    setPayRun(null);
+    setSelected(new Set());
+  };
+
+  const exportPayRunCsv = () => {
+    const list = payRun ? rows.filter((r) => payRun.ids.includes(r.rowId)) : selectedRows;
+    if (list.length === 0) return;
+    const csvRows = [
+      ["Vendor", "Description", "Amount", "Due Date"],
+      ...list.map((r) => [r.vendor, r.description, r.amount.toFixed(2), r.dueDate]),
+    ];
+    const csv = csvRows.map((r) => r.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(",")).join("\n");
+    const blob = new Blob([csv], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${client.name.replace(/\s+/g, "_")}_ACH_batch.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    showToast(`Exported ${list.length} bill${list.length !== 1 ? "s" : ""} for bank upload.`);
+  };
 
   return (
     <div>
@@ -3527,6 +3650,14 @@ function APCommandCenterPage({ client }) {
           <table className="tx-table tx-table-labeled">
             <thead>
               <tr>
+                <th style={{ width: 28 }}>
+                  <input
+                    type="checkbox"
+                    checked={allShownSelected}
+                    onChange={toggleAllShown}
+                    aria-label="Select all shown bills"
+                  />
+                </th>
                 <th>Vendor</th>
                 <th>Status</th>
                 <th className="num">Amount</th>
@@ -3534,13 +3665,28 @@ function APCommandCenterPage({ client }) {
               </tr>
             </thead>
             <tbody>
-              {filteredRows.map((r, i) => {
+              {filteredRows.map((r) => {
                 const meta = AP_STATUS_META[r.status];
                 return (
-                  <tr key={i}>
+                  <tr key={r.rowId}>
+                    <td>
+                      <input
+                        type="checkbox"
+                        checked={selected.has(r.rowId)}
+                        onChange={() => toggleRow(r.rowId)}
+                        aria-label={`Select ${r.vendor} bill`}
+                      />
+                    </td>
                     <td data-primary="">
                       {r.vendor}
-                      <div className="tx-meta">{r.description}</div>
+                      <div className="tx-meta">
+                        {r.description}
+                        {duplicateRowIds.has(r.rowId) && (
+                          <span className="pill warm" style={{ marginLeft: 6 }}>
+                            Possible duplicate
+                          </span>
+                        )}
+                      </div>
                     </td>
                     <td data-label="Status">
                       <span className={"pill " + meta.pill}>{meta.label}</span>
@@ -3557,7 +3703,7 @@ function APCommandCenterPage({ client }) {
               })}
               {filteredRows.length === 0 && (
                 <tr>
-                  <td colSpan={4} className="ap-cc-empty">
+                  <td colSpan={5} className="ap-cc-empty">
                     No bills match this filter.
                   </td>
                 </tr>
@@ -3565,7 +3711,7 @@ function APCommandCenterPage({ client }) {
             </tbody>
             <tfoot>
               <tr>
-                <td colSpan={2}>Total shown</td>
+                <td colSpan={3}>Total shown</td>
                 <td className="num tx-amount negative">-{fmtMoney(shownTotal, { cents: true })}</td>
                 <td></td>
               </tr>
@@ -3574,7 +3720,85 @@ function APCommandCenterPage({ client }) {
         </div>
       </div>
 
+      {(selected.size > 0 || payRun) && (
+        <div className="card" style={{ marginBottom: 20 }}>
+          <h3 className="card-title">Pay Run</h3>
+          <p className="card-subtitle">
+            {payRun
+              ? `${payRun.ids.length} bill${payRun.ids.length !== 1 ? "s" : ""} · ${fmtMoney(payRun.total, {
+                  cents: true,
+                })}`
+              : `${selectedRows.length} bill${selectedRows.length !== 1 ? "s" : ""} selected · ${fmtMoney(
+                  selectedTotal,
+                  { cents: true }
+                )}`}
+          </p>
+
+          <div className="ap-cc-payrun-impact">
+            <div>
+              <span className="ap-cc-age-label">Cash on hand today</span>
+              <div className="kpi-value" style={{ fontSize: 20 }}>{fmtMoney(cashOnHand, { cents: true })}</div>
+            </div>
+            <div>
+              <span className="ap-cc-age-label">Balance after this pay run</span>
+              <div className={"kpi-value " + (cashAfterPayRun < 0 ? "negative" : "")} style={{ fontSize: 20 }}>
+                {fmtMoney(cashAfterPayRun, { cents: true })}
+              </div>
+            </div>
+          </div>
+
+          {payRun && (
+            <div className="ap-cc-approval-row">
+              <span className={"pill " + (payRun.status === "approved" ? "good" : "warm")}>
+                {payRun.status === "approved" ? "Approved" : "Awaiting Treasurer approval"}
+              </span>
+            </div>
+          )}
+
+          <div className="ap-cc-payrun-actions">
+            {!payRun && (
+              <button className="btn-primary" onClick={startPayRun} disabled={selectedRows.length === 0}>
+                Send for Approval
+              </button>
+            )}
+            {payRun && payRun.status === "awaiting_approval" && (
+              <button className="btn-primary" onClick={approvePayRun}>
+                Approve Pay Run
+              </button>
+            )}
+            <button className="btn-secondary" onClick={exportPayRunCsv} disabled={selectedRows.length === 0 && !payRun}>
+              Export ACH Batch (CSV)
+            </button>
+            {payRun && (
+              <button className="btn-secondary" onClick={cancelPayRun}>
+                Clear Pay Run
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
       <div className="content-masonry">
+        <div className="card">
+          <h3 className="card-title">Vendor Summary</h3>
+          <p className="card-subtitle">Open balance by vendor</p>
+          <div className="ap-cc-upcoming">
+            {vendorSummary.slice(0, 6).map((v) => (
+              <div className="ap-cc-upcoming-item" key={v.vendor}>
+                <div>
+                  <div className="ap-cc-upcoming-who">{v.vendor}</div>
+                  <div className="ap-cc-upcoming-when">
+                    {v.count} bill{v.count !== 1 ? "s" : ""}
+                    {v.overdue > 0 ? ` · ${v.overdue} overdue` : ""}
+                  </div>
+                </div>
+                <span className="ap-cc-upcoming-amt">{fmtMoney(v.total, { cents: true })}</span>
+              </div>
+            ))}
+            {vendorSummary.length === 0 && <p className="card-subtitle">No open bills.</p>}
+          </div>
+        </div>
+
         <div className="card">
           <h3 className="card-title">Aging Summary</h3>
           <p className="card-subtitle">Payables by how overdue they are</p>
@@ -5181,6 +5405,7 @@ function BookkeeperHomePage({ staffUser, clients, messagesByClient, readMessageC
 function DocumentsPage({ client, isBookkeeper }) {
   const [docs, setDocs] = useState(client.documents);
   const [isDragging, setIsDragging] = useState(false);
+  const [previewIndex, setPreviewIndex] = useState(null);
   const fileInputRef = useRef(null);
   const showToast = useToast();
 
@@ -5197,6 +5422,10 @@ function DocumentsPage({ client, isBookkeeper }) {
       // Org-wide by default, so whoever just uploaded a file can still see it.
       // MyGoodBooks can restrict it afterwards.
       visibility: "all",
+      // Kept only for real files uploaded this session, so the preview modal
+      // has actual bytes to show. Pre-loaded sample documents never had a
+      // real file behind them, so they fall back to a metadata-only preview.
+      file: f,
     }));
     setDocs((d) => [...newDocs, ...d]);
     showToast(`Uploaded ${files.length} file${files.length > 1 ? "s" : ""}.`);
@@ -5228,10 +5457,11 @@ function DocumentsPage({ client, isBookkeeper }) {
           setIsDragging(false);
           addFiles(e.dataTransfer.files);
         }}
-        style={{ marginBottom: 20 }}
       >
         <div className="upload-content">
-          <div className="dropzone-icon">⬆</div>
+          <div className="dropzone-icon">
+            <UploadIcon width="22" height="22" strokeWidth="1.6" />
+          </div>
           <div>
             <h3 className="card-title">Share a document</h3>
             <p className="card-subtitle" style={{ margin: 0 }}>
@@ -5262,7 +5492,7 @@ function DocumentsPage({ client, isBookkeeper }) {
 
       <div className="card">
         <h3 className="card-title">All Documents</h3>
-        <p className="card-subtitle">{docs.length} file{docs.length !== 1 ? "s" : ""}</p>
+        <p className="card-subtitle">{docs.length} file{docs.length !== 1 ? "s" : ""} · click a document to preview it</p>
         <div className="table-scroll">
 <table className="tx-table tx-table-labeled">
           <thead>
@@ -5277,8 +5507,14 @@ function DocumentsPage({ client, isBookkeeper }) {
           </thead>
           <tbody>
             {docs.map((d, i) => (
-              <tr key={i}>
-                <td data-primary="">{d.name}</td>
+              <tr key={i} className="doc-row" onClick={() => setPreviewIndex(i)} tabIndex={0}
+                onKeyDown={(e) => { if (e.key === "Enter") setPreviewIndex(i); }}>
+                <td data-primary="">
+                  <span className="doc-name-link">
+                    <FileIcon width="15" height="15" strokeWidth="1.7" className="icon-inline" />
+                    {d.name}
+                  </span>
+                </td>
                 <td data-label="Category">
                   <span className="category-tag">{d.category}</span>
                 </td>
@@ -5288,7 +5524,10 @@ function DocumentsPage({ client, isBookkeeper }) {
                   <td data-label="Visible to">
                     <button
                       className={"visibility-toggle" + (d.visibility === "full" ? " restricted" : "")}
-                      onClick={() => toggleVisibility(i)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        toggleVisibility(i);
+                      }}
                       title="Click to change who at this organization can see this file"
                     >
                       {d.visibility === "full" ? (
@@ -5308,7 +5547,90 @@ function DocumentsPage({ client, isBookkeeper }) {
         </table>
         </div>
       </div>
+
+      {previewIndex !== null && docs[previewIndex] && (
+        <DocumentPreviewModal doc={docs[previewIndex]} onClose={() => setPreviewIndex(null)} />
+      )}
     </div>
+  );
+}
+
+// File extensions we know how to render inline. Anything else — real upload
+// or sample document alike — falls back to the metadata-only preview panel
+// rather than guessing at a MIME type from the extension.
+const PREVIEWABLE_IMAGE_EXT = /\.(png|jpe?g|gif|webp|svg)$/i;
+const PREVIEWABLE_PDF_EXT = /\.pdf$/i;
+
+function docExtension(name) {
+  const match = /\.([a-z0-9]+)$/i.exec(name || "");
+  return match ? match[1].toUpperCase() : "FILE";
+}
+
+function DocumentPreviewModal({ doc, onClose }) {
+  const objectUrl = useMemo(() => (doc.file ? URL.createObjectURL(doc.file) : null), [doc.file]);
+  useEffect(() => () => { if (objectUrl) URL.revokeObjectURL(objectUrl); }, [objectUrl]);
+
+  const isImage = PREVIEWABLE_IMAGE_EXT.test(doc.name);
+  const isPdf = PREVIEWABLE_PDF_EXT.test(doc.name);
+
+  return (
+    <ModalShell onClose={onClose} labelledBy="doc-preview-title" className="doc-preview-modal">
+      <div className="modal-header">
+        <h3 className="card-title" id="doc-preview-title" style={{ margin: 0 }}>
+          <FileIcon width="17" height="17" strokeWidth="1.7" className="icon-inline" />
+          {doc.name}
+        </h3>
+        <button className="modal-close" onClick={onClose} aria-label="Close">
+          ×
+        </button>
+      </div>
+
+      <div className="modal-body doc-preview-body">
+        {objectUrl && isImage && (
+          <img src={objectUrl} alt={doc.name} className="doc-preview-image" />
+        )}
+        {objectUrl && isPdf && (
+          <iframe src={objectUrl} title={doc.name} className="doc-preview-frame" />
+        )}
+        {!objectUrl && (
+          <div className="doc-preview-placeholder">
+            <FileIcon width="40" height="40" strokeWidth="1.3" />
+            <p className="card-subtitle" style={{ margin: "10px 0 0", textAlign: "center" }}>
+              {doc.file
+                ? `Preview isn't available for .${docExtension(doc.name).toLowerCase()} files yet — download to open it.`
+                : "This is sample data — there's no real file behind it to preview yet."}
+            </p>
+          </div>
+        )}
+        {objectUrl && !isImage && !isPdf && (
+          <div className="doc-preview-placeholder">
+            <FileIcon width="40" height="40" strokeWidth="1.3" />
+            <p className="card-subtitle" style={{ margin: "10px 0 0", textAlign: "center" }}>
+              Preview isn't available for .{docExtension(doc.name).toLowerCase()} files yet — download to open it.
+            </p>
+          </div>
+        )}
+      </div>
+
+      <div className="modal-footer doc-preview-footer">
+        <div className="doc-preview-meta">
+          <span className="category-tag">{doc.category}</span>
+          <span>{doc.uploadedBy}</span>
+          <span>{fmtDate(doc.date)}</span>
+          <span>{doc.size}</span>
+        </div>
+        <div className="doc-preview-actions">
+          {objectUrl && (
+            <a className="btn-secondary" href={objectUrl} download={doc.name}>
+              Download
+            </a>
+          )}
+          <button className="btn-primary" onClick={onClose}>
+            Close
+          </button>
+        </div>
+      </div>
+    </ModalShell>
   );
 }
 

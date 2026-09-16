@@ -921,3 +921,93 @@ built yet.
 Also asked, separately: what would make AP Command Center itself feel worth a premium price
 (brainstormed, not yet built — pending which direction is picked), and the downloadable PDF
 export needs to match the new near-black navy theme (also not yet built as of this entry).
+
+## §19 — AP Command Center premium features; PDF exports match the navy theme
+
+Brainstormed what would make AP Command Center feel worth a premium price (batch pay runs,
+approval workflow, vendor profiles, duplicate detection, ACH/bank export, cash-impact forecast).
+User said to build all of it and they'd weed out anything unneeded later, rather than picking one.
+
+- **Bill selection + batch pay runs.** Checkboxes per row (plus a header "select all shown") on
+  the Open Bills table. Selecting bills surfaces a new "Pay Run" card showing the selected count/
+  total, cash on hand today, and the projected balance after paying (`totalCash(client) -
+  selectedTotal`) — the cash-impact forecast idea.
+- **Lightweight approval workflow.** "Send for Approval" turns the selection into a `payRun`
+  object (`{ ids, total, status }`) and shows an "Awaiting Treasurer approval" pill; "Approve Pay
+  Run" flips it to an "Approved" pill. There's no real multi-user sign-off backend here (same
+  honest-mock-data posture as the rest of the app) — it's a state machine on the client, not a
+  notification sent to anyone.
+- **ACH/bank export.** "Export ACH Batch (CSV)" downloads the selected (or active pay run's)
+  bills as a CSV — vendor, description, amount, due date — same `Blob`/`URL.createObjectURL`
+  pattern `BankPage`'s existing CSV export already used.
+- **Vendor Summary card.** New card grouping `client.payables` by vendor (total open balance,
+  bill count, overdue count), sorted by total descending, top 6 shown — the vendor-profile idea,
+  scoped down to what the existing table already has rather than inventing a vendor detail page.
+- **Duplicate detection.** Any two bills sharing the same vendor + amount are flagged with a
+  "Possible duplicate" pill next to the description — a same-vendor-same-amount collision is a
+  much stronger duplicate-entry signal than coincidence for a bookkeeping app's bill list.
+- Recurring-bill detection was in the original brainstorm list but not built — there isn't
+  enough historical/dated bill data in the mock payables to detect a real recurrence pattern
+  from (a single current snapshot, not a paid-bill history), so it'd just be a fake toggle.
+
+**PDF exports now match the navy theme.** `PDF_TABLE_THEME` and `newReportDoc()` (shared by every
+report: Profit & Loss, Balance Sheet, Budget vs. Actual, Contribution Statement, Draft Budget)
+were still hardcoded to the old mygoodbooks.org navy, `rgb(36, 55, 70)` / `#243746`, from before
+the 2026-09-15 theme change. Replaced every occurrence with `rgb(5, 8, 13)` — `--navy` (`#05080d`)
+— so the downloaded PDF's header band and heading text match the app's current near-black navy
+instead of the old lighter navy. jsPDF only takes RGB triples, not CSS custom properties, so this
+has to be kept in sync by hand if the theme color changes again (left a comment to that effect
+above `PDF_TABLE_THEME`). The gold footer color (`rgb(199, 174, 134)`, `--gold`) was already
+correct and untouched.
+
+`MGB_VERSION` bumped to `2026-09-16s`.
+
+## §20 — Documents tab: click a document to open a preview
+
+Rows in "All Documents" are now clickable (and keyboard-operable — `tabIndex` + Enter) and open a
+`DocumentPreviewModal` via the shared `ModalShell`.
+
+- **Real uploads get a real preview.** `addFiles()` now keeps the actual `File` object on the doc
+  record, not just its derived metadata. The modal creates an object URL from it (cleaned up with
+  `URL.revokeObjectURL` on unmount) and renders an `<img>` for image extensions or an `<iframe>`
+  for `.pdf`; anything else falls back to a placeholder with a Download link — there's no way to
+  render a `.xlsx` or `.docx` inline without a real viewer library, and this prototype doesn't
+  have one.
+- **Pre-loaded sample documents have no real file behind them** (`data.js`'s `documents` arrays
+  are just name/category/date/size — no bytes, no URL), so those get the same placeholder panel
+  with an honest "this is sample data, there's no real file to preview yet" message instead of
+  pretending to show a document. Consistent with the page's existing `MockBanner` framing.
+- The "Visible To" toggle button inside each row calls `e.stopPropagation()` so clicking it
+  doesn't also open the preview modal for the row it sits in.
+- Swapped the dropzone's "⬆" emoji for a new `UploadIcon` (thin-line, matches the rest of the
+  icon set) while touching this page — new icons `UploadIcon` and `FileIcon` (used as the
+  document-row prefix and the modal's placeholder/header icon) were added net new, not yet ported
+  to the design-system package.
+
+`MGB_VERSION` bumped to `2026-09-16t`.
+
+## §21 — Sidebar polish: no more gold divider, Messages moved to top, "Dashboard Live"
+
+Three small sidebar requests, all in `NAV_SECTIONS`/`Sidebar`:
+
+- **Removed the gold line under Enterprise Tools.** `.nav-section-signature`'s `border-bottom:
+  1px solid rgba(199, 174, 134, 0.4)` is gone; the section still keeps its bottom padding/margin
+  so spacing before the next section is unchanged, just without the rule.
+- **Messages moved to its own section at the very top of the sidebar** — above even Enterprise
+  Tools. Previously it lived at the bottom, inside "Client Tools" alongside Documents; a client
+  could easily miss an unread-message badge buried under three sections above it. `NAV_SECTIONS`
+  now starts with a single-item `Messages` section; the old `Client Tools` section, now holding
+  only Documents, was renamed `Documents` since "tools" (plural) no longer fit a lone item.
+  Non-signature sections render no visible heading (confirmed by re-reading `Sidebar`'s render —
+  only the collapsible Enterprise Tools section gets a label button), so this reads as the
+  Messages nav item simply being first, not an extra header taking up space.
+- **Premium Dashboard tab reads "Dashboard Live."** The sidebar label for the `dashboard` key is
+  now computed per-viewer: `"Dashboard Live"` when `hasPremiumPlan(client) && !access.isCategoryScoped`
+  (the same condition `showsLiveReport` in `App` already uses to decide whether that tab renders
+  the Live Report), otherwise the plain `"Dashboard"` label from `NAV_SECTIONS`. The page itself
+  was already titled "Live Report" (renamed in §18) — this only changes what the sidebar *tab*
+  is called, so a premium client sees "Dashboard Live" in the nav and lands on a page titled
+  "Live Report," rather than a tab called plain "Dashboard" that opens something called "Live
+  Report."
+
+`MGB_VERSION` bumped to `2026-09-16u`.
