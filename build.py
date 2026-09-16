@@ -159,7 +159,7 @@ def build(out_path: pathlib.Path, refresh: bool) -> None:
 
 // Mirrors the stamp in index.html — bumped by hand alongside this file,
 // since there's no build step to inject a real commit SHA into.
-window.MGB_VERSION = {{ label: "2026-09-16al", note: "Hide drag handle on mobile in Customize dashboard - crowded the move buttons" }};
+window.MGB_VERSION = {{ label: "2026-09-16am", note: "Move arrows side by side; chat widget never renders over an open modal" }};
 
 // Mirrors index.html's pinch-block — see that file's comment for why this
 // is gesture-level (2+ touches) rather than touch-action CSS.
