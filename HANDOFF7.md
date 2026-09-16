@@ -1023,3 +1023,19 @@ never reached what the user was looking at. Changed the literal text to "Live <s
 occurrences left in `components/daily-close/`.
 
 `MGB_VERSION` bumped to `2026-09-16v`.
+
+## §23 — Live Report accent word matches theme; sidebar gap under Enterprise Tools
+
+- **`.dc-accentword` ("Report" in the masthead) was blue** (`var(--accent)`: `#24425f` light /
+  `#7fa9c9` dark), a leftover from `DailyClose`'s own original design system — it was never
+  updated when the app switched to its navy/gold theme. Fixed to the shell's gold (`#c7ae86`)
+  directly, scoped to just `.dc-accentword` rather than reassigning `--accent` itself, since that
+  variable is also used for the tab-indicator bar and a focus outline elsewhere in
+  `DailyClose.css` that weren't reported as off-theme.
+- **Sidebar gap under Enterprise Tools.** §21 removed `.nav-section-signature`'s gold
+  `border-bottom` but left its `padding-bottom: 14px` / `margin-bottom: 16px` in place — those
+  existed to size the gap the gold line sat inside, so removing the line without removing the
+  padding left a visibly empty ~30px gap before the next section. Dropped both overrides; the
+  section now falls back to the same `margin-bottom: 2px` every other `.nav-section` uses.
+
+`MGB_VERSION` bumped to `2026-09-16w`.
