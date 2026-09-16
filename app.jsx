@@ -4651,7 +4651,7 @@ function DeveloperToolsPage({ staffUser, onJumpToClient }) {
         )}
       </div>
 
-      <div className="content-masonry" style={{ marginBottom: 20 }}>
+      <div className="content-masonry">
         <div className="card">
           <h3 className="card-title">System info</h3>
           <p className="card-subtitle">What the app is actually talking to, for debugging a broken login or a stale deploy.</p>
@@ -4688,21 +4688,21 @@ function DeveloperToolsPage({ staffUser, onJumpToClient }) {
             )}
           </dl>
         </div>
-      </div>
 
-      <div className="card">
-        <h3 className="card-title">Where things live</h3>
-        <p className="card-subtitle">
-          A directory, not a vault — this doesn't store any real credentials. Edit <code>INFRA_LINKS</code> in
-          app.jsx when an account changes.
-        </p>
-        <div className="staff-audit-list">
-          {INFRA_LINKS.map((l) => (
-            <a className="staff-due-row" href={l.url} target="_blank" rel="noopener noreferrer" key={l.name}>
-              <span className="staff-flag-label">{l.name}</span>
-              <span className="staff-flag-desc">{l.note}</span>
-            </a>
-          ))}
+        <div className="card">
+          <h3 className="card-title">Where things live</h3>
+          <p className="card-subtitle">
+            A directory, not a vault — this doesn't store any real credentials. Edit <code>INFRA_LINKS</code> in
+            app.jsx when an account changes.
+          </p>
+          <div className="staff-audit-list">
+            {INFRA_LINKS.map((l) => (
+              <a className="staff-due-row" href={l.url} target="_blank" rel="noopener noreferrer" key={l.name}>
+                <span className="staff-flag-label">{l.name}</span>
+                <span className="staff-flag-desc">{l.note}</span>
+              </a>
+            ))}
+          </div>
         </div>
       </div>
     </div>
@@ -7498,17 +7498,13 @@ function App({ staffUser, onSignOut }) {
     : null;
 
   useEffect(() => {
-    // Home already has its own cross-client "Unread messages" card, and
-    // Staff Access isn't about any client at all — the floating widget
-    // popping up over either is redundant at best (Home) and outright
-    // confusing at worst (Staff Access: it's scoped to whatever client
-    // happened to be last selected, which has nothing to do with that page).
-    const canShow =
-      access.tabs.has("messages") &&
-      effectivePage !== "messages" &&
-      effectivePage !== "bookkeeper-home" &&
-      effectivePage !== "staff-access" &&
-      effectivePage !== "client-access";
+    // Home already has its own cross-client "Unread messages" card, and the
+    // other synthetic staff-only pages (Staff Access, Client Roster,
+    // Developer Tools) aren't about any client at all — the floating widget
+    // popping up over any of them is redundant at best (Home) and outright
+    // confusing at worst (it's scoped to whatever client happened to be
+    // last selected, which has nothing to do with that page).
+    const canShow = access.tabs.has("messages") && effectivePage !== "messages" && !NON_CLIENT_PAGES.has(effectivePage);
     const signature = unreadSignature;
 
     if (!signature || !canShow) {
