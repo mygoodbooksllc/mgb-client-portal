@@ -4126,6 +4126,19 @@ body.rb-presenting .main {
   color: var(--text-muted);
 }
 
+.staff-invite-links {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+}
+
+.staff-invite-alt {
+  font-size: 11px;
+  color: var(--text-muted);
+  text-decoration: underline;
+}
+
 .card-subtitle.negative {
   color: var(--bad);
 }

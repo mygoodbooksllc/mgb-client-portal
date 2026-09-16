@@ -3325,12 +3325,11 @@ function staffAuditVerb(action) {
   return STAFF_AUDIT_VERBS[action] || action;
 }
 
-// Opens the admin's own mail client with a ready-to-send invite. There's no
-// backend to send real email from yet (Phase 3), so this is the honest
-// version of "real" available right now: an actual email the admin reviews
-// and hits send on, rather than a simulated toast that claims to have sent
-// something it didn't.
-function buildInviteMailto(row) {
+// Shared invite copy for both send paths below. There's no backend to send
+// real email from yet (Phase 3), so both are the honest version of "real"
+// available right now: an actual email the admin reviews and hits send on,
+// rather than a simulated toast that claims to have sent something it didn't.
+function inviteCopyFor(row) {
   const firstName = firstNameOf(row.name);
   const subject = "You're set up on the MyGoodBooks client portal";
   const body =
@@ -3339,7 +3338,27 @@ function buildInviteMailto(row) {
     `Sign in at https://app.mygoodbooks.org with your Google Workspace account (${row.email}) — ` +
     `click "Sign in with Google" and you're in, nothing else to set up.\n\n` +
     `Questions, just reply here.`;
+  return { subject, body };
+}
+
+// mailto: hands off to whatever the browser/OS has set as the DEFAULT mail
+// handler — Apple Mail on a Mac unless that's been changed, regardless of
+// which mail app someone actually uses day to day. There's no way for a
+// mailto: link itself to specify Gmail; buildInviteGmailUrl below is the
+// separate, Gmail-specific path for staff who'd rather it open there.
+function buildInviteMailto(row) {
+  const { subject, body } = inviteCopyFor(row);
   return `mailto:${row.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+}
+
+// Gmail's own compose-in-browser URL — opens gmail.com's compose window
+// (in whichever Google account is signed in) directly, sidestepping the OS
+// mail-handler question entirely. Works for anyone signed into Gmail in
+// their browser, which every mygoodbooks.org staffer already is.
+function buildInviteGmailUrl(row) {
+  const { subject, body } = inviteCopyFor(row);
+  const params = new URLSearchParams({ view: "cm", fs: "1", to: row.email, su: subject, body });
+  return `https://mail.google.com/mail/?${params.toString()}`;
 }
 
 // Parses pasted CSV for bulk staff import: email,name,role per line, with an
@@ -3746,9 +3765,19 @@ function StaffAccessPage({ staffUser, onImpersonate }) {
                       </td>
                       <td data-label="">
                         {!isSelf && (
-                          <a className="btn-secondary staff-invite-btn" href={buildInviteMailto(row)}>
-                            Email invite
-                          </a>
+                          <div className="staff-invite-links">
+                            <a
+                              className="btn-secondary staff-invite-btn"
+                              href={buildInviteGmailUrl(row)}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                            >
+                              Email invite
+                            </a>
+                            <a className="staff-invite-alt" href={buildInviteMailto(row)}>
+                              or mail app
+                            </a>
+                          </div>
                         )}
                       </td>
                       <td className="row-remove-cell">
