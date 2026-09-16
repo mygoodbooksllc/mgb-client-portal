@@ -1306,3 +1306,23 @@ Built all four dev-tool suggestions from the Developer Tools split-out.
   fixed quick-jump that's always the first thing on the page.
 
 `MGB_VERSION` bumped to `2026-09-16ai`.
+
+## §36 — Fix: chat widget could pop up on Developer Tools; Dev Tools masonry layout
+
+- **Bug**: the floating chat widget's `canShow` effect explicitly excluded `bookkeeper-home`,
+  `staff-access`, and `client-access` by name, but was never updated when `developer-tools` was
+  added in §33/§35 — exactly the class of bug `NON_CLIENT_PAGES` (§33) exists to prevent, except
+  this call site had been missed when that refactor went through. A client's unread-message
+  widget could pop up while looking at Developer Tools, scoped to whatever client happened to be
+  last selected — not just visually odd, actively misleading (nothing about that page is about
+  any client). Switched the check to `!NON_CLIENT_PAGES.has(effectivePage)`, closing this one and
+  any future page in that set off from the same mistake.
+- **Audited every `.content-masonry` usage in the app** for the same mistake (per user request,
+  a page-by-page check). Five of six wrap either a dynamic customizable widget list or multiple
+  fixed cards — fine as-is. The sixth, Developer Tools' "System info," was a masonry wrapping a
+  single card by itself — a leftover from when it used to sit alongside the "Developer tools" card
+  before that moved out in §33, leaving System info alone in a masonry container next to visibly
+  empty space (see the reported screenshot). Moved "Where things live" into that same masonry
+  instead of its own separate full-width card below, so the two now sit side by side.
+
+`MGB_VERSION` bumped to `2026-09-16aj`.
