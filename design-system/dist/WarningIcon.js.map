@@ -1,0 +1,7 @@
+{
+  "version": 3,
+  "sources": ["../src/WarningIcon.tsx"],
+  "sourcesContent": ["import React from \"react\";\n\n/** Props for {@link WarningIcon}. Any native `<svg>` attribute (width, height,\n * strokeWidth, style, ...) can be passed through and overrides the default. */\nexport type WarningIconProps = React.SVGProps<SVGSVGElement>;\n\n/**\n * Warning triangle. Thin-line, `stroke=\"currentColor\"` \u2014 the house icon\n * style used throughout the app instead of emoji. Used in Staff Access's and\n * Client Roster's \"writes directly to the real table\" banners.\n */\nexport function WarningIcon(props: WarningIconProps) {\n  return (\n    <svg\n      className=\"icon-inline\"\n      width=\"16\"\n      height=\"16\"\n      viewBox=\"0 0 24 24\"\n      fill=\"none\"\n      stroke=\"currentColor\"\n      strokeWidth=\"1.8\"\n      strokeLinecap=\"round\"\n      strokeLinejoin=\"round\"\n      {...props}\n    >\n      <path d=\"M12 4l9.5 16.5H2.5L12 4z\" />\n      <path d=\"M12 10v4.5M12 17.5h.01\" />\n    </svg>\n  );\n}\n"],
+  "mappings": ";AAaI,SAYE,KAZF;AAFG,SAAS,YAAY,OAAyB;AACnD,SACE;AAAA,IAAC;AAAA;AAAA,MACC,WAAU;AAAA,MACV,OAAM;AAAA,MACN,QAAO;AAAA,MACP,SAAQ;AAAA,MACR,MAAK;AAAA,MACL,QAAO;AAAA,MACP,aAAY;AAAA,MACZ,eAAc;AAAA,MACd,gBAAe;AAAA,MACd,GAAG;AAAA,MAEJ;AAAA,4BAAC,UAAK,GAAE,4BAA2B;AAAA,QACnC,oBAAC,UAAK,GAAE,0BAAyB;AAAA;AAAA;AAAA,EACnC;AAEJ;",
+  "names": []
+}

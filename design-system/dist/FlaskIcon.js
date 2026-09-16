@@ -21,17 +21,7 @@ function FlaskIcon(props) {
     }
   );
 }
-
-// src/MockBanner.tsx
-import { jsx as jsx2, jsxs as jsxs2 } from "react/jsx-runtime";
-function MockBanner({ text }) {
-  return /* @__PURE__ */ jsxs2("div", { className: "mock-banner", children: [
-    /* @__PURE__ */ jsx2(FlaskIcon, {}),
-    " ",
-    text
-  ] });
-}
 export {
-  MockBanner
+  FlaskIcon
 };
-//# sourceMappingURL=MockBanner.js.map
+//# sourceMappingURL=FlaskIcon.js.map

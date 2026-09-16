@@ -28,6 +28,29 @@ wrappers synthesized from CSS classes (`.card`, `.btn-primary`/`.btn-secondary`,
 - `Badge` — status pill with a leading dot.
 - `ToastProvider` (+ `useToast`) — toast notification context and stack.
 
+### Icons
+
+Every icon used anywhere in the app, all in the same thin-line
+`stroke="currentColor"` style (weight 1.6–1.8, round caps/joins, no fill) —
+the house style adopted app-wide to replace emoji. Each takes any native
+`<svg>` prop (`width`, `height`, `strokeWidth`, `style`, ...), which
+overrides that icon's own default sizing/weight.
+
+- `WarningIcon` — warning triangle (Staff Access / Client Roster banners).
+- `SearchIcon` — magnifying glass (global search bar).
+- `LockIcon` — padlock (Documents' "Full access only" pill).
+- `PaperclipIcon` — attachment (message compose, attachment chip, sent attachments).
+- `FlaskIcon` — lab flask (`MockBanner`'s own icon).
+- `SunIcon` / `MoonIcon` — theme toggle (sidebar).
+- `SlidersIcon` — "Manage access" and "Customize dashboard."
+- `ChatIcon` — the floating chat widget's header and the mobile chat FAB.
+- `DocumentIcon`, `BarChartIcon`, `ShieldCheckIcon` — the three Enterprise
+  Tools feature cards (Daily Report, Report Builder, Budgeting Tool).
+- `LightbulbIcon` — Daily Report's forecast callout. That component
+  (`components/daily-close/DailyClose.tsx`) is vendored with its own
+  styling scope and keeps its own inline copy rather than importing this
+  one — exported here so it's still part of the shared set.
+
 ## Usage
 
 ```bash

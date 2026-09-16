@@ -9,3 +9,18 @@ export * from "./Card";
 export * from "./Button";
 export * from "./Badge";
 export * from "./ToastProvider";
+// Icons — the house style throughout the app: thin-line, stroke="currentColor",
+// no emoji. See each file's own doc comment for where it's used.
+export * from "./WarningIcon";
+export * from "./SearchIcon";
+export * from "./LockIcon";
+export * from "./PaperclipIcon";
+export * from "./FlaskIcon";
+export * from "./SunIcon";
+export * from "./MoonIcon";
+export * from "./SlidersIcon";
+export * from "./ChatIcon";
+export * from "./DocumentIcon";
+export * from "./BarChartIcon";
+export * from "./ShieldCheckIcon";
+export * from "./LightbulbIcon";

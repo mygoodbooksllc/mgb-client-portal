@@ -1,0 +1,7 @@
+{
+  "version": 3,
+  "sources": ["../src/LightbulbIcon.tsx"],
+  "sourcesContent": ["import React from \"react\";\n\n/** Props for {@link LightbulbIcon}. Any native `<svg>` attribute can be\n * passed through and overrides the default. */\nexport type LightbulbIconProps = React.SVGProps<SVGSVGElement>;\n\n/**\n * Lightbulb. Thin-line, `stroke=\"currentColor\"` house style. Used by the\n * Daily Report's 90-day forecast callout (`components/daily-close/\n * DailyClose.tsx`, a vendored component with its own styling scope, so it\n * keeps its own inline copy of this icon rather than importing from here \u2014\n * this export exists so the icon is still part of the shared set).\n */\nexport function LightbulbIcon(props: LightbulbIconProps) {\n  return (\n    <svg\n      width=\"16\"\n      height=\"16\"\n      viewBox=\"0 0 24 24\"\n      fill=\"none\"\n      stroke=\"currentColor\"\n      strokeWidth=\"1.8\"\n      strokeLinecap=\"round\"\n      strokeLinejoin=\"round\"\n      {...props}\n    >\n      <path d=\"M9 18h6M10 21h4\" />\n      <path d=\"M12 3a6 6 0 00-3.6 10.8c.6.45 1.1 1.2 1.1 2.2h5c0-1 .5-1.75 1.1-2.2A6 6 0 0012 3z\" />\n    </svg>\n  );\n}\n"],
+  "mappings": ";AAeI,SAWE,KAXF;AAFG,SAAS,cAAc,OAA2B;AACvD,SACE;AAAA,IAAC;AAAA;AAAA,MACC,OAAM;AAAA,MACN,QAAO;AAAA,MACP,SAAQ;AAAA,MACR,MAAK;AAAA,MACL,QAAO;AAAA,MACP,aAAY;AAAA,MACZ,eAAc;AAAA,MACd,gBAAe;AAAA,MACd,GAAG;AAAA,MAEJ;AAAA,4BAAC,UAAK,GAAE,mBAAkB;AAAA,QAC1B,oBAAC,UAAK,GAAE,qFAAoF;AAAA;AAAA;AAAA,EAC9F;AAEJ;",
+  "names": []
+}

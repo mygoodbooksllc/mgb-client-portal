@@ -1,0 +1,7 @@
+{
+  "version": 3,
+  "sources": ["../src/SlidersIcon.tsx"],
+  "sourcesContent": ["import React from \"react\";\n\n/** Props for {@link SlidersIcon}. Any native `<svg>` attribute can be\n * passed through and overrides the default. */\nexport type SlidersIconProps = React.SVGProps<SVGSVGElement>;\n\n/**\n * Adjustment sliders. Thin-line, `stroke=\"currentColor\"` house style. Used\n * on both \"Manage access\" and \"Customize dashboard.\"\n */\nexport function SlidersIcon(props: SlidersIconProps) {\n  return (\n    <svg\n      className=\"icon-inline\"\n      width=\"15\"\n      height=\"15\"\n      viewBox=\"0 0 24 24\"\n      fill=\"none\"\n      stroke=\"currentColor\"\n      strokeWidth=\"1.8\"\n      strokeLinecap=\"round\"\n      strokeLinejoin=\"round\"\n      {...props}\n    >\n      <path d=\"M4 6h10M17 6h3M4 12h3M9 12h11M4 18h13M20 18h0\" />\n      <circle cx=\"14\" cy=\"6\" r=\"2\" />\n      <circle cx=\"6\" cy=\"12\" r=\"2\" />\n      <circle cx=\"16\" cy=\"18\" r=\"2\" />\n    </svg>\n  );\n}\n"],
+  "mappings": ";AAYI,SAYE,KAZF;AAFG,SAAS,YAAY,OAAyB;AACnD,SACE;AAAA,IAAC;AAAA;AAAA,MACC,WAAU;AAAA,MACV,OAAM;AAAA,MACN,QAAO;AAAA,MACP,SAAQ;AAAA,MACR,MAAK;AAAA,MACL,QAAO;AAAA,MACP,aAAY;AAAA,MACZ,eAAc;AAAA,MACd,gBAAe;AAAA,MACd,GAAG;AAAA,MAEJ;AAAA,4BAAC,UAAK,GAAE,iDAAgD;AAAA,QACxD,oBAAC,YAAO,IAAG,MAAK,IAAG,KAAI,GAAE,KAAI;AAAA,QAC7B,oBAAC,YAAO,IAAG,KAAI,IAAG,MAAK,GAAE,KAAI;AAAA,QAC7B,oBAAC,YAAO,IAAG,MAAK,IAAG,MAAK,GAAE,KAAI;AAAA;AAAA;AAAA,EAChC;AAEJ;",
+  "names": []
+}

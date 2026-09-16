@@ -1,0 +1,7 @@
+{
+  "version": 3,
+  "sources": ["../src/PaperclipIcon.tsx"],
+  "sourcesContent": ["import React from \"react\";\n\n/** Props for {@link PaperclipIcon}. Any native `<svg>` attribute can be\n * passed through and overrides the default. */\nexport type PaperclipIconProps = React.SVGProps<SVGSVGElement>;\n\n/**\n * Paperclip. Thin-line, `stroke=\"currentColor\"` house style. Used for\n * message attachments (the compose bar's attach button, the pending-\n * attachment chip, and an attachment already sent in a thread).\n */\nexport function PaperclipIcon(props: PaperclipIconProps) {\n  return (\n    <svg\n      className=\"icon-inline\"\n      width=\"15\"\n      height=\"15\"\n      viewBox=\"0 0 24 24\"\n      fill=\"none\"\n      stroke=\"currentColor\"\n      strokeWidth=\"1.8\"\n      strokeLinecap=\"round\"\n      strokeLinejoin=\"round\"\n      {...props}\n    >\n      <path d=\"M17 7.5l-8 8a3 3 0 004.24 4.24l8-8a5 5 0 00-7.07-7.07l-8.2 8.2a7 7 0 009.9 9.9\" />\n    </svg>\n  );\n}\n"],
+  "mappings": ";AAyBM;AAdC,SAAS,cAAc,OAA2B;AACvD,SACE;AAAA,IAAC;AAAA;AAAA,MACC,WAAU;AAAA,MACV,OAAM;AAAA,MACN,QAAO;AAAA,MACP,SAAQ;AAAA,MACR,MAAK;AAAA,MACL,QAAO;AAAA,MACP,aAAY;AAAA,MACZ,eAAc;AAAA,MACd,gBAAe;AAAA,MACd,GAAG;AAAA,MAEJ,8BAAC,UAAK,GAAE,kFAAiF;AAAA;AAAA,EAC3F;AAEJ;",
+  "names": []
+}

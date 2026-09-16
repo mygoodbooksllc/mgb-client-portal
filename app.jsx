@@ -633,7 +633,7 @@ function Sidebar({
       <div className="sidebar-utility-row">
         {isBookkeeper && page !== "bookkeeper-home" && page !== "staff-access" && page !== "client-access" ? (
           <button className="customize-tabs-btn" onClick={onOpenSettings}>
-            <GearIcon /> Manage access
+            <SlidersIcon /> Manage access
           </button>
         ) : isBookkeeper ? (
           <span className="sidebar-utility-label">{effectiveTheme === "dark" ? "Dark mode" : "Light mode"}</span>
@@ -733,15 +733,6 @@ function MoonIcon(props) {
   );
 }
 
-function GearIcon(props) {
-  return (
-    <svg className="icon-inline" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" {...props}>
-      <circle cx="12" cy="12" r="3.2" />
-      <path d="M19.4 13.5a1.8 1.8 0 0 0 .36 1.98l.06.06a2.15 2.15 0 1 1-3.04 3.04l-.06-.06a1.8 1.8 0 0 0-1.98-.36 1.8 1.8 0 0 0-1.09 1.65v.17a2.15 2.15 0 1 1-4.3 0v-.09a1.8 1.8 0 0 0-1.18-1.65 1.8 1.8 0 0 0-1.98.36l-.06.06a2.15 2.15 0 1 1-3.04-3.04l.06-.06a1.8 1.8 0 0 0 .36-1.98 1.8 1.8 0 0 0-1.65-1.09h-.17a2.15 2.15 0 1 1 0-4.3h.09a1.8 1.8 0 0 0 1.65-1.18 1.8 1.8 0 0 0-.36-1.98l-.06-.06a2.15 2.15 0 1 1 3.04-3.04l.06.06a1.8 1.8 0 0 0 1.98.36h.08a1.8 1.8 0 0 0 1.09-1.65v-.17a2.15 2.15 0 1 1 4.3 0v.09a1.8 1.8 0 0 0 1.09 1.65h.08a1.8 1.8 0 0 0 1.98-.36l.06-.06a2.15 2.15 0 1 1 3.04 3.04l-.06.06a1.8 1.8 0 0 0-.36 1.98v.08a1.8 1.8 0 0 0 1.65 1.09h.17a2.15 2.15 0 1 1 0 4.3h-.09a1.8 1.8 0 0 0-1.65 1.09z" />
-    </svg>
-  );
-}
-
 function SlidersIcon(props) {
   return (
     <svg className="icon-inline" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" {...props}>
@@ -749,6 +740,41 @@ function SlidersIcon(props) {
       <circle cx="14" cy="6" r="2" />
       <circle cx="6" cy="12" r="2" />
       <circle cx="16" cy="18" r="2" />
+    </svg>
+  );
+}
+
+function DocumentIcon(props) {
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" {...props}>
+      <rect x="5" y="3" width="14" height="18" rx="2" />
+      <path d="M9 8h6M9 12h6M9 16h4" />
+    </svg>
+  );
+}
+
+function BarChartIcon(props) {
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" {...props}>
+      <path d="M4 20V10M9.5 20V4M15 20V13M20.5 20V7" />
+    </svg>
+  );
+}
+
+function ShieldCheckIcon(props) {
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" {...props}>
+      <path d="M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6l7-3z" />
+      <path d="M9 12l2 2 4-4" />
+    </svg>
+  );
+}
+
+function ChatIcon(props) {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" {...props}>
+      <path d="M4 5h16v11H8l-4 4V5z" />
+      <path d="M8 10h8M8 13h5" />
     </svg>
   );
 }
@@ -2537,31 +2563,17 @@ function ReportBarRows({ items }) {
 
 const ENTERPRISE_FEATURES = [
   {
-    icon: (
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-        <rect x="5" y="3" width="14" height="18" rx="2" />
-        <path d="M9 8h6M9 12h6M9 16h4" />
-      </svg>
-    ),
+    icon: <DocumentIcon />,
     title: "Daily Report",
     description: "A fresh financial snapshot every morning — cash on hand, receivables, what's due — before your coffee's ready.",
   },
   {
-    icon: (
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M4 20V10M9.5 20V4M15 20V13M20.5 20V7" />
-      </svg>
-    ),
+    icon: <BarChartIcon />,
     title: "Report Builder",
     description: "Assemble a formatted board report from your own numbers in a couple of clicks — pick a period, a scope, and the sections that matter this quarter.",
   },
   {
-    icon: (
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6l7-3z" />
-        <path d="M9 12l2 2 4-4" />
-      </svg>
-    ),
+    icon: <ShieldCheckIcon />,
     title: "Budgeting Tool",
     description: "Draft next period's budget together with your bookkeeper, category by category, before it's locked in.",
   },
@@ -5188,13 +5200,7 @@ function ChatFab({ unreadCount, onOpen, onDismiss }) {
   return (
     <div className="chat-fab-wrap">
       <button className="chat-fab" onClick={onOpen} aria-label="Open messages">
-        {/* Same thin-line, currentColor icon style as ENTERPRISE_FEATURES —
-            no emoji, so it reads as part of the product rather than a
-            generic chat-app glyph. */}
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M4 5h16v11H8l-4 4V5z" />
-          <path d="M8 10h8M8 13h5" />
-        </svg>
+        <ChatIcon width="22" height="22" strokeWidth="1.6" />
         {unreadCount > 0 && <span className="chat-fab-badge">{unreadCount}</span>}
       </button>
       <button className="chat-fab-dismiss" onClick={onDismiss} aria-label="Dismiss">
@@ -5231,10 +5237,7 @@ function ChatWidget({ messages, onSend, onOpenFull, onClose }) {
     <div className="chat-widget">
       <div className="chat-widget-header">
         <span className="chat-widget-title">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M4 5h16v11H8l-4 4V5z" />
-            <path d="M8 10h8M8 13h5" />
-          </svg>
+          <ChatIcon width="16" height="16" strokeWidth="1.8" />
           MyGoodBooks
         </span>
         <button className="modal-close" onClick={onClose} aria-label="Close chat">

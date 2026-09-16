@@ -812,3 +812,40 @@ the app for the same opportunity — and turned into extracting a real, reusable
   1:1 (or clean many-to-one) match — e.g., nothing on Report Builder, since its "KPI" numbers
   live inside the Live Preview panel itself, not a separate card to jump to.
 - `MGB_VERSION` bumped to `2026-09-16o`.
+
+---
+
+## 16. Update, 2026-09-16 (evening): "Manage access" matches Customize dashboard; every icon
+ported to the design system
+
+- **"Manage access" now uses the sliders icon too**, not the gear — matches "Customize
+  dashboard" from earlier today. `GearIcon` had no other callers left after this, so it was
+  deleted outright rather than kept around unused.
+- **Extracted two more inline icon groups into named components**, for consistency and so they
+  could be ported below: `ChatIcon` (was duplicated inline in both `ChatFab` and `ChatWidget`)
+  and `DocumentIcon`/`BarChartIcon`/`ShieldCheckIcon` (were inline in the `ENTERPRISE_FEATURES`
+  array). Same thin-line house style as everything else, no behavior change.
+- **Every icon used anywhere in the app is now also exported from the `mygoodbooks-ds` design
+  system package** — 13 in total, one file each per that package's established convention
+  (`WarningIcon`, `SearchIcon`, `LockIcon`, `PaperclipIcon`, `FlaskIcon`, `SunIcon`, `MoonIcon`,
+  `SlidersIcon`, `ChatIcon`, `DocumentIcon`, `BarChartIcon`, `ShieldCheckIcon`, `LightbulbIcon`).
+  Each takes any native `<svg>` prop, so size/stroke-width can be overridden per use.
+  `MockBanner.tsx` was also updated to import `FlaskIcon` instead of keeping its own duplicate
+  copy of that SVG.
+  - `LightbulbIcon` is the one exception worth knowing about: Daily Report's own forecast
+    callout (`components/daily-close/DailyClose.tsx`) is a vendored component with its own
+    styling scope, so it keeps its own inline copy rather than importing from the design-system
+    package — the export exists so the icon is still represented in the shared set, but editing
+    it there won't change what Daily Report actually renders.
+  - `README.md` updated with a full icon list; rebuilt `design-system/dist/` (`npm install &&
+    npm run build`) and spot-checked the output for zero remaining emoji-range characters.
+- **Checked the "paperclip is still an emoji" report** — confirmed in the live source it's
+  already `PaperclipIcon` at all three call sites (compose bar, pending-attachment chip, sent
+  attachment). No code fix needed; if it's still showing an emoji, that's almost certainly a
+  stale cached bundle rather than something to fix here — worth a hard refresh / cache-busted
+  reload before assuming it's a regression.
+- `MGB_VERSION` bumped to `2026-09-16p`.
+
+Also asked for, not yet done: icon **options** for each sidebar nav item (the sidebar currently
+shows a plain dot next to each tab, no icon at all) — next up, as a visual comparison rather
+than guessing which icon fits which tab.
