@@ -1462,3 +1462,24 @@ would have made them vanish from a standard client's sidebar entirely. Fixed pro
   consequence of the shared source of truth, not a separate change.
 
 `MGB_VERSION` bumped to `2026-09-16aq`.
+
+## §44 — Shortened the Enterprise upsell row label
+
+§43's upsell row spelled out "Report Builder, Budgeting Tool & Cash Flow Pro" as its label —
+wrapped to three lines in the sidebar and looked cluttered next to the one-line items above it.
+The "Enterprise" section heading already sets the context, so the row itself just needs a short
+call to action: shortened to "Premium tools."
+
+`MGB_VERSION` bumped to `2026-09-16ar`.
+
+## §45 — Premium badge/lock moved onto the Enterprise heading; no separate upsell row
+
+§43/§44's separate upsell row (a fake "tab" spelling out which tools were locked) is gone. The
+Premium badge and padlock now live directly on the "Enterprise" section heading itself: for a
+standard-plan client the heading becomes a clickable button (same gold shimmer, `Premium` badge,
+`LockIcon`, opens the upgrade page), for a premium client it's the same plain static heading as
+before. Locked tool names (Report Builder, Budgeting Tool, Cash Flow Pro) no longer appear
+anywhere in a standard-plan client's sidebar at all — they're simply absent from `items` (already
+filtered out via `access.tabs`), with the heading alone signaling that there's more available.
+
+`MGB_VERSION` bumped to `2026-09-16as`.
