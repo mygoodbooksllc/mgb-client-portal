@@ -48,7 +48,7 @@ const monthsAgoLocal = (n) => {
 };
 
 // Whole days from `fromIso` to `toIso` (positive = toIso is in the future).
-// Used by AP Command Center to bucket payables by due date without drifting
+// Used by Cash Flow Pro to bucket payables by due date without drifting
 // on timezone — both sides are parsed as local midnight, same as fmtDate.
 const daysUntil = (toIso, fromIso) => {
   const to = new Date(toIso + "T00:00:00");
@@ -197,7 +197,7 @@ const NAV_SECTIONS = [
     items: [
       { key: "report-builder", label: "Report Builder", premium: true, icon: <BarChartIcon /> },
       { key: "budgeting-tool", label: "Budgeting Tool", premium: true, icon: <CalculatorIcon /> },
-      { key: "ap-command-center", label: "AP Command Center", premium: true, icon: <StackedBillsIcon /> },
+      { key: "ap-command-center", label: "Cash Flow Pro", premium: true, icon: <StackedBillsIcon /> },
     ],
   },
   {
@@ -224,7 +224,7 @@ const NAV_SECTIONS = [
     label: "Finances",
     items: [
       { key: "bank", label: "Bank Accounts", icon: <BankIcon /> },
-      { key: "receivables", label: "Receivables & Payables", icon: <SwapIcon /> },
+      { key: "receivables", label: "Cash Flow", icon: <SwapIcon /> },
       { key: "reports", label: "Reports", icon: <DownloadIcon /> },
       { key: "giving", label: "Giving & Funds", icon: <GiftHeartIcon /> },
     ],
@@ -250,7 +250,7 @@ const ORG_WIDE_TABS = new Set([
   // Live Report isn't a real tab key (see NAV_SECTIONS) so it can't be listed
   // here — the same org-wide exclusion for it is applied directly in App's
   // showsLiveReport check instead.
-  // Same payables array as Receivables & Payables, which has no category
+  // Same payables array as Cash Flow, which has no category
   // dimension either — a category-scoped user (e.g. Luis, Youth Ministry)
   // has no meaningful "their" bills to filter this down to.
   "ap-command-center",
@@ -1545,12 +1545,12 @@ function crossTabWidgetDefs(client, access) {
     defs.push({
       id: "xt-receivables-payables",
       group: "content",
-      sourceTab: "Receivables & Payables",
-      label: "Receivables & Payables",
+      sourceTab: "Cash Flow",
+      label: "Cash Flow",
       description: "What's owed to you and what you owe",
       render: () => (
         <>
-          <h3 className="card-title">Receivables & Payables</h3>
+          <h3 className="card-title">Cash Flow</h3>
           <p className="card-subtitle">Net position: {fmtMoney(totalReceivable - totalPayable)}</p>
           <div className="mini-stat-row">
             <div className="mini-stat">
@@ -2185,7 +2185,7 @@ function GivingFundsPage({ client }) {
 }
 
 // ----------------------------------------------------------------------------
-// Receivables & Payables page
+// Cash Flow page
 // ----------------------------------------------------------------------------
 
 function ReceivablesPayablesPage({ client }) {
@@ -2806,7 +2806,7 @@ const ENTERPRISE_FEATURES = [
   },
   {
     icon: <StackedBillsIcon />,
-    title: "AP Command Center",
+    title: "Cash Flow Pro",
     description: "Every bill in one place with aging and vendor summaries, batch pay runs with an approval step and a cash-impact forecast, duplicate-bill detection, and a ready-to-upload ACH export.",
   },
 ];
@@ -2894,7 +2894,7 @@ const REPORT_SECTION_DEFS = [
   { key: "revenue", label: "Revenue & Expenses" },
   { key: "budget", label: "Budget vs. Actual" },
   { key: "cash", label: "Cash Position" },
-  { key: "receivables", label: "Receivables & Payables" },
+  { key: "receivables", label: "Cash Flow" },
   { key: "giving", label: "Giving & Funds" },
   { key: "outlook", label: "Outlook" },
 ];
@@ -3261,7 +3261,7 @@ function ReportBuilderPage({ client }) {
 
         {sections.receivables && (
           <div className="rb-section">
-            <h2>Receivables &amp; Payables</h2>
+            <h2>Cash Flow</h2>
             <p className="rb-section-sub">Open balances</p>
             <div className="content-grid">
               <div>
@@ -3482,8 +3482,8 @@ function BudgetingToolPage({ client }) {
 }
 
 // ----------------------------------------------------------------------------
-// AP Command Center — a bookkeeper-grade view of the same payables shown
-// under Receivables & Payables: status filters, an aging summary, and a
+// Cash Flow Pro — a bookkeeper-grade view of the same payables shown
+// under Cash Flow: status filters, an aging summary, and a
 // next-due list. Same client.payables array, not a second data set — see
 // [[project-mock-data-inconsistencies]] on why nothing here should sum
 // bankAccounts[].transactions instead.
@@ -3654,7 +3654,7 @@ function APCommandCenterPage({ client }) {
 
   return (
     <div>
-      <MockBanner text="These are the same sample payables shown under Receivables & Payables. Connect QuickBooks to replace this with live AP data." />
+      <MockBanner text="These are the same sample payables shown under Cash Flow. Connect QuickBooks to replace this with live AP data." />
 
       <div className="kpi-grid">
         <button className="card kpi-card kpi-card-clickable" onClick={() => jumpToBills("all")}>
@@ -5051,7 +5051,7 @@ const CLIENT_VISIT_STALE_DAYS = 7;
 const CARD_FLASH_HOLD_MS = 2600;
 
 // Shared by every page with KPI tiles that summarize a specific content card
-// further down the same page (Home's KPI row, AP Command Center's totals) —
+// further down the same page (Home's KPI row, Cash Flow Pro's totals) —
 // scrolls to that card and briefly highlights it (.card-flash), so clicking
 // a summary number doesn't just quietly move the page somewhere.
 function useCardFlash() {
@@ -5232,7 +5232,7 @@ function BookkeeperHomePage({ staffUser, clients, messagesByClient, readMessageC
   }, [clients, clientSearch]);
 
   // Every open bill across every client this person can see, newest-due
-  // first — same overdue/soon/scheduled split as AP Command Center, just
+  // first — same overdue/soon/scheduled split as Cash Flow Pro, just
   // rolled up across clients instead of scoped to one.
   const dueAcrossClients = useMemo(() => {
     const rows = [];
@@ -6926,12 +6926,12 @@ const PAGE_META = {
   "daily-close": { title: "Live Report", subtitle: "A live financial snapshot, updating continuously" },
   budget: { title: "Budget vs. Actual", subtitle: "How spending compares to plan, by category" },
   giving: { title: "Giving & Funds", subtitle: "Contributions received and fund balances" },
-  receivables: { title: "Receivables & Payables", subtitle: "Money coming in and bills going out" },
+  receivables: { title: "Cash Flow", subtitle: "Money coming in and bills going out" },
   bank: { title: "Bank Accounts", subtitle: "Balances and recent activity" },
   reports: { title: "Reports", subtitle: "Download statements and summaries" },
   "report-builder": { title: "Report Builder", subtitle: "Assemble a formatted report for your board or leadership" },
   "budgeting-tool": { title: "Budgeting Tool", subtitle: "Draft next period's budget with your bookkeeper" },
-  "ap-command-center": { title: "AP Command Center", subtitle: "Every open bill, aging, and what's due next" },
+  "ap-command-center": { title: "Cash Flow Pro", subtitle: "Every open bill, aging, and what's due next" },
   "enterprise-upgrade": { title: "Enterprise", subtitle: "See what's included, and what upgrading unlocks" },
   "staff-access": { title: "Staff Access", subtitle: "Who can sign in to the portal, and with what role" },
   "client-access": { title: "Client Roster", subtitle: "Who at each organization is registered to sign in" },
