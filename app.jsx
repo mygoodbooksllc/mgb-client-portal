@@ -4942,7 +4942,13 @@ function ChatFab({ unreadCount, onOpen, onDismiss }) {
   return (
     <div className="chat-fab-wrap">
       <button className="chat-fab" onClick={onOpen} aria-label="Open messages">
-        💬
+        {/* Same thin-line, currentColor icon style as ENTERPRISE_FEATURES —
+            no emoji, so it reads as part of the product rather than a
+            generic chat-app glyph. */}
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M4 5h16v11H8l-4 4V5z" />
+          <path d="M8 10h8M8 13h5" />
+        </svg>
         {unreadCount > 0 && <span className="chat-fab-badge">{unreadCount}</span>}
       </button>
       <button className="chat-fab-dismiss" onClick={onDismiss} aria-label="Dismiss">
@@ -4978,7 +4984,13 @@ function ChatWidget({ messages, onSend, onOpenFull, onClose }) {
   return (
     <div className="chat-widget">
       <div className="chat-widget-header">
-        <span className="chat-widget-title">💬 MyGoodBooks</span>
+        <span className="chat-widget-title">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M4 5h16v11H8l-4 4V5z" />
+            <path d="M8 10h8M8 13h5" />
+          </svg>
+          MyGoodBooks
+        </span>
         <button className="modal-close" onClick={onClose} aria-label="Close chat">
           ×
         </button>

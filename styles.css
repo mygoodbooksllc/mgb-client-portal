@@ -2670,6 +2670,9 @@ body.rb-presenting .main {
 }
 
 .chat-widget-title {
+  display: flex;
+  align-items: center;
+  gap: 7px;
   font-family: var(--font-heading);
   font-weight: 700;
   font-size: 14px;
