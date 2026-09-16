@@ -5786,11 +5786,23 @@ function useDragReorder(layout) {
 
       // --- Touch: HTML5 drag events are never fired from a finger, on any
       // mobile browser, so a pointer-based path stands in for them. Press and
-      // hold to pick a card up (a plain swipe still scrolls the page), then
-      // slide over a neighbour to shuffle it, exactly as the mouse path does.
-      // elementFromPoint is what finds the card under the finger: pointer
-      // capture routes every move back to the held card, so hit-testing by
-      // hand is the only way to know what it's over. ---
+      // hold to pick a card up, then slide over a neighbour to shuffle it,
+      // exactly as the mouse path does. elementFromPoint is what finds the
+      // card under the finger: pointer capture routes every move back to
+      // the held card, so hit-testing by hand is the only way to know what
+      // it's over.
+      //
+      // .draggable-card sets touch-action: none unconditionally (see its
+      // CSS) so the browser's native scroll-gesture recognizer never wins
+      // the race against the long-press timer below — the consequence is a
+      // scroll can no longer start with a finger placed directly ON a
+      // card, only from the gaps around them. The `active` check just
+      // below still cancels the pending long-press if the finger drifts
+      // before the hold completes (so a quick tap-and-slight-wobble isn't
+      // mistaken for a hold-in-progress), but it no longer hands the touch
+      // back to the browser for scrolling — there's nothing to hand back
+      // to once touch-action: none has already told the browser not to
+      // treat this element's touches as a scroll gesture at all. ---
       "data-widget-id": id,
       onPointerDown: (e) => {
         if (e.pointerType === "mouse") return;

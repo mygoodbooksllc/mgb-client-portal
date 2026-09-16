@@ -2822,17 +2822,32 @@ body.rb-presenting .main {
 
 .draggable-card {
   cursor: grab;
-  /* Touch reorder is a press-and-hold (see useDragReorder in app.jsx), and
-     iOS answers a long press on content with two separate things: the
-     text-selection highlight itself, AND (if that selection completes) the
-     copy/lookup/share callout menu — both fight the drag. -webkit-touch-
-     callout only suppresses the second one; without user-select too, a
-     long-press-and-hold on a card was highlighting its text and never
-     starting the drag at all, even before the callout menu could show.
-     Suppressed here, not globally, so text elsewhere stays selectable. */
+  /* Touch reorder is a press-and-hold (350ms, CARD_LONG_PRESS_MS in
+     useDragReorder). iOS answers a long press on content with three
+     separate things that each fight the drag, addressed one at a time as
+     each turned out not to be enough on its own:
+       1. The text-selection highlight, suppressed by user-select below.
+       2. The copy/lookup/share callout menu that follows a completed
+          selection, suppressed by -webkit-touch-callout.
+       3. Native scrolling. This is the one that isn't optional/CSS-only:
+          without touch-action: none from the very start (not just once
+          .card-dragging kicks in after the long-press timer fires), the
+          browser's OWN scroll-gesture recognizer wins the race against our
+          350ms JS timer — real scroll gestures typically get recognized
+          within well under 100ms of movement, so by the time our timer
+          would promote the touch to a drag, the browser has already
+          claimed it for scrolling and won't hand it back. Setting this
+          unconditionally is the standard fix every touch drag-and-drop
+          library uses for exactly this race; the tradeoff is that a
+          scroll can no longer START with a finger placed directly on a
+          card — it has to start from the gap between cards or the page's
+          own padding, both of which exist throughout this layout.
+     Suppressed here, not globally, so text and scrolling elsewhere are
+     both untouched. */
   -webkit-touch-callout: none;
   -webkit-user-select: none;
   user-select: none;
+  touch-action: none;
 }
 
 .draggable-card.card-dragging {
@@ -2842,9 +2857,6 @@ body.rb-presenting .main {
   box-shadow: var(--shadow-hover);
   z-index: 5;
   animation: none !important;
-  /* Belt and braces with the non-passive touchmove blocker: once a card is
-     actually held, the browser must not claim the gesture for scrolling. */
-  touch-action: none;
   /* The touch drag path (useDragReorder in app.jsx) hit-tests with
      document.elementFromPoint(finger x/y) on every move to find which card
      to swap with — but this card doesn't move with the finger, it stays
