@@ -986,6 +986,31 @@ body {
   width: 100%;
 }
 
+/* Brief highlight on whatever card a KPI's click-to-jump scrolls to, so the
+   scroll's destination is obvious rather than a card just quietly being
+   wherever the page happened to land. Plays once (not infinite) — app.jsx
+   removes the .card-flash class on a timer matching this duration. */
+@keyframes cardFlash {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(199, 174, 134, 0);
+  }
+  25% {
+    box-shadow: 0 0 0 3px rgba(199, 174, 134, 0.55);
+  }
+}
+
+.card-flash {
+  animation: cardFlash 900ms ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card-flash {
+    animation: none;
+    box-shadow: 0 0 0 3px rgba(199, 174, 134, 0.55);
+  }
+}
+
 .kpi-label {
   font-size: 12.5px;
   color: var(--text-muted);
