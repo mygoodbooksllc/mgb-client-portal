@@ -1191,3 +1191,14 @@ background the shared `.nav-section-label` class still needs for the non-premium
 (which is a real button and stays clickable). Dead CSS this left behind (`.nav-section-chevron`,
 `.nav-section.collapsed .nav-section-chevron`, `.holds-active`, `.nav-section-label .nav-badge-dot`)
 was removed rather than left orphaned. `MGB_VERSION` bumped to `2026-09-16ad`.
+
+## §31 — Standard-plan Enterprise upsell row: badge placement + upgrade icon
+
+The "Premium" badge on the standard-plan upsell row had `margin-left: auto`, which in the row's
+flex layout pushed it all the way to the far right edge of the sidebar — far from the word
+"Enterprise" it's labeling, rather than sitting next to it. Removed that so the badge sits
+directly after the label text. Added a new `UpgradeIcon` (thin-line diagonal arrow, same house
+style as every other icon) at the far right instead — `margin-left: auto` moved to a new
+`.nav-upsell-icon` class on it, so the row now reads "Enterprise · Premium ⤴" — the badge
+explains what's next to it, the icon on the far edge reads as "upgrade/add-on" at a glance.
+`MGB_VERSION` bumped to `2026-09-16ae`.
