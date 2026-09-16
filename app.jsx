@@ -6660,7 +6660,11 @@ function App({ staffUser, onSignOut }) {
             <span></span>
             <span></span>
           </button>
-          <span className="mobile-topbar-title">{client.name}</span>
+          <span className="mobile-topbar-title">
+            {effectivePage === "bookkeeper-home" || effectivePage === "staff-access" || effectivePage === "client-access"
+              ? "MyGoodBooks"
+              : client.name}
+          </span>
         </div>
         <div
           className={"sidebar-scrim" + (mobileNavOpen ? " visible" : "")}
