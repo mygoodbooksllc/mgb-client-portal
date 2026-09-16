@@ -986,22 +986,30 @@ body {
   width: 100%;
 }
 
-/* Brief highlight on whatever card a KPI's click-to-jump scrolls to, so the
+/* Highlight on whatever card a KPI's click-to-jump scrolls to, so the
    scroll's destination is obvious rather than a card just quietly being
-   wherever the page happened to land. Plays once (not infinite) — app.jsx
-   removes the .card-flash class on a timer matching this duration. */
+   wherever the page happened to land. Ring appears quickly, holds for most
+   of the duration (so it reads during and after the smooth-scroll, not just
+   as a blink before it), then fades. Plays once (not infinite) — app.jsx's
+   CARD_FLASH_HOLD_MS removes the .card-flash class on a timer matching this
+   duration exactly. */
 @keyframes cardFlash {
-  0%,
-  100% {
+  0% {
     box-shadow: 0 0 0 0 rgba(199, 174, 134, 0);
   }
-  25% {
+  8% {
     box-shadow: 0 0 0 3px rgba(199, 174, 134, 0.55);
+  }
+  80% {
+    box-shadow: 0 0 0 3px rgba(199, 174, 134, 0.55);
+  }
+  100% {
+    box-shadow: 0 0 0 3px rgba(199, 174, 134, 0);
   }
 }
 
 .card-flash {
-  animation: cardFlash 900ms ease-out;
+  animation: cardFlash 2600ms ease-out;
 }
 
 @media (prefers-reduced-motion: reduce) {
