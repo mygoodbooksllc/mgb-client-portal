@@ -474,35 +474,21 @@ body {
   outline-offset: -2px;
 }
 
-/* Collapsed section containing the current page — otherwise hiding the items
-   also hides the only cue for where you are. */
-.nav-section-label.holds-active {
-  color: var(--accent);
+/* Enterprise's heading is a plain label now, not a collapse toggle — the
+   upsell row below still reuses .nav-section-label-signature as a real
+   button, so the "not clickable" override needs its own class rather than
+   living on .nav-section-label-signature itself. */
+.nav-section-label-static {
+  cursor: default;
 }
-
-.nav-section-chevron {
-  font-size: 9px;
-  line-height: 1;
-  transition: transform 0.15s ease;
-}
-
-.nav-section.collapsed .nav-section-chevron {
-  transform: rotate(-90deg);
+.nav-section-label-static:hover {
+  background: none;
 }
 
 .nav-section-items {
   display: flex;
   flex-direction: column;
   gap: 2px;
-}
-
-/* `display: flex` above outranks the [hidden] UA default, so restate it. */
-.nav-section-items[hidden] {
-  display: none;
-}
-
-.nav-section-label .nav-badge-dot {
-  margin-left: auto;
 }
 
 .nav-item {

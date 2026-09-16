@@ -429,19 +429,6 @@ function Sidebar({
   // view rather than dereferencing a missing access.user below.
   const isBookkeeper = viewAsUserId === BOOKKEEPER_VIEW || !access.user;
 
-  // Which nav sections are collapsed. Deliberately NOT keyed by client id —
-  // this is a viewer preference, not client data, so it should persist when
-  // switching organizations. Sections start expanded.
-  const [collapsedSections, setCollapsedSections] = useState(() => new Set());
-
-  const toggleSection = (label) =>
-    setCollapsedSections((prev) => {
-      const next = new Set(prev);
-      if (next.has(label)) next.delete(label);
-      else next.add(label);
-      return next;
-    });
-
   return (
     <aside className={"sidebar" + (mobileOpen ? " open" : "")}>
       <div className="brand">
@@ -603,34 +590,18 @@ function Sidebar({
           }
           const items = orderedSectionItems(section, tabOrder, selectedClientId).filter((item) => visibleKeys.has(item.key));
           if (items.length === 0) return null;
-          // Only the Enterprise Tools section collapses — the rest always show
-          // their items, so the label is a static heading rather than a toggle.
-          const collapsible = isSignature;
-          const collapsed = collapsible && collapsedSections.has(section.label);
-          // Collapsing the section holding the current page would otherwise
-          // hide the only indicator of where you are, so the label carries it.
-          const holdsActivePage = items.some((item) => item.key === page);
+          // Enterprise gets a static gold heading (not a toggle — it no
+          // longer collapses, so there's nothing for a click to do here).
+          // Every other section renders no heading at all, same as before.
           const sectionId = "nav-section-" + slugify(section.label);
           return (
-            <div className={"nav-section" + (collapsed ? " collapsed" : "") + (isSignature ? " nav-section-signature" : "")} key={section.label}>
-              {collapsible ? (
-                <button
-                  type="button"
-                  className={"nav-section-label" + (collapsed && holdsActivePage ? " holds-active" : "") + (isSignature ? " nav-section-label-signature" : "")}
-                  onClick={() => toggleSection(section.label)}
-                  aria-expanded={!collapsed}
-                  aria-controls={sectionId}
-                >
-                  <span className="nav-section-chevron" aria-hidden="true">
-                    ▾
-                  </span>
+            <div className={"nav-section" + (isSignature ? " nav-section-signature" : "")} key={section.label}>
+              {isSignature ? (
+                <div className="nav-section-label nav-section-label-signature nav-section-label-static">
                   <span>{section.label}</span>
-                  {collapsed && badges && items.some((item) => badges[item.key]) && (
-                    <span className="nav-badge-dot" aria-label="Unread"></span>
-                  )}
-                </button>
+                </div>
               ) : null}
-              <div className="nav-section-items" id={sectionId} hidden={collapsed}>
+              <div className="nav-section-items" id={sectionId}>
                 {items.map((item) => (
                   <button
                     key={item.key}
