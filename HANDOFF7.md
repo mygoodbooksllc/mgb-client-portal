@@ -877,3 +877,47 @@ the originally-proposed icon everywhere else.
 - Confirmed via a follow-up screenshot that the earlier paperclip-emoji fix is genuinely live
   (was a stale-cache concern, not a real regression — see §16).
 - `MGB_VERSION` bumped to `2026-09-16q`.
+
+---
+
+## 18. Update, 2026-09-16 (night, continued): Dashboard merges with Live Report for premium
+clients; Daily Report renamed
+
+Asked whether any sidebar tabs were redundant enough to combine. Two real candidates: Dashboard
+vs. Daily Report (both "here's where things stand," Daily Report just a richer live version of
+the same idea) and Receivables & Payables vs. AP Command Center (the same payables data shown
+twice, once plain and once with aging/filtering). Went with the first — highest-traffic page,
+clearest overlap — and confirmed the shape before building: **Daily Report replaces Dashboard
+entirely for premium, full-access clients**, not a combined everything-on-one-page layout.
+
+- **`daily-close` is no longer a separate nav item.** Removed from `NAV_SECTIONS`. A premium,
+  non-scoped client's "Dashboard" tab now renders what used to be the separate Live Report page
+  instead of the old KPI-grid `DashboardPage` — one cohesive page, not two competing overviews.
+  Standard-plan clients, and category-scoped premium users (a live org-wide snapshot has no
+  "their" slice to narrow to, same reasoning `ORG_WIDE_TABS` already used), see the unchanged
+  plain `DashboardPage`/`ScopedDashboardPage`.
+- New `showsLiveReport` flag in `App` (`effectivePage === "dashboard" && hasPremiumPlan(client)
+  && !access.isCategoryScoped`) drives both which component renders under the `dashboard` key
+  and which `PAGE_META` entry the page header pulls its title/subtitle from — so the outer
+  header correctly reads "Live Report" instead of "Dashboard" when that's what's actually
+  showing.
+- `daily-close` survives as an **internal** key (`PAGE_META["daily-close"]`, `DailyClose`'s own
+  component/file names, `dailyCloseFromClient()`) even though it's not a reachable page/nav key
+  anymore — renaming the vendored component and its directory for a label change wasn't worth
+  the churn, same reasoning as before.
+- Cleaned up now-dead references: removed `"daily-close"` from `ORG_WIDE_TABS` (redundant now
+  that `showsLiveReport` checks `isCategoryScoped` directly), changed `initialPage()`'s final
+  fallback from `"daily-close"` to `"dashboard"`.
+- **Renamed "Daily Report" → "Live Report"** everywhere user-facing: the page header title,
+  the Enterprise Tools upgrade page's feature card (title + description rewritten to describe
+  "your dashboard becomes live" rather than a separate tab), and touched-up internal comments.
+  The `daily-close` internal key/component/file names were deliberately NOT renamed, per above.
+- `MGB_VERSION` bumped to `2026-09-16r`.
+
+**Not done, lower priority per the original analysis:** merging Receivables & Payables into AP
+Command Center for premium clients — same shape, just less-visited pages, didn't ask for it
+built yet.
+
+Also asked, separately: what would make AP Command Center itself feel worth a premium price
+(brainstormed, not yet built — pending which direction is picked), and the downloadable PDF
+export needs to match the new near-black navy theme (also not yet built as of this entry).

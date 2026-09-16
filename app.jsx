@@ -187,8 +187,11 @@ function ToastProvider({ children }) {
 const NAV_SECTIONS = [
   {
     label: "Enterprise Tools",
+    // Live Report ("daily-close") isn't a nav item here on purpose — a
+    // premium, full-access client's Dashboard tab IS the Live Report, one
+    // cohesive page instead of two separate tabs both claiming to be "the
+    // overview." See showsLiveReport in App.
     items: [
-      { key: "daily-close", label: "Daily Report", premium: true, icon: <DocumentIcon /> },
       { key: "report-builder", label: "Report Builder", premium: true, icon: <BarChartIcon /> },
       { key: "budgeting-tool", label: "Budgeting Tool", premium: true, icon: <CalculatorIcon /> },
       { key: "ap-command-center", label: "AP Command Center", premium: true, icon: <StackedBillsIcon /> },
@@ -231,7 +234,9 @@ const ORG_WIDE_TABS = new Set([
   "reports",
   "report-builder",
   "budgeting-tool",
-  "daily-close",
+  // Live Report isn't a real tab key (see NAV_SECTIONS) so it can't be listed
+  // here — the same org-wide exclusion for it is applied directly in App's
+  // showsLiveReport check instead.
   // Same payables array as Receivables & Payables, which has no category
   // dimension either — a category-scoped user (e.g. Luis, Youth Ministry)
   // has no meaningful "their" bills to filter this down to.
@@ -2677,15 +2682,17 @@ function ReportBarRows({ items }) {
 
 // ----------------------------------------------------------------------------
 // Enterprise Tools upgrade preview — what a standard-plan client's "+" in the
-// sidebar opens instead of the real Daily Report/Report Builder/Budgeting
-// Tool pages, which are stripped out of their access.tabs entirely.
+// sidebar opens instead of the real Report Builder/Budgeting Tool pages
+// (stripped out of their access.tabs entirely) and the richer Live Report
+// dashboard (a premium client's plain Dashboard becomes the Live Report —
+// see showsLiveReport in App — so there's no separate tab to strip here).
 // ----------------------------------------------------------------------------
 
 const ENTERPRISE_FEATURES = [
   {
     icon: <DocumentIcon />,
-    title: "Daily Report",
-    description: "A fresh financial snapshot every morning — cash on hand, receivables, what's due — before your coffee's ready.",
+    title: "Live Report",
+    description: "Your dashboard becomes a continuously-live financial snapshot — cash on hand, receivables, what's due — instead of a static once-a-day view.",
   },
   {
     icon: <BarChartIcon />,
@@ -5965,7 +5972,7 @@ function initialPage() {
       return "bookkeeper-home";
     }
   } catch (e) {}
-  return loadPage() || "daily-close";
+  return loadPage() || "dashboard";
 }
 
 // When THIS browser last viewed each client — per-device, not shared across
@@ -6322,7 +6329,7 @@ const PAGE_META = {
   // Display name only. The route key, the DailyClose component and the
   // components/daily-close/ directory keep their original names — renaming
   // those would churn the whole vendored component for a label change.
-  "daily-close": { title: "Daily Report", subtitle: "A live financial snapshot, updating continuously" },
+  "daily-close": { title: "Live Report", subtitle: "A live financial snapshot, updating continuously" },
   budget: { title: "Budget vs. Actual", subtitle: "How spending compares to plan, by category" },
   giving: { title: "Giving & Funds", subtitle: "Contributions received and fund balances" },
   receivables: { title: "Receivables & Payables", subtitle: "Money coming in and bills going out" },
@@ -6379,7 +6386,7 @@ class ErrorBoundary extends React.Component {
 
 function App({ staffUser, onSignOut }) {
   const isMobile = useIsMobile();
-  // Riverside: premium plan (so Daily Report is reachable) and, as of the
+  // Riverside: premium plan (so Live Report is reachable) and, as of the
   // thread fixes in data.js, no thread whose last message is unread —
   // nothing steals focus with the chat popup on first load. Only the
   // fallback when nothing was ever persisted (loadSelectedClientId returns
@@ -6686,7 +6693,13 @@ function App({ staffUser, onSignOut }) {
       : access.tabs.has(page)
       ? page
       : ALWAYS_VISIBLE_KEY;
-  const meta = PAGE_META[effectivePage];
+  // Dashboard IS the Live Report for a full-access premium viewer — see the
+  // render switch below for why "daily-close" survives as a page key here
+  // even though it's no longer reachable from the nav. Category-scoped
+  // premium users still get the plain dashboard (ORG_WIDE_TABS-equivalent:
+  // a live org-wide snapshot has no "their" slice to show).
+  const showsLiveReport = effectivePage === "dashboard" && hasPremiumPlan(client) && !access.isCategoryScoped;
+  const meta = showsLiveReport ? PAGE_META["daily-close"] : PAGE_META[effectivePage];
   const isPreviewingUser = viewAsUserId !== BOOKKEEPER_VIEW && access.user;
 
   const clientUsers = client.users || [];
@@ -6749,7 +6762,7 @@ function App({ staffUser, onSignOut }) {
     }
   }, [effectivePage, selectedClientId]);
 
-  // Daily Report reads as continuously live, not a once-a-day snapshot —
+  // Live Report reads as continuously live, not a once-a-day snapshot —
   // dailyCloseFromClient(client) is called fresh on every render and stamps
   // its own "Live as of ..." label from the current clock, so a periodic,
   // otherwise-inert re-render is enough to keep that timestamp (and the
@@ -6781,7 +6794,7 @@ function App({ staffUser, onSignOut }) {
           const el = entry.target;
           el.style.setProperty("--reveal-dur", Math.round(2550 + Math.random() * 1950) + "ms");
           // A data attribute, not a class: React re-renders these cards often
-          // (drag state, widget-layout state, the 30s Daily Report tick), and
+          // (drag state, widget-layout state, the 30s Live Report tick), and
           // every render recomputes className from scratch, silently wiping
           // an imperatively-added class the next time React commits. React
           // never touches attributes it wasn't told about, so this survives.
@@ -6808,12 +6821,12 @@ function App({ staffUser, onSignOut }) {
   }, []);
 
   // Every prominent stat (KPI tiles, Report Builder's big numbers, fund
-  // balances, Daily Report's own KPI row) counts up from zero as the page
+  // balances, Live Report's own KPI row) counts up from zero as the page
   // first loads. This works on the already-rendered text rather than routing
   // every number through a component: find the first real text node inside
   // the target, pull the numeric run out of it with a regex, and animate that
   // node's data from 0 up to it, leaving any prefix ("$", "-"), suffix
-  // (" mo", "%"), and sibling markup (Daily Report's cents <small>)
+  // (" mo", "%"), and sibling markup (Live Report's cents <small>)
   // untouched. A value with no number in it (e.g. a runway ring reading
   // "Healthy") is simply left alone.
   //
@@ -7084,7 +7097,18 @@ function App({ staffUser, onSignOut }) {
           />
 
           {effectivePage === "dashboard" &&
-            (access.isCategoryScoped ? (
+            (showsLiveReport ? (
+              // A premium, full-access client's "Dashboard" IS the Live
+              // Report — one cohesive page instead of two separate tabs
+              // both claiming to be "the overview." theme is null until the
+              // header toggle is used, in which case DailyClose follows the
+              // OS setting via its own dark block — identical to the
+              // shell's default. Once toggled, the explicit choice is
+              // passed through so both sides stay in step. Data is derived
+              // from the selected client rather than the shipped Bramblewood
+              // sample, so the panel and the rest of the app agree.
+              <DailyClose data={dailyCloseFromClient(client)} theme={effectiveTheme} key={"daily-close-" + client.id} />
+            ) : access.isCategoryScoped ? (
               <ScopedDashboardPage
                 client={scopedClient}
                 access={access}
@@ -7101,15 +7125,6 @@ function App({ staffUser, onSignOut }) {
                 onSaveReferralPromo={saveReferralPromo}
               />
             ))}
-          {effectivePage === "daily-close" && hasPremiumPlan(client) && (
-            // theme is null until the header toggle is used, in which case
-            // DailyClose follows the OS setting via its own dark block —
-            // identical to the shell's default. Once toggled, the explicit
-            // choice is passed through so both sides stay in step.
-            // Data is derived from the selected client rather than the shipped
-            // Bramblewood sample, so the panel and the rest of the app agree.
-            <DailyClose data={dailyCloseFromClient(client)} theme={effectiveTheme} key={"daily-close-" + client.id} />
-          )}
           {effectivePage === "budget" && <BudgetPage client={scopedClient} />}
           {effectivePage === "giving" && <GivingFundsPage client={scopedClient} />}
           {effectivePage === "receivables" && <ReceivablesPayablesPage client={scopedClient} />}
