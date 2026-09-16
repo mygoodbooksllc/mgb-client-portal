@@ -289,6 +289,15 @@ const FEATURE_FLAGS = [
     label: "Verbose console logging",
     description: "Log the current page and client id to the console on every navigation, for bug reports.",
   },
+  {
+    // Read directly by components/auth/supabaseClient.js, which loads
+    // before this file exists and can't call isFlagOn() here — it checks
+    // the same key/value convention ("1" in localStorage) itself. See the
+    // comment there for why a duplicated literal beats a cross-file call.
+    key: "mygoodbooks_ff_slow_network_v1",
+    label: "Simulate slow network",
+    description: "Adds a ~1.8s delay to every Supabase request, to test loading states without real network throttling.",
+  },
 ];
 
 // A directory, not a vault: where each piece of infrastructure lives and
@@ -3967,18 +3976,28 @@ function parseStaffCsv(text) {
   return rows;
 }
 
-// Cleared by Staff Access's "Reset local state" button. Everything here is a
-// per-browser viewer preference (theme, tab layout, per-client-user access
+// Cleared by Developer Tools' "Reset local state" button. Everything this
+// matches is a per-browser viewer preference (theme, tab layout, dashboard/
+// Live Report widget layouts, cash-floor alerts, per-client-user access
 // overrides, ...), never anything from Supabase, so clearing it can't lose
 // real data — only whatever local customization got the browser stuck.
-const RESETTABLE_STORAGE_KEYS = [
-  "mygoodbooks_theme_v1",
-  "mygoodbooks_page_v1",
-  "mygoodbooks_tab_config_v2",
-  "mygoodbooks_tab_order_v1",
-  "mygoodbooks_dashboard_widgets_v1",
-  "mygoodbooks_referral_promo_v1",
-];
+//
+// Previously an explicit list of keys, which meant every new feature that
+// added its own localStorage key (the cash-floor alert, Live Report's own
+// widget layout, ...) had to remember to also add itself here — easy to
+// forget, and forgetting it silently makes "reset local state" a lie for
+// that one feature. Matching everything under the shared "mygoodbooks_"
+// prefix closes that gap for whatever gets added next, without needing to
+// touch this function again. Feature flags (mygoodbooks_ff_*) are
+// deliberately excluded — they're their own toggles right next to this
+// button, not "local state" in the sense this reset is for.
+function resettableLocalStorageKeys() {
+  try {
+    return Object.keys(localStorage).filter((k) => k.startsWith("mygoodbooks_") && !k.startsWith("mygoodbooks_ff_"));
+  } catch (e) {
+    return [];
+  }
+}
 
 function StaffAccessPage({ staffUser, onImpersonate }) {
   const showToast = useToast();
@@ -4521,8 +4540,32 @@ function parseClientUserCsv(text) {
 // to overlook and easy to confuse for something that affects other staff.
 // ----------------------------------------------------------------------------
 
-function DeveloperToolsPage() {
+function readAllMygoodbooksStorage() {
+  try {
+    return Object.keys(localStorage)
+      .filter((k) => k.startsWith("mygoodbooks_"))
+      .sort()
+      .map((key) => ({ key, value: localStorage.getItem(key) }));
+  } catch (e) {
+    return [];
+  }
+}
+
+// Pretty-prints a stored value if it's JSON, otherwise shows it as-is — most
+// keys here are JSON (layouts, tab config, ...), a few are plain strings
+// (theme, page) or bare numbers (a cash-floor threshold).
+function formatStorageValue(raw) {
+  try {
+    return JSON.stringify(JSON.parse(raw), null, 2);
+  } catch (e) {
+    return raw;
+  }
+}
+
+function DeveloperToolsPage({ onJumpToClient }) {
   const [, forceRerender] = useState(0);
+  const [clientQuery, setClientQuery] = useState("");
+  const [storageEntries, setStorageEntries] = useState(readAllMygoodbooksStorage);
 
   function toggleFlag(key) {
     setFlag(key, !isFlagOn(key));
@@ -4532,12 +4575,12 @@ function DeveloperToolsPage() {
   function resetLocalState() {
     if (
       !window.confirm(
-        "Reset this browser's local MyGoodBooks state (theme, tab layout, dashboard widgets, per-person access overrides)? This only affects this browser — nothing in Supabase is touched. The page will reload."
+        "Reset this browser's local MyGoodBooks state (theme, tab layout, dashboard/Live Report widget layouts, cash-floor alerts, per-person access overrides, ...)? This only affects this browser — nothing in Supabase is touched. The page will reload."
       )
     ) {
       return;
     }
-    RESETTABLE_STORAGE_KEYS.forEach((key) => {
+    resettableLocalStorageKeys().forEach((key) => {
       try {
         localStorage.removeItem(key);
       } catch (e) {}
@@ -4545,11 +4588,44 @@ function DeveloperToolsPage() {
     window.location.reload();
   }
 
+  const matchingClients = clientQuery.trim()
+    ? CLIENTS.filter((c) => c.name.toLowerCase().includes(clientQuery.trim().toLowerCase())).slice(0, 8)
+    : [];
+
   return (
     <div>
       <MockBanner text="Per-browser testing aids — nothing here is shared with other staff or written to Supabase." />
 
-      <div className="card">
+      <div className="card" style={{ marginBottom: 20 }}>
+        <h3 className="card-title">Jump to client</h3>
+        <p className="card-subtitle">Skip the sidebar dropdown — land straight on a client's dashboard.</p>
+        <input
+          type="text"
+          className="ap-cc-search"
+          style={{ width: "100%", boxSizing: "border-box" }}
+          placeholder="Search clients by name…"
+          value={clientQuery}
+          onChange={(e) => setClientQuery(e.target.value)}
+        />
+        {matchingClients.length > 0 && (
+          <div className="staff-audit-list" style={{ marginTop: 10 }}>
+            {matchingClients.map((c) => (
+              <button
+                type="button"
+                className="staff-due-row"
+                key={c.id}
+                style={{ width: "100%", textAlign: "left", cursor: "pointer", background: "none", border: "none", font: "inherit" }}
+                onClick={() => onJumpToClient && onJumpToClient(c.id)}
+              >
+                <span className="staff-flag-label">{c.name}</span>
+                <span className="staff-flag-desc">{c.plan === "premium" ? "Premium" : "Standard"} · {c.id}</span>
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div className="card" style={{ marginBottom: 20 }}>
         <h3 className="card-title">Feature flags</h3>
         <p className="card-subtitle">Stored in this browser's localStorage only.</p>
 
@@ -4568,10 +4644,49 @@ function DeveloperToolsPage() {
             Reset local state
           </button>
           <p className="card-subtitle" style={{ margin: 0 }}>
-            Clears this browser's saved theme, tab layout, dashboard widgets, and per-person access overrides, then
-            reloads. Doesn't touch Supabase or any other browser.
+            Clears every saved theme, tab layout, widget layout, and per-person access override
+            under this browser's "mygoodbooks_" storage (feature flags excepted — those stay,
+            right above), then reloads. Doesn't touch Supabase or any other browser.
           </p>
         </div>
+      </div>
+
+      <div className="card">
+        <div className="page-header" style={{ marginBottom: 4 }}>
+          <div>
+            <h3 className="card-title">Raw local storage</h3>
+            <p className="card-subtitle" style={{ margin: 0 }}>
+              Every "mygoodbooks_" key in this browser, as actually stored — for when a bug report
+              says "my layout looks wrong" and you want the real value without opening devtools.
+            </p>
+          </div>
+          <button className="btn-secondary" onClick={() => setStorageEntries(readAllMygoodbooksStorage())}>
+            Refresh
+          </button>
+        </div>
+        {storageEntries.length === 0 ? (
+          <p className="card-subtitle">No "mygoodbooks_" keys stored in this browser.</p>
+        ) : (
+          <div className="staff-audit-list">
+            {storageEntries.map((e) => (
+              <div className="staff-audit-row" key={e.key} style={{ flexDirection: "column", alignItems: "stretch" }}>
+                <span className="staff-flag-label">{e.key}</span>
+                <pre
+                  style={{
+                    margin: "4px 0 0",
+                    fontSize: 11.5,
+                    fontFamily: "IBM Plex Mono, monospace",
+                    color: "var(--text-muted)",
+                    whiteSpace: "pre-wrap",
+                    wordBreak: "break-word",
+                  }}
+                >
+                  {formatStorageValue(e.value)}
+                </pre>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );
@@ -7567,7 +7682,14 @@ function App({ staffUser, onSignOut }) {
             <StaffAccessPage staffUser={staffUser} onImpersonate={startImpersonating} />
           )}
           {effectivePage === "client-access" && <ClientAccessPage />}
-          {effectivePage === "developer-tools" && <DeveloperToolsPage />}
+          {effectivePage === "developer-tools" && (
+            <DeveloperToolsPage
+              onJumpToClient={(clientId) => {
+                setSelectedClientId(clientId);
+                setPage("dashboard");
+              }}
+            />
+          )}
           {effectivePage === "bookkeeper-home" && (
             <BookkeeperHomePage
               staffUser={effectiveStaffUser}
