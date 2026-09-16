@@ -659,7 +659,13 @@ function DailyClose({ data, className, theme }: DailyCloseProps) {
                 ]}
               />
               <div className={styles.callout}>
-                💡 <span>{data.forecast90d.narrative}</span>
+                {/* Thin-line, currentColor icon — matches the rest of the app's icon style,
+                    no emoji. */}
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+                  <path d="M9 18h6M10 21h4" />
+                  <path d="M12 3a6 6 0 00-3.6 10.8c.6.45 1.1 1.2 1.1 2.2h5c0-1 .5-1.75 1.1-2.2A6 6 0 0012 3z" />
+                </svg>
+                <span>{data.forecast90d.narrative}</span>
               </div>
               <div className={styles.methodology}>{data.forecast90d.methodology}</div>
             </div>

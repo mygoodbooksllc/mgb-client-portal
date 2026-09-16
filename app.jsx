@@ -651,7 +651,7 @@ function Sidebar({
           aria-label={effectiveTheme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
           title={effectiveTheme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
         >
-          {effectiveTheme === "dark" ? "☀️" : "🌙"}
+          {effectiveTheme === "dark" ? <SunIcon /> : <MoonIcon />}
         </button>
       </div>
 
@@ -668,8 +668,77 @@ function Sidebar({
 // Shared bits
 // ----------------------------------------------------------------------------
 
+// Small inline icons, all in the same thin-line, currentColor style as
+// ENTERPRISE_FEATURES' icons and the chat icon — no emoji anywhere in the
+// app. `.icon-inline` (styles.css) handles the baseline alignment every
+// call site needs when it sits next to text.
+function WarningIcon(props) {
+  return (
+    <svg className="icon-inline" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" {...props}>
+      <path d="M12 4l9.5 16.5H2.5L12 4z" />
+      <path d="M12 10v4.5M12 17.5h.01" />
+    </svg>
+  );
+}
+
+function SearchIcon(props) {
+  return (
+    <svg className="icon-inline" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" {...props}>
+      <circle cx="10.5" cy="10.5" r="6.5" />
+      <path d="M20 20l-4.8-4.8" />
+    </svg>
+  );
+}
+
+function LockIcon(props) {
+  return (
+    <svg className="icon-inline" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" {...props}>
+      <rect x="5" y="11" width="14" height="9" rx="2" />
+      <path d="M8 11V7a4 4 0 0 1 8 0v4" />
+    </svg>
+  );
+}
+
+function PaperclipIcon(props) {
+  return (
+    <svg className="icon-inline" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" {...props}>
+      <path d="M17 7.5l-8 8a3 3 0 004.24 4.24l8-8a5 5 0 00-7.07-7.07l-8.2 8.2a7 7 0 009.9 9.9" />
+    </svg>
+  );
+}
+
+function FlaskIcon(props) {
+  return (
+    <svg className="icon-inline" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" {...props}>
+      <path d="M9 3h6M10 3v6.5L4.8 18a2 2 0 001.7 3h11a2 2 0 001.7-3L14 9.5V3" />
+      <path d="M7.5 15h9" />
+    </svg>
+  );
+}
+
+function SunIcon(props) {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" {...props}>
+      <circle cx="12" cy="12" r="4.5" />
+      <path d="M12 2.5v3M12 18.5v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2.5 12h3M18.5 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1" />
+    </svg>
+  );
+}
+
+function MoonIcon(props) {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" {...props}>
+      <path d="M20 14.5A8.5 8.5 0 1 1 9.5 4a7 7 0 0 0 10.5 10.5z" />
+    </svg>
+  );
+}
+
 function MockBanner({ text }) {
-  return <div className="mock-banner">🧪 {text}</div>;
+  return (
+    <div className="mock-banner">
+      <FlaskIcon /> {text}
+    </div>
+  );
 }
 
 // Real (non-AI) search — filters this client's own transactions, budget
@@ -759,7 +828,9 @@ function GlobalSearch({ client, messages, visibleKeys, onNavigate }) {
   return (
     <div className="global-search" ref={wrapRef}>
       <div className="global-search-row">
-        <span className="global-search-icon">🔍</span>
+        <span className="global-search-icon">
+          <SearchIcon />
+        </span>
         <input
           type="text"
           className="global-search-input"
@@ -3606,8 +3677,8 @@ function StaffAccessPage({ staffUser, onImpersonate }) {
   return (
     <div>
       <div className="mock-banner">
-        ⚠️ This page writes directly to the real staff table in Supabase — unlike the rest of the app, nothing here
-        is sample data.
+        <WarningIcon /> This page writes directly to the real staff table in Supabase — unlike the rest of the app,
+        nothing here is sample data.
       </div>
 
       <div className="card" style={{ marginBottom: 20 }}>
@@ -4111,7 +4182,7 @@ function ClientAccessPage() {
   return (
     <div>
       <div className="mock-banner">
-        ⚠️ This page writes directly to the real client_users table in Supabase. It only
+        <WarningIcon /> This page writes directly to the real client_users table in Supabase. It only
         controls who WILL be able to sign in once Phase 2's client login gate is built — until
         then, nothing here changes who can actually access a client's data (see "Manage
         access" on each client's dashboard for that).
@@ -4912,7 +4983,13 @@ function DocumentsPage({ client, isBookkeeper }) {
                       onClick={() => toggleVisibility(i)}
                       title="Click to change who at this organization can see this file"
                     >
-                      {d.visibility === "full" ? "🔒 Full access only" : "Everyone"}
+                      {d.visibility === "full" ? (
+                        <React.Fragment>
+                          <LockIcon /> Full access only
+                        </React.Fragment>
+                      ) : (
+                        "Everyone"
+                      )}
                     </button>
                   </td>
                 )}
@@ -5106,7 +5183,8 @@ function MessagesPage({ client, messages, onSend, users, activeUserId, onSelectU
                 {m.text && <div className="message-text">{m.text}</div>}
                 {m.attachment && (
                   <div className="message-attachment">
-                    📎 {m.attachment.name} <span className="message-attachment-size">({m.attachment.size})</span>
+                    <PaperclipIcon /> {m.attachment.name}{" "}
+                    <span className="message-attachment-size">({m.attachment.size})</span>
                   </div>
                 )}
                 <div className="message-date">{fmtDate(m.date)}</div>
@@ -5117,7 +5195,9 @@ function MessagesPage({ client, messages, onSend, users, activeUserId, onSelectU
 
         {pendingAttachment && (
           <div className="attachment-chip">
-            <span>📎 {pendingAttachment.name}</span>
+            <span>
+              <PaperclipIcon /> {pendingAttachment.name}
+            </span>
             <span className="attachment-chip-meta">{pendingAttachment.size}</span>
             <button className="attachment-remove" onClick={() => setPendingAttachment(null)} aria-label="Remove attachment">
               ×
@@ -5127,7 +5207,7 @@ function MessagesPage({ client, messages, onSend, users, activeUserId, onSelectU
 
         <div className="message-compose">
           <button type="button" className="attach-btn" onClick={() => fileInputRef.current.click()} aria-label="Attach file">
-            📎
+            <PaperclipIcon />
           </button>
           <input
             ref={fileInputRef}

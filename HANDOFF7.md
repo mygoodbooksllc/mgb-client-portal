@@ -704,3 +704,35 @@ mobile now gets a completely different, simpler design:
 - `ChatWidget` (the desktop floating mini-thread) is completely unchanged and unaffected —
   `App` just chooses which of the two to render based on `isMobile`.
 - `MGB_VERSION` bumped to `2026-09-16g`.
+
+**Then, following the chat icon fix, asked to remove every emoji in the app** and replace each
+with a matching line icon. Scanned the whole repo by Unicode range (pictograph block, symbols
+block, regional-indicator flags — not just eyeballing) rather than trusting a manual read-
+through. Found and replaced, all in the same thin-line `stroke="currentColor"` style as
+`ENTERPRISE_FEATURES`'s icons:
+- Sidebar theme toggle (☀️/🌙 → `SunIcon`/`MoonIcon`)
+- Global search (🔍 → `SearchIcon`)
+- `MockBanner` (🧪 → `FlaskIcon`) — both in `app.jsx` AND its separate copy in the
+  `design-system` package (`design-system/src/MockBanner.tsx`), which had drifted to still
+  have the emoji since it's a manual port, not a shared import. Rebuilt `design-system/dist/`
+  after fixing it, same as the navy-color change earlier.
+- Staff Access's and Client Roster's "writes directly to the real table" warning banners
+  (⚠️ → `WarningIcon`)
+- Documents' "Full access only" pill (🔒 → `LockIcon`)
+- Message attachments, in the thread, the pending-attachment chip, and the compose bar's
+  attach button (📎 → `PaperclipIcon`, three call sites)
+- Daily Report's 90-day forecast callout (💡 → an inline SVG lightbulb, in
+  `components/daily-close/DailyClose.tsx` — a vendored component with its own styling scope,
+  so it got its own inline icon rather than importing from `app.jsx`)
+- New shared `.icon-inline` CSS class (`vertical-align: -3px`, since SVGs default to baseline
+  alignment and sit a little low next to a line of text otherwise) — added to both `styles.css`
+  and the design-system package's own copy.
+
+**Deliberately left alone:** the plain `✕`/`×` close-button glyphs and the `⚙` gear next to
+"Manage access"/"Customize dashboard." These aren't emoji in the rendering sense — no Unicode
+variation selector, default *text* presentation on every platform, so they already render in
+the theme's own text color rather than as a colorful pictograph. Converting all ~13 close-button
+instances plus the gear to SVG would be a much larger, separate refactor for something that
+wasn't actually causing the reported problem — flagged rather than done speculatively; say the
+word if full icon consistency there is wanted too.
+`MGB_VERSION` bumped to `2026-09-16i`.

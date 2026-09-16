@@ -1699,6 +1699,17 @@ body.rb-presenting .main {
   color: var(--ink-strong);
 }
 
+/* Shared by the small inline SVG icons in app.jsx (WarningIcon, SearchIcon,
+   LockIcon, PaperclipIcon, FlaskIcon, the chat icons) wherever one sits
+   next to a line of text rather than inside a flex container that already
+   centers it — SVGs default to baseline alignment, which sits a little low
+   next to text on its own. */
+.icon-inline {
+  flex-shrink: 0;
+  vertical-align: -3px;
+  margin-right: 2px;
+}
+
 .mock-banner {
   background: var(--warm-bg);
   border: 1px solid var(--warm-border);
