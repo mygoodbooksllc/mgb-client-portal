@@ -1252,3 +1252,30 @@ version — missing AP Command Center entirely (built and maximized in §17/§24
   `UpgradeIcon` deleted as dead code now that nothing uses it.
 
 `MGB_VERSION` bumped to `2026-09-16ag`.
+
+## §34 — Developer Tools: the four follow-up suggestions
+
+Built all four dev-tool suggestions from the Developer Tools split-out.
+
+- **Fixed "Reset local state"'s real gap.** It cleared an explicit, hand-maintained list of
+  keys (`RESETTABLE_STORAGE_KEYS`) that had already drifted out of date — neither the cash-floor
+  alert (`mygoodbooks_cash_floor_v1:<clientId>`) nor Live Report's own widget layout
+  (`mygoodbooks_live_report_layout_v1:<clientId>`) were in it, so resetting silently left them
+  behind. Replaced with `resettableLocalStorageKeys()`, which matches every key under the shared
+  `mygoodbooks_` prefix at reset time instead of a maintained list — closes the gap for whatever
+  gets added next too. Feature flags (`mygoodbooks_ff_*`) are deliberately excluded, since they're
+  their own toggles right above the button, not what "reset local state" means.
+- **Jump to client.** A search-by-name box at the top of Developer Tools; clicking a result calls
+  a new `onJumpToClient` prop (wired at the render site to `setSelectedClientId` + `setPage("dashboard")`),
+  skipping the sidebar dropdown.
+- **Raw local storage viewer.** Lists every `mygoodbooks_` key currently in this browser with its
+  stored value, pretty-printed if it's JSON. Not reactive to storage changes (a "Refresh" button
+  re-reads on demand) — good enough for "let me see what's actually stored" during a bug report.
+- **Simulate slow network.** New feature flag, checked directly in
+  `components/auth/supabaseClient.js` (not through app.jsx's `isFlagOn()` — that file loads
+  before app.jsx exists, so it duplicates the same "1" in localStorage check under the same key,
+  with a comment pointing at why). When on, `createClient()`'s `global.fetch` override adds an
+  ~1.8s delay before every real Supabase request — every existing call site (Staff Access's roster
+  and audit-log loads, client access, etc.) gets the delay for free, without touching any of them.
+
+`MGB_VERSION` bumped to `2026-09-16ah`.
