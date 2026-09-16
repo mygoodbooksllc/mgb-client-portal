@@ -1279,3 +1279,30 @@ Built all four dev-tool suggestions from the Developer Tools split-out.
   and audit-log loads, client access, etc.) gets the delay for free, without touching any of them.
 
 `MGB_VERSION` bumped to `2026-09-16ah`.
+
+## §35 — System info/Recent activity/Where things live moved to Dev Tools; Jump to client on Home
+
+- **Moved three cards from Staff Access to Developer Tools**: "Recent activity" (the
+  `staff_audit_log` read), "System info" (app version, Supabase project, read-status checks,
+  signed-in-as), and "Where things live" (`INFRA_LINKS`). None of them are about who can sign in —
+  they're debugging/ops aids, same category as the feature flags and local-state reset that
+  already moved there in §33.
+  - The audit-log fetch (`loadAudit`) moved wholesale into `DeveloperToolsPage`, including its own
+    `auditRows`/`auditError` state — Staff Access no longer re-fetches or displays it, and the
+    `loadAudit()` calls after every staff-admin action (add/remove/update/CSV import) were dropped
+    from `StaffAccessPage`, since nothing there renders that state anymore; Developer Tools does
+    its own fresh fetch on mount whenever someone actually opens that page.
+  - "Staff table read" status **could not simply move** — Staff Access's own `rows`/`loadError`
+    are tied to the actual roster fetch that page still needs for its CRUD table. Developer Tools
+    gets its own minimal read-only check instead (`select("id").limit(1)`, status only, no data
+    kept) rather than duplicating the full roster query.
+  - `DeveloperToolsPage` now takes a `staffUser` prop (for "Signed in as"), wired at its render
+    call site the same way `StaffAccessPage` already receives it.
+- **"Jump to client" added to `BookkeeperHomePage`, at the very top** — same search-by-name,
+  click-to-jump pattern as Developer Tools' own version (§34), reusing the page's existing
+  `onNavigateToClient` prop rather than adding a new one. Deliberately separate from the page's
+  existing "Your clients" card/search (`clientSearch` state) further down: that card is a
+  customizable widget that can be hidden or reordered via Customize dashboard, while this is a
+  fixed quick-jump that's always the first thing on the page.
+
+`MGB_VERSION` bumped to `2026-09-16ai`.

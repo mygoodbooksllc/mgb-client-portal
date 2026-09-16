@@ -4010,8 +4010,6 @@ function StaffAccessPage({ staffUser, onImpersonate }) {
   const [newName, setNewName] = useState("");
   const [newRole, setNewRole] = useState("bookkeeper");
   const [adding, setAdding] = useState(false);
-  const [auditRows, setAuditRows] = useState(null);
-  const [auditError, setAuditError] = useState("");
   const [clientAccessFor, setClientAccessFor] = useState(null); // the staff row being edited, or null
   const [clientAccessSet, setClientAccessSet] = useState(new Set());
   const [clientAccessLoading, setClientAccessLoading] = useState(false);
@@ -4056,31 +4054,6 @@ function StaffAccessPage({ staffUser, onImpersonate }) {
       return next;
     });
   }
-
-  const loadAudit = useCallback(() => {
-    if (!supabase) return;
-    supabase
-      .from("staff_audit_log")
-      .select("id, actor_email, action, target_email, detail, created_at")
-      .order("created_at", { ascending: false })
-      .limit(20)
-      .then(({ data, error }) => {
-        if (error) {
-          // Most likely cause: supabase/staff-audit-log.sql hasn't been run
-          // yet. Not fatal to the rest of the page, so this stays quiet
-          // rather than another red banner on top of the roster's own.
-          setAuditError("Couldn't load recent activity. " + error.message);
-          setAuditRows([]);
-        } else {
-          setAuditError("");
-          setAuditRows(data);
-        }
-      });
-  }, [supabase]);
-
-  useEffect(() => {
-    loadAudit();
-  }, [loadAudit]);
 
   const load = useCallback(() => {
     if (!supabase) {
@@ -4129,7 +4102,6 @@ function StaffAccessPage({ staffUser, onImpersonate }) {
     setNewRole("bookkeeper");
     showToast(`Added ${name} to the staff list.`);
     load();
-    loadAudit();
   }
 
   async function importCsv() {
@@ -4154,7 +4126,6 @@ function StaffAccessPage({ staffUser, onImpersonate }) {
     );
     if (okCount === results.length) setCsvText("");
     load();
-    loadAudit();
   }
 
   async function updateRow(row, patch) {
@@ -4166,7 +4137,6 @@ function StaffAccessPage({ staffUser, onImpersonate }) {
       return;
     }
     load();
-    loadAudit();
   }
 
   async function removeRow(row) {
@@ -4180,7 +4150,6 @@ function StaffAccessPage({ staffUser, onImpersonate }) {
     }
     showToast(`Removed ${row.name}.`);
     load();
-    loadAudit();
   }
 
   return (
@@ -4385,88 +4354,6 @@ function StaffAccessPage({ staffUser, onImpersonate }) {
         {rows && rows.length === 0 && !loadError && <p className="card-subtitle">No staff rows yet.</p>}
       </div>
 
-      <div className="card" style={{ marginBottom: 20 }}>
-        <h3 className="card-title">Recent activity</h3>
-        <p className="card-subtitle">
-          Every change to the staff table, logged automatically by Postgres — not just the ones made from this page.
-        </p>
-
-        {auditRows === null && !auditError && <p className="card-subtitle">Loading…</p>}
-        {auditError && <p className="card-subtitle negative">{auditError}</p>}
-
-        {auditRows && auditRows.length > 0 && (
-          <ul className="staff-audit-list">
-            {auditRows.map((entry) => (
-              <li className="staff-audit-row" key={entry.id}>
-                <span className="staff-audit-text">
-                  <strong>{entry.actor_email || "Unknown"}</strong> {staffAuditVerb(entry.action)}{" "}
-                  <strong>{entry.target_email}</strong>
-                  {entry.detail ? ` (${entry.detail})` : ""}
-                </span>
-                <span className="staff-audit-time">{fmtDateTime(entry.created_at)}</span>
-              </li>
-            ))}
-          </ul>
-        )}
-
-        {auditRows && auditRows.length === 0 && !auditError && (
-          <p className="card-subtitle">No activity recorded yet.</p>
-        )}
-      </div>
-
-      <div className="content-masonry" style={{ marginBottom: 20 }}>
-        <div className="card">
-          <h3 className="card-title">System info</h3>
-          <p className="card-subtitle">What this page is actually talking to, for debugging a broken login or a stale deploy.</p>
-          <dl className="staff-info-list">
-            <div>
-              <dt>App version</dt>
-              <dd>
-                {window.MGB_VERSION ? `${window.MGB_VERSION.label} — ${window.MGB_VERSION.note}` : "Not set"}
-              </dd>
-            </div>
-            <div>
-              <dt>Supabase project</dt>
-              <dd>{supabase && window.SUPABASE_CONFIG ? new URL(window.SUPABASE_CONFIG.url).host : "Not configured"}</dd>
-            </div>
-            <div>
-              <dt>Staff table read</dt>
-              <dd className={loadError ? "negative" : rows ? "positive" : ""}>
-                {loadError ? "Failing — see the roster card above" : rows ? "OK" : "Checking…"}
-              </dd>
-            </div>
-            <div>
-              <dt>Audit log read</dt>
-              <dd className={auditError ? "negative" : auditRows ? "positive" : ""}>
-                {auditError ? "Failing — run staff-audit-log.sql" : auditRows ? "OK" : "Checking…"}
-              </dd>
-            </div>
-            <div>
-              <dt>Signed in as</dt>
-              <dd>
-                {staffUser.name} ({staffUser.email}) · {staffUser.role}
-              </dd>
-            </div>
-          </dl>
-        </div>
-      </div>
-
-      <div className="card">
-        <h3 className="card-title">Where things live</h3>
-        <p className="card-subtitle">
-          A directory, not a vault — this doesn't store any real credentials. Edit <code>INFRA_LINKS</code> in
-          app.jsx when an account changes.
-        </p>
-        <div className="staff-audit-list">
-          {INFRA_LINKS.map((l) => (
-            <a className="staff-due-row" href={l.url} target="_blank" rel="noopener noreferrer" key={l.name}>
-              <span className="staff-flag-label">{l.name}</span>
-              <span className="staff-flag-desc">{l.note}</span>
-            </a>
-          ))}
-        </div>
-      </div>
-
       {clientAccessFor && (
         <ModalShell onClose={() => setClientAccessFor(null)} labelledBy="client-access-title">
           <div className="modal-header">
@@ -4562,10 +4449,56 @@ function formatStorageValue(raw) {
   }
 }
 
-function DeveloperToolsPage({ onJumpToClient }) {
+function DeveloperToolsPage({ staffUser, onJumpToClient }) {
+  const supabase = window.mgbSupabase;
   const [, forceRerender] = useState(0);
   const [clientQuery, setClientQuery] = useState("");
   const [storageEntries, setStorageEntries] = useState(readAllMygoodbooksStorage);
+  const [auditRows, setAuditRows] = useState(null);
+  const [auditError, setAuditError] = useState("");
+  // Only a read-status check, not the roster itself — Staff Access owns the
+  // actual roster fetch/CRUD; this just needs to know whether a read against
+  // the staff table succeeds, for the System Info card below.
+  const [staffReadOk, setStaffReadOk] = useState(null); // null = checking, else boolean
+  const [staffReadError, setStaffReadError] = useState("");
+
+  const loadAudit = useCallback(() => {
+    if (!supabase) return;
+    supabase
+      .from("staff_audit_log")
+      .select("id, actor_email, action, target_email, detail, created_at")
+      .order("created_at", { ascending: false })
+      .limit(20)
+      .then(({ data, error }) => {
+        if (error) {
+          setAuditError("Couldn't load recent activity. " + error.message);
+          setAuditRows([]);
+        } else {
+          setAuditError("");
+          setAuditRows(data);
+        }
+      });
+  }, [supabase]);
+
+  useEffect(() => {
+    loadAudit();
+  }, [loadAudit]);
+
+  useEffect(() => {
+    if (!supabase) {
+      setStaffReadOk(false);
+      setStaffReadError("Supabase isn't configured — see auth-config.js.");
+      return;
+    }
+    supabase
+      .from("staff")
+      .select("id")
+      .limit(1)
+      .then(({ error }) => {
+        setStaffReadOk(!error);
+        setStaffReadError(error ? error.message : "");
+      });
+  }, [supabase]);
 
   function toggleFlag(key) {
     setFlag(key, !isFlagOn(key));
@@ -4687,6 +4620,90 @@ function DeveloperToolsPage({ onJumpToClient }) {
             ))}
           </div>
         )}
+      </div>
+
+      <div className="card" style={{ marginTop: 20, marginBottom: 20 }}>
+        <h3 className="card-title">Recent activity</h3>
+        <p className="card-subtitle">
+          Every change to the staff table, logged automatically by Postgres — not just the ones made from Staff Access.
+        </p>
+
+        {auditRows === null && !auditError && <p className="card-subtitle">Loading…</p>}
+        {auditError && <p className="card-subtitle negative">{auditError}</p>}
+
+        {auditRows && auditRows.length > 0 && (
+          <ul className="staff-audit-list">
+            {auditRows.map((entry) => (
+              <li className="staff-audit-row" key={entry.id}>
+                <span className="staff-audit-text">
+                  <strong>{entry.actor_email || "Unknown"}</strong> {staffAuditVerb(entry.action)}{" "}
+                  <strong>{entry.target_email}</strong>
+                  {entry.detail ? ` (${entry.detail})` : ""}
+                </span>
+                <span className="staff-audit-time">{fmtDateTime(entry.created_at)}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+
+        {auditRows && auditRows.length === 0 && !auditError && (
+          <p className="card-subtitle">No activity recorded yet.</p>
+        )}
+      </div>
+
+      <div className="content-masonry" style={{ marginBottom: 20 }}>
+        <div className="card">
+          <h3 className="card-title">System info</h3>
+          <p className="card-subtitle">What the app is actually talking to, for debugging a broken login or a stale deploy.</p>
+          <dl className="staff-info-list">
+            <div>
+              <dt>App version</dt>
+              <dd>
+                {window.MGB_VERSION ? `${window.MGB_VERSION.label} — ${window.MGB_VERSION.note}` : "Not set"}
+              </dd>
+            </div>
+            <div>
+              <dt>Supabase project</dt>
+              <dd>{supabase && window.SUPABASE_CONFIG ? new URL(window.SUPABASE_CONFIG.url).host : "Not configured"}</dd>
+            </div>
+            <div>
+              <dt>Staff table read</dt>
+              <dd className={staffReadOk === false ? "negative" : staffReadOk ? "positive" : ""}>
+                {staffReadOk === false ? `Failing — ${staffReadError}` : staffReadOk ? "OK" : "Checking…"}
+              </dd>
+            </div>
+            <div>
+              <dt>Audit log read</dt>
+              <dd className={auditError ? "negative" : auditRows ? "positive" : ""}>
+                {auditError ? "Failing — run staff-audit-log.sql" : auditRows ? "OK" : "Checking…"}
+              </dd>
+            </div>
+            {staffUser && (
+              <div>
+                <dt>Signed in as</dt>
+                <dd>
+                  {staffUser.name} ({staffUser.email}) · {staffUser.role}
+                </dd>
+              </div>
+            )}
+          </dl>
+        </div>
+      </div>
+
+      <div className="card">
+        <h3 className="card-title">Where things live</h3>
+        <p className="card-subtitle">
+          A directory, not a vault — this doesn't store any real credentials. Edit <code>INFRA_LINKS</code> in
+          app.jsx when an account changes.
+        </p>
+        <div className="staff-audit-list">
+          {INFRA_LINKS.map((l) => (
+            <a className="staff-due-row" href={l.url} target="_blank" rel="noopener noreferrer" key={l.name}>
+              <span className="staff-flag-label">{l.name}</span>
+              <span className="staff-flag-desc">{l.note}</span>
+            </a>
+          ))}
+        </div>
       </div>
     </div>
   );
@@ -5052,6 +5069,10 @@ function BookkeeperHomePage({ staffUser, clients, messagesByClient, readMessageC
   const [savingNote, setSavingNote] = useState(false);
   const { flashCardId, jumpToCard } = useCardFlash();
   const [clientSearch, setClientSearch] = useState("");
+  // Separate from clientSearch below (the full "Your clients" card's own
+  // filter) — this is a quick type-and-jump at the very top of the page,
+  // not tied to that card's position or visibility in Customize dashboard.
+  const [jumpQuery, setJumpQuery] = useState("");
 
   const loadReminders = useCallback(() => {
     if (!supabase) return;
@@ -5244,8 +5265,41 @@ function BookkeeperHomePage({ staffUser, clients, messagesByClient, readMessageC
   const kpiOrder = layout.visibleOrder.filter((id) => id.startsWith("kpi-"));
   const contentOrder = layout.visibleOrder.filter((id) => !id.startsWith("kpi-"));
 
+  const jumpMatches = jumpQuery.trim()
+    ? clients.filter((c) => c.name.toLowerCase().includes(jumpQuery.trim().toLowerCase())).slice(0, 8)
+    : [];
+
   return (
     <div>
+      <div className="card" style={{ marginBottom: 20 }}>
+        <h3 className="card-title">Jump to client</h3>
+        <p className="card-subtitle">Skip the sidebar dropdown — land straight on a client's dashboard.</p>
+        <input
+          type="text"
+          className="ap-cc-search"
+          style={{ width: "100%", boxSizing: "border-box" }}
+          placeholder="Search your clients by name…"
+          value={jumpQuery}
+          onChange={(e) => setJumpQuery(e.target.value)}
+        />
+        {jumpMatches.length > 0 && (
+          <div className="staff-audit-list" style={{ marginTop: 10 }}>
+            {jumpMatches.map((c) => (
+              <button
+                type="button"
+                className="staff-due-row"
+                key={c.id}
+                style={{ width: "100%", textAlign: "left", cursor: "pointer", background: "none", border: "none", font: "inherit" }}
+                onClick={() => onNavigateToClient(c.id, "dashboard")}
+              >
+                <span className="staff-flag-label">{c.name}</span>
+                <span className="staff-flag-desc">{c.plan === "premium" ? "Premium" : "Standard"} · {c.id}</span>
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+
       <CustomizeDashboardButton widgets={widgets} layout={layout} />
 
       <div className="kpi-grid">
@@ -7684,6 +7738,7 @@ function App({ staffUser, onSignOut }) {
           {effectivePage === "client-access" && <ClientAccessPage />}
           {effectivePage === "developer-tools" && (
             <DeveloperToolsPage
+              staffUser={staffUser}
               onJumpToClient={(clientId) => {
                 setSelectedClientId(clientId);
                 setPage("dashboard");
