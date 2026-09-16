@@ -1179,3 +1179,15 @@ link, matching the accent word) that calls the existing `onNavigate` prop to jum
 Messages tab — same prop already wired for the Accounts Payable KPI tile's cross-navigation to AP
 Command Center. Falls back to plain text when `onNavigate` isn't provided (the standalone
 prototype), same guard pattern as that KPI tile. `MGB_VERSION` bumped to `2026-09-16ac`.
+
+## §30 — Enterprise sidebar section is no longer collapsible
+
+Enterprise was the one section with a click-to-collapse heading (chevron, `collapsedSections`
+state). Removed: `collapsedSections`/`toggleSection` state deleted from `Sidebar`, and the
+Enterprise heading is now a plain, always-visible `<div>` (still gold-styled via
+`nav-section-label-signature`) rather than a `<button>` toggle — no chevron, no `aria-expanded`,
+items are never `hidden`. Added `.nav-section-label-static` to strip the pointer cursor/hover
+background the shared `.nav-section-label` class still needs for the non-premium upsell row
+(which is a real button and stays clickable). Dead CSS this left behind (`.nav-section-chevron`,
+`.nav-section.collapsed .nav-section-chevron`, `.holds-active`, `.nav-section-label .nav-badge-dot`)
+was removed rather than left orphaned. `MGB_VERSION` bumped to `2026-09-16ad`.
