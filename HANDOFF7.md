@@ -1429,3 +1429,36 @@ then Messages, then Enterprise, then the rest — unchanged otherwise. Enterpris
 gold heading (§30) and its own item order.
 
 `MGB_VERSION` bumped to `2026-09-16ap`.
+
+## §43 — Dashboard & Messages now live inside Enterprise, as its first two items
+
+Reconciles two contradictory-sounding requests from the same conversation: "Enterprise needs to
+be at the top" and "Dashboard Live and Messages need to be at the top." Both are true at once
+once Dashboard and Messages are items *inside* the Enterprise section rather than their own
+separate sections above or below it — `NAV_SECTIONS` is back down to Enterprise leading the
+sidebar, but its `items` array now starts with `dashboard`, `messages`, then the three premium
+tools.
+
+This is the nesting I'd avoided in §31/§32 because the section's whole item list used to get
+replaced by a single upsell button for standard-plan clients (`isSignature &&
+!hasPremiumPlan(client)` returned early with only a CTA) — nesting Dashboard/Messages in there
+would have made them vanish from a standard client's sidebar entirely. Fixed properly this time:
+
+- That early-return branch is gone. `items` is still filtered by `visibleKeys.has(item.key)` as
+  before — since `resolveAccess()` already strips the premium keys (`report-builder`,
+  `budgeting-tool`, `ap-command-center`) out of a standard-plan client's `access.tabs`, this filter
+  alone naturally narrows the Enterprise section down to just Dashboard + Messages for them, with
+  no separate branch needed to keep those two reachable.
+- A `showUpsell = isSignature && !hasPremiumPlan(client)` flag now appends a single upsell row
+  *after* whatever items did make it through, instead of replacing the whole section. Same visual
+  treatment (gold shimmer, Premium badge, padlock icon), just positioned as the last item in the
+  list rather than the section's only content.
+- The gold "signature" shimmer treatment (`.nav-item-signature`) now keys off `item.premium`
+  instead of the section's `isSignature` flag — Dashboard and Messages sit inside the Enterprise
+  section but aren't premium features themselves, so they render as plain nav items; only the
+  three gated tools (and the upsell row) get the gold treatment.
+- `TabSettingsModal`'s "Pages they can open" list groups by the same `NAV_SECTIONS` structure, so
+  Dashboard/Messages now appear grouped under the "Enterprise" heading there too — a natural
+  consequence of the shared source of truth, not a separate change.
+
+`MGB_VERSION` bumped to `2026-09-16aq`.

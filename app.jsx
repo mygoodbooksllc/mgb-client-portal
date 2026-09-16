@@ -186,28 +186,27 @@ function ToastProvider({ children }) {
 
 const NAV_SECTIONS = [
   {
-    // The most-visited page leads the sidebar (and, for premium clients,
-    // the one that reads "Dashboard Live" — see the label override in
-    // Sidebar), ahead of even Enterprise.
-    label: "Dashboard",
-    items: [{ key: "dashboard", label: "Dashboard", icon: <GridIcon /> }],
-  },
-  {
-    // Right under Dashboard — an unread-message badge is easy to miss
-    // buried under other sections, and a new message from the bookkeeper is
-    // exactly the kind of thing a client shouldn't have to go hunting for.
-    label: "Messages",
-    items: [
-      { key: "messages", label: "Messages", icon: <ChatIcon width="16" height="16" strokeWidth="1.8" /> },
-    ],
-  },
-  {
+    // Enterprise leads the sidebar, and Dashboard/Messages now live inside
+    // it as its first two items — the most-visited page (Dashboard, which
+    // reads "Dashboard Live" for a premium client, see the label override
+    // in Sidebar) and Messages (an unread badge shouldn't be buried) both
+    // come before the actual premium-gated tools. Neither is premium-gated
+    // itself: a standard-plan client's `access.tabs` already only contains
+    // "dashboard"/"messages" from this list (resolveAccess strips the
+    // premium keys before this ever renders), so the section's item list
+    // naturally narrows itself down to just those two for a non-premium
+    // client — no separate branch needed to keep them reachable. Sidebar's
+    // isSignature-upsell handling then appends a single upsell row after
+    // whatever items did make it through, advertising the locked tools
+    // rather than hiding the whole section behind one CTA.
     label: "Enterprise",
     // Live Report ("daily-close") isn't a nav item here on purpose — a
     // premium, full-access client's Dashboard tab IS the Live Report, one
     // cohesive page instead of two separate tabs both claiming to be "the
     // overview." See showsLiveReport in App.
     items: [
+      { key: "dashboard", label: "Dashboard", icon: <GridIcon /> },
+      { key: "messages", label: "Messages", icon: <ChatIcon width="16" height="16" strokeWidth="1.8" /> },
       { key: "report-builder", label: "Report Builder", premium: true, icon: <BarChartIcon /> },
       { key: "budgeting-tool", label: "Budgeting Tool", premium: true, icon: <CalculatorIcon /> },
       { key: "ap-command-center", label: "Cash Flow Pro", premium: true, icon: <StackedBillsIcon /> },
@@ -597,30 +596,16 @@ function Sidebar({
       <nav className="nav">
         {NAV_SECTIONS.map((section) => {
           const isSignature = section.label === "Enterprise";
-          // Standard-plan clients don't have these tabs at all (stripped out
-          // of access.tabs in resolveAccess), so the section would normally
-          // just vanish. Show a single upsell row instead, so the add-on is
-          // discoverable rather than invisible.
-          if (isSignature && !hasPremiumPlan(client)) {
-            return (
-              <div className="nav-section nav-section-signature" key={section.label}>
-                <button
-                  type="button"
-                  className="nav-section-label nav-section-label-signature nav-upsell-trigger"
-                  onClick={() => {
-                    onSelectPage("enterprise-upgrade");
-                    onCloseMobile();
-                  }}
-                >
-                  <span>{section.label}</span>
-                  <span className="nav-signature-badge">Premium</span>
-                  <LockIcon className="nav-upsell-icon" />
-                </button>
-              </div>
-            );
-          }
+          // Standard-plan clients don't have the premium tabs at all
+          // (stripped out of access.tabs in resolveAccess), so `items`
+          // below already narrows itself to just Dashboard/Messages for
+          // them — no separate branch needed to keep those two reachable.
+          // A single upsell row is appended after whatever did make it
+          // through, so the locked tools stay discoverable rather than
+          // just quietly missing.
+          const showUpsell = isSignature && !hasPremiumPlan(client);
           const items = orderedSectionItems(section, tabOrder, selectedClientId).filter((item) => visibleKeys.has(item.key));
-          if (items.length === 0) return null;
+          if (items.length === 0 && !showUpsell) return null;
           // Enterprise gets a static gold heading (not a toggle — it no
           // longer collapses, so there's nothing for a click to do here).
           // Every other section renders no heading at all, same as before.
@@ -636,7 +621,7 @@ function Sidebar({
                 {items.map((item) => (
                   <button
                     key={item.key}
-                    className={"nav-item" + (page === item.key ? " active" : "") + (isSignature ? " nav-item-signature" : "")}
+                    className={"nav-item" + (page === item.key ? " active" : "") + (item.premium ? " nav-item-signature" : "")}
                     onClick={() => {
                       onSelectPage(item.key);
                       onCloseMobile();
@@ -651,6 +636,20 @@ function Sidebar({
                     {badges[item.key] && <span className="nav-badge-dot" aria-label="Unread"></span>}
                   </button>
                 ))}
+                {showUpsell && (
+                  <button
+                    type="button"
+                    className="nav-item nav-item-signature nav-upsell-trigger"
+                    onClick={() => {
+                      onSelectPage("enterprise-upgrade");
+                      onCloseMobile();
+                    }}
+                  >
+                    <span>Report Builder, Budgeting Tool &amp; Cash Flow Pro</span>
+                    <span className="nav-signature-badge">Premium</span>
+                    <LockIcon className="nav-upsell-icon" />
+                  </button>
+                )}
               </div>
             </div>
           );
