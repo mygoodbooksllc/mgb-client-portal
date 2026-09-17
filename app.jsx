@@ -3136,7 +3136,7 @@ const REPORT_SECTION_DEFS = [
 
 function ReportBuilderPage({ client }) {
   const [stage, setStage] = useState("builder"); // "builder" | "report"
-  const [builderTab, setBuilderTab] = useState("custom"); // "custom" | "quick" — see QuickDownloadReports
+  const [builderTab, setBuilderTab] = useState("quick"); // "custom" | "quick" — see QuickDownloadReports
   const [presenting, setPresenting] = useState(false);
   const [period, setPeriod] = useState("ytd");
   const [scope, setScope] = useState("consolidated"); // "consolidated" | "by-fund"
@@ -3227,17 +3227,17 @@ function ReportBuilderPage({ client }) {
         <div className="view-toggle" style={{ marginBottom: 20 }}>
           <button
             type="button"
-            className={"view-toggle-btn" + (builderTab === "custom" ? " active" : "")}
-            onClick={() => setBuilderTab("custom")}
-          >
-            Custom Report
-          </button>
-          <button
-            type="button"
             className={"view-toggle-btn" + (builderTab === "quick" ? " active" : "")}
             onClick={() => setBuilderTab("quick")}
           >
             Quick Download
+          </button>
+          <button
+            type="button"
+            className={"view-toggle-btn" + (builderTab === "custom" ? " active" : "")}
+            onClick={() => setBuilderTab("custom")}
+          >
+            Custom Report
           </button>
         </div>
 

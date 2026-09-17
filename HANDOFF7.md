@@ -1835,3 +1835,12 @@ draft table as a plain reference card — reachable, but not competing with the 
 the same screen space.
 
 `MGB_VERSION` bumped to `2026-09-17j`.
+
+## §56 — Report Builder: swapped Quick Download and Custom Report
+
+Small follow-up: swapped the order of the two toggle buttons on Report Builder's landing view
+(`ReportBuilderPage`) — "Quick Download" now comes first — and changed `builderTab`'s default
+state to match, so a premium client now lands on the simple per-report PDF grid first, with the
+custom report builder one click away, instead of the other way around.
+
+`MGB_VERSION` bumped to `2026-09-17k`.
