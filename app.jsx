@@ -2666,7 +2666,7 @@ function ReceivablesPayablesPage({ client }) {
   );
 }
 
-const ACCOUNT_DONUT_COLORS = ["var(--gold)", "var(--good)", "var(--bad)", "var(--gold-deep)"];
+const ACCOUNT_DONUT_COLORS = ["var(--gold)", "var(--good)", "var(--bad)", "var(--gold-deep)", "var(--chart-income)"];
 
 function AccountCashDonut({ accounts }) {
   const total = accounts.reduce((s, a) => s + a.balance, 0);
