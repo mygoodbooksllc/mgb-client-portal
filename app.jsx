@@ -2202,15 +2202,24 @@ function BudgetPage({ client, searchTarget }) {
                 const pct = (b.actual / b.budgeted) * 100;
                 const over = b.actual > b.budgeted;
                 const rowId = "budget-row-" + slugify(b.category);
+                // Bullet-style bar: the track spans whichever of budgeted/actual
+                // is bigger, so the fill shows the real dollar amount (not just
+                // "% of budget" capped at 100%) and a target tick marks exactly
+                // where the budget line falls — over-budget rows visibly run
+                // past the tick instead of just stopping flush with the edge.
+                const scaleMax = Math.max(b.budgeted, b.actual, 1) * 1.08;
+                const fillPct = Math.min((b.actual / scaleMax) * 100, 100);
+                const tickPct = Math.min((b.budgeted / scaleMax) * 100, 100);
                 return (
                   <tr key={b.category} id={rowId} className={flashCardId === rowId ? "row-flash" : ""}>
                     <td data-primary="">
                       <div className="category-name">{b.category}</div>
-                      <div className="bar-track">
+                      <div className="bullet-track">
                         <div
-                          className={"bar-fill " + (over ? "over" : "under")}
-                          style={{ width: `${Math.min(pct, 100)}%`, animationDuration: `${growDuration(pct)}ms` }}
+                          className={"bullet-fill " + (over ? "over" : "under")}
+                          style={{ width: `${fillPct}%`, animationDuration: `${growDuration(fillPct)}ms` }}
                         ></div>
+                        <div className="bullet-target" style={{ left: `${tickPct}%` }}></div>
                       </div>
                     </td>
                     <td className="num" data-label="Budgeted">{fmtMoney(b.budgeted)}</td>

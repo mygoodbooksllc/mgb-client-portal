@@ -1352,6 +1352,38 @@ body {
 .bar-fill.under { background: var(--good); }
 .bar-fill.over { background: var(--bad); }
 
+/* Bullet-style bar for Spending by Category — same track language as
+   .bar-track, but the fill is scaled to the real dollar amount (not
+   capped at "% of budget") and .bullet-target marks exactly where the
+   budget line falls, so an over-budget row visibly runs past the tick
+   instead of just looking identical to a row that's right at 100%. */
+.bullet-track {
+  position: relative;
+  width: 100%;
+  height: 8px;
+  background: var(--surface-2);
+  border-radius: 999px;
+  overflow: visible;
+  margin-top: 6px;
+}
+
+.bullet-fill {
+  height: 100%;
+  border-radius: 999px;
+}
+
+.bullet-fill.under { background: var(--good); }
+.bullet-fill.over { background: var(--bad); }
+
+.bullet-target {
+  position: absolute;
+  top: -3px;
+  bottom: -3px;
+  width: 2px;
+  background: var(--gold);
+  transform: translateX(-1px);
+}
+
 /* Subcategory-account ledger under Income vs. Expenses — same bar-track
    language as the budget table, just laid out as compact stacked rows
    instead of a table, since it can hold anywhere from 3 to a dozen rows. */
@@ -4748,6 +4780,15 @@ body:has(.modal-overlay) .chat-fab-wrap {
   }
 
   .card[data-in-view] .bar-fill {
+    animation: mgb-grow-x var(--reveal-dur, 1800ms) cubic-bezier(0.22, 0.61, 0.36, 1) both;
+  }
+
+  .bullet-fill {
+    transform-origin: left center;
+    transform: scaleX(0);
+  }
+
+  .card[data-in-view] .bullet-fill {
     animation: mgb-grow-x var(--reveal-dur, 1800ms) cubic-bezier(0.22, 0.61, 0.36, 1) both;
   }
 
