@@ -4026,29 +4026,6 @@ function resettableLocalStorageKeys() {
   }
 }
 
-// "Read" markers for Team Chat, one per bookkeeper thread (their own email,
-// whether the reader is that bookkeeper or an admin looking in on their
-// thread) — per-browser only, same as every other read-tracking in this app
-// (client message threads included). Not a real receipt system: it just
-// silences the sidebar dot for whoever's browser opened the thread.
-function staffMessagesReadKey(staffEmail) {
-  return `mygoodbooks_staffmsg_read_v1:${staffEmail}`;
-}
-
-function readStaffMessagesReadAt(staffEmail) {
-  try {
-    return localStorage.getItem(staffMessagesReadKey(staffEmail));
-  } catch (e) {
-    return null;
-  }
-}
-
-function markStaffMessagesRead(staffEmail) {
-  try {
-    localStorage.setItem(staffMessagesReadKey(staffEmail), new Date().toISOString());
-  } catch (e) {}
-}
-
 function StaffAccessPage({ staffUser, onImpersonate }) {
   const showToast = useToast();
   const supabase = window.mgbSupabase;
@@ -4761,85 +4738,274 @@ function DeveloperToolsPage({ staffUser, onJumpToClient }) {
 
 // ----------------------------------------------------------------------------
 // Team Chat — internal staff messaging, separate from client conversations
-// (which are mock data, not Supabase — see data.js's `threads`). One thread
-// per bookkeeper, keyed by their own email: a bookkeeper sees only their own
-// thread with management, an admin picks any bookkeeper's thread from a
-// roster and can reply as themselves. Real Supabase table (staff_messages),
-// same posture as staff_reminders/client_notes — everyone with the sidebar
-// link can see this, not just admins.
+// (which are mock data, not Supabase — see data.js's `threads`). Any active
+// staff member can DM any other active staff member (bookkeepers included —
+// two bookkeepers working the same client need this as much as a bookkeeper
+// <-> admin line does), on real Supabase tables (staff_conversations /
+// staff_conversation_members / staff_messages), with file attachments,
+// edit/unsend within 5 seconds of sending, and live read receipts pushed
+// over Supabase Realtime.
 // ----------------------------------------------------------------------------
 
-function StaffMessagesPage({ staffUser, onThreadOpened }) {
+function StaffMessagesPage({ staffUser, onActivity }) {
   const supabase = window.mgbSupabase;
   const showToast = useToast();
-  const isAdmin = staffUser.role === "admin";
 
-  const [bookkeepers, setBookkeepers] = useState(null); // admin only
-  const [rosterError, setRosterError] = useState("");
-  const [activeEmail, setActiveEmail] = useState(isAdmin ? null : staffUser.email);
+  const [directory, setDirectory] = useState(null); // every other active staff member
+  const [conversations, setConversations] = useState(null); // my conversations, most recent first
+  const [activeConversationId, setActiveConversationId] = useState(null);
+  const [activeMembers, setActiveMembers] = useState(null); // [{staff_email, last_read_at}] for the open conversation
   const [messages, setMessages] = useState(null);
   const [loadError, setLoadError] = useState("");
   const [draft, setDraft] = useState("");
+  const [pendingAttachment, setPendingAttachment] = useState(null); // {file, name, size}
+  const [isDragging, setIsDragging] = useState(false);
   const [sending, setSending] = useState(false);
+  const [editingId, setEditingId] = useState(null);
+  const [editDraft, setEditDraft] = useState("");
+  const [, setTick] = useState(0); // forces a re-render so the 5s edit/unsend window visibly expires
+  const fileInputRef = useRef(null);
 
-  const loadRoster = useCallback(() => {
-    if (!isAdmin || !supabase) return;
+  useEffect(() => {
+    if (!supabase) return;
     supabase
       .from("staff")
       .select("email, name, role, active")
-      .eq("role", "bookkeeper")
       .eq("active", true)
+      .neq("email", staffUser.email)
       .order("name", { ascending: true })
       .then(({ data, error }) => {
-        if (error) {
-          setRosterError("Couldn't load the bookkeeper list. " + error.message);
-          setBookkeepers([]);
+        if (!error) setDirectory(data);
+      });
+  }, [supabase, staffUser.email]);
+
+  const loadConversations = useCallback(() => {
+    if (!supabase) return;
+    supabase
+      .from("staff_conversation_members")
+      .select("conversation_id, last_read_at")
+      .eq("staff_email", staffUser.email)
+      .then(async ({ data, error }) => {
+        if (error || !data || data.length === 0) {
+          setConversations([]);
           return;
         }
-        setRosterError("");
-        setBookkeepers(data);
-        setActiveEmail((prev) => prev || (data[0] && data[0].email) || null);
+        const convIds = data.map((r) => r.conversation_id);
+        const myReadByConv = {};
+        data.forEach((r) => {
+          myReadByConv[r.conversation_id] = r.last_read_at;
+        });
+
+        const [{ data: otherMembers }, { data: recentMessages }] = await Promise.all([
+          supabase
+            .from("staff_conversation_members")
+            .select("conversation_id, staff_email")
+            .in("conversation_id", convIds)
+            .neq("staff_email", staffUser.email),
+          supabase
+            .from("staff_messages")
+            .select("conversation_id, author_email, text, attachment_name, created_at")
+            .in("conversation_id", convIds)
+            .is("deleted_at", null)
+            .order("created_at", { ascending: false }),
+        ]);
+
+        const otherByConv = {};
+        (otherMembers || []).forEach((m) => {
+          otherByConv[m.conversation_id] = m.staff_email;
+        });
+        const otherEmails = Object.values(otherByConv);
+        let staffByEmail = {};
+        if (otherEmails.length > 0) {
+          const { data: staffRows } = await supabase.from("staff").select("email, name, role").in("email", otherEmails);
+          (staffRows || []).forEach((s) => {
+            staffByEmail[s.email] = s;
+          });
+        }
+        const lastByConv = {};
+        (recentMessages || []).forEach((m) => {
+          if (!lastByConv[m.conversation_id]) lastByConv[m.conversation_id] = m;
+        });
+
+        const rows = convIds.map((id) => {
+          const otherEmail = otherByConv[id];
+          const otherStaff = otherEmail && staffByEmail[otherEmail];
+          const last = lastByConv[id];
+          const myReadAt = myReadByConv[id];
+          const unread = !!last && last.author_email !== staffUser.email && (!myReadAt || new Date(last.created_at) > new Date(myReadAt));
+          return {
+            id,
+            otherEmail: otherEmail || null,
+            otherName: otherStaff ? otherStaff.name : otherEmail || "Unknown",
+            otherRole: otherStaff ? otherStaff.role : "",
+            lastText: last ? last.text || (last.attachment_name ? `Attachment: ${last.attachment_name}` : "") : "",
+            lastAt: last ? last.created_at : null,
+            unread,
+          };
+        });
+        rows.sort((a, b) => new Date(b.lastAt || 0) - new Date(a.lastAt || 0));
+        setConversations(rows);
       });
-  }, [isAdmin, supabase]);
+  }, [supabase, staffUser.email]);
 
   useEffect(() => {
-    loadRoster();
-  }, [loadRoster]);
+    loadConversations();
+  }, [loadConversations]);
+
+  const markRead = useCallback(
+    (conversationId) => {
+      if (!supabase || !conversationId) return;
+      supabase
+        .from("staff_conversation_members")
+        .update({ last_read_at: new Date().toISOString() })
+        .eq("conversation_id", conversationId)
+        .eq("staff_email", staffUser.email)
+        .then(() => {
+          loadConversations();
+          if (onActivity) onActivity();
+        });
+    },
+    [supabase, staffUser.email, loadConversations, onActivity]
+  );
 
   const loadMessages = useCallback(() => {
-    if (!supabase || !activeEmail) return;
-    supabase
-      .from("staff_messages")
-      .select("id, staff_email, author_email, author_name, author_role, text, created_at")
-      .eq("staff_email", activeEmail)
-      .order("created_at", { ascending: true })
-      .then(({ data, error }) => {
-        if (error) {
-          setLoadError("Couldn't load messages. Has staff-messages.sql been run? " + error.message);
-          setMessages([]);
-          return;
-        }
-        setLoadError("");
-        setMessages(data);
-        markStaffMessagesRead(activeEmail);
-        if (onThreadOpened) onThreadOpened();
-      });
-  }, [supabase, activeEmail, onThreadOpened]);
+    if (!supabase || !activeConversationId) return;
+    Promise.all([
+      supabase
+        .from("staff_messages")
+        .select(
+          "id, conversation_id, author_email, author_name, author_role, text, attachment_name, attachment_url, attachment_size, created_at, edited_at, deleted_at"
+        )
+        .eq("conversation_id", activeConversationId)
+        .order("created_at", { ascending: true }),
+      supabase.from("staff_conversation_members").select("staff_email, last_read_at").eq("conversation_id", activeConversationId),
+    ]).then(([msgRes, memRes]) => {
+      if (msgRes.error) {
+        setLoadError("Couldn't load messages. Has staff-chat-v2.sql been run? " + msgRes.error.message);
+        setMessages([]);
+        return;
+      }
+      setLoadError("");
+      setMessages((msgRes.data || []).filter((m) => !m.deleted_at));
+      setActiveMembers(memRes.data || []);
+      markRead(activeConversationId);
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [supabase, activeConversationId]);
 
   useEffect(() => {
     loadMessages();
   }, [loadMessages]);
 
+  // Live updates: new messages, edits/unsends, and the other side marking
+  // the thread read, all pushed in — no polling, no manual refresh needed
+  // to see a reply or watch "Sent" flip to "Seen".
+  const conversationIdsRef = useRef(new Set());
+  useEffect(() => {
+    conversationIdsRef.current = new Set((conversations || []).map((c) => c.id));
+  }, [conversations]);
+  const activeConversationIdRef = useRef(null);
+  useEffect(() => {
+    activeConversationIdRef.current = activeConversationId;
+  }, [activeConversationId]);
+
+  useEffect(() => {
+    if (!supabase) return;
+    const channel = supabase
+      .channel("staff-chat-" + staffUser.email)
+      .on("postgres_changes", { event: "*", schema: "public", table: "staff_messages" }, (payload) => {
+        const convId = (payload.new && payload.new.conversation_id) || (payload.old && payload.old.conversation_id);
+        if (!convId) return;
+        if (convId === activeConversationIdRef.current) loadMessages();
+        loadConversations();
+        if (onActivity) onActivity();
+      })
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "staff_conversation_members" }, (payload) => {
+        const convId = payload.new && payload.new.conversation_id;
+        if (convId && convId === activeConversationIdRef.current) loadMessages();
+        loadConversations();
+      })
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [supabase, staffUser.email]);
+
+  // Live-expire the 5s edit/unsend window on-screen without needing another
+  // action to trigger a re-render.
+  useEffect(() => {
+    const hasRecent = (messages || []).some(
+      (m) => m.author_email === staffUser.email && Date.now() - new Date(m.created_at).getTime() < 5000
+    );
+    if (!hasRecent) return;
+    const id = setInterval(() => setTick((t) => t + 1), 500);
+    return () => clearInterval(id);
+  }, [messages, staffUser.email]);
+
+  const openWith = useCallback(
+    (otherEmail) => {
+      if (!supabase || !otherEmail) return;
+      const dmKey = [staffUser.email, otherEmail].sort().join("|");
+      supabase
+        .from("staff_conversations")
+        .select("id")
+        .eq("dm_key", dmKey)
+        .maybeSingle()
+        .then(async ({ data: existing }) => {
+          if (existing) {
+            setActiveConversationId(existing.id);
+            return;
+          }
+          const { data: created, error } = await supabase.from("staff_conversations").insert({ dm_key: dmKey }).select("id").single();
+          if (error || !created) {
+            showToast("Couldn't start the conversation.");
+            return;
+          }
+          await supabase.from("staff_conversation_members").insert([
+            { conversation_id: created.id, staff_email: staffUser.email, last_read_at: new Date().toISOString() },
+            { conversation_id: created.id, staff_email: otherEmail },
+          ]);
+          setActiveConversationId(created.id);
+          loadConversations();
+        });
+    },
+    [supabase, staffUser.email, loadConversations, showToast]
+  );
+
+  const stageFile = (file) => {
+    if (!file) return;
+    setPendingAttachment({ file, name: file.name, size: formatBytes(file.size) });
+  };
+
   async function send() {
-    const text = draft.trim();
-    if (!text || !activeEmail || !supabase) return;
+    if ((!draft.trim() && !pendingAttachment) || !activeConversationId || !supabase) return;
     setSending(true);
+    let attachment_name = null;
+    let attachment_url = null;
+    let attachment_size = null;
+    if (pendingAttachment) {
+      const path = `${activeConversationId}/${Date.now()}-${pendingAttachment.file.name}`;
+      const { error: upErr } = await supabase.storage.from("staff-chat-attachments").upload(path, pendingAttachment.file);
+      if (upErr) {
+        setSending(false);
+        showToast(`Couldn't upload attachment: ${upErr.message}`);
+        return;
+      }
+      const { data: urlData } = supabase.storage.from("staff-chat-attachments").getPublicUrl(path);
+      attachment_name = pendingAttachment.file.name;
+      attachment_url = urlData.publicUrl;
+      attachment_size = pendingAttachment.size;
+    }
     const { error } = await supabase.from("staff_messages").insert({
-      staff_email: activeEmail,
+      conversation_id: activeConversationId,
       author_email: staffUser.email,
       author_name: staffUser.name,
       author_role: staffUser.role,
-      text,
+      text: draft.trim() || null,
+      attachment_name,
+      attachment_url,
+      attachment_size,
     });
     setSending(false);
     if (error) {
@@ -4847,72 +5013,185 @@ function StaffMessagesPage({ staffUser, onThreadOpened }) {
       return;
     }
     setDraft("");
+    setPendingAttachment(null);
     loadMessages();
   }
 
-  const activeBookkeeper = bookkeepers && bookkeepers.find((b) => b.email === activeEmail);
+  function startEdit(m) {
+    setEditingId(m.id);
+    setEditDraft(m.text || "");
+  }
+
+  async function saveEdit(id) {
+    const text = editDraft.trim();
+    if (!text || !supabase) return;
+    const { error } = await supabase.from("staff_messages").update({ text, edited_at: new Date().toISOString() }).eq("id", id);
+    if (error) showToast("Couldn't save — the 5 second edit window has passed.");
+    setEditingId(null);
+    loadMessages();
+  }
+
+  async function unsend(id) {
+    if (!supabase) return;
+    const { error } = await supabase.from("staff_messages").update({ deleted_at: new Date().toISOString() }).eq("id", id);
+    if (error) showToast("Couldn't unsend — the 5 second window has passed.");
+    loadMessages();
+  }
+
+  // Recent conversations first, then anyone in the directory not yet
+  // messaged — one combined list, so opening a new conversation is just
+  // picking a name rather than a separate "new message" flow.
+  const chatEntries = useMemo(() => {
+    if (!directory) return [];
+    const convEmails = new Set((conversations || []).map((c) => c.otherEmail));
+    const withoutConv = directory
+      .filter((d) => !convEmails.has(d.email))
+      .map((d) => ({ id: null, otherEmail: d.email, otherName: d.name, otherRole: d.role, lastText: "", lastAt: null, unread: false }));
+    withoutConv.sort((a, b) => a.otherName.localeCompare(b.otherName));
+    return [...(conversations || []), ...withoutConv];
+  }, [directory, conversations]);
+
+  const activeEntry = chatEntries.find((c) => (c.id ? c.id === activeConversationId : false));
+  const otherMember = (activeMembers || []).find((mm) => mm.staff_email !== staffUser.email);
+  const otherHasSeen = (m) => !!(otherMember && otherMember.last_read_at && new Date(otherMember.last_read_at) >= new Date(m.created_at));
+  let lastMineMessage = null;
+  (messages || []).forEach((m) => {
+    if (m.author_email === staffUser.email) lastMineMessage = m;
+  });
 
   return (
     <div>
       <MockBanner text="Internal only — separate from client conversations. Nothing here is visible to any client." />
 
-      {isAdmin && (
-        <div className="thread-picker">
-          <span className="thread-picker-label">Conversation with</span>
-          {bookkeepers === null ? (
-            <p className="card-subtitle">Loading…</p>
-          ) : rosterError ? (
-            <p className="card-subtitle negative">{rosterError}</p>
-          ) : bookkeepers.length === 0 ? (
-            <p className="card-subtitle">No active bookkeepers yet.</p>
-          ) : (
-            <div className="thread-picker-tabs">
-              {bookkeepers.map((b) => (
-                <button
-                  key={b.email}
-                  className={"thread-tab" + (b.email === activeEmail ? " active" : "")}
-                  onClick={() => setActiveEmail(b.email)}
-                >
-                  <span className="thread-tab-name">{b.name}</span>
-                  <span className="thread-tab-role">{b.role}</span>
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
+      <div className="thread-picker">
+        <span className="thread-picker-label">Conversation with</span>
+        {directory === null ? (
+          <p className="card-subtitle">Loading…</p>
+        ) : chatEntries.length === 0 ? (
+          <p className="card-subtitle">No other active staff yet.</p>
+        ) : (
+          <div className="thread-picker-tabs">
+            {chatEntries.map((c) => (
+              <button
+                key={c.otherEmail}
+                className={"thread-tab" + ((c.id ? c.id === activeConversationId : false) ? " active" : "")}
+                onClick={() => (c.id ? setActiveConversationId(c.id) : openWith(c.otherEmail))}
+              >
+                <span className="thread-tab-name">{c.otherName}</span>
+                <span className="thread-tab-role">{c.otherRole}</span>
+                {c.lastText && <span className="thread-tab-preview">{c.lastText}</span>}
+                {c.unread && <span className="thread-tab-dot" />}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
 
-      {activeEmail && (
-        <div className="card message-card">
-          <h3 className="card-title">
-            {isAdmin
-              ? activeBookkeeper
-                ? `Conversation with ${activeBookkeeper.name}`
-                : "Conversation"
-              : "Conversation with management"}
-          </h3>
+      {activeConversationId && (
+        <div
+          className={"card message-card" + (isDragging ? " dragging" : "")}
+          onDragOver={(e) => {
+            e.preventDefault();
+            setIsDragging(true);
+          }}
+          onDragLeave={() => setIsDragging(false)}
+          onDrop={(e) => {
+            e.preventDefault();
+            setIsDragging(false);
+            stageFile(e.dataTransfer.files && e.dataTransfer.files[0]);
+          }}
+        >
+          <h3 className="card-title">{activeEntry ? `Conversation with ${activeEntry.otherName}` : "Conversation"}</h3>
           {loadError && <p className="card-subtitle negative">{loadError}</p>}
           {messages === null && !loadError && <p className="card-subtitle">Loading…</p>}
-          {messages && messages.length === 0 && !loadError && (
-            <p className="card-subtitle">No messages yet — say hello.</p>
-          )}
+          {messages && messages.length === 0 && !loadError && <p className="card-subtitle">No messages yet — say hello.</p>}
           {messages && messages.length > 0 && (
             <div className="message-thread">
-              {messages.map((m) => (
-                <div className={"message-bubble-row " + (m.author_email === staffUser.email ? "client" : "bookkeeper")} key={m.id}>
-                  <div className="message-bubble">
-                    <div className="message-author">
-                      {m.author_name} · {m.author_role}
+              {messages.map((m) => {
+                const mine = m.author_email === staffUser.email;
+                const withinWindow = mine && Date.now() - new Date(m.created_at).getTime() < 5000;
+                return (
+                  <div className={"message-bubble-row " + (mine ? "client" : "bookkeeper")} key={m.id}>
+                    <div className="message-bubble">
+                      <div className="message-author">
+                        {m.author_name} · {m.author_role}
+                      </div>
+                      {editingId === m.id ? (
+                        <div className="message-edit-row">
+                          <input
+                            type="text"
+                            value={editDraft}
+                            onChange={(e) => setEditDraft(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") saveEdit(m.id);
+                              if (e.key === "Escape") setEditingId(null);
+                            }}
+                            autoFocus
+                          />
+                          <button className="btn-secondary" onClick={() => saveEdit(m.id)}>
+                            Save
+                          </button>
+                        </div>
+                      ) : (
+                        <React.Fragment>
+                          {m.text && <div className="message-text">{m.text}</div>}
+                          {m.attachment_name && (
+                            <a className="message-attachment" href={m.attachment_url} target="_blank" rel="noreferrer">
+                              <PaperclipIcon /> {m.attachment_name}{" "}
+                              {m.attachment_size && <span className="message-attachment-size">({m.attachment_size})</span>}
+                            </a>
+                          )}
+                        </React.Fragment>
+                      )}
+                      <div className="message-date">
+                        {fmtDateTime(m.created_at)}
+                        {m.edited_at && <span className="message-edited-tag"> · edited</span>}
+                      </div>
+                      {withinWindow && editingId !== m.id && (
+                        <div className="message-own-actions">
+                          <button type="button" onClick={() => startEdit(m)}>
+                            Edit
+                          </button>
+                          <button type="button" onClick={() => unsend(m.id)}>
+                            Unsend
+                          </button>
+                        </div>
+                      )}
+                      {mine && m === lastMineMessage && (
+                        <div className="message-seen-status">{otherHasSeen(m) ? "Seen" : "Sent"}</div>
+                      )}
                     </div>
-                    <div className="message-text">{m.text}</div>
-                    <div className="message-date">{fmtDateTime(m.created_at)}</div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
+            </div>
+          )}
+
+          {pendingAttachment && (
+            <div className="attachment-chip">
+              <span>
+                <PaperclipIcon /> {pendingAttachment.name}
+              </span>
+              <span className="attachment-chip-meta">{pendingAttachment.size}</span>
+              <button className="attachment-remove" onClick={() => setPendingAttachment(null)} aria-label="Remove attachment">
+                ×
+              </button>
             </div>
           )}
 
           <div className="message-compose">
+            <button type="button" className="attach-btn" onClick={() => fileInputRef.current.click()} aria-label="Attach file">
+              <PaperclipIcon />
+            </button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              style={{ display: "none" }}
+              onChange={(e) => {
+                stageFile(e.target.files && e.target.files[0]);
+                e.target.value = "";
+              }}
+            />
             <input
               type="text"
               placeholder="Write a message…"
@@ -4922,7 +5201,7 @@ function StaffMessagesPage({ staffUser, onThreadOpened }) {
                 if (e.key === "Enter") send();
               }}
             />
-            <button className="btn-primary" onClick={send} disabled={sending || !draft.trim()}>
+            <button className="btn-primary" onClick={send} disabled={sending || (!draft.trim() && !pendingAttachment)}>
               Send
             </button>
           </div>
@@ -4931,6 +5210,7 @@ function StaffMessagesPage({ staffUser, onThreadOpened }) {
     </div>
   );
 }
+
 
 function ClientAccessPage() {
   const showToast = useToast();
@@ -5971,8 +6251,11 @@ function DocumentsPage({ client, isBookkeeper, searchTarget }) {
     setActiveFolder(name);
   };
 
-  const removeFolder = (name) => {
-    if (!window.confirm(`Delete the "${name}" folder? Its documents move back to Unfiled — nothing is deleted.`)) return;
+  const [folderPendingDelete, setFolderPendingDelete] = useState(null);
+
+  const confirmRemoveFolder = () => {
+    const name = folderPendingDelete;
+    setFolderPendingDelete(null);
     setFolders((f) => f.filter((x) => x !== name));
     setDocs((d) => d.map((doc) => (doc.folder === name ? { ...doc, folder: null } : doc)));
     if (activeFolder === name) setActiveFolder(null);
@@ -6014,12 +6297,12 @@ function DocumentsPage({ client, isBookkeeper, searchTarget }) {
                 aria-label={`Delete folder ${name}`}
                 onClick={(e) => {
                   e.stopPropagation();
-                  removeFolder(name);
+                  setFolderPendingDelete(name);
                 }}
                 onKeyDown={(e) => {
                   if (e.key === "Enter") {
                     e.stopPropagation();
-                    removeFolder(name);
+                    setFolderPendingDelete(name);
                   }
                 }}
               >
@@ -6188,6 +6471,16 @@ function DocumentsPage({ client, isBookkeeper, searchTarget }) {
       {previewIndex !== null && docs[previewIndex] && (
         <DocumentPreviewModal doc={docs[previewIndex]} onClose={() => setPreviewIndex(null)} />
       )}
+
+      {folderPendingDelete && (
+        <ConfirmModal
+          title={`Delete "${folderPendingDelete}"?`}
+          body="Its documents move back to Unfiled — nothing is deleted."
+          confirmLabel="Delete folder"
+          onConfirm={confirmRemoveFolder}
+          onCancel={() => setFolderPendingDelete(null)}
+        />
+      )}
     </div>
   );
 }
@@ -6272,14 +6565,13 @@ function DocumentPreviewModal({ doc, onClose }) {
 }
 
 // ----------------------------------------------------------------------------
-// Mobile's stand-in for ChatWidget below — a plain round tap target instead
-// of a floating mini-thread. A fixed-position panel and the on-screen
-// keyboard fight each other in inconsistent, hard-to-fully-fix ways on a
-// small screen (the same category of real-device problem the touch
-// drag-and-drop work this week kept running into), and a 3-message preview
-// doesn't have much room to be useful at phone width anyway — tapping
-// straight through to the real Messages page is a better mobile experience
-// on its own merits, not just a workaround.
+// Floating "you have unread messages" indicator — a plain round tap target
+// that jumps straight to the real Messages page, used on every screen size.
+// A fixed-position floating mini-thread (this used to be desktop-only,
+// `ChatWidget`) fought the on-screen keyboard on mobile, but it wasn't much
+// better on desktop either — a 3-message preview isn't very useful when the
+// real Messages page is one click away regardless, so this is now the only
+// form the unread indicator takes anywhere.
 // ----------------------------------------------------------------------------
 
 function ChatFab({ unreadCount, onOpen, onDismiss }) {
@@ -6291,75 +6583,6 @@ function ChatFab({ unreadCount, onOpen, onDismiss }) {
       </button>
       <button className="chat-fab-dismiss" onClick={onDismiss} aria-label="Dismiss">
         ×
-      </button>
-    </div>
-  );
-}
-
-// ----------------------------------------------------------------------------
-// Floating chat widget — surfaces an active conversation from any page so
-// the client doesn't have to be sitting on the Messages tab to see it.
-// Desktop only — see ChatFab above for mobile's equivalent.
-// ----------------------------------------------------------------------------
-
-function ChatWidget({ messages, onSend, onOpenFull, onClose }) {
-  const [draft, setDraft] = useState("");
-  const recent = messages.slice(-3);
-  const threadRef = useRef(null);
-
-  useEffect(() => {
-    if (threadRef.current) {
-      threadRef.current.scrollTop = threadRef.current.scrollHeight;
-    }
-  }, [messages.length]);
-
-  const send = () => {
-    if (!draft.trim()) return;
-    onSend(draft.trim());
-    setDraft("");
-  };
-
-  return (
-    <div className="chat-widget">
-      <div className="chat-widget-header">
-        <span className="chat-widget-title">
-          <ChatIcon width="16" height="16" strokeWidth="1.8" />
-          MyGoodBooks
-        </span>
-        <button className="modal-close" onClick={onClose} aria-label="Close chat">
-          ×
-        </button>
-      </div>
-
-      <div className="chat-widget-thread" ref={threadRef}>
-        {recent.map((m, i) => (
-          <div className={"message-bubble-row " + m.from} key={i}>
-            <div className="message-bubble">
-              <div className="message-author">{m.author}</div>
-              {m.text && <div className="message-text">{m.text}</div>}
-              <div className="message-date">{fmtDate(m.date)}</div>
-            </div>
-          </div>
-        ))}
-      </div>
-
-      <div className="chat-widget-compose">
-        <input
-          type="text"
-          placeholder="Reply…"
-          value={draft}
-          onChange={(e) => setDraft(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") send();
-          }}
-        />
-        <button className="btn-primary" onClick={send}>
-          Send
-        </button>
-      </div>
-
-      <button className="chat-widget-viewall" onClick={onOpenFull}>
-        Open full conversation →
       </button>
     </div>
   );
@@ -6643,6 +6866,44 @@ function UserAccessEditor({
 // overlay div: Escape did nothing, focus stayed on whatever was behind the
 // dialog, Tab walked the page underneath, and screen readers announced no
 // dialog at all. Anything that puts a modal on screen should go through here.
+// A branded stand-in for window.confirm() — the browser's own confirm()
+// dialog is chrome-owned and prefixes itself with the page's domain (e.g.
+// "example.com says"), which reads wrong for an app clients use under a
+// custom brand. This renders as an ordinary in-app modal instead, so it
+// carries no browser-domain text at all.
+function ConfirmModal({ title, body, confirmLabel = "Confirm", onConfirm, onCancel }) {
+  return (
+    <ModalShell onClose={onCancel} labelledBy="confirm-modal-title" className="confirm-modal">
+      <div className="modal-header">
+        <h3 className="card-title" id="confirm-modal-title" style={{ margin: 0 }}>
+          {title}
+        </h3>
+        <button className="modal-close" onClick={onCancel} aria-label="Close">
+          ×
+        </button>
+      </div>
+      <div className="modal-body">
+        <p className="card-subtitle" style={{ margin: 0 }}>
+          {body}
+        </p>
+      </div>
+      <div className="modal-footer">
+        <button className="btn-secondary" onClick={onCancel}>
+          Cancel
+        </button>
+        <button
+          className="btn-primary"
+          onClick={() => {
+            onConfirm();
+          }}
+        >
+          {confirmLabel}
+        </button>
+      </div>
+    </ModalShell>
+  );
+}
+
 function ModalShell({ onClose, labelledBy, className = "", children }) {
   const panelRef = useRef(null);
   const restoreFocusRef = useRef(null);
@@ -7358,7 +7619,6 @@ class ErrorBoundary extends React.Component {
 }
 
 function App({ staffUser, onSignOut }) {
-  const isMobile = useIsMobile();
   // Riverside: premium plan (so Live Report is reachable) and, as of the
   // thread fixes in data.js, no thread whose last message is unread —
   // nothing steals focus with the chat popup on first load. Only the
@@ -7367,10 +7627,12 @@ function App({ staffUser, onSignOut }) {
   // open, per initialPage's refresh-vs-fresh-open distinction below.
   const [selectedClientId, setSelectedClientId] = useState(() => loadSelectedClientId() || "riverside-pantry");
   const [page, setPage] = useState(initialPage);
-  // Sidebar dot for Team Chat — recomputed on every page change (cheap,
-  // single-purpose query) rather than polling, same posture as the rest of
-  // this app's Supabase reads. An admin's check looks across every
-  // bookkeeper's thread at once; a bookkeeper's only checks their own.
+  // Sidebar dot for Team Chat — recomputed on every page change and on any
+  // Team Chat activity (cheap, single-purpose query) rather than polling,
+  // same posture as the rest of this app's Supabase reads. "Read" is now a
+  // real per-conversation server column (staff_conversation_members.last_read_at),
+  // not a per-browser localStorage guess, so this works the same regardless
+  // of who the other side of any given conversation is.
   const [staffMessagesUnread, setStaffMessagesUnread] = useState(false);
   const checkStaffMessagesUnread = useCallback(() => {
     const supabase = window.mgbSupabase;
@@ -7378,45 +7640,44 @@ function App({ staffUser, onSignOut }) {
       setStaffMessagesUnread(false);
       return;
     }
-    if (staffUser.role === "admin") {
-      supabase
-        .from("staff_messages")
-        .select("staff_email, created_at")
-        .eq("author_role", "bookkeeper")
-        .order("created_at", { ascending: false })
-        .limit(200)
-        .then(({ data, error }) => {
-          if (error || !data) {
-            setStaffMessagesUnread(false);
-            return;
-          }
-          const latestByThread = {};
-          data.forEach((row) => {
-            if (!latestByThread[row.staff_email]) latestByThread[row.staff_email] = row.created_at;
-          });
-          const unread = Object.entries(latestByThread).some(([email, latest]) => {
-            const readAt = readStaffMessagesReadAt(email);
-            return !readAt || new Date(latest) > new Date(readAt);
-          });
-          setStaffMessagesUnread(unread);
+    supabase
+      .from("staff_conversation_members")
+      .select("conversation_id, last_read_at")
+      .eq("staff_email", staffUser.email)
+      .then(({ data, error }) => {
+        if (error || !data || data.length === 0) {
+          setStaffMessagesUnread(false);
+          return;
+        }
+        const convIds = data.map((r) => r.conversation_id);
+        const readByConv = {};
+        data.forEach((r) => {
+          readByConv[r.conversation_id] = r.last_read_at;
         });
-    } else {
-      supabase
-        .from("staff_messages")
-        .select("created_at")
-        .eq("staff_email", staffUser.email)
-        .eq("author_role", "admin")
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .then(({ data, error }) => {
-          if (error || !data || data.length === 0) {
-            setStaffMessagesUnread(false);
-            return;
-          }
-          const readAt = readStaffMessagesReadAt(staffUser.email);
-          setStaffMessagesUnread(!readAt || new Date(data[0].created_at) > new Date(readAt));
-        });
-    }
+        supabase
+          .from("staff_messages")
+          .select("conversation_id, author_email, created_at")
+          .in("conversation_id", convIds)
+          .is("deleted_at", null)
+          .order("created_at", { ascending: false })
+          .limit(200)
+          .then(({ data: msgs, error: msgErr }) => {
+            if (msgErr || !msgs) {
+              setStaffMessagesUnread(false);
+              return;
+            }
+            const latestByConv = {};
+            msgs.forEach((m) => {
+              if (!latestByConv[m.conversation_id]) latestByConv[m.conversation_id] = m;
+            });
+            const unread = Object.values(latestByConv).some((m) => {
+              if (m.author_email === staffUser.email) return false;
+              const readAt = readByConv[m.conversation_id];
+              return !readAt || new Date(m.created_at) > new Date(readAt);
+            });
+            setStaffMessagesUnread(unread);
+          });
+      });
   }, [staffUser]);
   useEffect(() => {
     checkStaffMessagesUnread();
@@ -8204,7 +8465,7 @@ function App({ staffUser, onSignOut }) {
           )}
           {effectivePage === "client-access" && <ClientAccessPage />}
           {effectivePage === "staff-messages" && (
-            <StaffMessagesPage staffUser={staffUser} onThreadOpened={checkStaffMessagesUnread} />
+            <StaffMessagesPage staffUser={staffUser} onActivity={checkStaffMessagesUnread} />
           )}
           {effectivePage === "developer-tools" && (
             <DeveloperToolsPage
@@ -8256,32 +8517,19 @@ function App({ staffUser, onSignOut }) {
         </main>
       </div>
 
-      {chatWidgetOpen &&
-        (isMobile ? (
-          // Mobile gets a plain tap-to-open button instead of the floating
-          // mini-thread — see ChatFab's own comment for why: a fixed-position
-          // panel plus the on-screen keyboard is a bad combination on a small
-          // screen, and there's no benefit to a 3-message preview when the
-          // real Messages page is one tap away regardless.
-          <ChatFab
-            unreadCount={unreadThreadUserIds.length}
-            onOpen={() => {
-              setPage("messages");
-              closeChatWidget();
-            }}
-            onDismiss={closeChatWidget}
-          />
-        ) : (
-          <ChatWidget
-            // Keyed by thread so an unsent draft can't follow the bookkeeper to
-            // another person's conversation and be sent to the wrong recipient.
-            key={"chat-" + threadKeyFor(selectedClientId, activeThreadUserId)}
-            messages={liveMessages}
-            onSend={(text) => sendMessage(selectedClientId, activeThreadUserId, text)}
-            onOpenFull={() => setPage("messages")}
-            onClose={closeChatWidget}
-          />
-        ))}
+      {chatWidgetOpen && (
+        // Same tap-to-open button on every screen size now — see ChatFab's
+        // own comment for why the floating mini-thread this replaced isn't
+        // worth keeping even on desktop.
+        <ChatFab
+          unreadCount={unreadThreadUserIds.length}
+          onOpen={() => {
+            setPage("messages");
+            closeChatWidget();
+          }}
+          onDismiss={closeChatWidget}
+        />
+      )}
 
       {settingsOpen && (
         <TabSettingsModal

@@ -1715,6 +1715,17 @@ body.rb-presenting .main {
   background: var(--gold-deep);
 }
 
+.thread-tab-preview {
+  display: block;
+  font-size: 10.5px;
+  color: var(--text-muted);
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  margin-top: 2px;
+}
+
 /* Bookkeeper-only control on the Documents table for setting who at the
    client organization can see a given file. */
 .visibility-toggle {
@@ -2530,18 +2541,49 @@ body.rb-presenting .main {
 }
 
 .dropzone {
+  position: relative;
   cursor: pointer;
-  border: 2px dashed var(--border);
-  transition: border-color 0.15s ease, background 0.15s ease;
+  border: 2px solid transparent;
+  transition: background 0.15s ease;
 }
 
-.dropzone:hover {
-  border-color: var(--gold);
+/* A slowly-rotating dashed ring, drawn as a masked conic-gradient rather
+   than an actual `border`, since a real border can't animate its dashes
+   marching around the card. */
+.dropzone::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 20px;
+  padding: 2px;
+  background: repeating-conic-gradient(var(--border) 0deg 8deg, transparent 8deg 20deg);
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  opacity: 0.7;
+  animation: dropzone-spin 14s linear infinite;
+  pointer-events: none;
+}
+
+.dropzone:hover::before {
+  background: repeating-conic-gradient(var(--gold) 0deg 8deg, transparent 8deg 20deg);
+  opacity: 1;
 }
 
 .dropzone.dragging {
-  border-color: var(--gold);
   background: var(--accent-soft);
+}
+
+.dropzone.dragging::before {
+  background: repeating-conic-gradient(var(--gold) 0deg 8deg, transparent 8deg 20deg);
+  opacity: 1;
+  animation-duration: 4s;
+}
+
+@keyframes dropzone-spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .dropzone-icon {
@@ -2757,6 +2799,52 @@ body.rb-presenting .main {
   margin-top: 4px;
 }
 
+.message-edited-tag {
+  font-style: italic;
+}
+
+.message-edit-row {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.message-edit-row input {
+  flex: 1;
+  font-family: var(--font-body);
+  font-size: 13px;
+  padding: 5px 8px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--ink-strong);
+}
+
+.message-own-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+.message-own-actions button {
+  background: none;
+  border: none;
+  padding: 0;
+  font-family: var(--font-body);
+  font-size: 10.5px;
+  font-weight: 600;
+  color: var(--gold-deep);
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.message-seen-status {
+  font-size: 10.5px;
+  color: var(--text-muted);
+  margin-top: 2px;
+  text-align: right;
+}
+
 .message-compose {
   display: flex;
   gap: 10px;
@@ -2835,8 +2923,7 @@ body.rb-presenting .main {
    tree can still end up in front in practice depending on ancestor stacking
    contexts — not worth chasing case by case when the fab has no reason to
    be visible at all while a modal has focus. */
-body:has(.modal-overlay) .chat-fab-wrap,
-body:has(.modal-overlay) .chat-widget {
+body:has(.modal-overlay) .chat-fab-wrap {
   display: none;
 }
 
@@ -2888,97 +2975,6 @@ body:has(.modal-overlay) .chat-widget {
   cursor: pointer;
 }
 
-/* ---------------- Floating chat widget ---------------- */
-
-.chat-widget {
-  position: fixed;
-  bottom: 24px;
-  right: 24px;
-  width: 320px;
-  max-width: calc(100vw - 48px);
-  background: var(--glass-bg);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  border: 1px solid var(--glass-border);
-  border-radius: 14px;
-  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.25);
-  z-index: 900;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-}
-
-.chat-widget-header {
-  background: var(--navy);
-  color: #ffffff;
-  padding: 12px 14px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.chat-widget-title {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  font-family: var(--font-heading);
-  font-weight: 700;
-  font-size: 14px;
-}
-
-.chat-widget-header .modal-close {
-  color: rgba(255, 255, 255, 0.75);
-}
-
-.chat-widget-header .modal-close:hover {
-  color: #ffffff;
-}
-
-.chat-widget-thread {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  padding: 14px;
-  max-height: 220px;
-  overflow-y: auto;
-}
-
-.chat-widget-compose {
-  display: flex;
-  gap: 8px;
-  padding: 10px 14px;
-  border-top: 1px solid var(--border);
-}
-
-.chat-widget-compose input {
-  flex: 1;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 8px 10px;
-  font-size: 13px;
-  font-family: var(--font-body);
-}
-
-.chat-widget-compose input:focus {
-  outline: 2px solid rgba(199, 174, 134, 0.5);
-  border-color: var(--gold);
-}
-
-.chat-widget-viewall {
-  background: transparent;
-  border: none;
-  border-top: 1px solid var(--border);
-  padding: 10px 14px;
-  font-size: 12px;
-  font-weight: 700;
-  color: var(--ink-strong);
-  cursor: pointer;
-  text-align: center;
-}
-
-.chat-widget-viewall:hover {
-  background: var(--hover-bg);
-}
 
 .attach-btn:hover {
   background: var(--hover-bg);

@@ -1567,3 +1567,83 @@ sit in one flat list.
   the same tokens as the existing `.visibility-toggle` pill.
 
 `MGB_VERSION` bumped to `2026-09-17c`.
+
+## §49 — Team Chat v2: any-to-any DMs, attachments, edit/unsend, live read receipts
+
+Rebuilt Team Chat's data model from the ground up. The old one (§47) supported exactly one
+fixed thread per bookkeeper ("that bookkeeper" <-> "any admin who picks it up") — good enough
+for a first cut, but it couldn't support two bookkeepers messaging each other about a shared
+client, and had no room for attachments, edit/unsend, or real read receipts. This replaces it
+with a real conversation model.
+
+- **New schema** (`supabase/staff-chat-v2.sql`, already applied live; **drops the old
+  `staff_messages` table** — sample/test content only, not worth migrating):
+  - `staff_conversations` — one row per 1:1 DM, keyed by `dm_key` (`"emailA|emailB"`, sorted) so
+    "open my conversation with X" is a single indexed lookup instead of a membership join.
+  - `staff_conversation_members` — `(conversation_id, staff_email, last_read_at)`. `last_read_at`
+    is the real read receipt: stamped server-side the moment a conversation is opened, readable
+    by the other participant, and the basis for both the sidebar unread dot and the per-message
+    "Sent"/"Seen" label.
+  - `staff_messages` — now `conversation_id`-scoped rather than `staff_email`-scoped, plus
+    `attachment_name`/`attachment_url`/`attachment_size`, and `edited_at`/`deleted_at` for
+    edit/unsend.
+  - RLS: a new `is_conversation_member()` security-definer function (same recursion-avoidance
+    pattern as `is_active_staff()`) gates reading/sending messages. Editing/unsending is its own
+    policy: `author_email = jwt() and created_at > now() - interval '5 seconds'` — the 5-second
+    window is enforced server-side, not just hidden in the UI once it passes.
+  - New public storage bucket `staff-chat-attachments`, with insert restricted to active staff
+    and select open to anyone (internal tool; same posture as everything else in Team Chat).
+  - `staff_messages` and `staff_conversation_members` added to the `supabase_realtime`
+    publication — the client subscribes to both, so a new message, an edit, an unsend, or the
+    other person opening the thread all show up live with no polling and no manual refresh.
+- **Directory + recent chats, one merged list.** `StaffMessagesPage` loads every other active
+  staff member once, and merges it with the caller's actual conversations (most recent first) —
+  clicking an existing conversation opens it, clicking someone with no conversation yet creates
+  one (finds-or-creates by `dm_key`) and opens it. This is deliberately *not* admin-gated the way
+  the old roster picker was: any bookkeeper can start a DM with any other bookkeeper or admin,
+  which is the whole point of "bookkeepers working the same client need to talk to each other."
+- **Attachments**: a paperclip button plus drag-and-drop onto the message card (reusing the exact
+  `.message-card.dragging`/`.attach-btn`/`.attachment-chip` classes and staging flow the mock
+  client-messaging page already had) uploads to the new storage bucket on send and stores a
+  public URL + name + size on the message row.
+- **Edit/unsend, 5-second window.** Each of the sender's own messages shows Edit/Unsend links for
+  5 seconds after sending (a `setInterval` re-render tick expires them live, without needing a
+  page action to notice the window closed) — editing does an in-place text update
+  (`edited_at` stamped, tagged "· edited" in the UI), unsending soft-deletes (`deleted_at`
+  stamped; the client just filters those rows out, no "message removed" placeholder for now).
+  Both are enforced again server-side by the RLS policy, not just hidden client-side once expired.
+- **Read receipts**: the sender's own most recent message in an open thread shows "Sent" until the
+  other participant's `last_read_at` catches up to that message's `created_at`, at which point it
+  flips to "Seen" — live, via the Realtime subscription on `staff_conversation_members`, not on
+  next reload.
+- Removed the old per-browser `mygoodbooks_staffmsg_read_v1:*` localStorage read-tracking
+  entirely — read state is now a real server column, which is both more correct (works the same
+  regardless of who's on the other end) and was needed anyway for the live "Seen" label.
+- `App`'s sidebar-dot check (`checkStaffMessagesUnread`) rewritten against the new schema — same
+  idea (latest message per conversation vs. that conversation's `last_read_at`), no more
+  admin/bookkeeper special-casing since every conversation is now symmetric.
+
+`MGB_VERSION` bumped to `2026-09-17d`.
+
+## §50 — Small polish: branded confirm dialogs, an animated dropzone border, and one less popup
+
+Three small fixes, bundled with the Team Chat v2 work above:
+
+- **`window.confirm()` replaced with a real in-app modal** for the Documents folder-delete flow.
+  The browser's native `confirm()` dialog is chrome-owned and prefixes itself with the page's
+  domain ("example.com says…"), which reads wrong for a client-facing app under its own brand.
+  New `ConfirmModal` component (next to `ModalShell`) renders an ordinary modal instead, so there's
+  no browser-owned text in it at all. Only the folder-delete confirm was moved over for now — the
+  other three `window.confirm()` call sites (staff/client-access removal, note deletion) are
+  unchanged.
+- **Animated dashed border on the document upload dropzone.** A real CSS `border` can't animate
+  its own dashes, so `.dropzone`'s dashed ring is now a masked, rotating `repeating-conic-gradient`
+  pseudo-element instead (`mask-composite: exclude` cuts out the card's interior, leaving just the
+  ring) — it spins slowly at rest and speeds up while a file is being dragged over it.
+- **Client messages: no more auto-opening floating chat window.** The desktop-only `ChatWidget`
+  (a floating mini-thread that popped open automatically over any unread message) is removed
+  entirely. Every screen size now gets the same treatment mobile already had (`ChatFab` — a plain
+  round unread-count button that jumps straight to the real Messages page on tap) rather than a
+  screen-stealing panel appearing unprompted. Corresponding now-dead `.chat-widget*` CSS removed.
+
+`MGB_VERSION` bumped to `2026-09-17d` (same bump as §49 — landed together).
