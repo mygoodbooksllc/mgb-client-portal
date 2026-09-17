@@ -3570,11 +3570,15 @@ const ENTERPRISE_COMPARISON = [
 ];
 
 // PLACEHOLDER PRICING — mock figures only, standing in until MyGoodBooks
-// gives real numbers. Kept in one place on purpose so swapping them in
-// later is a one-line change, not a hunt through the page.
+// gives real numbers. Priced per user profile per month (client.users.length
+// — every login the client has configured, not just full-access ones) so
+// the total scales with how many people at the organization actually sign
+// in, rather than being a flat per-org rate. Kept in one place on purpose
+// so swapping in real numbers later is a one-line change, not a hunt
+// through the page.
 const ENTERPRISE_PRICING = {
-  standard: { price: 149, note: "Included in your current plan" },
-  enterprise: { price: 89, note: "Added on top of Standard, billed monthly" },
+  standard: { perUser: 19, note: "Included in your current plan" },
+  enterprise: { perUser: 12, note: "Added on top of Standard, billed monthly" },
 };
 
 function EnterpriseUpgradePage({ client }) {
@@ -3584,6 +3588,7 @@ function EnterpriseUpgradePage({ client }) {
   // interested in one thing (say, reconciliation) can go straight to it
   // without scrolling past five others already expanded.
   const [openKey, setOpenKey] = useState(null);
+  const userCount = (client.users || []).length || 1;
 
   return (
     <div className="enterprise-page">
@@ -3608,9 +3613,12 @@ function EnterpriseUpgradePage({ client }) {
             Standard
           </h3>
           <div className="pricing-value">
-            ${ENTERPRISE_PRICING.standard.price}
-            <span>/mo</span>
+            ${ENTERPRISE_PRICING.standard.perUser}
+            <span>/user/mo</span>
           </div>
+          <p className="pricing-total">
+            ${ENTERPRISE_PRICING.standard.perUser * userCount}/mo total for {userCount} user profile{userCount !== 1 ? "s" : ""}
+          </p>
           <p className="card-subtitle" style={{ marginBottom: 0 }}>
             {ENTERPRISE_PRICING.standard.note}
           </p>
@@ -3621,9 +3629,12 @@ function EnterpriseUpgradePage({ client }) {
             + Enterprise
           </h3>
           <div className="pricing-value pricing-value-premium">
-            +${ENTERPRISE_PRICING.enterprise.price}
-            <span>/mo</span>
+            +${ENTERPRISE_PRICING.enterprise.perUser}
+            <span>/user/mo</span>
           </div>
+          <p className="pricing-total pricing-total-premium">
+            +${ENTERPRISE_PRICING.enterprise.perUser * userCount}/mo total for {userCount} user profile{userCount !== 1 ? "s" : ""}
+          </p>
           <p className="card-subtitle" style={{ marginBottom: 0 }}>
             {ENTERPRISE_PRICING.enterprise.note}
           </p>
