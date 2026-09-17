@@ -758,6 +758,29 @@
   box-shadow: var(--shadow-hover);
 }
 
+/* Mirrors styles.css's app-wide .card:hover .icon-badge / .card-title /
+   .kpi-value enlarge — this file is deliberately scoped and doesn't share a
+   stylesheet with the shell, so it's kept in sync by hand. */
+@media (prefers-reduced-motion: no-preference) {
+  .dc-panelIcon {
+    transition: transform 0.25s ease;
+  }
+  .dc-panel:hover .dc-panelIcon {
+    transform: translateY(-3px) scale(1.06);
+  }
+
+  .dc-kpiValue,
+  .dc-panelTitle {
+    display: inline-block;
+    transition: transform 0.25s ease;
+    transform-origin: left center;
+  }
+  .dc-kpiTile:hover .dc-kpiValue,
+  .dc-panel:hover .dc-panelTitle {
+    transform: scale(1.05);
+  }
+}
+
 /* Same slow, soft light glide used on the shell's glass cards (styles.css
    .card::after) — kept in sync by hand since this file's tokens are
    deliberately scoped and don't share a stylesheet with the shell. */

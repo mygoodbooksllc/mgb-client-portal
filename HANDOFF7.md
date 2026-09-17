@@ -2295,3 +2295,17 @@ Money/date formatting reuses the file's existing local `fmtMoney`/`fmtDate` help
 dependencies. Verified with `prettier --parser babel-ts`.
 
 `MGB_VERSION` bumped to `2026-09-17z`.
+
+## §72 — Live Report: restored the text-enlarge hover
+
+`DailyClose.css`'s `.dc-kpiTile:hover`/`.dc-panel:hover` had the shadow-only fix from the earlier
+"cards lifting like the old UI" bug (§ in the previous window), but never got the paired
+text-enlarge rule that `styles.css` added afterward app-wide (`.card:hover .icon-badge` /
+`.card-title` / `.kpi-value` scaling up 1.05–1.06x on hover). The two files don't share a
+stylesheet, so the shell's later addition never propagated here — Live Report's cards looked
+inert next to every other card in the app.
+
+Added the same rule, scoped to this file's own class names: `.dc-panelIcon` enlarges on
+`.dc-panel:hover`, `.dc-kpiValue` on `.dc-kpiTile:hover`, `.dc-panelTitle` on `.dc-panel:hover`.
+Same `prefers-reduced-motion` guard, same transform values, kept in sync by hand like the rest of
+this file's shell-mirrored rules.
