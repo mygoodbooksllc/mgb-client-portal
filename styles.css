@@ -933,12 +933,7 @@ body {
 }
 
 .card:hover {
-  transform: translateY(-4px) scale(1.015);
   box-shadow: var(--shadow-hover);
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .card:hover { transform: none; }
 }
 
 /* Direct children stack above the shimmer sweep below, without touching
@@ -2533,6 +2528,19 @@ body.rb-presenting .main {
   flex-shrink: 0;
 }
 
+@media (prefers-reduced-motion: no-preference) {
+  /* App-wide: any .icon-badge inside a .card enlarges slightly on hover —
+     paired with .card:hover's shadow-only pop above (no lift/scale on the
+     card itself), same motion language used on the Enterprise pricing
+     cards this was generalized from. */
+  .icon-badge {
+    transition: transform 0.25s ease;
+  }
+  .card:hover .icon-badge {
+    transform: translateY(-3px) scale(1.06);
+  }
+}
+
 /* ---- Pricing cards ---- */
 
 .pricing-grid {
@@ -2747,13 +2755,6 @@ body.rb-presenting .main {
   .compare-list .compare-row:nth-child(6)[data-in-view] { animation-delay: 300ms; }
 
   .pricing-grid .pricing-card:nth-child(2)[data-in-view] { animation-delay: 100ms; }
-
-  .enterprise-page .icon-badge {
-    transition: transform 0.25s ease;
-  }
-  .enterprise-page .card:hover .icon-badge {
-    transform: translateY(-3px) scale(1.06);
-  }
 }
 
 @keyframes mgb-reveal-up {
