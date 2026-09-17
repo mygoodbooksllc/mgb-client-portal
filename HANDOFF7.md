@@ -1867,3 +1867,60 @@ hook already filters `visibleOrder` against the current `allIds` list, so a stal
 simply drops IDs that no longer exist rather than erroring.
 
 `MGB_VERSION` bumped to `2026-09-17l`.
+
+## §58 — Two new premium upgrades built: Reconciliation Pro (Bank Accounts) and Fund Accounting Pro (Giving & Funds)
+
+Request: build out the two candidate premium tiers sketched in an earlier mockup ("Reconciliation
+Pro" over Bank Accounts, "Fund Accounting Pro" over Giving & Funds), keeping the same tab-naming
+pattern as the other four premium upgrades (§53) — one nav item, same label, content swapped by
+plan, PRO pill marks the upgraded state. `PREMIUM_UPGRADE_TAB_KEYS` now includes `"bank"` and
+`"giving"`, so the sidebar's generic `isUpgraded` check picked both up with no Sidebar code
+changes needed.
+
+**Bank Accounts → Reconciliation Pro** (`BankReconciliationPage`). Standard's whole transaction
+view was factored out into a shared `BankTransactionsPanel`, so `BankPage` (standard) and
+`BankReconciliationPage` (premium) both render it — no duplicated JSX, and it stays a strict
+superset per the §54 bar. Premium adds a Transactions/Reconciliation in-page toggle (same pattern
+as §54's toggles); Reconciliation shows, per account: Statement Balance, Outstanding Items, and a
+Difference KPI; a read-only Cleared/Outstanding status table (see below on why it's read-only);
+and a Reconciliation History table of prior closed periods. Download Reconciliation Report
+generates a real PDF via the existing jsPDF pipeline.
+
+**Cleared status is read-only, deliberately** — the earlier mockup's "Cleared / Uncleared toggle"
+idea would need a bookkeeper action and a persistence layer neither of which exist yet (this app
+has no backend write path for reconciliation state), so building an interactive checkbox that
+silently didn't save anywhere would be actively misleading. The page shows the current state (set
+in mock data) instead of pretending to let you change it — same reasoning as §54's "no fabricated
+prior-period budget data."
+
+**Giving & Funds → Fund Accounting Pro** (`FundAccountingProPage`). Standard's Fund Balances and
+Contributions views were factored into shared `FundBalancesCard`/`ContributionsCard` components,
+reused by both pages. Premium adds two more toggle views: Fund Activity (a transfer ledger between
+funds, with a reason per move) and Pledges (committed vs. received per donor, with a Fulfilled /
+Overdue / In progress status pill using the same `daysUntil`/`todayLocal` helpers Cash Flow Pro's
+aging already uses) plus a "Giving Statement" per-pledge download (a new `buildGivingStatementPdf`,
+one donor's YTD gifts across every fund).
+
+**Fund Balance Trend chart — scoped out, not built.** The original mockup flagged this as "the
+cheapest piece to build first," which turned out to be wrong on closer look: unlike Budget's
+Spending Trend (which reads real multi-month `client.monthly` data that already exists), a fund
+balance trend needs each fund's balance sampled monthly — this mock dataset only carries a current
+snapshot balance plus this period's contributions and transfers. Building it would mean fabricating
+six months of per-fund numbers, the same thing §54 already declined to do for Budget vs. Actual's
+period comparison. Left out rather than inventing data.
+
+**New mock data** (`data.js`, `grace-community` and `riverside-pantry` only — the two premium
+clients, since these pages only render for them): each bank transaction gained a `cleared` flag;
+each account gained `statementBalance`/`statementDate`; each client gained `bankReconciliations`
+(closed-period history), `fundTransfers`, and `pledges`. The cleared/outstanding split is
+constructed so the invariant `balance === statementBalance + sum(uncleared amounts)` holds exactly
+— the Difference KPI reads $0.00 for every account, including one (Riverside's Reserve Savings)
+deliberately left with nothing outstanding to show what "fully reconciled" looks like. Standard
+clients (`new-hope`, `open-arms`) weren't touched — `ReconciliationPanel` defaults missing
+`cleared`/`statementBalance` to "fully cleared" rather than requiring the fields, so nothing new
+was needed there, and neither page renders for a standard plan.
+
+`ENTERPRISE_FEATURES` (Enterprise upgrade preview page) and its "Six tools" summary line were
+updated to include both new tiers.
+
+`MGB_VERSION` bumped to `2026-09-17m`.
