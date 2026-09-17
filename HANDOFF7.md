@@ -2624,3 +2624,15 @@ dashboard) — if this still redirects to the bare domain after this fix, that a
 `https://app.mygoodbooks.org/*` added.
 
 `MGB_VERSION` bumped to `2026-09-17ar`.
+
+## §93 — Client login gets a friendly /login path
+
+`?client-login=1` worked but wasn't something to hand a client — added `vercel.json` with a rewrite
+(`/login` → `/index.html`, since this is a static SPA with no server-side router) and `clientLoginMode`
+now checks `window.location.pathname === "/login"` too. `?client-login=1` still works for any link
+already sent out. `ClientAuthGate`'s `emailRedirectTo: window.location.href` needed no change — it
+already echoes back whatever path the person started from.
+
+Real client sign-in link once this deploys: `https://app.mygoodbooks.org/login`.
+
+`MGB_VERSION` bumped to `2026-09-17as`.
