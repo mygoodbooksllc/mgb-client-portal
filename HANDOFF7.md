@@ -2463,3 +2463,12 @@ printed the literal `m.author` value ("MyGoodBooks") from the sample data. Clien
 own name/whoever authored it).
 
 `MGB_VERSION` bumped to `2026-09-17ai`.
+
+## §83 — Message author still said MyGoodBooks in "Preview As" view
+
+§82's swap only applied when `!isBookkeeper`, so staff using "Preview As" to see a client's page
+still saw the literal sample-data "MyGoodBooks" author on bookkeeper messages. Dropped the
+`isBookkeeper` condition — the swap to `client.assignedBookkeeper.name` now applies regardless of
+who's viewing.
+
+`MGB_VERSION` bumped to `2026-09-17aj`.
