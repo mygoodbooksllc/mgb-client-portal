@@ -6115,7 +6115,12 @@ function StaffMessagesPage({ staffUser, onActivity }) {
   const [, setTick] = useState(0); // forces a re-render so the edit/unsend window visibly expires
   const [threadFilter, setThreadFilter] = useState("");
   const [showGroupModal, setShowGroupModal] = useState(false);
+  const [onlineEmails, setOnlineEmails] = useState(new Set()); // Realtime Presence
+  const [typingName, setTypingName] = useState(null); // Realtime Broadcast, active conversation only
   const fileInputRef = useRef(null);
+  const typingChannelRef = useRef(null);
+  const typingTimeoutRef = useRef(null);
+  const lastTypingSentRef = useRef(0);
   // Guards against a stale async openWith() resolving after the user has
   // already clicked to a different thread and overwriting their new
   // selection — see selectConversation/openWith below. This was the actual
@@ -6304,6 +6309,59 @@ function StaffMessagesPage({ staffUser, onActivity }) {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [supabase, staffUser.email]);
+
+  // Realtime Presence: one shared channel every signed-in staff member
+  // joins, keyed by their own email. `sync` fires with the full roster
+  // whenever anyone joins/leaves, so onlineEmails is always just "who's in
+  // presenceState() right now" — no polling, no manual heartbeat.
+  useEffect(() => {
+    if (!supabase) return;
+    const channel = supabase.channel("staff-presence", { config: { presence: { key: staffUser.email } } });
+    channel
+      .on("presence", { event: "sync" }, () => {
+        setOnlineEmails(new Set(Object.keys(channel.presenceState())));
+      })
+      .subscribe(async (status) => {
+        if (status === "SUBSCRIBED") await channel.track({ online_at: new Date().toISOString() });
+      });
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [supabase, staffUser.email]);
+
+  // Realtime Broadcast, scoped to whichever conversation is open — a fresh
+  // channel per activeConversationId (not the per-user inbox channel above,
+  // which isn't shared between the two people in a DM). Typing pulses reset
+  // a 3s timeout rather than an explicit "stopped typing" event, so it also
+  // self-clears if the other tab closes mid-keystroke.
+  useEffect(() => {
+    setTypingName(null);
+    typingChannelRef.current = null;
+    if (!supabase || !activeConversationId) return;
+    const channel = supabase.channel("conv-typing-" + activeConversationId);
+    channel
+      .on("broadcast", { event: "typing" }, ({ payload }) => {
+        if (!payload || payload.email === staffUser.email) return;
+        setTypingName(payload.name || "Someone");
+        clearTimeout(typingTimeoutRef.current);
+        typingTimeoutRef.current = setTimeout(() => setTypingName(null), 3000);
+      })
+      .subscribe((status) => {
+        if (status === "SUBSCRIBED") typingChannelRef.current = channel;
+      });
+    return () => {
+      clearTimeout(typingTimeoutRef.current);
+      supabase.removeChannel(channel);
+      typingChannelRef.current = null;
+    };
+  }, [supabase, activeConversationId, staffUser.email]);
+
+  const notifyTyping = () => {
+    const now = Date.now();
+    if (!typingChannelRef.current || now - lastTypingSentRef.current < 1500) return;
+    lastTypingSentRef.current = now;
+    typingChannelRef.current.send({ type: "broadcast", event: "typing", payload: { email: staffUser.email, name: staffUser.name } });
+  };
 
   // Live-expire the edit/unsend window on-screen without needing another
   // action to trigger a re-render.
@@ -6555,7 +6613,14 @@ function StaffMessagesPage({ staffUser, onActivity }) {
                 }
                 onClick={() => selectConversation(c)}
               >
-                <span className="thread-tab-name">{c.otherName}</span>
+                <span className="thread-tab-name">
+                  {/* Presence, not a stored column — reflects who's on the channel
+                      right now, not "was active as of last page load". */}
+                  {(c.isGroup ? c.otherEmails.some((e) => onlineEmails.has(e)) : onlineEmails.has(c.otherEmail)) && (
+                    <span className="online-dot" aria-label="Online" title="Online now" />
+                  )}
+                  {c.otherName}
+                </span>
                 <span className="thread-tab-role">{c.otherRole}</span>
                 {c.lastText && <span className="thread-tab-preview">{c.lastText}</span>}
                 {c.unread && <span className="thread-tab-dot" aria-label="Unread" />}
@@ -6579,7 +6644,13 @@ function StaffMessagesPage({ staffUser, onActivity }) {
             stageFile(e.dataTransfer.files && e.dataTransfer.files[0]);
           }}
         >
-          <h3 className="card-title">{activeEntry ? `Conversation with ${activeEntry.otherName}` : "Conversation"}</h3>
+          <h3 className="card-title">
+            {activeEntry &&
+              (activeEntry.isGroup
+                ? activeEntry.otherEmails.some((e) => onlineEmails.has(e))
+                : onlineEmails.has(activeEntry.otherEmail)) && <span className="online-dot" aria-label="Online" title="Online now" />}
+            {activeEntry ? `Conversation with ${activeEntry.otherName}` : "Conversation"}
+          </h3>
           {loadError && <p className="card-subtitle negative">{loadError}</p>}
           {messages === null && !loadError && <p className="card-subtitle">Loading…</p>}
           {messages && messages.length === 0 && !loadError && <p className="card-subtitle">No messages yet — say hello.</p>}
@@ -6665,6 +6736,10 @@ function StaffMessagesPage({ staffUser, onActivity }) {
             </div>
           )}
 
+          {/* Reserves its line whether or not anyone's typing, so the
+              compose bar doesn't hop up and down every time it appears. */}
+          <div className="typing-indicator">{typingName ? `${typingName} is typing…` : " "}</div>
+
           <div className="message-compose">
             <button type="button" className="attach-btn" onClick={() => fileInputRef.current.click()} aria-label="Attach file">
               <PaperclipIcon />
@@ -6682,7 +6757,10 @@ function StaffMessagesPage({ staffUser, onActivity }) {
               type="text"
               placeholder="Write a message…"
               value={draft}
-              onChange={(e) => setDraft(e.target.value)}
+              onChange={(e) => {
+                setDraft(e.target.value);
+                notifyTyping();
+              }}
               onKeyDown={(e) => {
                 if (e.key === "Enter") send();
               }}

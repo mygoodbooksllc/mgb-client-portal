@@ -2417,3 +2417,22 @@ is worse than any specific bug, since it gives nothing to diagnose from. Next re
 surface an actual error message to go on.
 
 `MGB_VERSION` bumped to `2026-09-17ae`.
+
+## §79 — Team Chat: online presence + typing indicator (Realtime)
+
+Follow-up to the Google Chat question — the answer was "you already have Supabase Realtime, it's
+just only using Postgres Changes." Added the other two pieces it offers, no new backend:
+
+- **Presence**: every signed-in staff member joins a shared `staff-presence` channel keyed by their
+  own email and calls `track()` on subscribe. `sync` events keep `onlineEmails` current — no polling,
+  no heartbeat table. A small green dot shows next to a name in the thread list and the conversation
+  header (group threads: dot shows if *any* other member is online).
+- **Typing**: a per-conversation Broadcast channel (`conv-typing-<id>`), created only while that
+  conversation is open — not the per-user inbox channel, which isn't shared between the two people in
+  a DM. Draft keystrokes send a throttled (1.5s) `typing` event; the receiving side shows "X is
+  typing…" for 3s, self-clearing rather than needing an explicit "stopped" event (survives a closed tab).
+
+Both channels are cleaned up (`removeChannel`) on unmount/conversation switch, same as the existing
+postgres_changes subscription.
+
+`MGB_VERSION` bumped to `2026-09-17af`.
