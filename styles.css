@@ -2446,6 +2446,47 @@ body.rb-presenting .main {
 .pill.restricted { background: var(--accent-soft); color: var(--gold-deep); }
 .pill.unrestricted { background: var(--good-soft); color: var(--good); }
 
+/* ---------------- Shared in-page view toggle (segmented control) ----------------
+   Reports (period), Bank Accounts (this account vs. all), Documents
+   (all vs. full-access only), Giving & Funds (contributions vs. fund
+   balances), Budget vs. Actual (by category vs. spending trend), and Report
+   Builder (custom vs. quick download) all use this same control. */
+
+.view-toggle {
+  display: inline-flex;
+  gap: 2px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 3px;
+}
+
+.view-toggle-btn {
+  font-family: var(--font-body);
+  font-size: 12.5px;
+  font-weight: 600;
+  padding: 7px 14px;
+  border-radius: 8px;
+  border: none;
+  cursor: pointer;
+  background: transparent;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.view-toggle-btn:hover {
+  color: var(--ink-strong);
+}
+
+.view-toggle-btn.active {
+  background: var(--gold);
+  color: var(--navy);
+}
+
+.view-toggle-btn.active:hover {
+  color: var(--navy);
+}
+
 /* ---------------- Reports ---------------- */
 
 .report-grid {

@@ -1762,3 +1762,60 @@ to the other three tabs that had drifted into a different, more cluttered patter
   chance it's needed.
 
 `MGB_VERSION` bumped to `2026-09-17h`.
+
+## §54 — Fixed a §53 regression, then built the in-page toggles discussed alongside it
+
+**Regression first.** §53 made "Reports" show `ReportBuilderPage` outright for a premium client,
+same full-replace pattern as the other three. That page never had the simple "just give me a PDF"
+download grid `ReportsPage` has (Profit & Loss / Balance Sheet / Budget vs. Actual / Contribution
+Statement) — it's a from-scratch custom-report builder with its own two-stage flow. So premium
+clients lost the quick-download buttons entirely; a real functionality loss, not just a naming
+change, caught right after §53 shipped. Fixed by factoring the download grid out into a shared
+`QuickDownloadReports` component (used by both `ReportsPage` and, now, `ReportBuilderPage`) so
+Report Builder is a strict superset of what Reports could already do rather than a swap — the same
+bar the other three full-replace pairs already clear (Live Report, Budgeting Tool, and Cash Flow
+Pro all keep or exceed their standard page's functionality; only "Reports" had briefly failed
+that).
+
+**Then, the toggles.** Five spots discussed as good candidates for an in-page segmented control
+(same-data, flip-between-views situations, as opposed to Cash Flow's would-be toggle, which
+would've hidden real functionality — see §53's discussion). New shared `.view-toggle`/
+`.view-toggle-btn` CSS, used by all of these:
+
+- **Reports** (`QuickDownloadReports`, so this lands on both `ReportsPage` and the "Quick
+  Download" side of Report Builder) — a Month/Quarter/Year-to-Date period toggle. Scoped
+  honestly: only the Profit & Loss Statement has a real trailing-month range to aggregate over
+  (`client.monthly`); Balance Sheet is always a point-in-time snapshot, and Budget vs. Actual/the
+  Contribution Statement only ever carry one period's data in this mock dataset, so the toggle
+  says plainly that it applies to P&L only rather than pretending to affect all four.
+  `buildProfitAndLossPdf` now takes a `periodKey` and aggregates `client.monthly` accordingly.
+- **Report Builder** — a new "Custom Report" / "Quick Download" toggle at the top of the builder
+  stage, the direct fix for the regression above: `QuickDownloadReports` on one side, the existing
+  builder panel on the other.
+- **Bank Accounts** — "This Account" (existing account-tabs-driven view, unchanged) vs. "All
+  Accounts" (every account's transactions combined, most recent first, with its own Account
+  column) on the Recent Transactions table. Export CSV respects whichever is active. A
+  search-result jump (which always targets one specific account's transaction) forces the view
+  back to "This Account" first, same as it already forces the account tab itself.
+- **Giving & Funds** — Fund Balances and Recent Contributions used to both sit on the page at
+  once, with the KPI cards above just scrolling down to one or the other. Now a real toggle shows
+  one section at a time; the KPI cards switch the toggle instead of scrolling.
+- **Budget vs. Actual** — "By Category" (the existing budgeted-vs-actual table, unchanged) vs.
+  "Spending Trend" (the real multi-month income/expense chart also used on the Dashboard,
+  `IncomeExpenseChart`). This is NOT the "this period vs. prior period" toggle floated in
+  discussion — `client.budget` only ever carries one period's category-level actuals in this mock
+  data model, with no prior-period figures to compare against, and fabricating them would mean
+  inventing numbers rather than showing something real. Swapped for a toggle the data actually
+  supports instead.
+- **Documents** — "All Documents" vs. "Full Access Only", filtering by the existing `visibility`
+  flag (not a "shared with me" personalization — this app's documents only ever carry that one
+  binary flag, so that's the honest thing to filter by). Only shown when at least one restricted
+  document exists to filter to, which a category-scoped client viewer never has (already filtered
+  out of their document list upstream) — so it naturally stays hidden for them.
+- Two small correctness fixes alongside the Bank/Budget toggles: a KPI-card click or a
+  search-result jump into a table that's only mounted in one of the two toggle states now switches
+  the toggle first and defers the actual `jumpToCard` (a second effect keyed on the toggle state,
+  or — for the one synchronous click-handler case on Budget's KPI cards — a same-tick
+  `setTimeout`) rather than looking for a DOM node that doesn't exist yet in that render.
+
+`MGB_VERSION` bumped to `2026-09-17i`.

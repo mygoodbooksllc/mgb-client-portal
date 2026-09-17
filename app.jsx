@@ -2079,16 +2079,42 @@ function BudgetPage({ client, searchTarget }) {
     { budgeted: 0, actual: 0 }
   );
 
+  // "By Category" (the existing budgeted-vs-actual table, current month
+  // only — that's all the category-level granularity this mock data
+  // carries) vs. "Spending Trend" (the real multi-month income/expense
+  // history from client.monthly, same data/chart the Dashboard already
+  // uses). Not "this period vs. prior period" for the category table
+  // itself — there's no prior-month category breakdown in this data model,
+  // and fabricating one would mean inventing numbers rather than showing
+  // something real.
+  const [view, setView] = useState("category");
+
   const { flashCardId, jumpToCard } = useCardFlash();
-  const jumpToSpending = () => jumpToCard("budget-spending-card", "spending");
+  // Deferred a tick: switching view can mount the "By Category" card for
+  // the first time (coming from "Spending Trend"), and jumpToCard's
+  // getElementById has to run after that DOM update lands, not in the same
+  // synchronous click handler that triggered it.
+  const jumpToSpending = () => {
+    setView("category");
+    setTimeout(() => jumpToCard("budget-spending-card", "spending"), 0);
+  };
 
   // A global-search hit on a budget category scrolls straight to that row
   // and flashes it, rather than just landing on the page and leaving the
-  // client to find it themselves in the table.
+  // client to find it themselves in the table — the row only exists in the
+  // "By Category" view, so a hit switches back to it first.
   useEffect(() => {
-    if (searchTarget) jumpToCard(searchTarget.highlightKey, searchTarget.highlightKey);
+    if (searchTarget) setView("category");
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchTarget && searchTarget.nonce]);
+
+  // Separate effect, dependent on `view`, so this only ever looks for the
+  // row once "By Category" has actually mounted — same split BankPage uses
+  // for its own account-switch-then-jump case.
+  useEffect(() => {
+    if (searchTarget && view === "category") jumpToCard(searchTarget.highlightKey, searchTarget.highlightKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchTarget && searchTarget.nonce, view]);
 
   return (
     <div>
@@ -2112,54 +2138,73 @@ function BudgetPage({ client, searchTarget }) {
         </button>
       </div>
 
-      <div className={"card " + (flashCardId === "spending" ? "card-flash" : "")} id="budget-spending-card">
-        <h3 className="card-title">Spending by Category</h3>
-        <p className="card-subtitle">Budgeted vs. actual, current month</p>
-        <div className="table-scroll">
-<table className="budget-table tx-table-labeled">
-          <thead>
-            <tr>
-              <th style={{ width: "34%" }}>Category</th>
-              <th className="num">Budgeted</th>
-              <th className="num">Actual</th>
-              <th className="num">Variance</th>
-              <th style={{ width: "18%" }}>% Used</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody>
-            {client.budget.map((b) => {
-              const pct = (b.actual / b.budgeted) * 100;
-              const over = b.actual > b.budgeted;
-              const rowId = "budget-row-" + slugify(b.category);
-              return (
-                <tr key={b.category} id={rowId} className={flashCardId === rowId ? "row-flash" : ""}>
-                  <td data-primary="">
-                    <div className="category-name">{b.category}</div>
-                    <div className="bar-track">
-                      <div
-                        className={"bar-fill " + (over ? "over" : "under")}
-                        style={{ width: `${Math.min(pct, 100)}%`, animationDuration: `${growDuration(pct)}ms` }}
-                      ></div>
-                    </div>
-                  </td>
-                  <td className="num" data-label="Budgeted">{fmtMoney(b.budgeted)}</td>
-                  <td className="num" data-label="Actual">{fmtMoney(b.actual)}</td>
-                  <td className="num" data-label="Variance">
-                    {b.actual - b.budgeted >= 0 ? "+" : ""}
-                    {fmtMoney(b.actual - b.budgeted)}
-                  </td>
-                  <td data-label="% Used">{pct.toFixed(0)}%</td>
-                  <td>
-                    <span className={"pill " + (over ? "over" : "under")}>{over ? "Over" : "On Track"}</span>
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-        </div>
+      <div className="view-toggle" style={{ marginBottom: 20 }}>
+        <button type="button" className={"view-toggle-btn" + (view === "category" ? " active" : "")} onClick={() => setView("category")}>
+          By Category
+        </button>
+        <button type="button" className={"view-toggle-btn" + (view === "trend" ? " active" : "")} onClick={() => setView("trend")}>
+          Spending Trend
+        </button>
       </div>
+
+      {view === "category" && (
+        <div className={"card " + (flashCardId === "spending" ? "card-flash" : "")} id="budget-spending-card">
+          <h3 className="card-title">Spending by Category</h3>
+          <p className="card-subtitle">Budgeted vs. actual, current month</p>
+          <div className="table-scroll">
+<table className="budget-table tx-table-labeled">
+            <thead>
+              <tr>
+                <th style={{ width: "34%" }}>Category</th>
+                <th className="num">Budgeted</th>
+                <th className="num">Actual</th>
+                <th className="num">Variance</th>
+                <th style={{ width: "18%" }}>% Used</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {client.budget.map((b) => {
+                const pct = (b.actual / b.budgeted) * 100;
+                const over = b.actual > b.budgeted;
+                const rowId = "budget-row-" + slugify(b.category);
+                return (
+                  <tr key={b.category} id={rowId} className={flashCardId === rowId ? "row-flash" : ""}>
+                    <td data-primary="">
+                      <div className="category-name">{b.category}</div>
+                      <div className="bar-track">
+                        <div
+                          className={"bar-fill " + (over ? "over" : "under")}
+                          style={{ width: `${Math.min(pct, 100)}%`, animationDuration: `${growDuration(pct)}ms` }}
+                        ></div>
+                      </div>
+                    </td>
+                    <td className="num" data-label="Budgeted">{fmtMoney(b.budgeted)}</td>
+                    <td className="num" data-label="Actual">{fmtMoney(b.actual)}</td>
+                    <td className="num" data-label="Variance">
+                      {b.actual - b.budgeted >= 0 ? "+" : ""}
+                      {fmtMoney(b.actual - b.budgeted)}
+                    </td>
+                    <td data-label="% Used">{pct.toFixed(0)}%</td>
+                    <td>
+                      <span className={"pill " + (over ? "over" : "under")}>{over ? "Over" : "On Track"}</span>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+          </div>
+        </div>
+      )}
+
+      {view === "trend" && (
+        <div className="card">
+          <h3 className="card-title">Spending Trend</h3>
+          <p className="card-subtitle">Income vs. expenses, last {client.monthly.length} months</p>
+          <IncomeExpenseChart monthly={client.monthly} />
+        </div>
+      )}
     </div>
   );
 }
@@ -2172,82 +2217,99 @@ function GivingFundsPage({ client }) {
   const totalGiving = client.contributions.reduce((s, c) => s + c.amount, 0);
   const restrictedTotal = client.funds.filter((f) => f.restricted).reduce((s, f) => s + f.balance, 0);
   const unrestrictedTotal = client.funds.filter((f) => !f.restricted).reduce((s, f) => s + f.balance, 0);
-  const { flashCardId, jumpToCard } = useCardFlash();
+  // Contributions and Fund Balances used to both sit on the page at once,
+  // with the KPI cards above just scrolling down to whichever section —
+  // a real toggle shows one at a time instead, so each gets the whole page
+  // rather than fighting the other for space.
+  const [view, setView] = useState("funds");
 
   return (
     <div>
       <MockBanner text="Giving records and fund balances shown here are fabricated for this prototype." />
 
       <div className="kpi-grid">
-        <button className="card kpi-card kpi-card-clickable" onClick={() => jumpToCard("gf-contributions-card", "contributions")}>
+        <button className="card kpi-card kpi-card-clickable" onClick={() => setView("contributions")}>
           <span className="kpi-label">Recent Giving</span>
           <span className="kpi-value">{fmtMoney(totalGiving)}</span>
-          <span className="kpi-sub neutral">{client.contributions.length} gifts shown below</span>
+          <span className="kpi-sub neutral">{client.contributions.length} gifts</span>
         </button>
-        <button className="card kpi-card kpi-card-clickable" onClick={() => jumpToCard("gf-fund-balances-card", "fund-balances")}>
+        <button className="card kpi-card kpi-card-clickable" onClick={() => setView("funds")}>
           <span className="kpi-label">Unrestricted Funds</span>
           <span className="kpi-value">{fmtMoney(unrestrictedTotal)}</span>
           <span className="kpi-sub positive">Available for general use</span>
         </button>
-        <button className="card kpi-card kpi-card-clickable" onClick={() => jumpToCard("gf-fund-balances-card", "fund-balances")}>
+        <button className="card kpi-card kpi-card-clickable" onClick={() => setView("funds")}>
           <span className="kpi-label">Restricted Funds</span>
           <span className="kpi-value">{fmtMoney(restrictedTotal)}</span>
           <span className="kpi-sub neutral">Designated for specific purposes</span>
         </button>
       </div>
 
-      <div
-        className={"card " + (flashCardId === "fund-balances" ? "card-flash" : "")}
-        id="gf-fund-balances-card"
-        style={{ marginBottom: 20 }}
-      >
-        <h3 className="card-title">Fund Balances</h3>
-        <p className="card-subtitle">What the money in the bank is designated for</p>
-        <div className="fund-grid">
-          {client.funds.map((f) => (
-            <div className="fund-card" key={f.name}>
-              <div className="fund-card-top">
-                <span className="fund-name">{f.name}</span>
-                <span className={"pill " + (f.restricted ? "restricted" : "unrestricted")}>
-                  {f.restricted ? "Restricted" : "Unrestricted"}
-                </span>
-              </div>
-              <span className="fund-balance">{fmtMoney(f.balance)}</span>
-            </div>
-          ))}
-        </div>
+      <div className="view-toggle" style={{ marginBottom: 20 }}>
+        <button type="button" className={"view-toggle-btn" + (view === "funds" ? " active" : "")} onClick={() => setView("funds")}>
+          Fund Balances
+        </button>
+        <button
+          type="button"
+          className={"view-toggle-btn" + (view === "contributions" ? " active" : "")}
+          onClick={() => setView("contributions")}
+        >
+          Contributions
+        </button>
       </div>
 
-      <div className={"card " + (flashCardId === "contributions" ? "card-flash" : "")} id="gf-contributions-card">
-        <h3 className="card-title">Recent Contributions</h3>
-        <p className="card-subtitle">Individual gifts and grants received</p>
-        <div className="table-scroll">
-<table className="tx-table tx-table-stack tx-stack-giving">
-          <thead>
-            <tr>
-              <th>Date</th>
-              <th>Donor</th>
-              <th>Fund</th>
-              <th>Method</th>
-              <th className="num">Amount</th>
-            </tr>
-          </thead>
-          <tbody>
-            {client.contributions.map((c, i) => (
-              <tr key={i}>
-                <td>{fmtDate(c.date)}</td>
-                <td>{c.donor}</td>
-                <td>
-                  <span className="category-tag">{c.fund}</span>
-                </td>
-                <td>{c.method}</td>
-                <td className="num tx-amount positive">+{fmtMoney(c.amount, { cents: true })}</td>
-              </tr>
+      {view === "funds" && (
+        <div className="card">
+          <h3 className="card-title">Fund Balances</h3>
+          <p className="card-subtitle">What the money in the bank is designated for</p>
+          <div className="fund-grid">
+            {client.funds.map((f) => (
+              <div className="fund-card" key={f.name}>
+                <div className="fund-card-top">
+                  <span className="fund-name">{f.name}</span>
+                  <span className={"pill " + (f.restricted ? "restricted" : "unrestricted")}>
+                    {f.restricted ? "Restricted" : "Unrestricted"}
+                  </span>
+                </div>
+                <span className="fund-balance">{fmtMoney(f.balance)}</span>
+              </div>
             ))}
-          </tbody>
-        </table>
+          </div>
         </div>
-      </div>
+      )}
+
+      {view === "contributions" && (
+        <div className="card">
+          <h3 className="card-title">Recent Contributions</h3>
+          <p className="card-subtitle">Individual gifts and grants received</p>
+          <div className="table-scroll">
+<table className="tx-table tx-table-stack tx-stack-giving">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Donor</th>
+                <th>Fund</th>
+                <th>Method</th>
+                <th className="num">Amount</th>
+              </tr>
+            </thead>
+            <tbody>
+              {client.contributions.map((c, i) => (
+                <tr key={i}>
+                  <td>{fmtDate(c.date)}</td>
+                  <td>{c.donor}</td>
+                  <td>
+                    <span className="category-tag">{c.fund}</span>
+                  </td>
+                  <td>{c.method}</td>
+                  <td className="num tx-amount positive">+{fmtMoney(c.amount, { cents: true })}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -2381,41 +2443,58 @@ function AccountCashDonut({ accounts }) {
 
 function BankPage({ client, searchTarget }) {
   const [activeAccountId, setActiveAccountId] = useState(client.bankAccounts[0].id);
+  // "This Account" (the existing account-tabs-driven view) vs. "All
+  // Accounts" (every account's activity combined, most recent first, with
+  // its own Account column) — the transactions table only, not the KPI
+  // strip above it, which stays about whichever account is picked in the
+  // tabs either way.
+  const [txView, setTxView] = useState("account");
   const showToast = useToast();
   const account = client.bankAccounts.find((a) => a.id === activeAccountId) || client.bankAccounts[0];
   const cash = totalCash(client);
   const { flashCardId, jumpToCard } = useCardFlash();
 
+  const allTx = useMemo(
+    () =>
+      client.bankAccounts
+        .flatMap((a) => a.transactions.map((t) => ({ ...t, accountName: a.accountName })))
+        .sort((a, b) => (a.date < b.date ? 1 : -1)),
+    [client]
+  );
+
   // A transaction hit lives on one specific account's tab, so switch to it
-  // first — the row won't exist in the DOM until that tab is active.
+  // first (and drop back to the single-account view, since its row ids only
+  // exist there) — the row won't exist in the DOM until that tab is active.
   useEffect(() => {
     if (searchTarget && searchTarget.accountId && searchTarget.accountId !== activeAccountId) {
       setActiveAccountId(searchTarget.accountId);
     }
+    if (searchTarget && searchTarget.accountId) setTxView("account");
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchTarget && searchTarget.nonce]);
 
   useEffect(() => {
-    if (searchTarget) jumpToCard(searchTarget.highlightKey, searchTarget.highlightKey);
+    if (searchTarget && txView === "account") jumpToCard(searchTarget.highlightKey, searchTarget.highlightKey);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchTarget && searchTarget.nonce, activeAccountId]);
+  }, [searchTarget && searchTarget.nonce, activeAccountId, txView]);
 
   const exportCSV = () => {
-    const rows = [
-      ["Date", "Description", "Category", "Amount"],
-      ...account.transactions.map((t) => [t.date, t.description, t.category, t.amount]),
-    ];
-    const csv = rows.map((r) => r.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(",")).join("\n");
+    const isAll = txView === "all";
+    const header = isAll ? ["Date", "Account", "Description", "Category", "Amount"] : ["Date", "Description", "Category", "Amount"];
+    const rows = isAll
+      ? allTx.map((t) => [t.date, t.accountName, t.description, t.category, t.amount])
+      : account.transactions.map((t) => [t.date, t.description, t.category, t.amount]);
+    const csv = [header, ...rows].map((r) => r.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(",")).join("\n");
     const blob = new Blob([csv], { type: "text/csv" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `${client.name.replace(/\s+/g, "_")}_${account.accountName.replace(/\s+/g, "_")}_transactions.csv`;
+    a.download = `${client.name.replace(/\s+/g, "_")}_${isAll ? "all_accounts" : account.accountName.replace(/\s+/g, "_")}_transactions.csv`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
-    showToast(`Exported ${account.transactions.length} transactions to CSV.`);
+    showToast(`Exported ${isAll ? allTx.length : account.transactions.length} transactions to CSV.`);
   };
 
   return (
@@ -2467,28 +2546,52 @@ function BankPage({ client, searchTarget }) {
         <div className="page-header" style={{ marginBottom: 4 }}>
           <div>
             <h3 className="card-title">Recent Transactions</h3>
-            <p className="card-subtitle" style={{ margin: 0 }}>Most recent activity on this account — scroll to go back further</p>
+            <p className="card-subtitle" style={{ margin: 0 }}>
+              {txView === "all"
+                ? "Every account's activity, most recent first"
+                : "Most recent activity on this account — scroll to go back further"}
+            </p>
           </div>
-          <button className="btn-secondary" onClick={exportCSV}>
-            Export CSV
-          </button>
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <div className="view-toggle">
+              <button
+                type="button"
+                className={"view-toggle-btn" + (txView === "account" ? " active" : "")}
+                onClick={() => setTxView("account")}
+              >
+                This Account
+              </button>
+              <button
+                type="button"
+                className={"view-toggle-btn" + (txView === "all" ? " active" : "")}
+                onClick={() => setTxView("all")}
+              >
+                All Accounts
+              </button>
+            </div>
+            <button className="btn-secondary" onClick={exportCSV}>
+              Export CSV
+            </button>
+          </div>
         </div>
         <div className="table-scroll tx-list-scroll">
 <table className="tx-table tx-table-stack tx-stack-bank" style={{ marginTop: 16 }}>
           <thead>
             <tr>
               <th>Date</th>
+              {txView === "all" && <th>Account</th>}
               <th>Description</th>
               <th>Category</th>
               <th className="num">Amount</th>
             </tr>
           </thead>
           <tbody>
-            {account.transactions.map((t, i) => {
+            {(txView === "all" ? allTx : account.transactions).map((t, i) => {
               const rowId = "tx-" + i;
               return (
-              <tr key={i} id={rowId} className={flashCardId === rowId ? "row-flash" : ""}>
+              <tr key={i} id={txView === "all" ? undefined : rowId} className={txView !== "all" && flashCardId === rowId ? "row-flash" : ""}>
                 <td>{fmtDate(t.date)}</td>
+                {txView === "all" && <td>{t.accountName}</td>}
                 <td>{t.description}</td>
                 <td>
                   <span className="category-tag">{t.category}</span>
@@ -2553,18 +2656,37 @@ function newReportDoc(title, subtitle, client) {
   return doc;
 }
 
-function buildProfitAndLossPdf(client) {
+// periodKey selects how many of the trailing months in `client.monthly`
+// the headline totals aggregate over — "month" (just the latest), "quarter"
+// (last 3), or "ytd" (every month this mock data carries, which is only a
+// trailing ~8 months, not a real calendar year — see the caveat this app
+// already documents elsewhere for `client.monthly`). The month-by-month
+// table and the category breakdown always show the same full history/
+// current month regardless, since those aren't period-dependent.
+function periodMonths(monthly, periodKey) {
+  if (periodKey === "quarter") return monthly.slice(-3);
+  if (periodKey === "ytd") return monthly.slice();
+  return monthly.slice(-1);
+}
+
+const PERIOD_LABELS = { month: "This Month", quarter: "This Quarter", ytd: "Year to Date" };
+
+function buildProfitAndLossPdf(client, periodKey = "month") {
   // Sourced from `monthly` and `budget`, not the transaction register: the
   // register is a short sample of recent activity, so summing it would
   // contradict the revenue figures shown on the dashboard.
   const latestMonth = client.monthly[client.monthly.length - 1];
-  const period = `${latestMonth.month} ${new Date().getFullYear()}`;
+  const monthLabel = `${latestMonth.month} ${new Date().getFullYear()}`;
+  const periodMonthList = periodMonths(client.monthly, periodKey);
+  const periodLabel = PERIOD_LABELS[periodKey] || PERIOD_LABELS.month;
+  const periodIncome = periodMonthList.reduce((s, m) => s + m.income, 0);
+  const periodExpenses = periodMonthList.reduce((s, m) => s + m.expenses, 0);
   const expenseRows = client.budget
     .map((b) => [b.category, b.actual])
     .sort((a, b) => b[1] - a[1]);
   const categorizedExpenses = expenseRows.reduce((s, [, v]) => s + v, 0);
 
-  const doc = newReportDoc("Profit & Loss Statement", `For the month of ${period}`, client);
+  const doc = newReportDoc("Profit & Loss Statement", `${periodLabel} (through ${monthLabel})`, client);
 
   doc.autoTable({
     startY: 55,
@@ -2581,7 +2703,7 @@ function buildProfitAndLossPdf(client) {
 
   doc.autoTable({
     startY: doc.lastAutoTable.finalY + 8,
-    head: [[`Expenses by Category — ${period}`, "Amount"]],
+    head: [[`Expenses by Category — ${monthLabel}`, "Amount"]],
     body: expenseRows.map(([cat, amt]) => [cat, fmtMoney(amt)]),
     foot: [["Total Categorized Expenses", fmtMoney(categorizedExpenses)]],
     columnStyles: { 1: { halign: "right" } },
@@ -2592,15 +2714,15 @@ function buildProfitAndLossPdf(client) {
   doc.setFont("helvetica", "bold");
   doc.setFontSize(11);
   doc.setTextColor(5, 8, 13);
-  doc.text(`Total Income (${period}): ${fmtMoney(latestMonth.income)}`, 14, y);
-  doc.text(`Total Expenses (${period}): ${fmtMoney(latestMonth.expenses)}`, 14, y + 7);
+  doc.text(`Total Income (${periodLabel}): ${fmtMoney(periodIncome)}`, 14, y);
+  doc.text(`Total Expenses (${periodLabel}): ${fmtMoney(periodExpenses)}`, 14, y + 7);
   doc.text(
-    `Net Income (${period}): ${fmtMoney(latestMonth.income - latestMonth.expenses)}`,
+    `Net Income (${periodLabel}): ${fmtMoney(periodIncome - periodExpenses)}`,
     14,
     y + 16
   );
 
-  const filename = `${sanitizeFilename(client.name)} - Profit and Loss.pdf`;
+  const filename = `${sanitizeFilename(client.name)} - Profit and Loss (${periodLabel}).pdf`;
   doc.save(filename);
   return filename;
 }
@@ -2768,28 +2890,71 @@ const REPORT_TYPES = [
   { key: "giving", name: "Contribution Statement (YTD)", description: "Giving summary by fund, ready to share with your board or donors." },
 ];
 
-function ReportsPage({ client }) {
+// The plain per-report "download a PDF" grid — shared by ReportsPage (the
+// standard tab) and ReportBuilderPage (what premium clients see instead).
+// Report Builder replaced this tab entirely rather than sitting alongside
+// it (see PREMIUM_UPGRADE_TAB_KEYS), so it has to be a strict superset of
+// what the standard Reports page could already do, not just its own custom
+// builder — this is what keeps the plain "just give me a PDF" downloads
+// reachable for a premium client too.
+function QuickDownloadReports({ client }) {
   const showToast = useToast();
+  // Only the Profit & Loss report has a real trailing-month range to
+  // aggregate over (client.monthly) — Balance Sheet is always a snapshot as
+  // of today, Budget vs. Actual and the Contribution Statement only ever
+  // carry one period's worth of data in this mock dataset, so this toggle
+  // is deliberately scoped to just the one report it actually changes.
+  const [period, setPeriod] = useState("month");
 
   const handleDownload = (r) => {
-    const filename = REPORT_PDF_BUILDERS[r.key](client);
+    const filename = REPORT_PDF_BUILDERS[r.key](client, r.key === "pl" ? period : undefined);
     showToast(`Downloaded "${filename}"`);
   };
 
   return (
     <div>
-      <MockBanner text="Reports are generated as real PDFs from this client's mock data — once QuickBooks is connected in Phase 2, these will reflect live books." />
+      <div className="card" style={{ marginBottom: 20 }}>
+        <h3 className="card-title">Period</h3>
+        <p className="card-subtitle" style={{ margin: 0 }}>
+          Applies to the Profit &amp; Loss Statement below — the other reports each only ever cover
+          one fixed period.
+        </p>
+        <div className="view-toggle" style={{ marginTop: 12 }}>
+          {["month", "quarter", "ytd"].map((key) => (
+            <button
+              type="button"
+              key={key}
+              className={"view-toggle-btn" + (period === key ? " active" : "")}
+              onClick={() => setPeriod(key)}
+            >
+              {PERIOD_LABELS[key]}
+            </button>
+          ))}
+        </div>
+      </div>
+
       <div className="report-grid">
         {REPORT_TYPES.map((r) => (
           <div className="card report-card" key={r.key}>
             <h3 className="card-title">{r.name}</h3>
-            <p className="card-subtitle">{r.description}</p>
+            <p className="card-subtitle">
+              {r.key === "pl" ? `${r.description} Currently set to ${PERIOD_LABELS[period]}.` : r.description}
+            </p>
             <button className="btn-primary" onClick={() => handleDownload(r)}>
               Download PDF
             </button>
           </div>
         ))}
       </div>
+    </div>
+  );
+}
+
+function ReportsPage({ client }) {
+  return (
+    <div>
+      <MockBanner text="Reports are generated as real PDFs from this client's mock data — once QuickBooks is connected in Phase 2, these will reflect live books." />
+      <QuickDownloadReports client={client} />
     </div>
   );
 }
@@ -2971,6 +3136,7 @@ const REPORT_SECTION_DEFS = [
 
 function ReportBuilderPage({ client }) {
   const [stage, setStage] = useState("builder"); // "builder" | "report"
+  const [builderTab, setBuilderTab] = useState("custom"); // "custom" | "quick" — see QuickDownloadReports
   const [presenting, setPresenting] = useState(false);
   const [period, setPeriod] = useState("ytd");
   const [scope, setScope] = useState("consolidated"); // "consolidated" | "by-fund"
@@ -3058,6 +3224,26 @@ function ReportBuilderPage({ client }) {
       <div>
         <MockBanner text="Report Builder assembles a formatted report from this client's own numbers shown elsewhere in the portal — nothing here is a separate dataset." />
 
+        <div className="view-toggle" style={{ marginBottom: 20 }}>
+          <button
+            type="button"
+            className={"view-toggle-btn" + (builderTab === "custom" ? " active" : "")}
+            onClick={() => setBuilderTab("custom")}
+          >
+            Custom Report
+          </button>
+          <button
+            type="button"
+            className={"view-toggle-btn" + (builderTab === "quick" ? " active" : "")}
+            onClick={() => setBuilderTab("quick")}
+          >
+            Quick Download
+          </button>
+        </div>
+
+        {builderTab === "quick" && <QuickDownloadReports client={client} />}
+
+        {builderTab === "custom" && (
         <div className="rb-layout">
           <div className="card rb-panel">
             <h3 className="card-title">Build a report</h3>
@@ -3166,6 +3352,7 @@ function ReportBuilderPage({ client }) {
             </div>
           </div>
         </div>
+        )}
       </div>
     );
   }
@@ -6320,7 +6507,18 @@ function DocumentsPage({ client, isBookkeeper, searchTarget }) {
     if (activeFolder === name) setActiveFolder(null);
   };
 
-  const visibleDocs = activeFolder === null ? docs : docs.filter((d) => d.folder === activeFolder);
+  // "Full Access Only" filters down to the visibility flag itself
+  // (toggleVisibility, above) rather than some separate "shared with me"
+  // concept — this app's documents only ever carry that one binary flag
+  // (org-wide vs. full-access-only), so that's the real, honest thing to
+  // filter by. Only worth offering when there's at least one such document
+  // to filter to — a restricted client viewer never has any (scopedClient's
+  // documents are already filtered upstream), so this naturally stays
+  // hidden for them.
+  const [visFilter, setVisFilter] = useState("all");
+  const hasRestrictedDocs = docs.some((d) => d.visibility === "full");
+  const folderFiltered = activeFolder === null ? docs : docs.filter((d) => d.folder === activeFolder);
+  const visibleDocs = visFilter === "full" ? folderFiltered.filter((d) => d.visibility === "full") : folderFiltered;
   const unfiledCount = docs.filter((d) => !d.folder).length;
 
   return (
@@ -6453,8 +6651,32 @@ function DocumentsPage({ client, isBookkeeper, searchTarget }) {
       </div>
 
       <div className="card">
-        <h3 className="card-title">{activeFolder === null ? "All Documents" : activeFolder}</h3>
-        <p className="card-subtitle">{visibleDocs.length} file{visibleDocs.length !== 1 ? "s" : ""} · click a document to preview it</p>
+        <div className="page-header" style={{ marginBottom: 4 }}>
+          <div>
+            <h3 className="card-title">{activeFolder === null ? "All Documents" : activeFolder}</h3>
+            <p className="card-subtitle" style={{ margin: 0 }}>
+              {visibleDocs.length} file{visibleDocs.length !== 1 ? "s" : ""} · click a document to preview it
+            </p>
+          </div>
+          {hasRestrictedDocs && (
+            <div className="view-toggle">
+              <button
+                type="button"
+                className={"view-toggle-btn" + (visFilter === "all" ? " active" : "")}
+                onClick={() => setVisFilter("all")}
+              >
+                All Documents
+              </button>
+              <button
+                type="button"
+                className={"view-toggle-btn" + (visFilter === "full" ? " active" : "")}
+                onClick={() => setVisFilter("full")}
+              >
+                Full Access Only
+              </button>
+            </div>
+          )}
+        </div>
         <div className="table-scroll">
 <table className="tx-table tx-table-labeled">
           <thead>
