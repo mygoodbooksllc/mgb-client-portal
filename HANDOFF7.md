@@ -1682,3 +1682,32 @@ more widget choices and saved layouts, no gating, no tab renamed.
   exists overwrites it rather than piling up duplicates.
 
 `MGB_VERSION` bumped to `2026-09-17f`.
+
+## §52 — Live Report: the same two dashboard features, but on the premium tab
+
+§51's widgets landed on the standard `DashboardPage` only. Premium-plan clients never see that
+page — their Dashboard tab renders Live Report (`<DailyClose />`, `showsLiveReport` in `App`)
+instead, a completely separate, self-contained component with its own widget-layout system
+(`LIVE_REPORT_WIDGETS`/`useLiveReportLayout`/`LiveReportCustomizeModal` in `DailyClose.tsx` — not
+a call into app.jsx's `useWidgetLayout`, by the file's own existing design: it's meant to load and
+run independent of app.jsx). §51 was explicitly asked for on this tab too, so this ports both
+features into that parallel system rather than assuming premium clients get them for free.
+
+- **Cash by Account** didn't already exist here, since `DailyCloseData.cash` only ever carried a
+  single total, no per-account split. Added `cash.byAccount?: { name, balance }[]` to
+  `types.ts` (optional — omitting it hides the panel), populated in `fromClient.js` from
+  `client.bankAccounts`, and added to `sampleData.ts`. New `DonutList` component in
+  `DailyClose.tsx` (a conic-gradient donut, same technique as app.jsx's `AccountCashDonut`, but a
+  parallel implementation rather than a shared one — same self-containment reasoning as the rest
+  of this file) plus matching `dc-donut*` CSS in `DailyClose.css`, built off this file's own color
+  tokens (`--series-revenue`/`--good`/`--warning`/`--critical`) rather than app.jsx's gold/navy
+  ones, so it stays visually native to Live Report instead of looking pasted in.
+- **Top Expense Categories already existed here** under a different name — "Where the Money
+  Went" (widget id `expense-breakdown`) is the same "this month's expenses by category" data,
+  already shipped. Nothing to add.
+- **Saved views** ported into `useLiveReportLayout`: `views`/`saveView`/`applyView`/`deleteView`,
+  same shape as app.jsx's version, new `localStorage` key
+  `mygoodbooks_live_report_views_v1:<clientId>`. Surfaced as a new "Saved views" section in
+  `LiveReportCustomizeModal`, below the widget list.
+
+`MGB_VERSION` bumped to `2026-09-17g`.

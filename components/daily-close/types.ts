@@ -34,6 +34,8 @@ export interface DailyCloseData {
     deltaVsYesterday: number;
     /** 10-20 points is plenty; this is a sparkline, not an axis-labeled chart. */
     sparkline14d: number[];
+    /** Per-account split backing the "Cash by account" panel. Omit to hide that panel. */
+    byAccount?: { name: string; balance: number }[];
   };
 
   receivables: {

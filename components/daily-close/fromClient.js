@@ -335,6 +335,7 @@
         cents,
         deltaVsYesterday: Math.round(dailyNet),
         sparkline14d,
+        byAccount: (client.bankAccounts || []).map((a) => ({ name: a.accountName, balance: a.balance })),
       },
       receivables: {
         total: Math.round(sum(receivables, (r) => r.amount)),
