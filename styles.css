@@ -2533,6 +2533,229 @@ body.rb-presenting .main {
   flex-shrink: 0;
 }
 
+/* ---- Pricing cards ---- */
+
+.pricing-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 16px;
+}
+
+.pricing-card {
+  text-align: center;
+  padding: 24px;
+}
+
+.pricing-card-premium {
+  border-color: var(--gold-deep);
+  background: linear-gradient(180deg, var(--tint-on-surface), var(--surface) 65%);
+  position: relative;
+}
+
+.pricing-value {
+  font-family: var(--font-heading);
+  font-size: 34px;
+  font-weight: 700;
+  color: var(--ink-strong);
+  margin: 4px 0 6px;
+}
+
+.pricing-value span {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-muted);
+  margin-left: 2px;
+}
+
+.pricing-value-premium {
+  color: var(--gold-deep);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  /* A slow breathing glow marks the premium card as the "highlighted"
+     option without an animated border stealing attention from its price —
+     same technique as .theme-toggle-signature's glow, borrowed here. */
+  .pricing-card-premium {
+    animation: pricingCardGlow 6s ease-in-out infinite;
+  }
+}
+
+@keyframes pricingCardGlow {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(199, 174, 134, 0); }
+  50% { box-shadow: 0 0 24px 2px rgba(199, 174, 134, 0.18); }
+}
+
+/* ---- Tool-by-tool comparison accordion ---- */
+
+.compare-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.compare-row {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.compare-row.open {
+  border-color: var(--gold-deep);
+}
+
+.compare-row-head {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 18px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-family: var(--font-body);
+  font-size: 14.5px;
+  font-weight: 700;
+  color: var(--ink-strong);
+  text-align: left;
+}
+
+.compare-row-head svg {
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+/* grid-template-rows 0fr -> 1fr is the one CSS-only way to animate height
+   to/from "auto" — a plain max-height transition needs a guessed cap and
+   either clips long content or leaves a pause before collapse finishes. */
+.compare-row-body-wrap {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 0.3s ease;
+}
+
+.compare-row.open .compare-row-body-wrap {
+  grid-template-rows: 1fr;
+}
+
+.compare-row-body {
+  min-height: 0;
+  overflow: hidden;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  padding: 0 18px;
+}
+
+.compare-row.open .compare-row-body {
+  padding: 4px 18px 18px;
+}
+
+.compare-col-header {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.compare-col-header.premium {
+  color: var(--gold-deep);
+}
+
+.compare-feat-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.compare-feat-list li {
+  position: relative;
+  padding-left: 14px;
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: var(--text);
+}
+
+.compare-feat-list li::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 7px;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--text-muted);
+}
+
+.compare-col-premium .compare-feat-list li::before {
+  background: var(--gold-deep);
+}
+
+@media (max-width: 640px) {
+  .compare-row-body {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ---- Scroll-reveal on the Enterprise upgrade page ----
+   Reuses the same data-in-view attribute the global IntersectionObserver
+   (see the "Chart/graph entrance animations" effect in App, app.jsx) already
+   sets on every .card and .compare-row once it scrolls into view — scoped
+   under .enterprise-page so this doesn't change how a .card behaves
+   anywhere else in the app. Cards fade/slide up individually as they cross
+   the viewport, which is what gives the page its cascading, tool-by-tool
+   reveal on scroll rather than everything appearing at once on mount. */
+@media (prefers-reduced-motion: no-preference) {
+  .enterprise-page .card,
+  .enterprise-page .compare-row {
+    opacity: 0;
+    transform: translateY(22px);
+  }
+
+  .enterprise-page .card[data-in-view],
+  .enterprise-page .compare-row[data-in-view] {
+    animation: mgb-reveal-up 0.65s cubic-bezier(0.22, 0.61, 0.36, 1) both;
+  }
+
+  /* The comparison rows cascade a little faster than a full card-reveal
+     duration would allow, and in order, so scrolling down the accordion
+     list reads as one continuous ripple rather than six separate pops. */
+  .compare-list .compare-row:nth-child(1)[data-in-view] { animation-delay: 0ms; }
+  .compare-list .compare-row:nth-child(2)[data-in-view] { animation-delay: 60ms; }
+  .compare-list .compare-row:nth-child(3)[data-in-view] { animation-delay: 120ms; }
+  .compare-list .compare-row:nth-child(4)[data-in-view] { animation-delay: 180ms; }
+  .compare-list .compare-row:nth-child(5)[data-in-view] { animation-delay: 240ms; }
+  .compare-list .compare-row:nth-child(6)[data-in-view] { animation-delay: 300ms; }
+
+  .pricing-grid .pricing-card:nth-child(2)[data-in-view] { animation-delay: 100ms; }
+
+  .enterprise-page .icon-badge {
+    transition: transform 0.25s ease;
+  }
+  .enterprise-page .card:hover .icon-badge {
+    transform: translateY(-3px) scale(1.06);
+  }
+}
+
+@keyframes mgb-reveal-up {
+  from {
+    opacity: 0;
+    transform: translateY(22px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
 /* ---------------- Account tabs (Bank Accounts page) ---------------- */
 
 .account-tabs {
