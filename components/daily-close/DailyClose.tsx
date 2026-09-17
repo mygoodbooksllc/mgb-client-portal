@@ -177,7 +177,7 @@ const LIVE_REPORT_WIDGETS: { id: LiveReportWidgetId; label: string; description:
   { id: "kpi-ar", label: "Accounts Receivable", description: "Outstanding balance and overdue amount" },
   { id: "kpi-ap", label: "Accounts Payable", description: "Outstanding balance and amount due within 7 days" },
   { id: "kpi-net", label: "Net Income, MTD", description: "Month-to-date net income and margin" },
-  { id: "trend", label: "Revenue vs. Expenses", description: "6-month trend chart" },
+  { id: "trend", label: "Revenue vs. Expenses", description: "12-month trend chart" },
   { id: "expense-breakdown", label: "Where the Money Went", description: "Expenses by category, this month" },
   { id: "cash-by-account", label: "Cash by Account", description: "Donut breakdown of cash across your accounts" },
   { id: "aging", label: "Receivables Aging", description: "Aging buckets and the collections queue" },

@@ -48,7 +48,19 @@ const CLIENTS = [
         funds: null,
       },
     ],
+    // Trailing 12 months, Sep (prior year) through Aug (current) — a full
+    // year of history, not a Jan-Dec calendar year, so REPORT_QUARTER_DEFS'
+    // Q1-Q4 match whichever single instance of each month name falls in
+    // this window (there's never more than one of any given month across
+    // 12 consecutive months, so this can't accidentally mix two different
+    // years' Julys together).
     monthly: [
+      { month: "Sep", income: 48000, expenses: 45200 },
+      { month: "Oct", income: 47500, expenses: 45800 },
+      { month: "Nov", income: 50200, expenses: 46400 },
+      { month: "Dec", income: 68000, expenses: 49500 },
+      { month: "Jan", income: 46800, expenses: 46100 },
+      { month: "Feb", income: 49500, expenses: 46900 },
       { month: "Mar", income: 52000, expenses: 47800 },
       { month: "Apr", income: 54200, expenses: 48900 },
       { month: "May", income: 58900, expenses: 51200 },
@@ -276,7 +288,15 @@ const CLIENTS = [
         funds: null,
       },
     ],
+    // Trailing 12 months — see grace-community's monthly comment for why
+    // Sep-through-Aug (not Jan-Dec) is the right window here.
     monthly: [
+      { month: "Sep", income: 8600, expenses: 9200 },
+      { month: "Oct", income: 8400, expenses: 9400 },
+      { month: "Nov", income: 8800, expenses: 9500 },
+      { month: "Dec", income: 12500, expenses: 10200 },
+      { month: "Jan", income: 8200, expenses: 9600 },
+      { month: "Feb", income: 8700, expenses: 9700 },
       { month: "Mar", income: 9200, expenses: 9800 },
       { month: "Apr", income: 8900, expenses: 10100 },
       { month: "May", income: 11200, expenses: 10500 },
@@ -373,7 +393,17 @@ const CLIENTS = [
         funds: null,
       },
     ],
+    // Trailing 12 months — see grace-community's monthly comment for why
+    // Sep-through-Aug (not Jan-Dec) is the right window here. December's
+    // spike lines up with the Holiday Meal Drive Fund already in this
+    // client's funds/contributions data below.
     monthly: [
+      { month: "Sep", income: 21000, expenses: 20500 },
+      { month: "Oct", income: 23500, expenses: 21200 },
+      { month: "Nov", income: 26800, expenses: 21800 },
+      { month: "Dec", income: 32000, expenses: 23500 },
+      { month: "Jan", income: 20500, expenses: 21000 },
+      { month: "Feb", income: 22800, expenses: 21600 },
       { month: "Mar", income: 24500, expenses: 22100 },
       { month: "Apr", income: 26800, expenses: 23400 },
       { month: "May", income: 22100, expenses: 24800 },
@@ -513,7 +543,15 @@ const CLIENTS = [
         funds: ["Housing Assistance Fund"],
       },
     ],
+    // Trailing 12 months — see grace-community's monthly comment for why
+    // Sep-through-Aug (not Jan-Dec) is the right window here.
     monthly: [
+      { month: "Sep", income: 38500, expenses: 36200 },
+      { month: "Oct", income: 39800, expenses: 37100 },
+      { month: "Nov", income: 40200, expenses: 37800 },
+      { month: "Dec", income: 44500, expenses: 39800 },
+      { month: "Jan", income: 38900, expenses: 38100 },
+      { month: "Feb", income: 40100, expenses: 38500 },
       { month: "Mar", income: 41200, expenses: 38900 },
       { month: "Apr", income: 43800, expenses: 40200 },
       { month: "May", income: 45100, expenses: 41800 },

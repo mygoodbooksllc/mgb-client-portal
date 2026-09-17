@@ -2218,3 +2218,29 @@ fixes noted earlier in this file (this app spaces stacked `.card` blocks with an
 mounted at once.
 
 `MGB_VERSION` bumped to `2026-09-17w`.
+
+## §69 — Every client's `monthly` extended from 6 to 12 trailing months
+
+Reported: Report Builder's Reporting Period dropdown only offered 6 months (March–August) and a
+mostly-empty Q1/Q4, because `client.monthly` — the one source every period option derives from
+(`reportPeriodOptions`) — only carried 6 months for all four clients.
+
+Extended every client to a full trailing 12 months, Sep (prior year) through Aug (current) rather
+than a Jan–Dec calendar year — prepending 6 new months (Sep–Feb) before the existing Mar–Aug data,
+which is untouched. This is safe against the one real risk with month-name-only matching
+(`REPORT_QUARTER_DEFS` matches by name, not by year): 12 *consecutive* months can never repeat a
+month name, so there's no chance of two different years' Julys silently summing together into one
+"quarter." All four quarters and every month option are now fully populated in the dropdown, where
+before only Q2/Q3 (and a partial Q1) had anything in them.
+
+Wrote real, distinct figures for each client rather than repeating a pattern — Riverside Food
+Pantry's new December spike deliberately lines up with the Holiday Meal Drive Fund already in its
+`funds`/`contributions` data, so the two aren't telling contradictory stories.
+
+Also fixed three stale hardcoded "6-month"/"Last 6 months" labels that would have been wrong once
+the underlying data grew: `DashboardPage`'s Income vs. Expenses card subtitle now reads
+`client.monthly.length` dynamically (same pattern `BudgetPage`'s Spending Trend already used), and
+two catalog description strings (`app.jsx`'s widget picker, `DailyClose.tsx`'s `LIVE_REPORT_WIDGETS`)
+now say "12-month."
+
+`MGB_VERSION` bumped to `2026-09-17x`.
