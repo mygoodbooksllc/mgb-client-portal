@@ -1860,6 +1860,28 @@ function DashboardPage({ client, access, isBookkeeper, promoText, onSaveReferral
     .filter((t) => t.date >= twoMonthsAgo)
     .sort((a, b) => (a.date < b.date ? 1 : -1));
 
+  // This month's expense-only activity, by category, biggest first — same
+  // source data as CategoryLedger (embedded in Income vs. Expenses below)
+  // but expense-only and chart-styled with ReportBarRows instead, so the two
+  // don't just duplicate each other when both happen to be visible.
+  const topExpenseCategories = useMemo(() => {
+    const latestMonth = client.monthly[client.monthly.length - 1];
+    if (!latestMonth) return [];
+    const monthPrefix = latestMonth.month;
+    const byCategory = {};
+    client.bankAccounts.forEach((a) => {
+      a.transactions.forEach((t) => {
+        const d = new Date(t.date + "T00:00:00");
+        if (MONTH_ABBR[d.getMonth()] !== monthPrefix || t.amount >= 0) return;
+        byCategory[t.category] = (byCategory[t.category] || 0) + t.amount;
+      });
+    });
+    return Object.entries(byCategory)
+      .map(([category, amount]) => ({ label: category, amount: Math.abs(amount) }))
+      .sort((a, b) => b.amount - a.amount)
+      .slice(0, 6);
+  }, [client]);
+
   const widgets = [
     { id: "kpi-cash", group: "kpi", label: "Cash on Hand", description: "Total across all bank accounts" },
     { id: "kpi-net", group: "kpi", label: "Net Surplus / (Deficit)", description: "This month's income minus expenses" },
@@ -1867,6 +1889,8 @@ function DashboardPage({ client, access, isBookkeeper, promoText, onSaveReferral
     { id: "kpi-runway", group: "kpi", label: "Operating Reserve", description: "Months of expenses covered by cash on hand" },
     { id: "income-expenses", group: "content", label: "Income vs. Expenses", description: "6-month trend chart" },
     { id: "recent-activity", group: "content", label: "Recent Activity", description: "Latest transactions across all accounts" },
+    { id: "cash-by-account", group: "content", label: "Cash by Account", description: "Donut breakdown of cash across your accounts" },
+    { id: "top-expense-categories", group: "content", label: "Top Expense Categories", description: "This month's biggest spend, by category" },
     ...crossTabWidgetDefs(client, access),
   ];
   const crossTabById = Object.fromEntries(widgets.filter((w) => w.id.startsWith("xt-")).map((w) => [w.id, w]));
@@ -1993,6 +2017,26 @@ function DashboardPage({ client, access, isBookkeeper, promoText, onSaveReferral
                       </div>
                     ))}
                   </div>
+                </div>
+              );
+            if (id === "cash-by-account")
+              return (
+                <div className={"card " + drag.dragClass(id)} key={id} {...drag.dragProps(id)}>
+                  <h3 className="card-title">Cash by Account</h3>
+                  <p className="card-subtitle" style={{ margin: 0 }}>Share of total cash on hand</p>
+                  <AccountCashDonut accounts={client.bankAccounts} />
+                </div>
+              );
+            if (id === "top-expense-categories")
+              return (
+                <div className={"card " + drag.dragClass(id)} key={id} {...drag.dragProps(id)}>
+                  <h3 className="card-title">Top Expense Categories</h3>
+                  <p className="card-subtitle">This month's biggest spend, by category</p>
+                  {topExpenseCategories.length > 0 ? (
+                    <ReportBarRows items={topExpenseCategories} />
+                  ) : (
+                    <p className="card-subtitle">No expense activity yet this month.</p>
+                  )}
                 </div>
               );
             if (crossTabById[id])
@@ -7270,15 +7314,32 @@ function loadDashboardWidgetLayouts() {
   }
 }
 
+// Named snapshots of a widget arrangement ("Board meeting view", "Just the
+// numbers", ...) a client can save and switch back to later, separate from
+// the single "current" layout above. Scoped the same way (per client +
+// access scope) since the available widgets differ by scope too.
+const DASHBOARD_VIEWS_STORAGE_KEY = "mygoodbooks_dashboard_views_v1";
+
+function loadDashboardViews() {
+  try {
+    const raw = localStorage.getItem(DASHBOARD_VIEWS_STORAGE_KEY);
+    return raw ? JSON.parse(raw) : {};
+  } catch (e) {
+    return {};
+  }
+}
+
 // allIds: every widget available in this scope right now (order = default
 // order). Merges in any ids not yet in a saved layout (new widget added to
 // the app later, or one that just became available) and drops any that are
 // no longer available (e.g. a fund that was removed).
 function useWidgetLayout(scopeKey, allIds) {
   const [layouts, setLayouts] = useState(loadDashboardWidgetLayouts);
+  const [views, setViews] = useState(loadDashboardViews);
   const saved = layouts[scopeKey];
   const order = saved ? saved.order.filter((id) => allIds.includes(id)).concat(allIds.filter((id) => !saved.order.includes(id))) : allIds.slice();
   const hidden = new Set(saved ? saved.hidden.filter((id) => allIds.includes(id)) : []);
+  const scopedViews = views[scopeKey] || [];
 
   const update = (nextOrder, nextHidden) => {
     setLayouts((prev) => {
@@ -7333,6 +7394,43 @@ function useWidgetLayout(scopeKey, allIds) {
       update(next, hidden);
     },
     reset: () => update(allIds.slice(), new Set()),
+
+    // Named snapshots of the current order/hidden set — separate from
+    // localStorage's single "current" layout above, so a client can flip
+    // between a couple of arrangements (e.g. a stripped-down board view vs.
+    // their own everyday one) without losing either.
+    views: scopedViews,
+    saveView: (name) => {
+      const trimmed = (name || "").trim();
+      if (!trimmed) return;
+      setViews((prev) => {
+        // Saving under a name that already exists overwrites it rather than
+        // piling up duplicates.
+        const existing = (prev[scopeKey] || []).filter((v) => v.name !== trimmed);
+        const next = { ...prev, [scopeKey]: [...existing, { name: trimmed, order, hidden: Array.from(hidden) }] };
+        try {
+          localStorage.setItem(DASHBOARD_VIEWS_STORAGE_KEY, JSON.stringify(next));
+        } catch (e) {}
+        return next;
+      });
+    },
+    applyView: (name) => {
+      const view = scopedViews.find((v) => v.name === name);
+      if (!view) return;
+      update(
+        view.order.filter((id) => allIds.includes(id)).concat(allIds.filter((id) => !view.order.includes(id))),
+        new Set(view.hidden.filter((id) => allIds.includes(id)))
+      );
+    },
+    deleteView: (name) => {
+      setViews((prev) => {
+        const next = { ...prev, [scopeKey]: (prev[scopeKey] || []).filter((v) => v.name !== name) };
+        try {
+          localStorage.setItem(DASHBOARD_VIEWS_STORAGE_KEY, JSON.stringify(next));
+        } catch (e) {}
+        return next;
+      });
+    },
   };
 }
 
@@ -7428,6 +7526,7 @@ function useDragReorder(layout) {
 function WidgetPickerModal({ widgets, layout, onClose }) {
   const [draggedId, setDraggedId] = useState(null);
   const [dragOverId, setDragOverId] = useState(null);
+  const [newViewName, setNewViewName] = useState("");
 
   return (
     <ModalShell onClose={onClose} labelledBy="widget-picker-title" className="widget-picker-modal">
@@ -7504,6 +7603,60 @@ function WidgetPickerModal({ widgets, layout, onClose }) {
               </div>
             );
           })}
+        </div>
+        <div className="widget-picker-views">
+          <h4 className="widget-picker-views-title">Saved views</h4>
+          <p className="card-subtitle" style={{ margin: "0 0 10px" }}>
+            Save this arrangement under a name to switch back to it later — a stripped-down board
+            view and your own everyday one, say — without losing either.
+          </p>
+          {layout.views.length > 0 && (
+            <div className="widget-picker-view-list">
+              {layout.views.map((v) => (
+                <div className="widget-picker-view-row" key={v.name}>
+                  <span className="widget-picker-view-name">{v.name}</span>
+                  <div className="widget-picker-view-actions">
+                    <button type="button" className="btn-secondary" onClick={() => layout.applyView(v.name)}>
+                      Apply
+                    </button>
+                    <button
+                      type="button"
+                      className="widget-picker-view-remove"
+                      onClick={() => layout.deleteView(v.name)}
+                      aria-label={`Delete view ${v.name}`}
+                    >
+                      ×
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+          <div className="widget-picker-view-new">
+            <input
+              type="text"
+              placeholder="Name this arrangement…"
+              value={newViewName}
+              onChange={(e) => setNewViewName(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && newViewName.trim()) {
+                  layout.saveView(newViewName);
+                  setNewViewName("");
+                }
+              }}
+            />
+            <button
+              type="button"
+              className="btn-secondary"
+              disabled={!newViewName.trim()}
+              onClick={() => {
+                layout.saveView(newViewName);
+                setNewViewName("");
+              }}
+            >
+              Save as view
+            </button>
+          </div>
         </div>
         <div className="widget-picker-actions">
           <button className="btn-secondary" onClick={layout.reset}>Reset to default</button>
