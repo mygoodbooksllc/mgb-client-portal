@@ -375,6 +375,111 @@
       expenseBreakdown,
       forecast90d: buildForecast(client, cashWhole, netIncomeMtd, payables, today, seed),
       anomalies: buildAnomalies(client, receivables, payables, today),
+      budgetHealth: buildBudgetHealth(client),
+      payablesDueSoon: buildPayablesDueSoon(payables, today),
+      fundActivity: buildFundActivity(client),
+      reconciliation: buildReconciliation(client),
+      bookkeeper: client.assignedBookkeeper
+        ? {
+            name: client.assignedBookkeeper.name,
+            role: client.assignedBookkeeper.role,
+            initials: client.assignedBookkeeper.initials,
+          }
+        : undefined,
+    };
+  }
+
+  // Same "over budget, worst first" signal buildAnomalies already flags in
+  // its top 2 — this surfaces up to 5 as a standalone panel rather than
+  // burying the rest in the anomaly list.
+  function buildBudgetHealth(client) {
+    const over = (client.budget || [])
+      .filter((b) => b.actual > b.budgeted)
+      .sort((a, b) => b.actual - b.budgeted - (a.actual - a.budgeted));
+    if (!over.length) return undefined;
+    return over.slice(0, 5).map((b) => ({
+      category: b.category,
+      budgeted: Math.round(b.budgeted),
+      actual: Math.round(b.actual),
+      overByPct: Math.round(((b.actual - b.budgeted) / b.budgeted) * 100),
+    }));
+  }
+
+  function buildPayablesDueSoon(payables, today) {
+    if (!payables.length) return undefined;
+    return payables
+      .slice()
+      .sort((a, b) => parseLocalDate(a.dueDate) - parseLocalDate(b.dueDate))
+      .slice(0, 5)
+      .map((p) => ({
+        vendor: p.vendor,
+        description: p.description,
+        amount: Math.round(p.amount),
+        dueDate: p.dueDate,
+        daysUntilDue: daysBetween(today, parseLocalDate(p.dueDate)),
+      }));
+  }
+
+  // Contributions and fund transfers are both real dated events, so they
+  // merge into one chronological feed. Pledges have no per-payment date in
+  // data.js (just running committed/received totals), so they're never
+  // mixed into `items` — only surfaced as the running total below.
+  function buildFundActivity(client) {
+    const contributions = client.contributions || [];
+    const fundTransfers = client.fundTransfers || [];
+    const pledges = client.pledges || [];
+    if (!contributions.length && !fundTransfers.length && !pledges.length) return undefined;
+
+    const items = [
+      ...contributions.map((c) => ({
+        kind: "contribution",
+        date: c.date,
+        label: `${c.donor} → ${c.fund}`,
+        amount: Math.round(c.amount),
+      })),
+      ...fundTransfers.map((t) => ({
+        kind: "transfer",
+        date: t.date,
+        label: `${t.fromFund} → ${t.toFund}`,
+        amount: Math.round(t.amount),
+        detail: t.reason,
+      })),
+    ]
+      .sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0))
+      .slice(0, 6);
+
+    const outstanding = pledges.filter((p) => p.committed - p.received > 0.005);
+    return {
+      items,
+      pledgesOutstandingTotal: Math.round(sum(outstanding, (p) => p.committed - p.received)),
+      pledgesOutstandingCount: outstanding.length,
+    };
+  }
+
+  // Factual, not a health signal: outstanding items mid-period are normal,
+  // not a problem, so this never says "reconciled"/"needs attention" — just
+  // what's open right now and when the last period was actually closed.
+  function buildReconciliation(client) {
+    const bankAccounts = client.bankAccounts || [];
+    const hasReconciliationData = bankAccounts.some((a) => a.statementBalance != null);
+    if (!hasReconciliationData) return undefined;
+
+    const accounts = bankAccounts.map((a) => {
+      const outstanding = (a.transactions || []).filter((t) => t.cleared === false);
+      return {
+        name: a.accountName,
+        outstandingCount: outstanding.length,
+        outstandingTotal: Math.round(sum(outstanding, (t) => t.amount)),
+      };
+    });
+
+    const closed = (client.bankReconciliations || []).slice().sort((a, b) => (a.closedDate < b.closedDate ? 1 : -1));
+    const lastClosed = closed[0];
+
+    return {
+      accounts,
+      lastClosedPeriod: lastClosed ? lastClosed.period : null,
+      lastClosedDate: lastClosed ? lastClosed.closedDate : null,
     };
   }
 

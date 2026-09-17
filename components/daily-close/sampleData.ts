@@ -119,6 +119,27 @@ const sampleDailyCloseData = {
         "Coffee and packaging costs came in below the trailing average — margins held even with July's dip in sales.",
     },
   ],
+  budgetHealth: [
+    { category: "Software & subscriptions", budgeted: 650, actual: 2860, overByPct: 340 },
+    { category: "Marketing", budgeted: 600, actual: 780, overByPct: 30 },
+  ],
+  payablesDueSoon: [
+    { vendor: "Cascade Roastery Supply", description: "Green coffee order #218", amount: 2400, dueDate: "2026-09-03", daysUntilDue: 4 },
+    { vendor: "Pinecrest Property Mgmt", description: "September rent", amount: 1900, dueDate: "2026-09-01", daysUntilDue: 2 },
+  ],
+  // No fundActivity — a for-profit coffee roaster has no funds/giving to
+  // report on. Omitted rather than left as empty arrays, same contract as
+  // fromClient.js uses for a client with no funds data.
+  reconciliation: {
+    accounts: [
+      { name: "Operating", outstandingCount: 2, outstandingTotal: -1420 },
+      { name: "Savings", outstandingCount: 0, outstandingTotal: 0 },
+      { name: "Payroll", outstandingCount: 0, outstandingTotal: 0 },
+    ],
+    lastClosedPeriod: "July 2026",
+    lastClosedDate: "2026-08-03",
+  },
+  bookkeeper: { name: "Alicia Fenwick", role: "Senior Bookkeeper", initials: "AF" },
 };
 
 window.sampleDailyCloseData = sampleDailyCloseData;

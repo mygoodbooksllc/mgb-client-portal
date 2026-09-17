@@ -2070,3 +2070,59 @@ what's actually new, so it's scoped to text that's genuinely premium-exclusive:
   make sense" asked for, and the page subtitle shimmer already marks the page as a whole.
 
 `MGB_VERSION` bumped to `2026-09-17r`.
+
+## §64 — Live Report: five new widgets, each click-through to its deep-dive tab
+
+Request: make the premium Dashboard (Live Report) more robust, with widgets that surface insight
+from the other tabs and let a bookkeeper jump straight into the deep dive from the dashboard.
+Brainstormed five (Reconciliation Status, Fund Activity, Bills Due Soon, Budget Health, Your
+Bookkeeper), all approved and built — none redundant with an existing widget, and each grounded in
+data that already exists rather than invented.
+
+**Data contract** (`components/daily-close/types.ts`): five new optional `DailyCloseData` fields —
+`budgetHealth`, `payablesDueSoon`, `fundActivity`, `reconciliation`, `bookkeeper` — each documented
+as omit-to-hide, same convention `cash.byAccount` already established. `fromClient.js` computes all
+five from real client fields (`client.budget`, `client.payables`, `client.contributions` +
+`client.fundTransfers` + `client.pledges`, `client.bankAccounts[].cleared/statementBalance` +
+`client.bankReconciliations`, and a new `client.assignedBookkeeper`). `sampleData.ts` (the
+standalone demo dataset) got matching sample values for everything except `fundActivity` — a
+for-profit coffee roaster has no funds to report on, so that one's correctly omitted rather than
+filled with placeholder data.
+
+**New client data** (`data.js`, all four clients): `assignedBookkeeper: { name, role, initials }` —
+a named contact per client, which didn't exist anywhere before (every in-app message thread just
+attributed to generic "MyGoodBooks"). Two bookkeepers across the firm (Alicia Fenwick and Priya
+Anand on the two premium/larger clients, Marcus Webb on both standard clients) — a believable small
+firm's caseload spread, not one name repeated four times.
+
+**The five widgets** (`DailyClose.tsx`/`.css`), each a `.panel` in Live Report's existing
+customizable widget system (just five more entries in `LIVE_REPORT_WIDGETS` — the layout hook
+already merges new IDs into existing saved orders, so no versioning bump needed) with a
+"View in [Tab]" link at the bottom, wired to the same `onNavigate` prop that already exists:
+
+- **Reconciliation Status** — per-account count/total of items still awaiting clearance, plus when
+  each account last closed. Deliberately factual, not framed as a health/warning signal: mid-period
+  outstanding items are normal, not a problem, so this never says "reconciled" or "needs attention."
+  → Bank Accounts (Reconciliation Pro).
+- **Fund Activity** — a merged, dated feed of contributions and fund transfers, plus a running
+  pledges-outstanding total. Pledges are never mixed into the chronological feed itself since
+  `data.js` has no per-payment date for them, only running committed/received totals — same
+  discipline as §54's "don't fabricate data a page doesn't have." → Giving & Funds (Fund Accounting
+  Pro).
+- **Bills Due Soon** — the top 5 payables, soonest due first, correctly distinguishing "due in N
+  days" from "N days overdue" (a bug in the first draft showed "due today" for anything already
+  overdue). → Cash Flow (Cash Flow Pro).
+- **Budget Health** — categories running over budget this period, worst first, with a small bar
+  showing actual against the 100%-of-budgeted mark. → Budget vs. Actual (Budgeting Tool).
+- **Your Bookkeeper** — a small contact card (initials avatar, name, role) with a "Message
+  [first name]" link straight into that thread.
+
+**Bug caught and fixed along the way**: the existing Accounts Payable KPI tile's `onClick={() =>
+onNavigate("ap-command-center")}` was dead — `"ap-command-center"` stopped being a real navigable
+page key back in §53 (it survives only as a `PAGE_META` lookup key for the header title), so
+clicking that tile silently fell back to Dashboard instead of opening Cash Flow Pro, for as long as
+this session's premium-tab collapse has existed. Fixed to `onNavigate("receivables")` — the same
+class of stale-page-key bug already found and fixed once before in Bookkeeper Home's "Needs
+attention" row.
+
+`MGB_VERSION` bumped to `2026-09-17s`.
