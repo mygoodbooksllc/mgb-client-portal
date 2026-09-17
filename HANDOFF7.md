@@ -2346,3 +2346,13 @@ Fixed: 4 links pointed to old page names (Budgeting Tool, Cash Flow Pro, Fund Ac
 Reconciliation Pro) instead of the sidebar's actual labels (Budget vs. Actual, Cash Flow,
 Giving & Funds, Bank Accounts) — those pro names were retired when the pages replaced their
 standard tab in-place. Text-only fix, `onNavigate` targets were already correct.
+
+## §75 — One "Pro Client" pill instead of PRO on every tab
+
+Replaced the per-tab gold "PRO" pill (6 tabs, one each) with a single shimmering "Pro Client" pill
+next to the "Enterprise" sidebar heading — same shine as the Enterprise label text, applied to the
+pill's background instead (`.nav-signature-badge-shimmer`). Tabs still shimmer their own label text
+(`nav-item-signature`, untouched); `.nav-pro-pill` itself stays (still used on the Enterprise
+upgrade page's pricing card/comparison rows), just dropped from the sidebar item row.
+
+`MGB_VERSION` bumped to `2026-09-17ab`.

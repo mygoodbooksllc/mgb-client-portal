@@ -522,10 +522,9 @@ body {
   box-shadow: 0 0 0 2px rgba(199, 174, 134, 0.25);
 }
 
-/* Marks a tab as showing its upgraded (premium) page rather than the
-   standard one — same tab, same name, same icon, just this pill. Same gold
-   treatment as .nav-signature-badge (the "Premium" pill next to the
-   Enterprise heading), reused here at item level instead of section level. */
+/* Used on the Enterprise upgrade page's pricing card and tool-comparison
+   rows (not the sidebar anymore — see .nav-signature-badge-shimmer for
+   that). */
 .nav-pro-pill {
   font-size: 9px;
   font-weight: 800;
@@ -536,7 +535,6 @@ body {
   padding: 2px 7px;
   border-radius: 999px;
   flex-shrink: 0;
-  margin-left: auto;
 }
 
 /* Signature Tools — the paid add-on section, dressed up to read as premium
@@ -580,6 +578,23 @@ body {
   padding: 2px 7px;
   border-radius: 999px;
   flex-shrink: 0;
+}
+
+/* "Pro Client" — the owned-plan equivalent of .nav-signature-badge's
+   "Premium" upsell pill, shown next to the Enterprise heading instead of a
+   PRO pill on every individual upgraded tab (that got noisy). Same shine
+   sweep as the Enterprise label itself (navSignatureShine), just animating
+   the pill's own background instead of a text-clip, since the pill has a
+   solid fill rather than transparent text. */
+.nav-signature-badge-shimmer {
+  background: linear-gradient(100deg, var(--gold-deep) 20%, #f7ecd3 45%, var(--gold-deep) 70%);
+  background-size: 220% auto;
+  background-position: 0% center;
+  animation: navSignatureShine 11.25s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nav-signature-badge-shimmer { animation: none; }
 }
 
 /* The diagonal arrow at the far right of the upsell row — reads as
