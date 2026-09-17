@@ -781,7 +781,7 @@ function CollectionsQueue({
     <div className={styles.collectionsQueue}>
       <div className={styles.panelHead}>
         <div>
-          <div className={styles.panelTitle}>Collections Queue</div>
+          <div className={`${styles.panelTitle} dc-premiumShimmer`}>Collections Queue</div>
           <div className={styles.panelSub}>
             {selectedRows.length > 0
               ? `${selectedRows.length} selected · ${fmtMoney(selectedTotal)}`

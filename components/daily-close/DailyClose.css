@@ -823,6 +823,26 @@
   font-family: "IBM Plex Sans";
   color: var(--ink-900);
 }
+/* Same gold-shimmer treatment as the shell's .premium-shimmer (app.jsx/
+   styles.css) — reuses its navSignatureShine keyframe, which is a global
+   CSS rule available here regardless of which stylesheet defines it.
+   Applied only to Collections Queue, Live Report's one panel with no
+   standard-Dashboard equivalent at all (see the standard-vs-premium
+   comparison this session produced) — not sprinkled across every panel. */
+.dc-premiumShimmer {
+  background: linear-gradient(100deg, #b3925f 20%, #f7ecd3 45%, #b3925f 70%);
+  background-size: 220% auto;
+  background-position: 0% center;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+  font-weight: 700;
+  animation: navSignatureShine 11.25s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .dc-premiumShimmer { animation: none; }
+}
 .dc-panelSub {
   font-size: 11.5px;
   color: var(--ink-500);
