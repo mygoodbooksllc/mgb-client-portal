@@ -2515,3 +2515,13 @@ the rest of the org has). Added a per-person override, controlled by MyGoodBooks
   Manage Access.
 
 `MGB_VERSION` bumped to `2026-09-17al`.
+
+## §87 — Spending by Category: bullet-bar chart
+
+Picked from the 4 chart-option mockups (design canvas). The old bar just filled 0–100% of the
+budget, so an over-budget row looked identical to one right at the limit — no way to see it by how
+much. Now each row is a bullet bar: the fill is scaled to the real dollar amount (track spans
+`max(budgeted, actual) * 1.08`, not a fixed 0–100%), and a gold `.bullet-target` tick marks exactly
+where the budget line falls, so an over-budget row visibly runs past the tick.
+
+`MGB_VERSION` bumped to `2026-09-17am`.

@@ -159,7 +159,7 @@ def build(out_path: pathlib.Path, refresh: bool) -> None:
 
 // Mirrors the stamp in index.html — bumped by hand alongside this file,
 // since there's no build step to inject a real commit SHA into.
-window.MGB_VERSION = {{ label: "2026-09-17al", note: "Manage Access: per-person Premium feature throttle for premium clients" }};
+window.MGB_VERSION = {{ label: "2026-09-17am", note: "Spending by Category: bullet-bar chart with budget target tick" }};
 
 // Mirrors index.html's pinch-block — see that file's comment for why this
 // is gesture-level (2+ touches) rather than touch-action CSS.
