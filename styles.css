@@ -1815,6 +1815,30 @@ body.rb-presenting .main {
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--gold-deep) 25%, transparent);
 }
 
+/* Realtime Presence, not a stored "unread" flag — inline before a name
+   rather than corner-pinned like .thread-tab-dot, since it needs to read
+   correctly both in a thread tab and in the card-title header. */
+.online-dot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--good);
+  margin-right: 6px;
+  vertical-align: middle;
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--good) 30%, transparent);
+}
+
+/* Realtime Broadcast. Fixed height + a non-breaking space when empty so the
+   compose bar doesn't jump every time someone starts/stops typing. */
+.typing-indicator {
+  font-size: 11.5px;
+  font-style: italic;
+  color: var(--text-muted);
+  height: 16px;
+  margin: 4px 2px 0;
+}
+
 /* An unread thread gets its own outline and a tinted background — the dot
    alone was easy to miss in a full row of tabs; this reads at a glance even
    scanning fast. Active still wins if a thread is somehow both. */
