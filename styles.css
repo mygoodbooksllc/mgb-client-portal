@@ -1736,10 +1736,37 @@ body.rb-presenting .main {
   margin-bottom: 8px;
 }
 
+/* Team Chat only (StaffMessagesPage) — client Messages keeps the plain
+   label-only header since it never needs a filter or a group-create action. */
+.thread-picker-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+  flex-wrap: wrap;
+}
+
+.thread-picker-toolbar .thread-picker-label {
+  margin-bottom: 0;
+}
+
+.thread-filter-input {
+  flex: 1 1 180px;
+  min-width: 140px;
+  max-width: 280px;
+}
+
 .thread-picker-tabs {
   display: flex;
   gap: 10px;
   flex-wrap: wrap;
+}
+
+/* A slightly warmer border marks a group thread apart from a 1:1 DM in the
+   same list, so scanning a busy list doesn't require reading every role
+   line to tell them apart. */
+.thread-tab-group {
+  border-color: var(--gold-deep);
 }
 
 .thread-tab {
@@ -3498,6 +3525,40 @@ body:has(.modal-overlay) .chat-fab-wrap {
   flex-direction: column;
   gap: 18px;
   overscroll-behavior-y: contain;
+}
+
+/* GroupComposeModal's staff checklist. */
+.group-member-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 260px;
+  overflow-y: auto;
+}
+
+.group-member-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 6px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.group-member-row:hover {
+  background: var(--surface-2);
+}
+
+.group-member-name {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--ink-strong);
+}
+
+.group-member-role {
+  font-size: 11.5px;
+  color: var(--text-muted);
+  margin-left: auto;
 }
 
 .modal-section {
