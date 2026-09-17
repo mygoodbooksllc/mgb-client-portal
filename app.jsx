@@ -6410,48 +6410,60 @@ function StaffMessagesPage({ staffUser, onActivity }) {
   async function send() {
     if ((!draft.trim() && !pendingAttachment) || !activeConversationId || !supabase) return;
     setSending(true);
-    let attachment_name = null;
-    let attachment_url = null;
-    let attachment_size = null;
-    if (pendingAttachment) {
-      // Supabase Storage keys reject characters a real filename has all the
-      // time (#, %, &, ?, +, non-ASCII…). Unsanitized, a name like
-      // "Q3 Report #2.pdf" made the upload fail outright — and since send()
-      // bails before ever inserting the message row, that attempt left
-      // nothing behind at all: no message, no file, nothing to retry from
-      // but re-attaching. attachment_name (below) keeps the real name for
-      // display; only the storage key itself needs to be safe.
-      const safeName = pendingAttachment.file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
-      const path = `${activeConversationId}/${Date.now()}-${safeName}`;
-      const { error: upErr } = await supabase.storage.from("staff-chat-attachments").upload(path, pendingAttachment.file);
-      if (upErr) {
-        setSending(false);
-        showToast(`Couldn't upload attachment: ${upErr.message}`);
+    // Everything below used to run with no try/catch: any REJECTED promise
+    // (a thrown network/CORS/timeout error, as opposed to a resolved
+    // {error} response) skipped straight past every setSending(false) call
+    // below, leaving Send permanently disabled and the attachment stuck
+    // staged with zero feedback — "it's sending but not going anywhere."
+    // upload()/insert() normally resolve with {error} rather than throw, but
+    // "normally" isn't a guarantee, and the one path that must never happen
+    // is the button getting stuck. finally covers every exit.
+    try {
+      let attachment_name = null;
+      let attachment_url = null;
+      let attachment_size = null;
+      if (pendingAttachment) {
+        // Supabase Storage keys reject characters a real filename has all
+        // the time (#, %, &, ?, +, non-ASCII…). Unsanitized, a name like
+        // "Q3 Report #2.pdf" made the upload fail outright — and since
+        // send() used to bail before ever inserting the message row, that
+        // attempt left nothing behind at all: no message, no file, nothing
+        // to retry from but re-attaching. attachment_name (below) keeps the
+        // real name for display; only the storage key itself needs to be safe.
+        const safeName = pendingAttachment.file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
+        const path = `${activeConversationId}/${Date.now()}-${safeName}`;
+        const { error: upErr } = await supabase.storage.from("staff-chat-attachments").upload(path, pendingAttachment.file);
+        if (upErr) {
+          showToast(`Couldn't upload attachment: ${upErr.message}`);
+          return;
+        }
+        const { data: urlData } = supabase.storage.from("staff-chat-attachments").getPublicUrl(path);
+        attachment_name = pendingAttachment.file.name;
+        attachment_url = urlData.publicUrl;
+        attachment_size = pendingAttachment.size;
+      }
+      const { error } = await supabase.from("staff_messages").insert({
+        conversation_id: activeConversationId,
+        author_email: staffUser.email,
+        author_name: staffUser.name,
+        author_role: staffUser.role,
+        text: draft.trim() || null,
+        attachment_name,
+        attachment_url,
+        attachment_size,
+      });
+      if (error) {
+        showToast(`Couldn't send: ${error.message}`);
         return;
       }
-      const { data: urlData } = supabase.storage.from("staff-chat-attachments").getPublicUrl(path);
-      attachment_name = pendingAttachment.file.name;
-      attachment_url = urlData.publicUrl;
-      attachment_size = pendingAttachment.size;
+      setDraft("");
+      setPendingAttachment(null);
+      loadMessages();
+    } catch (err) {
+      showToast(`Couldn't send: ${err && err.message ? err.message : "unexpected error"}`);
+    } finally {
+      setSending(false);
     }
-    const { error } = await supabase.from("staff_messages").insert({
-      conversation_id: activeConversationId,
-      author_email: staffUser.email,
-      author_name: staffUser.name,
-      author_role: staffUser.role,
-      text: draft.trim() || null,
-      attachment_name,
-      attachment_url,
-      attachment_size,
-    });
-    setSending(false);
-    if (error) {
-      showToast(`Couldn't send: ${error.message}`);
-      return;
-    }
-    setDraft("");
-    setPendingAttachment(null);
-    loadMessages();
   }
 
   function startEdit(m) {
