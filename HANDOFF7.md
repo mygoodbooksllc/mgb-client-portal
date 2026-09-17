@@ -1637,13 +1637,18 @@ Three small fixes, bundled with the Team Chat v2 work above:
   other three `window.confirm()` call sites (staff/client-access removal, note deletion) are
   unchanged.
 - **Animated dashed border on the document upload dropzone.** A real CSS `border` can't animate
-  its own dashes, so `.dropzone`'s dashed ring is now a masked, rotating `repeating-conic-gradient`
-  pseudo-element instead (`mask-composite: exclude` cuts out the card's interior, leaving just the
-  ring) — it spins slowly at rest and speeds up while a file is being dragged over it.
+  its own dashes marching around a rounded rect. First pass used a rotating masked
+  `repeating-conic-gradient`, but that just spins the whole ring around the card's center — not
+  the same thing as the dashes trailing along the perimeter. Replaced with the same idea as the
+  Live Report masthead's scrolling rule (`components/daily-close/DailyClose.css`'s
+  `dcMastheadScroll`), traced around a rounded rect instead of a straight line: an absolutely
+  positioned SVG `<rect>` overlay with `stroke-dasharray`/animated `stroke-dashoffset`. Speeds up
+  while a file is being dragged over it.
 - **Client messages: no more auto-opening floating chat window.** The desktop-only `ChatWidget`
   (a floating mini-thread that popped open automatically over any unread message) is removed
   entirely. Every screen size now gets the same treatment mobile already had (`ChatFab` — a plain
   round unread-count button that jumps straight to the real Messages page on tap) rather than a
   screen-stealing panel appearing unprompted. Corresponding now-dead `.chat-widget*` CSS removed.
 
-`MGB_VERSION` bumped to `2026-09-17d` (same bump as §49 — landed together).
+`MGB_VERSION` bumped to `2026-09-17d` (same bump as §49 — landed together); the dropzone border
+fix below landed as a quick follow-up and bumped it again to `2026-09-17e`.
