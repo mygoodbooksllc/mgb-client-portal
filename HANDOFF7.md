@@ -2609,3 +2609,18 @@ already use daily via "Preview As", which is what makes this a reasonably safe f
 a parallel client-only render tree.
 
 `MGB_VERSION` bumped to `2026-09-17aq`.
+
+## §92 — Fix: client magic-link email dropped ?client-login=1 on redirect
+
+Live-tested end to end and found the real bug: `signInWithOtp()` without `emailRedirectTo` sends the
+confirmed session back to the bare site URL, dropping the `?client-login=1` query param that tells
+the app to mount `ClientAuthGate` instead of the staff `AuthGate`. The confirmed client landed back
+on the staff Google sign-in screen instead of their dashboard. Fixed by passing
+`emailRedirectTo: window.location.href` so the redirect echoes back whatever URL (params included)
+the person started from.
+
+Note: Supabase enforces an allowlist on redirect URLs (Authentication → URL Configuration in the
+dashboard) — if this still redirects to the bare domain after this fix, that allowlist needs
+`https://app.mygoodbooks.org/*` added.
+
+`MGB_VERSION` bumped to `2026-09-17ar`.
