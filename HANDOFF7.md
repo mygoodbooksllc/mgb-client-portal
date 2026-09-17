@@ -2565,3 +2565,23 @@ over/under — against actual vs. the CURRENT budget, not the proposed number be
 row.
 
 `MGB_VERSION` bumped to `2026-09-17ao`.
+
+## §90 — Phase 2 scaffolding: real client login (magic link)
+
+First real piece of the Phase 2 plan (client auth, decided: match on email against `client_users`,
+same pattern as staff/`AuthGate`):
+
+- `supabase/client-auth-phase2.sql` — adds `access`/`tabs`/`categories`/`funds`/`premium_throttled`
+  to `client_users` (same shape UserAccessEditor and the Access Request Form already read/write),
+  plus a policy letting a signed-in client read their own row.
+- `components/auth/ClientAuthGate.jsx` — magic-link login (not Google OAuth; clients aren't on a
+  Workspace domain), gated on an active `client_users` row, same shape as `AuthGate`/`staff`.
+- Reached via `?client-login=1`, checked before `AuthGate` at the bottom of app.jsx (a client signing
+  in for real is never staff).
+
+**Deliberately stops at a placeholder** once signed in — wiring a real `clientUser` into the actual
+dashboard pages means real surgery on `App` (skip the client picker/"Preview As"/staff sidebar
+chrome, feed `resolveAccess` the real row instead of mock `client.users`), which isn't something to
+rush in alongside this scaffolding. That's the next concrete step whenever this picks back up.
+
+`MGB_VERSION` bumped to `2026-09-17ap`.
