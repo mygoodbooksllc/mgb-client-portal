@@ -2492,3 +2492,26 @@ send and false when the reply lands).
 Outlook) defaulted to `true`. Flipped it to match.
 
 `MGB_VERSION` bumped to `2026-09-17ak`.
+
+## §86 — Manage Access: throttle Premium features per person
+
+Premium was purely client-level (`hasPremiumPlan(client)`) — every person at a Premium org got the
+same Pro pages, with no way to hold one back (e.g. a board member who shouldn't see the Pro tools
+the rest of the org has). Added a per-person override, controlled by MyGoodBooks from each client's
+"Manage Access" modal:
+
+- `resolveAccess` now returns `access.premiumForUser` (`hasPremiumPlan(client) && !user.premiumThrottled`)
+  alongside the existing org-level `hasPremiumPlan(client)`. Every place that decided whether to show
+  the upgraded/Pro version of a page for a *specific signed-in person* — the six
+  showsLiveReport/showsBudgetingTool/.../showsFundAccountingPro flags, the sidebar's Enterprise-section
+  upsell state, and the "PRO" nav-item styling — now reads `access.premiumForUser` instead of
+  `hasPremiumPlan(client)` directly. Previewing as MyGoodBooks (no specific person) is unaffected —
+  the org-level plan is still the only thing that matters there.
+- People list (Manage Access → People) gets a "Premium" / "Premium throttled" pill per person,
+  shown whenever the client is on Premium, so staff can see who's throttled without opening each one.
+- Each person's editor gets a "Premium features on / throttled" toggle, shown only for Premium
+  clients, wired through the same `userAccess` state (and `toggleUserPremium`) that already drives
+  tab/category/fund overrides — no new persistence layer, same session-local pattern as the rest of
+  Manage Access.
+
+`MGB_VERSION` bumped to `2026-09-17al`.
