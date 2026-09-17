@@ -2272,3 +2272,26 @@ generic Income vs. Expenses widget, which isn't framed around any specific budge
 noise there.
 
 `MGB_VERSION` bumped to `2026-09-17y`.
+
+## §71 — Live Report PDF: match everything the page now shows
+
+The downloadable Live Report PDF (`DailyClose.tsx`'s `downloadPdf`) was still frozen at its original
+3 tables — key metrics, receivables aging, flagged anomalies — from before this session added the
+Budget Health, Bills Due Soon, Fund Activity, Reconciliation Status and Your Bookkeeper widgets to
+the page itself. Downloading it no longer matched what you'd see on screen.
+
+Brought the PDF up to parity with the live page, same "omit to hide" contract as the widgets
+themselves (each section only renders if its `DailyCloseData` field is present/non-empty):
+
+- Key metrics row now shows AP past-due status and net income margin vs. target, not just raw totals.
+- New sections, in the same order as the page: Cash by Account, Expense Breakdown, Over Budget,
+  Bills Due Soon, Fund Activity (with pledges-outstanding footer row), Reconciliation Status (with
+  the last-closed-period note as small print, same factual framing as the panel — not styled as a
+  warning).
+- Footer on every page: "Prepared by {bookkeeper}, {role}" on the left, "Page X of Y" on the right —
+  a printed/forwarded copy previously had no page count and no indication who to contact.
+
+Money/date formatting reuses the file's existing local `fmtMoney`/`fmtDate` helpers; no new
+dependencies. Verified with `prettier --parser babel-ts`.
+
+`MGB_VERSION` bumped to `2026-09-17z`.
