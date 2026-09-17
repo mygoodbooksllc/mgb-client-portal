@@ -755,15 +755,7 @@
 
 .dc-kpiTile:hover,
 .dc-panel:hover {
-  transform: translateY(-4px) scale(1.015);
   box-shadow: var(--shadow-hover);
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .dc-kpiTile:hover,
-  .dc-panel:hover {
-    transform: none;
-  }
 }
 
 /* Same slow, soft light glide used on the shell's glass cards (styles.css
@@ -816,6 +808,35 @@
   gap: 10px;
   margin-bottom: 2px;
   flex-wrap: wrap;
+}
+/* Enterprise-only widgets pair their title with the icon of the tab they
+   deep-link to (see BankIcon/SwapIcon/PieChartIcon/GiftHeartIcon in
+   DailyClose.tsx) — align-items: flex-start since panelTitle+panelSub
+   stack to two lines and the icon shouldn't drift to their vertical
+   center. */
+.dc-panelTitleRow {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+.dc-panelIcon {
+  width: 22px;
+  height: 22px;
+  flex: none;
+  border-radius: 7px;
+  background: color-mix(in srgb, #c7ae86 16%, var(--surface-2));
+  color: #b3925f;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 1px;
+}
+/* Your Bookkeeper's card leads with its own avatar circle, so its tab icon
+   (Messages) sits inline after the name instead of as a separate badge. */
+.dc-panelIconInline {
+  color: #b3925f;
+  vertical-align: -1px;
+  margin-left: 2px;
 }
 .dc-panelTitle {
   font-size: 14.5px;

@@ -141,6 +141,20 @@ const CLIENTS = [
       { date: "2026-08-04", donor: "Anonymous", fund: "Benevolence Fund", method: "Cash", amount: 100.00 },
       { date: "2026-08-04", donor: "Susan Patterson", fund: "General Fund", method: "ACH", amount: 400.00 },
     ],
+    // Fund Accounting Pro only: an email on file per named donor, backing
+    // the Tax Documents view's per-donor and bulk "Send" actions. Deliberately
+    // has no entry for "Anonymous" — there's no one to send a receipt to, and
+    // the giving statement's per-donor total shouldn't be attributable to a
+    // single anonymous contact either.
+    donors: [
+      { name: "The Whitfield Family", email: "whitfields@gracecommunity-member.org" },
+      { name: "Robert & Linda Chen", email: "rlchen@gracecommunity-member.org" },
+      { name: "Johnson Family", email: "johnsons@gracecommunity-member.org" },
+      { name: "Marcus Reed", email: "mreed@gracecommunity-member.org" },
+      { name: "The Alvarez Family", email: "alvarez@gracecommunity-member.org" },
+      { name: "The Delgado Family", email: "delgados@gracecommunity-member.org" },
+      { name: "Susan Patterson", email: "spatterson@gracecommunity-member.org" },
+    ],
     // Fund Accounting Pro only: movement between funds (same dollars as the
     // "Transfer In"/"Transfer from Operating" bank transactions above, told
     // from the fund side instead of the account side) and pledges — money
@@ -384,8 +398,14 @@ const CLIENTS = [
       { date: "2026-08-12", donor: "Riverside Rotary Club", fund: "General Fund", method: "Check", amount: 750.00 },
       { date: "2026-08-08", donor: "Lena Fitzgerald", fund: "Holiday Meal Drive Fund", method: "Online", amount: 100.00 },
     ],
-    // Fund Accounting Pro only — see grace-community's fundTransfers/pledges
-    // for what these mean.
+    // Fund Accounting Pro only — see grace-community's donors/fundTransfers/
+    // pledges for what these mean.
+    donors: [
+      { name: "Community Foundation", email: "giving@communityfoundation-example.org" },
+      { name: "The Petrakis Family", email: "petrakis@riversidepantry-member.org" },
+      { name: "Riverside Rotary Club", email: "treasurer@riversiderotary-example.org" },
+      { name: "Lena Fitzgerald", email: "lfitzgerald@riversidepantry-member.org" },
+    ],
     fundTransfers: [
       { date: "2026-07-01", fromFund: "General Fund", toFund: "Capital Reserve", amount: 5000.00, reason: "Quarterly reserve transfer" },
       { date: "2026-04-01", fromFund: "General Fund", toFund: "Capital Reserve", amount: 5000.00, reason: "Quarterly reserve transfer" },

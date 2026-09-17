@@ -66,6 +66,59 @@ function growDuration(fillPct: number): number {
 }
 
 /* ============================================================
+   Widget icons — same paths as app.jsx's nav icons for the tab each
+   Enterprise-only widget deep-links to (BankIcon/Bank Accounts,
+   SwapIcon/Cash Flow, PieChartIcon/Budget, GiftHeartIcon/Giving & Funds,
+   ChatIcon/Messages), copied rather than imported since this file is
+   deliberately self-contained (see the header comment at the top of the
+   file). Keep these in sync by hand if app.jsx's icons ever change.
+   ============================================================ */
+
+function BankIcon(props: React.SVGProps<SVGSVGElement>) {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" {...props}>
+      <path d="M3 10l9-6 9 6" />
+      <path d="M5 10v9M10 10v9M14 10v9M19 10v9" />
+      <path d="M3 19h18" />
+    </svg>
+  );
+}
+
+function SwapIcon(props: React.SVGProps<SVGSVGElement>) {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" {...props}>
+      <path d="M7 7h11l-3-3M17 17H6l3 3" />
+    </svg>
+  );
+}
+
+function PieChartIcon(props: React.SVGProps<SVGSVGElement>) {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" {...props}>
+      <path d="M12 12V3a9 9 0 019 9h-9z" />
+      <path d="M20.5 15A9 9 0 1112 3v9l8.5 3z" />
+    </svg>
+  );
+}
+
+function GiftHeartIcon(props: React.SVGProps<SVGSVGElement>) {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" {...props}>
+      <path d="M12 21s-7-4.5-9.5-9A5 5 0 0112 6a5 5 0 019.5 6c-2.5 4.5-9.5 9-9.5 9z" />
+    </svg>
+  );
+}
+
+function ChatIcon(props: React.SVGProps<SVGSVGElement>) {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" {...props}>
+      <path d="M4 5h16v11H8l-4 4V5z" />
+      <path d="M8 10h8M8 13h5" />
+    </svg>
+  );
+}
+
+/* ============================================================
    Cash-floor alert threshold — per-client, browser-local only (same
    throwaway-localStorage posture app.jsx's own FEATURE_FLAGS use, not a
    real backend setting).
@@ -1271,9 +1324,14 @@ function DailyClose({ data, className, theme, onNavigate }: DailyCloseProps) {
                 return (
                   <div className={styles.panel} key={id}>
                     <div className={styles.panelHead}>
-                      <div>
-                        <div className={`${styles.panelTitle} dc-premiumShimmer`}>Budget health</div>
-                        <div className={styles.panelSub}>Running over plan this period, worst first</div>
+                      <div className={styles.panelTitleRow}>
+                        <span className={styles.panelIcon}>
+                          <PieChartIcon />
+                        </span>
+                        <div>
+                          <div className={`${styles.panelTitle} dc-premiumShimmer`}>Budget health</div>
+                          <div className={styles.panelSub}>Running over plan this period, worst first</div>
+                        </div>
                       </div>
                     </div>
                     <div className={styles.budgetHealthList}>
@@ -1307,9 +1365,14 @@ function DailyClose({ data, className, theme, onNavigate }: DailyCloseProps) {
                 return (
                   <div className={styles.panel} key={id}>
                     <div className={styles.panelHead}>
-                      <div>
-                        <div className={`${styles.panelTitle} dc-premiumShimmer`}>Bills due soon</div>
-                        <div className={styles.panelSub}>Upcoming payables, soonest first</div>
+                      <div className={styles.panelTitleRow}>
+                        <span className={styles.panelIcon}>
+                          <SwapIcon />
+                        </span>
+                        <div>
+                          <div className={`${styles.panelTitle} dc-premiumShimmer`}>Bills due soon</div>
+                          <div className={styles.panelSub}>Upcoming payables, soonest first</div>
+                        </div>
                       </div>
                     </div>
                     <div className={styles.feedList}>
@@ -1345,9 +1408,14 @@ function DailyClose({ data, className, theme, onNavigate }: DailyCloseProps) {
                 return (
                   <div className={styles.panel} key={id}>
                     <div className={styles.panelHead}>
-                      <div>
-                        <div className={`${styles.panelTitle} dc-premiumShimmer`}>Fund activity</div>
-                        <div className={styles.panelSub}>Recent contributions and transfers between funds</div>
+                      <div className={styles.panelTitleRow}>
+                        <span className={styles.panelIcon}>
+                          <GiftHeartIcon />
+                        </span>
+                        <div>
+                          <div className={`${styles.panelTitle} dc-premiumShimmer`}>Fund activity</div>
+                          <div className={styles.panelSub}>Recent contributions and transfers between funds</div>
+                        </div>
                       </div>
                     </div>
                     <div className={styles.feedList}>
@@ -1386,11 +1454,16 @@ function DailyClose({ data, className, theme, onNavigate }: DailyCloseProps) {
                 return (
                   <div className={styles.panel} key={id}>
                     <div className={styles.panelHead}>
-                      <div>
-                        <div className={`${styles.panelTitle} dc-premiumShimmer`}>Reconciliation status</div>
-                        <div className={styles.panelSub}>
-                          {rec.lastClosedPeriod ? `Last closed: ${rec.lastClosedPeriod}` : "No period closed yet"}
-                          {rec.lastClosedDate ? ` (${fmtDate(rec.lastClosedDate)})` : ""}
+                      <div className={styles.panelTitleRow}>
+                        <span className={styles.panelIcon}>
+                          <BankIcon />
+                        </span>
+                        <div>
+                          <div className={`${styles.panelTitle} dc-premiumShimmer`}>Reconciliation status</div>
+                          <div className={styles.panelSub}>
+                            {rec.lastClosedPeriod ? `Last closed: ${rec.lastClosedPeriod}` : "No period closed yet"}
+                            {rec.lastClosedDate ? ` (${fmtDate(rec.lastClosedDate)})` : ""}
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -1431,7 +1504,9 @@ function DailyClose({ data, className, theme, onNavigate }: DailyCloseProps) {
                     <div className={styles.bookkeeperCard}>
                       <div className={styles.bookkeeperAvatar}>{bk.initials}</div>
                       <div>
-                        <div className={styles.panelTitle}>{bk.name}</div>
+                        <div className={styles.panelTitle}>
+                          {bk.name} <ChatIcon className={styles.panelIconInline} />
+                        </div>
                         <div className={styles.panelSub}>{bk.role} &middot; MyGoodBooks</div>
                       </div>
                     </div>
