@@ -2309,3 +2309,33 @@ Added the same rule, scoped to this file's own class names: `.dc-panelIcon` enla
 `.dc-panel:hover`, `.dc-kpiValue` on `.dc-kpiTile:hover`, `.dc-panelTitle` on `.dc-panel:hover`.
 Same `prefers-reduced-motion` guard, same transform values, kept in sync by hand like the rest of
 this file's shell-mirrored rules.
+
+## §73 — Payroll add-on (Gusto)
+
+New tab, "Payroll" — under Finances, between Bank Accounts and Reports. Unlike every other upgrade
+this session (Reconciliation/Fund Accounting/Cash Flow/Report Builder/Budgeting Tool/Live Report),
+this one is NOT a premium-plan upgrade: it's a separate paid add-on, independent of `client.plan`,
+priced per-employee-per-run rather than per-user-per-month. Mocked first (Design canvas, 3
+artboards) before building, per the user's steer: connects to Gusto (read-only — this page never
+triggers a real pay run), priced as a percentage of processed payroll rather than a flat monthly fee,
+and YTD figures live on their own Reports entry rather than crowding the roster table.
+
+- `client.payrollAddOn` / `client.payroll` gate the page — `PayrollPage` renders `PayrollUpsell`
+  (a "Connect Gusto" card, same house pattern as `EnterpriseUpgradePage`'s hero card) when absent,
+  the real page when present. No `hasPremiumPlan` check anywhere in this feature — `payroll` isn't
+  in `PREMIUM_UPGRADE_TAB_KEYS`, and `open-arms` (Standard plan) has the add-on while
+  `riverside-pantry` (Premium) doesn't, on purpose, to prove the two are orthogonal.
+- Page shows: KPI row (active employees, next run total, last run net pay, YTD payroll cost), next
+  pay run detail (gross/taxes/net), tax deposits (Federal 941, state withholding, FUTA — amount, due
+  date, status), and an employee roster (name, role, pay type, direct deposit, status). Roster
+  deliberately excludes rate and YTD figures — those are one click away on Reports instead of
+  crowding this table, matching Fund Accounting Pro's own "detail lives in its own report" pattern.
+- `buildPayrollYtdPdf` joins `REPORT_PDF_BUILDERS` as a fifth report type (`REPORT_TYPES` gained a
+  `requires: "payroll"` field, filtered in `QuickDownloadReports` so a client without the add-on
+  simply doesn't see the report card — same absence-as-the-gate approach as `payroll` itself).
+  Works from both the standard Reports page and Report Builder's Quick Downloads tab, since both
+  already share `QuickDownloadReports`.
+- `payroll` added to `ORG_WIDE_TABS` — a category-scoped user (e.g. Grace Community's Kids Ministry
+  director) never sees it, matching Bank Accounts/Cash Flow/Reports.
+
+`MGB_VERSION` bumped to `2026-09-17aa`.

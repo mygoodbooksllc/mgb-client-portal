@@ -225,6 +225,10 @@ const NAV_SECTIONS = [
     items: [
       { key: "bank", label: "Bank Accounts", icon: <BankIcon /> },
       { key: "receivables", label: "Cash Flow", icon: <SwapIcon /> },
+      // Not in PREMIUM_UPGRADE_TAB_KEYS on purpose — Payroll is a separate
+      // add-on (client.payrollAddOn), orthogonal to the standard/premium
+      // plan split, not a premium-only upgrade. See PayrollPage.
+      { key: "payroll", label: "Payroll", icon: <UsersIcon /> },
       { key: "reports", label: "Reports", icon: <DownloadIcon /> },
       { key: "giving", label: "Giving & Funds", icon: <GiftHeartIcon /> },
     ],
@@ -245,6 +249,7 @@ const ORG_WIDE_TABS = new Set([
   "bank",
   "receivables",
   "reports",
+  "payroll",
   // Live Report isn't a real tab key (see NAV_SECTIONS) so it can't be listed
   // here — the same org-wide exclusion for it, and for the Budgeting Tool/
   // Cash Flow Pro upgrades that now live inline on "budget"/"receivables",
@@ -2719,6 +2724,217 @@ function ReceivablesPayablesPage({ client }) {
   );
 }
 
+// ----------------------------------------------------------------------------
+// Payroll page — a paid add-on (client.payrollAddOn / client.payroll), not a
+// premium-plan upgrade. Deliberately not in PREMIUM_UPGRADE_TAB_KEYS or
+// gated by hasPremiumPlan: a Standard client can buy it just as easily as a
+// Premium one. Real pay runs are processed in Gusto; this page only reads
+// what Gusto reports, so there's no "run payroll" action anywhere here.
+// ----------------------------------------------------------------------------
+
+const PAYROLL_STATUS_META = {
+  active: { label: "Active", cls: "positive" },
+  onboarding: { label: "Onboarding", cls: "neutral" },
+};
+
+const PAYROLL_DEPOSIT_STATUS_META = {
+  upcoming: { label: "Upcoming", cls: "neutral" },
+  filed: { label: "Filed", cls: "positive" },
+};
+
+function PayrollUpsell({ client }) {
+  const showToast = useToast();
+
+  const handleConnect = () => {
+    showToast("Prototype — this would send your admin to Gusto to authorize read access.");
+  };
+
+  return (
+    <div>
+      <MockBanner text="Payroll is an add-on, independent of plan — a Standard client can add it just like a Premium one. Nothing here is connected to a real Gusto account yet." />
+
+      <div className="card" style={{ marginBottom: 20, textAlign: "center", padding: "36px 28px" }}>
+        <div className="eyebrow-badge">Payroll · Add-on</div>
+        <h2 style={{ fontFamily: "var(--font-heading)", fontSize: 26, margin: "10px 0 8px", color: "var(--ink-strong)" }}>
+          Add Payroll for {client.name}
+        </h2>
+        <p style={{ color: "var(--text-muted)", maxWidth: 560, margin: "0 auto" }}>
+          Run payroll in Gusto like you do today — connect it here to see every employee's pay,
+          withholding, and upcoming tax deposits right alongside the rest of this client's books.
+        </p>
+        <div style={{ display: "flex", gap: 10, alignItems: "center", justifyContent: "center", marginTop: 18, flexWrap: "wrap" }}>
+          <button className="btn-primary" onClick={handleConnect}>
+            Connect Gusto
+          </button>
+          <span style={{ fontSize: 12.5, color: "var(--text-muted)" }}>
+            1.25% of processed payroll, per employee, per run — no plan upgrade required
+          </span>
+        </div>
+      </div>
+
+      <div className="report-grid">
+        <div className="card">
+          <h3 className="card-title">Per-employee detail</h3>
+          <p className="card-subtitle" style={{ marginBottom: 0 }}>
+            Pay type, status, and direct deposit enrollment for every employee, synced from Gusto.
+          </p>
+        </div>
+        <div className="card">
+          <h3 className="card-title">Tax deposits tracked</h3>
+          <p className="card-subtitle" style={{ marginBottom: 0 }}>
+            Federal 941, state withholding, and FUTA — amounts and due dates, so nothing sneaks up on you.
+          </p>
+        </div>
+        <div className="card">
+          <h3 className="card-title">Synced with your books</h3>
+          <p className="card-subtitle" style={{ marginBottom: 0 }}>
+            Payroll cost rolls into Budget vs. Actual and Reports — a Payroll YTD report joins the others.
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function PayrollPage({ client }) {
+  if (!client.payroll) return <PayrollUpsell client={client} />;
+
+  const { payroll } = client;
+  const { flashCardId, jumpToCard } = useCardFlash();
+
+  return (
+    <div>
+      <MockBanner text="Payroll figures are sample data for this prototype. Once connected, this page reflects your live Gusto account." />
+
+      <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 14 }}>
+        <span className="badge-live">
+          <span className="badge-dot" style={{ background: "var(--good)" }}></span>
+          Connected via {payroll.provider}
+        </span>
+      </div>
+
+      <div className="kpi-grid">
+        <div className="card kpi-card">
+          <span className="kpi-label">Active Employees</span>
+          <span className="kpi-value">{payroll.employees.filter((e) => e.status === "active").length}</span>
+          <span className="kpi-sub neutral">{payroll.employees.length} total on roster</span>
+        </div>
+        <div className="card kpi-card">
+          <span className="kpi-label">Next Run Total</span>
+          <span className="kpi-value">{fmtMoney(payroll.nextRun.net)}</span>
+          <span className="kpi-sub neutral">{fmtDate(payroll.nextRun.date)}</span>
+        </div>
+        <div className="card kpi-card">
+          <span className="kpi-label">Last Run Net Pay</span>
+          <span className="kpi-value">{fmtMoney(payroll.lastRun.net)}</span>
+          <span className="kpi-sub neutral">{fmtDate(payroll.lastRun.date)}</span>
+        </div>
+        <button className="card kpi-card kpi-card-clickable" onClick={() => jumpToCard("payroll-deposits-card", "deposits")}>
+          <span className="kpi-label">YTD Payroll Cost</span>
+          <span className="kpi-value">{fmtMoney(payroll.ytdCost)}</span>
+          <span className="kpi-sub neutral">see tax deposits below</span>
+        </button>
+      </div>
+
+      <div className="card" style={{ marginBottom: 20 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", flexWrap: "wrap", gap: 8 }}>
+          <h3 className="card-title" style={{ margin: 0 }}>
+            Next pay run
+          </h3>
+          <span className="card-subtitle" style={{ margin: 0 }}>
+            {fmtDate(payroll.nextRun.date)} · {payroll.nextRun.employeeCount} employees
+          </span>
+        </div>
+        <div className="kpi-grid" style={{ marginTop: 16, marginBottom: 0 }}>
+          <div>
+            <span className="kpi-label">Gross Pay</span>
+            <div className="kpi-value" style={{ fontSize: 18 }}>{fmtMoney(payroll.nextRun.gross)}</div>
+          </div>
+          <div>
+            <span className="kpi-label">Taxes &amp; Withholding</span>
+            <div className="kpi-value" style={{ fontSize: 18 }}>{fmtMoney(payroll.nextRun.taxes)}</div>
+          </div>
+          <div>
+            <span className="kpi-label">Net Pay</span>
+            <div className="kpi-value" style={{ fontSize: 18, color: "var(--good)" }}>{fmtMoney(payroll.nextRun.net)}</div>
+          </div>
+        </div>
+      </div>
+
+      <div className="content-masonry">
+        <div className={"card " + (flashCardId === "deposits" ? "card-flash" : "")} id="payroll-deposits-card">
+          <h3 className="card-title">Tax deposits</h3>
+          <p className="card-subtitle">Federal and state, current quarter</p>
+          <div className="table-scroll">
+            <table className="tx-table tx-table-labeled">
+              <thead>
+                <tr>
+                  <th>Deposit</th>
+                  <th>Due</th>
+                  <th className="num">Amount</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {payroll.taxDeposits.map((d, i) => {
+                  const meta = PAYROLL_DEPOSIT_STATUS_META[d.status];
+                  return (
+                    <tr key={i}>
+                      <td data-primary="">
+                        {d.type}
+                        <div className="tx-meta">{d.period}</div>
+                      </td>
+                      <td data-label="Due">{fmtDate(d.dueDate)}</td>
+                      <td className="num tx-amount" data-label="Amount">{fmtMoney(d.amount)}</td>
+                      <td data-label="Status">
+                        <span className={"kpi-sub " + meta.cls}>{meta.label}</span>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div className="card">
+          <h3 className="card-title">Employee roster</h3>
+          <p className="card-subtitle">Rate, YTD pay, and withholding are on the Payroll YTD report under Reports</p>
+          <div className="table-scroll">
+            <table className="tx-table tx-table-labeled">
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Role</th>
+                  <th>Pay type</th>
+                  <th>Direct deposit</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {payroll.employees.map((e, i) => {
+                  const meta = PAYROLL_STATUS_META[e.status];
+                  return (
+                    <tr key={i}>
+                      <td data-primary="">{e.name}</td>
+                      <td data-label="Role">{e.role}</td>
+                      <td data-label="Pay type">{e.payType}</td>
+                      <td data-label="Direct deposit">{e.directDeposit === "enrolled" ? "Enrolled" : "Pending"}</td>
+                      <td data-label="Status">
+                        <span className={"kpi-sub " + meta.cls}>{meta.label}</span>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 const ACCOUNT_DONUT_COLORS = ["var(--gold)", "var(--good)", "var(--bad)", "var(--gold-deep)", "var(--chart-income)"];
 
 function AccountCashDonut({ accounts }) {
@@ -3442,6 +3658,60 @@ function buildGivingStatementPdf(client, donorName) {
   return filename;
 }
 
+// Payroll add-on only (client.payroll). The per-employee equivalent of
+// buildContributionStatementPdf's by-fund summary — the roster on the
+// Payroll page itself deliberately leaves out rate/YTD figures and points
+// here instead, so this is where they actually live.
+function buildPayrollYtdPdf(client) {
+  const payroll = client.payroll;
+  const employees = payroll.employees;
+  const totals = employees.reduce(
+    (s, e) => ({
+      gross: s.gross + e.ytdGross,
+      federal: s.federal + e.ytdFederalWithholding,
+      state: s.state + e.ytdStateWithholding,
+      fica: s.fica + e.ytdFica,
+      net: s.net + e.ytdNet,
+    }),
+    { gross: 0, federal: 0, state: 0, fica: 0, net: 0 }
+  );
+  const year = new Date().getFullYear();
+
+  const doc = newReportDoc("Payroll — Year to Date by Employee", `January 1 – Present, ${year}`, client);
+
+  doc.autoTable({
+    startY: 55,
+    head: [["Employee", "Gross YTD", "Federal W/H", "State W/H", "FICA", "Net YTD"]],
+    body: employees.map((e) => [
+      e.name,
+      fmtMoney(e.ytdGross),
+      fmtMoney(e.ytdFederalWithholding),
+      fmtMoney(e.ytdStateWithholding),
+      fmtMoney(e.ytdFica),
+      fmtMoney(e.ytdNet),
+    ]),
+    foot: [[
+      `Total (${employees.length} employees)`,
+      fmtMoney(totals.gross),
+      fmtMoney(totals.federal),
+      fmtMoney(totals.state),
+      fmtMoney(totals.fica),
+      fmtMoney(totals.net),
+    ]],
+    columnStyles: { 1: { halign: "right" }, 2: { halign: "right" }, 3: { halign: "right" }, 4: { halign: "right" }, 5: { halign: "right" } },
+    ...PDF_TABLE_THEME,
+  });
+
+  doc.setFont("helvetica", "italic");
+  doc.setFontSize(8);
+  doc.setTextColor(110, 110, 110);
+  doc.text(`Figures synced from ${payroll.provider}.`, 14, doc.lastAutoTable.finalY + 6);
+
+  const filename = `${sanitizeFilename(client.name)} - Payroll YTD.pdf`;
+  doc.save(filename);
+  return filename;
+}
+
 function buildDraftBudgetPdf(client, rows) {
   const totalCurrent = rows.reduce((s, r) => s + r.current, 0);
   const totalProposed = rows.reduce((s, r) => s + r.proposed, 0);
@@ -3467,6 +3737,7 @@ const REPORT_PDF_BUILDERS = {
   bs: buildBalanceSheetPdf,
   budget: buildBudgetVsActualPdf,
   giving: buildContributionStatementPdf,
+  payroll: buildPayrollYtdPdf,
 };
 
 // ----------------------------------------------------------------------------
@@ -3478,6 +3749,9 @@ const REPORT_TYPES = [
   { key: "bs", name: "Balance Sheet", description: "Assets, liabilities, and fund balances as of month end." },
   { key: "budget", name: "Budget vs. Actual Report", description: "Category-by-category comparison for the current month." },
   { key: "giving", name: "Contribution Statement (YTD)", description: "Giving summary by fund, ready to share with your board or donors." },
+  // Payroll add-on only (client.payroll) — filtered out below for a client
+  // that hasn't added it, same as this report type not existing at all.
+  { key: "payroll", name: "Payroll — Year to Date", description: "Gross pay, withholding, and net by employee.", requires: "payroll" },
 ];
 
 // The plain per-report "download a PDF" grid — shared by ReportsPage (the
@@ -3495,6 +3769,7 @@ function QuickDownloadReports({ client }) {
   // carry one period's worth of data in this mock dataset, so this toggle
   // is deliberately scoped to just the one report it actually changes.
   const [period, setPeriod] = useState("month");
+  const availableReportTypes = REPORT_TYPES.filter((r) => !r.requires || client[r.requires]);
 
   const handleDownload = (r) => {
     const filename = REPORT_PDF_BUILDERS[r.key](client, r.key === "pl" ? period : undefined);
@@ -3524,7 +3799,7 @@ function QuickDownloadReports({ client }) {
       </div>
 
       <div className="report-grid">
-        {REPORT_TYPES.map((r) => (
+        {availableReportTypes.map((r) => (
           <div className="card report-card" key={r.key}>
             <h3 className="card-title">{r.name}</h3>
             <p className="card-subtitle">
@@ -8781,6 +9056,7 @@ const PAGE_META = {
   giving: { title: "Giving & Funds", subtitle: "Contributions received and fund balances" },
   receivables: { title: "Cash Flow", subtitle: "Money coming in and bills going out" },
   bank: { title: "Bank Accounts", subtitle: "Balances and recent activity" },
+  payroll: { title: "Payroll", subtitle: "Employees, pay runs, and tax deposits" },
   reports: { title: "Reports", subtitle: "Download statements and summaries" },
   "report-builder": { title: "Report Builder", subtitle: "Assemble a formatted report for your board or leadership" },
   "budgeting-tool": { title: "Budgeting Tool", subtitle: "Draft next period's budget with your bookkeeper" },
@@ -9772,6 +10048,7 @@ function App({ staffUser, onSignOut }) {
                 key={"bank-" + client.id}
               />
             ))}
+          {effectivePage === "payroll" && <PayrollPage client={scopedClient} key={"payroll-" + client.id} />}
           {effectivePage === "reports" &&
             (showsReportBuilder ? (
               <ReportBuilderPage client={scopedClient} key={"report-builder-" + client.id} />
