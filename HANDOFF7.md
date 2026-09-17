@@ -2446,3 +2446,12 @@ Fenwick"), same field the Enterprise "Your Bookkeeper" card and Live Report PDF 
 Bookkeeper-side view (picking which client's thread to view) is unaffected.
 
 `MGB_VERSION` bumped to `2026-09-17ag`.
+
+## §81 — Orphaned solo masonry card no longer floats centered
+
+A trailing card left alone at the bottom of `.content-masonry` (e.g. Scoped Dashboard's "Budget
+Totals" widget) got `.cm-solo`: pulled full-width via `column-span: all`, then capped to 460px and
+centered — which read as a small box orphaned in the middle of a wide row instead of a deliberate
+footer. Now it just fills the full-width band edge-to-edge like the rest of the page's cards.
+
+`MGB_VERSION` bumped to `2026-09-17ah`.
