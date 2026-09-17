@@ -1808,10 +1808,33 @@ body.rb-presenting .main {
   position: absolute;
   top: 8px;
   right: 8px;
-  width: 8px;
-  height: 8px;
+  width: 9px;
+  height: 9px;
   border-radius: 50%;
   background: var(--gold-deep);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--gold-deep) 25%, transparent);
+}
+
+/* An unread thread gets its own outline and a tinted background — the dot
+   alone was easy to miss in a full row of tabs; this reads at a glance even
+   scanning fast. Active still wins if a thread is somehow both. */
+.thread-tab-unread {
+  border-color: var(--gold-deep);
+  background: color-mix(in srgb, var(--gold-deep) 8%, var(--surface));
+}
+
+.thread-tab-unread:not(.active) {
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--gold-deep) 45%, transparent);
+}
+
+.thread-tab-unread .thread-tab-name {
+  color: var(--ink-strong);
+  font-weight: 800;
+}
+
+.thread-tab-unread .thread-tab-preview {
+  color: var(--text);
+  font-weight: 600;
 }
 
 .thread-tab-preview {
