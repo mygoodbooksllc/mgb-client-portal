@@ -2668,3 +2668,21 @@ toasts. Next real step once credentials exist: OAuth redirect + an Edge
 Function callback that exchanges the code, writes `realm_id`/status here, and
 a scheduled sync job pulling transactions/accounts/budgets into real tables
 (replacing today's mock CLIENTS data, same as the Phase 3 track).
+
+## §96 — Pausing on QuickBooks: waiting on Intuit Developer app
+
+Blocked on external setup, not code. Walked the user through creating an
+Intuit Developer app (developer.intuit.com → Create an app → QuickBooks
+Online and Payments), which produces a Client ID + Secret and needs the
+redirect URI `https://app.mygoodbooks.org/api/qbo/callback` registered.
+Also flagged: Intuit requires production apps to pass their own app review
+before real client accounts can connect (their timeline, not ours).
+
+**Next step once the user has credentials:** build the real OAuth redirect
+(replacing `connectQuickBooks`'s stub toast in app.jsx's TabSettingsModal)
+and a Supabase Edge Function to handle the callback — exchange the code,
+store `realm_id`/status in `qbo_connections` (tokens go in Edge Function
+secrets/Vault, never that table), then the scheduled sync job into real
+transaction/account/budget tables.
+
+Session paused here — no open blockers besides waiting on the user.
