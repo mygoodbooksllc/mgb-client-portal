@@ -1844,3 +1844,26 @@ state to match, so a premium client now lands on the simple per-report PDF grid 
 custom report builder one click away, instead of the other way around.
 
 `MGB_VERSION` bumped to `2026-09-17k`.
+
+## §57 — Dashboard pared back to essentials; Cash by Account / Top Expense Categories are Live Report only
+
+Request: make the standard Dashboard vs. premium Live Report split feel more distinct, with the
+standard tab holding only "need to know" basics and the premium version clearly worth the
+upgrade. §51 had added two new widgets — Cash by Account (donut) and Top Expense Categories — to
+`DashboardPage` before they were ported to Live Report in §52, so for a while both plans had
+identical feature sets on their respective home tabs. That undercut the premium pitch.
+
+Removed both widgets' catalog entries and render cases from `DashboardPage` (`app.jsx`), along
+with the now-unused `topExpenseCategories` derivation. Standard Dashboard is back to: KPI row,
+Income vs. Expenses chart, Recent Activity, the cross-tab pulls, plus drag-to-reorder/show-hide
+and saved views (kept — customization itself isn't being treated as a premium-only capability,
+just these two specific content widgets). Live Report keeps both widgets and its own saved-views
+system untouched; no changes there. `AccountCashDonut` and `ReportBarRows`, the two components
+those widgets used, stay in the file — both are still used elsewhere (cross-tab widgets and
+Reports/Report Builder), so nothing to delete.
+
+Existing localStorage layouts that reference the removed widget IDs degrade safely — the layout
+hook already filters `visibleOrder` against the current `allIds` list, so a stale saved order
+simply drops IDs that no longer exist rather than erroring.
+
+`MGB_VERSION` bumped to `2026-09-17l`.
