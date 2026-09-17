@@ -184,21 +184,28 @@ function ToastProvider({ children }) {
 // Sidebar
 // ----------------------------------------------------------------------------
 
+// Premium used to mean a handful of extra, separately-named tabs
+// (Report Builder, Budgeting Tool, Cash Flow Pro) living alongside their
+// standard counterparts — a premium client saw both "Cash Flow" and "Cash
+// Flow Pro" in the sidebar at once, two names for what a client experiences
+// as one function. As of this pass, every one of those pairs has been
+// collapsed into a single tab: the SAME nav item shows the upgraded page for
+// a premium client and the standard one otherwise, exactly like Dashboard
+// already did for Live Report. See PREMIUM_UPGRADE_TAB_KEYS and the
+// showsBudgetingTool/showsCashFlowPro/showsReportBuilder checks in App.
+const PREMIUM_UPGRADE_TAB_KEYS = new Set(["dashboard", "budget", "receivables", "reports"]);
+
 const NAV_SECTIONS = [
   {
     // Enterprise leads the sidebar, and Dashboard/Messages now live inside
     // it as its first two items — the most-visited page (Dashboard, which
     // reads "Dashboard Live" for a premium client, see the label override
     // in Sidebar) and Messages (an unread badge shouldn't be buried) both
-    // come before the actual premium-gated tools. Neither is premium-gated
-    // itself: a standard-plan client's `access.tabs` already only contains
-    // "dashboard"/"messages" from this list (resolveAccess strips the
-    // premium keys before this ever renders), so the section's item list
-    // naturally narrows itself down to just those two for a non-premium
-    // client — no separate branch needed to keep them reachable. Sidebar's
-    // isSignature-upsell handling then appends a single upsell row after
-    // whatever items did make it through, advertising the locked tools
-    // rather than hiding the whole section behind one CTA.
+    // come before Budget/Finances. Neither item here is itself
+    // premium-gated (no item in this whole list carries `premium: true`
+    // anymore — see PREMIUM_UPGRADE_TAB_KEYS above), so this section's
+    // upsell heading is really about the PRO badges scattered across the
+    // rest of the sidebar, not about hiding any row of its own.
     label: "Enterprise",
     // Live Report ("daily-close") isn't a nav item here on purpose — a
     // premium, full-access client's Dashboard tab IS the Live Report, one
@@ -207,9 +214,6 @@ const NAV_SECTIONS = [
     items: [
       { key: "dashboard", label: "Dashboard", icon: <GridIcon /> },
       { key: "messages", label: "Messages", icon: <ChatIcon width="16" height="16" strokeWidth="1.8" /> },
-      { key: "report-builder", label: "Report Builder", premium: true, icon: <BarChartIcon /> },
-      { key: "budgeting-tool", label: "Budgeting Tool", premium: true, icon: <CalculatorIcon /> },
-      { key: "ap-command-center", label: "Cash Flow Pro", premium: true, icon: <StackedBillsIcon /> },
     ],
   },
   {
@@ -241,15 +245,11 @@ const ORG_WIDE_TABS = new Set([
   "bank",
   "receivables",
   "reports",
-  "report-builder",
-  "budgeting-tool",
   // Live Report isn't a real tab key (see NAV_SECTIONS) so it can't be listed
-  // here — the same org-wide exclusion for it is applied directly in App's
-  // showsLiveReport check instead.
-  // Same payables array as Cash Flow, which has no category
-  // dimension either — a category-scoped user (e.g. Luis, Youth Ministry)
-  // has no meaningful "their" bills to filter this down to.
-  "ap-command-center",
+  // here — the same org-wide exclusion for it, and for the Budgeting Tool/
+  // Cash Flow Pro upgrades that now live inline on "budget"/"receivables",
+  // is applied directly via the `!access.isCategoryScoped` checks in App
+  // (showsLiveReport/showsBudgetingTool/showsCashFlowPro/showsReportBuilder).
 ]);
 
 const BOOKKEEPER_VIEW = "__bookkeeper__";
@@ -264,7 +264,13 @@ const BOOKKEEPER_VIEW = "__bookkeeper__";
 // nearly got left out of one of them when it was added.
 const NON_CLIENT_PAGES = new Set(["bookkeeper-home", "staff-access", "client-access", "developer-tools", "staff-messages"]);
 
-// Tabs that are part of a paid add-on rather than the base product.
+// Tabs that are part of a paid add-on rather than the base product. Always
+// empty now — no nav item carries `premium: true` since every upgrade lives
+// inline on an existing tab (PREMIUM_UPGRADE_TAB_KEYS) instead of being its
+// own separately-gated tab. Kept rather than deleted: resolveAccess still
+// reads it to decide what to strip from a standard client's access.tabs, and
+// an empty set there is the correct behavior (nothing to strip) — removing
+// this constant would mean re-deriving that at every call site instead.
 const PREMIUM_TAB_KEYS = new Set(
   NAV_SECTIONS.flatMap((section) => section.items.filter((i) => i.premium).map((i) => i.key))
 );
@@ -647,24 +653,31 @@ function Sidebar({
                   </div>
                 ))}
               <div className="nav-section-items" id={sectionId}>
-                {items.map((item) => (
+                {items.map((item) => {
+                  // Same tab, same name, for every plan — the PRO pill (and
+                  // the gold shimmer that used to mark a whole separate
+                  // premium-only tab) is the only thing that marks this one
+                  // as showing the upgraded page underneath. See
+                  // PREMIUM_UPGRADE_TAB_KEYS and the showsBudgetingTool/
+                  // showsCashFlowPro/showsReportBuilder checks in App.
+                  const isUpgraded =
+                    PREMIUM_UPGRADE_TAB_KEYS.has(item.key) && hasPremiumPlan(client) && access && !access.isCategoryScoped;
+                  return (
                   <button
                     key={item.key}
-                    className={"nav-item" + (page === item.key ? " active" : "") + (item.premium ? " nav-item-signature" : "")}
+                    className={"nav-item" + (page === item.key ? " active" : "") + (isUpgraded ? " nav-item-signature" : "")}
                     onClick={() => {
                       onSelectPage(item.key);
                       onCloseMobile();
                     }}
                   >
                     {item.icon}
-                    <span>
-                      {item.key === "dashboard" && hasPremiumPlan(client) && access && !access.isCategoryScoped
-                        ? "Dashboard Live"
-                        : item.label}
-                    </span>
+                    <span>{item.label}</span>
+                    {isUpgraded && <span className="nav-pro-pill">PRO</span>}
                     {badges[item.key] && <span className="nav-badge-dot" aria-label="Unread"></span>}
                   </button>
-                ))}
+                  );
+                })}
               </div>
             </div>
           );
@@ -2836,11 +2849,13 @@ function ReportBarRows({ items }) {
 }
 
 // ----------------------------------------------------------------------------
-// Enterprise upgrade preview — what a standard-plan client's "+" in the
-// sidebar opens instead of the real Report Builder/Budgeting Tool pages
-// (stripped out of their access.tabs entirely) and the richer Live Report
-// dashboard (a premium client's plain Dashboard becomes the Live Report —
-// see showsLiveReport in App — so there's no separate tab to strip here).
+// Enterprise upgrade preview — what a standard-plan client's "+"/lock in the
+// sidebar opens instead of the real upgraded pages, none of which are
+// separate tabs to strip from access.tabs anymore: a standard client's
+// Dashboard/Budget vs. Actual/Cash Flow/Reports already ARE the tabs they'll
+// keep using after upgrading, just showing the plain version — see
+// showsLiveReport/showsBudgetingTool/showsCashFlowPro/showsReportBuilder in
+// App for where each one flips over.
 // ----------------------------------------------------------------------------
 
 const ENTERPRISE_FEATURES = [
@@ -5953,7 +5968,7 @@ function BookkeeperHomePage({ staffUser, clients, messagesByClient, readMessageC
                       <button
                         className="staff-due-row"
                         key={i}
-                        onClick={() => onNavigateToClient(r.clientId, "ap-command-center")}
+                        onClick={() => onNavigateToClient(r.clientId, "receivables")}
                       >
                         <span>
                           <span className="staff-flag-label">{r.vendor}</span>
@@ -8166,13 +8181,29 @@ function App({ staffUser, onSignOut }) {
       : access.tabs.has(page)
       ? page
       : ALWAYS_VISIBLE_KEY;
-  // Dashboard IS the Live Report for a full-access premium viewer — see the
-  // render switch below for why "daily-close" survives as a page key here
-  // even though it's no longer reachable from the nav. Category-scoped
-  // premium users still get the plain dashboard (ORG_WIDE_TABS-equivalent:
-  // a live org-wide snapshot has no "their" slice to show).
+  // Each of these four tabs IS its upgraded page for a full-access premium
+  // viewer — same pattern for all four now (see PREMIUM_UPGRADE_TAB_KEYS):
+  // one nav item, content swapped by plan, rather than a second
+  // separately-named tab. "daily-close"/"report-builder"/"budgeting-tool"/
+  // "ap-command-center" survive as PAGE_META keys purely to supply the
+  // header title/subtitle for the upgraded state below — they're no longer
+  // reachable page keys of their own (no nav item points at them, and the
+  // render switch no longer branches on them directly). Category-scoped
+  // premium users still get every plain tab (ORG_WIDE_TABS-equivalent: a
+  // live org-wide snapshot/report has no "their" slice to show).
   const showsLiveReport = effectivePage === "dashboard" && hasPremiumPlan(client) && !access.isCategoryScoped;
-  const meta = showsLiveReport ? PAGE_META["daily-close"] : PAGE_META[effectivePage];
+  const showsBudgetingTool = effectivePage === "budget" && hasPremiumPlan(client) && !access.isCategoryScoped;
+  const showsCashFlowPro = effectivePage === "receivables" && hasPremiumPlan(client) && !access.isCategoryScoped;
+  const showsReportBuilder = effectivePage === "reports" && hasPremiumPlan(client) && !access.isCategoryScoped;
+  const meta = showsLiveReport
+    ? PAGE_META["daily-close"]
+    : showsBudgetingTool
+    ? PAGE_META["budgeting-tool"]
+    : showsCashFlowPro
+    ? PAGE_META["ap-command-center"]
+    : showsReportBuilder
+    ? PAGE_META["report-builder"]
+    : PAGE_META[effectivePage];
   const isPreviewingUser = viewAsUserId !== BOOKKEEPER_VIEW && access.user;
 
   const clientUsers = client.users || [];
@@ -8598,14 +8629,22 @@ function App({ staffUser, onSignOut }) {
                 onSaveReferralPromo={saveReferralPromo}
               />
             ))}
-          {effectivePage === "budget" && (
-            <BudgetPage
-              client={scopedClient}
-              searchTarget={searchTarget && searchTarget.page === "budget" ? searchTarget : null}
-            />
-          )}
+          {effectivePage === "budget" &&
+            (showsBudgetingTool ? (
+              <BudgetingToolPage client={scopedClient} key={"budgeting-tool-" + client.id} />
+            ) : (
+              <BudgetPage
+                client={scopedClient}
+                searchTarget={searchTarget && searchTarget.page === "budget" ? searchTarget : null}
+              />
+            ))}
           {effectivePage === "giving" && <GivingFundsPage client={scopedClient} />}
-          {effectivePage === "receivables" && <ReceivablesPayablesPage client={scopedClient} />}
+          {effectivePage === "receivables" &&
+            (showsCashFlowPro ? (
+              <APCommandCenterPage client={scopedClient} key={"ap-command-center-" + client.id} />
+            ) : (
+              <ReceivablesPayablesPage client={scopedClient} />
+            ))}
           {effectivePage === "bank" && (
             <BankPage
               client={scopedClient}
@@ -8613,8 +8652,12 @@ function App({ staffUser, onSignOut }) {
               key={"bank-" + client.id}
             />
           )}
-          {effectivePage === "reports" && <ReportsPage client={scopedClient} />}
-          {effectivePage === "report-builder" && <ReportBuilderPage client={scopedClient} key={"report-builder-" + client.id} />}
+          {effectivePage === "reports" &&
+            (showsReportBuilder ? (
+              <ReportBuilderPage client={scopedClient} key={"report-builder-" + client.id} />
+            ) : (
+              <ReportsPage client={scopedClient} />
+            ))}
           {effectivePage === "enterprise-upgrade" && <EnterpriseUpgradePage client={scopedClient} key={"enterprise-upgrade-" + client.id} />}
           {effectivePage === "staff-access" && (
             <StaffAccessPage staffUser={staffUser} onImpersonate={startImpersonating} />
@@ -8643,10 +8686,6 @@ function App({ staffUser, onSignOut }) {
                 setPage(targetPage);
               }}
             />
-          )}
-          {effectivePage === "budgeting-tool" && <BudgetingToolPage client={scopedClient} key={"budgeting-tool-" + client.id} />}
-          {effectivePage === "ap-command-center" && (
-            <APCommandCenterPage client={scopedClient} key={"ap-command-center-" + client.id} />
           )}
           {effectivePage === "documents" && (
             <DocumentsPage

@@ -1711,3 +1711,54 @@ features into that parallel system rather than assuming premium clients get them
   `LiveReportCustomizeModal`, below the widget list.
 
 `MGB_VERSION` bumped to `2026-09-17g`.
+
+## §53 — Sidebar: collapsed premium tabs into their standard counterpart, PRO pill instead of a second name
+
+Naming cleanup, worked through first as a mockup (two artboards comparing today's sidebar against
+a proposed one, plus a third showing an alternative "in-page toggle" approach that was considered
+and turned down in favor of this one). Three pairs of tabs that used to be two separately-named
+rows in the sidebar — one visible to every client, one only to premium clients — are now one row
+each, same name for both plans, with a small gold "PRO" pill marking the upgraded state. This is
+the same pattern `Dashboard`/Live Report already used (one tab, content swapped by plan), extended
+to the other three tabs that had drifted into a different, more cluttered pattern instead.
+
+- **Budget vs. Actual** now shows `BudgetingToolPage` instead of `BudgetPage` for a premium,
+  full-access client; **Cash Flow** shows `APCommandCenterPage` instead of
+  `ReceivablesPayablesPage`; **Reports** shows `ReportBuilderPage` instead of `ReportsPage`. Same
+  gating as Dashboard's existing `showsLiveReport`: `hasPremiumPlan(client) && !access.isCategoryScoped`
+  — a category-scoped premium user (e.g. Luis, Youth Ministry) still gets the plain version of all
+  three, same as they already did for Dashboard, since none of the upgraded pages have a
+  "their slice" to narrow down to.
+- **`report-builder`/`budgeting-tool`/`ap-command-center` are no longer separate nav items or
+  reachable page keys** — removed from `NAV_SECTIONS`, and their `effectivePage === "..."` render
+  branches removed from `App`. Their `PAGE_META` entries are kept, though: `App`'s `meta` fallback
+  chain now picks them for the header title/subtitle whenever the *upgraded* state of `budget`/
+  `receivables`/`reports` is showing, same idea as `showsLiveReport` already borrowing
+  `PAGE_META["daily-close"]`.
+- New `PREMIUM_UPGRADE_TAB_KEYS` (`dashboard`/`budget`/`receivables`/`reports`) drives a small
+  `.nav-pro-pill` badge in `Sidebar` — reused styling from the existing `.nav-signature-badge`
+  ("Premium" pill next to the Enterprise heading), just at item level instead of section level.
+  Replaces the old one-off "Dashboard" → "Dashboard Live" label swap with the same pill treatment
+  every one of the four now gets, rather than a special case for just one of them.
+- `PREMIUM_TAB_KEYS` (no nav item carries `premium: true` anymore) is now always empty — kept
+  rather than deleted, since `resolveAccess` still reads it and an empty set is exactly the
+  correct behavior (nothing left to strip from a standard client's `access.tabs`).
+- Bookkeeper Home's "Needs attention" row used to jump every overdue bill to `"ap-command-center"`
+  regardless of the client's plan — already latently broken for a standard-plan client (that page
+  key was never in their `access.tabs`, so it silently fell back to Dashboard). Now points at
+  `"receivables"`, the single merged tab, which is correct for every plan.
+- **Known small gap, accepted rather than fixed in this pass**: global search's Budget vs. Actual
+  category-row results jump to a DOM id that only exists in the plain `BudgetPage`. For a premium
+  client (who now sees `BudgetingToolPage` there instead), that search result still opens the
+  right tab but won't scroll to/flash the specific row — `useCardFlash`'s `jumpToCard` guards on
+  `if (el)` so this fails silently rather than breaking anything, but it's a real, if minor,
+  regression worth revisiting if it comes up.
+- **Rollback**: this is one PR/commit (see this section's version bump) on top of the previous,
+  unrelated changes — `git revert` it to restore the previous 11-row sidebar and separately-named
+  pages exactly as they were, no flag or dual code path kept around for it. This app doesn't use
+  feature flags for one-off product decisions like this one (`FEATURE_FLAGS`, further up this
+  file, is explicitly scoped to per-browser dev/QA toggles only) — a straightforward git revert was
+  judged simpler and cleaner than carrying a permanent "old sidebar" branch in the code on the
+  chance it's needed.
+
+`MGB_VERSION` bumped to `2026-09-17h`.
