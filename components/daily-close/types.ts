@@ -104,4 +104,64 @@ export interface DailyCloseData {
     amount: string;
     description: string;
   }[];
+
+  /** Categories running over their period budget, worst first. Omit or leave
+      empty to hide the Budget Health panel — a client with nothing over
+      budget shouldn't see an empty "problems" panel. */
+  budgetHealth?: {
+    category: string;
+    budgeted: number;
+    actual: number;
+    overByPct: number;
+  }[];
+
+  /** Upcoming bills, soonest due first — the "don't get surprised" glance
+      backing Cash Flow Pro's own Pay Run workflow. Omit to hide the panel. */
+  payablesDueSoon?: {
+    vendor: string;
+    description: string;
+    amount: number;
+    dueDate: string;
+    daysUntilDue: number;
+  }[];
+
+  /** Fund Accounting Pro's own data, summarized for the dashboard. `items`
+      is a real dated feed (contributions + fund transfers); pledges have no
+      per-payment date in the underlying data, so they're surfaced only as a
+      running total, not mixed into the chronological feed. Omit the whole
+      block (or leave `items` empty) to hide the panel — most clients have no
+      funds at all. */
+  fundActivity?: {
+    items: {
+      kind: "contribution" | "transfer";
+      date: string;
+      label: string;
+      amount: number;
+      detail?: string;
+    }[];
+    pledgesOutstandingTotal: number;
+    pledgesOutstandingCount: number;
+  };
+
+  /** Reconciliation Pro's status, summarized — described factually (open
+      items awaiting clearance, last closed period), not as a health/warning
+      signal: mid-period outstanding items are normal, not a problem. Omit to
+      hide the panel. */
+  reconciliation?: {
+    accounts: {
+      name: string;
+      outstandingCount: number;
+      outstandingTotal: number;
+    }[];
+    lastClosedPeriod: string | null;
+    lastClosedDate: string | null;
+  };
+
+  /** The client's assigned bookkeeper at the firm, for a quick "who do I
+      ask" contact card. Omit if nobody's assigned yet. */
+  bookkeeper?: {
+    name: string;
+    role: string;
+    initials: string;
+  };
 }

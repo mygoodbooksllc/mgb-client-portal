@@ -48,6 +48,15 @@ function pct(n: number, digits = 1): string {
   return `${n.toFixed(digits)}%`;
 }
 
+// "2026-08-15" -> "Aug 15". Parsed as local midnight, not new Date(iso)
+// directly — the same UTC-parses-a-day-early trap app.jsx's own date
+// helpers exist to avoid, and this file can't import those (see the header
+// comment on why it stays self-contained).
+function fmtDate(iso: string): string {
+  const [y, m, d] = iso.split("-").map(Number);
+  return new Date(y, m - 1, d).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+}
+
 // Bar-fill entrance duration scales with how far the bar travels, so a
 // near-empty bar doesn't take as long to grow as a full one — matching
 // styles.css's growDuration.
@@ -94,7 +103,21 @@ function writeCashFloor(clientId: string | undefined, value: number | null): voi
    another script's internals.
    ============================================================ */
 
-type LiveReportWidgetId = "kpi-cash" | "kpi-ar" | "kpi-ap" | "kpi-net" | "trend" | "expense-breakdown" | "cash-by-account" | "aging" | "outlook";
+type LiveReportWidgetId =
+  | "kpi-cash"
+  | "kpi-ar"
+  | "kpi-ap"
+  | "kpi-net"
+  | "trend"
+  | "expense-breakdown"
+  | "cash-by-account"
+  | "aging"
+  | "outlook"
+  | "budget-health"
+  | "payables-due-soon"
+  | "fund-activity"
+  | "reconciliation"
+  | "bookkeeper";
 
 const LIVE_REPORT_WIDGETS: { id: LiveReportWidgetId; label: string; description: string }[] = [
   { id: "kpi-cash", label: "Cash on Hand", description: "Current balance, delta vs. yesterday, 14-day trend" },
@@ -106,6 +129,11 @@ const LIVE_REPORT_WIDGETS: { id: LiveReportWidgetId; label: string; description:
   { id: "cash-by-account", label: "Cash by Account", description: "Donut breakdown of cash across your accounts" },
   { id: "aging", label: "Receivables Aging", description: "Aging buckets and the collections queue" },
   { id: "outlook", label: "Outlook", description: "Cash flow forecast, revenue trend, and flagged anomalies" },
+  { id: "budget-health", label: "Budget Health", description: "Categories running over budget this period" },
+  { id: "payables-due-soon", label: "Bills Due Soon", description: "Upcoming payables, soonest first" },
+  { id: "fund-activity", label: "Fund Activity", description: "Recent contributions and fund transfers, plus open pledges" },
+  { id: "reconciliation", label: "Reconciliation Status", description: "Open items awaiting clearance, and when each account last closed" },
+  { id: "bookkeeper", label: "Your Bookkeeper", description: "Who at MyGoodBooks handles this account" },
 ];
 const LIVE_REPORT_WIDGET_IDS = LIVE_REPORT_WIDGETS.map((w) => w.id);
 
@@ -1096,7 +1124,7 @@ function DailyClose({ data, className, theme, onNavigate }: DailyCloseProps) {
                   <button
                     type="button"
                     className={`${styles.kpiTile} ${onNavigate ? styles.kpiTileClickable : ""}`}
-                    onClick={() => onNavigate && onNavigate("ap-command-center")}
+                    onClick={() => onNavigate && onNavigate("receivables")}
                     disabled={!onNavigate}
                     key={id}
                   >
@@ -1234,6 +1262,184 @@ function DailyClose({ data, className, theme, onNavigate }: DailyCloseProps) {
                       </div>
                     </div>
                     <DonutList items={data.cash.byAccount} total={data.cash.total} />
+                  </div>
+                );
+              }
+
+              if (id === "budget-health") {
+                if (!data.budgetHealth || data.budgetHealth.length === 0) return null;
+                return (
+                  <div className={styles.panel} key={id}>
+                    <div className={styles.panelHead}>
+                      <div>
+                        <div className={`${styles.panelTitle} dc-premiumShimmer`}>Budget health</div>
+                        <div className={styles.panelSub}>Running over plan this period, worst first</div>
+                      </div>
+                    </div>
+                    <div className={styles.budgetHealthList}>
+                      {data.budgetHealth.map((b) => (
+                        <div className={styles.budgetHealthRow} key={b.category}>
+                          <div className={styles.budgetHealthLabel}>{b.category}</div>
+                          <div className={styles.budgetHealthBar}>
+                            <div className={styles.budgetHealthTrack}>
+                              <div
+                                className={styles.budgetHealthFill}
+                                style={{ width: `${Math.min(100, (b.actual / (b.budgeted || 1)) * 100)}%` }}
+                              />
+                              <div className={styles.budgetHealthMark} style={{ left: "100%" }} />
+                            </div>
+                          </div>
+                          <div className={`${styles.budgetHealthPct} ${styles.num}`}>+{b.overByPct}%</div>
+                        </div>
+                      ))}
+                    </div>
+                    {onNavigate && (
+                      <button type="button" className={styles.footerLink} onClick={() => onNavigate("budget")} style={{ marginTop: 10 }}>
+                        View in Budgeting Tool
+                      </button>
+                    )}
+                  </div>
+                );
+              }
+
+              if (id === "payables-due-soon") {
+                if (!data.payablesDueSoon || data.payablesDueSoon.length === 0) return null;
+                return (
+                  <div className={styles.panel} key={id}>
+                    <div className={styles.panelHead}>
+                      <div>
+                        <div className={`${styles.panelTitle} dc-premiumShimmer`}>Bills due soon</div>
+                        <div className={styles.panelSub}>Upcoming payables, soonest first</div>
+                      </div>
+                    </div>
+                    <div className={styles.feedList}>
+                      {data.payablesDueSoon.map((p, i) => (
+                        <div className={styles.feedRow} key={i}>
+                          <div>
+                            <div className={styles.feedLabel}>{p.vendor}</div>
+                            <div className={styles.feedDetail}>
+                              {p.description} &middot;{" "}
+                              {p.daysUntilDue === 0
+                                ? "due today"
+                                : p.daysUntilDue > 0
+                                ? `due in ${p.daysUntilDue} day${p.daysUntilDue === 1 ? "" : "s"}`
+                                : `${Math.abs(p.daysUntilDue)} day${Math.abs(p.daysUntilDue) === 1 ? "" : "s"} overdue`}
+                            </div>
+                          </div>
+                          <div className={`${styles.feedAmount} ${styles.num}`}>{fmtMoney(p.amount)}</div>
+                        </div>
+                      ))}
+                    </div>
+                    {onNavigate && (
+                      <button type="button" className={styles.footerLink} onClick={() => onNavigate("receivables")} style={{ marginTop: 10 }}>
+                        View in Cash Flow Pro
+                      </button>
+                    )}
+                  </div>
+                );
+              }
+
+              if (id === "fund-activity") {
+                if (!data.fundActivity || data.fundActivity.items.length === 0) return null;
+                const fa = data.fundActivity;
+                return (
+                  <div className={styles.panel} key={id}>
+                    <div className={styles.panelHead}>
+                      <div>
+                        <div className={`${styles.panelTitle} dc-premiumShimmer`}>Fund activity</div>
+                        <div className={styles.panelSub}>Recent contributions and transfers between funds</div>
+                      </div>
+                    </div>
+                    <div className={styles.feedList}>
+                      {fa.items.map((item, i) => (
+                        <div className={styles.feedRow} key={i}>
+                          <div>
+                            <div className={styles.feedLabel}>{item.label}</div>
+                            <div className={styles.feedDetail}>
+                              {fmtDate(item.date)}
+                              {item.detail ? ` · ${item.detail}` : ""}
+                            </div>
+                          </div>
+                          <div className={`${styles.feedAmount} ${styles.num}`}>{fmtMoney(item.amount)}</div>
+                        </div>
+                      ))}
+                    </div>
+                    {fa.pledgesOutstandingCount > 0 && (
+                      <div className={`${styles.chip} ${styles.chipWarn}`} style={{ marginTop: 12 }}>
+                        {fmtMoney(fa.pledgesOutstandingTotal)} outstanding across {fa.pledgesOutstandingCount} pledge
+                        {fa.pledgesOutstandingCount === 1 ? "" : "s"}
+                      </div>
+                    )}
+                    {onNavigate && (
+                      <button type="button" className={styles.footerLink} onClick={() => onNavigate("giving")} style={{ marginTop: 10 }}>
+                        View in Fund Accounting Pro
+                      </button>
+                    )}
+                  </div>
+                );
+              }
+
+              if (id === "reconciliation") {
+                if (!data.reconciliation) return null;
+                const rec = data.reconciliation;
+                const totalOutstandingCount = rec.accounts.reduce((s, a) => s + a.outstandingCount, 0);
+                return (
+                  <div className={styles.panel} key={id}>
+                    <div className={styles.panelHead}>
+                      <div>
+                        <div className={`${styles.panelTitle} dc-premiumShimmer`}>Reconciliation status</div>
+                        <div className={styles.panelSub}>
+                          {rec.lastClosedPeriod ? `Last closed: ${rec.lastClosedPeriod}` : "No period closed yet"}
+                          {rec.lastClosedDate ? ` (${fmtDate(rec.lastClosedDate)})` : ""}
+                        </div>
+                      </div>
+                    </div>
+                    <div className={styles.feedList}>
+                      {rec.accounts.map((a, i) => (
+                        <div className={styles.feedRow} key={i}>
+                          <div>
+                            <div className={styles.feedLabel}>{a.name}</div>
+                            <div className={styles.feedDetail}>
+                              {a.outstandingCount === 0
+                                ? "Nothing outstanding"
+                                : `${a.outstandingCount} item${a.outstandingCount === 1 ? "" : "s"} awaiting clearance`}
+                            </div>
+                          </div>
+                          {a.outstandingCount > 0 && <div className={`${styles.feedAmount} ${styles.num}`}>{fmtMoney(a.outstandingTotal)}</div>}
+                        </div>
+                      ))}
+                    </div>
+                    <div className={styles.panelSub} style={{ marginTop: 8 }}>
+                      {totalOutstandingCount === 0
+                        ? "Every account is fully cleared as of this snapshot."
+                        : "Open items are normal mid-period — this isn't a problem to fix, just what's not shown up on a statement yet."}
+                    </div>
+                    {onNavigate && (
+                      <button type="button" className={styles.footerLink} onClick={() => onNavigate("bank")} style={{ marginTop: 10 }}>
+                        View in Reconciliation Pro
+                      </button>
+                    )}
+                  </div>
+                );
+              }
+
+              if (id === "bookkeeper") {
+                if (!data.bookkeeper) return null;
+                const bk = data.bookkeeper;
+                return (
+                  <div className={styles.panel} key={id}>
+                    <div className={styles.bookkeeperCard}>
+                      <div className={styles.bookkeeperAvatar}>{bk.initials}</div>
+                      <div>
+                        <div className={styles.panelTitle}>{bk.name}</div>
+                        <div className={styles.panelSub}>{bk.role} &middot; MyGoodBooks</div>
+                      </div>
+                    </div>
+                    {onNavigate && (
+                      <button type="button" className={styles.footerLink} onClick={() => onNavigate("messages")} style={{ marginTop: 12 }}>
+                        Message {bk.name.split(" ")[0]}
+                      </button>
+                    )}
                   </div>
                 );
               }

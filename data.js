@@ -13,6 +13,10 @@ const CLIENTS = [
     // Billing tier. Premium unlocks the Daily Report; the gate lives in the
     // route/page loader in app.jsx, never inside the DailyClose component.
     plan: "premium",
+    // Who at MyGoodBooks handles this account — backs Live Report's "Your
+    // Bookkeeper" contact card (Enterprise only, so this is read by
+    // fromClient.js's dailyCloseFromClient, not by the standard-plan pages).
+    assignedBookkeeper: { name: "Alicia Fenwick", role: "Senior Bookkeeper", initials: "AF" },
     // Who at this organization can log in, and what each of them may see.
     // Configured by MyGoodBooks only — never editable by the client.
     users: [
@@ -192,6 +196,7 @@ const CLIENTS = [
     name: "New Hope Fellowship",
     orgType: "Church Plant",
     plan: "standard",
+    assignedBookkeeper: { name: "Marcus Webb", role: "Bookkeeper", initials: "MW" },
     users: [
       {
         id: "mia",
@@ -288,6 +293,7 @@ const CLIENTS = [
     name: "Riverside Food Pantry",
     orgType: "Nonprofit",
     plan: "premium",
+    assignedBookkeeper: { name: "Priya Anand", role: "Senior Bookkeeper", initials: "PA" },
     users: [
       {
         id: "dana",
@@ -421,6 +427,7 @@ const CLIENTS = [
     name: "Open Arms Family Services",
     orgType: "Nonprofit",
     plan: "standard",
+    assignedBookkeeper: { name: "Marcus Webb", role: "Bookkeeper", initials: "MW" },
     users: [
       {
         id: "marcus",

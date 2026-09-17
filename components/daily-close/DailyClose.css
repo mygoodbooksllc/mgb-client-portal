@@ -946,6 +946,115 @@
   font-weight: 500;
 }
 
+/* ---------- Budget health (Enterprise-only widget) ---------- */
+.dc-budgetHealthList {
+  display: flex;
+  flex-direction: column;
+}
+.dc-budgetHealthRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 0;
+}
+.dc-budgetHealthLabel {
+  width: 140px;
+  flex: none;
+  font-size: 12px;
+  color: var(--ink-600);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.dc-budgetHealthBar {
+  flex: 1;
+}
+.dc-budgetHealthTrack {
+  background: var(--surface-2);
+  border-radius: 4px;
+  height: 10px;
+  position: relative;
+  overflow: visible;
+}
+.dc-budgetHealthFill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  background: var(--critical);
+  border-radius: 4px;
+}
+/* The budget line itself, at the 100%-of-budgeted mark — the fill can run
+   past it (over budget is the whole point of this widget), so this has to
+   sit on top rather than just being the track's right edge. */
+.dc-budgetHealthMark {
+  position: absolute;
+  top: -2px;
+  bottom: -2px;
+  width: 2px;
+  background: var(--ink-900);
+  opacity: 0.35;
+}
+.dc-budgetHealthPct {
+  width: 48px;
+  flex: none;
+  text-align: right;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--critical);
+}
+
+/* ---------- Feed-style rows: Bills Due Soon, Fund Activity,
+   Reconciliation Status (Enterprise-only widgets) ---------- */
+.dc-feedList {
+  display: flex;
+  flex-direction: column;
+}
+.dc-feedRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 0;
+  border-top: 1px solid var(--line);
+}
+.dc-feedRow:first-child {
+  border-top: none;
+}
+.dc-feedLabel {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--ink-900);
+}
+.dc-feedDetail {
+  font-size: 11px;
+  color: var(--ink-500);
+  margin-top: 1px;
+}
+.dc-feedAmount {
+  font-weight: 600;
+  color: var(--ink-900);
+  flex-shrink: 0;
+}
+
+/* ---------- Your Bookkeeper contact card (Enterprise-only widget) ---------- */
+.dc-bookkeeperCard {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.dc-bookkeeperAvatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--navy-deep, #020306);
+  background: linear-gradient(120deg, #e9d5a8, #c7ae86);
+}
+
 .dc-donutWidget {
   display: flex;
   align-items: center;
