@@ -1184,14 +1184,12 @@ body {
 /* A lone trailing card the height-balancer left by itself, with nothing
    beside it (App, app.jsx, decides which card qualifies — CSS alone can't
    detect it). column-span: all pulls it out of the column flow entirely
-   into its own full-width band below both columns; capping its width and
-   centering it there is what actually produces the "gaps on either side"
-   look, instead of it just filling that full width edge-to-edge. */
+   into its own full-width band below both columns. It fills that band
+   edge-to-edge rather than capping its width and centering — a narrow
+   card floating in the middle of a wide row read as orphaned/misplaced
+   instead of like a deliberate full-width footer card. */
 .content-masonry > .cm-solo {
   column-span: all;
-  max-width: 460px;
-  margin-left: auto;
-  margin-right: auto;
 }
 
 .card-title {
