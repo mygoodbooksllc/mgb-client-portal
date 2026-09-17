@@ -6414,7 +6414,15 @@ function StaffMessagesPage({ staffUser, onActivity }) {
     let attachment_url = null;
     let attachment_size = null;
     if (pendingAttachment) {
-      const path = `${activeConversationId}/${Date.now()}-${pendingAttachment.file.name}`;
+      // Supabase Storage keys reject characters a real filename has all the
+      // time (#, %, &, ?, +, non-ASCII…). Unsanitized, a name like
+      // "Q3 Report #2.pdf" made the upload fail outright — and since send()
+      // bails before ever inserting the message row, that attempt left
+      // nothing behind at all: no message, no file, nothing to retry from
+      // but re-attaching. attachment_name (below) keeps the real name for
+      // display; only the storage key itself needs to be safe.
+      const safeName = pendingAttachment.file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
+      const path = `${activeConversationId}/${Date.now()}-${safeName}`;
       const { error: upErr } = await supabase.storage.from("staff-chat-attachments").upload(path, pendingAttachment.file);
       if (upErr) {
         setSending(false);
@@ -6478,7 +6486,14 @@ function StaffMessagesPage({ staffUser, onActivity }) {
       .filter((d) => !convEmails.has(d.email))
       .map((d) => ({ id: null, otherEmail: d.email, otherName: d.name, otherRole: d.role, lastText: "", lastAt: null, unread: false, isGroup: false }));
     withoutConv.sort((a, b) => a.otherName.localeCompare(b.otherName));
-    const combined = [...(conversations || []), ...withoutConv];
+    // Unread first (most recent unread first), then everything else by
+    // recency — an unread thread three days old shouldn't hide below five
+    // read ones from this morning.
+    const sortedConversations = [...(conversations || [])].sort((a, b) => {
+      if (a.unread !== b.unread) return a.unread ? -1 : 1;
+      return new Date(b.lastAt || 0) - new Date(a.lastAt || 0);
+    });
+    const combined = [...sortedConversations, ...withoutConv];
     const q = threadFilter.trim().toLowerCase();
     return q ? combined.filter((c) => c.otherName.toLowerCase().includes(q)) : combined;
   }, [directory, conversations, threadFilter]);
@@ -6520,13 +6535,18 @@ function StaffMessagesPage({ staffUser, onActivity }) {
             {chatEntries.map((c) => (
               <button
                 key={c.id || c.otherEmail}
-                className={"thread-tab" + ((c.id ? c.id === activeConversationId : false) ? " active" : "") + (c.isGroup ? " thread-tab-group" : "")}
+                className={
+                  "thread-tab" +
+                  ((c.id ? c.id === activeConversationId : false) ? " active" : "") +
+                  (c.isGroup ? " thread-tab-group" : "") +
+                  (c.unread ? " thread-tab-unread" : "")
+                }
                 onClick={() => selectConversation(c)}
               >
                 <span className="thread-tab-name">{c.otherName}</span>
                 <span className="thread-tab-role">{c.otherRole}</span>
                 {c.lastText && <span className="thread-tab-preview">{c.lastText}</span>}
-                {c.unread && <span className="thread-tab-dot" />}
+                {c.unread && <span className="thread-tab-dot" aria-label="Unread" />}
               </button>
             ))}
           </div>

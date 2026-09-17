@@ -2385,3 +2385,20 @@ Two real bugs reported against the live app, plus the requested group-thread fea
 columns and the 15-minute edit policy don't exist until it's applied.
 
 `MGB_VERSION` bumped to `2026-09-17ac`.
+
+## §77 — Attachment upload fix + unread threads more visible
+
+Checked the live DB for the reported "sent Gillian a file, can't open it" — zero rows in
+`staff_messages` have ever had an attachment, and the `staff-chat-attachments` bucket has zero
+objects, ever. `send()` bails out before inserting the message row if the upload fails, so a failed
+upload leaves nothing behind at all to retry, just a toast that's easy to miss. Root cause: the
+storage key was built straight from the filename — Supabase Storage rejects characters a normal
+filename has all the time (`#`, `%`, `&`, `?`, `+`, non-ASCII), and any such name failed outright.
+Now sanitized to `[a-zA-Z0-9._-]` for the storage key only; `attachment_name` keeps the real name
+for display.
+
+Also: thread preview text and the unread dot already existed but were easy to miss in a full list —
+unread threads now sort to the top, get a tinted background + outline, and the name/preview text
+goes bold, not just a small dot in the corner.
+
+`MGB_VERSION` bumped to `2026-09-17ad`.
