@@ -1494,3 +1494,42 @@ same as the other synthetic staff-only pages (Staff Access, Client Roster, Devel
 Dropped the now-dead `.sidebar-home-note` CSS rule too.
 
 `MGB_VERSION` bumped to `2026-09-17a`.
+
+## §47 — Added Team Chat: internal staff messaging
+
+Bookkeepers can now message management directly inside the app, separate from client
+conversations (which are still mock data — `data.js`'s `threads`, not Supabase). This is a real
+feature on a real backend table, same posture as `staff_reminders`/`client_notes`.
+
+- **New table `staff_messages`** (`supabase/staff-messages.sql`, already applied to the live
+  project): `staff_email` (whose thread — always the bookkeeper's, regardless of who's writing
+  into it), `author_email`/`author_name`/`author_role`, `text`, `created_at`. One thread per
+  bookkeeper. RLS: a bookkeeper reads/writes only their own thread
+  (`staff_email = auth.jwt() ->> 'email'`); any active admin reads/writes any thread
+  (`is_active_staff_admin()`, reused from `staff-admin-policies.sql`) — there's no single "the
+  account manager" row in `staff`, every admin can pick a thread up. Either way, `author_email`
+  is checked against the signed-in JWT, so nobody can post as someone else.
+- **New page `StaffMessagesPage`**, reachable from a new sidebar link ("Team Chat", new
+  `ChatIcon` reuse) visible to **every** signed-in staff member, not just admins — unlike Staff
+  Access/Client Roster/Developer Tools. A bookkeeper sees their own thread directly; an admin
+  gets a roster picker (reusing the client-messaging `.thread-picker`/`.thread-tab` styling) to
+  choose whose thread to open. Reuses `.message-thread`/`.message-bubble-row`/`.message-compose`
+  from the client messaging UI — text-only, no attachments (nothing real to store one in yet,
+  unlike client messages' in-memory mock attachments).
+- **Sidebar unread dot**: `App` tracks `staffMessagesUnread`, rechecked on every page change (a
+  single lightweight query, not polling) — an admin's check scans the latest message per
+  bookkeeper thread across the board; a bookkeeper's only checks their own. "Read" is a
+  per-thread `localStorage` timestamp (`mygoodbooks_staffmsg_read_v1:<bookkeeper email>`, same
+  per-browser-only posture as every other read-tracking in this app), stamped the moment a
+  thread is opened and already covered by Developer Tools' "Reset local state" (prefix-matched,
+  see §34).
+- **Hidden during "View as" impersonation.** Whose Team Chat thread should show while an admin is
+  impersonating a bookkeeper — the real admin's, or the impersonated bookkeeper's — has no clean
+  answer, so `staff-messages` simply isn't reachable mid-impersonation (same treatment the other
+  admin-only synthetic pages already get, extended here to a page that's normally open to every
+  role).
+- Added `staff-messages` to the existing `NON_CLIENT_PAGES` set (§33) and swapped one remaining
+  hand-written page-name chain (the sidebar's own nav-render branch) over to it while touching
+  this code, closing the last spot that predated that refactor.
+
+`MGB_VERSION` bumped to `2026-09-17b`.

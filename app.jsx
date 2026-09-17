@@ -262,7 +262,7 @@ const BOOKKEEPER_VIEW = "__bookkeeper__";
 // repeating the same three-or-four-way `page !== "x" && page !== "y"` check
 // at every one of those call sites, which is exactly how developer-tools
 // nearly got left out of one of them when it was added.
-const NON_CLIENT_PAGES = new Set(["bookkeeper-home", "staff-access", "client-access", "developer-tools"]);
+const NON_CLIENT_PAGES = new Set(["bookkeeper-home", "staff-access", "client-access", "developer-tools", "staff-messages"]);
 
 // Tabs that are part of a paid add-on rather than the base product.
 const PREMIUM_TAB_KEYS = new Set(
@@ -438,6 +438,8 @@ function Sidebar({
   onToggleTheme,
   staffUser,
   onSignOut,
+  staffMessagesUnread,
+  impersonating,
 }) {
   // Must match App's `isPreviewingUser` guard: a viewAsUserId that no longer
   // resolves to a user (stale id, user removed) falls back to the bookkeeper
@@ -509,6 +511,21 @@ function Sidebar({
             >
               <HomeIcon />
               Home
+            </button>
+          )}
+
+          {staffUser && !impersonating && (
+            <button
+              type="button"
+              className={"staff-access-link" + (page === "staff-messages" ? " active" : "")}
+              onClick={() => {
+                onSelectPage("staff-messages");
+                onCloseMobile();
+              }}
+            >
+              <ChatIcon width="16" height="16" strokeWidth="1.8" />
+              Team Chat
+              {staffMessagesUnread && <span className="nav-badge-dot" aria-label="Unread" style={{ marginLeft: "auto" }} />}
             </button>
           )}
 
@@ -590,7 +607,7 @@ function Sidebar({
         </div>
       )}
 
-      {page === "bookkeeper-home" || page === "staff-access" || page === "client-access" || page === "developer-tools" ? null : (
+      {NON_CLIENT_PAGES.has(page) ? null : (
       <nav className="nav">
         {NAV_SECTIONS.map((section) => {
           const isSignature = section.label === "Enterprise";
@@ -4009,6 +4026,29 @@ function resettableLocalStorageKeys() {
   }
 }
 
+// "Read" markers for Team Chat, one per bookkeeper thread (their own email,
+// whether the reader is that bookkeeper or an admin looking in on their
+// thread) — per-browser only, same as every other read-tracking in this app
+// (client message threads included). Not a real receipt system: it just
+// silences the sidebar dot for whoever's browser opened the thread.
+function staffMessagesReadKey(staffEmail) {
+  return `mygoodbooks_staffmsg_read_v1:${staffEmail}`;
+}
+
+function readStaffMessagesReadAt(staffEmail) {
+  try {
+    return localStorage.getItem(staffMessagesReadKey(staffEmail));
+  } catch (e) {
+    return null;
+  }
+}
+
+function markStaffMessagesRead(staffEmail) {
+  try {
+    localStorage.setItem(staffMessagesReadKey(staffEmail), new Date().toISOString());
+  } catch (e) {}
+}
+
 function StaffAccessPage({ staffUser, onImpersonate }) {
   const showToast = useToast();
   const supabase = window.mgbSupabase;
@@ -4715,6 +4755,179 @@ function DeveloperToolsPage({ staffUser, onJumpToClient }) {
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+// ----------------------------------------------------------------------------
+// Team Chat — internal staff messaging, separate from client conversations
+// (which are mock data, not Supabase — see data.js's `threads`). One thread
+// per bookkeeper, keyed by their own email: a bookkeeper sees only their own
+// thread with management, an admin picks any bookkeeper's thread from a
+// roster and can reply as themselves. Real Supabase table (staff_messages),
+// same posture as staff_reminders/client_notes — everyone with the sidebar
+// link can see this, not just admins.
+// ----------------------------------------------------------------------------
+
+function StaffMessagesPage({ staffUser, onThreadOpened }) {
+  const supabase = window.mgbSupabase;
+  const showToast = useToast();
+  const isAdmin = staffUser.role === "admin";
+
+  const [bookkeepers, setBookkeepers] = useState(null); // admin only
+  const [rosterError, setRosterError] = useState("");
+  const [activeEmail, setActiveEmail] = useState(isAdmin ? null : staffUser.email);
+  const [messages, setMessages] = useState(null);
+  const [loadError, setLoadError] = useState("");
+  const [draft, setDraft] = useState("");
+  const [sending, setSending] = useState(false);
+
+  const loadRoster = useCallback(() => {
+    if (!isAdmin || !supabase) return;
+    supabase
+      .from("staff")
+      .select("email, name, role, active")
+      .eq("role", "bookkeeper")
+      .eq("active", true)
+      .order("name", { ascending: true })
+      .then(({ data, error }) => {
+        if (error) {
+          setRosterError("Couldn't load the bookkeeper list. " + error.message);
+          setBookkeepers([]);
+          return;
+        }
+        setRosterError("");
+        setBookkeepers(data);
+        setActiveEmail((prev) => prev || (data[0] && data[0].email) || null);
+      });
+  }, [isAdmin, supabase]);
+
+  useEffect(() => {
+    loadRoster();
+  }, [loadRoster]);
+
+  const loadMessages = useCallback(() => {
+    if (!supabase || !activeEmail) return;
+    supabase
+      .from("staff_messages")
+      .select("id, staff_email, author_email, author_name, author_role, text, created_at")
+      .eq("staff_email", activeEmail)
+      .order("created_at", { ascending: true })
+      .then(({ data, error }) => {
+        if (error) {
+          setLoadError("Couldn't load messages. Has staff-messages.sql been run? " + error.message);
+          setMessages([]);
+          return;
+        }
+        setLoadError("");
+        setMessages(data);
+        markStaffMessagesRead(activeEmail);
+        if (onThreadOpened) onThreadOpened();
+      });
+  }, [supabase, activeEmail, onThreadOpened]);
+
+  useEffect(() => {
+    loadMessages();
+  }, [loadMessages]);
+
+  async function send() {
+    const text = draft.trim();
+    if (!text || !activeEmail || !supabase) return;
+    setSending(true);
+    const { error } = await supabase.from("staff_messages").insert({
+      staff_email: activeEmail,
+      author_email: staffUser.email,
+      author_name: staffUser.name,
+      author_role: staffUser.role,
+      text,
+    });
+    setSending(false);
+    if (error) {
+      showToast(`Couldn't send: ${error.message}`);
+      return;
+    }
+    setDraft("");
+    loadMessages();
+  }
+
+  const activeBookkeeper = bookkeepers && bookkeepers.find((b) => b.email === activeEmail);
+
+  return (
+    <div>
+      <MockBanner text="Internal only — separate from client conversations. Nothing here is visible to any client." />
+
+      {isAdmin && (
+        <div className="thread-picker">
+          <span className="thread-picker-label">Conversation with</span>
+          {bookkeepers === null ? (
+            <p className="card-subtitle">Loading…</p>
+          ) : rosterError ? (
+            <p className="card-subtitle negative">{rosterError}</p>
+          ) : bookkeepers.length === 0 ? (
+            <p className="card-subtitle">No active bookkeepers yet.</p>
+          ) : (
+            <div className="thread-picker-tabs">
+              {bookkeepers.map((b) => (
+                <button
+                  key={b.email}
+                  className={"thread-tab" + (b.email === activeEmail ? " active" : "")}
+                  onClick={() => setActiveEmail(b.email)}
+                >
+                  <span className="thread-tab-name">{b.name}</span>
+                  <span className="thread-tab-role">{b.role}</span>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {activeEmail && (
+        <div className="card message-card">
+          <h3 className="card-title">
+            {isAdmin
+              ? activeBookkeeper
+                ? `Conversation with ${activeBookkeeper.name}`
+                : "Conversation"
+              : "Conversation with management"}
+          </h3>
+          {loadError && <p className="card-subtitle negative">{loadError}</p>}
+          {messages === null && !loadError && <p className="card-subtitle">Loading…</p>}
+          {messages && messages.length === 0 && !loadError && (
+            <p className="card-subtitle">No messages yet — say hello.</p>
+          )}
+          {messages && messages.length > 0 && (
+            <div className="message-thread">
+              {messages.map((m) => (
+                <div className={"message-bubble-row " + (m.author_email === staffUser.email ? "client" : "bookkeeper")} key={m.id}>
+                  <div className="message-bubble">
+                    <div className="message-author">
+                      {m.author_name} · {m.author_role}
+                    </div>
+                    <div className="message-text">{m.text}</div>
+                    <div className="message-date">{fmtDateTime(m.created_at)}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <div className="message-compose">
+            <input
+              type="text"
+              placeholder="Write a message…"
+              value={draft}
+              onChange={(e) => setDraft(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") send();
+              }}
+            />
+            <button className="btn-primary" onClick={send} disabled={sending || !draft.trim()}>
+              Send
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -6930,6 +7143,7 @@ const PAGE_META = {
   "staff-access": { title: "Staff Access", subtitle: "Who can sign in to the portal, and with what role" },
   "client-access": { title: "Client Roster", subtitle: "Who at each organization is registered to sign in" },
   "developer-tools": { title: "Developer Tools", subtitle: "Per-browser testing aids — nothing here is shared with other staff or written to Supabase" },
+  "staff-messages": { title: "Team Chat", subtitle: "Message management, separate from client conversations" },
   "bookkeeper-home": { title: "Home", subtitle: "What needs attention across every client you can see" },
   documents: { title: "Documents", subtitle: "Shared files between you and your bookkeeper" },
   messages: { title: "Messages", subtitle: "Talk directly with your bookkeeping team" },
@@ -6983,6 +7197,60 @@ function App({ staffUser, onSignOut }) {
   // open, per initialPage's refresh-vs-fresh-open distinction below.
   const [selectedClientId, setSelectedClientId] = useState(() => loadSelectedClientId() || "riverside-pantry");
   const [page, setPage] = useState(initialPage);
+  // Sidebar dot for Team Chat — recomputed on every page change (cheap,
+  // single-purpose query) rather than polling, same posture as the rest of
+  // this app's Supabase reads. An admin's check looks across every
+  // bookkeeper's thread at once; a bookkeeper's only checks their own.
+  const [staffMessagesUnread, setStaffMessagesUnread] = useState(false);
+  const checkStaffMessagesUnread = useCallback(() => {
+    const supabase = window.mgbSupabase;
+    if (!supabase || !staffUser) {
+      setStaffMessagesUnread(false);
+      return;
+    }
+    if (staffUser.role === "admin") {
+      supabase
+        .from("staff_messages")
+        .select("staff_email, created_at")
+        .eq("author_role", "bookkeeper")
+        .order("created_at", { ascending: false })
+        .limit(200)
+        .then(({ data, error }) => {
+          if (error || !data) {
+            setStaffMessagesUnread(false);
+            return;
+          }
+          const latestByThread = {};
+          data.forEach((row) => {
+            if (!latestByThread[row.staff_email]) latestByThread[row.staff_email] = row.created_at;
+          });
+          const unread = Object.entries(latestByThread).some(([email, latest]) => {
+            const readAt = readStaffMessagesReadAt(email);
+            return !readAt || new Date(latest) > new Date(readAt);
+          });
+          setStaffMessagesUnread(unread);
+        });
+    } else {
+      supabase
+        .from("staff_messages")
+        .select("created_at")
+        .eq("staff_email", staffUser.email)
+        .eq("author_role", "admin")
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .then(({ data, error }) => {
+          if (error || !data || data.length === 0) {
+            setStaffMessagesUnread(false);
+            return;
+          }
+          const readAt = readStaffMessagesReadAt(staffUser.email);
+          setStaffMessagesUnread(!readAt || new Date(data[0].created_at) > new Date(readAt));
+        });
+    }
+  }, [staffUser]);
+  useEffect(() => {
+    checkStaffMessagesUnread();
+  }, [checkStaffMessagesUnread, page]);
   // Set when a global-search result is clicked, so the destination page
   // knows exactly which row to scroll to and flash — not just which tab to
   // open. `nonce` forces the effect on the receiving page to re-fire even
@@ -7282,21 +7550,29 @@ function App({ staffUser, onSignOut }) {
 
   const scopedClient = useMemo(() => scopeClientData(client, access), [client, access]);
 
-  // "enterprise-upgrade" and "staff-access"/"client-access"/"developer-tools"
-  // are synthetic pages, not real tabs — none is in ALL_TAB_KEYS/access.tabs,
-  // so each needs its own bypass here or the normal fallback would bounce it
-  // straight back to the dashboard. The admin-only three additionally
-  // require the role, matching the sidebar links that are the only way to
-  // reach them — Postgres RLS is the real enforcement for staff-access (see
-  // supabase/staff-admin-policies.sql) and developer-tools only ever touches
-  // this browser's own localStorage, but the page-level gate still keeps a
-  // demoted admin's stale stored page from rendering either.
+  // "enterprise-upgrade", "staff-access"/"client-access"/"developer-tools",
+  // and "staff-messages" are synthetic pages, not real tabs — none is in
+  // ALL_TAB_KEYS/access.tabs, so each needs its own bypass here or the
+  // normal fallback would bounce it straight back to the dashboard. The
+  // admin-only three additionally require the role, matching the sidebar
+  // links that are the only way to reach them — Postgres RLS is the real
+  // enforcement for staff-access (see supabase/staff-admin-policies.sql)
+  // and developer-tools only ever touches this browser's own localStorage,
+  // but the page-level gate still keeps a demoted admin's stale stored page
+  // from rendering either. staff-messages is open to any staff role (a
+  // bookkeeper has their own thread too) but, like the admin-only three,
+  // unreachable while impersonating — "view as" is about seeing a
+  // bookkeeper's CLIENT-facing view, and whose Team Chat thread should show
+  // during that (the real admin's, or the impersonated bookkeeper's) has no
+  // clean answer, so it's simplest to just not offer it mid-impersonation.
   const effectivePage =
     page === "enterprise-upgrade"
       ? page
       : (page === "staff-access" || page === "client-access" || page === "developer-tools") &&
         staffUser.role === "admin" &&
         !impersonating
+      ? page
+      : page === "staff-messages" && !impersonating
       ? page
       : page === "bookkeeper-home"
       ? page
@@ -7641,6 +7917,8 @@ function App({ staffUser, onSignOut }) {
           onToggleTheme={() => setTheme(effectiveTheme === "dark" ? "light" : "dark")}
           staffUser={effectiveStaffUser}
           onSignOut={onSignOut}
+          staffMessagesUnread={staffMessagesUnread}
+          impersonating={impersonating}
         />
         <main className="main">
           {impersonating && (
@@ -7755,6 +8033,9 @@ function App({ staffUser, onSignOut }) {
             <StaffAccessPage staffUser={staffUser} onImpersonate={startImpersonating} />
           )}
           {effectivePage === "client-access" && <ClientAccessPage />}
+          {effectivePage === "staff-messages" && (
+            <StaffMessagesPage staffUser={staffUser} onThreadOpened={checkStaffMessagesUnread} />
+          )}
           {effectivePage === "developer-tools" && (
             <DeveloperToolsPage
               staffUser={staffUser}
