@@ -4792,9 +4792,28 @@ function BudgetingToolPage({ client }) {
             </tr>
           </thead>
           <tbody>
-            {rows.map((r, i) => (
+            {rows.map((r, i) => {
+              // Same bullet-bar treatment as standard Budget vs. Actual's
+              // Spending by Category: track spans whichever of current
+              // budget/actual is bigger, fill is the real dollar amount, tick
+              // marks the current budget line — against actual, not the
+              // proposed number being drafted in this row.
+              const scaleMax = Math.max(r.current, r.actual, 1) * 1.08;
+              const fillPct = Math.min((r.actual / scaleMax) * 100, 100);
+              const tickPct = Math.min((r.current / scaleMax) * 100, 100);
+              const over = r.actual > r.current;
+              return (
               <tr key={i}>
-                <td data-primary="">{r.category}</td>
+                <td data-primary="">
+                  <div className="category-name">{r.category}</div>
+                  <div className="bullet-track">
+                    <div
+                      className={"bullet-fill " + (over ? "over" : "under")}
+                      style={{ width: `${fillPct}%`, animationDuration: `${growDuration(fillPct)}ms` }}
+                    ></div>
+                    <div className="bullet-target" style={{ left: `${tickPct}%` }}></div>
+                  </div>
+                </td>
                 <td className="num" data-label="This year's actual">{fmtMoney(r.actual)}</td>
                 <td className="num" data-label="Current budget">{fmtMoney(r.current)}</td>
                 <td className="num" data-label="Proposed budget">
@@ -4811,7 +4830,8 @@ function BudgetingToolPage({ client }) {
                   </button>
                 </td>
               </tr>
-            ))}
+              );
+            })}
           </tbody>
         </table>
         </div>
