@@ -655,6 +655,7 @@ function Sidebar({
                 ) : (
                   <div className="nav-section-label nav-section-label-signature nav-section-label-static">
                     <span>{section.label}</span>
+                    <span className="nav-signature-badge nav-signature-badge-shimmer">Pro Client</span>
                   </div>
                 ))}
               <div className="nav-section-items" id={sectionId}>
@@ -679,7 +680,6 @@ function Sidebar({
                   >
                     {item.icon}
                     <span>{item.label}</span>
-                    {isUpgraded && <span className="nav-pro-pill">PRO</span>}
                     {badges[item.key] && <span className="nav-badge-dot" aria-label="Unread"></span>}
                   </button>
                   );
