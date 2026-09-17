@@ -2554,3 +2554,14 @@ straight into that table instead of a bookkeeper re-typing it** — flagged here
 when that work starts.
 
 `MGB_VERSION` bumped to `2026-09-17an`.
+
+## §89 — Budgeting Tool (Pro) gets the bullet-bar chart too
+
+§87's bullet-bar chart only landed on standard Budget vs. Actual's "Spending by Category" — a
+Premium client never sees that page at all (Budgeting Tool replaces it entirely), so they had no
+equivalent. Added the same treatment to the Draft Budget by Category table's category column: bar
+scaled to `max(current budget, actual)`, tick at the current budget line, fill colored by
+over/under — against actual vs. the CURRENT budget, not the proposed number being drafted in that
+row.
+
+`MGB_VERSION` bumped to `2026-09-17ao`.
