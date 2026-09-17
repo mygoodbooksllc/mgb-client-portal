@@ -22,6 +22,11 @@ const sampleDailyCloseData = {
       55200, 56100, 55800, 57000, 58200, 57600, 59000, 58500, 59800, 60200,
       59600, 60900, 60100, 60819,
     ],
+    byAccount: [
+      { name: "Operating", balance: 38400 },
+      { name: "Savings", balance: 18000 },
+      { name: "Payroll", balance: 4419 },
+    ],
   },
   receivables: {
     total: 28450,

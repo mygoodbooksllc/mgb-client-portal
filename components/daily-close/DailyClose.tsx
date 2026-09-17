@@ -94,7 +94,7 @@ function writeCashFloor(clientId: string | undefined, value: number | null): voi
    another script's internals.
    ============================================================ */
 
-type LiveReportWidgetId = "kpi-cash" | "kpi-ar" | "kpi-ap" | "kpi-net" | "trend" | "expense-breakdown" | "aging" | "outlook";
+type LiveReportWidgetId = "kpi-cash" | "kpi-ar" | "kpi-ap" | "kpi-net" | "trend" | "expense-breakdown" | "cash-by-account" | "aging" | "outlook";
 
 const LIVE_REPORT_WIDGETS: { id: LiveReportWidgetId; label: string; description: string }[] = [
   { id: "kpi-cash", label: "Cash on Hand", description: "Current balance, delta vs. yesterday, 14-day trend" },
@@ -103,6 +103,7 @@ const LIVE_REPORT_WIDGETS: { id: LiveReportWidgetId; label: string; description:
   { id: "kpi-net", label: "Net Income, MTD", description: "Month-to-date net income and margin" },
   { id: "trend", label: "Revenue vs. Expenses", description: "6-month trend chart" },
   { id: "expense-breakdown", label: "Where the Money Went", description: "Expenses by category, this month" },
+  { id: "cash-by-account", label: "Cash by Account", description: "Donut breakdown of cash across your accounts" },
   { id: "aging", label: "Receivables Aging", description: "Aging buckets and the collections queue" },
   { id: "outlook", label: "Outlook", description: "Cash flow forecast, revenue trend, and flagged anomalies" },
 ];
@@ -130,8 +131,35 @@ function writeLiveReportLayout(clientId: string | undefined, order: string[], hi
   } catch (e) {}
 }
 
+// Named snapshots of a widget arrangement, same idea as app.jsx's Dashboard
+// saveView/applyView/deleteView (see useWidgetLayout there) — a small
+// parallel implementation rather than a cross-file call, for the same
+// self-containment reason as the rest of this layout hook.
+type LiveReportView = { name: string; order: string[]; hidden: string[] };
+
+function liveReportViewsKey(clientId?: string): string {
+  return `mygoodbooks_live_report_views_v1:${clientId || "default"}`;
+}
+
+function readLiveReportViews(clientId?: string): LiveReportView[] {
+  try {
+    const raw = localStorage.getItem(liveReportViewsKey(clientId));
+    const parsed = raw ? JSON.parse(raw) : [];
+    return Array.isArray(parsed) ? parsed : [];
+  } catch (e) {
+    return [];
+  }
+}
+
+function writeLiveReportViews(clientId: string | undefined, views: LiveReportView[]): void {
+  try {
+    localStorage.setItem(liveReportViewsKey(clientId), JSON.stringify(views));
+  } catch (e) {}
+}
+
 function useLiveReportLayout(clientId?: string) {
   const [saved, setSaved] = useState(() => readLiveReportLayout(clientId));
+  const [views, setViews] = useState(() => readLiveReportViews(clientId));
   const order = saved ? saved.order.filter((id) => LIVE_REPORT_WIDGET_IDS.includes(id as LiveReportWidgetId)).concat(LIVE_REPORT_WIDGET_IDS.filter((id) => !saved!.order.includes(id))) : LIVE_REPORT_WIDGET_IDS.slice();
   const hidden = new Set(saved ? saved.hidden.filter((id) => LIVE_REPORT_WIDGET_IDS.includes(id as LiveReportWidgetId)) : []);
 
@@ -160,6 +188,29 @@ function useLiveReportLayout(clientId?: string) {
       update(next, hidden);
     },
     reset: () => update(LIVE_REPORT_WIDGET_IDS.slice(), new Set()),
+
+    views,
+    saveView: (name: string) => {
+      const trimmed = (name || "").trim();
+      if (!trimmed) return;
+      const existing = views.filter((v) => v.name !== trimmed);
+      const next = [...existing, { name: trimmed, order, hidden: Array.from(hidden) }];
+      writeLiveReportViews(clientId, next);
+      setViews(next);
+    },
+    applyView: (name: string) => {
+      const view = views.find((v) => v.name === name);
+      if (!view) return;
+      update(
+        view.order.filter((id) => LIVE_REPORT_WIDGET_IDS.includes(id as LiveReportWidgetId)).concat(LIVE_REPORT_WIDGET_IDS.filter((id) => !view.order.includes(id))),
+        new Set(view.hidden.filter((id) => LIVE_REPORT_WIDGET_IDS.includes(id as LiveReportWidgetId)))
+      );
+    },
+    deleteView: (name: string) => {
+      const next = views.filter((v) => v.name !== name);
+      writeLiveReportViews(clientId, next);
+      setViews(next);
+    },
   };
 }
 
@@ -174,6 +225,8 @@ function LiveReportCustomizeModal({
   layout: ReturnType<typeof useLiveReportLayout>;
   onClose: () => void;
 }) {
+  const [newViewName, setNewViewName] = useState("");
+
   React.useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
@@ -220,6 +273,61 @@ function LiveReportCustomizeModal({
             );
           })}
         </div>
+
+        <div className={styles.customizeViews}>
+          <h4 className={styles.customizeViewsTitle}>Saved views</h4>
+          <p className={styles.customizeRowDesc} style={{ margin: "0 0 10px" }}>
+            Save this arrangement under a name to switch back to it later.
+          </p>
+          {layout.views.length > 0 && (
+            <div className={styles.customizeViewList}>
+              {layout.views.map((v) => (
+                <div className={styles.customizeViewRow} key={v.name}>
+                  <span className={styles.customizeViewName}>{v.name}</span>
+                  <div className={styles.customizeViewActions}>
+                    <button type="button" className={styles.customizeReset} onClick={() => layout.applyView(v.name)}>
+                      Apply
+                    </button>
+                    <button
+                      type="button"
+                      className={styles.customizeViewRemove}
+                      onClick={() => layout.deleteView(v.name)}
+                      aria-label={`Delete view ${v.name}`}
+                    >
+                      ×
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+          <div className={styles.customizeViewNew}>
+            <input
+              type="text"
+              placeholder="Name this arrangement…"
+              value={newViewName}
+              onChange={(e) => setNewViewName(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && newViewName.trim()) {
+                  layout.saveView(newViewName);
+                  setNewViewName("");
+                }
+              }}
+            />
+            <button
+              type="button"
+              className={styles.customizeReset}
+              disabled={!newViewName.trim()}
+              onClick={() => {
+                layout.saveView(newViewName);
+                setNewViewName("");
+              }}
+            >
+              Save as view
+            </button>
+          </div>
+        </div>
+
         <div className={styles.customizeFooter}>
           <button type="button" className={styles.customizeReset} onClick={layout.reset}>
             Reset to default
@@ -535,6 +643,42 @@ function BarList({ items }: { items: { label: string; amount: number }[] }) {
           <div className={`${styles.bValue} ${styles.num} count-up`}>{fmtMoney(item.amount)}</div>
         </div>
       ))}
+    </div>
+  );
+}
+
+/* ============================================================
+   Cash-by-account donut
+   ============================================================ */
+
+const DONUT_COLORS = ["var(--series-revenue)", "var(--good)", "var(--warning)", "var(--critical)"];
+
+function DonutList({ items, total }: { items: { name: string; balance: number }[]; total: number }) {
+  let cursor = 0;
+  const stops = items.map((a, i) => {
+    const p = total > 0 ? (a.balance / total) * 100 : 0;
+    const color = DONUT_COLORS[i % DONUT_COLORS.length];
+    const stop = `${color} ${cursor}% ${cursor + p}%`;
+    cursor += p;
+    return stop;
+  });
+  return (
+    <div className={styles.donutWidget}>
+      <div className={styles.donut} style={{ background: `conic-gradient(${stops.join(", ")})` }}>
+        <div className={styles.donutHole}>
+          <span className={styles.donutCenterValue}>{fmtMoney(total)}</span>
+          <span className={styles.donutCenterLabel}>Total cash</span>
+        </div>
+      </div>
+      <div className={styles.donutLegend}>
+        {items.map((a, i) => (
+          <div className={styles.donutLegendRow} key={a.name}>
+            <span className={styles.donutLegendSwatch} style={{ background: DONUT_COLORS[i % DONUT_COLORS.length] }} />
+            <span>{a.name}</span>
+            <span className={`${styles.donutLegendValue} ${styles.num}`}>{fmtMoney(a.balance)}</span>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
@@ -1078,6 +1222,21 @@ function DailyClose({ data, className, theme, onNavigate }: DailyCloseProps) {
                     {data.receivables.list && <CollectionsQueue items={data.receivables.list} clientName={data.client.name} />}
                   </div>
                 );
+
+              if (id === "cash-by-account") {
+                if (!data.cash.byAccount || data.cash.byAccount.length === 0) return null;
+                return (
+                  <div className={styles.panel} key={id}>
+                    <div className={styles.panelHead}>
+                      <div>
+                        <div className={styles.panelTitle}>Cash by account</div>
+                        <div className={styles.panelSub}>Share of total cash on hand</div>
+                      </div>
+                    </div>
+                    <DonutList items={data.cash.byAccount} total={data.cash.total} />
+                  </div>
+                );
+              }
 
               // outlook
               return (
