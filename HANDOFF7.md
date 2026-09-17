@@ -2585,3 +2585,27 @@ chrome, feed `resolveAccess` the real row instead of mock `client.users`), which
 rush in alongside this scaffolding. That's the next concrete step whenever this picks back up.
 
 `MGB_VERSION` bumped to `2026-09-17ap`.
+
+## §91 — Phase 2: signed-in clients reach the real dashboard
+
+`App` now accepts `clientPortalUser` (a real `client_users` row) alongside `staffUser` — never both.
+The insight that made this a small change instead of a rewrite: `resolveAccess`'s `user` object and
+the Sidebar's `isBookkeeper` branch already treat "a real, resolved person is signed in" as the
+client-facing view — that's exactly what "Preview As" has exercised in mock form all along. So:
+
+- `resolveAccess` takes an optional `overrideUser` — when set, skips the mock `client.users` lookup
+  and uses it directly (same shape, so every existing check keeps working unchanged).
+- `App` pins `selectedClientId` to `clientPortalUser.client_id` (no picker) and builds that override
+  from the signed-in row, normalizing `premium_throttled` → `premiumThrottled`.
+- `ClientPortalGuard` (replacing the old placeholder) checks the client_id resolves to a real
+  `CLIENTS` entry (data.js is still mock — Phase 3) before rendering `<App clientPortalUser=... />`.
+- Fixed two crash risks flushed out by staffUser now legitimately being `undefined`: `initialPage()`'s
+  fresh-session default (`bookkeeper-home`, staff-only) and an effect reading
+  `effectiveStaffUser.role` unguarded.
+
+Not fully exercised end-to-end yet (needs a real `client_users` row with `realAuthEnabled`-equivalent
+setup and a live magic-link round trip to confirm) — architecturally it's the same code path staff
+already use daily via "Preview As", which is what makes this a reasonably safe first pass rather than
+a parallel client-only render tree.
+
+`MGB_VERSION` bumped to `2026-09-17aq`.

@@ -348,14 +348,20 @@ function hasPremiumPlan(client) {
 
 // Resolves what a given person may see: the org-level baseline the bookkeeper
 // set for the whole client, narrowed by that individual's own access record.
-function resolveAccess(client, viewAsUserId, orgHiddenKeys) {
+// overrideUser: a real, signed-in client_users row (Phase 2 — see
+// ClientAuthGate), already resolved by the caller rather than looked up by
+// id out of client.users mock data. Same shape as a client.users entry
+// (access/tabs/categories/funds/premiumThrottled), so every check below
+// that already reads generically off "user" needs no changes for it.
+function resolveAccess(client, viewAsUserId, orgHiddenKeys, overrideUser) {
   // Premium tabs drop out entirely for clients not on the plan, before any
   // per-user scoping runs — an unsubscribed org has no one who can see them.
   const entitled = ALL_TAB_KEYS.filter((k) => !PREMIUM_TAB_KEYS.has(k) || hasPremiumPlan(client));
   const orgAllowed = entitled.filter((k) => k === ALWAYS_VISIBLE_KEY || !orgHiddenKeys.has(k));
 
-  const user =
-    viewAsUserId && viewAsUserId !== BOOKKEEPER_VIEW
+  const user = overrideUser
+    ? overrideUser
+    : viewAsUserId && viewAsUserId !== BOOKKEEPER_VIEW
       ? (client.users || []).find((u) => u.id === viewAsUserId)
       : null;
 
@@ -9926,15 +9932,27 @@ class ErrorBoundary extends React.Component {
   }
 }
 
-function App({ staffUser, onSignOut }) {
+// clientPortalUser: a signed-in client (Phase 2 — see ClientAuthGate), never
+// present alongside staffUser. Pins the whole app to that one person's own
+// client_id (no picker, nothing to switch) and, further down, hands their
+// real row straight to resolveAccess instead of the mock viewAsUserId
+// lookup — everything downstream (Sidebar's isBookkeeper branch, the
+// effectivePage guards, scopeClientData) already treats "access.user is a
+// real person" as the client-facing view, the same path "Preview As"
+// already exercises, so this reuses it rather than building a parallel one.
+function App({ staffUser, onSignOut, clientPortalUser }) {
   // Riverside: premium plan (so Live Report is reachable) and, as of the
   // thread fixes in data.js, no thread whose last message is unread —
   // nothing steals focus with the chat popup on first load. Only the
   // fallback when nothing was ever persisted (loadSelectedClientId returns
   // null) — a returning staffer lands back on whatever client they last had
   // open, per initialPage's refresh-vs-fresh-open distinction below.
-  const [selectedClientId, setSelectedClientId] = useState(() => loadSelectedClientId() || "riverside-pantry");
-  const [page, setPage] = useState(initialPage);
+  const [selectedClientId, setSelectedClientId] = useState(
+    () => (clientPortalUser && clientPortalUser.client_id) || loadSelectedClientId() || "riverside-pantry"
+  );
+  // A client never lands on "bookkeeper-home" — initialPage()'s fresh-session
+  // default is staff-only chrome they can't render (no staffUser).
+  const [page, setPage] = useState(() => (clientPortalUser ? "dashboard" : initialPage()));
   // Sidebar dot for Team Chat — recomputed on every page change and on any
   // Team Chat activity (cheap, single-purpose query) rather than polling,
   // same posture as the rest of this app's Supabase reads. "Read" is now a
@@ -10053,7 +10071,9 @@ function App({ staffUser, onSignOut }) {
 
   useEffect(() => {
     setAssignedClientIds(null);
-    if (effectiveStaffUser.role === "admin") return;
+    // Nothing to scope for a signed-in client — they only ever have their
+    // own one client_id, not a list to filter.
+    if (!effectiveStaffUser || effectiveStaffUser.role === "admin") return;
     const supabase = window.mgbSupabase;
     if (!supabase) return;
     supabase
@@ -10067,7 +10087,7 @@ function App({ staffUser, onSignOut }) {
         }
         setAssignedClientIds(new Set(data.map((r) => r.client_id)));
       });
-  }, [effectiveStaffUser.email, effectiveStaffUser.role]);
+  }, [effectiveStaffUser && effectiveStaffUser.email, effectiveStaffUser && effectiveStaffUser.role]);
 
   const visibleClients = useMemo(
     () => (assignedClientIds ? CLIENTS.filter((c) => assignedClientIds.has(c.id)) : CLIENTS),
@@ -10297,9 +10317,28 @@ function App({ staffUser, onSignOut }) {
     });
   };
 
+  // Normalized to the same shape a client.users mock entry has — see
+  // resolveAccess's overrideUser param.
+  const portalOverrideUser = useMemo(
+    () =>
+      clientPortalUser
+        ? {
+            id: clientPortalUser.email,
+            name: clientPortalUser.name,
+            role: clientPortalUser.role,
+            access: clientPortalUser.access || "full",
+            tabs: clientPortalUser.tabs,
+            categories: clientPortalUser.categories,
+            funds: clientPortalUser.funds,
+            premiumThrottled: clientPortalUser.premium_throttled,
+          }
+        : null,
+    [clientPortalUser]
+  );
+
   const access = useMemo(
-    () => resolveAccess(client, viewAsUserId, new Set(tabConfig[selectedClientId] || [])),
-    [client, viewAsUserId, tabConfig, selectedClientId]
+    () => resolveAccess(client, viewAsUserId, new Set(tabConfig[selectedClientId] || []), portalOverrideUser),
+    [client, viewAsUserId, tabConfig, selectedClientId, portalOverrideUser]
   );
 
   const scopedClient = useMemo(() => scopeClientData(client, access), [client, access]);
@@ -10323,12 +10362,13 @@ function App({ staffUser, onSignOut }) {
     page === "enterprise-upgrade"
       ? page
       : (page === "staff-access" || page === "client-access" || page === "developer-tools") &&
+        staffUser &&
         staffUser.role === "admin" &&
         !impersonating
       ? page
-      : page === "staff-messages" && !impersonating
+      : page === "staff-messages" && staffUser && !impersonating
       ? page
-      : page === "bookkeeper-home"
+      : page === "bookkeeper-home" && staffUser
       ? page
       : access.tabs.has(page)
       ? page
@@ -10984,27 +11024,29 @@ const accessFormToken = new URLSearchParams(window.location.search).get("access-
 // Phase 2 (real client login) entry point — see components/auth/ClientAuthGate.jsx
 // and supabase/client-auth-phase2.sql. Reached the same way as the access
 // form: its own query param, checked before AuthGate, since a client signing
-// in for real is never a staff member. The authorized view below is a
-// placeholder — wiring a signed-in clientUser into the actual dashboard
-// pages (reusing resolveAccess/scopeClientData, minus all the staff-only
-// chrome: client picker, "Preview As", sidebar staff links) is real surgery
-// on App and deliberately not rushed in alongside this scaffolding. Until
-// that lands, this just proves the login+lookup half of Phase 2 works.
+// in for real is never a staff member. Renders the same <App> staff use, just
+// with clientPortalUser set instead of staffUser — see the comment on App's
+// definition for how that pins it to one client with no staff chrome.
 const clientLoginMode = new URLSearchParams(window.location.search).get("client-login") === "1";
 
-function ClientPortalPlaceholder({ clientUser, onSignOut }) {
-  return (
-    <div className="boot-splash" role="status">
-      <div className="boot-splash-mark">MyGoodBooks</div>
-      <div className="boot-splash-sub">
-        Signed in as {clientUser.name} ({clientUser.role}). The client dashboard for this login
-        isn't wired up yet — check back soon.
+function ClientPortalGuard({ clientUser, onSignOut }) {
+  // Client data (bank accounts, budget, transactions...) is still mock
+  // data.js, not real tables (Phase 3) — a real client_users row whose
+  // client_id has no matching CLIENTS entry has nothing to actually show.
+  if (!CLIENTS.some((c) => c.id === clientUser.client_id)) {
+    return (
+      <div className="boot-splash" role="alert">
+        <div className="boot-splash-mark">MyGoodBooks</div>
+        <div className="boot-splash-sub">
+          {clientUser.name}'s account isn't linked to a client MyGoodBooks has set up yet.
+        </div>
+        <button className="btn-secondary" style={{ marginTop: 16 }} onClick={onSignOut}>
+          Sign out
+        </button>
       </div>
-      <button className="btn-secondary" style={{ marginTop: 16 }} onClick={onSignOut}>
-        Sign out
-      </button>
-    </div>
-  );
+    );
+  }
+  return <App clientPortalUser={clientUser} onSignOut={onSignOut} />;
 }
 
 // AuthGate (components/auth/AuthGate.jsx) is the Phase-1 login gate: it only
@@ -11018,7 +11060,7 @@ ReactDOM.createRoot(document.getElementById("root")).render(
       <AccessRequestForm token={accessFormToken} />
     ) : clientLoginMode ? (
       <ClientAuthGate>
-        {(clientUser, onSignOut) => <ClientPortalPlaceholder clientUser={clientUser} onSignOut={onSignOut} />}
+        {(clientUser, onSignOut) => <ClientPortalGuard clientUser={clientUser} onSignOut={onSignOut} />}
       </ClientAuthGate>
     ) : (
       <AuthGate>
