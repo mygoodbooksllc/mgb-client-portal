@@ -2126,3 +2126,49 @@ class of stale-page-key bug already found and fixed once before in Bookkeeper Ho
 attention" row.
 
 `MGB_VERSION` bumped to `2026-09-17s`.
+
+## §65 — Fund Accounting Pro: Tax Documents; Live Report's own card-lift bug fixed
+
+Two items.
+
+**Tax Documents.** Request: let a client send year-end giving statements so contributors can write
+off their donations. New "Tax Documents" view on `FundAccountingProPage` — a fifth toggle button
+alongside Fund Balances/Contributions/Fund Activity/Pledges. Shows one row per named donor (never
+"Anonymous" — there's no one to send a receipt to, and a YTD total shouldn't be attributable to a
+single anonymous contact), each with their YTD total, gift count, and email on file, plus per-row
+Download (real, via the existing `buildGivingStatementPdf`) and Send buttons, and a page-level
+"Send All" that sends to every donor who has an email.
+
+**Send is a simulated toast, not a real email**, and says so on the page — same honest-mock
+posture as the referral popup's own "this doesn't send a real email yet" disclaimer. This isn't a
+shortcut: a `mailto:` link (the pattern Collections Queue's reminder draft already uses elsewhere)
+categorically can't attach a file, and the entire point of this feature is attaching a generated
+PDF, so pretending otherwise would be actively misleading rather than an honest placeholder.
+
+New `client.donors` lookup in `data.js` for the two premium clients (name → email), a genuinely new
+piece of mock data — contributions previously had no donor contact info at all, only a name.
+Standard clients don't need it since this page never renders for them.
+
+**Live Report card-lift bug.** Separately reported: cards on the premium Dashboard (Live Report)
+were still lifting on hover, unlike the rest of the app after §61 removed that everywhere. Root
+cause: `DailyClose.css`'s `.dc-panel`/`.dc-kpiTile:hover` was its own independent copy of the exact
+rule `.card:hover` used to have (`transform: translateY(-4px) scale(1.015)`) — this file is
+deliberately self-contained (see its own header comment on why) and was never touched when §61
+fixed the shell's copy. Fixed the same way: shadow-only, no transform, dead
+`prefers-reduced-motion: reduce` override removed since there's nothing left to disable.
+
+`MGB_VERSION` bumped to `2026-09-17t`.
+
+## §66 — Live Report's five new widgets get tab-matching icons
+
+Follow-up to §64: each of the five new Enterprise-only widgets now carries the same icon as the
+sidebar tab it deep-links to — Reconciliation Status gets `BankIcon`, Bills Due Soon gets
+`SwapIcon` (Cash Flow's icon), Budget Health gets `PieChartIcon`, Fund Activity gets
+`GiftHeartIcon`, and Your Bookkeeper gets `ChatIcon` (Messages) inline next to the name, since that
+card already leads with its own avatar circle for "who." The paths are copied from app.jsx's icon
+components rather than imported — this file stays self-contained (see its own header comment) —
+with a note to keep them in sync by hand if app.jsx's icons ever change. A small `.dc-panelIcon`
+badge (gold-tinted, 22px) sits to the left of each panel's title in a new `.dc-panelTitleRow`
+wrapper.
+
+`MGB_VERSION` bumped to `2026-09-17u`.

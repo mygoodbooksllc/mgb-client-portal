@@ -2309,6 +2309,40 @@ function FundAccountingProPage({ client }) {
     showToast(`Downloaded "${filename}"`);
   };
 
+  // Tax Documents: one row per named donor (never "Anonymous" — there's no
+  // one to send a receipt to, and a YTD total shouldn't be attributable to
+  // a single anonymous contact), with their YTD total and the email on file
+  // from client.donors, if any.
+  const donorRoster = useMemo(() => {
+    const emailByDonor = Object.fromEntries((client.donors || []).map((d) => [d.name, d.email]));
+    const totals = {};
+    client.contributions.forEach((c) => {
+      if (c.donor === "Anonymous") return;
+      if (!totals[c.donor]) totals[c.donor] = { donor: c.donor, total: 0, giftCount: 0 };
+      totals[c.donor].total += c.amount;
+      totals[c.donor].giftCount += 1;
+    });
+    return Object.values(totals)
+      .map((d) => ({ ...d, email: emailByDonor[d.donor] || null }))
+      .sort((a, b) => b.total - a.total);
+  }, [client.contributions, client.donors]);
+
+  // No real send path exists (see the referral popup's own "this doesn't
+  // send a real email yet" disclaimer for the same honest-mock posture) —
+  // this simulates success with a toast rather than pretending to open a
+  // mailto draft, since the whole point is attaching a generated PDF, which
+  // a mailto: link can never do.
+  const handleSendStatement = (donor, email) => {
+    if (!email) return;
+    showToast(`Giving statement sent to ${donor} (${email}).`);
+  };
+
+  const handleSendAll = () => {
+    const withEmail = donorRoster.filter((d) => d.email);
+    if (!withEmail.length) return;
+    showToast(`Sent ${withEmail.length} giving statement${withEmail.length === 1 ? "" : "s"}.`);
+  };
+
   return (
     <div>
       <MockBanner text="Giving records, fund balances, transfers, and pledges shown here are fabricated for this prototype." />
@@ -2360,6 +2394,13 @@ function FundAccountingProPage({ client }) {
           onClick={() => setView("pledges")}
         >
           Pledges
+        </button>
+        <button
+          type="button"
+          className={"view-toggle-btn" + (view === "tax-documents" ? " active" : "")}
+          onClick={() => setView("tax-documents")}
+        >
+          Tax Documents
         </button>
       </div>
 
@@ -2465,6 +2506,71 @@ function FundAccountingProPage({ client }) {
               </tbody>
             </table>
           </div>
+        </div>
+      )}
+
+      {view === "tax-documents" && (
+        <div className="card">
+          <div className="page-header" style={{ marginBottom: 4 }}>
+            <div>
+              <h3 className="card-title premium-shimmer">Tax Documents</h3>
+              <p className="card-subtitle" style={{ margin: 0 }}>
+                Year-end giving statements donors can use to write off their contributions
+              </p>
+            </div>
+            <button className="btn-primary" disabled={!donorRoster.some((d) => d.email)} onClick={handleSendAll}>
+              Send All
+            </button>
+          </div>
+          <div className="table-scroll">
+            <table className="tx-table tx-table-stack tx-stack-giving">
+              <thead>
+                <tr>
+                  <th>Donor</th>
+                  <th>Email on File</th>
+                  <th className="num">Gifts</th>
+                  <th className="num">YTD Total</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                {donorRoster.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} style={{ color: "var(--text-muted)" }}>
+                      No named donors to send statements to — every gift on record so far is anonymous.
+                    </td>
+                  </tr>
+                ) : (
+                  donorRoster.map((d) => (
+                    <tr key={d.donor}>
+                      <td>{d.donor}</td>
+                      <td>
+                        {d.email || <span style={{ color: "var(--text-muted)" }}>No email on file</span>}
+                      </td>
+                      <td className="num">{d.giftCount}</td>
+                      <td className="num tx-amount">{fmtMoney(d.total, { cents: true })}</td>
+                      <td style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+                        <button className="btn-secondary" onClick={() => handleDownloadStatement(d.donor)}>
+                          Download
+                        </button>
+                        <button
+                          className="btn-secondary"
+                          disabled={!d.email}
+                          title={d.email ? undefined : "No email on file for this donor"}
+                          onClick={() => handleSendStatement(d.donor, d.email)}
+                        >
+                          Send
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+          <p className="card-subtitle" style={{ margin: "12px 0 0" }}>
+            Prototype — Send simulates delivery and doesn't actually email anything yet.
+          </p>
         </div>
       )}
     </div>
@@ -3470,7 +3576,7 @@ const ENTERPRISE_FEATURES = [
   {
     icon: <GiftHeartIcon />,
     title: "Fund Accounting Pro",
-    description: "See money move between funds with a reason attached, track pledges from committed to received, and generate a year-end giving statement for any donor in one click.",
+    description: "See money move between funds with a reason attached, track pledges from committed to received, and send year-end giving statements to every donor for their tax write-offs.",
   },
 ];
 
@@ -3564,7 +3670,7 @@ const ENTERPRISE_COMPARISON = [
     premium: [
       "Fund Activity ledger — money moved between funds, with a reason",
       "Pledge tracking — committed vs. received, with an aging status",
-      "One-click year-end giving statements, per donor",
+      "Tax Documents — year-end giving statements, downloadable per donor or sent to everyone at once",
     ],
   },
 ];
