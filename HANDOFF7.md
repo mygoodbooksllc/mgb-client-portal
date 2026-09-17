@@ -1999,3 +1999,32 @@ effect anywhere else yet — it'll just apply automatically if `.icon-badge` get
 page later, same as the rest of the app's shared `.card` styling already does.
 
 `MGB_VERSION` bumped to `2026-09-17p`.
+
+## §62 — Card text enlarges on hover too; masonry's lone trailing card centers itself
+
+Two follow-ups to §61.
+
+**Text enlarge.** Same treatment as the icon-badge enlarge: `.card-title`, `.kpi-value`, and
+`.pricing-value` now scale up slightly (`scale(1.05)`, `transform-origin: left center`) on
+`.card:hover`, app-wide. Scale only, no `translateY` — growing a line of text upward off its own
+baseline reads as broken in a way a small isolated icon shape can get away with, so this
+deliberately doesn't reuse the icon's exact motion. `.kpi-value` needed `display: inline-block`
+added (it's a `<span>`, and `transform` has no effect on a plain inline box in any browser); the
+other two are already block-level and didn't need it.
+
+**Masonry orphan centering.** Asked: on `.content-masonry` pages (Dashboard, Home, Receivables &
+Payables, AP Command Center, Staff Access), when a trailing card ends up alone at the bottom with
+nothing beside it, center it across the full width instead of leaving it pinned to whichever
+column the browser's height-balancer put it in. This needed actual measurement, not CSS alone —
+CSS multi-column layout has no selector for "the last card the balancer left by itself"; which
+column each card lands in is an internal browser decision based on height-balancing, not something
+expressible as `:last-child` or similar. A new effect in `App` (paired with the same
+scroll-reveal-observer section) checks, after layout settles (`ResizeObserver` + a `resize`
+listener + the same document-wide `MutationObserver` pattern the reveal observer already uses),
+whether the last card in each `.content-masonry` vertically overlaps any sibling; if nothing does,
+it's alone, and gets a `.cm-solo` class. That class applies `column-span: all` (pulls the card out
+of the column flow into its own full-width band) plus a capped `max-width` and `margin: auto` —
+the combination is what actually produces "gaps on either side," not just the card stretching to
+fill the full width edge-to-edge.
+
+`MGB_VERSION` bumped to `2026-09-17q`.

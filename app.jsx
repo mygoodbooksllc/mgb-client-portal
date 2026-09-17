@@ -9203,6 +9203,52 @@ function App({ staffUser, onSignOut }) {
     };
   }, []);
 
+  // .content-masonry uses CSS multi-column layout (see its comment in
+  // styles.css for why), which packs cards into whichever column the
+  // browser's own height-balancing puts them in — there's no CSS selector
+  // for "the last card that ended up alone at the bottom, with nothing
+  // beside it." So this measures it directly: after layout settles, if the
+  // last card's vertical span doesn't overlap any other card's, nothing
+  // is next to it, and it gets .cm-solo — which spans the full masonry
+  // width and centers itself there (see styles.css) instead of sitting
+  // pinned to one column with dead space only on one side.
+  useEffect(() => {
+    const containers = new Set();
+    const settle = () => {
+      document.querySelectorAll(".content-masonry").forEach((el) => {
+        const kids = Array.from(el.children).filter((c) => c.offsetParent !== null);
+        kids.forEach((k) => k.classList.remove("cm-solo"));
+        if (kids.length < 2) return;
+        const last = kids[kids.length - 1];
+        const lastRect = last.getBoundingClientRect();
+        const hasNeighbor = kids.some((k) => {
+          if (k === last) return false;
+          const r = k.getBoundingClientRect();
+          return r.top < lastRect.bottom && r.bottom > lastRect.top;
+        });
+        if (!hasNeighbor) last.classList.add("cm-solo");
+      });
+    };
+    const ro = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(settle);
+    const scanMasonry = () => {
+      document.querySelectorAll(".content-masonry").forEach((el) => {
+        if (containers.has(el)) return;
+        containers.add(el);
+        if (ro) ro.observe(el);
+      });
+      settle();
+    };
+    scanMasonry();
+    const mo2 = new MutationObserver(scanMasonry);
+    mo2.observe(document.body, { childList: true, subtree: true });
+    window.addEventListener("resize", settle);
+    return () => {
+      if (ro) ro.disconnect();
+      mo2.disconnect();
+      window.removeEventListener("resize", settle);
+    };
+  }, []);
+
   // Every prominent stat (KPI tiles, Report Builder's big numbers, fund
   // balances, Live Report's own KPI row) counts up from zero as the page
   // first loads. This works on the already-rendered text rather than routing
