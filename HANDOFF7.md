@@ -1533,3 +1533,37 @@ feature on a real backend table, same posture as `staff_reminders`/`client_notes
   this code, closing the last spot that predated that refactor.
 
 `MGB_VERSION` bumped to `2026-09-17b`.
+
+## §48 — Documents tab: added folders
+
+Clients (and bookkeepers) can now organize the Documents tab into folders, so files don't just
+sit in one flat list.
+
+- **Persistence, deliberately narrower than the rest of the page.** Documents themselves stay
+  session-only mock data (rebuilt from `client.documents`/newly uploaded files on every mount,
+  per the page's own `MockBanner`) — that hasn't changed. But which folder each document sits in
+  is the one part of this page worth remembering between visits, so it's the one part that's
+  actually persisted: `mygoodbooks_doc_folders_v1:<client.id>` in `localStorage` holds `{ folders,
+  assignments }`, where `assignments` maps document **name** → folder name (there's no stable doc
+  id in this data model). On mount, the persisted assignments are merged onto the fresh
+  `client.documents` array; any edit to folders or a doc's folder re-derives and re-saves that
+  blob. Already covered by Developer Tools' "Reset local state" via the existing
+  `mygoodbooks_`-prefix sweep (§34) — no new key to hand-register.
+- **UI**: a pill row above the document table — "All Documents" (total count) plus one pill per
+  folder (its own count, a small `×` to delete it), plus a "+ New Folder" pill that swaps to an
+  inline text input. Selecting a pill filters the table to that folder and retitles the card.
+  Deleting a folder unassigns its documents back to Unfiled rather than deleting them — confirmed
+  via `window.confirm` since it can't be undone from the UI.
+- **Per-row assignment via a `<select>` dropdown**, not drag-and-drop. This app abandoned touch
+  drag-and-drop app-wide earlier in the project after repeated real-device bugs — every
+  "reorder"/"move" UI since uses buttons or a dropdown instead (`ChevronUpIcon`/`ChevronDownIcon`
+  move buttons, etc.). A drag-to-file-into-folder interaction would reintroduce exactly that risk
+  for no real gain over a `<select>`, which works identically on every device with no new gesture
+  code.
+- A file uploaded while a folder is selected lands directly in that folder (`activeFolder` is
+  used as the new doc's initial `folder`), rather than always landing in Unfiled.
+- New CSS: `.doc-folder-bar`, `.doc-folder-pill` (+ `.active`, `.doc-folder-add-trigger`),
+  `.doc-folder-count`, `.doc-folder-remove`, `.doc-folder-new`, `.doc-folder-select` — styled off
+  the same tokens as the existing `.visibility-toggle` pill.
+
+`MGB_VERSION` bumped to `2026-09-17c`.
