@@ -6358,6 +6358,9 @@ function DocumentsPage({ client, isBookkeeper, searchTarget }) {
           addFiles(e.dataTransfer.files);
         }}
       >
+        <svg className="dropzone-border" preserveAspectRatio="none">
+          <rect x="1" y="1" rx="19" ry="19" />
+        </svg>
         <div className="upload-content">
           <div className="dropzone-icon">
             <UploadIcon width="22" height="22" strokeWidth="1.6" />
