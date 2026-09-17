@@ -2199,3 +2199,22 @@ Also bumped both donut-chart palettes (`ACCOUNT_DONUT_COLORS` in app.jsx,
 silently repeated the 1st account's color instead of getting one of its own.
 
 `MGB_VERSION` bumped to `2026-09-17v`.
+
+## §68 — Reconciliation Pro gets a chart; Budgeting Tool's missing card gap fixed
+
+**Outstanding by Account.** Request: another visual in premium Bank Accounts. `ReconciliationPanel`
+only ever showed one account's detail at a time (via the account tabs), so there was no way to
+compare accounts against each other at a glance. New "Outstanding by Account" card reuses
+`ReportBarRows` (already used for Top Expense Categories and Fund Balances — no new chart component
+needed) to show not-yet-cleared dollars per account, across all of them at once. Sits between the
+KPI row and the per-account Cleared Status table.
+
+**Budgeting Tool card spacing.** Asked to check card spacing on Budget vs. Actual — found it on the
+premium side (`BudgetingToolPage`): the Draft Budget card had no `marginBottom`, so it butted
+directly against the Spending Trend card below it with no gap. Same class of bug as the spacing
+fixes noted earlier in this file (this app spaces stacked `.card` blocks with an inline
+`style={{ marginBottom: 20 }}` per block, not a shared CSS rule, so a page can miss one). Standard
+`BudgetPage` doesn't have this issue — its two views are mutually exclusive via a toggle, never both
+mounted at once.
+
+`MGB_VERSION` bumped to `2026-09-17w`.

@@ -2952,6 +2952,14 @@ function ReconciliationPanel({ client }) {
 
   const history = (client.bankReconciliations || []).filter((r) => r.accountId === activeAccountId);
 
+  // Across every account, not just the one selected in the tabs above — a
+  // quick "where should I actually look first" comparison, since the tabs
+  // only ever show one account's detail at a time.
+  const outstandingByAccount = client.bankAccounts.map((a) => ({
+    label: a.accountName,
+    amount: (a.transactions || []).filter((t) => t.cleared === false).reduce((s, t) => s + Math.abs(t.amount), 0),
+  }));
+
   const handleDownload = () => {
     const filename = buildReconciliationReportPdf(client, account, { statementBalance, outstanding, difference });
     showToast(`Downloaded "${filename}"`);
@@ -2992,6 +3000,12 @@ function ReconciliationPanel({ client }) {
             {isReconciled ? "Reconciled" : "Book balance vs. adjusted statement"}
           </span>
         </div>
+      </div>
+
+      <div className="card" style={{ marginBottom: 20 }}>
+        <h3 className="card-title premium-shimmer">Outstanding by Account</h3>
+        <p className="card-subtitle">Not-yet-cleared dollars across every account, at a glance</p>
+        <ReportBarRows items={outstandingByAccount} />
       </div>
 
       <div className="card" style={{ marginBottom: 20 }}>
@@ -4403,7 +4417,11 @@ function BudgetingToolPage({ client }) {
         </button>
       </div>
 
-      <div className={"card " + (flashCardId === "draft" ? "card-flash" : "")} id="budgeting-tool-draft-card">
+      <div
+        className={"card " + (flashCardId === "draft" ? "card-flash" : "")}
+        id="budgeting-tool-draft-card"
+        style={{ marginBottom: 20 }}
+      >
         <h3 className="card-title premium-shimmer">Draft Budget by Category</h3>
         <p className="card-subtitle">Adjust proposed amounts for next period. This year's actual is shown for reference.</p>
         <div className="table-scroll">
