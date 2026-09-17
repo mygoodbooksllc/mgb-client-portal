@@ -2655,3 +2655,16 @@ stores file bytes — it's a passthrough: `client_documents` table holds
   Function sync (OAuth per client, scheduled pull into Supabase tables,
   Documents stays link-only since it's explicitly meant to avoid storing
   large files in Supabase).
+
+## §95 — QuickBooks connect scaffolding (stub)
+
+First step of the QuickBooks sketch: `qbo_connections` table (status only —
+never stores OAuth tokens, those belong in Edge Function secrets once a real
+Intuit Developer app exists) plus a "QuickBooks" tab in Manage Access showing
+connection status and a "Connect QuickBooks" button.
+
+The button is a stub — no Intuit client ID/secret provisioned yet, so it just
+toasts. Next real step once credentials exist: OAuth redirect + an Edge
+Function callback that exchanges the code, writes `realm_id`/status here, and
+a scheduled sync job pulling transactions/accounts/budgets into real tables
+(replacing today's mock CLIENTS data, same as the Phase 3 track).

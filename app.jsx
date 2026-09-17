@@ -9053,9 +9053,32 @@ function TabSettingsModal({
   const [newDocName, setNewDocName] = useState("");
   const [newDocUrl, setNewDocUrl] = useState("");
   const [addingDoc, setAddingDoc] = useState(false);
+  const [qboConnection, setQboConnection] = useState(undefined); // undefined = loading
   const showToast = useToast();
 
   const supabase = window.mgbSupabase;
+
+  const loadQboConnection = useCallback(() => {
+    if (!supabase) return;
+    supabase
+      .from("qbo_connections")
+      .select("client_id, status, connected_at, last_synced_at, last_error")
+      .eq("client_id", client.id)
+      .maybeSingle()
+      .then(({ data }) => setQboConnection(data || null));
+  }, [supabase, client.id]);
+
+  useEffect(() => {
+    if (tab === "quickbooks") loadQboConnection();
+  }, [tab, loadQboConnection]);
+
+  function connectQuickBooks() {
+    // Stub: the Intuit Developer app (client ID/secret) isn't provisioned
+    // yet, so there's no OAuth redirect to send this to. Once it exists,
+    // this becomes window.location.href = `${QBO_AUTH_URL}?client_id=...`
+    // and an Edge Function handles the callback + token exchange.
+    showToast("QuickBooks connection isn't set up yet — needs an Intuit Developer app first.");
+  }
 
   const loadDocuments = useCallback(() => {
     if (!supabase) return;
@@ -9201,6 +9224,9 @@ function TabSettingsModal({
           </button>
           <button className={"modal-tab" + (tab === "documents" ? " active" : "")} onClick={() => setTab("documents")}>
             Documents
+          </button>
+          <button className={"modal-tab" + (tab === "quickbooks" ? " active" : "")} onClick={() => setTab("quickbooks")}>
+            QuickBooks
           </button>
         </div>
 
@@ -9418,6 +9444,35 @@ function TabSettingsModal({
                     </div>
                   </div>
                 ))
+              )}
+            </div>
+          </div>
+        )}
+
+        {tab === "quickbooks" && (
+          <div className="modal-body">
+            <p className="card-subtitle" style={{ marginTop: 0 }}>
+              Connect {client.name}'s QuickBooks Online account to sync transactions, accounts, and
+              budgets automatically instead of entering them by hand.
+            </p>
+
+            <div className="modal-section">
+              {qboConnection === undefined ? (
+                <p className="card-subtitle">Loading…</p>
+              ) : qboConnection && qboConnection.status === "connected" ? (
+                <div className="access-request-row">
+                  <div className="access-request-row-header">
+                    <span className="person-name">Connected</span>
+                  </div>
+                  <div className="card-subtitle" style={{ margin: "2px 0 0" }}>
+                    Last synced{" "}
+                    {qboConnection.last_synced_at ? fmtDate(qboConnection.last_synced_at.slice(0, 10)) : "never yet"}
+                  </div>
+                </div>
+              ) : (
+                <button className="btn-primary" onClick={connectQuickBooks}>
+                  Connect QuickBooks
+                </button>
               )}
             </div>
           </div>
