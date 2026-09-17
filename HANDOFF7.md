@@ -1978,3 +1978,24 @@ using `client.users.length` — every login configured for the organization, not
 ones, since that's what actually drives seat count. Still placeholder figures pending real pricing.
 
 `MGB_VERSION` bumped to `2026-09-17o`.
+
+## §61 — Card hover: dropped the lift app-wide, kept the icon enlarge
+
+Request: the Enterprise pricing cards' hover treatment (shadow pops, the icon inside enlarges
+slightly, but the card itself doesn't lift) was liked enough to want everywhere, not just there.
+
+`.card:hover` (`styles.css`) previously did both `box-shadow: var(--shadow-hover)` and
+`transform: translateY(-4px) scale(1.015)` — the lift/scale is gone now, shadow-only, which
+applies to every `.card` in the app immediately since it's the one shared rule (no page has its
+own competing `.kpi-card:hover`/`.report-card:hover`/etc. override — checked). The
+`prefers-reduced-motion: reduce` override that turned the lift off is gone too, since there's no
+transform left to turn off.
+
+The icon-enlarge-on-hover (`.card:hover .icon-badge { transform: translateY(-3px) scale(1.06); }`)
+was previously scoped to `.enterprise-page` only (§59) — generalized to plain `.card:hover
+.icon-badge`, still gated under `prefers-reduced-motion: no-preference`. `.icon-badge` is
+currently only used on the Enterprise upgrade page's six feature cards, so this has no visible
+effect anywhere else yet — it'll just apply automatically if `.icon-badge` gets reused on another
+page later, same as the rest of the app's shared `.card` styling already does.
+
+`MGB_VERSION` bumped to `2026-09-17p`.
