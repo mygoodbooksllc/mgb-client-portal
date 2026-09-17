@@ -5860,11 +5860,50 @@ function BookkeeperHomePage({ staffUser, clients, messagesByClient, readMessageC
 // Documents page (upload)
 // ----------------------------------------------------------------------------
 
+// Folders (names + which document each one holds, keyed by document name
+// since docs have no stable id) are the one part of the Documents page that
+// persists across reloads — everything else here is deliberately session-
+// only (see the page's own MockBanner). Organizing files into folders is a
+// real, lasting decision a client would want to keep making sense next
+// time they're back, even though the underlying sample/uploaded files
+// themselves aren't really stored anywhere yet.
+function docFoldersKey(clientId) {
+  return `mygoodbooks_doc_folders_v1:${clientId}`;
+}
+
+function loadDocFolders(clientId) {
+  try {
+    const raw = localStorage.getItem(docFoldersKey(clientId));
+    if (!raw) return { folders: [], assignments: {} };
+    const parsed = JSON.parse(raw);
+    return {
+      folders: Array.isArray(parsed.folders) ? parsed.folders : [],
+      assignments: parsed.assignments && typeof parsed.assignments === "object" ? parsed.assignments : {},
+    };
+  } catch (e) {
+    return { folders: [], assignments: {} };
+  }
+}
+
+function saveDocFolders(clientId, folders, assignments) {
+  try {
+    localStorage.setItem(docFoldersKey(clientId), JSON.stringify({ folders, assignments }));
+  } catch (e) {}
+}
+
 function DocumentsPage({ client, isBookkeeper, searchTarget }) {
-  const [docs, setDocs] = useState(client.documents);
+  const [folders, setFolders] = useState(() => loadDocFolders(client.id).folders);
+  const [docs, setDocs] = useState(() => {
+    const { assignments } = loadDocFolders(client.id);
+    return client.documents.map((d) => ({ ...d, folder: assignments[d.name] || null }));
+  });
+  const [activeFolder, setActiveFolder] = useState(null); // null = "All"
+  const [addingFolder, setAddingFolder] = useState(false);
+  const [newFolderName, setNewFolderName] = useState("");
   const [isDragging, setIsDragging] = useState(false);
   const [previewIndex, setPreviewIndex] = useState(null);
   const fileInputRef = useRef(null);
+  const newFolderInputRef = useRef(null);
   const showToast = useToast();
   const { flashCardId, jumpToCard } = useCardFlash();
 
@@ -5872,6 +5911,17 @@ function DocumentsPage({ client, isBookkeeper, searchTarget }) {
     if (searchTarget) jumpToCard(searchTarget.highlightKey, searchTarget.highlightKey);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchTarget && searchTarget.nonce]);
+
+  // Persists folder names + which folder each document is in, by name.
+  // Doesn't persist the documents themselves — a fresh session still starts
+  // from client.documents/newly uploaded files, same as before.
+  useEffect(() => {
+    const assignments = {};
+    docs.forEach((d) => {
+      if (d.folder) assignments[d.name] = d.folder;
+    });
+    saveDocFolders(client.id, folders, assignments);
+  }, [client.id, folders, docs]);
 
   const addFiles = (fileList) => {
     const files = Array.from(fileList || []);
@@ -5890,6 +5940,7 @@ function DocumentsPage({ client, isBookkeeper, searchTarget }) {
       // has actual bytes to show. Pre-loaded sample documents never had a
       // real file behind them, so they fall back to a metadata-only preview.
       file: f,
+      folder: activeFolder,
     }));
     setDocs((d) => [...newDocs, ...d]);
     showToast(`Uploaded ${files.length} file${files.length > 1 ? "s" : ""}.`);
@@ -5903,9 +5954,111 @@ function DocumentsPage({ client, isBookkeeper, searchTarget }) {
     );
   };
 
+  const moveDocToFolder = (index, folderName) => {
+    setDocs((d) => d.map((doc, i) => (i === index ? { ...doc, folder: folderName || null } : doc)));
+  };
+
+  const addFolder = () => {
+    const name = newFolderName.trim();
+    if (!name) return;
+    if (folders.includes(name)) {
+      showToast(`"${name}" already exists.`);
+      return;
+    }
+    setFolders((f) => [...f, name]);
+    setNewFolderName("");
+    setAddingFolder(false);
+    setActiveFolder(name);
+  };
+
+  const removeFolder = (name) => {
+    if (!window.confirm(`Delete the "${name}" folder? Its documents move back to Unfiled — nothing is deleted.`)) return;
+    setFolders((f) => f.filter((x) => x !== name));
+    setDocs((d) => d.map((doc) => (doc.folder === name ? { ...doc, folder: null } : doc)));
+    if (activeFolder === name) setActiveFolder(null);
+  };
+
+  const visibleDocs = activeFolder === null ? docs : docs.filter((d) => d.folder === activeFolder);
+  const unfiledCount = docs.filter((d) => !d.folder).length;
+
   return (
     <div>
-      <MockBanner text="Uploaded files stay in your browser for this session only — nothing is actually stored yet." />
+      <MockBanner text="Uploaded files stay in your browser for this session only — nothing is actually stored yet. Folders you create do stick around on this browser." />
+
+      <div className="doc-folder-bar">
+        <button
+          type="button"
+          className={"doc-folder-pill" + (activeFolder === null ? " active" : "")}
+          onClick={() => setActiveFolder(null)}
+        >
+          <FolderIcon width="14" height="14" strokeWidth="1.8" />
+          All Documents
+          <span className="doc-folder-count">{docs.length}</span>
+        </button>
+        {folders.map((name) => {
+          const count = docs.filter((d) => d.folder === name).length;
+          return (
+            <button
+              type="button"
+              key={name}
+              className={"doc-folder-pill" + (activeFolder === name ? " active" : "")}
+              onClick={() => setActiveFolder(name)}
+            >
+              <FolderIcon width="14" height="14" strokeWidth="1.8" />
+              {name}
+              <span className="doc-folder-count">{count}</span>
+              <span
+                className="doc-folder-remove"
+                role="button"
+                tabIndex={0}
+                aria-label={`Delete folder ${name}`}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  removeFolder(name);
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.stopPropagation();
+                    removeFolder(name);
+                  }
+                }}
+              >
+                ×
+              </span>
+            </button>
+          );
+        })}
+        {addingFolder ? (
+          <span className="doc-folder-new">
+            <input
+              ref={newFolderInputRef}
+              type="text"
+              placeholder="Folder name"
+              value={newFolderName}
+              onChange={(e) => setNewFolderName(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") addFolder();
+                if (e.key === "Escape") {
+                  setAddingFolder(false);
+                  setNewFolderName("");
+                }
+              }}
+              autoFocus
+            />
+            <button type="button" className="btn-secondary" onClick={addFolder}>
+              Add
+            </button>
+          </span>
+        ) : (
+          <button
+            type="button"
+            className="doc-folder-pill doc-folder-add-trigger"
+            onClick={() => setAddingFolder(true)}
+          >
+            + New Folder
+          </button>
+        )}
+      </div>
 
       <div
         className={"card upload-card dropzone" + (isDragging ? " dragging" : "")}
@@ -5955,8 +6108,8 @@ function DocumentsPage({ client, isBookkeeper, searchTarget }) {
       </div>
 
       <div className="card">
-        <h3 className="card-title">All Documents</h3>
-        <p className="card-subtitle">{docs.length} file{docs.length !== 1 ? "s" : ""} · click a document to preview it</p>
+        <h3 className="card-title">{activeFolder === null ? "All Documents" : activeFolder}</h3>
+        <p className="card-subtitle">{visibleDocs.length} file{visibleDocs.length !== 1 ? "s" : ""} · click a document to preview it</p>
         <div className="table-scroll">
 <table className="tx-table tx-table-labeled">
           <thead>
@@ -5965,15 +6118,17 @@ function DocumentsPage({ client, isBookkeeper, searchTarget }) {
               <th>Category</th>
               <th>Uploaded By</th>
               <th>Date</th>
+              <th>Folder</th>
               {isBookkeeper && <th>Visible To</th>}
               <th className="num">Size</th>
             </tr>
           </thead>
           <tbody>
-            {docs.map((d, i) => {
+            {visibleDocs.map((d) => {
+              const i = docs.indexOf(d);
               const rowId = "doc-row-" + slugify(d.name);
               return (
-              <tr key={i} id={rowId} className={"doc-row" + (flashCardId === rowId ? " row-flash" : "")} onClick={() => setPreviewIndex(i)} tabIndex={0}
+              <tr key={d.name + i} id={rowId} className={"doc-row" + (flashCardId === rowId ? " row-flash" : "")} onClick={() => setPreviewIndex(i)} tabIndex={0}
                 onKeyDown={(e) => { if (e.key === "Enter") setPreviewIndex(i); }}>
                 <td data-primary="">
                   <span className="doc-name-link">
@@ -5986,6 +6141,21 @@ function DocumentsPage({ client, isBookkeeper, searchTarget }) {
                 </td>
                 <td data-label="Uploaded by">{d.uploadedBy}</td>
                 <td data-label="Date">{fmtDate(d.date)}</td>
+                <td data-label="Folder">
+                  <select
+                    className="doc-folder-select"
+                    value={d.folder || ""}
+                    onClick={(e) => e.stopPropagation()}
+                    onChange={(e) => moveDocToFolder(i, e.target.value)}
+                  >
+                    <option value="">Unfiled</option>
+                    {folders.map((name) => (
+                      <option key={name} value={name}>
+                        {name}
+                      </option>
+                    ))}
+                  </select>
+                </td>
                 {isBookkeeper && (
                   <td data-label="Visible to">
                     <button

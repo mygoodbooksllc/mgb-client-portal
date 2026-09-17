@@ -1742,6 +1742,100 @@ body.rb-presenting .main {
   color: var(--ink-strong);
 }
 
+.doc-folder-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.doc-folder-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-body);
+  font-size: 12.5px;
+  font-weight: 600;
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-muted);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: border-color 0.15s ease, color 0.15s ease, background 0.15s ease;
+}
+
+.doc-folder-pill:hover {
+  border-color: var(--gold-deep);
+  color: var(--ink-strong);
+}
+
+.doc-folder-pill.active {
+  background: var(--accent-soft);
+  border-color: var(--gold-deep);
+  color: var(--ink-strong);
+}
+
+.doc-folder-count {
+  font-size: 11px;
+  font-weight: 700;
+  color: inherit;
+  opacity: 0.7;
+}
+
+.doc-folder-remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 999px;
+  line-height: 1;
+  font-size: 13px;
+  color: inherit;
+  opacity: 0.6;
+}
+
+.doc-folder-remove:hover {
+  opacity: 1;
+  background: rgba(0, 0, 0, 0.08);
+}
+
+.doc-folder-add-trigger {
+  border-style: dashed;
+}
+
+.doc-folder-new {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.doc-folder-new input {
+  font-family: var(--font-body);
+  font-size: 12.5px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--ink-strong);
+  width: 140px;
+}
+
+.doc-folder-select {
+  font-family: var(--font-body);
+  font-size: 11.5px;
+  font-weight: 600;
+  padding: 4px 8px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--ink-strong);
+  cursor: pointer;
+}
+
 .category-tag {
   display: inline-block;
   font-size: 11.5px;
