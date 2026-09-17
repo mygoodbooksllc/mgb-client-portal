@@ -2636,3 +2636,22 @@ already echoes back whatever path the person started from.
 Real client sign-in link once this deploys: `https://app.mygoodbooks.org/login`.
 
 `MGB_VERSION` bumped to `2026-09-17as`.
+
+## §94 — Documents tab: Supabase holds Drive links only, not files
+
+Kicked off the "client docs stay in Google Drive" integration. Supabase never
+stores file bytes — it's a passthrough: `client_documents` table holds
+`{client_id, name, drive_url, category, added_by, created_at}` only.
+
+- `supabase/` migration `client_documents`: RLS lets staff manage rows for any
+  client, and lets a signed-in client (via `client_users`) read their own
+  client's rows. Applied live via `apply_migration`.
+- Manage Access modal gained a "Documents" tab: add a name + paste a Drive
+  share link, list opens the file in Drive in a new tab, remove deletes the
+  row (never touches the actual file in Drive).
+- No live Drive API call yet — this is metadata + manual link-paste. A real
+  Drive picker / auto-sync (service account, folder-per-client) is the next
+  step whenever we want it, same track as the sketched QuickBooks Edge
+  Function sync (OAuth per client, scheduled pull into Supabase tables,
+  Documents stays link-only since it's explicitly meant to avoid storing
+  large files in Supabase).

@@ -9049,9 +9049,52 @@ function TabSettingsModal({
   const [requests, setRequests] = useState([]);
   const [generatingLink, setGeneratingLink] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [documents, setDocuments] = useState(undefined); // undefined = loading
+  const [newDocName, setNewDocName] = useState("");
+  const [newDocUrl, setNewDocUrl] = useState("");
+  const [addingDoc, setAddingDoc] = useState(false);
   const showToast = useToast();
 
   const supabase = window.mgbSupabase;
+
+  const loadDocuments = useCallback(() => {
+    if (!supabase) return;
+    supabase
+      .from("client_documents")
+      .select("id, name, drive_url, category, created_at")
+      .eq("client_id", client.id)
+      .order("created_at", { ascending: false })
+      .then(({ data }) => setDocuments(data || []));
+  }, [supabase, client.id]);
+
+  useEffect(() => {
+    if (tab === "documents") loadDocuments();
+  }, [tab, loadDocuments]);
+
+  async function addDocument(e) {
+    e.preventDefault();
+    if (!supabase || !newDocName.trim() || !newDocUrl.trim()) return;
+    setAddingDoc(true);
+    const { error } = await supabase.from("client_documents").insert({
+      client_id: client.id,
+      name: newDocName.trim(),
+      drive_url: newDocUrl.trim(),
+      added_by: staffUser && staffUser.email,
+    });
+    setAddingDoc(false);
+    if (error) {
+      showToast("Couldn't add that document: " + error.message);
+      return;
+    }
+    setNewDocName("");
+    setNewDocUrl("");
+    loadDocuments();
+  }
+
+  async function removeDocument(id) {
+    await supabase.from("client_documents").delete().eq("id", id);
+    loadDocuments();
+  }
 
   const loadRequestsTab = useCallback(() => {
     if (!supabase) return;
@@ -9155,6 +9198,9 @@ function TabSettingsModal({
           <button className={"modal-tab" + (tab === "requests" ? " active" : "")} onClick={() => setTab("requests")}>
             Requests
             {requests.some((r) => !r.reviewed) && <span className="thread-tab-dot" />}
+          </button>
+          <button className={"modal-tab" + (tab === "documents" ? " active" : "")} onClick={() => setTab("documents")}>
+            Documents
           </button>
         </div>
 
@@ -9322,6 +9368,57 @@ function TabSettingsModal({
                   ))}
                 </div>
               ))}
+            </div>
+          </div>
+        )}
+
+        {tab === "documents" && (
+          <div className="modal-body">
+            <p className="card-subtitle" style={{ marginTop: 0 }}>
+              Links to files already in {client.name}'s Google Drive. Nothing is uploaded or
+              stored here — this just points at where the file already lives.
+            </p>
+
+            <form className="access-link-row" onSubmit={addDocument} style={{ marginBottom: 16 }}>
+              <input
+                type="text"
+                placeholder="Document name"
+                value={newDocName}
+                onChange={(e) => setNewDocName(e.target.value)}
+                required
+              />
+              <input
+                type="url"
+                placeholder="Google Drive share link"
+                value={newDocUrl}
+                onChange={(e) => setNewDocUrl(e.target.value)}
+                required
+              />
+              <button className="btn-primary" disabled={addingDoc} type="submit">
+                {addingDoc ? "Adding…" : "Add"}
+              </button>
+            </form>
+
+            <div className="modal-section">
+              <div className="nav-section-label modal-section-label">Linked documents</div>
+              {documents === undefined ? (
+                <p className="card-subtitle">Loading…</p>
+              ) : documents.length === 0 ? (
+                <p className="card-subtitle">No documents linked yet.</p>
+              ) : (
+                documents.map((d) => (
+                  <div className="access-request-row" key={d.id}>
+                    <div className="access-request-row-header">
+                      <a href={d.drive_url} target="_blank" rel="noopener noreferrer" className="person-name">
+                        {d.name}
+                      </a>
+                      <button className="btn-secondary" onClick={() => removeDocument(d.id)}>
+                        Remove
+                      </button>
+                    </div>
+                  </div>
+                ))
+              )}
             </div>
           </div>
         )}
