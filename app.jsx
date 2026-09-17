@@ -3136,7 +3136,7 @@ const REPORT_SECTION_DEFS = [
 
 function ReportBuilderPage({ client }) {
   const [stage, setStage] = useState("builder"); // "builder" | "report"
-  const [builderTab, setBuilderTab] = useState("custom"); // "custom" | "quick" — see QuickDownloadReports
+  const [builderTab, setBuilderTab] = useState("quick"); // "custom" | "quick" — see QuickDownloadReports
   const [presenting, setPresenting] = useState(false);
   const [period, setPeriod] = useState("ytd");
   const [scope, setScope] = useState("consolidated"); // "consolidated" | "by-fund"
@@ -3227,17 +3227,17 @@ function ReportBuilderPage({ client }) {
         <div className="view-toggle" style={{ marginBottom: 20 }}>
           <button
             type="button"
-            className={"view-toggle-btn" + (builderTab === "custom" ? " active" : "")}
-            onClick={() => setBuilderTab("custom")}
-          >
-            Custom Report
-          </button>
-          <button
-            type="button"
             className={"view-toggle-btn" + (builderTab === "quick" ? " active" : "")}
             onClick={() => setBuilderTab("quick")}
           >
             Quick Download
+          </button>
+          <button
+            type="button"
+            className={"view-toggle-btn" + (builderTab === "custom" ? " active" : "")}
+            onClick={() => setBuilderTab("custom")}
+          >
+            Custom Report
           </button>
         </div>
 
@@ -3733,6 +3733,19 @@ function BudgetingToolPage({ client }) {
             Download PDF
           </button>
         </div>
+      </div>
+
+      {/* Budget vs. Actual (the standard page this one replaces for a
+          premium client) has a Spending Trend toggle — the same
+          multi-month income/expense chart the Dashboard uses. Shown here as
+          a plain reference card rather than a toggle, since the draft table
+          above is this page's whole reason to exist and shouldn't be
+          hideable behind one — but the chart itself needs to stay reachable
+          so this page is still a strict superset of Budget vs. Actual. */}
+      <div className="card">
+        <h3 className="card-title">Spending Trend</h3>
+        <p className="card-subtitle">Income vs. expenses, last {client.monthly.length} months — for reference while drafting</p>
+        <IncomeExpenseChart monthly={client.monthly} />
       </div>
     </div>
   );
