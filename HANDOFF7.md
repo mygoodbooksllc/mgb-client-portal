@@ -2436,3 +2436,12 @@ Both channels are cleaned up (`removeChannel`) on unmount/conversation switch, s
 postgres_changes subscription.
 
 `MGB_VERSION` bumped to `2026-09-17af`.
+
+## §80 — Client-side chat header names the assigned bookkeeper
+
+The client's Messages page header said "Conversation with MyGoodBooks" — a brand name, not a
+person. Now falls back to `client.assignedBookkeeper.name` (e.g. "Conversation with Alicia
+Fenwick"), same field the Enterprise "Your Bookkeeper" card and Live Report PDF footer already use.
+Bookkeeper-side view (picking which client's thread to view) is unaffected.
+
+`MGB_VERSION` bumped to `2026-09-17ag`.

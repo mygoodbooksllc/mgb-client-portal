@@ -8330,7 +8330,11 @@ function MessagesPage({ client, messages, onSend, users, activeUserId, onSelectU
         }}
       >
         <h3 className="card-title">
-          {isBookkeeper && activeUser ? `Conversation with ${activeUser.name}` : "Conversation with MyGoodBooks"}
+          {isBookkeeper && activeUser
+            ? `Conversation with ${activeUser.name}`
+            : client && client.assignedBookkeeper
+              ? `Conversation with ${client.assignedBookkeeper.name}`
+              : "Conversation with MyGoodBooks"}
         </h3>
         {messages.length === 0 && (
           <p className="card-subtitle">No messages yet in this conversation.</p>
