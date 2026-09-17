@@ -8448,6 +8448,289 @@ function MessagesPage({ client, messages, onSend, users, activeUserId, onSelectU
 }
 
 // ----------------------------------------------------------------------------
+// Access Request Form — public, no login (see supabase/access-requests.sql).
+// A client's admin uses this to specify exactly what each of their staff
+// should see, without needing a MyGoodBooks account of their own. Reached by
+// its own query param (see the ReactDOM.createRoot call at the bottom of
+// this file), entirely outside AuthGate/App. A bookkeeper reads the
+// submission back in Manage Access -> Requests and applies it by hand — see
+// that SQL file's header for why this doesn't auto-apply.
+// ----------------------------------------------------------------------------
+
+function emptyAccessRequestPerson() {
+  return { name: "", email: "", role: "", access: "full", tabs: [], categories: [] };
+}
+
+function AccessRequestForm({ token }) {
+  const supabase = window.mgbSupabase;
+  // "loading" | "invalid" | "ready" | "submitting" | "done"
+  const [status, setStatus] = useState("loading");
+  const [client, setClient] = useState(null);
+  const [submitterName, setSubmitterName] = useState("");
+  const [submitterEmail, setSubmitterEmail] = useState("");
+  const [people, setPeople] = useState([emptyAccessRequestPerson()]);
+  const [errorMsg, setErrorMsg] = useState("");
+
+  useEffect(() => {
+    if (!supabase) {
+      setErrorMsg("This portal isn't configured yet.");
+      setStatus("invalid");
+      return;
+    }
+    supabase
+      .from("access_request_links")
+      .select("client_id, active")
+      .eq("token", token)
+      .maybeSingle()
+      .then(({ data, error }) => {
+        if (error || !data || !data.active) {
+          setStatus("invalid");
+          return;
+        }
+        const c = CLIENTS.find((c) => c.id === data.client_id);
+        if (!c) {
+          setStatus("invalid");
+          return;
+        }
+        setClient(c);
+        setStatus("ready");
+      });
+  }, [token, supabase]);
+
+  const requestableTabs = NAV_SECTIONS.flatMap((s) => s.items).filter((i) => i.key !== ALWAYS_VISIBLE_KEY);
+
+  function updatePerson(i, patch) {
+    setPeople((prev) => prev.map((p, idx) => (idx === i ? { ...p, ...patch } : p)));
+  }
+  function toggleTab(i, key) {
+    setPeople((prev) =>
+      prev.map((p, idx) => {
+        if (idx !== i) return p;
+        const set = new Set(p.tabs);
+        if (set.has(key)) set.delete(key);
+        else set.add(key);
+        return { ...p, tabs: Array.from(set) };
+      })
+    );
+  }
+  function toggleCategory(i, cat) {
+    setPeople((prev) =>
+      prev.map((p, idx) => {
+        if (idx !== i) return p;
+        const set = new Set(p.categories);
+        if (set.has(cat)) set.delete(cat);
+        else set.add(cat);
+        return { ...p, categories: Array.from(set) };
+      })
+    );
+  }
+
+  async function submit() {
+    setStatus("submitting");
+    const { error } = await supabase.from("access_requests").insert({
+      client_id: client.id,
+      token,
+      submitted_by_name: submitterName.trim(),
+      submitted_by_email: submitterEmail.trim(),
+      people: people.map((p) => ({
+        name: p.name.trim(),
+        email: p.email.trim(),
+        role: p.role.trim(),
+        access: p.access,
+        tabs: p.access === "full" ? null : p.tabs,
+        categories: p.access === "full" ? null : p.categories,
+      })),
+    });
+    if (error) {
+      setErrorMsg("Couldn't submit — " + error.message);
+      setStatus("ready");
+      return;
+    }
+    setStatus("done");
+  }
+
+  const canSubmit =
+    submitterName.trim() &&
+    submitterEmail.trim() &&
+    people.length > 0 &&
+    people.every((p) => p.name.trim() && p.email.trim() && p.role.trim());
+
+  if (status === "loading") {
+    return (
+      <div className="boot-splash" role="status" aria-live="polite">
+        <div className="boot-splash-mark">MyGoodBooks</div>
+        <div className="boot-splash-sub">Loading the access form…</div>
+      </div>
+    );
+  }
+
+  if (status === "invalid") {
+    return (
+      <div className="boot-splash" role="alert">
+        <div className="boot-splash-mark">MyGoodBooks</div>
+        <div className="boot-splash-sub">
+          {errorMsg || "This form link isn't active anymore. Ask your bookkeeper for a new one."}
+        </div>
+      </div>
+    );
+  }
+
+  if (status === "done") {
+    return (
+      <div className="boot-splash" role="status">
+        <div className="boot-splash-mark">MyGoodBooks</div>
+        <div className="boot-splash-sub">
+          Thanks — we've received your access request for {client.name}. Your bookkeeper will set
+          this up and follow up if anything's unclear.
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="access-form-page">
+      <div className="access-form-header">
+        <span className="access-form-brand">MyGoodBooks</span>
+        <span className="access-form-title">Staff Access Request — {client.name}</span>
+      </div>
+      <div className="access-form-body">
+        <div className="card">
+          <h3 className="card-title">Your info</h3>
+          <p className="card-subtitle">Who's filling this out, in case we have questions.</p>
+          <div className="access-form-row">
+            <input
+              type="text"
+              placeholder="Your name"
+              value={submitterName}
+              onChange={(e) => setSubmitterName(e.target.value)}
+            />
+            <input
+              type="email"
+              placeholder="Your email"
+              value={submitterEmail}
+              onChange={(e) => setSubmitterEmail(e.target.value)}
+            />
+          </div>
+        </div>
+
+        {people.map((p, i) => (
+          <div className="card" key={i}>
+            <div className="access-form-person-header">
+              <h3 className="card-title">Person {i + 1}</h3>
+              {people.length > 1 && (
+                <button
+                  type="button"
+                  className="btn-secondary"
+                  onClick={() => setPeople((prev) => prev.filter((_, idx) => idx !== i))}
+                >
+                  Remove
+                </button>
+              )}
+            </div>
+            <div className="access-form-row">
+              <input
+                type="text"
+                placeholder="Full name"
+                value={p.name}
+                onChange={(e) => updatePerson(i, { name: e.target.value })}
+              />
+              <input
+                type="email"
+                placeholder="Email"
+                value={p.email}
+                onChange={(e) => updatePerson(i, { email: e.target.value })}
+              />
+              <input
+                type="text"
+                placeholder="Role (e.g. Board Treasurer)"
+                value={p.role}
+                onChange={(e) => updatePerson(i, { role: e.target.value })}
+              />
+            </div>
+
+            <div className="access-level-toggle" style={{ marginTop: 14 }}>
+              <button
+                type="button"
+                className={"access-level-btn" + (p.access === "full" ? " active" : "")}
+                onClick={() => updatePerson(i, { access: "full" })}
+              >
+                Full access
+                <span>Sees all of {client.name}'s finances</span>
+              </button>
+              <button
+                type="button"
+                className={"access-level-btn" + (p.access !== "full" ? " active" : "")}
+                onClick={() => updatePerson(i, { access: "scoped" })}
+              >
+                Limited access
+                <span>Only the areas you choose below</span>
+              </button>
+            </div>
+
+            {p.access !== "full" && (
+              <div className="modal-body" style={{ padding: "16px 0 0" }}>
+                <div className="modal-section">
+                  <div className="nav-section-label modal-section-label">Pages they should see</div>
+                  {requestableTabs.map((item) => (
+                    <label className="tab-toggle-row" key={item.key}>
+                      <input
+                        type="checkbox"
+                        checked={p.tabs.includes(item.key)}
+                        onChange={() => toggleTab(i, item.key)}
+                      />
+                      <span>{item.label}</span>
+                    </label>
+                  ))}
+                </div>
+                <div className="modal-section">
+                  <div className="nav-section-label modal-section-label">Budget areas they should see</div>
+                  <p className="card-subtitle" style={{ marginTop: 0, marginBottom: 8 }}>
+                    Leave all unchecked to give them every category.
+                  </p>
+                  {(client.budget || []).map((b) => (
+                    <label className="tab-toggle-row" key={b.category}>
+                      <input
+                        type="checkbox"
+                        checked={p.categories.includes(b.category)}
+                        onChange={() => toggleCategory(i, b.category)}
+                      />
+                      <span>{b.category}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        ))}
+
+        <button
+          type="button"
+          className="btn-secondary"
+          onClick={() => setPeople((prev) => [...prev, emptyAccessRequestPerson()])}
+        >
+          + Add another person
+        </button>
+
+        {errorMsg && (
+          <p className="card-subtitle" style={{ color: "var(--bad)" }}>
+            {errorMsg}
+          </p>
+        )}
+
+        <button
+          type="button"
+          className="btn-primary access-form-submit"
+          disabled={!canSubmit || status === "submitting"}
+          onClick={submit}
+        >
+          {status === "submitting" ? "Submitting…" : "Submit access request"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ----------------------------------------------------------------------------
 // Access management (bookkeeper-side only). Two levels: which tabs the whole
 // organization gets, and what each named person at that org may see.
 // ----------------------------------------------------------------------------
@@ -8729,12 +9012,75 @@ function TabSettingsModal({
   onToggleUserFund,
   onSetAccessLevel,
   onToggleUserPremium,
+  staffUser,
   onClose,
 }) {
   const [draggedKey, setDraggedKey] = useState(null);
   const [dragOverKey, setDragOverKey] = useState(null);
   const [editingUserId, setEditingUserId] = useState(null);
   const [tab, setTab] = useState("people");
+  const [activeLink, setActiveLink] = useState(undefined); // undefined = loading, null = none
+  const [requests, setRequests] = useState([]);
+  const [generatingLink, setGeneratingLink] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const showToast = useToast();
+
+  const supabase = window.mgbSupabase;
+
+  const loadRequestsTab = useCallback(() => {
+    if (!supabase) return;
+    supabase
+      .from("access_request_links")
+      .select("token, active, created_at")
+      .eq("client_id", client.id)
+      .eq("active", true)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle()
+      .then(({ data }) => setActiveLink(data || null));
+    supabase
+      .from("access_requests")
+      .select("id, submitted_by_name, submitted_by_email, submitted_at, people, reviewed")
+      .eq("client_id", client.id)
+      .order("submitted_at", { ascending: false })
+      .then(({ data }) => setRequests(data || []));
+  }, [supabase, client.id]);
+
+  useEffect(() => {
+    if (tab === "requests") loadRequestsTab();
+  }, [tab, loadRequestsTab]);
+
+  async function generateLink() {
+    if (!supabase) return;
+    setGeneratingLink(true);
+    if (activeLink) {
+      await supabase.from("access_request_links").update({ active: false }).eq("token", activeLink.token);
+    }
+    const token = (crypto.randomUUID ? crypto.randomUUID() : String(Math.random()).slice(2)).replace(/-/g, "");
+    const { error } = await supabase
+      .from("access_request_links")
+      .insert({ token, client_id: client.id, created_by: staffUser && staffUser.email });
+    setGeneratingLink(false);
+    if (error) {
+      showToast("Couldn't generate a link: " + error.message);
+      return;
+    }
+    loadRequestsTab();
+  }
+
+  async function markReviewed(id, reviewed) {
+    await supabase.from("access_requests").update({ reviewed }).eq("id", id);
+    loadRequestsTab();
+  }
+
+  function copyLink() {
+    if (!activeLink) return;
+    const url = `${window.location.origin}${window.location.pathname}?access-form=${activeLink.token}`;
+    navigator.clipboard.writeText(url).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  }
 
   const orgAllowedKeys = ALL_TAB_KEYS.filter((k) => visibleKeys.has(k));
   const editingUser = editingUserId ? (client.users || []).find((u) => u.id === editingUserId) : null;
@@ -8780,9 +9126,13 @@ function TabSettingsModal({
           <button className={"modal-tab" + (tab === "org" ? " active" : "")} onClick={() => setTab("org")}>
             Organization tabs
           </button>
+          <button className={"modal-tab" + (tab === "requests" ? " active" : "")} onClick={() => setTab("requests")}>
+            Requests
+            {requests.some((r) => !r.reviewed) && <span className="thread-tab-dot" />}
+          </button>
         </div>
 
-        {tab === "people" ? (
+        {tab === "people" && (
           <div className="modal-body">
             <p className="card-subtitle" style={{ marginTop: 0 }}>
               Only MyGoodBooks can change these. Nobody at {client.name} can widen their own access.
@@ -8813,7 +9163,9 @@ function TabSettingsModal({
               );
             })}
           </div>
-        ) : (
+        )}
+
+        {tab === "org" && (
           <div className="modal-body">
             <p className="card-subtitle" style={{ marginTop: 0 }}>
               Turn a tab off here and nobody at {client.name} sees it, whatever their individual access. Drag ⠿ to
@@ -8867,6 +9219,84 @@ function TabSettingsModal({
                 </div>
               );
             })}
+          </div>
+        )}
+
+        {tab === "requests" && (
+          <div className="modal-body">
+            <p className="card-subtitle" style={{ marginTop: 0 }}>
+              Send {client.name} a link to specify each person's access themselves. Applying a
+              request still has to be done by hand in the People tab above — nothing here changes
+              anyone's access on its own.
+            </p>
+
+            <div className="modal-section">
+              {activeLink === undefined ? (
+                <p className="card-subtitle">Loading…</p>
+              ) : activeLink ? (
+                <div className="access-link-row">
+                  <input
+                    type="text"
+                    readOnly
+                    value={`${window.location.origin}${window.location.pathname}?access-form=${activeLink.token}`}
+                    onFocus={(e) => e.target.select()}
+                  />
+                  <button className="btn-secondary" onClick={copyLink}>
+                    {copied ? "Copied!" : "Copy"}
+                  </button>
+                  <button className="btn-secondary" disabled={generatingLink} onClick={generateLink}>
+                    {generatingLink ? "Working…" : "Regenerate"}
+                  </button>
+                </div>
+              ) : (
+                <button className="btn-primary" disabled={generatingLink} onClick={generateLink}>
+                  {generatingLink ? "Generating…" : "Generate a link"}
+                </button>
+              )}
+            </div>
+
+            <div className="modal-section">
+              <div className="nav-section-label modal-section-label">Submitted requests</div>
+              {requests.length === 0 && <p className="card-subtitle">Nothing submitted yet.</p>}
+              {requests.map((r) => (
+                <div className="access-request-row" key={r.id}>
+                  <div className="access-request-row-header">
+                    <div>
+                      <span className="person-name">{r.submitted_by_name}</span>
+                      <span className="person-role"> · {r.submitted_by_email} · {fmtDate(r.submitted_at.slice(0, 10))}</span>
+                    </div>
+                    <label className="tab-toggle-row" style={{ margin: 0 }}>
+                      <input type="checkbox" checked={r.reviewed} onChange={(e) => markReviewed(r.id, e.target.checked)} />
+                      <span>Reviewed</span>
+                    </label>
+                  </div>
+                  {(r.people || []).map((p, i) => (
+                    <div className="access-request-person" key={i}>
+                      <div>
+                        <strong>{p.name}</strong> · {p.role} · {p.email}
+                      </div>
+                      <div className="card-subtitle" style={{ margin: "2px 0 0" }}>
+                        {p.access === "full"
+                          ? "Full access requested"
+                          : [
+                              (p.tabs || []).length
+                                ? "Pages: " +
+                                  p.tabs
+                                    .map((k) => (ALL_TAB_KEYS.includes(k) ? NAV_SECTIONS.flatMap((s) => s.items).find((i) => i.key === k) : null))
+                                    .filter(Boolean)
+                                    .map((i) => i.label)
+                                    .join(", ")
+                                : "No specific pages requested",
+                              (p.categories || []).length ? "Categories: " + p.categories.join(", ") : null,
+                            ]
+                              .filter(Boolean)
+                              .join(" — ")}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ))}
+            </div>
           </div>
         )}
 
@@ -10517,12 +10947,19 @@ function App({ staffUser, onSignOut }) {
           onToggleUserFund={toggleUserFund}
           onSetAccessLevel={setAccessLevel}
           onToggleUserPremium={toggleUserPremium}
+          staffUser={staffUser}
           onClose={() => setSettingsOpen(false)}
         />
       )}
     </ToastProvider>
   );
 }
+
+// A client's access-request form (see AccessRequestForm above) is reached by
+// its own link — ?access-form=<token> — and has to render before AuthGate
+// even mounts: the person filling it out has no MyGoodBooks account and
+// never will, so gating it behind staff login would make the link useless.
+const accessFormToken = new URLSearchParams(window.location.search).get("access-form");
 
 // AuthGate (components/auth/AuthGate.jsx) is the Phase-1 login gate: it only
 // calls this render prop once a Supabase session exists AND that email is an
@@ -10531,8 +10968,12 @@ function App({ staffUser, onSignOut }) {
 // the app is unreachable either way, by design.
 ReactDOM.createRoot(document.getElementById("root")).render(
   <ErrorBoundary>
-    <AuthGate>
-      {(staffUser, onSignOut) => <App staffUser={staffUser} onSignOut={onSignOut} />}
-    </AuthGate>
+    {accessFormToken ? (
+      <AccessRequestForm token={accessFormToken} />
+    ) : (
+      <AuthGate>
+        {(staffUser, onSignOut) => <App staffUser={staffUser} onSignOut={onSignOut} />}
+      </AuthGate>
+    )}
   </ErrorBoundary>
 );

@@ -2525,3 +2525,32 @@ much. Now each row is a bullet bar: the fill is scaled to the real dollar amount
 where the budget line falls, so an over-budget row visibly runs past the tick.
 
 `MGB_VERSION` bumped to `2026-09-17am`.
+
+## §88 — Access Request Form: client-fillable form + staff review queue
+
+A client's admin can now specify each of their staff's access themselves, without a MyGoodBooks
+account of their own (Phase 2's real client login isn't built yet). New pieces:
+
+- `supabase/access-requests.sql` — `access_request_links` (one row per shareable token, generated
+  by staff) and `access_requests` (one row per submission, `people` a JSON array of
+  `{name, email, role, access, tabs, categories}` — the same shape UserAccessEditor already edits).
+  RLS: staff (via `is_active_staff()`) manage links and read/triage submissions; the public can read
+  a link by token (to resolve which client it's for) and insert a request only against a token that
+  names a currently-active link.
+- `AccessRequestForm` (app.jsx) — a public, unauthenticated page reached at `?access-form=<token>`,
+  intercepted in the `ReactDOM.createRoot` call at the bottom of the file *before* `AuthGate` even
+  mounts (a client filling this out will never have a staff account). Styled to match the rest of
+  the app (same cards, tab-toggle rows, access-level toggle as UserAccessEditor) rather than looking
+  like a bare government form.
+- Manage Access gets a third tab, **Requests**: "Generate a link" (creates a token, shows a
+  copyable URL, "Regenerate" deactivates the old one and makes a new one), and a list of submitted
+  requests per client with a "Reviewed" checkbox.
+
+Deliberately does NOT auto-apply a submission into `userAccess` — a bookkeeper reads it and sets it
+up by hand in the People tab. Access control here is still `client.users` mock data plus
+session-local overrides, not a real per-user table to write into yet. **Once Phase 2 (real client
+login) and Phase 3 (client_users driving real access) land, this is the natural intake point to wire
+straight into that table instead of a bookkeeper re-typing it** — flagged here as a reminder for
+when that work starts.
+
+`MGB_VERSION` bumped to `2026-09-17an`.
