@@ -193,7 +193,7 @@ function ToastProvider({ children }) {
 // a premium client and the standard one otherwise, exactly like Dashboard
 // already did for Live Report. See PREMIUM_UPGRADE_TAB_KEYS and the
 // showsBudgetingTool/showsCashFlowPro/showsReportBuilder checks in App.
-const PREMIUM_UPGRADE_TAB_KEYS = new Set(["dashboard", "budget", "receivables", "reports"]);
+const PREMIUM_UPGRADE_TAB_KEYS = new Set(["dashboard", "budget", "receivables", "reports", "bank", "giving"]);
 
 const NAV_SECTIONS = [
   {
@@ -659,7 +659,8 @@ function Sidebar({
                   // premium-only tab) is the only thing that marks this one
                   // as showing the upgraded page underneath. See
                   // PREMIUM_UPGRADE_TAB_KEYS and the showsBudgetingTool/
-                  // showsCashFlowPro/showsReportBuilder checks in App.
+                  // showsCashFlowPro/showsReportBuilder/showsReconciliationPro/
+                  // showsFundAccountingPro checks in App.
                   const isUpgraded =
                     PREMIUM_UPGRADE_TAB_KEYS.has(item.key) && hasPremiumPlan(client) && access && !access.isCategoryScoped;
                   return (
@@ -2169,6 +2170,65 @@ function BudgetPage({ client, searchTarget }) {
 // Giving & Funds page
 // ----------------------------------------------------------------------------
 
+// Shared between standard Giving & Funds and Fund Accounting Pro, so the
+// fund-card grid and the contributions table exist in exactly one place.
+function FundBalancesCard({ client }) {
+  return (
+    <div className="card">
+      <h3 className="card-title">Fund Balances</h3>
+      <p className="card-subtitle">What the money in the bank is designated for</p>
+      <div className="fund-grid">
+        {client.funds.map((f) => (
+          <div className="fund-card" key={f.name}>
+            <div className="fund-card-top">
+              <span className="fund-name">{f.name}</span>
+              <span className={"pill " + (f.restricted ? "restricted" : "unrestricted")}>
+                {f.restricted ? "Restricted" : "Unrestricted"}
+              </span>
+            </div>
+            <span className="fund-balance">{fmtMoney(f.balance)}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function ContributionsCard({ client }) {
+  return (
+    <div className="card">
+      <h3 className="card-title">Recent Contributions</h3>
+      <p className="card-subtitle">Individual gifts and grants received</p>
+      <div className="table-scroll">
+<table className="tx-table tx-table-stack tx-stack-giving">
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>Donor</th>
+            <th>Fund</th>
+            <th>Method</th>
+            <th className="num">Amount</th>
+          </tr>
+        </thead>
+        <tbody>
+          {client.contributions.map((c, i) => (
+            <tr key={i}>
+              <td>{fmtDate(c.date)}</td>
+              <td>{c.donor}</td>
+              <td>
+                <span className="category-tag">{c.fund}</span>
+              </td>
+              <td>{c.method}</td>
+              <td className="num tx-amount positive">+{fmtMoney(c.amount, { cents: true })}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      </div>
+    </div>
+  );
+}
+
 function GivingFundsPage({ client }) {
   const totalGiving = client.contributions.reduce((s, c) => s + c.amount, 0);
   const restrictedTotal = client.funds.filter((f) => f.restricted).reduce((s, f) => s + f.balance, 0);
@@ -2214,55 +2274,196 @@ function GivingFundsPage({ client }) {
         </button>
       </div>
 
-      {view === "funds" && (
+      {view === "funds" && <FundBalancesCard client={client} />}
+      {view === "contributions" && <ContributionsCard client={client} />}
+    </div>
+  );
+}
+
+// ----------------------------------------------------------------------------
+// Fund Accounting Pro — adds two views next to the same fund balances and
+// contributions Giving & Funds already shows: Fund Activity (transfers
+// between funds) and Pledges (committed vs. received). Same
+// Fund Balances/Contributions views as standard, so this stays a strict
+// superset — see HANDOFF7 §54/§55 on that bar. Fund balance trend over time
+// (the fund-accounting equivalent of Budget's Spending Trend) isn't included
+// here: unlike a bank or budget trend, it would need each fund's balance
+// sampled monthly, which this mock dataset doesn't carry — only a snapshot
+// balance plus this period's contributions/transfers — so it stayed out
+// rather than fabricating six months of numbers.
+// ----------------------------------------------------------------------------
+
+function FundAccountingProPage({ client }) {
+  const fundTransfers = client.fundTransfers || [];
+  const pledges = client.pledges || [];
+  const totalGiving = client.contributions.reduce((s, c) => s + c.amount, 0);
+  const restrictedTotal = client.funds.filter((f) => f.restricted).reduce((s, f) => s + f.balance, 0);
+  const unrestrictedTotal = client.funds.filter((f) => !f.restricted).reduce((s, f) => s + f.balance, 0);
+  const pledgesOutstanding = pledges.reduce((s, p) => s + (p.committed - p.received), 0);
+  const [view, setView] = useState("funds");
+  const showToast = useToast();
+  const today = todayLocal();
+
+  const handleDownloadStatement = (donor) => {
+    const filename = buildGivingStatementPdf(client, donor);
+    showToast(`Downloaded "${filename}"`);
+  };
+
+  return (
+    <div>
+      <MockBanner text="Giving records, fund balances, transfers, and pledges shown here are fabricated for this prototype." />
+
+      <div className="kpi-grid">
+        <button className="card kpi-card kpi-card-clickable" onClick={() => setView("contributions")}>
+          <span className="kpi-label">Recent Giving</span>
+          <span className="kpi-value">{fmtMoney(totalGiving)}</span>
+          <span className="kpi-sub neutral">{client.contributions.length} gifts</span>
+        </button>
+        <button className="card kpi-card kpi-card-clickable" onClick={() => setView("funds")}>
+          <span className="kpi-label">Unrestricted Funds</span>
+          <span className="kpi-value">{fmtMoney(unrestrictedTotal)}</span>
+          <span className="kpi-sub positive">Available for general use</span>
+        </button>
+        <button className="card kpi-card kpi-card-clickable" onClick={() => setView("funds")}>
+          <span className="kpi-label">Restricted Funds</span>
+          <span className="kpi-value">{fmtMoney(restrictedTotal)}</span>
+          <span className="kpi-sub neutral">Designated for specific purposes</span>
+        </button>
+        <button className="card kpi-card kpi-card-clickable" onClick={() => setView("pledges")}>
+          <span className="kpi-label">Pledges Outstanding</span>
+          <span className="kpi-value">{fmtMoney(pledgesOutstanding)}</span>
+          <span className="kpi-sub neutral">{pledges.length} active pledge{pledges.length !== 1 ? "s" : ""}</span>
+        </button>
+      </div>
+
+      <div className="view-toggle" style={{ marginBottom: 20 }}>
+        <button type="button" className={"view-toggle-btn" + (view === "funds" ? " active" : "")} onClick={() => setView("funds")}>
+          Fund Balances
+        </button>
+        <button
+          type="button"
+          className={"view-toggle-btn" + (view === "contributions" ? " active" : "")}
+          onClick={() => setView("contributions")}
+        >
+          Contributions
+        </button>
+        <button
+          type="button"
+          className={"view-toggle-btn" + (view === "activity" ? " active" : "")}
+          onClick={() => setView("activity")}
+        >
+          Fund Activity
+        </button>
+        <button
+          type="button"
+          className={"view-toggle-btn" + (view === "pledges" ? " active" : "")}
+          onClick={() => setView("pledges")}
+        >
+          Pledges
+        </button>
+      </div>
+
+      {view === "funds" && <FundBalancesCard client={client} />}
+      {view === "contributions" && <ContributionsCard client={client} />}
+
+      {view === "activity" && (
         <div className="card">
-          <h3 className="card-title">Fund Balances</h3>
-          <p className="card-subtitle">What the money in the bank is designated for</p>
-          <div className="fund-grid">
-            {client.funds.map((f) => (
-              <div className="fund-card" key={f.name}>
-                <div className="fund-card-top">
-                  <span className="fund-name">{f.name}</span>
-                  <span className={"pill " + (f.restricted ? "restricted" : "unrestricted")}>
-                    {f.restricted ? "Restricted" : "Unrestricted"}
-                  </span>
-                </div>
-                <span className="fund-balance">{fmtMoney(f.balance)}</span>
-              </div>
-            ))}
+          <h3 className="card-title">Fund Activity</h3>
+          <p className="card-subtitle">Transfers between funds, with the reason for each move</p>
+          <div className="table-scroll">
+            <table className="tx-table tx-table-stack tx-stack-giving">
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>From</th>
+                  <th>To</th>
+                  <th>Reason</th>
+                  <th className="num">Amount</th>
+                </tr>
+              </thead>
+              <tbody>
+                {fundTransfers.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} style={{ color: "var(--text-faint)" }}>
+                      No fund transfers recorded.
+                    </td>
+                  </tr>
+                ) : (
+                  fundTransfers.map((t, i) => (
+                    <tr key={i}>
+                      <td>{fmtDate(t.date)}</td>
+                      <td>
+                        <span className="category-tag">{t.fromFund}</span>
+                      </td>
+                      <td>
+                        <span className="category-tag">{t.toFund}</span>
+                      </td>
+                      <td>{t.reason}</td>
+                      <td className="num tx-amount">{fmtMoney(t.amount, { cents: true })}</td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
           </div>
         </div>
       )}
 
-      {view === "contributions" && (
+      {view === "pledges" && (
         <div className="card">
-          <h3 className="card-title">Recent Contributions</h3>
-          <p className="card-subtitle">Individual gifts and grants received</p>
+          <h3 className="card-title">Pledges</h3>
+          <p className="card-subtitle">Committed vs. received, by donor and fund</p>
           <div className="table-scroll">
-<table className="tx-table tx-table-stack tx-stack-giving">
-            <thead>
-              <tr>
-                <th>Date</th>
-                <th>Donor</th>
-                <th>Fund</th>
-                <th>Method</th>
-                <th className="num">Amount</th>
-              </tr>
-            </thead>
-            <tbody>
-              {client.contributions.map((c, i) => (
-                <tr key={i}>
-                  <td>{fmtDate(c.date)}</td>
-                  <td>{c.donor}</td>
-                  <td>
-                    <span className="category-tag">{c.fund}</span>
-                  </td>
-                  <td>{c.method}</td>
-                  <td className="num tx-amount positive">+{fmtMoney(c.amount, { cents: true })}</td>
+            <table className="tx-table tx-table-stack tx-stack-giving">
+              <thead>
+                <tr>
+                  <th>Donor</th>
+                  <th>Fund</th>
+                  <th>Due</th>
+                  <th className="num">Committed</th>
+                  <th className="num">Received</th>
+                  <th className="num">Remaining</th>
+                  <th>Status</th>
+                  <th></th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {pledges.length === 0 ? (
+                  <tr>
+                    <td colSpan={8} style={{ color: "var(--text-faint)" }}>
+                      No open pledges.
+                    </td>
+                  </tr>
+                ) : (
+                  pledges.map((p, i) => {
+                    const remaining = p.committed - p.received;
+                    const isOverdue = remaining > 0.005 && daysUntil(p.dueDate, today) < 0;
+                    const status = remaining <= 0.005 ? "Fulfilled" : isOverdue ? "Overdue" : "In progress";
+                    const pillClass = remaining <= 0.005 ? "good" : isOverdue ? "bad" : "neutral";
+                    return (
+                      <tr key={i}>
+                        <td>{p.donor}</td>
+                        <td>
+                          <span className="category-tag">{p.fund}</span>
+                        </td>
+                        <td>{fmtDate(p.dueDate)}</td>
+                        <td className="num">{fmtMoney(p.committed, { cents: true })}</td>
+                        <td className="num">{fmtMoney(p.received, { cents: true })}</td>
+                        <td className="num">{fmtMoney(remaining, { cents: true })}</td>
+                        <td>
+                          <span className={"pill " + pillClass}>{status}</span>
+                        </td>
+                        <td>
+                          <button className="btn-secondary" onClick={() => handleDownloadStatement(p.donor)}>
+                            Giving Statement
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
           </div>
         </div>
       )}
@@ -2397,7 +2598,11 @@ function AccountCashDonut({ accounts }) {
 // Bank Accounts page (multiple accounts + CSV export)
 // ----------------------------------------------------------------------------
 
-function BankPage({ client, searchTarget }) {
+// The actual balances/transactions view — shared by standard Bank Accounts
+// and Reconciliation Pro (which wraps this in a Transactions/Reconciliation
+// toggle, see BankReconciliationPage below), so the transaction table and
+// its search-jump/CSV-export behavior exist in exactly one place.
+function BankTransactionsPanel({ client, searchTarget }) {
   const [activeAccountId, setActiveAccountId] = useState(client.bankAccounts[0].id);
   // "This Account" (the existing account-tabs-driven view) vs. "All
   // Accounts" (every account's activity combined, most recent first, with
@@ -2455,8 +2660,6 @@ function BankPage({ client, searchTarget }) {
 
   return (
     <div>
-      <MockBanner text="Account balances and transactions are fabricated sample data — no bank is connected yet." />
-
       <div className="bank-top-grid">
         <div className="bank-top-left">
           <div className="bank-summary-row">
@@ -2562,6 +2765,205 @@ function BankPage({ client, searchTarget }) {
           </tbody>
         </table>
         </div>
+      </div>
+    </div>
+  );
+}
+
+function BankPage({ client, searchTarget }) {
+  return (
+    <div>
+      <MockBanner text="Account balances and transactions are fabricated sample data — no bank is connected yet." />
+      <BankTransactionsPanel client={client} searchTarget={searchTarget} />
+    </div>
+  );
+}
+
+// ----------------------------------------------------------------------------
+// Reconciliation Pro — adds a month-end reconciliation workflow next to the
+// same transactions view Bank Accounts already shows, behind a Transactions/
+// Reconciliation toggle (same in-page-toggle pattern as Budget vs. Actual's
+// Spending Trend and the rest — see HANDOFF7 §54). Reconciliation status is
+// read-only here: cleared/outstanding and the statement balance are set in
+// the mock data (data.js), not edited from this page — there's no bookkeeper
+// action or persistence layer behind a checkbox yet, so this shows the
+// current state rather than pretending to let you change it.
+// ----------------------------------------------------------------------------
+
+function BankReconciliationPage({ client, searchTarget }) {
+  const [view, setView] = useState("transactions");
+
+  // A transaction search result always means "show me that transaction," so
+  // it forces the view back to Transactions first, same as Bank Accounts'
+  // own This Account/All Accounts toggle already does for account switches.
+  useEffect(() => {
+    if (searchTarget) setView("transactions");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchTarget && searchTarget.nonce]);
+
+  return (
+    <div>
+      <MockBanner text="Account balances, transactions, and reconciliation status shown here are fabricated for this prototype." />
+
+      <div className="view-toggle" style={{ marginBottom: 20 }}>
+        <button
+          type="button"
+          className={"view-toggle-btn" + (view === "transactions" ? " active" : "")}
+          onClick={() => setView("transactions")}
+        >
+          Transactions
+        </button>
+        <button
+          type="button"
+          className={"view-toggle-btn" + (view === "reconciliation" ? " active" : "")}
+          onClick={() => setView("reconciliation")}
+        >
+          Reconciliation
+        </button>
+      </div>
+
+      {view === "transactions" && <BankTransactionsPanel client={client} searchTarget={searchTarget} />}
+      {view === "reconciliation" && <ReconciliationPanel client={client} />}
+    </div>
+  );
+}
+
+function ReconciliationPanel({ client }) {
+  const [activeAccountId, setActiveAccountId] = useState(client.bankAccounts[0].id);
+  const showToast = useToast();
+  const account = client.bankAccounts.find((a) => a.id === activeAccountId) || client.bankAccounts[0];
+
+  // Missing cleared/statementBalance (any client this session's mock data
+  // wasn't written for) reads as "fully cleared, nothing outstanding" rather
+  // than crashing — see the standard-vs-premium comparison mockup's honesty
+  // note about not fabricating data a page doesn't actually have.
+  const outstanding = account.transactions.filter((t) => t.cleared === false);
+  const outstandingTotal = outstanding.reduce((s, t) => s + t.amount, 0);
+  const statementBalance = account.statementBalance != null ? account.statementBalance : account.balance;
+  const adjustedBalance = statementBalance + outstandingTotal;
+  const difference = account.balance - adjustedBalance;
+  const isReconciled = Math.abs(difference) < 0.005;
+
+  const history = (client.bankReconciliations || []).filter((r) => r.accountId === activeAccountId);
+
+  const handleDownload = () => {
+    const filename = buildReconciliationReportPdf(client, account, { statementBalance, outstanding, difference });
+    showToast(`Downloaded "${filename}"`);
+  };
+
+  return (
+    <div>
+      <div className="account-tabs" style={{ marginBottom: 20 }}>
+        {client.bankAccounts.map((a) => (
+          <button
+            key={a.id}
+            className={"account-tab" + (a.id === activeAccountId ? " active" : "")}
+            onClick={() => setActiveAccountId(a.id)}
+          >
+            <span className="account-tab-name">{a.accountName}</span>
+            <span className="account-tab-balance">{fmtMoney(a.balance)}</span>
+          </button>
+        ))}
+      </div>
+
+      <div className="kpi-grid" style={{ marginBottom: 20 }}>
+        <div className="card kpi-card">
+          <span className="kpi-label">Statement Balance</span>
+          <span className="kpi-value">{fmtMoney(statementBalance, { cents: true })}</span>
+          <span className="kpi-sub neutral">As of {account.statementDate ? fmtDate(account.statementDate) : "—"}</span>
+        </div>
+        <div className="card kpi-card">
+          <span className="kpi-label">Outstanding Items</span>
+          <span className="kpi-value">{fmtMoney(outstandingTotal, { cents: true })}</span>
+          <span className="kpi-sub neutral">{outstanding.length} not yet cleared</span>
+        </div>
+        <div className="card kpi-card">
+          <span className="kpi-label">Difference</span>
+          <span className="kpi-value" style={{ color: isReconciled ? "var(--good)" : "var(--bad)" }}>
+            {fmtMoney(difference, { cents: true })}
+          </span>
+          <span className={"kpi-sub " + (isReconciled ? "positive" : "negative")}>
+            {isReconciled ? "Reconciled" : "Book balance vs. adjusted statement"}
+          </span>
+        </div>
+      </div>
+
+      <div className="card" style={{ marginBottom: 20 }}>
+        <div className="page-header" style={{ marginBottom: 4 }}>
+          <div>
+            <h3 className="card-title">{account.accountName} — Cleared Status</h3>
+            <p className="card-subtitle" style={{ margin: 0 }}>
+              Which transactions have shown up on the bank statement so far
+            </p>
+          </div>
+          <button className="btn-primary" onClick={handleDownload}>
+            Download Reconciliation Report
+          </button>
+        </div>
+        <div className="table-scroll">
+          <table className="tx-table tx-table-stack tx-stack-bank" style={{ marginTop: 16 }}>
+            <thead>
+              <tr>
+                <th>Status</th>
+                <th>Date</th>
+                <th>Description</th>
+                <th>Category</th>
+                <th className="num">Amount</th>
+              </tr>
+            </thead>
+            <tbody>
+              {account.transactions.map((t, i) => (
+                <tr key={i}>
+                  <td>
+                    <span className={"pill " + (t.cleared !== false ? "good" : "warm")}>
+                      {t.cleared !== false ? "Cleared" : "Outstanding"}
+                    </span>
+                  </td>
+                  <td>{fmtDate(t.date)}</td>
+                  <td>{t.description}</td>
+                  <td>
+                    <span className="category-tag">{t.category}</span>
+                  </td>
+                  <td className={"num tx-amount " + (t.amount >= 0 ? "positive" : "negative")}>
+                    {t.amount >= 0 ? "+" : ""}
+                    {fmtMoney(t.amount, { cents: true })}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div className="card">
+        <h3 className="card-title">Reconciliation History</h3>
+        <p className="card-subtitle">Prior periods closed and signed off for {account.accountName}</p>
+        {history.length === 0 ? (
+          <p className="card-subtitle" style={{ margin: 0 }}>
+            No prior periods closed yet for this account.
+          </p>
+        ) : (
+          <div className="table-scroll">
+            <table className="tx-table tx-table-stack tx-stack-bank">
+              <thead>
+                <tr>
+                  <th>Period</th>
+                  <th>Closed</th>
+                  <th>Closed By</th>
+                </tr>
+              </thead>
+              <tbody>
+                {history.map((r, i) => (
+                  <tr key={i}>
+                    <td>{r.period}</td>
+                    <td>{fmtDate(r.closedDate)}</td>
+                    <td>{r.closedBy}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -2808,6 +3210,65 @@ function buildContributionStatementPdf(client) {
   return filename;
 }
 
+// Reconciliation Pro only. { statementBalance, outstanding, difference } is
+// exactly what ReconciliationPanel already computed for the page itself, so
+// there's no second copy of the balancing math to keep in sync.
+function buildReconciliationReportPdf(client, account, { statementBalance, outstanding, difference }) {
+  const outstandingTotal = outstanding.reduce((s, t) => s + t.amount, 0);
+  const doc = newReportDoc(`Bank Reconciliation — ${account.accountName}`, account.statementDate ? `Statement dated ${fmtDate(account.statementDate)}` : "Current period", client);
+
+  doc.autoTable({
+    startY: 55,
+    head: [["", "Amount"]],
+    body: [
+      ["Statement Balance", fmtMoney(statementBalance, { cents: true })],
+      ["Outstanding Items", fmtMoney(outstandingTotal, { cents: true })],
+      ["Adjusted Balance", fmtMoney(statementBalance + outstandingTotal, { cents: true })],
+      ["Book Balance", fmtMoney(account.balance, { cents: true })],
+    ],
+    foot: [["Difference", fmtMoney(difference, { cents: true })]],
+    columnStyles: { 1: { halign: "right" } },
+    ...PDF_TABLE_THEME,
+  });
+
+  doc.autoTable({
+    startY: doc.lastAutoTable.finalY + 8,
+    head: [["Date", "Description", "Category", "Amount"]],
+    body: outstanding.length
+      ? outstanding.map((t) => [fmtDate(t.date), t.description, t.category, fmtMoney(t.amount, { cents: true })])
+      : [["—", "No outstanding items", "—", "—"]],
+    columnStyles: { 3: { halign: "right" } },
+    ...PDF_TABLE_THEME,
+  });
+
+  const filename = `${sanitizeFilename(client.name)} - ${sanitizeFilename(account.accountName)} Reconciliation.pdf`;
+  doc.save(filename);
+  return filename;
+}
+
+// Fund Accounting Pro only. One donor's gifts across every fund, YTD — the
+// per-donor equivalent of buildContributionStatementPdf's by-fund summary.
+function buildGivingStatementPdf(client, donorName) {
+  const gifts = (client.contributions || []).filter((c) => c.donor === donorName);
+  const total = gifts.reduce((s, c) => s + c.amount, 0);
+  const year = new Date().getFullYear();
+
+  const doc = newReportDoc(`Giving Statement — ${donorName}`, `January 1 – December 31, ${year}`, client);
+
+  doc.autoTable({
+    startY: 55,
+    head: [["Date", "Fund", "Method", "Amount"]],
+    body: gifts.map((c) => [fmtDate(c.date), c.fund, c.method, fmtMoney(c.amount, { cents: true })]),
+    foot: [["", "", "Total", fmtMoney(total, { cents: true })]],
+    columnStyles: { 3: { halign: "right" } },
+    ...PDF_TABLE_THEME,
+  });
+
+  const filename = `${sanitizeFilename(client.name)} - ${sanitizeFilename(donorName)} Giving Statement.pdf`;
+  doc.save(filename);
+  return filename;
+}
+
 function buildDraftBudgetPdf(client, rows) {
   const totalCurrent = rows.reduce((s, r) => s + r.current, 0);
   const totalProposed = rows.reduce((s, r) => s + r.proposed, 0);
@@ -2973,10 +3434,11 @@ function ReportBarRows({ items }) {
 // Enterprise upgrade preview — what a standard-plan client's "+"/lock in the
 // sidebar opens instead of the real upgraded pages, none of which are
 // separate tabs to strip from access.tabs anymore: a standard client's
-// Dashboard/Budget vs. Actual/Cash Flow/Reports already ARE the tabs they'll
-// keep using after upgrading, just showing the plain version — see
-// showsLiveReport/showsBudgetingTool/showsCashFlowPro/showsReportBuilder in
-// App for where each one flips over.
+// Dashboard/Budget vs. Actual/Cash Flow/Reports/Bank Accounts/Giving & Funds
+// already ARE the tabs they'll keep using after upgrading, just showing the
+// plain version — see showsLiveReport/showsBudgetingTool/showsCashFlowPro/
+// showsReportBuilder/showsReconciliationPro/showsFundAccountingPro in App
+// for where each one flips over.
 // ----------------------------------------------------------------------------
 
 const ENTERPRISE_FEATURES = [
@@ -3000,6 +3462,16 @@ const ENTERPRISE_FEATURES = [
     title: "Cash Flow Pro",
     description: "Every bill in one place with aging and vendor summaries, batch pay runs with an approval step and a cash-impact forecast, duplicate-bill detection, and a ready-to-upload ACH export.",
   },
+  {
+    icon: <BankIcon />,
+    title: "Reconciliation Pro",
+    description: "A real month-end close on Bank Accounts — clear transactions against your statement, track outstanding items automatically, and keep a signed-off history of every period you've closed.",
+  },
+  {
+    icon: <GiftHeartIcon />,
+    title: "Fund Accounting Pro",
+    description: "See money move between funds with a reason attached, track pledges from committed to received, and generate a year-end giving statement for any donor in one click.",
+  },
 ];
 
 function EnterpriseUpgradePage({ client }) {
@@ -3015,9 +3487,9 @@ function EnterpriseUpgradePage({ client }) {
           Unlock Enterprise for {client.name}
         </h2>
         <p style={{ color: "var(--text-muted)", maxWidth: 560, margin: "0 auto" }}>
-          Four tools built for organizations that want more than a monthly statement — a live pulse on the numbers, a
-          board-ready report in minutes, a shared space to plan next period's budget, and a command center for what
-          you owe.
+          Six tools built for organizations that want more than a monthly statement — a live pulse on the numbers, a
+          board-ready report in minutes, a shared space to plan next period's budget, a command center for what you
+          owe, a real month-end close, and fund accounting that tracks pledges and transfers.
         </p>
       </div>
 
@@ -7932,6 +8404,8 @@ const PAGE_META = {
   "report-builder": { title: "Report Builder", subtitle: "Assemble a formatted report for your board or leadership" },
   "budgeting-tool": { title: "Budgeting Tool", subtitle: "Draft next period's budget with your bookkeeper" },
   "ap-command-center": { title: "Cash Flow Pro", subtitle: "Every open bill, aging, and what's due next" },
+  "bank-reconciliation": { title: "Bank Accounts", subtitle: "Balances, activity, and month-end reconciliation" },
+  "fund-accounting-pro": { title: "Giving & Funds", subtitle: "Contributions, fund balances, transfers, and pledges" },
   "enterprise-upgrade": { title: "Enterprise", subtitle: "See what's included, and what upgrading unlocks" },
   "staff-access": { title: "Staff Access", subtitle: "Who can sign in to the portal, and with what role" },
   "client-access": { title: "Client Roster", subtitle: "Who at each organization is registered to sign in" },
@@ -8372,20 +8846,23 @@ function App({ staffUser, onSignOut }) {
       : access.tabs.has(page)
       ? page
       : ALWAYS_VISIBLE_KEY;
-  // Each of these four tabs IS its upgraded page for a full-access premium
-  // viewer — same pattern for all four now (see PREMIUM_UPGRADE_TAB_KEYS):
+  // Each of these six tabs IS its upgraded page for a full-access premium
+  // viewer — same pattern for all six now (see PREMIUM_UPGRADE_TAB_KEYS):
   // one nav item, content swapped by plan, rather than a second
   // separately-named tab. "daily-close"/"report-builder"/"budgeting-tool"/
-  // "ap-command-center" survive as PAGE_META keys purely to supply the
-  // header title/subtitle for the upgraded state below — they're no longer
-  // reachable page keys of their own (no nav item points at them, and the
-  // render switch no longer branches on them directly). Category-scoped
-  // premium users still get every plain tab (ORG_WIDE_TABS-equivalent: a
-  // live org-wide snapshot/report has no "their" slice to show).
+  // "ap-command-center"/"bank-reconciliation"/"fund-accounting-pro" survive
+  // as PAGE_META keys purely to supply the header title/subtitle for the
+  // upgraded state below — they're no longer reachable page keys of their
+  // own (no nav item points at them, and the render switch no longer
+  // branches on them directly). Category-scoped premium users still get
+  // every plain tab (ORG_WIDE_TABS-equivalent: a live org-wide
+  // snapshot/report has no "their" slice to show).
   const showsLiveReport = effectivePage === "dashboard" && hasPremiumPlan(client) && !access.isCategoryScoped;
   const showsBudgetingTool = effectivePage === "budget" && hasPremiumPlan(client) && !access.isCategoryScoped;
   const showsCashFlowPro = effectivePage === "receivables" && hasPremiumPlan(client) && !access.isCategoryScoped;
   const showsReportBuilder = effectivePage === "reports" && hasPremiumPlan(client) && !access.isCategoryScoped;
+  const showsReconciliationPro = effectivePage === "bank" && hasPremiumPlan(client) && !access.isCategoryScoped;
+  const showsFundAccountingPro = effectivePage === "giving" && hasPremiumPlan(client) && !access.isCategoryScoped;
   const meta = showsLiveReport
     ? PAGE_META["daily-close"]
     : showsBudgetingTool
@@ -8394,6 +8871,10 @@ function App({ staffUser, onSignOut }) {
     ? PAGE_META["ap-command-center"]
     : showsReportBuilder
     ? PAGE_META["report-builder"]
+    : showsReconciliationPro
+    ? PAGE_META["bank-reconciliation"]
+    : showsFundAccountingPro
+    ? PAGE_META["fund-accounting-pro"]
     : PAGE_META[effectivePage];
   const isPreviewingUser = viewAsUserId !== BOOKKEEPER_VIEW && access.user;
 
@@ -8829,20 +9310,32 @@ function App({ staffUser, onSignOut }) {
                 searchTarget={searchTarget && searchTarget.page === "budget" ? searchTarget : null}
               />
             ))}
-          {effectivePage === "giving" && <GivingFundsPage client={scopedClient} />}
+          {effectivePage === "giving" &&
+            (showsFundAccountingPro ? (
+              <FundAccountingProPage client={scopedClient} key={"fund-accounting-pro-" + client.id} />
+            ) : (
+              <GivingFundsPage client={scopedClient} />
+            ))}
           {effectivePage === "receivables" &&
             (showsCashFlowPro ? (
               <APCommandCenterPage client={scopedClient} key={"ap-command-center-" + client.id} />
             ) : (
               <ReceivablesPayablesPage client={scopedClient} />
             ))}
-          {effectivePage === "bank" && (
-            <BankPage
-              client={scopedClient}
-              searchTarget={searchTarget && searchTarget.page === "bank" ? searchTarget : null}
-              key={"bank-" + client.id}
-            />
-          )}
+          {effectivePage === "bank" &&
+            (showsReconciliationPro ? (
+              <BankReconciliationPage
+                client={scopedClient}
+                searchTarget={searchTarget && searchTarget.page === "bank" ? searchTarget : null}
+                key={"bank-reconciliation-" + client.id}
+              />
+            ) : (
+              <BankPage
+                client={scopedClient}
+                searchTarget={searchTarget && searchTarget.page === "bank" ? searchTarget : null}
+                key={"bank-" + client.id}
+              />
+            ))}
           {effectivePage === "reports" &&
             (showsReportBuilder ? (
               <ReportBuilderPage client={scopedClient} key={"report-builder-" + client.id} />

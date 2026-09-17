@@ -68,19 +68,26 @@ const CLIENTS = [
         accountMask: "1204",
         type: "Checking",
         balance: 68420.55,
+        // Reconciliation Pro only: statementBalance/statementDate reflect the
+        // last bank statement, and cleared marks which transactions had
+        // posted at the bank by then — everything since is outstanding. The
+        // invariant this data keeps: balance == statementBalance + sum of
+        // uncleared amounts (so the panel's "Difference" reads $0.00 here).
+        statementBalance: 74200.55,
+        statementDate: "2026-08-21",
         transactions: [
-          { date: "2026-08-24", description: "Weekly Giving Deposit", category: "Giving", amount: 8420.00 },
-          { date: "2026-08-22", description: "Payroll - Gusto", category: "Payroll", amount: -14200.00 },
-          { date: "2026-08-20", description: "City Water & Power", category: "Utilities", amount: -1120.40 },
-          { date: "2026-08-18", description: "Weekly Giving Deposit", category: "Giving", amount: 9180.00 },
-          { date: "2026-08-15", description: "LifeWay Curriculum Order", category: "Ministry Programs", amount: -340.20 },
-          { date: "2026-08-14", description: "Kids Church Supplies - Oriental Trading", category: "Kids Ministry", amount: -418.60 },
-          { date: "2026-08-12", description: "Denominational Assessment", category: "Missions & Outreach", amount: -1500.00 },
-          { date: "2026-08-11", description: "Weekly Giving Deposit", category: "Giving", amount: 7960.00 },
-          { date: "2026-08-09", description: "VBS Snacks & Craft Materials", category: "Kids Ministry", amount: -612.35 },
-          { date: "2026-08-08", description: "Guardian Insurance", category: "Insurance", amount: -1800.00 },
-          { date: "2026-08-06", description: "Kids Ministry Volunteer Background Checks", category: "Kids Ministry", amount: -245.00 },
-          { date: "2026-08-03", description: "Nursery Equipment Replacement", category: "Kids Ministry", amount: -389.99 },
+          { date: "2026-08-24", description: "Weekly Giving Deposit", category: "Giving", amount: 8420.00, cleared: false },
+          { date: "2026-08-22", description: "Payroll - Gusto", category: "Payroll", amount: -14200.00, cleared: false },
+          { date: "2026-08-20", description: "City Water & Power", category: "Utilities", amount: -1120.40, cleared: true },
+          { date: "2026-08-18", description: "Weekly Giving Deposit", category: "Giving", amount: 9180.00, cleared: true },
+          { date: "2026-08-15", description: "LifeWay Curriculum Order", category: "Ministry Programs", amount: -340.20, cleared: true },
+          { date: "2026-08-14", description: "Kids Church Supplies - Oriental Trading", category: "Kids Ministry", amount: -418.60, cleared: true },
+          { date: "2026-08-12", description: "Denominational Assessment", category: "Missions & Outreach", amount: -1500.00, cleared: true },
+          { date: "2026-08-11", description: "Weekly Giving Deposit", category: "Giving", amount: 7960.00, cleared: true },
+          { date: "2026-08-09", description: "VBS Snacks & Craft Materials", category: "Kids Ministry", amount: -612.35, cleared: true },
+          { date: "2026-08-08", description: "Guardian Insurance", category: "Insurance", amount: -1800.00, cleared: true },
+          { date: "2026-08-06", description: "Kids Ministry Volunteer Background Checks", category: "Kids Ministry", amount: -245.00, cleared: true },
+          { date: "2026-08-03", description: "Nursery Equipment Replacement", category: "Kids Ministry", amount: -389.99, cleared: true },
         ],
       },
       {
@@ -89,13 +96,23 @@ const CLIENTS = [
         accountMask: "5588",
         type: "Savings",
         balance: 142300.00,
+        statementBalance: 138300.00,
+        statementDate: "2026-08-10",
         transactions: [
-          { date: "2026-08-18", description: "Transfer from Operating - Monthly Set-Aside", category: "Transfer In", amount: 4000.00 },
-          { date: "2026-08-04", description: "Johnson Family - Building Pledge Payment", category: "Giving", amount: 500.00 },
-          { date: "2026-07-21", description: "Roof Repair - Phase 1 Deposit", category: "Facilities & Utilities", amount: -6200.00 },
-          { date: "2026-07-18", description: "Transfer from Operating - Monthly Set-Aside", category: "Transfer In", amount: 4000.00 },
+          { date: "2026-08-18", description: "Transfer from Operating - Monthly Set-Aside", category: "Transfer In", amount: 4000.00, cleared: false },
+          { date: "2026-08-04", description: "Johnson Family - Building Pledge Payment", category: "Giving", amount: 500.00, cleared: true },
+          { date: "2026-07-21", description: "Roof Repair - Phase 1 Deposit", category: "Facilities & Utilities", amount: -6200.00, cleared: true },
+          { date: "2026-07-18", description: "Transfer from Operating - Monthly Set-Aside", category: "Transfer In", amount: 4000.00, cleared: true },
         ],
       },
+    ],
+    // Reconciliation Pro only: prior periods already closed and signed off,
+    // one entry per account per period. The current (unlisted) period is
+    // still open, which is what the transactions above reconcile.
+    bankReconciliations: [
+      { accountId: "operating", period: "July 2026", closedDate: "2026-08-03", closedBy: "MyGoodBooks" },
+      { accountId: "building-fund", period: "July 2026", closedDate: "2026-08-03", closedBy: "MyGoodBooks" },
+      { accountId: "operating", period: "June 2026", closedDate: "2026-07-02", closedBy: "MyGoodBooks" },
     ],
     // INVARIANT: fund balances must sum to net assets (total bank balances
     // minus payables). Restricted funds are carved OUT of the cash already in
@@ -119,6 +136,20 @@ const CLIENTS = [
       { date: "2026-08-06", donor: "Anonymous", fund: "Kids Ministry Fund", method: "Cash", amount: 75.00 },
       { date: "2026-08-04", donor: "Anonymous", fund: "Benevolence Fund", method: "Cash", amount: 100.00 },
       { date: "2026-08-04", donor: "Susan Patterson", fund: "General Fund", method: "ACH", amount: 400.00 },
+    ],
+    // Fund Accounting Pro only: movement between funds (same dollars as the
+    // "Transfer In"/"Transfer from Operating" bank transactions above, told
+    // from the fund side instead of the account side) and pledges — money
+    // committed but not yet received, separate from the one-off gifts in
+    // contributions above.
+    fundTransfers: [
+      { date: "2026-08-18", fromFund: "General Fund", toFund: "Building Fund", amount: 4000.00, reason: "Monthly building set-aside" },
+      { date: "2026-07-18", fromFund: "General Fund", toFund: "Building Fund", amount: 4000.00, reason: "Monthly building set-aside" },
+    ],
+    pledges: [
+      { donor: "Johnson Family", fund: "Building Fund", committed: 10000.00, received: 5000.00, dueDate: "2026-09-15" },
+      { donor: "The Whitfield Family", fund: "Building Fund", committed: 3000.00, received: 3000.00, dueDate: "2026-08-01" },
+      { donor: "Robert & Linda Chen", fund: "Building Fund", committed: 2500.00, received: 1000.00, dueDate: "2026-10-01" },
     ],
     receivables: [
       { description: "Building Campaign Pledge Balance - Johnson Family", amount: 5000.00, dueDate: "2026-09-15" },
@@ -299,14 +330,18 @@ const CLIENTS = [
         accountMask: "7742",
         type: "Checking",
         balance: 31200.60,
+        // Reconciliation Pro only — see the same fields on grace-community's
+        // operating account for what these mean and the invariant they hold.
+        statementBalance: 30100.60,
+        statementDate: "2026-08-21",
         transactions: [
-          { date: "2026-08-24", description: "Community Foundation Grant Disbursement", category: "Grants", amount: 10000.00 },
-          { date: "2026-08-22", description: "Payroll - ADP", category: "Program Staff", amount: -8900.00 },
-          { date: "2026-08-20", description: "US Foods - Supply Order", category: "Food & Supplies", amount: -3400.00 },
-          { date: "2026-08-19", description: "Riverside Auto - Van Repair", category: "Transportation & Fleet", amount: -780.00 },
-          { date: "2026-08-15", description: "Individual Donations - Batch Deposit", category: "Giving", amount: 2140.00 },
-          { date: "2026-08-10", description: "Warehouse Lease", category: "Warehouse & Facilities", amount: -2800.00 },
-          { date: "2026-08-05", description: "State Farm Insurance", category: "Insurance", amount: -900.00 },
+          { date: "2026-08-24", description: "Community Foundation Grant Disbursement", category: "Grants", amount: 10000.00, cleared: false },
+          { date: "2026-08-22", description: "Payroll - ADP", category: "Program Staff", amount: -8900.00, cleared: false },
+          { date: "2026-08-20", description: "US Foods - Supply Order", category: "Food & Supplies", amount: -3400.00, cleared: true },
+          { date: "2026-08-19", description: "Riverside Auto - Van Repair", category: "Transportation & Fleet", amount: -780.00, cleared: true },
+          { date: "2026-08-15", description: "Individual Donations - Batch Deposit", category: "Giving", amount: 2140.00, cleared: true },
+          { date: "2026-08-10", description: "Warehouse Lease", category: "Warehouse & Facilities", amount: -2800.00, cleared: true },
+          { date: "2026-08-05", description: "State Farm Insurance", category: "Insurance", amount: -900.00, cleared: true },
         ],
       },
       {
@@ -315,11 +350,19 @@ const CLIENTS = [
         accountMask: "9012",
         type: "Savings",
         balance: 52000.00,
+        // Fully reconciled — no outstanding items, statement balance equals
+        // the book balance.
+        statementBalance: 52000.00,
+        statementDate: "2026-08-01",
         transactions: [
-          { date: "2026-07-01", description: "Quarterly Reserve Transfer", category: "Transfer In", amount: 5000.00 },
-          { date: "2026-04-01", description: "Quarterly Reserve Transfer", category: "Transfer In", amount: 5000.00 },
+          { date: "2026-07-01", description: "Quarterly Reserve Transfer", category: "Transfer In", amount: 5000.00, cleared: true },
+          { date: "2026-04-01", description: "Quarterly Reserve Transfer", category: "Transfer In", amount: 5000.00, cleared: true },
         ],
       },
+    ],
+    bankReconciliations: [
+      { accountId: "operating", period: "July 2026", closedDate: "2026-08-04", closedBy: "MyGoodBooks" },
+      { accountId: "reserve", period: "June 2026", closedDate: "2026-07-02", closedBy: "MyGoodBooks" },
     ],
     // Sums to net assets: 79,020.60 = 83,200.60 cash − 4,180 payables.
     funds: [
@@ -334,6 +377,16 @@ const CLIENTS = [
       { date: "2026-08-15", donor: "Anonymous", fund: "Holiday Meal Drive Fund", method: "Online", amount: 250.00 },
       { date: "2026-08-12", donor: "Riverside Rotary Club", fund: "General Fund", method: "Check", amount: 750.00 },
       { date: "2026-08-08", donor: "Lena Fitzgerald", fund: "Holiday Meal Drive Fund", method: "Online", amount: 100.00 },
+    ],
+    // Fund Accounting Pro only — see grace-community's fundTransfers/pledges
+    // for what these mean.
+    fundTransfers: [
+      { date: "2026-07-01", fromFund: "General Fund", toFund: "Capital Reserve", amount: 5000.00, reason: "Quarterly reserve transfer" },
+      { date: "2026-04-01", fromFund: "General Fund", toFund: "Capital Reserve", amount: 5000.00, reason: "Quarterly reserve transfer" },
+    ],
+    pledges: [
+      { donor: "Community Foundation", fund: "Holiday Meal Drive Fund", committed: 5000.00, received: 250.00, dueDate: "2026-11-15" },
+      { donor: "Riverside Rotary Club", fund: "General Fund", committed: 1500.00, received: 750.00, dueDate: "2026-09-30" },
     ],
     receivables: [
       { description: "USDA Reimbursement - Q3 Commodity Program", amount: 8200.00, dueDate: "2026-09-20" },
