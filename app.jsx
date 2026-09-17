@@ -11027,7 +11027,13 @@ const accessFormToken = new URLSearchParams(window.location.search).get("access-
 // in for real is never a staff member. Renders the same <App> staff use, just
 // with clientPortalUser set instead of staffUser — see the comment on App's
 // definition for how that pins it to one client with no staff chrome.
-const clientLoginMode = new URLSearchParams(window.location.search).get("client-login") === "1";
+// /login is the friendly path (vercel.json rewrites it to index.html, since
+// this is otherwise a static single-page app with no server-side router);
+// ?client-login=1 stays supported for any link already sent out before
+// this existed.
+const clientLoginMode =
+  window.location.pathname === "/login" ||
+  new URLSearchParams(window.location.search).get("client-login") === "1";
 
 function ClientPortalGuard({ clientUser, onSignOut }) {
   // Client data (bank accounts, budget, transactions...) is still mock
