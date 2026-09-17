@@ -1,0 +1,7 @@
+{
+  "version": 3,
+  "sources": ["../src/WrenchIcon.tsx"],
+  "sourcesContent": ["import React from \"react\";\n\nexport type WrenchIconProps = React.SVGProps<SVGSVGElement>;\n\n/** Wrench. Thin-line, `stroke=\"currentColor\"` house style. Sidebar's Developer Tools link. */\nexport function WrenchIcon(props: WrenchIconProps) {\n  return (\n    <svg\n      width=\"16\"\n      height=\"16\"\n      viewBox=\"0 0 24 24\"\n      fill=\"none\"\n      stroke=\"currentColor\"\n      strokeWidth=\"1.8\"\n      strokeLinecap=\"round\"\n      strokeLinejoin=\"round\"\n      {...props}\n    >\n      <path d=\"M14.7 6.3a4 4 0 00-5.4 5.4L4 17v3h3l5.3-5.3a4 4 0 005.4-5.4l-2.6 2.6-2-2z\" />\n    </svg>\n  );\n}\n"],
+  "mappings": ";AAkBM;AAbC,SAAS,WAAW,OAAwB;AACjD,SACE;AAAA,IAAC;AAAA;AAAA,MACC,OAAM;AAAA,MACN,QAAO;AAAA,MACP,SAAQ;AAAA,MACR,MAAK;AAAA,MACL,QAAO;AAAA,MACP,aAAY;AAAA,MACZ,eAAc;AAAA,MACd,gBAAe;AAAA,MACd,GAAG;AAAA,MAEJ,8BAAC,UAAK,GAAE,6EAA4E;AAAA;AAAA,EACtF;AAEJ;",
+  "names": []
+}

@@ -802,6 +802,153 @@ function FolderIcon(props) {
     }
   );
 }
+
+// src/WrenchIcon.tsx
+import { jsx as jsx35 } from "react/jsx-runtime";
+function WrenchIcon(props) {
+  return /* @__PURE__ */ jsx35(
+    "svg",
+    {
+      width: "16",
+      height: "16",
+      viewBox: "0 0 24 24",
+      fill: "none",
+      stroke: "currentColor",
+      strokeWidth: "1.8",
+      strokeLinecap: "round",
+      strokeLinejoin: "round",
+      ...props,
+      children: /* @__PURE__ */ jsx35("path", { d: "M14.7 6.3a4 4 0 00-5.4 5.4L4 17v3h3l5.3-5.3a4 4 0 005.4-5.4l-2.6 2.6-2-2z" })
+    }
+  );
+}
+
+// src/ChevronUpIcon.tsx
+import { jsx as jsx36 } from "react/jsx-runtime";
+function ChevronUpIcon(props) {
+  return /* @__PURE__ */ jsx36(
+    "svg",
+    {
+      width: "14",
+      height: "14",
+      viewBox: "0 0 24 24",
+      fill: "none",
+      stroke: "currentColor",
+      strokeWidth: "2.2",
+      strokeLinecap: "round",
+      strokeLinejoin: "round",
+      ...props,
+      children: /* @__PURE__ */ jsx36("path", { d: "M5 15l7-7 7 7" })
+    }
+  );
+}
+
+// src/ChevronDownIcon.tsx
+import { jsx as jsx37 } from "react/jsx-runtime";
+function ChevronDownIcon(props) {
+  return /* @__PURE__ */ jsx37(
+    "svg",
+    {
+      width: "14",
+      height: "14",
+      viewBox: "0 0 24 24",
+      fill: "none",
+      stroke: "currentColor",
+      strokeWidth: "2.2",
+      strokeLinecap: "round",
+      strokeLinejoin: "round",
+      ...props,
+      children: /* @__PURE__ */ jsx37("path", { d: "M5 9l7 7 7-7" })
+    }
+  );
+}
+
+// src/UploadIcon.tsx
+import { jsx as jsx38, jsxs as jsxs28 } from "react/jsx-runtime";
+function UploadIcon(props) {
+  return /* @__PURE__ */ jsxs28(
+    "svg",
+    {
+      width: "20",
+      height: "20",
+      viewBox: "0 0 24 24",
+      fill: "none",
+      stroke: "currentColor",
+      strokeWidth: "1.7",
+      strokeLinecap: "round",
+      strokeLinejoin: "round",
+      ...props,
+      children: [
+        /* @__PURE__ */ jsx38("path", { d: "M12 16V4M12 4l-4 4M12 4l4 4" }),
+        /* @__PURE__ */ jsx38("path", { d: "M4 16v3a2 2 0 002 2h12a2 2 0 002-2v-3" })
+      ]
+    }
+  );
+}
+
+// src/FileIcon.tsx
+import { jsx as jsx39, jsxs as jsxs29 } from "react/jsx-runtime";
+function FileIcon(props) {
+  return /* @__PURE__ */ jsxs29(
+    "svg",
+    {
+      width: "20",
+      height: "20",
+      viewBox: "0 0 24 24",
+      fill: "none",
+      stroke: "currentColor",
+      strokeWidth: "1.7",
+      strokeLinecap: "round",
+      strokeLinejoin: "round",
+      ...props,
+      children: [
+        /* @__PURE__ */ jsx39("path", { d: "M6 3h8l5 5v13a1 1 0 01-1 1H6a1 1 0 01-1-1V4a1 1 0 011-1z" }),
+        /* @__PURE__ */ jsx39("path", { d: "M14 3v5h5" })
+      ]
+    }
+  );
+}
+
+// src/IconGallery.tsx
+import { jsx as jsx40, jsxs as jsxs30 } from "react/jsx-runtime";
+var ICON_GALLERY_ENTRIES = [
+  { name: "WarningIcon", Icon: WarningIcon },
+  { name: "SearchIcon", Icon: SearchIcon },
+  { name: "LockIcon", Icon: LockIcon },
+  { name: "PaperclipIcon", Icon: PaperclipIcon },
+  { name: "FlaskIcon", Icon: FlaskIcon },
+  { name: "SunIcon", Icon: SunIcon },
+  { name: "MoonIcon", Icon: MoonIcon },
+  { name: "SlidersIcon", Icon: SlidersIcon },
+  { name: "ChatIcon", Icon: ChatIcon },
+  { name: "DocumentIcon", Icon: DocumentIcon },
+  { name: "BarChartIcon", Icon: BarChartIcon },
+  { name: "ShieldCheckIcon", Icon: ShieldCheckIcon },
+  { name: "LightbulbIcon", Icon: LightbulbIcon },
+  { name: "HomeIcon", Icon: HomeIcon },
+  { name: "UsersIcon", Icon: UsersIcon },
+  { name: "ClientRosterIcon", Icon: ClientRosterIcon },
+  { name: "GridIcon", Icon: GridIcon },
+  { name: "PieChartIcon", Icon: PieChartIcon },
+  { name: "BankIcon", Icon: BankIcon },
+  { name: "SwapIcon", Icon: SwapIcon },
+  { name: "CalculatorIcon", Icon: CalculatorIcon },
+  { name: "StackedBillsIcon", Icon: StackedBillsIcon },
+  { name: "DownloadIcon", Icon: DownloadIcon },
+  { name: "GiftHeartIcon", Icon: GiftHeartIcon },
+  { name: "FolderIcon", Icon: FolderIcon },
+  { name: "WrenchIcon", Icon: WrenchIcon },
+  { name: "ChevronUpIcon", Icon: ChevronUpIcon },
+  { name: "ChevronDownIcon", Icon: ChevronDownIcon },
+  { name: "UploadIcon", Icon: UploadIcon },
+  { name: "FileIcon", Icon: FileIcon }
+];
+function IconGallery() {
+  return /* @__PURE__ */ jsx40("div", { className: "icon-gallery", children: ICON_GALLERY_ENTRIES.map(({ name, Icon }) => /* @__PURE__ */ jsxs30("div", { className: "icon-gallery-item", children: [
+    /* @__PURE__ */ jsx40("div", { className: "icon-gallery-swatch", children: /* @__PURE__ */ jsx40(Icon, { width: 20, height: 20 }) }),
+    /* @__PURE__ */ jsx40("span", { className: "icon-gallery-name", children: name })
+  ] }, name)) });
+}
 export {
   AccountCashDonut,
   Badge,
@@ -813,14 +960,19 @@ export {
   CardSubtitle,
   CardTitle,
   ChatIcon,
+  ChevronDownIcon,
+  ChevronUpIcon,
   ClientRosterIcon,
   DocumentIcon,
   DownloadIcon,
+  FileIcon,
   FlaskIcon,
   FolderIcon,
   GiftHeartIcon,
   GridIcon,
   HomeIcon,
+  ICON_GALLERY_ENTRIES,
+  IconGallery,
   IncomeExpenseChart,
   LightbulbIcon,
   LockIcon,
@@ -838,8 +990,10 @@ export {
   SwapIcon,
   ToastProvider,
   TrendPill,
+  UploadIcon,
   UsersIcon,
   WarningIcon,
+  WrenchIcon,
   fmtMoney,
   useToast
 };

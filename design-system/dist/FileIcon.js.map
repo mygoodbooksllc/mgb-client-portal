@@ -1,0 +1,7 @@
+{
+  "version": 3,
+  "sources": ["../src/FileIcon.tsx"],
+  "sourcesContent": ["import React from \"react\";\n\nexport type FileIconProps = React.SVGProps<SVGSVGElement>;\n\n/** Document page with a dog-ear corner. Thin-line, `stroke=\"currentColor\"` house style. Documents row prefix, document preview modal. */\nexport function FileIcon(props: FileIconProps) {\n  return (\n    <svg\n      width=\"20\"\n      height=\"20\"\n      viewBox=\"0 0 24 24\"\n      fill=\"none\"\n      stroke=\"currentColor\"\n      strokeWidth=\"1.7\"\n      strokeLinecap=\"round\"\n      strokeLinejoin=\"round\"\n      {...props}\n    >\n      <path d=\"M6 3h8l5 5v13a1 1 0 01-1 1H6a1 1 0 01-1-1V4a1 1 0 011-1z\" />\n      <path d=\"M14 3v5h5\" />\n    </svg>\n  );\n}\n"],
+  "mappings": ";AAOI,SAWE,KAXF;AAFG,SAAS,SAAS,OAAsB;AAC7C,SACE;AAAA,IAAC;AAAA;AAAA,MACC,OAAM;AAAA,MACN,QAAO;AAAA,MACP,SAAQ;AAAA,MACR,MAAK;AAAA,MACL,QAAO;AAAA,MACP,aAAY;AAAA,MACZ,eAAc;AAAA,MACd,gBAAe;AAAA,MACd,GAAG;AAAA,MAEJ;AAAA,4BAAC,UAAK,GAAE,4DAA2D;AAAA,QACnE,oBAAC,UAAK,GAAE,aAAY;AAAA;AAAA;AAAA,EACtB;AAEJ;",
+  "names": []
+}

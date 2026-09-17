@@ -1,0 +1,7 @@
+{
+  "version": 3,
+  "sources": ["../src/ChevronDownIcon.tsx"],
+  "sourcesContent": ["import React from \"react\";\n\nexport type ChevronDownIconProps = React.SVGProps<SVGSVGElement>;\n\n/** Chevron down. Thin-line, `stroke=\"currentColor\"` house style. Widget-picker \"move down\" button. */\nexport function ChevronDownIcon(props: ChevronDownIconProps) {\n  return (\n    <svg\n      width=\"14\"\n      height=\"14\"\n      viewBox=\"0 0 24 24\"\n      fill=\"none\"\n      stroke=\"currentColor\"\n      strokeWidth=\"2.2\"\n      strokeLinecap=\"round\"\n      strokeLinejoin=\"round\"\n      {...props}\n    >\n      <path d=\"M5 9l7 7 7-7\" />\n    </svg>\n  );\n}\n"],
+  "mappings": ";AAkBM;AAbC,SAAS,gBAAgB,OAA6B;AAC3D,SACE;AAAA,IAAC;AAAA;AAAA,MACC,OAAM;AAAA,MACN,QAAO;AAAA,MACP,SAAQ;AAAA,MACR,MAAK;AAAA,MACL,QAAO;AAAA,MACP,aAAY;AAAA,MACZ,eAAc;AAAA,MACd,gBAAe;AAAA,MACd,GAAG;AAAA,MAEJ,8BAAC,UAAK,GAAE,gBAAe;AAAA;AAAA,EACzB;AAEJ;",
+  "names": []
+}

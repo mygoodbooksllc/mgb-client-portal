@@ -1,0 +1,7 @@
+{
+  "version": 3,
+  "sources": ["../src/UploadIcon.tsx"],
+  "sourcesContent": ["import React from \"react\";\n\nexport type UploadIconProps = React.SVGProps<SVGSVGElement>;\n\n/** Upload arrow. Thin-line, `stroke=\"currentColor\"` house style. Documents page dropzone. */\nexport function UploadIcon(props: UploadIconProps) {\n  return (\n    <svg\n      width=\"20\"\n      height=\"20\"\n      viewBox=\"0 0 24 24\"\n      fill=\"none\"\n      stroke=\"currentColor\"\n      strokeWidth=\"1.7\"\n      strokeLinecap=\"round\"\n      strokeLinejoin=\"round\"\n      {...props}\n    >\n      <path d=\"M12 16V4M12 4l-4 4M12 4l4 4\" />\n      <path d=\"M4 16v3a2 2 0 002 2h12a2 2 0 002-2v-3\" />\n    </svg>\n  );\n}\n"],
+  "mappings": ";AAOI,SAWE,KAXF;AAFG,SAAS,WAAW,OAAwB;AACjD,SACE;AAAA,IAAC;AAAA;AAAA,MACC,OAAM;AAAA,MACN,QAAO;AAAA,MACP,SAAQ;AAAA,MACR,MAAK;AAAA,MACL,QAAO;AAAA,MACP,aAAY;AAAA,MACZ,eAAc;AAAA,MACd,gBAAe;AAAA,MACd,GAAG;AAAA,MAEJ;AAAA,4BAAC,UAAK,GAAE,+BAA8B;AAAA,QACtC,oBAAC,UAAK,GAAE,yCAAwC;AAAA;AAAA;AAAA,EAClD;AAEJ;",
+  "names": []
+}

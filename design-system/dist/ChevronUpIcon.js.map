@@ -1,0 +1,7 @@
+{
+  "version": 3,
+  "sources": ["../src/ChevronUpIcon.tsx"],
+  "sourcesContent": ["import React from \"react\";\n\nexport type ChevronUpIconProps = React.SVGProps<SVGSVGElement>;\n\n/** Chevron up. Thin-line, `stroke=\"currentColor\"` house style. Widget-picker \"move up\" button. */\nexport function ChevronUpIcon(props: ChevronUpIconProps) {\n  return (\n    <svg\n      width=\"14\"\n      height=\"14\"\n      viewBox=\"0 0 24 24\"\n      fill=\"none\"\n      stroke=\"currentColor\"\n      strokeWidth=\"2.2\"\n      strokeLinecap=\"round\"\n      strokeLinejoin=\"round\"\n      {...props}\n    >\n      <path d=\"M5 15l7-7 7 7\" />\n    </svg>\n  );\n}\n"],
+  "mappings": ";AAkBM;AAbC,SAAS,cAAc,OAA2B;AACvD,SACE;AAAA,IAAC;AAAA;AAAA,MACC,OAAM;AAAA,MACN,QAAO;AAAA,MACP,SAAQ;AAAA,MACR,MAAK;AAAA,MACL,QAAO;AAAA,MACP,aAAY;AAAA,MACZ,eAAc;AAAA,MACd,gBAAe;AAAA,MACd,GAAG;AAAA,MAEJ,8BAAC,UAAK,GAAE,iBAAgB;AAAA;AAAA,EAC1B;AAEJ;",
+  "names": []
+}

@@ -44,15 +44,23 @@ overrides that icon's own default sizing/weight.
 - `SunIcon` / `MoonIcon` — theme toggle (sidebar).
 - `SlidersIcon` — "Manage access" and "Customize dashboard."
 - `ChatIcon` — the floating chat widget's header, the mobile chat FAB, and the sidebar's Messages link.
-- `DocumentIcon`, `BarChartIcon`, `ShieldCheckIcon` — the three Enterprise
-  Tools feature cards (Daily Report, Report Builder, Budgeting Tool).
-  `DocumentIcon` and `BarChartIcon` are reused for the sidebar's Daily
-  Report and Report Builder links respectively — same icon, same meaning,
-  two places it shows up.
-- `LightbulbIcon` — Daily Report's forecast callout. That component
+- `DocumentIcon`, `BarChartIcon`, `ShieldCheckIcon` — the Enterprise upgrade
+  page's feature cards (Live Report, Report Builder, Budgeting Tool — the
+  Cash Flow Pro card now uses `StackedBillsIcon` instead of
+  `ShieldCheckIcon`, see below). `DocumentIcon` and `BarChartIcon` are
+  reused for the sidebar's Live Report and Report Builder links
+  respectively — same icon, same meaning, two places it shows up.
+- `LightbulbIcon` — Live Report's forecast callout. That component
   (`components/daily-close/DailyClose.tsx`) is vendored with its own
   styling scope and keeps its own inline copy rather than importing this
   one — exported here so it's still part of the shared set.
+- `WrenchIcon` — sidebar's Developer Tools link.
+- `ChevronUpIcon` / `ChevronDownIcon` — the move-up/move-down buttons in
+  every "customize your layout" picker (Dashboard, Live Report).
+- `UploadIcon` — the Documents page's upload dropzone.
+- `FileIcon` — a document-page glyph (dog-ear corner), distinct from
+  `DocumentIcon` (a lined-page glyph) — Documents' row prefix and its
+  preview modal's header/placeholder.
 
 **Sidebar nav icons** — one per tab, plus Home/Staff Access/Client Roster:
 
@@ -60,12 +68,27 @@ overrides that icon's own default sizing/weight.
 - `GridIcon` — Dashboard.
 - `PieChartIcon` — Budget vs. Actual.
 - `CalculatorIcon` — Budgeting Tool.
-- `StackedBillsIcon` — AP Command Center.
+- `StackedBillsIcon` — Cash Flow Pro (the premium tab, formerly "AP Command Center").
 - `BankIcon` — Bank Accounts.
-- `SwapIcon` — Receivables & Payables.
+- `SwapIcon` — Cash Flow (the standard tab, formerly "Receivables & Payables").
 - `DownloadIcon` — Reports.
 - `GiftHeartIcon` — Giving & Funds.
 - `FolderIcon` — Documents.
+
+### Icon gallery
+
+`IconGallery` renders every icon above in a grid with its component name
+underneath — a reference sheet for browsing what's available before adding a
+new one, rather than reading this list. `ICON_GALLERY_ENTRIES` (exported
+alongside it) is the same list as plain data, `{ name, Icon }[]`, if you want
+to build your own layout instead of the provided grid.
+
+```tsx
+import { IconGallery } from "mygoodbooks-ds";
+import "mygoodbooks-ds/dist/styles.css";
+
+<IconGallery />
+```
 
 ## Usage
 
