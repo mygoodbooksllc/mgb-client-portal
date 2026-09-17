@@ -3734,6 +3734,19 @@ function BudgetingToolPage({ client }) {
           </button>
         </div>
       </div>
+
+      {/* Budget vs. Actual (the standard page this one replaces for a
+          premium client) has a Spending Trend toggle — the same
+          multi-month income/expense chart the Dashboard uses. Shown here as
+          a plain reference card rather than a toggle, since the draft table
+          above is this page's whole reason to exist and shouldn't be
+          hideable behind one — but the chart itself needs to stay reachable
+          so this page is still a strict superset of Budget vs. Actual. */}
+      <div className="card">
+        <h3 className="card-title">Spending Trend</h3>
+        <p className="card-subtitle">Income vs. expenses, last {client.monthly.length} months — for reference while drafting</p>
+        <IncomeExpenseChart monthly={client.monthly} />
+      </div>
     </div>
   );
 }

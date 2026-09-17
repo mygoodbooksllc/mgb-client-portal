@@ -1819,3 +1819,19 @@ would've hidden real functionality — see §53's discussion). New shared `.view
   `setTimeout`) rather than looking for a DOM node that doesn't exist yet in that render.
 
 `MGB_VERSION` bumped to `2026-09-17i`.
+
+## §55 — Another §53-style regression, caught from a mockup: Budgeting Tool was missing the Spending Trend chart
+
+Same class of bug as §54's Report Builder fix, caught this time by reviewing a standard-vs-premium
+feature comparison mockup rather than live testing: §54 added a "Spending Trend" toggle (the
+multi-month income/expense chart, `IncomeExpenseChart`) to the standard `BudgetPage`, but never
+carried it over to `BudgetingToolPage` — so a premium client lost that view entirely, the same
+"full-replace has to be a superset" bar §54's own writeup states.
+
+Not implemented as a toggle here, deliberately: `BudgetingToolPage`'s draft-editing table is the
+whole reason the page exists, so hiding it behind a toggle (the way Budget vs. Actual's category
+table can be swapped out) would be a worse fit. Instead, the trend chart is appended below the
+draft table as a plain reference card — reachable, but not competing with the draft workflow for
+the same screen space.
+
+`MGB_VERSION` bumped to `2026-09-17j`.
