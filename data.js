@@ -236,6 +236,36 @@ const CLIENTS = [
       { vendor: "ServiceMaster HVAC", description: "Quarterly service contract", amount: 640.00, dueDate: "2026-09-10" },
       { vendor: "LifeWay Christian Resources", description: "Fall curriculum order balance", amount: 380.00, dueDate: "2026-09-12" },
     ],
+    // Payroll add-on. A paid add-on, not a premium-plan upgrade — see
+    // PayrollPage in app.jsx and payrollAddOn below. Runs are actually
+    // processed in Gusto; this is read-only, synced data.
+    payrollAddOn: true,
+    payroll: {
+      provider: "Gusto",
+      nextRun: { date: "2026-09-19", employeeCount: 6, gross: 21860.00, taxes: 3440.00, net: 18420.00 },
+      lastRun: { date: "2026-09-05", net: 14206.00 },
+      ytdCost: 132900.00,
+      employees: [
+        { name: "Marcus Ellery", role: "Lead Pastor", payType: "Salary", status: "active", directDeposit: "enrolled",
+          ytdGross: 46750.00, ytdFederalWithholding: 6890.00, ytdStateWithholding: 1870.00, ytdFica: 3576.00, ytdNet: 34414.00 },
+        { name: "Dana Whitfield", role: "Office Manager", payType: "Salary", status: "active", directDeposit: "enrolled",
+          ytdGross: 28530.00, ytdFederalWithholding: 3410.00, ytdStateWithholding: 1141.00, ytdFica: 2183.00, ytdNet: 21796.00 },
+        { name: "Ryan Abboud", role: "Facilities", payType: "Hourly", status: "active", directDeposit: "enrolled",
+          ytdGross: 21060.00, ytdFederalWithholding: 2102.00, ytdStateWithholding: 842.00, ytdFica: 1611.00, ytdNet: 16505.00 },
+        { name: "Priya Chandrasekar", role: "Children's Ministry", payType: "Hourly", status: "active", directDeposit: "enrolled",
+          ytdGross: 18360.00, ytdFederalWithholding: 1652.00, ytdStateWithholding: 734.00, ytdFica: 1405.00, ytdNet: 14569.00 },
+        { name: "Grace Nakamura", role: "Nursery Coordinator", payType: "Hourly", status: "active", directDeposit: "enrolled",
+          ytdGross: 12200.00, ytdFederalWithholding: 950.00, ytdStateWithholding: 470.00, ytdFica: 933.00, ytdNet: 9847.00 },
+        { name: "Tobias Renn", role: "Worship Director", payType: "Salary", status: "onboarding", directDeposit: "pending",
+          ytdGross: 6000.00, ytdFederalWithholding: 660.00, ytdStateWithholding: 240.00, ytdFica: 459.00, ytdNet: 4641.00 },
+      ],
+      taxDeposits: [
+        { type: "Federal 941 (income + FICA)", period: "Q3 2026", amount: 9220.00, dueDate: "2026-10-15", status: "upcoming" },
+        { type: "State withholding", period: "Sep 2026", amount: 1180.00, dueDate: "2026-10-05", status: "upcoming" },
+        { type: "FUTA", period: "Q3 2026", amount: 168.00, dueDate: "2026-10-31", status: "upcoming" },
+        { type: "Federal 941 (income + FICA)", period: "Q2 2026", amount: 8940.00, dueDate: "2026-07-15", status: "filed" },
+      ],
+    },
     // visibility: "all" = everyone at the org with the Documents tab;
     // "full" = full-access users only. Set by MyGoodBooks, never by the client.
     documents: [
@@ -617,6 +647,32 @@ const CLIENTS = [
       { vendor: "Riverbend Properties", description: "Facility lease", amount: 3200.00, dueDate: "2026-09-01" },
       { vendor: "CaseWorthy Software", description: "Case management license renewal", amount: 1450.00, dueDate: "2026-09-15" },
     ],
+    // Payroll add-on, same as grace-community — deliberately given to a
+    // Standard-plan client too, to prove the add-on is orthogonal to plan
+    // tier. See the comment on grace-community's own payroll block.
+    payrollAddOn: true,
+    payroll: {
+      provider: "Gusto",
+      nextRun: { date: "2026-09-18", employeeCount: 4, gross: 8120.00, taxes: 1340.00, net: 6780.00 },
+      lastRun: { date: "2026-09-04", net: 6540.00 },
+      ytdCost: 101350.00,
+      employees: [
+        { name: "Danielle Osei", role: "Executive Director", payType: "Salary", status: "active", directDeposit: "enrolled",
+          ytdGross: 44200.00, ytdFederalWithholding: 6200.00, ytdStateWithholding: 1680.00, ytdFica: 3381.00, ytdNet: 32939.00 },
+        { name: "Carlos Fuentes", role: "Case Manager", payType: "Salary", status: "active", directDeposit: "enrolled",
+          ytdGross: 33150.00, ytdFederalWithholding: 3720.00, ytdStateWithholding: 1194.00, ytdFica: 2536.00, ytdNet: 25700.00 },
+        { name: "Wanda Price", role: "Case Manager", payType: "Hourly", status: "active", directDeposit: "enrolled",
+          ytdGross: 19800.00, ytdFederalWithholding: 1782.00, ytdStateWithholding: 792.00, ytdFica: 1515.00, ytdNet: 15711.00 },
+        { name: "Leah Whitcombe", role: "Administrative Assistant", payType: "Hourly", status: "onboarding", directDeposit: "pending",
+          ytdGross: 4200.00, ytdFederalWithholding: 336.00, ytdStateWithholding: 168.00, ytdFica: 321.00, ytdNet: 3375.00 },
+      ],
+      taxDeposits: [
+        { type: "Federal 941 (income + FICA)", period: "Q3 2026", amount: 4120.00, dueDate: "2026-10-15", status: "upcoming" },
+        { type: "State withholding", period: "Sep 2026", amount: 540.00, dueDate: "2026-10-05", status: "upcoming" },
+        { type: "FUTA", period: "Q3 2026", amount: 84.00, dueDate: "2026-10-31", status: "upcoming" },
+        { type: "Federal 941 (income + FICA)", period: "Q2 2026", amount: 3960.00, dueDate: "2026-07-15", status: "filed" },
+      ],
+    },
     documents: [
       { name: "State DHS Contract - FY26.pdf", category: "Grant Compliance", uploadedBy: "Open Arms Family Services", date: "2026-07-10", size: "1.4 MB", visibility: "all" },
       { name: "August Bank Statements.pdf", category: "Bank Statement", uploadedBy: "MyGoodBooks", date: "2026-08-25", size: "455 KB", visibility: "full" },
