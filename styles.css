@@ -759,12 +759,6 @@ body {
   letter-spacing: 0.02em;
 }
 
-.sidebar-home-note {
-  color: var(--sidebar-text-muted);
-  font-size: 12px;
-  padding: 12px 8px;
-}
-
 .customize-tabs-btn:hover {
   color: var(--gold);
 }

@@ -1483,3 +1483,14 @@ anywhere in a standard-plan client's sidebar at all — they're simply absent fr
 filtered out via `access.tabs`), with the heading alone signaling that there's more available.
 
 `MGB_VERSION` bumped to `2026-09-16as`.
+
+## §46 — Removed the stale "Pick a client above" note on Bookkeeper Home
+
+Home's sidebar showed "Pick a client above to see their tabs." — but the client-picker dropdown
+is deliberately hidden on Home (per the existing comment just above this code: showing one there
+would be confusing, since Home isn't about any single client). The note referred to a dropdown
+that was never actually shown on that page. Removed; Home now renders no sidebar note at all,
+same as the other synthetic staff-only pages (Staff Access, Client Roster, Developer Tools).
+Dropped the now-dead `.sidebar-home-note` CSS rule too.
+
+`MGB_VERSION` bumped to `2026-09-17a`.

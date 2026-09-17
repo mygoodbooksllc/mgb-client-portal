@@ -590,9 +590,7 @@ function Sidebar({
         </div>
       )}
 
-      {page === "bookkeeper-home" ? (
-        <div className="sidebar-home-note">Pick a client above to see their tabs.</div>
-      ) : page === "staff-access" || page === "client-access" || page === "developer-tools" ? null : (
+      {page === "bookkeeper-home" || page === "staff-access" || page === "client-access" || page === "developer-tools" ? null : (
       <nav className="nav">
         {NAV_SECTIONS.map((section) => {
           const isSignature = section.label === "Enterprise";
