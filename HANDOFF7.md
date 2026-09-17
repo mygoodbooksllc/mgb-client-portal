@@ -2028,3 +2028,45 @@ the combination is what actually produces "gaps on either side," not just the ca
 fill the full width edge-to-edge.
 
 `MGB_VERSION` bumped to `2026-09-17q`.
+
+## §63 — Premium-exclusive sections get a gold shimmer; Messages moved above Dashboard
+
+Two requests. First: the premium side of the app should visually stand out — "shimmery gold in
+titles and in certain aspects that make sense" — so a client can tell at a glance which parts of a
+page are the premium add-on rather than reading feature-by-feature. Second: move Messages to just
+above Dashboard in the sidebar, for both plans.
+
+**Messages above Dashboard.** One-line change: swapped the two items' order in the Enterprise
+section of `NAV_SECTIONS` (`app.jsx`). `NAV_SECTIONS` is the same array for every client regardless
+of plan, so this applies to standard and premium alike with nothing plan-specific to change.
+
+**Gold shimmer.** New reusable `.premium-shimmer` class in `styles.css`, extracted from the gold
+gradient-text-clip treatment the sidebar's `.nav-item-signature`/`.nav-section-label-signature`
+already used (same `navSignatureShine` keyframe, so this isn't a second animation to keep in sync —
+just the existing one applied to more text). Deliberately NOT applied everywhere — sprinkling it
+across every heading in a premium page would just make the whole page look gold instead of marking
+what's actually new, so it's scoped to text that's genuinely premium-exclusive:
+
+- The page subtitle (right under the greeting) shimmers whenever the current page is one of the
+  six upgraded pages (`isPremiumPage`, a new `App` variable OR-ing together all six `showsX`
+  flags) — one glance tells you which plan's version you're looking at, without needing to notice
+  the sidebar's PRO pill or scroll into the page itself.
+- Section titles that exist ONLY on the premium side of a pair, not the shared baseline a standard
+  client already has: Reconciliation Pro's "{account} — Cleared Status" and "Reconciliation
+  History"; Fund Accounting Pro's "Fund Activity" and "Pledges"; Cash Flow Pro's "Open Bills," "Pay
+  Run," "Vendor Summary," "Aging Summary" (the whole page is bonus content, so all four got it);
+  Budgeting Tool's "Draft Budget by Category" (its "Spending Trend" card was deliberately left
+  plain — that chart is shared with standard Budget vs. Actual per §54/§55, not a Budgeting Tool
+  exclusive); Report Builder's "Build a report" entry card (not the generated report's own section
+  headers inside it — those are meant to read as a formatted board document, and shimmer text
+  doesn't belong inside something built to be presented/exported).
+- Live Report's Collections Queue panel title, in `DailyClose.css`/`.tsx` — the one Live Report
+  panel with no standard-Dashboard equivalent at all. A new `.dc-premiumShimmer` class there reuses
+  the shell's `navSignatureShine` keyframe directly (CSS keyframes are global regardless of which
+  stylesheet defines them, so nothing needed duplicating) rather than reinventing the gradient in
+  DailyClose's own token language. The rest of Live Report — KPI row, Revenue vs. Expenses, Where
+  the Money Went, Outlook — was left alone; going further into DailyClose's self-contained component
+  tree for every possible premium-only touch felt like more surface area than "certain aspects that
+  make sense" asked for, and the page subtitle shimmer already marks the page as a whole.
+
+`MGB_VERSION` bumped to `2026-09-17r`.

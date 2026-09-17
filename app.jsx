@@ -197,11 +197,11 @@ const PREMIUM_UPGRADE_TAB_KEYS = new Set(["dashboard", "budget", "receivables", 
 
 const NAV_SECTIONS = [
   {
-    // Enterprise leads the sidebar, and Dashboard/Messages now live inside
-    // it as its first two items — the most-visited page (Dashboard, which
-    // reads "Dashboard Live" for a premium client, see the label override
-    // in Sidebar) and Messages (an unread badge shouldn't be buried) both
-    // come before Budget/Finances. Neither item here is itself
+    // Enterprise leads the sidebar, and Messages/Dashboard now live inside
+    // it as its first two items — Messages first (an unread badge shouldn't
+    // be buried below the most-visited page), then Dashboard (which reads
+    // "Dashboard Live" for a premium client, see the label override in
+    // Sidebar), both ahead of Budget/Finances. Neither item here is itself
     // premium-gated (no item in this whole list carries `premium: true`
     // anymore — see PREMIUM_UPGRADE_TAB_KEYS above), so this section's
     // upsell heading is really about the PRO badges scattered across the
@@ -212,8 +212,8 @@ const NAV_SECTIONS = [
     // cohesive page instead of two separate tabs both claiming to be "the
     // overview." See showsLiveReport in App.
     items: [
-      { key: "dashboard", label: "Dashboard", icon: <GridIcon /> },
       { key: "messages", label: "Messages", icon: <ChatIcon width="16" height="16" strokeWidth="1.8" /> },
+      { key: "dashboard", label: "Dashboard", icon: <GridIcon /> },
     ],
   },
   {
@@ -2368,7 +2368,7 @@ function FundAccountingProPage({ client }) {
 
       {view === "activity" && (
         <div className="card">
-          <h3 className="card-title">Fund Activity</h3>
+          <h3 className="card-title premium-shimmer">Fund Activity</h3>
           <p className="card-subtitle">Transfers between funds, with the reason for each move</p>
           <div className="table-scroll">
             <table className="tx-table tx-table-stack tx-stack-giving">
@@ -2411,7 +2411,7 @@ function FundAccountingProPage({ client }) {
 
       {view === "pledges" && (
         <div className="card">
-          <h3 className="card-title">Pledges</h3>
+          <h3 className="card-title premium-shimmer">Pledges</h3>
           <p className="card-subtitle">Committed vs. received, by donor and fund</p>
           <div className="table-scroll">
             <table className="tx-table tx-table-stack tx-stack-giving">
@@ -2891,7 +2891,7 @@ function ReconciliationPanel({ client }) {
       <div className="card" style={{ marginBottom: 20 }}>
         <div className="page-header" style={{ marginBottom: 4 }}>
           <div>
-            <h3 className="card-title">{account.accountName} — Cleared Status</h3>
+            <h3 className="card-title premium-shimmer">{account.accountName} — Cleared Status</h3>
             <p className="card-subtitle" style={{ margin: 0 }}>
               Which transactions have shown up on the bank statement so far
             </p>
@@ -2936,7 +2936,7 @@ function ReconciliationPanel({ client }) {
       </div>
 
       <div className="card">
-        <h3 className="card-title">Reconciliation History</h3>
+        <h3 className="card-title premium-shimmer">Reconciliation History</h3>
         <p className="card-subtitle">Prior periods closed and signed off for {account.accountName}</p>
         {history.length === 0 ? (
           <p className="card-subtitle" style={{ margin: 0 }}>
@@ -3878,7 +3878,7 @@ function ReportBuilderPage({ client }) {
         {builderTab === "custom" && (
         <div className="rb-layout">
           <div className="card rb-panel">
-            <h3 className="card-title">Build a report</h3>
+            <h3 className="card-title premium-shimmer">Build a report</h3>
             <p className="rb-panel-sub">Choose a period, a scope, and which sections belong in this report.</p>
 
             <div className="rb-field">
@@ -4298,7 +4298,7 @@ function BudgetingToolPage({ client }) {
       </div>
 
       <div className={"card " + (flashCardId === "draft" ? "card-flash" : "")} id="budgeting-tool-draft-card">
-        <h3 className="card-title">Draft Budget by Category</h3>
+        <h3 className="card-title premium-shimmer">Draft Budget by Category</h3>
         <p className="card-subtitle">Adjust proposed amounts for next period. This year's actual is shown for reference.</p>
         <div className="table-scroll">
 <table className="tx-table tx-table-labeled">
@@ -4596,7 +4596,7 @@ function APCommandCenterPage({ client }) {
       >
         <div className="ap-cc-toolbar">
           <div>
-            <h3 className="card-title">Open Bills</h3>
+            <h3 className="card-title premium-shimmer">Open Bills</h3>
             <p className="card-subtitle">Every payable on file for {client.name}</p>
           </div>
           <div className="ap-cc-filters">
@@ -4698,7 +4698,7 @@ function APCommandCenterPage({ client }) {
 
       {(selected.size > 0 || payRun) && (
         <div className="card" style={{ marginBottom: 20 }}>
-          <h3 className="card-title">Pay Run</h3>
+          <h3 className="card-title premium-shimmer">Pay Run</h3>
           <p className="card-subtitle">
             {payRun
               ? `${payRun.ids.length} bill${payRun.ids.length !== 1 ? "s" : ""} · ${fmtMoney(payRun.total, {
@@ -4756,7 +4756,7 @@ function APCommandCenterPage({ client }) {
 
       <div className="content-masonry">
         <div className="card">
-          <h3 className="card-title">Vendor Summary</h3>
+          <h3 className="card-title premium-shimmer">Vendor Summary</h3>
           <p className="card-subtitle">Open balance by vendor</p>
           <div className="ap-cc-upcoming">
             {vendorSummary.slice(0, 6).map((v) => (
@@ -4776,7 +4776,7 @@ function APCommandCenterPage({ client }) {
         </div>
 
         <div className="card">
-          <h3 className="card-title">Aging Summary</h3>
+          <h3 className="card-title premium-shimmer">Aging Summary</h3>
           <p className="card-subtitle">Payables by how overdue they are</p>
           <div className="ap-cc-aging">
             {agingBuckets.map((b) => (
@@ -9080,6 +9080,12 @@ function App({ staffUser, onSignOut }) {
     : showsFundAccountingPro
     ? PAGE_META["fund-accounting-pro"]
     : PAGE_META[effectivePage];
+  // Drives the shimmering gold subtitle right under the page greeting — a
+  // one-glance "you're looking at the premium version" cue that doesn't
+  // depend on noticing the sidebar's PRO pill or scrolling into the page
+  // itself. True on exactly the six upgraded pages from PREMIUM_UPGRADE_TAB_KEYS.
+  const isPremiumPage =
+    showsLiveReport || showsBudgetingTool || showsCashFlowPro || showsReportBuilder || showsReconciliationPro || showsFundAccountingPro;
   const isPreviewingUser = viewAsUserId !== BOOKKEEPER_VIEW && access.user;
 
   const clientUsers = client.users || [];
@@ -9501,7 +9507,7 @@ function App({ staffUser, onSignOut }) {
                   {timeOfDayGreeting()}, {greetingName}
                 </h1>
               )}
-              <div className="page-subtitle">{meta.subtitle}</div>
+              <div className={"page-subtitle" + (isPremiumPage ? " premium-shimmer" : "")}>{meta.subtitle}</div>
             </div>
             <div className="page-header-actions">
               <span className="badge-live">

@@ -856,6 +856,13 @@ body {
   margin-top: 4px;
 }
 
+/* A thin italic weight clips the shimmer gradient too faintly to read —
+   bold it just for this combination, same weight the nav's shimmer text
+   already uses. */
+.page-subtitle.premium-shimmer {
+  font-weight: 700;
+}
+
 .badge-live {
   display: inline-flex;
   align-items: center;
@@ -1178,6 +1185,31 @@ body {
   font-weight: 700;
   color: var(--ink-strong);
   margin: 0 0 2px 0;
+}
+
+/* Shared gold-shimmer text treatment — same technique the sidebar's
+   Enterprise section label and its upgraded nav items already use
+   (.nav-section-label-signature / .nav-item-signature), extracted here so
+   any premium-exclusive heading in a page's own content can carry it too,
+   not just the sidebar. Apply directly to a heading/span's className; it
+   does not add a PRO pill or any other marker on its own. Use it only on
+   text that's genuinely premium-exclusive within a page a standard client
+   can also reach (e.g. Reconciliation Pro's own section titles, not
+   Bank Accounts' shared Recent Transactions) — sprinkling it everywhere
+   would just make the whole app look gold instead of marking what's new. */
+.premium-shimmer {
+  background: linear-gradient(100deg, var(--gold-deep) 20%, #f7ecd3 45%, var(--gold-deep) 70%);
+  background-size: 220% auto;
+  background-position: 0% center;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+  animation: navSignatureShine 11.25s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .premium-shimmer { animation: none; }
 }
 
 .card-subtitle {
