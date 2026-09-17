@@ -66,7 +66,14 @@
     async function sendLink(e) {
       e.preventDefault();
       setErrorMsg("");
-      const { error } = await supabase.auth.signInWithOtp({ email: email.trim() });
+      // Without emailRedirectTo, Supabase sends the confirmed session back to
+      // the bare site URL, dropping ?client-login=1 — which then falls
+      // through to the staff AuthGate instead of back here. window.location.href
+      // already carries the param, so echo it back explicitly.
+      const { error } = await supabase.auth.signInWithOtp({
+        email: email.trim(),
+        options: { emailRedirectTo: window.location.href },
+      });
       if (error) {
         setErrorMsg(error.message);
         return;
