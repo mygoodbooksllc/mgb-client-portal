@@ -1873,28 +1873,6 @@ function DashboardPage({ client, access, isBookkeeper, promoText, onSaveReferral
     .filter((t) => t.date >= twoMonthsAgo)
     .sort((a, b) => (a.date < b.date ? 1 : -1));
 
-  // This month's expense-only activity, by category, biggest first — same
-  // source data as CategoryLedger (embedded in Income vs. Expenses below)
-  // but expense-only and chart-styled with ReportBarRows instead, so the two
-  // don't just duplicate each other when both happen to be visible.
-  const topExpenseCategories = useMemo(() => {
-    const latestMonth = client.monthly[client.monthly.length - 1];
-    if (!latestMonth) return [];
-    const monthPrefix = latestMonth.month;
-    const byCategory = {};
-    client.bankAccounts.forEach((a) => {
-      a.transactions.forEach((t) => {
-        const d = new Date(t.date + "T00:00:00");
-        if (MONTH_ABBR[d.getMonth()] !== monthPrefix || t.amount >= 0) return;
-        byCategory[t.category] = (byCategory[t.category] || 0) + t.amount;
-      });
-    });
-    return Object.entries(byCategory)
-      .map(([category, amount]) => ({ label: category, amount: Math.abs(amount) }))
-      .sort((a, b) => b.amount - a.amount)
-      .slice(0, 6);
-  }, [client]);
-
   const widgets = [
     { id: "kpi-cash", group: "kpi", label: "Cash on Hand", description: "Total across all bank accounts" },
     { id: "kpi-net", group: "kpi", label: "Net Surplus / (Deficit)", description: "This month's income minus expenses" },
@@ -1902,8 +1880,6 @@ function DashboardPage({ client, access, isBookkeeper, promoText, onSaveReferral
     { id: "kpi-runway", group: "kpi", label: "Operating Reserve", description: "Months of expenses covered by cash on hand" },
     { id: "income-expenses", group: "content", label: "Income vs. Expenses", description: "6-month trend chart" },
     { id: "recent-activity", group: "content", label: "Recent Activity", description: "Latest transactions across all accounts" },
-    { id: "cash-by-account", group: "content", label: "Cash by Account", description: "Donut breakdown of cash across your accounts" },
-    { id: "top-expense-categories", group: "content", label: "Top Expense Categories", description: "This month's biggest spend, by category" },
     ...crossTabWidgetDefs(client, access),
   ];
   const crossTabById = Object.fromEntries(widgets.filter((w) => w.id.startsWith("xt-")).map((w) => [w.id, w]));
@@ -2030,26 +2006,6 @@ function DashboardPage({ client, access, isBookkeeper, promoText, onSaveReferral
                       </div>
                     ))}
                   </div>
-                </div>
-              );
-            if (id === "cash-by-account")
-              return (
-                <div className={"card " + drag.dragClass(id)} key={id} {...drag.dragProps(id)}>
-                  <h3 className="card-title">Cash by Account</h3>
-                  <p className="card-subtitle" style={{ margin: 0 }}>Share of total cash on hand</p>
-                  <AccountCashDonut accounts={client.bankAccounts} />
-                </div>
-              );
-            if (id === "top-expense-categories")
-              return (
-                <div className={"card " + drag.dragClass(id)} key={id} {...drag.dragProps(id)}>
-                  <h3 className="card-title">Top Expense Categories</h3>
-                  <p className="card-subtitle">This month's biggest spend, by category</p>
-                  {topExpenseCategories.length > 0 ? (
-                    <ReportBarRows items={topExpenseCategories} />
-                  ) : (
-                    <p className="card-subtitle">No expense activity yet this month.</p>
-                  )}
                 </div>
               );
             if (crossTabById[id])
