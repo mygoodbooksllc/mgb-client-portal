@@ -1968,3 +1968,13 @@ Artifact mockups this session also produces, which use a different, unrelated to
 of them to the real tokens.
 
 `MGB_VERSION` bumped to `2026-09-17n`.
+
+## §60 — Enterprise pricing switched to per user profile per month
+
+Small follow-up to §59: `ENTERPRISE_PRICING` now holds a `perUser` rate for each plan instead of a
+flat `price`, and each pricing card shows both the per-user rate ("$19/user/mo") and the computed
+total for this client ("$19/mo total for 1 user profile" / "$114/mo total for 6 user profiles"),
+using `client.users.length` — every login configured for the organization, not just full-access
+ones, since that's what actually drives seat count. Still placeholder figures pending real pricing.
+
+`MGB_VERSION` bumped to `2026-09-17o`.
