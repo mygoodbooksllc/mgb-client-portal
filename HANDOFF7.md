@@ -2172,3 +2172,30 @@ badge (gold-tinted, 22px) sits to the left of each panel's title in a new `.dc-p
 wrapper.
 
 `MGB_VERSION` bumped to `2026-09-17u`.
+
+## §67 — Grace Community Church: 3 more bank accounts, for a total of 5
+
+Request: give one sample client several bank accounts to see how the app looks with more than
+two. Added Payroll Account (Checking, $6,200), Petty Cash Checking (Checking, $850), and Money
+Market Reserve (Money Market, $25,000) to Grace Community Church's existing General Operating and
+Building Fund Savings.
+
+Every invariant this data keeps got recomputed, not just appended to:
+
+- **Reconciliation math** (§58's `balance == statementBalance + sum(uncleared amounts)`) holds for
+  all 5 accounts individually — Payroll and Reserve are fully cleared (nothing outstanding), Petty
+  Cash has one uncleared item, matching the same mix of states the original two accounts already
+  demonstrated.
+- **Fund balance invariant** (the comment above `funds:` — total bank balances minus payables must
+  equal the sum of every fund): 5 accounts now total $242,770.55 cash, so General Fund (the
+  unrestricted, balancing entry) moved from $35,850.55 to $67,900.55. The four restricted funds are
+  untouched — the new cash is general operating reserve, not earmarked to Building/Missions/Kids
+  Ministry/Benevolence.
+- **`bankReconciliations` history** got matching closed-period entries for all 3 new accounts, so
+  Reconciliation Pro's history table isn't empty for them.
+
+Also bumped both donut-chart palettes (`ACCOUNT_DONUT_COLORS` in app.jsx,
+`DONUT_COLORS` in DailyClose.tsx) from 4 colors to 5 — at 4, a 5th account's slice would have
+silently repeated the 1st account's color instead of getting one of its own.
+
+`MGB_VERSION` bumped to `2026-09-17v`.

@@ -109,6 +109,48 @@ const CLIENTS = [
           { date: "2026-07-18", description: "Transfer from Operating - Monthly Set-Aside", category: "Transfer In", amount: 4000.00, cleared: true },
         ],
       },
+      {
+        id: "payroll",
+        accountName: "Payroll Account",
+        accountMask: "3390",
+        type: "Checking",
+        balance: 6200.00,
+        statementBalance: 6200.00,
+        statementDate: "2026-08-22",
+        transactions: [
+          { date: "2026-08-22", description: "Transfer from Operating - Payroll Funding", category: "Transfer In", amount: 14200.00, cleared: true },
+          { date: "2026-08-22", description: "Payroll - Gusto Disbursement", category: "Payroll", amount: -14200.00, cleared: true },
+          { date: "2026-08-08", description: "Transfer from Operating - Payroll Funding", category: "Transfer In", amount: 6200.00, cleared: true },
+        ],
+      },
+      {
+        id: "petty-cash",
+        accountName: "Petty Cash Checking",
+        accountMask: "7743",
+        type: "Checking",
+        balance: 850.00,
+        statementBalance: 945.40,
+        statementDate: "2026-08-12",
+        transactions: [
+          { date: "2026-08-18", description: "Office Supplies - Staples", category: "Admin & Office", amount: -95.40, cleared: false },
+          { date: "2026-08-15", description: "Transfer from Operating - Petty Cash Replenishment", category: "Transfer In", amount: 500.00, cleared: true },
+          { date: "2026-08-10", description: "Coffee & Hospitality Supplies", category: "Ministry Programs", amount: -54.60, cleared: true },
+          { date: "2026-07-20", description: "Transfer from Operating - Petty Cash Replenishment", category: "Transfer In", amount: 500.00, cleared: true },
+        ],
+      },
+      {
+        id: "reserve",
+        accountName: "Money Market Reserve",
+        accountMask: "9921",
+        type: "Money Market",
+        balance: 25000.00,
+        statementBalance: 25000.00,
+        statementDate: "2026-08-01",
+        transactions: [
+          { date: "2026-07-01", description: "Quarterly Reserve Transfer", category: "Transfer In", amount: 12500.00, cleared: true },
+          { date: "2026-04-01", description: "Quarterly Reserve Transfer", category: "Transfer In", amount: 12500.00, cleared: true },
+        ],
+      },
     ],
     // Reconciliation Pro only: prior periods already closed and signed off,
     // one entry per account per period. The current (unlisted) period is
@@ -117,13 +159,17 @@ const CLIENTS = [
       { accountId: "operating", period: "July 2026", closedDate: "2026-08-03", closedBy: "MyGoodBooks" },
       { accountId: "building-fund", period: "July 2026", closedDate: "2026-08-03", closedBy: "MyGoodBooks" },
       { accountId: "operating", period: "June 2026", closedDate: "2026-07-02", closedBy: "MyGoodBooks" },
+      { accountId: "payroll", period: "July 2026", closedDate: "2026-08-03", closedBy: "MyGoodBooks" },
+      { accountId: "petty-cash", period: "July 2026", closedDate: "2026-08-03", closedBy: "MyGoodBooks" },
+      { accountId: "reserve", period: "June 2026", closedDate: "2026-07-02", closedBy: "MyGoodBooks" },
     ],
     // INVARIANT: fund balances must sum to net assets (total bank balances
     // minus payables). Restricted funds are carved OUT of the cash already in
     // the accounts, never added on top of it, so the unrestricted General Fund
-    // is the balancing figure. Here: 208,500.55 net assets − 172,650 restricted.
+    // is the balancing figure. Five accounts sum to 242,770.55 cash; minus
+    // 2,220 payables = 240,550.55 net assets − 172,650 restricted = 67,900.55.
     funds: [
-      { name: "General Fund", restricted: false, balance: 35850.55 },
+      { name: "General Fund", restricted: false, balance: 67900.55 },
       { name: "Building Fund", restricted: true, balance: 142300.00 },
       { name: "Missions Fund", restricted: true, balance: 18750.00 },
       { name: "Kids Ministry Fund", restricted: true, balance: 5180.00 },

@@ -732,7 +732,7 @@ function BarList({ items }: { items: { label: string; amount: number }[] }) {
    Cash-by-account donut
    ============================================================ */
 
-const DONUT_COLORS = ["var(--series-revenue)", "var(--good)", "var(--warning)", "var(--critical)"];
+const DONUT_COLORS = ["var(--series-revenue)", "var(--good)", "var(--warning)", "var(--critical)", "var(--series-expense)"];
 
 function DonutList({ items, total }: { items: { name: string; balance: number }[]; total: number }) {
   let cursor = 0;
