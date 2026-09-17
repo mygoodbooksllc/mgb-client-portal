@@ -103,6 +103,7 @@ def build(out_path: pathlib.Path, refresh: bool) -> None:
     auth_config_src = read("auth-config.js")
     supabase_client_src = read("components/auth/supabaseClient.js")
     auth_gate_src = read("components/auth/AuthGate.jsx")
+    client_auth_gate_src = read("components/auth/ClientAuthGate.jsx")
 
     # The Daily Close ships as its own component directory. Its CSS is already
     # `dc-` prefixed and scoped to .dc-dailyClose, so it can simply be appended.
@@ -127,6 +128,7 @@ def build(out_path: pathlib.Path, refresh: bool) -> None:
         "authConfig": b64(auth_config_src),
         "supabaseClient": b64(supabase_client_src),
         "authGate": b64(auth_gate_src),
+        "clientAuthGate": b64(client_auth_gate_src),
         "data": b64(data_src),
         "app": b64(app_src),
         "dcSample": b64(daily_close_sample),
@@ -159,7 +161,7 @@ def build(out_path: pathlib.Path, refresh: bool) -> None:
 
 // Mirrors the stamp in index.html — bumped by hand alongside this file,
 // since there's no build step to inject a real commit SHA into.
-window.MGB_VERSION = {{ label: "2026-09-17ao", note: "Budgeting Tool draft table gets the bullet-bar chart too" }};
+window.MGB_VERSION = {{ label: "2026-09-17ap", note: "Phase 2 scaffolding: real client login (magic link) + schema" }};
 
 // Mirrors index.html's pinch-block — see that file's comment for why this
 // is gesture-level (2+ touches) rather than touch-action CSS.
@@ -222,6 +224,7 @@ try {{
   run(compile(BUNDLE.authConfig, "auth-config.js", [jsx]));
   run(compile(BUNDLE.supabaseClient, "supabaseClient.js", [jsx]));
   run(compile(BUNDLE.authGate, "AuthGate.jsx", [jsx]));
+  run(compile(BUNDLE.clientAuthGate, "ClientAuthGate.jsx", [jsx]));
   run(compile(BUNDLE.data, "data.js", [jsx]));
   // The Daily Close is TypeScript. A plain .ts file must NOT get the JSX plugin
   // — Babel rejects that pair — and both must be defined before app.jsx renders.

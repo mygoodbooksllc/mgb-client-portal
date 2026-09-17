@@ -10981,6 +10981,32 @@ function App({ staffUser, onSignOut }) {
 // never will, so gating it behind staff login would make the link useless.
 const accessFormToken = new URLSearchParams(window.location.search).get("access-form");
 
+// Phase 2 (real client login) entry point — see components/auth/ClientAuthGate.jsx
+// and supabase/client-auth-phase2.sql. Reached the same way as the access
+// form: its own query param, checked before AuthGate, since a client signing
+// in for real is never a staff member. The authorized view below is a
+// placeholder — wiring a signed-in clientUser into the actual dashboard
+// pages (reusing resolveAccess/scopeClientData, minus all the staff-only
+// chrome: client picker, "Preview As", sidebar staff links) is real surgery
+// on App and deliberately not rushed in alongside this scaffolding. Until
+// that lands, this just proves the login+lookup half of Phase 2 works.
+const clientLoginMode = new URLSearchParams(window.location.search).get("client-login") === "1";
+
+function ClientPortalPlaceholder({ clientUser, onSignOut }) {
+  return (
+    <div className="boot-splash" role="status">
+      <div className="boot-splash-mark">MyGoodBooks</div>
+      <div className="boot-splash-sub">
+        Signed in as {clientUser.name} ({clientUser.role}). The client dashboard for this login
+        isn't wired up yet — check back soon.
+      </div>
+      <button className="btn-secondary" style={{ marginTop: 16 }} onClick={onSignOut}>
+        Sign out
+      </button>
+    </div>
+  );
+}
+
 // AuthGate (components/auth/AuthGate.jsx) is the Phase-1 login gate: it only
 // calls this render prop once a Supabase session exists AND that email is an
 // active row in the `staff` table. Until auth-config.js has real Supabase
@@ -10990,6 +11016,10 @@ ReactDOM.createRoot(document.getElementById("root")).render(
   <ErrorBoundary>
     {accessFormToken ? (
       <AccessRequestForm token={accessFormToken} />
+    ) : clientLoginMode ? (
+      <ClientAuthGate>
+        {(clientUser, onSignOut) => <ClientPortalPlaceholder clientUser={clientUser} onSignOut={onSignOut} />}
+      </ClientAuthGate>
     ) : (
       <AuthGate>
         {(staffUser, onSignOut) => <App staffUser={staffUser} onSignOut={onSignOut} />}
