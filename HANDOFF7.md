@@ -2472,3 +2472,23 @@ still saw the literal sample-data "MyGoodBooks" author on bookkeeper messages. D
 who's viewing.
 
 `MGB_VERSION` bumped to `2026-09-17aj`.
+
+## §84 — Client Messages page: online dot + simulated typing indicator
+
+Team Chat (staff-to-staff) already got a real Presence/Broadcast-backed online dot and typing
+indicator (§79). The client-facing Messages page has no backend at all (MockBanner: "sending a
+message here doesn't notify anyone yet") — the bookkeeper's reply is a hardcoded setTimeout — so
+there's no real channel to broadcast on. Added the same *visual* treatment without fabricating a
+fake Realtime connection: a green online dot next to the bookkeeper's name in the thread header
+(mock — always on, matches the simulated-reply's implicit "always available" behavior), and a
+"{bookkeeper} is typing…" line above the compose bar that shows for the same 900ms window the
+simulated reply already waits on (`bookkeeperTyping` state lifted to the app shell, set true on
+send and false when the reply lands).
+
+## §85 — Report Builder: Cash Flow section now checked by default
+
+`sections.receivables` (the "Cash Flow" checkbox — same key as the Cash Flow tab) defaulted to
+`false` while every other core section (Revenue & Expenses, Budget vs. Actual, Cash Position,
+Outlook) defaulted to `true`. Flipped it to match.
+
+`MGB_VERSION` bumped to `2026-09-17ak`.

@@ -4229,7 +4229,7 @@ function ReportBuilderPage({ client }) {
     revenue: true,
     budget: true,
     cash: true,
-    receivables: false,
+    receivables: true,
     giving: hasFunds || contributions.length > 0,
     outlook: true,
   });
@@ -8262,7 +8262,7 @@ function ChatFab({ unreadCount, onOpen, onDismiss }) {
 // Messages page
 // ----------------------------------------------------------------------------
 
-function MessagesPage({ client, messages, onSend, users, activeUserId, onSelectUser, unreadUserIds, isBookkeeper, searchTarget }) {
+function MessagesPage({ client, messages, onSend, users, activeUserId, onSelectUser, unreadUserIds, isBookkeeper, searchTarget, bookkeeperTyping }) {
   const [draft, setDraft] = useState("");
   const [pendingAttachment, setPendingAttachment] = useState(null);
   const [isDragging, setIsDragging] = useState(false);
@@ -8333,7 +8333,12 @@ function MessagesPage({ client, messages, onSend, users, activeUserId, onSelectU
           {isBookkeeper && activeUser
             ? `Conversation with ${activeUser.name}`
             : client && client.assignedBookkeeper
-              ? `Conversation with ${client.assignedBookkeeper.name}`
+              ? (
+                <>
+                  Conversation with {client.assignedBookkeeper.name}
+                  <span className="online-dot" title="Online now" />
+                </>
+              )
               : "Conversation with MyGoodBooks"}
         </h3>
         {messages.length === 0 && (
@@ -8376,6 +8381,11 @@ function MessagesPage({ client, messages, onSend, users, activeUserId, onSelectU
           </div>
         )}
 
+        <div className="typing-indicator">
+          {!isBookkeeper && bookkeeperTyping && client && client.assignedBookkeeper
+            ? `${client.assignedBookkeeper.name} is typing…`
+            : " "}
+        </div>
         <div className="message-compose">
           <button type="button" className="attach-btn" onClick={() => fileInputRef.current.click()} aria-label="Attach file">
             <PaperclipIcon />
@@ -9491,6 +9501,11 @@ function App({ staffUser, onSignOut }) {
   const [theme, setTheme] = useState(loadTheme);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [messagesByClient, setMessagesByClient] = useState({});
+  // Purely client-side "is typing" flag for the simulated bookkeeper reply
+  // below — there's no real backend for this thread (see MockBanner on
+  // MessagesPage), so this just mirrors the same 900ms window the reply
+  // already waits, rather than faking a live Realtime channel.
+  const [bookkeeperTyping, setBookkeeperTyping] = useState(false);
   const [chatWidgetOpen, setChatWidgetOpen] = useState(false);
   // Which person's thread the bookkeeper is reading (clients only ever see
   // their own, so this is unused while previewing as someone).
@@ -9574,7 +9589,9 @@ function App({ staffUser, onSignOut }) {
         { from: "client", author, date: today, text, attachment },
       ],
     }));
+    setBookkeeperTyping(true);
     setTimeout(() => {
+      setBookkeeperTyping(false);
       setMessagesByClient((prev) => ({
         ...prev,
         [key]: [
@@ -10399,6 +10416,7 @@ function App({ staffUser, onSignOut }) {
               onSelectUser={setBookkeeperThreadUserId}
               unreadUserIds={unreadThreadUserIds}
               isBookkeeper={!isPreviewingUser}
+              bookkeeperTyping={bookkeeperTyping}
               searchTarget={searchTarget && searchTarget.page === "messages" ? searchTarget : null}
               key={"msgs-" + client.id + "-" + activeThreadUserId}
             />
