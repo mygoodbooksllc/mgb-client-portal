@@ -2455,3 +2455,12 @@ centered — which read as a small box orphaned in the middle of a wide row inst
 footer. Now it just fills the full-width band edge-to-edge like the rest of the page's cards.
 
 `MGB_VERSION` bumped to `2026-09-17ah`.
+
+## §82 — Message bubble author still said MyGoodBooks
+
+§80 fixed the thread header but missed the per-bubble author label — each bookkeeper message still
+printed the literal `m.author` value ("MyGoodBooks") from the sample data. Client view now swaps in
+`client.assignedBookkeeper.name` there too. Bookkeeper-side view is unaffected (still shows their
+own name/whoever authored it).
+
+`MGB_VERSION` bumped to `2026-09-17ai`.
