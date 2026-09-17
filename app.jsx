@@ -8346,7 +8346,7 @@ function MessagesPage({ client, messages, onSend, users, activeUserId, onSelectU
             <div className={"message-bubble-row " + m.from} id={rowId} key={i}>
               <div className={"message-bubble" + (flashCardId === rowId ? " row-flash" : "")}>
                 <div className="message-author">
-                  {!isBookkeeper && m.from === "bookkeeper" && client && client.assignedBookkeeper
+                  {m.from === "bookkeeper" && client && client.assignedBookkeeper
                     ? client.assignedBookkeeper.name
                     : m.author}
                 </div>
