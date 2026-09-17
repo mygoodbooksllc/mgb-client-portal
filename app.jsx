@@ -6090,6 +6090,12 @@ function DeveloperToolsPage({ staffUser, onJumpToClient }) {
 // over Supabase Realtime.
 // ----------------------------------------------------------------------------
 
+// 15 minutes, not 5 seconds — the old window (staff-chat-v2.sql) expired
+// before most people finished typing a fix, so Edit/Unsend looked broken
+// even though it was working exactly as configured. Mirrored in
+// supabase/staff-chat-groups.sql's RLS policy; both must be changed together.
+const CHAT_EDIT_WINDOW_MS = 15 * 60 * 1000;
+
 function StaffMessagesPage({ staffUser, onActivity }) {
   const supabase = window.mgbSupabase;
   const showToast = useToast();
@@ -6106,8 +6112,18 @@ function StaffMessagesPage({ staffUser, onActivity }) {
   const [sending, setSending] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [editDraft, setEditDraft] = useState("");
-  const [, setTick] = useState(0); // forces a re-render so the 5s edit/unsend window visibly expires
+  const [, setTick] = useState(0); // forces a re-render so the edit/unsend window visibly expires
+  const [threadFilter, setThreadFilter] = useState("");
+  const [showGroupModal, setShowGroupModal] = useState(false);
   const fileInputRef = useRef(null);
+  // Guards against a stale async openWith() resolving after the user has
+  // already clicked to a different thread and overwriting their new
+  // selection — see selectConversation/openWith below. This was the actual
+  // cause of "I messaged Gillian and Jeff got it": clicking Gillian (no
+  // conversation yet) kicked off an insert; if Send was hit before that
+  // insert resolved, it fired against whatever activeConversationId still
+  // held — Jeff's, left over from before.
+  const openTokenRef = useRef(0);
 
   useEffect(() => {
     if (!supabase) return;
@@ -6139,7 +6155,7 @@ function StaffMessagesPage({ staffUser, onActivity }) {
           myReadByConv[r.conversation_id] = r.last_read_at;
         });
 
-        const [{ data: otherMembers }, { data: recentMessages }] = await Promise.all([
+        const [{ data: otherMembers }, { data: recentMessages }, { data: convRows }] = await Promise.all([
           supabase
             .from("staff_conversation_members")
             .select("conversation_id, staff_email")
@@ -6151,13 +6167,23 @@ function StaffMessagesPage({ staffUser, onActivity }) {
             .in("conversation_id", convIds)
             .is("deleted_at", null)
             .order("created_at", { ascending: false }),
+          // is_group/title only exist once staff-chat-groups.sql has been run —
+          // an older DB just won't have any group conversations to find here.
+          supabase.from("staff_conversations").select("id, is_group, title").in("id", convIds),
         ]);
 
-        const otherByConv = {};
+        // A group has 2+ "other" members, so this collects an array per
+        // conversation rather than the single email a 1:1 DM used to assume
+        // (that assumption is what silently mislabeled groups before).
+        const othersByConv = {};
         (otherMembers || []).forEach((m) => {
-          otherByConv[m.conversation_id] = m.staff_email;
+          (othersByConv[m.conversation_id] || (othersByConv[m.conversation_id] = [])).push(m.staff_email);
         });
-        const otherEmails = Object.values(otherByConv);
+        const convMetaById = {};
+        (convRows || []).forEach((c) => {
+          convMetaById[c.id] = c;
+        });
+        const otherEmails = [...new Set(Object.values(othersByConv).flat())];
         let staffByEmail = {};
         if (otherEmails.length > 0) {
           const { data: staffRows } = await supabase.from("staff").select("email, name, role").in("email", otherEmails);
@@ -6171,16 +6197,20 @@ function StaffMessagesPage({ staffUser, onActivity }) {
         });
 
         const rows = convIds.map((id) => {
-          const otherEmail = otherByConv[id];
-          const otherStaff = otherEmail && staffByEmail[otherEmail];
+          const meta = convMetaById[id] || {};
+          const otherEmailsForConv = othersByConv[id] || [];
+          const otherNames = otherEmailsForConv.map((e) => (staffByEmail[e] ? staffByEmail[e].name : e));
+          const isGroup = !!meta.is_group;
           const last = lastByConv[id];
           const myReadAt = myReadByConv[id];
           const unread = !!last && last.author_email !== staffUser.email && (!myReadAt || new Date(last.created_at) > new Date(myReadAt));
           return {
             id,
-            otherEmail: otherEmail || null,
-            otherName: otherStaff ? otherStaff.name : otherEmail || "Unknown",
-            otherRole: otherStaff ? otherStaff.role : "",
+            isGroup,
+            otherEmail: !isGroup ? otherEmailsForConv[0] || null : null,
+            otherEmails: otherEmailsForConv,
+            otherName: isGroup ? meta.title || otherNames.join(", ") || "Group" : otherNames[0] || otherEmailsForConv[0] || "Unknown",
+            otherRole: isGroup ? `${otherEmailsForConv.length + 1} people` : (staffByEmail[otherEmailsForConv[0]] || {}).role || "",
             lastText: last ? last.text || (last.attachment_name ? `Attachment: ${last.attachment_name}` : "") : "",
             lastAt: last ? last.created_at : null,
             unread,
@@ -6275,19 +6305,24 @@ function StaffMessagesPage({ staffUser, onActivity }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [supabase, staffUser.email]);
 
-  // Live-expire the 5s edit/unsend window on-screen without needing another
+  // Live-expire the edit/unsend window on-screen without needing another
   // action to trigger a re-render.
   useEffect(() => {
     const hasRecent = (messages || []).some(
-      (m) => m.author_email === staffUser.email && Date.now() - new Date(m.created_at).getTime() < 5000
+      (m) => m.author_email === staffUser.email && Date.now() - new Date(m.created_at).getTime() < CHAT_EDIT_WINDOW_MS
     );
     if (!hasRecent) return;
-    const id = setInterval(() => setTick((t) => t + 1), 500);
+    const id = setInterval(() => setTick((t) => t + 1), 1000);
     return () => clearInterval(id);
   }, [messages, staffUser.email]);
 
+  // token: this call's own stamp from openTokenRef, taken at click time by
+  // selectConversation below. If the user has since clicked a different
+  // thread (bumping the ref), this result is stale and must NOT overwrite
+  // activeConversationId — that's what let a message meant for a brand-new
+  // conversation land in whatever conversation was active before it.
   const openWith = useCallback(
-    (otherEmail) => {
+    (otherEmail, token) => {
       if (!supabase || !otherEmail) return;
       const dmKey = [staffUser.email, otherEmail].sort().join("|");
       supabase
@@ -6297,7 +6332,7 @@ function StaffMessagesPage({ staffUser, onActivity }) {
         .maybeSingle()
         .then(async ({ data: existing }) => {
           if (existing) {
-            setActiveConversationId(existing.id);
+            if (openTokenRef.current === token) setActiveConversationId(existing.id);
             return;
           }
           const { data: created, error } = await supabase.from("staff_conversations").insert({ dm_key: dmKey }).select("id").single();
@@ -6309,9 +6344,60 @@ function StaffMessagesPage({ staffUser, onActivity }) {
             { conversation_id: created.id, staff_email: staffUser.email, last_read_at: new Date().toISOString() },
             { conversation_id: created.id, staff_email: otherEmail },
           ]);
-          setActiveConversationId(created.id);
+          if (openTokenRef.current === token) setActiveConversationId(created.id);
           loadConversations();
         });
+    },
+    [supabase, staffUser.email, loadConversations, showToast]
+  );
+
+  // Every thread click (existing conversation or a fresh 1:1) goes through
+  // here so switching always clears the old thread's messages immediately —
+  // otherwise the previous conversation's messages (and its
+  // activeConversationId) stay on screen/active while the new one loads,
+  // which is exactly the gap the openWith race above could land a message in.
+  const selectConversation = useCallback(
+    (c) => {
+      openTokenRef.current += 1;
+      const token = openTokenRef.current;
+      setActiveConversationId(null);
+      setMessages(null);
+      setActiveMembers(null);
+      if (c.id) {
+        if (openTokenRef.current === token) setActiveConversationId(c.id);
+        return;
+      }
+      openWith(c.otherEmail, token);
+    },
+    [openWith]
+  );
+
+  const createGroup = useCallback(
+    async (emails, title) => {
+      if (!supabase || emails.length < 2) return;
+      const { data: created, error } = await supabase
+        .from("staff_conversations")
+        .insert({ is_group: true, title: title.trim() || null })
+        .select("id")
+        .single();
+      if (error || !created) {
+        showToast(
+          error && /is_group|column/i.test(error.message || "")
+            ? "Couldn't create the group — has staff-chat-groups.sql been run?"
+            : "Couldn't create the group."
+        );
+        return;
+      }
+      await supabase.from("staff_conversation_members").insert([
+        { conversation_id: created.id, staff_email: staffUser.email, last_read_at: new Date().toISOString() },
+        ...emails.map((email) => ({ conversation_id: created.id, staff_email: email })),
+      ]);
+      setShowGroupModal(false);
+      openTokenRef.current += 1;
+      setActiveConversationId(created.id);
+      setMessages(null);
+      setActiveMembers(null);
+      loadConversations();
     },
     [supabase, staffUser.email, loadConversations, showToast]
   );
@@ -6369,7 +6455,7 @@ function StaffMessagesPage({ staffUser, onActivity }) {
     const text = editDraft.trim();
     if (!text || !supabase) return;
     const { error } = await supabase.from("staff_messages").update({ text, edited_at: new Date().toISOString() }).eq("id", id);
-    if (error) showToast("Couldn't save — the 5 second edit window has passed.");
+    if (error) showToast("Couldn't save — the 15 minute edit window has passed.");
     setEditingId(null);
     loadMessages();
   }
@@ -6377,26 +6463,31 @@ function StaffMessagesPage({ staffUser, onActivity }) {
   async function unsend(id) {
     if (!supabase) return;
     const { error } = await supabase.from("staff_messages").update({ deleted_at: new Date().toISOString() }).eq("id", id);
-    if (error) showToast("Couldn't unsend — the 5 second window has passed.");
+    if (error) showToast("Couldn't unsend — the 15 minute window has passed.");
     loadMessages();
   }
 
   // Recent conversations first, then anyone in the directory not yet
-  // messaged — one combined list, so opening a new conversation is just
-  // picking a name rather than a separate "new message" flow.
+  // messaged (1:1 only — a group thread is always started explicitly via
+  // "New Group", never implied by a directory row), so opening a new
+  // conversation is just picking a name rather than a separate flow.
   const chatEntries = useMemo(() => {
     if (!directory) return [];
-    const convEmails = new Set((conversations || []).map((c) => c.otherEmail));
+    const convEmails = new Set((conversations || []).filter((c) => !c.isGroup).map((c) => c.otherEmail));
     const withoutConv = directory
       .filter((d) => !convEmails.has(d.email))
-      .map((d) => ({ id: null, otherEmail: d.email, otherName: d.name, otherRole: d.role, lastText: "", lastAt: null, unread: false }));
+      .map((d) => ({ id: null, otherEmail: d.email, otherName: d.name, otherRole: d.role, lastText: "", lastAt: null, unread: false, isGroup: false }));
     withoutConv.sort((a, b) => a.otherName.localeCompare(b.otherName));
-    return [...(conversations || []), ...withoutConv];
-  }, [directory, conversations]);
+    const combined = [...(conversations || []), ...withoutConv];
+    const q = threadFilter.trim().toLowerCase();
+    return q ? combined.filter((c) => c.otherName.toLowerCase().includes(q)) : combined;
+  }, [directory, conversations, threadFilter]);
 
   const activeEntry = chatEntries.find((c) => (c.id ? c.id === activeConversationId : false));
-  const otherMember = (activeMembers || []).find((mm) => mm.staff_email !== staffUser.email);
+  const otherActiveMembers = (activeMembers || []).filter((mm) => mm.staff_email !== staffUser.email);
+  const otherMember = otherActiveMembers.length === 1 ? otherActiveMembers[0] : null;
   const otherHasSeen = (m) => !!(otherMember && otherMember.last_read_at && new Date(otherMember.last_read_at) >= new Date(m.created_at));
+  const seenCount = (m) => otherActiveMembers.filter((mm) => mm.last_read_at && new Date(mm.last_read_at) >= new Date(m.created_at)).length;
   let lastMineMessage = null;
   (messages || []).forEach((m) => {
     if (m.author_email === staffUser.email) lastMineMessage = m;
@@ -6407,18 +6498,30 @@ function StaffMessagesPage({ staffUser, onActivity }) {
       <MockBanner text="Internal only — separate from client conversations. Nothing here is visible to any client." />
 
       <div className="thread-picker">
-        <span className="thread-picker-label">Conversation with</span>
+        <div className="thread-picker-toolbar">
+          <span className="thread-picker-label">Conversation with</span>
+          <input
+            type="text"
+            className="thread-filter-input"
+            placeholder="Find a person or group…"
+            value={threadFilter}
+            onChange={(e) => setThreadFilter(e.target.value)}
+          />
+          <button type="button" className="btn-secondary" onClick={() => setShowGroupModal(true)}>
+            + New Group
+          </button>
+        </div>
         {directory === null ? (
           <p className="card-subtitle">Loading…</p>
         ) : chatEntries.length === 0 ? (
-          <p className="card-subtitle">No other active staff yet.</p>
+          <p className="card-subtitle">{threadFilter ? "No matches." : "No other active staff yet."}</p>
         ) : (
           <div className="thread-picker-tabs">
             {chatEntries.map((c) => (
               <button
-                key={c.otherEmail}
-                className={"thread-tab" + ((c.id ? c.id === activeConversationId : false) ? " active" : "")}
-                onClick={() => (c.id ? setActiveConversationId(c.id) : openWith(c.otherEmail))}
+                key={c.id || c.otherEmail}
+                className={"thread-tab" + ((c.id ? c.id === activeConversationId : false) ? " active" : "") + (c.isGroup ? " thread-tab-group" : "")}
+                onClick={() => selectConversation(c)}
               >
                 <span className="thread-tab-name">{c.otherName}</span>
                 <span className="thread-tab-role">{c.otherRole}</span>
@@ -6452,7 +6555,7 @@ function StaffMessagesPage({ staffUser, onActivity }) {
             <div className="message-thread">
               {messages.map((m) => {
                 const mine = m.author_email === staffUser.email;
-                const withinWindow = mine && Date.now() - new Date(m.created_at).getTime() < 5000;
+                const withinWindow = mine && Date.now() - new Date(m.created_at).getTime() < CHAT_EDIT_WINDOW_MS;
                 return (
                   <div className={"message-bubble-row " + (mine ? "client" : "bookkeeper")} key={m.id}>
                     <div className="message-bubble">
@@ -6501,7 +6604,15 @@ function StaffMessagesPage({ staffUser, onActivity }) {
                         </div>
                       )}
                       {mine && m === lastMineMessage && (
-                        <div className="message-seen-status">{otherHasSeen(m) ? "Seen" : "Sent"}</div>
+                        <div className="message-seen-status">
+                          {activeEntry && activeEntry.isGroup
+                            ? seenCount(m) > 0
+                              ? `Seen by ${seenCount(m)}/${otherActiveMembers.length}`
+                              : "Sent"
+                            : otherHasSeen(m)
+                            ? "Seen"
+                            : "Sent"}
+                        </div>
                       )}
                     </div>
                   </div>
@@ -6550,10 +6661,78 @@ function StaffMessagesPage({ staffUser, onActivity }) {
           </div>
         </div>
       )}
+
+      {showGroupModal && (
+        <GroupComposeModal directory={directory || []} onCreate={createGroup} onClose={() => setShowGroupModal(false)} />
+      )}
     </div>
   );
 }
 
+function GroupComposeModal({ directory, onCreate, onClose }) {
+  const [selected, setSelected] = useState(new Set());
+  const [title, setTitle] = useState("");
+  const [creating, setCreating] = useState(false);
+
+  const toggle = (email) => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(email)) next.delete(email);
+      else next.add(email);
+      return next;
+    });
+  };
+
+  const handleCreate = async () => {
+    setCreating(true);
+    await onCreate([...selected], title);
+    setCreating(false);
+  };
+
+  return (
+    <ModalShell onClose={onClose} labelledBy="new-group-title">
+      <div className="modal-header">
+        <h3 id="new-group-title">New group</h3>
+        <button className="modal-close" onClick={onClose}>
+          ✕
+        </button>
+      </div>
+      <div className="modal-body">
+        <label style={{ display: "block", fontSize: 12.5, fontWeight: 600, color: "var(--text-muted)", marginBottom: 6 }} htmlFor="new-group-name">
+          Group name (optional)
+        </label>
+        <input
+          id="new-group-name"
+          type="text"
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          placeholder="e.g. Grace Community team"
+          style={{ marginBottom: 16 }}
+        />
+        <p className="card-subtitle" style={{ marginTop: 0 }}>
+          Pick at least 2 people. Without a name, the group is labeled by who's in it.
+        </p>
+        <div className="group-member-list">
+          {directory.map((d) => (
+            <label className="group-member-row" key={d.email}>
+              <input type="checkbox" checked={selected.has(d.email)} onChange={() => toggle(d.email)} />
+              <span className="group-member-name">{d.name}</span>
+              <span className="group-member-role">{d.role}</span>
+            </label>
+          ))}
+        </div>
+        <button
+          className="btn-primary"
+          style={{ marginTop: 16 }}
+          disabled={selected.size < 2 || creating}
+          onClick={handleCreate}
+        >
+          {creating ? "Creating…" : `Create group${selected.size > 0 ? ` (${selected.size + 1} people)` : ""}`}
+        </button>
+      </div>
+    </ModalShell>
+  );
+}
 
 function ClientAccessPage() {
   const showToast = useToast();

@@ -2356,3 +2356,32 @@ pill's background instead (`.nav-signature-badge-shimmer`). Tabs still shimmer t
 upgrade page's pricing card/comparison rows), just dropped from the sidebar item row.
 
 `MGB_VERSION` bumped to `2026-09-17ab`.
+
+## §76 — Team Chat: fixed cross-talk + dead edit window, added groups
+
+Two real bugs reported against the live app, plus the requested group-thread feature:
+
+1. **"I message Gillian, Jeff gets it too."** Root cause: clicking a person with no existing
+   conversation kicks off an async insert (`openWith`); `activeConversationId` didn't update until
+   that resolved. If Send was hit before it did, the message posted against whatever conversation
+   was still active from before — not a data bug, a client race. Fixed with a request-token
+   (`openTokenRef`) that only lets the *latest* click's result ever set `activeConversationId`, and
+   `selectConversation` now clears `activeConversationId`/`messages` immediately on click so a stale
+   conversation is never sitting there to accidentally send into.
+2. **"Editing a message doesn't change it."** The edit/unsend RLS window (`staff-chat-v2.sql`) was
+   5 seconds — routinely expired before Save was even clicked. Widened to 15 minutes
+   (`CHAT_EDIT_WINDOW_MS` in app.jsx, mirrored in the new `supabase/staff-chat-groups.sql` policy —
+   **needs that migration run against the live DB**, editing the file alone doesn't apply it).
+3. **Group threads.** `staff_conversations` gains `is_group`/`title`; `dm_key` uniqueness moves to a
+   partial index (1:1 only) so it can be null for groups. "+ New Group" opens a checklist modal
+   (`GroupComposeModal`) — pick 2+ people, optional name. Conversation list now aggregates *all*
+   other members per thread instead of assuming exactly one (that assumption was also silently
+   mislabeling anything that got more than one other member). "Seen" becomes "Seen by N/M" in a
+   group.
+4. Thread list gets a filter input and groups get a gold-bordered tab (`.thread-tab-group`) to
+   scan apart from 1:1s at a glance — the "make it easy to navigate" ask.
+
+**Action needed: run `supabase/staff-chat-groups.sql` in the Supabase SQL editor** — the group
+columns and the 15-minute edit policy don't exist until it's applied.
+
+`MGB_VERSION` bumped to `2026-09-17ac`.
