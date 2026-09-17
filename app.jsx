@@ -2384,7 +2384,7 @@ function FundAccountingProPage({ client }) {
               <tbody>
                 {fundTransfers.length === 0 ? (
                   <tr>
-                    <td colSpan={5} style={{ color: "var(--text-faint)" }}>
+                    <td colSpan={5} style={{ color: "var(--text-muted)" }}>
                       No fund transfers recorded.
                     </td>
                   </tr>
@@ -2430,7 +2430,7 @@ function FundAccountingProPage({ client }) {
               <tbody>
                 {pledges.length === 0 ? (
                   <tr>
-                    <td colSpan={8} style={{ color: "var(--text-faint)" }}>
+                    <td colSpan={8} style={{ color: "var(--text-muted)" }}>
                       No open pledges.
                     </td>
                   </tr>
@@ -3474,12 +3474,120 @@ const ENTERPRISE_FEATURES = [
   },
 ];
 
+// Tool-by-tool feature lists for the interactive comparison accordion below.
+// One entry per tab that has a premium upgrade (PREMIUM_UPGRADE_TAB_KEYS) —
+// kept as its own list rather than reused from ENTERPRISE_FEATURES because
+// this one needs a "what you already have" column too, not just "what's
+// new." Feature text mirrors what each real page actually renders (same
+// grounding rule as the standard-vs-premium comparison mockup this was
+// built from), not marketing copy.
+const ENTERPRISE_COMPARISON = [
+  {
+    key: "dashboard",
+    tool: "Dashboard",
+    standardLabel: "Dashboard",
+    premiumLabel: "Live Report",
+    standard: [
+      "KPI row: Cash on Hand, Net Surplus/Deficit, Revenue, Operating Reserve",
+      "Income vs. Expenses — 6-month trend chart",
+      "Recent Activity — latest transactions across all accounts",
+      "Customizable widget layout, with saved views",
+    ],
+    premium: [
+      "Continuously-live snapshot, not just a once-a-day view",
+      "Click-to-jump KPIs: Cash, Receivables, Payables, Net Income MTD",
+      "Cash by Account donut and Top Expense Categories",
+      "Receivables Aging with a Collections Queue",
+      "Cash Flow Forecast, Revenue Trend, and Anomalies & Flags",
+      "Low-cash alert and a one-click PDF snapshot",
+    ],
+  },
+  {
+    key: "receivables",
+    tool: "Cash Flow",
+    standardLabel: "Cash Flow",
+    premiumLabel: "Cash Flow Pro",
+    standard: ["Money Owed To You / Money You Owe ledger", "Simple receivables and payables tables"],
+    premium: [
+      "Open Bills workflow with status filters and search",
+      "Duplicate-bill detection",
+      "Batch Pay Runs with an approval step and a ready-to-upload ACH export",
+      "Vendor Summary and Aging Summary",
+      "Next 5 Due, at a glance",
+    ],
+  },
+  {
+    key: "budget",
+    tool: "Budget vs. Actual",
+    standardLabel: "Budget vs. Actual",
+    premiumLabel: "Budgeting Tool",
+    standard: ["Budgeted vs. actual, by category, with a variance and % used", "Spending Trend chart"],
+    premium: [
+      "Collaborative draft budget for next period",
+      "Editable per-category proposed amounts",
+      "Add or remove categories inline",
+      "Download Draft Budget PDF",
+    ],
+  },
+  {
+    key: "reports",
+    tool: "Reports",
+    standardLabel: "Reports",
+    premiumLabel: "Report Builder",
+    standard: ["Four canned PDFs — Profit & Loss, Balance Sheet, Budget vs. Actual, Contribution Statement"],
+    premium: [
+      "Everything Reports has, in the same Quick Download tab",
+      "Custom report builder — pick a period, a scope, and which sections to include",
+      "Live preview while building",
+      "A presentation mode for board meetings",
+    ],
+  },
+  {
+    key: "bank",
+    tool: "Bank Accounts",
+    standardLabel: "Bank Accounts",
+    premiumLabel: "Reconciliation Pro",
+    standard: ["Balances and transaction history, per account or all at once", "CSV export"],
+    premium: [
+      "Real month-end reconciliation workflow",
+      "Cleared vs. outstanding tracking, transaction by transaction",
+      "Reconciliation history, with who closed each period and when",
+      "Downloadable reconciliation report",
+    ],
+  },
+  {
+    key: "giving",
+    tool: "Giving & Funds",
+    standardLabel: "Giving & Funds",
+    premiumLabel: "Fund Accounting Pro",
+    standard: ["Fund balances, restricted vs. unrestricted", "Contribution history"],
+    premium: [
+      "Fund Activity ledger — money moved between funds, with a reason",
+      "Pledge tracking — committed vs. received, with an aging status",
+      "One-click year-end giving statements, per donor",
+    ],
+  },
+];
+
+// PLACEHOLDER PRICING — mock figures only, standing in until MyGoodBooks
+// gives real numbers. Kept in one place on purpose so swapping them in
+// later is a one-line change, not a hunt through the page.
+const ENTERPRISE_PRICING = {
+  standard: { price: 149, note: "Included in your current plan" },
+  enterprise: { price: 89, note: "Added on top of Standard, billed monthly" },
+};
+
 function EnterpriseUpgradePage({ client }) {
   const showToast = useToast();
+  // Which tool's row is expanded in the comparison list below — starts with
+  // none open so the page loads short, not a wall of text. A client
+  // interested in one thing (say, reconciliation) can go straight to it
+  // without scrolling past five others already expanded.
+  const [openKey, setOpenKey] = useState(null);
 
   return (
-    <div>
-      <MockBanner text="This is a preview of what Enterprise includes — nothing here is connected to a real upgrade flow yet." />
+    <div className="enterprise-page">
+      <MockBanner text="This is a preview of what Enterprise includes — nothing here is connected to a real upgrade flow yet, and the pricing below is a placeholder." />
 
       <div className="card" style={{ marginBottom: 20, textAlign: "center", padding: "36px 28px" }}>
         <div className="eyebrow-badge">Enterprise · Add-on</div>
@@ -3491,6 +3599,38 @@ function EnterpriseUpgradePage({ client }) {
           board-ready report in minutes, a shared space to plan next period's budget, a command center for what you
           owe, a real month-end close, and fund accounting that tracks pledges and transfers.
         </p>
+      </div>
+
+      <div className="pricing-grid" style={{ marginBottom: 20 }}>
+        <div className="card pricing-card">
+          <div className="eyebrow-badge">Your current plan</div>
+          <h3 className="card-title" style={{ marginTop: 14, marginBottom: 2 }}>
+            Standard
+          </h3>
+          <div className="pricing-value">
+            ${ENTERPRISE_PRICING.standard.price}
+            <span>/mo</span>
+          </div>
+          <p className="card-subtitle" style={{ marginBottom: 0 }}>
+            {ENTERPRISE_PRICING.standard.note}
+          </p>
+        </div>
+        <div className="card pricing-card pricing-card-premium">
+          <span className="nav-pro-pill">Enterprise</span>
+          <h3 className="card-title" style={{ marginTop: 14, marginBottom: 2 }}>
+            + Enterprise
+          </h3>
+          <div className="pricing-value pricing-value-premium">
+            +${ENTERPRISE_PRICING.enterprise.price}
+            <span>/mo</span>
+          </div>
+          <p className="card-subtitle" style={{ marginBottom: 0 }}>
+            {ENTERPRISE_PRICING.enterprise.note}
+          </p>
+          <p style={{ fontSize: 11, color: "var(--text-muted)", margin: "8px 0 0" }}>
+            Estimated — your bookkeeper will confirm final pricing.
+          </p>
+        </div>
       </div>
 
       <div className="report-grid" style={{ marginBottom: 20 }}>
@@ -3505,6 +3645,59 @@ function EnterpriseUpgradePage({ client }) {
             </p>
           </div>
         ))}
+      </div>
+
+      <div className="card" style={{ marginBottom: 20 }}>
+        <h3 className="card-title">Compare, tool by tool</h3>
+        <p className="card-subtitle">
+          Click a tool to see exactly what changes — everything on the left, you already have.
+        </p>
+        <div className="compare-list">
+          {ENTERPRISE_COMPARISON.map((c) => {
+            const isOpen = openKey === c.key;
+            return (
+              <div className={"compare-row" + (isOpen ? " open" : "")} key={c.key}>
+                <button
+                  type="button"
+                  className="compare-row-head"
+                  onClick={() => setOpenKey(isOpen ? null : c.key)}
+                  aria-expanded={isOpen}
+                >
+                  <span>{c.tool}</span>
+                  {isOpen ? <ChevronUpIcon /> : <ChevronDownIcon />}
+                </button>
+                {/* Always mounted (not isOpen &&) — grid-template-rows animates
+                    0fr/1fr smoothly on both open AND close, which conditional
+                    mounting can't do (a removed node has nothing to transition
+                    from). The inner div's own padding/margins collapse to
+                    nothing at 0fr since overflow:hidden clips it, so there's
+                    no telltale gap when closed. */}
+                <div className="compare-row-body-wrap">
+                  <div className="compare-row-body">
+                    <div className="compare-col">
+                      <div className="compare-col-header">{c.standardLabel}</div>
+                      <ul className="compare-feat-list">
+                        {c.standard.map((f, i) => (
+                          <li key={i}>{f}</li>
+                        ))}
+                      </ul>
+                    </div>
+                    <div className="compare-col compare-col-premium">
+                      <div className="compare-col-header premium">
+                        {c.premiumLabel} <span className="nav-pro-pill">PRO</span>
+                      </div>
+                      <ul className="compare-feat-list">
+                        {c.premium.map((f, i) => (
+                          <li key={i}>{f}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
       </div>
 
       <div className="card" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 20, flexWrap: "wrap" }}>
@@ -8981,7 +9174,10 @@ function App({ staffUser, onSignOut }) {
       { threshold: 0.2 }
     );
     const scan = () => {
-      document.querySelectorAll(".card, .dc-kpiTile, .dc-panel").forEach((el) => {
+      // .compare-row: the Enterprise upgrade page's tool-by-tool accordion
+      // rows aren't .card elements, so they need their own entry here to
+      // pick up data-in-view for the same scroll-reveal treatment.
+      document.querySelectorAll(".card, .dc-kpiTile, .dc-panel, .compare-row").forEach((el) => {
         if (seen.has(el)) return;
         seen.add(el);
         io.observe(el);

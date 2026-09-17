@@ -1924,3 +1924,47 @@ was needed there, and neither page renders for a standard plan.
 updated to include both new tiers.
 
 `MGB_VERSION` bumped to `2026-09-17m`.
+
+## §59 — Enterprise upgrade page: interactive pricing + tool-by-tool comparison, with scroll reveal
+
+Request: make the page a standard client lands on when they click the premium upsell an actual
+interactive comparison (not just a static feature list) they can explore to decide whether to
+upgrade, plus a mock price comparison (real numbers to follow later). A follow-up asked for real
+motion on the page — scroll-triggered reveals in the vein of Apple's marketing pages, not just a
+static layout.
+
+**Pricing cards.** Two cards at the top of `EnterpriseUpgradePage`: Standard (current plan) and
+Enterprise (the add-on), each with a price. `ENTERPRISE_PRICING` is a new constant holding both —
+explicitly commented as placeholder figures, one place to swap in real numbers later. The premium
+card gets a slow breathing gold glow (a new `pricingCardGlow` keyframe, same technique as the
+sidebar's existing `.theme-toggle-signature` glow) so it reads as the highlighted option without
+an animated border competing with the price for attention.
+
+**Tool-by-tool comparison accordion.** A new `ENTERPRISE_COMPARISON` array — one entry per tab with
+a premium upgrade (all six from §58), each with a Standard feature list and a Premium feature list,
+grounded in what the real pages actually render (same rule as the earlier comparison mockup, not
+marketing copy). Renders as a click-to-expand accordion: closed by default so the page loads short,
+each row opens independently. This is the actual interactive exploration the request asked for —
+better than the old static six-card grid alone, which is kept above it as a still-useful "at a
+glance" summary.
+
+**Scroll reveal.** Rather than building a second observer, this reuses the *existing* global
+IntersectionObserver in `App` (the one that already drives chart entrance animations app-wide via
+`data-in-view` — see the "Chart/graph entrance animations" comment above it) — extended to also
+watch `.compare-row` elements (accordion rows aren't `.card`s, so they weren't covered). New CSS,
+scoped entirely under a `.enterprise-page` wrapper class so nothing about how `.card` behaves
+changes anywhere else in the app: every card and accordion row starts faded/offset and animates up
+into place individually as it crosses into view, with the accordion rows cascading in quick
+succession (a short per-row `animation-delay` staircase) so scrolling down reads as one continuous
+reveal rather than six separate pops. The accordion's open/close itself animates too, via a
+`grid-template-rows: 0fr → 1fr` transition on the row body — the one CSS-only way to animate height
+to/from "auto" without a guessed max-height that either clips content or leaves a stutter.
+
+**Caught along the way**: three uses of `var(--text-faint)`/`var(--border-strong)`/
+`var(--text-primary)` — CSS custom properties that don't exist in this app's actual token set
+(`--text-muted`, `--gold-deep`, `--text` are the real ones) — snuck into §58's Fund Accounting Pro
+code and this session's own first draft, evidently carried over by habit from the dark-navy/gold
+Artifact mockups this session also produces, which use a different, unrelated token set. Fixed all
+of them to the real tokens.
+
+`MGB_VERSION` bumped to `2026-09-17n`.
