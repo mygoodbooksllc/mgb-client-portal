@@ -159,7 +159,7 @@ def build(out_path: pathlib.Path, refresh: bool) -> None:
 
 // Mirrors the stamp in index.html — bumped by hand alongside this file,
 // since there's no build step to inject a real commit SHA into.
-window.MGB_VERSION = {{ label: "2026-09-16as", note: "Premium badge/lock moved onto the Enterprise heading, no separate upsell row" }};
+window.MGB_VERSION = {{ label: "2026-09-17a", note: "Removed the stale \"Pick a client above\" note on Home" }};
 
 // Mirrors index.html's pinch-block — see that file's comment for why this
 // is gesture-level (2+ touches) rather than touch-action CSS.
