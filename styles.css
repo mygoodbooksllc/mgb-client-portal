@@ -522,6 +522,23 @@ body {
   box-shadow: 0 0 0 2px rgba(199, 174, 134, 0.25);
 }
 
+/* Marks a tab as showing its upgraded (premium) page rather than the
+   standard one — same tab, same name, same icon, just this pill. Same gold
+   treatment as .nav-signature-badge (the "Premium" pill next to the
+   Enterprise heading), reused here at item level instead of section level. */
+.nav-pro-pill {
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--navy-deep);
+  background: linear-gradient(120deg, #e9d5a8, var(--gold));
+  padding: 2px 7px;
+  border-radius: 999px;
+  flex-shrink: 0;
+  margin-left: auto;
+}
+
 /* Signature Tools — the paid add-on section, dressed up to read as premium
    rather than just another nav group. padding-bottom/margin-bottom used to
    size the gold divider rule that sat under this section; now that the rule
