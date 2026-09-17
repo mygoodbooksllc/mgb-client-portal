@@ -359,8 +359,26 @@ function resolveAccess(client, viewAsUserId, orgHiddenKeys) {
       ? (client.users || []).find((u) => u.id === viewAsUserId)
       : null;
 
+  // The lead account (MyGoodBooks, via Manage Access) can throttle premium
+  // features for one of the client's own people even though the client
+  // itself is on Premium — e.g. a board member who shouldn't see the Pro
+  // tools everyone else at the org gets. Purely per-user: it never changes
+  // what the client is billed for. Every hasPremiumPlan(client) check that
+  // decides whether to render the upgraded/Pro version of a page should use
+  // this instead once a specific person (not "preview as MyGoodBooks") is
+  // the one looking.
+  const premiumForUser = hasPremiumPlan(client) && !(user && user.premiumThrottled);
+
   if (!user || user.access === "full") {
-    return { user, tabs: new Set(orgAllowed), categories: null, funds: null, isCategoryScoped: false, isFullAccess: true };
+    return {
+      user,
+      tabs: new Set(orgAllowed),
+      categories: null,
+      funds: null,
+      isCategoryScoped: false,
+      isFullAccess: true,
+      premiumForUser,
+    };
   }
 
   const isCategoryScoped = Boolean(user.categories);
@@ -386,6 +404,7 @@ function resolveAccess(client, viewAsUserId, orgHiddenKeys) {
     funds: user.funds ? new Set(user.funds) : isCategoryScoped ? new Set() : null,
     isCategoryScoped,
     isFullAccess: false,
+    premiumForUser,
   };
 }
 
@@ -629,7 +648,7 @@ function Sidebar({
           // The Premium badge + lock live on the section heading itself
           // (clickable, opens the upgrade page) rather than a separate row
           // spelling out which tools are locked.
-          const showUpsell = isSignature && !hasPremiumPlan(client);
+          const showUpsell = isSignature && !access.premiumForUser;
           const items = orderedSectionItems(section, tabOrder, selectedClientId).filter((item) => visibleKeys.has(item.key));
           if (items.length === 0 && !showUpsell) return null;
           // Enterprise gets a static gold heading (not a toggle — it no
@@ -668,7 +687,7 @@ function Sidebar({
                   // showsCashFlowPro/showsReportBuilder/showsReconciliationPro/
                   // showsFundAccountingPro checks in App.
                   const isUpgraded =
-                    PREMIUM_UPGRADE_TAB_KEYS.has(item.key) && hasPremiumPlan(client) && access && !access.isCategoryScoped;
+                    PREMIUM_UPGRADE_TAB_KEYS.has(item.key) && access && access.premiumForUser && !access.isCategoryScoped;
                   return (
                   <button
                     key={item.key}
@@ -8433,6 +8452,7 @@ function UserAccessEditor({
   onToggleUserCategory,
   onToggleUserFund,
   onSetAccessLevel,
+  onToggleUserPremium,
   onBack,
 }) {
   const isFull = user.access === "full";
@@ -8441,6 +8461,8 @@ function UserAccessEditor({
   const userCats = new Set(effective.categories || user.categories || []);
   const isCategoryScoped = Boolean(effective.categories || user.categories);
   const userFunds = new Set(effective.funds || user.funds || []);
+  const isPremiumClient = hasPremiumPlan(client);
+  const premiumThrottled = "premiumThrottled" in effective ? effective.premiumThrottled : Boolean(user.premiumThrottled);
 
   return (
     <React.Fragment>
@@ -8470,6 +8492,25 @@ function UserAccessEditor({
           <span>Only the areas you choose below</span>
         </button>
       </div>
+
+      {isPremiumClient && (
+        <div className="access-level-toggle" style={{ marginTop: 12 }}>
+          <button
+            className={"access-level-btn" + (!premiumThrottled ? " active" : "")}
+            onClick={() => premiumThrottled && onToggleUserPremium(user.id)}
+          >
+            Premium features on
+            <span>Sees the Pro tools {client.name} is subscribed to</span>
+          </button>
+          <button
+            className={"access-level-btn" + (premiumThrottled ? " active" : "")}
+            onClick={() => !premiumThrottled && onToggleUserPremium(user.id)}
+          >
+            Premium features throttled
+            <span>Standard experience, even though {client.name} has Premium</span>
+          </button>
+        </div>
+      )}
 
       {!isFull && (
         <div className="modal-body">
@@ -8678,6 +8719,7 @@ function TabSettingsModal({
   onToggleUserCategory,
   onToggleUserFund,
   onSetAccessLevel,
+  onToggleUserPremium,
   onClose,
 }) {
   const [draggedKey, setDraggedKey] = useState(null);
@@ -8700,6 +8742,7 @@ function TabSettingsModal({
             onToggleUserCategory={onToggleUserCategory}
             onToggleUserFund={onToggleUserFund}
             onSetAccessLevel={onSetAccessLevel}
+            onToggleUserPremium={onToggleUserPremium}
             onBack={() => setEditingUserId(null)}
           />
           <div className="modal-footer">
@@ -8738,6 +8781,7 @@ function TabSettingsModal({
             {(client.users || []).map((u) => {
               const eff = userAccess[u.id] || {};
               const cats = eff.categories || u.categories;
+              const throttled = "premiumThrottled" in eff ? eff.premiumThrottled : u.premiumThrottled;
               return (
                 <button className="person-row" key={u.id} onClick={() => setEditingUserId(u.id)}>
                   <div className="person-avatar">
@@ -8747,6 +8791,11 @@ function TabSettingsModal({
                     <span className="person-name">{u.name}</span>
                     <span className="person-role">{u.role}</span>
                   </div>
+                  {hasPremiumPlan(client) && (
+                    <span className={"pill " + (throttled ? "restricted" : "unrestricted")}>
+                      {throttled ? "Premium throttled" : "Premium"}
+                    </span>
+                  )}
                   <span className={"pill " + (u.access === "full" ? "unrestricted" : "restricted")}>
                     {u.access === "full" ? "Full access" : cats ? `${cats.length} area${cats.length === 1 ? "" : "s"}` : "Limited"}
                   </span>
@@ -9738,6 +9787,14 @@ function App({ staffUser, onSignOut }) {
     });
   };
 
+  const toggleUserPremium = (userId) => {
+    const user = client.users.find((u) => u.id === userId);
+    setUserAccess((prev) => {
+      const current = prev[userId] && "premiumThrottled" in prev[userId] ? prev[userId].premiumThrottled : Boolean(user.premiumThrottled);
+      return { ...prev, [userId]: { ...(prev[userId] || {}), premiumThrottled: !current } };
+    });
+  };
+
   const setAccessLevel = (userId, level) => {
     setUserAccess((prev) => ({
       ...prev,
@@ -9828,12 +9885,12 @@ function App({ staffUser, onSignOut }) {
   // branches on them directly). Category-scoped premium users still get
   // every plain tab (ORG_WIDE_TABS-equivalent: a live org-wide
   // snapshot/report has no "their" slice to show).
-  const showsLiveReport = effectivePage === "dashboard" && hasPremiumPlan(client) && !access.isCategoryScoped;
-  const showsBudgetingTool = effectivePage === "budget" && hasPremiumPlan(client) && !access.isCategoryScoped;
-  const showsCashFlowPro = effectivePage === "receivables" && hasPremiumPlan(client) && !access.isCategoryScoped;
-  const showsReportBuilder = effectivePage === "reports" && hasPremiumPlan(client) && !access.isCategoryScoped;
-  const showsReconciliationPro = effectivePage === "bank" && hasPremiumPlan(client) && !access.isCategoryScoped;
-  const showsFundAccountingPro = effectivePage === "giving" && hasPremiumPlan(client) && !access.isCategoryScoped;
+  const showsLiveReport = effectivePage === "dashboard" && access.premiumForUser && !access.isCategoryScoped;
+  const showsBudgetingTool = effectivePage === "budget" && access.premiumForUser && !access.isCategoryScoped;
+  const showsCashFlowPro = effectivePage === "receivables" && access.premiumForUser && !access.isCategoryScoped;
+  const showsReportBuilder = effectivePage === "reports" && access.premiumForUser && !access.isCategoryScoped;
+  const showsReconciliationPro = effectivePage === "bank" && access.premiumForUser && !access.isCategoryScoped;
+  const showsFundAccountingPro = effectivePage === "giving" && access.premiumForUser && !access.isCategoryScoped;
   const meta = showsLiveReport
     ? PAGE_META["daily-close"]
     : showsBudgetingTool
@@ -10450,6 +10507,7 @@ function App({ staffUser, onSignOut }) {
           onToggleUserCategory={toggleUserCategory}
           onToggleUserFund={toggleUserFund}
           onSetAccessLevel={setAccessLevel}
+          onToggleUserPremium={toggleUserPremium}
           onClose={() => setSettingsOpen(false)}
         />
       )}
