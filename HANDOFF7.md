@@ -2436,7 +2436,6 @@ Both channels are cleaned up (`removeChannel`) on unmount/conversation switch, s
 postgres_changes subscription.
 
 `MGB_VERSION` bumped to `2026-09-17af`.
-<<<<<<< HEAD
 
 ## §80 — Client-side chat header names the assigned bookkeeper
 
