@@ -1652,3 +1652,33 @@ Three small fixes, bundled with the Team Chat v2 work above:
 
 `MGB_VERSION` bumped to `2026-09-17d` (same bump as §49 — landed together); the dropzone border
 fix below landed as a quick follow-up and bumped it again to `2026-09-17e`.
+
+## §51 — Dashboard: two new widgets, plus saved views
+
+The premium-tab brainstorm earlier (Reconciliation Pro, Fund Accounting Pro, Custom Dashboard
+Pro) is parked — names/scope for those are still undecided. This is the "Custom Dashboard Pro"
+half of that list landing on the *existing* Dashboard tab instead of behind a new premium tab:
+more widget choices and saved layouts, no gating, no tab renamed.
+
+- **Two new widget types**, added to `DashboardPage`'s `widgets` array alongside the existing
+  ones (opt-in like any other widget, but visible by default — same "new widget merges into
+  everyone's order" behavior `useWidgetLayout`'s own comment already documents):
+  - **Cash by Account** — the existing `AccountCashDonut` component (already used on the Bank
+    Accounts tab), reused here rather than rebuilt, so cash's per-account split doesn't require
+    leaving the dashboard to see.
+  - **Top Expense Categories** — this month's biggest expense categories, rendered with the
+    existing `ReportBarRows` component. Deliberately expense-only and chart-styled, rather than
+    reusing `CategoryLedger` (the income+expense ledger already embedded inside the Income vs.
+    Expenses card) outright — the two would otherwise show the same numbers twice if a client
+    turned on both.
+- **Saved views.** `useWidgetLayout` (shared by `DashboardPage`, `ScopedDashboardPage`, and
+  Bookkeeper Home — all three get this for free) now tracks named snapshots of an order/hidden
+  set, separate from the single "current" layout it already persisted: `saveView(name)` (new
+  `localStorage` key `mygoodbooks_dashboard_views_v1`, same scoping as the existing widget-layout
+  key so a bookkeeper's scoped preview doesn't see a client's own saved views or vice versa),
+  `applyView(name)`, `deleteView(name)`. Surfaced in the existing "Customize dashboard" modal
+  (`WidgetPickerModal`) as a new "Saved views" section below the widget list — save the current
+  arrangement under a name, apply or delete any saved one. Saving under a name that already
+  exists overwrites it rather than piling up duplicates.
+
+`MGB_VERSION` bumped to `2026-09-17f`.
