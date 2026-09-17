@@ -1472,7 +1472,7 @@ function DailyClose({ data, className, theme, onNavigate }: DailyCloseProps) {
                     </div>
                     {onNavigate && (
                       <button type="button" className={styles.footerLink} onClick={() => onNavigate("budget")} style={{ marginTop: 10 }}>
-                        View in Budgeting Tool
+                        View in Budget vs. Actual
                       </button>
                     )}
                   </div>
@@ -1514,7 +1514,7 @@ function DailyClose({ data, className, theme, onNavigate }: DailyCloseProps) {
                     </div>
                     {onNavigate && (
                       <button type="button" className={styles.footerLink} onClick={() => onNavigate("receivables")} style={{ marginTop: 10 }}>
-                        View in Cash Flow Pro
+                        View in Cash Flow
                       </button>
                     )}
                   </div>
@@ -1559,7 +1559,7 @@ function DailyClose({ data, className, theme, onNavigate }: DailyCloseProps) {
                     )}
                     {onNavigate && (
                       <button type="button" className={styles.footerLink} onClick={() => onNavigate("giving")} style={{ marginTop: 10 }}>
-                        View in Fund Accounting Pro
+                        View in Giving & Funds
                       </button>
                     )}
                   </div>
@@ -1608,7 +1608,7 @@ function DailyClose({ data, className, theme, onNavigate }: DailyCloseProps) {
                     </div>
                     {onNavigate && (
                       <button type="button" className={styles.footerLink} onClick={() => onNavigate("bank")} style={{ marginTop: 10 }}>
-                        View in Reconciliation Pro
+                        View in Bank Accounts
                       </button>
                     )}
                   </div>
