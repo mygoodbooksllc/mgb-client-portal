@@ -1335,7 +1335,7 @@ function RunwayRing({ pct, tone, children }) {
 
 // Builds a smooth cubic-bezier path through a set of {x,y} points, using the
 // midpoint between each pair as the control-point anchor — cheap and good
-// enough for 6 monthly points, no need for full Catmull-Rom.
+// enough for a year of monthly points, no need for full Catmull-Rom.
 function smoothLinePath(points) {
   let d = `M ${points[0].x} ${points[0].y}`;
   for (let i = 0; i < points.length - 1; i++) {
@@ -1879,7 +1879,7 @@ function DashboardPage({ client, access, isBookkeeper, promoText, onSaveReferral
     { id: "kpi-net", group: "kpi", label: "Net Surplus / (Deficit)", description: "This month's income minus expenses" },
     { id: "kpi-revenue", group: "kpi", label: "Revenue (this month)", description: "Compared to last month" },
     { id: "kpi-runway", group: "kpi", label: "Operating Reserve", description: "Months of expenses covered by cash on hand" },
-    { id: "income-expenses", group: "content", label: "Income vs. Expenses", description: "6-month trend chart" },
+    { id: "income-expenses", group: "content", label: "Income vs. Expenses", description: "12-month trend chart" },
     { id: "recent-activity", group: "content", label: "Recent Activity", description: "Latest transactions across all accounts" },
     ...crossTabWidgetDefs(client, access),
   ];
@@ -1976,7 +1976,7 @@ function DashboardPage({ client, access, isBookkeeper, promoText, onSaveReferral
                   {...drag.dragProps(id)}
                 >
                   <h3 className="card-title">Income vs. Expenses</h3>
-                  <p className="card-subtitle">Last 6 months</p>
+                  <p className="card-subtitle">Last {client.monthly.length} months</p>
                   <IncomeExpenseChart monthly={client.monthly} />
                   <CategoryLedger client={client} />
                 </div>
@@ -3609,7 +3609,7 @@ const ENTERPRISE_COMPARISON = [
     premiumLabel: "Live Report",
     standard: [
       "KPI row: Cash on Hand, Net Surplus/Deficit, Revenue, Operating Reserve",
-      "Income vs. Expenses — 6-month trend chart",
+      "Income vs. Expenses — 12-month trend chart",
       "Recent Activity — latest transactions across all accounts",
       "Customizable widget layout, with saved views",
     ],
