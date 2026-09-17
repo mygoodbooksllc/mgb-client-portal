@@ -2339,3 +2339,10 @@ and YTD figures live on their own Reports entry rather than crowding the roster 
   director) never sees it, matching Bank Accounts/Cash Flow/Reports.
 
 `MGB_VERSION` bumped to `2026-09-17aa`.
+
+## §74 — Live Report "View in X" links matched to real tab names
+
+Fixed: 4 links pointed to old page names (Budgeting Tool, Cash Flow Pro, Fund Accounting Pro,
+Reconciliation Pro) instead of the sidebar's actual labels (Budget vs. Actual, Cash Flow,
+Giving & Funds, Bank Accounts) — those pro names were retired when the pages replaced their
+standard tab in-place. Text-only fix, `onNavigate` targets were already correct.
