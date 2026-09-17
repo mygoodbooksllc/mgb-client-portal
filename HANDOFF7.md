@@ -2244,3 +2244,31 @@ two catalog description strings (`app.jsx`'s widget picker, `DailyClose.tsx`'s `
 now say "12-month."
 
 `MGB_VERSION` bumped to `2026-09-17x`.
+
+## §70 — Spending Trend: budget line + surplus/deficit shading
+
+Follow-up to "the spending trend graph is a little boring": sketched 5 chart-enhancement options as
+static mockups (budget line overlay, surplus/deficit shading, diverging bars, cumulative running
+total, anomaly markers), all drawn with Grace Community Church's real 12-month figures rather than
+placeholder numbers — published as a Design canvas so they could be compared side by side before
+committing to any. User picked #1 and #2, combined.
+
+`IncomeExpenseChart` (`app.jsx`, shared by Dashboard's Income vs. Expenses widget, `BudgetPage`'s
+and `BudgetingToolPage`'s Spending Trend) gained one new optional prop, `budgetTotal`. When passed:
+
+- A dashed gold reference line at that value, labeled "Budgeted $X/mo" — `maxVal`'s scale now also
+  accounts for `budgetTotal` so the line can't get clipped off the top of the chart on a month
+  where actuals happen to run under budget.
+- The gap between the income and expense lines fills green where income is ahead that month, red
+  where expenses are — computed per month-to-month segment (straight lines between points, not the
+  smoothed curve the strokes themselves use) so the fill always matches exactly where the two lines
+  actually cross, rather than a curved approximation over- or under-shooting the real crossing point.
+
+Only `BudgetPage` and `BudgetingToolPage` pass `budgetTotal` (their existing `totals.budgeted` /
+`totalCurrent` sums) — Dashboard's call site is untouched and renders exactly as before. This was
+deliberate, not an oversight: the whole reason #1 and #2 beat the other three options is that they
+tie the chart specifically to a *Budget* page; adding a budget-comparison line to Dashboard's
+generic Income vs. Expenses widget, which isn't framed around any specific budget, would just be
+noise there.
+
+`MGB_VERSION` bumped to `2026-09-17y`.

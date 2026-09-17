@@ -1360,7 +1360,15 @@ function smoothAreaPath(points, baseline) {
 }
 
 // Filled area chart (Option C direction) — replaces the old grouped bars.
-function IncomeExpenseChart({ monthly }) {
+// budgetTotal is optional — only Budget vs. Actual/Budgeting Tool's Spending
+// Trend pass it (the sum of client.budget's budgeted amounts). When present,
+// this draws a dashed reference line at that value and shades the gap
+// between the income/expense lines green where income is ahead, red where
+// expenses are — both were picked from a 5-option mockup as the pair that
+// actually ties this chart to a Budget page rather than just repeating
+// Dashboard's generic version of the same chart, which is why Dashboard's
+// own call site never passes budgetTotal and stays exactly as it was.
+function IncomeExpenseChart({ monthly, budgetTotal }) {
   const width = 640;
   const height = 220;
   const padding = { top: 32, right: 14, bottom: 28, left: 46 };
@@ -1368,17 +1376,41 @@ function IncomeExpenseChart({ monthly }) {
   const innerH = height - padding.top - padding.bottom;
   const baseline = padding.top + innerH;
 
-  const maxVal = Math.max(...monthly.flatMap((m) => [m.income, m.expenses])) * 1.15;
+  const maxVal = Math.max(...monthly.flatMap((m) => [m.income, m.expenses]), budgetTotal || 0) * 1.15;
 
   const yTicks = 4;
   const tickVals = Array.from({ length: yTicks + 1 }, (_, i) => (maxVal / yTicks) * i);
 
   const xFor = (i) => padding.left + (monthly.length === 1 ? innerW / 2 : (i / (monthly.length - 1)) * innerW);
-  const incomePoints = monthly.map((m, i) => ({ x: xFor(i), y: baseline - (m.income / maxVal) * innerH }));
-  const expensePoints = monthly.map((m, i) => ({ x: xFor(i), y: baseline - (m.expenses / maxVal) * innerH }));
+  const yFor = (v) => baseline - (v / maxVal) * innerH;
+  const incomePoints = monthly.map((m, i) => ({ x: xFor(i), y: yFor(m.income) }));
+  const expensePoints = monthly.map((m, i) => ({ x: xFor(i), y: yFor(m.expenses) }));
 
   const gradientId = `oc-income-fill-${monthly.length}-${Math.round(maxVal)}`;
   const gradientIdExp = `oc-expense-fill-${monthly.length}-${Math.round(maxVal)}`;
+
+  // Straight-line segments between each pair of months, not the smoothed
+  // curve the strokes use — a curved fill boundary would either overshoot
+  // the actual crossing point between income and expenses or need finding
+  // that intersection analytically. A visible kink in a translucent fill is
+  // a fair trade for the fill always matching exactly where the two lines
+  // actually cross.
+  const surplusSegments = budgetTotal
+    ? monthly.slice(0, -1).map((m, i) => {
+        const positive = m.income >= m.expenses && monthly[i + 1].income >= monthly[i + 1].expenses;
+        const p0i = incomePoints[i],
+          p1i = incomePoints[i + 1],
+          p0e = expensePoints[i],
+          p1e = expensePoints[i + 1];
+        return {
+          key: i,
+          positive,
+          d: `M ${p0i.x} ${p0i.y} L ${p1i.x} ${p1i.y} L ${p1e.x} ${p1e.y} L ${p0e.x} ${p0e.y} Z`,
+        };
+      })
+    : [];
+
+  const budgetY = budgetTotal ? yFor(budgetTotal) : null;
 
   return (
     <div className="chart-wrap">
@@ -1412,6 +1444,27 @@ function IncomeExpenseChart({ monthly }) {
             </g>
           );
         })}
+
+        {surplusSegments.map((s) => (
+          <path key={s.key} d={s.d} fill={s.positive ? "var(--good)" : "var(--bad)"} fillOpacity="0.16" />
+        ))}
+
+        {budgetTotal != null && (
+          <g>
+            <line
+              x1={padding.left}
+              x2={width - padding.right}
+              y1={budgetY}
+              y2={budgetY}
+              stroke="var(--gold)"
+              strokeWidth="1.5"
+              strokeDasharray="5 4"
+            />
+            <text x={width - padding.right} y={budgetY - 6} fontSize="10.5" fill="var(--gold)" textAnchor="end">
+              Budgeted {fmtMoney(budgetTotal)}/mo
+            </text>
+          </g>
+        )}
 
         <path d={smoothAreaPath(expensePoints, baseline)} fill={`url(#${gradientIdExp})`} />
         <path d={smoothLinePath(expensePoints)} fill="none" stroke="var(--gold)" strokeWidth="2" />
@@ -2159,7 +2212,7 @@ function BudgetPage({ client, searchTarget }) {
         <div className="card">
           <h3 className="card-title">Spending Trend</h3>
           <p className="card-subtitle">Income vs. expenses, last {client.monthly.length} months</p>
-          <IncomeExpenseChart monthly={client.monthly} />
+          <IncomeExpenseChart monthly={client.monthly} budgetTotal={totals.budgeted} />
         </div>
       )}
     </div>
@@ -4501,7 +4554,7 @@ function BudgetingToolPage({ client }) {
       <div className="card">
         <h3 className="card-title">Spending Trend</h3>
         <p className="card-subtitle">Income vs. expenses, last {client.monthly.length} months — for reference while drafting</p>
-        <IncomeExpenseChart monthly={client.monthly} />
+        <IncomeExpenseChart monthly={client.monthly} budgetTotal={totalCurrent} />
       </div>
     </div>
   );
