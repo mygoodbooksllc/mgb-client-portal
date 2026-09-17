@@ -1042,28 +1042,147 @@ function DailyClose({ data, className, theme, onNavigate }: DailyCloseProps) {
       body: [
         ["Cash on hand", fmtMoney(data.cash.total)],
         ["Accounts receivable", fmtMoney(data.receivables.total) + ` (${fmtMoney(data.receivables.overdueAmount)} overdue)`],
-        ["Accounts payable", fmtMoney(data.payables.total)],
-        ["Net income, MTD", fmtMoney(data.netIncome.mtd)],
+        ["Accounts payable", fmtMoney(data.payables.total) + (data.payables.hasPastDue ? " (past due items)" : "")],
+        [
+          "Net income, MTD",
+          fmtMoney(data.netIncome.mtd) +
+            ` (${data.netIncome.marginPct}% margin, target ${data.netIncome.marginTargetPct}%)`,
+        ],
       ],
       columnStyles: { 1: { halign: "right" } },
       ...tableTheme,
     });
 
+    if (data.cash.byAccount && data.cash.byAccount.length) {
+      doc.autoTable({
+        startY: doc.lastAutoTable.finalY + 8,
+        head: [["Cash by account", "Balance"]],
+        body: data.cash.byAccount.map((a) => [a.name, fmtMoney(a.balance)]),
+        foot: [["Total", fmtMoney(data.cash.total)]],
+        columnStyles: { 1: { halign: "right" } },
+        ...tableTheme,
+      });
+    }
+
     doc.autoTable({
       startY: doc.lastAutoTable.finalY + 8,
       head: [["Receivables aging", "Amount"]],
       body: data.receivables.aging.map((b) => [b.label, fmtMoney(b.amount)]),
+      foot: [["Total", fmtMoney(data.receivables.total)]],
       columnStyles: { 1: { halign: "right" } },
       ...tableTheme,
     });
 
-    doc.autoTable({
-      startY: doc.lastAutoTable.finalY + 8,
-      head: [["Flagged for review", "Amount"]],
-      body: data.anomalies.map((a) => [a.title, a.amount]),
-      columnStyles: { 1: { halign: "right" } },
-      ...tableTheme,
-    });
+    if (data.expenseBreakdown && data.expenseBreakdown.length) {
+      doc.autoTable({
+        startY: doc.lastAutoTable.finalY + 8,
+        head: [["Expense breakdown, MTD", "Amount"]],
+        body: data.expenseBreakdown.map((e) => [e.label, fmtMoney(e.amount)]),
+        columnStyles: { 1: { halign: "right" } },
+        ...tableTheme,
+      });
+    }
+
+    if (data.budgetHealth && data.budgetHealth.length) {
+      doc.autoTable({
+        startY: doc.lastAutoTable.finalY + 8,
+        head: [["Over budget", "Budgeted", "Actual", "Over by"]],
+        body: data.budgetHealth.map((b) => [
+          b.category,
+          fmtMoney(b.budgeted),
+          fmtMoney(b.actual),
+          `+${b.overByPct}%`,
+        ]),
+        columnStyles: { 1: { halign: "right" }, 2: { halign: "right" }, 3: { halign: "right" } },
+        ...tableTheme,
+      });
+    }
+
+    if (data.payablesDueSoon && data.payablesDueSoon.length) {
+      doc.autoTable({
+        startY: doc.lastAutoTable.finalY + 8,
+        head: [["Bills due soon", "Due", "Amount"]],
+        body: data.payablesDueSoon.map((p) => [
+          `${p.vendor} — ${p.description}`,
+          p.daysUntilDue === 0 ? "Due today" : p.daysUntilDue < 0 ? `${-p.daysUntilDue}d overdue` : `${fmtDate(p.dueDate)} (${p.daysUntilDue}d)`,
+          fmtMoney(p.amount),
+        ]),
+        columnStyles: { 2: { halign: "right" } },
+        ...tableTheme,
+      });
+    }
+
+    if (data.fundActivity && data.fundActivity.items.length) {
+      doc.autoTable({
+        startY: doc.lastAutoTable.finalY + 8,
+        head: [["Fund activity", "Date", "Amount"]],
+        body: data.fundActivity.items.map((i) => [
+          i.label + (i.detail ? ` — ${i.detail}` : ""),
+          fmtDate(i.date),
+          fmtMoney(i.amount),
+        ]),
+        foot:
+          data.fundActivity.pledgesOutstandingCount > 0
+            ? [[
+                `Pledges outstanding (${data.fundActivity.pledgesOutstandingCount})`,
+                "",
+                fmtMoney(data.fundActivity.pledgesOutstandingTotal),
+              ]]
+            : undefined,
+        columnStyles: { 2: { halign: "right" } },
+        ...tableTheme,
+      });
+    }
+
+    if (data.reconciliation && data.reconciliation.accounts.length) {
+      doc.autoTable({
+        startY: doc.lastAutoTable.finalY + 8,
+        head: [["Reconciliation status", "Outstanding items", "Amount"]],
+        body: data.reconciliation.accounts.map((a) => [
+          a.name,
+          String(a.outstandingCount),
+          fmtMoney(a.outstandingTotal),
+        ]),
+        columnStyles: { 1: { halign: "right" }, 2: { halign: "right" } },
+        ...tableTheme,
+      });
+      const recoY = doc.lastAutoTable.finalY + 6;
+      doc.setFont("helvetica", "italic");
+      doc.setFontSize(8);
+      doc.setTextColor(110, 110, 110);
+      doc.text(
+        data.reconciliation.lastClosedPeriod
+          ? `Last closed period: ${data.reconciliation.lastClosedPeriod}${data.reconciliation.lastClosedDate ? ` (${fmtDate(data.reconciliation.lastClosedDate)})` : ""}`
+          : "No period closed yet.",
+        14,
+        recoY
+      );
+    }
+
+    if (data.anomalies.length) {
+      doc.autoTable({
+        startY: doc.lastAutoTable.finalY + 8,
+        head: [["Flagged for review", "Amount"]],
+        body: data.anomalies.map((a) => [a.title, a.amount]),
+        columnStyles: { 1: { halign: "right" } },
+        ...tableTheme,
+      });
+    }
+
+    // Footer: bookkeeper contact + page numbers on every page, so a printed
+    // or forwarded copy still says who to ask and how long the report is.
+    const pageCount = doc.internal.getNumberOfPages();
+    for (let i = 1; i <= pageCount; i++) {
+      doc.setPage(i);
+      const footY = doc.internal.pageSize.getHeight() - 10;
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(8);
+      doc.setTextColor(140, 140, 140);
+      if (data.bookkeeper) {
+        doc.text(`Prepared by ${data.bookkeeper.name}, ${data.bookkeeper.role}`, 14, footY);
+      }
+      doc.text(`Page ${i} of ${pageCount}`, pageWidth - 14, footY, { align: "right" });
+    }
 
     doc.save(`${data.client.name.replace(/\s+/g, "_")}_Live_Report.pdf`);
   };
