@@ -5363,3 +5363,123 @@ body:has(.modal-overlay) .chat-fab-wrap {
   outline: 2px solid rgba(199, 174, 134, 0.5);
   border-color: var(--gold);
 }
+
+/* ----------------------------------------------------------------------
+   Access Request Form (public, no login — see AccessRequestForm in
+   app.jsx) and its staff-side "Requests" tab in Manage Access.
+   ---------------------------------------------------------------------- */
+
+.access-form-page {
+  min-height: 100vh;
+  background: var(--bg);
+  color: var(--text);
+}
+
+.access-form-header {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  padding: 20px 24px;
+  border-bottom: 1px solid var(--border);
+  flex-wrap: wrap;
+}
+
+.access-form-brand {
+  font-family: var(--font-heading);
+  font-weight: 800;
+  font-size: 18px;
+  color: var(--ink-strong);
+}
+
+.access-form-title {
+  font-size: 14px;
+  color: var(--text-muted);
+}
+
+.access-form-body {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 24px 20px 60px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.access-form-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.access-form-row input {
+  flex: 1;
+  min-width: 160px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 9px 12px;
+  font: inherit;
+  font-size: 13.5px;
+  color: var(--text);
+  background: var(--surface);
+}
+
+.access-form-row input:focus {
+  outline: 2px solid rgba(199, 174, 134, 0.5);
+  border-color: var(--gold);
+}
+
+.access-form-person-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.access-form-submit {
+  align-self: flex-start;
+}
+
+.access-link-row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.access-link-row input {
+  flex: 1;
+  min-width: 220px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 9px 12px;
+  font: inherit;
+  font-size: 13px;
+  color: var(--text-muted);
+  background: var(--surface-2);
+}
+
+.access-request-row {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px 14px;
+  margin-bottom: 10px;
+}
+
+.access-request-row-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+  flex-wrap: wrap;
+}
+
+.access-request-person {
+  padding: 8px 0;
+  border-top: 1px solid var(--border);
+  font-size: 13px;
+}
+
+.access-request-person:first-of-type {
+  border-top: none;
+}
