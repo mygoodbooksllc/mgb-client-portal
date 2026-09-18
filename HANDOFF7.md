@@ -2829,3 +2829,14 @@ existing three QBO secrets. The two sandbox test connections
 (Grace Community Church, Riverside Pantry) will need reconnecting after
 that — their existing tokens were encrypted with a throwaway placeholder key
 during the migration and are no longer usable.
+
+## §104 — QuickBooks tab gets Reconnect/Disconnect
+
+The connected state had no way back — no reconnect, no disconnect. Added
+both: Reconnect re-runs the same Connect flow, Disconnect calls a new
+`qbo_disconnect(client_id)` SQL function (security definer, checks
+`is_active_staff()` internally since `qbo_tokens` has no RLS policies for
+staff to reach directly) that deletes the stored tokens and resets
+`qbo_connections` to disconnected. Also added a distinct "Connection failed"
+state with a "Try again" button for `status = 'error'`, previously
+indistinguishable from never-connected.

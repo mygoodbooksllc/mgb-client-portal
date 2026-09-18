@@ -9104,6 +9104,16 @@ function TabSettingsModal({
     window.open(`https://appcenter.intuit.com/connect/oauth2?${params}`, "_blank", "noopener");
   }
 
+  async function disconnectQuickBooks() {
+    const { error } = await supabase.rpc("qbo_disconnect", { p_client_id: client.id });
+    if (error) {
+      showToast("Couldn't disconnect QuickBooks: " + error.message);
+      return;
+    }
+    loadQboConnection();
+    showToast("QuickBooks disconnected.");
+  }
+
   const loadDocuments = useCallback(() => {
     if (!supabase) return;
     supabase
@@ -9500,6 +9510,26 @@ function TabSettingsModal({
                     Last synced{" "}
                     {qboConnection.last_synced_at ? fmtDate(qboConnection.last_synced_at.slice(0, 10)) : "never yet"}
                   </div>
+                  <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
+                    <button className="btn-secondary" onClick={connectQuickBooks}>
+                      Reconnect
+                    </button>
+                    <button className="btn-secondary" onClick={disconnectQuickBooks}>
+                      Disconnect
+                    </button>
+                  </div>
+                </div>
+              ) : qboConnection && qboConnection.status === "error" ? (
+                <div className="access-request-row">
+                  <div className="access-request-row-header">
+                    <span className="person-name" style={{ color: "#e0664f" }}>Connection failed</span>
+                  </div>
+                  {qboConnection.last_error && (
+                    <div className="card-subtitle" style={{ margin: "2px 0 0" }}>{qboConnection.last_error}</div>
+                  )}
+                  <button className="btn-primary" style={{ marginTop: 12 }} onClick={connectQuickBooks}>
+                    Try again
+                  </button>
                 </div>
               ) : (
                 <button className="btn-primary" onClick={connectQuickBooks}>
