@@ -2723,3 +2723,11 @@ No token refresh logic yet (tokens expire; a refresh-on-use or scheduled
 refresh job is the next step once a first real connect is confirmed
 working), and no data sync job yet — this only gets the connection itself
 working.
+
+## §98 — Manage Access modal was too narrow for 5 tabs
+
+Documents + QuickBooks pushed the tab row (People / Organization tabs /
+Requests / Documents / QuickBooks) past the modal's fixed 420px width,
+clipping "QuickBooks". Added `.modal-panel-wide` (540px) for this modal
+specifically — other modals keep the narrower default — plus `flex-wrap`
+on `.modal-tabs` as a safety net if more tabs get added later.

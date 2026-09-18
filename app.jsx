@@ -9210,7 +9210,7 @@ function TabSettingsModal({
   }
 
   return (
-    <ModalShell onClose={onClose} labelledBy="manage-access-title">
+    <ModalShell onClose={onClose} labelledBy="manage-access-title" className="modal-panel-wide">
         <div className="modal-header">
           <h3 className="card-title" id="manage-access-title" style={{ margin: 0 }}>Manage access</h3>
           <button className="modal-close" onClick={onClose} aria-label="Close">
