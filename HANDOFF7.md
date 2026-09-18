@@ -3284,3 +3284,40 @@ untouched throughout — this was always a copy for testing, not a move.
 
 Files touched: `data.js`, `index.html`, `build.py`, `HANDOFF7.md`, plus
 a live DB row delete (no schema change).
+
+## §116 — Private per-client staff notes
+
+Added a staff-only scratchpad per client — things like "always
+double-check their payroll timing" or "owner is prickly about fees" —
+in the "Manage access" modal (`TabSettingsModal`) alongside Documents /
+QuickBooks / Requests, as a new "Notes" tab. Supports multiple timestamped,
+attributed entries (not just one shared free-text blob), optional pinning,
+and edit/delete.
+
+This is deliberately distinct from three existing, similarly-named things:
+- `client_notes` (`client-notes.sql`): one shared free-text scratchpad per
+  client (a single row keyed on `client_id`), shown on the bookkeeper home
+  page for handoff context between staff. Left untouched.
+- `client_documents`: file links, which the client themselves CAN read via
+  a `client_users` join. Private notes never get that policy.
+- Client-facing chat / staff Team Chat: both are conversational and at
+  least partly client- or staff-visible by design; these notes are neither.
+
+New table `client_private_notes` (`supabase/client-private-notes.sql`,
+applied live): `id`, `client_id`, `text`, `author_email`, `author_name`,
+`pinned`, `created_at`, `updated_at`. RLS is a single `for all` policy
+gated on `is_active_staff()` — no `client_users` join anywhere in the
+file, verified live via `execute_sql` against `pg_policy` (only one
+policy exists, `using`/`with check` both `is_active_staff()`, covering
+all commands).
+
+Any active staff member can edit or delete any note (not just its
+author) — same reasoning already used for `client_documents` and the
+shared `client_notes`: these describe a client for whoever picks up the
+account next, not a private diary, so a colleague filling in for someone
+shouldn't be blocked from fixing a stale or wrong note. Unlike Team
+Chat's messages there's no time-limited edit window, since notes aren't
+a conversational record.
+
+Files touched: `app.jsx`, `supabase/client-private-notes.sql` (new),
+`index.html`, `build.py`, `HANDOFF7.md`.
