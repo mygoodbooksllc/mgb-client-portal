@@ -3271,3 +3271,16 @@ correctly. The archive file is unchanged (still holds all 3 originals);
 this was a copy, not a move.
 
 Files touched: `data.js`, `index.html`, `build.py`, `HANDOFF7.md`.
+
+## §115 — Removed New Hope Fellowship after assignment testing confirmed
+
+§114's client-assignment test passed live (Gillian Gray, assigned to
+New Hope Fellowship, correctly saw it under "View as"). Removed New Hope
+from `data.js`'s `CLIENTS` array again — back to just the Grace
+Community test-only profile — and deleted the leftover
+`staff_client_access` row (gillian@mygoodbooks.org / new-hope) from the
+live DB. The archive file (`data-sample-clients-archive.js`) is
+untouched throughout — this was always a copy for testing, not a move.
+
+Files touched: `data.js`, `index.html`, `build.py`, `HANDOFF7.md`, plus
+a live DB row delete (no schema change).
