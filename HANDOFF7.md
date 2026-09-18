@@ -3321,3 +3321,54 @@ a conversational record.
 
 Files touched: `app.jsx`, `supabase/client-private-notes.sql` (new),
 `index.html`, `build.py`, `HANDOFF7.md`.
+
+## §117 — Time tracking data layer (schema only)
+
+Added the data layer for time tracking: logging hours worked per
+bookkeeper per client. Applied live via Supabase MCP
+(`apply_migration`, name `time_entries`), verified round-trip with
+`execute_sql` (test row inserted for gillian@mygoodbooks.org /
+`test-client`, confirmed columns/defaults, then deleted).
+
+**This is data layer only — no UI.** A separate, subsequent task builds
+the log-time form and any summary views on top of this table.
+
+New table `time_entries` (`supabase/time-entries.sql`, matches the live
+migration):
+
+- `id uuid primary key default gen_random_uuid()`
+- `staff_email text not null` — who logged the time
+- `client_id text not null` — matches a `CLIENTS[].id` from `data.js` by
+  convention, same as `client_documents`/`client_notes`/access-requests;
+  no FK, since there's no real `clients` table in Postgres
+- `minutes integer not null check (minutes > 0)` — stored as minutes,
+  not an interval type, so a React frontend can do simple math (sum,
+  ÷60 for hours) without interval parsing
+- `description text` — optional free text
+- `entry_date date not null default current_date` — the day the work
+  was done, not necessarily when it was logged
+- `created_at timestamptz not null default now()`
+- `billable boolean not null default true` — nothing reads this yet,
+  but lets a future billing/reporting feature filter without a
+  migration
+
+RLS:
+- `"staff manage own time entries"` (for all): `staff_email =
+  auth.jwt()->>'email'` on both `using` and `with check` — private
+  per-bookkeeper like `staff_reminders`; nobody can log time as, or
+  edit/delete the logged time of, someone else.
+- `"admins read all time entries"` (select only): `using
+  (is_active_staff_admin())` — admins can additionally read every
+  staffer's entries for firm-wide utilization visibility, even without
+  a dedicated reporting UI yet. Deliberately **not** given write access
+  to others' rows — an admin editing/deleting someone else's logged
+  time wasn't asked for and is a can of worms best left alone.
+
+No aggregate DB view/function was added. With a small per-client/
+per-staff row count, summing `minutes` client-side in React (the same
+`useMemo` rollup pattern already used for monthly/budget totals in
+`app.jsx`) is simpler and more consistent with the rest of the
+codebase than maintaining a view.
+
+Files touched: `supabase/time-entries.sql` (new), `index.html`,
+`build.py`, `HANDOFF7.md`. `app.jsx` intentionally untouched.
