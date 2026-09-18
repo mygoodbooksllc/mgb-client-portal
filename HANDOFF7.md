@@ -2767,3 +2767,20 @@ The Connect flow only works against Intuit's Development/sandbox keys today
 — it can't connect a real client's actual QuickBooks yet. Added a visible
 warning in the QuickBooks tab (reads `QBO_CONFIG.environment`) so nobody
 tries a real client before production keys + Intuit's app review are done.
+
+## §101 — Public Privacy Policy / Terms of Service pages
+
+Needed for Intuit's production app review, which requires both. Added as
+standalone static HTML pages (`privacy-policy.html`, `terms-of-service.html`
+— not part of the React bundle, plain files), wired to clean URLs via
+`vercel.json`:
+
+- `https://app.mygoodbooks.org/privacy`
+- `https://app.mygoodbooks.org/terms`
+
+Drafted from what the app actually does/collects (QuickBooks financial data
+via Intuit's API, Google Drive doc links — metadata only, messages, account
+emails). Entity name assumed "MyGoodBooks LLC", contact email
+jeff@mygoodbooks.org. **Not reviewed by a lawyer** — reasonable for getting
+through Intuit's app review, but worth a real legal review before treating
+these as final, especially before scaling past a handful of clients.
