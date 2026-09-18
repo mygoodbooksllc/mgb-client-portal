@@ -3420,3 +3420,44 @@ codebase than maintaining a view.
 
 Files touched: `supabase/time-entries.sql` (new), `index.html`,
 `build.py`, `HANDOFF7.md`. `app.jsx` intentionally untouched.
+
+## §120 — "My Tasks": bookkeeper task list (extends staff_reminders)
+
+A personal, prioritized "my work today" list for bookkeepers —
+distinct from Team Chat (staff-to-staff messaging) and from anything
+client-facing. Reused the existing private-per-staffer
+`staff_reminders` table (already the right shape: `staff_email`,
+`text`, `due_date`, `done`, `created_at`, same RLS pattern every other
+per-staffer table follows) instead of building a parallel table.
+
+`supabase/staff-reminders.sql` (rewritten, idempotent) adds:
+- `client_id text` — optional link to a client, same text convention
+  as `client_notes.client_id` (clients live in app config, not a
+  Postgres table, so no FK)
+- `priority text not null default 'normal'` — `check (priority in
+  ('low','normal','high'))`
+- `completed_at timestamptz` — set alongside `done` on toggle, so
+  "done" carries a when, not just a boolean; backfilled from
+  `created_at` for any rows already marked done before this migration
+
+RLS unchanged: `staff_email = auth.jwt()->>'email'` on all operations,
+nobody (not even an admin) can read or write another staffer's tasks.
+
+New page `MyTasksPage` (app.jsx), reachable via a new "My Tasks"
+sidebar link (`ChecklistIcon`, next to Team Chat), gated the same way
+as `staff-messages` (`staffUser && !impersonating`) — any signed-in
+staffer, not admin-only. Add-task form (title, optional due date,
+optional client picker from `visibleClients`, priority); open tasks
+sorted overdue-first then by due date then priority, with overdue
+ones flagged; checkbox marks complete and moves a task into a
+collapsed "Show completed" section rather than deleting it.
+
+The Home dashboard's existing "Your reminders" widget (full add/
+toggle/remove UI, not just a bare count) was left as-is rather than
+duplicated — its subtitle now links to My Tasks for the fuller
+prioritized/client-linked view.
+
+Files touched: `supabase/staff-reminders.sql` (extended), `app.jsx`
+(`ChecklistIcon`, `MyTasksPage`, nav link, `PAGE_META["my-tasks"]`,
+`effectivePage` gating, `NON_CLIENT_PAGES`, Home widget link), `index.html`,
+`build.py`, `HANDOFF7.md`.

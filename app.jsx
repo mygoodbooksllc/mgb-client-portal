@@ -11260,6 +11260,330 @@ function saveDocFolders(clientId, folders, assignments) {
   } catch (e) {}
 }
 
+// ----------------------------------------------------------------------------
+// My Tasks — a bookkeeper's private, prioritized "my work today" list.
+// Backed by the same staff_reminders table as the Home dashboard's compact
+// "Your reminders" widget (see staff-reminders.sql) — this page is the full
+// version: optional client link, priority, and a collapsed completed
+// section instead of deleting a task the moment it's checked off.
+// ----------------------------------------------------------------------------
+
+const TASK_PRIORITIES = ["high", "normal", "low"];
+const TASK_PRIORITY_LABEL = { high: "High", normal: "Normal", low: "Low" };
+
+function MyTasksPage({ staffUser, clients }) {
+  const showToast = useToast();
+  const supabase = window.mgbSupabase;
+  const today = todayLocal();
+
+  const [tasks, setTasks] = useState(null);
+  const [error, setError] = useState("");
+  const [showCompleted, setShowCompleted] = useState(false);
+
+  const [newText, setNewText] = useState("");
+  const [newDueDate, setNewDueDate] = useState("");
+  const [newClientId, setNewClientId] = useState("");
+  const [newPriority, setNewPriority] = useState("normal");
+  const [adding, setAdding] = useState(false);
+
+  const clientById = useMemo(
+    () => Object.fromEntries((clients || []).map((c) => [c.id, c])),
+    [clients],
+  );
+
+  const loadTasks = useCallback(() => {
+    if (!supabase) return;
+    supabase
+      .from("staff_reminders")
+      .select(
+        "id, text, due_date, done, created_at, client_id, priority, completed_at",
+      )
+      .eq("staff_email", staffUser.email)
+      .order("due_date", { ascending: true, nullsFirst: false })
+      .then(({ data, error }) => {
+        if (error) {
+          setError(
+            "Couldn't load tasks. Has staff-reminders.sql been run (latest version, with client_id/priority/completed_at)? " +
+              error.message,
+          );
+          setTasks([]);
+        } else {
+          setError("");
+          setTasks(data);
+        }
+      });
+  }, [supabase, staffUser.email]);
+
+  useEffect(() => {
+    loadTasks();
+  }, [loadTasks]);
+
+  async function addTask() {
+    const text = newText.trim();
+    if (!text) return;
+    setAdding(true);
+    const { error } = await supabase.from("staff_reminders").insert({
+      staff_email: staffUser.email,
+      text,
+      due_date: newDueDate || null,
+      client_id: newClientId || null,
+      priority: newPriority,
+    });
+    setAdding(false);
+    if (error) {
+      showToast(`Couldn't add task: ${error.message}`);
+      return;
+    }
+    setNewText("");
+    setNewDueDate("");
+    setNewClientId("");
+    setNewPriority("normal");
+    loadTasks();
+  }
+
+  async function toggleTask(task) {
+    const nowDone = !task.done;
+    const { error } = await supabase
+      .from("staff_reminders")
+      .update({
+        done: nowDone,
+        completed_at: nowDone ? new Date().toISOString() : null,
+      })
+      .eq("id", task.id);
+    if (error) {
+      showToast(`Couldn't update task: ${error.message}`);
+      return;
+    }
+    loadTasks();
+  }
+
+  async function removeTask(task) {
+    const { error } = await supabase
+      .from("staff_reminders")
+      .delete()
+      .eq("id", task.id);
+    if (error) {
+      showToast(`Couldn't remove task: ${error.message}`);
+      return;
+    }
+    loadTasks();
+  }
+
+  const openTasks = useMemo(() => {
+    if (!tasks) return [];
+    const rows = tasks.filter((t) => !t.done);
+    const priorityRank = { high: 0, normal: 1, low: 2 };
+    return [...rows].sort((a, b) => {
+      const aOverdue = a.due_date && a.due_date < today;
+      const bOverdue = b.due_date && b.due_date < today;
+      if (aOverdue !== bOverdue) return aOverdue ? -1 : 1;
+      if (!!a.due_date !== !!b.due_date) return a.due_date ? -1 : 1;
+      if (a.due_date && b.due_date && a.due_date !== b.due_date)
+        return a.due_date < b.due_date ? -1 : 1;
+      return (priorityRank[a.priority] ?? 1) - (priorityRank[b.priority] ?? 1);
+    });
+  }, [tasks, today]);
+
+  const completedTasks = useMemo(() => {
+    if (!tasks) return [];
+    return [...tasks.filter((t) => t.done)].sort((a, b) => {
+      const aAt = a.completed_at || a.created_at;
+      const bAt = b.completed_at || b.created_at;
+      return aAt < bAt ? 1 : -1;
+    });
+  }, [tasks]);
+
+  const overdueCount = openTasks.filter(
+    (t) => t.due_date && t.due_date < today,
+  ).length;
+  const dueTodayCount = openTasks.filter((t) => t.due_date === today).length;
+
+  return (
+    <div>
+      <div className="card" style={{ marginBottom: 20 }}>
+        <h3 className="card-title">Add a task</h3>
+        <p className="card-subtitle">
+          Private to you — nobody else, including admins, can see these.
+        </p>
+        <div className="staff-add-row" style={{ flexWrap: "wrap" }}>
+          <input
+            type="text"
+            placeholder="Reconcile Riverside's operating account"
+            value={newText}
+            onChange={(e) => setNewText(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") addTask();
+            }}
+            style={{ flex: "2 1 220px" }}
+          />
+          <input
+            type="date"
+            value={newDueDate}
+            onChange={(e) => setNewDueDate(e.target.value)}
+          />
+          <select
+            value={newClientId}
+            onChange={(e) => setNewClientId(e.target.value)}
+          >
+            <option value="">No client</option>
+            {(clients || []).map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name}
+              </option>
+            ))}
+          </select>
+          <select
+            value={newPriority}
+            onChange={(e) => setNewPriority(e.target.value)}
+          >
+            {TASK_PRIORITIES.map((p) => (
+              <option key={p} value={p}>
+                {TASK_PRIORITY_LABEL[p]} priority
+              </option>
+            ))}
+          </select>
+          <button
+            className="btn-primary"
+            disabled={adding || !newText.trim()}
+            onClick={addTask}
+          >
+            + Add task
+          </button>
+        </div>
+      </div>
+
+      {error && (
+        <div className="card" style={{ marginBottom: 20 }}>
+          <p className="card-subtitle negative">{error}</p>
+        </div>
+      )}
+
+      <div className="card" style={{ marginBottom: 20 }}>
+        <h3 className="card-title">Open tasks</h3>
+        <p className="card-subtitle">
+          {tasks === null
+            ? "Loading…"
+            : `${openTasks.length} open${
+                overdueCount
+                  ? ` — ${overdueCount} overdue`
+                  : dueTodayCount
+                    ? ` — ${dueTodayCount} due today`
+                    : ""
+              }`}
+        </p>
+
+        {tasks && openTasks.length === 0 && !error && (
+          <p className="card-subtitle" style={{ marginTop: 16 }}>
+            Nothing on your list — add a task above.
+          </p>
+        )}
+
+        {openTasks.length > 0 && (
+          <ul className="staff-audit-list">
+            {openTasks.map((t) => {
+              const overdue = t.due_date && t.due_date < today;
+              const client = t.client_id ? clientById[t.client_id] : null;
+              return (
+                <li className="staff-audit-row" key={t.id}>
+                  <label
+                    className="staff-active-toggle"
+                    style={{ flex: 1, alignItems: "flex-start" }}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={t.done}
+                      onChange={() => toggleTask(t)}
+                    />
+                    <span>
+                      <span>{t.text}</span>
+                      {t.priority === "high" && (
+                        <span
+                          className="pill negative"
+                          style={{ marginLeft: 8 }}
+                        >
+                          High priority
+                        </span>
+                      )}
+                      {client && (
+                        <span className="pill" style={{ marginLeft: 8 }}>
+                          {client.name}
+                        </span>
+                      )}
+                      {t.due_date && (
+                        <span
+                          className={
+                            "card-subtitle" + (overdue ? " negative" : "")
+                          }
+                          style={{ display: "block", marginTop: 2 }}
+                        >
+                          {overdue ? "Overdue — was due" : "Due"}{" "}
+                          {fmtDate(t.due_date)}
+                        </span>
+                      )}
+                    </span>
+                  </label>
+                  <button
+                    className="row-remove-btn"
+                    onClick={() => removeTask(t)}
+                    aria-label={`Remove task: ${t.text}`}
+                  >
+                    ×
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </div>
+
+      {completedTasks.length > 0 && (
+        <div className="card">
+          <button
+            type="button"
+            className="btn-secondary"
+            onClick={() => setShowCompleted((v) => !v)}
+          >
+            {showCompleted ? "Hide" : "Show"} completed ({completedTasks.length}
+            )
+          </button>
+          {showCompleted && (
+            <ul className="staff-audit-list" style={{ marginTop: 16 }}>
+              {completedTasks.map((t) => {
+                const client = t.client_id ? clientById[t.client_id] : null;
+                return (
+                  <li className="staff-audit-row" key={t.id}>
+                    <label className="staff-active-toggle" style={{ flex: 1 }}>
+                      <input
+                        type="checkbox"
+                        checked={t.done}
+                        onChange={() => toggleTask(t)}
+                      />
+                      <span style={{ textDecoration: "line-through" }}>
+                        {t.text}
+                        {client ? ` — ${client.name}` : ""}
+                        {t.completed_at
+                          ? ` — completed ${fmtDate(t.completed_at.slice(0, 10))}`
+                          : ""}
+                      </span>
+                    </label>
+                    <button
+                      className="row-remove-btn"
+                      onClick={() => removeTask(t)}
+                      aria-label={`Remove task: ${t.text}`}
+                    >
+                      ×
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function DocumentsPage({ client, isBookkeeper, searchTarget }) {
   const [folders, setFolders] = useState(
     () => loadDocFolders(client.id).folders,
@@ -12696,6 +13020,7 @@ function TabSettingsModal({
   const [addingNote, setAddingNote] = useState(false);
   const [editingNoteId, setEditingNoteId] = useState(null);
   const [editingNoteText, setEditingNoteText] = useState("");
+  const [activityLog, setActivityLog] = useState(undefined); // undefined = loading
   const showToast = useToast();
 
   const supabase = window.mgbSupabase;
