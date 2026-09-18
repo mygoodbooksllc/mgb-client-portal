@@ -2985,3 +2985,43 @@ is running (`select * from cron.job_run_details ...`).
 
 Files touched: `supabase/functions/qbo-refresh-token/index.ts` (new),
 `supabase/qbo-refresh.sql` (new), `HANDOFF7.md`, `index.html`, `build.py`.
+
+**Update:** the `qbo_refresh_service_key` Vault secret has since been set
+(via `vault.update_secret`, since a stale/empty secret with that name
+already existed) — the refresh cron is now fully live, not just scheduled.
+
+## §107 — Fixed group/DM creation broken by §105's H1 fix
+
+Smoke-testing §105's fixes live surfaced a real regression: creating a
+group chat (and, by the same code path, a fresh 1:1 DM) failed with
+"Couldn't create the group." §105's H1 fix narrowed the
+`staff_conversations` SELECT policy to `is_conversation_member(id)` only,
+to stop staff enumerating every conversation (including other people's
+populated DMs). But `createGroup()`/`openWith()` in app.jsx both do
+`.insert({...}).select("id").single()` — Postgres checks RETURNING rows
+against the table's SELECT policy, and at the moment of insert the new
+conversation has zero members yet (the membership rows, including the
+creator's own, are inserted in a second statement right after). So
+`is_conversation_member(id)` was false for the row being returned, the
+read-back silently failed, `created` came back null, and the app surfaced
+the generic error.
+
+Fix (applied live via `apply_migration fix_staff_conversations_select_for_creation`,
+mirrored into `supabase/staff-chat-v2.sql`): the SELECT policy now also
+allows reading a conversation that currently has **no members at all**
+(mid-creation), in addition to ones you're already a member of. An empty
+conversation has no messages and nothing to leak, so this doesn't reopen
+the enumeration concern H1 was fixing — that was specifically about
+reading other staff's already-populated DMs, which this carve-out doesn't
+touch. Verified live: creating a group and a fresh DM both work again;
+attachment signed-URLs (C1) and DM-membership lockdown (H1's insert-side
+restriction) were also verified live and are unaffected.
+
+Lesson for future hardening passes: when an RLS SELECT policy is narrowed,
+check every `.insert(...).select(...)` call against that table, not just
+the insert policy — Postgres enforces SELECT policies on RETURNING rows
+too, and that failure mode is silent (empty data, not a thrown error)
+unless the calling code checks for a null/empty result.
+
+Files touched: `supabase/staff-chat-v2.sql`, `index.html`, `build.py`,
+`HANDOFF7.md`.

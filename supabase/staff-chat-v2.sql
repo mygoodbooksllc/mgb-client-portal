@@ -82,10 +82,30 @@ $$;
 -- which let any active staff member enumerate every conversation (including
 -- other people's private DMs) via a plain select. Narrowed to only the
 -- conversations they're actually a member of.
+-- Live fix (2026-09-18, applied via apply_migration
+-- fix_staff_conversations_select_for_creation): the H1 hardening below
+-- narrowed this to is_conversation_member(id) only, which broke group/DM
+-- creation — createGroup()/openWith() do `.insert({...}).select("id")`, and
+-- Postgres checks RETURNING rows against the SELECT policy. At insert time
+-- the new conversation has zero members yet (membership rows are inserted
+-- in a second statement right after), so the row-back failed silently.
+-- Fix: also allow reading a conversation that currently has no members at
+-- all (mid-creation). An empty conversation has no messages and nothing to
+-- leak, so this doesn't reopen H1's enumeration concern (reading OTHER
+-- staff's already-populated DMs).
 drop policy if exists "active staff read conversations" on staff_conversations;
 create policy "active staff read conversations"
   on staff_conversations for select
-  using (public.is_conversation_member(id));
+  using (
+    public.is_active_staff()
+    and (
+      public.is_conversation_member(id)
+      or not exists (
+        select 1 from staff_conversation_members m
+        where m.conversation_id = staff_conversations.id
+      )
+    )
+  );
 
 drop policy if exists "active staff create conversations" on staff_conversations;
 create policy "active staff create conversations"
