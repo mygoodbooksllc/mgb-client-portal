@@ -3069,3 +3069,39 @@ Files touched: `supabase/functions/qbo-callback/index.ts`,
 `supabase/functions/qbo-refresh-token/index.ts`,
 `components/auth/AuthGate.jsx`, `components/auth/ClientAuthGate.jsx`,
 `app.jsx`, `index.html`, `build.py`, `HANDOFF7.md`.
+
+## §109 — QuickBooks Connect switched to Intuit production keys
+
+Intuit's app-review questionnaire (§105–§108 covered the security-hardening
+groundwork for it) came back **Approved**. Switched QuickBooks Connect from
+sandbox to Intuit's production app:
+
+- Added the production redirect URI
+  (`https://xumsqmhccgfjnlmieqyu.supabase.co/functions/v1/qbo-callback`)
+  under Intuit's Production tab.
+- Updated the `QBO_CLIENT_ID` and `QBO_CLIENT_SECRET` Edge Function secrets
+  to the production app's values (done directly in the Supabase dashboard —
+  never pasted into chat or committed, same handling as the sandbox
+  secrets originally).
+- Set `QBO_ENV` Edge Function secret to `production`.
+- Updated `qbo-config.js`'s public `clientId` to the production Client ID
+  (public by design, same as the sandbox one it replaces) and
+  `environment` to `"production"`.
+- The QuickBooks tab's sandbox-only warning banner (`app.jsx` ~12699) is
+  conditional on `window.QBO_CONFIG.environment !== "production"` — no
+  code change needed, it disappears automatically now that the config
+  says production.
+
+**Heads up — the two existing test connections are now stale.**
+`grace-community` and `riverside-pantry` were connected against the
+Intuit *sandbox* app; their stored tokens are sandbox tokens, meaningless
+against the production API. Nothing needs fixing by hand: the next
+refresh cycle (`qbo-refresh-token`, every 15 min) will fail with
+`invalid_grant` against production credentials and self-heal the
+connection to `status = 'error'`, which the existing Reconnect UI
+already surfaces correctly ("Connection failed — please reconnect"). If
+either of those was meant to be a real client connection rather than a
+test, it needs a fresh Connect click now that the app talks to
+production QuickBooks.
+
+Files touched: `qbo-config.js`, `index.html`, `build.py`, `HANDOFF7.md`.

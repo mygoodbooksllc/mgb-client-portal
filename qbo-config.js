@@ -5,6 +5,6 @@
 // Function (supabase/functions/qbo-callback), set via the Supabase dashboard
 // or `supabase secrets set`, never committed to this repo.
 window.QBO_CONFIG = {
-  clientId: "ABFpfXhOScbmE8lJQfbyaGqY6c0rXpAhPz6K9AFAac7uVHif4r",
-  environment: "sandbox", // "sandbox" | "production" — must match the Edge Function's QBO_ENV secret
+  clientId: "ABeEF4Y1WOpywIPkQiJPj9GN6sVhaSxYYuMGMLaMccGBImAfJ9",
+  environment: "production", // "sandbox" | "production" — must match the Edge Function's QBO_ENV secret
 };
