@@ -3105,3 +3105,38 @@ test, it needs a fresh Connect click now that the app talks to
 production QuickBooks.
 
 Files touched: `qbo-config.js`, `index.html`, `build.py`, `HANDOFF7.md`.
+
+## §110 — Trimmed the client roster to one test-only sample profile
+
+Now that QuickBooks Connect talks to Intuit's production app and real
+clients are coming, cut the sample roster from 4 clients down to 1:
+
+- **Archived** New Hope Fellowship, Riverside Food Pantry, and Open Arms
+  Family Services — their full `data.js` entries (org info, budgets,
+  transactions, documents, message threads, everything) were moved
+  verbatim to a new file, `data-sample-clients-archive.js`. That file is
+  deliberately **not** in `index.html`'s `__SOURCE_ORDER` or `build.py`'s
+  payload, so it isn't loaded by the app — it's pure cold storage. To
+  bring one back, copy its `{ ... },` block from the archive back into
+  `CLIENTS` in `data.js`.
+- **Kept** Grace Community Church, `id: "grace-community"` unchanged
+  (live DB rows — `qbo_connections`, `qbo_tokens`, `staff_client_access`
+  — reference it by id), but renamed to
+  `"[TEST] Grace Community Church — Sample Profile"` and given a new
+  `testOnly: true` flag, so it reads unambiguously as sample data rather
+  than a real client if anyone ever looks at the roster.
+- **Restricted visibility**: `visibleClients` in `app.jsx` (~13683) now
+  filters out any `testOnly` client for everyone except
+  `holden@mygoodbooks.org`, on top of (not instead of) the existing
+  `staff_client_access` assignment filter. Once real bookkeepers are
+  added as staff, they won't see the test client on their roster at all;
+  only this one login does.
+- **Live DB cleanup**: the archived clients had left a few orphaned rows
+  — deleted `staff_client_access` (client_id = 'new-hope'),
+  `qbo_connections` and `qbo_tokens` (client_id = 'riverside-pantry').
+  `grace-community`'s rows in all three tables were left as-is.
+
+Files touched: `data.js`, `data-sample-clients-archive.js` (new),
+`app.jsx`, `index.html`, `build.py`, `HANDOFF7.md`, plus a live migration
+deleting the three orphaned rows above (no schema change, just row
+deletes via `execute_sql`).
