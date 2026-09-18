@@ -3322,6 +3322,54 @@ a conversational record.
 Files touched: `app.jsx`, `supabase/client-private-notes.sql` (new),
 `index.html`, `build.py`, `HANDOFF7.md`.
 
+## §117 — Client health status dots (computed + manual override)
+
+Added a quick-glance red/yellow/green health indicator per client, visible
+as a small colored dot next to the client's name in the sidebar's "Viewing
+client" picker (both a dot overlaid on the select and an emoji prefix on
+each `<option>`, since a native `<select>` can't render colored HTML inside
+its options) and on Bookkeeper Home's "Your clients" card, with a one-line
+reason as the dot's tooltip.
+
+Two-part design, per the request — mostly computed, with a manual escape
+hatch:
+
+- **Computed signal** (`clientHealthSignal()` in `app.jsx`, pure frontend
+  logic against `CLIENTS`/`data.js`, no table, no staff data entry): red if
+  any budget category's `actual` is more than 15% over `budgeted`
+  (`BUDGET_OVERRUN_RED_PCT`), or more than one payable/receivable is past
+  its `dueDate`; yellow if a category is over budget at all (under 15%), or
+  exactly one item is overdue; green otherwise. Whichever is worse wins.
+  Deliberately just these two signals — a real QuickBooks-connection-error
+  signal (`qbo_connections.status = 'error'`) would need fetching that
+  table for every visible client up front (it's currently only queried
+  per-client in Developer Tools), which is more plumbing than a v1 warrants;
+  left as a natural follow-up once QBO connection state is loaded in bulk
+  somewhere.
+- **Manual override** (`client_status_overrides`, `effectiveClientHealth()`
+  in `app.jsx`): a staff member can set/clear a status by hand via a new
+  "Status" button next to each client on Bookkeeper Home's "Your clients"
+  card, with an optional note (e.g. "red — needs follow-up on missing Aug
+  bank statement"). When a row exists for a client it always wins over the
+  computed signal — it's a deliberate human call the computed rules can't
+  know about. `App` fetches all overrides once (`loadStatusOverrides`) and
+  passes the map down to both `Sidebar` and `BookkeeperHomePage`, so the
+  sidebar dot and the Home card dot always agree.
+
+New table `client_status_overrides` (`supabase/client-status-overrides.sql`,
+applied live via `apply_migration` and verified with `execute_sql`):
+`client_id` (primary key), `status` (`text`, checked in
+`'green'|'yellow'|'red'`), `note`, `set_by`, `updated_at`. RLS is
+read/write staff-only via `is_active_staff()`, same shape as `client_notes`.
+
+Didn't touch the new private-notes "Manage access" modal Notes tab from
+§116 — the Status control lives on Bookkeeper Home instead, since that's
+already the cross-client rollup page and avoids fighting over the same
+modal mid-flight with that change.
+
+Files touched: `app.jsx`, `supabase/client-status-overrides.sql` (new),
+`index.html`, `build.py`, `HANDOFF7.md`.
+
 ## §117 — Time tracking data layer (schema only)
 
 Added the data layer for time tracking: logging hours worked per

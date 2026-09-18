@@ -94,6 +94,107 @@ const daysUntil = (toIso, fromIso) => {
   return Math.round((to - from) / 86400000);
 };
 
+// How far over budget (as a fraction of the budgeted amount) counts as a
+// real overrun for the client health dot below, vs. just "a little over".
+const BUDGET_OVERRUN_RED_PCT = 0.15;
+
+// Computed client health signal — red/yellow/green from data CLIENTS already
+// has, no new table and no staff data entry required. Looks at two things:
+//   1. Budget overrun: any category actual > budgeted by more than
+//      BUDGET_OVERRUN_RED_PCT is red; any category over budget at all
+//      (but under that threshold) is yellow.
+//   2. Overdue payables/receivables: dueDate in the past. More than one
+//      combined overdue item is red; exactly one is yellow.
+// Whichever is worse wins. This is intentionally simple — a v1 "does
+// something need a look" signal, not a full diagnostic. See
+// client_status_overrides (client-status-overrides.sql) for the manual
+// override that takes precedence over this when a staff member sets one.
+function clientHealthSignal(client, today) {
+  const reasons = { red: [], yellow: [] };
+
+  (client.budget || []).forEach((b) => {
+    if (!b.budgeted) return;
+    const overPct = (b.actual - b.budgeted) / b.budgeted;
+    if (overPct > BUDGET_OVERRUN_RED_PCT) {
+      reasons.red.push(
+        `${b.category} over budget by ${Math.round(overPct * 100)}%`,
+      );
+    } else if (overPct > 0) {
+      reasons.yellow.push(`${b.category} slightly over budget`);
+    }
+  });
+
+  const overdueItems = [];
+  (client.receivables || []).forEach((r) => {
+    if (daysUntil(r.dueDate, today) < 0) overdueItems.push(r.description);
+  });
+  (client.payables || []).forEach((p) => {
+    if (daysUntil(p.dueDate, today) < 0)
+      overdueItems.push(`${p.vendor} — ${p.description}`);
+  });
+  if (overdueItems.length > 1) {
+    reasons.red.push(`${overdueItems.length} overdue receivables/payables`);
+  } else if (overdueItems.length === 1) {
+    reasons.yellow.push(`1 overdue item (${overdueItems[0]})`);
+  }
+
+  if (reasons.red.length > 0) return { status: "red", reasons: reasons.red };
+  if (reasons.yellow.length > 0)
+    return { status: "yellow", reasons: reasons.yellow };
+  return { status: "green", reasons: [] };
+}
+
+// Effective health for a client: a manual override (client_status_overrides)
+// always wins over the computed signal above, since it's a deliberate human
+// call ("needs follow-up") that the computed rules can't know about.
+function effectiveClientHealth(client, today, overridesById) {
+  const override = overridesById && overridesById[client.id];
+  if (override && override.status) {
+    return {
+      status: override.status,
+      reasons: override.note ? [override.note] : [],
+      isOverride: true,
+    };
+  }
+  return { ...clientHealthSignal(client, today), isOverride: false };
+}
+
+const CLIENT_HEALTH_DOT_COLOR = {
+  red: "#dc2626",
+  yellow: "#d97706",
+  green: "#16a34a",
+};
+
+const CLIENT_HEALTH_LABEL = {
+  red: "Needs attention",
+  yellow: "Keep an eye on it",
+  green: "Looking good",
+};
+
+// Small colored dot for the client health status — used in the sidebar
+// client picker and Bookkeeper Home's "Your clients" card. `title` gives the
+// native tooltip a one-line reason when hovered.
+function ClientHealthDot({ health, style }) {
+  const label = CLIENT_HEALTH_LABEL[health.status] || "";
+  const reason = health.reasons && health.reasons[0];
+  const title = reason ? `${label} — ${reason}` : label;
+  return (
+    <span
+      title={title}
+      aria-label={title}
+      style={{
+        display: "inline-block",
+        width: 9,
+        height: 9,
+        borderRadius: "50%",
+        background: CLIENT_HEALTH_DOT_COLOR[health.status] || "#9ca3af",
+        flexShrink: 0,
+        ...style,
+      }}
+    />
+  );
+}
+
 // Bar-fill entrance duration scales with how far the bar travels, so a
 // near-empty bar doesn't take as long to grow as a full one — matching
 // DailyClose.tsx's growDuration.
@@ -341,6 +442,7 @@ const NON_CLIENT_PAGES = new Set([
   "client-access",
   "developer-tools",
   "staff-messages",
+  "my-tasks",
 ]);
 
 // Tabs that are part of a paid add-on rather than the base product. Always
@@ -596,7 +698,9 @@ function Sidebar({
   impersonating,
   hasTempAdminAccess,
   tempAdminAccessExpiresAt,
+  statusOverrides,
 }) {
+  const today = todayLocal();
   const showsAdminPages =
     staffUser &&
     (staffUser.role === "admin" || hasTempAdminAccess) &&
@@ -651,17 +755,49 @@ function Sidebar({
           {!NON_CLIENT_PAGES.has(page) && (
             <React.Fragment>
               <div className="client-picker-label">Viewing client</div>
-              <select
-                className="client-select"
-                value={selectedClientId}
-                onChange={(e) => onSelectClient(e.target.value)}
-              >
-                {clients.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name}
-                  </option>
-                ))}
-              </select>
+              <div style={{ position: "relative" }}>
+                <select
+                  className="client-select"
+                  value={selectedClientId}
+                  onChange={(e) => onSelectClient(e.target.value)}
+                  style={{ paddingLeft: 24 }}
+                >
+                  {clients.map((c) => {
+                    const health = effectiveClientHealth(
+                      c,
+                      today,
+                      statusOverrides,
+                    );
+                    const dot =
+                      health.status === "red"
+                        ? "\u{1F534}"
+                        : health.status === "yellow"
+                          ? "\u{1F7E1}"
+                          : "\u{1F7E2}";
+                    return (
+                      <option key={c.id} value={c.id}>
+                        {dot} {c.name}
+                      </option>
+                    );
+                  })}
+                </select>
+                {client && (
+                  <ClientHealthDot
+                    health={effectiveClientHealth(
+                      client,
+                      today,
+                      statusOverrides,
+                    )}
+                    style={{
+                      position: "absolute",
+                      left: 10,
+                      top: "50%",
+                      transform: "translateY(-50%)",
+                      pointerEvents: "none",
+                    }}
+                  />
+                )}
+              </div>
             </React.Fragment>
           )}
 
@@ -730,6 +866,22 @@ function Sidebar({
                   style={{ marginLeft: "auto" }}
                 />
               )}
+            </button>
+          )}
+
+          {staffUser && !impersonating && (
+            <button
+              type="button"
+              className={
+                "staff-access-link" + (page === "my-tasks" ? " active" : "")
+              }
+              onClick={() => {
+                onSelectPage("my-tasks");
+                onCloseMobile();
+              }}
+            >
+              <ChecklistIcon width="16" height="16" strokeWidth="1.8" />
+              My Tasks
             </button>
           )}
 
@@ -1225,6 +1377,25 @@ function ChatIcon(props) {
     >
       <path d="M4 5h16v11H8l-4 4V5z" />
       <path d="M8 10h8M8 13h5" />
+    </svg>
+  );
+}
+
+function ChecklistIcon(props) {
+  return (
+    <svg
+      width="20"
+      height="20"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.7"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      {...props}
+    >
+      <path d="M9 6h11M9 12h11M9 18h11" />
+      <path d="M4 6l1 1 2-2M4 12l1 1 2-2M4 18l1 1 2-2" />
     </svg>
   );
 }
@@ -9983,6 +10154,8 @@ function BookkeeperHomePage({
   messagesByClient,
   readMessageClients,
   onNavigateToClient,
+  statusOverrides,
+  onStatusOverridesChanged,
 }) {
   const showToast = useToast();
   const supabase = window.mgbSupabase;
@@ -9998,6 +10171,10 @@ function BookkeeperHomePage({
   const [editingNoteFor, setEditingNoteFor] = useState(null); // client object, or null
   const [noteDraft, setNoteDraft] = useState("");
   const [savingNote, setSavingNote] = useState(false);
+  const [editingStatusFor, setEditingStatusFor] = useState(null); // client object, or null
+  const [statusDraft, setStatusDraft] = useState("green");
+  const [statusNoteDraft, setStatusNoteDraft] = useState("");
+  const [savingStatus, setSavingStatus] = useState(false);
   const { flashCardId, jumpToCard } = useCardFlash();
   const [clientSearch, setClientSearch] = useState("");
   // Separate from clientSearch below (the full "Your clients" card's own
@@ -10120,6 +10297,48 @@ function BookkeeperHomePage({
     }
     setEditingNoteFor(null);
     loadNotes();
+  }
+
+  function openStatusEditor(client) {
+    const existing = statusOverrides && statusOverrides[client.id];
+    setEditingStatusFor(client);
+    setStatusDraft(
+      (existing && existing.status) || clientHealthSignal(client, today).status,
+    );
+    setStatusNoteDraft((existing && existing.note) || "");
+  }
+
+  async function saveStatus() {
+    setSavingStatus(true);
+    const { error } = await supabase.from("client_status_overrides").upsert({
+      client_id: editingStatusFor.id,
+      status: statusDraft,
+      note: statusNoteDraft,
+      set_by: staffUser.email,
+      updated_at: new Date().toISOString(),
+    });
+    setSavingStatus(false);
+    if (error) {
+      showToast(`Couldn't save status: ${error.message}`);
+      return;
+    }
+    setEditingStatusFor(null);
+    if (onStatusOverridesChanged) onStatusOverridesChanged();
+  }
+
+  async function clearStatus() {
+    setSavingStatus(true);
+    const { error } = await supabase
+      .from("client_status_overrides")
+      .delete()
+      .eq("client_id", editingStatusFor.id);
+    setSavingStatus(false);
+    if (error) {
+      showToast(`Couldn't clear status: ${error.message}`);
+      return;
+    }
+    setEditingStatusFor(null);
+    if (onStatusOverridesChanged) onStatusOverridesChanged();
   }
 
   // Same "last message is from the bookkeeper, and the viewer hasn't seen it
@@ -10676,6 +10895,11 @@ function BookkeeperHomePage({
                   {filteredClients.map((c) => {
                     const due = dueCountByClient[c.id];
                     const note = notes[c.id];
+                    const health = effectiveClientHealth(
+                      c,
+                      today,
+                      statusOverrides,
+                    );
                     return (
                       <div
                         className="staff-due-row"
@@ -10685,19 +10909,42 @@ function BookkeeperHomePage({
                         <button
                           className="staff-client-jump"
                           onClick={() => onNavigateToClient(c.id, "dashboard")}
-                          style={{ textAlign: "left", flex: 1 }}
+                          style={{
+                            textAlign: "left",
+                            flex: 1,
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 8,
+                          }}
                         >
-                          <span className="staff-flag-label">{c.name}</span>
-                          <span className="staff-flag-desc">
-                            {c.plan === "premium" ? "Premium" : "Standard"} plan
-                            {due && due.overdue > 0
-                              ? ` · ${due.overdue} overdue`
-                              : ""}
-                            {due && due.soon > 0
-                              ? ` · ${due.soon} due soon`
-                              : ""}
-                            {note && note.note ? ` · has a note` : ""}
+                          <ClientHealthDot health={health} />
+                          <span>
+                            <span className="staff-flag-label">{c.name}</span>
+                            <span className="staff-flag-desc">
+                              {c.plan === "premium" ? "Premium" : "Standard"}{" "}
+                              plan
+                              {due && due.overdue > 0
+                                ? ` · ${due.overdue} overdue`
+                                : ""}
+                              {due && due.soon > 0
+                                ? ` · ${due.soon} due soon`
+                                : ""}
+                              {note && note.note ? ` · has a note` : ""}
+                              {health.isOverride && health.reasons[0]
+                                ? ` · ${health.reasons[0]}`
+                                : !health.isOverride &&
+                                    health.status !== "green" &&
+                                    health.reasons[0]
+                                  ? ` · ${health.reasons[0]}`
+                                  : ""}
+                            </span>
                           </span>
+                        </button>
+                        <button
+                          className="btn-secondary"
+                          onClick={() => openStatusEditor(c)}
+                        >
+                          Status
                         </button>
                         <button
                           className="btn-secondary"
@@ -10853,6 +11100,93 @@ function BookkeeperHomePage({
               className="btn-primary"
               disabled={savingNote}
               onClick={saveNote}
+            >
+              Save
+            </button>
+          </div>
+        </ModalShell>
+      )}
+
+      {editingStatusFor && (
+        <ModalShell
+          onClose={() => setEditingStatusFor(null)}
+          labelledBy="client-status-title"
+        >
+          <div className="modal-header">
+            <h3
+              className="card-title"
+              id="client-status-title"
+              style={{ margin: 0 }}
+            >
+              Status for {editingStatusFor.name}
+            </h3>
+            <button
+              className="modal-close"
+              onClick={() => setEditingStatusFor(null)}
+              aria-label="Close"
+            >
+              ×
+            </button>
+          </div>
+          <p className="card-subtitle">
+            Overrides the computed status (budget overruns, overdue items) with
+            your own call — useful for something subjective like "needs
+            follow-up".
+            {statusOverrides[editingStatusFor.id] &&
+              statusOverrides[editingStatusFor.id].set_by &&
+              ` Last set by ${statusOverrides[editingStatusFor.id].set_by}.`}
+          </p>
+          <div className="modal-body">
+            <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
+              {["green", "yellow", "red"].map((s) => (
+                <button
+                  key={s}
+                  type="button"
+                  className={
+                    statusDraft === s ? "btn-primary" : "btn-secondary"
+                  }
+                  onClick={() => setStatusDraft(s)}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 6,
+                    textTransform: "capitalize",
+                  }}
+                >
+                  <ClientHealthDot health={{ status: s, reasons: [] }} />
+                  {s}
+                </button>
+              ))}
+            </div>
+            <textarea
+              className="client-note-textarea"
+              rows={4}
+              value={statusNoteDraft}
+              onChange={(e) => setStatusNoteDraft(e.target.value)}
+              placeholder="e.g. needs follow-up on missing August bank statement"
+            />
+          </div>
+          <div className="modal-footer">
+            {statusOverrides[editingStatusFor.id] && (
+              <button
+                className="btn-secondary"
+                disabled={savingStatus}
+                onClick={clearStatus}
+                style={{ marginRight: "auto" }}
+              >
+                Clear override
+              </button>
+            )}
+            <button
+              className="btn-secondary"
+              onClick={() => setEditingStatusFor(null)}
+            >
+              Cancel
+            </button>
+            <button
+              className="btn-primary"
+              disabled={savingStatus}
+              onClick={saveStatus}
             >
               Save
             </button>
@@ -13897,6 +14231,10 @@ const PAGE_META = {
     title: "Home",
     subtitle: "What needs attention across every client you can see",
   },
+  "my-tasks": {
+    title: "My Tasks",
+    subtitle: "Your private, prioritized to-do list — nobody else can see it",
+  },
   documents: {
     title: "Documents",
     subtitle: "Shared files between you and your bookkeeper",
@@ -14182,6 +14520,31 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
         (effectiveStaffUser && effectiveStaffUser.role === "admin"),
     );
   }, [assignedClientIds, effectiveStaffUser && effectiveStaffUser.role]);
+
+  // Manual client health overrides (client_status_overrides), keyed by
+  // client_id — fetched once for any signed-in staff member so both the
+  // sidebar client picker and Bookkeeper Home's "Your clients" card can show
+  // the same status dot without each fetching it separately. Refetched via
+  // loadStatusOverrides after a save so a change shows up immediately.
+  const [statusOverrides, setStatusOverrides] = useState({});
+  const loadStatusOverrides = useCallback(() => {
+    const supabase = window.mgbSupabase;
+    if (!supabase || !effectiveStaffUser) return;
+    supabase
+      .from("client_status_overrides")
+      .select("client_id, status, note, set_by, updated_at")
+      .then(({ data, error }) => {
+        if (error || !data) return;
+        const map = {};
+        data.forEach((row) => {
+          map[row.client_id] = row;
+        });
+        setStatusOverrides(map);
+      });
+  }, [effectiveStaffUser]);
+  useEffect(() => {
+    loadStatusOverrides();
+  }, [loadStatusOverrides]);
 
   const saveReferralPromo = (text) => {
     setReferralPromo(text);
@@ -14510,9 +14873,11 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
         ? page
         : page === "staff-messages" && staffUser && !impersonating
           ? page
-          : page === "bookkeeper-home" && staffUser
+          : page === "my-tasks" && staffUser && !impersonating
             ? page
-            : access.tabs.has(page)
+            : page === "bookkeeper-home" && staffUser
+              ? page
+              : access.tabs.has(page)
               ? page
               : ALWAYS_VISIBLE_KEY;
   // Each of these six tabs IS its upgraded page for a full-access premium
@@ -15019,6 +15384,7 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
           impersonating={impersonating}
           hasTempAdminAccess={hasTempAdminAccess}
           tempAdminAccessExpiresAt={tempAdminAccessExpiresAt}
+          statusOverrides={statusOverrides}
         />
         <main className="main">
           {impersonating && (
@@ -15217,6 +15583,9 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
               onActivity={checkStaffMessagesUnread}
             />
           )}
+          {effectivePage === "my-tasks" && (
+            <MyTasksPage staffUser={effectiveStaffUser} clients={visibleClients} />
+          )}
           {effectivePage === "developer-tools" && (
             <DeveloperToolsPage
               staffUser={staffUser}
@@ -15237,6 +15606,9 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
                 setSelectedClientId(clientId);
                 setPage(targetPage);
               }}
+              onOpenMyTasks={() => setPage("my-tasks")}
+              statusOverrides={statusOverrides}
+              onStatusOverridesChanged={loadStatusOverrides}
             />
           )}
           {effectivePage === "documents" && (
