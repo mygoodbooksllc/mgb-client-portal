@@ -12166,6 +12166,18 @@ function TabSettingsModal({
     showToast("QuickBooks disconnected.");
   }
 
+  async function disconnectQuickBooks() {
+    const { error } = await supabase.rpc("qbo_disconnect", {
+      p_client_id: client.id,
+    });
+    if (error) {
+      showToast("Couldn't disconnect QuickBooks: " + error.message);
+      return;
+    }
+    loadQboConnection();
+    showToast("QuickBooks disconnected.");
+  }
+
   const loadDocuments = useCallback(() => {
     if (!supabase) return;
     supabase
