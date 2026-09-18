@@ -3321,3 +3321,102 @@ a conversational record.
 
 Files touched: `app.jsx`, `supabase/client-private-notes.sql` (new),
 `index.html`, `build.py`, `HANDOFF7.md`.
+
+## §118 — Client health status dots (computed + manual override)
+
+Added a quick-glance red/yellow/green health indicator per client, visible
+as a small colored dot next to the client's name in the sidebar's "Viewing
+client" picker (both a dot overlaid on the select and an emoji prefix on
+each `<option>`, since a native `<select>` can't render colored HTML inside
+its options) and on Bookkeeper Home's "Your clients" card, with a one-line
+reason as the dot's tooltip.
+
+Two-part design, per the request — mostly computed, with a manual escape
+hatch:
+
+- **Computed signal** (`clientHealthSignal()` in `app.jsx`, pure frontend
+  logic against `CLIENTS`/`data.js`, no table, no staff data entry): red if
+  any budget category's `actual` is more than 15% over `budgeted`
+  (`BUDGET_OVERRUN_RED_PCT`), or more than one payable/receivable is past
+  its `dueDate`; yellow if a category is over budget at all (under 15%), or
+  exactly one item is overdue; green otherwise. Whichever is worse wins.
+  Deliberately just these two signals — a real QuickBooks-connection-error
+  signal (`qbo_connections.status = 'error'`) would need fetching that
+  table for every visible client up front (it's currently only queried
+  per-client in Developer Tools), which is more plumbing than a v1 warrants;
+  left as a natural follow-up once QBO connection state is loaded in bulk
+  somewhere.
+- **Manual override** (`client_status_overrides`, `effectiveClientHealth()`
+  in `app.jsx`): a staff member can set/clear a status by hand via a new
+  "Status" button next to each client on Bookkeeper Home's "Your clients"
+  card, with an optional note (e.g. "red — needs follow-up on missing Aug
+  bank statement"). When a row exists for a client it always wins over the
+  computed signal — it's a deliberate human call the computed rules can't
+  know about. `App` fetches all overrides once (`loadStatusOverrides`) and
+  passes the map down to both `Sidebar` and `BookkeeperHomePage`, so the
+  sidebar dot and the Home card dot always agree.
+
+New table `client_status_overrides` (`supabase/client-status-overrides.sql`,
+applied live via `apply_migration` and verified with `execute_sql`):
+`client_id` (primary key), `status` (`text`, checked in
+`'green'|'yellow'|'red'`), `note`, `set_by`, `updated_at`. RLS is
+read/write staff-only via `is_active_staff()`, same shape as `client_notes`.
+
+Didn't touch the new private-notes "Manage access" modal Notes tab from
+§116 — the Status control lives on Bookkeeper Home instead, since that's
+already the cross-client rollup page and avoids fighting over the same
+modal mid-flight with that change.
+
+Files touched: `app.jsx`, `supabase/client-status-overrides.sql` (new),
+`index.html`, `build.py`, `HANDOFF7.md`.
+
+## §119 — Time tracking data layer (schema only)
+
+Added the data layer for time tracking: logging hours worked per
+bookkeeper per client. Applied live via Supabase MCP
+(`apply_migration`, name `time_entries`), verified round-trip with
+`execute_sql` (test row inserted for gillian@mygoodbooks.org /
+`test-client`, confirmed columns/defaults, then deleted).
+
+**This is data layer only — no UI.** A separate, subsequent task builds
+the log-time form and any summary views on top of this table.
+
+New table `time_entries` (`supabase/time-entries.sql`, matches the live
+migration):
+
+- `id uuid primary key default gen_random_uuid()`
+- `staff_email text not null` — who logged the time
+- `client_id text not null` — matches a `CLIENTS[].id` from `data.js` by
+  convention, same as `client_documents`/`client_notes`/access-requests;
+  no FK, since there's no real `clients` table in Postgres
+- `minutes integer not null check (minutes > 0)` — stored as minutes,
+  not an interval type, so a React frontend can do simple math (sum,
+  ÷60 for hours) without interval parsing
+- `description text` — optional free text
+- `entry_date date not null default current_date` — the day the work
+  was done, not necessarily when it was logged
+- `created_at timestamptz not null default now()`
+- `billable boolean not null default true` — nothing reads this yet,
+  but lets a future billing/reporting feature filter without a
+  migration
+
+RLS:
+- `"staff manage own time entries"` (for all): `staff_email =
+  auth.jwt()->>'email'` on both `using` and `with check` — private
+  per-bookkeeper like `staff_reminders`; nobody can log time as, or
+  edit/delete the logged time of, someone else.
+- `"admins read all time entries"` (select only): `using
+  (is_active_staff_admin())` — admins can additionally read every
+  staffer's entries for firm-wide utilization visibility, even without
+  a dedicated reporting UI yet. Deliberately **not** given write access
+  to others' rows — an admin editing/deleting someone else's logged
+  time wasn't asked for and is a can of worms best left alone.
+
+No aggregate DB view/function was added. With a small per-client/
+per-staff row count, summing `minutes` client-side in React (the same
+`useMemo` rollup pattern already used for monthly/budget totals in
+`app.jsx`) is simpler and more consistent with the rest of the
+codebase than maintaining a view.
+
+Files touched: `supabase/time-entries.sql` (new), `index.html`,
+`build.py`, `HANDOFF7.md`. `app.jsx` intentionally untouched.
