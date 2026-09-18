@@ -3251,3 +3251,23 @@ temp access is ever meant to include real admin mutation rights.
 
 Files touched: `app.jsx`, `styles.css`, `supabase/staff-temp-admin-access.sql`
 (new), `index.html`, `build.py`, `HANDOFF7.md`.
+
+## §114 — Temporarily restored New Hope Fellowship (testing only)
+
+While testing the client-assignment flow (Staff Access → "Manage clients"
+→ `staff_client_access`), assigning the testOnly Grace Community client
+to a bookkeeper correctly showed nothing — Grace Community is
+admin-only by design (§111), so a non-admin bookkeeper assignment to it
+is invisible even though the assignment row saves fine. That's expected
+behavior, not a bug, but it meant there was no non-test client to verify
+assignment against.
+
+Temporarily pasted New Hope Fellowship's block back out of
+`data-sample-clients-archive.js` into `data.js`'s `CLIENTS` array
+(verbatim, no `testOnly` flag) so client assignment can be tested
+end-to-end. **This is scaffolding for a manual test, not a permanent
+re-add** — remove it again once testing confirms assignment works
+correctly. The archive file is unchanged (still holds all 3 originals);
+this was a copy, not a move.
+
+Files touched: `data.js`, `index.html`, `build.py`, `HANDOFF7.md`.
