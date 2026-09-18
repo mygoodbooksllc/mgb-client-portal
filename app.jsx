@@ -13680,13 +13680,23 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
     effectiveStaffUser && effectiveStaffUser.role,
   ]);
 
-  const visibleClients = useMemo(
-    () =>
-      assignedClientIds
-        ? CLIENTS.filter((c) => assignedClientIds.has(c.id))
-        : CLIENTS,
-    [assignedClientIds],
-  );
+  // Clients flagged `testOnly` in data.js (currently just the Grace
+  // Community sample/test profile) are hidden from every staff login except
+  // this one — sample data shouldn't show up for other bookkeepers once real
+  // clients are on the roster. This is separate from (and applies on top of)
+  // the staff_client_access assignment filter below.
+  const TEST_CLIENT_VISIBLE_TO_EMAIL = "holden@mygoodbooks.org";
+  const visibleClients = useMemo(() => {
+    const base = assignedClientIds
+      ? CLIENTS.filter((c) => assignedClientIds.has(c.id))
+      : CLIENTS;
+    return base.filter(
+      (c) =>
+        !c.testOnly ||
+        (effectiveStaffUser &&
+          effectiveStaffUser.email === TEST_CLIENT_VISIBLE_TO_EMAIL),
+    );
+  }, [assignedClientIds, effectiveStaffUser && effectiveStaffUser.email]);
 
   const saveReferralPromo = (text) => {
     setReferralPromo(text);
