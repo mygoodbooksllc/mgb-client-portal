@@ -2731,3 +2731,39 @@ Requests / Documents / QuickBooks) past the modal's fixed 420px width,
 clipping "QuickBooks". Added `.modal-panel-wide` (540px) for this modal
 specifically — other modals keep the narrower default — plus `flex-wrap`
 on `.modal-tabs` as a safety net if more tabs get added later.
+
+## §99 — QuickBooks OAuth connect confirmed working end-to-end
+
+Real connect tested live for two clients (Grace Community Church, Riverside
+Pantry) against the sandbox company — both landed on "QuickBooks connected"
+and `qbo_connections.status = 'connected'` with a real `realm_id` stored.
+
+Root cause of the earlier `invalid_client` failures: wrong values got pasted
+into the Supabase Edge Function secrets on the first pass (a 64-char value
+that wasn't the real Client ID/Secret — likely from using "Copy all" instead
+of per-field copy icons, or copying from the wrong dashboard page). Fixed by
+re-copying `QBO_CLIENT_ID` and `QBO_CLIENT_SECRET` directly from Keys and
+credentials → Development, using each field's own copy icon.
+
+Added and then removed temporary diagnostic logging (lengths/prefixes only,
+never full values) in `qbo-callback` to confirm what the function was
+actually reading — the repo's `supabase/functions/qbo-callback/index.ts`
+was never touched, only the live deployed version.
+
+**Follow-ups still open:**
+- The Client Secret was visually exposed once in this chat's screenshots
+  (revealed, not typed) — should be regenerated in Intuit's dashboard and
+  re-saved to Supabase before this goes anywhere near production, even
+  though it's a sandbox-only credential today.
+- No token refresh logic yet — sandbox tokens expire; needed before this is
+  usable beyond a one-time test.
+- No actual data sync job yet (transactions/accounts/budgets into real
+  tables) — this only gets the connection itself working, per the original
+  QuickBooks sketch's step ordering.
+
+## §100 — QuickBooks tab warns it's sandbox-only
+
+The Connect flow only works against Intuit's Development/sandbox keys today
+— it can't connect a real client's actual QuickBooks yet. Added a visible
+warning in the QuickBooks tab (reads `QBO_CONFIG.environment`) so nobody
+tries a real client before production keys + Intuit's app review are done.
