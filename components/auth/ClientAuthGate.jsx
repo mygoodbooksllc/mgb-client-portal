@@ -26,7 +26,9 @@
       const sessionEmail = session.user.email;
       const { data, error } = await supabase
         .from("client_users")
-        .select("email, client_id, name, role, active, access, tabs, categories, funds, premium_throttled")
+        .select(
+          "email, client_id, name, role, active, access, tabs, categories, funds, premium_throttled",
+        )
         .eq("email", sessionEmail)
         .maybeSingle();
 
@@ -36,7 +38,9 @@
         return;
       }
       if (!data || !data.active) {
-        setErrorMsg(`${sessionEmail} isn't set up for portal access yet. Ask your bookkeeper.`);
+        setErrorMsg(
+          `${sessionEmail} isn't set up for portal access yet. Ask your bookkeeper.`,
+        );
         setStatus("denied");
         return;
       }
@@ -53,13 +57,15 @@
         if (data.session) checkClientRow(data.session);
         else setStatus("signed-out");
       });
-      const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
-        if (session) checkClientRow(session);
-        else {
-          setClientUser(null);
-          setStatus("signed-out");
-        }
-      });
+      const { data: sub } = supabase.auth.onAuthStateChange(
+        (_event, session) => {
+          if (session) checkClientRow(session);
+          else {
+            setClientUser(null);
+            setStatus("signed-out");
+          }
+        },
+      );
       return () => sub.subscription.unsubscribe();
     }, []);
 
@@ -68,11 +74,19 @@
       setErrorMsg("");
       // Without emailRedirectTo, Supabase sends the confirmed session back to
       // the bare site URL, dropping ?client-login=1 — which then falls
-      // through to the staff AuthGate instead of back here. window.location.href
-      // already carries the param, so echo it back explicitly.
+      // through to the staff AuthGate instead of back here. Security audit
+      // finding H4 (M6 sub-point): pin this to origin + /login instead of
+      // the full current URL (which could carry an attacker-influenced
+      // querystring/hash) and pass shouldCreateUser: false so this magic-link
+      // form can't silently create a new auth.users row (and send a branded
+      // email) for an arbitrary address — only emails already provisioned in
+      // client_users can sign in this way.
       const { error } = await supabase.auth.signInWithOtp({
         email: email.trim(),
-        options: { emailRedirectTo: window.location.href },
+        options: {
+          emailRedirectTo: window.location.origin + "/login",
+          shouldCreateUser: false,
+        },
       });
       if (error) {
         setErrorMsg(error.message);
@@ -98,7 +112,9 @@
       return (
         <div className="boot-splash" role="alert">
           <div className="boot-splash-mark">MyGoodBooks</div>
-          <div className="boot-splash-sub">Client login isn't configured yet.</div>
+          <div className="boot-splash-sub">
+            Client login isn't configured yet.
+          </div>
         </div>
       );
     }
@@ -111,7 +127,9 @@
       return (
         <div className="boot-splash" role="status">
           <div className="boot-splash-mark">MyGoodBooks</div>
-          <div className="boot-splash-sub">Check {email} for a sign-in link.</div>
+          <div className="boot-splash-sub">
+            Check {email} for a sign-in link.
+          </div>
         </div>
       );
     }
@@ -119,18 +137,37 @@
     return (
       <div className="boot-splash" role="main">
         <div className="boot-splash-mark">MyGoodBooks</div>
-        <div className="boot-splash-sub">Client portal — sign in with your email.</div>
+        <div className="boot-splash-sub">
+          Client portal — sign in with your email.
+        </div>
         {errorMsg && (
-          <div style={{ color: "#e0664f", maxWidth: 360, textAlign: "center", margin: "12px 0" }}>{errorMsg}</div>
+          <div
+            style={{
+              color: "#e0664f",
+              maxWidth: 360,
+              textAlign: "center",
+              margin: "12px 0",
+            }}
+          >
+            {errorMsg}
+          </div>
         )}
-        <form onSubmit={sendLink} style={{ marginTop: 16, display: "flex", gap: 8 }}>
+        <form
+          onSubmit={sendLink}
+          style={{ marginTop: 16, display: "flex", gap: 8 }}
+        >
           <input
             type="email"
             required
             placeholder="you@yourorganization.org"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            style={{ padding: "10px 12px", borderRadius: 8, border: "1px solid #444", font: "inherit" }}
+            style={{
+              padding: "10px 12px",
+              borderRadius: 8,
+              border: "1px solid #444",
+              font: "inherit",
+            }}
           />
           <button
             type="submit"
@@ -149,9 +186,23 @@
           </button>
         </form>
         <div style={{ marginTop: 24, fontSize: 13, color: "#888" }}>
-          <a href="/privacy" target="_blank" rel="noopener noreferrer" style={{ color: "inherit" }}>Privacy Policy</a>
+          <a
+            href="/privacy"
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{ color: "inherit" }}
+          >
+            Privacy Policy
+          </a>
           {" · "}
-          <a href="/terms" target="_blank" rel="noopener noreferrer" style={{ color: "inherit" }}>Terms of Service</a>
+          <a
+            href="/terms"
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{ color: "inherit" }}
+          >
+            Terms of Service
+          </a>
         </div>
       </div>
     );

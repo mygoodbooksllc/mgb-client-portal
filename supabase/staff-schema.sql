@@ -24,12 +24,18 @@ create table if not exists staff (
 -- now, until there's an actual staff-management UI.
 alter table staff enable row level security;
 
+drop policy if exists "staff can read own row" on staff;
 create policy "staff can read own row"
   on staff for select
   using (auth.jwt() ->> 'email' = email);
 
 -- Seed yourself as the first admin so the login gate has someone to let in.
 -- Replace with your real Workspace email before running.
+--
+-- Security audit finding L2 (LOW): the live DB was checked for a leftover
+-- `you@mygoodbooks.org` placeholder row and none was found, so no live
+-- cleanup was needed. Left as documentation/example here, but don't run
+-- this literally -- put a real staff email in its place.
 insert into staff (email, name, role)
 values ('you@mygoodbooks.org', 'Your Name', 'admin')
 on conflict (email) do nothing;
