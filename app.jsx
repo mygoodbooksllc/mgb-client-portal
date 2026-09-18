@@ -13232,6 +13232,58 @@ function TabSettingsModal({
     loadPrivateNotes();
   }
 
+  // Read-only feed of client_activity_log — populated entirely by database
+  // triggers (see supabase/client-activity-log.sql), not by app writes, so it
+  // reflects every change regardless of how it was made.
+  const loadActivityLog = useCallback(() => {
+    if (!supabase) return;
+    supabase
+      .from("client_activity_log")
+      .select("id, actor_email, actor_name, action, detail, created_at")
+      .eq("client_id", client.id)
+      .order("created_at", { ascending: false })
+      .then(({ data, error }) => {
+        if (error) {
+          showToast("Couldn't load activity: " + error.message);
+          return;
+        }
+        setActivityLog(data || []);
+      });
+  }, [supabase, client.id, showToast]);
+
+  useEffect(() => {
+    if (tab === "activity") loadActivityLog();
+  }, [tab, loadActivityLog]);
+
+  function describeActivity(entry) {
+    const who = entry.actor_name || entry.actor_email || "System";
+    const d = entry.detail || {};
+    switch (entry.action) {
+      case "document_added":
+        return `${who} uploaded "${d.name}"`;
+      case "document_removed":
+        return `${who} removed "${d.name}"`;
+      case "access_granted":
+        return `${who} granted ${d.email} access (${d.role})`;
+      case "access_revoked":
+        return `${who} revoked ${d.email}'s access`;
+      case "access_updated": {
+        const bits = [];
+        if (d.old_role !== d.new_role)
+          bits.push(`role ${d.old_role} → ${d.new_role}`);
+        if (d.old_active !== d.new_active)
+          bits.push(d.new_active ? "reactivated" : "deactivated");
+        return `${who} updated ${d.email}'s access${bits.length ? " (" + bits.join(", ") + ")" : ""}`;
+      }
+      case "qbo_status_changed":
+        return `${who} updated QuickBooks status to ${d.new_status}`;
+      case "note_updated":
+        return `${who} updated the shared note`;
+      default:
+        return `${who} — ${entry.action}`;
+    }
+  }
+
   // Any active staff member (not just the original author) can edit or
   // delete a note — same reasoning as client_documents and client_notes:
   // these describe a client for whoever picks up the account next, not a
@@ -13389,6 +13441,12 @@ function TabSettingsModal({
           onClick={() => setTab("notes")}
         >
           Notes
+        </button>
+        <button
+          className={"modal-tab" + (tab === "activity" ? " active" : "")}
+          onClick={() => setTab("activity")}
+        >
+          Activity
         </button>
       </div>
 
@@ -13876,6 +13934,36 @@ function TabSettingsModal({
                       </div>
                     </>
                   )}
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      )}
+
+      {tab === "activity" && (
+        <div className="modal-body">
+          <p className="card-subtitle" style={{ marginTop: 0 }}>
+            Who touched {client.name}'s data, and when — documents, access
+            grants, QuickBooks status, and notes. Logged automatically by the
+            database, so it's complete regardless of how a change was made.
+          </p>
+          <div className="modal-section">
+            {activityLog === undefined ? (
+              <p className="card-subtitle">Loading…</p>
+            ) : activityLog.length === 0 ? (
+              <p className="card-subtitle">No activity recorded yet.</p>
+            ) : (
+              activityLog.map((entry) => (
+                <div className="access-request-row" key={entry.id}>
+                  <div className="access-request-row-header">
+                    <span className="person-name">
+                      {describeActivity(entry)}
+                    </span>
+                    <span className="card-subtitle" style={{ margin: 0 }}>
+                      {fmtDateTime(entry.created_at)}
+                    </span>
+                  </div>
                 </div>
               ))
             )}
