@@ -40,8 +40,20 @@ create table if not exists access_request_links (
   client_id text not null,
   created_by text,
   created_at timestamptz not null default now(),
-  active boolean not null default true
+  active boolean not null default true,
+  -- Security audit finding H3 (rate limiting): per-link submission cap,
+  -- enforced atomically inside submit_access_request() below. Defaults to 1
+  -- because each link is already generated as a one-off for a single client
+  -- contact to fill out once -- distinct from `active`, which a bookkeeper
+  -- toggles by hand. It's a column (not hardcoded) so a bookkeeper could
+  -- raise it per-link if a legitimate resubmission is ever needed.
+  max_submissions integer not null default 1
 );
+
+alter table access_request_links
+  drop constraint if exists access_request_links_max_submissions_positive;
+alter table access_request_links
+  add constraint access_request_links_max_submissions_positive check (max_submissions > 0);
 
 -- One row per client submission. `people` is the whole form: a JSON array
 -- of { name, email, role, access: "full"|"scoped", tabs, categories } --
@@ -111,28 +123,81 @@ create policy "staff update requests"
   using (public.is_active_staff())
   with check (public.is_active_staff());
 
--- The public form submits here with no session. Restricted to inserting
--- against a token that actually names an active link, so a stale or
--- deactivated link can't still be used to write rows.
---
--- Security audit finding H3 (HIGH): this used to check only that the token
--- named an active link, never that the submitted client_id (client-supplied,
--- spoofable) actually matched THAT link's client_id -- so an attacker with
--- one valid token could post a fake "grant me access" request that showed up
--- under any client. Added `l.client_id = access_requests.client_id`.
+-- Security audit finding H3 (HIGH, rate limiting): the public form used to
+-- insert directly, gated only by a policy checking the token named an
+-- active link and that the submitted client_id (client-supplied, spoofable)
+-- matched THAT link's client_id -- nothing stopped a script from POSTing in
+-- a loop against a leaked/guessed token. Replaced with a security definer
+-- RPC (same pattern as access_link_client / qbo_disconnect) that checks the
+-- token, checks the client_id, checks the per-link submission cap, and
+-- inserts -- all atomically, so there's no TOCTOU race between "check the
+-- count" and "insert the row". The old public insert policy is dropped
+-- entirely: a script hitting PostgREST's table endpoint directly can no
+-- longer bypass the cap the way it could bypass a bare policy. Staff can
+-- still write rows directly (e.g. re-filing a request by hand).
 drop policy if exists "public submit via active token" on access_requests;
-create policy "public submit via active token"
+
+drop policy if exists "staff write requests" on access_requests;
+create policy "staff write requests"
   on access_requests for insert
-  with check (
-    exists (
-      select 1 from access_request_links l
-      where l.token = access_requests.token
-        and l.active
-        and l.client_id = access_requests.client_id
-    )
-  );
+  with check (public.is_active_staff());
 
 -- Security audit finding H3: cheap size guard against an oversized `people`
--- payload.
+-- payload, also re-checked inside submit_access_request() since the RPC
+-- bypasses RLS via security definer.
 alter table access_requests drop constraint if exists access_requests_people_size;
 alter table access_requests add constraint access_requests_people_size check (jsonb_array_length(people) <= 50);
+
+-- Sole public submission path. security definer so it bypasses RLS (the
+-- insert policy above is staff-only), and does its own token/client_id/cap
+-- checks up front so nothing gets inserted for an invalid, mismatched or
+-- exhausted link.
+create or replace function public.submit_access_request(
+  p_token text,
+  p_client_id text,
+  p_submitted_by_name text,
+  p_submitted_by_email text,
+  p_people jsonb
+)
+returns access_requests
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_link access_request_links;
+  v_count integer;
+  v_row access_requests;
+begin
+  select * into v_link from access_request_links where token = p_token for update;
+
+  if v_link is null or not v_link.active then
+    raise exception 'invalid_or_inactive_token' using errcode = 'P0001';
+  end if;
+
+  if v_link.client_id <> p_client_id then
+    raise exception 'client_id_mismatch' using errcode = 'P0001';
+  end if;
+
+  select count(*) into v_count from access_requests where token = p_token;
+  if v_count >= v_link.max_submissions then
+    raise exception 'submission_cap_reached' using errcode = 'P0001';
+  end if;
+
+  if p_people is null or jsonb_array_length(p_people) > 50 then
+    raise exception 'invalid_people_payload' using errcode = 'P0001';
+  end if;
+
+  insert into access_requests (
+    client_id, token, submitted_by_name, submitted_by_email, people
+  ) values (
+    p_client_id, p_token, p_submitted_by_name, p_submitted_by_email, p_people
+  )
+  returning * into v_row;
+
+  return v_row;
+end;
+$$;
+
+grant execute on function public.submit_access_request(text, text, text, text, jsonb) to anon;
+grant execute on function public.submit_access_request(text, text, text, text, jsonb) to authenticated;

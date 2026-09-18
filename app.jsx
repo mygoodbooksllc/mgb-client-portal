@@ -11528,12 +11528,15 @@ function AccessRequestForm({ token }) {
 
   async function submit() {
     setStatus("submitting");
-    const { error } = await supabase.from("access_requests").insert({
-      client_id: client.id,
-      token,
-      submitted_by_name: submitterName.trim(),
-      submitted_by_email: submitterEmail.trim(),
-      people: people.map((p) => ({
+    // Rate limiting (security audit finding H3): the direct insert() path is
+    // gone. This RPC is security definer and checks + inserts atomically, so
+    // a script looping against a leaked/guessed token can't out-race the cap.
+    const { error } = await supabase.rpc("submit_access_request", {
+      p_token: token,
+      p_client_id: client.id,
+      p_submitted_by_name: submitterName.trim(),
+      p_submitted_by_email: submitterEmail.trim(),
+      p_people: people.map((p) => ({
         name: p.name.trim(),
         email: p.email.trim(),
         role: p.role.trim(),
@@ -11543,7 +11546,11 @@ function AccessRequestForm({ token }) {
       })),
     });
     if (error) {
-      setErrorMsg("Couldn't submit — " + error.message);
+      setErrorMsg(
+        error.message && error.message.includes("submission_cap_reached")
+          ? "This link has already been used to submit a request. Contact your bookkeeper if you need to submit another."
+          : "Couldn't submit — " + error.message,
+      );
       setStatus("ready");
       return;
     }
