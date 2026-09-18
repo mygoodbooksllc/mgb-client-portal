@@ -3140,3 +3140,16 @@ Files touched: `data.js`, `data-sample-clients-archive.js` (new),
 `app.jsx`, `index.html`, `build.py`, `HANDOFF7.md`, plus a live migration
 deleting the three orphaned rows above (no schema change, just row
 deletes via `execute_sql`).
+
+## §111 — Test-only client visible to any admin, not just one login
+
+§110's `visibleClients` filter (`app.jsx` ~13683) hid the `testOnly`
+Grace Community sample profile from everyone except a single hardcoded
+email (`holden@mygoodbooks.org`). Changed to check `role === "admin"`
+instead — any staff member with the admin role sees it, not just that
+one login, while regular bookkeepers still don't. Admins already bypass
+the `staff_client_access` assignment filter entirely (see the `role ===
+"admin"` check just above this hook), so this keeps the test client
+consistent with how admins already see every real client too.
+
+Files touched: `app.jsx`, `index.html`, `build.py`, `HANDOFF7.md`.
