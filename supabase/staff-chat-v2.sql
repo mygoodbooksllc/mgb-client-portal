@@ -60,10 +60,15 @@ alter table staff_messages enable row level security;
 -- security definer so the staff_messages/staff_conversation_members
 -- policies below can check membership without RLS on
 -- staff_conversation_members recursing into itself.
+-- set search_path = public is pinned here (security audit finding M5) --
+-- every other security definer function in this repo has it, and leaving it
+-- off a SECURITY DEFINER function lets a caller-controlled search_path
+-- shadow `staff_conversation_members`/`auth` with objects of their own.
 create or replace function public.is_conversation_member(conv_id uuid)
 returns boolean
 language sql
 security definer
+set search_path = public
 stable
 as $$
   select exists (
@@ -73,10 +78,14 @@ as $$
   );
 $$;
 
+-- Security audit finding H1: this used to be `using (is_active_staff())`,
+-- which let any active staff member enumerate every conversation (including
+-- other people's private DMs) via a plain select. Narrowed to only the
+-- conversations they're actually a member of.
 drop policy if exists "active staff read conversations" on staff_conversations;
 create policy "active staff read conversations"
   on staff_conversations for select
-  using (public.is_active_staff());
+  using (public.is_conversation_member(id));
 
 drop policy if exists "active staff create conversations" on staff_conversations;
 create policy "active staff create conversations"
@@ -84,18 +93,35 @@ create policy "active staff create conversations"
   with check (public.is_active_staff());
 
 -- Membership rows aren't sensitive on their own (just "these two people have
--- a DM"), so any active staff member can add one -- needed because starting
--- a new conversation means inserting the OTHER person's member row too, not
--- just your own.
+-- a DM"), so any active staff member can read one.
 drop policy if exists "active staff read memberships" on staff_conversation_members;
 create policy "active staff read memberships"
   on staff_conversation_members for select
   using (public.is_active_staff());
 
+-- Security audit finding H1: this used to be `with check (is_active_staff())`
+-- with no restriction on WHOSE membership row was being inserted, so any
+-- active staff member could add themself (or anyone) to any DM, including
+-- ones they weren't invited to. Now a staff member may only insert their own
+-- membership row, OR seed the other participants of a conversation that has
+-- no members yet (the moment a new conversation is created) -- which is
+-- exactly what openWith()/createGroup() in app.jsx need: insert the
+-- creator's own row first (allowed, self), then the other participants
+-- (allowed, conversation is still empty), both before anything reads the
+-- conversation back.
 drop policy if exists "active staff create memberships" on staff_conversation_members;
 create policy "active staff create memberships"
   on staff_conversation_members for insert
-  with check (public.is_active_staff());
+  with check (
+    public.is_active_staff()
+    and (
+      staff_email = auth.jwt() ->> 'email'
+      or not exists (
+        select 1 from staff_conversation_members m
+        where m.conversation_id = staff_conversation_members.conversation_id
+      )
+    )
+  );
 
 -- last_read_at (read receipts) can only be stamped by the member themselves.
 drop policy if exists "self update own membership" on staff_conversation_members;
@@ -103,6 +129,12 @@ create policy "self update own membership"
   on staff_conversation_members for update
   using (staff_email = auth.jwt() ->> 'email')
   with check (staff_email = auth.jwt() ->> 'email');
+
+-- Security audit finding H1: lets a staff member leave a thread.
+drop policy if exists "self delete own membership" on staff_conversation_members;
+create policy "self delete own membership"
+  on staff_conversation_members for delete
+  using (staff_email = auth.jwt() ->> 'email');
 
 drop policy if exists "members read messages" on staff_messages;
 create policy "members read messages"
@@ -116,6 +148,31 @@ create policy "members send messages"
     author_email = auth.jwt() ->> 'email'
     and public.is_conversation_member(conversation_id)
   );
+
+-- Security audit finding M1: author_name/author_role used to be whatever
+-- the client sent on insert, and RLS only ever validated author_email --
+-- so any active staff member could send a message that displayed as coming
+-- from a different name/role than their own. This trigger overwrites both
+-- from the `staff` table server-side on every insert, so the client-sent
+-- values (still accepted for backwards compatibility, just ignored) can
+-- never be trusted or displayed.
+create or replace function public.staff_messages_set_author_from_staff()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  select name, role into new.author_name, new.author_role
+  from staff where email = new.author_email;
+  return new;
+end;
+$$;
+
+drop trigger if exists staff_messages_set_author on staff_messages;
+create trigger staff_messages_set_author
+  before insert on staff_messages
+  for each row execute function public.staff_messages_set_author_from_staff();
 
 -- Edit/unsend: only the author, and only within 5 seconds of sending.
 -- Unsend is a soft delete (deleted_at set) rather than a real delete, so a
@@ -132,13 +189,23 @@ create policy "author edits within 5s"
 alter publication supabase_realtime add table staff_messages;
 alter publication supabase_realtime add table staff_conversation_members;
 
--- Storage bucket for chat attachments. Public read (internal tool, no
--- sensitive-client-data posture beyond what's already true of this
--- prototype) so the client can render/download via a plain public URL
--- instead of juggling signed URLs.
+-- Storage bucket for chat attachments.
+--
+-- Security audit finding C1 (CRITICAL): this bucket used to be created with
+-- public: true and had a select policy of `using (bucket_id = '...')` with
+-- no auth check at all -- meaning anyone holding the published anon key
+-- could list AND download every attachment ever sent in Team Chat, with no
+-- session required. Flipped to private, and the select policy now requires
+-- an active staff session. The app now mints short-lived signed URLs at
+-- render time (via createSignedUrl) instead of calling getPublicUrl(), and
+-- stores the storage *path* (not a public URL) in attachment_url.
+--
+-- NOTE: objects uploaded before this fix were exposed to anyone with the
+-- anon key for however long they existed -- that exposure already happened
+-- and can't be undone by this migration. See HANDOFF7.md §105.
 insert into storage.buckets (id, name, public)
-values ('staff-chat-attachments', 'staff-chat-attachments', true)
-on conflict (id) do nothing;
+values ('staff-chat-attachments', 'staff-chat-attachments', false)
+on conflict (id) do update set public = false;
 
 drop policy if exists "active staff upload chat attachments" on storage.objects;
 create policy "active staff upload chat attachments"
@@ -146,6 +213,7 @@ create policy "active staff upload chat attachments"
   with check (bucket_id = 'staff-chat-attachments' and public.is_active_staff());
 
 drop policy if exists "anyone reads chat attachments" on storage.objects;
-create policy "anyone reads chat attachments"
+drop policy if exists "active staff read chat attachments" on storage.objects;
+create policy "active staff read chat attachments"
   on storage.objects for select
-  using (bucket_id = 'staff-chat-attachments');
+  using (bucket_id = 'staff-chat-attachments' and public.is_active_staff());

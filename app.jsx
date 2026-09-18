@@ -23,7 +23,45 @@ const fmtDate = (iso) => {
 // "T00:00:00" to one of these would double up the time component.
 const fmtDateTime = (iso) => {
   const d = new Date(iso);
-  return d.toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
+  return d.toLocaleString("en-US", {
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+};
+
+// Security audit finding M2: React doesn't sanitize `href` — a stored
+// `javascript:` (or `data:`, `vbscript:`, etc) URL in attachment_url /
+// drive_url would execute when clicked. Only ever render a link for a URL
+// that actually parses and is plain https. Anything else renders as inert
+// text instead (callers check for null).
+const safeHttpUrl = (u) => {
+  if (!u) return null;
+  try {
+    const parsed = new URL(u, window.location.href);
+    return parsed.protocol === "https:" ? parsed.href : null;
+  } catch (e) {
+    return null;
+  }
+};
+
+// Security audit finding M3: crypto.randomUUID() is unavailable on some
+// older/non-HTTPS contexts, but the old fallback (`Math.random()`) is not
+// cryptographically secure and must never back a security-sensitive token
+// (an OAuth state value, an access-request link). getRandomValues() is
+// supported far more broadly than randomUUID() and is genuinely random; if
+// even THAT is unavailable, fail loudly instead of silently downgrading.
+const secureRandomToken = () => {
+  if (crypto.randomUUID) return crypto.randomUUID();
+  if (crypto.getRandomValues) {
+    return Array.from(crypto.getRandomValues(new Uint8Array(32)))
+      .map((b) => b.toString(16).padStart(2, "0"))
+      .join("");
+  }
+  throw new Error(
+    "This browser doesn't support secure random token generation.",
+  );
 };
 
 // Today as YYYY-MM-DD in the viewer's own timezone. Deliberately not
@@ -70,7 +108,16 @@ const formatBytes = (bytes) => {
   return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
 };
 
-const NAME_TITLES = new Set(["pastor", "rev", "reverend", "dr", "mr", "mrs", "ms", "fr"]);
+const NAME_TITLES = new Set([
+  "pastor",
+  "rev",
+  "reverend",
+  "dr",
+  "mr",
+  "mrs",
+  "ms",
+  "fr",
+]);
 
 // Strips a leading title ("Pastor John Whitfield" -> "John") so greetings
 // use a first name rather than a role prefix.
@@ -94,10 +141,12 @@ const timeOfDayGreeting = () => {
   return "Good evening";
 };
 
-const totalCash = (client) => client.bankAccounts.reduce((s, a) => s + a.balance, 0);
+const totalCash = (client) =>
+  client.bankAccounts.reduce((s, a) => s + a.balance, 0);
 
 const avgMonthlyExpenses = (client) =>
-  client.monthly.reduce((sum, m) => sum + m.expenses, 0) / client.monthly.length;
+  client.monthly.reduce((sum, m) => sum + m.expenses, 0) /
+  client.monthly.length;
 
 // Months of operating reserve: how long cash on hand would cover normal
 // operating costs if income stopped. This is the standard nonprofit measure,
@@ -134,17 +183,21 @@ function computeAlerts(client) {
   const runway = runwayMonthsFor(client);
 
   if (runway !== null && runway < 3) {
-    alerts.push(`Cash on hand covers under 3 months of operating expenses (${runway.toFixed(1)} mo).`);
+    alerts.push(
+      `Cash on hand covers under 3 months of operating expenses (${runway.toFixed(1)} mo).`,
+    );
   }
   if (current.income - current.expenses < 0) {
-    alerts.push(`This month ran a deficit of ${fmtMoney(Math.abs(current.income - current.expenses))}.`);
+    alerts.push(
+      `This month ran a deficit of ${fmtMoney(Math.abs(current.income - current.expenses))}.`,
+    );
   }
   const overBudget = client.budget.filter((b) => b.actual > b.budgeted * 1.05);
   if (overBudget.length > 0) {
     alerts.push(
       `${overBudget.length} categor${overBudget.length > 1 ? "ies" : "y"} over budget this month: ${overBudget
         .map((b) => b.category)
-        .join(", ")}.`
+        .join(", ")}.`,
     );
   }
   return alerts;
@@ -193,7 +246,14 @@ function ToastProvider({ children }) {
 // a premium client and the standard one otherwise, exactly like Dashboard
 // already did for Live Report. See PREMIUM_UPGRADE_TAB_KEYS and the
 // showsBudgetingTool/showsCashFlowPro/showsReportBuilder checks in App.
-const PREMIUM_UPGRADE_TAB_KEYS = new Set(["dashboard", "budget", "receivables", "reports", "bank", "giving"]);
+const PREMIUM_UPGRADE_TAB_KEYS = new Set([
+  "dashboard",
+  "budget",
+  "receivables",
+  "reports",
+  "bank",
+  "giving",
+]);
 
 const NAV_SECTIONS = [
   {
@@ -212,13 +272,19 @@ const NAV_SECTIONS = [
     // cohesive page instead of two separate tabs both claiming to be "the
     // overview." See showsLiveReport in App.
     items: [
-      { key: "messages", label: "Messages", icon: <ChatIcon width="16" height="16" strokeWidth="1.8" /> },
+      {
+        key: "messages",
+        label: "Messages",
+        icon: <ChatIcon width="16" height="16" strokeWidth="1.8" />,
+      },
       { key: "dashboard", label: "Dashboard", icon: <GridIcon /> },
     ],
   },
   {
     label: "Budget",
-    items: [{ key: "budget", label: "Budget vs. Actual", icon: <PieChartIcon /> }],
+    items: [
+      { key: "budget", label: "Budget vs. Actual", icon: <PieChartIcon /> },
+    ],
   },
   {
     label: "Finances",
@@ -239,7 +305,9 @@ const NAV_SECTIONS = [
   },
 ];
 
-const ALL_TAB_KEYS = NAV_SECTIONS.flatMap((section) => section.items.map((item) => item.key));
+const ALL_TAB_KEYS = NAV_SECTIONS.flatMap((section) =>
+  section.items.map((item) => item.key),
+);
 const ALWAYS_VISIBLE_KEY = "dashboard";
 
 // Tabs that show whole-organization figures with no category dimension, so
@@ -267,7 +335,13 @@ const BOOKKEEPER_VIEW = "__bookkeeper__";
 // repeating the same three-or-four-way `page !== "x" && page !== "y"` check
 // at every one of those call sites, which is exactly how developer-tools
 // nearly got left out of one of them when it was added.
-const NON_CLIENT_PAGES = new Set(["bookkeeper-home", "staff-access", "client-access", "developer-tools", "staff-messages"]);
+const NON_CLIENT_PAGES = new Set([
+  "bookkeeper-home",
+  "staff-access",
+  "client-access",
+  "developer-tools",
+  "staff-messages",
+]);
 
 // Tabs that are part of a paid add-on rather than the base product. Always
 // empty now — no nav item carries `premium: true` since every upgrade lives
@@ -277,7 +351,9 @@ const NON_CLIENT_PAGES = new Set(["bookkeeper-home", "staff-access", "client-acc
 // an empty set there is the correct behavior (nothing to strip) — removing
 // this constant would mean re-deriving that at every call site instead.
 const PREMIUM_TAB_KEYS = new Set(
-  NAV_SECTIONS.flatMap((section) => section.items.filter((i) => i.premium).map((i) => i.key))
+  NAV_SECTIONS.flatMap((section) =>
+    section.items.filter((i) => i.premium).map((i) => i.key),
+  ),
 );
 
 // Per-browser dev/QA toggles, set from Staff Access's "Developer Tools" card.
@@ -289,12 +365,14 @@ const FEATURE_FLAGS = [
   {
     key: "mygoodbooks_ff_force_premium_v1",
     label: "Force premium plan",
-    description: "Treat every client as premium, so Enterprise is reachable regardless of their real plan.",
+    description:
+      "Treat every client as premium, so Enterprise is reachable regardless of their real plan.",
   },
   {
     key: "mygoodbooks_ff_verbose_logging_v1",
     label: "Verbose console logging",
-    description: "Log the current page and client id to the console on every navigation, for bug reports.",
+    description:
+      "Log the current page and client id to the console on every navigation, for bug reports.",
   },
   {
     // Read directly by components/auth/supabaseClient.js, which loads
@@ -303,7 +381,8 @@ const FEATURE_FLAGS = [
     // comment there for why a duplicated literal beats a cross-file call.
     key: "mygoodbooks_ff_slow_network_v1",
     label: "Simulate slow network",
-    description: "Adds a ~1.8s delay to every Supabase request, to test loading states without real network throttling.",
+    description:
+      "Adds a ~1.8s delay to every Supabase request, to test loading states without real network throttling.",
   },
 ];
 
@@ -316,12 +395,36 @@ const FEATURE_FLAGS = [
 // hand as accounts change; it's just links and a pointer to where the real
 // password lives.
 const INFRA_LINKS = [
-  { name: "GitHub", url: "https://github.com/mygoodbooksllc/mgb-client-portal", note: "Credentials: 1Password vault “MGB Infra”" },
-  { name: "Supabase", url: "https://supabase.com/dashboard", note: "Project “MGB Client Portal” · org “Mygoodbooks LLC” · credentials: 1Password vault “MGB Infra”" },
-  { name: "Vercel", url: "https://vercel.com/dashboard", note: "Deploys app.mygoodbooks.org from main · credentials: 1Password vault “MGB Infra”" },
-  { name: "Google Cloud (OAuth)", url: "https://console.cloud.google.com", note: "Project “MyGoodBooks Auth” · credentials: 1Password vault “MGB Infra”" },
-  { name: "GoDaddy", url: "https://dcc.godaddy.com", note: "Domain mygoodbooks.org · credentials: 1Password vault “MGB Infra”" },
-  { name: "Squarespace", url: "https://account.squarespace.com", note: "The real mygoodbooks.org site · credentials: 1Password vault “MGB Infra”" },
+  {
+    name: "GitHub",
+    url: "https://github.com/mygoodbooksllc/mgb-client-portal",
+    note: "Credentials: 1Password vault “MGB Infra”",
+  },
+  {
+    name: "Supabase",
+    url: "https://supabase.com/dashboard",
+    note: "Project “MGB Client Portal” · org “Mygoodbooks LLC” · credentials: 1Password vault “MGB Infra”",
+  },
+  {
+    name: "Vercel",
+    url: "https://vercel.com/dashboard",
+    note: "Deploys app.mygoodbooks.org from main · credentials: 1Password vault “MGB Infra”",
+  },
+  {
+    name: "Google Cloud (OAuth)",
+    url: "https://console.cloud.google.com",
+    note: "Project “MyGoodBooks Auth” · credentials: 1Password vault “MGB Infra”",
+  },
+  {
+    name: "GoDaddy",
+    url: "https://dcc.godaddy.com",
+    note: "Domain mygoodbooks.org · credentials: 1Password vault “MGB Infra”",
+  },
+  {
+    name: "Squarespace",
+    url: "https://account.squarespace.com",
+    note: "The real mygoodbooks.org site · credentials: 1Password vault “MGB Infra”",
+  },
 ];
 
 function isFlagOn(key) {
@@ -356,8 +459,12 @@ function hasPremiumPlan(client) {
 function resolveAccess(client, viewAsUserId, orgHiddenKeys, overrideUser) {
   // Premium tabs drop out entirely for clients not on the plan, before any
   // per-user scoping runs — an unsubscribed org has no one who can see them.
-  const entitled = ALL_TAB_KEYS.filter((k) => !PREMIUM_TAB_KEYS.has(k) || hasPremiumPlan(client));
-  const orgAllowed = entitled.filter((k) => k === ALWAYS_VISIBLE_KEY || !orgHiddenKeys.has(k));
+  const entitled = ALL_TAB_KEYS.filter(
+    (k) => !PREMIUM_TAB_KEYS.has(k) || hasPremiumPlan(client),
+  );
+  const orgAllowed = entitled.filter(
+    (k) => k === ALWAYS_VISIBLE_KEY || !orgHiddenKeys.has(k),
+  );
 
   const user = overrideUser
     ? overrideUser
@@ -373,7 +480,8 @@ function resolveAccess(client, viewAsUserId, orgHiddenKeys, overrideUser) {
   // decides whether to render the upgraded/Pro version of a page should use
   // this instead once a specific person (not "preview as MyGoodBooks") is
   // the one looking.
-  const premiumForUser = hasPremiumPlan(client) && !(user && user.premiumThrottled);
+  const premiumForUser =
+    hasPremiumPlan(client) && !(user && user.premiumThrottled);
 
   if (!user || user.access === "full") {
     return {
@@ -392,7 +500,7 @@ function resolveAccess(client, viewAsUserId, orgHiddenKeys, overrideUser) {
   const tabs = orgAllowed.filter(
     (k) =>
       k === ALWAYS_VISIBLE_KEY ||
-      (userTabs.includes(k) && !(isCategoryScoped && ORG_WIDE_TABS.has(k)))
+      (userTabs.includes(k) && !(isCategoryScoped && ORG_WIDE_TABS.has(k))),
   );
 
   return {
@@ -407,7 +515,11 @@ function resolveAccess(client, viewAsUserId, orgHiddenKeys, overrideUser) {
     // of scoping them says they shouldn't. A non-category-scoped restricted
     // user (tabs-only) isn't affected — they're on the unscoped dashboard,
     // where org-wide figures are expected.
-    funds: user.funds ? new Set(user.funds) : isCategoryScoped ? new Set() : null,
+    funds: user.funds
+      ? new Set(user.funds)
+      : isCategoryScoped
+        ? new Set()
+        : null,
     isCategoryScoped,
     isFullAccess: false,
     premiumForUser,
@@ -432,13 +544,19 @@ function scopeClientData(client, access) {
   return {
     ...client,
     documents,
-    budget: cats ? client.budget.filter((b) => cats.has(b.category)) : client.budget,
+    budget: cats
+      ? client.budget.filter((b) => cats.has(b.category))
+      : client.budget,
     bankAccounts: client.bankAccounts.map((a) => ({
       ...a,
-      transactions: cats ? a.transactions.filter((t) => cats.has(t.category)) : a.transactions,
+      transactions: cats
+        ? a.transactions.filter((t) => cats.has(t.category))
+        : a.transactions,
     })),
     funds: funds ? client.funds.filter((f) => funds.has(f.name)) : client.funds,
-    contributions: funds ? client.contributions.filter((c) => funds.has(c.fund)) : client.contributions,
+    contributions: funds
+      ? client.contributions.filter((c) => funds.has(c.fund))
+      : client.contributions,
   };
 }
 
@@ -485,16 +603,29 @@ function Sidebar({
   return (
     <aside className={"sidebar" + (mobileOpen ? " open" : "")}>
       <div className="brand">
-        <a className="brand-link" href="https://mygoodbooks.org" target="_blank" rel="noopener noreferrer">
+        <a
+          className="brand-link"
+          href="https://mygoodbooks.org"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
           <div className="brand-mark">
-            <img src="logo.webp" alt="MyGoodBooks logo" className="brand-mark-img" />
+            <img
+              src="logo.webp"
+              alt="MyGoodBooks logo"
+              className="brand-mark-img"
+            />
           </div>
           <div className="brand-text">
             <span className="brand-name">MyGoodBooks</span>
             <span className="brand-sub">Client Portal</span>
           </div>
         </a>
-        <button className="sidebar-close" onClick={onCloseMobile} aria-label="Close menu">
+        <button
+          className="sidebar-close"
+          onClick={onCloseMobile}
+          aria-label="Close menu"
+        >
           ✕
         </button>
       </div>
@@ -514,7 +645,11 @@ function Sidebar({
           {!NON_CLIENT_PAGES.has(page) && (
             <React.Fragment>
               <div className="client-picker-label">Viewing client</div>
-              <select className="client-select" value={selectedClientId} onChange={(e) => onSelectClient(e.target.value)}>
+              <select
+                className="client-select"
+                value={selectedClientId}
+                onChange={(e) => onSelectClient(e.target.value)}
+              >
                 {clients.map((c) => (
                   <option key={c.id} value={c.id}>
                     {c.name}
@@ -525,11 +660,26 @@ function Sidebar({
           )}
 
           {staffUser && (
-            <div className="client-picker-label" style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+            <div
+              className="client-picker-label"
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "baseline",
+              }}
+            >
               <span>{staffUser.name}</span>
               <button
                 onClick={onSignOut}
-                style={{ background: "none", border: "none", color: "inherit", textDecoration: "underline", cursor: "pointer", font: "inherit", padding: 0 }}
+                style={{
+                  background: "none",
+                  border: "none",
+                  color: "inherit",
+                  textDecoration: "underline",
+                  cursor: "pointer",
+                  font: "inherit",
+                  padding: 0,
+                }}
               >
                 Sign out
               </button>
@@ -539,7 +689,10 @@ function Sidebar({
           {staffUser && (
             <button
               type="button"
-              className={"staff-access-link" + (page === "bookkeeper-home" ? " active" : "")}
+              className={
+                "staff-access-link" +
+                (page === "bookkeeper-home" ? " active" : "")
+              }
               onClick={() => {
                 onSelectPage("bookkeeper-home");
                 onCloseMobile();
@@ -553,7 +706,10 @@ function Sidebar({
           {staffUser && !impersonating && (
             <button
               type="button"
-              className={"staff-access-link" + (page === "staff-messages" ? " active" : "")}
+              className={
+                "staff-access-link" +
+                (page === "staff-messages" ? " active" : "")
+              }
               onClick={() => {
                 onSelectPage("staff-messages");
                 onCloseMobile();
@@ -561,14 +717,22 @@ function Sidebar({
             >
               <ChatIcon width="16" height="16" strokeWidth="1.8" />
               Team Chat
-              {staffMessagesUnread && <span className="nav-badge-dot" aria-label="Unread" style={{ marginLeft: "auto" }} />}
+              {staffMessagesUnread && (
+                <span
+                  className="nav-badge-dot"
+                  aria-label="Unread"
+                  style={{ marginLeft: "auto" }}
+                />
+              )}
             </button>
           )}
 
           {staffUser && staffUser.role === "admin" && (
             <button
               type="button"
-              className={"staff-access-link" + (page === "staff-access" ? " active" : "")}
+              className={
+                "staff-access-link" + (page === "staff-access" ? " active" : "")
+              }
               onClick={() => {
                 onSelectPage("staff-access");
                 onCloseMobile();
@@ -582,7 +746,10 @@ function Sidebar({
           {staffUser && staffUser.role === "admin" && (
             <button
               type="button"
-              className={"staff-access-link" + (page === "client-access" ? " active" : "")}
+              className={
+                "staff-access-link" +
+                (page === "client-access" ? " active" : "")
+              }
               onClick={() => {
                 onSelectPage("client-access");
                 onCloseMobile();
@@ -596,7 +763,10 @@ function Sidebar({
           {staffUser && staffUser.role === "admin" && (
             <button
               type="button"
-              className={"staff-access-link" + (page === "developer-tools" ? " active" : "")}
+              className={
+                "staff-access-link" +
+                (page === "developer-tools" ? " active" : "")
+              }
               onClick={() => {
                 onSelectPage("developer-tools");
                 onCloseMobile();
@@ -610,13 +780,19 @@ function Sidebar({
           {!NON_CLIENT_PAGES.has(page) && (
             <React.Fragment>
               <div className="client-picker-label">Preview as</div>
-              <select className="client-select" value={viewAsUserId} onChange={(e) => onSelectViewAs(e.target.value)}>
+              <select
+                className="client-select"
+                value={viewAsUserId}
+                onChange={(e) => onSelectViewAs(e.target.value)}
+              >
                 {/* Real name/email for the signed-in staffer replaces the old
                     shared "MyGoodBooks (full access)" sentinel label — the
                     underlying value stays BOOKKEEPER_VIEW so resolveAccess() and
                     everything downstream is untouched. */}
                 <option value={BOOKKEEPER_VIEW}>
-                  {staffUser ? `${staffUser.name} (full access)` : "MyGoodBooks (full access)"}
+                  {staffUser
+                    ? `${staffUser.name} (full access)`
+                    : "MyGoodBooks (full access)"}
                 </option>
                 {(client.users || []).map((u) => (
                   <option key={u.id} value={u.id}>
@@ -644,76 +820,99 @@ function Sidebar({
       )}
 
       {NON_CLIENT_PAGES.has(page) ? null : (
-      <nav className="nav">
-        {NAV_SECTIONS.map((section) => {
-          const isSignature = section.label === "Enterprise";
-          // Standard-plan clients don't have the premium tabs at all
-          // (stripped out of access.tabs in resolveAccess), so `items`
-          // below already narrows itself to just Dashboard/Messages for
-          // them — no separate branch needed to keep those two reachable.
-          // The Premium badge + lock live on the section heading itself
-          // (clickable, opens the upgrade page) rather than a separate row
-          // spelling out which tools are locked.
-          const showUpsell = isSignature && !access.premiumForUser;
-          const items = orderedSectionItems(section, tabOrder, selectedClientId).filter((item) => visibleKeys.has(item.key));
-          if (items.length === 0 && !showUpsell) return null;
-          // Enterprise gets a static gold heading (not a toggle — it no
-          // longer collapses, so there's nothing for a click to do here).
-          // Every other section renders no heading at all, same as before.
-          const sectionId = "nav-section-" + slugify(section.label);
-          return (
-            <div className={"nav-section" + (isSignature ? " nav-section-signature" : "")} key={section.label}>
-              {isSignature &&
-                (showUpsell ? (
-                  <button
-                    type="button"
-                    className="nav-section-label nav-section-label-signature nav-upsell-trigger"
-                    onClick={() => {
-                      onSelectPage("enterprise-upgrade");
-                      onCloseMobile();
-                    }}
-                  >
-                    <span>{section.label}</span>
-                    <span className="nav-signature-badge">Premium</span>
-                    <LockIcon className="nav-upsell-icon" />
-                  </button>
-                ) : (
-                  <div className="nav-section-label nav-section-label-signature nav-section-label-static">
-                    <span>{section.label}</span>
-                    <span className="nav-signature-badge nav-signature-badge-shimmer">Pro Client</span>
-                  </div>
-                ))}
-              <div className="nav-section-items" id={sectionId}>
-                {items.map((item) => {
-                  // Same tab, same name, for every plan — the PRO pill (and
-                  // the gold shimmer that used to mark a whole separate
-                  // premium-only tab) is the only thing that marks this one
-                  // as showing the upgraded page underneath. See
-                  // PREMIUM_UPGRADE_TAB_KEYS and the showsBudgetingTool/
-                  // showsCashFlowPro/showsReportBuilder/showsReconciliationPro/
-                  // showsFundAccountingPro checks in App.
-                  const isUpgraded =
-                    PREMIUM_UPGRADE_TAB_KEYS.has(item.key) && access && access.premiumForUser && !access.isCategoryScoped;
-                  return (
-                  <button
-                    key={item.key}
-                    className={"nav-item" + (page === item.key ? " active" : "") + (isUpgraded ? " nav-item-signature" : "")}
-                    onClick={() => {
-                      onSelectPage(item.key);
-                      onCloseMobile();
-                    }}
-                  >
-                    {item.icon}
-                    <span>{item.label}</span>
-                    {badges[item.key] && <span className="nav-badge-dot" aria-label="Unread"></span>}
-                  </button>
-                  );
-                })}
+        <nav className="nav">
+          {NAV_SECTIONS.map((section) => {
+            const isSignature = section.label === "Enterprise";
+            // Standard-plan clients don't have the premium tabs at all
+            // (stripped out of access.tabs in resolveAccess), so `items`
+            // below already narrows itself to just Dashboard/Messages for
+            // them — no separate branch needed to keep those two reachable.
+            // The Premium badge + lock live on the section heading itself
+            // (clickable, opens the upgrade page) rather than a separate row
+            // spelling out which tools are locked.
+            const showUpsell = isSignature && !access.premiumForUser;
+            const items = orderedSectionItems(
+              section,
+              tabOrder,
+              selectedClientId,
+            ).filter((item) => visibleKeys.has(item.key));
+            if (items.length === 0 && !showUpsell) return null;
+            // Enterprise gets a static gold heading (not a toggle — it no
+            // longer collapses, so there's nothing for a click to do here).
+            // Every other section renders no heading at all, same as before.
+            const sectionId = "nav-section-" + slugify(section.label);
+            return (
+              <div
+                className={
+                  "nav-section" + (isSignature ? " nav-section-signature" : "")
+                }
+                key={section.label}
+              >
+                {isSignature &&
+                  (showUpsell ? (
+                    <button
+                      type="button"
+                      className="nav-section-label nav-section-label-signature nav-upsell-trigger"
+                      onClick={() => {
+                        onSelectPage("enterprise-upgrade");
+                        onCloseMobile();
+                      }}
+                    >
+                      <span>{section.label}</span>
+                      <span className="nav-signature-badge">Premium</span>
+                      <LockIcon className="nav-upsell-icon" />
+                    </button>
+                  ) : (
+                    <div className="nav-section-label nav-section-label-signature nav-section-label-static">
+                      <span>{section.label}</span>
+                      <span className="nav-signature-badge nav-signature-badge-shimmer">
+                        Pro Client
+                      </span>
+                    </div>
+                  ))}
+                <div className="nav-section-items" id={sectionId}>
+                  {items.map((item) => {
+                    // Same tab, same name, for every plan — the PRO pill (and
+                    // the gold shimmer that used to mark a whole separate
+                    // premium-only tab) is the only thing that marks this one
+                    // as showing the upgraded page underneath. See
+                    // PREMIUM_UPGRADE_TAB_KEYS and the showsBudgetingTool/
+                    // showsCashFlowPro/showsReportBuilder/showsReconciliationPro/
+                    // showsFundAccountingPro checks in App.
+                    const isUpgraded =
+                      PREMIUM_UPGRADE_TAB_KEYS.has(item.key) &&
+                      access &&
+                      access.premiumForUser &&
+                      !access.isCategoryScoped;
+                    return (
+                      <button
+                        key={item.key}
+                        className={
+                          "nav-item" +
+                          (page === item.key ? " active" : "") +
+                          (isUpgraded ? " nav-item-signature" : "")
+                        }
+                        onClick={() => {
+                          onSelectPage(item.key);
+                          onCloseMobile();
+                        }}
+                      >
+                        {item.icon}
+                        <span>{item.label}</span>
+                        {badges[item.key] && (
+                          <span
+                            className="nav-badge-dot"
+                            aria-label="Unread"
+                          ></span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
-            </div>
-          );
-        })}
-      </nav>
+            );
+          })}
+        </nav>
       )}
 
       <div className="sidebar-utility-row">
@@ -722,7 +921,9 @@ function Sidebar({
             <SlidersIcon /> Manage access
           </button>
         ) : isBookkeeper ? (
-          <span className="sidebar-utility-label">{effectiveTheme === "dark" ? "Dark mode" : "Light mode"}</span>
+          <span className="sidebar-utility-label">
+            {effectiveTheme === "dark" ? "Dark mode" : "Light mode"}
+          </span>
         ) : (
           // Clients don't get "Manage access", and the toggle's margin-left:auto
           // left it floating alone against the right edge above a tall empty
@@ -734,8 +935,16 @@ function Sidebar({
         <button
           className="theme-toggle theme-toggle-signature"
           onClick={onToggleTheme}
-          aria-label={effectiveTheme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
-          title={effectiveTheme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+          aria-label={
+            effectiveTheme === "dark"
+              ? "Switch to light mode"
+              : "Switch to dark mode"
+          }
+          title={
+            effectiveTheme === "dark"
+              ? "Switch to light mode"
+              : "Switch to dark mode"
+          }
         >
           {effectiveTheme === "dark" ? <SunIcon /> : <MoonIcon />}
         </button>
@@ -746,9 +955,13 @@ function Sidebar({
           ? "Client and preview switchers are bookkeeper-side tools. Clients never see them."
           : `Signed in to ${client.name}. Access is managed by MyGoodBooks.`}
         <div className="legal-footer-links">
-          <a href="/privacy" target="_blank" rel="noopener noreferrer">Privacy Policy</a>
+          <a href="/privacy" target="_blank" rel="noopener noreferrer">
+            Privacy Policy
+          </a>
           <span aria-hidden="true"> · </span>
-          <a href="/terms" target="_blank" rel="noopener noreferrer">Terms of Service</a>
+          <a href="/terms" target="_blank" rel="noopener noreferrer">
+            Terms of Service
+          </a>
         </div>
       </div>
     </aside>
@@ -765,7 +978,18 @@ function Sidebar({
 // call site needs when it sits next to text.
 function WarningIcon(props) {
   return (
-    <svg className="icon-inline" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" {...props}>
+    <svg
+      className="icon-inline"
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      {...props}
+    >
       <path d="M12 4l9.5 16.5H2.5L12 4z" />
       <path d="M12 10v4.5M12 17.5h.01" />
     </svg>
@@ -774,7 +998,18 @@ function WarningIcon(props) {
 
 function SearchIcon(props) {
   return (
-    <svg className="icon-inline" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" {...props}>
+    <svg
+      className="icon-inline"
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      {...props}
+    >
       <circle cx="10.5" cy="10.5" r="6.5" />
       <path d="M20 20l-4.8-4.8" />
     </svg>
@@ -783,7 +1018,18 @@ function SearchIcon(props) {
 
 function LockIcon(props) {
   return (
-    <svg className="icon-inline" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" {...props}>
+    <svg
+      className="icon-inline"
+      width="14"
+      height="14"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      {...props}
+    >
       <rect x="5" y="11" width="14" height="9" rx="2" />
       <path d="M8 11V7a4 4 0 0 1 8 0v4" />
     </svg>
@@ -792,7 +1038,18 @@ function LockIcon(props) {
 
 function PaperclipIcon(props) {
   return (
-    <svg className="icon-inline" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" {...props}>
+    <svg
+      className="icon-inline"
+      width="15"
+      height="15"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      {...props}
+    >
       <path d="M17 7.5l-8 8a3 3 0 004.24 4.24l8-8a5 5 0 00-7.07-7.07l-8.2 8.2a7 7 0 009.9 9.9" />
     </svg>
   );
@@ -800,7 +1057,18 @@ function PaperclipIcon(props) {
 
 function FlaskIcon(props) {
   return (
-    <svg className="icon-inline" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" {...props}>
+    <svg
+      className="icon-inline"
+      width="15"
+      height="15"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      {...props}
+    >
       <path d="M9 3h6M10 3v6.5L4.8 18a2 2 0 001.7 3h11a2 2 0 001.7-3L14 9.5V3" />
       <path d="M7.5 15h9" />
     </svg>
@@ -809,7 +1077,17 @@ function FlaskIcon(props) {
 
 function SunIcon(props) {
   return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" {...props}>
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      {...props}
+    >
       <circle cx="12" cy="12" r="4.5" />
       <path d="M12 2.5v3M12 18.5v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2.5 12h3M18.5 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1" />
     </svg>
@@ -818,7 +1096,17 @@ function SunIcon(props) {
 
 function MoonIcon(props) {
   return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" {...props}>
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      {...props}
+    >
       <path d="M20 14.5A8.5 8.5 0 1 1 9.5 4a7 7 0 0 0 10.5 10.5z" />
     </svg>
   );
@@ -826,7 +1114,18 @@ function MoonIcon(props) {
 
 function SlidersIcon(props) {
   return (
-    <svg className="icon-inline" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" {...props}>
+    <svg
+      className="icon-inline"
+      width="15"
+      height="15"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      {...props}
+    >
       <path d="M4 6h10M17 6h3M4 12h3M9 12h11M4 18h13M20 18h0" />
       <circle cx="14" cy="6" r="2" />
       <circle cx="6" cy="12" r="2" />
@@ -837,7 +1136,17 @@ function SlidersIcon(props) {
 
 function DocumentIcon(props) {
   return (
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" {...props}>
+    <svg
+      width="22"
+      height="22"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.6"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      {...props}
+    >
       <rect x="5" y="3" width="14" height="18" rx="2" />
       <path d="M9 8h6M9 12h6M9 16h4" />
     </svg>
@@ -846,7 +1155,17 @@ function DocumentIcon(props) {
 
 function BarChartIcon(props) {
   return (
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" {...props}>
+    <svg
+      width="22"
+      height="22"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.6"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      {...props}
+    >
       <path d="M4 20V10M9.5 20V4M15 20V13M20.5 20V7" />
     </svg>
   );
@@ -854,7 +1173,17 @@ function BarChartIcon(props) {
 
 function ShieldCheckIcon(props) {
   return (
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" {...props}>
+    <svg
+      width="22"
+      height="22"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.6"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      {...props}
+    >
       <path d="M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6l7-3z" />
       <path d="M9 12l2 2 4-4" />
     </svg>
@@ -863,7 +1192,17 @@ function ShieldCheckIcon(props) {
 
 function ChatIcon(props) {
   return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" {...props}>
+    <svg
+      width="20"
+      height="20"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.7"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      {...props}
+    >
       <path d="M4 5h16v11H8l-4 4V5z" />
       <path d="M8 10h8M8 13h5" />
     </svg>
@@ -878,7 +1217,17 @@ function ChatIcon(props) {
 
 function HomeIcon(props) {
   return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" {...props}>
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      {...props}
+    >
       <path d="M4 11.5L12 4l8 7.5" />
       <path d="M6 10v9h12v-9" />
     </svg>
@@ -887,7 +1236,17 @@ function HomeIcon(props) {
 
 function UsersIcon(props) {
   return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" {...props}>
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      {...props}
+    >
       <circle cx="9" cy="8" r="3" />
       <path d="M2 20c0-3.5 3-6 7-6s7 2.5 7 6" />
       <path d="M16 8a3 3 0 100-6" />
@@ -898,7 +1257,17 @@ function UsersIcon(props) {
 
 function ClientRosterIcon(props) {
   return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" {...props}>
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      {...props}
+    >
       <rect x="3" y="4" width="18" height="16" rx="2" />
       <path d="M3 9h18M8 4v5" />
     </svg>
@@ -907,7 +1276,17 @@ function ClientRosterIcon(props) {
 
 function WrenchIcon(props) {
   return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" {...props}>
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      {...props}
+    >
       <path d="M14.7 6.3a4 4 0 00-5.4 5.4L4 17v3h3l5.3-5.3a4 4 0 005.4-5.4l-2.6 2.6-2-2z" />
     </svg>
   );
@@ -915,7 +1294,17 @@ function WrenchIcon(props) {
 
 function ChevronUpIcon(props) {
   return (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+    <svg
+      width="14"
+      height="14"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      {...props}
+    >
       <path d="M5 15l7-7 7 7" />
     </svg>
   );
@@ -923,7 +1312,17 @@ function ChevronUpIcon(props) {
 
 function ChevronDownIcon(props) {
   return (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+    <svg
+      width="14"
+      height="14"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      {...props}
+    >
       <path d="M5 9l7 7 7-7" />
     </svg>
   );
@@ -931,7 +1330,17 @@ function ChevronDownIcon(props) {
 
 function GridIcon(props) {
   return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" {...props}>
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      {...props}
+    >
       <rect x="3.5" y="3.5" width="7" height="7" rx="1.3" />
       <rect x="13.5" y="3.5" width="7" height="7" rx="1.3" />
       <rect x="3.5" y="13.5" width="7" height="7" rx="1.3" />
@@ -942,7 +1351,17 @@ function GridIcon(props) {
 
 function PieChartIcon(props) {
   return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" {...props}>
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      {...props}
+    >
       <path d="M12 12V3a9 9 0 019 9h-9z" />
       <path d="M20.5 15A9 9 0 1112 3v9l8.5 3z" />
     </svg>
@@ -951,7 +1370,17 @@ function PieChartIcon(props) {
 
 function BankIcon(props) {
   return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" {...props}>
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      {...props}
+    >
       <path d="M3 10l9-6 9 6" />
       <path d="M5 10v9M10 10v9M14 10v9M19 10v9" />
       <path d="M3 19h18" />
@@ -961,7 +1390,17 @@ function BankIcon(props) {
 
 function SwapIcon(props) {
   return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" {...props}>
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      {...props}
+    >
       <path d="M7 7h11l-3-3M17 17H6l3 3" />
     </svg>
   );
@@ -969,7 +1408,17 @@ function SwapIcon(props) {
 
 function CalculatorIcon(props) {
   return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" {...props}>
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      {...props}
+    >
       <rect x="5" y="3" width="14" height="18" rx="2" />
       <path d="M8 8h8M8 12h1M12 12h1M16 12h1M8 16h1M12 16h1M16 16h1" />
     </svg>
@@ -978,7 +1427,17 @@ function CalculatorIcon(props) {
 
 function StackedBillsIcon(props) {
   return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" {...props}>
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      {...props}
+    >
       <rect x="4" y="4" width="14" height="10" rx="1.5" />
       <rect x="7" y="9" width="14" height="10" rx="1.5" />
     </svg>
@@ -987,7 +1446,17 @@ function StackedBillsIcon(props) {
 
 function DownloadIcon(props) {
   return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" {...props}>
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      {...props}
+    >
       <path d="M12 3v13M7 12l5 5 5-5" />
       <path d="M4 20h16" />
     </svg>
@@ -996,7 +1465,17 @@ function DownloadIcon(props) {
 
 function GiftHeartIcon(props) {
   return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" {...props}>
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      {...props}
+    >
       <path d="M12 21s-7-4.5-9.5-9A5 5 0 0112 6a5 5 0 019.5 6c-2.5 4.5-9.5 9-9.5 9z" />
     </svg>
   );
@@ -1004,7 +1483,17 @@ function GiftHeartIcon(props) {
 
 function FolderIcon(props) {
   return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" {...props}>
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      {...props}
+    >
       <path d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V7z" />
     </svg>
   );
@@ -1012,7 +1501,17 @@ function FolderIcon(props) {
 
 function UploadIcon(props) {
   return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" {...props}>
+    <svg
+      width="20"
+      height="20"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.7"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      {...props}
+    >
       <path d="M12 16V4M12 4l-4 4M12 4l4 4" />
       <path d="M4 16v3a2 2 0 002 2h12a2 2 0 002-2v-3" />
     </svg>
@@ -1021,7 +1520,17 @@ function UploadIcon(props) {
 
 function FileIcon(props) {
   return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" {...props}>
+    <svg
+      width="20"
+      height="20"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.7"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      {...props}
+    >
       <path d="M6 3h8l5 5v13a1 1 0 01-1 1H6a1 1 0 01-1-1V4a1 1 0 011-1z" />
       <path d="M14 3v5h5" />
     </svg>
@@ -1039,14 +1548,21 @@ function MockBanner({ text }) {
 // Real (non-AI) search — filters this client's own transactions, budget
 // categories, documents, and messages by keyword and jumps to the right
 // page. Only searches within tabs the current viewer actually has access to.
-function GlobalSearch({ client, messages, visibleKeys, onNavigate, onHighlightResult }) {
+function GlobalSearch({
+  client,
+  messages,
+  visibleKeys,
+  onNavigate,
+  onHighlightResult,
+}) {
   const [query, setQuery] = useState("");
   const [isOpen, setIsOpen] = useState(false);
   const wrapRef = useRef(null);
 
   useEffect(() => {
     const onDocClick = (e) => {
-      if (wrapRef.current && !wrapRef.current.contains(e.target)) setIsOpen(false);
+      if (wrapRef.current && !wrapRef.current.contains(e.target))
+        setIsOpen(false);
     };
     document.addEventListener("mousedown", onDocClick);
     return () => document.removeEventListener("mousedown", onDocClick);
@@ -1060,7 +1576,10 @@ function GlobalSearch({ client, messages, visibleKeys, onNavigate, onHighlightRe
     if (visibleKeys.has("bank")) {
       client.bankAccounts.forEach((a) => {
         a.transactions.forEach((t, i) => {
-          if (t.description.toLowerCase().includes(q) || t.category.toLowerCase().includes(q)) {
+          if (
+            t.description.toLowerCase().includes(q) ||
+            t.category.toLowerCase().includes(q)
+          ) {
             out.push({
               type: "Transaction",
               label: t.description,
@@ -1090,7 +1609,10 @@ function GlobalSearch({ client, messages, visibleKeys, onNavigate, onHighlightRe
 
     if (visibleKeys.has("documents") && client.documents) {
       client.documents.forEach((d) => {
-        if (d.name.toLowerCase().includes(q) || d.category.toLowerCase().includes(q)) {
+        if (
+          d.name.toLowerCase().includes(q) ||
+          d.category.toLowerCase().includes(q)
+        ) {
           out.push({
             type: "Document",
             label: d.name,
@@ -1148,10 +1670,16 @@ function GlobalSearch({ client, messages, visibleKeys, onNavigate, onHighlightRe
       {isOpen && query.trim() && (
         <div className="global-search-results">
           {results.length === 0 ? (
-            <div className="global-search-empty">No matches for "{query.trim()}".</div>
+            <div className="global-search-empty">
+              No matches for "{query.trim()}".
+            </div>
           ) : (
             results.map((r, i) => (
-              <button className="global-search-result" key={i} onClick={() => go(r)}>
+              <button
+                className="global-search-result"
+                key={i}
+                onClick={() => go(r)}
+              >
                 <span className="global-search-result-type">{r.type}</span>
                 <span className="global-search-result-body">
                   <span className="global-search-result-label">{r.label}</span>
@@ -1177,7 +1705,9 @@ function ReferralPopup({ isBookkeeper, promoText, onSave }) {
   const [isReferring, setIsReferring] = useState(false);
   const [friendName, setFriendName] = useState("");
   const [friendEmail, setFriendEmail] = useState("");
-  const [emailMessage, setEmailMessage] = useState(DEFAULT_REFERRAL_EMAIL_MESSAGE);
+  const [emailMessage, setEmailMessage] = useState(
+    DEFAULT_REFERRAL_EMAIL_MESSAGE,
+  );
   const showToast = useToast();
   const autoHideTimer = useRef(null);
   const engagedRef = useRef(false);
@@ -1241,7 +1771,9 @@ function ReferralPopup({ isBookkeeper, promoText, onSave }) {
 
   const sendReferral = () => {
     if (!friendEmail.trim()) return;
-    showToast(`Referral email sent to ${friendName.trim() || friendEmail.trim()}.`);
+    showToast(
+      `Referral email sent to ${friendName.trim() || friendEmail.trim()}.`,
+    );
     setIsReferring(false);
   };
 
@@ -1276,7 +1808,10 @@ function ReferralPopup({ isBookkeeper, promoText, onSave }) {
             rows={3}
           />
           <div className="referral-edit-actions">
-            <button className="btn-secondary" onClick={() => setIsEditing(false)}>
+            <button
+              className="btn-secondary"
+              onClick={() => setIsEditing(false)}
+            >
               Cancel
             </button>
             <button className="btn-primary" onClick={save}>
@@ -1286,7 +1821,9 @@ function ReferralPopup({ isBookkeeper, promoText, onSave }) {
         </div>
       ) : isReferring ? (
         <div className="referral-form">
-          <p className="referral-form-intro">Send a friend a quick note about MyGoodBooks.</p>
+          <p className="referral-form-intro">
+            Send a friend a quick note about MyGoodBooks.
+          </p>
           <div className="referral-form-row">
             <div className="referral-form-field">
               <label>Friend's name</label>
@@ -1317,19 +1854,31 @@ function ReferralPopup({ isBookkeeper, promoText, onSave }) {
             />
           </div>
           <div className="referral-edit-actions">
-            <button className="btn-secondary" onClick={() => setIsReferring(false)}>
+            <button
+              className="btn-secondary"
+              onClick={() => setIsReferring(false)}
+            >
               Back
             </button>
-            <button className="btn-primary" disabled={!friendEmail.trim()} onClick={sendReferral}>
+            <button
+              className="btn-primary"
+              disabled={!friendEmail.trim()}
+              onClick={sendReferral}
+            >
               Send Email
             </button>
           </div>
-          <span className="modal-footnote">Prototype — this doesn't send a real email yet.</span>
+          <span className="modal-footnote">
+            Prototype — this doesn't send a real email yet.
+          </span>
         </div>
       ) : (
         <>
           <p className="referral-text">{promoText}</p>
-          <button className="btn-primary referral-refer-btn" onClick={startReferring}>
+          <button
+            className="btn-primary referral-refer-btn"
+            onClick={startReferring}
+          >
             Refer a Friend
           </button>
         </>
@@ -1344,12 +1893,20 @@ function ReferralPopup({ isBookkeeper, promoText, onSave }) {
 function RunwayRing({ pct, tone, children }) {
   const r = 42;
   const c = 2 * Math.PI * r;
-  const trackColor = tone === "negative" ? "var(--bad-soft)" : "var(--good-soft)";
+  const trackColor =
+    tone === "negative" ? "var(--bad-soft)" : "var(--good-soft)";
   const ringColor = tone === "negative" ? "var(--bad)" : "var(--good)";
   return (
     <div className="runway-ring-wrap">
       <svg width="108" height="108" viewBox="0 0 108 108">
-        <circle cx="54" cy="54" r={r} fill="none" stroke={trackColor} strokeWidth="9" />
+        <circle
+          cx="54"
+          cy="54"
+          r={r}
+          fill="none"
+          stroke={trackColor}
+          strokeWidth="9"
+        />
         <circle
           cx="54"
           cy="54"
@@ -1411,15 +1968,30 @@ function IncomeExpenseChart({ monthly, budgetTotal }) {
   const innerH = height - padding.top - padding.bottom;
   const baseline = padding.top + innerH;
 
-  const maxVal = Math.max(...monthly.flatMap((m) => [m.income, m.expenses]), budgetTotal || 0) * 1.15;
+  const maxVal =
+    Math.max(
+      ...monthly.flatMap((m) => [m.income, m.expenses]),
+      budgetTotal || 0,
+    ) * 1.15;
 
   const yTicks = 4;
-  const tickVals = Array.from({ length: yTicks + 1 }, (_, i) => (maxVal / yTicks) * i);
+  const tickVals = Array.from(
+    { length: yTicks + 1 },
+    (_, i) => (maxVal / yTicks) * i,
+  );
 
-  const xFor = (i) => padding.left + (monthly.length === 1 ? innerW / 2 : (i / (monthly.length - 1)) * innerW);
+  const xFor = (i) =>
+    padding.left +
+    (monthly.length === 1 ? innerW / 2 : (i / (monthly.length - 1)) * innerW);
   const yFor = (v) => baseline - (v / maxVal) * innerH;
-  const incomePoints = monthly.map((m, i) => ({ x: xFor(i), y: yFor(m.income) }));
-  const expensePoints = monthly.map((m, i) => ({ x: xFor(i), y: yFor(m.expenses) }));
+  const incomePoints = monthly.map((m, i) => ({
+    x: xFor(i),
+    y: yFor(m.income),
+  }));
+  const expensePoints = monthly.map((m, i) => ({
+    x: xFor(i),
+    y: yFor(m.expenses),
+  }));
 
   const gradientId = `oc-income-fill-${monthly.length}-${Math.round(maxVal)}`;
   const gradientIdExp = `oc-expense-fill-${monthly.length}-${Math.round(maxVal)}`;
@@ -1432,7 +2004,9 @@ function IncomeExpenseChart({ monthly, budgetTotal }) {
   // actually cross.
   const surplusSegments = budgetTotal
     ? monthly.slice(0, -1).map((m, i) => {
-        const positive = m.income >= m.expenses && monthly[i + 1].income >= monthly[i + 1].expenses;
+        const positive =
+          m.income >= m.expenses &&
+          monthly[i + 1].income >= monthly[i + 1].expenses;
         const p0i = incomePoints[i],
           p1i = incomePoints[i + 1],
           p0e = expensePoints[i],
@@ -1449,11 +2023,24 @@ function IncomeExpenseChart({ monthly, budgetTotal }) {
 
   return (
     <div className="chart-wrap">
-      <svg viewBox={`0 0 ${width} ${height}`} width="100%" height="100%" preserveAspectRatio="xMidYMid meet">
+      <svg
+        viewBox={`0 0 ${width} ${height}`}
+        width="100%"
+        height="100%"
+        preserveAspectRatio="xMidYMid meet"
+      >
         <defs>
           <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="var(--chart-income)" stopOpacity="0.35" />
-            <stop offset="100%" stopColor="var(--chart-income)" stopOpacity="0.02" />
+            <stop
+              offset="0%"
+              stopColor="var(--chart-income)"
+              stopOpacity="0.35"
+            />
+            <stop
+              offset="100%"
+              stopColor="var(--chart-income)"
+              stopOpacity="0.02"
+            />
           </linearGradient>
           <linearGradient id={gradientIdExp} x1="0" y1="0" x2="0" y2="1">
             <stop offset="0%" stopColor="var(--gold)" stopOpacity="0.4" />
@@ -1462,18 +2049,50 @@ function IncomeExpenseChart({ monthly, budgetTotal }) {
         </defs>
 
         <g className="chart-inline-legend">
-          <rect x={width - 190} y="10" width="10" height="10" rx="2" fill="var(--chart-income)" />
-          <text x={width - 176} y="19" fontSize="11.5" fill="var(--text-muted)">Income</text>
-          <rect x={width - 100} y="10" width="10" height="10" rx="2" fill="var(--gold)" />
-          <text x={width - 86} y="19" fontSize="11.5" fill="var(--text-muted)">Expenses</text>
+          <rect
+            x={width - 190}
+            y="10"
+            width="10"
+            height="10"
+            rx="2"
+            fill="var(--chart-income)"
+          />
+          <text x={width - 176} y="19" fontSize="11.5" fill="var(--text-muted)">
+            Income
+          </text>
+          <rect
+            x={width - 100}
+            y="10"
+            width="10"
+            height="10"
+            rx="2"
+            fill="var(--gold)"
+          />
+          <text x={width - 86} y="19" fontSize="11.5" fill="var(--text-muted)">
+            Expenses
+          </text>
         </g>
 
         {tickVals.map((v, i) => {
           const y = padding.top + innerH - (v / maxVal) * innerH;
           return (
             <g key={i}>
-              <line x1={padding.left} x2={width - padding.right} y1={y} y2={y} stroke="var(--border)" strokeWidth="1" />
-              <text className="count-up" x={padding.left - 8} y={y + 4} fontSize="10.5" fill="var(--text-muted)" textAnchor="end">
+              <line
+                x1={padding.left}
+                x2={width - padding.right}
+                y1={y}
+                y2={y}
+                stroke="var(--border)"
+                strokeWidth="1"
+              />
+              <text
+                className="count-up"
+                x={padding.left - 8}
+                y={y + 4}
+                fontSize="10.5"
+                fill="var(--text-muted)"
+                textAnchor="end"
+              >
                 {v >= 1000 ? `${Math.round(v / 1000)}k` : Math.round(v)}
               </text>
             </g>
@@ -1481,7 +2100,12 @@ function IncomeExpenseChart({ monthly, budgetTotal }) {
         })}
 
         {surplusSegments.map((s) => (
-          <path key={s.key} d={s.d} fill={s.positive ? "var(--good)" : "var(--bad)"} fillOpacity="0.16" />
+          <path
+            key={s.key}
+            d={s.d}
+            fill={s.positive ? "var(--good)" : "var(--bad)"}
+            fillOpacity="0.16"
+          />
         ))}
 
         {budgetTotal != null && (
@@ -1495,26 +2119,71 @@ function IncomeExpenseChart({ monthly, budgetTotal }) {
               strokeWidth="1.5"
               strokeDasharray="5 4"
             />
-            <text x={width - padding.right} y={budgetY - 6} fontSize="10.5" fill="var(--gold)" textAnchor="end">
+            <text
+              x={width - padding.right}
+              y={budgetY - 6}
+              fontSize="10.5"
+              fill="var(--gold)"
+              textAnchor="end"
+            >
               Budgeted {fmtMoney(budgetTotal)}/mo
             </text>
           </g>
         )}
 
-        <path d={smoothAreaPath(expensePoints, baseline)} fill={`url(#${gradientIdExp})`} />
-        <path d={smoothLinePath(expensePoints)} fill="none" stroke="var(--gold)" strokeWidth="2" />
-        <path d={smoothAreaPath(incomePoints, baseline)} fill={`url(#${gradientId})`} />
-        <path d={smoothLinePath(incomePoints)} fill="none" stroke="var(--chart-income)" strokeWidth="2.5" />
+        <path
+          d={smoothAreaPath(expensePoints, baseline)}
+          fill={`url(#${gradientIdExp})`}
+        />
+        <path
+          d={smoothLinePath(expensePoints)}
+          fill="none"
+          stroke="var(--gold)"
+          strokeWidth="2"
+        />
+        <path
+          d={smoothAreaPath(incomePoints, baseline)}
+          fill={`url(#${gradientId})`}
+        />
+        <path
+          d={smoothLinePath(incomePoints)}
+          fill="none"
+          stroke="var(--chart-income)"
+          strokeWidth="2.5"
+        />
 
         {incomePoints.map((p, i) => (
-          <circle key={"i" + i} cx={p.x} cy={p.y} r="3.5" fill="var(--surface)" stroke="var(--chart-income)" strokeWidth="2" />
+          <circle
+            key={"i" + i}
+            cx={p.x}
+            cy={p.y}
+            r="3.5"
+            fill="var(--surface)"
+            stroke="var(--chart-income)"
+            strokeWidth="2"
+          />
         ))}
         {expensePoints.map((p, i) => (
-          <circle key={"e" + i} cx={p.x} cy={p.y} r="3.5" fill="var(--surface)" stroke="var(--gold)" strokeWidth="2" />
+          <circle
+            key={"e" + i}
+            cx={p.x}
+            cy={p.y}
+            r="3.5"
+            fill="var(--surface)"
+            stroke="var(--gold)"
+            strokeWidth="2"
+          />
         ))}
 
         {monthly.map((m, i) => (
-          <text key={m.month} x={xFor(i)} y={height - 8} fontSize="11.5" fill="var(--text-muted)" textAnchor="middle">
+          <text
+            key={m.month}
+            x={xFor(i)}
+            y={height - 8}
+            fontSize="11.5"
+            fill="var(--text-muted)"
+            textAnchor="middle"
+          >
             {m.month}
           </text>
         ))}
@@ -1554,7 +2223,9 @@ function CategoryLedger({ client }) {
 
   return (
     <div className="category-ledger">
-      <p className="card-subtitle category-ledger-title">Subcategory accounts, {monthPrefix}</p>
+      <p className="card-subtitle category-ledger-title">
+        Subcategory accounts, {monthPrefix}
+      </p>
       <div className="ledger-list">
         {rows.map((r) => {
           const pct = (Math.abs(r.amount) / maxAbs) * 100;
@@ -1563,7 +2234,12 @@ function CategoryLedger({ client }) {
             <div className="ledger-row" key={r.category}>
               <div className="ledger-row-top">
                 <span className="ledger-category">{r.category}</span>
-                <span className={"ledger-amount count-up " + (positive ? "positive" : "negative")}>
+                <span
+                  className={
+                    "ledger-amount count-up " +
+                    (positive ? "positive" : "negative")
+                  }
+                >
                   {positive ? "+" : ""}
                   {fmtMoney(r.amount, { cents: true })}
                 </span>
@@ -1571,7 +2247,10 @@ function CategoryLedger({ client }) {
               <div className="bar-track">
                 <div
                   className={"bar-fill " + (positive ? "under" : "over")}
-                  style={{ width: `${pct}%`, animationDuration: `${growDuration(pct)}ms` }}
+                  style={{
+                    width: `${pct}%`,
+                    animationDuration: `${growDuration(pct)}ms`,
+                  }}
                 ></div>
               </div>
             </div>
@@ -1582,7 +2261,20 @@ function CategoryLedger({ client }) {
   );
 }
 
-const MONTH_ABBR = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+const MONTH_ABBR = [
+  "Jan",
+  "Feb",
+  "Mar",
+  "Apr",
+  "May",
+  "Jun",
+  "Jul",
+  "Aug",
+  "Sep",
+  "Oct",
+  "Nov",
+  "Dec",
+];
 
 // Cards pulled in from other tabs so a client can build their dashboard into
 // a single hub for everything they might want to see — gated by access.tabs,
@@ -1593,7 +2285,13 @@ function crossTabWidgetDefs(client, access) {
   const defs = [];
 
   if (access.tabs.has("budget") && client.budget.length > 0) {
-    const totals = client.budget.reduce((a, b) => ({ budgeted: a.budgeted + b.budgeted, actual: a.actual + b.actual }), { budgeted: 0, actual: 0 });
+    const totals = client.budget.reduce(
+      (a, b) => ({
+        budgeted: a.budgeted + b.budgeted,
+        actual: a.actual + b.actual,
+      }),
+      { budgeted: 0, actual: 0 },
+    );
     defs.push({
       id: "xt-budget-summary",
       group: "content",
@@ -1615,7 +2313,12 @@ function crossTabWidgetDefs(client, access) {
             </div>
             <div className="mini-stat">
               <span className="kpi-label">Variance</span>
-              <span className={"kpi-value " + (totals.actual > totals.budgeted ? "negative" : "positive")}>
+              <span
+                className={
+                  "kpi-value " +
+                  (totals.actual > totals.budgeted ? "negative" : "positive")
+                }
+              >
                 {fmtMoney(totals.actual - totals.budgeted)}
               </span>
             </div>
@@ -1635,15 +2338,22 @@ function crossTabWidgetDefs(client, access) {
       render: () => (
         <>
           <h3 className="card-title">Bank Accounts</h3>
-          <p className="card-subtitle">{fmtMoney(totalCash(client))} across {client.bankAccounts.length} account{client.bankAccounts.length > 1 ? "s" : ""}</p>
+          <p className="card-subtitle">
+            {fmtMoney(totalCash(client))} across {client.bankAccounts.length}{" "}
+            account{client.bankAccounts.length > 1 ? "s" : ""}
+          </p>
           <div className="tx-list">
             {client.bankAccounts.map((a) => (
               <div className="tx-row" key={a.id}>
                 <div>
                   <div className="tx-desc">{a.accountName}</div>
-                  <div className="tx-meta">{a.type} · ending {a.accountMask}</div>
+                  <div className="tx-meta">
+                    {a.type} · ending {a.accountMask}
+                  </div>
                 </div>
-                <div className="tx-amount positive">{fmtMoney(a.balance, { cents: true })}</div>
+                <div className="tx-amount positive">
+                  {fmtMoney(a.balance, { cents: true })}
+                </div>
               </div>
             ))}
           </div>
@@ -1652,8 +2362,14 @@ function crossTabWidgetDefs(client, access) {
     });
   }
 
-  if (access.tabs.has("receivables") && (client.receivables.length > 0 || client.payables.length > 0)) {
-    const totalReceivable = client.receivables.reduce((s, r) => s + r.amount, 0);
+  if (
+    access.tabs.has("receivables") &&
+    (client.receivables.length > 0 || client.payables.length > 0)
+  ) {
+    const totalReceivable = client.receivables.reduce(
+      (s, r) => s + r.amount,
+      0,
+    );
     const totalPayable = client.payables.reduce((s, p) => s + p.amount, 0);
     defs.push({
       id: "xt-receivables-payables",
@@ -1664,15 +2380,21 @@ function crossTabWidgetDefs(client, access) {
       render: () => (
         <>
           <h3 className="card-title">Cash Flow</h3>
-          <p className="card-subtitle">Net position: {fmtMoney(totalReceivable - totalPayable)}</p>
+          <p className="card-subtitle">
+            Net position: {fmtMoney(totalReceivable - totalPayable)}
+          </p>
           <div className="mini-stat-row">
             <div className="mini-stat">
               <span className="kpi-label">Owed to you</span>
-              <span className="kpi-value positive">{fmtMoney(totalReceivable)}</span>
+              <span className="kpi-value positive">
+                {fmtMoney(totalReceivable)}
+              </span>
             </div>
             <div className="mini-stat">
               <span className="kpi-label">You owe</span>
-              <span className="kpi-value negative">{fmtMoney(totalPayable)}</span>
+              <span className="kpi-value negative">
+                {fmtMoney(totalPayable)}
+              </span>
             </div>
           </div>
         </>
@@ -1680,8 +2402,14 @@ function crossTabWidgetDefs(client, access) {
     });
   }
 
-  if (access.tabs.has("giving") && ((client.funds || []).length > 0 || (client.contributions || []).length > 0)) {
-    const totalGiving = (client.contributions || []).reduce((s, c) => s + c.amount, 0);
+  if (
+    access.tabs.has("giving") &&
+    ((client.funds || []).length > 0 || (client.contributions || []).length > 0)
+  ) {
+    const totalGiving = (client.contributions || []).reduce(
+      (s, c) => s + c.amount,
+      0,
+    );
     defs.push({
       id: "xt-giving-summary",
       group: "content",
@@ -1691,13 +2419,17 @@ function crossTabWidgetDefs(client, access) {
       render: () => (
         <>
           <h3 className="card-title">Giving & Funds</h3>
-          <p className="card-subtitle">{fmtMoney(totalGiving)} in recent giving</p>
+          <p className="card-subtitle">
+            {fmtMoney(totalGiving)} in recent giving
+          </p>
           <div className="tx-list">
             {(client.funds || []).map((f) => (
               <div className="tx-row" key={f.name}>
                 <div>
                   <div className="tx-desc">{f.name}</div>
-                  <div className="tx-meta">{f.restricted ? "Restricted" : "Unrestricted"}</div>
+                  <div className="tx-meta">
+                    {f.restricted ? "Restricted" : "Unrestricted"}
+                  </div>
                 </div>
                 <div className="tx-amount positive">{fmtMoney(f.balance)}</div>
               </div>
@@ -1717,7 +2449,13 @@ function crossTabWidgetDefs(client, access) {
 
 // Dashboard for someone scoped to specific ministry areas. Deliberately omits
 // org-wide figures (total cash, revenue, operating reserve) — not theirs to see.
-function ScopedDashboardPage({ client, access, isBookkeeper, promoText, onSaveReferralPromo }) {
+function ScopedDashboardPage({
+  client,
+  access,
+  isBookkeeper,
+  promoText,
+  onSaveReferralPromo,
+}) {
   const budgeted = client.budget.reduce((s, b) => s + b.budgeted, 0);
   const spent = client.budget.reduce((s, b) => s + b.actual, 0);
   const remaining = budgeted - spent;
@@ -1732,22 +2470,61 @@ function ScopedDashboardPage({ client, access, isBookkeeper, promoText, onSaveRe
   const myFunds = client.funds || [];
 
   const widgets = [
-    { id: "kpi-budgeted", group: "kpi", label: "Budgeted (your areas)", description: "This month's budget" },
-    { id: "kpi-spent", group: "kpi", label: "Spent (your areas)", description: "Actual spend, current month" },
-    { id: "kpi-remaining", group: "kpi", label: "Remaining", description: "Budget left this month" },
+    {
+      id: "kpi-budgeted",
+      group: "kpi",
+      label: "Budgeted (your areas)",
+      description: "This month's budget",
+    },
+    {
+      id: "kpi-spent",
+      group: "kpi",
+      label: "Spent (your areas)",
+      description: "Actual spend, current month",
+    },
+    {
+      id: "kpi-remaining",
+      group: "kpi",
+      label: "Remaining",
+      description: "Budget left this month",
+    },
     ...(myFunds.length > 0
-      ? [{ id: "kpi-funds", group: "kpi", label: myFunds.length === 1 ? myFunds[0].name : "Your Funds", description: "Available balance" }]
+      ? [
+          {
+            id: "kpi-funds",
+            group: "kpi",
+            label: myFunds.length === 1 ? myFunds[0].name : "Your Funds",
+            description: "Available balance",
+          },
+        ]
       : []),
-    { id: "your-budget", group: "content", label: "Your Budget", description: "Budgeted vs. actual, current month" },
-    { id: "recent-activity", group: "content", label: "Your Recent Activity", description: "Transactions in your areas" },
+    {
+      id: "your-budget",
+      group: "content",
+      label: "Your Budget",
+      description: "Budgeted vs. actual, current month",
+    },
+    {
+      id: "recent-activity",
+      group: "content",
+      label: "Your Recent Activity",
+      description: "Transactions in your areas",
+    },
     ...crossTabWidgetDefs(client, access),
   ];
-  const crossTabById = Object.fromEntries(widgets.filter((w) => w.id.startsWith("xt-")).map((w) => [w.id, w]));
-  const layout = useWidgetLayout(`${client.id}:scoped:${Array.from(access.categories).sort().join(",")}`, widgets.map((w) => w.id));
+  const crossTabById = Object.fromEntries(
+    widgets.filter((w) => w.id.startsWith("xt-")).map((w) => [w.id, w]),
+  );
+  const layout = useWidgetLayout(
+    `${client.id}:scoped:${Array.from(access.categories).sort().join(",")}`,
+    widgets.map((w) => w.id),
+  );
   const drag = useDragReorder(layout);
   const kpiOrder = layout.visibleOrder.filter((id) => id.startsWith("kpi-"));
   const { flashCardId, jumpToCard } = useCardFlash();
-  const jumpToBudget = layout.hidden.has("your-budget") ? null : () => jumpToCard("sdp-your-budget-card", "your-budget");
+  const jumpToBudget = layout.hidden.has("your-budget")
+    ? null
+    : () => jumpToCard("sdp-your-budget-card", "your-budget");
 
   return (
     <div>
@@ -1756,7 +2533,8 @@ function ScopedDashboardPage({ client, access, isBookkeeper, promoText, onSaveRe
       {/* Referral popup disabled for now — component kept below, re-add here when it's back on. */}
 
       <div className="scope-notice">
-        You're seeing <strong>{areas}</strong>. Other areas of {client.name}'s finances aren't part of your access.
+        You're seeing <strong>{areas}</strong>. Other areas of {client.name}'s
+        finances aren't part of your access.
       </div>
 
       <CustomizeDashboardButton widgets={widgets} layout={layout} />
@@ -1767,7 +2545,11 @@ function ScopedDashboardPage({ client, access, isBookkeeper, promoText, onSaveRe
             const Tag = jumpToBudget ? "button" : "div";
             return (
               <Tag
-                className={"card kpi-card " + (jumpToBudget ? "kpi-card-clickable " : "") + drag.dragClass(id)}
+                className={
+                  "card kpi-card " +
+                  (jumpToBudget ? "kpi-card-clickable " : "") +
+                  drag.dragClass(id)
+                }
                 key={id}
                 {...drag.dragProps(id)}
                 {...(jumpToBudget ? { onClick: jumpToBudget } : {})}
@@ -1782,14 +2564,22 @@ function ScopedDashboardPage({ client, access, isBookkeeper, promoText, onSaveRe
             const Tag = jumpToBudget ? "button" : "div";
             return (
               <Tag
-                className={"card kpi-card " + (jumpToBudget ? "kpi-card-clickable " : "") + drag.dragClass(id)}
+                className={
+                  "card kpi-card " +
+                  (jumpToBudget ? "kpi-card-clickable " : "") +
+                  drag.dragClass(id)
+                }
                 key={id}
                 {...drag.dragProps(id)}
                 {...(jumpToBudget ? { onClick: jumpToBudget } : {})}
               >
                 <span className="kpi-label">Spent (your areas)</span>
                 <span className="kpi-value">{fmtMoney(spent)}</span>
-                <span className={"kpi-sub " + (spent > budgeted ? "negative" : "positive")}>
+                <span
+                  className={
+                    "kpi-sub " + (spent > budgeted ? "negative" : "positive")
+                  }
+                >
                   {spent > budgeted ? "Over budget" : "Within budget"}
                 </span>
               </Tag>
@@ -1799,22 +2589,38 @@ function ScopedDashboardPage({ client, access, isBookkeeper, promoText, onSaveRe
             const Tag = jumpToBudget ? "button" : "div";
             return (
               <Tag
-                className={"card kpi-card " + (jumpToBudget ? "kpi-card-clickable " : "") + drag.dragClass(id)}
+                className={
+                  "card kpi-card " +
+                  (jumpToBudget ? "kpi-card-clickable " : "") +
+                  drag.dragClass(id)
+                }
                 key={id}
                 {...drag.dragProps(id)}
                 {...(jumpToBudget ? { onClick: jumpToBudget } : {})}
               >
                 <span className="kpi-label">Remaining</span>
                 <span className="kpi-value">{fmtMoney(remaining)}</span>
-                <span className="kpi-sub neutral">{budgeted > 0 ? `${Math.round((spent / budgeted) * 100)}% used` : "—"}</span>
+                <span className="kpi-sub neutral">
+                  {budgeted > 0
+                    ? `${Math.round((spent / budgeted) * 100)}% used`
+                    : "—"}
+                </span>
               </Tag>
             );
           }
           if (id === "kpi-funds" && myFunds.length > 0)
             return (
-              <div className={"card kpi-card " + drag.dragClass(id)} key={id} {...drag.dragProps(id)}>
-                <span className="kpi-label">{myFunds.length === 1 ? myFunds[0].name : "Your Funds"}</span>
-                <span className="kpi-value">{fmtMoney(myFunds.reduce((s, f) => s + f.balance, 0))}</span>
+              <div
+                className={"card kpi-card " + drag.dragClass(id)}
+                key={id}
+                {...drag.dragProps(id)}
+              >
+                <span className="kpi-label">
+                  {myFunds.length === 1 ? myFunds[0].name : "Your Funds"}
+                </span>
+                <span className="kpi-value">
+                  {fmtMoney(myFunds.reduce((s, f) => s + f.balance, 0))}
+                </span>
                 <span className="kpi-sub neutral">available balance</span>
               </div>
             );
@@ -1829,13 +2635,19 @@ function ScopedDashboardPage({ client, access, isBookkeeper, promoText, onSaveRe
             if (id === "your-budget")
               return (
                 <div
-                  className={"card " + (flashCardId === "your-budget" ? "card-flash " : "") + drag.dragClass(id)}
+                  className={
+                    "card " +
+                    (flashCardId === "your-budget" ? "card-flash " : "") +
+                    drag.dragClass(id)
+                  }
                   key={id}
                   id="sdp-your-budget-card"
                   {...drag.dragProps(id)}
                 >
                   <h3 className="card-title">Your Budget</h3>
-                  <p className="card-subtitle">Budgeted vs. actual, current month</p>
+                  <p className="card-subtitle">
+                    Budgeted vs. actual, current month
+                  </p>
                   <div className="table-scroll">
                     <table className="budget-table tx-table-labeled">
                       <thead>
@@ -1854,22 +2666,39 @@ function ScopedDashboardPage({ client, access, isBookkeeper, promoText, onSaveRe
                           return (
                             <tr key={b.category}>
                               <td data-primary="">
-                                <div className="category-name">{b.category}</div>
+                                <div className="category-name">
+                                  {b.category}
+                                </div>
                                 <div className="bar-track">
                                   <div
-                                    className={"bar-fill " + (over ? "over" : "under")}
-                                    style={{ width: `${Math.min(pct, 100)}%`, animationDuration: `${growDuration(pct)}ms` }}
+                                    className={
+                                      "bar-fill " + (over ? "over" : "under")
+                                    }
+                                    style={{
+                                      width: `${Math.min(pct, 100)}%`,
+                                      animationDuration: `${growDuration(pct)}ms`,
+                                    }}
                                   ></div>
                                 </div>
                               </td>
-                              <td className="num" data-label="Budgeted">{fmtMoney(b.budgeted)}</td>
-                              <td className="num" data-label="Actual">{fmtMoney(b.actual)}</td>
+                              <td className="num" data-label="Budgeted">
+                                {fmtMoney(b.budgeted)}
+                              </td>
+                              <td className="num" data-label="Actual">
+                                {fmtMoney(b.actual)}
+                              </td>
                               <td className="num" data-label="Variance">
                                 {b.actual - b.budgeted >= 0 ? "+" : ""}
                                 {fmtMoney(b.actual - b.budgeted)}
                               </td>
                               <td>
-                                <span className={"pill " + (over ? "over" : "under")}>{over ? "Over" : "On Track"}</span>
+                                <span
+                                  className={
+                                    "pill " + (over ? "over" : "under")
+                                  }
+                                >
+                                  {over ? "Over" : "On Track"}
+                                </span>
                               </td>
                             </tr>
                           );
@@ -1881,11 +2710,21 @@ function ScopedDashboardPage({ client, access, isBookkeeper, promoText, onSaveRe
               );
             if (id === "recent-activity")
               return (
-                <div className={"card " + drag.dragClass(id)} key={id} {...drag.dragProps(id)}>
+                <div
+                  className={"card " + drag.dragClass(id)}
+                  key={id}
+                  {...drag.dragProps(id)}
+                >
                   <h3 className="card-title">Your Recent Activity</h3>
-                  <p className="card-subtitle">Transactions in your areas, last 2 months</p>
+                  <p className="card-subtitle">
+                    Transactions in your areas, last 2 months
+                  </p>
                   <div className="tx-list tx-list-scroll">
-                    {myTx.length === 0 && <p className="card-subtitle">No recent transactions in your areas.</p>}
+                    {myTx.length === 0 && (
+                      <p className="card-subtitle">
+                        No recent transactions in your areas.
+                      </p>
+                    )}
                     {myTx.map((t, i) => (
                       <div className="tx-row" key={i}>
                         <div>
@@ -1894,7 +2733,12 @@ function ScopedDashboardPage({ client, access, isBookkeeper, promoText, onSaveRe
                             {fmtDate(t.date)} · {t.category}
                           </div>
                         </div>
-                        <div className={"tx-amount " + (t.amount >= 0 ? "positive" : "negative")}>
+                        <div
+                          className={
+                            "tx-amount " +
+                            (t.amount >= 0 ? "positive" : "negative")
+                          }
+                        >
                           {t.amount >= 0 ? "+" : ""}
                           {fmtMoney(t.amount, { cents: true })}
                         </div>
@@ -1905,7 +2749,11 @@ function ScopedDashboardPage({ client, access, isBookkeeper, promoText, onSaveRe
               );
             if (crossTabById[id])
               return (
-                <div className={"card " + drag.dragClass(id)} key={id} {...drag.dragProps(id)}>
+                <div
+                  className={"card " + drag.dragClass(id)}
+                  key={id}
+                  {...drag.dragProps(id)}
+                >
                   {crossTabById[id].render()}
                 </div>
               );
@@ -1916,24 +2764,41 @@ function ScopedDashboardPage({ client, access, isBookkeeper, promoText, onSaveRe
   );
 }
 
-function DashboardPage({ client, access, isBookkeeper, promoText, onSaveReferralPromo }) {
+function DashboardPage({
+  client,
+  access,
+  isBookkeeper,
+  promoText,
+  onSaveReferralPromo,
+}) {
   const current = client.monthly[client.monthly.length - 1];
   const prev = client.monthly[client.monthly.length - 2];
   const cash = totalCash(client);
 
   const netIncome = current.income - current.expenses;
   const prevNetIncome = prev.income - prev.expenses;
-  const netChangePct = prevNetIncome !== 0 ? ((netIncome - prevNetIncome) / Math.abs(prevNetIncome)) * 100 : 0;
+  const netChangePct =
+    prevNetIncome !== 0
+      ? ((netIncome - prevNetIncome) / Math.abs(prevNetIncome)) * 100
+      : 0;
 
   const runwayMonths = runwayMonthsFor(client);
   const alerts = computeAlerts(client);
 
   const kpis = [
-    { label: "Cash on Hand", value: fmtMoney(cash), sub: `${client.bankAccounts.length} account${client.bankAccounts.length > 1 ? "s" : ""}`, tone: "neutral" },
+    {
+      label: "Cash on Hand",
+      value: fmtMoney(cash),
+      sub: `${client.bankAccounts.length} account${client.bankAccounts.length > 1 ? "s" : ""}`,
+      tone: "neutral",
+    },
     {
       label: "Net Surplus / (Deficit)",
       value: fmtMoney(netIncome),
-      sub: (netChangePct >= 0 ? "+" : "") + netChangePct.toFixed(1) + "% vs. last month",
+      sub:
+        (netChangePct >= 0 ? "+" : "") +
+        netChangePct.toFixed(1) +
+        "% vs. last month",
       tone: netChangePct >= 0 ? "positive" : "negative",
     },
     {
@@ -1950,29 +2815,70 @@ function DashboardPage({ client, access, isBookkeeper, promoText, onSaveReferral
       ring: {
         // Six months of reserve is the common healthy target, so the ring
         // fills against that rather than an arbitrary 12.
-        pct: runwayMonths == null ? 1 : Math.max(0.08, Math.min(runwayMonths / 6, 1)),
-        status: runwayMonths != null && runwayMonths < 3 ? "Monitor" : "Healthy",
+        pct:
+          runwayMonths == null
+            ? 1
+            : Math.max(0.08, Math.min(runwayMonths / 6, 1)),
+        status:
+          runwayMonths != null && runwayMonths < 3 ? "Monitor" : "Healthy",
       },
     },
   ];
 
   const twoMonthsAgo = monthsAgoLocal(2);
   const allTx = client.bankAccounts
-    .flatMap((a) => a.transactions.map((t) => ({ ...t, accountName: a.accountName })))
+    .flatMap((a) =>
+      a.transactions.map((t) => ({ ...t, accountName: a.accountName })),
+    )
     .filter((t) => t.date >= twoMonthsAgo)
     .sort((a, b) => (a.date < b.date ? 1 : -1));
 
   const widgets = [
-    { id: "kpi-cash", group: "kpi", label: "Cash on Hand", description: "Total across all bank accounts" },
-    { id: "kpi-net", group: "kpi", label: "Net Surplus / (Deficit)", description: "This month's income minus expenses" },
-    { id: "kpi-revenue", group: "kpi", label: "Revenue (this month)", description: "Compared to last month" },
-    { id: "kpi-runway", group: "kpi", label: "Operating Reserve", description: "Months of expenses covered by cash on hand" },
-    { id: "income-expenses", group: "content", label: "Income vs. Expenses", description: "12-month trend chart" },
-    { id: "recent-activity", group: "content", label: "Recent Activity", description: "Latest transactions across all accounts" },
+    {
+      id: "kpi-cash",
+      group: "kpi",
+      label: "Cash on Hand",
+      description: "Total across all bank accounts",
+    },
+    {
+      id: "kpi-net",
+      group: "kpi",
+      label: "Net Surplus / (Deficit)",
+      description: "This month's income minus expenses",
+    },
+    {
+      id: "kpi-revenue",
+      group: "kpi",
+      label: "Revenue (this month)",
+      description: "Compared to last month",
+    },
+    {
+      id: "kpi-runway",
+      group: "kpi",
+      label: "Operating Reserve",
+      description: "Months of expenses covered by cash on hand",
+    },
+    {
+      id: "income-expenses",
+      group: "content",
+      label: "Income vs. Expenses",
+      description: "12-month trend chart",
+    },
+    {
+      id: "recent-activity",
+      group: "content",
+      label: "Recent Activity",
+      description: "Latest transactions across all accounts",
+    },
     ...crossTabWidgetDefs(client, access),
   ];
-  const crossTabById = Object.fromEntries(widgets.filter((w) => w.id.startsWith("xt-")).map((w) => [w.id, w]));
-  const layout = useWidgetLayout(`${client.id}:full`, widgets.map((w) => w.id));
+  const crossTabById = Object.fromEntries(
+    widgets.filter((w) => w.id.startsWith("xt-")).map((w) => [w.id, w]),
+  );
+  const layout = useWidgetLayout(
+    `${client.id}:full`,
+    widgets.map((w) => w.id),
+  );
   const drag = useDragReorder(layout);
   const kpiOrder = layout.visibleOrder.filter((id) => id.startsWith("kpi-"));
 
@@ -1987,9 +2893,18 @@ function DashboardPage({ client, access, isBookkeeper, promoText, onSaveReferral
   // Operating Reserve (the runway ring) has no single content card below it
   // that summarizes it, so it's left out — stays a plain, non-clickable tile.
   const KPI_DASHBOARD_JUMP_TARGETS = {
-    "kpi-cash": { domId: "dp-recent-activity-card", contentId: "recent-activity" },
-    "kpi-net": { domId: "dp-income-expenses-card", contentId: "income-expenses" },
-    "kpi-revenue": { domId: "dp-income-expenses-card", contentId: "income-expenses" },
+    "kpi-cash": {
+      domId: "dp-recent-activity-card",
+      contentId: "recent-activity",
+    },
+    "kpi-net": {
+      domId: "dp-income-expenses-card",
+      contentId: "income-expenses",
+    },
+    "kpi-revenue": {
+      domId: "dp-income-expenses-card",
+      contentId: "income-expenses",
+    },
   };
 
   return (
@@ -2017,37 +2932,48 @@ function DashboardPage({ client, access, isBookkeeper, promoText, onSaveReferral
         {kpiOrder.map((id) => {
           const k = kpiById[id];
           const jumpTarget = KPI_DASHBOARD_JUMP_TARGETS[id];
-          const jump = jumpTarget && !layout.hidden.has(jumpTarget.contentId) ? () => jumpToCard(jumpTarget.domId, jumpTarget.contentId) : null;
+          const jump =
+            jumpTarget && !layout.hidden.has(jumpTarget.contentId)
+              ? () => jumpToCard(jumpTarget.domId, jumpTarget.contentId)
+              : null;
           return k.ring ? (
-            <div className={"card kpi-card runway-ring-card " + drag.dragClass(id)} key={id} {...drag.dragProps(id)}>
+            <div
+              className={"card kpi-card runway-ring-card " + drag.dragClass(id)}
+              key={id}
+              {...drag.dragProps(id)}
+            >
               <span className="kpi-label">{k.label}</span>
               <RunwayRing pct={k.ring.pct} tone={k.tone}>
                 <div className="runway-ring-value">{k.value}</div>
-                <div className={"runway-ring-status " + k.tone}>{k.ring.status}</div>
+                <div className={"runway-ring-status " + k.tone}>
+                  {k.ring.status}
+                </div>
               </RunwayRing>
               <span className={"kpi-sub " + k.tone}>{k.sub}</span>
             </div>
-          ) : (() => {
-            const Tag = jump ? "button" : "div";
-            return (
-              <Tag
-                className={
-                  "card kpi-card" +
-                  (k.cardTone ? " kpi-card-" + k.cardTone : "") +
-                  (jump ? " kpi-card-clickable" : "") +
-                  " " +
-                  drag.dragClass(id)
-                }
-                key={id}
-                {...drag.dragProps(id)}
-                {...(jump ? { onClick: jump } : {})}
-              >
-                <span className="kpi-label">{k.label}</span>
-                <span className="kpi-value">{k.value}</span>
-                <span className={"kpi-sub " + k.tone}>{k.sub}</span>
-              </Tag>
-            );
-          })();
+          ) : (
+            (() => {
+              const Tag = jump ? "button" : "div";
+              return (
+                <Tag
+                  className={
+                    "card kpi-card" +
+                    (k.cardTone ? " kpi-card-" + k.cardTone : "") +
+                    (jump ? " kpi-card-clickable" : "") +
+                    " " +
+                    drag.dragClass(id)
+                  }
+                  key={id}
+                  {...drag.dragProps(id)}
+                  {...(jump ? { onClick: jump } : {})}
+                >
+                  <span className="kpi-label">{k.label}</span>
+                  <span className="kpi-value">{k.value}</span>
+                  <span className={"kpi-sub " + k.tone}>{k.sub}</span>
+                </Tag>
+              );
+            })()
+          );
         })}
       </div>
 
@@ -2058,13 +2984,19 @@ function DashboardPage({ client, access, isBookkeeper, promoText, onSaveReferral
             if (id === "income-expenses")
               return (
                 <div
-                  className={"card " + (flashCardId === "income-expenses" ? "card-flash " : "") + drag.dragClass(id)}
+                  className={
+                    "card " +
+                    (flashCardId === "income-expenses" ? "card-flash " : "") +
+                    drag.dragClass(id)
+                  }
                   key={id}
                   id="dp-income-expenses-card"
                   {...drag.dragProps(id)}
                 >
                   <h3 className="card-title">Income vs. Expenses</h3>
-                  <p className="card-subtitle">Last {client.monthly.length} months</p>
+                  <p className="card-subtitle">
+                    Last {client.monthly.length} months
+                  </p>
                   <IncomeExpenseChart monthly={client.monthly} />
                   <CategoryLedger client={client} />
                 </div>
@@ -2072,13 +3004,19 @@ function DashboardPage({ client, access, isBookkeeper, promoText, onSaveReferral
             if (id === "recent-activity")
               return (
                 <div
-                  className={"card " + (flashCardId === "recent-activity" ? "card-flash " : "") + drag.dragClass(id)}
+                  className={
+                    "card " +
+                    (flashCardId === "recent-activity" ? "card-flash " : "") +
+                    drag.dragClass(id)
+                  }
                   key={id}
                   id="dp-recent-activity-card"
                   {...drag.dragProps(id)}
                 >
                   <h3 className="card-title">Recent Activity</h3>
-                  <p className="card-subtitle">Across all accounts, last 2 months</p>
+                  <p className="card-subtitle">
+                    Across all accounts, last 2 months
+                  </p>
                   <div className="tx-list tx-list-scroll">
                     {allTx.map((t, i) => (
                       <div className="tx-row" key={i}>
@@ -2088,7 +3026,12 @@ function DashboardPage({ client, access, isBookkeeper, promoText, onSaveReferral
                             {fmtDate(t.date)} · {t.accountName}
                           </div>
                         </div>
-                        <div className={"tx-amount " + (t.amount >= 0 ? "positive" : "negative")}>
+                        <div
+                          className={
+                            "tx-amount " +
+                            (t.amount >= 0 ? "positive" : "negative")
+                          }
+                        >
                           {t.amount >= 0 ? "+" : ""}
                           {fmtMoney(t.amount, { cents: true })}
                         </div>
@@ -2099,7 +3042,11 @@ function DashboardPage({ client, access, isBookkeeper, promoText, onSaveReferral
               );
             if (crossTabById[id])
               return (
-                <div className={"card " + drag.dragClass(id)} key={id} {...drag.dragProps(id)}>
+                <div
+                  className={"card " + drag.dragClass(id)}
+                  key={id}
+                  {...drag.dragProps(id)}
+                >
                   {crossTabById[id].render()}
                 </div>
               );
@@ -2121,7 +3068,7 @@ function BudgetPage({ client, searchTarget }) {
       acc.actual += b.actual;
       return acc;
     },
-    { budgeted: 0, actual: 0 }
+    { budgeted: 0, actual: 0 },
   );
 
   // "By Category" (the existing budgeted-vs-actual table, current month
@@ -2157,7 +3104,8 @@ function BudgetPage({ client, searchTarget }) {
   // row once "By Category" has actually mounted — same split BankPage uses
   // for its own account-switch-then-jump case.
   useEffect(() => {
-    if (searchTarget && view === "category") jumpToCard(searchTarget.highlightKey, searchTarget.highlightKey);
+    if (searchTarget && view === "category")
+      jumpToCard(searchTarget.highlightKey, searchTarget.highlightKey);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchTarget && searchTarget.nonce, view]);
 
@@ -2166,88 +3114,133 @@ function BudgetPage({ client, searchTarget }) {
       <MockBanner text="Budget figures are hardcoded for this prototype. In Phase 2 these will sync from QuickBooks budgets." />
 
       <div className="kpi-grid">
-        <button className="card kpi-card kpi-card-clickable" onClick={jumpToSpending}>
+        <button
+          className="card kpi-card kpi-card-clickable"
+          onClick={jumpToSpending}
+        >
           <span className="kpi-label">Total Budgeted (this month)</span>
           <span className="kpi-value">{fmtMoney(totals.budgeted)}</span>
         </button>
-        <button className="card kpi-card kpi-card-clickable" onClick={jumpToSpending}>
+        <button
+          className="card kpi-card kpi-card-clickable"
+          onClick={jumpToSpending}
+        >
           <span className="kpi-label">Total Actual (this month)</span>
           <span className="kpi-value">{fmtMoney(totals.actual)}</span>
         </button>
-        <button className="card kpi-card kpi-card-clickable" onClick={jumpToSpending}>
+        <button
+          className="card kpi-card kpi-card-clickable"
+          onClick={jumpToSpending}
+        >
           <span className="kpi-label">Variance</span>
-          <span className="kpi-value">{fmtMoney(totals.actual - totals.budgeted)}</span>
-          <span className={"kpi-sub " + (totals.actual > totals.budgeted ? "negative" : "positive")}>
+          <span className="kpi-value">
+            {fmtMoney(totals.actual - totals.budgeted)}
+          </span>
+          <span
+            className={
+              "kpi-sub " +
+              (totals.actual > totals.budgeted ? "negative" : "positive")
+            }
+          >
             {totals.actual > totals.budgeted ? "Over budget" : "Under budget"}
           </span>
         </button>
       </div>
 
       <div className="view-toggle" style={{ marginBottom: 20 }}>
-        <button type="button" className={"view-toggle-btn" + (view === "category" ? " active" : "")} onClick={() => setView("category")}>
+        <button
+          type="button"
+          className={"view-toggle-btn" + (view === "category" ? " active" : "")}
+          onClick={() => setView("category")}
+        >
           By Category
         </button>
-        <button type="button" className={"view-toggle-btn" + (view === "trend" ? " active" : "")} onClick={() => setView("trend")}>
+        <button
+          type="button"
+          className={"view-toggle-btn" + (view === "trend" ? " active" : "")}
+          onClick={() => setView("trend")}
+        >
           Spending Trend
         </button>
       </div>
 
       {view === "category" && (
-        <div className={"card " + (flashCardId === "spending" ? "card-flash" : "")} id="budget-spending-card">
+        <div
+          className={"card " + (flashCardId === "spending" ? "card-flash" : "")}
+          id="budget-spending-card"
+        >
           <h3 className="card-title">Spending by Category</h3>
           <p className="card-subtitle">Budgeted vs. actual, current month</p>
           <div className="table-scroll">
-<table className="budget-table tx-table-labeled">
-            <thead>
-              <tr>
-                <th style={{ width: "34%" }}>Category</th>
-                <th className="num">Budgeted</th>
-                <th className="num">Actual</th>
-                <th className="num">Variance</th>
-                <th style={{ width: "18%" }}>% Used</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody>
-              {client.budget.map((b) => {
-                const pct = (b.actual / b.budgeted) * 100;
-                const over = b.actual > b.budgeted;
-                const rowId = "budget-row-" + slugify(b.category);
-                // Bullet-style bar: the track spans whichever of budgeted/actual
-                // is bigger, so the fill shows the real dollar amount (not just
-                // "% of budget" capped at 100%) and a target tick marks exactly
-                // where the budget line falls — over-budget rows visibly run
-                // past the tick instead of just stopping flush with the edge.
-                const scaleMax = Math.max(b.budgeted, b.actual, 1) * 1.08;
-                const fillPct = Math.min((b.actual / scaleMax) * 100, 100);
-                const tickPct = Math.min((b.budgeted / scaleMax) * 100, 100);
-                return (
-                  <tr key={b.category} id={rowId} className={flashCardId === rowId ? "row-flash" : ""}>
-                    <td data-primary="">
-                      <div className="category-name">{b.category}</div>
-                      <div className="bullet-track">
-                        <div
-                          className={"bullet-fill " + (over ? "over" : "under")}
-                          style={{ width: `${fillPct}%`, animationDuration: `${growDuration(fillPct)}ms` }}
-                        ></div>
-                        <div className="bullet-target" style={{ left: `${tickPct}%` }}></div>
-                      </div>
-                    </td>
-                    <td className="num" data-label="Budgeted">{fmtMoney(b.budgeted)}</td>
-                    <td className="num" data-label="Actual">{fmtMoney(b.actual)}</td>
-                    <td className="num" data-label="Variance">
-                      {b.actual - b.budgeted >= 0 ? "+" : ""}
-                      {fmtMoney(b.actual - b.budgeted)}
-                    </td>
-                    <td data-label="% Used">{pct.toFixed(0)}%</td>
-                    <td>
-                      <span className={"pill " + (over ? "over" : "under")}>{over ? "Over" : "On Track"}</span>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+            <table className="budget-table tx-table-labeled">
+              <thead>
+                <tr>
+                  <th style={{ width: "34%" }}>Category</th>
+                  <th className="num">Budgeted</th>
+                  <th className="num">Actual</th>
+                  <th className="num">Variance</th>
+                  <th style={{ width: "18%" }}>% Used</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                {client.budget.map((b) => {
+                  const pct = (b.actual / b.budgeted) * 100;
+                  const over = b.actual > b.budgeted;
+                  const rowId = "budget-row-" + slugify(b.category);
+                  // Bullet-style bar: the track spans whichever of budgeted/actual
+                  // is bigger, so the fill shows the real dollar amount (not just
+                  // "% of budget" capped at 100%) and a target tick marks exactly
+                  // where the budget line falls — over-budget rows visibly run
+                  // past the tick instead of just stopping flush with the edge.
+                  const scaleMax = Math.max(b.budgeted, b.actual, 1) * 1.08;
+                  const fillPct = Math.min((b.actual / scaleMax) * 100, 100);
+                  const tickPct = Math.min((b.budgeted / scaleMax) * 100, 100);
+                  return (
+                    <tr
+                      key={b.category}
+                      id={rowId}
+                      className={flashCardId === rowId ? "row-flash" : ""}
+                    >
+                      <td data-primary="">
+                        <div className="category-name">{b.category}</div>
+                        <div className="bullet-track">
+                          <div
+                            className={
+                              "bullet-fill " + (over ? "over" : "under")
+                            }
+                            style={{
+                              width: `${fillPct}%`,
+                              animationDuration: `${growDuration(fillPct)}ms`,
+                            }}
+                          ></div>
+                          <div
+                            className="bullet-target"
+                            style={{ left: `${tickPct}%` }}
+                          ></div>
+                        </div>
+                      </td>
+                      <td className="num" data-label="Budgeted">
+                        {fmtMoney(b.budgeted)}
+                      </td>
+                      <td className="num" data-label="Actual">
+                        {fmtMoney(b.actual)}
+                      </td>
+                      <td className="num" data-label="Variance">
+                        {b.actual - b.budgeted >= 0 ? "+" : ""}
+                        {fmtMoney(b.actual - b.budgeted)}
+                      </td>
+                      <td data-label="% Used">{pct.toFixed(0)}%</td>
+                      <td>
+                        <span className={"pill " + (over ? "over" : "under")}>
+                          {over ? "Over" : "On Track"}
+                        </span>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
         </div>
       )}
@@ -2255,8 +3248,13 @@ function BudgetPage({ client, searchTarget }) {
       {view === "trend" && (
         <div className="card">
           <h3 className="card-title">Spending Trend</h3>
-          <p className="card-subtitle">Income vs. expenses, last {client.monthly.length} months</p>
-          <IncomeExpenseChart monthly={client.monthly} budgetTotal={totals.budgeted} />
+          <p className="card-subtitle">
+            Income vs. expenses, last {client.monthly.length} months
+          </p>
+          <IncomeExpenseChart
+            monthly={client.monthly}
+            budgetTotal={totals.budgeted}
+          />
         </div>
       )}
     </div>
@@ -2273,13 +3271,19 @@ function FundBalancesCard({ client }) {
   return (
     <div className="card">
       <h3 className="card-title">Fund Balances</h3>
-      <p className="card-subtitle">What the money in the bank is designated for</p>
+      <p className="card-subtitle">
+        What the money in the bank is designated for
+      </p>
       <div className="fund-grid">
         {client.funds.map((f) => (
           <div className="fund-card" key={f.name}>
             <div className="fund-card-top">
               <span className="fund-name">{f.name}</span>
-              <span className={"pill " + (f.restricted ? "restricted" : "unrestricted")}>
+              <span
+                className={
+                  "pill " + (f.restricted ? "restricted" : "unrestricted")
+                }
+              >
                 {f.restricted ? "Restricted" : "Unrestricted"}
               </span>
             </div>
@@ -2297,30 +3301,32 @@ function ContributionsCard({ client }) {
       <h3 className="card-title">Recent Contributions</h3>
       <p className="card-subtitle">Individual gifts and grants received</p>
       <div className="table-scroll">
-<table className="tx-table tx-table-stack tx-stack-giving">
-        <thead>
-          <tr>
-            <th>Date</th>
-            <th>Donor</th>
-            <th>Fund</th>
-            <th>Method</th>
-            <th className="num">Amount</th>
-          </tr>
-        </thead>
-        <tbody>
-          {client.contributions.map((c, i) => (
-            <tr key={i}>
-              <td>{fmtDate(c.date)}</td>
-              <td>{c.donor}</td>
-              <td>
-                <span className="category-tag">{c.fund}</span>
-              </td>
-              <td>{c.method}</td>
-              <td className="num tx-amount positive">+{fmtMoney(c.amount, { cents: true })}</td>
+        <table className="tx-table tx-table-stack tx-stack-giving">
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Donor</th>
+              <th>Fund</th>
+              <th>Method</th>
+              <th className="num">Amount</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {client.contributions.map((c, i) => (
+              <tr key={i}>
+                <td>{fmtDate(c.date)}</td>
+                <td>{c.donor}</td>
+                <td>
+                  <span className="category-tag">{c.fund}</span>
+                </td>
+                <td>{c.method}</td>
+                <td className="num tx-amount positive">
+                  +{fmtMoney(c.amount, { cents: true })}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
     </div>
   );
@@ -2328,8 +3334,12 @@ function ContributionsCard({ client }) {
 
 function GivingFundsPage({ client }) {
   const totalGiving = client.contributions.reduce((s, c) => s + c.amount, 0);
-  const restrictedTotal = client.funds.filter((f) => f.restricted).reduce((s, f) => s + f.balance, 0);
-  const unrestrictedTotal = client.funds.filter((f) => !f.restricted).reduce((s, f) => s + f.balance, 0);
+  const restrictedTotal = client.funds
+    .filter((f) => f.restricted)
+    .reduce((s, f) => s + f.balance, 0);
+  const unrestrictedTotal = client.funds
+    .filter((f) => !f.restricted)
+    .reduce((s, f) => s + f.balance, 0);
   // Contributions and Fund Balances used to both sit on the page at once,
   // with the KPI cards above just scrolling down to whichever section —
   // a real toggle shows one at a time instead, so each gets the whole page
@@ -2341,30 +3351,49 @@ function GivingFundsPage({ client }) {
       <MockBanner text="Giving records and fund balances shown here are fabricated for this prototype." />
 
       <div className="kpi-grid">
-        <button className="card kpi-card kpi-card-clickable" onClick={() => setView("contributions")}>
+        <button
+          className="card kpi-card kpi-card-clickable"
+          onClick={() => setView("contributions")}
+        >
           <span className="kpi-label">Recent Giving</span>
           <span className="kpi-value">{fmtMoney(totalGiving)}</span>
-          <span className="kpi-sub neutral">{client.contributions.length} gifts</span>
+          <span className="kpi-sub neutral">
+            {client.contributions.length} gifts
+          </span>
         </button>
-        <button className="card kpi-card kpi-card-clickable" onClick={() => setView("funds")}>
+        <button
+          className="card kpi-card kpi-card-clickable"
+          onClick={() => setView("funds")}
+        >
           <span className="kpi-label">Unrestricted Funds</span>
           <span className="kpi-value">{fmtMoney(unrestrictedTotal)}</span>
           <span className="kpi-sub positive">Available for general use</span>
         </button>
-        <button className="card kpi-card kpi-card-clickable" onClick={() => setView("funds")}>
+        <button
+          className="card kpi-card kpi-card-clickable"
+          onClick={() => setView("funds")}
+        >
           <span className="kpi-label">Restricted Funds</span>
           <span className="kpi-value">{fmtMoney(restrictedTotal)}</span>
-          <span className="kpi-sub neutral">Designated for specific purposes</span>
+          <span className="kpi-sub neutral">
+            Designated for specific purposes
+          </span>
         </button>
       </div>
 
       <div className="view-toggle" style={{ marginBottom: 20 }}>
-        <button type="button" className={"view-toggle-btn" + (view === "funds" ? " active" : "")} onClick={() => setView("funds")}>
+        <button
+          type="button"
+          className={"view-toggle-btn" + (view === "funds" ? " active" : "")}
+          onClick={() => setView("funds")}
+        >
           Fund Balances
         </button>
         <button
           type="button"
-          className={"view-toggle-btn" + (view === "contributions" ? " active" : "")}
+          className={
+            "view-toggle-btn" + (view === "contributions" ? " active" : "")
+          }
           onClick={() => setView("contributions")}
         >
           Contributions
@@ -2394,9 +3423,16 @@ function FundAccountingProPage({ client }) {
   const fundTransfers = client.fundTransfers || [];
   const pledges = client.pledges || [];
   const totalGiving = client.contributions.reduce((s, c) => s + c.amount, 0);
-  const restrictedTotal = client.funds.filter((f) => f.restricted).reduce((s, f) => s + f.balance, 0);
-  const unrestrictedTotal = client.funds.filter((f) => !f.restricted).reduce((s, f) => s + f.balance, 0);
-  const pledgesOutstanding = pledges.reduce((s, p) => s + (p.committed - p.received), 0);
+  const restrictedTotal = client.funds
+    .filter((f) => f.restricted)
+    .reduce((s, f) => s + f.balance, 0);
+  const unrestrictedTotal = client.funds
+    .filter((f) => !f.restricted)
+    .reduce((s, f) => s + f.balance, 0);
+  const pledgesOutstanding = pledges.reduce(
+    (s, p) => s + (p.committed - p.received),
+    0,
+  );
   const [view, setView] = useState("funds");
   const showToast = useToast();
   const today = todayLocal();
@@ -2411,11 +3447,14 @@ function FundAccountingProPage({ client }) {
   // a single anonymous contact), with their YTD total and the email on file
   // from client.donors, if any.
   const donorRoster = useMemo(() => {
-    const emailByDonor = Object.fromEntries((client.donors || []).map((d) => [d.name, d.email]));
+    const emailByDonor = Object.fromEntries(
+      (client.donors || []).map((d) => [d.name, d.email]),
+    );
     const totals = {};
     client.contributions.forEach((c) => {
       if (c.donor === "Anonymous") return;
-      if (!totals[c.donor]) totals[c.donor] = { donor: c.donor, total: 0, giftCount: 0 };
+      if (!totals[c.donor])
+        totals[c.donor] = { donor: c.donor, total: 0, giftCount: 0 };
       totals[c.donor].total += c.amount;
       totals[c.donor].giftCount += 1;
     });
@@ -2437,7 +3476,9 @@ function FundAccountingProPage({ client }) {
   const handleSendAll = () => {
     const withEmail = donorRoster.filter((d) => d.email);
     if (!withEmail.length) return;
-    showToast(`Sent ${withEmail.length} giving statement${withEmail.length === 1 ? "" : "s"}.`);
+    showToast(
+      `Sent ${withEmail.length} giving statement${withEmail.length === 1 ? "" : "s"}.`,
+    );
   };
 
   return (
@@ -2445,35 +3486,59 @@ function FundAccountingProPage({ client }) {
       <MockBanner text="Giving records, fund balances, transfers, and pledges shown here are fabricated for this prototype." />
 
       <div className="kpi-grid">
-        <button className="card kpi-card kpi-card-clickable" onClick={() => setView("contributions")}>
+        <button
+          className="card kpi-card kpi-card-clickable"
+          onClick={() => setView("contributions")}
+        >
           <span className="kpi-label">Recent Giving</span>
           <span className="kpi-value">{fmtMoney(totalGiving)}</span>
-          <span className="kpi-sub neutral">{client.contributions.length} gifts</span>
+          <span className="kpi-sub neutral">
+            {client.contributions.length} gifts
+          </span>
         </button>
-        <button className="card kpi-card kpi-card-clickable" onClick={() => setView("funds")}>
+        <button
+          className="card kpi-card kpi-card-clickable"
+          onClick={() => setView("funds")}
+        >
           <span className="kpi-label">Unrestricted Funds</span>
           <span className="kpi-value">{fmtMoney(unrestrictedTotal)}</span>
           <span className="kpi-sub positive">Available for general use</span>
         </button>
-        <button className="card kpi-card kpi-card-clickable" onClick={() => setView("funds")}>
+        <button
+          className="card kpi-card kpi-card-clickable"
+          onClick={() => setView("funds")}
+        >
           <span className="kpi-label">Restricted Funds</span>
           <span className="kpi-value">{fmtMoney(restrictedTotal)}</span>
-          <span className="kpi-sub neutral">Designated for specific purposes</span>
+          <span className="kpi-sub neutral">
+            Designated for specific purposes
+          </span>
         </button>
-        <button className="card kpi-card kpi-card-clickable" onClick={() => setView("pledges")}>
+        <button
+          className="card kpi-card kpi-card-clickable"
+          onClick={() => setView("pledges")}
+        >
           <span className="kpi-label">Pledges Outstanding</span>
           <span className="kpi-value">{fmtMoney(pledgesOutstanding)}</span>
-          <span className="kpi-sub neutral">{pledges.length} active pledge{pledges.length !== 1 ? "s" : ""}</span>
+          <span className="kpi-sub neutral">
+            {pledges.length} active pledge{pledges.length !== 1 ? "s" : ""}
+          </span>
         </button>
       </div>
 
       <div className="view-toggle" style={{ marginBottom: 20 }}>
-        <button type="button" className={"view-toggle-btn" + (view === "funds" ? " active" : "")} onClick={() => setView("funds")}>
+        <button
+          type="button"
+          className={"view-toggle-btn" + (view === "funds" ? " active" : "")}
+          onClick={() => setView("funds")}
+        >
           Fund Balances
         </button>
         <button
           type="button"
-          className={"view-toggle-btn" + (view === "contributions" ? " active" : "")}
+          className={
+            "view-toggle-btn" + (view === "contributions" ? " active" : "")
+          }
           onClick={() => setView("contributions")}
         >
           Contributions
@@ -2494,7 +3559,9 @@ function FundAccountingProPage({ client }) {
         </button>
         <button
           type="button"
-          className={"view-toggle-btn" + (view === "tax-documents" ? " active" : "")}
+          className={
+            "view-toggle-btn" + (view === "tax-documents" ? " active" : "")
+          }
           onClick={() => setView("tax-documents")}
         >
           Tax Documents
@@ -2507,7 +3574,9 @@ function FundAccountingProPage({ client }) {
       {view === "activity" && (
         <div className="card">
           <h3 className="card-title premium-shimmer">Fund Activity</h3>
-          <p className="card-subtitle">Transfers between funds, with the reason for each move</p>
+          <p className="card-subtitle">
+            Transfers between funds, with the reason for each move
+          </p>
           <div className="table-scroll">
             <table className="tx-table tx-table-stack tx-stack-giving">
               <thead>
@@ -2537,7 +3606,9 @@ function FundAccountingProPage({ client }) {
                         <span className="category-tag">{t.toFund}</span>
                       </td>
                       <td>{t.reason}</td>
-                      <td className="num tx-amount">{fmtMoney(t.amount, { cents: true })}</td>
+                      <td className="num tx-amount">
+                        {fmtMoney(t.amount, { cents: true })}
+                      </td>
                     </tr>
                   ))
                 )}
@@ -2550,7 +3621,9 @@ function FundAccountingProPage({ client }) {
       {view === "pledges" && (
         <div className="card">
           <h3 className="card-title premium-shimmer">Pledges</h3>
-          <p className="card-subtitle">Committed vs. received, by donor and fund</p>
+          <p className="card-subtitle">
+            Committed vs. received, by donor and fund
+          </p>
           <div className="table-scroll">
             <table className="tx-table tx-table-stack tx-stack-giving">
               <thead>
@@ -2575,9 +3648,20 @@ function FundAccountingProPage({ client }) {
                 ) : (
                   pledges.map((p, i) => {
                     const remaining = p.committed - p.received;
-                    const isOverdue = remaining > 0.005 && daysUntil(p.dueDate, today) < 0;
-                    const status = remaining <= 0.005 ? "Fulfilled" : isOverdue ? "Overdue" : "In progress";
-                    const pillClass = remaining <= 0.005 ? "good" : isOverdue ? "bad" : "neutral";
+                    const isOverdue =
+                      remaining > 0.005 && daysUntil(p.dueDate, today) < 0;
+                    const status =
+                      remaining <= 0.005
+                        ? "Fulfilled"
+                        : isOverdue
+                          ? "Overdue"
+                          : "In progress";
+                    const pillClass =
+                      remaining <= 0.005
+                        ? "good"
+                        : isOverdue
+                          ? "bad"
+                          : "neutral";
                     return (
                       <tr key={i}>
                         <td>{p.donor}</td>
@@ -2585,14 +3669,23 @@ function FundAccountingProPage({ client }) {
                           <span className="category-tag">{p.fund}</span>
                         </td>
                         <td>{fmtDate(p.dueDate)}</td>
-                        <td className="num">{fmtMoney(p.committed, { cents: true })}</td>
-                        <td className="num">{fmtMoney(p.received, { cents: true })}</td>
-                        <td className="num">{fmtMoney(remaining, { cents: true })}</td>
+                        <td className="num">
+                          {fmtMoney(p.committed, { cents: true })}
+                        </td>
+                        <td className="num">
+                          {fmtMoney(p.received, { cents: true })}
+                        </td>
+                        <td className="num">
+                          {fmtMoney(remaining, { cents: true })}
+                        </td>
                         <td>
                           <span className={"pill " + pillClass}>{status}</span>
                         </td>
                         <td>
-                          <button className="btn-secondary" onClick={() => handleDownloadStatement(p.donor)}>
+                          <button
+                            className="btn-secondary"
+                            onClick={() => handleDownloadStatement(p.donor)}
+                          >
                             Giving Statement
                           </button>
                         </td>
@@ -2612,10 +3705,15 @@ function FundAccountingProPage({ client }) {
             <div>
               <h3 className="card-title premium-shimmer">Tax Documents</h3>
               <p className="card-subtitle" style={{ margin: 0 }}>
-                Year-end giving statements donors can use to write off their contributions
+                Year-end giving statements donors can use to write off their
+                contributions
               </p>
             </div>
-            <button className="btn-primary" disabled={!donorRoster.some((d) => d.email)} onClick={handleSendAll}>
+            <button
+              className="btn-primary"
+              disabled={!donorRoster.some((d) => d.email)}
+              onClick={handleSendAll}
+            >
               Send All
             </button>
           </div>
@@ -2634,7 +3732,8 @@ function FundAccountingProPage({ client }) {
                 {donorRoster.length === 0 ? (
                   <tr>
                     <td colSpan={5} style={{ color: "var(--text-muted)" }}>
-                      No named donors to send statements to — every gift on record so far is anonymous.
+                      No named donors to send statements to — every gift on
+                      record so far is anonymous.
                     </td>
                   </tr>
                 ) : (
@@ -2642,18 +3741,37 @@ function FundAccountingProPage({ client }) {
                     <tr key={d.donor}>
                       <td>{d.donor}</td>
                       <td>
-                        {d.email || <span style={{ color: "var(--text-muted)" }}>No email on file</span>}
+                        {d.email || (
+                          <span style={{ color: "var(--text-muted)" }}>
+                            No email on file
+                          </span>
+                        )}
                       </td>
                       <td className="num">{d.giftCount}</td>
-                      <td className="num tx-amount">{fmtMoney(d.total, { cents: true })}</td>
-                      <td style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
-                        <button className="btn-secondary" onClick={() => handleDownloadStatement(d.donor)}>
+                      <td className="num tx-amount">
+                        {fmtMoney(d.total, { cents: true })}
+                      </td>
+                      <td
+                        style={{
+                          display: "flex",
+                          gap: 8,
+                          justifyContent: "flex-end",
+                        }}
+                      >
+                        <button
+                          className="btn-secondary"
+                          onClick={() => handleDownloadStatement(d.donor)}
+                        >
                           Download
                         </button>
                         <button
                           className="btn-secondary"
                           disabled={!d.email}
-                          title={d.email ? undefined : "No email on file for this donor"}
+                          title={
+                            d.email
+                              ? undefined
+                              : "No email on file for this donor"
+                          }
                           onClick={() => handleSendStatement(d.donor, d.email)}
                         >
                           Send
@@ -2666,7 +3784,8 @@ function FundAccountingProPage({ client }) {
             </table>
           </div>
           <p className="card-subtitle" style={{ margin: "12px 0 0" }}>
-            Prototype — Send simulates delivery and doesn't actually email anything yet.
+            Prototype — Send simulates delivery and doesn't actually email
+            anything yet.
           </p>
         </div>
       )}
@@ -2688,75 +3807,103 @@ function ReceivablesPayablesPage({ client }) {
       <MockBanner text="These balances are hardcoded for the prototype. Real amounts will come from QuickBooks in Phase 2." />
 
       <div className="kpi-grid">
-        <button className="card kpi-card kpi-card-clickable" onClick={() => jumpToCard("rp-receivables-card", "receivables")}>
+        <button
+          className="card kpi-card kpi-card-clickable"
+          onClick={() => jumpToCard("rp-receivables-card", "receivables")}
+        >
           <span className="kpi-label">Money Owed To You</span>
           <span className="kpi-value">{fmtMoney(totalReceivable)}</span>
-          <span className="kpi-sub positive">{client.receivables.length} open item{client.receivables.length !== 1 ? "s" : ""}</span>
+          <span className="kpi-sub positive">
+            {client.receivables.length} open item
+            {client.receivables.length !== 1 ? "s" : ""}
+          </span>
         </button>
-        <button className="card kpi-card kpi-card-clickable" onClick={() => jumpToCard("rp-payables-card", "payables")}>
+        <button
+          className="card kpi-card kpi-card-clickable"
+          onClick={() => jumpToCard("rp-payables-card", "payables")}
+        >
           <span className="kpi-label">Money You Owe</span>
           <span className="kpi-value">{fmtMoney(totalPayable)}</span>
-          <span className="kpi-sub negative">{client.payables.length} open item{client.payables.length !== 1 ? "s" : ""}</span>
+          <span className="kpi-sub negative">
+            {client.payables.length} open item
+            {client.payables.length !== 1 ? "s" : ""}
+          </span>
         </button>
         <div className="card kpi-card">
           <span className="kpi-label">Net Position</span>
-          <span className="kpi-value">{fmtMoney(totalReceivable - totalPayable)}</span>
+          <span className="kpi-value">
+            {fmtMoney(totalReceivable - totalPayable)}
+          </span>
           <span className="kpi-sub neutral">receivables minus payables</span>
         </div>
       </div>
 
       <div className="content-masonry">
-        <div className={"card " + (flashCardId === "receivables" ? "card-flash" : "")} id="rp-receivables-card">
+        <div
+          className={
+            "card " + (flashCardId === "receivables" ? "card-flash" : "")
+          }
+          id="rp-receivables-card"
+        >
           <h3 className="card-title">Receivables</h3>
-          <p className="card-subtitle">Grants, pledges, and reimbursements coming in</p>
+          <p className="card-subtitle">
+            Grants, pledges, and reimbursements coming in
+          </p>
           <div className="table-scroll">
-<table className="tx-table tx-table-labeled">
-            <thead>
-              <tr>
-                <th>Description</th>
-                <th>Due</th>
-                <th className="num">Amount</th>
-              </tr>
-            </thead>
-            <tbody>
-              {client.receivables.map((r, i) => (
-                <tr key={i}>
-                  <td data-primary="">{r.description}</td>
-                  <td data-label="Due">{fmtDate(r.dueDate)}</td>
-                  <td className="num tx-amount positive" data-label="Amount">{fmtMoney(r.amount, { cents: true })}</td>
+            <table className="tx-table tx-table-labeled">
+              <thead>
+                <tr>
+                  <th>Description</th>
+                  <th>Due</th>
+                  <th className="num">Amount</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody>
+                {client.receivables.map((r, i) => (
+                  <tr key={i}>
+                    <td data-primary="">{r.description}</td>
+                    <td data-label="Due">{fmtDate(r.dueDate)}</td>
+                    <td className="num tx-amount positive" data-label="Amount">
+                      {fmtMoney(r.amount, { cents: true })}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
 
-        <div className={"card " + (flashCardId === "payables" ? "card-flash" : "")} id="rp-payables-card">
+        <div
+          className={"card " + (flashCardId === "payables" ? "card-flash" : "")}
+          id="rp-payables-card"
+        >
           <h3 className="card-title">Payables</h3>
           <p className="card-subtitle">Bills and commitments going out</p>
           <div className="table-scroll">
-<table className="tx-table tx-table-labeled">
-            <thead>
-              <tr>
-                <th>Vendor</th>
-                <th>Due</th>
-                <th className="num">Amount</th>
-              </tr>
-            </thead>
-            <tbody>
-              {client.payables.map((p, i) => (
-                <tr key={i}>
-                  <td data-primary="">
-                    {p.vendor}
-                    <div className="tx-meta">{p.description}</div>
-                  </td>
-                  <td data-label="Due">{fmtDate(p.dueDate)}</td>
-                  <td className="num tx-amount negative" data-label="Amount">-{fmtMoney(p.amount, { cents: true })}</td>
+            <table className="tx-table tx-table-labeled">
+              <thead>
+                <tr>
+                  <th>Vendor</th>
+                  <th>Due</th>
+                  <th className="num">Amount</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody>
+                {client.payables.map((p, i) => (
+                  <tr key={i}>
+                    <td data-primary="">
+                      {p.vendor}
+                      <div className="tx-meta">{p.description}</div>
+                    </td>
+                    <td data-label="Due">{fmtDate(p.dueDate)}</td>
+                    <td className="num tx-amount negative" data-label="Amount">
+                      -{fmtMoney(p.amount, { cents: true })}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
     </div>
@@ -2785,28 +3932,57 @@ function PayrollUpsell({ client }) {
   const showToast = useToast();
 
   const handleConnect = () => {
-    showToast("Prototype — this would send your admin to Gusto to authorize read access.");
+    showToast(
+      "Prototype — this would send your admin to Gusto to authorize read access.",
+    );
   };
 
   return (
     <div>
       <MockBanner text="Payroll is an add-on, independent of plan — a Standard client can add it just like a Premium one. Nothing here is connected to a real Gusto account yet." />
 
-      <div className="card" style={{ marginBottom: 20, textAlign: "center", padding: "36px 28px" }}>
+      <div
+        className="card"
+        style={{ marginBottom: 20, textAlign: "center", padding: "36px 28px" }}
+      >
         <div className="eyebrow-badge">Payroll · Add-on</div>
-        <h2 style={{ fontFamily: "var(--font-heading)", fontSize: 26, margin: "10px 0 8px", color: "var(--ink-strong)" }}>
+        <h2
+          style={{
+            fontFamily: "var(--font-heading)",
+            fontSize: 26,
+            margin: "10px 0 8px",
+            color: "var(--ink-strong)",
+          }}
+        >
           Add Payroll for {client.name}
         </h2>
-        <p style={{ color: "var(--text-muted)", maxWidth: 560, margin: "0 auto" }}>
-          Run payroll in Gusto like you do today — connect it here to see every employee's pay,
-          withholding, and upcoming tax deposits right alongside the rest of this client's books.
+        <p
+          style={{
+            color: "var(--text-muted)",
+            maxWidth: 560,
+            margin: "0 auto",
+          }}
+        >
+          Run payroll in Gusto like you do today — connect it here to see every
+          employee's pay, withholding, and upcoming tax deposits right alongside
+          the rest of this client's books.
         </p>
-        <div style={{ display: "flex", gap: 10, alignItems: "center", justifyContent: "center", marginTop: 18, flexWrap: "wrap" }}>
+        <div
+          style={{
+            display: "flex",
+            gap: 10,
+            alignItems: "center",
+            justifyContent: "center",
+            marginTop: 18,
+            flexWrap: "wrap",
+          }}
+        >
           <button className="btn-primary" onClick={handleConnect}>
             Connect Gusto
           </button>
           <span style={{ fontSize: 12.5, color: "var(--text-muted)" }}>
-            1.25% of processed payroll, per employee, per run — no plan upgrade required
+            1.25% of processed payroll, per employee, per run — no plan upgrade
+            required
           </span>
         </div>
       </div>
@@ -2815,19 +3991,22 @@ function PayrollUpsell({ client }) {
         <div className="card">
           <h3 className="card-title">Per-employee detail</h3>
           <p className="card-subtitle" style={{ marginBottom: 0 }}>
-            Pay type, status, and direct deposit enrollment for every employee, synced from Gusto.
+            Pay type, status, and direct deposit enrollment for every employee,
+            synced from Gusto.
           </p>
         </div>
         <div className="card">
           <h3 className="card-title">Tax deposits tracked</h3>
           <p className="card-subtitle" style={{ marginBottom: 0 }}>
-            Federal 941, state withholding, and FUTA — amounts and due dates, so nothing sneaks up on you.
+            Federal 941, state withholding, and FUTA — amounts and due dates, so
+            nothing sneaks up on you.
           </p>
         </div>
         <div className="card">
           <h3 className="card-title">Synced with your books</h3>
           <p className="card-subtitle" style={{ marginBottom: 0 }}>
-            Payroll cost rolls into Budget vs. Actual and Reports — a Payroll YTD report joins the others.
+            Payroll cost rolls into Budget vs. Actual and Reports — a Payroll
+            YTD report joins the others.
           </p>
         </div>
       </div>
@@ -2845,9 +4024,18 @@ function PayrollPage({ client }) {
     <div>
       <MockBanner text="Payroll figures are sample data for this prototype. Once connected, this page reflects your live Gusto account." />
 
-      <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 14 }}>
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "flex-end",
+          marginBottom: 14,
+        }}
+      >
         <span className="badge-live">
-          <span className="badge-dot" style={{ background: "var(--good)" }}></span>
+          <span
+            className="badge-dot"
+            style={{ background: "var(--good)" }}
+          ></span>
           Connected via {payroll.provider}
         </span>
       </div>
@@ -2855,20 +4043,31 @@ function PayrollPage({ client }) {
       <div className="kpi-grid">
         <div className="card kpi-card">
           <span className="kpi-label">Active Employees</span>
-          <span className="kpi-value">{payroll.employees.filter((e) => e.status === "active").length}</span>
-          <span className="kpi-sub neutral">{payroll.employees.length} total on roster</span>
+          <span className="kpi-value">
+            {payroll.employees.filter((e) => e.status === "active").length}
+          </span>
+          <span className="kpi-sub neutral">
+            {payroll.employees.length} total on roster
+          </span>
         </div>
         <div className="card kpi-card">
           <span className="kpi-label">Next Run Total</span>
           <span className="kpi-value">{fmtMoney(payroll.nextRun.net)}</span>
-          <span className="kpi-sub neutral">{fmtDate(payroll.nextRun.date)}</span>
+          <span className="kpi-sub neutral">
+            {fmtDate(payroll.nextRun.date)}
+          </span>
         </div>
         <div className="card kpi-card">
           <span className="kpi-label">Last Run Net Pay</span>
           <span className="kpi-value">{fmtMoney(payroll.lastRun.net)}</span>
-          <span className="kpi-sub neutral">{fmtDate(payroll.lastRun.date)}</span>
+          <span className="kpi-sub neutral">
+            {fmtDate(payroll.lastRun.date)}
+          </span>
         </div>
-        <button className="card kpi-card kpi-card-clickable" onClick={() => jumpToCard("payroll-deposits-card", "deposits")}>
+        <button
+          className="card kpi-card kpi-card-clickable"
+          onClick={() => jumpToCard("payroll-deposits-card", "deposits")}
+        >
           <span className="kpi-label">YTD Payroll Cost</span>
           <span className="kpi-value">{fmtMoney(payroll.ytdCost)}</span>
           <span className="kpi-sub neutral">see tax deposits below</span>
@@ -2876,32 +4075,53 @@ function PayrollPage({ client }) {
       </div>
 
       <div className="card" style={{ marginBottom: 20 }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", flexWrap: "wrap", gap: 8 }}>
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "baseline",
+            flexWrap: "wrap",
+            gap: 8,
+          }}
+        >
           <h3 className="card-title" style={{ margin: 0 }}>
             Next pay run
           </h3>
           <span className="card-subtitle" style={{ margin: 0 }}>
-            {fmtDate(payroll.nextRun.date)} · {payroll.nextRun.employeeCount} employees
+            {fmtDate(payroll.nextRun.date)} · {payroll.nextRun.employeeCount}{" "}
+            employees
           </span>
         </div>
         <div className="kpi-grid" style={{ marginTop: 16, marginBottom: 0 }}>
           <div>
             <span className="kpi-label">Gross Pay</span>
-            <div className="kpi-value" style={{ fontSize: 18 }}>{fmtMoney(payroll.nextRun.gross)}</div>
+            <div className="kpi-value" style={{ fontSize: 18 }}>
+              {fmtMoney(payroll.nextRun.gross)}
+            </div>
           </div>
           <div>
             <span className="kpi-label">Taxes &amp; Withholding</span>
-            <div className="kpi-value" style={{ fontSize: 18 }}>{fmtMoney(payroll.nextRun.taxes)}</div>
+            <div className="kpi-value" style={{ fontSize: 18 }}>
+              {fmtMoney(payroll.nextRun.taxes)}
+            </div>
           </div>
           <div>
             <span className="kpi-label">Net Pay</span>
-            <div className="kpi-value" style={{ fontSize: 18, color: "var(--good)" }}>{fmtMoney(payroll.nextRun.net)}</div>
+            <div
+              className="kpi-value"
+              style={{ fontSize: 18, color: "var(--good)" }}
+            >
+              {fmtMoney(payroll.nextRun.net)}
+            </div>
           </div>
         </div>
       </div>
 
       <div className="content-masonry">
-        <div className={"card " + (flashCardId === "deposits" ? "card-flash" : "")} id="payroll-deposits-card">
+        <div
+          className={"card " + (flashCardId === "deposits" ? "card-flash" : "")}
+          id="payroll-deposits-card"
+        >
           <h3 className="card-title">Tax deposits</h3>
           <p className="card-subtitle">Federal and state, current quarter</p>
           <div className="table-scroll">
@@ -2924,9 +4144,13 @@ function PayrollPage({ client }) {
                         <div className="tx-meta">{d.period}</div>
                       </td>
                       <td data-label="Due">{fmtDate(d.dueDate)}</td>
-                      <td className="num tx-amount" data-label="Amount">{fmtMoney(d.amount)}</td>
+                      <td className="num tx-amount" data-label="Amount">
+                        {fmtMoney(d.amount)}
+                      </td>
                       <td data-label="Status">
-                        <span className={"kpi-sub " + meta.cls}>{meta.label}</span>
+                        <span className={"kpi-sub " + meta.cls}>
+                          {meta.label}
+                        </span>
                       </td>
                     </tr>
                   );
@@ -2938,7 +4162,10 @@ function PayrollPage({ client }) {
 
         <div className="card">
           <h3 className="card-title">Employee roster</h3>
-          <p className="card-subtitle">Rate, YTD pay, and withholding are on the Payroll YTD report under Reports</p>
+          <p className="card-subtitle">
+            Rate, YTD pay, and withholding are on the Payroll YTD report under
+            Reports
+          </p>
           <div className="table-scroll">
             <table className="tx-table tx-table-labeled">
               <thead>
@@ -2958,9 +4185,15 @@ function PayrollPage({ client }) {
                       <td data-primary="">{e.name}</td>
                       <td data-label="Role">{e.role}</td>
                       <td data-label="Pay type">{e.payType}</td>
-                      <td data-label="Direct deposit">{e.directDeposit === "enrolled" ? "Enrolled" : "Pending"}</td>
+                      <td data-label="Direct deposit">
+                        {e.directDeposit === "enrolled"
+                          ? "Enrolled"
+                          : "Pending"}
+                      </td>
                       <td data-label="Status">
-                        <span className={"kpi-sub " + meta.cls}>{meta.label}</span>
+                        <span className={"kpi-sub " + meta.cls}>
+                          {meta.label}
+                        </span>
                       </td>
                     </tr>
                   );
@@ -2974,7 +4207,13 @@ function PayrollPage({ client }) {
   );
 }
 
-const ACCOUNT_DONUT_COLORS = ["var(--gold)", "var(--good)", "var(--bad)", "var(--gold-deep)", "var(--chart-income)"];
+const ACCOUNT_DONUT_COLORS = [
+  "var(--gold)",
+  "var(--good)",
+  "var(--bad)",
+  "var(--gold-deep)",
+  "var(--chart-income)",
+];
 
 function AccountCashDonut({ accounts }) {
   const total = accounts.reduce((s, a) => s + a.balance, 0);
@@ -2989,7 +4228,10 @@ function AccountCashDonut({ accounts }) {
 
   return (
     <div className="donut-widget compact">
-      <div className="donut" style={{ background: `conic-gradient(${stops.join(", ")})` }}>
+      <div
+        className="donut"
+        style={{ background: `conic-gradient(${stops.join(", ")})` }}
+      >
         <div className="donut-hole">
           <span className="donut-center-value">{fmtMoney(total)}</span>
           <span className="donut-center-label">Total Cash</span>
@@ -2998,7 +4240,13 @@ function AccountCashDonut({ accounts }) {
       <div className="donut-legend">
         {accounts.map((a, i) => (
           <div className="donut-legend-row" key={a.id}>
-            <span className="legend-swatch" style={{ background: ACCOUNT_DONUT_COLORS[i % ACCOUNT_DONUT_COLORS.length] }}></span>
+            <span
+              className="legend-swatch"
+              style={{
+                background:
+                  ACCOUNT_DONUT_COLORS[i % ACCOUNT_DONUT_COLORS.length],
+              }}
+            ></span>
             <span>{a.accountName}</span>
             <span className="donut-legend-value">{fmtMoney(a.balance)}</span>
           </div>
@@ -3017,7 +4265,9 @@ function AccountCashDonut({ accounts }) {
 // toggle, see BankReconciliationPage below), so the transaction table and
 // its search-jump/CSV-export behavior exist in exactly one place.
 function BankTransactionsPanel({ client, searchTarget }) {
-  const [activeAccountId, setActiveAccountId] = useState(client.bankAccounts[0].id);
+  const [activeAccountId, setActiveAccountId] = useState(
+    client.bankAccounts[0].id,
+  );
   // "This Account" (the existing account-tabs-driven view) vs. "All
   // Accounts" (every account's activity combined, most recent first, with
   // its own Account column) — the transactions table only, not the KPI
@@ -3025,23 +4275,31 @@ function BankTransactionsPanel({ client, searchTarget }) {
   // tabs either way.
   const [txView, setTxView] = useState("account");
   const showToast = useToast();
-  const account = client.bankAccounts.find((a) => a.id === activeAccountId) || client.bankAccounts[0];
+  const account =
+    client.bankAccounts.find((a) => a.id === activeAccountId) ||
+    client.bankAccounts[0];
   const cash = totalCash(client);
   const { flashCardId, jumpToCard } = useCardFlash();
 
   const allTx = useMemo(
     () =>
       client.bankAccounts
-        .flatMap((a) => a.transactions.map((t) => ({ ...t, accountName: a.accountName })))
+        .flatMap((a) =>
+          a.transactions.map((t) => ({ ...t, accountName: a.accountName })),
+        )
         .sort((a, b) => (a.date < b.date ? 1 : -1)),
-    [client]
+    [client],
   );
 
   // A transaction hit lives on one specific account's tab, so switch to it
   // first (and drop back to the single-account view, since its row ids only
   // exist there) — the row won't exist in the DOM until that tab is active.
   useEffect(() => {
-    if (searchTarget && searchTarget.accountId && searchTarget.accountId !== activeAccountId) {
+    if (
+      searchTarget &&
+      searchTarget.accountId &&
+      searchTarget.accountId !== activeAccountId
+    ) {
       setActiveAccountId(searchTarget.accountId);
     }
     if (searchTarget && searchTarget.accountId) setTxView("account");
@@ -3049,17 +4307,33 @@ function BankTransactionsPanel({ client, searchTarget }) {
   }, [searchTarget && searchTarget.nonce]);
 
   useEffect(() => {
-    if (searchTarget && txView === "account") jumpToCard(searchTarget.highlightKey, searchTarget.highlightKey);
+    if (searchTarget && txView === "account")
+      jumpToCard(searchTarget.highlightKey, searchTarget.highlightKey);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchTarget && searchTarget.nonce, activeAccountId, txView]);
 
   const exportCSV = () => {
     const isAll = txView === "all";
-    const header = isAll ? ["Date", "Account", "Description", "Category", "Amount"] : ["Date", "Description", "Category", "Amount"];
+    const header = isAll
+      ? ["Date", "Account", "Description", "Category", "Amount"]
+      : ["Date", "Description", "Category", "Amount"];
     const rows = isAll
-      ? allTx.map((t) => [t.date, t.accountName, t.description, t.category, t.amount])
-      : account.transactions.map((t) => [t.date, t.description, t.category, t.amount]);
-    const csv = [header, ...rows].map((r) => r.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(",")).join("\n");
+      ? allTx.map((t) => [
+          t.date,
+          t.accountName,
+          t.description,
+          t.category,
+          t.amount,
+        ])
+      : account.transactions.map((t) => [
+          t.date,
+          t.description,
+          t.category,
+          t.amount,
+        ]);
+    const csv = [header, ...rows]
+      .map((r) => r.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(","))
+      .join("\n");
     const blob = new Blob([csv], { type: "text/csv" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -3069,7 +4343,9 @@ function BankTransactionsPanel({ client, searchTarget }) {
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
-    showToast(`Exported ${isAll ? allTx.length : account.transactions.length} transactions to CSV.`);
+    showToast(
+      `Exported ${isAll ? allTx.length : account.transactions.length} transactions to CSV.`,
+    );
   };
 
   return (
@@ -3080,12 +4356,17 @@ function BankTransactionsPanel({ client, searchTarget }) {
             <div className="card kpi-card">
               <span className="kpi-label">Total Cash on Hand</span>
               <span className="kpi-value">{fmtMoney(cash)}</span>
-              <span className="kpi-sub neutral">across {client.bankAccounts.length} account{client.bankAccounts.length > 1 ? "s" : ""}</span>
+              <span className="kpi-sub neutral">
+                across {client.bankAccounts.length} account
+                {client.bankAccounts.length > 1 ? "s" : ""}
+              </span>
             </div>
 
             <div className="card kpi-card">
               <span className="kpi-label">Current Balance</span>
-              <span className="kpi-value">{fmtMoney(account.balance, { cents: true })}</span>
+              <span className="kpi-value">
+                {fmtMoney(account.balance, { cents: true })}
+              </span>
               <span className="kpi-sub neutral">
                 {account.accountName} ({account.type})
                 <span className="dot-sep">•</span>
@@ -3098,11 +4379,15 @@ function BankTransactionsPanel({ client, searchTarget }) {
             {client.bankAccounts.map((a) => (
               <button
                 key={a.id}
-                className={"account-tab" + (a.id === activeAccountId ? " active" : "")}
+                className={
+                  "account-tab" + (a.id === activeAccountId ? " active" : "")
+                }
                 onClick={() => setActiveAccountId(a.id)}
               >
                 <span className="account-tab-name">{a.accountName}</span>
-                <span className="account-tab-balance">{fmtMoney(a.balance)}</span>
+                <span className="account-tab-balance">
+                  {fmtMoney(a.balance)}
+                </span>
               </button>
             ))}
           </div>
@@ -3110,7 +4395,9 @@ function BankTransactionsPanel({ client, searchTarget }) {
 
         <div className="card bank-top-right">
           <h3 className="card-title">Cash by Account</h3>
-          <p className="card-subtitle" style={{ margin: 0 }}>Share of total cash on hand</p>
+          <p className="card-subtitle" style={{ margin: 0 }}>
+            Share of total cash on hand
+          </p>
           <AccountCashDonut accounts={client.bankAccounts} />
         </div>
       </div>
@@ -3129,14 +4416,18 @@ function BankTransactionsPanel({ client, searchTarget }) {
             <div className="view-toggle">
               <button
                 type="button"
-                className={"view-toggle-btn" + (txView === "account" ? " active" : "")}
+                className={
+                  "view-toggle-btn" + (txView === "account" ? " active" : "")
+                }
                 onClick={() => setTxView("account")}
               >
                 This Account
               </button>
               <button
                 type="button"
-                className={"view-toggle-btn" + (txView === "all" ? " active" : "")}
+                className={
+                  "view-toggle-btn" + (txView === "all" ? " active" : "")
+                }
                 onClick={() => setTxView("all")}
               >
                 All Accounts
@@ -3148,36 +4439,52 @@ function BankTransactionsPanel({ client, searchTarget }) {
           </div>
         </div>
         <div className="table-scroll tx-list-scroll">
-<table className="tx-table tx-table-stack tx-stack-bank" style={{ marginTop: 16 }}>
-          <thead>
-            <tr>
-              <th>Date</th>
-              {txView === "all" && <th>Account</th>}
-              <th>Description</th>
-              <th>Category</th>
-              <th className="num">Amount</th>
-            </tr>
-          </thead>
-          <tbody>
-            {(txView === "all" ? allTx : account.transactions).map((t, i) => {
-              const rowId = "tx-" + i;
-              return (
-              <tr key={i} id={txView === "all" ? undefined : rowId} className={txView !== "all" && flashCardId === rowId ? "row-flash" : ""}>
-                <td>{fmtDate(t.date)}</td>
-                {txView === "all" && <td>{t.accountName}</td>}
-                <td>{t.description}</td>
-                <td>
-                  <span className="category-tag">{t.category}</span>
-                </td>
-                <td className={"num tx-amount " + (t.amount >= 0 ? "positive" : "negative")}>
-                  {t.amount >= 0 ? "+" : ""}
-                  {fmtMoney(t.amount, { cents: true })}
-                </td>
+          <table
+            className="tx-table tx-table-stack tx-stack-bank"
+            style={{ marginTop: 16 }}
+          >
+            <thead>
+              <tr>
+                <th>Date</th>
+                {txView === "all" && <th>Account</th>}
+                <th>Description</th>
+                <th>Category</th>
+                <th className="num">Amount</th>
               </tr>
-              );
-            })}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {(txView === "all" ? allTx : account.transactions).map((t, i) => {
+                const rowId = "tx-" + i;
+                return (
+                  <tr
+                    key={i}
+                    id={txView === "all" ? undefined : rowId}
+                    className={
+                      txView !== "all" && flashCardId === rowId
+                        ? "row-flash"
+                        : ""
+                    }
+                  >
+                    <td>{fmtDate(t.date)}</td>
+                    {txView === "all" && <td>{t.accountName}</td>}
+                    <td>{t.description}</td>
+                    <td>
+                      <span className="category-tag">{t.category}</span>
+                    </td>
+                    <td
+                      className={
+                        "num tx-amount " +
+                        (t.amount >= 0 ? "positive" : "negative")
+                      }
+                    >
+                      {t.amount >= 0 ? "+" : ""}
+                      {fmtMoney(t.amount, { cents: true })}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
         </div>
       </div>
     </div>
@@ -3222,30 +4529,40 @@ function BankReconciliationPage({ client, searchTarget }) {
       <div className="view-toggle" style={{ marginBottom: 20 }}>
         <button
           type="button"
-          className={"view-toggle-btn" + (view === "transactions" ? " active" : "")}
+          className={
+            "view-toggle-btn" + (view === "transactions" ? " active" : "")
+          }
           onClick={() => setView("transactions")}
         >
           Transactions
         </button>
         <button
           type="button"
-          className={"view-toggle-btn" + (view === "reconciliation" ? " active" : "")}
+          className={
+            "view-toggle-btn" + (view === "reconciliation" ? " active" : "")
+          }
           onClick={() => setView("reconciliation")}
         >
           Reconciliation
         </button>
       </div>
 
-      {view === "transactions" && <BankTransactionsPanel client={client} searchTarget={searchTarget} />}
+      {view === "transactions" && (
+        <BankTransactionsPanel client={client} searchTarget={searchTarget} />
+      )}
       {view === "reconciliation" && <ReconciliationPanel client={client} />}
     </div>
   );
 }
 
 function ReconciliationPanel({ client }) {
-  const [activeAccountId, setActiveAccountId] = useState(client.bankAccounts[0].id);
+  const [activeAccountId, setActiveAccountId] = useState(
+    client.bankAccounts[0].id,
+  );
   const showToast = useToast();
-  const account = client.bankAccounts.find((a) => a.id === activeAccountId) || client.bankAccounts[0];
+  const account =
+    client.bankAccounts.find((a) => a.id === activeAccountId) ||
+    client.bankAccounts[0];
 
   // Missing cleared/statementBalance (any client this session's mock data
   // wasn't written for) reads as "fully cleared, nothing outstanding" rather
@@ -3253,23 +4570,34 @@ function ReconciliationPanel({ client }) {
   // note about not fabricating data a page doesn't actually have.
   const outstanding = account.transactions.filter((t) => t.cleared === false);
   const outstandingTotal = outstanding.reduce((s, t) => s + t.amount, 0);
-  const statementBalance = account.statementBalance != null ? account.statementBalance : account.balance;
+  const statementBalance =
+    account.statementBalance != null
+      ? account.statementBalance
+      : account.balance;
   const adjustedBalance = statementBalance + outstandingTotal;
   const difference = account.balance - adjustedBalance;
   const isReconciled = Math.abs(difference) < 0.005;
 
-  const history = (client.bankReconciliations || []).filter((r) => r.accountId === activeAccountId);
+  const history = (client.bankReconciliations || []).filter(
+    (r) => r.accountId === activeAccountId,
+  );
 
   // Across every account, not just the one selected in the tabs above — a
   // quick "where should I actually look first" comparison, since the tabs
   // only ever show one account's detail at a time.
   const outstandingByAccount = client.bankAccounts.map((a) => ({
     label: a.accountName,
-    amount: (a.transactions || []).filter((t) => t.cleared === false).reduce((s, t) => s + Math.abs(t.amount), 0),
+    amount: (a.transactions || [])
+      .filter((t) => t.cleared === false)
+      .reduce((s, t) => s + Math.abs(t.amount), 0),
   }));
 
   const handleDownload = () => {
-    const filename = buildReconciliationReportPdf(client, account, { statementBalance, outstanding, difference });
+    const filename = buildReconciliationReportPdf(client, account, {
+      statementBalance,
+      outstanding,
+      difference,
+    });
     showToast(`Downloaded "${filename}"`);
   };
 
@@ -3279,7 +4607,9 @@ function ReconciliationPanel({ client }) {
         {client.bankAccounts.map((a) => (
           <button
             key={a.id}
-            className={"account-tab" + (a.id === activeAccountId ? " active" : "")}
+            className={
+              "account-tab" + (a.id === activeAccountId ? " active" : "")
+            }
             onClick={() => setActiveAccountId(a.id)}
           >
             <span className="account-tab-name">{a.accountName}</span>
@@ -3291,35 +4621,54 @@ function ReconciliationPanel({ client }) {
       <div className="kpi-grid" style={{ marginBottom: 20 }}>
         <div className="card kpi-card">
           <span className="kpi-label">Statement Balance</span>
-          <span className="kpi-value">{fmtMoney(statementBalance, { cents: true })}</span>
-          <span className="kpi-sub neutral">As of {account.statementDate ? fmtDate(account.statementDate) : "—"}</span>
+          <span className="kpi-value">
+            {fmtMoney(statementBalance, { cents: true })}
+          </span>
+          <span className="kpi-sub neutral">
+            As of {account.statementDate ? fmtDate(account.statementDate) : "—"}
+          </span>
         </div>
         <div className="card kpi-card">
           <span className="kpi-label">Outstanding Items</span>
-          <span className="kpi-value">{fmtMoney(outstandingTotal, { cents: true })}</span>
-          <span className="kpi-sub neutral">{outstanding.length} not yet cleared</span>
+          <span className="kpi-value">
+            {fmtMoney(outstandingTotal, { cents: true })}
+          </span>
+          <span className="kpi-sub neutral">
+            {outstanding.length} not yet cleared
+          </span>
         </div>
         <div className="card kpi-card">
           <span className="kpi-label">Difference</span>
-          <span className="kpi-value" style={{ color: isReconciled ? "var(--good)" : "var(--bad)" }}>
+          <span
+            className="kpi-value"
+            style={{ color: isReconciled ? "var(--good)" : "var(--bad)" }}
+          >
             {fmtMoney(difference, { cents: true })}
           </span>
-          <span className={"kpi-sub " + (isReconciled ? "positive" : "negative")}>
-            {isReconciled ? "Reconciled" : "Book balance vs. adjusted statement"}
+          <span
+            className={"kpi-sub " + (isReconciled ? "positive" : "negative")}
+          >
+            {isReconciled
+              ? "Reconciled"
+              : "Book balance vs. adjusted statement"}
           </span>
         </div>
       </div>
 
       <div className="card" style={{ marginBottom: 20 }}>
         <h3 className="card-title premium-shimmer">Outstanding by Account</h3>
-        <p className="card-subtitle">Not-yet-cleared dollars across every account, at a glance</p>
+        <p className="card-subtitle">
+          Not-yet-cleared dollars across every account, at a glance
+        </p>
         <ReportBarRows items={outstandingByAccount} />
       </div>
 
       <div className="card" style={{ marginBottom: 20 }}>
         <div className="page-header" style={{ marginBottom: 4 }}>
           <div>
-            <h3 className="card-title premium-shimmer">{account.accountName} — Cleared Status</h3>
+            <h3 className="card-title premium-shimmer">
+              {account.accountName} — Cleared Status
+            </h3>
             <p className="card-subtitle" style={{ margin: 0 }}>
               Which transactions have shown up on the bank statement so far
             </p>
@@ -3329,7 +4678,10 @@ function ReconciliationPanel({ client }) {
           </button>
         </div>
         <div className="table-scroll">
-          <table className="tx-table tx-table-stack tx-stack-bank" style={{ marginTop: 16 }}>
+          <table
+            className="tx-table tx-table-stack tx-stack-bank"
+            style={{ marginTop: 16 }}
+          >
             <thead>
               <tr>
                 <th>Status</th>
@@ -3343,7 +4695,11 @@ function ReconciliationPanel({ client }) {
               {account.transactions.map((t, i) => (
                 <tr key={i}>
                   <td>
-                    <span className={"pill " + (t.cleared !== false ? "good" : "warm")}>
+                    <span
+                      className={
+                        "pill " + (t.cleared !== false ? "good" : "warm")
+                      }
+                    >
                       {t.cleared !== false ? "Cleared" : "Outstanding"}
                     </span>
                   </td>
@@ -3352,7 +4708,12 @@ function ReconciliationPanel({ client }) {
                   <td>
                     <span className="category-tag">{t.category}</span>
                   </td>
-                  <td className={"num tx-amount " + (t.amount >= 0 ? "positive" : "negative")}>
+                  <td
+                    className={
+                      "num tx-amount " +
+                      (t.amount >= 0 ? "positive" : "negative")
+                    }
+                  >
                     {t.amount >= 0 ? "+" : ""}
                     {fmtMoney(t.amount, { cents: true })}
                   </td>
@@ -3365,7 +4726,9 @@ function ReconciliationPanel({ client }) {
 
       <div className="card">
         <h3 className="card-title premium-shimmer">Reconciliation History</h3>
-        <p className="card-subtitle">Prior periods closed and signed off for {account.accountName}</p>
+        <p className="card-subtitle">
+          Prior periods closed and signed off for {account.accountName}
+        </p>
         {history.length === 0 ? (
           <p className="card-subtitle" style={{ margin: 0 }}>
             No prior periods closed yet for this account.
@@ -3411,8 +4774,16 @@ const sanitizeFilename = (s) => s.replace(/[\\/:*?"<>|]/g, "");
 const PDF_TABLE_THEME = {
   theme: "striped",
   styles: { fontSize: 9, cellPadding: 3, textColor: [5, 8, 13] },
-  headStyles: { fillColor: [5, 8, 13], textColor: [250, 249, 246], fontStyle: "bold" },
-  footStyles: { fillColor: [199, 174, 134], textColor: [5, 8, 13], fontStyle: "bold" },
+  headStyles: {
+    fillColor: [5, 8, 13],
+    textColor: [250, 249, 246],
+    fontStyle: "bold",
+  },
+  footStyles: {
+    fillColor: [199, 174, 134],
+    textColor: [5, 8, 13],
+    fontStyle: "bold",
+  },
   margin: { left: 14, right: 14 },
 };
 
@@ -3455,7 +4826,11 @@ function periodMonths(monthly, periodKey) {
   return monthly.slice(-1);
 }
 
-const PERIOD_LABELS = { month: "This Month", quarter: "This Quarter", ytd: "Year to Date" };
+const PERIOD_LABELS = {
+  month: "This Month",
+  quarter: "This Quarter",
+  ytd: "Year to Date",
+};
 
 function buildProfitAndLossPdf(client, periodKey = "month") {
   // Sourced from `monthly` and `budget`, not the transaction register: the
@@ -3472,7 +4847,11 @@ function buildProfitAndLossPdf(client, periodKey = "month") {
     .sort((a, b) => b[1] - a[1]);
   const categorizedExpenses = expenseRows.reduce((s, [, v]) => s + v, 0);
 
-  const doc = newReportDoc("Profit & Loss Statement", `${periodLabel} (through ${monthLabel})`, client);
+  const doc = newReportDoc(
+    "Profit & Loss Statement",
+    `${periodLabel} (through ${monthLabel})`,
+    client,
+  );
 
   doc.autoTable({
     startY: 55,
@@ -3483,7 +4862,11 @@ function buildProfitAndLossPdf(client, periodKey = "month") {
       fmtMoney(m.expenses),
       (m.income - m.expenses >= 0 ? "+" : "") + fmtMoney(m.income - m.expenses),
     ]),
-    columnStyles: { 1: { halign: "right" }, 2: { halign: "right" }, 3: { halign: "right" } },
+    columnStyles: {
+      1: { halign: "right" },
+      2: { halign: "right" },
+      3: { halign: "right" },
+    },
     ...PDF_TABLE_THEME,
   });
 
@@ -3501,11 +4884,15 @@ function buildProfitAndLossPdf(client, periodKey = "month") {
   doc.setFontSize(11);
   doc.setTextColor(5, 8, 13);
   doc.text(`Total Income (${periodLabel}): ${fmtMoney(periodIncome)}`, 14, y);
-  doc.text(`Total Expenses (${periodLabel}): ${fmtMoney(periodExpenses)}`, 14, y + 7);
+  doc.text(
+    `Total Expenses (${periodLabel}): ${fmtMoney(periodExpenses)}`,
+    14,
+    y + 7,
+  );
   doc.text(
     `Net Income (${periodLabel}): ${fmtMoney(periodIncome - periodExpenses)}`,
     14,
-    y + 16
+    y + 16,
   );
 
   const filename = `${sanitizeFilename(client.name)} - Profit and Loss (${periodLabel}).pdf`;
@@ -3515,16 +4902,26 @@ function buildProfitAndLossPdf(client, periodKey = "month") {
 
 function buildBalanceSheetPdf(client) {
   const totalAssets = client.bankAccounts.reduce((s, a) => s + a.balance, 0);
-  const totalLiabilities = (client.payables || []).reduce((s, p) => s + p.amount, 0);
+  const totalLiabilities = (client.payables || []).reduce(
+    (s, p) => s + p.amount,
+    0,
+  );
   const totalFundBalance = client.funds.reduce((s, f) => s + f.balance, 0);
-  const asOf = new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
+  const asOf = new Date().toLocaleDateString("en-US", {
+    month: "long",
+    day: "numeric",
+    year: "numeric",
+  });
 
   const doc = newReportDoc("Balance Sheet", `As of ${asOf}`, client);
 
   doc.autoTable({
     startY: 55,
     head: [["Assets", "Balance"]],
-    body: client.bankAccounts.map((a) => [`${a.accountName} (••${a.accountMask})`, fmtMoney(a.balance, { cents: true })]),
+    body: client.bankAccounts.map((a) => [
+      `${a.accountName} (••${a.accountMask})`,
+      fmtMoney(a.balance, { cents: true }),
+    ]),
     foot: [["Total Assets", fmtMoney(totalAssets, { cents: true })]],
     columnStyles: { 1: { halign: "right" } },
     ...PDF_TABLE_THEME,
@@ -3533,7 +4930,10 @@ function buildBalanceSheetPdf(client) {
   doc.autoTable({
     startY: doc.lastAutoTable.finalY + 8,
     head: [["Liabilities", "Amount"]],
-    body: (client.payables || []).map((p) => [`${p.vendor} — ${p.description}`, fmtMoney(p.amount, { cents: true })]),
+    body: (client.payables || []).map((p) => [
+      `${p.vendor} — ${p.description}`,
+      fmtMoney(p.amount, { cents: true }),
+    ]),
     foot: [["Total Liabilities", fmtMoney(totalLiabilities, { cents: true })]],
     columnStyles: { 1: { halign: "right" } },
     ...PDF_TABLE_THEME,
@@ -3543,10 +4943,18 @@ function buildBalanceSheetPdf(client) {
   doc.setFont("helvetica", "bold");
   doc.setFontSize(11);
   doc.setTextColor(5, 8, 13);
-  doc.text(`Net Assets: ${fmtMoney(totalAssets - totalLiabilities, { cents: true })}`, 14, y);
+  doc.text(
+    `Net Assets: ${fmtMoney(totalAssets - totalLiabilities, { cents: true })}`,
+    14,
+    y,
+  );
 
-  const unrestricted = client.funds.filter((f) => !f.restricted).reduce((s, f) => s + f.balance, 0);
-  const restricted = client.funds.filter((f) => f.restricted).reduce((s, f) => s + f.balance, 0);
+  const unrestricted = client.funds
+    .filter((f) => !f.restricted)
+    .reduce((s, f) => s + f.balance, 0);
+  const restricted = client.funds
+    .filter((f) => f.restricted)
+    .reduce((s, f) => s + f.balance, 0);
 
   doc.autoTable({
     startY: y + 8,
@@ -3570,7 +4978,7 @@ function buildBalanceSheetPdf(client) {
   doc.text(
     "Restricted fund balances are held within the accounts listed above, not in addition to them.",
     14,
-    doc.lastAutoTable.finalY + 6
+    doc.lastAutoTable.finalY + 6,
   );
 
   const filename = `${sanitizeFilename(client.name)} - Balance Sheet.pdf`;
@@ -3581,7 +4989,12 @@ function buildBalanceSheetPdf(client) {
 function buildBudgetVsActualPdf(client) {
   const rows = client.budget.map((b) => {
     const variance = b.actual - b.budgeted;
-    return [b.category, fmtMoney(b.budgeted), fmtMoney(b.actual), (variance >= 0 ? "+" : "") + fmtMoney(variance)];
+    return [
+      b.category,
+      fmtMoney(b.budgeted),
+      fmtMoney(b.actual),
+      (variance >= 0 ? "+" : "") + fmtMoney(variance),
+    ];
   });
   const totalBudgeted = client.budget.reduce((s, b) => s + b.budgeted, 0);
   const totalActual = client.budget.reduce((s, b) => s + b.actual, 0);
@@ -3589,14 +5002,29 @@ function buildBudgetVsActualPdf(client) {
   const latestMonth = client.monthly[client.monthly.length - 1];
   const period = `${latestMonth.month} ${new Date().getFullYear()}`;
 
-  const doc = newReportDoc("Budget vs. Actual Report", `For the month of ${period}`, client);
+  const doc = newReportDoc(
+    "Budget vs. Actual Report",
+    `For the month of ${period}`,
+    client,
+  );
 
   doc.autoTable({
     startY: 55,
     head: [["Category", "Budgeted", "Actual", "Variance"]],
     body: rows,
-    foot: [["Total", fmtMoney(totalBudgeted), fmtMoney(totalActual), (totalVariance >= 0 ? "+" : "") + fmtMoney(totalVariance)]],
-    columnStyles: { 1: { halign: "right" }, 2: { halign: "right" }, 3: { halign: "right" } },
+    foot: [
+      [
+        "Total",
+        fmtMoney(totalBudgeted),
+        fmtMoney(totalActual),
+        (totalVariance >= 0 ? "+" : "") + fmtMoney(totalVariance),
+      ],
+    ],
+    columnStyles: {
+      1: { halign: "right" },
+      2: { halign: "right" },
+      3: { halign: "right" },
+    },
     ...PDF_TABLE_THEME,
   });
 
@@ -3614,12 +5042,19 @@ function buildContributionStatementPdf(client) {
   const total = contributions.reduce((s, c) => s + c.amount, 0);
   const year = new Date().getFullYear();
 
-  const doc = newReportDoc("Contribution Statement (YTD)", `January 1 – December 31, ${year}`, client);
+  const doc = newReportDoc(
+    "Contribution Statement (YTD)",
+    `January 1 – December 31, ${year}`,
+    client,
+  );
 
   doc.autoTable({
     startY: 55,
     head: [["Fund", "Total Given"]],
-    body: Object.entries(byFund).map(([fund, amt]) => [fund, fmtMoney(amt, { cents: true })]),
+    body: Object.entries(byFund).map(([fund, amt]) => [
+      fund,
+      fmtMoney(amt, { cents: true }),
+    ]),
     foot: [["Total Contributions", fmtMoney(total, { cents: true })]],
     columnStyles: { 1: { halign: "right" } },
     ...PDF_TABLE_THEME,
@@ -3628,7 +5063,13 @@ function buildContributionStatementPdf(client) {
   doc.autoTable({
     startY: doc.lastAutoTable.finalY + 8,
     head: [["Date", "Donor", "Fund", "Method", "Amount"]],
-    body: contributions.map((c) => [fmtDate(c.date), c.donor, c.fund, c.method, fmtMoney(c.amount, { cents: true })]),
+    body: contributions.map((c) => [
+      fmtDate(c.date),
+      c.donor,
+      c.fund,
+      c.method,
+      fmtMoney(c.amount, { cents: true }),
+    ]),
     columnStyles: { 4: { halign: "right" } },
     ...PDF_TABLE_THEME,
   });
@@ -3641,9 +5082,19 @@ function buildContributionStatementPdf(client) {
 // Reconciliation Pro only. { statementBalance, outstanding, difference } is
 // exactly what ReconciliationPanel already computed for the page itself, so
 // there's no second copy of the balancing math to keep in sync.
-function buildReconciliationReportPdf(client, account, { statementBalance, outstanding, difference }) {
+function buildReconciliationReportPdf(
+  client,
+  account,
+  { statementBalance, outstanding, difference },
+) {
   const outstandingTotal = outstanding.reduce((s, t) => s + t.amount, 0);
-  const doc = newReportDoc(`Bank Reconciliation — ${account.accountName}`, account.statementDate ? `Statement dated ${fmtDate(account.statementDate)}` : "Current period", client);
+  const doc = newReportDoc(
+    `Bank Reconciliation — ${account.accountName}`,
+    account.statementDate
+      ? `Statement dated ${fmtDate(account.statementDate)}`
+      : "Current period",
+    client,
+  );
 
   doc.autoTable({
     startY: 55,
@@ -3651,7 +5102,10 @@ function buildReconciliationReportPdf(client, account, { statementBalance, outst
     body: [
       ["Statement Balance", fmtMoney(statementBalance, { cents: true })],
       ["Outstanding Items", fmtMoney(outstandingTotal, { cents: true })],
-      ["Adjusted Balance", fmtMoney(statementBalance + outstandingTotal, { cents: true })],
+      [
+        "Adjusted Balance",
+        fmtMoney(statementBalance + outstandingTotal, { cents: true }),
+      ],
       ["Book Balance", fmtMoney(account.balance, { cents: true })],
     ],
     foot: [["Difference", fmtMoney(difference, { cents: true })]],
@@ -3663,7 +5117,12 @@ function buildReconciliationReportPdf(client, account, { statementBalance, outst
     startY: doc.lastAutoTable.finalY + 8,
     head: [["Date", "Description", "Category", "Amount"]],
     body: outstanding.length
-      ? outstanding.map((t) => [fmtDate(t.date), t.description, t.category, fmtMoney(t.amount, { cents: true })])
+      ? outstanding.map((t) => [
+          fmtDate(t.date),
+          t.description,
+          t.category,
+          fmtMoney(t.amount, { cents: true }),
+        ])
       : [["—", "No outstanding items", "—", "—"]],
     columnStyles: { 3: { halign: "right" } },
     ...PDF_TABLE_THEME,
@@ -3677,16 +5136,27 @@ function buildReconciliationReportPdf(client, account, { statementBalance, outst
 // Fund Accounting Pro only. One donor's gifts across every fund, YTD — the
 // per-donor equivalent of buildContributionStatementPdf's by-fund summary.
 function buildGivingStatementPdf(client, donorName) {
-  const gifts = (client.contributions || []).filter((c) => c.donor === donorName);
+  const gifts = (client.contributions || []).filter(
+    (c) => c.donor === donorName,
+  );
   const total = gifts.reduce((s, c) => s + c.amount, 0);
   const year = new Date().getFullYear();
 
-  const doc = newReportDoc(`Giving Statement — ${donorName}`, `January 1 – December 31, ${year}`, client);
+  const doc = newReportDoc(
+    `Giving Statement — ${donorName}`,
+    `January 1 – December 31, ${year}`,
+    client,
+  );
 
   doc.autoTable({
     startY: 55,
     head: [["Date", "Fund", "Method", "Amount"]],
-    body: gifts.map((c) => [fmtDate(c.date), c.fund, c.method, fmtMoney(c.amount, { cents: true })]),
+    body: gifts.map((c) => [
+      fmtDate(c.date),
+      c.fund,
+      c.method,
+      fmtMoney(c.amount, { cents: true }),
+    ]),
     foot: [["", "", "Total", fmtMoney(total, { cents: true })]],
     columnStyles: { 3: { halign: "right" } },
     ...PDF_TABLE_THEME,
@@ -3712,15 +5182,21 @@ function buildPayrollYtdPdf(client) {
       fica: s.fica + e.ytdFica,
       net: s.net + e.ytdNet,
     }),
-    { gross: 0, federal: 0, state: 0, fica: 0, net: 0 }
+    { gross: 0, federal: 0, state: 0, fica: 0, net: 0 },
   );
   const year = new Date().getFullYear();
 
-  const doc = newReportDoc("Payroll — Year to Date by Employee", `January 1 – Present, ${year}`, client);
+  const doc = newReportDoc(
+    "Payroll — Year to Date by Employee",
+    `January 1 – Present, ${year}`,
+    client,
+  );
 
   doc.autoTable({
     startY: 55,
-    head: [["Employee", "Gross YTD", "Federal W/H", "State W/H", "FICA", "Net YTD"]],
+    head: [
+      ["Employee", "Gross YTD", "Federal W/H", "State W/H", "FICA", "Net YTD"],
+    ],
     body: employees.map((e) => [
       e.name,
       fmtMoney(e.ytdGross),
@@ -3729,22 +5205,34 @@ function buildPayrollYtdPdf(client) {
       fmtMoney(e.ytdFica),
       fmtMoney(e.ytdNet),
     ]),
-    foot: [[
-      `Total (${employees.length} employees)`,
-      fmtMoney(totals.gross),
-      fmtMoney(totals.federal),
-      fmtMoney(totals.state),
-      fmtMoney(totals.fica),
-      fmtMoney(totals.net),
-    ]],
-    columnStyles: { 1: { halign: "right" }, 2: { halign: "right" }, 3: { halign: "right" }, 4: { halign: "right" }, 5: { halign: "right" } },
+    foot: [
+      [
+        `Total (${employees.length} employees)`,
+        fmtMoney(totals.gross),
+        fmtMoney(totals.federal),
+        fmtMoney(totals.state),
+        fmtMoney(totals.fica),
+        fmtMoney(totals.net),
+      ],
+    ],
+    columnStyles: {
+      1: { halign: "right" },
+      2: { halign: "right" },
+      3: { halign: "right" },
+      4: { halign: "right" },
+      5: { halign: "right" },
+    },
     ...PDF_TABLE_THEME,
   });
 
   doc.setFont("helvetica", "italic");
   doc.setFontSize(8);
   doc.setTextColor(110, 110, 110);
-  doc.text(`Figures synced from ${payroll.provider}.`, 14, doc.lastAutoTable.finalY + 6);
+  doc.text(
+    `Figures synced from ${payroll.provider}.`,
+    14,
+    doc.lastAutoTable.finalY + 6,
+  );
 
   const filename = `${sanitizeFilename(client.name)} - Payroll YTD.pdf`;
   doc.save(filename);
@@ -3759,10 +5247,21 @@ function buildDraftBudgetPdf(client, rows) {
 
   doc.autoTable({
     startY: 55,
-    head: [["Category", "This Year's Actual", "Current Budget", "Proposed Budget"]],
-    body: rows.map((r) => [r.category, fmtMoney(r.actual), fmtMoney(r.current), fmtMoney(r.proposed)]),
+    head: [
+      ["Category", "This Year's Actual", "Current Budget", "Proposed Budget"],
+    ],
+    body: rows.map((r) => [
+      r.category,
+      fmtMoney(r.actual),
+      fmtMoney(r.current),
+      fmtMoney(r.proposed),
+    ]),
     foot: [["Total", "", fmtMoney(totalCurrent), fmtMoney(totalProposed)]],
-    columnStyles: { 1: { halign: "right" }, 2: { halign: "right" }, 3: { halign: "right" } },
+    columnStyles: {
+      1: { halign: "right" },
+      2: { halign: "right" },
+      3: { halign: "right" },
+    },
     ...PDF_TABLE_THEME,
   });
 
@@ -3784,13 +5283,35 @@ const REPORT_PDF_BUILDERS = {
 // ----------------------------------------------------------------------------
 
 const REPORT_TYPES = [
-  { key: "pl", name: "Profit & Loss Statement", description: "Income and expenses for the selected period." },
-  { key: "bs", name: "Balance Sheet", description: "Assets, liabilities, and fund balances as of month end." },
-  { key: "budget", name: "Budget vs. Actual Report", description: "Category-by-category comparison for the current month." },
-  { key: "giving", name: "Contribution Statement (YTD)", description: "Giving summary by fund, ready to share with your board or donors." },
+  {
+    key: "pl",
+    name: "Profit & Loss Statement",
+    description: "Income and expenses for the selected period.",
+  },
+  {
+    key: "bs",
+    name: "Balance Sheet",
+    description: "Assets, liabilities, and fund balances as of month end.",
+  },
+  {
+    key: "budget",
+    name: "Budget vs. Actual Report",
+    description: "Category-by-category comparison for the current month.",
+  },
+  {
+    key: "giving",
+    name: "Contribution Statement (YTD)",
+    description:
+      "Giving summary by fund, ready to share with your board or donors.",
+  },
   // Payroll add-on only (client.payroll) — filtered out below for a client
   // that hasn't added it, same as this report type not existing at all.
-  { key: "payroll", name: "Payroll — Year to Date", description: "Gross pay, withholding, and net by employee.", requires: "payroll" },
+  {
+    key: "payroll",
+    name: "Payroll — Year to Date",
+    description: "Gross pay, withholding, and net by employee.",
+    requires: "payroll",
+  },
 ];
 
 // The plain per-report "download a PDF" grid — shared by ReportsPage (the
@@ -3808,10 +5329,15 @@ function QuickDownloadReports({ client }) {
   // carry one period's worth of data in this mock dataset, so this toggle
   // is deliberately scoped to just the one report it actually changes.
   const [period, setPeriod] = useState("month");
-  const availableReportTypes = REPORT_TYPES.filter((r) => !r.requires || client[r.requires]);
+  const availableReportTypes = REPORT_TYPES.filter(
+    (r) => !r.requires || client[r.requires],
+  );
 
   const handleDownload = (r) => {
-    const filename = REPORT_PDF_BUILDERS[r.key](client, r.key === "pl" ? period : undefined);
+    const filename = REPORT_PDF_BUILDERS[r.key](
+      client,
+      r.key === "pl" ? period : undefined,
+    );
     showToast(`Downloaded "${filename}"`);
   };
 
@@ -3820,8 +5346,8 @@ function QuickDownloadReports({ client }) {
       <div className="card" style={{ marginBottom: 20 }}>
         <h3 className="card-title">Period</h3>
         <p className="card-subtitle" style={{ margin: 0 }}>
-          Applies to the Profit &amp; Loss Statement below — the other reports each only ever cover
-          one fixed period.
+          Applies to the Profit &amp; Loss Statement below — the other reports
+          each only ever cover one fixed period.
         </p>
         <div className="view-toggle" style={{ marginTop: 12 }}>
           {["month", "quarter", "ytd"].map((key) => (
@@ -3842,7 +5368,9 @@ function QuickDownloadReports({ client }) {
           <div className="card report-card" key={r.key}>
             <h3 className="card-title">{r.name}</h3>
             <p className="card-subtitle">
-              {r.key === "pl" ? `${r.description} Currently set to ${PERIOD_LABELS[period]}.` : r.description}
+              {r.key === "pl"
+                ? `${r.description} Currently set to ${PERIOD_LABELS[period]}.`
+                : r.description}
             </p>
             <button className="btn-primary" onClick={() => handleDownload(r)}>
               Download PDF
@@ -3874,19 +5402,29 @@ function ReportsPage({ client }) {
 // `goodDir` says which direction reads as positive (expenses down = good).
 function trendInfo(current, prior, goodDir = "up") {
   if (prior == null || prior === 0) {
-    return { dir: "flat", cls: "neutral", label: "no prior period on record", arrow: "•" };
+    return {
+      dir: "flat",
+      cls: "neutral",
+      label: "no prior period on record",
+      arrow: "•",
+    };
   }
   const pct = ((current - prior) / Math.abs(prior)) * 100;
   const dir = pct > 0.5 ? "up" : pct < -0.5 ? "down" : "flat";
-  const cls = dir === "flat" ? "neutral" : dir === goodDir ? "positive" : "negative";
-  const label = dir === "flat" ? "steady vs. prior period" : `${Math.abs(pct).toFixed(1)}% vs. prior period`;
+  const cls =
+    dir === "flat" ? "neutral" : dir === goodDir ? "positive" : "negative";
+  const label =
+    dir === "flat"
+      ? "steady vs. prior period"
+      : `${Math.abs(pct).toFixed(1)}% vs. prior period`;
   const arrow = dir === "up" ? "▲" : dir === "down" ? "▼" : "●";
   return { dir, cls, label, arrow };
 }
 
 function TrendPill({ current, prior, goodDir }) {
   const t = trendInfo(current, prior, goodDir);
-  const pillClass = t.cls === "positive" ? "good" : t.cls === "negative" ? "bad" : "neutral";
+  const pillClass =
+    t.cls === "positive" ? "good" : t.cls === "negative" ? "bad" : "neutral";
   return (
     <span className={"pill " + pillClass}>
       {t.arrow} {t.label}
@@ -3907,7 +5445,9 @@ function ReportBarRows({ items }) {
           <div className="bar-track">
             <div
               className={"bar-fill " + (item.tone || "rb-bar-fill")}
-              style={{ width: `${Math.max(4, Math.round((Math.abs(item.amount) / max) * 100))}%` }}
+              style={{
+                width: `${Math.max(4, Math.round((Math.abs(item.amount) / max) * 100))}%`,
+              }}
             ></div>
           </div>
           <span className="rb-bar-amt">{fmtMoney(item.amount)}</span>
@@ -3932,32 +5472,38 @@ const ENTERPRISE_FEATURES = [
   {
     icon: <DocumentIcon />,
     title: "Live Report",
-    description: "Your dashboard becomes a continuously-live financial snapshot — cash on hand, receivables, what's due — instead of a static once-a-day view. Click-to-jump KPIs, a low-cash alert, a collections queue, and a one-click PDF snapshot, all customizable to how you work.",
+    description:
+      "Your dashboard becomes a continuously-live financial snapshot — cash on hand, receivables, what's due — instead of a static once-a-day view. Click-to-jump KPIs, a low-cash alert, a collections queue, and a one-click PDF snapshot, all customizable to how you work.",
   },
   {
     icon: <BarChartIcon />,
     title: "Report Builder",
-    description: "Assemble a formatted board report from your own numbers in a couple of clicks — pick a period, a scope, and the sections that matter this quarter.",
+    description:
+      "Assemble a formatted board report from your own numbers in a couple of clicks — pick a period, a scope, and the sections that matter this quarter.",
   },
   {
     icon: <CalculatorIcon />,
     title: "Budgeting Tool",
-    description: "Draft next period's budget together with your bookkeeper, category by category, before it's locked in.",
+    description:
+      "Draft next period's budget together with your bookkeeper, category by category, before it's locked in.",
   },
   {
     icon: <StackedBillsIcon />,
     title: "Cash Flow Pro",
-    description: "Every bill in one place with aging and vendor summaries, batch pay runs with an approval step and a cash-impact forecast, duplicate-bill detection, and a ready-to-upload ACH export.",
+    description:
+      "Every bill in one place with aging and vendor summaries, batch pay runs with an approval step and a cash-impact forecast, duplicate-bill detection, and a ready-to-upload ACH export.",
   },
   {
     icon: <BankIcon />,
     title: "Reconciliation Pro",
-    description: "A real month-end close on Bank Accounts — clear transactions against your statement, track outstanding items automatically, and keep a signed-off history of every period you've closed.",
+    description:
+      "A real month-end close on Bank Accounts — clear transactions against your statement, track outstanding items automatically, and keep a signed-off history of every period you've closed.",
   },
   {
     icon: <GiftHeartIcon />,
     title: "Fund Accounting Pro",
-    description: "See money move between funds with a reason attached, track pledges from committed to received, and send year-end giving statements to every donor for their tax write-offs.",
+    description:
+      "See money move between funds with a reason attached, track pledges from committed to received, and send year-end giving statements to every donor for their tax write-offs.",
   },
 ];
 
@@ -3994,7 +5540,10 @@ const ENTERPRISE_COMPARISON = [
     tool: "Cash Flow",
     standardLabel: "Cash Flow",
     premiumLabel: "Cash Flow Pro",
-    standard: ["Money Owed To You / Money You Owe ledger", "Simple receivables and payables tables"],
+    standard: [
+      "Money Owed To You / Money You Owe ledger",
+      "Simple receivables and payables tables",
+    ],
     premium: [
       "Open Bills workflow with status filters and search",
       "Duplicate-bill detection",
@@ -4008,7 +5557,10 @@ const ENTERPRISE_COMPARISON = [
     tool: "Budget vs. Actual",
     standardLabel: "Budget vs. Actual",
     premiumLabel: "Budgeting Tool",
-    standard: ["Budgeted vs. actual, by category, with a variance and % used", "Spending Trend chart"],
+    standard: [
+      "Budgeted vs. actual, by category, with a variance and % used",
+      "Spending Trend chart",
+    ],
     premium: [
       "Collaborative draft budget for next period",
       "Editable per-category proposed amounts",
@@ -4021,7 +5573,9 @@ const ENTERPRISE_COMPARISON = [
     tool: "Reports",
     standardLabel: "Reports",
     premiumLabel: "Report Builder",
-    standard: ["Four canned PDFs — Profit & Loss, Balance Sheet, Budget vs. Actual, Contribution Statement"],
+    standard: [
+      "Four canned PDFs — Profit & Loss, Balance Sheet, Budget vs. Actual, Contribution Statement",
+    ],
     premium: [
       "Everything Reports has, in the same Quick Download tab",
       "Custom report builder — pick a period, a scope, and which sections to include",
@@ -4034,7 +5588,10 @@ const ENTERPRISE_COMPARISON = [
     tool: "Bank Accounts",
     standardLabel: "Bank Accounts",
     premiumLabel: "Reconciliation Pro",
-    standard: ["Balances and transaction history, per account or all at once", "CSV export"],
+    standard: [
+      "Balances and transaction history, per account or all at once",
+      "CSV export",
+    ],
     premium: [
       "Real month-end reconciliation workflow",
       "Cleared vs. outstanding tracking, transaction by transaction",
@@ -4047,7 +5604,10 @@ const ENTERPRISE_COMPARISON = [
     tool: "Giving & Funds",
     standardLabel: "Giving & Funds",
     premiumLabel: "Fund Accounting Pro",
-    standard: ["Fund balances, restricted vs. unrestricted", "Contribution history"],
+    standard: [
+      "Fund balances, restricted vs. unrestricted",
+      "Contribution history",
+    ],
     premium: [
       "Fund Activity ledger — money moved between funds, with a reason",
       "Pledge tracking — committed vs. received, with an aging status",
@@ -4081,15 +5641,33 @@ function EnterpriseUpgradePage({ client }) {
     <div className="enterprise-page">
       <MockBanner text="This is a preview of what Enterprise includes — nothing here is connected to a real upgrade flow yet, and the pricing below is a placeholder." />
 
-      <div className="card" style={{ marginBottom: 20, textAlign: "center", padding: "36px 28px" }}>
+      <div
+        className="card"
+        style={{ marginBottom: 20, textAlign: "center", padding: "36px 28px" }}
+      >
         <div className="eyebrow-badge">Enterprise · Add-on</div>
-        <h2 style={{ fontFamily: "var(--font-heading)", fontSize: 26, margin: "10px 0 8px", color: "var(--ink-strong)" }}>
+        <h2
+          style={{
+            fontFamily: "var(--font-heading)",
+            fontSize: 26,
+            margin: "10px 0 8px",
+            color: "var(--ink-strong)",
+          }}
+        >
           Unlock Enterprise for {client.name}
         </h2>
-        <p style={{ color: "var(--text-muted)", maxWidth: 560, margin: "0 auto" }}>
-          Six tools built for organizations that want more than a monthly statement — a live pulse on the numbers, a
-          board-ready report in minutes, a shared space to plan next period's budget, a command center for what you
-          owe, a real month-end close, and fund accounting that tracks pledges and transfers.
+        <p
+          style={{
+            color: "var(--text-muted)",
+            maxWidth: 560,
+            margin: "0 auto",
+          }}
+        >
+          Six tools built for organizations that want more than a monthly
+          statement — a live pulse on the numbers, a board-ready report in
+          minutes, a shared space to plan next period's budget, a command center
+          for what you owe, a real month-end close, and fund accounting that
+          tracks pledges and transfers.
         </p>
       </div>
 
@@ -4104,7 +5682,8 @@ function EnterpriseUpgradePage({ client }) {
             <span>/user/mo</span>
           </div>
           <p className="pricing-total">
-            ${ENTERPRISE_PRICING.standard.perUser * userCount}/mo total for {userCount} user profile{userCount !== 1 ? "s" : ""}
+            ${ENTERPRISE_PRICING.standard.perUser * userCount}/mo total for{" "}
+            {userCount} user profile{userCount !== 1 ? "s" : ""}
           </p>
           <p className="card-subtitle" style={{ marginBottom: 0 }}>
             {ENTERPRISE_PRICING.standard.note}
@@ -4120,12 +5699,19 @@ function EnterpriseUpgradePage({ client }) {
             <span>/user/mo</span>
           </div>
           <p className="pricing-total pricing-total-premium">
-            +${ENTERPRISE_PRICING.enterprise.perUser * userCount}/mo total for {userCount} user profile{userCount !== 1 ? "s" : ""}
+            +${ENTERPRISE_PRICING.enterprise.perUser * userCount}/mo total for{" "}
+            {userCount} user profile{userCount !== 1 ? "s" : ""}
           </p>
           <p className="card-subtitle" style={{ marginBottom: 0 }}>
             {ENTERPRISE_PRICING.enterprise.note}
           </p>
-          <p style={{ fontSize: 11, color: "var(--text-muted)", margin: "8px 0 0" }}>
+          <p
+            style={{
+              fontSize: 11,
+              color: "var(--text-muted)",
+              margin: "8px 0 0",
+            }}
+          >
             Estimated — your bookkeeper will confirm final pricing.
           </p>
         </div>
@@ -4148,13 +5734,17 @@ function EnterpriseUpgradePage({ client }) {
       <div className="card" style={{ marginBottom: 20 }}>
         <h3 className="card-title">Compare, tool by tool</h3>
         <p className="card-subtitle">
-          Click a tool to see exactly what changes — everything on the left, you already have.
+          Click a tool to see exactly what changes — everything on the left, you
+          already have.
         </p>
         <div className="compare-list">
           {ENTERPRISE_COMPARISON.map((c) => {
             const isOpen = openKey === c.key;
             return (
-              <div className={"compare-row" + (isOpen ? " open" : "")} key={c.key}>
+              <div
+                className={"compare-row" + (isOpen ? " open" : "")}
+                key={c.key}
+              >
                 <button
                   type="button"
                   className="compare-row-head"
@@ -4173,7 +5763,9 @@ function EnterpriseUpgradePage({ client }) {
                 <div className="compare-row-body-wrap">
                   <div className="compare-row-body">
                     <div className="compare-col">
-                      <div className="compare-col-header">{c.standardLabel}</div>
+                      <div className="compare-col-header">
+                        {c.standardLabel}
+                      </div>
                       <ul className="compare-feat-list">
                         {c.standard.map((f, i) => (
                           <li key={i}>{f}</li>
@@ -4182,7 +5774,8 @@ function EnterpriseUpgradePage({ client }) {
                     </div>
                     <div className="compare-col compare-col-premium">
                       <div className="compare-col-header premium">
-                        {c.premiumLabel} <span className="nav-pro-pill">PRO</span>
+                        {c.premiumLabel}{" "}
+                        <span className="nav-pro-pill">PRO</span>
                       </div>
                       <ul className="compare-feat-list">
                         {c.premium.map((f, i) => (
@@ -4198,14 +5791,29 @@ function EnterpriseUpgradePage({ client }) {
         </div>
       </div>
 
-      <div className="card" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 20, flexWrap: "wrap" }}>
+      <div
+        className="card"
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: 20,
+          flexWrap: "wrap",
+        }}
+      >
         <div>
           <h3 className="card-title">Ready to add it on?</h3>
           <p className="card-subtitle" style={{ marginBottom: 0 }}>
-            Your bookkeeper can turn this on for {client.name} — no setup required on your end.
+            Your bookkeeper can turn this on for {client.name} — no setup
+            required on your end.
           </p>
         </div>
-        <button className="btn-primary" onClick={() => showToast("Thanks! Your bookkeeper will follow up about upgrading.")}>
+        <button
+          className="btn-primary"
+          onClick={() =>
+            showToast("Thanks! Your bookkeeper will follow up about upgrading.")
+          }
+        >
           Upgrade to Enterprise
         </button>
       </div>
@@ -4227,8 +5835,18 @@ const REPORT_QUARTER_DEFS = [
 ];
 
 const REPORT_MONTH_NAMES = {
-  Jan: "January", Feb: "February", Mar: "March", Apr: "April", May: "May", Jun: "June",
-  Jul: "July", Aug: "August", Sep: "September", Oct: "October", Nov: "November", Dec: "December",
+  Jan: "January",
+  Feb: "February",
+  Mar: "March",
+  Apr: "April",
+  May: "May",
+  Jun: "June",
+  Jul: "July",
+  Aug: "August",
+  Sep: "September",
+  Oct: "October",
+  Nov: "November",
+  Dec: "December",
 };
 
 // Builds the period dropdown: Year to Date (everything on file) and all
@@ -4240,7 +5858,11 @@ function reportPeriodOptions(monthly) {
   return [
     { key: "ytd", label: "Year to Date", months: monthly.map((m) => m.month) },
     ...REPORT_QUARTER_DEFS,
-    ...monthly.map((m) => ({ key: "m-" + m.month, label: REPORT_MONTH_NAMES[m.month] || m.month, months: [m.month] })),
+    ...monthly.map((m) => ({
+      key: "m-" + m.month,
+      label: REPORT_MONTH_NAMES[m.month] || m.month,
+      months: [m.month],
+    })),
   ];
 }
 
@@ -4282,18 +5904,26 @@ function ReportBuilderPage({ client }) {
 
   const monthly = client.monthly;
   const periodOptions = useMemo(() => reportPeriodOptions(monthly), [monthly]);
-  const selectedOption = periodOptions.find((p) => p.key === period) || periodOptions[0];
+  const selectedOption =
+    periodOptions.find((p) => p.key === period) || periodOptions[0];
 
   // "Prior period" is the equal-length stretch of months immediately before
   // whichever ones are selected, by position in this client's own record —
   // not a literal prior quarter/year, since most clients don't have a full
   // year (let alone two) on file. Degrades to "no prior period" cleanly via
   // trendInfo() when nothing precedes the selection.
-  const selectedIndices = monthly.reduce((acc, m, i) => (selectedOption.months.includes(m.month) ? [...acc, i] : acc), []);
+  const selectedIndices = monthly.reduce(
+    (acc, m, i) =>
+      selectedOption.months.includes(m.month) ? [...acc, i] : acc,
+    [],
+  );
   const currentSlice = selectedIndices.map((i) => monthly[i]);
   const priorSlice =
     selectedIndices.length && selectedIndices[0] - selectedIndices.length >= 0
-      ? monthly.slice(selectedIndices[0] - selectedIndices.length, selectedIndices[0])
+      ? monthly.slice(
+          selectedIndices[0] - selectedIndices.length,
+          selectedIndices[0],
+        )
       : [];
   const hasPeriodData = currentSlice.length > 0;
   const sum = (arr, key) => arr.reduce((s, m) => s + m[key], 0);
@@ -4313,17 +5943,27 @@ function ReportBuilderPage({ client }) {
   const totalPayable = client.payables.reduce((s, p) => s + p.amount, 0);
 
   const totalGiving = contributions.reduce((s, c) => s + c.amount, 0);
-  const restrictedTotal = funds.filter((f) => f.restricted).reduce((s, f) => s + f.balance, 0);
-  const unrestrictedTotal = funds.filter((f) => !f.restricted).reduce((s, f) => s + f.balance, 0);
+  const restrictedTotal = funds
+    .filter((f) => f.restricted)
+    .reduce((s, f) => s + f.balance, 0);
+  const unrestrictedTotal = funds
+    .filter((f) => !f.restricted)
+    .reduce((s, f) => s + f.balance, 0);
 
   const overBudget = client.budget
     .filter((b) => b.actual > b.budgeted)
     .sort((a, b) => b.actual - b.budgeted - (a.actual - a.budgeted))
     .slice(0, 5);
-  const budgetTotal = client.budget.reduce((acc, b) => ({ budgeted: acc.budgeted + b.budgeted, actual: acc.actual + b.actual }), {
-    budgeted: 0,
-    actual: 0,
-  });
+  const budgetTotal = client.budget.reduce(
+    (acc, b) => ({
+      budgeted: acc.budgeted + b.budgeted,
+      actual: acc.actual + b.actual,
+    }),
+    {
+      budgeted: 0,
+      actual: 0,
+    },
+  );
 
   const periodLabel = selectedOption.label;
   const rangeLabel = hasPeriodData
@@ -4346,14 +5986,18 @@ function ReportBuilderPage({ client }) {
         <div className="view-toggle" style={{ marginBottom: 20 }}>
           <button
             type="button"
-            className={"view-toggle-btn" + (builderTab === "quick" ? " active" : "")}
+            className={
+              "view-toggle-btn" + (builderTab === "quick" ? " active" : "")
+            }
             onClick={() => setBuilderTab("quick")}
           >
             Quick Download
           </button>
           <button
             type="button"
-            className={"view-toggle-btn" + (builderTab === "custom" ? " active" : "")}
+            className={
+              "view-toggle-btn" + (builderTab === "custom" ? " active" : "")
+            }
             onClick={() => setBuilderTab("custom")}
           >
             Custom Report
@@ -4363,114 +6007,170 @@ function ReportBuilderPage({ client }) {
         {builderTab === "quick" && <QuickDownloadReports client={client} />}
 
         {builderTab === "custom" && (
-        <div className="rb-layout">
-          <div className="card rb-panel">
-            <h3 className="card-title premium-shimmer">Build a report</h3>
-            <p className="rb-panel-sub">Choose a period, a scope, and which sections belong in this report.</p>
+          <div className="rb-layout">
+            <div className="card rb-panel">
+              <h3 className="card-title premium-shimmer">Build a report</h3>
+              <p className="rb-panel-sub">
+                Choose a period, a scope, and which sections belong in this
+                report.
+              </p>
 
-            <div className="rb-field">
-              <label className="rb-field-label" htmlFor="rb-period">
-                Reporting period
-              </label>
-              <select id="rb-period" className="rb-select" value={period} onChange={(e) => setPeriod(e.target.value)}>
-                <option value="ytd">Year to Date</option>
-                <optgroup label="Quarters">
-                  {REPORT_QUARTER_DEFS.map((q) => (
-                    <option key={q.key} value={q.key}>
-                      {q.label}
-                    </option>
-                  ))}
-                </optgroup>
-                <optgroup label="Months">
-                  {monthly.map((m) => (
-                    <option key={"m-" + m.month} value={"m-" + m.month}>
-                      {REPORT_MONTH_NAMES[m.month] || m.month}
-                    </option>
-                  ))}
-                </optgroup>
-              </select>
-            </div>
-
-            <div className="rb-field">
-              <label className="rb-field-label">Scope</label>
-              <div className="rb-segmented">
-                <button type="button" aria-pressed={scope === "consolidated"} onClick={() => setScope("consolidated")}>
-                  Consolidated
-                </button>
-                <button type="button" aria-pressed={scope === "by-fund"} disabled={!hasFunds} onClick={() => hasFunds && setScope("by-fund")}>
-                  By fund
-                </button>
+              <div className="rb-field">
+                <label className="rb-field-label" htmlFor="rb-period">
+                  Reporting period
+                </label>
+                <select
+                  id="rb-period"
+                  className="rb-select"
+                  value={period}
+                  onChange={(e) => setPeriod(e.target.value)}
+                >
+                  <option value="ytd">Year to Date</option>
+                  <optgroup label="Quarters">
+                    {REPORT_QUARTER_DEFS.map((q) => (
+                      <option key={q.key} value={q.key}>
+                        {q.label}
+                      </option>
+                    ))}
+                  </optgroup>
+                  <optgroup label="Months">
+                    {monthly.map((m) => (
+                      <option key={"m-" + m.month} value={"m-" + m.month}>
+                        {REPORT_MONTH_NAMES[m.month] || m.month}
+                      </option>
+                    ))}
+                  </optgroup>
+                </select>
               </div>
-              {!hasFunds && <p className="rb-note">This client has no tracked funds yet, so fund-level breakdowns aren't available.</p>}
-            </div>
 
-            <div className="rb-field">
-              <label className="rb-field-label">Sections</label>
-              <ul className="rb-checklist">
-                <li className="locked">
-                  Executive summary <span className="locked-note">always included</span>
-                </li>
-                {REPORT_SECTION_DEFS.filter((s) => s.key !== "giving" || hasFunds || contributions.length > 0).map((s) => (
-                  <li key={s.key}>
-                    <label>
-                      <input type="checkbox" checked={sections[s.key]} onChange={() => toggleSection(s.key)} />
-                      <span>{s.label}</span>
-                    </label>
+              <div className="rb-field">
+                <label className="rb-field-label">Scope</label>
+                <div className="rb-segmented">
+                  <button
+                    type="button"
+                    aria-pressed={scope === "consolidated"}
+                    onClick={() => setScope("consolidated")}
+                  >
+                    Consolidated
+                  </button>
+                  <button
+                    type="button"
+                    aria-pressed={scope === "by-fund"}
+                    disabled={!hasFunds}
+                    onClick={() => hasFunds && setScope("by-fund")}
+                  >
+                    By fund
+                  </button>
+                </div>
+                {!hasFunds && (
+                  <p className="rb-note">
+                    This client has no tracked funds yet, so fund-level
+                    breakdowns aren't available.
+                  </p>
+                )}
+              </div>
+
+              <div className="rb-field">
+                <label className="rb-field-label">Sections</label>
+                <ul className="rb-checklist">
+                  <li className="locked">
+                    Executive summary{" "}
+                    <span className="locked-note">always included</span>
                   </li>
-                ))}
-              </ul>
+                  {REPORT_SECTION_DEFS.filter(
+                    (s) =>
+                      s.key !== "giving" ||
+                      hasFunds ||
+                      contributions.length > 0,
+                  ).map((s) => (
+                    <li key={s.key}>
+                      <label>
+                        <input
+                          type="checkbox"
+                          checked={sections[s.key]}
+                          onChange={() => toggleSection(s.key)}
+                        />
+                        <span>{s.label}</span>
+                      </label>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+
+              <button
+                className="btn-primary"
+                style={{ width: "100%" }}
+                onClick={generate}
+              >
+                Generate Report
+              </button>
             </div>
 
-            <button className="btn-primary" style={{ width: "100%" }} onClick={generate}>
-              Generate Report
-            </button>
+            <div className="card rb-preview">
+              <div className="rb-preview-label">Live Preview</div>
+              <div className="rb-preview-cover">
+                <div className="rb-eyebrow">
+                  Board Report &middot; {scopeLabel}
+                </div>
+                <h3>{client.name}</h3>
+                <div className="rb-meta-row rb-meta-row-compact">
+                  <div>
+                    <b>{periodLabel}</b>Period
+                  </div>
+                  <div>
+                    <b>{rangeLabel}</b>Range
+                  </div>
+                </div>
+              </div>
+
+              {hasPeriodData ? (
+                <div className="rb-preview-stats">
+                  <div>
+                    <span className="rb-preview-stat-label">Revenue</span>
+                    <span className="rb-preview-stat-value">
+                      {fmtMoney(revenueTotal)}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="rb-preview-stat-label">Net Income</span>
+                    <span className="rb-preview-stat-value">
+                      {fmtMoney(netTotal)}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="rb-preview-stat-label">Cash on Hand</span>
+                    <span className="rb-preview-stat-value">
+                      {fmtMoney(cash)}
+                    </span>
+                  </div>
+                </div>
+              ) : (
+                <p className="rb-commentary">
+                  No revenue or expense data recorded for {periodLabel} yet —
+                  the report will still include cash, budget, and other sections
+                  you've checked below.
+                </p>
+              )}
+
+              <div className="rb-preview-sections">
+                <span className="rb-preview-stat-label">Sections included</span>
+                <div className="rb-preview-pills">
+                  <span className="pill neutral">Executive Summary</span>
+                  {REPORT_SECTION_DEFS.filter(
+                    (s) =>
+                      sections[s.key] &&
+                      (s.key !== "giving" ||
+                        hasFunds ||
+                        contributions.length > 0),
+                  ).map((s) => (
+                    <span className="pill neutral" key={s.key}>
+                      {s.label}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            </div>
           </div>
-
-          <div className="card rb-preview">
-            <div className="rb-preview-label">Live Preview</div>
-            <div className="rb-preview-cover">
-              <div className="rb-eyebrow">Board Report &middot; {scopeLabel}</div>
-              <h3>{client.name}</h3>
-              <div className="rb-meta-row rb-meta-row-compact">
-                <div>
-                  <b>{periodLabel}</b>Period
-                </div>
-                <div>
-                  <b>{rangeLabel}</b>Range
-                </div>
-              </div>
-            </div>
-
-            {hasPeriodData ? (
-              <div className="rb-preview-stats">
-                <div>
-                  <span className="rb-preview-stat-label">Revenue</span>
-                  <span className="rb-preview-stat-value">{fmtMoney(revenueTotal)}</span>
-                </div>
-                <div>
-                  <span className="rb-preview-stat-label">Net Income</span>
-                  <span className="rb-preview-stat-value">{fmtMoney(netTotal)}</span>
-                </div>
-                <div>
-                  <span className="rb-preview-stat-label">Cash on Hand</span>
-                  <span className="rb-preview-stat-value">{fmtMoney(cash)}</span>
-                </div>
-              </div>
-            ) : (
-              <p className="rb-commentary">No revenue or expense data recorded for {periodLabel} yet — the report will still include cash, budget, and other sections you've checked below.</p>
-            )}
-
-            <div className="rb-preview-sections">
-              <span className="rb-preview-stat-label">Sections included</span>
-              <div className="rb-preview-pills">
-                <span className="pill neutral">Executive Summary</span>
-                {REPORT_SECTION_DEFS.filter((s) => sections[s.key] && (s.key !== "giving" || hasFunds || contributions.length > 0)).map((s) => (
-                  <span className="pill neutral" key={s.key}>{s.label}</span>
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
         )}
       </div>
     );
@@ -4484,11 +6184,17 @@ function ReportBuilderPage({ client }) {
         </button>
         <div className="rb-actions">
           {presenting ? (
-            <button className="btn-secondary" onClick={() => setPresenting(false)}>
+            <button
+              className="btn-secondary"
+              onClick={() => setPresenting(false)}
+            >
               &larr; Exit presentation
             </button>
           ) : (
-            <button className="btn-secondary" onClick={() => setPresenting(true)}>
+            <button
+              className="btn-secondary"
+              onClick={() => setPresenting(true)}
+            >
               Presentation view
             </button>
           )}
@@ -4529,12 +6235,18 @@ function ReportBuilderPage({ client }) {
               {hasPeriodData ? (
                 <>
                   <span className="kpi-value">{fmtMoney(revenueTotal)}</span>
-                  <TrendPill current={revenueTotal} prior={revenuePrior} goodDir="up" />
+                  <TrendPill
+                    current={revenueTotal}
+                    prior={revenuePrior}
+                    goodDir="up"
+                  />
                 </>
               ) : (
                 <>
                   <span className="kpi-value">—</span>
-                  <span className="kpi-sub neutral">no data for this period</span>
+                  <span className="kpi-sub neutral">
+                    no data for this period
+                  </span>
                 </>
               )}
             </div>
@@ -4548,7 +6260,9 @@ function ReportBuilderPage({ client }) {
               ) : (
                 <>
                   <span className="kpi-value">—</span>
-                  <span className="kpi-sub neutral">no data for this period</span>
+                  <span className="kpi-sub neutral">
+                    no data for this period
+                  </span>
                 </>
               )}
             </div>
@@ -4560,18 +6274,31 @@ function ReportBuilderPage({ client }) {
             <div className="card kpi-card">
               <span className="kpi-label">Receivables</span>
               <span className="kpi-value">{fmtMoney(totalReceivable)}</span>
-              <span className="kpi-sub neutral">{client.receivables.length} open item{client.receivables.length !== 1 ? "s" : ""}</span>
+              <span className="kpi-sub neutral">
+                {client.receivables.length} open item
+                {client.receivables.length !== 1 ? "s" : ""}
+              </span>
             </div>
           </div>
           <p className="rb-commentary">
             {hasPeriodData ? (
               <>
-                {periodLabel} was a {netTotal >= netPrior || netPrior == null ? "solid" : "tighter"} stretch: revenue{" "}
-                {trendInfo(revenueTotal, revenuePrior).dir === "up" ? "grew" : trendInfo(revenueTotal, revenuePrior).dir === "down" ? "declined" : "held steady"},
-                cash on hand stands at {fmtMoney(cash)}, and net income came in at {fmtMoney(netTotal)} for the period.
+                {periodLabel} was a{" "}
+                {netTotal >= netPrior || netPrior == null ? "solid" : "tighter"}{" "}
+                stretch: revenue{" "}
+                {trendInfo(revenueTotal, revenuePrior).dir === "up"
+                  ? "grew"
+                  : trendInfo(revenueTotal, revenuePrior).dir === "down"
+                    ? "declined"
+                    : "held steady"}
+                , cash on hand stands at {fmtMoney(cash)}, and net income came
+                in at {fmtMoney(netTotal)} for the period.
               </>
             ) : (
-              <>No revenue or expense data has been recorded for {periodLabel} yet — cash on hand stands at {fmtMoney(cash)} as of today.</>
+              <>
+                No revenue or expense data has been recorded for {periodLabel}{" "}
+                yet — cash on hand stands at {fmtMoney(cash)} as of today.
+              </>
             )}
           </p>
         </div>
@@ -4584,16 +6311,34 @@ function ReportBuilderPage({ client }) {
               <>
                 <div className="rb-stat-row">
                   <span className="rb-big">{fmtMoney(revenueTotal)}</span>
-                  <TrendPill current={revenueTotal} prior={revenuePrior} goodDir="up" />
+                  <TrendPill
+                    current={revenueTotal}
+                    prior={revenuePrior}
+                    goodDir="up"
+                  />
                 </div>
                 <p className="rb-commentary">
-                  Revenue {trendInfo(revenueTotal, revenuePrior).dir === "flat" ? "held steady" : trendInfo(revenueTotal, revenuePrior).dir === "up" ? "grew" : "declined"}{" "}
-                  {revenuePrior != null ? trendInfo(revenueTotal, revenuePrior).label : "— no prior period of the same length to compare yet"}. Expenses
-                  totaled {fmtMoney(expenseTotal)} ({expensePrior != null ? trendInfo(expenseTotal, expensePrior, "down").label : "no prior period on record"}).
+                  Revenue{" "}
+                  {trendInfo(revenueTotal, revenuePrior).dir === "flat"
+                    ? "held steady"
+                    : trendInfo(revenueTotal, revenuePrior).dir === "up"
+                      ? "grew"
+                      : "declined"}{" "}
+                  {revenuePrior != null
+                    ? trendInfo(revenueTotal, revenuePrior).label
+                    : "— no prior period of the same length to compare yet"}
+                  . Expenses totaled {fmtMoney(expenseTotal)} (
+                  {expensePrior != null
+                    ? trendInfo(expenseTotal, expensePrior, "down").label
+                    : "no prior period on record"}
+                  ).
                 </p>
               </>
             ) : (
-              <p className="rb-commentary">No revenue or expense data has been recorded for {periodLabel} yet.</p>
+              <p className="rb-commentary">
+                No revenue or expense data has been recorded for {periodLabel}{" "}
+                yet.
+              </p>
             )}
           </div>
         )}
@@ -4603,22 +6348,39 @@ function ReportBuilderPage({ client }) {
             <h2>Budget vs. Actual</h2>
             <p className="rb-section-sub">Current month</p>
             <div className="rb-stat-row">
-              <span className="rb-big">{fmtMoney(budgetTotal.actual - budgetTotal.budgeted)}</span>
-              <span className={"pill " + (budgetTotal.actual > budgetTotal.budgeted ? "bad" : "good")}>
-                {budgetTotal.actual > budgetTotal.budgeted ? "Over budget overall" : "Under budget overall"}
+              <span className="rb-big">
+                {fmtMoney(budgetTotal.actual - budgetTotal.budgeted)}
+              </span>
+              <span
+                className={
+                  "pill " +
+                  (budgetTotal.actual > budgetTotal.budgeted ? "bad" : "good")
+                }
+              >
+                {budgetTotal.actual > budgetTotal.budgeted
+                  ? "Over budget overall"
+                  : "Under budget overall"}
               </span>
             </div>
             {overBudget.length > 0 ? (
               <>
                 <p className="rb-commentary">
-                  {overBudget.length} categor{overBudget.length !== 1 ? "ies are" : "y is"} running over budget this month:
+                  {overBudget.length} categor
+                  {overBudget.length !== 1 ? "ies are" : "y is"} running over
+                  budget this month:
                 </p>
                 <ReportBarRows
-                  items={overBudget.map((b) => ({ label: b.category, amount: b.actual - b.budgeted, tone: "over" }))}
+                  items={overBudget.map((b) => ({
+                    label: b.category,
+                    amount: b.actual - b.budgeted,
+                    tone: "over",
+                  }))}
                 />
               </>
             ) : (
-              <p className="rb-commentary">Every category is within budget this month.</p>
+              <p className="rb-commentary">
+                Every category is within budget this month.
+              </p>
             )}
           </div>
         )}
@@ -4629,9 +6391,15 @@ function ReportBuilderPage({ client }) {
             <p className="rb-section-sub">Company-wide &middot; as of today</p>
             <div className="rb-stat-row">
               <span className="rb-big">{fmtMoney(cash)}</span>
-              <span className="pill neutral">{client.bankAccounts.length} account{client.bankAccounts.length !== 1 ? "s" : ""}</span>
+              <span className="pill neutral">
+                {client.bankAccounts.length} account
+                {client.bankAccounts.length !== 1 ? "s" : ""}
+              </span>
             </div>
-            <p className="rb-commentary">Cash is managed company-wide and isn't attributed to individual funds or departments.</p>
+            <p className="rb-commentary">
+              Cash is managed company-wide and isn't attributed to individual
+              funds or departments.
+            </p>
           </div>
         )}
 
@@ -4654,7 +6422,9 @@ function ReportBuilderPage({ client }) {
                         <div className="tx-desc">{r.description}</div>
                         <div className="tx-meta">Due {fmtDate(r.dueDate)}</div>
                       </div>
-                      <div className="tx-amount positive">{fmtMoney(r.amount, { cents: true })}</div>
+                      <div className="tx-amount positive">
+                        {fmtMoney(r.amount, { cents: true })}
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -4673,7 +6443,9 @@ function ReportBuilderPage({ client }) {
                         <div className="tx-desc">{p.vendor}</div>
                         <div className="tx-meta">Due {fmtDate(p.dueDate)}</div>
                       </div>
-                      <div className="tx-amount negative">-{fmtMoney(p.amount, { cents: true })}</div>
+                      <div className="tx-amount negative">
+                        -{fmtMoney(p.amount, { cents: true })}
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -4685,20 +6457,33 @@ function ReportBuilderPage({ client }) {
         {sections.giving && (hasFunds || contributions.length > 0) && (
           <div className="rb-section">
             <h2>Giving &amp; Funds</h2>
-            <p className="rb-section-sub">{scope === "by-fund" ? "By fund" : "Company-wide"}</p>
+            <p className="rb-section-sub">
+              {scope === "by-fund" ? "By fund" : "Company-wide"}
+            </p>
             <div className="rb-stat-row">
               <span className="rb-big">{fmtMoney(totalGiving)}</span>
-              <span className="pill neutral">{contributions.length} gift{contributions.length !== 1 ? "s" : ""} on record</span>
+              <span className="pill neutral">
+                {contributions.length} gift
+                {contributions.length !== 1 ? "s" : ""} on record
+              </span>
             </div>
             {scope === "by-fund" && hasFunds ? (
               <>
-                <p className="rb-commentary">Fund balances, unrestricted and restricted:</p>
-                <ReportBarRows items={funds.map((f) => ({ label: f.name, amount: f.balance }))} />
+                <p className="rb-commentary">
+                  Fund balances, unrestricted and restricted:
+                </p>
+                <ReportBarRows
+                  items={funds.map((f) => ({
+                    label: f.name,
+                    amount: f.balance,
+                  }))}
+                />
               </>
             ) : (
               <p className="rb-commentary">
-                Unrestricted funds total {fmtMoney(unrestrictedTotal)}; restricted funds total {fmtMoney(restrictedTotal)}. Switch scope to
-                "By fund" for the breakdown.
+                Unrestricted funds total {fmtMoney(unrestrictedTotal)};
+                restricted funds total {fmtMoney(restrictedTotal)}. Switch scope
+                to "By fund" for the breakdown.
               </p>
             )}
           </div>
@@ -4709,10 +6494,32 @@ function ReportBuilderPage({ client }) {
             <h2>Outlook</h2>
             <p className="rb-section-sub">Months of operating reserve</p>
             <div className="rb-runway-row">
-              <RunwayRing pct={runwayMonths == null ? 1 : Math.max(0.08, Math.min(runwayMonths / 6, 1))} tone={runwayMonths != null && runwayMonths < 3 ? "negative" : "positive"}>
-                <div className="runway-ring-value">{runwayMonths == null ? "—" : `${runwayMonths.toFixed(1)} mo`}</div>
-                <div className={"runway-ring-status " + (runwayMonths != null && runwayMonths < 3 ? "negative" : "positive")}>
-                  {runwayMonths != null && runwayMonths < 3 ? "Monitor" : "Healthy"}
+              <RunwayRing
+                pct={
+                  runwayMonths == null
+                    ? 1
+                    : Math.max(0.08, Math.min(runwayMonths / 6, 1))
+                }
+                tone={
+                  runwayMonths != null && runwayMonths < 3
+                    ? "negative"
+                    : "positive"
+                }
+              >
+                <div className="runway-ring-value">
+                  {runwayMonths == null ? "—" : `${runwayMonths.toFixed(1)} mo`}
+                </div>
+                <div
+                  className={
+                    "runway-ring-status " +
+                    (runwayMonths != null && runwayMonths < 3
+                      ? "negative"
+                      : "positive")
+                  }
+                >
+                  {runwayMonths != null && runwayMonths < 3
+                    ? "Monitor"
+                    : "Healthy"}
                 </div>
               </RunwayRing>
               <p className="rb-commentary" style={{ flex: 1, minWidth: 220 }}>
@@ -4735,14 +6542,23 @@ function ReportBuilderPage({ client }) {
 
 function BudgetingToolPage({ client }) {
   const [rows, setRows] = useState(() =>
-    client.budget.map((b) => ({ category: b.category, actual: b.actual, current: b.budgeted, proposed: b.budgeted }))
+    client.budget.map((b) => ({
+      category: b.category,
+      actual: b.actual,
+      current: b.budgeted,
+      proposed: b.budgeted,
+    })),
   );
   const [newCategory, setNewCategory] = useState("");
   const showToast = useToast();
 
   const updateProposed = (index, value) => {
     const num = parseFloat(value);
-    setRows((r) => r.map((row, i) => (i === index ? { ...row, proposed: isNaN(num) ? 0 : num } : row)));
+    setRows((r) =>
+      r.map((row, i) =>
+        i === index ? { ...row, proposed: isNaN(num) ? 0 : num } : row,
+      ),
+    );
   };
 
   const removeRow = (index) => {
@@ -4751,13 +6567,19 @@ function BudgetingToolPage({ client }) {
 
   const addRow = () => {
     if (!newCategory.trim()) return;
-    setRows((r) => [...r, { category: newCategory.trim(), actual: 0, current: 0, proposed: 0 }]);
+    setRows((r) => [
+      ...r,
+      { category: newCategory.trim(), actual: 0, current: 0, proposed: 0 },
+    ]);
     setNewCategory("");
   };
 
   const totalCurrent = rows.reduce((s, r) => s + r.current, 0);
   const totalProposed = rows.reduce((s, r) => s + r.proposed, 0);
-  const pctChange = totalCurrent > 0 ? ((totalProposed - totalCurrent) / totalCurrent) * 100 : 0;
+  const pctChange =
+    totalCurrent > 0
+      ? ((totalProposed - totalCurrent) / totalCurrent) * 100
+      : 0;
 
   const { flashCardId, jumpToCard } = useCardFlash();
   const jumpToDraft = () => jumpToCard("budgeting-tool-draft-card", "draft");
@@ -4767,15 +6589,24 @@ function BudgetingToolPage({ client }) {
       <MockBanner text="This is a working draft space — nothing here is saved anywhere real yet, and submitting doesn't notify anyone." />
 
       <div className="kpi-grid">
-        <button className="card kpi-card kpi-card-clickable" onClick={jumpToDraft}>
+        <button
+          className="card kpi-card kpi-card-clickable"
+          onClick={jumpToDraft}
+        >
           <span className="kpi-label">Current Budget Total</span>
           <span className="kpi-value">{fmtMoney(totalCurrent)}</span>
         </button>
-        <button className="card kpi-card kpi-card-clickable" onClick={jumpToDraft}>
+        <button
+          className="card kpi-card kpi-card-clickable"
+          onClick={jumpToDraft}
+        >
           <span className="kpi-label">Proposed Budget Total</span>
           <span className="kpi-value">{fmtMoney(totalProposed)}</span>
         </button>
-        <button className="card kpi-card kpi-card-clickable" onClick={jumpToDraft}>
+        <button
+          className="card kpi-card kpi-card-clickable"
+          onClick={jumpToDraft}
+        >
           <span className="kpi-label">Change</span>
           <span className="kpi-value">
             {(pctChange >= 0 ? "+" : "") + pctChange.toFixed(1)}%
@@ -4790,61 +6621,78 @@ function BudgetingToolPage({ client }) {
         style={{ marginBottom: 20 }}
       >
         <h3 className="card-title premium-shimmer">Draft Budget by Category</h3>
-        <p className="card-subtitle">Adjust proposed amounts for next period. This year's actual is shown for reference.</p>
+        <p className="card-subtitle">
+          Adjust proposed amounts for next period. This year's actual is shown
+          for reference.
+        </p>
         <div className="table-scroll">
-<table className="tx-table tx-table-labeled">
-          <thead>
-            <tr>
-              <th>Category</th>
-              <th className="num">This Year's Actual</th>
-              <th className="num">Current Budget</th>
-              <th className="num">Proposed Budget</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((r, i) => {
-              // Same bullet-bar treatment as standard Budget vs. Actual's
-              // Spending by Category: track spans whichever of current
-              // budget/actual is bigger, fill is the real dollar amount, tick
-              // marks the current budget line — against actual, not the
-              // proposed number being drafted in this row.
-              const scaleMax = Math.max(r.current, r.actual, 1) * 1.08;
-              const fillPct = Math.min((r.actual / scaleMax) * 100, 100);
-              const tickPct = Math.min((r.current / scaleMax) * 100, 100);
-              const over = r.actual > r.current;
-              return (
-              <tr key={i}>
-                <td data-primary="">
-                  <div className="category-name">{r.category}</div>
-                  <div className="bullet-track">
-                    <div
-                      className={"bullet-fill " + (over ? "over" : "under")}
-                      style={{ width: `${fillPct}%`, animationDuration: `${growDuration(fillPct)}ms` }}
-                    ></div>
-                    <div className="bullet-target" style={{ left: `${tickPct}%` }}></div>
-                  </div>
-                </td>
-                <td className="num" data-label="This year's actual">{fmtMoney(r.actual)}</td>
-                <td className="num" data-label="Current budget">{fmtMoney(r.current)}</td>
-                <td className="num" data-label="Proposed budget">
-                  <input
-                    type="number"
-                    className="budget-input"
-                    value={r.proposed}
-                    onChange={(e) => updateProposed(i, e.target.value)}
-                  />
-                </td>
-                <td className="row-remove-cell">
-                  <button className="row-remove-btn" onClick={() => removeRow(i)} aria-label={`Remove ${r.category}`}>
-                    ×
-                  </button>
-                </td>
+          <table className="tx-table tx-table-labeled">
+            <thead>
+              <tr>
+                <th>Category</th>
+                <th className="num">This Year's Actual</th>
+                <th className="num">Current Budget</th>
+                <th className="num">Proposed Budget</th>
+                <th></th>
               </tr>
-              );
-            })}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {rows.map((r, i) => {
+                // Same bullet-bar treatment as standard Budget vs. Actual's
+                // Spending by Category: track spans whichever of current
+                // budget/actual is bigger, fill is the real dollar amount, tick
+                // marks the current budget line — against actual, not the
+                // proposed number being drafted in this row.
+                const scaleMax = Math.max(r.current, r.actual, 1) * 1.08;
+                const fillPct = Math.min((r.actual / scaleMax) * 100, 100);
+                const tickPct = Math.min((r.current / scaleMax) * 100, 100);
+                const over = r.actual > r.current;
+                return (
+                  <tr key={i}>
+                    <td data-primary="">
+                      <div className="category-name">{r.category}</div>
+                      <div className="bullet-track">
+                        <div
+                          className={"bullet-fill " + (over ? "over" : "under")}
+                          style={{
+                            width: `${fillPct}%`,
+                            animationDuration: `${growDuration(fillPct)}ms`,
+                          }}
+                        ></div>
+                        <div
+                          className="bullet-target"
+                          style={{ left: `${tickPct}%` }}
+                        ></div>
+                      </div>
+                    </td>
+                    <td className="num" data-label="This year's actual">
+                      {fmtMoney(r.actual)}
+                    </td>
+                    <td className="num" data-label="Current budget">
+                      {fmtMoney(r.current)}
+                    </td>
+                    <td className="num" data-label="Proposed budget">
+                      <input
+                        type="number"
+                        className="budget-input"
+                        value={r.proposed}
+                        onChange={(e) => updateProposed(i, e.target.value)}
+                      />
+                    </td>
+                    <td className="row-remove-cell">
+                      <button
+                        className="row-remove-btn"
+                        onClick={() => removeRow(i)}
+                        aria-label={`Remove ${r.category}`}
+                      >
+                        ×
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
         </div>
 
         <div className="add-category-row">
@@ -4887,8 +6735,14 @@ function BudgetingToolPage({ client }) {
           so this page is still a strict superset of Budget vs. Actual. */}
       <div className="card">
         <h3 className="card-title">Spending Trend</h3>
-        <p className="card-subtitle">Income vs. expenses, last {client.monthly.length} months — for reference while drafting</p>
-        <IncomeExpenseChart monthly={client.monthly} budgetTotal={totalCurrent} />
+        <p className="card-subtitle">
+          Income vs. expenses, last {client.monthly.length} months — for
+          reference while drafting
+        </p>
+        <IncomeExpenseChart
+          monthly={client.monthly}
+          budgetTotal={totalCurrent}
+        />
       </div>
     </div>
   );
@@ -4939,7 +6793,8 @@ function APCommandCenterPage({ client }) {
   const rows = useMemo(() => {
     return client.payables.map((p, i) => {
       const diff = daysUntil(p.dueDate, today);
-      const status = diff < 0 ? "overdue" : diff <= AP_SOON_DAYS ? "soon" : "scheduled";
+      const status =
+        diff < 0 ? "overdue" : diff <= AP_SOON_DAYS ? "soon" : "scheduled";
       return { ...p, diff, status, rowId: p.id != null ? p.id : i };
     });
   }, [client.payables, today]);
@@ -4962,7 +6817,12 @@ function APCommandCenterPage({ client }) {
   const vendorSummary = useMemo(() => {
     const byVendor = new Map();
     rows.forEach((r) => {
-      const v = byVendor.get(r.vendor) || { vendor: r.vendor, total: 0, count: 0, overdue: 0 };
+      const v = byVendor.get(r.vendor) || {
+        vendor: r.vendor,
+        total: 0,
+        count: 0,
+        overdue: 0,
+      };
       v.total += r.amount;
       v.count += 1;
       if (r.status === "overdue") v.overdue += 1;
@@ -4971,7 +6831,8 @@ function APCommandCenterPage({ client }) {
     return [...byVendor.values()].sort((a, b) => b.total - a.total);
   }, [rows]);
 
-  const byStatus = (key) => rows.filter((r) => key === "all" || r.status === key);
+  const byStatus = (key) =>
+    rows.filter((r) => key === "all" || r.status === key);
 
   const totals = useMemo(() => {
     const sum = (list) => list.reduce((s, r) => s + r.amount, 0);
@@ -4979,29 +6840,62 @@ function APCommandCenterPage({ client }) {
       ["all", "overdue", "soon", "scheduled"].map((key) => {
         const list = byStatus(key);
         return [key, { amount: sum(list), count: list.length }];
-      })
+      }),
     );
   }, [rows]);
 
   const filteredRows = useMemo(() => {
     const q = query.trim().toLowerCase();
     return byStatus(statusFilter)
-      .filter((r) => !q || r.vendor.toLowerCase().includes(q) || r.description.toLowerCase().includes(q))
+      .filter(
+        (r) =>
+          !q ||
+          r.vendor.toLowerCase().includes(q) ||
+          r.description.toLowerCase().includes(q),
+      )
       .sort((a, b) => a.diff - b.diff);
   }, [rows, statusFilter, query]);
 
   const agingBuckets = useMemo(() => {
     const buckets = [
-      { key: "current", label: "Current", test: (d) => d >= 0, color: "var(--good)" },
-      { key: "d1_7", label: "1–7 days over", test: (d) => d < 0 && d >= -7, color: "var(--warm-text)" },
-      { key: "d8_30", label: "8–30 days over", test: (d) => d < -7 && d >= -30, color: "var(--bad)" },
-      { key: "d30plus", label: "30+ days over", test: (d) => d < -30, color: "var(--bad)" },
+      {
+        key: "current",
+        label: "Current",
+        test: (d) => d >= 0,
+        color: "var(--good)",
+      },
+      {
+        key: "d1_7",
+        label: "1–7 days over",
+        test: (d) => d < 0 && d >= -7,
+        color: "var(--warm-text)",
+      },
+      {
+        key: "d8_30",
+        label: "8–30 days over",
+        test: (d) => d < -7 && d >= -30,
+        color: "var(--bad)",
+      },
+      {
+        key: "d30plus",
+        label: "30+ days over",
+        test: (d) => d < -30,
+        color: "var(--bad)",
+      },
     ];
-    return buckets.map((b) => ({ ...b, amount: rows.filter((r) => b.test(r.diff)).reduce((s, r) => s + r.amount, 0) }));
+    return buckets.map((b) => ({
+      ...b,
+      amount: rows
+        .filter((r) => b.test(r.diff))
+        .reduce((s, r) => s + r.amount, 0),
+    }));
   }, [rows]);
   const maxBucket = Math.max(...agingBuckets.map((b) => b.amount), 1);
 
-  const nextDue = useMemo(() => [...rows].sort((a, b) => a.diff - b.diff).slice(0, 5), [rows]);
+  const nextDue = useMemo(
+    () => [...rows].sort((a, b) => a.diff - b.diff).slice(0, 5),
+    [rows],
+  );
   const shownTotal = filteredRows.reduce((s, r) => s + r.amount, 0);
 
   const toggleRow = (rowId) => {
@@ -5012,7 +6906,8 @@ function APCommandCenterPage({ client }) {
       return next;
     });
   };
-  const allShownSelected = filteredRows.length > 0 && filteredRows.every((r) => selected.has(r.rowId));
+  const allShownSelected =
+    filteredRows.length > 0 && filteredRows.every((r) => selected.has(r.rowId));
   const toggleAllShown = () => {
     setSelected((prev) => {
       const next = new Set(prev);
@@ -5029,11 +6924,18 @@ function APCommandCenterPage({ client }) {
 
   const startPayRun = () => {
     if (selectedRows.length === 0) return;
-    setPayRun({ ids: [...selected], total: selectedTotal, status: "awaiting_approval" });
+    setPayRun({
+      ids: [...selected],
+      total: selectedTotal,
+      status: "awaiting_approval",
+    });
     showToast(
-      `Pay run of ${selectedRows.length} bill${selectedRows.length !== 1 ? "s" : ""} (${fmtMoney(selectedTotal, {
-        cents: true,
-      })}) sent for approval.`
+      `Pay run of ${selectedRows.length} bill${selectedRows.length !== 1 ? "s" : ""} (${fmtMoney(
+        selectedTotal,
+        {
+          cents: true,
+        },
+      )}) sent for approval.`,
     );
   };
   const approvePayRun = () => {
@@ -5046,13 +6948,22 @@ function APCommandCenterPage({ client }) {
   };
 
   const exportPayRunCsv = () => {
-    const list = payRun ? rows.filter((r) => payRun.ids.includes(r.rowId)) : selectedRows;
+    const list = payRun
+      ? rows.filter((r) => payRun.ids.includes(r.rowId))
+      : selectedRows;
     if (list.length === 0) return;
     const csvRows = [
       ["Vendor", "Description", "Amount", "Due Date"],
-      ...list.map((r) => [r.vendor, r.description, r.amount.toFixed(2), r.dueDate]),
+      ...list.map((r) => [
+        r.vendor,
+        r.description,
+        r.amount.toFixed(2),
+        r.dueDate,
+      ]),
     ];
-    const csv = csvRows.map((r) => r.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(",")).join("\n");
+    const csv = csvRows
+      .map((r) => r.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(","))
+      .join("\n");
     const blob = new Blob([csv], { type: "text/csv" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -5062,7 +6973,9 @@ function APCommandCenterPage({ client }) {
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
-    showToast(`Exported ${list.length} bill${list.length !== 1 ? "s" : ""} for bank upload.`);
+    showToast(
+      `Exported ${list.length} bill${list.length !== 1 ? "s" : ""} for bank upload.`,
+    );
   };
 
   return (
@@ -5070,45 +6983,65 @@ function APCommandCenterPage({ client }) {
       <MockBanner text="These are the same sample payables shown under Cash Flow. Connect QuickBooks to replace this with live AP data." />
 
       <div className="kpi-grid">
-        <button className="card kpi-card kpi-card-clickable" onClick={() => jumpToBills("all")}>
+        <button
+          className="card kpi-card kpi-card-clickable"
+          onClick={() => jumpToBills("all")}
+        >
           <span className="kpi-label">Total Payable</span>
           <span className="kpi-value">{fmtMoney(totals.all.amount)}</span>
           <span className="kpi-sub neutral">
             {totals.all.count} open bill{totals.all.count !== 1 ? "s" : ""}
           </span>
         </button>
-        <button className="card kpi-card kpi-card-clickable" onClick={() => jumpToBills("overdue")}>
+        <button
+          className="card kpi-card kpi-card-clickable"
+          onClick={() => jumpToBills("overdue")}
+        >
           <span className="kpi-label">Overdue</span>
-          <span className="kpi-value negative">{fmtMoney(totals.overdue.amount)}</span>
+          <span className="kpi-value negative">
+            {fmtMoney(totals.overdue.amount)}
+          </span>
           <span className="kpi-sub negative">
-            {totals.overdue.count} bill{totals.overdue.count !== 1 ? "s" : ""} past due
+            {totals.overdue.count} bill{totals.overdue.count !== 1 ? "s" : ""}{" "}
+            past due
           </span>
         </button>
-        <button className="card kpi-card kpi-card-clickable" onClick={() => jumpToBills("soon")}>
+        <button
+          className="card kpi-card kpi-card-clickable"
+          onClick={() => jumpToBills("soon")}
+        >
           <span className="kpi-label">Due Within {AP_SOON_DAYS} Days</span>
           <span className="kpi-value warm">{fmtMoney(totals.soon.amount)}</span>
           <span className="kpi-sub warm">
             {totals.soon.count} bill{totals.soon.count !== 1 ? "s" : ""}
           </span>
         </button>
-        <button className="card kpi-card kpi-card-clickable" onClick={() => jumpToBills("scheduled")}>
+        <button
+          className="card kpi-card kpi-card-clickable"
+          onClick={() => jumpToBills("scheduled")}
+        >
           <span className="kpi-label">Scheduled</span>
           <span className="kpi-value">{fmtMoney(totals.scheduled.amount)}</span>
           <span className="kpi-sub neutral">
-            {totals.scheduled.count} bill{totals.scheduled.count !== 1 ? "s" : ""}
+            {totals.scheduled.count} bill
+            {totals.scheduled.count !== 1 ? "s" : ""}
           </span>
         </button>
       </div>
 
       <div
-        className={"card " + (flashCardId === "open-bills" ? "card-flash " : "")}
+        className={
+          "card " + (flashCardId === "open-bills" ? "card-flash " : "")
+        }
         id="ap-cc-open-bills-card"
         style={{ marginBottom: 20 }}
       >
         <div className="ap-cc-toolbar">
           <div>
             <h3 className="card-title premium-shimmer">Open Bills</h3>
-            <p className="card-subtitle">Every payable on file for {client.name}</p>
+            <p className="card-subtitle">
+              Every payable on file for {client.name}
+            </p>
           </div>
           <div className="ap-cc-filters">
             <input
@@ -5183,7 +7116,13 @@ function APCommandCenterPage({ client }) {
                     </td>
                     <td data-label="Due">
                       {fmtDate(r.dueDate)}
-                      <div className={"ap-cc-due-days" + (r.diff < 0 ? " overdue" : "")}>{apDueText(r.diff)}</div>
+                      <div
+                        className={
+                          "ap-cc-due-days" + (r.diff < 0 ? " overdue" : "")
+                        }
+                      >
+                        {apDueText(r.diff)}
+                      </div>
                     </td>
                   </tr>
                 );
@@ -5199,7 +7138,9 @@ function APCommandCenterPage({ client }) {
             <tfoot>
               <tr>
                 <td colSpan={3}>Total shown</td>
-                <td className="num tx-amount negative">-{fmtMoney(shownTotal, { cents: true })}</td>
+                <td className="num tx-amount negative">
+                  -{fmtMoney(shownTotal, { cents: true })}
+                </td>
                 <td></td>
               </tr>
             </tfoot>
@@ -5212,23 +7153,35 @@ function APCommandCenterPage({ client }) {
           <h3 className="card-title premium-shimmer">Pay Run</h3>
           <p className="card-subtitle">
             {payRun
-              ? `${payRun.ids.length} bill${payRun.ids.length !== 1 ? "s" : ""} · ${fmtMoney(payRun.total, {
-                  cents: true,
-                })}`
+              ? `${payRun.ids.length} bill${payRun.ids.length !== 1 ? "s" : ""} · ${fmtMoney(
+                  payRun.total,
+                  {
+                    cents: true,
+                  },
+                )}`
               : `${selectedRows.length} bill${selectedRows.length !== 1 ? "s" : ""} selected · ${fmtMoney(
                   selectedTotal,
-                  { cents: true }
+                  { cents: true },
                 )}`}
           </p>
 
           <div className="ap-cc-payrun-impact">
             <div>
               <span className="ap-cc-age-label">Cash on hand today</span>
-              <div className="kpi-value" style={{ fontSize: 20 }}>{fmtMoney(cashOnHand, { cents: true })}</div>
+              <div className="kpi-value" style={{ fontSize: 20 }}>
+                {fmtMoney(cashOnHand, { cents: true })}
+              </div>
             </div>
             <div>
-              <span className="ap-cc-age-label">Balance after this pay run</span>
-              <div className={"kpi-value " + (cashAfterPayRun < 0 ? "negative" : "")} style={{ fontSize: 20 }}>
+              <span className="ap-cc-age-label">
+                Balance after this pay run
+              </span>
+              <div
+                className={
+                  "kpi-value " + (cashAfterPayRun < 0 ? "negative" : "")
+                }
+                style={{ fontSize: 20 }}
+              >
                 {fmtMoney(cashAfterPayRun, { cents: true })}
               </div>
             </div>
@@ -5236,15 +7189,25 @@ function APCommandCenterPage({ client }) {
 
           {payRun && (
             <div className="ap-cc-approval-row">
-              <span className={"pill " + (payRun.status === "approved" ? "good" : "warm")}>
-                {payRun.status === "approved" ? "Approved" : "Awaiting Treasurer approval"}
+              <span
+                className={
+                  "pill " + (payRun.status === "approved" ? "good" : "warm")
+                }
+              >
+                {payRun.status === "approved"
+                  ? "Approved"
+                  : "Awaiting Treasurer approval"}
               </span>
             </div>
           )}
 
           <div className="ap-cc-payrun-actions">
             {!payRun && (
-              <button className="btn-primary" onClick={startPayRun} disabled={selectedRows.length === 0}>
+              <button
+                className="btn-primary"
+                onClick={startPayRun}
+                disabled={selectedRows.length === 0}
+              >
                 Send for Approval
               </button>
             )}
@@ -5253,7 +7216,11 @@ function APCommandCenterPage({ client }) {
                 Approve Pay Run
               </button>
             )}
-            <button className="btn-secondary" onClick={exportPayRunCsv} disabled={selectedRows.length === 0 && !payRun}>
+            <button
+              className="btn-secondary"
+              onClick={exportPayRunCsv}
+              disabled={selectedRows.length === 0 && !payRun}
+            >
               Export ACH Batch (CSV)
             </button>
             {payRun && (
@@ -5279,10 +7246,14 @@ function APCommandCenterPage({ client }) {
                     {v.overdue > 0 ? ` · ${v.overdue} overdue` : ""}
                   </div>
                 </div>
-                <span className="ap-cc-upcoming-amt">{fmtMoney(v.total, { cents: true })}</span>
+                <span className="ap-cc-upcoming-amt">
+                  {fmtMoney(v.total, { cents: true })}
+                </span>
               </div>
             ))}
-            {vendorSummary.length === 0 && <p className="card-subtitle">No open bills.</p>}
+            {vendorSummary.length === 0 && (
+              <p className="card-subtitle">No open bills.</p>
+            )}
           </div>
         </div>
 
@@ -5294,7 +7265,13 @@ function APCommandCenterPage({ client }) {
               <div className="ap-cc-age-row" key={b.key}>
                 <span className="ap-cc-age-label">{b.label}</span>
                 <span className="ap-cc-age-track">
-                  <span className="ap-cc-age-fill" style={{ width: `${(b.amount / maxBucket) * 100}%`, background: b.color }} />
+                  <span
+                    className="ap-cc-age-fill"
+                    style={{
+                      width: `${(b.amount / maxBucket) * 100}%`,
+                      background: b.color,
+                    }}
+                  />
                 </span>
                 <span className="ap-cc-age-amt">{fmtMoney(b.amount)}</span>
               </div>
@@ -5312,10 +7289,14 @@ function APCommandCenterPage({ client }) {
                   <div className="ap-cc-upcoming-who">{r.vendor}</div>
                   <div className="ap-cc-upcoming-when">{apDueText(r.diff)}</div>
                 </div>
-                <span className="ap-cc-upcoming-amt">{fmtMoney(r.amount, { cents: true })}</span>
+                <span className="ap-cc-upcoming-amt">
+                  {fmtMoney(r.amount, { cents: true })}
+                </span>
               </div>
             ))}
-            {nextDue.length === 0 && <p className="card-subtitle">No open bills.</p>}
+            {nextDue.length === 0 && (
+              <p className="card-subtitle">No open bills.</p>
+            )}
           </div>
         </div>
       </div>
@@ -5378,7 +7359,13 @@ function buildInviteMailto(row) {
 // their browser, which every mygoodbooks.org staffer already is.
 function buildInviteGmailUrl(row) {
   const { subject, body } = inviteCopyFor(row);
-  const params = new URLSearchParams({ view: "cm", fs: "1", to: row.email, su: subject, body });
+  const params = new URLSearchParams({
+    view: "cm",
+    fs: "1",
+    to: row.email,
+    su: subject,
+    body,
+  });
   return `https://mail.google.com/mail/?${params.toString()}`;
 }
 
@@ -5388,17 +7375,25 @@ function buildInviteGmailUrl(row) {
 // support — since this is for pasting out of a simple roster spreadsheet,
 // not accepting arbitrary CSV exports.
 function parseStaffCsv(text) {
-  const lines = text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+  const lines = text
+    .split(/\r?\n/)
+    .map((l) => l.trim())
+    .filter(Boolean);
   const rows = [];
   lines.forEach((line, i) => {
-    const [rawEmail, rawName, rawRole] = line.split(",").map((f) => (f || "").trim());
+    const [rawEmail, rawName, rawRole] = line
+      .split(",")
+      .map((f) => (f || "").trim());
     if (i === 0 && rawEmail && !rawEmail.includes("@")) return; // header row
     const email = (rawEmail || "").toLowerCase();
     const name = rawName || "";
-    const role = STAFF_ROLES.includes((rawRole || "").toLowerCase()) ? rawRole.toLowerCase() : "bookkeeper";
+    const role = STAFF_ROLES.includes((rawRole || "").toLowerCase())
+      ? rawRole.toLowerCase()
+      : "bookkeeper";
     const errors = [];
     if (!email || !email.includes("@")) errors.push("missing/invalid email");
-    else if (!email.endsWith("@mygoodbooks.org")) errors.push("must be a mygoodbooks.org address");
+    else if (!email.endsWith("@mygoodbooks.org"))
+      errors.push("must be a mygoodbooks.org address");
     if (!name) errors.push("missing name");
     rows.push({ line, email, name, role, errors });
   });
@@ -5422,7 +7417,9 @@ function parseStaffCsv(text) {
 // button, not "local state" in the sense this reset is for.
 function resettableLocalStorageKeys() {
   try {
-    return Object.keys(localStorage).filter((k) => k.startsWith("mygoodbooks_") && !k.startsWith("mygoodbooks_ff_"));
+    return Object.keys(localStorage).filter(
+      (k) => k.startsWith("mygoodbooks_") && !k.startsWith("mygoodbooks_ff_"),
+    );
   } catch (e) {
     return [];
   }
@@ -5446,7 +7443,10 @@ function StaffAccessPage({ staffUser, onImpersonate }) {
   const [csvImporting, setCsvImporting] = useState(false);
   const [csvResults, setCsvResults] = useState(null); // per-row outcome after an import run
 
-  const csvPreview = useMemo(() => (csvText.trim() ? parseStaffCsv(csvText) : []), [csvText]);
+  const csvPreview = useMemo(
+    () => (csvText.trim() ? parseStaffCsv(csvText) : []),
+    [csvText],
+  );
   const csvValidCount = csvPreview.filter((r) => r.errors.length === 0).length;
 
   function openClientAccess(row) {
@@ -5459,7 +7459,9 @@ function StaffAccessPage({ staffUser, onImpersonate }) {
       .then(({ data, error }) => {
         setClientAccessLoading(false);
         if (error) {
-          showToast(`Couldn't load ${row.name}'s client access: ${error.message}`);
+          showToast(
+            `Couldn't load ${row.name}'s client access: ${error.message}`,
+          );
           setClientAccessFor(null);
           return;
         }
@@ -5470,8 +7472,14 @@ function StaffAccessPage({ staffUser, onImpersonate }) {
   async function toggleClientAccess(clientId) {
     const wasChecked = clientAccessSet.has(clientId);
     const { error } = wasChecked
-      ? await supabase.from("staff_client_access").delete().eq("staff_email", clientAccessFor.email).eq("client_id", clientId)
-      : await supabase.from("staff_client_access").insert({ staff_email: clientAccessFor.email, client_id: clientId });
+      ? await supabase
+          .from("staff_client_access")
+          .delete()
+          .eq("staff_email", clientAccessFor.email)
+          .eq("client_id", clientId)
+      : await supabase
+          .from("staff_client_access")
+          .insert({ staff_email: clientAccessFor.email, client_id: clientId });
     if (error) {
       showToast(`Couldn't update client access: ${error.message}`);
       return;
@@ -5516,11 +7524,15 @@ function StaffAccessPage({ staffUser, onImpersonate }) {
     const name = newName.trim();
     if (!email || !name) return;
     if (!email.endsWith("@mygoodbooks.org")) {
-      showToast("Staff email must be a mygoodbooks.org address — Google sign-in will reject anything else.");
+      showToast(
+        "Staff email must be a mygoodbooks.org address — Google sign-in will reject anything else.",
+      );
       return;
     }
     setAdding(true);
-    const { error } = await supabase.from("staff").insert({ email, name, role: newRole, active: true });
+    const { error } = await supabase
+      .from("staff")
+      .insert({ email, name, role: newRole, active: true });
     setAdding(false);
     if (error) {
       showToast(`Couldn't add ${email}: ${error.message}`);
@@ -5542,8 +7554,15 @@ function StaffAccessPage({ staffUser, onImpersonate }) {
     // how addStaff() already reports failures per person.
     const results = [];
     for (const r of validRows) {
-      const { error } = await supabase.from("staff").insert({ email: r.email, name: r.name, role: r.role, active: true });
-      results.push({ email: r.email, name: r.name, ok: !error, message: error ? error.message : "" });
+      const { error } = await supabase
+        .from("staff")
+        .insert({ email: r.email, name: r.name, role: r.role, active: true });
+      results.push({
+        email: r.email,
+        name: r.name,
+        ok: !error,
+        message: error ? error.message : "",
+      });
     }
     setCsvImporting(false);
     setCsvResults(results);
@@ -5551,7 +7570,7 @@ function StaffAccessPage({ staffUser, onImpersonate }) {
     showToast(
       okCount === results.length
         ? `Imported ${okCount} staff.`
-        : `Imported ${okCount} of ${results.length} — see the results below for what failed.`
+        : `Imported ${okCount} of ${results.length} — see the results below for what failed.`,
     );
     if (okCount === results.length) setCsvText("");
     load();
@@ -5559,7 +7578,10 @@ function StaffAccessPage({ staffUser, onImpersonate }) {
 
   async function updateRow(row, patch) {
     setBusyId(row.id);
-    const { error } = await supabase.from("staff").update(patch).eq("id", row.id);
+    const { error } = await supabase
+      .from("staff")
+      .update(patch)
+      .eq("id", row.id);
     setBusyId(null);
     if (error) {
       showToast(`Couldn't update ${row.email}: ${error.message}`);
@@ -5569,7 +7591,12 @@ function StaffAccessPage({ staffUser, onImpersonate }) {
   }
 
   async function removeRow(row) {
-    if (!window.confirm(`Remove ${row.name} (${row.email})? They'll lose portal access immediately.`)) return;
+    if (
+      !window.confirm(
+        `Remove ${row.name} (${row.email})? They'll lose portal access immediately.`,
+      )
+    )
+      return;
     setBusyId(row.id);
     const { error } = await supabase.from("staff").delete().eq("id", row.id);
     setBusyId(null);
@@ -5584,15 +7611,15 @@ function StaffAccessPage({ staffUser, onImpersonate }) {
   return (
     <div>
       <div className="mock-banner">
-        <WarningIcon /> This page writes directly to the real staff table in Supabase — unlike the rest of the app,
-        nothing here is sample data.
+        <WarningIcon /> This page writes directly to the real staff table in
+        Supabase — unlike the rest of the app, nothing here is sample data.
       </div>
 
       <div className="card" style={{ marginBottom: 20 }}>
         <h3 className="card-title">Add staff</h3>
         <p className="card-subtitle">
-          They'll sign in with Google using this exact address — add them here first, or Google will let them in and
-          this app will turn them away.
+          They'll sign in with Google using this exact address — add them here
+          first, or Google will let them in and this app will turn them away.
         </p>
         <div className="staff-add-row">
           <input
@@ -5601,7 +7628,12 @@ function StaffAccessPage({ staffUser, onImpersonate }) {
             value={newEmail}
             onChange={(e) => setNewEmail(e.target.value)}
           />
-          <input type="text" placeholder="Full name" value={newName} onChange={(e) => setNewName(e.target.value)} />
+          <input
+            type="text"
+            placeholder="Full name"
+            value={newName}
+            onChange={(e) => setNewName(e.target.value)}
+          />
           <select value={newRole} onChange={(e) => setNewRole(e.target.value)}>
             {STAFF_ROLES.map((r) => (
               <option key={r} value={r}>
@@ -5609,7 +7641,11 @@ function StaffAccessPage({ staffUser, onImpersonate }) {
               </option>
             ))}
           </select>
-          <button className="btn-primary" disabled={adding || !newEmail.trim() || !newName.trim()} onClick={addStaff}>
+          <button
+            className="btn-primary"
+            disabled={adding || !newEmail.trim() || !newName.trim()}
+            onClick={addStaff}
+          >
             + Add
           </button>
         </div>
@@ -5618,13 +7654,16 @@ function StaffAccessPage({ staffUser, onImpersonate }) {
       <div className="card" style={{ marginBottom: 20 }}>
         <h3 className="card-title">Bulk import</h3>
         <p className="card-subtitle">
-          Paste rows as <code>email, name, role</code> (role optional, defaults to bookkeeper) — one person per line,
-          straight out of a spreadsheet. A header row is fine, it's detected and skipped.
+          Paste rows as <code>email, name, role</code> (role optional, defaults
+          to bookkeeper) — one person per line, straight out of a spreadsheet. A
+          header row is fine, it's detected and skipped.
         </p>
         <textarea
           className="staff-csv-textarea"
           rows={4}
-          placeholder={"jane@mygoodbooks.org, Jane Alvarez, bookkeeper\nmark@mygoodbooks.org, Mark Chen, admin"}
+          placeholder={
+            "jane@mygoodbooks.org, Jane Alvarez, bookkeeper\nmark@mygoodbooks.org, Mark Chen, admin"
+          }
           value={csvText}
           onChange={(e) => {
             setCsvText(e.target.value);
@@ -5635,7 +7674,10 @@ function StaffAccessPage({ staffUser, onImpersonate }) {
           <React.Fragment>
             <ul className="staff-csv-preview">
               {csvPreview.map((r, i) => (
-                <li key={i} className={r.errors.length ? "negative" : "positive"}>
+                <li
+                  key={i}
+                  className={r.errors.length ? "negative" : "positive"}
+                >
                   {r.errors.length ? (
                     <React.Fragment>
                       <strong>{r.line}</strong> — {r.errors.join(", ")}
@@ -5649,12 +7691,17 @@ function StaffAccessPage({ staffUser, onImpersonate }) {
               ))}
             </ul>
             <div className="staff-reset-row">
-              <button className="btn-primary" disabled={csvImporting || csvValidCount === 0} onClick={importCsv}>
+              <button
+                className="btn-primary"
+                disabled={csvImporting || csvValidCount === 0}
+                onClick={importCsv}
+              >
                 {csvImporting ? "Importing…" : `Import ${csvValidCount} staff`}
               </button>
               {csvValidCount < csvPreview.length && (
                 <p className="card-subtitle" style={{ margin: 0 }}>
-                  {csvPreview.length - csvValidCount} row(s) above have errors and will be skipped.
+                  {csvPreview.length - csvValidCount} row(s) above have errors
+                  and will be skipped.
                 </p>
               )}
             </div>
@@ -5664,7 +7711,9 @@ function StaffAccessPage({ staffUser, onImpersonate }) {
           <ul className="staff-csv-preview" style={{ marginTop: 12 }}>
             {csvResults.map((r, i) => (
               <li key={i} className={r.ok ? "positive" : "negative"}>
-                {r.ok ? `Added ${r.name}` : `${r.name || r.email} — ${r.message}`}
+                {r.ok
+                  ? `Added ${r.name}`
+                  : `${r.name || r.email} — ${r.message}`}
               </li>
             ))}
           </ul>
@@ -5673,9 +7722,14 @@ function StaffAccessPage({ staffUser, onImpersonate }) {
 
       <div className="card" style={{ marginBottom: 20 }}>
         <h3 className="card-title">Staff roster</h3>
-        <p className="card-subtitle">Who can sign in to the portal, and with what role. You can't change your own row.</p>
+        <p className="card-subtitle">
+          Who can sign in to the portal, and with what role. You can't change
+          your own row.
+        </p>
 
-        {rows === null && !loadError && <p className="card-subtitle">Loading…</p>}
+        {rows === null && !loadError && (
+          <p className="card-subtitle">Loading…</p>
+        )}
         {loadError && <p className="card-subtitle negative">{loadError}</p>}
 
         {rows && rows.length > 0 && (
@@ -5705,7 +7759,9 @@ function StaffAccessPage({ staffUser, onImpersonate }) {
                         <select
                           value={row.role}
                           disabled={isSelf || busy}
-                          onChange={(e) => updateRow(row, { role: e.target.value })}
+                          onChange={(e) =>
+                            updateRow(row, { role: e.target.value })
+                          }
                         >
                           {STAFF_ROLES.map((r) => (
                             <option key={r} value={r}>
@@ -5720,7 +7776,9 @@ function StaffAccessPage({ staffUser, onImpersonate }) {
                             type="checkbox"
                             checked={row.active}
                             disabled={isSelf || busy}
-                            onChange={(e) => updateRow(row, { active: e.target.checked })}
+                            onChange={(e) =>
+                              updateRow(row, { active: e.target.checked })
+                            }
                           />
                           <span>{row.active ? "Active" : "Deactivated"}</span>
                         </label>
@@ -5729,14 +7787,20 @@ function StaffAccessPage({ staffUser, onImpersonate }) {
                         {row.role === "admin" ? (
                           <span className="staff-self-note">All (admin)</span>
                         ) : (
-                          <button className="btn-secondary staff-clients-btn" onClick={() => openClientAccess(row)}>
+                          <button
+                            className="btn-secondary staff-clients-btn"
+                            onClick={() => openClientAccess(row)}
+                          >
                             Manage
                           </button>
                         )}
                       </td>
                       <td data-label="">
                         {!isSelf && row.role !== "admin" && row.active && (
-                          <button className="btn-secondary staff-view-as-btn" onClick={() => onImpersonate(row)}>
+                          <button
+                            className="btn-secondary staff-view-as-btn"
+                            onClick={() => onImpersonate(row)}
+                          >
                             View as
                           </button>
                         )}
@@ -5752,7 +7816,10 @@ function StaffAccessPage({ staffUser, onImpersonate }) {
                             >
                               Email invite
                             </a>
-                            <a className="staff-invite-alt" href={buildInviteMailto(row)}>
+                            <a
+                              className="staff-invite-alt"
+                              href={buildInviteMailto(row)}
+                            >
                               or mail app
                             </a>
                           </div>
@@ -5780,22 +7847,35 @@ function StaffAccessPage({ staffUser, onImpersonate }) {
           </div>
         )}
 
-        {rows && rows.length === 0 && !loadError && <p className="card-subtitle">No staff rows yet.</p>}
+        {rows && rows.length === 0 && !loadError && (
+          <p className="card-subtitle">No staff rows yet.</p>
+        )}
       </div>
 
       {clientAccessFor && (
-        <ModalShell onClose={() => setClientAccessFor(null)} labelledBy="client-access-title">
+        <ModalShell
+          onClose={() => setClientAccessFor(null)}
+          labelledBy="client-access-title"
+        >
           <div className="modal-header">
-            <h3 className="card-title" id="client-access-title" style={{ margin: 0 }}>
+            <h3
+              className="card-title"
+              id="client-access-title"
+              style={{ margin: 0 }}
+            >
               {clientAccessFor.name}'s clients
             </h3>
-            <button className="modal-close" onClick={() => setClientAccessFor(null)} aria-label="Close">
+            <button
+              className="modal-close"
+              onClick={() => setClientAccessFor(null)}
+              aria-label="Close"
+            >
               ×
             </button>
           </div>
           <p className="card-subtitle">
-            Unchecked means they can't see this client at all — not just a restricted view, the client won't appear
-            in their switcher.
+            Unchecked means they can't see this client at all — not just a
+            restricted view, the client won't appear in their switcher.
           </p>
           <div className="modal-body">
             {clientAccessLoading && <p className="card-subtitle">Loading…</p>}
@@ -5812,7 +7892,10 @@ function StaffAccessPage({ staffUser, onImpersonate }) {
               ))}
           </div>
           <div className="modal-footer">
-            <button className="btn-primary" onClick={() => setClientAccessFor(null)}>
+            <button
+              className="btn-primary"
+              onClick={() => setClientAccessFor(null)}
+            >
               Done
             </button>
           </div>
@@ -5828,10 +7911,15 @@ function StaffAccessPage({ staffUser, onImpersonate }) {
 // role enum. client_id has to be the exact slug (e.g. "grace-community"),
 // not the display name — there's no fuzzy matching here.
 function parseClientUserCsv(text) {
-  const lines = text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+  const lines = text
+    .split(/\r?\n/)
+    .map((l) => l.trim())
+    .filter(Boolean);
   const rows = [];
   lines.forEach((line, i) => {
-    const [rawClientId, rawEmail, rawName, rawRole] = line.split(",").map((f) => (f || "").trim());
+    const [rawClientId, rawEmail, rawName, rawRole] = line
+      .split(",")
+      .map((f) => (f || "").trim());
     if (i === 0 && rawEmail && !rawEmail.includes("@")) return; // header row
     const clientId = rawClientId || "";
     const email = (rawEmail || "").toLowerCase();
@@ -5843,7 +7931,15 @@ function parseClientUserCsv(text) {
     if (!email || !email.includes("@")) errors.push("missing/invalid email");
     if (!name) errors.push("missing name");
     if (!role) errors.push("missing role");
-    rows.push({ line, clientId, clientName: client ? client.name : clientId, email, name, role, errors });
+    rows.push({
+      line,
+      clientId,
+      clientName: client ? client.name : clientId,
+      email,
+      name,
+      role,
+      errors,
+    });
   });
   return rows;
 }
@@ -5882,7 +7978,9 @@ function DeveloperToolsPage({ staffUser, onJumpToClient }) {
   const supabase = window.mgbSupabase;
   const [, forceRerender] = useState(0);
   const [clientQuery, setClientQuery] = useState("");
-  const [storageEntries, setStorageEntries] = useState(readAllMygoodbooksStorage);
+  const [storageEntries, setStorageEntries] = useState(
+    readAllMygoodbooksStorage,
+  );
   const [auditRows, setAuditRows] = useState(null);
   const [auditError, setAuditError] = useState("");
   // Only a read-status check, not the roster itself — Staff Access owns the
@@ -5937,7 +8035,7 @@ function DeveloperToolsPage({ staffUser, onJumpToClient }) {
   function resetLocalState() {
     if (
       !window.confirm(
-        "Reset this browser's local MyGoodBooks state (theme, tab layout, dashboard/Live Report widget layouts, cash-floor alerts, per-person access overrides, ...)? This only affects this browser — nothing in Supabase is touched. The page will reload."
+        "Reset this browser's local MyGoodBooks state (theme, tab layout, dashboard/Live Report widget layouts, cash-floor alerts, per-person access overrides, ...)? This only affects this browser — nothing in Supabase is touched. The page will reload.",
       )
     ) {
       return;
@@ -5951,7 +8049,9 @@ function DeveloperToolsPage({ staffUser, onJumpToClient }) {
   }
 
   const matchingClients = clientQuery.trim()
-    ? CLIENTS.filter((c) => c.name.toLowerCase().includes(clientQuery.trim().toLowerCase())).slice(0, 8)
+    ? CLIENTS.filter((c) =>
+        c.name.toLowerCase().includes(clientQuery.trim().toLowerCase()),
+      ).slice(0, 8)
     : [];
 
   return (
@@ -5960,7 +8060,9 @@ function DeveloperToolsPage({ staffUser, onJumpToClient }) {
 
       <div className="card" style={{ marginBottom: 20 }}>
         <h3 className="card-title">Jump to client</h3>
-        <p className="card-subtitle">Skip the sidebar dropdown — land straight on a client's dashboard.</p>
+        <p className="card-subtitle">
+          Skip the sidebar dropdown — land straight on a client's dashboard.
+        </p>
         <input
           type="text"
           className="ap-cc-search"
@@ -5976,11 +8078,20 @@ function DeveloperToolsPage({ staffUser, onJumpToClient }) {
                 type="button"
                 className="staff-due-row"
                 key={c.id}
-                style={{ width: "100%", textAlign: "left", cursor: "pointer", background: "none", border: "none", font: "inherit" }}
+                style={{
+                  width: "100%",
+                  textAlign: "left",
+                  cursor: "pointer",
+                  background: "none",
+                  border: "none",
+                  font: "inherit",
+                }}
                 onClick={() => onJumpToClient && onJumpToClient(c.id)}
               >
                 <span className="staff-flag-label">{c.name}</span>
-                <span className="staff-flag-desc">{c.plan === "premium" ? "Premium" : "Standard"} · {c.id}</span>
+                <span className="staff-flag-desc">
+                  {c.plan === "premium" ? "Premium" : "Standard"} · {c.id}
+                </span>
               </button>
             ))}
           </div>
@@ -5989,11 +8100,17 @@ function DeveloperToolsPage({ staffUser, onJumpToClient }) {
 
       <div className="card" style={{ marginBottom: 20 }}>
         <h3 className="card-title">Feature flags</h3>
-        <p className="card-subtitle">Stored in this browser's localStorage only.</p>
+        <p className="card-subtitle">
+          Stored in this browser's localStorage only.
+        </p>
 
         {FEATURE_FLAGS.map((f) => (
           <label className="staff-flag-row" key={f.key}>
-            <input type="checkbox" checked={isFlagOn(f.key)} onChange={() => toggleFlag(f.key)} />
+            <input
+              type="checkbox"
+              checked={isFlagOn(f.key)}
+              onChange={() => toggleFlag(f.key)}
+            />
             <span>
               <span className="staff-flag-label">{f.label}</span>
               <span className="staff-flag-desc">{f.description}</span>
@@ -6006,9 +8123,10 @@ function DeveloperToolsPage({ staffUser, onJumpToClient }) {
             Reset local state
           </button>
           <p className="card-subtitle" style={{ margin: 0 }}>
-            Clears every saved theme, tab layout, widget layout, and per-person access override
-            under this browser's "mygoodbooks_" storage (feature flags excepted — those stay,
-            right above), then reloads. Doesn't touch Supabase or any other browser.
+            Clears every saved theme, tab layout, widget layout, and per-person
+            access override under this browser's "mygoodbooks_" storage (feature
+            flags excepted — those stay, right above), then reloads. Doesn't
+            touch Supabase or any other browser.
           </p>
         </div>
       </div>
@@ -6018,20 +8136,30 @@ function DeveloperToolsPage({ staffUser, onJumpToClient }) {
           <div>
             <h3 className="card-title">Raw local storage</h3>
             <p className="card-subtitle" style={{ margin: 0 }}>
-              Every "mygoodbooks_" key in this browser, as actually stored — for when a bug report
-              says "my layout looks wrong" and you want the real value without opening devtools.
+              Every "mygoodbooks_" key in this browser, as actually stored — for
+              when a bug report says "my layout looks wrong" and you want the
+              real value without opening devtools.
             </p>
           </div>
-          <button className="btn-secondary" onClick={() => setStorageEntries(readAllMygoodbooksStorage())}>
+          <button
+            className="btn-secondary"
+            onClick={() => setStorageEntries(readAllMygoodbooksStorage())}
+          >
             Refresh
           </button>
         </div>
         {storageEntries.length === 0 ? (
-          <p className="card-subtitle">No "mygoodbooks_" keys stored in this browser.</p>
+          <p className="card-subtitle">
+            No "mygoodbooks_" keys stored in this browser.
+          </p>
         ) : (
           <div className="staff-audit-list">
             {storageEntries.map((e) => (
-              <div className="staff-audit-row" key={e.key} style={{ flexDirection: "column", alignItems: "stretch" }}>
+              <div
+                className="staff-audit-row"
+                key={e.key}
+                style={{ flexDirection: "column", alignItems: "stretch" }}
+              >
                 <span className="staff-flag-label">{e.key}</span>
                 <pre
                   style={{
@@ -6054,10 +8182,13 @@ function DeveloperToolsPage({ staffUser, onJumpToClient }) {
       <div className="card" style={{ marginTop: 20, marginBottom: 20 }}>
         <h3 className="card-title">Recent activity</h3>
         <p className="card-subtitle">
-          Every change to the staff table, logged automatically by Postgres — not just the ones made from Staff Access.
+          Every change to the staff table, logged automatically by Postgres —
+          not just the ones made from Staff Access.
         </p>
 
-        {auditRows === null && !auditError && <p className="card-subtitle">Loading…</p>}
+        {auditRows === null && !auditError && (
+          <p className="card-subtitle">Loading…</p>
+        )}
         {auditError && <p className="card-subtitle negative">{auditError}</p>}
 
         {auditRows && auditRows.length > 0 && (
@@ -6065,11 +8196,14 @@ function DeveloperToolsPage({ staffUser, onJumpToClient }) {
             {auditRows.map((entry) => (
               <li className="staff-audit-row" key={entry.id}>
                 <span className="staff-audit-text">
-                  <strong>{entry.actor_email || "Unknown"}</strong> {staffAuditVerb(entry.action)}{" "}
+                  <strong>{entry.actor_email || "Unknown"}</strong>{" "}
+                  {staffAuditVerb(entry.action)}{" "}
                   <strong>{entry.target_email}</strong>
                   {entry.detail ? ` (${entry.detail})` : ""}
                 </span>
-                <span className="staff-audit-time">{fmtDateTime(entry.created_at)}</span>
+                <span className="staff-audit-time">
+                  {fmtDateTime(entry.created_at)}
+                </span>
               </li>
             ))}
           </ul>
@@ -6083,28 +8217,57 @@ function DeveloperToolsPage({ staffUser, onJumpToClient }) {
       <div className="content-masonry">
         <div className="card">
           <h3 className="card-title">System info</h3>
-          <p className="card-subtitle">What the app is actually talking to, for debugging a broken login or a stale deploy.</p>
+          <p className="card-subtitle">
+            What the app is actually talking to, for debugging a broken login or
+            a stale deploy.
+          </p>
           <dl className="staff-info-list">
             <div>
               <dt>App version</dt>
               <dd>
-                {window.MGB_VERSION ? `${window.MGB_VERSION.label} — ${window.MGB_VERSION.note}` : "Not set"}
+                {window.MGB_VERSION
+                  ? `${window.MGB_VERSION.label} — ${window.MGB_VERSION.note}`
+                  : "Not set"}
               </dd>
             </div>
             <div>
               <dt>Supabase project</dt>
-              <dd>{supabase && window.SUPABASE_CONFIG ? new URL(window.SUPABASE_CONFIG.url).host : "Not configured"}</dd>
+              <dd>
+                {supabase && window.SUPABASE_CONFIG
+                  ? new URL(window.SUPABASE_CONFIG.url).host
+                  : "Not configured"}
+              </dd>
             </div>
             <div>
               <dt>Staff table read</dt>
-              <dd className={staffReadOk === false ? "negative" : staffReadOk ? "positive" : ""}>
-                {staffReadOk === false ? `Failing — ${staffReadError}` : staffReadOk ? "OK" : "Checking…"}
+              <dd
+                className={
+                  staffReadOk === false
+                    ? "negative"
+                    : staffReadOk
+                      ? "positive"
+                      : ""
+                }
+              >
+                {staffReadOk === false
+                  ? `Failing — ${staffReadError}`
+                  : staffReadOk
+                    ? "OK"
+                    : "Checking…"}
               </dd>
             </div>
             <div>
               <dt>Audit log read</dt>
-              <dd className={auditError ? "negative" : auditRows ? "positive" : ""}>
-                {auditError ? "Failing — run staff-audit-log.sql" : auditRows ? "OK" : "Checking…"}
+              <dd
+                className={
+                  auditError ? "negative" : auditRows ? "positive" : ""
+                }
+              >
+                {auditError
+                  ? "Failing — run staff-audit-log.sql"
+                  : auditRows
+                    ? "OK"
+                    : "Checking…"}
               </dd>
             </div>
             {staffUser && (
@@ -6121,12 +8284,18 @@ function DeveloperToolsPage({ staffUser, onJumpToClient }) {
         <div className="card">
           <h3 className="card-title">Where things live</h3>
           <p className="card-subtitle">
-            A directory, not a vault — this doesn't store any real credentials. Edit <code>INFRA_LINKS</code> in
-            app.jsx when an account changes.
+            A directory, not a vault — this doesn't store any real credentials.
+            Edit <code>INFRA_LINKS</code> in app.jsx when an account changes.
           </p>
           <div className="staff-audit-list">
             {INFRA_LINKS.map((l) => (
-              <a className="staff-due-row" href={l.url} target="_blank" rel="noopener noreferrer" key={l.name}>
+              <a
+                className="staff-due-row"
+                href={l.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                key={l.name}
+              >
                 <span className="staff-flag-label">{l.name}</span>
                 <span className="staff-flag-desc">{l.note}</span>
               </a>
@@ -6219,7 +8388,11 @@ function StaffMessagesPage({ staffUser, onActivity }) {
           myReadByConv[r.conversation_id] = r.last_read_at;
         });
 
-        const [{ data: otherMembers }, { data: recentMessages }, { data: convRows }] = await Promise.all([
+        const [
+          { data: otherMembers },
+          { data: recentMessages },
+          { data: convRows },
+        ] = await Promise.all([
           supabase
             .from("staff_conversation_members")
             .select("conversation_id, staff_email")
@@ -6227,13 +8400,18 @@ function StaffMessagesPage({ staffUser, onActivity }) {
             .neq("staff_email", staffUser.email),
           supabase
             .from("staff_messages")
-            .select("conversation_id, author_email, text, attachment_name, created_at")
+            .select(
+              "conversation_id, author_email, text, attachment_name, created_at",
+            )
             .in("conversation_id", convIds)
             .is("deleted_at", null)
             .order("created_at", { ascending: false }),
           // is_group/title only exist once staff-chat-groups.sql has been run —
           // an older DB just won't have any group conversations to find here.
-          supabase.from("staff_conversations").select("id, is_group, title").in("id", convIds),
+          supabase
+            .from("staff_conversations")
+            .select("id, is_group, title")
+            .in("id", convIds),
         ]);
 
         // A group has 2+ "other" members, so this collects an array per
@@ -6241,7 +8419,10 @@ function StaffMessagesPage({ staffUser, onActivity }) {
         // (that assumption is what silently mislabeled groups before).
         const othersByConv = {};
         (otherMembers || []).forEach((m) => {
-          (othersByConv[m.conversation_id] || (othersByConv[m.conversation_id] = [])).push(m.staff_email);
+          (
+            othersByConv[m.conversation_id] ||
+            (othersByConv[m.conversation_id] = [])
+          ).push(m.staff_email);
         });
         const convMetaById = {};
         (convRows || []).forEach((c) => {
@@ -6250,7 +8431,10 @@ function StaffMessagesPage({ staffUser, onActivity }) {
         const otherEmails = [...new Set(Object.values(othersByConv).flat())];
         let staffByEmail = {};
         if (otherEmails.length > 0) {
-          const { data: staffRows } = await supabase.from("staff").select("email, name, role").in("email", otherEmails);
+          const { data: staffRows } = await supabase
+            .from("staff")
+            .select("email, name, role")
+            .in("email", otherEmails);
           (staffRows || []).forEach((s) => {
             staffByEmail[s.email] = s;
           });
@@ -6263,19 +8447,33 @@ function StaffMessagesPage({ staffUser, onActivity }) {
         const rows = convIds.map((id) => {
           const meta = convMetaById[id] || {};
           const otherEmailsForConv = othersByConv[id] || [];
-          const otherNames = otherEmailsForConv.map((e) => (staffByEmail[e] ? staffByEmail[e].name : e));
+          const otherNames = otherEmailsForConv.map((e) =>
+            staffByEmail[e] ? staffByEmail[e].name : e,
+          );
           const isGroup = !!meta.is_group;
           const last = lastByConv[id];
           const myReadAt = myReadByConv[id];
-          const unread = !!last && last.author_email !== staffUser.email && (!myReadAt || new Date(last.created_at) > new Date(myReadAt));
+          const unread =
+            !!last &&
+            last.author_email !== staffUser.email &&
+            (!myReadAt || new Date(last.created_at) > new Date(myReadAt));
           return {
             id,
             isGroup,
             otherEmail: !isGroup ? otherEmailsForConv[0] || null : null,
             otherEmails: otherEmailsForConv,
-            otherName: isGroup ? meta.title || otherNames.join(", ") || "Group" : otherNames[0] || otherEmailsForConv[0] || "Unknown",
-            otherRole: isGroup ? `${otherEmailsForConv.length + 1} people` : (staffByEmail[otherEmailsForConv[0]] || {}).role || "",
-            lastText: last ? last.text || (last.attachment_name ? `Attachment: ${last.attachment_name}` : "") : "",
+            otherName: isGroup
+              ? meta.title || otherNames.join(", ") || "Group"
+              : otherNames[0] || otherEmailsForConv[0] || "Unknown",
+            otherRole: isGroup
+              ? `${otherEmailsForConv.length + 1} people`
+              : (staffByEmail[otherEmailsForConv[0]] || {}).role || "",
+            lastText: last
+              ? last.text ||
+                (last.attachment_name
+                  ? `Attachment: ${last.attachment_name}`
+                  : "")
+              : "",
             lastAt: last ? last.created_at : null,
             unread,
           };
@@ -6302,7 +8500,7 @@ function StaffMessagesPage({ staffUser, onActivity }) {
           if (onActivity) onActivity();
         });
     },
-    [supabase, staffUser.email, loadConversations, onActivity]
+    [supabase, staffUser.email, loadConversations, onActivity],
   );
 
   const loadMessages = useCallback(() => {
@@ -6311,19 +8509,50 @@ function StaffMessagesPage({ staffUser, onActivity }) {
       supabase
         .from("staff_messages")
         .select(
-          "id, conversation_id, author_email, author_name, author_role, text, attachment_name, attachment_url, attachment_size, created_at, edited_at, deleted_at"
+          "id, conversation_id, author_email, author_name, author_role, text, attachment_name, attachment_url, attachment_size, created_at, edited_at, deleted_at",
         )
         .eq("conversation_id", activeConversationId)
         .order("created_at", { ascending: true }),
-      supabase.from("staff_conversation_members").select("staff_email, last_read_at").eq("conversation_id", activeConversationId),
-    ]).then(([msgRes, memRes]) => {
+      supabase
+        .from("staff_conversation_members")
+        .select("staff_email, last_read_at")
+        .eq("conversation_id", activeConversationId),
+    ]).then(async ([msgRes, memRes]) => {
       if (msgRes.error) {
-        setLoadError("Couldn't load messages. Has staff-chat-v2.sql been run? " + msgRes.error.message);
+        setLoadError(
+          "Couldn't load messages. Has staff-chat-v2.sql been run? " +
+            msgRes.error.message,
+        );
         setMessages([]);
         return;
       }
       setLoadError("");
-      setMessages((msgRes.data || []).filter((m) => !m.deleted_at));
+      const visible = (msgRes.data || []).filter((m) => !m.deleted_at);
+      // Security audit finding C1: attachment_url is now a private storage
+      // path, not a public URL — resolve a short-lived signed URL per
+      // attachment before rendering. Any that fail to sign (deleted object,
+      // etc) just render without a working link.
+      const withAttachments = visible.filter((m) => m.attachment_url);
+      if (withAttachments.length) {
+        const signed = await Promise.all(
+          withAttachments.map((m) =>
+            supabase.storage
+              .from("staff-chat-attachments")
+              .createSignedUrl(m.attachment_url, 60 * 10)
+              .then(({ data }) => [m.id, data && data.signedUrl]),
+          ),
+        );
+        const signedMap = Object.fromEntries(signed);
+        setMessages(
+          visible.map((m) =>
+            m.attachment_url
+              ? { ...m, attachment_signed_url: signedMap[m.id] || null }
+              : m,
+          ),
+        );
+      } else {
+        setMessages(visible);
+      }
       setActiveMembers(memRes.data || []);
       markRead(activeConversationId);
     });
@@ -6339,7 +8568,9 @@ function StaffMessagesPage({ staffUser, onActivity }) {
   // to see a reply or watch "Sent" flip to "Seen".
   const conversationIdsRef = useRef(new Set());
   useEffect(() => {
-    conversationIdsRef.current = new Set((conversations || []).map((c) => c.id));
+    conversationIdsRef.current = new Set(
+      (conversations || []).map((c) => c.id),
+    );
   }, [conversations]);
   const activeConversationIdRef = useRef(null);
   useEffect(() => {
@@ -6350,18 +8581,33 @@ function StaffMessagesPage({ staffUser, onActivity }) {
     if (!supabase) return;
     const channel = supabase
       .channel("staff-chat-" + staffUser.email)
-      .on("postgres_changes", { event: "*", schema: "public", table: "staff_messages" }, (payload) => {
-        const convId = (payload.new && payload.new.conversation_id) || (payload.old && payload.old.conversation_id);
-        if (!convId) return;
-        if (convId === activeConversationIdRef.current) loadMessages();
-        loadConversations();
-        if (onActivity) onActivity();
-      })
-      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "staff_conversation_members" }, (payload) => {
-        const convId = payload.new && payload.new.conversation_id;
-        if (convId && convId === activeConversationIdRef.current) loadMessages();
-        loadConversations();
-      })
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "staff_messages" },
+        (payload) => {
+          const convId =
+            (payload.new && payload.new.conversation_id) ||
+            (payload.old && payload.old.conversation_id);
+          if (!convId) return;
+          if (convId === activeConversationIdRef.current) loadMessages();
+          loadConversations();
+          if (onActivity) onActivity();
+        },
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "staff_conversation_members",
+        },
+        (payload) => {
+          const convId = payload.new && payload.new.conversation_id;
+          if (convId && convId === activeConversationIdRef.current)
+            loadMessages();
+          loadConversations();
+        },
+      )
       .subscribe();
     return () => {
       supabase.removeChannel(channel);
@@ -6375,13 +8621,16 @@ function StaffMessagesPage({ staffUser, onActivity }) {
   // presenceState() right now" — no polling, no manual heartbeat.
   useEffect(() => {
     if (!supabase) return;
-    const channel = supabase.channel("staff-presence", { config: { presence: { key: staffUser.email } } });
+    const channel = supabase.channel("staff-presence", {
+      config: { presence: { key: staffUser.email } },
+    });
     channel
       .on("presence", { event: "sync" }, () => {
         setOnlineEmails(new Set(Object.keys(channel.presenceState())));
       })
       .subscribe(async (status) => {
-        if (status === "SUBSCRIBED") await channel.track({ online_at: new Date().toISOString() });
+        if (status === "SUBSCRIBED")
+          await channel.track({ online_at: new Date().toISOString() });
       });
     return () => {
       supabase.removeChannel(channel);
@@ -6417,16 +8666,23 @@ function StaffMessagesPage({ staffUser, onActivity }) {
 
   const notifyTyping = () => {
     const now = Date.now();
-    if (!typingChannelRef.current || now - lastTypingSentRef.current < 1500) return;
+    if (!typingChannelRef.current || now - lastTypingSentRef.current < 1500)
+      return;
     lastTypingSentRef.current = now;
-    typingChannelRef.current.send({ type: "broadcast", event: "typing", payload: { email: staffUser.email, name: staffUser.name } });
+    typingChannelRef.current.send({
+      type: "broadcast",
+      event: "typing",
+      payload: { email: staffUser.email, name: staffUser.name },
+    });
   };
 
   // Live-expire the edit/unsend window on-screen without needing another
   // action to trigger a re-render.
   useEffect(() => {
     const hasRecent = (messages || []).some(
-      (m) => m.author_email === staffUser.email && Date.now() - new Date(m.created_at).getTime() < CHAT_EDIT_WINDOW_MS
+      (m) =>
+        m.author_email === staffUser.email &&
+        Date.now() - new Date(m.created_at).getTime() < CHAT_EDIT_WINDOW_MS,
     );
     if (!hasRecent) return;
     const id = setInterval(() => setTick((t) => t + 1), 1000);
@@ -6449,23 +8705,33 @@ function StaffMessagesPage({ staffUser, onActivity }) {
         .maybeSingle()
         .then(async ({ data: existing }) => {
           if (existing) {
-            if (openTokenRef.current === token) setActiveConversationId(existing.id);
+            if (openTokenRef.current === token)
+              setActiveConversationId(existing.id);
             return;
           }
-          const { data: created, error } = await supabase.from("staff_conversations").insert({ dm_key: dmKey }).select("id").single();
+          const { data: created, error } = await supabase
+            .from("staff_conversations")
+            .insert({ dm_key: dmKey })
+            .select("id")
+            .single();
           if (error || !created) {
             showToast("Couldn't start the conversation.");
             return;
           }
           await supabase.from("staff_conversation_members").insert([
-            { conversation_id: created.id, staff_email: staffUser.email, last_read_at: new Date().toISOString() },
+            {
+              conversation_id: created.id,
+              staff_email: staffUser.email,
+              last_read_at: new Date().toISOString(),
+            },
             { conversation_id: created.id, staff_email: otherEmail },
           ]);
-          if (openTokenRef.current === token) setActiveConversationId(created.id);
+          if (openTokenRef.current === token)
+            setActiveConversationId(created.id);
           loadConversations();
         });
     },
-    [supabase, staffUser.email, loadConversations, showToast]
+    [supabase, staffUser.email, loadConversations, showToast],
   );
 
   // Every thread click (existing conversation or a fresh 1:1) goes through
@@ -6486,7 +8752,7 @@ function StaffMessagesPage({ staffUser, onActivity }) {
       }
       openWith(c.otherEmail, token);
     },
-    [openWith]
+    [openWith],
   );
 
   const createGroup = useCallback(
@@ -6501,13 +8767,20 @@ function StaffMessagesPage({ staffUser, onActivity }) {
         showToast(
           error && /is_group|column/i.test(error.message || "")
             ? "Couldn't create the group — has staff-chat-groups.sql been run?"
-            : "Couldn't create the group."
+            : "Couldn't create the group.",
         );
         return;
       }
       await supabase.from("staff_conversation_members").insert([
-        { conversation_id: created.id, staff_email: staffUser.email, last_read_at: new Date().toISOString() },
-        ...emails.map((email) => ({ conversation_id: created.id, staff_email: email })),
+        {
+          conversation_id: created.id,
+          staff_email: staffUser.email,
+          last_read_at: new Date().toISOString(),
+        },
+        ...emails.map((email) => ({
+          conversation_id: created.id,
+          staff_email: email,
+        })),
       ]);
       setShowGroupModal(false);
       openTokenRef.current += 1;
@@ -6516,16 +8789,25 @@ function StaffMessagesPage({ staffUser, onActivity }) {
       setActiveMembers(null);
       loadConversations();
     },
-    [supabase, staffUser.email, loadConversations, showToast]
+    [supabase, staffUser.email, loadConversations, showToast],
   );
 
   const stageFile = (file) => {
     if (!file) return;
-    setPendingAttachment({ file, name: file.name, size: formatBytes(file.size) });
+    setPendingAttachment({
+      file,
+      name: file.name,
+      size: formatBytes(file.size),
+    });
   };
 
   async function send() {
-    if ((!draft.trim() && !pendingAttachment) || !activeConversationId || !supabase) return;
+    if (
+      (!draft.trim() && !pendingAttachment) ||
+      !activeConversationId ||
+      !supabase
+    )
+      return;
     setSending(true);
     // Everything below used to run with no try/catch: any REJECTED promise
     // (a thrown network/CORS/timeout error, as opposed to a resolved
@@ -6547,23 +8829,33 @@ function StaffMessagesPage({ staffUser, onActivity }) {
         // attempt left nothing behind at all: no message, no file, nothing
         // to retry from but re-attaching. attachment_name (below) keeps the
         // real name for display; only the storage key itself needs to be safe.
-        const safeName = pendingAttachment.file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
+        const safeName = pendingAttachment.file.name.replace(
+          /[^a-zA-Z0-9._-]/g,
+          "_",
+        );
         const path = `${activeConversationId}/${Date.now()}-${safeName}`;
-        const { error: upErr } = await supabase.storage.from("staff-chat-attachments").upload(path, pendingAttachment.file);
+        const { error: upErr } = await supabase.storage
+          .from("staff-chat-attachments")
+          .upload(path, pendingAttachment.file);
         if (upErr) {
           showToast(`Couldn't upload attachment: ${upErr.message}`);
           return;
         }
-        const { data: urlData } = supabase.storage.from("staff-chat-attachments").getPublicUrl(path);
+        // Security audit finding C1: the bucket is private now, so we store
+        // the storage *path* (not a public URL) and mint a short-lived
+        // signed URL at render time instead — see attachmentSignedUrl below.
         attachment_name = pendingAttachment.file.name;
-        attachment_url = urlData.publicUrl;
+        attachment_url = path;
         attachment_size = pendingAttachment.size;
       }
+      // Security audit finding M1: author_name/author_role are no longer
+      // sent from the client — a `before insert` trigger on staff_messages
+      // (see staff-chat-v2.sql) overwrites both from the `staff` table
+      // server-side, so a spoofed display name/role can't be stored even if
+      // a caller sends one.
       const { error } = await supabase.from("staff_messages").insert({
         conversation_id: activeConversationId,
         author_email: staffUser.email,
-        author_name: staffUser.name,
-        author_role: staffUser.role,
         text: draft.trim() || null,
         attachment_name,
         attachment_url,
@@ -6577,7 +8869,9 @@ function StaffMessagesPage({ staffUser, onActivity }) {
       setPendingAttachment(null);
       loadMessages();
     } catch (err) {
-      showToast(`Couldn't send: ${err && err.message ? err.message : "unexpected error"}`);
+      showToast(
+        `Couldn't send: ${err && err.message ? err.message : "unexpected error"}`,
+      );
     } finally {
       setSending(false);
     }
@@ -6591,15 +8885,22 @@ function StaffMessagesPage({ staffUser, onActivity }) {
   async function saveEdit(id) {
     const text = editDraft.trim();
     if (!text || !supabase) return;
-    const { error } = await supabase.from("staff_messages").update({ text, edited_at: new Date().toISOString() }).eq("id", id);
-    if (error) showToast("Couldn't save — the 15 minute edit window has passed.");
+    const { error } = await supabase
+      .from("staff_messages")
+      .update({ text, edited_at: new Date().toISOString() })
+      .eq("id", id);
+    if (error)
+      showToast("Couldn't save — the 15 minute edit window has passed.");
     setEditingId(null);
     loadMessages();
   }
 
   async function unsend(id) {
     if (!supabase) return;
-    const { error } = await supabase.from("staff_messages").update({ deleted_at: new Date().toISOString() }).eq("id", id);
+    const { error } = await supabase
+      .from("staff_messages")
+      .update({ deleted_at: new Date().toISOString() })
+      .eq("id", id);
     if (error) showToast("Couldn't unsend — the 15 minute window has passed.");
     loadMessages();
   }
@@ -6610,10 +8911,21 @@ function StaffMessagesPage({ staffUser, onActivity }) {
   // conversation is just picking a name rather than a separate flow.
   const chatEntries = useMemo(() => {
     if (!directory) return [];
-    const convEmails = new Set((conversations || []).filter((c) => !c.isGroup).map((c) => c.otherEmail));
+    const convEmails = new Set(
+      (conversations || []).filter((c) => !c.isGroup).map((c) => c.otherEmail),
+    );
     const withoutConv = directory
       .filter((d) => !convEmails.has(d.email))
-      .map((d) => ({ id: null, otherEmail: d.email, otherName: d.name, otherRole: d.role, lastText: "", lastAt: null, unread: false, isGroup: false }));
+      .map((d) => ({
+        id: null,
+        otherEmail: d.email,
+        otherName: d.name,
+        otherRole: d.role,
+        lastText: "",
+        lastAt: null,
+        unread: false,
+        isGroup: false,
+      }));
     withoutConv.sort((a, b) => a.otherName.localeCompare(b.otherName));
     // Unread first (most recent unread first), then everything else by
     // recency — an unread thread three days old shouldn't hide below five
@@ -6624,14 +8936,30 @@ function StaffMessagesPage({ staffUser, onActivity }) {
     });
     const combined = [...sortedConversations, ...withoutConv];
     const q = threadFilter.trim().toLowerCase();
-    return q ? combined.filter((c) => c.otherName.toLowerCase().includes(q)) : combined;
+    return q
+      ? combined.filter((c) => c.otherName.toLowerCase().includes(q))
+      : combined;
   }, [directory, conversations, threadFilter]);
 
-  const activeEntry = chatEntries.find((c) => (c.id ? c.id === activeConversationId : false));
-  const otherActiveMembers = (activeMembers || []).filter((mm) => mm.staff_email !== staffUser.email);
-  const otherMember = otherActiveMembers.length === 1 ? otherActiveMembers[0] : null;
-  const otherHasSeen = (m) => !!(otherMember && otherMember.last_read_at && new Date(otherMember.last_read_at) >= new Date(m.created_at));
-  const seenCount = (m) => otherActiveMembers.filter((mm) => mm.last_read_at && new Date(mm.last_read_at) >= new Date(m.created_at)).length;
+  const activeEntry = chatEntries.find((c) =>
+    c.id ? c.id === activeConversationId : false,
+  );
+  const otherActiveMembers = (activeMembers || []).filter(
+    (mm) => mm.staff_email !== staffUser.email,
+  );
+  const otherMember =
+    otherActiveMembers.length === 1 ? otherActiveMembers[0] : null;
+  const otherHasSeen = (m) =>
+    !!(
+      otherMember &&
+      otherMember.last_read_at &&
+      new Date(otherMember.last_read_at) >= new Date(m.created_at)
+    );
+  const seenCount = (m) =>
+    otherActiveMembers.filter(
+      (mm) =>
+        mm.last_read_at && new Date(mm.last_read_at) >= new Date(m.created_at),
+    ).length;
   let lastMineMessage = null;
   (messages || []).forEach((m) => {
     if (m.author_email === staffUser.email) lastMineMessage = m;
@@ -6651,14 +8979,20 @@ function StaffMessagesPage({ staffUser, onActivity }) {
             value={threadFilter}
             onChange={(e) => setThreadFilter(e.target.value)}
           />
-          <button type="button" className="btn-secondary" onClick={() => setShowGroupModal(true)}>
+          <button
+            type="button"
+            className="btn-secondary"
+            onClick={() => setShowGroupModal(true)}
+          >
             + New Group
           </button>
         </div>
         {directory === null ? (
           <p className="card-subtitle">Loading…</p>
         ) : chatEntries.length === 0 ? (
-          <p className="card-subtitle">{threadFilter ? "No matches." : "No other active staff yet."}</p>
+          <p className="card-subtitle">
+            {threadFilter ? "No matches." : "No other active staff yet."}
+          </p>
         ) : (
           <div className="thread-picker-tabs">
             {chatEntries.map((c) => (
@@ -6666,7 +9000,9 @@ function StaffMessagesPage({ staffUser, onActivity }) {
                 key={c.id || c.otherEmail}
                 className={
                   "thread-tab" +
-                  ((c.id ? c.id === activeConversationId : false) ? " active" : "") +
+                  ((c.id ? c.id === activeConversationId : false)
+                    ? " active"
+                    : "") +
                   (c.isGroup ? " thread-tab-group" : "") +
                   (c.unread ? " thread-tab-unread" : "")
                 }
@@ -6675,14 +9011,24 @@ function StaffMessagesPage({ staffUser, onActivity }) {
                 <span className="thread-tab-name">
                   {/* Presence, not a stored column — reflects who's on the channel
                       right now, not "was active as of last page load". */}
-                  {(c.isGroup ? c.otherEmails.some((e) => onlineEmails.has(e)) : onlineEmails.has(c.otherEmail)) && (
-                    <span className="online-dot" aria-label="Online" title="Online now" />
+                  {(c.isGroup
+                    ? c.otherEmails.some((e) => onlineEmails.has(e))
+                    : onlineEmails.has(c.otherEmail)) && (
+                    <span
+                      className="online-dot"
+                      aria-label="Online"
+                      title="Online now"
+                    />
                   )}
                   {c.otherName}
                 </span>
                 <span className="thread-tab-role">{c.otherRole}</span>
-                {c.lastText && <span className="thread-tab-preview">{c.lastText}</span>}
-                {c.unread && <span className="thread-tab-dot" aria-label="Unread" />}
+                {c.lastText && (
+                  <span className="thread-tab-preview">{c.lastText}</span>
+                )}
+                {c.unread && (
+                  <span className="thread-tab-dot" aria-label="Unread" />
+                )}
               </button>
             ))}
           </div>
@@ -6707,19 +9053,39 @@ function StaffMessagesPage({ staffUser, onActivity }) {
             {activeEntry &&
               (activeEntry.isGroup
                 ? activeEntry.otherEmails.some((e) => onlineEmails.has(e))
-                : onlineEmails.has(activeEntry.otherEmail)) && <span className="online-dot" aria-label="Online" title="Online now" />}
-            {activeEntry ? `Conversation with ${activeEntry.otherName}` : "Conversation"}
+                : onlineEmails.has(activeEntry.otherEmail)) && (
+                <span
+                  className="online-dot"
+                  aria-label="Online"
+                  title="Online now"
+                />
+              )}
+            {activeEntry
+              ? `Conversation with ${activeEntry.otherName}`
+              : "Conversation"}
           </h3>
           {loadError && <p className="card-subtitle negative">{loadError}</p>}
-          {messages === null && !loadError && <p className="card-subtitle">Loading…</p>}
-          {messages && messages.length === 0 && !loadError && <p className="card-subtitle">No messages yet — say hello.</p>}
+          {messages === null && !loadError && (
+            <p className="card-subtitle">Loading…</p>
+          )}
+          {messages && messages.length === 0 && !loadError && (
+            <p className="card-subtitle">No messages yet — say hello.</p>
+          )}
           {messages && messages.length > 0 && (
             <div className="message-thread">
               {messages.map((m) => {
                 const mine = m.author_email === staffUser.email;
-                const withinWindow = mine && Date.now() - new Date(m.created_at).getTime() < CHAT_EDIT_WINDOW_MS;
+                const withinWindow =
+                  mine &&
+                  Date.now() - new Date(m.created_at).getTime() <
+                    CHAT_EDIT_WINDOW_MS;
                 return (
-                  <div className={"message-bubble-row " + (mine ? "client" : "bookkeeper")} key={m.id}>
+                  <div
+                    className={
+                      "message-bubble-row " + (mine ? "client" : "bookkeeper")
+                    }
+                    key={m.id}
+                  >
                     <div className="message-bubble">
                       <div className="message-author">
                         {m.author_name} · {m.author_role}
@@ -6736,24 +9102,52 @@ function StaffMessagesPage({ staffUser, onActivity }) {
                             }}
                             autoFocus
                           />
-                          <button className="btn-secondary" onClick={() => saveEdit(m.id)}>
+                          <button
+                            className="btn-secondary"
+                            onClick={() => saveEdit(m.id)}
+                          >
                             Save
                           </button>
                         </div>
                       ) : (
                         <React.Fragment>
-                          {m.text && <div className="message-text">{m.text}</div>}
-                          {m.attachment_name && (
-                            <a className="message-attachment" href={m.attachment_url} target="_blank" rel="noreferrer">
-                              <PaperclipIcon /> {m.attachment_name}{" "}
-                              {m.attachment_size && <span className="message-attachment-size">({m.attachment_size})</span>}
-                            </a>
+                          {m.text && (
+                            <div className="message-text">{m.text}</div>
                           )}
+                          {m.attachment_name &&
+                            safeHttpUrl(m.attachment_signed_url) && (
+                              <a
+                                className="message-attachment"
+                                href={safeHttpUrl(m.attachment_signed_url)}
+                                target="_blank"
+                                rel="noreferrer"
+                              >
+                                <PaperclipIcon /> {m.attachment_name}{" "}
+                                {m.attachment_size && (
+                                  <span className="message-attachment-size">
+                                    ({m.attachment_size})
+                                  </span>
+                                )}
+                              </a>
+                            )}
+                          {m.attachment_name &&
+                            !safeHttpUrl(m.attachment_signed_url) && (
+                              <span className="message-attachment">
+                                <PaperclipIcon /> {m.attachment_name}{" "}
+                                {m.attachment_size && (
+                                  <span className="message-attachment-size">
+                                    ({m.attachment_size})
+                                  </span>
+                                )}
+                              </span>
+                            )}
                         </React.Fragment>
                       )}
                       <div className="message-date">
                         {fmtDateTime(m.created_at)}
-                        {m.edited_at && <span className="message-edited-tag"> · edited</span>}
+                        {m.edited_at && (
+                          <span className="message-edited-tag"> · edited</span>
+                        )}
                       </div>
                       {withinWindow && editingId !== m.id && (
                         <div className="message-own-actions">
@@ -6772,8 +9166,8 @@ function StaffMessagesPage({ staffUser, onActivity }) {
                               ? `Seen by ${seenCount(m)}/${otherActiveMembers.length}`
                               : "Sent"
                             : otherHasSeen(m)
-                            ? "Seen"
-                            : "Sent"}
+                              ? "Seen"
+                              : "Sent"}
                         </div>
                       )}
                     </div>
@@ -6788,8 +9182,14 @@ function StaffMessagesPage({ staffUser, onActivity }) {
               <span>
                 <PaperclipIcon /> {pendingAttachment.name}
               </span>
-              <span className="attachment-chip-meta">{pendingAttachment.size}</span>
-              <button className="attachment-remove" onClick={() => setPendingAttachment(null)} aria-label="Remove attachment">
+              <span className="attachment-chip-meta">
+                {pendingAttachment.size}
+              </span>
+              <button
+                className="attachment-remove"
+                onClick={() => setPendingAttachment(null)}
+                aria-label="Remove attachment"
+              >
                 ×
               </button>
             </div>
@@ -6797,10 +9197,17 @@ function StaffMessagesPage({ staffUser, onActivity }) {
 
           {/* Reserves its line whether or not anyone's typing, so the
               compose bar doesn't hop up and down every time it appears. */}
-          <div className="typing-indicator">{typingName ? `${typingName} is typing…` : " "}</div>
+          <div className="typing-indicator">
+            {typingName ? `${typingName} is typing…` : " "}
+          </div>
 
           <div className="message-compose">
-            <button type="button" className="attach-btn" onClick={() => fileInputRef.current.click()} aria-label="Attach file">
+            <button
+              type="button"
+              className="attach-btn"
+              onClick={() => fileInputRef.current.click()}
+              aria-label="Attach file"
+            >
               <PaperclipIcon />
             </button>
             <input
@@ -6824,7 +9231,11 @@ function StaffMessagesPage({ staffUser, onActivity }) {
                 if (e.key === "Enter") send();
               }}
             />
-            <button className="btn-primary" onClick={send} disabled={sending || (!draft.trim() && !pendingAttachment)}>
+            <button
+              className="btn-primary"
+              onClick={send}
+              disabled={sending || (!draft.trim() && !pendingAttachment)}
+            >
               Send
             </button>
           </div>
@@ -6832,7 +9243,11 @@ function StaffMessagesPage({ staffUser, onActivity }) {
       )}
 
       {showGroupModal && (
-        <GroupComposeModal directory={directory || []} onCreate={createGroup} onClose={() => setShowGroupModal(false)} />
+        <GroupComposeModal
+          directory={directory || []}
+          onCreate={createGroup}
+          onClose={() => setShowGroupModal(false)}
+        />
       )}
     </div>
   );
@@ -6867,7 +9282,16 @@ function GroupComposeModal({ directory, onCreate, onClose }) {
         </button>
       </div>
       <div className="modal-body">
-        <label style={{ display: "block", fontSize: 12.5, fontWeight: 600, color: "var(--text-muted)", marginBottom: 6 }} htmlFor="new-group-name">
+        <label
+          style={{
+            display: "block",
+            fontSize: 12.5,
+            fontWeight: 600,
+            color: "var(--text-muted)",
+            marginBottom: 6,
+          }}
+          htmlFor="new-group-name"
+        >
           Group name (optional)
         </label>
         <input
@@ -6879,12 +9303,17 @@ function GroupComposeModal({ directory, onCreate, onClose }) {
           style={{ marginBottom: 16 }}
         />
         <p className="card-subtitle" style={{ marginTop: 0 }}>
-          Pick at least 2 people. Without a name, the group is labeled by who's in it.
+          Pick at least 2 people. Without a name, the group is labeled by who's
+          in it.
         </p>
         <div className="group-member-list">
           {directory.map((d) => (
             <label className="group-member-row" key={d.email}>
-              <input type="checkbox" checked={selected.has(d.email)} onChange={() => toggle(d.email)} />
+              <input
+                type="checkbox"
+                checked={selected.has(d.email)}
+                onChange={() => toggle(d.email)}
+              />
               <span className="group-member-name">{d.name}</span>
               <span className="group-member-role">{d.role}</span>
             </label>
@@ -6896,7 +9325,9 @@ function GroupComposeModal({ directory, onCreate, onClose }) {
           disabled={selected.size < 2 || creating}
           onClick={handleCreate}
         >
-          {creating ? "Creating…" : `Create group${selected.size > 0 ? ` (${selected.size + 1} people)` : ""}`}
+          {creating
+            ? "Creating…"
+            : `Create group${selected.size > 0 ? ` (${selected.size + 1} people)` : ""}`}
         </button>
       </div>
     </ModalShell>
@@ -6911,7 +9342,9 @@ function ClientAccessPage() {
   const [loadError, setLoadError] = useState("");
   const [busyEmail, setBusyEmail] = useState(null);
   const [search, setSearch] = useState("");
-  const [newClientId, setNewClientId] = useState(CLIENTS[0] ? CLIENTS[0].id : "");
+  const [newClientId, setNewClientId] = useState(
+    CLIENTS[0] ? CLIENTS[0].id : "",
+  );
   const [newEmail, setNewEmail] = useState("");
   const [newName, setNewName] = useState("");
   const [newRole, setNewRole] = useState("");
@@ -6920,7 +9353,10 @@ function ClientAccessPage() {
   const [csvImporting, setCsvImporting] = useState(false);
   const [csvResults, setCsvResults] = useState(null);
 
-  const csvPreview = useMemo(() => (csvText.trim() ? parseClientUserCsv(csvText) : []), [csvText]);
+  const csvPreview = useMemo(
+    () => (csvText.trim() ? parseClientUserCsv(csvText) : []),
+    [csvText],
+  );
   const csvValidCount = csvPreview.filter((r) => r.errors.length === 0).length;
 
   const load = useCallback(() => {
@@ -6957,7 +9393,7 @@ function ClientAccessPage() {
       (r) =>
         r.name.toLowerCase().includes(q) ||
         r.email.toLowerCase().includes(q) ||
-        clientNameFor(r.client_id).toLowerCase().includes(q)
+        clientNameFor(r.client_id).toLowerCase().includes(q),
     );
   }, [rows, search]);
 
@@ -6989,7 +9425,10 @@ function ClientAccessPage() {
 
   async function toggleActive(row) {
     setBusyEmail(row.email);
-    const { error } = await supabase.from("client_users").update({ active: !row.active }).eq("email", row.email);
+    const { error } = await supabase
+      .from("client_users")
+      .update({ active: !row.active })
+      .eq("email", row.email);
     setBusyEmail(null);
     if (error) {
       showToast(`Couldn't update ${row.email}: ${error.message}`);
@@ -6999,9 +9438,17 @@ function ClientAccessPage() {
   }
 
   async function removeContact(row) {
-    if (!window.confirm(`Remove ${row.name} (${row.email}) from ${clientNameFor(row.client_id)}?`)) return;
+    if (
+      !window.confirm(
+        `Remove ${row.name} (${row.email}) from ${clientNameFor(row.client_id)}?`,
+      )
+    )
+      return;
     setBusyEmail(row.email);
-    const { error } = await supabase.from("client_users").delete().eq("email", row.email);
+    const { error } = await supabase
+      .from("client_users")
+      .delete()
+      .eq("email", row.email);
     setBusyEmail(null);
     if (error) {
       showToast(`Couldn't remove ${row.email}: ${error.message}`);
@@ -7017,10 +9464,19 @@ function ClientAccessPage() {
     setCsvImporting(true);
     const results = [];
     for (const r of validRows) {
-      const { error } = await supabase
-        .from("client_users")
-        .insert({ email: r.email, client_id: r.clientId, name: r.name, role: r.role, active: true });
-      results.push({ email: r.email, name: r.name, ok: !error, message: error ? error.message : "" });
+      const { error } = await supabase.from("client_users").insert({
+        email: r.email,
+        client_id: r.clientId,
+        name: r.name,
+        role: r.role,
+        active: true,
+      });
+      results.push({
+        email: r.email,
+        name: r.name,
+        ok: !error,
+        message: error ? error.message : "",
+      });
     }
     setCsvImporting(false);
     setCsvResults(results);
@@ -7028,7 +9484,7 @@ function ClientAccessPage() {
     showToast(
       okCount === results.length
         ? `Imported ${okCount} client contacts.`
-        : `Imported ${okCount} of ${results.length} — see the results below for what failed.`
+        : `Imported ${okCount} of ${results.length} — see the results below for what failed.`,
     );
     if (okCount === results.length) setCsvText("");
     load();
@@ -7037,20 +9493,24 @@ function ClientAccessPage() {
   return (
     <div>
       <div className="mock-banner">
-        <WarningIcon /> This page writes directly to the real client_users table in Supabase. It only
-        controls who WILL be able to sign in once Phase 2's client login gate is built — until
-        then, nothing here changes who can actually access a client's data (see "Manage
-        access" on each client's dashboard for that).
+        <WarningIcon /> This page writes directly to the real client_users table
+        in Supabase. It only controls who WILL be able to sign in once Phase 2's
+        client login gate is built — until then, nothing here changes who can
+        actually access a client's data (see "Manage access" on each client's
+        dashboard for that).
       </div>
 
       <div className="card" style={{ marginBottom: 20 }}>
         <h3 className="card-title">Add a contact</h3>
         <p className="card-subtitle">
-          One row per person, not per organization — each contact signs in with their own
-          address once Phase 2 is live.
+          One row per person, not per organization — each contact signs in with
+          their own address once Phase 2 is live.
         </p>
         <div className="staff-add-row">
-          <select value={newClientId} onChange={(e) => setNewClientId(e.target.value)}>
+          <select
+            value={newClientId}
+            onChange={(e) => setNewClientId(e.target.value)}
+          >
             {CLIENTS.map((c) => (
               <option key={c.id} value={c.id}>
                 {c.name}
@@ -7063,11 +9523,23 @@ function ClientAccessPage() {
             value={newEmail}
             onChange={(e) => setNewEmail(e.target.value)}
           />
-          <input type="text" placeholder="Full name" value={newName} onChange={(e) => setNewName(e.target.value)} />
-          <input type="text" placeholder="Role (e.g. Board Treasurer)" value={newRole} onChange={(e) => setNewRole(e.target.value)} />
+          <input
+            type="text"
+            placeholder="Full name"
+            value={newName}
+            onChange={(e) => setNewName(e.target.value)}
+          />
+          <input
+            type="text"
+            placeholder="Role (e.g. Board Treasurer)"
+            value={newRole}
+            onChange={(e) => setNewRole(e.target.value)}
+          />
           <button
             className="btn-primary"
-            disabled={adding || !newEmail.trim() || !newName.trim() || !newRole.trim()}
+            disabled={
+              adding || !newEmail.trim() || !newName.trim() || !newRole.trim()
+            }
             onClick={addContact}
           >
             + Add
@@ -7078,13 +9550,16 @@ function ClientAccessPage() {
       <div className="card" style={{ marginBottom: 20 }}>
         <h3 className="card-title">Bulk import</h3>
         <p className="card-subtitle">
-          Paste rows as <code>client_id, email, name, role</code> — client_id must match a
-          client's id exactly (e.g. <code>grace-community</code>), not its display name.
+          Paste rows as <code>client_id, email, name, role</code> — client_id
+          must match a client's id exactly (e.g. <code>grace-community</code>),
+          not its display name.
         </p>
         <textarea
           className="staff-csv-textarea"
           rows={4}
-          placeholder={"grace-community, john@gracecommunity.org, Pastor John Whitfield, Lead Pastor\nnew-hope, mia@newhopeoutreach.org, Mia Alvarez, Executive Director"}
+          placeholder={
+            "grace-community, john@gracecommunity.org, Pastor John Whitfield, Lead Pastor\nnew-hope, mia@newhopeoutreach.org, Mia Alvarez, Executive Director"
+          }
           value={csvText}
           onChange={(e) => {
             setCsvText(e.target.value);
@@ -7095,7 +9570,10 @@ function ClientAccessPage() {
           <React.Fragment>
             <ul className="staff-csv-preview">
               {csvPreview.map((r, i) => (
-                <li key={i} className={r.errors.length ? "negative" : "positive"}>
+                <li
+                  key={i}
+                  className={r.errors.length ? "negative" : "positive"}
+                >
                   {r.errors.length ? (
                     <React.Fragment>
                       <strong>{r.line}</strong> — {r.errors.join(", ")}
@@ -7109,12 +9587,19 @@ function ClientAccessPage() {
               ))}
             </ul>
             <div className="staff-reset-row">
-              <button className="btn-primary" disabled={csvImporting || csvValidCount === 0} onClick={importCsv}>
-                {csvImporting ? "Importing…" : `Import ${csvValidCount} contacts`}
+              <button
+                className="btn-primary"
+                disabled={csvImporting || csvValidCount === 0}
+                onClick={importCsv}
+              >
+                {csvImporting
+                  ? "Importing…"
+                  : `Import ${csvValidCount} contacts`}
               </button>
               {csvValidCount < csvPreview.length && (
                 <p className="card-subtitle" style={{ margin: 0 }}>
-                  {csvPreview.length - csvValidCount} row(s) above have errors and will be skipped.
+                  {csvPreview.length - csvValidCount} row(s) above have errors
+                  and will be skipped.
                 </p>
               )}
             </div>
@@ -7124,7 +9609,9 @@ function ClientAccessPage() {
           <ul className="staff-csv-preview" style={{ marginTop: 12 }}>
             {csvResults.map((r, i) => (
               <li key={i} className={r.ok ? "positive" : "negative"}>
-                {r.ok ? `Added ${r.name}` : `${r.name || r.email} — ${r.message}`}
+                {r.ok
+                  ? `Added ${r.name}`
+                  : `${r.name || r.email} — ${r.message}`}
               </li>
             ))}
           </ul>
@@ -7132,10 +9619,20 @@ function ClientAccessPage() {
       </div>
 
       <div className="card" style={{ marginBottom: 20 }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", flexWrap: "wrap", gap: 8 }}>
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "baseline",
+            flexWrap: "wrap",
+            gap: 8,
+          }}
+        >
           <div>
             <h3 className="card-title">Client contacts</h3>
-            <p className="card-subtitle">Everyone registered to sign in, across every client.</p>
+            <p className="card-subtitle">
+              Everyone registered to sign in, across every client.
+            </p>
           </div>
           <input
             type="text"
@@ -7146,7 +9643,9 @@ function ClientAccessPage() {
           />
         </div>
 
-        {rows === null && !loadError && <p className="card-subtitle">Loading…</p>}
+        {rows === null && !loadError && (
+          <p className="card-subtitle">Loading…</p>
+        )}
         {loadError && <p className="card-subtitle negative">{loadError}</p>}
 
         {rows && rows.length > 0 && filteredRows.length === 0 && (
@@ -7173,7 +9672,9 @@ function ClientAccessPage() {
                     <tr key={row.email}>
                       <td data-primary="">{row.name}</td>
                       <td data-label="Email">{row.email}</td>
-                      <td data-label="Client">{clientNameFor(row.client_id)}</td>
+                      <td data-label="Client">
+                        {clientNameFor(row.client_id)}
+                      </td>
                       <td data-label="Role">{row.role}</td>
                       <td data-label="Active">
                         <label className="staff-active-toggle">
@@ -7204,7 +9705,9 @@ function ClientAccessPage() {
           </div>
         )}
 
-        {rows && rows.length === 0 && !loadError && <p className="card-subtitle">No client contacts yet.</p>}
+        {rows && rows.length === 0 && !loadError && (
+          <p className="card-subtitle">No client contacts yet.</p>
+        )}
       </div>
     </div>
   );
@@ -7241,12 +9744,21 @@ function useCardFlash() {
     if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
     if (flashTimeoutRef.current) clearTimeout(flashTimeoutRef.current);
     setFlashCardId(cardId);
-    flashTimeoutRef.current = setTimeout(() => setFlashCardId(null), CARD_FLASH_HOLD_MS);
+    flashTimeoutRef.current = setTimeout(
+      () => setFlashCardId(null),
+      CARD_FLASH_HOLD_MS,
+    );
   };
   return { flashCardId, jumpToCard };
 }
 
-function BookkeeperHomePage({ staffUser, clients, messagesByClient, readMessageClients, onNavigateToClient }) {
+function BookkeeperHomePage({
+  staffUser,
+  clients,
+  messagesByClient,
+  readMessageClients,
+  onNavigateToClient,
+}) {
   const showToast = useToast();
   const supabase = window.mgbSupabase;
   const today = todayLocal();
@@ -7278,7 +9790,10 @@ function BookkeeperHomePage({ staffUser, clients, messagesByClient, readMessageC
       .order("due_date", { ascending: true, nullsFirst: false })
       .then(({ data, error }) => {
         if (error) {
-          setReminderError("Couldn't load reminders. Has staff-reminders.sql been run? " + error.message);
+          setReminderError(
+            "Couldn't load reminders. Has staff-reminders.sql been run? " +
+              error.message,
+          );
           setReminders([]);
         } else {
           setReminderError("");
@@ -7295,9 +9810,11 @@ function BookkeeperHomePage({ staffUser, clients, messagesByClient, readMessageC
     const text = newReminder.trim();
     if (!text) return;
     setAdding(true);
-    const { error } = await supabase
-      .from("staff_reminders")
-      .insert({ staff_email: staffUser.email, text, due_date: newReminderDate || null });
+    const { error } = await supabase.from("staff_reminders").insert({
+      staff_email: staffUser.email,
+      text,
+      due_date: newReminderDate || null,
+    });
     setAdding(false);
     if (error) {
       showToast(`Couldn't add reminder: ${error.message}`);
@@ -7309,7 +9826,10 @@ function BookkeeperHomePage({ staffUser, clients, messagesByClient, readMessageC
   }
 
   async function toggleReminder(reminder) {
-    const { error } = await supabase.from("staff_reminders").update({ done: !reminder.done }).eq("id", reminder.id);
+    const { error } = await supabase
+      .from("staff_reminders")
+      .update({ done: !reminder.done })
+      .eq("id", reminder.id);
     if (error) {
       showToast(`Couldn't update reminder: ${error.message}`);
       return;
@@ -7318,7 +9838,10 @@ function BookkeeperHomePage({ staffUser, clients, messagesByClient, readMessageC
   }
 
   async function removeReminder(reminder) {
-    const { error } = await supabase.from("staff_reminders").delete().eq("id", reminder.id);
+    const { error } = await supabase
+      .from("staff_reminders")
+      .delete()
+      .eq("id", reminder.id);
     if (error) {
       showToast(`Couldn't remove reminder: ${error.message}`);
       return;
@@ -7331,10 +9854,16 @@ function BookkeeperHomePage({ staffUser, clients, messagesByClient, readMessageC
     supabase
       .from("client_notes")
       .select("client_id, note, updated_by, updated_at")
-      .in("client_id", clients.map((c) => c.id))
+      .in(
+        "client_id",
+        clients.map((c) => c.id),
+      )
       .then(({ data, error }) => {
         if (error) {
-          setNoteError("Couldn't load client notes. Has client-notes.sql been run? " + error.message);
+          setNoteError(
+            "Couldn't load client notes. Has client-notes.sql been run? " +
+              error.message,
+          );
           return;
         }
         setNoteError("");
@@ -7353,9 +9882,12 @@ function BookkeeperHomePage({ staffUser, clients, messagesByClient, readMessageC
 
   async function saveNote() {
     setSavingNote(true);
-    const { error } = await supabase
-      .from("client_notes")
-      .upsert({ client_id: editingNoteFor.id, note: noteDraft, updated_by: staffUser.email, updated_at: new Date().toISOString() });
+    const { error } = await supabase.from("client_notes").upsert({
+      client_id: editingNoteFor.id,
+      note: noteDraft,
+      updated_by: staffUser.email,
+      updated_at: new Date().toISOString(),
+    });
     setSavingNote(false);
     if (error) {
       showToast(`Couldn't save note: ${error.message}`);
@@ -7375,8 +9907,16 @@ function BookkeeperHomePage({ staffUser, clients, messagesByClient, readMessageC
       (client.users || []).forEach((u) => {
         const key = threadKeyFor(client.id, u.id);
         const msgs = messagesByClient[key] || seedThread(client.id, u.id);
-        const unread = lastMessageFromBookkeeper({ messages: msgs }) && msgs.length > (readMessageClients[key] || 0);
-        if (unread) rows.push({ clientId: client.id, clientName: client.name, userId: u.id, userName: u.name });
+        const unread =
+          lastMessageFromBookkeeper({ messages: msgs }) &&
+          msgs.length > (readMessageClients[key] || 0);
+        if (unread)
+          rows.push({
+            clientId: client.id,
+            clientName: client.name,
+            userId: u.id,
+            userName: u.name,
+          });
       });
     });
     return rows;
@@ -7392,15 +9932,18 @@ function BookkeeperHomePage({ staffUser, clients, messagesByClient, readMessageC
         .filter((c) => clientVisits[c.id])
         .sort((a, b) => clientVisits[b.id] - clientVisits[a.id])
         .slice(0, 5),
-    [clients, clientVisits]
+    [clients, clientVisits],
   );
   const staleMs = CLIENT_VISIT_STALE_DAYS * 24 * 60 * 60 * 1000;
   const needsVisit = useMemo(
     () =>
       clients
-        .filter((c) => !clientVisits[c.id] || Date.now() - clientVisits[c.id] > staleMs)
+        .filter(
+          (c) =>
+            !clientVisits[c.id] || Date.now() - clientVisits[c.id] > staleMs,
+        )
         .sort((a, b) => (clientVisits[a.id] || 0) - (clientVisits[b.id] || 0)),
-    [clients, clientVisits]
+    [clients, clientVisits],
   );
 
   const filteredClients = useMemo(() => {
@@ -7417,15 +9960,24 @@ function BookkeeperHomePage({ staffUser, clients, messagesByClient, readMessageC
     clients.forEach((client) => {
       (client.payables || []).forEach((p) => {
         const diff = daysUntil(p.dueDate, today);
-        const status = diff < 0 ? "overdue" : diff <= AP_SOON_DAYS ? "soon" : "scheduled";
+        const status =
+          diff < 0 ? "overdue" : diff <= AP_SOON_DAYS ? "soon" : "scheduled";
         if (status === "scheduled") return; // only surface what actually needs attention
-        rows.push({ ...p, diff, status, clientId: client.id, clientName: client.name });
+        rows.push({
+          ...p,
+          diff,
+          status,
+          clientId: client.id,
+          clientName: client.name,
+        });
       });
     });
     return rows.sort((a, b) => a.diff - b.diff);
   }, [clients, today]);
 
-  const overdueCount = dueAcrossClients.filter((r) => r.status === "overdue").length;
+  const overdueCount = dueAcrossClients.filter(
+    (r) => r.status === "overdue",
+  ).length;
   const soonCount = dueAcrossClients.filter((r) => r.status === "soon").length;
 
   const dueCountByClient = useMemo(() => {
@@ -7443,31 +9995,92 @@ function BookkeeperHomePage({ staffUser, clients, messagesByClient, readMessageC
   // client. Long-press (touch) or drag (mouse) any card by its body to pick
   // it up; a plain tap/click still reaches the card's own buttons and links.
   const widgets = [
-    { id: "kpi-clients", group: "kpi", label: "Your clients", description: "How many clients you can see" },
-    { id: "kpi-overdue", group: "kpi", label: "Overdue bills", description: "Across all your clients" },
-    { id: "kpi-soon", group: "kpi", label: `Due within ${AP_SOON_DAYS} days`, description: "Across all your clients" },
-    { id: "kpi-unread", group: "kpi", label: "Unread messages", description: "Across all your clients" },
-    { id: "needs-attention", group: "content", label: "Needs attention", description: "Overdue or due-soon bills" },
-    { id: "unread-list", group: "content", label: "Unread messages", description: "Threads waiting on a reply" },
-    { id: "recently-viewed", group: "content", label: "Recently viewed", description: "Clients you've had open recently on this device" },
-    { id: "needs-visit", group: "content", label: "Needs a visit", description: "Clients not opened in a while" },
-    { id: "your-clients", group: "content", label: "Your clients", description: "Full client list, with search and notes" },
-    { id: "your-reminders", group: "content", label: "Your reminders", description: "Your private personal reminders" },
+    {
+      id: "kpi-clients",
+      group: "kpi",
+      label: "Your clients",
+      description: "How many clients you can see",
+    },
+    {
+      id: "kpi-overdue",
+      group: "kpi",
+      label: "Overdue bills",
+      description: "Across all your clients",
+    },
+    {
+      id: "kpi-soon",
+      group: "kpi",
+      label: `Due within ${AP_SOON_DAYS} days`,
+      description: "Across all your clients",
+    },
+    {
+      id: "kpi-unread",
+      group: "kpi",
+      label: "Unread messages",
+      description: "Across all your clients",
+    },
+    {
+      id: "needs-attention",
+      group: "content",
+      label: "Needs attention",
+      description: "Overdue or due-soon bills",
+    },
+    {
+      id: "unread-list",
+      group: "content",
+      label: "Unread messages",
+      description: "Threads waiting on a reply",
+    },
+    {
+      id: "recently-viewed",
+      group: "content",
+      label: "Recently viewed",
+      description: "Clients you've had open recently on this device",
+    },
+    {
+      id: "needs-visit",
+      group: "content",
+      label: "Needs a visit",
+      description: "Clients not opened in a while",
+    },
+    {
+      id: "your-clients",
+      group: "content",
+      label: "Your clients",
+      description: "Full client list, with search and notes",
+    },
+    {
+      id: "your-reminders",
+      group: "content",
+      label: "Your reminders",
+      description: "Your private personal reminders",
+    },
   ];
-  const layout = useWidgetLayout("bookkeeper-home", widgets.map((w) => w.id));
+  const layout = useWidgetLayout(
+    "bookkeeper-home",
+    widgets.map((w) => w.id),
+  );
   const drag = useDragReorder(layout);
   const kpiOrder = layout.visibleOrder.filter((id) => id.startsWith("kpi-"));
-  const contentOrder = layout.visibleOrder.filter((id) => !id.startsWith("kpi-"));
+  const contentOrder = layout.visibleOrder.filter(
+    (id) => !id.startsWith("kpi-"),
+  );
 
   const jumpMatches = jumpQuery.trim()
-    ? clients.filter((c) => c.name.toLowerCase().includes(jumpQuery.trim().toLowerCase())).slice(0, 8)
+    ? clients
+        .filter((c) =>
+          c.name.toLowerCase().includes(jumpQuery.trim().toLowerCase()),
+        )
+        .slice(0, 8)
     : [];
 
   return (
     <div>
       <div className="card" style={{ marginBottom: 20 }}>
         <h3 className="card-title">Jump to client</h3>
-        <p className="card-subtitle">Skip the sidebar dropdown — land straight on a client's dashboard.</p>
+        <p className="card-subtitle">
+          Skip the sidebar dropdown — land straight on a client's dashboard.
+        </p>
         <input
           type="text"
           className="ap-cc-search"
@@ -7483,11 +10096,20 @@ function BookkeeperHomePage({ staffUser, clients, messagesByClient, readMessageC
                 type="button"
                 className="staff-due-row"
                 key={c.id}
-                style={{ width: "100%", textAlign: "left", cursor: "pointer", background: "none", border: "none", font: "inherit" }}
+                style={{
+                  width: "100%",
+                  textAlign: "left",
+                  cursor: "pointer",
+                  background: "none",
+                  border: "none",
+                  font: "inherit",
+                }}
                 onClick={() => onNavigateToClient(c.id, "dashboard")}
               >
                 <span className="staff-flag-label">{c.name}</span>
-                <span className="staff-flag-desc">{c.plan === "premium" ? "Premium" : "Standard"} · {c.id}</span>
+                <span className="staff-flag-desc">
+                  {c.plan === "premium" ? "Premium" : "Standard"} · {c.id}
+                </span>
               </button>
             ))}
           </div>
@@ -7509,7 +10131,11 @@ function BookkeeperHomePage({ staffUser, clients, messagesByClient, readMessageC
             const Tag = jump ? "button" : "div";
             return (
               <Tag
-                className={"card kpi-card " + (jump ? "kpi-card-clickable " : "") + drag.dragClass(id)}
+                className={
+                  "card kpi-card " +
+                  (jump ? "kpi-card-clickable " : "") +
+                  drag.dragClass(id)
+                }
                 key={id}
                 {...drag.dragProps(id)}
                 {...(jump ? { onClick: jump } : {})}
@@ -7517,7 +10143,9 @@ function BookkeeperHomePage({ staffUser, clients, messagesByClient, readMessageC
                 <span className="kpi-label">Your clients</span>
                 <span className="kpi-value">{clients.length}</span>
                 <span className="kpi-sub neutral">
-                  {clients.length === 0 ? "none assigned yet" : `client${clients.length === 1 ? "" : "s"} you can see`}
+                  {clients.length === 0
+                    ? "none assigned yet"
+                    : `client${clients.length === 1 ? "" : "s"} you can see`}
                 </span>
               </Tag>
             );
@@ -7525,34 +10153,48 @@ function BookkeeperHomePage({ staffUser, clients, messagesByClient, readMessageC
           if (id === "kpi-overdue") {
             const jump = layout.hidden.has("needs-attention")
               ? null
-              : () => jumpToCard("home-needs-attention-card", "needs-attention");
+              : () =>
+                  jumpToCard("home-needs-attention-card", "needs-attention");
             const Tag = jump ? "button" : "div";
             return (
               <Tag
-                className={"card kpi-card " + (jump ? "kpi-card-clickable " : "") + drag.dragClass(id)}
+                className={
+                  "card kpi-card " +
+                  (jump ? "kpi-card-clickable " : "") +
+                  drag.dragClass(id)
+                }
                 key={id}
                 {...drag.dragProps(id)}
                 {...(jump ? { onClick: jump } : {})}
               >
                 <span className="kpi-label">Overdue bills</span>
                 <span className="kpi-value negative">{overdueCount}</span>
-                <span className="kpi-sub negative">across all your clients</span>
+                <span className="kpi-sub negative">
+                  across all your clients
+                </span>
               </Tag>
             );
           }
           if (id === "kpi-soon") {
             const jump = layout.hidden.has("needs-attention")
               ? null
-              : () => jumpToCard("home-needs-attention-card", "needs-attention");
+              : () =>
+                  jumpToCard("home-needs-attention-card", "needs-attention");
             const Tag = jump ? "button" : "div";
             return (
               <Tag
-                className={"card kpi-card " + (jump ? "kpi-card-clickable " : "") + drag.dragClass(id)}
+                className={
+                  "card kpi-card " +
+                  (jump ? "kpi-card-clickable " : "") +
+                  drag.dragClass(id)
+                }
                 key={id}
                 {...drag.dragProps(id)}
                 {...(jump ? { onClick: jump } : {})}
               >
-                <span className="kpi-label">Due within {AP_SOON_DAYS} days</span>
+                <span className="kpi-label">
+                  Due within {AP_SOON_DAYS} days
+                </span>
                 <span className="kpi-value warm">{soonCount}</span>
                 <span className="kpi-sub warm">across all your clients</span>
               </Tag>
@@ -7561,17 +10203,32 @@ function BookkeeperHomePage({ staffUser, clients, messagesByClient, readMessageC
           if (id === "kpi-unread")
             return unreadAcrossClients.length > 0 ? (
               <button
-                className={"card kpi-card kpi-card-clickable " + drag.dragClass(id)}
+                className={
+                  "card kpi-card kpi-card-clickable " + drag.dragClass(id)
+                }
                 key={id}
                 {...drag.dragProps(id)}
-                onClick={() => onNavigateToClient(unreadAcrossClients[0].clientId, "messages")}
+                onClick={() =>
+                  onNavigateToClient(
+                    unreadAcrossClients[0].clientId,
+                    "messages",
+                  )
+                }
               >
                 <span className="kpi-label">Unread messages</span>
-                <span className="kpi-value warm">{unreadAcrossClients.length}</span>
-                <span className="kpi-sub warm">across all your clients — click to open the oldest</span>
+                <span className="kpi-value warm">
+                  {unreadAcrossClients.length}
+                </span>
+                <span className="kpi-sub warm">
+                  across all your clients — click to open the oldest
+                </span>
               </button>
             ) : (
-              <div className={"card kpi-card " + drag.dragClass(id)} key={id} {...drag.dragProps(id)}>
+              <div
+                className={"card kpi-card " + drag.dragClass(id)}
+                key={id}
+                {...drag.dragProps(id)}
+              >
                 <span className="kpi-label">Unread messages</span>
                 <span className="kpi-value">0</span>
                 <span className="kpi-sub neutral">across all your clients</span>
@@ -7586,21 +10243,33 @@ function BookkeeperHomePage({ staffUser, clients, messagesByClient, readMessageC
           if (id === "needs-attention")
             return (
               <div
-                className={"card " + (flashCardId === "needs-attention" ? "card-flash " : "") + drag.dragClass(id)}
+                className={
+                  "card " +
+                  (flashCardId === "needs-attention" ? "card-flash " : "") +
+                  drag.dragClass(id)
+                }
                 key={id}
                 id="home-needs-attention-card"
                 {...drag.dragProps(id)}
               >
                 <h3 className="card-title">Needs attention</h3>
-                <p className="card-subtitle">Overdue or due soon, across every client you can see.</p>
-                {dueAcrossClients.length === 0 && <p className="card-subtitle">Nothing due soon — you're caught up.</p>}
+                <p className="card-subtitle">
+                  Overdue or due soon, across every client you can see.
+                </p>
+                {dueAcrossClients.length === 0 && (
+                  <p className="card-subtitle">
+                    Nothing due soon — you're caught up.
+                  </p>
+                )}
                 {dueAcrossClients.length > 0 && (
                   <div className="staff-audit-list">
                     {dueAcrossClients.slice(0, 12).map((r, i) => (
                       <button
                         className="staff-due-row"
                         key={i}
-                        onClick={() => onNavigateToClient(r.clientId, "receivables")}
+                        onClick={() =>
+                          onNavigateToClient(r.clientId, "receivables")
+                        }
                       >
                         <span>
                           <span className="staff-flag-label">{r.vendor}</span>
@@ -7608,7 +10277,11 @@ function BookkeeperHomePage({ staffUser, clients, messagesByClient, readMessageC
                             {r.clientName} · {apDueText(r.diff)}
                           </span>
                         </span>
-                        <span className={"pill " + (r.status === "overdue" ? "bad" : "warm")}>
+                        <span
+                          className={
+                            "pill " + (r.status === "overdue" ? "bad" : "warm")
+                          }
+                        >
                           {fmtMoney(r.amount, { cents: true })}
                         </span>
                       </button>
@@ -7619,17 +10292,27 @@ function BookkeeperHomePage({ staffUser, clients, messagesByClient, readMessageC
             );
           if (id === "unread-list")
             return (
-              <div className={"card " + drag.dragClass(id)} key={id} {...drag.dragProps(id)}>
+              <div
+                className={"card " + drag.dragClass(id)}
+                key={id}
+                {...drag.dragProps(id)}
+              >
                 <h3 className="card-title">Unread messages</h3>
-                <p className="card-subtitle">Waiting on a reply, across every client you can see.</p>
-                {unreadAcrossClients.length === 0 && <p className="card-subtitle">Nothing unread.</p>}
+                <p className="card-subtitle">
+                  Waiting on a reply, across every client you can see.
+                </p>
+                {unreadAcrossClients.length === 0 && (
+                  <p className="card-subtitle">Nothing unread.</p>
+                )}
                 {unreadAcrossClients.length > 0 && (
                   <div className="staff-audit-list">
                     {unreadAcrossClients.slice(0, 12).map((r) => (
                       <button
                         className="staff-due-row"
                         key={r.clientId + r.userId}
-                        onClick={() => onNavigateToClient(r.clientId, "messages")}
+                        onClick={() =>
+                          onNavigateToClient(r.clientId, "messages")
+                        }
                       >
                         <span className="staff-flag-label">{r.userName}</span>
                         <span className="staff-flag-desc">{r.clientName}</span>
@@ -7641,16 +10324,34 @@ function BookkeeperHomePage({ staffUser, clients, messagesByClient, readMessageC
             );
           if (id === "recently-viewed")
             return (
-              <div className={"card " + drag.dragClass(id)} key={id} {...drag.dragProps(id)}>
+              <div
+                className={"card " + drag.dragClass(id)}
+                key={id}
+                {...drag.dragProps(id)}
+              >
                 <h3 className="card-title">Recently viewed</h3>
-                <p className="card-subtitle">The clients you've had open most recently, on this device.</p>
-                {recentlyViewed.length === 0 && <p className="card-subtitle">Nothing viewed yet this device.</p>}
+                <p className="card-subtitle">
+                  The clients you've had open most recently, on this device.
+                </p>
+                {recentlyViewed.length === 0 && (
+                  <p className="card-subtitle">
+                    Nothing viewed yet this device.
+                  </p>
+                )}
                 {recentlyViewed.length > 0 && (
                   <div className="staff-audit-list">
                     {recentlyViewed.map((c) => (
-                      <button className="staff-due-row" key={c.id} onClick={() => onNavigateToClient(c.id, "dashboard")}>
+                      <button
+                        className="staff-due-row"
+                        key={c.id}
+                        onClick={() => onNavigateToClient(c.id, "dashboard")}
+                      >
                         <span className="staff-flag-label">{c.name}</span>
-                        <span className="staff-flag-desc">{fmtDateTime(new Date(clientVisits[c.id]).toISOString())}</span>
+                        <span className="staff-flag-desc">
+                          {fmtDateTime(
+                            new Date(clientVisits[c.id]).toISOString(),
+                          )}
+                        </span>
                       </button>
                     ))}
                   </div>
@@ -7659,20 +10360,37 @@ function BookkeeperHomePage({ staffUser, clients, messagesByClient, readMessageC
             );
           if (id === "needs-visit")
             return (
-              <div className={"card " + drag.dragClass(id)} key={id} {...drag.dragProps(id)}>
+              <div
+                className={"card " + drag.dragClass(id)}
+                key={id}
+                {...drag.dragProps(id)}
+              >
                 <h3 className="card-title">Needs a visit</h3>
                 <p className="card-subtitle">
-                  Not opened on this device in {CLIENT_VISIT_STALE_DAYS}+ days (or ever) — nothing to imply they need
-                  anything urgent, just a nudge not to lose track.
+                  Not opened on this device in {CLIENT_VISIT_STALE_DAYS}+ days
+                  (or ever) — nothing to imply they need anything urgent, just a
+                  nudge not to lose track.
                 </p>
-                {needsVisit.length === 0 && <p className="card-subtitle">You're caught up with all of them.</p>}
+                {needsVisit.length === 0 && (
+                  <p className="card-subtitle">
+                    You're caught up with all of them.
+                  </p>
+                )}
                 {needsVisit.length > 0 && (
                   <div className="staff-audit-list">
                     {needsVisit.slice(0, 8).map((c) => (
-                      <button className="staff-due-row" key={c.id} onClick={() => onNavigateToClient(c.id, "dashboard")}>
+                      <button
+                        className="staff-due-row"
+                        key={c.id}
+                        onClick={() => onNavigateToClient(c.id, "dashboard")}
+                      >
                         <span className="staff-flag-label">{c.name}</span>
                         <span className="staff-flag-desc">
-                          {clientVisits[c.id] ? fmtDateTime(new Date(clientVisits[c.id]).toISOString()) : "Never viewed"}
+                          {clientVisits[c.id]
+                            ? fmtDateTime(
+                                new Date(clientVisits[c.id]).toISOString(),
+                              )
+                            : "Never viewed"}
                         </span>
                       </button>
                     ))}
@@ -7683,16 +10401,29 @@ function BookkeeperHomePage({ staffUser, clients, messagesByClient, readMessageC
           if (id === "your-clients")
             return (
               <div
-                className={"card " + (flashCardId === "your-clients" ? "card-flash " : "") + drag.dragClass(id)}
+                className={
+                  "card " +
+                  (flashCardId === "your-clients" ? "card-flash " : "") +
+                  drag.dragClass(id)
+                }
                 key={id}
                 id="home-your-clients-card"
                 {...drag.dragProps(id)}
               >
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", flexWrap: "wrap", gap: 8 }}>
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "baseline",
+                    flexWrap: "wrap",
+                    gap: 8,
+                  }}
+                >
                   <div>
                     <h3 className="card-title">Your clients</h3>
                     <p className="card-subtitle" style={{ marginTop: 0 }}>
-                      Click through to any of them, or add a note for yourself or a colleague.
+                      Click through to any of them, or add a note for yourself
+                      or a colleague.
                     </p>
                   </div>
                   <input
@@ -7703,17 +10434,29 @@ function BookkeeperHomePage({ staffUser, clients, messagesByClient, readMessageC
                     style={{ maxWidth: 220 }}
                   />
                 </div>
-                {clients.length === 0 && <p className="card-subtitle">None assigned yet — ask an admin.</p>}
-                {clients.length > 0 && filteredClients.length === 0 && (
-                  <p className="card-subtitle">No client matches "{clientSearch}".</p>
+                {clients.length === 0 && (
+                  <p className="card-subtitle">
+                    None assigned yet — ask an admin.
+                  </p>
                 )}
-                {noteError && <p className="card-subtitle negative">{noteError}</p>}
+                {clients.length > 0 && filteredClients.length === 0 && (
+                  <p className="card-subtitle">
+                    No client matches "{clientSearch}".
+                  </p>
+                )}
+                {noteError && (
+                  <p className="card-subtitle negative">{noteError}</p>
+                )}
                 <div className="staff-audit-list">
                   {filteredClients.map((c) => {
                     const due = dueCountByClient[c.id];
                     const note = notes[c.id];
                     return (
-                      <div className="staff-due-row" key={c.id} style={{ cursor: "default" }}>
+                      <div
+                        className="staff-due-row"
+                        key={c.id}
+                        style={{ cursor: "default" }}
+                      >
                         <button
                           className="staff-client-jump"
                           onClick={() => onNavigateToClient(c.id, "dashboard")}
@@ -7722,12 +10465,19 @@ function BookkeeperHomePage({ staffUser, clients, messagesByClient, readMessageC
                           <span className="staff-flag-label">{c.name}</span>
                           <span className="staff-flag-desc">
                             {c.plan === "premium" ? "Premium" : "Standard"} plan
-                            {due && due.overdue > 0 ? ` · ${due.overdue} overdue` : ""}
-                            {due && due.soon > 0 ? ` · ${due.soon} due soon` : ""}
+                            {due && due.overdue > 0
+                              ? ` · ${due.overdue} overdue`
+                              : ""}
+                            {due && due.soon > 0
+                              ? ` · ${due.soon} due soon`
+                              : ""}
                             {note && note.note ? ` · has a note` : ""}
                           </span>
                         </button>
-                        <button className="btn-secondary" onClick={() => openNoteEditor(c)}>
+                        <button
+                          className="btn-secondary"
+                          onClick={() => openNoteEditor(c)}
+                        >
                           {note && note.note ? "Edit note" : "+ Note"}
                         </button>
                       </div>
@@ -7738,9 +10488,15 @@ function BookkeeperHomePage({ staffUser, clients, messagesByClient, readMessageC
             );
           if (id === "your-reminders")
             return (
-              <div className={"card " + drag.dragClass(id)} key={id} {...drag.dragProps(id)}>
+              <div
+                className={"card " + drag.dragClass(id)}
+                key={id}
+                {...drag.dragProps(id)}
+              >
                 <h3 className="card-title">Your reminders</h3>
-                <p className="card-subtitle">Private to you — nobody else, including admins, can see these.</p>
+                <p className="card-subtitle">
+                  Private to you — nobody else, including admins, can see these.
+                </p>
 
                 <div className="staff-add-row">
                   <input
@@ -7752,30 +10508,66 @@ function BookkeeperHomePage({ staffUser, clients, messagesByClient, readMessageC
                       if (e.key === "Enter") addReminder();
                     }}
                   />
-                  <input type="date" value={newReminderDate} onChange={(e) => setNewReminderDate(e.target.value)} />
-                  <button className="btn-primary" disabled={adding || !newReminder.trim()} onClick={addReminder}>
+                  <input
+                    type="date"
+                    value={newReminderDate}
+                    onChange={(e) => setNewReminderDate(e.target.value)}
+                  />
+                  <button
+                    className="btn-primary"
+                    disabled={adding || !newReminder.trim()}
+                    onClick={addReminder}
+                  >
                     + Add
                   </button>
                 </div>
 
-                {reminderError && <p className="card-subtitle negative" style={{ marginTop: 16 }}>{reminderError}</p>}
-                {reminders === null && !reminderError && <p className="card-subtitle" style={{ marginTop: 16 }}>Loading…</p>}
+                {reminderError && (
+                  <p
+                    className="card-subtitle negative"
+                    style={{ marginTop: 16 }}
+                  >
+                    {reminderError}
+                  </p>
+                )}
+                {reminders === null && !reminderError && (
+                  <p className="card-subtitle" style={{ marginTop: 16 }}>
+                    Loading…
+                  </p>
+                )}
                 {reminders && reminders.length === 0 && !reminderError && (
-                  <p className="card-subtitle" style={{ marginTop: 16 }}>No reminders yet.</p>
+                  <p className="card-subtitle" style={{ marginTop: 16 }}>
+                    No reminders yet.
+                  </p>
                 )}
 
                 {reminders && reminders.length > 0 && (
                   <ul className="staff-audit-list">
                     {reminders.map((r) => (
                       <li className="staff-audit-row" key={r.id}>
-                        <label className="staff-active-toggle" style={{ flex: 1 }}>
-                          <input type="checkbox" checked={r.done} onChange={() => toggleReminder(r)} />
-                          <span style={{ textDecoration: r.done ? "line-through" : "none" }}>
+                        <label
+                          className="staff-active-toggle"
+                          style={{ flex: 1 }}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={r.done}
+                            onChange={() => toggleReminder(r)}
+                          />
+                          <span
+                            style={{
+                              textDecoration: r.done ? "line-through" : "none",
+                            }}
+                          >
                             {r.text}
                             {r.due_date ? ` — due ${fmtDate(r.due_date)}` : ""}
                           </span>
                         </label>
-                        <button className="row-remove-btn" onClick={() => removeReminder(r)} aria-label={`Remove reminder: ${r.text}`}>
+                        <button
+                          className="row-remove-btn"
+                          onClick={() => removeReminder(r)}
+                          aria-label={`Remove reminder: ${r.text}`}
+                        >
                           ×
                         </button>
                       </li>
@@ -7789,17 +10581,29 @@ function BookkeeperHomePage({ staffUser, clients, messagesByClient, readMessageC
       </div>
 
       {editingNoteFor && (
-        <ModalShell onClose={() => setEditingNoteFor(null)} labelledBy="client-note-title">
+        <ModalShell
+          onClose={() => setEditingNoteFor(null)}
+          labelledBy="client-note-title"
+        >
           <div className="modal-header">
-            <h3 className="card-title" id="client-note-title" style={{ margin: 0 }}>
+            <h3
+              className="card-title"
+              id="client-note-title"
+              style={{ margin: 0 }}
+            >
               Note for {editingNoteFor.name}
             </h3>
-            <button className="modal-close" onClick={() => setEditingNoteFor(null)} aria-label="Close">
+            <button
+              className="modal-close"
+              onClick={() => setEditingNoteFor(null)}
+              aria-label="Close"
+            >
               ×
             </button>
           </div>
           <p className="card-subtitle">
-            Visible to every active staff member, not just you — for handing off context on this client.
+            Visible to every active staff member, not just you — for handing off
+            context on this client.
             {notes[editingNoteFor.id] &&
               notes[editingNoteFor.id].updated_by &&
               ` Last edited by ${notes[editingNoteFor.id].updated_by}.`}
@@ -7814,10 +10618,17 @@ function BookkeeperHomePage({ staffUser, clients, messagesByClient, readMessageC
             />
           </div>
           <div className="modal-footer">
-            <button className="btn-secondary" onClick={() => setEditingNoteFor(null)}>
+            <button
+              className="btn-secondary"
+              onClick={() => setEditingNoteFor(null)}
+            >
               Cancel
             </button>
-            <button className="btn-primary" disabled={savingNote} onClick={saveNote}>
+            <button
+              className="btn-primary"
+              disabled={savingNote}
+              onClick={saveNote}
+            >
               Save
             </button>
           </div>
@@ -7849,7 +10660,10 @@ function loadDocFolders(clientId) {
     const parsed = JSON.parse(raw);
     return {
       folders: Array.isArray(parsed.folders) ? parsed.folders : [],
-      assignments: parsed.assignments && typeof parsed.assignments === "object" ? parsed.assignments : {},
+      assignments:
+        parsed.assignments && typeof parsed.assignments === "object"
+          ? parsed.assignments
+          : {},
     };
   } catch (e) {
     return { folders: [], assignments: {} };
@@ -7858,15 +10672,23 @@ function loadDocFolders(clientId) {
 
 function saveDocFolders(clientId, folders, assignments) {
   try {
-    localStorage.setItem(docFoldersKey(clientId), JSON.stringify({ folders, assignments }));
+    localStorage.setItem(
+      docFoldersKey(clientId),
+      JSON.stringify({ folders, assignments }),
+    );
   } catch (e) {}
 }
 
 function DocumentsPage({ client, isBookkeeper, searchTarget }) {
-  const [folders, setFolders] = useState(() => loadDocFolders(client.id).folders);
+  const [folders, setFolders] = useState(
+    () => loadDocFolders(client.id).folders,
+  );
   const [docs, setDocs] = useState(() => {
     const { assignments } = loadDocFolders(client.id);
-    return client.documents.map((d) => ({ ...d, folder: assignments[d.name] || null }));
+    return client.documents.map((d) => ({
+      ...d,
+      folder: assignments[d.name] || null,
+    }));
   });
   const [activeFolder, setActiveFolder] = useState(null); // null = "All"
   const [addingFolder, setAddingFolder] = useState(false);
@@ -7879,7 +10701,8 @@ function DocumentsPage({ client, isBookkeeper, searchTarget }) {
   const { flashCardId, jumpToCard } = useCardFlash();
 
   useEffect(() => {
-    if (searchTarget) jumpToCard(searchTarget.highlightKey, searchTarget.highlightKey);
+    if (searchTarget)
+      jumpToCard(searchTarget.highlightKey, searchTarget.highlightKey);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchTarget && searchTarget.nonce]);
 
@@ -7920,13 +10743,19 @@ function DocumentsPage({ client, isBookkeeper, searchTarget }) {
   const toggleVisibility = (index) => {
     setDocs((d) =>
       d.map((doc, i) =>
-        i === index ? { ...doc, visibility: doc.visibility === "full" ? "all" : "full" } : doc
-      )
+        i === index
+          ? { ...doc, visibility: doc.visibility === "full" ? "all" : "full" }
+          : doc,
+      ),
     );
   };
 
   const moveDocToFolder = (index, folderName) => {
-    setDocs((d) => d.map((doc, i) => (i === index ? { ...doc, folder: folderName || null } : doc)));
+    setDocs((d) =>
+      d.map((doc, i) =>
+        i === index ? { ...doc, folder: folderName || null } : doc,
+      ),
+    );
   };
 
   const addFolder = () => {
@@ -7948,7 +10777,9 @@ function DocumentsPage({ client, isBookkeeper, searchTarget }) {
     const name = folderPendingDelete;
     setFolderPendingDelete(null);
     setFolders((f) => f.filter((x) => x !== name));
-    setDocs((d) => d.map((doc) => (doc.folder === name ? { ...doc, folder: null } : doc)));
+    setDocs((d) =>
+      d.map((doc) => (doc.folder === name ? { ...doc, folder: null } : doc)),
+    );
     if (activeFolder === name) setActiveFolder(null);
   };
 
@@ -7962,8 +10793,14 @@ function DocumentsPage({ client, isBookkeeper, searchTarget }) {
   // hidden for them.
   const [visFilter, setVisFilter] = useState("all");
   const hasRestrictedDocs = docs.some((d) => d.visibility === "full");
-  const folderFiltered = activeFolder === null ? docs : docs.filter((d) => d.folder === activeFolder);
-  const visibleDocs = visFilter === "full" ? folderFiltered.filter((d) => d.visibility === "full") : folderFiltered;
+  const folderFiltered =
+    activeFolder === null
+      ? docs
+      : docs.filter((d) => d.folder === activeFolder);
+  const visibleDocs =
+    visFilter === "full"
+      ? folderFiltered.filter((d) => d.visibility === "full")
+      : folderFiltered;
   const unfiledCount = docs.filter((d) => !d.folder).length;
 
   return (
@@ -7973,7 +10810,9 @@ function DocumentsPage({ client, isBookkeeper, searchTarget }) {
       <div className="doc-folder-bar">
         <button
           type="button"
-          className={"doc-folder-pill" + (activeFolder === null ? " active" : "")}
+          className={
+            "doc-folder-pill" + (activeFolder === null ? " active" : "")
+          }
           onClick={() => setActiveFolder(null)}
         >
           <FolderIcon width="14" height="14" strokeWidth="1.8" />
@@ -7986,7 +10825,9 @@ function DocumentsPage({ client, isBookkeeper, searchTarget }) {
             <button
               type="button"
               key={name}
-              className={"doc-folder-pill" + (activeFolder === name ? " active" : "")}
+              className={
+                "doc-folder-pill" + (activeFolder === name ? " active" : "")
+              }
               onClick={() => setActiveFolder(name)}
             >
               <FolderIcon width="14" height="14" strokeWidth="1.8" />
@@ -8046,7 +10887,9 @@ function DocumentsPage({ client, isBookkeeper, searchTarget }) {
       </div>
 
       <div
-        className={"card upload-card dropzone" + (isDragging ? " dragging" : "")}
+        className={
+          "card upload-card dropzone" + (isDragging ? " dragging" : "")
+        }
         style={{ marginBottom: 20 }}
         onClick={() => fileInputRef.current.click()}
         onDragOver={(e) => {
@@ -8070,7 +10913,8 @@ function DocumentsPage({ client, isBookkeeper, searchTarget }) {
           <div>
             <h3 className="card-title">Share a document</h3>
             <p className="card-subtitle" style={{ margin: 0 }}>
-              Drag and drop files here, or click to browse. Receipts, statements, or anything your bookkeeper should see.
+              Drag and drop files here, or click to browse. Receipts,
+              statements, or anything your bookkeeper should see.
             </p>
           </div>
         </div>
@@ -8098,23 +10942,30 @@ function DocumentsPage({ client, isBookkeeper, searchTarget }) {
       <div className="card">
         <div className="page-header" style={{ marginBottom: 4 }}>
           <div>
-            <h3 className="card-title">{activeFolder === null ? "All Documents" : activeFolder}</h3>
+            <h3 className="card-title">
+              {activeFolder === null ? "All Documents" : activeFolder}
+            </h3>
             <p className="card-subtitle" style={{ margin: 0 }}>
-              {visibleDocs.length} file{visibleDocs.length !== 1 ? "s" : ""} · click a document to preview it
+              {visibleDocs.length} file{visibleDocs.length !== 1 ? "s" : ""} ·
+              click a document to preview it
             </p>
           </div>
           {hasRestrictedDocs && (
             <div className="view-toggle">
               <button
                 type="button"
-                className={"view-toggle-btn" + (visFilter === "all" ? " active" : "")}
+                className={
+                  "view-toggle-btn" + (visFilter === "all" ? " active" : "")
+                }
                 onClick={() => setVisFilter("all")}
               >
                 All Documents
               </button>
               <button
                 type="button"
-                className={"view-toggle-btn" + (visFilter === "full" ? " active" : "")}
+                className={
+                  "view-toggle-btn" + (visFilter === "full" ? " active" : "")
+                }
                 onClick={() => setVisFilter("full")}
               >
                 Full Access Only
@@ -8123,82 +10974,105 @@ function DocumentsPage({ client, isBookkeeper, searchTarget }) {
           )}
         </div>
         <div className="table-scroll">
-<table className="tx-table tx-table-labeled">
-          <thead>
-            <tr>
-              <th>Name</th>
-              <th>Category</th>
-              <th>Uploaded By</th>
-              <th>Date</th>
-              <th>Folder</th>
-              {isBookkeeper && <th>Visible To</th>}
-              <th className="num">Size</th>
-            </tr>
-          </thead>
-          <tbody>
-            {visibleDocs.map((d) => {
-              const i = docs.indexOf(d);
-              const rowId = "doc-row-" + slugify(d.name);
-              return (
-              <tr key={d.name + i} id={rowId} className={"doc-row" + (flashCardId === rowId ? " row-flash" : "")} onClick={() => setPreviewIndex(i)} tabIndex={0}
-                onKeyDown={(e) => { if (e.key === "Enter") setPreviewIndex(i); }}>
-                <td data-primary="">
-                  <span className="doc-name-link">
-                    <FileIcon width="15" height="15" strokeWidth="1.7" className="icon-inline" />
-                    {d.name}
-                  </span>
-                </td>
-                <td data-label="Category">
-                  <span className="category-tag">{d.category}</span>
-                </td>
-                <td data-label="Uploaded by">{d.uploadedBy}</td>
-                <td data-label="Date">{fmtDate(d.date)}</td>
-                <td data-label="Folder">
-                  <select
-                    className="doc-folder-select"
-                    value={d.folder || ""}
-                    onClick={(e) => e.stopPropagation()}
-                    onChange={(e) => moveDocToFolder(i, e.target.value)}
-                  >
-                    <option value="">Unfiled</option>
-                    {folders.map((name) => (
-                      <option key={name} value={name}>
-                        {name}
-                      </option>
-                    ))}
-                  </select>
-                </td>
-                {isBookkeeper && (
-                  <td data-label="Visible to">
-                    <button
-                      className={"visibility-toggle" + (d.visibility === "full" ? " restricted" : "")}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        toggleVisibility(i);
-                      }}
-                      title="Click to change who at this organization can see this file"
-                    >
-                      {d.visibility === "full" ? (
-                        <React.Fragment>
-                          <LockIcon /> Full access only
-                        </React.Fragment>
-                      ) : (
-                        "Everyone"
-                      )}
-                    </button>
-                  </td>
-                )}
-                <td className="num" data-label="Size">{d.size}</td>
+          <table className="tx-table tx-table-labeled">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Category</th>
+                <th>Uploaded By</th>
+                <th>Date</th>
+                <th>Folder</th>
+                {isBookkeeper && <th>Visible To</th>}
+                <th className="num">Size</th>
               </tr>
-              );
-            })}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {visibleDocs.map((d) => {
+                const i = docs.indexOf(d);
+                const rowId = "doc-row-" + slugify(d.name);
+                return (
+                  <tr
+                    key={d.name + i}
+                    id={rowId}
+                    className={
+                      "doc-row" + (flashCardId === rowId ? " row-flash" : "")
+                    }
+                    onClick={() => setPreviewIndex(i)}
+                    tabIndex={0}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") setPreviewIndex(i);
+                    }}
+                  >
+                    <td data-primary="">
+                      <span className="doc-name-link">
+                        <FileIcon
+                          width="15"
+                          height="15"
+                          strokeWidth="1.7"
+                          className="icon-inline"
+                        />
+                        {d.name}
+                      </span>
+                    </td>
+                    <td data-label="Category">
+                      <span className="category-tag">{d.category}</span>
+                    </td>
+                    <td data-label="Uploaded by">{d.uploadedBy}</td>
+                    <td data-label="Date">{fmtDate(d.date)}</td>
+                    <td data-label="Folder">
+                      <select
+                        className="doc-folder-select"
+                        value={d.folder || ""}
+                        onClick={(e) => e.stopPropagation()}
+                        onChange={(e) => moveDocToFolder(i, e.target.value)}
+                      >
+                        <option value="">Unfiled</option>
+                        {folders.map((name) => (
+                          <option key={name} value={name}>
+                            {name}
+                          </option>
+                        ))}
+                      </select>
+                    </td>
+                    {isBookkeeper && (
+                      <td data-label="Visible to">
+                        <button
+                          className={
+                            "visibility-toggle" +
+                            (d.visibility === "full" ? " restricted" : "")
+                          }
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            toggleVisibility(i);
+                          }}
+                          title="Click to change who at this organization can see this file"
+                        >
+                          {d.visibility === "full" ? (
+                            <React.Fragment>
+                              <LockIcon /> Full access only
+                            </React.Fragment>
+                          ) : (
+                            "Everyone"
+                          )}
+                        </button>
+                      </td>
+                    )}
+                    <td className="num" data-label="Size">
+                      {d.size}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
         </div>
       </div>
 
       {previewIndex !== null && docs[previewIndex] && (
-        <DocumentPreviewModal doc={docs[previewIndex]} onClose={() => setPreviewIndex(null)} />
+        <DocumentPreviewModal
+          doc={docs[previewIndex]}
+          onClose={() => setPreviewIndex(null)}
+        />
       )}
 
       {folderPendingDelete && (
@@ -8226,17 +11100,34 @@ function docExtension(name) {
 }
 
 function DocumentPreviewModal({ doc, onClose }) {
-  const objectUrl = useMemo(() => (doc.file ? URL.createObjectURL(doc.file) : null), [doc.file]);
-  useEffect(() => () => { if (objectUrl) URL.revokeObjectURL(objectUrl); }, [objectUrl]);
+  const objectUrl = useMemo(
+    () => (doc.file ? URL.createObjectURL(doc.file) : null),
+    [doc.file],
+  );
+  useEffect(
+    () => () => {
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    },
+    [objectUrl],
+  );
 
   const isImage = PREVIEWABLE_IMAGE_EXT.test(doc.name);
   const isPdf = PREVIEWABLE_PDF_EXT.test(doc.name);
 
   return (
-    <ModalShell onClose={onClose} labelledBy="doc-preview-title" className="doc-preview-modal">
+    <ModalShell
+      onClose={onClose}
+      labelledBy="doc-preview-title"
+      className="doc-preview-modal"
+    >
       <div className="modal-header">
         <h3 className="card-title" id="doc-preview-title" style={{ margin: 0 }}>
-          <FileIcon width="17" height="17" strokeWidth="1.7" className="icon-inline" />
+          <FileIcon
+            width="17"
+            height="17"
+            strokeWidth="1.7"
+            className="icon-inline"
+          />
           {doc.name}
         </h3>
         <button className="modal-close" onClick={onClose} aria-label="Close">
@@ -8249,12 +11140,19 @@ function DocumentPreviewModal({ doc, onClose }) {
           <img src={objectUrl} alt={doc.name} className="doc-preview-image" />
         )}
         {objectUrl && isPdf && (
-          <iframe src={objectUrl} title={doc.name} className="doc-preview-frame" />
+          <iframe
+            src={objectUrl}
+            title={doc.name}
+            className="doc-preview-frame"
+          />
         )}
         {!objectUrl && (
           <div className="doc-preview-placeholder">
             <FileIcon width="40" height="40" strokeWidth="1.3" />
-            <p className="card-subtitle" style={{ margin: "10px 0 0", textAlign: "center" }}>
+            <p
+              className="card-subtitle"
+              style={{ margin: "10px 0 0", textAlign: "center" }}
+            >
               {doc.file
                 ? `Preview isn't available for .${docExtension(doc.name).toLowerCase()} files yet — download to open it.`
                 : "This is sample data — there's no real file behind it to preview yet."}
@@ -8264,8 +11162,13 @@ function DocumentPreviewModal({ doc, onClose }) {
         {objectUrl && !isImage && !isPdf && (
           <div className="doc-preview-placeholder">
             <FileIcon width="40" height="40" strokeWidth="1.3" />
-            <p className="card-subtitle" style={{ margin: "10px 0 0", textAlign: "center" }}>
-              Preview isn't available for .{docExtension(doc.name).toLowerCase()} files yet — download to open it.
+            <p
+              className="card-subtitle"
+              style={{ margin: "10px 0 0", textAlign: "center" }}
+            >
+              Preview isn't available for .
+              {docExtension(doc.name).toLowerCase()} files yet — download to
+              open it.
             </p>
           </div>
         )}
@@ -8308,9 +11211,15 @@ function ChatFab({ unreadCount, onOpen, onDismiss }) {
     <div className="chat-fab-wrap">
       <button className="chat-fab" onClick={onOpen} aria-label="Open messages">
         <ChatIcon width="22" height="22" strokeWidth="1.6" />
-        {unreadCount > 0 && <span className="chat-fab-badge">{unreadCount}</span>}
+        {unreadCount > 0 && (
+          <span className="chat-fab-badge">{unreadCount}</span>
+        )}
       </button>
-      <button className="chat-fab-dismiss" onClick={onDismiss} aria-label="Dismiss">
+      <button
+        className="chat-fab-dismiss"
+        onClick={onDismiss}
+        aria-label="Dismiss"
+      >
         ×
       </button>
     </div>
@@ -8321,7 +11230,18 @@ function ChatFab({ unreadCount, onOpen, onDismiss }) {
 // Messages page
 // ----------------------------------------------------------------------------
 
-function MessagesPage({ client, messages, onSend, users, activeUserId, onSelectUser, unreadUserIds, isBookkeeper, searchTarget, bookkeeperTyping }) {
+function MessagesPage({
+  client,
+  messages,
+  onSend,
+  users,
+  activeUserId,
+  onSelectUser,
+  unreadUserIds,
+  isBookkeeper,
+  searchTarget,
+  bookkeeperTyping,
+}) {
   const [draft, setDraft] = useState("");
   const [pendingAttachment, setPendingAttachment] = useState(null);
   const [isDragging, setIsDragging] = useState(false);
@@ -8332,7 +11252,8 @@ function MessagesPage({ client, messages, onSend, users, activeUserId, onSelectU
   // GlobalSearch), so there's no other person's conversation to switch to
   // first — just scroll to and flash the matching bubble.
   useEffect(() => {
-    if (searchTarget) jumpToCard(searchTarget.highlightKey, searchTarget.highlightKey);
+    if (searchTarget)
+      jumpToCard(searchTarget.highlightKey, searchTarget.highlightKey);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchTarget && searchTarget.nonce]);
 
@@ -8363,12 +11284,16 @@ function MessagesPage({ client, messages, onSend, users, activeUserId, onSelectU
             {users.map((u) => (
               <button
                 key={u.id}
-                className={"thread-tab" + (u.id === activeUserId ? " active" : "")}
+                className={
+                  "thread-tab" + (u.id === activeUserId ? " active" : "")
+                }
                 onClick={() => onSelectUser(u.id)}
               >
                 <span className="thread-tab-name">{u.name}</span>
                 <span className="thread-tab-role">{u.role}</span>
-                {(unreadUserIds || []).includes(u.id) && <span className="thread-tab-dot" />}
+                {(unreadUserIds || []).includes(u.id) && (
+                  <span className="thread-tab-dot" />
+                )}
               </button>
             ))}
           </div>
@@ -8389,16 +11314,16 @@ function MessagesPage({ client, messages, onSend, users, activeUserId, onSelectU
         }}
       >
         <h3 className="card-title">
-          {isBookkeeper && activeUser
-            ? `Conversation with ${activeUser.name}`
-            : client && client.assignedBookkeeper
-              ? (
-                <>
-                  Conversation with {client.assignedBookkeeper.name}
-                  <span className="online-dot" title="Online now" />
-                </>
-              )
-              : "Conversation with MyGoodBooks"}
+          {isBookkeeper && activeUser ? (
+            `Conversation with ${activeUser.name}`
+          ) : client && client.assignedBookkeeper ? (
+            <>
+              Conversation with {client.assignedBookkeeper.name}
+              <span className="online-dot" title="Online now" />
+            </>
+          ) : (
+            "Conversation with MyGoodBooks"
+          )}
         </h3>
         {messages.length === 0 && (
           <p className="card-subtitle">No messages yet in this conversation.</p>
@@ -8407,23 +11332,36 @@ function MessagesPage({ client, messages, onSend, users, activeUserId, onSelectU
           {messages.map((m, i) => {
             const rowId = "msg-" + i;
             return (
-            <div className={"message-bubble-row " + m.from} id={rowId} key={i}>
-              <div className={"message-bubble" + (flashCardId === rowId ? " row-flash" : "")}>
-                <div className="message-author">
-                  {m.from === "bookkeeper" && client && client.assignedBookkeeper
-                    ? client.assignedBookkeeper.name
-                    : m.author}
-                </div>
-                {m.text && <div className="message-text">{m.text}</div>}
-                {m.attachment && (
-                  <div className="message-attachment">
-                    <PaperclipIcon /> {m.attachment.name}{" "}
-                    <span className="message-attachment-size">({m.attachment.size})</span>
+              <div
+                className={"message-bubble-row " + m.from}
+                id={rowId}
+                key={i}
+              >
+                <div
+                  className={
+                    "message-bubble" +
+                    (flashCardId === rowId ? " row-flash" : "")
+                  }
+                >
+                  <div className="message-author">
+                    {m.from === "bookkeeper" &&
+                    client &&
+                    client.assignedBookkeeper
+                      ? client.assignedBookkeeper.name
+                      : m.author}
                   </div>
-                )}
-                <div className="message-date">{fmtDate(m.date)}</div>
+                  {m.text && <div className="message-text">{m.text}</div>}
+                  {m.attachment && (
+                    <div className="message-attachment">
+                      <PaperclipIcon /> {m.attachment.name}{" "}
+                      <span className="message-attachment-size">
+                        ({m.attachment.size})
+                      </span>
+                    </div>
+                  )}
+                  <div className="message-date">{fmtDate(m.date)}</div>
+                </div>
               </div>
-            </div>
             );
           })}
         </div>
@@ -8433,20 +11371,34 @@ function MessagesPage({ client, messages, onSend, users, activeUserId, onSelectU
             <span>
               <PaperclipIcon /> {pendingAttachment.name}
             </span>
-            <span className="attachment-chip-meta">{pendingAttachment.size}</span>
-            <button className="attachment-remove" onClick={() => setPendingAttachment(null)} aria-label="Remove attachment">
+            <span className="attachment-chip-meta">
+              {pendingAttachment.size}
+            </span>
+            <button
+              className="attachment-remove"
+              onClick={() => setPendingAttachment(null)}
+              aria-label="Remove attachment"
+            >
               ×
             </button>
           </div>
         )}
 
         <div className="typing-indicator">
-          {!isBookkeeper && bookkeeperTyping && client && client.assignedBookkeeper
+          {!isBookkeeper &&
+          bookkeeperTyping &&
+          client &&
+          client.assignedBookkeeper
             ? `${client.assignedBookkeeper.name} is typing…`
             : " "}
         </div>
         <div className="message-compose">
-          <button type="button" className="attach-btn" onClick={() => fileInputRef.current.click()} aria-label="Attach file">
+          <button
+            type="button"
+            className="attach-btn"
+            onClick={() => fileInputRef.current.click()}
+            aria-label="Attach file"
+          >
             <PaperclipIcon />
           </button>
           <input
@@ -8472,7 +11424,9 @@ function MessagesPage({ client, messages, onSend, users, activeUserId, onSelectU
           </button>
         </div>
 
-        {isDragging && <div className="message-drop-overlay">Drop file to attach</div>}
+        {isDragging && (
+          <div className="message-drop-overlay">Drop file to attach</div>
+        )}
       </div>
     </div>
   );
@@ -8489,7 +11443,14 @@ function MessagesPage({ client, messages, onSend, users, activeUserId, onSelectU
 // ----------------------------------------------------------------------------
 
 function emptyAccessRequestPerson() {
-  return { name: "", email: "", role: "", access: "full", tabs: [], categories: [] };
+  return {
+    name: "",
+    email: "",
+    role: "",
+    access: "full",
+    tabs: [],
+    categories: [],
+  };
 }
 
 function AccessRequestForm({ token }) {
@@ -8508,17 +11469,18 @@ function AccessRequestForm({ token }) {
       setStatus("invalid");
       return;
     }
+    // Security audit finding H2: the table's blanket select policy is gone
+    // (it let anon dump every link, client id, staff email and live token).
+    // A security definer RPC now resolves a single token to a single
+    // client_id, returning null for anything invalid/inactive.
     supabase
-      .from("access_request_links")
-      .select("client_id, active")
-      .eq("token", token)
-      .maybeSingle()
-      .then(({ data, error }) => {
-        if (error || !data || !data.active) {
+      .rpc("access_link_client", { p_token: token })
+      .then(({ data: clientId, error }) => {
+        if (error || !clientId) {
           setStatus("invalid");
           return;
         }
-        const c = CLIENTS.find((c) => c.id === data.client_id);
+        const c = CLIENTS.find((c) => c.id === clientId);
         if (!c) {
           setStatus("invalid");
           return;
@@ -8528,10 +11490,14 @@ function AccessRequestForm({ token }) {
       });
   }, [token, supabase]);
 
-  const requestableTabs = NAV_SECTIONS.flatMap((s) => s.items).filter((i) => i.key !== ALWAYS_VISIBLE_KEY);
+  const requestableTabs = NAV_SECTIONS.flatMap((s) => s.items).filter(
+    (i) => i.key !== ALWAYS_VISIBLE_KEY,
+  );
 
   function updatePerson(i, patch) {
-    setPeople((prev) => prev.map((p, idx) => (idx === i ? { ...p, ...patch } : p)));
+    setPeople((prev) =>
+      prev.map((p, idx) => (idx === i ? { ...p, ...patch } : p)),
+    );
   }
   function toggleTab(i, key) {
     setPeople((prev) =>
@@ -8541,7 +11507,7 @@ function AccessRequestForm({ token }) {
         if (set.has(key)) set.delete(key);
         else set.add(key);
         return { ...p, tabs: Array.from(set) };
-      })
+      }),
     );
   }
   function toggleCategory(i, cat) {
@@ -8552,7 +11518,7 @@ function AccessRequestForm({ token }) {
         if (set.has(cat)) set.delete(cat);
         else set.add(cat);
         return { ...p, categories: Array.from(set) };
-      })
+      }),
     );
   }
 
@@ -8600,7 +11566,8 @@ function AccessRequestForm({ token }) {
       <div className="boot-splash" role="alert">
         <div className="boot-splash-mark">MyGoodBooks</div>
         <div className="boot-splash-sub">
-          {errorMsg || "This form link isn't active anymore. Ask your bookkeeper for a new one."}
+          {errorMsg ||
+            "This form link isn't active anymore. Ask your bookkeeper for a new one."}
         </div>
       </div>
     );
@@ -8611,8 +11578,8 @@ function AccessRequestForm({ token }) {
       <div className="boot-splash" role="status">
         <div className="boot-splash-mark">MyGoodBooks</div>
         <div className="boot-splash-sub">
-          Thanks — we've received your access request for {client.name}. Your bookkeeper will set
-          this up and follow up if anything's unclear.
+          Thanks — we've received your access request for {client.name}. Your
+          bookkeeper will set this up and follow up if anything's unclear.
         </div>
       </div>
     );
@@ -8622,12 +11589,16 @@ function AccessRequestForm({ token }) {
     <div className="access-form-page">
       <div className="access-form-header">
         <span className="access-form-brand">MyGoodBooks</span>
-        <span className="access-form-title">Staff Access Request — {client.name}</span>
+        <span className="access-form-title">
+          Staff Access Request — {client.name}
+        </span>
       </div>
       <div className="access-form-body">
         <div className="card">
           <h3 className="card-title">Your info</h3>
-          <p className="card-subtitle">Who's filling this out, in case we have questions.</p>
+          <p className="card-subtitle">
+            Who's filling this out, in case we have questions.
+          </p>
           <div className="access-form-row">
             <input
               type="text"
@@ -8652,7 +11623,9 @@ function AccessRequestForm({ token }) {
                 <button
                   type="button"
                   className="btn-secondary"
-                  onClick={() => setPeople((prev) => prev.filter((_, idx) => idx !== i))}
+                  onClick={() =>
+                    setPeople((prev) => prev.filter((_, idx) => idx !== i))
+                  }
                 >
                   Remove
                 </button>
@@ -8682,7 +11655,9 @@ function AccessRequestForm({ token }) {
             <div className="access-level-toggle" style={{ marginTop: 14 }}>
               <button
                 type="button"
-                className={"access-level-btn" + (p.access === "full" ? " active" : "")}
+                className={
+                  "access-level-btn" + (p.access === "full" ? " active" : "")
+                }
                 onClick={() => updatePerson(i, { access: "full" })}
               >
                 Full access
@@ -8690,7 +11665,9 @@ function AccessRequestForm({ token }) {
               </button>
               <button
                 type="button"
-                className={"access-level-btn" + (p.access !== "full" ? " active" : "")}
+                className={
+                  "access-level-btn" + (p.access !== "full" ? " active" : "")
+                }
                 onClick={() => updatePerson(i, { access: "scoped" })}
               >
                 Limited access
@@ -8701,7 +11678,9 @@ function AccessRequestForm({ token }) {
             {p.access !== "full" && (
               <div className="modal-body" style={{ padding: "16px 0 0" }}>
                 <div className="modal-section">
-                  <div className="nav-section-label modal-section-label">Pages they should see</div>
+                  <div className="nav-section-label modal-section-label">
+                    Pages they should see
+                  </div>
                   {requestableTabs.map((item) => (
                     <label className="tab-toggle-row" key={item.key}>
                       <input
@@ -8714,8 +11693,13 @@ function AccessRequestForm({ token }) {
                   ))}
                 </div>
                 <div className="modal-section">
-                  <div className="nav-section-label modal-section-label">Budget areas they should see</div>
-                  <p className="card-subtitle" style={{ marginTop: 0, marginBottom: 8 }}>
+                  <div className="nav-section-label modal-section-label">
+                    Budget areas they should see
+                  </div>
+                  <p
+                    className="card-subtitle"
+                    style={{ marginTop: 0, marginBottom: 8 }}
+                  >
                     Leave all unchecked to give them every category.
                   </p>
                   {(client.budget || []).map((b) => (
@@ -8737,7 +11721,9 @@ function AccessRequestForm({ token }) {
         <button
           type="button"
           className="btn-secondary"
-          onClick={() => setPeople((prev) => [...prev, emptyAccessRequestPerson()])}
+          onClick={() =>
+            setPeople((prev) => [...prev, emptyAccessRequestPerson()])
+          }
         >
           + Add another person
         </button>
@@ -8785,17 +11771,32 @@ function UserAccessEditor({
   const isCategoryScoped = Boolean(effective.categories || user.categories);
   const userFunds = new Set(effective.funds || user.funds || []);
   const isPremiumClient = hasPremiumPlan(client);
-  const premiumThrottled = "premiumThrottled" in effective ? effective.premiumThrottled : Boolean(user.premiumThrottled);
+  const premiumThrottled =
+    "premiumThrottled" in effective
+      ? effective.premiumThrottled
+      : Boolean(user.premiumThrottled);
 
   return (
     <React.Fragment>
       <div className="modal-header">
-        <button className="modal-back" onClick={onBack} aria-label="Back to people">
+        <button
+          className="modal-back"
+          onClick={onBack}
+          aria-label="Back to people"
+        >
           ‹
         </button>
         <div style={{ flex: 1 }}>
-          <h3 className="card-title" id="user-access-editor-title" style={{ margin: 0 }}>{user.name}</h3>
-          <p className="card-subtitle" style={{ margin: 0 }}>{user.role} · {user.email}</p>
+          <h3
+            className="card-title"
+            id="user-access-editor-title"
+            style={{ margin: 0 }}
+          >
+            {user.name}
+          </h3>
+          <p className="card-subtitle" style={{ margin: 0 }}>
+            {user.role} · {user.email}
+          </p>
         </div>
       </div>
 
@@ -8819,7 +11820,9 @@ function UserAccessEditor({
       {isPremiumClient && (
         <div className="access-level-toggle" style={{ marginTop: 12 }}>
           <button
-            className={"access-level-btn" + (!premiumThrottled ? " active" : "")}
+            className={
+              "access-level-btn" + (!premiumThrottled ? " active" : "")
+            }
             onClick={() => premiumThrottled && onToggleUserPremium(user.id)}
           >
             Premium features on
@@ -8830,7 +11833,9 @@ function UserAccessEditor({
             onClick={() => !premiumThrottled && onToggleUserPremium(user.id)}
           >
             Premium features throttled
-            <span>Standard experience, even though {client.name} has Premium</span>
+            <span>
+              Standard experience, even though {client.name} has Premium
+            </span>
           </button>
         </div>
       )}
@@ -8838,34 +11843,51 @@ function UserAccessEditor({
       {!isFull && (
         <div className="modal-body">
           <div className="modal-section">
-            <div className="nav-section-label modal-section-label">Pages they can open</div>
+            <div className="nav-section-label modal-section-label">
+              Pages they can open
+            </div>
             {NAV_SECTIONS.flatMap((s) => s.items)
               .filter((item) => orgAllowedKeys.includes(item.key))
               .map((item) => {
                 const locked = item.key === ALWAYS_VISIBLE_KEY;
-                const blockedByScope = isCategoryScoped && ORG_WIDE_TABS.has(item.key);
+                const blockedByScope =
+                  isCategoryScoped && ORG_WIDE_TABS.has(item.key);
                 return (
                   <label
-                    className={"tab-toggle-row" + (locked || blockedByScope ? " locked" : "")}
+                    className={
+                      "tab-toggle-row" +
+                      (locked || blockedByScope ? " locked" : "")
+                    }
                     key={item.key}
                   >
                     <input
                       type="checkbox"
-                      checked={(userTabs.has(item.key) || locked) && !blockedByScope}
+                      checked={
+                        (userTabs.has(item.key) || locked) && !blockedByScope
+                      }
                       disabled={locked || blockedByScope}
                       onChange={() => onToggleUserTab(user.id, item.key)}
                     />
                     <span>{item.label}</span>
-                    {locked && <span className="tab-toggle-note">Always visible</span>}
-                    {blockedByScope && <span className="tab-toggle-note">Org-wide only</span>}
+                    {locked && (
+                      <span className="tab-toggle-note">Always visible</span>
+                    )}
+                    {blockedByScope && (
+                      <span className="tab-toggle-note">Org-wide only</span>
+                    )}
                   </label>
                 );
               })}
           </div>
 
           <div className="modal-section">
-            <div className="nav-section-label modal-section-label">Budget areas they can see</div>
-            <p className="card-subtitle" style={{ marginTop: 0, marginBottom: 8 }}>
+            <div className="nav-section-label modal-section-label">
+              Budget areas they can see
+            </div>
+            <p
+              className="card-subtitle"
+              style={{ marginTop: 0, marginBottom: 8 }}
+            >
               Leave all unchecked to give them every category.
             </p>
             {client.budget.map((b) => (
@@ -8882,10 +11904,16 @@ function UserAccessEditor({
 
           {isCategoryScoped && (
             <div className="modal-section">
-              <div className="nav-section-label modal-section-label">Funds they can see</div>
-              <p className="card-subtitle" style={{ marginTop: 0, marginBottom: 8 }}>
-                Their dashboard never shows the org-wide fund total — leave all unchecked to hide the Funds widget
-                for them entirely, rather than showing every fund by default.
+              <div className="nav-section-label modal-section-label">
+                Funds they can see
+              </div>
+              <p
+                className="card-subtitle"
+                style={{ marginTop: 0, marginBottom: 8 }}
+              >
+                Their dashboard never shows the org-wide fund total — leave all
+                unchecked to hide the Funds widget for them entirely, rather
+                than showing every fund by default.
               </p>
               {(client.funds || []).map((f) => (
                 <label className="tab-toggle-row" key={f.name}>
@@ -8905,8 +11933,8 @@ function UserAccessEditor({
       {isFull && (
         <div className="modal-body">
           <p className="card-subtitle">
-            {user.name} sees every page and every category for {client.name}, the same view you get previewing as
-            MyGoodBooks.
+            {user.name} sees every page and every category for {client.name},
+            the same view you get previewing as MyGoodBooks.
           </p>
         </div>
       )}
@@ -8923,11 +11951,25 @@ function UserAccessEditor({
 // "example.com says"), which reads wrong for an app clients use under a
 // custom brand. This renders as an ordinary in-app modal instead, so it
 // carries no browser-domain text at all.
-function ConfirmModal({ title, body, confirmLabel = "Confirm", onConfirm, onCancel }) {
+function ConfirmModal({
+  title,
+  body,
+  confirmLabel = "Confirm",
+  onConfirm,
+  onCancel,
+}) {
   return (
-    <ModalShell onClose={onCancel} labelledBy="confirm-modal-title" className="confirm-modal">
+    <ModalShell
+      onClose={onCancel}
+      labelledBy="confirm-modal-title"
+      className="confirm-modal"
+    >
       <div className="modal-header">
-        <h3 className="card-title" id="confirm-modal-title" style={{ margin: 0 }}>
+        <h3
+          className="card-title"
+          id="confirm-modal-title"
+          style={{ margin: 0 }}
+        >
           {title}
         </h3>
         <button className="modal-close" onClick={onCancel} aria-label="Close">
@@ -8973,9 +12015,11 @@ function ModalShell({ onClose, labelledBy, className = "", children }) {
     restoreFocusRef.current = document.activeElement;
 
     const focusables = () =>
-      [...panel.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])')].filter(
-        (el) => !el.disabled && el.offsetParent !== null
-      );
+      [
+        ...panel.querySelectorAll(
+          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
+        ),
+      ].filter((el) => !el.disabled && el.offsetParent !== null);
 
     // Land the caret inside the dialog rather than leaving it behind the scrim.
     const first = focusables()[0];
@@ -9087,8 +12131,10 @@ function TabSettingsModal({
     // guessed state and attribute a connection to a client they don't manage.
     // The Edge Function looks this token up server-side rather than trusting
     // whatever client_id shows up in the URL.
-    const token = crypto.randomUUID ? crypto.randomUUID() : String(Math.random()).slice(2);
-    const { error } = await supabase.from("qbo_connect_state").insert({ token, client_id: client.id });
+    const token = secureRandomToken();
+    const { error } = await supabase
+      .from("qbo_connect_state")
+      .insert({ token, client_id: client.id });
     if (error) {
       showToast("Couldn't start the QuickBooks connection: " + error.message);
       return;
@@ -9101,11 +12147,29 @@ function TabSettingsModal({
       redirect_uri: redirectUri,
       state: token,
     });
-    window.open(`https://appcenter.intuit.com/connect/oauth2?${params}`, "_blank", "noopener");
+    window.open(
+      `https://appcenter.intuit.com/connect/oauth2?${params}`,
+      "_blank",
+      "noopener",
+    );
   }
 
   async function disconnectQuickBooks() {
-    const { error } = await supabase.rpc("qbo_disconnect", { p_client_id: client.id });
+    const { error } = await supabase.rpc("qbo_disconnect", {
+      p_client_id: client.id,
+    });
+    if (error) {
+      showToast("Couldn't disconnect QuickBooks: " + error.message);
+      return;
+    }
+    loadQboConnection();
+    showToast("QuickBooks disconnected.");
+  }
+
+  async function disconnectQuickBooks() {
+    const { error } = await supabase.rpc("qbo_disconnect", {
+      p_client_id: client.id,
+    });
     if (error) {
       showToast("Couldn't disconnect QuickBooks: " + error.message);
       return;
@@ -9131,11 +12195,20 @@ function TabSettingsModal({
   async function addDocument(e) {
     e.preventDefault();
     if (!supabase || !newDocName.trim() || !newDocUrl.trim()) return;
+    // Security audit finding M2: reject anything that isn't a plain https
+    // link at save time too, so a javascript:/data: URL can't even get into
+    // the table (belt-and-suspenders alongside the render-time safeHttpUrl
+    // check).
+    const safeUrl = safeHttpUrl(newDocUrl.trim());
+    if (!safeUrl) {
+      showToast("That doesn't look like a valid https:// link.");
+      return;
+    }
     setAddingDoc(true);
     const { error } = await supabase.from("client_documents").insert({
       client_id: client.id,
       name: newDocName.trim(),
-      drive_url: newDocUrl.trim(),
+      drive_url: safeUrl,
       added_by: staffUser && staffUser.email,
     });
     setAddingDoc(false);
@@ -9166,7 +12239,9 @@ function TabSettingsModal({
       .then(({ data }) => setActiveLink(data || null));
     supabase
       .from("access_requests")
-      .select("id, submitted_by_name, submitted_by_email, submitted_at, people, reviewed")
+      .select(
+        "id, submitted_by_name, submitted_by_email, submitted_at, people, reviewed",
+      )
       .eq("client_id", client.id)
       .order("submitted_at", { ascending: false })
       .then(({ data }) => setRequests(data || []));
@@ -9180,12 +12255,17 @@ function TabSettingsModal({
     if (!supabase) return;
     setGeneratingLink(true);
     if (activeLink) {
-      await supabase.from("access_request_links").update({ active: false }).eq("token", activeLink.token);
+      await supabase
+        .from("access_request_links")
+        .update({ active: false })
+        .eq("token", activeLink.token);
     }
-    const token = (crypto.randomUUID ? crypto.randomUUID() : String(Math.random()).slice(2)).replace(/-/g, "");
-    const { error } = await supabase
-      .from("access_request_links")
-      .insert({ token, client_id: client.id, created_by: staffUser && staffUser.email });
+    const token = secureRandomToken().replace(/-/g, "");
+    const { error } = await supabase.from("access_request_links").insert({
+      token,
+      client_id: client.id,
+      created_by: staffUser && staffUser.email,
+    });
     setGeneratingLink(false);
     if (error) {
       showToast("Couldn't generate a link: " + error.message);
@@ -9209,343 +12289,485 @@ function TabSettingsModal({
   }
 
   const orgAllowedKeys = ALL_TAB_KEYS.filter((k) => visibleKeys.has(k));
-  const editingUser = editingUserId ? (client.users || []).find((u) => u.id === editingUserId) : null;
+  const editingUser = editingUserId
+    ? (client.users || []).find((u) => u.id === editingUserId)
+    : null;
 
   if (editingUser) {
     return (
       <ModalShell onClose={onClose} labelledBy="user-access-editor-title">
-          <UserAccessEditor
-            client={client}
-            user={editingUser}
-            orgAllowedKeys={orgAllowedKeys}
-            userAccess={userAccess}
-            onToggleUserTab={onToggleUserTab}
-            onToggleUserCategory={onToggleUserCategory}
-            onToggleUserFund={onToggleUserFund}
-            onSetAccessLevel={onSetAccessLevel}
-            onToggleUserPremium={onToggleUserPremium}
-            onBack={() => setEditingUserId(null)}
-          />
-          <div className="modal-footer">
-            <button className="btn-primary" onClick={onClose}>
-              Done
-            </button>
-          </div>
+        <UserAccessEditor
+          client={client}
+          user={editingUser}
+          orgAllowedKeys={orgAllowedKeys}
+          userAccess={userAccess}
+          onToggleUserTab={onToggleUserTab}
+          onToggleUserCategory={onToggleUserCategory}
+          onToggleUserFund={onToggleUserFund}
+          onSetAccessLevel={onSetAccessLevel}
+          onToggleUserPremium={onToggleUserPremium}
+          onBack={() => setEditingUserId(null)}
+        />
+        <div className="modal-footer">
+          <button className="btn-primary" onClick={onClose}>
+            Done
+          </button>
+        </div>
       </ModalShell>
     );
   }
 
   return (
-    <ModalShell onClose={onClose} labelledBy="manage-access-title" className="modal-panel-wide">
-        <div className="modal-header">
-          <h3 className="card-title" id="manage-access-title" style={{ margin: 0 }}>Manage access</h3>
-          <button className="modal-close" onClick={onClose} aria-label="Close">
-            ×
-          </button>
-        </div>
-        <p className="card-subtitle">{client.name}</p>
+    <ModalShell
+      onClose={onClose}
+      labelledBy="manage-access-title"
+      className="modal-panel-wide"
+    >
+      <div className="modal-header">
+        <h3
+          className="card-title"
+          id="manage-access-title"
+          style={{ margin: 0 }}
+        >
+          Manage access
+        </h3>
+        <button className="modal-close" onClick={onClose} aria-label="Close">
+          ×
+        </button>
+      </div>
+      <p className="card-subtitle">{client.name}</p>
 
-        <div className="modal-tabs">
-          <button className={"modal-tab" + (tab === "people" ? " active" : "")} onClick={() => setTab("people")}>
-            People
-          </button>
-          <button className={"modal-tab" + (tab === "org" ? " active" : "")} onClick={() => setTab("org")}>
-            Organization tabs
-          </button>
-          <button className={"modal-tab" + (tab === "requests" ? " active" : "")} onClick={() => setTab("requests")}>
-            Requests
-            {requests.some((r) => !r.reviewed) && <span className="thread-tab-dot" />}
-          </button>
-          <button className={"modal-tab" + (tab === "documents" ? " active" : "")} onClick={() => setTab("documents")}>
-            Documents
-          </button>
-          <button className={"modal-tab" + (tab === "quickbooks" ? " active" : "")} onClick={() => setTab("quickbooks")}>
-            QuickBooks
-          </button>
-        </div>
+      <div className="modal-tabs">
+        <button
+          className={"modal-tab" + (tab === "people" ? " active" : "")}
+          onClick={() => setTab("people")}
+        >
+          People
+        </button>
+        <button
+          className={"modal-tab" + (tab === "org" ? " active" : "")}
+          onClick={() => setTab("org")}
+        >
+          Organization tabs
+        </button>
+        <button
+          className={"modal-tab" + (tab === "requests" ? " active" : "")}
+          onClick={() => setTab("requests")}
+        >
+          Requests
+          {requests.some((r) => !r.reviewed) && (
+            <span className="thread-tab-dot" />
+          )}
+        </button>
+        <button
+          className={"modal-tab" + (tab === "documents" ? " active" : "")}
+          onClick={() => setTab("documents")}
+        >
+          Documents
+        </button>
+        <button
+          className={"modal-tab" + (tab === "quickbooks" ? " active" : "")}
+          onClick={() => setTab("quickbooks")}
+        >
+          QuickBooks
+        </button>
+      </div>
 
-        {tab === "people" && (
-          <div className="modal-body">
-            <p className="card-subtitle" style={{ marginTop: 0 }}>
-              Only MyGoodBooks can change these. Nobody at {client.name} can widen their own access.
-            </p>
-            {(client.users || []).map((u) => {
-              const eff = userAccess[u.id] || {};
-              const cats = eff.categories || u.categories;
-              const throttled = "premiumThrottled" in eff ? eff.premiumThrottled : u.premiumThrottled;
-              return (
-                <button className="person-row" key={u.id} onClick={() => setEditingUserId(u.id)}>
-                  <div className="person-avatar">
-                    {u.name.split(" ").map((p) => p[0]).slice(0, 2).join("")}
-                  </div>
-                  <div className="person-text">
-                    <span className="person-name">{u.name}</span>
-                    <span className="person-role">{u.role}</span>
-                  </div>
-                  {hasPremiumPlan(client) && (
-                    <span className={"pill " + (throttled ? "restricted" : "unrestricted")}>
-                      {throttled ? "Premium throttled" : "Premium"}
-                    </span>
-                  )}
-                  <span className={"pill " + (u.access === "full" ? "unrestricted" : "restricted")}>
-                    {u.access === "full" ? "Full access" : cats ? `${cats.length} area${cats.length === 1 ? "" : "s"}` : "Limited"}
+      {tab === "people" && (
+        <div className="modal-body">
+          <p className="card-subtitle" style={{ marginTop: 0 }}>
+            Only MyGoodBooks can change these. Nobody at {client.name} can widen
+            their own access.
+          </p>
+          {(client.users || []).map((u) => {
+            const eff = userAccess[u.id] || {};
+            const cats = eff.categories || u.categories;
+            const throttled =
+              "premiumThrottled" in eff
+                ? eff.premiumThrottled
+                : u.premiumThrottled;
+            return (
+              <button
+                className="person-row"
+                key={u.id}
+                onClick={() => setEditingUserId(u.id)}
+              >
+                <div className="person-avatar">
+                  {u.name
+                    .split(" ")
+                    .map((p) => p[0])
+                    .slice(0, 2)
+                    .join("")}
+                </div>
+                <div className="person-text">
+                  <span className="person-name">{u.name}</span>
+                  <span className="person-role">{u.role}</span>
+                </div>
+                {hasPremiumPlan(client) && (
+                  <span
+                    className={
+                      "pill " + (throttled ? "restricted" : "unrestricted")
+                    }
+                  >
+                    {throttled ? "Premium throttled" : "Premium"}
                   </span>
-                  <span className="person-chevron">›</span>
-                </button>
-              );
-            })}
-          </div>
-        )}
-
-        {tab === "org" && (
-          <div className="modal-body">
-            <p className="card-subtitle" style={{ marginTop: 0 }}>
-              Turn a tab off here and nobody at {client.name} sees it, whatever their individual access. Drag ⠿ to
-              reorder.
-            </p>
-            {NAV_SECTIONS.map((section) => {
-              const items = orderedSectionItems(section, tabOrder, client.id);
-              return (
-                <div className="modal-section" key={section.label}>
-                  <div className="nav-section-label modal-section-label">{section.label}</div>
-                  {items.map((item) => {
-                    const locked = item.key === ALWAYS_VISIBLE_KEY;
-                    const checked = visibleKeys.has(item.key);
-                    return (
-                      <div
-                        key={item.key}
-                        className={
-                          "tab-toggle-row" +
-                          (locked ? " locked" : "") +
-                          (dragOverKey === item.key && draggedKey !== item.key ? " drag-over" : "")
-                        }
-                        draggable={!locked}
-                        onDragStart={() => setDraggedKey(item.key)}
-                        onDragOver={(e) => {
-                          e.preventDefault();
-                          if (!locked) setDragOverKey(item.key);
-                        }}
-                        onDragLeave={() => setDragOverKey((k) => (k === item.key ? null : k))}
-                        onDrop={(e) => {
-                          e.preventDefault();
-                          if (draggedKey && draggedKey !== item.key && !locked) {
-                            onReorder(section.label, draggedKey, item.key);
-                          }
-                          setDraggedKey(null);
-                          setDragOverKey(null);
-                        }}
-                        onDragEnd={() => {
-                          setDraggedKey(null);
-                          setDragOverKey(null);
-                        }}
-                      >
-                        <span className={"drag-handle" + (locked ? " disabled" : "")}>{locked ? "" : "⠿"}</span>
-                        <label className="tab-toggle-label">
-                          <input type="checkbox" checked={checked} disabled={locked} onChange={() => onToggle(item.key)} />
-                          <span>{item.label}</span>
-                        </label>
-                        {locked && <span className="tab-toggle-note">Always visible</span>}
-                      </div>
-                    );
-                  })}
-                </div>
-              );
-            })}
-          </div>
-        )}
-
-        {tab === "requests" && (
-          <div className="modal-body">
-            <p className="card-subtitle" style={{ marginTop: 0 }}>
-              Send {client.name} a link to specify each person's access themselves. Applying a
-              request still has to be done by hand in the People tab above — nothing here changes
-              anyone's access on its own.
-            </p>
-
-            <div className="modal-section">
-              {activeLink === undefined ? (
-                <p className="card-subtitle">Loading…</p>
-              ) : activeLink ? (
-                <div className="access-link-row">
-                  <input
-                    type="text"
-                    readOnly
-                    value={`${window.location.origin}${window.location.pathname}?access-form=${activeLink.token}`}
-                    onFocus={(e) => e.target.select()}
-                  />
-                  <button className="btn-secondary" onClick={copyLink}>
-                    {copied ? "Copied!" : "Copy"}
-                  </button>
-                  <button className="btn-secondary" disabled={generatingLink} onClick={generateLink}>
-                    {generatingLink ? "Working…" : "Regenerate"}
-                  </button>
-                </div>
-              ) : (
-                <button className="btn-primary" disabled={generatingLink} onClick={generateLink}>
-                  {generatingLink ? "Generating…" : "Generate a link"}
-                </button>
-              )}
-            </div>
-
-            <div className="modal-section">
-              <div className="nav-section-label modal-section-label">Submitted requests</div>
-              {requests.length === 0 && <p className="card-subtitle">Nothing submitted yet.</p>}
-              {requests.map((r) => (
-                <div className="access-request-row" key={r.id}>
-                  <div className="access-request-row-header">
-                    <div>
-                      <span className="person-name">{r.submitted_by_name}</span>
-                      <span className="person-role"> · {r.submitted_by_email} · {fmtDate(r.submitted_at.slice(0, 10))}</span>
-                    </div>
-                    <label className="tab-toggle-row" style={{ margin: 0 }}>
-                      <input type="checkbox" checked={r.reviewed} onChange={(e) => markReviewed(r.id, e.target.checked)} />
-                      <span>Reviewed</span>
-                    </label>
-                  </div>
-                  {(r.people || []).map((p, i) => (
-                    <div className="access-request-person" key={i}>
-                      <div>
-                        <strong>{p.name}</strong> · {p.role} · {p.email}
-                      </div>
-                      <div className="card-subtitle" style={{ margin: "2px 0 0" }}>
-                        {p.access === "full"
-                          ? "Full access requested"
-                          : [
-                              (p.tabs || []).length
-                                ? "Pages: " +
-                                  p.tabs
-                                    .map((k) => (ALL_TAB_KEYS.includes(k) ? NAV_SECTIONS.flatMap((s) => s.items).find((i) => i.key === k) : null))
-                                    .filter(Boolean)
-                                    .map((i) => i.label)
-                                    .join(", ")
-                                : "No specific pages requested",
-                              (p.categories || []).length ? "Categories: " + p.categories.join(", ") : null,
-                            ]
-                              .filter(Boolean)
-                              .join(" — ")}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {tab === "documents" && (
-          <div className="modal-body">
-            <p className="card-subtitle" style={{ marginTop: 0 }}>
-              Links to files already in {client.name}'s Google Drive. Nothing is uploaded or
-              stored here — this just points at where the file already lives.
-            </p>
-
-            <form className="access-link-row" onSubmit={addDocument} style={{ marginBottom: 16 }}>
-              <input
-                type="text"
-                placeholder="Document name"
-                value={newDocName}
-                onChange={(e) => setNewDocName(e.target.value)}
-                required
-              />
-              <input
-                type="url"
-                placeholder="Google Drive share link"
-                value={newDocUrl}
-                onChange={(e) => setNewDocUrl(e.target.value)}
-                required
-              />
-              <button className="btn-primary" disabled={addingDoc} type="submit">
-                {addingDoc ? "Adding…" : "Add"}
+                )}
+                <span
+                  className={
+                    "pill " +
+                    (u.access === "full" ? "unrestricted" : "restricted")
+                  }
+                >
+                  {u.access === "full"
+                    ? "Full access"
+                    : cats
+                      ? `${cats.length} area${cats.length === 1 ? "" : "s"}`
+                      : "Limited"}
+                </span>
+                <span className="person-chevron">›</span>
               </button>
-            </form>
+            );
+          })}
+        </div>
+      )}
 
-            <div className="modal-section">
-              <div className="nav-section-label modal-section-label">Linked documents</div>
-              {documents === undefined ? (
-                <p className="card-subtitle">Loading…</p>
-              ) : documents.length === 0 ? (
-                <p className="card-subtitle">No documents linked yet.</p>
-              ) : (
-                documents.map((d) => (
-                  <div className="access-request-row" key={d.id}>
-                    <div className="access-request-row-header">
-                      <a href={d.drive_url} target="_blank" rel="noopener noreferrer" className="person-name">
+      {tab === "org" && (
+        <div className="modal-body">
+          <p className="card-subtitle" style={{ marginTop: 0 }}>
+            Turn a tab off here and nobody at {client.name} sees it, whatever
+            their individual access. Drag ⠿ to reorder.
+          </p>
+          {NAV_SECTIONS.map((section) => {
+            const items = orderedSectionItems(section, tabOrder, client.id);
+            return (
+              <div className="modal-section" key={section.label}>
+                <div className="nav-section-label modal-section-label">
+                  {section.label}
+                </div>
+                {items.map((item) => {
+                  const locked = item.key === ALWAYS_VISIBLE_KEY;
+                  const checked = visibleKeys.has(item.key);
+                  return (
+                    <div
+                      key={item.key}
+                      className={
+                        "tab-toggle-row" +
+                        (locked ? " locked" : "") +
+                        (dragOverKey === item.key && draggedKey !== item.key
+                          ? " drag-over"
+                          : "")
+                      }
+                      draggable={!locked}
+                      onDragStart={() => setDraggedKey(item.key)}
+                      onDragOver={(e) => {
+                        e.preventDefault();
+                        if (!locked) setDragOverKey(item.key);
+                      }}
+                      onDragLeave={() =>
+                        setDragOverKey((k) => (k === item.key ? null : k))
+                      }
+                      onDrop={(e) => {
+                        e.preventDefault();
+                        if (draggedKey && draggedKey !== item.key && !locked) {
+                          onReorder(section.label, draggedKey, item.key);
+                        }
+                        setDraggedKey(null);
+                        setDragOverKey(null);
+                      }}
+                      onDragEnd={() => {
+                        setDraggedKey(null);
+                        setDragOverKey(null);
+                      }}
+                    >
+                      <span
+                        className={"drag-handle" + (locked ? " disabled" : "")}
+                      >
+                        {locked ? "" : "⠿"}
+                      </span>
+                      <label className="tab-toggle-label">
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          disabled={locked}
+                          onChange={() => onToggle(item.key)}
+                        />
+                        <span>{item.label}</span>
+                      </label>
+                      {locked && (
+                        <span className="tab-toggle-note">Always visible</span>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {tab === "requests" && (
+        <div className="modal-body">
+          <p className="card-subtitle" style={{ marginTop: 0 }}>
+            Send {client.name} a link to specify each person's access
+            themselves. Applying a request still has to be done by hand in the
+            People tab above — nothing here changes anyone's access on its own.
+          </p>
+
+          <div className="modal-section">
+            {activeLink === undefined ? (
+              <p className="card-subtitle">Loading…</p>
+            ) : activeLink ? (
+              <div className="access-link-row">
+                <input
+                  type="text"
+                  readOnly
+                  value={`${window.location.origin}${window.location.pathname}?access-form=${activeLink.token}`}
+                  onFocus={(e) => e.target.select()}
+                />
+                <button className="btn-secondary" onClick={copyLink}>
+                  {copied ? "Copied!" : "Copy"}
+                </button>
+                <button
+                  className="btn-secondary"
+                  disabled={generatingLink}
+                  onClick={generateLink}
+                >
+                  {generatingLink ? "Working…" : "Regenerate"}
+                </button>
+              </div>
+            ) : (
+              <button
+                className="btn-primary"
+                disabled={generatingLink}
+                onClick={generateLink}
+              >
+                {generatingLink ? "Generating…" : "Generate a link"}
+              </button>
+            )}
+          </div>
+
+          <div className="modal-section">
+            <div className="nav-section-label modal-section-label">
+              Submitted requests
+            </div>
+            {requests.length === 0 && (
+              <p className="card-subtitle">Nothing submitted yet.</p>
+            )}
+            {requests.map((r) => (
+              <div className="access-request-row" key={r.id}>
+                <div className="access-request-row-header">
+                  <div>
+                    <span className="person-name">{r.submitted_by_name}</span>
+                    <span className="person-role">
+                      {" "}
+                      · {r.submitted_by_email} ·{" "}
+                      {fmtDate(r.submitted_at.slice(0, 10))}
+                    </span>
+                  </div>
+                  <label className="tab-toggle-row" style={{ margin: 0 }}>
+                    <input
+                      type="checkbox"
+                      checked={r.reviewed}
+                      onChange={(e) => markReviewed(r.id, e.target.checked)}
+                    />
+                    <span>Reviewed</span>
+                  </label>
+                </div>
+                {(r.people || []).map((p, i) => (
+                  <div className="access-request-person" key={i}>
+                    <div>
+                      <strong>{p.name}</strong> · {p.role} · {p.email}
+                    </div>
+                    <div
+                      className="card-subtitle"
+                      style={{ margin: "2px 0 0" }}
+                    >
+                      {p.access === "full"
+                        ? "Full access requested"
+                        : [
+                            (p.tabs || []).length
+                              ? "Pages: " +
+                                p.tabs
+                                  .map((k) =>
+                                    ALL_TAB_KEYS.includes(k)
+                                      ? NAV_SECTIONS.flatMap(
+                                          (s) => s.items,
+                                        ).find((i) => i.key === k)
+                                      : null,
+                                  )
+                                  .filter(Boolean)
+                                  .map((i) => i.label)
+                                  .join(", ")
+                              : "No specific pages requested",
+                            (p.categories || []).length
+                              ? "Categories: " + p.categories.join(", ")
+                              : null,
+                          ]
+                            .filter(Boolean)
+                            .join(" — ")}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {tab === "documents" && (
+        <div className="modal-body">
+          <p className="card-subtitle" style={{ marginTop: 0 }}>
+            Links to files already in {client.name}'s Google Drive. Nothing is
+            uploaded or stored here — this just points at where the file already
+            lives.
+          </p>
+
+          <form
+            className="access-link-row"
+            onSubmit={addDocument}
+            style={{ marginBottom: 16 }}
+          >
+            <input
+              type="text"
+              placeholder="Document name"
+              value={newDocName}
+              onChange={(e) => setNewDocName(e.target.value)}
+              required
+            />
+            <input
+              type="url"
+              placeholder="Google Drive share link"
+              value={newDocUrl}
+              onChange={(e) => setNewDocUrl(e.target.value)}
+              required
+            />
+            <button className="btn-primary" disabled={addingDoc} type="submit">
+              {addingDoc ? "Adding…" : "Add"}
+            </button>
+          </form>
+
+          <div className="modal-section">
+            <div className="nav-section-label modal-section-label">
+              Linked documents
+            </div>
+            {documents === undefined ? (
+              <p className="card-subtitle">Loading…</p>
+            ) : documents.length === 0 ? (
+              <p className="card-subtitle">No documents linked yet.</p>
+            ) : (
+              documents.map((d) => (
+                <div className="access-request-row" key={d.id}>
+                  <div className="access-request-row-header">
+                    {safeHttpUrl(d.drive_url) ? (
+                      <a
+                        href={safeHttpUrl(d.drive_url)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="person-name"
+                      >
                         {d.name}
                       </a>
-                      <button className="btn-secondary" onClick={() => removeDocument(d.id)}>
-                        Remove
-                      </button>
-                    </div>
+                    ) : (
+                      <span className="person-name">{d.name}</span>
+                    )}
+                    <button
+                      className="btn-secondary"
+                      onClick={() => removeDocument(d.id)}
+                    >
+                      Remove
+                    </button>
                   </div>
-                ))
-              )}
-            </div>
+                </div>
+              ))
+            )}
           </div>
-        )}
+        </div>
+      )}
 
-        {tab === "quickbooks" && (
-          <div className="modal-body">
-            <p className="card-subtitle" style={{ marginTop: 0 }}>
-              Connect {client.name}'s QuickBooks Online account to sync transactions, accounts, and
-              budgets automatically instead of entering them by hand.
-            </p>
+      {tab === "quickbooks" && (
+        <div className="modal-body">
+          <p className="card-subtitle" style={{ marginTop: 0 }}>
+            Connect {client.name}'s QuickBooks Online account to sync
+            transactions, accounts, and budgets automatically instead of
+            entering them by hand.
+          </p>
 
-            {window.QBO_CONFIG && window.QBO_CONFIG.environment !== "production" && (
-              <p className="card-subtitle" style={{ color: "#e0664f", marginTop: 0 }}>
-                Sandbox mode only — this connects test QuickBooks companies, not a real client's
-                account. Real clients need Intuit's production keys (separate from sandbox) and
-                Intuit's app review to pass first.
+          {window.QBO_CONFIG &&
+            window.QBO_CONFIG.environment !== "production" && (
+              <p
+                className="card-subtitle"
+                style={{ color: "#e0664f", marginTop: 0 }}
+              >
+                Sandbox mode only — this connects test QuickBooks companies, not
+                a real client's account. Real clients need Intuit's production
+                keys (separate from sandbox) and Intuit's app review to pass
+                first.
               </p>
             )}
 
-            <div className="modal-section">
-              {qboConnection === undefined ? (
-                <p className="card-subtitle">Loading…</p>
-              ) : qboConnection && qboConnection.status === "connected" ? (
-                <div className="access-request-row">
-                  <div className="access-request-row-header">
-                    <span className="person-name">Connected</span>
-                  </div>
-                  <div className="card-subtitle" style={{ margin: "2px 0 0" }}>
-                    Last synced{" "}
-                    {qboConnection.last_synced_at ? fmtDate(qboConnection.last_synced_at.slice(0, 10)) : "never yet"}
-                  </div>
-                  <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
-                    <button className="btn-secondary" onClick={connectQuickBooks}>
-                      Reconnect
-                    </button>
-                    <button className="btn-secondary" onClick={disconnectQuickBooks}>
-                      Disconnect
-                    </button>
-                  </div>
+          <div className="modal-section">
+            {qboConnection === undefined ? (
+              <p className="card-subtitle">Loading…</p>
+            ) : qboConnection && qboConnection.status === "connected" ? (
+              <div className="access-request-row">
+                <div className="access-request-row-header">
+                  <span className="person-name">Connected</span>
                 </div>
-              ) : qboConnection && qboConnection.status === "error" ? (
-                <div className="access-request-row">
-                  <div className="access-request-row-header">
-                    <span className="person-name" style={{ color: "#e0664f" }}>Connection failed</span>
-                  </div>
-                  {qboConnection.last_error && (
-                    <div className="card-subtitle" style={{ margin: "2px 0 0" }}>{qboConnection.last_error}</div>
-                  )}
-                  <button className="btn-primary" style={{ marginTop: 12 }} onClick={connectQuickBooks}>
-                    Try again
+                <div className="card-subtitle" style={{ margin: "2px 0 0" }}>
+                  Last synced{" "}
+                  {qboConnection.last_synced_at
+                    ? fmtDate(qboConnection.last_synced_at.slice(0, 10))
+                    : "never yet"}
+                </div>
+                <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
+                  <button className="btn-secondary" onClick={connectQuickBooks}>
+                    Reconnect
+                  </button>
+                  <button
+                    className="btn-secondary"
+                    onClick={disconnectQuickBooks}
+                  >
+                    Disconnect
                   </button>
                 </div>
-              ) : (
-                <button className="btn-primary" onClick={connectQuickBooks}>
-                  Connect QuickBooks
+              </div>
+            ) : qboConnection && qboConnection.status === "error" ? (
+              <div className="access-request-row">
+                <div className="access-request-row-header">
+                  <span className="person-name" style={{ color: "#e0664f" }}>
+                    Connection failed
+                  </span>
+                </div>
+                {qboConnection.last_error && (
+                  <div className="card-subtitle" style={{ margin: "2px 0 0" }}>
+                    {qboConnection.last_error}
+                  </div>
+                )}
+                <button
+                  className="btn-primary"
+                  style={{ marginTop: 12 }}
+                  onClick={connectQuickBooks}
+                >
+                  Try again
                 </button>
-              )}
-            </div>
+              </div>
+            ) : (
+              <button className="btn-primary" onClick={connectQuickBooks}>
+                Connect QuickBooks
+              </button>
+            )}
           </div>
-        )}
-
-        <div className="modal-footer">
-          <span className="modal-footnote">Prototype — access isn't enforced yet.</span>
-          <button className="btn-primary" onClick={onClose}>
-            Done
-          </button>
         </div>
+      )}
+
+      <div className="modal-footer">
+        <span className="modal-footnote">
+          Prototype — access isn't enforced yet.
+        </span>
+        <button className="btn-primary" onClick={onClose}>
+          Done
+        </button>
+      </div>
     </ModalShell>
   );
 }
@@ -9706,15 +12928,27 @@ function useWidgetLayout(scopeKey, allIds) {
   const [layouts, setLayouts] = useState(loadDashboardWidgetLayouts);
   const [views, setViews] = useState(loadDashboardViews);
   const saved = layouts[scopeKey];
-  const order = saved ? saved.order.filter((id) => allIds.includes(id)).concat(allIds.filter((id) => !saved.order.includes(id))) : allIds.slice();
-  const hidden = new Set(saved ? saved.hidden.filter((id) => allIds.includes(id)) : []);
+  const order = saved
+    ? saved.order
+        .filter((id) => allIds.includes(id))
+        .concat(allIds.filter((id) => !saved.order.includes(id)))
+    : allIds.slice();
+  const hidden = new Set(
+    saved ? saved.hidden.filter((id) => allIds.includes(id)) : [],
+  );
   const scopedViews = views[scopeKey] || [];
 
   const update = (nextOrder, nextHidden) => {
     setLayouts((prev) => {
-      const next = { ...prev, [scopeKey]: { order: nextOrder, hidden: Array.from(nextHidden) } };
+      const next = {
+        ...prev,
+        [scopeKey]: { order: nextOrder, hidden: Array.from(nextHidden) },
+      };
       try {
-        localStorage.setItem(DASHBOARD_WIDGETS_STORAGE_KEY, JSON.stringify(next));
+        localStorage.setItem(
+          DASHBOARD_WIDGETS_STORAGE_KEY,
+          JSON.stringify(next),
+        );
       } catch (e) {}
       return next;
     });
@@ -9757,7 +12991,8 @@ function useWidgetLayout(scopeKey, allIds) {
     move: (id, direction) => {
       const index = order.indexOf(id);
       const targetIndex = index + direction;
-      if (index === -1 || targetIndex < 0 || targetIndex >= order.length) return;
+      if (index === -1 || targetIndex < 0 || targetIndex >= order.length)
+        return;
       const next = order.slice();
       [next[index], next[targetIndex]] = [next[targetIndex], next[index]];
       update(next, hidden);
@@ -9775,10 +13010,21 @@ function useWidgetLayout(scopeKey, allIds) {
       setViews((prev) => {
         // Saving under a name that already exists overwrites it rather than
         // piling up duplicates.
-        const existing = (prev[scopeKey] || []).filter((v) => v.name !== trimmed);
-        const next = { ...prev, [scopeKey]: [...existing, { name: trimmed, order, hidden: Array.from(hidden) }] };
+        const existing = (prev[scopeKey] || []).filter(
+          (v) => v.name !== trimmed,
+        );
+        const next = {
+          ...prev,
+          [scopeKey]: [
+            ...existing,
+            { name: trimmed, order, hidden: Array.from(hidden) },
+          ],
+        };
         try {
-          localStorage.setItem(DASHBOARD_VIEWS_STORAGE_KEY, JSON.stringify(next));
+          localStorage.setItem(
+            DASHBOARD_VIEWS_STORAGE_KEY,
+            JSON.stringify(next),
+          );
         } catch (e) {}
         return next;
       });
@@ -9787,15 +13033,23 @@ function useWidgetLayout(scopeKey, allIds) {
       const view = scopedViews.find((v) => v.name === name);
       if (!view) return;
       update(
-        view.order.filter((id) => allIds.includes(id)).concat(allIds.filter((id) => !view.order.includes(id))),
-        new Set(view.hidden.filter((id) => allIds.includes(id)))
+        view.order
+          .filter((id) => allIds.includes(id))
+          .concat(allIds.filter((id) => !view.order.includes(id))),
+        new Set(view.hidden.filter((id) => allIds.includes(id))),
       );
     },
     deleteView: (name) => {
       setViews((prev) => {
-        const next = { ...prev, [scopeKey]: (prev[scopeKey] || []).filter((v) => v.name !== name) };
+        const next = {
+          ...prev,
+          [scopeKey]: (prev[scopeKey] || []).filter((v) => v.name !== name),
+        };
         try {
-          localStorage.setItem(DASHBOARD_VIEWS_STORAGE_KEY, JSON.stringify(next));
+          localStorage.setItem(
+            DASHBOARD_VIEWS_STORAGE_KEY,
+            JSON.stringify(next),
+          );
         } catch (e) {}
         return next;
       });
@@ -9811,7 +13065,9 @@ const MOBILE_BREAKPOINT_QUERY = "(max-width: 760px)";
 
 function useIsMobile() {
   const [isMobile, setIsMobile] = useState(
-    () => typeof window !== "undefined" && window.matchMedia(MOBILE_BREAKPOINT_QUERY).matches
+    () =>
+      typeof window !== "undefined" &&
+      window.matchMedia(MOBILE_BREAKPOINT_QUERY).matches,
   );
   useEffect(() => {
     const mql = window.matchMedia(MOBILE_BREAKPOINT_QUERY);
@@ -9884,7 +13140,9 @@ function useDragReorder(layout) {
     }),
     // The card being held stops jiggling and lifts; every other card in the
     // grid jiggles in place, same as iOS's wiggle-to-rearrange mode.
-    dragClass: (id) => "draggable-card" + (draggedId === id ? " card-dragging" : draggedId ? " card-jiggling" : ""),
+    dragClass: (id) =>
+      "draggable-card" +
+      (draggedId === id ? " card-dragging" : draggedId ? " card-jiggling" : ""),
     isDragging: Boolean(draggedId),
   };
 }
@@ -9898,139 +13156,174 @@ function WidgetPickerModal({ widgets, layout, onClose }) {
   const [newViewName, setNewViewName] = useState("");
 
   return (
-    <ModalShell onClose={onClose} labelledBy="widget-picker-title" className="widget-picker-modal">
-        <div className="modal-header">
-          <h3 id="widget-picker-title">Customize your dashboard</h3>
-          <button className="modal-close" onClick={onClose}>✕</button>
-        </div>
-        <p className="card-subtitle" style={{ marginBottom: 16 }}>
-          Pull in any card you have access to from across the app. Use the ▲▼ buttons below to
-          reorder them, or drag the handle with a mouse — make this your hub. On the dashboard
-          itself, drag a card with a mouse to move it directly.
-        </p>
-        <div className="widget-picker-list">
-          {layout.order.map((id, index) => {
-            const w = widgets.find((x) => x.id === id);
-            if (!w) return null;
-            const isHidden = layout.hidden.has(id);
-            return (
-              <div
-                className={
-                  "widget-picker-row" +
-                  (isHidden ? " widget-picker-row-hidden" : "") +
-                  (dragOverId === id && draggedId !== id ? " widget-picker-row-drag-over" : "") +
-                  (draggedId === id ? " widget-picker-row-dragging" : "")
-                }
-                key={id}
-                draggable
-                onDragStart={() => setDraggedId(id)}
-                onDragOver={(e) => {
-                  e.preventDefault();
-                  if (draggedId && draggedId !== id) setDragOverId(id);
-                }}
-                onDragLeave={() => setDragOverId((cur) => (cur === id ? null : cur))}
-                onDrop={(e) => {
-                  e.preventDefault();
-                  if (draggedId) layout.reorder(draggedId, id);
-                  setDraggedId(null);
-                  setDragOverId(null);
-                }}
-                onDragEnd={() => {
-                  setDraggedId(null);
-                  setDragOverId(null);
-                }}
-              >
-                <span className="drag-handle" aria-hidden="true">⠿</span>
-                <div className="widget-picker-move">
-                  <button
-                    type="button"
-                    className="widget-picker-move-btn"
-                    disabled={index === 0}
-                    onClick={() => layout.move(id, -1)}
-                    aria-label={`Move ${w.label} up`}
-                  >
-                    <ChevronUpIcon />
-                  </button>
-                  <button
-                    type="button"
-                    className="widget-picker-move-btn"
-                    disabled={index === layout.order.length - 1}
-                    onClick={() => layout.move(id, 1)}
-                    aria-label={`Move ${w.label} down`}
-                  >
-                    <ChevronDownIcon />
-                  </button>
-                </div>
-                <label className="widget-picker-label">
-                  <input type="checkbox" checked={!isHidden} onChange={() => layout.toggle(id)} />
-                  <span>
-                    {w.sourceTab && <span className="widget-picker-source">From {w.sourceTab}</span>}
-                    <strong>{w.label}</strong>
-                    {w.description && <span className="widget-picker-desc"> — {w.description}</span>}
-                  </span>
-                </label>
-              </div>
-            );
-          })}
-        </div>
-        <div className="widget-picker-views">
-          <h4 className="widget-picker-views-title">Saved views</h4>
-          <p className="card-subtitle" style={{ margin: "0 0 10px" }}>
-            Save this arrangement under a name to switch back to it later — a stripped-down board
-            view and your own everyday one, say — without losing either.
-          </p>
-          {layout.views.length > 0 && (
-            <div className="widget-picker-view-list">
-              {layout.views.map((v) => (
-                <div className="widget-picker-view-row" key={v.name}>
-                  <span className="widget-picker-view-name">{v.name}</span>
-                  <div className="widget-picker-view-actions">
-                    <button type="button" className="btn-secondary" onClick={() => layout.applyView(v.name)}>
-                      Apply
-                    </button>
-                    <button
-                      type="button"
-                      className="widget-picker-view-remove"
-                      onClick={() => layout.deleteView(v.name)}
-                      aria-label={`Delete view ${v.name}`}
-                    >
-                      ×
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-          <div className="widget-picker-view-new">
-            <input
-              type="text"
-              placeholder="Name this arrangement…"
-              value={newViewName}
-              onChange={(e) => setNewViewName(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && newViewName.trim()) {
-                  layout.saveView(newViewName);
-                  setNewViewName("");
-                }
+    <ModalShell
+      onClose={onClose}
+      labelledBy="widget-picker-title"
+      className="widget-picker-modal"
+    >
+      <div className="modal-header">
+        <h3 id="widget-picker-title">Customize your dashboard</h3>
+        <button className="modal-close" onClick={onClose}>
+          ✕
+        </button>
+      </div>
+      <p className="card-subtitle" style={{ marginBottom: 16 }}>
+        Pull in any card you have access to from across the app. Use the ▲▼
+        buttons below to reorder them, or drag the handle with a mouse — make
+        this your hub. On the dashboard itself, drag a card with a mouse to move
+        it directly.
+      </p>
+      <div className="widget-picker-list">
+        {layout.order.map((id, index) => {
+          const w = widgets.find((x) => x.id === id);
+          if (!w) return null;
+          const isHidden = layout.hidden.has(id);
+          return (
+            <div
+              className={
+                "widget-picker-row" +
+                (isHidden ? " widget-picker-row-hidden" : "") +
+                (dragOverId === id && draggedId !== id
+                  ? " widget-picker-row-drag-over"
+                  : "") +
+                (draggedId === id ? " widget-picker-row-dragging" : "")
+              }
+              key={id}
+              draggable
+              onDragStart={() => setDraggedId(id)}
+              onDragOver={(e) => {
+                e.preventDefault();
+                if (draggedId && draggedId !== id) setDragOverId(id);
               }}
-            />
-            <button
-              type="button"
-              className="btn-secondary"
-              disabled={!newViewName.trim()}
-              onClick={() => {
-                layout.saveView(newViewName);
-                setNewViewName("");
+              onDragLeave={() =>
+                setDragOverId((cur) => (cur === id ? null : cur))
+              }
+              onDrop={(e) => {
+                e.preventDefault();
+                if (draggedId) layout.reorder(draggedId, id);
+                setDraggedId(null);
+                setDragOverId(null);
+              }}
+              onDragEnd={() => {
+                setDraggedId(null);
+                setDragOverId(null);
               }}
             >
-              Save as view
-            </button>
+              <span className="drag-handle" aria-hidden="true">
+                ⠿
+              </span>
+              <div className="widget-picker-move">
+                <button
+                  type="button"
+                  className="widget-picker-move-btn"
+                  disabled={index === 0}
+                  onClick={() => layout.move(id, -1)}
+                  aria-label={`Move ${w.label} up`}
+                >
+                  <ChevronUpIcon />
+                </button>
+                <button
+                  type="button"
+                  className="widget-picker-move-btn"
+                  disabled={index === layout.order.length - 1}
+                  onClick={() => layout.move(id, 1)}
+                  aria-label={`Move ${w.label} down`}
+                >
+                  <ChevronDownIcon />
+                </button>
+              </div>
+              <label className="widget-picker-label">
+                <input
+                  type="checkbox"
+                  checked={!isHidden}
+                  onChange={() => layout.toggle(id)}
+                />
+                <span>
+                  {w.sourceTab && (
+                    <span className="widget-picker-source">
+                      From {w.sourceTab}
+                    </span>
+                  )}
+                  <strong>{w.label}</strong>
+                  {w.description && (
+                    <span className="widget-picker-desc">
+                      {" "}
+                      — {w.description}
+                    </span>
+                  )}
+                </span>
+              </label>
+            </div>
+          );
+        })}
+      </div>
+      <div className="widget-picker-views">
+        <h4 className="widget-picker-views-title">Saved views</h4>
+        <p className="card-subtitle" style={{ margin: "0 0 10px" }}>
+          Save this arrangement under a name to switch back to it later — a
+          stripped-down board view and your own everyday one, say — without
+          losing either.
+        </p>
+        {layout.views.length > 0 && (
+          <div className="widget-picker-view-list">
+            {layout.views.map((v) => (
+              <div className="widget-picker-view-row" key={v.name}>
+                <span className="widget-picker-view-name">{v.name}</span>
+                <div className="widget-picker-view-actions">
+                  <button
+                    type="button"
+                    className="btn-secondary"
+                    onClick={() => layout.applyView(v.name)}
+                  >
+                    Apply
+                  </button>
+                  <button
+                    type="button"
+                    className="widget-picker-view-remove"
+                    onClick={() => layout.deleteView(v.name)}
+                    aria-label={`Delete view ${v.name}`}
+                  >
+                    ×
+                  </button>
+                </div>
+              </div>
+            ))}
           </div>
+        )}
+        <div className="widget-picker-view-new">
+          <input
+            type="text"
+            placeholder="Name this arrangement…"
+            value={newViewName}
+            onChange={(e) => setNewViewName(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && newViewName.trim()) {
+                layout.saveView(newViewName);
+                setNewViewName("");
+              }
+            }}
+          />
+          <button
+            type="button"
+            className="btn-secondary"
+            disabled={!newViewName.trim()}
+            onClick={() => {
+              layout.saveView(newViewName);
+              setNewViewName("");
+            }}
+          >
+            Save as view
+          </button>
         </div>
-        <div className="widget-picker-actions">
-          <button className="btn-secondary" onClick={layout.reset}>Reset to default</button>
-          <button className="btn-primary" onClick={onClose}>Done</button>
-        </div>
+      </div>
+      <div className="widget-picker-actions">
+        <button className="btn-secondary" onClick={layout.reset}>
+          Reset to default
+        </button>
+        <button className="btn-primary" onClick={onClose}>
+          Done
+        </button>
+      </div>
     </ModalShell>
   );
 }
@@ -10042,7 +13335,13 @@ function CustomizeDashboardButton({ widgets, layout }) {
       <button className="customize-dashboard-btn" onClick={() => setOpen(true)}>
         <SlidersIcon /> Customize dashboard
       </button>
-      {open && <WidgetPickerModal widgets={widgets} layout={layout} onClose={() => setOpen(false)} />}
+      {open && (
+        <WidgetPickerModal
+          widgets={widgets}
+          layout={layout}
+          onClose={() => setOpen(false)}
+        />
+      )}
     </>
   );
 }
@@ -10082,30 +13381,88 @@ function loadReferralPromo() {
 }
 
 const PAGE_META = {
-  dashboard: { title: "Dashboard", subtitle: "A quick look at where things stand" },
+  dashboard: {
+    title: "Dashboard",
+    subtitle: "A quick look at where things stand",
+  },
   // Display name only. The route key, the DailyClose component and the
   // components/daily-close/ directory keep their original names — renaming
   // those would churn the whole vendored component for a label change.
-  "daily-close": { title: "Live Report", subtitle: "A live financial snapshot, updating continuously" },
-  budget: { title: "Budget vs. Actual", subtitle: "How spending compares to plan, by category" },
-  giving: { title: "Giving & Funds", subtitle: "Contributions received and fund balances" },
-  receivables: { title: "Cash Flow", subtitle: "Money coming in and bills going out" },
+  "daily-close": {
+    title: "Live Report",
+    subtitle: "A live financial snapshot, updating continuously",
+  },
+  budget: {
+    title: "Budget vs. Actual",
+    subtitle: "How spending compares to plan, by category",
+  },
+  giving: {
+    title: "Giving & Funds",
+    subtitle: "Contributions received and fund balances",
+  },
+  receivables: {
+    title: "Cash Flow",
+    subtitle: "Money coming in and bills going out",
+  },
   bank: { title: "Bank Accounts", subtitle: "Balances and recent activity" },
-  payroll: { title: "Payroll", subtitle: "Employees, pay runs, and tax deposits" },
+  payroll: {
+    title: "Payroll",
+    subtitle: "Employees, pay runs, and tax deposits",
+  },
   reports: { title: "Reports", subtitle: "Download statements and summaries" },
-  "report-builder": { title: "Report Builder", subtitle: "Assemble a formatted report for your board or leadership" },
-  "budgeting-tool": { title: "Budgeting Tool", subtitle: "Draft next period's budget with your bookkeeper" },
-  "ap-command-center": { title: "Cash Flow Pro", subtitle: "Every open bill, aging, and what's due next" },
-  "bank-reconciliation": { title: "Bank Accounts", subtitle: "Balances, activity, and month-end reconciliation" },
-  "fund-accounting-pro": { title: "Giving & Funds", subtitle: "Contributions, fund balances, transfers, and pledges" },
-  "enterprise-upgrade": { title: "Enterprise", subtitle: "See what's included, and what upgrading unlocks" },
-  "staff-access": { title: "Staff Access", subtitle: "Who can sign in to the portal, and with what role" },
-  "client-access": { title: "Client Roster", subtitle: "Who at each organization is registered to sign in" },
-  "developer-tools": { title: "Developer Tools", subtitle: "Per-browser testing aids — nothing here is shared with other staff or written to Supabase" },
-  "staff-messages": { title: "Team Chat", subtitle: "Message management, separate from client conversations" },
-  "bookkeeper-home": { title: "Home", subtitle: "What needs attention across every client you can see" },
-  documents: { title: "Documents", subtitle: "Shared files between you and your bookkeeper" },
-  messages: { title: "Messages", subtitle: "Talk directly with your bookkeeping team" },
+  "report-builder": {
+    title: "Report Builder",
+    subtitle: "Assemble a formatted report for your board or leadership",
+  },
+  "budgeting-tool": {
+    title: "Budgeting Tool",
+    subtitle: "Draft next period's budget with your bookkeeper",
+  },
+  "ap-command-center": {
+    title: "Cash Flow Pro",
+    subtitle: "Every open bill, aging, and what's due next",
+  },
+  "bank-reconciliation": {
+    title: "Bank Accounts",
+    subtitle: "Balances, activity, and month-end reconciliation",
+  },
+  "fund-accounting-pro": {
+    title: "Giving & Funds",
+    subtitle: "Contributions, fund balances, transfers, and pledges",
+  },
+  "enterprise-upgrade": {
+    title: "Enterprise",
+    subtitle: "See what's included, and what upgrading unlocks",
+  },
+  "staff-access": {
+    title: "Staff Access",
+    subtitle: "Who can sign in to the portal, and with what role",
+  },
+  "client-access": {
+    title: "Client Roster",
+    subtitle: "Who at each organization is registered to sign in",
+  },
+  "developer-tools": {
+    title: "Developer Tools",
+    subtitle:
+      "Per-browser testing aids — nothing here is shared with other staff or written to Supabase",
+  },
+  "staff-messages": {
+    title: "Team Chat",
+    subtitle: "Message management, separate from client conversations",
+  },
+  "bookkeeper-home": {
+    title: "Home",
+    subtitle: "What needs attention across every client you can see",
+  },
+  documents: {
+    title: "Documents",
+    subtitle: "Shared files between you and your bookkeeper",
+  },
+  messages: {
+    title: "Messages",
+    subtitle: "Talk directly with your bookkeeping team",
+  },
 };
 
 // Without this, any component error unmounts the whole tree and the page
@@ -10133,9 +13490,13 @@ class ErrorBoundary extends React.Component {
           <div className="error-boundary-card">
             <div className="error-boundary-title">Something went wrong</div>
             <p className="error-boundary-body">
-              This page hit an unexpected error. Reloading usually fixes it — your data hasn't been affected.
+              This page hit an unexpected error. Reloading usually fixes it —
+              your data hasn't been affected.
             </p>
-            <button className="btn-primary" onClick={() => window.location.reload()}>
+            <button
+              className="btn-primary"
+              onClick={() => window.location.reload()}
+            >
               Reload
             </button>
           </div>
@@ -10162,11 +13523,16 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
   // null) — a returning staffer lands back on whatever client they last had
   // open, per initialPage's refresh-vs-fresh-open distinction below.
   const [selectedClientId, setSelectedClientId] = useState(
-    () => (clientPortalUser && clientPortalUser.client_id) || loadSelectedClientId() || "riverside-pantry"
+    () =>
+      (clientPortalUser && clientPortalUser.client_id) ||
+      loadSelectedClientId() ||
+      "riverside-pantry",
   );
   // A client never lands on "bookkeeper-home" — initialPage()'s fresh-session
   // default is staff-only chrome they can't render (no staffUser).
-  const [page, setPage] = useState(() => (clientPortalUser ? "dashboard" : initialPage()));
+  const [page, setPage] = useState(() =>
+    clientPortalUser ? "dashboard" : initialPage(),
+  );
   // Sidebar dot for Team Chat — recomputed on every page change and on any
   // Team Chat activity (cheap, single-purpose query) rather than polling,
   // same posture as the rest of this app's Supabase reads. "Read" is now a
@@ -10208,7 +13574,8 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
             }
             const latestByConv = {};
             msgs.forEach((m) => {
-              if (!latestByConv[m.conversation_id]) latestByConv[m.conversation_id] = m;
+              if (!latestByConv[m.conversation_id])
+                latestByConv[m.conversation_id] = m;
             });
             const unread = Object.values(latestByConv).some((m) => {
               if (m.author_email === staffUser.email) return false;
@@ -10296,16 +13663,25 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
       .eq("staff_email", effectiveStaffUser.email)
       .then(({ data, error }) => {
         if (error) {
-          console.warn("Couldn't load client access (staff-client-access.sql may not be run yet):", error.message);
+          console.warn(
+            "Couldn't load client access (staff-client-access.sql may not be run yet):",
+            error.message,
+          );
           return;
         }
         setAssignedClientIds(new Set(data.map((r) => r.client_id)));
       });
-  }, [effectiveStaffUser && effectiveStaffUser.email, effectiveStaffUser && effectiveStaffUser.role]);
+  }, [
+    effectiveStaffUser && effectiveStaffUser.email,
+    effectiveStaffUser && effectiveStaffUser.role,
+  ]);
 
   const visibleClients = useMemo(
-    () => (assignedClientIds ? CLIENTS.filter((c) => assignedClientIds.has(c.id)) : CLIENTS),
-    [assignedClientIds]
+    () =>
+      assignedClientIds
+        ? CLIENTS.filter((c) => assignedClientIds.has(c.id))
+        : CLIENTS,
+    [assignedClientIds],
   );
 
   const saveReferralPromo = (text) => {
@@ -10392,8 +13768,11 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
   const effectiveTheme = theme || "dark";
 
   const baseClient = useMemo(
-    () => visibleClients.find((c) => c.id === selectedClientId) || visibleClients[0] || CLIENTS[0],
-    [selectedClientId, visibleClients]
+    () =>
+      visibleClients.find((c) => c.id === selectedClientId) ||
+      visibleClients[0] ||
+      CLIENTS[0],
+    [selectedClientId, visibleClients],
   );
 
   // A restricted bookkeeper's selectedClientId can point at a client that
@@ -10415,7 +13794,9 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
     if (!baseClient.users) return baseClient;
     return {
       ...baseClient,
-      users: baseClient.users.map((u) => (userAccess[u.id] ? { ...u, ...userAccess[u.id] } : u)),
+      users: baseClient.users.map((u) =>
+        userAccess[u.id] ? { ...u, ...userAccess[u.id] } : u,
+      ),
     };
   }, [baseClient, userAccess]);
 
@@ -10452,7 +13833,9 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
   // than silently staying hidden because it's missing from an old snapshot.
   const visibleKeys = useMemo(() => {
     const hidden = new Set(tabConfig[selectedClientId] || []);
-    return new Set(ALL_TAB_KEYS.filter((k) => k === ALWAYS_VISIBLE_KEY || !hidden.has(k)));
+    return new Set(
+      ALL_TAB_KEYS.filter((k) => k === ALWAYS_VISIBLE_KEY || !hidden.has(k)),
+    );
   }, [tabConfig, selectedClientId]);
 
   const toggleTab = (key) => {
@@ -10469,13 +13852,17 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
     setTabOrder((prev) => {
       const section = NAV_SECTIONS.find((s) => s.label === sectionLabel);
       const currentOrder =
-        (prev[selectedClientId] && prev[selectedClientId][sectionLabel]) || section.items.map((i) => i.key);
+        (prev[selectedClientId] && prev[selectedClientId][sectionLabel]) ||
+        section.items.map((i) => i.key);
       const withoutFrom = currentOrder.filter((k) => k !== fromKey);
       const toIndex = withoutFrom.indexOf(toKey);
       withoutFrom.splice(toIndex, 0, fromKey);
       return {
         ...prev,
-        [selectedClientId]: { ...(prev[selectedClientId] || {}), [sectionLabel]: withoutFrom },
+        [selectedClientId]: {
+          ...(prev[selectedClientId] || {}),
+          [sectionLabel]: withoutFrom,
+        },
       };
     });
   };
@@ -10483,15 +13870,25 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
   const toggleUserPremium = (userId) => {
     const user = client.users.find((u) => u.id === userId);
     setUserAccess((prev) => {
-      const current = prev[userId] && "premiumThrottled" in prev[userId] ? prev[userId].premiumThrottled : Boolean(user.premiumThrottled);
-      return { ...prev, [userId]: { ...(prev[userId] || {}), premiumThrottled: !current } };
+      const current =
+        prev[userId] && "premiumThrottled" in prev[userId]
+          ? prev[userId].premiumThrottled
+          : Boolean(user.premiumThrottled);
+      return {
+        ...prev,
+        [userId]: { ...(prev[userId] || {}), premiumThrottled: !current },
+      };
     });
   };
 
   const setAccessLevel = (userId, level) => {
     setUserAccess((prev) => ({
       ...prev,
-      [userId]: { ...(prev[userId] || {}), access: level, ...(level === "full" ? { categories: null, tabs: null } : {}) },
+      [userId]: {
+        ...(prev[userId] || {}),
+        access: level,
+        ...(level === "full" ? { categories: null, tabs: null } : {}),
+      },
     }));
   };
 
@@ -10499,21 +13896,37 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
     if (key === ALWAYS_VISIBLE_KEY) return;
     const user = client.users.find((u) => u.id === userId);
     setUserAccess((prev) => {
-      const current = new Set((prev[userId] && prev[userId].tabs) || user.tabs || ALL_TAB_KEYS);
+      const current = new Set(
+        (prev[userId] && prev[userId].tabs) || user.tabs || ALL_TAB_KEYS,
+      );
       if (current.has(key)) current.delete(key);
       else current.add(key);
-      return { ...prev, [userId]: { ...(prev[userId] || {}), tabs: ALL_TAB_KEYS.filter((k) => current.has(k)) } };
+      return {
+        ...prev,
+        [userId]: {
+          ...(prev[userId] || {}),
+          tabs: ALL_TAB_KEYS.filter((k) => current.has(k)),
+        },
+      };
     });
   };
 
   const toggleUserCategory = (userId, category) => {
     const user = client.users.find((u) => u.id === userId);
     setUserAccess((prev) => {
-      const current = new Set((prev[userId] && prev[userId].categories) || user.categories || []);
+      const current = new Set(
+        (prev[userId] && prev[userId].categories) || user.categories || [],
+      );
       if (current.has(category)) current.delete(category);
       else current.add(category);
       const next = Array.from(current);
-      return { ...prev, [userId]: { ...(prev[userId] || {}), categories: next.length ? next : null } };
+      return {
+        ...prev,
+        [userId]: {
+          ...(prev[userId] || {}),
+          categories: next.length ? next : null,
+        },
+      };
     });
   };
 
@@ -10523,11 +13936,16 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
   const toggleUserFund = (userId, fundName) => {
     const user = client.users.find((u) => u.id === userId);
     setUserAccess((prev) => {
-      const current = new Set((prev[userId] && prev[userId].funds) || user.funds || []);
+      const current = new Set(
+        (prev[userId] && prev[userId].funds) || user.funds || [],
+      );
       if (current.has(fundName)) current.delete(fundName);
       else current.add(fundName);
       const next = Array.from(current);
-      return { ...prev, [userId]: { ...(prev[userId] || {}), funds: next.length ? next : null } };
+      return {
+        ...prev,
+        [userId]: { ...(prev[userId] || {}), funds: next.length ? next : null },
+      };
     });
   };
 
@@ -10547,15 +13965,24 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
             premiumThrottled: clientPortalUser.premium_throttled,
           }
         : null,
-    [clientPortalUser]
+    [clientPortalUser],
   );
 
   const access = useMemo(
-    () => resolveAccess(client, viewAsUserId, new Set(tabConfig[selectedClientId] || []), portalOverrideUser),
-    [client, viewAsUserId, tabConfig, selectedClientId, portalOverrideUser]
+    () =>
+      resolveAccess(
+        client,
+        viewAsUserId,
+        new Set(tabConfig[selectedClientId] || []),
+        portalOverrideUser,
+      ),
+    [client, viewAsUserId, tabConfig, selectedClientId, portalOverrideUser],
   );
 
-  const scopedClient = useMemo(() => scopeClientData(client, access), [client, access]);
+  const scopedClient = useMemo(
+    () => scopeClientData(client, access),
+    [client, access],
+  );
 
   // "enterprise-upgrade", "staff-access"/"client-access"/"developer-tools",
   // and "staff-messages" are synthetic pages, not real tabs — none is in
@@ -10575,18 +14002,20 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
   const effectivePage =
     page === "enterprise-upgrade"
       ? page
-      : (page === "staff-access" || page === "client-access" || page === "developer-tools") &&
-        staffUser &&
-        staffUser.role === "admin" &&
-        !impersonating
-      ? page
-      : page === "staff-messages" && staffUser && !impersonating
-      ? page
-      : page === "bookkeeper-home" && staffUser
-      ? page
-      : access.tabs.has(page)
-      ? page
-      : ALWAYS_VISIBLE_KEY;
+      : (page === "staff-access" ||
+            page === "client-access" ||
+            page === "developer-tools") &&
+          staffUser &&
+          staffUser.role === "admin" &&
+          !impersonating
+        ? page
+        : page === "staff-messages" && staffUser && !impersonating
+          ? page
+          : page === "bookkeeper-home" && staffUser
+            ? page
+            : access.tabs.has(page)
+              ? page
+              : ALWAYS_VISIBLE_KEY;
   // Each of these six tabs IS its upgraded page for a full-access premium
   // viewer — same pattern for all six now (see PREMIUM_UPGRADE_TAB_KEYS):
   // one nav item, content swapped by plan, rather than a second
@@ -10598,37 +14027,61 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
   // branches on them directly). Category-scoped premium users still get
   // every plain tab (ORG_WIDE_TABS-equivalent: a live org-wide
   // snapshot/report has no "their" slice to show).
-  const showsLiveReport = effectivePage === "dashboard" && access.premiumForUser && !access.isCategoryScoped;
-  const showsBudgetingTool = effectivePage === "budget" && access.premiumForUser && !access.isCategoryScoped;
-  const showsCashFlowPro = effectivePage === "receivables" && access.premiumForUser && !access.isCategoryScoped;
-  const showsReportBuilder = effectivePage === "reports" && access.premiumForUser && !access.isCategoryScoped;
-  const showsReconciliationPro = effectivePage === "bank" && access.premiumForUser && !access.isCategoryScoped;
-  const showsFundAccountingPro = effectivePage === "giving" && access.premiumForUser && !access.isCategoryScoped;
+  const showsLiveReport =
+    effectivePage === "dashboard" &&
+    access.premiumForUser &&
+    !access.isCategoryScoped;
+  const showsBudgetingTool =
+    effectivePage === "budget" &&
+    access.premiumForUser &&
+    !access.isCategoryScoped;
+  const showsCashFlowPro =
+    effectivePage === "receivables" &&
+    access.premiumForUser &&
+    !access.isCategoryScoped;
+  const showsReportBuilder =
+    effectivePage === "reports" &&
+    access.premiumForUser &&
+    !access.isCategoryScoped;
+  const showsReconciliationPro =
+    effectivePage === "bank" &&
+    access.premiumForUser &&
+    !access.isCategoryScoped;
+  const showsFundAccountingPro =
+    effectivePage === "giving" &&
+    access.premiumForUser &&
+    !access.isCategoryScoped;
   const meta = showsLiveReport
     ? PAGE_META["daily-close"]
     : showsBudgetingTool
-    ? PAGE_META["budgeting-tool"]
-    : showsCashFlowPro
-    ? PAGE_META["ap-command-center"]
-    : showsReportBuilder
-    ? PAGE_META["report-builder"]
-    : showsReconciliationPro
-    ? PAGE_META["bank-reconciliation"]
-    : showsFundAccountingPro
-    ? PAGE_META["fund-accounting-pro"]
-    : PAGE_META[effectivePage];
+      ? PAGE_META["budgeting-tool"]
+      : showsCashFlowPro
+        ? PAGE_META["ap-command-center"]
+        : showsReportBuilder
+          ? PAGE_META["report-builder"]
+          : showsReconciliationPro
+            ? PAGE_META["bank-reconciliation"]
+            : showsFundAccountingPro
+              ? PAGE_META["fund-accounting-pro"]
+              : PAGE_META[effectivePage];
   // Drives the shimmering gold subtitle right under the page greeting — a
   // one-glance "you're looking at the premium version" cue that doesn't
   // depend on noticing the sidebar's PRO pill or scrolling into the page
   // itself. True on exactly the six upgraded pages from PREMIUM_UPGRADE_TAB_KEYS.
   const isPremiumPage =
-    showsLiveReport || showsBudgetingTool || showsCashFlowPro || showsReportBuilder || showsReconciliationPro || showsFundAccountingPro;
+    showsLiveReport ||
+    showsBudgetingTool ||
+    showsCashFlowPro ||
+    showsReportBuilder ||
+    showsReconciliationPro ||
+    showsFundAccountingPro;
   const isPreviewingUser = viewAsUserId !== BOOKKEEPER_VIEW && access.user;
 
   const clientUsers = client.users || [];
 
   const threadFor = (userId) =>
-    messagesByClient[threadKeyFor(selectedClientId, userId)] || seedThread(selectedClientId, userId);
+    messagesByClient[threadKeyFor(selectedClientId, userId)] ||
+    seedThread(selectedClientId, userId);
 
   // Tracks how many messages were already seen per thread, rather than a plain
   // "read" flag — a flag latches on first visit and would stop every later
@@ -10637,11 +14090,14 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
     const msgs = threadFor(userId);
     return (
       lastMessageFromBookkeeper({ messages: msgs }) &&
-      msgs.length > (readMessageClients[threadKeyFor(selectedClientId, userId)] || 0)
+      msgs.length >
+        (readMessageClients[threadKeyFor(selectedClientId, userId)] || 0)
     );
   };
 
-  const unreadThreadUserIds = clientUsers.filter((u) => threadHasUnread(u.id)).map((u) => u.id);
+  const unreadThreadUserIds = clientUsers
+    .filter((u) => threadHasUnread(u.id))
+    .map((u) => u.id);
   // A client sees a badge only for their own thread; the bookkeeper sees one
   // if anybody at the organization is waiting on a reply.
   const hasUnreadMessages = access.user
@@ -10656,7 +14112,10 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
   // An explicit pick from the thread picker always wins.
   const activeThreadUserId = access.user
     ? access.user.id
-    : bookkeeperThreadUserId || unreadThreadUserIds[0] || (clientUsers[0] && clientUsers[0].id) || null;
+    : bookkeeperThreadUserId ||
+      unreadThreadUserIds[0] ||
+      (clientUsers[0] && clientUsers[0].id) ||
+      null;
 
   const liveMessages = activeThreadUserId ? threadFor(activeThreadUserId) : [];
 
@@ -10667,10 +14126,17 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
     if (effectivePage === "messages" && activeThreadUserId) {
       const key = threadKeyFor(selectedClientId, activeThreadUserId);
       setReadMessageClients((prev) =>
-        prev[key] === liveMessages.length ? prev : { ...prev, [key]: liveMessages.length }
+        prev[key] === liveMessages.length
+          ? prev
+          : { ...prev, [key]: liveMessages.length },
       );
     }
-  }, [effectivePage, selectedClientId, activeThreadUserId, liveMessages.length]);
+  }, [
+    effectivePage,
+    selectedClientId,
+    activeThreadUserId,
+    liveMessages.length,
+  ]);
 
   // Switching tabs (or clients) should land at the top of the new page, not
   // wherever the previous page happened to be scrolled to — the sidebar is
@@ -10681,7 +14147,10 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
 
   useEffect(() => {
     if (isFlagOn(FEATURE_FLAGS[1].key)) {
-      console.log("[MyGoodBooks debug]", { page: effectivePage, clientId: selectedClientId });
+      console.log("[MyGoodBooks debug]", {
+        page: effectivePage,
+        clientId: selectedClientId,
+      });
     }
   }, [effectivePage, selectedClientId]);
 
@@ -10715,7 +14184,10 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
         entries.forEach((entry) => {
           if (!entry.isIntersecting) return;
           const el = entry.target;
-          el.style.setProperty("--reveal-dur", Math.round(2550 + Math.random() * 1950) + "ms");
+          el.style.setProperty(
+            "--reveal-dur",
+            Math.round(2550 + Math.random() * 1950) + "ms",
+          );
           // A data attribute, not a class: React re-renders these cards often
           // (drag state, widget-layout state, the 30s Live Report tick), and
           // every render recomputes className from scratch, silently wiping
@@ -10725,17 +14197,19 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
           io.unobserve(el);
         });
       },
-      { threshold: 0.2 }
+      { threshold: 0.2 },
     );
     const scan = () => {
       // .compare-row: the Enterprise upgrade page's tool-by-tool accordion
       // rows aren't .card elements, so they need their own entry here to
       // pick up data-in-view for the same scroll-reveal treatment.
-      document.querySelectorAll(".card, .dc-kpiTile, .dc-panel, .compare-row").forEach((el) => {
-        if (seen.has(el)) return;
-        seen.add(el);
-        io.observe(el);
-      });
+      document
+        .querySelectorAll(".card, .dc-kpiTile, .dc-panel, .compare-row")
+        .forEach((el) => {
+          if (seen.has(el)) return;
+          seen.add(el);
+          io.observe(el);
+        });
     };
     scan();
     const mo = new MutationObserver(scan);
@@ -10759,7 +14233,9 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
     const containers = new Set();
     const settle = () => {
       document.querySelectorAll(".content-masonry").forEach((el) => {
-        const kids = Array.from(el.children).filter((c) => c.offsetParent !== null);
+        const kids = Array.from(el.children).filter(
+          (c) => c.offsetParent !== null,
+        );
         kids.forEach((k) => k.classList.remove("cm-solo"));
         if (kids.length < 2) return;
         const last = kids[kids.length - 1];
@@ -10772,7 +14248,8 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
         if (!hasNeighbor) last.classList.add("cm-solo");
       });
     };
-    const ro = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(settle);
+    const ro =
+      typeof ResizeObserver === "undefined" ? null : new ResizeObserver(settle);
     const scanMasonry = () => {
       document.querySelectorAll(".content-masonry").forEach((el) => {
         if (containers.has(el)) return;
@@ -10814,7 +14291,11 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
     const animate = (textNode, prefix, suffix, target, decimals) => {
       const duration = 650;
       const start = performance.now();
-      const fmt = (n) => n.toLocaleString("en-US", { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+      const fmt = (n) =>
+        n.toLocaleString("en-US", {
+          minimumFractionDigits: decimals,
+          maximumFractionDigits: decimals,
+        });
       const frame = (now) => {
         const p = Math.min(1, (now - start) / duration);
         const eased = 1 - Math.pow(1 - p, 3);
@@ -10824,29 +14305,45 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
       requestAnimationFrame(frame);
     };
     const trigger = (el) => {
-      const candidates = Array.from(el.childNodes).filter((n) => n.nodeType === Node.TEXT_NODE && n.data.trim());
-      const textNode = candidates.find((n) => /\d/.test(n.data)) || candidates[0];
+      const candidates = Array.from(el.childNodes).filter(
+        (n) => n.nodeType === Node.TEXT_NODE && n.data.trim(),
+      );
+      const textNode =
+        candidates.find((n) => /\d/.test(n.data)) || candidates[0];
       if (!textNode) return;
       const match = textNode.data.match(/-?[\d,]+(?:\.\d+)?/);
       if (!match) return;
       const target = parseFloat(match[0].replace(/,/g, ""));
       if (Number.isNaN(target)) return;
       const decimals = (match[0].split(".")[1] || "").length;
-      animate(textNode, textNode.data.slice(0, match.index), textNode.data.slice(match.index + match[0].length), target, decimals);
+      animate(
+        textNode,
+        textNode.data.slice(0, match.index),
+        textNode.data.slice(match.index + match[0].length),
+        target,
+        decimals,
+      );
     };
-    const io = new IntersectionObserver((entries) => {
-      entries.forEach((entry) => {
-        if (!entry.isIntersecting) return;
-        io.unobserve(entry.target);
-        trigger(entry.target);
-      });
-    }, { threshold: 0.2 });
+    const io = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (!entry.isIntersecting) return;
+          io.unobserve(entry.target);
+          trigger(entry.target);
+        });
+      },
+      { threshold: 0.2 },
+    );
     const scan = () => {
-      document.querySelectorAll(".kpi-value, .rb-big, .rb-preview-stat-value, .fund-balance, .dc-kpiValue, .runway-ring-value, .count-up").forEach((el) => {
-        if (seen.has(el)) return;
-        seen.add(el);
-        io.observe(el);
-      });
+      document
+        .querySelectorAll(
+          ".kpi-value, .rb-big, .rb-preview-stat-value, .fund-balance, .dc-kpiValue, .runway-ring-value, .count-up",
+        )
+        .forEach((el) => {
+          if (seen.has(el)) return;
+          seen.add(el);
+          io.observe(el);
+        });
     };
     scan();
     const mo = new MutationObserver(scan);
@@ -10863,7 +14360,9 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
   // previewed — a signed-in staffer looking at the org with full access
   // isn't John, so "Good morning, John" was flatly wrong (nobody named
   // John is actually there). Falls back to the org's own name instead.
-  const greetingName = access.user ? firstNameOf(access.user.name) : client.name;
+  const greetingName = access.user
+    ? firstNameOf(access.user.name)
+    : client.name;
 
   // Pop the floating chat widget open when an unread reply arrives — but only
   // once per unread reply. The previous version re-ran on every page change and
@@ -10879,7 +14378,11 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
   // message count, so a *new* reply in an already-unread thread re-opens the
   // widget. A string, not the array, so the effect doesn't re-run every render.
   const unreadSignature = hasUnreadMessages
-    ? selectedClientId + "|" + unreadThreadUserIds.join(",") + "|" + liveMessages.length
+    ? selectedClientId +
+      "|" +
+      unreadThreadUserIds.join(",") +
+      "|" +
+      liveMessages.length
     : null;
 
   useEffect(() => {
@@ -10889,7 +14392,10 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
     // popping up over any of them is redundant at best (Home) and outright
     // confusing at worst (it's scoped to whatever client happened to be
     // last selected, which has nothing to do with that page).
-    const canShow = access.tabs.has("messages") && effectivePage !== "messages" && !NON_CLIENT_PAGES.has(effectivePage);
+    const canShow =
+      access.tabs.has("messages") &&
+      effectivePage !== "messages" &&
+      !NON_CLIENT_PAGES.has(effectivePage);
     const signature = unreadSignature;
 
     if (!signature || !canShow) {
@@ -10924,8 +14430,9 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
       <div className="boot-splash" role="main">
         <div className="boot-splash-mark">MyGoodBooks</div>
         <div className="boot-splash-sub">
-          {effectiveStaffUser.name}, you're signed in but no clients are assigned to you yet. Ask an admin to check
-          off at least one client for you under Staff Access.
+          {effectiveStaffUser.name}, you're signed in but no clients are
+          assigned to you yet. Ask an admin to check off at least one client for
+          you under Staff Access.
         </div>
         {impersonating && (
           <button
@@ -10970,7 +14477,11 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
       </div>
       <div className={"app-shell" + (isPreviewingUser ? " previewing" : "")}>
         <div className="mobile-topbar">
-          <button className="hamburger-btn" onClick={() => setMobileNavOpen(true)} aria-label="Open menu">
+          <button
+            className="hamburger-btn"
+            onClick={() => setMobileNavOpen(true)}
+            aria-label="Open menu"
+          >
             <span></span>
             <span></span>
             <span></span>
@@ -11000,7 +14511,9 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
           mobileOpen={mobileNavOpen}
           onCloseMobile={() => setMobileNavOpen(false)}
           effectiveTheme={effectiveTheme}
-          onToggleTheme={() => setTheme(effectiveTheme === "dark" ? "light" : "dark")}
+          onToggleTheme={() =>
+            setTheme(effectiveTheme === "dark" ? "light" : "dark")
+          }
           staffUser={effectiveStaffUser}
           onSignOut={onSignOut}
           staffMessagesUnread={staffMessagesUnread}
@@ -11010,8 +14523,10 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
           {impersonating && (
             <div className="preview-bar">
               <span>
-                Viewing as <strong>{impersonating.name}</strong> — {impersonating.role}. This is exactly what they see
-                when they sign in, including their assigned clients and their own reminders.
+                Viewing as <strong>{impersonating.name}</strong> —{" "}
+                {impersonating.role}. This is exactly what they see when they
+                sign in, including their assigned clients and their own
+                reminders.
               </span>
               <button className="preview-exit" onClick={stopImpersonating}>
                 Exit "View as"
@@ -11021,10 +14536,14 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
           {isPreviewingUser && (
             <div className="preview-bar">
               <span>
-                Previewing as <strong>{access.user.name}</strong> — {access.user.role}. This is exactly what they see
-                when they sign in.
+                Previewing as <strong>{access.user.name}</strong> —{" "}
+                {access.user.role}. This is exactly what they see when they sign
+                in.
               </span>
-              <button className="preview-exit" onClick={() => setViewAsUserId(BOOKKEEPER_VIEW)}>
+              <button
+                className="preview-exit"
+                onClick={() => setViewAsUserId(BOOKKEEPER_VIEW)}
+              >
                 Exit preview
               </button>
             </div>
@@ -11033,7 +14552,9 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
           <div className="page-header">
             <div>
               <div className="portal-greeting">
-                {NON_CLIENT_PAGES.has(effectivePage) ? "MyGoodBooks" : client.name}
+                {NON_CLIENT_PAGES.has(effectivePage)
+                  ? "MyGoodBooks"
+                  : client.name}
               </div>
               {NON_CLIENT_PAGES.has(effectivePage) ? (
                 <h1 className="page-title">
@@ -11044,7 +14565,13 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
                   {timeOfDayGreeting()}, {greetingName}
                 </h1>
               )}
-              <div className={"page-subtitle" + (isPremiumPage ? " premium-shimmer" : "")}>{meta.subtitle}</div>
+              <div
+                className={
+                  "page-subtitle" + (isPremiumPage ? " premium-shimmer" : "")
+                }
+              >
+                {meta.subtitle}
+              </div>
             </div>
             <div className="page-header-actions">
               <span className="badge-live">
@@ -11059,7 +14586,9 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
             messages={liveMessages}
             visibleKeys={access.tabs}
             onNavigate={setPage}
-            onHighlightResult={(r) => setSearchTarget({ ...r, nonce: Date.now() })}
+            onHighlightResult={(r) =>
+              setSearchTarget({ ...r, nonce: Date.now() })
+            }
             key={"search-" + client.id}
           />
 
@@ -11099,22 +14628,35 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
             ))}
           {effectivePage === "budget" &&
             (showsBudgetingTool ? (
-              <BudgetingToolPage client={scopedClient} key={"budgeting-tool-" + client.id} />
+              <BudgetingToolPage
+                client={scopedClient}
+                key={"budgeting-tool-" + client.id}
+              />
             ) : (
               <BudgetPage
                 client={scopedClient}
-                searchTarget={searchTarget && searchTarget.page === "budget" ? searchTarget : null}
+                searchTarget={
+                  searchTarget && searchTarget.page === "budget"
+                    ? searchTarget
+                    : null
+                }
               />
             ))}
           {effectivePage === "giving" &&
             (showsFundAccountingPro ? (
-              <FundAccountingProPage client={scopedClient} key={"fund-accounting-pro-" + client.id} />
+              <FundAccountingProPage
+                client={scopedClient}
+                key={"fund-accounting-pro-" + client.id}
+              />
             ) : (
               <GivingFundsPage client={scopedClient} />
             ))}
           {effectivePage === "receivables" &&
             (showsCashFlowPro ? (
-              <APCommandCenterPage client={scopedClient} key={"ap-command-center-" + client.id} />
+              <APCommandCenterPage
+                client={scopedClient}
+                key={"ap-command-center-" + client.id}
+              />
             ) : (
               <ReceivablesPayablesPage client={scopedClient} />
             ))}
@@ -11122,30 +14664,54 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
             (showsReconciliationPro ? (
               <BankReconciliationPage
                 client={scopedClient}
-                searchTarget={searchTarget && searchTarget.page === "bank" ? searchTarget : null}
+                searchTarget={
+                  searchTarget && searchTarget.page === "bank"
+                    ? searchTarget
+                    : null
+                }
                 key={"bank-reconciliation-" + client.id}
               />
             ) : (
               <BankPage
                 client={scopedClient}
-                searchTarget={searchTarget && searchTarget.page === "bank" ? searchTarget : null}
+                searchTarget={
+                  searchTarget && searchTarget.page === "bank"
+                    ? searchTarget
+                    : null
+                }
                 key={"bank-" + client.id}
               />
             ))}
-          {effectivePage === "payroll" && <PayrollPage client={scopedClient} key={"payroll-" + client.id} />}
+          {effectivePage === "payroll" && (
+            <PayrollPage client={scopedClient} key={"payroll-" + client.id} />
+          )}
           {effectivePage === "reports" &&
             (showsReportBuilder ? (
-              <ReportBuilderPage client={scopedClient} key={"report-builder-" + client.id} />
+              <ReportBuilderPage
+                client={scopedClient}
+                key={"report-builder-" + client.id}
+              />
             ) : (
               <ReportsPage client={scopedClient} />
             ))}
-          {effectivePage === "enterprise-upgrade" && <EnterpriseUpgradePage client={scopedClient} key={"enterprise-upgrade-" + client.id} />}
+          {effectivePage === "enterprise-upgrade" && (
+            <EnterpriseUpgradePage
+              client={scopedClient}
+              key={"enterprise-upgrade-" + client.id}
+            />
+          )}
           {effectivePage === "staff-access" && (
-            <StaffAccessPage staffUser={staffUser} onImpersonate={startImpersonating} />
+            <StaffAccessPage
+              staffUser={staffUser}
+              onImpersonate={startImpersonating}
+            />
           )}
           {effectivePage === "client-access" && <ClientAccessPage />}
           {effectivePage === "staff-messages" && (
-            <StaffMessagesPage staffUser={staffUser} onActivity={checkStaffMessagesUnread} />
+            <StaffMessagesPage
+              staffUser={staffUser}
+              onActivity={checkStaffMessagesUnread}
+            />
           )}
           {effectivePage === "developer-tools" && (
             <DeveloperToolsPage
@@ -11172,7 +14738,11 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
             <DocumentsPage
               client={scopedClient}
               isBookkeeper={!isPreviewingUser}
-              searchTarget={searchTarget && searchTarget.page === "documents" ? searchTarget : null}
+              searchTarget={
+                searchTarget && searchTarget.page === "documents"
+                  ? searchTarget
+                  : null
+              }
               key={"docs-" + client.id}
             />
           )}
@@ -11180,14 +14750,25 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
             <MessagesPage
               client={scopedClient}
               messages={liveMessages}
-              onSend={(text, attachment) => sendMessage(selectedClientId, activeThreadUserId, text, attachment)}
+              onSend={(text, attachment) =>
+                sendMessage(
+                  selectedClientId,
+                  activeThreadUserId,
+                  text,
+                  attachment,
+                )
+              }
               users={clientUsers}
               activeUserId={activeThreadUserId}
               onSelectUser={setBookkeeperThreadUserId}
               unreadUserIds={unreadThreadUserIds}
               isBookkeeper={!isPreviewingUser}
               bookkeeperTyping={bookkeeperTyping}
-              searchTarget={searchTarget && searchTarget.page === "messages" ? searchTarget : null}
+              searchTarget={
+                searchTarget && searchTarget.page === "messages"
+                  ? searchTarget
+                  : null
+              }
               key={"msgs-" + client.id + "-" + activeThreadUserId}
             />
           )}
@@ -11233,7 +14814,9 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
 // its own link — ?access-form=<token> — and has to render before AuthGate
 // even mounts: the person filling it out has no MyGoodBooks account and
 // never will, so gating it behind staff login would make the link useless.
-const accessFormToken = new URLSearchParams(window.location.search).get("access-form");
+const accessFormToken = new URLSearchParams(window.location.search).get(
+  "access-form",
+);
 
 // Phase 2 (real client login) entry point — see components/auth/ClientAuthGate.jsx
 // and supabase/client-auth-phase2.sql. Reached the same way as the access
@@ -11258,9 +14841,14 @@ function ClientPortalGuard({ clientUser, onSignOut }) {
       <div className="boot-splash" role="alert">
         <div className="boot-splash-mark">MyGoodBooks</div>
         <div className="boot-splash-sub">
-          {clientUser.name}'s account isn't linked to a client MyGoodBooks has set up yet.
+          {clientUser.name}'s account isn't linked to a client MyGoodBooks has
+          set up yet.
         </div>
-        <button className="btn-secondary" style={{ marginTop: 16 }} onClick={onSignOut}>
+        <button
+          className="btn-secondary"
+          style={{ marginTop: 16 }}
+          onClick={onSignOut}
+        >
           Sign out
         </button>
       </div>
@@ -11280,12 +14868,16 @@ ReactDOM.createRoot(document.getElementById("root")).render(
       <AccessRequestForm token={accessFormToken} />
     ) : clientLoginMode ? (
       <ClientAuthGate>
-        {(clientUser, onSignOut) => <ClientPortalGuard clientUser={clientUser} onSignOut={onSignOut} />}
+        {(clientUser, onSignOut) => (
+          <ClientPortalGuard clientUser={clientUser} onSignOut={onSignOut} />
+        )}
       </ClientAuthGate>
     ) : (
       <AuthGate>
-        {(staffUser, onSignOut) => <App staffUser={staffUser} onSignOut={onSignOut} />}
+        {(staffUser, onSignOut) => (
+          <App staffUser={staffUser} onSignOut={onSignOut} />
+        )}
       </AuthGate>
     )}
-  </ErrorBoundary>
+  </ErrorBoundary>,
 );

@@ -2,3 +2,4 @@
 .build-cache/
 .snapshot-before-*/
 node_modules/
+.claude/worktrees/

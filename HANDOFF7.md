@@ -2840,3 +2840,148 @@ staff to reach directly) that deletes the stored tokens and resets
 `qbo_connections` to disconnected. Also added a distinct "Connection failed"
 state with a "Try again" button for `status = 'error'`, previously
 indistinguishable from never-connected.
+
+## §105 — Security audit: fixed all findings (C1/H1-H4/M1-M3/M5/L2)
+
+A full-app security audit (background Opus agent) found several real, live
+vulnerabilities. All were fixed live against the Supabase project
+(xumsqmhccgfjnlmieqyu) and the corresponding `supabase/*.sql` files were
+updated to match — this repo has drifted from the live DB before (see
+access-requests.sql history), so every migration below is also reflected in
+its `.sql` file.
+
+**C1 (CRITICAL) — public staff-chat storage bucket.** The
+`staff-chat-attachments` bucket was `public: true` with a select policy of
+`using (bucket_id = '...')` — no auth check at all. Anyone holding the
+published anon key could list and download every attachment ever sent in
+Team Chat, no session required. Fixed: bucket flipped to private, select
+policy now requires `is_active_staff()`. `app.jsx` no longer calls
+`getPublicUrl()`; it stores the storage *path* in `attachment_url` and mints
+a 10-minute `createSignedUrl()` at render time (`loadMessages` now resolves
+signed URLs for every attachment in the thread). **Note:** objects uploaded
+before this fix were exposed to anyone with the anon key for however long
+they existed — that exposure already happened and this fix can't undo it.
+
+**H1 (HIGH) — staff could join/read any other staff's private DM.** The
+insert policy on `staff_conversation_members` let any active staff member
+insert *any* `(conversation_id, staff_email)` pair, and the read policy on
+`staff_conversations` was blanket `is_active_staff()`. Fixed: insert now
+requires `staff_email = auth.jwt()->>'email'` OR the conversation currently
+has zero members (so creating a conversation can still seed the other
+participants, but only before the first membership row lands); added a
+self-only delete policy so staff can leave a thread; narrowed conversation
+read to `is_conversation_member(id)` so the conversation list isn't fully
+enumerable. Verified `openWith()`/`createGroup()` in `app.jsx` still work:
+both insert the creator's own row first, then the other participants, all
+before any read-based UI update — exactly the pattern the new policy allows.
+
+**H2 (HIGH) — `access_request_links` fully readable.** A `using (true)`
+select policy let anon dump the whole table (client ids, staff emails, live
+tokens). Fixed: dropped that policy, added `security definer` RPC
+`access_link_client(p_token text)` (pinned `search_path = public`, granted to
+`anon`) that returns only a single `client_id` for a single valid, active
+token. `app.jsx`'s `AccessRequestForm` now calls
+`supabase.rpc('access_link_client', { p_token })` instead of a direct select.
+
+**H3 (HIGH) — access-request submissions not bound to the link's client.**
+The insert policy on `access_requests` checked the token was active but
+never checked that the submitted (client-supplied, spoofable) `client_id`
+matched *that* link's `client_id` — an attacker with one valid token could
+post a fake "grant me access" request under any client. Fixed: added
+`l.client_id = access_requests.client_id` to the with-check clause. Also
+added `check (jsonb_array_length(people) <= 50)` as a size guard.
+
+**H4 (HIGH) — client magic-link login could create accounts for any
+email.** `ClientAuthGate.jsx`'s `signInWithOtp()` call had no
+`shouldCreateUser: false`, so any email got a new `auth.users` row plus a
+branded email (email-bombing/brand-abuse risk). Fixed: added
+`shouldCreateUser: false`, and pinned `emailRedirectTo` to
+`window.location.origin + '/login'` instead of the full current URL
+(querystring included) per finding M6.
+
+**M1 (MEDIUM) — chat author name/role spoofable.** `staff_messages` inserts
+sent client-supplied `author_name`/`author_role`; RLS only validated
+`author_email`. Fixed with a `before insert` trigger,
+`staff_messages_set_author_from_staff()`, that overwrites both from the
+`staff` table server-side — `app.jsx` no longer even sends those fields.
+
+**M2 (MEDIUM) — `javascript:` URL stored-XSS.** React doesn't sanitize
+`href`. Added a shared `safeHttpUrl(u)` helper (parses with `new URL()`,
+requires `https:`, returns `null` otherwise) and used it at all render sites
+that put a stored URL into `href`: chat attachment links, the "Add Document"
+Drive-link list, and validated on input in the "Add Document" form too so a
+bad link can't be saved in the first place.
+
+**M3 (MEDIUM) — `Math.random()` fallback for tokens.** The QBO-connect
+`state` token and the access-request-link token both fell back to
+`Math.random()` if `crypto.randomUUID` was unavailable. Replaced with a
+shared `secureRandomToken()` helper that falls back to
+`crypto.getRandomValues()` (32 random bytes, hex-encoded) and throws instead
+of silently degrading if neither API exists.
+
+**M5 (MEDIUM) — `is_conversation_member()` missing pinned `search_path`.**
+Added `set search_path = public`, matching every other security definer
+function in the repo. Also ran
+`select has_schema_privilege('authenticated','public','CREATE')` against the
+live DB: **result is `false`** — `authenticated` cannot create objects in
+`public`, so this is not an escalated risk here.
+
+**L2 (LOW) — leftover placeholder admin seed.** Checked the live DB for
+`you@mygoodbooks.org` in `staff` — **it does not exist**, so no live cleanup
+was needed. Added `drop policy if exists "staff can read own row" on
+staff;` to `staff-schema.sql` for idempotency consistency with the rest of
+the file.
+
+**L3 (skipped, optional polish)** — unsend still leaves message text in the
+row (soft-deleted via `deleted_at`, but returned over the wire until a
+client filters it). Not required by the audit; left as-is.
+
+QuickBooks OAuth (`qbo-callback`, `qbo_*` tables) was explicitly out of
+scope and untouched.
+
+Files touched: `supabase/staff-chat-v2.sql`, `supabase/access-requests.sql`,
+`supabase/staff-schema.sql`, `app.jsx`,
+`components/auth/ClientAuthGate.jsx`.
+
+## §106 — QuickBooks OAuth token refresh (previously nonexistent)
+
+Closed the documented gap that QBO connections had no refresh logic: access
+tokens expire after ~1hr, refresh tokens after ~100 days idle, so every
+connection went stale within an hour of connecting with nothing to catch or
+fix it. Built `supabase/functions/qbo-refresh-token/index.ts` — a new Edge
+Function that, for every `qbo_connections` row with `status = 'connected'`,
+checks `qbo_tokens.expires_at` and refreshes anything within 10 minutes of
+expiring (skipping anything touched in the last 3 minutes, to avoid a race
+with a concurrent manual reconnect). Calls Intuit's token endpoint with
+`grant_type=refresh_token`; Intuit always rotates the refresh token on every
+use, so the new one is stored via the existing `qbo_store_tokens` RPC same
+as the old one. On `invalid_grant` (refresh token itself expired/revoked)
+the connection flips to `status='error'` with a clear
+"Connection expired — please reconnect QuickBooks." — the existing
+Reconnect/Disconnect UI in app.jsx's QuickBooks tab (§104) already handles
+that status, so no UI change was needed.
+
+Reuses every existing security pattern instead of adding new surface: same
+`QBO_TOKEN_ENCRYPTION_KEY` secret, same `qbo_store_tokens`/`qbo_get_tokens`
+security-definer RPCs (service_role only), same never-log-token-values
+discipline as qbo-callback. `verify_jwt` is off (the caller is pg_net, not a
+browser with a session) but the function itself checks the caller presents
+the project's service_role key as a Bearer token, so a random anon caller
+can't hit it to force token churn or read error details.
+
+Scheduling: `pg_cron` and `pg_net` are both available on this project and
+were enabled; a cron job (`qbo-refresh-tokens`, every 15 minutes) was
+created via `apply_migration` that POSTs to the function through `pg_net`.
+**Manual follow-up required:** the cron job's Authorization header reads
+the service_role key from a Supabase Vault secret
+(`qbo_refresh_service_key`) rather than having it inlined in a committed
+migration file — this session didn't have the raw key value to store, so
+that Vault secret doesn't exist yet. Until someone with dashboard access
+runs `select vault.create_secret('<service_role key>', 'qbo_refresh_service_key');`
+once, the cron job fires on schedule but each call gets a 401 and no-ops
+(nothing insecure happens, refresh just doesn't run yet). See
+`supabase/qbo-refresh.sql` for the full migration and how to verify the job
+is running (`select * from cron.job_run_details ...`).
+
+Files touched: `supabase/functions/qbo-refresh-token/index.ts` (new),
+`supabase/qbo-refresh.sql` (new), `HANDOFF7.md`, `index.html`, `build.py`.

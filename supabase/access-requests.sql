@@ -78,13 +78,26 @@ create policy "staff update links"
   using (public.is_active_staff())
   with check (public.is_active_staff());
 
--- The public form (no session at all) needs to resolve a token to a
--- client_id before it can even render, and to confirm the link is still
--- active. Nothing in this table beyond client_id is sensitive.
+-- Security audit finding H2 (HIGH): a `using (true)` select policy here let
+-- anon dump the WHOLE table over the REST API -- every client id, staff
+-- email that generated a link, and live token, not just the one row a
+-- public form actually needs. Replaced with a security definer RPC that
+-- only ever returns a single client_id for a single valid token, and the
+-- blanket select policy is dropped entirely (see below).
 drop policy if exists "public read links by token" on access_request_links;
-create policy "public read links by token"
-  on access_request_links for select
-  using (true);
+
+create or replace function public.access_link_client(p_token text)
+returns text
+language sql
+security definer
+set search_path = public
+stable
+as $$
+  select client_id from access_request_links where token = p_token and active;
+$$;
+
+grant execute on function public.access_link_client(text) to anon;
+grant execute on function public.access_link_client(text) to authenticated;
 
 -- Staff read/triage submissions.
 drop policy if exists "staff read requests" on access_requests;
@@ -101,6 +114,12 @@ create policy "staff update requests"
 -- The public form submits here with no session. Restricted to inserting
 -- against a token that actually names an active link, so a stale or
 -- deactivated link can't still be used to write rows.
+--
+-- Security audit finding H3 (HIGH): this used to check only that the token
+-- named an active link, never that the submitted client_id (client-supplied,
+-- spoofable) actually matched THAT link's client_id -- so an attacker with
+-- one valid token could post a fake "grant me access" request that showed up
+-- under any client. Added `l.client_id = access_requests.client_id`.
 drop policy if exists "public submit via active token" on access_requests;
 create policy "public submit via active token"
   on access_requests for insert
@@ -109,5 +128,11 @@ create policy "public submit via active token"
       select 1 from access_request_links l
       where l.token = access_requests.token
         and l.active
+        and l.client_id = access_requests.client_id
     )
   );
+
+-- Security audit finding H3: cheap size guard against an oversized `people`
+-- payload.
+alter table access_requests drop constraint if exists access_requests_people_size;
+alter table access_requests add constraint access_requests_people_size check (jsonb_array_length(people) <= 50);
