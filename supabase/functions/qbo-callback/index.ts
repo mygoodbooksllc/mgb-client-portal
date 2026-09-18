@@ -86,16 +86,26 @@ Deno.serve(async (req) => {
     body: new URLSearchParams({ grant_type: "authorization_code", code, redirect_uri: redirectUri }),
   });
 
+  // intuit_tid uniquely identifies this call in Intuit's own server-side
+  // logs — captured on every response so a failed/disputed call can be
+  // correlated with Intuit support without digging through logs.
+  const intuitTid = tokenRes.headers.get("intuit_tid");
+
   if (!tokenRes.ok) {
     // Deliberately not logging the response body: it can include enough of
     // the failed exchange to count as QuickBooks-adjacent data, which
     // Intuit's review prohibits logging. Status code only.
+    const lastError = intuitTid
+      ? `token exchange failed (${tokenRes.status}) — intuit_tid: ${intuitTid}`
+      : `token exchange failed (${tokenRes.status})`;
     await supabase
       .from("qbo_connections")
-      .update({ status: "error", last_error: `token exchange failed (${tokenRes.status})`, updated_at: new Date().toISOString() })
+      .update({ status: "error", last_error: lastError, updated_at: new Date().toISOString() })
       .eq("client_id", clientId);
     return redirect("error");
   }
+
+  console.log(`qbo-callback: token exchange succeeded${intuitTid ? ` (intuit_tid: ${intuitTid})` : ""}`);
 
   const tokens = await tokenRes.json();
   const expiresAt = new Date(Date.now() + tokens.expires_in * 1000).toISOString();

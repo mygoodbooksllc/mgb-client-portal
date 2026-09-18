@@ -163,7 +163,7 @@ def build(out_path: pathlib.Path, refresh: bool) -> None:
 
 // Mirrors the stamp in index.html — bumped by hand alongside this file,
 // since there's no build step to inject a real commit SHA into.
-window.MGB_VERSION = {{ label: "2026-09-18k", note: "Fix group/DM creation broken by H1's conversation-read lockdown" }};
+window.MGB_VERSION = {{ label: "2026-09-18l", note: "Capture intuit_tid for QBO error diagnostics; add in-app Contact support link" }};
 
 // Mirrors index.html's pinch-block — see that file's comment for why this
 // is gesture-level (2+ touches) rather than touch-action CSS.

@@ -102,22 +102,32 @@ Deno.serve(async (req) => {
       body: new URLSearchParams({ grant_type: "refresh_token", refresh_token: tokenRow.refresh_token }),
     });
 
+    // intuit_tid uniquely identifies this call in Intuit's own server-side
+    // logs — captured on every response so a failed/disputed call can be
+    // correlated with Intuit support without digging through logs.
+    const intuitTid = tokenRes.headers.get("intuit_tid");
+
     if (!tokenRes.ok) {
       // Deliberately not logging the response body — see qbo-callback. A
       // 400/invalid_grant here almost always means the refresh token itself
       // expired or was revoked (e.g. 100+ days idle, or disconnected from
       // Intuit's side) — nothing left to retry, surface it for reconnect.
+      const lastError = intuitTid
+        ? `Connection expired — please reconnect QuickBooks. (intuit_tid: ${intuitTid})`
+        : "Connection expired — please reconnect QuickBooks.";
       await supabase
         .from("qbo_connections")
         .update({
           status: "error",
-          last_error: "Connection expired — please reconnect QuickBooks.",
+          last_error: lastError,
           updated_at: new Date().toISOString(),
         })
         .eq("client_id", clientId);
       result.errored++;
       continue;
     }
+
+    console.log(`qbo-refresh-token: refresh succeeded for client ${clientId}${intuitTid ? ` (intuit_tid: ${intuitTid})` : ""}`);
 
     const tokens = await tokenRes.json();
     const newExpiresAt = new Date(now + tokens.expires_in * 1000).toISOString();

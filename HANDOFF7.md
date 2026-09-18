@@ -3025,3 +3025,47 @@ unless the calling code checks for a null/empty result.
 
 Files touched: `supabase/staff-chat-v2.sql`, `index.html`, `build.py`,
 `HANDOFF7.md`.
+
+## §108 — Intuit app-review: capture `intuit_tid`, add in-app support contact
+
+Two small fixes driven by Intuit's app-review questionnaire, turning two
+"no" answers into "yes":
+
+**1. `intuit_tid` capture.** `intuit_tid` is a unique transaction ID Intuit
+returns in every API response header, used to correlate a specific
+failed call with Intuit's own server-side logs when asking their support
+for help. Neither `supabase/functions/qbo-callback/index.ts` (OAuth
+token exchange) nor `supabase/functions/qbo-refresh-token/index.ts`
+(scheduled token refresh) captured it. Both now read
+`response.headers.get("intuit_tid")` (Fetch's `Headers.get` normalizes
+case) after every call to Intuit's token endpoint:
+- On success: logged via `console.log` alongside the existing
+  success-path logging, so it's visible in Supabase Edge Function logs
+  for a successful-but-later-disputed call.
+- On failure: appended to `qbo_connections.last_error`, e.g.
+  `token exchange failed (400) — intuit_tid: <value>` in qbo-callback, or
+  `Connection expired — please reconnect QuickBooks. (intuit_tid: <value>)`
+  in qbo-refresh-token — matching each file's existing error-message
+  style. Handled gracefully when the header is absent (some error
+  responses may not include it).
+
+Deployed live via `deploy_edge_function` for both functions; confirmed
+present in `list_edge_functions`.
+
+**2. In-app "Contact support" link.** The app had Privacy Policy / Terms
+of Service footer links (added earlier this session) but no way to
+contact support from inside the app. Added a `mailto:` "Contact support"
+link (`holden@mygoodbooks.org?subject=MyGoodBooks%20Support`) next to
+the existing legal links, matching each spot's existing style/separator
+(`·`), in all three places that had those links:
+`components/auth/AuthGate.jsx`, `components/auth/ClientAuthGate.jsx`,
+and the Sidebar's `.legal-footer-links` block in `app.jsx`. No
+`target="_blank"` needed for a `mailto:` link. Note: the Privacy
+Policy/Terms pages themselves still use `jeff@mygoodbooks.org` as their
+contact address — unrelated and left as-is; only the new support link
+uses `holden@mygoodbooks.org`.
+
+Files touched: `supabase/functions/qbo-callback/index.ts`,
+`supabase/functions/qbo-refresh-token/index.ts`,
+`components/auth/AuthGate.jsx`, `components/auth/ClientAuthGate.jsx`,
+`app.jsx`, `index.html`, `build.py`, `HANDOFF7.md`.

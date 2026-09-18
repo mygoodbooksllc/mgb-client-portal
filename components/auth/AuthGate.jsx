@@ -36,7 +36,7 @@
       }
       if (!data || !data.active) {
         setErrorMsg(
-          `${email} signed in with Google but isn't on the MyGoodBooks staff list.`
+          `${email} signed in with Google but isn't on the MyGoodBooks staff list.`,
         );
         setStatus("denied");
         return;
@@ -56,13 +56,15 @@
         else setStatus("signed-out");
       });
 
-      const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
-        if (session) checkStaffRow(session);
-        else {
-          setStaffUser(null);
-          setStatus("signed-out");
-        }
-      });
+      const { data: sub } = supabase.auth.onAuthStateChange(
+        (_event, session) => {
+          if (session) checkStaffRow(session);
+          else {
+            setStaffUser(null);
+            setStatus("signed-out");
+          }
+        },
+      );
       return () => sub.subscription.unsubscribe();
     }, []);
 
@@ -119,9 +121,18 @@
     return (
       <div className="boot-splash" role="main">
         <div className="boot-splash-mark">MyGoodBooks</div>
-        <div className="boot-splash-sub">Staff portal — sign in with your MyGoodBooks Google account.</div>
+        <div className="boot-splash-sub">
+          Staff portal — sign in with your MyGoodBooks Google account.
+        </div>
         {errorMsg && (
-          <div style={{ color: "#e0664f", maxWidth: 360, textAlign: "center", margin: "12px 0" }}>
+          <div
+            style={{
+              color: "#e0664f",
+              maxWidth: 360,
+              textAlign: "center",
+              margin: "12px 0",
+            }}
+          >
             {errorMsg}
           </div>
         )}
@@ -142,9 +153,30 @@
           Sign in with Google
         </button>
         <div style={{ marginTop: 24, fontSize: 13, color: "#888" }}>
-          <a href="/privacy" target="_blank" rel="noopener noreferrer" style={{ color: "inherit" }}>Privacy Policy</a>
+          <a
+            href="/privacy"
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{ color: "inherit" }}
+          >
+            Privacy Policy
+          </a>
           {" · "}
-          <a href="/terms" target="_blank" rel="noopener noreferrer" style={{ color: "inherit" }}>Terms of Service</a>
+          <a
+            href="/terms"
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{ color: "inherit" }}
+          >
+            Terms of Service
+          </a>
+          {" · "}
+          <a
+            href="mailto:holden@mygoodbooks.org?subject=MyGoodBooks%20Support"
+            style={{ color: "inherit" }}
+          >
+            Contact support
+          </a>
         </div>
       </div>
     );
