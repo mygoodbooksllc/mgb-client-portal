@@ -3153,3 +3153,45 @@ the `staff_client_access` assignment filter entirely (see the `role ===
 consistent with how admins already see every real client too.
 
 Files touched: `app.jsx`, `index.html`, `build.py`, `HANDOFF7.md`.
+
+## §112 — Rate limiting on the access-request form (H3 follow-up)
+
+H3's earlier fix covered the size bound and client-id spoofing on the
+public access-request form, but explicitly deferred rate limiting.
+Nothing stopped a script from POSTing to `access_requests` in a loop
+against a leaked/guessed token, so this closes that.
+
+Added a `max_submissions` column (default `1`) to `access_request_links`,
+and a new `security definer` RPC, `public.submit_access_request(p_token,
+p_client_id, p_submitted_by_name, p_submitted_by_email, p_people)`, that
+does the token/active check, the client_id match, and the submission-count
+check, then inserts — all inside one function so there's no TOCTOU race
+between checking the count and inserting the row (`select ... for update`
+locks the link row for the duration). `AccessRequestForm`'s `submit()` in
+`app.jsx` now calls this RPC instead of `.insert()`, and shows "This link
+has already been used to submit a request. Contact your bookkeeper if you
+need to submit another." when the cap is hit.
+
+Design call: went RPC-only, not RPC + a public insert policy. The old
+"public submit via active token" insert policy is dropped entirely — if
+it stayed, a script could skip the RPC and hit PostgREST's
+`access_requests` table endpoint directly, bypassing the cap the same way
+H2/H3 showed a bare policy can be bypassed. The insert policy is now
+staff-only (`is_active_staff()`), for the rare case a bookkeeper re-files
+a request by hand; every public submission goes through the RPC.
+
+Cap defaults to 1, not some small N like 3: re-reading `AccessRequestForm`
+confirmed nothing server-side previously stopped a second submission
+(the UI's "done" state is just local React state, not a real one-shot
+gate), and each link is already generated as a one-off for a single
+client contact to fill out once. `max_submissions` is a column, not a
+hardcoded `1`, so a bookkeeper could raise it per-link later if a
+legitimate resubmission need ever comes up — no schema change required.
+
+Applied live via Supabase MCP (`apply_migration`,
+`access_request_rate_limit`) and mirrored in
+`supabase/access-requests.sql` so the repo doesn't drift from the live
+DB.
+
+Files touched: `app.jsx`, `supabase/access-requests.sql`, `index.html`,
+`build.py`, `HANDOFF7.md`.
