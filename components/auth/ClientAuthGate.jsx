@@ -203,6 +203,13 @@
           >
             Terms of Service
           </a>
+          {" · "}
+          <a
+            href="mailto:holden@mygoodbooks.org?subject=MyGoodBooks%20Support"
+            style={{ color: "inherit" }}
+          >
+            Contact support
+          </a>
         </div>
       </div>
     );
