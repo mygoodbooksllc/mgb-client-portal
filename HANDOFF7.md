@@ -2636,3 +2636,90 @@ already echoes back whatever path the person started from.
 Real client sign-in link once this deploys: `https://app.mygoodbooks.org/login`.
 
 `MGB_VERSION` bumped to `2026-09-17as`.
+
+## §94 — Documents tab: Supabase holds Drive links only, not files
+
+Kicked off the "client docs stay in Google Drive" integration. Supabase never
+stores file bytes — it's a passthrough: `client_documents` table holds
+`{client_id, name, drive_url, category, added_by, created_at}` only.
+
+- `supabase/` migration `client_documents`: RLS lets staff manage rows for any
+  client, and lets a signed-in client (via `client_users`) read their own
+  client's rows. Applied live via `apply_migration`.
+- Manage Access modal gained a "Documents" tab: add a name + paste a Drive
+  share link, list opens the file in Drive in a new tab, remove deletes the
+  row (never touches the actual file in Drive).
+- No live Drive API call yet — this is metadata + manual link-paste. A real
+  Drive picker / auto-sync (service account, folder-per-client) is the next
+  step whenever we want it, same track as the sketched QuickBooks Edge
+  Function sync (OAuth per client, scheduled pull into Supabase tables,
+  Documents stays link-only since it's explicitly meant to avoid storing
+  large files in Supabase).
+
+## §95 — QuickBooks connect scaffolding (stub)
+
+First step of the QuickBooks sketch: `qbo_connections` table (status only —
+never stores OAuth tokens, those belong in Edge Function secrets once a real
+Intuit Developer app exists) plus a "QuickBooks" tab in Manage Access showing
+connection status and a "Connect QuickBooks" button.
+
+The button is a stub — no Intuit client ID/secret provisioned yet, so it just
+toasts. Next real step once credentials exist: OAuth redirect + an Edge
+Function callback that exchanges the code, writes `realm_id`/status here, and
+a scheduled sync job pulling transactions/accounts/budgets into real tables
+(replacing today's mock CLIENTS data, same as the Phase 3 track).
+
+## §96 — Pausing on QuickBooks: waiting on Intuit Developer app
+
+Blocked on external setup, not code. Walked the user through creating an
+Intuit Developer app (developer.intuit.com → Create an app → QuickBooks
+Online and Payments), which produces a Client ID + Secret and needs the
+redirect URI `https://app.mygoodbooks.org/api/qbo/callback` registered.
+Also flagged: Intuit requires production apps to pass their own app review
+before real client accounts can connect (their timeline, not ours).
+
+**Next step once the user has credentials:** build the real OAuth redirect
+(replacing `connectQuickBooks`'s stub toast in app.jsx's TabSettingsModal)
+and a Supabase Edge Function to handle the callback — exchange the code,
+store `realm_id`/status in `qbo_connections` (tokens go in Edge Function
+secrets/Vault, never that table), then the scheduled sync job into real
+transaction/account/budget tables.
+
+Session paused here — no open blockers besides waiting on the user.
+
+## §97 — Real QuickBooks OAuth connect
+
+User created the Intuit Developer app (MGB-Portal, sandbox). Wired the real
+connect flow:
+
+- New `qbo-config.js`: public `QBO_CONFIG.clientId` (safe to expose, same
+  class as the Supabase anon key) + `environment`. Loaded via
+  `__SOURCE_ORDER` right after `auth-config.js`, bundled in `build.py` the
+  same way.
+- `connectQuickBooks()` in `TabSettingsModal` (app.jsx) now opens Intuit's
+  real `appcenter.intuit.com/connect/oauth2` authorize screen in a new tab,
+  `state` = the client's id.
+- New Edge Function `qbo-callback` (`supabase/functions/qbo-callback`,
+  deployed live, `verify_jwt: false` since Intuit's redirect carries no
+  Supabase session) exchanges the code for tokens, verifies `state` against
+  a real `qbo_connections` row, writes `realm_id`/`status` there and the
+  actual tokens into a new `qbo_tokens` table.
+- `qbo_tokens` (migration applied, `supabase/qbo-tokens.sql`): RLS enabled
+  with **no policies** — unreachable from the browser's anon/authenticated
+  key, only the Edge Function's service_role key can touch it.
+
+**Still needed before a real Connect click works:**
+1. Set `QBO_CLIENT_SECRET` (and `QBO_CLIENT_ID` / `QBO_ENV=sandbox`) as
+   Edge Function secrets — Supabase dashboard → Edge Functions →
+   `qbo-callback` → Secrets, or `supabase secrets set QBO_CLIENT_SECRET=...
+   QBO_CLIENT_ID=... QBO_ENV=sandbox`. The secret was never pasted into
+   chat/committed — user has it from the Intuit dashboard.
+2. In the Intuit app's Keys & OAuth settings, add this exact redirect URI:
+   `https://xumsqmhccgfjnlmieqyu.supabase.co/functions/v1/qbo-callback`
+3. Test the Connect button against a sandbox company from the Intuit
+   dashboard's sandbox company list.
+
+No token refresh logic yet (tokens expire; a refresh-on-use or scheduled
+refresh job is the next step once a first real connect is confirmed
+working), and no data sync job yet — this only gets the connection itself
+working.

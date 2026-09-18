@@ -101,6 +101,7 @@ def build(out_path: pathlib.Path, refresh: bool) -> None:
     data_src = read("data.js")
     css = read("styles.css")
     auth_config_src = read("auth-config.js")
+    qbo_config_src = read("qbo-config.js")
     supabase_client_src = read("components/auth/supabaseClient.js")
     auth_gate_src = read("components/auth/AuthGate.jsx")
     client_auth_gate_src = read("components/auth/ClientAuthGate.jsx")
@@ -126,6 +127,7 @@ def build(out_path: pathlib.Path, refresh: bool) -> None:
     payload = {
         **{name: b64(code) for name, code in libs.items()},
         "authConfig": b64(auth_config_src),
+        "qboConfig": b64(qbo_config_src),
         "supabaseClient": b64(supabase_client_src),
         "authGate": b64(auth_gate_src),
         "clientAuthGate": b64(client_auth_gate_src),
@@ -161,7 +163,7 @@ def build(out_path: pathlib.Path, refresh: bool) -> None:
 
 // Mirrors the stamp in index.html — bumped by hand alongside this file,
 // since there's no build step to inject a real commit SHA into.
-window.MGB_VERSION = {{ label: "2026-09-17as", note: "Client login gets a friendly /login path" }};
+window.MGB_VERSION = {{ label: "2026-09-18a", note: "Real QuickBooks OAuth connect wired to Edge Function" }};
 
 // Mirrors index.html's pinch-block — see that file's comment for why this
 // is gesture-level (2+ touches) rather than touch-action CSS.
@@ -222,6 +224,7 @@ try {{
   // supabase.auth calls will silently fail there. The gate only actually
   // works from app.mygoodbooks.org (Vercel), not from an Artifact link.
   run(compile(BUNDLE.authConfig, "auth-config.js", [jsx]));
+  run(compile(BUNDLE.qboConfig, "qbo-config.js", [jsx]));
   run(compile(BUNDLE.supabaseClient, "supabaseClient.js", [jsx]));
   run(compile(BUNDLE.authGate, "AuthGate.jsx", [jsx]));
   run(compile(BUNDLE.clientAuthGate, "ClientAuthGate.jsx", [jsx]));
