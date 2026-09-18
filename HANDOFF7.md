@@ -3370,7 +3370,7 @@ modal mid-flight with that change.
 Files touched: `app.jsx`, `supabase/client-status-overrides.sql` (new),
 `index.html`, `build.py`, `HANDOFF7.md`.
 
-## §117 — Time tracking data layer (schema only)
+## §119 — Time tracking data layer (schema only)
 
 Added the data layer for time tracking: logging hours worked per
 bookkeeper per client. Applied live via Supabase MCP
