@@ -9073,11 +9073,19 @@ function TabSettingsModal({
   }, [tab, loadQboConnection]);
 
   function connectQuickBooks() {
-    // Stub: the Intuit Developer app (client ID/secret) isn't provisioned
-    // yet, so there's no OAuth redirect to send this to. Once it exists,
-    // this becomes window.location.href = `${QBO_AUTH_URL}?client_id=...`
-    // and an Edge Function handles the callback + token exchange.
-    showToast("QuickBooks connection isn't set up yet — needs an Intuit Developer app first.");
+    if (!window.QBO_CONFIG || !window.QBO_CONFIG.clientId) {
+      showToast("QuickBooks isn't configured yet — see qbo-config.js.");
+      return;
+    }
+    const redirectUri = `${window.SUPABASE_CONFIG.url}/functions/v1/qbo-callback`;
+    const params = new URLSearchParams({
+      client_id: window.QBO_CONFIG.clientId,
+      response_type: "code",
+      scope: "com.intuit.quickbooks.accounting",
+      redirect_uri: redirectUri,
+      state: client.id,
+    });
+    window.open(`https://appcenter.intuit.com/connect/oauth2?${params}`, "_blank", "noopener");
   }
 
   const loadDocuments = useCallback(() => {

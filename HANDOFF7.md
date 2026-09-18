@@ -2686,3 +2686,40 @@ secrets/Vault, never that table), then the scheduled sync job into real
 transaction/account/budget tables.
 
 Session paused here — no open blockers besides waiting on the user.
+
+## §97 — Real QuickBooks OAuth connect
+
+User created the Intuit Developer app (MGB-Portal, sandbox). Wired the real
+connect flow:
+
+- New `qbo-config.js`: public `QBO_CONFIG.clientId` (safe to expose, same
+  class as the Supabase anon key) + `environment`. Loaded via
+  `__SOURCE_ORDER` right after `auth-config.js`, bundled in `build.py` the
+  same way.
+- `connectQuickBooks()` in `TabSettingsModal` (app.jsx) now opens Intuit's
+  real `appcenter.intuit.com/connect/oauth2` authorize screen in a new tab,
+  `state` = the client's id.
+- New Edge Function `qbo-callback` (`supabase/functions/qbo-callback`,
+  deployed live, `verify_jwt: false` since Intuit's redirect carries no
+  Supabase session) exchanges the code for tokens, verifies `state` against
+  a real `qbo_connections` row, writes `realm_id`/`status` there and the
+  actual tokens into a new `qbo_tokens` table.
+- `qbo_tokens` (migration applied, `supabase/qbo-tokens.sql`): RLS enabled
+  with **no policies** — unreachable from the browser's anon/authenticated
+  key, only the Edge Function's service_role key can touch it.
+
+**Still needed before a real Connect click works:**
+1. Set `QBO_CLIENT_SECRET` (and `QBO_CLIENT_ID` / `QBO_ENV=sandbox`) as
+   Edge Function secrets — Supabase dashboard → Edge Functions →
+   `qbo-callback` → Secrets, or `supabase secrets set QBO_CLIENT_SECRET=...
+   QBO_CLIENT_ID=... QBO_ENV=sandbox`. The secret was never pasted into
+   chat/committed — user has it from the Intuit dashboard.
+2. In the Intuit app's Keys & OAuth settings, add this exact redirect URI:
+   `https://xumsqmhccgfjnlmieqyu.supabase.co/functions/v1/qbo-callback`
+3. Test the Connect button against a sandbox company from the Intuit
+   dashboard's sandbox company list.
+
+No token refresh logic yet (tokens expire; a refresh-on-use or scheduled
+refresh job is the next step once a first real connect is confirmed
+working), and no data sync job yet — this only gets the connection itself
+working.
