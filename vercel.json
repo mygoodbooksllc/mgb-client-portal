@@ -1,3 +1,7 @@
 {
-  "rewrites": [{ "source": "/login", "destination": "/index.html" }]
+  "rewrites": [
+    { "source": "/login", "destination": "/index.html" },
+    { "source": "/privacy", "destination": "/privacy-policy.html" },
+    { "source": "/terms", "destination": "/terms-of-service.html" }
+  ]
 }
