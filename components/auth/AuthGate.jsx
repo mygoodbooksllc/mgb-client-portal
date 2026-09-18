@@ -141,6 +141,11 @@
         >
           Sign in with Google
         </button>
+        <div style={{ marginTop: 24, fontSize: 13, color: "#888" }}>
+          <a href="/privacy" target="_blank" rel="noopener noreferrer" style={{ color: "inherit" }}>Privacy Policy</a>
+          {" · "}
+          <a href="/terms" target="_blank" rel="noopener noreferrer" style={{ color: "inherit" }}>Terms of Service</a>
+        </div>
       </div>
     );
   }
