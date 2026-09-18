@@ -4017,9 +4017,14 @@ body:has(.modal-overlay) .chat-fab-wrap {
 
 /* ---------------- Manage access: sub-tabs ---------------- */
 
+.modal-panel-wide {
+  max-width: 540px;
+}
+
 .modal-tabs {
   display: flex;
   gap: 4px;
+  flex-wrap: wrap;
   border-bottom: 1px solid var(--border);
   margin-top: 4px;
 }
