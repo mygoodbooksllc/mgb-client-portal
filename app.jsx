@@ -10154,6 +10154,7 @@ function BookkeeperHomePage({
   messagesByClient,
   readMessageClients,
   onNavigateToClient,
+  onOpenMyTasks,
   statusOverrides,
   onStatusOverridesChanged,
 }) {
@@ -10968,6 +10969,27 @@ function BookkeeperHomePage({
                 <h3 className="card-title">Your reminders</h3>
                 <p className="card-subtitle">
                   Private to you — nobody else, including admins, can see these.
+                  For the full prioritized list with client links, see{" "}
+                  {onOpenMyTasks ? (
+                    <button
+                      type="button"
+                      onClick={onOpenMyTasks}
+                      style={{
+                        background: "none",
+                        border: "none",
+                        padding: 0,
+                        color: "var(--accent, #2563eb)",
+                        textDecoration: "underline",
+                        cursor: "pointer",
+                        font: "inherit",
+                      }}
+                    >
+                      My Tasks
+                    </button>
+                  ) : (
+                    "My Tasks"
+                  )}
+                  .
                 </p>
 
                 <div className="staff-add-row">
@@ -14878,8 +14900,8 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
             : page === "bookkeeper-home" && staffUser
               ? page
               : access.tabs.has(page)
-              ? page
-              : ALWAYS_VISIBLE_KEY;
+                ? page
+                : ALWAYS_VISIBLE_KEY;
   // Each of these six tabs IS its upgraded page for a full-access premium
   // viewer — same pattern for all six now (see PREMIUM_UPGRADE_TAB_KEYS):
   // one nav item, content swapped by plan, rather than a second
@@ -15584,7 +15606,10 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
             />
           )}
           {effectivePage === "my-tasks" && (
-            <MyTasksPage staffUser={effectiveStaffUser} clients={visibleClients} />
+            <MyTasksPage
+              staffUser={effectiveStaffUser}
+              clients={visibleClients}
+            />
           )}
           {effectivePage === "developer-tools" && (
             <DeveloperToolsPage

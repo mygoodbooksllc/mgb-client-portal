@@ -3322,7 +3322,7 @@ a conversational record.
 Files touched: `app.jsx`, `supabase/client-private-notes.sql` (new),
 `index.html`, `build.py`, `HANDOFF7.md`.
 
-## §117 — Client health status dots (computed + manual override)
+## §118 — Client health status dots (computed + manual override)
 
 Added a quick-glance red/yellow/green health indicator per client, visible
 as a small colored dot next to the client's name in the sidebar's "Viewing
