@@ -2,6 +2,7 @@
   "rewrites": [
     { "source": "/login", "destination": "/index.html" },
     { "source": "/privacy", "destination": "/privacy-policy.html" },
-    { "source": "/terms", "destination": "/terms-of-service.html" }
+    { "source": "/terms", "destination": "/terms-of-service.html" },
+    { "source": "/quickbooks-connected", "destination": "/qbo-connected.html" }
   ]
 }

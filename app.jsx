@@ -9077,9 +9077,20 @@ function TabSettingsModal({
     if (tab === "quickbooks") loadQboConnection();
   }, [tab, loadQboConnection]);
 
-  function connectQuickBooks() {
+  async function connectQuickBooks() {
     if (!window.QBO_CONFIG || !window.QBO_CONFIG.clientId) {
       showToast("QuickBooks isn't configured yet — see qbo-config.js.");
+      return;
+    }
+    // `state` must be an unpredictable, single-use token, not the bare client
+    // id — otherwise anyone could craft their own OAuth callback URL with a
+    // guessed state and attribute a connection to a client they don't manage.
+    // The Edge Function looks this token up server-side rather than trusting
+    // whatever client_id shows up in the URL.
+    const token = crypto.randomUUID ? crypto.randomUUID() : String(Math.random()).slice(2);
+    const { error } = await supabase.from("qbo_connect_state").insert({ token, client_id: client.id });
+    if (error) {
+      showToast("Couldn't start the QuickBooks connection: " + error.message);
       return;
     }
     const redirectUri = `${window.SUPABASE_CONFIG.url}/functions/v1/qbo-callback`;
@@ -9088,7 +9099,7 @@ function TabSettingsModal({
       response_type: "code",
       scope: "com.intuit.quickbooks.accounting",
       redirect_uri: redirectUri,
-      state: client.id,
+      state: token,
     });
     window.open(`https://appcenter.intuit.com/connect/oauth2?${params}`, "_blank", "noopener");
   }

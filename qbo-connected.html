@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>MyGoodBooks — QuickBooks</title>
+    <style>
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        max-width: 420px;
+        margin: 80px auto;
+        padding: 0 24px;
+        text-align: center;
+        color: #1a1a1a;
+        background: #fff;
+      }
+      h1 { font-size: 20px; }
+      p { color: #555; line-height: 1.5; }
+    </style>
+  </head>
+  <body>
+    <h1 id="title">Working…</h1>
+    <p id="sub"></p>
+    <script>
+      // The Edge Function redirects here with only a plain status word in the
+      // query string — never the OAuth code or any token, since this page's
+      // own URL can end up in browser history / Referer headers.
+      var status = new URLSearchParams(location.search).get("status");
+      var copy = {
+        connected: ["QuickBooks connected", "You can close this tab and go back to MyGoodBooks."],
+        cancelled: ["Connection cancelled", "You can close this tab and go back to MyGoodBooks."],
+        invalid: ["Link expired", "This QuickBooks connection link is invalid or expired. Ask MyGoodBooks to try again."],
+        error: ["Couldn't connect", "Something went wrong finishing the QuickBooks connection. Ask MyGoodBooks to try again."],
+      }[status] || ["Couldn't connect", "Something went wrong. Ask MyGoodBooks to try again."];
+      document.getElementById("title").textContent = copy[0];
+      document.getElementById("sub").textContent = copy[1];
+    </script>
+  </body>
+</html>

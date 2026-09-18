@@ -2791,3 +2791,41 @@ these as final, especially before scaling past a handful of clients.
 Added footer links: main app sidebar (`.sidebar-footer`, both staff and
 client views), staff Google sign-in screen (AuthGate.jsx), and client
 magic-link sign-in screen (ClientAuthGate.jsx). Both open in a new tab.
+
+## §103 — QuickBooks connect hardened per Intuit's security checklist
+
+Went through Intuit's app-review security requirements line by line and
+found three real gaps, all fixed:
+
+1. **Reflected XSS** — the callback page interpolated Intuit's `error` query
+   param directly into HTML with no escaping. Fixed by removing the HTML
+   response entirely (see #2).
+2. **Sensitive params must redirect, not render HTML** — Intuit's checklist
+   explicitly requires this: an endpoint receiving `code` in the URL must
+   302-redirect rather than return HTML, so the code doesn't sit in browser
+   history/Referer headers. `qbo-callback` now always redirects to
+   `/quickbooks-connected?status=X` (new static page `qbo-connected.html`,
+   `vercel.json` rewrite) instead of rendering a response body — the status
+   is a plain word (`connected`/`cancelled`/`invalid`/`error`), never the
+   code or any token.
+3. **CSRF-weak `state`** — was the bare client_id, guessable/replayable. Now
+   `connectQuickBooks()` generates a random token, stores it in new table
+   `qbo_connect_state` (client_id, created_at, used) before redirecting to
+   Intuit, and `qbo-callback` looks it up, checks it's unused and under 15
+   minutes old, and marks it used — a forged or replayed state can no longer
+   attribute a connection to the wrong client.
+
+Also addressed the **OAuth token encryption** requirement (refresh/access
+tokens must be AES-encrypted at rest, not just access-restricted): `qbo_tokens`
+columns are now `bytea`, written/read only through new SQL functions
+`qbo_store_tokens`/`qbo_get_tokens` (pgcrypto `pgp_sym_encrypt`/`_decrypt`,
+`security definer`, granted to `service_role` only) keyed by a new secret
+`QBO_TOKEN_ENCRYPTION_KEY` the Edge Function passes in per call — the key
+itself never touches the database.
+
+**User needs to do:** add `QBO_TOKEN_ENCRYPTION_KEY` as an Edge Function
+secret (any long random string, e.g. `openssl rand -hex 32`) alongside the
+existing three QBO secrets. The two sandbox test connections
+(Grace Community Church, Riverside Pantry) will need reconnecting after
+that — their existing tokens were encrypted with a throwaway placeholder key
+during the migration and are no longer usable.
