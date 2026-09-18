@@ -2760,3 +2760,10 @@ was never touched, only the live deployed version.
 - No actual data sync job yet (transactions/accounts/budgets into real
   tables) — this only gets the connection itself working, per the original
   QuickBooks sketch's step ordering.
+
+## §100 — QuickBooks tab warns it's sandbox-only
+
+The Connect flow only works against Intuit's Development/sandbox keys today
+— it can't connect a real client's actual QuickBooks yet. Added a visible
+warning in the QuickBooks tab (reads `QBO_CONFIG.environment`) so nobody
+tries a real client before production keys + Intuit's app review are done.

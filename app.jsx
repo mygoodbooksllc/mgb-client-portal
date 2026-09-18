@@ -9464,6 +9464,14 @@ function TabSettingsModal({
               budgets automatically instead of entering them by hand.
             </p>
 
+            {window.QBO_CONFIG && window.QBO_CONFIG.environment !== "production" && (
+              <p className="card-subtitle" style={{ color: "#e0664f", marginTop: 0 }}>
+                Sandbox mode only — this connects test QuickBooks companies, not a real client's
+                account. Real clients need Intuit's production keys (separate from sandbox) and
+                Intuit's app review to pass first.
+              </p>
+            )}
+
             <div className="modal-section">
               {qboConnection === undefined ? (
                 <p className="card-subtitle">Loading…</p>
