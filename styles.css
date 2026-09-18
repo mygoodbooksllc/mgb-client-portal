@@ -5124,6 +5124,24 @@ body:has(.modal-overlay) .chat-fab-wrap {
   font-weight: 700;
 }
 
+.staff-temp-access-banner {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--gold);
+  background: rgba(199, 174, 134, 0.14);
+  border-radius: 8px;
+  padding: 8px 10px;
+  margin: 4px 0 12px;
+  line-height: 1.35;
+}
+
+.staff-temp-access-cell {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
 .staff-add-row {
   display: flex;
   flex-wrap: wrap;

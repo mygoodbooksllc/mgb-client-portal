@@ -594,7 +594,13 @@ function Sidebar({
   onSignOut,
   staffMessagesUnread,
   impersonating,
+  hasTempAdminAccess,
+  tempAdminAccessExpiresAt,
 }) {
+  const showsAdminPages =
+    staffUser &&
+    (staffUser.role === "admin" || hasTempAdminAccess) &&
+    !impersonating;
   // Must match App's `isPreviewingUser` guard: a viewAsUserId that no longer
   // resolves to a user (stale id, user removed) falls back to the bookkeeper
   // view rather than dereferencing a missing access.user below.
@@ -727,7 +733,7 @@ function Sidebar({
             </button>
           )}
 
-          {staffUser && staffUser.role === "admin" && (
+          {showsAdminPages && (
             <button
               type="button"
               className={
@@ -743,7 +749,7 @@ function Sidebar({
             </button>
           )}
 
-          {staffUser && staffUser.role === "admin" && (
+          {showsAdminPages && (
             <button
               type="button"
               className={
@@ -760,7 +766,7 @@ function Sidebar({
             </button>
           )}
 
-          {staffUser && staffUser.role === "admin" && (
+          {showsAdminPages && (
             <button
               type="button"
               className={
@@ -776,6 +782,16 @@ function Sidebar({
               Developer Tools
             </button>
           )}
+
+          {hasTempAdminAccess &&
+            staffUser &&
+            staffUser.role !== "admin" &&
+            !impersonating && (
+              <div className="staff-temp-access-banner" title="Read-only">
+                Temporary access — expires{" "}
+                {formatTempAccessExpiry(tempAdminAccessExpiresAt)}
+              </div>
+            )}
 
           {!NON_CLIENT_PAGES.has(page) && (
             <React.Fragment>
@@ -7429,7 +7445,29 @@ function resettableLocalStorageKeys() {
   }
 }
 
-function StaffAccessPage({ staffUser, onImpersonate }) {
+// Preset durations offered when an admin grants a bookkeeper temporary
+// access to the three admin-only pages. Kept short — this is meant for
+// "cover for me this afternoon", not a standing role change.
+const TEMP_ACCESS_DURATIONS = [
+  { label: "1 hour", ms: 60 * 60 * 1000 },
+  { label: "1 day", ms: 24 * 60 * 60 * 1000 },
+  { label: "1 week", ms: 7 * 24 * 60 * 60 * 1000 },
+];
+
+function formatTempAccessExpiry(isoString) {
+  try {
+    return new Date(isoString).toLocaleString(undefined, {
+      month: "short",
+      day: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
+    });
+  } catch (e) {
+    return isoString;
+  }
+}
+
+function StaffAccessPage({ staffUser, onImpersonate, readOnly }) {
   const showToast = useToast();
   const supabase = window.mgbSupabase;
 
@@ -7446,6 +7484,70 @@ function StaffAccessPage({ staffUser, onImpersonate }) {
   const [csvText, setCsvText] = useState("");
   const [csvImporting, setCsvImporting] = useState(false);
   const [csvResults, setCsvResults] = useState(null); // per-row outcome after an import run
+  // email -> { expires_at, granted_by, reason } for anyone with a live temp
+  // admin-access grant. Loaded alongside the roster; refreshed after any
+  // grant/revoke.
+  const [tempAccessMap, setTempAccessMap] = useState({});
+  const [tempAccessDurationFor, setTempAccessDurationFor] = useState({}); // row.id -> selected ms
+  const [tempAccessBusyId, setTempAccessBusyId] = useState(null);
+
+  const loadTempAccess = useCallback(() => {
+    if (!supabase) return;
+    supabase
+      .from("staff_temp_admin_access")
+      .select("staff_email, granted_by, granted_at, expires_at, reason")
+      .then(({ data, error }) => {
+        if (error) {
+          // Most likely: staff-temp-admin-access.sql hasn't been run yet.
+          // Fail quiet — this is a bonus capability, not core roster access.
+          console.warn("Couldn't load temp admin access:", error.message);
+          return;
+        }
+        const map = {};
+        (data || []).forEach((r) => {
+          map[r.staff_email] = r;
+        });
+        setTempAccessMap(map);
+      });
+  }, [supabase]);
+
+  useEffect(() => {
+    loadTempAccess();
+  }, [loadTempAccess]);
+
+  async function grantTempAccess(row) {
+    const ms = tempAccessDurationFor[row.id] || TEMP_ACCESS_DURATIONS[0].ms;
+    const expiresAt = new Date(Date.now() + ms).toISOString();
+    setTempAccessBusyId(row.id);
+    const { error } = await supabase.from("staff_temp_admin_access").upsert({
+      staff_email: row.email,
+      granted_by: staffUser.email,
+      granted_at: new Date().toISOString(),
+      expires_at: expiresAt,
+    });
+    setTempAccessBusyId(null);
+    if (error) {
+      showToast(`Couldn't grant temporary access: ${error.message}`);
+      return;
+    }
+    showToast(`Granted ${row.name} temporary admin-page access.`);
+    loadTempAccess();
+  }
+
+  async function revokeTempAccess(row) {
+    setTempAccessBusyId(row.id);
+    const { error } = await supabase
+      .from("staff_temp_admin_access")
+      .delete()
+      .eq("staff_email", row.email);
+    setTempAccessBusyId(null);
+    if (error) {
+      showToast(`Couldn't revoke temporary access: ${error.message}`);
+      return;
+    }
+    showToast(`Revoked ${row.name}'s temporary admin-page access.`);
+    loadTempAccess();
+  }
 
   const csvPreview = useMemo(
     () => (csvText.trim() ? parseStaffCsv(csvText) : []),
@@ -7619,110 +7721,127 @@ function StaffAccessPage({ staffUser, onImpersonate }) {
         Supabase — unlike the rest of the app, nothing here is sample data.
       </div>
 
-      <div className="card" style={{ marginBottom: 20 }}>
-        <h3 className="card-title">Add staff</h3>
-        <p className="card-subtitle">
-          They'll sign in with Google using this exact address — add them here
-          first, or Google will let them in and this app will turn them away.
-        </p>
-        <div className="staff-add-row">
-          <input
-            type="email"
-            placeholder="name@mygoodbooks.org"
-            value={newEmail}
-            onChange={(e) => setNewEmail(e.target.value)}
-          />
-          <input
-            type="text"
-            placeholder="Full name"
-            value={newName}
-            onChange={(e) => setNewName(e.target.value)}
-          />
-          <select value={newRole} onChange={(e) => setNewRole(e.target.value)}>
-            {STAFF_ROLES.map((r) => (
-              <option key={r} value={r}>
-                {r}
-              </option>
-            ))}
-          </select>
-          <button
-            className="btn-primary"
-            disabled={adding || !newEmail.trim() || !newName.trim()}
-            onClick={addStaff}
-          >
-            + Add
-          </button>
+      {readOnly && (
+        <div className="mock-banner">
+          <WarningIcon /> You have temporary read-only access to this page —
+          contact an admin to make changes.
         </div>
-      </div>
+      )}
 
-      <div className="card" style={{ marginBottom: 20 }}>
-        <h3 className="card-title">Bulk import</h3>
-        <p className="card-subtitle">
-          Paste rows as <code>email, name, role</code> (role optional, defaults
-          to bookkeeper) — one person per line, straight out of a spreadsheet. A
-          header row is fine, it's detected and skipped.
-        </p>
-        <textarea
-          className="staff-csv-textarea"
-          rows={4}
-          placeholder={
-            "jane@mygoodbooks.org, Jane Alvarez, bookkeeper\nmark@mygoodbooks.org, Mark Chen, admin"
-          }
-          value={csvText}
-          onChange={(e) => {
-            setCsvText(e.target.value);
-            setCsvResults(null);
-          }}
-        />
-        {csvPreview.length > 0 && (
-          <React.Fragment>
-            <ul className="staff-csv-preview">
-              {csvPreview.map((r, i) => (
-                <li
-                  key={i}
-                  className={r.errors.length ? "negative" : "positive"}
-                >
-                  {r.errors.length ? (
-                    <React.Fragment>
-                      <strong>{r.line}</strong> — {r.errors.join(", ")}
-                    </React.Fragment>
-                  ) : (
-                    <React.Fragment>
-                      {r.name} ({r.email}) · {r.role}
-                    </React.Fragment>
-                  )}
-                </li>
-              ))}
-            </ul>
-            <div className="staff-reset-row">
+      {!readOnly && (
+        <React.Fragment>
+          <div className="card" style={{ marginBottom: 20 }}>
+            <h3 className="card-title">Add staff</h3>
+            <p className="card-subtitle">
+              They'll sign in with Google using this exact address — add them
+              here first, or Google will let them in and this app will turn them
+              away.
+            </p>
+            <div className="staff-add-row">
+              <input
+                type="email"
+                placeholder="name@mygoodbooks.org"
+                value={newEmail}
+                onChange={(e) => setNewEmail(e.target.value)}
+              />
+              <input
+                type="text"
+                placeholder="Full name"
+                value={newName}
+                onChange={(e) => setNewName(e.target.value)}
+              />
+              <select
+                value={newRole}
+                onChange={(e) => setNewRole(e.target.value)}
+              >
+                {STAFF_ROLES.map((r) => (
+                  <option key={r} value={r}>
+                    {r}
+                  </option>
+                ))}
+              </select>
               <button
                 className="btn-primary"
-                disabled={csvImporting || csvValidCount === 0}
-                onClick={importCsv}
+                disabled={adding || !newEmail.trim() || !newName.trim()}
+                onClick={addStaff}
               >
-                {csvImporting ? "Importing…" : `Import ${csvValidCount} staff`}
+                + Add
               </button>
-              {csvValidCount < csvPreview.length && (
-                <p className="card-subtitle" style={{ margin: 0 }}>
-                  {csvPreview.length - csvValidCount} row(s) above have errors
-                  and will be skipped.
-                </p>
-              )}
             </div>
-          </React.Fragment>
-        )}
-        {csvResults && (
-          <ul className="staff-csv-preview" style={{ marginTop: 12 }}>
-            {csvResults.map((r, i) => (
-              <li key={i} className={r.ok ? "positive" : "negative"}>
-                {r.ok
-                  ? `Added ${r.name}`
-                  : `${r.name || r.email} — ${r.message}`}
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
+          </div>
+
+          <div className="card" style={{ marginBottom: 20 }}>
+            <h3 className="card-title">Bulk import</h3>
+            <p className="card-subtitle">
+              Paste rows as <code>email, name, role</code> (role optional,
+              defaults to bookkeeper) — one person per line, straight out of a
+              spreadsheet. A header row is fine, it's detected and skipped.
+            </p>
+            <textarea
+              className="staff-csv-textarea"
+              rows={4}
+              placeholder={
+                "jane@mygoodbooks.org, Jane Alvarez, bookkeeper\nmark@mygoodbooks.org, Mark Chen, admin"
+              }
+              value={csvText}
+              onChange={(e) => {
+                setCsvText(e.target.value);
+                setCsvResults(null);
+              }}
+            />
+            {csvPreview.length > 0 && (
+              <React.Fragment>
+                <ul className="staff-csv-preview">
+                  {csvPreview.map((r, i) => (
+                    <li
+                      key={i}
+                      className={r.errors.length ? "negative" : "positive"}
+                    >
+                      {r.errors.length ? (
+                        <React.Fragment>
+                          <strong>{r.line}</strong> — {r.errors.join(", ")}
+                        </React.Fragment>
+                      ) : (
+                        <React.Fragment>
+                          {r.name} ({r.email}) · {r.role}
+                        </React.Fragment>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+                <div className="staff-reset-row">
+                  <button
+                    className="btn-primary"
+                    disabled={csvImporting || csvValidCount === 0}
+                    onClick={importCsv}
+                  >
+                    {csvImporting
+                      ? "Importing…"
+                      : `Import ${csvValidCount} staff`}
+                  </button>
+                  {csvValidCount < csvPreview.length && (
+                    <p className="card-subtitle" style={{ margin: 0 }}>
+                      {csvPreview.length - csvValidCount} row(s) above have
+                      errors and will be skipped.
+                    </p>
+                  )}
+                </div>
+              </React.Fragment>
+            )}
+            {csvResults && (
+              <ul className="staff-csv-preview" style={{ marginTop: 12 }}>
+                {csvResults.map((r, i) => (
+                  <li key={i} className={r.ok ? "positive" : "negative"}>
+                    {r.ok
+                      ? `Added ${r.name}`
+                      : `${r.name || r.email} — ${r.message}`}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </React.Fragment>
+      )}
 
       <div className="card" style={{ marginBottom: 20 }}>
         <h3 className="card-title">Staff roster</h3>
@@ -7746,6 +7865,7 @@ function StaffAccessPage({ staffUser, onImpersonate }) {
                   <th>Role</th>
                   <th>Active</th>
                   <th>Clients</th>
+                  <th>Temp admin access</th>
                   <th></th>
                   <th></th>
                   <th></th>
@@ -7755,6 +7875,11 @@ function StaffAccessPage({ staffUser, onImpersonate }) {
                 {rows.map((row) => {
                   const isSelf = row.email === staffUser.email;
                   const busy = busyId === row.id;
+                  const tempAccess = tempAccessMap[row.email];
+                  const tempActive =
+                    tempAccess &&
+                    new Date(tempAccess.expires_at).getTime() > Date.now();
+                  const tempBusy = tempAccessBusyId === row.id;
                   return (
                     <tr key={row.id}>
                       <td data-primary="">{row.name}</td>
@@ -7762,7 +7887,7 @@ function StaffAccessPage({ staffUser, onImpersonate }) {
                       <td data-label="Role">
                         <select
                           value={row.role}
-                          disabled={isSelf || busy}
+                          disabled={isSelf || busy || readOnly}
                           onChange={(e) =>
                             updateRow(row, { role: e.target.value })
                           }
@@ -7779,7 +7904,7 @@ function StaffAccessPage({ staffUser, onImpersonate }) {
                           <input
                             type="checkbox"
                             checked={row.active}
-                            disabled={isSelf || busy}
+                            disabled={isSelf || busy || readOnly}
                             onChange={(e) =>
                               updateRow(row, { active: e.target.checked })
                             }
@@ -7794,9 +7919,72 @@ function StaffAccessPage({ staffUser, onImpersonate }) {
                           <button
                             className="btn-secondary staff-clients-btn"
                             onClick={() => openClientAccess(row)}
+                            disabled={readOnly}
                           >
                             Manage
                           </button>
+                        )}
+                      </td>
+                      <td data-label="Temp admin access">
+                        {readOnly ? (
+                          tempActive ? (
+                            <span className="staff-self-note">
+                              Until{" "}
+                              {formatTempAccessExpiry(tempAccess.expires_at)}
+                            </span>
+                          ) : (
+                            <span className="staff-self-note">—</span>
+                          )
+                        ) : row.role === "admin" ? (
+                          <span className="staff-self-note">N/A (admin)</span>
+                        ) : (
+                          <div className="staff-temp-access-cell">
+                            {tempActive ? (
+                              <React.Fragment>
+                                <span className="staff-self-note">
+                                  Until{" "}
+                                  {formatTempAccessExpiry(
+                                    tempAccess.expires_at,
+                                  )}
+                                </span>
+                                <button
+                                  className="btn-secondary"
+                                  disabled={tempBusy}
+                                  onClick={() => revokeTempAccess(row)}
+                                >
+                                  Revoke
+                                </button>
+                              </React.Fragment>
+                            ) : (
+                              <React.Fragment>
+                                <select
+                                  value={
+                                    tempAccessDurationFor[row.id] ||
+                                    TEMP_ACCESS_DURATIONS[0].ms
+                                  }
+                                  onChange={(e) =>
+                                    setTempAccessDurationFor((prev) => ({
+                                      ...prev,
+                                      [row.id]: Number(e.target.value),
+                                    }))
+                                  }
+                                >
+                                  {TEMP_ACCESS_DURATIONS.map((d) => (
+                                    <option key={d.label} value={d.ms}>
+                                      {d.label}
+                                    </option>
+                                  ))}
+                                </select>
+                                <button
+                                  className="btn-secondary"
+                                  disabled={tempBusy}
+                                  onClick={() => grantTempAccess(row)}
+                                >
+                                  Grant
+                                </button>
+                              </React.Fragment>
+                            )}
+                          </div>
                         )}
                       </td>
                       <td data-label="">
@@ -7804,13 +7992,14 @@ function StaffAccessPage({ staffUser, onImpersonate }) {
                           <button
                             className="btn-secondary staff-view-as-btn"
                             onClick={() => onImpersonate(row)}
+                            disabled={readOnly}
                           >
                             View as
                           </button>
                         )}
                       </td>
                       <td data-label="">
-                        {!isSelf && (
+                        {!isSelf && !readOnly && (
                           <div className="staff-invite-links">
                             <a
                               className="btn-secondary staff-invite-btn"
@@ -7836,7 +8025,7 @@ function StaffAccessPage({ staffUser, onImpersonate }) {
                           <button
                             className="row-remove-btn"
                             onClick={() => removeRow(row)}
-                            disabled={busy}
+                            disabled={busy || readOnly}
                             aria-label={`Remove ${row.name}`}
                           >
                             ×
@@ -7978,7 +8167,7 @@ function formatStorageValue(raw) {
   }
 }
 
-function DeveloperToolsPage({ staffUser, onJumpToClient }) {
+function DeveloperToolsPage({ staffUser, onJumpToClient, readOnly }) {
   const supabase = window.mgbSupabase;
   const [, forceRerender] = useState(0);
   const [clientQuery, setClientQuery] = useState("");
@@ -8062,251 +8251,266 @@ function DeveloperToolsPage({ staffUser, onJumpToClient }) {
     <div>
       <MockBanner text="Per-browser testing aids — nothing here is shared with other staff or written to Supabase." />
 
-      <div className="card" style={{ marginBottom: 20 }}>
-        <h3 className="card-title">Jump to client</h3>
-        <p className="card-subtitle">
-          Skip the sidebar dropdown — land straight on a client's dashboard.
-        </p>
-        <input
-          type="text"
-          className="ap-cc-search"
-          style={{ width: "100%", boxSizing: "border-box" }}
-          placeholder="Search clients by name…"
-          value={clientQuery}
-          onChange={(e) => setClientQuery(e.target.value)}
-        />
-        {matchingClients.length > 0 && (
-          <div className="staff-audit-list" style={{ marginTop: 10 }}>
-            {matchingClients.map((c) => (
-              <button
-                type="button"
-                className="staff-due-row"
-                key={c.id}
-                style={{
-                  width: "100%",
-                  textAlign: "left",
-                  cursor: "pointer",
-                  background: "none",
-                  border: "none",
-                  font: "inherit",
-                }}
-                onClick={() => onJumpToClient && onJumpToClient(c.id)}
-              >
-                <span className="staff-flag-label">{c.name}</span>
-                <span className="staff-flag-desc">
-                  {c.plan === "premium" ? "Premium" : "Standard"} · {c.id}
-                </span>
-              </button>
-            ))}
-          </div>
-        )}
-      </div>
-
-      <div className="card" style={{ marginBottom: 20 }}>
-        <h3 className="card-title">Feature flags</h3>
-        <p className="card-subtitle">
-          Stored in this browser's localStorage only.
-        </p>
-
-        {FEATURE_FLAGS.map((f) => (
-          <label className="staff-flag-row" key={f.key}>
-            <input
-              type="checkbox"
-              checked={isFlagOn(f.key)}
-              onChange={() => toggleFlag(f.key)}
-            />
-            <span>
-              <span className="staff-flag-label">{f.label}</span>
-              <span className="staff-flag-desc">{f.description}</span>
-            </span>
-          </label>
-        ))}
-
-        <div className="staff-reset-row">
-          <button className="btn-secondary" onClick={resetLocalState}>
-            Reset local state
-          </button>
-          <p className="card-subtitle" style={{ margin: 0 }}>
-            Clears every saved theme, tab layout, widget layout, and per-person
-            access override under this browser's "mygoodbooks_" storage (feature
-            flags excepted — those stay, right above), then reloads. Doesn't
-            touch Supabase or any other browser.
-          </p>
+      {readOnly && (
+        <div className="mock-banner">
+          <WarningIcon /> You have temporary read-only access to this page —
+          contact an admin to make changes. (These controls are only local to
+          your own browser anyway, but they stay disabled to match Staff Access
+          and Client Roster.)
         </div>
-      </div>
+      )}
 
-      <div className="card">
-        <div className="page-header" style={{ marginBottom: 4 }}>
-          <div>
-            <h3 className="card-title">Raw local storage</h3>
+      <fieldset
+        disabled={readOnly}
+        style={{ border: 0, margin: 0, padding: 0 }}
+      >
+        <div className="card" style={{ marginBottom: 20 }}>
+          <h3 className="card-title">Jump to client</h3>
+          <p className="card-subtitle">
+            Skip the sidebar dropdown — land straight on a client's dashboard.
+          </p>
+          <input
+            type="text"
+            className="ap-cc-search"
+            style={{ width: "100%", boxSizing: "border-box" }}
+            placeholder="Search clients by name…"
+            value={clientQuery}
+            onChange={(e) => setClientQuery(e.target.value)}
+          />
+          {matchingClients.length > 0 && (
+            <div className="staff-audit-list" style={{ marginTop: 10 }}>
+              {matchingClients.map((c) => (
+                <button
+                  type="button"
+                  className="staff-due-row"
+                  key={c.id}
+                  style={{
+                    width: "100%",
+                    textAlign: "left",
+                    cursor: "pointer",
+                    background: "none",
+                    border: "none",
+                    font: "inherit",
+                  }}
+                  onClick={() => onJumpToClient && onJumpToClient(c.id)}
+                >
+                  <span className="staff-flag-label">{c.name}</span>
+                  <span className="staff-flag-desc">
+                    {c.plan === "premium" ? "Premium" : "Standard"} · {c.id}
+                  </span>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className="card" style={{ marginBottom: 20 }}>
+          <h3 className="card-title">Feature flags</h3>
+          <p className="card-subtitle">
+            Stored in this browser's localStorage only.
+          </p>
+
+          {FEATURE_FLAGS.map((f) => (
+            <label className="staff-flag-row" key={f.key}>
+              <input
+                type="checkbox"
+                checked={isFlagOn(f.key)}
+                onChange={() => toggleFlag(f.key)}
+              />
+              <span>
+                <span className="staff-flag-label">{f.label}</span>
+                <span className="staff-flag-desc">{f.description}</span>
+              </span>
+            </label>
+          ))}
+
+          <div className="staff-reset-row">
+            <button className="btn-secondary" onClick={resetLocalState}>
+              Reset local state
+            </button>
             <p className="card-subtitle" style={{ margin: 0 }}>
-              Every "mygoodbooks_" key in this browser, as actually stored — for
-              when a bug report says "my layout looks wrong" and you want the
-              real value without opening devtools.
+              Clears every saved theme, tab layout, widget layout, and
+              per-person access override under this browser's "mygoodbooks_"
+              storage (feature flags excepted — those stay, right above), then
+              reloads. Doesn't touch Supabase or any other browser.
             </p>
           </div>
-          <button
-            className="btn-secondary"
-            onClick={() => setStorageEntries(readAllMygoodbooksStorage())}
-          >
-            Refresh
-          </button>
         </div>
-        {storageEntries.length === 0 ? (
-          <p className="card-subtitle">
-            No "mygoodbooks_" keys stored in this browser.
-          </p>
-        ) : (
-          <div className="staff-audit-list">
-            {storageEntries.map((e) => (
-              <div
-                className="staff-audit-row"
-                key={e.key}
-                style={{ flexDirection: "column", alignItems: "stretch" }}
-              >
-                <span className="staff-flag-label">{e.key}</span>
-                <pre
-                  style={{
-                    margin: "4px 0 0",
-                    fontSize: 11.5,
-                    fontFamily: "IBM Plex Mono, monospace",
-                    color: "var(--text-muted)",
-                    whiteSpace: "pre-wrap",
-                    wordBreak: "break-word",
-                  }}
-                >
-                  {formatStorageValue(e.value)}
-                </pre>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
 
-      <div className="card" style={{ marginTop: 20, marginBottom: 20 }}>
-        <h3 className="card-title">Recent activity</h3>
-        <p className="card-subtitle">
-          Every change to the staff table, logged automatically by Postgres —
-          not just the ones made from Staff Access.
-        </p>
-
-        {auditRows === null && !auditError && (
-          <p className="card-subtitle">Loading…</p>
-        )}
-        {auditError && <p className="card-subtitle negative">{auditError}</p>}
-
-        {auditRows && auditRows.length > 0 && (
-          <ul className="staff-audit-list">
-            {auditRows.map((entry) => (
-              <li className="staff-audit-row" key={entry.id}>
-                <span className="staff-audit-text">
-                  <strong>{entry.actor_email || "Unknown"}</strong>{" "}
-                  {staffAuditVerb(entry.action)}{" "}
-                  <strong>{entry.target_email}</strong>
-                  {entry.detail ? ` (${entry.detail})` : ""}
-                </span>
-                <span className="staff-audit-time">
-                  {fmtDateTime(entry.created_at)}
-                </span>
-              </li>
-            ))}
-          </ul>
-        )}
-
-        {auditRows && auditRows.length === 0 && !auditError && (
-          <p className="card-subtitle">No activity recorded yet.</p>
-        )}
-      </div>
-
-      <div className="content-masonry">
         <div className="card">
-          <h3 className="card-title">System info</h3>
+          <div className="page-header" style={{ marginBottom: 4 }}>
+            <div>
+              <h3 className="card-title">Raw local storage</h3>
+              <p className="card-subtitle" style={{ margin: 0 }}>
+                Every "mygoodbooks_" key in this browser, as actually stored —
+                for when a bug report says "my layout looks wrong" and you want
+                the real value without opening devtools.
+              </p>
+            </div>
+            <button
+              className="btn-secondary"
+              onClick={() => setStorageEntries(readAllMygoodbooksStorage())}
+            >
+              Refresh
+            </button>
+          </div>
+          {storageEntries.length === 0 ? (
+            <p className="card-subtitle">
+              No "mygoodbooks_" keys stored in this browser.
+            </p>
+          ) : (
+            <div className="staff-audit-list">
+              {storageEntries.map((e) => (
+                <div
+                  className="staff-audit-row"
+                  key={e.key}
+                  style={{ flexDirection: "column", alignItems: "stretch" }}
+                >
+                  <span className="staff-flag-label">{e.key}</span>
+                  <pre
+                    style={{
+                      margin: "4px 0 0",
+                      fontSize: 11.5,
+                      fontFamily: "IBM Plex Mono, monospace",
+                      color: "var(--text-muted)",
+                      whiteSpace: "pre-wrap",
+                      wordBreak: "break-word",
+                    }}
+                  >
+                    {formatStorageValue(e.value)}
+                  </pre>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className="card" style={{ marginTop: 20, marginBottom: 20 }}>
+          <h3 className="card-title">Recent activity</h3>
           <p className="card-subtitle">
-            What the app is actually talking to, for debugging a broken login or
-            a stale deploy.
+            Every change to the staff table, logged automatically by Postgres —
+            not just the ones made from Staff Access.
           </p>
-          <dl className="staff-info-list">
-            <div>
-              <dt>App version</dt>
-              <dd>
-                {window.MGB_VERSION
-                  ? `${window.MGB_VERSION.label} — ${window.MGB_VERSION.note}`
-                  : "Not set"}
-              </dd>
-            </div>
-            <div>
-              <dt>Supabase project</dt>
-              <dd>
-                {supabase && window.SUPABASE_CONFIG
-                  ? new URL(window.SUPABASE_CONFIG.url).host
-                  : "Not configured"}
-              </dd>
-            </div>
-            <div>
-              <dt>Staff table read</dt>
-              <dd
-                className={
-                  staffReadOk === false
-                    ? "negative"
-                    : staffReadOk
-                      ? "positive"
-                      : ""
-                }
-              >
-                {staffReadOk === false
-                  ? `Failing — ${staffReadError}`
-                  : staffReadOk
-                    ? "OK"
-                    : "Checking…"}
-              </dd>
-            </div>
-            <div>
-              <dt>Audit log read</dt>
-              <dd
-                className={
-                  auditError ? "negative" : auditRows ? "positive" : ""
-                }
-              >
-                {auditError
-                  ? "Failing — run staff-audit-log.sql"
-                  : auditRows
-                    ? "OK"
-                    : "Checking…"}
-              </dd>
-            </div>
-            {staffUser && (
+
+          {auditRows === null && !auditError && (
+            <p className="card-subtitle">Loading…</p>
+          )}
+          {auditError && <p className="card-subtitle negative">{auditError}</p>}
+
+          {auditRows && auditRows.length > 0 && (
+            <ul className="staff-audit-list">
+              {auditRows.map((entry) => (
+                <li className="staff-audit-row" key={entry.id}>
+                  <span className="staff-audit-text">
+                    <strong>{entry.actor_email || "Unknown"}</strong>{" "}
+                    {staffAuditVerb(entry.action)}{" "}
+                    <strong>{entry.target_email}</strong>
+                    {entry.detail ? ` (${entry.detail})` : ""}
+                  </span>
+                  <span className="staff-audit-time">
+                    {fmtDateTime(entry.created_at)}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+
+          {auditRows && auditRows.length === 0 && !auditError && (
+            <p className="card-subtitle">No activity recorded yet.</p>
+          )}
+        </div>
+
+        <div className="content-masonry">
+          <div className="card">
+            <h3 className="card-title">System info</h3>
+            <p className="card-subtitle">
+              What the app is actually talking to, for debugging a broken login
+              or a stale deploy.
+            </p>
+            <dl className="staff-info-list">
               <div>
-                <dt>Signed in as</dt>
+                <dt>App version</dt>
                 <dd>
-                  {staffUser.name} ({staffUser.email}) · {staffUser.role}
+                  {window.MGB_VERSION
+                    ? `${window.MGB_VERSION.label} — ${window.MGB_VERSION.note}`
+                    : "Not set"}
                 </dd>
               </div>
-            )}
-          </dl>
-        </div>
+              <div>
+                <dt>Supabase project</dt>
+                <dd>
+                  {supabase && window.SUPABASE_CONFIG
+                    ? new URL(window.SUPABASE_CONFIG.url).host
+                    : "Not configured"}
+                </dd>
+              </div>
+              <div>
+                <dt>Staff table read</dt>
+                <dd
+                  className={
+                    staffReadOk === false
+                      ? "negative"
+                      : staffReadOk
+                        ? "positive"
+                        : ""
+                  }
+                >
+                  {staffReadOk === false
+                    ? `Failing — ${staffReadError}`
+                    : staffReadOk
+                      ? "OK"
+                      : "Checking…"}
+                </dd>
+              </div>
+              <div>
+                <dt>Audit log read</dt>
+                <dd
+                  className={
+                    auditError ? "negative" : auditRows ? "positive" : ""
+                  }
+                >
+                  {auditError
+                    ? "Failing — run staff-audit-log.sql"
+                    : auditRows
+                      ? "OK"
+                      : "Checking…"}
+                </dd>
+              </div>
+              {staffUser && (
+                <div>
+                  <dt>Signed in as</dt>
+                  <dd>
+                    {staffUser.name} ({staffUser.email}) · {staffUser.role}
+                  </dd>
+                </div>
+              )}
+            </dl>
+          </div>
 
-        <div className="card">
-          <h3 className="card-title">Where things live</h3>
-          <p className="card-subtitle">
-            A directory, not a vault — this doesn't store any real credentials.
-            Edit <code>INFRA_LINKS</code> in app.jsx when an account changes.
-          </p>
-          <div className="staff-audit-list">
-            {INFRA_LINKS.map((l) => (
-              <a
-                className="staff-due-row"
-                href={l.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                key={l.name}
-              >
-                <span className="staff-flag-label">{l.name}</span>
-                <span className="staff-flag-desc">{l.note}</span>
-              </a>
-            ))}
+          <div className="card">
+            <h3 className="card-title">Where things live</h3>
+            <p className="card-subtitle">
+              A directory, not a vault — this doesn't store any real
+              credentials. Edit <code>INFRA_LINKS</code> in app.jsx when an
+              account changes.
+            </p>
+            <div className="staff-audit-list">
+              {INFRA_LINKS.map((l) => (
+                <a
+                  className="staff-due-row"
+                  href={l.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  key={l.name}
+                >
+                  <span className="staff-flag-label">{l.name}</span>
+                  <span className="staff-flag-desc">{l.note}</span>
+                </a>
+              ))}
+            </div>
           </div>
         </div>
-      </div>
+      </fieldset>
     </div>
   );
 }
@@ -9338,7 +9542,7 @@ function GroupComposeModal({ directory, onCreate, onClose }) {
   );
 }
 
-function ClientAccessPage() {
+function ClientAccessPage({ readOnly }) {
   const showToast = useToast();
   const supabase = window.mgbSupabase;
 
@@ -9504,215 +9708,232 @@ function ClientAccessPage() {
         dashboard for that).
       </div>
 
-      <div className="card" style={{ marginBottom: 20 }}>
-        <h3 className="card-title">Add a contact</h3>
-        <p className="card-subtitle">
-          One row per person, not per organization — each contact signs in with
-          their own address once Phase 2 is live.
-        </p>
-        <div className="staff-add-row">
-          <select
-            value={newClientId}
-            onChange={(e) => setNewClientId(e.target.value)}
-          >
-            {CLIENTS.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
-              </option>
-            ))}
-          </select>
-          <input
-            type="email"
-            placeholder="name@theirdomain.org"
-            value={newEmail}
-            onChange={(e) => setNewEmail(e.target.value)}
-          />
-          <input
-            type="text"
-            placeholder="Full name"
-            value={newName}
-            onChange={(e) => setNewName(e.target.value)}
-          />
-          <input
-            type="text"
-            placeholder="Role (e.g. Board Treasurer)"
-            value={newRole}
-            onChange={(e) => setNewRole(e.target.value)}
-          />
-          <button
-            className="btn-primary"
-            disabled={
-              adding || !newEmail.trim() || !newName.trim() || !newRole.trim()
-            }
-            onClick={addContact}
-          >
-            + Add
-          </button>
+      {readOnly && (
+        <div className="mock-banner">
+          <WarningIcon /> You have temporary read-only access to this page —
+          contact an admin to make changes.
         </div>
-      </div>
+      )}
 
-      <div className="card" style={{ marginBottom: 20 }}>
-        <h3 className="card-title">Bulk import</h3>
-        <p className="card-subtitle">
-          Paste rows as <code>client_id, email, name, role</code> — client_id
-          must match a client's id exactly (e.g. <code>grace-community</code>),
-          not its display name.
-        </p>
-        <textarea
-          className="staff-csv-textarea"
-          rows={4}
-          placeholder={
-            "grace-community, john@gracecommunity.org, Pastor John Whitfield, Lead Pastor\nnew-hope, mia@newhopeoutreach.org, Mia Alvarez, Executive Director"
-          }
-          value={csvText}
-          onChange={(e) => {
-            setCsvText(e.target.value);
-            setCsvResults(null);
-          }}
-        />
-        {csvPreview.length > 0 && (
-          <React.Fragment>
-            <ul className="staff-csv-preview">
-              {csvPreview.map((r, i) => (
-                <li
-                  key={i}
-                  className={r.errors.length ? "negative" : "positive"}
+      {/* A <fieldset disabled> natively disables every nested input, select
+          and button in one shot, so a temp-access (non-admin) viewer can
+          still see the roster but can't submit any write — the RLS policies
+          on client_users are admin-only regardless, but disabling client-side
+          too avoids a silently-failing button. */}
+      <fieldset
+        disabled={readOnly}
+        style={{ border: 0, margin: 0, padding: 0 }}
+      >
+        <div className="card" style={{ marginBottom: 20 }}>
+          <h3 className="card-title">Add a contact</h3>
+          <p className="card-subtitle">
+            One row per person, not per organization — each contact signs in
+            with their own address once Phase 2 is live.
+          </p>
+          <div className="staff-add-row">
+            <select
+              value={newClientId}
+              onChange={(e) => setNewClientId(e.target.value)}
+            >
+              {CLIENTS.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
+            <input
+              type="email"
+              placeholder="name@theirdomain.org"
+              value={newEmail}
+              onChange={(e) => setNewEmail(e.target.value)}
+            />
+            <input
+              type="text"
+              placeholder="Full name"
+              value={newName}
+              onChange={(e) => setNewName(e.target.value)}
+            />
+            <input
+              type="text"
+              placeholder="Role (e.g. Board Treasurer)"
+              value={newRole}
+              onChange={(e) => setNewRole(e.target.value)}
+            />
+            <button
+              className="btn-primary"
+              disabled={
+                adding || !newEmail.trim() || !newName.trim() || !newRole.trim()
+              }
+              onClick={addContact}
+            >
+              + Add
+            </button>
+          </div>
+        </div>
+
+        <div className="card" style={{ marginBottom: 20 }}>
+          <h3 className="card-title">Bulk import</h3>
+          <p className="card-subtitle">
+            Paste rows as <code>client_id, email, name, role</code> — client_id
+            must match a client's id exactly (e.g. <code>grace-community</code>
+            ), not its display name.
+          </p>
+          <textarea
+            className="staff-csv-textarea"
+            rows={4}
+            placeholder={
+              "grace-community, john@gracecommunity.org, Pastor John Whitfield, Lead Pastor\nnew-hope, mia@newhopeoutreach.org, Mia Alvarez, Executive Director"
+            }
+            value={csvText}
+            onChange={(e) => {
+              setCsvText(e.target.value);
+              setCsvResults(null);
+            }}
+          />
+          {csvPreview.length > 0 && (
+            <React.Fragment>
+              <ul className="staff-csv-preview">
+                {csvPreview.map((r, i) => (
+                  <li
+                    key={i}
+                    className={r.errors.length ? "negative" : "positive"}
+                  >
+                    {r.errors.length ? (
+                      <React.Fragment>
+                        <strong>{r.line}</strong> — {r.errors.join(", ")}
+                      </React.Fragment>
+                    ) : (
+                      <React.Fragment>
+                        {r.name} ({r.email}) · {r.role} · {r.clientName}
+                      </React.Fragment>
+                    )}
+                  </li>
+                ))}
+              </ul>
+              <div className="staff-reset-row">
+                <button
+                  className="btn-primary"
+                  disabled={csvImporting || csvValidCount === 0}
+                  onClick={importCsv}
                 >
-                  {r.errors.length ? (
-                    <React.Fragment>
-                      <strong>{r.line}</strong> — {r.errors.join(", ")}
-                    </React.Fragment>
-                  ) : (
-                    <React.Fragment>
-                      {r.name} ({r.email}) · {r.role} · {r.clientName}
-                    </React.Fragment>
-                  )}
+                  {csvImporting
+                    ? "Importing…"
+                    : `Import ${csvValidCount} contacts`}
+                </button>
+                {csvValidCount < csvPreview.length && (
+                  <p className="card-subtitle" style={{ margin: 0 }}>
+                    {csvPreview.length - csvValidCount} row(s) above have errors
+                    and will be skipped.
+                  </p>
+                )}
+              </div>
+            </React.Fragment>
+          )}
+          {csvResults && (
+            <ul className="staff-csv-preview" style={{ marginTop: 12 }}>
+              {csvResults.map((r, i) => (
+                <li key={i} className={r.ok ? "positive" : "negative"}>
+                  {r.ok
+                    ? `Added ${r.name}`
+                    : `${r.name || r.email} — ${r.message}`}
                 </li>
               ))}
             </ul>
-            <div className="staff-reset-row">
-              <button
-                className="btn-primary"
-                disabled={csvImporting || csvValidCount === 0}
-                onClick={importCsv}
-              >
-                {csvImporting
-                  ? "Importing…"
-                  : `Import ${csvValidCount} contacts`}
-              </button>
-              {csvValidCount < csvPreview.length && (
-                <p className="card-subtitle" style={{ margin: 0 }}>
-                  {csvPreview.length - csvValidCount} row(s) above have errors
-                  and will be skipped.
-                </p>
-              )}
-            </div>
-          </React.Fragment>
-        )}
-        {csvResults && (
-          <ul className="staff-csv-preview" style={{ marginTop: 12 }}>
-            {csvResults.map((r, i) => (
-              <li key={i} className={r.ok ? "positive" : "negative"}>
-                {r.ok
-                  ? `Added ${r.name}`
-                  : `${r.name || r.email} — ${r.message}`}
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
-
-      <div className="card" style={{ marginBottom: 20 }}>
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "baseline",
-            flexWrap: "wrap",
-            gap: 8,
-          }}
-        >
-          <div>
-            <h3 className="card-title">Client contacts</h3>
-            <p className="card-subtitle">
-              Everyone registered to sign in, across every client.
-            </p>
-          </div>
-          <input
-            type="text"
-            placeholder="Search name, email, or client…"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            style={{ maxWidth: 240 }}
-          />
+          )}
         </div>
 
-        {rows === null && !loadError && (
-          <p className="card-subtitle">Loading…</p>
-        )}
-        {loadError && <p className="card-subtitle negative">{loadError}</p>}
-
-        {rows && rows.length > 0 && filteredRows.length === 0 && (
-          <p className="card-subtitle">No contact matches "{search}".</p>
-        )}
-
-        {filteredRows.length > 0 && (
-          <div className="table-scroll">
-            <table className="tx-table tx-table-labeled">
-              <thead>
-                <tr>
-                  <th>Name</th>
-                  <th>Email</th>
-                  <th>Client</th>
-                  <th>Role</th>
-                  <th>Active</th>
-                  <th></th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredRows.map((row) => {
-                  const busy = busyEmail === row.email;
-                  return (
-                    <tr key={row.email}>
-                      <td data-primary="">{row.name}</td>
-                      <td data-label="Email">{row.email}</td>
-                      <td data-label="Client">
-                        {clientNameFor(row.client_id)}
-                      </td>
-                      <td data-label="Role">{row.role}</td>
-                      <td data-label="Active">
-                        <label className="staff-active-toggle">
-                          <input
-                            type="checkbox"
-                            checked={row.active}
-                            disabled={busy}
-                            onChange={() => toggleActive(row)}
-                          />
-                          <span>{row.active ? "Active" : "Deactivated"}</span>
-                        </label>
-                      </td>
-                      <td className="row-remove-cell">
-                        <button
-                          className="row-remove-btn"
-                          onClick={() => removeContact(row)}
-                          disabled={busy}
-                          aria-label={`Remove ${row.name}`}
-                        >
-                          ×
-                        </button>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+        <div className="card" style={{ marginBottom: 20 }}>
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "baseline",
+              flexWrap: "wrap",
+              gap: 8,
+            }}
+          >
+            <div>
+              <h3 className="card-title">Client contacts</h3>
+              <p className="card-subtitle">
+                Everyone registered to sign in, across every client.
+              </p>
+            </div>
+            <input
+              type="text"
+              placeholder="Search name, email, or client…"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              style={{ maxWidth: 240 }}
+            />
           </div>
-        )}
 
-        {rows && rows.length === 0 && !loadError && (
-          <p className="card-subtitle">No client contacts yet.</p>
-        )}
-      </div>
+          {rows === null && !loadError && (
+            <p className="card-subtitle">Loading…</p>
+          )}
+          {loadError && <p className="card-subtitle negative">{loadError}</p>}
+
+          {rows && rows.length > 0 && filteredRows.length === 0 && (
+            <p className="card-subtitle">No contact matches "{search}".</p>
+          )}
+
+          {filteredRows.length > 0 && (
+            <div className="table-scroll">
+              <table className="tx-table tx-table-labeled">
+                <thead>
+                  <tr>
+                    <th>Name</th>
+                    <th>Email</th>
+                    <th>Client</th>
+                    <th>Role</th>
+                    <th>Active</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredRows.map((row) => {
+                    const busy = busyEmail === row.email;
+                    return (
+                      <tr key={row.email}>
+                        <td data-primary="">{row.name}</td>
+                        <td data-label="Email">{row.email}</td>
+                        <td data-label="Client">
+                          {clientNameFor(row.client_id)}
+                        </td>
+                        <td data-label="Role">{row.role}</td>
+                        <td data-label="Active">
+                          <label className="staff-active-toggle">
+                            <input
+                              type="checkbox"
+                              checked={row.active}
+                              disabled={busy}
+                              onChange={() => toggleActive(row)}
+                            />
+                            <span>{row.active ? "Active" : "Deactivated"}</span>
+                          </label>
+                        </td>
+                        <td className="row-remove-cell">
+                          <button
+                            className="row-remove-btn"
+                            onClick={() => removeContact(row)}
+                            disabled={busy}
+                            aria-label={`Remove ${row.name}`}
+                          >
+                            ×
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {rows && rows.length === 0 && !loadError && (
+            <p className="card-subtitle">No client contacts yet.</p>
+          )}
+        </div>
+      </fieldset>
     </div>
   );
 }
@@ -13687,6 +13908,54 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
     effectiveStaffUser && effectiveStaffUser.role,
   ]);
 
+  // An admin can grant a non-admin bookkeeper temporary, time-limited
+  // visibility into the three admin-only pages (Staff Access, Client
+  // Roster, Developer Tools) — see supabase/staff-temp-admin-access.sql and
+  // StaffAccessPage's "Temp admin access" column. This is READ against the
+  // real signed-in staffUser, not effectiveStaffUser/impersonation — an
+  // admin previewing "as" a bookkeeper already sees every page as
+  // themselves, and impersonation is explicitly excluded from the admin
+  // pages below regardless (see effectivePage).
+  const [tempAdminAccessExpiresAt, setTempAdminAccessExpiresAt] =
+    useState(null);
+
+  useEffect(() => {
+    setTempAdminAccessExpiresAt(null);
+    if (!staffUser || staffUser.role === "admin") return;
+    const supabase = window.mgbSupabase;
+    if (!supabase) return;
+    supabase
+      .from("staff_temp_admin_access")
+      .select("expires_at")
+      .eq("staff_email", staffUser.email)
+      .maybeSingle()
+      .then(({ data, error }) => {
+        if (error) {
+          console.warn(
+            "Couldn't load temp admin access (staff-temp-admin-access.sql may not be run yet):",
+            error.message,
+          );
+          return;
+        }
+        setTempAdminAccessExpiresAt(data ? data.expires_at : null);
+      });
+  }, [staffUser && staffUser.email, staffUser && staffUser.role]);
+
+  // Forces a re-render once a minute so a live temp-access grant actually
+  // stops working (and the expiry banner counts down) close to the moment
+  // it expires, rather than only on the next unrelated state change.
+  const [, retickTempAccess] = useState(0);
+  useEffect(() => {
+    if (!tempAdminAccessExpiresAt) return;
+    const id = setInterval(() => retickTempAccess((v) => v + 1), 60000);
+    return () => clearInterval(id);
+  }, [tempAdminAccessExpiresAt]);
+
+  const hasTempAdminAccess = Boolean(
+    tempAdminAccessExpiresAt &&
+    new Date(tempAdminAccessExpiresAt).getTime() > Date.now(),
+  );
+
   // Clients flagged `testOnly` in data.js (currently just the Grace
   // Community sample/test profile) are hidden from regular bookkeeper
   // logins — sample data shouldn't show up on their roster once real
@@ -14026,7 +14295,7 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
             page === "client-access" ||
             page === "developer-tools") &&
           staffUser &&
-          staffUser.role === "admin" &&
+          (staffUser.role === "admin" || hasTempAdminAccess) &&
           !impersonating
         ? page
         : page === "staff-messages" && staffUser && !impersonating
@@ -14538,6 +14807,8 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
           onSignOut={onSignOut}
           staffMessagesUnread={staffMessagesUnread}
           impersonating={impersonating}
+          hasTempAdminAccess={hasTempAdminAccess}
+          tempAdminAccessExpiresAt={tempAdminAccessExpiresAt}
         />
         <main className="main">
           {impersonating && (
@@ -14724,9 +14995,12 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
             <StaffAccessPage
               staffUser={staffUser}
               onImpersonate={startImpersonating}
+              readOnly={staffUser.role !== "admin"}
             />
           )}
-          {effectivePage === "client-access" && <ClientAccessPage />}
+          {effectivePage === "client-access" && (
+            <ClientAccessPage readOnly={staffUser.role !== "admin"} />
+          )}
           {effectivePage === "staff-messages" && (
             <StaffMessagesPage
               staffUser={staffUser}
@@ -14740,6 +15014,7 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
                 setSelectedClientId(clientId);
                 setPage("dashboard");
               }}
+              readOnly={staffUser.role !== "admin"}
             />
           )}
           {effectivePage === "bookkeeper-home" && (

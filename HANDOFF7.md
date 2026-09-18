@@ -3195,3 +3195,59 @@ DB.
 
 Files touched: `app.jsx`, `supabase/access-requests.sql`, `index.html`,
 `build.py`, `HANDOFF7.md`.
+
+## §113 — Temporary admin-page access grants for bookkeepers
+
+Staff Access, Client Roster and Developer Tools were already gated to
+`staffUser.role === "admin"` only (both the sidebar nav links and
+`effectivePage`, `app.jsx` ~14265) — nothing new was needed there. What
+was missing was any way for an admin to give a specific bookkeeper
+time-limited access to those three pages without promoting them to admin.
+
+Added a new table, `staff_temp_admin_access` (`staff_email` primary key,
+`granted_by`, `granted_at`, `expires_at`, optional `reason`), RLS: any
+active staff member can read it (so the app can cheaply check "do I have
+a live grant"), only `is_active_staff_admin()` can write. Also added
+`public.has_temp_admin_access(p_email)`, a security-definer helper
+matching the `is_active_staff()`/`is_active_staff_admin()` pattern — not
+currently referenced by any policy (see design call below), but there in
+case a future RLS policy wants to respect temp grants too. Applied live
+via Supabase MCP (`apply_migration`, `staff_temp_admin_access`) and
+mirrored in `supabase/staff-temp-admin-access.sql`.
+
+`StaffAccessPage` gets a new "Temp admin access" column per bookkeeper
+row: a duration picker (1 hour / 1 day / 1 week) and a Grant button, or
+(if a live grant exists) the expiry time and a Revoke button — Revoke is
+just a delete, Grant is an upsert on `staff_email`. `App` loads the
+signed-in staffer's own grant (`tempAdminAccessExpiresAt`, mirrors the
+`assignedClientIds` loading pattern) and derives `hasTempAdminAccess`
+(expires_at > now, rechecked every 60s via an interval so a live grant
+actually stops working close to the moment it expires rather than only
+on the next unrelated re-render). `effectivePage` and the Sidebar's three
+nav links now accept `staffUser.role === "admin" || hasTempAdminAccess`
+(still excluded while `impersonating`, same as before). A temp-access
+bookkeeper sees a "Temporary access — expires <time>" banner in the
+sidebar.
+
+Design call — temp access is READ-ONLY visibility, not a role change:
+the RLS policies gating actual mutations on `staff` / `client_users` /
+`staff_client_access` are all `is_active_staff_admin()`-only (role =
+admin), and I left those untouched rather than extending them with
+`has_temp_admin_access()`. Staff Access controls who can sign in to the
+portal at all and Developer Tools' System Info touches nothing sensitive
+but sits in the same admin bucket — sensitive enough that "can see this
+page temporarily" and "can mutate who has portal access" should stay two
+different grants. So a temp-access viewer gets the roster/import/CSV
+UI's mutation controls disabled client-side (a `<fieldset disabled>`
+wrap on Client Roster and Developer Tools; StaffAccessPage's controls are
+individually disabled since its layout doesn't fit one fieldset around
+just the mutating parts) with a "You have temporary read-only access —
+contact an admin to make changes" banner, so the RLS rejection isn't the
+only thing stopping a write. Developer Tools' own actions (flag toggles,
+local-state reset) never touched Supabase in the first place — disabling
+them for a temp-access viewer is purely for consistency with the other
+two pages, not because they were actually unsafe. Revisit this split if
+temp access is ever meant to include real admin mutation rights.
+
+Files touched: `app.jsx`, `styles.css`, `supabase/staff-temp-admin-access.sql`
+(new), `index.html`, `build.py`, `HANDOFF7.md`.
