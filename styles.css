@@ -828,6 +828,19 @@ body {
   line-height: 1.5;
 }
 
+.legal-footer-links {
+  margin-top: 6px;
+}
+
+.legal-footer-links a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.legal-footer-links a:hover {
+  text-decoration: underline;
+}
+
 /* ---------------- Main content ---------------- */
 
 .main {

@@ -2784,3 +2784,10 @@ emails). Entity name assumed "MyGoodBooks LLC", contact email
 jeff@mygoodbooks.org. **Not reviewed by a lawyer** — reasonable for getting
 through Intuit's app review, but worth a real legal review before treating
 these as final, especially before scaling past a handful of clients.
+
+## §102 — Privacy/Terms footer links
+
+/privacy and /terms had no in-app links, only reachable by typing the URL.
+Added footer links: main app sidebar (`.sidebar-footer`, both staff and
+client views), staff Google sign-in screen (AuthGate.jsx), and client
+magic-link sign-in screen (ClientAuthGate.jsx). Both open in a new tab.
