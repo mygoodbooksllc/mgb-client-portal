@@ -3461,3 +3461,63 @@ Files touched: `supabase/staff-reminders.sql` (extended), `app.jsx`
 (`ChecklistIcon`, `MyTasksPage`, nav link, `PAGE_META["my-tasks"]`,
 `effectivePage` gating, `NON_CLIENT_PAGES`, Home widget link), `index.html`,
 `build.py`, `HANDOFF7.md`.
+
+## §121 — Per-client activity/audit trail
+
+A "who touched what and when" feed for a specific client — for
+handoffs when a bookkeeper changes and for catching mistakes ("did
+someone actually update this budget, and when"). Distinct from
+`staff_audit_log`, which only logs changes to the `staff` roster
+itself (role/active changes), not per-client actions.
+
+Trigger-based, mirroring `staff_audit_log`'s pattern, rather than
+instrumenting every write site in `app.jsx` individually — lower
+regression risk on a 15k-line file, and it captures changes made any
+way (the UI, the Supabase dashboard, a future script), not just ones
+the app remembers to record.
+
+`supabase/client-activity-log.sql` (new) adds:
+- `client_activity_log` (`id`, `client_id`, `actor_email`,
+  `actor_name`, `action` text, `detail` jsonb, `created_at`)
+- `SECURITY DEFINER` trigger functions on `client_documents`
+  (insert/delete → `document_added`/`document_removed`), `client_users`
+  (insert/update/delete → `access_granted`/`access_updated`/
+  `access_revoked`), and `qbo_connections` (update, only when `status`
+  actually changes → `qbo_status_changed`). Actor is read from
+  `auth.jwt()->>'email'` inside the trigger; a service-role-driven
+  change (e.g. the QBO refresh job) has no JWT, so `actor_email` is
+  null and the UI labels it "System".
+- A conditional block adds a fourth trigger on `client_notes`
+  (→ `note_updated`) only if that table already exists at migration
+  time (checked via `information_schema.tables`) — it was being built
+  by a concurrent agent; the migration doesn't fail if it's absent yet.
+  It existed by the time this ran, so all four triggers are live.
+- RLS: `select` via `is_active_staff_admin()` OR the caller has a
+  `staff_client_access` row for that `client_id` — admins see every
+  client's log, bookkeepers only their assigned clients', matching the
+  scoping `app.jsx` already applies to which clients a bookkeeper can
+  see at all. No insert/update/delete policy for anyone, and
+  insert/update/delete grants are explicitly revoked from
+  `anon`/`authenticated` — only the `SECURITY DEFINER` trigger
+  functions can write to this table, so not even an admin can edit or
+  clear it from the browser.
+
+Live-tested via Supabase MCP: inserted/deleted a `client_documents`
+row and an `client_users` row (insert, update, delete), and updated
+`qbo_connections.status`, all against a throwaway
+`client_id = '__activity_test__'` — confirmed all 6 expected log rows
+landed with the right `action`/`detail`, then deleted the test rows.
+
+New "Activity" tab added to the staff-only per-client modal
+(`TabSettingsModal` in `app.jsx`), alongside People/Organization
+tabs/Requests/Documents/QuickBooks/Notes. Read-only reverse-
+chronological feed ("Alicia Fenwick uploaded 'August Bank
+Statement.pdf' — Sep 18, 2026, 3:14 PM"), no filtering/pagination for
+this prototype's data volume. `describeActivity()` maps each
+`action`/`detail` shape to a human sentence; an unrecognized future
+action still renders (`actor — action`) rather than breaking.
+
+Files touched: `supabase/client-activity-log.sql` (new), `app.jsx`
+(`TabSettingsModal`: `activityLog` state, `loadActivityLog`,
+`describeActivity`, Activity tab button + body), `index.html`,
+`build.py`, `HANDOFF7.md`.
