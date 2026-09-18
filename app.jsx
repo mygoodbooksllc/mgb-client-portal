@@ -12335,6 +12335,11 @@ function TabSettingsModal({
   const [newDocUrl, setNewDocUrl] = useState("");
   const [addingDoc, setAddingDoc] = useState(false);
   const [qboConnection, setQboConnection] = useState(undefined); // undefined = loading
+  const [privateNotes, setPrivateNotes] = useState(undefined); // undefined = loading
+  const [newNoteText, setNewNoteText] = useState("");
+  const [addingNote, setAddingNote] = useState(false);
+  const [editingNoteId, setEditingNoteId] = useState(null);
+  const [editingNoteText, setEditingNoteText] = useState("");
   const showToast = useToast();
 
   const supabase = window.mgbSupabase;
@@ -12457,6 +12462,101 @@ function TabSettingsModal({
     await supabase.from("client_documents").delete().eq("id", id);
     loadDocuments();
   }
+
+  // Private staff notes: distinct from client_notes (a single shared
+  // scratchpad shown on the bookkeeper home page) and from client_documents
+  // above — these are never readable by the client (see
+  // supabase/client-private-notes.sql, which has no client_users policy at
+  // all).
+  const loadPrivateNotes = useCallback(() => {
+    if (!supabase) return;
+    supabase
+      .from("client_private_notes")
+      .select(
+        "id, text, author_email, author_name, pinned, created_at, updated_at",
+      )
+      .eq("client_id", client.id)
+      .order("pinned", { ascending: false })
+      .order("created_at", { ascending: false })
+      .then(({ data, error }) => {
+        if (error) {
+          showToast(
+            "Couldn't load notes. Has client-private-notes.sql been run? " +
+              error.message,
+          );
+          setPrivateNotes([]);
+          return;
+        }
+        setPrivateNotes(data || []);
+      });
+  }, [supabase, client.id, showToast]);
+
+  useEffect(() => {
+    if (tab === "notes") loadPrivateNotes();
+  }, [tab, loadPrivateNotes]);
+
+  async function addPrivateNote(e) {
+    e.preventDefault();
+    if (!supabase || !newNoteText.trim()) return;
+    setAddingNote(true);
+    const { error } = await supabase.from("client_private_notes").insert({
+      client_id: client.id,
+      text: newNoteText.trim(),
+      author_email: staffUser.email,
+      author_name: staffUser.name,
+    });
+    setAddingNote(false);
+    if (error) {
+      showToast("Couldn't add that note: " + error.message);
+      return;
+    }
+    setNewNoteText("");
+    loadPrivateNotes();
+  }
+
+  function startEditNote(note) {
+    setEditingNoteId(note.id);
+    setEditingNoteText(note.text);
+  }
+
+  async function saveEditedNote(id) {
+    const text = editingNoteText.trim();
+    if (!text) return;
+    const { error } = await supabase
+      .from("client_private_notes")
+      .update({ text, updated_at: new Date().toISOString() })
+      .eq("id", id);
+    if (error) {
+      showToast("Couldn't update that note: " + error.message);
+      return;
+    }
+    setEditingNoteId(null);
+    loadPrivateNotes();
+  }
+
+  async function togglePinNote(note) {
+    const { error } = await supabase
+      .from("client_private_notes")
+      .update({ pinned: !note.pinned })
+      .eq("id", note.id);
+    if (error) {
+      showToast("Couldn't update that note: " + error.message);
+      return;
+    }
+    loadPrivateNotes();
+  }
+
+  async function removePrivateNote(id) {
+    await supabase.from("client_private_notes").delete().eq("id", id);
+    loadPrivateNotes();
+  }
+
+  // Any active staff member (not just the original author) can edit or
+  // delete a note — same reasoning as client_documents and client_notes:
+  // these describe a client for whoever picks up the account next, not a
+  // private diary, so a colleague filling in shouldn't be blocked from
+  // fixing a stale or wrong note. Unlike Team Chat's messages there's no
+  // time-limited edit window, since notes aren't a conversational record.
 
   const loadRequestsTab = useCallback(() => {
     if (!supabase) return;
@@ -12602,6 +12702,12 @@ function TabSettingsModal({
           onClick={() => setTab("quickbooks")}
         >
           QuickBooks
+        </button>
+        <button
+          className={"modal-tab" + (tab === "notes" ? " active" : "")}
+          onClick={() => setTab("notes")}
+        >
+          Notes
         </button>
       </div>
 
@@ -12987,6 +13093,110 @@ function TabSettingsModal({
               <button className="btn-primary" onClick={connectQuickBooks}>
                 Connect QuickBooks
               </button>
+            )}
+          </div>
+        </div>
+      )}
+
+      {tab === "notes" && (
+        <div className="modal-body">
+          <p className="card-subtitle" style={{ marginTop: 0 }}>
+            Staff-only scratchpad for {client.name} — things like billing quirks
+            or how to handle a touchy owner. Never visible to the client, in the
+            chat, or anywhere they can see.
+          </p>
+
+          <form
+            className="access-link-row"
+            onSubmit={addPrivateNote}
+            style={{ marginBottom: 16, alignItems: "flex-start" }}
+          >
+            <textarea
+              placeholder="Add a note…"
+              value={newNoteText}
+              onChange={(e) => setNewNoteText(e.target.value)}
+              rows={3}
+              style={{ flex: 1, resize: "vertical" }}
+              required
+            />
+            <button className="btn-primary" disabled={addingNote} type="submit">
+              {addingNote ? "Adding…" : "Add note"}
+            </button>
+          </form>
+
+          <div className="modal-section">
+            <div className="nav-section-label modal-section-label">Notes</div>
+            {privateNotes === undefined ? (
+              <p className="card-subtitle">Loading…</p>
+            ) : privateNotes.length === 0 ? (
+              <p className="card-subtitle">No notes yet.</p>
+            ) : (
+              privateNotes.map((n) => (
+                <div className="access-request-row" key={n.id}>
+                  {editingNoteId === n.id ? (
+                    <>
+                      <textarea
+                        value={editingNoteText}
+                        onChange={(e) => setEditingNoteText(e.target.value)}
+                        rows={3}
+                        style={{ width: "100%", resize: "vertical" }}
+                      />
+                      <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+                        <button
+                          className="btn-primary"
+                          onClick={() => saveEditedNote(n.id)}
+                        >
+                          Save
+                        </button>
+                        <button
+                          className="btn-secondary"
+                          onClick={() => setEditingNoteId(null)}
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <div className="access-request-row-header">
+                        <span className="person-name">
+                          {n.pinned && "📌 "}
+                          {n.author_name}
+                        </span>
+                        <span className="card-subtitle" style={{ margin: 0 }}>
+                          {fmtDateTime(n.updated_at || n.created_at)}
+                          {n.updated_at ? " (edited)" : ""}
+                        </span>
+                      </div>
+                      <p
+                        style={{ whiteSpace: "pre-wrap", margin: "4px 0 8px" }}
+                      >
+                        {n.text}
+                      </p>
+                      <div style={{ display: "flex", gap: 8 }}>
+                        <button
+                          className="btn-secondary"
+                          onClick={() => togglePinNote(n)}
+                        >
+                          {n.pinned ? "Unpin" : "Pin"}
+                        </button>
+                        <button
+                          className="btn-secondary"
+                          onClick={() => startEditNote(n)}
+                        >
+                          Edit
+                        </button>
+                        <button
+                          className="btn-secondary"
+                          onClick={() => removePrivateNote(n.id)}
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    </>
+                  )}
+                </div>
+              ))
             )}
           </div>
         </div>
