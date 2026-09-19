@@ -704,12 +704,6 @@ body {
   flex-direction: column;
   gap: 4px;
   flex-shrink: 0;
-  overflow-y: auto;
-  scrollbar-width: none;
-}
-
-.nav-rail::-webkit-scrollbar {
-  display: none;
 }
 
 .nav-rail-group {
