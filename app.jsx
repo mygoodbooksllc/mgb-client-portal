@@ -1177,25 +1177,6 @@ function Sidebar({
           {effectiveTheme === "dark" ? <SunIcon /> : <MoonIcon />}
         </button>
       </div>
-
-      <div className="sidebar-footer">
-        {isBookkeeper
-          ? "Client and preview switchers are bookkeeper-side tools. Clients never see them."
-          : `Signed in to ${client.name}. Access is managed by MyGoodBooks.`}
-        <div className="legal-footer-links">
-          <a href="/privacy" target="_blank" rel="noopener noreferrer">
-            Privacy Policy
-          </a>
-          <span aria-hidden="true"> · </span>
-          <a href="/terms" target="_blank" rel="noopener noreferrer">
-            Terms of Service
-          </a>
-          <span aria-hidden="true"> · </span>
-          <a href="mailto:holden@mygoodbooks.org?subject=MyGoodBooks%20Support">
-            Contact support
-          </a>
-        </div>
-      </div>
     </aside>
   );
 }
@@ -16653,6 +16634,25 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
               key={"msgs-" + client.id + "-" + activeThreadUserId}
             />
           )}
+
+          <div className="main-footer">
+            {!isPreviewingUser
+              ? "Client and preview switchers are bookkeeper-side tools. Clients never see them."
+              : `Signed in to ${client.name}. Access is managed by MyGoodBooks.`}
+            <div className="main-footer-links">
+              <a href="/privacy" target="_blank" rel="noopener noreferrer">
+                Privacy Policy
+              </a>
+              <span aria-hidden="true"> · </span>
+              <a href="/terms" target="_blank" rel="noopener noreferrer">
+                Terms of Service
+              </a>
+              <span aria-hidden="true"> · </span>
+              <a href="mailto:holden@mygoodbooks.org?subject=MyGoodBooks%20Support">
+                Contact support
+              </a>
+            </div>
+          </div>
         </main>
       </div>
 
