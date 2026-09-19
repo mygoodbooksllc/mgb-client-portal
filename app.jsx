@@ -1168,14 +1168,19 @@ function Sidebar({
       <div className="sidebar-utility-row">
         {isBookkeeper && !NON_CLIENT_PAGES.has(page) ? (
           <div className="sidebar-utility-btn-group">
-            <button className="customize-tabs-btn" onClick={onOpenSettings}>
+            <button
+              className={
+                "customize-tabs-btn" +
+                (hasPendingAccessRequests ? " customize-tabs-btn-alert" : "")
+              }
+              onClick={onOpenSettings}
+            >
               <SlidersIcon /> Manage access
               {hasPendingAccessRequests && (
-                <span
-                  className="nav-badge-dot"
-                  aria-label="New access request"
-                  style={{ marginLeft: 6 }}
-                />
+                <span className="pending-request-pill">
+                  <span className="pending-request-dot" aria-hidden="true" />
+                  New request
+                </span>
               )}
             </button>
             <button className="customize-tabs-btn" onClick={onOpenDetails}>

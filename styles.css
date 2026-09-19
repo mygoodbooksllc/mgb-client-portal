@@ -960,6 +960,48 @@ body {
   color: var(--gold);
 }
 
+/* Pending-access-request alert on "Manage access" (§140) — a bare 8px
+   .nav-badge-dot read as barely-there next to this button's small muted
+   text, easy to miss entirely. Goes further: gold text, a labelled pill
+   instead of a mystery dot, and a pulsing ring (reusing mgb-dot-pulse,
+   the same keyframe the client-health dots use) so it actually catches
+   the eye on a glance at the sidebar. */
+.customize-tabs-btn-alert,
+.customize-tabs-btn-alert:hover {
+  color: var(--gold);
+}
+
+.pending-request-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-left: 8px;
+  padding: 2px 8px 2px 6px;
+  border-radius: 999px;
+  background: var(--gold-soft, rgba(199, 174, 134, 0.16));
+  color: var(--gold);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  vertical-align: middle;
+}
+
+.pending-request-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--gold);
+  flex-shrink: 0;
+  --health-dot-color: var(--gold);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .pending-request-dot {
+    animation: mgb-dot-pulse 1.8s ease-in-out infinite;
+  }
+}
+
 /* Relocated theme toggle — dressed in the same gold "Enterprise Tools"
    treatment (see .nav-signature-badge / navSignatureShine) instead of the
    plain light/dark-surface circle it used to be, since it now lives in the
