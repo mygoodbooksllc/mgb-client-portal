@@ -4513,3 +4513,20 @@ highlighted item told you in words which tab you were on. New
 already keyed its subtitle off) sits right next to the greeting `<h1>`.
 
 Files touched: `app.jsx` (`App`), `styles.css`.
+
+## §145 — Page-name tag: fixed run-together text, moved below search
+
+Two problems with §144's tag, both from a screenshot: the inline
+`<span>` sat glued straight onto `{greetingName}` with no separating
+text node, so it rendered as one run-together word ("...Standard Test
+ClientBank Accounts") instead of two — and per feedback, it read as
+belonging closer to the page's own content than up next to the
+greeting anyway.
+
+Fixed both at once: `.page-name-tag` is now its own block-level row
+under the `<h1>` (was an inline `<span>` inside it), and the whole
+`.page-header` block moved to render after `<GlobalSearch>` instead of
+before it — search bar first, then the greeting/page-name/subtitle
+header, then each page's first row of cards, on every page.
+
+Files touched: `app.jsx` (`App`), `styles.css`.

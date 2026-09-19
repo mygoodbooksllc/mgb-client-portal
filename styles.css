@@ -1214,14 +1214,14 @@ body {
   letter-spacing: -0.02em;
 }
 
-/* §144: which tab this is, shown right next to the personal greeting —
-   the greeting alone never said that, and with the sidebar collapsible
-   to icons (§142) there was no page name visible anywhere once
-   collapsed. Small enough to not compete with the big greeting text. */
+/* §144/§145: which tab this is, on its own line under the greeting —
+   with the sidebar collapsible to icons (§142) there was no page name
+   visible anywhere once collapsed. Was briefly an inline span glued
+   straight onto the <h1>'s text with no separating space; a block
+   element of its own sidesteps that concatenation risk entirely. */
 .page-name-tag {
-  display: inline-block;
-  vertical-align: middle;
-  margin-left: 12px;
+  display: inline-flex;
+  margin-top: 6px;
   padding: 3px 10px;
   border-radius: 999px;
   background: var(--surface-2);

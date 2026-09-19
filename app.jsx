@@ -17690,6 +17690,25 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
             </div>
           )}
 
+          <GlobalSearch
+            client={scopedClient}
+            messages={liveMessages}
+            visibleKeys={access.tabs}
+            onNavigate={setPage}
+            onHighlightResult={(r) =>
+              setSearchTarget({ ...r, nonce: Date.now() })
+            }
+            key={"search-" + client.id}
+          />
+
+          {/* §144/§145: which tab this is, in words — with the sidebar
+              collapsible to icons (§142), there was no page name visible
+              anywhere once collapsed. Moved below the search bar, right
+              above each page's own cards, per feedback that it belonged
+              closer to the content it labels than up next to the
+              greeting. Its own row (not squeezed inline into the <h1>)
+              so there's no risk of text running together the way an
+              inline span glued straight onto {greetingName} did. */}
           <div className="page-header">
             <div>
               <div className="portal-greeting">
@@ -17697,26 +17716,17 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
                   ? "MyGoodBooks"
                   : client.name}
               </div>
-              {/* §144: the greeting told you it's morning, not which tab
-                  you're on — with the sidebar collapsible to icons now
-                  (§142), there was no page-name text visible anywhere at
-                  all once collapsed. This tag is the same PAGE_META.title
-                  every page already keyed its subtitle off, just also
-                  shown, not just used to look the subtitle up. */}
               {NON_CLIENT_PAGES.has(effectivePage) ? (
                 <h1 className="page-title">
                   {timeOfDayGreeting()}, {firstNameOf(effectiveStaffUser.name)}
-                  {meta && meta.title && (
-                    <span className="page-name-tag">{meta.title}</span>
-                  )}
                 </h1>
               ) : (
                 <h1 className="page-title">
                   {timeOfDayGreeting()}, {greetingName}
-                  {meta && meta.title && (
-                    <span className="page-name-tag">{meta.title}</span>
-                  )}
                 </h1>
+              )}
+              {meta && meta.title && (
+                <div className="page-name-tag">{meta.title}</div>
               )}
               <div
                 className={
@@ -17733,17 +17743,6 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
               </span>
             </div>
           </div>
-
-          <GlobalSearch
-            client={scopedClient}
-            messages={liveMessages}
-            visibleKeys={access.tabs}
-            onNavigate={setPage}
-            onHighlightResult={(r) =>
-              setSearchTarget({ ...r, nonce: Date.now() })
-            }
-            key={"search-" + client.id}
-          />
 
           {effectivePage === "dashboard" &&
             (showsLiveReport ? (
