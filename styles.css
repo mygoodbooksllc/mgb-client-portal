@@ -694,6 +694,7 @@ body {
    staff-access-link buttons exactly as they render outside this split. */
 .sidebar-split {
   display: flex;
+  align-items: flex-start;
   gap: 10px;
   margin-bottom: 8px;
   min-height: 0;
@@ -788,9 +789,9 @@ body {
    rounded box with a pointer arrow. */
 .nav-rail-tooltip {
   position: absolute;
-  left: calc(100% + 10px);
+  right: calc(100% + 10px);
   top: 50%;
-  transform: translateY(-50%) translateX(-4px);
+  transform: translateY(-50%) translateX(4px);
   background: var(--navy-deep);
   color: white;
   font-size: 12px;
@@ -808,11 +809,11 @@ body {
 .nav-rail-tooltip::before {
   content: "";
   position: absolute;
-  right: 100%;
+  left: 100%;
   top: 50%;
   transform: translateY(-50%);
   border: 5px solid transparent;
-  border-right-color: var(--navy-deep);
+  border-left-color: var(--navy-deep);
 }
 
 .nav-rail-item:hover .nav-rail-tooltip,
