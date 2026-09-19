@@ -395,12 +395,15 @@ const NAV_SECTIONS = [
     items: [
       { key: "bank", label: "Bank Accounts", icon: <BankIcon /> },
       { key: "receivables", label: "Cash Flow", icon: <SwapIcon /> },
-      // Not in PREMIUM_UPGRADE_TAB_KEYS on purpose — Payroll is a separate
-      // add-on (client.payrollAddOn), orthogonal to the standard/premium
-      // plan split, not a premium-only upgrade. See PayrollPage.
-      { key: "payroll", label: "Payroll", icon: <UsersIcon /> },
       { key: "reports", label: "Reports", icon: <DownloadIcon /> },
       { key: "giving", label: "Giving & Funds", icon: <GiftHeartIcon /> },
+      // Last in the section, right above Documents — most clients don't
+      // have the payroll add-on at all, so it doesn't need the same
+      // prominence as the tabs everyone uses. Not in PREMIUM_UPGRADE_TAB_KEYS
+      // on purpose — Payroll is a separate add-on (client.payrollAddOn),
+      // orthogonal to the standard/premium plan split, not a premium-only
+      // upgrade. See PayrollPage.
+      { key: "payroll", label: "Payroll", icon: <UsersIcon /> },
     ],
   },
   {
@@ -10447,6 +10450,18 @@ function ClientAccessPage({ readOnly }) {
   const [newOrgBookkeeperRole, setNewOrgBookkeeperRole] = useState("");
   const [addingOrg, setAddingOrg] = useState(false);
 
+  // §139: editing an existing org's fields (left out of §133 as a deliberate
+  // follow-up). `id` is never editable — it's the join key against
+  // CLIENTS_MOCK_DATA and every other client_id-referencing table.
+  const [editingOrgId, setEditingOrgId] = useState(null);
+  const [editOrgName, setEditOrgName] = useState("");
+  const [editOrgType, setEditOrgType] = useState("");
+  const [editOrgPlan, setEditOrgPlan] = useState("standard");
+  const [editOrgPayrollAddOn, setEditOrgPayrollAddOn] = useState(false);
+  const [editOrgBookkeeperName, setEditOrgBookkeeperName] = useState("");
+  const [editOrgBookkeeperRole, setEditOrgBookkeeperRole] = useState("");
+  const [savingOrg, setSavingOrg] = useState(false);
+
   const newOrgId = useMemo(
     () =>
       newOrgName
@@ -10550,6 +10565,83 @@ function ClientAccessPage({ readOnly }) {
     setNewOrgBookkeeperName("");
     setNewOrgBookkeeperRole("");
     showToast(`Added ${name}.`);
+    loadOrgs();
+  }
+
+  function startEditOrg(row) {
+    setEditingOrgId(row.id);
+    setEditOrgName(row.name);
+    setEditOrgType(row.org_type);
+    setEditOrgPlan(row.plan);
+    setEditOrgPayrollAddOn(row.payroll_add_on);
+    setEditOrgBookkeeperName(
+      row.assigned_bookkeeper ? row.assigned_bookkeeper.name : "",
+    );
+    setEditOrgBookkeeperRole(
+      row.assigned_bookkeeper ? row.assigned_bookkeeper.role : "",
+    );
+  }
+
+  function cancelEditOrg() {
+    setEditingOrgId(null);
+  }
+
+  async function saveEditOrg() {
+    const id = editingOrgId;
+    const name = editOrgName.trim();
+    const orgType = editOrgType.trim();
+    const bookkeeperName = editOrgBookkeeperName.trim();
+    const bookkeeperRole = editOrgBookkeeperRole.trim();
+    if (!name || !orgType) return;
+    const assignedBookkeeper = bookkeeperName
+      ? {
+          name: bookkeeperName,
+          role: bookkeeperRole,
+          initials: bookkeeperName
+            .split(" ")
+            .map((p) => p[0])
+            .slice(0, 2)
+            .join("")
+            .toUpperCase(),
+        }
+      : null;
+    setSavingOrg(true);
+    const { data, error } = await supabase
+      .from("clients")
+      .update({
+        name,
+        org_type: orgType,
+        plan: editOrgPlan,
+        payroll_add_on: editOrgPayrollAddOn,
+        assigned_bookkeeper: assignedBookkeeper,
+      })
+      .eq("id", id)
+      .select(
+        "id, name, org_type, plan, test_only, payroll_add_on, assigned_bookkeeper",
+      )
+      .single();
+    setSavingOrg(false);
+    if (error) {
+      showToast(`Couldn't update ${name}: ${error.message}`);
+      return;
+    }
+    // Same "mutate the shared array in place" pattern addOrg uses, so every
+    // other CLIENTS.map(...)-driven picker on this page reflects the edit
+    // without a page reload.
+    const idx = CLIENTS.findIndex((c) => c.id === id);
+    if (idx !== -1) {
+      CLIENTS[idx] = {
+        ...CLIENTS[idx],
+        name: data.name,
+        orgType: data.org_type,
+        plan: data.plan,
+        testOnly: data.test_only,
+        payrollAddOn: data.payroll_add_on,
+        assignedBookkeeper: data.assigned_bookkeeper,
+      };
+    }
+    setEditingOrgId(null);
+    showToast(`Updated ${name}.`);
     loadOrgs();
   }
 
@@ -10738,22 +10830,110 @@ function ClientAccessPage({ readOnly }) {
                     <th>Org type</th>
                     <th>Plan</th>
                     <th>Bookkeeper</th>
+                    <th></th>
                   </tr>
                 </thead>
                 <tbody>
-                  {orgRows.map((row) => (
-                    <tr key={row.id}>
-                      <td>{row.id}</td>
-                      <td>{row.name}</td>
-                      <td>{row.org_type}</td>
-                      <td>{row.plan}</td>
-                      <td>
-                        {row.assigned_bookkeeper
-                          ? row.assigned_bookkeeper.name
-                          : "—"}
-                      </td>
-                    </tr>
-                  ))}
+                  {orgRows.map((row) =>
+                    editingOrgId === row.id ? (
+                      <tr key={row.id}>
+                        <td>{row.id}</td>
+                        <td>
+                          <input
+                            type="text"
+                            value={editOrgName}
+                            onChange={(e) => setEditOrgName(e.target.value)}
+                          />
+                        </td>
+                        <td>
+                          <input
+                            type="text"
+                            value={editOrgType}
+                            onChange={(e) => setEditOrgType(e.target.value)}
+                          />
+                        </td>
+                        <td>
+                          <select
+                            value={editOrgPlan}
+                            onChange={(e) => setEditOrgPlan(e.target.value)}
+                          >
+                            <option value="standard">Standard</option>
+                            <option value="premium">Premium</option>
+                          </select>
+                        </td>
+                        <td>
+                          <input
+                            type="text"
+                            placeholder="Bookkeeper name"
+                            value={editOrgBookkeeperName}
+                            onChange={(e) =>
+                              setEditOrgBookkeeperName(e.target.value)
+                            }
+                            style={{ marginBottom: 4 }}
+                          />
+                          <input
+                            type="text"
+                            placeholder="Bookkeeper role"
+                            value={editOrgBookkeeperRole}
+                            onChange={(e) =>
+                              setEditOrgBookkeeperRole(e.target.value)
+                            }
+                          />
+                          <label
+                            style={{
+                              display: "flex",
+                              alignItems: "center",
+                              gap: 6,
+                              marginTop: 4,
+                            }}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={editOrgPayrollAddOn}
+                              onChange={(e) =>
+                                setEditOrgPayrollAddOn(e.target.checked)
+                              }
+                            />
+                            Payroll add-on
+                          </label>
+                        </td>
+                        <td>
+                          <button
+                            className="btn-primary"
+                            disabled={
+                              savingOrg ||
+                              !editOrgName.trim() ||
+                              !editOrgType.trim()
+                            }
+                            onClick={saveEditOrg}
+                            style={{ marginBottom: 4 }}
+                          >
+                            {savingOrg ? "Saving…" : "Save"}
+                          </button>
+                          <button disabled={savingOrg} onClick={cancelEditOrg}>
+                            Cancel
+                          </button>
+                        </td>
+                      </tr>
+                    ) : (
+                      <tr key={row.id}>
+                        <td>{row.id}</td>
+                        <td>{row.name}</td>
+                        <td>{row.org_type}</td>
+                        <td>{row.plan}</td>
+                        <td>
+                          {row.assigned_bookkeeper
+                            ? row.assigned_bookkeeper.name
+                            : "—"}
+                        </td>
+                        <td>
+                          <button onClick={() => startEditOrg(row)}>
+                            Edit
+                          </button>
+                        </td>
+                      </tr>
+                    ),
+                  )}
                 </tbody>
               </table>
             </div>

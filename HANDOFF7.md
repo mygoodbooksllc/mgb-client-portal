@@ -4282,3 +4282,64 @@ doesn't visibly contradict its new display name.
 
 Files touched: Supabase `clients` table (data only), `data.js`,
 `index.html`, `build.py`.
+
+## §139 — Edit an existing client org's fields (the §133 follow-up)
+
+§133 shipped add-org but explicitly left editing out as a judgment call.
+This closes that gap in `ClientAccessPage`'s "Client organizations" card.
+
+**Shape.** Followed the "click a row, get an edit view, Save/Cancel, toast"
+pattern already used for notes (`editingNoteId`/`editingNoteText`,
+`startEditNote`/`saveEditedNote`) rather than the heavier
+`UserAccessEditor`-style separate modal panel — an org's editable fields are
+few enough (name, org type, plan, payroll add-on, bookkeeper name/role) to
+fit inline. Clicking "Edit" on a row swaps that `<tr>`'s cells for inputs
+(text/select/checkbox, same controls the add-org form already uses) plus
+Save/Cancel buttons in a new trailing column; every other row stays
+read-only. `id` is not editable — it's the join key against
+`CLIENTS_MOCK_DATA` in `data.js` and every `client_id`-referencing table, so
+making it immutable once created was a hard requirement, not a judgment
+call.
+
+**New state**, namespaced `editOrg*` to keep them distinct from the
+existing `newOrg*` add-form state: `editingOrgId` (the row's `id` being
+edited, or `null` — doubles as "is any row in edit mode"), plus one field
+per editable column, and `savingOrg` for the in-flight Save button.
+`startEditOrg(row)` seeds the edit fields from that row (unpacking
+`assigned_bookkeeper.name`/`.role` the same null-guarded way the read-only
+list already does). `cancelEditOrg()` just clears `editingOrgId` — no need
+to reset the field state since `startEditOrg` always re-seeds it.
+
+**`saveEditOrg()`** mirrors `addOrg()`'s shape closely: trims/validates
+name and org type, rebuilds the `assigned_bookkeeper` jsonb object
+(including re-deriving `initials` from the edited name, same formula as
+add), `update()`s the `clients` row by `id` via Supabase (RLS already
+covers this — `clients-roster.sql`'s `admins can update clients` UPDATE
+policy was written in §133 and never used until now; verified it's live
+with a `pg_policies` query rather than assuming), then — same "mutate
+`CLIENTS` in place, don't replace the array reference" pattern `addOrg`
+uses via `push` — finds the matching entry by `id` with `findIndex` and
+replaces it with a spread-merged copy carrying the updated roster fields,
+so every other `CLIENTS.map(...)`-driven picker on the page (and
+elsewhere in the app) reflects the edit without a reload. Ends by clearing
+`editingOrgId`, toasting, and calling `loadOrgs()` to resync `orgRows`
+from the server.
+
+**`readOnly`.** No new guard needed — the edit row's inputs and buttons
+sit inside the same `<fieldset disabled={readOnly}>` that already wraps
+the whole "Client organizations" card, so a temp-access viewer gets the
+same native disable the add-org form already relies on.
+
+**No delete UI**, unchanged from §133 — the table still has no delete
+policy at all, on purpose.
+
+**Validation.** No test suite and no bundler in this repo; syntax-checked
+`app.jsx` by running it through `@babel/standalone`'s `Babel.transform`
+(the same check `index.html`'s own boot sequence performs), and ran
+`npx prettier --write`/`--check` to confirm the diff stayed scoped to this
+change. Could not exercise this in a real browser — Playwright's browser
+download is blocked by this sandbox's proxy allowlist, same limitation
+noted on earlier PRs against this branch (e.g. #154).
+
+Files touched: `app.jsx` (`ClientAccessPage`), `index.html`, `build.py`,
+`HANDOFF7.md`.
