@@ -4262,3 +4262,8 @@ prop — only needed the dropdown, not a gating fix.
 
 Files touched: `app.jsx` (`DeveloperToolsPage`, `BookkeeperHomePage`,
 `App`), `index.html`, `build.py`.
+
+*Update:* both dropdowns were unstyled `<select>` elements, rendering
+with the browser's native gray control instead of the app's theme. New
+`.jump-to-client-select` (same border/background/radius language as
+`.ap-cc-search`, the search box right below it) applied to both.
