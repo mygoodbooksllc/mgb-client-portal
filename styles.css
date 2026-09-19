@@ -970,7 +970,7 @@ body {
    loud badge, but still catches the eye on a glance since nothing else
    in this muted-gray utility row moves or shimmers. */
 .customize-tabs-btn-alert {
-  animation: accessAlertGlow 2.6s ease-in-out infinite;
+  animation: accessAlertGlow 1.8s ease-in-out infinite;
   border-radius: 6px;
 }
 
@@ -980,7 +980,7 @@ body {
     box-shadow: 0 0 0 0 rgba(199, 174, 134, 0);
   }
   50% {
-    box-shadow: 0 0 9px 1px rgba(199, 174, 134, 0.4);
+    box-shadow: 0 0 16px 4px rgba(199, 174, 134, 0.7);
   }
 }
 

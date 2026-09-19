@@ -4419,3 +4419,8 @@ the test rows.
 Files touched: `app.jsx` (`Sidebar`), `styles.css`,
 `supabase/access-request-notify-bookkeeper.sql` (new — replaces
 `submit_access_request`), `index.html`, `build.py`.
+
+*Third update:* the glow read as too subtle on its own. Widened
+`accessAlertGlow`'s spread/opacity (9px/0.4 → 16px/0.7) and shortened the
+cycle (2.6s → 1.8s) so it's still a glow, not a badge, but actually
+registers at a glance.
