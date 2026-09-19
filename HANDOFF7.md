@@ -3944,3 +3944,189 @@ avoid repeating that same phrase directly under the new line.
 
 Files touched: `app.jsx` (`ENTERPRISE_COMPARISON`, `EnterpriseUpgradePage`),
 `styles.css` (new `.compare-feat-all`), `index.html`, `build.py`.
+
+## §133 — Client-org roster moved out of data.js into a real Supabase table
+
+Until now, `data.js`'s `const CLIENTS = [...]` mixed two very different
+kinds of data in one array: each client org's roster/identity fields (`id`,
+`name`, `orgType`, `plan`, `testOnly`, `payrollAddOn`,
+`assignedBookkeeper`) alongside all its mock financial/content data
+(`monthly`, `budget`, `bankAccounts`, `funds`, `contributions`, `documents`,
+`threads`, the mock `users` "Preview As" roster, ...). The only way to add a
+client org at all was editing that source file and redeploying. This pass
+splits the two apart: the 6 roster fields (plus `id` as the join key) now
+live in a real Supabase table, so adding an org becomes a database write.
+Everything else — the mock financial/content data, including `users` — is
+explicitly out of scope and stays exactly where and how it was, still in
+`data.js`, still mock, still keyed by `id`.
+
+**Do not confuse this with `client_users`** (`supabase/client-users.sql`,
+Phase 2). `client_users` is the real client-*login* roster — who can sign
+in as a contact for which org, read by `ClientAuthGate.jsx`. The new
+`clients` table is the org roster itself — which orgs *exist* — read by
+every staff member (sidebar client picker, "Preview as", client-name
+lookups throughout `app.jsx`). Also unrelated: `CLIENTS[].users`, the mock
+per-org array read by `Sidebar`'s "Preview As" dropdown for bookkeeper-side
+impersonation — that's category-2 mock data and didn't move.
+
+**The new table.** `supabase/clients-roster.sql`:
+
+```sql
+create table if not exists clients (
+  id text primary key,
+  name text not null,
+  org_type text not null,
+  plan text not null default 'standard' check (plan in ('standard', 'premium')),
+  test_only boolean not null default false,
+  payroll_add_on boolean not null default false,
+  assigned_bookkeeper jsonb,
+  created_at timestamptz not null default now()
+);
+```
+
+RLS: `select` is open to any `is_active_staff()` (broader than
+`client_users`, which is admin-only even to read — every staff member needs
+the org roster just to navigate the app). `insert`/`update` are
+`is_active_staff_admin()`-gated. **No delete policy, on purpose** — deleting
+a client org would orphan `client_users`/every other per-client table's
+`client_id`, and that's out of scope for this pass. With RLS enabled and no
+delete policy, a delete is refused at the database level even attempted
+directly, not just hidden from the UI. Seeded live via `apply_migration`
+with the 2 existing sample orgs' exact current values, read out of `data.js`
+before the fields were removed (verified against `data.js`, not guessed):
+`grace-community` (premium, `test_only`/`payroll_add_on` both true, Alicia
+Fenwick) and `new-hope` (standard, neither flag set, Marcus Webb).
+
+**`data.js`.** `CLIENTS` renamed to `CLIENTS_MOCK_DATA` — the trimmed
+leftover, `id` plus every category-2 field, unchanged. The 6 roster fields
+were deleted from both entries (note `payrollAddOn` appeared as a second,
+separate field further down `grace-community`'s object, right next to the
+still-mock `payroll` Gusto object — don't confuse the two: `payrollAddOn`
+is the boolean gate, now in Supabase; `payroll` is the synced-content mock
+object, unaffected). `data.js` now also does two things at its top/bottom
+to make the merge in step 3 possible: `window.CLIENTS = []` (declared
+`window.`-scoped, not `let`/`const` — see below for why) and, once
+`CLIENTS_MOCK_DATA` is fully defined, `window.CLIENTS_MOCK_DATA_SOURCE =
+CLIENTS_MOCK_DATA` (same reason — the merge step runs in a separate
+`<script>` tag and needs a way to read this file's array).
+
+**The boot-sequence merge — the part that matters most.** This app has no
+bundler: `index.html` fetches and Babel-compiles each source file as a
+separate `<script>` tag in `window.__SOURCE_ORDER`'s order, and `app.jsx`
+(which loads last) reads a bare `CLIENTS` identifier everywhere
+(`CLIENTS.find(...)`, `.filter(...)`, `.map(...)`, `CLIENTS[0]`, ...) as if
+it were a plain synchronous array, with no `await` anywhere near those call
+sites. So `CLIENTS` has to be a real, fully-populated array *before*
+`app.jsx`'s script tag runs — an async fetch tacked onto the end of the
+boot sequence, racing app.jsx, would intermittently ship an empty roster.
+
+The fix: `index.html`'s boot loop now does
+`for (const path of window.__SOURCE_ORDER) { await loadBabelScript(path); if (path === "data.js") await loadClientsRoster(); }`
+— i.e. immediately after `data.js`'s script tag has run (so `window.CLIENTS`
+and `window.CLIENTS_MOCK_DATA_SOURCE` both exist) and before the loop moves
+on to the daily-close files and then `app.jsx`, it awaits
+`loadClientsRoster()`, a new function that:
+
+1. Bails out silently (leaving `window.CLIENTS` as data.js's empty array) if
+   `window.mgbSupabase` is null — same "Supabase not configured" guard
+   `supabaseClient.js` already uses elsewhere.
+2. `select`s all rows from `clients` via `window.mgbSupabase`, remapping
+   each row's snake_case columns to the camelCase names `app.jsx` expects
+   (`org_type` → `orgType`, `test_only` → `testOnly`, `payroll_add_on` →
+   `payrollAddOn`, `assigned_bookkeeper` → `assignedBookkeeper`; `id`/
+   `name`/`plan` already match).
+3. For each roster row, spreads it onto the matching `CLIENTS_MOCK_DATA`
+   entry (found by `id`) via `Object.assign({}, mockEntry, rosterFields)`,
+   and reassigns the merged array to `window.CLIENTS`. A roster row with
+   *no* matching mock entry still merges in — with the category-2 fields
+   simply absent — rather than being skipped or crashing, since that's
+   exactly the state a newly admin-added org is in before any financial
+   integration exists for it.
+4. Catches a query error or thrown exception, logs a `console.warn`, and
+   leaves `window.CLIENTS` as the empty array — a network hiccup here
+   degrades to an empty client list rather than blocking the whole app from
+   booting (the same non-fatal posture as every other guard in this
+   function).
+
+**Why `window.CLIENTS = []` and not `const CLIENTS = []`.** Each
+`<script>` tag in this boot sequence is `Babel.transform`ed then run via
+`script.text = code; document.body.appendChild(script)` — effectively a
+fresh, separate global-script-scope execution each time. A top-level
+`let`/`const` in one tag is *not* guaranteed visible or reassignable from a
+later tag the way a `var`/`window.`-scoped binding is (this repo already
+relies on `window.` for exactly this reason in several other places —
+`window.mgbSupabase`, `window.MGB_VERSION`). `data.js` declares
+`window.CLIENTS = []` up front so `loadClientsRoster()` (running in
+`index.html`'s own inline `<script>`, a third tag) and every later file
+that reads or reassigns `CLIENTS` are unambiguously working with the same
+binding.
+
+**Verified `AuthGate.jsx`/`ClientAuthGate.jsx`/`AccessRequestForm` don't
+need `CLIENTS` earlier than this.** Read both auth-gate files — neither
+references `CLIENTS` at all. `AccessRequestForm` lives inside `app.jsx`
+itself (loaded last, after the merge has already resolved), so the
+"immediately after data.js" insertion point is early enough; no need to
+move it earlier still.
+
+**`build.py`** mirrors this exactly, since it has its own from-scratch copy
+of the boot sequence for the single-file Artifact bundle: the previously
+synchronous `try { run(...); ... }` block is now wrapped in an `(async
+function () { try { ... } })()` IIFE so it can `await loadClientsRoster()`
+(a JS-string twin of `index.html`'s version, generated inline in the
+f-string) between `run(compile(BUNDLE.data, "data.js", [jsx]))` and the
+Daily Close / `app.jsx` compiles — same relative insertion point as
+`index.html`. Per this file's existing CSP note, a published Artifact
+bundle can't actually reach Supabase's API from its sandboxed origin, so in
+that context `window.CLIENTS` ends up empty the same way it would with
+Supabase unconfigured — a pre-existing limitation of the Artifact bundle
+path, not a regression.
+
+**New minimal admin UI**, added to `ClientAccessPage` (`app.jsx`, the
+admin-only "Client Roster" sidebar page) as a new "Client organizations"
+card, placed above the existing contacts-list card (org roster
+conceptually comes before "which people can log into which org"):
+
+- Lists existing orgs (id, name, org type, plan, assigned bookkeeper name)
+  read straight from `clients`.
+- A form to add a new org: name, free-text org type (matching how
+  `orgType` is free text today, no fixed enum), plan (`<select>`
+  standard/premium), payroll add-on (checkbox), and assigned bookkeeper
+  name + role as two text inputs — `initials` is derived from the name
+  (`name.split(" ").map(p => p[0]).slice(0,2).join("").toUpperCase()`)
+  rather than asked for as a 4th field. `id` is auto-slugified from the
+  name live (lowercase, non-alphanumeric runs → single hyphen, trimmed),
+  shown as a preview under the form, and checked client-side against the
+  already-loaded `CLIENTS` before submitting so a collision surfaces as a
+  toast instead of only a raw Postgres constraint-violation message.
+  `test_only` is intentionally not exposed in this form (internal-only
+  flag; defaults to `false` via the column default).
+- After a successful insert, the new row is `CLIENTS.push(...)`ed onto the
+  existing array in place (not a new array reference) — same "mutate the
+  shared array" pattern this page already uses nowhere else needed, but
+  matches how the rest of the app already treats `CLIENTS` as a stable
+  reference. This is what makes `newClientId`'s org-picker `<select>`
+  (`useState(CLIENTS[0] ? CLIENTS[0].id : "")`, unmodified) and every other
+  `CLIENTS.map(...)` picker on this page immediately reflect the addition
+  without a page reload.
+- **No delete UI**, matching the table's no-delete-policy decision.
+- **Editing an existing org (plan/payroll add-on/bookkeeper) was left out**
+  of this pass as a judgment call — the add-flow plus the read-only list
+  covers the actual blocker (no way to add an org at all), and an edit
+  path touches the same "toast + refresh" plumbing but adds enough
+  surface (which fields are editable, optimistic-vs-refetch update of the
+  in-place `CLIENTS` array) that it's better done as a deliberate follow-up
+  than folded in here.
+- Toasts/loading/error handling follow this same page's existing
+  `addContact`/`load` pattern (`useToast()`, a `mock-banner` for load
+  errors, disabled-while-in-flight buttons) rather than inventing a new
+  style.
+
+**Null-guard check.** Every existing `client.assignedBookkeeper.name`-style
+access in `app.jsx` was already guarded (`client.assignedBookkeeper ? ... :
+...`, e.g. around the Live Report contact card). The new admin UI's own
+list rendering (`row.assigned_bookkeeper ? row.assigned_bookkeeper.name :
+"—"`) follows the same guard, since a newly added org can have a null
+`assignedBookkeeper` (the form allows leaving the bookkeeper name blank).
+
+Files touched: `supabase/clients-roster.sql` (new), `data.js`, `index.html`,
+`build.py`, `app.jsx` (`ClientAccessPage`), `HANDOFF7.md`.

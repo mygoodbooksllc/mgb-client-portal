@@ -9851,6 +9851,127 @@ function ClientAccessPage({ readOnly }) {
   const [csvImporting, setCsvImporting] = useState(false);
   const [csvResults, setCsvResults] = useState(null);
 
+  // §133: the org roster itself (which client orgs exist at all), backed by
+  // Supabase's `clients` table — distinct from client_users above (who can
+  // log in as which org's contact). CLIENTS is still the same global array
+  // app.jsx reads everywhere; orgRows is just this page's own view of the
+  // same rows for rendering/editing.
+  const [orgRows, setOrgRows] = useState(null);
+  const [orgLoadError, setOrgLoadError] = useState("");
+  const [newOrgName, setNewOrgName] = useState("");
+  const [newOrgType, setNewOrgType] = useState("");
+  const [newOrgPlan, setNewOrgPlan] = useState("standard");
+  const [newOrgPayrollAddOn, setNewOrgPayrollAddOn] = useState(false);
+  const [newOrgBookkeeperName, setNewOrgBookkeeperName] = useState("");
+  const [newOrgBookkeeperRole, setNewOrgBookkeeperRole] = useState("");
+  const [addingOrg, setAddingOrg] = useState(false);
+
+  const newOrgId = useMemo(
+    () =>
+      newOrgName
+        .trim()
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-+|-+$/g, ""),
+    [newOrgName],
+  );
+  const newOrgIdCollides = !!newOrgId && CLIENTS.some((c) => c.id === newOrgId);
+
+  const loadOrgs = useCallback(() => {
+    if (!supabase) {
+      setOrgLoadError("Supabase isn't configured — see auth-config.js.");
+      setOrgRows([]);
+      return;
+    }
+    supabase
+      .from("clients")
+      .select(
+        "id, name, org_type, plan, test_only, payroll_add_on, assigned_bookkeeper",
+      )
+      .order("created_at", { ascending: true })
+      .then(({ data, error }) => {
+        if (error) {
+          // Most likely cause: supabase/clients-roster.sql hasn't been run yet.
+          setOrgLoadError(
+            "Couldn't load client organizations. " + error.message,
+          );
+          setOrgRows([]);
+        } else {
+          setOrgLoadError("");
+          setOrgRows(data);
+        }
+      });
+  }, [supabase]);
+
+  useEffect(() => {
+    loadOrgs();
+  }, [loadOrgs]);
+
+  async function addOrg() {
+    const name = newOrgName.trim();
+    const orgType = newOrgType.trim();
+    const bookkeeperName = newOrgBookkeeperName.trim();
+    const bookkeeperRole = newOrgBookkeeperRole.trim();
+    if (!name || !orgType || !newOrgId) return;
+    if (newOrgIdCollides) {
+      showToast(`"${newOrgId}" is already in use by an existing org.`);
+      return;
+    }
+    const assignedBookkeeper = bookkeeperName
+      ? {
+          name: bookkeeperName,
+          role: bookkeeperRole,
+          initials: bookkeeperName
+            .split(" ")
+            .map((p) => p[0])
+            .slice(0, 2)
+            .join("")
+            .toUpperCase(),
+        }
+      : null;
+    setAddingOrg(true);
+    const { data, error } = await supabase
+      .from("clients")
+      .insert({
+        id: newOrgId,
+        name,
+        org_type: orgType,
+        plan: newOrgPlan,
+        payroll_add_on: newOrgPayrollAddOn,
+        assigned_bookkeeper: assignedBookkeeper,
+      })
+      .select(
+        "id, name, org_type, plan, test_only, payroll_add_on, assigned_bookkeeper",
+      )
+      .single();
+    setAddingOrg(false);
+    if (error) {
+      showToast(`Couldn't add ${name}: ${error.message}`);
+      return;
+    }
+    // Keep the shared CLIENTS array reference stable (same pattern used
+    // everywhere else in this app) rather than replacing it, so every other
+    // component already holding onto `CLIENTS` — org pickers included — sees
+    // the addition immediately without a page reload.
+    CLIENTS.push({
+      id: data.id,
+      name: data.name,
+      orgType: data.org_type,
+      plan: data.plan,
+      testOnly: data.test_only,
+      payrollAddOn: data.payroll_add_on,
+      assignedBookkeeper: data.assigned_bookkeeper,
+    });
+    setNewOrgName("");
+    setNewOrgType("");
+    setNewOrgPlan("standard");
+    setNewOrgPayrollAddOn(false);
+    setNewOrgBookkeeperName("");
+    setNewOrgBookkeeperRole("");
+    showToast(`Added ${name}.`);
+    loadOrgs();
+  }
+
   const csvPreview = useMemo(
     () => (csvText.trim() ? parseClientUserCsv(csvText) : []),
     [csvText],
@@ -10014,6 +10135,114 @@ function ClientAccessPage({ readOnly }) {
         disabled={readOnly}
         style={{ border: 0, margin: 0, padding: 0 }}
       >
+        <div className="card" style={{ marginBottom: 20 }}>
+          <h3 className="card-title">Client organizations</h3>
+          <p className="card-subtitle">
+            The org roster itself — which client organizations exist at all.
+            Separate from the contacts list below (which people can log in for
+            each org).
+          </p>
+
+          {orgLoadError && <div className="mock-banner">{orgLoadError}</div>}
+
+          {orgRows === null ? (
+            <p className="card-subtitle">Loading…</p>
+          ) : (
+            <div className="table-scroll" style={{ marginBottom: 16 }}>
+              <table className="tx-table tx-table-labeled">
+                <thead>
+                  <tr>
+                    <th>ID</th>
+                    <th>Name</th>
+                    <th>Org type</th>
+                    <th>Plan</th>
+                    <th>Bookkeeper</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {orgRows.map((row) => (
+                    <tr key={row.id}>
+                      <td>{row.id}</td>
+                      <td>{row.name}</td>
+                      <td>{row.org_type}</td>
+                      <td>{row.plan}</td>
+                      <td>
+                        {row.assigned_bookkeeper
+                          ? row.assigned_bookkeeper.name
+                          : "—"}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          <div className="staff-add-row" style={{ flexWrap: "wrap" }}>
+            <input
+              type="text"
+              placeholder="Organization name"
+              value={newOrgName}
+              onChange={(e) => setNewOrgName(e.target.value)}
+            />
+            <input
+              type="text"
+              placeholder="Org type (e.g. Church, Church Plant)"
+              value={newOrgType}
+              onChange={(e) => setNewOrgType(e.target.value)}
+            />
+            <select
+              value={newOrgPlan}
+              onChange={(e) => setNewOrgPlan(e.target.value)}
+            >
+              <option value="standard">Standard</option>
+              <option value="premium">Premium</option>
+            </select>
+            <label style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              <input
+                type="checkbox"
+                checked={newOrgPayrollAddOn}
+                onChange={(e) => setNewOrgPayrollAddOn(e.target.checked)}
+              />
+              Payroll add-on
+            </label>
+            <input
+              type="text"
+              placeholder="Assigned bookkeeper name"
+              value={newOrgBookkeeperName}
+              onChange={(e) => setNewOrgBookkeeperName(e.target.value)}
+            />
+            <input
+              type="text"
+              placeholder="Bookkeeper role (e.g. Senior Bookkeeper)"
+              value={newOrgBookkeeperRole}
+              onChange={(e) => setNewOrgBookkeeperRole(e.target.value)}
+            />
+          </div>
+          <p className="card-subtitle">
+            ID: <code>{newOrgId || "—"}</code>
+            {newOrgIdCollides && (
+              <span style={{ color: "var(--danger, #c0392b)" }}>
+                {" "}
+                — already in use by another org.
+              </span>
+            )}
+          </p>
+          <button
+            className="btn-primary"
+            disabled={
+              addingOrg ||
+              !newOrgName.trim() ||
+              !newOrgType.trim() ||
+              !newOrgId ||
+              newOrgIdCollides
+            }
+            onClick={addOrg}
+          >
+            {addingOrg ? "Adding…" : "Add organization"}
+          </button>
+        </div>
+
         <div className="card" style={{ marginBottom: 20 }}>
           <h3 className="card-title">Add a contact</h3>
           <p className="card-subtitle">
