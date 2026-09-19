@@ -282,7 +282,7 @@ body {
 /* ---------------- Sidebar ---------------- */
 
 .sidebar {
-  width: 260px;
+  width: 224px;
   flex-shrink: 0;
   background: var(--sidebar-bg);
   color: var(--sidebar-text);
@@ -292,6 +292,101 @@ body {
   position: sticky;
   top: 0;
   height: 100vh;
+  transition: width 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* §142: collapse to icons-only — a per-browser preference (see
+   loadSidebarCollapsed), not a plan/role thing. Every text element below
+   gets `display: none` outright rather than an opacity/width fade: this
+   sidebar already learned the hard way (the reverted split-icon-rail
+   redesign, HANDOFF7.md §124-§128) that a fading-but-still-laid-out label
+   is exactly how a hover tooltip or an adjacent element quietly gets
+   clipped or overlapped. Labels come back via each button's native
+   `title` attribute instead of a custom tooltip element, for the same
+   reason — no custom overlay to get its own z-index/overflow wrong. */
+.sidebar.sidebar-collapsed {
+  width: 72px;
+  padding-left: 10px;
+  padding-right: 10px;
+  align-items: center;
+}
+
+.sidebar.sidebar-collapsed .brand,
+.sidebar.sidebar-collapsed .brand-tagline,
+.sidebar.sidebar-collapsed .client-picker-label,
+.sidebar.sidebar-collapsed .client-select,
+.sidebar.sidebar-collapsed .nav-section-label,
+.sidebar.sidebar-collapsed .nav-item-label,
+.sidebar.sidebar-collapsed .staff-user-chip-text,
+.sidebar.sidebar-collapsed .staff-user-chip-chev,
+.sidebar.sidebar-collapsed .sidebar-utility-label,
+.sidebar.sidebar-collapsed .customize-tabs-btn span,
+.sidebar.sidebar-collapsed .sidebar-collapse-toggle span {
+  display: none;
+}
+
+.sidebar.sidebar-collapsed .nav-section-items {
+  width: 100%;
+}
+
+.sidebar.sidebar-collapsed .nav-item {
+  justify-content: center;
+  padding-left: 0;
+  padding-right: 0;
+}
+
+.sidebar.sidebar-collapsed .sidebar-utility-row {
+  flex-direction: column;
+  gap: 10px;
+}
+
+.sidebar.sidebar-collapsed .sidebar-utility-btn-group {
+  align-items: center;
+}
+
+.sidebar-collapse-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  margin-top: 10px;
+  padding: 6px;
+  border-radius: 7px;
+  border: none;
+  background: transparent;
+  color: var(--sidebar-text-muted);
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.sidebar-collapse-toggle:hover {
+  color: var(--gold);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.sidebar-collapse-toggle-icon {
+  width: 13px;
+  height: 13px;
+  transform: rotate(90deg);
+  transition: transform 0.28s ease;
+  flex-shrink: 0;
+}
+
+.sidebar.sidebar-collapsed .sidebar-collapse-toggle-icon {
+  transform: rotate(-90deg);
+}
+
+/* .staff-user-dropdown normally stretches left:0/right:0 to match its
+   parent's full width — fine at 224px, but at collapsed 72px that would
+   squeeze "Team Chat"/"My Time" etc. into an unreadably narrow column.
+   Anchor it to the left edge only and let it size to its own content. */
+.sidebar.sidebar-collapsed .staff-user-dropdown {
+  left: 0;
+  right: auto;
+  min-width: 200px;
 }
 
 .brand {

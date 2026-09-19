@@ -709,6 +709,8 @@ function Sidebar({
   hasTempAdminAccess,
   tempAdminAccessExpiresAt,
   statusOverrides,
+  collapsed,
+  onToggleCollapse,
 }) {
   const today = todayLocal();
   const showsAdminPages =
@@ -738,7 +740,13 @@ function Sidebar({
   }, [staffMenuOpen]);
 
   return (
-    <aside className={"sidebar" + (mobileOpen ? " open" : "")}>
+    <aside
+      className={
+        "sidebar" +
+        (mobileOpen ? " open" : "") +
+        (collapsed ? " sidebar-collapsed" : "")
+      }
+    >
       <div className="brand">
         <a
           className="brand-link"
@@ -824,6 +832,7 @@ function Sidebar({
                 onClick={() => setStaffMenuOpen((open) => !open)}
                 aria-expanded={staffMenuOpen}
                 aria-haspopup="true"
+                title={collapsed ? staffUser.name : undefined}
               >
                 <span className="staff-user-avatar">
                   {staffUser.name
@@ -1146,9 +1155,10 @@ function Sidebar({
                           onSelectPage(item.key);
                           onCloseMobile();
                         }}
+                        title={collapsed ? item.label : undefined}
                       >
                         {item.icon}
-                        <span>{item.label}</span>
+                        <span className="nav-item-label">{item.label}</span>
                         {badges[item.key] && (
                           <span
                             className="nav-badge-dot"
@@ -1179,6 +1189,7 @@ function Sidebar({
                   ? "Manage access — new request pending"
                   : undefined
               }
+              title={collapsed ? "Manage access" : undefined}
             >
               <SlidersIcon />{" "}
               <span
@@ -1189,8 +1200,12 @@ function Sidebar({
                 Manage access
               </span>
             </button>
-            <button className="customize-tabs-btn" onClick={onOpenDetails}>
-              <FolderIcon /> Client details
+            <button
+              className="customize-tabs-btn"
+              onClick={onOpenDetails}
+              title={collapsed ? "Client details" : undefined}
+            >
+              <FolderIcon /> <span>Client details</span>
             </button>
           </div>
         ) : isBookkeeper ? (
@@ -1222,6 +1237,16 @@ function Sidebar({
           {effectiveTheme === "dark" ? <SunIcon /> : <MoonIcon />}
         </button>
       </div>
+
+      <button
+        className="sidebar-collapse-toggle"
+        onClick={onToggleCollapse}
+        aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+        title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+      >
+        <ChevronDownIcon className="sidebar-collapse-toggle-icon" />
+        {!collapsed && <span>Collapse</span>}
+      </button>
     </aside>
   );
 }
@@ -15599,6 +15624,23 @@ function loadTheme() {
   }
 }
 
+// §142: whether the sidebar shows full tab names or just icons — a per-
+// browser preference (like theme), not tied to plan/role, so anyone can
+// reclaim screen width on a smaller laptop without it resetting each
+// visit. Deliberately kept to a single width toggle on one column, not a
+// second icon rail — see HANDOFF7.md §124-§128 for why an earlier,
+// fancier split-sidebar redesign got fully reverted after it accumulated
+// layout bugs; this is intentionally the simpler shape.
+const SIDEBAR_COLLAPSED_STORAGE_KEY = "mygoodbooks_sidebar_collapsed_v1";
+
+function loadSidebarCollapsed() {
+  try {
+    return localStorage.getItem(SIDEBAR_COLLAPSED_STORAGE_KEY) === "1";
+  } catch (e) {
+    return false;
+  }
+}
+
 const PAGE_STORAGE_KEY = "mygoodbooks_page_v1";
 
 // Which tab the viewer was last on, so a refresh doesn't dump them back on the
@@ -16455,6 +16497,17 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
   // null until the header toggle is used, at which point it pins the choice
   // (see the effects below). Null means dark — the product default.
   const [theme, setTheme] = useState(loadTheme);
+  const [sidebarCollapsed, setSidebarCollapsed] =
+    useState(loadSidebarCollapsed);
+  const toggleSidebarCollapsed = () => {
+    setSidebarCollapsed((prev) => {
+      const next = !prev;
+      try {
+        localStorage.setItem(SIDEBAR_COLLAPSED_STORAGE_KEY, next ? "1" : "0");
+      } catch (e) {}
+      return next;
+    });
+  };
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [messagesByClient, setMessagesByClient] = useState({});
   // Purely client-side "is typing" flag for the simulated bookkeeper reply
@@ -17535,6 +17588,8 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
           tabOrder={tabOrder}
           onOpenSettings={() => setSettingsOpen(true)}
           onOpenDetails={() => setDetailsOpen(true)}
+          collapsed={sidebarCollapsed}
+          onToggleCollapse={toggleSidebarCollapsed}
           badges={{ messages: hasUnreadMessages }}
           mobileOpen={mobileNavOpen}
           onCloseMobile={() => setMobileNavOpen(false)}

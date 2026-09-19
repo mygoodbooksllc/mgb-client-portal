@@ -4424,3 +4424,51 @@ Files touched: `app.jsx` (`Sidebar`), `styles.css`,
 `accessAlertGlow`'s spread/opacity (9px/0.4 → 16px/0.7) and shortened the
 cycle (2.6s → 1.8s) so it's still a glow, not a badge, but actually
 registers at a glance.
+
+## §142 — Sidebar: narrower, plus a collapse-to-icons toggle
+
+Two asks: make the sidebar take up less screen width, and let anyone
+collapse it to icons-only and back, remembered per person. Mocked up
+first (an interactive artifact) before touching any code, given this
+exact area's history — §124-§128 built a fancier split-icon-rail
+sidebar, iterated on it three times fixing overlap/tooltip-clipping bugs,
+and ultimately reverted the whole thing rather than keep patching it.
+This is deliberately the simpler shape that mockup showed: one column
+that changes width, not two columns.
+
+Base width `260px` → `224px`. New `.sidebar-collapsed` state (App,
+`sidebarCollapsed`/`toggleSidebarCollapsed`) drops it to `72px`,
+localStorage-persisted (`mygoodbooks_sidebar_collapsed_v1`, loaded via
+new `loadSidebarCollapsed()` — same pattern as `loadTheme`), not tied to
+plan or role, so it's each person's own preference like the theme
+toggle. New `.sidebar-collapse-toggle` button at the very bottom of the
+sidebar (chevron, rotates 180° between states).
+
+Learned from §124-§128's actual failure mode rather than just avoiding
+its shape: every hidden label uses a plain `display: none` on a real
+`.sidebar-collapsed <selector>` rule, not an opacity fade or a custom
+tooltip overlay — that fade-but-still-laid-out approach is exactly what
+let a label or tooltip get silently clipped or overlapped last time.
+Labels come back as each button's native `title` attribute when
+collapsed (nav items, "Manage access", "Client details", the staff user
+chip) — the browser's own tooltip, no custom hover element to get its
+own z-index or overflow wrong. One layout hazard specific to this pass:
+`.staff-user-dropdown` normally stretches `left:0`/`right:0` to match
+its parent's width, which would squeeze "Team Chat"/"My Time" etc. into
+an unreadable 72px column — overridden under `.sidebar-collapsed` to
+anchor left and size to its own content (`min-width: 200px`) instead.
+
+The `<nav>` item label span (previously a bare `<span>{item.label}</span>`)
+got an explicit `nav-item-label` class so the collapse CSS can target it
+precisely, and "Client details" (previously bare text, not even wrapped
+in a span) got the same wrap treatment `.customize-tabs-btn span`'s
+existing rule already expected.
+
+Could not verify this visually in a real browser — the same sandbox
+proxy limitation noted on earlier PRs (e.g. #154) blocks a full
+Supabase-authenticated session here. Reviewed carefully against the
+mockup and the reverted redesign's specific failure modes instead;
+worth a look in your own browser before calling this fully settled.
+
+Files touched: `app.jsx` (`Sidebar`, `App`), `styles.css`, `index.html`,
+`build.py`.
