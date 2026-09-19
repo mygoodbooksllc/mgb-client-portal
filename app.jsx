@@ -174,21 +174,24 @@ const CLIENT_HEALTH_LABEL = {
 // Small colored dot for the client health status — used in the sidebar
 // client picker and Bookkeeper Home's "Your clients" card. `title` gives the
 // native tooltip a one-line reason when hovered.
-function ClientHealthDot({ health, style }) {
+function ClientHealthDot({ health, style, pulse }) {
   const label = CLIENT_HEALTH_LABEL[health.status] || "";
   const reason = health.reasons && health.reasons[0];
   const title = reason ? `${label} — ${reason}` : label;
+  const color = CLIENT_HEALTH_DOT_COLOR[health.status] || "#9ca3af";
   return (
     <span
       title={title}
       aria-label={title}
+      className={pulse ? "health-dot-pulse" : undefined}
       style={{
         display: "inline-block",
         width: 9,
         height: 9,
         borderRadius: "50%",
-        background: CLIENT_HEALTH_DOT_COLOR[health.status] || "#9ca3af",
+        background: color,
         flexShrink: 0,
+        ...(pulse ? { "--health-dot-color": color } : null),
         ...style,
       }}
     />
@@ -761,26 +764,31 @@ function Sidebar({
                   className="client-select"
                   value={selectedClientId}
                   onChange={(e) => onSelectClient(e.target.value)}
+                  style={{ paddingLeft: 26 }}
                 >
-                  {clients.map((c) => {
-                    const health = effectiveClientHealth(
-                      c,
+                  {clients.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name}
+                    </option>
+                  ))}
+                </select>
+                {client && (
+                  <ClientHealthDot
+                    health={effectiveClientHealth(
+                      client,
                       today,
                       statusOverrides,
-                    );
-                    const dot =
-                      health.status === "red"
-                        ? "\u{1F534}"
-                        : health.status === "yellow"
-                          ? "\u{1F7E1}"
-                          : "\u{1F7E2}";
-                    return (
-                      <option key={c.id} value={c.id}>
-                        {dot} {c.name}
-                      </option>
-                    );
-                  })}
-                </select>
+                    )}
+                    pulse
+                    style={{
+                      position: "absolute",
+                      left: 12,
+                      top: "50%",
+                      marginTop: -4,
+                      pointerEvents: "none",
+                    }}
+                  />
+                )}
               </div>
             </React.Fragment>
           )}

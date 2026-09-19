@@ -408,6 +408,28 @@ body {
   outline: 2px solid rgba(199, 174, 134, 0.6);
 }
 
+/* Flat client-health status dot (sidebar client picker, Bookkeeper Home,
+   Status modal) — solid fill, no gradient/shading, with an optional slow
+   pulsing glow (.health-dot-pulse) for the currently-viewed client so it
+   reads as "live status" rather than a static bullet. --health-dot-color
+   is set inline per-dot (red/yellow/green) so one keyframe covers all
+   three colors. */
+@media (prefers-reduced-motion: no-preference) {
+  .health-dot-pulse {
+    animation: mgb-dot-pulse 2.6s ease-in-out infinite;
+  }
+}
+
+@keyframes mgb-dot-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--health-dot-color) 55%, transparent);
+  }
+  50% {
+    box-shadow: 0 0 0 5px color-mix(in srgb, var(--health-dot-color) 0%, transparent);
+  }
+}
+
 .nav {
   display: flex;
   flex-direction: column;
