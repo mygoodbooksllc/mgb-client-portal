@@ -4267,3 +4267,18 @@ Files touched: `app.jsx` (`DeveloperToolsPage`, `BookkeeperHomePage`,
 with the browser's native gray control instead of the app's theme. New
 `.jump-to-client-select` (same border/background/radius language as
 `.ap-cc-search`, the search box right below it) applied to both.
+
+## §138 — Renamed the two test-org clients
+
+`new-hope` is now marked `test_only` and renamed "Standard Test Client"
+(was "New Hope Fellowship"); `grace-community` renamed "Premium Test
+Client" (was "[TEST] Grace Community Church — Sample Profile") — names
+now say directly which plan tier each demonstrates, since that's the
+whole reason these two exist. Both are `clients` table rows (§133), so
+this was a plain `update` via the Supabase MCP, no app.jsx change. Also
+updated the two orgs' mock `documents[].uploadedBy` values in `data.js`
+that still said the old org names, so a client's own document list
+doesn't visibly contradict its new display name.
+
+Files touched: Supabase `clients` table (data only), `data.js`,
+`index.html`, `build.py`.
