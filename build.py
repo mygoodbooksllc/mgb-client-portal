@@ -163,7 +163,7 @@ def build(out_path: pathlib.Path, refresh: bool) -> None:
 
 // Mirrors the stamp in index.html — bumped by hand alongside this file,
 // since there's no build step to inject a real commit SHA into.
-window.MGB_VERSION = {{ label: "2026-09-19n", note: "Comparison accordion: Pro column now says it includes everything Standard has" }};
+window.MGB_VERSION = {{ label: "2026-09-19p", note: "Manage access split: Notes/Activity/Documents/QuickBooks moved to a new Client details modal" }};
 // Mirrors index.html's pinch-block — see that file's comment for why this
 // is gesture-level (2+ touches) rather than touch-action CSS.
 document.addEventListener(
@@ -202,44 +202,87 @@ function run(code) {{
   document.body.appendChild(script);
 }}
 
-try {{
-  run(decodeSource(BUNDLE.react));
-  run(decodeSource(BUNDLE.reactDom));
-  run(decodeSource(BUNDLE.babel));
-  run(decodeSource(BUNDLE.jspdf));
-  run(decodeSource(BUNDLE.autotable));
-  run(decodeSource(BUNDLE.supabase));
-
-  // Force Babel's "classic" JSX runtime; "automatic" expects a real bundler.
-  var jsx = ["react", {{ runtime: "classic" }}];
-
-  function compile(source, filename, presets) {{
-    return Babel.transform(decodeSource(source), {{ filename: filename, presets: presets }}).code;
+// §133: fetches the real client-org roster from Supabase's `clients` table
+// and merges it onto data.js's window.CLIENTS. Mirrors index.html's
+// loadClientsRoster() exactly — see that file's comment for the full
+// mechanism (why window.CLIENTS, why the merge has to land between data.js
+// and app.jsx). NOTE per the comment above: a published Artifact's CSP
+// blocks this fetch entirely (Supabase's API isn't on the allowlist), so in
+// that context window.CLIENTS is simply left empty — same fallback as
+// Supabase-not-configured, handled the same non-fatal way.
+async function loadClientsRoster() {{
+  var supabase = window.mgbSupabase;
+  if (!supabase) return;
+  try {{
+    var result = await supabase
+      .from("clients")
+      .select("id, name, org_type, plan, test_only, payroll_add_on, assigned_bookkeeper");
+    if (result.error) {{
+      console.warn("Couldn't load client roster from Supabase:", result.error.message);
+      return;
+    }}
+    var mockById = {{}};
+    (window.CLIENTS_MOCK_DATA_SOURCE || []).forEach(function (c) {{
+      mockById[c.id] = c;
+    }});
+    window.CLIENTS = (result.data || []).map(function (row) {{
+      var roster = {{
+        id: row.id,
+        name: row.name,
+        orgType: row.org_type,
+        plan: row.plan,
+        testOnly: row.test_only,
+        payrollAddOn: row.payroll_add_on,
+        assignedBookkeeper: row.assigned_bookkeeper,
+      }};
+      return Object.assign({{}}, mockById[row.id], roster);
+    }});
+  }} catch (err) {{
+    console.warn("Couldn't load client roster from Supabase:", err);
   }}
-
-  // NOTE: this makes the login gate present in the bundle, but a published
-  // Artifact's CSP blocks fetch/XHR to any host outside its CDN allowlist —
-  // Supabase's API is not on it. AuthGate will load and render, but
-  // supabase.auth calls will silently fail there. The gate only actually
-  // works from app.mygoodbooks.org (Vercel), not from an Artifact link.
-  run(compile(BUNDLE.authConfig, "auth-config.js", [jsx]));
-  run(compile(BUNDLE.qboConfig, "qbo-config.js", [jsx]));
-  run(compile(BUNDLE.supabaseClient, "supabaseClient.js", [jsx]));
-  run(compile(BUNDLE.authGate, "AuthGate.jsx", [jsx]));
-  run(compile(BUNDLE.clientAuthGate, "ClientAuthGate.jsx", [jsx]));
-  run(compile(BUNDLE.data, "data.js", [jsx]));
-  // The Daily Close is TypeScript. A plain .ts file must NOT get the JSX plugin
-  // — Babel rejects that pair — and both must be defined before app.jsx renders.
-  run(compile(BUNDLE.dcSample, "sampleData.ts", ["typescript"]));
-  run(compile(BUNDLE.dcComponent, "DailyClose.tsx", ["typescript", jsx]));
-  run(compile(BUNDLE.dcAdapter, "fromClient.js", [jsx]));
-  run(compile(BUNDLE.app, "app.jsx", [jsx]));
-}} catch (err) {{
-  document.getElementById("root").innerHTML =
-    '<pre style="padding:24px;font:14px ui-monospace,monospace;color:#a4442c;white-space:pre-wrap">' +
-    "Failed to start the dashboard:\\n\\n" + (err && err.stack ? err.stack : err) + "</pre>";
-  throw err;
 }}
+
+(async function () {{
+  try {{
+    run(decodeSource(BUNDLE.react));
+    run(decodeSource(BUNDLE.reactDom));
+    run(decodeSource(BUNDLE.babel));
+    run(decodeSource(BUNDLE.jspdf));
+    run(decodeSource(BUNDLE.autotable));
+    run(decodeSource(BUNDLE.supabase));
+
+    // Force Babel's "classic" JSX runtime; "automatic" expects a real bundler.
+    var jsx = ["react", {{ runtime: "classic" }}];
+
+    function compile(source, filename, presets) {{
+      return Babel.transform(decodeSource(source), {{ filename: filename, presets: presets }}).code;
+    }}
+
+    // NOTE: this makes the login gate present in the bundle, but a published
+    // Artifact's CSP blocks fetch/XHR to any host outside its CDN allowlist —
+    // Supabase's API is not on it. AuthGate will load and render, but
+    // supabase.auth calls will silently fail there. The gate only actually
+    // works from app.mygoodbooks.org (Vercel), not from an Artifact link.
+    run(compile(BUNDLE.authConfig, "auth-config.js", [jsx]));
+    run(compile(BUNDLE.qboConfig, "qbo-config.js", [jsx]));
+    run(compile(BUNDLE.supabaseClient, "supabaseClient.js", [jsx]));
+    run(compile(BUNDLE.authGate, "AuthGate.jsx", [jsx]));
+    run(compile(BUNDLE.clientAuthGate, "ClientAuthGate.jsx", [jsx]));
+    run(compile(BUNDLE.data, "data.js", [jsx]));
+    await loadClientsRoster();
+    // The Daily Close is TypeScript. A plain .ts file must NOT get the JSX plugin
+    // — Babel rejects that pair — and both must be defined before app.jsx renders.
+    run(compile(BUNDLE.dcSample, "sampleData.ts", ["typescript"]));
+    run(compile(BUNDLE.dcComponent, "DailyClose.tsx", ["typescript", jsx]));
+    run(compile(BUNDLE.dcAdapter, "fromClient.js", [jsx]));
+    run(compile(BUNDLE.app, "app.jsx", [jsx]));
+  }} catch (err) {{
+    document.getElementById("root").innerHTML =
+      '<pre style="padding:24px;font:14px ui-monospace,monospace;color:#a4442c;white-space:pre-wrap">' +
+      "Failed to start the dashboard:\\n\\n" + (err && err.stack ? err.stack : err) + "</pre>";
+    throw err;
+  }}
+}})();
 </script>
 """
 

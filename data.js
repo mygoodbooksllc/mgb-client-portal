@@ -3,27 +3,32 @@
 // This file is what gets replaced in Phase 2 (QuickBooks) and Phase 3 (bank).
 // Sample organizations are churches and nonprofits, since that's this
 // bookkeeping practice's primary client base.
+//
+// As of §133, the org-roster/identity fields (id, name, orgType, plan,
+// testOnly, payrollAddOn, assignedBookkeeper) no longer live here — they're
+// in Supabase's real `clients` table (supabase/clients-roster.sql), so
+// adding a new client org is a database write, not a code change +
+// redeploy. What's left in CLIENTS_MOCK_DATA below is `id` (the join key)
+// plus all the sample financial/content data (monthly, budget, bank
+// accounts, funds, contributions, documents, threads, ...) and the mock
+// `users` "Preview As" roster — none of that is real, all of it is still
+// mock, and none of it moved. index.html's/build.py's boot sequence fetches
+// the real roster rows from Supabase right after this file loads, spreads
+// each one onto the matching CLIENTS_MOCK_DATA entry by `id`, and assigns
+// the merged array to window.CLIENTS — which is what app.jsx actually reads
+// everywhere via the bare `CLIENTS` identifier. See HANDOFF7.md §133 for the
+// full mechanism.
 // ---------------------------------------------------------------------------
 
-const CLIENTS = [
+// Populated by index.html's/build.py's boot sequence (roster fetched from
+// Supabase, merged onto CLIENTS_MOCK_DATA below) before app.jsx runs.
+// `window.`-scoped, not `let`/`const`, so every subsequent <script> tag
+// unambiguously shares the same binding and can reassign its contents.
+window.CLIENTS = [];
+
+const CLIENTS_MOCK_DATA = [
   {
     id: "grace-community",
-    // Renamed from "Grace Community Church" — kept as a permanent test/sample
-    // profile (not a real client) for QuickBooks Connect and general feature
-    // testing. `testOnly: true` below hides it from every staff login except
-    // holden@mygoodbooks.org (see visibleClients in app.jsx). The `id` is
-    // left unchanged since qbo_connections/qbo_tokens in the live DB
-    // reference "grace-community" by id.
-    name: "[TEST] Grace Community Church — Sample Profile",
-    testOnly: true,
-    orgType: "Church",
-    // Billing tier. Premium unlocks the Daily Report; the gate lives in the
-    // route/page loader in app.jsx, never inside the DailyClose component.
-    plan: "premium",
-    // Who at MyGoodBooks handles this account — backs Live Report's "Your
-    // Bookkeeper" contact card (Enterprise only, so this is read by
-    // fromClient.js's dailyCloseFromClient, not by the standard-plan pages).
-    assignedBookkeeper: { name: "Alicia Fenwick", role: "Senior Bookkeeper", initials: "AF" },
     // Who at this organization can log in, and what each of them may see.
     // Configured by MyGoodBooks only — never editable by the client.
     users: [
@@ -243,10 +248,11 @@ const CLIENTS = [
       { vendor: "ServiceMaster HVAC", description: "Quarterly service contract", amount: 640.00, dueDate: "2026-09-10" },
       { vendor: "LifeWay Christian Resources", description: "Fall curriculum order balance", amount: 380.00, dueDate: "2026-09-12" },
     ],
-    // Payroll add-on. A paid add-on, not a premium-plan upgrade — see
-    // PayrollPage in app.jsx and payrollAddOn below. Runs are actually
-    // processed in Gusto; this is read-only, synced data.
-    payrollAddOn: true,
+    // Payroll add-on data (Gusto-synced). The `payrollAddOn` boolean flag
+    // that gates whether this org even has the add-on now lives in
+    // Supabase's clients table (payroll_add_on column) — this `payroll`
+    // object is the separate, still-mock synced content itself, unaffected.
+    // See PayrollPage in app.jsx.
     payroll: {
       provider: "Gusto",
       nextRun: { date: "2026-09-19", employeeCount: 6, gross: 21860.00, taxes: 3440.00, net: 18420.00 },
@@ -302,10 +308,6 @@ const CLIENTS = [
 
   {
     id: "new-hope",
-    name: "New Hope Fellowship",
-    orgType: "Church Plant",
-    plan: "standard",
-    assignedBookkeeper: { name: "Marcus Webb", role: "Bookkeeper", initials: "MW" },
     users: [
       {
         id: "mia",
@@ -405,3 +407,9 @@ const CLIENTS = [
     },
   },
 ];
+
+// window.-exposed (not just the top-level const above) since the
+// boot-sequence merge step in index.html/build.py runs in a separate
+// <script> tag and can't rely on top-level `const` scoping across tags —
+// same reason window.CLIENTS itself is declared with `window.` up top.
+window.CLIENTS_MOCK_DATA_SOURCE = CLIENTS_MOCK_DATA;
