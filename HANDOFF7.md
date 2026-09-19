@@ -3640,3 +3640,65 @@ prop), `App`'s `EnterpriseUpgradePage` render call, `BookkeeperHomePage`
 (new card + state/loader)), `styles.css` (scroll-reveal selector list),
 `supabase/enterprise-upgrade-requests.sql` (new), `index.html`,
 `build.py`, `HANDOFF7.md`.
+
+## §124 — Staff sidebar restructure: icon rail + right column for client view
+
+The staff sidebar, when a bookkeeper is actively viewing a client, stacked
+the client picker, staff name/sign-out row, four-ish staff-access-link
+buttons (Home/Team Chat/My Tasks/My Time, plus admin-only Staff Access/
+Client Roster/Developer Tools), the full labeled `NAV_SECTIONS` nav
+(Messages/Dashboard/Budget vs. Actual/Bank Accounts/Cash Flow/Payroll/
+Reports/Giving & Funds/Documents), and the "Preview as" select, all in one
+column — too tall to fit without scrolling on most screens.
+
+Only for `isBookkeeper && !NON_CLIENT_PAGES.has(page)` (a client actively in
+view — the same condition that already gated the full `NAV_SECTIONS` nav),
+that stack of staff-access-link buttons + full nav is replaced by a
+two-column `.sidebar-split` row: a narrow (42px) icon-only rail on the left
+standing in for the client's `NAV_SECTIONS` tabs, and the staff-access-link
+buttons in a right column. Client picker (top), staff name/sign-out row
+(above the split), temp-access banner, and "Preview as" (below the split)
+keep their same relative position in the flow, unchanged. Everything else —
+`Manage access`/dark-mode row, sidebar footer — is untouched.
+
+Rail details:
+- Icon-only buttons (`.nav-rail-item`), hover/focus-visible CSS-only flyout
+  tooltip to the right (`.nav-rail-tooltip`, dark rounded box + pointer
+  triangle, VS Code/Slack style — no JS state).
+- Thin divider (`.nav-rail-group-divided`) between Enterprise/Budget/
+  Finances/Documents groups instead of the full nav's text headings — no
+  room for labels at this width.
+- Unread badge dots, active-page highlight, and `tabOrder`/
+  `orderedSectionItems` custom ordering all preserved exactly.
+- Enterprise's "Premium" upsell heading (standard-plan client, no room for
+  a text row) becomes a small gold lock badge (`.nav-rail-lock`) on the
+  Messages/Dashboard icons; clicking still routes to `enterprise-upgrade`
+  instead of the item's own page, same as the full nav's upsell row did.
+- The full nav's per-tab gold shimmer for an owned premium upgrade
+  (`.nav-item-signature`) has no label to clip a gradient onto in an
+  icon-only rail, so its compact rail equivalent is just a solid gold icon
+  color.
+
+`NON_CLIENT_PAGES` pages (Home, Team Chat, My Tasks, My Time, Staff Access,
+Client Roster, Developer Tools themselves) have no client tabs to put in a
+rail, so they keep today's single-column staff-access-link list — no split
+is forced with an empty left column.
+
+Mobile: the off-canvas drawer doesn't have room for the rail and button
+column side by side, so `.sidebar-split` wraps (`flex-wrap`) — rail on top
+as a horizontal wrapping row (divider rotates to a vertical rule between
+groups), button column below it, both full-width. The rail itself doesn't
+shrink further at 42px/44px (`pointer: coarse` bumps it to the existing
+44px minimum touch target) since there's no room left to save.
+
+The client-facing sidebar (`clientPortalUser`, the `!isBookkeeper` branch)
+is completely unchanged — same JSX, same `.nav`/`.nav-section`/`.nav-item`
+classes it always rendered. The shared full `<nav className="nav">` block
+(previously rendered for both bookkeeper and client, since it sat outside
+the `isBookkeeper` ternary) now also checks `isBookkeeper` so it stops
+double-rendering the tab list next to the new rail; the client branch of
+that same check is untouched.
+
+Files touched: `app.jsx` (`Sidebar`), `styles.css` (`.sidebar-split`,
+`.nav-rail*`, mobile/touch-target rules), `index.html`, `build.py`,
+`HANDOFF7.md`.
