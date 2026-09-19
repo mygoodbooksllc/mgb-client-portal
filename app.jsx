@@ -696,6 +696,7 @@ function Sidebar({
   tabOrder,
   onOpenSettings,
   onOpenDetails,
+  hasPendingAccessRequests,
   badges,
   mobileOpen,
   onCloseMobile,
@@ -1169,6 +1170,13 @@ function Sidebar({
           <div className="sidebar-utility-btn-group">
             <button className="customize-tabs-btn" onClick={onOpenSettings}>
               <SlidersIcon /> Manage access
+              {hasPendingAccessRequests && (
+                <span
+                  className="nav-badge-dot"
+                  aria-label="New access request"
+                  style={{ marginLeft: 6 }}
+                />
+              )}
             </button>
             <button className="customize-tabs-btn" onClick={onOpenDetails}>
               <FolderIcon /> Client details
@@ -16418,6 +16426,40 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
   useEffect(() => {
     checkStaffMessagesUnread();
   }, [checkStaffMessagesUnread, page]);
+
+  // §140: in-app-only substitute for the "email me on every access request"
+  // idea from HANDOFF7.md's smaller-open-items list — no inbox noise, just
+  // a dot on "Manage access" (Sidebar) that lights up when any client this
+  // staffer can see has an unreviewed access_requests row. Re-checked on
+  // every page change, same trigger as checkStaffMessagesUnread above, so
+  // triaging a request in a client's "Manage access" > Requests tab and
+  // navigating away clears it without a manual refresh.
+  const [hasPendingAccessRequests, setHasPendingAccessRequests] =
+    useState(false);
+  const checkPendingAccessRequests = useCallback(() => {
+    const supabase = window.mgbSupabase;
+    if (!supabase || !staffUser) {
+      setHasPendingAccessRequests(false);
+      return;
+    }
+    const ids = visibleClients.map((c) => c.id);
+    if (ids.length === 0) {
+      setHasPendingAccessRequests(false);
+      return;
+    }
+    supabase
+      .from("access_requests")
+      .select("id", { count: "exact", head: true })
+      .eq("reviewed", false)
+      .in("client_id", ids)
+      .then(({ count, error }) => {
+        setHasPendingAccessRequests(!error && !!count && count > 0);
+      });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [staffUser, visibleClients.map((c) => c.id).join(",")]);
+  useEffect(() => {
+    checkPendingAccessRequests();
+  }, [checkPendingAccessRequests, page]);
   // Set when a global-search result is clicked, so the destination page
   // knows exactly which row to scroll to and flash — not just which tab to
   // open. `nonce` forces the effect on the receiving page to re-fire even
@@ -17490,6 +17532,7 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
           staffUser={effectiveStaffUser}
           onSignOut={onSignOut}
           staffMessagesUnread={staffMessagesUnread}
+          hasPendingAccessRequests={hasPendingAccessRequests}
           impersonating={impersonating}
           hasTempAdminAccess={hasTempAdminAccess}
           tempAdminAccessExpiresAt={tempAdminAccessExpiresAt}
@@ -17821,7 +17864,10 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
           onSetAccessLevel={setAccessLevel}
           onToggleUserPremium={toggleUserPremium}
           staffUser={staffUser}
-          onClose={() => setSettingsOpen(false)}
+          onClose={() => {
+            setSettingsOpen(false);
+            checkPendingAccessRequests();
+          }}
         />
       )}
 
