@@ -5739,40 +5739,51 @@ function ReportBarRows({ items }) {
 // for where each one flips over.
 // ----------------------------------------------------------------------------
 
+// `sidebarTab` names the exact sidebar tab (NAV_SECTIONS' `label`) each
+// premium feature upgrades in place — same pairing ENTERPRISE_COMPARISON
+// already uses via standardLabel/premiumLabel — so a client can match a
+// card here to what they actually see in their own sidebar, since the
+// premium product name (e.g. "Live Report") never appears there itself.
 const ENTERPRISE_FEATURES = [
   {
     icon: <BarChartIcon />,
     title: "Live Report",
+    sidebarTab: "Dashboard",
     description:
       "Your dashboard becomes a continuously-live financial snapshot — cash on hand, receivables, what's due — instead of a static once-a-day view. Click-to-jump KPIs, a low-cash alert, a collections queue, and a one-click PDF snapshot, all customizable to how you work.",
   },
   {
     icon: <DocumentIcon />,
     title: "Report Builder",
+    sidebarTab: "Reports",
     description:
       "Assemble a formatted board report from your own numbers in a couple of clicks — pick a period, a scope, and the sections that matter this quarter.",
   },
   {
     icon: <CalculatorIcon />,
     title: "Budgeting Tool",
+    sidebarTab: "Budget vs. Actual",
     description:
       "Draft next period's budget together with your bookkeeper, category by category, before it's locked in.",
   },
   {
     icon: <StackedBillsIcon />,
     title: "Cash Flow Pro",
+    sidebarTab: "Cash Flow",
     description:
       "Every bill in one place with aging and vendor summaries, batch pay runs with an approval step and a cash-impact forecast, duplicate-bill detection, and a ready-to-upload ACH export.",
   },
   {
     icon: <BankIcon />,
     title: "Reconciliation Pro",
+    sidebarTab: "Bank Accounts",
     description:
       "A real month-end close on Bank Accounts — clear transactions against your statement, track outstanding items automatically, and keep a signed-off history of every period you've closed.",
   },
   {
     icon: <GiftHeartIcon />,
     title: "Fund Accounting Pro",
+    sidebarTab: "Giving & Funds",
     description:
       "See money move between funds with a reason attached, track pledges from committed to received, and send year-end giving statements to every donor for their tax write-offs.",
   },
@@ -5848,7 +5859,7 @@ const ENTERPRISE_COMPARISON = [
       "Four canned PDFs — Profit & Loss, Balance Sheet, Budget vs. Actual, Contribution Statement",
     ],
     premium: [
-      "Everything Reports has, in the same Quick Download tab",
+      "The same four canned PDFs, still under Quick Download",
       "Custom report builder — pick a period, a company-wide or by-fund scope, and which sections to include",
       "Six selectable sections: Revenue, Budget, Cash, Receivables, Giving, and an Outlook operating-reserve forecast",
       "Live preview while building",
@@ -6018,6 +6029,9 @@ function EnterpriseUpgradePage({ client, clientPortalUser }) {
             <h3 className="card-title" style={{ marginTop: 14 }}>
               {f.title}
             </h3>
+            <div className="enterprise-feature-tab-tag">
+              Upgrades your {f.sidebarTab} tab
+            </div>
             <p className="card-subtitle" style={{ marginBottom: 0 }}>
               {f.description}
             </p>
@@ -6071,6 +6085,9 @@ function EnterpriseUpgradePage({ client, clientPortalUser }) {
                         {c.premiumLabel}{" "}
                         <span className="nav-pro-pill">PRO</span>
                       </div>
+                      <p className="compare-feat-all">
+                        Everything {c.standardLabel} has, plus:
+                      </p>
                       <ul className="compare-feat-list">
                         {c.premium.map((f, i) => (
                           <li key={i}>{f}</li>

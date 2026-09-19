@@ -1424,6 +1424,23 @@ body {
   margin: 0 0 16px 0;
 }
 
+/* Pairs an Enterprise upgrade's product name (the card's own <h3>, e.g.
+   "Live Report") with the actual sidebar tab it upgrades in place (e.g.
+   "Dashboard") — the premium name never appears in the sidebar itself, so
+   without this a client has no way to tell which of their own tabs a card
+   is even describing. */
+.enterprise-feature-tab-tag {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--gold-deep);
+  background: var(--accent-soft);
+  border: 1px solid var(--warm-border);
+  padding: 3px 8px;
+  border-radius: 999px;
+  margin-bottom: 10px;
+}
+
 /* ---------------- Chart ---------------- */
 
 .chart-wrap {
@@ -3068,6 +3085,16 @@ body.rb-presenting .main {
 
 .compare-col-header.premium {
   color: var(--gold-deep);
+}
+
+/* Makes explicit that Pro is additive, not a swapped-out feature set — the
+   list below it only names what's new, so without this line it reads like
+   the standard bullets on the left disappear on upgrade. */
+.compare-feat-all {
+  font-size: 12px;
+  font-style: italic;
+  color: var(--text-muted);
+  margin: 0 0 8px 0;
 }
 
 .compare-feat-list {
