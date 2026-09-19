@@ -4201,7 +4201,7 @@ Complements §135's page-view counts (what's *used*) with a direct "what
 do you *think*" signal: a short in-app survey — 1-5 overall rating,
 favorite tab/feature pick, and two optional free-text fields ("what's
 frustrating" / "anything else") — shown to staff and client-portal users
-alike, at most once every 30 days per browser.
+alike, at most once every 60 days per browser.
 
 `supabase/feature-feedback.sql` (new): plain append-only
 `feature_feedback` table (`overall_rating`, `favorite_feature`,
@@ -4233,3 +4233,7 @@ to work through" without any manual transcription.
 Files touched: `supabase/feature-feedback.sql` (new), `app.jsx`
 (`FeedbackSurveyModal`, `UsageStatsPage`, `App`), `index.html`,
 `build.py`.
+
+*Update:* `FEEDBACK_PROMPT_INTERVAL_DAYS` bumped from 30 to 60 — once
+every couple months reads as respectful of people's time; monthly was
+too naggy for a survey this open-ended.

@@ -10168,7 +10168,8 @@ function UsageStatsPage() {
         {feedbackRows && feedbackRows.length === 0 && !feedbackError && (
           <p className="card-subtitle" style={{ marginTop: 16 }}>
             No survey responses yet — the in-app prompt shows up periodically
-            (at most once a month per browser) to staff and clients alike.
+            (at most once every couple months per browser) to staff and clients
+            alike.
           </p>
         )}
 
@@ -15373,7 +15374,7 @@ function loadPage() {
 // "last asked" column, since not being nagged is worth more than perfect
 // once-per-person accuracy, and this needs no Supabase round trip to decide.
 const FEEDBACK_PROMPT_STORAGE_KEY = "mygoodbooks_feedback_prompted_at_v1";
-const FEEDBACK_PROMPT_INTERVAL_DAYS = 30;
+const FEEDBACK_PROMPT_INTERVAL_DAYS = 60;
 
 function shouldPromptForFeedback() {
   try {
