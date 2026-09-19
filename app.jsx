@@ -761,7 +761,6 @@ function Sidebar({
                   className="client-select"
                   value={selectedClientId}
                   onChange={(e) => onSelectClient(e.target.value)}
-                  style={{ paddingLeft: 24 }}
                 >
                   {clients.map((c) => {
                     const health = effectiveClientHealth(
@@ -782,22 +781,6 @@ function Sidebar({
                     );
                   })}
                 </select>
-                {client && (
-                  <ClientHealthDot
-                    health={effectiveClientHealth(
-                      client,
-                      today,
-                      statusOverrides,
-                    )}
-                    style={{
-                      position: "absolute",
-                      left: 10,
-                      top: "50%",
-                      transform: "translateY(-50%)",
-                      pointerEvents: "none",
-                    }}
-                  />
-                )}
               </div>
             </React.Fragment>
           )}
