@@ -3750,3 +3750,80 @@ tall as its tallest column and nothing below it gets overlapped.
 
 Files touched: `app.jsx` (`Sidebar`), `styles.css` (`.sidebar-split`,
 `.nav-rail-tooltip`), `index.html`, `build.py`.
+
+## §127 — Sign out into the staff list, legal links to the page footer, rail
+back on the left, logo dropped from the brand mark
+
+Five smaller cleanups to the staff sidebar, batched together:
+
+- **Sign out relocated**: the "Sign out" button used to sit next to the
+  staffer's name in the top row of the sidebar (removed there in this same
+  change). It now renders as the last item in the staff-tools list —
+  Home/Team Chat/My Tasks/My Time/(admin trio)/Sign out — in both places
+  that list renders: the single-column form (no client selected) and
+  `.sidebar-split-right` (client selected). A new `SignOutIcon` (door +
+  arrow, same thin-line `currentColor` style as the other sidebar icons)
+  sits next to it; nothing in the app had a door icon to reuse. It calls
+  the same `onSignOut` prop the old button used.
+- **Columns swapped back**: §126 put `.sidebar-split-right` before
+  `.nav-rail` (rail on the right) after feedback at the time; a second
+  look asked for the rail back on the left, closer to where a normal nav
+  usually sits. `.nav-rail-tooltip` flips back with it — flyout direction
+  is `left: calc(100% + 10px)` again (was `right`), the peek-in transform
+  is `translateX(-4px)` (was `4px`), and the `::before` arrow points
+  `right: 100%` with `border-right-color` (was `left`/`border-left-color`).
+  This is the exact inverse of §126's flip. `.sidebar-split`'s
+  `align-items: flex-start` (from §125/§126, keeping the taller rail's
+  overflow from spilling into whatever renders next) is untouched — it's
+  about height, not which side either column is on.
+- **Privacy/Terms/Contact moved out of the sidebar**: `.legal-footer-links`
+  inside `.sidebar-footer` only ever showed while a bookkeeper had the
+  sidebar open — a client scrolling their own dashboard, or a bookkeeper
+  on Home/Staff Access/etc. with the single-column staff-tools list, never
+  saw it, and it was easy to miss even when it did render (small text
+  below other small text, off in the corner). It's now a single insertion
+  in `App()`'s shared `<main>`, right before `</main>` — a `.main-footer`
+  block with the same three links, same order, styled to match the old
+  `.sidebar-footer` convention (small muted text, border-top separator)
+  but using the main content's own muted-text/border variables
+  (`--text-muted`, `--border`) instead of the sidebar's dark-chrome ones.
+  Because it's one insertion point in the shared shell rather than
+  per-page, every page — client-facing and staff-facing, every tab —
+  gets it at the bottom, not just the ones that happened to call it out
+  explicitly before.
+- **Brand mark image dropped**: the sidebar header's square white logo
+  tile (`.brand-mark` / `.brand-mark-img`, `logo.webp`) is gone from the
+  JSX, leaving just the "MyGoodBooks / Client Portal" text and the
+  tagline below it — reclaims vertical space at the top of a sidebar
+  that's gotten taller since the icon rail/split landed. `.brand-mark`/
+  `.brand-mark-img` stay in `styles.css` unused (not worth a grep-and-
+  delete pass for dead CSS); `.brand-link`'s now-single-child `gap: 10px`
+  was dropped since it had nothing left to space. `logo.webp` itself is
+  untouched — `build.py`'s bundler still references it elsewhere.
+- Investigated a report that the shared page header (the "PORTAL-GREETING"
+  eyebrow / greeting `<h1>` / italic subtitle block above `<GlobalSearch>`
+  in `App()`) was missing entirely on deployed pages, Payroll named
+  specifically but reported as true of every page. Traced every render
+  path between `<Sidebar>` and `<div className="page-header">` in `App`'s
+  return: it renders unconditionally, `PAGE_META` has an entry for every
+  reachable page key including `payroll` (so `meta.subtitle` can't be
+  reading off `undefined`), and neither the `body.rb-presenting` rule nor
+  the `@media print` rule that hide `.page-header` also hide
+  `.sidebar`/`.global-search` (which the report says were visible) so
+  those aren't it either. Reproduced the app in a real browser (Playwright
+  + a local static server, with `AuthGate` temporarily stubbed to skip the
+  real Supabase/Google OAuth login this environment has no credentials
+  for) on both Dashboard and Payroll on this branch's current code, and
+  the header rendered correctly, fully visible, on both. Could not
+  reproduce the bug and found no code path that would explain it — this
+  is written up as an open question rather than a fix. Given the header
+  renders correctly from a fresh load of current `app.jsx`, the most
+  likely explanations left are outside this file: a stale cached bundle
+  on the affected browser/device, or a state specific to a real Supabase
+  session (a real `access`/`client` shape this prototype's mock data
+  never hits) that a `meta.subtitle` deref or similar could choke on
+  without a repro on mock data to catch it.
+
+Files touched: `app.jsx` (`Sidebar`, `App`), `styles.css`
+(`.nav-rail-tooltip`, `.brand-link`, `.main-footer*`), `index.html`,
+`build.py`.
