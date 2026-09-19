@@ -4160,3 +4160,37 @@ since both modals act on the same client's same underlying data.
 
 Files touched: `app.jsx` (`TabSettingsModal`, `Sidebar`, `App`), `styles.css`
 (new `.sidebar-utility-btn-group`), `index.html`, `build.py`.
+
+## §135 — Usage Stats: admin page ranking pages by view count
+
+New admin-only page (sidebar user-menu, alongside Staff Access/Client
+Roster/Developer Tools, admin-role-gated the same way) that ranks every
+page by how many times it's been viewed — most to least — so the team can
+workshop what needs work versus what's dead weight, instead of guessing.
+
+`supabase/usage-events.sql` (new): a plain append-only `usage_events`
+table (`occurred_at`, `actor_email`, `actor_role` staff/client,
+`client_id`, `page`). RLS: any signed-in staff or client member can insert
+their own rows; only `is_active_staff_admin()` can read; no update/delete
+policy at all, same append-only stance as `client_activity_log`/
+`staff_audit_log`. Applied live via the Supabase MCP.
+
+`App` logs one row per render of `effectivePage` (not raw `page`, so a
+page that got bounced back to the dashboard by the access checks above it
+doesn't log the page nobody actually saw). Fire-and-forget — a logging
+failure only `console.warn`s, never surfaces to the viewer. Skips logging
+"usage-stats" itself so viewing the stats page doesn't inflate its own
+count. Impersonation logs under the real staffUser doing the
+impersonating, since that's whose session generated the view.
+
+`UsageStatsPage` (new component) fetches up to 5,000 raw rows for a
+selected window (7/30/90 days, or all time) and aggregates client-side
+into a ranked list — deliberately simple rather than a server-side
+rollup, worth revisiting if the row count ever starts truncating real
+data at that cap. Each row shows a `.bar-fill.usage` (new, gold, no
+under/over semantics unlike the budget bars it reuses `.bar-track` from)
+scaled to the top page's count, plus a staff/client view split.
+
+Files touched: `supabase/usage-events.sql` (new), `app.jsx`
+(`UsageStatsPage`, `Sidebar`, `App`, `NON_CLIENT_PAGES`, `PAGE_META`),
+`styles.css` (new `.bar-fill.usage`), `index.html`, `build.py`.
