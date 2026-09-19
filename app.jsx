@@ -691,6 +691,7 @@ function Sidebar({
   visibleKeys,
   tabOrder,
   onOpenSettings,
+  onOpenDetails,
   badges,
   mobileOpen,
   onCloseMobile,
@@ -1145,9 +1146,14 @@ function Sidebar({
 
       <div className="sidebar-utility-row">
         {isBookkeeper && !NON_CLIENT_PAGES.has(page) ? (
-          <button className="customize-tabs-btn" onClick={onOpenSettings}>
-            <SlidersIcon /> Manage access
-          </button>
+          <div className="sidebar-utility-btn-group">
+            <button className="customize-tabs-btn" onClick={onOpenSettings}>
+              <SlidersIcon /> Manage access
+            </button>
+            <button className="customize-tabs-btn" onClick={onOpenDetails}>
+              <FolderIcon /> Client details
+            </button>
+          </div>
         ) : isBookkeeper ? (
           <span className="sidebar-utility-label">
             {effectiveTheme === "dark" ? "Dark mode" : "Light mode"}
@@ -13768,6 +13774,7 @@ function ModalShell({ onClose, labelledBy, className = "", children }) {
 }
 
 function TabSettingsModal({
+  scope = "access",
   client,
   visibleKeys,
   tabOrder,
@@ -13785,7 +13792,11 @@ function TabSettingsModal({
   const [draggedKey, setDraggedKey] = useState(null);
   const [dragOverKey, setDragOverKey] = useState(null);
   const [editingUserId, setEditingUserId] = useState(null);
-  const [tab, setTab] = useState("people");
+  // "access" (People/Org tabs/Requests) vs "details" (Documents/QuickBooks/
+  // Notes/Activity) — two openers onto the same modal component rather than
+  // two components, since every tab's data-loading and rendering logic below
+  // is unchanged; only which tabs are offered differs per scope.
+  const [tab, setTab] = useState(scope === "details" ? "documents" : "people");
   const [activeLink, setActiveLink] = useState(undefined); // undefined = loading, null = none
   const [requests, setRequests] = useState([]);
   const [generatingLink, setGeneratingLink] = useState(false);
@@ -14174,7 +14185,7 @@ function TabSettingsModal({
           id="manage-access-title"
           style={{ margin: 0 }}
         >
-          Manage access
+          {scope === "details" ? "Client details" : "Manage access"}
         </h3>
         <button className="modal-close" onClick={onClose} aria-label="Close">
           ×
@@ -14183,51 +14194,59 @@ function TabSettingsModal({
       <p className="card-subtitle">{client.name}</p>
 
       <div className="modal-tabs">
-        <button
-          className={"modal-tab" + (tab === "people" ? " active" : "")}
-          onClick={() => setTab("people")}
-        >
-          People
-        </button>
-        <button
-          className={"modal-tab" + (tab === "org" ? " active" : "")}
-          onClick={() => setTab("org")}
-        >
-          Organization tabs
-        </button>
-        <button
-          className={"modal-tab" + (tab === "requests" ? " active" : "")}
-          onClick={() => setTab("requests")}
-        >
-          Requests
-          {requests.some((r) => !r.reviewed) && (
-            <span className="thread-tab-dot" />
-          )}
-        </button>
-        <button
-          className={"modal-tab" + (tab === "documents" ? " active" : "")}
-          onClick={() => setTab("documents")}
-        >
-          Documents
-        </button>
-        <button
-          className={"modal-tab" + (tab === "quickbooks" ? " active" : "")}
-          onClick={() => setTab("quickbooks")}
-        >
-          QuickBooks
-        </button>
-        <button
-          className={"modal-tab" + (tab === "notes" ? " active" : "")}
-          onClick={() => setTab("notes")}
-        >
-          Notes
-        </button>
-        <button
-          className={"modal-tab" + (tab === "activity" ? " active" : "")}
-          onClick={() => setTab("activity")}
-        >
-          Activity
-        </button>
+        {scope === "access" && (
+          <React.Fragment>
+            <button
+              className={"modal-tab" + (tab === "people" ? " active" : "")}
+              onClick={() => setTab("people")}
+            >
+              People
+            </button>
+            <button
+              className={"modal-tab" + (tab === "org" ? " active" : "")}
+              onClick={() => setTab("org")}
+            >
+              Organization tabs
+            </button>
+            <button
+              className={"modal-tab" + (tab === "requests" ? " active" : "")}
+              onClick={() => setTab("requests")}
+            >
+              Requests
+              {requests.some((r) => !r.reviewed) && (
+                <span className="thread-tab-dot" />
+              )}
+            </button>
+          </React.Fragment>
+        )}
+        {scope === "details" && (
+          <React.Fragment>
+            <button
+              className={"modal-tab" + (tab === "documents" ? " active" : "")}
+              onClick={() => setTab("documents")}
+            >
+              Documents
+            </button>
+            <button
+              className={"modal-tab" + (tab === "quickbooks" ? " active" : "")}
+              onClick={() => setTab("quickbooks")}
+            >
+              QuickBooks
+            </button>
+            <button
+              className={"modal-tab" + (tab === "notes" ? " active" : "")}
+              onClick={() => setTab("notes")}
+            >
+              Notes
+            </button>
+            <button
+              className={"modal-tab" + (tab === "activity" ? " active" : "")}
+              onClick={() => setTab("activity")}
+            >
+              Activity
+            </button>
+          </React.Fragment>
+        )}
       </div>
 
       {tab === "people" && (
@@ -15596,6 +15615,7 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
   const [tabConfig, setTabConfig] = useState(loadTabConfig);
   const [tabOrder, setTabOrder] = useState(loadTabOrder);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [detailsOpen, setDetailsOpen] = useState(false);
   // Read state and live threads are both keyed "<clientId>::<userId>", since
   // every person at an organization has their own private thread.
   const [readMessageClients, setReadMessageClients] = useState({});
@@ -16592,6 +16612,7 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
           visibleKeys={access.tabs}
           tabOrder={tabOrder}
           onOpenSettings={() => setSettingsOpen(true)}
+          onOpenDetails={() => setDetailsOpen(true)}
           badges={{ messages: hasUnreadMessages }}
           mobileOpen={mobileNavOpen}
           onCloseMobile={() => setMobileNavOpen(false)}
@@ -16918,6 +16939,7 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
 
       {settingsOpen && (
         <TabSettingsModal
+          scope="access"
           client={client}
           visibleKeys={visibleKeys}
           tabOrder={tabOrder}
@@ -16931,6 +16953,25 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
           onToggleUserPremium={toggleUserPremium}
           staffUser={staffUser}
           onClose={() => setSettingsOpen(false)}
+        />
+      )}
+
+      {detailsOpen && (
+        <TabSettingsModal
+          scope="details"
+          client={client}
+          visibleKeys={visibleKeys}
+          tabOrder={tabOrder}
+          userAccess={userAccess}
+          onToggle={toggleTab}
+          onReorder={reorderTab}
+          onToggleUserTab={toggleUserTab}
+          onToggleUserCategory={toggleUserCategory}
+          onToggleUserFund={toggleUserFund}
+          onSetAccessLevel={setAccessLevel}
+          onToggleUserPremium={toggleUserPremium}
+          staffUser={staffUser}
+          onClose={() => setDetailsOpen(false)}
         />
       )}
     </ToastProvider>

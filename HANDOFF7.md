@@ -4130,3 +4130,33 @@ list rendering (`row.assigned_bookkeeper ? row.assigned_bookkeeper.name :
 
 Files touched: `supabase/clients-roster.sql` (new), `data.js`, `index.html`,
 `build.py`, `app.jsx` (`ClientAccessPage`), `HANDOFF7.md`.
+
+## §134 — "Manage access" split: Notes/Activity/Documents/QuickBooks move to a new "Client details" modal
+
+Notes and Activity had been living as extra tabs on the "Manage access"
+modal (§116, §121) purely because that was the one existing per-client
+settings surface, not because either is actually about access — same
+went for Documents and QuickBooks, added earlier for the same reason.
+Went with Option B from a mockup of three alternatives (rename-only,
+this split, or moving the tabs onto the client's own page as staff-only
+tabs): it's the smallest change that makes each modal's name honestly
+match its contents, at the cost of one extra opener button.
+
+`TabSettingsModal` is unchanged internally — every tab's data-loading and
+rendering logic stays exactly as it was — it just takes a new `scope`
+prop ("access" | "details") that decides which tab buttons the modal bar
+offers and which tab it opens on:
+- `scope="access"` (the sidebar's existing "Manage access" button): People,
+  Organization tabs, Requests.
+- `scope="details"` (new "Client details" button, same row): Documents,
+  QuickBooks, Notes, Activity — opens on Documents by default.
+
+`Sidebar` now renders both buttons in a `.sidebar-utility-btn-group`
+stacked under each other, in the same `.sidebar-utility-row` spot the
+single "Manage access" button used to occupy alone. `App` holds a second
+`detailsOpen` state alongside `settingsOpen` and mounts a second
+`TabSettingsModal` instance with `scope="details"` — same props otherwise,
+since both modals act on the same client's same underlying data.
+
+Files touched: `app.jsx` (`TabSettingsModal`, `Sidebar`, `App`), `styles.css`
+(new `.sidebar-utility-btn-group`), `index.html`, `build.py`.

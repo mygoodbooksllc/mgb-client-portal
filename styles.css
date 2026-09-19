@@ -922,6 +922,16 @@ body {
   margin-top: 12px;
 }
 
+/* Holds "Manage access" + "Client details" together so the row still reads
+   as one button-ish cluster against the theme toggle, now that there are two
+   openers instead of one (see §134's "Manage access" split). */
+.sidebar-utility-btn-group {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+}
+
 .customize-tabs-btn {
   align-self: center;
   background: transparent;
