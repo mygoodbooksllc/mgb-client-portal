@@ -800,6 +800,32 @@ function Sidebar({
             </React.Fragment>
           )}
 
+          {!NON_CLIENT_PAGES.has(page) && (
+            <React.Fragment>
+              <div className="client-picker-label">Preview as</div>
+              <select
+                className="client-select"
+                value={viewAsUserId}
+                onChange={(e) => onSelectViewAs(e.target.value)}
+              >
+                {/* Real name/email for the signed-in staffer replaces the old
+                    shared "MyGoodBooks (full access)" sentinel label — the
+                    underlying value stays BOOKKEEPER_VIEW so resolveAccess() and
+                    everything downstream is untouched. */}
+                <option value={BOOKKEEPER_VIEW}>
+                  {staffUser
+                    ? `${staffUser.name} (full access)`
+                    : "MyGoodBooks (full access)"}
+                </option>
+                {(client.users || []).map((u) => (
+                  <option key={u.id} value={u.id}>
+                    {u.name} — {u.role}
+                  </option>
+                ))}
+              </select>
+            </React.Fragment>
+          )}
+
           {staffUser && (
             <div
               className="client-picker-label"
@@ -965,82 +991,6 @@ function Sidebar({
             </React.Fragment>
           ) : (
             <div className="sidebar-split">
-              <nav className="nav-rail" aria-label="Client sections">
-                {NAV_SECTIONS.map((section, sectionIndex) => {
-                  const isSignature = section.label === "Enterprise";
-                  // Same upsell condition as the full nav's heading — see the
-                  // comment on `showUpsell` in the full <nav> render below.
-                  const showUpsell = isSignature && !access.premiumForUser;
-                  const items = orderedSectionItems(
-                    section,
-                    tabOrder,
-                    selectedClientId,
-                  ).filter((item) => visibleKeys.has(item.key));
-                  if (items.length === 0 && !showUpsell) return null;
-                  return (
-                    <div
-                      className={
-                        "nav-rail-group" +
-                        (sectionIndex > 0 ? " nav-rail-group-divided" : "")
-                      }
-                      key={section.label}
-                    >
-                      {items.map((item) => {
-                        const isUpgraded =
-                          PREMIUM_UPGRADE_TAB_KEYS.has(item.key) &&
-                          access &&
-                          access.premiumForUser &&
-                          !access.isCategoryScoped;
-                        // A narrow rail has no room for the Enterprise
-                        // section's text heading/upsell row, so the same
-                        // "click to upgrade" behavior moves onto the item
-                        // itself: for a standard-plan client, Messages/
-                        // Dashboard still open, but a small lock badge shows
-                        // and the click routes to enterprise-upgrade instead
-                        // — same destination the full nav's upsell heading
-                        // used, just triggered from the icon in its place.
-                        return (
-                          <button
-                            key={item.key}
-                            type="button"
-                            className={
-                              "nav-rail-item" +
-                              (page === item.key ? " active" : "") +
-                              (isUpgraded ? " nav-item-signature" : "")
-                            }
-                            onClick={() => {
-                              onSelectPage(
-                                showUpsell ? "enterprise-upgrade" : item.key,
-                              );
-                              onCloseMobile();
-                            }}
-                            aria-label={
-                              showUpsell
-                                ? `${item.label} (upgrade to Enterprise)`
-                                : item.label
-                            }
-                          >
-                            {item.icon}
-                            {showUpsell && (
-                              <LockIcon className="nav-rail-lock" />
-                            )}
-                            {!showUpsell && badges[item.key] && (
-                              <span
-                                className="nav-badge-dot nav-rail-badge"
-                                aria-label="Unread"
-                              />
-                            )}
-                            <span className="nav-rail-tooltip">
-                              {item.label}
-                            </span>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  );
-                })}
-              </nav>
-
               <div className="sidebar-split-right">
                 {staffUser && (
                   <button
@@ -1168,6 +1118,82 @@ function Sidebar({
                   </button>
                 )}
               </div>
+
+              <nav className="nav-rail" aria-label="Client sections">
+                {NAV_SECTIONS.map((section, sectionIndex) => {
+                  const isSignature = section.label === "Enterprise";
+                  // Same upsell condition as the full nav's heading — see the
+                  // comment on `showUpsell` in the full <nav> render below.
+                  const showUpsell = isSignature && !access.premiumForUser;
+                  const items = orderedSectionItems(
+                    section,
+                    tabOrder,
+                    selectedClientId,
+                  ).filter((item) => visibleKeys.has(item.key));
+                  if (items.length === 0 && !showUpsell) return null;
+                  return (
+                    <div
+                      className={
+                        "nav-rail-group" +
+                        (sectionIndex > 0 ? " nav-rail-group-divided" : "")
+                      }
+                      key={section.label}
+                    >
+                      {items.map((item) => {
+                        const isUpgraded =
+                          PREMIUM_UPGRADE_TAB_KEYS.has(item.key) &&
+                          access &&
+                          access.premiumForUser &&
+                          !access.isCategoryScoped;
+                        // A narrow rail has no room for the Enterprise
+                        // section's text heading/upsell row, so the same
+                        // "click to upgrade" behavior moves onto the item
+                        // itself: for a standard-plan client, Messages/
+                        // Dashboard still open, but a small lock badge shows
+                        // and the click routes to enterprise-upgrade instead
+                        // — same destination the full nav's upsell heading
+                        // used, just triggered from the icon in its place.
+                        return (
+                          <button
+                            key={item.key}
+                            type="button"
+                            className={
+                              "nav-rail-item" +
+                              (page === item.key ? " active" : "") +
+                              (isUpgraded ? " nav-item-signature" : "")
+                            }
+                            onClick={() => {
+                              onSelectPage(
+                                showUpsell ? "enterprise-upgrade" : item.key,
+                              );
+                              onCloseMobile();
+                            }}
+                            aria-label={
+                              showUpsell
+                                ? `${item.label} (upgrade to Enterprise)`
+                                : item.label
+                            }
+                          >
+                            {item.icon}
+                            {showUpsell && (
+                              <LockIcon className="nav-rail-lock" />
+                            )}
+                            {!showUpsell && badges[item.key] && (
+                              <span
+                                className="nav-badge-dot nav-rail-badge"
+                                aria-label="Unread"
+                              />
+                            )}
+                            <span className="nav-rail-tooltip">
+                              {item.label}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  );
+                })}
+              </nav>
             </div>
           )}
 
@@ -1180,32 +1206,6 @@ function Sidebar({
                 {formatTempAccessExpiry(tempAdminAccessExpiresAt)}
               </div>
             )}
-
-          {!NON_CLIENT_PAGES.has(page) && (
-            <React.Fragment>
-              <div className="client-picker-label">Preview as</div>
-              <select
-                className="client-select"
-                value={viewAsUserId}
-                onChange={(e) => onSelectViewAs(e.target.value)}
-              >
-                {/* Real name/email for the signed-in staffer replaces the old
-                    shared "MyGoodBooks (full access)" sentinel label — the
-                    underlying value stays BOOKKEEPER_VIEW so resolveAccess() and
-                    everything downstream is untouched. */}
-                <option value={BOOKKEEPER_VIEW}>
-                  {staffUser
-                    ? `${staffUser.name} (full access)`
-                    : "MyGoodBooks (full access)"}
-                </option>
-                {(client.users || []).map((u) => (
-                  <option key={u.id} value={u.id}>
-                    {u.name} — {u.role}
-                  </option>
-                ))}
-              </select>
-            </React.Fragment>
-          )}
         </React.Fragment>
       ) : (
         <div className="signed-in-as">

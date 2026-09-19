@@ -3719,3 +3719,34 @@ Fix: dropped `overflow-y: auto`/the scrollbar-hiding rules from
 never tall enough to need it.
 
 Files touched: `styles.css`, `index.html`, `build.py`.
+
+## §126 — Sidebar split: reorder columns, move "Preview as" up
+
+Two follow-up tweaks to §124/§125's icon-rail sidebar, per feedback after
+seeing it live:
+
+- **"Preview as" moved**: it used to render after the whole `sidebar-split`
+  block (and the temp-access banner), well below the fold under the tab
+  list. It now renders immediately under "Viewing client" (the client
+  picker), before the staffer's name/sign-out row — so both dropdowns that
+  pick *who/what you're looking at* are grouped together at the top,
+  ahead of the navigation itself.
+- **Columns swapped**: `.sidebar-split` now renders `.sidebar-split-right`
+  (the labeled Home/Team Chat/My Tasks/My Time/admin buttons) first, then
+  `.nav-rail` (the client-tab icons) — so the icon rail sits on the right
+  edge of the sidebar instead of the left. `.nav-rail-tooltip` flips to
+  match: it now flies out to the *left* of the rail (`right: calc(100% +
+  10px)`, arrow reversed) instead of the right, since the rail is no
+  longer the leftmost column and a right-opening tooltip would run past
+  the sidebar's edge.
+
+Also fixed since §125: `.sidebar-split` was missing `align-items:
+flex-start`, so with the rail (9 icons) taller than the staff column (7
+rows), the default flex `stretch` clamped the rail to the shorter
+column's height and its overflow spilled into whatever rendered next in
+the DOM (visually overlapping "Preview as"). `flex-start` lets each
+column keep its own natural height instead, so the split's own box is as
+tall as its tallest column and nothing below it gets overlapped.
+
+Files touched: `app.jsx` (`Sidebar`), `styles.css` (`.sidebar-split`,
+`.nav-rail-tooltip`), `index.html`, `build.py`.
