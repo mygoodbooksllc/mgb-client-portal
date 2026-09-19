@@ -4343,3 +4343,29 @@ noted on earlier PRs against this branch (e.g. #154).
 
 Files touched: `app.jsx` (`ClientAccessPage`), `index.html`, `build.py`,
 `HANDOFF7.md`.
+
+## §140 — In-app badge for pending access requests, no email
+
+Real email sending for access-request notifications had been sitting on
+the deferred list. Revisited it and decided against email entirely for
+now — not wanting a per-request inbox flood is a reasonable objection,
+and a real fix for that (a digest, or scoping who gets pinged) is more
+setup than the problem currently needs. Went with the cheapest thing
+that actually solves "notice a new request without having to remember to
+check": a badge dot, reusing `.nav-badge-dot` (already used for Team
+Chat's sidebar unread indicator) on the "Manage access" button itself.
+
+`App`'s new `checkPendingAccessRequests()` mirrors
+`checkStaffMessagesUnread()`'s exact shape — a `head: true` count query
+against `access_requests` (`reviewed = false`), scoped to
+`visibleClients`' ids so a bookkeeper only sees a dot for their own
+assigned clients, admins for everyone. Re-checked on every page change
+(same trigger as the messages badge), plus explicitly on close of the
+`scope="access"` `TabSettingsModal` so reviewing a request in its
+Requests tab clears the dot immediately rather than waiting for the next
+navigation.
+
+No new table or RLS — `access_requests` already has a `staff read
+requests` policy (`access-requests.sql`) covering this count query.
+
+Files touched: `app.jsx` (`App`, `Sidebar`), `index.html`, `build.py`.
