@@ -8595,6 +8595,7 @@ function DeveloperToolsPage({ staffUser, clients, onJumpToClient, readOnly }) {
             Skip the sidebar dropdown — land straight on a client's dashboard.
           </p>
           <select
+            className="jump-to-client-select"
             value=""
             style={{ width: "100%", marginBottom: 10 }}
             onChange={(e) => {
@@ -11510,6 +11511,7 @@ function BookkeeperHomePage({
           Skip the sidebar dropdown — land straight on a client's dashboard.
         </p>
         <select
+          className="jump-to-client-select"
           value=""
           style={{ width: "100%", marginBottom: 10 }}
           onChange={(e) => {

@@ -2246,6 +2246,27 @@ body.rb-presenting .main {
   cursor: pointer;
 }
 
+/* "Jump to client" dropdowns (Developer Tools, Bookkeeper Home) — a plain
+   unstyled <select> renders with the browser's native gray control, which
+   reads as broken next to .ap-cc-search's themed search box right below
+   it. Same border/background/radius language as .ap-cc-search. */
+.jump-to-client-select {
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  font-family: var(--font-body);
+  font-size: 13px;
+  padding: 7px 12px;
+  border-radius: 9px;
+  cursor: pointer;
+}
+
+.jump-to-client-select:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
 .category-tag {
   display: inline-block;
   font-size: 11.5px;
