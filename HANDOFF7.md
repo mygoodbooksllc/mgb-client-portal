@@ -4381,3 +4381,10 @@ repo's only real pre-merge validation short of a live browser — see
 §133's note on why) can't catch this class of bug; only shows up at
 runtime. Moved the whole block down to right after `visibleClients`'s
 own declaration. No logic changed.
+
+*Update:* a bare 8px `.nav-badge-dot` next to "Manage access"'s small
+muted-gray text was too easy to miss on a glance at the sidebar. Swapped
+it for a labelled `.pending-request-pill` ("New request", gold-on-gold-
+tint background) with a pulsing dot inside it (`.pending-request-dot`,
+reusing `mgb-dot-pulse` — the same keyframe the client-health dots
+animate with), plus gold text on the button itself while pending.
