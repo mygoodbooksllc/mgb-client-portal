@@ -4194,3 +4194,42 @@ scaled to the top page's count, plus a staff/client view split.
 Files touched: `supabase/usage-events.sql` (new), `app.jsx`
 (`UsageStatsPage`, `Sidebar`, `App`, `NON_CLIENT_PAGES`, `PAGE_META`),
 `styles.css` (new `.bar-fill.usage`), `index.html`, `build.py`.
+
+## §136 — Periodic feedback survey, summarized on Usage Stats
+
+Complements §135's page-view counts (what's *used*) with a direct "what
+do you *think*" signal: a short in-app survey — 1-5 overall rating,
+favorite tab/feature pick, and two optional free-text fields ("what's
+frustrating" / "anything else") — shown to staff and client-portal users
+alike, at most once every 30 days per browser.
+
+`supabase/feature-feedback.sql` (new): plain append-only
+`feature_feedback` table (`overall_rating`, `favorite_feature`,
+`friction_text`, `comments`, plus the same `actor_email`/`actor_role`/
+`client_id` shape as `usage_events`). Same RLS stance: any signed-in user
+can insert their own row, only `is_active_staff_admin()` can read, no
+update/delete policy. Applied live via the Supabase MCP.
+
+`shouldPromptForFeedback()`/`markFeedbackPrompted()` (new, alongside
+`loadPage` et al.) gate the survey on a per-browser localStorage
+timestamp (`mygoodbooks_feedback_prompted_at_v1`) — already covered by
+`resettableLocalStorageKeys()`'s existing `mygoodbooks_` prefix sweep, no
+change needed there. `App` fires it 15s after mount (so it never competes
+with the boot splash or a fresh login), skipped entirely while
+impersonating. `favoriteFeature`'s options come from `NAV_SECTIONS`
+filtered to `access.tabs`, so a client only sees tabs they can actually
+reach.
+
+The team's actual ask was a way to *use* the feedback, not just collect
+it: `UsageStatsPage` gets a second card, "Feature feedback", showing
+response count, average rating, a tally of favorite-feature picks as
+pills, and a scrollable list of every response with free text. Its "Copy
+summary for Claude" button builds a plain-text digest (average rating,
+ranked favorite features, every comment with its rating) onto the
+clipboard, formatted to paste directly into a Claude conversation as a
+prompt — closes the loop from "users hit friction" to "flag it to Claude
+to work through" without any manual transcription.
+
+Files touched: `supabase/feature-feedback.sql` (new), `app.jsx`
+(`FeedbackSurveyModal`, `UsageStatsPage`, `App`), `index.html`,
+`build.py`.

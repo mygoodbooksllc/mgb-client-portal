@@ -9870,9 +9870,12 @@ const USAGE_STATS_RANGES = [
 
 function UsageStatsPage() {
   const supabase = window.mgbSupabase;
+  const showToast = useToast();
   const [range, setRange] = useState("30");
   const [rows, setRows] = useState(null); // null = loading
   const [loadError, setLoadError] = useState("");
+  const [feedbackRows, setFeedbackRows] = useState(null); // null = loading
+  const [feedbackError, setFeedbackError] = useState("");
 
   const load = useCallback(() => {
     if (!supabase) {
@@ -9909,6 +9912,102 @@ function UsageStatsPage() {
   useEffect(() => {
     load();
   }, [load]);
+
+  // §136: feedback survey results — kept on this same page rather than a
+  // separate admin nav item, since "is this feature good" (feedback) and
+  // "is this feature used" (usage_events above) are the same underlying
+  // question asked two different ways. Not date-ranged like usage_events —
+  // feedback volume is low enough that the last 200 responses is just "all
+  // of it" in practice, and a survey response is worth reading regardless
+  // of age.
+  const loadFeedback = useCallback(() => {
+    if (!supabase) {
+      setFeedbackError("Supabase isn't configured — see auth-config.js.");
+      setFeedbackRows([]);
+      return;
+    }
+    supabase
+      .from("feature_feedback")
+      .select(
+        "id, created_at, actor_email, actor_role, client_id, overall_rating, favorite_feature, friction_text, comments",
+      )
+      .order("created_at", { ascending: false })
+      .limit(200)
+      .then(({ data, error }) => {
+        if (error) {
+          // Most likely cause: supabase/feature-feedback.sql hasn't been run yet.
+          setFeedbackError("Couldn't load feedback. " + error.message);
+          setFeedbackRows([]);
+        } else {
+          setFeedbackError("");
+          setFeedbackRows(data);
+        }
+      });
+  }, [supabase]);
+
+  useEffect(() => {
+    loadFeedback();
+  }, [loadFeedback]);
+
+  const favoriteFeatureCounts = useMemo(() => {
+    if (!feedbackRows) return [];
+    const counts = {};
+    feedbackRows.forEach((r) => {
+      if (!r.favorite_feature) return;
+      counts[r.favorite_feature] = (counts[r.favorite_feature] || 0) + 1;
+    });
+    return Object.entries(counts)
+      .map(([label, count]) => ({ label, count }))
+      .sort((a, b) => b.count - a.count);
+  }, [feedbackRows]);
+
+  const avgRating = useMemo(() => {
+    if (!feedbackRows) return null;
+    const rated = feedbackRows.filter((r) => r.overall_rating);
+    if (!rated.length) return null;
+    return rated.reduce((sum, r) => sum + r.overall_rating, 0) / rated.length;
+  }, [feedbackRows]);
+
+  function copyFeedbackSummary() {
+    if (!feedbackRows || feedbackRows.length === 0) return;
+    const lines = [];
+    lines.push(
+      `MyGoodBooks feedback summary — ${feedbackRows.length} response${feedbackRows.length === 1 ? "" : "s"}`,
+    );
+    if (avgRating) lines.push(`Average rating: ${avgRating.toFixed(1)} / 5`);
+    if (favoriteFeatureCounts.length) {
+      lines.push("");
+      lines.push("Favorite features (most picked first):");
+      favoriteFeatureCounts.forEach((f) => {
+        lines.push(`- ${f.label}: ${f.count}`);
+      });
+    }
+    const withNotes = feedbackRows.filter((r) => r.friction_text || r.comments);
+    if (withNotes.length) {
+      lines.push("");
+      lines.push("Raw comments (newest first):");
+      withNotes.forEach((r) => {
+        const who = r.actor_role === "client" ? "Client" : "Staff";
+        const rating = r.overall_rating ? `${r.overall_rating}/5` : "no rating";
+        lines.push(
+          `- [${who}, ${rating}] ${r.friction_text || ""}${r.friction_text && r.comments ? " — " : ""}${r.comments || ""}`,
+        );
+      });
+    }
+    lines.push("");
+    lines.push(
+      "Please look through this feedback for recurring points of friction or issues worth prioritizing.",
+    );
+    const text = lines.join("\n");
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard
+        .writeText(text)
+        .then(() => showToast("Summary copied — paste it into a Claude chat."))
+        .catch(() => showToast("Couldn't copy to clipboard."));
+    } else {
+      showToast("Clipboard isn't available in this browser.");
+    }
+  }
 
   const ranked = useMemo(() => {
     if (!rows) return [];
@@ -10029,7 +10128,256 @@ function UsageStatsPage() {
           </div>
         )}
       </div>
+
+      <div className="card">
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            flexWrap: "wrap",
+            gap: 12,
+          }}
+        >
+          <div>
+            <h3 className="card-title" style={{ marginBottom: 2 }}>
+              Feature feedback
+            </h3>
+            <p className="card-subtitle" style={{ margin: 0 }}>
+              {feedbackRows
+                ? `${feedbackRows.length.toLocaleString()} response${feedbackRows.length === 1 ? "" : "s"}` +
+                  (avgRating ? ` · ${avgRating.toFixed(1)} / 5 average` : "")
+                : "Loading…"}
+            </p>
+          </div>
+          <button
+            className="btn-secondary"
+            onClick={copyFeedbackSummary}
+            disabled={!feedbackRows || feedbackRows.length === 0}
+          >
+            Copy summary for Claude
+          </button>
+        </div>
+
+        {feedbackError && (
+          <div className="mock-banner" style={{ marginTop: 16 }}>
+            <WarningIcon /> {feedbackError}
+          </div>
+        )}
+
+        {feedbackRows && feedbackRows.length === 0 && !feedbackError && (
+          <p className="card-subtitle" style={{ marginTop: 16 }}>
+            No survey responses yet — the in-app prompt shows up periodically
+            (at most once a month per browser) to staff and clients alike.
+          </p>
+        )}
+
+        {favoriteFeatureCounts.length > 0 && (
+          <div
+            style={{ marginTop: 16, display: "flex", flexWrap: "wrap", gap: 8 }}
+          >
+            {favoriteFeatureCounts.map((f) => (
+              <span className="pill unrestricted" key={f.label}>
+                {f.label} · {f.count}
+              </span>
+            ))}
+          </div>
+        )}
+
+        {feedbackRows && feedbackRows.length > 0 && (
+          <div
+            className="modal-section"
+            style={{ marginTop: 16, maxHeight: 360, overflowY: "auto" }}
+          >
+            {feedbackRows
+              .filter((r) => r.friction_text || r.comments)
+              .map((r) => (
+                <div key={r.id} className="access-request-row">
+                  <div className="access-request-row-header">
+                    <span className="person-name">
+                      {r.actor_role === "client" ? "Client" : "Staff"}
+                      {r.overall_rating ? ` · ${r.overall_rating}/5` : ""}
+                    </span>
+                    <span className="card-subtitle" style={{ margin: 0 }}>
+                      {fmtDate(r.created_at.slice(0, 10))}
+                    </span>
+                  </div>
+                  {r.friction_text && (
+                    <p className="card-subtitle" style={{ margin: "4px 0 0" }}>
+                      {r.friction_text}
+                    </p>
+                  )}
+                  {r.comments && (
+                    <p className="card-subtitle" style={{ margin: "4px 0 0" }}>
+                      {r.comments}
+                    </p>
+                  )}
+                </div>
+              ))}
+          </div>
+        )}
+      </div>
     </div>
+  );
+}
+
+// §136: the periodic feedback survey — see App's shouldPromptForFeedback
+// trigger for when this gets shown. Kept to three quick inputs (a 1-5
+// rating, a favorite-feature pick, and two optional free-text fields) so
+// it's answerable in under a minute; a long survey just gets dismissed.
+const FEEDBACK_RATINGS = [1, 2, 3, 4, 5];
+
+function FeedbackSurveyModal({
+  actorEmail,
+  actorRole,
+  clientId,
+  featureOptions,
+  onClose,
+}) {
+  const supabase = window.mgbSupabase;
+  const showToast = useToast();
+  const [rating, setRating] = useState(null);
+  const [favoriteFeature, setFavoriteFeature] = useState("");
+  const [frictionText, setFrictionText] = useState("");
+  const [comments, setComments] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+
+  function dismiss() {
+    markFeedbackPrompted();
+    onClose();
+  }
+
+  async function submit(e) {
+    e.preventDefault();
+    if (!supabase || !rating) return;
+    setSubmitting(true);
+    const { error } = await supabase.from("feature_feedback").insert({
+      actor_email: actorEmail,
+      actor_role: actorRole,
+      client_id: clientId || null,
+      overall_rating: rating,
+      favorite_feature: favoriteFeature || null,
+      friction_text: frictionText.trim() || null,
+      comments: comments.trim() || null,
+    });
+    setSubmitting(false);
+    if (error) {
+      showToast("Couldn't submit feedback: " + error.message);
+      return;
+    }
+    showToast("Thanks — that helps a lot.");
+    markFeedbackPrompted();
+    onClose();
+  }
+
+  return (
+    <ModalShell onClose={dismiss} labelledBy="feedback-survey-title">
+      <div className="modal-header">
+        <h3
+          className="card-title"
+          id="feedback-survey-title"
+          style={{ margin: 0 }}
+        >
+          Quick feedback
+        </h3>
+        <button className="modal-close" onClick={dismiss} aria-label="Close">
+          ×
+        </button>
+      </div>
+      <p className="card-subtitle">
+        Takes under a minute — it goes straight to the MyGoodBooks team, not
+        anywhere your bookkeeper's clients (or bookkeeper, if you're a client)
+        can see.
+      </p>
+
+      <form onSubmit={submit} className="modal-body">
+        <div className="modal-section">
+          <div className="nav-section-label modal-section-label">
+            Overall, how's it going?
+          </div>
+          <div style={{ display: "flex", gap: 8 }}>
+            {FEEDBACK_RATINGS.map((n) => (
+              <button
+                type="button"
+                key={n}
+                className={"btn-secondary" + (rating === n ? " active" : "")}
+                style={
+                  rating === n
+                    ? { borderColor: "var(--gold)", color: "var(--gold)" }
+                    : undefined
+                }
+                onClick={() => setRating(n)}
+              >
+                {n}
+              </button>
+            ))}
+          </div>
+          <p
+            className="card-subtitle"
+            style={{ marginTop: 6, marginBottom: 0 }}
+          >
+            1 = frustrating, 5 = love it
+          </p>
+        </div>
+
+        <div className="modal-section">
+          <div className="nav-section-label modal-section-label">
+            Favorite tab or feature
+          </div>
+          <select
+            value={favoriteFeature}
+            onChange={(e) => setFavoriteFeature(e.target.value)}
+          >
+            <option value="">Pick one…</option>
+            {featureOptions.map((f) => (
+              <option key={f.key} value={f.label}>
+                {f.label}
+              </option>
+            ))}
+            <option value="Other">Other / not sure</option>
+          </select>
+        </div>
+
+        <div className="modal-section">
+          <div className="nav-section-label modal-section-label">
+            Anything frustrating, confusing, or missing?
+          </div>
+          <textarea
+            placeholder="Optional — but this is the part we actually act on."
+            value={frictionText}
+            onChange={(e) => setFrictionText(e.target.value)}
+            rows={3}
+            style={{ width: "100%", resize: "vertical" }}
+          />
+        </div>
+
+        <div className="modal-section">
+          <div className="nav-section-label modal-section-label">
+            Anything else?
+          </div>
+          <textarea
+            placeholder="Optional"
+            value={comments}
+            onChange={(e) => setComments(e.target.value)}
+            rows={2}
+            style={{ width: "100%", resize: "vertical" }}
+          />
+        </div>
+
+        <div className="modal-footer">
+          <button type="button" className="btn-secondary" onClick={dismiss}>
+            Maybe later
+          </button>
+          <button
+            type="submit"
+            className="btn-primary"
+            disabled={!rating || submitting}
+          >
+            {submitting ? "Sending…" : "Send feedback"}
+          </button>
+        </div>
+      </form>
+    </ModalShell>
   );
 }
 
@@ -15020,6 +15368,33 @@ function loadPage() {
   }
 }
 
+// §136: how often the feedback survey (FeedbackSurveyModal) re-asks the
+// same browser — per-browser via localStorage rather than a server-side
+// "last asked" column, since not being nagged is worth more than perfect
+// once-per-person accuracy, and this needs no Supabase round trip to decide.
+const FEEDBACK_PROMPT_STORAGE_KEY = "mygoodbooks_feedback_prompted_at_v1";
+const FEEDBACK_PROMPT_INTERVAL_DAYS = 30;
+
+function shouldPromptForFeedback() {
+  try {
+    const raw = localStorage.getItem(FEEDBACK_PROMPT_STORAGE_KEY);
+    if (!raw) return true;
+    const last = Number(raw);
+    if (!Number.isFinite(last)) return true;
+    return (
+      Date.now() - last > FEEDBACK_PROMPT_INTERVAL_DAYS * 24 * 60 * 60 * 1000
+    );
+  } catch (e) {
+    return false;
+  }
+}
+
+function markFeedbackPrompted() {
+  try {
+    localStorage.setItem(FEEDBACK_PROMPT_STORAGE_KEY, String(Date.now()));
+  } catch (e) {}
+}
+
 const SELECTED_CLIENT_STORAGE_KEY = "mygoodbooks_selected_client_v1";
 
 function loadSelectedClientId() {
@@ -16352,6 +16727,30 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [effectivePage]);
 
+  // §136: periodic feedback survey (FeedbackSurveyModal) — shown at most
+  // once every FEEDBACK_PROMPT_INTERVAL_DAYS per browser. A short delay
+  // after mount rather than firing immediately, so it never competes with
+  // the boot splash or a fresh login for attention. Skipped entirely while
+  // impersonating (same reasoning as staff-messages above: unclear whose
+  // feedback it would even be) and for a demoted/logged-out viewer with
+  // neither staffUser nor clientPortalUser.
+  const [feedbackOpen, setFeedbackOpen] = useState(false);
+  useEffect(() => {
+    if (impersonating) return;
+    if (!staffUser && !clientPortalUser) return;
+    if (!shouldPromptForFeedback()) return;
+    const timer = setTimeout(() => setFeedbackOpen(true), 15000);
+    return () => clearTimeout(timer);
+  }, [staffUser, clientPortalUser, impersonating]);
+
+  const feedbackFeatureOptions = useMemo(
+    () =>
+      NAV_SECTIONS.flatMap((section) => section.items).filter((item) =>
+        access.tabs.has(item.key),
+      ),
+    [access.tabs],
+  );
+
   // Each of these six tabs IS its upgraded page for a full-access premium
   // viewer — same pattern for all six now (see PREMIUM_UPGRADE_TAB_KEYS):
   // one nav item, content swapped by plan, rather than a second
@@ -17204,6 +17603,20 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
           onToggleUserPremium={toggleUserPremium}
           staffUser={staffUser}
           onClose={() => setDetailsOpen(false)}
+        />
+      )}
+
+      {feedbackOpen && (
+        <FeedbackSurveyModal
+          actorEmail={
+            clientPortalUser ? clientPortalUser.email : staffUser.email
+          }
+          actorRole={clientPortalUser ? "client" : "staff"}
+          clientId={
+            NON_CLIENT_PAGES.has(effectivePage) ? null : selectedClientId
+          }
+          featureOptions={feedbackFeatureOptions}
+          onClose={() => setFeedbackOpen(false)}
         />
       )}
     </ToastProvider>
