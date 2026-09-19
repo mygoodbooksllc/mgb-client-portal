@@ -764,7 +764,7 @@ function Sidebar({
                   className="client-select"
                   value={selectedClientId}
                   onChange={(e) => onSelectClient(e.target.value)}
-                  style={{ paddingLeft: 26 }}
+                  style={{ display: "block", paddingLeft: 26 }}
                 >
                   {clients.map((c) => (
                     <option key={c.id} value={c.id}>
@@ -783,8 +783,15 @@ function Sidebar({
                     style={{
                       position: "absolute",
                       left: 12,
-                      top: "50%",
-                      marginTop: -4,
+                      // Select's own padding is 10px 30px 10px 12px with a
+                      // 1px border, and its line box is vertically centered
+                      // in that content area — so the dot lines up with the
+                      // text baseline at half the select's own font line
+                      // height below its top edge, not the box's midpoint
+                      // (which the box's own bottom-margin skewed off when
+                      // this used top:50% on the wrapper instead).
+                      top: 19,
+                      transform: "translateY(-50%)",
                       pointerEvents: "none",
                     }}
                   />
