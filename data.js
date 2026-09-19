@@ -283,9 +283,9 @@ const CLIENTS_MOCK_DATA = [
     // "full" = full-access users only. Set by MyGoodBooks, never by the client.
     documents: [
       { name: "August Bank Statement - Operating.pdf", category: "Bank Statement", uploadedBy: "MyGoodBooks", date: "2026-08-25", size: "412 KB", visibility: "full" },
-      { name: "Property Insurance Policy 2026.pdf", category: "Insurance", uploadedBy: "Grace Community Church", date: "2026-07-02", size: "1.1 MB", visibility: "all" },
+      { name: "Property Insurance Policy 2026.pdf", category: "Insurance", uploadedBy: "Premium Test Client", date: "2026-07-02", size: "1.1 MB", visibility: "all" },
       { name: "July Financial Statements.pdf", category: "Financial Statement", uploadedBy: "MyGoodBooks", date: "2026-08-03", size: "268 KB", visibility: "full" },
-      { name: "Building Campaign Pledge Log.xlsx", category: "Giving", uploadedBy: "Grace Community Church", date: "2026-08-10", size: "58 KB", visibility: "full" },
+      { name: "Building Campaign Pledge Log.xlsx", category: "Giving", uploadedBy: "Premium Test Client", date: "2026-08-10", size: "58 KB", visibility: "full" },
     ],
     // One private thread per person, keyed by user id. A staff member only ever
     // sees their own conversation with MyGoodBooks — the treasurer's questions
@@ -391,7 +391,7 @@ const CLIENTS_MOCK_DATA = [
     ],
     documents: [
       { name: "August Bank Statement.pdf", category: "Bank Statement", uploadedBy: "MyGoodBooks", date: "2026-08-25", size: "204 KB", visibility: "full" },
-      { name: "Facility Use Agreement.pdf", category: "Facilities", uploadedBy: "New Hope Fellowship", date: "2026-06-15", size: "340 KB", visibility: "all" },
+      { name: "Facility Use Agreement.pdf", category: "Facilities", uploadedBy: "Standard Test Client", date: "2026-06-15", size: "340 KB", visibility: "all" },
       { name: "July Financial Statements.pdf", category: "Financial Statement", uploadedBy: "MyGoodBooks", date: "2026-08-03", size: "198 KB", visibility: "full" },
     ],
     threads: {
