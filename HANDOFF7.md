@@ -3827,3 +3827,32 @@ Five smaller cleanups to the staff sidebar, batched together:
 Files touched: `app.jsx` (`Sidebar`, `App`), `styles.css`
 (`.nav-rail-tooltip`, `.brand-link`, `.main-footer*`), `index.html`,
 `build.py`.
+
+## §128 — Revert: split staff sidebar (icon rail) rolled back
+
+§124-§127 (PRs #146-#149) restructured the bookkeeper sidebar into a
+two-column split — an icon-only rail for client tabs plus a labeled
+staff-utility column — to solve the staff sidebar running too long to
+fit on screen. Across four follow-up PRs it accumulated enough separate
+issues (tooltip clipping, column-height overlap, layout ordering back
+and forth, an unreproduced missing-page-header report) that the call was
+made to stop iterating in place and revert to the pre-split baseline
+rather than keep patching it live.
+
+`app.jsx` and `styles.css` are reset to their state as of commit
+`915f903` (PR #145, "Fix client health dot vertical alignment in sidebar
+picker" — the last commit before §124 started). This removes:
+- `.sidebar-split` / `.nav-rail` / `.nav-rail-item` / `.nav-rail-tooltip`
+  / `.nav-rail-badge` / `.nav-rail-lock` / `.sidebar-split-right` and all
+  related CSS.
+- The icon-rail JSX in `Sidebar()`, the "Preview as" reposition, the
+  Sign-out relocation, the logo-mark removal, and the legal-links move
+  to a page footer.
+
+The sidebar is back to the single labeled-list nav exactly as it was
+before this experiment. The underlying problem it was trying to solve —
+the staff sidebar being too long to fit without scrolling — is still
+open and worth another pass, ideally validated against the real
+deployment at each step instead of across four back-to-back PRs.
+
+Files touched: `app.jsx`, `styles.css`, `index.html`, `build.py`.
