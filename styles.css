@@ -2928,23 +2928,41 @@ body.rb-presenting .main {
   }
 }
 
-/* ---- Scroll-reveal on the Enterprise upgrade page ----
+/* ---- Scroll-reveal on read-heavy, mostly-static pages ----
    Reuses the same data-in-view attribute the global IntersectionObserver
    (see the "Chart/graph entrance animations" effect in App, app.jsx) already
    sets on every .card and .compare-row once it scrolls into view — scoped
-   under .enterprise-page so this doesn't change how a .card behaves
-   anywhere else in the app. Cards fade/slide up individually as they cross
-   the viewport, which is what gives the page its cascading, tool-by-tool
-   reveal on scroll rather than everything appearing at once on mount. */
+   under each page's own wrapper class so this doesn't change how a .card
+   behaves anywhere else in the app. Cards fade/slide up individually as
+   they cross the viewport, which is what gives the page its cascading
+   reveal on scroll rather than everything appearing at once on mount.
+   Deliberately kept off forms, modals and interactive editing surfaces
+   (add-task/add-note forms, Staff Access, Client Roster, Developer Tools,
+   Bookkeeper Home, any modal) — hiding a form field behind a scroll-trigger
+   is bad UX and risks it never becoming visible. Only applied to report-
+   style read pages: Enterprise upgrade, Dashboard/Live Report, Reports,
+   Budget vs. Actual, Bank Accounts, Cash Flow, and Giving & Funds. */
 @media (prefers-reduced-motion: no-preference) {
   .enterprise-page .card,
-  .enterprise-page .compare-row {
+  .enterprise-page .compare-row,
+  .dashboard-page .card,
+  .reports-page .card,
+  .budget-page .card,
+  .bank-accounts-page .card,
+  .cashflow-page .card,
+  .giving-page .card {
     opacity: 0;
     transform: translateY(22px);
   }
 
   .enterprise-page .card[data-in-view],
-  .enterprise-page .compare-row[data-in-view] {
+  .enterprise-page .compare-row[data-in-view],
+  .dashboard-page .card[data-in-view],
+  .reports-page .card[data-in-view],
+  .budget-page .card[data-in-view],
+  .bank-accounts-page .card[data-in-view],
+  .cashflow-page .card[data-in-view],
+  .giving-page .card[data-in-view] {
     animation: mgb-reveal-up 0.65s cubic-bezier(0.22, 0.61, 0.36, 1) both;
   }
 
