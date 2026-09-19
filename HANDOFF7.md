@@ -3910,3 +3910,23 @@ itself no longer renders them.
 
 Files touched: `app.jsx` (`Sidebar`, `App`), `styles.css` (new
 `.main-footer`/`.main-footer-links`), `index.html`, `build.py`.
+
+## §131 — Enterprise upgrade cards: show which sidebar tab each one upgrades
+
+The feature-card grid at the top of the Enterprise upgrade page names
+each premium product ("Live Report", "Report Builder", "Budgeting Tool",
+"Cash Flow Pro", "Reconciliation Pro", "Fund Accounting Pro") — but none
+of those names appear anywhere in the sidebar, which only ever shows the
+standard tab label (Dashboard, Reports, Budget vs. Actual, Cash Flow,
+Bank Accounts, Giving & Funds). A client reading the cards had no way to
+tell which of their own tabs a card was even talking about.
+
+`ENTERPRISE_FEATURES` gets a `sidebarTab` field per entry (the same
+pairing `ENTERPRISE_COMPARISON`'s `standardLabel`/`premiumLabel` already
+encodes, just not surfaced here before), and each card now shows a small
+"Upgrades your {sidebarTab} tab" pill under its title
+(`.enterprise-feature-tab-tag` in styles.css).
+
+Files touched: `app.jsx` (`ENTERPRISE_FEATURES`, `EnterpriseUpgradePage`),
+`styles.css` (new `.enterprise-feature-tab-tag`), `index.html`,
+`build.py`.
