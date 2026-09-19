@@ -4369,3 +4369,15 @@ No new table or RLS — `access_requests` already has a `staff read
 requests` policy (`access-requests.sql`) covering this count query.
 
 Files touched: `app.jsx` (`App`, `Sidebar`), `index.html`, `build.py`.
+
+*Hotfix, same day:* §140's `checkPendingAccessRequests` was declared
+above `visibleClients` in `App`'s body but read it directly — a
+temporal-dead-zone `ReferenceError` on every render, since `const`
+bindings aren't hoisted the way `function` declarations are. Crashed the
+whole app onto its error boundary for every signed-in staffer and
+client, not just admins, since `App` renders unconditionally after
+login regardless of role. A syntax-only check (`@babel/standalone`, this
+repo's only real pre-merge validation short of a live browser — see
+§133's note on why) can't catch this class of bug; only shows up at
+runtime. Moved the whole block down to right after `visibleClients`'s
+own declaration. No logic changed.
