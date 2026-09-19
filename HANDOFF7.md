@@ -3521,3 +3521,33 @@ Files touched: `supabase/client-activity-log.sql` (new), `app.jsx`
 (`TabSettingsModal`: `activityLog` state, `loadActivityLog`,
 `describeActivity`, Activity tab button + body), `index.html`,
 `build.py`, `HANDOFF7.md`.
+
+## §122 — "My Time" page: time-tracking UI
+
+The UI on top of §119's `time_entries` data layer. New sidebar link
+"My Time" (open to any signed-in staffer, same gating as My Tasks —
+`staffUser && !impersonating`), landing on `MyTimePage`:
+
+- **Log time**: client picker (from `visibleClients`), hours (decimal
+  input, converted to `minutes = round(hours * 60)` on insert), date
+  (defaults to today), optional description, billable checkbox.
+- **Your totals by client**: client-side `useMemo` rollup summing
+  `minutes` per `client_id` from the staffer's own entries — no DB
+  aggregation, per §119's note that the row count doesn't warrant it.
+- **Recent entries**: reverse-chronological list of the staffer's own
+  entries with a Remove button (`delete` — allowed by RLS since it's
+  their own row).
+- **Firm-wide utilization** (admins only, `staffUser.role ===
+  "admin"`): a second query with no `.eq("staff_email", …)` filter,
+  which only returns all rows because of §119's `"admins read all time
+  entries"` SELECT policy — a non-admin running the same query would
+  just get their own rows back via RLS, so this isn't a client-side-only
+  restriction. Two simple tables: totals by staff email, totals by
+  client.
+
+No schema changes — `time_entries` (§119) was already correct for this
+UI. Ran `npx prettier --write app.jsx` before committing.
+
+Files touched: `app.jsx` (`MyTimePage`, `ClockIcon`, sidebar link,
+`NON_CLIENT_PAGES`, `PAGE_META`, `effectivePage` gating, render block),
+`index.html`, `build.py`, `HANDOFF7.md`.

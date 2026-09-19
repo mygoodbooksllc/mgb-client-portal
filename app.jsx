@@ -443,6 +443,7 @@ const NON_CLIENT_PAGES = new Set([
   "developer-tools",
   "staff-messages",
   "my-tasks",
+  "my-time",
 ]);
 
 // Tabs that are part of a paid add-on rather than the base product. Always
@@ -882,6 +883,22 @@ function Sidebar({
             >
               <ChecklistIcon width="16" height="16" strokeWidth="1.8" />
               My Tasks
+            </button>
+          )}
+
+          {staffUser && !impersonating && (
+            <button
+              type="button"
+              className={
+                "staff-access-link" + (page === "my-time" ? " active" : "")
+              }
+              onClick={() => {
+                onSelectPage("my-time");
+                onCloseMobile();
+              }}
+            >
+              <ClockIcon width="16" height="16" strokeWidth="1.8" />
+              My Time
             </button>
           )}
 
@@ -1396,6 +1413,25 @@ function ChecklistIcon(props) {
     >
       <path d="M9 6h11M9 12h11M9 18h11" />
       <path d="M4 6l1 1 2-2M4 12l1 1 2-2M4 18l1 1 2-2" />
+    </svg>
+  );
+}
+
+function ClockIcon(props) {
+  return (
+    <svg
+      width="20"
+      height="20"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.7"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      {...props}
+    >
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 7v5l3.5 2" />
     </svg>
   );
 }
@@ -11271,6 +11307,325 @@ function saveDocFolders(clientId, folders, assignments) {
 const TASK_PRIORITIES = ["high", "normal", "low"];
 const TASK_PRIORITY_LABEL = { high: "High", normal: "Normal", low: "Low" };
 
+function MyTimePage({ staffUser, clients }) {
+  const showToast = useToast();
+  const supabase = window.mgbSupabase;
+  const today = todayLocal();
+  const isAdmin = staffUser && staffUser.role === "admin";
+
+  const [entries, setEntries] = useState(null);
+  const [error, setError] = useState("");
+
+  const [newClientId, setNewClientId] = useState("");
+  const [newHours, setNewHours] = useState("");
+  const [newDate, setNewDate] = useState(today);
+  const [newDescription, setNewDescription] = useState("");
+  const [newBillable, setNewBillable] = useState(true);
+  const [saving, setSaving] = useState(false);
+
+  const [firmEntries, setFirmEntries] = useState(null);
+  const [firmError, setFirmError] = useState("");
+
+  const clientById = useMemo(
+    () => Object.fromEntries((clients || []).map((c) => [c.id, c])),
+    [clients],
+  );
+
+  const loadEntries = useCallback(() => {
+    if (!supabase) return;
+    supabase
+      .from("time_entries")
+      .select(
+        "id, client_id, minutes, description, entry_date, billable, created_at",
+      )
+      .eq("staff_email", staffUser.email)
+      .order("entry_date", { ascending: false })
+      .then(({ data, error }) => {
+        if (error) {
+          setError(
+            "Couldn't load time entries. Has time-entries.sql been run? " +
+              error.message,
+          );
+          setEntries([]);
+        } else {
+          setError("");
+          setEntries(data);
+        }
+      });
+  }, [supabase, staffUser.email]);
+
+  useEffect(() => {
+    loadEntries();
+  }, [loadEntries]);
+
+  useEffect(() => {
+    if (!supabase || !isAdmin) return;
+    supabase
+      .from("time_entries")
+      .select("staff_email, client_id, minutes")
+      .then(({ data, error }) => {
+        if (error) {
+          setFirmError(error.message);
+          setFirmEntries([]);
+        } else {
+          setFirmError("");
+          setFirmEntries(data);
+        }
+      });
+  }, [supabase, isAdmin]);
+
+  async function addEntry() {
+    const hours = parseFloat(newHours);
+    if (!newClientId || !hours || hours <= 0) return;
+    setSaving(true);
+    const { error } = await supabase.from("time_entries").insert({
+      staff_email: staffUser.email,
+      client_id: newClientId,
+      minutes: Math.round(hours * 60),
+      entry_date: newDate || today,
+      description: newDescription.trim() || null,
+      billable: newBillable,
+    });
+    setSaving(false);
+    if (error) {
+      showToast(`Couldn't log time: ${error.message}`);
+      return;
+    }
+    setNewHours("");
+    setNewDescription("");
+    loadEntries();
+  }
+
+  async function removeEntry(entry) {
+    const { error } = await supabase
+      .from("time_entries")
+      .delete()
+      .eq("id", entry.id);
+    if (error) {
+      showToast(`Couldn't remove entry: ${error.message}`);
+      return;
+    }
+    loadEntries();
+  }
+
+  const totalsByClient = useMemo(() => {
+    if (!entries) return [];
+    const totals = {};
+    entries.forEach((e) => {
+      totals[e.client_id] = (totals[e.client_id] || 0) + e.minutes;
+    });
+    return Object.entries(totals)
+      .map(([clientId, minutes]) => ({
+        clientId,
+        client: clientById[clientId],
+        minutes,
+      }))
+      .sort((a, b) => b.minutes - a.minutes);
+  }, [entries, clientById]);
+
+  const totalMinutes = (entries || []).reduce((sum, e) => sum + e.minutes, 0);
+
+  const firmTotalsByStaff = useMemo(() => {
+    if (!firmEntries) return [];
+    const totals = {};
+    firmEntries.forEach((e) => {
+      totals[e.staff_email] = (totals[e.staff_email] || 0) + e.minutes;
+    });
+    return Object.entries(totals)
+      .map(([email, minutes]) => ({ email, minutes }))
+      .sort((a, b) => b.minutes - a.minutes);
+  }, [firmEntries]);
+
+  const firmTotalsByClient = useMemo(() => {
+    if (!firmEntries) return [];
+    const totals = {};
+    firmEntries.forEach((e) => {
+      totals[e.client_id] = (totals[e.client_id] || 0) + e.minutes;
+    });
+    return Object.entries(totals)
+      .map(([clientId, minutes]) => ({
+        clientId,
+        client: clientById[clientId],
+        minutes,
+      }))
+      .sort((a, b) => b.minutes - a.minutes);
+  }, [firmEntries, clientById]);
+
+  function fmtHours(minutes) {
+    return (minutes / 60).toFixed(1) + "h";
+  }
+
+  return (
+    <div>
+      <div className="card" style={{ marginBottom: 20 }}>
+        <h3 className="card-title">Log time</h3>
+        <p className="card-subtitle">
+          Private to you — admins can see firm-wide totals, not your individual
+          entries.
+        </p>
+        <div className="staff-add-row" style={{ flexWrap: "wrap" }}>
+          <select
+            value={newClientId}
+            onChange={(e) => setNewClientId(e.target.value)}
+          >
+            <option value="">Select a client…</option>
+            {(clients || []).map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name}
+              </option>
+            ))}
+          </select>
+          <input
+            type="number"
+            min="0.1"
+            step="0.1"
+            placeholder="Hours"
+            value={newHours}
+            onChange={(e) => setNewHours(e.target.value)}
+            style={{ width: 90 }}
+          />
+          <input
+            type="date"
+            value={newDate}
+            onChange={(e) => setNewDate(e.target.value)}
+          />
+          <input
+            type="text"
+            placeholder="What did you work on? (optional)"
+            value={newDescription}
+            onChange={(e) => setNewDescription(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") addEntry();
+            }}
+            style={{ flex: "2 1 220px" }}
+          />
+          <label
+            className="staff-active-toggle"
+            style={{ whiteSpace: "nowrap" }}
+          >
+            <input
+              type="checkbox"
+              checked={newBillable}
+              onChange={(e) => setNewBillable(e.target.checked)}
+            />
+            Billable
+          </label>
+          <button
+            className="btn-primary"
+            disabled={saving || !newClientId || !newHours}
+            onClick={addEntry}
+          >
+            + Log time
+          </button>
+        </div>
+      </div>
+
+      {error && (
+        <div className="card" style={{ marginBottom: 20 }}>
+          <p className="card-subtitle negative">{error}</p>
+        </div>
+      )}
+
+      <div className="card" style={{ marginBottom: 20 }}>
+        <h3 className="card-title">Your totals by client</h3>
+        <p className="card-subtitle">
+          {entries === null
+            ? "Loading…"
+            : `${fmtHours(totalMinutes)} logged total`}
+        </p>
+        {entries && totalsByClient.length > 0 && (
+          <ul className="staff-audit-list">
+            {totalsByClient.map((row) => (
+              <li className="staff-audit-row" key={row.clientId}>
+                <span style={{ flex: 1 }}>
+                  {row.client ? row.client.name : row.clientId}
+                </span>
+                <span className="card-subtitle">{fmtHours(row.minutes)}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+
+      <div className="card" style={{ marginBottom: 20 }}>
+        <h3 className="card-title">Recent entries</h3>
+        {entries && entries.length === 0 && !error && (
+          <p className="card-subtitle" style={{ marginTop: 16 }}>
+            No time logged yet — use the form above.
+          </p>
+        )}
+        {entries && entries.length > 0 && (
+          <ul className="staff-audit-list">
+            {entries.map((e) => {
+              const client = clientById[e.client_id];
+              return (
+                <li className="staff-audit-row" key={e.id}>
+                  <div style={{ flex: 1 }}>
+                    <div>
+                      {client ? client.name : e.client_id} —{" "}
+                      {fmtHours(e.minutes)}
+                      {!e.billable ? " (non-billable)" : ""}
+                    </div>
+                    {e.description && (
+                      <div className="card-subtitle">{e.description}</div>
+                    )}
+                  </div>
+                  <span className="card-subtitle">{e.entry_date}</span>
+                  <button
+                    type="button"
+                    className="btn-secondary"
+                    onClick={() => removeEntry(e)}
+                  >
+                    Remove
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </div>
+
+      {isAdmin && (
+        <div className="card" style={{ marginBottom: 20 }}>
+          <h3 className="card-title">Firm-wide utilization</h3>
+          <p className="card-subtitle">
+            All staff time entries — visible to admins only.
+          </p>
+          {firmError && <p className="card-subtitle negative">{firmError}</p>}
+          {firmEntries && (
+            <>
+              <h4 style={{ marginTop: 16, marginBottom: 8 }}>By staff</h4>
+              <ul className="staff-audit-list">
+                {firmTotalsByStaff.map((row) => (
+                  <li className="staff-audit-row" key={row.email}>
+                    <span style={{ flex: 1 }}>{row.email}</span>
+                    <span className="card-subtitle">
+                      {fmtHours(row.minutes)}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+              <h4 style={{ marginTop: 16, marginBottom: 8 }}>By client</h4>
+              <ul className="staff-audit-list">
+                {firmTotalsByClient.map((row) => (
+                  <li className="staff-audit-row" key={row.clientId}>
+                    <span style={{ flex: 1 }}>
+                      {row.client ? row.client.name : row.clientId}
+                    </span>
+                    <span className="card-subtitle">
+                      {fmtHours(row.minutes)}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function MyTasksPage({ staffUser, clients }) {
   const showToast = useToast();
   const supabase = window.mgbSupabase;
@@ -14670,6 +15025,10 @@ const PAGE_META = {
     title: "My Tasks",
     subtitle: "Your private, prioritized to-do list — nobody else can see it",
   },
+  "my-time": {
+    title: "My Time",
+    subtitle: "Log hours per client and see your own running totals",
+  },
   documents: {
     title: "Documents",
     subtitle: "Shared files between you and your bookkeeper",
@@ -15310,11 +15669,13 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
           ? page
           : page === "my-tasks" && staffUser && !impersonating
             ? page
-            : page === "bookkeeper-home" && staffUser
+            : page === "my-time" && staffUser && !impersonating
               ? page
-              : access.tabs.has(page)
+              : page === "bookkeeper-home" && staffUser
                 ? page
-                : ALWAYS_VISIBLE_KEY;
+                : access.tabs.has(page)
+                  ? page
+                  : ALWAYS_VISIBLE_KEY;
   // Each of these six tabs IS its upgraded page for a full-access premium
   // viewer — same pattern for all six now (see PREMIUM_UPGRADE_TAB_KEYS):
   // one nav item, content swapped by plan, rather than a second
@@ -16020,6 +16381,12 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
           )}
           {effectivePage === "my-tasks" && (
             <MyTasksPage
+              staffUser={effectiveStaffUser}
+              clients={visibleClients}
+            />
+          )}
+          {effectivePage === "my-time" && (
+            <MyTimePage
               staffUser={effectiveStaffUser}
               clients={visibleClients}
             />
