@@ -3930,3 +3930,17 @@ encodes, just not surfaced here before), and each card now shows a small
 Files touched: `app.jsx` (`ENTERPRISE_FEATURES`, `EnterpriseUpgradePage`),
 `styles.css` (new `.enterprise-feature-tab-tag`), `index.html`,
 `build.py`.
+
+## §132 — Comparison accordion: Pro column says it's additive, not a swap
+
+Each tool's Pro column in "Compare, tool by tool" only ever listed what
+changes — the standard bullets on the left never reappeared on the
+right — which reads like upgrading trades away what a client already
+has instead of adding to it. Added an italic lead line at the top of
+each Pro list, "Everything {tool} has, plus:", so the additive framing
+is explicit instead of implied. Reworded the Reports entry's first Pro
+bullet ("Everything Reports has, in the same Quick Download tab") to
+avoid repeating that same phrase directly under the new line.
+
+Files touched: `app.jsx` (`ENTERPRISE_COMPARISON`, `EnterpriseUpgradePage`),
+`styles.css` (new `.compare-feat-all`), `index.html`, `build.py`.

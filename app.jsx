@@ -5859,7 +5859,7 @@ const ENTERPRISE_COMPARISON = [
       "Four canned PDFs — Profit & Loss, Balance Sheet, Budget vs. Actual, Contribution Statement",
     ],
     premium: [
-      "Everything Reports has, in the same Quick Download tab",
+      "The same four canned PDFs, still under Quick Download",
       "Custom report builder — pick a period, a company-wide or by-fund scope, and which sections to include",
       "Six selectable sections: Revenue, Budget, Cash, Receivables, Giving, and an Outlook operating-reserve forecast",
       "Live preview while building",
@@ -6085,6 +6085,9 @@ function EnterpriseUpgradePage({ client, clientPortalUser }) {
                         {c.premiumLabel}{" "}
                         <span className="nav-pro-pill">PRO</span>
                       </div>
+                      <p className="compare-feat-all">
+                        Everything {c.standardLabel} has, plus:
+                      </p>
                       <ul className="compare-feat-list">
                         {c.premium.map((f, i) => (
                           <li key={i}>{f}</li>
