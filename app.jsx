@@ -1174,14 +1174,20 @@ function Sidebar({
                 (hasPendingAccessRequests ? " customize-tabs-btn-alert" : "")
               }
               onClick={onOpenSettings}
+              aria-label={
+                hasPendingAccessRequests
+                  ? "Manage access — new request pending"
+                  : undefined
+              }
             >
-              <SlidersIcon /> Manage access
-              {hasPendingAccessRequests && (
-                <span className="pending-request-pill">
-                  <span className="pending-request-dot" aria-hidden="true" />
-                  New request
-                </span>
-              )}
+              <SlidersIcon />{" "}
+              <span
+                className={
+                  hasPendingAccessRequests ? "premium-shimmer" : undefined
+                }
+              >
+                Manage access
+              </span>
             </button>
             <button className="customize-tabs-btn" onClick={onOpenDetails}>
               <FolderIcon /> Client details

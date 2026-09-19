@@ -4388,3 +4388,34 @@ it for a labelled `.pending-request-pill` ("New request", gold-on-gold-
 tint background) with a pulsing dot inside it (`.pending-request-dot`,
 reusing `mgb-dot-pulse` — the same keyframe the client-health dots
 animate with), plus gold text on the button itself while pending.
+
+*Second update:* the pill read as too loud/busy. Replaced it with the
+same gold-shimmer text treatment the Enterprise sidebar label already
+uses (`.premium-shimmer`, applied only to a `<span>` wrapping "Manage
+access"'s text — not the icon, since `.premium-shimmer`'s
+`background-clip: text` would otherwise make the SVG's `currentColor`
+fill transparent too) plus a soft pulsing glow on the button itself
+(`.customize-tabs-btn-alert`, new `accessAlertGlow` keyframe). No label,
+no dot — subtle but still catches the eye since nothing else in that
+row moves or shimmers. `aria-label` added to the button so the state is
+still announced without visible text.
+
+*Also added, same day:* a client submitting an access request now also
+drops a private, high-priority reminder on their actual assigned
+bookkeeper's own list — an immediate in-app "message," not just the
+passive sidebar glow, so a bookkeeper doesn't have to think to check
+Manage access. `submit_access_request` (the existing SECURITY DEFINER
+RPC the public request form calls) now also inserts into
+`staff_reminders` for every `staff_client_access` row matching that
+client — the real per-client assignment table (the one that drives
+`visibleClients`/RLS), not `clients.assigned_bookkeeper`'s free-text
+display label, which has no email to target. A client with no assigned
+staff yet gets none inserted — no error, no fallback to "all admins".
+Verified live: called the RPC directly via the Supabase MCP against
+Standard Test Client (assigned to `gillian@mygoodbooks.org`), confirmed
+the reminder landed with the right text/client/priority, then deleted
+the test rows.
+
+Files touched: `app.jsx` (`Sidebar`), `styles.css`,
+`supabase/access-request-notify-bookkeeper.sql` (new — replaces
+`submit_access_request`), `index.html`, `build.py`.
