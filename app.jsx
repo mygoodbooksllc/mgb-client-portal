@@ -723,13 +723,6 @@ function Sidebar({
           target="_blank"
           rel="noopener noreferrer"
         >
-          <div className="brand-mark">
-            <img
-              src="logo.webp"
-              alt="MyGoodBooks logo"
-              className="brand-mark-img"
-            />
-          </div>
           <div className="brand-text">
             <span className="brand-name">MyGoodBooks</span>
             <span className="brand-sub">Client Portal</span>
@@ -827,30 +820,7 @@ function Sidebar({
           )}
 
           {staffUser && (
-            <div
-              className="client-picker-label"
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "baseline",
-              }}
-            >
-              <span>{staffUser.name}</span>
-              <button
-                onClick={onSignOut}
-                style={{
-                  background: "none",
-                  border: "none",
-                  color: "inherit",
-                  textDecoration: "underline",
-                  cursor: "pointer",
-                  font: "inherit",
-                  padding: 0,
-                }}
-              >
-                Sign out
-              </button>
-            </div>
+            <div className="client-picker-label">{staffUser.name}</div>
           )}
 
           {/* Staff-access buttons (Home/Team Chat/My Tasks/My Time, plus the
@@ -988,9 +958,96 @@ function Sidebar({
                   Developer Tools
                 </button>
               )}
+
+              {staffUser && (
+                <button
+                  type="button"
+                  className="staff-access-link"
+                  onClick={onSignOut}
+                >
+                  <SignOutIcon />
+                  Sign out
+                </button>
+              )}
             </React.Fragment>
           ) : (
             <div className="sidebar-split">
+              <nav className="nav-rail" aria-label="Client sections">
+                {NAV_SECTIONS.map((section, sectionIndex) => {
+                  const isSignature = section.label === "Enterprise";
+                  // Same upsell condition as the full nav's heading — see the
+                  // comment on `showUpsell` in the full <nav> render below.
+                  const showUpsell = isSignature && !access.premiumForUser;
+                  const items = orderedSectionItems(
+                    section,
+                    tabOrder,
+                    selectedClientId,
+                  ).filter((item) => visibleKeys.has(item.key));
+                  if (items.length === 0 && !showUpsell) return null;
+                  return (
+                    <div
+                      className={
+                        "nav-rail-group" +
+                        (sectionIndex > 0 ? " nav-rail-group-divided" : "")
+                      }
+                      key={section.label}
+                    >
+                      {items.map((item) => {
+                        const isUpgraded =
+                          PREMIUM_UPGRADE_TAB_KEYS.has(item.key) &&
+                          access &&
+                          access.premiumForUser &&
+                          !access.isCategoryScoped;
+                        // A narrow rail has no room for the Enterprise
+                        // section's text heading/upsell row, so the same
+                        // "click to upgrade" behavior moves onto the item
+                        // itself: for a standard-plan client, Messages/
+                        // Dashboard still open, but a small lock badge shows
+                        // and the click routes to enterprise-upgrade instead
+                        // — same destination the full nav's upsell heading
+                        // used, just triggered from the icon in its place.
+                        return (
+                          <button
+                            key={item.key}
+                            type="button"
+                            className={
+                              "nav-rail-item" +
+                              (page === item.key ? " active" : "") +
+                              (isUpgraded ? " nav-item-signature" : "")
+                            }
+                            onClick={() => {
+                              onSelectPage(
+                                showUpsell ? "enterprise-upgrade" : item.key,
+                              );
+                              onCloseMobile();
+                            }}
+                            aria-label={
+                              showUpsell
+                                ? `${item.label} (upgrade to Enterprise)`
+                                : item.label
+                            }
+                          >
+                            {item.icon}
+                            {showUpsell && (
+                              <LockIcon className="nav-rail-lock" />
+                            )}
+                            {!showUpsell && badges[item.key] && (
+                              <span
+                                className="nav-badge-dot nav-rail-badge"
+                                aria-label="Unread"
+                              />
+                            )}
+                            <span className="nav-rail-tooltip">
+                              {item.label}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  );
+                })}
+              </nav>
+
               <div className="sidebar-split-right">
                 {staffUser && (
                   <button
@@ -1117,83 +1174,18 @@ function Sidebar({
                     Developer Tools
                   </button>
                 )}
-              </div>
 
-              <nav className="nav-rail" aria-label="Client sections">
-                {NAV_SECTIONS.map((section, sectionIndex) => {
-                  const isSignature = section.label === "Enterprise";
-                  // Same upsell condition as the full nav's heading — see the
-                  // comment on `showUpsell` in the full <nav> render below.
-                  const showUpsell = isSignature && !access.premiumForUser;
-                  const items = orderedSectionItems(
-                    section,
-                    tabOrder,
-                    selectedClientId,
-                  ).filter((item) => visibleKeys.has(item.key));
-                  if (items.length === 0 && !showUpsell) return null;
-                  return (
-                    <div
-                      className={
-                        "nav-rail-group" +
-                        (sectionIndex > 0 ? " nav-rail-group-divided" : "")
-                      }
-                      key={section.label}
-                    >
-                      {items.map((item) => {
-                        const isUpgraded =
-                          PREMIUM_UPGRADE_TAB_KEYS.has(item.key) &&
-                          access &&
-                          access.premiumForUser &&
-                          !access.isCategoryScoped;
-                        // A narrow rail has no room for the Enterprise
-                        // section's text heading/upsell row, so the same
-                        // "click to upgrade" behavior moves onto the item
-                        // itself: for a standard-plan client, Messages/
-                        // Dashboard still open, but a small lock badge shows
-                        // and the click routes to enterprise-upgrade instead
-                        // — same destination the full nav's upsell heading
-                        // used, just triggered from the icon in its place.
-                        return (
-                          <button
-                            key={item.key}
-                            type="button"
-                            className={
-                              "nav-rail-item" +
-                              (page === item.key ? " active" : "") +
-                              (isUpgraded ? " nav-item-signature" : "")
-                            }
-                            onClick={() => {
-                              onSelectPage(
-                                showUpsell ? "enterprise-upgrade" : item.key,
-                              );
-                              onCloseMobile();
-                            }}
-                            aria-label={
-                              showUpsell
-                                ? `${item.label} (upgrade to Enterprise)`
-                                : item.label
-                            }
-                          >
-                            {item.icon}
-                            {showUpsell && (
-                              <LockIcon className="nav-rail-lock" />
-                            )}
-                            {!showUpsell && badges[item.key] && (
-                              <span
-                                className="nav-badge-dot nav-rail-badge"
-                                aria-label="Unread"
-                              />
-                            )}
-                            <span className="nav-rail-tooltip">
-                              {item.label}
-                            </span>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  );
-                })}
-              </nav>
+                {staffUser && (
+                  <button
+                    type="button"
+                    className="staff-access-link"
+                    onClick={onSignOut}
+                  >
+                    <SignOutIcon />
+                    Sign out
+                  </button>
+                )}
+              </div>
             </div>
           )}
 
@@ -1362,19 +1354,6 @@ function Sidebar({
         {isBookkeeper
           ? "Client and preview switchers are bookkeeper-side tools. Clients never see them."
           : `Signed in to ${client.name}. Access is managed by MyGoodBooks.`}
-        <div className="legal-footer-links">
-          <a href="/privacy" target="_blank" rel="noopener noreferrer">
-            Privacy Policy
-          </a>
-          <span aria-hidden="true"> · </span>
-          <a href="/terms" target="_blank" rel="noopener noreferrer">
-            Terms of Service
-          </a>
-          <span aria-hidden="true"> · </span>
-          <a href="mailto:holden@mygoodbooks.org?subject=MyGoodBooks%20Support">
-            Contact support
-          </a>
-        </div>
       </div>
     </aside>
   );
@@ -1738,6 +1717,26 @@ function WrenchIcon(props) {
       {...props}
     >
       <path d="M14.7 6.3a4 4 0 00-5.4 5.4L4 17v3h3l5.3-5.3a4 4 0 005.4-5.4l-2.6 2.6-2-2z" />
+    </svg>
+  );
+}
+
+function SignOutIcon(props) {
+  return (
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      {...props}
+    >
+      <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4" />
+      <path d="M16 17l5-5-5-5" />
+      <path d="M21 12H9" />
     </svg>
   );
 }
@@ -16813,6 +16812,22 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
               key={"msgs-" + client.id + "-" + activeThreadUserId}
             />
           )}
+
+          <div className="main-footer">
+            <div className="main-footer-links">
+              <a href="/privacy" target="_blank" rel="noopener noreferrer">
+                Privacy Policy
+              </a>
+              <span aria-hidden="true"> · </span>
+              <a href="/terms" target="_blank" rel="noopener noreferrer">
+                Terms of Service
+              </a>
+              <span aria-hidden="true"> · </span>
+              <a href="mailto:holden@mygoodbooks.org?subject=MyGoodBooks%20Support">
+                Contact support
+              </a>
+            </div>
+          </div>
         </main>
       </div>
 
