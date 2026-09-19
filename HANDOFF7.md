@@ -3702,3 +3702,20 @@ that same check is untouched.
 Files touched: `app.jsx` (`Sidebar`), `styles.css` (`.sidebar-split`,
 `.nav-rail*`, mobile/touch-target rules), `index.html`, `build.py`,
 `HANDOFF7.md`.
+
+## §125 — Fix: nav rail tooltip clipped (icons had no visible label/hover)
+
+§124's icon-only `.nav-rail` set `overflow-y: auto` (for a scrollbar that
+was never actually needed — 8-9 items fit the sidebar's height without
+scrolling). CSS computes an unset overflow axis as `auto` when the other
+axis is non-`visible`, so `overflow-x` was implicitly `auto` too, clipping
+`.nav-rail-tooltip`'s `left: calc(100% + 10px)` flyout — the hover
+tooltip existed and fired, it just rendered outside the clipped box and
+was invisible. Net effect for the user: icons with no label at all and
+hover appearing to do nothing.
+
+Fix: dropped `overflow-y: auto`/the scrollbar-hiding rules from
+`.nav-rail` in `styles.css`. No scrolling behavior is lost — the rail was
+never tall enough to need it.
+
+Files touched: `styles.css`, `index.html`, `build.py`.
