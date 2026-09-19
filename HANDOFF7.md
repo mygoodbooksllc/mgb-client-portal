@@ -3551,3 +3551,92 @@ UI. Ran `npx prettier --write app.jsx` before committing.
 Files touched: `app.jsx` (`MyTimePage`, `ClockIcon`, sidebar link,
 `NON_CLIENT_PAGES`, `PAGE_META`, `effectivePage` gating, render block),
 `index.html`, `build.py`, `HANDOFF7.md`.
+
+## §123 — Enterprise page follow-up: scroll-reveal, naming/icon audit, comparison-list audit, upgrade-request notifications
+
+Four small, related fixes to the Enterprise upgrade page
+(`EnterpriseUpgradePage`, `ENTERPRISE_FEATURES`/`ENTERPRISE_COMPARISON`
+above it) and its neighbors.
+
+**1. Scroll-reveal extended to other read-heavy pages.** The Enterprise
+page's card-reveal-on-scroll (`.enterprise-page .card`/`.compare-row` in
+styles.css, driven by the global `IntersectionObserver` in `App` that was
+already watching every page) was scoped to `.enterprise-page` only. Gave
+six more read/report-style pages their own page-scoped wrapper class —
+`.dashboard-page` (both `DashboardPage` and `ScopedDashboardPage`),
+`.reports-page`, `.budget-page`, `.bank-accounts-page` (both `BankPage`
+and `BankReconciliationPage`), `.cashflow-page`
+(`ReceivablesPayablesPage`), `.giving-page` (`GivingFundsPage`) — and
+extended the existing CSS rule's selector list to cover them, same
+`@media (prefers-reduced-motion: no-preference)` guard, no new keyframes.
+Deliberately left off Bookkeeper Home (candidate list included it, but it
+has several inline edit forms — add-reminder, edit-note, edit-status —
+mixed into its card grid; hiding a form field behind a scroll-trigger is
+exactly the bad UX §123's own task description called out) and off
+Report Builder (its builder-stage panel is a live config form, not a
+read-only report view).
+
+**2. Naming/icon audit.** `ENTERPRISE_FEATURES` titles and
+`ENTERPRISE_COMPARISON` `premiumLabel`s already matched each other, and
+`standardLabel`s already matched the real `NAV_SECTIONS` sidebar labels
+exactly (Dashboard, Budget vs. Actual, Bank Accounts, Cash Flow, Reports,
+Giving & Funds) — nothing to fix there. `BankIcon` and `GiftHeartIcon` in
+`ENTERPRISE_FEATURES` already matched the sidebar's icons for Bank
+Accounts/Giving & Funds. Found one real mismatch: "Live Report" (the
+premium Dashboard — a continuously-live KPI/chart snapshot) was using
+`DocumentIcon`, and "Report Builder" (which assembles and downloads a
+formatted PDF report) was using `BarChartIcon` — backwards for what each
+tool actually does. Swapped them: Live Report now uses `BarChartIcon`,
+Report Builder now uses `DocumentIcon`.
+
+**3. Comparison-list audit.** Read every real premium page
+(`APCommandCenterPage`, `BankReconciliationPage`, `BudgetingToolPage`,
+`FundAccountingProPage`, `ReportBuilderPage`) against its
+`ENTERPRISE_COMPARISON` entry. All were already accurate strict supersets
+of their standard pages except Reports: `ReportBuilderPage` renders six
+selectable sections (Revenue, Budget, Cash, Receivables, Giving, and an
+Outlook operating-reserve forecast, via `sections.outlook`/`<h2>Outlook`),
+which the old bullet ("pick... which sections to include") didn't name.
+Added a bullet spelling out the six sections and that scope can be
+company-wide or by-fund.
+
+**4. "Upgrade to Enterprise" now files a real request.** New table
+`enterprise_upgrade_requests` (`supabase/enterprise-upgrade-requests.sql`,
+applied live to xumsqmhccgfjnlmieqyu) — `id`, `client_id`, `requested_by`,
+`created_at`, `status` (`new`/`contacted`/`completed`/`dismissed`, default
+`new`), `note` (nullable, for a future staff comment). Client portal
+access is mostly the mock "Preview As" flow, not a real Supabase Auth
+session (only `realAuthEnabled` clients go through `ClientAuthGate`), so a
+bare `auth.uid()` RLS insert policy wouldn't cover most client users —
+same reasoning `access-requests.sql` already worked through for
+`submit_access_request`. Followed that exact pattern: a `SECURITY
+DEFINER` RPC, `request_enterprise_upgrade(p_client_id, p_requested_by)`,
+open to `anon`/`authenticated`, validates `p_client_id` and rate-limits to
+5 open (`status = 'new'`) requests per client so it can't be spammed into
+an unbounded queue. Table RLS otherwise restricts select/update/insert to
+`is_active_staff()` — deliberately not admin-only, since any staff member
+should be able to see and action one, same posture as `client_notes`.
+
+`EnterpriseUpgradePage` now takes a `clientPortalUser` prop (passed down
+from `App`, where it was already in scope) and calls the RPC with the
+signed-in client user's name/email (falling back to "Someone at
+{client.name}" when neither is known, e.g. under mock "Preview As"); the
+toast stays as user-facing confirmation either way. Added a new
+"Enterprise upgrade requests" card to `BookkeeperHomePage` (outside the
+customizable widget/drag system, next to the "Jump to client" card) —
+lists open requests (`.staff-audit-list`/`.staff-audit-row`, same
+convention as the roster audit log and AP due-soon lists elsewhere) with
+client name, requested-by, and date, plus three buttons to mark a request
+contacted/completed/dismissed.
+
+Ran `npx prettier --write app.jsx` before committing.
+
+Files touched: `app.jsx` (`ENTERPRISE_FEATURES` icons,
+`ENTERPRISE_COMPARISON` reports bullet, page wrapper classNames on
+`DashboardPage`/`ScopedDashboardPage`/`ReportsPage`/`BudgetPage`/
+`BankPage`/`BankReconciliationPage`/`ReceivablesPayablesPage`/
+`GivingFundsPage`, `EnterpriseUpgradePage` (RPC call, `clientPortalUser`
+prop), `App`'s `EnterpriseUpgradePage` render call, `BookkeeperHomePage`
+(new card + state/loader)), `styles.css` (scroll-reveal selector list),
+`supabase/enterprise-upgrade-requests.sql` (new), `index.html`,
+`build.py`, `HANDOFF7.md`.

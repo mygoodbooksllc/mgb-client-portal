@@ -2754,7 +2754,7 @@ function ScopedDashboardPage({
     : () => jumpToCard("sdp-your-budget-card", "your-budget");
 
   return (
-    <div>
+    <div className="dashboard-page">
       <MockBanner text="Every number on this page is sample data for prototyping — no QuickBooks or bank connection yet." />
 
       {/* Referral popup disabled for now — component kept below, re-add here when it's back on. */}
@@ -3135,7 +3135,7 @@ function DashboardPage({
   };
 
   return (
-    <div>
+    <div className="dashboard-page">
       <MockBanner text="Every number on this page is sample data for prototyping — no QuickBooks or bank connection yet." />
 
       {/* Referral popup disabled for now — component kept below, re-add here when it's back on. */}
@@ -3337,7 +3337,7 @@ function BudgetPage({ client, searchTarget }) {
   }, [searchTarget && searchTarget.nonce, view]);
 
   return (
-    <div>
+    <div className="budget-page">
       <MockBanner text="Budget figures are hardcoded for this prototype. In Phase 2 these will sync from QuickBooks budgets." />
 
       <div className="kpi-grid">
@@ -3574,7 +3574,7 @@ function GivingFundsPage({ client }) {
   const [view, setView] = useState("funds");
 
   return (
-    <div>
+    <div className="giving-page">
       <MockBanner text="Giving records and fund balances shown here are fabricated for this prototype." />
 
       <div className="kpi-grid">
@@ -4030,7 +4030,7 @@ function ReceivablesPayablesPage({ client }) {
   const { flashCardId, jumpToCard } = useCardFlash();
 
   return (
-    <div>
+    <div className="cashflow-page">
       <MockBanner text="These balances are hardcoded for the prototype. Real amounts will come from QuickBooks in Phase 2." />
 
       <div className="kpi-grid">
@@ -4720,7 +4720,7 @@ function BankTransactionsPanel({ client, searchTarget }) {
 
 function BankPage({ client, searchTarget }) {
   return (
-    <div>
+    <div className="bank-accounts-page">
       <MockBanner text="Account balances and transactions are fabricated sample data — no bank is connected yet." />
       <BankTransactionsPanel client={client} searchTarget={searchTarget} />
     </div>
@@ -4750,7 +4750,7 @@ function BankReconciliationPage({ client, searchTarget }) {
   }, [searchTarget && searchTarget.nonce]);
 
   return (
-    <div>
+    <div className="bank-accounts-page">
       <MockBanner text="Account balances, transactions, and reconciliation status shown here are fabricated for this prototype." />
 
       <div className="view-toggle" style={{ marginBottom: 20 }}>
@@ -5611,7 +5611,7 @@ function QuickDownloadReports({ client }) {
 
 function ReportsPage({ client }) {
   return (
-    <div>
+    <div className="reports-page">
       <MockBanner text="Reports are generated as real PDFs from this client's mock data — once QuickBooks is connected in Phase 2, these will reflect live books." />
       <QuickDownloadReports client={client} />
     </div>
@@ -5697,13 +5697,13 @@ function ReportBarRows({ items }) {
 
 const ENTERPRISE_FEATURES = [
   {
-    icon: <DocumentIcon />,
+    icon: <BarChartIcon />,
     title: "Live Report",
     description:
       "Your dashboard becomes a continuously-live financial snapshot — cash on hand, receivables, what's due — instead of a static once-a-day view. Click-to-jump KPIs, a low-cash alert, a collections queue, and a one-click PDF snapshot, all customizable to how you work.",
   },
   {
-    icon: <BarChartIcon />,
+    icon: <DocumentIcon />,
     title: "Report Builder",
     description:
       "Assemble a formatted board report from your own numbers in a couple of clicks — pick a period, a scope, and the sections that matter this quarter.",
@@ -5805,7 +5805,8 @@ const ENTERPRISE_COMPARISON = [
     ],
     premium: [
       "Everything Reports has, in the same Quick Download tab",
-      "Custom report builder — pick a period, a scope, and which sections to include",
+      "Custom report builder — pick a period, a company-wide or by-fund scope, and which sections to include",
+      "Six selectable sections: Revenue, Budget, Cash, Receivables, Giving, and an Outlook operating-reserve forecast",
       "Live preview while building",
       "A presentation mode for board meetings",
     ],
@@ -5855,14 +5856,36 @@ const ENTERPRISE_PRICING = {
   enterprise: { perUser: 12, note: "Added on top of Standard, billed monthly" },
 };
 
-function EnterpriseUpgradePage({ client }) {
+function EnterpriseUpgradePage({ client, clientPortalUser }) {
   const showToast = useToast();
+  const supabase = window.mgbSupabase;
   // Which tool's row is expanded in the comparison list below — starts with
   // none open so the page loads short, not a wall of text. A client
   // interested in one thing (say, reconciliation) can go straight to it
   // without scrolling past five others already expanded.
   const [openKey, setOpenKey] = useState(null);
+  const [requesting, setRequesting] = useState(false);
   const userCount = (client.users || []).length || 1;
+
+  async function requestUpgrade() {
+    const requestedBy =
+      (clientPortalUser && (clientPortalUser.name || clientPortalUser.email)) ||
+      "Someone at " + client.name;
+    if (!supabase) {
+      showToast("Thanks! Your bookkeeper will follow up about upgrading.");
+      return;
+    }
+    setRequesting(true);
+    const { error } = await supabase.rpc("request_enterprise_upgrade", {
+      p_client_id: client.id,
+      p_requested_by: requestedBy,
+    });
+    setRequesting(false);
+    if (error) {
+      console.warn("Couldn't file enterprise upgrade request:", error.message);
+    }
+    showToast("Thanks! Your bookkeeper will follow up about upgrading.");
+  }
 
   return (
     <div className="enterprise-page">
@@ -6037,9 +6060,8 @@ function EnterpriseUpgradePage({ client }) {
         </div>
         <button
           className="btn-primary"
-          onClick={() =>
-            showToast("Thanks! Your bookkeeper will follow up about upgrading.")
-          }
+          disabled={requesting}
+          onClick={requestUpgrade}
         >
           Upgrade to Enterprise
         </button>
@@ -10219,6 +10241,54 @@ function BookkeeperHomePage({
   // not tied to that card's position or visibility in Customize dashboard.
   const [jumpQuery, setJumpQuery] = useState("");
 
+  // "Upgrade to Enterprise" requests filed from clients' Enterprise upgrade
+  // preview page (EnterpriseUpgradePage) — see
+  // supabase/enterprise-upgrade-requests.sql. Any active staff member can
+  // see and action these (not admin-only — whoever's around can follow up),
+  // same read-visibility posture as client_notes.
+  const [upgradeRequests, setUpgradeRequests] = useState(null); // null while loading
+  const [upgradeRequestsError, setUpgradeRequestsError] = useState("");
+  const [upgradeRequestBusyId, setUpgradeRequestBusyId] = useState(null);
+
+  const loadUpgradeRequests = useCallback(() => {
+    if (!supabase) return;
+    supabase
+      .from("enterprise_upgrade_requests")
+      .select("id, client_id, requested_by, created_at, status, note")
+      .eq("status", "new")
+      .order("created_at", { ascending: false })
+      .then(({ data, error }) => {
+        if (error) {
+          setUpgradeRequestsError(
+            "Couldn't load upgrade requests. Has enterprise-upgrade-requests.sql been run? " +
+              error.message,
+          );
+          setUpgradeRequests([]);
+        } else {
+          setUpgradeRequestsError("");
+          setUpgradeRequests(data);
+        }
+      });
+  }, [supabase]);
+
+  useEffect(() => {
+    loadUpgradeRequests();
+  }, [loadUpgradeRequests]);
+
+  async function setUpgradeRequestStatus(row, status) {
+    setUpgradeRequestBusyId(row.id);
+    const { error } = await supabase
+      .from("enterprise_upgrade_requests")
+      .update({ status })
+      .eq("id", row.id);
+    setUpgradeRequestBusyId(null);
+    if (error) {
+      showToast(`Couldn't update that request: ${error.message}`);
+      return;
+    }
+    loadUpgradeRequests();
+  }
+
   const loadReminders = useCallback(() => {
     if (!supabase) return;
     supabase
@@ -10594,6 +10664,71 @@ function BookkeeperHomePage({
               </button>
             ))}
           </div>
+        )}
+      </div>
+
+      <div className="card" style={{ marginBottom: 20 }}>
+        <h3 className="card-title">Enterprise upgrade requests</h3>
+        <p className="card-subtitle">
+          Clients who hit "Upgrade to Enterprise" on their preview page — so you
+          can follow up and make them premium clients.
+        </p>
+        {upgradeRequests === null && !upgradeRequestsError && (
+          <p className="card-subtitle">Loading…</p>
+        )}
+        {upgradeRequestsError && (
+          <p className="card-subtitle negative">{upgradeRequestsError}</p>
+        )}
+        {upgradeRequests && upgradeRequests.length === 0 && (
+          <p className="card-subtitle">No open requests right now.</p>
+        )}
+        {upgradeRequests && upgradeRequests.length > 0 && (
+          <ul className="staff-audit-list">
+            {upgradeRequests.map((r) => {
+              const c = clients.find((cl) => cl.id === r.client_id);
+              return (
+                <li className="staff-audit-row" key={r.id}>
+                  <span className="staff-audit-text">
+                    <strong>{c ? c.name : r.client_id}</strong> wants to upgrade
+                    — requested by {r.requested_by || "unknown"}
+                  </span>
+                  <span
+                    className="staff-audit-time"
+                    style={{ display: "flex", gap: 6, alignItems: "center" }}
+                  >
+                    {fmtDateTime(r.created_at)}
+                    <button
+                      type="button"
+                      className="btn-secondary"
+                      style={{ padding: "4px 10px", fontSize: 11.5 }}
+                      disabled={upgradeRequestBusyId === r.id}
+                      onClick={() => setUpgradeRequestStatus(r, "contacted")}
+                    >
+                      Mark contacted
+                    </button>
+                    <button
+                      type="button"
+                      className="btn-secondary"
+                      style={{ padding: "4px 10px", fontSize: 11.5 }}
+                      disabled={upgradeRequestBusyId === r.id}
+                      onClick={() => setUpgradeRequestStatus(r, "completed")}
+                    >
+                      Mark completed
+                    </button>
+                    <button
+                      type="button"
+                      className="btn-secondary"
+                      style={{ padding: "4px 10px", fontSize: 11.5 }}
+                      disabled={upgradeRequestBusyId === r.id}
+                      onClick={() => setUpgradeRequestStatus(r, "dismissed")}
+                    >
+                      Dismiss
+                    </button>
+                  </span>
+                </li>
+              );
+            })}
+          </ul>
         )}
       </div>
 
@@ -16360,6 +16495,7 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
           {effectivePage === "enterprise-upgrade" && (
             <EnterpriseUpgradePage
               client={scopedClient}
+              clientPortalUser={clientPortalUser}
               key={"enterprise-upgrade-" + client.id}
             />
           )}
