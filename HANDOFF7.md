@@ -3891,3 +3891,22 @@ elsewhere) — just no longer referenced from the sidebar's JSX.
 
 Files touched: `app.jsx` (`Sidebar`, new `SignOutIcon`), `styles.css`
 (`.brand-link`, new `.staff-user-*` rules), `index.html`, `build.py`.
+
+## §130 — Move legal footer from sidebar to page footer
+
+`.sidebar-footer` (the "Client and preview switchers are bookkeeper-side
+tools..." / "Signed in to {client}..." line plus Privacy Policy/Terms of
+Service/Contact support) took up permanent space at the bottom of an
+already-tall sidebar for content that isn't sidebar-specific. Moved to a
+new `.main-footer` rendered once in `App()`, right before the single
+`</main>` — same insertion point used for this once before (reverted
+along with the rest of §124-127's split-sidebar work). Same text/links,
+same `isBookkeeper`-style branching (`!isPreviewingUser` at the App
+level, equivalent to Sidebar's own `isBookkeeper`).
+
+`.sidebar-footer`/`.legal-footer-links` CSS left in place (unused now,
+harmless) in case something still references the classNames; the JSX
+itself no longer renders them.
+
+Files touched: `app.jsx` (`Sidebar`, `App`), `styles.css` (new
+`.main-footer`/`.main-footer-links`), `index.html`, `build.py`.
