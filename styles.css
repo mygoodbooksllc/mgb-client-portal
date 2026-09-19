@@ -960,45 +960,33 @@ body {
   color: var(--gold);
 }
 
-/* Pending-access-request alert on "Manage access" (§140) — a bare 8px
-   .nav-badge-dot read as barely-there next to this button's small muted
-   text, easy to miss entirely. Goes further: gold text, a labelled pill
-   instead of a mystery dot, and a pulsing ring (reusing mgb-dot-pulse,
-   the same keyframe the client-health dots use) so it actually catches
-   the eye on a glance at the sidebar. */
-.customize-tabs-btn-alert,
-.customize-tabs-btn-alert:hover {
-  color: var(--gold);
+/* Pending-access-request alert on "Manage access" (§140) — went through
+   two louder versions first (a bare dot, then a labelled "New request"
+   pill) before landing here: the button's text itself shimmers gold
+   (.premium-shimmer, the same treatment the Enterprise sidebar label
+   already uses — applied only to the text span, not the icon, since its
+   background-clip:text would otherwise swallow the SVG's currentColor
+   fill too) plus a soft pulsing glow on the button. Subtle rather than a
+   loud badge, but still catches the eye on a glance since nothing else
+   in this muted-gray utility row moves or shimmers. */
+.customize-tabs-btn-alert {
+  animation: accessAlertGlow 2.6s ease-in-out infinite;
+  border-radius: 6px;
 }
 
-.pending-request-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  margin-left: 8px;
-  padding: 2px 8px 2px 6px;
-  border-radius: 999px;
-  background: var(--gold-soft, rgba(199, 174, 134, 0.16));
-  color: var(--gold);
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.02em;
-  text-transform: uppercase;
-  vertical-align: middle;
+@keyframes accessAlertGlow {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(199, 174, 134, 0);
+  }
+  50% {
+    box-shadow: 0 0 9px 1px rgba(199, 174, 134, 0.4);
+  }
 }
 
-.pending-request-dot {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: var(--gold);
-  flex-shrink: 0;
-  --health-dot-color: var(--gold);
-}
-
-@media (prefers-reduced-motion: no-preference) {
-  .pending-request-dot {
-    animation: mgb-dot-pulse 1.8s ease-in-out infinite;
+@media (prefers-reduced-motion: reduce) {
+  .customize-tabs-btn-alert {
+    animation: none;
   }
 }
 
