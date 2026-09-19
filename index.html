@@ -34,7 +34,7 @@
       // step to inject a real commit SHA into (see the no-bundler note up
       // top). Shown in Staff Access's System Info card so staff can confirm
       // which version they're looking at without guessing from Vercel's UI.
-      window.MGB_VERSION = { label: "2026-09-19n", note: "Comparison accordion: Pro column now says it includes everything Standard has" };
+      window.MGB_VERSION = { label: "2026-09-19o", note: "Client-org roster moved out of data.js into a real Supabase table" };
       // No pinch-to-zoom, blocked at the gesture level (only when a SECOND
       // finger joins) rather than via touch-action CSS — an earlier attempt
       // set touch-action on <html>, which made the browser commit to
@@ -129,12 +129,60 @@
         document.body.appendChild(script);
       }
 
+      // §133: fetches the real client-org roster from Supabase's `clients`
+      // table and merges it onto data.js's window.CLIENTS (already assigned
+      // an empty array by data.js, then re-populated here). Every
+      // CLIENTS_MOCK_DATA entry (mock financial/content data, still in
+      // data.js) is matched onto its roster row by `id`; a roster row with
+      // no matching mock entry still merges in on its own (a newly
+      // admin-added client has no mock data yet, and that's fine — nothing
+      // should crash or skip it). Must run after data.js (which declares
+      // window.CLIENTS) and before app.jsx (which reads it as a plain
+      // synchronous array via the bare `CLIENTS` identifier throughout, with
+      // no await anywhere in app.jsx). If Supabase isn't configured, or the
+      // fetch fails, window.CLIENTS is left as the empty array rather than
+      // letting a network hiccup block the whole app from booting.
+      async function loadClientsRoster() {
+        const supabase = window.mgbSupabase;
+        if (!supabase) return;
+        try {
+          const { data, error } = await supabase
+            .from("clients")
+            .select(
+              "id, name, org_type, plan, test_only, payroll_add_on, assigned_bookkeeper",
+            );
+          if (error) {
+            console.warn("Couldn't load client roster from Supabase:", error.message);
+            return;
+          }
+          const mockById = {};
+          (window.CLIENTS_MOCK_DATA_SOURCE || []).forEach((c) => {
+            mockById[c.id] = c;
+          });
+          window.CLIENTS = (data || []).map((row) => {
+            const roster = {
+              id: row.id,
+              name: row.name,
+              orgType: row.org_type,
+              plan: row.plan,
+              testOnly: row.test_only,
+              payrollAddOn: row.payroll_add_on,
+              assignedBookkeeper: row.assigned_bookkeeper,
+            };
+            return Object.assign({}, mockById[row.id], roster);
+          });
+        } catch (err) {
+          console.warn("Couldn't load client roster from Supabase:", err);
+        }
+      }
+
       (async () => {
         try {
           // Order still matters — data.js and DailyClose must exist before
           // app.jsx runs — but every file is already in flight by now.
           for (const path of window.__SOURCE_ORDER) {
             await loadBabelScript(path);
+            if (path === "data.js") await loadClientsRoster();
           }
         } catch (err) {
           const root = document.getElementById("root");
