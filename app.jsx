@@ -827,127 +827,348 @@ function Sidebar({
             </div>
           )}
 
-          {staffUser && (
-            <button
-              type="button"
-              className={
-                "staff-access-link" +
-                (page === "bookkeeper-home" ? " active" : "")
-              }
-              onClick={() => {
-                onSelectPage("bookkeeper-home");
-                onCloseMobile();
-              }}
-            >
-              <HomeIcon />
-              Home
-            </button>
-          )}
-
-          {staffUser && !impersonating && (
-            <button
-              type="button"
-              className={
-                "staff-access-link" +
-                (page === "staff-messages" ? " active" : "")
-              }
-              onClick={() => {
-                onSelectPage("staff-messages");
-                onCloseMobile();
-              }}
-            >
-              <ChatIcon width="16" height="16" strokeWidth="1.8" />
-              Team Chat
-              {staffMessagesUnread && (
-                <span
-                  className="nav-badge-dot"
-                  aria-label="Unread"
-                  style={{ marginLeft: "auto" }}
-                />
+          {/* Staff-access buttons (Home/Team Chat/My Tasks/My Time, plus the
+              admin-only trio) render two different ways depending on whether
+              a client is actively being viewed. With no client in view there
+              is no NAV_SECTIONS rail to pair them with, so they stay exactly
+              as they've always rendered: a single labeled-row column. With a
+              client in view, they move into the right column of a two-column
+              split (see .sidebar-split below) so the icon rail on the left
+              can carry the client's own tabs without the page needing to
+              scroll to see both. The buttons themselves — JSX, classes,
+              onClick handlers — are identical in both branches. */}
+          {NON_CLIENT_PAGES.has(page) ? (
+            <React.Fragment>
+              {staffUser && (
+                <button
+                  type="button"
+                  className={
+                    "staff-access-link" +
+                    (page === "bookkeeper-home" ? " active" : "")
+                  }
+                  onClick={() => {
+                    onSelectPage("bookkeeper-home");
+                    onCloseMobile();
+                  }}
+                >
+                  <HomeIcon />
+                  Home
+                </button>
               )}
-            </button>
-          )}
 
-          {staffUser && !impersonating && (
-            <button
-              type="button"
-              className={
-                "staff-access-link" + (page === "my-tasks" ? " active" : "")
-              }
-              onClick={() => {
-                onSelectPage("my-tasks");
-                onCloseMobile();
-              }}
-            >
-              <ChecklistIcon width="16" height="16" strokeWidth="1.8" />
-              My Tasks
-            </button>
-          )}
+              {staffUser && !impersonating && (
+                <button
+                  type="button"
+                  className={
+                    "staff-access-link" +
+                    (page === "staff-messages" ? " active" : "")
+                  }
+                  onClick={() => {
+                    onSelectPage("staff-messages");
+                    onCloseMobile();
+                  }}
+                >
+                  <ChatIcon width="16" height="16" strokeWidth="1.8" />
+                  Team Chat
+                  {staffMessagesUnread && (
+                    <span
+                      className="nav-badge-dot"
+                      aria-label="Unread"
+                      style={{ marginLeft: "auto" }}
+                    />
+                  )}
+                </button>
+              )}
 
-          {staffUser && !impersonating && (
-            <button
-              type="button"
-              className={
-                "staff-access-link" + (page === "my-time" ? " active" : "")
-              }
-              onClick={() => {
-                onSelectPage("my-time");
-                onCloseMobile();
-              }}
-            >
-              <ClockIcon width="16" height="16" strokeWidth="1.8" />
-              My Time
-            </button>
-          )}
+              {staffUser && !impersonating && (
+                <button
+                  type="button"
+                  className={
+                    "staff-access-link" + (page === "my-tasks" ? " active" : "")
+                  }
+                  onClick={() => {
+                    onSelectPage("my-tasks");
+                    onCloseMobile();
+                  }}
+                >
+                  <ChecklistIcon width="16" height="16" strokeWidth="1.8" />
+                  My Tasks
+                </button>
+              )}
 
-          {showsAdminPages && (
-            <button
-              type="button"
-              className={
-                "staff-access-link" + (page === "staff-access" ? " active" : "")
-              }
-              onClick={() => {
-                onSelectPage("staff-access");
-                onCloseMobile();
-              }}
-            >
-              <UsersIcon />
-              Staff Access
-            </button>
-          )}
+              {staffUser && !impersonating && (
+                <button
+                  type="button"
+                  className={
+                    "staff-access-link" + (page === "my-time" ? " active" : "")
+                  }
+                  onClick={() => {
+                    onSelectPage("my-time");
+                    onCloseMobile();
+                  }}
+                >
+                  <ClockIcon width="16" height="16" strokeWidth="1.8" />
+                  My Time
+                </button>
+              )}
 
-          {showsAdminPages && (
-            <button
-              type="button"
-              className={
-                "staff-access-link" +
-                (page === "client-access" ? " active" : "")
-              }
-              onClick={() => {
-                onSelectPage("client-access");
-                onCloseMobile();
-              }}
-            >
-              <ClientRosterIcon />
-              Client Roster
-            </button>
-          )}
+              {showsAdminPages && (
+                <button
+                  type="button"
+                  className={
+                    "staff-access-link" +
+                    (page === "staff-access" ? " active" : "")
+                  }
+                  onClick={() => {
+                    onSelectPage("staff-access");
+                    onCloseMobile();
+                  }}
+                >
+                  <UsersIcon />
+                  Staff Access
+                </button>
+              )}
 
-          {showsAdminPages && (
-            <button
-              type="button"
-              className={
-                "staff-access-link" +
-                (page === "developer-tools" ? " active" : "")
-              }
-              onClick={() => {
-                onSelectPage("developer-tools");
-                onCloseMobile();
-              }}
-            >
-              <WrenchIcon />
-              Developer Tools
-            </button>
+              {showsAdminPages && (
+                <button
+                  type="button"
+                  className={
+                    "staff-access-link" +
+                    (page === "client-access" ? " active" : "")
+                  }
+                  onClick={() => {
+                    onSelectPage("client-access");
+                    onCloseMobile();
+                  }}
+                >
+                  <ClientRosterIcon />
+                  Client Roster
+                </button>
+              )}
+
+              {showsAdminPages && (
+                <button
+                  type="button"
+                  className={
+                    "staff-access-link" +
+                    (page === "developer-tools" ? " active" : "")
+                  }
+                  onClick={() => {
+                    onSelectPage("developer-tools");
+                    onCloseMobile();
+                  }}
+                >
+                  <WrenchIcon />
+                  Developer Tools
+                </button>
+              )}
+            </React.Fragment>
+          ) : (
+            <div className="sidebar-split">
+              <nav className="nav-rail" aria-label="Client sections">
+                {NAV_SECTIONS.map((section, sectionIndex) => {
+                  const isSignature = section.label === "Enterprise";
+                  // Same upsell condition as the full nav's heading — see the
+                  // comment on `showUpsell` in the full <nav> render below.
+                  const showUpsell = isSignature && !access.premiumForUser;
+                  const items = orderedSectionItems(
+                    section,
+                    tabOrder,
+                    selectedClientId,
+                  ).filter((item) => visibleKeys.has(item.key));
+                  if (items.length === 0 && !showUpsell) return null;
+                  return (
+                    <div
+                      className={
+                        "nav-rail-group" +
+                        (sectionIndex > 0 ? " nav-rail-group-divided" : "")
+                      }
+                      key={section.label}
+                    >
+                      {items.map((item) => {
+                        const isUpgraded =
+                          PREMIUM_UPGRADE_TAB_KEYS.has(item.key) &&
+                          access &&
+                          access.premiumForUser &&
+                          !access.isCategoryScoped;
+                        // A narrow rail has no room for the Enterprise
+                        // section's text heading/upsell row, so the same
+                        // "click to upgrade" behavior moves onto the item
+                        // itself: for a standard-plan client, Messages/
+                        // Dashboard still open, but a small lock badge shows
+                        // and the click routes to enterprise-upgrade instead
+                        // — same destination the full nav's upsell heading
+                        // used, just triggered from the icon in its place.
+                        return (
+                          <button
+                            key={item.key}
+                            type="button"
+                            className={
+                              "nav-rail-item" +
+                              (page === item.key ? " active" : "") +
+                              (isUpgraded ? " nav-item-signature" : "")
+                            }
+                            onClick={() => {
+                              onSelectPage(
+                                showUpsell ? "enterprise-upgrade" : item.key,
+                              );
+                              onCloseMobile();
+                            }}
+                            aria-label={
+                              showUpsell
+                                ? `${item.label} (upgrade to Enterprise)`
+                                : item.label
+                            }
+                          >
+                            {item.icon}
+                            {showUpsell && (
+                              <LockIcon className="nav-rail-lock" />
+                            )}
+                            {!showUpsell && badges[item.key] && (
+                              <span
+                                className="nav-badge-dot nav-rail-badge"
+                                aria-label="Unread"
+                              />
+                            )}
+                            <span className="nav-rail-tooltip">
+                              {item.label}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  );
+                })}
+              </nav>
+
+              <div className="sidebar-split-right">
+                {staffUser && (
+                  <button
+                    type="button"
+                    className={
+                      "staff-access-link" +
+                      (page === "bookkeeper-home" ? " active" : "")
+                    }
+                    onClick={() => {
+                      onSelectPage("bookkeeper-home");
+                      onCloseMobile();
+                    }}
+                  >
+                    <HomeIcon />
+                    Home
+                  </button>
+                )}
+
+                {staffUser && !impersonating && (
+                  <button
+                    type="button"
+                    className={
+                      "staff-access-link" +
+                      (page === "staff-messages" ? " active" : "")
+                    }
+                    onClick={() => {
+                      onSelectPage("staff-messages");
+                      onCloseMobile();
+                    }}
+                  >
+                    <ChatIcon width="16" height="16" strokeWidth="1.8" />
+                    Team Chat
+                    {staffMessagesUnread && (
+                      <span
+                        className="nav-badge-dot"
+                        aria-label="Unread"
+                        style={{ marginLeft: "auto" }}
+                      />
+                    )}
+                  </button>
+                )}
+
+                {staffUser && !impersonating && (
+                  <button
+                    type="button"
+                    className={
+                      "staff-access-link" +
+                      (page === "my-tasks" ? " active" : "")
+                    }
+                    onClick={() => {
+                      onSelectPage("my-tasks");
+                      onCloseMobile();
+                    }}
+                  >
+                    <ChecklistIcon width="16" height="16" strokeWidth="1.8" />
+                    My Tasks
+                  </button>
+                )}
+
+                {staffUser && !impersonating && (
+                  <button
+                    type="button"
+                    className={
+                      "staff-access-link" +
+                      (page === "my-time" ? " active" : "")
+                    }
+                    onClick={() => {
+                      onSelectPage("my-time");
+                      onCloseMobile();
+                    }}
+                  >
+                    <ClockIcon width="16" height="16" strokeWidth="1.8" />
+                    My Time
+                  </button>
+                )}
+
+                {showsAdminPages && (
+                  <button
+                    type="button"
+                    className={
+                      "staff-access-link" +
+                      (page === "staff-access" ? " active" : "")
+                    }
+                    onClick={() => {
+                      onSelectPage("staff-access");
+                      onCloseMobile();
+                    }}
+                  >
+                    <UsersIcon />
+                    Staff Access
+                  </button>
+                )}
+
+                {showsAdminPages && (
+                  <button
+                    type="button"
+                    className={
+                      "staff-access-link" +
+                      (page === "client-access" ? " active" : "")
+                    }
+                    onClick={() => {
+                      onSelectPage("client-access");
+                      onCloseMobile();
+                    }}
+                  >
+                    <ClientRosterIcon />
+                    Client Roster
+                  </button>
+                )}
+
+                {showsAdminPages && (
+                  <button
+                    type="button"
+                    className={
+                      "staff-access-link" +
+                      (page === "developer-tools" ? " active" : "")
+                    }
+                    onClick={() => {
+                      onSelectPage("developer-tools");
+                      onCloseMobile();
+                    }}
+                  >
+                    <WrenchIcon />
+                    Developer Tools
+                  </button>
+                )}
+              </div>
+            </div>
           )}
 
           {hasTempAdminAccess &&
@@ -1002,7 +1223,11 @@ function Sidebar({
         </div>
       )}
 
-      {NON_CLIENT_PAGES.has(page) ? null : (
+      {/* Client-facing sidebar only (`!isBookkeeper`) — untouched from
+          before. The staff view's equivalent of this same NAV_SECTIONS list
+          now renders as the icon rail inside .sidebar-split above instead,
+          so this full labeled nav would otherwise duplicate it. */}
+      {NON_CLIENT_PAGES.has(page) || isBookkeeper ? null : (
         <nav className="nav">
           {NAV_SECTIONS.map((section) => {
             const isSignature = section.label === "Enterprise";

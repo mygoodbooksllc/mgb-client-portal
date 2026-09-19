@@ -686,6 +686,158 @@ body {
   opacity: 0.85;
 }
 
+/* ---------------- Staff sidebar split (client view) ----------------
+   Only rendered for a signed-in staffer actively viewing a client — see
+   Sidebar's `isBookkeeper && !NON_CLIENT_PAGES.has(page)` branch. Left is an
+   icon-only rail standing in for the client's full NAV_SECTIONS list (see
+   .nav for the client-facing equivalent, unchanged); right keeps the
+   staff-access-link buttons exactly as they render outside this split. */
+.sidebar-split {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 8px;
+  min-height: 0;
+}
+
+.nav-rail {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex-shrink: 0;
+  overflow-y: auto;
+  scrollbar-width: none;
+}
+
+.nav-rail::-webkit-scrollbar {
+  display: none;
+}
+
+.nav-rail-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.nav-rail-group-divided {
+  padding-top: 8px;
+  margin-top: 4px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.nav-rail-item {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 9px;
+  color: var(--sidebar-text);
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.nav-rail-item:hover,
+.nav-rail-item:focus-visible {
+  background: rgba(255, 255, 255, 0.06);
+  color: white;
+}
+
+.nav-rail-item:focus-visible {
+  outline: 2px solid rgba(199, 174, 134, 0.6);
+  outline-offset: 1px;
+}
+
+.nav-rail-item.active {
+  background: rgba(199, 174, 134, 0.18);
+  color: var(--gold);
+}
+
+/* Compact stand-in for the full nav's gold-shimmer treatment on an upgraded
+   tab (.nav-item-signature > span:first-child) — no label to clip a
+   gradient onto here, so the icon itself just goes gold. */
+.nav-rail-item.nav-item-signature {
+  color: var(--gold);
+}
+
+.nav-rail-item.nav-item-signature.active {
+  background: rgba(199, 174, 134, 0.18);
+}
+
+/* Small lock badge standing in for the full nav's "Premium" upsell heading —
+   sits over the icon's corner on Messages/Dashboard for a standard-plan
+   client. Clicking the item still routes to enterprise-upgrade (see Sidebar). */
+.nav-rail-lock {
+  position: absolute;
+  bottom: 3px;
+  right: 3px;
+  width: 10px;
+  height: 10px;
+  color: var(--navy-deep);
+  background: linear-gradient(120deg, #e9d5a8, var(--gold));
+  border-radius: 50%;
+  padding: 1.5px;
+  box-shadow: 0 0 0 2px var(--sidebar-bg);
+}
+
+.nav-rail-badge {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  margin-left: 0;
+}
+
+/* Hover/focus flyout tooltip — CSS-only, no JS state. Positioned to the
+   right of the rail like a VS Code/Slack icon-rail tooltip: small dark
+   rounded box with a pointer arrow. */
+.nav-rail-tooltip {
+  position: absolute;
+  left: calc(100% + 10px);
+  top: 50%;
+  transform: translateY(-50%) translateX(-4px);
+  background: var(--navy-deep);
+  color: white;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+  padding: 6px 10px;
+  border-radius: 7px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.12s ease, transform 0.12s ease;
+  z-index: 20;
+}
+
+.nav-rail-tooltip::before {
+  content: "";
+  position: absolute;
+  right: 100%;
+  top: 50%;
+  transform: translateY(-50%);
+  border: 5px solid transparent;
+  border-right-color: var(--navy-deep);
+}
+
+.nav-rail-item:hover .nav-rail-tooltip,
+.nav-rail-item:focus-visible .nav-rail-tooltip {
+  opacity: 1;
+  transform: translateY(-50%) translateX(0);
+}
+
+.sidebar-split-right {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1;
+}
+
+.sidebar-split-right .staff-access-link {
+  margin-bottom: 4px;
+}
+
 /* ---------------- Signed-in identity (client-user view) ---------------- */
 
 .signed-in-as {
@@ -4567,6 +4719,40 @@ body:has(.modal-overlay) .chat-fab-wrap {
     flex: 0 0 auto;
   }
 
+  /* Not enough width in the off-canvas drawer for a side-by-side rail +
+     button column — wrap instead: icon rail on top (full-width, its own
+     row of icons), staff-link column below it. The rail itself doesn't
+     shrink further (there's no room to save at 42px and touch targets
+     need to stay tappable), it just switches axis. */
+  .sidebar-split {
+    flex-wrap: wrap;
+  }
+
+  .nav-rail {
+    flex-direction: row;
+    flex-wrap: wrap;
+    width: 100%;
+    overflow-y: visible;
+  }
+
+  .nav-rail-group {
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+
+  .nav-rail-group-divided {
+    padding-top: 0;
+    margin-top: 0;
+    padding-left: 8px;
+    margin-left: 4px;
+    border-top: none;
+    border-left: 1px solid rgba(255, 255, 255, 0.1);
+  }
+
+  .sidebar-split-right {
+    width: 100%;
+  }
+
   .main {
     padding: 18px 16px 40px 16px;
   }
@@ -4681,6 +4867,11 @@ body:has(.modal-overlay) .chat-fab-wrap {
     min-height: 44px;
     padding-top: 11px;
     padding-bottom: 11px;
+  }
+
+  .nav-rail-item {
+    width: 44px;
+    height: 44px;
   }
 
   .theme-toggle {
