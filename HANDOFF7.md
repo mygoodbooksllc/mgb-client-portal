@@ -3856,3 +3856,38 @@ open and worth another pass, ideally validated against the real
 deployment at each step instead of across four back-to-back PRs.
 
 Files touched: `app.jsx`, `styles.css`, `index.html`, `build.py`.
+
+## §129 — Sidebar: staff tabs collapse into a user-name menu; logo mark dropped
+
+§128 reverted the icon-rail split-sidebar experiment. This is a second,
+smaller-scoped attempt at the same underlying problem — the staff
+sidebar running longer than the screen — following the earlier mockup's
+"Option 3" (personal utilities under a collapsible user-name menu),
+which was explicitly the lower-risk of the two options mocked up.
+
+Home, Team Chat, My Tasks, My Time, and (for admins) Staff Access/Client
+Roster/Developer Tools, plus Sign out, no longer render as a permanently
+stacked column of buttons under the client picker. They now live inside
+a click-to-open dropdown under the staffer's own name/avatar chip
+(`.staff-user-menu`/`.staff-user-chip`/`.staff-user-dropdown` in
+`Sidebar()`/styles.css) — same one click to reach any of them as before,
+just tucked away until opened instead of always taking up ~7 rows of
+vertical space. Closes on an outside click, same pattern `GlobalSearch`
+already uses (`mousedown` listener + a wrapper ref). The unread-messages
+dot still shows on the chip itself when the menu is closed.
+
+Unlike the reverted split-sidebar work, this doesn't touch the client
+tab list (`NAV_SECTIONS`/`.nav`) at all, doesn't add a second rendering
+branch to keep in sync, and doesn't reorder anything relative to
+"Preview as"/"Viewing client" — it only replaces one existing block
+(the old staff-access-link button stack) with one new one, in place.
+
+Also dropped the sidebar's logo image (`.brand-mark`/`logo.webp`) per
+request, keeping the brand text ("MyGoodBooks" / "Client Portal") and
+tagline as they were. `.brand-link`'s `gap` was removed since there's
+only one child left. `.brand-mark`/`.brand-mark-img` CSS and `logo.webp`
+itself are untouched (still used by `build.py`'s Artifact bundler and
+elsewhere) — just no longer referenced from the sidebar's JSX.
+
+Files touched: `app.jsx` (`Sidebar`, new `SignOutIcon`), `styles.css`
+(`.brand-link`, new `.staff-user-*` rules), `index.html`, `build.py`.

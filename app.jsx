@@ -714,6 +714,23 @@ function Sidebar({
   // view rather than dereferencing a missing access.user below.
   const isBookkeeper = viewAsUserId === BOOKKEEPER_VIEW || !access.user;
 
+  // Home/Team Chat/My Tasks/My Time/admin pages/Sign out used to be a
+  // permanently-visible stack of buttons — often the single biggest
+  // contributor to the staff sidebar running longer than the screen. They
+  // now live in a click-to-open menu under the staffer's own name instead,
+  // same one-click depth as before, just tucked away until wanted.
+  const [staffMenuOpen, setStaffMenuOpen] = useState(false);
+  const staffMenuRef = useRef(null);
+  useEffect(() => {
+    if (!staffMenuOpen) return;
+    const onDocClick = (e) => {
+      if (staffMenuRef.current && !staffMenuRef.current.contains(e.target))
+        setStaffMenuOpen(false);
+    };
+    document.addEventListener("mousedown", onDocClick);
+    return () => document.removeEventListener("mousedown", onDocClick);
+  }, [staffMenuOpen]);
+
   return (
     <aside className={"sidebar" + (mobileOpen ? " open" : "")}>
       <div className="brand">
@@ -723,13 +740,6 @@ function Sidebar({
           target="_blank"
           rel="noopener noreferrer"
         >
-          <div className="brand-mark">
-            <img
-              src="logo.webp"
-              alt="MyGoodBooks logo"
-              className="brand-mark-img"
-            />
-          </div>
           <div className="brand-text">
             <span className="brand-name">MyGoodBooks</span>
             <span className="brand-sub">Client Portal</span>
@@ -801,153 +811,188 @@ function Sidebar({
           )}
 
           {staffUser && (
-            <div
-              className="client-picker-label"
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "baseline",
-              }}
-            >
-              <span>{staffUser.name}</span>
+            <div className="staff-user-menu" ref={staffMenuRef}>
               <button
-                onClick={onSignOut}
-                style={{
-                  background: "none",
-                  border: "none",
-                  color: "inherit",
-                  textDecoration: "underline",
-                  cursor: "pointer",
-                  font: "inherit",
-                  padding: 0,
-                }}
+                type="button"
+                className="staff-user-chip"
+                onClick={() => setStaffMenuOpen((open) => !open)}
+                aria-expanded={staffMenuOpen}
+                aria-haspopup="true"
               >
-                Sign out
-              </button>
-            </div>
-          )}
-
-          {staffUser && (
-            <button
-              type="button"
-              className={
-                "staff-access-link" +
-                (page === "bookkeeper-home" ? " active" : "")
-              }
-              onClick={() => {
-                onSelectPage("bookkeeper-home");
-                onCloseMobile();
-              }}
-            >
-              <HomeIcon />
-              Home
-            </button>
-          )}
-
-          {staffUser && !impersonating && (
-            <button
-              type="button"
-              className={
-                "staff-access-link" +
-                (page === "staff-messages" ? " active" : "")
-              }
-              onClick={() => {
-                onSelectPage("staff-messages");
-                onCloseMobile();
-              }}
-            >
-              <ChatIcon width="16" height="16" strokeWidth="1.8" />
-              Team Chat
-              {staffMessagesUnread && (
-                <span
-                  className="nav-badge-dot"
-                  aria-label="Unread"
-                  style={{ marginLeft: "auto" }}
+                <span className="staff-user-avatar">
+                  {staffUser.name
+                    .split(" ")
+                    .map((p) => p[0])
+                    .slice(0, 2)
+                    .join("")}
+                </span>
+                <span className="staff-user-chip-text">
+                  <span className="staff-user-chip-name">{staffUser.name}</span>
+                  <span className="staff-user-chip-role">{staffUser.role}</span>
+                </span>
+                {staffMessagesUnread && !staffMenuOpen && (
+                  <span className="nav-badge-dot" aria-label="Unread" />
+                )}
+                <ChevronDownIcon
+                  className={
+                    "staff-user-chip-chev" + (staffMenuOpen ? " open" : "")
+                  }
                 />
+              </button>
+
+              {staffMenuOpen && (
+                <div className="staff-user-dropdown" role="menu">
+                  <button
+                    type="button"
+                    role="menuitem"
+                    className={
+                      "staff-user-menu-item" +
+                      (page === "bookkeeper-home" ? " active" : "")
+                    }
+                    onClick={() => {
+                      onSelectPage("bookkeeper-home");
+                      onCloseMobile();
+                      setStaffMenuOpen(false);
+                    }}
+                  >
+                    <HomeIcon />
+                    Home
+                  </button>
+
+                  {!impersonating && (
+                    <button
+                      type="button"
+                      role="menuitem"
+                      className={
+                        "staff-user-menu-item" +
+                        (page === "staff-messages" ? " active" : "")
+                      }
+                      onClick={() => {
+                        onSelectPage("staff-messages");
+                        onCloseMobile();
+                        setStaffMenuOpen(false);
+                      }}
+                    >
+                      <ChatIcon width="16" height="16" strokeWidth="1.8" />
+                      Team Chat
+                      {staffMessagesUnread && (
+                        <span
+                          className="nav-badge-dot"
+                          aria-label="Unread"
+                          style={{ marginLeft: "auto" }}
+                        />
+                      )}
+                    </button>
+                  )}
+
+                  {!impersonating && (
+                    <button
+                      type="button"
+                      role="menuitem"
+                      className={
+                        "staff-user-menu-item" +
+                        (page === "my-tasks" ? " active" : "")
+                      }
+                      onClick={() => {
+                        onSelectPage("my-tasks");
+                        onCloseMobile();
+                        setStaffMenuOpen(false);
+                      }}
+                    >
+                      <ChecklistIcon width="16" height="16" strokeWidth="1.8" />
+                      My Tasks
+                    </button>
+                  )}
+
+                  {!impersonating && (
+                    <button
+                      type="button"
+                      role="menuitem"
+                      className={
+                        "staff-user-menu-item" +
+                        (page === "my-time" ? " active" : "")
+                      }
+                      onClick={() => {
+                        onSelectPage("my-time");
+                        onCloseMobile();
+                        setStaffMenuOpen(false);
+                      }}
+                    >
+                      <ClockIcon width="16" height="16" strokeWidth="1.8" />
+                      My Time
+                    </button>
+                  )}
+
+                  {showsAdminPages && (
+                    <React.Fragment>
+                      <div className="staff-user-menu-divider" />
+                      <button
+                        type="button"
+                        role="menuitem"
+                        className={
+                          "staff-user-menu-item" +
+                          (page === "staff-access" ? " active" : "")
+                        }
+                        onClick={() => {
+                          onSelectPage("staff-access");
+                          onCloseMobile();
+                          setStaffMenuOpen(false);
+                        }}
+                      >
+                        <UsersIcon />
+                        Staff Access
+                      </button>
+                      <button
+                        type="button"
+                        role="menuitem"
+                        className={
+                          "staff-user-menu-item" +
+                          (page === "client-access" ? " active" : "")
+                        }
+                        onClick={() => {
+                          onSelectPage("client-access");
+                          onCloseMobile();
+                          setStaffMenuOpen(false);
+                        }}
+                      >
+                        <ClientRosterIcon />
+                        Client Roster
+                      </button>
+                      <button
+                        type="button"
+                        role="menuitem"
+                        className={
+                          "staff-user-menu-item" +
+                          (page === "developer-tools" ? " active" : "")
+                        }
+                        onClick={() => {
+                          onSelectPage("developer-tools");
+                          onCloseMobile();
+                          setStaffMenuOpen(false);
+                        }}
+                      >
+                        <WrenchIcon />
+                        Developer Tools
+                      </button>
+                    </React.Fragment>
+                  )}
+
+                  <div className="staff-user-menu-divider" />
+                  <button
+                    type="button"
+                    role="menuitem"
+                    className="staff-user-menu-item"
+                    onClick={() => {
+                      setStaffMenuOpen(false);
+                      onSignOut();
+                    }}
+                  >
+                    <SignOutIcon />
+                    Sign out
+                  </button>
+                </div>
               )}
-            </button>
-          )}
-
-          {staffUser && !impersonating && (
-            <button
-              type="button"
-              className={
-                "staff-access-link" + (page === "my-tasks" ? " active" : "")
-              }
-              onClick={() => {
-                onSelectPage("my-tasks");
-                onCloseMobile();
-              }}
-            >
-              <ChecklistIcon width="16" height="16" strokeWidth="1.8" />
-              My Tasks
-            </button>
-          )}
-
-          {staffUser && !impersonating && (
-            <button
-              type="button"
-              className={
-                "staff-access-link" + (page === "my-time" ? " active" : "")
-              }
-              onClick={() => {
-                onSelectPage("my-time");
-                onCloseMobile();
-              }}
-            >
-              <ClockIcon width="16" height="16" strokeWidth="1.8" />
-              My Time
-            </button>
-          )}
-
-          {showsAdminPages && (
-            <button
-              type="button"
-              className={
-                "staff-access-link" + (page === "staff-access" ? " active" : "")
-              }
-              onClick={() => {
-                onSelectPage("staff-access");
-                onCloseMobile();
-              }}
-            >
-              <UsersIcon />
-              Staff Access
-            </button>
-          )}
-
-          {showsAdminPages && (
-            <button
-              type="button"
-              className={
-                "staff-access-link" +
-                (page === "client-access" ? " active" : "")
-              }
-              onClick={() => {
-                onSelectPage("client-access");
-                onCloseMobile();
-              }}
-            >
-              <ClientRosterIcon />
-              Client Roster
-            </button>
-          )}
-
-          {showsAdminPages && (
-            <button
-              type="button"
-              className={
-                "staff-access-link" +
-                (page === "developer-tools" ? " active" : "")
-              }
-              onClick={() => {
-                onSelectPage("developer-tools");
-                onCloseMobile();
-              }}
-            >
-              <WrenchIcon />
-              Developer Tools
-            </button>
+            </div>
           )}
 
           {hasTempAdminAccess &&
@@ -1455,6 +1500,26 @@ function HomeIcon(props) {
     >
       <path d="M4 11.5L12 4l8 7.5" />
       <path d="M6 10v9h12v-9" />
+    </svg>
+  );
+}
+
+function SignOutIcon(props) {
+  return (
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      {...props}
+    >
+      <path d="M9 4H5a1 1 0 0 0-1 1v14a1 1 0 0 0 1 1h4" />
+      <path d="M16 16l4-4-4-4" />
+      <path d="M20 12H9" />
     </svg>
   );
 }
