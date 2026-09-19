@@ -4472,3 +4472,44 @@ worth a look in your own browser before calling this fully settled.
 
 Files touched: `app.jsx` (`Sidebar`, `App`), `styles.css`, `index.html`,
 `build.py`.
+
+## §143 — Collapsed sidebar: instant, prominent icon-hover labels
+
+§142's collapsed icons relied on the native `title` attribute for
+labels — too slow (the OS's built-in tooltip delay) and unstylable to
+actually scan a whole icon column quickly, which was the direct
+complaint. Replaced with a custom tooltip (`Sidebar`'s `hoverTip` state
++ `showTip`/`hideTip`) that appears the instant the pointer lands, with
+real prominence (dark background, gold border, immediate — no
+transition).
+
+Rendered via `ReactDOM.createPortal(..., document.body)` rather than a
+normally-positioned absolute child, specifically to not repeat
+§124-§128's exact bug: `.nav`'s `overflow-y: auto` implicitly clips
+`overflow-x` too (the CSS auto-pairing rule), which is what clipped that
+earlier sidebar's tooltips. A portal node isn't a DOM descendant of
+`.nav` at all, so that clipping ancestor can't reach it regardless of
+position or any ancestor transform. Position comes from
+`getBoundingClientRect()` on hover/focus, so no separate resize/scroll
+bookkeeping is needed — `hideTip` fires on the nav list's own `onScroll`
+so a stale rect can't linger, and a `useEffect` clears it if the sidebar
+expands mid-hover.
+
+Every element that hides a label when collapsed (nav items, "Manage
+access", "Client details", the staff user chip) now uses this instead
+of `title`, with `aria-label` picking up the accessible-name job `title`
+used to do.
+
+Files touched: `app.jsx` (`Sidebar`), `styles.css`.
+
+## §144 — Page-name tag on every page header
+
+The header above every page's content showed a personal greeting
+("Good afternoon, Holden") and a description, but never the actual page
+name — with §142's sidebar now collapsible to icons, there was no page
+name visible anywhere at all once collapsed, not even the sidebar's own
+highlighted item told you in words which tab you were on. New
+`.page-name-tag` (a small pill, same `PAGE_META[...].title` every page
+already keyed its subtitle off) sits right next to the greeting `<h1>`.
+
+Files touched: `app.jsx` (`App`), `styles.css`.

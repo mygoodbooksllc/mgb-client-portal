@@ -739,6 +739,29 @@ function Sidebar({
     return () => document.removeEventListener("mousedown", onDocClick);
   }, [staffMenuOpen]);
 
+  // §143: collapsed-sidebar hover labels. A native `title` attribute has
+  // a built-in OS delay (and no styling control) — too slow to scan a
+  // whole icon column quickly, which is the exact complaint this
+  // replaces. Rendered via a portal straight into document.body rather
+  // than as a normally-positioned absolute child, specifically so it
+  // can't fall into the same trap §142's own writeup flags for this
+  // sidebar: `.nav`'s `overflow-y: auto` implicitly clips `overflow-x`
+  // too (the same CSS auto-pairing rule that broke the reverted
+  // split-rail sidebar's tooltips, HANDOFF7.md's note on §125). A portal
+  // node isn't a descendant of `.nav` in the DOM at all, so that clipping
+  // ancestor can't touch it regardless of position/transform quirks.
+  const [hoverTip, setHoverTip] = useState(null); // { text, rect } | null
+  function showTip(e, text) {
+    if (!collapsed || !text) return;
+    setHoverTip({ text, rect: e.currentTarget.getBoundingClientRect() });
+  }
+  function hideTip() {
+    setHoverTip(null);
+  }
+  useEffect(() => {
+    if (!collapsed) setHoverTip(null);
+  }, [collapsed]);
+
   return (
     <aside
       className={
@@ -832,7 +855,11 @@ function Sidebar({
                 onClick={() => setStaffMenuOpen((open) => !open)}
                 aria-expanded={staffMenuOpen}
                 aria-haspopup="true"
-                title={collapsed ? staffUser.name : undefined}
+                aria-label={collapsed ? staffUser.name : undefined}
+                onMouseEnter={(e) => showTip(e, staffUser.name)}
+                onMouseLeave={hideTip}
+                onFocus={(e) => showTip(e, staffUser.name)}
+                onBlur={hideTip}
               >
                 <span className="staff-user-avatar">
                   {staffUser.name
@@ -1079,7 +1106,7 @@ function Sidebar({
       )}
 
       {NON_CLIENT_PAGES.has(page) ? null : (
-        <nav className="nav">
+        <nav className="nav" onScroll={hideTip}>
           {NAV_SECTIONS.map((section) => {
             const isSignature = section.label === "Enterprise";
             // Standard-plan clients don't have the premium tabs at all
@@ -1155,7 +1182,11 @@ function Sidebar({
                           onSelectPage(item.key);
                           onCloseMobile();
                         }}
-                        title={collapsed ? item.label : undefined}
+                        aria-label={collapsed ? item.label : undefined}
+                        onMouseEnter={(e) => showTip(e, item.label)}
+                        onMouseLeave={hideTip}
+                        onFocus={(e) => showTip(e, item.label)}
+                        onBlur={hideTip}
                       >
                         {item.icon}
                         <span className="nav-item-label">{item.label}</span>
@@ -1187,9 +1218,14 @@ function Sidebar({
               aria-label={
                 hasPendingAccessRequests
                   ? "Manage access — new request pending"
-                  : undefined
+                  : collapsed
+                    ? "Manage access"
+                    : undefined
               }
-              title={collapsed ? "Manage access" : undefined}
+              onMouseEnter={(e) => showTip(e, "Manage access")}
+              onMouseLeave={hideTip}
+              onFocus={(e) => showTip(e, "Manage access")}
+              onBlur={hideTip}
             >
               <SlidersIcon />{" "}
               <span
@@ -1203,7 +1239,11 @@ function Sidebar({
             <button
               className="customize-tabs-btn"
               onClick={onOpenDetails}
-              title={collapsed ? "Client details" : undefined}
+              aria-label={collapsed ? "Client details" : undefined}
+              onMouseEnter={(e) => showTip(e, "Client details")}
+              onMouseLeave={hideTip}
+              onFocus={(e) => showTip(e, "Client details")}
+              onBlur={hideTip}
             >
               <FolderIcon /> <span>Client details</span>
             </button>
@@ -1247,6 +1287,20 @@ function Sidebar({
         <ChevronDownIcon className="sidebar-collapse-toggle-icon" />
         {!collapsed && <span>Collapse</span>}
       </button>
+
+      {hoverTip &&
+        ReactDOM.createPortal(
+          <div
+            className="icon-hover-tip"
+            style={{
+              top: hoverTip.rect.top + hoverTip.rect.height / 2,
+              left: hoverTip.rect.right + 10,
+            }}
+          >
+            {hoverTip.text}
+          </div>,
+          document.body,
+        )}
     </aside>
   );
 }
@@ -17643,13 +17697,25 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
                   ? "MyGoodBooks"
                   : client.name}
               </div>
+              {/* §144: the greeting told you it's morning, not which tab
+                  you're on — with the sidebar collapsible to icons now
+                  (§142), there was no page-name text visible anywhere at
+                  all once collapsed. This tag is the same PAGE_META.title
+                  every page already keyed its subtitle off, just also
+                  shown, not just used to look the subtitle up. */}
               {NON_CLIENT_PAGES.has(effectivePage) ? (
                 <h1 className="page-title">
                   {timeOfDayGreeting()}, {firstNameOf(effectiveStaffUser.name)}
+                  {meta && meta.title && (
+                    <span className="page-name-tag">{meta.title}</span>
+                  )}
                 </h1>
               ) : (
                 <h1 className="page-title">
                   {timeOfDayGreeting()}, {greetingName}
+                  {meta && meta.title && (
+                    <span className="page-name-tag">{meta.title}</span>
+                  )}
                 </h1>
               )}
               <div
