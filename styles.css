@@ -1571,6 +1571,9 @@ body {
 
 .bar-fill.under { background: var(--good); }
 .bar-fill.over { background: var(--bad); }
+/* Usage Stats' ranked page-view bars — no under/over semantics, just a
+   neutral gold fill scaled to the top page's count. */
+.bar-fill.usage { background: var(--gold); }
 
 /* Bullet-style bar for Spending by Category — same track language as
    .bar-track, but the fill is scaled to the real dollar amount (not

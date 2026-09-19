@@ -444,6 +444,7 @@ const NON_CLIENT_PAGES = new Set([
   "staff-access",
   "client-access",
   "developer-tools",
+  "usage-stats",
   "staff-messages",
   "my-tasks",
   "my-time",
@@ -974,6 +975,22 @@ function Sidebar({
                       >
                         <WrenchIcon />
                         Developer Tools
+                      </button>
+                      <button
+                        type="button"
+                        role="menuitem"
+                        className={
+                          "staff-user-menu-item" +
+                          (page === "usage-stats" ? " active" : "")
+                        }
+                        onClick={() => {
+                          onSelectPage("usage-stats");
+                          onCloseMobile();
+                          setStaffMenuOpen(false);
+                        }}
+                      >
+                        <BarChartIcon />
+                        Usage Stats
                       </button>
                     </React.Fragment>
                   )}
@@ -9838,6 +9855,184 @@ function GroupComposeModal({ directory, onCreate, onClose }) {
   );
 }
 
+// §135: ranks pages by view count so the team can see what's actually
+// getting used vs. what's dead weight, instead of guessing. Fetches raw
+// usage_events rows for the selected window and aggregates client-side —
+// simplest thing that works at this data volume; worth moving to a
+// server-side rollup (a view, or a scheduled aggregate table) if the row
+// count ever makes the 5,000-row cap below start truncating real data.
+const USAGE_STATS_RANGES = [
+  { key: "7", label: "Last 7 days", days: 7 },
+  { key: "30", label: "Last 30 days", days: 30 },
+  { key: "90", label: "Last 90 days", days: 90 },
+  { key: "all", label: "All time", days: null },
+];
+
+function UsageStatsPage() {
+  const supabase = window.mgbSupabase;
+  const [range, setRange] = useState("30");
+  const [rows, setRows] = useState(null); // null = loading
+  const [loadError, setLoadError] = useState("");
+
+  const load = useCallback(() => {
+    if (!supabase) {
+      setLoadError("Supabase isn't configured — see auth-config.js.");
+      setRows([]);
+      return;
+    }
+    setRows(null);
+    let query = supabase
+      .from("usage_events")
+      .select("page, actor_role, occurred_at")
+      .order("occurred_at", { ascending: false })
+      .limit(5000);
+    const spec = USAGE_STATS_RANGES.find((r) => r.key === range);
+    if (spec && spec.days) {
+      const since = new Date(
+        Date.now() - spec.days * 24 * 60 * 60 * 1000,
+      ).toISOString();
+      query = query.gte("occurred_at", since);
+    }
+    query.then(({ data, error }) => {
+      if (error) {
+        // Most likely cause: supabase/usage-events.sql hasn't been run yet,
+        // or the viewer isn't an admin (the RLS policy is admin-only).
+        setLoadError("Couldn't load usage events. " + error.message);
+        setRows([]);
+      } else {
+        setLoadError("");
+        setRows(data);
+      }
+    });
+  }, [supabase, range]);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  const ranked = useMemo(() => {
+    if (!rows) return [];
+    const counts = {};
+    rows.forEach((r) => {
+      const key = r.page;
+      if (!counts[key]) {
+        counts[key] = { page: key, total: 0, staff: 0, client: 0 };
+      }
+      counts[key].total += 1;
+      counts[key][r.actor_role] = (counts[key][r.actor_role] || 0) + 1;
+    });
+    return Object.values(counts).sort((a, b) => b.total - a.total);
+  }, [rows]);
+
+  const maxTotal = ranked.length ? ranked[0].total : 0;
+
+  function pageLabel(key) {
+    return (PAGE_META[key] && PAGE_META[key].title) || key;
+  }
+
+  return (
+    <div>
+      <MockBanner text="Page views only, staff and client portal alike — not a full analytics pipeline. Use this to spot what's getting hammered vs. what nobody opens." />
+
+      <div className="card" style={{ marginBottom: 20 }}>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            flexWrap: "wrap",
+            gap: 12,
+          }}
+        >
+          <div>
+            <h3 className="card-title" style={{ marginBottom: 2 }}>
+              Most-used pages
+            </h3>
+            <p className="card-subtitle" style={{ margin: 0 }}>
+              {rows
+                ? `${rows.length.toLocaleString()} page view${rows.length === 1 ? "" : "s"}`
+                : "Loading…"}
+              {rows && rows.length >= 5000
+                ? " (capped at 5,000 — narrow the range for exact counts)"
+                : ""}
+            </p>
+          </div>
+          <div className="modal-tabs" style={{ marginBottom: 0 }}>
+            {USAGE_STATS_RANGES.map((r) => (
+              <button
+                key={r.key}
+                className={"modal-tab" + (range === r.key ? " active" : "")}
+                onClick={() => setRange(r.key)}
+              >
+                {r.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {loadError && (
+          <div className="mock-banner" style={{ marginTop: 16 }}>
+            <WarningIcon /> {loadError}
+          </div>
+        )}
+
+        {rows && rows.length === 0 && !loadError && (
+          <p className="card-subtitle" style={{ marginTop: 16 }}>
+            No page views logged yet for this range.
+          </p>
+        )}
+
+        {ranked.length > 0 && (
+          <div
+            style={{
+              marginTop: 20,
+              display: "flex",
+              flexDirection: "column",
+              gap: 14,
+            }}
+          >
+            {ranked.map((r, i) => (
+              <div key={r.page}>
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "baseline",
+                    gap: 8,
+                    fontSize: 13,
+                  }}
+                >
+                  <span style={{ fontWeight: 600 }}>
+                    <span
+                      style={{ color: "var(--text-muted)", marginRight: 8 }}
+                    >
+                      #{i + 1}
+                    </span>
+                    {pageLabel(r.page)}
+                  </span>
+                  <span style={{ color: "var(--text-muted)" }}>
+                    {r.total.toLocaleString()} view{r.total === 1 ? "" : "s"}
+                    {" · "}
+                    {r.staff || 0} staff / {r.client || 0} client
+                  </span>
+                </div>
+                <div className="bar-track">
+                  <div
+                    className="bar-fill usage"
+                    style={{
+                      width: maxTotal ? `${(r.total / maxTotal) * 100}%` : "0%",
+                    }}
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function ClientAccessPage({ readOnly }) {
   const showToast = useToast();
   const supabase = window.mgbSupabase;
@@ -15457,6 +15652,10 @@ const PAGE_META = {
     subtitle:
       "Per-browser testing aids — nothing here is shared with other staff or written to Supabase",
   },
+  "usage-stats": {
+    title: "Usage Stats",
+    subtitle: "Which pages and features actually get used, most to least",
+  },
   "staff-messages": {
     title: "Team Chat",
     subtitle: "Message management, separate from client conversations",
@@ -16105,7 +16304,8 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
       ? page
       : (page === "staff-access" ||
             page === "client-access" ||
-            page === "developer-tools") &&
+            page === "developer-tools" ||
+            page === "usage-stats") &&
           staffUser &&
           (staffUser.role === "admin" || hasTempAdminAccess) &&
           !impersonating
@@ -16121,6 +16321,37 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
                 : access.tabs.has(page)
                   ? page
                   : ALWAYS_VISIBLE_KEY;
+
+  // §135: one row per page view, staff and client alike, so Usage Stats
+  // (admin-only) can rank pages most-to-least used. Fires on effectivePage
+  // rather than page so it reflects what actually rendered, not a page key
+  // that got bounced by the access checks above. Impersonation logs under
+  // the real staffUser doing the impersonating (not the impersonated
+  // bookkeeper) since that's whose browser/session generated the view.
+  // Fire-and-forget: a logging failure should never surface to the viewer.
+  useEffect(() => {
+    const supabase = window.mgbSupabase;
+    if (!supabase || effectivePage === "usage-stats") return;
+    const actorEmail = clientPortalUser
+      ? clientPortalUser.email
+      : staffUser && staffUser.email;
+    if (!actorEmail) return;
+    supabase
+      .from("usage_events")
+      .insert({
+        actor_email: actorEmail,
+        actor_role: clientPortalUser ? "client" : "staff",
+        client_id: NON_CLIENT_PAGES.has(effectivePage)
+          ? null
+          : selectedClientId,
+        page: effectivePage,
+      })
+      .then(({ error }) => {
+        if (error) console.warn("Couldn't log usage event:", error.message);
+      });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [effectivePage]);
+
   // Each of these six tabs IS its upgraded page for a full-access premium
   // viewer — same pattern for all six now (see PREMIUM_UPGRADE_TAB_KEYS):
   // one nav item, content swapped by plan, rather than a second
@@ -16848,6 +17079,7 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
               readOnly={staffUser.role !== "admin"}
             />
           )}
+          {effectivePage === "usage-stats" && <UsageStatsPage />}
           {effectivePage === "bookkeeper-home" && (
             <BookkeeperHomePage
               staffUser={effectiveStaffUser}
