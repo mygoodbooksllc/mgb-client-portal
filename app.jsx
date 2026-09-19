@@ -8480,7 +8480,7 @@ function formatStorageValue(raw) {
   }
 }
 
-function DeveloperToolsPage({ staffUser, onJumpToClient, readOnly }) {
+function DeveloperToolsPage({ staffUser, clients, onJumpToClient, readOnly }) {
   const supabase = window.mgbSupabase;
   const [, forceRerender] = useState(0);
   const [clientQuery, setClientQuery] = useState("");
@@ -8554,10 +8554,22 @@ function DeveloperToolsPage({ staffUser, onJumpToClient, readOnly }) {
     window.location.reload();
   }
 
+  // Scoped to whatever this viewer can actually see — admins get every
+  // client (visibleClients is unrestricted for them), a bookkeeper with
+  // temporary admin access to this page still only gets their own assigned
+  // clients (see App's assignedClientIds/visibleClients). This page used to
+  // search the raw global CLIENTS array here, which quietly bypassed that
+  // gating for anyone on temporary access.
+  const sortedClients = useMemo(
+    () => [...clients].sort((a, b) => a.name.localeCompare(b.name)),
+    [clients],
+  );
   const matchingClients = clientQuery.trim()
-    ? CLIENTS.filter((c) =>
-        c.name.toLowerCase().includes(clientQuery.trim().toLowerCase()),
-      ).slice(0, 8)
+    ? clients
+        .filter((c) =>
+          c.name.toLowerCase().includes(clientQuery.trim().toLowerCase()),
+        )
+        .slice(0, 8)
     : [];
 
   return (
@@ -8582,11 +8594,29 @@ function DeveloperToolsPage({ staffUser, onJumpToClient, readOnly }) {
           <p className="card-subtitle">
             Skip the sidebar dropdown — land straight on a client's dashboard.
           </p>
+          <select
+            value=""
+            style={{ width: "100%", marginBottom: 10 }}
+            onChange={(e) => {
+              if (e.target.value)
+                onJumpToClient && onJumpToClient(e.target.value);
+            }}
+          >
+            <option value="">
+              Browse all {sortedClients.length} client
+              {sortedClients.length === 1 ? "" : "s"}…
+            </option>
+            {sortedClients.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name} ({c.plan === "premium" ? "Premium" : "Standard"})
+              </option>
+            ))}
+          </select>
           <input
             type="text"
             className="ap-cc-search"
             style={{ width: "100%", boxSizing: "border-box" }}
-            placeholder="Search clients by name…"
+            placeholder="…or search clients by name"
             value={clientQuery}
             onChange={(e) => setClientQuery(e.target.value)}
           />
@@ -11457,6 +11487,13 @@ function BookkeeperHomePage({
     (id) => !id.startsWith("kpi-"),
   );
 
+  // clients is already scoped to this bookkeeper's assignments (or
+  // unrestricted for an admin) by App's visibleClients — see the note on
+  // DeveloperToolsPage's matching card for why that matters.
+  const sortedJumpClients = useMemo(
+    () => [...clients].sort((a, b) => a.name.localeCompare(b.name)),
+    [clients],
+  );
   const jumpMatches = jumpQuery.trim()
     ? clients
         .filter((c) =>
@@ -11472,11 +11509,28 @@ function BookkeeperHomePage({
         <p className="card-subtitle">
           Skip the sidebar dropdown — land straight on a client's dashboard.
         </p>
+        <select
+          value=""
+          style={{ width: "100%", marginBottom: 10 }}
+          onChange={(e) => {
+            if (e.target.value) onNavigateToClient(e.target.value, "dashboard");
+          }}
+        >
+          <option value="">
+            Browse your {sortedJumpClients.length} client
+            {sortedJumpClients.length === 1 ? "" : "s"}…
+          </option>
+          {sortedJumpClients.map((c) => (
+            <option key={c.id} value={c.id}>
+              {c.name} ({c.plan === "premium" ? "Premium" : "Standard"})
+            </option>
+          ))}
+        </select>
         <input
           type="text"
           className="ap-cc-search"
           style={{ width: "100%", boxSizing: "border-box" }}
-          placeholder="Search your clients by name…"
+          placeholder="…or search your clients by name"
           value={jumpQuery}
           onChange={(e) => setJumpQuery(e.target.value)}
         />
@@ -17472,6 +17526,7 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
           {effectivePage === "developer-tools" && (
             <DeveloperToolsPage
               staffUser={staffUser}
+              clients={visibleClients}
               onJumpToClient={(clientId) => {
                 setSelectedClientId(clientId);
                 setPage("dashboard");

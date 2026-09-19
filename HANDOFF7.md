@@ -4237,3 +4237,28 @@ Files touched: `supabase/feature-feedback.sql` (new), `app.jsx`
 *Update:* `FEEDBACK_PROMPT_INTERVAL_DAYS` bumped from 30 to 60 — once
 every couple months reads as respectful of people's time; monthly was
 too naggy for a survey this open-ended.
+
+## §137 — Jump to client: browsable dropdown, and a real access-gating bug fixed
+
+Both "Jump to client" cards (Developer Tools' and Bookkeeper Home's) were
+search-only — no way to browse the full list without typing a name.
+Added a `<select>` dropdown above each search box, alphabetized, showing
+plan (Premium/Standard) per row, wired to the same jump handler the
+search results already used.
+
+While wiring Developer Tools' dropdown, found the actual bug worth
+fixing: its search matched against the raw global `CLIENTS` array, not
+the caller's access-scoped `visibleClients`. Harmless for a real admin —
+`visibleClients` is unrestricted for them anyway — but Developer Tools is
+also reachable by a bookkeeper on *temporary* admin access
+(`hasTempAdminAccess`, staff-temp-admin-access.sql), whose `staffUser.role`
+stays "bookkeeper" the whole time. For that person, the search was quietly
+bypassing their normal `staff_client_access` restriction and surfacing
+every client org, including ones never assigned to them. `App` now passes
+`clients={visibleClients}` into `DeveloperToolsPage`, and both its search
+and new dropdown read from that prop instead of `CLIENTS` directly.
+Bookkeeper Home's card already received the correctly-scoped `clients`
+prop — only needed the dropdown, not a gating fix.
+
+Files touched: `app.jsx` (`DeveloperToolsPage`, `BookkeeperHomePage`,
+`App`), `index.html`, `build.py`.
