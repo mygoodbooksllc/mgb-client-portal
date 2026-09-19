@@ -389,6 +389,29 @@ body {
   min-width: 200px;
 }
 
+/* §143: collapsed-sidebar icon hover labels — portaled straight into
+   document.body (see Sidebar's hoverTip), so `position: fixed` here
+   means real viewport coordinates, not clipped by `.nav`'s
+   overflow-y: auto (which implicitly clips overflow-x too — the same
+   trap that broke the reverted split-rail sidebar's tooltips). No
+   transition/delay: appears the instant the pointer lands, since the
+   whole point is scanning the icon column quickly. */
+.icon-hover-tip {
+  position: fixed;
+  transform: translateY(-50%);
+  background: var(--navy-deep, #0f1a20);
+  color: #f2ede2;
+  border: 1px solid rgba(199, 174, 134, 0.5);
+  border-radius: 7px;
+  padding: 6px 11px;
+  font-size: 12.5px;
+  font-weight: 600;
+  white-space: nowrap;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.35);
+  pointer-events: none;
+  z-index: 2000;
+}
+
 .brand {
   display: flex;
   align-items: center;
@@ -1189,6 +1212,25 @@ body {
   color: var(--ink-strong);
   margin: 0;
   letter-spacing: -0.02em;
+}
+
+/* §144: which tab this is, shown right next to the personal greeting —
+   the greeting alone never said that, and with the sidebar collapsible
+   to icons (§142) there was no page name visible anywhere once
+   collapsed. Small enough to not compete with the big greeting text. */
+.page-name-tag {
+  display: inline-block;
+  vertical-align: middle;
+  margin-left: 12px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  color: var(--text-muted);
+  font-family: var(--font-body);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
 }
 
 .page-subtitle {
