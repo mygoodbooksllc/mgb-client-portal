@@ -1603,6 +1603,17 @@ body {
    can also reach (e.g. Reconciliation Pro's own section titles, not
    Bank Accounts' shared Recent Transactions) — sprinkling it everywhere
    would just make the whole app look gold instead of marking what's new. */
+/* text-shadow renders as its own layer behind the glyph shapes,
+   independent of whatever fills them — a solid color or, here, the
+   gradient background-clip:text is punching through. That's what makes
+   it the fix for the light-mode wash-out: the sweep's pale highlight
+   (#f7ecd3) reads as nearly invisible against a light cream page
+   background (--bg is very close to that same color), but the shadow
+   never moves or fades with the animation, so it keeps the text
+   anchored and legible through every frame of the sweep, not just the
+   darker ones. Darker/tighter in light mode, where the wash-out actually
+   happens; softer in dark mode, which already has plenty of contrast
+   against a near-black page and only needed a little added depth. */
 .premium-shimmer {
   background: linear-gradient(100deg, var(--gold-deep) 20%, #f7ecd3 45%, var(--gold-deep) 70%);
   background-size: 220% auto;
@@ -1611,7 +1622,18 @@ body {
   background-clip: text;
   -webkit-text-fill-color: transparent;
   color: transparent;
+  text-shadow: 0 1px 2px rgba(59, 43, 14, 0.45);
   animation: navSignatureShine 11.25s ease-in-out infinite;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .premium-shimmer {
+    text-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
+  }
+}
+
+:root[data-theme="dark"] .premium-shimmer {
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
 }
 
 @media (prefers-reduced-motion: reduce) {
