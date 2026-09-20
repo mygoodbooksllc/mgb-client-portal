@@ -1601,36 +1601,40 @@ body {
    background) — the sidebar's own shimmer text is a separate class,
    .sidebar-text-shimmer below, precisely because the sidebar stays dark
    navy regardless of app theme and was never the problem. */
+/* §152: static gold by default (fixes the light-mode wash-out from
+   §150/§151 by construction — there's no auto-looping sweep left to
+   wash out), with a shimmer spotlight that only appears on hover,
+   tracking the actual cursor. The trick: a radial-gradient with
+   background-attachment: fixed paints relative to the *viewport*, not
+   the element box, so `at var(--mouse-x) var(--mouse-y)` (raw viewport
+   px, kept current by one document-level mousemove listener in App —
+   see setupGlobalMouseTracking) lands the highlight exactly under the
+   cursor with zero per-element JS: every .premium-shimmer element reads
+   the same two CSS custom properties, and background-clip: text crops
+   that viewport-wide gradient down to each one's own glyph shapes.
+   :focus-visible gets it too (keyboard users still see *something* on
+   Tab, just centered rather than cursor-tracked, via the var()
+   fallback) — touch has no hover at all, so it's plain solid gold
+   there, which is the correct "static gold if no hover" behavior, not
+   a gap. No animation/transition here at all, so prefers-reduced-motion
+   doesn't need to disable anything — this only ever moves in direct
+   response to input, never on its own. */
 .premium-shimmer {
   color: var(--gold-deep);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) .premium-shimmer {
-    background: linear-gradient(100deg, var(--gold-deep) 20%, #f7ecd3 45%, var(--gold-deep) 70%);
-    background-size: 220% auto;
-    background-position: 0% center;
-    -webkit-background-clip: text;
-    background-clip: text;
-    -webkit-text-fill-color: transparent;
-    color: transparent;
-    animation: navSignatureShine 11.25s ease-in-out infinite;
-  }
-}
-
-:root[data-theme="dark"] .premium-shimmer {
-  background: linear-gradient(100deg, var(--gold-deep) 20%, #f7ecd3 45%, var(--gold-deep) 70%);
-  background-size: 220% auto;
-  background-position: 0% center;
+.premium-shimmer:hover,
+.premium-shimmer:focus-visible {
+  background-image: radial-gradient(
+    140px circle at var(--mouse-x, 50%) var(--mouse-y, 50%),
+    #f7ecd3 0%,
+    var(--gold-deep) 70%
+  );
+  background-attachment: fixed;
   -webkit-background-clip: text;
   background-clip: text;
   -webkit-text-fill-color: transparent;
   color: transparent;
-  animation: navSignatureShine 11.25s ease-in-out infinite;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .premium-shimmer { animation: none; }
 }
 
 /* The sidebar's own version of the same sweep, for text on the sidebar's

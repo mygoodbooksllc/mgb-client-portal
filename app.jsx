@@ -16608,6 +16608,37 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
   useEffect(() => {
     checkStaffMessagesUnread();
   }, [checkStaffMessagesUnread, page]);
+  // §152: keeps --mouse-x/--mouse-y (raw viewport px) current on the root
+  // element for .premium-shimmer's hover-follow spotlight — see that
+  // class's own comment in styles.css for the background-attachment:fixed
+  // trick this feeds. One listener for the whole app rather than one per
+  // shimmering element (there are over a dozen). Writes directly to
+  // documentElement.style, bypassing React state/re-renders entirely,
+  // since this can fire dozens of times a second and nothing here needs
+  // to trigger a render — only CSS reads it.
+  useEffect(() => {
+    let raf = null;
+    const onMove = (e) => {
+      if (raf) return;
+      raf = requestAnimationFrame(() => {
+        raf = null;
+        document.documentElement.style.setProperty(
+          "--mouse-x",
+          e.clientX + "px",
+        );
+        document.documentElement.style.setProperty(
+          "--mouse-y",
+          e.clientY + "px",
+        );
+      });
+    };
+    window.addEventListener("mousemove", onMove, { passive: true });
+    return () => {
+      window.removeEventListener("mousemove", onMove);
+      if (raf) cancelAnimationFrame(raf);
+    };
+  }, []);
+
   // Set when a global-search result is clicked, so the destination page
   // knows exactly which row to scroll to and flash — not just which tab to
   // open. `nonce` forces the effect on the receiving page to re-fire even
