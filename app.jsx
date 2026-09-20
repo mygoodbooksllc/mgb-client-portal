@@ -1288,10 +1288,7 @@ function Sidebar({
       </div>
 
       <button
-        className={
-          "sidebar-collapse-toggle" +
-          (collapsed ? " sidebar-collapse-toggle-glow" : "")
-        }
+        className="sidebar-collapse-toggle"
         onClick={onToggleCollapse}
         aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
         onMouseEnter={(e) => showTip(e, collapsed ? "Expand" : "Collapse")}

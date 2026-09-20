@@ -4698,3 +4698,9 @@ just as its own reusable class) so `.premium-shimmer`'s light-mode rule
 never touches it.
 
 Files touched: `app.jsx` (`Sidebar`), `styles.css`.
+
+*Update:* removed the expand-arrow's pulse glow (`.sidebar-collapse-toggle-glow`,
+`sidebarCollapseGlow`) per feedback — the arrow keeps its instant hover
+label ("Expand"/"Collapse") but no longer animates on its own.
+
+Files touched: `app.jsx` (`Sidebar`), `styles.css`.
