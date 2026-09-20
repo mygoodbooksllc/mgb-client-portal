@@ -4872,3 +4872,25 @@ rules to sort it out — there's no tie left to win, since a phone
 `min-width: 761px` half regardless of pointer type.
 
 Files touched: `styles.css`.
+
+## §157 — Fix: hover-tooltip labels sticking on phone taps
+
+Reported live, with a screenshot: a black "Reports" tooltip stuck on
+screen over the Report Builder page on a phone. `Sidebar`'s `showTip`
+(§143) only ever checked the `collapsed` *preference* — but that's a
+stored value, not "is the sidebar actually rendering collapsed right
+now"; §154 made the CSS ignore it entirely below 761px, where phones
+get the full labeled drawer instead. `showTip` never learned that, so
+a tap on a phone — which fires `onFocus`, the same handler wired up
+for keyboard users on desktop — opened a tooltip labelling something
+whose text was already sitting right next to it. Worse on touch than
+it would ever be on desktop: there's no `mouseleave` to dismiss it, so
+without a second tap landing on exactly the right spot to blur it, it
+just stuck there.
+
+Fixed by checking `window.innerWidth < 761` too (same breakpoint the
+CSS already gates on) before showing a tip — read fresh on each actual
+hover/focus event, not cached, so it doesn't need its own resize
+listener.
+
+Files touched: `app.jsx` (`Sidebar`).
