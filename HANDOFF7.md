@@ -4765,3 +4765,42 @@ content area actually tall enough to compete with an open sidebar
 dropdown.
 
 Files touched: `styles.css`.
+
+## §154 — Mobile audit: drawer opened squeezed to an icon sliver by default
+
+Asked for a mobile UI/UX pass focused on the sidebar. Couldn't get a
+real logged-in screenshot (same sandbox proxy limitation noted on other
+PRs this session), so this was a careful static read of every mobile
+media-query block against everything the sidebar gained recently — and
+turned up a real, severe one, not just a nit:
+
+§149 made the sidebar collapse to icons by default everywhere, with no
+viewport check. `.sidebar.sidebar-collapsed`'s plain two-class selector
+(specificity 0,2,0) beats the phone drawer's own `.sidebar { width:
+min(82vw, 300px) }` override further down this file (0,1,0) — CSS
+specificity, not cascade/source position, decides a tie like that. Net
+effect: on every phone, the off-canvas drawer would open squeezed to a
+72px icon sliver with almost every label hidden ("Home", "Team Chat",
+client name, etc.), by default, until someone happened to expand the
+sidebar once on a desktop session first (the two share the same
+`localStorage` key). The collapse toggle itself was also inside that
+same cramped drawer, redundant with the hamburger/drawer already being
+its own "collapse" — tapping it wouldn't even have visually done
+anything different at 72px-vs-drawer-width once the underlying bug was
+fixed, just quietly changed the *desktop* preference from a phone.
+
+Fixed at the source rather than patched around: every
+`.sidebar.sidebar-collapsed*` rule is now wrapped in
+`@media (min-width: 761px)`, so collapse-to-icons styling simply never
+activates below the phone breakpoint — the tablet range (761-1024px)
+still gets it, only genuine phones don't. The collapse toggle button
+itself is hidden entirely inside the existing phone media query, since
+it's a desktop screen-space control the off-canvas drawer never needed.
+
+No other mobile-specific issues found in this pass — the rest of this
+session's additions (instant hover tooltips, the page header/name tag,
+the z-index changes, the hover-follow shimmer) are either desktop-hover-
+only (degrade to their static/base state on touch, which is correct,
+not a gap) or don't interact with the sidebar's own layout.
+
+Files touched: `styles.css`.
