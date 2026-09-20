@@ -4653,3 +4653,26 @@ already does.
 
 Files touched: `app.jsx` (`Sidebar`, `App`, module scope), `styles.css`,
 `index.html`, `build.py`.
+
+## §150 — Gold shimmer text-shadow, fixes wash-out in light mode
+
+`.premium-shimmer`'s sweep (`--gold-deep` → `#f7ecd3` pale cream →
+`--gold-deep`) reads fine in dark mode, but that pale highlight is close
+enough to light mode's own `--bg` that the text nearly disappeared at
+the brightest point of every sweep — a real legibility problem, not
+just an aesthetic one.
+
+Added `text-shadow` to the same rule. It's the right tool here
+specifically because a `text-shadow` layer renders behind the glyph
+shapes independent of whatever fills them — a solid color, or, in this
+case, the gradient `background-clip: text` is punching through — so
+unlike the fill itself, it never moves or fades with the sweep
+animation. It keeps the text anchored and legible through every frame,
+not just the darker ones. Darker/tighter in light mode
+(`rgba(59, 43, 14, 0.45)`, where the wash-out actually happens), softer
+in dark mode (`rgba(0, 0, 0, 0.5)`, which already had plenty of
+contrast and only needed a little added depth) — same three-block
+light/dark/explicit-`data-theme` pattern every other theme-aware rule in
+this file already follows.
+
+Files touched: `styles.css`.
