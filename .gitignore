@@ -3,3 +3,4 @@
 .snapshot-before-*/
 node_modules/
 .claude/worktrees/
+__pycache__/
