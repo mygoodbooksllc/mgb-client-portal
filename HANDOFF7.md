@@ -4849,3 +4849,26 @@ added this session. Full findings available in the session transcript
 if useful later.
 
 Files touched: `app.jsx` (`App`), `styles.css`.
+
+## §156 — Fix: §155's own touch-target fix was un-hiding the toggle on phones
+
+Reported live: the collapse-toggle button was visible again on a phone,
+where §154 had specifically hidden it. Self-inflicted by §155's own
+tablet touch-target fix, landed minutes earlier: it added
+`.sidebar-collapse-toggle { min-height: 44px; display: flex; ... }` as
+a single-class selector inside the shared `@media (pointer: coarse)`
+block — but a phone is *also* `pointer: coarse`, so both that rule and
+§154's `.sidebar-collapse-toggle { display: none; }` (inside `@media
+(max-width: 760px)`) applied there simultaneously. Tied in specificity
+(both single-class), the tie goes to source order, and the touch-target
+rule sat later in the file — so it won, silently re-displaying the
+button §154 had just hidden.
+
+Fixed by combining both real conditions into one media query,
+`@media (pointer: coarse) and (min-width: 761px)`, instead of relying
+on cascade order between two separately-declared same-specificity
+rules to sort it out — there's no tie left to win, since a phone
+(`max-width: 760px`, i.e. `< 761px`) can never match this query's
+`min-width: 761px` half regardless of pointer type.
+
+Files touched: `styles.css`.
