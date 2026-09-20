@@ -410,6 +410,22 @@ const ALL_TAB_KEYS = NAV_SECTIONS.flatMap((section) =>
 );
 const ALWAYS_VISIBLE_KEY = "dashboard";
 
+// §148: the sidebar's own label for each tab key — e.g. "dashboard" ->
+// "Dashboard", never "Live Report" (that's PAGE_META["daily-close"]'s
+// title, used for a premium client's upgraded Dashboard). The page
+// header uses this instead of meta.title so it always reads exactly
+// like the sidebar entry it's under, even on the six
+// PREMIUM_UPGRADE_TAB_KEYS pages where the upgraded page has its own
+// separate product name that deliberately never appears in the sidebar
+// (see §131's ENTERPRISE_FEATURES "Upgrades your {tab} tab" pill, which
+// exists precisely because the premium name isn't visible there).
+const NAV_LABEL_BY_KEY = Object.fromEntries(
+  NAV_SECTIONS.flatMap((section) => section.items).map((item) => [
+    item.key,
+    item.label,
+  ]),
+);
+
 // Tabs that show whole-organization figures with no category dimension, so
 // they can't be meaningfully narrowed to one person's ministry area. A
 // category-scoped user is never given these, even if their tab list names one.
@@ -17714,11 +17730,11 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
                   "page-title" + (headerIsPremium ? " premium-shimmer" : "")
                 }
               >
-                {meta && meta.title
-                  ? meta.title
-                  : NON_CLIENT_PAGES.has(effectivePage)
+                {NAV_LABEL_BY_KEY[effectivePage] ||
+                  (meta && meta.title) ||
+                  (NON_CLIENT_PAGES.has(effectivePage)
                     ? "MyGoodBooks"
-                    : client.name}
+                    : client.name)}
               </h1>
               <div
                 className={

@@ -163,7 +163,7 @@ def build(out_path: pathlib.Path, refresh: bool) -> None:
 
 // Mirrors the stamp in index.html — bumped by hand alongside this file,
 // since there's no build step to inject a real commit SHA into.
-window.MGB_VERSION = {{ label: "2026-09-20b", note: "Page header IS the tab name now, larger, gold-shimmer on premium clients" }};
+window.MGB_VERSION = {{ label: "2026-09-20c", note: "Page header uses the sidebar's exact tab label, not the premium product name" }};
 // Mirrors index.html's pinch-block — see that file's comment for why this
 // is gesture-level (2+ touches) rather than touch-action CSS.
 document.addEventListener(
