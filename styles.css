@@ -425,6 +425,26 @@ body {
   }
 }
 
+/* §155/§156: touch-target sizing for the collapse toggle, but ONLY where
+   it's actually visible — a touch tablet in the 761-1024px range
+   (min-width: 761px, same gate the feature itself uses), never a phone.
+   The first attempt put this inside the shared `@media (pointer: coarse)`
+   block below alongside .nav-section-label/.customize-tabs-btn, as a
+   single-class selector with the same specificity as the phone media
+   query's `.sidebar-collapse-toggle { display: none; }` — a phone is
+   ALSO pointer: coarse, so both rules applied there, tied in specificity,
+   and the touch-target rule (later in source order) won and silently
+   re-displayed the button §154 had just hidden. Combining both
+   conditions in one query here, instead of relying on cascade order
+   between two separately-declared rules, means there's no tie to win. */
+@media (pointer: coarse) and (min-width: 761px) {
+  .sidebar-collapse-toggle {
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+  }
+}
+
 /* §143: collapsed-sidebar icon hover labels — portaled straight into
    document.body (see Sidebar's hoverTip), so `position: fixed` here
    means real viewport coordinates, not clipped by `.nav`'s
@@ -5184,14 +5204,7 @@ body:has(.modal-overlay) .chat-fab-wrap {
   }
 
   .nav-section-label,
-  .customize-tabs-btn,
-  /* §155: missed in this block's original sweep — 13px icon + 6px padding
-     rendered at ~25px tall. Doesn't show on a phone at all (§154 hides it
-     below 761px, the off-canvas drawer being its phone equivalent), but a
-     touch tablet in the 761-1024px range (an iPad in portrait, ~768px) is
-     `pointer: coarse` and still gets the collapse-to-icons sidebar by
-     default — where this is the only way back to full labels. */
-  .sidebar-collapse-toggle {
+  .customize-tabs-btn {
     min-height: 44px;
     display: flex;
     align-items: center;
