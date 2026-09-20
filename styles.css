@@ -388,6 +388,31 @@ body {
   transform: rotate(-90deg);
 }
 
+/* §149: icons-only is the sidebar's default now, so this arrow is the
+   only way back to full labels — a continuous gold pulse (only while
+   collapsed; expanded already spells out "Collapse" in plain text so it
+   needs no extra emphasis) flags that it's there and clickable, same
+   accessAlertGlow-style ring technique as the access-request alert. */
+.sidebar-collapse-toggle-glow {
+  color: var(--gold);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .sidebar-collapse-toggle-glow {
+    animation: sidebarCollapseGlow 2.2s ease-in-out infinite;
+  }
+}
+
+@keyframes sidebarCollapseGlow {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(199, 174, 134, 0);
+  }
+  50% {
+    box-shadow: 0 0 14px 3px rgba(199, 174, 134, 0.55);
+  }
+}
+
 /* .staff-user-dropdown normally stretches left:0/right:0 to match its
    parent's full width — fine at 224px, but at collapsed 72px that would
    squeeze "Team Chat"/"My Time" etc. into an unreadably narrow column.

@@ -1288,10 +1288,16 @@ function Sidebar({
       </div>
 
       <button
-        className="sidebar-collapse-toggle"
+        className={
+          "sidebar-collapse-toggle" +
+          (collapsed ? " sidebar-collapse-toggle-glow" : "")
+        }
         onClick={onToggleCollapse}
         aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-        title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+        onMouseEnter={(e) => showTip(e, collapsed ? "Expand" : "Collapse")}
+        onMouseLeave={hideTip}
+        onFocus={(e) => showTip(e, collapsed ? "Expand" : "Collapse")}
+        onBlur={hideTip}
       >
         <ChevronDownIcon className="sidebar-collapse-toggle-icon" />
         {!collapsed && <span>Collapse</span>}
@@ -15673,9 +15679,10 @@ function TabSettingsModal({
 // App
 // ----------------------------------------------------------------------------
 
-// Explicit theme choice from the header toggle. Null means "use the product
-// default" (dark) — the OS setting no longer decides this (see index.html's
-// pre-hydration script and styles.css's data-theme guard).
+// Explicit theme choice from the header toggle. Null means "use the
+// automatic default" — see AUTO_THEME below (§149; previously always
+// dark, see index.html's pre-hydration script and styles.css's
+// data-theme guard, both updated to match).
 const THEME_STORAGE_KEY = "mygoodbooks_theme_v1";
 
 function loadTheme() {
@@ -15687,6 +15694,65 @@ function loadTheme() {
   }
 }
 
+// §149: the automatic default now follows sunrise/sunset instead of
+// always being dark — but only when the person hasn't explicitly picked
+// a theme from the header toggle (loadTheme above always wins). Real
+// sunrise/sunset needs a location; geolocation is asked for once and the
+// result cached with the day it was computed for, so a repeat visit
+// doesn't re-prompt or recompute. Denied, unavailable, or still pending
+// falls back to a plain local-clock heuristic (light 6am-7pm) that needs
+// no permission at all — a reasonable default even though it ignores
+// season and latitude, and it's what index.html's pre-hydration script
+// uses too, so the very first paint already agrees with this.
+const AUTO_THEME_GEO_CACHE_KEY = "mygoodbooks_auto_theme_geo_v1";
+
+function clockHeuristicTheme(date) {
+  const hour = (date || new Date()).getHours();
+  return hour >= 6 && hour < 19 ? "light" : "dark";
+}
+
+// Approximate sunrise/sunset — https://en.wikipedia.org/wiki/Sunrise_equation,
+// simplified (no atmospheric refraction correction beyond the standard
+// -0.83° used for a visible sunrise/sunset, not civil twilight). Returns
+// {sunrise, sunset} as real Date objects, or null for a polar day/night
+// where the sun never crosses the horizon that day (falls back to the
+// clock heuristic in that case, same as no geolocation at all).
+function sunriseSunset(lat, lon, date) {
+  const rad = Math.PI / 180;
+  const dayMs = 86400000;
+  const j2000 = Date.UTC(2000, 0, 1, 12, 0, 0);
+  const n = Math.round((date.getTime() - j2000) / dayMs);
+  const meanAnomaly = (357.5291 + 0.98560028 * n) % 360;
+  const center =
+    1.9148 * Math.sin(meanAnomaly * rad) +
+    0.02 * Math.sin(2 * meanAnomaly * rad) +
+    0.0003 * Math.sin(3 * meanAnomaly * rad);
+  const eclipticLon = (meanAnomaly + 102.9372 + center + 180) % 360;
+  const solarTransit =
+    2451545.0 +
+    n +
+    0.0053 * Math.sin(meanAnomaly * rad) -
+    0.0069 * Math.sin(2 * eclipticLon * rad);
+  const declination = Math.asin(
+    Math.sin(eclipticLon * rad) * Math.sin(23.44 * rad),
+  );
+  const cosHourAngle =
+    (Math.sin(-0.83 * rad) - Math.sin(lat * rad) * Math.sin(declination)) /
+    (Math.cos(lat * rad) * Math.cos(declination));
+  if (cosHourAngle > 1 || cosHourAngle < -1) return null;
+  const hourAngle = Math.acos(cosHourAngle) / rad;
+  const jRise = solarTransit - hourAngle / 360 - lon / 360;
+  const jSet = solarTransit + hourAngle / 360 - lon / 360;
+  const toDate = (jd) => new Date((jd - 2440587.5) * dayMs);
+  return { sunrise: toDate(jRise), sunset: toDate(jSet) };
+}
+
+function themeFromSun(lat, lon, date) {
+  const times = sunriseSunset(lat, lon, date);
+  if (!times) return clockHeuristicTheme(date);
+  return date >= times.sunrise && date < times.sunset ? "light" : "dark";
+}
+
 // §142: whether the sidebar shows full tab names or just icons — a per-
 // browser preference (like theme), not tied to plan/role, so anyone can
 // reclaim screen width on a smaller laptop without it resetting each
@@ -15694,13 +15760,16 @@ function loadTheme() {
 // second icon rail — see HANDOFF7.md §124-§128 for why an earlier,
 // fancier split-sidebar redesign got fully reverted after it accumulated
 // layout bugs; this is intentionally the simpler shape.
+// §149: defaults to collapsed now — an explicit "0" (the person expanded
+// it themselves) is the only thing that opts back out; a missing key
+// (never touched the toggle) collapses same as an explicit "1" would.
 const SIDEBAR_COLLAPSED_STORAGE_KEY = "mygoodbooks_sidebar_collapsed_v1";
 
 function loadSidebarCollapsed() {
   try {
-    return localStorage.getItem(SIDEBAR_COLLAPSED_STORAGE_KEY) === "1";
+    return localStorage.getItem(SIDEBAR_COLLAPSED_STORAGE_KEY) !== "0";
   } catch (e) {
-    return false;
+    return true;
   }
 }
 
@@ -16560,6 +16629,60 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
   // null until the header toggle is used, at which point it pins the choice
   // (see the effects below). Null means dark — the product default.
   const [theme, setTheme] = useState(loadTheme);
+
+  // §149: automatic light/dark default, following sunrise/sunset once a
+  // location is known. Seeds synchronously from the clock heuristic (no
+  // permission needed, matches index.html's pre-hydration script so the
+  // very first paint already agrees), then refines from a cached or
+  // freshly-requested geolocation. Never runs at all once `theme` holds
+  // an explicit choice — that always wins, this only ever supplies the
+  // default. Re-derived every 15 minutes so a tab left open through an
+  // actual sunrise/sunset still switches without a reload.
+  const [autoTheme, setAutoTheme] = useState(clockHeuristicTheme);
+  useEffect(() => {
+    if (theme) return;
+    let cachedCoords = null;
+    try {
+      const raw = localStorage.getItem(AUTO_THEME_GEO_CACHE_KEY);
+      const cached = raw && JSON.parse(raw);
+      if (cached && cached.day === new Date().toDateString()) {
+        cachedCoords = cached;
+      }
+    } catch (e) {}
+
+    const applyFromCoords = (lat, lon) =>
+      setAutoTheme(themeFromSun(lat, lon, new Date()));
+
+    if (cachedCoords) {
+      applyFromCoords(cachedCoords.lat, cachedCoords.lon);
+    } else if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          const { latitude, longitude } = pos.coords;
+          try {
+            localStorage.setItem(
+              AUTO_THEME_GEO_CACHE_KEY,
+              JSON.stringify({
+                lat: latitude,
+                lon: longitude,
+                day: new Date().toDateString(),
+              }),
+            );
+          } catch (e) {}
+          applyFromCoords(latitude, longitude);
+        },
+        () => {}, // denied/unavailable — keep the clock heuristic
+        { maximumAge: 24 * 60 * 60 * 1000, timeout: 8000 },
+      );
+    }
+
+    const interval = setInterval(() => {
+      if (cachedCoords) applyFromCoords(cachedCoords.lat, cachedCoords.lon);
+      else setAutoTheme(clockHeuristicTheme());
+    }, 900000);
+    return () => clearInterval(interval);
+  }, [theme]);
+
   const [sidebarCollapsed, setSidebarCollapsed] =
     useState(loadSidebarCollapsed);
   const toggleSidebarCollapsed = () => {
@@ -16848,7 +16971,7 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
     } catch (e) {}
   }, [theme]);
 
-  const effectiveTheme = theme || "dark";
+  const effectiveTheme = theme || autoTheme;
 
   const baseClient = useMemo(
     () =>

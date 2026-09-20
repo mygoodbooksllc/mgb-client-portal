@@ -145,25 +145,33 @@ def build(out_path: pathlib.Path, refresh: bool) -> None:
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="{FONTS}" rel="stylesheet" />
 <script>
-// Mirrors the same block in index.html. Dark is the product default; light is
-// opt-in. This has to run before the stylesheet below is applied, otherwise a
-// light-OS machine renders the light palette until React mounts and sets the
-// attribute itself — which in this bundle means until Babel has compiled the
-// whole app, so the flash is very visible.
+// Mirrors the same block in index.html (§149: no explicit choice defaults
+// to sunrise/sunset now, via app.jsx's autoTheme — but that needs a real
+// geolocation lookup this pre-hydration script can't do, so it uses the
+// same clock-only heuristic clockHeuristicTheme() seeds itself with,
+// light 6am-7pm, so this first frame already agrees with what React will
+// render). This has to run before the stylesheet below is applied,
+// otherwise a light-OS machine renders the light palette until React
+// mounts and sets the attribute itself — which in this bundle means
+// until Babel has compiled the whole app, so the flash is very visible.
 (function () {{
   var stored = null;
   try {{
     stored = localStorage.getItem("mygoodbooks_theme_v1");
   }} catch (e) {{}}
-  document.documentElement.setAttribute(
-    "data-theme",
-    stored === "light" ? "light" : "dark"
-  );
+  var theme;
+  if (stored === "light" || stored === "dark") {{
+    theme = stored;
+  }} else {{
+    var hour = new Date().getHours();
+    theme = hour >= 6 && hour < 19 ? "light" : "dark";
+  }}
+  document.documentElement.setAttribute("data-theme", theme);
 }})();
 
 // Mirrors the stamp in index.html — bumped by hand alongside this file,
 // since there's no build step to inject a real commit SHA into.
-window.MGB_VERSION = {{ label: "2026-09-20c", note: "Page header uses the sidebar's exact tab label, not the premium product name" }};
+window.MGB_VERSION = {{ label: "2026-09-20d", note: "Sunrise/sunset theme default, sidebar collapsed by default, glowing expand arrow" }};
 // Mirrors index.html's pinch-block — see that file's comment for why this
 // is gesture-level (2+ touches) rather than touch-action CSS.
 document.addEventListener(
