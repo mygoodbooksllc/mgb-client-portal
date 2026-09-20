@@ -4611,3 +4611,45 @@ every one of the six pages, falling back to `meta.title` only for
 staff-only pages that aren't in `NAV_SECTIONS` at all.
 
 Files touched: `app.jsx` (`App`, module scope).
+
+## §149 — Sunrise/sunset theme default, sidebar collapsed by default, glowing expand arrow
+
+Three related defaults changed at once, all "what the app does when a
+person hasn't touched a preference toggle":
+
+**Theme follows sunrise/sunset.** The automatic default (when
+`loadTheme()` returns null — the header toggle's explicit choice always
+still wins) used to just be hardcoded dark. New `clockHeuristicTheme()`
+(light 6am-7pm local time, no permission needed) seeds it instantly;
+`sunriseSunset(lat, lon, date)` — a compact standalone implementation of
+the standard sunrise equation, no library — then refines it once a
+location is known. Geolocation is requested once, permission-gated, and
+cached with the day it was computed for (`mygoodbooks_auto_theme_geo_v1`)
+so a repeat visit doesn't re-prompt; denied/unavailable/still-pending
+just keeps the clock heuristic. Re-derived every 15 minutes so a tab
+left open through an actual sunrise/sunset still switches live. Both
+`index.html` and `build.py`'s pre-hydration scripts (which set
+`data-theme` before React even mounts, to avoid a flash) now use the
+exact same clock heuristic instead of hardcoded dark, so the very first
+painted frame already agrees with what React renders — geolocation only
+ever refines it afterward, never visibly flips it.
+
+**Sidebar collapsed by default.** `loadSidebarCollapsed()` used to
+default to expanded (`localStorage` value `"1"` collapsed, anything else
+— including nothing — expanded). Flipped: now only an explicit `"0"`
+(the person expanded it themselves) opts out of collapsed.
+
+**The expand arrow now says so.** With collapsed as the default, the
+`.sidebar-collapse-toggle` arrow is the only way back to full labels —
+added a continuous gold pulse (`.sidebar-collapse-toggle-glow`, same
+box-shadow-ring technique as the access-request alert's
+`accessAlertGlow`) while collapsed, off once expanded (where "Collapse"
+already spells itself out in text). Wired into the same instant-hover
+tooltip system §143 built for every other collapsed-sidebar icon
+(`showTip`/`hideTip`, portal-rendered — see §143's write-up for why)
+instead of the native `title` it had before, so hovering it shows
+"Expand" (or "Collapse") the same way every other icon in this sidebar
+already does.
+
+Files touched: `app.jsx` (`Sidebar`, `App`, module scope), `styles.css`,
+`index.html`, `build.py`.
