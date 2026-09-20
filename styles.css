@@ -1214,32 +1214,21 @@ body {
   margin-bottom: 2px;
 }
 
+/* §147: the header text itself IS the current tab's name now (was a
+   personal greeting, with the tab name in a small pill underneath it —
+   collapsed into one line per feedback). Bumped up from 26px so it
+   reads as a real page title rather than a greeting's leftover size.
+   Color is the plain ink token by default; .premium-shimmer (applied
+   conditionally via headerIsPremium) overrides it with the gold
+   gradient treatment, same technique the sidebar's Enterprise label and
+   the page subtitle already use. */
 .page-title {
   font-family: var(--font-heading);
-  font-size: 26px;
+  font-size: 32px;
   font-weight: 800;
   color: var(--ink-strong);
   margin: 0;
   letter-spacing: -0.02em;
-}
-
-/* §144/§145: which tab this is, on its own line under the greeting —
-   with the sidebar collapsible to icons (§142) there was no page name
-   visible anywhere once collapsed. Was briefly an inline span glued
-   straight onto the <h1>'s text with no separating space; a block
-   element of its own sidesteps that concatenation risk entirely. */
-.page-name-tag {
-  display: inline-flex;
-  margin-top: 6px;
-  padding: 3px 10px;
-  border-radius: 999px;
-  background: var(--surface-2);
-  color: var(--text-muted);
-  font-family: var(--font-body);
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.02em;
-  text-transform: uppercase;
 }
 
 .page-subtitle {
@@ -4971,7 +4960,7 @@ body:has(.modal-overlay) .chat-fab-wrap {
   }
 
   .page-title {
-    font-size: 21px;
+    font-size: 25px;
   }
 
   .page-subtitle {

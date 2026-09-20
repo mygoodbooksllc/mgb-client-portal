@@ -238,13 +238,6 @@ const slugify = (label) =>
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-|-$/g, "");
 
-const timeOfDayGreeting = () => {
-  const hour = new Date().getHours();
-  if (hour < 12) return "Good morning";
-  if (hour < 17) return "Good afternoon";
-  return "Good evening";
-};
-
 const totalCash = (client) =>
   client.bankAccounts.reduce((s, a) => s + a.balance, 0);
 
@@ -17198,17 +17191,17 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
             : showsFundAccountingPro
               ? PAGE_META["fund-accounting-pro"]
               : PAGE_META[effectivePage];
-  // Drives the shimmering gold subtitle right under the page greeting — a
-  // one-glance "you're looking at the premium version" cue that doesn't
-  // depend on noticing the sidebar's PRO pill or scrolling into the page
-  // itself. True on exactly the six upgraded pages from PREMIUM_UPGRADE_TAB_KEYS.
-  const isPremiumPage =
-    showsLiveReport ||
-    showsBudgetingTool ||
-    showsCashFlowPro ||
-    showsReportBuilder ||
-    showsReconciliationPro ||
-    showsFundAccountingPro;
+  // §147: drives the shimmering gold page header/subtitle — a one-glance
+  // "this client is premium" cue that doesn't depend on noticing the
+  // sidebar's PRO pill or scrolling into the page itself. Plan-level
+  // (access.premiumForUser), not tied to the six specially-upgraded
+  // pages the way the header used to be — every one of a premium
+  // client's tabs shimmers uniformly, Payroll/Documents included, since
+  // the client is still premium on those two even though neither has an
+  // upgraded variant of its own. Never true on staff-only pages, which
+  // aren't about any one client's plan.
+  const headerIsPremium =
+    !NON_CLIENT_PAGES.has(effectivePage) && access.premiumForUser;
   const isPreviewingUser = viewAsUserId !== BOOKKEEPER_VIEW && access.user;
 
   const clientUsers = client.users || [];
@@ -17488,16 +17481,6 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
     };
   }, []);
 
-  // Greet whoever's actually being previewed; otherwise fall back to the
-  // client's first listed contact, since that's who'd land on this portal.
-  // Only a real previewed person's own name when one is actually being
-  // previewed — a signed-in staffer looking at the org with full access
-  // isn't John, so "Good morning, John" was flatly wrong (nobody named
-  // John is actually there). Falls back to the org's own name instead.
-  const greetingName = access.user
-    ? firstNameOf(access.user.name)
-    : client.name;
-
   // Pop the floating chat widget open when an unread reply arrives — but only
   // once per unread reply. The previous version re-ran on every page change and
   // unconditionally re-set the flag, so dismissing the widget only lasted until
@@ -17701,14 +17684,24 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
             key={"search-" + client.id}
           />
 
-          {/* §144/§145: which tab this is, in words — with the sidebar
+          {/* §144-§147: which tab this is, in words — with the sidebar
               collapsible to icons (§142), there was no page name visible
-              anywhere once collapsed. Moved below the search bar, right
-              above each page's own cards, per feedback that it belonged
-              closer to the content it labels than up next to the
-              greeting. Its own row (not squeezed inline into the <h1>)
-              so there's no risk of text running together the way an
-              inline span glued straight onto {greetingName} did. */}
+              anywhere once collapsed. The header IS the tab name now
+              (was a personal greeting, with the tab name in a small pill
+              underneath it — collapsed into one line per feedback: every
+              page's header should read exactly like its sidebar entry).
+              Gold shimmer follows the client's actual plan
+              (access.premiumForUser) for every page uniformly, not the
+              narrower "is this one of the six specially-upgraded pages"
+              isPremiumPage check subtitles used to use — that left
+              Payroll and Documents (neither of which has an upgraded
+              variant at all) looking inconsistently un-gold next to
+              every other tab on a premium client, even though the
+              client itself is still premium on those two pages too.
+              Never applied on staff-only pages (Staff Access, Developer
+              Tools, …) — those aren't about any one client's plan, so
+              shimmering them off whichever client happens to be selected
+              in the sidebar would be a non sequitur. */}
           <div className="page-header">
             <div>
               <div className="portal-greeting">
@@ -17716,21 +17709,20 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
                   ? "MyGoodBooks"
                   : client.name}
               </div>
-              {NON_CLIENT_PAGES.has(effectivePage) ? (
-                <h1 className="page-title">
-                  {timeOfDayGreeting()}, {firstNameOf(effectiveStaffUser.name)}
-                </h1>
-              ) : (
-                <h1 className="page-title">
-                  {timeOfDayGreeting()}, {greetingName}
-                </h1>
-              )}
-              {meta && meta.title && (
-                <div className="page-name-tag">{meta.title}</div>
-              )}
+              <h1
+                className={
+                  "page-title" + (headerIsPremium ? " premium-shimmer" : "")
+                }
+              >
+                {meta && meta.title
+                  ? meta.title
+                  : NON_CLIENT_PAGES.has(effectivePage)
+                    ? "MyGoodBooks"
+                    : client.name}
+              </h1>
               <div
                 className={
-                  "page-subtitle" + (isPremiumPage ? " premium-shimmer" : "")
+                  "page-subtitle" + (headerIsPremium ? " premium-shimmer" : "")
                 }
               >
                 {meta.subtitle}
