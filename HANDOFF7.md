@@ -4894,3 +4894,34 @@ hover/focus event, not cached, so it doesn't need its own resize
 listener.
 
 Files touched: `app.jsx` (`Sidebar`).
+
+## §158 — Fix: hover-tooltip still sticking on touch tablets
+
+§157's phone-width check wasn't the whole story — reported again, with
+a screenshot, this time a stuck "Budget vs. Actual" tooltip over the
+Budget page's own cards. A real touch tablet (761-1024px, `pointer:
+coarse`) still legitimately gets the collapsed sidebar by design
+(§154), so `showTip`'s width check doesn't (and shouldn't) block it
+there — but touch still has no `mouseleave`, so nothing ever closed it.
+
+Worse: the exact scenario in the screenshot — tap "Budget vs. Actual"
+to navigate there — doesn't even re-fire `onFocus` on a second look,
+since focus never actually left that nav item (tapping it navigates,
+but the button stays mounted and stays focused; nothing about that tap
+naturally blurs it). So a narrower fix like "dismiss on a tap outside
+the sidebar" wouldn't have caught this specific case either — the tap
+that needs to dismiss it lands *inside* the sidebar, on the very icon
+already showing its own tip.
+
+Settled on the simplest rule that's actually correct: any
+tap/click anywhere — sidebar included — dismisses the current tip.
+A new `useEffect`, only attached while `hoverTip` is actually set,
+adds `document`-level `touchstart`/`mousedown` listeners that clear it
+unconditionally. Order works out cleanly for the "tap a *different*
+icon while one's tip is showing" case too: `mousedown`/`touchstart`
+fire before the `focus` event that icon's own `onFocus` handler uses
+to show ITS tip, so the old one is cleared a tick before the new one
+appears — no risk of the new tap's own tip getting wiped by this same
+listener.
+
+Files touched: `app.jsx` (`Sidebar`).

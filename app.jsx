@@ -777,6 +777,32 @@ function Sidebar({
   function hideTip() {
     setHoverTip(null);
   }
+  // §158: the phone-width check in showTip above stops this from firing on
+  // a phone, but a real touch tablet (761-1024px, pointer: coarse) still
+  // legitimately gets the collapsed sidebar by design (§154) — so a tap
+  // opens a tooltip the same way a mouse hover would for a desktop user,
+  // and touch has no mouseleave to close it afterward. Tapping the SAME
+  // already-focused nav icon again (the exact reported case — tap
+  // "Budget vs. Actual" to navigate there, tooltip stays stuck over the
+  // page that loads underneath) doesn't even re-fire onFocus, since focus
+  // never left that element, so a "was this tap outside the sidebar"
+  // check wouldn't have caught it either. Simplest correct rule: any
+  // tap/click anywhere — sidebar included — dismisses the current tip.
+  // The listener fires on mousedown/touchstart, before the focus event a
+  // *different* icon's own onFocus handler would use to show its own new
+  // tip, so tapping icon B while icon A's tip is showing still correctly
+  // ends up displaying B's tip, not stuck on A's. Only attached while
+  // hoverTip is actually set, not a permanent listener on every render.
+  useEffect(() => {
+    if (!hoverTip) return;
+    const onTap = () => setHoverTip(null);
+    document.addEventListener("touchstart", onTap, { passive: true });
+    document.addEventListener("mousedown", onTap);
+    return () => {
+      document.removeEventListener("touchstart", onTap);
+      document.removeEventListener("mousedown", onTap);
+    };
+  }, [hoverTip]);
   useEffect(() => {
     if (!collapsed) setHoverTip(null);
   }, [collapsed]);
