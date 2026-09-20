@@ -4587,3 +4587,27 @@ too — nothing reads either anymore now that the header doesn't greet
 anyone.
 
 Files touched: `app.jsx` (`App`), `styles.css`.
+
+## §148 — Page header: exact sidebar label, not the premium product name
+
+§147 made the header read `meta.title`, which on the six
+`PREMIUM_UPGRADE_TAB_KEYS` pages resolves to the *upgraded* page's own
+`PAGE_META` entry — "Live Report" for Dashboard, "Budgeting Tool" for
+Budget vs. Actual, "Cash Flow Pro" for Cash Flow, "Report Builder" for
+Reports. Those product names are deliberate (§131: they're what
+`ENTERPRISE_FEATURES`' cards call the upgrade, and never appear in the
+sidebar on purpose), but per feedback from screenshots across all four,
+the *header* mismatching the sidebar entry it sits under reads as a
+bug, not a feature — confusing rather than aspirational.
+
+Fixed by keying the header off a new `NAV_LABEL_BY_KEY` (module-level,
+built from `NAV_SECTIONS` — the same source the sidebar itself renders
+from) instead of `meta.title`. `effectivePage` stays the base tab key
+even while its premium-upgraded content renders (`meta`'s own lookup is
+a separate ternary that only swaps which `PAGE_META` entry supplies the
+description text), so this reliably resolves to the sidebar's exact
+label — "Dashboard", "Budget vs. Actual", "Cash Flow", "Reports" — on
+every one of the six pages, falling back to `meta.title` only for
+staff-only pages that aren't in `NAV_SECTIONS` at all.
+
+Files touched: `app.jsx` (`App`, module scope).
