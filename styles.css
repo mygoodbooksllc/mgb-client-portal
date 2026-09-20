@@ -1625,10 +1625,15 @@ body {
 
 .premium-shimmer:hover,
 .premium-shimmer:focus-visible {
+  /* ~50% more subtle than the first pass: the highlight stop is mixed
+     halfway toward --gold-deep instead of the full pale #f7ecd3 (less
+     brightness contrast against the resting color), and the circle is
+     smaller with a softer, more gradual falloff (0%-90% instead of
+     0%-70%) rather than a sharply-edged hot spot. */
   background-image: radial-gradient(
-    140px circle at var(--mouse-x, 50%) var(--mouse-y, 50%),
-    #f7ecd3 0%,
-    var(--gold-deep) 70%
+    100px circle at var(--mouse-x, 50%) var(--mouse-y, 50%),
+    color-mix(in srgb, #f7ecd3 50%, var(--gold-deep) 50%) 0%,
+    var(--gold-deep) 90%
   );
   background-attachment: fixed;
   -webkit-background-clip: text;

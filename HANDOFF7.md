@@ -4741,3 +4741,11 @@ split out in §151) is untouched — still the original continuous
 this whole thread was chasing.
 
 Files touched: `app.jsx` (`App`), `styles.css`.
+
+*Update:* toned down ~50% per feedback. The highlight stop is now
+`color-mix(in srgb, #f7ecd3 50%, var(--gold-deep) 50%)` instead of the
+full pale `#f7ecd3` (less brightness contrast against the resting
+color), the circle shrank (140px → 100px), and the falloff is more
+gradual (0%–90% instead of 0%–70%) rather than a sharply-edged hot spot.
+
+Files touched: `styles.css`.
