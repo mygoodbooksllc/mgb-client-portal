@@ -5184,7 +5184,14 @@ body:has(.modal-overlay) .chat-fab-wrap {
   }
 
   .nav-section-label,
-  .customize-tabs-btn {
+  .customize-tabs-btn,
+  /* §155: missed in this block's original sweep — 13px icon + 6px padding
+     rendered at ~25px tall. Doesn't show on a phone at all (§154 hides it
+     below 761px, the off-canvas drawer being its phone equivalent), but a
+     touch tablet in the 761-1024px range (an iPad in portrait, ~768px) is
+     `pointer: coarse` and still gets the collapse-to-icons sidebar by
+     default — where this is the only way back to full labels. */
+  .sidebar-collapse-toggle {
     min-height: 44px;
     display: flex;
     align-items: center;
