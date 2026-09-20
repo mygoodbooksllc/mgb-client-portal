@@ -293,6 +293,15 @@ body {
   top: 0;
   height: 100vh;
   transition: width 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+  /* Same trap .global-search's own comment already documents: a card
+     with its own transform/backdrop-filter creates a stacking context,
+     and two same-level auto/unset contexts paint in DOM order — main's
+     cards, coming after .sidebar in markup, painted over the staff-user
+     dropdown regardless of ITS z-index:30, because that z-index was only
+     ever scoped inside .sidebar's own (non-existent) stacking context.
+     The fix has to live on .sidebar itself, not the dropdown. Below the
+     search bar (800), chat widget (900) and everything above those. */
+  z-index: 700;
 }
 
 /* §142: collapse to icons-only — a per-browser preference (see
