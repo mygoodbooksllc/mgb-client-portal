@@ -4530,3 +4530,30 @@ before it — search bar first, then the greeting/page-name/subtitle
 header, then each page's first row of cards, on every page.
 
 Files touched: `app.jsx` (`App`), `styles.css`.
+
+## §146 — Fix: staff dropdown menu was painting behind page cards
+
+From a screenshot: the staff-user dropdown (Home/Team Chat/My Tasks/…)
+rendered visually behind the page's own content cards instead of over
+them — text and card edges interleaving. Not a new bug from any recent
+sidebar work specifically; it's the exact stacking-context trap
+`.global-search`'s own comment in this file already documents: a page
+card that creates its own stacking context (via `transform` or
+`backdrop-filter`, both used across this app's card treatments) paints
+in DOM order relative to any *other* auto/unset stacking context at the
+same level — and since `main`'s cards come after `.sidebar` in markup,
+they were winning regardless of `.staff-user-dropdown`'s own
+`z-index: 30`, because that z-index was only ever scoped inside
+`.sidebar`'s own stacking context, which didn't exist (no `z-index` set
+on a positioned `.sidebar` means no new stacking context at all).
+
+Same fix `.global-search` already uses for this exact trap: the
+`z-index` has to live on the ancestor that should out-rank page content,
+not on the dropdown itself. Added `z-index: 700` to `.sidebar` (below
+the search bar's 800, chat widget's 900, and everything above those, on
+the scale this file already documents) — its own stacking context now
+comfortably out-ranks an ordinary page card's, so the staff-user
+dropdown (and any other absolutely-positioned sidebar element) paints on
+top the way it always should have.
+
+Files touched: `styles.css`.
