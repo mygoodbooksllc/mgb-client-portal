@@ -4804,3 +4804,48 @@ only (degrade to their static/base state on touch, which is correct,
 not a gap) or don't interact with the sidebar's own layout.
 
 Files touched: `styles.css`.
+
+## §155 — Two agent-audit findings, fixed
+
+Dispatched two background agents to review everything from §142 onward:
+a broader mobile/responsive CSS sweep, and a correctness review of the
+JS added since (specifically hunting for the same variable-ordering bug
+class that caused §140's live crash). Both were read-only static
+reviews — this sandbox still can't run a real browser.
+
+**Severe, from the correctness review: §149's sunrise/sunset theme was
+a complete no-op.** The `useEffect` that actually syncs `data-theme`
+onto `<html>` — the attribute every rule in `styles.css` keys off — was
+left depending on `theme` alone (the explicit header-toggle choice),
+falling back to a hardcoded `"dark"`, when `autoTheme`/`effectiveTheme`
+were introduced in the same commit. Nothing ever wired the two
+together. Net effect: `index.html`'s pre-hydration script correctly
+painted the first frame in the clock-heuristic theme, but the instant
+React mounted, this effect re-ran with `theme` still `null` and
+stomped it straight back to dark — every session, all day, regardless
+of sunrise/sunset — while the theme-toggle button's own icon (driven by
+`effectiveTheme`, which *was* wired correctly) visibly disagreed with
+the actual dark theme on screen. Fixed by computing `effectiveTheme`
+above this effect instead of below it, and adding it to the dependency
+array alongside `theme`.
+
+**Medium-confidence, from the mobile CSS sweep: the sidebar's collapse
+toggle was under the 44px touch-target minimum on tablets.** §154
+correctly scoped collapse-to-icons to `min-width: 761px` (phones get
+the off-canvas drawer instead, where the toggle is hidden), but left a
+real device class exposed: a touch tablet in the 761-1024px range
+(`pointer: coarse`, e.g. an iPad in portrait) still gets the
+collapsed-by-default sidebar, and its only way back to full labels —
+this toggle — rendered at ~25px tall, well under the 44px minimum this
+same `@media (pointer: coarse)` block already enforces on every other
+small sidebar control. Added `.sidebar-collapse-toggle` to that block's
+existing `.nav-section-label, .customize-tabs-btn { min-height: 44px;
+... }` rule.
+
+Everything else both agents checked came back clean — no other
+specificity/z-index/overflow traps in the mobile CSS, and no other
+variable-ordering, effect-cleanup, or silent-failure issues in the JS
+added this session. Full findings available in the session transcript
+if useful later.
+
+Files touched: `app.jsx` (`App`), `styles.css`.

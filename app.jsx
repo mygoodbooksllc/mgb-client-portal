@@ -16987,19 +16987,26 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
     } catch (e) {}
   }, [tabOrder]);
 
-  // Dark is the product default. data-theme is always set (never removed), so the
-  // OS preference no longer decides the theme — only a stored choice does, and the
-  // absence of one means dark. index.html sets the same attribute before first
-  // paint; this keeps it in sync once React owns the state.
+  // §149 hotfix: this effect is what actually syncs data-theme onto <html> —
+  // every CSS rule in styles.css keys off that attribute, not off React
+  // state directly. It was left depending on `theme` alone (falling back to
+  // a hardcoded "dark") when autoTheme/effectiveTheme were introduced,
+  // which made the whole sunrise/sunset feature a no-op: the instant React
+  // mounted, this effect re-ran with theme still null and stomped
+  // index.html's correct clock-heuristic first paint back to dark, then
+  // stayed dark all day regardless of autoTheme — while the toggle
+  // button's icon (driven by effectiveTheme) visibly disagreed with the
+  // actual theme on screen. Depends on effectiveTheme now, computed above
+  // it instead of below.
+  const effectiveTheme = theme || autoTheme;
+
   useEffect(() => {
-    document.documentElement.setAttribute("data-theme", theme || "dark");
+    document.documentElement.setAttribute("data-theme", effectiveTheme);
     try {
       if (theme) localStorage.setItem(THEME_STORAGE_KEY, theme);
       else localStorage.removeItem(THEME_STORAGE_KEY);
     } catch (e) {}
-  }, [theme]);
-
-  const effectiveTheme = theme || autoTheme;
+  }, [theme, effectiveTheme]);
 
   const baseClient = useMemo(
     () =>
