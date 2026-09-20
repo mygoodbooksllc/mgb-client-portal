@@ -4749,3 +4749,19 @@ color), the circle shrank (140px → 100px), and the falloff is more
 gradual (0%–90% instead of 0%–70%) rather than a sharply-edged hot spot.
 
 Files touched: `styles.css`.
+
+## §153 — Fix: search bar was painting over the sidebar's staff dropdown
+
+From a screenshot: with the sidebar collapsed (§142), the staff-user
+dropdown (Home/Team Chat/My Tasks/…) extends well past its own 72px
+column into the main content area — and where it overlapped the search
+bar, the search bar won and painted over it. §146 already fixed the
+general version of this trap (giving `.sidebar` its own `z-index` so
+its dropdown descendants stop losing to page cards by DOM order), but
+set it to `700` — below `.global-search`'s own `800`. Bumped to `850`:
+still below the chat widget (900) and everything above that, but now
+above the search bar specifically, which is the one thing in the main
+content area actually tall enough to compete with an open sidebar
+dropdown.
+
+Files touched: `styles.css`.

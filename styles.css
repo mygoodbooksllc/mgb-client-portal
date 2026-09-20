@@ -299,9 +299,15 @@ body {
      cards, coming after .sidebar in markup, painted over the staff-user
      dropdown regardless of ITS z-index:30, because that z-index was only
      ever scoped inside .sidebar's own (non-existent) stacking context.
-     The fix has to live on .sidebar itself, not the dropdown. Below the
-     search bar (800), chat widget (900) and everything above those. */
-  z-index: 700;
+     The fix has to live on .sidebar itself, not the dropdown.
+     Originally set to 700 (below the search bar's 800) — but the
+     collapsed sidebar's dropdown (§142/§143) extends well past its own
+     72px column into the main content area, and where it overlaps the
+     search bar, the search bar (800 > 700) was winning and painting
+     over it — the exact same trap, just with a second competing
+     stacking context instead of a plain card. 850 now: above the search
+     bar, still below the chat widget (900) and everything above that. */
+  z-index: 850;
 }
 
 /* §142: collapse to icons-only — a per-browser preference (see
