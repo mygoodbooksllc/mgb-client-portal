@@ -4704,3 +4704,40 @@ Files touched: `app.jsx` (`Sidebar`), `styles.css`.
 label ("Expand"/"Collapse") but no longer animates on its own.
 
 Files touched: `app.jsx` (`Sidebar`), `styles.css`.
+
+## §152 — Gold text: static by default, hover-follow shimmer spotlight
+
+§150/§151 chased the light-mode wash-out by disabling the auto-looping
+sweep on light surfaces. This round replaces the auto-loop entirely,
+everywhere (both themes) — `.premium-shimmer` is now plain solid
+`var(--gold-deep)` at rest, full stop, and a shimmer spotlight only
+appears on hover (or `:focus-visible`, for keyboard users), tracking the
+actual cursor. Fixes the wash-out by construction: there's no unattended
+animation left to wash out, and the highlight only exists while a real
+person is actively looking at that exact text.
+
+The mechanism: `background-attachment: fixed` on a `radial-gradient`
+paints relative to the *viewport*, not the element's own box, so
+`radial-gradient(140px circle at var(--mouse-x) var(--mouse-y), ...)`
+with `--mouse-x`/`--mouse-y` as raw viewport-pixel custom properties
+lands the highlight exactly under the cursor for every `.premium-shimmer`
+element at once, each one's `background-clip: text` cropping that same
+viewport-wide gradient down to its own glyph shapes — zero per-element
+JS needed. `--mouse-x`/`--mouse-y` are kept current by a single
+`document`-level `mousemove` listener in `App` (new effect, empty deps —
+mounts once), writing straight to `documentElement.style` rather than
+React state, since it can fire dozens of times a second and nothing
+downstream needs a re-render, only a CSS custom-property read;
+`requestAnimationFrame`-throttled so it never fires more than once per
+paint. Touch devices have no `:hover` at all, so they get plain solid
+gold — correct "static if no hover" behavior, not a gap. No
+`animation`/`transition` here at all anymore, so there's nothing for
+`prefers-reduced-motion` to need to disable — this only ever moves in
+direct response to real input.
+
+`.sidebar-text-shimmer` (the sidebar's own always-on-dark-navy shimmer,
+split out in §151) is untouched — still the original continuous
+`navSignatureShine` loop, since that one was never actually the problem
+this whole thread was chasing.
+
+Files touched: `app.jsx` (`App`), `styles.css`.
