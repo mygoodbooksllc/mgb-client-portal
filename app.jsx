@@ -761,7 +761,17 @@ function Sidebar({
   // ancestor can't touch it regardless of position/transform quirks.
   const [hoverTip, setHoverTip] = useState(null); // { text, rect } | null
   function showTip(e, text) {
-    if (!collapsed || !text) return;
+    // §157: `collapsed` is a stored preference, not "is the sidebar
+    // actually rendering collapsed right now" — §154 made the CSS ignore
+    // it below 761px (phones get the full labeled drawer instead), but
+    // this check never learned that, so a tap on a phone (which fires
+    // onFocus, same as a real hover would) still opened a tooltip whose
+    // label was already visible right next to it. Worse on touch: there's
+    // no mouseleave to dismiss it, so it stuck on screen until something
+    // else happened to blur it. window.innerWidth is checked fresh on
+    // every call rather than cached, since it's only read on an actual
+    // hover/focus event, not on every render.
+    if (!collapsed || !text || window.innerWidth < 761) return;
     setHoverTip({ text, rect: e.currentTarget.getBoundingClientRect() });
   }
   function hideTip() {
