@@ -1239,7 +1239,7 @@ function Sidebar({
               <SlidersIcon />{" "}
               <span
                 className={
-                  hasPendingAccessRequests ? "premium-shimmer" : undefined
+                  hasPendingAccessRequests ? "sidebar-text-shimmer" : undefined
                 }
               >
                 Manage access

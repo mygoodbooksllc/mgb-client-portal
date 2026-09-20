@@ -1614,7 +1614,36 @@ body {
    darker ones. Darker/tighter in light mode, where the wash-out actually
    happens; softer in dark mode, which already has plenty of contrast
    against a near-black page and only needed a little added depth. */
+/* §150/§151: the animated gradient sweep washed out on a light/cream
+   surface — its pale highlight (#f7ecd3) sits too close to light mode's
+   own page background to stay legible at the brightest point of every
+   sweep. A text-shadow fix was tried and rejected (didn't read as
+   right); this instead just doesn't shimmer at all on a light surface —
+   plain solid gold text there, no gradient, no animation. Dark mode (a
+   near-black surface, where the sweep always had real contrast) is the
+   only place this still animates. Every use of this class sits on a
+   surface that follows the app's light/dark theme (a page or card
+   background) — the sidebar's own shimmer text is a separate class,
+   .sidebar-text-shimmer below, precisely because the sidebar stays dark
+   navy regardless of app theme and was never the problem. */
 .premium-shimmer {
+  color: var(--gold-deep);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .premium-shimmer {
+    background: linear-gradient(100deg, var(--gold-deep) 20%, #f7ecd3 45%, var(--gold-deep) 70%);
+    background-size: 220% auto;
+    background-position: 0% center;
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    color: transparent;
+    animation: navSignatureShine 11.25s ease-in-out infinite;
+  }
+}
+
+:root[data-theme="dark"] .premium-shimmer {
   background: linear-gradient(100deg, var(--gold-deep) 20%, #f7ecd3 45%, var(--gold-deep) 70%);
   background-size: 220% auto;
   background-position: 0% center;
@@ -1622,22 +1651,32 @@ body {
   background-clip: text;
   -webkit-text-fill-color: transparent;
   color: transparent;
-  text-shadow: 0 1px 2px rgba(59, 43, 14, 0.45);
   animation: navSignatureShine 11.25s ease-in-out infinite;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) .premium-shimmer {
-    text-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
-  }
-}
-
-:root[data-theme="dark"] .premium-shimmer {
-  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
 }
 
 @media (prefers-reduced-motion: reduce) {
   .premium-shimmer { animation: none; }
+}
+
+/* The sidebar's own version of the same sweep, for text on the sidebar's
+   permanently-dark navy background — kept separate from .premium-shimmer
+   above specifically so that class's light-mode "no shimmer" rule never
+   touches this. Currently just "Manage access" while a request is
+   pending (Sidebar), same gradient/animation .nav-section-label-signature
+   already uses for the Enterprise label. */
+.sidebar-text-shimmer {
+  background: linear-gradient(100deg, var(--gold-deep) 20%, #f7ecd3 45%, var(--gold-deep) 70%);
+  background-size: 220% auto;
+  background-position: 0% center;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+  animation: navSignatureShine 11.25s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sidebar-text-shimmer { animation: none; }
 }
 
 .card-subtitle {

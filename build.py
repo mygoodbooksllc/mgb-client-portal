@@ -171,7 +171,7 @@ def build(out_path: pathlib.Path, refresh: bool) -> None:
 
 // Mirrors the stamp in index.html — bumped by hand alongside this file,
 // since there's no build step to inject a real commit SHA into.
-window.MGB_VERSION = {{ label: "2026-09-20e", note: "Gold shimmer text-shadow, fixes wash-out in light mode" }};
+window.MGB_VERSION = {{ label: "2026-09-20f", note: "No shimmer animation on light/cream surfaces, solid gold instead" }};
 // Mirrors index.html's pinch-block — see that file's comment for why this
 // is gesture-level (2+ touches) rather than touch-action CSS.
 document.addEventListener(

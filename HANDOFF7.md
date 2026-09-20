@@ -4676,3 +4676,25 @@ light/dark/explicit-`data-theme` pattern every other theme-aware rule in
 this file already follows.
 
 Files touched: `styles.css`.
+
+## §151 — No shimmer on light/cream surfaces, solid gold instead
+
+§150's text-shadow didn't read as right — reverted. Instead:
+`.premium-shimmer` no longer animates at all on a light surface, just
+plain solid `var(--gold-deep)` text; the gradient sweep only turns on
+under dark mode now (where the sweep always had real contrast against a
+near-black background — that was never the problem).
+
+Every `.premium-shimmer` usage (card titles, the page header/subtitle)
+sits on a surface that follows the app's light/dark theme, so gating the
+whole class by theme is correct for all of them — except one: the
+sidebar's "Manage access" shimmer text (§140) sits on the sidebar's
+*permanently*-dark navy background regardless of which app theme is
+selected, so it was never washed out and shouldn't lose its shimmer just
+because someone picked light mode for the main content area. Split it
+out into its own `.sidebar-text-shimmer` (same gradient/animation
+`.nav-section-label-signature`'s Enterprise-label shimmer already uses,
+just as its own reusable class) so `.premium-shimmer`'s light-mode rule
+never touches it.
+
+Files touched: `app.jsx` (`Sidebar`), `styles.css`.
