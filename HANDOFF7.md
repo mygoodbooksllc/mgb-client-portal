@@ -4557,3 +4557,33 @@ dropdown (and any other absolutely-positioned sidebar element) paints on
 top the way it always should have.
 
 Files touched: `styles.css`.
+
+## §147 — Page header IS the tab name now, larger, gold-shimmer on plan
+
+The header used to be a personal greeting ("Good evening, Standard Test
+Client") with the actual tab name tucked into a small pill underneath
+it (§144/§145). Collapsed into one line per feedback: the `<h1>` itself
+now just reads the current tab's name (`meta.title`) — the same thing
+its sidebar entry says — and the small pill is gone entirely, no longer
+needed once the header says it directly. Bumped `.page-title` from 26px
+to 32px (25px on mobile, was 21px) so it reads as a real page title.
+
+Also fixed the specific complaint that prompted this: Payroll's and
+Documents' subtitles weren't gold-shimmered like every other tab on a
+premium client. That was `isPremiumPage`'s fault — it only covered the
+six specially-upgraded pages (`PREMIUM_UPGRADE_TAB_KEYS`), and neither
+Payroll (a separate add-on, orthogonal to plan) nor Documents (no
+premium variant at all) is one of them, even though the *client* is
+still premium on both. Replaced `isPremiumPage` with `headerIsPremium`
+— plain `access.premiumForUser` (the same plan-level signal
+`PREMIUM_UPGRADE_TAB_KEYS` pages themselves gate on), applied uniformly
+to both the header and the subtitle on every client page, so a premium
+client's tabs shimmer consistently across the board. Never true on
+staff-only pages (Staff Access, Developer Tools, …), which aren't about
+any one client's plan.
+
+`timeOfDayGreeting()` and the `greetingName` variable it fed are gone
+too — nothing reads either anymore now that the header doesn't greet
+anyone.
+
+Files touched: `app.jsx` (`App`), `styles.css`.
