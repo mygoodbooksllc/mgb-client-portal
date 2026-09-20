@@ -319,44 +319,63 @@ body {
    clipped or overlapped. Labels come back via each button's native
    `title` attribute instead of a custom tooltip element, for the same
    reason — no custom overlay to get its own z-index/overflow wrong. */
-.sidebar.sidebar-collapsed {
-  width: 72px;
-  padding-left: 10px;
-  padding-right: 10px;
-  align-items: center;
-}
+/* §154: every .sidebar.sidebar-collapsed rule in this section is wrapped
+   in this min-width guard — found while auditing the mobile drawer.
+   §149 made collapsed the default everywhere, with no viewport check,
+   and .sidebar.sidebar-collapsed's plain two-class selector (specificity
+   0,2,0) beats the phone drawer's own .sidebar { width: min(82vw,300px) }
+   override further down this file (0,1,0) regardless of source order —
+   CSS specificity, not cascade position, decides a tie like this. Net
+   effect: the off-canvas mobile drawer would have opened squeezed to a
+   72px icon sliver, with almost every label hidden, by default, on every
+   phone, until someone happened to expand it once on desktop first.
+   Collapse-to-icons is a desktop screen-space optimization; the phone
+   drawer already solves "the sidebar takes too much space" by being
+   off-canvas until opened, so it never needed this second layer on top —
+   restricting it to viewports above the phone breakpoint (760px, see
+   this file's own mobile section) fixes it at the source rather than
+   fighting the specificity with an equal-or-higher-specificity override
+   duplicated into the mobile media query. */
+@media (min-width: 761px) {
+  .sidebar.sidebar-collapsed {
+    width: 72px;
+    padding-left: 10px;
+    padding-right: 10px;
+    align-items: center;
+  }
 
-.sidebar.sidebar-collapsed .brand,
-.sidebar.sidebar-collapsed .brand-tagline,
-.sidebar.sidebar-collapsed .client-picker-label,
-.sidebar.sidebar-collapsed .client-select,
-.sidebar.sidebar-collapsed .nav-section-label,
-.sidebar.sidebar-collapsed .nav-item-label,
-.sidebar.sidebar-collapsed .staff-user-chip-text,
-.sidebar.sidebar-collapsed .staff-user-chip-chev,
-.sidebar.sidebar-collapsed .sidebar-utility-label,
-.sidebar.sidebar-collapsed .customize-tabs-btn span,
-.sidebar.sidebar-collapsed .sidebar-collapse-toggle span {
-  display: none;
-}
+  .sidebar.sidebar-collapsed .brand,
+  .sidebar.sidebar-collapsed .brand-tagline,
+  .sidebar.sidebar-collapsed .client-picker-label,
+  .sidebar.sidebar-collapsed .client-select,
+  .sidebar.sidebar-collapsed .nav-section-label,
+  .sidebar.sidebar-collapsed .nav-item-label,
+  .sidebar.sidebar-collapsed .staff-user-chip-text,
+  .sidebar.sidebar-collapsed .staff-user-chip-chev,
+  .sidebar.sidebar-collapsed .sidebar-utility-label,
+  .sidebar.sidebar-collapsed .customize-tabs-btn span,
+  .sidebar.sidebar-collapsed .sidebar-collapse-toggle span {
+    display: none;
+  }
 
-.sidebar.sidebar-collapsed .nav-section-items {
-  width: 100%;
-}
+  .sidebar.sidebar-collapsed .nav-section-items {
+    width: 100%;
+  }
 
-.sidebar.sidebar-collapsed .nav-item {
-  justify-content: center;
-  padding-left: 0;
-  padding-right: 0;
-}
+  .sidebar.sidebar-collapsed .nav-item {
+    justify-content: center;
+    padding-left: 0;
+    padding-right: 0;
+  }
 
-.sidebar.sidebar-collapsed .sidebar-utility-row {
-  flex-direction: column;
-  gap: 10px;
-}
+  .sidebar.sidebar-collapsed .sidebar-utility-row {
+    flex-direction: column;
+    gap: 10px;
+  }
 
-.sidebar.sidebar-collapsed .sidebar-utility-btn-group {
-  align-items: center;
+  .sidebar.sidebar-collapsed .sidebar-utility-btn-group {
+    align-items: center;
+  }
 }
 
 .sidebar-collapse-toggle {
@@ -390,18 +409,20 @@ body {
   flex-shrink: 0;
 }
 
-.sidebar.sidebar-collapsed .sidebar-collapse-toggle-icon {
-  transform: rotate(-90deg);
-}
+@media (min-width: 761px) {
+  .sidebar.sidebar-collapsed .sidebar-collapse-toggle-icon {
+    transform: rotate(-90deg);
+  }
 
-/* .staff-user-dropdown normally stretches left:0/right:0 to match its
-   parent's full width — fine at 224px, but at collapsed 72px that would
-   squeeze "Team Chat"/"My Time" etc. into an unreadably narrow column.
-   Anchor it to the left edge only and let it size to its own content. */
-.sidebar.sidebar-collapsed .staff-user-dropdown {
-  left: 0;
-  right: auto;
-  min-width: 200px;
+  /* .staff-user-dropdown normally stretches left:0/right:0 to match its
+     parent's full width — fine at 224px, but at collapsed 72px that would
+     squeeze "Team Chat"/"My Time" etc. into an unreadably narrow column.
+     Anchor it to the left edge only and let it size to its own content. */
+  .sidebar.sidebar-collapsed .staff-user-dropdown {
+    left: 0;
+    right: auto;
+    min-width: 200px;
+  }
 }
 
 /* §143: collapsed-sidebar icon hover labels — portaled straight into
@@ -4986,6 +5007,16 @@ body:has(.modal-overlay) .chat-fab-wrap {
 
   .sidebar.open {
     transform: translateX(0);
+  }
+
+  /* §154: the collapse-to-icons toggle (§142/§149) is a desktop
+     screen-space control — the off-canvas drawer here already solves
+     the same problem by being hidden until opened, so a second
+     "collapse" affordance inside it would just be confusing. The
+     .sidebar.sidebar-collapsed styling itself is already restricted to
+     min-width: 761px above; this just hides the button that sets it. */
+  .sidebar-collapse-toggle {
+    display: none;
   }
 
   .sidebar-close {
