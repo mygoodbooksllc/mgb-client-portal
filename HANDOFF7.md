@@ -5466,3 +5466,64 @@ alone because deleting a revenue feature is not an audit call.
 Files touched: `app.jsx`, `styles.css`, `index.html`, `build.py`,
 `vercel.json`, `.gitignore`, `supabase/audit-cleanup-probe-function.sql`
 (new), `HANDOFF7.md`.
+
+---
+
+## §162 — Premium headers match the standard ones; background gold, not pink
+
+Owner feedback, three parts: the gold premium headers should look like the
+standard client's dark headers, the hover shimmer should go, and the app
+background's pink cast should be gold.
+
+### Premium headers and the shimmer
+
+`.premium-shimmer` (§147/§150/§151/§152) gave premium page titles, subtitles
+and card titles a static gold colour plus a cursor-following radial-gradient
+spotlight on hover. It is gone — those headings now use `--ink-strong`, the
+same token `.page-title` and `.card-title` already carried by default, so the
+premium and standard sides now render identically.
+
+Removed with it, because nothing else used them:
+
+- `headerIsPremium` in `App`. The condition it computed is preserved in a
+  comment at the same spot in case a premium header treatment is wanted again.
+- The document-level `mousemove` listener that kept `--mouse-x` / `--mouse-y`
+  current on `documentElement`. It existed solely to feed the shimmer's
+  `background-attachment: fixed` trick, and was a rAF-throttled write running
+  for the entire session — so this is a small runtime win as well as a visual
+  change.
+- `.page-subtitle.premium-shimmer { font-weight: 700 }`, which only existed
+  because a thin italic clipped the gradient too faintly to read. With no
+  gradient, the subtitle goes back to its normal weight.
+
+The same treatment existed independently inside the Daily Close component as
+`.dc-premiumShimmer`, on five panel titles (Collections Queue, Budget health,
+Bills due soon, Fund activity, Reconciliation status). That one *auto-looped*
+rather than reacting to hover. Removed too, for consistency — otherwise the
+shell's premium headings would be dark while a premium panel inside them kept
+shimmering.
+
+**Deliberately kept:** `.sidebar-text-shimmer` and
+`.nav-section-label-signature`. Those are sidebar accents on permanently-dark
+navy, not page headings, and the request was specifically about headers. The
+pending-access-request button still shimmers via `.sidebar-text-shimmer` —
+note that `.customize-tabs-btn-alert`'s comment had always named
+`.premium-shimmer` for this, which was wrong even before today; corrected while
+here.
+
+### The pink background
+
+`--mesh-3` was `#e6c9c2`, a dusty rose. It drives the largest of the three
+blurred blobs in `.mesh-bg` — 700px, anchored at the bottom of the viewport —
+so it tinted most of the page pink, which is off-brand for a palette built on
+navy and gold. Now `#d9c194`, a gold set a little deeper than `--mesh-1`
+(`#e3d3ab`) so the mesh keeps some depth instead of flattening into a single
+wash. `--mesh-2` (`#cfe0d6`, a pale green) is untouched — it wasn't the pink,
+and it's what keeps the mesh from reading as one flat colour. Dark mode's mesh
+tokens have no pink in them and are unchanged.
+
+Net effect across the change: **-94 lines.**
+
+Files touched: `app.jsx`, `styles.css`, `components/daily-close/DailyClose.tsx`,
+`components/daily-close/DailyClose.css`, `index.html`, `build.py`,
+`HANDOFF7.md`.

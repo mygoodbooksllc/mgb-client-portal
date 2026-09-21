@@ -862,7 +862,7 @@ function CollectionsQueue({
     <div className={styles.collectionsQueue}>
       <div className={styles.panelHead}>
         <div>
-          <div className={`${styles.panelTitle} dc-premiumShimmer`}>Collections Queue</div>
+          <div className={styles.panelTitle}>Collections Queue</div>
           <div className={styles.panelSub}>
             {selectedRows.length > 0
               ? `${selectedRows.length} selected · ${fmtMoney(selectedTotal)}`
@@ -1448,7 +1448,7 @@ function DailyClose({ data, className, theme, onNavigate }: DailyCloseProps) {
                           <PieChartIcon />
                         </span>
                         <div>
-                          <div className={`${styles.panelTitle} dc-premiumShimmer`}>Budget health</div>
+                          <div className={styles.panelTitle}>Budget health</div>
                           <div className={styles.panelSub}>Running over plan this period, worst first</div>
                         </div>
                       </div>
@@ -1489,7 +1489,7 @@ function DailyClose({ data, className, theme, onNavigate }: DailyCloseProps) {
                           <SwapIcon />
                         </span>
                         <div>
-                          <div className={`${styles.panelTitle} dc-premiumShimmer`}>Bills due soon</div>
+                          <div className={styles.panelTitle}>Bills due soon</div>
                           <div className={styles.panelSub}>Upcoming payables, soonest first</div>
                         </div>
                       </div>
@@ -1532,7 +1532,7 @@ function DailyClose({ data, className, theme, onNavigate }: DailyCloseProps) {
                           <GiftHeartIcon />
                         </span>
                         <div>
-                          <div className={`${styles.panelTitle} dc-premiumShimmer`}>Fund activity</div>
+                          <div className={styles.panelTitle}>Fund activity</div>
                           <div className={styles.panelSub}>Recent contributions and transfers between funds</div>
                         </div>
                       </div>
@@ -1578,7 +1578,7 @@ function DailyClose({ data, className, theme, onNavigate }: DailyCloseProps) {
                           <BankIcon />
                         </span>
                         <div>
-                          <div className={`${styles.panelTitle} dc-premiumShimmer`}>Reconciliation status</div>
+                          <div className={styles.panelTitle}>Reconciliation status</div>
                           <div className={styles.panelSub}>
                             {rec.lastClosedPeriod ? `Last closed: ${rec.lastClosedPeriod}` : "No period closed yet"}
                             {rec.lastClosedDate ? ` (${fmtDate(rec.lastClosedDate)})` : ""}
