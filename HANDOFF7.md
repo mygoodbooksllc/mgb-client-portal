@@ -5745,3 +5745,19 @@ predating the real key.
 
 Files touched: `app.jsx`, `supabase/qbo-token-encryption.sql`, `index.html`,
 `build.py`, `HANDOFF7.md`.
+
+---
+
+## §167 — Grid dialled back
+
+§165's ruling was too present. `--grid-line` drops from 5.5% to **3.2%** in
+light mode and to **3.8%** in dark.
+
+Dark keeps a slightly higher value on purpose: a pale line on a near-black
+ground carries less than a dark line on cream at the same alpha, so matching
+the numbers would have made dark the more visible of the two.
+
+Cell size is unchanged at 92 x 30 — the complaint was weight, not spacing, and
+the ledger proportion is what makes it read as paper rather than as a table.
+
+Files touched: `styles.css`, `index.html`, `build.py`, `HANDOFF7.md`.
