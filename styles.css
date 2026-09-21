@@ -41,13 +41,15 @@
   /* Ambient background mesh behind the glass cards (Option C direction). */
   --mesh-1: #e3d3ab;
   --mesh-2: #cfe0d6;
-  /* §162: was #e6c9c2, a dusty rose. It is the largest of the three blurred
-     blobs (700px, bottom of the viewport), so it tinted most of the page
-     pink — off-brand for a palette built on navy and gold. Now a gold, set
-     a little deeper than --mesh-1 so the mesh keeps its depth instead of
-     flattening into one wash. Dark mode's mesh has no pink in it and is
-     unchanged. */
-  --mesh-3: #d9c194;
+  /* §162: was #e6c9c2, a dusty rose, which tinted most of the page pink —
+     off-brand for a palette built on navy and gold.
+     §164: the first gold replacement (#d9c194) was set DEEPER than --mesh-1
+     to keep the mesh from flattening, but this is the largest blob (700px,
+     bottom of the viewport) and a large dark shape reads as weight, not
+     depth — it sat on the page. Now the lightest of the three: a big, pale
+     blob recedes, which is the effect that was wanted. Dark mode's mesh has
+     no pink in it and is unchanged. */
+  --mesh-3: #ecdfc4;
   /* Bar-chart series. Income was --navy, which is chrome and disappears on a
      dark card, so the series gets its own token. Expense stays brand gold. */
   --chart-income: #243746;
@@ -267,9 +269,11 @@ body {
    each other, so there's no parallax and nothing to suggest depth.
    Now: three separate keyframes, each a four-waypoint loop whose 0% and 100%
    match so it cycles seamlessly, travelling in different directions at
-   different speeds. Durations are long (68s/86s/104s) and mutually
-   non-divisible, so the three never re-sync into a visible shared rhythm —
-   the arrangement keeps looking slightly different for minutes at a time.
+   different speeds. §164: sped up from 68s/86s/104s to 24s/31s/38s — the
+   first pass was slow enough that the drift read as stillness unless you
+   watched for it. Still mutually non-divisible, so the three never re-sync
+   into a visible shared rhythm and the arrangement keeps looking slightly
+   different for minutes at a time.
    `alternate` is gone: these are loops, not back-and-forth sweeps.
    Percentages on `transform: translate` resolve against the element's own
    box, so a 12% step is ~77-84px at these sizes — visible as drift, well
@@ -279,7 +283,7 @@ body {
   border-radius: 50%;
   filter: blur(70px);
   opacity: 0.55;
-  animation: meshDriftA 68s ease-in-out infinite;
+  animation: meshDriftA 24s ease-in-out infinite;
   /* Promotes each blob to its own compositor layer. Without it the browser
      repaints a 70px gaussian blur over a 700px box on every frame, which is
      the single most expensive thing on the page. */
@@ -302,10 +306,10 @@ body {
   top: 40px;
   background: radial-gradient(circle, var(--mesh-2), transparent 70%);
   animation-name: meshDriftB;
-  animation-duration: 86s;
+  animation-duration: 31s;
   /* Negative delays start each blob mid-path, so the first frame after load
      is already an arrangement rather than all three at their origin. */
-  animation-delay: -24s;
+  animation-delay: -9s;
 }
 
 .mesh-bg span:nth-child(3) {
@@ -315,8 +319,8 @@ body {
   bottom: -320px;
   background: radial-gradient(circle, var(--mesh-3), transparent 70%);
   animation-name: meshDriftC;
-  animation-duration: 104s;
-  animation-delay: -55s;
+  animation-duration: 38s;
+  animation-delay: -20s;
 }
 
 /* Clockwise, top-left. */
