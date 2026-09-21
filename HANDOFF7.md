@@ -5581,3 +5581,28 @@ holding a compositor layer for nothing. **Any future per-blob property added
 above needs the same treatment.**
 
 Files touched: `styles.css`, `index.html`, `build.py`, `HANDOFF7.md`.
+
+---
+
+## §164 — Faster drift, lighter third blob
+
+Two follow-ups to §163 from the owner.
+
+**Speed.** 68s/86s/104s was slow enough that the drift read as stillness
+unless you deliberately watched for it. Now 24s/31s/38s — roughly 2.8x faster,
+and close to the 30/34/38 the original shared-keyframe version used, except
+these are three independent paths rather than one. Delays rescaled to match
+(-9s, -20s) so each blob still starts mid-path. Still mutually non-divisible,
+so they never settle into a shared rhythm.
+
+**The heavy blob.** §162 replaced the pink `--mesh-3` with `#d9c194`, chosen
+*deeper* than `--mesh-1` on the theory that the mesh needed tonal separation to
+avoid flattening. Wrong call: this is the largest blob (700px, bottom of the
+viewport), and a large dark shape reads as weight rather than depth — it sat on
+the page instead of receding behind it. Now `#ecdfc4`, the lightest of the
+three. Big and pale recedes, which is the effect that was wanted all along.
+
+Separation still comes from `--mesh-2`'s pale green, which is doing the real
+work of keeping the mesh from reading as one flat wash.
+
+Files touched: `styles.css`, `index.html`, `build.py`, `HANDOFF7.md`.
