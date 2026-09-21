@@ -5122,3 +5122,179 @@ derive the requester from the JWT. That, and the RLS tightening, are batch 2.
 
 Files touched: `app.jsx`, `data.js`, `index.html`, `build.py`, `vercel.json`,
 `supabase/audit-hardening-function-grants.sql` (new).
+
+## §160 — Full-app audit, batch 2: RLS. "Bookkeeper" becomes a real tier
+
+Database-only — no application code changed, so `MGB_VERSION` is not bumped.
+All of it was applied live via Supabase MCP and recorded in three new files:
+`supabase/audit-hardening-client-scoping.sql`,
+`supabase/audit-hardening-chat-membership.sql`,
+`supabase/audit-hardening-telemetry-and-rpcs.sql`.
+
+Everything below was verified against the LIVE project both before and after.
+Several `.sql` files in this directory had drifted from what was actually
+deployed, so the live policy set — not the files — was treated as the source
+of truth throughout.
+
+### Per-bookkeeper client assignment did not exist in the database
+
+`staff_client_access` was enforced ONLY in the browser, by `visibleClients`
+filtering the `CLIENTS` array. Every per-client table's policy was a flat
+`is_active_staff()` — "are you on the staff roster" — with no reference to
+assignment at all. Any active bookkeeper, assigned to zero clients, could open
+devtools and run `await mgbSupabase.from('client_private_notes').select('*')`
+with no filter and read every candid internal note about every client in the
+firm. Same for `client_notes`, `client_documents` (every Drive link for every
+org), `client_status_overrides`, `qbo_connections`, `access_requests`, and
+`access_request_links` — which holds **live invite tokens**. Several of those
+policies are `FOR ALL`, so writes and deletes too.
+
+`client_activity_log` already did this correctly. Its predicate is now a
+shared `can_access_client(text)` helper — admin, or a `staff_client_access`
+row for this caller and this client — applied to all nine tables. Verified
+afterwards: zero flat `is_active_staff()` predicates remain on any per-client
+table.
+
+`clients` itself deliberately keeps its broad staff-readable policy; every
+staffer needs the roster for name lookups, which `clients-roster.sql`
+documents as intentional.
+
+Note for temp-admin grants: `can_access_client` does not honour
+`staff_temp_admin_access`. That matches the documented intent — the grant is
+visibility-only into three admin pages, and `app.jsx` never widens
+`visibleClients` for it — and it is the safer direction.
+
+### `qbo_disconnect()` authenticated but never authorized
+
+It checked *that* you were staff, never *which* client you may act on, then —
+being SECURITY DEFINER — reached into `qbo_tokens`, a table with RLS and no
+policies specifically so the browser cannot touch it, and deleted on a fully
+caller-controlled parameter. Any staffer could destroy any org's QuickBooks
+tokens. Intuit rotates refresh tokens on every use, so that is not recoverable
+by retry: a human has to re-run the whole OAuth consent flow. Looped over the
+roster it took QuickBooks down for the entire firm in one call. Now gated on
+`can_access_client`, and revoked from `anon`.
+
+### Team Chat: any staffer could join any private DM
+
+Three statements, no admin rights, no client assignments needed:
+
+1. `select * from staff_conversation_members` — the SELECT policy was bare
+   `is_active_staff()`, returning every conversation id in the firm and who
+   is in it.
+2. `insert into staff_conversation_members values ('<the admins DM>', '<me>')`
+   — the INSERT policy's `staff_email = auth.jwt() ->> 'email'` branch passed
+   this. Its comment read "a staff member may only insert their own membership
+   row", but inserting your own row into *someone else's* conversation is
+   exactly the attack.
+3. `is_conversation_member()` now true, so the whole thread is readable.
+
+A second path: the UPDATE policy pinned `staff_email` but not
+`conversation_id`, so your own membership row could be re-homed onto any
+conversation.
+
+Fixed: SELECT is now `is_conversation_member`, UPDATE pins the conversation,
+and membership rows may be created only while the conversation is unused.
+`staff_messages` UPDATE gained column pinning too — a message could previously
+be re-homed into a DM the author isn't in, or have `created_at` pushed into
+the future to make the 15-minute edit window permanent.
+
+Attachments: the storage policy checked only "are you staff", and SELECT on
+`storage.objects` also permits LISTING — so any bookkeeper could list
+`<any conversation id>` and sign and download every file ever attached to any
+internal DM. Now scoped to membership by parsing the conversation id out of
+the object path.
+
+### The trap, written down because it nearly shipped
+
+The first version of the "is this conversation new?" test was an inline
+subquery:
+
+```sql
+with check (is_active_staff() and not exists (
+  select 1 from staff_conversation_members m
+  where m.conversation_id = staff_conversation_members.conversation_id))
+```
+
+**This does not work, and it fails open.** A subquery inside a policy
+expression is itself subject to that table's RLS. With SELECT now restricted
+to members, an attacker who is not yet a member sees zero rows, `not exists`
+evaluates true, and the insert is permitted — the original exploit still
+worked while appearing to be fixed. It was caught by probing a faithful mirror
+of the table rather than by reading the policy.
+
+Every existence check inside a policy therefore goes through a SECURITY
+DEFINER function, exactly as `is_conversation_member()` already did. The same
+flaw was found and fixed in the `staff_conversations` read policy, whose
+"or the conversation has no members yet" escape hatch (needed so an
+`INSERT ... .select()` can read back a conversation it just created) was
+leaking every conversation row, group titles included.
+
+Two further details on that seed check:
+
+- It is compatible with the app because both `openWith()` and `createGroup()`
+  insert every member row in a **single** multi-row `INSERT`. A STABLE
+  SECURITY DEFINER function uses the calling query's snapshot, which excludes
+  rows being inserted by that same statement, so every row in the batch sees
+  an unused conversation and passes — while a later insert into a populated
+  one is rejected. Both halves were verified before applying.
+- "No members" alone was not sufficient. `staff_conversation_members` still
+  has a DELETE policy, so both sides of a DM could leave, producing a
+  member-less conversation with full message history that anyone could then
+  seed themselves into. The check is therefore "no members **and** no
+  messages". The app never deletes membership rows today, but the policy no
+  longer depends on that staying true.
+
+### Writes are now bound to the actual caller
+
+`usage_events` and `feature_feedback` both had
+`with check (auth.role() = 'authenticated')` — despite one being named
+"signed-in users can log **their own** usage". `actor_email`, `actor_role` and
+`client_id` were all browser-supplied and never compared to the session, so
+any signed-in user — including a client-tier user, the lowest-privilege
+principal here — could write unlimited rows attributed to any email and any
+role. That poisons the admin-only Usage Stats page, forges the record of who
+viewed which client's pages, and puts attacker-authored text on an admin's
+screen under a spoofed staff identity. Both now bind `actor_email` to the JWT.
+No app change was needed: both call sites already sent the signed-in user's
+own address.
+
+`request_enterprise_upgrade()` was anon-callable and never checked that the
+caller had any relationship to `p_client_id`, so anyone on the internet could
+file up to five open requests per org with 200 characters of chosen text that
+renders on Bookkeeper Home. Now requires a session, and requires the caller to
+be either staff who can access that client or an active `client_users` member
+of that org. `p_requested_by` stays a display label rather than the JWT email,
+because the app deliberately passes a human name (and "Someone at <org>" when
+a staffer is previewing) and that is what staff read.
+
+`submit_access_request()` stays anonymous by design — someone following an
+emailed link has no session — and its token, client-match and cap checks were
+already correct. But it concatenates `p_submitted_by_name` into a
+`staff_reminders` row, and being SECURITY DEFINER it bypasses that table's
+otherwise airtight self-only policy, so unbounded attacker text could be
+injected into the private task list of every staffer assigned to that client.
+Both free-text parameters are now capped at 200, matching the precedent
+`request_enterprise_upgrade` already set.
+
+### Still open after this batch
+
+- `data.js` is still served unauthenticated, before any auth gate. Harmless
+  while it is genuinely mock; it is the whole ballgame the moment a real
+  client's numbers go into it. That is Phase 3.
+- Premium entitlement is still a localStorage boolean
+  (`mygoodbooks_ff_force_premium_v1`) any viewer can set from the console.
+- `isBookkeeper` is still `true` for a real client-portal user. Latent only
+  because the `clients` roster policy is staff-only, which leaves `CLIENTS`
+  empty for a client and bounces them at `ClientPortalGuard`. **Opening that
+  policy so the client portal actually works is what makes this live** — fix
+  `isBookkeeper` first.
+- `qbo-token-encryption.sql` still contains the literal
+  `'placeholder-rotate-me'`, and any token row not rewritten since that
+  migration is still sealed with it.
+- Supabase Auth's leaked-password protection is still disabled (dashboard
+  setting, not SQL).
+
+Files touched: `supabase/audit-hardening-client-scoping.sql` (new),
+`supabase/audit-hardening-chat-membership.sql` (new),
+`supabase/audit-hardening-telemetry-and-rpcs.sql` (new), `HANDOFF7.md`.
