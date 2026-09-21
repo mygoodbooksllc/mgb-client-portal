@@ -5527,3 +5527,57 @@ Net effect across the change: **-94 lines.**
 Files touched: `app.jsx`, `styles.css`, `components/daily-close/DailyClose.tsx`,
 `components/daily-close/DailyClose.css`, `index.html`, `build.py`,
 `HANDOFF7.md`.
+
+---
+
+## §163 — Background blobs drift on independent paths
+
+The three blurred blobs in `.mesh-bg` were already animated, but the motion
+did not read as motion. All three shared one `meshDrift` keyframe — the same
+3% translate in the same direction, scaling in unison — so they never changed
+position *relative to each other*. That reads as the whole background gently
+breathing: no parallax, nothing to suggest depth, and at 3% travel it was
+barely perceptible anyway.
+
+Replaced with three separate keyframes, one per blob:
+
+- **A** (top-left, 640px) — clockwise, 68s.
+- **B** (right, 560px) — counter-clockwise and drifting further down, 86s, so
+  it crosses A's path rather than trailing it.
+- **C** (bottom, 700px) — widest travel, most scale variation, 104s. It's the
+  largest and nearest-feeling blob, so giving it the longest path is what
+  actually sells the parallax.
+
+Each is a four-waypoint loop whose 0% and 100% match, so it cycles seamlessly.
+`alternate` is gone — these are loops, not back-and-forth sweeps along a line.
+The durations are long and mutually non-divisible, so the three never re-sync
+into a shared visible rhythm; the arrangement keeps looking slightly different
+for minutes at a time. Negative `animation-delay`s start each blob mid-path, so
+the first frame after load is already an arrangement rather than all three
+sitting at their origin.
+
+Travel is 9-16%. `transform: translate` percentages resolve against the
+element's own box, so that's roughly 77-112px at these sizes — clearly visible
+as drift, well short of anything that pulls the eye off the content.
+
+Added `will-change: transform`, which promotes each blob to its own compositor
+layer. Without it the browser repaints a 70px gaussian blur across a 700px box
+every frame, which is comfortably the most expensive thing on the page; with
+it, the animation runs on the compositor and the blur is rasterised once.
+
+### One trap worth recording
+
+The per-blob rules now set `animation-name`, which they did not before — they
+only set `animation-duration` and `animation-delay`. That breaks the
+`prefers-reduced-motion` override by specificity: `.mesh-bg span:nth-child(1)`
+is (0,2,1) and beats a bare `.mesh-bg span` at (0,1,1), so `animation: none`
+would have been silently ignored and reduced-motion users would have kept all
+three blobs drifting. The old rule worked only because nothing more specific
+ever set the name.
+
+The reduced-motion block now repeats all three `:nth-child` selectors to match
+that specificity, and also resets `will-change: auto` so a stopped blob isn't
+holding a compositor layer for nothing. **Any future per-blob property added
+above needs the same treatment.**
+
+Files touched: `styles.css`, `index.html`, `build.py`, `HANDOFF7.md`.
