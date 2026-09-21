@@ -6,6 +6,23 @@
 -- include it explicitly.
 create extension if not exists pgcrypto;
 
+-- §166: about 'placeholder-rotate-me' below.
+--
+-- It looks alarming in a committed file, so: it is used ONLY by this one-time
+-- ALTER, to seal whatever rows already existed when the columns became bytea.
+-- Every write since goes through qbo_store_tokens(), which takes the key as a
+-- parameter from the Edge Function's QBO_TOKEN_ENCRYPTION_KEY — never stored
+-- in the database, never this literal.
+--
+-- Verified against production on 2026-09-21: the single existing qbo_tokens
+-- row does NOT decrypt with this placeholder ("Wrong key or corrupt data"),
+-- i.e. it was written through qbo_store_tokens with the real key. So the
+-- committed string currently protects nothing and discloses nothing.
+--
+-- It still must not be reused. If a row ever IS found to decrypt with it,
+-- that row's Intuit tokens are compromised by anyone with repo access and the
+-- connection needs revoking at Intuit, not just re-encrypting. Re-run the
+-- probe after any restore from a backup that predates the real key.
 alter table qbo_tokens
   alter column access_token type bytea using extensions.pgp_sym_encrypt(access_token, 'placeholder-rotate-me')::bytea,
   alter column refresh_token type bytea using extensions.pgp_sym_encrypt(refresh_token, 'placeholder-rotate-me')::bytea;

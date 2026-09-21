@@ -5654,3 +5654,94 @@ as it blurs the blobs. That is what makes it read as paper *under* the
 interface rather than a texture laid over the top of it.
 
 Files touched: `styles.css`, `index.html`, `build.py`, `HANDOFF7.md`.
+
+---
+
+## §166 — Closing the two client-side privilege gaps
+
+Two of the items §160 left open were fixable without waiting for Phase 3, so
+they are fixed. A third turned out not to be a problem at all.
+
+### `isBookkeeper` was true for real client-portal users
+
+`viewAsUserId` initialises to `BOOKKEEPER_VIEW` for **every** session, and
+Sidebar derived `isBookkeeper` from it alone:
+
+```js
+const isBookkeeper = viewAsUserId === BOOKKEEPER_VIEW || !access.user;
+```
+
+So a signed-in client read as the bookkeeper. That exposed the staff branches
+of Sidebar (the client switcher, the staff menu) and, via
+`isBookkeeper={!isPreviewingUser}` handed to four components, the staff-only
+controls on Documents (the "Visible To" column and its editing) and Messages.
+
+It was inert **only** because the `clients` roster policy is staff-only, which
+leaves `CLIENTS` empty for a client and bounces them at `ClientPortalGuard`
+before any of it renders. That is one policy change away from being real, and
+a table's RLS standing in for an authorization check is not a design — it is a
+coincidence that happens to hold.
+
+`App` now derives `isStaffSession = !clientPortalUser` as the single source of
+truth, passes it to Sidebar, and ANDs it into both `isBookkeeper` and the four
+prop hand-downs. The roster policy can now be opened without this becoming
+live.
+
+### The premium dev override was self-grantable
+
+`hasPremiumPlan()` ORed in a localStorage flag unconditionally:
+
+```js
+return client.plan === "premium" || isFlagOn(FEATURE_FLAGS[0].key);
+```
+
+"Force premium plan" is a dev/QA aid set from Staff Access's Developer Tools
+card — a staff-only page — but localStorage is one console line away for
+whoever is at the browser, and the key's name is right there in the source. Any
+signed-in client could grant themselves the premium tabs.
+
+`hasPremiumPlan(client, allowDevOverride = true)` now takes a second argument,
+and `resolveAccess` passes `!overrideUser` — `overrideUser` is non-null exactly
+when the session is a client-portal one, since `portalOverrideUser` is built
+only from `clientPortalUser`. The tool keeps working exactly as intended for
+staff, which is its only real user. The two other callers (the user-access
+editor and the people list) are staff-only surfaces and keep the default.
+
+**This is not a security boundary** and the code says so: it is a client-side
+gate on a client-side entitlement. The premium pages still read their data
+through the same RLS as everything else, so the gate protects revenue, not
+data. A real entitlement check belongs on the server once premium is billed.
+
+### `'placeholder-rotate-me'` protects nothing — verified
+
+The literal in `qbo-token-encryption.sql` looks alarming in a committed file,
+so it was checked against production rather than left on the worry list.
+
+It is used only by the one-time `ALTER TABLE` that converted the token columns
+to `bytea`. Every write since goes through `qbo_store_tokens()`, which takes
+the key as a parameter from the Edge Function's `QBO_TOKEN_ENCRYPTION_KEY`.
+
+Production holds exactly one `qbo_tokens` row, and it does **not** decrypt with
+the placeholder ("Wrong key or corrupt data") — it was written with the real
+key. The committed string currently seals nothing.
+
+That is recorded in the SQL file along with what would change the answer: if a
+row ever IS found to decrypt with it, that row's Intuit tokens are compromised
+by anyone with repo access and the connection must be revoked at Intuit, not
+merely re-encrypted. Worth re-running the probe after any restore from a backup
+predating the real key.
+
+(The probe function was created in `pg_temp`, not `public` — the lesson from
+§161's leftover `_has`. Confirmed zero stray probe functions afterward.)
+
+### Still open, and genuinely blocked
+
+- **CSP is Report-Only.** Needs a browser: one staff session and one client
+  session watched for console violations, then the key renamed.
+- **Supabase leaked-password protection** is a dashboard toggle, not SQL. No
+  MCP tool reaches it.
+- **`data.js` unauthenticated** — Phase 3, and the real one.
+- **`ReferralPopup`** — a product decision, not a fix.
+
+Files touched: `app.jsx`, `supabase/qbo-token-encryption.sql`, `index.html`,
+`build.py`, `HANDOFF7.md`.

@@ -186,7 +186,7 @@ def build(out_path: pathlib.Path, refresh: bool) -> None:
 
 // Mirrors the stamp in index.html — bumped by hand alongside this file,
 // since there's no build step to inject a real commit SHA into.
-window.MGB_VERSION = {{ label: "2026-09-21f", note: "Subtle spreadsheet grid over the ambient background" }};
+window.MGB_VERSION = {{ label: "2026-09-21g", note: "Client sessions can no longer read as bookkeeper; premium dev override gated to staff" }};
 // The pinch-block that used to live here is gone, mirroring index.html:
 // blocking zoom is a WCAG 2.1 SC 1.4.4 failure and it was only ever
 // protecting mouse-driven card reordering, which doesn't exist on touch.

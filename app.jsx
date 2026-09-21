@@ -606,8 +606,25 @@ function setFlag(key, on) {
 // The billing gate. Deliberately outside <DailyClose />, which has no billing
 // logic of its own — same split we will need once this is a real route loader
 // checking a subscription record instead of a field on the mock client.
-function hasPremiumPlan(client) {
-  return client.plan === "premium" || isFlagOn(FEATURE_FLAGS[0].key);
+// §166: `allowDevOverride` is false for a client-portal session.
+//
+// The "Force premium plan" flag is a dev/QA aid, set from Staff Access's
+// Developer Tools card — a staff-only page. But it lives in localStorage, and
+// localStorage is one console line away for whoever is sitting at the browser,
+// so ORing it in unconditionally meant any signed-in client could grant
+// themselves the premium tabs by setting a key whose name is right there in
+// the source. Gating it on the session keeps the tool working exactly as
+// intended for staff (its only real user) and closes the self-grant.
+//
+// This is a client-side gate on a client-side entitlement, so it is a fix for
+// the honest-user case, not a security boundary — the premium tabs still read
+// their data through the same RLS as everything else. A real entitlement check
+// belongs on the server whenever premium starts being billed for.
+function hasPremiumPlan(client, allowDevOverride = true) {
+  return (
+    client.plan === "premium" ||
+    (allowDevOverride && isFlagOn(FEATURE_FLAGS[0].key))
+  );
 }
 
 // Resolves what a given person may see: the org-level baseline the bookkeeper
@@ -621,7 +638,7 @@ function resolveAccess(client, viewAsUserId, orgHiddenKeys, overrideUser) {
   // Premium tabs drop out entirely for clients not on the plan, before any
   // per-user scoping runs — an unsubscribed org has no one who can see them.
   const entitled = ALL_TAB_KEYS.filter(
-    (k) => !PREMIUM_TAB_KEYS.has(k) || hasPremiumPlan(client),
+    (k) => !PREMIUM_TAB_KEYS.has(k) || hasPremiumPlan(client, !overrideUser),
   );
   const orgAllowed = entitled.filter(
     (k) => k === ALWAYS_VISIBLE_KEY || !orgHiddenKeys.has(k),
@@ -642,7 +659,7 @@ function resolveAccess(client, viewAsUserId, orgHiddenKeys, overrideUser) {
   // this instead once a specific person (not "preview as MyGoodBooks") is
   // the one looking.
   const premiumForUser =
-    hasPremiumPlan(client) && !(user && user.premiumThrottled);
+    hasPremiumPlan(client, !overrideUser) && !(user && user.premiumThrottled);
 
   if (!user || user.access === "full") {
     return {
@@ -762,6 +779,7 @@ function Sidebar({
   statusOverrides,
   collapsed,
   onToggleCollapse,
+  isStaffSession,
 }) {
   const today = todayLocal();
   const showsAdminPages =
@@ -771,7 +789,17 @@ function Sidebar({
   // Must match App's `isPreviewingUser` guard: a viewAsUserId that no longer
   // resolves to a user (stale id, user removed) falls back to the bookkeeper
   // view rather than dereferencing a missing access.user below.
-  const isBookkeeper = viewAsUserId === BOOKKEEPER_VIEW || !access.user;
+  //
+  // §166: gated on isStaffSession. `viewAsUserId` starts at BOOKKEEPER_VIEW
+  // for EVERY session, so without this a signed-in client-portal user read as
+  // the bookkeeper and got the staff branches below — the client switcher and
+  // the staff menu — plus the staff-only controls on Documents and Messages.
+  // It was inert only because the `clients` roster policy is staff-only,
+  // which leaves a client's CLIENTS empty and bounces them earlier; that is
+  // one policy away from being real, so the flag is now explicit rather than
+  // leaning on a table's RLS to stand in for an authorization check.
+  const isBookkeeper =
+    isStaffSession && (viewAsUserId === BOOKKEEPER_VIEW || !access.user);
 
   // Home/Team Chat/My Tasks/My Time/admin pages/Sign out used to be a
   // permanently-visible stack of buttons — often the single biggest
@@ -17528,6 +17556,10 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
   // condition was `!NON_CLIENT_PAGES.has(effectivePage) &&
   // access.premiumForUser`.
   const isPreviewingUser = viewAsUserId !== BOOKKEEPER_VIEW && access.user;
+  // §166: the single source of truth for "is a staff member driving this
+  // session". A client-portal session is never the bookkeeper, whatever the
+  // view-as state happens to say.
+  const isStaffSession = !clientPortalUser;
 
   const clientUsers = client.users || [];
 
@@ -17952,6 +17984,7 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
           onOpenDetails={() => setDetailsOpen(true)}
           collapsed={sidebarCollapsed}
           onToggleCollapse={toggleSidebarCollapsed}
+          isStaffSession={isStaffSession}
           badges={{ messages: hasUnreadMessages }}
           mobileOpen={mobileNavOpen}
           onCloseMobile={() => setMobileNavOpen(false)}
@@ -18072,7 +18105,7 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
               <ScopedDashboardPage
                 client={scopedClient}
                 access={access}
-                isBookkeeper={!isPreviewingUser}
+                isBookkeeper={isStaffSession && !isPreviewingUser}
                 promoText={referralPromo}
                 onSaveReferralPromo={saveReferralPromo}
               />
@@ -18080,7 +18113,7 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
               <DashboardPage
                 client={scopedClient}
                 access={access}
-                isBookkeeper={!isPreviewingUser}
+                isBookkeeper={isStaffSession && !isPreviewingUser}
                 promoText={referralPromo}
                 onSaveReferralPromo={saveReferralPromo}
               />
@@ -18218,7 +18251,7 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
           {effectivePage === "documents" && (
             <DocumentsPage
               client={scopedClient}
-              isBookkeeper={!isPreviewingUser}
+              isBookkeeper={isStaffSession && !isPreviewingUser}
               searchTarget={
                 searchTarget && searchTarget.page === "documents"
                   ? searchTarget
@@ -18243,7 +18276,7 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
               activeUserId={activeThreadUserId}
               onSelectUser={setBookkeeperThreadUserId}
               unreadUserIds={unreadThreadUserIds}
-              isBookkeeper={!isPreviewingUser}
+              isBookkeeper={isStaffSession && !isPreviewingUser}
               bookkeeperTyping={bookkeeperTyping}
               searchTarget={
                 searchTarget && searchTarget.page === "messages"
