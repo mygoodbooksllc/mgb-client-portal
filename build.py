@@ -151,12 +151,11 @@ def build(out_path: pathlib.Path, refresh: bool) -> None:
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="{FONTS}" rel="stylesheet" />
 <script>
-// Mirrors the same block in index.html (§149: no explicit choice defaults
-// to sunrise/sunset now, via app.jsx's autoTheme — but that needs a real
-// geolocation lookup this pre-hydration script can't do, so it uses the
-// same clock-only heuristic clockHeuristicTheme() seeds itself with,
-// light 6am-7pm, so this first frame already agrees with what React will
-// render). This has to run before the stylesheet below is applied,
+// Mirrors the same block in index.html (§149/§161: no explicit choice
+// defaults to the OS light/dark setting, via app.jsx's autoTheme — mirrors
+// systemOrClockTheme() exactly, matchMedia being synchronous, with the
+// clock heuristic kept as the fallback for a browser reporting no
+// preference). This has to run before the stylesheet below is applied,
 // otherwise a light-OS machine renders the light palette until React
 // mounts and sets the attribute itself — which in this bundle means
 // until Babel has compiled the whole app, so the flash is very visible.
@@ -168,6 +167,16 @@ def build(out_path: pathlib.Path, refresh: bool) -> None:
   var theme;
   if (stored === "light" || stored === "dark") {{
     theme = stored;
+  }} else if (
+    window.matchMedia &&
+    window.matchMedia("(prefers-color-scheme: dark)").matches
+  ) {{
+    theme = "dark";
+  }} else if (
+    window.matchMedia &&
+    window.matchMedia("(prefers-color-scheme: light)").matches
+  ) {{
+    theme = "light";
   }} else {{
     var hour = new Date().getHours();
     theme = hour >= 6 && hour < 19 ? "light" : "dark";
@@ -177,7 +186,7 @@ def build(out_path: pathlib.Path, refresh: bool) -> None:
 
 // Mirrors the stamp in index.html — bumped by hand alongside this file,
 // since there's no build step to inject a real commit SHA into.
-window.MGB_VERSION = {{ label: "2026-09-21a", note: "Audit batch 1: crash fixes, fail-closed client scoping, security headers, SRI" }};
+window.MGB_VERSION = {{ label: "2026-09-21b", note: "Audit batch 3: contrast, focus rings, empty states, mobile table labels, no geolocation prompt" }};
 // The pinch-block that used to live here is gone, mirroring index.html:
 // blocking zoom is a WCAG 2.1 SC 1.4.4 failure and it was only ever
 // protecting mouse-driven card reordering, which doesn't exist on touch.

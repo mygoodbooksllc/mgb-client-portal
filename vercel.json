@@ -17,7 +17,7 @@
         },
         {
           "key": "Permissions-Policy",
-          "value": "camera=(), microphone=(), payment=(), usb=(), magnetometer=(), gyroscope=(), geolocation=(self)"
+          "value": "camera=(), microphone=(), payment=(), usb=(), magnetometer=(), gyroscope=(), geolocation=()"
         },
         {
           "key": "Strict-Transport-Security",

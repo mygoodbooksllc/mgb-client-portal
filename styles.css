@@ -8,7 +8,13 @@
   /* --navy: #243746;    original mygoodbooks.org navy, pre-2026-09-15 */
   /* --navy-deep: #1a2830; */
   --gold: #c7ae86;
-  --gold-deep: #b3925f;
+  /* Was #b3925f, which measured 2.77:1 against --bg — below the 4.5:1 WCAG AA
+     floor, and this token is `color:` on ~15 rules including the org name
+     (.portal-greeting) and every premium page heading (.premium-shimmer). The
+     replacement is the existing --warm-text value rather than a new colour, so
+     the palette gains nothing, and it measures 4.62:1 on cream. Decorative
+     uses (borders, chips, gradient stops) only get crisper. */
+  --gold-deep: #8a6d34;
 
   --bg: #faf9f6;
   --surface: #ffffff;
@@ -187,6 +193,28 @@
 }
 
 * { box-sizing: border-box; }
+
+/* Global keyboard focus ring.
+   Individual rules across this file kill the browser default outline
+   (.global-search-input, .jump-to-client-select and friends) and only some of
+   them put anything back, so tabbing through the app went partly or wholly
+   invisible. :focus-visible fires for keyboard navigation and not for mouse
+   clicks, so this restores the keyboard affordance without putting a ring
+   around every button someone clicks. Rules that define a deliberate
+   :focus-visible treatment of their own appear later in the file and win on
+   source order, so this is a floor, not an override. */
+:focus-visible {
+  outline: 2px solid var(--gold-deep);
+  outline-offset: 2px;
+  border-radius: 3px;
+}
+
+/* The search input's outline is deliberately suppressed — the ring belongs on
+   the pill around it, which is the thing that reads as the control. */
+.global-search:focus-within {
+  outline: 2px solid var(--gold-deep);
+  outline-offset: 2px;
+}
 
 html, body, #root {
   height: 100%;
@@ -1060,6 +1088,34 @@ body {
 }
 
 .preview-bar strong { color: var(--gold); }
+
+/* §161: app.jsx has always put .previewing on .app-shell while a staffer is
+   impersonating someone, but nothing in this file ever styled it — the only
+   cue was .preview-bar, which scrolls away with the page. Anything typed or
+   clicked after that point is attributed to the person being previewed, so
+   "am I still in preview?" needs an answer that is on screen at all times,
+   not one the user has to scroll back for. A fixed, non-interactive frame
+   costs no layout and cannot be scrolled past. */
+.previewing::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  border: 3px solid var(--gold-deep);
+  border-radius: 4px;
+  pointer-events: none;
+  z-index: 2050;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .previewing::after {
+    animation: previewFrameIn 0.35s ease-out;
+  }
+}
+
+@keyframes previewFrameIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
 
 .preview-exit {
   background: rgba(255,255,255,0.12);
@@ -3614,6 +3670,11 @@ body.rb-presenting .main {
   animation: dropzone-march 1.6s linear infinite;
 }
 
+/* The dashes still read as a drop target when they hold still. */
+@media (prefers-reduced-motion: reduce) {
+  .dropzone-border rect { animation: none; }
+}
+
 .dropzone:hover .dropzone-border rect {
   stroke: var(--gold);
 }
@@ -4076,6 +4137,29 @@ body:has(.modal-overlay) .chat-fab-wrap {
   color: var(--ink-strong);
 }
 
+/* Shared table empty state (app.jsx's <EmptyRow>). Deliberately quiet — an
+   empty table is normal for a new client, not an error, so this reads as a
+   note rather than a warning. */
+.table-empty-cell {
+  color: var(--text-muted);
+  font-style: italic;
+  padding: 18px 12px;
+  text-align: center;
+}
+
+/* In the stacked mobile layout every td becomes a grid row with a generated
+   label; the empty cell is the one that must not get one. */
+.tx-table-labeled tbody td.table-empty-cell::before {
+  content: none;
+}
+
+/* Out-specifies the stacked layout's left-align fallback for a td carrying
+   neither data-label nor data-primary, which the empty cell matches. */
+.tx-table-labeled tbody td.table-empty-cell {
+  justify-content: center;
+  text-align: center;
+}
+
 /* ---------------- Toasts ---------------- */
 
 .toast-stack {
@@ -4085,7 +4169,12 @@ body:has(.modal-overlay) .chat-fab-wrap {
   display: flex;
   flex-direction: column;
   gap: 10px;
-  z-index: 1000;
+  /* Above modals (2000) and the mobile drawer (1700), not below them. Toasts
+     are confirmations of what the user just did, and most of the actions that
+     raise one — copy invite link, save, send — are fired from inside a modal.
+     At 1000 that confirmation rendered behind the very dialog that triggered
+     it, so the action looked like it had silently failed. */
+  z-index: 2100;
 }
 
 .toast {
@@ -4243,6 +4332,13 @@ body:has(.modal-overlay) .chat-fab-wrap {
 .draggable-card.card-jiggling:nth-child(even) {
   animation-name: cardJiggleB;
   animation-duration: 0.33s;
+}
+
+/* A whole grid rotating back and forth is the single most motion-sensitive
+   effect in the app. The drag itself still works; only the wiggle stops. */
+@media (prefers-reduced-motion: reduce) {
+  .draggable-card.card-jiggling,
+  .draggable-card.card-jiggling:nth-child(even) { animation: none; }
 }
 
 .mini-stat-row {
@@ -4861,37 +4957,18 @@ body:has(.modal-overlay) .chat-fab-wrap {
     max-width: 130px;
   }
 
-  /* Bank → Recent Transactions: date, description, category, amount. */
-  .tx-stack-bank tbody tr {
-    grid-template-columns: auto 1fr auto;
-    grid-template-areas:
-      "desc desc     amount"
-      "date category amount";
-  }
+  /* Giving → Recent Contributions: date, donor, fund, method, amount.
+     The fund tag gets its own line; date and method are too short to need one.
 
-  .tx-stack-bank tbody td:nth-child(1) {
-    grid-area: date;
-    font-size: 12px;
-    color: var(--text-muted);
-    white-space: nowrap;
-  }
-
-  .tx-stack-bank tbody td:nth-child(2) {
-    grid-area: desc;
-    font-weight: 600;
-    line-height: 1.35;
-  }
-
-  .tx-stack-bank tbody td:nth-child(3) {
-    grid-area: category;
-  }
-
-  .tx-stack-bank tbody td:nth-child(4) {
-    grid-area: amount;
-  }
-
-  /* Giving → Recent Contributions: date, donor, fund, method, amount. The fund
-     tag gets its own line; date and method are too short to need one. */
+     §161: this maps td:nth-child() to grid areas, so it is only correct for a
+     table whose columns are in exactly that order — and it was silently
+     applied to five others that weren't, which put (for instance) a pledge's
+     "Received" figure in the amount slot and its fund tag in the headline.
+     Those five moved to .tx-table-labeled, which labels each cell from a
+     data-label attribute and so cannot be mismatched. The sibling
+     .tx-stack-bank map went with them and is deleted. Before reusing this
+     class on a new table, check its <thead> matches column for column;
+     .tx-table-labeled is the safe default for anything else. */
   .tx-stack-giving tbody tr {
     grid-template-columns: auto auto 1fr auto;
     grid-template-areas:
@@ -5017,7 +5094,12 @@ body:has(.modal-overlay) .chat-fab-wrap {
     position: fixed;
     top: 0;
     left: 0;
+    /* 100vh on mobile Safari/Chrome measures the viewport WITHOUT the URL bar,
+       so the drawer ran taller than the visible area and its last nav item sat
+       under the browser chrome. dvh tracks the bar sliding in and out; the vh
+       line stays as the fallback for anything that doesn't support it. */
     height: 100vh;
+    height: 100dvh;
     width: min(82vw, 300px);
     z-index: 1700;
     transform: translateX(-100%);

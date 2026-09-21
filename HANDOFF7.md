@@ -5298,3 +5298,171 @@ Both free-text parameters are now capped at 200, matching the precedent
 Files touched: `supabase/audit-hardening-client-scoping.sql` (new),
 `supabase/audit-hardening-chat-membership.sql` (new),
 `supabase/audit-hardening-telemetry-and-rpcs.sql` (new), `HANDOFF7.md`.
+
+---
+
+## §161 — Audit batch 3: the UX and accessibility pass
+
+Third and last batch of the top-to-bottom audit. Batch 1 was crash fixes and
+zero-risk hardening (§159), batch 2 the RLS tightening (§160). This one is what
+a person actually meets: contrast, focus, empty states, mobile tables, and one
+permission prompt that should never have been there.
+
+### Text contrast — `--gold-deep` failed AA
+
+Light mode's `--gold-deep: #b3925f` measured **2.77:1** on the cream `--bg`,
+against a 4.5:1 floor. This is not a decorative token: it is `color:` on about
+fifteen rules, including `.portal-greeting` (the client's own organisation
+name, the first thing they read) and `.premium-shimmer` (every premium page's
+H1 and subtitle). The whole premium tier was rendering its headings in text
+that fails accessibility.
+
+Now `#8a6d34` — **4.62:1**. Deliberately the existing `--warm-text` value
+rather than a newly invented colour, so the palette gains nothing and the two
+warm inks agree. Dark mode was already fine (`#d8c39f`) and is untouched. The
+decorative uses — borders, chips, gradient stops — only get crisper.
+
+### Keyboard focus was partly invisible
+
+Several rules across `styles.css` kill the browser's default outline
+(`.global-search-input`, `.jump-to-client-select`, others) and only some put
+anything back, so tabbing through the app went dark in places. Added a global
+`:focus-visible` floor — 2px `--gold-deep`, 2px offset. `:focus-visible` fires
+for keyboard navigation and not for mouse clicks, so this costs nothing
+visually for pointer users. Rules with a deliberate `:focus-visible` treatment
+appear later in the file and still win on source order; this is a floor, not an
+override. The search input keeps its suppressed outline and gets
+`.global-search:focus-within` instead, because the ring belongs on the pill
+that reads as the control, not the bare input inside it.
+
+### Toasts rendered behind modals
+
+`.toast-stack` sat at `z-index: 1000`, under the drawer (1700) and modals
+(2000). Most actions that raise a toast — copy invite link, save, send — are
+fired from inside a modal, so the confirmation appeared *behind* the dialog
+that triggered it and the action looked like it had silently failed. Now 2100.
+
+### The geolocation prompt is gone
+
+§149 defaulted the theme to sunrise/sunset, which needs a location, which meant
+`navigator.geolocation.getCurrentPosition()` — a browser permission prompt on a
+bookkeeping portal, on first load, whose entire payoff was choosing a
+background colour. Asking a nonprofit treasurer for their physical location to
+guess a colour scheme is a bad trade at any accuracy.
+
+Replaced with `prefers-color-scheme`, which is strictly better information: it
+reports the preference the person actually set, rather than inferring one from
+the sun. It also costs no permission, no cached coordinates, and no sunrise
+equation — this deleted `sunriseSunset()`, `themeFromSun()` and the
+`mygoodbooks_auto_theme_geo_v1` cache, a net code reduction.
+
+A side benefit: `matchMedia` is readable synchronously, so `index.html`'s and
+`build.py`'s pre-hydration scripts now compute the *same* answer React will,
+and the first painted frame is final instead of being refined a moment later.
+The clock heuristic stays as the fallback for a browser reporting no
+preference. `Permissions-Policy` in `vercel.json` dropped to `geolocation=()`,
+since nothing asks for it any more.
+
+### Sidebar default is now role-aware
+
+§149 made the sidebar default to collapsed. That is right for staff, who live
+in the app all day and want the screen width — but a client signs in
+occasionally and meets seven unlabelled icons cold. Worse, the collapsed rule
+hides the Enterprise upsell specifically, which is the one element of the
+client sidebar that exists to sell something. The default was making the
+revenue surface undiscoverable to exactly the audience it targets.
+
+`loadSidebarCollapsed(isClientPortal)` now defaults collapsed for staff and
+expanded for a client-portal user. An explicit `"0"`/`"1"` still wins for both;
+this only changes what happens when there is no stored choice yet.
+
+### Mobile tables showed the wrong values in the wrong slots
+
+`.tx-stack-giving` / `.tx-stack-bank` map `td:nth-child()` to grid areas, so
+each is correct only for a table whose columns are in exactly that order. They
+had been applied to six tables that were not. The worst case: Pledges rendered
+"Received" in the headline **amount** slot and the fund tag as the row title,
+so a phone user read a pledge's partial payment as its total. Bank
+Transactions' conditional Account column shifted everything by one, putting the
+category where the amount belonged.
+
+All six moved to the existing `.tx-table-labeled`, which labels each cell from
+a `data-label` attribute and therefore cannot be mismatched. Only the one table
+whose columns genuinely match kept `.tx-stack-giving`; its comment now says to
+check the `<thead>` column for column before reusing it. `.tx-stack-bank` had
+no correct users left and is deleted.
+
+### Empty tables looked like failed loads
+
+Seven tables rendered a bare `<tbody>` when their array was empty — a header
+row above a thin sliver of nothing, indistinguishable from a load that failed.
+Others hand-rolled a muted `<td colSpan>` inline. Added one `<EmptyRow>`
+component and a `.table-empty-cell` rule, and pointed both shapes at it:
+budget (both views), contributions, receivables, payables, tax deposits,
+employees, fund transfers, and the two transaction tables.
+
+### The "you are previewing" safeguard was never styled
+
+`app.jsx` has always put `.previewing` on `.app-shell` while a staffer is
+impersonating someone, but nothing in `styles.css` ever styled it. The only cue
+was `.preview-bar`, which scrolls away with the page — and everything typed
+after that point is attributed to the person being previewed. Added a fixed,
+non-interactive `--gold-deep` frame: no layout cost, and it cannot be scrolled
+past.
+
+### Smaller items
+
+- `fmtDate` dropped the year unconditionally. Fine for recent-transaction
+  lists, misleading for pledge due dates and audit-log entries, where a bare
+  "Jan 4" on a 2024 row reads as this January. Now shows the year only when it
+  isn't the current one.
+- The green "Online now" dot on the client's conversation header was
+  hardcoded — nothing checked presence, so it told every client their
+  bookkeeper was at their desk at 3am on a Sunday. Removed. The staff-side
+  thread list drives the same indicator off a real `onlineEmails` set and is
+  unchanged.
+- Mobile drawer height `100vh` → `100dvh` (with the `vh` line kept as
+  fallback). `100vh` excludes mobile Safari's URL bar, so the drawer's last nav
+  item sat under the browser chrome.
+- `prefers-reduced-motion` now also stops `dropzone-march` and the
+  `cardJiggle` grid wiggle — the latter being the single most motion-sensitive
+  effect in the app.
+- Deleted `ShieldCheckIcon`, `useIsMobile` and its now-orphaned
+  `MOBILE_BREAKPOINT_QUERY`: defined, never referenced.
+- Untracked `dist/mygoodbooks-dashboard.html` and added `dist/` to
+  `.gitignore`. It is a `build.py` output, last committed 2026-09-12, so it
+  predates every fix in batches 1–3 — anyone opening that 5MB file got an app
+  with the known holes, no SRI and no headers.
+
+### Cleanup carried over from batch 2
+
+`supabase/audit-cleanup-probe-function.sql` records migration
+`drop_leftover_probe_function`, applied live at the end of batch 2 but not
+until now written down. A throwaway `_has(uuid)` helper created while probing
+RLS behaviour was left in `public`, where Supabase exposed it at
+`/rest/v1/rpc/_has` as an anon-callable SECURITY DEFINER function with a
+mutable `search_path`. It was caught by re-running the security advisor *after*
+the batch. The generalisable lesson is in the file: a probe run against
+production is a change to production.
+
+### Still open
+
+Everything in §160's "Still open" list is unchanged. Two things need a real
+browser, which this environment does not have:
+
+- The CSP is still `Content-Security-Policy-Report-Only`. Someone should watch
+  one staff session and one client session for console violations, then rename
+  the key to `Content-Security-Policy`.
+- A wrong SRI hash makes the browser refuse the script and the app boots to a
+  blank page. The hashes were verified against npm tarballs, but nothing here
+  can load the real page.
+
+One item needs a product decision rather than a fix: `ReferralPopup` is a
+complete component (~189 JS lines plus ~218 lines of CSS, and three props still
+being threaded through `DashboardPage`/`ScopedDashboardPage`) that nothing
+renders. Either it was meant to ship and got dropped, or it should go. Left
+alone because deleting a revenue feature is not an audit call.
+
+Files touched: `app.jsx`, `styles.css`, `index.html`, `build.py`,
+`vercel.json`, `.gitignore`, `supabase/audit-cleanup-probe-function.sql`
+(new), `HANDOFF7.md`.

@@ -4,3 +4,4 @@
 node_modules/
 .claude/worktrees/
 __pycache__/
+dist/
