@@ -4925,3 +4925,200 @@ appears — no risk of the new tap's own tip getting wiped by this same
 listener.
 
 Files touched: `app.jsx` (`Sidebar`).
+
+## §159 — Full-app audit, batch 1: crashes, fail-closed scoping, transport hardening
+
+Five read-only specialist agents swept the app (backend/RLS, client-side
+authz, UI/UX + a client's-eye pass, React correctness, dead code). Their
+findings were de-duplicated and, for everything touching the database,
+re-verified against the LIVE project via Supabase MCP rather than trusting
+the `.sql` files — several of which have drifted from what is deployed.
+
+This section is batch 1: the crashes, the one access-control bug that lives
+in `app.jsx` rather than in a policy, and the transport-level hardening.
+Batches 2 (RLS/policy tightening) and 3 (UX) follow.
+
+### The app-wide crashes
+
+`CLIENTS.push` in the admin Client Roster's "Add Client Organization"
+(`ClientAccessPage`) pushed a roster-only object — `id`, `name`, `orgType`,
+`plan`, `testOnly`, `payrollAddOn`, `assignedBookkeeper` — with no `monthly`,
+`bankAccounts`, `budget` or anything else. Selecting the new org
+force-navigates to the Dashboard, whose first statement was
+`client.monthly[client.monthly.length - 1]`. That threw during render, the
+root `ErrorBoundary` caught it, and the WHOLE app became the "Something went
+wrong / Reload" card. Reloading did not fix it. Adding a client org is the
+normal admin path, and `loadClientsRoster` in `index.html`/`build.py` produces
+the same roster-only shape for any Supabase `clients` row with no
+`CLIENTS_MOCK_DATA` entry — so this fired for every newly added org, for
+staff and client alike.
+
+Fixed at the source rather than by guarding each of the dozens of consumers:
+`data.js` now exports `window.CLIENT_DATA_DEFAULTS` and
+`window.withClientDataDefaults()`, applied at the two places a client object
+is created (the `CLIENTS.push` above, and the roster merge in both
+`index.html` and `build.py`). Every consumer keeps working against the shape
+it has always had.
+
+The same class of unguarded index was fixed where it still bit:
+
+- `DashboardPage` — `monthly[len-1]`/`[len-2]` now fall back, so an org with
+  zero months renders zeros and one with a single month compares against
+  itself. The "vs. last month" deltas read "no history yet" rather than
+  inventing a 0% change.
+- `BankTransactionsPanel` and `ReconciliationPanel` — `client.bankAccounts[0].id`
+  in a `useState` initialiser. Both now use a lazy, optional-chained
+  initialiser and render a real empty state ("No accounts connected yet")
+  after all hooks have run.
+- `computeAlerts`, `totalCash`, `avgMonthlyExpenses` — array guards.
+  `avgMonthlyExpenses` now returns `null` instead of `NaN` for an empty
+  array, which matters because `NaN > 0` is `false` and that silently
+  answered "is this healthy?" with "yes".
+
+### Absence of data was rendering as a positive financial signal
+
+Two instances, both on client-facing pages, both worth more than their line
+count:
+
+- The **Operating Reserve** ring filled to 100%, labelled itself "Healthy"
+  and coloured itself green whenever `runwayMonths` was `null` — i.e. a
+  client with no expense data at all saw a full green reserve ring sitting
+  next to an em-dash. Now `pct: 0`, status "Not enough data yet", neutral
+  tone. For a bookkeeping product this is the worst possible direction to
+  fail in.
+- The Budget table's **% Used** column printed `Infinity%` for any spend
+  against a $0-budgeted category and `NaN%` for $0 against $0, and set an
+  invalid `width: NaN%` on the progress bar. New `budgetPct()` helper returns
+  `null` for a non-positive budget; the cell renders "—".
+
+### A failed upgrade request was reported as a success
+
+`EnterpriseUpgradePage` fired its "Thanks! Your bookkeeper will follow up"
+toast **outside** the error branch, so a client whose
+`request_enterprise_upgrade` RPC failed — including the case where the
+migration was never run, which the staff side explicitly anticipates — was
+told their request was filed and then waited for a call that was never
+coming. The toast now only fires on success; the failure path says so and
+points them at email.
+
+### `assignedClientIds` failed OPEN
+
+Which clients a bookkeeper may see is enforced ONLY in the browser, by
+filtering `CLIENTS` against `assignedClientIds` (the RLS side of this is
+batch 2 and is the more serious half). On top of that, `assignedClientIds`
+started at `null` for everyone, `null` reads downstream as "unrestricted",
+and a failed or slow `staff_client_access` fetch left it there. A bookkeeper
+only had to make that one request fail — devtools request blocking, an
+offline blip, a migration not yet run — to get the entire firm's client
+roster in their switcher.
+
+Now `null` is set only for an admin, for whom assignment genuinely never
+applies. A non-admin starts at an empty `Set` and is widened only by a
+successful fetch, so the in-flight window and the error path both show
+nothing rather than everything. A new `clientAccessError` flag distinguishes
+"an admin assigned you no clients" from "we could not find out what you are
+assigned to", and the existing no-clients splash says which. The query also
+gained a `.catch` — a network-level rejection was previously an unhandled
+promise rejection.
+
+### Team Chat could show one conversation's messages under another's header
+
+`StaffMessagesPage.loadMessages` called `setMessages` unconditionally in its
+`.then`. Click a large thread, then immediately a small one: the small one
+resolves first and renders correctly, then the large one's slower response
+lands and repaints the pane while the header and selection still say the
+small one. This is the same stale-response shape as the bug whose fix added
+`openTokenRef` ("I messaged Gillian and Jeff got it"); that guard was never
+extended to this fetch. Added `messagesLoadTokenRef`, checked before every
+state write — including again after the attachment-signing round trip.
+
+Also: `ReferralPopup`'s effect cleanup cleared only `showTimer`. Once
+`showTimer` had fired it had already armed a 30s `autoHideTimer`, which then
+ran past unmount and called `setState` on an unmounted component. Cleanup now
+clears both.
+
+### Transport hardening
+
+`vercel.json` contained four lines of rewrites and no headers at all. Added
+`X-Frame-Options: DENY` (the authenticated app could be framed by any site,
+which matters because a staff session can grant temp admin access and
+disconnect a client's QuickBooks in one click each), `X-Content-Type-Options`,
+`Referrer-Policy` (the access-request token travels in a query string, so
+this should not rest on a browser default), `Permissions-Policy`, and HSTS.
+
+CSP ships as **`Content-Security-Policy-Report-Only`** deliberately. The
+policy has not been exercised against a real browser session — there is no
+way to load the app in the environment this was written in — and an
+over-tight enforcing CSP is a blank page for every user, not a degraded one.
+Watch the console through one real staff session and one real client session,
+then rename the key to `Content-Security-Policy` to enforce. `unsafe-eval`
+and `unsafe-inline` are unavoidable while `@babel/standalone` compiles
+`app.jsx` in the browser; a real build step is what would let this policy
+actually bite.
+
+### Pinned versions + Subresource Integrity
+
+`react@18`, `react-dom@18`, `@supabase/supabase-js@2` and
+`@babel/standalone` (no version at all) were floating ranges loaded with no
+`integrity` attribute, so the bytes executing in an origin that holds a live
+Supabase session could change without a commit here. `supabase.js` is the
+sharpest case, since it *is* the thing holding the session. All six CDN
+scripts are now pinned to exact versions and carry sha384 SRI hashes;
+`build.py`'s `VENDOR` map is pinned to match.
+
+The hashes were generated from the npm tarballs (`npm pack <pkg>@<version>`,
+then `openssl dgst -sha384 -binary package/<path> | openssl base64 -A`),
+since unpkg and jsDelivr serve the tarball's file verbatim. **A mismatched
+hash makes the browser refuse the script outright**, so if the app ever boots
+to a blank page right after a version bump, these attributes are the first
+thing to check — the regeneration command is in a comment above the tags.
+
+### Pinch-zoom unblocked (WCAG 2.1 SC 1.4.4)
+
+`index.html`'s viewport meta carried `maximum-scale=1.0, user-scalable=no`,
+backed by a two-finger `touchmove` `preventDefault`. That is a hard
+accessibility failure, and this product's audience — church office managers
+and nonprofit treasurers reading transaction tables on a phone — is exactly
+who needs to magnify. The gesture blocker existed to protect dashboard
+drag-and-drop, but `styles.css` states outright that dragging is mouse-only
+and that mobile reorders through the up/down buttons instead — so it was
+defending a gesture that does not exist on touch. Both are gone, in
+`index.html` and `build.py`.
+
+### `build.py` drift closed
+
+Three places where the Artifact bundle had diverged from `index.html`:
+
+- jsPDF and autotable were `run()` synchronously before any app code, the
+  exact startup stall `index.html`'s `defer` comment says was fixed. They now
+  decode after `app.jsx`.
+- Vendor versions were floating where `index.html`'s are now pinned.
+- The boot-failure handler dumped `err.stack` into the DOM of a page anyone
+  with the Artifact link can open. It now shows `index.html`'s generic
+  message and logs the detail to the console.
+
+### Database
+
+Applied live (`revoke_browser_execute_on_internal_functions`, recorded in
+`supabase/audit-hardening-function-grants.sql`): revoked EXECUTE from
+`public, anon, authenticated` on the four `log_*` trigger functions,
+`staff_messages_set_author_from_staff`, and `has_temp_admin_access(text)`.
+Postgres grants EXECUTE to PUBLIC by default and Supabase exposes every
+public-schema function at `/rest/v1/rpc/`, which had left thirteen SECURITY
+DEFINER functions callable by someone with no account at all. The five
+trigger functions run as the table owner and never consulted the caller's
+privilege, so this is pure surface removal. `has_temp_admin_access` is
+referenced by no policy and no app code, and anonymously answered "does this
+staff address currently hold an elevated grant?".
+
+Left alone on purpose: `is_active_staff`, `is_active_staff_admin` and
+`is_conversation_member` must stay executable by anon/authenticated, because
+RLS policies are evaluated as the calling role and every policy that uses
+them would otherwise fail closed. `access_link_client` and
+`submit_access_request` are genuinely part of the anonymous access-request
+flow. `request_enterprise_upgrade` is still anon-callable and should not be,
+but a bare revoke breaks the real in-app caller — it needs its body fixed to
+derive the requester from the JWT. That, and the RLS tightening, are batch 2.
+
+Files touched: `app.jsx`, `data.js`, `index.html`, `build.py`, `vercel.json`,
+`supabase/audit-hardening-function-grants.sql` (new).

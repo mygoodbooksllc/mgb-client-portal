@@ -26,6 +26,36 @@
 // unambiguously shares the same binding and can reassign its contents.
 window.CLIENTS = [];
 
+// A client org that exists in Supabase's `clients` roster but has no
+// CLIENTS_MOCK_DATA entry yet — every newly admin-added org, until Phase 2/3
+// wires real financial data in — arrives as roster fields only. Dozens of
+// call sites in app.jsx index straight into these arrays (client.monthly[
+// client.monthly.length - 1], client.bankAccounts[0].id, client.budget.map),
+// so a missing array is an unguarded TypeError thrown during render, which
+// the root ErrorBoundary turns into a whole-app "Something went wrong" card.
+// Normalizing here — once, at the two places a client object is created —
+// keeps every consumer working against the same shape it always has, and
+// means an empty-state render rather than a crash.
+window.CLIENT_DATA_DEFAULTS = {
+  monthly: [],
+  budget: [],
+  bankAccounts: [],
+  funds: [],
+  contributions: [],
+  pledges: [],
+  donors: [],
+  payables: [],
+  receivables: [],
+  documents: [],
+  users: [],
+  messages: [],
+  threads: {},
+};
+
+window.withClientDataDefaults = function (client) {
+  return Object.assign({}, window.CLIENT_DATA_DEFAULTS, client);
+};
+
 const CLIENTS_MOCK_DATA = [
   {
     id: "grace-community",

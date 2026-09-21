@@ -47,13 +47,19 @@ CACHE = ROOT / ".build-cache"
 # Pinned so a shared link can't break when a CDN ships a new major version.
 # NOTE: jspdf-autotable's real filename is jspdf.plugin.autotable.min.js, and it
 # must come from jsDelivr — unpkg serves it without CORS headers.
+# Exact versions, matching index.html's now-pinned + SRI-hashed script tags.
+# react@18 / react-dom@18 / supabase-js@2 were floating ranges here too, so a
+# bundle built today and one built next month could ship different vendor code
+# under the same version stamp. The bundle inlines these rather than fetching
+# them at runtime, so it needs no integrity attributes — pinning is what keeps
+# it honest, and it must not drift from index.html.
 VENDOR = {
-    "react": "https://unpkg.com/react@18/umd/react.production.min.js",
-    "reactDom": "https://unpkg.com/react-dom@18/umd/react-dom.production.min.js",
+    "react": "https://unpkg.com/react@18.3.1/umd/react.production.min.js",
+    "reactDom": "https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js",
     "babel": "https://unpkg.com/@babel/standalone@7.24.7/babel.min.js",
     "jspdf": "https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js",
     "autotable": "https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.4/dist/jspdf.plugin.autotable.min.js",
-    "supabase": "https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.js",
+    "supabase": "https://unpkg.com/@supabase/supabase-js@2.45.4/dist/umd/supabase.js",
 }
 
 # Matches the title already published at the shared link. Artifact titles should
@@ -140,7 +146,7 @@ def build(out_path: pathlib.Path, refresh: bool) -> None:
     blobs = ",\n".join(f'  {name}: "{value}"' for name, value in payload.items())
 
     html = f"""<title>{TITLE}</title>
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="{FONTS}" rel="stylesheet" />
@@ -171,16 +177,10 @@ def build(out_path: pathlib.Path, refresh: bool) -> None:
 
 // Mirrors the stamp in index.html — bumped by hand alongside this file,
 // since there's no build step to inject a real commit SHA into.
-window.MGB_VERSION = {{ label: "2026-09-20o", note: "Fix: hover-tooltip still sticking on touch tablets" }};
-// Mirrors index.html's pinch-block — see that file's comment for why this
-// is gesture-level (2+ touches) rather than touch-action CSS.
-document.addEventListener(
-  "touchmove",
-  function (e) {{
-    if (e.touches && e.touches.length > 1) e.preventDefault();
-  }},
-  {{ passive: false }}
-);
+window.MGB_VERSION = {{ label: "2026-09-21a", note: "Audit batch 1: crash fixes, fail-closed client scoping, security headers, SRI" }};
+// The pinch-block that used to live here is gone, mirroring index.html:
+// blocking zoom is a WCAG 2.1 SC 1.4.4 failure and it was only ever
+// protecting mouse-driven card reordering, which doesn't exist on touch.
 </script>
 <style>
 {css}
@@ -243,7 +243,12 @@ async function loadClientsRoster() {{
         payrollAddOn: row.payroll_add_on,
         assignedBookkeeper: row.assigned_bookkeeper,
       }};
-      return Object.assign({{}}, mockById[row.id], roster);
+      // Mirrors index.html: backfill the empty arrays a roster-only org
+      // has none of, so app.jsx's unguarded indexing renders an empty
+      // state instead of throwing into the root ErrorBoundary.
+      return window.withClientDataDefaults(
+        Object.assign({{}}, mockById[row.id], roster),
+      );
     }});
   }} catch (err) {{
     console.warn("Couldn't load client roster from Supabase:", err);
@@ -255,8 +260,6 @@ async function loadClientsRoster() {{
     run(decodeSource(BUNDLE.react));
     run(decodeSource(BUNDLE.reactDom));
     run(decodeSource(BUNDLE.babel));
-    run(decodeSource(BUNDLE.jspdf));
-    run(decodeSource(BUNDLE.autotable));
     run(decodeSource(BUNDLE.supabase));
 
     // Force Babel's "classic" JSX runtime; "automatic" expects a real bundler.
@@ -284,10 +287,24 @@ async function loadClientsRoster() {{
     run(compile(BUNDLE.dcComponent, "DailyClose.tsx", ["typescript", jsx]));
     run(compile(BUNDLE.dcAdapter, "fromClient.js", [jsx]));
     run(compile(BUNDLE.app, "app.jsx", [jsx]));
+
+    // jsPDF and autotable are only needed when someone clicks Download PDF,
+    // long after boot. index.html marks both `defer` for exactly this reason
+    // ("Undeferred these blocked React and Babel from executing"); running
+    // them synchronously up front here reintroduced that delay in the bundle
+    // only. Decoding them after app.jsx has rendered keeps the two boot paths
+    // equivalent, and they're still ready well before any click.
+    run(decodeSource(BUNDLE.jspdf));
+    run(decodeSource(BUNDLE.autotable));
   }} catch (err) {{
+    // Matches index.html's generic message. This used to dump err.stack into
+    // the DOM — a published Artifact is readable by anyone with the link, so
+    // that leaked internals to viewers. The detail goes to the console, where
+    // whoever is debugging can still get at it.
+    console.error("Failed to start the dashboard:", err);
     document.getElementById("root").innerHTML =
       '<pre style="padding:24px;font:14px ui-monospace,monospace;color:#a4442c;white-space:pre-wrap">' +
-      "Failed to start the dashboard:\\n\\n" + (err && err.stack ? err.stack : err) + "</pre>";
+      "Something went wrong loading the portal. Please refresh." + "</pre>";
     throw err;
   }}
 }})();
