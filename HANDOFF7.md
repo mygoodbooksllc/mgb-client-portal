@@ -5761,3 +5761,22 @@ Cell size is unchanged at 92 x 30 — the complaint was weight, not spacing, and
 the ledger proportion is what makes it read as paper rather than as a table.
 
 Files touched: `styles.css`, `index.html`, `build.py`, `HANDOFF7.md`.
+
+---
+
+## §168 — Dark-mode blobs turned down
+
+Blob opacity was a hardcoded `0.55` on `.mesh-bg span`, shared by both themes.
+It is now `--mesh-opacity`: **0.55** in light, **0.3** in dark.
+
+One value never suited both. The dark mesh colours (`#3f4f42`, `#4a3a2a`,
+`#2a3a45`) sit well above dark `--bg` (`#0f1512`) in lightness, so the
+near-black ground gives them far more contrast to work with than cream gives
+the light-mode set. At the same alpha they stopped reading as ambient depth and
+started reading as three distinct glowing shapes.
+
+The colours themselves are unchanged — the problem was strength, not hue, and
+each already has its own reason for being the tone it is. Now one token per
+theme, so either can be tuned without touching the other.
+
+Files touched: `styles.css`, `index.html`, `build.py`, `HANDOFF7.md`.
