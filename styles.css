@@ -50,6 +50,13 @@
      blob recedes, which is the effect that was wanted. Dark mode's mesh has
      no pink in it and is unchanged. */
   --mesh-3: #ecdfc4;
+  /* §165: faint spreadsheet ruling over the mesh — see .mesh-bg::after. The
+     cell is deliberately wider than it is tall, which is what makes it read
+     as ledger paper rather than as a table someone might try to click. All
+     three are tokens so the weight is tunable from one place. */
+  --grid-line: rgba(138, 109, 52, 0.055);
+  --grid-cell-w: 92px;
+  --grid-cell-h: 30px;
   /* Bar-chart series. Income was --navy, which is chrome and disappears on a
      dark card, so the series gets its own token. Expense stays brand gold. */
   --chart-income: #243746;
@@ -140,6 +147,9 @@
     --mesh-1: #3f4f42;
     --mesh-2: #4a3a2a;
     --mesh-3: #2a3a45;
+    /* Warm light line instead of dark, and a touch stronger: at 5.5% a dark
+       line is invisible on a near-black ground. */
+    --grid-line: rgba(199, 174, 134, 0.055);
   }
 }
 
@@ -198,6 +208,7 @@
   --mesh-1: #3f4f42;
   --mesh-2: #4a3a2a;
   --mesh-3: #2a3a45;
+  --grid-line: rgba(199, 174, 134, 0.055);
 }
 
 * { box-sizing: border-box; }
@@ -260,6 +271,32 @@ body {
   overflow: hidden;
   pointer-events: none;
   background: var(--bg);
+}
+
+/* §165: a faint spreadsheet ruling across the whole page, sitting ABOVE the
+   drifting blobs and below everything else. Bookkeeping software is ledger
+   paper by inheritance, and this says so quietly — at 5.5% it is texture, not
+   a table.
+
+   It must be `position: absolute` rather than a plain block. The blobs are
+   positioned elements with no z-index, and a non-positioned ::after paints
+   BELOW that layer no matter where it sits in source order — so without this
+   the ruling would render under the blobs and their blur would eat it.
+
+   Staying inside .mesh-bg (rather than being its own fixed element) means it
+   inherits the fixed positioning and the blobs' clipping for free, and the
+   frosted cards' backdrop-filter blurs it exactly as it blurs the blobs —
+   which is what keeps it reading as paper UNDER the interface rather than a
+   texture laid over it. */
+.mesh-bg::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image:
+    linear-gradient(to right, var(--grid-line) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--grid-line) 1px, transparent 1px);
+  background-size: var(--grid-cell-w) var(--grid-cell-h);
 }
 
 /* §163: each blob wanders its own closed loop rather than all three sliding

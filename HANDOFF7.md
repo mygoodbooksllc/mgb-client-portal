@@ -5606,3 +5606,51 @@ Separation still comes from `--mesh-2`'s pale green, which is doing the real
 work of keeping the mesh from reading as one flat wash.
 
 Files touched: `styles.css`, `index.html`, `build.py`, `HANDOFF7.md`.
+
+---
+
+## §165 — A spreadsheet grid under the interface
+
+Picked from a three-way mockup (no grid / uniform ruling / ledger blocks with
+a stronger rule every fifth line). The uniform ruling won.
+
+`.mesh-bg::after` draws two 1px linear-gradients — one across, one down — over
+the whole fixed background layer. Three tokens control it, so the weight is
+tunable from one place rather than by editing the rule:
+
+```
+--grid-line:   rgba(138, 109, 52, 0.055)   /* warm gold, dark mode flips it light */
+--grid-cell-w: 92px
+--grid-cell-h: 30px
+```
+
+The cell is deliberately wider than it is tall. Square cells read as a *table* —
+something a person might try to click into — while spreadsheet proportions read
+as ledger paper. Bookkeeping software inherits from ledger paper, and this says
+so quietly: at 5.5% it is texture, not furniture.
+
+### Two things that would have gone wrong
+
+**`position: absolute` is load-bearing.** The blobs are positioned elements with
+no `z-index`, and a non-positioned `::after` paints *below* that layer
+regardless of source order. Without `position: absolute` the ruling would have
+rendered underneath the blobs, where their 70px blur would have swallowed it —
+and the symptom would have been "the grid doesn't show up", which invites
+turning the opacity up rather than fixing the layering.
+
+**Dark mode needs its own line colour, not just its own alpha.** A dark line at
+5.5% over a near-black ground is invisible. Dark mode uses a warm *light* line
+(`rgba(199,174,134,0.055)`), set in both dark blocks — the
+`prefers-color-scheme` media query and the explicit `[data-theme="dark"]`.
+`:root[data-theme="light"]` doesn't redefine the mesh tokens, so forced-light
+correctly inherits the light values from `:root`.
+
+### Why it lives inside `.mesh-bg`
+
+It could have been its own fixed element. Keeping it as a pseudo-element of
+`.mesh-bg` means it inherits the fixed positioning and the clipping for free,
+and — the real reason — the frosted cards' `backdrop-filter` blurs it exactly
+as it blurs the blobs. That is what makes it read as paper *under* the
+interface rather than a texture laid over the top of it.
+
+Files touched: `styles.css`, `index.html`, `build.py`, `HANDOFF7.md`.
