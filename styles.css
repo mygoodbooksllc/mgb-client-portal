@@ -54,7 +54,7 @@
      cell is deliberately wider than it is tall, which is what makes it read
      as ledger paper rather than as a table someone might try to click. All
      three are tokens so the weight is tunable from one place. */
-  --grid-line: rgba(138, 109, 52, 0.055);
+  --grid-line: rgba(138, 109, 52, 0.032);
   --grid-cell-w: 92px;
   --grid-cell-h: 30px;
   /* Bar-chart series. Income was --navy, which is chrome and disappears on a
@@ -147,9 +147,11 @@
     --mesh-1: #3f4f42;
     --mesh-2: #4a3a2a;
     --mesh-3: #2a3a45;
-    /* Warm light line instead of dark, and a touch stronger: at 5.5% a dark
-       line is invisible on a near-black ground. */
-    --grid-line: rgba(199, 174, 134, 0.055);
+    /* Warm light line instead of dark: a dark line at this alpha is
+       invisible on a near-black ground. Kept a shade above the light-mode
+       value, since a pale line on near-black carries less than a dark line
+       on cream at the same alpha. */
+    --grid-line: rgba(199, 174, 134, 0.038);
   }
 }
 
@@ -208,7 +210,7 @@
   --mesh-1: #3f4f42;
   --mesh-2: #4a3a2a;
   --mesh-3: #2a3a45;
-  --grid-line: rgba(199, 174, 134, 0.055);
+  --grid-line: rgba(199, 174, 134, 0.038);
 }
 
 * { box-sizing: border-box; }
@@ -275,8 +277,8 @@ body {
 
 /* §165: a faint spreadsheet ruling across the whole page, sitting ABOVE the
    drifting blobs and below everything else. Bookkeeping software is ledger
-   paper by inheritance, and this says so quietly — at 5.5% it is texture, not
-   a table.
+   paper by inheritance, and this says so quietly — at roughly 3% it is
+   texture you notice only once you look for it, not a table.
 
    It must be `position: absolute` rather than a plain block. The blobs are
    positioned elements with no z-index, and a non-positioned ::after paints
