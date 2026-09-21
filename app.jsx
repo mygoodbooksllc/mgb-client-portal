@@ -239,11 +239,18 @@ const slugify = (label) =>
     .replace(/^-|-$/g, "");
 
 const totalCash = (client) =>
-  client.bankAccounts.reduce((s, a) => s + a.balance, 0);
+  (client.bankAccounts || []).reduce((s, a) => s + a.balance, 0);
 
-const avgMonthlyExpenses = (client) =>
-  client.monthly.reduce((sum, m) => sum + m.expenses, 0) /
-  client.monthly.length;
+// Returns null, not NaN, when there's nothing to average. A client org added
+// through Client Roster has no `monthly` at all until real data is wired up,
+// and 0/0 = NaN silently poisons every comparison downstream (NaN > 0 is
+// false, so a "is this healthy?" check quietly answers "yes" — see the
+// Operating Reserve KPI, which used to render a full green ring on no data).
+const avgMonthlyExpenses = (client) => {
+  const months = client.monthly || [];
+  if (months.length === 0) return null;
+  return months.reduce((sum, m) => sum + m.expenses, 0) / months.length;
+};
 
 // Months of operating reserve: how long cash on hand would cover normal
 // operating costs if income stopped. This is the standard nonprofit measure,
@@ -256,8 +263,17 @@ const avgMonthlyExpenses = (client) =>
 // ran a deficit divided by zero and fell through to a bare "Healthy".
 const runwayMonthsFor = (client) => {
   const monthlyExpenses = avgMonthlyExpenses(client);
-  return monthlyExpenses > 0 ? totalCash(client) / monthlyExpenses : null;
+  return monthlyExpenses && monthlyExpenses > 0
+    ? totalCash(client) / monthlyExpenses
+    : null;
 };
+
+// Percent-of-budget used. Returns null — not Infinity, not NaN — for a
+// category budgeted at $0, which rendered literally as "Infinity%" (any spend
+// against a $0 line) or "NaN%" ($0 spent against $0) in the % Used column, and
+// as an invalid `width: NaN%` on the progress bar.
+const budgetPct = (b) =>
+  b.budgeted > 0 ? (b.actual / b.budgeted) * 100 : null;
 
 const lastMessageFromBookkeeper = (client) => {
   const msgs = client.messages || [];
@@ -276,7 +292,8 @@ const seedThread = (clientId, userId) => {
 
 function computeAlerts(client) {
   const alerts = [];
-  const current = client.monthly[client.monthly.length - 1];
+  const months = client.monthly || [];
+  const current = months[months.length - 1];
   const runway = runwayMonthsFor(client);
 
   if (runway !== null && runway < 3) {
@@ -284,12 +301,14 @@ function computeAlerts(client) {
       `Cash on hand covers under 3 months of operating expenses (${runway.toFixed(1)} mo).`,
     );
   }
-  if (current.income - current.expenses < 0) {
+  if (current && current.income - current.expenses < 0) {
     alerts.push(
       `This month ran a deficit of ${fmtMoney(Math.abs(current.income - current.expenses))}.`,
     );
   }
-  const overBudget = client.budget.filter((b) => b.actual > b.budgeted * 1.05);
+  const overBudget = (client.budget || []).filter(
+    (b) => b.actual > b.budgeted * 1.05,
+  );
   if (overBudget.length > 0) {
     alerts.push(
       `${overBudget.length} categor${overBudget.length > 1 ? "ies" : "y"} over budget this month: ${overBudget
@@ -2185,7 +2204,13 @@ function ReferralPopup({ isBookkeeper, promoText, onSave }) {
         if (!engagedRef.current) close();
       }, 30000);
     }, 3000);
-    return () => clearTimeout(showTimer);
+    return () => {
+      clearTimeout(showTimer);
+      // Once showTimer has fired it has already armed autoHideTimer, so
+      // clearing showTimer alone left a 30s timer running past unmount that
+      // would then call close() — setState on an unmounted component.
+      clearTimeout(autoHideTimer.current);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -3103,9 +3128,10 @@ function ScopedDashboardPage({
                         </tr>
                       </thead>
                       <tbody>
-                        {client.budget.map((b) => {
+                        {(client.budget || []).map((b) => {
                           const over = b.actual > b.budgeted;
-                          const pct = (b.actual / b.budgeted) * 100;
+                          const pct = budgetPct(b);
+                          const barPct = pct == null ? 0 : Math.min(pct, 100);
                           return (
                             <tr key={b.category}>
                               <td data-primary="">
@@ -3118,8 +3144,8 @@ function ScopedDashboardPage({
                                       "bar-fill " + (over ? "over" : "under")
                                     }
                                     style={{
-                                      width: `${Math.min(pct, 100)}%`,
-                                      animationDuration: `${growDuration(pct)}ms`,
+                                      width: `${barPct}%`,
+                                      animationDuration: `${growDuration(barPct)}ms`,
                                     }}
                                   ></div>
                                 </div>
@@ -3214,8 +3240,18 @@ function DashboardPage({
   promoText,
   onSaveReferralPromo,
 }) {
-  const current = client.monthly[client.monthly.length - 1];
-  const prev = client.monthly[client.monthly.length - 2];
+  // A client org with no months of history yet (every newly added org, and
+  // any org onboarded mid-month has exactly one) used to throw right here —
+  // an unguarded deref during render, caught by the root ErrorBoundary, which
+  // replaces the WHOLE app with "Something went wrong". The first thing a new
+  // client saw was a crash. Empty month falls back to zeros; a single month
+  // compares against itself, so the "vs. last month" deltas read 0% rather
+  // than lying.
+  const months = client.monthly || [];
+  const EMPTY_MONTH = { income: 0, expenses: 0 };
+  const current = months[months.length - 1] || EMPTY_MONTH;
+  const prev = months[months.length - 2] || current;
+  const hasHistory = months.length > 0;
   const cash = totalCash(client);
 
   const netIncome = current.income - current.expenses;
@@ -3232,38 +3268,64 @@ function DashboardPage({
     {
       label: "Cash on Hand",
       value: fmtMoney(cash),
-      sub: `${client.bankAccounts.length} account${client.bankAccounts.length > 1 ? "s" : ""}`,
+      sub: `${(client.bankAccounts || []).length} account${(client.bankAccounts || []).length !== 1 ? "s" : ""}`,
       tone: "neutral",
     },
     {
       label: "Net Surplus / (Deficit)",
       value: fmtMoney(netIncome),
-      sub:
-        (netChangePct >= 0 ? "+" : "") +
-        netChangePct.toFixed(1) +
-        "% vs. last month",
-      tone: netChangePct >= 0 ? "positive" : "negative",
+      sub: hasHistory
+        ? (netChangePct >= 0 ? "+" : "") +
+          netChangePct.toFixed(1) +
+          "% vs. last month"
+        : "no history yet",
+      tone: !hasHistory
+        ? "neutral"
+        : netChangePct >= 0
+          ? "positive"
+          : "negative",
     },
     {
       label: "Revenue (this month)",
       value: fmtMoney(current.income),
-      sub: `vs. ${fmtMoney(prev.income)} last month`,
-      tone: current.income >= prev.income ? "positive" : "negative",
+      sub: hasHistory
+        ? `vs. ${fmtMoney(prev.income)} last month`
+        : "no history yet",
+      tone: !hasHistory
+        ? "neutral"
+        : current.income >= prev.income
+          ? "positive"
+          : "negative",
     },
     {
       label: "Operating Reserve",
       value: runwayMonths == null ? "—" : `${runwayMonths.toFixed(1)} mo`,
       sub: "of expenses covered by cash",
-      tone: runwayMonths != null && runwayMonths < 3 ? "negative" : "positive",
+      // Absence of data must never render as a positive financial signal.
+      // This previously filled the ring to 100%, labelled it "Healthy" and
+      // coloured it green whenever runwayMonths was null — i.e. a client with
+      // no expense data at all was shown a full green reserve ring next to an
+      // em-dash. For a bookkeeping product that is the worst possible
+      // direction to fail in, so no data now reads explicitly as no data.
+      tone:
+        runwayMonths == null
+          ? "neutral"
+          : runwayMonths < 3
+            ? "negative"
+            : "positive",
       ring: {
         // Six months of reserve is the common healthy target, so the ring
         // fills against that rather than an arbitrary 12.
         pct:
           runwayMonths == null
-            ? 1
+            ? 0
             : Math.max(0.08, Math.min(runwayMonths / 6, 1)),
         status:
-          runwayMonths != null && runwayMonths < 3 ? "Monitor" : "Healthy",
+          runwayMonths == null
+            ? "Not enough data yet"
+            : runwayMonths < 3
+              ? "Monitor"
+              : "Healthy",
       },
     },
   ];
@@ -3627,8 +3689,8 @@ function BudgetPage({ client, searchTarget }) {
                 </tr>
               </thead>
               <tbody>
-                {client.budget.map((b) => {
-                  const pct = (b.actual / b.budgeted) * 100;
+                {(client.budget || []).map((b) => {
+                  const pct = budgetPct(b);
                   const over = b.actual > b.budgeted;
                   const rowId = "budget-row-" + slugify(b.category);
                   // Bullet-style bar: the track spans whichever of budgeted/actual
@@ -3673,7 +3735,9 @@ function BudgetPage({ client, searchTarget }) {
                         {b.actual - b.budgeted >= 0 ? "+" : ""}
                         {fmtMoney(b.actual - b.budgeted)}
                       </td>
-                      <td data-label="% Used">{pct.toFixed(0)}%</td>
+                      <td data-label="% Used">
+                        {pct == null ? "—" : `${pct.toFixed(0)}%`}
+                      </td>
                       <td>
                         <span className={"pill " + (over ? "over" : "under")}>
                           {over ? "Over" : "On Track"}
@@ -4708,8 +4772,12 @@ function AccountCashDonut({ accounts }) {
 // toggle, see BankReconciliationPage below), so the transaction table and
 // its search-jump/CSV-export behavior exist in exactly one place.
 function BankTransactionsPanel({ client, searchTarget }) {
+  // Lazy initialiser, and optional-chained: an org with no linked accounts
+  // used to throw on this very line during render and take the whole app down
+  // to the root ErrorBoundary's "Something went wrong" card. The empty state
+  // is rendered below, after every hook has run.
   const [activeAccountId, setActiveAccountId] = useState(
-    client.bankAccounts[0].id,
+    () => (client.bankAccounts || [])[0]?.id,
   );
   // "This Account" (the existing account-tabs-driven view) vs. "All
   // Accounts" (every account's activity combined, most recent first, with
@@ -4718,17 +4786,19 @@ function BankTransactionsPanel({ client, searchTarget }) {
   // tabs either way.
   const [txView, setTxView] = useState("account");
   const showToast = useToast();
-  const account =
-    client.bankAccounts.find((a) => a.id === activeAccountId) ||
-    client.bankAccounts[0];
+  const accounts = client.bankAccounts || [];
+  const account = accounts.find((a) => a.id === activeAccountId) || accounts[0];
   const cash = totalCash(client);
   const { flashCardId, jumpToCard } = useCardFlash();
 
   const allTx = useMemo(
     () =>
-      client.bankAccounts
+      accounts
         .flatMap((a) =>
-          a.transactions.map((t) => ({ ...t, accountName: a.accountName })),
+          (a.transactions || []).map((t) => ({
+            ...t,
+            accountName: a.accountName,
+          })),
         )
         .sort((a, b) => (a.date < b.date ? 1 : -1)),
     [client],
@@ -4790,6 +4860,21 @@ function BankTransactionsPanel({ client, searchTarget }) {
       `Exported ${isAll ? allTx.length : account.transactions.length} transactions to CSV.`,
     );
   };
+
+  // Every hook above has run, so this early return is safe. An org whose bank
+  // accounts haven't been linked yet gets told that, rather than crashing the
+  // app out from under the client on their first visit.
+  if (!account) {
+    return (
+      <div className="card">
+        <h3 className="card-title">No accounts connected yet</h3>
+        <p className="muted">
+          Once your bookkeeper links your bank accounts, balances and
+          transactions will show up here.
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div>
@@ -4999,26 +5084,31 @@ function BankReconciliationPage({ client, searchTarget }) {
 }
 
 function ReconciliationPanel({ client }) {
+  // Same no-linked-accounts crash as BankTransactionsPanel — lazy, optional
+  // chained, with the empty state rendered once the hooks have run.
   const [activeAccountId, setActiveAccountId] = useState(
-    client.bankAccounts[0].id,
+    () => (client.bankAccounts || [])[0]?.id,
   );
   const showToast = useToast();
+  const accounts = client.bankAccounts || [];
   const account =
-    client.bankAccounts.find((a) => a.id === activeAccountId) ||
-    client.bankAccounts[0];
+    accounts.find((a) => a.id === activeAccountId) || accounts[0] || null;
 
   // Missing cleared/statementBalance (any client this session's mock data
   // wasn't written for) reads as "fully cleared, nothing outstanding" rather
   // than crashing — see the standard-vs-premium comparison mockup's honesty
   // note about not fabricating data a page doesn't actually have.
-  const outstanding = account.transactions.filter((t) => t.cleared === false);
+  const outstanding = ((account && account.transactions) || []).filter(
+    (t) => t.cleared === false,
+  );
   const outstandingTotal = outstanding.reduce((s, t) => s + t.amount, 0);
+  const accountBalance = account ? account.balance : 0;
   const statementBalance =
-    account.statementBalance != null
+    account && account.statementBalance != null
       ? account.statementBalance
-      : account.balance;
+      : accountBalance;
   const adjustedBalance = statementBalance + outstandingTotal;
-  const difference = account.balance - adjustedBalance;
+  const difference = accountBalance - adjustedBalance;
   const isReconciled = Math.abs(difference) < 0.005;
 
   const history = (client.bankReconciliations || []).filter(
@@ -5028,7 +5118,7 @@ function ReconciliationPanel({ client }) {
   // Across every account, not just the one selected in the tabs above — a
   // quick "where should I actually look first" comparison, since the tabs
   // only ever show one account's detail at a time.
-  const outstandingByAccount = client.bankAccounts.map((a) => ({
+  const outstandingByAccount = accounts.map((a) => ({
     label: a.accountName,
     amount: (a.transactions || [])
       .filter((t) => t.cleared === false)
@@ -5043,6 +5133,17 @@ function ReconciliationPanel({ client }) {
     });
     showToast(`Downloaded "${filename}"`);
   };
+
+  if (!account) {
+    return (
+      <div className="card">
+        <h3 className="card-title">Nothing to reconcile yet</h3>
+        <p className="muted">
+          Reconciliation starts once your bank accounts are linked.
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div>
@@ -6108,8 +6209,16 @@ function EnterpriseUpgradePage({ client, clientPortalUser }) {
       p_requested_by: requestedBy,
     });
     setRequesting(false);
+    // The success toast used to fire unconditionally, OUTSIDE this branch — so
+    // a client whose request failed (RPC error, or the migration never run)
+    // was told their upgrade request was filed and then waited for a call that
+    // was never coming. Never confirm a write that didn't happen.
     if (error) {
       console.warn("Couldn't file enterprise upgrade request:", error.message);
+      showToast(
+        "Couldn't send that request — please email your bookkeeper and we'll sort it out.",
+      );
+      return;
     }
     showToast("Thanks! Your bookkeeper will follow up about upgrading.");
   }
@@ -9204,8 +9313,20 @@ function StaffMessagesPage({ staffUser, onActivity }) {
     [supabase, staffUser.email, loadConversations, onActivity],
   );
 
+  // Same stale-response guard as openTokenRef above, which was added after
+  // "I messaged Gillian and Jeff got it" — it was never extended to this
+  // fetch. Click a big thread, then immediately a small one: the small one
+  // resolves first and renders correctly, then the big one's slower response
+  // lands and overwrites the pane, so you're reading conversation A's
+  // messages under conversation B's header. Every response now checks that
+  // it is still the most recent request before it writes any state.
+  const messagesLoadTokenRef = useRef(0);
+
   const loadMessages = useCallback(() => {
     if (!supabase || !activeConversationId) return;
+    const token = ++messagesLoadTokenRef.current;
+    const isStale = () => token !== messagesLoadTokenRef.current;
+    const convId = activeConversationId;
     Promise.all([
       supabase
         .from("staff_messages")
@@ -9219,6 +9340,7 @@ function StaffMessagesPage({ staffUser, onActivity }) {
         .select("staff_email, last_read_at")
         .eq("conversation_id", activeConversationId),
     ]).then(async ([msgRes, memRes]) => {
+      if (isStale()) return;
       if (msgRes.error) {
         setLoadError(
           "Couldn't load messages. Has staff-chat-v2.sql been run? " +
@@ -9243,6 +9365,8 @@ function StaffMessagesPage({ staffUser, onActivity }) {
               .then(({ data }) => [m.id, data && data.signedUrl]),
           ),
         );
+        // Signing is a second round trip, so re-check after awaiting it.
+        if (isStale()) return;
         const signedMap = Object.fromEntries(signed);
         setMessages(
           visible.map((m) =>
@@ -9255,7 +9379,7 @@ function StaffMessagesPage({ staffUser, onActivity }) {
         setMessages(visible);
       }
       setActiveMembers(memRes.data || []);
-      markRead(activeConversationId);
+      markRead(convId);
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [supabase, activeConversationId]);
@@ -10695,15 +10819,23 @@ function ClientAccessPage({ readOnly }) {
     // everywhere else in this app) rather than replacing it, so every other
     // component already holding onto `CLIENTS` — org pickers included — sees
     // the addition immediately without a page reload.
-    CLIENTS.push({
-      id: data.id,
-      name: data.name,
-      orgType: data.org_type,
-      plan: data.plan,
-      testOnly: data.test_only,
-      payrollAddOn: data.payroll_add_on,
-      assignedBookkeeper: data.assigned_bookkeeper,
-    });
+    // withClientDataDefaults (data.js) is what stops this from bricking the
+    // app: a roster-only object has no monthly/bankAccounts/budget, and
+    // selecting the new org force-navigates to the Dashboard, which used to
+    // dereference straight into those missing arrays and throw the whole tree
+    // into the root ErrorBoundary. Adding a client org is the normal admin
+    // path, so it has to land on an empty state, not a crash.
+    CLIENTS.push(
+      window.withClientDataDefaults({
+        id: data.id,
+        name: data.name,
+        orgType: data.org_type,
+        plan: data.plan,
+        testOnly: data.test_only,
+        payrollAddOn: data.payroll_add_on,
+        assignedBookkeeper: data.assigned_bookkeeper,
+      }),
+    );
     setNewOrgName("");
     setNewOrgType("");
     setNewOrgPlan("standard");
@@ -16770,15 +16902,20 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
   // their own, so this is unused while previewing as someone).
   const [bookkeeperThreadUserId, setBookkeeperThreadUserId] = useState(null);
 
-  // Which clients THIS staffer may see. null means "unrestricted" — true for
-  // every admin (assignment never applies to them), and also the safe
-  // fail-open value while the fetch is in flight or if it errors (e.g. the
-  // staff-client-access.sql migration hasn't been run yet) — a broken query
-  // should never look the same as an admin having deliberately assigned zero
-  // clients. Only a SUCCESSFUL fetch that returns zero rows sets an actual
-  // empty Set, which does restrict a bookkeeper to nothing until an admin
-  // checks at least one client for them.
+  // Which clients THIS staffer may see. null means "unrestricted", and is now
+  // set ONLY for an admin, for whom assignment genuinely never applies.
+  //
+  // This used to fail OPEN: a non-admin started at null and stayed there if
+  // the staff_client_access fetch errored or was simply slow, and null reads
+  // downstream as "see every client". A bookkeeper only had to make that one
+  // request fail — devtools request blocking, an offline blip, a migration
+  // not yet run — to get the entire firm's client roster in their switcher.
+  // A non-admin now starts at an empty Set and is widened only by a
+  // successful fetch, so a broken query shows nothing rather than everything.
   const [assignedClientIds, setAssignedClientIds] = useState(null);
+  // Distinguishes "an admin assigned you no clients" (fine, expected) from
+  // "we couldn't find out what you're assigned to" (not fine, say so).
+  const [clientAccessError, setClientAccessError] = useState(false);
 
   // Lets an admin see the app exactly as one specific bookkeeper would —
   // their assigned clients, their Home rollups, their own private reminders
@@ -16803,12 +16940,22 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
   };
 
   useEffect(() => {
-    setAssignedClientIds(null);
+    setClientAccessError(false);
     // Nothing to scope for a signed-in client — they only ever have their
-    // own one client_id, not a list to filter.
-    if (!effectiveStaffUser || effectiveStaffUser.role === "admin") return;
+    // own one client_id, not a list to filter. An admin is genuinely
+    // unrestricted, so null is correct for them and only for them.
+    if (!effectiveStaffUser || effectiveStaffUser.role === "admin") {
+      setAssignedClientIds(null);
+      return;
+    }
+    // Fail closed: a non-admin sees nothing until a successful fetch says
+    // otherwise. This covers the in-flight window as well as the error path.
+    setAssignedClientIds(new Set());
     const supabase = window.mgbSupabase;
-    if (!supabase) return;
+    if (!supabase) {
+      setClientAccessError(true);
+      return;
+    }
     supabase
       .from("staff_client_access")
       .select("client_id")
@@ -16819,9 +16966,18 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
             "Couldn't load client access (staff-client-access.sql may not be run yet):",
             error.message,
           );
+          setClientAccessError(true);
           return;
         }
         setAssignedClientIds(new Set(data.map((r) => r.client_id)));
+      })
+      .catch((err) => {
+        // A network-level rejection (as opposed to a query error, which
+        // arrives in the {data, error} tuple above) left this as an
+        // unhandled rejection before. assignedClientIds stays the empty Set
+        // set above either way, so the failure is closed, not open.
+        console.warn("Couldn't load client access:", err);
+        setClientAccessError(true);
       });
   }, [
     effectiveStaffUser && effectiveStaffUser.email,
@@ -17757,9 +17913,9 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
       <div className="boot-splash" role="main">
         <div className="boot-splash-mark">MyGoodBooks</div>
         <div className="boot-splash-sub">
-          {effectiveStaffUser.name}, you're signed in but no clients are
-          assigned to you yet. Ask an admin to check off at least one client for
-          you under Staff Access.
+          {clientAccessError
+            ? `${effectiveStaffUser.name}, we couldn't check which clients you're assigned to, so nothing is being shown. Reload to try again — if it keeps happening, tell an admin.`
+            : `${effectiveStaffUser.name}, you're signed in but no clients are assigned to you yet. Ask an admin to check off at least one client for you under Staff Access.`}
         </div>
         {impersonating && (
           <button

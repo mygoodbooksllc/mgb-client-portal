@@ -2,7 +2,12 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <!-- No maximum-scale / user-scalable=no. Blocking pinch-zoom is a WCAG 2.1
+         SC 1.4.4 failure, and this app's audience — church office managers and
+         nonprofit treasurers reading transaction tables on a phone — is exactly
+         who needs to magnify. See the touchmove note below for why the gesture
+         blocker that used to back this up is gone too. -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>MyGoodBooks — Client Dashboard (Prototype)</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -42,24 +47,14 @@
       // step to inject a real commit SHA into (see the no-bundler note up
       // top). Shown in Staff Access's System Info card so staff can confirm
       // which version they're looking at without guessing from Vercel's UI.
-      window.MGB_VERSION = { label: "2026-09-20o", note: "Fix: hover-tooltip still sticking on touch tablets" };
-      // No pinch-to-zoom, blocked at the gesture level (only when a SECOND
-      // finger joins) rather than via touch-action CSS — an earlier attempt
-      // set touch-action on <html>, which made the browser commit to
-      // handling every single-finger touch as native panning right from
-      // touchstart, and that pre-empted the dashboard/Home drag-and-drop's
-      // own long-press-then-drag logic (pointer capture + preventDefault)
-      // from ever getting a clean shot at the gesture — cards could be
-      // picked up but never actually reordered. This only ever calls
-      // preventDefault on a touchmove that already has 2+ touches, so a
-      // normal one-finger scroll or drag is never touched.
-      document.addEventListener(
-        "touchmove",
-        function (e) {
-          if (e.touches && e.touches.length > 1) e.preventDefault();
-        },
-        { passive: false }
-      );
+      window.MGB_VERSION = { label: "2026-09-21a", note: "Audit batch 1: crash fixes, fail-closed client scoping, security headers, SRI" };
+      // The two-finger touchmove preventDefault that used to sit here (a
+      // pinch-zoom blocker, kept at the gesture level because touch-action
+      // CSS pre-empted the dashboard drag-and-drop) is gone. It only ever
+      // protected mouse-driven card reordering — styles.css states outright
+      // that dragging is mouse-only and that mobile reorders through the
+      // up/down buttons instead — so it was defending a gesture that does
+      // not exist on touch, at the cost of an accessibility failure.
 
       // Cache-bust so local edits to styles.css always show up on reload.
       document.write('<link rel="stylesheet" href="styles.css?v=' + Date.now() + '">');
@@ -106,16 +101,59 @@
       </div>
     </div>
 
-    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-    <script crossorigin src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <!-- Every third-party script is pinned to an EXACT version and carries a
+         Subresource Integrity hash. Previously react@18, react-dom@18,
+         @babel/standalone (no version at all) and @supabase/supabase-js@2 were
+         floating ranges served without integrity, so the bytes executing in an
+         origin that holds a live Supabase session could change without a commit
+         here — and a compromised or spoofed CDN response would have had a free
+         hand on the session token. supabase.js is the sharpest case, since it
+         IS the thing holding the session.
+
+         Regenerating a hash after a version bump (the CDN serves the npm
+         tarball's file verbatim, so the tarball is the source of truth):
+           npm pack react@18.3.1 && tar xzf react-18.3.1.tgz
+           openssl dgst -sha384 -binary package/umd/react.production.min.js \
+             | openssl base64 -A
+         A mismatched hash makes the browser refuse the script outright, so if
+         the app ever boots to a blank page right after a version change, these
+         attributes are the first thing to check. -->
+    <script
+      crossorigin="anonymous"
+      integrity="sha384-DGyLxAyjq0f9SPpVevD6IgztCFlnMF6oW/XQGmfe+IsZ8TqEiDrcHkMLKI6fiB/Z"
+      src="https://unpkg.com/react@18.3.1/umd/react.production.min.js"
+    ></script>
+    <script
+      crossorigin="anonymous"
+      integrity="sha384-gTGxhz21lVGYNMcdJOyq01Edg0jhn/c22nsx0kyqP0TxaV5WVdsSH1fSDUf5YJj1"
+      src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js"
+    ></script>
+    <script
+      crossorigin="anonymous"
+      integrity="sha384-AISI5AuDG6E8DeEiFMVB3rGQxhZt24OU0avMp+GMV64+tpnA3+Z6F5MT0f96iPva"
+      src="https://unpkg.com/@babel/standalone@7.24.7/babel.min.js"
+    ></script>
     <!-- Staff login gate (Phase 1 of the auth plan). Exposes window.supabase,
          read by components/auth/supabaseClient.js. -->
-    <script crossorigin src="https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+    <script
+      crossorigin="anonymous"
+      integrity="sha384-0w2KAL2YHP6wKOkUDzkCDGgVvfmHnj02DHeQ6XcHOgTfFsGyonKOpShMH1x6nk9o"
+      src="https://unpkg.com/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"
+    ></script>
     <!-- defer: only needed when someone clicks Download PDF, long after boot.
          Undeferred these blocked React and Babel from executing. -->
-    <script defer src="https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js"></script>
-    <script defer src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.4/dist/jspdf.plugin.autotable.min.js"></script>
+    <script
+      defer
+      crossorigin="anonymous"
+      integrity="sha384-en/ztfPSRkGfME4KIm05joYXynqzUgbsG5nMrj/xEFAHXkeZfO3yMK8QQ+mP7p1/"
+      src="https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js"
+    ></script>
+    <script
+      defer
+      crossorigin="anonymous"
+      integrity="sha384-Xl/CUCfJbzsngMp0CFxkmF0VW/8C160IsGujqeQlIhaGxKz2+JsIGORFqtCPeldF"
+      src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.4/dist/jspdf.plugin.autotable.min.js"
+    ></script>
 
     <script>
       // Manually fetch + transform each file so we can force Babel's
@@ -177,7 +215,13 @@
               payrollAddOn: row.payroll_add_on,
               assignedBookkeeper: row.assigned_bookkeeper,
             };
-            return Object.assign({}, mockById[row.id], roster);
+            // withClientDataDefaults (data.js) backfills the empty arrays a
+            // roster-only org has none of, so app.jsx's unguarded
+            // client.monthly[...] / client.bankAccounts[0] indexing renders an
+            // empty state instead of throwing into the root ErrorBoundary.
+            return window.withClientDataDefaults(
+              Object.assign({}, mockById[row.id], roster),
+            );
           });
         } catch (err) {
           console.warn("Couldn't load client roster from Supabase:", err);
