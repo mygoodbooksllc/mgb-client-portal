@@ -4099,7 +4099,7 @@ function FundAccountingProPage({ client }) {
 
       {view === "activity" && (
         <div className="card">
-          <h3 className="card-title premium-shimmer">Fund Activity</h3>
+          <h3 className="card-title">Fund Activity</h3>
           <p className="card-subtitle">
             Transfers between funds, with the reason for each move
           </p>
@@ -4142,7 +4142,7 @@ function FundAccountingProPage({ client }) {
 
       {view === "pledges" && (
         <div className="card">
-          <h3 className="card-title premium-shimmer">Pledges</h3>
+          <h3 className="card-title">Pledges</h3>
           <p className="card-subtitle">
             Committed vs. received, by donor and fund
           </p>
@@ -4221,7 +4221,7 @@ function FundAccountingProPage({ client }) {
         <div className="card">
           <div className="page-header" style={{ marginBottom: 4 }}>
             <div>
-              <h3 className="card-title premium-shimmer">Tax Documents</h3>
+              <h3 className="card-title">Tax Documents</h3>
               <p className="card-subtitle" style={{ margin: 0 }}>
                 Year-end giving statements donors can use to write off their
                 contributions
@@ -5239,7 +5239,7 @@ function ReconciliationPanel({ client }) {
       </div>
 
       <div className="card" style={{ marginBottom: 20 }}>
-        <h3 className="card-title premium-shimmer">Outstanding by Account</h3>
+        <h3 className="card-title">Outstanding by Account</h3>
         <p className="card-subtitle">
           Not-yet-cleared dollars across every account, at a glance
         </p>
@@ -5249,7 +5249,7 @@ function ReconciliationPanel({ client }) {
       <div className="card" style={{ marginBottom: 20 }}>
         <div className="page-header" style={{ marginBottom: 4 }}>
           <div>
-            <h3 className="card-title premium-shimmer">
+            <h3 className="card-title">
               {account.accountName} — Cleared Status
             </h3>
             <p className="card-subtitle" style={{ margin: 0 }}>
@@ -5315,7 +5315,7 @@ function ReconciliationPanel({ client }) {
       </div>
 
       <div className="card">
-        <h3 className="card-title premium-shimmer">Reconciliation History</h3>
+        <h3 className="card-title">Reconciliation History</h3>
         <p className="card-subtitle">
           Prior periods closed and signed off for {account.accountName}
         </p>
@@ -6646,7 +6646,7 @@ function ReportBuilderPage({ client }) {
         {builderTab === "custom" && (
           <div className="rb-layout">
             <div className="card rb-panel">
-              <h3 className="card-title premium-shimmer">Build a report</h3>
+              <h3 className="card-title">Build a report</h3>
               <p className="rb-panel-sub">
                 Choose a period, a scope, and which sections belong in this
                 report.
@@ -7257,7 +7257,7 @@ function BudgetingToolPage({ client }) {
         id="budgeting-tool-draft-card"
         style={{ marginBottom: 20 }}
       >
-        <h3 className="card-title premium-shimmer">Draft Budget by Category</h3>
+        <h3 className="card-title">Draft Budget by Category</h3>
         <p className="card-subtitle">
           Adjust proposed amounts for next period. This year's actual is shown
           for reference.
@@ -7675,7 +7675,7 @@ function APCommandCenterPage({ client }) {
       >
         <div className="ap-cc-toolbar">
           <div>
-            <h3 className="card-title premium-shimmer">Open Bills</h3>
+            <h3 className="card-title">Open Bills</h3>
             <p className="card-subtitle">
               Every payable on file for {client.name}
             </p>
@@ -7787,7 +7787,7 @@ function APCommandCenterPage({ client }) {
 
       {(selected.size > 0 || payRun) && (
         <div className="card" style={{ marginBottom: 20 }}>
-          <h3 className="card-title premium-shimmer">Pay Run</h3>
+          <h3 className="card-title">Pay Run</h3>
           <p className="card-subtitle">
             {payRun
               ? `${payRun.ids.length} bill${payRun.ids.length !== 1 ? "s" : ""} · ${fmtMoney(
@@ -7871,7 +7871,7 @@ function APCommandCenterPage({ client }) {
 
       <div className="content-masonry">
         <div className="card">
-          <h3 className="card-title premium-shimmer">Vendor Summary</h3>
+          <h3 className="card-title">Vendor Summary</h3>
           <p className="card-subtitle">Open balance by vendor</p>
           <div className="ap-cc-upcoming">
             {vendorSummary.slice(0, 6).map((v) => (
@@ -7895,7 +7895,7 @@ function APCommandCenterPage({ client }) {
         </div>
 
         <div className="card">
-          <h3 className="card-title premium-shimmer">Aging Summary</h3>
+          <h3 className="card-title">Aging Summary</h3>
           <p className="card-subtitle">Payables by how overdue they are</p>
           <div className="ap-cc-aging">
             {agingBuckets.map((b) => (
@@ -16790,37 +16790,6 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
   useEffect(() => {
     checkStaffMessagesUnread();
   }, [checkStaffMessagesUnread, page]);
-  // §152: keeps --mouse-x/--mouse-y (raw viewport px) current on the root
-  // element for .premium-shimmer's hover-follow spotlight — see that
-  // class's own comment in styles.css for the background-attachment:fixed
-  // trick this feeds. One listener for the whole app rather than one per
-  // shimmering element (there are over a dozen). Writes directly to
-  // documentElement.style, bypassing React state/re-renders entirely,
-  // since this can fire dozens of times a second and nothing here needs
-  // to trigger a render — only CSS reads it.
-  useEffect(() => {
-    let raf = null;
-    const onMove = (e) => {
-      if (raf) return;
-      raf = requestAnimationFrame(() => {
-        raf = null;
-        document.documentElement.style.setProperty(
-          "--mouse-x",
-          e.clientX + "px",
-        );
-        document.documentElement.style.setProperty(
-          "--mouse-y",
-          e.clientY + "px",
-        );
-      });
-    };
-    window.addEventListener("mousemove", onMove, { passive: true });
-    return () => {
-      window.removeEventListener("mousemove", onMove);
-      if (raf) cancelAnimationFrame(raf);
-    };
-  }, []);
-
   // Set when a global-search result is clicked, so the destination page
   // knows exactly which row to scroll to and flash — not just which tab to
   // open. `nonce` forces the effect on the receiving page to re-fire even
@@ -17552,17 +17521,12 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
             : showsFundAccountingPro
               ? PAGE_META["fund-accounting-pro"]
               : PAGE_META[effectivePage];
-  // §147: drives the shimmering gold page header/subtitle — a one-glance
-  // "this client is premium" cue that doesn't depend on noticing the
-  // sidebar's PRO pill or scrolling into the page itself. Plan-level
-  // (access.premiumForUser), not tied to the six specially-upgraded
-  // pages the way the header used to be — every one of a premium
-  // client's tabs shimmers uniformly, Payroll/Documents included, since
-  // the client is still premium on those two even though neither has an
-  // upgraded variant of its own. Never true on staff-only pages, which
-  // aren't about any one client's plan.
-  const headerIsPremium =
-    !NON_CLIENT_PAGES.has(effectivePage) && access.premiumForUser;
+  // §162: `headerIsPremium` lived here and drove a gold shimmer treatment on
+  // the page header and subtitle. Removed — premium pages now use the same
+  // dark ink heading as the standard pages. The sidebar's PRO pill is still
+  // the plan cue. If a premium header treatment is ever wanted again, the
+  // condition was `!NON_CLIENT_PAGES.has(effectivePage) &&
+  // access.premiumForUser`.
   const isPreviewingUser = viewAsUserId !== BOOKKEEPER_VIEW && access.user;
 
   const clientUsers = client.users || [];
@@ -18070,24 +18034,14 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
                   ? "MyGoodBooks"
                   : client.name}
               </div>
-              <h1
-                className={
-                  "page-title" + (headerIsPremium ? " premium-shimmer" : "")
-                }
-              >
+              <h1 className={"page-title"}>
                 {NAV_LABEL_BY_KEY[effectivePage] ||
                   (meta && meta.title) ||
                   (NON_CLIENT_PAGES.has(effectivePage)
                     ? "MyGoodBooks"
                     : client.name)}
               </h1>
-              <div
-                className={
-                  "page-subtitle" + (headerIsPremium ? " premium-shimmer" : "")
-                }
-              >
-                {meta.subtitle}
-              </div>
+              <div className={"page-subtitle"}>{meta.subtitle}</div>
             </div>
             <div className="page-header-actions">
               <span className="badge-live">

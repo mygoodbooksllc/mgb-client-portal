@@ -10,7 +10,7 @@
   --gold: #c7ae86;
   /* Was #b3925f, which measured 2.77:1 against --bg — below the 4.5:1 WCAG AA
      floor, and this token is `color:` on ~15 rules including the org name
-     (.portal-greeting) and every premium page heading (.premium-shimmer). The
+     (.portal-greeting) and, at the time, every premium page heading. The
      replacement is the existing --warm-text value rather than a new colour, so
      the palette gains nothing, and it measures 4.62:1 on cream. Decorative
      uses (borders, chips, gradient stops) only get crisper. */
@@ -41,7 +41,13 @@
   /* Ambient background mesh behind the glass cards (Option C direction). */
   --mesh-1: #e3d3ab;
   --mesh-2: #cfe0d6;
-  --mesh-3: #e6c9c2;
+  /* §162: was #e6c9c2, a dusty rose. It is the largest of the three blurred
+     blobs (700px, bottom of the viewport), so it tinted most of the page
+     pink — off-brand for a palette built on navy and gold. Now a gold, set
+     a little deeper than --mesh-1 so the mesh keeps its depth instead of
+     flattening into one wash. Dark mode's mesh has no pink in it and is
+     unchanged. */
+  --mesh-3: #d9c194;
   /* Bar-chart series. Income was --navy, which is chrome and disappears on a
      dark card, so the series gets its own token. Expense stays brand gold. */
   --chart-income: #243746;
@@ -1193,7 +1199,7 @@ body {
 /* Pending-access-request alert on "Manage access" (§140) — went through
    two louder versions first (a bare dot, then a labelled "New request"
    pill) before landing here: the button's text itself shimmers gold
-   (.premium-shimmer, the same treatment the Enterprise sidebar label
+   (.sidebar-text-shimmer, the same treatment the Enterprise sidebar label
    already uses — applied only to the text span, not the icon, since its
    background-clip:text would otherwise swallow the SVG's currentColor
    fill too) plus a soft pulsing glow on the button. Subtle rather than a
@@ -1321,10 +1327,9 @@ body {
    personal greeting, with the tab name in a small pill underneath it —
    collapsed into one line per feedback). Bumped up from 26px so it
    reads as a real page title rather than a greeting's leftover size.
-   Color is the plain ink token by default; .premium-shimmer (applied
-   conditionally via headerIsPremium) overrides it with the gold
-   gradient treatment, same technique the sidebar's Enterprise label and
-   the page subtitle already use. */
+   §162: the colour is now simply the plain ink token, for premium and
+   standard pages alike — the conditional gold .premium-shimmer override
+   that used to sit on top of it is gone. */
 .page-title {
   font-family: var(--font-heading);
   font-size: 32px;
@@ -1340,13 +1345,6 @@ body {
   font-size: 14.5px;
   color: var(--text-muted);
   margin-top: 4px;
-}
-
-/* A thin italic weight clips the shimmer gradient too faintly to read —
-   bold it just for this combination, same weight the nav's shimmer text
-   already uses. */
-.page-subtitle.premium-shimmer {
-  font-weight: 700;
 }
 
 .badge-live {
@@ -1704,51 +1702,19 @@ body {
    background) — the sidebar's own shimmer text is a separate class,
    .sidebar-text-shimmer below, precisely because the sidebar stays dark
    navy regardless of app theme and was never the problem. */
-/* §152: static gold by default (fixes the light-mode wash-out from
-   §150/§151 by construction — there's no auto-looping sweep left to
-   wash out), with a shimmer spotlight that only appears on hover,
-   tracking the actual cursor. The trick: a radial-gradient with
-   background-attachment: fixed paints relative to the *viewport*, not
-   the element box, so `at var(--mouse-x) var(--mouse-y)` (raw viewport
-   px, kept current by one document-level mousemove listener in App —
-   see setupGlobalMouseTracking) lands the highlight exactly under the
-   cursor with zero per-element JS: every .premium-shimmer element reads
-   the same two CSS custom properties, and background-clip: text crops
-   that viewport-wide gradient down to each one's own glyph shapes.
-   :focus-visible gets it too (keyboard users still see *something* on
-   Tab, just centered rather than cursor-tracked, via the var()
-   fallback) — touch has no hover at all, so it's plain solid gold
-   there, which is the correct "static gold if no hover" behavior, not
-   a gap. No animation/transition here at all, so prefers-reduced-motion
-   doesn't need to disable anything — this only ever moves in direct
-   response to input, never on its own. */
-.premium-shimmer {
-  color: var(--gold-deep);
-}
+/* §162: .premium-shimmer lived here — static gold text plus a cursor-following
+   radial-gradient spotlight on hover (§152), applied to premium page titles,
+   subtitles and card titles. Removed at the owner's request: premium headings
+   now use the same dark ink as the standard pages, so the two sides match.
+   Deleting it also orphaned the document-level mousemove listener in App that
+   kept --mouse-x/--mouse-y current purely to feed this, which is gone too —
+   that was a rAF-throttled write running for the whole session.
+   .sidebar-text-shimmer below is a SEPARATE class for text on the sidebar's
+   permanently-dark navy and is deliberately untouched. */
 
-.premium-shimmer:hover,
-.premium-shimmer:focus-visible {
-  /* ~50% more subtle than the first pass: the highlight stop is mixed
-     halfway toward --gold-deep instead of the full pale #f7ecd3 (less
-     brightness contrast against the resting color), and the circle is
-     smaller with a softer, more gradual falloff (0%-90% instead of
-     0%-70%) rather than a sharply-edged hot spot. */
-  background-image: radial-gradient(
-    100px circle at var(--mouse-x, 50%) var(--mouse-y, 50%),
-    color-mix(in srgb, #f7ecd3 50%, var(--gold-deep) 50%) 0%,
-    var(--gold-deep) 90%
-  );
-  background-attachment: fixed;
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
-  color: transparent;
-}
-
-/* The sidebar's own version of the same sweep, for text on the sidebar's
-   permanently-dark navy background — kept separate from .premium-shimmer
-   above specifically so that class's light-mode "no shimmer" rule never
-   touches this. Currently just "Manage access" while a request is
+/* Text shimmer for the sidebar's permanently-dark navy background. This was
+   always a separate class from the (now removed) .premium-shimmer, and it
+   survives that removal: it is a sidebar accent, not a page heading. Currently just "Manage access" while a request is
    pending (Sidebar), same gradient/animation .nav-section-label-signature
    already uses for the Enterprise label. */
 .sidebar-text-shimmer {
