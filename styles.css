@@ -50,6 +50,9 @@
      blob recedes, which is the effect that was wanted. Dark mode's mesh has
      no pink in it and is unchanged. */
   --mesh-3: #ecdfc4;
+  /* §168: how strongly the three blobs read against --bg. A token because the
+     right value is not the same in both themes — see the dark override. */
+  --mesh-opacity: 0.55;
   /* §165: faint spreadsheet ruling over the mesh — see .mesh-bg::after. The
      cell is deliberately wider than it is tall, which is what makes it read
      as ledger paper rather than as a table someone might try to click. All
@@ -147,6 +150,11 @@
     --mesh-1: #3f4f42;
     --mesh-2: #4a3a2a;
     --mesh-3: #2a3a45;
+    /* §168: dark needs markedly less. These three sit well above --bg
+       (#0f1512) in lightness, so at the light-mode 0.55 they read as three
+       distinct glowing shapes rather than as ambient depth — the near-black
+       ground gives them far more contrast to work with than cream does. */
+    --mesh-opacity: 0.3;
     /* Warm light line instead of dark: a dark line at this alpha is
        invisible on a near-black ground. Kept a shade above the light-mode
        value, since a pale line on near-black carries less than a dark line
@@ -210,6 +218,7 @@
   --mesh-1: #3f4f42;
   --mesh-2: #4a3a2a;
   --mesh-3: #2a3a45;
+  --mesh-opacity: 0.3;
   --grid-line: rgba(199, 174, 134, 0.038);
 }
 
@@ -321,7 +330,7 @@ body {
   position: absolute;
   border-radius: 50%;
   filter: blur(70px);
-  opacity: 0.55;
+  opacity: var(--mesh-opacity);
   animation: meshDriftA 24s ease-in-out infinite;
   /* Promotes each blob to its own compositor layer. Without it the browser
      repaints a 70px gaussian blur over a 700px box on every frame, which is
