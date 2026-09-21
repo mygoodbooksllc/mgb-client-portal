@@ -1,0 +1,22 @@
+-- Audit hardening cleanup: drop a test artifact left in production.
+-- APPLIED LIVE via Supabase MCP apply_migration (`drop_leftover_probe_function`).
+--
+-- While verifying how an RLS WITH CHECK subquery behaves during a multi-row
+-- INSERT (the work recorded in audit-hardening-chat-membership.sql), a
+-- throwaway helper was created as `create function _has(...)`. Unqualified, so
+-- it landed in `public` — where Supabase exposes every function over PostgREST
+-- at /rest/v1/rpc/<name>. It was SECURITY DEFINER with a mutable search_path
+-- and, per Postgres's default of granting EXECUTE to PUBLIC, callable by
+-- `anon`: reachable by anyone holding the publishable key and no account.
+--
+-- It was caught by re-running Supabase's security advisor AFTER applying the
+-- batch, which flagged it under three separate lints. Worth stating plainly
+-- because the lesson generalises: a probe run against production is a change
+-- to production. Re-run get_advisors after any session that creates objects,
+-- and prefer a schema-qualified temp name (pg_temp.*) for throwaway helpers.
+drop function if exists public._has(uuid);
+
+-- Verify (expect 0):
+--   select count(*) from pg_proc p
+--   join pg_namespace n on n.oid = p.pronamespace
+--   where n.nspname = 'public' and p.proname like \_%;

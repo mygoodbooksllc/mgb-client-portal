@@ -20,14 +20,13 @@
       rel="stylesheet"
     />
     <script>
-      // §149: no explicit theme choice defaults to sunrise/sunset now
-      // (app.jsx's autoTheme), not always-dark — but that needs a real
-      // geolocation lookup, which can't happen before this first paint.
-      // So this pre-hydration script uses the same clock-only heuristic
-      // app.jsx's clockHeuristicTheme() seeds itself with (light 6am-7pm,
-      // no permission needed), so the very first frame already agrees
-      // with what React will render, and geolocation only ever refines
-      // it afterward rather than visibly flipping it.
+      // §149/§161: no explicit theme choice follows the OS light/dark
+      // setting (app.jsx's autoTheme), not always-dark. This mirrors
+      // app.jsx's systemOrClockTheme() exactly — matchMedia is readable
+      // synchronously, so unlike the geolocation lookup this replaced,
+      // the very first frame can now agree with what React will render
+      // instead of being refined afterward. The clock heuristic remains
+      // the fallback for a browser reporting no preference.
       (function () {
         var stored = null;
         try {
@@ -36,6 +35,16 @@
         var theme;
         if (stored === "light" || stored === "dark") {
           theme = stored;
+        } else if (
+          window.matchMedia &&
+          window.matchMedia("(prefers-color-scheme: dark)").matches
+        ) {
+          theme = "dark";
+        } else if (
+          window.matchMedia &&
+          window.matchMedia("(prefers-color-scheme: light)").matches
+        ) {
+          theme = "light";
         } else {
           var hour = new Date().getHours();
           theme = hour >= 6 && hour < 19 ? "light" : "dark";
@@ -47,7 +56,7 @@
       // step to inject a real commit SHA into (see the no-bundler note up
       // top). Shown in Staff Access's System Info card so staff can confirm
       // which version they're looking at without guessing from Vercel's UI.
-      window.MGB_VERSION = { label: "2026-09-21a", note: "Audit batch 1: crash fixes, fail-closed client scoping, security headers, SRI" };
+      window.MGB_VERSION = { label: "2026-09-21b", note: "Audit batch 3: contrast, focus rings, empty states, mobile table labels, no geolocation prompt" };
       // The two-finger touchmove preventDefault that used to sit here (a
       // pinch-zoom blocker, kept at the gesture level because touch-action
       // CSS pre-empted the dashboard drag-and-drop) is gone. It only ever

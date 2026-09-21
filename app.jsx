@@ -13,10 +13,33 @@ const fmtMoney = (n, opts = {}) => {
   );
 };
 
+// §161: the year is shown only when it isn't the current one. Dropping it
+// unconditionally was fine for the recent-transaction lists this started on,
+// but the same helper formats pledge due dates, document dates and audit-log
+// entries — where a bare "Jan 4" on a 2024 row reads as this January, which in
+// a financial record is a genuinely misleading thing to render. Keeping the
+// current year off holds the common case short.
 const fmtDate = (iso) => {
   const d = new Date(iso + "T00:00:00");
-  return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  const opts = { month: "short", day: "numeric" };
+  if (d.getFullYear() !== new Date().getFullYear()) opts.year = "numeric";
+  return d.toLocaleDateString("en-US", opts);
 };
+
+// §161: one empty state for every table that had none. Six tables rendered a
+// bare <tbody> with nothing in it when their array was empty, which paints as
+// a header row above a thin sliver of nothing — indistinguishable from a
+// failed load. Others hand-rolled the same muted <td colSpan> inline. This is
+// that inline pattern, named, so the two shapes stop diverging.
+function EmptyRow({ colSpan, children }) {
+  return (
+    <tr>
+      <td colSpan={colSpan} className="table-empty-cell">
+        {children || "Nothing here yet."}
+      </td>
+    </tr>
+  );
+}
 
 // For a real timestamp (e.g. Postgres's created_at, "2026-09-14T02:58:03Z"),
 // not the plain YYYY-MM-DD strings fmtDate above expects — appending
@@ -1575,25 +1598,6 @@ function BarChartIcon(props) {
   );
 }
 
-function ShieldCheckIcon(props) {
-  return (
-    <svg
-      width="22"
-      height="22"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.6"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      {...props}
-    >
-      <path d="M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6l7-3z" />
-      <path d="M9 12l2 2 4-4" />
-    </svg>
-  );
-}
-
 function ChatIcon(props) {
   return (
     <svg
@@ -3128,6 +3132,12 @@ function ScopedDashboardPage({
                         </tr>
                       </thead>
                       <tbody>
+                        {(client.budget || []).length === 0 && (
+                          <EmptyRow colSpan={5}>
+                            No budget categories yet — add one to start
+                            tracking.
+                          </EmptyRow>
+                        )}
                         {(client.budget || []).map((b) => {
                           const over = b.actual > b.budgeted;
                           const pct = budgetPct(b);
@@ -3689,6 +3699,12 @@ function BudgetPage({ client, searchTarget }) {
                 </tr>
               </thead>
               <tbody>
+                {(client.budget || []).length === 0 && (
+                  <EmptyRow colSpan={6}>
+                    No budget categories yet — once your bookkeeper sets a
+                    budget, this fills in.
+                  </EmptyRow>
+                )}
                 {(client.budget || []).map((b) => {
                   const pct = budgetPct(b);
                   const over = b.actual > b.budgeted;
@@ -3819,6 +3835,9 @@ function ContributionsCard({ client }) {
             </tr>
           </thead>
           <tbody>
+            {client.contributions.length === 0 && (
+              <EmptyRow colSpan={5}>No contributions recorded yet.</EmptyRow>
+            )}
             {client.contributions.map((c, i) => (
               <tr key={i}>
                 <td>{fmtDate(c.date)}</td>
@@ -4085,7 +4104,7 @@ function FundAccountingProPage({ client }) {
             Transfers between funds, with the reason for each move
           </p>
           <div className="table-scroll">
-            <table className="tx-table tx-table-stack tx-stack-giving">
+            <table className="tx-table tx-table-labeled">
               <thead>
                 <tr>
                   <th>Date</th>
@@ -4097,23 +4116,19 @@ function FundAccountingProPage({ client }) {
               </thead>
               <tbody>
                 {fundTransfers.length === 0 ? (
-                  <tr>
-                    <td colSpan={5} style={{ color: "var(--text-muted)" }}>
-                      No fund transfers recorded.
-                    </td>
-                  </tr>
+                  <EmptyRow colSpan={5}>No fund transfers recorded.</EmptyRow>
                 ) : (
                   fundTransfers.map((t, i) => (
                     <tr key={i}>
-                      <td>{fmtDate(t.date)}</td>
-                      <td>
+                      <td data-label="Date">{fmtDate(t.date)}</td>
+                      <td data-label="From">
                         <span className="category-tag">{t.fromFund}</span>
                       </td>
-                      <td>
+                      <td data-label="To">
                         <span className="category-tag">{t.toFund}</span>
                       </td>
-                      <td>{t.reason}</td>
-                      <td className="num tx-amount">
+                      <td data-primary="">{t.reason}</td>
+                      <td className="num tx-amount" data-label="Amount">
                         {fmtMoney(t.amount, { cents: true })}
                       </td>
                     </tr>
@@ -4132,7 +4147,7 @@ function FundAccountingProPage({ client }) {
             Committed vs. received, by donor and fund
           </p>
           <div className="table-scroll">
-            <table className="tx-table tx-table-stack tx-stack-giving">
+            <table className="tx-table tx-table-labeled">
               <thead>
                 <tr>
                   <th>Donor</th>
@@ -4147,11 +4162,7 @@ function FundAccountingProPage({ client }) {
               </thead>
               <tbody>
                 {pledges.length === 0 ? (
-                  <tr>
-                    <td colSpan={8} style={{ color: "var(--text-muted)" }}>
-                      No open pledges.
-                    </td>
-                  </tr>
+                  <EmptyRow colSpan={8}>No open pledges.</EmptyRow>
                 ) : (
                   pledges.map((p, i) => {
                     const remaining = p.committed - p.received;
@@ -4171,21 +4182,21 @@ function FundAccountingProPage({ client }) {
                           : "neutral";
                     return (
                       <tr key={i}>
-                        <td>{p.donor}</td>
-                        <td>
+                        <td data-primary="">{p.donor}</td>
+                        <td data-label="Fund">
                           <span className="category-tag">{p.fund}</span>
                         </td>
-                        <td>{fmtDate(p.dueDate)}</td>
-                        <td className="num">
+                        <td data-label="Due">{fmtDate(p.dueDate)}</td>
+                        <td className="num" data-label="Committed">
                           {fmtMoney(p.committed, { cents: true })}
                         </td>
-                        <td className="num">
+                        <td className="num" data-label="Received">
                           {fmtMoney(p.received, { cents: true })}
                         </td>
-                        <td className="num">
+                        <td className="num" data-label="Remaining">
                           {fmtMoney(remaining, { cents: true })}
                         </td>
-                        <td>
+                        <td data-label="Status">
                           <span className={"pill " + pillClass}>{status}</span>
                         </td>
                         <td>
@@ -4225,7 +4236,7 @@ function FundAccountingProPage({ client }) {
             </button>
           </div>
           <div className="table-scroll">
-            <table className="tx-table tx-table-stack tx-stack-giving">
+            <table className="tx-table tx-table-labeled">
               <thead>
                 <tr>
                   <th>Donor</th>
@@ -4237,25 +4248,25 @@ function FundAccountingProPage({ client }) {
               </thead>
               <tbody>
                 {donorRoster.length === 0 ? (
-                  <tr>
-                    <td colSpan={5} style={{ color: "var(--text-muted)" }}>
-                      No named donors to send statements to — every gift on
-                      record so far is anonymous.
-                    </td>
-                  </tr>
+                  <EmptyRow colSpan={5}>
+                    No named donors to send statements to — every gift on record
+                    so far is anonymous.
+                  </EmptyRow>
                 ) : (
                   donorRoster.map((d) => (
                     <tr key={d.donor}>
-                      <td>{d.donor}</td>
-                      <td>
+                      <td data-primary="">{d.donor}</td>
+                      <td data-label="Email on File">
                         {d.email || (
                           <span style={{ color: "var(--text-muted)" }}>
                             No email on file
                           </span>
                         )}
                       </td>
-                      <td className="num">{d.giftCount}</td>
-                      <td className="num tx-amount">
+                      <td className="num" data-label="Gifts">
+                        {d.giftCount}
+                      </td>
+                      <td className="num tx-amount" data-label="YTD Total">
                         {fmtMoney(d.total, { cents: true })}
                       </td>
                       <td
@@ -4366,6 +4377,11 @@ function ReceivablesPayablesPage({ client }) {
                 </tr>
               </thead>
               <tbody>
+                {client.receivables.length === 0 && (
+                  <EmptyRow colSpan={3}>
+                    Nothing outstanding — you&rsquo;re all caught up.
+                  </EmptyRow>
+                )}
                 {client.receivables.map((r, i) => (
                   <tr key={i}>
                     <td data-primary="">{r.description}</td>
@@ -4396,6 +4412,11 @@ function ReceivablesPayablesPage({ client }) {
                 </tr>
               </thead>
               <tbody>
+                {client.payables.length === 0 && (
+                  <EmptyRow colSpan={3}>
+                    Nothing outstanding — you&rsquo;re all caught up.
+                  </EmptyRow>
+                )}
                 {client.payables.map((p, i) => (
                   <tr key={i}>
                     <td data-primary="">
@@ -4642,6 +4663,9 @@ function PayrollPage({ client }) {
                 </tr>
               </thead>
               <tbody>
+                {payroll.taxDeposits.length === 0 && (
+                  <EmptyRow colSpan={4}>No tax deposits scheduled.</EmptyRow>
+                )}
                 {payroll.taxDeposits.map((d, i) => {
                   const meta = PAYROLL_DEPOSIT_STATUS_META[d.status];
                   return (
@@ -4685,6 +4709,9 @@ function PayrollPage({ client }) {
                 </tr>
               </thead>
               <tbody>
+                {payroll.employees.length === 0 && (
+                  <EmptyRow colSpan={5}>No employees on payroll yet.</EmptyRow>
+                )}
                 {payroll.employees.map((e, i) => {
                   const meta = PAYROLL_STATUS_META[e.status];
                   return (
@@ -4968,7 +4995,7 @@ function BankTransactionsPanel({ client, searchTarget }) {
         </div>
         <div className="table-scroll tx-list-scroll">
           <table
-            className="tx-table tx-table-stack tx-stack-bank"
+            className="tx-table tx-table-labeled"
             style={{ marginTop: 16 }}
           >
             <thead>
@@ -4981,36 +5008,48 @@ function BankTransactionsPanel({ client, searchTarget }) {
               </tr>
             </thead>
             <tbody>
-              {(txView === "all" ? allTx : account.transactions).map((t, i) => {
-                const rowId = "tx-" + i;
-                return (
-                  <tr
-                    key={i}
-                    id={txView === "all" ? undefined : rowId}
-                    className={
-                      txView !== "all" && flashCardId === rowId
-                        ? "row-flash"
-                        : ""
-                    }
-                  >
-                    <td>{fmtDate(t.date)}</td>
-                    {txView === "all" && <td>{t.accountName}</td>}
-                    <td>{t.description}</td>
-                    <td>
-                      <span className="category-tag">{t.category}</span>
-                    </td>
-                    <td
-                      className={
-                        "num tx-amount " +
-                        (t.amount >= 0 ? "positive" : "negative")
-                      }
-                    >
-                      {t.amount >= 0 ? "+" : ""}
-                      {fmtMoney(t.amount, { cents: true })}
-                    </td>
-                  </tr>
-                );
-              })}
+              {(txView === "all" ? allTx : account.transactions).length ===
+              0 ? (
+                <EmptyRow colSpan={txView === "all" ? 5 : 4}>
+                  No transactions on this account yet.
+                </EmptyRow>
+              ) : (
+                (txView === "all" ? allTx : account.transactions).map(
+                  (t, i) => {
+                    const rowId = "tx-" + i;
+                    return (
+                      <tr
+                        key={i}
+                        id={txView === "all" ? undefined : rowId}
+                        className={
+                          txView !== "all" && flashCardId === rowId
+                            ? "row-flash"
+                            : ""
+                        }
+                      >
+                        <td data-label="Date">{fmtDate(t.date)}</td>
+                        {txView === "all" && (
+                          <td data-label="Account">{t.accountName}</td>
+                        )}
+                        <td data-primary="">{t.description}</td>
+                        <td data-label="Category">
+                          <span className="category-tag">{t.category}</span>
+                        </td>
+                        <td
+                          className={
+                            "num tx-amount " +
+                            (t.amount >= 0 ? "positive" : "negative")
+                          }
+                          data-label="Amount"
+                        >
+                          {t.amount >= 0 ? "+" : ""}
+                          {fmtMoney(t.amount, { cents: true })}
+                        </td>
+                      </tr>
+                    );
+                  },
+                )
+              )}
             </tbody>
           </table>
         </div>
@@ -5223,7 +5262,7 @@ function ReconciliationPanel({ client }) {
         </div>
         <div className="table-scroll">
           <table
-            className="tx-table tx-table-stack tx-stack-bank"
+            className="tx-table tx-table-labeled"
             style={{ marginTop: 16 }}
           >
             <thead>
@@ -5236,33 +5275,40 @@ function ReconciliationPanel({ client }) {
               </tr>
             </thead>
             <tbody>
-              {account.transactions.map((t, i) => (
-                <tr key={i}>
-                  <td>
-                    <span
+              {account.transactions.length === 0 ? (
+                <EmptyRow colSpan={5}>
+                  No transactions on this account yet.
+                </EmptyRow>
+              ) : (
+                account.transactions.map((t, i) => (
+                  <tr key={i}>
+                    <td data-label="Status">
+                      <span
+                        className={
+                          "pill " + (t.cleared !== false ? "good" : "warm")
+                        }
+                      >
+                        {t.cleared !== false ? "Cleared" : "Outstanding"}
+                      </span>
+                    </td>
+                    <td data-label="Date">{fmtDate(t.date)}</td>
+                    <td data-primary="">{t.description}</td>
+                    <td data-label="Category">
+                      <span className="category-tag">{t.category}</span>
+                    </td>
+                    <td
                       className={
-                        "pill " + (t.cleared !== false ? "good" : "warm")
+                        "num tx-amount " +
+                        (t.amount >= 0 ? "positive" : "negative")
                       }
+                      data-label="Amount"
                     >
-                      {t.cleared !== false ? "Cleared" : "Outstanding"}
-                    </span>
-                  </td>
-                  <td>{fmtDate(t.date)}</td>
-                  <td>{t.description}</td>
-                  <td>
-                    <span className="category-tag">{t.category}</span>
-                  </td>
-                  <td
-                    className={
-                      "num tx-amount " +
-                      (t.amount >= 0 ? "positive" : "negative")
-                    }
-                  >
-                    {t.amount >= 0 ? "+" : ""}
-                    {fmtMoney(t.amount, { cents: true })}
-                  </td>
-                </tr>
-              ))}
+                      {t.amount >= 0 ? "+" : ""}
+                      {fmtMoney(t.amount, { cents: true })}
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>
@@ -5279,7 +5325,7 @@ function ReconciliationPanel({ client }) {
           </p>
         ) : (
           <div className="table-scroll">
-            <table className="tx-table tx-table-stack tx-stack-bank">
+            <table className="tx-table tx-table-labeled">
               <thead>
                 <tr>
                   <th>Period</th>
@@ -5290,9 +5336,9 @@ function ReconciliationPanel({ client }) {
               <tbody>
                 {history.map((r, i) => (
                   <tr key={i}>
-                    <td>{r.period}</td>
-                    <td>{fmtDate(r.closedDate)}</td>
-                    <td>{r.closedBy}</td>
+                    <td data-primary="">{r.period}</td>
+                    <td data-label="Closed">{fmtDate(r.closedDate)}</td>
+                    <td data-label="Closed By">{r.closedBy}</td>
                   </tr>
                 ))}
               </tbody>
@@ -14063,16 +14109,17 @@ function MessagesPage({
         }}
       >
         <h3 className="card-title">
-          {isBookkeeper && activeUser ? (
-            `Conversation with ${activeUser.name}`
-          ) : client && client.assignedBookkeeper ? (
-            <>
-              Conversation with {client.assignedBookkeeper.name}
-              <span className="online-dot" title="Online now" />
-            </>
-          ) : (
-            "Conversation with MyGoodBooks"
-          )}
+          {isBookkeeper && activeUser
+            ? `Conversation with ${activeUser.name}`
+            : client && client.assignedBookkeeper
+              ? // §161: the green "Online now" dot that used to sit here was
+                // hardcoded — nothing checked presence, so it told every client
+                // their bookkeeper was at their desk at 3am on a Sunday. The
+                // staff-side thread list (see .online-dot above) drives the same
+                // indicator off a real `onlineEmails` set; this side has no such
+                // signal, so it shows nothing rather than a false one.
+                `Conversation with ${client.assignedBookkeeper.name}`
+              : "Conversation with MyGoodBooks"}
         </h3>
         {messages.length === 0 && (
           <p className="card-subtitle">No messages yet in this conversation.</p>
@@ -15859,63 +15906,38 @@ function loadTheme() {
   }
 }
 
-// §149: the automatic default now follows sunrise/sunset instead of
-// always being dark — but only when the person hasn't explicitly picked
-// a theme from the header toggle (loadTheme above always wins). Real
-// sunrise/sunset needs a location; geolocation is asked for once and the
-// result cached with the day it was computed for, so a repeat visit
-// doesn't re-prompt or recompute. Denied, unavailable, or still pending
-// falls back to a plain local-clock heuristic (light 6am-7pm) that needs
-// no permission at all — a reasonable default even though it ignores
-// season and latitude, and it's what index.html's pre-hydration script
-// uses too, so the very first paint already agrees with this.
-const AUTO_THEME_GEO_CACHE_KEY = "mygoodbooks_auto_theme_geo_v1";
-
+// §149/§161: the automatic default follows the operating system's own
+// light/dark setting, but only when the person hasn't explicitly picked a
+// theme from the header toggle (loadTheme above always wins).
+//
+// This replaced a sunrise/sunset calculation driven by navigator.geolocation.
+// That version worked, but it put a browser "allow location access?" prompt in
+// front of a bookkeeping portal on first load, and the only thing it bought was
+// a colour scheme. Asking a client for their physical location to guess a
+// background colour is a bad trade at any accuracy — and prefers-color-scheme
+// is strictly better information anyway, since it reports the preference the
+// person actually set rather than inferring one from the sun. It also costs no
+// permission, no cache, and no sunrise equation.
+//
+// The clock heuristic stays as the fallback for a browser that reports no
+// preference. It's what index.html's pre-hydration script uses, so the very
+// first paint already agrees with this.
 function clockHeuristicTheme(date) {
   const hour = (date || new Date()).getHours();
   return hour >= 6 && hour < 19 ? "light" : "dark";
 }
 
-// Approximate sunrise/sunset — https://en.wikipedia.org/wiki/Sunrise_equation,
-// simplified (no atmospheric refraction correction beyond the standard
-// -0.83° used for a visible sunrise/sunset, not civil twilight). Returns
-// {sunrise, sunset} as real Date objects, or null for a polar day/night
-// where the sun never crosses the horizon that day (falls back to the
-// clock heuristic in that case, same as no geolocation at all).
-function sunriseSunset(lat, lon, date) {
-  const rad = Math.PI / 180;
-  const dayMs = 86400000;
-  const j2000 = Date.UTC(2000, 0, 1, 12, 0, 0);
-  const n = Math.round((date.getTime() - j2000) / dayMs);
-  const meanAnomaly = (357.5291 + 0.98560028 * n) % 360;
-  const center =
-    1.9148 * Math.sin(meanAnomaly * rad) +
-    0.02 * Math.sin(2 * meanAnomaly * rad) +
-    0.0003 * Math.sin(3 * meanAnomaly * rad);
-  const eclipticLon = (meanAnomaly + 102.9372 + center + 180) % 360;
-  const solarTransit =
-    2451545.0 +
-    n +
-    0.0053 * Math.sin(meanAnomaly * rad) -
-    0.0069 * Math.sin(2 * eclipticLon * rad);
-  const declination = Math.asin(
-    Math.sin(eclipticLon * rad) * Math.sin(23.44 * rad),
-  );
-  const cosHourAngle =
-    (Math.sin(-0.83 * rad) - Math.sin(lat * rad) * Math.sin(declination)) /
-    (Math.cos(lat * rad) * Math.cos(declination));
-  if (cosHourAngle > 1 || cosHourAngle < -1) return null;
-  const hourAngle = Math.acos(cosHourAngle) / rad;
-  const jRise = solarTransit - hourAngle / 360 - lon / 360;
-  const jSet = solarTransit + hourAngle / 360 - lon / 360;
-  const toDate = (jd) => new Date((jd - 2440587.5) * dayMs);
-  return { sunrise: toDate(jRise), sunset: toDate(jSet) };
-}
-
-function themeFromSun(lat, lon, date) {
-  const times = sunriseSunset(lat, lon, date);
-  if (!times) return clockHeuristicTheme(date);
-  return date >= times.sunrise && date < times.sunset ? "light" : "dark";
+function systemOrClockTheme() {
+  if (
+    typeof window !== "undefined" &&
+    typeof window.matchMedia === "function"
+  ) {
+    if (window.matchMedia("(prefers-color-scheme: dark)").matches)
+      return "dark";
+    if (window.matchMedia("(prefers-color-scheme: light)").matches)
+      return "light";
+  }
+  return clockHeuristicTheme();
 }
 
 // §142: whether the sidebar shows full tab names or just icons — a per-
@@ -15925,16 +15947,29 @@ function themeFromSun(lat, lon, date) {
 // second icon rail — see HANDOFF7.md §124-§128 for why an earlier,
 // fancier split-sidebar redesign got fully reverted after it accumulated
 // layout bugs; this is intentionally the simpler shape.
-// §149: defaults to collapsed now — an explicit "0" (the person expanded
-// it themselves) is the only thing that opts back out; a missing key
-// (never touched the toggle) collapses same as an explicit "1" would.
+// §149: defaults to collapsed — an explicit "0" (the person expanded it
+// themselves) is the only thing that opts back out; a missing key (never
+// touched the toggle) collapses same as an explicit "1" would.
+// §161: that default now applies to STAFF only. Staff live in this app all
+// day, learn the seven icons within a session, and genuinely want the
+// screen width back. A client signs in occasionally and meets the same rail
+// cold: seven unlabelled icons and no way to know what they are without
+// clicking each one. Worse, the collapsed rule hides the Enterprise upsell
+// specifically — the one element of the client sidebar that exists to sell
+// something — so the default was making the revenue surface undiscoverable
+// to exactly the audience it targets. An explicit choice still wins for
+// both tiers; this only changes what happens when there is no choice yet.
 const SIDEBAR_COLLAPSED_STORAGE_KEY = "mygoodbooks_sidebar_collapsed_v1";
 
-function loadSidebarCollapsed() {
+function loadSidebarCollapsed(isClientPortal) {
+  const fallback = !isClientPortal;
   try {
-    return localStorage.getItem(SIDEBAR_COLLAPSED_STORAGE_KEY) !== "0";
+    const raw = localStorage.getItem(SIDEBAR_COLLAPSED_STORAGE_KEY);
+    if (raw === "0") return false;
+    if (raw === "1") return true;
+    return fallback;
   } catch (e) {
-    return true;
+    return fallback;
   }
 }
 
@@ -16230,27 +16265,6 @@ function useWidgetLayout(scopeKey, allIds) {
       });
     },
   };
-}
-
-// Same breakpoint the phone layout already switches on (.app-shell/
-// .mobile-topbar in styles.css). matchMedia + a change listener, not a
-// resize listener + innerWidth check — matchMedia only fires when the
-// query's truthiness actually flips, not on every pixel of a resize/rotate.
-const MOBILE_BREAKPOINT_QUERY = "(max-width: 760px)";
-
-function useIsMobile() {
-  const [isMobile, setIsMobile] = useState(
-    () =>
-      typeof window !== "undefined" &&
-      window.matchMedia(MOBILE_BREAKPOINT_QUERY).matches,
-  );
-  useEffect(() => {
-    const mql = window.matchMedia(MOBILE_BREAKPOINT_QUERY);
-    const onChange = (e) => setIsMobile(e.matches);
-    mql.addEventListener("change", onChange);
-    return () => mql.removeEventListener("change", onChange);
-  }, []);
-  return isMobile;
 }
 
 // Lets the actual cards on a page (not just the picker modal's rows) be
@@ -16826,61 +16840,42 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
   // (see the effects below). Null means dark — the product default.
   const [theme, setTheme] = useState(loadTheme);
 
-  // §149: automatic light/dark default, following sunrise/sunset once a
-  // location is known. Seeds synchronously from the clock heuristic (no
-  // permission needed, matches index.html's pre-hydration script so the
-  // very first paint already agrees), then refines from a cached or
-  // freshly-requested geolocation. Never runs at all once `theme` holds
-  // an explicit choice — that always wins, this only ever supplies the
-  // default. Re-derived every 15 minutes so a tab left open through an
-  // actual sunrise/sunset still switches without a reload.
-  const [autoTheme, setAutoTheme] = useState(clockHeuristicTheme);
+  // §149/§161: automatic light/dark default, following the OS setting.
+  // Seeds synchronously from the same reader index.html's pre-hydration
+  // script uses, so the first paint already agrees and there is nothing to
+  // refine afterward. Never runs at all once `theme` holds an explicit
+  // choice — that always wins, this only ever supplies the default.
+  const [autoTheme, setAutoTheme] = useState(systemOrClockTheme);
   useEffect(() => {
     if (theme) return;
-    let cachedCoords = null;
-    try {
-      const raw = localStorage.getItem(AUTO_THEME_GEO_CACHE_KEY);
-      const cached = raw && JSON.parse(raw);
-      if (cached && cached.day === new Date().toDateString()) {
-        cachedCoords = cached;
-      }
-    } catch (e) {}
+    setAutoTheme(systemOrClockTheme());
 
-    const applyFromCoords = (lat, lon) =>
-      setAutoTheme(themeFromSun(lat, lon, new Date()));
+    // The OS preference is authoritative and changes live (macOS/Windows/iOS
+    // all flip it on their own schedules), so listen rather than poll.
+    const mq =
+      typeof window.matchMedia === "function"
+        ? window.matchMedia("(prefers-color-scheme: dark)")
+        : null;
+    const onSchemeChange = () => setAutoTheme(systemOrClockTheme());
+    if (mq && mq.addEventListener)
+      mq.addEventListener("change", onSchemeChange);
 
-    if (cachedCoords) {
-      applyFromCoords(cachedCoords.lat, cachedCoords.lon);
-    } else if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (pos) => {
-          const { latitude, longitude } = pos.coords;
-          try {
-            localStorage.setItem(
-              AUTO_THEME_GEO_CACHE_KEY,
-              JSON.stringify({
-                lat: latitude,
-                lon: longitude,
-                day: new Date().toDateString(),
-              }),
-            );
-          } catch (e) {}
-          applyFromCoords(latitude, longitude);
-        },
-        () => {}, // denied/unavailable — keep the clock heuristic
-        { maximumAge: 24 * 60 * 60 * 1000, timeout: 8000 },
-      );
-    }
-
-    const interval = setInterval(() => {
-      if (cachedCoords) applyFromCoords(cachedCoords.lat, cachedCoords.lon);
-      else setAutoTheme(clockHeuristicTheme());
-    }, 900000);
-    return () => clearInterval(interval);
+    // Only matters on the clock fallback — a machine that states a preference
+    // never reaches the branch this refreshes. Cheap enough to leave running.
+    const interval = setInterval(
+      () => setAutoTheme(systemOrClockTheme()),
+      900000,
+    );
+    return () => {
+      clearInterval(interval);
+      if (mq && mq.removeEventListener)
+        mq.removeEventListener("change", onSchemeChange);
+    };
   }, [theme]);
 
-  const [sidebarCollapsed, setSidebarCollapsed] =
-    useState(loadSidebarCollapsed);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() =>
+    loadSidebarCollapsed(!!clientPortalUser),
+  );
   const toggleSidebarCollapsed = () => {
     setSidebarCollapsed((prev) => {
       const next = !prev;
