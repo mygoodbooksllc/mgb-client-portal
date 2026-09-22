@@ -12438,13 +12438,13 @@ function BookkeeperHomePage({
     if (error) showToast(`Couldn't remove reminder: ${error.message}`);
   }
 
+  // Handoff summaries — same path as My Tasks' By client tab
+  // (clientNotesApi), so an edit in either shows up in the other.
   const loadNotes = useCallback(() => {
     if (!supabase || clients.length === 0) return;
-    supabase
-      .from("client_notes")
-      .select("client_id, note, updated_by, updated_at")
-      .in(
-        "client_id",
+    clientNotesApi
+      .getHandoffs(
+        supabase,
         clients.map((c) => c.id),
       )
       .then(({ data, error }) => {
@@ -12456,13 +12456,14 @@ function BookkeeperHomePage({
           return;
         }
         setNoteError("");
-        setNotes(Object.fromEntries(data.map((n) => [n.client_id, n])));
+        setNotes(data);
       });
   }, [supabase, clients]);
 
   useEffect(() => {
     loadNotes();
   }, [loadNotes]);
+  useClientNotesChanged(loadNotes);
 
   function openNoteEditor(client) {
     setEditingNoteFor(client);
@@ -12471,19 +12472,18 @@ function BookkeeperHomePage({
 
   async function saveNote() {
     setSavingNote(true);
-    const { error } = await supabase.from("client_notes").upsert({
-      client_id: editingNoteFor.id,
-      note: noteDraft,
-      updated_by: staffUser.email,
-      updated_at: new Date().toISOString(),
-    });
+    const { error } = await clientNotesApi.saveHandoff(
+      supabase,
+      editingNoteFor.id,
+      noteDraft,
+      staffUser.email,
+    );
     setSavingNote(false);
     if (error) {
       showToast(`Couldn't save note: ${error.message}`);
       return;
     }
     setEditingNoteFor(null);
-    loadNotes();
   }
 
   function openStatusEditor(client) {
@@ -13974,7 +13974,7 @@ const TASK_RECURRENCE_LABEL = {
   monthly: "Monthly",
   month_end: "Month end",
 };
-const TASK_SOURCE_LABEL = { access_request: "Access request" };
+const TASK_SOURCE_LABEL = { access_request: "Access request", note: "From note" };
 
 const parseLocalDate = (ymd) => {
   const [y, m, d] = ymd.split("-").map(Number);
@@ -14130,8 +14130,10 @@ const staffItemsApi = {
       source: item.source || "manual",
       source_ref: item.source_ref || null,
     };
+    // Returns the new row's id in data.id (used to link a note to the task
+    // it spawned).
     const res = await this._write(
-      (r) => supabase.from("staff_reminders").insert(r),
+      (r) => supabase.from("staff_reminders").insert(r).select("id").single(),
       row,
     );
     if (!res.error) this.notify();
@@ -14236,6 +14238,180 @@ const staffItemsApi = {
     return res;
   },
 };
+
+// ----------------------------------------------------------------------------
+// clientNotesApi — the one read/write path for staff-only client notes,
+// shared by My Tasks (By client + Notes tabs), Bookkeeper Home's per-client
+// note box and Client details → Notes, so an edit in one shows up in the
+// others.
+//
+//   * Handoff summary: client_notes (client-notes.sql), one row per client.
+//   * Dated notes: client_private_notes (client-private-notes.sql), many per
+//     client, pinnable. tasks-notes-v3.sql adds `category` and
+//     `linked_task_id`; until that runs, the first missing-column error flips
+//     `legacy` and reads/writes retry without them (callers hide category and
+//     "Make task" when legacy).
+//
+// Policy mirror: every table here is scoped by can_access_client(client_id)
+// for ALL operations, so anyone who can see a note can edit, pin, link or
+// delete it — the UI offers those actions on every note it shows. Clients
+// never see any of it (no client_users policy on either table).
+//
+// Every write fires CLIENT_NOTES_CHANGED_EVENT; App's Realtime subscription
+// fires it too for teammates' edits.
+// ----------------------------------------------------------------------------
+
+const CLIENT_NOTES_CHANGED_EVENT = "mgb:client-notes-changed";
+const CLIENT_NOTE_BASE_COLS =
+  "id, client_id, text, author_email, author_name, pinned, created_at, updated_at";
+const CLIENT_NOTE_V3_FIELDS = ["category", "linked_task_id"];
+const NOTE_CATEGORIES = ["general", "status", "handoff", "call", "meeting"];
+const NOTE_CATEGORY_LABEL = {
+  general: "General",
+  status: "Status",
+  handoff: "Handoff",
+  call: "Call",
+  meeting: "Meeting",
+};
+
+const clientNotesApi = {
+  legacy: false,
+
+  notify() {
+    try {
+      window.dispatchEvent(new Event(CLIENT_NOTES_CHANGED_EVENT));
+    } catch (e) {}
+  },
+
+  stripV3(row) {
+    const out = { ...row };
+    CLIENT_NOTE_V3_FIELDS.forEach((f) => delete out[f]);
+    return out;
+  },
+
+  normalize(row) {
+    return { category: "general", linked_task_id: null, ...row };
+  },
+
+  // Dated notes, pinned first then newest. `clientId` narrows to one client;
+  // otherwise RLS returns every client this staffer can access.
+  async list(supabase, { clientId } = {}) {
+    if (!supabase) return { data: [], error: null };
+    const run = (cols) => {
+      let q = supabase.from("client_private_notes").select(cols);
+      if (clientId) q = q.eq("client_id", clientId);
+      return q
+        .order("pinned", { ascending: false })
+        .order("created_at", { ascending: false })
+        .limit(1000);
+    };
+    if (!this.legacy) {
+      const res = await run(
+        CLIENT_NOTE_BASE_COLS + ", " + CLIENT_NOTE_V3_FIELDS.join(", "),
+      );
+      if (!res.error)
+        return { data: (res.data || []).map((r) => this.normalize(r)), error: null };
+      if (!staffItemsApi.isMissingColumnError(res.error))
+        return { data: null, error: res.error };
+      this.legacy = true;
+    }
+    const res = await run(CLIENT_NOTE_BASE_COLS);
+    return {
+      data: res.data ? res.data.map((r) => this.normalize(r)) : null,
+      error: res.error,
+    };
+  },
+
+  async _write(run, row) {
+    if (!this.legacy) {
+      const res = await run(row);
+      if (!res.error || !staffItemsApi.isMissingColumnError(res.error))
+        return res;
+      this.legacy = true;
+    }
+    return run(this.stripV3(row));
+  },
+
+  // author_email / author_name are re-stamped server-side from the JWT
+  // (audit2-author-stamping.sql); sent anyway so the insert satisfies the
+  // not-null columns on databases without that trigger.
+  async add(supabase, staffUser, { client_id, text, category }) {
+    const row = {
+      client_id,
+      text,
+      author_email: staffUser.email,
+      author_name: staffUser.name || staffUser.email,
+      category: category || "general",
+    };
+    const res = await this._write(
+      (r) => supabase.from("client_private_notes").insert(r),
+      row,
+    );
+    if (!res.error) this.notify();
+    return res;
+  },
+
+  // A text edit is stamped with updated_at ("edited"); pin / link aren't.
+  async update(supabase, id, patch) {
+    const row = { ...patch };
+    if (row.text !== undefined) row.updated_at = new Date().toISOString();
+    const res = await this._write(
+      (r) => supabase.from("client_private_notes").update(r).eq("id", id),
+      row,
+    );
+    if (!res.error) this.notify();
+    return res;
+  },
+
+  pin(supabase, note) {
+    return this.update(supabase, note.id, { pinned: !note.pinned });
+  },
+
+  linkTask(supabase, noteId, taskId) {
+    if (this.legacy) return Promise.resolve({ error: null });
+    return this.update(supabase, noteId, { linked_task_id: taskId });
+  },
+
+  async remove(supabase, id) {
+    const res = await supabase.from("client_private_notes").delete().eq("id", id);
+    if (!res.error) this.notify();
+    return res;
+  },
+
+  // Handoff summaries as { [client_id]: row }.
+  async getHandoffs(supabase, clientIds) {
+    if (!supabase || !clientIds || clientIds.length === 0)
+      return { data: {}, error: null };
+    const { data, error } = await supabase
+      .from("client_notes")
+      .select("client_id, note, updated_by, updated_at")
+      .in("client_id", clientIds);
+    if (error) return { data: null, error };
+    return {
+      data: Object.fromEntries((data || []).map((n) => [n.client_id, n])),
+      error: null,
+    };
+  },
+
+  async saveHandoff(supabase, clientId, note, email) {
+    const res = await supabase.from("client_notes").upsert({
+      client_id: clientId,
+      note,
+      updated_by: email,
+      updated_at: new Date().toISOString(),
+    });
+    if (!res.error) this.notify();
+    return res;
+  },
+};
+
+// Reload `load` whenever any client note / handoff write happens anywhere.
+function useClientNotesChanged(load) {
+  useEffect(() => {
+    window.addEventListener(CLIENT_NOTES_CHANGED_EVENT, load);
+    return () => window.removeEventListener(CLIENT_NOTES_CHANGED_EVENT, load);
+  }, [load]);
+}
 
 // Reload `load` whenever any staff_reminders write happens anywhere in the app.
 function useStaffItemsChanged(load) {
@@ -16477,14 +16653,8 @@ function TabSettingsModal({
   // all).
   const loadPrivateNotes = useCallback(() => {
     if (!supabase) return;
-    supabase
-      .from("client_private_notes")
-      .select(
-        "id, text, author_email, author_name, pinned, created_at, updated_at",
-      )
-      .eq("client_id", client.id)
-      .order("pinned", { ascending: false })
-      .order("created_at", { ascending: false })
+    clientNotesApi
+      .list(supabase, { clientId: client.id })
       .then(({ data, error }) => {
         if (error) {
           showToast(
@@ -16501,16 +16671,18 @@ function TabSettingsModal({
   useEffect(() => {
     if (tab === "notes") loadPrivateNotes();
   }, [tab, loadPrivateNotes]);
+  const reloadNotesIfOpen = useCallback(() => {
+    if (tab === "notes") loadPrivateNotes();
+  }, [tab, loadPrivateNotes]);
+  useClientNotesChanged(reloadNotesIfOpen);
 
   async function addPrivateNote(e) {
     e.preventDefault();
     if (!supabase || !newNoteText.trim()) return;
     setAddingNote(true);
-    const { error } = await supabase.from("client_private_notes").insert({
+    const { error } = await clientNotesApi.add(supabase, staffUser, {
       client_id: client.id,
       text: newNoteText.trim(),
-      author_email: staffUser.email,
-      author_name: staffUser.name,
     });
     setAddingNote(false);
     if (error) {
@@ -16518,7 +16690,6 @@ function TabSettingsModal({
       return;
     }
     setNewNoteText("");
-    loadPrivateNotes();
   }
 
   function startEditNote(note) {
@@ -16529,33 +16700,25 @@ function TabSettingsModal({
   async function saveEditedNote(id) {
     const text = editingNoteText.trim();
     if (!text) return;
-    const { error } = await supabase
-      .from("client_private_notes")
-      .update({ text, updated_at: new Date().toISOString() })
-      .eq("id", id);
+    const { error } = await clientNotesApi.update(supabase, id, { text });
     if (error) {
       showToast("Couldn't update that note: " + error.message);
       return;
     }
     setEditingNoteId(null);
-    loadPrivateNotes();
   }
 
   async function togglePinNote(note) {
-    const { error } = await supabase
-      .from("client_private_notes")
-      .update({ pinned: !note.pinned })
-      .eq("id", note.id);
+    const { error } = await clientNotesApi.pin(supabase, note);
     if (error) {
       showToast("Couldn't update that note: " + error.message);
       return;
     }
-    loadPrivateNotes();
   }
 
   async function removePrivateNote(id) {
-    await supabase.from("client_private_notes").delete().eq("id", id);
-    loadPrivateNotes();
+    const { error } = await clientNotesApi.remove(supabase, id);
+    if (error) showToast("Couldn't remove that note: " + error.message);
   }
 
   // Read-only feed of client_activity_log — populated entirely by database
@@ -18387,6 +18550,31 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
       supabase.removeChannel(channel);
     };
   }, [staffUser]);
+  // Same for staff-only client notes (dated notes + handoff summaries), so
+  // My Tasks, Home and Client details pick up a teammate's edit. No-op until
+  // tasks-notes-v3.sql adds the tables to the publication.
+  useEffect(() => {
+    const supabase = window.mgbSupabase;
+    if (!supabase || !staffUser) return;
+    const channel = supabase
+      .channel("client-notes-" + staffUser.email, {
+        config: { private: true },
+      })
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "client_private_notes" },
+        () => clientNotesApi.notify(),
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "client_notes" },
+        () => clientNotesApi.notify(),
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [staffUser]);
   // Set when a global-search result is clicked, so the destination page
   // knows exactly which row to scroll to and flash — not just which tab to
   // open. `nonce` forces the effect on the receiving page to re-fire even
@@ -19832,6 +20020,7 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
             <MyTasksPage
               staffUser={effectiveStaffUser}
               clients={visibleClients}
+              statusOverrides={statusOverrides}
             />
           )}
           {effectivePage === "my-time" && (
