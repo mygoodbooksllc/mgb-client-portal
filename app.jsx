@@ -14522,7 +14522,104 @@ const TASK_TABS = [
   { id: "upcoming", label: "Upcoming" },
   { id: "overdue", label: "Overdue" },
   { id: "all", label: "All" },
+  { id: "byclient", label: "By client" },
+  { id: "notes", label: "Notes" },
 ];
+// Tabs that show tasks (vs. the client/notes views).
+const TASK_LIST_TABS = ["today", "upcoming", "overdue", "all"];
+
+const TASK_PRIORITY_RANK = { high: 0, normal: 1, low: 2 };
+// Dated first (soonest first), then by due time, then priority.
+function compareOpenStaffItems(a, b) {
+  if (!!a.due_date !== !!b.due_date) return a.due_date ? -1 : 1;
+  if (a.due_date !== b.due_date) return a.due_date < b.due_date ? -1 : 1;
+  const aAt = a.due_at || "";
+  const bAt = b.due_at || "";
+  if (aAt !== bAt) return aAt < bAt ? -1 : 1;
+  return (
+    (TASK_PRIORITY_RANK[a.priority] ?? 1) - (TASK_PRIORITY_RANK[b.priority] ?? 1)
+  );
+}
+
+// Add-a-note form used by My Tasks' Notes tab (client picker) and each By
+// client card (client fixed). onSubmit resolves true on success.
+function NoteComposer({ clients, fixedClientId, legacy, onSubmit, onCancel }) {
+  const [clientId, setClientId] = useState(fixedClientId || "");
+  const [category, setCategory] = useState("general");
+  const [text, setText] = useState("");
+  const [busy, setBusy] = useState(false);
+  const ready = !!text.trim() && !!(fixedClientId || clientId);
+
+  async function submit(e) {
+    e.preventDefault();
+    if (!ready || busy) return;
+    setBusy(true);
+    const ok = await onSubmit({
+      client_id: fixedClientId || clientId,
+      category,
+      text: text.trim(),
+    });
+    setBusy(false);
+    if (ok) setText("");
+  }
+
+  return (
+    <form className="note-composer" onSubmit={submit}>
+      <div className="note-composer-options">
+        {!fixedClientId && (
+          <label className="task-field">
+            <span>Client</span>
+            <select
+              value={clientId}
+              onChange={(e) => setClientId(e.target.value)}
+              required
+            >
+              <option value="">Pick a client</option>
+              {(clients || []).map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
+        {!legacy && (
+          <label className="task-field">
+            <span>Category</span>
+            <select
+              value={category}
+              onChange={(e) => setCategory(e.target.value)}
+            >
+              {NOTE_CATEGORIES.map((c) => (
+                <option key={c} value={c}>
+                  {NOTE_CATEGORY_LABEL[c]}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
+      </div>
+      <textarea
+        className="note-textarea"
+        rows={3}
+        placeholder="Called the owner — March statements coming Friday…"
+        aria-label="Note"
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+      />
+      <div className="note-composer-actions">
+        {onCancel && (
+          <button type="button" className="btn-secondary" onClick={onCancel}>
+            Cancel
+          </button>
+        )}
+        <button type="submit" className="btn-primary" disabled={!ready || busy}>
+          {busy ? "Adding…" : "Add note"}
+        </button>
+      </div>
+    </form>
+  );
+}
 const TASK_TAB_EMPTY = {
   today: "Nothing due today.",
   upcoming: "Nothing coming up.",
@@ -14530,7 +14627,7 @@ const TASK_TAB_EMPTY = {
   all: "Nothing on your list — add a task above.",
 };
 
-function MyTasksPage({ staffUser, clients }) {
+function MyTasksPage({ staffUser, clients, statusOverrides }) {
   const showToast = useToast();
   const supabase = window.mgbSupabase;
   const today = todayLocal();
@@ -14554,6 +14651,24 @@ function MyTasksPage({ staffUser, clients }) {
   const [newRecurrence, setNewRecurrence] = useState("none");
   const [newShared, setNewShared] = useState(false);
   const [adding, setAdding] = useState(false);
+  const addTextRef = useRef(null);
+
+  // Notes + handoff summaries (clientNotesApi) for the By client and Notes
+  // tabs, and for the note <-> task link chips.
+  const [notes, setNotes] = useState(null);
+  const [notesError, setNotesError] = useState("");
+  const [notesLegacy, setNotesLegacy] = useState(clientNotesApi.legacy);
+  const [handoffs, setHandoffs] = useState({});
+  const [clientSearch, setClientSearch] = useState("");
+  const [noteClientFilter, setNoteClientFilter] = useState("");
+  const [noteCategoryFilter, setNoteCategoryFilter] = useState("");
+  const [composerFor, setComposerFor] = useState(null); // client id on By client
+  const [editingHandoffFor, setEditingHandoffFor] = useState(null);
+  const [handoffDraft, setHandoffDraft] = useState("");
+  const [savingHandoff, setSavingHandoff] = useState(false);
+  const [editingNoteId, setEditingNoteId] = useState(null);
+  const [editingNoteText, setEditingNoteText] = useState("");
+  const [highlightNoteId, setHighlightNoteId] = useState(null);
 
   const clientById = useMemo(
     () => Object.fromEntries((clients || []).map((c) => [c.id, c])),
@@ -14578,6 +14693,40 @@ function MyTasksPage({ staffUser, clients }) {
     loadTasks();
   }, [loadTasks]);
   useStaffItemsChanged(loadTasks);
+
+  const clientIdsKey = (clients || []).map((c) => c.id).join(",");
+  const loadNotes = useCallback(() => {
+    if (!supabase) return;
+    clientNotesApi.list(supabase).then(({ data, error }) => {
+      setNotesLegacy(clientNotesApi.legacy);
+      if (error) {
+        setNotesError("Couldn't load notes. " + error.message);
+        setNotes([]);
+      } else {
+        setNotesError("");
+        setNotes(data);
+      }
+    });
+    clientNotesApi
+      .getHandoffs(supabase, clientIdsKey ? clientIdsKey.split(",") : [])
+      .then(({ data, error }) => {
+        if (!error) setHandoffs(data);
+      });
+  }, [supabase, clientIdsKey]);
+
+  useEffect(() => {
+    loadNotes();
+  }, [loadNotes]);
+  useClientNotesChanged(loadNotes);
+
+  // Bring a note into view after jumping to it from a task's link chip.
+  useEffect(() => {
+    if (!highlightNoteId || tab !== "notes") return;
+    const el = document.getElementById(`note-${highlightNoteId}`);
+    if (el) el.scrollIntoView({ block: "center", behavior: "smooth" });
+    const id = setTimeout(() => setHighlightNoteId(null), 2500);
+    return () => clearTimeout(id);
+  }, [highlightNoteId, tab, notes]);
 
   async function addTask() {
     const text = newText.trim();
@@ -14628,6 +14777,101 @@ function MyTasksPage({ staffUser, clients }) {
     if (error) showToast(`Couldn't remove task: ${error.message}`);
   }
 
+  // "Add task" on a By client card: pre-pick the client in the form above.
+  function startTaskForClient(clientId) {
+    setNewClientId(clientId);
+    const el = addTextRef.current;
+    if (el) {
+      el.scrollIntoView({ block: "center", behavior: "smooth" });
+      el.focus({ preventScroll: true });
+    }
+  }
+
+  async function addNote(fields) {
+    const { error } = await clientNotesApi.add(supabase, staffUser, fields);
+    if (error) {
+      showToast(`Couldn't add note: ${error.message}`);
+      return false;
+    }
+    return true;
+  }
+
+  async function saveNoteEdit(note) {
+    const text = editingNoteText.trim();
+    if (!text) return;
+    const { error } = await clientNotesApi.update(supabase, note.id, { text });
+    if (error) {
+      showToast(`Couldn't update note: ${error.message}`);
+      return;
+    }
+    setEditingNoteId(null);
+  }
+
+  async function pinNote(note) {
+    const { error } = await clientNotesApi.pin(supabase, note);
+    if (error) showToast(`Couldn't update note: ${error.message}`);
+  }
+
+  async function removeNote(note) {
+    if (!window.confirm("Delete this note? This can't be undone.")) return;
+    const { error } = await clientNotesApi.remove(supabase, note.id);
+    if (error) showToast(`Couldn't delete note: ${error.message}`);
+  }
+
+  // Note -> private task for me on the same client, linked both ways
+  // (task.source_ref = note id, note.linked_task_id = task id).
+  async function makeTaskFromNote(note) {
+    const firstLine = note.text.split("\n")[0].trim() || note.text.trim();
+    const text =
+      firstLine.length > 140 ? firstLine.slice(0, 139) + "…" : firstLine;
+    const { data, error } = await staffItemsApi.add(supabase, me, {
+      text,
+      client_id: note.client_id,
+      source: "note",
+      source_ref: note.id,
+    });
+    if (error) {
+      showToast(`Couldn't make a task: ${error.message}`);
+      return;
+    }
+    if (data && data.id) {
+      const res = await clientNotesApi.linkTask(supabase, note.id, data.id);
+      if (res.error) showToast(`Task added, but couldn't link it: ${res.error.message}`);
+      else showToast("Task added — private to you.");
+    }
+  }
+
+  async function saveHandoff(clientId) {
+    setSavingHandoff(true);
+    const { error } = await clientNotesApi.saveHandoff(
+      supabase,
+      clientId,
+      handoffDraft,
+      me,
+    );
+    setSavingHandoff(false);
+    if (error) {
+      showToast(`Couldn't save handoff summary: ${error.message}`);
+      return;
+    }
+    setEditingHandoffFor(null);
+  }
+
+  function jumpToNote(note) {
+    setTab("notes");
+    setShowCompleted(false);
+    setNoteClientFilter(note.client_id);
+    setNoteCategoryFilter("");
+    setHighlightNoteId(note.id);
+  }
+
+  function jumpToTask(task) {
+    setTab("all");
+    setShowCompleted(!!task.done);
+    setClientFilter(task.client_id || "");
+    setScopeFilter("all");
+  }
+
   // Client + mine/shared filters apply to every tab and to Completed.
   const filtered = useMemo(() => {
     if (!tasks) return [];
@@ -14641,19 +14885,10 @@ function MyTasksPage({ staffUser, clients }) {
     });
   }, [tasks, clientFilter, scopeFilter, me]);
 
-  const openTasks = useMemo(() => {
-    const priorityRank = { high: 0, normal: 1, low: 2 };
-    return filtered
-      .filter((t) => !t.done)
-      .sort((a, b) => {
-        if (!!a.due_date !== !!b.due_date) return a.due_date ? -1 : 1;
-        if (a.due_date !== b.due_date) return a.due_date < b.due_date ? -1 : 1;
-        const aAt = a.due_at || "";
-        const bAt = b.due_at || "";
-        if (aAt !== bAt) return aAt < bAt ? -1 : 1;
-        return (priorityRank[a.priority] ?? 1) - (priorityRank[b.priority] ?? 1);
-      });
-  }, [filtered]);
+  const openTasks = useMemo(
+    () => filtered.filter((t) => !t.done).sort(compareOpenStaffItems),
+    [filtered],
+  );
 
   const buckets = useMemo(
     () => ({
@@ -14678,8 +14913,383 @@ function MyTasksPage({ staffUser, clients }) {
     [filtered],
   );
 
-  const shown = showCompleted ? completedTasks : buckets[tab];
+  const isListTab = TASK_LIST_TABS.includes(tab);
+  const shown = showCompleted ? completedTasks : buckets[tab] || [];
   const nowMs = Date.now();
+
+  // Link lookups, both directions.
+  const taskById = useMemo(
+    () => Object.fromEntries((tasks || []).map((t) => [t.id, t])),
+    [tasks],
+  );
+  const noteById = useMemo(
+    () => Object.fromEntries((notes || []).map((n) => [n.id, n])),
+    [notes],
+  );
+  const taskForNote = (n) =>
+    (n.linked_task_id && taskById[n.linked_task_id]) ||
+    (tasks || []).find((t) => t.source === "note" && t.source_ref === n.id) ||
+    null;
+
+  // Only notes for clients on this staffer's list (RLS already scopes them;
+  // this just keeps the view in step with the client picker).
+  const visibleNotes = useMemo(
+    () =>
+      (notes || [])
+        .filter((n) => clientById[n.client_id])
+        .sort((a, b) => {
+          if (a.pinned !== b.pinned) return a.pinned ? -1 : 1;
+          return a.created_at < b.created_at ? 1 : -1;
+        }),
+    [notes, clientById],
+  );
+
+  const filteredNotes = useMemo(
+    () =>
+      visibleNotes.filter(
+        (n) =>
+          (!noteClientFilter || n.client_id === noteClientFilter) &&
+          (notesLegacy || !noteCategoryFilter || n.category === noteCategoryFilter),
+      ),
+    [visibleNotes, noteClientFilter, noteCategoryFilter, notesLegacy],
+  );
+
+  // By client: every client with a handoff summary, a status override, an
+  // open task (mine or shared) or a dated note. Most urgent first (overdue,
+  // then due today), then name.
+  const clientCards = useMemo(() => {
+    const q = clientSearch.trim().toLowerCase();
+    const openByClient = {};
+    (tasks || []).forEach((t) => {
+      if (t.done || !t.client_id) return;
+      (openByClient[t.client_id] = openByClient[t.client_id] || []).push(t);
+    });
+    const notesByClient = {};
+    visibleNotes.forEach((n) => {
+      (notesByClient[n.client_id] = notesByClient[n.client_id] || []).push(n);
+    });
+    return (clients || [])
+      .map((c) => {
+        const open = (openByClient[c.id] || []).sort(compareOpenStaffItems);
+        const cNotes = notesByClient[c.id] || [];
+        const handoff = handoffs[c.id];
+        const override = statusOverrides && statusOverrides[c.id];
+        const overdue = open.filter((t) => t.due_date && t.due_date < today)
+          .length;
+        const dueToday = open.filter((t) => t.due_date === today).length;
+        const has =
+          open.length > 0 ||
+          cNotes.length > 0 ||
+          !!(handoff && (handoff.note || "").trim()) ||
+          !!(override && override.status);
+        return { client: c, open, notes: cNotes, handoff, override, overdue, dueToday, has };
+      })
+      .filter(
+        (x) =>
+          (x.has || x.client.id === editingHandoffFor || x.client.id === composerFor) &&
+          (!q || (x.client.name || "").toLowerCase().includes(q)),
+      )
+      .sort((a, b) => {
+        const rank = (x) => (x.overdue > 0 ? 0 : x.dueToday > 0 ? 1 : 2);
+        if (rank(a) !== rank(b)) return rank(a) - rank(b);
+        if (a.overdue !== b.overdue) return b.overdue - a.overdue;
+        return (a.client.name || "").localeCompare(b.client.name || "");
+      });
+  }, [
+    clients,
+    tasks,
+    visibleNotes,
+    handoffs,
+    statusOverrides,
+    clientSearch,
+    today,
+    editingHandoffFor,
+    composerFor,
+  ]);
+
+  // Clients without anything yet can still get a first note / handoff from
+  // the search box.
+  const searchMatchesWithoutCard = useMemo(() => {
+    const q = clientSearch.trim().toLowerCase();
+    if (!q) return [];
+    const shownIds = new Set(clientCards.map((x) => x.client.id));
+    return (clients || [])
+      .filter(
+        (c) => !shownIds.has(c.id) && (c.name || "").toLowerCase().includes(q),
+      )
+      .slice(0, 5);
+  }, [clientSearch, clientCards, clients]);
+
+  function renderNote(n, { showClient }) {
+    const client = clientById[n.client_id];
+    const linked = taskForNote(n);
+    const editing = editingNoteId === n.id;
+    return (
+      <li
+        key={n.id}
+        id={`note-${n.id}`}
+        className={"note-row" + (highlightNoteId === n.id ? " highlight" : "")}
+      >
+        <div className="task-meta note-meta">
+          {n.pinned && <span className="task-chip">Pinned</span>}
+          {!notesLegacy && (
+            <span className="task-chip">
+              {NOTE_CATEGORY_LABEL[n.category] || n.category}
+            </span>
+          )}
+          {showClient && client && (
+            <span className="task-client">{client.name}</span>
+          )}
+          <span>{n.author_name || n.author_email}</span>
+          <span className="task-due">
+            {fmtDateTime(n.updated_at || n.created_at)}
+            {n.updated_at ? " (edited)" : ""}
+          </span>
+        </div>
+        {editing ? (
+          <div className="note-edit">
+            <textarea
+              className="note-textarea"
+              rows={3}
+              aria-label="Edit note"
+              value={editingNoteText}
+              onChange={(e) => setEditingNoteText(e.target.value)}
+            />
+            <div className="note-composer-actions">
+              <button
+                type="button"
+                className="btn-secondary"
+                onClick={() => setEditingNoteId(null)}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="btn-primary"
+                disabled={!editingNoteText.trim()}
+                onClick={() => saveNoteEdit(n)}
+              >
+                Save
+              </button>
+            </div>
+          </div>
+        ) : (
+          <p className="note-text">{n.text}</p>
+        )}
+        {!editing && (
+          <div className="note-actions">
+            {linked ? (
+              <button
+                type="button"
+                className="note-link-chip"
+                onClick={() => jumpToTask(linked)}
+                title={linked.text}
+              >
+                Task · {linked.done ? "Done" : staffItemDueLabel(linked, today) || "Open"}
+              </button>
+            ) : (
+              n.linked_task_id && (
+                <span className="task-chip" title="Linked to a task you can't see">
+                  Linked task
+                </span>
+              )
+            )}
+            <button type="button" className="note-action" onClick={() => pinNote(n)}>
+              {n.pinned ? "Unpin" : "Pin"}
+            </button>
+            <button
+              type="button"
+              className="note-action"
+              onClick={() => {
+                setEditingNoteId(n.id);
+                setEditingNoteText(n.text);
+              }}
+            >
+              Edit
+            </button>
+            {!notesLegacy && !staffItemsApi.legacy && !linked && !n.linked_task_id && (
+              <button
+                type="button"
+                className="note-action"
+                onClick={() => makeTaskFromNote(n)}
+              >
+                Make task
+              </button>
+            )}
+            <button
+              type="button"
+              className="note-action danger"
+              onClick={() => removeNote(n)}
+              aria-label={`Delete note: ${n.text.slice(0, 40)}`}
+            >
+              Delete
+            </button>
+          </div>
+        )}
+      </li>
+    );
+  }
+
+  function renderClientCard(x) {
+    const { client, open, notes: cNotes, handoff, override } = x;
+    const health = effectiveClientHealth(client, today, statusOverrides);
+    const editingHandoff = editingHandoffFor === client.id;
+    return (
+      <section className="tn-client-card" key={client.id} aria-label={client.name}>
+        <header className="tn-client-head">
+          <h4 className="tn-client-name">{client.name}</h4>
+          <span className="tn-client-status">
+            <ClientHealthDot health={health} />
+            <span>{CLIENT_HEALTH_LABEL[health.status] || ""}</span>
+          </span>
+          {x.overdue > 0 && (
+            <span className="task-chip bad">{x.overdue} overdue</span>
+          )}
+        </header>
+        {override && override.status && (override.note || override.set_by) && (
+          <p className="tn-status-reason">
+            {override.note}
+            {override.set_by && (
+              <span className="tn-muted">
+                {override.note ? " — " : ""}set by {override.set_by.split("@")[0]}
+              </span>
+            )}
+          </p>
+        )}
+
+        <div className="tn-section">
+          <div className="tn-section-head">
+            <span className="tn-label">Handoff summary</span>
+            {!editingHandoff && (
+              <button
+                type="button"
+                className="note-action"
+                onClick={() => {
+                  setEditingHandoffFor(client.id);
+                  setHandoffDraft((handoff && handoff.note) || "");
+                }}
+              >
+                {handoff && (handoff.note || "").trim() ? "Edit" : "Add"}
+              </button>
+            )}
+          </div>
+          {editingHandoff ? (
+            <div className="note-edit">
+              <textarea
+                className="note-textarea"
+                rows={4}
+                aria-label={`Handoff summary for ${client.name}`}
+                value={handoffDraft}
+                onChange={(e) => setHandoffDraft(e.target.value)}
+                placeholder="Waiting on March bank statement, flagged for QuickBooks migration, ..."
+              />
+              <div className="note-composer-actions">
+                <button
+                  type="button"
+                  className="btn-secondary"
+                  onClick={() => setEditingHandoffFor(null)}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  className="btn-primary"
+                  disabled={savingHandoff}
+                  onClick={() => saveHandoff(client.id)}
+                >
+                  {savingHandoff ? "Saving…" : "Save"}
+                </button>
+              </div>
+            </div>
+          ) : handoff && (handoff.note || "").trim() ? (
+            <>
+              <p className="note-text">{handoff.note}</p>
+              {handoff.updated_by && (
+                <p className="tn-muted tn-small">
+                  Last edited by {handoff.updated_by.split("@")[0]}
+                  {handoff.updated_at ? ` · ${fmtDateTime(handoff.updated_at)}` : ""}
+                </p>
+              )}
+            </>
+          ) : (
+            <p className="tn-muted">No handoff summary yet.</p>
+          )}
+        </div>
+
+        <div className="tn-section">
+          <div className="tn-section-head">
+            <span className="tn-label">
+              Open tasks{open.length > 0 ? ` · ${open.length}` : ""}
+            </span>
+          </div>
+          {open.length === 0 ? (
+            <p className="tn-muted">No open tasks.</p>
+          ) : (
+            <ul className="task-list tn-task-list" aria-label={`Open tasks for ${client.name}`}>
+              {open.map(renderRow)}
+            </ul>
+          )}
+        </div>
+
+        <div className="tn-section">
+          <div className="tn-section-head">
+            <span className="tn-label">Latest notes</span>
+            {cNotes.length > 3 && (
+              <button
+                type="button"
+                className="note-action"
+                onClick={() => {
+                  setTab("notes");
+                  setNoteClientFilter(client.id);
+                  setNoteCategoryFilter("");
+                }}
+              >
+                All {cNotes.length}
+              </button>
+            )}
+          </div>
+          {cNotes.length === 0 ? (
+            <p className="tn-muted">No notes yet.</p>
+          ) : (
+            <ul className="note-list">
+              {cNotes.slice(0, 3).map((n) => renderNote(n, { showClient: false }))}
+            </ul>
+          )}
+        </div>
+
+        {composerFor === client.id && (
+          <NoteComposer
+            fixedClientId={client.id}
+            legacy={notesLegacy}
+            onSubmit={async (f) => {
+              const ok = await addNote(f);
+              if (ok) setComposerFor(null);
+              return ok;
+            }}
+            onCancel={() => setComposerFor(null)}
+          />
+        )}
+        {composerFor !== client.id && (
+          <div className="tn-card-actions">
+            <button
+              type="button"
+              className="btn-secondary"
+              onClick={() => setComposerFor(client.id)}
+            >
+              Add note
+            </button>
+            <button
+              type="button"
+              className="btn-secondary"
+              onClick={() => startTaskForClient(client.id)}
+            >
+              Add task
+            </button>
+          </div>
+        )}
+      </section>
+    );
+  }
 
   function renderRow(t) {
     const client = t.client_id ? clientById[t.client_id] : null;
@@ -14748,8 +15358,20 @@ function MyTasksPage({ staffUser, clients }) {
                 Shared{!mine && t.staff_email ? ` · ${t.staff_email.split("@")[0]}` : ""}
               </span>
             )}
-            {t.source && TASK_SOURCE_LABEL[t.source] && (
-              <span className="task-chip">{TASK_SOURCE_LABEL[t.source]}</span>
+            {t.source === "note" && noteById[t.source_ref] ? (
+              <button
+                type="button"
+                className="note-link-chip"
+                onClick={() => jumpToNote(noteById[t.source_ref])}
+                title={noteById[t.source_ref].text}
+              >
+                From note
+              </button>
+            ) : (
+              t.source &&
+              TASK_SOURCE_LABEL[t.source] && (
+                <span className="task-chip">{TASK_SOURCE_LABEL[t.source]}</span>
+              )
             )}
           </div>
         </div>
@@ -14806,6 +15428,7 @@ function MyTasksPage({ staffUser, clients }) {
         >
           <div className="task-add-row">
             <input
+              ref={addTextRef}
               type="text"
               className="task-add-text"
               placeholder="Reconcile Riverside's operating account"
@@ -14948,8 +15571,8 @@ function MyTasksPage({ staffUser, clients }) {
         <div className="task-toolbar">
           <div className="view-toggle task-tabs" role="tablist" aria-label="Task view">
             {TASK_TABS.map((t) => {
-              const count = buckets[t.id].length;
-              const active = !showCompleted && tab === t.id;
+              const count = buckets[t.id] ? buckets[t.id].length : 0;
+              const active = (!showCompleted || !TASK_LIST_TABS.includes(t.id)) && tab === t.id;
               return (
                 <button
                   key={t.id}
@@ -14977,6 +15600,54 @@ function MyTasksPage({ staffUser, clients }) {
               );
             })}
           </div>
+          {tab === "byclient" && (
+            <div className="task-filters">
+              <label className="task-field compact tn-search">
+                <input
+                  type="search"
+                  placeholder="Search clients"
+                  aria-label="Search clients"
+                  value={clientSearch}
+                  onChange={(e) => setClientSearch(e.target.value)}
+                />
+              </label>
+            </div>
+          )}
+          {tab === "notes" && (
+            <div className="task-filters">
+              <label className="task-field compact">
+                <select
+                  aria-label="Filter notes by client"
+                  value={noteClientFilter}
+                  onChange={(e) => setNoteClientFilter(e.target.value)}
+                >
+                  <option value="">All clients</option>
+                  {(clients || []).map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              {!notesLegacy && (
+                <label className="task-field compact">
+                  <select
+                    aria-label="Filter notes by category"
+                    value={noteCategoryFilter}
+                    onChange={(e) => setNoteCategoryFilter(e.target.value)}
+                  >
+                    <option value="">All categories</option>
+                    {NOTE_CATEGORIES.map((c) => (
+                      <option key={c} value={c}>
+                        {NOTE_CATEGORY_LABEL[c]}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              )}
+            </div>
+          )}
+          {isListTab && (
           <div className="task-filters">
             <label className="task-field compact">
               <select
@@ -15015,22 +15686,93 @@ function MyTasksPage({ staffUser, clients }) {
               {showCompleted ? "Hide completed" : `Completed (${completedTasks.length})`}
             </button>
           </div>
+          )}
         </div>
 
-        {tasks === null && (
+        {isListTab && tasks === null && (
           <p className="card-subtitle" style={{ marginTop: 16 }}>
             Loading…
           </p>
         )}
-        {tasks && shown.length === 0 && !error && (
+        {isListTab && tasks && shown.length === 0 && !error && (
           <p className="card-subtitle" style={{ marginTop: 16 }}>
             {showCompleted ? "Nothing completed yet." : TASK_TAB_EMPTY[tab]}
           </p>
         )}
-        {shown.length > 0 && (
+        {isListTab && shown.length > 0 && (
           <ul className="task-list" aria-label={showCompleted ? "Completed tasks" : `${TASK_TABS.find((x) => x.id === tab).label} tasks`}>
             {shown.map(renderRow)}
           </ul>
+        )}
+
+        {!isListTab && notesError && (
+          <p className="card-subtitle negative" style={{ marginTop: 16 }}>
+            {notesError}
+          </p>
+        )}
+
+        {tab === "byclient" && (
+          <div className="tn-view">
+            <p className="card-subtitle tn-intro">
+              Staff-only — clients never see any of this. The handoff summary
+              is the same one on Home.
+            </p>
+            {(tasks === null || notes === null) && (
+              <p className="card-subtitle">Loading…</p>
+            )}
+            {tasks !== null && notes !== null && clientCards.length === 0 && (
+              <p className="card-subtitle">
+                {clientSearch.trim()
+                  ? "No matching client has tasks or notes yet."
+                  : "No client has open tasks, notes or a handoff summary yet."}
+              </p>
+            )}
+            {searchMatchesWithoutCard.length > 0 && (
+              <div className="tn-start-list">
+                {searchMatchesWithoutCard.map((c) => (
+                  <button
+                    key={c.id}
+                    type="button"
+                    className="btn-secondary"
+                    onClick={() => setComposerFor(c.id)}
+                  >
+                    Add a note for {c.name}
+                  </button>
+                ))}
+              </div>
+            )}
+            <div className="tn-client-grid">{clientCards.map(renderClientCard)}</div>
+          </div>
+        )}
+
+        {tab === "notes" && (
+          <div className="tn-view">
+            <NoteComposer
+              clients={clients}
+              fixedClientId={null}
+              legacy={notesLegacy}
+              onSubmit={addNote}
+            />
+            {notes === null && <p className="card-subtitle">Loading…</p>}
+            {notes !== null && filteredNotes.length === 0 && !notesError && (
+              <p className="card-subtitle">
+                {visibleNotes.length === 0
+                  ? "No notes yet — add one above."
+                  : "No notes match these filters."}
+              </p>
+            )}
+            {filteredNotes.length > 0 && (
+              <ul className="note-list" aria-label="Client notes">
+                {filteredNotes.map((n) => renderNote(n, { showClient: true }))}
+              </ul>
+            )}
+            {notesLegacy && (
+              <p className="card-subtitle" style={{ marginTop: 12 }}>
+                Categories and note-to-task links turn on once the
+                tasks-notes-v3 database update is applied.
+              </p>
+            )}
+          </div>
         )}
       </div>
     </div>

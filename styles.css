@@ -6848,3 +6848,301 @@ body:has(.modal-overlay) .chat-fab-wrap {
     min-height: 44px;
   }
 }
+
+/* ---------------- My Tasks: By client + Notes tabs ----------------
+   Same calm rules as the task rows above: opaque surface cards, 1px border,
+   radius 12, tokens only. No gold here — gold stays on the active tab and
+   primary buttons. */
+
+.tn-view {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+
+.tn-intro {
+  margin: 0 0 16px;
+}
+
+.tn-search input {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 9px 12px;
+  font: inherit;
+  font-size: 14px;
+  color: var(--text);
+  background: var(--surface);
+  min-width: 0;
+  width: 100%;
+}
+
+.tn-client-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 380px), 1fr));
+  gap: 16px;
+}
+
+.tn-client-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 16px;
+  min-width: 0;
+}
+
+.tn-client-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+}
+
+.tn-client-name {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text);
+  overflow-wrap: anywhere;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.tn-client-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12.5px;
+  color: var(--text-muted);
+}
+
+.tn-status-reason {
+  margin: 6px 0 0;
+  font-size: 14px;
+  color: var(--text);
+  overflow-wrap: anywhere;
+}
+
+.tn-muted {
+  color: var(--text-muted);
+  font-size: 14px;
+  margin: 0;
+}
+
+.tn-small {
+  font-size: 12.5px;
+  margin-top: 4px;
+  font-variant-numeric: tabular-nums;
+}
+
+.tn-section {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+
+.tn-section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.tn-label {
+  font-size: 12.5px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.tn-task-list {
+  margin-top: 0;
+  border-top: none;
+}
+
+.tn-card-actions,
+.tn-start-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.tn-start-list {
+  margin: 0 0 16px;
+}
+
+.note-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.tn-view > .note-list {
+  margin-top: 16px;
+  border-top: 1px solid var(--border);
+}
+
+.note-row {
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border);
+  border-radius: 0;
+  transition: background 0.3s ease;
+}
+
+.note-row:last-child {
+  border-bottom: none;
+}
+
+.note-row.highlight {
+  background: var(--hover-bg);
+}
+
+.note-meta {
+  margin-top: 0;
+}
+
+.note-text {
+  margin: 6px 0 0;
+  font-size: 14px;
+  color: var(--text);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.note-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 6px;
+  margin-top: 8px;
+}
+
+.note-action {
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  padding: 6px 8px;
+  min-height: 32px;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.note-action:hover {
+  color: var(--text);
+  background: var(--surface-2);
+}
+
+.note-action.danger:hover {
+  color: var(--bad);
+  background: var(--bad-soft);
+}
+
+.note-link-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 8px;
+  min-height: 22px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text);
+  font: inherit;
+  font-size: 11.5px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+}
+
+.note-link-chip:hover {
+  border-color: var(--muted-line);
+}
+
+.note-action:focus-visible,
+.note-link-chip:focus-visible,
+.note-textarea:focus-visible,
+.note-composer select:focus-visible,
+.tn-search input:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 1px;
+}
+
+.note-composer {
+  margin-top: 14px;
+}
+
+.tn-view > .note-composer {
+  margin-top: 0;
+}
+
+.note-composer-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 12px;
+  margin-bottom: 10px;
+}
+
+.note-composer select,
+.note-textarea {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 9px 12px;
+  font: inherit;
+  font-size: 14px;
+  color: var(--text);
+  background: var(--surface);
+  min-width: 0;
+}
+
+.note-textarea {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  resize: vertical;
+}
+
+.note-edit {
+  margin-top: 8px;
+}
+
+.note-composer-actions {
+  display: flex;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+@media (max-width: 640px) {
+  .tn-search {
+    flex: 1 1 100%;
+  }
+
+  .tn-search input,
+  .note-composer select,
+  .note-composer-actions button,
+  .tn-card-actions button,
+  .tn-start-list button,
+  .note-action,
+  .note-link-chip {
+    min-height: 44px;
+  }
+
+  .tn-card-actions button {
+    flex: 1 1 calc(50% - 4px);
+  }
+
+  .tn-start-list button {
+    flex: 1 1 100%;
+    white-space: normal;
+  }
+
+  .tn-client-card {
+    padding: 14px;
+  }
+}
