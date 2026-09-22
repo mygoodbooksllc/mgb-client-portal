@@ -13,11 +13,18 @@ import { createClient } from "jsr:@supabase/supabase-js@2";
 //       generated cron key — or the project's service_role key — as its
 //       bearer token, exactly like qbo-refresh-token does, and syncs EVERY
 //       connected client.
-//   (b) a signed-in staffer clicking "Sync now" in the Client details
-//       QuickBooks tab. Presents their own Supabase JWT, and may sync only
-//       the one client_id in the body — and only if they're active staff
-//       AND can_access_client() says that client is theirs. A bookkeeper
-//       must not be able to make a client they don't manage phone Intuit.
+//   (b) a signed-in person clicking "Sync now" (the header button next to
+//       the Live pill, or the Client details QuickBooks tab). Presents their
+//       own Supabase JWT and syncs exactly one client:
+//         - active staff: the client_id in the body, only if
+//           can_access_client() says that client is theirs. A bookkeeper
+//           must not be able to make a client they don't manage phone Intuit.
+//         - active client user (client_users row, active): only their own
+//           org's client_id; any other client_id in the body is refused.
+//       Throttled: a connection that synced OK < 60s ago, or has a sync in
+//       progress, returns its last synced_at without calling Intuit.
+//       Response: { status: "ok" | "fresh" | "in_progress" | "error",
+//                   synced_at, error?, synced[], errors[] }.
 //
 // verify_jwt is off on this function (caller (a) is Postgres, which has no
 // Supabase session), so mode (b)'s checks are done by hand below against the
@@ -691,18 +698,19 @@ async function syncClient(
       detail: null,
       counts,
     });
+    const syncedAt = new Date().toISOString();
     await admin
       .from("qbo_connections")
       .update({
         status: "connected",
-        last_synced_at: new Date().toISOString(),
+        last_synced_at: syncedAt,
         last_error: null,
         updated_at: new Date().toISOString(),
       })
       .eq("client_id", clientId);
 
     console.log(`qbo-sync: client ${clientId} ok — ${JSON.stringify(counts)}`);
-    return { client_id: clientId, counts };
+    return { client_id: clientId, counts, synced_at: syncedAt };
   } catch (e) {
     const err = e as Error;
     // Message only. IntuitError's message is built from status + intuit_tid,
@@ -741,6 +749,45 @@ async function syncClient(
 }
 
 // ---------------------------------------------------------------------------
+// "Sync now" guards (mode (b) only — the cron path is unchanged).
+// ---------------------------------------------------------------------------
+
+// A user-triggered sync is skipped if the connection synced successfully
+// less than this long ago.
+const USER_SYNC_MIN_INTERVAL_MS = 60 * 1000;
+// A lock older than this is treated as abandoned (the function crashed or
+// timed out mid-sync) and may be taken over.
+const SYNC_LOCK_STALE_MS = 5 * 60 * 1000;
+
+// Atomic "take the lock if nobody holds it" on qbo_connections.sync_started_at
+// (supabase/qbo-sync-now.sql). The conditional UPDATE ... RETURNING is the
+// lock: of two concurrent callers, exactly one gets a row back.
+//
+// Fail-open: if the column doesn't exist yet (function deployed before the
+// SQL file is applied) or the update errors for any other reason, the sync
+// proceeds unlocked — the 60-second throttle still applies — rather than
+// breaking the button.
+async function acquireSyncLock(admin: any, clientId: string): Promise<"acquired" | "held" | "unavailable"> {
+  const nowIso = new Date().toISOString();
+  const staleIso = new Date(Date.now() - SYNC_LOCK_STALE_MS).toISOString();
+  const { data, error } = await admin
+    .from("qbo_connections")
+    .update({ sync_started_at: nowIso })
+    .eq("client_id", clientId)
+    .or(`sync_started_at.is.null,sync_started_at.lt."${staleIso}"`)
+    .select("client_id");
+  if (error) return "unavailable";
+  return data && data.length ? "acquired" : "held";
+}
+
+async function releaseSyncLock(admin: any, clientId: string) {
+  await admin
+    .from("qbo_connections")
+    .update({ sync_started_at: null })
+    .eq("client_id", clientId);
+}
+
+// ---------------------------------------------------------------------------
 // Entry point
 // ---------------------------------------------------------------------------
 Deno.serve(async (req) => {
@@ -772,19 +819,17 @@ Deno.serve(async (req) => {
     if (error) return json({ error: "failed to list connections" }, 500);
     targets = data || [];
   } else {
-    // Mode (b): a staffer's own JWT. Everything below runs AS THEM, under
-    // RLS, against the anon key — so a forged client_id in the body can't
-    // get past can_access_client().
+    // Mode (b): a signed-in person's own JWT — an active staffer, or an
+    // active client user. Identity and staff/client checks run AS THEM,
+    // under RLS, against the anon key — so a forged client_id in the body
+    // can't get past can_access_client() or client_users' own-row policy.
     let body: any = {};
     try {
       body = await req.json();
     } catch (_e) {
       body = {};
     }
-    const clientId = body?.client_id;
-    if (!clientId || typeof clientId !== "string") {
-      return json({ error: "client_id required" }, 400);
-    }
+    const requested = typeof body?.client_id === "string" && body.client_id ? body.client_id : null;
 
     const asUser = createClient(SUPABASE_URL, ANON_KEY, {
       global: { headers: { Authorization: authHeader } },
@@ -793,30 +838,88 @@ Deno.serve(async (req) => {
     const user = userRes?.user;
     if (userErr || !user?.email) return json({ error: "unauthorized" }, 401);
 
+    let clientId: string | null = null;
+    let isStaff = false;
+
     // Active staff roster row. `staff` RLS lets a signed-in user read only
     // their own row, so this is both the authorization check and its own
-    // scoping.
+    // scoping. Staff may sync any client can_access_client() says is theirs
+    // (admins: every client; bookkeepers: their assigned ones).
     const { data: staffRow } = await asUser
       .from("staff")
       .select("email, active")
       .eq("email", user.email)
       .maybeSingle();
-    if (!staffRow || staffRow.active !== true) return json({ error: "forbidden" }, 403);
-
-    const { data: allowed, error: rpcErr } = await asUser.rpc("can_access_client", {
-      p_client_id: clientId,
-    });
-    if (rpcErr || allowed !== true) return json({ error: "forbidden" }, 403);
+    if (staffRow && staffRow.active === true) {
+      isStaff = true;
+      if (!requested) return json({ error: "client_id required" }, 400);
+      const { data: allowed, error: rpcErr } = await asUser.rpc("can_access_client", {
+        p_client_id: requested,
+      });
+      if (rpcErr || allowed !== true) return json({ error: "forbidden" }, 403);
+      clientId = requested;
+    } else {
+      // Active client user: only their own org. client_users is keyed by
+      // email (one org per login) and its "client reads own row" policy
+      // returns only the caller's row. A client_id in the body that isn't
+      // theirs is refused rather than silently swapped for their own.
+      const { data: cu } = await asUser
+        .from("client_users")
+        .select("client_id, active")
+        .eq("email", user.email)
+        .maybeSingle();
+      if (!cu || cu.active !== true || !cu.client_id) return json({ error: "forbidden" }, 403);
+      if (requested && requested !== cu.client_id) return json({ error: "forbidden" }, 403);
+      clientId = cu.client_id;
+    }
 
     const { data: conn } = await admin
       .from("qbo_connections")
-      .select("client_id, realm_id, status, api_env")
+      .select("client_id, realm_id, status, api_env, last_synced_at")
       .eq("client_id", clientId)
       .maybeSingle();
     if (!conn) return json({ error: "QuickBooks isn't connected for this client" }, 400);
-    targets = [
-      { client_id: conn.client_id, realm_id: conn.realm_id, api_env: conn.api_env ?? null },
-    ];
+    // Staff may retry a connection sitting in 'error' (that's how they find
+    // out whether a reconnect worked); a client only syncs a live one.
+    if (!isStaff && conn.status !== "connected") {
+      return json({ error: "QuickBooks isn't connected for this client" }, 400);
+    }
+
+    // Throttle. A successful sync under a minute old is returned as-is
+    // without phoning Intuit — a double-click, or a client and their
+    // bookkeeper both pressing the button, costs nothing.
+    const lastMs = conn.last_synced_at ? new Date(conn.last_synced_at).getTime() : 0;
+    if (lastMs && Date.now() - lastMs < USER_SYNC_MIN_INTERVAL_MS) {
+      return json({ status: "fresh", synced_at: conn.last_synced_at, synced: [], errors: [] });
+    }
+    // And one sync per connection at a time. Two concurrent delete-then-
+    // insert runs on the same client would trip each other's primary keys.
+    const lock = await acquireSyncLock(admin, clientId!);
+    if (lock === "held") {
+      return json({ status: "in_progress", synced_at: conn.last_synced_at, synced: [], errors: [] });
+    }
+
+    let result: any;
+    try {
+      result = await syncClient(admin, conn.client_id, conn.realm_id, conn.api_env ?? null);
+    } finally {
+      if (lock === "acquired") await releaseSyncLock(admin, clientId!);
+    }
+    if (result.error) {
+      return json({
+        status: "error",
+        error: result.error,
+        synced_at: conn.last_synced_at,
+        synced: [],
+        errors: [result],
+      });
+    }
+    return json({
+      status: "ok",
+      synced_at: result.synced_at,
+      synced: [result],
+      errors: [],
+    });
   }
 
   const synced: any[] = [];

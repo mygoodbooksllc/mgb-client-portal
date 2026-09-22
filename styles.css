@@ -6429,3 +6429,71 @@ body:has(.modal-overlay) .chat-fab-wrap {
 .access-request-person:first-of-type {
   border-top: none;
 }
+
+/* ---- Header "Sync now" (QboSyncNowButton in app.jsx) — a small secondary
+   pill beside the Live badge. 36px tall on desktop, 44px on phones. ---- */
+.qbo-sync-now {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 36px;
+  padding: 0 12px;
+  flex-shrink: 0;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  font-family: var(--font-body);
+  font-size: 12.5px;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: border-color 0.2s ease, background 0.2s ease;
+}
+
+.qbo-sync-now:hover:not(:disabled) {
+  background: var(--hover-bg);
+  border-color: var(--gold);
+}
+
+.qbo-sync-now:disabled {
+  cursor: default;
+  color: var(--text-muted);
+}
+
+.qbo-sync-now-icon.is-spinning {
+  animation: qbo-sync-spin 1s linear infinite;
+}
+
+@keyframes qbo-sync-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .qbo-sync-now-icon.is-spinning {
+    animation: none;
+  }
+}
+
+/* Screen-reader-only live region announcing "Syncing…". */
+.qbo-sync-now-status {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+@media (max-width: 760px) {
+  .qbo-sync-now {
+    min-height: 44px;
+    padding: 0 14px;
+  }
+}

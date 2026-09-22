@@ -15690,6 +15690,13 @@ function TabSettingsModal({
         showToast("Sync failed: " + error.message);
       } else if (data && data.errors && data.errors.length) {
         showToast("QuickBooks sync failed: " + data.errors[0].error);
+      } else if (data && (data.status === "fresh" || data.status === "in_progress")) {
+        // qbo-sync's throttle: synced under a minute ago, or already running.
+        showToast(
+          data.status === "fresh"
+            ? "Already synced within the last minute."
+            : "A sync is already running for this client.",
+        );
       } else {
         const counts = (data && data.synced && data.synced[0] && data.synced[0].counts) || {};
         const total = Object.values(counts).reduce((a, b) => a + (b || 0), 0);
@@ -17501,6 +17508,91 @@ class ErrorBoundary extends React.Component {
 // effectivePage guards, scopeClientData) already treats "access.user is a
 // real person" as the client-facing view, the same path "Preview As"
 // already exercises, so this reuses it rather than building a parallel one.
+// "Sync now", next to the header's Live pill — for staff and clients alike,
+// shown only when the viewed client's numbers came from a live QuickBooks
+// connection. Asks the qbo-sync Edge Function to pull this one client now
+// (it re-checks authorization as the caller and throttles to one real pull
+// per minute per connection), then re-runs index.html's loadQboData for just
+// this client so the numbers and "synced X ago" update without a reload.
+// Rendered inside ToastProvider, which App itself sits above — hence its own
+// component rather than a handler in App.
+function QboSyncNowButton({ clientId, onSynced }) {
+  const showToast = useToast();
+  const [syncing, setSyncing] = useState(false);
+
+  async function syncNow() {
+    const supabase = window.mgbSupabase;
+    if (!supabase || syncing) return;
+    setSyncing(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("qbo-sync", {
+        body: { client_id: clientId },
+      });
+      if (error || !data || data.status === "error" || (data.errors && data.errors.length)) {
+        const httpStatus = error && error.context && error.context.status;
+        const detail = String(
+          (data && (data.error || (data.errors && data.errors[0] && data.errors[0].error))) || "",
+        );
+        let message = "We couldn't reach QuickBooks just now. Please try again in a few minutes.";
+        if (httpStatus === 401 || httpStatus === 403) {
+          message = "You don't have permission to sync this account. Try signing out and back in.";
+        } else if (httpStatus === 400) {
+          message = "QuickBooks isn't connected for this account.";
+        } else if (/reconnect/i.test(detail)) {
+          message = "QuickBooks needs to be reconnected before it can sync. Your bookkeeper can do this.";
+        }
+        showToast(message);
+        return;
+      }
+      if (window.mgbReloadQboData) await window.mgbReloadQboData([clientId]);
+      if (onSynced) onSynced();
+      if (data.status === "in_progress") {
+        showToast("A sync is already running — your numbers will update shortly.");
+      } else if (data.status === "fresh") {
+        showToast("Already up to date with QuickBooks.");
+      } else {
+        showToast("Up to date with QuickBooks.");
+      }
+    } catch (err) {
+      showToast("We couldn't reach QuickBooks just now. Please try again in a few minutes.");
+    } finally {
+      setSyncing(false);
+    }
+  }
+
+  return (
+    <>
+      <button
+        type="button"
+        className="qbo-sync-now"
+        onClick={syncNow}
+        disabled={syncing}
+        aria-label={syncing ? "Syncing with QuickBooks" : "Sync now with QuickBooks"}
+      >
+        <svg
+          className={"qbo-sync-now-icon" + (syncing ? " is-spinning" : "")}
+          width="14"
+          height="14"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.8"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          aria-hidden="true"
+        >
+          <path d="M20 12a8 8 0 1 1-2.34-5.66" />
+          <path d="M20 4v4.5h-4.5" />
+        </svg>
+        <span>{syncing ? "Syncing…" : "Sync now"}</span>
+      </button>
+      <span className="qbo-sync-now-status" aria-live="polite">
+        {syncing ? "Syncing with QuickBooks…" : ""}
+      </span>
+    </>
+  );
+}
+
 function App({ staffUser, onSignOut, clientPortalUser }) {
   // Riverside: premium plan (so Live Report is reachable) and, as of the
   // thread fixes in data.js, no thread whose last message is unread —
@@ -17787,6 +17879,10 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
   // clients are assigned. Any admin can still see it (admins already skip
   // the staff_client_access filter below and see every real client too).
   // This is separate from (and applies on top of) that assignment filter.
+  // Bumped by the header's Sync now button after it re-maps window.CLIENTS
+  // (index.html's loadQboData), so visibleClients — and baseClient under it —
+  // pick up the fresh QuickBooks numbers without a page reload.
+  const [qboDataRev, setQboDataRev] = useState(0);
   const visibleClients = useMemo(() => {
     const base = assignedClientIds
       ? CLIENTS.filter((c) => assignedClientIds.has(c.id))
@@ -17796,7 +17892,7 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
         !c.testOnly ||
         (effectiveStaffUser && effectiveStaffUser.role === "admin"),
     );
-  }, [assignedClientIds, effectiveStaffUser && effectiveStaffUser.role]);
+  }, [assignedClientIds, effectiveStaffUser && effectiveStaffUser.role, qboDataRev]);
 
   // §140: in-app-only substitute for the "email me on every access request"
   // idea from HANDOFF7.md's smaller-open-items list — no inbox noise, just
@@ -18866,6 +18962,12 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
                   <span className="badge-dot"></span>
                   Prototype · Sample Data
                 </span>
+              )}
+              {client.dataSource === "quickbooks" && (
+                <QboSyncNowButton
+                  clientId={client.id}
+                  onSynced={() => setQboDataRev((r) => r + 1)}
+                />
               )}
               <GlobalSearch
                 client={scopedClient}

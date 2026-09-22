@@ -253,13 +253,23 @@
       // RLS does the scoping — the qbo_* policies only return rows for
       // clients this session may see — so the .in() filters below are about
       // not fetching rows we'd throw away, not about access control.
-      async function loadQboData() {
+      //
+      // Also re-run after boot by the header's "Sync now" button
+      // (window.mgbReloadQboData in app.jsx) with `onlyIds` = the one client
+      // just synced: same queries, same mapper, narrowed to that client, and
+      // every other client passes through untouched. mapQboToClient is
+      // idempotent over an already-mapped client (it Object.assigns the same
+      // six fields again), so re-mapping is safe.
+      async function loadQboData(onlyIds) {
         const supabase = window.mgbSupabase;
         if (!supabase) return;
         if (!window.mapQboToClient) return;
         const clients = window.CLIENTS || [];
         if (!clients.length) return;
-        const ids = clients.map((c) => c.id);
+        const ids = Array.isArray(onlyIds) && onlyIds.length
+          ? clients.map((c) => c.id).filter((id) => onlyIds.indexOf(id) !== -1)
+          : clients.map((c) => c.id);
+        if (!ids.length) return;
         try {
           const { data: connections, error: connErr } = await supabase
             .from("qbo_connections")
@@ -341,6 +351,8 @@
           console.warn("Couldn't load QuickBooks data from Supabase:", err);
         }
       }
+
+      window.mgbReloadQboData = loadQboData;
 
       (async () => {
         try {
