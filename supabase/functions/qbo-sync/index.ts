@@ -40,14 +40,22 @@ const ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
 const QBO_CLIENT_ID = Deno.env.get("QBO_CLIENT_ID")!;
 const QBO_CLIENT_SECRET = Deno.env.get("QBO_CLIENT_SECRET")!;
 const QBO_TOKEN_ENCRYPTION_KEY = Deno.env.get("QBO_TOKEN_ENCRYPTION_KEY")!;
-const QBO_ENV = Deno.env.get("QBO_ENV") || "sandbox";
 
 const TOKEN_URL = "https://oauth.platform.intuit.com/oauth2/v1/tokens/bearer";
-const API_BASE =
-  QBO_ENV === "production"
-    ? "https://quickbooks.api.intuit.com"
-    : "https://sandbox-quickbooks.api.intuit.com";
+// The API host is resolved PER CONNECTION, not from QBO_ENV alone. A realm
+// authorized under production keys returns 403 against the sandbox host and
+// vice versa, so a global default silently breaks every connection made under
+// the other set of keys. qbo_connections.api_env records the truth per client, and a
+// row that has none yet is resolved by probing both hosts once.
+const PROD_BASE = "https://quickbooks.api.intuit.com";
+const SANDBOX_BASE = "https://sandbox-quickbooks.api.intuit.com";
 const MINOR_VERSION = "75";
+
+function baseForEnv(env: string | null | undefined): string | null {
+  if (env === "production") return PROD_BASE;
+  if (env === "sandbox") return SANDBOX_BASE;
+  return null;
+}
 
 // Refresh an access token this close to expiry rather than watching a call
 // fail — same window qbo-refresh-token uses.
@@ -82,6 +90,20 @@ class IntuitError extends Error {
     super(`${what} failed (${status})${tid ? ` — intuit_tid: ${tid}` : ""}`);
     this.status = status;
     this.tid = tid;
+  }
+}
+
+// Both API hosts rejected the very first call. Not an environment question
+// any more: the token itself is bad, revoked, or lacks the scope. Carries
+// status 401 so it takes the existing "flip the connection to error and let
+// the Reconnect UI take over" path, and its own message so the stored
+// last_error names both codes.
+class IntuitAuthError extends IntuitError {
+  constructor(tid: string | null, prodStatus: number, sandboxStatus: number) {
+    super(401, tid, "environment probe");
+    this.message =
+      "QuickBooks rejected the connection — please reconnect " +
+      `(production: ${prodStatus}, sandbox: ${sandboxStatus})`;
   }
 }
 
@@ -152,16 +174,16 @@ async function intuitFetch(
   return await res.json();
 }
 
-function queryUrl(realmId: string, q: string): string {
+function queryUrl(base: string, realmId: string, q: string): string {
   return (
-    `${API_BASE}/v3/company/${realmId}/query` +
+    `${base}/v3/company/${realmId}/query` +
     `?query=${encodeURIComponent(q)}&minorversion=${MINOR_VERSION}`
   );
 }
 
-function reportUrl(realmId: string, name: string, params: Record<string, string>): string {
+function reportUrl(base: string, realmId: string, name: string, params: Record<string, string>): string {
   const qs = new URLSearchParams({ ...params, minorversion: MINOR_VERSION });
-  return `${API_BASE}/v3/company/${realmId}/reports/${name}?${qs}`;
+  return `${base}/v3/company/${realmId}/reports/${name}?${qs}`;
 }
 
 // ---------------------------------------------------------------------------
@@ -433,7 +455,12 @@ async function replaceRows(admin: any, table: string, clientId: string, rows: an
 // ---------------------------------------------------------------------------
 // One client, end to end.
 // ---------------------------------------------------------------------------
-async function syncClient(admin: any, clientId: string, realmId: string) {
+async function syncClient(
+  admin: any,
+  clientId: string,
+  realmId: string,
+  apiEnv: string | null,
+) {
   const startedAt = new Date().toISOString();
   const counts: Record<string, number> = {};
 
@@ -447,11 +474,61 @@ async function syncClient(admin: any, clientId: string, realmId: string) {
     const txStart = isoDay(addDays(today, -90));
 
     // --- Chart of accounts -------------------------------------------------
-    const accountsRes = await intuitFetch(
-      accessToken,
-      queryUrl(realmId, "select * from Account where Active = true maxresults 1000"),
-      "Account query",
-    );
+    // Also where the API environment gets settled. If the connection already
+    // knows which host it belongs to, use it. If it doesn't — every connection
+    // made before api_env existed — probe with this same first call: production
+    // first, then sandbox, and whichever answers 2xx is the host for the whole
+    // rest of this sync and is written back so no later run has to probe again.
+    const ACCOUNTS_QUERY = "select * from Account where Active = true maxresults 1000";
+    const knownBase = baseForEnv(apiEnv);
+    let base: string;
+    let accountsRes: any;
+
+    if (knownBase) {
+      base = knownBase;
+      accountsRes = await intuitFetch(
+        accessToken,
+        queryUrl(base, realmId, ACCOUNTS_QUERY),
+        "Account query",
+      );
+    } else {
+      let prodErr: IntuitError;
+      try {
+        accountsRes = await intuitFetch(
+          accessToken,
+          queryUrl(PROD_BASE, realmId, ACCOUNTS_QUERY),
+          "Account query",
+        );
+        base = PROD_BASE;
+      } catch (e) {
+        if (!(e instanceof IntuitError)) throw e;
+        prodErr = e;
+        try {
+          accountsRes = await intuitFetch(
+            accessToken,
+            queryUrl(SANDBOX_BASE, realmId, ACCOUNTS_QUERY),
+            "Account query",
+          );
+          base = SANDBOX_BASE;
+        } catch (e2) {
+          if (!(e2 instanceof IntuitError)) throw e2;
+          const authish = (st: number) => st === 401 || st === 403;
+          // Rejected by both: the token is the problem, not the host. A pair
+          // of transient 5xx/429s is a different story — rethrow the
+          // production failure so this run just fails and retries.
+          if (authish(prodErr.status) && authish(e2.status)) {
+            throw new IntuitAuthError(e2.tid ?? prodErr.tid, prodErr.status, e2.status);
+          }
+          throw prodErr;
+        }
+      }
+      const resolvedEnv = base === PROD_BASE ? "production" : "sandbox";
+      await admin
+        .from("qbo_connections")
+        .update({ api_env: resolvedEnv, updated_at: new Date().toISOString() })
+        .eq("client_id", clientId);
+      console.log(`qbo-sync: client ${clientId} resolved api_env = ${resolvedEnv}`);
+    }
     const accountRows = (accountsRes?.QueryResponse?.Account || []).map((a: any) => ({
       client_id: clientId,
       qbo_id: String(a.Id),
@@ -469,7 +546,7 @@ async function syncClient(admin: any, clientId: string, realmId: string) {
     // --- P&L, summarized by month -----------------------------------------
     const plReport = await intuitFetch(
       accessToken,
-      reportUrl(realmId, "ProfitAndLoss", {
+      reportUrl(base, realmId, "ProfitAndLoss", {
         start_date: plStart,
         end_date: plEnd,
         summarize_column_by: "Month",
@@ -510,7 +587,7 @@ async function syncClient(admin: any, clientId: string, realmId: string) {
     try {
       const budgetRes = await intuitFetch(
         accessToken,
-        queryUrl(realmId, "select * from Budget"),
+        queryUrl(base, realmId, "select * from Budget"),
         "Budget query",
       );
       const seenBudget = new Set<string>();
@@ -556,7 +633,7 @@ async function syncClient(admin: any, clientId: string, realmId: string) {
     // --- Open A/R ----------------------------------------------------------
     const invoiceRes = await intuitFetch(
       accessToken,
-      queryUrl(realmId, "select * from Invoice where Balance > '0' maxresults 1000"),
+      queryUrl(base, realmId, "select * from Invoice where Balance > '0' maxresults 1000"),
       "Invoice query",
     );
     const todayIso = isoDay(today);
@@ -576,7 +653,7 @@ async function syncClient(admin: any, clientId: string, realmId: string) {
     // --- Open A/P ----------------------------------------------------------
     const billRes = await intuitFetch(
       accessToken,
-      queryUrl(realmId, "select * from Bill where Balance > '0' maxresults 1000"),
+      queryUrl(base, realmId, "select * from Bill where Balance > '0' maxresults 1000"),
       "Bill query",
     );
     const billRows = (billRes?.QueryResponse?.Bill || []).map((b: any) => ({
@@ -595,7 +672,7 @@ async function syncClient(admin: any, clientId: string, realmId: string) {
     // --- Recent register activity -----------------------------------------
     const txReport = await intuitFetch(
       accessToken,
-      reportUrl(realmId, "TransactionList", { start_date: txStart, end_date: plEnd }),
+      reportUrl(base, realmId, "TransactionList", { start_date: txStart, end_date: plEnd }),
       "TransactionList report",
     );
     const txRows = parseTransactionList(txReport).map((t) => ({
@@ -645,7 +722,10 @@ async function syncClient(admin: any, clientId: string, realmId: string) {
         .from("qbo_connections")
         .update({
           status: "error",
-          last_error: `QuickBooks rejected the connection — please reconnect. (${detail})`,
+          last_error:
+            e instanceof IntuitAuthError
+              ? detail
+              : `QuickBooks rejected the connection — please reconnect. (${detail})`,
           updated_at: new Date().toISOString(),
         })
         .eq("client_id", clientId);
@@ -682,12 +762,12 @@ Deno.serve(async (req) => {
       typeof cronKey === "string" && cronKey.length > 0 && secretsMatch(presented, cronKey);
   }
 
-  let targets: { client_id: string; realm_id: string }[] = [];
+  let targets: { client_id: string; realm_id: string; api_env: string | null }[] = [];
 
   if (isServiceRole) {
     const { data, error } = await admin
       .from("qbo_connections")
-      .select("client_id, realm_id")
+      .select("client_id, realm_id, api_env")
       .eq("status", "connected");
     if (error) return json({ error: "failed to list connections" }, 500);
     targets = data || [];
@@ -730,11 +810,13 @@ Deno.serve(async (req) => {
 
     const { data: conn } = await admin
       .from("qbo_connections")
-      .select("client_id, realm_id, status")
+      .select("client_id, realm_id, status, api_env")
       .eq("client_id", clientId)
       .maybeSingle();
     if (!conn) return json({ error: "QuickBooks isn't connected for this client" }, 400);
-    targets = [{ client_id: conn.client_id, realm_id: conn.realm_id }];
+    targets = [
+      { client_id: conn.client_id, realm_id: conn.realm_id, api_env: conn.api_env ?? null },
+    ];
   }
 
   const synced: any[] = [];
@@ -744,7 +826,7 @@ Deno.serve(async (req) => {
   // it. A full sweep of a few dozen clients still finishes well inside the
   // Edge Function timeout.
   for (const t of targets) {
-    const result = await syncClient(admin, t.client_id, t.realm_id);
+    const result = await syncClient(admin, t.client_id, t.realm_id, t.api_env ?? null);
     if ((result as any).error) errors.push(result);
     else synced.push(result);
   }

@@ -128,6 +128,11 @@ Deno.serve(async (req) => {
     .update({
       realm_id: realmId,
       status: "connected",
+      // Which Intuit environment these tokens were minted against. QBO_ENV is
+      // a single global default, but a realm authorized under production keys
+      // returns 403 against the sandbox host (and vice versa), so the sync
+      // has to know per connection rather than re-reading the global.
+      api_env: QBO_ENV === "production" ? "production" : "sandbox",
       // Who actually started this flow, stamped onto the state row from the
       // JWT at insert time (see supabase/audit2-qbo-state-hardening.sql).
       // Previously nothing recorded who connected a client's QuickBooks.
