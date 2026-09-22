@@ -290,6 +290,18 @@ async function loadClientsRoster() {{
     run(compile(BUNDLE.clientAuthGate, "ClientAuthGate.jsx", [jsx]));
     run(compile(BUNDLE.data, "data.js", [jsx]));
     await loadClientsRoster();
+    // §170 NOTE — index.html additionally loads
+    // components/qbo/mapQboToClient.js here and then runs loadQboData(),
+    // which replaces a connected client's sample arrays with its real
+    // QuickBooks numbers. That is deliberately NOT mirrored in this bundle.
+    // It is not a copy-paste of the loader: it would need a new BUNDLE
+    // entry (and a matching read in build.py's file list) for the mapper
+    // source, plus a ~100-line loader — and the payoff would be zero, since
+    // a published Artifact's CSP blocks every fetch to Supabase anyway (the
+    // same reason loadClientsRoster leaves window.CLIENTS empty there). The
+    // bundle therefore always shows sample data, which is exactly what it is
+    // for. If the bundle ever needs live data, add the mapper to BUNDLE and
+    // port loadQboData() from index.html verbatim.
     // The Daily Close is TypeScript. A plain .ts file must NOT get the JSX plugin
     // — Babel rejects that pair — and both must be defined before app.jsx renders.
     run(compile(BUNDLE.dcSample, "sampleData.ts", ["typescript"]));

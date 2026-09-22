@@ -87,6 +87,7 @@
         "components/daily-close/sampleData.ts",
         "components/daily-close/DailyClose.tsx",
         "components/daily-close/fromClient.js",
+        "components/qbo/mapQboToClient.js",
         "app.jsx",
       ];
       window.__sources = {};
@@ -237,6 +238,110 @@
         }
       }
 
+      // §170: the QuickBooks half of the same boot step. loadClientsRoster
+      // above gives each client its identity; this gives the connected ones
+      // their actual numbers, replacing data.js's sample arrays via
+      // window.mapQboToClient (components/qbo/mapQboToClient.js).
+      //
+      // Additive and fail-soft, exactly like the roster loader: a client
+      // with no qbo_connections row, a disconnected one, a query that errors,
+      // or no Supabase at all simply keeps its sample data and its
+      // "Sample Data" banners. Nothing here can stop the app booting.
+      //
+      // Runs AFTER loadClientsRoster (it reads window.CLIENTS) and before
+      // app.jsx, which takes window.CLIENTS as a plain synchronous array.
+      // RLS does the scoping — the qbo_* policies only return rows for
+      // clients this session may see — so the .in() filters below are about
+      // not fetching rows we'd throw away, not about access control.
+      async function loadQboData() {
+        const supabase = window.mgbSupabase;
+        if (!supabase) return;
+        if (!window.mapQboToClient) return;
+        const clients = window.CLIENTS || [];
+        if (!clients.length) return;
+        const ids = clients.map((c) => c.id);
+        try {
+          const { data: connections, error: connErr } = await supabase
+            .from("qbo_connections")
+            .select("client_id, status, last_synced_at, last_error")
+            .in("client_id", ids);
+          if (connErr) {
+            console.warn("Couldn't load QuickBooks connections:", connErr.message);
+            return;
+          }
+          const connById = {};
+          (connections || []).forEach((row) => {
+            connById[row.client_id] = row;
+          });
+          const liveIds = (connections || [])
+            .filter((row) => row.status === "connected")
+            .map((row) => row.client_id);
+          if (!liveIds.length) return;
+
+          // One round trip per table for every connected client at once,
+          // rather than per client per table.
+          const tables = {
+            accounts: "qbo_accounts",
+            monthlyPl: "qbo_monthly_pl",
+            budgetLines: "qbo_budget_lines",
+            invoices: "qbo_invoices",
+            bills: "qbo_bills",
+            transactions: "qbo_transactions",
+          };
+          const keys = Object.keys(tables);
+          const results = await Promise.all(
+            keys.map((key) =>
+              supabase.from(tables[key]).select("*").in("client_id", liveIds),
+            ),
+          );
+          const byKey = {};
+          keys.forEach((key, i) => {
+            const { data, error } = results[i];
+            if (error) {
+              console.warn(
+                "Couldn't load " + tables[key] + ":",
+                error.message,
+              );
+            }
+            byKey[key] = data || [];
+          });
+
+          // Bucket every table's rows by client once, so mapping is a lookup
+          // rather than a filter per client per table.
+          const rowsByClient = {};
+          liveIds.forEach((id) => {
+            rowsByClient[id] = { connection: connById[id] };
+            keys.forEach((key) => {
+              rowsByClient[id][key] = [];
+            });
+          });
+          keys.forEach((key) => {
+            byKey[key].forEach((row) => {
+              const bucket = rowsByClient[row.client_id];
+              if (bucket) bucket[key].push(row);
+            });
+          });
+
+          window.CLIENTS = clients.map((client) => {
+            const rows = rowsByClient[client.id];
+            // A connected client whose first sync hasn't landed yet has a
+            // connection row but no data. Mapping it would blank every page
+            // and still claim "Live", which is worse than sample data —
+            // so require at least some real numbers first.
+            if (!rows) return client;
+            const hasData =
+              rows.accounts.length ||
+              rows.monthlyPl.length ||
+              rows.invoices.length ||
+              rows.bills.length;
+            if (!hasData) return client;
+            return window.mapQboToClient(client, rows);
+          });
+        } catch (err) {
+          console.warn("Couldn't load QuickBooks data from Supabase:", err);
+        }
+      }
+
       (async () => {
         try {
           // Order still matters — data.js and DailyClose must exist before
@@ -244,6 +349,9 @@
           for (const path of window.__SOURCE_ORDER) {
             await loadBabelScript(path);
             if (path === "data.js") await loadClientsRoster();
+            // Needs both the roster (window.CLIENTS) and the mapper, and must
+            // land before app.jsx reads window.CLIENTS synchronously.
+            if (path === "components/qbo/mapQboToClient.js") await loadQboData();
           }
         } catch (err) {
           const root = document.getElementById("root");

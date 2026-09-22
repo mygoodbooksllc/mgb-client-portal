@@ -54,6 +54,28 @@ const fmtDateTime = (iso) => {
   });
 };
 
+// §170: "synced 4 minutes ago". For the Live pill, where the point is
+// freshness rather than the exact moment — fmtDateTime's "Sep 22, 9:48 AM"
+// makes a reader do the subtraction themselves. Falls back to fmtDateTime
+// past a week, where "9 days ago" stops being easier to read than the date,
+// and returns null for a missing/unparseable timestamp so the caller can
+// decide what to render instead of printing "NaN ago".
+const relTime = (iso) => {
+  if (!iso) return null;
+  const then = new Date(iso).getTime();
+  if (!isFinite(then)) return null;
+  const secs = Math.round((Date.now() - then) / 1000);
+  if (secs < 0) return "just now"; // clock skew between browser and Postgres
+  if (secs < 60) return "just now";
+  const mins = Math.round(secs / 60);
+  if (mins < 60) return `${mins} minute${mins === 1 ? "" : "s"} ago`;
+  const hours = Math.round(mins / 60);
+  if (hours < 24) return `${hours} hour${hours === 1 ? "" : "s"} ago`;
+  const days = Math.round(hours / 24);
+  if (days <= 7) return `${days} day${days === 1 ? "" : "s"} ago`;
+  return fmtDateTime(iso);
+};
+
 // Security audit finding M2: React doesn't sanitize `href` — a stored
 // `javascript:` (or `data:`, `vbscript:`, etc) URL in attachment_url /
 // drive_url would execute when clicked. Only ever render a link for a URL
@@ -2047,7 +2069,18 @@ function FileIcon(props) {
   );
 }
 
-function MockBanner({ text }) {
+// §170: `client` is optional and only passed at the call sites that are
+// actually about a client's financial data. Once that client's numbers come
+// from a real QuickBooks sync, telling them the page is a prototype is simply
+// false — so the banner removes itself. The staff-only banners (Developer
+// Tools, staff chat, page analytics) deliberately pass no client: they are
+// about internal tooling that has no QuickBooks feed to switch over to, and
+// gating them on whichever client happens to be selected in the sidebar would
+// be a non sequitur. Same for the Giving/Funds and Payroll banners — that data
+// comes from a donor system and Gusto, neither of which this sync touches, so
+// it is still sample data on a QuickBooks-connected client.
+function MockBanner({ text, client }) {
+  if (client && client.dataSource === "quickbooks") return null;
   return (
     <div className="mock-banner">
       <FlaskIcon /> {text}
@@ -3044,7 +3077,7 @@ function ScopedDashboardPage({
 
   return (
     <div className="dashboard-page">
-      <MockBanner text="Every number on this page is sample data for prototyping — no QuickBooks or bank connection yet." />
+      <MockBanner text="Every number on this page is sample data for prototyping — no QuickBooks or bank connection yet."client={client} />
 
       {/* Referral popup disabled for now — component kept below, re-add here when it's back on. */}
 
@@ -3468,7 +3501,7 @@ function DashboardPage({
 
   return (
     <div className="dashboard-page">
-      <MockBanner text="Every number on this page is sample data for prototyping — no QuickBooks or bank connection yet." />
+      <MockBanner text="Every number on this page is sample data for prototyping — no QuickBooks or bank connection yet."client={client} />
 
       {/* Referral popup disabled for now — component kept below, re-add here when it's back on. */}
 
@@ -3670,7 +3703,7 @@ function BudgetPage({ client, searchTarget }) {
 
   return (
     <div className="budget-page">
-      <MockBanner text="Budget figures are hardcoded for this prototype. In Phase 2 these will sync from QuickBooks budgets." />
+      <MockBanner text="Budget figures are hardcoded for this prototype. In Phase 2 these will sync from QuickBooks budgets."client={client} />
 
       <div className="kpi-grid">
         <button
@@ -4366,7 +4399,7 @@ function ReceivablesPayablesPage({ client }) {
 
   return (
     <div className="cashflow-page">
-      <MockBanner text="These balances are hardcoded for the prototype. Real amounts will come from QuickBooks in Phase 2." />
+      <MockBanner text="These balances are hardcoded for the prototype. Real amounts will come from QuickBooks in Phase 2."client={client} />
 
       <div className="kpi-grid">
         <button
@@ -5105,7 +5138,7 @@ function BankTransactionsPanel({ client, searchTarget }) {
 function BankPage({ client, searchTarget }) {
   return (
     <div className="bank-accounts-page">
-      <MockBanner text="Account balances and transactions are fabricated sample data — no bank is connected yet." />
+      <MockBanner text="Account balances and transactions are fabricated sample data — no bank is connected yet."client={client} />
       <BankTransactionsPanel client={client} searchTarget={searchTarget} />
     </div>
   );
@@ -5135,7 +5168,7 @@ function BankReconciliationPage({ client, searchTarget }) {
 
   return (
     <div className="bank-accounts-page">
-      <MockBanner text="Account balances, transactions, and reconciliation status shown here are fabricated for this prototype." />
+      <MockBanner text="Account balances, transactions, and reconciliation status shown here are fabricated for this prototype."client={client} />
 
       <div className="view-toggle" style={{ marginBottom: 20 }}>
         <button
@@ -6019,7 +6052,7 @@ function QuickDownloadReports({ client }) {
 function ReportsPage({ client }) {
   return (
     <div className="reports-page">
-      <MockBanner text="Reports are generated as real PDFs from this client's mock data — once QuickBooks is connected in Phase 2, these will reflect live books." />
+      <MockBanner text="Reports are generated as real PDFs from this client's mock data — once QuickBooks is connected in Phase 2, these will reflect live books."client={client} />
       <QuickDownloadReports client={client} />
     </div>
   );
@@ -6662,7 +6695,7 @@ function ReportBuilderPage({ client }) {
   if (stage === "builder") {
     return (
       <div>
-        <MockBanner text="Report Builder assembles a formatted report from this client's own numbers shown elsewhere in the portal — nothing here is a separate dataset." />
+        <MockBanner text="Report Builder assembles a formatted report from this client's own numbers shown elsewhere in the portal — nothing here is a separate dataset."client={client} />
 
         <div className="view-toggle" style={{ marginBottom: 20 }}>
           <button
@@ -7661,7 +7694,7 @@ function APCommandCenterPage({ client }) {
 
   return (
     <div>
-      <MockBanner text="These are the same sample payables shown under Cash Flow. Connect QuickBooks to replace this with live AP data." />
+      <MockBanner text="These are the same sample payables shown under Cash Flow. Connect QuickBooks to replace this with live AP data."client={client} />
 
       <div className="kpi-grid">
         <button
@@ -15112,6 +15145,7 @@ function TabSettingsModal({
   const [newDocUrl, setNewDocUrl] = useState("");
   const [addingDoc, setAddingDoc] = useState(false);
   const [qboConnection, setQboConnection] = useState(undefined); // undefined = loading
+  const [qboSyncing, setQboSyncing] = useState(false);
   const [privateNotes, setPrivateNotes] = useState(undefined); // undefined = loading
   const [newNoteText, setNewNoteText] = useState("");
   const [addingNote, setAddingNote] = useState(false);
@@ -15135,6 +15169,41 @@ function TabSettingsModal({
   useEffect(() => {
     if (tab === "quickbooks") loadQboConnection();
   }, [tab, loadQboConnection]);
+
+  // §170: pulls this one client's books from QuickBooks on demand, rather
+  // than waiting for the hourly cron sweep (supabase/qbo-sync-cron.sql).
+  // The Edge Function re-checks authorization as the caller — active staff
+  // row plus can_access_client() — so this button is a convenience, not the
+  // access control. The fresh numbers land in the qbo_* tables; the page
+  // itself picks them up on the next load (index.html's loadQboData runs at
+  // boot), which is what the toast says.
+  async function syncQuickBooksNow() {
+    if (!supabase || qboSyncing) return;
+    setQboSyncing(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("qbo-sync", {
+        body: { client_id: client.id },
+      });
+      if (error) {
+        showToast("Sync failed: " + error.message);
+      } else if (data && data.errors && data.errors.length) {
+        showToast("QuickBooks sync failed: " + data.errors[0].error);
+      } else {
+        const counts = (data && data.synced && data.synced[0] && data.synced[0].counts) || {};
+        const total = Object.values(counts).reduce((a, b) => a + (b || 0), 0);
+        showToast(
+          `Synced ${total} record${total === 1 ? "" : "s"} from QuickBooks. Reload to see the new numbers.`,
+        );
+      }
+    } catch (err) {
+      showToast("Sync failed: " + (err && err.message ? err.message : err));
+    } finally {
+      setQboSyncing(false);
+      // Either way, re-read the connection so last_synced_at / last_error
+      // reflect what actually just happened.
+      loadQboConnection();
+    }
+  }
 
   async function connectQuickBooks() {
     if (!window.QBO_CONFIG || !window.QBO_CONFIG.clientId) {
@@ -15897,11 +15966,24 @@ function TabSettingsModal({
                 </div>
                 <div className="card-subtitle" style={{ margin: "2px 0 0" }}>
                   Last synced{" "}
-                  {qboConnection.last_synced_at
-                    ? fmtDate(qboConnection.last_synced_at.slice(0, 10))
-                    : "never yet"}
+                  {relTime(qboConnection.last_synced_at) || "never yet"}
                 </div>
+                {qboConnection.last_error && (
+                  <div
+                    className="card-subtitle"
+                    style={{ margin: "2px 0 0", color: "#e0664f" }}
+                  >
+                    Last sync: {qboConnection.last_error}
+                  </div>
+                )}
                 <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
+                  <button
+                    className="btn-primary"
+                    onClick={syncQuickBooksNow}
+                    disabled={qboSyncing}
+                  >
+                    {qboSyncing ? "Syncing…" : "Sync now"}
+                  </button>
                   <button className="btn-secondary" onClick={connectQuickBooks}>
                     Reconnect
                   </button>
@@ -18277,10 +18359,23 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
               <div className={"page-subtitle"}>{meta.subtitle}</div>
             </div>
             <div className="page-header-actions">
-              <span className="badge-live">
-                <span className="badge-dot"></span>
-                Prototype · Sample Data
-              </span>
+              {/* §170: the honest version of this badge. A client whose
+                  numbers came out of a real QuickBooks sync gets told when
+                  they were last pulled; everyone else still gets the
+                  prototype warning, which is still true for them. */}
+              {client.dataSource === "quickbooks" ? (
+                <span className="badge-live">
+                  <span className="badge-dot"></span>
+                  {relTime(client.lastSyncedAt)
+                    ? `Live · synced ${relTime(client.lastSyncedAt)}`
+                    : "Live · QuickBooks"}
+                </span>
+              ) : (
+                <span className="badge-live">
+                  <span className="badge-dot"></span>
+                  Prototype · Sample Data
+                </span>
+              )}
             </div>
           </div>
 
