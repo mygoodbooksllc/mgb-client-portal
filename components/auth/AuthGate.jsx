@@ -137,21 +137,7 @@
       <main className="auth-screen">
         <div className="auth-stack">
           <div className="auth-logo">
-            <svg
-              width="22"
-              height="22"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.8"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              aria-hidden="true"
-            >
-              <path d="M4 4.5h6a2.5 2.5 0 0 1 2.5 2.5v13" />
-              <path d="M20 4.5h-6A2.5 2.5 0 0 0 11.5 7v13" />
-            </svg>
-            <span className="auth-wordmark">MyGoodBooks</span>
+            <img className="auth-logo-img" src="/logo.webp" alt="MyGoodBooks" width="96" height="96" />
           </div>
           <div className="auth-card">
             <div className="auth-head">

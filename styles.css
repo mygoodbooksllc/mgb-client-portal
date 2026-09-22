@@ -5641,7 +5641,13 @@ body:has(.modal-overlay) .chat-fab-wrap {
   color: var(--gold-deep);
 }
 
-.auth-logo svg { display: block; flex-shrink: 0; }
+.auth-logo-img { display: block; width: 96px; height: 96px; }
+
+/* The logo is navy on transparent; render it light on dark backgrounds. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .auth-logo-img { filter: brightness(0) invert(0.92); }
+}
+[data-theme="dark"] .auth-logo-img { filter: brightness(0) invert(0.92); }
 
 .auth-wordmark {
   font-family: var(--font-heading);
