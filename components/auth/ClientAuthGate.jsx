@@ -148,7 +148,8 @@
         <main className="auth-screen">
           <div className="auth-stack">
             <div className="auth-logo">
-              <img className="auth-logo-img" src="/logo.webp" alt="MyGoodBooks" width="96" height="96" />
+              <img className="auth-logo-img" src="/logo.webp" alt="" width="192" height="192" />
+              <span className="auth-wordmark">MyGoodBooks</span>
             </div>
             {card}
             <nav className="auth-footer" aria-label="Legal and support">

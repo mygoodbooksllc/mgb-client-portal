@@ -5667,13 +5667,23 @@ body:has(.modal-overlay) .chat-fab-wrap {
   color: var(--gold-deep);
 }
 
-.auth-logo-img { display: block; width: 96px; height: 96px; }
+.auth-logo-img { display: block; width: 192px; height: 192px; flex-shrink: 0; }
+/* Wordmark matches the logo's own navy (#233746); in dark mode both go light. */
+.auth-logo .auth-wordmark { font-size: 40px; color: #233746; }
+@media (max-width: 480px) {
+  .auth-logo-img { width: 120px; height: 120px; }
+  .auth-logo .auth-wordmark { font-size: 28px; }
+}
 
 /* The logo is navy on transparent; render it light on dark backgrounds. */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) .auth-logo-img { filter: brightness(0) invert(0.92); }
 }
 [data-theme="dark"] .auth-logo-img { filter: brightness(0) invert(0.92); }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .auth-logo .auth-wordmark { color: #ebebeb; }
+}
+[data-theme="dark"] .auth-logo .auth-wordmark { color: #ebebeb; }
 
 .auth-wordmark {
   font-family: var(--font-heading);
