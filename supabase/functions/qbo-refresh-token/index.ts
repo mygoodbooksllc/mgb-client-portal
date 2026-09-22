@@ -11,11 +11,11 @@ import { createClient } from "jsr:@supabase/supabase-js@2";
 // Postgres/pg_net, not a browser with a Supabase session) but that does NOT
 // mean anyone can hit this — a random anon caller must not be able to force
 // token churn or read error details, so the function requires the caller to
-// present the project's service_role key as a Bearer token before doing
-// anything. This mirrors the standard pattern for scheduled Edge Functions
-// triggered by pg_cron: the cron job's net.http_post call carries the
-// service_role key in its Authorization header, the same key already
-// granted service_role access to qbo_store_tokens/qbo_get_tokens.
+// present a known bearer token before doing anything. Two are accepted: the
+// project's service_role key, and the cron key — a secret Postgres generated
+// for itself and holds in Vault (supabase/cron-shared-secret.sql), which is
+// what the scheduled net.http_post call carries. The cron key is there so the
+// schedule never depends on a human copying the service_role key correctly.
 //
 // Never logs token values — only lengths/status, matching the qbo-callback
 // precedent.
@@ -33,6 +33,16 @@ const REFRESH_AHEAD_MS = 10 * 60 * 1000;
 // reconnect that just ran.
 const MIN_QUIET_MS = 3 * 60 * 1000;
 
+// Constant-time comparison of two secrets. The length check leaks only the
+// length (already implied by the header), then every character is compared so
+// a wrong guess can't be narrowed down one byte at a time by timing.
+function secretsMatch(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return diff === 0;
+}
+
 function unauthorized() {
   return new Response(JSON.stringify({ error: "unauthorized" }), {
     status: 401,
@@ -43,14 +53,23 @@ function unauthorized() {
 Deno.serve(async (req) => {
   const auth = req.headers.get("Authorization") || "";
   const presented = auth.replace(/^Bearer\s+/i, "");
-  // Constant-time-ish compare isn't critical here (this isn't a password
-  // check against a stored hash, it's comparing to the one secret this
-  // function itself holds), but do a length check first regardless.
-  if (!presented || presented.length !== SERVICE_ROLE_KEY.length || presented !== SERVICE_ROLE_KEY) {
-    return unauthorized();
-  }
+  if (!presented) return unauthorized();
 
   const supabase = createClient(Deno.env.get("SUPABASE_URL")!, SERVICE_ROLE_KEY);
+
+  // Two bearers are accepted. The service_role key still works (manual or
+  // ad-hoc calls), and so does the cron key — a 32-byte secret Postgres
+  // generated for itself and keeps in Vault, read back here through the
+  // service_role-only qbo_cron_key() RPC. The cron key exists so the schedule
+  // never depends on someone pasting the service_role key into Vault by hand;
+  // see supabase/cron-shared-secret.sql.
+  let authorized = secretsMatch(presented, SERVICE_ROLE_KEY);
+  if (!authorized) {
+    const { data: cronKey } = await supabase.rpc("qbo_cron_key");
+    authorized =
+      typeof cronKey === "string" && cronKey.length > 0 && secretsMatch(presented, cronKey);
+  }
+  if (!authorized) return unauthorized();
 
   const { data: connections, error: connErr } = await supabase
     .from("qbo_connections")

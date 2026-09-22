@@ -10,8 +10,9 @@ import { createClient } from "jsr:@supabase/supabase-js@2";
 // Two callers, two auth modes:
 //
 //   (a) pg_cron/pg_net, hourly (supabase/qbo-sync-cron.sql). Presents the
-//       project's service_role key as its bearer token, exactly like
-//       qbo-refresh-token does, and syncs EVERY connected client.
+//       generated cron key — or the project's service_role key — as its
+//       bearer token, exactly like qbo-refresh-token does, and syncs EVERY
+//       connected client.
 //   (b) a signed-in staffer clicking "Sync now" in the Client details
 //       QuickBooks tab. Presents their own Supabase JWT, and may sync only
 //       the one client_id in the body — and only if they're active staff
@@ -59,6 +60,16 @@ function json(body: unknown, status = 200) {
     status,
     headers: { "Content-Type": "application/json" },
   });
+}
+
+// Constant-time comparison of two secrets. The length check leaks only the
+// length (already implied by the header), then every character is compared so
+// a wrong guess can't be narrowed down one byte at a time by timing.
+function secretsMatch(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return diff === 0;
 }
 
 // An Intuit call that came back non-2xx. `status` is carried so a 401
@@ -659,10 +670,17 @@ Deno.serve(async (req) => {
 
   const admin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
 
-  // Mode (a): the cron job, presenting the service_role key. Length check
-  // first, same as qbo-refresh-token.
-  const isServiceRole =
-    presented.length === SERVICE_ROLE_KEY.length && presented === SERVICE_ROLE_KEY;
+  // Mode (a): a machine caller. Two bearers are accepted — the service_role
+  // key, and the cron key: a 32-byte secret Postgres generated for itself and
+  // keeps in Vault, read back here through the service_role-only
+  // qbo_cron_key() RPC so the schedule never depends on a hand-copied key
+  // (supabase/cron-shared-secret.sql). Both compared constant-time.
+  let isServiceRole = secretsMatch(presented, SERVICE_ROLE_KEY);
+  if (!isServiceRole) {
+    const { data: cronKey } = await admin.rpc("qbo_cron_key");
+    isServiceRole =
+      typeof cronKey === "string" && cronKey.length > 0 && secretsMatch(presented, cronKey);
+  }
 
   let targets: { client_id: string; realm_id: string }[] = [];
 

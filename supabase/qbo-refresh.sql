@@ -24,33 +24,28 @@
 -- qbo_get_tokens security-definer RPCs (service_role only), same
 -- never-log-token-values discipline as qbo-callback. verify_jwt is off
 -- (the caller is pg_net, not a browser with a Supabase session) but the
--- function itself requires the caller to present the project's
--- service_role key as a Bearer token before doing anything — a random anon
--- caller cannot hit it to force token churn or read error details.
+-- function itself requires the caller to present a known bearer token
+-- before doing anything — a random anon caller cannot hit it to force
+-- token churn or read error details.
 
 create extension if not exists pg_cron with schema extensions;
 create extension if not exists pg_net with schema extensions;
 
--- Every 15 minutes, pg_net POSTs to the Edge Function with the service_role
--- key as its Authorization bearer token, pulled from Supabase Vault rather
--- than inlined in this file (this .sql file is committed to git).
+-- Every 15 minutes, pg_net POSTs to the Edge Function with the cron key as
+-- its Authorization bearer token, pulled from Supabase Vault rather than
+-- inlined in this file (this .sql file is committed to git).
 --
--- ONE-TIME MANUAL FOLLOW-UP REQUIRED: this session did not have the raw
--- service_role key value available to store, so the Vault secret the cron
--- job reads (`qbo_refresh_service_key`) does not exist yet. Until a human
--- with dashboard access runs the following once (Supabase SQL editor, or
--- via a securely-copied value — never paste it into a committed file):
+-- NO MANUAL STEP. The bearer is `qbo_cron_key`, a 32-byte secret Postgres
+-- generates for itself and stores in Vault (supabase/cron-shared-secret.sql),
+-- and the Edge Function reads the same value back through the
+-- service_role-only public.qbo_cron_key() RPC. This replaced the earlier
+-- `qbo_refresh_service_key` arrangement, which required a human to paste the
+-- project's service_role key into Vault by hand and 401'd on every cron call
+-- until they did. The function still accepts the service_role key too, for
+-- ad-hoc calls.
 --
---   select vault.create_secret('<the service_role key value>', 'qbo_refresh_service_key');
---
--- ...the cron job fires every 15 minutes but each call gets a 401 from the
--- function and no-ops (visible in `select * from cron.job_run_details`).
--- Nothing insecure happens in the meantime — the function just refuses the
--- unauthenticated calls — but token refresh will NOT actually run until
--- this one step is done. This is the "needs a manual follow-up" gap called
--- out in HANDOFF7.md; pg_cron and pg_net are both available on this
--- project's plan, so no external scheduler (GitHub Action, Supabase Cron
--- tier, etc.) is needed once the secret is populated.
+-- Superseded by supabase/cron-shared-secret.sql, which reschedules this job
+-- with the qbo_cron_key header — the command below is kept for the record.
 select cron.schedule(
   'qbo-refresh-tokens',
   '*/15 * * * *',
@@ -61,7 +56,7 @@ select cron.schedule(
       'Content-Type', 'application/json',
       'Authorization', 'Bearer ' || (
         select decrypted_secret from vault.decrypted_secrets
-        where name = 'qbo_refresh_service_key' limit 1
+        where name = 'qbo_cron_key' limit 1
       )
     ),
     body := '{}'::jsonb
@@ -69,6 +64,5 @@ select cron.schedule(
   $$
 );
 
--- To check the job is actually running (and whether it's still hitting the
--- 401 no-op above) once deployed:
+-- To check the job is actually running once deployed:
 --   select * from cron.job_run_details order by start_time desc limit 20;

@@ -1,10 +1,10 @@
 -- Schedules the qbo-sync Edge Function (supabase/functions/qbo-sync/index.ts)
 -- hourly. Deliberately a carbon copy of the qbo-refresh-tokens job in
 -- supabase/qbo-refresh.sql — same extensions, same Vault-held bearer token,
--- same "the function itself checks the service_role key" posture — because
--- qbo-sync has the identical trust profile: verify_jwt off (the caller is
--- pg_net, not a browser session), so the function refuses anything that
--- doesn't present SUPABASE_SERVICE_ROLE_KEY as its bearer token.
+-- same "the function itself checks the bearer" posture — because qbo-sync
+-- has the identical trust profile: verify_jwt off (the caller is pg_net, not
+-- a browser session), so the function refuses anything that doesn't present
+-- the cron key (or SUPABASE_SERVICE_ROLE_KEY) as its bearer token.
 --
 -- APPLY ORDER: after qbo-data.sql (the tables the function writes) and after
 -- the qbo-sync function is deployed. Scheduling it earlier is harmless — the
@@ -35,7 +35,7 @@ select cron.schedule(
       'Content-Type', 'application/json',
       'Authorization', 'Bearer ' || (
         select decrypted_secret from vault.decrypted_secrets
-        where name = 'qbo_refresh_service_key' limit 1
+        where name = 'qbo_cron_key' limit 1
       )
     ),
     body := '{}'::jsonb
@@ -43,16 +43,10 @@ select cron.schedule(
   $$
 );
 
--- SAME ONE-TIME MANUAL FOLLOW-UP as qbo-refresh.sql, and the same secret:
--- this job reads the Vault secret `qbo_refresh_service_key`, so if that was
--- already populated for the token refresher, nothing further is needed here.
--- If it hasn't been, run once (Supabase SQL editor — never paste the key
--- into a committed file):
---
---   select vault.create_secret('<the service_role key value>', 'qbo_refresh_service_key');
---
--- Until then this job fires hourly, each call gets a 401 from the function,
--- and nothing syncs. Nothing insecure happens in the meantime.
+-- NO MANUAL STEP, same as qbo-refresh.sql and the same secret: this job
+-- reads the Vault secret `qbo_cron_key`, which Postgres generates for itself
+-- in supabase/cron-shared-secret.sql. That file also reschedules this job
+-- with the qbo_cron_key header, so the command above is kept for the record.
 --
 -- To check the job:
 --   select * from cron.job_run_details
