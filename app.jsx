@@ -19156,13 +19156,9 @@ const PAGE_STORAGE_KEY = "mygoodbooks_page_v1";
 function loadPage() {
   try {
     const raw = localStorage.getItem(PAGE_STORAGE_KEY);
-    if (
-      raw === "enterprise-upgrade" ||
-      raw === "staff-access" ||
-      raw === "client-access" ||
-      raw === "bookkeeper-home" ||
-      ALL_TAB_KEYS.includes(raw)
-    ) {
+    // Any known page, staff-only ones included (My Tasks, My Time, Team
+    // Chat, ...); effectivePage still bounces a page this viewer can't see.
+    if (raw && (Object.prototype.hasOwnProperty.call(PAGE_META, raw) || ALL_TAB_KEYS.includes(raw))) {
       return raw;
     }
     return null;
@@ -19987,11 +19983,13 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
       loadSelectedClientId() ||
       "riverside-pantry",
   );
-  // A client never lands on "bookkeeper-home" — initialPage()'s fresh-session
+  // A refresh keeps whatever page was open, for staff and clients alike. A
+  // client never lands on "bookkeeper-home" — initialPage()'s fresh-session
   // default is staff-only chrome they can't render (no staffUser).
-  const [page, setPage] = useState(() =>
-    clientPortalUser ? "dashboard" : initialPage(),
-  );
+  const [page, setPage] = useState(() => {
+    const p = initialPage();
+    return clientPortalUser && p === "bookkeeper-home" ? "dashboard" : p;
+  });
   // Sidebar dot for Team Chat — recomputed on every page change and on any
   // Team Chat activity (cheap, single-purpose query) rather than polling,
   // same posture as the rest of this app's Supabase reads. "Read" is now a
