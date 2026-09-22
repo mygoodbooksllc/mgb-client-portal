@@ -6760,8 +6760,18 @@ body:has(.modal-overlay) .chat-fab-wrap {
 }
 
 /* Sidebar: count of my items due today / overdue, beside "My Tasks". */
-.nav-due-count {
+.nav-due-counts {
+  display: inline-flex;
+  gap: 4px;
   margin-left: auto;
+  flex-shrink: 0;
+}
+
+.staff-user-chip .nav-due-counts {
+  margin-left: 0;
+}
+
+.nav-due-count {
   min-width: 18px;
   padding: 1px 6px;
   border-radius: 999px;
@@ -6778,10 +6788,6 @@ body:has(.modal-overlay) .chat-fab-wrap {
 .nav-due-count.overdue {
   background: var(--bad);
   color: #fff;
-}
-
-.staff-user-chip .nav-due-count {
-  margin-left: 0;
 }
 
 @media (max-width: 640px) {

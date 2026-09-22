@@ -804,6 +804,7 @@ function Sidebar({
   staffUser,
   onSignOut,
   staffMessagesUnread,
+  myTasksDue,
   impersonating,
   hasTempAdminAccess,
   tempAdminAccessExpiresAt,
@@ -1036,6 +1037,9 @@ function Sidebar({
                 {staffMessagesUnread && !staffMenuOpen && (
                   <span className="nav-badge-dot" aria-label="Unread" />
                 )}
+                {!staffMenuOpen && !collapsed && !impersonating && (
+                  <MyTasksDueCount due={myTasksDue} />
+                )}
                 <ChevronDownIcon
                   className={
                     "staff-user-chip-chev" + (staffMenuOpen ? " open" : "")
@@ -1104,6 +1108,7 @@ function Sidebar({
                     >
                       <ChecklistIcon width="16" height="16" strokeWidth="1.8" />
                       My Tasks
+                      <MyTasksDueCount due={myTasksDue} />
                     </button>
                   )}
 
@@ -1720,6 +1725,31 @@ function ChatIcon(props) {
       <path d="M4 5h16v11H8l-4 4V5z" />
       <path d="M8 10h8M8 13h5" />
     </svg>
+  );
+}
+
+// Quiet pills for the staff menu's "My Tasks" row (and the closed menu
+// chip): my open items due now. Neutral pill = due today / reminder time
+// reached; a --bad pill is used only for the overdue count.
+function MyTasksDueCount({ due }) {
+  if (!due || !due.due) return null;
+  const today = due.due - due.overdue;
+  const parts = [];
+  if (due.overdue) parts.push(`${due.overdue} overdue`);
+  if (today) parts.push(`${today} due today`);
+  const label = parts.join(", ");
+  return (
+    <span
+      className="nav-due-counts"
+      role="img"
+      aria-label={`My Tasks: ${label}`}
+      title={label}
+    >
+      {due.overdue > 0 && (
+        <span className="nav-due-count overdue">{due.overdue}</span>
+      )}
+      {today > 0 && <span className="nav-due-count">{today}</span>}
+    </span>
   );
 }
 
@@ -18256,6 +18286,75 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
   useEffect(() => {
     checkStaffMessagesUnread();
   }, [checkStaffMessagesUnread, page]);
+
+  // Sidebar count beside "My Tasks": my open items (owned or assigned to me)
+  // that are overdue, due today, or past their remind-me time. Refetched on
+  // page change and on any staff_reminders write (staffItemsApi's event, which
+  // the Realtime subscription below also fires); recounted from the cached
+  // rows every minute so midnight and remind-me times roll over without a
+  // query.
+  const [myTasksDue, setMyTasksDue] = useState({ overdue: 0, due: 0 });
+  const myTasksRowsRef = useRef([]);
+  const recountMyTasksDue = useCallback(() => {
+    if (!staffUser) return;
+    setMyTasksDue((prev) => {
+      const next = countDueStaffItems(
+        myTasksRowsRef.current,
+        staffUser.email,
+        todayLocal(),
+        Date.now(),
+      );
+      return next.due === prev.due && next.overdue === prev.overdue
+        ? prev
+        : next;
+    });
+  }, [staffUser]);
+  const refreshMyTasksDue = useCallback(() => {
+    const supabase = window.mgbSupabase;
+    if (!supabase || !staffUser) {
+      myTasksRowsRef.current = [];
+      setMyTasksDue({ overdue: 0, due: 0 });
+      return;
+    }
+    staffItemsApi.list(supabase, staffUser.email).then(({ data, error }) => {
+      if (error || !data) return;
+      myTasksRowsRef.current = data;
+      recountMyTasksDue();
+    });
+  }, [staffUser, recountMyTasksDue]);
+  useEffect(() => {
+    refreshMyTasksDue();
+  }, [refreshMyTasksDue, page]);
+  useStaffItemsChanged(refreshMyTasksDue);
+  useEffect(() => {
+    if (!staffUser) return;
+    const id = setInterval(recountMyTasksDue, 60 * 1000);
+    return () => clearInterval(id);
+  }, [staffUser, recountMyTasksDue]);
+
+  // Live refresh for My Tasks / Home / the badge when a teammate (or another
+  // tab) changes a row this person can see. Private channel, same pattern as
+  // Team Chat (audit2-realtime-private-channels.sql); RLS on staff_reminders
+  // decides which rows' events reach whom. Silent no-op until
+  // staff-reminders-v2.sql adds the table to the supabase_realtime
+  // publication.
+  useEffect(() => {
+    const supabase = window.mgbSupabase;
+    if (!supabase || !staffUser) return;
+    const channel = supabase
+      .channel("staff-reminders-" + staffUser.email, {
+        config: { private: true },
+      })
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "staff_reminders" },
+        () => staffItemsApi.notify(),
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [staffUser]);
   // Set when a global-search result is clicked, so the destination page
   // knows exactly which row to scroll to and flash — not just which tab to
   // open. `nonce` forces the effect on the receiving page to re-fire even
@@ -19463,6 +19562,7 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
           staffUser={effectiveStaffUser}
           onSignOut={onSignOut}
           staffMessagesUnread={staffMessagesUnread}
+          myTasksDue={myTasksDue}
           hasPendingAccessRequests={hasPendingAccessRequests}
           pendingRequestsByClient={pendingRequestsByClient}
           impersonating={impersonating}
