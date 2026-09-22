@@ -5780,3 +5780,66 @@ each already has its own reason for being the tone it is. Now one token per
 theme, so either can be tuned without touching the other.
 
 Files touched: `styles.css`, `index.html`, `build.py`, `HANDOFF7.md`.
+
+---
+
+## §169 — The "Manage access" glow was lying, and access requests had no home
+
+Started as a question — should that button pulse only when something is
+actually waiting? — and turned up a genuine mismatch.
+
+### The bug
+
+Two different scopes, one button:
+
+- The glow counted unreviewed `access_requests` across **every visible
+  client** (`.in("client_id", ids)`).
+- The modal it opens loads requests for **the selected client only**
+  (`.eq("client_id", client.id)`).
+
+So a request belonging to another client pulsed the button, showed an empty
+Requests tab when clicked, and kept pulsing afterwards. The refresh-on-close
+was fine — `onClose` re-runs the check — so this was purely the scope
+mismatch, not staleness.
+
+### Why the obvious fix was wrong on its own
+
+Scoping the glow to the selected client makes the button honest, but
+`access_requests` had exactly three touchpoints in the whole app: this glow,
+the modal's loader, and `markReviewed`. Bookkeeper Home never surfaced them.
+So a per-client glow alone would have made a request for any client you
+weren't currently viewing completely invisible — trading a button that
+over-promises for one that silently drops things, which is worse.
+
+So both halves shipped together.
+
+**Per-client glow.** `hasPendingAccessRequests` is now derived from
+`pendingRequestsByClient[selectedClientId]`, a count map replacing the old
+firm-wide boolean. Clicking a glowing button now always shows what the glow
+promised.
+
+**The client picker marks the rest.** Each option gains
+`— N access requests` when that client has any. It is text rather than a dot
+because the picker is a native `<select>`: browsers ignore nearly all styling
+inside an `<option>`, so the health indicator's dot trick cannot work there —
+and text reads correctly aloud, which a decorative dot would not.
+
+**A central card on Bookkeeper Home.** "Access requests", directly above the
+existing "Enterprise upgrade requests" card and deliberately mirroring it —
+same shell, same loading/error/empty states, same row markup. Each row names
+the client, the submitter, the date and how many people, with a Review button.
+
+### Two things worth noting
+
+`onNavigateToClient(clientId, targetPage)` gained an optional third argument,
+`{ openAccessManager: true }`, so Review lands on the panel that actions the
+thing just clicked rather than dropping the staffer on the dashboard to go
+find it. All existing two-argument callers are unaffected.
+
+The card's query carries **no** `.in("client_id", …)` filter, unlike the
+sidebar's. It does not need one: `access_requests` is scoped to
+`can_access_client` in the database as of §160, so the rows come back already
+limited to this staffer's assignments. That is the batch-2 hardening paying
+off — the client-side filter is now redundant rather than load-bearing.
+
+Files touched: `app.jsx`, `index.html`, `build.py`, `HANDOFF7.md`.
