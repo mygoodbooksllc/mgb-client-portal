@@ -20,7 +20,7 @@
   --surface: #ffffff;
   --border: #e8e2d6;
   --text: #26343d;
-  --text-muted: #7a7369;
+  --text-muted: #6b655c; /* calm step 1: was #7a7369, darkened for contrast */
   /* Navy serves two opposite roles: dark chrome (sidebar, primary buttons) and
      dark ink on light surfaces (headings, KPI values). Only the ink role can
      flip in dark mode, so it gets its own token. In light mode they match. */
@@ -35,8 +35,9 @@
   --warm-border: #e3d3ab;
   --warm-text: #8a6d34;
   /* Frosted chat widget + tint on light bubbles; both invert in dark. */
-  --glass-bg: rgba(255, 255, 255, 0.55);
-  --glass-border: rgba(255, 255, 255, 0.4);
+  /* Calm step 1: glass retired — any remaining usage renders opaque. */
+  --glass-bg: var(--surface);
+  --glass-border: var(--border);
   --tint-on-surface: rgba(36, 55, 70, 0.08);
   /* Ambient background mesh behind the glass cards (Option C direction). */
   --mesh-1: #e3d3ab;
@@ -57,7 +58,7 @@
      cell is deliberately wider than it is tall, which is what makes it read
      as ledger paper rather than as a table someone might try to click. All
      three are tokens so the weight is tunable from one place. */
-  --grid-line: rgba(138, 109, 52, 0.032);
+  --grid-line: rgba(138, 109, 52, 0.04);
   --grid-cell-w: 92px;
   --grid-cell-h: 30px;
   /* Bar-chart series. Income was --navy, which is chrome and disappears on a
@@ -69,7 +70,7 @@
   /* Referral popup surface. Translucent navy reads as a solid panel over cream,
      but over the near-black dark page it loses all presence — so dark mode gets
      an opaque raised surface with a gold-tinted edge instead. */
-  --referral-bg: linear-gradient(135deg, rgba(36, 55, 70, 0.55) 0%, rgba(26, 40, 48, 0.55) 100%);
+  --referral-bg: #1a2830;
   --referral-border: rgba(255, 255, 255, 0.14);
   --sidebar-bg: var(--navy);
   --sidebar-text: #c7d0d6;
@@ -80,8 +81,9 @@
   --good-soft: #e9f0ea;
   --bad: #a4442c;
   --bad-soft: #f7e9e4;
-  --shadow: 0 8px 18px rgba(36, 55, 70, 0.075), 0 1px 3px rgba(36, 55, 70, 0.05);
-  --shadow-hover: 0 20px 36px rgba(36, 55, 70, 0.16), 0 4px 10px rgba(36, 55, 70, 0.1);
+  /* Calm step 1: cards sit flat — hairline shadow at most, no hover lift. */
+  --shadow: 0 1px 2px rgba(38, 52, 61, 0.04);
+  --shadow-hover: 0 1px 2px rgba(38, 52, 61, 0.04);
   --radius: 12px;
   /* Shared with <DailyClose /> so the premium panel and the shell read as one
      product: Bitter for display/headings, IBM Plex Sans for everything else
@@ -128,8 +130,8 @@
     --bad: #e2635f;
     --bad-soft: #2a1917;
 
-    --shadow: 0 1px 2px rgba(0, 0, 0, 0.35), 0 10px 28px -14px rgba(0, 0, 0, 0.55);
-    --shadow-hover: 0 20px 40px rgba(0, 0, 0, 0.5), 0 6px 14px rgba(0, 0, 0, 0.4);
+    --shadow: none;
+    --shadow-hover: none;
 
     --surface-2: #1c2420;
     --hover-bg: #1f2a22;
@@ -138,14 +140,14 @@
     --warm-bg: #1f2a22;
     --warm-border: #3f4f42;
     --warm-text: #d8c9a4;
-    --glass-bg: rgba(28, 36, 32, 0.72);
-    --glass-border: rgba(255, 255, 255, 0.1);
+    --glass-bg: var(--surface);
+    --glass-border: var(--border);
     --tint-on-surface: rgba(255, 255, 255, 0.1);
     --chart-income: #8fb4d6;
     --selected-outline: var(--gold);
     /* Still frosted glass, but tinted *lighter* than the page instead of
        darker — a navy tint over near-black has no presence at all. */
-    --referral-bg: linear-gradient(135deg, rgba(64, 82, 72, 0.78) 0%, rgba(44, 58, 51, 0.78) 100%);
+    --referral-bg: #2c3a33;
     --referral-border: rgba(199, 174, 134, 0.38);
     --mesh-1: #3f4f42;
     --mesh-2: #4a3a2a;
@@ -159,7 +161,7 @@
        invisible on a near-black ground. Kept a shade above the light-mode
        value, since a pale line on near-black carries less than a dark line
        on cream at the same alpha. */
-    --grid-line: rgba(199, 174, 134, 0.038);
+    --grid-line: rgba(199, 174, 134, 0.04);
   }
 }
 
@@ -198,8 +200,8 @@
   --bad: #e2635f;
   --bad-soft: #2a1917;
 
-  --shadow: 0 1px 2px rgba(0, 0, 0, 0.35), 0 10px 28px -14px rgba(0, 0, 0, 0.55);
-  --shadow-hover: 0 20px 40px rgba(0, 0, 0, 0.5), 0 6px 14px rgba(0, 0, 0, 0.4);
+  --shadow: none;
+  --shadow-hover: none;
 
   --surface-2: #1c2420;
   --hover-bg: #1f2a22;
@@ -208,18 +210,18 @@
   --warm-bg: #1f2a22;
   --warm-border: #3f4f42;
   --warm-text: #d8c9a4;
-  --glass-bg: rgba(28, 36, 32, 0.72);
-  --glass-border: rgba(255, 255, 255, 0.1);
+  --glass-bg: var(--surface);
+  --glass-border: var(--border);
   --tint-on-surface: rgba(255, 255, 255, 0.1);
   --chart-income: #8fb4d6;
   --selected-outline: var(--gold);
-  --referral-bg: linear-gradient(135deg, rgba(64, 82, 72, 0.78) 0%, rgba(44, 58, 51, 0.78) 100%);
+  --referral-bg: #2c3a33;
   --referral-border: rgba(199, 174, 134, 0.38);
   --mesh-1: #3f4f42;
   --mesh-2: #4a3a2a;
   --mesh-3: #2a3a45;
   --mesh-opacity: 0.3;
-  --grid-line: rgba(199, 174, 134, 0.038);
+  --grid-line: rgba(199, 174, 134, 0.04);
 }
 
 * { box-sizing: border-box; }
@@ -310,110 +312,12 @@ body {
   background-size: var(--grid-cell-w) var(--grid-cell-h);
 }
 
-/* §163: each blob wanders its own closed loop rather than all three sliding
-   along one shared vector. The old shared `meshDrift` moved every span the
-   same 3% in the same direction and scaled them in unison, which reads as the
-   whole background breathing — the blobs never change position RELATIVE to
-   each other, so there's no parallax and nothing to suggest depth.
-   Now: three separate keyframes, each a four-waypoint loop whose 0% and 100%
-   match so it cycles seamlessly, travelling in different directions at
-   different speeds. §164: sped up from 68s/86s/104s to 24s/31s/38s — the
-   first pass was slow enough that the drift read as stillness unless you
-   watched for it. Still mutually non-divisible, so the three never re-sync
-   into a visible shared rhythm and the arrangement keeps looking slightly
-   different for minutes at a time.
-   `alternate` is gone: these are loops, not back-and-forth sweeps.
-   Percentages on `transform: translate` resolve against the element's own
-   box, so a 12% step is ~77-84px at these sizes — visible as drift, well
-   short of anything that pulls the eye off the content. */
+/* Calm step 1: the drifting gradient blobs are retired — the page ground is
+   a flat --bg with only the static ledger ruling above. The spans stay in the
+   markup, so they are hidden here rather than having their selector removed. */
 .mesh-bg span {
-  position: absolute;
-  border-radius: 50%;
-  filter: blur(70px);
-  opacity: var(--mesh-opacity);
-  animation: meshDriftA 24s ease-in-out infinite;
-  /* Promotes each blob to its own compositor layer. Without it the browser
-     repaints a 70px gaussian blur over a 700px box on every frame, which is
-     the single most expensive thing on the page. */
-  will-change: transform;
-}
-
-.mesh-bg span:nth-child(1) {
-  width: 640px;
-  height: 640px;
-  left: -160px;
-  top: -180px;
-  background: radial-gradient(circle, var(--mesh-1), transparent 70%);
-  animation-name: meshDriftA;
-}
-
-.mesh-bg span:nth-child(2) {
-  width: 560px;
-  height: 560px;
-  right: -150px;
-  top: 40px;
-  background: radial-gradient(circle, var(--mesh-2), transparent 70%);
-  animation-name: meshDriftB;
-  animation-duration: 31s;
-  /* Negative delays start each blob mid-path, so the first frame after load
-     is already an arrangement rather than all three at their origin. */
-  animation-delay: -9s;
-}
-
-.mesh-bg span:nth-child(3) {
-  width: 700px;
-  height: 700px;
-  left: 30%;
-  bottom: -320px;
-  background: radial-gradient(circle, var(--mesh-3), transparent 70%);
-  animation-name: meshDriftC;
-  animation-duration: 38s;
-  animation-delay: -20s;
-}
-
-/* Clockwise, top-left. */
-@keyframes meshDriftA {
-  0%   { transform: translate(0, 0) scale(1); }
-  25%  { transform: translate(9%, 6%) scale(1.06); }
-  50%  { transform: translate(14%, -4%) scale(1.02); }
-  75%  { transform: translate(4%, -9%) scale(1.09); }
-  100% { transform: translate(0, 0) scale(1); }
-}
-
-/* Counter-clockwise and drifting further down, so it crosses A's path
-   rather than trailing it. */
-@keyframes meshDriftB {
-  0%   { transform: translate(0, 0) scale(1.04); }
-  25%  { transform: translate(-11%, 8%) scale(1); }
-  50%  { transform: translate(-5%, 16%) scale(1.1); }
-  75%  { transform: translate(7%, 7%) scale(1.03); }
-  100% { transform: translate(0, 0) scale(1.04); }
-}
-
-/* The big one at the bottom — widest travel, slowest, and the most scale
-   variation, since a near blob moving further sells the parallax. */
-@keyframes meshDriftC {
-  0%   { transform: translate(0, 0) scale(1); }
-  25%  { transform: translate(-14%, -7%) scale(1.12); }
-  50%  { transform: translate(6%, -12%) scale(1.04); }
-  75%  { transform: translate(15%, -3%) scale(1.09); }
-  100% { transform: translate(0, 0) scale(1); }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  /* Every :nth-child selector above has to be repeated here. Each one now sets
-     `animation-name`, and (0,2,1) out-specifies a bare `.mesh-bg span` at
-     (0,1,1) — so the plain override this used to be would silently stop
-     working, and reduced-motion users would keep all three blobs drifting.
-     It worked before only because the per-blob rules set duration and delay
-     but never the name. */
-  .mesh-bg span,
-  .mesh-bg span:nth-child(1),
-  .mesh-bg span:nth-child(2),
-  .mesh-bg span:nth-child(3) {
-    animation: none;
-    will-change: auto;
-  }
+  display: none;
+  animation: none;
 }
 
 .app-shell {
@@ -733,7 +637,7 @@ body {
   width: 26px;
   height: 26px;
   border-radius: 50%;
-  background: linear-gradient(135deg, var(--gold), var(--gold-deep));
+  background: var(--gold);
   color: var(--navy-deep);
   display: flex;
   align-items: center;
@@ -865,20 +769,9 @@ body {
    reads as "live status" rather than a static bullet. --health-dot-color
    is set inline per-dot (red/yellow/green) so one keyframe covers all
    three colors. */
-@media (prefers-reduced-motion: no-preference) {
-  .health-dot-pulse {
-    animation: mgb-dot-pulse 2.6s ease-in-out infinite;
-  }
-}
-
-@keyframes mgb-dot-pulse {
-  0%,
-  100% {
-    box-shadow: 0 0 0 0 color-mix(in srgb, var(--health-dot-color) 55%, transparent);
-  }
-  50% {
-    box-shadow: 0 0 0 5px color-mix(in srgb, var(--health-dot-color) 0%, transparent);
-  }
+/* Calm step 1: the pulse is retired — the dot is a static status marker. */
+.health-dot-pulse {
+  animation: none;
 }
 
 .nav {
@@ -992,7 +885,6 @@ body {
   background: var(--gold);
   margin-left: -4px;
   flex-shrink: 0;
-  box-shadow: 0 0 0 2px rgba(199, 174, 134, 0.25);
 }
 
 /* Used on the Enterprise upgrade page's pricing card and tool-comparison
@@ -1004,7 +896,7 @@ body {
   letter-spacing: 0.05em;
   text-transform: uppercase;
   color: var(--navy-deep);
-  background: linear-gradient(120deg, #e9d5a8, var(--gold));
+  background: var(--gold);
   padding: 2px 7px;
   border-radius: 999px;
   flex-shrink: 0;
@@ -1028,15 +920,8 @@ body {
 }
 
 .nav-section-label-signature > span:not(.nav-signature-badge) {
-  background: linear-gradient(100deg, var(--gold-deep) 20%, #f7ecd3 45%, var(--gold-deep) 70%);
-  background-size: 220% auto;
-  background-position: 0% center;
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
-  color: transparent;
+  color: var(--gold);
   font-weight: 800;
-  animation: navSignatureShine 11.25s ease-in-out infinite;
 }
 
 .nav-signature-badge {
@@ -1047,7 +932,7 @@ body {
   letter-spacing: 0.05em;
   text-transform: uppercase;
   color: var(--navy-deep);
-  background: linear-gradient(120deg, #e9d5a8, var(--gold));
+  background: var(--gold);
   padding: 2px 7px;
   border-radius: 999px;
   flex-shrink: 0;
@@ -1060,10 +945,7 @@ body {
    the pill's own background instead of a text-clip, since the pill has a
    solid fill rather than transparent text. */
 .nav-signature-badge-shimmer {
-  background: linear-gradient(100deg, var(--gold-deep) 20%, #f7ecd3 45%, var(--gold-deep) 70%);
-  background-size: 220% auto;
-  background-position: 0% center;
-  animation: navSignatureShine 11.25s ease-in-out infinite;
+  background: var(--gold);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -1094,14 +976,7 @@ body {
    whole group reads as one premium unit rather than a plain label over
    ordinary items. */
 .nav-item-signature > span:first-child {
-  background: linear-gradient(100deg, var(--gold-deep) 20%, #f7ecd3 45%, var(--gold-deep) 70%);
-  background-size: 220% auto;
-  background-position: 0% center;
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
-  color: transparent;
-  animation: navSignatureShine 11.25s ease-in-out infinite;
+  color: var(--gold);
 }
 
 .nav-item-signature.active {
@@ -1112,11 +987,6 @@ body {
   .nav-item-signature > span:first-child { animation: none; }
 }
 
-@keyframes navSignatureShine {
-  0% { background-position: 0% center; }
-  50% { background-position: 100% center; }
-  100% { background-position: 0% center; }
-}
 
 @media (prefers-reduced-motion: reduce) {
   .nav-section-label-signature > span:not(.nav-signature-badge) {
@@ -1154,7 +1024,7 @@ body {
   width: 34px;
   height: 34px;
   border-radius: 50%;
-  background: linear-gradient(135deg, var(--gold), var(--gold-deep));
+  background: var(--gold);
   color: var(--ink-strong);
   font-family: var(--font-body);
   font-weight: 900;
@@ -1316,18 +1186,9 @@ body {
    loud badge, but still catches the eye on a glance since nothing else
    in this muted-gray utility row moves or shimmers. */
 .customize-tabs-btn-alert {
-  animation: accessAlertGlow 1.8s ease-in-out infinite;
+  /* Calm step 1: static gold ring instead of the pulsing glow. */
+  box-shadow: 0 0 0 1px var(--gold);
   border-radius: 6px;
-}
-
-@keyframes accessAlertGlow {
-  0%,
-  100% {
-    box-shadow: 0 0 0 0 rgba(199, 174, 134, 0);
-  }
-  50% {
-    box-shadow: 0 0 16px 4px rgba(199, 174, 134, 0.7);
-  }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -1342,18 +1203,12 @@ body {
    dark sidebar chrome rather than the page header. */
 .theme-toggle-signature {
   margin-left: auto;
-  background: linear-gradient(120deg, rgba(233, 213, 168, 0.22), rgba(199, 174, 134, 0.14));
+  background: rgba(199, 174, 134, 0.16);
   border: 1px solid rgba(199, 174, 134, 0.45);
-  animation: themeToggleGlow 11.25s ease-in-out infinite;
 }
 
 .theme-toggle-signature:hover {
-  background: linear-gradient(120deg, rgba(233, 213, 168, 0.32), rgba(199, 174, 134, 0.22));
-}
-
-@keyframes themeToggleGlow {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(199, 174, 134, 0); }
-  50% { box-shadow: 0 0 10px 1px rgba(199, 174, 134, 0.35); }
+  background: rgba(199, 174, 134, 0.26);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -1518,61 +1373,29 @@ body {
 }
 
 .card {
-  /* Glass surface (Option C direction) — translucent over the .mesh-bg
-     ambient background, so this needs a real alpha channel, not --surface. */
-  background: var(--glass-bg);
-  border: 1px solid var(--glass-border);
-  border-radius: 20px;
+  /* Calm step 1: opaque surface — the glass/blur treatment is retired. */
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
   box-shadow: var(--shadow);
   padding: 20px;
-  /* Only the shadow eases — the hover pop itself is instant, not animated. */
-  transition: box-shadow 0.2s ease;
-  backdrop-filter: blur(16px) saturate(1.3);
-  -webkit-backdrop-filter: blur(16px) saturate(1.3);
   position: relative;
   overflow: hidden;
 }
 
-.card:hover {
-  box-shadow: var(--shadow-hover);
-}
-
-/* Direct children stack above the shimmer sweep below, without touching
-   their layout (relative positioning with no offset). */
+/* Direct children keep their own stacking layer (relative positioning with
+   no offset) — harmless now, but retained so nothing that relied on it
+   shifts. */
 .card > * {
   position: relative;
   z-index: 1;
 }
 
-/* Subtle light glow drifting across every card, for depth — same idea as
-   the ambient mesh, just closer in. Very slow and very faint on purpose.
-   No `filter: blur()` here on purpose: stacked on top of the card's own
-   `backdrop-filter`, an animated `filter` caused a periodic flash in light
-   mode (a known Chromium repaint quirk when filter + backdrop-filter are
-   both animated). A radial ellipse fades to transparent on its own in every
-   direction, so it stays soft-edged without needing `filter` at all — a
-   linear-gradient band only fades along its own axis and left a visible
-   hard edge on the other two sides. */
+/* The drifting light sweep that lived here is retired; the pseudo-element is
+   neutralised rather than removed in case anything else targets it. */
 .card::after {
-  content: "";
-  position: absolute;
-  top: 50%;
-  left: -70%;
-  width: 85%;
-  height: 260%;
-  transform: translateY(-50%) rotate(12deg);
-  background: radial-gradient(ellipse at center, rgba(255, 255, 255, 0.07) 0%, rgba(255, 255, 255, 0.025) 45%, transparent 72%);
-  pointer-events: none;
-  animation: cardShimmer 42s ease-in-out infinite;
-}
-
-@keyframes cardShimmer {
-  0%, 35% { left: -70%; }
-  65%, 100% { left: 140%; }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .card::after { animation: none; display: none; }
+  content: none;
+  animation: none;
 }
 
 .kpi-card {
@@ -1679,6 +1502,29 @@ body {
 .kpi-value.positive { color: var(--good); }
 .kpi-value.negative { color: var(--bad); }
 .kpi-value.warm { color: var(--warm-text); }
+
+/* Calm step 1: figures line up in columns — every KPI, amount and table
+   cell uses tabular (fixed-width) numerals. */
+.kpi-value,
+.runway-ring-value,
+.tx-amount,
+.ledger-amount,
+.rb-bar-amt,
+.rb-preview-stat-value,
+.donut-center-value,
+.donut-legend-value,
+.fund-balance,
+.pricing-value,
+.pricing-total,
+.account-tab-balance,
+.ap-cc-age-amt,
+.ap-cc-upcoming-amt,
+td.num,
+th.num,
+td,
+th {
+  font-variant-numeric: tabular-nums;
+}
 
 /* Cash Runway progress ring (Option C direction). */
 .runway-ring-card {
@@ -1828,14 +1674,8 @@ body {
    pending (Sidebar), same gradient/animation .nav-section-label-signature
    already uses for the Enterprise label. */
 .sidebar-text-shimmer {
-  background: linear-gradient(100deg, var(--gold-deep) 20%, #f7ecd3 45%, var(--gold-deep) 70%);
-  background-size: 220% auto;
-  background-position: 0% center;
-  -webkit-background-clip: text;
-  background-clip: text;
-  -webkit-text-fill-color: transparent;
-  color: transparent;
-  animation: navSignatureShine 11.25s ease-in-out infinite;
+  /* Calm step 1: solid gold, no sweep. */
+  color: var(--gold);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -1910,7 +1750,7 @@ body {
 .tx-row:last-child { border-bottom: none; }
 
 .tx-desc {
-  font-size: 13.5px;
+  font-size: 14px;
   font-weight: 500;
   color: var(--text);
 }
@@ -1922,7 +1762,7 @@ body {
 }
 
 .tx-amount {
-  font-size: 13.5px;
+  font-size: 14px;
   font-weight: 700;
   white-space: nowrap;
 }
@@ -1951,7 +1791,7 @@ body {
 .budget-table td {
   padding: 14px 16px 14px 0;
   border-bottom: 1px solid var(--border);
-  font-size: 13.5px;
+  font-size: 14px;
   vertical-align: middle;
 }
 
@@ -2048,7 +1888,7 @@ body {
   align-items: baseline;
   justify-content: space-between;
   gap: 12px;
-  font-size: 13px;
+  font-size: 14px;
 }
 
 .ledger-category {
@@ -2128,7 +1968,7 @@ body {
   border: 1px solid var(--border);
   background: var(--surface-2);
   color: var(--text);
-  font-size: 13.5px;
+  font-size: 14px;
   font-family: var(--font-body);
 }
 
@@ -2158,7 +1998,7 @@ body {
 
 .rb-checklist { list-style: none; margin: 0; padding: 0; }
 
-.rb-checklist li { display: flex; align-items: center; gap: 9px; padding: 7px 0; font-size: 13.5px; }
+.rb-checklist li { display: flex; align-items: center; gap: 9px; padding: 7px 0; font-size: 14px; }
 .rb-checklist li.locked { color: var(--text-muted); }
 
 .rb-checklist label { display: flex; align-items: center; gap: 9px; width: 100%; cursor: pointer; }
@@ -2282,7 +2122,7 @@ body {
 .rb-section:last-child { border-bottom: none; }
 .rb-section h2 { font-family: var(--font-heading); font-size: 18px; font-weight: 700; color: var(--ink-strong); margin: 0 0 2px 0; }
 .rb-section-sub { font-size: 12.5px; color: var(--text-muted); margin: 0 0 14px 0; }
-.rb-commentary { font-size: 13.5px; line-height: 1.6; max-width: 68ch; margin: 0 0 14px 0; color: var(--text); }
+.rb-commentary { font-size: 14px; line-height: 1.6; max-width: 68ch; margin: 0 0 14px 0; color: var(--text); }
 
 .rb-stat-row { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; margin-bottom: 8px; }
 .rb-stat-row .rb-big { font-family: var(--font-mono); font-size: 27px; font-weight: 600; color: var(--ink-strong); }
@@ -2381,7 +2221,7 @@ body.rb-presenting .main {
 .tx-table td {
   padding: 12px 12px 12px 0;
   border-bottom: 1px solid var(--border);
-  font-size: 13.5px;
+  font-size: 14px;
 }
 
 .tx-table tr:last-child td { border-bottom: none; }
@@ -2639,7 +2479,7 @@ body.rb-presenting .main {
 
 .doc-folder-new input {
   font-family: var(--font-body);
-  font-size: 12.5px;
+  font-size: 14px;
   padding: 6px 10px;
   border-radius: 999px;
   border: 1px solid var(--border);
@@ -2733,12 +2573,10 @@ body.rb-presenting .main {
    .card from here on should be a deliberate choice to repeat here, not
    something the search bar inherits by accident. */
 .global-search {
-  background: var(--glass-bg);
-  border: 1px solid var(--glass-border);
-  border-radius: 20px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
   box-shadow: var(--shadow);
-  backdrop-filter: blur(16px) saturate(1.3);
-  -webkit-backdrop-filter: blur(16px) saturate(1.3);
   position: relative;
   margin-bottom: 20px;
   padding: 12px 16px;
@@ -2840,7 +2678,7 @@ body.rb-presenting .main {
 }
 
 .global-search-result-label {
-  font-size: 13.5px;
+  font-size: 14px;
   color: var(--text);
   font-weight: 600;
   white-space: nowrap;
@@ -2866,14 +2704,11 @@ body.rb-presenting .main {
   border-radius: 999px;
   cursor: pointer;
   white-space: nowrap;
-  box-shadow: 0 4px 12px rgba(36, 55, 70, 0.25);
-  transition: box-shadow 0.2s ease, transform 0.2s ease, background 0.2s ease;
+  transition: background 0.2s ease;
 }
 
 .btn-primary:hover {
   background: var(--navy-deep);
-  box-shadow: 0 6px 16px rgba(36, 55, 70, 0.32);
-  transform: translateY(-1px);
 }
 
 .btn-secondary {
@@ -2923,7 +2758,7 @@ body.rb-presenting .main {
 }
 
 .alerts-list li {
-  font-size: 13.5px;
+  font-size: 14px;
   font-weight: 600;
   color: var(--text);
 }
@@ -2947,8 +2782,6 @@ body.rb-presenting .main {
 
 .referral-card {
   background: var(--referral-bg);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
   border-color: var(--referral-border);
   color: #ffffff;
 }
@@ -3095,7 +2928,7 @@ body.rb-presenting .main {
 
 .referral-form-intro {
   margin: 0;
-  font-size: 13px;
+  font-size: 14px;
   color: #ffffff;
 }
 
@@ -3122,7 +2955,7 @@ body.rb-presenting .main {
   border-radius: 8px;
   padding: 8px 10px;
   font-family: var(--font-body);
-  font-size: 13.5px;
+  font-size: 14px;
   color: var(--text);
   background: var(--surface);
 }
@@ -3213,7 +3046,7 @@ body.rb-presenting .main {
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 13px;
+  font-size: 14px;
   color: var(--text);
 }
 
@@ -3249,7 +3082,7 @@ body.rb-presenting .main {
 }
 
 .fund-name {
-  font-size: 13.5px;
+  font-size: 14px;
   font-weight: 600;
 }
 
@@ -3350,44 +3183,11 @@ body.rb-presenting .main {
   flex-shrink: 0;
 }
 
-@media (prefers-reduced-motion: no-preference) {
-  /* App-wide: any .icon-badge inside a .card enlarges slightly on hover —
-     paired with .card:hover's shadow-only pop above (no lift/scale on the
-     card itself), same motion language used on the Enterprise pricing
-     cards this was generalized from. */
-  .icon-badge {
-    transition: transform 0.25s ease;
-  }
-  .card:hover .icon-badge {
-    transform: translateY(-3px) scale(1.06);
-  }
-
-  /* Same idea for a card's own prominent text — its title and its big
-     headline figure (a KPI value or a price) — scaling only, no
-     translateY: growing a number or heading upward reads as it shifting
-     off its baseline, which the icon (a small isolated shape) can get away
-     with but a line of text can't. transform-origin sits at the text's own
-     left edge so it grows in place rather than into whatever sits above or
-     beside it. */
-  .card-title,
-  .pricing-value {
-    transition: transform 0.25s ease;
-    transform-origin: left center;
-  }
-  /* .kpi-value is a <span> (inline by default) — transform has no effect on
-     a plain inline box in every browser this app supports, so it needs
-     inline-block to actually animate. .card-title/.pricing-value are
-     already block-level and don't need it. */
-  .kpi-value {
-    display: inline-block;
-    transition: transform 0.25s ease;
-    transform-origin: left center;
-  }
-  .card:hover .card-title,
-  .card:hover .kpi-value,
-  .card:hover .pricing-value {
-    transform: scale(1.05);
-  }
+/* Calm step 1: the hover enlarge on card icons, titles and KPI figures is
+   retired — cards no longer react to hover. .kpi-value keeps inline-block so
+   its box (and the layout around it) is unchanged. */
+.kpi-value {
+  display: inline-block;
 }
 
 /* ---- Pricing cards ---- */
@@ -3405,7 +3205,7 @@ body.rb-presenting .main {
 
 .pricing-card-premium {
   border-color: var(--gold-deep);
-  background: linear-gradient(180deg, var(--tint-on-surface), var(--surface) 65%);
+  background: var(--surface);
   position: relative;
 }
 
@@ -3439,19 +3239,6 @@ body.rb-presenting .main {
   color: var(--gold-deep);
 }
 
-@media (prefers-reduced-motion: no-preference) {
-  /* A slow breathing glow marks the premium card as the "highlighted"
-     option without an animated border stealing attention from its price —
-     same technique as .theme-toggle-signature's glow, borrowed here. */
-  .pricing-card-premium {
-    animation: pricingCardGlow 6s ease-in-out infinite;
-  }
-}
-
-@keyframes pricingCardGlow {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(199, 174, 134, 0); }
-  50% { box-shadow: 0 0 24px 2px rgba(199, 174, 134, 0.18); }
-}
 
 /* ---- Tool-by-tool comparison accordion ---- */
 
@@ -3557,7 +3344,7 @@ body.rb-presenting .main {
 .compare-feat-list li {
   position: relative;
   padding-left: 14px;
-  font-size: 12.5px;
+  font-size: 14px;
   line-height: 1.45;
   color: var(--text);
 }
@@ -3862,7 +3649,7 @@ body.rb-presenting .main {
   border: 1px solid var(--border);
   border-radius: 6px;
   padding: 6px 8px;
-  font-size: 13.5px;
+  font-size: 14px;
   font-family: var(--font-body);
   color: var(--text);
   background: var(--surface);
@@ -3909,7 +3696,7 @@ body.rb-presenting .main {
   border: 1px solid var(--border);
   border-radius: 8px;
   padding: 9px 12px;
-  font-size: 13.5px;
+  font-size: 14px;
   font-family: var(--font-body);
 }
 
@@ -3951,7 +3738,7 @@ body.rb-presenting .main {
   max-width: 70%;
   padding: 10px 14px;
   border-radius: 12px;
-  font-size: 13.5px;
+  font-size: 14px;
 }
 
 .message-bubble-row.client .message-bubble {
@@ -3992,7 +3779,7 @@ body.rb-presenting .main {
 .message-edit-row input {
   flex: 1;
   font-family: var(--font-body);
-  font-size: 13px;
+  font-size: 14px;
   padding: 5px 8px;
   border-radius: 8px;
   border: 1px solid var(--border);
@@ -4038,7 +3825,7 @@ body.rb-presenting .main {
   border: 1px solid var(--border);
   border-radius: 8px;
   padding: 10px 12px;
-  font-size: 13.5px;
+  font-size: 14px;
   font-family: var(--font-body);
 }
 
@@ -4256,7 +4043,7 @@ body:has(.modal-overlay) .chat-fab-wrap {
 .toast {
   background: var(--navy);
   color: white;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 600;
   padding: 12px 18px;
   border-radius: 10px;
@@ -4346,7 +4133,7 @@ body:has(.modal-overlay) .chat-fab-wrap {
 }
 
 .group-member-name {
-  font-size: 13.5px;
+  font-size: 14px;
   font-weight: 600;
   color: var(--ink-strong);
 }
@@ -4629,7 +4416,7 @@ body:has(.modal-overlay) .chat-fab-wrap {
 .widget-picker-view-new input {
   flex: 1;
   font-family: var(--font-body);
-  font-size: 13px;
+  font-size: 14px;
   padding: 7px 10px;
   border-radius: 8px;
   border: 1px solid var(--border);
@@ -4820,7 +4607,7 @@ body:has(.modal-overlay) .chat-fab-wrap {
 }
 
 .person-name {
-  font-size: 13.5px;
+  font-size: 14px;
   font-weight: 700;
   color: var(--text);
 }
@@ -5249,7 +5036,7 @@ body:has(.modal-overlay) .chat-fab-wrap {
   }
 
   .page-subtitle {
-    font-size: 13px;
+    font-size: 14px;
   }
 
   .kpi-value {
@@ -5740,7 +5527,7 @@ body:has(.modal-overlay) .chat-fab-wrap {
   width: 78px;
   flex-shrink: 0;
   text-align: right;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 600;
 }
 
@@ -5759,7 +5546,7 @@ body:has(.modal-overlay) .chat-fab-wrap {
 }
 
 .ap-cc-upcoming-who {
-  font-size: 13.5px;
+  font-size: 14px;
   font-weight: 600;
 }
 
@@ -5770,7 +5557,7 @@ body:has(.modal-overlay) .chat-fab-wrap {
 }
 
 .ap-cc-upcoming-amt {
-  font-size: 13.5px;
+  font-size: 14px;
   font-weight: 600;
   flex-shrink: 0;
 }
@@ -5967,7 +5754,7 @@ body:has(.modal-overlay) .chat-fab-wrap {
   display: flex;
   justify-content: space-between;
   gap: 12px;
-  font-size: 12.5px;
+  font-size: 14px;
   flex-wrap: wrap;
 }
 
@@ -6004,7 +5791,7 @@ body:has(.modal-overlay) .chat-fab-wrap {
 }
 
 .staff-info-list dd {
-  font-size: 12.5px;
+  font-size: 14px;
   font-weight: 600;
   margin: 0;
   text-align: right;
@@ -6098,7 +5885,7 @@ body:has(.modal-overlay) .chat-fab-wrap {
   border-radius: 8px;
   padding: 10px 12px;
   font: inherit;
-  font-size: 13.5px;
+  font-size: 14px;
   color: var(--text);
   background: var(--surface);
   resize: vertical;
@@ -6164,7 +5951,7 @@ body:has(.modal-overlay) .chat-fab-wrap {
   border-radius: 8px;
   padding: 9px 12px;
   font: inherit;
-  font-size: 13.5px;
+  font-size: 14px;
   color: var(--text);
   background: var(--surface);
 }
@@ -6198,7 +5985,7 @@ body:has(.modal-overlay) .chat-fab-wrap {
   border-radius: 8px;
   padding: 9px 12px;
   font: inherit;
-  font-size: 13px;
+  font-size: 14px;
   color: var(--text-muted);
   background: var(--surface-2);
 }
