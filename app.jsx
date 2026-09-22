@@ -14150,7 +14150,39 @@ const staffItemsApi = {
   // Checking off a recurring item hands the series to a fresh row for the
   // next occurrence, and clears recurrence on the finished one so
   // un-checking and re-checking it can't spawn a duplicate.
+  //
+  // Prefers the complete_staff_item RPC (tasks-notes-v3.sql), which lets a
+  // teammate finishing a SHARED recurring item hand the next occurrence to
+  // the original owner (RLS won't let them insert as the owner). Falls back
+  // to the client-side path below until that function exists.
+  rpcMissing: false,
+
+  isMissingFunctionError(error) {
+    if (!error) return false;
+    if (error.code === "PGRST202" || error.code === "42883") return true;
+    return /could not find the function|function .* does not exist/i.test(
+      String(error.message || ""),
+    );
+  },
+
   async toggleDone(supabase, email, item) {
+    if (!this.legacy && !this.rpcMissing) {
+      const res = await supabase.rpc("complete_staff_item", {
+        p_id: item.id,
+        p_done: !item.done,
+        p_today: todayLocal(),
+      });
+      if (!res.error) {
+        this.notify();
+        return res;
+      }
+      if (!this.isMissingFunctionError(res.error)) return res;
+      this.rpcMissing = true;
+    }
+    return this._toggleDoneClientSide(supabase, email, item);
+  },
+
+  async _toggleDoneClientSide(supabase, email, item) {
     const nowDone = !item.done;
     const recurring =
       nowDone && !this.legacy && item.recurrence && item.recurrence !== "none";
