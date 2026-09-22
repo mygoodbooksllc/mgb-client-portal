@@ -204,10 +204,12 @@ function effectiveClientHealth(client, today, overridesById) {
   return { ...clientHealthSignal(client, today), isOverride: false };
 }
 
+// Theme tokens (calm palette) so the dots match the rest of the UI in both
+// light and dark mode.
 const CLIENT_HEALTH_DOT_COLOR = {
-  red: "#dc2626",
-  yellow: "#d97706",
-  green: "#16a34a",
+  red: "var(--bad)",
+  yellow: "var(--gold-deep)",
+  green: "var(--good)",
 };
 
 const CLIENT_HEALTH_LABEL = {
@@ -13216,8 +13218,11 @@ function BookkeeperHomePage({
                             textAlign: "left",
                             flex: 1,
                             display: "flex",
+                            // .staff-client-jump defaults to a column; the
+                            // dot sits beside the name here, not above it.
+                            flexDirection: "row",
                             alignItems: "center",
-                            gap: 8,
+                            gap: 10,
                           }}
                         >
                           <ClientHealthDot health={health} />
