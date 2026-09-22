@@ -765,6 +765,7 @@ function Sidebar({
   onOpenSettings,
   onOpenDetails,
   hasPendingAccessRequests,
+  pendingRequestsByClient,
   badges,
   mobileOpen,
   onCloseMobile,
@@ -928,11 +929,26 @@ function Sidebar({
                   onChange={(e) => onSelectClient(e.target.value)}
                   style={{ display: "block", paddingLeft: 26 }}
                 >
-                  {clients.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.name}
-                    </option>
-                  ))}
+                  {/* §169: the per-client request count rides in the option
+                      label. This is a native <select>, so an <option> cannot
+                      carry a styled dot the way the health indicator beside
+                      it does — browsers ignore almost all styling inside
+                      one. Text works everywhere and reads correctly aloud,
+                      which a decorative dot would not. */}
+                  {clients.map((c) => {
+                    const pending =
+                      (pendingRequestsByClient &&
+                        pendingRequestsByClient[c.id]) ||
+                      0;
+                    return (
+                      <option key={c.id} value={c.id}>
+                        {c.name}
+                        {pending > 0
+                          ? ` — ${pending} access request${pending === 1 ? "" : "s"}`
+                          : ""}
+                      </option>
+                    );
+                  })}
                 </select>
                 {client && (
                   <ClientHealthDot
@@ -11678,6 +11694,42 @@ function BookkeeperHomePage({
     loadUpgradeRequests();
   }, [loadUpgradeRequests]);
 
+  // §169: pending access requests, firm-wide. The sidebar's "Manage access"
+  // glow is per-client by design (it must only promise what clicking it
+  // shows), so without this card a request for a client you are not currently
+  // viewing had nowhere to announce itself. This is that central place — the
+  // same role the upgrade-requests card above plays for upgrades.
+  //
+  // No .in() on client_id: access_requests' RLS is scoped to can_access_client
+  // as of the batch-2 hardening, so the database already returns only the
+  // clients this staffer is assigned to.
+  const [accessRequests, setAccessRequests] = useState(null);
+  const [accessRequestsError, setAccessRequestsError] = useState("");
+
+  const loadAccessRequests = useCallback(() => {
+    if (!supabase) return;
+    supabase
+      .from("access_requests")
+      .select("id, client_id, submitted_by_name, submitted_at, people")
+      .eq("reviewed", false)
+      .order("submitted_at", { ascending: false })
+      .then(({ data, error }) => {
+        if (error) {
+          setAccessRequestsError(
+            "Couldn't load access requests. " + error.message,
+          );
+          setAccessRequests([]);
+        } else {
+          setAccessRequestsError("");
+          setAccessRequests(data);
+        }
+      });
+  }, [supabase]);
+
+  useEffect(() => {
+    loadAccessRequests();
+  }, [loadAccessRequests]);
+
   async function setUpgradeRequestStatus(row, status) {
     setUpgradeRequestBusyId(row.id);
     const { error } = await supabase
@@ -12092,6 +12144,60 @@ function BookkeeperHomePage({
               </button>
             ))}
           </div>
+        )}
+      </div>
+
+      <div className="card" style={{ marginBottom: 20 }}>
+        <h3 className="card-title">Access requests</h3>
+        <p className="card-subtitle">
+          People a client has asked you to give portal access to. Reviewing one
+          opens that client's Manage access panel.
+        </p>
+        {accessRequests === null && !accessRequestsError && (
+          <p className="card-subtitle">Loading…</p>
+        )}
+        {accessRequestsError && (
+          <p className="card-subtitle negative">{accessRequestsError}</p>
+        )}
+        {accessRequests && accessRequests.length === 0 && (
+          <p className="card-subtitle">Nothing waiting to be reviewed.</p>
+        )}
+        {accessRequests && accessRequests.length > 0 && (
+          <ul className="staff-audit-list">
+            {accessRequests.map((r) => {
+              const c = clients.find((cl) => cl.id === r.client_id);
+              const people = Array.isArray(r.people) ? r.people.length : 0;
+              return (
+                <li className="staff-audit-row" key={r.id}>
+                  <span className="staff-audit-text">
+                    <strong>{c ? c.name : r.client_id}</strong> —{" "}
+                    {people === 1 ? "1 person" : `${people} people`} submitted
+                    {r.submitted_by_name ? ` by ${r.submitted_by_name}` : ""}
+                    {r.submitted_at
+                      ? ` on ${fmtDate(r.submitted_at.slice(0, 10))}`
+                      : ""}
+                  </span>
+                  <span
+                    className="staff-audit-time"
+                    style={{ display: "flex", gap: 6, alignItems: "center" }}
+                  >
+                    <button
+                      type="button"
+                      className="btn-secondary"
+                      style={{ padding: "4px 10px", fontSize: 11.5 }}
+                      onClick={() =>
+                        onNavigateToClient(r.client_id, "dashboard", {
+                          openAccessManager: true,
+                        })
+                      }
+                    >
+                      Review
+                    </button>
+                  </span>
+                </li>
+              );
+            })}
+          </ul>
         )}
       </div>
 
@@ -17050,29 +17156,55 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
   // navigating away clears it without a manual refresh. Declared after
   // visibleClients (not up near checkStaffMessagesUnread) since it reads
   // that value directly.
-  const [hasPendingAccessRequests, setHasPendingAccessRequests] =
-    useState(false);
+  // §169: this used to be a single firm-wide boolean, which made the
+  // "Manage access" button's glow lie. The glow counted unreviewed requests
+  // across EVERY visible client, but the modal it opens is scoped to the
+  // selected one — so a request belonging to another client pulsed the
+  // button, showed an empty Requests tab when clicked, and kept pulsing.
+  //
+  // Now it is a per-client count. The button glows only when the CURRENT
+  // client has something, so clicking it always shows what the glow promised;
+  // the other clients' requests surface in the client picker instead, which
+  // is the control you would use to get to them. Keeping only the per-client
+  // glow would have hidden them entirely — this is the only place in the app
+  // that surfaces access requests at all (Bookkeeper Home does not).
+  const [pendingRequestsByClient, setPendingRequestsByClient] = useState({});
   const checkPendingAccessRequests = useCallback(() => {
     const supabase = window.mgbSupabase;
     if (!supabase || !staffUser) {
-      setHasPendingAccessRequests(false);
+      setPendingRequestsByClient({});
       return;
     }
     const ids = visibleClients.map((c) => c.id);
     if (ids.length === 0) {
-      setHasPendingAccessRequests(false);
+      setPendingRequestsByClient({});
       return;
     }
+    // Rows rather than a head-only count, since the counts are now per
+    // client. Access requests are low-volume by nature — one row per
+    // submitted form, cleared as they are reviewed — so this stays small.
     supabase
       .from("access_requests")
-      .select("id", { count: "exact", head: true })
+      .select("client_id")
       .eq("reviewed", false)
       .in("client_id", ids)
-      .then(({ count, error }) => {
-        setHasPendingAccessRequests(!error && !!count && count > 0);
+      .then(({ data, error }) => {
+        if (error || !data) {
+          setPendingRequestsByClient({});
+          return;
+        }
+        const counts = {};
+        data.forEach((row) => {
+          counts[row.client_id] = (counts[row.client_id] || 0) + 1;
+        });
+        setPendingRequestsByClient(counts);
       });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [staffUser, visibleClients.map((c) => c.id).join(",")]);
+
+  // What the glowing button promises: something to see for THIS client.
+  const hasPendingAccessRequests =
+    (pendingRequestsByClient[selectedClientId] || 0) > 0;
   useEffect(() => {
     checkPendingAccessRequests();
   }, [checkPendingAccessRequests, page]);
@@ -17996,6 +18128,7 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
           onSignOut={onSignOut}
           staffMessagesUnread={staffMessagesUnread}
           hasPendingAccessRequests={hasPendingAccessRequests}
+          pendingRequestsByClient={pendingRequestsByClient}
           impersonating={impersonating}
           hasTempAdminAccess={hasTempAdminAccess}
           tempAdminAccessExpiresAt={tempAdminAccessExpiresAt}
@@ -18239,9 +18372,13 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
               clients={visibleClients}
               messagesByClient={messagesByClient}
               readMessageClients={readMessageClients}
-              onNavigateToClient={(clientId, targetPage) => {
+              onNavigateToClient={(clientId, targetPage, opts) => {
                 setSelectedClientId(clientId);
                 setPage(targetPage);
+                // §169: the Access requests card sends the staffer straight
+                // to the panel that actions the thing they just clicked,
+                // rather than dropping them on the dashboard to find it.
+                if (opts && opts.openAccessManager) setSettingsOpen(true);
               }}
               onOpenMyTasks={() => setPage("my-tasks")}
               statusOverrides={statusOverrides}
