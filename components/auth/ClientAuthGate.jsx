@@ -141,113 +141,125 @@
       return children(clientUser, signOut);
     }
 
-    if (status === "link-sent") {
+    // Shared frame for the signed-out and link-sent views: logo, card,
+    // footer. Styles live in styles.css (.auth-*) so dark tokens apply.
+    function frame(card) {
       return (
-        <div className="boot-splash" role="status">
-          <div className="boot-splash-mark">MyGoodBooks</div>
-          <div className="boot-splash-sub">
-            Check {email} for a sign-in link.
+        <main className="auth-screen">
+          <div className="auth-stack">
+            <div className="auth-logo">
+              <svg
+                width="22"
+                height="22"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.8"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden="true"
+              >
+                <path d="M4 4.5h6a2.5 2.5 0 0 1 2.5 2.5v13" />
+                <path d="M20 4.5h-6A2.5 2.5 0 0 0 11.5 7v13" />
+              </svg>
+              <span className="auth-wordmark">MyGoodBooks</span>
+            </div>
+            {card}
+            <nav className="auth-footer" aria-label="Legal and support">
+              <a href="/privacy" target="_blank" rel="noopener noreferrer">
+                Privacy
+              </a>
+              <span aria-hidden="true">·</span>
+              <a href="/terms" target="_blank" rel="noopener noreferrer">
+                Terms
+              </a>
+              <span aria-hidden="true">·</span>
+              <a href="mailto:holden@mygoodbooks.org?subject=MyGoodBooks%20Support">
+                Contact
+              </a>
+            </nav>
           </div>
-        </div>
+        </main>
       );
     }
 
-    return (
-      <div className="boot-splash" role="main">
-        <div className="boot-splash-mark">MyGoodBooks</div>
-        <div className="boot-splash-sub">
-          Client portal — sign in with your email.
+    if (status === "link-sent") {
+      return frame(
+        <div className="auth-card" role="status">
+          <div className="auth-head">
+            <h1 className="auth-title">Client portal</h1>
+            <p className="auth-sub">Check {email} for a sign-in link.</p>
+          </div>
+        </div>,
+      );
+    }
+
+    return frame(
+      <div className="auth-card">
+        <div className="auth-head">
+          <h1 className="auth-title">Client portal</h1>
+          <p className="auth-sub">Sign in with your email.</p>
         </div>
         {errorMsg && (
-          <div
-            style={{
-              color: "#e0664f",
-              maxWidth: 360,
-              textAlign: "center",
-              margin: "12px 0",
-            }}
-          >
+          <p className="auth-error" role="alert">
             {errorMsg}
-          </div>
+          </p>
         )}
         {errorMsg && (
           <button
+            type="button"
+            className="auth-btn auth-btn-secondary"
             onClick={signOut}
-            style={{
-              marginTop: 4,
-              padding: "6px 12px",
-              borderRadius: 8,
-              border: "1px solid #555",
-              background: "transparent",
-              color: "inherit",
-              font: "inherit",
-              fontSize: 13,
-              cursor: "pointer",
-            }}
           >
             Sign out and use a different address
           </button>
         )}
-        <form
-          onSubmit={sendLink}
-          style={{ marginTop: 16, display: "flex", gap: 8 }}
-        >
-          <input
-            type="email"
-            required
-            placeholder="you@yourorganization.org"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            style={{
-              padding: "10px 12px",
-              borderRadius: 8,
-              border: "1px solid #444",
-              font: "inherit",
-            }}
-          />
-          <button
-            type="submit"
-            style={{
-              padding: "10px 20px",
-              borderRadius: 8,
-              border: "none",
-              background: "#c7ae86",
-              color: "#1a1a1a",
-              font: "inherit",
-              fontWeight: 600,
-              cursor: "pointer",
-            }}
-          >
-            Send link
+        <form className="auth-form" onSubmit={sendLink}>
+          <div className="auth-field">
+            <label className="auth-label" htmlFor="client-login-email">
+              Email address
+            </label>
+            <input
+              id="client-login-email"
+              className="auth-input"
+              type="email"
+              required
+              autoComplete="email"
+              placeholder="you@yourorganization.org"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+            />
+          </div>
+          <button type="submit" className="auth-btn auth-btn-primary">
+            Email me a sign-in link
           </button>
         </form>
-        <div style={{ marginTop: 24, fontSize: 13, color: "#888" }}>
-          <a
-            href="/privacy"
-            target="_blank"
-            rel="noopener noreferrer"
-            style={{ color: "inherit" }}
-          >
-            Privacy Policy
-          </a>
-          {" · "}
-          <a
-            href="/terms"
-            target="_blank"
-            rel="noopener noreferrer"
-            style={{ color: "inherit" }}
-          >
-            Terms of Service
-          </a>
-          {" · "}
-          <a
-            href="mailto:holden@mygoodbooks.org?subject=MyGoodBooks%20Support"
-            style={{ color: "inherit" }}
-          >
-            Contact support
-          </a>
-        </div>
-      </div>
+        <div className="auth-divider">or</div>
+        {/* Not a new auth path: "/" is where the staff AuthGate already
+            lives (app.jsx routes only /login here), and its own Google
+            button runs the domain-restricted OAuth flow. */}
+        <a className="auth-btn auth-btn-secondary" href="/">
+          <svg width="16" height="16" viewBox="0 0 18 18" aria-hidden="true">
+            <path
+              fill="#4285F4"
+              d="M17.64 9.2c0-.64-.06-1.25-.16-1.84H9v3.48h4.84a4.14 4.14 0 0 1-1.8 2.72v2.26h2.92c1.7-1.57 2.68-3.88 2.68-6.62z"
+            />
+            <path
+              fill="#34A853"
+              d="M9 18c2.43 0 4.47-.8 5.96-2.18l-2.92-2.26c-.81.54-1.84.86-3.04.86-2.34 0-4.32-1.58-5.03-3.7H.96v2.33A9 9 0 0 0 9 18z"
+            />
+            <path
+              fill="#FBBC05"
+              d="M3.97 10.72a5.4 5.4 0 0 1 0-3.44V4.95H.96a9 9 0 0 0 0 8.1l3.01-2.33z"
+            />
+            <path
+              fill="#EA4335"
+              d="M9 3.58c1.32 0 2.5.45 3.44 1.35l2.58-2.58C13.46.9 11.43 0 9 0A9 9 0 0 0 .96 4.95l3.01 2.33C4.68 5.16 6.66 3.58 9 3.58z"
+            />
+          </svg>
+          Staff? Sign in with Google
+        </a>
+      </div>,
     );
   }
 

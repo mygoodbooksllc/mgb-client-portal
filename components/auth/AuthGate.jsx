@@ -134,84 +134,69 @@
     }
 
     return (
-      <div className="boot-splash" role="main">
-        <div className="boot-splash-mark">MyGoodBooks</div>
-        <div className="boot-splash-sub">
-          Staff portal — sign in with your MyGoodBooks Google account.
-        </div>
-        {errorMsg && (
-          <div
-            style={{
-              color: "#e0664f",
-              maxWidth: 360,
-              textAlign: "center",
-              margin: "12px 0",
-            }}
-          >
-            {errorMsg}
+      <main className="auth-screen">
+        <div className="auth-stack">
+          <div className="auth-logo">
+            <svg
+              width="22"
+              height="22"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.8"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+            >
+              <path d="M4 4.5h6a2.5 2.5 0 0 1 2.5 2.5v13" />
+              <path d="M20 4.5h-6A2.5 2.5 0 0 0 11.5 7v13" />
+            </svg>
+            <span className="auth-wordmark">MyGoodBooks</span>
           </div>
-        )}
-        {errorMsg && (
-          <button
-            onClick={signOut}
-            style={{
-              marginTop: 4,
-              padding: "6px 12px",
-              borderRadius: 8,
-              border: "1px solid #555",
-              background: "transparent",
-              color: "inherit",
-              font: "inherit",
-              fontSize: 13,
-              cursor: "pointer",
-            }}
-          >
-            Sign out and try a different account
-          </button>
-        )}
-        <button
-          onClick={signIn}
-          style={{
-            marginTop: 16,
-            padding: "10px 20px",
-            borderRadius: 8,
-            border: "none",
-            background: "#4285F4",
-            color: "#fff",
-            font: "inherit",
-            fontWeight: 600,
-            cursor: "pointer",
-          }}
-        >
-          Sign in with Google
-        </button>
-        <div style={{ marginTop: 24, fontSize: 13, color: "#888" }}>
-          <a
-            href="/privacy"
-            target="_blank"
-            rel="noopener noreferrer"
-            style={{ color: "inherit" }}
-          >
-            Privacy Policy
-          </a>
-          {" · "}
-          <a
-            href="/terms"
-            target="_blank"
-            rel="noopener noreferrer"
-            style={{ color: "inherit" }}
-          >
-            Terms of Service
-          </a>
-          {" · "}
-          <a
-            href="mailto:holden@mygoodbooks.org?subject=MyGoodBooks%20Support"
-            style={{ color: "inherit" }}
-          >
-            Contact support
-          </a>
+          <div className="auth-card">
+            <div className="auth-head">
+              <h1 className="auth-title">Staff portal</h1>
+              <p className="auth-sub">
+                Sign in with your MyGoodBooks Google account.
+              </p>
+            </div>
+            {errorMsg && (
+              <p className="auth-error" role="alert">
+                {errorMsg}
+              </p>
+            )}
+            {errorMsg && (
+              <button
+                type="button"
+                className="auth-btn auth-btn-secondary"
+                onClick={signOut}
+              >
+                Sign out and try a different account
+              </button>
+            )}
+            <button
+              type="button"
+              className="auth-btn auth-btn-primary"
+              onClick={signIn}
+            >
+              Sign in with Google
+            </button>
+          </div>
+          <nav className="auth-footer" aria-label="Legal and support">
+            <a href="/privacy" target="_blank" rel="noopener noreferrer">
+              Privacy
+            </a>
+            <span aria-hidden="true">·</span>
+            <a href="/terms" target="_blank" rel="noopener noreferrer">
+              Terms
+            </a>
+            <span aria-hidden="true">·</span>
+            <a href="mailto:holden@mygoodbooks.org?subject=MyGoodBooks%20Support">
+              Contact
+            </a>
+          </nav>
         </div>
-      </div>
+      </main>
     );
   }
 
