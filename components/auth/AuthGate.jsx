@@ -13,6 +13,29 @@
 (function () {
   const { useEffect, useState } = React;
 
+  // Shared with ClientAuthGate's "Staff? Sign in with Google" button, so the
+  // client-facing front door can start the staff flow directly. Returning to
+  // "/" is fine: app.jsx's RootGate sends a @mygoodbooks.org session to this
+  // gate, and this gate still checks the staff table either way.
+  function startStaffGoogleSignIn() {
+    window.mgbSupabase.auth.signInWithOAuth({
+      provider: "google",
+      options: {
+        // Nudges Google's account chooser toward the Workspace domain.
+        // Real enforcement is server-side: the OAuth client is set to
+        // "Internal" for mygoodbooks.org, so anyone outside the domain
+        // gets rejected by Google before ever reaching this app — this
+        // `staff` table check is the second, narrower gate on top of that.
+        hd: "mygoodbooks.org",
+        // Return to whichever host started sign-in (prod, a Vercel
+        // preview, or localhost). Supabase only honors hosts on its
+        // Redirect URLs allow-list and falls back to the Site URL otherwise.
+        redirectTo: window.location.origin,
+      },
+    });
+  }
+  window.mgbStartStaffGoogleSignIn = startStaffGoogleSignIn;
+
   function AuthGate({ children }) {
     // "loading" -> "signed-out" -> "checking-staff" -> "authorized" | "denied"
     const [status, setStatus] = useState("loading");
@@ -81,21 +104,7 @@
 
     function signIn() {
       setErrorMsg("");
-      supabase.auth.signInWithOAuth({
-        provider: "google",
-        options: {
-          // Nudges Google's account chooser toward the Workspace domain.
-          // Real enforcement is server-side: the OAuth client is set to
-          // "Internal" for mygoodbooks.org, so anyone outside the domain
-          // gets rejected by Google before ever reaching this app — this
-          // `staff` table check is the second, narrower gate on top of that.
-          hd: "mygoodbooks.org",
-          // Return to whichever host started sign-in (prod, a Vercel
-          // preview, or localhost). Supabase only honors hosts on its
-          // Redirect URLs allow-list and falls back to the Site URL otherwise.
-          redirectTo: window.location.origin,
-        },
-      });
+      startStaffGoogleSignIn();
     }
 
     function signOut() {

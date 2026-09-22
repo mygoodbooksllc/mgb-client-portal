@@ -19197,6 +19197,56 @@ const clientLoginMode =
   window.location.pathname === "/login" ||
   new URLSearchParams(window.location.search).get("client-login") === "1";
 
+// The bare site URL is the client front door: signed out, it shows the
+// client login (whose "Staff? Sign in with Google" button starts the staff
+// flow). A session whose email is on the staff Workspace domain goes to the
+// staff AuthGate instead, so staff bookmarks and the Google return trip to
+// "/" still land in the staff app. This only picks which gate renders; each
+// gate still verifies its own table (staff / client_users), so the domain
+// check grants nothing by itself.
+function RootGate() {
+  const [mode, setMode] = React.useState(clientLoginMode ? "client" : null);
+  React.useEffect(() => {
+    if (mode) return;
+    const supabase = window.mgbSupabase;
+    if (!supabase) {
+      setMode("staff"); // AuthGate renders its "not configured" screen
+      return;
+    }
+    supabase.auth.getSession().then(({ data }) => {
+      const email = (data.session && data.session.user.email) || "";
+      setMode(
+        email.toLowerCase().endsWith("@mygoodbooks.org") ? "staff" : "client",
+      );
+    });
+  }, []);
+
+  if (!mode) {
+    return (
+      <div className="boot-splash" role="status" aria-live="polite">
+        <div className="boot-splash-mark">MyGoodBooks</div>
+        <div className="boot-splash-sub">Checking sign-in…</div>
+      </div>
+    );
+  }
+  if (mode === "client") {
+    return (
+      <ClientAuthGate>
+        {(clientUser, onSignOut) => (
+          <ClientPortalGuard clientUser={clientUser} onSignOut={onSignOut} />
+        )}
+      </ClientAuthGate>
+    );
+  }
+  return (
+    <AuthGate>
+      {(staffUser, onSignOut) => (
+        <App staffUser={staffUser} onSignOut={onSignOut} />
+      )}
+    </AuthGate>
+  );
+}
+
 function ClientPortalGuard({ clientUser, onSignOut }) {
   // Client data (bank accounts, budget, transactions...) is still mock
   // data.js, not real tables (Phase 3) — a real client_users row whose
@@ -19231,18 +19281,8 @@ ReactDOM.createRoot(document.getElementById("root")).render(
   <ErrorBoundary>
     {accessFormToken ? (
       <AccessRequestForm token={accessFormToken} />
-    ) : clientLoginMode ? (
-      <ClientAuthGate>
-        {(clientUser, onSignOut) => (
-          <ClientPortalGuard clientUser={clientUser} onSignOut={onSignOut} />
-        )}
-      </ClientAuthGate>
     ) : (
-      <AuthGate>
-        {(staffUser, onSignOut) => (
-          <App staffUser={staffUser} onSignOut={onSignOut} />
-        )}
-      </AuthGate>
+      <RootGate />
     )}
   </ErrorBoundary>,
 );

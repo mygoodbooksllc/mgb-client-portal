@@ -221,10 +221,13 @@
           </button>
         </form>
         <div className="auth-divider">or</div>
-        {/* Not a new auth path: "/" is where the staff AuthGate already
-            lives (app.jsx routes only /login here), and its own Google
-            button runs the domain-restricted OAuth flow. */}
-        <a className="auth-btn auth-btn-secondary" href="/">
+        {/* Same domain-restricted Google flow as the staff gate (defined in
+            AuthGate.jsx); the staff table check still happens there. */}
+        <button
+          type="button"
+          className="auth-btn auth-btn-secondary"
+          onClick={() => window.mgbStartStaffGoogleSignIn()}
+        >
           <svg width="16" height="16" viewBox="0 0 18 18" aria-hidden="true">
             <path
               fill="#4285F4"
@@ -244,7 +247,7 @@
             />
           </svg>
           Staff? Sign in with Google
-        </a>
+        </button>
       </div>,
     );
   }
