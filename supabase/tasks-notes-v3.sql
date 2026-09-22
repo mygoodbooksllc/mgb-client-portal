@@ -220,6 +220,9 @@ grant execute on function public.complete_staff_item(uuid, boolean, date) to aut
 -- taken from the browser, so the audit's anti-spoofing intent holds. Every
 -- other table's branch is unchanged.
 -- ---------------------------------------------------------------------------
+-- Based on the LIVE body (which had drifted from audit2-author-stamping.sql:
+-- null-JWT early return, INSERT-only stamping for two tables); only the
+-- client_private_notes branch changes.
 create or replace function public.stamp_author_from_jwt()
 returns trigger
 language plpgsql
@@ -228,31 +231,29 @@ set search_path = public
 as $$
 declare
   v_email text := auth.jwt() ->> 'email';
-  v_name text;
 begin
-  case tg_table_name
-    when 'client_private_notes' then
-      if tg_op = 'UPDATE' then
-        new.author_email := old.author_email;
-        new.author_name := old.author_name;
-      else
-        select s.name into v_name from staff s where s.email = v_email;
-        new.author_email := v_email;
-        new.author_name := coalesce(v_name, v_email);
-      end if;
-    when 'client_documents' then
-      new.added_by := v_email;
-    when 'access_request_links' then
-      new.created_by := v_email;
-    when 'client_notes' then
-      new.updated_by := v_email;
-    when 'client_status_overrides' then
-      new.set_by := v_email;
-    when 'qbo_connect_state' then
-      new.created_by := v_email;
+  if v_email is null then
+    return new;
+  end if;
+  if TG_TABLE_NAME = 'client_private_notes' then
+    if TG_OP = 'UPDATE' then
+      new.author_email := old.author_email;
+      new.author_name := old.author_name;
     else
-      null;
-  end case;
+      new.author_email := v_email;
+      select name into new.author_name from staff where email = v_email;
+    end if;
+  elsif TG_TABLE_NAME = 'client_documents' then
+    new.added_by := v_email;
+  elsif TG_TABLE_NAME = 'access_request_links' then
+    if TG_OP = 'INSERT' then new.created_by := v_email; end if;
+  elsif TG_TABLE_NAME = 'client_notes' then
+    new.updated_by := v_email;
+  elsif TG_TABLE_NAME = 'client_status_overrides' then
+    new.set_by := v_email;
+  elsif TG_TABLE_NAME = 'qbo_connect_state' then
+    if TG_OP = 'INSERT' then new.created_by := v_email; end if;
+  end if;
   return new;
 end;
 $$;
