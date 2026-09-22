@@ -6497,3 +6497,348 @@ body:has(.modal-overlay) .chat-fab-wrap {
     padding: 0 14px;
   }
 }
+
+/* ---------------- My Tasks (quick-add, tabs, rows) ----------------
+   Calm cards: opaque surface, 1px border, tokens only so both themes work.
+   Gold appears only on the active tab (via .view-toggle-btn.active) and the
+   primary Add button. */
+
+.task-add {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+
+.task-add-row {
+  display: flex;
+  gap: 10px;
+}
+
+.task-add input,
+.task-add select,
+.task-filters select {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 9px 12px;
+  font: inherit;
+  font-size: 14px;
+  color: var(--text);
+  background: var(--surface);
+  min-width: 0;
+}
+
+.task-add input:focus-visible,
+.task-add select:focus-visible,
+.task-filters select:focus-visible,
+.task-check:focus-visible,
+.task-icon-btn:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 1px;
+}
+
+.task-add input:disabled,
+.task-add select:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.task-add-text {
+  flex: 1;
+}
+
+.task-add-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 12px;
+  margin-top: 12px;
+  align-items: flex-end;
+}
+
+.task-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12.5px;
+  color: var(--text-muted);
+  flex: 1 1 140px;
+  min-width: 0;
+}
+
+.task-field.compact {
+  flex: 0 1 auto;
+}
+
+.task-share {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  color: var(--text);
+  cursor: pointer;
+  min-height: 40px;
+  flex: 1 1 100%;
+}
+
+.task-share.disabled {
+  color: var(--text-muted);
+  cursor: not-allowed;
+}
+
+.task-share-hint {
+  color: var(--text-muted);
+}
+
+.task-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.task-tabs {
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+.task-tab-count {
+  display: inline-block;
+  margin-left: 6px;
+  font-variant-numeric: tabular-nums;
+  font-size: 11.5px;
+  opacity: 0.8;
+}
+
+.task-tab-count.bad {
+  color: var(--bad);
+  opacity: 1;
+}
+
+.task-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.task-list {
+  list-style: none;
+  margin: 16px 0 0;
+  padding: 0;
+  border-top: 1px solid var(--border);
+}
+
+.task-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.task-row:last-child {
+  border-bottom: none;
+}
+
+.task-check-wrap {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  cursor: pointer;
+}
+
+.task-check {
+  width: 18px;
+  height: 18px;
+  margin: 2px 0 0;
+  flex-shrink: 0;
+  accent-color: var(--gold-deep);
+  cursor: pointer;
+}
+
+.task-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.task-text {
+  display: block;
+  font-size: 14px;
+  color: var(--text);
+  cursor: pointer;
+  overflow-wrap: anywhere;
+}
+
+.task-row.done .task-text {
+  text-decoration: line-through;
+  color: var(--text-muted);
+}
+
+.task-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 10px;
+  margin-top: 4px;
+  font-size: 12.5px;
+  color: var(--text-muted);
+}
+
+.task-client {
+  color: var(--text);
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.task-due {
+  font-variant-numeric: tabular-nums;
+}
+
+.task-due.overdue {
+  color: var(--bad);
+  font-weight: 600;
+}
+
+.task-icon-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-variant-numeric: tabular-nums;
+}
+
+.task-icon-label.attention {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.task-chip {
+  display: inline-block;
+  padding: 1px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text-muted);
+  font-size: 11.5px;
+  font-weight: 600;
+}
+
+.task-chip.bad {
+  color: var(--bad);
+  background: var(--bad-soft);
+  border-color: transparent;
+}
+
+.task-actions {
+  display: flex;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.task-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 32px;
+  min-height: 32px;
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  color: var(--text-muted);
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.task-icon-btn:hover {
+  color: var(--text);
+  background: var(--surface-2);
+}
+
+.task-icon-btn[aria-pressed="true"] {
+  color: var(--gold-deep);
+}
+
+/* Sidebar: count of my items due today / overdue, beside "My Tasks". */
+.nav-due-count {
+  margin-left: auto;
+  min-width: 18px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--sidebar-text);
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 16px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  flex-shrink: 0;
+}
+
+.nav-due-count.overdue {
+  background: var(--bad);
+  color: #fff;
+}
+
+.staff-user-chip .nav-due-count {
+  margin-left: 0;
+}
+
+@media (max-width: 640px) {
+  .task-add-row .btn-primary,
+  .task-add input,
+  .task-add select,
+  .task-filters select,
+  .task-completed-toggle,
+  .task-tabs .view-toggle-btn {
+    min-height: 44px;
+  }
+
+  .task-field {
+    flex: 1 1 calc(50% - 6px);
+  }
+
+  .task-field.compact {
+    flex: 1 1 calc(50% - 4px);
+  }
+
+  .task-filters {
+    width: 100%;
+  }
+
+  .task-completed-toggle {
+    flex: 1 1 100%;
+  }
+
+  .task-tabs {
+    width: 100%;
+  }
+
+  .task-tabs .view-toggle-btn {
+    flex: 1 0 auto;
+    padding: 7px 10px;
+  }
+
+  .task-row {
+    gap: 10px;
+  }
+
+  /* 44px touch targets: the checkbox gets a padded hit area, icon buttons
+     grow to 44px squares. */
+  .task-check-wrap {
+    width: 44px;
+    height: 44px;
+    margin: -11px -8px -11px -12px;
+  }
+
+  .task-check {
+    width: 22px;
+    height: 22px;
+    margin: 0;
+  }
+
+  .task-icon-btn {
+    min-width: 44px;
+    min-height: 44px;
+  }
+}

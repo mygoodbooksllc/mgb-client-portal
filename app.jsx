@@ -12190,9 +12190,10 @@ function ClientUserScopeEditor({ row, readOnly, onClose, onSaved }) {
 // unlike Staff Access). Aggregates what's due across every client they can
 // see (visibleClients, already narrowed by staff_client_access for a
 // bookkeeper — an admin sees all), and a personal reminders list backed by
-// staff_reminders. Neither table has cross-staff visibility: reminders are
-// private per person, and clients here are exactly whatever the sidebar
-// switcher already shows this signed-in person.
+// staff_reminders. Reminders are private per person (Home shows only the
+// signed-in person's own; shared-with-team items live in My Tasks), and
+// clients here are exactly whatever the sidebar switcher already shows this
+// signed-in person.
 // ----------------------------------------------------------------------------
 
 const CLIENT_VISIT_STALE_DAYS = 7;
@@ -12343,38 +12344,44 @@ function BookkeeperHomePage({
     loadUpgradeRequests();
   }
 
+  // Same read/write path as My Tasks (staffItemsApi), so checking an item
+  // off here sets completed_at, rolls a recurring item forward, and both
+  // views plus the sidebar badge refresh together. Home shows only the
+  // signed-in person's own items (owned or assigned), not teammates' shared
+  // ones — that fuller view is My Tasks.
   const loadReminders = useCallback(() => {
     if (!supabase) return;
-    supabase
-      .from("staff_reminders")
-      .select("id, text, due_date, done, created_at")
-      .eq("staff_email", staffUser.email)
-      .order("done", { ascending: true })
-      .order("due_date", { ascending: true, nullsFirst: false })
-      .then(({ data, error }) => {
-        if (error) {
-          setReminderError(
-            "Couldn't load reminders. Has staff-reminders.sql been run? " +
-              error.message,
-          );
-          setReminders([]);
-        } else {
-          setReminderError("");
-          setReminders(data);
-        }
-      });
+    staffItemsApi.list(supabase, staffUser.email).then(({ data, error }) => {
+      if (error) {
+        setReminderError("Couldn't load reminders. " + error.message);
+        setReminders([]);
+        return;
+      }
+      setReminderError("");
+      setReminders(
+        data
+          .filter((r) => isMyStaffItem(r, staffUser.email))
+          .sort((x, y) => {
+            if (x.done !== y.done) return x.done ? 1 : -1;
+            if (!!x.due_date !== !!y.due_date) return x.due_date ? -1 : 1;
+            if (x.due_date !== y.due_date)
+              return x.due_date < y.due_date ? -1 : 1;
+            return (x.due_at || "") < (y.due_at || "") ? -1 : 1;
+          }),
+      );
+    });
   }, [supabase, staffUser.email]);
 
   useEffect(() => {
     loadReminders();
   }, [loadReminders]);
+  useStaffItemsChanged(loadReminders);
 
   async function addReminder() {
     const text = newReminder.trim();
     if (!text) return;
     setAdding(true);
-    const { error } = await supabase.from("staff_reminders").insert({
-      staff_email: staffUser.email,
+    const { error } = await staffItemsApi.add(supabase, staffUser.email, {
       text,
       due_date: newReminderDate || null,
     });
@@ -12385,36 +12392,20 @@ function BookkeeperHomePage({
     }
     setNewReminder("");
     setNewReminderDate("");
-    loadReminders();
   }
 
   async function toggleReminder(reminder) {
-    const { error } = await supabase
-      .from("staff_reminders")
-      .update({
-        done: !reminder.done,
-        // Same as My Tasks: "done" carries a when, so an item checked off
-        // here still sorts and reads correctly in My Tasks' completed list.
-        completed_at: !reminder.done ? new Date().toISOString() : null,
-      })
-      .eq("id", reminder.id);
-    if (error) {
-      showToast(`Couldn't update reminder: ${error.message}`);
-      return;
-    }
-    loadReminders();
+    const { error } = await staffItemsApi.toggleDone(
+      supabase,
+      staffUser.email,
+      reminder,
+    );
+    if (error) showToast(`Couldn't update reminder: ${error.message}`);
   }
 
   async function removeReminder(reminder) {
-    const { error } = await supabase
-      .from("staff_reminders")
-      .delete()
-      .eq("id", reminder.id);
-    if (error) {
-      showToast(`Couldn't remove reminder: ${error.message}`);
-      return;
-    }
-    loadReminders();
+    const { error } = await staffItemsApi.remove(supabase, reminder.id);
+    if (error) showToast(`Couldn't remove reminder: ${error.message}`);
   }
 
   const loadNotes = useCallback(() => {
@@ -13280,8 +13271,8 @@ function BookkeeperHomePage({
               >
                 <h3 className="card-title">Your reminders</h3>
                 <p className="card-subtitle">
-                  Private to you — nobody else, including admins, can see these.
-                  For the full prioritized list with client links, see{" "}
+                  Private to you unless you share one with a client's team.
+                  For times, repeats, sharing and client filters, see{" "}
                   {onOpenMyTasks ? (
                     <button
                       type="button"
@@ -13366,7 +13357,19 @@ function BookkeeperHomePage({
                             }}
                           >
                             {r.text}
-                            {r.due_date ? ` — due ${fmtDate(r.due_date)}` : ""}
+                            {r.due_date && !r.done ? (
+                              <span
+                                className={
+                                  "task-due" +
+                                  (r.due_date < today ? " overdue" : "")
+                                }
+                              >
+                                {" — "}
+                                {staffItemDueLabel(r, today)}
+                              </span>
+                            ) : (
+                              ""
+                            )}
                           </span>
                         </label>
                         <button
@@ -13896,29 +13899,422 @@ function MyTimePage({ staffUser, clients }) {
 }
 
 // ----------------------------------------------------------------------------
-// My Tasks — a bookkeeper's private, prioritized "my work today" list.
-// Backed by the same staff_reminders table as the Home dashboard's compact
-// "Your reminders" widget (see staff-reminders.sql) — this page is the full
-// version: optional client link, priority, and a collapsed completed
-// section instead of deleting a task the moment it's checked off.
+// staffItemsApi — the one read/write path for staff_reminders, shared by My
+// Tasks, Home's "Your reminders" card and the sidebar due badge so the three
+// never drift (Home's checkbox used to skip completed_at; My Tasks' didn't).
+//
+// Works against both schemas:
+//   * v2 (supabase/staff-reminders-v2.sql): kind, due_at, remind_at,
+//     recurrence, assignee_email, created_by, visibility, source, source_ref,
+//     plus team-visible "shared" rows.
+//   * v1 (staff-reminders.sql only): the first read or write that fails with
+//     a missing-column error flips `legacy` for the rest of the session and
+//     retries with the old column set, so the live app keeps working before
+//     the migration is applied. Rows are normalized to the v2 shape either
+//     way, so callers never branch on it for display.
+//
+// Every write fires STAFF_ITEMS_CHANGED_EVENT on window; each consumer
+// reloads on it (and on Realtime changes — see App), which is what keeps Home,
+// My Tasks and the badge in step.
+//
+// due_at convention (matches the migration): a date-only item is stored at
+// exactly 00:00:00 UTC of its due_date. due_date stays the source of truth for
+// which day an item belongs to and is always written alongside due_at.
+// ----------------------------------------------------------------------------
+
+const STAFF_ITEMS_CHANGED_EVENT = "mgb:staff-items-changed";
+const STAFF_ITEM_BASE_COLS =
+  "id, text, due_date, done, created_at, client_id, priority, completed_at, staff_email";
+const STAFF_ITEM_V2_FIELDS = [
+  "kind",
+  "due_at",
+  "remind_at",
+  "recurrence",
+  "assignee_email",
+  "created_by",
+  "visibility",
+  "source",
+  "source_ref",
+];
+const TASK_RECURRENCES = ["none", "daily", "weekly", "monthly", "month_end"];
+const TASK_RECURRENCE_LABEL = {
+  none: "Doesn't repeat",
+  daily: "Daily",
+  weekly: "Weekly",
+  monthly: "Monthly",
+  month_end: "Month end",
+};
+const TASK_SOURCE_LABEL = { access_request: "Access request" };
+
+const parseLocalDate = (ymd) => {
+  const [y, m, d] = ymd.split("-").map(Number);
+  return new Date(y, m - 1, d);
+};
+const fmtLocalYmd = (d) =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(
+    d.getDate(),
+  ).padStart(2, "0")}`;
+const daysBetweenYmd = (fromYmd, toYmd) =>
+  Math.round((parseLocalDate(toYmd) - parseLocalDate(fromYmd)) / 86400000);
+
+// True when due_at carries a real time of day (not the date-only sentinel).
+function staffItemHasTime(item) {
+  if (!item || !item.due_at) return false;
+  const d = new Date(item.due_at);
+  return !(
+    d.getUTCHours() === 0 &&
+    d.getUTCMinutes() === 0 &&
+    d.getUTCSeconds() === 0
+  );
+}
+
+// YYYY-MM-DD + optional HH:MM (local) -> due_at ISO string.
+function buildStaffDueAt(ymd, hhmm) {
+  if (!ymd) return null;
+  if (!hhmm) return `${ymd}T00:00:00.000Z`;
+  const d = new Date(`${ymd}T${hhmm}:00`);
+  // Keep a real time from colliding with the date-only sentinel.
+  if (
+    d.getUTCHours() === 0 &&
+    d.getUTCMinutes() === 0 &&
+    d.getUTCSeconds() === 0
+  )
+    d.setSeconds(1);
+  return d.toISOString();
+}
+
+const localHhmm = (iso) => {
+  const d = new Date(iso);
+  return `${String(d.getHours()).padStart(2, "0")}:${String(
+    d.getMinutes(),
+  ).padStart(2, "0")}`;
+};
+
+// Next due date for a recurring item. Monthly keeps the day of month,
+// clamped (Jan 31 -> Feb 28/29); month_end is always the last day of the
+// following month.
+function nextRecurrenceYmd(ymd, recurrence) {
+  const d = parseLocalDate(ymd);
+  if (recurrence === "daily") d.setDate(d.getDate() + 1);
+  else if (recurrence === "weekly") d.setDate(d.getDate() + 7);
+  else if (recurrence === "monthly") {
+    const day = d.getDate();
+    const lastOfNext = new Date(d.getFullYear(), d.getMonth() + 2, 0).getDate();
+    return fmtLocalYmd(
+      new Date(d.getFullYear(), d.getMonth() + 1, Math.min(day, lastOfNext)),
+    );
+  } else if (recurrence === "month_end")
+    return fmtLocalYmd(new Date(d.getFullYear(), d.getMonth() + 2, 0));
+  else return null;
+  return fmtLocalYmd(d);
+}
+
+function normalizeStaffItem(row) {
+  return {
+    kind: "task",
+    due_at: row.due_date ? `${row.due_date}T00:00:00.000Z` : null,
+    remind_at: null,
+    recurrence: "none",
+    assignee_email: row.staff_email,
+    created_by: row.staff_email,
+    visibility: "private",
+    source: "manual",
+    source_ref: null,
+    ...Object.fromEntries(
+      Object.entries(row).filter(([, v]) => v !== undefined),
+    ),
+  };
+}
+
+const staffItemsApi = {
+  legacy: false,
+
+  isMissingColumnError(error) {
+    if (!error) return false;
+    if (error.code === "42703" || error.code === "PGRST204") return true;
+    const msg = String(error.message || "");
+    return (
+      /column .* does not exist/i.test(msg) ||
+      /could not find the .* column/i.test(msg)
+    );
+  },
+
+  notify() {
+    try {
+      window.dispatchEvent(new Event(STAFF_ITEMS_CHANGED_EVENT));
+    } catch (e) {}
+  },
+
+  stripV2(row) {
+    const out = { ...row };
+    STAFF_ITEM_V2_FIELDS.forEach((f) => delete out[f]);
+    return out;
+  },
+
+  // Everything this person can see: their own rows, plus (v2) shared rows
+  // for clients they can access — RLS does the client scoping.
+  async list(supabase, email) {
+    if (!supabase) return { data: [], error: null };
+    if (!this.legacy) {
+      const { data, error } = await supabase
+        .from("staff_reminders")
+        .select(STAFF_ITEM_BASE_COLS + ", " + STAFF_ITEM_V2_FIELDS.join(", "))
+        .or(`staff_email.eq."${email}",visibility.eq.shared`)
+        .order("due_date", { ascending: true, nullsFirst: false });
+      if (!error) return { data: data.map(normalizeStaffItem), error: null };
+      if (!this.isMissingColumnError(error)) return { data: null, error };
+      this.legacy = true;
+    }
+    const { data, error } = await supabase
+      .from("staff_reminders")
+      .select(STAFF_ITEM_BASE_COLS)
+      .eq("staff_email", email)
+      .order("due_date", { ascending: true, nullsFirst: false });
+    return { data: data ? data.map(normalizeStaffItem) : null, error };
+  },
+
+  async _write(run, row) {
+    if (!this.legacy) {
+      const res = await run(row);
+      if (!res.error || !this.isMissingColumnError(res.error)) return res;
+      this.legacy = true;
+    }
+    return run(this.stripV2(row));
+  },
+
+  async add(supabase, email, item) {
+    const row = {
+      staff_email: email,
+      text: item.text,
+      due_date: item.due_date || null,
+      client_id: item.client_id || null,
+      priority: item.priority || "normal",
+      kind: item.kind || "task",
+      due_at: item.due_at || buildStaffDueAt(item.due_date, null),
+      remind_at: item.remind_at || null,
+      recurrence: item.recurrence || "none",
+      assignee_email: item.assignee_email || email,
+      created_by: email,
+      visibility:
+        item.visibility === "shared" && item.client_id ? "shared" : "private",
+      source: item.source || "manual",
+      source_ref: item.source_ref || null,
+    };
+    const res = await this._write(
+      (r) => supabase.from("staff_reminders").insert(r),
+      row,
+    );
+    if (!res.error) this.notify();
+    return res;
+  },
+
+  async update(supabase, id, patch) {
+    const res = await this._write(
+      (r) => supabase.from("staff_reminders").update(r).eq("id", id),
+      patch,
+    );
+    if (!res.error) this.notify();
+    return res;
+  },
+
+  // Checking off a recurring item hands the series to a fresh row for the
+  // next occurrence, and clears recurrence on the finished one so
+  // un-checking and re-checking it can't spawn a duplicate.
+  async toggleDone(supabase, email, item) {
+    const nowDone = !item.done;
+    const recurring =
+      nowDone && !this.legacy && item.recurrence && item.recurrence !== "none";
+    const patch = {
+      done: nowDone,
+      completed_at: nowDone ? new Date().toISOString() : null,
+    };
+    if (recurring) patch.recurrence = "none";
+    const res = await this.update(supabase, item.id, patch);
+    if (res.error || !recurring) return res;
+
+    const baseYmd = item.due_date || todayLocal();
+    // An overdue series catches up to today rather than spawning another
+    // already-overdue row.
+    const today = todayLocal();
+    let nextYmd = nextRecurrenceYmd(baseYmd, item.recurrence);
+    for (let i = 0; nextYmd < today && i < 400; i++)
+      nextYmd = nextRecurrenceYmd(nextYmd, item.recurrence);
+    const hhmm = staffItemHasTime(item) ? localHhmm(item.due_at) : null;
+    const nextDueAt = buildStaffDueAt(nextYmd, hhmm);
+    let nextRemindAt = null;
+    if (item.remind_at) {
+      const shiftMs =
+        new Date(buildStaffDueAt(nextYmd, hhmm)) -
+        new Date(buildStaffDueAt(baseYmd, hhmm));
+      nextRemindAt = new Date(
+        new Date(item.remind_at).getTime() + shiftMs,
+      ).toISOString();
+    }
+    // Only an item's owner can insert as them (RLS); a teammate finishing a
+    // shared item carries the series on as a shared row of their own.
+    return this.add(supabase, email, {
+      text: item.text,
+      client_id: item.client_id,
+      priority: item.priority,
+      kind: item.kind,
+      due_date: nextYmd,
+      due_at: nextDueAt,
+      remind_at: nextRemindAt,
+      recurrence: item.recurrence,
+      assignee_email: item.assignee_email || email,
+      visibility: item.visibility,
+      source: item.source,
+      source_ref: item.source_ref,
+    });
+  },
+
+  async remove(supabase, id) {
+    const res = await supabase.from("staff_reminders").delete().eq("id", id);
+    if (!res.error) this.notify();
+    return res;
+  },
+};
+
+// Reload `load` whenever any staff_reminders write happens anywhere in the app.
+function useStaffItemsChanged(load) {
+  useEffect(() => {
+    window.addEventListener(STAFF_ITEMS_CHANGED_EVENT, load);
+    return () => window.removeEventListener(STAFF_ITEMS_CHANGED_EVENT, load);
+  }, [load]);
+}
+
+// "Mine" = I own it or it's assigned to me.
+const isMyStaffItem = (item, email) =>
+  item.staff_email === email || item.assignee_email === email;
+
+// Open items of mine that need attention now: overdue, due today, or past
+// their remind-me time. Drives the sidebar badge.
+function countDueStaffItems(items, email, today, nowMs) {
+  let overdue = 0;
+  let due = 0;
+  (items || []).forEach((t) => {
+    if (t.done || !isMyStaffItem(t, email)) return;
+    const isOverdue = !!t.due_date && t.due_date < today;
+    const remindNow = !!t.remind_at && new Date(t.remind_at).getTime() <= nowMs;
+    if (isOverdue) overdue++;
+    if (isOverdue || t.due_date === today || remindNow) due++;
+  });
+  return { overdue, due };
+}
+
+// "Today 3:00 PM", "Tomorrow", "Fri", "3 days overdue", "Oct 14".
+function staffItemDueLabel(item, today) {
+  if (!item.due_date) return "";
+  const n = daysBetweenYmd(today, item.due_date);
+  const time = staffItemHasTime(item)
+    ? new Date(item.due_at).toLocaleTimeString("en-US", {
+        hour: "numeric",
+        minute: "2-digit",
+      })
+    : "";
+  let day;
+  if (n === 0) day = "Today";
+  else if (n === 1) day = "Tomorrow";
+  else if (n === -1) day = "Yesterday";
+  else if (n < -1) day = `${-n} days overdue`;
+  else if (n < 7)
+    day = parseLocalDate(item.due_date).toLocaleDateString("en-US", {
+      weekday: "short",
+    });
+  else day = fmtDate(item.due_date);
+  return time ? `${day} ${time}` : day;
+}
+
+function RepeatIcon(props) {
+  return (
+    <svg
+      width="14"
+      height="14"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      {...props}
+    >
+      <path d="M17 2l3 3-3 3" />
+      <path d="M4 11V9a4 4 0 0 1 4-4h12" />
+      <path d="M7 22l-3-3 3-3" />
+      <path d="M20 13v2a4 4 0 0 1-4 4H4" />
+    </svg>
+  );
+}
+
+function BellIcon(props) {
+  return (
+    <svg
+      width="14"
+      height="14"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      {...props}
+    >
+      <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" />
+      <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" />
+    </svg>
+  );
+}
+
+// ----------------------------------------------------------------------------
+// My Tasks — a bookkeeper's tasks and reminders. Private by default; an item
+// linked to a client can be shared with that client's team (see
+// staff-reminders-v2.sql). Backed by the same staff_reminders table as Home's
+// "Your reminders" card, both through staffItemsApi above. Today / Upcoming /
+// Overdue / All tabs, client and mine-vs-shared filters, and completed items
+// kept (with a completed_at) rather than deleted the moment they're checked.
 // ----------------------------------------------------------------------------
 
 const TASK_PRIORITIES = ["high", "normal", "low"];
 const TASK_PRIORITY_LABEL = { high: "High", normal: "Normal", low: "Low" };
 
+const TASK_TABS = [
+  { id: "today", label: "Today" },
+  { id: "upcoming", label: "Upcoming" },
+  { id: "overdue", label: "Overdue" },
+  { id: "all", label: "All" },
+];
+const TASK_TAB_EMPTY = {
+  today: "Nothing due today.",
+  upcoming: "Nothing coming up.",
+  overdue: "Nothing overdue.",
+  all: "Nothing on your list — add a task above.",
+};
+
 function MyTasksPage({ staffUser, clients }) {
   const showToast = useToast();
   const supabase = window.mgbSupabase;
   const today = todayLocal();
+  const me = staffUser.email;
 
   const [tasks, setTasks] = useState(null);
   const [error, setError] = useState("");
+  const [legacy, setLegacy] = useState(staffItemsApi.legacy);
+  const [tab, setTab] = useState("today");
   const [showCompleted, setShowCompleted] = useState(false);
+  const [clientFilter, setClientFilter] = useState(""); // "", "__none", id
+  const [scopeFilter, setScopeFilter] = useState("all"); // all | mine | shared
 
   const [newText, setNewText] = useState("");
   const [newDueDate, setNewDueDate] = useState("");
+  const [newDueTime, setNewDueTime] = useState("");
   const [newClientId, setNewClientId] = useState("");
   const [newPriority, setNewPriority] = useState("normal");
+  const [newKind, setNewKind] = useState("task");
+  const [newRemindAt, setNewRemindAt] = useState("");
+  const [newRecurrence, setNewRecurrence] = useState("none");
+  const [newShared, setNewShared] = useState(false);
   const [adding, setAdding] = useState(false);
 
   const clientById = useMemo(
@@ -13928,41 +14324,37 @@ function MyTasksPage({ staffUser, clients }) {
 
   const loadTasks = useCallback(() => {
     if (!supabase) return;
-    supabase
-      .from("staff_reminders")
-      .select(
-        "id, text, due_date, done, created_at, client_id, priority, completed_at",
-      )
-      .eq("staff_email", staffUser.email)
-      .order("due_date", { ascending: true, nullsFirst: false })
-      .then(({ data, error }) => {
-        if (error) {
-          setError(
-            "Couldn't load tasks. Has staff-reminders.sql been run (latest version, with client_id/priority/completed_at)? " +
-              error.message,
-          );
-          setTasks([]);
-        } else {
-          setError("");
-          setTasks(data);
-        }
-      });
-  }, [supabase, staffUser.email]);
+    staffItemsApi.list(supabase, me).then(({ data, error }) => {
+      setLegacy(staffItemsApi.legacy);
+      if (error) {
+        setError("Couldn't load tasks. " + error.message);
+        setTasks([]);
+      } else {
+        setError("");
+        setTasks(data);
+      }
+    });
+  }, [supabase, me]);
 
   useEffect(() => {
     loadTasks();
   }, [loadTasks]);
+  useStaffItemsChanged(loadTasks);
 
   async function addTask() {
     const text = newText.trim();
     if (!text) return;
     setAdding(true);
-    const { error } = await supabase.from("staff_reminders").insert({
-      staff_email: staffUser.email,
+    const { error } = await staffItemsApi.add(supabase, me, {
       text,
       due_date: newDueDate || null,
+      due_at: buildStaffDueAt(newDueDate, newDueTime || null),
       client_id: newClientId || null,
       priority: newPriority,
+      kind: newKind,
+      remind_at: newRemindAt ? new Date(newRemindAt).toISOString() : null,
+      recurrence: newDueDate ? newRecurrence : "none",
+      visibility: newShared && newClientId ? "shared" : "private",
     });
     setAdding(false);
     if (error) {
@@ -13971,120 +14363,341 @@ function MyTasksPage({ staffUser, clients }) {
     }
     setNewText("");
     setNewDueDate("");
-    setNewClientId("");
+    setNewDueTime("");
     setNewPriority("normal");
-    loadTasks();
+    setNewKind("task");
+    setNewRemindAt("");
+    setNewRecurrence("none");
+    setNewShared(false);
+    // Client stays picked — adding several items for one client in a row is
+    // the common case.
   }
 
   async function toggleTask(task) {
-    const nowDone = !task.done;
-    const { error } = await supabase
-      .from("staff_reminders")
-      .update({
-        done: nowDone,
-        completed_at: nowDone ? new Date().toISOString() : null,
-      })
-      .eq("id", task.id);
-    if (error) {
-      showToast(`Couldn't update task: ${error.message}`);
-      return;
-    }
-    loadTasks();
+    const { error } = await staffItemsApi.toggleDone(supabase, me, task);
+    if (error) showToast(`Couldn't update task: ${error.message}`);
+  }
+
+  async function toggleShared(task) {
+    const { error } = await staffItemsApi.update(supabase, task.id, {
+      visibility: task.visibility === "shared" ? "private" : "shared",
+    });
+    if (error) showToast(`Couldn't change sharing: ${error.message}`);
   }
 
   async function removeTask(task) {
-    const { error } = await supabase
-      .from("staff_reminders")
-      .delete()
-      .eq("id", task.id);
-    if (error) {
-      showToast(`Couldn't remove task: ${error.message}`);
-      return;
-    }
-    loadTasks();
+    const { error } = await staffItemsApi.remove(supabase, task.id);
+    if (error) showToast(`Couldn't remove task: ${error.message}`);
   }
 
+  // Client + mine/shared filters apply to every tab and to Completed.
+  const filtered = useMemo(() => {
+    if (!tasks) return [];
+    return tasks.filter((t) => {
+      if (clientFilter === "__none" && t.client_id) return false;
+      if (clientFilter && clientFilter !== "__none" && t.client_id !== clientFilter)
+        return false;
+      if (scopeFilter === "mine" && !isMyStaffItem(t, me)) return false;
+      if (scopeFilter === "shared" && t.visibility !== "shared") return false;
+      return true;
+    });
+  }, [tasks, clientFilter, scopeFilter, me]);
+
   const openTasks = useMemo(() => {
-    if (!tasks) return [];
-    const rows = tasks.filter((t) => !t.done);
     const priorityRank = { high: 0, normal: 1, low: 2 };
-    return [...rows].sort((a, b) => {
-      const aOverdue = a.due_date && a.due_date < today;
-      const bOverdue = b.due_date && b.due_date < today;
-      if (aOverdue !== bOverdue) return aOverdue ? -1 : 1;
-      if (!!a.due_date !== !!b.due_date) return a.due_date ? -1 : 1;
-      if (a.due_date && b.due_date && a.due_date !== b.due_date)
-        return a.due_date < b.due_date ? -1 : 1;
-      return (priorityRank[a.priority] ?? 1) - (priorityRank[b.priority] ?? 1);
-    });
-  }, [tasks, today]);
+    return filtered
+      .filter((t) => !t.done)
+      .sort((a, b) => {
+        if (!!a.due_date !== !!b.due_date) return a.due_date ? -1 : 1;
+        if (a.due_date !== b.due_date) return a.due_date < b.due_date ? -1 : 1;
+        const aAt = a.due_at || "";
+        const bAt = b.due_at || "";
+        if (aAt !== bAt) return aAt < bAt ? -1 : 1;
+        return (priorityRank[a.priority] ?? 1) - (priorityRank[b.priority] ?? 1);
+      });
+  }, [filtered]);
 
-  const completedTasks = useMemo(() => {
-    if (!tasks) return [];
-    return [...tasks.filter((t) => t.done)].sort((a, b) => {
-      const aAt = a.completed_at || a.created_at;
-      const bAt = b.completed_at || b.created_at;
-      return aAt < bAt ? 1 : -1;
-    });
-  }, [tasks]);
+  const buckets = useMemo(
+    () => ({
+      today: openTasks.filter((t) => t.due_date === today),
+      // Undated items sit at the end of Upcoming (openTasks sorts them last).
+      upcoming: openTasks.filter((t) => !t.due_date || t.due_date > today),
+      overdue: openTasks.filter((t) => t.due_date && t.due_date < today),
+      all: openTasks,
+    }),
+    [openTasks, today],
+  );
 
-  const overdueCount = openTasks.filter(
-    (t) => t.due_date && t.due_date < today,
-  ).length;
-  const dueTodayCount = openTasks.filter((t) => t.due_date === today).length;
+  const completedTasks = useMemo(
+    () =>
+      filtered
+        .filter((t) => t.done)
+        .sort((a, b) => {
+          const aAt = a.completed_at || a.created_at;
+          const bAt = b.completed_at || b.created_at;
+          return aAt < bAt ? 1 : -1;
+        }),
+    [filtered],
+  );
+
+  const shown = showCompleted ? completedTasks : buckets[tab];
+  const nowMs = Date.now();
+
+  function renderRow(t) {
+    const client = t.client_id ? clientById[t.client_id] : null;
+    const overdue = !t.done && t.due_date && t.due_date < today;
+    const mine = t.staff_email === me;
+    const remindDue =
+      !t.done && t.remind_at && new Date(t.remind_at).getTime() <= nowMs;
+    const dueLabel = staffItemDueLabel(t, today);
+    const checkboxId = `task-done-${t.id}`;
+    return (
+      <li className={"task-row" + (t.done ? " done" : "")} key={t.id}>
+        <label className="task-check-wrap">
+          <input
+            id={checkboxId}
+            type="checkbox"
+            className="task-check"
+            checked={t.done}
+            onChange={() => toggleTask(t)}
+            aria-label={`${t.done ? "Mark not done" : "Mark done"}: ${t.text}`}
+          />
+        </label>
+        <div className="task-main">
+          <label htmlFor={checkboxId} className="task-text">
+            {t.text}
+          </label>
+          <div className="task-meta">
+            {t.kind === "reminder" && (
+              <span className="task-chip">Reminder</span>
+            )}
+            {t.priority === "high" && !t.done && (
+              <span className="task-chip bad">High priority</span>
+            )}
+            {client && <span className="task-client">{client.name}</span>}
+            {!client && t.client_id && (
+              <span className="task-client">{t.client_id}</span>
+            )}
+            {dueLabel && !t.done && (
+              <span className={"task-due" + (overdue ? " overdue" : "")}>
+                {dueLabel}
+              </span>
+            )}
+            {t.done && t.completed_at && (
+              <span className="task-due">
+                Completed {fmtDate(t.completed_at.slice(0, 10))}
+              </span>
+            )}
+            {t.recurrence && t.recurrence !== "none" && (
+              <span
+                className="task-icon-label"
+                title={`Repeats ${TASK_RECURRENCE_LABEL[t.recurrence].toLowerCase()}`}
+              >
+                <RepeatIcon />
+                <span>{TASK_RECURRENCE_LABEL[t.recurrence]}</span>
+              </span>
+            )}
+            {t.remind_at && !t.done && (
+              <span
+                className={"task-icon-label" + (remindDue ? " attention" : "")}
+              >
+                <BellIcon />
+                <span>{fmtDateTime(t.remind_at)}</span>
+              </span>
+            )}
+            {t.visibility === "shared" && (
+              <span className="task-chip">
+                Shared{!mine && t.staff_email ? ` · ${t.staff_email.split("@")[0]}` : ""}
+              </span>
+            )}
+            {t.source && TASK_SOURCE_LABEL[t.source] && (
+              <span className="task-chip">{TASK_SOURCE_LABEL[t.source]}</span>
+            )}
+          </div>
+        </div>
+        <div className="task-actions">
+          {mine && !legacy && t.client_id && !t.done && (
+            <button
+              type="button"
+              className="task-icon-btn"
+              onClick={() => toggleShared(t)}
+              aria-pressed={t.visibility === "shared"}
+              aria-label={
+                t.visibility === "shared"
+                  ? `Stop sharing with ${client ? client.name : "client"}'s team: ${t.text}`
+                  : `Share with ${client ? client.name : "client"}'s team: ${t.text}`
+              }
+              title={
+                t.visibility === "shared"
+                  ? "Stop sharing with this client's team"
+                  : "Share with this client's team"
+              }
+            >
+              <UsersIcon width="16" height="16" />
+            </button>
+          )}
+          {mine && (
+            <button
+              type="button"
+              className="task-icon-btn"
+              onClick={() => removeTask(t)}
+              aria-label={`Remove task: ${t.text}`}
+              title="Remove"
+            >
+              ×
+            </button>
+          )}
+        </div>
+      </li>
+    );
+  }
 
   return (
-    <div>
+    <div className="tasks-page">
       <div className="card" style={{ marginBottom: 20 }}>
-        <h3 className="card-title">Add a task</h3>
+        <h3 className="card-title">Add a task or reminder</h3>
         <p className="card-subtitle">
-          Private to you — nobody else, including admins, can see these.
+          Private to you unless you share it with a client's team.
         </p>
-        <div className="staff-add-row" style={{ flexWrap: "wrap" }}>
-          <input
-            type="text"
-            placeholder="Reconcile Riverside's operating account"
-            value={newText}
-            onChange={(e) => setNewText(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") addTask();
-            }}
-            style={{ flex: "2 1 220px" }}
-          />
-          <input
-            type="date"
-            value={newDueDate}
-            onChange={(e) => setNewDueDate(e.target.value)}
-          />
-          <select
-            value={newClientId}
-            onChange={(e) => setNewClientId(e.target.value)}
-          >
-            <option value="">No client</option>
-            {(clients || []).map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
-              </option>
-            ))}
-          </select>
-          <select
-            value={newPriority}
-            onChange={(e) => setNewPriority(e.target.value)}
-          >
-            {TASK_PRIORITIES.map((p) => (
-              <option key={p} value={p}>
-                {TASK_PRIORITY_LABEL[p]} priority
-              </option>
-            ))}
-          </select>
-          <button
-            className="btn-primary"
-            disabled={adding || !newText.trim()}
-            onClick={addTask}
-          >
-            + Add task
-          </button>
-        </div>
+        <form
+          className="task-add"
+          onSubmit={(e) => {
+            e.preventDefault();
+            addTask();
+          }}
+        >
+          <div className="task-add-row">
+            <input
+              type="text"
+              className="task-add-text"
+              placeholder="Reconcile Riverside's operating account"
+              aria-label="Task"
+              value={newText}
+              onChange={(e) => setNewText(e.target.value)}
+            />
+            <button
+              type="submit"
+              className="btn-primary"
+              disabled={adding || !newText.trim()}
+            >
+              Add
+            </button>
+          </div>
+          <div className="task-add-options">
+            <label className="task-field">
+              <span>Client</span>
+              <select
+                value={newClientId}
+                onChange={(e) => {
+                  setNewClientId(e.target.value);
+                  if (!e.target.value) setNewShared(false);
+                }}
+              >
+                <option value="">No client</option>
+                {(clients || []).map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="task-field">
+              <span>Due</span>
+              <input
+                type="date"
+                value={newDueDate}
+                onChange={(e) => setNewDueDate(e.target.value)}
+              />
+            </label>
+            {!legacy && (
+              <label className="task-field">
+                <span>Time</span>
+                <input
+                  type="time"
+                  value={newDueTime}
+                  disabled={!newDueDate}
+                  onChange={(e) => setNewDueTime(e.target.value)}
+                />
+              </label>
+            )}
+            {!legacy && (
+              <label className="task-field">
+                <span>Type</span>
+                <select
+                  value={newKind}
+                  onChange={(e) => setNewKind(e.target.value)}
+                >
+                  <option value="task">Task</option>
+                  <option value="reminder">Reminder</option>
+                </select>
+              </label>
+            )}
+            {!legacy && (
+              <label className="task-field">
+                <span>Remind me</span>
+                <input
+                  type="datetime-local"
+                  value={newRemindAt}
+                  onChange={(e) => setNewRemindAt(e.target.value)}
+                />
+              </label>
+            )}
+            {!legacy && (
+              <label className="task-field">
+                <span>Repeat</span>
+                <select
+                  value={newRecurrence}
+                  disabled={!newDueDate}
+                  onChange={(e) => setNewRecurrence(e.target.value)}
+                  title={newDueDate ? undefined : "Pick a due date to repeat"}
+                >
+                  {TASK_RECURRENCES.map((r) => (
+                    <option key={r} value={r}>
+                      {TASK_RECURRENCE_LABEL[r]}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
+            <label className="task-field">
+              <span>Priority</span>
+              <select
+                value={newPriority}
+                onChange={(e) => setNewPriority(e.target.value)}
+              >
+                {TASK_PRIORITIES.map((p) => (
+                  <option key={p} value={p}>
+                    {TASK_PRIORITY_LABEL[p]}
+                  </option>
+                ))}
+              </select>
+            </label>
+            {!legacy && (
+              <label
+                className={"task-share" + (newClientId ? "" : " disabled")}
+              >
+                <input
+                  type="checkbox"
+                  checked={newShared}
+                  disabled={!newClientId}
+                  onChange={(e) => setNewShared(e.target.checked)}
+                />
+                <span>
+                  Share with this client's team
+                  {!newClientId && (
+                    <span className="task-share-hint"> — pick a client first</span>
+                  )}
+                </span>
+              </label>
+            )}
+          </div>
+          {legacy && (
+            <p className="card-subtitle" style={{ marginTop: 12 }}>
+              Times, reminders, repeats and sharing turn on once the
+              staff-reminders-v2 database update is applied.
+            </p>
+          )}
+        </form>
       </div>
 
       {error && (
@@ -14093,128 +14706,95 @@ function MyTasksPage({ staffUser, clients }) {
         </div>
       )}
 
-      <div className="card" style={{ marginBottom: 20 }}>
-        <h3 className="card-title">Open tasks</h3>
-        <p className="card-subtitle">
-          {tasks === null
-            ? "Loading…"
-            : `${openTasks.length} open${
-                overdueCount
-                  ? ` — ${overdueCount} overdue`
-                  : dueTodayCount
-                    ? ` — ${dueTodayCount} due today`
-                    : ""
-              }`}
-        </p>
-
-        {tasks && openTasks.length === 0 && !error && (
-          <p className="card-subtitle" style={{ marginTop: 16 }}>
-            Nothing on your list — add a task above.
-          </p>
-        )}
-
-        {openTasks.length > 0 && (
-          <ul className="staff-audit-list">
-            {openTasks.map((t) => {
-              const overdue = t.due_date && t.due_date < today;
-              const client = t.client_id ? clientById[t.client_id] : null;
+      <div className="card">
+        <div className="task-toolbar">
+          <div className="view-toggle task-tabs" role="tablist" aria-label="Task view">
+            {TASK_TABS.map((t) => {
+              const count = buckets[t.id].length;
+              const active = !showCompleted && tab === t.id;
               return (
-                <li className="staff-audit-row" key={t.id}>
-                  <label
-                    className="staff-active-toggle"
-                    style={{ flex: 1, alignItems: "flex-start" }}
-                  >
-                    <input
-                      type="checkbox"
-                      checked={t.done}
-                      onChange={() => toggleTask(t)}
-                    />
-                    <span>
-                      <span>{t.text}</span>
-                      {t.priority === "high" && (
-                        <span
-                          className="pill negative"
-                          style={{ marginLeft: 8 }}
-                        >
-                          High priority
-                        </span>
-                      )}
-                      {client && (
-                        <span className="pill" style={{ marginLeft: 8 }}>
-                          {client.name}
-                        </span>
-                      )}
-                      {t.due_date && (
-                        <span
-                          className={
-                            "card-subtitle" + (overdue ? " negative" : "")
-                          }
-                          style={{ display: "block", marginTop: 2 }}
-                        >
-                          {overdue ? "Overdue — was due" : "Due"}{" "}
-                          {fmtDate(t.due_date)}
-                        </span>
-                      )}
+                <button
+                  key={t.id}
+                  type="button"
+                  role="tab"
+                  aria-selected={active}
+                  className={"view-toggle-btn" + (active ? " active" : "")}
+                  onClick={() => {
+                    setTab(t.id);
+                    setShowCompleted(false);
+                  }}
+                >
+                  {t.label}
+                  {count > 0 && (
+                    <span
+                      className={
+                        "task-tab-count" +
+                        (t.id === "overdue" && !active ? " bad" : "")
+                      }
+                    >
+                      {count}
                     </span>
-                  </label>
-                  <button
-                    className="row-remove-btn"
-                    onClick={() => removeTask(t)}
-                    aria-label={`Remove task: ${t.text}`}
-                  >
-                    ×
-                  </button>
-                </li>
+                  )}
+                </button>
               );
             })}
+          </div>
+          <div className="task-filters">
+            <label className="task-field compact">
+              <select
+                aria-label="Filter by client"
+                value={clientFilter}
+                onChange={(e) => setClientFilter(e.target.value)}
+              >
+                <option value="">All clients</option>
+                <option value="__none">No client</option>
+                {(clients || []).map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            {!legacy && (
+              <label className="task-field compact">
+              <select
+                aria-label="Mine or shared"
+                  value={scopeFilter}
+                  onChange={(e) => setScopeFilter(e.target.value)}
+                >
+                  <option value="all">Mine + shared</option>
+                  <option value="mine">Mine</option>
+                  <option value="shared">Shared</option>
+                </select>
+              </label>
+            )}
+            <button
+              type="button"
+              className="btn-secondary task-completed-toggle"
+              aria-pressed={showCompleted}
+              onClick={() => setShowCompleted((v) => !v)}
+            >
+              {showCompleted ? "Hide completed" : `Completed (${completedTasks.length})`}
+            </button>
+          </div>
+        </div>
+
+        {tasks === null && (
+          <p className="card-subtitle" style={{ marginTop: 16 }}>
+            Loading…
+          </p>
+        )}
+        {tasks && shown.length === 0 && !error && (
+          <p className="card-subtitle" style={{ marginTop: 16 }}>
+            {showCompleted ? "Nothing completed yet." : TASK_TAB_EMPTY[tab]}
+          </p>
+        )}
+        {shown.length > 0 && (
+          <ul className="task-list" aria-label={showCompleted ? "Completed tasks" : `${TASK_TABS.find((x) => x.id === tab).label} tasks`}>
+            {shown.map(renderRow)}
           </ul>
         )}
       </div>
-
-      {completedTasks.length > 0 && (
-        <div className="card">
-          <button
-            type="button"
-            className="btn-secondary"
-            onClick={() => setShowCompleted((v) => !v)}
-          >
-            {showCompleted ? "Hide" : "Show"} completed ({completedTasks.length}
-            )
-          </button>
-          {showCompleted && (
-            <ul className="staff-audit-list" style={{ marginTop: 16 }}>
-              {completedTasks.map((t) => {
-                const client = t.client_id ? clientById[t.client_id] : null;
-                return (
-                  <li className="staff-audit-row" key={t.id}>
-                    <label className="staff-active-toggle" style={{ flex: 1 }}>
-                      <input
-                        type="checkbox"
-                        checked={t.done}
-                        onChange={() => toggleTask(t)}
-                      />
-                      <span style={{ textDecoration: "line-through" }}>
-                        {t.text}
-                        {client ? ` — ${client.name}` : ""}
-                        {t.completed_at
-                          ? ` — completed ${fmtDate(t.completed_at.slice(0, 10))}`
-                          : ""}
-                      </span>
-                    </label>
-                    <button
-                      className="row-remove-btn"
-                      onClick={() => removeTask(t)}
-                      aria-label={`Remove task: ${t.text}`}
-                    >
-                      ×
-                    </button>
-                  </li>
-                );
-              })}
-            </ul>
-          )}
-        </div>
-      )}
     </div>
   );
 }
@@ -17451,7 +18031,7 @@ const PAGE_META = {
   },
   "my-tasks": {
     title: "My Tasks",
-    subtitle: "Your private, prioritized to-do list — nobody else can see it",
+    subtitle: "Your tasks and reminders — private unless you share one",
   },
   "my-time": {
     title: "My Time",
