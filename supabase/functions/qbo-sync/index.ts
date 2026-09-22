@@ -67,8 +67,6 @@ function baseForEnv(env: string | null | undefined): string | null {
 // Refresh an access token this close to expiry rather than watching a call
 // fail — same window qbo-refresh-token uses.
 const REFRESH_AHEAD_MS = 10 * 60 * 1000;
-// Postgres rejects very large single inserts; chunk every write.
-const INSERT_CHUNK = 500;
 
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -151,12 +149,6 @@ function monthTitleToDate(title: string): string | null {
 function num(v: unknown): number {
   const n = typeof v === "number" ? v : parseFloat(String(v ?? "").replace(/,/g, ""));
   return Number.isFinite(n) ? n : 0;
-}
-
-function chunk<T>(arr: T[], size: number): T[][] {
-  const out: T[][] = [];
-  for (let i = 0; i < arr.length; i += size) out.push(arr.slice(i, i + size));
-  return out;
 }
 
 // ---------------------------------------------------------------------------
@@ -444,19 +436,21 @@ function parseTransactionList(report: any): any[] {
 }
 
 // ---------------------------------------------------------------------------
-// Writes. Delete-then-insert per client per table: QuickBooks is the system
-// of record, so a row that no longer exists there must not survive here, and
-// diffing ids to find deletions is more machinery than re-materializing a few
-// hundred rows.
+// Writes. Replace per client per table: QuickBooks is the system of record,
+// so a row that no longer exists there must not survive here, and diffing ids
+// to find deletions is more machinery than re-materializing a few hundred
+// rows. The delete and insert run in ONE transaction inside
+// qbo_replace_rows() (supabase/qbo-replace-rows.sql), so a reader mid-sync
+// sees the previous rows, never an empty table.
 // ---------------------------------------------------------------------------
 async function replaceRows(admin: any, table: string, clientId: string, rows: any[]) {
-  const { error: delErr } = await admin.from(table).delete().eq("client_id", clientId);
-  if (delErr) throw new Error(`${table}: ${delErr.message}`);
-  for (const part of chunk(rows, INSERT_CHUNK)) {
-    const { error } = await admin.from(table).insert(part);
-    if (error) throw new Error(`${table}: ${error.message}`);
-  }
-  return rows.length;
+  const { data, error } = await admin.rpc("qbo_replace_rows", {
+    p_table: table,
+    p_client_id: clientId,
+    p_rows: rows,
+  });
+  if (error) throw new Error(`${table}: ${error.message}`);
+  return typeof data === "number" ? data : rows.length;
 }
 
 // ---------------------------------------------------------------------------
