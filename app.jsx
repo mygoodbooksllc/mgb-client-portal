@@ -12391,7 +12391,12 @@ function BookkeeperHomePage({
   async function toggleReminder(reminder) {
     const { error } = await supabase
       .from("staff_reminders")
-      .update({ done: !reminder.done })
+      .update({
+        done: !reminder.done,
+        // Same as My Tasks: "done" carries a when, so an item checked off
+        // here still sorts and reads correctly in My Tasks' completed list.
+        completed_at: !reminder.done ? new Date().toISOString() : null,
+      })
       .eq("id", reminder.id);
     if (error) {
       showToast(`Couldn't update reminder: ${error.message}`);
@@ -13568,15 +13573,8 @@ function saveDocFolders(clientId, folders, assignments) {
 }
 
 // ----------------------------------------------------------------------------
-// My Tasks — a bookkeeper's private, prioritized "my work today" list.
-// Backed by the same staff_reminders table as the Home dashboard's compact
-// "Your reminders" widget (see staff-reminders.sql) — this page is the full
-// version: optional client link, priority, and a collapsed completed
-// section instead of deleting a task the moment it's checked off.
+// My Time — per-client hour logging for the signed-in staffer.
 // ----------------------------------------------------------------------------
-
-const TASK_PRIORITIES = ["high", "normal", "low"];
-const TASK_PRIORITY_LABEL = { high: "High", normal: "Normal", low: "Low" };
 
 function MyTimePage({ staffUser, clients }) {
   const showToast = useToast();
@@ -13896,6 +13894,17 @@ function MyTimePage({ staffUser, clients }) {
     </div>
   );
 }
+
+// ----------------------------------------------------------------------------
+// My Tasks — a bookkeeper's private, prioritized "my work today" list.
+// Backed by the same staff_reminders table as the Home dashboard's compact
+// "Your reminders" widget (see staff-reminders.sql) — this page is the full
+// version: optional client link, priority, and a collapsed completed
+// section instead of deleting a task the moment it's checked off.
+// ----------------------------------------------------------------------------
+
+const TASK_PRIORITIES = ["high", "normal", "low"];
+const TASK_PRIORITY_LABEL = { high: "High", normal: "Normal", low: "Low" };
 
 function MyTasksPage({ staffUser, clients }) {
   const showToast = useToast();
