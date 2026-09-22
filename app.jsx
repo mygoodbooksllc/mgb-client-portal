@@ -469,6 +469,12 @@ const NAV_SECTIONS = [
   },
 ];
 
+// Calm step 2: heading for the sidebar's second group, taken from the
+// existing section label rather than a new string (see Sidebar).
+const NAV_GROUP_HEADING = (
+  NAV_SECTIONS.find((s) => s.label === "Finances") || {}
+).label;
+
 const ALL_TAB_KEYS = NAV_SECTIONS.flatMap((section) =>
   section.items.map((item) => item.key),
 );
@@ -1260,7 +1266,13 @@ function Sidebar({
 
       {NON_CLIENT_PAGES.has(page) ? null : (
         <nav className="nav" onScroll={hideTip}>
-          {NAV_SECTIONS.map((section) => {
+          {/* Calm step 2: the sidebar reads as two groups. The first
+              rendered non-Enterprise section gets a small heading reusing
+              the existing "Finances" section label — presentation only, no
+              change to NAV_SECTIONS, ordering or visibility. */}
+          {(() => {
+            let groupHeadingShown = false;
+            return NAV_SECTIONS.map((section) => {
             const isSignature = section.label === "Enterprise";
             // Standard-plan clients don't have the premium tabs at all
             // (stripped out of access.tabs in resolveAccess), so `items`
@@ -1276,6 +1288,8 @@ function Sidebar({
               selectedClientId,
             ).filter((item) => visibleKeys.has(item.key));
             if (items.length === 0 && !showUpsell) return null;
+            const showGroupHeading = !isSignature && !groupHeadingShown;
+            if (showGroupHeading) groupHeadingShown = true;
             // Enterprise gets a static gold heading (not a toggle — it no
             // longer collapses, so there's nothing for a click to do here).
             // Every other section renders no heading at all, same as before.
@@ -1309,6 +1323,11 @@ function Sidebar({
                       </span>
                     </div>
                   ))}
+                {showGroupHeading && NAV_GROUP_HEADING && (
+                  <div className="nav-section-label nav-section-label-static nav-group-label">
+                    <span>{NAV_GROUP_HEADING}</span>
+                  </div>
+                )}
                 <div className="nav-section-items" id={sectionId}>
                   {items.map((item) => {
                     // Same tab, same name, for every plan — the PRO pill (and
@@ -1355,7 +1374,8 @@ function Sidebar({
                 </div>
               </div>
             );
-          })}
+            });
+          })()}
         </nav>
       )}
 

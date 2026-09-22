@@ -819,20 +819,23 @@ body {
   cursor: pointer;
   text-align: left;
   font-family: inherit;
-  font-size: 10.5px;
+  font-size: 12px;
   text-transform: uppercase;
   letter-spacing: 0.06em;
   color: var(--sidebar-text-muted);
-  font-weight: 700;
-  padding: 4px 12px;
-  margin-bottom: 4px;
+  font-weight: 600;
+  padding: 0 12px;
+  margin-bottom: 6px;
   border-radius: 6px;
-  transition: color 0.15s ease, background 0.15s ease;
 }
 
 .nav-section-label:hover {
-  color: var(--sidebar-text-active);
-  background: rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+/* Calm step 2: breathing room above the second group's heading. */
+.nav-group-label {
+  margin-top: 18px;
 }
 
 .nav-section-label:focus-visible {
@@ -857,15 +860,21 @@ body {
   gap: 2px;
 }
 
+/* Calm step 2: quiet muted rows; the active row is marked by a static gold
+   bar on its left edge (see .nav-item.active::before), not a fill or glow. */
 .nav-item {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 10px 12px;
-  border-radius: 9px;
+  min-height: 38px;
+  padding: 8px 12px;
+  border-radius: 8px;
   color: var(--sidebar-text);
+  font-family: inherit;
   font-size: 14px;
-  font-weight: 500;
+  font-weight: 400;
+  line-height: 1.35;
   cursor: pointer;
   border: none;
   background: transparent;
@@ -874,8 +883,12 @@ body {
 }
 
 .nav-item:hover {
-  background: rgba(255,255,255,0.06);
-  color: white;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.nav-item:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: -2px;
 }
 
 .nav-badge-dot {
@@ -911,24 +924,22 @@ body {
   position: relative;
 }
 
+/* Calm step 2: the Enterprise heading matches the other group heading; the
+   gold pill beside it is the only premium accent. */
 .nav-section-label-signature {
-  color: var(--gold);
-}
-
-.nav-section-label-signature:hover {
-  color: #f0dfb8;
+  color: var(--sidebar-text-muted);
 }
 
 .nav-section-label-signature > span:not(.nav-signature-badge) {
-  color: var(--gold);
-  font-weight: 800;
+  color: var(--sidebar-text-muted);
+  font-weight: 600;
 }
 
 .nav-signature-badge {
   /* Sits right next to the "Enterprise" label, not pushed to the far edge
      of the row — the upgrade icon below is what claims the right edge now. */
-  font-size: 9px;
-  font-weight: 800;
+  font-size: 10px;
+  font-weight: 600;
   letter-spacing: 0.05em;
   text-transform: uppercase;
   color: var(--navy-deep);
@@ -968,19 +979,17 @@ body {
 }
 
 .nav-upsell-trigger:hover {
-  background: rgba(199, 174, 134, 0.12);
+  background: rgba(255, 255, 255, 0.04);
 }
 
 /* The tabs under Enterprise Tools (Daily Report, Report Builder, Budgeting
    Tool) get the same gold shimmer as the section label itself, so the
    whole group reads as one premium unit rather than a plain label over
    ordinary items. */
+/* Calm step 2: upgraded tabs no longer get gold labels — same quiet row as
+   every other tab (the heading's pill already says the plan is upgraded). */
 .nav-item-signature > span:first-child {
-  color: var(--gold);
-}
-
-.nav-item-signature.active {
-  background: rgba(199, 174, 134, 0.18);
+  color: inherit;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -995,9 +1004,20 @@ body {
 }
 
 .nav-item.active {
-  background: rgba(199, 174, 134, 0.18);
-  color: var(--gold);
-  font-weight: 700;
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--sidebar-text-active);
+  font-weight: 600;
+}
+
+.nav-item.active::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 8px;
+  bottom: 8px;
+  width: 3px;
+  border-radius: 2px;
+  background: var(--gold);
 }
 
 .nav-icon {
@@ -4908,9 +4928,11 @@ body:has(.modal-overlay) .chat-fab-wrap {
   .mobile-topbar {
     display: flex;
     align-items: center;
-    gap: 14px;
-    background: var(--navy);
-    padding: 14px 16px;
+    gap: 10px;
+    min-height: 52px;
+    box-sizing: border-box;
+    background: var(--sidebar-bg);
+    padding: 4px 16px;
     position: sticky;
     top: 0;
     z-index: 1500;
@@ -4919,8 +4941,9 @@ body:has(.modal-overlay) .chat-fab-wrap {
   .mobile-topbar-title {
     color: white;
     font-family: var(--font-heading);
-    font-weight: 700;
-    font-size: 15px;
+    font-weight: 600;
+    font-size: 16px;
+    letter-spacing: -0.01em;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -4937,7 +4960,7 @@ body:has(.modal-overlay) .chat-fab-wrap {
     gap: 4px;
     width: 44px;
     height: 44px;
-    margin-left: -6px;
+    margin-left: -12px;
     background: transparent;
     border: none;
     cursor: pointer;
@@ -4947,9 +4970,9 @@ body:has(.modal-overlay) .chat-fab-wrap {
 
   .hamburger-btn span {
     display: block;
-    width: 32px;
+    width: 20px;
     height: 2px;
-    background: white;
+    background: var(--sidebar-text);
     border-radius: 2px;
   }
 
