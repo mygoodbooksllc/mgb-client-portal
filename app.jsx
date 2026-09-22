@@ -15183,9 +15183,14 @@ const TASK_TABS = [
   { id: "overdue", label: "Overdue" },
   { id: "all", label: "All" },
   { id: "byclient", label: "By client" },
-  { id: "notes", label: "Notes" },
-  { id: "sops", label: "SOPs" },
 ];
+// Notes and SOPs have their own cards below the tasks card.
+function scrollToTasksCard(id) {
+  setTimeout(() => {
+    const el = document.getElementById(id);
+    if (el) el.scrollIntoView({ block: "start", behavior: "smooth" });
+  }, 0);
+}
 // Tabs that show tasks (vs. the client/notes views).
 const TASK_LIST_TABS = ["today", "upcoming", "overdue", "all"];
 
@@ -15400,10 +15405,9 @@ function MyTasksPage({ staffUser, clients, statusOverrides }) {
   useClientSopsChanged(loadSopCounts);
 
   function openSop(clientId) {
-    setTab("sops");
-    setShowCompleted(false);
     setSopClientId(clientId || "");
     setSopSearch("");
+    scrollToTasksCard("my-tasks-sops");
   }
 
   // Client details → SOP → "Edit in My Tasks" lands here with a client.
@@ -15431,12 +15435,12 @@ function MyTasksPage({ staffUser, clients, statusOverrides }) {
 
   // Bring a note into view after jumping to it from a task's link chip.
   useEffect(() => {
-    if (!highlightNoteId || tab !== "notes") return;
+    if (!highlightNoteId) return;
     const el = document.getElementById(`note-${highlightNoteId}`);
     if (el) el.scrollIntoView({ block: "center", behavior: "smooth" });
     const id = setTimeout(() => setHighlightNoteId(null), 2500);
     return () => clearTimeout(id);
-  }, [highlightNoteId, tab, notes]);
+  }, [highlightNoteId, notes]);
 
   async function addTask() {
     const text = newText.trim();
@@ -15568,8 +15572,6 @@ function MyTasksPage({ staffUser, clients, statusOverrides }) {
   }
 
   function jumpToNote(note) {
-    setTab("notes");
-    setShowCompleted(false);
     setNoteClientFilter(note.client_id);
     setNoteCategoryFilter("");
     setHighlightNoteId(note.id);
@@ -15968,9 +15970,9 @@ function MyTasksPage({ staffUser, clients, statusOverrides }) {
                 type="button"
                 className="note-action"
                 onClick={() => {
-                  setTab("notes");
                   setNoteClientFilter(client.id);
                   setNoteCategoryFilter("");
+                  scrollToTasksCard("my-tasks-notes");
                 }}
               >
                 All {cNotes.length}
@@ -16342,56 +16344,6 @@ function MyTasksPage({ staffUser, clients, statusOverrides }) {
               </label>
             </div>
           )}
-          {tab === "sops" && (
-            <div className="task-filters">
-              <label className="task-field compact tn-search">
-                <input
-                  type="search"
-                  placeholder="Search clients"
-                  aria-label="Search clients for an SOP"
-                  value={sopSearch}
-                  onChange={(e) => {
-                    setSopSearch(e.target.value);
-                    if (e.target.value) setSopClientId("");
-                  }}
-                />
-              </label>
-            </div>
-          )}
-          {tab === "notes" && (
-            <div className="task-filters">
-              <label className="task-field compact">
-                <select
-                  aria-label="Filter notes by client"
-                  value={noteClientFilter}
-                  onChange={(e) => setNoteClientFilter(e.target.value)}
-                >
-                  <option value="">All clients</option>
-                  {(clients || []).map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              {!notesLegacy && (
-                <label className="task-field compact">
-                  <select
-                    aria-label="Filter notes by category"
-                    value={noteCategoryFilter}
-                    onChange={(e) => setNoteCategoryFilter(e.target.value)}
-                  >
-                    <option value="">All categories</option>
-                    {NOTE_CATEGORIES.map((c) => (
-                      <option key={c} value={c}>
-                        {NOTE_CATEGORY_LABEL[c]}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-              )}
-            </div>
-          )}
           {isListTab && (
           <div className="task-filters">
             <label className="task-field compact">
@@ -16450,7 +16402,7 @@ function MyTasksPage({ staffUser, clients, statusOverrides }) {
           </ul>
         )}
 
-        {(tab === "byclient" || tab === "notes") && notesError && (
+        {tab === "byclient" && notesError && (
           <p className="card-subtitle negative" style={{ marginTop: 16 }}>
             {notesError}
           </p>
@@ -16489,84 +16441,147 @@ function MyTasksPage({ staffUser, clients, statusOverrides }) {
             <div className="tn-client-grid">{clientCards.map(renderClientCard)}</div>
           </div>
         )}
+      </div>
 
-        {tab === "notes" && (
-          <div className="tn-view">
-            <NoteComposer
-              clients={clients}
-              fixedClientId={null}
-              legacy={notesLegacy}
-              onSubmit={addNote}
-            />
-            {notes === null && <p className="card-subtitle">Loading…</p>}
-            {notes !== null && filteredNotes.length === 0 && !notesError && (
-              <p className="card-subtitle">
-                {visibleNotes.length === 0
-                  ? "No notes yet — add one above."
-                  : "No notes match these filters."}
-              </p>
-            )}
-            {filteredNotes.length > 0 && (
-              <ul className="note-list" aria-label="Client notes">
-                {filteredNotes.map((n) => renderNote(n, { showClient: true }))}
-              </ul>
-            )}
-            {notesLegacy && (
-              <p className="card-subtitle" style={{ marginTop: 12 }}>
-                Categories and note-to-task links turn on once the
-                tasks-notes-v3 database update is applied.
-              </p>
+      <div className="card" id="my-tasks-notes" style={{ marginTop: 20 }}>
+        <div className="task-toolbar">
+          <div>
+            <h3 className="card-title">Notes</h3>
+            <p className="card-subtitle">
+              Client notes from here, Home and Client details. Staff-only.
+            </p>
+          </div>
+          <div className="task-filters">
+            <label className="task-field compact">
+              <select
+                aria-label="Filter notes by client"
+                value={noteClientFilter}
+                onChange={(e) => setNoteClientFilter(e.target.value)}
+              >
+                <option value="">All clients</option>
+                {(clients || []).map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            {!notesLegacy && (
+              <label className="task-field compact">
+                <select
+                  aria-label="Filter notes by category"
+                  value={noteCategoryFilter}
+                  onChange={(e) => setNoteCategoryFilter(e.target.value)}
+                >
+                  <option value="">All categories</option>
+                  {NOTE_CATEGORIES.map((c) => (
+                    <option key={c} value={c}>
+                      {NOTE_CATEGORY_LABEL[c]}
+                    </option>
+                  ))}
+                </select>
+              </label>
             )}
           </div>
+        </div>
+        {notesError && (
+          <p className="card-subtitle negative" style={{ marginTop: 16 }}>
+            {notesError}
+          </p>
         )}
-
-        {tab === "sops" && (
-          <div className="tn-view">
-            <p className="card-subtitle tn-intro">
-              How each client's books are run, so anyone on the team can step
-              in. Staff-only — clients never see SOPs. Every edit is kept in
-              History.
+        <div className="tn-view">
+          <NoteComposer
+            clients={clients}
+            fixedClientId={null}
+            legacy={notesLegacy}
+            onSubmit={addNote}
+          />
+          {notes === null && <p className="card-subtitle">Loading…</p>}
+          {notes !== null && filteredNotes.length === 0 && !notesError && (
+            <p className="card-subtitle">
+              {visibleNotes.length === 0
+                ? "No notes yet — add one above."
+                : "No notes match these filters."}
             </p>
-            {sopsMissing ? (
-              <p className="card-subtitle">{CLIENT_SOP_MISSING_TEXT}</p>
-            ) : sopClient ? (
-              <>
-                <div className="sop-client-head">
-                  <h3 className="sop-client-name">{sopClient.name}</h3>
+          )}
+          {filteredNotes.length > 0 && (
+            <ul className="note-list" aria-label="Client notes">
+              {filteredNotes.map((n) => renderNote(n, { showClient: true }))}
+            </ul>
+          )}
+          {notesLegacy && (
+            <p className="card-subtitle" style={{ marginTop: 12 }}>
+              Categories and note-to-task links turn on once the
+              tasks-notes-v3 database update is applied.
+            </p>
+          )}
+        </div>
+      </div>
+
+      <div className="card" id="my-tasks-sops" style={{ marginTop: 20 }}>
+        <div className="task-toolbar">
+          <div>
+            <h3 className="card-title">SOPs</h3>
+            <p className="card-subtitle">
+              How each client's books are run, so anyone on the team can step
+              in. Staff-only; every edit is kept in History.
+            </p>
+          </div>
+          <div className="task-filters">
+            <label className="task-field compact tn-search">
+              <input
+                type="search"
+                placeholder="Search clients"
+                aria-label="Search clients for an SOP"
+                value={sopSearch}
+                onChange={(e) => {
+                  setSopSearch(e.target.value);
+                  if (e.target.value) setSopClientId("");
+                }}
+              />
+            </label>
+          </div>
+        </div>
+        <div className="tn-view">
+          {sopsMissing ? (
+            <p className="card-subtitle">{CLIENT_SOP_MISSING_TEXT}</p>
+          ) : sopClient ? (
+            <>
+              <div className="sop-client-head">
+                <h3 className="sop-client-name">{sopClient.name}</h3>
+                <button
+                  type="button"
+                  className="btn-secondary"
+                  onClick={() => setSopClientId("")}
+                >
+                  Change client
+                </button>
+              </div>
+              <ClientSopView client={sopClient} />
+            </>
+          ) : sopPickerClients.length === 0 ? (
+            <p className="card-subtitle">
+              {sopSearch.trim() ? "No matching client." : "No clients yet."}
+            </p>
+          ) : (
+            <ul className="sop-picker" aria-label="Pick a client">
+              {sopPickerClients.map((c) => (
+                <li key={c.id}>
                   <button
                     type="button"
-                    className="btn-secondary"
-                    onClick={() => setSopClientId("")}
+                    className="sop-picker-btn"
+                    onClick={() => setSopClientId(c.id)}
                   >
-                    Change client
+                    <span className="sop-picker-name">{c.name}</span>
+                    <span className="sop-picker-count">
+                      {sopCounts[c.id] || 0} of {CLIENT_SOP_SECTIONS.length} filled
+                    </span>
                   </button>
-                </div>
-                <ClientSopView client={sopClient} />
-              </>
-            ) : sopPickerClients.length === 0 ? (
-              <p className="card-subtitle">
-                {sopSearch.trim() ? "No matching client." : "No clients yet."}
-              </p>
-            ) : (
-              <ul className="sop-picker" aria-label="Pick a client">
-                {sopPickerClients.map((c) => (
-                  <li key={c.id}>
-                    <button
-                      type="button"
-                      className="sop-picker-btn"
-                      onClick={() => setSopClientId(c.id)}
-                    >
-                      <span className="sop-picker-name">{c.name}</span>
-                      <span className="sop-picker-count">
-                        {sopCounts[c.id] || 0} of {CLIENT_SOP_SECTIONS.length} filled
-                      </span>
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-        )}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
       </div>
     </div>
   );
