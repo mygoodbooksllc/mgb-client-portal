@@ -1451,6 +1451,24 @@ function Sidebar({
         </button>
       </div>
 
+      {/* Clients have no staff user menu (where staff sign out), so they
+          get their own sign-out control at the foot of the sidebar. */}
+      {!staffUser && onSignOut && (
+        <button
+          type="button"
+          className="sidebar-signout"
+          onClick={onSignOut}
+          aria-label={collapsed ? "Sign out" : undefined}
+          onMouseEnter={(e) => collapsed && showTip(e, "Sign out")}
+          onMouseLeave={hideTip}
+          onFocus={(e) => collapsed && showTip(e, "Sign out")}
+          onBlur={hideTip}
+        >
+          <SignOutIcon />
+          {!collapsed && <span>Sign out</span>}
+        </button>
+      )}
+
       <button
         className="sidebar-collapse-toggle"
         onClick={onToggleCollapse}

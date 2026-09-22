@@ -741,6 +741,32 @@ body {
   font-weight: 700;
 }
 
+/* Client sign-out at the foot of the sidebar (staff sign out from their
+   user menu instead). Matches the quiet sidebar rows. */
+.sidebar-signout {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  min-height: 38px;
+  margin-top: 6px;
+  padding: 8px 12px;
+  background: none;
+  border: none;
+  border-radius: 8px;
+  color: var(--sidebar-text-muted);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+}
+.sidebar-signout svg { flex-shrink: 0; }
+.sidebar-signout:hover { background: rgba(255, 255, 255, 0.06); color: white; }
+.sidebar-signout:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+.sidebar.sidebar-collapsed .sidebar-signout { justify-content: center; padding: 8px; }
+@media (max-width: 768px) { .sidebar-signout { min-height: 44px; } }
+
 .staff-user-menu-divider {
   height: 1px;
   background: rgba(255, 255, 255, 0.08);
