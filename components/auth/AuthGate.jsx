@@ -90,6 +90,10 @@
           // gets rejected by Google before ever reaching this app — this
           // `staff` table check is the second, narrower gate on top of that.
           hd: "mygoodbooks.org",
+          // Return to whichever host started sign-in (prod, a Vercel
+          // preview, or localhost). Supabase only honors hosts on its
+          // Redirect URLs allow-list and falls back to the Site URL otherwise.
+          redirectTo: window.location.origin,
         },
       });
     }
