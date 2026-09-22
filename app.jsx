@@ -9224,6 +9224,25 @@ function DeveloperToolsPage({ staffUser, clients, onJumpToClient, readOnly }) {
 // supabase/staff-chat-groups.sql's RLS policy; both must be changed together.
 const CHAT_EDIT_WINDOW_MS = 15 * 60 * 1000;
 
+// Security audit finding: attachments were staged and uploaded with no size
+// or type check at all, so the staff-chat-attachments bucket would take an
+// arbitrarily large file of any type from any signed-in staffer. Mirrored
+// server-side in supabase/audit2-storage-limits.sql (the bucket's own
+// file_size_limit / allowed_mime_types); both must be changed together —
+// this pair is the friendly error, that one is the actual enforcement.
+const MAX_ATTACHMENT_BYTES = 25 * 1024 * 1024;
+const ALLOWED_ATTACHMENT_TYPES = new Set([
+  "application/pdf",
+  "image/png",
+  "image/jpeg",
+  "image/gif",
+  "image/webp",
+  "text/csv",
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", // .xlsx
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document", // .docx
+  "text/plain",
+]);
+
 function StaffMessagesPage({ staffUser, onActivity }) {
   const supabase = window.mgbSupabase;
   const showToast = useToast();
@@ -9249,6 +9268,11 @@ function StaffMessagesPage({ staffUser, onActivity }) {
   const typingChannelRef = useRef(null);
   const typingTimeoutRef = useRef(null);
   const lastTypingSentRef = useRef(0);
+  // Security audit finding: resolves a typing broadcast's sender email to a
+  // name we can trust. Held in a ref (kept current by the effect below) so
+  // the typing channel doesn't have to resubscribe every time the member
+  // list or the staff directory loads.
+  const displayNameForRef = useRef(() => "Someone");
   // Guards against a stale async openWith() resolving after the user has
   // already clicked to a different thread and overwriting their new
   // selection — see selectConversation/openWith below. This was the actual
@@ -9495,7 +9519,10 @@ function StaffMessagesPage({ staffUser, onActivity }) {
   useEffect(() => {
     if (!supabase) return;
     const channel = supabase
-      .channel("staff-chat-" + staffUser.email)
+      // Security audit finding: private channel, so Realtime checks the
+      // caller against realtime.messages RLS instead of letting anyone with
+      // the publishable key subscribe to this topic.
+      .channel("staff-chat-" + staffUser.email, { config: { private: true } })
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "staff_messages" },
@@ -9537,7 +9564,9 @@ function StaffMessagesPage({ staffUser, onActivity }) {
   useEffect(() => {
     if (!supabase) return;
     const channel = supabase.channel("staff-presence", {
-      config: { presence: { key: staffUser.email } },
+      // Security audit finding: private, same as the inbox channel above —
+      // the roster of who's online is staff-only.
+      config: { private: true, presence: { key: staffUser.email } },
     });
     channel
       .on("presence", { event: "sync" }, () => {
@@ -9552,6 +9581,21 @@ function StaffMessagesPage({ staffUser, onActivity }) {
     };
   }, [supabase, staffUser.email]);
 
+  useEffect(() => {
+    displayNameForRef.current = (email) => {
+      if (!email) return "Someone";
+      // Must actually be in the open conversation — a broadcast from anyone
+      // else on the channel gets the generic label, not a staff name.
+      const isMember = (activeMembers || []).some(
+        (mm) => mm.staff_email === email,
+      );
+      if (!isMember) return "Someone";
+      if (email === staffUser.email) return staffUser.name || "Someone";
+      const row = (directory || []).find((d) => d.email === email);
+      return (row && row.name) || "Someone";
+    };
+  }, [activeMembers, directory, staffUser.email, staffUser.name]);
+
   // Realtime Broadcast, scoped to whichever conversation is open — a fresh
   // channel per activeConversationId (not the per-user inbox channel above,
   // which isn't shared between the two people in a DM). Typing pulses reset
@@ -9561,11 +9605,20 @@ function StaffMessagesPage({ staffUser, onActivity }) {
     setTypingName(null);
     typingChannelRef.current = null;
     if (!supabase || !activeConversationId) return;
-    const channel = supabase.channel("conv-typing-" + activeConversationId);
+    const channel = supabase.channel("conv-typing-" + activeConversationId, {
+      config: { private: true },
+    });
     channel
       .on("broadcast", { event: "typing" }, ({ payload }) => {
         if (!payload || payload.email === staffUser.email) return;
-        setTypingName(payload.name || "Someone");
+        // Security audit finding: payload.name is attacker-controlled — it's
+        // whatever the sending tab put in the broadcast, not anything the
+        // server vouches for, so rendering it let someone on the channel
+        // impersonate any staff member in the "X is typing…" line. Resolve
+        // the display name ourselves from the sender's email: they must be a
+        // member of THIS conversation, and the name comes from the `staff`
+        // directory row, never from the wire.
+        setTypingName(displayNameForRef.current(payload.email));
         clearTimeout(typingTimeoutRef.current);
         typingTimeoutRef.current = setTimeout(() => setTypingName(null), 3000);
       })
@@ -9709,6 +9762,20 @@ function StaffMessagesPage({ staffUser, onActivity }) {
 
   const stageFile = (file) => {
     if (!file) return;
+    if (file.size > MAX_ATTACHMENT_BYTES) {
+      showToast(
+        `${file.name} is ${formatBytes(file.size)} — attachments are capped at 25 MB.`,
+      );
+      return;
+    }
+    // Browsers leave file.type empty for extensions they don't recognize, so
+    // an unknown type is rejected rather than waved through.
+    if (!ALLOWED_ATTACHMENT_TYPES.has(file.type)) {
+      showToast(
+        `Can't attach ${file.name} — PDF, image, CSV, Excel, Word and text files only.`,
+      );
+      return;
+    }
     setPendingAttachment({
       file,
       name: file.name,

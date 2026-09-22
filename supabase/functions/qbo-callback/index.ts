@@ -54,19 +54,24 @@ Deno.serve(async (req) => {
 
   const supabase = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
 
+  // Security audit finding: this used to SELECT the row, check `used` and
+  // the age in JS, then UPDATE it in a separate statement. Two callbacks
+  // arriving with the same token both read used = false and both went on to
+  // exchange it — the single-use guarantee the token exists for was a
+  // check-then-act race. Consuming it in one UPDATE ... WHERE used = false
+  // ... RETURNING means exactly one caller can ever win; the age bound moves
+  // into the same WHERE so an expired token simply matches nothing.
   const { data: stateRow } = await supabase
     .from("qbo_connect_state")
-    .select("client_id, created_at, used")
+    .update({ used: true })
     .eq("token", stateToken)
+    .eq("used", false)
+    .gt("created_at", new Date(Date.now() - STATE_MAX_AGE_MS).toISOString())
+    .select("client_id, created_by")
     .maybeSingle();
 
-  const stateAge = stateRow ? Date.now() - new Date(stateRow.created_at).getTime() : Infinity;
-  if (!stateRow || stateRow.used || stateAge > STATE_MAX_AGE_MS) {
-    return redirect("invalid");
-  }
+  if (!stateRow) return redirect("invalid");
   const clientId = stateRow.client_id;
-
-  await supabase.from("qbo_connect_state").update({ used: true }).eq("token", stateToken);
 
   const { data: existing } = await supabase.from("qbo_connections").select("client_id").eq("client_id", clientId).maybeSingle();
   if (!existing) {
@@ -123,6 +128,10 @@ Deno.serve(async (req) => {
     .update({
       realm_id: realmId,
       status: "connected",
+      // Who actually started this flow, stamped onto the state row from the
+      // JWT at insert time (see supabase/audit2-qbo-state-hardening.sql).
+      // Previously nothing recorded who connected a client's QuickBooks.
+      connected_by: stateRow.created_by ?? null,
       connected_at: new Date().toISOString(),
       last_error: null,
       updated_at: new Date().toISOString(),

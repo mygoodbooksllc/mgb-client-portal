@@ -33,11 +33,22 @@
         .maybeSingle();
 
       if (error) {
+        // Security audit finding: a rejected session used to stay in
+        // localStorage. Supabase persists it and refreshes it in the
+        // background, so someone who followed a sign-in link whose address isn't on
+        // the client_users list kept a live, refreshing Supabase session on that
+        // device — and that session, not this React gate, is the identity
+        // every RLS policy is evaluated against. Fire and forget: the denied
+        // screen renders now, the token is torn down behind it. Signing out
+        // flips status to "signed-out" via onAuthStateChange, but errorMsg
+        // survives, so the explanation below stays on screen.
+        supabase.auth.signOut();
         setErrorMsg("Couldn't verify your access. Try again in a moment.");
         setStatus("denied");
         return;
       }
       if (!data || !data.active) {
+        supabase.auth.signOut();
         setErrorMsg(
           `${sessionEmail} isn't set up for portal access yet. Ask your bookkeeper.`,
         );
@@ -151,6 +162,24 @@
           >
             {errorMsg}
           </div>
+        )}
+        {errorMsg && (
+          <button
+            onClick={signOut}
+            style={{
+              marginTop: 4,
+              padding: "6px 12px",
+              borderRadius: 8,
+              border: "1px solid #555",
+              background: "transparent",
+              color: "inherit",
+              font: "inherit",
+              fontSize: 13,
+              cursor: "pointer",
+            }}
+          >
+            Sign out and use a different address
+          </button>
         )}
         <form
           onSubmit={sendLink}
