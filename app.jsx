@@ -14405,6 +14405,666 @@ const clientNotesApi = {
   },
 };
 
+// ----------------------------------------------------------------------------
+// clientSopsApi — per-client SOPs (supabase/client-sops.sql), so another
+// bookkeeper can step in. One row per (client_id, section); the section list
+// and hints live here in CLIENT_SOP_SECTIONS, a row only exists once someone
+// writes that section.
+//
+//   * Anyone who can access the client (can_access_client — assigned
+//     bookkeepers and admins) can read and edit. Clients never see SOPs.
+//   * Saves go through save_client_sop(), which only writes if the row is
+//     still at the version the editor started from. A lost race comes back as
+//     { conflict: true } so the UI can offer "Load theirs / Keep mine".
+//   * Every prior version is kept server-side in client_sop_history.
+//   * Until the migration is applied, the first "table/function missing"
+//     error flips `missing` and the UI shows CLIENT_SOP_MISSING_TEXT.
+//
+// Every write fires CLIENT_SOPS_CHANGED_EVENT; App's Realtime subscription
+// fires it too for teammates' edits.
+// ----------------------------------------------------------------------------
+
+const CLIENT_SOPS_CHANGED_EVENT = "mgb:client-sops-changed";
+const OPEN_CLIENT_SOP_EVENT = "mgb:open-client-sop";
+const CLIENT_SOP_MISSING_TEXT =
+  "SOPs turn on once the database update is applied.";
+const CLIENT_SOP_COLS =
+  "id, client_id, section, title, body, sort, version, updated_by, updated_at, created_at";
+const CLIENT_SOP_SECTIONS = [
+  {
+    id: "access",
+    title: "Access & logins",
+    hint: "Where credentials live — never paste passwords here. Which password manager entry, who grants access, MFA contact.",
+  },
+  {
+    id: "bank_feeds",
+    title: "Bank & credit card feeds",
+    hint: "Accounts and cards, which ones feed automatically, which need statements uploaded, and when.",
+  },
+  {
+    id: "monthly_close",
+    title: "Monthly close steps",
+    hint: "The close checklist in order — reconciliations, accruals, review points, sign-off.",
+  },
+  {
+    id: "payroll",
+    title: "Payroll",
+    hint: "Provider, pay schedule, how payroll is recorded, who approves.",
+  },
+  {
+    id: "bills_vendors",
+    title: "Recurring bills & vendors",
+    hint: "Regular vendors, how bills arrive, approval and payment routine.",
+  },
+  {
+    id: "reporting",
+    title: "Reporting & deliverables",
+    hint: "What the client gets, when, and in what format.",
+  },
+  {
+    id: "quirks",
+    title: "Quirks, contacts & preferences",
+    hint: "Who to call about what, communication preferences, things that trip people up.",
+  },
+];
+const CLIENT_SOP_SECTION_IDS = CLIENT_SOP_SECTIONS.map((s) => s.id);
+
+// Set by requestOpenClientSop() (Client details → SOP → "Edit in My Tasks")
+// and picked up by My Tasks when it mounts or hears the event.
+let pendingClientSopId = null;
+function requestOpenClientSop(clientId) {
+  pendingClientSopId = clientId;
+  try {
+    window.dispatchEvent(
+      new CustomEvent(OPEN_CLIENT_SOP_EVENT, { detail: clientId }),
+    );
+  } catch (e) {}
+}
+
+const clientSopsApi = {
+  missing: false,
+
+  notify() {
+    try {
+      window.dispatchEvent(new Event(CLIENT_SOPS_CHANGED_EVENT));
+    } catch (e) {}
+  },
+
+  isMissingError(error) {
+    if (!error) return false;
+    if (["42P01", "PGRST205", "PGRST202", "42883"].includes(error.code))
+      return true;
+    return /could not find the (table|function)|relation .* does not exist|function .* does not exist/i.test(
+      String(error.message || ""),
+    );
+  },
+
+  isConflictError(error) {
+    return !!error && /sop_version_conflict/.test(String(error.message || ""));
+  },
+
+  _check(error) {
+    if (this.isMissingError(error)) this.missing = true;
+    return error;
+  },
+
+  // { [section]: row } for one client.
+  async list(supabase, clientId) {
+    if (!supabase || !clientId) return { data: {}, error: null };
+    const { data, error } = await supabase
+      .from("client_sops")
+      .select(CLIENT_SOP_COLS)
+      .eq("client_id", clientId);
+    if (error) return { data: null, error: this._check(error) };
+    this.missing = false;
+    return {
+      data: Object.fromEntries((data || []).map((r) => [r.section, r])),
+      error: null,
+    };
+  },
+
+  // { [client_id]: number of the standard sections with text } across every
+  // client this staffer can access (RLS scopes it).
+  async filledCounts(supabase) {
+    if (!supabase) return { data: {}, error: null };
+    const { data, error } = await supabase
+      .from("client_sops")
+      .select("client_id, section, body")
+      .limit(10000);
+    if (error) return { data: null, error: this._check(error) };
+    this.missing = false;
+    const counts = {};
+    (data || []).forEach((r) => {
+      if (!CLIENT_SOP_SECTION_IDS.includes(r.section)) return;
+      if (!(r.body || "").trim()) return;
+      counts[r.client_id] = (counts[r.client_id] || 0) + 1;
+    });
+    return { data: counts, error: null };
+  },
+
+  async getOne(supabase, clientId, section) {
+    const { data, error } = await supabase
+      .from("client_sops")
+      .select(CLIENT_SOP_COLS)
+      .eq("client_id", clientId)
+      .eq("section", section)
+      .maybeSingle();
+    return { data: data || null, error: error ? this._check(error) : null };
+  },
+
+  // expectedVersion: the version the editor started from (0 when the section
+  // had no row yet). Returns { data: row } | { conflict: true } | { error }.
+  async save(supabase, { clientId, section, title, body, expectedVersion, sort }) {
+    const { data, error } = await supabase.rpc("save_client_sop", {
+      p_client_id: clientId,
+      p_section: section,
+      p_title: title || null,
+      p_body: body || "",
+      p_expected_version: expectedVersion || 0,
+      p_sort: sort || 0,
+    });
+    if (error) {
+      if (this.isConflictError(error)) return { conflict: true, error: null };
+      return { data: null, error: this._check(error) };
+    }
+    const row = Array.isArray(data) ? data[0] : data;
+    this.notify();
+    return { data: row || null, error: null };
+  },
+
+  // Prior versions of one section, newest first.
+  async history(supabase, clientId, section) {
+    const { data, error } = await supabase
+      .from("client_sop_history")
+      .select("id, sop_id, section, title, body, version, edited_by, edited_at, archived_at")
+      .eq("client_id", clientId)
+      .eq("section", section)
+      .order("archived_at", { ascending: false })
+      .limit(200);
+    return { data: data || null, error: error ? this._check(error) : null };
+  },
+};
+
+function useClientSopsChanged(load) {
+  useEffect(() => {
+    window.addEventListener(CLIENT_SOPS_CHANGED_EVENT, load);
+    return () => window.removeEventListener(CLIENT_SOPS_CHANGED_EVENT, load);
+  }, [load]);
+}
+
+const sopWho = (email) => (email ? email.split("@")[0] : "a teammate");
+
+// Plain-text SOP body -> paragraphs and bullet lists. Lines starting with
+// "- ", "* " or "• " are bullets; "1. " style lines become a numbered list;
+// blank lines split paragraphs; single line breaks are kept.
+function SopBody({ text }) {
+  const lines = String(text || "").replace(/\r\n?/g, "\n").split("\n");
+  const blocks = [];
+  let cur = null;
+  const push = (type, line) => {
+    if (!cur || cur.type !== type) {
+      cur = { type, lines: [] };
+      blocks.push(cur);
+    }
+    cur.lines.push(line);
+  };
+  lines.forEach((raw) => {
+    const line = raw.replace(/\s+$/, "");
+    if (!line.trim()) {
+      cur = null;
+      return;
+    }
+    const bullet = line.match(/^\s*(?:[-*•])\s+(.*)$/);
+    const num = line.match(/^\s*\d+[.)]\s+(.*)$/);
+    if (bullet) push("ul", bullet[1]);
+    else if (num) push("ol", num[1]);
+    else push("p", line);
+  });
+  return (
+    <div className="sop-body">
+      {blocks.map((b, i) =>
+        b.type === "p" ? (
+          <p key={i}>
+            {b.lines.map((l, j) => (
+              <React.Fragment key={j}>
+                {j > 0 && <br />}
+                {l}
+              </React.Fragment>
+            ))}
+          </p>
+        ) : b.type === "ul" ? (
+          <ul key={i}>
+            {b.lines.map((l, j) => (
+              <li key={j}>{l}</li>
+            ))}
+          </ul>
+        ) : (
+          <ol key={i}>
+            {b.lines.map((l, j) => (
+              <li key={j}>{l}</li>
+            ))}
+          </ol>
+        ),
+      )}
+    </div>
+  );
+}
+
+function clientSopPlainText(client, rows) {
+  const out = [`${client.name} — SOP`, ""];
+  CLIENT_SOP_SECTIONS.forEach((s) => {
+    const row = rows && rows[s.id];
+    out.push(s.title.toUpperCase());
+    out.push((row && (row.body || "").trim()) || "(not written yet)");
+    out.push("");
+  });
+  return out.join("\n");
+}
+
+function printClientSop(client, rows) {
+  const esc = (s) =>
+    String(s || "")
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;");
+  const sections = CLIENT_SOP_SECTIONS.map((s) => {
+    const row = rows && rows[s.id];
+    const body = row && (row.body || "").trim();
+    const meta = row && row.updated_at
+      ? `<p class="meta">Last edited by ${esc(sopWho(row.updated_by))}, ${esc(fmtDateTime(row.updated_at))}</p>`
+      : "";
+    return `<section><h2>${esc(s.title)}</h2>${
+      body ? `<div class="body">${esc(body)}</div>` : `<p class="empty">Not written yet.</p>`
+    }${meta}</section>`;
+  }).join("");
+  const w = window.open("", "_blank");
+  if (!w) return false;
+  w.document.write(
+    `<!doctype html><html><head><meta charset="utf-8"><title>${esc(client.name)} — SOP</title>` +
+      `<style>body{font:14px/1.5 system-ui,-apple-system,sans-serif;color:#111;max-width:720px;margin:32px auto;padding:0 16px}` +
+      `h1{font-size:22px;margin:0 0 4px}h2{font-size:16px;margin:24px 0 6px;border-bottom:1px solid #ccc;padding-bottom:4px}` +
+      `.body{white-space:pre-wrap}.empty,.meta,.sub{color:#666}.meta{font-size:12px;margin-top:6px}section{break-inside:avoid}</style>` +
+      `</head><body><h1>${esc(client.name)} — SOP</h1><p class="sub">Staff only · printed ${esc(fmtDateTime(new Date().toISOString()))}</p>${sections}</body></html>`,
+  );
+  w.document.close();
+  w.focus();
+  setTimeout(() => {
+    try {
+      w.print();
+    } catch (e) {}
+  }, 250);
+  return true;
+}
+
+// One client's SOP. Editable (My Tasks → SOPs) or read-only (Client details →
+// SOP, with a jump to edit in My Tasks).
+function ClientSopView({ client, readOnly, onEditInMyTasks }) {
+  const supabase = window.mgbSupabase;
+  const showToast = useToast();
+  const [rows, setRows] = useState(undefined); // undefined = loading
+  const [missing, setMissing] = useState(clientSopsApi.missing);
+  const [loadError, setLoadError] = useState("");
+  // section id -> { draft, baseVersion, saving, conflict }
+  const [editors, setEditors] = useState({});
+  const [historyFor, setHistoryFor] = useState(null);
+  const [history, setHistory] = useState(undefined);
+  const [openVersionId, setOpenVersionId] = useState(null);
+
+  const load = useCallback(() => {
+    if (!supabase || !client) return;
+    clientSopsApi.list(supabase, client.id).then(({ data, error }) => {
+      setMissing(clientSopsApi.missing);
+      if (error) {
+        if (!clientSopsApi.missing) setLoadError("Couldn't load the SOP. " + error.message);
+        setRows({});
+      } else {
+        setLoadError("");
+        setRows(data);
+      }
+    });
+  }, [supabase, client && client.id]);
+
+  useEffect(() => {
+    setRows(undefined);
+    setEditors({});
+    setHistoryFor(null);
+    load();
+  }, [load]);
+  useClientSopsChanged(load);
+
+  const loadHistory = useCallback(
+    (section) => {
+      setHistory(undefined);
+      clientSopsApi.history(supabase, client.id, section).then(({ data, error }) => {
+        if (error) {
+          showToast("Couldn't load history: " + error.message);
+          setHistory([]);
+        } else setHistory(data);
+      });
+    },
+    [supabase, client && client.id],
+  );
+
+  // Refresh an open history list when the section changes under it.
+  const historyVersion = historyFor && rows && rows[historyFor] ? rows[historyFor].version : 0;
+  useEffect(() => {
+    if (historyFor) loadHistory(historyFor);
+  }, [historyFor, historyVersion, loadHistory]);
+
+  const setEditor = (id, patch) =>
+    setEditors((prev) =>
+      patch === null
+        ? Object.fromEntries(Object.entries(prev).filter(([k]) => k !== id))
+        : { ...prev, [id]: { ...prev[id], ...patch } },
+    );
+
+  function startEdit(sec) {
+    const row = rows && rows[sec.id];
+    setEditor(sec.id, {
+      draft: (row && row.body) || "",
+      baseVersion: (row && row.version) || 0,
+      saving: false,
+      conflict: false,
+    });
+  }
+
+  async function save(sec, expectedOverride) {
+    const ed = editors[sec.id];
+    if (!ed || ed.saving) return;
+    setEditor(sec.id, { saving: true });
+    const expected =
+      expectedOverride !== undefined ? expectedOverride : ed.baseVersion;
+    const res = await clientSopsApi.save(supabase, {
+      clientId: client.id,
+      section: sec.id,
+      title: sec.title,
+      body: ed.draft,
+      expectedVersion: expected,
+      sort: CLIENT_SOP_SECTION_IDS.indexOf(sec.id),
+    });
+    if (res.conflict) {
+      const latest = await clientSopsApi.getOne(supabase, client.id, sec.id);
+      if (latest.data) setRows((prev) => ({ ...prev, [sec.id]: latest.data }));
+      setEditor(sec.id, { saving: false, conflict: true });
+      return;
+    }
+    if (res.error) {
+      setMissing(clientSopsApi.missing);
+      setEditor(sec.id, { saving: false });
+      showToast(
+        clientSopsApi.missing
+          ? CLIENT_SOP_MISSING_TEXT
+          : `Couldn't save ${sec.title}: ${res.error.message}`,
+      );
+      return;
+    }
+    if (res.data) setRows((prev) => ({ ...prev, [sec.id]: res.data }));
+    setEditor(sec.id, null);
+  }
+
+  async function restore(sec, h) {
+    const row = rows && rows[sec.id];
+    const res = await clientSopsApi.save(supabase, {
+      clientId: client.id,
+      section: sec.id,
+      title: sec.title,
+      body: h.body,
+      expectedVersion: (row && row.version) || 0,
+      sort: CLIENT_SOP_SECTION_IDS.indexOf(sec.id),
+    });
+    if (res.conflict) {
+      showToast("Someone just edited this section — review it and try again.");
+      load();
+      return;
+    }
+    if (res.error) {
+      showToast(`Couldn't restore: ${res.error.message}`);
+      return;
+    }
+    if (res.data) setRows((prev) => ({ ...prev, [sec.id]: res.data }));
+    showToast(`Restored version ${h.version} of ${sec.title}.`);
+  }
+
+  async function copyText() {
+    try {
+      await navigator.clipboard.writeText(clientSopPlainText(client, rows));
+      showToast("SOP copied.");
+    } catch (e) {
+      showToast("Couldn't copy — your browser blocked clipboard access.");
+    }
+  }
+
+  if (missing) {
+    return <p className="card-subtitle sop-missing">{CLIENT_SOP_MISSING_TEXT}</p>;
+  }
+  if (rows === undefined) return <p className="card-subtitle">Loading…</p>;
+
+  const filled = CLIENT_SOP_SECTIONS.filter(
+    (s) => rows[s.id] && (rows[s.id].body || "").trim(),
+  ).length;
+
+  return (
+    <div className="sop-view">
+      <div className="sop-toolbar">
+        <p className="tn-muted sop-count">
+          {filled} of {CLIENT_SOP_SECTIONS.length} sections filled · staff only
+        </p>
+        <div className="sop-toolbar-actions">
+          {readOnly && onEditInMyTasks && (
+            <button type="button" className="btn-primary" onClick={onEditInMyTasks}>
+              Edit in My Tasks
+            </button>
+          )}
+          <button
+            type="button"
+            className="btn-secondary"
+            onClick={() => {
+              if (!printClientSop(client, rows))
+                showToast("Allow pop-ups to print the SOP.");
+            }}
+          >
+            Print
+          </button>
+          <button type="button" className="btn-secondary" onClick={copyText}>
+            Copy as text
+          </button>
+        </div>
+      </div>
+      {loadError && <p className="card-subtitle negative">{loadError}</p>}
+
+      {CLIENT_SOP_SECTIONS.map((sec) => {
+        const row = rows[sec.id];
+        const body = row && (row.body || "").trim();
+        const ed = !readOnly && editors[sec.id];
+        const stale = ed && row && row.version > ed.baseVersion;
+        const showConflict = ed && (ed.conflict || stale);
+        const headingId = `sop-${client.id}-${sec.id}`;
+        return (
+          <section className="sop-section" key={sec.id} aria-labelledby={headingId}>
+            <div className="sop-section-head">
+              <h4 className="sop-section-title" id={headingId}>
+                {sec.title}
+              </h4>
+              {!readOnly && !ed && (
+                <div className="sop-section-actions">
+                  {row && (
+                    <button
+                      type="button"
+                      className="note-action"
+                      aria-expanded={historyFor === sec.id}
+                      onClick={() => {
+                        setOpenVersionId(null);
+                        setHistoryFor(historyFor === sec.id ? null : sec.id);
+                      }}
+                    >
+                      History
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    className="note-action"
+                    aria-label={`${body ? "Edit" : "Add"} ${sec.title}`}
+                    onClick={() => startEdit(sec)}
+                  >
+                    {body ? "Edit" : "Add"}
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {ed ? (
+              <div className="sop-editor">
+                {sec.id === "access" && (
+                  <p className="sop-warning" role="note">
+                    Don't store passwords here — note where they're kept (e.g.
+                    the password manager entry name).
+                  </p>
+                )}
+                {showConflict && row && (
+                  <div className="sop-conflict" role="alert">
+                    <p className="sop-conflict-title">
+                      Updated by {sopWho(row.updated_by)} {relTime(row.updated_at) || "just now"} — review their version
+                    </p>
+                    <div className="sop-conflict-grid">
+                      <div>
+                        <span className="tn-label">Their version</span>
+                        <div className="sop-conflict-theirs">
+                          {(row.body || "").trim() ? (
+                            <SopBody text={row.body} />
+                          ) : (
+                            <p className="tn-muted">(empty)</p>
+                          )}
+                        </div>
+                      </div>
+                      <div>
+                        <span className="tn-label">Yours (below)</span>
+                        <p className="tn-muted">
+                          Your text is kept in the editor. Load theirs to start
+                          from their version, or keep yours to save over it —
+                          theirs stays in History either way.
+                        </p>
+                      </div>
+                    </div>
+                    <div className="note-composer-actions">
+                      <button
+                        type="button"
+                        className="btn-secondary"
+                        onClick={() =>
+                          setEditor(sec.id, {
+                            draft: row.body || "",
+                            baseVersion: row.version,
+                            conflict: false,
+                          })
+                        }
+                      >
+                        Load theirs
+                      </button>
+                      <button
+                        type="button"
+                        className="btn-secondary"
+                        disabled={ed.saving}
+                        onClick={() => save(sec, row.version)}
+                      >
+                        Keep mine (overwrite)
+                      </button>
+                    </div>
+                  </div>
+                )}
+                <textarea
+                  className="note-textarea sop-textarea"
+                  rows={8}
+                  aria-label={`${sec.title} for ${client.name}`}
+                  placeholder={sec.hint + "\n\nTip: start lines with - for bullets or 1. for steps."}
+                  value={ed.draft}
+                  onChange={(e) => setEditor(sec.id, { draft: e.target.value })}
+                />
+                <div className="note-composer-actions">
+                  <button
+                    type="button"
+                    className="btn-secondary"
+                    onClick={() => setEditor(sec.id, null)}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    className="btn-primary"
+                    disabled={ed.saving || showConflict}
+                    onClick={() => save(sec)}
+                  >
+                    {ed.saving ? "Saving…" : "Save"}
+                  </button>
+                </div>
+              </div>
+            ) : body ? (
+              <SopBody text={row.body} />
+            ) : (
+              <p className="tn-muted sop-hint">{sec.hint}</p>
+            )}
+
+            {!ed && row && row.updated_at && (body || row.version > 1) && (
+              <p className="tn-muted tn-small">
+                Last edited by {sopWho(row.updated_by)}, {relTime(row.updated_at)}
+              </p>
+            )}
+
+            {!readOnly && !ed && historyFor === sec.id && (
+              <div className="sop-history">
+                <span className="tn-label">Earlier versions</span>
+                {history === undefined && <p className="tn-muted">Loading…</p>}
+                {history && history.length === 0 && (
+                  <p className="tn-muted">No earlier versions yet.</p>
+                )}
+                {history && history.length > 0 && (
+                  <ul className="note-list" aria-label={`${sec.title} history`}>
+                    {history.map((h) => (
+                      <li className="note-row" key={h.id}>
+                        <div className="sop-history-row">
+                          <span className="sop-history-meta">
+                            Version {h.version} · {sopWho(h.edited_by)}
+                            {h.edited_at ? ` · ${fmtDateTime(h.edited_at)}` : ""}
+                          </span>
+                          <span>
+                            <button
+                              type="button"
+                              className="note-action"
+                              aria-expanded={openVersionId === h.id}
+                              onClick={() =>
+                                setOpenVersionId(openVersionId === h.id ? null : h.id)
+                              }
+                            >
+                              {openVersionId === h.id ? "Hide" : "View"}
+                            </button>
+                            <button
+                              type="button"
+                              className="note-action"
+                              aria-label={`Restore version ${h.version} of ${sec.title}`}
+                              onClick={() => restore(sec, h)}
+                            >
+                              Restore
+                            </button>
+                          </span>
+                        </div>
+                        {openVersionId === h.id &&
+                          ((h.body || "").trim() ? (
+                            <SopBody text={h.body} />
+                          ) : (
+                            <p className="tn-muted">(empty)</p>
+                          ))}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            )}
+          </section>
+        );
+      })}
+    </div>
+  );
+}
+
 // Reload `load` whenever any client note / handoff write happens anywhere.
 function useClientNotesChanged(load) {
   useEffect(() => {
@@ -14524,6 +15184,7 @@ const TASK_TABS = [
   { id: "all", label: "All" },
   { id: "byclient", label: "By client" },
   { id: "notes", label: "Notes" },
+  { id: "sops", label: "SOPs" },
 ];
 // Tabs that show tasks (vs. the client/notes views).
 const TASK_LIST_TABS = ["today", "upcoming", "overdue", "all"];
@@ -14670,6 +15331,13 @@ function MyTasksPage({ staffUser, clients, statusOverrides }) {
   const [editingNoteText, setEditingNoteText] = useState("");
   const [highlightNoteId, setHighlightNoteId] = useState(null);
 
+  // SOPs tab (clientSopsApi): the chosen client, the picker search, and the
+  // "n of 7 sections filled" counts shown there and on By client cards.
+  const [sopClientId, setSopClientId] = useState("");
+  const [sopSearch, setSopSearch] = useState("");
+  const [sopCounts, setSopCounts] = useState({});
+  const [sopsMissing, setSopsMissing] = useState(clientSopsApi.missing);
+
   const clientById = useMemo(
     () => Object.fromEntries((clients || []).map((c) => [c.id, c])),
     [clients],
@@ -14718,6 +15386,48 @@ function MyTasksPage({ staffUser, clients, statusOverrides }) {
     loadNotes();
   }, [loadNotes]);
   useClientNotesChanged(loadNotes);
+
+  const loadSopCounts = useCallback(() => {
+    if (!supabase) return;
+    clientSopsApi.filledCounts(supabase).then(({ data, error }) => {
+      setSopsMissing(clientSopsApi.missing);
+      if (!error) setSopCounts(data);
+    });
+  }, [supabase]);
+  useEffect(() => {
+    loadSopCounts();
+  }, [loadSopCounts]);
+  useClientSopsChanged(loadSopCounts);
+
+  function openSop(clientId) {
+    setTab("sops");
+    setShowCompleted(false);
+    setSopClientId(clientId || "");
+    setSopSearch("");
+  }
+
+  // Client details → SOP → "Edit in My Tasks" lands here with a client.
+  useEffect(() => {
+    if (pendingClientSopId) {
+      openSop(pendingClientSopId);
+      pendingClientSopId = null;
+    }
+    const onOpen = (e) => {
+      pendingClientSopId = null;
+      openSop(e.detail);
+    };
+    window.addEventListener(OPEN_CLIENT_SOP_EVENT, onOpen);
+    return () => window.removeEventListener(OPEN_CLIENT_SOP_EVENT, onOpen);
+  }, []);
+
+  const sopClient = sopClientId ? clientById[sopClientId] : null;
+  const sopPickerClients = useMemo(() => {
+    const q = sopSearch.trim().toLowerCase();
+    return (clients || [])
+      .filter((c) => !q || (c.name || "").toLowerCase().includes(q))
+      .slice()
+      .sort((a, b) => (a.name || "").localeCompare(b.name || ""));
+  }, [clients, sopSearch]);
 
   // Bring a note into view after jumping to it from a task's link chip.
   useEffect(() => {
@@ -15233,6 +15943,25 @@ function MyTasksPage({ staffUser, clients, statusOverrides }) {
 
         <div className="tn-section">
           <div className="tn-section-head">
+            <span className="tn-label">SOP</span>
+            <button
+              type="button"
+              className="note-action"
+              aria-label={`View SOP for ${client.name}`}
+              onClick={() => openSop(client.id)}
+            >
+              View SOP
+            </button>
+          </div>
+          <p className="tn-muted tn-small sop-indicator">
+            {sopsMissing
+              ? CLIENT_SOP_MISSING_TEXT
+              : `SOP: ${sopCounts[client.id] || 0} of ${CLIENT_SOP_SECTIONS.length} sections filled`}
+          </p>
+        </div>
+
+        <div className="tn-section">
+          <div className="tn-section-head">
             <span className="tn-label">Latest notes</span>
             {cNotes.length > 3 && (
               <button
@@ -15613,6 +16342,22 @@ function MyTasksPage({ staffUser, clients, statusOverrides }) {
               </label>
             </div>
           )}
+          {tab === "sops" && (
+            <div className="task-filters">
+              <label className="task-field compact tn-search">
+                <input
+                  type="search"
+                  placeholder="Search clients"
+                  aria-label="Search clients for an SOP"
+                  value={sopSearch}
+                  onChange={(e) => {
+                    setSopSearch(e.target.value);
+                    if (e.target.value) setSopClientId("");
+                  }}
+                />
+              </label>
+            </div>
+          )}
           {tab === "notes" && (
             <div className="task-filters">
               <label className="task-field compact">
@@ -15705,7 +16450,7 @@ function MyTasksPage({ staffUser, clients, statusOverrides }) {
           </ul>
         )}
 
-        {!isListTab && notesError && (
+        {(tab === "byclient" || tab === "notes") && notesError && (
           <p className="card-subtitle negative" style={{ marginTop: 16 }}>
             {notesError}
           </p>
@@ -15771,6 +16516,54 @@ function MyTasksPage({ staffUser, clients, statusOverrides }) {
                 Categories and note-to-task links turn on once the
                 tasks-notes-v3 database update is applied.
               </p>
+            )}
+          </div>
+        )}
+
+        {tab === "sops" && (
+          <div className="tn-view">
+            <p className="card-subtitle tn-intro">
+              How each client's books are run, so anyone on the team can step
+              in. Staff-only — clients never see SOPs. Every edit is kept in
+              History.
+            </p>
+            {sopsMissing ? (
+              <p className="card-subtitle">{CLIENT_SOP_MISSING_TEXT}</p>
+            ) : sopClient ? (
+              <>
+                <div className="sop-client-head">
+                  <h3 className="sop-client-name">{sopClient.name}</h3>
+                  <button
+                    type="button"
+                    className="btn-secondary"
+                    onClick={() => setSopClientId("")}
+                  >
+                    Change client
+                  </button>
+                </div>
+                <ClientSopView client={sopClient} />
+              </>
+            ) : sopPickerClients.length === 0 ? (
+              <p className="card-subtitle">
+                {sopSearch.trim() ? "No matching client." : "No clients yet."}
+              </p>
+            ) : (
+              <ul className="sop-picker" aria-label="Pick a client">
+                {sopPickerClients.map((c) => (
+                  <li key={c.id}>
+                    <button
+                      type="button"
+                      className="sop-picker-btn"
+                      onClick={() => setSopClientId(c.id)}
+                    >
+                      <span className="sop-picker-name">{c.name}</span>
+                      <span className="sop-picker-count">
+                        {sopCounts[c.id] || 0} of {CLIENT_SOP_SECTIONS.length} filled
+                      </span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
             )}
           </div>
         )}
@@ -17197,6 +17990,7 @@ function TabSettingsModal({
   onSetAccessLevel,
   onToggleUserPremium,
   staffUser,
+  onOpenSop,
   onClose,
 }) {
   const [draggedKey, setDraggedKey] = useState(null);
@@ -17678,6 +18472,12 @@ function TabSettingsModal({
               onClick={() => setTab("notes")}
             >
               Notes
+            </button>
+            <button
+              className={"modal-tab" + (tab === "sop" ? " active" : "")}
+              onClick={() => setTab("sop")}
+            >
+              SOP
             </button>
             <button
               className={"modal-tab" + (tab === "activity" ? " active" : "")}
@@ -18190,6 +18990,16 @@ function TabSettingsModal({
               ))
             )}
           </div>
+        </div>
+      )}
+
+      {tab === "sop" && (
+        <div className="modal-body">
+          <ClientSopView
+            client={client}
+            readOnly
+            onEditInMyTasks={onOpenSop ? () => onOpenSop(client.id) : null}
+          />
         </div>
       )}
 
@@ -19311,6 +20121,25 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
         "postgres_changes",
         { event: "*", schema: "public", table: "client_notes" },
         () => clientNotesApi.notify(),
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [staffUser]);
+  // Same for client SOPs, on their own channel so a missing table (before
+  // client-sops.sql is applied) can't affect the notes subscription above.
+  useEffect(() => {
+    const supabase = window.mgbSupabase;
+    if (!supabase || !staffUser) return;
+    const channel = supabase
+      .channel("client-sops-" + staffUser.email, {
+        config: { private: true },
+      })
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "client_sops" },
+        () => clientSopsApi.notify(),
       )
       .subscribe();
     return () => {
@@ -20913,6 +21742,11 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
           onSetAccessLevel={setAccessLevel}
           onToggleUserPremium={toggleUserPremium}
           staffUser={staffUser}
+          onOpenSop={(clientId) => {
+            requestOpenClientSop(clientId);
+            setDetailsOpen(false);
+            setPage("my-tasks");
+          }}
           onClose={() => setDetailsOpen(false)}
         />
       )}

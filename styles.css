@@ -7146,3 +7146,247 @@ body:has(.modal-overlay) .chat-fab-wrap {
     padding: 14px;
   }
 }
+
+/* ---------------------------------------------------------------------------
+   Client SOPs (My Tasks → SOPs, By client card, Client details → SOP)
+   --------------------------------------------------------------------------- */
+
+.sop-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px 12px;
+  margin-bottom: 4px;
+}
+
+.sop-count {
+  font-variant-numeric: tabular-nums;
+}
+
+.sop-toolbar-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.sop-client-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 12px;
+  margin-bottom: 12px;
+}
+
+.sop-client-name {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text);
+  overflow-wrap: anywhere;
+  min-width: 0;
+}
+
+.sop-section {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 14px 16px;
+  margin-top: 12px;
+  min-width: 0;
+}
+
+.sop-section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.sop-section-title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text);
+  overflow-wrap: anywhere;
+  min-width: 0;
+}
+
+.sop-section-actions {
+  display: flex;
+  flex-shrink: 0;
+  gap: 4px;
+}
+
+.sop-body {
+  margin-top: 6px;
+  font-size: 14px;
+  color: var(--text);
+  overflow-wrap: anywhere;
+}
+
+.sop-body p {
+  margin: 0 0 8px;
+}
+
+.sop-body ul,
+.sop-body ol {
+  margin: 0 0 8px;
+  padding-left: 22px;
+}
+
+.sop-body li + li {
+  margin-top: 2px;
+}
+
+.sop-body > :last-child {
+  margin-bottom: 0;
+}
+
+.sop-hint {
+  margin-top: 6px;
+}
+
+.sop-editor {
+  margin-top: 8px;
+}
+
+.sop-textarea {
+  min-height: 160px;
+  line-height: 1.5;
+}
+
+.sop-warning {
+  margin: 0 0 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--warm-border);
+  border-radius: 8px;
+  background: var(--warm-bg);
+  color: var(--warm-text);
+  font-size: 14px;
+}
+
+.sop-conflict {
+  margin: 0 0 10px;
+  padding: 12px;
+  border: 1px solid var(--bad);
+  border-radius: 8px;
+  background: var(--bad-soft);
+}
+
+.sop-conflict-title {
+  margin: 0 0 10px;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--bad);
+}
+
+.sop-conflict-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.sop-conflict-theirs {
+  margin-top: 4px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  max-height: 240px;
+  overflow: auto;
+}
+
+.sop-history {
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+}
+
+.sop-history-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px 8px;
+}
+
+.sop-history-meta {
+  font-size: 14px;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+
+.sop-indicator {
+  margin-top: 0;
+}
+
+.sop-picker {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 260px), 1fr));
+  gap: 8px;
+}
+
+.sop-picker-btn {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+  min-height: 44px;
+  padding: 10px 14px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  font: inherit;
+  font-size: 14px;
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+}
+
+.sop-picker-btn:hover {
+  background: var(--hover-bg);
+}
+
+.sop-picker-btn:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 1px;
+}
+
+.sop-picker-name {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+  min-width: 0;
+}
+
+.sop-picker-count {
+  flex-shrink: 0;
+  font-size: 12.5px;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 640px) {
+  .sop-conflict-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .sop-toolbar-actions,
+  .sop-toolbar-actions button {
+    flex: 1 1 auto;
+  }
+
+  .sop-toolbar-actions button,
+  .sop-client-head button {
+    min-height: 44px;
+  }
+
+  .sop-section {
+    padding: 12px 14px;
+  }
+}
