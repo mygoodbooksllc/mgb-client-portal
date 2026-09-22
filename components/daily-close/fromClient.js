@@ -327,7 +327,13 @@
         // claims "Synced with QuickBooks Online", which would contradict every
         // other mock banner in the app — so the label carries the real status.
         // `isSampleData` stays false only to avoid printing "sample data" twice.
-        syncedLabel: "Sample data — not connected to QuickBooks yet",
+        syncedLabel:
+          client.dataSource === "quickbooks"
+            ? "Synced with QuickBooks Online" +
+              (client.lastSyncedAt && typeof relTime === "function" && relTime(client.lastSyncedAt)
+                ? " · " + relTime(client.lastSyncedAt)
+                : "")
+            : "Sample data — not connected to QuickBooks yet",
         isSampleData: false,
       },
       cash: {
