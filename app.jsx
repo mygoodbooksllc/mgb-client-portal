@@ -10862,6 +10862,14 @@ function ClientAccessPage({ readOnly }) {
   const [csvImporting, setCsvImporting] = useState(false);
   const [csvResults, setCsvResults] = useState(null);
 
+  // §171: which contact's per-person scoping is open in
+  // ClientUserScopeEditor (null = none), and which row has an invite in
+  // flight (separate from busyEmail, which the active/remove buttons own —
+  // an invite is a slow network round-trip and shouldn't grey out the
+  // toggle next to it).
+  const [scopeEditRow, setScopeEditRow] = useState(null);
+  const [invitingEmail, setInvitingEmail] = useState(null);
+
   // §133: the org roster itself (which client orgs exist at all), backed by
   // Supabase's `clients` table — distinct from client_users above (who can
   // log in as which org's contact). CLIENTS is still the same global array
@@ -11094,7 +11102,13 @@ function ClientAccessPage({ readOnly }) {
     }
     supabase
       .from("client_users")
-      .select("email, client_id, name, role, active, created_at")
+      // §171: the scoping columns (client-auth-phase2.sql) come back too now
+      // — ClientAuthGate has always read them, but nothing in the app could
+      // set them, so every real client login was effectively full access.
+      // ClientUserScopeEditor below writes them.
+      .select(
+        "email, client_id, name, role, active, created_at, access, tabs, categories, funds, premium_throttled",
+      )
       .order("created_at", { ascending: true })
       .then(({ data, error }) => {
         if (error) {
@@ -11147,6 +11161,53 @@ function ClientAccessPage({ readOnly }) {
     setNewName("");
     setNewRole("");
     showToast(`Added ${name} (${clientNameFor(newClientId)}).`);
+    load();
+    // §171: being on the allowlist isn't enough to actually get in — the
+    // portal's login form uses shouldCreateUser: false, so someone with no
+    // auth.users row can never be sent a link by it. Fire the invite right
+    // after adding them, which is what the bookkeeper meant by "add them"
+    // anyway. Its own toast reports the outcome; a failure here doesn't
+    // undo the row above (they're on the list, they just need a resend).
+    inviteContact({ email, client_id: newClientId, name, role });
+  }
+
+  // §171: supabase/functions/invite-client-user — staff-only, service-role
+  // auth.admin.inviteUserByEmail. Returns {status: 'invited' | 'exists'};
+  // 'exists' isn't an error, it means the person already has a sign-in
+  // account and should just use the portal login page.
+  async function inviteContact(row) {
+    if (!supabase) return;
+    setInvitingEmail(row.email);
+    const { data, error } = await supabase.functions.invoke(
+      "invite-client-user",
+      {
+        body: {
+          email: row.email,
+          client_id: row.client_id,
+          name: row.name,
+          role: row.role,
+        },
+      },
+    );
+    setInvitingEmail(null);
+    if (error) {
+      // FunctionsHttpError keeps the JSON body on .context — surface the
+      // endpoint's own message ("forbidden", "already set up for a
+      // different organization…") rather than a bare "non-2xx status".
+      let detail = error.message;
+      try {
+        const body = await error.context.json();
+        if (body && (body.message || body.error))
+          detail = body.message || body.error;
+      } catch (_) {
+        /* non-JSON body — keep error.message */
+      }
+      showToast(`Couldn't invite ${row.email}: ${detail}`);
+      return;
+    }
+    showToast(
+      (data && data.message) || `Invite sent to ${row.email}.`,
+    );
     load();
   }
 
@@ -11600,6 +11661,7 @@ function ClientAccessPage({ readOnly }) {
                     <th>Email</th>
                     <th>Client</th>
                     <th>Role</th>
+                    <th>Portal access</th>
                     <th>Active</th>
                     <th></th>
                   </tr>
@@ -11615,6 +11677,24 @@ function ClientAccessPage({ readOnly }) {
                           {clientNameFor(row.client_id)}
                         </td>
                         <td data-label="Role">{row.role}</td>
+                        <td data-label="Portal access">
+                          <span
+                            className={
+                              "pill " +
+                              (row.access === "scoped"
+                                ? "restricted"
+                                : "unrestricted")
+                            }
+                          >
+                            {scopeSummary(row)}
+                          </span>
+                          <button
+                            style={{ marginLeft: 8 }}
+                            onClick={() => setScopeEditRow(row)}
+                          >
+                            Edit access
+                          </button>
+                        </td>
                         <td data-label="Active">
                           <label className="staff-active-toggle">
                             <input
@@ -11627,6 +11707,16 @@ function ClientAccessPage({ readOnly }) {
                           </label>
                         </td>
                         <td className="row-remove-cell">
+                          <button
+                            className="btn-secondary"
+                            style={{ marginRight: 8 }}
+                            disabled={invitingEmail === row.email}
+                            onClick={() => inviteContact(row)}
+                          >
+                            {invitingEmail === row.email
+                              ? "Sending…"
+                              : "Invite / Resend invite"}
+                          </button>
                           <button
                             className="row-remove-btn"
                             onClick={() => removeContact(row)}
@@ -11649,7 +11739,314 @@ function ClientAccessPage({ readOnly }) {
           )}
         </div>
       </fieldset>
+
+      {/* Outside the <fieldset disabled={readOnly}> on purpose: a temp
+          read-only viewer can still OPEN someone's access to look at it.
+          The editor disables its own save button for them. */}
+      {scopeEditRow && (
+        <ClientUserScopeEditor
+          row={scopeEditRow}
+          readOnly={readOnly}
+          onClose={() => setScopeEditRow(null)}
+          onSaved={() => {
+            setScopeEditRow(null);
+            load();
+          }}
+        />
+      )}
     </div>
+  );
+}
+
+// §171: one-line summary of a client_users row's scoping, for the roster
+// table. Mirrors the pills the Manage Access modal's People tab shows for
+// mock users, and mirrors resolveAccess()'s reading of the same fields —
+// notably that a null (not empty) categories array means "every category",
+// which is why an empty checkbox list is stored as null below.
+function scopeSummary(row) {
+  if (row.access !== "scoped") return "Full access";
+  const parts = [];
+  if (row.tabs && row.tabs.length)
+    parts.push(`${row.tabs.length} page${row.tabs.length === 1 ? "" : "s"}`);
+  if (row.categories && row.categories.length)
+    parts.push(
+      `${row.categories.length} area${row.categories.length === 1 ? "" : "s"}`,
+    );
+  if (row.funds && row.funds.length)
+    parts.push(`${row.funds.length} fund${row.funds.length === 1 ? "" : "s"}`);
+  return parts.length ? `Limited · ${parts.join(", ")}` : "Limited";
+}
+
+// §171: the per-person scoping editor for a REAL client_users row.
+//
+// Not to be confused with UserAccessEditor further down, which edits the
+// same shape for data.js's mock client.users entries inside the Manage
+// Access modal and keeps its changes in session state. This one writes the
+// actual columns ClientAuthGate reads (access / tabs / categories / funds /
+// premium_throttled — supabase/client-auth-phase2.sql), so it's the only
+// thing in the app that can really narrow a signed-in client's view. The
+// two are deliberately kept apart rather than merged: the mock one is
+// keyed by user.id against a client object, this one by email against a
+// database row, and merging them would mean one component guessing which
+// world it's in on every field.
+//
+// The activity log is handled database-side — client_users' trigger
+// (supabase/client-users-scoping-update.sql) records an 'access_updated'
+// row with a before/after diff of exactly these fields, so nothing is
+// inserted from here (the browser has insert on client_activity_log
+// revoked anyway).
+function ClientUserScopeEditor({ row, readOnly, onClose, onSaved }) {
+  const showToast = useToast();
+  const supabase = window.mgbSupabase;
+  // Categories and funds come from the client's own data (still data.js
+  // today — Phase 3 will move them). An org with no CLIENTS entry yet can
+  // still have tabs and the premium toggle set.
+  const client = CLIENTS.find((c) => c.id === row.client_id) || null;
+
+  const [access, setAccess] = useState(
+    row.access === "scoped" ? "scoped" : "full",
+  );
+  const [tabs, setTabs] = useState(new Set(row.tabs || []));
+  const [categories, setCategories] = useState(new Set(row.categories || []));
+  const [funds, setFunds] = useState(new Set(row.funds || []));
+  const [premiumThrottled, setPremiumThrottled] = useState(
+    Boolean(row.premium_throttled),
+  );
+  const [saving, setSaving] = useState(false);
+
+  const isFull = access === "full";
+  // Matches resolveAccess(): ORG_WIDE_TABS can't be narrowed to one
+  // ministry area, so a category-scoped person never gets them whatever
+  // the checkbox says.
+  const isCategoryScoped = categories.size > 0;
+
+  function toggle(setter, value) {
+    setter((prev) => {
+      const next = new Set(prev);
+      if (next.has(value)) next.delete(value);
+      else next.add(value);
+      return next;
+    });
+  }
+
+  async function save() {
+    setSaving(true);
+    // null, never [] — resolveAccess() treats an empty array as truthy
+    // ("scoped to nothing"), so "leave all unchecked for everything" has
+    // to be stored as null or the person sees a blank dashboard.
+    const listOrNull = (set) => (set.size ? Array.from(set) : null);
+    const patch = isFull
+      ? {
+          access: "full",
+          tabs: null,
+          categories: null,
+          funds: null,
+          premium_throttled: premiumThrottled,
+        }
+      : {
+          access: "scoped",
+          tabs: listOrNull(tabs),
+          categories: listOrNull(categories),
+          funds: listOrNull(funds),
+          premium_throttled: premiumThrottled,
+        };
+    const { error } = await supabase
+      .from("client_users")
+      .update(patch)
+      .eq("email", row.email);
+    setSaving(false);
+    if (error) {
+      showToast(`Couldn't update ${row.email}: ${error.message}`);
+      return;
+    }
+    showToast(`Updated ${row.name}'s access.`);
+    onSaved();
+  }
+
+  return (
+    <ModalShell onClose={onClose} labelledBy="client-user-scope-title">
+      <div className="modal-header">
+        <div style={{ flex: 1 }}>
+          <h3
+            className="card-title"
+            id="client-user-scope-title"
+            style={{ margin: 0 }}
+          >
+            {row.name}
+          </h3>
+          <p className="card-subtitle" style={{ margin: 0 }}>
+            {row.role} · {row.email} ·{" "}
+            {client ? client.name : row.client_id}
+          </p>
+        </div>
+        <button className="modal-close" onClick={onClose} aria-label="Close">
+          ×
+        </button>
+      </div>
+
+      <div className="access-level-toggle">
+        <button
+          className={"access-level-btn" + (isFull ? " active" : "")}
+          onClick={() => setAccess("full")}
+        >
+          Full access
+          <span>
+            Sees all of {client ? client.name : "this organization"}'s finances
+          </span>
+        </button>
+        <button
+          className={"access-level-btn" + (!isFull ? " active" : "")}
+          onClick={() => setAccess("scoped")}
+        >
+          Limited access
+          <span>Only the areas you choose below</span>
+        </button>
+      </div>
+
+      <div className="access-level-toggle" style={{ marginTop: 12 }}>
+        <button
+          className={"access-level-btn" + (!premiumThrottled ? " active" : "")}
+          onClick={() => setPremiumThrottled(false)}
+        >
+          Premium features on
+          <span>Sees the Pro tools their organization subscribes to</span>
+        </button>
+        <button
+          className={"access-level-btn" + (premiumThrottled ? " active" : "")}
+          onClick={() => setPremiumThrottled(true)}
+        >
+          Premium features throttled
+          <span>Standard experience, even on a Premium plan</span>
+        </button>
+      </div>
+
+      {!isFull && (
+        <div className="modal-body">
+          <div className="modal-section">
+            <div className="nav-section-label modal-section-label">
+              Pages they can open
+            </div>
+            <p
+              className="card-subtitle"
+              style={{ marginTop: 0, marginBottom: 8 }}
+            >
+              Leave all unchecked to give them every page their organization
+              has turned on.
+            </p>
+            {ALL_TAB_KEYS.map((key) => {
+              const locked = key === ALWAYS_VISIBLE_KEY;
+              const blockedByScope =
+                isCategoryScoped && ORG_WIDE_TABS.has(key);
+              return (
+                <label
+                  className={
+                    "tab-toggle-row" +
+                    (locked || blockedByScope ? " locked" : "")
+                  }
+                  key={key}
+                >
+                  <input
+                    type="checkbox"
+                    checked={(tabs.has(key) || locked) && !blockedByScope}
+                    disabled={locked || blockedByScope}
+                    onChange={() => toggle(setTabs, key)}
+                  />
+                  <span>{NAV_LABEL_BY_KEY[key] || key}</span>
+                  {locked && (
+                    <span className="tab-toggle-note">Always visible</span>
+                  )}
+                  {blockedByScope && (
+                    <span className="tab-toggle-note">Org-wide only</span>
+                  )}
+                </label>
+              );
+            })}
+          </div>
+
+          <div className="modal-section">
+            <div className="nav-section-label modal-section-label">
+              Budget areas they can see
+            </div>
+            <p
+              className="card-subtitle"
+              style={{ marginTop: 0, marginBottom: 8 }}
+            >
+              Leave all unchecked to give them every category.
+            </p>
+            {client && client.budget && client.budget.length > 0 ? (
+              client.budget.map((b) => (
+                <label className="tab-toggle-row" key={b.category}>
+                  <input
+                    type="checkbox"
+                    checked={categories.has(b.category)}
+                    onChange={() => toggle(setCategories, b.category)}
+                  />
+                  <span>{b.category}</span>
+                </label>
+              ))
+            ) : (
+              <p className="card-subtitle">
+                No budget categories on file for this organization.
+              </p>
+            )}
+          </div>
+
+          {isCategoryScoped && (
+            <div className="modal-section">
+              <div className="nav-section-label modal-section-label">
+                Funds they can see
+              </div>
+              <p
+                className="card-subtitle"
+                style={{ marginTop: 0, marginBottom: 8 }}
+              >
+                Their dashboard never shows the org-wide fund total — leave all
+                unchecked to hide the Funds widget for them entirely, rather
+                than showing every fund by default.
+              </p>
+              {client && client.funds && client.funds.length > 0 ? (
+                client.funds.map((f) => (
+                  <label className="tab-toggle-row" key={f.name}>
+                    <input
+                      type="checkbox"
+                      checked={funds.has(f.name)}
+                      onChange={() => toggle(setFunds, f.name)}
+                    />
+                    <span>{f.name}</span>
+                  </label>
+                ))
+              ) : (
+                <p className="card-subtitle">
+                  No funds on file for this organization.
+                </p>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
+      {isFull && (
+        <div className="modal-body">
+          <p className="card-subtitle">
+            {row.name} sees every page and every category for{" "}
+            {client ? client.name : "their organization"}.
+          </p>
+        </div>
+      )}
+
+      <div className="modal-footer">
+        <button className="btn-secondary" onClick={onClose}>
+          Cancel
+        </button>
+        <button
+          className="btn-primary"
+          disabled={saving || readOnly}
+          onClick={save}
+        >
+          {saving ? "Saving…" : "Save access"}
+        </button>
+      </div>
+    </ModalShell>
   );
 }
 

@@ -55,7 +55,14 @@
         setStatus("denied");
         return;
       }
-      setClientUser(data);
+      // §171: the column is premium_throttled, but resolveAccess() (and the
+      // mock client.users shape it was written against) reads
+      // `premiumThrottled`. Until this was normalized here, a real client
+      // row whose premium throttle was set still got the full Pro
+      // experience — the only field of the row whose snake_case name didn't
+      // happen to match. Both spellings are kept so nothing reading the raw
+      // row breaks.
+      setClientUser({ ...data, premiumThrottled: data.premium_throttled });
       setStatus("authorized");
     }
 
