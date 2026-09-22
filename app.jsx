@@ -2896,8 +2896,13 @@ function crossTabWidgetDefs(client, access) {
               <div className="tx-row" key={a.id}>
                 <div>
                   <div className="tx-desc">{a.accountName}</div>
+                  {/* §170: QuickBooks' Account entity only carries an
+                      account number when the company has account numbers
+                      switched on, so a synced account often has no mask.
+                      "ending " followed by nothing reads as a bug. */}
                   <div className="tx-meta">
-                    {a.type} · ending {a.accountMask}
+                    {a.type}
+                    {a.accountMask ? ` · ending ${a.accountMask}` : ""}
                   </div>
                 </div>
                 <div className="tx-amount positive">
@@ -5001,8 +5006,12 @@ function BankTransactionsPanel({ client, searchTarget }) {
               </span>
               <span className="kpi-sub neutral">
                 {account.accountName} ({account.type})
-                <span className="dot-sep">•</span>
-                Account ending {account.accountMask}
+                {account.accountMask && (
+                  <>
+                    <span className="dot-sep">•</span>
+                    Account ending {account.accountMask}
+                  </>
+                )}
               </span>
             </div>
           </div>
@@ -5586,7 +5595,7 @@ function buildBalanceSheetPdf(client) {
     startY: 55,
     head: [["Assets", "Balance"]],
     body: client.bankAccounts.map((a) => [
-      `${a.accountName} (••${a.accountMask})`,
+      a.accountMask ? `${a.accountName} (••${a.accountMask})` : a.accountName,
       fmtMoney(a.balance, { cents: true }),
     ]),
     foot: [["Total Assets", fmtMoney(totalAssets, { cents: true })]],
