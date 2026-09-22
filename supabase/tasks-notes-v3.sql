@@ -210,3 +210,49 @@ $$;
 
 revoke all on function public.complete_staff_item(uuid, boolean, date) from public, anon;
 grant execute on function public.complete_staff_item(uuid, boolean, date) to authenticated;
+
+-- ---------------------------------------------------------------------------
+-- Keep a note's author on edit. stamp_author_from_jwt()
+-- (audit2-author-stamping.sql) re-stamped client_private_notes.author_* on
+-- every UPDATE, so pinning a note, or "Make task" setting linked_task_id,
+-- relabelled it with whoever clicked. Authorship is now set once, on INSERT,
+-- from the JWT; on UPDATE the original author is carried over. Still never
+-- taken from the browser, so the audit's anti-spoofing intent holds. Every
+-- other table's branch is unchanged.
+-- ---------------------------------------------------------------------------
+create or replace function public.stamp_author_from_jwt()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_email text := auth.jwt() ->> 'email';
+  v_name text;
+begin
+  case tg_table_name
+    when 'client_private_notes' then
+      if tg_op = 'UPDATE' then
+        new.author_email := old.author_email;
+        new.author_name := old.author_name;
+      else
+        select s.name into v_name from staff s where s.email = v_email;
+        new.author_email := v_email;
+        new.author_name := coalesce(v_name, v_email);
+      end if;
+    when 'client_documents' then
+      new.added_by := v_email;
+    when 'access_request_links' then
+      new.created_by := v_email;
+    when 'client_notes' then
+      new.updated_by := v_email;
+    when 'client_status_overrides' then
+      new.set_by := v_email;
+    when 'qbo_connect_state' then
+      new.created_by := v_email;
+    else
+      null;
+  end case;
+  return new;
+end;
+$$;
