@@ -5843,3 +5843,209 @@ limited to this staffer's assignments. That is the batch-2 hardening paying
 off — the client-side filter is now redundant rather than load-bearing.
 
 Files touched: `app.jsx`, `index.html`, `build.py`, `HANDOFF7.md`.
+
+---
+
+## §170 — QuickBooks data flows: sync function, qbo_* tables, page adapter
+
+Until now "Connect QuickBooks" connected QuickBooks and then nothing happened.
+The OAuth handshake worked, tokens were stored encrypted, a cron job kept them
+alive — and every page still rendered `CLIENTS_MOCK_DATA` under a banner
+promising real numbers in Phase 2. This is Phase 2's data half: books in,
+pages fed, banners gone for the clients they stopped being true for.
+
+### The shape of it
+
+Four pieces, deliberately separable:
+
+1. **`supabase/qbo-data.sql`** — eight tables keyed by `client_id text`, the
+   same join key every other per-client table uses. Chart of accounts, P&L
+   summarized by month plus its per-account lines, budget vs. actual, open
+   A/R and A/P, 90 days of register activity, and `qbo_sync_runs` as an audit
+   trail.
+2. **`supabase/functions/qbo-sync/index.ts`** — the only writer.
+3. **`components/qbo/mapQboToClient.js`** — a pure function turning those rows
+   into the client shape `data.js` documents.
+4. **`index.html`'s `loadQboData()`** — the boot step that fetches and maps.
+
+### Why the tables hold rows the pages don't read
+
+`qbo_pl_lines` has no page. It exists because Intuit's Budget entity carries
+**no actuals** — a `BudgetDetail` row is a number and an account and a month,
+full stop. The only way to say "you budgeted 3,200 and spent 3,540" is to join
+the budget against the P&L for the same month and account, which the sync does
+at write time so the browser never has to. `qbo_sync_runs` is the same kind of
+bet: the Edge Function logs no QuickBooks data at all (Intuit's review
+prohibits it), so without a table recording what each run actually pulled,
+"the dashboard looks stale" would be unanswerable.
+
+### RLS: two tiers, and no write policies anywhere
+
+Staff read through `can_access_client(client_id)` — §160's helper, so a
+bookkeeper sees their assignments and an admin sees everything. Clients read
+through their own active `client_users` row. Both are **SELECT only**.
+
+The absent write policies are the point. The only legitimate writer is the
+sync function on the service_role key, which bypasses RLS entirely. If a
+browser session could write to `qbo_accounts`, a number the UI presents as
+*coming from QuickBooks* could be typed in by hand — and the whole value of
+the Live badge is that it is a claim about provenance.
+
+### Two callers, two auth modes
+
+`qbo-sync` has `verify_jwt` off, because caller (a) is Postgres:
+
+- **(a) the hourly cron job** presents the project's service_role key as its
+  bearer token and sweeps every `status = 'connected'` connection. Same
+  pattern, same Vault secret, same length-check-then-compare as
+  `qbo-refresh-token`.
+- **(b) a staffer clicking "Sync now"** presents their own Supabase JWT. That
+  path builds a second client on the **anon** key with the caller's
+  `Authorization` header — so every check below runs *as them, under RLS* —
+  and requires an active `staff` row plus `can_access_client()` returning true
+  for the `client_id` in the body before it touches the service-role client.
+
+Mode (b) matters more than it looks. Without it, a bookkeeper could POST any
+client_id they liked and make a client they don't manage phone Intuit. The
+check is server-side because the button is a convenience, not the boundary.
+
+### Report parsing resolves columns by title, never by position
+
+A QuickBooks report is a tree of Sections and Data rows whose `ColData[]` is
+positionally aligned with `Columns.Column[]` — and that column set **varies by
+company**. A company with classes turned on gets different columns than one
+without; `TransactionList` in particular is documented as variable. So
+`monthColumns()` finds the month columns by parsing each `ColTitle`
+("Sep 2025"), and `parseTransactionList()` resolves Date / Type / Name / Memo
+/ Account / Amount by title with a loose second pass ("Memo/Description" vs
+"Memo"). Hardcoding index 4 as Amount would work perfectly against the sandbox
+and silently import garbage against a real company.
+
+Monthly totals come from each top-level section's own `Summary` row rather
+than from summing the leaves, since Intuit's totals are authoritative — with a
+fallback that derives them from the lines if a company's P&L has no
+recognizable Income/Expenses grouping. COGS is folded into expenses: the
+monthly chart has two series, and to a church treasurer "what did we spend"
+includes cost of goods.
+
+### Delete-then-insert, not upsert
+
+QuickBooks is the system of record. An invoice voided over there must vanish
+over here, and reconciling deletions by diffing ids is more moving parts than
+re-materializing a few hundred rows per client. Writes are chunked at 500.
+
+### The adapter, and what it deliberately does not do
+
+`mapQboToClient(client, rows)` is pure, synchronous, framework-free — no
+fetching, no Supabase, no React — which is what lets
+`components/qbo/mapQboToClient.test.js` run it under plain `node` with a stub
+`window` and assert its output shapes against `data.js`'s **own sample
+objects**. That is the real guard: `app.jsx` indexes into
+`client.monthly[n].income` and `client.bankAccounts[0].accountMask` with no
+guards at all, so a renamed field is an unguarded TypeError inside a render,
+which the root ErrorBoundary turns into "Something went wrong" for the entire
+app. 76 assertions, `node components/qbo/mapQboToClient.test.js`.
+
+Bank-account shapes are checked against **new-hope**, not grace-community:
+grace-community's accounts carry the Reconciliation Pro extras
+(`statementBalance`, `statementDate`, `cleared`), which are optional, and
+requiring them of a QuickBooks account would be asserting data Intuit's
+Account entity does not carry.
+
+What maps where:
+
+| data.js field | source | note |
+| --- | --- | --- |
+| `bankAccounts[]` | `qbo_accounts` | `account_type` in Bank / Credit Card, active only; `type` is the sub-type de-PascalCased ("MoneyMarket" → "Money Market") |
+| `bankAccounts[].transactions[]` | `qbo_transactions` | grouped onto their register account **by name**; `description` = memo → payee → type, `category` = txn type |
+| `monthly[]` | `qbo_monthly_pl` | chronological, `month` as data.js's three-letter label |
+| `budget[]` | `qbo_budget_lines` | collapsed to the **current month**, summed per account |
+| `receivables[]` | `qbo_invoices` | `amount` is the open balance, not the total |
+| `payables[]` | `qbo_bills` | same |
+| `dataSource` / `lastSyncedAt` | `qbo_connections` | |
+
+Three decisions worth stating outright:
+
+**A transaction on a non-bank account is dropped, not reassigned.** An expense
+split line is not bank activity, and dumping it onto whichever account happens
+to be first would put a number on a card where it doesn't belong.
+
+**No budget rows means an empty budget, never the sample one.** A sample
+budget sitting next to real actuals is a lie that looks like a bug report
+waiting to happen.
+
+**Every date is normalized to a bare `YYYY-MM-DD`.** `fmtDate` and `daysUntil`
+both append `"T00:00:00"`; anything else is an Invalid Date in a financial
+table. An invoice with no due date falls back to its transaction date
+(QuickBooks treats a due-date-less invoice as due on issue) and one with
+neither is dropped. The overdue logic everywhere in `app.jsx` is
+`daysUntil(dueDate, today) < 0` — there is no separate flag — so getting the
+string right *is* getting overdue right.
+
+### Honest banners
+
+`MockBanner` now takes an **optional** `client` and removes itself when
+`client.dataSource === "quickbooks"`. Only nine call sites pass it — the
+financial pages. The staff-tooling banners (Developer Tools, staff chat, page
+analytics) pass nothing on purpose: they describe internal tooling with no
+QuickBooks feed to switch over to, and gating them on whichever client is
+selected in the sidebar would be a non sequitur. Giving/Funds and Payroll
+likewise still say "sample" on a QuickBooks-connected client, because that
+data comes from a donor system and Gusto, neither of which this sync touches.
+
+The header badge gains the same fork: `Live · synced 4 minutes ago` (new
+`relTime` helper, falling back to `fmtDateTime` past a week) instead of
+`Prototype · Sample Data`.
+
+A connected client whose **first sync hasn't landed yet** keeps its sample
+data — `loadQboData` requires at least some real rows before mapping. Mapping
+an empty result would blank every page while still claiming "Live", which is
+strictly worse than an honest prototype banner.
+
+### Found while verifying
+
+Walking the Bank page against a fixture turned up `Account ending ` with
+nothing after it: QuickBooks only exposes an account number when the company
+has account numbers switched on, so a synced account often has no last-four,
+and three render sites printed the label unconditionally — including the
+balance sheet PDF, which would have emitted `(••)` beside a real figure. All
+three now omit the fragment.
+
+### Known gaps
+
+- **No account mask from QuickBooks.** `qbo_accounts` doesn't store `AcctNum`;
+  the mapper scrapes trailing digits out of the account name and otherwise
+  shows none. Adding the column is a one-line change to the sync if it matters.
+- **No reconciliation data.** `statementBalance` / `statementDate` / `cleared`
+  have no QuickBooks equivalent in what's pulled, so a connected client's
+  Reconciliation Pro panel has nothing to work with.
+- **Payable descriptions are `Bill #<id>`.** The Bill entity's memo isn't
+  stored yet.
+- **Giving, funds, pledges, donors and payroll are untouched** — still sample
+  data on a connected client, correctly labelled as such.
+- **`disconnectQuickBooks` is defined twice** in `TabSettingsModal`, identical
+  bodies. Pre-existing, harmless, left alone to keep this diff to its subject.
+- **The bundle (`build.py`) shows sample data only.** Mirroring `loadQboData`
+  there would need a new BUNDLE entry for the mapper, and a published
+  Artifact's CSP blocks the Supabase fetch anyway — same reason
+  `loadClientsRoster` leaves `window.CLIENTS` empty there. A note sits at the
+  spot.
+- **Not applied, not deployed.** SQL and function are written only.
+
+### To apply
+
+1. `supabase/qbo-data.sql` (needs `qbo-connections.sql` and
+   `audit-hardening-client-scoping.sql` already applied).
+2. Deploy the `qbo-sync` Edge Function. It needs **no new secrets** —
+   `QBO_CLIENT_ID`, `QBO_CLIENT_SECRET`, `QBO_TOKEN_ENCRYPTION_KEY`,
+   `QBO_ENV`, `SUPABASE_URL`, `SUPABASE_ANON_KEY` and
+   `SUPABASE_SERVICE_ROLE_KEY` all already exist.
+3. `supabase/qbo-sync-cron.sql`. It reads the **same** Vault secret as the
+   token refresher (`qbo_refresh_service_key`), so if that one-time
+   `vault.create_secret` was already done, nothing further is needed.
+
+Files touched: `supabase/qbo-data.sql` (new), `supabase/qbo-sync-cron.sql`
+(new), `supabase/functions/qbo-sync/index.ts` (new),
+`components/qbo/mapQboToClient.js` (new),
+`components/qbo/mapQboToClient.test.js` (new), `index.html`, `app.jsx`,
+`build.py`, `HANDOFF7.md`.
