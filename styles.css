@@ -15,6 +15,8 @@
      the palette gains nothing, and it measures 4.62:1 on cream. Decorative
      uses (borders, chips, gradient stops) only get crisper. */
   --gold-deep: #8a6d34;
+  /* Calm step 3: ink on solid-gold fills (header data pill). */
+  --on-gold: #05080d;
 
   --bg: #faf9f6;
   --surface: #ffffff;
@@ -111,6 +113,7 @@
     --navy-deep: #131a16;
     --gold: #c7ae86;
     --gold-deep: #d8c39f;
+    --on-gold: #0b100e;
 
     --bg: #0f1512;
     --surface: #161d1a;
@@ -181,6 +184,7 @@
   --navy-deep: #131a16;
   --gold: #c7ae86;
   --gold-deep: #d8c39f;
+  --on-gold: #0b100e;
 
   --bg: #0f1512;
   --surface: #161d1a;
@@ -242,8 +246,10 @@
 }
 
 /* The search input's outline is deliberately suppressed — the ring belongs on
-   the pill around it, which is the thing that reads as the control. */
-.global-search:focus-within {
+   the panel around it, which is the thing that reads as the control. (Calm
+   step 3: was .global-search, which is now just the header icon button's
+   wrapper and would ring the button on mouse clicks too.) */
+.global-search-panel:focus-within {
   outline: 2px solid var(--gold-deep);
   outline-offset: 2px;
 }
@@ -1356,6 +1362,73 @@ body {
   display: inline-flex;
   align-items: center;
   gap: 10px;
+}
+
+/* ---- Calm step 3: the app's own page header (not the .page-header rows
+   inside cards) — compact, opaque, a hairline rule underneath. ---- */
+.page-header.app-header {
+  align-items: flex-end;
+  flex-wrap: nowrap;
+  gap: 16px;
+  margin-bottom: 20px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--border);
+}
+
+.app-header > div:first-child {
+  min-width: 0;
+}
+
+.app-header .portal-greeting {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+  margin-bottom: 3px;
+}
+
+.app-header .page-title {
+  font-size: 26px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  line-height: 1.2;
+}
+
+.app-header .page-subtitle {
+  font-family: var(--font-body);
+  font-style: normal;
+  font-size: 13px;
+  margin-top: 3px;
+}
+
+.app-header .page-header-actions {
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+/* Data-source pill: small and solid gold when live, muted when it's the
+   sample-data prototype. No pulse, no glow. */
+.app-header .badge-live {
+  gap: 5px;
+  font-weight: 600;
+  color: var(--on-gold);
+  background: var(--gold);
+  border: 1px solid var(--gold);
+  padding: 3px 9px;
+  line-height: 1.4;
+  white-space: nowrap;
+}
+
+.app-header .badge-dot {
+  width: 7px;
+  height: 7px;
+  background: currentColor;
+}
+
+.app-header .badge-live--sample {
+  color: var(--text-muted);
+  background: var(--surface-2);
+  border-color: var(--border);
 }
 
 .theme-toggle {
@@ -2592,19 +2665,59 @@ body.rb-presenting .main {
    So it takes the surface it wants and none of the rest. Anything added to
    .card from here on should be a deliberate choice to repeat here, not
    something the search bar inherits by accident. */
+/* Calm step 3: .global-search is now a small wrapper in the page header — an
+   icon button (.global-search-toggle) that reveals the input panel
+   (.global-search-panel) as a popover. The surface described above lives on
+   the panel. */
 .global-search {
+  position: relative;
+  display: inline-flex;
+  /* It has to carry the layer itself — a z-index on the popover alone can
+     never lift it over the page's cards. Above page content, below the drawer
+     (1700) and modals (2000). */
+  z-index: 800;
+}
+
+.global-search-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  flex-shrink: 0;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+}
+
+.global-search-toggle:hover,
+.global-search.is-expanded .global-search-toggle {
+  background: var(--hover-bg);
+}
+
+/* The global :focus-visible floor also sets border-radius: 3px; keep the
+   button's own shape under the ring. */
+.global-search-toggle:focus-visible {
+  border-radius: 8px;
+}
+
+.global-search-toggle .icon-inline {
+  margin: 0;
+}
+
+.global-search-panel {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  width: min(440px, calc(100vw - 32px));
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 12px;
-  box-shadow: var(--shadow);
-  position: relative;
-  margin-bottom: 20px;
-  padding: 12px 16px;
-  /* backdrop-filter above makes this a stacking context regardless, so it has
-     to carry the layer itself — a z-index on the dropdown alone can never lift
-     it out of here. Above page content, below the drawer (1700) and modals
-     (2000). */
-  z-index: 800;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  padding: 8px 14px;
 }
 
 .global-search-row {
@@ -5058,6 +5171,45 @@ body:has(.modal-overlay) .chat-fab-wrap {
     font-size: 25px;
   }
 
+  /* Calm step 3: compact header on phones. Title block on its own line, then
+     one row with the data pill on the left and search on the right, so a long
+     client name or sync time can never push the row past 375px. The search
+     popover spans the viewport under the sticky top bar instead of hanging
+     off the button. */
+  .page-header.app-header {
+    flex-wrap: wrap;
+    align-items: flex-start;
+    gap: 10px;
+    margin-bottom: 16px;
+    padding-bottom: 12px;
+  }
+
+  .app-header .page-title {
+    font-size: 22px;
+  }
+
+  .app-header .page-subtitle {
+    font-size: 12.5px;
+  }
+
+  .app-header .page-header-actions {
+    flex: 1 0 100%;
+    min-width: 0;
+    justify-content: space-between;
+  }
+
+  .app-header .badge-live {
+    white-space: normal;
+  }
+
+  .global-search-panel {
+    position: fixed;
+    top: 60px;
+    left: 16px;
+    right: 16px;
+    width: auto;
+  }
+
   .page-subtitle {
     font-size: 14px;
   }
@@ -5162,7 +5314,8 @@ body:has(.modal-overlay) .chat-fab-wrap {
     padding-bottom: 11px;
   }
 
-  .theme-toggle {
+  .theme-toggle,
+  .global-search-toggle {
     width: 44px;
     height: 44px;
   }

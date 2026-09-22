@@ -2120,12 +2120,30 @@ function GlobalSearch({
 }) {
   const [query, setQuery] = useState("");
   const [isOpen, setIsOpen] = useState(false);
+  // Calm step 3: the search lives behind an icon button in the page header.
+  // `expanded` only controls whether the input panel is shown; the query,
+  // results and navigation below are unchanged.
+  const [expanded, setExpanded] = useState(false);
   const wrapRef = useRef(null);
+  const inputRef = useRef(null);
+  const toggleRef = useRef(null);
+
+  const collapse = (returnFocus) => {
+    setExpanded(false);
+    setIsOpen(false);
+    if (returnFocus && toggleRef.current) toggleRef.current.focus();
+  };
+
+  useEffect(() => {
+    if (expanded && inputRef.current) inputRef.current.focus();
+  }, [expanded]);
 
   useEffect(() => {
     const onDocClick = (e) => {
-      if (wrapRef.current && !wrapRef.current.contains(e.target))
+      if (wrapRef.current && !wrapRef.current.contains(e.target)) {
         setIsOpen(false);
+        setExpanded(false);
+      }
     };
     document.addEventListener("mousedown", onDocClick);
     return () => document.removeEventListener("mousedown", onDocClick);
@@ -2209,16 +2227,49 @@ function GlobalSearch({
     if (onHighlightResult) onHighlightResult(r);
     setIsOpen(false);
     setQuery("");
+    setExpanded(false);
   };
 
   return (
-    <div className="global-search" ref={wrapRef}>
+    <div
+      className={"global-search" + (expanded ? " is-expanded" : "")}
+      ref={wrapRef}
+      onKeyDown={(e) => {
+        if (e.key === "Escape" && expanded) {
+          e.stopPropagation();
+          collapse(true);
+        }
+      }}
+      onBlur={(e) => {
+        if (
+          expanded &&
+          wrapRef.current &&
+          e.relatedTarget &&
+          !wrapRef.current.contains(e.relatedTarget)
+        )
+          collapse(false);
+      }}
+    >
+      <button
+        type="button"
+        ref={toggleRef}
+        className="global-search-toggle"
+        aria-label="Search"
+        aria-expanded={expanded}
+        onClick={() => (expanded ? collapse(false) : setExpanded(true))}
+      >
+        <SearchIcon />
+      </button>
+      {expanded && (
+      <div className="global-search-panel">
       <div className="global-search-row">
         <span className="global-search-icon">
           <SearchIcon />
         </span>
         <input
           type="text"
+          ref={inputRef}
+          aria-label="Search"
           className="global-search-input"
           placeholder="Search transactions, budget categories, documents, messages…"
           value={query}
@@ -2252,6 +2303,8 @@ function GlobalSearch({
             ))
           )}
         </div>
+      )}
+      </div>
       )}
     </div>
   );
@@ -18739,17 +18792,6 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
             </div>
           )}
 
-          <GlobalSearch
-            client={scopedClient}
-            messages={liveMessages}
-            visibleKeys={access.tabs}
-            onNavigate={setPage}
-            onHighlightResult={(r) =>
-              setSearchTarget({ ...r, nonce: Date.now() })
-            }
-            key={"search-" + client.id}
-          />
-
           {/* §144-§147: which tab this is, in words — with the sidebar
               collapsible to icons (§142), there was no page name visible
               anywhere once collapsed. The header IS the tab name now
@@ -18768,7 +18810,7 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
               Tools, …) — those aren't about any one client's plan, so
               shimmering them off whichever client happens to be selected
               in the sidebar would be a non sequitur. */}
-          <div className="page-header">
+          <div className="page-header app-header">
             <div>
               <div className="portal-greeting">
                 {NON_CLIENT_PAGES.has(effectivePage)
@@ -18797,11 +18839,21 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
                     : "Live · QuickBooks"}
                 </span>
               ) : (
-                <span className="badge-live">
+                <span className="badge-live badge-live--sample">
                   <span className="badge-dot"></span>
                   Prototype · Sample Data
                 </span>
               )}
+              <GlobalSearch
+                client={scopedClient}
+                messages={liveMessages}
+                visibleKeys={access.tabs}
+                onNavigate={setPage}
+                onHighlightResult={(r) =>
+                  setSearchTarget({ ...r, nonce: Date.now() })
+                }
+                key={"search-" + client.id}
+              />
             </div>
           </div>
 
