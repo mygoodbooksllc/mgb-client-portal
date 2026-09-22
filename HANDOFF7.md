@@ -5843,3 +5843,132 @@ limited to this staffer's assignments. That is the batch-2 hardening paying
 off — the client-side filter is now redundant rather than load-bearing.
 
 Files touched: `app.jsx`, `index.html`, `build.py`, `HANDOFF7.md`.
+
+## §171 — Client access: own-org read policy, invite flow, scoping editor, server-side test-org and scope helpers
+
+Five things that all sat on the same fault line: the client side of the app
+was being trusted to enforce rules the database had never been told about.
+
+### A client couldn't read their own organization
+
+`clients` had exactly one select policy — `is_active_staff()`. A signed-in
+client contact is not staff, so the portal's every read of the org roster
+came back empty. It worked only because `ClientPortalGuard` still gets the
+org's name and plan out of data.js. `supabase/client-read-own-org.sql` adds
+a second, narrow policy: an active `client_users` row may read the one org
+its `client_id` points at, and nothing else. The staff policy is untouched —
+policies for the same command OR together.
+
+### A new client could never log in at all
+
+This one was a genuine dead end, not a rough edge. `ClientAuthGate` sends
+magic links with `shouldCreateUser: false` (a deliberate audit fix — without
+it, anyone could type any address into the portal's login box and have
+Supabase mint an auth user and email it). But that also means a contact who
+has just been added to `client_users` has **no** `auth.users` row for
+`signInWithOtp` to find, so no link is ever sent. First login was impossible
+for everyone, and the login form gave no clue why.
+
+The fix is an invite only staff can trigger:
+`supabase/functions/invite-client-user` (deployed, `verify_jwt: true`). It
+resolves the caller's JWT with `auth.getUser`, requires an **active** row in
+`staff` (a client's own JWT is a perfectly valid JWT and must not get past
+that), and requires `can_access_client(client_id)` — called through a client
+built with the *caller's* JWT, so the RPC sees their assignments and not the
+service role's. Only then does the service role come out, to ensure the
+`client_users` row exists and is active and to call
+`auth.admin.inviteUserByEmail` with a hardcoded `redirectTo`. An address that
+already has an account isn't an error: it returns `{status: 'exists'}` and
+the person simply uses the normal login form, which now has a user to find.
+
+The Client access page fires it automatically right after adding a contact
+(that is what "add them" meant anyway) and offers "Invite / Resend invite"
+per row. `shouldCreateUser: false` stays exactly as it was.
+
+### Nothing in the app could actually scope a real client
+
+`client_users` has carried `access / tabs / categories / funds /
+premium_throttled` since Phase 2, and `ClientAuthGate` has always selected
+them — but the only writer in the app wrote `email/client_id/name/role`. So
+every column that narrows a real client's view was always null, and every
+real client login was, in practice, full access. The scoping UI that existed
+(`UserAccessEditor`) edits data.js's *mock* `client.users` in session state.
+
+`ClientUserScopeEditor` is the real one: same `ModalShell` /
+`access-level-btn` / `tab-toggle-row` chrome, opened per row from the
+contacts table, writing the actual columns. It is kept separate from
+`UserAccessEditor` rather than merged — one is keyed by `user.id` against a
+client object, the other by email against a database row, and a merged
+component would spend every field guessing which world it was in.
+
+One subtlety worth keeping: empty checkbox lists are stored as **null**, not
+`[]`. `resolveAccess()` reads `Boolean(user.categories)`, and `[]` is truthy
+in JS — an empty array means "scoped to nothing", i.e. a blank dashboard,
+which is the opposite of what "leave all unchecked for everything" says on
+the label.
+
+Writing those columns needed a policy: `client_users` was admin-only
+(`FOR ALL`, `is_active_staff_admin()`).
+`supabase/client-users-scoping-update.sql` adds assignment-scoped select /
+insert / update via `can_access_client(client_id)` (admins still covered,
+since that helper short-circuits on the admin check), with `with_check` on
+the update so a bookkeeper can't move a contact onto a client they aren't
+assigned to. Deleting a contact stays admin-only. The same file widens
+`log_client_user_change()` so an `access_updated` entry carries a real
+before/after diff of the scoping fields instead of just role and active —
+previously every scoping change looked like a no-op in the Activity tab.
+
+And a one-word bug found on the way: `premium_throttled` is the only column
+whose snake_case name doesn't match what `resolveAccess()` reads
+(`premiumThrottled`). A real client with the throttle set still got the full
+Pro experience. `ClientAuthGate` now maps it.
+
+### [TEST] orgs were hidden by the browser, not the database
+
+`visibleClients` filters `c.testOnly` out for non-admins. That is a
+presentation filter — the rows still crossed the wire, and
+`mgbSupabase.from('clients').select('*')` in devtools handed any bookkeeper
+every sample org. Same class of finding as §160's batch-2 hardening. The
+staff select policy now reads `is_active_staff() and (not test_only or
+is_active_staff_admin())`. The client-side filter stays as belt-and-braces,
+and because `CLIENTS` is still fed by data.js today. The client-tier policy
+deliberately does *not* carry the condition: a contact provisioned against a
+sample org was given it on purpose.
+
+Worth knowing: both seeded orgs are currently `test_only = true`, so a
+non-admin bookkeeper now reads zero rows from `clients`. That is the policy
+working, not a bug — it will resolve itself the moment a real org is added.
+
+### Groundwork for scoping the real numbers
+
+Per-person scoping is presentation-layer only today
+(`resolveAccess` + `scopeClientData`), which is fine while every figure comes
+from data.js — there is no server to enforce anything against. It stops being
+fine the moment real ledger rows land in Postgres, because a scoped contact
+with devtools open could read every category of their org's books directly.
+
+`supabase/client-scope-view.sql` puts the two pieces in place without
+touching a single financial table (the `qbo_*` work is in flight elsewhere):
+a `security_invoker` view `my_client_scope` (client_id, access, tabs,
+categories, funds for the caller) and
+`client_can_see_category(p_client_id, p_category)`, which returns true for
+full access or a matching category and fails closed otherwise. The file's own
+comments spell out the pattern new client-tier policies should follow —
+append `and client_can_see_category(client_id, account_name)` to the client
+policy, never to the staff one, whose scoping is by assignment and never by
+category. Funds get a sibling helper when a fund-dimensioned table exists;
+there isn't one yet, so it isn't guessed at.
+
+All four migrations were applied live and verified by impersonation in SQL
+(`set local role authenticated` + `set_config('request.jwt.claims', …)`) for
+four identities: a scoped client contact (sees exactly one org, one
+`client_users` row, and passes the category helper only for their own
+category and their own org), an admin (both orgs), an unassigned-tier
+bookkeeper (the test-org filter), and an unknown address (nothing anywhere).
+
+Files touched: `app.jsx`, `components/auth/ClientAuthGate.jsx`,
+`supabase/client-read-own-org.sql`,
+`supabase/clients-test-only-server-side.sql`,
+`supabase/client-users-scoping-update.sql`,
+`supabase/client-scope-view.sql`,
+`supabase/functions/invite-client-user/index.ts`, `HANDOFF7.md`.
