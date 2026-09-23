@@ -1,28 +1,14 @@
 :root {
-  /* Deep navy + warm gold on a warm cream base. Navy darkened from the
-     original mygoodbooks.org #243746 (kept below, commented, for reference)
-     to a near-black navy — same blue hue family, not neutral or warm black.
-     Keep in sync with the parent app's ../../styles.css — see this file's
-     header comment in the README for why this is a manual copy, not an
-     import. */
   --navy: #05080d;
   --navy-deep: #020306;
-  /* --navy: #243746;    original mygoodbooks.org navy, pre-2026-09-15 */
-  /* --navy-deep: #1a2830; */
   --gold: #c7ae86;
-  --gold-deep: #b3925f;
-
+  --gold-deep: #8a6d34;
   --bg: #faf9f6;
   --surface: #ffffff;
   --border: #e8e2d6;
   --text: #26343d;
-  --text-muted: #7a7369;
-  /* Navy serves two opposite roles: dark chrome (sidebar, primary buttons) and
-     dark ink on light surfaces (headings, KPI values). Only the ink role can
-     flip in dark mode, so it gets its own token. In light mode they match. */
+  --text-muted: #6b655c;
   --ink-strong: var(--navy);
-  /* Secondary surfaces and warm accents that used to be hardcoded inline.
-     Tokenized so the dark block below has a single place to override them. */
   --surface-2: #f0ece3;
   --hover-bg: #f5f1e8;
   --muted-line: #d6cebb;
@@ -30,24 +16,15 @@
   --warm-bg: #fbf6ea;
   --warm-border: #e3d3ab;
   --warm-text: #8a6d34;
-  /* Frosted chat widget + tint on light bubbles; both invert in dark. */
-  --glass-bg: rgba(255, 255, 255, 0.55);
-  --glass-border: rgba(255, 255, 255, 0.4);
+  --glass-bg: var(--surface);
+  --glass-border: var(--border);
   --tint-on-surface: rgba(36, 55, 70, 0.08);
-  /* Ambient background mesh behind the glass cards (Option C direction). */
   --mesh-1: #e3d3ab;
   --mesh-2: #cfe0d6;
-  --mesh-3: #e6c9c2;
-  /* Bar-chart series. Income was --navy, which is chrome and disappears on a
-     dark card, so the series gets its own token. Expense stays brand gold. */
+  --mesh-3: #ecdfc4;
   --chart-income: #243746;
-  /* Selected tab/chip outline. Near-white reads as a harsh ring on dark, so
-     dark mode uses the gold accent instead. */
   --selected-outline: var(--navy);
-  /* Referral popup surface. Translucent navy reads as a solid panel over cream,
-     but over the near-black dark page it loses all presence — so dark mode gets
-     an opaque raised surface with a gold-tinted edge instead. */
-  --referral-bg: linear-gradient(135deg, rgba(36, 55, 70, 0.55) 0%, rgba(26, 40, 48, 0.55) 100%);
+  --referral-bg: #1a2830;
   --referral-border: rgba(255, 255, 255, 0.14);
   --sidebar-bg: var(--navy);
   --sidebar-text: #c7d0d6;
@@ -58,12 +35,9 @@
   --good-soft: #e9f0ea;
   --bad: #a4442c;
   --bad-soft: #f7e9e4;
-  --shadow: 0 8px 18px rgba(36, 55, 70, 0.075), 0 1px 3px rgba(36, 55, 70, 0.05);
-  --shadow-hover: 0 20px 36px rgba(36, 55, 70, 0.16), 0 4px 10px rgba(36, 55, 70, 0.1);
+  --shadow: 0 1px 2px rgba(38, 52, 61, 0.04);
+  --shadow-hover: 0 1px 2px rgba(38, 52, 61, 0.04);
   --radius: 12px;
-  /* Shared with <DailyClose /> so the premium panel and the shell read as one
-     product: Bitter for display/headings, IBM Plex Sans for everything else
-     (numbers included), IBM Plex Mono for small tabular figures. */
   --font-heading: "Bitter", Georgia, serif;
   --font-body: "IBM Plex Sans", system-ui, -apple-system, sans-serif;
   --font-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
@@ -80,34 +54,27 @@
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     color-scheme: dark;
-
-    /* Chrome keeps its role, just darker than the cream-era navy. */
     --navy: #1f2a24;
     --navy-deep: #131a16;
     --gold: #c7ae86;
     --gold-deep: #d8c39f;
-
     --bg: #0f1512;
     --surface: #161d1a;
     --border: #293530;
     --text: #e9ece6;
     --text-muted: #9aa59c;
     --ink-strong: #f2f5ef;
-
     --sidebar-bg: #0b100e;
     --sidebar-text: #aab4ac;
     --sidebar-text-active: #ffffff;
-
     --accent: var(--gold);
     --accent-soft: #1f2a22;
     --good: #5fbf7a;
     --good-soft: #16261c;
     --bad: #e2635f;
     --bad-soft: #2a1917;
-
-    --shadow: 0 1px 2px rgba(0, 0, 0, 0.35), 0 10px 28px -14px rgba(0, 0, 0, 0.55);
-    --shadow-hover: 0 20px 40px rgba(0, 0, 0, 0.5), 0 6px 14px rgba(0, 0, 0, 0.4);
-
+    --shadow: none;
+    --shadow-hover: none;
     --surface-2: #1c2420;
     --hover-bg: #1f2a22;
     --muted-line: #374139;
@@ -115,14 +82,12 @@
     --warm-bg: #1f2a22;
     --warm-border: #3f4f42;
     --warm-text: #d8c9a4;
-    --glass-bg: rgba(28, 36, 32, 0.72);
-    --glass-border: rgba(255, 255, 255, 0.1);
+    --glass-bg: var(--surface);
+    --glass-border: var(--border);
     --tint-on-surface: rgba(255, 255, 255, 0.1);
     --chart-income: #8fb4d6;
     --selected-outline: var(--gold);
-    /* Still frosted glass, but tinted *lighter* than the page instead of
-       darker — a navy tint over near-black has no presence at all. */
-    --referral-bg: linear-gradient(135deg, rgba(64, 82, 72, 0.78) 0%, rgba(44, 58, 51, 0.78) 100%);
+    --referral-bg: #2c3a33;
     --referral-border: rgba(199, 174, 134, 0.38);
     --mesh-1: #3f4f42;
     --mesh-2: #4a3a2a;
@@ -141,33 +106,27 @@
    applied regardless of the OS setting. Keep both in sync. */
 :root[data-theme="dark"] {
   color-scheme: dark;
-
   --navy: #1f2a24;
   --navy-deep: #131a16;
   --gold: #c7ae86;
   --gold-deep: #d8c39f;
-
   --bg: #0f1512;
   --surface: #161d1a;
   --border: #293530;
   --text: #e9ece6;
   --text-muted: #9aa59c;
   --ink-strong: #f2f5ef;
-
   --sidebar-bg: #0b100e;
   --sidebar-text: #aab4ac;
   --sidebar-text-active: #ffffff;
-
   --accent: var(--gold);
   --accent-soft: #1f2a22;
   --good: #5fbf7a;
   --good-soft: #16261c;
   --bad: #e2635f;
   --bad-soft: #2a1917;
-
-  --shadow: 0 1px 2px rgba(0, 0, 0, 0.35), 0 10px 28px -14px rgba(0, 0, 0, 0.55);
-  --shadow-hover: 0 20px 40px rgba(0, 0, 0, 0.5), 0 6px 14px rgba(0, 0, 0, 0.4);
-
+  --shadow: none;
+  --shadow-hover: none;
   --surface-2: #1c2420;
   --hover-bg: #1f2a22;
   --muted-line: #374139;
@@ -175,12 +134,12 @@
   --warm-bg: #1f2a22;
   --warm-border: #3f4f42;
   --warm-text: #d8c9a4;
-  --glass-bg: rgba(28, 36, 32, 0.72);
-  --glass-border: rgba(255, 255, 255, 0.1);
+  --glass-bg: var(--surface);
+  --glass-border: var(--border);
   --tint-on-surface: rgba(255, 255, 255, 0.1);
   --chart-income: #8fb4d6;
   --selected-outline: var(--gold);
-  --referral-bg: linear-gradient(135deg, rgba(64, 82, 72, 0.78) 0%, rgba(44, 58, 51, 0.78) 100%);
+  --referral-bg: #2c3a33;
   --referral-border: rgba(199, 174, 134, 0.38);
   --mesh-1: #3f4f42;
   --mesh-2: #4a3a2a;
@@ -204,25 +163,15 @@
 
 /* ---------------- Card ---------------- */
 .card {
-  /* Glass surface (Option C direction) — translucent over the .mesh-bg
-     ambient background, so this needs a real alpha channel, not --surface. */
-  background: var(--glass-bg);
-  border: 1px solid var(--glass-border);
-  border-radius: 20px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
   box-shadow: var(--shadow);
   padding: 20px;
-  /* Only the shadow eases — the hover pop itself is instant, not animated. */
-  transition: box-shadow 0.2s ease;
-  backdrop-filter: blur(16px) saturate(1.3);
-  -webkit-backdrop-filter: blur(16px) saturate(1.3);
   position: relative;
   overflow: hidden;
 }
 
-.card:hover {
-  transform: translateY(-4px) scale(1.015);
-  box-shadow: var(--shadow-hover);
-}
 
 @media (prefers-reduced-motion: reduce) {
   .card:hover { transform: none; }
@@ -245,16 +194,8 @@
    linear-gradient band only fades along its own axis and left a visible
    hard edge on the other two sides. */
 .card::after {
-  content: "";
-  position: absolute;
-  top: 50%;
-  left: -70%;
-  width: 85%;
-  height: 260%;
-  transform: translateY(-50%) rotate(12deg);
-  background: radial-gradient(ellipse at center, rgba(255, 255, 255, 0.07) 0%, rgba(255, 255, 255, 0.025) 45%, transparent 72%);
-  pointer-events: none;
-  animation: cardShimmer 42s ease-in-out infinite;
+  content: none;
+  animation: none;
 }
 
 @keyframes cardShimmer {
@@ -338,6 +279,8 @@
 /* ---------------- Mock banner ---------------- */
 .icon-inline {
   flex-shrink: 0;
+  vertical-align: -3px;
+  margin-right: 2px;
 }
 
 /* ---------------- Icon gallery ---------------- */
@@ -404,14 +347,11 @@
   border-radius: 999px;
   cursor: pointer;
   white-space: nowrap;
-  box-shadow: 0 4px 12px rgba(36, 55, 70, 0.25);
-  transition: box-shadow 0.2s ease, transform 0.2s ease, background 0.2s ease;
+  transition: background 0.2s ease;
 }
 
 .btn-primary:hover {
   background: var(--navy-deep);
-  box-shadow: 0 6px 16px rgba(36, 55, 70, 0.32);
-  transform: translateY(-1px);
 }
 
 .btn-secondary {
@@ -430,6 +370,8 @@
 
 .btn-secondary:hover {
   background: var(--hover-bg);
+  border-color: var(--gold);
+  transform: translateY(-1px);
 }
 
 .btn-primary:disabled {
@@ -466,6 +408,7 @@
 }
 
 .runway-ring-value {
+  font-variant-numeric: tabular-nums;
   font-size: 13px;
   color: var(--text-muted);
 }
@@ -522,6 +465,7 @@
 }
 
 .donut-center-value {
+  font-variant-numeric: tabular-nums;
   font-family: var(--font-body);
   font-size: 16px;
   font-weight: 700;
@@ -545,11 +489,12 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 13px;
+  font-size: 14px;
   color: var(--text);
 }
 
 .donut-legend-value {
+  font-variant-numeric: tabular-nums;
   margin-left: auto;
   font-weight: 700;
   color: var(--ink-strong);
@@ -565,13 +510,13 @@
   display: flex;
   flex-direction: column;
   gap: 10px;
-  z-index: 1000;
+  z-index: 2100;
 }
 
 .toast {
   background: var(--navy);
   color: white;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 600;
   padding: 12px 18px;
   border-radius: 10px;

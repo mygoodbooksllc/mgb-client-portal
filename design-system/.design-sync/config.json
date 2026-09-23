@@ -5,15 +5,127 @@
   "globalName": "MygoodbooksDS",
   "buildCmd": "npm run build",
   "cssEntry": "dist/styles.css",
-  "runtimeFontPrefixes": ["Bitter", "IBM Plex Sans", "IBM Plex Mono"],
+  "runtimeFontPrefixes": [
+    "Bitter",
+    "IBM Plex Sans",
+    "IBM Plex Mono"
+  ],
   "readmeHeader": ".design-sync/conventions.md",
   "overrides": {
-    "AccountCashDonut": { "cardMode": "column" },
-    "Card": { "cardMode": "column" },
-    "CardSubtitle": { "cardMode": "column" },
-    "CardTitle": { "cardMode": "column" },
-    "IncomeExpenseChart": { "cardMode": "column" },
-    "ReportBarRows": { "cardMode": "column" },
-    "ToastProvider": { "cardMode": "single", "primaryStory": "WithToast" }
+    "AccountCashDonut": {
+      "cardMode": "column"
+    },
+    "Card": {
+      "cardMode": "column"
+    },
+    "CardSubtitle": {
+      "cardMode": "column"
+    },
+    "CardTitle": {
+      "cardMode": "column"
+    },
+    "IncomeExpenseChart": {
+      "cardMode": "column"
+    },
+    "ReportBarRows": {
+      "cardMode": "column"
+    },
+    "ToastProvider": {
+      "cardMode": "single",
+      "primaryStory": "WithToast"
+    },
+    "IconGallery": {
+      "cardMode": "column"
+    },
+    "BankIcon": {
+      "cardMode": "column"
+    },
+    "BarChartIcon": {
+      "cardMode": "column"
+    },
+    "CalculatorIcon": {
+      "cardMode": "column"
+    },
+    "ChatIcon": {
+      "cardMode": "column"
+    },
+    "ChevronDownIcon": {
+      "cardMode": "column"
+    },
+    "ChevronUpIcon": {
+      "cardMode": "column"
+    },
+    "ClientRosterIcon": {
+      "cardMode": "column"
+    },
+    "DocumentIcon": {
+      "cardMode": "column"
+    },
+    "DownloadIcon": {
+      "cardMode": "column"
+    },
+    "FileIcon": {
+      "cardMode": "column"
+    },
+    "FlaskIcon": {
+      "cardMode": "column"
+    },
+    "FolderIcon": {
+      "cardMode": "column"
+    },
+    "GiftHeartIcon": {
+      "cardMode": "column"
+    },
+    "GridIcon": {
+      "cardMode": "column"
+    },
+    "HomeIcon": {
+      "cardMode": "column"
+    },
+    "LightbulbIcon": {
+      "cardMode": "column"
+    },
+    "LockIcon": {
+      "cardMode": "column"
+    },
+    "MoonIcon": {
+      "cardMode": "column"
+    },
+    "PaperclipIcon": {
+      "cardMode": "column"
+    },
+    "PieChartIcon": {
+      "cardMode": "column"
+    },
+    "SearchIcon": {
+      "cardMode": "column"
+    },
+    "ShieldCheckIcon": {
+      "cardMode": "column"
+    },
+    "SlidersIcon": {
+      "cardMode": "column"
+    },
+    "StackedBillsIcon": {
+      "cardMode": "column"
+    },
+    "SunIcon": {
+      "cardMode": "column"
+    },
+    "SwapIcon": {
+      "cardMode": "column"
+    },
+    "UploadIcon": {
+      "cardMode": "column"
+    },
+    "UsersIcon": {
+      "cardMode": "column"
+    },
+    "WarningIcon": {
+      "cardMode": "column"
+    },
+    "WrenchIcon": {
+      "cardMode": "column"
+    }
   }
 }

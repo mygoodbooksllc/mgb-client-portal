@@ -56,3 +56,39 @@ no fault of the preview. If the DS ever adds a real `KpiCard` component,
 source its styling from `app.jsx`'s inline `.kpi-*` CSS (in the parent
 `client-dashboard/styles.css`, not this package) rather than assuming it's
 already shipped here.
+
+## 2026-09-22 re-sync (calm redesign + icons)
+
+- **Styles are a manual copy of the app's.** `src/styles.css` was brought up
+  to the app's calm redesign by merging, per selector, the final cascaded
+  declarations from `client-dashboard/styles.css` into every rule this file
+  already defines (tokens in all three `:root` blocks, `.card`, `.card::after`,
+  `.btn-*`, `.donut-*`, `.runway-ring-value`, `.toast*`, `.icon-inline`);
+  `.card:hover` was dropped because the app removed it. In-body comments in
+  the rewritten rules were lost. Brace balance checked (0).
+- **Icons**: 30 `*Icon` components + `IconGallery` were added to the package
+  after the Sep 2 sync. Each icon has an authored preview
+  (`previews/<Name>Icon.tsx`: `Sizes`, `Tones`, `InButton`), generated from
+  one template, so they are uniform. Icon previews and `IconGallery` use
+  `cardMode: column`; the `Tones` row was clipped in the 3-up grid.
+- **Environment**: the Sep 2 sync ran on Linux; its `node_modules` (DS and
+  `.ds-sync/`) had Linux esbuild binaries and failed on macOS. Fix:
+  `npm ci` here and reinstall `.ds-sync` deps (`esbuild ts-morph
+  @types/react playwright`). There is no Playwright browser cache on this
+  Mac: set `DS_CHROMIUM_PATH="/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"`
+  for validate/capture/resync.
+- **Git**: `ds-bundle/` and `.ds-sync/` had been committed; they are
+  regenerated output and are now gitignored.
+
+## Re-sync risks
+
+- `src/styles.css` drifts whenever the app's `styles.css` changes; nothing
+  enforces the copy. Re-run the per-selector merge (or diff the `:root`
+  blocks) before each sync.
+- A new icon added to `src/` needs its own `previews/<Name>.tsx` (copy any
+  existing icon preview, change the import and label) plus a
+  `cardMode: column` override, or it ships a near-blank floor card
+  (`[RENDER_BLANK]`).
+- The conventions header's example has `RunwayRing pct={72}`, but `pct` is
+  a 0–1 fraction per the `.d.ts`. Waiting on the owner's OK to fix; the
+  header also doesn't mention the icon set yet.
