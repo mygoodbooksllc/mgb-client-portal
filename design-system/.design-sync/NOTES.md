@@ -89,6 +89,5 @@ already shipped here.
   existing icon preview, change the import and label) plus a
   `cardMode: column` override, or it ships a near-blank floor card
   (`[RENDER_BLANK]`).
-- The conventions header's example has `RunwayRing pct={72}`, but `pct` is
-  a 0–1 fraction per the `.d.ts`. Waiting on the owner's OK to fix; the
-  header also doesn't mention the icon set yet.
+- `conventions.md` names icon components and the `RunwayRing` `pct`
+  fraction; re-validate those names against the build on every sync.

@@ -52,6 +52,17 @@ numerals/mono). Include that `<link>` in the host page; don't expect
 compiled component CSS) and each component's own `.d.ts` for its prop
 contract. Read those before styling — this summary is not exhaustive.
 
+**Icons**: 30 thin-line icon components (`WarningIcon`, `SearchIcon`,
+`LockIcon`, `HomeIcon`, `BankIcon`, `DocumentIcon`, `DownloadIcon`,
+`UploadIcon`, `ChevronDownIcon`, ... — `IconGallery` renders all of them).
+Use these instead of emoji. They draw with `stroke="currentColor"`, so set
+color on a parent (`color: var(--text-muted)`), default to 16px, and accept
+any SVG prop (`width`, `height`, `strokeWidth`). Put one before a button
+label inside an inline-flex span with `gap: 8px`.
+
+`RunwayRing` takes `pct` as a fraction from 0 to 1 (months of runway / 12),
+not a percentage; `tone="negative"` switches it to the `--bad` colors.
+
 **Example — a KPI-style card using the real primitives:**
 
 ```tsx
@@ -60,7 +71,7 @@ import { Card, CardTitle, CardSubtitle, RunwayRing, Button } from 'mygoodbooks-d
 <Card>
   <CardTitle>Cash Runway</CardTitle>
   <CardSubtitle>Grace Community Church</CardSubtitle>
-  <RunwayRing pct={72} tone="good">7.2 months</RunwayRing>
+  <RunwayRing pct={0.6}>7.2 months</RunwayRing>
   <Button variant="primary">View report</Button>
 </Card>
 ```
