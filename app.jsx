@@ -20779,7 +20779,10 @@ class ErrorBoundary extends React.Component {
 // this client so the numbers and "synced X ago" update without a reload.
 // Rendered inside ToastProvider, which App itself sits above — hence its own
 // component rather than a handler in App.
-function QboSyncNowButton({ clientId, onSynced }) {
+// With `liveLabel`, renders as one combined pill: "● Live · synced 1 min
+// ago  ↻" (the header's Live badge and Sync now in one control, to save
+// space). Clicking anywhere on it syncs.
+function QboSyncNowButton({ clientId, onSynced, liveLabel }) {
   const showToast = useToast();
   const [syncing, setSyncing] = useState(false);
 
@@ -20824,6 +20827,45 @@ function QboSyncNowButton({ clientId, onSynced }) {
     }
   }
 
+  const syncIcon = (
+    <svg
+      className={"qbo-sync-now-icon" + (syncing ? " is-spinning" : "")}
+      width="14"
+      height="14"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M20 12a8 8 0 1 1-2.34-5.66" />
+      <path d="M20 4v4.5h-4.5" />
+    </svg>
+  );
+  if (liveLabel) {
+    return (
+      <>
+        <button
+          type="button"
+          className="live-sync-pill"
+          onClick={syncNow}
+          disabled={syncing}
+          title={syncing ? "Syncing with QuickBooks" : "Sync now with QuickBooks"}
+          aria-label={`${liveLabel}. ${syncing ? "Syncing with QuickBooks" : "Sync now with QuickBooks"}`}
+        >
+          <span className="badge-dot" aria-hidden="true"></span>
+          <span className="live-sync-text">{syncing ? "Syncing…" : liveLabel}</span>
+          <span className="live-sync-divider" aria-hidden="true"></span>
+          {syncIcon}
+        </button>
+        <span className="qbo-sync-now-status" aria-live="polite">
+          {syncing ? "Syncing with QuickBooks…" : ""}
+        </span>
+      </>
+    );
+  }
   return (
     <>
       <button
@@ -22364,36 +22406,37 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
               </h1>
               <div className={"page-subtitle"}>{meta.subtitle}</div>
             </div>
-            <div className="page-header-actions">
-              {!NON_CLIENT_PAGES.has(effectivePage) && !access.isCategoryScoped && (
+            <div className="page-header-actions-stack">
+            {/* Milestone badge on its own row, above the sync controls. */}
+            {!NON_CLIENT_PAGES.has(effectivePage) && !access.isCategoryScoped && (
+              <div className="ms-badge-row">
                 <MilestoneBadge
                   client={client}
                   staff={isStaffSession && !isPreviewingUser}
                   onOpen={() => setPage("milestone")}
                 />
-              )}
+              </div>
+            )}
+            <div className="page-header-actions">
               {/* §170: the honest version of this badge. A client whose
                   numbers came out of a real QuickBooks sync gets told when
                   they were last pulled; everyone else still gets the
                   prototype warning, which is still true for them. */}
               {client.dataSource === "quickbooks" ? (
-                <span className="badge-live">
-                  <span className="badge-dot"></span>
-                  {relTime(client.lastSyncedAt)
-                    ? `Live · synced ${relTime(client.lastSyncedAt)}`
-                    : "Live · QuickBooks"}
-                </span>
+                <QboSyncNowButton
+                  clientId={client.id}
+                  onSynced={() => setQboDataRev((r) => r + 1)}
+                  liveLabel={
+                    relTime(client.lastSyncedAt)
+                      ? `Live · synced ${relTime(client.lastSyncedAt)}`
+                      : "Live · QuickBooks"
+                  }
+                />
               ) : (
                 <span className="badge-live badge-live--sample">
                   <span className="badge-dot"></span>
                   Prototype · Sample Data
                 </span>
-              )}
-              {client.dataSource === "quickbooks" && (
-                <QboSyncNowButton
-                  clientId={client.id}
-                  onSynced={() => setQboDataRev((r) => r + 1)}
-                />
               )}
               <GlobalSearch
                 client={scopedClient}
@@ -22405,6 +22448,7 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
                 }
                 key={"search-" + client.id}
               />
+            </div>
             </div>
           </div>
 

@@ -1443,6 +1443,19 @@ body {
   flex-shrink: 0;
 }
 
+/* Milestone badge row above the Live / Sync now / search row. */
+.page-header-actions-stack {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+  flex-shrink: 0;
+}
+.ms-badge-row {
+  display: flex;
+  justify-content: flex-end;
+}
+
 /* Data-source pill: small and solid gold when live, muted when it's the
    sample-data prototype. No pulse, no glow. */
 .app-header .badge-live {
@@ -5235,6 +5248,12 @@ body:has(.modal-overlay) .chat-fab-wrap {
     justify-content: space-between;
   }
 
+  .app-header .page-header-actions-stack {
+    flex: 1 0 100%;
+    min-width: 0;
+    align-items: stretch;
+  }
+
   .app-header .badge-live {
     white-space: normal;
   }
@@ -6481,6 +6500,54 @@ body:has(.modal-overlay) .chat-fab-wrap {
 @media (prefers-reduced-motion: reduce) {
   .qbo-sync-now-icon.is-spinning {
     animation: none;
+  }
+}
+
+/* Header: Live badge + Sync now combined into one gold pill. */
+.live-sync-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 30px;
+  padding: 3px 10px 3px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--gold);
+  background: var(--gold);
+  color: var(--on-gold);
+  font-family: var(--font-body);
+  font-size: 12.5px;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.live-sync-pill .badge-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+}
+.live-sync-pill:hover:not(:disabled) {
+  border-color: var(--gold-deep);
+}
+.live-sync-pill:focus-visible {
+  outline: 2px solid var(--gold-deep);
+  outline-offset: 2px;
+}
+.live-sync-pill:disabled {
+  cursor: default;
+}
+.live-sync-divider {
+  width: 1px;
+  align-self: stretch;
+  margin: 2px 0;
+  background: currentColor;
+  opacity: 0.3;
+}
+@media (max-width: 760px) {
+  .live-sync-pill {
+    min-height: 44px;
+    padding: 0 14px;
   }
 }
 
