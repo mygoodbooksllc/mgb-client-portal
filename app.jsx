@@ -3837,7 +3837,7 @@ function MilestoneBadge({ client, staff, onOpen }) {
   } else if (s.approaching) {
     note = { text: `Near ${s.approaching.name}`, kind: "near" };
   } else if (staff && s.unconfirmed) {
-    note = { text: "Confirm", kind: "staff" };
+    note = { text: "Set milestone", kind: "staff" };
   }
   const tipText =
     cur.tier < 6
@@ -4103,7 +4103,7 @@ function MilestoneStaffPanel({ client, formsOnly }) {
       </form>
 
       <div className="ms-form">
-        <div className="ms-form-title">Confirm milestone</div>
+        <div className="ms-form-title">Set milestone</div>
         <p className="card-subtitle" style={{ marginTop: 0 }}>
           The client's fee follows the confirmed milestone. Talk it through with them first.
         </p>
@@ -4129,7 +4129,7 @@ function MilestoneStaffPanel({ client, formsOnly }) {
             disabled={saving || !pickTier || pickTier === s.confirmedTier}
             onClick={confirmTier}
           >
-            {pickTier === s.confirmedTier ? "Already confirmed" : "Confirm"}
+            {pickTier === s.confirmedTier ? "Already set" : "Set milestone"}
           </button>
         </div>
       </div>
@@ -4183,7 +4183,7 @@ function MilestonesReviewList({ clients, onOpenClient }) {
             {s.pendingTier
               ? `${milestoneByTier(s.confirmedTier).name} → ${milestoneByTier(s.pendingTier).name} to confirm`
               : s.unconfirmed
-                ? `Confirm ${milestoneByTier(s.computedTier).name}`
+                ? `Set milestone (${milestoneByTier(s.computedTier).name} from the numbers)`
                 : `Close to ${s.approaching.name}`}
           </span>
         </button>

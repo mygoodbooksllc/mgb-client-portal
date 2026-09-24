@@ -243,7 +243,7 @@ because some work happens in Claude Code web sessions. Run `git fetch` and compa
   of the Milestone page (also in **Client details → Milestone**), with a history. The badge has a
   progress ring toward the next milestone and shows "Near X" (within 90%), "Reached X" or
   "Moving to X" (numbers point elsewhere, awaiting staff confirmation) right on it; staff also see
-  "Confirm" on unconfirmed clients. Staff Home has a **Milestones to review** card. Database:
+  "Set milestone" on clients whose milestone hasn't been set yet. Staff Home has a **Milestones to review** card. Database:
   `supabase/client-milestones.sql` (`client_milestones`, `client_milestone_history`,
   `client_milestone_stats`, `confirm_client_milestone`).
 - **Enterprise** page: what premium includes and pricing. The upgrade request is real
