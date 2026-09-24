@@ -12,7 +12,7 @@
 // plus all the sample financial/content data (monthly, budget, bank
 // accounts, funds, contributions, documents, threads, ...) and the mock
 // `users` "Preview As" roster — none of that is real, all of it is still
-// mock, and none of it moved. index.html's/build.py's boot sequence fetches
+// mock, and none of it moved. index.html's boot sequence fetches
 // the real roster rows from Supabase right after this file loads, spreads
 // each one onto the matching CLIENTS_MOCK_DATA entry by `id`, and assigns
 // the merged array to window.CLIENTS — which is what app.jsx actually reads
@@ -20,7 +20,7 @@
 // full mechanism.
 // ---------------------------------------------------------------------------
 
-// Populated by index.html's/build.py's boot sequence (roster fetched from
+// Populated by index.html's boot sequence (roster fetched from
 // Supabase, merged onto CLIENTS_MOCK_DATA below) before app.jsx runs.
 // `window.`-scoped, not `let`/`const`, so every subsequent <script> tag
 // unambiguously shares the same binding and can reassign its contents.
@@ -439,7 +439,7 @@ const CLIENTS_MOCK_DATA = [
 ];
 
 // window.-exposed (not just the top-level const above) since the
-// boot-sequence merge step in index.html/build.py runs in a separate
+// boot-sequence merge step in index.html runs in a separate
 // <script> tag and can't rely on top-level `const` scoping across tags —
 // same reason window.CLIENTS itself is declared with `window.` up top.
 window.CLIENTS_MOCK_DATA_SOURCE = CLIENTS_MOCK_DATA;

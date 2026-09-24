@@ -1,6 +1,6 @@
 # Security audit finding: the whole repo was being uploaded to Vercel and
 # served as static files, so anything sitting next to index.html was a public
-# URL. The HANDOFF*.md notes alone spell out the schema, the RLS policies and
+# URL. Internal notes (README.md, formerly HANDOFF*.md) spell out the schema, the RLS policies and
 # the remaining known weaknesses; supabase/*.sql is the database blueprint.
 # None of it is fetched by the app at runtime.
 #
@@ -18,7 +18,6 @@ HANDOFF*.md
 supabase/
 
 # Local-only build/tooling
-build.py
 .claude/
 __pycache__/
 .build-cache/
@@ -27,8 +26,6 @@ __pycache__/
 marketing/
 design-system/
 
-# Archived mock data, superseded by the live `clients` roster
-data-sample-clients-archive.js
 
 # Point-in-time snapshots of the whole app taken before large refactors
 .snapshot-before-*/

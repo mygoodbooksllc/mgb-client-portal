@@ -10,7 +10,7 @@
     !window.SUPABASE_CONFIG.anonKey.startsWith("REPLACE_");
 
   // Developer Tools' "Simulate slow network" flag. This file loads before
-  // app.jsx exists (see index.html/build.py's load order), so it can't call
+  // app.jsx exists (see index.html's load order), so it can't call
   // app.jsx's isFlagOn() helper — it just checks the same "1" in localStorage
   // convention directly. The key string is duplicated in app.jsx's
   // FEATURE_FLAGS (with a comment pointing back here) rather than shared,
