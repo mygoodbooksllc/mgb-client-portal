@@ -250,7 +250,9 @@ because some work happens in Claude Code web sessions. Run `git fetch` and compa
   (`request_enterprise_upgrade`).
 - **Reports and PDFs** are generated in the browser with jsPDF: P&L, balance sheet, budget vs.
   actual, contribution and giving statements, reconciliation, payroll YTD, draft budget.
-- **Global search**, light/dark toggle, collapsible sidebar. A page refresh keeps you on the
+- **Global search**, light/dark toggle, collapsible sidebar. Below 760px, or in a desktop window at
+  half the screen width or less (`isHalfScreenWindow`, `.app-shell.nav-drawer`), the sidebar
+  becomes a hamburger drawer. A page refresh keeps you on the
   current page.
 
 ## Database changes

@@ -21155,6 +21155,24 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
     });
   };
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  // A desktop window at half the screen's width or less swaps the sidebar
+  // for the phone-style hamburger drawer (phones already get it below
+  // 760px via CSS). Measured against the screen the window is on, so it
+  // works the same on a laptop and a big external monitor.
+  const isHalfScreenWindow = () => {
+    const screenW = (window.screen && (window.screen.availWidth || window.screen.width)) || 0;
+    return window.innerWidth > 760 && screenW > 0 && window.innerWidth <= screenW / 2 + 1;
+  };
+  const [navDrawer, setNavDrawer] = useState(isHalfScreenWindow);
+  useEffect(() => {
+    const onResize = () => {
+      const next = isHalfScreenWindow();
+      setNavDrawer(next);
+      if (!next && window.innerWidth > 760) setMobileNavOpen(false);
+    };
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
   const [messagesByClient, setMessagesByClient] = useState({});
   // Purely client-side "is typing" flag for the simulated bookkeeper reply
   // below — there's no real backend for this thread (see MockBanner on
@@ -22289,7 +22307,13 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
         <span></span>
         <span></span>
       </div>
-      <div className={"app-shell" + (isPreviewingUser ? " previewing" : "")}>
+      <div
+        className={
+          "app-shell" +
+          (isPreviewingUser ? " previewing" : "") +
+          (navDrawer ? " nav-drawer" : "")
+        }
+      >
         <div className="mobile-topbar">
           <button
             className="hamburger-btn"
@@ -22322,7 +22346,7 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
           tabOrder={tabOrder}
           onOpenSettings={() => setSettingsOpen(true)}
           onOpenDetails={() => setDetailsOpen(true)}
-          collapsed={sidebarCollapsed}
+          collapsed={sidebarCollapsed && !navDrawer}
           onToggleCollapse={toggleSidebarCollapsed}
           isStaffSession={isStaffSession}
           badges={{ messages: hasUnreadMessages }}
