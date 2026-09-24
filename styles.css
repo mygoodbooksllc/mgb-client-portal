@@ -7636,7 +7636,75 @@ body:has(.modal-overlay) .chat-fab-wrap {
   gap: 2px;
 }
 
-.ms-card-below-live {
-  max-width: 560px;
-  margin-top: 20px;
+/* Header badge: roman numeral + milestone name, opens the Milestone page. */
+.ms-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  position: relative;
+  padding: 4px 12px 4px 4px;
+  border-radius: 999px;
+  border: 1px solid var(--warm-border);
+  background: var(--warm-bg);
+  color: var(--ink-strong);
+  font-family: var(--font-body);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.ms-badge:hover {
+  border-color: var(--gold);
+}
+.ms-badge:focus-visible {
+  outline: 2px solid var(--gold-deep);
+  outline-offset: 2px;
+}
+.ms-badge-roman {
+  font-family: var(--font-heading);
+  font-weight: 700;
+  font-size: 13px;
+  color: var(--surface);
+  background: var(--gold-deep);
+  min-width: 26px;
+  height: 26px;
+  padding: 0 6px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.ms-badge-dot {
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--gold);
+  border: 2px solid var(--bg);
+}
+@media (max-width: 640px) {
+  .ms-badge-name {
+    display: none;
+  }
+  .ms-badge {
+    padding-right: 4px;
+  }
+}
+.ms-page {
+  display: grid;
+  gap: 20px;
+}
+.ms-page-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+.ms-page .ms-meters {
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 20px 32px;
 }

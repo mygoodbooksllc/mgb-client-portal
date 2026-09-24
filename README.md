@@ -233,16 +233,17 @@ because some work happens in Claude Code web sessions. Run `git fetch` and compa
   - Fund Accounting Pro, including **Tax Documents**: year-end giving statements per donor.
     A "Sent" status is saved only in that browser (`mygoodbooks_tax_docs_sent_v1`), and the app
     asks for confirmation before resending.
-- **Your milestone** (Dashboard widget; under Live Report for premium clients; not shown to
-  category-scoped users): where the client stands on the public pricing
-  (`marketing/pricing-embed.html`, tiers in `PRICING_MILESTONES` in `app.jsx`). The milestone is
-  the **higher** of the trailing 3-month average monthly transactions (from synced QuickBooks
-  data) and the annual operating budget (staff-entered from the Form 990 or approved budget,
-  else the QuickBooks budget, else 12 months of expenses). The tracker only proposes: staff
-  confirm every change, up or down, in **Client details → Milestone**, which keeps a history.
-  Staff Home has a **Milestones to review** card. Database: `supabase/client-milestones.sql`
-  (`client_milestones`, `client_milestone_history`, `client_milestone_stats`,
-  `confirm_client_milestone`).
+- **Milestone** (header badge + page): a numeral badge ("II Growth") in the top right of every
+  client page opens the Milestone page (not in the sidebar; hidden from category-scoped users).
+  It shows where the client stands on the public pricing (`marketing/pricing-embed.html`, tiers
+  in `PRICING_MILESTONES` in `app.jsx`). The milestone is the **higher** of the trailing 3-month
+  average monthly transactions (from synced QuickBooks data) and the annual operating budget
+  (staff-entered from the Form 990 or approved budget, else the QuickBooks budget, else 12 months
+  of expenses). The tracker only proposes: staff confirm every change, up or down, at the bottom
+  of the Milestone page (also in **Client details → Milestone**), with a history. A gold dot on
+  the badge means a change is waiting. Staff Home has a **Milestones to review** card. Database:
+  `supabase/client-milestones.sql` (`client_milestones`, `client_milestone_history`,
+  `client_milestone_stats`, `confirm_client_milestone`).
 - **Enterprise** page: what premium includes and pricing. The upgrade request is real
   (`request_enterprise_upgrade`).
 - **Reports and PDFs** are generated in the browser with jsPDF: P&L, balance sheet, budget vs.

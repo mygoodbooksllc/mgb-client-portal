@@ -3806,79 +3806,95 @@ function MilestoneStatusNote({ s, staff }) {
   return null;
 }
 
-function MilestoneDetailsModal({ client, s, onClose }) {
+// Header badge, top right of every client page: roman numeral + milestone
+// name. Opens the Milestone page. For staff, a gold dot means a change is
+// waiting to be confirmed.
+function MilestoneBadge({ client, staff, onOpen }) {
+  const { byId } = useMilestones([client.id]);
+  const s = byId[client.id];
+  if (!s || !s.current) return null;
+  const needsLook = s.pendingTier || (staff && s.unconfirmed);
+  const title = s.pendingTier
+    ? `Milestone ${s.current.name}. Numbers point to ${milestoneByTier(s.pendingTier).name}.`
+    : s.approaching
+      ? `Milestone ${s.current.name}. Close to ${s.approaching.name}.`
+      : `Milestone ${s.current.name}`;
   return (
-    <ModalShell onClose={onClose} labelledBy="ms-modal-title" className="ms-modal">
-      <div className="modal-header">
-        <h3 className="card-title" id="ms-modal-title" style={{ margin: 0 }}>
-          Your milestone
-        </h3>
-        <button className="modal-close" onClick={onClose} aria-label="Close">
-          ×
-        </button>
-      </div>
-      <div className="modal-body">
-        <p className="card-subtitle" style={{ marginTop: 0 }}>
-          {client.name}'s monthly fee follows the higher of two measures: average monthly
-          transactions over the last 3 months, and annual operating budget.
-        </p>
-        <MilestoneStepChart currentTier={s.current && s.current.tier} />
-        <MilestoneMeters s={s} />
-        <MilestoneTable currentTier={s.current && s.current.tier} />
-        <p className="card-subtitle ms-footnote">
-          A transaction is any entry in QuickBooks: deposits, checks, bills, payments,
-          transfers and journal entries. Your milestone only changes after your bookkeeper
-          confirms it with you, and it goes down as well as up.
-        </p>
-      </div>
-    </ModalShell>
+    <button type="button" className={"ms-badge" + (needsLook ? " ms-badge-alert" : "")} onClick={onOpen} title={title} aria-label={title + ". Open milestone details."}>
+      <span className="ms-badge-roman">{s.current.roman}</span>
+      <span className="ms-badge-name">{s.current.name}</span>
+      {needsLook && <span className="ms-badge-dot" aria-hidden="true" />}
+    </button>
   );
 }
 
-// Client Dashboard widget.
-function MilestoneCard({ client }) {
+// The deep dive, opened from the header badge. Staff also get the budget,
+// confirm and history tools underneath.
+function MilestonePage({ client, isStaff }) {
   const { loading, byId, missing } = useMilestones([client.id]);
-  const [open, setOpen] = useState(false);
   const s = byId[client.id];
-  return (
-    <>
-      <h3 className="card-title">Your milestone</h3>
-      {loading ? (
-        <p className="card-subtitle">Loading…</p>
-      ) : missing || !s || !s.current ? (
-        <p className="card-subtitle">
+  if (loading) return <div className="card"><p className="card-subtitle">Loading…</p></div>;
+  if (missing || !s || !s.current) {
+    return (
+      <div className="card">
+        <p className="card-subtitle" style={{ margin: 0 }}>
           {client.dataSource === "quickbooks"
-            ? "Your milestone will appear after the next QuickBooks sync."
-            : "Your milestone appears once QuickBooks is connected."}
+            ? "The milestone will appear after the next QuickBooks sync."
+            : "The milestone appears once QuickBooks is connected."}
         </p>
-      ) : (
-        <>
-          <div className="ms-headline">
+      </div>
+    );
+  }
+  return (
+    <div className="ms-page">
+      <div className="card">
+        <div className="ms-page-top">
+          <div className="ms-headline" style={{ margin: 0 }}>
             <span className="ms-roman-lg">{s.current.roman}</span>
             <div>
               <div className="ms-name">{s.current.name}</div>
               <div className="ms-fee-lg">
                 {s.current.fee == null ? "Custom pricing" : `${fmtMoney(s.current.fee)} / month`}
+                {s.confirmedTier ? "" : " · estimate"}
               </div>
             </div>
           </div>
-          <MilestoneStatusNote s={s} />
-          <MilestoneMeters s={s} />
-          <button type="button" className="btn-secondary" onClick={() => setOpen(true)}>
-            See all milestones
-          </button>
           {s.lastSyncedAt && (
-            <p className="card-subtitle ms-updated">Updated {relTime(s.lastSyncedAt) || fmtDateTime(s.lastSyncedAt)}</p>
+            <span className="card-subtitle" style={{ margin: 0 }}>
+              Updated {relTime(s.lastSyncedAt) || fmtDateTime(s.lastSyncedAt)}
+            </span>
           )}
-        </>
+        </div>
+        <MilestoneStatusNote s={s} staff={isStaff} />
+        <MilestoneMeters s={s} />
+      </div>
+      <div className="card">
+        <h3 className="card-title">All milestones</h3>
+        <p className="card-subtitle">
+          The monthly fee follows the higher of two measures: average monthly transactions over the
+          last 3 months, and annual operating budget.
+        </p>
+        <MilestoneStepChart currentTier={s.current.tier} />
+        <MilestoneTable currentTier={s.current.tier} />
+        <p className="card-subtitle ms-footnote">
+          A transaction is any entry in QuickBooks: deposits, checks, bills, payments, transfers and
+          journal entries. The milestone only changes after your bookkeeper confirms it with you, and
+          it goes down as well as up.
+        </p>
+      </div>
+      {isStaff && (
+        <div className="card">
+          <h3 className="card-title">Staff: budget and confirmation</h3>
+          <p className="card-subtitle">Only MyGoodBooks staff see this section.</p>
+          <MilestoneStaffPanel client={client} formsOnly />
+        </div>
       )}
-      {open && s && <MilestoneDetailsModal client={client} s={s} onClose={() => setOpen(false)} />}
-    </>
+    </div>
   );
 }
 
 // Client details → Milestone (staff only): budget entry, confirm, history.
-function MilestoneStaffPanel({ client }) {
+function MilestoneStaffPanel({ client, formsOnly }) {
   const { loading, byId, raw, missing } = useMilestones([client.id]);
   const showToast = useToast();
   const s = byId[client.id];
@@ -3955,6 +3971,8 @@ function MilestoneStaffPanel({ client }) {
 
   return (
     <div className="ms-staff">
+      {!formsOnly && (
+      <>
       <div className="ms-staff-summary">
         <div>
           <div className="ms-meter-label">Confirmed</div>
@@ -3979,6 +3997,15 @@ function MilestoneStaffPanel({ client }) {
       </div>
       <MilestoneStatusNote s={s} staff />
       <MilestoneMeters s={s} />
+      </>
+      )}
+      {formsOnly && (
+        <p className="card-subtitle" style={{ margin: "0 0 4px" }}>
+          Confirmed: {confirmed ? `${confirmed.roman} ${confirmed.name} (${milestoneFeeLabel(confirmed)})` : "not yet"} · From
+          the numbers: {computed ? `${computed.roman} ${computed.name}` : "not enough data"}
+          {computed ? `, set by ${s.drivenBy === "both" ? "both measures" : s.drivenBy === "budget" ? "budget" : "transactions"}` : ""}
+        </p>
+      )}
 
       <form className="ms-form" onSubmit={saveBudget}>
         <div className="ms-form-title">Annual operating budget</div>
@@ -4241,12 +4268,6 @@ function DashboardPage({
       label: "Recent Activity",
       description: "Latest transactions across all accounts",
     },
-    {
-      id: "milestone",
-      group: "content",
-      label: "Your milestone",
-      description: "Where you stand on MyGoodBooks pricing",
-    },
     ...crossTabWidgetDefs(client, access),
   ];
   const crossTabById = Object.fromEntries(
@@ -4415,16 +4436,6 @@ function DashboardPage({
                       </div>
                     ))}
                   </div>
-                </div>
-              );
-            if (id === "milestone")
-              return (
-                <div
-                  className={"card ms-card " + drag.dragClass(id)}
-                  key={id}
-                  {...drag.dragProps(id)}
-                >
-                  <MilestoneCard client={client} />
                 </div>
               );
             if (crossTabById[id])
@@ -20626,6 +20637,10 @@ const PAGE_META = {
     title: "My Tasks",
     subtitle: "Your tasks and reminders — private unless you share one",
   },
+  milestone: {
+    title: "Milestone",
+    subtitle: "Where you stand on MyGoodBooks pricing",
+  },
   "my-time": {
     title: "My Time",
     subtitle: "Log hours per client and see your own running totals",
@@ -21444,14 +21459,18 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
   // still restores the last-viewed tab as before; this only fires on an
   // actual client switch, after mount.
   const skipFirstClientSwitch = useRef(true);
+  // Set when something switches client AND asks for a specific page (Home's
+  // Milestones to review), so the reset below doesn't bounce it to Dashboard.
+  const pageAfterClientSwitch = useRef(null);
   useEffect(() => {
     setViewAsUserId(BOOKKEEPER_VIEW);
     setBookkeeperThreadUserId(null);
     if (skipFirstClientSwitch.current) {
       skipFirstClientSwitch.current = false;
     } else {
-      setPage("dashboard");
+      setPage(pageAfterClientSwitch.current || "dashboard");
     }
+    pageAfterClientSwitch.current = null;
   }, [selectedClientId]);
 
   // Only counts as "visiting" a client while actually looking at one of its
@@ -21653,6 +21672,8 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
               ? page
               : page === "bookkeeper-home" && staffUser
                 ? page
+                : page === "milestone" && !access.isCategoryScoped
+                  ? page
                 : access.tabs.has(page)
                   ? page
                   : ALWAYS_VISIBLE_KEY;
@@ -22278,6 +22299,13 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
               <div className={"page-subtitle"}>{meta.subtitle}</div>
             </div>
             <div className="page-header-actions">
+              {!NON_CLIENT_PAGES.has(effectivePage) && !access.isCategoryScoped && (
+                <MilestoneBadge
+                  client={client}
+                  staff={isStaffSession && !isPreviewingUser}
+                  onOpen={() => setPage("milestone")}
+                />
+              )}
               {/* §170: the honest version of this badge. A client whose
                   numbers came out of a real QuickBooks sync gets told when
                   they were last pulled; everyone else still gets the
@@ -22325,19 +22353,12 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
               // passed through so both sides stay in step. Data is derived
               // from the selected client rather than the shipped Bramblewood
               // sample, so the panel and the rest of the app agree.
-              <>
-                <DailyClose
-                  data={dailyCloseFromClient(client)}
-                  theme={effectiveTheme}
-                  onNavigate={setPage}
-                  key={"daily-close-" + client.id}
-                />
-                {/* Live Report replaces the widget dashboard, so the
-                    pricing milestone card rides underneath it. */}
-                <div className="card ms-card ms-card-below-live" key={"ms-" + client.id}>
-                  <MilestoneCard client={client} />
-                </div>
-              </>
+              <DailyClose
+                data={dailyCloseFromClient(client)}
+                theme={effectiveTheme}
+                onNavigate={setPage}
+                key={"daily-close-" + client.id}
+              />
             ) : access.isCategoryScoped ? (
               <ScopedDashboardPage
                 client={scopedClient}
@@ -22453,6 +22474,13 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
               statusOverrides={statusOverrides}
             />
           )}
+          {effectivePage === "milestone" && (
+            <MilestonePage
+              client={client}
+              isStaff={isStaffSession && !isPreviewingUser}
+              key={"milestone-" + client.id}
+            />
+          )}
           {effectivePage === "my-time" && (
             <MyTimePage
               staffUser={effectiveStaffUser}
@@ -22487,10 +22515,9 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
               }}
               onOpenMyTasks={() => setPage("my-tasks")}
               onOpenClientMilestone={(clientId) => {
+                if (clientId !== selectedClientId) pageAfterClientSwitch.current = "milestone";
                 setSelectedClientId(clientId);
-                setPage("dashboard");
-                setDetailsTab("milestone");
-                setDetailsOpen(true);
+                setPage("milestone");
               }}
               statusOverrides={statusOverrides}
               onStatusOverridesChanged={loadStatusOverrides}
