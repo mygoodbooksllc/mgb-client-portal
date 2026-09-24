@@ -240,8 +240,10 @@ because some work happens in Claude Code web sessions. Run `git fetch` and compa
   average monthly transactions (from synced QuickBooks data) and the annual operating budget
   (staff-entered from the Form 990 or approved budget, else the QuickBooks budget, else 12 months
   of expenses). The tracker only proposes: staff confirm every change, up or down, at the bottom
-  of the Milestone page (also in **Client details → Milestone**), with a history. A gold dot on
-  the badge means a change is waiting. Staff Home has a **Milestones to review** card. Database:
+  of the Milestone page (also in **Client details → Milestone**), with a history. The badge has a
+  progress ring toward the next milestone and shows "Near X" (within 90%), "Reached X" or
+  "Moving to X" (numbers point elsewhere, awaiting staff confirmation) right on it; staff also see
+  "Confirm" on unconfirmed clients. Staff Home has a **Milestones to review** card. Database:
   `supabase/client-milestones.sql` (`client_milestones`, `client_milestone_history`,
   `client_milestone_stats`, `confirm_client_milestone`).
 - **Enterprise** page: what premium includes and pricing. The upgrade request is real

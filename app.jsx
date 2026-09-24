@@ -3813,20 +3813,61 @@ function MilestoneBadge({ client, staff, onOpen }) {
   const { byId } = useMilestones([client.id]);
   const s = byId[client.id];
   if (!s || !s.current) return null;
-  const needsLook = s.pendingTier || (staff && s.unconfirmed);
-  const title = s.pendingTier
-    ? `Milestone ${s.current.name}. Numbers point to ${milestoneByTier(s.pendingTier).name}.`
-    : s.approaching
-      ? `Milestone ${s.current.name}. Close to ${s.approaching.name}.`
-      : `Milestone ${s.current.name}`;
+  const cur = s.current;
+  // How far toward the next milestone, by whichever measure is further along
+  // (the higher measure sets the milestone). Full once the numbers reach it.
+  let progress = 1;
+  if (cur.tier < 6) {
+    const floor = cur.tier > 1 ? milestoneByTier(cur.tier - 1) : { txMax: 0, budgetMax: 0 };
+    const parts = [];
+    if (s.avgTx != null) parts.push((s.avgTx - floor.txMax) / (cur.txMax - floor.txMax));
+    if (s.budget != null) parts.push((s.budget - floor.budgetMax) / (cur.budgetMax - floor.budgetMax));
+    progress = parts.length ? Math.max(0, Math.min(1, Math.max(...parts))) : 0;
+    if (s.computedTier && s.computedTier > cur.tier) progress = 1;
+  }
+  // What the client should notice without opening anything.
+  let note = null;
+  if (s.pendingTier && s.pendingTier > cur.tier) {
+    note = { text: `Reached ${milestoneByTier(s.pendingTier).name}`, kind: "up" };
+  } else if (s.pendingTier && s.pendingTier < cur.tier) {
+    note = { text: `Moving to ${milestoneByTier(s.pendingTier).name}`, kind: "down" };
+  } else if (s.approaching) {
+    note = { text: `Near ${s.approaching.name}`, kind: "near" };
+  } else if (staff && s.unconfirmed) {
+    note = { text: "Confirm", kind: "staff" };
+  }
+  const title =
+    `Milestone ${cur.roman} ${cur.name}` +
+    (cur.tier < 6 ? `, ${Math.round(progress * 100)}% of the way to ${milestoneByTier(cur.tier + 1).name}` : "") +
+    (note ? `. ${note.text}` : "");
+  const R = 15;
+  const C = 2 * Math.PI * R;
   return (
-    <button type="button" className={"ms-badge" + (needsLook ? " ms-badge-alert" : "")} onClick={onOpen} title={title} aria-label={title + ". Open milestone details."}>
-      <span className="ms-badge-roman">{s.current.roman}</span>
+    <button
+      type="button"
+      className={"ms-badge" + (note && note.kind !== "staff" ? " ms-badge-noted" : "")}
+      onClick={onOpen}
+      title={title}
+      aria-label={title + ". Open milestone details."}
+    >
+      <span className="ms-badge-medal">
+        <svg className="ms-badge-ring" viewBox="0 0 36 36" aria-hidden="true">
+          <circle cx="18" cy="18" r={R} className="ms-ring-track" />
+          <circle
+            cx="18"
+            cy="18"
+            r={R}
+            className={"ms-ring-fill" + (progress >= MILESTONE_APPROACH_SHARE ? " near" : "")}
+            strokeDasharray={`${(C * progress).toFixed(2)} ${C.toFixed(2)}`}
+          />
+        </svg>
+        <span className="ms-badge-roman">{cur.roman}</span>
+      </span>
       <span className="ms-badge-text">
         <span className="ms-badge-kicker">Milestone</span>
-        <span className="ms-badge-name">{s.current.name}</span>
+        <span className="ms-badge-name">{cur.name}</span>
       </span>
-      {needsLook && <span className="ms-badge-dot" aria-hidden="true" />}
+      {note && <span className={"ms-badge-note ms-badge-note-" + note.kind}>{note.text}</span>}
     </button>
   );
 }
