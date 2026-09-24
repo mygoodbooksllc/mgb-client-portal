@@ -1,0 +1,160 @@
+<!--
+  MyGoodBooks pricing — paste everything between the START and END markers
+  into a Squarespace Code Block (Edit page → + → Code). Plain HTML/CSS, no
+  JavaScript, so it works on every Squarespace plan. All styles are scoped
+  under .mgb-pricing so they can't leak into the rest of the site.
+-->
+<!-- START -->
+<div class="mgb-pricing">
+<style>
+  .mgb-pricing {
+    --mgb-navy: #243746;
+    --mgb-ink: #26343d;
+    --mgb-muted: #6b655c;
+    --mgb-gold: #c7ae86;
+    --mgb-gold-deep: #8a6d34;
+    --mgb-cream: #faf9f6;
+    --mgb-band: #f0ece3;
+    --mgb-border: #e8e2d6;
+    --mgb-warm: #fbf6ea;
+    font-family: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+    color: var(--mgb-ink);
+    max-width: 1000px;
+    margin: 0 auto;
+    line-height: 1.5;
+  }
+  .mgb-pricing * { box-sizing: border-box; }
+  .mgb-pricing .mgb-eyebrow {
+    font-size: 13px; font-weight: 700; letter-spacing: .08em;
+    text-transform: uppercase; color: var(--mgb-gold-deep); margin: 0 0 6px;
+  }
+  .mgb-pricing h2 {
+    font-family: "Bitter", Georgia, serif; font-size: clamp(26px, 4vw, 36px);
+    line-height: 1.15; color: var(--mgb-navy); margin: 0 0 10px;
+  }
+  .mgb-pricing .mgb-lede { font-size: 17px; color: var(--mgb-muted); margin: 0 0 28px; max-width: 680px; }
+  .mgb-pricing .mgb-chart {
+    background: #fff; border: 1px solid var(--mgb-border); border-radius: 12px;
+    padding: 18px 20px 10px; margin: 0 0 24px;
+  }
+  .mgb-pricing .mgb-chart-head {
+    display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px 16px;
+    align-items: baseline; margin-bottom: 8px;
+  }
+  .mgb-pricing .mgb-chart-title { font-family: "Bitter", Georgia, serif; font-weight: 700; font-size: 16px; color: var(--mgb-navy); }
+  .mgb-pricing .mgb-chart-note { font-family: "IBM Plex Mono", ui-monospace, Menlo, monospace; font-size: 12px; color: var(--mgb-muted); }
+  .mgb-pricing svg { display: block; width: 100%; height: auto; }
+  .mgb-pricing .mgb-table-wrap { overflow-x: auto; border: 1px solid var(--mgb-border); border-radius: 12px; background: #fff; }
+  .mgb-pricing table { width: 100%; border-collapse: collapse; min-width: 620px; font-size: 16px; }
+  .mgb-pricing th {
+    text-align: left; font-size: 12px; font-weight: 700; letter-spacing: .06em;
+    text-transform: uppercase; color: var(--mgb-muted); padding: 12px 16px;
+    border-bottom: 2px solid var(--mgb-navy); background: var(--mgb-cream);
+  }
+  .mgb-pricing td { padding: 12px 16px; border-bottom: 1px solid var(--mgb-border); vertical-align: middle; }
+  .mgb-pricing tr:last-child td { border-bottom: 0; }
+  .mgb-pricing .mgb-num { font-family: "Bitter", Georgia, serif; font-size: 13px; color: var(--mgb-gold-deep); margin-right: 8px; }
+  .mgb-pricing .mgb-tier { font-weight: 700; color: var(--mgb-navy); white-space: nowrap; }
+  .mgb-pricing .mgb-range { color: var(--mgb-muted); font-variant-numeric: tabular-nums; }
+  .mgb-pricing .mgb-price { font-weight: 700; color: var(--mgb-navy); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .mgb-pricing .mgb-price small { font-weight: 400; color: var(--mgb-muted); font-size: 13px; }
+  .mgb-pricing tr.mgb-enterprise td { background: var(--mgb-warm); }
+  .mgb-pricing .mgb-foot { font-size: 14px; color: var(--mgb-muted); margin: 10px 0 24px; }
+  .mgb-pricing .mgb-how {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; margin: 0 0 24px;
+  }
+  .mgb-pricing .mgb-how div { background: var(--mgb-cream); border: 1px solid var(--mgb-border); border-radius: 12px; padding: 16px 18px; }
+  .mgb-pricing .mgb-how strong { display: block; font-family: "Bitter", Georgia, serif; color: var(--mgb-navy); margin-bottom: 4px; }
+  .mgb-pricing .mgb-how p { margin: 0; font-size: 15px; color: var(--mgb-muted); }
+  .mgb-pricing .mgb-cta {
+    background: var(--mgb-warm); border-left: 4px solid var(--mgb-gold); border-radius: 0 12px 12px 0;
+    padding: 18px 22px; font-size: 17px;
+  }
+  .mgb-pricing .mgb-cta strong { color: var(--mgb-navy); }
+  .mgb-pricing .mgb-cta a { color: var(--mgb-gold-deep); font-weight: 700; }
+</style>
+
+  <p class="mgb-eyebrow">Pricing</p>
+  <h2>Clear pricing, before you sign anything</h2>
+  <p class="mgb-lede">Your monthly fee is set by your transaction volume and annual operating budget. As your organization grows, your plan steps up to the next milestone, so it scales with you instead of being renegotiated from scratch.</p>
+
+  <div class="mgb-chart">
+    <div class="mgb-chart-head">
+      <span class="mgb-chart-title">Your investment scales in steps, not all at once</span>
+      <span class="mgb-chart-note">monthly fee by milestone</span>
+    </div>
+    <svg viewBox="0 0 900 260" role="img" aria-label="Step chart of monthly fees: Foundation $350, Growth $550, Established $850, Advanced $1,100, Strategic $1,450, Enterprise custom.">
+      <g font-family="IBM Plex Mono, ui-monospace, Menlo, monospace" font-size="12" fill="#6b655c">
+        <!-- alternating bands -->
+        <rect x="200" y="20" width="135" height="190" fill="#f0ece3"/>
+        <rect x="470" y="20" width="135" height="190" fill="#f0ece3"/>
+        <rect x="740" y="20" width="135" height="190" fill="#f0ece3"/>
+        <!-- y axis: $0 at y=210, $1600 at y=30 (0.1125 px per $) -->
+        <g stroke="#e8e2d6" stroke-width="1">
+          <line x1="65" y1="210" x2="875" y2="210"/>
+          <line x1="65" y1="165" x2="875" y2="165"/>
+          <line x1="65" y1="120" x2="875" y2="120"/>
+          <line x1="65" y1="75" x2="875" y2="75"/>
+          <line x1="65" y1="30" x2="875" y2="30"/>
+        </g>
+        <text x="56" y="214" text-anchor="end">$0</text>
+        <text x="56" y="169" text-anchor="end">$400</text>
+        <text x="56" y="124" text-anchor="end">$800</text>
+        <text x="56" y="79" text-anchor="end">$1,200</text>
+        <text x="56" y="34" text-anchor="end">$1,600</text>
+        <!-- steps: 350→170.6, 550→148.1, 850→114.4, 1100→86.3, 1450→46.9 -->
+        <path d="M65 170.6 H200 V148.1 H335 V114.4 H470 V86.3 H605 V46.9 H740" fill="none" stroke="#243746" stroke-width="3" stroke-linejoin="round"/>
+        <path d="M740 46.9 H875" fill="none" stroke="#c7ae86" stroke-width="3" stroke-dasharray="6 6"/>
+        <g fill="#243746">
+          <circle cx="65" cy="170.6" r="4.5"/><circle cx="200" cy="148.1" r="4.5"/>
+          <circle cx="335" cy="114.4" r="4.5"/><circle cx="470" cy="86.3" r="4.5"/>
+          <circle cx="605" cy="46.9" r="4.5"/>
+        </g>
+        <g fill="#26343d" font-size="13" font-weight="600" text-anchor="middle">
+          <text x="132" y="160">$350/mo</text>
+          <text x="267" y="138">$550/mo</text>
+          <text x="402" y="104">$850/mo</text>
+          <text x="537" y="76">$1,100/mo</text>
+          <text x="672" y="37">$1,450/mo</text>
+          <text x="807" y="37" fill="#8a6d34">Custom</text>
+        </g>
+        <g font-family="Bitter, Georgia, serif" font-size="13" font-weight="700" fill="#243746" text-anchor="middle">
+          <text x="132" y="236">Foundation</text>
+          <text x="267" y="236">Growth</text>
+          <text x="402" y="236">Established</text>
+          <text x="537" y="236">Advanced</text>
+          <text x="672" y="236">Strategic</text>
+          <text x="807" y="236">Enterprise</text>
+        </g>
+      </g>
+    </svg>
+  </div>
+
+  <div class="mgb-table-wrap">
+    <table>
+      <thead>
+        <tr><th>Milestone</th><th>Monthly transactions</th><th>Annual operating budget</th><th>Monthly investment</th></tr>
+      </thead>
+      <tbody>
+        <tr><td class="mgb-tier"><span class="mgb-num">I</span>Foundation</td><td class="mgb-range">Up to 50</td><td class="mgb-range">Up to $250,000</td><td class="mgb-price">$350 <small>/mo</small></td></tr>
+        <tr><td class="mgb-tier"><span class="mgb-num">II</span>Growth</td><td class="mgb-range">51–150</td><td class="mgb-range">$250K–$750K</td><td class="mgb-price">$550 <small>/mo</small></td></tr>
+        <tr><td class="mgb-tier"><span class="mgb-num">III</span>Established</td><td class="mgb-range">151–300</td><td class="mgb-range">$750K–$1.5M</td><td class="mgb-price">$850 <small>/mo</small></td></tr>
+        <tr><td class="mgb-tier"><span class="mgb-num">IV</span>Advanced</td><td class="mgb-range">301–500</td><td class="mgb-range">$1.5M–$3M</td><td class="mgb-price">$1,100 <small>/mo</small></td></tr>
+        <tr><td class="mgb-tier"><span class="mgb-num">V</span>Strategic</td><td class="mgb-range">501–800</td><td class="mgb-range">$3M–$6M</td><td class="mgb-price">$1,450 <small>/mo</small></td></tr>
+        <tr class="mgb-enterprise"><td class="mgb-tier"><span class="mgb-num">VI</span>Enterprise</td><td class="mgb-range">800+</td><td class="mgb-range">$6M+</td><td class="mgb-price" style="font-weight:600">Custom — contact us</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="mgb-foot">Based on your trailing 3-month average transaction volume and your most recent annual budget or Form 990.</p>
+
+  <div class="mgb-how">
+    <div><strong>No surprises</strong><p>You know your fee before you sign. We confirm your milestone from your own numbers.</p></div>
+    <div><strong>Grows with you</strong><p>When your volume or budget crosses into the next milestone, your plan steps up to match. We tell you before it changes.</p></div>
+    <div><strong>One monthly fee</strong><p>Covers the work at your milestone, with no hourly billing or renegotiating from scratch.</p></div>
+  </div>
+
+  <div class="mgb-cta">
+    <strong>Not sure which milestone fits?</strong> Send us your monthly transaction count and annual budget and we'll confirm it, free. <a href="mailto:holden@mygoodbooks.org?subject=Which%20MyGoodBooks%20milestone%20fits%20us%3F">Ask us</a>
+  </div>
+</div>
+<!-- END -->
