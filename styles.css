@@ -1444,16 +1444,17 @@ body {
 }
 
 /* Milestone badge row above the Live / Sync now / search row. */
+/* Both rows share a left edge. */
 .page-header-actions-stack {
   display: flex;
   flex-direction: column;
-  align-items: flex-end;
+  align-items: flex-start;
   gap: 8px;
   flex-shrink: 0;
 }
 .ms-badge-row {
   display: flex;
-  justify-content: flex-end;
+  justify-content: flex-start;
 }
 
 /* Data-source pill: small and solid gold when live, muted when it's the
