@@ -3822,7 +3822,10 @@ function MilestoneBadge({ client, staff, onOpen }) {
   return (
     <button type="button" className={"ms-badge" + (needsLook ? " ms-badge-alert" : "")} onClick={onOpen} title={title} aria-label={title + ". Open milestone details."}>
       <span className="ms-badge-roman">{s.current.roman}</span>
-      <span className="ms-badge-name">{s.current.name}</span>
+      <span className="ms-badge-text">
+        <span className="ms-badge-kicker">Milestone</span>
+        <span className="ms-badge-name">{s.current.name}</span>
+      </span>
       {needsLook && <span className="ms-badge-dot" aria-hidden="true" />}
     </button>
   );
