@@ -7390,3 +7390,17 @@ body:has(.modal-overlay) .chat-fab-wrap {
     padding: 12px 14px;
   }
 }
+
+/* Giving → Tax Documents: statement already sent this year. */
+.tax-sent-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: var(--good-soft);
+  color: var(--good);
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+}

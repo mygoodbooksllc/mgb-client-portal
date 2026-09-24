@@ -4194,22 +4194,58 @@ function FundAccountingProPage({ client }) {
       .sort((a, b) => b.total - a.total);
   }, [client.contributions, client.donors]);
 
+  // Which donors already got this year's statement, so nobody sends twice by
+  // accident. Per browser (localStorage), like the send itself is a mock;
+  // when real sending lands this should move to a table so staff and the
+  // client see the same record.
+  const taxYear = today.slice(0, 4);
+  const [sentAt, setSentAt] = useState(() => loadTaxDocsSent(client.id, taxYear));
+  const [confirmResend, setConfirmResend] = useState(null); // { donors: [...] }
+  useEffect(() => {
+    setSentAt(loadTaxDocsSent(client.id, taxYear));
+  }, [client.id, taxYear]);
+
+  const markSent = (donors) => {
+    const now = new Date().toISOString();
+    setSentAt((prev) => {
+      const next = { ...prev };
+      donors.forEach((d) => {
+        next[d] = now;
+      });
+      saveTaxDocsSent(client.id, taxYear, next);
+      return next;
+    });
+  };
+
   // No real send path exists (see the referral popup's own "this doesn't
   // send a real email yet" disclaimer for the same honest-mock posture) —
   // this simulates success with a toast rather than pretending to open a
   // mailto draft, since the whole point is attaching a generated PDF, which
   // a mailto: link can never do.
-  const handleSendStatement = (donor, email) => {
-    if (!email) return;
-    showToast(`Giving statement sent to ${donor} (${email}).`);
+  const sendStatements = (rows) => {
+    markSent(rows.map((d) => d.donor));
+    showToast(
+      rows.length === 1
+        ? `Giving statement sent to ${rows[0].donor} (${rows[0].email}).`
+        : `Sent ${rows.length} giving statements.`,
+    );
   };
 
+  const handleSendStatement = (d) => {
+    if (!d.email) return;
+    if (sentAt[d.donor]) setConfirmResend({ rows: [d] });
+    else sendStatements([d]);
+  };
+
+  const withEmail = donorRoster.filter((d) => d.email);
+  const unsent = withEmail.filter((d) => !sentAt[d.donor]);
+
+  // Send All only sends to donors who haven't had one yet; once everyone
+  // has, it asks before sending the whole batch again.
   const handleSendAll = () => {
-    const withEmail = donorRoster.filter((d) => d.email);
     if (!withEmail.length) return;
-    showToast(
-      `Sent ${withEmail.length} giving statement${withEmail.length === 1 ? "" : "s"}.`,
-    );
+    if (unsent.length) sendStatements(unsent);
+    else setConfirmResend({ rows: withEmail });
   };
 
   return (
@@ -4433,11 +4469,15 @@ function FundAccountingProPage({ client }) {
               </p>
             </div>
             <button
-              className="btn-primary"
-              disabled={!donorRoster.some((d) => d.email)}
+              className={unsent.length || !withEmail.length ? "btn-primary" : "btn-secondary"}
+              disabled={!withEmail.length}
               onClick={handleSendAll}
             >
-              Send All
+              {!withEmail.length || unsent.length === withEmail.length
+                ? "Send All"
+                : unsent.length
+                  ? `Send to ${unsent.length} not yet sent`
+                  : "All sent · Resend all"}
             </button>
           </div>
           <div className="table-scroll">
@@ -4446,6 +4486,7 @@ function FundAccountingProPage({ client }) {
                 <tr>
                   <th>Donor</th>
                   <th>Email on File</th>
+                  <th>Status</th>
                   <th className="num">Gifts</th>
                   <th className="num">YTD Total</th>
                   <th></th>
@@ -4453,7 +4494,7 @@ function FundAccountingProPage({ client }) {
               </thead>
               <tbody>
                 {donorRoster.length === 0 ? (
-                  <EmptyRow colSpan={5}>
+                  <EmptyRow colSpan={6}>
                     No named donors to send statements to — every gift on record
                     so far is anonymous.
                   </EmptyRow>
@@ -4465,6 +4506,23 @@ function FundAccountingProPage({ client }) {
                         {d.email || (
                           <span style={{ color: "var(--text-muted)" }}>
                             No email on file
+                          </span>
+                        )}
+                      </td>
+                      <td data-label="Status">
+                        {sentAt[d.donor] ? (
+                          <span
+                            className="tax-sent-pill"
+                            title={`Sent ${fmtDateTime(sentAt[d.donor])}`}
+                          >
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                              <path d="M5 12.5l4.5 4.5L19 7.5" />
+                            </svg>
+                            Sent {fmtDate(sentAt[d.donor].slice(0, 10))}
+                          </span>
+                        ) : (
+                          <span style={{ color: "var(--text-muted)" }}>
+                            Not sent
                           </span>
                         )}
                       </td>
@@ -4495,9 +4553,9 @@ function FundAccountingProPage({ client }) {
                               ? undefined
                               : "No email on file for this donor"
                           }
-                          onClick={() => handleSendStatement(d.donor, d.email)}
+                          onClick={() => handleSendStatement(d)}
                         >
-                          Send
+                          {sentAt[d.donor] ? "Resend" : "Send"}
                         </button>
                       </td>
                     </tr>
@@ -4508,9 +4566,30 @@ function FundAccountingProPage({ client }) {
           </div>
           <p className="card-subtitle" style={{ margin: "12px 0 0" }}>
             Prototype — Send simulates delivery and doesn't actually email
-            anything yet.
+            anything yet. Sent status is remembered on this device.
           </p>
         </div>
+      )}
+
+      {confirmResend && (
+        <ConfirmModal
+          title={
+            confirmResend.rows.length === 1
+              ? "Send this statement again?"
+              : `Send all ${confirmResend.rows.length} statements again?`
+          }
+          body={
+            confirmResend.rows.length === 1
+              ? `${confirmResend.rows[0].donor} was already sent their ${taxYear} giving statement on ${fmtDate(sentAt[confirmResend.rows[0].donor].slice(0, 10))}.`
+              : `Every donor with an email on file has already been sent their ${taxYear} giving statement.`
+          }
+          confirmLabel="Send again"
+          onCancel={() => setConfirmResend(null)}
+          onConfirm={() => {
+            sendStatements(confirmResend.rows);
+            setConfirmResend(null);
+          }}
+        />
       )}
     </div>
   );
@@ -13577,6 +13656,25 @@ function BookkeeperHomePage({
 // themselves aren't really stored anywhere yet.
 function docFoldersKey(clientId) {
   return `mygoodbooks_doc_folders_v1:${clientId}`;
+}
+
+// Giving → Tax Documents: { [donor]: ISO timestamp } of statements sent,
+// per client and tax year.
+function taxDocsSentKey(clientId, year) {
+  return `mygoodbooks_tax_docs_sent_v1:${clientId}:${year}`;
+}
+function loadTaxDocsSent(clientId, year) {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(taxDocsSentKey(clientId, year)) || "{}");
+    return parsed && typeof parsed === "object" ? parsed : {};
+  } catch (e) {
+    return {};
+  }
+}
+function saveTaxDocsSent(clientId, year, map) {
+  try {
+    localStorage.setItem(taxDocsSentKey(clientId, year), JSON.stringify(map));
+  } catch (e) {}
 }
 
 function loadDocFolders(clientId) {
