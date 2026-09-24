@@ -6648,8 +6648,9 @@ body:has(.modal-overlay) .chat-fab-wrap {
 }
 @media (max-width: 760px) {
   .live-sync-pill {
-    min-height: 44px;
-    padding: 0 14px;
+    min-height: 36px;
+    padding: 0 12px;
+    font-size: 12.5px;
   }
 }
 
@@ -7939,9 +7940,38 @@ body:has(.modal-overlay) .chat-fab-wrap {
   font-weight: 700;
   color: #f5efe3;
 }
-@media (max-width: 640px) {
+/* Phones: both header pills line up on the left, at the same compact
+   height, and the badge keeps its name. */
+@media (max-width: 760px) {
+  .app-header .ms-badge-row {
+    justify-content: flex-start;
+  }
+  .ms-badge {
+    gap: 7px;
+    padding: 2px 5px 2px 2px;
+    font-size: 13px;
+  }
+  .ms-badge-medal {
+    width: 30px;
+    height: 30px;
+  }
+  .ms-badge-roman {
+    width: 21px;
+    height: 21px;
+    font-size: 11px;
+  }
+  .ms-badge-kicker {
+    font-size: 8.5px;
+  }
   .ms-badge-name {
-    display: none;
+    font-size: 13px;
+  }
+  .ms-badge-text {
+    padding-right: 4px;
+  }
+  .ms-badge-note {
+    font-size: 11px;
+    padding: 3px 8px;
   }
 }
 .ms-page {
