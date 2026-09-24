@@ -21155,20 +21155,25 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
     });
   };
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
-  // A desktop window at half the screen's width or less swaps the sidebar
-  // for the phone-style hamburger drawer (phones already get it below
-  // 760px via CSS). Measured against the screen the window is on, so it
-  // works the same on a laptop and a big external monitor.
+  // A desktop window at half the screen's width or less auto-collapses the
+  // sidebar to its icon rail (phones get the hamburger drawer below 760px
+  // via CSS instead). Measured against the screen the window is on, so it
+  // works the same on a laptop and a big external monitor. The expand
+  // button still works there, for that stretch only; it doesn't change the
+  // saved full-width preference.
   const isHalfScreenWindow = () => {
     const screenW = (window.screen && (window.screen.availWidth || window.screen.width)) || 0;
     return window.innerWidth > 760 && screenW > 0 && window.innerWidth <= screenW / 2 + 1;
   };
-  const [navDrawer, setNavDrawer] = useState(isHalfScreenWindow);
+  const [halfScreen, setHalfScreen] = useState(isHalfScreenWindow);
+  const [halfScreenExpanded, setHalfScreenExpanded] = useState(false);
   useEffect(() => {
     const onResize = () => {
       const next = isHalfScreenWindow();
-      setNavDrawer(next);
-      if (!next && window.innerWidth > 760) setMobileNavOpen(false);
+      setHalfScreen((prev) => {
+        if (prev !== next) setHalfScreenExpanded(false);
+        return next;
+      });
     };
     window.addEventListener("resize", onResize);
     return () => window.removeEventListener("resize", onResize);
@@ -22307,13 +22312,7 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
         <span></span>
         <span></span>
       </div>
-      <div
-        className={
-          "app-shell" +
-          (isPreviewingUser ? " previewing" : "") +
-          (navDrawer ? " nav-drawer" : "")
-        }
-      >
+      <div className={"app-shell" + (isPreviewingUser ? " previewing" : "")}>
         <div className="mobile-topbar">
           <button
             className="hamburger-btn"
@@ -22346,8 +22345,10 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
           tabOrder={tabOrder}
           onOpenSettings={() => setSettingsOpen(true)}
           onOpenDetails={() => setDetailsOpen(true)}
-          collapsed={sidebarCollapsed && !navDrawer}
-          onToggleCollapse={toggleSidebarCollapsed}
+          collapsed={halfScreen ? !halfScreenExpanded : sidebarCollapsed}
+          onToggleCollapse={
+            halfScreen ? () => setHalfScreenExpanded((v) => !v) : toggleSidebarCollapsed
+          }
           isStaffSession={isStaffSession}
           badges={{ messages: hasUnreadMessages }}
           mobileOpen={mobileNavOpen}
