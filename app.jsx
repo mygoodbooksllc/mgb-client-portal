@@ -3811,6 +3811,9 @@ function MilestoneStatusNote({ s, staff }) {
 // waiting to be confirmed.
 function MilestoneBadge({ client, staff, onOpen }) {
   const { byId } = useMilestones([client.id]);
+  // Same hover label as the sidebar's (.icon-hover-tip), not the browser's
+  // native title tooltip.
+  const [tipRect, setTipRect] = useState(null);
   const s = byId[client.id];
   if (!s || !s.current) return null;
   const cur = s.current;
@@ -3836,18 +3839,27 @@ function MilestoneBadge({ client, staff, onOpen }) {
   } else if (staff && s.unconfirmed) {
     note = { text: "Confirm", kind: "staff" };
   }
-  const title =
-    `Milestone ${cur.roman} ${cur.name}` +
-    (cur.tier < 6 ? `, ${Math.round(progress * 100)}% of the way to ${milestoneByTier(cur.tier + 1).name}` : "") +
-    (note ? `. ${note.text}` : "");
+  const tipText =
+    cur.tier < 6
+      ? `${Math.round(progress * 100)}% of the way to ${milestoneByTier(cur.tier + 1).name}`
+      : "Top milestone";
+  const title = `Milestone ${cur.roman} ${cur.name}, ${tipText}` + (note ? `. ${note.text}` : "");
+  const showTip = (e) => setTipRect(e.currentTarget.getBoundingClientRect());
+  const hideTip = () => setTipRect(null);
   const R = 15;
   const C = 2 * Math.PI * R;
   return (
     <button
       type="button"
       className={"ms-badge" + (note && note.kind !== "staff" ? " ms-badge-noted" : "")}
-      onClick={onOpen}
-      title={title}
+      onClick={() => {
+        hideTip();
+        onOpen();
+      }}
+      onMouseEnter={showTip}
+      onMouseLeave={hideTip}
+      onFocus={showTip}
+      onBlur={hideTip}
       aria-label={title + ". Open milestone details."}
     >
       <span className="ms-badge-medal">
@@ -3868,6 +3880,16 @@ function MilestoneBadge({ client, staff, onOpen }) {
         <span className="ms-badge-name">{cur.name}</span>
       </span>
       {note && <span className={"ms-badge-note ms-badge-note-" + note.kind}>{note.text}</span>}
+      {tipRect &&
+        ReactDOM.createPortal(
+          <div
+            className="icon-hover-tip icon-hover-tip-below"
+            style={{ top: tipRect.bottom + 8, left: tipRect.left + tipRect.width / 2 }}
+          >
+            {tipText}
+          </div>,
+          document.body,
+        )}
     </button>
   );
 }
