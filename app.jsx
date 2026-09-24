@@ -21403,6 +21403,37 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
     };
   }, [baseClient, userAccess]);
 
+  // The server syncs QuickBooks every 5 minutes (pg_cron), but the page only
+  // loaded the numbers once, so "synced 15 min ago" kept growing while the
+  // data sat stale. Once a minute: re-render so the "synced x ago" label
+  // ticks, and if the open client's data is older than one sync cycle,
+  // re-fetch it (the same reload Sync now uses). Also on returning to the tab.
+  const [, setClockTick] = useState(0);
+  const qboAutoReloadRef = useRef(0);
+  useEffect(() => {
+    const check = async () => {
+      setClockTick((t) => t + 1);
+      if (document.hidden) return;
+      if (client.dataSource !== "quickbooks" || !window.mgbReloadQboData) return;
+      const age = client.lastSyncedAt ? Date.now() - new Date(client.lastSyncedAt).getTime() : Infinity;
+      if (age < 5.5 * 60 * 1000) return;
+      if (Date.now() - qboAutoReloadRef.current < 60 * 1000) return;
+      qboAutoReloadRef.current = Date.now();
+      await window.mgbReloadQboData([client.id]);
+      setQboDataRev((r) => r + 1);
+      notifyMilestonesChanged();
+    };
+    const id = setInterval(check, 60 * 1000);
+    const onVisible = () => {
+      if (!document.hidden) check();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      clearInterval(id);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+  }, [client.id, client.dataSource, client.lastSyncedAt]);
+
   // Switching client resets the preview — a person at one org is meaningless at another.
   // Also lands on Dashboard for the newly-selected client (Live Report for a
   // premium, full-access client; the plain Dashboard otherwise) rather than
