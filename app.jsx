@@ -3913,6 +3913,14 @@ function MilestonePage({ client, isStaff }) {
   }
   return (
     <div className="ms-page">
+      {/* Staff work happens here first: budget, set milestone, history. */}
+      {isStaff && (
+        <div className="card">
+          <h3 className="card-title">Staff: budget and milestone</h3>
+          <p className="card-subtitle">Only MyGoodBooks staff see this section.</p>
+          <MilestoneStaffPanel client={client} formsOnly />
+        </div>
+      )}
       <div className="card">
         <div className="ms-page-top">
           <div className="ms-headline" style={{ margin: 0 }}>
@@ -3948,13 +3956,6 @@ function MilestonePage({ client, isStaff }) {
           it goes down as well as up.
         </p>
       </div>
-      {isStaff && (
-        <div className="card">
-          <h3 className="card-title">Staff: budget and confirmation</h3>
-          <p className="card-subtitle">Only MyGoodBooks staff see this section.</p>
-          <MilestoneStaffPanel client={client} formsOnly />
-        </div>
-      )}
     </div>
   );
 }

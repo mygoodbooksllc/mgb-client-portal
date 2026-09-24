@@ -6589,7 +6589,9 @@ body:has(.modal-overlay) .chat-fab-wrap {
 
 .task-add input,
 .task-add select,
-.task-filters select {
+.task-filters select,
+.ms-form input,
+.ms-form select {
   border: 1px solid var(--border);
   border-radius: 8px;
   padding: 9px 12px;
@@ -6602,6 +6604,8 @@ body:has(.modal-overlay) .chat-fab-wrap {
 
 .task-add input:focus-visible,
 .task-add select:focus-visible,
+.ms-form input:focus-visible,
+.ms-form select:focus-visible,
 .task-filters select:focus-visible,
 .task-check:focus-visible,
 .task-icon-btn:focus-visible {
