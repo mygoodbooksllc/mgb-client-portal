@@ -7404,3 +7404,239 @@ body:has(.modal-overlay) .chat-fab-wrap {
   font-weight: 600;
   white-space: nowrap;
 }
+
+/* ---------------- Pricing milestones ---------------- */
+.ms-headline {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin: 12px 0 8px;
+}
+.ms-roman-lg {
+  font-family: var(--font-heading);
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--gold-deep);
+  min-width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  background: var(--warm-bg);
+  border: 1px solid var(--warm-border);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.ms-name {
+  font-family: var(--font-heading);
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--ink-strong);
+}
+.ms-fee-lg {
+  font-size: 15px;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+.ms-status {
+  font-size: 14px;
+  color: var(--text-muted);
+  margin: 4px 0 12px;
+}
+.ms-status-near {
+  color: var(--warm-text);
+}
+.ms-status-pending {
+  color: var(--warm-text);
+  background: var(--warm-bg);
+  border: 1px solid var(--warm-border);
+  border-radius: 8px;
+  padding: 8px 12px;
+}
+.ms-meters {
+  display: grid;
+  gap: 14px;
+  margin: 12px 0 16px;
+}
+.ms-modal .ms-meters {
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+}
+.ms-meter-head,
+.ms-meter-foot {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.ms-meter-label {
+  font-size: 12.5px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.ms-meter-value {
+  font-weight: 700;
+  color: var(--ink-strong);
+  font-variant-numeric: tabular-nums;
+}
+.ms-meter-value.muted {
+  font-weight: 400;
+  color: var(--text-muted);
+}
+.ms-meter-track {
+  height: 8px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  margin: 6px 0 4px;
+  overflow: hidden;
+}
+.ms-meter-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: var(--navy);
+}
+.ms-meter-fill.approaching {
+  background: var(--gold);
+}
+.ms-meter-foot,
+.ms-meter-basis {
+  font-size: 13px;
+  color: var(--text-muted);
+}
+.ms-updated {
+  margin: 10px 0 0;
+  font-size: 13px;
+}
+.ms-modal {
+  max-width: 900px;
+  width: 100%;
+}
+.ms-chart {
+  display: block;
+  width: 100%;
+  height: auto;
+  margin: 8px 0 12px;
+}
+.ms-chart .ms-band {
+  fill: var(--surface-2);
+}
+.ms-chart .ms-band-none {
+  fill: transparent;
+}
+.ms-chart .ms-band-current {
+  fill: var(--warm-bg);
+  stroke: var(--gold);
+  stroke-width: 1.5;
+}
+.ms-chart .ms-grid {
+  stroke: var(--border);
+}
+.ms-chart .ms-axis {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  fill: var(--text-muted);
+}
+.ms-chart .ms-line {
+  fill: none;
+  stroke: var(--gold-deep);
+  stroke-width: 3;
+  stroke-linejoin: round;
+}
+.ms-chart .ms-line-custom {
+  fill: none;
+  stroke: var(--gold);
+  stroke-width: 3;
+  stroke-dasharray: 6 6;
+}
+.ms-chart .ms-fee {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 600;
+  fill: var(--text);
+}
+.ms-chart .ms-fee-custom {
+  fill: var(--gold-deep);
+}
+.ms-chart .ms-tier-label {
+  font-family: var(--font-body);
+  font-size: 13px;
+  font-weight: 600;
+  fill: var(--text);
+}
+.ms-chart .ms-tier-label.current {
+  fill: var(--gold-deep);
+  font-weight: 700;
+}
+.ms-chart .ms-here {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  fill: var(--gold-deep);
+}
+.ms-table .ms-roman {
+  font-family: var(--font-heading);
+  color: var(--gold-deep);
+  margin-right: 4px;
+}
+.ms-table tr.ms-row-current td {
+  background: var(--warm-bg);
+  font-weight: 600;
+}
+.ms-you {
+  margin-left: 8px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--gold-deep);
+  border: 1px solid var(--warm-border);
+  border-radius: 999px;
+  padding: 1px 7px;
+}
+.ms-footnote {
+  margin-top: 12px;
+  font-size: 13px;
+}
+.ms-staff-summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+  margin-bottom: 8px;
+}
+.ms-form {
+  border-top: 1px solid var(--border);
+  padding-top: 14px;
+  margin-top: 14px;
+}
+.ms-form-title {
+  font-weight: 700;
+  color: var(--ink-strong);
+  margin-bottom: 4px;
+}
+.ms-form-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: flex-end;
+}
+.ms-note-field {
+  flex: 2 1 220px;
+}
+.ms-history {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+.ms-history li {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.ms-card-below-live {
+  max-width: 560px;
+  margin-top: 20px;
+}

@@ -3448,6 +3448,657 @@ function ScopedDashboardPage({
   );
 }
 
+// ----------------------------------------------------------------------------
+// Pricing milestones (supabase/client-milestones.sql)
+// ----------------------------------------------------------------------------
+// The published pricing (marketing/pricing-embed.html), tracked live per
+// client. Owner rules: a client's milestone is the HIGHER of the two measures
+// (trailing 3-month average monthly transactions, annual operating budget);
+// the tracker only proposes, and staff confirm every change, down as well as
+// up. Keep this table in sync with the public pricing block.
+const PRICING_MILESTONES = [
+  { tier: 1, roman: "I", name: "Foundation", txMax: 50, budgetMax: 250000, fee: 350, txLabel: "Up to 50", budgetLabel: "Up to $250,000" },
+  { tier: 2, roman: "II", name: "Growth", txMax: 150, budgetMax: 750000, fee: 550, txLabel: "51–150", budgetLabel: "$250K–$750K" },
+  { tier: 3, roman: "III", name: "Established", txMax: 300, budgetMax: 1500000, fee: 850, txLabel: "151–300", budgetLabel: "$750K–$1.5M" },
+  { tier: 4, roman: "IV", name: "Advanced", txMax: 500, budgetMax: 3000000, fee: 1100, txLabel: "301–500", budgetLabel: "$1.5M–$3M" },
+  { tier: 5, roman: "V", name: "Strategic", txMax: 800, budgetMax: 6000000, fee: 1450, txLabel: "501–800", budgetLabel: "$3M–$6M" },
+  { tier: 6, roman: "VI", name: "Enterprise", txMax: Infinity, budgetMax: Infinity, fee: null, txLabel: "800+", budgetLabel: "$6M+" },
+];
+// Within this share of the next threshold, a measure counts as "approaching".
+const MILESTONE_APPROACH_SHARE = 0.9;
+const MILESTONES_CHANGED_EVENT = "mgb:milestones-changed";
+const MILESTONE_BUDGET_SOURCE_LABEL = {
+  form_990: "Form 990",
+  approved_budget: "Approved budget",
+  other: "Entered by MyGoodBooks",
+};
+
+const milestoneByTier = (tier) => PRICING_MILESTONES[tier - 1] || null;
+const milestoneFeeLabel = (m) => (m.fee == null ? "Custom" : `${fmtMoney(m.fee)}/mo`);
+const tierForTx = (avg) => PRICING_MILESTONES.find((m) => Math.round(avg) <= m.txMax).tier;
+const tierForBudget = (b) => PRICING_MILESTONES.find((m) => b <= m.budgetMax).tier;
+
+// Turns the raw numbers (client_milestone_stats + the client_milestones row)
+// into everything the cards show.
+function summarizeMilestone(stats, row) {
+  const synced = !!(stats && stats.last_synced_at);
+  const avgTx = synced ? Number(stats.tx_90d || 0) / 3 : null;
+  let budget = null;
+  let budgetBasis = null;
+  if (row && row.annual_budget != null) {
+    budget = Number(row.annual_budget);
+    budgetBasis = MILESTONE_BUDGET_SOURCE_LABEL[row.budget_source] || "Entered by MyGoodBooks";
+  } else if (stats && stats.qbo_budget_total != null && Number(stats.qbo_budget_total) > 0) {
+    budget = Number(stats.qbo_budget_total);
+    budgetBasis = "QuickBooks budget";
+  } else if (stats && stats.expenses_12m != null && Number(stats.expenses_12m) > 0) {
+    budget = Number(stats.expenses_12m);
+    budgetBasis = "Last 12 months of expenses";
+  }
+  const txTier = avgTx == null ? null : tierForTx(avgTx);
+  const budgetTier = budget == null ? null : tierForBudget(budget);
+  const computedTier =
+    txTier == null && budgetTier == null ? null : Math.max(txTier || 1, budgetTier || 1);
+  const confirmedTier = row && row.confirmed_tier ? row.confirmed_tier : null;
+  const current = milestoneByTier(confirmedTier || computedTier);
+  const approaching = (() => {
+    if (!computedTier || computedTier >= 6) return null;
+    const m = milestoneByTier(computedTier);
+    const next = milestoneByTier(computedTier + 1);
+    if (avgTx != null && avgTx >= m.txMax * MILESTONE_APPROACH_SHARE) return next;
+    if (budget != null && budget >= m.budgetMax * MILESTONE_APPROACH_SHARE) return next;
+    return null;
+  })();
+  return {
+    synced,
+    avgTx,
+    budget,
+    budgetBasis,
+    txTier,
+    budgetTier,
+    computedTier,
+    confirmedTier,
+    current,
+    // Which measure sets the milestone ("higher of the two").
+    drivenBy:
+      txTier != null && budgetTier != null
+        ? txTier === budgetTier
+          ? "both"
+          : txTier > budgetTier
+            ? "transactions"
+            : "budget"
+        : txTier != null
+          ? "transactions"
+          : budgetTier != null
+            ? "budget"
+            : null,
+    pendingTier:
+      computedTier && confirmedTier && computedTier !== confirmedTier ? computedTier : null,
+    unconfirmed: !confirmedTier && !!computedTier,
+    approaching,
+    confirmedAt: row ? row.confirmed_at : null,
+    budgetAsOf: row ? row.budget_as_of : null,
+    lastSyncedAt: stats ? stats.last_synced_at : null,
+  };
+}
+
+const milestonesApi = {
+  missing: false,
+  async load(supabase, clientIds) {
+    if (!supabase || !clientIds.length) return { data: {}, error: null };
+    const [statsRes, rowsRes] = await Promise.all([
+      supabase.rpc("client_milestone_stats", { p_client_ids: clientIds }),
+      supabase.from("client_milestones").select("*").in("client_id", clientIds),
+    ]);
+    const error = statsRes.error || rowsRes.error;
+    if (error) {
+      milestonesApi.missing = /client_milestone|does not exist|schema cache/i.test(error.message || "");
+      return { data: {}, error };
+    }
+    milestonesApi.missing = false;
+    const rowById = Object.fromEntries((rowsRes.data || []).map((r) => [r.client_id, r]));
+    const data = {};
+    (statsRes.data || []).forEach((s) => {
+      data[s.client_id] = { stats: s, row: rowById[s.client_id] || null };
+    });
+    return { data, error: null };
+  },
+  history(supabase, clientId) {
+    return supabase
+      .from("client_milestone_history")
+      .select("*")
+      .eq("client_id", clientId)
+      .order("changed_at", { ascending: false })
+      .limit(20);
+  },
+  saveBudget(supabase, clientId, fields) {
+    return supabase
+      .from("client_milestones")
+      .upsert({ client_id: clientId, ...fields }, { onConflict: "client_id" });
+  },
+  confirm(supabase, clientId, tier, summary, note) {
+    return supabase.rpc("confirm_client_milestone", {
+      p_client_id: clientId,
+      p_tier: tier,
+      p_avg_monthly_tx: summary.avgTx == null ? null : Math.round(summary.avgTx * 10) / 10,
+      p_annual_budget: summary.budget,
+      p_budget_basis: summary.budgetBasis,
+      p_note: note || null,
+    });
+  },
+};
+
+function notifyMilestonesChanged() {
+  window.dispatchEvent(new Event(MILESTONES_CHANGED_EVENT));
+}
+
+// { [clientId]: summary } for the given clients; reloads after Sync now and
+// after any staff change.
+function useMilestones(clientIds) {
+  const key = clientIds.join(",");
+  const [state, setState] = useState({ loading: true, byId: {}, raw: {}, missing: false });
+  const reload = useCallback(() => {
+    const supabase = window.mgbSupabase;
+    if (!supabase || !key) {
+      setState({ loading: false, byId: {}, raw: {}, missing: false });
+      return;
+    }
+    milestonesApi.load(supabase, key.split(",")).then(({ data, error }) => {
+      const byId = {};
+      Object.entries(data).forEach(([id, d]) => {
+        byId[id] = summarizeMilestone(d.stats, d.row);
+      });
+      setState({ loading: false, byId, raw: data, missing: !!error && milestonesApi.missing });
+    });
+  }, [key]);
+  useEffect(() => {
+    reload();
+    window.addEventListener(MILESTONES_CHANGED_EVENT, reload);
+    return () => window.removeEventListener(MILESTONES_CHANGED_EVENT, reload);
+  }, [reload]);
+  return { ...state, reload };
+}
+
+// Same step chart as the public pricing block, with the client's milestone
+// highlighted.
+function MilestoneStepChart({ currentTier }) {
+  const colW = 135;
+  const x0 = 65;
+  const yFor = (fee) => 210 - fee * 0.1125;
+  const paid = PRICING_MILESTONES.filter((m) => m.fee != null);
+  let d = "";
+  paid.forEach((m, i) => {
+    const y = yFor(m.fee).toFixed(1);
+    d += i === 0 ? `M${x0} ${y} H${x0 + colW}` : ` V${y} H${x0 + colW * (i + 1)}`;
+  });
+  const lastY = yFor(paid[paid.length - 1].fee).toFixed(1);
+  return (
+    <svg className="ms-chart" viewBox="0 0 900 262" role="img" aria-label={`Step chart of monthly fees by milestone${currentTier ? `; you are at ${milestoneByTier(currentTier).name}` : ""}.`}>
+      {PRICING_MILESTONES.map((m, i) => (
+        <rect
+          key={m.tier}
+          x={x0 + colW * i}
+          y="20"
+          width={colW}
+          height="190"
+          className={m.tier === currentTier ? "ms-band-current" : i % 2 ? "ms-band" : "ms-band-none"}
+        />
+      ))}
+      {[0, 400, 800, 1200, 1600].map((v) => (
+        <g key={v}>
+          <line x1={x0} x2={x0 + colW * 6} y1={yFor(v)} y2={yFor(v)} className="ms-grid" />
+          <text x={x0 - 9} y={yFor(v) + 4} textAnchor="end" className="ms-axis">
+            {fmtMoney(v)}
+          </text>
+        </g>
+      ))}
+      <path d={d} className="ms-line" />
+      <path d={`M${x0 + colW * 5} ${lastY} H${x0 + colW * 6}`} className="ms-line-custom" />
+      {PRICING_MILESTONES.map((m, i) => {
+        const cx = x0 + colW * i + colW / 2;
+        const y = m.fee == null ? Number(lastY) : yFor(m.fee);
+        return (
+          <g key={m.tier}>
+            <text x={cx} y={y - 10} textAnchor="middle" className={"ms-fee" + (m.fee == null ? " ms-fee-custom" : "")}>
+              {m.fee == null ? "Custom" : `${fmtMoney(m.fee)}/mo`}
+            </text>
+            <text x={cx} y="236" textAnchor="middle" className={"ms-tier-label" + (m.tier === currentTier ? " current" : "")}>
+              {m.name}
+            </text>
+            {m.tier === currentTier && (
+              <text x={cx} y="254" textAnchor="middle" className="ms-here">
+                You are here
+              </text>
+            )}
+          </g>
+        );
+      })}
+    </svg>
+  );
+}
+
+function MilestoneTable({ currentTier }) {
+  return (
+    <div className="table-scroll">
+      <table className="tx-table tx-table-labeled ms-table">
+        <thead>
+          <tr>
+            <th>Milestone</th>
+            <th>Monthly transactions</th>
+            <th>Annual operating budget</th>
+            <th className="num">Monthly investment</th>
+          </tr>
+        </thead>
+        <tbody>
+          {PRICING_MILESTONES.map((m) => (
+            <tr key={m.tier} className={m.tier === currentTier ? "ms-row-current" : ""}>
+              <td data-primary="">
+                <span className="ms-roman">{m.roman}</span> {m.name}
+                {m.tier === currentTier && <span className="ms-you">You</span>}
+              </td>
+              <td data-label="Monthly transactions">{m.txLabel}</td>
+              <td data-label="Annual operating budget">{m.budgetLabel}</td>
+              <td className="num" data-label="Monthly investment">
+                {m.fee == null ? "Custom — contact us" : `${fmtMoney(m.fee)}/mo`}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+// One measure as a bar toward the next threshold.
+function MilestoneMeter({ label, value, display, tier, kind, basis }) {
+  if (value == null) {
+    return (
+      <div className="ms-meter">
+        <div className="ms-meter-head">
+          <span className="ms-meter-label">{label}</span>
+          <span className="ms-meter-value muted">Not available yet</span>
+        </div>
+      </div>
+    );
+  }
+  const m = milestoneByTier(tier);
+  const max = kind === "tx" ? m.txMax : m.budgetMax;
+  const floor = tier > 1 ? (kind === "tx" ? milestoneByTier(tier - 1).txMax : milestoneByTier(tier - 1).budgetMax) : 0;
+  const pct = max === Infinity ? 100 : Math.max(4, Math.min(100, ((value - floor) / (max - floor)) * 100));
+  const approaching = max !== Infinity && value >= max * MILESTONE_APPROACH_SHARE;
+  const nextLabel =
+    max === Infinity
+      ? "Top milestone"
+      : kind === "tx"
+        ? `Next milestone at ${max + 1} a month`
+        : `Next milestone above ${fmtMoney(max)}`;
+  return (
+    <div className="ms-meter">
+      <div className="ms-meter-head">
+        <span className="ms-meter-label">{label}</span>
+        <span className="ms-meter-value">{display}</span>
+      </div>
+      <div className="ms-meter-track" aria-hidden="true">
+        <div className={"ms-meter-fill" + (approaching ? " approaching" : "")} style={{ width: pct + "%" }} />
+      </div>
+      <div className="ms-meter-foot">
+        <span>
+          {m.name} range: {kind === "tx" ? m.txLabel : m.budgetLabel}
+        </span>
+        <span>{nextLabel}</span>
+      </div>
+      {basis && <div className="ms-meter-basis">Source: {basis}</div>}
+    </div>
+  );
+}
+
+function MilestoneMeters({ s }) {
+  return (
+    <div className="ms-meters">
+      <MilestoneMeter
+        label="Monthly transactions"
+        kind="tx"
+        value={s.avgTx}
+        tier={s.txTier}
+        display={s.avgTx == null ? "" : `${Math.round(s.avgTx)} a month`}
+        basis={s.avgTx == null ? null : "3-month average from QuickBooks"}
+      />
+      <MilestoneMeter
+        label="Annual operating budget"
+        kind="budget"
+        value={s.budget}
+        tier={s.budgetTier}
+        display={s.budget == null ? "" : fmtMoney(s.budget)}
+        basis={s.budgetBasis ? s.budgetBasis + (s.budgetAsOf ? ` (${fmtDate(s.budgetAsOf)})` : "") : null}
+      />
+    </div>
+  );
+}
+
+function MilestoneStatusNote({ s, staff }) {
+  if (s.pendingTier) {
+    const p = milestoneByTier(s.pendingTier);
+    return (
+      <p className="ms-status ms-status-pending">
+        {staff
+          ? `Numbers now point to ${p.name} (${milestoneFeeLabel(p)}). Review and confirm below.`
+          : `Your numbers now point to ${p.name} (${milestoneFeeLabel(p)}). Your bookkeeper will review this with you before anything changes.`}
+      </p>
+    );
+  }
+  if (s.unconfirmed) {
+    return (
+      <p className="ms-status">
+        {staff
+          ? "Not confirmed yet. This is the estimate from the client's numbers."
+          : "Estimate from your numbers. Your bookkeeper confirms your milestone."}
+      </p>
+    );
+  }
+  if (s.approaching) {
+    return (
+      <p className="ms-status ms-status-near">
+        {staff ? "Close" : "You're close"} to {s.approaching.name} ({milestoneFeeLabel(s.approaching)}).
+        {staff ? "" : " Nothing changes until your bookkeeper confirms it with you."}
+      </p>
+    );
+  }
+  return null;
+}
+
+function MilestoneDetailsModal({ client, s, onClose }) {
+  return (
+    <ModalShell onClose={onClose} labelledBy="ms-modal-title" className="ms-modal">
+      <div className="modal-header">
+        <h3 className="card-title" id="ms-modal-title" style={{ margin: 0 }}>
+          Your milestone
+        </h3>
+        <button className="modal-close" onClick={onClose} aria-label="Close">
+          ×
+        </button>
+      </div>
+      <div className="modal-body">
+        <p className="card-subtitle" style={{ marginTop: 0 }}>
+          {client.name}'s monthly fee follows the higher of two measures: average monthly
+          transactions over the last 3 months, and annual operating budget.
+        </p>
+        <MilestoneStepChart currentTier={s.current && s.current.tier} />
+        <MilestoneMeters s={s} />
+        <MilestoneTable currentTier={s.current && s.current.tier} />
+        <p className="card-subtitle ms-footnote">
+          A transaction is any entry in QuickBooks: deposits, checks, bills, payments,
+          transfers and journal entries. Your milestone only changes after your bookkeeper
+          confirms it with you, and it goes down as well as up.
+        </p>
+      </div>
+    </ModalShell>
+  );
+}
+
+// Client Dashboard widget.
+function MilestoneCard({ client }) {
+  const { loading, byId, missing } = useMilestones([client.id]);
+  const [open, setOpen] = useState(false);
+  const s = byId[client.id];
+  return (
+    <>
+      <h3 className="card-title">Your milestone</h3>
+      {loading ? (
+        <p className="card-subtitle">Loading…</p>
+      ) : missing || !s || !s.current ? (
+        <p className="card-subtitle">
+          {client.dataSource === "quickbooks"
+            ? "Your milestone will appear after the next QuickBooks sync."
+            : "Your milestone appears once QuickBooks is connected."}
+        </p>
+      ) : (
+        <>
+          <div className="ms-headline">
+            <span className="ms-roman-lg">{s.current.roman}</span>
+            <div>
+              <div className="ms-name">{s.current.name}</div>
+              <div className="ms-fee-lg">
+                {s.current.fee == null ? "Custom pricing" : `${fmtMoney(s.current.fee)} / month`}
+              </div>
+            </div>
+          </div>
+          <MilestoneStatusNote s={s} />
+          <MilestoneMeters s={s} />
+          <button type="button" className="btn-secondary" onClick={() => setOpen(true)}>
+            See all milestones
+          </button>
+          {s.lastSyncedAt && (
+            <p className="card-subtitle ms-updated">Updated {relTime(s.lastSyncedAt) || fmtDateTime(s.lastSyncedAt)}</p>
+          )}
+        </>
+      )}
+      {open && s && <MilestoneDetailsModal client={client} s={s} onClose={() => setOpen(false)} />}
+    </>
+  );
+}
+
+// Client details → Milestone (staff only): budget entry, confirm, history.
+function MilestoneStaffPanel({ client }) {
+  const { loading, byId, raw, missing } = useMilestones([client.id]);
+  const showToast = useToast();
+  const s = byId[client.id];
+  const row = raw[client.id] ? raw[client.id].row : null;
+  const [budgetDraft, setBudgetDraft] = useState("");
+  const [sourceDraft, setSourceDraft] = useState("form_990");
+  const [asOfDraft, setAsOfDraft] = useState("");
+  const [pickTier, setPickTier] = useState(null);
+  const [note, setNote] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [history, setHistory] = useState(undefined);
+
+  useEffect(() => {
+    setBudgetDraft(row && row.annual_budget != null ? String(Number(row.annual_budget)) : "");
+    setSourceDraft((row && row.budget_source) || "form_990");
+    setAsOfDraft((row && row.budget_as_of) || "");
+  }, [row && row.updated_at]);
+  useEffect(() => {
+    if (s && pickTier == null) setPickTier(s.computedTier || s.confirmedTier || 1);
+  }, [s && s.computedTier]);
+
+  const loadHistory = useCallback(() => {
+    const supabase = window.mgbSupabase;
+    if (!supabase) return;
+    milestonesApi.history(supabase, client.id).then(({ data }) => setHistory(data || []));
+  }, [client.id]);
+  useEffect(() => {
+    loadHistory();
+  }, [loadHistory]);
+
+  if (loading) return <p className="card-subtitle">Loading…</p>;
+  if (missing) return <p className="card-subtitle">Milestones turn on once the client-milestones database update is applied.</p>;
+  if (!s) return <p className="card-subtitle">Couldn't load this client's numbers.</p>;
+
+  async function saveBudget(e) {
+    e.preventDefault();
+    const n = budgetDraft.trim() === "" ? null : Number(budgetDraft.replace(/[$,\s]/g, ""));
+    if (n != null && (!Number.isFinite(n) || n < 0)) {
+      showToast("Enter the budget as a number, like 450000.");
+      return;
+    }
+    setSaving(true);
+    const { error } = await milestonesApi.saveBudget(window.mgbSupabase, client.id, {
+      annual_budget: n,
+      budget_source: n == null ? null : sourceDraft,
+      budget_as_of: n == null || !asOfDraft ? null : asOfDraft,
+    });
+    setSaving(false);
+    if (error) {
+      showToast(`Couldn't save the budget: ${error.message}`);
+      return;
+    }
+    showToast(n == null ? "Budget cleared. Using QuickBooks numbers instead." : "Budget saved.");
+    notifyMilestonesChanged();
+  }
+
+  async function confirmTier() {
+    if (!pickTier) return;
+    setSaving(true);
+    const { error } = await milestonesApi.confirm(window.mgbSupabase, client.id, pickTier, s, note);
+    setSaving(false);
+    if (error) {
+      showToast(`Couldn't confirm: ${error.message}`);
+      return;
+    }
+    setNote("");
+    showToast(`${client.name} is now at ${milestoneByTier(pickTier).name}.`);
+    notifyMilestonesChanged();
+    loadHistory();
+  }
+
+  const confirmed = s.confirmedTier ? milestoneByTier(s.confirmedTier) : null;
+  const computed = s.computedTier ? milestoneByTier(s.computedTier) : null;
+
+  return (
+    <div className="ms-staff">
+      <div className="ms-staff-summary">
+        <div>
+          <div className="ms-meter-label">Confirmed</div>
+          <div className="ms-name">{confirmed ? `${confirmed.roman} ${confirmed.name}` : "Not confirmed yet"}</div>
+          {confirmed && (
+            <div className="card-subtitle" style={{ margin: 0 }}>
+              {milestoneFeeLabel(confirmed)}
+              {s.confirmedAt ? ` · since ${fmtDate(s.confirmedAt.slice(0, 10))}` : ""}
+            </div>
+          )}
+        </div>
+        <div>
+          <div className="ms-meter-label">From the numbers</div>
+          <div className="ms-name">{computed ? `${computed.roman} ${computed.name}` : "Not enough data"}</div>
+          {computed && (
+            <div className="card-subtitle" style={{ margin: 0 }}>
+              {milestoneFeeLabel(computed)} · set by{" "}
+              {s.drivenBy === "both" ? "both measures" : s.drivenBy === "budget" ? "budget" : "transactions"}
+            </div>
+          )}
+        </div>
+      </div>
+      <MilestoneStatusNote s={s} staff />
+      <MilestoneMeters s={s} />
+
+      <form className="ms-form" onSubmit={saveBudget}>
+        <div className="ms-form-title">Annual operating budget</div>
+        <p className="card-subtitle" style={{ marginTop: 0 }}>
+          From the latest Form 990 or approved budget. Leave blank to use QuickBooks
+          {s.budgetBasis && !(row && row.annual_budget != null) ? ` (now: ${s.budgetBasis.toLowerCase()})` : ""}.
+        </p>
+        <div className="ms-form-row">
+          <label className="task-field">
+            <span>Amount</span>
+            <input type="text" inputMode="decimal" placeholder="450000" value={budgetDraft} onChange={(e) => setBudgetDraft(e.target.value)} />
+          </label>
+          <label className="task-field">
+            <span>Source</span>
+            <select value={sourceDraft} onChange={(e) => setSourceDraft(e.target.value)}>
+              <option value="form_990">Form 990</option>
+              <option value="approved_budget">Approved budget</option>
+              <option value="other">Other</option>
+            </select>
+          </label>
+          <label className="task-field">
+            <span>As of</span>
+            <input type="date" value={asOfDraft} onChange={(e) => setAsOfDraft(e.target.value)} />
+          </label>
+          <button type="submit" className="btn-secondary" disabled={saving}>
+            Save budget
+          </button>
+        </div>
+      </form>
+
+      <div className="ms-form">
+        <div className="ms-form-title">Confirm milestone</div>
+        <p className="card-subtitle" style={{ marginTop: 0 }}>
+          The client's fee follows the confirmed milestone. Talk it through with them first.
+        </p>
+        <div className="ms-form-row">
+          <label className="task-field">
+            <span>Milestone</span>
+            <select value={pickTier || ""} onChange={(e) => setPickTier(Number(e.target.value))}>
+              {PRICING_MILESTONES.map((m) => (
+                <option key={m.tier} value={m.tier}>
+                  {m.roman} {m.name} · {milestoneFeeLabel(m)}
+                  {m.tier === s.computedTier ? " (from the numbers)" : ""}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="task-field ms-note-field">
+            <span>Note (optional)</span>
+            <input type="text" placeholder="Discussed on the Oct 3 call" value={note} onChange={(e) => setNote(e.target.value)} />
+          </label>
+          <button
+            type="button"
+            className="btn-primary"
+            disabled={saving || !pickTier || pickTier === s.confirmedTier}
+            onClick={confirmTier}
+          >
+            {pickTier === s.confirmedTier ? "Already confirmed" : "Confirm"}
+          </button>
+        </div>
+      </div>
+
+      <div className="ms-form">
+        <div className="ms-form-title">History</div>
+        {history === undefined ? (
+          <p className="card-subtitle">Loading…</p>
+        ) : history.length === 0 ? (
+          <p className="card-subtitle">No changes recorded yet.</p>
+        ) : (
+          <ul className="ms-history">
+            {history.map((h) => (
+              <li key={h.id}>
+                <strong>
+                  {h.from_tier ? `${milestoneByTier(h.from_tier).name} → ` : ""}
+                  {milestoneByTier(h.to_tier).name}
+                </strong>
+                <span className="card-subtitle" style={{ margin: 0 }}>
+                  {fmtDateTime(h.changed_at)} · {h.changed_by}
+                  {h.avg_monthly_tx != null ? ` · ${Math.round(h.avg_monthly_tx)} tx/mo` : ""}
+                  {h.annual_budget != null ? ` · ${fmtMoney(Number(h.annual_budget))} budget` : ""}
+                  {h.note ? ` · ${h.note}` : ""}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// Staff Home: clients whose milestone needs a look.
+function MilestonesReviewList({ clients, onOpenClient }) {
+  const ids = useMemo(() => clients.map((c) => c.id).sort(), [clients]);
+  const { loading, byId, missing } = useMilestones(ids);
+  if (loading) return <p className="card-subtitle">Loading…</p>;
+  if (missing) return <p className="card-subtitle">Milestones turn on once the database update is applied.</p>;
+  const rows = clients
+    .map((c) => ({ c, s: byId[c.id] }))
+    .filter(({ s }) => s && (s.pendingTier || s.unconfirmed || s.approaching))
+    .sort((a, b) => (b.s.pendingTier ? 2 : b.s.unconfirmed ? 1 : 0) - (a.s.pendingTier ? 2 : a.s.unconfirmed ? 1 : 0));
+  if (!rows.length) return <p className="card-subtitle">Every client's milestone matches their numbers.</p>;
+  return (
+    <div className="staff-audit-list">
+      {rows.slice(0, 8).map(({ c, s }) => (
+        <button className="staff-due-row" key={c.id} onClick={() => onOpenClient(c.id)}>
+          <span className="staff-flag-label">{c.name}</span>
+          <span className="staff-flag-desc">
+            {s.pendingTier
+              ? `${milestoneByTier(s.confirmedTier).name} → ${milestoneByTier(s.pendingTier).name} to confirm`
+              : s.unconfirmed
+                ? `Confirm ${milestoneByTier(s.computedTier).name}`
+                : `Close to ${s.approaching.name}`}
+          </span>
+        </button>
+      ))}
+    </div>
+  );
+}
+
 function DashboardPage({
   client,
   access,
@@ -3589,6 +4240,12 @@ function DashboardPage({
       group: "content",
       label: "Recent Activity",
       description: "Latest transactions across all accounts",
+    },
+    {
+      id: "milestone",
+      group: "content",
+      label: "Your milestone",
+      description: "Where you stand on MyGoodBooks pricing",
     },
     ...crossTabWidgetDefs(client, access),
   ];
@@ -3758,6 +4415,16 @@ function DashboardPage({
                       </div>
                     ))}
                   </div>
+                </div>
+              );
+            if (id === "milestone")
+              return (
+                <div
+                  className={"card ms-card " + drag.dragClass(id)}
+                  key={id}
+                  {...drag.dragProps(id)}
+                >
+                  <MilestoneCard client={client} />
                 </div>
               );
             if (crossTabById[id])
@@ -12341,6 +13008,7 @@ function BookkeeperHomePage({
   readMessageClients,
   onNavigateToClient,
   onOpenMyTasks,
+  onOpenClientMilestone,
   statusOverrides,
   onStatusOverridesChanged,
 }) {
@@ -12764,6 +13432,12 @@ function BookkeeperHomePage({
       group: "content",
       label: "Your reminders",
       description: "Your private personal reminders",
+    },
+    {
+      id: "milestones",
+      group: "content",
+      label: "Milestones to review",
+      description: "Clients whose pricing milestone needs a look",
     },
   ];
   const layout = useWidgetLayout(
@@ -13210,6 +13884,24 @@ function BookkeeperHomePage({
                     ))}
                   </div>
                 )}
+              </div>
+            );
+          if (id === "milestones")
+            return (
+              <div
+                className={"card " + drag.dragClass(id)}
+                key={id}
+                {...drag.dragProps(id)}
+              >
+                <h3 className="card-title">Milestones to review</h3>
+                <p className="card-subtitle">
+                  Numbers pointing to a different milestone, not confirmed yet, or
+                  close to the next one.
+                </p>
+                <MilestonesReviewList
+                  clients={clients}
+                  onOpenClient={(id2) => onOpenClientMilestone && onOpenClientMilestone(id2)}
+                />
               </div>
             );
           if (id === "needs-visit")
@@ -18104,6 +18796,7 @@ function TabSettingsModal({
   onToggleUserPremium,
   staffUser,
   onOpenSop,
+  initialTab,
   onClose,
 }) {
   const [draggedKey, setDraggedKey] = useState(null);
@@ -18113,7 +18806,9 @@ function TabSettingsModal({
   // Notes/Activity) — two openers onto the same modal component rather than
   // two components, since every tab's data-loading and rendering logic below
   // is unchanged; only which tabs are offered differs per scope.
-  const [tab, setTab] = useState(scope === "details" ? "documents" : "people");
+  const [tab, setTab] = useState(
+    initialTab || (scope === "details" ? "documents" : "people"),
+  );
   const [activeLink, setActiveLink] = useState(undefined); // undefined = loading, null = none
   const [requests, setRequests] = useState([]);
   const [generatingLink, setGeneratingLink] = useState(false);
@@ -18591,6 +19286,12 @@ function TabSettingsModal({
               onClick={() => setTab("sop")}
             >
               SOP
+            </button>
+            <button
+              className={"modal-tab" + (tab === "milestone" ? " active" : "")}
+              onClick={() => setTab("milestone")}
+            >
+              Milestone
             </button>
             <button
               className={"modal-tab" + (tab === "activity" ? " active" : "")}
@@ -19113,6 +19814,12 @@ function TabSettingsModal({
             readOnly
             onEditInMyTasks={onOpenSop ? () => onOpenSop(client.id) : null}
           />
+        </div>
+      )}
+
+      {tab === "milestone" && (
+        <div className="modal-body">
+          <MilestoneStaffPanel client={client} />
         </div>
       )}
 
@@ -20020,6 +20727,7 @@ function QboSyncNowButton({ clientId, onSynced }) {
         return;
       }
       if (window.mgbReloadQboData) await window.mgbReloadQboData([clientId]);
+      notifyMilestonesChanged();
       if (onSynced) onSynced();
       if (data.status === "in_progress") {
         showToast("A sync is already running — your numbers will update shortly.");
@@ -20266,6 +20974,7 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
   const [tabOrder, setTabOrder] = useState(loadTabOrder);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [detailsOpen, setDetailsOpen] = useState(false);
+  const [detailsTab, setDetailsTab] = useState(null);
   // Read state and live threads are both keyed "<clientId>::<userId>", since
   // every person at an organization has their own private thread.
   const [readMessageClients, setReadMessageClients] = useState({});
@@ -21584,12 +22293,19 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
               // passed through so both sides stay in step. Data is derived
               // from the selected client rather than the shipped Bramblewood
               // sample, so the panel and the rest of the app agree.
-              <DailyClose
-                data={dailyCloseFromClient(client)}
-                theme={effectiveTheme}
-                onNavigate={setPage}
-                key={"daily-close-" + client.id}
-              />
+              <>
+                <DailyClose
+                  data={dailyCloseFromClient(client)}
+                  theme={effectiveTheme}
+                  onNavigate={setPage}
+                  key={"daily-close-" + client.id}
+                />
+                {/* Live Report replaces the widget dashboard, so the
+                    pricing milestone card rides underneath it. */}
+                <div className="card ms-card ms-card-below-live" key={"ms-" + client.id}>
+                  <MilestoneCard client={client} />
+                </div>
+              </>
             ) : access.isCategoryScoped ? (
               <ScopedDashboardPage
                 client={scopedClient}
@@ -21738,6 +22454,12 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
                 if (opts && opts.openAccessManager) setSettingsOpen(true);
               }}
               onOpenMyTasks={() => setPage("my-tasks")}
+              onOpenClientMilestone={(clientId) => {
+                setSelectedClientId(clientId);
+                setPage("dashboard");
+                setDetailsTab("milestone");
+                setDetailsOpen(true);
+              }}
               statusOverrides={statusOverrides}
               onStatusOverridesChanged={loadStatusOverrides}
             />
@@ -21858,7 +22580,11 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
             setDetailsOpen(false);
             setPage("my-tasks");
           }}
-          onClose={() => setDetailsOpen(false)}
+          initialTab={detailsTab}
+          onClose={() => {
+            setDetailsOpen(false);
+            setDetailsTab(null);
+          }}
         />
       )}
 

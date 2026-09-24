@@ -206,7 +206,7 @@ because some work happens in Claude Code web sessions. Run `git fetch` and compa
   receipts, online presence and typing indicators (Supabase Realtime).
 - **My Time**: log time per client, totals, recent entries, firm-wide utilization (admins).
 - **Client details** (sidebar): Documents (Drive links), QuickBooks (connect / sync /
-  disconnect), Notes, SOP, Activity.
+  disconnect), Notes, SOP, Milestone, Activity.
 - **Manage access** (sidebar): People, Organization tabs, Requests.
 - **Admin pages**:
   - **Staff Access**: staff roster, add, bulk import, client assignments, temporary admin grants.
@@ -231,6 +231,16 @@ because some work happens in Claude Code web sessions. Run `git fetch` and compa
   - Fund Accounting Pro, including **Tax Documents**: year-end giving statements per donor.
     A "Sent" status is saved only in that browser (`mygoodbooks_tax_docs_sent_v1`), and the app
     asks for confirmation before resending.
+- **Your milestone** (Dashboard widget; under Live Report for premium clients; not shown to
+  category-scoped users): where the client stands on the public pricing
+  (`marketing/pricing-embed.html`, tiers in `PRICING_MILESTONES` in `app.jsx`). The milestone is
+  the **higher** of the trailing 3-month average monthly transactions (from synced QuickBooks
+  data) and the annual operating budget (staff-entered from the Form 990 or approved budget,
+  else the QuickBooks budget, else 12 months of expenses). The tracker only proposes: staff
+  confirm every change, up or down, in **Client details → Milestone**, which keeps a history.
+  Staff Home has a **Milestones to review** card. Database: `supabase/client-milestones.sql`
+  (`client_milestones`, `client_milestone_history`, `client_milestone_stats`,
+  `confirm_client_milestone`).
 - **Enterprise** page: what premium includes and pricing. The upgrade request is real
   (`request_enterprise_upgrade`).
 - **Reports and PDFs** are generated in the browser with jsPDF: P&L, balance sheet, budget vs.
