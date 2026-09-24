@@ -4109,7 +4109,7 @@ function MilestoneStaffPanel({ client, formsOnly }) {
           The client's fee follows the confirmed milestone. Talk it through with them first.
         </p>
         <div className="ms-form-row">
-          <label className="task-field">
+          <label className="task-field ms-tier-field">
             <span>Milestone</span>
             <select value={pickTier || ""} onChange={(e) => setPickTier(Number(e.target.value))}>
               {PRICING_MILESTONES.map((m) => (

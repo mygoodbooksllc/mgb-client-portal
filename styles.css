@@ -7700,6 +7700,9 @@ body:has(.modal-overlay) .chat-fab-wrap {
 .ms-note-field {
   flex: 2 1 220px;
 }
+.ms-tier-field {
+  flex: 1 1 320px;
+}
 .ms-history {
   list-style: none;
   margin: 0;
