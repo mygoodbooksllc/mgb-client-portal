@@ -79,7 +79,7 @@ because some work happens in Claude Code web sessions. Run `git fetch` and compa
 | `vercel.json` | URL rewrites (`/login`, `/privacy`, `/terms`, `/quickbooks-connected`) and security headers |
 | `.vercelignore` | Keeps internal files out of the public deploy (see [Working on it](#working-on-it)) |
 | `logo.webp` | Logo |
-| `marketing/` | Internal marketing/landing page drafts. Not deployed. |
+| `marketing/` | Marketing drafts, plus `pricing-embed.html`: the public pricing chart as a Squarespace Code Block (plain HTML/CSS). Not deployed. |
 | `design-system/` | Design-system package for Claude Design. Not deployed. |
 
 ## Sign-in and access
@@ -161,17 +161,21 @@ because some work happens in Claude Code web sessions. Run `git fetch` and compa
     :30 and :45 (`'1-14,16-29,31-44,46-59 * * * *'`, `supabase/qbo-sync-cron-1min.sql`), which
     keeps it off the token refresher's minutes. An open page re-fetches the client's numbers once
     they're more than about 90 seconds old.
-  - **"Sync now"** button: in the page header (staff and clients) and in Client details →
-    QuickBooks. The function re-checks that the caller may sync that client.
-  - **60-second throttle** per connection.
+  - **Sync now**: clicking the header's gold Live pill (the refresh icon at its right end) syncs,
+    for staff and clients; also in Client details → QuickBooks. The function re-checks that the
+    caller may sync that client.
+  - **60-second throttle** per connection, for Sync now only (the cron isn't throttled).
   - **Lock.** `qbo_connections.sync_started_at` stops two syncs overlapping; a stale lock
     expires after 5 minutes.
   - **Atomic writes.** Each table's rows are swapped in one transaction by `qbo_replace_rows()`,
     so no one sees a half-finished sync.
 - **Browser access.** Browsers can only **read** the `qbo_*` tables. Only the sync function
   (service role) writes to them.
-- **Header badge.** It shows **"Live · synced N minutes ago"** for a connected client with data,
-  and **"Prototype · Sample Data"** otherwise.
+- **Header (top right of every client page).** Two rows, right-aligned (left-aligned on phones):
+  the **Milestone badge** on top, then the **Live pill** ("● Live · synced N minutes ago" plus a
+  refresh icon; one button, `QboSyncNowButton` with `liveLabel`) and search. A client without
+  QuickBooks data shows a grey **"Prototype · Sample Data"** badge instead of the Live pill. The
+  "synced" label ticks every minute.
 - **Sample banners.** `MockBanner` hides itself on financial pages when
   `client.dataSource === "quickbooks"`.
 - As of 2026-09-22 the connected company was an Intuit **sandbox** company, even though the app
@@ -192,7 +196,7 @@ because some work happens in Claude Code web sessions. Run `git fetch` and compa
 
 - **Home** (`bookkeeper-home`): Your clients (with health dots), Needs attention, Needs a visit,
   Unread messages, Your reminders, Access requests, Enterprise upgrade requests, Recently viewed,
-  Jump to client.
+  Milestones to review, Jump to client.
 - **My Tasks**:
   - Tabs: **Today / Upcoming / Overdue / All / By client**.
   - Separate **Notes** and **SOPs** cards below the tasks.
@@ -233,27 +237,37 @@ because some work happens in Claude Code web sessions. Run `git fetch` and compa
   - Fund Accounting Pro, including **Tax Documents**: year-end giving statements per donor.
     A "Sent" status is saved only in that browser (`mygoodbooks_tax_docs_sent_v1`), and the app
     asks for confirmation before resending.
-- **Milestone** (header badge + page): a numeral badge ("II Growth") in the top right of every
-  client page opens the Milestone page (not in the sidebar; hidden from category-scoped users).
-  It shows where the client stands on the public pricing (`marketing/pricing-embed.html`, tiers
-  in `PRICING_MILESTONES` in `app.jsx`). The milestone is the **higher** of the trailing 3-month
-  average monthly transactions (from synced QuickBooks data) and the annual operating budget
-  (staff-entered from the Form 990 or approved budget, else the QuickBooks budget, else 12 months
-  of expenses). The tracker only proposes: staff confirm every change, up or down, at the bottom
-  of the Milestone page (also in **Client details → Milestone**), with a history. The badge has a
-  progress ring toward the next milestone and shows "Near X" (within 90%), "Reached X" or
-  "Moving to X" (numbers point elsewhere, awaiting staff confirmation) right on it; staff also see
-  "Set milestone" on clients whose milestone hasn't been set yet. Staff Home has a **Milestones to review** card. Database:
-  `supabase/client-milestones.sql` (`client_milestones`, `client_milestone_history`,
-  `client_milestone_stats`, `confirm_client_milestone`).
+- **Milestone** (pricing tracker):
+  - **Rules.** Tiers and fees match the public pricing chart (`marketing/pricing-embed.html`,
+    pasted into the Squarespace site) and live in `PRICING_MILESTONES` in `app.jsx`; change both
+    together. A client's milestone is the **higher** of two measures: trailing 3-month average
+    monthly transactions (from synced QuickBooks data) and annual operating budget (staff-entered
+    from the Form 990 or approved budget, else the QuickBooks budget, else 12 months of expenses).
+    The tracker only proposes; staff set every change, up or down, and fees go down too.
+  - **Badge.** Navy-and-gold pill in the header of every client page: "MILESTONE" over the name,
+    the numeral in a gold medallion with a progress ring toward the next milestone, and a note
+    right on the badge: "Near X" (within 90%), "Reached X" or "Moving to X" (numbers point to a
+    different milestone that staff haven't set yet). Staff also see "Set milestone" on clients not
+    set yet. Hover shows "N% of the way to X". Hidden from category-scoped users and on staff-only
+    pages. Not in the sidebar.
+  - **Milestone page** (opened from the badge): staff see **Staff: budget and milestone** first
+    (budget entry, Set milestone with a note, history), then the client view: summary, the two
+    progress bars, the step chart with "You are here", and the full table. Clients see only the
+    client view. Also in **Client details → Milestone**; staff Home has **Milestones to review**.
+  - **Database:** `supabase/client-milestones.sql` (`client_milestones`,
+    `client_milestone_history`, `client_milestone_stats`, `confirm_client_milestone`; only staff
+    can set a milestone).
 - **Enterprise** page: what premium includes and pricing. The upgrade request is real
   (`request_enterprise_upgrade`).
 - **Reports and PDFs** are generated in the browser with jsPDF: P&L, balance sheet, budget vs.
   actual, contribution and giving statements, reconciliation, payroll YTD, draft budget.
-- **Global search**, light/dark toggle, collapsible sidebar. In a desktop window at half the screen
-  width or less (`isHalfScreenWindow`) the sidebar auto-collapses to icons, at any width; on
-  touch phones (below 760px) it becomes a hamburger drawer instead. A page refresh keeps you on the
-  current page.
+- **Global search**, light/dark toggle, collapsible sidebar. In a mouse/trackpad window at half
+  the screen width or less (`isHalfScreenWindow`) the sidebar auto-collapses to icons, however
+  narrow the window gets; the expand button still works there without changing the saved
+  preference. Touch phones (below 760px) get a hamburger drawer instead. A page refresh keeps you
+  on the current page.
+- **Hover labels** use the app's own navy-and-gold tip (`.icon-hover-tip`), not the browser's
+  native tooltip.
 
 ## Database changes
 
@@ -265,8 +279,9 @@ because some work happens in Claude Code web sessions. Run `git fetch` and compa
   changed live before. Before running a `create or replace function`, check the live body
   (`select pg_get_functiondef('public.fn_name'::regproc)` or look in `pg_proc`) and build on
   that.
-- Some file headers say "NOT APPLIED" but were applied later. For example,
-  `qbo-sync-cron-5min.sql` is live. Check the live database before trusting a header.
+- Some file headers say "NOT APPLIED" but were applied later (for example
+  `qbo-sync-cron-5min.sql`, since superseded by `qbo-sync-cron-1min.sql`). Check the live
+  database (`select * from cron.job`, `pg_policies`, `pg_proc`) before trusting a header.
 - **Edge functions** live in `supabase/functions/<name>/index.ts` and are deployed with the
   Supabase MCP or CLI.
   - Secrets (`QBO_CLIENT_SECRET`, `QBO_TOKEN_ENCRYPTION_KEY`, the service role key, and so on)
@@ -339,6 +354,12 @@ because some work happens in Claude Code web sessions. Run `git fetch` and compa
 - Remove sample-data banners wherever live data exists.
 - Loop the Claude Design **"Report Builder Video"** on the sign-in page: video left and card
   right on desktop, muted, no controls, still under reduced-motion, smaller on phones.
+
+**QuickBooks sync at scale**
+
+- The every-minute cron syncs every connected company in turn, a few seconds each. Past roughly
+  15 companies a sweep takes longer than a minute. Before then, switch to QuickBooks webhooks
+  (sync a company when it changes) instead of polling faster.
 
 **Code health (Phase 4)**
 
