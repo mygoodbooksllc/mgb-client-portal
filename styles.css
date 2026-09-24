@@ -7636,17 +7636,21 @@ body:has(.modal-overlay) .chat-fab-wrap {
   gap: 2px;
 }
 
-/* Header badge: roman numeral + milestone name, opens the Milestone page. */
+/* Header badge: roman numeral + milestone name, opens the Milestone page.
+   Premium treatment: deep navy pill, gold hairline border, gold medallion. */
 .ms-badge {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: 9px;
   position: relative;
-  padding: 4px 12px 4px 4px;
+  padding: 4px 14px 4px 4px;
   border-radius: 999px;
-  border: 1px solid var(--warm-border);
-  background: var(--warm-bg);
-  color: var(--ink-strong);
+  border: 1px solid rgba(199, 174, 134, 0.55);
+  background: linear-gradient(180deg, #1c2a34 0%, #0d151b 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    0 1px 2px rgba(5, 8, 13, 0.18);
+  color: #f5efe3;
   font-family: var(--font-body);
   font-size: 14px;
   font-weight: 600;
@@ -7654,7 +7658,7 @@ body:has(.modal-overlay) .chat-fab-wrap {
   white-space: nowrap;
 }
 .ms-badge:hover {
-  border-color: var(--gold);
+  border-color: #d8c39f;
 }
 .ms-badge:focus-visible {
   outline: 2px solid var(--gold-deep);
@@ -7664,10 +7668,13 @@ body:has(.modal-overlay) .chat-fab-wrap {
   font-family: var(--font-heading);
   font-weight: 700;
   font-size: 13px;
-  color: var(--surface);
-  background: var(--gold-deep);
-  min-width: 26px;
-  height: 26px;
+  color: #1a1206;
+  background: linear-gradient(145deg, #ecd9b0 0%, #c7ae86 45%, #9c7c45 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.55),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.18);
+  min-width: 28px;
+  height: 28px;
   padding: 0 6px;
   border-radius: 999px;
   display: inline-flex;
@@ -7681,7 +7688,7 @@ body:has(.modal-overlay) .chat-fab-wrap {
   width: 10px;
   height: 10px;
   border-radius: 50%;
-  background: var(--gold);
+  background: #d8c39f;
   border: 2px solid var(--bg);
 }
 .ms-badge-text {
@@ -7691,11 +7698,17 @@ body:has(.modal-overlay) .chat-fab-wrap {
   line-height: 1.1;
 }
 .ms-badge-kicker {
-  font-size: 10px;
+  font-size: 9.5px;
   font-weight: 700;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
-  color: var(--gold-deep);
+  color: #c7ae86;
+}
+.ms-badge-name {
+  font-family: var(--font-heading);
+  font-size: 14px;
+  font-weight: 700;
+  color: #f5efe3;
 }
 @media (max-width: 640px) {
   .ms-badge-name {
