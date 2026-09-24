@@ -21403,10 +21403,11 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
     };
   }, [baseClient, userAccess]);
 
-  // The server syncs QuickBooks every 5 minutes (pg_cron), but the page only
-  // loaded the numbers once, so "synced 15 min ago" kept growing while the
-  // data sat stale. Once a minute: re-render so the "synced x ago" label
-  // ticks, and if the open client's data is older than one sync cycle,
+  // The server syncs QuickBooks every minute (pg_cron, qbo-sync-cron-1min.sql),
+  // but the page only loaded the numbers once, so "synced 15 min ago" kept
+  // growing while the data sat stale. Once a minute: re-render so the
+  // "synced x ago" label ticks, and if the open client's data is older than
+  // about one sync cycle,
   // re-fetch it (the same reload Sync now uses). Also on returning to the tab.
   const [, setClockTick] = useState(0);
   const qboAutoReloadRef = useRef(0);
@@ -21416,8 +21417,8 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
       if (document.hidden) return;
       if (client.dataSource !== "quickbooks" || !window.mgbReloadQboData) return;
       const age = client.lastSyncedAt ? Date.now() - new Date(client.lastSyncedAt).getTime() : Infinity;
-      if (age < 5.5 * 60 * 1000) return;
-      if (Date.now() - qboAutoReloadRef.current < 60 * 1000) return;
+      if (age < 90 * 1000) return;
+      if (Date.now() - qboAutoReloadRef.current < 50 * 1000) return;
       qboAutoReloadRef.current = Date.now();
       await window.mgbReloadQboData([client.id]);
       setQboDataRev((r) => r + 1);

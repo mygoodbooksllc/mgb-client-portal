@@ -157,8 +157,10 @@ because some work happens in Claude Code web sessions. Run `git fetch` and compa
 - **Token refresh.** `qbo-refresh-token` runs every 15 minutes (cron `qbo-refresh-tokens`).
 - **Sync.** `qbo-sync` pulls accounts, 12 months of P&L, budget, open invoices, open bills and
   90 days of transactions into the `qbo_*` tables.
-  - **Cron** job `qbo-sync-hourly`. Despite the name, it runs **every 5 minutes** on schedule
-    `'2-59/5 * * * *'`, which keeps it off the token refresher's minutes.
+  - **Cron** job `qbo-sync-hourly`. Despite the name, it runs **every minute** except :00, :15,
+    :30 and :45 (`'1-14,16-29,31-44,46-59 * * * *'`, `supabase/qbo-sync-cron-1min.sql`), which
+    keeps it off the token refresher's minutes. An open page re-fetches the client's numbers once
+    they're more than about 90 seconds old.
   - **"Sync now"** button: in the page header (staff and clients) and in Client details →
     QuickBooks. The function re-checks that the caller may sync that client.
   - **60-second throttle** per connection.
