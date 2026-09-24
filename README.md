@@ -251,8 +251,8 @@ because some work happens in Claude Code web sessions. Run `git fetch` and compa
 - **Reports and PDFs** are generated in the browser with jsPDF: P&L, balance sheet, budget vs.
   actual, contribution and giving statements, reconciliation, payroll YTD, draft budget.
 - **Global search**, light/dark toggle, collapsible sidebar. In a desktop window at half the screen
-  width or less (`isHalfScreenWindow`) the sidebar auto-collapses to icons; below 760px it
-  becomes a hamburger drawer. A page refresh keeps you on the
+  width or less (`isHalfScreenWindow`) the sidebar auto-collapses to icons, at any width; on
+  touch phones (below 760px) it becomes a hamburger drawer instead. A page refresh keeps you on the
   current page.
 
 ## Database changes

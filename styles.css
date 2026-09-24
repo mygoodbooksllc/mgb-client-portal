@@ -395,7 +395,7 @@ body {
    this file's own mobile section) fixes it at the source rather than
    fighting the specificity with an equal-or-higher-specificity override
    duplicated into the mobile media query. */
-@media (min-width: 761px) {
+@media (min-width: 761px), (hover: hover) and (pointer: fine) {
   .sidebar.sidebar-collapsed {
     width: 72px;
     padding-left: 10px;
@@ -468,7 +468,7 @@ body {
   flex-shrink: 0;
 }
 
-@media (min-width: 761px) {
+@media (min-width: 761px), (hover: hover) and (pointer: fine) {
   .sidebar.sidebar-collapsed .sidebar-collapse-toggle-icon {
     transform: rotate(-90deg);
   }
@@ -5082,8 +5082,10 @@ body:has(.modal-overlay) .chat-fab-wrap {
   }
 }
 
-/* ---- Phone: sidebar becomes an off-canvas drawer behind a hamburger ---- */
-@media (max-width: 760px) {
+/* ---- Phone: sidebar becomes an off-canvas drawer behind a hamburger.
+   Touch devices only: a narrow desktop window (mouse/trackpad) keeps the
+   icon rail instead (app.jsx isHalfScreenWindow forces it collapsed). ---- */
+@media (max-width: 760px) and (hover: none), (max-width: 760px) and (pointer: coarse) {
   .app-shell {
     display: block;
   }
@@ -5208,7 +5210,10 @@ body:has(.modal-overlay) .chat-fab-wrap {
     overflow-y: visible;
     flex: 0 0 auto;
   }
+}
 
+/* ---- Phone-width layout (any device) ---- */
+@media (max-width: 760px) {
   .main {
     padding: 18px 16px 40px 16px;
   }

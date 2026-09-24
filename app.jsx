@@ -21161,9 +21161,12 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
   // works the same on a laptop and a big external monitor. The expand
   // button still works there, for that stretch only; it doesn't change the
   // saved full-width preference.
+  // Mouse/trackpad only: touch devices (phones) keep the hamburger drawer.
   const isHalfScreenWindow = () => {
     const screenW = (window.screen && (window.screen.availWidth || window.screen.width)) || 0;
-    return window.innerWidth > 760 && screenW > 0 && window.innerWidth <= screenW / 2 + 1;
+    const finePointer =
+      !window.matchMedia || window.matchMedia("(hover: hover) and (pointer: fine)").matches;
+    return finePointer && screenW > 0 && window.innerWidth <= screenW / 2 + 1;
   };
   const [halfScreen, setHalfScreen] = useState(isHalfScreenWindow);
   const [halfScreenExpanded, setHalfScreenExpanded] = useState(false);
