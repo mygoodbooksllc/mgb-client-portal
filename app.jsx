@@ -4115,7 +4115,7 @@ function MilestoneStaffPanel({ client, formsOnly }) {
               {PRICING_MILESTONES.map((m) => (
                 <option key={m.tier} value={m.tier}>
                   {m.roman} {m.name} · {milestoneFeeLabel(m)}
-                  {m.tier === s.computedTier ? " (from the numbers)" : ""}
+                  {m.tier === s.computedTier ? " · suggested" : ""}
                 </option>
               ))}
             </select>

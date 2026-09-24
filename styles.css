@@ -7697,11 +7697,9 @@ body:has(.modal-overlay) .chat-fab-wrap {
   gap: 10px;
   align-items: flex-end;
 }
-.ms-note-field {
-  flex: 2 1 220px;
-}
+.ms-note-field,
 .ms-tier-field {
-  flex: 1 1 320px;
+  flex: 1 1 260px;
 }
 .ms-history {
   list-style: none;
