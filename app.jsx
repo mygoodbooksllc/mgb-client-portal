@@ -3453,17 +3453,26 @@ function ScopedDashboardPage({
 // ----------------------------------------------------------------------------
 // The published pricing (marketing/pricing-embed.html), tracked live per
 // client. Owner rules: a client's milestone is the HIGHER of the two measures
-// (trailing 3-month average monthly transactions, annual operating budget);
+// (trailing 3-month average monthly transactions, annual expenses);
 // the tracker only proposes, and staff confirm every change, down as well as
 // up. Keep this table in sync with the public pricing block.
 const PRICING_MILESTONES = [
-  { tier: 1, roman: "I", name: "Foundation", txMax: 50, budgetMax: 250000, fee: 350, txLabel: "Up to 50", budgetLabel: "Up to $250,000" },
-  { tier: 2, roman: "II", name: "Growth", txMax: 150, budgetMax: 750000, fee: 550, txLabel: "51–150", budgetLabel: "$250K–$750K" },
-  { tier: 3, roman: "III", name: "Established", txMax: 300, budgetMax: 1500000, fee: 850, txLabel: "151–300", budgetLabel: "$750K–$1.5M" },
-  { tier: 4, roman: "IV", name: "Advanced", txMax: 500, budgetMax: 3000000, fee: 1100, txLabel: "301–500", budgetLabel: "$1.5M–$3M" },
-  { tier: 5, roman: "V", name: "Strategic", txMax: 800, budgetMax: 6000000, fee: 1450, txLabel: "501–800", budgetLabel: "$3M–$6M" },
-  { tier: 6, roman: "VI", name: "Enterprise", txMax: Infinity, budgetMax: Infinity, fee: null, txLabel: "800+", budgetLabel: "$6M+" },
+  { tier: 1, roman: "I", name: "Starter", txMax: 30, budgetMax: 150000, fee: 250, txLabel: "Up to 30", budgetLabel: "Up to $150,000" },
+  { tier: 2, roman: "II", name: "Foundation", txMax: 60, budgetMax: 300000, fee: 300, txLabel: "31–60", budgetLabel: "$150K–$300K" },
+  { tier: 3, roman: "III", name: "Growth", txMax: 100, budgetMax: 500000, fee: 400, txLabel: "61–100", budgetLabel: "$300K–$500K" },
+  { tier: 4, roman: "IV", name: "Expanding", txMax: 150, budgetMax: 750000, fee: 600, txLabel: "101–150", budgetLabel: "$500K–$750K" },
+  { tier: 5, roman: "V", name: "Established", txMax: 200, budgetMax: 1000000, fee: 700, txLabel: "151–200", budgetLabel: "$750K–$1M" },
+  { tier: 6, roman: "VI", name: "Advanced", txMax: 300, budgetMax: 2000000, fee: 800, txLabel: "201–300", budgetLabel: "$1M–$2M" },
+  { tier: 7, roman: "VII", name: "Strategic", txMax: 500, budgetMax: 3000000, fee: 1500, txLabel: "301–500", budgetLabel: "$2M–$3M" },
+  { tier: 8, roman: "VIII", name: "Premier", txMax: 800, budgetMax: 4000000, fee: 2500, txLabel: "501–800", budgetLabel: "$3M–$4M" },
+  { tier: 9, roman: "IX", name: "Enterprise", txMax: Infinity, budgetMax: Infinity, fee: null, txLabel: "800+", budgetLabel: "$4M+" },
 ];
+const TOP_MILESTONE_TIER = PRICING_MILESTONES.length;
+// Names on the first (six-tier) chart, used only for history rows recorded
+// before 2026-09-26 (client_milestone_history.chart = 1).
+const LEGACY_MILESTONE_NAMES = ["Foundation", "Growth", "Established", "Advanced", "Strategic", "Enterprise"];
+const historyTierName = (h, tier) =>
+  h.chart === 1 ? `${LEGACY_MILESTONE_NAMES[tier - 1]} (old chart)` : milestoneByTier(tier).name;
 // Within this share of the next threshold, a measure counts as "approaching".
 const MILESTONE_APPROACH_SHARE = 0.9;
 const MILESTONES_CHANGED_EVENT = "mgb:milestones-changed";
@@ -3502,7 +3511,7 @@ function summarizeMilestone(stats, row) {
   const confirmedTier = row && row.confirmed_tier ? row.confirmed_tier : null;
   const current = milestoneByTier(confirmedTier || computedTier);
   const approaching = (() => {
-    if (!computedTier || computedTier >= 6) return null;
+    if (!computedTier || computedTier >= TOP_MILESTONE_TIER) return null;
     const m = milestoneByTier(computedTier);
     const next = milestoneByTier(computedTier + 1);
     if (avgTx != null && avgTx >= m.txMax * MILESTONE_APPROACH_SHARE) return next;
@@ -3622,9 +3631,9 @@ function useMilestones(clientIds) {
 // Same step chart as the public pricing block, with the client's milestone
 // highlighted.
 function MilestoneStepChart({ currentTier }) {
-  const colW = 135;
   const x0 = 65;
-  const yFor = (fee) => 210 - fee * 0.1125;
+  const colW = (890 - x0) / PRICING_MILESTONES.length;
+  const yFor = (fee) => 210 - fee * 0.066;
   const paid = PRICING_MILESTONES.filter((m) => m.fee != null);
   let d = "";
   paid.forEach((m, i) => {
@@ -3644,16 +3653,16 @@ function MilestoneStepChart({ currentTier }) {
           className={m.tier === currentTier ? "ms-band-current" : i % 2 ? "ms-band" : "ms-band-none"}
         />
       ))}
-      {[0, 400, 800, 1200, 1600].map((v) => (
+      {[0, 500, 1000, 1500, 2000, 2500].map((v) => (
         <g key={v}>
-          <line x1={x0} x2={x0 + colW * 6} y1={yFor(v)} y2={yFor(v)} className="ms-grid" />
+          <line x1={x0} x2={x0 + colW * PRICING_MILESTONES.length} y1={yFor(v)} y2={yFor(v)} className="ms-grid" />
           <text x={x0 - 9} y={yFor(v) + 4} textAnchor="end" className="ms-axis">
             {fmtMoney(v)}
           </text>
         </g>
       ))}
       <path d={d} className="ms-line" />
-      <path d={`M${x0 + colW * 5} ${lastY} H${x0 + colW * 6}`} className="ms-line-custom" />
+      <path d={`M${x0 + colW * (PRICING_MILESTONES.length - 1)} ${lastY} H${x0 + colW * PRICING_MILESTONES.length}`} className="ms-line-custom" />
       {PRICING_MILESTONES.map((m, i) => {
         const cx = x0 + colW * i + colW / 2;
         const y = m.fee == null ? Number(lastY) : yFor(m.fee);
@@ -3685,7 +3694,7 @@ function MilestoneTable({ currentTier }) {
           <tr>
             <th>Milestone</th>
             <th>Monthly transactions</th>
-            <th>Annual operating budget</th>
+            <th>Annual expenses</th>
             <th className="num">Monthly investment</th>
           </tr>
         </thead>
@@ -3697,7 +3706,7 @@ function MilestoneTable({ currentTier }) {
                 {m.tier === currentTier && <span className="ms-you">You</span>}
               </td>
               <td data-label="Monthly transactions">{m.txLabel}</td>
-              <td data-label="Annual operating budget">{m.budgetLabel}</td>
+              <td data-label="Annual expenses">{m.budgetLabel}</td>
               <td className="num" data-label="Monthly investment">
                 {m.fee == null ? "Custom — contact us" : `${fmtMoney(m.fee)}/mo`}
               </td>
@@ -3764,7 +3773,7 @@ function MilestoneMeters({ s }) {
         basis={s.avgTx == null ? null : "3-month average from QuickBooks"}
       />
       <MilestoneMeter
-        label="Annual operating budget"
+        label="Annual expenses"
         kind="budget"
         value={s.budget}
         tier={s.budgetTier}
@@ -3820,7 +3829,7 @@ function MilestoneBadge({ client, staff, onOpen }) {
   // How far toward the next milestone, by whichever measure is further along
   // (the higher measure sets the milestone). Full once the numbers reach it.
   let progress = 1;
-  if (cur.tier < 6) {
+  if (cur.tier < TOP_MILESTONE_TIER) {
     const floor = cur.tier > 1 ? milestoneByTier(cur.tier - 1) : { txMax: 0, budgetMax: 0 };
     const parts = [];
     if (s.avgTx != null) parts.push((s.avgTx - floor.txMax) / (cur.txMax - floor.txMax));
@@ -3840,7 +3849,7 @@ function MilestoneBadge({ client, staff, onOpen }) {
     note = { text: "Set milestone", kind: "staff" };
   }
   const tipText =
-    cur.tier < 6
+    cur.tier < TOP_MILESTONE_TIER
       ? `${Math.round(progress * 100)}% of the way to ${milestoneByTier(cur.tier + 1).name}`
       : "Top milestone";
   const title = `Milestone ${cur.roman} ${cur.name}, ${tipText}` + (note ? `. ${note.text}` : "");
@@ -3946,7 +3955,7 @@ function MilestonePage({ client, isStaff }) {
         <h3 className="card-title">All milestones</h3>
         <p className="card-subtitle">
           The monthly fee follows the higher of two measures: average monthly transactions over the
-          last 3 months, and annual operating budget.
+          last 3 months, and annual expenses.
         </p>
         <MilestoneStepChart currentTier={s.current.tier} />
         <MilestoneTable currentTier={s.current.tier} />
@@ -4075,9 +4084,9 @@ function MilestoneStaffPanel({ client, formsOnly }) {
       )}
 
       <form className="ms-form" onSubmit={saveBudget}>
-        <div className="ms-form-title">Annual operating budget</div>
+        <div className="ms-form-title">Annual expenses</div>
         <p className="card-subtitle" style={{ marginTop: 0 }}>
-          From the latest Form 990 or approved budget. Leave blank to use QuickBooks
+          Total expenses from the latest Form 990 or approved budget. Leave blank to use QuickBooks
           {s.budgetBasis && !(row && row.annual_budget != null) ? ` (now: ${s.budgetBasis.toLowerCase()})` : ""}.
         </p>
         <div className="ms-form-row">
@@ -4146,8 +4155,8 @@ function MilestoneStaffPanel({ client, formsOnly }) {
             {history.map((h) => (
               <li key={h.id}>
                 <strong>
-                  {h.from_tier ? `${milestoneByTier(h.from_tier).name} → ` : ""}
-                  {milestoneByTier(h.to_tier).name}
+                  {h.from_tier ? `${historyTierName(h, h.from_tier)} → ` : ""}
+                  {historyTierName(h, h.to_tier)}
                 </strong>
                 <span className="card-subtitle" style={{ margin: 0 }}>
                   {fmtDateTime(h.changed_at)} · {h.changed_by}
