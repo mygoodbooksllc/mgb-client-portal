@@ -76,55 +76,69 @@
 
   <p class="mgb-eyebrow">Pricing</p>
   <h2>Clear pricing, before you sign anything</h2>
-  <p class="mgb-lede">Your monthly fee is set by your transaction volume and annual operating budget. As your organization grows, your plan steps up to the next milestone, so it scales with you instead of being renegotiated from scratch.</p>
+  <p class="mgb-lede">Your monthly fee is set by your transaction volume and annual expenses. As your organization grows, your plan steps up to the next milestone, so it scales with you instead of being renegotiated from scratch.</p>
 
   <div class="mgb-chart">
     <div class="mgb-chart-head">
       <span class="mgb-chart-title">Your investment scales in steps, not all at once</span>
       <span class="mgb-chart-note">monthly fee by milestone</span>
     </div>
-    <svg viewBox="0 0 900 260" role="img" aria-label="Step chart of monthly fees: Foundation $350, Growth $550, Established $850, Advanced $1,100, Strategic $1,450, Enterprise custom.">
+    <svg viewBox="0 0 900 260" role="img" aria-label="Step chart of monthly fees: Starter $250, Foundation $300, Growth $400, Expanding $600, Established $700, Advanced $800, Strategic $1,500, Premier $2,500, Enterprise custom.">
       <g font-family="IBM Plex Mono, ui-monospace, Menlo, monospace" font-size="12" fill="#6b655c">
         <!-- alternating bands -->
-        <rect x="200" y="20" width="135" height="190" fill="#f0ece3"/>
-        <rect x="470" y="20" width="135" height="190" fill="#f0ece3"/>
-        <rect x="740" y="20" width="135" height="190" fill="#f0ece3"/>
-        <!-- y axis: $0 at y=210, $1600 at y=30 (0.1125 px per $) -->
+        <rect x="155" y="20" width="90" height="190" fill="#f0ece3"/>
+        <rect x="335" y="20" width="90" height="190" fill="#f0ece3"/>
+        <rect x="515" y="20" width="90" height="190" fill="#f0ece3"/>
+        <rect x="695" y="20" width="90" height="190" fill="#f0ece3"/>
+        <!-- y axis: $0 at y=210, $2,500 at y=45 (0.066 px per $) -->
         <g stroke="#e8e2d6" stroke-width="1">
           <line x1="65" y1="210" x2="875" y2="210"/>
-          <line x1="65" y1="165" x2="875" y2="165"/>
-          <line x1="65" y1="120" x2="875" y2="120"/>
-          <line x1="65" y1="75" x2="875" y2="75"/>
-          <line x1="65" y1="30" x2="875" y2="30"/>
+          <line x1="65" y1="177" x2="875" y2="177"/>
+          <line x1="65" y1="144" x2="875" y2="144"/>
+          <line x1="65" y1="111" x2="875" y2="111"/>
+          <line x1="65" y1="78" x2="875" y2="78"/>
+          <line x1="65" y1="45" x2="875" y2="45"/>
         </g>
         <text x="56" y="214" text-anchor="end">$0</text>
-        <text x="56" y="169" text-anchor="end">$400</text>
-        <text x="56" y="124" text-anchor="end">$800</text>
-        <text x="56" y="79" text-anchor="end">$1,200</text>
-        <text x="56" y="34" text-anchor="end">$1,600</text>
-        <!-- steps: 350→170.6, 550→148.1, 850→114.4, 1100→86.3, 1450→46.9 -->
-        <path d="M65 170.6 H200 V148.1 H335 V114.4 H470 V86.3 H605 V46.9 H740" fill="none" stroke="#243746" stroke-width="3" stroke-linejoin="round"/>
-        <path d="M740 46.9 H875" fill="none" stroke="#c7ae86" stroke-width="3" stroke-dasharray="6 6"/>
+        <text x="56" y="181" text-anchor="end">$500</text>
+        <text x="56" y="148" text-anchor="end">$1,000</text>
+        <text x="56" y="115" text-anchor="end">$1,500</text>
+        <text x="56" y="82" text-anchor="end">$2,000</text>
+        <text x="56" y="49" text-anchor="end">$2,500</text>
+        <!-- steps: 250→193.5, 300→190.2, 400→183.6, 600→170.4, 700→163.8, 800→157.2, 1500→111.0, 2500→45.0 -->
+        <path d="M65 193.5 H155 V190.2 H245 V183.6 H335 V170.4 H425 V163.8 H515 V157.2 H605 V111.0 H695 V45.0 H785" fill="none" stroke="#243746" stroke-width="3" stroke-linejoin="round"/>
+        <path d="M785 45.0 H875" fill="none" stroke="#c7ae86" stroke-width="3" stroke-dasharray="6 6"/>
         <g fill="#243746">
-          <circle cx="65" cy="170.6" r="4.5"/><circle cx="200" cy="148.1" r="4.5"/>
-          <circle cx="335" cy="114.4" r="4.5"/><circle cx="470" cy="86.3" r="4.5"/>
-          <circle cx="605" cy="46.9" r="4.5"/>
+          <circle cx="65" cy="193.5" r="4.5"/>
+          <circle cx="155" cy="190.2" r="4.5"/>
+          <circle cx="245" cy="183.6" r="4.5"/>
+          <circle cx="335" cy="170.4" r="4.5"/>
+          <circle cx="425" cy="163.8" r="4.5"/>
+          <circle cx="515" cy="157.2" r="4.5"/>
+          <circle cx="605" cy="111.0" r="4.5"/>
+          <circle cx="695" cy="45.0" r="4.5"/>
         </g>
         <g fill="#26343d" font-size="13" font-weight="600" text-anchor="middle">
-          <text x="132" y="160">$350/mo</text>
-          <text x="267" y="138">$550/mo</text>
-          <text x="402" y="104">$850/mo</text>
-          <text x="537" y="76">$1,100/mo</text>
-          <text x="672" y="37">$1,450/mo</text>
-          <text x="807" y="37" fill="#8a6d34">Custom</text>
+          <text x="110" y="184">$250/mo</text>
+          <text x="200" y="180">$300/mo</text>
+          <text x="290" y="174">$400/mo</text>
+          <text x="380" y="160">$600/mo</text>
+          <text x="470" y="154">$700/mo</text>
+          <text x="560" y="147">$800/mo</text>
+          <text x="650" y="101">$1,500/mo</text>
+          <text x="740" y="35">$2,500/mo</text>
+          <text x="830" y="35" fill="#8a6d34">Custom</text>
         </g>
-        <g font-family="Bitter, Georgia, serif" font-size="13" font-weight="700" fill="#243746" text-anchor="middle">
-          <text x="132" y="236">Foundation</text>
-          <text x="267" y="236">Growth</text>
-          <text x="402" y="236">Established</text>
-          <text x="537" y="236">Advanced</text>
-          <text x="672" y="236">Strategic</text>
-          <text x="807" y="236">Enterprise</text>
+        <g font-family="Bitter, Georgia, serif" font-size="12" font-weight="700" fill="#243746" text-anchor="middle">
+          <text x="110" y="236">Starter</text>
+          <text x="200" y="236">Foundation</text>
+          <text x="290" y="236">Growth</text>
+          <text x="380" y="236">Expanding</text>
+          <text x="470" y="236">Established</text>
+          <text x="560" y="236">Advanced</text>
+          <text x="650" y="236">Strategic</text>
+          <text x="740" y="236">Premier</text>
+          <text x="830" y="236">Enterprise</text>
         </g>
       </g>
     </svg>
@@ -133,28 +147,31 @@
   <div class="mgb-table-wrap">
     <table>
       <thead>
-        <tr><th>Milestone</th><th>Monthly transactions</th><th>Annual operating budget</th><th>Monthly investment</th></tr>
+        <tr><th>Milestone</th><th>Monthly transactions</th><th>Annual expenses</th><th>Monthly investment</th></tr>
       </thead>
       <tbody>
-        <tr><td class="mgb-tier"><span class="mgb-num">I</span>Foundation</td><td class="mgb-range">Up to 50</td><td class="mgb-range">Up to $250,000</td><td class="mgb-price">$350 <small>/mo</small></td></tr>
-        <tr><td class="mgb-tier"><span class="mgb-num">II</span>Growth</td><td class="mgb-range">51–150</td><td class="mgb-range">$250K–$750K</td><td class="mgb-price">$550 <small>/mo</small></td></tr>
-        <tr><td class="mgb-tier"><span class="mgb-num">III</span>Established</td><td class="mgb-range">151–300</td><td class="mgb-range">$750K–$1.5M</td><td class="mgb-price">$850 <small>/mo</small></td></tr>
-        <tr><td class="mgb-tier"><span class="mgb-num">IV</span>Advanced</td><td class="mgb-range">301–500</td><td class="mgb-range">$1.5M–$3M</td><td class="mgb-price">$1,100 <small>/mo</small></td></tr>
-        <tr><td class="mgb-tier"><span class="mgb-num">V</span>Strategic</td><td class="mgb-range">501–800</td><td class="mgb-range">$3M–$6M</td><td class="mgb-price">$1,450 <small>/mo</small></td></tr>
-        <tr class="mgb-enterprise"><td class="mgb-tier"><span class="mgb-num">VI</span>Enterprise</td><td class="mgb-range">800+</td><td class="mgb-range">$6M+</td><td class="mgb-price" style="font-weight:600">Custom — contact us</td></tr>
+        <tr><td class="mgb-tier"><span class="mgb-num">I</span>Starter</td><td class="mgb-range">Up to 30</td><td class="mgb-range">Up to $150,000</td><td class="mgb-price">$250 <small>/mo</small></td></tr>
+        <tr><td class="mgb-tier"><span class="mgb-num">II</span>Foundation</td><td class="mgb-range">31–60</td><td class="mgb-range">$150K–$300K</td><td class="mgb-price">$300 <small>/mo</small></td></tr>
+        <tr><td class="mgb-tier"><span class="mgb-num">III</span>Growth</td><td class="mgb-range">61–100</td><td class="mgb-range">$300K–$500K</td><td class="mgb-price">$400 <small>/mo</small></td></tr>
+        <tr><td class="mgb-tier"><span class="mgb-num">IV</span>Expanding</td><td class="mgb-range">101–150</td><td class="mgb-range">$500K–$750K</td><td class="mgb-price">$600 <small>/mo</small></td></tr>
+        <tr><td class="mgb-tier"><span class="mgb-num">V</span>Established</td><td class="mgb-range">151–200</td><td class="mgb-range">$750K–$1M</td><td class="mgb-price">$700 <small>/mo</small></td></tr>
+        <tr><td class="mgb-tier"><span class="mgb-num">VI</span>Advanced</td><td class="mgb-range">201–300</td><td class="mgb-range">$1M–$2M</td><td class="mgb-price">$800 <small>/mo</small></td></tr>
+        <tr><td class="mgb-tier"><span class="mgb-num">VII</span>Strategic</td><td class="mgb-range">301–500</td><td class="mgb-range">$2M–$3M</td><td class="mgb-price">$1,500 <small>/mo</small></td></tr>
+        <tr><td class="mgb-tier"><span class="mgb-num">VIII</span>Premier</td><td class="mgb-range">501–800</td><td class="mgb-range">$3M–$4M</td><td class="mgb-price">$2,500 <small>/mo</small></td></tr>
+        <tr class="mgb-enterprise"><td class="mgb-tier"><span class="mgb-num">IX</span>Enterprise</td><td class="mgb-range">800+</td><td class="mgb-range">$4M+</td><td class="mgb-price" style="font-weight:600">Custom — contact us</td></tr>
       </tbody>
     </table>
   </div>
-  <p class="mgb-foot">Based on your trailing 3-month average transaction volume and your most recent annual budget or Form 990.</p>
+  <p class="mgb-foot">Based on your trailing 3-month average transaction volume and your total annual expenses from your most recent budget or Form 990.</p>
 
   <div class="mgb-how">
     <div><strong>No surprises</strong><p>You know your fee before you sign. We confirm your milestone from your own numbers.</p></div>
-    <div><strong>Grows with you</strong><p>When your volume or budget crosses into the next milestone, your plan steps up to match. We tell you before it changes.</p></div>
+    <div><strong>Grows with you</strong><p>When your volume or expenses cross into the next milestone, your plan steps up to match. We tell you before it changes.</p></div>
     <div><strong>One monthly fee</strong><p>Covers the work at your milestone, with no hourly billing or renegotiating from scratch.</p></div>
   </div>
 
   <div class="mgb-cta">
-    <strong>Not sure which milestone fits?</strong> Send us your monthly transaction count and annual budget and we'll confirm it, free. <a href="mailto:holden@mygoodbooks.org?subject=Which%20MyGoodBooks%20milestone%20fits%20us%3F">Ask us</a>
+    <strong>Not sure which milestone fits?</strong> Send us your monthly transaction count and annual expenses and we'll confirm it, free. <a href="mailto:holden@mygoodbooks.org?subject=Which%20MyGoodBooks%20milestone%20fits%20us%3F">Ask us</a>
   </div>
 </div>
 <!-- END -->

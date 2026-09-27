@@ -241,9 +241,14 @@ because some work happens in Claude Code web sessions. Run `git fetch` and compa
   - **Rules.** Tiers and fees match the public pricing chart (`marketing/pricing-embed.html`,
     pasted into the Squarespace site) and live in `PRICING_MILESTONES` in `app.jsx`; change both
     together. A client's milestone is the **higher** of two measures: trailing 3-month average
-    monthly transactions (from synced QuickBooks data) and annual operating budget (staff-entered
+    monthly transactions (from synced QuickBooks data) and annual expenses (staff-entered
     from the Form 990 or approved budget, else the QuickBooks budget, else 12 months of expenses).
     The tracker only proposes; staff set every change, up or down, and fees go down too.
+  - **Tiers (since 2026-09-26).** Nine milestones: I Starter $250 (up to 30 tx, up to $150K),
+    II Foundation $300, III Growth $400, IV Expanding $600, V Established $700, VI Advanced $800,
+    VII Strategic $1,500, VIII Premier $2,500 (501–800 tx, $3M–$4M), IX Enterprise custom
+    (800+ tx or $4M+). The old six-tier chart's history rows have `chart = 1` and show with their
+    old names plus "(old chart)".
   - **Badge.** Navy-and-gold pill in the header of every client page: "MILESTONE" over the name,
     the numeral in a gold medallion with a progress ring toward the next milestone, and a note
     right on the badge: "Near X" (within 90%), "Reached X" or "Moving to X" (numbers point to a
@@ -256,7 +261,9 @@ because some work happens in Claude Code web sessions. Run `git fetch` and compa
     client view. Also in **Client details → Milestone**; staff Home has **Milestones to review**.
   - **Database:** `supabase/client-milestones.sql` (`client_milestones`,
     `client_milestone_history`, `client_milestone_stats`, `confirm_client_milestone`; only staff
-    can set a milestone).
+    can set a milestone). Existing databases run `supabase/milestones-nine-tiers.sql` once for the
+    nine-tier chart, then deploy; it clears every confirmed milestone so staff set each client
+    again.
 - **Enterprise** page: what premium includes and pricing. The upgrade request is real
   (`request_enterprise_upgrade`).
 - **Reports and PDFs** are generated in the browser with jsPDF: P&L, balance sheet, budget vs.

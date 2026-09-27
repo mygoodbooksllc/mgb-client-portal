@@ -7502,6 +7502,7 @@ body:has(.modal-overlay) .chat-fab-wrap {
   color: var(--gold-deep);
   min-width: 40px;
   height: 40px;
+  padding: 0 8px;
   border-radius: 10px;
   background: var(--warm-bg);
   border: 1px solid var(--warm-border);
@@ -7794,6 +7795,11 @@ body:has(.modal-overlay) .chat-fab-wrap {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+}
+/* III, VII, VIII: three or four letters still fit inside the 24px medallion. */
+.ms-badge-roman.long {
+  font-size: 9px;
+  letter-spacing: -0.03em;
 }
 /* Close to / reached the next milestone: gold note on the badge. */
 .ms-badge-note {

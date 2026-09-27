@@ -12,6 +12,11 @@
 --   * The tracker only proposes. A staff member confirms before the fee
 --     changes, in either direction; fees go down as well as up.
 --
+-- Owner decision (2026-09-26): nine milestones, Starter to Enterprise, set by
+-- transactions and annual expenses (was six). Existing databases apply
+-- milestones-nine-tiers.sql once; history rows from the old chart keep
+-- chart = 1 so the app shows them with their old names.
+--
 -- The tier table itself (thresholds + fees) lives in the app
 -- (PRICING_MILESTONES in app.jsx), matching the public pricing block.
 --
@@ -36,7 +41,7 @@ create table if not exists public.client_milestones (
   annual_budget numeric check (annual_budget is null or annual_budget >= 0),
   budget_source text check (budget_source in ('form_990', 'approved_budget', 'other')),
   budget_as_of date,
-  confirmed_tier int check (confirmed_tier between 1 and 6),
+  confirmed_tier int check (confirmed_tier between 1 and 9),
   confirmed_at timestamptz,
   confirmed_by text,
   updated_at timestamptz not null default now(),
@@ -89,7 +94,8 @@ create table if not exists public.client_milestone_history (
   id uuid primary key default gen_random_uuid(),
   client_id text not null,
   from_tier int,
-  to_tier int not null check (to_tier between 1 and 6),
+  to_tier int not null check (to_tier between 1 and 9),
+  chart smallint not null default 2,
   avg_monthly_tx numeric,
   annual_budget numeric,
   budget_basis text,
@@ -215,7 +221,7 @@ begin
   if v_email is null or not public.is_active_staff() or not public.can_access_client(p_client_id) then
     raise exception 'not allowed' using errcode = '42501';
   end if;
-  if p_tier is null or p_tier < 1 or p_tier > 6 then
+  if p_tier is null or p_tier < 1 or p_tier > 9 then
     raise exception 'invalid tier' using errcode = '22023';
   end if;
 

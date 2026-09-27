@@ -3882,7 +3882,7 @@ function MilestoneBadge({ client, staff, onOpen }) {
             strokeDasharray={`${(C * progress).toFixed(2)} ${C.toFixed(2)}`}
           />
         </svg>
-        <span className="ms-badge-roman">{cur.roman}</span>
+        <span className={"ms-badge-roman" + (cur.roman.length > 2 ? " long" : "")}>{cur.roman}</span>
       </span>
       <span className="ms-badge-text">
         <span className="ms-badge-kicker">Milestone</span>
