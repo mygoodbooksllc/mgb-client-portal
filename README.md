@@ -214,6 +214,35 @@ because some work happens in Claude Code web sessions. Run `git fetch` and compa
 
 ### Staff side
 
+- **Staff client tools** (`supabase/staff-client-tools.sql`; until it runs, each card says so):
+  - **Client overview** (page `client-overview`, staff only): staff land here when they open a
+    client. It shows:
+    - the monthly bill (milestone + plan + logins + payroll)
+    - profitability (bill ÷ hours in My Time, against a target rate)
+    - QuickBooks health: last sync, uncategorized / Ask My Accountant balances, possible
+      duplicate bills. Reconciliation data isn't synced, so it isn't shown.
+    - engagement: client page views in the last 30 days, and threads waiting on a reply (still
+      sample messages)
+    - key dates and coverage (`client_profile`)
+    - pinned notes and staff notes
+    - "sent to client" history
+    - the month-end close checklist (`client_close_items`)
+    - document requests
+    - an activity timeline with "Log a call", saved as a `client_private_notes` call note
+  - **Quick-action bar** on every client page: Overview, Log time, Add task, Request document,
+    Add note, Message.
+  - **Document requests** (`client_doc_requests` + private bucket `client-uploads`, path
+    `<client_id>/<request_id>/<file>`): the client sees them on Documents and uploads through
+    `fulfill_doc_request()`. Staff open files with a 5-minute signed URL.
+  - **Staff notes on anything** (`client_internal_notes`): a note button on budget lines, bank
+    transactions and report cards. Clients never see it.
+  - **Mark sent to client** on report cards (`client_sent_items`), with history.
+  - **Preview plan** (sidebar, under Preview as): shows the client's pages as Basic / Plus / Pro
+    in this browser only (`mygoodbooks_preview_plan_v1`). It's ignored in client sessions.
+  - **Home → Month-end close**: last month's checklist progress for every client.
+  - The same SQL lets staff read time entries and client page views for clients they can
+    access.
+
 - **Staff sidebar** (`StaffRail`, desktop and mouse windows): a **Go to client** picker (opens that
   client's dashboard; a search icon when collapsed expands the sidebar), Home, Client view, Team Chat, My
   Tasks, My Time, and for admins Staff Access, Client Roster, Developer Tools and Usage Stats,

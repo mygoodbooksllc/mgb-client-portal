@@ -653,6 +653,9 @@ function setFlag(key, on) {
 // their data through the same RLS as everything else. A real entitlement check
 // belongs on the server whenever premium starts being billed for.
 function hasPremiumPlan(client, allowDevOverride = true) {
+  // Staff "Preview plan" (see getPreviewPlan) wins over the real plan.
+  const preview = allowDevOverride ? getPreviewPlan(client.id) : null;
+  if (preview) return preview === "premium";
   return (
     client.plan === "premium" ||
     (allowDevOverride && isFlagOn(FEATURE_FLAGS[0].key))
@@ -700,6 +703,8 @@ const payrollPriceLabel = `$${PAYROLL_PRICING.base}/mo + $${PAYROLL_PRICING.perE
 const BASIC_TAB_KEYS = new Set(["messages", "reports", "documents"]);
 
 function isBasicPlan(client, allowDevOverride = true) {
+  const preview = allowDevOverride ? getPreviewPlan(client.id) : null;
+  if (preview) return preview === "basic";
   return (
     client.plan === "basic" &&
     !(allowDevOverride && isFlagOn(FEATURE_FLAGS[0].key))
@@ -709,7 +714,7 @@ function isBasicPlan(client, allowDevOverride = true) {
 // The plan in effect, after the staff-only "Force Pro plan" test flag.
 function effectivePlan(client, allowDevOverride = true) {
   if (hasPremiumPlan(client, allowDevOverride)) return "premium";
-  return client.plan === "basic" ? "basic" : "standard";
+  return isBasicPlan(client, allowDevOverride) ? "basic" : "standard";
 }
 
 // Resolves what a given person may see: the org-level baseline the bookkeeper
@@ -874,6 +879,8 @@ function Sidebar({
   collapsed,
   onToggleCollapse,
   isStaffSession,
+  previewPlan,
+  onPreviewPlan,
 }) {
   const today = todayLocal();
   // The milestone that heads the sidebar (same numbers as the header badge).
@@ -1328,6 +1335,23 @@ function Sidebar({
                   </option>
                 ))}
               </select>
+              {/* Staff-only: see this client's pages as if on another plan,
+                  in this browser only. Nothing the client pays changes. */}
+              <div className="client-picker-label">Preview plan</div>
+              <select
+                className={"client-select" + (previewPlan ? " preview-plan-on" : "")}
+                value={previewPlan || ""}
+                onChange={(e) => onPreviewPlan(e.target.value || null)}
+              >
+                <option value="">
+                  Actual plan ({planLabel(client.plan === "basic" || client.plan === "premium" ? client.plan : "standard")})
+                </option>
+                {PLAN_ORDER.map((p) => (
+                  <option key={p} value={p}>
+                    Preview as {PLAN_LABELS[p]}
+                  </option>
+                ))}
+              </select>
             </React.Fragment>
           )}
         </React.Fragment>
@@ -1435,6 +1459,27 @@ function Sidebar({
                   </div>
                 )}
                 <div className="nav-section-items" id={sectionId}>
+                  {isSignature && viewingAsStaff && (
+                    <button
+                      className={
+                        "nav-item nav-item-staff" +
+                        (page === "client-overview" ? " active" : "")
+                      }
+                      onClick={() => {
+                        onSelectPage("client-overview");
+                        onCloseMobile();
+                      }}
+                      aria-label={collapsed ? "Overview (staff only)" : undefined}
+                      onMouseEnter={(e) => showTip(e, "Overview (staff only)")}
+                      onMouseLeave={hideTip}
+                      onFocus={(e) => showTip(e, "Overview (staff only)")}
+                      onBlur={hideTip}
+                    >
+                      <BarChartIcon />
+                      <span className="nav-item-label">Overview</span>
+                      <span className="nav-staff-tag">Staff</span>
+                    </button>
+                  )}
                   {items.map((item) => {
                     // Same tab, same name, for every plan — the PRO pill (and
                     // the gold shimmer that used to mark a whole separate
@@ -4567,6 +4612,1397 @@ function MilestonesReviewList({ clients, onOpenClient }) {
   );
 }
 
+// ----------------------------------------------------------------------------
+// Staff client tools (owner request 2026-09-27): the Client overview page,
+// document requests, the month-end close checklist, internal notes on
+// anything, "sent to client" history, the activity timeline, plan preview
+// and the quick-action bar. Database: supabase/staff-client-tools.sql. Until
+// that runs, every card says so instead of failing.
+// ----------------------------------------------------------------------------
+
+// Who's looking: `staff` is true only for a staff session in the bookkeeper
+// view (not while previewing as one of the client's people). Provided by App.
+const StaffToolsContext = React.createContext({ staff: false, staffUser: null });
+
+const STAFF_TOOLS_EVENT = "mgb:staff-tools-changed";
+const notifyStaffTools = () => window.dispatchEvent(new Event(STAFF_TOOLS_EVENT));
+const isMissingTableError = (e) =>
+  !!e &&
+  (e.code === "42P01" ||
+    e.code === "PGRST205" ||
+    /does not exist|schema cache|bucket not found/i.test(e.message || ""));
+const STAFF_TOOLS_SETUP_MSG =
+  "This needs supabase/staff-client-tools.sql, which hasn't been run yet.";
+
+// The month being closed is last month.
+const closePeriodFor = (d = new Date()) => {
+  const x = new Date(d.getFullYear(), d.getMonth() - 1, 1);
+  return `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, "0")}`;
+};
+const closePeriodLabel = (p) =>
+  new Date(p + "-01T12:00:00").toLocaleDateString(undefined, {
+    month: "long",
+    year: "numeric",
+  });
+const CLOSE_CHECKLIST = [
+  { key: "bank_feed", label: "Bank feed categorized" },
+  { key: "bank_rec", label: "Bank accounts reconciled" },
+  { key: "card_rec", label: "Credit cards reconciled" },
+  { key: "entries", label: "Payroll and journal entries posted" },
+  { key: "review", label: "Reports reviewed" },
+  { key: "sent", label: "Reports sent to the client" },
+];
+
+const staffToolsApi = {
+  profile(sb, clientId) {
+    return sb.from("client_profile").select("*").eq("client_id", clientId).maybeSingle();
+  },
+  saveProfile(sb, clientId, fields, email) {
+    return sb.from("client_profile").upsert({
+      client_id: clientId,
+      ...fields,
+      updated_by: email,
+      updated_at: new Date().toISOString(),
+    });
+  },
+  docRequests(sb, clientId) {
+    return sb
+      .from("client_doc_requests")
+      .select("*")
+      .eq("client_id", clientId)
+      .order("created_at", { ascending: false })
+      .limit(200);
+  },
+  addDocRequest(sb, row) {
+    return sb.from("client_doc_requests").insert(row);
+  },
+  setDocRequestStatus(sb, id, status) {
+    const closed = status === "done" || status === "cancelled";
+    return sb
+      .from("client_doc_requests")
+      .update({ status, closed_at: closed ? new Date().toISOString() : null })
+      .eq("id", id);
+  },
+  async uploadForRequest(sb, req, file) {
+    const safe = file.name.replace(/[^\w.\- ]+/g, "_").slice(-120);
+    const path = `${req.client_id}/${req.id}/${Date.now()}-${safe}`;
+    const up = await sb.storage
+      .from("client-uploads")
+      .upload(path, file, { upsert: false, contentType: file.type || undefined });
+    if (up.error) return up;
+    return sb.rpc("fulfill_doc_request", { p_id: req.id, p_path: path, p_name: file.name });
+  },
+  signedUrl(sb, path) {
+    return sb.storage.from("client-uploads").createSignedUrl(path, 300);
+  },
+  closeItems(sb, clientId, period) {
+    return sb
+      .from("client_close_items")
+      .select("*")
+      .eq("client_id", clientId)
+      .eq("period", period);
+  },
+  closeItemsForPeriod(sb, period) {
+    return sb.from("client_close_items").select("client_id, item_key, done").eq("period", period);
+  },
+  setCloseItem(sb, clientId, period, itemKey, done, email) {
+    return sb.from("client_close_items").upsert({
+      client_id: clientId,
+      period,
+      item_key: itemKey,
+      done,
+      done_by: done ? email : null,
+      done_at: done ? new Date().toISOString() : null,
+    });
+  },
+  notes(sb, clientId) {
+    return sb
+      .from("client_internal_notes")
+      .select("*")
+      .eq("client_id", clientId)
+      .order("created_at", { ascending: false })
+      .limit(500);
+  },
+  addNote(sb, row) {
+    return sb.from("client_internal_notes").insert(row);
+  },
+  removeNote(sb, id) {
+    return sb.from("client_internal_notes").delete().eq("id", id);
+  },
+  sent(sb, clientId) {
+    return sb
+      .from("client_sent_items")
+      .select("*")
+      .eq("client_id", clientId)
+      .order("sent_at", { ascending: false })
+      .limit(200);
+  },
+  addSent(sb, row) {
+    return sb.from("client_sent_items").insert(row);
+  },
+};
+
+// Loads one list for a client and reloads it whenever any staff tool writes.
+function useStaffToolList(loader, clientId, enabled = true) {
+  const [state, setState] = useState({ loading: true, rows: [], missing: false, error: null });
+  const loaderRef = useRef(loader);
+  loaderRef.current = loader;
+  const reload = useCallback(() => {
+    const sb = window.mgbSupabase;
+    if (!sb || !clientId || !enabled) {
+      setState({ loading: false, rows: [], missing: false, error: null });
+      return;
+    }
+    Promise.resolve(loaderRef.current(sb, clientId)).then(({ data, error }) => {
+      const missing = isMissingTableError(error);
+      setState({
+        loading: false,
+        rows: error ? [] : data || [],
+        missing,
+        error: error && !missing ? error.message : null,
+      });
+    });
+  }, [clientId, enabled]);
+  useEffect(() => {
+    reload();
+    window.addEventListener(STAFF_TOOLS_EVENT, reload);
+    return () => window.removeEventListener(STAFF_TOOLS_EVENT, reload);
+  }, [reload]);
+  return { ...state, reload };
+}
+
+// Internal notes and sent items are read by many small controls on one page
+// (every budget line, every transaction), so they share one load per client.
+function makeSharedClientStore(loader) {
+  const store = { byClient: {}, subs: new Set() };
+  const emit = () => store.subs.forEach((f) => f());
+  const load = (clientId) => {
+    const sb = window.mgbSupabase;
+    if (!sb) return;
+    store.byClient[clientId] = { ...(store.byClient[clientId] || { rows: [] }), loading: true };
+    Promise.resolve(loader(sb, clientId)).then(({ data, error }) => {
+      store.byClient[clientId] = {
+        loading: false,
+        rows: error ? [] : data || [],
+        missing: isMissingTableError(error),
+      };
+      emit();
+    });
+  };
+  window.addEventListener(STAFF_TOOLS_EVENT, () =>
+    Object.keys(store.byClient).forEach(load),
+  );
+  store.use = (clientId, enabled) => {
+    const [, force] = useState(0);
+    useEffect(() => {
+      if (!enabled || !clientId) return;
+      const f = () => force((n) => n + 1);
+      store.subs.add(f);
+      if (!store.byClient[clientId]) load(clientId);
+      return () => store.subs.delete(f);
+    }, [clientId, enabled]);
+    return (enabled && store.byClient[clientId]) || { loading: !!enabled, rows: [], missing: false };
+  };
+  return store;
+}
+const internalNotesStore = makeSharedClientStore((sb, id) => staffToolsApi.notes(sb, id));
+const sentItemsStore = makeSharedClientStore((sb, id) => staffToolsApi.sent(sb, id));
+
+function NoteIcon(props) {
+  return (
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+      strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" {...props}>
+      <path d="M5 4h10l4 4v12H5z" />
+      <path d="M15 4v4h4" />
+      <path d="M8 13h8M8 17h5" />
+    </svg>
+  );
+}
+
+// A small note button that hangs a staff-only note on anything: a budget line,
+// a transaction, a report. Renders nothing for clients.
+function InternalNoteButton({ client, targetType, targetKey, targetLabel }) {
+  const { staff, staffUser } = useContext(StaffToolsContext);
+  const store = internalNotesStore.use(client && client.id, staff);
+  const showToast = useToast();
+  const [rect, setRect] = useState(null);
+  const [text, setText] = useState("");
+  const [saving, setSaving] = useState(false);
+  const btnRef = useRef(null);
+  const popRef = useRef(null);
+  useEffect(() => {
+    if (!rect) return;
+    const onDown = (e) => {
+      if (popRef.current && popRef.current.contains(e.target)) return;
+      if (btnRef.current && btnRef.current.contains(e.target)) return;
+      setRect(null);
+    };
+    const onKey = (e) => e.key === "Escape" && setRect(null);
+    document.addEventListener("mousedown", onDown);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDown);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [rect]);
+  if (!staff || !client) return null;
+  const notes = store.rows.filter((n) => n.target_type === targetType && n.target_key === targetKey);
+  async function add() {
+    const body = text.trim();
+    if (!body) return;
+    setSaving(true);
+    const { error } = await staffToolsApi.addNote(window.mgbSupabase, {
+      client_id: client.id,
+      target_type: targetType,
+      target_key: targetKey,
+      target_label: targetLabel || null,
+      body,
+      author_email: staffUser && staffUser.email,
+      author_name: (staffUser && (staffUser.name || staffUser.email)) || null,
+    });
+    setSaving(false);
+    if (error) {
+      showToast(isMissingTableError(error) ? STAFF_TOOLS_SETUP_MSG : "Couldn't save that note.");
+      return;
+    }
+    setText("");
+    notifyStaffTools();
+  }
+  async function remove(id) {
+    const { error } = await staffToolsApi.removeNote(window.mgbSupabase, id);
+    if (error) showToast("Couldn't delete that note.");
+    else notifyStaffTools();
+  }
+  const top = rect ? Math.min(rect.bottom + 6, window.innerHeight - 320) : 0;
+  const left = rect ? Math.max(12, Math.min(rect.left - 120, window.innerWidth - 332)) : 0;
+  return (
+    <>
+      <button
+        ref={btnRef}
+        type="button"
+        className={"inote-btn" + (notes.length ? " has-notes" : "")}
+        onClick={(e) => {
+          e.stopPropagation();
+          setRect(rect ? null : e.currentTarget.getBoundingClientRect());
+        }}
+        title={notes.length ? `${notes.length} staff note${notes.length === 1 ? "" : "s"}` : "Add a staff note"}
+        aria-label={notes.length ? `${notes.length} staff notes` : "Add a staff note"}
+      >
+        <NoteIcon />
+        {notes.length > 0 && <span className="inote-count">{notes.length}</span>}
+      </button>
+      {rect &&
+        ReactDOM.createPortal(
+          <div className="inote-pop" ref={popRef} role="dialog" aria-label="Staff notes" style={{ top, left }}>
+            <div className="inote-head">
+              <strong>Staff notes</strong>
+              <span>Clients never see these</span>
+            </div>
+            {targetLabel && <div className="inote-target">{targetLabel}</div>}
+            <div className="inote-list">
+              {notes.map((n) => (
+                <div className="inote-item" key={n.id}>
+                  <p>{n.body}</p>
+                  <div className="inote-meta">
+                    <span>
+                      {n.author_name || n.author_email} · {relTime(n.created_at)}
+                    </span>
+                    {staffUser && n.author_email === staffUser.email && (
+                      <button type="button" className="link-btn" onClick={() => remove(n.id)}>
+                        Delete
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+            {store.missing ? (
+              <p className="inote-missing">{STAFF_TOOLS_SETUP_MSG}</p>
+            ) : (
+              <div className="inote-add">
+                <textarea
+                  rows={2}
+                  placeholder="Asked Kelly about this on 9/12…"
+                  value={text}
+                  onChange={(e) => setText(e.target.value)}
+                  autoFocus
+                />
+                <button type="button" className="btn-primary" disabled={saving || !text.trim()} onClick={add}>
+                  {saving ? "Saving…" : "Add note"}
+                </button>
+              </div>
+            )}
+          </div>,
+          document.body,
+        )}
+    </>
+  );
+}
+
+// "Sent to the client" status and history for a report. Staff only.
+function SentToClient({ client, itemKey, itemLabel, periodLabel }) {
+  const { staff, staffUser } = useContext(StaffToolsContext);
+  const store = sentItemsStore.use(client && client.id, staff);
+  const showToast = useToast();
+  const [confirm, setConfirm] = useState(false);
+  if (!staff || !client) return null;
+  const history = store.rows.filter((r) => r.item_key === itemKey);
+  const last = history[0];
+  async function mark() {
+    setConfirm(false);
+    const { error } = await staffToolsApi.addSent(window.mgbSupabase, {
+      client_id: client.id,
+      item_type: "report",
+      item_key: itemKey,
+      item_label: itemLabel,
+      period_label: periodLabel || null,
+      sent_by: staffUser && staffUser.email,
+      sent_by_name: (staffUser && (staffUser.name || staffUser.email)) || null,
+    });
+    if (error) {
+      showToast(isMissingTableError(error) ? STAFF_TOOLS_SETUP_MSG : "Couldn't record that.");
+      return;
+    }
+    showToast(`Marked "${itemLabel}" as sent to ${client.name}.`);
+    notifyStaffTools();
+  }
+  return (
+    <div className="sent-to-client">
+      {last && (
+        <span
+          className="tax-sent-pill"
+          title={history
+            .map((h) => `${fmtDate(h.sent_at)}${h.period_label ? " · " + h.period_label : ""} · ${h.sent_by_name || h.sent_by || ""}`)
+            .join("\n")}
+        >
+          Sent {fmtDate(last.sent_at)}
+          {history.length > 1 ? ` · ${history.length}×` : ""}
+        </span>
+      )}
+      <button type="button" className="link-btn" onClick={() => (last ? setConfirm(true) : mark())}>
+        {last ? "Mark sent again" : "Mark sent to client"}
+      </button>
+      {confirm && (
+        <ConfirmModal
+          title="Already sent"
+          body={`"${itemLabel}" was sent on ${fmtDate(last.sent_at)}${last.sent_by_name ? " by " + last.sent_by_name : ""}. Record another send?`}
+          confirmLabel="Mark sent again"
+          onCancel={() => setConfirm(false)}
+          onConfirm={mark}
+        />
+      )}
+    </div>
+  );
+}
+
+// Document requests: staff ask for a file with a due date; the client sees
+// the checklist on their Documents page and uploads straight into it.
+function DocumentRequestsCard({ client, compact }) {
+  const { staff, staffUser } = useContext(StaffToolsContext);
+  const showToast = useToast();
+  const list = useStaffToolList((sb, id) => staffToolsApi.docRequests(sb, id), client.id);
+  const [form, setForm] = useState({ title: "", due: "", details: "" });
+  const [adding, setAdding] = useState(false);
+  const [busyId, setBusyId] = useState(null);
+  const sb = window.mgbSupabase;
+  const open = list.rows.filter((r) => r.status === "open" || r.status === "uploaded");
+  const closed = list.rows.filter((r) => r.status === "done").slice(0, 5);
+  if (!staff && (list.missing || open.length === 0)) return null;
+
+  async function addRequest(e) {
+    e.preventDefault();
+    if (!form.title.trim()) return;
+    setAdding(true);
+    const { error } = await staffToolsApi.addDocRequest(sb, {
+      client_id: client.id,
+      title: form.title.trim(),
+      details: form.details.trim() || null,
+      due_date: form.due || null,
+      requested_by: staffUser && staffUser.email,
+      requested_by_name: (staffUser && (staffUser.name || staffUser.email)) || null,
+    });
+    setAdding(false);
+    if (error) {
+      showToast(isMissingTableError(error) ? STAFF_TOOLS_SETUP_MSG : "Couldn't send that request.");
+      return;
+    }
+    setForm({ title: "", due: "", details: "" });
+    showToast(`Requested "${form.title.trim()}" from ${client.name}.`);
+    notifyStaffTools();
+  }
+  async function upload(req, file) {
+    if (!file) return;
+    if (file.size > 25 * 1024 * 1024) {
+      showToast("That file is over 25 MB. Please send a smaller one.");
+      return;
+    }
+    setBusyId(req.id);
+    const { error } = await staffToolsApi.uploadForRequest(sb, req, file);
+    setBusyId(null);
+    if (error) {
+      showToast("Couldn't upload that file. Please try again, or send it to your bookkeeper.");
+      return;
+    }
+    showToast(`Uploaded "${file.name}". Thank you!`);
+    notifyStaffTools();
+  }
+  async function download(req) {
+    const { data, error } = await staffToolsApi.signedUrl(sb, req.file_path);
+    if (error || !data) {
+      showToast("Couldn't open that file.");
+      return;
+    }
+    window.open(data.signedUrl, "_blank", "noopener");
+  }
+  async function setStatus(req, status) {
+    setBusyId(req.id);
+    const { error } = await staffToolsApi.setDocRequestStatus(sb, req.id, status);
+    setBusyId(null);
+    if (error) showToast("Couldn't update that request.");
+    else notifyStaffTools();
+  }
+  const today = todayLocal();
+  return (
+    <div className="card doc-requests-card">
+      <h3 className="card-title">{staff ? "Document requests" : "Your bookkeeper needs"}</h3>
+      <p className="card-subtitle">
+        {staff
+          ? "Ask for a statement or receipt. The client sees this list on their Documents page and uploads into it."
+          : "Upload each item here and it goes straight to your bookkeeper."}
+      </p>
+      {list.missing && <p className="card-subtitle">{STAFF_TOOLS_SETUP_MSG}</p>}
+      {open.length > 0 && (
+        <ul className="doc-req-list">
+          {open.map((r) => {
+            const overdue = r.status === "open" && r.due_date && r.due_date < today;
+            return (
+              <li key={r.id} className={"doc-req" + (r.status === "uploaded" ? " uploaded" : "")}>
+                <div className="doc-req-main">
+                  <span className="doc-req-title">{r.title}</span>
+                  {r.details && <span className="doc-req-details">{r.details}</span>}
+                  <span className={"doc-req-meta" + (overdue ? " overdue" : "")}>
+                    {r.status === "uploaded"
+                      ? `Uploaded ${relTime(r.fulfilled_at) || ""}${r.file_name ? " · " + r.file_name : ""}`
+                      : r.due_date
+                        ? `${overdue ? "Overdue · was due" : "Due"} ${fmtDate(r.due_date)}`
+                        : "No due date"}
+                    {staff && r.requested_by_name ? ` · asked by ${r.requested_by_name}` : ""}
+                  </span>
+                </div>
+                <div className="doc-req-actions">
+                  {r.status === "uploaded" && staff && (
+                    <button type="button" className="btn-secondary" onClick={() => download(r)}>
+                      Open file
+                    </button>
+                  )}
+                  {(r.status === "open" || (r.status === "uploaded" && !staff)) && (
+                    <label className={"btn-secondary doc-req-upload" + (busyId === r.id ? " busy" : "")}>
+                      {busyId === r.id ? "Uploading…" : r.status === "uploaded" ? "Replace file" : "Upload"}
+                      <input
+                        type="file"
+                        hidden
+                        disabled={busyId === r.id}
+                        onChange={(e) => {
+                          upload(r, e.target.files && e.target.files[0]);
+                          e.target.value = "";
+                        }}
+                      />
+                    </label>
+                  )}
+                  {staff && r.status === "uploaded" && (
+                    <button type="button" className="btn-primary" disabled={busyId === r.id} onClick={() => setStatus(r, "done")}>
+                      Mark received
+                    </button>
+                  )}
+                  {staff && r.status === "open" && (
+                    <button type="button" className="link-btn" disabled={busyId === r.id} onClick={() => setStatus(r, "cancelled")}>
+                      Cancel
+                    </button>
+                  )}
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+      {staff && !list.missing && open.length === 0 && !list.loading && (
+        <p className="card-subtitle">Nothing requested right now.</p>
+      )}
+      {staff && !compact && closed.length > 0 && (
+        <p className="doc-req-done">
+          Recently received: {closed.map((r) => r.title).join(", ")}
+        </p>
+      )}
+      {staff && !list.missing && (
+        <form className="ms-form doc-req-form" onSubmit={addRequest}>
+          <label className="task-field">
+            <span>Request</span>
+            <input
+              type="text"
+              placeholder="September bank statement"
+              value={form.title}
+              onChange={(e) => setForm({ ...form, title: e.target.value })}
+            />
+          </label>
+          <label className="task-field doc-req-due">
+            <span>Due</span>
+            <input type="date" value={form.due} onChange={(e) => setForm({ ...form, due: e.target.value })} />
+          </label>
+          <label className="task-field doc-req-detail-field">
+            <span>Details (optional)</span>
+            <input
+              type="text"
+              placeholder="All pages, including the check images"
+              value={form.details}
+              onChange={(e) => setForm({ ...form, details: e.target.value })}
+            />
+          </label>
+          <button type="submit" className="btn-primary" disabled={adding || !form.title.trim()}>
+            {adding ? "Sending…" : "Request"}
+          </button>
+        </form>
+      )}
+    </div>
+  );
+}
+
+// Month-end close for one client.
+function CloseChecklistCard({ client }) {
+  const { staffUser } = useContext(StaffToolsContext);
+  const showToast = useToast();
+  const period = closePeriodFor();
+  const list = useStaffToolList((sb, id) => staffToolsApi.closeItems(sb, id, period), client.id);
+  const byKey = Object.fromEntries(list.rows.map((r) => [r.item_key, r]));
+  const doneCount = CLOSE_CHECKLIST.filter((i) => byKey[i.key] && byKey[i.key].done).length;
+  async function toggle(item) {
+    const done = !(byKey[item.key] && byKey[item.key].done);
+    const { error } = await staffToolsApi.setCloseItem(
+      window.mgbSupabase, client.id, period, item.key, done, staffUser && staffUser.email,
+    );
+    if (error) showToast(isMissingTableError(error) ? STAFF_TOOLS_SETUP_MSG : "Couldn't save that.");
+    else notifyStaffTools();
+  }
+  return (
+    <div className="card">
+      <div className="ov-card-head">
+        <h3 className="card-title">Month-end close</h3>
+        <span className="ov-chip">
+          {closePeriodLabel(period)} · {doneCount}/{CLOSE_CHECKLIST.length}
+        </span>
+      </div>
+      <div className="ov-progress" aria-hidden="true">
+        <div style={{ width: `${(doneCount / CLOSE_CHECKLIST.length) * 100}%` }} />
+      </div>
+      {list.missing ? (
+        <p className="card-subtitle">{STAFF_TOOLS_SETUP_MSG}</p>
+      ) : (
+        <ul className="close-list">
+          {CLOSE_CHECKLIST.map((item) => {
+            const row = byKey[item.key];
+            const done = !!(row && row.done);
+            return (
+              <li key={item.key}>
+                <label className={"close-item" + (done ? " done" : "")}>
+                  <input type="checkbox" checked={done} onChange={() => toggle(item)} />
+                  <span>{item.label}</span>
+                  {done && row.done_by && (
+                    <span className="close-by">
+                      {row.done_by.split("@")[0]} · {fmtDate(row.done_at)}
+                    </span>
+                  )}
+                </label>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+// Home widget: close progress across every client this staffer can see.
+function CloseProgressList({ clients, onOpenClient }) {
+  const period = closePeriodFor();
+  const [state, setState] = useState({ loading: true, rows: [], missing: false });
+  const load = useCallback(() => {
+    const sb = window.mgbSupabase;
+    if (!sb) return setState({ loading: false, rows: [], missing: false });
+    staffToolsApi.closeItemsForPeriod(sb, period).then(({ data, error }) =>
+      setState({ loading: false, rows: error ? [] : data || [], missing: isMissingTableError(error) }),
+    );
+  }, [period]);
+  useEffect(() => {
+    load();
+    window.addEventListener(STAFF_TOOLS_EVENT, load);
+    return () => window.removeEventListener(STAFF_TOOLS_EVENT, load);
+  }, [load]);
+  if (state.missing) return <p className="card-subtitle">{STAFF_TOOLS_SETUP_MSG}</p>;
+  const done = {};
+  state.rows.forEach((r) => {
+    if (r.done) done[r.client_id] = (done[r.client_id] || 0) + 1;
+  });
+  const rows = clients
+    .map((c) => ({ c, n: done[c.id] || 0 }))
+    .sort((a, b) => a.n - b.n || a.c.name.localeCompare(b.c.name));
+  return (
+    <ul className="close-progress-list">
+      {rows.map(({ c, n }) => (
+        <li key={c.id}>
+          <button type="button" className="close-progress-row" onClick={() => onOpenClient(c.id)}>
+            <span className="close-progress-name">{c.name}</span>
+            <span className="ov-progress small" aria-hidden="true">
+              <span style={{ width: `${(n / CLOSE_CHECKLIST.length) * 100}%` }} />
+            </span>
+            <span className="close-progress-count">
+              {n}/{CLOSE_CHECKLIST.length}
+            </span>
+          </button>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+const UNCATEGORIZED_RE = /uncategori[sz]ed|ask my accountant|suspense/i;
+
+// The staff-only first page for a client.
+function ClientOverviewPage({ client, messagesByClient, onNavigate, onOpenDetails }) {
+  const { staffUser } = useContext(StaffToolsContext);
+  const showToast = useToast();
+  const sb = window.mgbSupabase;
+  const { byId: msById } = useMilestones([client.id]);
+  const ms = msById[client.id];
+  const monthStart = todayLocal().slice(0, 8) + "01";
+  const [data, setData] = useState({ loading: true });
+  const [profileDraft, setProfileDraft] = useState(null);
+  const [savingProfile, setSavingProfile] = useState(false);
+  const [callText, setCallText] = useState("");
+
+  const load = useCallback(async () => {
+    if (!sb) {
+      setData({ loading: false });
+      return;
+    }
+    const since30 = new Date(Date.now() - 30 * 864e5).toISOString();
+    const [time, usage, logins, accounts, bills, syncRuns, profile, notes, docs, sent, closeDone, msHist, activity, allTime] =
+      await Promise.all([
+        sb.from("time_entries").select("staff_email, minutes, entry_date").eq("client_id", client.id).gte("entry_date", monthStart),
+        sb.from("usage_events").select("actor_email, page, occurred_at").eq("client_id", client.id).eq("actor_role", "client").gte("occurred_at", since30).order("occurred_at", { ascending: false }).limit(1000),
+        sb.from("client_users").select("email", { count: "exact", head: true }).eq("client_id", client.id).eq("active", true),
+        sb.from("qbo_accounts").select("name, current_balance, active").eq("client_id", client.id),
+        sb.from("qbo_bills").select("vendor_name, total, txn_date").eq("client_id", client.id),
+        sb.from("qbo_sync_runs").select("status, detail, started_at, finished_at").eq("client_id", client.id).order("started_at", { ascending: false }).limit(1),
+        staffToolsApi.profile(sb, client.id),
+        clientNotesApi.list(sb, { clientId: client.id }),
+        staffToolsApi.docRequests(sb, client.id),
+        staffToolsApi.sent(sb, client.id),
+        sb.from("client_close_items").select("item_key, period, done_by, done_at").eq("client_id", client.id).eq("done", true).order("done_at", { ascending: false }).limit(20),
+        milestonesApi.history(sb, client.id),
+        sb.from("client_activity_log").select("action, actor_name, actor_email, detail, created_at").eq("client_id", client.id).order("created_at", { ascending: false }).limit(20),
+        sb.from("time_entries").select("staff_email, minutes, entry_date, description, created_at").eq("client_id", client.id).order("created_at", { ascending: false }).limit(15),
+      ]);
+    setData({
+      loading: false,
+      time: time.data || [],
+      usage: usage.data || [],
+      loginCount: logins.error ? null : logins.count,
+      accounts: accounts.data || [],
+      bills: bills.data || [],
+      syncRun: (syncRuns.data || [])[0] || null,
+      profile: profile.data || null,
+      profileMissing: isMissingTableError(profile.error),
+      notes: notes.data || [],
+      docs: docs.data || [],
+      sent: sent.data || [],
+      closeDone: closeDone.data || [],
+      msHist: msHist.data || [],
+      activity: activity.data || [],
+      allTime: allTime.data || [],
+    });
+  }, [client.id, monthStart]);
+  useEffect(() => {
+    setData({ loading: true });
+    setProfileDraft(null);
+    load();
+    window.addEventListener(STAFF_TOOLS_EVENT, load);
+    return () => window.removeEventListener(STAFF_TOOLS_EVENT, load);
+  }, [load]);
+
+  // ---- Plan and bill
+  const plan = client.plan === "basic" || client.plan === "premium" ? client.plan : "standard";
+  // Real logins (client_users); test clients only have sample users.
+  const logins = data.loginCount || (client.users || []).length;
+  const milestone = ms && ms.current;
+  const milestoneFee = milestone && milestone.fee != null ? milestone.fee : null;
+  const planFee = planMonthlyTotal(plan, Math.max(1, logins));
+  const employees = (client.payroll && client.payroll.employees) || [];
+  const payrollFee = client.payrollAddOn
+    ? PAYROLL_PRICING.base + PAYROLL_PRICING.perEmployee * employees.length
+    : 0;
+  const monthlyBill = milestoneFee == null ? null : milestoneFee + planFee + payrollFee;
+
+  // ---- Profitability
+  const minutes = (data.time || []).reduce((s, t) => s + (t.minutes || 0), 0);
+  const hours = minutes / 60;
+  const effectiveRate = monthlyBill != null && hours > 0 ? monthlyBill / hours : null;
+  const target = data.profile && data.profile.target_hourly_rate != null ? Number(data.profile.target_hourly_rate) : null;
+  const byStaff = {};
+  (data.time || []).forEach((t) => {
+    byStaff[t.staff_email] = (byStaff[t.staff_email] || 0) + (t.minutes || 0);
+  });
+
+  // ---- QuickBooks health
+  const connected = client.dataSource === "quickbooks";
+  const uncategorized = (data.accounts || []).filter(
+    (a) => UNCATEGORIZED_RE.test(a.name || "") && Number(a.current_balance || 0) !== 0,
+  );
+  const dupBills = [];
+  const bills = (data.bills || []).slice().sort((a, b) => (a.txn_date < b.txn_date ? -1 : 1));
+  for (let i = 0; i < bills.length; i++) {
+    for (let j = i + 1; j < bills.length; j++) {
+      const a = bills[i];
+      const b = bills[j];
+      if (a.vendor_name !== b.vendor_name || Number(a.total) !== Number(b.total)) continue;
+      const days = Math.abs(new Date(b.txn_date) - new Date(a.txn_date)) / 864e5;
+      if (days <= 7) dupBills.push([a, b]);
+    }
+  }
+  const syncHoursAgo = client.lastSyncedAt ? (Date.now() - new Date(client.lastSyncedAt)) / 36e5 : null;
+
+  // ---- Engagement
+  const usage = data.usage || [];
+  const lastSeen = usage[0] && usage[0].occurred_at;
+  const pageCounts = {};
+  usage.forEach((u) => (pageCounts[u.page] = (pageCounts[u.page] || 0) + 1));
+  const topPages = Object.entries(pageCounts).sort((a, b) => b[1] - a[1]).slice(0, 3);
+  const activeUsers = new Set(usage.map((u) => u.actor_email)).size;
+  const waiting = (client.users || [])
+    .map((u) => {
+      const thread = (messagesByClient && messagesByClient[threadKeyFor(client.id, u.id)]) || seedThread(client.id, u.id);
+      const last = thread[thread.length - 1];
+      return last && last.from === "client" ? { user: u, since: last.date } : null;
+    })
+    .filter(Boolean);
+  const upgradeHint =
+    plan !== "premium" && usage.length >= 20
+      ? `Active on ${planLabel(plan)} (${usage.length} page views in 30 days). Worth an upgrade conversation.`
+      : null;
+
+  // ---- Key dates
+  const profile = data.profile || {};
+  const draft = profileDraft || {
+    fiscal_year_end: profile.fiscal_year_end || "",
+    form_990_due: profile.form_990_due || "",
+    filing_1099_due: profile.filing_1099_due || "",
+    board_meeting: profile.board_meeting || "",
+    launch_date: profile.launch_date || "",
+    backup_bookkeeper_email: profile.backup_bookkeeper_email || "",
+    target_hourly_rate: profile.target_hourly_rate != null ? String(profile.target_hourly_rate) : "",
+  };
+  const today = todayLocal();
+  const upcoming = [
+    ["Form 990 due", profile.form_990_due],
+    ["1099s due", profile.filing_1099_due],
+    ["Launch date", profile.launch_date],
+  ]
+    .filter(([, d]) => d)
+    .map(([label, d]) => ({ label, d, days: Math.round((new Date(d) - new Date(today)) / 864e5) }))
+    .sort((a, b) => a.days - b.days);
+  async function saveProfile(e) {
+    e.preventDefault();
+    setSavingProfile(true);
+    const fields = {
+      fiscal_year_end: draft.fiscal_year_end.trim() || null,
+      form_990_due: draft.form_990_due || null,
+      filing_1099_due: draft.filing_1099_due || null,
+      board_meeting: draft.board_meeting.trim() || null,
+      launch_date: draft.launch_date || null,
+      backup_bookkeeper_email: draft.backup_bookkeeper_email.trim() || null,
+      target_hourly_rate: draft.target_hourly_rate === "" ? null : Number(draft.target_hourly_rate),
+    };
+    const { error } = await staffToolsApi.saveProfile(sb, client.id, fields, staffUser && staffUser.email);
+    setSavingProfile(false);
+    if (error) {
+      showToast(isMissingTableError(error) ? STAFF_TOOLS_SETUP_MSG : "Couldn't save those details.");
+      return;
+    }
+    setProfileDraft(null);
+    showToast("Saved.");
+    notifyStaffTools();
+  }
+
+  // ---- Notes
+  const pinned = (data.notes || []).filter((n) => n.pinned).slice(0, 4);
+
+  // ---- Activity timeline
+  const timeline = [
+    ...(data.notes || []).map((n) => ({
+      at: n.created_at,
+      kind: n.category === "call" ? "Call" : n.category === "meeting" ? "Meeting" : "Note",
+      text: n.text,
+      who: n.author_name,
+    })),
+    ...(data.docs || []).flatMap((r) => [
+      { at: r.created_at, kind: "Request", text: `Asked for "${r.title}"`, who: r.requested_by_name },
+      ...(r.fulfilled_at ? [{ at: r.fulfilled_at, kind: "Upload", text: `Uploaded "${r.file_name || r.title}"`, who: r.uploaded_by }] : []),
+    ]),
+    ...(data.sent || []).map((s) => ({
+      at: s.sent_at,
+      kind: "Sent",
+      text: `Sent ${s.item_label || s.item_key}${s.period_label ? " (" + s.period_label + ")" : ""}`,
+      who: s.sent_by_name,
+    })),
+    ...(data.closeDone || []).map((c) => ({
+      at: c.done_at,
+      kind: "Close",
+      text: `${(CLOSE_CHECKLIST.find((i) => i.key === c.item_key) || { label: c.item_key }).label} (${closePeriodLabel(c.period)})`,
+      who: c.done_by,
+    })),
+    ...(data.msHist || []).map((h) => ({
+      at: h.changed_at,
+      kind: "Milestone",
+      text: `Milestone set to ${(milestoneByTier(h.to_tier) || { name: "tier " + h.to_tier }).name}`,
+      who: h.changed_by,
+    })),
+    ...(data.activity || []).map((a) => ({
+      at: a.created_at,
+      kind: "Activity",
+      text: String(a.action || "").replace(/_/g, " "),
+      who: a.actor_name || a.actor_email,
+    })),
+    ...(data.allTime || []).map((t) => ({
+      at: t.created_at,
+      kind: "Time",
+      text: `${(t.minutes / 60).toFixed(t.minutes % 60 ? 2 : 0)} h${t.description ? " · " + t.description : ""}`,
+      who: t.staff_email,
+    })),
+  ]
+    .filter((x) => x.at)
+    .sort((a, b) => (a.at < b.at ? 1 : -1))
+    .slice(0, 25);
+  async function logCall(e) {
+    e.preventDefault();
+    const text = callText.trim();
+    if (!text) return;
+    const { error } = await clientNotesApi.add(sb, staffUser, { client_id: client.id, text, category: "call" });
+    if (error) {
+      showToast("Couldn't log that call.");
+      return;
+    }
+    setCallText("");
+    showToast("Call logged.");
+    notifyStaffTools();
+  }
+
+  const fmtHours = (m) => `${(m / 60).toFixed(1)} h`;
+  return (
+    <div className="client-overview">
+      <div className="ov-staff-note">
+        Staff only. {client.name} never sees this page.
+      </div>
+
+      <div className="ov-grid">
+        <div className="card ov-stat">
+          <span className="kpi-label">Monthly bill</span>
+          <span className="ov-big">{monthlyBill == null ? (milestone ? "Custom" : "—") : fmtMoney(monthlyBill)}</span>
+          <ul className="ov-lines">
+            <li>
+              <span>{milestone ? `${milestone.roman} ${milestone.name}` : "Milestone not set"}</span>
+              <span>{milestone ? milestoneFeeLabel(milestone) : "—"}</span>
+            </li>
+            <li>
+              <span>
+                {planLabel(plan)} plan · {logins} login{logins === 1 ? "" : "s"}
+              </span>
+              <span>{fmtMoney(planFee)}/mo</span>
+            </li>
+            {client.payrollAddOn && (
+              <li>
+                <span>Payroll · {employees.length} employee{employees.length === 1 ? "" : "s"}</span>
+                <span>{fmtMoney(payrollFee)}/mo</span>
+              </li>
+            )}
+          </ul>
+          <button type="button" className="link-btn" onClick={() => onNavigate("milestone")}>
+            Milestone details
+          </button>
+        </div>
+
+        <div className="card ov-stat">
+          <span className="kpi-label">Profitability · this month</span>
+          <span className={"ov-big" + (effectiveRate != null && target != null ? (effectiveRate >= target ? " positive" : " negative") : "")}>
+            {effectiveRate != null ? `${fmtMoney(Math.round(effectiveRate))}/h` : "—"}
+          </span>
+          <ul className="ov-lines">
+            <li>
+              <span>Time logged</span>
+              <span>{fmtHours(minutes)}</span>
+            </li>
+            {Object.entries(byStaff).map(([email, m]) => (
+              <li key={email} className="muted">
+                <span>{email.split("@")[0]}</span>
+                <span>{fmtHours(m)}</span>
+              </li>
+            ))}
+            <li>
+              <span>Target rate</span>
+              <span>{target != null ? `${fmtMoney(target)}/h` : "Not set"}</span>
+            </li>
+          </ul>
+          <p className="ov-foot">
+            {hours === 0
+              ? "No time logged for this client this month."
+              : "Monthly bill divided by hours logged in My Time."}
+          </p>
+        </div>
+
+        <div className="card ov-stat">
+          <span className="kpi-label">QuickBooks health</span>
+          {!connected ? (
+            <>
+              <span className="ov-big muted">Not connected</span>
+              <button type="button" className="link-btn" onClick={() => onOpenDetails("quickbooks")}>
+                Connect in Client details
+              </button>
+            </>
+          ) : (
+            <>
+              <span className={"ov-big" + (uncategorized.length || dupBills.length || (syncHoursAgo != null && syncHoursAgo > 26) ? " negative" : " positive")}>
+                {uncategorized.length || dupBills.length ? "Needs attention" : "Looks clean"}
+              </span>
+              <ul className="ov-lines">
+                <li>
+                  <span>Last sync</span>
+                  <span>{relTime(client.lastSyncedAt) || "never"}</span>
+                </li>
+                {data.syncRun && data.syncRun.status && data.syncRun.status !== "ok" && (
+                  <li className="negative">
+                    <span>Last sync run</span>
+                    <span>{data.syncRun.status}</span>
+                  </li>
+                )}
+                <li className={uncategorized.length ? "negative" : ""}>
+                  <span>Uncategorized balances</span>
+                  <span>
+                    {uncategorized.length
+                      ? uncategorized.map((a) => `${fmtMoney(Math.abs(a.current_balance))}`).join(", ")
+                      : "none"}
+                  </span>
+                </li>
+                <li className={dupBills.length ? "negative" : ""}>
+                  <span>Possible duplicate bills</span>
+                  <span>{dupBills.length || "none"}</span>
+                </li>
+              </ul>
+              {dupBills.slice(0, 2).map(([a, b], i) => (
+                <p className="ov-foot" key={i}>
+                  {a.vendor_name}: {fmtMoney(a.total)} on {fmtDate(a.txn_date)} and {fmtDate(b.txn_date)}
+                </p>
+              ))}
+              <p className="ov-foot">Reconciliation status isn't available from QuickBooks yet.</p>
+            </>
+          )}
+        </div>
+
+        <div className="card ov-stat">
+          <span className="kpi-label">Engagement · 30 days</span>
+          <span className="ov-big">{lastSeen ? relTime(lastSeen) : "No visits"}</span>
+          <ul className="ov-lines">
+            <li>
+              <span>Page views</span>
+              <span>{usage.length}</span>
+            </li>
+            <li>
+              <span>People who signed in</span>
+              <span>{activeUsers}</span>
+            </li>
+            {topPages.map(([page, n]) => (
+              <li key={page} className="muted">
+                <span>{(PAGE_META[page] && PAGE_META[page].title) || NAV_LABEL_BY_KEY[page] || page}</span>
+                <span>{n}</span>
+              </li>
+            ))}
+            {waiting.map((w) => (
+              <li key={w.user.id} className="negative">
+                <span>{w.user.name} is waiting on a reply</span>
+                <span>{fmtDate(w.since)}</span>
+              </li>
+            ))}
+          </ul>
+          {upgradeHint && <p className="ov-foot ov-hint">{upgradeHint}</p>}
+          <p className="ov-foot">Message threads are still sample data.</p>
+        </div>
+      </div>
+
+      <div className="ov-columns">
+        <div className="ov-col">
+          <CloseChecklistCard client={client} />
+          <DocumentRequestsCard client={client} />
+          <div className="card">
+            <h3 className="card-title">Activity</h3>
+            <form className="ms-form ov-call-form" onSubmit={logCall}>
+              <label className="task-field">
+                <span>Log a call</span>
+                <input
+                  type="text"
+                  placeholder="Talked with Pastor Mia about the outreach budget"
+                  value={callText}
+                  onChange={(e) => setCallText(e.target.value)}
+                />
+              </label>
+              <button type="submit" className="btn-secondary" disabled={!callText.trim()}>
+                Log call
+              </button>
+            </form>
+            {timeline.length === 0 ? (
+              <p className="card-subtitle">{data.loading ? "Loading…" : "No activity yet."}</p>
+            ) : (
+              <ul className="ov-timeline">
+                {timeline.map((t, i) => (
+                  <li key={i}>
+                    <span className={"ov-kind ov-kind-" + t.kind.toLowerCase()}>{t.kind}</span>
+                    <span className="ov-tl-text">{t.text}</span>
+                    <span className="ov-tl-meta">
+                      {t.who ? String(t.who).split("@")[0] + " · " : ""}
+                      {relTime(t.at)}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </div>
+
+        <div className="ov-col">
+          <div className="card">
+            <h3 className="card-title">Key dates and coverage</h3>
+            {upcoming.length > 0 && (
+              <ul className="ov-lines ov-upcoming">
+                {upcoming.map((u) => (
+                  <li key={u.label} className={u.days < 0 ? "negative" : u.days <= 30 ? "warn" : ""}>
+                    <span>{u.label}</span>
+                    <span>
+                      {fmtDate(u.d)} · {u.days < 0 ? `${-u.days} days ago` : u.days === 0 ? "today" : `in ${u.days} days`}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
+            <ul className="ov-lines">
+              <li>
+                <span>Bookkeeper</span>
+                <span>{(client.assignedBookkeeper && client.assignedBookkeeper.name) || "Not assigned"}</span>
+              </li>
+              <li>
+                <span>Backup</span>
+                <span>{profile.backup_bookkeeper_email || "Not set"}</span>
+              </li>
+              {profile.board_meeting && (
+                <li>
+                  <span>Board meets</span>
+                  <span>{profile.board_meeting}</span>
+                </li>
+              )}
+              {profile.fiscal_year_end && (
+                <li>
+                  <span>Fiscal year ends</span>
+                  <span>{profile.fiscal_year_end}</span>
+                </li>
+              )}
+            </ul>
+            {data.profileMissing ? (
+              <p className="card-subtitle">{STAFF_TOOLS_SETUP_MSG}</p>
+            ) : (
+              <details className="ov-edit">
+                <summary>Edit dates and coverage</summary>
+                <form className="ms-form ov-profile-form" onSubmit={saveProfile}>
+                  {[
+                    ["fiscal_year_end", "Fiscal year end (MM-DD)", "text", "12-31"],
+                    ["form_990_due", "Form 990 due", "date"],
+                    ["filing_1099_due", "1099s due", "date"],
+                    ["board_meeting", "Board meets", "text", "2nd Tuesday, monthly"],
+                    ["launch_date", "Launch date (church plants)", "date"],
+                    ["backup_bookkeeper_email", "Backup bookkeeper (email)", "email", "name@mygoodbooks.org"],
+                    ["target_hourly_rate", "Target hourly rate ($)", "number", "75"],
+                  ].map(([key, label, type, ph]) => (
+                    <label className="task-field" key={key}>
+                      <span>{label}</span>
+                      <input
+                        type={type}
+                        placeholder={ph}
+                        min={type === "number" ? 0 : undefined}
+                        value={draft[key]}
+                        onChange={(e) => setProfileDraft({ ...draft, [key]: e.target.value })}
+                      />
+                    </label>
+                  ))}
+                  <button type="submit" className="btn-primary" disabled={savingProfile || !profileDraft}>
+                    {savingProfile ? "Saving…" : "Save"}
+                  </button>
+                </form>
+              </details>
+            )}
+          </div>
+
+          <div className="card">
+            <div className="ov-card-head">
+              <h3 className="card-title">Pinned notes</h3>
+              <button type="button" className="link-btn" onClick={() => onOpenDetails("notes")}>
+                All notes
+              </button>
+            </div>
+            {pinned.length === 0 ? (
+              <p className="card-subtitle">Nothing pinned. Pin a note in Client details → Notes.</p>
+            ) : (
+              <ul className="ov-notes">
+                {pinned.map((n) => (
+                  <li key={n.id}>
+                    <p>{n.text}</p>
+                    <span>
+                      {n.author_name} · {relTime(n.created_at)}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
+            <InternalNotesSummary client={client} />
+          </div>
+
+          <div className="card">
+            <h3 className="card-title">Sent to the client</h3>
+            {(data.sent || []).length === 0 ? (
+              <p className="card-subtitle">Nothing recorded yet. Use "Mark sent to client" on the Reports page.</p>
+            ) : (
+              <ul className="ov-lines">
+                {(data.sent || []).slice(0, 6).map((s) => (
+                  <li key={s.id}>
+                    <span>
+                      {s.item_label || s.item_key}
+                      {s.period_label ? ` · ${s.period_label}` : ""}
+                    </span>
+                    <span>{fmtDate(s.sent_at)}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Latest staff notes pinned to rows across the client's pages.
+function InternalNotesSummary({ client }) {
+  const { staff } = useContext(StaffToolsContext);
+  const store = internalNotesStore.use(client.id, staff);
+  const recent = store.rows.slice(0, 5);
+  if (!staff || recent.length === 0) return null;
+  const where = { transaction: "Transaction", budget: "Budget line", report: "Report", general: "General" };
+  return (
+    <div className="ov-inotes">
+      <div className="ov-subhead">Notes on transactions, budget lines and reports</div>
+      <ul className="ov-notes">
+        {recent.map((n) => (
+          <li key={n.id}>
+            <p>{n.body}</p>
+            <span>
+              {where[n.target_type] || n.target_type}
+              {n.target_label ? `: ${n.target_label}` : ""} · {n.author_name || n.author_email} · {relTime(n.created_at)}
+            </span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+// Quick actions on every client page (staff only).
+function StaffQuickActions({ client, onNavigate }) {
+  const { staff, staffUser } = useContext(StaffToolsContext);
+  const showToast = useToast();
+  const [modal, setModal] = useState(null);
+  const [f, setF] = useState({});
+  const [saving, setSaving] = useState(false);
+  if (!staff || !staffUser) return null;
+  const sb = window.mgbSupabase;
+  const openModal = (kind) => {
+    setF({ date: todayLocal(), hours: "", text: "", due: "", details: "", billable: true, shared: true, pin: false });
+    setModal(kind);
+  };
+  async function submit(e) {
+    e.preventDefault();
+    if (!sb) return;
+    setSaving(true);
+    let res = { error: null };
+    let done = "";
+    if (modal === "time") {
+      const minutes = Math.round(Number(f.hours) * 60);
+      if (!minutes || minutes < 0) {
+        setSaving(false);
+        return;
+      }
+      res = await sb.from("time_entries").insert({
+        staff_email: staffUser.email,
+        client_id: client.id,
+        minutes,
+        description: f.text.trim() || null,
+        entry_date: f.date,
+        billable: !!f.billable,
+      });
+      done = `Logged ${f.hours} h for ${client.name}.`;
+    } else if (modal === "task") {
+      res = await staffItemsApi.add(sb, staffUser.email, {
+        text: f.text.trim(),
+        due_date: f.due || null,
+        client_id: client.id,
+        visibility: f.shared ? "shared" : "private",
+      });
+      done = "Task added to My Tasks.";
+    } else if (modal === "request") {
+      res = await staffToolsApi.addDocRequest(sb, {
+        client_id: client.id,
+        title: f.text.trim(),
+        details: f.details.trim() || null,
+        due_date: f.due || null,
+        requested_by: staffUser.email,
+        requested_by_name: staffUser.name || staffUser.email,
+      });
+      done = `Requested "${f.text.trim()}" from ${client.name}.`;
+    } else if (modal === "note") {
+      res = await clientNotesApi.add(sb, staffUser, { client_id: client.id, text: f.text.trim(), category: "general" });
+      done = "Note added.";
+    }
+    setSaving(false);
+    if (res.error) {
+      showToast(isMissingTableError(res.error) ? STAFF_TOOLS_SETUP_MSG : "Couldn't save that. Please try again.");
+      return;
+    }
+    showToast(done);
+    setModal(null);
+    notifyStaffTools();
+    if (modal === "task" && window.mgbRefreshStaffItems) window.mgbRefreshStaffItems();
+  }
+  const titles = { time: "Log time", task: "Add a task", request: "Request a document", note: "Add a note" };
+  const canSubmit =
+    modal === "time" ? Number(f.hours) > 0 && f.date : (f.text || "").trim().length > 0;
+  return (
+    <div className="staff-quick-actions" role="toolbar" aria-label="Staff quick actions">
+      <span className="sqa-label">Staff</span>
+      <button type="button" onClick={() => onNavigate("client-overview")}>Overview</button>
+      <button type="button" onClick={() => openModal("time")}>Log time</button>
+      <button type="button" onClick={() => openModal("task")}>Add task</button>
+      <button type="button" onClick={() => openModal("request")}>Request document</button>
+      <button type="button" onClick={() => openModal("note")}>Add note</button>
+      <button type="button" onClick={() => onNavigate("messages")}>Message</button>
+      {modal && (
+        <ModalShell onClose={() => setModal(null)} labelledBy="sqa-title" className="confirm-modal">
+          <form onSubmit={submit}>
+            <div className="modal-header">
+              <h3 className="card-title" id="sqa-title" style={{ margin: 0 }}>
+                {titles[modal]} · {client.name}
+              </h3>
+              <button type="button" className="modal-close" onClick={() => setModal(null)} aria-label="Close">
+                ×
+              </button>
+            </div>
+            <div className="modal-body sqa-body">
+              {modal === "time" && (
+                <>
+                  <label className="task-field">
+                    <span>Hours</span>
+                    <input type="number" step="0.25" min="0.25" autoFocus value={f.hours} onChange={(e) => setF({ ...f, hours: e.target.value })} />
+                  </label>
+                  <label className="task-field">
+                    <span>Date</span>
+                    <input type="date" value={f.date} onChange={(e) => setF({ ...f, date: e.target.value })} />
+                  </label>
+                  <label className="task-field sqa-wide">
+                    <span>What you did (optional)</span>
+                    <input type="text" placeholder="Reconciled September bank accounts" value={f.text} onChange={(e) => setF({ ...f, text: e.target.value })} />
+                  </label>
+                  <label className="sqa-check">
+                    <input type="checkbox" checked={f.billable} onChange={(e) => setF({ ...f, billable: e.target.checked })} /> Billable
+                  </label>
+                </>
+              )}
+              {(modal === "task" || modal === "request" || modal === "note") && (
+                <label className="task-field sqa-wide">
+                  <span>{modal === "task" ? "Task" : modal === "request" ? "What you need" : "Note"}</span>
+                  {modal === "note" ? (
+                    <textarea rows={3} autoFocus value={f.text} onChange={(e) => setF({ ...f, text: e.target.value })} />
+                  ) : (
+                    <input
+                      type="text"
+                      autoFocus
+                      placeholder={modal === "task" ? "Follow up on the missing receipts" : "September bank statement"}
+                      value={f.text}
+                      onChange={(e) => setF({ ...f, text: e.target.value })}
+                    />
+                  )}
+                </label>
+              )}
+              {(modal === "task" || modal === "request") && (
+                <label className="task-field">
+                  <span>Due</span>
+                  <input type="date" value={f.due} onChange={(e) => setF({ ...f, due: e.target.value })} />
+                </label>
+              )}
+              {modal === "request" && (
+                <label className="task-field sqa-wide">
+                  <span>Details (optional)</span>
+                  <input type="text" value={f.details} onChange={(e) => setF({ ...f, details: e.target.value })} />
+                </label>
+              )}
+              {modal === "task" && (
+                <label className="sqa-check">
+                  <input type="checkbox" checked={f.shared} onChange={(e) => setF({ ...f, shared: e.target.checked })} /> Visible to
+                  everyone on this client
+                </label>
+              )}
+              {modal === "request" && (
+                <p className="card-subtitle sqa-wide" style={{ margin: 0 }}>
+                  {client.name} will see this on their Documents page and can upload straight into it.
+                </p>
+              )}
+            </div>
+            <div className="modal-footer">
+              <button type="button" className="btn-secondary" onClick={() => setModal(null)}>
+                Cancel
+              </button>
+              <button type="submit" className="btn-primary" disabled={saving || !canSubmit}>
+                {saving ? "Saving…" : titles[modal]}
+              </button>
+            </div>
+          </form>
+        </ModalShell>
+      )}
+    </div>
+  );
+}
+
+// Plan preview (staff only): see a client's pages as if they were on another
+// plan, per browser, without changing what they pay. Read by hasPremiumPlan /
+// isBasicPlan whenever the staff override is allowed.
+const PREVIEW_PLAN_KEY = "mygoodbooks_preview_plan_v1";
+function getPreviewPlan(clientId) {
+  if (!clientId) return null;
+  try {
+    const m = JSON.parse(localStorage.getItem(PREVIEW_PLAN_KEY) || "{}");
+    return PLAN_ORDER.includes(m[clientId]) ? m[clientId] : null;
+  } catch (e) {
+    return null;
+  }
+}
+function setPreviewPlan(clientId, plan) {
+  try {
+    const m = JSON.parse(localStorage.getItem(PREVIEW_PLAN_KEY) || "{}");
+    if (plan) m[clientId] = plan;
+    else delete m[clientId];
+    localStorage.setItem(PREVIEW_PLAN_KEY, JSON.stringify(m));
+  } catch (e) {}
+}
+
 function DashboardPage({
   client,
   access,
@@ -5048,7 +6484,15 @@ function BudgetPage({ client, searchTarget }) {
                       className={flashCardId === rowId ? "row-flash" : ""}
                     >
                       <td data-primary="">
-                        <div className="category-name">{b.category}</div>
+                        <div className="category-name">
+                          {b.category}
+                          <InternalNoteButton
+                            client={client}
+                            targetType="budget"
+                            targetKey={b.category}
+                            targetLabel={b.category}
+                          />
+                        </div>
                         <div className="bullet-track">
                           <div
                             className={
@@ -6438,7 +7882,15 @@ function BankTransactionsPanel({ client, searchTarget }) {
                         {txView === "all" && (
                           <td data-label="Account">{t.accountName}</td>
                         )}
-                        <td data-primary="">{t.description}</td>
+                        <td data-primary="">
+                          {t.description}
+                          <InternalNoteButton
+                            client={client}
+                            targetType="transaction"
+                            targetKey={`${t.accountName || account.accountName || ""}|${t.date}|${t.description}|${t.amount}`}
+                            targetLabel={`${fmtDate(t.date)} · ${t.description} · ${fmtMoney(t.amount)}`}
+                          />
+                        </td>
                         <td data-label="Category">
                           <span className="category-tag">{t.category}</span>
                         </td>
@@ -7363,7 +8815,15 @@ function QuickDownloadReports({ client }) {
       <div className="report-grid">
         {availableReportTypes.map((r) => (
           <div className="card report-card" key={r.key}>
-            <h3 className="card-title">{r.name}</h3>
+            <h3 className="card-title">
+              {r.name}
+              <InternalNoteButton
+                client={client}
+                targetType="report"
+                targetKey={r.key}
+                targetLabel={r.name}
+              />
+            </h3>
             <p className="card-subtitle">
               {r.key === "pl"
                 ? `${r.description} Currently set to ${PERIOD_LABELS[period]}.`
@@ -7372,6 +8832,12 @@ function QuickDownloadReports({ client }) {
             <button className="btn-primary" onClick={() => handleDownload(r)}>
               Download PDF
             </button>
+            <SentToClient
+              client={client}
+              itemKey={r.key}
+              itemLabel={r.name}
+              periodLabel={r.key === "pl" ? PERIOD_LABELS[period] : null}
+            />
           </div>
         ))}
       </div>
@@ -13929,6 +15395,12 @@ function BookkeeperHomePage({
       label: "Milestones to review",
       description: "Clients whose pricing milestone needs a look",
     },
+    {
+      id: "month-close",
+      group: "content",
+      label: "Month-end close",
+      description: "Last month's close checklist, client by client",
+    },
   ];
   const layout = useWidgetLayout(
     "bookkeeper-home",
@@ -13967,7 +15439,7 @@ function BookkeeperHomePage({
           value=""
           style={{ width: "100%", marginBottom: 10 }}
           onChange={(e) => {
-            if (e.target.value) onNavigateToClient(e.target.value, "dashboard");
+            if (e.target.value) onNavigateToClient(e.target.value, "client-overview");
           }}
         >
           <option value="">
@@ -14003,7 +15475,7 @@ function BookkeeperHomePage({
                   border: "none",
                   font: "inherit",
                 }}
-                onClick={() => onNavigateToClient(c.id, "dashboard")}
+                onClick={() => onNavigateToClient(c.id, "client-overview")}
               >
                 <span className="staff-flag-label">{c.name}</span>
                 <span className="staff-flag-desc">
@@ -14365,7 +15837,7 @@ function BookkeeperHomePage({
                       <button
                         className="staff-due-row"
                         key={c.id}
-                        onClick={() => onNavigateToClient(c.id, "dashboard")}
+                        onClick={() => onNavigateToClient(c.id, "client-overview")}
                       >
                         <span className="staff-flag-label">{c.name}</span>
                         <span className="staff-flag-desc">
@@ -14397,6 +15869,23 @@ function BookkeeperHomePage({
                 />
               </div>
             );
+          if (id === "month-close")
+            return (
+              <div
+                className={"card " + drag.dragClass(id)}
+                key={id}
+                {...drag.dragProps(id)}
+              >
+                <h3 className="card-title">Month-end close · {closePeriodLabel(closePeriodFor())}</h3>
+                <p className="card-subtitle">
+                  Least finished first. Open a client to tick items off on its Overview.
+                </p>
+                <CloseProgressList
+                  clients={clients}
+                  onOpenClient={(id2) => onNavigateToClient(id2, "client-overview")}
+                />
+              </div>
+            );
           if (id === "needs-visit")
             return (
               <div
@@ -14421,7 +15910,7 @@ function BookkeeperHomePage({
                       <button
                         className="staff-due-row"
                         key={c.id}
-                        onClick={() => onNavigateToClient(c.id, "dashboard")}
+                        onClick={() => onNavigateToClient(c.id, "client-overview")}
                       >
                         <span className="staff-flag-label">{c.name}</span>
                         <span className="staff-flag-desc">
@@ -14503,7 +15992,7 @@ function BookkeeperHomePage({
                       >
                         <button
                           className="staff-client-jump"
-                          onClick={() => onNavigateToClient(c.id, "dashboard")}
+                          onClick={() => onNavigateToClient(c.id, "client-overview")}
                           style={{
                             textAlign: "left",
                             flex: 1,
@@ -17996,7 +19485,9 @@ function DocumentsPage({ client, isBookkeeper, searchTarget }) {
 
   return (
     <div>
-      <MockBanner text="Uploaded files stay in your browser for this session only — nothing is actually stored yet. Folders you create do stick around on this browser." />
+      <MockBanner text="Uploaded files stay in your browser for this session only — nothing is actually stored yet. Folders you create do stick around on this browser. Files uploaded to a request from your bookkeeper (below) are stored for real." />
+
+      <DocumentRequestsCard client={client} />
 
       <div className="doc-folder-bar">
         <button
@@ -21086,6 +22577,10 @@ const PAGE_META = {
     title: "Giving & Funds",
     subtitle: "Contributions, fund balances, transfers, and pledges",
   },
+  "client-overview": {
+    title: "Client overview",
+    subtitle: "Staff only: how this client is doing, at a glance",
+  },
   "enterprise-upgrade": {
     title: "Plans",
     subtitle: "Basic, Plus and Pro — what each includes",
@@ -21525,6 +23020,8 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [detailsTab, setDetailsTab] = useState(null);
+  // Bumped when staff change "Preview plan" so access re-resolves.
+  const [previewPlanRev, setPreviewPlanRev] = useState(0);
   // Read state and live threads are both keyed "<clientId>::<userId>", since
   // every person at an organization has their own private thread.
   const [readMessageClients, setReadMessageClients] = useState({});
@@ -22029,7 +23526,10 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
     if (skipFirstClientSwitch.current) {
       skipFirstClientSwitch.current = false;
     } else {
-      setPage(pageAfterClientSwitch.current || "dashboard");
+      setPage(
+        pageAfterClientSwitch.current ||
+          (!clientPortalUser ? "client-overview" : "dashboard"),
+      );
     }
     pageAfterClientSwitch.current = null;
   }, [selectedClientId]);
@@ -22191,7 +23691,8 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
         new Set(tabConfig[selectedClientId] || []),
         portalOverrideUser,
       ),
-    [client, viewAsUserId, tabConfig, selectedClientId, portalOverrideUser],
+    // previewPlanRev: staff "Preview plan" is read inside resolveAccess.
+    [client, viewAsUserId, tabConfig, selectedClientId, portalOverrideUser, previewPlanRev],
   );
 
   const scopedClient = useMemo(
@@ -22239,6 +23740,10 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
               ? page
               : page === "bookkeeper-home" && staffUser
                 ? page
+                : page === "client-overview" &&
+                    !clientPortalUser &&
+                    viewAsUserId === BOOKKEEPER_VIEW
+                  ? page
                 : page === "milestone" && !access.isCategoryScoped
                   ? page
                 : access.tabs.has(page)
@@ -22753,6 +24258,12 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
 
   return (
     <ToastProvider>
+      <StaffToolsContext.Provider
+        value={{
+          staff: isStaffSession && viewAsUserId === BOOKKEEPER_VIEW,
+          staffUser: effectiveStaffUser,
+        }}
+      >
       <div className="mesh-bg" aria-hidden="true">
         <span></span>
         <span></span>
@@ -22808,9 +24319,9 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
             }
             clients={visibleClients}
             onPickClient={(clientId) => {
-              if (clientId === selectedClientId) setPage("dashboard");
+              if (clientId === selectedClientId) setPage("client-overview");
               else {
-                pageAfterClientSwitch.current = "dashboard";
+                pageAfterClientSwitch.current = "client-overview";
                 setSelectedClientId(clientId);
               }
             }}
@@ -22832,12 +24343,20 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
           visibleKeys={access.tabs}
           tabOrder={tabOrder}
           onOpenSettings={() => setSettingsOpen(true)}
-          onOpenDetails={() => setDetailsOpen(true)}
+          onOpenDetails={() => {
+            setDetailsTab(null);
+            setDetailsOpen(true);
+          }}
           collapsed={halfScreen ? !halfScreenExpanded : sidebarCollapsed}
           onToggleCollapse={
             halfScreen ? () => setHalfScreenExpanded((v) => !v) : toggleSidebarCollapsed
           }
           isStaffSession={isStaffSession}
+          previewPlan={isStaffSession ? getPreviewPlan(client.id) : null}
+          onPreviewPlan={(plan) => {
+            setPreviewPlan(client.id, plan);
+            setPreviewPlanRev((n) => n + 1);
+          }}
           badges={{ messages: hasUnreadMessages }}
           mobileOpen={mobileNavOpen}
           onCloseMobile={() => setMobileNavOpen(false)}
@@ -22904,6 +24423,9 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
               Tools, …) — those aren't about any one client's plan, so
               shimmering them off whichever client happens to be selected
               in the sidebar would be a non sequitur. */}
+          {!NON_CLIENT_PAGES.has(effectivePage) && (
+            <StaffQuickActions client={client} onNavigate={setPage} />
+          )}
           <div className="page-header app-header">
             <div>
               <div className="portal-greeting">
@@ -23107,6 +24629,18 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
               statusOverrides={statusOverrides}
             />
           )}
+          {effectivePage === "client-overview" && (
+            <ClientOverviewPage
+              client={client}
+              messagesByClient={messagesByClient}
+              onNavigate={setPage}
+              onOpenDetails={(tab) => {
+                setDetailsTab(tab || null);
+                setDetailsOpen(true);
+              }}
+              key={"overview-" + client.id}
+            />
+          )}
           {effectivePage === "milestone" && (
             <MilestonePage
               client={client}
@@ -23139,6 +24673,8 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
               messagesByClient={messagesByClient}
               readMessageClients={readMessageClients}
               onNavigateToClient={(clientId, targetPage, opts) => {
+                // Keep the requested page through the client-switch reset.
+                if (clientId !== selectedClientId) pageAfterClientSwitch.current = targetPage;
                 setSelectedClientId(clientId);
                 setPage(targetPage);
                 // §169: the Access requests card sends the staffer straight
@@ -23293,6 +24829,7 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
           onClose={() => setFeedbackOpen(false)}
         />
       )}
+      </StaffToolsContext.Provider>
     </ToastProvider>
   );
 }
