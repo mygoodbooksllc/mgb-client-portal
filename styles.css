@@ -8074,10 +8074,9 @@ body:has(.modal-overlay) .chat-fab-wrap {
 }
 
 /* ---------------- Staff sidebar (StaffRail) ----------------
-   Staff pages: full width, replacing the client sidebar. A client's pages:
-   a 64px icon strip with the client sidebar beside it. Desktop and mouse
-   windows only; touch phones keep the drawer, whose staff menu under the
-   staffer's name has the same links. */
+   Staff pages only, replacing the client sidebar; 64px icons when collapsed.
+   Client pages keep the staff links in the menu under the staffer's name.
+   Desktop and mouse windows only; touch phones keep the drawer. */
 .staff-rail {
   display: none;
 }
@@ -8107,10 +8106,6 @@ body:has(.modal-overlay) .chat-fab-wrap {
   }
   /* Staff pages: the staff sidebar stands in for the client sidebar. */
   .app-shell.on-staff-page > .sidebar {
-    display: none;
-  }
-  /* Client pages: the staff links live in the rail, not the name menu. */
-  .app-shell.has-staff-rail > .sidebar .staff-user-menu {
     display: none;
   }
 }

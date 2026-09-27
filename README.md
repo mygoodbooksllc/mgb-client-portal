@@ -216,10 +216,9 @@ because some work happens in Claude Code web sessions. Run `git fetch` and compa
 
 - **Staff sidebar** (`StaffRail`, desktop and mouse windows): Home, Client view, Team Chat, My
   Tasks, My Time, and for admins Staff Access, Client Roster, Developer Tools and Usage Stats,
-  plus theme and sign out. On staff pages it's full width and replaces the client sidebar, and
-  it collapses with the usual Collapse toggle. On a client's pages it shrinks to a 64px icon
-  strip with the client sidebar beside it. On touch phones the drawer's menu under your name
-  still has the same links.
+  plus theme and sign out. It shows on staff pages only, in place of the client sidebar, and
+  collapses to icons with the usual Collapse toggle. On a client's pages only the client sidebar
+  shows, and the staff links are in the menu under your name, the same as the phone drawer.
 
 - **Home** (`bookkeeper-home`): Your clients (with health dots), Needs attention, Needs a visit,
   Unread messages, Your reminders, Access requests, Upgrade requests (with the plan asked for), Recently viewed,
