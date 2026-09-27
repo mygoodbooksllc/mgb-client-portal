@@ -44,7 +44,7 @@ overrides that icon's own default sizing/weight.
 - `SunIcon` / `MoonIcon` — theme toggle (sidebar).
 - `SlidersIcon` — "Manage access" and "Customize dashboard."
 - `ChatIcon` — the floating chat widget's header, the mobile chat FAB, and the sidebar's Messages link.
-- `DocumentIcon`, `BarChartIcon`, `ShieldCheckIcon` — the Enterprise upgrade
+- `DocumentIcon`, `BarChartIcon`, `ShieldCheckIcon` — the Plans
   page's feature cards (Live Report, Report Builder, Budgeting Tool — the
   Cash Flow Pro card now uses `StackedBillsIcon` instead of
   `ShieldCheckIcon`, see below). `DocumentIcon` and `BarChartIcon` are
@@ -68,9 +68,9 @@ overrides that icon's own default sizing/weight.
 - `GridIcon` — Dashboard.
 - `PieChartIcon` — Budget vs. Actual.
 - `CalculatorIcon` — Budgeting Tool.
-- `StackedBillsIcon` — Cash Flow Pro (the premium tab, formerly "AP Command Center").
+- `StackedBillsIcon` — Cash Flow Pro (the Pro-plan tab, formerly "AP Command Center").
 - `BankIcon` — Bank Accounts.
-- `SwapIcon` — Cash Flow (the standard tab, formerly "Receivables & Payables").
+- `SwapIcon` — Cash Flow (the Plus-plan tab, formerly "Receivables & Payables").
 - `DownloadIcon` — Reports.
 - `GiftHeartIcon` — Giving & Funds.
 - `FolderIcon` — Documents.

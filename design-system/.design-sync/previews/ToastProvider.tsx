@@ -9,10 +9,10 @@ function ReferralToastTrigger() {
   return (
     <div style={{ padding: 20 }}>
       <p style={{ margin: 0, fontSize: 13, color: 'var(--text-muted)' }}>
-        Enterprise Tools upsell panel — the toast confirms the click.
+        Pro plan upsell — the toast confirms the click.
       </p>
       <Button variant="primary" style={{ marginTop: 10 }}>
-        Add Enterprise Tools
+        Upgrade to Pro
       </Button>
     </div>
   );

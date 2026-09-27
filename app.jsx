@@ -429,7 +429,9 @@ const NAV_SECTIONS = [
     // anymore — see PREMIUM_UPGRADE_TAB_KEYS above), so this section's
     // upsell heading is really about the PRO badges scattered across the
     // rest of the sidebar, not about hiding any row of its own.
-    label: "Enterprise",
+    // Never shown as text: this section's heading is the client's milestone
+    // plus their plan (Pro pill, or a lock for Basic/Plus). See Sidebar.
+    label: "Plan",
     // Live Report ("daily-close") isn't a nav item here on purpose — a
     // premium, full-access client's Dashboard tab IS the Live Report, one
     // cohesive page instead of two separate tabs both claiming to be "the
@@ -555,9 +557,9 @@ const PREMIUM_TAB_KEYS = new Set(
 const FEATURE_FLAGS = [
   {
     key: "mygoodbooks_ff_force_premium_v1",
-    label: "Force premium plan",
+    label: "Force Pro plan",
     description:
-      "Treat every client as premium, so Enterprise is reachable regardless of their real plan.",
+      "Treat every client as Pro, so every Pro tool is reachable regardless of their real plan.",
   },
   {
     key: "mygoodbooks_ff_verbose_logging_v1",
@@ -657,6 +659,45 @@ function hasPremiumPlan(client, allowDevOverride = true) {
   );
 }
 
+// Three plans (owner decision 2026-09-26). The stored values stay
+// basic/standard/premium so the database never had to migrate them; these
+// are the only names a person ever sees. Rename a plan here and nowhere else.
+const PLAN_ORDER = ["basic", "standard", "premium"];
+const PLAN_LABELS = { basic: "Basic", standard: "Plus", premium: "Pro" };
+const planLabel = (plan) => PLAN_LABELS[plan] || PLAN_LABELS.standard;
+// Monthly price per organization, on top of the milestone (bookkeeping) fee.
+// Basic is free; Plus is priced as a small step so it's an easy yes.
+const PLAN_PRICING = {
+  basic: { monthly: 0, logins: "1 login" },
+  standard: { monthly: 9, logins: "Unlimited logins" },
+  premium: { monthly: 39, logins: "Unlimited logins" },
+};
+const planPriceLabel = (plan) =>
+  PLAN_PRICING[plan].monthly === 0 ? "Free" : `$${PLAN_PRICING[plan].monthly}/mo`;
+
+// Basic is barebones: the monthly picture, statements, documents and a way to
+// reach the bookkeeper. Everything else is hidden rather than shown locked.
+const BASIC_TAB_KEYS = new Set(["messages", "dashboard", "reports", "documents"]);
+const BASIC_DASHBOARD_WIDGETS = new Set([
+  "kpi-cash",
+  "kpi-net",
+  "kpi-revenue",
+  "income-expenses",
+]);
+
+function isBasicPlan(client, allowDevOverride = true) {
+  return (
+    client.plan === "basic" &&
+    !(allowDevOverride && isFlagOn(FEATURE_FLAGS[0].key))
+  );
+}
+
+// The plan in effect, after the staff-only "Force Pro plan" test flag.
+function effectivePlan(client, allowDevOverride = true) {
+  if (hasPremiumPlan(client, allowDevOverride)) return "premium";
+  return client.plan === "basic" ? "basic" : "standard";
+}
+
 // Resolves what a given person may see: the org-level baseline the bookkeeper
 // set for the whole client, narrowed by that individual's own access record.
 // overrideUser: a real, signed-in client_users row (Phase 2 — see
@@ -667,8 +708,11 @@ function hasPremiumPlan(client, allowDevOverride = true) {
 function resolveAccess(client, viewAsUserId, orgHiddenKeys, overrideUser) {
   // Premium tabs drop out entirely for clients not on the plan, before any
   // per-user scoping runs — an unsubscribed org has no one who can see them.
+  const basic = isBasicPlan(client, !overrideUser);
   const entitled = ALL_TAB_KEYS.filter(
-    (k) => !PREMIUM_TAB_KEYS.has(k) || hasPremiumPlan(client, !overrideUser),
+    (k) =>
+      (!PREMIUM_TAB_KEYS.has(k) || hasPremiumPlan(client, !overrideUser)) &&
+      (!basic || BASIC_TAB_KEYS.has(k)),
   );
   const orgAllowed = entitled.filter(
     (k) => k === ALWAYS_VISIBLE_KEY || !orgHiddenKeys.has(k),
@@ -691,7 +735,9 @@ function resolveAccess(client, viewAsUserId, orgHiddenKeys, overrideUser) {
   const premiumForUser =
     hasPremiumPlan(client, !overrideUser) && !(user && user.premiumThrottled);
 
-  if (!user || user.access === "full") {
+  // Per-person access is a Plus feature: on Basic everyone sees the whole
+  // (already small) Basic set.
+  if (!user || user.access === "full" || basic) {
     return {
       user,
       tabs: new Set(orgAllowed),
@@ -700,6 +746,7 @@ function resolveAccess(client, viewAsUserId, orgHiddenKeys, overrideUser) {
       isCategoryScoped: false,
       isFullAccess: true,
       premiumForUser,
+      plan: effectivePlan(client, !overrideUser),
     };
   }
 
@@ -731,6 +778,7 @@ function resolveAccess(client, viewAsUserId, orgHiddenKeys, overrideUser) {
     isCategoryScoped,
     isFullAccess: false,
     premiumForUser,
+    plan: effectivePlan(client, !overrideUser),
   };
 }
 
@@ -814,6 +862,20 @@ function Sidebar({
   isStaffSession,
 }) {
   const today = todayLocal();
+  // The milestone that heads the sidebar (same numbers as the header badge).
+  const sidebarMsIds =
+    client && !NON_CLIENT_PAGES.has(page) ? [client.id] : [];
+  const { byId: sidebarMsById } = useMilestones(sidebarMsIds);
+  const sidebarMs = client ? sidebarMsById[client.id] : null;
+  const viewingAsStaff = isStaffSession && viewAsUserId === BOOKKEEPER_VIEW;
+  const milestoneHeading = (() => {
+    const cur = sidebarMs && sidebarMs.current;
+    const clickable = !(access && access.isCategoryScoped);
+    if (cur && !(viewingAsStaff && sidebarMs.unconfirmed)) {
+      return { text: `${cur.roman} · ${cur.name}`, roman: cur.roman, clickable };
+    }
+    return { text: viewingAsStaff ? "Set milestone" : "Milestone", roman: cur ? cur.roman : null, clickable };
+  })();
   const showsAdminPages =
     staffUser &&
     (staffUser.role === "admin" || hasTempAdminAccess) &&
@@ -1280,7 +1342,7 @@ function Sidebar({
           {(() => {
             let groupHeadingShown = false;
             return NAV_SECTIONS.map((section) => {
-            const isSignature = section.label === "Enterprise";
+            const isSignature = section.label === "Plan";
             // Standard-plan clients don't have the premium tabs at all
             // (stripped out of access.tabs in resolveAccess), so `items`
             // below already narrows itself to just Dashboard/Messages for
@@ -1308,28 +1370,51 @@ function Sidebar({
                 }
                 key={section.label}
               >
-                {isSignature &&
-                  (showUpsell ? (
-                    <button
-                      type="button"
-                      className="nav-section-label nav-section-label-signature nav-upsell-trigger"
-                      onClick={() => {
-                        onSelectPage("enterprise-upgrade");
-                        onCloseMobile();
-                      }}
-                    >
-                      <span>{section.label}</span>
-                      <span className="nav-signature-badge">Premium</span>
-                      <LockIcon className="nav-upsell-icon" />
-                    </button>
-                  ) : (
-                    <div className="nav-section-label nav-section-label-signature nav-section-label-static">
-                      <span>{section.label}</span>
+                {isSignature && (
+                  // The client's milestone sits where "Enterprise" used to:
+                  // Pro clients get the gold Pro pill, Basic and Plus the
+                  // lock, which opens the plans page.
+                  <div className="nav-section-label nav-section-label-signature nav-section-label-static nav-ms-heading">
+                    {milestoneHeading.clickable ? (
+                      <button
+                        type="button"
+                        className="nav-ms-name"
+                        onClick={() => {
+                          onSelectPage("milestone");
+                          onCloseMobile();
+                        }}
+                        title="Open your milestone"
+                      >
+                        {milestoneHeading.text}
+                      </button>
+                    ) : (
+                      <span className="nav-ms-name">{milestoneHeading.text}</span>
+                    )}
+                    {showUpsell ? (
+                      <button
+                        type="button"
+                        className="nav-ms-lock"
+                        aria-label={`See plans — you're on ${planLabel(access.plan)}`}
+                        title={`You're on ${planLabel(access.plan)}. See plans`}
+                        onClick={() => {
+                          onSelectPage("enterprise-upgrade");
+                          onCloseMobile();
+                        }}
+                      >
+                        <LockIcon className="nav-upsell-icon" />
+                      </button>
+                    ) : (
                       <span className="nav-signature-badge nav-signature-badge-shimmer">
-                        Pro Client
+                        {PLAN_LABELS.premium}
                       </span>
-                    </div>
-                  ))}
+                    )}
+                  </div>
+                )}
+                {isSignature && milestoneHeading.roman && (
+                  <div className="nav-ms-collapsed" aria-hidden="true">
+                    {milestoneHeading.roman}
+                  </div>
+                )}
                 {showGroupHeading && NAV_GROUP_HEADING && (
                   <div className="nav-section-label nav-section-label-static nav-group-label">
                     <span>{NAV_GROUP_HEADING}</span>
@@ -4232,6 +4317,8 @@ function DashboardPage({
 
   const runwayMonths = runwayMonthsFor(client);
   const alerts = computeAlerts(client);
+  // Basic keeps the monthly picture only: cash, net, revenue and the trend.
+  const basic = !!access && access.plan === "basic";
 
   const kpis = [
     {
@@ -4345,12 +4432,12 @@ function DashboardPage({
       description: "Latest transactions across all accounts",
     },
     ...crossTabWidgetDefs(client, access),
-  ];
+  ].filter((w) => !basic || BASIC_DASHBOARD_WIDGETS.has(w.id));
   const crossTabById = Object.fromEntries(
     widgets.filter((w) => w.id.startsWith("xt-")).map((w) => [w.id, w]),
   );
   const layout = useWidgetLayout(
-    `${client.id}:full`,
+    `${client.id}:${basic ? "basic" : "full"}`,
     widgets.map((w) => w.id),
   );
   const drag = useDragReorder(layout);
@@ -4400,14 +4487,16 @@ function DashboardPage({
         </div>
       )}
 
-      <CustomizeDashboardButton widgets={widgets} layout={layout} />
+      {!basic && <CustomizeDashboardButton widgets={widgets} layout={layout} />}
 
       <div className="kpi-grid">
         {kpiOrder.map((id) => {
           const k = kpiById[id];
           const jumpTarget = KPI_DASHBOARD_JUMP_TARGETS[id];
           const jump =
-            jumpTarget && !layout.hidden.has(jumpTarget.contentId)
+            jumpTarget &&
+            widgets.some((w) => w.id === jumpTarget.contentId) &&
+            !layout.hidden.has(jumpTarget.contentId)
               ? () => jumpToCard(jumpTarget.domId, jumpTarget.contentId)
               : null;
           return k.ring ? (
@@ -5505,7 +5594,7 @@ function PayrollUpsell({ client }) {
 
   return (
     <div>
-      <MockBanner text="Payroll is an add-on, independent of plan — a Standard client can add it just like a Premium one. Nothing here is connected to a real Gusto account yet." />
+      <MockBanner text="Payroll is an add-on, independent of plan — a Plus client can add it just like a Pro one. Nothing here is connected to a real Gusto account yet." />
 
       <div
         className="card"
@@ -7090,8 +7179,8 @@ function ReportBarRows({ items }) {
 }
 
 // ----------------------------------------------------------------------------
-// Enterprise upgrade preview — what a standard-plan client's "+"/lock in the
-// sidebar opens instead of the real upgraded pages, none of which are
+// Plans page (PAGE_META "enterprise-upgrade"; the key predates the Basic/
+// Plus/Pro names) — what a Basic or Plus client's lock in the sidebar opens instead of the real upgraded pages, none of which are
 // separate tabs to strip from access.tabs anymore: a standard client's
 // Dashboard/Budget vs. Actual/Cash Flow/Reports/Bank Accounts/Giving & Funds
 // already ARE the tabs they'll keep using after upgrading, just showing the
@@ -7260,66 +7349,83 @@ const ENTERPRISE_COMPARISON = [
   },
 ];
 
-// PLACEHOLDER PRICING — mock figures only, standing in until MyGoodBooks
-// gives real numbers. Priced per user profile per month (client.users.length
-// — every login the client has configured, not just full-access ones) so
-// the total scales with how many people at the organization actually sign
-// in, rather than being a flat per-org rate. Kept in one place on purpose
-// so swapping in real numbers later is a one-line change, not a hunt
-// through the page.
-const ENTERPRISE_PRICING = {
-  standard: { perUser: 19, note: "Included in your current plan" },
-  enterprise: { perUser: 12, note: "Added on top of Standard, billed monthly" },
+// What each plan includes, for the Plans page cards. Prices live in
+// PLAN_PRICING (next to PLAN_LABELS) so they're set in one place.
+const PLAN_FEATURES = {
+  basic: [
+    "Dashboard: cash on hand, income vs. expenses",
+    "Monthly financial statements",
+    "Documents, shared with your bookkeeper",
+    "Messages with your bookkeeper",
+    "Your pricing milestone, always visible",
+  ],
+  standard: [
+    "Everything in Basic, plus:",
+    "Budget vs. Actual, by category",
+    "Bank Accounts with every transaction",
+    "Cash Flow: who owes you and what you owe",
+    "Giving & Funds: fund balances and contributions",
+    "Custom access for each person",
+    "Live QuickBooks sync, every minute",
+  ],
+  premium: [
+    "Everything in Plus, plus:",
+    ...ENTERPRISE_FEATURES.map((f) => `${f.title} on your ${f.sidebarTab} tab`),
+  ],
 };
 
 function EnterpriseUpgradePage({ client, clientPortalUser }) {
   const showToast = useToast();
   const supabase = window.mgbSupabase;
   // Which tool's row is expanded in the comparison list below — starts with
-  // none open so the page loads short, not a wall of text. A client
-  // interested in one thing (say, reconciliation) can go straight to it
-  // without scrolling past five others already expanded.
+  // none open so the page loads short, not a wall of text.
   const [openKey, setOpenKey] = useState(null);
-  const [requesting, setRequesting] = useState(false);
-  const userCount = (client.users || []).length || 1;
+  const [requesting, setRequesting] = useState(null);
+  const current = effectivePlan(client, !clientPortalUser);
+  const currentRank = PLAN_ORDER.indexOf(current);
 
-  async function requestUpgrade() {
+  async function requestUpgrade(plan) {
     const requestedBy =
       (clientPortalUser && (clientPortalUser.name || clientPortalUser.email)) ||
       "Someone at " + client.name;
     if (!supabase) {
-      showToast("Thanks! Your bookkeeper will follow up about upgrading.");
+      showToast(`Thanks! Your bookkeeper will follow up about ${planLabel(plan)}.`);
       return;
     }
-    setRequesting(true);
-    const { error } = await supabase.rpc("request_enterprise_upgrade", {
+    setRequesting(plan);
+    let { error } = await supabase.rpc("request_enterprise_upgrade", {
       p_client_id: client.id,
       p_requested_by: requestedBy,
+      p_plan: plan,
     });
-    setRequesting(false);
-    // The success toast used to fire unconditionally, OUTSIDE this branch — so
-    // a client whose request failed (RPC error, or the migration never run)
-    // was told their upgrade request was filed and then waited for a call that
-    // was never coming. Never confirm a write that didn't happen.
+    // Until plans-basic-plus-pro.sql runs, the function has no p_plan.
+    if (error && error.code === "PGRST202") {
+      ({ error } = await supabase.rpc("request_enterprise_upgrade", {
+        p_client_id: client.id,
+        p_requested_by: `${requestedBy} (wants ${planLabel(plan)})`,
+      }));
+    }
+    setRequesting(null);
+    // Never confirm a write that didn't happen.
     if (error) {
-      console.warn("Couldn't file enterprise upgrade request:", error.message);
+      console.warn("Couldn't file upgrade request:", error.message);
       showToast(
         "Couldn't send that request — please email your bookkeeper and we'll sort it out.",
       );
       return;
     }
-    showToast("Thanks! Your bookkeeper will follow up about upgrading.");
+    showToast(`Thanks! Your bookkeeper will follow up about ${planLabel(plan)}.`);
   }
 
   return (
     <div className="enterprise-page">
-      <MockBanner text="This is a preview of what Enterprise includes — nothing here is connected to a real upgrade flow yet, and the pricing below is a placeholder." />
+      <MockBanner text="Upgrading isn't automatic yet — your request goes to your bookkeeper, who switches your plan." />
 
       <div
         className="card"
         style={{ marginBottom: 20, textAlign: "center", padding: "36px 28px" }}
       >
-        <div className="eyebrow-badge">Enterprise · Add-on</div>
+        <div className="eyebrow-badge">Plans</div>
         <h2
           style={{
             fontFamily: "var(--font-heading)",
@@ -7328,7 +7434,7 @@ function EnterpriseUpgradePage({ client, clientPortalUser }) {
             color: "var(--ink-strong)",
           }}
         >
-          Unlock Enterprise for {client.name}
+          {client.name} is on {planLabel(current)}
         </h2>
         <p
           style={{
@@ -7337,60 +7443,75 @@ function EnterpriseUpgradePage({ client, clientPortalUser }) {
             margin: "0 auto",
           }}
         >
-          Six tools built for organizations that want more than a monthly
-          statement — a live pulse on the numbers, a board-ready report in
-          minutes, a shared space to plan next period's budget, a command center
-          for what you owe, a real month-end close, and fund accounting that
-          tracks pledges and transfers.
+          Your bookkeeping fee is set by your milestone. Plans add tools on
+          top of it, billed monthly per organization. Change or cancel any
+          time.
         </p>
       </div>
 
-      <div className="pricing-grid" style={{ marginBottom: 20 }}>
-        <div className="card pricing-card">
-          <div className="eyebrow-badge">Your current plan</div>
-          <h3 className="card-title" style={{ marginTop: 14, marginBottom: 2 }}>
-            Standard
-          </h3>
-          <div className="pricing-value">
-            ${ENTERPRISE_PRICING.standard.perUser}
-            <span>/user/mo</span>
-          </div>
-          <p className="pricing-total">
-            ${ENTERPRISE_PRICING.standard.perUser * userCount}/mo total for{" "}
-            {userCount} user profile{userCount !== 1 ? "s" : ""}
-          </p>
-          <p className="card-subtitle" style={{ marginBottom: 0 }}>
-            {ENTERPRISE_PRICING.standard.note}
-          </p>
-        </div>
-        <div className="card pricing-card pricing-card-premium">
-          <span className="nav-pro-pill">Enterprise</span>
-          <h3 className="card-title" style={{ marginTop: 14, marginBottom: 2 }}>
-            + Enterprise
-          </h3>
-          <div className="pricing-value pricing-value-premium">
-            +${ENTERPRISE_PRICING.enterprise.perUser}
-            <span>/user/mo</span>
-          </div>
-          <p className="pricing-total pricing-total-premium">
-            +${ENTERPRISE_PRICING.enterprise.perUser * userCount}/mo total for{" "}
-            {userCount} user profile{userCount !== 1 ? "s" : ""}
-          </p>
-          <p className="card-subtitle" style={{ marginBottom: 0 }}>
-            {ENTERPRISE_PRICING.enterprise.note}
-          </p>
-          <p
-            style={{
-              fontSize: 11,
-              color: "var(--text-muted)",
-              margin: "8px 0 0",
-            }}
-          >
-            Estimated — your bookkeeper will confirm final pricing.
-          </p>
-        </div>
+      <div className="pricing-grid plans-grid" style={{ marginBottom: 20 }}>
+        {PLAN_ORDER.map((plan, rank) => {
+          const isCurrent = plan === current;
+          const recommended = !isCurrent && rank === currentRank + 1;
+          return (
+            <div
+              key={plan}
+              className={
+                "card pricing-card plan-card" +
+                (plan === "premium" ? " pricing-card-premium" : "") +
+                (isCurrent ? " plan-card-current" : "") +
+                (recommended ? " plan-card-recommended" : "")
+              }
+            >
+              <div className="plan-card-tag">
+                {isCurrent ? (
+                  <span className="eyebrow-badge">Your plan</span>
+                ) : recommended ? (
+                  <span className="nav-pro-pill">
+                    {plan === "standard" ? "Best value" : "Recommended"}
+                  </span>
+                ) : null}
+              </div>
+              <h3 className="card-title" style={{ marginTop: 10, marginBottom: 2 }}>
+                {planLabel(plan)}
+              </h3>
+              <div
+                className={
+                  "pricing-value" + (plan === "premium" ? " pricing-value-premium" : "")
+                }
+              >
+                {PLAN_PRICING[plan].monthly === 0 ? (
+                  "Free"
+                ) : (
+                  <>
+                    ${PLAN_PRICING[plan].monthly}
+                    <span>/mo</span>
+                  </>
+                )}
+              </div>
+              <p className="pricing-total">{PLAN_PRICING[plan].logins}</p>
+              <ul className="plan-feature-list">
+                {PLAN_FEATURES[plan].map((f, i) => (
+                  <li key={i} className={f.endsWith("plus:") ? "plan-feature-lead" : ""}>
+                    {f}
+                  </li>
+                ))}
+              </ul>
+              {rank > currentRank && (
+                <button
+                  className={plan === "premium" || recommended ? "btn-primary" : "btn-secondary"}
+                  disabled={!!requesting}
+                  onClick={() => requestUpgrade(plan)}
+                >
+                  {requesting === plan ? "Sending…" : `Upgrade to ${planLabel(plan)}`}
+                </button>
+              )}
+            </div>
+          );
+        })}
       </div>
 
+      <h3 className="plans-section-title">What {PLAN_LABELS.premium} adds</h3>
       <div className="report-grid" style={{ marginBottom: 20 }}>
         {ENTERPRISE_FEATURES.map((f) => (
           <div className="card" key={f.title}>
@@ -7409,10 +7530,11 @@ function EnterpriseUpgradePage({ client, clientPortalUser }) {
       </div>
 
       <div className="card" style={{ marginBottom: 20 }}>
-        <h3 className="card-title">Compare, tool by tool</h3>
+        <h3 className="card-title">
+          Compare {PLAN_LABELS.standard} and {PLAN_LABELS.premium}, tool by tool
+        </h3>
         <p className="card-subtitle">
-          Click a tool to see exactly what changes — everything on the left, you
-          already have.
+          Click a tool to see exactly what changes.
         </p>
         <div className="compare-list">
           {ENTERPRISE_COMPARISON.map((c) => {
@@ -7431,17 +7553,14 @@ function EnterpriseUpgradePage({ client, clientPortalUser }) {
                   <span>{c.tool}</span>
                   {isOpen ? <ChevronUpIcon /> : <ChevronDownIcon />}
                 </button>
-                {/* Always mounted (not isOpen &&) — grid-template-rows animates
-                    0fr/1fr smoothly on both open AND close, which conditional
-                    mounting can't do (a removed node has nothing to transition
-                    from). The inner div's own padding/margins collapse to
-                    nothing at 0fr since overflow:hidden clips it, so there's
-                    no telltale gap when closed. */}
+                {/* Always mounted (not isOpen &&) so grid-template-rows can
+                    animate both open and close. */}
                 <div className="compare-row-body-wrap">
                   <div className="compare-row-body">
                     <div className="compare-col">
                       <div className="compare-col-header">
-                        {c.standardLabel}
+                        {c.standardLabel}{" "}
+                        <span className="plan-mini-label">{PLAN_LABELS.standard}</span>
                       </div>
                       <ul className="compare-feat-list">
                         {c.standard.map((f, i) => (
@@ -7452,7 +7571,7 @@ function EnterpriseUpgradePage({ client, clientPortalUser }) {
                     <div className="compare-col compare-col-premium">
                       <div className="compare-col-header premium">
                         {c.premiumLabel}{" "}
-                        <span className="nav-pro-pill">PRO</span>
+                        <span className="nav-pro-pill">{PLAN_LABELS.premium}</span>
                       </div>
                       <p className="compare-feat-all">
                         Everything {c.standardLabel} has, plus:
@@ -7469,32 +7588,6 @@ function EnterpriseUpgradePage({ client, clientPortalUser }) {
             );
           })}
         </div>
-      </div>
-
-      <div
-        className="card"
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          gap: 20,
-          flexWrap: "wrap",
-        }}
-      >
-        <div>
-          <h3 className="card-title">Ready to add it on?</h3>
-          <p className="card-subtitle" style={{ marginBottom: 0 }}>
-            Your bookkeeper can turn this on for {client.name} — no setup
-            required on your end.
-          </p>
-        </div>
-        <button
-          className="btn-primary"
-          disabled={requesting}
-          onClick={requestUpgrade}
-        >
-          Upgrade to Enterprise
-        </button>
       </div>
     </div>
   );
@@ -9955,7 +10048,7 @@ function DeveloperToolsPage({ staffUser, clients, onJumpToClient, readOnly }) {
             </option>
             {sortedClients.map((c) => (
               <option key={c.id} value={c.id}>
-                {c.name} ({c.plan === "premium" ? "Premium" : "Standard"})
+                {c.name} ({planLabel(c.plan)})
               </option>
             ))}
           </select>
@@ -9986,7 +10079,7 @@ function DeveloperToolsPage({ staffUser, clients, onJumpToClient, readOnly }) {
                 >
                   <span className="staff-flag-label">{c.name}</span>
                   <span className="staff-flag-desc">
-                    {c.plan === "premium" ? "Premium" : "Standard"} · {c.id}
+                    {planLabel(c.plan)} · {c.id}
                   </span>
                 </button>
               ))}
@@ -12141,11 +12234,27 @@ function ClientAccessPage({ readOnly }) {
     return c ? c.name : clientId;
   }
 
+  // Basic includes one login per organization (Plus and Pro: unlimited).
+  // Checked here for the honest case; the plan itself isn't enforced
+  // server-side yet.
+  function basicLoginTaken(clientId, alsoAdding = 0) {
+    const c = CLIENTS.find((c) => c.id === clientId);
+    if (!c || c.plan !== "basic") return false;
+    const existing = (rows || []).filter((r) => r.client_id === clientId).length;
+    return existing + alsoAdding >= 1;
+  }
+
   async function addContact() {
     const email = newEmail.trim().toLowerCase();
     const name = newName.trim();
     const role = newRole.trim();
     if (!email || !name || !role || !newClientId) return;
+    if (basicLoginTaken(newClientId)) {
+      showToast(
+        `${clientNameFor(newClientId)} is on Basic, which includes one login. Move them to Plus to add more people.`,
+      );
+      return;
+    }
     setAdding(true);
     const { error } = await supabase
       .from("client_users")
@@ -12245,8 +12354,18 @@ function ClientAccessPage({ readOnly }) {
   }
 
   async function importCsv() {
-    const validRows = csvPreview.filter((r) => r.errors.length === 0);
-    if (validRows.length === 0) return;
+    const seenBasic = {};
+    const validRows = csvPreview.filter((r) => {
+      if (r.errors.length > 0) return false;
+      // Basic: skip anyone past the one login.
+      if (basicLoginTaken(r.clientId, seenBasic[r.clientId] || 0)) return false;
+      seenBasic[r.clientId] = (seenBasic[r.clientId] || 0) + 1;
+      return true;
+    });
+    if (validRows.length === 0) {
+      showToast("Nothing to import — Basic organizations include one login.");
+      return;
+    }
     setCsvImporting(true);
     const results = [];
     for (const r of validRows) {
@@ -12351,8 +12470,9 @@ function ClientAccessPage({ readOnly }) {
                             value={editOrgPlan}
                             onChange={(e) => setEditOrgPlan(e.target.value)}
                           >
-                            <option value="standard">Standard</option>
-                            <option value="premium">Premium</option>
+                            {PLAN_ORDER.map((p) => (
+                              <option key={p} value={p}>{PLAN_LABELS[p]}</option>
+                            ))}
                           </select>
                         </td>
                         <td>
@@ -12450,8 +12570,9 @@ function ClientAccessPage({ readOnly }) {
               value={newOrgPlan}
               onChange={(e) => setNewOrgPlan(e.target.value)}
             >
-              <option value="standard">Standard</option>
-              <option value="premium">Premium</option>
+              {PLAN_ORDER.map((p) => (
+                <option key={p} value={p}>{PLAN_LABELS[p]}</option>
+              ))}
             </select>
             <label style={{ display: "flex", alignItems: "center", gap: 6 }}>
               <input
@@ -12906,15 +13027,15 @@ function ClientUserScopeEditor({ row, readOnly, onClose, onSaved }) {
           className={"access-level-btn" + (!premiumThrottled ? " active" : "")}
           onClick={() => setPremiumThrottled(false)}
         >
-          Premium features on
+          Pro features on
           <span>Sees the Pro tools their organization subscribes to</span>
         </button>
         <button
           className={"access-level-btn" + (premiumThrottled ? " active" : "")}
           onClick={() => setPremiumThrottled(true)}
         >
-          Premium features throttled
-          <span>Standard experience, even on a Premium plan</span>
+          Pro features off
+          <span>Plus experience, even on the Pro plan</span>
         </button>
       </div>
 
@@ -13137,7 +13258,9 @@ function BookkeeperHomePage({
     if (!supabase) return;
     supabase
       .from("enterprise_upgrade_requests")
-      .select("id, client_id, requested_by, created_at, status, note")
+      // "*" so this keeps working whether or not plans-basic-plus-pro.sql
+      // (which adds requested_plan) has been run yet.
+      .select("*")
       .eq("status", "new")
       .order("created_at", { ascending: false })
       .then(({ data, error }) => {
@@ -13573,7 +13696,7 @@ function BookkeeperHomePage({
           </option>
           {sortedJumpClients.map((c) => (
             <option key={c.id} value={c.id}>
-              {c.name} ({c.plan === "premium" ? "Premium" : "Standard"})
+              {c.name} ({planLabel(c.plan)})
             </option>
           ))}
         </select>
@@ -13604,7 +13727,7 @@ function BookkeeperHomePage({
               >
                 <span className="staff-flag-label">{c.name}</span>
                 <span className="staff-flag-desc">
-                  {c.plan === "premium" ? "Premium" : "Standard"} · {c.id}
+                  {planLabel(c.plan)} · {c.id}
                 </span>
               </button>
             ))}
@@ -13667,10 +13790,10 @@ function BookkeeperHomePage({
       </div>
 
       <div className="card" style={{ marginBottom: 20 }}>
-        <h3 className="card-title">Enterprise upgrade requests</h3>
+        <h3 className="card-title">Upgrade requests</h3>
         <p className="card-subtitle">
-          Clients who hit "Upgrade to Enterprise" on their preview page — so you
-          can follow up and make them premium clients.
+          Clients who asked to upgrade from their Plans page — follow up, then
+          change their plan under Client organizations.
         </p>
         {upgradeRequests === null && !upgradeRequestsError && (
           <p className="card-subtitle">Loading…</p>
@@ -13688,8 +13811,11 @@ function BookkeeperHomePage({
               return (
                 <li className="staff-audit-row" key={r.id}>
                   <span className="staff-audit-text">
-                    <strong>{c ? c.name : r.client_id}</strong> wants to upgrade
-                    — requested by {r.requested_by || "unknown"}
+                    <strong>{c ? c.name : r.client_id}</strong> wants
+                    {r.requested_plan
+                      ? ` ${planLabel(r.requested_plan)}`
+                      : " to upgrade"}
+                    {c ? ` (on ${planLabel(c.plan)})` : ""} — requested by {r.requested_by || "unknown"}
                   </span>
                   <span
                     className="staff-audit-time"
@@ -14113,7 +14239,7 @@ function BookkeeperHomePage({
                           <span>
                             <span className="staff-flag-label">{c.name}</span>
                             <span className="staff-flag-desc">
-                              {c.plan === "premium" ? "Premium" : "Standard"}{" "}
+                              {planLabel(c.plan)}{" "}
                               plan
                               {due && due.overdue > 0
                                 ? ` · ${due.overdue} overdue`
@@ -18618,16 +18744,16 @@ function UserAccessEditor({
             }
             onClick={() => premiumThrottled && onToggleUserPremium(user.id)}
           >
-            Premium features on
+            Pro features on
             <span>Sees the Pro tools {client.name} is subscribed to</span>
           </button>
           <button
             className={"access-level-btn" + (premiumThrottled ? " active" : "")}
             onClick={() => !premiumThrottled && onToggleUserPremium(user.id)}
           >
-            Premium features throttled
+            Pro features off
             <span>
-              Standard experience, even though {client.name} has Premium
+              Plus experience, even though {client.name} has Pro
             </span>
           </button>
         </div>
@@ -19426,7 +19552,7 @@ function TabSettingsModal({
                       "pill " + (throttled ? "restricted" : "unrestricted")
                     }
                   >
-                    {throttled ? "Premium throttled" : "Premium"}
+                    {throttled ? "Pro off" : "Pro"}
                   </span>
                 )}
                 <span
@@ -20681,8 +20807,8 @@ const PAGE_META = {
     subtitle: "Contributions, fund balances, transfers, and pledges",
   },
   "enterprise-upgrade": {
-    title: "Enterprise",
-    subtitle: "See what's included, and what upgrading unlocks",
+    title: "Plans",
+    subtitle: "Basic, Plus and Pro — what each includes",
   },
   "staff-access": {
     title: "Staff Access",
@@ -22465,9 +22591,14 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
                   clientId={client.id}
                   onSynced={() => setQboDataRev((r) => r + 1)}
                   liveLabel={
-                    relTime(client.lastSyncedAt)
-                      ? `Live · synced ${relTime(client.lastSyncedAt)}`
-                      : "Live · QuickBooks"
+                    // Live sync is a Plus feature; Basic just says when.
+                    access.plan === "basic"
+                      ? relTime(client.lastSyncedAt)
+                        ? `Synced ${relTime(client.lastSyncedAt)}`
+                        : "QuickBooks"
+                      : relTime(client.lastSyncedAt)
+                        ? `Live · synced ${relTime(client.lastSyncedAt)}`
+                        : "Live · QuickBooks"
                   }
                 />
               ) : (

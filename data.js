@@ -313,9 +313,9 @@ const CLIENTS_MOCK_DATA = [
     // "full" = full-access users only. Set by MyGoodBooks, never by the client.
     documents: [
       { name: "August Bank Statement - Operating.pdf", category: "Bank Statement", uploadedBy: "MyGoodBooks", date: "2026-08-25", size: "412 KB", visibility: "full" },
-      { name: "Property Insurance Policy 2026.pdf", category: "Insurance", uploadedBy: "Premium Test Client", date: "2026-07-02", size: "1.1 MB", visibility: "all" },
+      { name: "Property Insurance Policy 2026.pdf", category: "Insurance", uploadedBy: "Pro Test Client", date: "2026-07-02", size: "1.1 MB", visibility: "all" },
       { name: "July Financial Statements.pdf", category: "Financial Statement", uploadedBy: "MyGoodBooks", date: "2026-08-03", size: "268 KB", visibility: "full" },
-      { name: "Building Campaign Pledge Log.xlsx", category: "Giving", uploadedBy: "Premium Test Client", date: "2026-08-10", size: "58 KB", visibility: "full" },
+      { name: "Building Campaign Pledge Log.xlsx", category: "Giving", uploadedBy: "Pro Test Client", date: "2026-08-10", size: "58 KB", visibility: "full" },
     ],
     // One private thread per person, keyed by user id. A staff member only ever
     // sees their own conversation with MyGoodBooks — the treasurer's questions
@@ -421,7 +421,7 @@ const CLIENTS_MOCK_DATA = [
     ],
     documents: [
       { name: "August Bank Statement.pdf", category: "Bank Statement", uploadedBy: "MyGoodBooks", date: "2026-08-25", size: "204 KB", visibility: "full" },
-      { name: "Facility Use Agreement.pdf", category: "Facilities", uploadedBy: "Standard Test Client", date: "2026-06-15", size: "340 KB", visibility: "all" },
+      { name: "Facility Use Agreement.pdf", category: "Facilities", uploadedBy: "Plus Test Client", date: "2026-06-15", size: "340 KB", visibility: "all" },
       { name: "July Financial Statements.pdf", category: "Financial Statement", uploadedBy: "MyGoodBooks", date: "2026-08-03", size: "198 KB", visibility: "full" },
     ],
     threads: {
@@ -433,6 +433,80 @@ const CLIENTS_MOCK_DATA = [
       kevin: [
         { from: "client", author: "Kevin Nakamura", date: "2026-08-16", text: "We need to replace a monitor for the sound booth. Is there anything left in the worship & media line this month?" },
         { from: "bookkeeper", author: "MyGoodBooks", date: "2026-08-16", text: "You're already about $210 over budget for the month, so I'd hold off if it can wait until September. If it can't, check with Pastor Mia first." },
+      ],
+    },
+  },
+  {
+    // Basic plan test client: one login, the barebones tabs only (Dashboard,
+    // Reports, Documents, Messages). The other arrays stay filled so a
+    // switch to Plus or Pro shows real-looking pages straight away.
+    id: "basic-test",
+    users: [
+      {
+        id: "ruth",
+        name: "Pastor Ruth Allen",
+        role: "Pastor",
+        email: "ruth@cedarcreekchapel.org",
+        access: "full",
+      },
+    ],
+    monthly: [
+      { month: "Sep", income: 4100, expenses: 3900 },
+      { month: "Oct", income: 3950, expenses: 4050 },
+      { month: "Nov", income: 4300, expenses: 4000 },
+      { month: "Dec", income: 6200, expenses: 4400 },
+      { month: "Jan", income: 3800, expenses: 4100 },
+      { month: "Feb", income: 4000, expenses: 3950 },
+      { month: "Mar", income: 4250, expenses: 4000 },
+      { month: "Apr", income: 4400, expenses: 4150 },
+      { month: "May", income: 4150, expenses: 4050 },
+      { month: "Jun", income: 3900, expenses: 4200 },
+      { month: "Jul", income: 4050, expenses: 4100 },
+      { month: "Aug", income: 4300, expenses: 4000 },
+    ],
+    budget: [
+      { category: "Pastor Stipend", budgeted: 2000, actual: 2000 },
+      { category: "Building & Utilities", budgeted: 1100, actual: 1180 },
+      { category: "Ministry Supplies", budgeted: 400, actual: 320 },
+      { category: "Office & Admin", budgeted: 250, actual: 240 },
+      { category: "Insurance", budgeted: 260, actual: 260 },
+    ],
+    bankAccounts: [
+      {
+        id: "operating",
+        accountName: "Operating Checking",
+        accountMask: "7710",
+        type: "Checking",
+        balance: 6240.15,
+        transactions: [
+          { date: "2026-08-23", description: "Sunday Giving Deposit", category: "Giving", amount: 1010.00 },
+          { date: "2026-08-20", description: "Pastor Stipend", category: "Pastor Stipend", amount: -2000.00 },
+          { date: "2026-08-16", description: "Sunday Giving Deposit", category: "Giving", amount: 1120.00 },
+          { date: "2026-08-12", description: "City Electric", category: "Building & Utilities", amount: -310.00 },
+          { date: "2026-08-09", description: "Sunday Giving Deposit", category: "Giving", amount: 980.00 },
+        ],
+      },
+    ],
+    funds: [
+      { name: "General Fund", restricted: false, balance: 6240.15 },
+    ],
+    contributions: [
+      { date: "2026-08-23", donor: "The Allen Family", fund: "General Fund", method: "Online", amount: 150.00 },
+      { date: "2026-08-16", donor: "Anonymous", fund: "General Fund", method: "Cash", amount: 40.00 },
+      { date: "2026-08-09", donor: "The Brooks Family", fund: "General Fund", method: "Check", amount: 100.00 },
+    ],
+    receivables: [],
+    payables: [
+      { vendor: "City Electric", description: "Monthly electric", amount: 305.00, dueDate: "2026-09-12" },
+    ],
+    documents: [
+      { name: "August Bank Statement.pdf", category: "Bank Statement", uploadedBy: "MyGoodBooks", date: "2026-08-25", size: "96 KB", visibility: "full" },
+      { name: "July Financial Statements.pdf", category: "Financial Statement", uploadedBy: "MyGoodBooks", date: "2026-08-03", size: "142 KB", visibility: "full" },
+    ],
+    threads: {
+      ruth: [
+        { from: "client", author: "Pastor Ruth Allen", date: "2026-08-19", text: "Did the July statements come through? I want to share them with our deacons on Sunday." },
+        { from: "bookkeeper", author: "MyGoodBooks", date: "2026-08-19", text: "They're in Documents now, and under Reports. July closed with a small surplus. Nice month." },
       ],
     },
   },

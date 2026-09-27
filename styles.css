@@ -421,6 +421,11 @@ body {
     width: 100%;
   }
 
+  /* The milestone heading collapses to its roman numeral. */
+  .sidebar.sidebar-collapsed .nav-ms-collapsed {
+    display: flex;
+  }
+
   .sidebar.sidebar-collapsed .nav-item {
     justify-content: center;
     padding-left: 0;
@@ -1004,6 +1009,70 @@ body {
 
 @media (prefers-reduced-motion: reduce) {
   .nav-signature-badge-shimmer { animation: none; }
+}
+
+/* Milestone heading (where "Enterprise" used to sit): the milestone name
+   opens the Milestone page; the lock (Basic/Plus) opens the plans page. */
+.nav-ms-heading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.nav-ms-name {
+  font: inherit;
+  font-weight: 600;
+  color: var(--sidebar-text-muted);
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  text-align: left;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+span.nav-ms-name {
+  cursor: default;
+}
+button.nav-ms-name:hover {
+  color: var(--sidebar-text-active);
+}
+.nav-ms-lock {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  background: none;
+  border: 0;
+  padding: 2px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.nav-ms-lock:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+.nav-ms-lock .nav-upsell-icon {
+  margin-left: 0;
+}
+.nav-ms-name:focus-visible,
+.nav-ms-lock:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 2px;
+}
+.nav-ms-collapsed {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  min-width: 32px;
+  height: 22px;
+  margin: 0 auto 6px;
+  padding: 0 6px;
+  border-radius: 999px;
+  border: 1px solid var(--gold);
+  color: var(--gold);
+  font-family: var(--font-heading);
+  font-size: 11px;
+  font-weight: 700;
 }
 
 /* The diagonal arrow at the far right of the upsell row — reads as
@@ -3390,6 +3459,74 @@ body.rb-presenting .main {
   border-color: var(--gold-deep);
   background: var(--surface);
   position: relative;
+}
+
+/* Plans page: three plan cards, features left-aligned, button at the bottom. */
+.plan-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.plan-card-tag {
+  min-height: 22px;
+  display: flex;
+  align-items: center;
+}
+.plan-card-current {
+  border-color: var(--border-strong, var(--border));
+}
+.plan-card-recommended {
+  border-color: var(--gold);
+  box-shadow: 0 0 0 1px var(--gold);
+}
+.plan-feature-list {
+  list-style: none;
+  margin: 14px 0 18px;
+  padding: 0;
+  text-align: left;
+  width: 100%;
+  font-size: 13.5px;
+  color: var(--text);
+  flex: 1;
+}
+.plan-feature-list li {
+  position: relative;
+  padding: 5px 0 5px 20px;
+  border-top: 1px solid var(--border);
+}
+.plan-feature-list li::before {
+  content: "✓";
+  position: absolute;
+  left: 2px;
+  color: var(--gold-deep);
+  font-weight: 700;
+}
+.plan-feature-list li.plan-feature-lead {
+  padding-left: 0;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+.plan-feature-list li.plan-feature-lead::before {
+  content: none;
+}
+.plan-card > button {
+  width: 100%;
+}
+.plans-section-title {
+  font-family: var(--font-heading);
+  font-size: 18px;
+  color: var(--ink-strong);
+  margin: 8px 0 12px;
+}
+.plan-mini-label {
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  border: 1px solid var(--border);
+  padding: 1px 6px;
+  border-radius: 999px;
 }
 
 .pricing-value {

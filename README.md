@@ -126,7 +126,7 @@ because some work happens in Claude Code web sessions. Run `git fetch` and compa
 **Client access controls.**
 
 - **Per person.** On Client Roster → Client contacts, `ClientUserScopeEditor` sets what each
-  contact can see: access level, tabs, categories, funds and a premium throttle. This is stored
+  contact can see: access level, tabs, categories, funds and a "Pro features off" switch. This is stored
   in `client_users`.
   - Empty lists are stored as `null`, which means "everything".
   - This scoping currently only hides things in the app. The database does not yet filter
@@ -136,9 +136,20 @@ because some work happens in Claude Code web sessions. Run `git fetch` and compa
     (see [Known gaps](#known-gaps-and-roadmap)).
   - The Requests tab is real (`access_requests`).
 - **Preview.** Staff can "Preview as" a client user to see what that person sees.
-- **Premium.** Premium features depend on `clients.plan`. The "Force premium plan" dev switch
-  is staff-only and saved per browser. It isn't a security boundary, because the data still
-  goes through RLS.
+- **Plans: Basic, Plus, Pro.** Set per client in `clients.plan`, whose stored values are
+  `basic` / `standard` / `premium`. They're shown as Basic / Plus / Pro, and the names and prices
+  live only in `PLAN_LABELS` / `PLAN_PRICING` in app.jsx.
+  - **Basic** (free): Dashboard (cash, net, revenue, income vs. expenses only), Reports,
+    Documents and Messages, plus the milestone badge. It has one login, no per-person access, and
+    no "Live" label on the sync pill. Other tabs are hidden, not locked (`BASIC_TAB_KEYS`,
+    `BASIC_DASHBOARD_WIDGETS`).
+  - **Plus** ($9/mo per organization): every standard tab, unlimited logins, access per person,
+    and live sync.
+  - **Pro** ($39/mo): the Pro tools inline on the same tabs (see below).
+  - Plan fees sit on top of the milestone (bookkeeping) fee.
+  - The one-login limit and the plan gates are checked in the app only, not on the server.
+  - The "Force Pro plan" dev switch is staff-only and saved per browser. It isn't a security
+    boundary, because the data still goes through RLS.
 
 ## Data: real vs. sample
 
@@ -195,7 +206,7 @@ because some work happens in Claude Code web sessions. Run `git fetch` and compa
 ### Staff side
 
 - **Home** (`bookkeeper-home`): Your clients (with health dots), Needs attention, Needs a visit,
-  Unread messages, Your reminders, Access requests, Enterprise upgrade requests, Recently viewed,
+  Unread messages, Your reminders, Access requests, Upgrade requests (with the plan asked for), Recently viewed,
   Milestones to review, Jump to client.
 - **My Tasks**:
   - Tabs: **Today / Upcoming / Overdue / All / By client**.
@@ -223,12 +234,15 @@ because some work happens in Claude Code web sessions. Run `git fetch` and compa
 
 ### Client side (and staff viewing a client)
 
-- **Dashboard** (customizable widgets and saved views). A premium, full-access client gets
+- **Sidebar heading:** the client's milestone (for example "III · Growth"), which opens the
+  Milestone page. Next to it is the gold **Pro** pill, or for Basic and Plus a lock that opens
+  Plans. Collapsed, it shows just the roman numeral.
+- **Dashboard** (customizable widgets and saved views). A Pro, full-access client gets
   **Live Report** here instead.
 - **Messages**, **Budget vs. Actual**, **Bank Accounts**, **Cash Flow** (receivables and
   payables), **Reports**, **Giving & Funds**, **Payroll** (add-on), **Documents** (with folders
   and previews).
-- **Premium upgrades** show inline on the same tabs:
+- **Pro upgrades** show inline on the same tabs:
   - Live Report
   - Budgeting Tool
   - Cash Flow Pro
@@ -264,8 +278,10 @@ because some work happens in Claude Code web sessions. Run `git fetch` and compa
     can set a milestone). Existing databases run `supabase/milestones-nine-tiers.sql` once for the
     nine-tier chart, then deploy; it clears every confirmed milestone so staff set each client
     again.
-- **Enterprise** page: what premium includes and pricing. The upgrade request is real
-  (`request_enterprise_upgrade`).
+- **Plans** page (`EnterpriseUpgradePage`, page key `enterprise-upgrade`): three plan cards with
+  prices and an Upgrade button for each higher plan. The request is real
+  (`request_enterprise_upgrade`, which takes `p_plan` once `supabase/plans-basic-plus-pro.sql` is
+  applied).
 - **Reports and PDFs** are generated in the browser with jsPDF: P&L, balance sheet, budget vs.
   actual, contribution and giving statements, reconciliation, payroll YTD, draft budget.
 - **Global search**, light/dark toggle, collapsible sidebar. In a mouse/trackpad window at half
@@ -357,7 +373,6 @@ because some work happens in Claude Code web sessions. Run `git fetch` and compa
 **Simplify (Phase 3)**
 
 - Plain-language labels, one name per tab, two nav groups.
-- Rename "Enterprise" (to Plus/Premium) and stop leading the nav with it.
 - Remove sample-data banners wherever live data exists.
 - Loop the Claude Design **"Report Builder Video"** on the sign-in page: video left and card
   right on desktop, muted, no controls, still under reduced-motion, smaller on phones.
