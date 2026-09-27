@@ -214,7 +214,8 @@ because some work happens in Claude Code web sessions. Run `git fetch` and compa
 
 ### Staff side
 
-- **Staff sidebar** (`StaffRail`, desktop and mouse windows): Home, Client view, Team Chat, My
+- **Staff sidebar** (`StaffRail`, desktop and mouse windows): a **Go to client** picker (opens that
+  client's dashboard; a search icon when collapsed expands the sidebar), Home, Client view, Team Chat, My
   Tasks, My Time, and for admins Staff Access, Client Roster, Developer Tools and Usage Stats,
   plus theme and sign out. It shows on staff pages only, in place of the client sidebar, and
   collapses to icons with the usual Collapse toggle. On a client's pages only the client sidebar

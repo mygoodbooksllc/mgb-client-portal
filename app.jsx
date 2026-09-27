@@ -1622,6 +1622,9 @@ function StaffRail({
   onSignOut,
   effectiveTheme,
   onToggleTheme,
+  clients,
+  onPickClient,
+  onExpand,
 }) {
   const [tip, setTip] = useState(null);
   const showTip = (e, text) => {
@@ -1721,6 +1724,38 @@ function StaffRail({
           </span>
         )}
       </div>
+      {clients && clients.length > 0 && (
+        expanded ? (
+          <label className="staff-rail-picker">
+            <span className="client-picker-label">Go to client</span>
+            <select
+              className="client-select"
+              value=""
+              onChange={(e) => e.target.value && onPickClient(e.target.value)}
+            >
+              <option value="">Choose a client…</option>
+              {clients.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
+          </label>
+        ) : (
+          <button
+            type="button"
+            className="staff-rail-item"
+            onClick={onExpand}
+            aria-label="Go to client"
+            onMouseEnter={(e) => showTip(e, "Go to client")}
+            onMouseLeave={hideTip}
+            onFocus={(e) => showTip(e, "Go to client")}
+            onBlur={hideTip}
+          >
+            <SearchIcon />
+          </button>
+        )
+      )}
       <nav className="staff-rail-nav">
         {items.map(renderItem)}
         {adminItems.length > 0 && (
@@ -22763,6 +22798,17 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
             effectiveTheme={effectiveTheme}
             onToggleTheme={() =>
               setTheme(effectiveTheme === "dark" ? "light" : "dark")
+            }
+            clients={visibleClients}
+            onPickClient={(clientId) => {
+              if (clientId === selectedClientId) setPage("dashboard");
+              else {
+                pageAfterClientSwitch.current = "dashboard";
+                setSelectedClientId(clientId);
+              }
+            }}
+            onExpand={
+              halfScreen ? () => setHalfScreenExpanded(true) : toggleSidebarCollapsed
             }
           />
         )}

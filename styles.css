@@ -8223,3 +8223,12 @@ body:has(.modal-overlay) .chat-fab-wrap {
 .staff-rail:not(.expanded) .staff-rail-collapse .sidebar-collapse-toggle-icon {
   transform: rotate(-90deg);
 }
+/* "Go to client" picker at the top of the staff sidebar. */
+.staff-rail-picker {
+  display: block;
+  margin-bottom: 12px;
+}
+.staff-rail-picker .client-select {
+  display: block;
+  width: 100%;
+}
