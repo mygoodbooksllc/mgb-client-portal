@@ -1606,9 +1606,10 @@ function Sidebar({
 }
 
 // Staff sidebar (owner request 2026-09-27). Staff pages get it in place of
-// the client sidebar (icons only when collapsed). A client's pages don't
-// show it: there the staff links stay in the menu under the staffer's name
-// (see Sidebar), as they do in the phone drawer. Desktop only.
+// the client sidebar (icons only when collapsed); a client's pages get it as
+// an icon strip beside the client sidebar. Hidden while previewing as one of
+// the client's people (see App). Desktop only; the phone drawer keeps the
+// staff links in the menu under the staffer's name (see Sidebar).
 function StaffRail({
   staffUser,
   page,
@@ -1724,7 +1725,8 @@ function StaffRail({
           </span>
         )}
       </div>
-      {clients && clients.length > 0 && (
+      {/* Client pages already have the client sidebar's own picker. */}
+      {clients && clients.length > 0 && !onClientPage && (
         expanded ? (
           <label className="staff-rail-picker">
             <span className="client-picker-label">Go to client</span>
@@ -1805,7 +1807,7 @@ function StaffRail({
           <SignOutIcon />
           {expanded && <span className="staff-rail-label">Sign out</span>}
         </button>
-        {onToggleCollapse && (
+        {onToggleCollapse && NON_CLIENT_PAGES.has(page) && (
           <button
             type="button"
             className="sidebar-collapse-toggle staff-rail-collapse"
@@ -22738,13 +22740,15 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
     );
   }
 
-  // Staff sidebar: staff pages only (desktop; see StaffRail). A client's
-  // pages keep just the client sidebar, with the staff links in the menu
-  // under the staffer's name.
+  // Staff sidebar (desktop; see StaffRail): full width on staff pages, an
+  // icon strip beside the client sidebar on a client's pages. Hidden while
+  // previewing as one of the client's people, so the preview shows only
+  // what that person sees.
+  const onStaffPage = NON_CLIENT_PAGES.has(effectivePage);
   const showStaffRail = !!(
     isStaffSession &&
     effectiveStaffUser &&
-    NON_CLIENT_PAGES.has(effectivePage)
+    (onStaffPage || !isPreviewingUser)
   );
 
   return (
@@ -22758,7 +22762,8 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
         className={
           "app-shell" +
           (isPreviewingUser ? " previewing" : "") +
-          (showStaffRail ? " on-staff-page" : "")
+          (showStaffRail ? " has-staff-rail" : "") +
+          (showStaffRail && onStaffPage ? " on-staff-page" : "")
         }
       >
         <div className="mobile-topbar">
@@ -22784,7 +22789,9 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
             staffUser={effectiveStaffUser}
             page={effectivePage}
             onSelectPage={setPage}
-            expanded={!(halfScreen ? !halfScreenExpanded : sidebarCollapsed)}
+            expanded={
+              onStaffPage && !(halfScreen ? !halfScreenExpanded : sidebarCollapsed)
+            }
             onToggleCollapse={
               halfScreen ? () => setHalfScreenExpanded((v) => !v) : toggleSidebarCollapsed
             }
