@@ -1605,6 +1605,203 @@ function Sidebar({
   );
 }
 
+// Staff sidebar (owner request 2026-09-27). Staff pages get it at full
+// width in place of the client sidebar; on a client's pages it collapses to
+// an icon strip with the client sidebar right beside it. Desktop only: on
+// touch phones the drawer keeps the same links in the staff menu under the
+// staffer's name (see Sidebar).
+function StaffRail({
+  staffUser,
+  page,
+  onSelectPage,
+  expanded,
+  onToggleCollapse,
+  staffMessagesUnread,
+  myTasksDue,
+  impersonating,
+  showsAdminPages,
+  onSignOut,
+  effectiveTheme,
+  onToggleTheme,
+}) {
+  const [tip, setTip] = useState(null);
+  const showTip = (e, text) => {
+    if (expanded) return;
+    setTip({ text, rect: e.currentTarget.getBoundingClientRect() });
+  };
+  const hideTip = () => setTip(null);
+  useEffect(() => {
+    if (expanded) setTip(null);
+  }, [expanded]);
+  const onClientPage = !NON_CLIENT_PAGES.has(page);
+  const items = [
+    { key: "bookkeeper-home", label: "Home", icon: <HomeIcon /> },
+    {
+      key: "dashboard",
+      label: "Client view",
+      icon: <GridIcon />,
+      active: onClientPage,
+    },
+    ...(impersonating
+      ? []
+      : [
+          {
+            key: "staff-messages",
+            label: "Team Chat",
+            icon: <ChatIcon width="16" height="16" strokeWidth="1.8" />,
+            dot: staffMessagesUnread,
+          },
+          {
+            key: "my-tasks",
+            label: "My Tasks",
+            icon: <ChecklistIcon width="16" height="16" strokeWidth="1.8" />,
+            due: true,
+          },
+          {
+            key: "my-time",
+            label: "My Time",
+            icon: <ClockIcon width="16" height="16" strokeWidth="1.8" />,
+          },
+        ]),
+  ];
+  const adminItems = showsAdminPages
+    ? [
+        { key: "staff-access", label: "Staff Access", icon: <UsersIcon /> },
+        { key: "client-access", label: "Client Roster", icon: <ClientRosterIcon /> },
+        { key: "developer-tools", label: "Developer Tools", icon: <WrenchIcon /> },
+        { key: "usage-stats", label: "Usage Stats", icon: <BarChartIcon /> },
+      ]
+    : [];
+  const initials = (staffUser.name || "")
+    .split(" ")
+    .map((p) => p[0])
+    .slice(0, 2)
+    .join("");
+  const renderItem = (it) => {
+    const active = it.active != null ? it.active : page === it.key;
+    return (
+      <button
+        key={it.key}
+        type="button"
+        className={"staff-rail-item" + (active ? " active" : "")}
+        onClick={() => {
+          hideTip();
+          onSelectPage(it.key);
+        }}
+        aria-label={expanded ? undefined : it.label}
+        aria-current={active ? "page" : undefined}
+        onMouseEnter={(e) => showTip(e, it.label)}
+        onMouseLeave={hideTip}
+        onFocus={(e) => showTip(e, it.label)}
+        onBlur={hideTip}
+      >
+        {it.icon}
+        {expanded && <span className="staff-rail-label">{it.label}</span>}
+        {it.dot && <span className="nav-badge-dot staff-rail-dot" aria-label="Unread" />}
+        {it.due && expanded && <MyTasksDueCount due={myTasksDue} />}
+        {it.due && !expanded && myTasksDue && myTasksDue.due > 0 && (
+          <span className="nav-badge-dot staff-rail-dot" aria-label={`${myTasksDue.due} tasks due`} />
+        )}
+      </button>
+    );
+  };
+  return (
+    <aside
+      className={"staff-rail" + (expanded ? " expanded" : "")}
+      aria-label="Staff navigation"
+    >
+      <div className="staff-rail-brand">
+        {expanded ? (
+          <>
+            <span className="brand-name">MyGoodBooks</span>
+            <span className="brand-sub">Staff</span>
+          </>
+        ) : (
+          <span className="staff-rail-mark" aria-hidden="true">
+            MGB
+          </span>
+        )}
+      </div>
+      <nav className="staff-rail-nav">
+        {items.map(renderItem)}
+        {adminItems.length > 0 && (
+          <>
+            <div className="staff-rail-divider" />
+            {expanded && <div className="staff-rail-heading">Admin</div>}
+            {adminItems.map(renderItem)}
+          </>
+        )}
+      </nav>
+      <div className="staff-rail-foot">
+        {expanded && (
+          <button
+            type="button"
+            className="staff-rail-item"
+            onClick={onToggleTheme}
+          >
+            {effectiveTheme === "dark" ? <SunIcon /> : <MoonIcon />}
+            <span className="staff-rail-label">
+              {effectiveTheme === "dark" ? "Light mode" : "Dark mode"}
+            </span>
+          </button>
+        )}
+        <div
+          className="staff-rail-user"
+          onMouseEnter={(e) => showTip(e, `${staffUser.name} · ${staffUser.role}`)}
+          onMouseLeave={hideTip}
+        >
+          <span className="staff-user-avatar">{initials}</span>
+          {expanded && (
+            <span className="staff-user-chip-text">
+              <span className="staff-user-chip-name">{staffUser.name}</span>
+              <span className="staff-user-chip-role">{staffUser.role}</span>
+            </span>
+          )}
+        </div>
+        <button
+          type="button"
+          className="staff-rail-item"
+          onClick={onSignOut}
+          aria-label={expanded ? undefined : "Sign out"}
+          onMouseEnter={(e) => showTip(e, "Sign out")}
+          onMouseLeave={hideTip}
+          onFocus={(e) => showTip(e, "Sign out")}
+          onBlur={hideTip}
+        >
+          <SignOutIcon />
+          {expanded && <span className="staff-rail-label">Sign out</span>}
+        </button>
+        {onToggleCollapse && NON_CLIENT_PAGES.has(page) && (
+          <button
+            type="button"
+            className="sidebar-collapse-toggle staff-rail-collapse"
+            onClick={onToggleCollapse}
+            aria-label={expanded ? "Collapse sidebar" : "Expand sidebar"}
+            onMouseEnter={(e) => showTip(e, "Expand")}
+            onMouseLeave={hideTip}
+          >
+            <ChevronDownIcon className="sidebar-collapse-toggle-icon" />
+            {expanded && <span>Collapse</span>}
+          </button>
+        )}
+      </div>
+      {tip &&
+        ReactDOM.createPortal(
+          <div
+            className="icon-hover-tip"
+            style={{
+              top: tip.rect.top + tip.rect.height / 2,
+              left: tip.rect.right + 10,
+            }}
+          >
+            {tip.text}
+          </div>,
+          document.body,
+        )}
+    </aside>
+  );
+}
+
 // ----------------------------------------------------------------------------
 // Shared bits
 // ----------------------------------------------------------------------------
@@ -22507,6 +22704,9 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
     );
   }
 
+  // Staff sidebar: every staff session gets it (desktop; see StaffRail).
+  const showStaffRail = !!(isStaffSession && effectiveStaffUser);
+
   return (
     <ToastProvider>
       <div className="mesh-bg" aria-hidden="true">
@@ -22514,7 +22714,14 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
         <span></span>
         <span></span>
       </div>
-      <div className={"app-shell" + (isPreviewingUser ? " previewing" : "")}>
+      <div
+        className={
+          "app-shell" +
+          (isPreviewingUser ? " previewing" : "") +
+          (showStaffRail ? " has-staff-rail" : "") +
+          (showStaffRail && NON_CLIENT_PAGES.has(effectivePage) ? " on-staff-page" : "")
+        }
+      >
         <div className="mobile-topbar">
           <button
             className="hamburger-btn"
@@ -22533,6 +22740,31 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
           className={"sidebar-scrim" + (mobileNavOpen ? " visible" : "")}
           onClick={() => setMobileNavOpen(false)}
         ></div>
+        {showStaffRail && (
+          <StaffRail
+            staffUser={effectiveStaffUser}
+            page={effectivePage}
+            onSelectPage={setPage}
+            expanded={
+              NON_CLIENT_PAGES.has(effectivePage) &&
+              !(halfScreen ? !halfScreenExpanded : sidebarCollapsed)
+            }
+            onToggleCollapse={
+              halfScreen ? () => setHalfScreenExpanded((v) => !v) : toggleSidebarCollapsed
+            }
+            staffMessagesUnread={staffMessagesUnread}
+            myTasksDue={myTasksDue}
+            impersonating={impersonating}
+            showsAdminPages={
+              (effectiveStaffUser.role === "admin" || hasTempAdminAccess) && !impersonating
+            }
+            onSignOut={onSignOut}
+            effectiveTheme={effectiveTheme}
+            onToggleTheme={() =>
+              setTheme(effectiveTheme === "dark" ? "light" : "dark")
+            }
+          />
+        )}
         <Sidebar
           clients={visibleClients}
           selectedClientId={selectedClientId}

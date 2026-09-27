@@ -20,7 +20,7 @@ This README replaces the old `HANDOFF*.md` notes. If code and docs ever disagree
 | Hosting | Vercel project `mgb-client-portal`. It deploys `main` automatically to **https://app.mygoodbooks.org**. There's no build step: Vercel serves the files as they are. |
 | Database, sign-in, file storage, server functions | Supabase project **"MGB Client Portal"**, ref `xumsqmhccgfjnlmieqyu` |
 | Staff Google sign-in | Google Cloud project "MyGoodBooks Auth". Its OAuth client is set to **Internal**, so only `mygoodbooks.org` accounts can use it. |
-| Design system | Claude Design project "MyGoodBooks Design System" (see [Claude Design](#claude-design)) |
+| Design system | **MyGoodBooks** (https://claude.ai/artifact/ARYpfcrCbFgFxJnbm1xqLx), the organization's default (see [Claude Design](#claude-design)) |
 
 The local folder (`~/Desktop/Mygoodbooks-app-code/client-dashboard`) can fall behind GitHub,
 because some work happens in Claude Code web sessions. Run `git fetch` and compare with
@@ -80,7 +80,7 @@ because some work happens in Claude Code web sessions. Run `git fetch` and compa
 | `.vercelignore` | Keeps internal files out of the public deploy (see [Working on it](#working-on-it)) |
 | `logo.webp` | Logo |
 | `marketing/` | Marketing drafts, plus `pricing-embed.html`: the public pricing chart as a Squarespace Code Block (plain HTML/CSS). Not deployed. |
-| `design-system/` | Design-system package for Claude Design. Not deployed. |
+| `design-system/` | The retired design-system package (reference only; see [Claude Design](#claude-design)). Not deployed. |
 
 ## Sign-in and access
 
@@ -213,6 +213,13 @@ because some work happens in Claude Code web sessions. Run `git fetch` and compa
 ## Main features
 
 ### Staff side
+
+- **Staff sidebar** (`StaffRail`, desktop and mouse windows): Home, Client view, Team Chat, My
+  Tasks, My Time, and for admins Staff Access, Client Roster, Developer Tools and Usage Stats,
+  plus theme and sign out. On staff pages it's full width and replaces the client sidebar, and
+  it collapses with the usual Collapse toggle. On a client's pages it shrinks to a 64px icon
+  strip with the client sidebar beside it. On touch phones the drawer's menu under your name
+  still has the same links.
 
 - **Home** (`bookkeeper-home`): Your clients (with health dots), Needs attention, Needs a visit,
   Unread messages, Your reminders, Access requests, Upgrade requests (with the plan asked for), Recently viewed,
@@ -359,15 +366,15 @@ because some work happens in Claude Code web sessions. Run `git fetch` and compa
 
 ## Claude Design
 
-- `design-system/` is a small React/TypeScript package of the app's visual building blocks
-  (cards, buttons, badges, charts, icons, toasts). It's synced to the Claude Design project
-  **"MyGoodBooks Design System"**
-  (https://claude.ai/design/p/b5c754f7-266e-4cf2-98a4-f1445fca1cc8) with `/design-sync`.
-- Its `src/styles.css` is a **manual copy** of the relevant parts of the app's `styles.css`.
-  If you change the app's look, copy the changes over and re-sync. Check the brace balance
-  afterwards, because a missing `}` has broken it before.
-- Setup quirks, known issues and conventions are in `design-system/.design-sync/NOTES.md` and
-  `design-system/README.md`.
+- **The design system is "MyGoodBooks"** (https://claude.ai/artifact/ARYpfcrCbFgFxJnbm1xqLx),
+  a claude.ai Design System artifact and the organization's default. It holds the brand README,
+  tokens (`project/tokens.json`), components with previews, and assets. New decks and designs
+  should build on it.
+- **Retired:** the old Claude Design project "MyGoodBooks Design System"
+  (`b5c754f7-266e-4cf2-98a4-f1445fca1cc8`). The local `design-system/` package was synced to it
+  with `/design-sync` and is kept only for reference. Don't sync it to the old project.
+- The app's own `styles.css` is still the source of truth for the live app. When the look
+  changes, update the MyGoodBooks design system to match.
 
 ## Known gaps and roadmap
 
