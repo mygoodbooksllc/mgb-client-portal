@@ -886,7 +886,7 @@ function Sidebar({
     const cur = sidebarMs && sidebarMs.current;
     const clickable = !(access && access.isCategoryScoped);
     if (cur && !(viewingAsStaff && sidebarMs.unconfirmed)) {
-      return { text: `${cur.roman} · ${cur.name}`, roman: cur.roman, clickable };
+      return { text: cur.churchPlant ? cur.name : `${cur.roman} · ${cur.name}`, roman: cur.roman, clickable };
     }
     return { text: viewingAsStaff ? "Set milestone" : "Milestone", roman: cur ? cur.roman : null, clickable };
   })();
@@ -3567,6 +3567,21 @@ const PRICING_MILESTONES = [
   { tier: 9, roman: "IX", name: "Enterprise", txMax: Infinity, budgetMax: Infinity, fee: null, txLabel: "800+", budgetLabel: "$4M+" },
 ];
 const TOP_MILESTONE_TIER = PRICING_MILESTONES.length;
+// Church Plant (owner decision 2026-09-27): a flat rate until the church
+// launches. Stored as tier 0 so tiers 1-9 keep their numbers. Staff set it;
+// the numbers never suggest it, and no change is proposed while a client is
+// on it. After launch, staff set the regular milestone.
+const CHURCH_PLANT_MILESTONE = {
+  tier: 0,
+  roman: "CP",
+  name: "Church Plant",
+  txMax: Infinity,
+  budgetMax: Infinity,
+  fee: 100,
+  txLabel: "Until launch",
+  budgetLabel: "Until launch",
+  churchPlant: true,
+};
 // Names on the first (six-tier) chart, used only for history rows recorded
 // before 2026-09-26 (client_milestone_history.chart = 1).
 const LEGACY_MILESTONE_NAMES = ["Foundation", "Growth", "Established", "Advanced", "Strategic", "Enterprise"];
@@ -3581,7 +3596,8 @@ const MILESTONE_BUDGET_SOURCE_LABEL = {
   other: "Entered by MyGoodBooks",
 };
 
-const milestoneByTier = (tier) => PRICING_MILESTONES[tier - 1] || null;
+const milestoneByTier = (tier) =>
+  tier === 0 ? CHURCH_PLANT_MILESTONE : PRICING_MILESTONES[tier - 1] || null;
 const milestoneFeeLabel = (m) => (m.fee == null ? "Custom" : `${fmtMoney(m.fee)}/mo`);
 const tierForTx = (avg) => PRICING_MILESTONES.find((m) => Math.round(avg) <= m.txMax).tier;
 const tierForBudget = (b) => PRICING_MILESTONES.find((m) => b <= m.budgetMax).tier;
@@ -3607,10 +3623,11 @@ function summarizeMilestone(stats, row) {
   const budgetTier = budget == null ? null : tierForBudget(budget);
   const computedTier =
     txTier == null && budgetTier == null ? null : Math.max(txTier || 1, budgetTier || 1);
-  const confirmedTier = row && row.confirmed_tier ? row.confirmed_tier : null;
-  const current = milestoneByTier(confirmedTier || computedTier);
+  const confirmedTier = row && row.confirmed_tier != null ? row.confirmed_tier : null;
+  const churchPlant = confirmedTier === 0;
+  const current = milestoneByTier(confirmedTier != null ? confirmedTier : computedTier);
   const approaching = (() => {
-    if (!computedTier || computedTier >= TOP_MILESTONE_TIER) return null;
+    if (churchPlant || !computedTier || computedTier >= TOP_MILESTONE_TIER) return null;
     const m = milestoneByTier(computedTier);
     const next = milestoneByTier(computedTier + 1);
     if (avgTx != null && avgTx >= m.txMax * MILESTONE_APPROACH_SHARE) return next;
@@ -3640,9 +3657,12 @@ function summarizeMilestone(stats, row) {
           : budgetTier != null
             ? "budget"
             : null,
+    churchPlant,
     pendingTier:
-      computedTier && confirmedTier && computedTier !== confirmedTier ? computedTier : null,
-    unconfirmed: !confirmedTier && !!computedTier,
+      !churchPlant && computedTier && confirmedTier && computedTier !== confirmedTier
+        ? computedTier
+        : null,
+    unconfirmed: confirmedTier == null && !!computedTier,
     approaching,
     confirmedAt: row ? row.confirmed_at : null,
     budgetAsOf: row ? row.budget_as_of : null,
@@ -3798,7 +3818,7 @@ function MilestoneTable({ currentTier }) {
           </tr>
         </thead>
         <tbody>
-          {PRICING_MILESTONES.map((m) => (
+          {[CHURCH_PLANT_MILESTONE, ...PRICING_MILESTONES].map((m) => (
             <tr key={m.tier} className={m.tier === currentTier ? "ms-row-current" : ""}>
               <td data-primary="">
                 <span className="ms-roman">{m.roman}</span> {m.name}
@@ -3884,6 +3904,15 @@ function MilestoneMeters({ s }) {
 }
 
 function MilestoneStatusNote({ s, staff }) {
+  if (s.churchPlant) {
+    return (
+      <p className="ms-status">
+        {staff
+          ? `Church Plant rate (${milestoneFeeLabel(CHURCH_PLANT_MILESTONE)}) until launch. After launch, set their regular milestone${s.computedTier ? ` (the numbers point to ${milestoneByTier(s.computedTier).name})` : ""}.`
+          : `You're on the Church Plant rate (${milestoneFeeLabel(CHURCH_PLANT_MILESTONE)}) until your launch. After launch, your milestone follows your numbers, and your bookkeeper will talk it through with you first.`}
+      </p>
+    );
+  }
   if (s.pendingTier) {
     const p = milestoneByTier(s.pendingTier);
     return (
@@ -3928,7 +3957,9 @@ function MilestoneBadge({ client, staff, onOpen }) {
   // How far toward the next milestone, by whichever measure is further along
   // (the higher measure sets the milestone). Full once the numbers reach it.
   let progress = 1;
-  if (cur.tier < TOP_MILESTONE_TIER) {
+  if (cur.churchPlant) {
+    progress = 0;
+  } else if (cur.tier < TOP_MILESTONE_TIER) {
     const floor = cur.tier > 1 ? milestoneByTier(cur.tier - 1) : { txMax: 0, budgetMax: 0 };
     const parts = [];
     if (s.avgTx != null) parts.push((s.avgTx - floor.txMax) / (cur.txMax - floor.txMax));
@@ -3947,8 +3978,9 @@ function MilestoneBadge({ client, staff, onOpen }) {
   } else if (staff && s.unconfirmed) {
     note = { text: "Set milestone", kind: "staff" };
   }
-  const tipText =
-    cur.tier < TOP_MILESTONE_TIER
+  const tipText = cur.churchPlant
+    ? "Church plant rate until launch"
+    : cur.tier < TOP_MILESTONE_TIER
       ? `${Math.round(progress * 100)}% of the way to ${milestoneByTier(cur.tier + 1).name}`
       : "Top milestone";
   const title = `Milestone ${cur.roman} ${cur.name}, ${tipText}` + (note ? `. ${note.text}` : "");
@@ -4037,7 +4069,8 @@ function MilestonePage({ client, isStaff }) {
               <div className="ms-name">{s.current.name}</div>
               <div className="ms-fee-lg">
                 {s.current.fee == null ? "Custom pricing" : `${fmtMoney(s.current.fee)} / month`}
-                {s.confirmedTier ? "" : " · estimate"}
+                {s.confirmedTier != null ? "" : " · estimate"}
+                {s.churchPlant ? " · until launch" : ""}
               </div>
             </div>
           </div>
@@ -4088,7 +4121,7 @@ function MilestoneStaffPanel({ client, formsOnly }) {
     setAsOfDraft((row && row.budget_as_of) || "");
   }, [row && row.updated_at]);
   useEffect(() => {
-    if (s && pickTier == null) setPickTier(s.computedTier || s.confirmedTier || 1);
+    if (s && pickTier == null) setPickTier(s.computedTier || (s.confirmedTier != null ? s.confirmedTier : 1));
   }, [s && s.computedTier]);
 
   const loadHistory = useCallback(() => {
@@ -4127,7 +4160,7 @@ function MilestoneStaffPanel({ client, formsOnly }) {
   }
 
   async function confirmTier() {
-    if (!pickTier) return;
+    if (pickTier == null) return;
     setSaving(true);
     const { error } = await milestonesApi.confirm(window.mgbSupabase, client.id, pickTier, s, note);
     setSaving(false);
@@ -4141,7 +4174,7 @@ function MilestoneStaffPanel({ client, formsOnly }) {
     loadHistory();
   }
 
-  const confirmed = s.confirmedTier ? milestoneByTier(s.confirmedTier) : null;
+  const confirmed = s.confirmedTier != null ? milestoneByTier(s.confirmedTier) : null;
   const computed = s.computedTier ? milestoneByTier(s.computedTier) : null;
 
   return (
@@ -4219,8 +4252,8 @@ function MilestoneStaffPanel({ client, formsOnly }) {
         <div className="ms-form-row">
           <label className="task-field ms-tier-field">
             <span>Milestone</span>
-            <select value={pickTier || ""} onChange={(e) => setPickTier(Number(e.target.value))}>
-              {PRICING_MILESTONES.map((m) => (
+            <select value={pickTier == null ? "" : pickTier} onChange={(e) => setPickTier(Number(e.target.value))}>
+              {[CHURCH_PLANT_MILESTONE, ...PRICING_MILESTONES].map((m) => (
                 <option key={m.tier} value={m.tier}>
                   {m.roman} {m.name} · {milestoneFeeLabel(m)}
                   {m.tier === s.computedTier ? " · suggested" : ""}
@@ -4235,7 +4268,7 @@ function MilestoneStaffPanel({ client, formsOnly }) {
           <button
             type="button"
             className="btn-primary"
-            disabled={saving || !pickTier || pickTier === s.confirmedTier}
+            disabled={saving || pickTier == null || pickTier === s.confirmedTier}
             onClick={confirmTier}
           >
             {pickTier === s.confirmedTier ? "Already set" : "Set milestone"}

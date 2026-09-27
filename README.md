@@ -271,14 +271,20 @@ because some work happens in Claude Code web sessions. Run `git fetch` and compa
   - **Tiers (since 2026-09-26).** Nine milestones: I Starter $250 (up to 30 tx, up to $150K),
     II Foundation $300, III Growth $400, IV Expanding $600, V Established $700, VI Advanced $800,
     VII Strategic $1,500, VIII Premier $2,500 (501–800 tx, $3M–$4M), IX Enterprise custom
-    (800+ tx or $4M+). The old six-tier chart's history rows have `chart = 1` and show with their
+    (800+ tx or $4M+).
+  - **Church Plant (since 2026-09-27).** $100/mo until the church launches. It's stored as tier 0
+    (`CHURCH_PLANT_MILESTONE`) and shows as "CP" / "Church Plant". Staff pick it in Set milestone;
+    the numbers never suggest it, and no change is proposed while a client is on it. After
+    launch, staff set the regular milestone. Needs `supabase/milestones-church-plant.sql`, which
+    allows tier 0.
+  - The old six-tier chart's history rows have `chart = 1` and show with their
     old names plus "(old chart)".
   - **Badge.** Navy-and-gold pill in the header of every client page: "MILESTONE" over the name,
     the numeral in a gold medallion with a progress ring toward the next milestone, and a note
     right on the badge: "Near X" (within 90%), "Reached X" or "Moving to X" (numbers point to a
     different milestone that staff haven't set yet). Staff also see "Set milestone" on clients not
     set yet. Hover shows "N% of the way to X". Hidden from category-scoped users and on staff-only
-    pages. Not in the sidebar.
+    pages. The sidebar heading repeats it.
   - **Milestone page** (opened from the badge): staff see **Staff: budget and milestone** first
     (budget entry, Set milestone with a note, history), then the client view: summary, the two
     progress bars, the step chart with "You are here", and the full table. Clients see only the
