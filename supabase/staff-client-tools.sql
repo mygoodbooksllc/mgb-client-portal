@@ -15,6 +15,8 @@
 --   5. client_sent_items     what was sent to the client, and when
 --   6. read access for the overview: staff can read time entries and page
 --      views for clients they can access (admins already could)
+--   7. upgrade requests can ask for the Payroll add-on (requested_plan
+--      'payroll'), from the Payroll page a client without it sees
 
 begin;
 
@@ -239,5 +241,75 @@ create policy "staff read client usage events" on public.usage_events
   for select using (
     client_id is not null and public.is_active_staff() and public.can_access_client(client_id)
   );
+
+-- ---------------------------------------------------------------------------
+-- 7. Payroll add-on requests
+-- ---------------------------------------------------------------------------
+alter table public.enterprise_upgrade_requests
+  drop constraint if exists enterprise_upgrade_requests_requested_plan_check;
+alter table public.enterprise_upgrade_requests
+  add constraint enterprise_upgrade_requests_requested_plan_check
+  check (requested_plan is null or requested_plan in ('standard', 'premium', 'payroll'));
+
+create or replace function public.request_enterprise_upgrade(
+  p_client_id text,
+  p_requested_by text,
+  p_plan text default null
+)
+returns enterprise_upgrade_requests
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_open_count integer;
+  v_row enterprise_upgrade_requests;
+begin
+  if p_client_id is null or length(trim(p_client_id)) = 0 then
+    raise exception 'invalid_client_id' using errcode = 'P0001';
+  end if;
+
+  if auth.jwt() ->> 'email' is null then
+    raise exception 'not_authorized' using errcode = 'P0001';
+  end if;
+
+  if not (
+    public.can_access_client(p_client_id)
+    or exists (
+      select 1 from client_users cu
+      where cu.email = auth.jwt() ->> 'email'
+        and cu.client_id = p_client_id
+        and cu.active
+    )
+  ) then
+    raise exception 'not_authorized' using errcode = 'P0001';
+  end if;
+
+  if p_requested_by is not null and length(p_requested_by) > 200 then
+    raise exception 'requested_by_too_long' using errcode = 'P0001';
+  end if;
+
+  if p_plan is not null and p_plan not in ('standard', 'premium', 'payroll') then
+    raise exception 'invalid_plan' using errcode = 'P0001';
+  end if;
+
+  select count(*) into v_open_count
+  from enterprise_upgrade_requests
+  where client_id = p_client_id and status = 'new';
+
+  if v_open_count >= 5 then
+    raise exception 'too_many_open_requests' using errcode = 'P0001';
+  end if;
+
+  insert into enterprise_upgrade_requests (client_id, requested_by, requested_plan)
+  values (p_client_id, p_requested_by, p_plan)
+  returning * into v_row;
+
+  return v_row;
+end;
+$$;
+
+revoke all on function public.request_enterprise_upgrade(text, text, text) from public, anon;
+grant execute on function public.request_enterprise_upgrade(text, text, text) to authenticated;
 
 commit;

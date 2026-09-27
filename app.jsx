@@ -700,7 +700,9 @@ const payrollPriceLabel = `$${PAYROLL_PRICING.base}/mo + $${PAYROLL_PRICING.perE
 
 // Basic is barebones: statements, documents and a way to reach the
 // bookkeeper. No dashboard. Everything else is hidden rather than shown locked.
-const BASIC_TAB_KEYS = new Set(["messages", "reports", "documents"]);
+// Payroll is an add-on for any plan, so Basic shows it too (as an add-on
+// until they have it).
+const BASIC_TAB_KEYS = new Set(["messages", "reports", "documents", "payroll"]);
 
 function isBasicPlan(client, allowDevOverride = true) {
   const preview = allowDevOverride ? getPreviewPlan(client.id) : null;
@@ -1505,14 +1507,30 @@ function Sidebar({
                           onSelectPage(item.key);
                           onCloseMobile();
                         }}
-                        aria-label={collapsed ? item.label : undefined}
-                        onMouseEnter={(e) => showTip(e, item.label)}
+                        aria-label={
+                          collapsed
+                            ? item.key === "payroll" && client && !client.payrollAddOn
+                              ? "Payroll (add-on)"
+                              : item.label
+                            : undefined
+                        }
+                        onMouseEnter={(e) =>
+                          showTip(
+                            e,
+                            item.key === "payroll" && client && !client.payrollAddOn
+                              ? "Payroll (add-on)"
+                              : item.label,
+                          )
+                        }
                         onMouseLeave={hideTip}
                         onFocus={(e) => showTip(e, item.label)}
                         onBlur={hideTip}
                       >
                         {item.icon}
                         <span className="nav-item-label">{item.label}</span>
+                        {item.key === "payroll" && client && !client.payrollAddOn && (
+                          <span className="nav-addon-tag">Add-on</span>
+                        )}
                         {badges[item.key] && (
                           <span
                             className="nav-badge-dot"
@@ -7303,6 +7321,123 @@ const PAYROLL_DEPOSIT_STATUS_META = {
   filed: { label: "Filed", cls: "positive" },
 };
 
+// What a client without the add-on sees: the price and what it includes.
+// The sidebar marks Payroll "Add-on" for them (see Sidebar).
+const PAYROLL_ADDON_FEATURES = [
+  {
+    title: "Every employee in one place",
+    text: "Pay type, status and direct-deposit enrollment for each person, synced from Gusto.",
+  },
+  {
+    title: "Tax deposits tracked",
+    text: "Federal 941, state withholding and FUTA, with amounts and due dates, so nothing sneaks up on you.",
+  },
+  {
+    title: "Part of your books",
+    text: "Payroll cost rolls into Budget vs. Actual and Reports, and a Payroll year-to-date report joins the others.",
+  },
+  {
+    title: "Works on any plan",
+    text: "Add it to Basic, Plus or Pro. It's billed monthly with the rest of your MyGoodBooks fee.",
+  },
+];
+
+function PayrollAddOnPage({ client, clientPortalUser }) {
+  const showToast = useToast();
+  const { staff } = useContext(StaffToolsContext);
+  const [employees, setEmployees] = useState(5);
+  const [requesting, setRequesting] = useState(false);
+  const count = Math.max(0, Math.round(Number(employees) || 0));
+  const total = PAYROLL_PRICING.base + PAYROLL_PRICING.perEmployee * count;
+
+  async function requestAddOn() {
+    const supabase = window.mgbSupabase;
+    const requestedBy =
+      (clientPortalUser && (clientPortalUser.name || clientPortalUser.email)) ||
+      "Someone at " + client.name;
+    if (!supabase) {
+      showToast("Thanks! Your bookkeeper will follow up about Payroll.");
+      return;
+    }
+    setRequesting(true);
+    let { error } = await supabase.rpc("request_enterprise_upgrade", {
+      p_client_id: client.id,
+      p_requested_by: requestedBy,
+      p_plan: "payroll",
+    });
+    // Until staff-client-tools.sql runs, requests only know plan names.
+    if (error && /invalid_plan|requested_plan|23514|PGRST202/i.test((error.message || "") + " " + (error.code || ""))) {
+      ({ error } = await supabase.rpc("request_enterprise_upgrade", {
+        p_client_id: client.id,
+        p_requested_by: `${requestedBy} (wants the Payroll add-on)`,
+      }));
+    }
+    setRequesting(false);
+    if (error) {
+      console.warn("Couldn't file payroll request:", error.message);
+      showToast("Couldn't send that request — please email your bookkeeper and we'll sort it out.");
+      return;
+    }
+    showToast("Thanks! Your bookkeeper will follow up about adding Payroll.");
+  }
+
+  return (
+    <div className="payroll-addon">
+      <div className="card payroll-addon-hero">
+        <div className="eyebrow-badge">Payroll · Add-on</div>
+        <h2>Add Payroll for {client.name}</h2>
+        <p className="payroll-addon-lede">
+          Keep running payroll in Gusto. Connect it here and every employee's pay, withholding and
+          upcoming tax deposits sit right alongside the rest of your books.
+        </p>
+        <div className="payroll-addon-price">
+          <span className="payroll-addon-amount">${PAYROLL_PRICING.base}</span>
+          <span className="payroll-addon-unit">
+            /mo + ${PAYROLL_PRICING.perEmployee} per employee
+          </span>
+        </div>
+        <label className="payroll-addon-estimate">
+          <span>Employees</span>
+          <input
+            type="number"
+            min="0"
+            max="999"
+            value={employees}
+            onChange={(e) => setEmployees(e.target.value)}
+          />
+          <span>
+            = <strong>${total}/mo</strong>
+          </span>
+        </label>
+        <p className="payroll-addon-note">
+          On top of your milestone fee and your {planLabel(client.plan === "basic" || client.plan === "premium" ? client.plan : "standard")} plan. Cancel any time.
+        </p>
+        {staff ? (
+          <p className="payroll-addon-staff">
+            Staff: turn Payroll on for this client under Staff Access → Client organizations.
+          </p>
+        ) : (
+          <button className="btn-primary" disabled={requesting} onClick={requestAddOn}>
+            {requesting ? "Sending…" : "Add Payroll"}
+          </button>
+        )}
+      </div>
+
+      <div className="report-grid">
+        {PAYROLL_ADDON_FEATURES.map((f) => (
+          <div className="card" key={f.title}>
+            <h3 className="card-title">{f.title}</h3>
+            <p className="card-subtitle" style={{ marginBottom: 0 }}>
+              {f.text}
+            </p>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// A client that has the add-on but hasn't connected Gusto yet.
 function PayrollUpsell({ client }) {
   const showToast = useToast();
 
@@ -7314,13 +7449,13 @@ function PayrollUpsell({ client }) {
 
   return (
     <div>
-      <MockBanner text={`Payroll is an add-on for any plan, ${payrollPriceLabel}. Nothing here is connected to a real Gusto account yet.`} />
+      <MockBanner text="Nothing here is connected to a real Gusto account yet." />
 
       <div
         className="card"
         style={{ marginBottom: 20, textAlign: "center", padding: "36px 28px" }}
       >
-        <div className="eyebrow-badge">Payroll · Add-on</div>
+        <div className="eyebrow-badge">Payroll · Included</div>
         <h2
           style={{
             fontFamily: "var(--font-heading)",
@@ -7329,7 +7464,7 @@ function PayrollUpsell({ client }) {
             color: "var(--ink-strong)",
           }}
         >
-          Add Payroll for {client.name}
+          Connect Gusto for {client.name}
         </h2>
         <p
           style={{
@@ -7338,7 +7473,7 @@ function PayrollUpsell({ client }) {
             margin: "0 auto",
           }}
         >
-          Run payroll in Gusto like you do today — connect it here to see every
+          Payroll is on for this organization. Run payroll in Gusto like you do today — connect it here to see every
           employee's pay, withholding, and upcoming tax deposits right alongside
           the rest of this client's books.
         </p>
@@ -7356,8 +7491,7 @@ function PayrollUpsell({ client }) {
             Connect Gusto
           </button>
           <span style={{ fontSize: 12.5, color: "var(--text-muted)" }}>
-            1.25% of processed payroll, per employee, per run — no plan upgrade
-            required
+            Read-only: pay runs stay in Gusto.
           </span>
         </div>
       </div>
@@ -7389,7 +7523,9 @@ function PayrollUpsell({ client }) {
   );
 }
 
-function PayrollPage({ client }) {
+function PayrollPage({ client, clientPortalUser }) {
+  if (!client.payrollAddOn)
+    return <PayrollAddOnPage client={client} clientPortalUser={clientPortalUser} />;
   if (!client.payroll) return <PayrollUpsell client={client} />;
 
   const { payroll } = client;
@@ -15564,9 +15700,11 @@ function BookkeeperHomePage({
                 <li className="staff-audit-row" key={r.id}>
                   <span className="staff-audit-text">
                     <strong>{c ? c.name : r.client_id}</strong> wants
-                    {r.requested_plan
-                      ? ` ${planLabel(r.requested_plan)}`
-                      : " to upgrade"}
+                    {r.requested_plan === "payroll"
+                      ? " the Payroll add-on"
+                      : r.requested_plan
+                        ? ` ${planLabel(r.requested_plan)}`
+                        : " to upgrade"}
                     {c ? ` (on ${planLabel(c.plan)})` : ""} — requested by {r.requested_by || "unknown"}
                   </span>
                   <span
@@ -24588,7 +24726,11 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
               />
             ))}
           {effectivePage === "payroll" && (
-            <PayrollPage client={scopedClient} key={"payroll-" + client.id} />
+            <PayrollPage
+              client={scopedClient}
+              clientPortalUser={clientPortalUser}
+              key={"payroll-" + client.id}
+            />
           )}
           {effectivePage === "reports" &&
             (showsReportBuilder ? (

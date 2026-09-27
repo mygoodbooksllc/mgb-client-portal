@@ -8802,3 +8802,80 @@ tr:hover .inote-btn,
   border-top: 0;
   padding-top: 0;
 }
+
+/* Payroll add-on: sidebar tag + the price page. */
+.nav-addon-tag {
+  margin-left: auto;
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--navy-deep);
+  background: var(--gold);
+  border-radius: 999px;
+  padding: 1px 7px;
+}
+.sidebar.sidebar-collapsed .nav-addon-tag {
+  display: none;
+}
+.payroll-addon-hero {
+  text-align: center;
+  padding: 36px 28px;
+  margin-bottom: 20px;
+}
+.payroll-addon-hero h2 {
+  font-family: var(--font-heading);
+  font-size: 26px;
+  margin: 10px 0 8px;
+  color: var(--ink-strong);
+}
+.payroll-addon-lede {
+  color: var(--text-muted);
+  max-width: 560px;
+  margin: 0 auto;
+}
+.payroll-addon-price {
+  margin: 20px 0 6px;
+  font-variant-numeric: tabular-nums;
+}
+.payroll-addon-amount {
+  font-family: var(--font-body);
+  font-size: 40px;
+  font-weight: 700;
+  color: var(--ink-strong);
+}
+.payroll-addon-unit {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-muted);
+  margin-left: 4px;
+}
+.payroll-addon-estimate {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  color: var(--text);
+  margin: 6px 0 4px;
+}
+.payroll-addon-estimate input {
+  width: 72px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 6px 10px;
+  font: inherit;
+  background: var(--surface);
+  color: var(--text);
+  text-align: right;
+}
+.payroll-addon-note {
+  font-size: 12.5px;
+  color: var(--text-muted);
+  margin: 6px 0 16px;
+}
+.payroll-addon-staff {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--gold-deep);
+  margin: 0;
+}

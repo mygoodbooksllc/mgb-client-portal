@@ -148,7 +148,13 @@ because some work happens in Claude Code web sessions. Run `git fetch` and compa
     QuickBooks syncs weekly, with no Sync now.
   - **Pro**, $39/mo + $9 per login. It adds the Pro tools inline on the same tabs (see below).
     QuickBooks syncs every minute, and Sync now is available.
-  - **Payroll add-on:** $49/mo + $6 per employee, on any plan.
+  - **Payroll add-on:** $49/mo + $6 per employee, on any plan (Basic included). Clients without it
+    (`clients.payroll_add_on` false) see **Payroll** in the sidebar with an "Add-on" tag. It opens
+    `PayrollAddOnPage`, which has the price, an employee-count estimate, what's included and an
+    **Add Payroll** button. The button files an upgrade request with `requested_plan = 'payroll'`
+    (needs `staff-client-tools.sql`; before that it falls back to a note on the request). Staff see
+    a hint to turn it on under Client organizations. Clients with the add-on but no Gusto data see
+    the Connect Gusto screen.
   - **Downgrades:** logins beyond what the new plan includes stay at $9/mo each, or they're
     removed.
   - Plan fees sit on top of the milestone (bookkeeping) fee.
