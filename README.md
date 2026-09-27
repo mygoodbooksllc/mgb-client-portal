@@ -20,7 +20,7 @@ This README replaces the old `HANDOFF*.md` notes. If code and docs ever disagree
 | Hosting | Vercel project `mgb-client-portal`. It deploys `main` automatically to **https://app.mygoodbooks.org**. There's no build step: Vercel serves the files as they are. |
 | Database, sign-in, file storage, server functions | Supabase project **"MGB Client Portal"**, ref `xumsqmhccgfjnlmieqyu` |
 | Staff Google sign-in | Google Cloud project "MyGoodBooks Auth". Its OAuth client is set to **Internal**, so only `mygoodbooks.org` accounts can use it. |
-| Design system | **MyGoodBooks** (https://claude.ai/artifact/ARYpfcrCbFgFxJnbm1xqLx), the organization's default (see [Claude Design](#claude-design)) |
+| Design system | **MyGoodBooks**: artifact ARYpfcrCbFgFxJnbm1xqLx (org default) and Claude Design project 96865ffb (see [Claude Design](#claude-design)) |
 
 The local folder (`~/Desktop/Mygoodbooks-app-code/client-dashboard`) can fall behind GitHub,
 because some work happens in Claude Code web sessions. Run `git fetch` and compare with
@@ -80,7 +80,7 @@ because some work happens in Claude Code web sessions. Run `git fetch` and compa
 | `.vercelignore` | Keeps internal files out of the public deploy (see [Working on it](#working-on-it)) |
 | `logo.webp` | Logo |
 | `marketing/` | Marketing drafts, plus `pricing-embed.html`: the public pricing chart as a Squarespace Code Block (plain HTML/CSS). Not deployed. |
-| `design-system/` | The retired design-system package (reference only; see [Claude Design](#claude-design)). Not deployed. |
+| `design-system/` | Design-system package synced to the Claude Design project "MyGoodBooks". Not deployed. |
 
 ## Sign-in and access
 
@@ -365,15 +365,23 @@ because some work happens in Claude Code web sessions. Run `git fetch` and compa
 
 ## Claude Design
 
-- **The design system is "MyGoodBooks"** (https://claude.ai/artifact/ARYpfcrCbFgFxJnbm1xqLx),
-  a claude.ai Design System artifact and the organization's default. It holds the brand README,
-  tokens (`project/tokens.json`), components with previews, and assets. New decks and designs
-  should build on it.
+- **The design system is "MyGoodBooks".** It exists in two linked forms:
+  - the claude.ai Design System artifact (https://claude.ai/artifact/ARYpfcrCbFgFxJnbm1xqLx),
+    the organization's default. It's the written brand guide, tokens and component references.
+  - the Claude Design project **"MyGoodBooks"**
+    (https://claude.ai/design/p/96865ffb-efaf-4fd2-8e6d-4665a5d3332f), which Claude Design's
+    agent builds with. It has 43 real components (cards, buttons, badges, charts, toast, 30
+    icons), the brand fonts, and the brand guide.
+- `design-system/` is the React/TypeScript package that feeds the Claude Design project. It's
+  synced with `/design-sync` (run it in Claude Code, not in Terminal). Its
+  `.design-sync/config.json` is pinned to the new project.
 - **Retired:** the old Claude Design project "MyGoodBooks Design System"
-  (`b5c754f7-266e-4cf2-98a4-f1445fca1cc8`). The local `design-system/` package was synced to it
-  with `/design-sync` and is kept only for reference. Don't sync it to the old project.
-- The app's own `styles.css` is still the source of truth for the live app. When the look
-  changes, update the MyGoodBooks design system to match.
+  (`b5c754f7-266e-4cf2-98a4-f1445fca1cc8`). Never sync to it. Delete it in Claude Design (Design
+  systems tab → ⋯ → Delete Project) once nothing uses it.
+- Its `src/styles.css` is a **manual copy** of the relevant parts of the app's `styles.css`. When
+  the app's look changes, copy the changes over and re-sync. Check the brace balance afterwards.
+- Setup quirks (the iCloud duplicate folders, the Chrome path for the render check) are in
+  `design-system/.design-sync/NOTES.md`.
 
 ## Known gaps and roadmap
 

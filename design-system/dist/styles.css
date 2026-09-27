@@ -1,3 +1,6 @@
+/* Brand fonts (same families and weights the app loads in index.html). */
+@import url("https://fonts.googleapis.com/css2?family=Bitter:ital,wght@0,400;0,500;0,600;0,700;0,800;1,400;1,500;1,600&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&family=IBM+Plex+Mono:wght@400;500;600&display=swap");
+
 :root {
   --navy: #05080d;
   --navy-deep: #020306;
@@ -41,6 +44,11 @@
   --font-heading: "Bitter", Georgia, serif;
   --font-body: "IBM Plex Sans", system-ui, -apple-system, sans-serif;
   --font-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+  --on-gold: #05080d;
+  --on-gold-deep: #ffffff;
+  --grid-line: rgba(138, 109, 52, 0.04);
+  --grid-cell-w: 92px;
+  --grid-cell-h: 30px;
 }
 
 /* ---------------------------------------------------------------------------
@@ -92,7 +100,10 @@
     --mesh-1: #3f4f42;
     --mesh-2: #4a3a2a;
     --mesh-3: #2a3a45;
-  }
+  --on-gold: #0b100e;
+  --on-gold-deep: #0b100e;
+  --grid-line: rgba(199, 174, 134, 0.04);
+}
 }
 
 /* Forced light — overrides an OS dark preference; the token values are
@@ -144,6 +155,8 @@
   --mesh-1: #3f4f42;
   --mesh-2: #4a3a2a;
   --mesh-3: #2a3a45;
+  --on-gold: #0b100e;
+  --grid-line: rgba(199, 174, 134, 0.04);
 }
 
 /* ---------------- Badge ---------------- */
@@ -528,4 +541,11 @@
 @keyframes toast-in {
   from { transform: translateY(8px); opacity: 0; }
   to { transform: translateY(0); opacity: 1; }
+}
+
+/* Base text, matching the app's body rule. */
+body {
+  font-family: var(--font-body);
+  color: var(--text);
+  -webkit-font-smoothing: antialiased;
 }

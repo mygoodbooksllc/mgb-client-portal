@@ -1,15 +1,10 @@
 {
-  "projectId": "b5c754f7-266e-4cf2-98a4-f1445fca1cc8",
+  "projectId": "96865ffb-efaf-4fd2-8e6d-4665a5d3332f",
   "shape": "package",
   "pkg": "mygoodbooks-ds",
   "globalName": "MygoodbooksDS",
   "buildCmd": "npm run build",
   "cssEntry": "dist/styles.css",
-  "runtimeFontPrefixes": [
-    "Bitter",
-    "IBM Plex Sans",
-    "IBM Plex Mono"
-  ],
   "readmeHeader": ".design-sync/conventions.md",
   "overrides": {
     "AccountCashDonut": {
@@ -125,6 +120,18 @@
       "cardMode": "column"
     },
     "WrenchIcon": {
+      "cardMode": "column"
+    },
+    "Button": {
+      "cardMode": "column"
+    },
+    "MockBanner": {
+      "cardMode": "column"
+    },
+    "RunwayRing": {
+      "cardMode": "column"
+    },
+    "TrendPill": {
       "cardMode": "column"
     }
   }

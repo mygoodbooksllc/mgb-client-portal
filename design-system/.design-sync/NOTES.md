@@ -91,3 +91,62 @@ already shipped here.
   (`[RENDER_BLANK]`).
 - `conventions.md` names icon components and the `RunwayRing` `pct`
   fraction; re-validate those names against the build on every sync.
+
+## 2026-09-27: new target project "MyGoodBooks"
+
+- The old Claude Design project "MyGoodBooks Design System"
+  (`b5c754f7-266e-4cf2-98a4-f1445fca1cc8`) is **retired** — never sync to it.
+- New target: "MyGoodBooks" (`96865ffb-efaf-4fd2-8e6d-4665a5d3332f`), created
+  for a fresh first import. The written brand guide comes from the
+  "MyGoodBooks" Design System artifact (claude.ai/artifact/ARYpfcrCbFgFxJnbm1xqLx),
+  which was itself read out of this package after the calm redesign.
+- First import into the new project finished 2026-09-27: 43 components,
+  all previews authored and graded good, render check 43/43, 223 files.
+
+### Fixes this run
+
+- **Fonts now ship.** `src/styles.css` starts with a Google Fonts `@import`
+  (Bitter / IBM Plex Sans / IBM Plex Mono, same weights as the app's
+  `index.html`) and ends with a `body` rule (`var(--font-body)`,
+  `var(--text)`). Before this, designs fell back to Times/system fonts
+  because the package relied on the host app's `<link>`.
+  `runtimeFontPrefixes` was removed from the config; validate now reports
+  `[FONT_REMOTE]` (informational, expected).
+- **Tokens added** from the app: `--on-gold`, `--on-gold-deep`, `--grid-line`,
+  `--grid-cell-w`, `--grid-cell-h` (all three `:root` blocks as the app has them).
+- **`cardMode: column`** added for `Button`, `MockBanner`, `RunwayRing`,
+  `TrendPill`: their third cell was clipped at the card's right edge in the
+  3-up grid. Validate did NOT flag it (no `[GRID_OVERFLOW]`); only the contact
+  sheet showed it.
+- **Brand guide** ships as `guides/brand-guide.md` (default `guidelinesGlob`
+  picks it up → `guidelines/guides/brand-guide.md`). Copied from the
+  MyGoodBooks artifact's `project/README.md` minus its "Not synced" section.
+- `conventions.md`: fonts paragraph corrected (fonts now load from
+  `styles.css`) and a pointer to the brand guide added. Every class, token and
+  component it names was re-verified against the build.
+
+### Environment (macOS, Desktop is iCloud-synced)
+
+- iCloud keeps creating `"<name> 2"` / `"<name> 3"` copies inside
+  `node_modules` while you work. `tsc` auto-loads every `@types/*` folder and
+  failed on `react 3`; `tsconfig.json` now pins `"types": ["react","react-dom"]`.
+  If the build breaks on odd duplicate names again, `npm ci` here and
+  `npm i esbuild ts-morph @types/react playwright` in `.ds-sync/` (create
+  `.ds-sync/package.json` first if it's missing).
+- Playwright's own browser isn't installed; always set
+  `DS_CHROMIUM_PATH="/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"`
+  for validate, capture and resync (capture fails without it too).
+- A stale `ds-bundle/` without `_ds_bundle.js` trips `[OUT_UNSAFE]`; the old
+  one was moved to `Mygoodbooks-app-code/ds-bundle.stale-2026-09-22`.
+
+## Re-sync risks (updated 2026-09-27)
+
+- `src/styles.css` is still a manual copy of the app's `styles.css`; nothing
+  enforces it. Diff the `:root` blocks before each sync.
+- The brand guide is a copy of the artifact's README; if the artifact changes,
+  re-copy it.
+- The Google Fonts `@import` is network-fetched at render time; if Google
+  Fonts is unreachable, designs fall back to system fonts.
+- Grades for 42 components were carried forward from the Sep 22 sync (their
+  preview sources didn't change); they were eyeballed on this run's contact
+  sheets after the font change.

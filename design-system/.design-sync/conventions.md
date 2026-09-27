@@ -43,14 +43,17 @@ Core design tokens (`var(--*)`, defined in `:root`, dark-mode aware via
 tokens rather than hardcoded colors when composing new layout around these
 components.
 
-**Fonts are NOT bundled** — the host app loads them at runtime via a Google
-Fonts `<link>` (Bitter for headings, IBM Plex Sans for body, IBM Plex Mono for
-numerals/mono). Include that `<link>` in the host page; don't expect
-`@font-face` from this package.
+**Fonts load from `styles.css`** — its import closure pulls Bitter (headings),
+IBM Plex Sans (body text *and* large figures) and IBM Plex Mono (columns of
+numbers) from Google Fonts, and sets `body` to `var(--font-body)`. Don't add
+another font or a second font `<link>`.
 
 **Where the truth lives**: `styles.css` (imports `_ds_bundle.css`, the real
-compiled component CSS) and each component's own `.d.ts` for its prop
-contract. Read those before styling — this summary is not exhaustive.
+compiled component CSS), each component's own `.d.ts` for its prop contract,
+and `guidelines/guides/brand-guide.md` for the brand rules (warm not
+corporate, calm about money, colour never the only signal, label sample data
+with `MockBanner`, pill radius on every control, `--ink-strong` for headings,
+never `--navy`). Read those before styling — this summary is not exhaustive.
 
 **Icons**: 30 thin-line icon components (`WarningIcon`, `SearchIcon`,
 `LockIcon`, `HomeIcon`, `BankIcon`, `DocumentIcon`, `DownloadIcon`,
