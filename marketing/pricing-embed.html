@@ -66,6 +66,30 @@
   .mgb-pricing .mgb-how div { background: var(--mgb-cream); border: 1px solid var(--mgb-border); border-radius: 12px; padding: 16px 18px; }
   .mgb-pricing .mgb-how strong { display: block; font-family: "Bitter", Georgia, serif; color: var(--mgb-navy); margin-bottom: 4px; }
   .mgb-pricing .mgb-how p { margin: 0; font-size: 15px; color: var(--mgb-muted); }
+  .mgb-pricing .mgb-plans {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; margin: 0 0 12px;
+  }
+  .mgb-pricing .mgb-plan { position: relative; background: #fff; border: 1px solid var(--mgb-border); border-radius: 12px; padding: 20px 20px 14px; }
+  .mgb-pricing .mgb-plan-best { border-color: var(--mgb-gold); box-shadow: 0 0 0 1px var(--mgb-gold); }
+  .mgb-pricing .mgb-plan-pro { background: var(--mgb-warm); }
+  .mgb-pricing .mgb-plan-tag {
+    position: absolute; top: -11px; left: 20px; margin: 0; font-size: 11px; font-weight: 700; letter-spacing: .06em;
+    text-transform: uppercase; background: var(--mgb-gold); color: var(--mgb-navy); padding: 3px 9px; border-radius: 999px;
+  }
+  .mgb-pricing .mgb-plan-name { font-family: "Bitter", Georgia, serif; font-weight: 700; font-size: 20px; color: var(--mgb-navy); margin: 0; }
+  .mgb-pricing .mgb-plan-price { font-family: "Bitter", Georgia, serif; font-weight: 700; font-size: 30px; color: var(--mgb-navy); margin: 4px 0 2px; }
+  .mgb-pricing .mgb-plan-price small { font-family: "IBM Plex Sans", system-ui, sans-serif; font-size: 14px; font-weight: 600; color: var(--mgb-muted); }
+  .mgb-pricing .mgb-plan-logins { font-size: 13px; color: var(--mgb-muted); margin: 0 0 8px; }
+  .mgb-pricing .mgb-plan-sync {
+    display: inline-block; font-size: 12.5px; font-weight: 600; color: var(--mgb-gold-deep); background: var(--mgb-warm);
+    border: 1px solid var(--mgb-border); border-radius: 999px; padding: 3px 10px; margin: 0 0 10px;
+  }
+  .mgb-pricing .mgb-plan-pro .mgb-plan-sync { background: #fff; }
+  .mgb-pricing .mgb-plan ul { list-style: none; margin: 0; padding: 0; font-size: 14.5px; }
+  .mgb-pricing .mgb-plan li { padding: 6px 0 6px 20px; border-top: 1px solid var(--mgb-border); position: relative; }
+  .mgb-pricing .mgb-plan li::before { content: "\2713"; position: absolute; left: 2px; color: var(--mgb-gold-deep); font-weight: 700; }
+  .mgb-pricing .mgb-plan li:has(strong) { padding-left: 0; }
+  .mgb-pricing .mgb-plan li:has(strong)::before { content: none; }
   .mgb-pricing .mgb-cta {
     background: var(--mgb-warm); border-left: 4px solid var(--mgb-gold); border-radius: 0 12px 12px 0;
     padding: 18px 22px; font-size: 17px;
@@ -167,11 +191,61 @@
   <div class="mgb-how">
     <div><strong>No surprises</strong><p>You know your fee before you sign. We confirm your milestone from your own numbers.</p></div>
     <div><strong>Grows with you</strong><p>When your volume or expenses cross into the next milestone, your fee steps up to match. We tell you before it changes.</p></div>
-    <div><strong>One monthly fee</strong><p>Covers the work at your milestone, with no hourly billing or renegotiating from scratch.</p></div>
+    <div><strong>One monthly fee</strong><p>Covers the bookkeeping at your milestone, with no hourly billing or renegotiating from scratch. Your client portal plan is the only other line.</p></div>
   </div>
 
+  <p class="mgb-eyebrow" style="margin-top:36px">Client portal plans</p>
+  <h2 style="font-size:clamp(22px,3vw,28px)">Pick how you see your numbers</h2>
+  <p class="mgb-lede">Every client gets the MyGoodBooks portal. Plans are billed monthly on top of your milestone fee, and you can change plans any time.</p>
+  <div class="mgb-plans">
+    <div class="mgb-plan">
+      <p class="mgb-plan-name">Basic</p>
+      <p class="mgb-plan-price">$9<small>/mo</small></p>
+      <p class="mgb-plan-logins">1 login included &middot; extra logins $9/mo each</p>
+      <p class="mgb-plan-sync">QuickBooks sync monthly, on the 15th</p>
+      <ul>
+        <li>Monthly financial statements</li>
+        <li>Documents, shared with your bookkeeper</li>
+        <li>Messages with your bookkeeper</li>
+        <li>Your pricing milestone, always visible</li>
+      </ul>
+    </div>
+    <div class="mgb-plan mgb-plan-best">
+      <p class="mgb-plan-tag">Best value</p>
+      <p class="mgb-plan-name">Plus</p>
+      <p class="mgb-plan-price">$25<small>/mo + $9 per login</small></p>
+      <p class="mgb-plan-logins">Add as many people as you need</p>
+      <p class="mgb-plan-sync">QuickBooks sync weekly</p>
+      <ul>
+        <li><strong>Everything in Basic, plus:</strong></li>
+        <li>Dashboard: cash, income vs. expenses, recent activity</li>
+        <li>Budget vs. Actual, by category</li>
+        <li>Bank accounts with every transaction</li>
+        <li>Cash flow: who owes you and what you owe</li>
+        <li>Giving &amp; funds: balances and contributions</li>
+        <li>Custom access for each person</li>
+      </ul>
+    </div>
+    <div class="mgb-plan mgb-plan-pro">
+      <p class="mgb-plan-name">Pro</p>
+      <p class="mgb-plan-price">$39<small>/mo + $9 per login</small></p>
+      <p class="mgb-plan-logins">Add as many people as you need</p>
+      <p class="mgb-plan-sync">Live QuickBooks sync every minute, plus Sync now</p>
+      <ul>
+        <li><strong>Everything in Plus, plus:</strong></li>
+        <li>Live Report dashboard</li>
+        <li>Report Builder for board-ready reports</li>
+        <li>Budgeting Tool, drafted with your bookkeeper</li>
+        <li>Cash Flow Pro: bill pay runs and ACH export</li>
+        <li>Reconciliation Pro: a real month-end close</li>
+        <li>Fund Accounting Pro: pledges, transfers, year-end giving statements</li>
+      </ul>
+    </div>
+  </div>
+  <p class="mgb-foot"><strong>Payroll add-on:</strong> $49/mo + $6 per employee, on any plan. <strong>Moving to a lower plan?</strong> Logins beyond what the new plan includes stay at $9/mo each, or they're removed.</p>
+
   <div class="mgb-cta">
-    <strong>Not sure which milestone fits?</strong> Send us your monthly transaction count and annual expenses and we'll confirm it, free. <a href="mailto:holden@mygoodbooks.org?subject=Which%20MyGoodBooks%20milestone%20fits%20us%3F">Ask us</a>
+    <strong>Not sure which milestone or plan fits?</strong> Send us your monthly transaction count and annual expenses and we'll confirm it, free. <a href="mailto:holden@mygoodbooks.org?subject=Which%20MyGoodBooks%20milestone%20fits%20us%3F">Ask us</a>
   </div>
 </div>
 <!-- END -->

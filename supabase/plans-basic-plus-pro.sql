@@ -13,7 +13,7 @@
 --   3. Upgrade requests record which plan was asked for (Basic clients can
 --      ask for Plus or Pro), via an optional p_plan on
 --      request_enterprise_upgrade().
--- Safe to re-run.
+-- Safe to re-run. Applied to production 2026-09-27.
 
 begin;
 

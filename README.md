@@ -137,17 +137,26 @@ because some work happens in Claude Code web sessions. Run `git fetch` and compa
   - The Requests tab is real (`access_requests`).
 - **Preview.** Staff can "Preview as" a client user to see what that person sees.
 - **Plans: Basic, Plus, Pro.** Set per client in `clients.plan`, whose stored values are
-  `basic` / `standard` / `premium`. They're shown as Basic / Plus / Pro, and the names and prices
-  live only in `PLAN_LABELS` / `PLAN_PRICING` in app.jsx.
-  - **Basic** (free): Dashboard (cash, net, revenue, income vs. expenses only), Reports,
-    Documents and Messages, plus the milestone badge. It has one login, no per-person access, and
-    no "Live" label on the sync pill. Other tabs are hidden, not locked (`BASIC_TAB_KEYS`,
-    `BASIC_DASHBOARD_WIDGETS`).
-  - **Plus** ($9/mo per organization): every standard tab, unlimited logins, access per person,
-    and live sync.
-  - **Pro** ($39/mo): the Pro tools inline on the same tabs (see below).
+  `basic` / `standard` / `premium`. They're shown as Basic / Plus / Pro. Names, prices and sync
+  schedules live only in `PLAN_LABELS` / `PLAN_PRICING` / `PLAN_SYNC` / `PAYROLL_PRICING` in
+  app.jsx. The same prices are published in `marketing/pricing-embed.html`.
+  - **Basic**, $9/mo with 1 login included; extra logins are $9/mo each. It gets Reports,
+    Documents and Messages, plus the milestone badge. There is **no Dashboard** and no per-person
+    access (`BASIC_TAB_KEYS`); the landing tab is Reports. QuickBooks syncs monthly, on the 15th
+    (US Central), with no Sync now.
+  - **Plus**, $25/mo + $9 per login. It gets every standard tab and per-person access.
+    QuickBooks syncs weekly, with no Sync now.
+  - **Pro**, $39/mo + $9 per login. It adds the Pro tools inline on the same tabs (see below).
+    QuickBooks syncs every minute, and Sync now is available.
+  - **Payroll add-on:** $49/mo + $6 per employee, on any plan.
+  - **Downgrades:** logins beyond what the new plan includes stay at $9/mo each, or they're
+    removed.
   - Plan fees sit on top of the milestone (bookkeeping) fee.
-  - The one-login limit and the plan gates are checked in the app only, not on the server.
+  - **Sync schedule:** enforced server-side in `qbo-sync` (`isDueForPlan`). The cron runs every
+    minute and syncs only the clients that are due. The server refuses client-initiated Sync now
+    on Basic and Plus; staff can sync any plan.
+  - **Plan gates:** tabs and login pricing are checked in the app only. Staff get a toast when
+    they add an extra login to a Basic organization.
   - The "Force Pro plan" dev switch is staff-only and saved per browser. It isn't a security
     boundary, because the data still goes through RLS.
 
@@ -234,6 +243,7 @@ because some work happens in Claude Code web sessions. Run `git fetch` and compa
 
 ### Client side (and staff viewing a client)
 
+- **Basic** has no Dashboard, so a Basic client lands on Reports.
 - **Sidebar heading:** the client's milestone (for example "III · Growth"), which opens the
   Milestone page. Next to it is the gold **Pro** pill, or for Basic and Plus a lock that opens
   Plans. Collapsed, it shows just the roman numeral.
@@ -279,9 +289,10 @@ because some work happens in Claude Code web sessions. Run `git fetch` and compa
     nine-tier chart, then deploy; it clears every confirmed milestone so staff set each client
     again.
 - **Plans** page (`EnterpriseUpgradePage`, page key `enterprise-upgrade`): three plan cards with
-  prices and an Upgrade button for each higher plan. The request is real
-  (`request_enterprise_upgrade`, which takes `p_plan` once `supabase/plans-basic-plus-pro.sql` is
-  applied).
+  prices (and this org's estimated total), the sync schedule, an Upgrade button for each higher
+  plan, and the downgrade and payroll terms. The request is real
+  (`request_enterprise_upgrade` with `p_plan`, from `supabase/plans-basic-plus-pro.sql`, applied
+  2026-09-27).
 - **Reports and PDFs** are generated in the browser with jsPDF: P&L, balance sheet, budget vs.
   actual, contribution and giving statements, reconciliation, payroll YTD, draft budget.
 - **Global search**, light/dark toggle, collapsible sidebar. In a mouse/trackpad window at half

@@ -665,25 +665,39 @@ function hasPremiumPlan(client, allowDevOverride = true) {
 const PLAN_ORDER = ["basic", "standard", "premium"];
 const PLAN_LABELS = { basic: "Basic", standard: "Plus", premium: "Pro" };
 const planLabel = (plan) => PLAN_LABELS[plan] || PLAN_LABELS.standard;
-// Monthly price per organization, on top of the milestone (bookkeeping) fee.
-// Basic is free; Plus is priced as a small step so it's an easy yes.
+// Prices, on top of the milestone (bookkeeping) fee. Owner decision
+// 2026-09-27. Basic's $9 includes its one login; Plus and Pro charge $9 for
+// every login. A client who moves down a plan keeps paying $9 per extra
+// login, or those logins are removed.
 const PLAN_PRICING = {
-  basic: { monthly: 0, logins: "1 login" },
-  standard: { monthly: 9, logins: "Unlimited logins" },
-  premium: { monthly: 39, logins: "Unlimited logins" },
+  basic: { base: 9, perLogin: 9, includedLogins: 1 },
+  standard: { base: 25, perLogin: 9, includedLogins: 0 },
+  premium: { base: 39, perLogin: 9, includedLogins: 0 },
 };
-const planPriceLabel = (plan) =>
-  PLAN_PRICING[plan].monthly === 0 ? "Free" : `$${PLAN_PRICING[plan].monthly}/mo`;
+const planMonthlyTotal = (plan, logins) => {
+  const p = PLAN_PRICING[plan];
+  return p.base + p.perLogin * Math.max(0, logins - p.includedLogins);
+};
+const planLoginLabel = (plan) =>
+  PLAN_PRICING[plan].includedLogins
+    ? `1 login included · extra logins $${PLAN_PRICING[plan].perLogin}/mo each`
+    : `+ $${PLAN_PRICING[plan].perLogin}/mo per login`;
 
-// Basic is barebones: the monthly picture, statements, documents and a way to
-// reach the bookkeeper. Everything else is hidden rather than shown locked.
-const BASIC_TAB_KEYS = new Set(["messages", "dashboard", "reports", "documents"]);
-const BASIC_DASHBOARD_WIDGETS = new Set([
-  "kpi-cash",
-  "kpi-net",
-  "kpi-revenue",
-  "income-expenses",
-]);
+// How often each plan's numbers refresh from QuickBooks. The schedule itself
+// runs server-side in the qbo-sync edge function; keep the two in step.
+const PLAN_SYNC = {
+  basic: { label: "Monthly sync, on the 15th", short: "monthly", syncNow: false },
+  standard: { label: "Weekly sync", short: "weekly", syncNow: false },
+  premium: { label: "Live sync every minute, plus Sync now", short: "live", syncNow: true },
+};
+
+// Payroll is an add-on for any plan.
+const PAYROLL_PRICING = { base: 49, perEmployee: 6 };
+const payrollPriceLabel = `$${PAYROLL_PRICING.base}/mo + $${PAYROLL_PRICING.perEmployee} per employee`;
+
+// Basic is barebones: statements, documents and a way to reach the
+// bookkeeper. No dashboard. Everything else is hidden rather than shown locked.
+const BASIC_TAB_KEYS = new Set(["messages", "reports", "documents"]);
 
 function isBasicPlan(client, allowDevOverride = true) {
   return (
@@ -4317,8 +4331,6 @@ function DashboardPage({
 
   const runwayMonths = runwayMonthsFor(client);
   const alerts = computeAlerts(client);
-  // Basic keeps the monthly picture only: cash, net, revenue and the trend.
-  const basic = !!access && access.plan === "basic";
 
   const kpis = [
     {
@@ -4432,12 +4444,12 @@ function DashboardPage({
       description: "Latest transactions across all accounts",
     },
     ...crossTabWidgetDefs(client, access),
-  ].filter((w) => !basic || BASIC_DASHBOARD_WIDGETS.has(w.id));
+  ];
   const crossTabById = Object.fromEntries(
     widgets.filter((w) => w.id.startsWith("xt-")).map((w) => [w.id, w]),
   );
   const layout = useWidgetLayout(
-    `${client.id}:${basic ? "basic" : "full"}`,
+    `${client.id}:full`,
     widgets.map((w) => w.id),
   );
   const drag = useDragReorder(layout);
@@ -4487,16 +4499,14 @@ function DashboardPage({
         </div>
       )}
 
-      {!basic && <CustomizeDashboardButton widgets={widgets} layout={layout} />}
+      <CustomizeDashboardButton widgets={widgets} layout={layout} />
 
       <div className="kpi-grid">
         {kpiOrder.map((id) => {
           const k = kpiById[id];
           const jumpTarget = KPI_DASHBOARD_JUMP_TARGETS[id];
           const jump =
-            jumpTarget &&
-            widgets.some((w) => w.id === jumpTarget.contentId) &&
-            !layout.hidden.has(jumpTarget.contentId)
+            jumpTarget && !layout.hidden.has(jumpTarget.contentId)
               ? () => jumpToCard(jumpTarget.domId, jumpTarget.contentId)
               : null;
           return k.ring ? (
@@ -5594,7 +5604,7 @@ function PayrollUpsell({ client }) {
 
   return (
     <div>
-      <MockBanner text="Payroll is an add-on, independent of plan — a Plus client can add it just like a Pro one. Nothing here is connected to a real Gusto account yet." />
+      <MockBanner text={`Payroll is an add-on for any plan, ${payrollPriceLabel}. Nothing here is connected to a real Gusto account yet.`} />
 
       <div
         className="card"
@@ -7353,7 +7363,6 @@ const ENTERPRISE_COMPARISON = [
 // PLAN_PRICING (next to PLAN_LABELS) so they're set in one place.
 const PLAN_FEATURES = {
   basic: [
-    "Dashboard: cash on hand, income vs. expenses",
     "Monthly financial statements",
     "Documents, shared with your bookkeeper",
     "Messages with your bookkeeper",
@@ -7361,12 +7370,12 @@ const PLAN_FEATURES = {
   ],
   standard: [
     "Everything in Basic, plus:",
+    "Dashboard: cash on hand, income vs. expenses, recent activity",
     "Budget vs. Actual, by category",
     "Bank Accounts with every transaction",
     "Cash Flow: who owes you and what you owe",
     "Giving & Funds: fund balances and contributions",
     "Custom access for each person",
-    "Live QuickBooks sync, every minute",
   ],
   premium: [
     "Everything in Plus, plus:",
@@ -7383,6 +7392,7 @@ function EnterpriseUpgradePage({ client, clientPortalUser }) {
   const [requesting, setRequesting] = useState(null);
   const current = effectivePlan(client, !clientPortalUser);
   const currentRank = PLAN_ORDER.indexOf(current);
+  const loginCount = Math.max(1, (client.users || []).length);
 
   async function requestUpgrade(plan) {
     const requestedBy =
@@ -7443,9 +7453,8 @@ function EnterpriseUpgradePage({ client, clientPortalUser }) {
             margin: "0 auto",
           }}
         >
-          Your bookkeeping fee is set by your milestone. Plans add tools on
-          top of it, billed monthly per organization. Change or cancel any
-          time.
+          Your bookkeeping fee is set by your milestone. Your plan adds the
+          portal on top of it, billed monthly. Change plans any time.
         </p>
       </div>
 
@@ -7480,16 +7489,18 @@ function EnterpriseUpgradePage({ client, clientPortalUser }) {
                   "pricing-value" + (plan === "premium" ? " pricing-value-premium" : "")
                 }
               >
-                {PLAN_PRICING[plan].monthly === 0 ? (
-                  "Free"
-                ) : (
-                  <>
-                    ${PLAN_PRICING[plan].monthly}
-                    <span>/mo</span>
-                  </>
-                )}
+                ${PLAN_PRICING[plan].base}
+                <span>/mo</span>
               </div>
-              <p className="pricing-total">{PLAN_PRICING[plan].logins}</p>
+              <p className="pricing-total">{planLoginLabel(plan)}</p>
+              <p className="plan-card-estimate">
+                ${planMonthlyTotal(plan, loginCount)}/mo for your {loginCount} login
+                {loginCount !== 1 ? "s" : ""}
+              </p>
+              <div className="plan-sync-line">
+                <span className="badge-dot" aria-hidden="true"></span>
+                {PLAN_SYNC[plan].label}
+              </div>
               <ul className="plan-feature-list">
                 {PLAN_FEATURES[plan].map((f, i) => (
                   <li key={i} className={f.endsWith("plus:") ? "plan-feature-lead" : ""}>
@@ -7509,6 +7520,21 @@ function EnterpriseUpgradePage({ client, clientPortalUser }) {
             </div>
           );
         })}
+      </div>
+
+      <div className="card plans-fine-print" style={{ marginBottom: 20 }}>
+        <p>
+          <strong>Moving to a lower plan?</strong> Logins beyond what the new
+          plan includes stay at ${PLAN_PRICING.basic.perLogin}/mo each, or
+          they're removed. Nobody loses their data.
+        </p>
+        <p>
+          <strong>Payroll add-on:</strong> {payrollPriceLabel}, on any plan.
+        </p>
+        <p style={{ marginBottom: 0 }}>
+          <strong>QuickBooks sync:</strong> Basic refreshes once a month on the
+          15th, Plus once a week, and Pro every minute with a Sync now button.
+        </p>
       </div>
 
       <h3 className="plans-section-title">What {PLAN_LABELS.premium} adds</h3>
@@ -12234,9 +12260,8 @@ function ClientAccessPage({ readOnly }) {
     return c ? c.name : clientId;
   }
 
-  // Basic includes one login per organization (Plus and Pro: unlimited).
-  // Checked here for the honest case; the plan itself isn't enforced
-  // server-side yet.
+  // Basic includes one login; each extra one is billed (PLAN_PRICING), so
+  // staff are told when they add one.
   function basicLoginTaken(clientId, alsoAdding = 0) {
     const c = CLIENTS.find((c) => c.id === clientId);
     if (!c || c.plan !== "basic") return false;
@@ -12249,12 +12274,7 @@ function ClientAccessPage({ readOnly }) {
     const name = newName.trim();
     const role = newRole.trim();
     if (!email || !name || !role || !newClientId) return;
-    if (basicLoginTaken(newClientId)) {
-      showToast(
-        `${clientNameFor(newClientId)} is on Basic, which includes one login. Move them to Plus to add more people.`,
-      );
-      return;
-    }
+    const extraBasicLogin = basicLoginTaken(newClientId);
     setAdding(true);
     const { error } = await supabase
       .from("client_users")
@@ -12267,7 +12287,11 @@ function ClientAccessPage({ readOnly }) {
     setNewEmail("");
     setNewName("");
     setNewRole("");
-    showToast(`Added ${name} (${clientNameFor(newClientId)}).`);
+    showToast(
+      extraBasicLogin
+        ? `Added ${name}. ${clientNameFor(newClientId)} is on Basic, so this extra login is $${PLAN_PRICING.basic.perLogin}/mo.`
+        : `Added ${name} (${clientNameFor(newClientId)}).`,
+    );
     load();
     // §171: being on the allowlist isn't enough to actually get in — the
     // portal's login form uses shouldCreateUser: false, so someone with no
@@ -12354,18 +12378,8 @@ function ClientAccessPage({ readOnly }) {
   }
 
   async function importCsv() {
-    const seenBasic = {};
-    const validRows = csvPreview.filter((r) => {
-      if (r.errors.length > 0) return false;
-      // Basic: skip anyone past the one login.
-      if (basicLoginTaken(r.clientId, seenBasic[r.clientId] || 0)) return false;
-      seenBasic[r.clientId] = (seenBasic[r.clientId] || 0) + 1;
-      return true;
-    });
-    if (validRows.length === 0) {
-      showToast("Nothing to import — Basic organizations include one login.");
-      return;
-    }
+    const validRows = csvPreview.filter((r) => r.errors.length === 0);
+    if (validRows.length === 0) return;
     setCsvImporting(true);
     const results = [];
     for (const r of validRows) {
@@ -20918,7 +20932,7 @@ class ErrorBoundary extends React.Component {
 // With `liveLabel`, renders as one combined pill: "● Live · synced 1 min
 // ago  ↻" (the header's Live badge and Sync now in one control, to save
 // space). Clicking anywhere on it syncs.
-function QboSyncNowButton({ clientId, onSynced, liveLabel }) {
+function QboSyncNowButton({ clientId, onSynced, liveLabel, canSyncNow = true }) {
   const showToast = useToast();
   const [syncing, setSyncing] = useState(false);
 
@@ -20936,7 +20950,9 @@ function QboSyncNowButton({ clientId, onSynced, liveLabel }) {
           (data && (data.error || (data.errors && data.errors[0] && data.errors[0].error))) || "",
         );
         let message = "We couldn't reach QuickBooks just now. Please try again in a few minutes.";
-        if (httpStatus === 401 || httpStatus === 403) {
+        if (/included with Pro/i.test(detail)) {
+          message = "Sync now is included with Pro. Your numbers refresh on your plan's schedule.";
+        } else if (httpStatus === 401 || httpStatus === 403) {
           message = "You don't have permission to sync this account. Try signing out and back in.";
         } else if (httpStatus === 400) {
           message = "QuickBooks isn't connected for this account.";
@@ -20980,6 +20996,15 @@ function QboSyncNowButton({ clientId, onSynced, liveLabel }) {
       <path d="M20 4v4.5h-4.5" />
     </svg>
   );
+  if (liveLabel && !canSyncNow) {
+    // Basic and Plus: the same pill, as a label only (no Sync now).
+    return (
+      <span className="live-sync-pill live-sync-pill-static" title={liveLabel}>
+        <span className="badge-dot" aria-hidden="true"></span>
+        <span className="live-sync-text">{liveLabel}</span>
+      </span>
+    );
+  }
   if (liveLabel) {
     return (
       <>
@@ -21923,6 +21948,12 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
   // bookkeeper's CLIENT-facing view, and whose Team Chat thread should show
   // during that (the real admin's, or the impersonated bookkeeper's) has no
   // clean answer, so it's simplest to just not offer it mid-impersonation.
+  // Where a client lands: Dashboard, except on Basic, which has none.
+  const homeTab = access.tabs.has(ALWAYS_VISIBLE_KEY)
+    ? ALWAYS_VISIBLE_KEY
+    : access.tabs.has("reports")
+      ? "reports"
+      : [...access.tabs][0] || ALWAYS_VISIBLE_KEY;
   const effectivePage =
     page === "enterprise-upgrade"
       ? page
@@ -21946,7 +21977,7 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
                   ? page
                 : access.tabs.has(page)
                   ? page
-                  : ALWAYS_VISIBLE_KEY;
+                  : homeTab;
 
   // §135: one row per page view, staff and client alike, so Usage Stats
   // (admin-only) can rank pages most-to-least used. Fires on effectivePage
@@ -22590,15 +22621,19 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
                 <QboSyncNowButton
                   clientId={client.id}
                   onSynced={() => setQboDataRev((r) => r + 1)}
+                  // Sync now is a Pro feature; staff can always sync.
+                  canSyncNow={
+                    PLAN_SYNC[access.plan || "standard"].syncNow ||
+                    (isStaffSession && !isPreviewingUser)
+                  }
                   liveLabel={
-                    // Live sync is a Plus feature; Basic just says when.
-                    access.plan === "basic"
-                      ? relTime(client.lastSyncedAt)
-                        ? `Synced ${relTime(client.lastSyncedAt)}`
-                        : "QuickBooks"
-                      : relTime(client.lastSyncedAt)
-                        ? `Live · synced ${relTime(client.lastSyncedAt)}`
-                        : "Live · QuickBooks"
+                    // Pro is live; Basic and Plus say how often they refresh.
+                    (access.plan === "premium"
+                      ? "Live"
+                      : `Synced ${PLAN_SYNC[access.plan || "standard"].short}`) +
+                    (relTime(client.lastSyncedAt)
+                      ? ` · ${access.plan === "premium" ? "synced " : "updated "}${relTime(client.lastSyncedAt)}`
+                      : " · QuickBooks")
                   }
                 />
               ) : (

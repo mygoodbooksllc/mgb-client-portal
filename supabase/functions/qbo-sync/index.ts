@@ -9,10 +9,11 @@ import { createClient } from "jsr:@supabase/supabase-js@2";
 //
 // Two callers, two auth modes:
 //
-//   (a) pg_cron/pg_net, hourly (supabase/qbo-sync-cron.sql). Presents the
-//       generated cron key — or the project's service_role key — as its
-//       bearer token, exactly like qbo-refresh-token does, and syncs EVERY
-//       connected client.
+//   (a) pg_cron/pg_net, every minute (supabase/qbo-sync-cron-1min.sql).
+//       Presents the generated cron key — or the project's service_role key —
+//       as its bearer token, exactly like qbo-refresh-token does, and syncs
+//       every connected client that is due on its plan's schedule (see
+//       isDueForPlan: Pro every minute, Plus weekly, Basic on the 15th).
 //   (b) a signed-in person clicking "Sync now" (the header button next to
 //       the Live pill, or the Client details QuickBooks tab). Presents their
 //       own Supabase JWT and syncs exactly one client:
@@ -21,6 +22,7 @@ import { createClient } from "jsr:@supabase/supabase-js@2";
 //           must not be able to make a client they don't manage phone Intuit.
 //         - active client user (client_users row, active): only their own
 //           org's client_id; any other client_id in the body is refused.
+//           Clients on Basic or Plus are refused (Sync now is a Pro feature).
 //       Throttled: a connection that synced OK < 60s ago, or has a sync in
 //       progress, returns its last synced_at without calling Intuit.
 //       Response: { status: "ok" | "fresh" | "in_progress" | "error",
@@ -749,6 +751,29 @@ async function syncClient(
 // A user-triggered sync is skipped if the connection synced successfully
 // less than this long ago.
 const USER_SYNC_MIN_INTERVAL_MS = 60 * 1000;
+
+// Sync schedule by client plan (clients.plan; owner decision 2026-09-27).
+// The cron calls this function every minute; each run syncs only the
+// clients that are due:
+//   premium (Pro)   every run (every minute), and clients may press Sync now
+//   standard (Plus) once a week: when the last good sync is 7+ days old
+//   basic (Basic)   once a month, on the 15th (US Central date)
+// A client with no successful sync yet is always due, so a new connection
+// fills in straight away. Staff can press Sync now on any plan.
+const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
+function centralDate(d: Date): string {
+  return new Intl.DateTimeFormat("en-CA", { timeZone: "America/Chicago" }).format(d);
+}
+function isDueForPlan(plan: string | null, lastSyncedAt: string | null, now: Date): boolean {
+  if (!lastSyncedAt) return true;
+  const last = new Date(lastSyncedAt);
+  if (plan === "basic") {
+    const today = centralDate(now);
+    return today.endsWith("-15") && centralDate(last) !== today;
+  }
+  if (plan === "standard") return now.getTime() - last.getTime() >= WEEK_MS;
+  return true;
+}
 // A lock older than this is treated as abandoned (the function crashed or
 // timed out mid-sync) and may be taken over.
 const SYNC_LOCK_STALE_MS = 5 * 60 * 1000;
@@ -804,14 +829,30 @@ Deno.serve(async (req) => {
   }
 
   let targets: { client_id: string; realm_id: string; api_env: string | null }[] = [];
+  let skipped = 0;
 
   if (isServiceRole) {
     const { data, error } = await admin
       .from("qbo_connections")
-      .select("client_id, realm_id, api_env")
+      .select("client_id, realm_id, api_env, last_synced_at")
       .eq("status", "connected");
     if (error) return json({ error: "failed to list connections" }, 500);
-    targets = data || [];
+    const conns = data || [];
+    // Plans, to decide who's due this run. If the lookup fails, fall back
+    // to syncing everyone (the old behaviour) rather than no one.
+    const planById: Record<string, string> = {};
+    if (conns.length) {
+      const { data: plans, error: planErr } = await admin
+        .from("clients")
+        .select("id, plan")
+        .in("id", conns.map((c: any) => c.client_id));
+      if (!planErr) (plans || []).forEach((p: any) => (planById[p.id] = p.plan));
+    }
+    const now = new Date();
+    targets = conns.filter((c: any) =>
+      isDueForPlan(planById[c.client_id] ?? "premium", c.last_synced_at, now),
+    );
+    skipped = conns.length - targets.length;
   } else {
     // Mode (b): a signed-in person's own JWT — an active staffer, or an
     // active client user. Identity and staff/client checks run AS THEM,
@@ -865,6 +906,16 @@ Deno.serve(async (req) => {
       if (!cu || cu.active !== true || !cu.client_id) return json({ error: "forbidden" }, 403);
       if (requested && requested !== cu.client_id) return json({ error: "forbidden" }, 403);
       clientId = cu.client_id;
+      // Sync now is a Pro feature for clients; Basic and Plus refresh on
+      // their plan's schedule.
+      const { data: org } = await admin
+        .from("clients")
+        .select("plan")
+        .eq("id", clientId)
+        .maybeSingle();
+      if (org && org.plan !== "premium") {
+        return json({ error: "Sync now is included with Pro" }, 403);
+      }
     }
 
     const { data: conn } = await admin
@@ -928,5 +979,5 @@ Deno.serve(async (req) => {
     else synced.push(result);
   }
 
-  return json({ synced, errors });
+  return json({ synced, errors, skipped });
 });
