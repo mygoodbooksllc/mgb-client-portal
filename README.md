@@ -259,7 +259,7 @@ because some work happens in Claude Code web sessions. Run `git fetch` and compa
     access.
 
 - **Staff sidebar** (`StaffRail`, desktop and mouse windows): a **Go to client** picker (opens that
-  client's dashboard; a search icon when collapsed expands the sidebar), Home, Client view, Team Chat, My
+  client's dashboard; a search icon when collapsed expands the sidebar), Home, Client view, Inbox, My
   Tasks, My Time, and for admins Staff Access, Client Roster, Developer Tools and Usage Stats,
   plus theme and sign out. On staff pages it replaces the client sidebar and collapses to icons with
   the usual Collapse toggle. On a client's pages it's a 64px icon strip beside the client sidebar.
@@ -280,7 +280,7 @@ because some work happens in Claude Code web sessions. Run `git fetch` and compa
   - The staff menu shows a due-count badge.
 - **Client SOPs**: sectioned per-client procedures with full version history
   (`client_sops`, `client_sop_history`, `save_client_sop`). Clients never see them.
-- **Inbox** (page `staff-messages`, "Team Chat" in the sidebar; `components/inbox/StaffInbox.jsx`):
+- **Inbox** (page `staff-messages`, called "Team Chat" before 2026-09-28; `components/inbox/StaffInbox.jsx`):
   one three-pane inbox for client conversations and team chat.
   - **List:** search, All / Clients / Team pills with counts, "+ New" (a client contact, a
     teammate or a new group). Every person at every client you can see (`client_users`, else the

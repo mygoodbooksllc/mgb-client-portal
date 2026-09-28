@@ -1166,7 +1166,7 @@ function Sidebar({
                       }}
                     >
                       <ChatIcon width="16" height="16" strokeWidth="1.8" />
-                      Team Chat
+                      Inbox
                       {staffMessagesUnread && (
                         <span
                           className="nav-badge-dot"
@@ -1713,7 +1713,7 @@ function StaffRail({
       : [
           {
             key: "staff-messages",
-            label: "Team Chat",
+            label: "Inbox",
             icon: <ChatIcon width="16" height="16" strokeWidth="1.8" />,
             dot: staffMessagesUnread,
           },
@@ -23069,8 +23069,8 @@ const PAGE_META = {
     subtitle: "Which pages and features actually get used, most to least",
   },
   "staff-messages": {
-    title: "Team Chat",
-    subtitle: "Client conversations and team chat in one inbox",
+    title: "Inbox",
+    subtitle: "Client conversations and team chat in one place",
   },
   "bookkeeper-home": {
     title: "Home",

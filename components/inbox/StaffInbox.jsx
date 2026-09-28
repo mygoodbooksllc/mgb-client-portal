@@ -1097,7 +1097,7 @@ function StaffInbox({
     >
       <section className="si-list-pane" aria-label="Conversations">
         <div className="si-list-head">
-          <h2 className="si-title">{lockClientId ? "Conversations" : "Inbox"}</h2>
+          <h2 className="si-title">{lockClientId || !compact ? "Conversations" : "Inbox"}</h2>
           <button type="button" className="si-new-btn" onClick={() => setShowNew(true)}>
             + New
           </button>
