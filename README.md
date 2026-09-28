@@ -562,6 +562,12 @@ because some work happens in Claude Code web sessions. Run `git fetch` and compa
   stay callable.
 - **Write stamping.** Writes to telemetry, notes and messages are stamped with the caller's JWT
   email, never a value the browser sends.
+- **Team Chat groups can be retired** (`supabase/staff-chat-retire-groups.sql`, **NOT APPLIED
+  yet**). Any member can retire a group from the Inbox's context pane. A retired group is hidden
+  from the list (behind "Show retired groups"), is read-only (the send policy checks
+  `conversation_is_live`), and can be restored. An admin can then "Delete permanently" through
+  `delete_staff_group`, which removes its messages and members. Its attachment files stay in the
+  bucket.
 - **Client messages** (`supabase/client-messages.sql`, applied 2026-09-28): staff who can access
   the client see every thread; a client user sees only their own thread and never internal
   notes; no updates or deletes; author emails are checked against the JWT.

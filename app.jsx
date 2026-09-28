@@ -12461,10 +12461,10 @@ function useStaffTeamChat(staffUser, onActivity, enabled = true) {
           myReadByConv[r.conversation_id] = r.last_read_at;
         });
 
-        const [
+        let [
           { data: otherMembers },
           { data: recentMessages },
-          { data: convRows },
+          { data: convRows, error: convErr },
         ] = await Promise.all([
           supabase
             .from("staff_conversation_members")
@@ -12483,9 +12483,17 @@ function useStaffTeamChat(staffUser, onActivity, enabled = true) {
           // an older DB just won't have any group conversations to find here.
           supabase
             .from("staff_conversations")
-            .select("id, is_group, title")
+            .select("id, is_group, title, retired_at")
             .in("id", convIds),
         ]);
+        // retired_at arrives with staff-chat-retire-groups.sql; before that,
+        // read the older columns so the list still loads.
+        if (convErr) {
+          ({ data: convRows } = await supabase
+            .from("staff_conversations")
+            .select("id, is_group, title")
+            .in("id", convIds));
+        }
 
         // A group has 2+ "other" members, so this collects an array per
         // conversation rather than the single email a 1:1 DM used to assume
@@ -12549,6 +12557,7 @@ function useStaffTeamChat(staffUser, onActivity, enabled = true) {
               : "",
             lastAt: last ? last.created_at : null,
             unread,
+            retired: !!meta.retired_at,
           };
         });
         rows.sort((a, b) => new Date(b.lastAt || 0) - new Date(a.lastAt || 0));
@@ -13096,7 +13105,49 @@ function useStaffTeamChat(staffUser, onActivity, enabled = true) {
     if (m.author_email === staffUser.email) lastMineMessage = m;
   });
 
+  // Retire (hide, read-only, reversible) or restore a group; any member can.
+  // Admins can then delete a retired group for good.
+  const setGroupRetired = useCallback(
+    async (id, retire) => {
+      if (!supabase || !id) return false;
+      const { error } = await supabase.rpc("set_staff_group_retired", {
+        p_id: id,
+        p_retire: retire,
+      });
+      if (error) {
+        showToast(
+          retire ? "Couldn't retire the group." : "Couldn't restore the group.",
+        );
+        return false;
+      }
+      showToast(retire ? "Group retired." : "Group restored.");
+      loadConversations();
+      return true;
+    },
+    [supabase, loadConversations],
+  );
+  const deleteGroup = useCallback(
+    async (id) => {
+      if (!supabase || !id) return false;
+      const { error } = await supabase.rpc("delete_staff_group", { p_id: id });
+      if (error) {
+        showToast("Couldn't delete the group.");
+        return false;
+      }
+      showToast("Group deleted.");
+      if (activeConversationId === id) {
+        setActiveConversationId(null);
+        setMessages(null);
+        setActiveMembers(null);
+      }
+      loadConversations();
+      return true;
+    },
+    [supabase, loadConversations, activeConversationId],
+  );
+
   return {
+    setGroupRetired, deleteGroup,
     staffUser, directory, conversations, activeConversationId, activeMembers,
     messages, loadError, draft, setDraft, pendingAttachment, setPendingAttachment,
     isDragging, setIsDragging, sending, editingId, setEditingId, editDraft,
@@ -13288,6 +13339,11 @@ function StaffTeamThread({ chat, hideTitle }) {
         {typingName ? `${typingName} is typing…` : " "}
       </div>
 
+      {activeEntry && activeEntry.retired ? (
+        <div className="team-retired-note">
+          This group is retired, so it's read-only. Restore it to keep talking.
+        </div>
+      ) : (
       <div className="message-compose">
         <button
           type="button"
@@ -13326,6 +13382,7 @@ function StaffTeamThread({ chat, hideTitle }) {
           Send
         </button>
       </div>
+      )}
     </div>
   );
 }

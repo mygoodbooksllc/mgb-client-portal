@@ -588,7 +588,9 @@ function SI_ClientContext({ entry, staffUser, rows, onOpenClient }) {
 // Context pane for a Team Chat conversation: members and shared files.
 function SI_TeamContext({ chat }) {
   const entry = chat.activeEntry;
+  const [confirm, setConfirm] = React.useState(null); // "retire" | "delete"
   if (!entry) return <p className="si-muted">Loading…</p>;
+  const isAdmin = !!(chat.staffUser && chat.staffUser.role === "admin");
   const byEmail = {};
   (chat.directory || []).forEach((d) => (byEmail[d.email] = d));
   const files = (chat.messages || []).filter((m) => m.attachment_name);
@@ -637,6 +639,46 @@ function SI_TeamContext({ chat }) {
           </ul>
         )}
       </div>
+      {entry.isGroup && entry.id && typeof chat.setGroupRetired === "function" && (
+        <div className="si-ctx-section">
+          <div className="si-ctx-head">Group</div>
+          {entry.retired ? (
+            <>
+              <p className="si-muted">Retired. Hidden from the inbox and read-only.</p>
+              <button type="button" className="si-ctx-action" onClick={() => chat.setGroupRetired(entry.id, false)}>
+                Restore group
+              </button>
+              {isAdmin && (
+                <button type="button" className="si-ctx-action si-ctx-danger" onClick={() => setConfirm("delete")}>
+                  Delete permanently
+                </button>
+              )}
+            </>
+          ) : (
+            <button type="button" className="si-ctx-action" onClick={() => setConfirm("retire")}>
+              Retire group
+            </button>
+          )}
+        </div>
+      )}
+      {confirm && typeof ConfirmModal === "function" && (
+        <ConfirmModal
+          title={confirm === "delete" ? `Delete "${entry.otherName}" for good?` : `Retire "${entry.otherName}"?`}
+          body={
+            confirm === "delete"
+              ? "This removes the group, every message in it and its member list. It can't be undone."
+              : "It drops out of everyone's inbox and becomes read-only. Any member can restore it later."
+          }
+          confirmLabel={confirm === "delete" ? "Delete group" : "Retire group"}
+          onConfirm={async () => {
+            const kind = confirm;
+            setConfirm(null);
+            if (kind === "delete") await chat.deleteGroup(entry.id);
+            else await chat.setGroupRetired(entry.id, true);
+          }}
+          onCancel={() => setConfirm(null)}
+        />
+      )}
     </div>
   );
 }
@@ -754,6 +796,8 @@ function StaffInbox({
   const [rev, setRev] = React.useState(0);
   const [filter, setFilter] = React.useState("all");
   const [query, setQuery] = React.useState("");
+  // Retired Team Chat groups stay out of the list unless asked for.
+  const [showRetired, setShowRetired] = React.useState(false);
   const [clientFilter, setClientFilter] = React.useState(lockClientId || defaultClientId || null);
   const [sel, setSel] = React.useState(null); // {kind:"client", key} | {kind:"team"}
   const [contextOpen, setContextOpen] = React.useState(() => {
@@ -936,8 +980,9 @@ function StaffInbox({
   const teamEntries = React.useMemo(
     () =>
       teamEnabled
-        ? (chat.conversations || []).map((c) => ({
+        ? (chat.conversations || []).filter((c) => !c.retired || showRetired).map((c) => ({
             kind: "team",
+            retired: !!c.retired,
             key: "t:" + c.id,
             conv: c,
             name: c.otherName,
@@ -948,7 +993,7 @@ function StaffInbox({
             online: c.isGroup ? c.otherEmails.some((e) => chat.onlineEmails.has(e)) : chat.onlineEmails.has(c.otherEmail),
           }))
         : [],
-    [teamEnabled, chat.conversations, chat.onlineEmails],
+    [teamEnabled, chat.conversations, chat.onlineEmails, showRetired],
   );
 
   const needle = query.trim().toLowerCase();
@@ -1136,7 +1181,7 @@ function StaffInbox({
                       {e.kind === "client" ? (
                         !lockClientId && <span className="si-tag">{e.client.name}</span>
                       ) : (
-                        <span className="si-tag si-tag-team">Team</span>
+                        <span className="si-tag si-tag-team">{e.retired ? "Retired" : "Team"}</span>
                       )}
                       {e.role && <span className="si-item-role">{e.role}</span>}
                     </span>
@@ -1148,6 +1193,15 @@ function StaffInbox({
               </li>
             );
           })}
+          {teamEnabled && (chat.conversations || []).some((c) => c.retired) && (
+            <li className="si-list-note">
+              <button type="button" className="si-retired-toggle" onClick={() => setShowRetired((v) => !v)}>
+                {showRetired
+                  ? "Hide retired groups"
+                  : `Show retired groups (${(chat.conversations || []).filter((c) => c.retired).length})`}
+              </button>
+            </li>
+          )}
         </ul>
       </section>
 

@@ -8245,7 +8245,11 @@ body:has(.modal-overlay) .chat-fab-wrap {
    the sidebar colour is close to the page. */
 .staff-quick-actions {
   display: flex;
-  flex-wrap: wrap;
+  /* One row that scrolls sideways when narrow; wrapping turned the pill
+     into a tall ink blob. */
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  scrollbar-width: none;
   align-items: center;
   gap: 6px;
   margin: 0 0 14px;
@@ -8258,6 +8262,13 @@ body:has(.modal-overlay) .chat-fab-wrap {
 }
 [data-theme="dark"] .staff-quick-actions {
   border-color: var(--border);
+}
+.staff-quick-actions::-webkit-scrollbar {
+  display: none;
+}
+.staff-quick-actions > * {
+  flex-shrink: 0;
+  white-space: nowrap;
 }
 .staff-quick-actions .sqa-label {
   font-size: 11px;
@@ -9047,4 +9058,15 @@ tr:hover .inote-btn,
     right: 16px;
     bottom: 88px;
   }
+}
+
+/* Team Chat: a retired group is read-only. */
+.team-retired-note {
+  margin-top: 10px;
+  padding: 10px 14px;
+  border: 1px dashed var(--border);
+  border-radius: 999px;
+  color: var(--text-muted);
+  font-size: 13px;
+  text-align: center;
 }

@@ -1092,3 +1092,40 @@ a.si-ctx-text {
 body:has(.modal-overlay) .si-launcher {
   display: none;
 }
+
+/* Retire / delete a Team Chat group (context pane). */
+.si-ctx-action {
+  display: block;
+  width: 100%;
+  margin-top: 8px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--ink-strong);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 7px 14px;
+  border-radius: 999px;
+  cursor: pointer;
+}
+.si-ctx-action:hover {
+  border-color: var(--gold);
+  background: var(--hover-bg);
+}
+.si-ctx-danger {
+  color: var(--bad);
+}
+.si-ctx-danger:hover {
+  border-color: var(--bad);
+  background: var(--bad-soft);
+}
+.si-retired-toggle {
+  border: none;
+  background: none;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 12px;
+  text-decoration: underline;
+  cursor: pointer;
+  padding: 4px 0;
+}
