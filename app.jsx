@@ -668,30 +668,6 @@ function hasPremiumPlan(client, allowDevOverride = true) {
 const PLAN_ORDER = ["basic", "standard", "premium"];
 const PLAN_LABELS = { basic: "Basic", standard: "Plus", premium: "Pro" };
 const planLabel = (plan) => PLAN_LABELS[plan] || PLAN_LABELS.standard;
-
-// The plan a feature belongs to, shown next to it wherever it appears so a
-// client can tell Plus features from Pro ones. Basic features get no pill.
-// Pro is solid gold, Plus an outline.
-function PlanPill({ plan, className }) {
-  if (plan !== "standard" && plan !== "premium") return null;
-  return (
-    <span
-      className={"plan-pill plan-pill-" + (plan === "premium" ? "pro" : "plus") + (className ? " " + className : "")}
-      title={`${PLAN_LABELS[plan]} feature`}
-    >
-      {PLAN_LABELS[plan]}
-    </span>
-  );
-}
-
-// Which plan a sidebar tab belongs to: Pro when this person gets its Pro
-// version, Plus when Basic doesn't have the tab at all, else none. Payroll
-// is an add-on on every plan, so it never gets one.
-function tabPlanFor(key, upgraded) {
-  if (upgraded) return "premium";
-  if (key === "payroll") return null;
-  return BASIC_TAB_KEYS.has(key) ? null : "standard";
-}
 // Prices, on top of the milestone (bookkeeping) fee. Owner decision
 // 2026-09-27. Basic's $9 includes its one login; Plus and Pro charge $9 for
 // every login. A client who moves down a plan keeps paying $9 per extra
@@ -1552,7 +1528,6 @@ function Sidebar({
                       >
                         {item.icon}
                         <span className="nav-item-label">{item.label}</span>
-                        <PlanPill plan={tabPlanFor(item.key, isUpgraded)} className="nav-plan-pill" />
                         {item.key === "payroll" && client && !client.payrollAddOn && (
                           <span className="nav-addon-tag">Add-on</span>
                         )}
@@ -9845,7 +9820,7 @@ function ReportBuilderPage({ client }) {
             }
             onClick={() => setBuilderTab("custom")}
           >
-            Custom Report <PlanPill plan="premium" />
+            Custom Report
           </button>
         </div>
 
@@ -24793,20 +24768,6 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
                   (NON_CLIENT_PAGES.has(effectivePage)
                     ? "MyGoodBooks"
                     : client.name)}
-                {ALL_TAB_KEYS.includes(effectivePage) && (
-                  <PlanPill
-                    plan={tabPlanFor(
-                      effectivePage,
-                      showsLiveReport ||
-                        showsBudgetingTool ||
-                        showsCashFlowPro ||
-                        showsReportBuilder ||
-                        showsReconciliationPro ||
-                        showsFundAccountingPro,
-                    )}
-                    className="page-title-plan-pill"
-                  />
-                )}
               </h1>
               <div className={"page-subtitle"}>{meta.subtitle}</div>
             </div>

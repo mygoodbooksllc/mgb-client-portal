@@ -291,10 +291,6 @@ because some work happens in Claude Code web sessions. Run `git fetch` and compa
 ### Client side (and staff viewing a client)
 
 - **Basic** has no Dashboard, so a Basic client lands on Reports.
-- **Plan pills** (`PlanPill` in `app.jsx`) mark which plan a feature belongs to: solid gold
-  **Pro**, outlined **Plus**, nothing for Basic. They appear on sidebar tabs (`tabPlanFor`),
-  page titles, and inside pages (budget view tabs, Custom Report, Board reports). The Payroll
-  "Add-on" tag is a dashed gold outline so it doesn't look like the Pro pill.
 - **Sidebar heading:** the client's milestone (for example "III · Growth"), which opens the
   Milestone page. Next to it is the gold **Pro** pill, or for Basic and Plus a lock that opens
   Plans. Collapsed, it shows just the roman numeral.
