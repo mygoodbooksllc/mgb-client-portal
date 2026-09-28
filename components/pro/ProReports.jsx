@@ -2056,8 +2056,10 @@ function ProReportsSuite({ client, access, clientPortalUser }) {
     <div className="card pr-suite">
       <div className="pr-suite-head">
         <div>
-          <span className="eyebrow-badge">Pro</span>
-          <h3 className="card-title">Board reports</h3>
+          <h3 className="card-title">
+            Board reports{" "}
+            {typeof PlanPill === "function" ? <PlanPill plan="premium" /> : <span className="eyebrow-badge">Pro</span>}
+          </h3>
           <p className="card-subtitle">
             Build a board packet, share a read-only copy, and keep this month's story in plain words.
           </p>

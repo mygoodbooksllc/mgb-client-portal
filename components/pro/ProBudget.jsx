@@ -1273,12 +1273,13 @@ function ProBudgetWorkspace({ client, access, clientPortalUser }) {
     ? [...history].sort((a, b) => (b.version || 0) - (a.version || 0)).find((h) => h.status === "changes_requested")
     : null;
 
+  // plan: which plan the view belongs to, shown as a pill on its tab.
   const tabs = [
-    { key: "actual", label: "Budget vs. Actual" },
-    ...(orgWide ? [{ key: "trend", label: "Spending Trend" }] : []),
-    { key: "forecast", label: "Year-End Forecast" },
-    ...(orgWide ? [{ key: "whatif", label: "What-If" }] : []),
-    { key: "draft", label: `FY ${fiscalYear} Budget` },
+    { key: "actual", label: "Budget vs. Actual", plan: "standard" },
+    ...(orgWide ? [{ key: "trend", label: "Spending Trend", plan: "standard" }] : []),
+    { key: "forecast", label: "Year-End Forecast", plan: "premium" },
+    ...(orgWide ? [{ key: "whatif", label: "What-If", plan: "premium" }] : []),
+    { key: "draft", label: `FY ${fiscalYear} Budget`, plan: "premium" },
   ];
 
   const colCount = scoped ? 5 : 6;
@@ -1319,6 +1320,7 @@ function ProBudgetWorkspace({ client, access, clientPortalUser }) {
             onClick={() => setView(t.key)}
           >
             {t.label}
+            {typeof PlanPill === "function" && <PlanPill plan={t.plan} />}
             {t.key === "draft" && row && status !== "draft" && (
               <span className={"pb-tab-dot " + statusMeta.pill} aria-label={statusMeta.label} />
             )}
