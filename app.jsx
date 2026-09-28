@@ -1477,7 +1477,7 @@ function Sidebar({
                       onFocus={(e) => showTip(e, "Overview (staff only)")}
                       onBlur={hideTip}
                     >
-                      <BarChartIcon />
+                      <GaugeIcon />
                       <span className="nav-item-label">Overview</span>
                       <span className="nav-staff-tag">Staff</span>
                     </button>
@@ -2082,6 +2082,28 @@ function DocumentIcon(props) {
     >
       <rect x="5" y="3" width="14" height="18" rx="2" />
       <path d="M9 8h6M9 12h6M9 16h4" />
+    </svg>
+  );
+}
+
+// Staff "Overview" of one client: a gauge, so it doesn't share Usage Stats'
+// bar chart.
+function GaugeIcon(props) {
+  return (
+    <svg
+      width="22"
+      height="22"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.6"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      {...props}
+    >
+      <path d="M3.5 17a8.5 8.5 0 1 1 17 0" />
+      <path d="M12 17l4-5" />
+      <circle cx="12" cy="17" r="1.2" />
     </svg>
   );
 }
