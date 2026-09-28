@@ -5982,8 +5982,10 @@ function InternalNotesSummary({ client }) {
   );
 }
 
-// Quick actions on every client page (staff only).
-function StaffQuickActions({ client, onNavigate }) {
+// Quick actions on every client page (staff only). `only` limits the bar to
+// some actions (the inbox's context pane shows just "request" and "task");
+// `onMessage` opens the chat drawer instead of the client's Messages tab.
+function StaffQuickActions({ client, onNavigate, only, onMessage }) {
   const { staff, staffUser } = useContext(StaffToolsContext);
   const showToast = useToast();
   const [modal, setModal] = useState(null);
@@ -6051,15 +6053,18 @@ function StaffQuickActions({ client, onNavigate }) {
   const titles = { time: "Log time", task: "Add a task", request: "Request a document", note: "Add a note" };
   const canSubmit =
     modal === "time" ? Number(f.hours) > 0 && f.date : (f.text || "").trim().length > 0;
+  const shows = (k) => !only || only.includes(k);
   return (
-    <div className="staff-quick-actions" role="toolbar" aria-label="Staff quick actions">
-      <span className="sqa-label">Staff</span>
-      <button type="button" onClick={() => onNavigate("client-overview")}>Overview</button>
-      <button type="button" onClick={() => openModal("time")}>Log time</button>
-      <button type="button" onClick={() => openModal("task")}>Add task</button>
-      <button type="button" onClick={() => openModal("request")}>Request document</button>
-      <button type="button" onClick={() => openModal("note")}>Add note</button>
-      <button type="button" onClick={() => onNavigate("messages")}>Message</button>
+    <div className={"staff-quick-actions" + (only ? " sqa-subset" : "")} role="toolbar" aria-label="Staff quick actions">
+      {!only && <span className="sqa-label">Staff</span>}
+      {shows("overview") && <button type="button" onClick={() => onNavigate("client-overview")}>Overview</button>}
+      {shows("time") && <button type="button" onClick={() => openModal("time")}>Log time</button>}
+      {shows("task") && <button type="button" onClick={() => openModal("task")}>Add task</button>}
+      {shows("request") && <button type="button" onClick={() => openModal("request")}>Request document</button>}
+      {shows("note") && <button type="button" onClick={() => openModal("note")}>Add note</button>}
+      {shows("message") && (
+        <button type="button" onClick={() => (onMessage ? onMessage() : onNavigate("messages"))}>Message</button>
+      )}
       {modal && (
         <ModalShell onClose={() => setModal(null)} labelledBy="sqa-title" className="confirm-modal">
           <form onSubmit={submit}>
@@ -12348,7 +12353,7 @@ function DeveloperToolsPage({ staffUser, clients, onJumpToClient, readOnly }) {
 
 // ----------------------------------------------------------------------------
 // Team Chat — internal staff messaging, separate from client conversations
-// (which are mock data, not Supabase — see data.js's `threads`). Any active
+// (client_messages; both live in the unified inbox, components/inbox/). Any active
 // staff member can DM any other active staff member (bookkeepers included —
 // two bookkeepers working the same client need this as much as a bookkeeper
 // <-> admin line does), on real Supabase tables (staff_conversations /
@@ -12382,8 +12387,13 @@ const ALLOWED_ATTACHMENT_TYPES = new Set([
   "text/plain",
 ]);
 
-function StaffMessagesPage({ staffUser, onActivity }) {
-  const supabase = window.mgbSupabase;
+// Team Chat state and actions, shared by the unified inbox
+// (components/inbox/StaffInbox.jsx, the Team Chat page and the chat drawer)
+// and the fallback page below. Mount one at a time: its Realtime channel
+// names are fixed per staffer. enabled=false leaves it inert (no queries,
+// no channels), for the client-only inbox on a client's Messages tab.
+function useStaffTeamChat(staffUser, onActivity, enabled = true) {
+  const supabase = enabled ? window.mgbSupabase : null;
   const showToast = useToast();
 
   const [directory, setDirectory] = useState(null); // every other active staff member
@@ -13086,6 +13096,254 @@ function StaffMessagesPage({ staffUser, onActivity }) {
     if (m.author_email === staffUser.email) lastMineMessage = m;
   });
 
+  return {
+    staffUser, directory, conversations, activeConversationId, activeMembers,
+    messages, loadError, draft, setDraft, pendingAttachment, setPendingAttachment,
+    isDragging, setIsDragging, sending, editingId, setEditingId, editDraft,
+    setEditDraft, threadFilter, setThreadFilter, showGroupModal,
+    setShowGroupModal, onlineEmails, typingName, fileInputRef, notifyTyping,
+    selectConversation, createGroup, stageFile, send, startEdit, saveEdit,
+    unsend, chatEntries, activeEntry, otherActiveMembers, otherHasSeen,
+    seenCount, lastMineMessage, loadConversations,
+  };
+}
+
+// The open Team Chat conversation: messages, attachments, edit/unsend within
+// the window, read receipts and typing. `chat` is useStaffTeamChat's result;
+// hideTitle is for the inbox, which draws its own header.
+function StaffTeamThread({ chat, hideTitle }) {
+  const {
+    staffUser, activeConversationId, messages, loadError, draft, setDraft,
+    pendingAttachment, setPendingAttachment, isDragging, setIsDragging, sending,
+    editingId, setEditingId, editDraft, setEditDraft, onlineEmails, typingName,
+    fileInputRef, notifyTyping, stageFile, send, startEdit, saveEdit, unsend,
+    activeEntry, otherActiveMembers, otherHasSeen, seenCount, lastMineMessage,
+  } = chat;
+  if (!activeConversationId) return null;
+  return (
+    <div
+      className={"card message-card" + (isDragging ? " dragging" : "")}
+      onDragOver={(e) => {
+        e.preventDefault();
+        setIsDragging(true);
+      }}
+      onDragLeave={() => setIsDragging(false)}
+      onDrop={(e) => {
+        e.preventDefault();
+        setIsDragging(false);
+        stageFile(e.dataTransfer.files && e.dataTransfer.files[0]);
+      }}
+    >
+{!hideTitle && (
+        <h3 className="card-title">
+          {activeEntry &&
+            (activeEntry.isGroup
+              ? activeEntry.otherEmails.some((e) => onlineEmails.has(e))
+              : onlineEmails.has(activeEntry.otherEmail)) && (
+              <span
+                className="online-dot"
+                aria-label="Online"
+                title="Online now"
+              />
+            )}
+          {activeEntry
+            ? `Conversation with ${activeEntry.otherName}`
+            : "Conversation"}
+        </h3>
+      )}
+      {loadError && <p className="card-subtitle negative">{loadError}</p>}
+      {messages === null && !loadError && (
+        <p className="card-subtitle">Loading…</p>
+      )}
+      {messages && messages.length === 0 && !loadError && (
+        <p className="card-subtitle">No messages yet — say hello.</p>
+      )}
+      {messages && messages.length > 0 && (
+        <div className="message-thread">
+          {messages.map((m) => {
+            const mine = m.author_email === staffUser.email;
+            const withinWindow =
+              mine &&
+              Date.now() - new Date(m.created_at).getTime() <
+                CHAT_EDIT_WINDOW_MS;
+            return (
+              <div
+                className={
+                  "message-bubble-row " + (mine ? "client" : "bookkeeper")
+                }
+                key={m.id}
+              >
+                <div className="message-bubble">
+                  <div className="message-author">
+                    {m.author_name} · {m.author_role}
+                  </div>
+                  {editingId === m.id ? (
+                    <div className="message-edit-row">
+                      <input
+                        type="text"
+                        value={editDraft}
+                        onChange={(e) => setEditDraft(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") saveEdit(m.id);
+                          if (e.key === "Escape") setEditingId(null);
+                        }}
+                        autoFocus
+                      />
+                      <button
+                        className="btn-secondary"
+                        onClick={() => saveEdit(m.id)}
+                      >
+                        Save
+                      </button>
+                    </div>
+                  ) : (
+                    <React.Fragment>
+                      {m.text && (
+                        <div className="message-text">{m.text}</div>
+                      )}
+                      {m.attachment_name &&
+                        safeHttpUrl(m.attachment_signed_url) && (
+                          <a
+                            className="message-attachment"
+                            href={safeHttpUrl(m.attachment_signed_url)}
+                            target="_blank"
+                            rel="noreferrer"
+                          >
+                            <PaperclipIcon /> {m.attachment_name}{" "}
+                            {m.attachment_size && (
+                              <span className="message-attachment-size">
+                                ({m.attachment_size})
+                              </span>
+                            )}
+                          </a>
+                        )}
+                      {m.attachment_name &&
+                        !safeHttpUrl(m.attachment_signed_url) && (
+                          <span className="message-attachment">
+                            <PaperclipIcon /> {m.attachment_name}{" "}
+                            {m.attachment_size && (
+                              <span className="message-attachment-size">
+                                ({m.attachment_size})
+                              </span>
+                            )}
+                          </span>
+                        )}
+                    </React.Fragment>
+                  )}
+                  <div className="message-date">
+                    {fmtDateTime(m.created_at)}
+                    {m.edited_at && (
+                      <span className="message-edited-tag"> · edited</span>
+                    )}
+                  </div>
+                  {withinWindow && editingId !== m.id && (
+                    <div className="message-own-actions">
+                      <button type="button" onClick={() => startEdit(m)}>
+                        Edit
+                      </button>
+                      <button type="button" onClick={() => unsend(m.id)}>
+                        Unsend
+                      </button>
+                    </div>
+                  )}
+                  {mine && m === lastMineMessage && (
+                    <div className="message-seen-status">
+                      {activeEntry && activeEntry.isGroup
+                        ? seenCount(m) > 0
+                          ? `Seen by ${seenCount(m)}/${otherActiveMembers.length}`
+                          : "Sent"
+                        : otherHasSeen(m)
+                          ? "Seen"
+                          : "Sent"}
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {pendingAttachment && (
+        <div className="attachment-chip">
+          <span>
+            <PaperclipIcon /> {pendingAttachment.name}
+          </span>
+          <span className="attachment-chip-meta">
+            {pendingAttachment.size}
+          </span>
+          <button
+            className="attachment-remove"
+            onClick={() => setPendingAttachment(null)}
+            aria-label="Remove attachment"
+          >
+            ×
+          </button>
+        </div>
+      )}
+
+      {/* Reserves its line whether or not anyone's typing, so the
+          compose bar doesn't hop up and down every time it appears. */}
+      <div className="typing-indicator">
+        {typingName ? `${typingName} is typing…` : " "}
+      </div>
+
+      <div className="message-compose">
+        <button
+          type="button"
+          className="attach-btn"
+          onClick={() => fileInputRef.current.click()}
+          aria-label="Attach file"
+        >
+          <PaperclipIcon />
+        </button>
+        <input
+          ref={fileInputRef}
+          type="file"
+          style={{ display: "none" }}
+          onChange={(e) => {
+            stageFile(e.target.files && e.target.files[0]);
+            e.target.value = "";
+          }}
+        />
+        <input
+          type="text"
+          placeholder="Write a message…"
+          value={draft}
+          onChange={(e) => {
+            setDraft(e.target.value);
+            notifyTyping();
+          }}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") send();
+          }}
+        />
+        <button
+          className="btn-primary"
+          onClick={send}
+          disabled={sending || (!draft.trim() && !pendingAttachment)}
+        >
+          Send
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// Team Chat page. The unified inbox replaces it when StaffInbox.jsx is
+// loaded; otherwise the original picker-and-thread layout below.
+function StaffMessagesPage(props) {
+  if (typeof StaffInbox === "function") return <StaffInbox {...props} />;
+  return <StaffMessagesLegacy staffUser={props.staffUser} onActivity={props.onActivity} />;
+}
+
+function StaffMessagesLegacy({ staffUser, onActivity }) {
+  const chat = useStaffTeamChat(staffUser, onActivity);
+  const {
+    directory, chatEntries, activeConversationId, onlineEmails, threadFilter,
+    setThreadFilter, showGroupModal, setShowGroupModal, selectConversation,
+    createGroup,
+  } = chat;
   return (
     <div>
       <MockBanner text="Internal only — separate from client conversations. Nothing here is visible to any client." />
@@ -13156,212 +13414,7 @@ function StaffMessagesPage({ staffUser, onActivity }) {
         )}
       </div>
 
-      {activeConversationId && (
-        <div
-          className={"card message-card" + (isDragging ? " dragging" : "")}
-          onDragOver={(e) => {
-            e.preventDefault();
-            setIsDragging(true);
-          }}
-          onDragLeave={() => setIsDragging(false)}
-          onDrop={(e) => {
-            e.preventDefault();
-            setIsDragging(false);
-            stageFile(e.dataTransfer.files && e.dataTransfer.files[0]);
-          }}
-        >
-          <h3 className="card-title">
-            {activeEntry &&
-              (activeEntry.isGroup
-                ? activeEntry.otherEmails.some((e) => onlineEmails.has(e))
-                : onlineEmails.has(activeEntry.otherEmail)) && (
-                <span
-                  className="online-dot"
-                  aria-label="Online"
-                  title="Online now"
-                />
-              )}
-            {activeEntry
-              ? `Conversation with ${activeEntry.otherName}`
-              : "Conversation"}
-          </h3>
-          {loadError && <p className="card-subtitle negative">{loadError}</p>}
-          {messages === null && !loadError && (
-            <p className="card-subtitle">Loading…</p>
-          )}
-          {messages && messages.length === 0 && !loadError && (
-            <p className="card-subtitle">No messages yet — say hello.</p>
-          )}
-          {messages && messages.length > 0 && (
-            <div className="message-thread">
-              {messages.map((m) => {
-                const mine = m.author_email === staffUser.email;
-                const withinWindow =
-                  mine &&
-                  Date.now() - new Date(m.created_at).getTime() <
-                    CHAT_EDIT_WINDOW_MS;
-                return (
-                  <div
-                    className={
-                      "message-bubble-row " + (mine ? "client" : "bookkeeper")
-                    }
-                    key={m.id}
-                  >
-                    <div className="message-bubble">
-                      <div className="message-author">
-                        {m.author_name} · {m.author_role}
-                      </div>
-                      {editingId === m.id ? (
-                        <div className="message-edit-row">
-                          <input
-                            type="text"
-                            value={editDraft}
-                            onChange={(e) => setEditDraft(e.target.value)}
-                            onKeyDown={(e) => {
-                              if (e.key === "Enter") saveEdit(m.id);
-                              if (e.key === "Escape") setEditingId(null);
-                            }}
-                            autoFocus
-                          />
-                          <button
-                            className="btn-secondary"
-                            onClick={() => saveEdit(m.id)}
-                          >
-                            Save
-                          </button>
-                        </div>
-                      ) : (
-                        <React.Fragment>
-                          {m.text && (
-                            <div className="message-text">{m.text}</div>
-                          )}
-                          {m.attachment_name &&
-                            safeHttpUrl(m.attachment_signed_url) && (
-                              <a
-                                className="message-attachment"
-                                href={safeHttpUrl(m.attachment_signed_url)}
-                                target="_blank"
-                                rel="noreferrer"
-                              >
-                                <PaperclipIcon /> {m.attachment_name}{" "}
-                                {m.attachment_size && (
-                                  <span className="message-attachment-size">
-                                    ({m.attachment_size})
-                                  </span>
-                                )}
-                              </a>
-                            )}
-                          {m.attachment_name &&
-                            !safeHttpUrl(m.attachment_signed_url) && (
-                              <span className="message-attachment">
-                                <PaperclipIcon /> {m.attachment_name}{" "}
-                                {m.attachment_size && (
-                                  <span className="message-attachment-size">
-                                    ({m.attachment_size})
-                                  </span>
-                                )}
-                              </span>
-                            )}
-                        </React.Fragment>
-                      )}
-                      <div className="message-date">
-                        {fmtDateTime(m.created_at)}
-                        {m.edited_at && (
-                          <span className="message-edited-tag"> · edited</span>
-                        )}
-                      </div>
-                      {withinWindow && editingId !== m.id && (
-                        <div className="message-own-actions">
-                          <button type="button" onClick={() => startEdit(m)}>
-                            Edit
-                          </button>
-                          <button type="button" onClick={() => unsend(m.id)}>
-                            Unsend
-                          </button>
-                        </div>
-                      )}
-                      {mine && m === lastMineMessage && (
-                        <div className="message-seen-status">
-                          {activeEntry && activeEntry.isGroup
-                            ? seenCount(m) > 0
-                              ? `Seen by ${seenCount(m)}/${otherActiveMembers.length}`
-                              : "Sent"
-                            : otherHasSeen(m)
-                              ? "Seen"
-                              : "Sent"}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-
-          {pendingAttachment && (
-            <div className="attachment-chip">
-              <span>
-                <PaperclipIcon /> {pendingAttachment.name}
-              </span>
-              <span className="attachment-chip-meta">
-                {pendingAttachment.size}
-              </span>
-              <button
-                className="attachment-remove"
-                onClick={() => setPendingAttachment(null)}
-                aria-label="Remove attachment"
-              >
-                ×
-              </button>
-            </div>
-          )}
-
-          {/* Reserves its line whether or not anyone's typing, so the
-              compose bar doesn't hop up and down every time it appears. */}
-          <div className="typing-indicator">
-            {typingName ? `${typingName} is typing…` : " "}
-          </div>
-
-          <div className="message-compose">
-            <button
-              type="button"
-              className="attach-btn"
-              onClick={() => fileInputRef.current.click()}
-              aria-label="Attach file"
-            >
-              <PaperclipIcon />
-            </button>
-            <input
-              ref={fileInputRef}
-              type="file"
-              style={{ display: "none" }}
-              onChange={(e) => {
-                stageFile(e.target.files && e.target.files[0]);
-                e.target.value = "";
-              }}
-            />
-            <input
-              type="text"
-              placeholder="Write a message…"
-              value={draft}
-              onChange={(e) => {
-                setDraft(e.target.value);
-                notifyTyping();
-              }}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") send();
-              }}
-            />
-            <button
-              className="btn-primary"
-              onClick={send}
-              disabled={sending || (!draft.trim() && !pendingAttachment)}
-            >
-              Send
-            </button>
-          </div>
-        </div>
-      )}
+      <StaffTeamThread chat={chat} />
 
       {showGroupModal && (
         <GroupComposeModal
@@ -20215,12 +20268,20 @@ function MessagesPage({
   isBookkeeper,
   searchTarget,
   bookkeeperTyping,
+  // Real messaging (client_messages, see SI_useClientMessaging): no sample
+  // banner, attachments are checked and uploaded, and onSend resolves to an
+  // error message or null. readOnlyNote: staff previewing a real thread.
+  live,
+  validateAttachment,
+  readOnlyNote,
 }) {
   const [draft, setDraft] = useState("");
   const [pendingAttachment, setPendingAttachment] = useState(null);
   const [isDragging, setIsDragging] = useState(false);
+  const [sending, setSending] = useState(false);
   const fileInputRef = useRef(null);
   const { flashCardId, jumpToCard } = useCardFlash();
+  const showToast = useToast();
 
   // Search only ever looks within the currently-open thread (see
   // GlobalSearch), so there's no other person's conversation to switch to
@@ -20233,12 +20294,26 @@ function MessagesPage({
 
   const stageFile = (file) => {
     if (!file) return;
-    setPendingAttachment({ name: file.name, size: formatBytes(file.size) });
+    const err = validateAttachment ? validateAttachment(file) : null;
+    if (err) {
+      showToast(err);
+      return;
+    }
+    setPendingAttachment({ file, name: file.name, size: formatBytes(file.size) });
   };
 
-  const send = () => {
-    if (!draft.trim() && !pendingAttachment) return;
-    onSend(draft.trim(), pendingAttachment || undefined);
+  const send = async () => {
+    if ((!draft.trim() && !pendingAttachment) || sending || readOnlyNote) return;
+    const res = onSend(draft.trim(), pendingAttachment || undefined);
+    if (res && typeof res.then === "function") {
+      setSending(true);
+      const err = await res;
+      setSending(false);
+      if (err) {
+        showToast(err);
+        return;
+      }
+    }
     setDraft("");
     setPendingAttachment(null);
   };
@@ -20247,7 +20322,9 @@ function MessagesPage({
 
   return (
     <div>
-      <MockBanner text="This is a sample conversation — sending a message here doesn't notify anyone yet." />
+      {!live && (
+        <MockBanner text="This is a sample conversation — sending a message here doesn't notify anyone yet." />
+      )}
 
       {/* Each person has a private thread, so in bookkeeper view MyGoodBooks
           picks whose conversation to open. Clients never see this. */}
@@ -20326,15 +20403,29 @@ function MessagesPage({
                       : m.author}
                   </div>
                   {m.text && <div className="message-text">{m.text}</div>}
-                  {m.attachment && (
-                    <div className="message-attachment">
-                      <PaperclipIcon /> {m.attachment.name}{" "}
-                      <span className="message-attachment-size">
-                        ({m.attachment.size})
-                      </span>
-                    </div>
-                  )}
-                  <div className="message-date">{fmtDate(m.date)}</div>
+                  {m.attachment &&
+                    (safeHttpUrl(m.attachment.url) ? (
+                      <a
+                        className="message-attachment"
+                        href={safeHttpUrl(m.attachment.url)}
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        <PaperclipIcon /> {m.attachment.name}
+                      </a>
+                    ) : (
+                      <div className="message-attachment">
+                        <PaperclipIcon /> {m.attachment.name}{" "}
+                        {m.attachment.size && (
+                          <span className="message-attachment-size">
+                            ({m.attachment.size})
+                          </span>
+                        )}
+                      </div>
+                    ))}
+                  <div className="message-date">
+                    {m.created_at ? fmtDateTime(m.created_at) : fmtDate(m.date)}
+                  </div>
                 </div>
               </div>
             );
@@ -20367,6 +20458,9 @@ function MessagesPage({
             ? `${client.assignedBookkeeper.name} is typing…`
             : " "}
         </div>
+        {readOnlyNote ? (
+          <p className="card-subtitle">{readOnlyNote}</p>
+        ) : (
         <div className="message-compose">
           <button
             type="button"
@@ -20394,10 +20488,11 @@ function MessagesPage({
               if (e.key === "Enter") send();
             }}
           />
-          <button className="btn-primary" onClick={send}>
-            Send
+          <button className="btn-primary" onClick={send} disabled={sending}>
+            {sending ? "Sending…" : "Send"}
           </button>
         </div>
+        )}
 
         {isDragging && (
           <div className="message-drop-overlay">Drop file to attach</div>
@@ -22896,7 +22991,7 @@ const PAGE_META = {
   },
   "staff-messages": {
     title: "Team Chat",
-    subtitle: "Message management, separate from client conversations",
+    subtitle: "Client conversations and team chat in one inbox",
   },
   "bookkeeper-home": {
     title: "Home",
@@ -23432,6 +23527,12 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
   // already waits, rather than faking a live Realtime channel.
   const [bookkeeperTyping, setBookkeeperTyping] = useState(false);
   const [chatWidgetOpen, setChatWidgetOpen] = useState(false);
+  // Staff chat drawer (components/inbox/StaffInbox.jsx): null when closed,
+  // else {clientId} — the client whose threads it opens on, if any.
+  const [siDrawer, setSiDrawer] = useState(null);
+  // The person "Open client" in the inbox asked for, opened on that client's
+  // Messages tab.
+  const [inboxFocusEmail, setInboxFocusEmail] = useState(null);
   // Which person's thread the bookkeeper is reading (clients only ever see
   // their own, so this is unused while previewing as someone).
   const [bookkeeperThreadUserId, setBookkeeperThreadUserId] = useState(null);
@@ -23713,6 +23814,24 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
         ],
       }));
     }, 900);
+  };
+
+  // The inbox's sample fallback writes into the same threads, so a staff
+  // reply shows up when previewing as that person.
+  const sampleInboxSend = (clientId, userId, msg) => {
+    const key = threadKeyFor(clientId, userId);
+    setMessagesByClient((prev) => ({
+      ...prev,
+      [key]: [...(prev[key] || seedThread(clientId, userId)), msg],
+    }));
+  };
+  // Inbox "Open client": that client's Messages tab, on that person.
+  const openClientMessages = (clientId, email) => {
+    setSiDrawer(null);
+    setInboxFocusEmail(email || null);
+    if (clientId !== selectedClientId) pageAfterClientSwitch.current = "messages";
+    setSelectedClientId(clientId);
+    setPage("messages");
   };
 
   // Remember the tab across refreshes. Stores the raw `page` rather than
@@ -24189,6 +24308,41 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
 
   const clientUsers = client.users || [];
 
+  // Real client messaging (SI_useClientMessaging, components/inbox/). Only
+  // "real" once supabase/client-messages.sql answers; until then, and for
+  // staff previewing a sample person, the sample threads below carry on.
+  // Staff in the bookkeeper view get just the waiting count, for the badge.
+  const siRole = clientPortalUser ? "client" : isPreviewingUser ? "preview" : "staff";
+  const siMsg =
+    typeof SI_useClientMessaging === "function"
+      ? SI_useClientMessaging({
+          enabled: siRole === "client" || !NON_CLIENT_PAGES.has(effectivePage),
+          role: siRole,
+          clientId: selectedClientId,
+          email: clientPortalUser
+            ? clientPortalUser.email
+            : isPreviewingUser
+              ? access.user.email
+              : null,
+          name: clientPortalUser ? clientPortalUser.name : null,
+          active: effectivePage === "messages",
+          refreshKey: effectivePage,
+        })
+      : null;
+  const siLive = !!(siMsg && siMsg.status === "real");
+  const siLiveThread = siLive && siRole !== "staff";
+  // One chat bubble for staff: the drawer launcher replaces ChatFab.
+  const siStaffChat =
+    typeof SI_ChatDrawer === "function" &&
+    isStaffSession &&
+    !!staffUser &&
+    !impersonating &&
+    !isPreviewingUser;
+  useEffect(() => {
+    if (!siStaffChat || effectivePage === "staff-messages") setSiDrawer(null);
+  }, [siStaffChat, effectivePage]);
+  const siInboxClients = useMemo(() => [client], [client]);
+
   const threadFor = (userId) =>
     messagesByClient[threadKeyFor(selectedClientId, userId)] ||
     seedThread(selectedClientId, userId);
@@ -24205,14 +24359,20 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
     );
   };
 
-  const unreadThreadUserIds = clientUsers
-    .filter((u) => threadHasUnread(u.id))
-    .map((u) => u.id);
+  const unreadThreadUserIds = siLiveThread
+    ? siMsg.unread && access.user
+      ? [access.user.id]
+      : []
+    : clientUsers.filter((u) => threadHasUnread(u.id)).map((u) => u.id);
   // A client sees a badge only for their own thread; the bookkeeper sees one
   // if anybody at the organization is waiting on a reply.
-  const hasUnreadMessages = access.user
-    ? unreadThreadUserIds.includes(access.user.id)
-    : unreadThreadUserIds.length > 0;
+  const hasUnreadMessages = siLive
+    ? access.user
+      ? siMsg.unread
+      : siMsg.waitingCount > 0
+    : access.user
+      ? unreadThreadUserIds.includes(access.user.id)
+      : unreadThreadUserIds.length > 0;
 
   // A person always reads their own thread. In bookkeeper view there's no
   // signed-in person, so MyGoodBooks picks whose thread to open — and it opens
@@ -24227,7 +24387,13 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
       (clientUsers[0] && clientUsers[0].id) ||
       null;
 
-  const liveMessages = activeThreadUserId ? threadFor(activeThreadUserId) : [];
+  // Internal notes can sit in a sample thread (the inbox's Note mode); they
+  // never reach the client view.
+  const liveMessages = siLiveThread
+    ? siMsg.messages
+    : activeThreadUserId
+      ? threadFor(activeThreadUserId).filter((m) => !m.internal)
+      : [];
 
   useEffect(() => {
     // effectivePage, not page: when the current tab isn't visible to this viewer
@@ -24505,6 +24671,7 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
 
   const closeChatWidget = () => {
     setChatWidgetOpen(false);
+    if (siLiveThread) siMsg.markRead();
     if (!activeThreadUserId) return;
     setReadMessageClients((prev) => ({
       ...prev,
@@ -24742,7 +24909,11 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
               shimmering them off whichever client happens to be selected
               in the sidebar would be a non sequitur. */}
           {!NON_CLIENT_PAGES.has(effectivePage) && (
-            <StaffQuickActions client={client} onNavigate={setPage} />
+            <StaffQuickActions
+              client={client}
+              onNavigate={setPage}
+              onMessage={siStaffChat ? () => setSiDrawer({ clientId: client.id }) : undefined}
+            />
           )}
           {/* What the client (or staff previewing as them) sees on every
               page while their bookkeeper is waiting on a document. */}
@@ -24796,6 +24967,17 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
                             cta: "Upload now",
                             onOpen: () => setPage("documents"),
                           }))
+                        : []),
+                      ...(siLiveThread && siMsg.unread && access.tabs.has("messages") && effectivePage !== "messages"
+                        ? [
+                            {
+                              id: "msg:" + siMsg.lastId,
+                              title: "New message from your bookkeeper",
+                              sub: siMsg.lastText ? siMsg.lastText.slice(0, 90) : null,
+                              cta: "Open messages",
+                              onOpen: () => setPage("messages"),
+                            },
+                          ]
                         : []),
                       ...(budgetAwaiting && access.isFullAccess
                         ? [
@@ -25003,6 +25185,10 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
             <StaffMessagesPage
               staffUser={staffUser}
               onActivity={checkStaffMessagesUnread}
+              clients={visibleClients}
+              sampleThreads={messagesByClient}
+              onSampleSend={sampleInboxSend}
+              onOpenClient={openClientMessages}
             />
           )}
           {effectivePage === "my-tasks" && (
@@ -25087,17 +25273,39 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
               key={"docs-" + client.id}
             />
           )}
-          {effectivePage === "messages" && (
+          {effectivePage === "messages" &&
+            // Staff in the bookkeeper view get the inbox, limited to this
+            // client's people; clients (and previews) the plain thread.
+            (isStaffSession && !isPreviewingUser && typeof StaffInbox === "function" ? (
+              <StaffInbox
+                staffUser={staffUser}
+                clients={siInboxClients}
+                lockClientId={client.id}
+                initialEmail={inboxFocusEmail}
+                sampleThreads={messagesByClient}
+                onSampleSend={sampleInboxSend}
+                key={"inbox-" + client.id + "-" + (inboxFocusEmail || "")}
+              />
+            ) : (
             <MessagesPage
               client={scopedClient}
               messages={liveMessages}
+              live={siLiveThread}
+              validateAttachment={siLiveThread ? siMsg.checkFile : undefined}
+              readOnlyNote={
+                siLiveThread && siMsg.readOnly
+                  ? "You're previewing this person's real conversation. Reply to them from the Inbox."
+                  : undefined
+              }
               onSend={(text, attachment) =>
-                sendMessage(
-                  selectedClientId,
-                  activeThreadUserId,
-                  text,
-                  attachment,
-                )
+                siLiveThread
+                  ? siMsg.send(text, attachment)
+                  : sendMessage(
+                      selectedClientId,
+                      activeThreadUserId,
+                      text,
+                      attachment,
+                    )
               }
               users={clientUsers}
               activeUserId={activeThreadUserId}
@@ -25112,7 +25320,7 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
               }
               key={"msgs-" + client.id + "-" + activeThreadUserId}
             />
-          )}
+            ))}
 
           <div className="main-footer">
             {!isPreviewingUser
@@ -25135,7 +25343,28 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
         </main>
       </div>
 
-      {chatWidgetOpen && (
+      {siStaffChat && effectivePage !== "staff-messages" && !siDrawer && (
+        <SI_ChatLauncher
+          unread={staffMessagesUnread}
+          onOpen={() =>
+            setSiDrawer({ clientId: NON_CLIENT_PAGES.has(effectivePage) ? null : client.id })
+          }
+        />
+      )}
+      {siStaffChat && siDrawer && (
+        <SI_ChatDrawer
+          staffUser={staffUser}
+          onActivity={checkStaffMessagesUnread}
+          clients={visibleClients}
+          defaultClientId={siDrawer.clientId}
+          sampleThreads={messagesByClient}
+          onSampleSend={sampleInboxSend}
+          onOpenClient={openClientMessages}
+          onClose={() => setSiDrawer(null)}
+        />
+      )}
+
+      {chatWidgetOpen && !siStaffChat && (
         // Same tap-to-open button on every screen size now — see ChatFab's
         // own comment for why the floating mini-thread this replaced isn't
         // worth keeping even on desktop.

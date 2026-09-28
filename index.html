@@ -72,6 +72,7 @@
       );
       document.write('<link rel="stylesheet" href="components/pro/pro-budget.css?v=' + Date.now() + '">');
       document.write('<link rel="stylesheet" href="components/pro/pro-reports.css?v=' + Date.now() + '">');
+      document.write('<link rel="stylesheet" href="components/inbox/staff-inbox.css?v=' + Date.now() + '">');
 
       // Kick every source fetch off HERE, in <head>, so all five download in
       // parallel with React/Babel/jsPDF instead of after them. Previously each
@@ -92,6 +93,7 @@
         "components/qbo/mapQboToClient.js",
         "components/pro/ProBudget.jsx",
         "components/pro/ProReports.jsx",
+        "components/inbox/StaffInbox.jsx",
         "app.jsx",
       ];
       window.__sources = {};

@@ -33,8 +33,9 @@ because some work happens in Claude Code web sessions. Run `git fetch` and compa
   of time.
 - **Load order.** `window.__SOURCE_ORDER` in `index.html` lists the files in the order they
   run: `auth-config.js`, `qbo-config.js`, `components/auth/*`, `data.js`,
-  `components/daily-close/*`, `components/qbo/mapQboToClient.js`, then `app.jsx`. All files
-  start downloading at once, but they compile in this order.
+  `components/daily-close/*`, `components/qbo/mapQboToClient.js`, `components/pro/*`,
+  `components/inbox/StaffInbox.jsx`, then `app.jsx`. All files start downloading at once, but
+  they compile in this order.
 - **Shared global scope.** There are no imports. Every file shares `window`, so something
   defined in one file (for example `window.mgbSupabase` or `window.CLIENTS`) is visible to the
   files after it.
@@ -73,6 +74,7 @@ because some work happens in Claude Code web sessions. Run `git fetch` and compa
 | `components/auth/` | `supabaseClient.js`, `AuthGate.jsx` (staff Google gate), `ClientAuthGate.jsx` (client magic-link gate) |
 | `components/daily-close/` | Live Report (`DailyClose.tsx`, its CSS, sample data, and `fromClient.js`, which adapts client data for it) |
 | `components/pro/` | Pro budget and report tools: `ProBudget.jsx` (Budget vs. Actual tabs, next year's draft with approval) and `ProReports.jsx` (board reports suite and the public share page), each with its own CSS. Loaded before `app.jsx`; `app.jsx` falls back to the old pages if either is missing. |
+| `components/inbox/` | `StaffInbox.jsx` (the unified staff inbox, the staff chat drawer and launcher, and `SI_useClientMessaging` for the client Messages page) and `staff-inbox.css`. Loaded before `app.jsx`; every name is `SI_`/`si`/`StaffInbox` prefixed. Without it, `app.jsx` falls back to the old Team Chat page and sample client threads. |
 | `components/qbo/` | `mapQboToClient.js` converts QuickBooks table rows into the shape the pages use. Its test is `mapQboToClient.test.js`. |
 | `supabase/*.sql` | Every database change: tables, row-level security (RLS) policies, functions, cron jobs. The folder is flat, one file per change. |
 | `supabase/functions/` | Edge functions: `qbo-callback`, `qbo-refresh-token`, `qbo-sync`, `invite-client-user` |
@@ -173,7 +175,7 @@ because some work happens in Claude Code web sessions. Run `git fetch` and compa
 
 - Client roster, staff, assignments, client contacts
 - Notes, private notes, SOPs, tasks and reminders, time entries
-- Team Chat, activity log, access requests, upgrade requests, usage stats and feedback
+- Client messages (`client_messages`), Team Chat, activity log, access requests, upgrade requests, usage stats and feedback
 - Document links (Google Drive links only; no files are stored)
 - QuickBooks data for connected clients
 
@@ -212,7 +214,10 @@ because some work happens in Claude Code web sessions. Run `git fetch` and compa
 
 - `data.js`: all financials for orgs without QuickBooks, and for every org: giving, funds,
   pledges, donors, payroll (Gusto) and the "Preview as" user list.
-- Client **Messages** are sample threads with simulated bookkeeper replies.
+- Client **Messages** fall back to the sample threads (with simulated bookkeeper replies) only
+  when `client_messages` can't be read, and for staff previewing a sample person. Staff Home's
+  "Unread messages" card and the Client overview's "threads waiting" still count the sample
+  threads.
 - Client **Documents** uploads stay in the browser for that session only.
 - Giving statement "Send" (Tax Documents) only simulates delivery; nothing is emailed.
 - The referral popup (`ReferralPopup`) exists in code but isn't shown anywhere.
@@ -237,7 +242,7 @@ because some work happens in Claude Code web sessions. Run `git fetch` and compa
     - document requests
     - an activity timeline with "Log a call", saved as a `client_private_notes` call note
   - **Quick-action bar** on every client page: Overview, Log time, Add task, Request document,
-    Add note, Message.
+    Add note, Message (opens the chat drawer on this client).
   - **Open requests are hard to miss:** a "Your bookkeeper needs N documents · Upload now" banner
     shows on every client page (for the client, and for staff previewing as them), and Documents
     gets a dot in the sidebar.
@@ -275,8 +280,35 @@ because some work happens in Claude Code web sessions. Run `git fetch` and compa
   - The staff menu shows a due-count badge.
 - **Client SOPs**: sectioned per-client procedures with full version history
   (`client_sops`, `client_sop_history`, `save_client_sop`). Clients never see them.
-- **Team Chat** (`staff-messages`): direct messages and groups, attachments, edit/unsend, read
-  receipts, online presence and typing indicators (Supabase Realtime).
+- **Inbox** (page `staff-messages`, "Team Chat" in the sidebar; `components/inbox/StaffInbox.jsx`):
+  one three-pane inbox for client conversations and team chat.
+  - **List:** search, All / Clients / Team pills with counts, "+ New" (a client contact, a
+    teammate or a new group). Every person at every client you can see (`client_users`, else the
+    sample people) plus your Team Chat DMs and groups, most recent first. A client thread whose
+    last message is from the client shows a red "Waiting on you · 2h"; unread threads are bold
+    with a dot.
+  - **Conversation:** theirs on the left, ours on the right in ink. Client threads have a
+    **Reply / Note** switch (a note is `internal = true`, shown as a dashed gold "Internal note ·
+    only staff see this" bubble), attachments (`client-uploads` bucket,
+    `<client_id>/messages/<email>/<time>-<file>`, 25 MB and the bucket's types), Enter to send and
+    Shift+Enter for a new line; opening a thread marks it read (`client_message_reads`). Team
+    conversations reuse Team Chat's thread (`useStaffTeamChat` / `StaffTeamThread` in app.jsx):
+    attachments, edit/unsend within 15 minutes, read receipts, groups, presence and typing, all
+    unchanged.
+  - **Details pane** (collapsible, "i" button): for a client, the church, the Pro pill, the
+    milestone, cash on hand, last month's close progress, the bookkeeper, open document requests
+    and tasks, files in the thread, and Add task / Request document / Open client (that client's
+    Messages tab on that person). For a team conversation, members with online dots and shared
+    files.
+  - Live over Realtime (polls every 30 seconds if the channel can't be joined).
+  - If `client_messages` is missing or unreadable, client threads fall back to the sample
+    threads with a note that nothing is saved.
+- **Chat drawer:** a compact inbox (list, then the conversation with a back arrow) that slides in
+  from the right over any page. Opened from the staff toolbar's **Message** button (starts on that
+  client's people) or the ink chat button bottom-right, which replaces the client chat bubble for
+  staff. Esc or a click outside closes it. Hidden on the Inbox page itself and while previewing or
+  impersonating.
+- A staffer on a client's **Messages** tab gets the same inbox limited to that client's people.
 - **My Time**: log time per client, totals, recent entries, firm-wide utilization (admins).
 - **Client details** (sidebar): Documents (Drive links), QuickBooks (connect / sync /
   disconnect), Notes, SOP, Milestone, Activity.
@@ -296,7 +328,12 @@ because some work happens in Claude Code web sessions. Run `git fetch` and compa
   Plans. Collapsed, it shows just the roman numeral.
 - **Dashboard** (customizable widgets and saved views). A Pro, full-access client gets
   **Live Report** here instead.
-- **Messages**, **Budget vs. Actual**, **Bank Accounts**, **Cash Flow** (receivables and
+- **Messages**: each person's private thread with MyGoodBooks (`client_messages`, see the Inbox
+  above), with attachments, live updates, and the sidebar dot and ChatFab fed from real read
+  markers. Internal notes never show here. Staff previewing a person see their real thread
+  read-only if they have one, else the sample thread. The notification bell adds "New message
+  from your bookkeeper".
+- **Budget vs. Actual**, **Bank Accounts**, **Cash Flow** (receivables and
   payables), **Reports**, **Giving & Funds**, **Payroll** (add-on), **Documents** (with folders
   and previews).
 - **Pro upgrades** show inline on the same tabs:
@@ -465,7 +502,13 @@ because some work happens in Claude Code web sessions. Run `git fetch` and compa
 
 - Client **"Account"** sidebar item: email notification settings, monthly digest on/off and
   recipients. Move the theme toggle and Sign out into it. Build this once email features exist.
-- Real client Messages with email notifications. Today they're sample threads.
+- Email notifications for client messages (the messages themselves are real since 2026-09-28).
+- Point Staff Home's "Unread messages" card and the Client overview's "threads waiting" at
+  `client_messages` (they still read the sample threads).
+- Apply `supabase/client-messages-realtime.sql`. Until then:
+  - Client users' Messages page polls every 30 seconds instead of updating live.
+  - **Real client logins can't upload or open files**, because the live `client-uploads` client
+    policies read the person's name as the file path.
 - Tax Documents "Sent" status should move to a Supabase table (client, donor, year, sent_at,
   sent_by) once statements are really emailed. Statement sends and referral sends are still
   mock.
@@ -523,6 +566,16 @@ because some work happens in Claude Code web sessions. Run `git fetch` and compa
   stay callable.
 - **Write stamping.** Writes to telemetry, notes and messages are stamped with the caller's JWT
   email, never a value the browser sends.
+- **Client messages** (`supabase/client-messages.sql`, applied 2026-09-28): staff who can access
+  the client see every thread; a client user sees only their own thread and never internal
+  notes; no updates or deletes; author emails are checked against the JWT.
+  `supabase/client-messages-realtime.sql` (**NOT APPLIED yet**) adds the one realtime.messages
+  policy client users need to join their own `client-msgs-<email>` topic. It also:
+  - Fixes the client `client-uploads` policies from `staff-client-tools.sql`. Inside their
+    `client_users` subquery, `name` meant the person's name, not the file path. They now use
+    `is_client_member()`.
+  - Limits each client user to their own `messages/<email>/` folder.
+  - Limits a client message's attachment to that folder.
 - **Team Chat.** Membership is enforced in the database. Attachments go to a private bucket with
   a 25 MB limit and allowed file types, scoped to conversation members.
 - **Realtime** channels are private, but only once Supabase's dashboard setting "Private
