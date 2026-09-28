@@ -237,6 +237,9 @@ because some work happens in Claude Code web sessions. Run `git fetch` and compa
     - an activity timeline with "Log a call", saved as a `client_private_notes` call note
   - **Quick-action bar** on every client page: Overview, Log time, Add task, Request document,
     Add note, Message.
+  - **Open requests are hard to miss:** a "Your bookkeeper needs N documents · Upload now" banner
+    shows on every client page (for the client, and for staff previewing as them), and Documents
+    gets a dot in the sidebar.
   - **Document requests** (`client_doc_requests` + private bucket `client-uploads`, path
     `<client_id>/<request_id>/<file>`): the client sees them on Documents and uploads through
     `fulfill_doc_request()`. Staff open files with a 5-minute signed URL.

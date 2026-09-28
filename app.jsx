@@ -5184,6 +5184,32 @@ function DocumentRequestsCard({ client, compact }) {
   );
 }
 
+// Banner on every client page while requests are open, so the client
+// doesn't have to find them on the Documents page.
+function DocRequestBanner({ requests, onOpen }) {
+  if (!requests || requests.length === 0) return null;
+  const today = todayLocal();
+  const overdue = requests.filter((r) => r.due_date && r.due_date < today).length;
+  const first = requests[0];
+  return (
+    <div className={"doc-req-banner" + (overdue ? " overdue" : "")} role="status">
+      <span className="doc-req-banner-text">
+        <strong>
+          Your bookkeeper needs {requests.length} document{requests.length === 1 ? "" : "s"}
+        </strong>
+        {": "}
+        {first.title}
+        {first.due_date ? ` (due ${fmtDate(first.due_date)})` : ""}
+        {requests.length > 1 ? ` and ${requests.length - 1} more` : ""}
+        {overdue ? ` · ${overdue} overdue` : ""}
+      </span>
+      <button type="button" className="btn-primary" onClick={onOpen}>
+        Upload now
+      </button>
+    </div>
+  );
+}
+
 // Month-end close for one client.
 function CloseChecklistCard({ client }) {
   const { staffUser } = useContext(StaffToolsContext);
@@ -23160,6 +23186,13 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
   const [detailsTab, setDetailsTab] = useState(null);
   // Bumped when staff change "Preview plan" so access re-resolves.
   const [previewPlanRev, setPreviewPlanRev] = useState(0);
+  // Open document requests for the selected client: drives the "your
+  // bookkeeper needs…" banner and the Documents dot in the sidebar.
+  const docRequestsList = useStaffToolList(
+    (sb, id) => staffToolsApi.docRequests(sb, id),
+    selectedClientId,
+  );
+  const openDocRequests = docRequestsList.rows.filter((r) => r.status === "open");
   // Read state and live threads are both keyed "<clientId>::<userId>", since
   // every person at an organization has their own private thread.
   const [readMessageClients, setReadMessageClients] = useState({});
@@ -24145,52 +24178,44 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
     };
   }, []);
 
-  // .content-masonry uses CSS multi-column layout (see its comment in
-  // styles.css for why), which packs cards into whichever column the
-  // browser's own height-balancing puts them in — there's no CSS selector
-  // for "the last card that ended up alone at the bottom, with nothing
-  // beside it." So this measures it directly: after layout settles, if the
-  // last card's vertical span doesn't overlap any other card's, nothing
-  // is next to it, and it gets .cm-solo — which spans the full masonry
-  // width and centers itself there (see styles.css) instead of sitting
-  // pinned to one column with dead space only on one side.
+  // Masonry spans. .content-masonry is a grid of 4px rows (see styles.css);
+  // each card gets grid-row-end: span N covering its measured height plus
+  // the 20px gap, and grid auto-placement drops it into the first column
+  // where it fits. Re-measured whenever a card's size changes (charts
+  // loading, a section expanding) or cards are added, removed or reordered.
   useEffect(() => {
-    const containers = new Set();
-    const settle = () => {
-      document.querySelectorAll(".content-masonry").forEach((el) => {
-        const kids = Array.from(el.children).filter(
-          (c) => c.offsetParent !== null,
-        );
-        kids.forEach((k) => k.classList.remove("cm-solo"));
-        if (kids.length < 2) return;
-        const last = kids[kids.length - 1];
-        const lastRect = last.getBoundingClientRect();
-        const hasNeighbor = kids.some((k) => {
-          if (k === last) return false;
-          const r = k.getBoundingClientRect();
-          return r.top < lastRect.bottom && r.bottom > lastRect.top;
-        });
-        if (!hasNeighbor) last.classList.add("cm-solo");
-      });
+    const ROW = 4;
+    const GAP = 20;
+    const sizeCard = (card) => {
+      if (card.offsetParent === null) return;
+      const h = card.getBoundingClientRect().height;
+      const span = `span ${Math.max(1, Math.ceil((h + GAP) / ROW))}`;
+      if (card.style.gridRowEnd !== span) card.style.gridRowEnd = span;
     };
     const ro =
-      typeof ResizeObserver === "undefined" ? null : new ResizeObserver(settle);
-    const scanMasonry = () => {
-      document.querySelectorAll(".content-masonry").forEach((el) => {
-        if (containers.has(el)) return;
-        containers.add(el);
-        if (ro) ro.observe(el);
+      typeof ResizeObserver === "undefined"
+        ? null
+        : new ResizeObserver((entries) => entries.forEach((e) => sizeCard(e.target)));
+    const watched = new WeakSet();
+    const scan = () => {
+      document.querySelectorAll(".content-masonry").forEach((grid) => {
+        Array.from(grid.children).forEach((card) => {
+          if (!watched.has(card)) {
+            watched.add(card);
+            if (ro) ro.observe(card);
+          }
+          sizeCard(card);
+        });
       });
-      settle();
     };
-    scanMasonry();
-    const mo2 = new MutationObserver(scanMasonry);
-    mo2.observe(document.body, { childList: true, subtree: true });
-    window.addEventListener("resize", settle);
+    scan();
+    const mo = new MutationObserver(scan);
+    mo.observe(document.body, { childList: true, subtree: true });
+    window.addEventListener("resize", scan);
     return () => {
       if (ro) ro.disconnect();
-      mo2.disconnect();
-      window.removeEventListener("resize", settle);
+      mo.disconnect();
+      window.removeEventListener("resize", scan);
     };
   }, []);
 
@@ -24495,7 +24520,10 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
             setPreviewPlan(client.id, plan);
             setPreviewPlanRev((n) => n + 1);
           }}
-          badges={{ messages: hasUnreadMessages }}
+          badges={{
+            messages: hasUnreadMessages,
+            documents: openDocRequests.length > 0,
+          }}
           mobileOpen={mobileNavOpen}
           onCloseMobile={() => setMobileNavOpen(false)}
           effectiveTheme={effectiveTheme}
@@ -24564,6 +24592,17 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
           {!NON_CLIENT_PAGES.has(effectivePage) && (
             <StaffQuickActions client={client} onNavigate={setPage} />
           )}
+          {/* What the client (or staff previewing as them) sees on every
+              page while their bookkeeper is waiting on a document. */}
+          {!NON_CLIENT_PAGES.has(effectivePage) &&
+            effectivePage !== "documents" &&
+            (!isStaffSession || isPreviewingUser) &&
+            access.tabs.has("documents") && (
+              <DocRequestBanner
+                requests={openDocRequests}
+                onOpen={() => setPage("documents")}
+              />
+            )}
           <div className="page-header app-header">
             <div>
               <div className="portal-greeting">

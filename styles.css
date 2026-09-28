@@ -1794,39 +1794,36 @@ th {
   .content-grid { grid-template-columns: 1fr; }
 }
 
-/* True masonry — Dashboard, Scoped Dashboard, Receivables & Payables, AP
-   Command Center, Staff Access, and Home all use this now (replacing the
-   old .content-grid-adaptive/.content-card-full pair, which used CSS Grid
-   and needed a hand-picked "compact vs full-width" class per card to avoid
-   pairing a tall card with a short one). CSS Grid pairs cards into fixed
-   rows, so a short card next to a tall one leaves a big dead gap for the
-   rest of that row's height (align-items:start does NOT fix this; it only
-   stops the short card from being stretched, the empty space is still
-   there). Multi-column layout has no row concept: each card just drops
-   into the shortest/next available column, so cards of any length pack
-   tightly with no gaps, and it adapts to any screen width on its own via
-   column-width. */
+/* True masonry — Dashboard, Scoped Dashboard, Cash Flow, Staff Access, Home
+   and the other card pages. Each card drops into whichever column is
+   shorter, in the order the Customize panel sets, so cards of any height
+   pack with no gaps.
+
+   Grid with tiny 4px rows: App (app.jsx, "masonry spans") measures each
+   card and sets grid-row-end: span N to cover its height plus the 20px
+   gap; grid auto-placement then puts it in the first column where it fits.
+   (This replaced CSS multi-column, which balanced unevenly around one tall
+   card and needed a "stretch the last card" workaround that left big
+   gaps.) At most two columns: each column is at least half the width. */
 .content-masonry {
-  columns: 380px 2;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(max(380px, calc((100% - 20px) / 2)), 1fr));
+  grid-auto-rows: 4px;
   column-gap: 20px;
+  align-items: start;
 }
 
 .content-masonry > * {
-  break-inside: avoid;
-  -webkit-column-break-inside: avoid;
-  margin-bottom: 20px;
   min-width: 0;
+  margin: 0;
+  /* Fallback until the span is measured (and without JavaScript). */
+  grid-row-end: span 60;
 }
 
-/* A lone trailing card the height-balancer left by itself, with nothing
-   beside it (App, app.jsx, decides which card qualifies — CSS alone can't
-   detect it). column-span: all pulls it out of the column flow entirely
-   into its own full-width band below both columns. It fills that band
-   edge-to-edge rather than capping its width and centering — a narrow
-   card floating in the middle of a wide row read as orphaned/misplaced
-   instead of like a deliberate full-width footer card. */
-.content-masonry > .cm-solo {
-  column-span: all;
+@media (max-width: 860px) {
+  .content-masonry {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 
 .card-title {
@@ -8878,4 +8875,29 @@ tr:hover .inote-btn,
   font-weight: 600;
   color: var(--gold-deep);
   margin: 0;
+}
+/* "Your bookkeeper needs N documents" banner on client pages. */
+.doc-req-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  flex-wrap: wrap;
+  margin: 0 0 16px;
+  padding: 12px 16px;
+  border: 1px solid var(--gold);
+  border-left-width: 4px;
+  border-radius: 12px;
+  background: var(--warm-bg);
+  color: var(--text);
+  font-size: 14px;
+}
+.doc-req-banner strong {
+  color: var(--ink-strong);
+}
+.doc-req-banner.overdue {
+  border-color: var(--bad);
+}
+.doc-req-banner .btn-primary {
+  flex-shrink: 0;
 }
