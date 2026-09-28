@@ -152,7 +152,7 @@ because some work happens in Claude Code web sessions. Run `git fetch` and compa
     (`clients.payroll_add_on` false) see **Payroll** in the sidebar with an "Add-on" tag. It opens
     `PayrollAddOnPage`, which has the price, an employee-count estimate, what's included and an
     **Add Payroll** button. The button files an upgrade request with `requested_plan = 'payroll'`
-    (needs `staff-client-tools.sql`; before that it falls back to a note on the request). Staff see
+    . Staff see
     a hint to turn it on under Client organizations. Clients with the add-on but no Gusto data see
     the Connect Gusto screen.
   - **Downgrades:** logins beyond what the new plan includes stay at $9/mo each, or they're
@@ -220,7 +220,7 @@ because some work happens in Claude Code web sessions. Run `git fetch` and compa
 
 ### Staff side
 
-- **Staff client tools** (`supabase/staff-client-tools.sql`; until it runs, each card says so):
+- **Staff client tools** (`supabase/staff-client-tools.sql`, applied 2026-09-27):
   - **Client overview** (page `client-overview`, staff only): staff land here when they open a
     client. It shows:
     - the monthly bill (milestone + plan + logins + payroll)

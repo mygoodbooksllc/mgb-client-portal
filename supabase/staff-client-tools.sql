@@ -4,7 +4,7 @@
 --
 -- Builds on staff-schema.sql (is_active_staff), audit-hardening-client-
 -- scoping.sql (can_access_client), client-users.sql, time-entries.sql and
--- usage-events.sql. Safe to re-run.
+-- usage-events.sql. Safe to re-run. Applied to production 2026-09-27.
 --
 --   1. client_profile        key dates, backup bookkeeper, target hourly rate
 --   2. client_doc_requests   staff ask a client for a document; the client
