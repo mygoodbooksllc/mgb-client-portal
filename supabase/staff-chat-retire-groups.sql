@@ -8,6 +8,7 @@
 -- attached stay in the staff-chat-attachments bucket (SQL can't remove
 -- storage files cleanly); they're unreachable once the conversation is gone.
 --
+-- Applied to production 2026-09-28.
 -- DMs can't be retired or deleted. Builds on staff-chat-v2.sql,
 -- staff-chat-groups.sql and audit-hardening-chat-membership.sql. Safe to re-run.
 
