@@ -128,6 +128,9 @@ values ('client-uploads', 'client-uploads', false, 26214400,
 on conflict (id) do nothing;
 
 -- Paths are <client_id>/<request_id>/<file name>.
+-- The two client policies below are superseded by client-messages-realtime.sql:
+-- inside the client_users subquery, "name" resolved to the person's name, not
+-- the file path. Don't re-run these two without that fix.
 drop policy if exists "staff read client uploads" on storage.objects;
 create policy "staff read client uploads" on storage.objects
   for select using (

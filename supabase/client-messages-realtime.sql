@@ -1,5 +1,5 @@
 -- Realtime for client users on their own message thread, plus client
--- storage and attachment fixes (2026-09-28). NOT APPLIED yet.
+-- storage and attachment fixes (2026-09-28). Applied to production 2026-09-28.
 --
 -- client-messages.sql puts client_messages in the supabase_realtime
 -- publication, but a client user still can't subscribe: the app joins

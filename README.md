@@ -505,10 +505,6 @@ because some work happens in Claude Code web sessions. Run `git fetch` and compa
 - Email notifications for client messages (the messages themselves are real since 2026-09-28).
 - Point Staff Home's "Unread messages" card and the Client overview's "threads waiting" at
   `client_messages` (they still read the sample threads).
-- Apply `supabase/client-messages-realtime.sql`. Until then:
-  - Client users' Messages page polls every 30 seconds instead of updating live.
-  - **Real client logins can't upload or open files**, because the live `client-uploads` client
-    policies read the person's name as the file path.
 - Tax Documents "Sent" status should move to a Supabase table (client, donor, year, sent_at,
   sent_by) once statements are really emailed. Statement sends and referral sends are still
   mock.
@@ -569,7 +565,7 @@ because some work happens in Claude Code web sessions. Run `git fetch` and compa
 - **Client messages** (`supabase/client-messages.sql`, applied 2026-09-28): staff who can access
   the client see every thread; a client user sees only their own thread and never internal
   notes; no updates or deletes; author emails are checked against the JWT.
-  `supabase/client-messages-realtime.sql` (**NOT APPLIED yet**) adds the one realtime.messages
+  `supabase/client-messages-realtime.sql` (applied 2026-09-28) adds the one realtime.messages
   policy client users need to join their own `client-msgs-<email>` topic. It also:
   - Fixes the client `client-uploads` policies from `staff-client-tools.sql`. Inside their
     `client_users` subquery, `name` meant the person's name, not the file path. They now use
