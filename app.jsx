@@ -5184,6 +5184,127 @@ function DocumentRequestsCard({ client, compact }) {
   );
 }
 
+// Client notifications: a bell in the page header listing what the
+// bookkeeper is waiting on (document requests, a budget to approve), and a
+// pop-up the first time each new item is seen. "Seen" is per browser.
+const NOTIF_SEEN_KEY = "mygoodbooks_notif_seen_v1";
+function loadSeenNotifs(clientId) {
+  try {
+    return new Set(JSON.parse(localStorage.getItem(`${NOTIF_SEEN_KEY}:${clientId}`) || "[]"));
+  } catch (e) {
+    return new Set();
+  }
+}
+function saveSeenNotifs(clientId, ids) {
+  try {
+    localStorage.setItem(`${NOTIF_SEEN_KEY}:${clientId}`, JSON.stringify([...ids].slice(-200)));
+  } catch (e) {}
+}
+
+function ClientNotifications({ clientId, items }) {
+  const [seen, setSeen] = useState(() => loadSeenNotifs(clientId));
+  const [open, setOpen] = useState(false);
+  const [popupDismissed, setPopupDismissed] = useState(false);
+  const ref = useRef(null);
+  useEffect(() => {
+    setSeen(loadSeenNotifs(clientId));
+    setPopupDismissed(false);
+  }, [clientId]);
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (e) => ref.current && !ref.current.contains(e.target) && setOpen(false);
+    document.addEventListener("mousedown", onDown);
+    return () => document.removeEventListener("mousedown", onDown);
+  }, [open]);
+  const unseen = items.filter((i) => !seen.has(i.id));
+  const markSeen = (ids) => {
+    const next = new Set(seen);
+    ids.forEach((id) => next.add(id));
+    setSeen(next);
+    saveSeenNotifs(clientId, next);
+  };
+  const newest = unseen[0];
+  return (
+    <div className="notif-wrap" ref={ref}>
+      <button
+        type="button"
+        className={"notif-bell" + (unseen.length ? " has-unseen" : "")}
+        aria-label={unseen.length ? `${unseen.length} new notification${unseen.length === 1 ? "" : "s"}` : "Notifications"}
+        aria-expanded={open}
+        onClick={() => {
+          setOpen((o) => !o);
+          if (!open && unseen.length) markSeen(unseen.map((i) => i.id));
+        }}
+      >
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <path d="M6 8a6 6 0 1 1 12 0c0 7 3 8 3 8H3s3-1 3-8" />
+          <path d="M10.3 20a1.9 1.9 0 0 0 3.4 0" />
+        </svg>
+        {unseen.length > 0 && <span className="notif-count">{unseen.length}</span>}
+      </button>
+      {open && (
+        <div className="notif-panel" role="dialog" aria-label="Notifications">
+          <div className="notif-panel-head">From your bookkeeper</div>
+          {items.length === 0 ? (
+            <p className="notif-empty">Nothing needs your attention right now.</p>
+          ) : (
+            <ul>
+              {items.map((i) => (
+                <li key={i.id}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setOpen(false);
+                      i.onOpen && i.onOpen();
+                    }}
+                  >
+                    <span className="notif-title">{i.title}</span>
+                    {i.sub && <span className="notif-sub">{i.sub}</span>}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
+      {newest && !open && !popupDismissed &&
+        ReactDOM.createPortal(
+          <div className="notif-popup" role="status">
+            <div className="notif-popup-kicker">New from your bookkeeper</div>
+            <div className="notif-popup-title">{newest.title}</div>
+            {newest.sub && <div className="notif-popup-sub">{newest.sub}</div>}
+            {unseen.length > 1 && (
+              <div className="notif-popup-sub">and {unseen.length - 1} more</div>
+            )}
+            <div className="notif-popup-actions">
+              <button
+                type="button"
+                className="btn-primary"
+                onClick={() => {
+                  markSeen(unseen.map((i) => i.id));
+                  newest.onOpen && newest.onOpen();
+                }}
+              >
+                {newest.cta || "View"}
+              </button>
+              <button
+                type="button"
+                className="btn-secondary"
+                onClick={() => {
+                  setPopupDismissed(true);
+                  markSeen(unseen.map((i) => i.id));
+                }}
+              >
+                Later
+              </button>
+            </div>
+          </div>,
+          document.body,
+        )}
+    </div>
+  );
+}
+
 // Banner on every client page while requests are open, so the client
 // doesn't have to find them on the Documents page.
 function DocRequestBanner({ requests, onOpen }) {
@@ -9111,14 +9232,14 @@ const ENTERPRISE_FEATURES = [
     title: "Report Builder",
     sidebarTab: "Reports",
     description:
-      "Assemble a formatted board report from your own numbers in a couple of clicks — pick a period, a scope, and the sections that matter this quarter.",
+      "A board packet in one PDF (cover, contents, your logo and colours) from saved templates, with comparisons to budget and last year, a Statement of Functional Expenses, giving reports, a plain-language monthly summary, and read-only links for your board.",
   },
   {
     icon: <CalculatorIcon />,
     title: "Budgeting Tool",
     sidebarTab: "Budget vs. Actual",
     description:
-      "Draft next period's budget together with your bookkeeper, category by category, before it's locked in.",
+      "Year-end forecasts by category, what-if scenarios, variance notes, and next year's budget drafted together (by month, with ministry owners, or started from last year) and approved by your board.",
   },
   {
     icon: <StackedBillsIcon />,
@@ -9198,9 +9319,11 @@ const ENTERPRISE_COMPARISON = [
       "Spending Trend chart",
     ],
     premium: [
-      "Collaborative draft budget for next period",
-      "Editable per-category proposed amounts",
-      "Add or remove categories inline",
+      "Year-end forecast for every category: on pace to overspend or come in under",
+      "What-if scenarios: giving or expenses up or down, a new monthly cost, and what it does to your reserve",
+      "Variance notes that explain big swings and carry into your reports",
+      "Next year's budget drafted together: by month for seasonal giving, with ministry owners, or started from last year's actuals",
+      "Board approval: submit, comment on any line, approve or ask for changes, with every version kept",
       "Download Draft Budget PDF",
     ],
   },
@@ -9213,11 +9336,16 @@ const ENTERPRISE_COMPARISON = [
       "Four canned PDFs — Profit & Loss, Balance Sheet, Budget vs. Actual, Contribution Statement",
     ],
     premium: [
-      "The same four canned PDFs, still under Quick Download",
-      "Custom report builder — pick a period, a company-wide or by-fund scope, and which sections to include",
-      "Six selectable sections: Revenue, Budget, Cash, Receivables, Giving, and an Outlook operating-reserve forecast",
-      "Live preview while building",
-      "A presentation mode for board meetings",
+      "The same canned PDFs, still under Quick Download",
+      "Custom report builder with live preview and a presentation mode for board meetings",
+      "Board packet: several reports, a cover page and a treasurer's note in one PDF with a table of contents",
+      "Saved templates like \"Monthly board packet\", rebuilt in one click",
+      "Comparison columns: vs budget, vs last month, vs last year, year-to-date, with % change",
+      "Statement of Functional Expenses (program, management, fundraising) in the Form 990 layout",
+      "Giving reports: top and lapsed donors, giving by fund, pledge progress",
+      "A plain-language \"what happened this month\" summary, drafted for you to edit",
+      "Read-only share links for your board that expire, no login needed",
+      "Your church's logo and colours on every packet",
     ],
   },
   {
@@ -23193,6 +23321,28 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
     selectedClientId,
   );
   const openDocRequests = docRequestsList.rows.filter((r) => r.status === "open");
+  // Next year's budget waiting on the client's approval (Pro budget tools).
+  const [budgetAwaiting, setBudgetAwaiting] = useState(null);
+  useEffect(() => {
+    const sb = window.mgbSupabase;
+    if (!sb || !selectedClientId) return setBudgetAwaiting(null);
+    let alive = true;
+    const load = () =>
+      sb
+        .from("client_budget_drafts")
+        .select("fiscal_year, version, submitted_by, submitted_at")
+        .eq("client_id", selectedClientId)
+        .eq("status", "submitted")
+        .order("fiscal_year", { ascending: false })
+        .limit(1)
+        .then(({ data, error }) => alive && setBudgetAwaiting(error ? null : (data || [])[0] || null));
+    load();
+    window.addEventListener(STAFF_TOOLS_EVENT, load);
+    return () => {
+      alive = false;
+      window.removeEventListener(STAFF_TOOLS_EVENT, load);
+    };
+  }, [selectedClientId]);
   // Read state and live threads are both keyed "<clientId>::<userId>", since
   // every person at an organization has their own private thread.
   const [readMessageClients, setReadMessageClients] = useState({});
@@ -23993,7 +24143,9 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
   const showsBudgetingTool =
     effectivePage === "budget" &&
     access.premiumForUser &&
-    !access.isCategoryScoped;
+    // Ministry-scoped people get the Pro budget page too; it shows them only
+    // their own lines (ministry owners). The old page stays org-wide only.
+    (!access.isCategoryScoped || typeof ProBudgetWorkspace === "function");
   const showsCashFlowPro =
     effectivePage === "receivables" &&
     access.premiumForUser &&
@@ -24631,6 +24783,34 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
               </div>
             )}
             <div className="page-header-actions">
+              {!NON_CLIENT_PAGES.has(effectivePage) &&
+                (!isStaffSession || isPreviewingUser) && (
+                  <ClientNotifications
+                    clientId={client.id}
+                    items={[
+                      ...(access.tabs.has("documents")
+                        ? openDocRequests.map((r) => ({
+                            id: "req:" + r.id,
+                            title: `Please upload: ${r.title}`,
+                            sub: r.due_date ? `Due ${fmtDate(r.due_date)}` : "Requested " + (relTime(r.created_at) || ""),
+                            cta: "Upload now",
+                            onOpen: () => setPage("documents"),
+                          }))
+                        : []),
+                      ...(budgetAwaiting && access.isFullAccess
+                        ? [
+                            {
+                              id: `budget:${budgetAwaiting.fiscal_year}:${budgetAwaiting.version}`,
+                              title: `Your ${budgetAwaiting.fiscal_year} budget is ready for approval`,
+                              sub: budgetAwaiting.submitted_at ? `Sent ${fmtDate(budgetAwaiting.submitted_at)}` : null,
+                              cta: "Review budget",
+                              onOpen: () => setPage("budget"),
+                            },
+                          ]
+                        : []),
+                    ]}
+                  />
+                )}
               {/* §170: the honest version of this badge. A client whose
                   numbers came out of a real QuickBooks sync gets told when
                   they were last pulled; everyone else still gets the
@@ -24710,10 +24890,21 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
             ))}
           {effectivePage === "budget" &&
             (showsBudgetingTool ? (
-              <BudgetingToolPage
-                client={scopedClient}
-                key={"budgeting-tool-" + client.id}
-              />
+              // Pro budget tools (components/pro/ProBudget.jsx); the older
+              // BudgetingToolPage stays as a fallback if that file is absent.
+              typeof ProBudgetWorkspace === "function" ? (
+                <ProBudgetWorkspace
+                  client={scopedClient}
+                  access={access}
+                  clientPortalUser={clientPortalUser}
+                  key={"pro-budget-" + client.id}
+                />
+              ) : (
+                <BudgetingToolPage
+                  client={scopedClient}
+                  key={"budgeting-tool-" + client.id}
+                />
+              )
             ) : (
               <BudgetPage
                 client={scopedClient}
@@ -24773,10 +24964,21 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
           )}
           {effectivePage === "reports" &&
             (showsReportBuilder ? (
-              <ReportBuilderPage
-                client={scopedClient}
-                key={"report-builder-" + client.id}
-              />
+              <>
+                <ReportBuilderPage
+                  client={scopedClient}
+                  key={"report-builder-" + client.id}
+                />
+                {/* Pro report tools (components/pro/ProReports.jsx). */}
+                {typeof ProReportsSuite === "function" && (
+                  <ProReportsSuite
+                    client={scopedClient}
+                    access={access}
+                    clientPortalUser={clientPortalUser}
+                    key={"pro-reports-" + client.id}
+                  />
+                )}
+              </>
             ) : (
               <ReportsPage client={scopedClient} />
             ))}
@@ -25022,6 +25224,8 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
 const accessFormToken = new URLSearchParams(window.location.search).get(
   "access-form",
 );
+// Read-only report share link (?share=<token>): a public page, no sign-in.
+const reportShareToken = new URLSearchParams(window.location.search).get("share");
 
 // Phase 2 (real client login) entry point — see components/auth/ClientAuthGate.jsx
 // and supabase/client-auth-phase2.sql. Reached the same way as the access
@@ -25119,7 +25323,9 @@ function ClientPortalGuard({ clientUser, onSignOut }) {
 // the app is unreachable either way, by design.
 ReactDOM.createRoot(document.getElementById("root")).render(
   <ErrorBoundary>
-    {accessFormToken ? (
+    {reportShareToken && typeof ReportShareView === "function" ? (
+      <ReportShareView token={reportShareToken} />
+    ) : accessFormToken ? (
       <AccessRequestForm token={accessFormToken} />
     ) : (
       <RootGate />

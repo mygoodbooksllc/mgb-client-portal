@@ -72,6 +72,7 @@ because some work happens in Claude Code web sessions. Run `git fetch` and compa
 | `qbo-config.js` | QuickBooks app Client ID (public) and environment (`production`) |
 | `components/auth/` | `supabaseClient.js`, `AuthGate.jsx` (staff Google gate), `ClientAuthGate.jsx` (client magic-link gate) |
 | `components/daily-close/` | Live Report (`DailyClose.tsx`, its CSS, sample data, and `fromClient.js`, which adapts client data for it) |
+| `components/pro/` | Pro budget and report tools: `ProBudget.jsx` (Budget vs. Actual tabs, next year's draft with approval) and `ProReports.jsx` (board reports suite and the public share page), each with its own CSS. Loaded before `app.jsx`; `app.jsx` falls back to the old pages if either is missing. |
 | `components/qbo/` | `mapQboToClient.js` converts QuickBooks table rows into the shape the pages use. Its test is `mapQboToClient.test.js`. |
 | `supabase/*.sql` | Every database change: tables, row-level security (RLS) policies, functions, cron jobs. The folder is flat, one file per change. |
 | `supabase/functions/` | Edge functions: `qbo-callback`, `qbo-refresh-token`, `qbo-sync`, `invite-client-user` |
@@ -307,6 +308,36 @@ because some work happens in Claude Code web sessions. Run `git fetch` and compa
   - Fund Accounting Pro, including **Tax Documents**: year-end giving statements per donor.
     A "Sent" status is saved only in that browser (`mygoodbooks_tax_docs_sent_v1`), and the app
     asks for confirmation before resending.
+- **Notifications from the bookkeeper:** a bell in the page header (clients, and staff
+  previewing as a client) with an unseen count, a "From your bookkeeper" panel, and a pop-up
+  when something new arrives. Items: open document requests ("Please upload: …") and, for
+  full-access users, a budget draft waiting for approval. "Seen" is kept per browser
+  (`mygoodbooks_notif_seen_v1:<clientId>`). Documents also shows a request banner and the
+  sidebar a dot.
+- **Pro budget tools** (`components/pro/ProBudget.jsx`), as tabs on Budget vs. Actual:
+  - Budget vs. Actual with variance notes, which the client sees and the board packet carries.
+  - Spending Trend.
+  - Year-End Forecast.
+  - What-If.
+  - Next year's budget: a draft with monthly (seasonal) amounts and a ministry owner per line,
+    line comments, and version history. It moves draft → submitted → changes requested /
+    approved, and can be exported as a PDF. Category-scoped users see and edit only their lines.
+- **Pro board reports** (`components/pro/ProReports.jsx`), below Report Builder on Reports:
+  - A board packet PDF with a cover, contents, the sections you pick and the comparison columns
+    you pick.
+  - Saved templates.
+  - Comparisons: vs. budget, prior month, same month last year, and YTD vs. last YTD. When there
+    isn't enough history it says so.
+  - A Statement of Functional Expenses using the Form 990 columns, with an editable
+    category-to-function map.
+  - Giving detail: top and lapsed donors, giving by fund, and pledges.
+  - An editable "what happened this month" summary.
+  - Read-only share links (7/30/90 days, can be turned off). They open at `/?share=<token>`
+    without signing in, through `get_report_share`.
+  - The church's logo and colour on PDFs.
+- All of these need `supabase/pro-budget-reports.sql` (applied 2026-09-27). Pro gating is in
+  the app, and the tables are open to the org's client users and to staff who can access the
+  client.
 - **Milestone** (pricing tracker):
   - **Rules.** Tiers and fees match the public pricing chart (`marketing/pricing-embed.html`,
     pasted into the Squarespace site) and live in `PRICING_MILESTONES` in `app.jsx`; change both
