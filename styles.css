@@ -8240,6 +8240,9 @@ body:has(.modal-overlay) .chat-fab-wrap {
 
 /* ---------------- Staff client tools ---------------- */
 /* Quick-action bar at the top of every client page (staff only). */
+/* Staff toolbar: ink, like the sidebar, so it reads as a staff tool and
+   never as a client notice. The border keeps it visible in dark mode, where
+   the sidebar colour is close to the page. */
 .staff-quick-actions {
   display: flex;
   flex-wrap: wrap;
@@ -8247,24 +8250,27 @@ body:has(.modal-overlay) .chat-fab-wrap {
   gap: 6px;
   margin: 0 0 14px;
   padding: 6px 8px;
-  border: 1px dashed var(--warm-border, var(--border));
+  border: 1px solid var(--sidebar-bg);
   border-radius: 999px;
-  background: var(--warm-bg);
+  background: var(--sidebar-bg);
   width: fit-content;
   max-width: 100%;
+}
+[data-theme="dark"] .staff-quick-actions {
+  border-color: var(--border);
 }
 .staff-quick-actions .sqa-label {
   font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: var(--gold-deep);
+  color: var(--gold);
   padding: 0 6px 0 4px;
 }
 .staff-quick-actions button {
   border: 1px solid transparent;
   background: transparent;
-  color: var(--ink-strong);
+  color: var(--sidebar-text-active);
   font: inherit;
   font-size: 12.5px;
   font-weight: 600;
@@ -8273,8 +8279,12 @@ body:has(.modal-overlay) .chat-fab-wrap {
   cursor: pointer;
 }
 .staff-quick-actions button:hover {
-  background: var(--surface);
-  border-color: var(--border);
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.16);
+}
+.staff-quick-actions button:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 1px;
 }
 .sqa-body {
   display: flex;
