@@ -22,6 +22,7 @@ export type SendEmailInput = {
   from?: string;
   replyTo?: string;
   tags?: { name: string; value: string }[];
+  headers?: Record<string, string>; // e.g. List-Unsubscribe
 };
 
 export type SendEmailResult =
@@ -51,6 +52,7 @@ export async function sendEmail(input: SendEmailInput): Promise<SendEmailResult>
   if (input.text) body.text = input.text;
   if (input.replyTo) body.reply_to = input.replyTo;
   if (input.tags?.length) body.tags = input.tags;
+  if (input.headers && Object.keys(input.headers).length) body.headers = input.headers;
 
   let res: Response;
   try {

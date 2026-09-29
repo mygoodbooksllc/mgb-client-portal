@@ -924,6 +924,7 @@ function TP_TeamPage({ clients }) {
     <div className="tp-page">
       <TP_QboPanel qbo={qbo} onOpenMapping={openMapping} onSynced={refreshQbo} />
       {isAdmin && typeof DG_DigestSettings === "function" && <DG_DigestSettings />}
+      {isAdmin && typeof CE_ClientEmailSettings === "function" && <CE_ClientEmailSettings />}
       {periodCard}
       {isAdmin && (
         <TP_CapacityCard

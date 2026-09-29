@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="robots" content="noindex" />
+    <meta name="referrer" content="no-referrer" />
+    <title>MyGoodBooks — Email preferences</title>
+    <style>
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        max-width: 440px;
+        margin: 80px auto;
+        padding: 0 24px;
+        text-align: center;
+        color: #1a1a1a;
+        background: #fff;
+      }
+      .brand { color: #1d6b52; font-weight: 700; font-size: 18px; margin-bottom: 24px; }
+      h1 { font-size: 20px; }
+      p { color: #555; line-height: 1.5; }
+      button {
+        font: inherit; font-weight: 600; border: 0; border-radius: 8px; padding: 12px 22px;
+        background: #1d6b52; color: #fff; cursor: pointer; margin-top: 8px;
+      }
+      button.link { background: none; color: #1d6b52; text-decoration: underline; padding: 6px; font-weight: 400; }
+      button[disabled] { opacity: 0.6; cursor: default; }
+      [hidden] { display: none !important; }
+    </style>
+  </head>
+  <body>
+    <div class="brand">MyGoodBooks</div>
+    <h1 id="title">Loading…</h1>
+    <p id="sub"></p>
+    <button id="go" type="button" hidden>Unsubscribe</button>
+    <button id="undo" type="button" class="link" hidden>Changed your mind? Resubscribe</button>
+    <script>
+      // Client-email unsubscribe page (supabase/client-emails.sql section 6).
+      // The link carries only a random token; the client-emails edge function
+      // looks it up and sets that recipient's opt-out. Unsubscribing takes a
+      // single click here (a page load alone never unsubscribes, so link
+      // scanners in mail filters can't opt people out by accident). Mail apps
+      // that support RFC 8058 unsubscribe in one click via the email header.
+      var FN = "https://xumsqmhccgfjnlmieqyu.supabase.co/functions/v1/client-emails";
+      var token = new URLSearchParams(location.search).get("t") || "";
+      var $ = function (id) { return document.getElementById(id); };
+      function show(title, sub, go, undo) {
+        $("title").textContent = title;
+        $("sub").textContent = sub || "";
+        $("go").hidden = !go;
+        $("undo").hidden = !undo;
+      }
+      function call(action) {
+        return fetch(FN, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: action, token: token }),
+        }).then(function (r) { return r.json().catch(function () { return { status: "error" }; }); });
+      }
+      function render(d) {
+        if (d.status === "unsubscribed") {
+          show("You're unsubscribed", "We won't send " + d.email + " any more emails about " + d.client + ". Your bookkeeper can still reach you directly.", false, true);
+        } else if (d.status === "subscribed") {
+          show("Email preferences", "Stop document reminders and monthly summaries about " + d.client + " to " + d.email + "?", true, false);
+        } else if (d.status === "invalid") {
+          show("Link not recognized", "This unsubscribe link is invalid or has expired. Reply to any of our emails and we'll take care of it.");
+        } else {
+          show("Something went wrong", "Please try again, or reply to any of our emails and we'll take care of it.");
+        }
+      }
+      function run(action) {
+        $("go").disabled = $("undo").disabled = true;
+        call(action).then(render, function () { render({ status: "error" }); }).then(function () {
+          $("go").disabled = $("undo").disabled = false;
+        });
+      }
+      $("go").onclick = function () { run("unsubscribe"); };
+      $("undo").onclick = function () { run("resubscribe"); };
+      if (token === "test") {
+        show("This was a test email", "Unsubscribe links in test emails and previews don't change anything.");
+      } else if (!/^[a-f0-9]{32,128}$/.test(token)) {
+        render({ status: "invalid" });
+      } else {
+        call("unsub_info").then(render, function () { render({ status: "error" }); });
+      }
+    </script>
+  </body>
+</html>
