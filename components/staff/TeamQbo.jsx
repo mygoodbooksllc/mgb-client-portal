@@ -918,10 +918,10 @@ function TP_QboClientsTable({ clientRows, hours, qboOn, range, today, avg, onOpe
                       <>
                         <td className="num" data-label="Fee / mo">
                           {m.fee != null ? (
-                            <>
+                            <span>
                               {fmtMoney(m.fee)}
                               <TP_PF_FeeTag source={m.feeSource} />
-                            </>
+                            </span>
                           ) : (
                             "–"
                           )}
@@ -930,8 +930,10 @@ function TP_QboClientsTable({ clientRows, hours, qboOn, range, today, avg, onOpe
                           {TP_PF_effRate(m.fee, r) != null ? `${fmtMoney(TP_PF_effRate(m.fee, r))}/h` : "–"}
                         </td>
                         <td className="num" data-label="Cost">
-                          {m.cost != null ? fmtMoney(Math.round(m.cost)) : dash}
-                          {m.estimated && <span className="tp-muted" title="Part of this cost uses the average rate"> est.</span>}
+                          <span>
+                            {m.cost != null ? fmtMoney(Math.round(m.cost)) : dash}
+                            {m.estimated && <span className="tp-muted" title="Part of this cost uses the average rate"> est.</span>}
+                          </span>
                         </td>
                         <td className={"num" + (m.profit != null && m.profit < 0 ? " tp-bad" : "")} data-label="Profit">
                           {m.profit != null ? fmtMoney(Math.round(m.profit)) : dash}

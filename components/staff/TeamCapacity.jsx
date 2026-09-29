@@ -126,10 +126,10 @@ function TP_capInvalidate() {
 }
 
 // Per-person numbers from a loaded capacity state.
-function TP_capFor(cap, email) {
+function TP_capFor(cap, email, noHours) {
   const e = TP_lower(email);
   const target = cap && cap.targets[e] != null ? cap.targets[e] : TP_CAP_DEFAULT;
-  if (!cap || !cap.hoursOk) return { target, weekMin: null, avgMin: null, util: null, weekUtil: null, status: null };
+  if (!cap || !cap.hoursOk || noHours) return { target, weekMin: null, avgMin: null, util: null, weekUtil: null, status: null };
   const weekMin = cap.week[e] || 0;
   const avgMin = (cap.last4[e] || 0) / 4;
   const util = target > 0 ? avgMin / 60 / target : null;
@@ -234,9 +234,9 @@ function TP_CapacityCard({ people, qboOn, onOpenPerson }) {
   const rows = useMemo(() => {
     if (!people) return null;
     return people
-      .map((p) => ({ ...p, c: TP_capFor(cap, p.email) }))
+      .map((p) => ({ ...p, c: TP_capFor(cap, p.email, !qboOn) }))
       .sort((a, b) => (b.c.util == null ? -1 : b.c.util) - (a.c.util == null ? -1 : a.c.util) || a.name.localeCompare(b.name));
-  }, [people, cap]);
+  }, [people, cap, qboOn]);
   const cols = 8;
   const note = !cap
     ? null
@@ -257,7 +257,7 @@ function TP_CapacityCard({ people, qboOn, onOpenPerson }) {
       <p className="card-subtitle">
         QuickBooks Time hours this week so far and the average of the last 4 full weeks, against each person's weekly
         target. Utilisation uses the 4-week average: under 70% has room, over 100% is overloaded.
-        {cap && cap.ok && cap.hoursOk && (counts.room || counts.over) ? (
+        {qboOn && cap && cap.ok && cap.hoursOk && (counts.room || counts.over) ? (
           <>
             {" "}
             <b>
@@ -315,10 +315,10 @@ function TP_CapacityCard({ people, qboOn, onOpenPerson }) {
                     {p.c.weekMin == null ? (
                       "–"
                     ) : (
-                      <>
+                      <span>
                         {TP_fmtHM(p.c.weekMin)}
                         {p.c.weekUtil != null && <span className="tp-muted"> · {Math.round(p.c.weekUtil * 100)}%</span>}
-                      </>
+                      </span>
                     )}
                   </td>
                   <td className="num" data-label="Avg / wk (4 wks)">{p.c.avgMin == null ? "–" : TP_fmtHM(p.c.avgMin)}</td>
