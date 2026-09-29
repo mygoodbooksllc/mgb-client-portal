@@ -1,0 +1,530 @@
+/* ---------------------------------------------------------------------------
+   Client switcher + temporary client access (components/staff/ClientSwitcher.jsx).
+   The switcher lives on the navy sidebar in both themes, so it reads the
+   --sidebar-* tokens and the same translucent-white fills as .client-select
+   and .staff-user-menu-item. The Home card and the temp-access note sit on
+   the page surface and use the regular surface tokens.
+   --------------------------------------------------------------------------- */
+
+.cs-switcher {
+  position: relative;
+  margin-bottom: 20px;
+}
+
+/* ---- Trigger card ---- */
+.cs-trigger {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 52px;
+  padding: 8px 10px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  color: var(--sidebar-text-active);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.cs-trigger:hover,
+.cs-trigger.open {
+  background: rgba(255, 255, 255, 0.09);
+  border-color: rgba(199, 174, 134, 0.35);
+}
+.cs-trigger:focus-visible {
+  outline: 2px solid rgba(199, 174, 134, 0.6);
+  outline-offset: 1px;
+}
+
+.cs-tile {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: rgba(199, 174, 134, 0.18);
+  color: var(--gold);
+  font-family: var(--font-heading);
+  font-size: 12.5px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+.cs-tile.empty {
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--sidebar-text-muted);
+}
+
+.cs-trigger-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+.cs-trigger-name {
+  font-size: 13.5px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.cs-trigger-sub {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  font-size: 11.5px;
+  color: var(--sidebar-text-muted);
+}
+.cs-sub-text,
+.cs-sub-temp {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.cs-sub-temp {
+  color: var(--gold);
+  font-weight: 600;
+}
+.cs-chev {
+  flex-shrink: 0;
+  color: var(--sidebar-text-muted);
+  transition: transform 0.15s ease;
+}
+.cs-chev.open {
+  transform: rotate(180deg);
+}
+
+/* Collapsed desktop sidebar/rail: just the tile (or a search icon). */
+.cs-switcher.compact {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+  margin-bottom: 12px;
+}
+.cs-trigger-compact {
+  justify-content: center;
+  width: 44px;
+  min-height: 44px;
+  padding: 0;
+  background: none;
+  border-color: transparent;
+  color: var(--sidebar-text-muted);
+}
+.cs-trigger-compact:hover {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: transparent;
+  color: var(--sidebar-text-active);
+}
+
+/* ---- Popover ---- */
+.cs-popover {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  /* Wider than the 192px sidebar content box so names don't truncate; it
+     overlaps the page, which .sidebar/.staff-rail's z-index already covers. */
+  width: max(100%, 300px);
+  max-width: calc(100vw - 32px);
+  background: var(--navy-deep);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.45);
+  padding: 6px;
+  z-index: 40;
+  color: var(--sidebar-text);
+}
+/* Phone drawer: in the flow, full width, no floating shadow. */
+.cs-switcher.inline .cs-popover {
+  position: static;
+  width: 100%;
+  max-width: none;
+  margin-top: 6px;
+  box-shadow: none;
+  background: rgba(0, 0, 0, 0.18);
+}
+
+.cs-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 10px;
+  margin-bottom: 4px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: var(--sidebar-text-muted);
+}
+.cs-search:focus-within {
+  border-color: rgba(199, 174, 134, 0.55);
+}
+.cs-search svg {
+  flex-shrink: 0;
+}
+.cs-search-input {
+  flex: 1;
+  min-width: 0;
+  background: none;
+  border: none;
+  outline: none;
+  color: var(--sidebar-text-active);
+  font: inherit;
+  font-size: 13.5px;
+  padding: 9px 0;
+}
+.cs-search-input::placeholder {
+  color: var(--sidebar-text-muted);
+}
+
+.cs-list {
+  max-height: min(360px, 60vh);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.cs-switcher.inline .cs-list {
+  max-height: 50vh;
+}
+
+.cs-section-label {
+  font-size: 10.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--sidebar-text-muted);
+  padding: 10px 8px 4px;
+}
+
+.cs-row {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-height: 36px;
+  padding: 6px 8px;
+  border-radius: 7px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--sidebar-text);
+  cursor: pointer;
+}
+.cs-row.active {
+  background: rgba(255, 255, 255, 0.07);
+  color: var(--sidebar-text-active);
+}
+.cs-row.current {
+  color: var(--gold);
+  font-weight: 600;
+}
+.cs-row.locked {
+  color: var(--sidebar-text-muted);
+}
+.cs-row-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  flex-shrink: 0;
+}
+.cs-row-name {
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cs-tag {
+  flex-shrink: 0;
+  font-size: 10.5px;
+  font-weight: 600;
+  padding: 2px 7px;
+  border-radius: 999px;
+  white-space: nowrap;
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--sidebar-text);
+}
+.cs-tag-temp {
+  background: rgba(199, 174, 134, 0.18);
+  color: var(--gold);
+}
+.cs-tag-pending {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--sidebar-text-muted);
+}
+.cs-tag-count {
+  min-width: 18px;
+  text-align: center;
+  background: var(--gold);
+  color: var(--on-gold);
+}
+
+.cs-row-action {
+  flex-shrink: 0;
+  font: inherit;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--gold);
+  background: none;
+  border: none;
+  padding: 2px 4px;
+  border-radius: 5px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+/* The "Request access" hint only shows on the highlighted row (and always
+   on touch, where there's no hover), so the locked list stays quiet. */
+span.cs-row-action {
+  opacity: 0;
+}
+.cs-row.active span.cs-row-action {
+  opacity: 1;
+}
+@media (hover: none) {
+  span.cs-row-action {
+    opacity: 1;
+  }
+}
+button.cs-row-action:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+button.cs-row-action:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.cs-empty {
+  padding: 14px 8px;
+  font-size: 12.5px;
+  color: var(--sidebar-text-muted);
+}
+.cs-error {
+  margin: 6px 4px 2px;
+  font-size: 12px;
+  color: #f0a193;
+}
+
+/* Phone drawer: 44px touch targets and 16px text (no iOS focus zoom). */
+@media (max-width: 760px) and (hover: none), (max-width: 760px) and (pointer: coarse) {
+  .cs-trigger {
+    min-height: 56px;
+  }
+  .cs-row {
+    min-height: 44px;
+    font-size: 14px;
+  }
+  .cs-search-input {
+    font-size: 16px;
+  }
+  button.cs-row-action {
+    min-height: 36px;
+    padding: 4px 8px;
+  }
+}
+
+/* ---- Request access modal ---- */
+.cs-request-modal {
+  max-width: 460px;
+}
+.cs-field-label {
+  display: block;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--ink-strong);
+  margin: 0 0 6px;
+}
+.cs-reason {
+  display: block;
+  box-sizing: border-box;
+  min-height: 96px;
+}
+.cs-reason.invalid {
+  border-color: var(--bad);
+}
+.cs-field-help {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 5px 0 16px;
+  font-size: 11.5px;
+  color: var(--text-muted);
+}
+.cs-field-error {
+  color: var(--bad);
+  font-weight: 600;
+}
+.cs-count-chars.over {
+  color: var(--bad);
+  font-weight: 600;
+}
+.cs-duration {
+  display: flex;
+  width: 100%;
+  box-sizing: border-box;
+}
+.cs-duration .view-toggle-btn {
+  flex: 1;
+}
+.cs-form-error {
+  margin: 14px 0 0;
+  padding: 9px 12px;
+  border-radius: 8px;
+  background: var(--bad-soft);
+  color: var(--bad);
+  font-size: 13px;
+}
+
+/* ---- Staff Home: approvals card ---- */
+.cs-approvals .card-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.cs-card-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: var(--gold);
+  color: var(--on-gold);
+  font-family: var(--font-body);
+  font-size: 11.5px;
+  font-weight: 700;
+}
+.cs-card-heading {
+  margin: 18px 0 4px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+}
+.cs-req-list {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+}
+.cs-req-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 0;
+  border-top: 1px solid var(--border);
+}
+.cs-req-row:first-child {
+  border-top: none;
+}
+.cs-req-main {
+  min-width: 0;
+  flex: 1;
+}
+.cs-req-head {
+  font-size: 13.5px;
+  color: var(--text);
+}
+.cs-req-reason {
+  margin-top: 4px;
+  padding-left: 10px;
+  border-left: 2px solid var(--warm-border);
+  font-size: 13px;
+  color: var(--text);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.cs-req-meta {
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.cs-req-actions {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+.cs-req-actions button {
+  padding: 6px 14px;
+  font-size: 12.5px;
+}
+@media (max-width: 600px) {
+  .cs-req-row {
+    flex-direction: column;
+    gap: 10px;
+  }
+  .cs-req-actions {
+    width: 100%;
+  }
+  .cs-req-actions button {
+    flex: 1;
+  }
+}
+
+/* ---- Requester: temporary access note on a client page ---- */
+.cs-temp-note {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  background: var(--warm-bg);
+  border: 1px solid var(--warm-border);
+  color: var(--warm-text);
+  font-size: 13px;
+}
+.cs-temp-note svg {
+  flex-shrink: 0;
+}
+.cs-temp-note-text {
+  flex: 1;
+  min-width: 0;
+  font-weight: 600;
+}
+.cs-temp-note-error {
+  font-weight: 500;
+  color: var(--bad);
+}
+.cs-temp-note-btn {
+  background: none;
+  border: 1px solid var(--warm-border);
+  border-radius: 8px;
+  padding: 5px 10px;
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--warm-text);
+  cursor: pointer;
+}
+.cs-temp-note-btn:hover {
+  background: rgba(199, 174, 134, 0.15);
+}
+.cs-temp-note-btn:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+@media (max-width: 760px) and (hover: none), (max-width: 760px) and (pointer: coarse) {
+  .cs-temp-note-btn {
+    min-height: 44px;
+  }
+}
+
+/* "No clients assigned yet" screen: a navy panel so the sidebar-styled
+   switcher reads correctly on the light splash. */
+.cs-splash-switcher {
+  width: min(360px, 100%);
+  margin: 20px auto 0;
+  padding: 12px;
+  border-radius: 12px;
+  background: var(--navy-deep, #0f1b2d);
+  text-align: left;
+}
+.cs-splash-hint {
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.75);
+  margin: 0 2px 8px;
+}
