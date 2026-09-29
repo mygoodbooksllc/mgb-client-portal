@@ -111,7 +111,7 @@ because some work happens in Claude Code web sessions. Run `git fetch` and compa
 
 **Staff roles.** The `staff.role` column is `admin` or `bookkeeper`.
 
-- **Admins** see every client, plus Staff Access, Client Roster, Developer Tools and Usage Stats.
+- **Admins** see every client, plus Team, Staff Access, Client Roster, Developer Tools and Usage Stats.
 - **Bookkeepers** see only the clients assigned to them in `staff_client_access`.
 - An admin can give a bookkeeper **temporary** access to the admin pages
   (`staff_temp_admin_access`). This only lets them view those pages; it doesn't widen which
@@ -260,7 +260,7 @@ because some work happens in Claude Code web sessions. Run `git fetch` and compa
 
 - **Staff sidebar** (`StaffRail`, desktop and mouse windows): a **Go to client** picker (opens that
   client's dashboard; a search icon when collapsed expands the sidebar), Home, Client view, Inbox, My
-  Tasks, My Time, and for admins Staff Access, Client Roster, Developer Tools and Usage Stats,
+  Tasks, My Time, and for admins Team, Staff Access, Client Roster, Developer Tools and Usage Stats,
   plus theme and sign out. On staff pages it replaces the client sidebar and collapses to icons with
   the usual Collapse toggle. On a client's pages it's a 64px icon strip beside the client sidebar.
   It's hidden while you preview as one of the client's people, so the preview shows only what
@@ -314,6 +314,10 @@ because some work happens in Claude Code web sessions. Run `git fetch` and compa
   disconnect), Notes, SOP, Milestone, Activity.
 - **Manage access** (sidebar): People, Organization tabs, Requests.
 - **Admin pages**:
+  - **Team** (`components/staff/TeamPage.jsx`): hours and tasks by person and by client for a
+    period (open, overdue, completed; hours by client with a 3-month average for pricing), with
+    person and client drill-downs and CSV export. Private tasks show once
+    `supabase/admin-read-all-tasks.sql` is applied.
   - **Staff Access**: staff roster, add, bulk import, client assignments, temporary admin grants.
   - **Client Roster**: client organizations (add/edit), client contacts, invite, scoping, bulk
     import.

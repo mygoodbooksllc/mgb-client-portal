@@ -1,0 +1,357 @@
+/* ---------------------------------------------------------------------------
+   Team page (components/staff/TeamPage.jsx). Sits on the page surface, so it
+   uses the regular surface tokens and reuses .card, .tx-table-labeled (which
+   restacks rows below 760px), .modal-tabs, .bar-track and .task-chip. Only
+   what those don't cover lives here.
+   --------------------------------------------------------------------------- */
+
+.tp-page {
+  min-width: 0;
+}
+
+.tp-muted {
+  color: var(--text-muted);
+  font-size: 12.5px;
+  margin: 0;
+}
+
+.tp-bad {
+  color: var(--bad);
+  font-weight: 700;
+}
+
+/* ---- Period + export toolbar ---- */
+.tp-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.tp-export {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.tp-export .btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+}
+.tp-export .btn-secondary:disabled {
+  opacity: 0.5;
+  cursor: default;
+  transform: none;
+}
+
+.tp-custom {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 14px;
+}
+.tp-custom label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+.tp-custom input {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 7px 10px;
+  font: inherit;
+  font-size: 13.5px;
+  color: var(--text);
+  background: var(--surface);
+}
+.tp-custom input:focus {
+  outline: 2px solid rgba(199, 174, 134, 0.5);
+  border-color: var(--gold);
+}
+
+/* ---- Tables ---- */
+.tp-row {
+  cursor: pointer;
+}
+.tp-row:hover td,
+.tp-row:focus-visible td {
+  background: var(--hover-bg);
+}
+.tp-row:focus-visible {
+  outline: 2px solid rgba(199, 174, 134, 0.6);
+  outline-offset: -2px;
+}
+
+.tp-name {
+  font-weight: 600;
+  color: var(--ink-strong);
+}
+.tp-role {
+  display: block;
+  font-weight: 400;
+}
+.tp-temp {
+  white-space: nowrap;
+}
+
+.tp-table th.num,
+.tp-table td.num {
+  white-space: nowrap;
+}
+
+.tp-sort {
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  color: inherit;
+  text-transform: inherit;
+  letter-spacing: inherit;
+  cursor: pointer;
+}
+.tp-sort:hover {
+  color: var(--ink-strong);
+}
+
+.tp-split {
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+.tp-split-item {
+  display: inline-block;
+  margin-right: 10px;
+  white-space: nowrap;
+  color: var(--text-muted);
+}
+.tp-split-item b {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.tp-desc {
+  max-width: 420px;
+}
+
+.tp-card-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.tp-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12.5px;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+/* Header sort buttons disappear with <thead> on phones; these replace them. */
+.tp-sort-mobile {
+  display: none;
+}
+
+/* ---- Detail views ---- */
+.tp-back-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.tp-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+  gap: 12px;
+  margin-top: 18px;
+}
+.tp-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--surface-2);
+}
+.tp-stat-label {
+  font-size: 11.5px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+}
+.tp-stat-value {
+  font-family: var(--font-heading);
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--ink-strong);
+}
+.tp-stat-value.bad {
+  color: var(--bad);
+}
+
+.tp-detail-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+  gap: 20px;
+  margin-bottom: 20px;
+}
+
+.tp-staff-bars {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 12px;
+}
+.tp-staff-bar-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+/* Mini hours chart: plain flex columns, no chart library. */
+.tp-bars {
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 140px;
+  margin-top: 12px;
+}
+.tp-bar-col {
+  flex: 1 1 0;
+  min-width: 0;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+}
+.tp-bar-slot {
+  flex: 1;
+  display: flex;
+  align-items: flex-end;
+}
+.tp-bar {
+  width: 100%;
+  background: var(--gold);
+  border-radius: 3px 3px 0 0;
+}
+.tp-bar.empty {
+  background: var(--surface-2);
+}
+.tp-bar-label {
+  height: 16px;
+  margin-top: 4px;
+  font-size: 10px;
+  line-height: 16px;
+  text-align: center;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: visible;
+}
+
+.tp-task-groups {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  margin-top: 8px;
+}
+.tp-task-group-title {
+  margin: 0 0 8px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ink-strong);
+}
+.tp-task-group-title.bad {
+  color: var(--bad);
+}
+.tp-task-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.tp-task {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 6px 12px;
+  padding: 9px 0;
+  border-bottom: 1px solid var(--border);
+}
+.tp-task:last-child {
+  border-bottom: none;
+}
+.tp-task-text {
+  font-size: 14px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.tp-task-text.done {
+  color: var(--text-muted);
+}
+.tp-task-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.task-chip.tp-vis-private {
+  color: var(--warm-text);
+  background: var(--warm-bg);
+  border-color: var(--warm-border);
+}
+
+@media (max-width: 760px) {
+  .tp-toolbar .modal-tabs {
+    width: 100%;
+  }
+  .tp-export {
+    width: 100%;
+  }
+  .tp-custom label {
+    flex: 1 1 140px;
+  }
+  .tp-custom input {
+    flex: 1;
+    min-width: 0;
+  }
+  .tp-detail-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .tp-sort-mobile {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 4px;
+  }
+  .tp-sort-chip {
+    cursor: pointer;
+    font: inherit;
+    font-size: 11.5px;
+    font-weight: 600;
+  }
+  .tp-sort-chip.active {
+    color: var(--ink-strong);
+    border-color: var(--gold);
+  }
+  /* Stacked rows: the staffer split wraps under its label. */
+  .tx-table-labeled tbody td.tp-split {
+    flex-wrap: wrap;
+  }
+  .tp-split-item {
+    margin-right: 0;
+    margin-left: 10px;
+  }
+  .tp-desc {
+    max-width: none;
+  }
+}

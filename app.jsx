@@ -531,6 +531,7 @@ const NON_CLIENT_PAGES = new Set([
   "client-access",
   "developer-tools",
   "usage-stats",
+  "staff-team",
   "staff-messages",
   "my-tasks",
   "my-time",
@@ -1217,6 +1218,22 @@ function Sidebar({
                         role="menuitem"
                         className={
                           "staff-user-menu-item" +
+                          (page === "staff-team" ? " active" : "")
+                        }
+                        onClick={() => {
+                          onSelectPage("staff-team");
+                          onCloseMobile();
+                          setStaffMenuOpen(false);
+                        }}
+                      >
+                        <TeamIcon />
+                        Team
+                      </button>
+                      <button
+                        type="button"
+                        role="menuitem"
+                        className={
+                          "staff-user-menu-item" +
                           (page === "staff-access" ? " active" : "")
                         }
                         onClick={() => {
@@ -1731,6 +1748,7 @@ function StaffRail({
   ];
   const adminItems = showsAdminPages
     ? [
+        { key: "staff-team", label: "Team", icon: <TeamIcon /> },
         { key: "staff-access", label: "Staff Access", icon: <UsersIcon /> },
         { key: "client-access", label: "Client Roster", icon: <ClientRosterIcon /> },
         { key: "developer-tools", label: "Developer Tools", icon: <WrenchIcon /> },
@@ -2252,6 +2270,29 @@ function UsersIcon(props) {
       <path d="M2 20c0-3.5 3-6 7-6s7 2.5 7 6" />
       <path d="M16 8a3 3 0 100-6" />
       <path d="M22 20c0-2.8-2-5-5-5.7" />
+    </svg>
+  );
+}
+
+// Team page: a person with a clock (hours by person), distinct from Staff
+// Access' two-person UsersIcon.
+function TeamIcon(props) {
+  return (
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      {...props}
+    >
+      <circle cx="8" cy="7.5" r="3" />
+      <path d="M2 20c0-3.5 2.7-6 6-6 1.2 0 2.3.3 3.2.8" />
+      <circle cx="17" cy="16.5" r="4.5" />
+      <path d="M17 14.3v2.2l1.5 1" />
     </svg>
   );
 }
@@ -15810,7 +15851,7 @@ function BookkeeperHomePage({
       id: "your-reminders",
       group: "content",
       label: "Your reminders",
-      description: "Your private personal reminders",
+      description: "Your personal reminders (admins can see them too)",
     },
     {
       id: "milestones",
@@ -16481,7 +16522,7 @@ function BookkeeperHomePage({
               >
                 <h3 className="card-title">Your reminders</h3>
                 <p className="card-subtitle">
-                  Private to you unless you share one with a client's team.
+                  Private to you and admins unless you share one with a client's team.
                   For times, repeats, sharing and client filters, see{" "}
                   {onOpenMyTasks ? (
                     <button
@@ -16961,8 +17002,8 @@ function MyTimePage({ staffUser, clients }) {
       <div className="card" style={{ marginBottom: 20 }}>
         <h3 className="card-title">Log time</h3>
         <p className="card-subtitle">
-          Private to you — admins can see firm-wide totals, not your individual
-          entries.
+          Private to you and admins. Admins see individual entries on the Team
+          page.
         </p>
         <div className="staff-add-row" style={{ flexWrap: "wrap" }}>
           <select
@@ -18750,7 +18791,7 @@ function MyTasksPage({ staffUser, clients, statusOverrides }) {
     if (data && data.id) {
       const res = await clientNotesApi.linkTask(supabase, note.id, data.id);
       if (res.error) showToast(`Task added, but couldn't link it: ${res.error.message}`);
-      else showToast("Task added — private to you.");
+      else showToast("Task added, private to you and admins.");
     }
   }
 
@@ -19347,7 +19388,7 @@ function MyTasksPage({ staffUser, clients, statusOverrides }) {
       <div className="card" style={{ marginBottom: 20 }}>
         <h3 className="card-title">Add a task or reminder</h3>
         <p className="card-subtitle">
-          Private to you unless you share it with a client's team.
+          Private to you and admins unless you share it with a client's team.
         </p>
         <form
           className="task-add"
@@ -23071,6 +23112,10 @@ const PAGE_META = {
     title: "Usage Stats",
     subtitle: "Which pages and features actually get used, most to least",
   },
+  "staff-team": {
+    title: "Team",
+    subtitle: "Hours and tasks by person and client",
+  },
   "staff-messages": {
     title: "Inbox",
     subtitle: "Client conversations and team chat in one place",
@@ -23081,7 +23126,7 @@ const PAGE_META = {
   },
   "my-tasks": {
     title: "My Tasks",
-    subtitle: "Your tasks and reminders — private unless you share one",
+    subtitle: "Your tasks and reminders, private to you and admins unless you share one",
   },
   milestone: {
     title: "Milestone",
@@ -24257,7 +24302,8 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
       : (page === "staff-access" ||
             page === "client-access" ||
             page === "developer-tools" ||
-            page === "usage-stats") &&
+            page === "usage-stats" ||
+            page === "staff-team") &&
           staffUser &&
           (staffUser.role === "admin" || hasTempAdminAccess) &&
           !impersonating
@@ -25334,6 +25380,7 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
             />
           )}
           {effectivePage === "usage-stats" && <UsageStatsPage />}
+          {effectivePage === "staff-team" && <TP_TeamPage clients={visibleClients} />}
           {effectivePage === "bookkeeper-home" && (
             <BookkeeperHomePage
               staffUser={effectiveStaffUser}
