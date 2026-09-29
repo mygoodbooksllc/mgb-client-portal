@@ -66,6 +66,7 @@ function CT_isLate(period, status, lateDay, today) {
   return t > dl;
 }
 
+const CT_name = (c) => String((c && (c.name || c.id)) || "");
 const CT_who = (email) => String(email || "").split("@")[0];
 const CT_bookkeeperOf = (c) => (c.assignedBookkeeper && c.assignedBookkeeper.name) || "";
 
@@ -139,7 +140,7 @@ function CT_CloseTrackerPage({ clients, staffUser }) {
     (staffUser && staffUser.name && CT_bookkeeperOf(c).toLowerCase() === String(staffUser.name).toLowerCase());
 
   const sorted = useMemo(
-    () => (clients || []).slice().sort((a, b) => String(a.name).localeCompare(String(b.name))),
+    () => (clients || []).slice().sort((a, b) => CT_name(a).localeCompare(CT_name(b))),
     [clients],
   );
 
@@ -362,7 +363,7 @@ function CT_CloseTrackerPage({ clients, staffUser }) {
                 {visible.map((c) => (
                   <tr key={c.id}>
                     <th scope="row" className="ct-client-col">
-                      <span className="ct-client-name">{c.name}</span>
+                      <span className="ct-client-name">{CT_name(c)}</span>
                       <span className="ct-client-bk">{CT_bookkeeperOf(c) || "Unassigned"}</span>
                     </th>
                     {periods.map((p) => {
@@ -370,7 +371,7 @@ function CT_CloseTrackerPage({ clients, staffUser }) {
                       const s = r ? r.status : "not_started";
                       const late = CT_isLate(p, s, lateDay, today);
                       const title =
-                        `${c.name} · ${CT_monthLabel(p, true)}: ${CT_STATUS_LABEL[s]}` +
+                        `${CT_name(c)} · ${CT_monthLabel(p, true)}: ${CT_STATUS_LABEL[s]}` +
                         (late ? " (late)" : "") +
                         (r && r.updated_by ? ` · ${CT_who(r.updated_by)}, ${new Date(r.updated_at).toLocaleDateString()}` : "") +
                         (r && r.notes ? ` · ${r.notes}` : "");
@@ -442,7 +443,7 @@ function CT_CellEditor({ client, period, row, late, deadline, onClose, onSave })
         }}
       >
         <h3 id="ct-edit-title" className="card-title">
-          {client.name} · {CT_monthLabel(period, true)}
+          {CT_name(client)} · {CT_monthLabel(period, true)}
         </h3>
         <p className="card-subtitle">
           Due by {deadline.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}

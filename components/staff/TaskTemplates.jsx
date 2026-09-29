@@ -37,6 +37,7 @@ const TT_BLANK = {
   active: true,
 };
 
+const TT_name = (c) => String((c && (c.name || c.id)) || "");
 const TT_tierLabel = (t) => (typeof planLabel === "function" ? planLabel(t) : t);
 
 function TT_offsetText(t) {
@@ -70,7 +71,7 @@ function TT_appliesText(t, clientsById) {
   const parts = [];
   if (t.plan_tiers && t.plan_tiers.length) parts.push(t.plan_tiers.map(TT_tierLabel).join(", ") + " plan");
   if (t.client_ids && t.client_ids.length) {
-    const names = t.client_ids.map((id) => (clientsById[id] ? clientsById[id].name : id));
+    const names = t.client_ids.map((id) => (clientsById[id] ? TT_name(clientsById[id]) : id));
     parts.push(names.length > 2 ? `${names.slice(0, 2).join(", ")} +${names.length - 2}` : names.join(", "));
   }
   return parts.length ? parts.join(" · ") : "Every client";
@@ -296,8 +297,8 @@ function TT_Editor({ draft: initial, clients, onClose, onSave, onDelete }) {
   const toggleIn = (k, v) =>
     setD((x) => ({ ...x, [k]: x[k].includes(v) ? x[k].filter((y) => y !== v) : [...x[k], v] }));
   const shown = clients
-    .filter((c) => !q || String(c.name).toLowerCase().includes(q.toLowerCase()))
-    .sort((a, b) => String(a.name).localeCompare(String(b.name)));
+    .filter((c) => !q || TT_name(c).toLowerCase().includes(q.toLowerCase()))
+    .sort((a, b) => TT_name(a).localeCompare(TT_name(b)));
   const everyone = !d.plan_tiers.length && !d.client_ids.length;
   const next = TT_nextDue(d);
 
@@ -409,7 +410,7 @@ function TT_Editor({ draft: initial, clients, onClose, onSave, onDelete }) {
             {shown.map((c) => (
               <label key={c.id} className="tt-check">
                 <input type="checkbox" checked={d.client_ids.includes(c.id)} onChange={() => toggleIn("client_ids", c.id)} />
-                <span className="tt-client-name">{c.name}</span>
+                <span className="tt-client-name">{TT_name(c)}</span>
                 <span className="tt-muted">{TT_tierLabel(c.plan || "standard")}</span>
               </label>
             ))}
