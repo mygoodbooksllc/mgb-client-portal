@@ -5898,6 +5898,7 @@ function ClientOverviewPage({ client, messagesByClient, onNavigate, onOpenDetail
         <div className="ov-col">
           <CloseChecklistCard client={client} />
           <DocumentRequestsCard client={client} />
+          {typeof DC_DocChaserCard === "function" && <DC_DocChaserCard client={client} />}
           <div className="card">
             <h3 className="card-title">Activity</h3>
             <form className="ms-form ov-call-form" onSubmit={logCall}>
