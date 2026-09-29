@@ -69,6 +69,14 @@ function CT_isLate(period, status, lateDay, today) {
 const CT_name = (c) => String((c && (c.name || c.id)) || "");
 const CT_who = (email) => String(email || "").split("@")[0];
 const CT_bookkeeperOf = (c) => (c.assignedBookkeeper && c.assignedBookkeeper.name) || "";
+// Filter key: the staff email when the client is linked to a real staff
+// member (clients.assigned_bookkeeper_email), else the legacy display name.
+const CT_bookkeeperKey = (c) => {
+  const bk = c.assignedBookkeeper;
+  if (!bk) return "";
+  if (bk.email) return "email:" + String(bk.email).toLowerCase();
+  return bk.name ? "name:" + bk.name : "";
+};
 
 function CT_CloseTrackerPage({ clients, staffUser }) {
   const showToast = typeof useToast === "function" ? useToast() : null;
@@ -127,17 +135,25 @@ function CT_CloseTrackerPage({ clients, staffUser }) {
   };
 
   const bookkeepers = useMemo(() => {
-    const names = new Set();
+    const byKey = new Map();
     (clients || []).forEach((c) => {
-      const n = CT_bookkeeperOf(c);
-      if (n) names.add(n);
+      const k = CT_bookkeeperKey(c);
+      if (k && !byKey.has(k)) byKey.set(k, CT_bookkeeperOf(c) || k.replace(/^email:/, ""));
     });
-    return [...names].sort();
+    return [...byKey.entries()]
+      .map(([key, label]) => ({ key, label }))
+      .sort((a, b) => a.label.localeCompare(b.label));
   }, [clients]);
 
   const isMine = (c) =>
     (myClientIds && myClientIds.has(c.id)) ||
-    (staffUser && staffUser.name && CT_bookkeeperOf(c).toLowerCase() === String(staffUser.name).toLowerCase());
+    (staffUser &&
+      staffUser.email &&
+      CT_bookkeeperKey(c) === "email:" + String(staffUser.email).toLowerCase()) ||
+    (staffUser &&
+      staffUser.name &&
+      !(c.assignedBookkeeper && c.assignedBookkeeper.email) &&
+      CT_bookkeeperOf(c).toLowerCase() === String(staffUser.name).toLowerCase());
 
   const sorted = useMemo(
     () => (clients || []).slice().sort((a, b) => CT_name(a).localeCompare(CT_name(b))),
@@ -150,8 +166,8 @@ function CT_CloseTrackerPage({ clients, staffUser }) {
       : bkFilter === "mine"
         ? isMine(c)
         : bkFilter === "unassigned"
-          ? !CT_bookkeeperOf(c)
-          : CT_bookkeeperOf(c) === bkFilter,
+          ? !CT_bookkeeperKey(c)
+          : CT_bookkeeperKey(c) === bkFilter,
   );
 
   const focusIsLate = (c) => CT_isLate(focus, statusOf(c.id, focus), lateDay, today);
@@ -259,8 +275,8 @@ function CT_CloseTrackerPage({ clients, staffUser }) {
               <option value="all">Everyone</option>
               <option value="mine">My clients</option>
               {bookkeepers.map((b) => (
-                <option key={b} value={b}>
-                  {b}
+                <option key={b.key} value={b.key}>
+                  {b.label}
                 </option>
               ))}
               <option value="unassigned">Unassigned</option>
