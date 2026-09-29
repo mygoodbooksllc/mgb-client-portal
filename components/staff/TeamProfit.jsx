@@ -145,6 +145,13 @@ function TP_PF_useProfit(enabled, range, version) {
   return { ...state, ready: !state.loading && !state.kind, hasRates: state.rates.length > 0, reload };
 }
 
+// "2026-09-01" -> "Sep 1, 2026" (rate history needs the year).
+function TP_PF_dateY(ymd) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(ymd || ""));
+  if (!m) return String(ymd || "");
+  return new Date(+m[1], +m[2] - 1, +m[3]).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+}
+
 // Current rate per staff email (latest effective_from <= today).
 function TP_PF_currentRate(rates, email, today) {
   const e = String(email || "").toLowerCase();
@@ -509,7 +516,7 @@ function TP_PF_RateCard({ email, name, profit, today }) {
         <>
           <p style={{ margin: "0 0 10px" }}>
             Current: <b>{current ? `${fmtMoney(current.hourly_cost)}/h` : "not set"}</b>
-            {current ? <span className="tp-muted"> since {fmtDate(current.effective_from)}</span> : null}
+            {current ? <span className="tp-muted"> since {TP_PF_dateY(current.effective_from)}</span> : null}
           </p>
           <div className="pf-fee-form">
             <label>
@@ -529,7 +536,7 @@ function TP_PF_RateCard({ email, name, profit, today }) {
             <ul className="pf-rate-history">
               {history.map((r) => (
                 <li key={r.effective_from}>
-                  <span>{fmtDate(r.effective_from)}</span>
+                  <span>{TP_PF_dateY(r.effective_from)}</span>
                   <span>{fmtMoney(r.hourly_cost)}/h</span>
                   <button type="button" className="tp-q-link" onClick={() => remove(r)} disabled={saving}>
                     Remove

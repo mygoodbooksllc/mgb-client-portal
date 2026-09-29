@@ -233,7 +233,10 @@ function TP_CapacityCard({ people, qboOn, onOpenPerson }) {
   const cap = TP_useCapacity(true);
   const rows = useMemo(() => {
     if (!people) return null;
+    // Admins only appear when they logged QuickBooks hours in the last 4 weeks.
+    const logged = (email) => !!(cap && cap.hoursOk && (cap.last4[TP_lower(email)] || 0) > 0);
     return people
+      .filter((p) => p.role !== "admin" || logged(p.email))
       .map((p) => ({ ...p, c: TP_capFor(cap, p.email, !qboOn) }))
       .sort((a, b) => (b.c.util == null ? -1 : b.c.util) - (a.c.util == null ? -1 : a.c.util) || a.name.localeCompare(b.name));
   }, [people, cap, qboOn]);
