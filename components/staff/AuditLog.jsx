@@ -111,7 +111,7 @@ function AL_clientName(id, clients) {
   if (!id) return "";
   const list = clients || (typeof window !== "undefined" && window.CLIENTS) || [];
   const c = list.find((x) => x.id === id);
-  return c ? c.name : id;
+  return (c && c.name) || id;
 }
 
 function AL_fmtWhen(iso) {
