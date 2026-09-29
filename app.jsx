@@ -23768,10 +23768,13 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
           (c) => assignedClientIds.has(c.id) || liveGrantClientIds.has(c.id),
         )
       : CLIENTS;
+    // An explicit assignment overrides testOnly: an admin who checks a
+    // test client off for someone means for them to see it.
     return base.filter(
       (c) =>
         !c.testOnly ||
-        (effectiveStaffUser && effectiveStaffUser.role === "admin"),
+        (effectiveStaffUser && effectiveStaffUser.role === "admin") ||
+        (assignedClientIds && assignedClientIds.has(c.id)),
     );
   }, [assignedClientIds, liveGrantClientIds, effectiveStaffUser && effectiveStaffUser.role, qboDataRev]);
 
