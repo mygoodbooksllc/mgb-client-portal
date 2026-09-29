@@ -23104,7 +23104,94 @@ function QboSyncNowButton({ clientId, onSynced, liveLabel, canSyncNow = true }) 
   );
 }
 
+// Hash routes, so a link can open a specific page (the weekly digest email's
+// section links, a URL pasted into chat):
+//   #/team  #/close-tracker  #/audit-log  #/home  #/templates ...
+//   #/client/<client id>/overview  #/client/<client id>/<tab key>
+// Read once on load and on hashchange; App keeps the hash in step with what's
+// on screen via history.replaceState (no history entry per click). It only
+// ever sets `page` / `selectedClientId`, so the usual gating still decides
+// what renders: effectivePage bounces a page the viewer can't see, the
+// visibleClients check drops a client they aren't assigned, and a client
+// portal user is always pinned to their own org.
+const HASH_PAGE_ALIASES = {
+  home: "bookkeeper-home",
+  team: "staff-team",
+  tasks: "my-tasks",
+  chat: "staff-messages",
+  templates: "task-templates",
+};
+const HASH_PAGE_SLUGS = Object.fromEntries(
+  Object.entries(HASH_PAGE_ALIASES).map(([slug, page]) => [page, slug]),
+);
+
+function isKnownAppPage(p) {
+  return !!p && (Object.prototype.hasOwnProperty.call(PAGE_META, p) || ALL_TAB_KEYS.includes(p));
+}
+
+// Supabase auth redirects also use the fragment (#access_token=...); leave
+// those alone.
+function isAuthHash(hash) {
+  return /access_token=|refresh_token=|error_description=|type=recovery/.test(String(hash || ""));
+}
+
+function parseHashRoute(hash) {
+  if (!hash || isAuthHash(hash)) return null;
+  let parts;
+  try {
+    parts = String(hash)
+      .replace(/^#\/?/, "")
+      .split(/[?]/)[0]
+      .split("/")
+      .filter(Boolean)
+      .map(decodeURIComponent);
+  } catch (e) {
+    return null;
+  }
+  if (!parts.length) return null;
+  if (parts[0] === "client") {
+    if (!parts[1]) return null;
+    const tab = parts[2] || "overview";
+    const page = tab === "overview" ? "client-overview" : tab;
+    return { clientId: parts[1], page: isKnownAppPage(page) ? page : null };
+  }
+  const page = HASH_PAGE_ALIASES[parts[0]] || parts[0];
+  return isKnownAppPage(page) ? { page } : null;
+}
+
+function buildHashRoute(page, clientId) {
+  if (NON_CLIENT_PAGES.has(page)) return "#/" + (HASH_PAGE_SLUGS[page] || page);
+  if (!clientId) return "";
+  return (
+    "#/client/" +
+    encodeURIComponent(clientId) +
+    "/" +
+    (page === "client-overview" ? "overview" : encodeURIComponent(page))
+  );
+}
+
+// Signing in with Google redirects back to the bare origin, which drops the
+// hash. Stash a deep link at boot (this file runs before the sign-in screen)
+// so App can still open it after the round trip.
+const PENDING_ROUTE_KEY = "mygoodbooks_pending_route_v1";
+try {
+  if (parseHashRoute(window.location.hash)) {
+    sessionStorage.setItem(PENDING_ROUTE_KEY, window.location.hash);
+  }
+} catch (e) {}
+
 function App({ staffUser, onSignOut, clientPortalUser }) {
+  // Deep link from the URL hash, read once on mount (see parseHashRoute).
+  const [initialRoute] = useState(() => {
+    try {
+      let route = parseHashRoute(window.location.hash);
+      if (!route) route = parseHashRoute(sessionStorage.getItem(PENDING_ROUTE_KEY));
+      sessionStorage.removeItem(PENDING_ROUTE_KEY);
+      return route;
+    } catch (e) {
+      return null;
+    }
+  });
   // Riverside: premium plan (so Live Report is reachable) and, as of the
   // thread fixes in data.js, no thread whose last message is unread —
   // nothing steals focus with the chat popup on first load. Only the
@@ -23114,6 +23201,10 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
   const [selectedClientId, setSelectedClientId] = useState(
     () =>
       (clientPortalUser && clientPortalUser.client_id) ||
+      (initialRoute &&
+        initialRoute.clientId &&
+        CLIENTS.some((c) => c.id === initialRoute.clientId) &&
+        initialRoute.clientId) ||
       loadSelectedClientId() ||
       "riverside-pantry",
   );
@@ -23122,7 +23213,9 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
   // default is staff-only chrome they can't render (no staffUser).
   const [page, setPage] = useState(() => {
     const p = initialPage();
-    return clientPortalUser && p === "bookkeeper-home" ? "dashboard" : p;
+    const fromHash = initialRoute && initialRoute.page;
+    const chosen = fromHash || p;
+    return clientPortalUser && NON_CLIENT_PAGES.has(chosen) ? "dashboard" : chosen;
   });
   // Sidebar dot for Team Chat — recomputed on every page change and on any
   // Team Chat activity (cheap, single-purpose query) rather than polling,
@@ -24130,6 +24223,51 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
       });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [effectivePage]);
+
+  // Keep the URL hash in step with what's actually on screen (effectivePage,
+  // so a bounced deep link shows where the viewer really landed). replaceState
+  // rather than assigning location.hash: no history entry per click and no
+  // hashchange event back into the listener below.
+  const [hashRewriteTick, setHashRewriteTick] = useState(0);
+  useEffect(() => {
+    try {
+      if (isAuthHash(window.location.hash)) return;
+      const next = buildHashRoute(effectivePage, selectedClientId);
+      if (next && window.location.hash !== next) {
+        window.history.replaceState(
+          window.history.state,
+          "",
+          window.location.pathname + window.location.search + next,
+        );
+      }
+    } catch (e) {}
+    // `page` too: a bounced request (page changes, effectivePage doesn't)
+    // must still rewrite the hash back to what's shown.
+  }, [effectivePage, selectedClientId, page, hashRewriteTick]);
+
+  // A hash typed or pasted into the address bar of an already-open tab.
+  useEffect(() => {
+    const onHashChange = () => {
+      const route = parseHashRoute(window.location.hash);
+      if (!route) return;
+      if (
+        route.clientId &&
+        !clientPortalUser &&
+        route.clientId !== selectedClientId &&
+        visibleClients.some((c) => c.id === route.clientId)
+      ) {
+        pageAfterClientSwitch.current = route.page || "client-overview";
+        setSelectedClientId(route.clientId);
+      } else if (route.page && !(clientPortalUser && NON_CLIENT_PAGES.has(route.page))) {
+        setPage(route.page);
+      }
+      // Re-sync even when nothing changed (a refused page that was already
+      // the stored request would otherwise leave its hash in the bar).
+      setHashRewriteTick((t) => t + 1);
+    };
+    window.addEventListener("hashchange", onHashChange);
+    return () => window.removeEventListener("hashchange", onHashChange);
+  }, [selectedClientId, visibleClients, clientPortalUser]);
 
   // The manual "My Time" page was retired 2026-09-29 (QuickBooks Time is the
   // hours source). Anyone still holding that page id goes Home.
