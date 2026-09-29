@@ -16,7 +16,12 @@
 --       means "just unassign, no replacement".
 --       Steps:
 --         1. staff_client_access: replacement gets the client (if any), the
---            leaver's row is removed.
+--            leaver's row is removed. Where the leaver was the client's
+--            assigned bookkeeper, clients.assigned_bookkeeper_email (and the
+--            display name) moves to the replacement, or is cleared when there
+--            is none (added 2026-09-29, migration
+--            offboard_reassigns_assigned_bookkeeper; see
+--            assigned-bookkeeper-email.sql).
 --         2. open staff_reminders (done = false) where the leaver is the
 --            assignee or the owner: moved to the client's replacement, else
 --            "default", else the admin running the offboarding.
@@ -202,6 +207,11 @@ begin
       values (v_repl, r.client_id) on conflict do nothing;
       n_assigned := n_assigned + 1;
     end if;
+    -- Assigned bookkeeper follows the replacement (the clients trigger
+    -- rewrites the display name too). With no replacement, deleting the
+    -- access row below clears it (sca_clear_assigned_bookkeeper).
+    update clients set assigned_bookkeeper_email = v_repl
+     where id = r.client_id and assigned_bookkeeper_email = v_email and v_repl is not null;
     delete from staff_client_access where staff_email = v_email and client_id = r.client_id;
     n_unassigned := n_unassigned + 1;
     v_moves := v_moves || jsonb_build_object('client_id', r.client_id, 'to', v_repl);

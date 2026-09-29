@@ -33,10 +33,13 @@
 --                 (period = YYYY-MM-DD, first day of the period). A partial
 --                 unique index on source_ref backs the dedupe.
 --
--- Assigned bookkeeper. clients.assigned_bookkeeper is display JSON
--- ({name, role, initials}, optionally email). tt_client_bookkeeper() resolves
--- it to an active staff email: an "email" key if present, else an active
--- staff member with the same name, else the first bookkeeper-role staff
+-- Assigned bookkeeper. tt_client_bookkeeper() resolves the client to an
+-- active staff email: clients.assigned_bookkeeper_email (the real staff link,
+-- supabase/assigned-bookkeeper-email.sql, applied 2026-09-29 together with
+-- migration tt_bookkeeper_prefers_email) if that person is active, else the
+-- legacy display JSON clients.assigned_bookkeeper ({name, role, initials},
+-- optionally email): an "email" key if present, else an active staff member
+-- with the same name, else the first bookkeeper-role staff
 -- member in staff_client_access for the client, else anyone in
 -- staff_client_access. No match = skipped (and counted, so the admin page
 -- can say so).
@@ -138,9 +141,11 @@ security definer
 set search_path = public
 as $$
   with c as (
-    select assigned_bookkeeper ab from clients where id = p_client_id
+    select assigned_bookkeeper ab, assigned_bookkeeper_email abe from clients where id = p_client_id
   )
   select coalesce(
+    (select s.email from staff s, c
+      where s.active and s.email = c.abe limit 1),
     (select s.email from staff s, c
       where s.active and lower(s.email) = lower(c.ab ->> 'email') limit 1),
     (select s.email from staff s, c

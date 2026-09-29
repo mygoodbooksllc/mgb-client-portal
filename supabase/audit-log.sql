@@ -34,8 +34,13 @@
 --   client_milestones           client.tier_changed (confirmed_tier; the
 --                               pricing tier lives here, not on clients)
 --
--- The older staff_audit_log (staff-audit-log.sql) is left in place; the Staff
--- Access page's "Recent Activity" still reads it.
+-- The older staff_audit_log (staff-audit-log.sql) is superseded by this table
+-- (the staff.* actions above cover the same changes) but is left in place,
+-- data and all. Checked 2026-09-29: it is NOT unused yet. The
+-- staff_audit_trigger on staff (log_staff_change) still writes to it, and the
+-- Developer Tools page's "Recent Activity" card (DeveloperToolsPage in
+-- app.jsx) still reads it. New code should read/write audit_log instead;
+-- retire the old table only after that card is moved over.
 
 begin;
 
