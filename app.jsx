@@ -536,6 +536,7 @@ const NON_CLIENT_PAGES = new Set([
   "my-tasks",
   "close-tracker",
   "task-templates",
+  "audit-log",
 ]);
 
 // Tabs that are part of a paid add-on rather than the base product. Always
@@ -1310,6 +1311,22 @@ function Sidebar({
                         <GaugeIcon width="16" height="16" strokeWidth="1.8" />
                         Usage Stats
                       </button>
+                      <button
+                        type="button"
+                        role="menuitem"
+                        className={
+                          "staff-user-menu-item" +
+                          (page === "audit-log" ? " active" : "")
+                        }
+                        onClick={() => {
+                          onSelectPage("audit-log");
+                          onCloseMobile();
+                          setStaffMenuOpen(false);
+                        }}
+                      >
+                        <DocumentIcon width="16" height="16" strokeWidth="1.8" />
+                        Audit log
+                      </button>
                     </React.Fragment>
                   )}
 
@@ -1767,6 +1784,7 @@ function StaffRail({
         { key: "client-access", label: "Client Roster", icon: <ClientRosterIcon /> },
         { key: "developer-tools", label: "Developer Tools", icon: <WrenchIcon /> },
         { key: "usage-stats", label: "Usage Stats", icon: <GaugeIcon /> },
+        { key: "audit-log", label: "Audit log", icon: <DocumentIcon /> },
       ]
     : [];
   const initials = (staffUser.name || "")
@@ -5737,6 +5755,7 @@ function ClientOverviewPage({ client, messagesByClient, onNavigate, onOpenDetail
       </div>
 
       <div className="ov-grid">
+        {typeof HL_HealthCard === "function" && <HL_HealthCard clientId={client.id} />}
         <div className="card ov-stat">
           <span className="kpi-label">Monthly bill</span>
           <span className="ov-big">{monthlyBill == null ? (milestone ? "Custom" : "—") : fmtMoney(monthlyBill)}</span>
@@ -11844,6 +11863,9 @@ function StaffAccessPage({ staffUser, onImpersonate, readOnly }) {
                           >
                             View as
                           </button>
+                        )}
+                        {!isSelf && !readOnly && row.active && typeof OFF_OffboardButton === "function" && (
+                          <OFF_OffboardButton row={row} staffRows={rows} onDone={load} disabled={busy} />
                         )}
                       </td>
                       <td data-label="">
@@ -22777,6 +22799,10 @@ const PAGE_META = {
     subtitle:
       "Per-browser testing aids — nothing here is shared with other staff or written to Supabase",
   },
+  "audit-log": {
+    title: "Audit log",
+    subtitle: "Every change to access, fees, rates, mappings and clients",
+  },
   "usage-stats": {
     title: "Usage Stats",
     subtitle: "Which pages and features actually get used, most to least",
@@ -23366,10 +23392,13 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
   const effectiveStaffUser = impersonating || staffUser;
 
   const startImpersonating = (row) => {
+    if (typeof AL_logEvent === "function") AL_logEvent("view_as.start", null, { target: row.email, name: row.name });
     setImpersonating({ email: row.email, name: row.name, role: row.role });
     setPage("bookkeeper-home");
   };
   const stopImpersonating = () => {
+    if (impersonating && typeof AL_logEvent === "function")
+      AL_logEvent("view_as.stop", null, { target: impersonating.email, name: impersonating.name });
     setImpersonating(null);
     setPage("bookkeeper-home");
   };
@@ -23976,6 +24005,7 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
             page === "client-access" ||
             page === "developer-tools" ||
             page === "usage-stats" ||
+            page === "audit-log" ||
             page === "staff-team" ||
             page === "task-templates") &&
           staffUser &&
@@ -24143,6 +24173,13 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
   const isStaffSession = !clientPortalUser;
 
   const clientUsers = client.users || [];
+  // Audit log: staff previewing the portal as a client user (AuditLog.jsx).
+  if (typeof AL_usePortalPreviewLog === "function")
+    AL_usePortalPreviewLog(
+      isStaffSession && staffUser && isPreviewingUser ? client.id : null,
+      isStaffSession && isPreviewingUser ? access.user.email || String(viewAsUserId) : null,
+      isStaffSession && isPreviewingUser ? access.user.name : null,
+    );
 
   // Real client messaging (SI_useClientMessaging, components/inbox/). Only
   // "real" once supabase/client-messages.sql answers; until then, and for
@@ -25076,6 +25113,9 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
             />
           )}
           {effectivePage === "usage-stats" && <UsageStatsPage />}
+          {effectivePage === "audit-log" && typeof AL_AuditLogPage === "function" && (
+            <AL_AuditLogPage clients={visibleClients} />
+          )}
           {effectivePage === "staff-team" && <TP_TeamPage clients={visibleClients} />}
           {effectivePage === "close-tracker" && (
             <CT_CloseTrackerPage clients={visibleClients} staffUser={effectiveStaffUser} />
