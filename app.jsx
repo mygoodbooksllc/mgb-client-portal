@@ -1311,6 +1311,7 @@ function Sidebar({
                         <GaugeIcon width="16" height="16" strokeWidth="1.8" />
                         Usage Stats
                       </button>
+                      {staffUser.role === "admin" && (
                       <button
                         type="button"
                         role="menuitem"
@@ -1327,6 +1328,7 @@ function Sidebar({
                         <DocumentIcon width="16" height="16" strokeWidth="1.8" />
                         Audit log
                       </button>
+                      )}
                     </React.Fragment>
                   )}
 
@@ -1784,7 +1786,7 @@ function StaffRail({
         { key: "client-access", label: "Client Roster", icon: <ClientRosterIcon /> },
         { key: "developer-tools", label: "Developer Tools", icon: <WrenchIcon /> },
         { key: "usage-stats", label: "Usage Stats", icon: <GaugeIcon /> },
-        { key: "audit-log", label: "Audit log", icon: <DocumentIcon /> },
+        ...(staffUser.role === "admin" ? [{ key: "audit-log", label: "Audit log", icon: <DocumentIcon /> }] : []),
       ]
     : [];
   const initials = (staffUser.name || "")
@@ -24005,13 +24007,14 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
             page === "client-access" ||
             page === "developer-tools" ||
             page === "usage-stats" ||
-            page === "audit-log" ||
             page === "staff-team" ||
             page === "task-templates") &&
           staffUser &&
           (staffUser.role === "admin" || hasTempAdminAccess) &&
           !impersonating
         ? page
+        : page === "audit-log" && staffUser && staffUser.role === "admin" && !impersonating
+          ? page
         : page === "staff-messages" && staffUser && !impersonating
           ? page
           : page === "my-tasks" && staffUser && !impersonating
