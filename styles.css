@@ -8373,16 +8373,6 @@ body:has(.modal-overlay) .chat-fab-wrap {
 .staff-rail:not(.expanded) .staff-rail-collapse .sidebar-collapse-toggle-icon {
   transform: rotate(-90deg);
 }
-/* "Go to client" picker at the top of the staff sidebar. */
-.staff-rail-picker {
-  display: block;
-  margin-bottom: 12px;
-}
-.staff-rail-picker .client-select {
-  display: block;
-  width: 100%;
-}
-
 /* ---------------- Staff client tools ---------------- */
 /* Quick-action bar at the top of every client page (staff only). */
 /* Staff toolbar: ink, like the sidebar, so it reads as a staff tool and

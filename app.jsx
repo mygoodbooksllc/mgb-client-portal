@@ -1053,63 +1053,27 @@ function Sidebar({
               second, redundant way to do the same jump wasn't worth the
               sidebar space, and a dropdown is a worse version of that card
               on mobile besides. */}
-          {!NON_CLIENT_PAGES.has(page) && (
-            <React.Fragment>
-              <div className="client-picker-label">Viewing client</div>
-              <div style={{ position: "relative" }}>
-                <select
-                  className="client-select"
-                  value={selectedClientId}
-                  onChange={(e) => onSelectClient(e.target.value)}
-                  style={{ display: "block", paddingLeft: 26 }}
-                >
-                  {/* §169: the per-client request count rides in the option
-                      label. This is a native <select>, so an <option> cannot
-                      carry a styled dot the way the health indicator beside
-                      it does — browsers ignore almost all styling inside
-                      one. Text works everywhere and reads correctly aloud,
-                      which a decorative dot would not. */}
-                  {clients.map((c) => {
-                    const pending =
-                      (pendingRequestsByClient &&
-                        pendingRequestsByClient[c.id]) ||
-                      0;
-                    return (
-                      <option key={c.id} value={c.id}>
-                        {c.name}
-                        {pending > 0
-                          ? ` — ${pending} access request${pending === 1 ? "" : "s"}`
-                          : ""}
-                      </option>
-                    );
-                  })}
-                </select>
-                {client && (
-                  <ClientHealthDot
-                    health={effectiveClientHealth(
-                      client,
-                      today,
-                      statusOverrides,
-                    )}
-                    pulse
-                    style={{
-                      position: "absolute",
-                      left: 12,
-                      // Select's own padding is 10px 30px 10px 12px with a
-                      // 1px border, and its line box is vertically centered
-                      // in that content area — so the dot lines up with the
-                      // text baseline at half the select's own font line
-                      // height below its top edge, not the box's midpoint
-                      // (which the box's own bottom-margin skewed off when
-                      // this used top:50% on the wrapper instead).
-                      top: 19,
-                      transform: "translateY(-50%)",
-                      pointerEvents: "none",
-                    }}
-                  />
-                )}
-              </div>
-            </React.Fragment>
+          {(!NON_CLIENT_PAGES.has(page) || inDrawer) && (
+            // components/staff/ClientSwitcher.jsx. §169's per-client
+            // portal request count now rides on each row as a small pill.
+            // The phone drawer shows it on staff pages too ("Choose a
+            // client"), since desktop's staff sidebar picker isn't there.
+            <CS_ClientSwitcher
+              clients={clients}
+              currentClient={NON_CLIENT_PAGES.has(page) ? null : client}
+              onPick={(id) => {
+                if (id !== selectedClientId) onSelectClient(id);
+                else if (NON_CLIENT_PAGES.has(page)) onSelectPage("client-overview");
+                onCloseMobile();
+              }}
+              staffUser={staffUser}
+              statusOverrides={statusOverrides}
+              pendingRequestsByClient={pendingRequestsByClient}
+              compact={collapsed && !inDrawer}
+              inline={inDrawer}
+              onExpand={onToggleCollapse}
+              canRequest={!impersonating}
+            />
           )}
 
           {staffUser && (
@@ -1177,6 +1141,7 @@ function Sidebar({
                   >
                     <HomeIcon />
                     Home
+                    <CS_ApprovalsDot />
                   </button>
 
                   {!impersonating && (
@@ -1717,6 +1682,7 @@ function StaffRail({
   clients,
   onPickClient,
   onExpand,
+  statusOverrides,
 }) {
   const [tip, setTip] = useState(null);
   const showTip = (e, text) => {
@@ -1729,7 +1695,12 @@ function StaffRail({
   }, [expanded]);
   const onClientPage = !NON_CLIENT_PAGES.has(page);
   const items = [
-    { key: "bookkeeper-home", label: "Home", icon: <HomeIcon /> },
+    {
+      key: "bookkeeper-home",
+      label: "Home",
+      icon: <HomeIcon />,
+      extra: <CS_ApprovalsDot className="nav-badge-dot staff-rail-dot" />,
+    },
     {
       key: "dashboard",
       label: "Client view",
@@ -1792,6 +1763,7 @@ function StaffRail({
         {it.icon}
         {expanded && <span className="staff-rail-label">{it.label}</span>}
         {it.dot && <span className="nav-badge-dot staff-rail-dot" aria-label="Unread" />}
+        {it.extra}
         {it.due && expanded && <MyTasksDueCount due={myTasksDue} />}
         {it.due && !expanded && myTasksDue && myTasksDue.due > 0 && (
           <span className="nav-badge-dot staff-rail-dot" aria-label={`${myTasksDue.due} tasks due`} />
@@ -1816,38 +1788,20 @@ function StaffRail({
           </span>
         )}
       </div>
-      {/* Client pages already have the client sidebar's own picker. */}
-      {clients && clients.length > 0 && !onClientPage && (
-        expanded ? (
-          <label className="staff-rail-picker">
-            <span className="client-picker-label">Go to client</span>
-            <select
-              className="client-select"
-              value=""
-              onChange={(e) => e.target.value && onPickClient(e.target.value)}
-            >
-              <option value="">Choose a client…</option>
-              {clients.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-            </select>
-          </label>
-        ) : (
-          <button
-            type="button"
-            className="staff-rail-item"
-            onClick={onExpand}
-            aria-label="Go to client"
-            onMouseEnter={(e) => showTip(e, "Go to client")}
-            onMouseLeave={hideTip}
-            onFocus={(e) => showTip(e, "Go to client")}
-            onBlur={hideTip}
-          >
-            <SearchIcon />
-          </button>
-        )
+      {/* Client pages already have the client sidebar's own switcher. Shown
+          even with no assigned clients, since the switcher is also where a
+          bookkeeper asks for access to one. */}
+      {clients && !onClientPage && (
+        <CS_ClientSwitcher
+          clients={clients}
+          currentClient={null}
+          onPick={onPickClient}
+          staffUser={staffUser}
+          statusOverrides={statusOverrides}
+          compact={!expanded}
+          onExpand={onExpand}
+          canRequest={!impersonating}
+        />
       )}
       <nav className="staff-rail-nav">
         {items.map(renderItem)}
@@ -5476,7 +5430,7 @@ function CloseProgressList({ clients, onOpenClient }) {
   });
   const rows = clients
     .map((c) => ({ c, n: done[c.id] || 0 }))
-    .sort((a, b) => a.n - b.n || a.c.name.localeCompare(b.c.name));
+    .sort((a, b) => a.n - b.n || (a.c.name || "").localeCompare(b.c.name || ""));
   return (
     <ul className="close-progress-list">
       {rows.map(({ c, n }) => (
@@ -12121,7 +12075,7 @@ function DeveloperToolsPage({ staffUser, clients, onJumpToClient, readOnly }) {
   // search the raw global CLIENTS array here, which quietly bypassed that
   // gating for anyone on temporary access.
   const sortedClients = useMemo(
-    () => [...clients].sort((a, b) => a.name.localeCompare(b.name)),
+    () => [...clients].sort((a, b) => (a.name || "").localeCompare(b.name || "")),
     [clients],
   );
   const matchingClients = clientQuery.trim()
@@ -15885,7 +15839,7 @@ function BookkeeperHomePage({
   // unrestricted for an admin) by App's visibleClients — see the note on
   // DeveloperToolsPage's matching card for why that matters.
   const sortedJumpClients = useMemo(
-    () => [...clients].sort((a, b) => a.name.localeCompare(b.name)),
+    () => [...clients].sort((a, b) => (a.name || "").localeCompare(b.name || "")),
     [clients],
   );
   const jumpMatches = jumpQuery.trim()
@@ -15898,6 +15852,7 @@ function BookkeeperHomePage({
 
   return (
     <div>
+      <CS_AccessRequestsCard />
       <div className="card" style={{ marginBottom: 20 }}>
         <h3 className="card-title">Jump to client</h3>
         <p className="card-subtitle">
@@ -23804,16 +23759,21 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
   // (index.html's loadQboData), so visibleClients — and baseClient under it —
   // pick up the fresh QuickBooks numbers without a page reload.
   const [qboDataRev, setQboDataRev] = useState(0);
+  // Clients reachable through a live temporary grant (ClientSwitcher.jsx),
+  // so an approval shows up without a reload and an expiry drops out.
+  const liveGrantClientIds = CS_useLiveGrantClientIds(staffUser, effectiveStaffUser);
   const visibleClients = useMemo(() => {
     const base = assignedClientIds
-      ? CLIENTS.filter((c) => assignedClientIds.has(c.id))
+      ? CLIENTS.filter(
+          (c) => assignedClientIds.has(c.id) || liveGrantClientIds.has(c.id),
+        )
       : CLIENTS;
     return base.filter(
       (c) =>
         !c.testOnly ||
         (effectiveStaffUser && effectiveStaffUser.role === "admin"),
     );
-  }, [assignedClientIds, effectiveStaffUser && effectiveStaffUser.role, qboDataRev]);
+  }, [assignedClientIds, liveGrantClientIds, effectiveStaffUser && effectiveStaffUser.role, qboDataRev]);
 
   // §140: in-app-only substitute for the "email me on every access request"
   // idea from HANDOFF7.md's smaller-open-items list — no inbox noise, just
@@ -24820,6 +24780,11 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
             ? `${effectiveStaffUser.name}, we couldn't check which clients you're assigned to, so nothing is being shown. Reload to try again — if it keeps happening, tell an admin.`
             : `${effectiveStaffUser.name}, you're signed in but no clients are assigned to you yet. Ask an admin to check off at least one client for you under Staff Access.`}
         </div>
+        {/* Temporary access is the other way in; an approval widens
+            visibleClients and this screen gives way on its own. */}
+        {!clientAccessError && !impersonating && (
+          <CS_SplashRequestAccess staffUser={effectiveStaffUser} />
+        )}
         {impersonating && (
           <button
             onClick={stopImpersonating}
@@ -24937,6 +24902,7 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
             onExpand={
               halfScreen ? () => setHalfScreenExpanded(true) : toggleSidebarCollapsed
             }
+            statusOverrides={statusOverrides}
           />
         )}
         <Sidebar
@@ -24988,6 +24954,9 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
           statusOverrides={statusOverrides}
         />
         <main className="main">
+          {!impersonating && !NON_CLIENT_PAGES.has(effectivePage) && (
+            <CS_TempAccessNote clientId={client.id} clientName={client.name} />
+          )}
           {impersonating && (
             <div className="preview-bar">
               <span>
