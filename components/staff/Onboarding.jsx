@@ -18,7 +18,7 @@
 //   OB_useOnboarding()  the store, for anything else that wants it
 //
 // Loaded before app.jsx and shares its global scope: every top-level name has
-// an OB_ prefix, and app.jsx globals (hooks, ModalShell, useToast, fmtDate)
+// an OB_ prefix, and app.jsx globals (hooks, ModalShell, useToast)
 // are only touched at render time.
 // ----------------------------------------------------------------------------
 
@@ -189,7 +189,7 @@ function OB_OnboardingCard({ client, staffUser }) {
                 {s.description && <span className="ob-step-desc">{s.description}</span>}
                 {s.manual && s.row && s.row.done_at && (
                   <span className="ob-step-desc">
-                    {String(s.row.done_by || "").split("@")[0] || "Someone"} · {typeof fmtDate === "function" ? fmtDate(s.row.done_at) : s.row.done_at.slice(0, 10)}
+                    {String(s.row.done_by || "").split("@")[0] || "Someone"} · {new Date(s.row.done_at).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
                   </span>
                 )}
               </span>
