@@ -216,6 +216,7 @@ function DG_DigestSettings() {
               <input
                 type="text"
                 inputMode="email"
+                className="tp-q-input"
                 value={recipientsText}
                 onChange={(e) => setRecipientsText(e.target.value)}
                 placeholder="admin@mygoodbooks.org"
