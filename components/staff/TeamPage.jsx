@@ -15,6 +15,12 @@
 // Every query fails soft: no Supabase, a 401 (local, signed out) or a missing
 // table leaves that slice empty and shows a friendly note instead.
 //
+// QuickBooks Time (the firm's own QuickBooks company, supabase/qbo-firm-time.sql)
+// lives in TeamQbo.jsx: the connection panel, customer/staff mapping, and the
+// QuickBooks versions of the People and Clients tables. When QuickBooks has
+// data the page defaults to it; an "App hours" toggle brings back the
+// time_entries tables below unchanged.
+//
 // Loaded before app.jsx and shares its global scope, so every top-level name
 // here carries a TP_ prefix, and app.jsx globals (hooks, fmtDate, planLabel,
 // EmptyRow, icons...) are only touched at render time.
@@ -718,6 +724,11 @@ function TP_TeamPage({ clients }) {
   const [view, setView] = useState(null); // { type: "person"|"client", key }
   const [clientSort, setClientSort] = useState({ key: "hours", dir: "desc" });
   const [showIdleClients, setShowIdleClients] = useState(false);
+  // QuickBooks Time (TeamQbo.jsx). Hours default to QuickBooks whenever it
+  // has data; "App" keeps the in-app time_entries view.
+  const qbo = TP_useQboStatus();
+  const [source, setSource] = useState(null);
+  const [qboVersion, setQboVersion] = useState(0);
 
   const range = useMemo(
     () => TP_periodRange(period, customFrom, customTo),
@@ -725,6 +736,8 @@ function TP_TeamPage({ clients }) {
   );
   const avg = useMemo(() => TP_avgRange(), []);
   const today = TP_ymd(new Date());
+  const src = qbo.available ? source || "qbo" : "app";
+  const qHours = TP_useQboHours(src === "qbo", range, avg, qboVersion);
   const rangeLabel =
     range.from === range.to
       ? fmtDate(range.from)
@@ -867,6 +880,10 @@ function TP_TeamPage({ clients }) {
   const fileSuffix = `${range.from}_to_${range.to}`;
   function exportPeople() {
     if (!data) return;
+    if (src === "qbo") {
+      TP_qExportPeople(`team_people_quickbooks_${fileSuffix}.csv`, data.people, qHours.byStaff);
+      return;
+    }
     TP_downloadCsv(
       `team_people_${fileSuffix}.csv`,
       ["Name", "Email", "Role", "Hours", "Billable hours", "Billable %", "Open tasks", "Overdue tasks", "Completed in period", "Assigned clients", "Temporary clients"],
@@ -887,6 +904,14 @@ function TP_TeamPage({ clients }) {
   }
   function exportClients() {
     if (!data) return;
+    if (src === "qbo") {
+      TP_qExportClients(
+        `team_clients_quickbooks_${fileSuffix}.csv`,
+        { clientRows: data.clientRows, hours: qHours, range, today },
+        avg.label,
+      );
+      return;
+    }
     TP_downloadCsv(
       `team_clients_${fileSuffix}.csv`,
       ["Client", "Plan", "Hours", "Billable hours", `Avg hours / month (${avg.label})`, "Hours by staffer", "Open tasks", "Overdue tasks"],
@@ -904,12 +929,22 @@ function TP_TeamPage({ clients }) {
   }
 
   const person =
-    view && view.type === "person" && data
+    view && view.type === "person" && data && src === "app"
       ? data.people.find((p) => p.email === view.key)
       : null;
+  const qPerson =
+    view && view.type === "person" && data && src === "qbo"
+      ? TP_qPeopleRows(data.people, qHours.byStaff).rows.find((p) => p.email === view.key)
+      : null;
   const clientRow =
-    view && view.type === "client" && data
+    view && view.type === "client" && data && src === "app"
       ? data.clientRows.find((r) => r.id === view.key)
+      : null;
+  const qClientRow =
+    view && view.type === "client" && data && src === "qbo"
+      ? TP_qClientRows({ clientRows: data.clientRows, hours: qHours, range, today }).rows.find(
+          (r) => r.id === view.key,
+        )
       : null;
 
   // Scroll back to the top when switching between the tables and a detail.
@@ -941,6 +976,24 @@ function TP_TeamPage({ clients }) {
             </button>
           ))}
         </div>
+        {qbo.available && (
+          <div className="modal-tabs tp-q-source" style={{ marginTop: 0 }} role="group" aria-label="Hours source">
+            {[
+              ["qbo", "QuickBooks hours"],
+              ["app", "App hours"],
+            ].map(([k, l]) => (
+              <button
+                key={k}
+                type="button"
+                className={"modal-tab" + (src === k ? " active" : "")}
+                aria-pressed={src === k}
+                onClick={() => setSource(k)}
+              >
+                {l}
+              </button>
+            ))}
+          </div>
+        )}
         {!view && (
           <div className="tp-export">
             <button type="button" className="btn-secondary" onClick={exportPeople} disabled={!data}>
@@ -966,8 +1019,20 @@ function TP_TeamPage({ clients }) {
       )}
       <p className="card-subtitle" style={{ margin: "12px 0 0" }}>
         {rangeLabel}
-        {data ? ` · ${TP_fmtHM(data.inPeriod.reduce((n, e) => n + (e.minutes || 0), 0))} logged` : " · Loading…"}
+        {src === "qbo"
+          ? qHours.loading
+            ? " · Loading QuickBooks hours…"
+            : ` · ${TP_fmtHM(qHours.byClient.reduce((n, r) => n + Number(r.total_minutes || 0), 0))} in QuickBooks Time`
+          : data
+            ? ` · ${TP_fmtHM(data.inPeriod.reduce((n, e) => n + (e.minutes || 0), 0))} logged in the app`
+            : " · Loading…"}
       </p>
+      {src === "qbo" && qHours.error && (
+        <div className="mock-banner" style={{ marginTop: 16, marginBottom: 0 }}>
+          <WarningIcon />
+          <span>{qHours.error}</span>
+        </div>
+      )}
       {errors.length > 0 && (
         <div className="mock-banner" style={{ marginTop: 16, marginBottom: 0 }}>
           <WarningIcon />
@@ -980,6 +1045,130 @@ function TP_TeamPage({ clients }) {
       )}
     </div>
   );
+
+  const backToTeam = () => setView(null);
+  const refreshQbo = () => setQboVersion((v) => v + 1);
+  if (view && view.type === "mapping") {
+    return (
+      <TP_QboMapping
+        qbo={qbo}
+        clients={clients}
+        staff={raw ? raw.staff : []}
+        onBack={backToTeam}
+        onChanged={refreshQbo}
+      />
+    );
+  }
+  if (view && view.type === "bucket" && src === "qbo") {
+    const b = view.bucket;
+    const isPerson = b.bucket === "no_person" || !!b.q.qbo_person_id;
+    return (
+      <div className="tp-page">
+        {periodCard}
+        <TP_QboDetail
+          title={b.label}
+          subtitle={[TP_Q_BUCKET_LABEL[b.bucket], rangeLabel].filter(Boolean).join(" · ")}
+          spec={TP_qBucketSpec(b)}
+          groupBy={isPerson ? "customer" : "person"}
+          range={range}
+          onBack={backToTeam}
+          note={
+            b.bucket === "unmapped" ? (
+              <p className="tp-muted" style={{ marginTop: 14 }}>
+                These hours aren't counted against any {isPerson ? "staff member" : "client"} yet.{" "}
+                <button type="button" className="tp-q-link" onClick={() => setView({ type: "mapping" })}>
+                  Open mapping
+                </button>
+              </p>
+            ) : null
+          }
+        />
+      </div>
+    );
+  }
+  if (qPerson) {
+    const q = qPerson.q;
+    const mins = Number((q && q.total_minutes) || 0);
+    return (
+      <div className="tp-page">
+        {periodCard}
+        <TP_QboDetail
+          title={qPerson.name}
+          subtitle={[qPerson.role && TP_roleLabel(qPerson.role), qPerson.email, rangeLabel]
+            .filter(Boolean)
+            .join(" · ")}
+          stats={[
+            { label: "Billable", value: mins ? `${Math.round((Number(q.billable_minutes || 0) / mins) * 100)}%` : "–" },
+            { label: "Clients", value: q ? Number(q.client_count || 0) : 0 },
+            { label: "Open tasks", value: qPerson.open },
+            { label: "Overdue", value: qPerson.overdue, bad: qPerson.overdue > 0 },
+            { label: "Completed", value: qPerson.completed },
+          ]}
+          spec={{ kind: "staff", email: qPerson.email }}
+          groupBy="customer"
+          range={range}
+          onBack={backToTeam}
+        >
+          <div className="card" style={{ marginBottom: 20 }}>
+            <h3 className="card-title">Tasks</h3>
+            <p className="card-subtitle">Owned by or assigned to {qPerson.name}.</p>
+            <TP_TaskGroups
+              tasks={(raw.tasks || []).filter((t) => TP_taskOwner(t) === qPerson.email)}
+              today={today}
+              range={range}
+              clientName={(id) => (data.clientById[id] && data.clientById[id].name) || "Unknown client"}
+              emptyText="No open tasks, and nothing completed in this period."
+            />
+          </div>
+        </TP_QboDetail>
+      </div>
+    );
+  }
+  if (qClientRow) {
+    const r = qClientRow;
+    const staffName = (email) => {
+      const s = data.staffByEmail[TP_lower(email)];
+      return (s && s.name) || String(email || "").split("@")[0] || "Unknown";
+    };
+    return (
+      <div className="tp-page">
+        {periodCard}
+        <TP_QboDetail
+          title={r.name}
+          subtitle={[r.known ? `${planLabel(r.plan)} plan` : null, rangeLabel].filter(Boolean).join(" · ")}
+          stats={[
+            { label: `Avg / mo (${avg.label})`, value: TP_fmtHM(r.qAvgMinutes) },
+            { label: "Fee / mo", value: r.fee != null ? fmtMoney(r.fee) : "–" },
+            { label: "Effective rate", value: r.rate != null ? `${fmtMoney(r.rate)}/h` : "–" },
+            { label: "Open tasks", value: r.open },
+            { label: "Overdue", value: r.overdue, bad: r.overdue > 0 },
+          ]}
+          note={
+            r.trend ? (
+              <p className="tp-muted" style={{ marginTop: 14 }}>
+                <TP_QTrend trend={r.trend} /> This period is on pace for {TP_fmtHM(r.monthlyEq)} a month.
+              </p>
+            ) : null
+          }
+          spec={{ kind: "client", clientId: r.id }}
+          groupBy="person"
+          range={range}
+          onBack={backToTeam}
+        >
+          <div className="card" style={{ marginBottom: 20 }}>
+            <h3 className="card-title">Tasks</h3>
+            <TP_TaskGroups
+              tasks={(raw.tasks || []).filter((t) => t.client_id === r.id)}
+              today={today}
+              range={range}
+              ownerName={staffName}
+              emptyText="No open tasks for this client, and nothing completed in this period."
+            />
+          </div>
+        </TP_QboDetail>
+      </div>
+    );
+  }
 
   if (person) {
     return (
@@ -1024,14 +1213,45 @@ function TP_TeamPage({ clients }) {
     }
   };
 
+  const openMapping = () => setView({ type: "mapping" });
+  const qboPanel = (
+    <TP_QboPanel qbo={qbo} onOpenMapping={openMapping} onSynced={refreshQbo} />
+  );
+  if (src === "qbo") {
+    return (
+      <div className="tp-page">
+        {qboPanel}
+        {periodCard}
+        <TP_QboPeopleTable
+          people={data ? data.people : []}
+          hours={qHours}
+          onOpenPerson={(email) => setView({ type: "person", key: email })}
+          onOpenBucket={(b) => setView({ type: "bucket", key: b.key, bucket: b })}
+          onOpenMapping={openMapping}
+        />
+        <TP_QboClientsTable
+          clientRows={data ? data.clientRows : []}
+          hours={qHours}
+          range={range}
+          today={today}
+          avg={avg}
+          onOpenClient={(id) => setView({ type: "client", key: id })}
+          onOpenBucket={(b) => setView({ type: "bucket", key: b.key, bucket: b })}
+          onOpenMapping={openMapping}
+        />
+      </div>
+    );
+  }
+
   return (
     <div className="tp-page">
+      {qboPanel}
       {periodCard}
 
       <div className="card" style={{ marginBottom: 20 }}>
         <h3 className="card-title">People</h3>
         <p className="card-subtitle">
-          Hours for the period. Open and overdue are as of today; completed is within the period. Select a person for details.
+          Hours logged in the app for the period. Open and overdue are as of today; completed is within the period. Select a person for details.
         </p>
         <div className="table-scroll">
           <table className="tx-table tx-table-labeled tp-table">
@@ -1096,7 +1316,7 @@ function TP_TeamPage({ clients }) {
           <div>
             <h3 className="card-title" style={{ marginBottom: 2 }}>Clients</h3>
             <p className="card-subtitle" style={{ margin: 0 }}>
-              Period hours next to the monthly average for {avg.label}. Select a client for details.
+              App-logged hours next to the monthly average for {avg.label}. Select a client for details.
             </p>
           </div>
           <label className="tp-check">

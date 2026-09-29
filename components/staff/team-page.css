@@ -355,3 +355,338 @@
     max-width: none;
   }
 }
+
+/* ---------------------------------------------------------------------------
+   QuickBooks Time (components/staff/TeamQbo.jsx)
+   --------------------------------------------------------------------------- */
+.tp-q-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.tp-q-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+.tp-q-logo {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: var(--good-soft);
+  color: var(--good);
+  font-weight: 700;
+  font-size: 13px;
+  letter-spacing: 0.02em;
+}
+.tp-q-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.tp-q-btn {
+  padding: 7px 14px;
+  white-space: nowrap;
+}
+.tp-q-btn:disabled {
+  opacity: 0.55;
+  cursor: default;
+  transform: none;
+}
+.tp-q-line {
+  margin-top: 12px;
+  line-height: 1.5;
+}
+.tp-q-facts {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px 8px;
+  margin-top: 14px;
+  font-size: 13px;
+}
+.tp-q-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--good);
+  flex: 0 0 auto;
+}
+.tp-q-dot.bad {
+  background: var(--bad);
+}
+.tp-q-company {
+  font-weight: 600;
+  color: var(--ink-strong);
+}
+.tp-q-note {
+  margin: 12px 0 0;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--warm-bg);
+  border: 1px solid var(--warm-border);
+  color: var(--warm-text);
+  font-size: 13px;
+}
+.tp-q-error {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 12px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--bad-soft);
+  color: var(--bad);
+  font-size: 13px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+.tp-q-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 14px;
+}
+.tp-q-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 11px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.tp-q-chip:hover {
+  border-color: var(--gold);
+}
+.tp-q-chip.warn {
+  background: var(--warm-bg);
+  border-color: var(--warm-border);
+  color: var(--warm-text);
+}
+.tp-q-link {
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  color: var(--gold-deep);
+  font-weight: 600;
+  text-decoration: underline;
+  cursor: pointer;
+}
+.tp-q-warn {
+  color: var(--warm-text);
+  font-weight: 700;
+}
+.tp-q-recon {
+  margin: 0 0 10px;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+.tp-q-recon b {
+  color: var(--ink-strong);
+}
+.tp-q-bucket-row td {
+  background: var(--surface-2, var(--hover-bg));
+}
+.tp-q-tag {
+  font-size: 11px;
+  vertical-align: 1px;
+}
+.tp-q-tag-unmapped {
+  color: var(--warm-text);
+  background: var(--warm-bg);
+  border-color: var(--warm-border);
+}
+.tp-q-trend {
+  white-space: nowrap;
+}
+.tp-q-ellipsis {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ---- Mapping ---- */
+.tp-q-map-tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 16px;
+  margin-top: 18px;
+}
+.tp-q-input {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 7px 10px;
+  font: inherit;
+  font-size: 13.5px;
+  color: var(--text);
+  background: var(--surface);
+  min-width: 0;
+  width: 100%;
+  box-sizing: border-box;
+}
+.tp-q-input:focus {
+  outline: 2px solid rgba(199, 174, 134, 0.5);
+  border-color: var(--gold);
+}
+.tp-q-search {
+  flex: 1 1 200px;
+  width: auto;
+  max-width: 320px;
+}
+.tp-q-map-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.tp-q-map-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 70px minmax(0, 380px);
+  align-items: center;
+  gap: 8px 16px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border);
+}
+.tp-q-map-row:last-child {
+  border-bottom: none;
+}
+.tp-q-map-row.busy {
+  opacity: 0.6;
+}
+.tp-q-map-main {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+.tp-q-map-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+  min-width: 0;
+}
+.tp-q-map-hours {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.tp-q-map-hours-label {
+  margin-left: 4px;
+  font-weight: 400;
+}
+.tp-q-map-control {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  min-width: 0;
+}
+.tp-q-map-control > .tp-q-picker,
+.tp-q-map-control > select {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.tp-q-map-btns {
+  display: flex;
+  gap: 6px;
+  flex: 0 0 auto;
+}
+.tp-q-btn-sm {
+  padding: 6px 10px;
+  font-size: 12.5px;
+}
+.tp-q-btn-sm:disabled {
+  opacity: 0.45;
+  cursor: default;
+  transform: none;
+}
+.tp-q-status {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+.tp-q-status.good {
+  color: var(--good);
+}
+.tp-q-status.warn {
+  color: var(--warm-text);
+}
+.tp-q-picker {
+  position: relative;
+}
+/* In flow rather than absolutely positioned: .card clips overflow, so a
+   floating list would be cut off at the card's edge on the last row. */
+.tp-q-picker-list {
+  max-height: 240px;
+  overflow-y: auto;
+  margin: 4px 0 0;
+  padding: 4px;
+  list-style: none;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+.tp-q-picker-list li {
+  padding: 7px 10px;
+  border-radius: 6px;
+  font-size: 13.5px;
+  cursor: pointer;
+  overflow-wrap: anywhere;
+}
+.tp-q-picker-list li.active {
+  background: var(--hover-bg);
+}
+.tp-q-picker-list li.current {
+  font-weight: 700;
+}
+.tp-q-picker-list li.tp-q-picker-empty {
+  color: var(--text-muted);
+  cursor: default;
+}
+
+@media (max-width: 760px) {
+  .tp-q-actions,
+  .tp-q-source {
+    width: 100%;
+  }
+  .tp-q-actions .tp-q-btn {
+    flex: 1 1 0;
+  }
+  .tp-q-search {
+    max-width: none;
+    flex-basis: 100%;
+  }
+  .tp-q-map-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+  .tp-q-map-control {
+    grid-column: 1 / -1;
+  }
+  .tx-table-labeled tbody tr.tp-q-bucket-row td {
+    background: none;
+  }
+  .tx-table-labeled tbody tr.tp-q-bucket-row {
+    background: var(--hover-bg);
+    padding-left: 10px;
+    padding-right: 10px;
+    border-radius: 8px;
+  }
+}
