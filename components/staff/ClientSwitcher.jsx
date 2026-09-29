@@ -600,9 +600,11 @@ function CS_ClientSwitcher({
           </span>
         ) : (
           <span className="cs-row-icon">
-            <ClientHealthDot
-              health={effectiveClientHealth(c, today, statusOverrides)}
-            />
+            {typeof HL_Dot === "function" ? (
+              <HL_Dot clientId={c.id} fallback={effectiveClientHealth(c, today, statusOverrides)} />
+            ) : (
+              <ClientHealthDot health={effectiveClientHealth(c, today, statusOverrides)} />
+            )}
           </span>
         )}
         <span className="cs-row-name">{nameOf(c)}</span>
