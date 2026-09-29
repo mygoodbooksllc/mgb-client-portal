@@ -534,6 +534,8 @@ const NON_CLIENT_PAGES = new Set([
   "staff-team",
   "staff-messages",
   "my-tasks",
+  "close-tracker",
+  "task-templates",
 ]);
 
 // Tabs that are part of a paid add-on rather than the base product. Always
@@ -1190,6 +1192,25 @@ function Sidebar({
                     </button>
                   )}
 
+                  {!impersonating && (
+                    <button
+                      type="button"
+                      role="menuitem"
+                      className={
+                        "staff-user-menu-item" +
+                        (page === "close-tracker" ? " active" : "")
+                      }
+                      onClick={() => {
+                        onSelectPage("close-tracker");
+                        onCloseMobile();
+                        setStaffMenuOpen(false);
+                      }}
+                    >
+                      <CalculatorIcon />
+                      Close tracker
+                    </button>
+                  )}
+
                   {showsAdminPages && (
                     <React.Fragment>
                       <div className="staff-user-menu-divider" />
@@ -1208,6 +1229,22 @@ function Sidebar({
                       >
                         <TeamIcon />
                         Team
+                      </button>
+                      <button
+                        type="button"
+                        role="menuitem"
+                        className={
+                          "staff-user-menu-item" +
+                          (page === "task-templates" ? " active" : "")
+                        }
+                        onClick={() => {
+                          onSelectPage("task-templates");
+                          onCloseMobile();
+                          setStaffMenuOpen(false);
+                        }}
+                      >
+                        <RepeatIcon />
+                        Task templates
                       </button>
                       <button
                         type="button"
@@ -1719,11 +1756,13 @@ function StaffRail({
             icon: <ChecklistIcon width="16" height="16" strokeWidth="1.8" />,
             due: true,
           },
+          { key: "close-tracker", label: "Close tracker", icon: <CalculatorIcon /> },
         ]),
   ];
   const adminItems = showsAdminPages
     ? [
         { key: "staff-team", label: "Team", icon: <TeamIcon /> },
+        { key: "task-templates", label: "Task templates", icon: <RepeatIcon /> },
         { key: "staff-access", label: "Staff Access", icon: <UsersIcon /> },
         { key: "client-access", label: "Client Roster", icon: <ClientRosterIcon /> },
         { key: "developer-tools", label: "Developer Tools", icon: <WrenchIcon /> },
@@ -5874,6 +5913,7 @@ function ClientOverviewPage({ client, messagesByClient, onNavigate, onOpenDetail
         </div>
 
         <div className="ov-col">
+          <OB_OnboardingCard client={client} staffUser={staffUser} />
           <div className="card">
             <h3 className="card-title">Key dates and coverage</h3>
             {upcoming.length > 0 && (
@@ -16840,7 +16880,7 @@ const TASK_RECURRENCE_LABEL = {
   monthly: "Monthly",
   month_end: "Month end",
 };
-const TASK_SOURCE_LABEL = { access_request: "Access request", note: "From note" };
+const TASK_SOURCE_LABEL = { access_request: "Access request", note: "From note", template: "Recurring" };
 
 const parseLocalDate = (ymd) => {
   const [y, m, d] = ymd.split("-").map(Number);
@@ -22741,6 +22781,14 @@ const PAGE_META = {
     title: "Usage Stats",
     subtitle: "Which pages and features actually get used, most to least",
   },
+  "close-tracker": {
+    title: "Close tracker",
+    subtitle: "Month-end close status for every client, month by month",
+  },
+  "task-templates": {
+    title: "Task templates",
+    subtitle: "Recurring tasks created automatically for each client's bookkeeper",
+  },
   "staff-team": {
     title: "Team",
     subtitle: "Hours and tasks by person and client",
@@ -23928,7 +23976,8 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
             page === "client-access" ||
             page === "developer-tools" ||
             page === "usage-stats" ||
-            page === "staff-team") &&
+            page === "staff-team" ||
+            page === "task-templates") &&
           staffUser &&
           (staffUser.role === "admin" || hasTempAdminAccess) &&
           !impersonating
@@ -23936,6 +23985,8 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
         : page === "staff-messages" && staffUser && !impersonating
           ? page
           : page === "my-tasks" && staffUser && !impersonating
+            ? page
+          : page === "close-tracker" && staffUser && !impersonating
             ? page
             : page === "bookkeeper-home" && staffUser
                 ? page
@@ -25026,6 +25077,10 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
           )}
           {effectivePage === "usage-stats" && <UsageStatsPage />}
           {effectivePage === "staff-team" && <TP_TeamPage clients={visibleClients} />}
+          {effectivePage === "close-tracker" && (
+            <CT_CloseTrackerPage clients={visibleClients} staffUser={effectiveStaffUser} />
+          )}
+          {effectivePage === "task-templates" && <TT_TaskTemplatesPage clients={visibleClients} />}
           {effectivePage === "bookkeeper-home" && (
             <BookkeeperHomePage
               staffUser={effectiveStaffUser}
