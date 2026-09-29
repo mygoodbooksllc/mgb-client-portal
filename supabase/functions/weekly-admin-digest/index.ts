@@ -141,7 +141,7 @@ function textTable(rows: string[]): string {
 
 function buildSections(d: any): Section[] {
   const out: Section[] = [];
-  const team = { label: "Open the Team page", href: `${APP_URL}/` };
+  const team = { label: "Open the Team page", href: `${APP_URL}/#/team` };
   const firmOn = d.firm_qbo?.status === "connected" || d.firm_qbo?.status === "error";
 
   // 1. Scope creep
@@ -324,7 +324,7 @@ function buildSections(d: any): Section[] {
       title: "Stale clients",
       html,
       text: lines.length ? textTable(lines) : "  Nothing this week.",
-      link: { label: "Open the client list", href: `${APP_URL}/` },
+      link: { label: "Open the client list", href: `${APP_URL}/#/home` },
     });
   }
 
@@ -416,7 +416,7 @@ function render(d: any) {
   </td></tr>
   ${sectionHtml}
   <tr><td style="padding:8px 4px 0 4px;">
-    <p style="${FONT}font-size:11px;color:${C.muted};margin:0;line-height:1.5;">Sent to MyGoodBooks admins. Test clients are excluded. Change recipients or turn this off on the Team page (Weekly digest card) at <a href="${APP_URL}/" style="color:${C.muted};">${APP_URL.replace("https://", "")}</a>.</p>
+    <p style="${FONT}font-size:11px;color:${C.muted};margin:0;line-height:1.5;">Sent to MyGoodBooks admins. Test clients are excluded. Change recipients or turn this off on the Team page (Weekly digest card) at <a href="${APP_URL}/#/team" style="color:${C.muted};">${APP_URL.replace("https://", "")}</a>.</p>
   </td></tr>
 </table>
 <!--[if mso]></td></tr></table><![endif]-->
