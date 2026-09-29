@@ -1,0 +1,681 @@
+/* ---------------------------------------------------------------------------
+   Staff operations: Close tracker (CloseTracker.jsx, ct-), Task templates
+   (TaskTemplates.jsx, tt-) and the onboarding checklist (Onboarding.jsx,
+   ob-). Built on the regular surface tokens so light and dark both follow
+   styles.css; reuses .card, .task-chip, .bar-track, .btn-* and ModalShell.
+   --------------------------------------------------------------------------- */
+
+/* Status colours shared by grid pills, summary tiles and the editor. */
+.ct-s-not_started { --ct-fg: var(--text-muted); --ct-bg: var(--surface-2); }
+.ct-s-in_progress { --ct-fg: var(--warm-text); --ct-bg: var(--warm-bg); }
+.ct-s-review { --ct-fg: var(--ink-strong); --ct-bg: var(--accent-soft); }
+.ct-s-done { --ct-fg: var(--good); --ct-bg: var(--good-soft); }
+.ct-s-na { --ct-fg: var(--text-muted); --ct-bg: transparent; }
+.ct-s-late { --ct-fg: var(--bad); --ct-bg: var(--bad-soft); }
+
+.ct-page,
+.tt-page {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* ---- Close tracker toolbar ---- */
+.ct-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 16px;
+  align-items: flex-end;
+}
+.ct-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+  margin: 0;
+}
+.ct-field select,
+.ct-field input,
+.ob-input,
+.tt-input,
+.ct-notes {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 7px 10px;
+  font: inherit;
+  font-size: 13.5px;
+  color: var(--text);
+  background: var(--surface);
+  min-width: 0;
+}
+.ct-field select:focus,
+.ct-field input:focus,
+.ob-input:focus,
+.tt-input:focus,
+.ct-notes:focus {
+  outline: 2px solid rgba(199, 174, 134, 0.5);
+  border-color: var(--gold);
+}
+.ct-late-setting {
+  margin-left: auto;
+}
+.ct-late-input {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+.ct-late-input input {
+  width: 72px;
+}
+.ct-late-input .btn-secondary {
+  padding: 6px 12px;
+}
+
+.ct-summary {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 16px;
+}
+.ct-sum {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--ct-bg, var(--surface-2));
+  color: var(--ct-fg, var(--text));
+  font: inherit;
+  cursor: pointer;
+  text-align: left;
+}
+.ct-sum.ct-s-na {
+  background: var(--surface);
+}
+.ct-sum.active {
+  outline: 2px solid var(--ct-fg);
+  outline-offset: 1px;
+}
+.ct-sum-n {
+  font-size: 20px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+}
+.ct-sum-l {
+  font-size: 12px;
+  font-weight: 600;
+}
+.ct-note {
+  margin: 12px 0 0;
+}
+.ct-banner {
+  margin: 12px 0 0;
+}
+
+/* ---- Grid: scrolls sideways inside the card, client column sticks ---- */
+.ct-grid-card {
+  padding: 0;
+}
+.ct-grid-card > .card-subtitle {
+  padding: 20px;
+  margin: 0;
+}
+.ct-scroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  max-width: 100%;
+}
+.ct-scroll:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: -2px;
+}
+.ct-grid {
+  border-collapse: separate;
+  border-spacing: 0;
+  width: 100%;
+  min-width: 760px;
+  font-size: 13px;
+}
+.ct-grid th,
+.ct-grid td {
+  border-bottom: 1px solid var(--border);
+  padding: 8px 6px;
+  text-align: center;
+  vertical-align: middle;
+}
+.ct-grid tbody tr:last-child th,
+.ct-grid tbody tr:last-child td {
+  border-bottom: none;
+}
+.ct-grid thead th {
+  font-size: 11.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+  background: var(--surface);
+}
+.ct-client-col {
+  position: sticky;
+  left: 0;
+  z-index: 2;
+  background: var(--surface);
+  text-align: left !important;
+  padding-left: 16px !important;
+  min-width: 170px;
+  max-width: 220px;
+  border-right: 1px solid var(--border);
+}
+.ct-grid thead .ct-client-col {
+  z-index: 3;
+}
+.ct-client-name {
+  display: block;
+  font-weight: 600;
+  color: var(--ink-strong);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ct-client-bk {
+  display: block;
+  font-size: 11.5px;
+  font-weight: 400;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ct-month.focus,
+.ct-cell.focus {
+  background: var(--hover-bg);
+}
+.ct-month-btn {
+  background: none;
+  border: 0;
+  padding: 2px 4px;
+  font: inherit;
+  color: inherit;
+  text-transform: inherit;
+  letter-spacing: inherit;
+  cursor: pointer;
+  border-radius: 6px;
+}
+.ct-month.focus .ct-month-btn {
+  color: var(--ink-strong);
+}
+.ct-pill {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  width: 100%;
+  min-width: 84px;
+  min-height: 40px;
+  padding: 4px 6px;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  background: var(--ct-bg);
+  color: var(--ct-fg);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.ct-pill.ct-s-na {
+  border: 1px dashed var(--border);
+}
+.ct-pill:hover {
+  border-color: var(--muted-line);
+}
+.ct-pill:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 1px;
+}
+.ct-pill.late {
+  border-color: var(--bad);
+  box-shadow: inset 3px 0 0 var(--bad);
+}
+.ct-pill.late.ct-s-not_started {
+  background: var(--bad-soft);
+  color: var(--bad);
+}
+.ct-pill-who {
+  font-size: 10.5px;
+  font-weight: 500;
+  opacity: 0.85;
+  white-space: nowrap;
+}
+.ct-pill-note {
+  position: absolute;
+  top: 1px;
+  right: 5px;
+  font-size: 14px;
+  line-height: 1;
+}
+
+/* ---- Cell editor ---- */
+.ct-modal,
+.ob-modal,
+.tt-modal {
+  max-width: 480px;
+  overflow-y: auto;
+}
+.tt-modal {
+  max-width: 600px;
+}
+.ct-modal-body,
+.ob-modal-body,
+.tt-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.ct-modal-body .card-title,
+.ob-modal-body .card-title,
+.tt-form .card-title {
+  margin: 0;
+}
+.ct-modal-body .card-subtitle,
+.ob-modal-body .card-subtitle {
+  margin: 0;
+}
+.ct-status-group {
+  border: 0;
+  padding: 0;
+  margin: 4px 0 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.ct-legend,
+.tt-label {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-muted);
+  padding: 0;
+  margin: 0 0 2px;
+}
+.ct-status-group .ct-legend {
+  width: 100%;
+}
+.ct-status-opt {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.ct-status-opt input {
+  accent-color: var(--ct-fg);
+  margin: 0;
+}
+.ct-status-opt.selected {
+  background: var(--ct-bg);
+  color: var(--ct-fg);
+  border-color: var(--ct-fg);
+}
+.ct-notes {
+  resize: vertical;
+  width: 100%;
+  box-sizing: border-box;
+}
+.ct-modal-foot,
+.ob-modal-foot,
+.tt-foot {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
+  flex-wrap: wrap;
+}
+.tt-foot-spacer {
+  flex: 1;
+}
+
+/* ---- Task templates ---- */
+.tt-intro {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+  justify-content: space-between;
+  flex-wrap: wrap;
+}
+.tt-intro-text {
+  flex: 1 1 320px;
+  min-width: 0;
+}
+.tt-intro-text .card-title {
+  margin-top: 0;
+}
+.tt-intro-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.tt-run {
+  margin: 8px 0 0;
+  font-size: 12.5px;
+  color: var(--text);
+}
+.tt-banner {
+  margin: 0;
+}
+.tt-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.tt-item {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+}
+.tt-item.inactive .tt-item-title {
+  color: var(--text-muted);
+}
+.tt-item-main {
+  min-width: 0;
+  flex: 1;
+}
+.tt-item-title {
+  font-weight: 700;
+  color: var(--ink-strong);
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.tt-item-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  margin-top: 6px;
+  font-size: 12.5px;
+  color: var(--text-muted);
+  align-items: center;
+}
+.tt-item-actions {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-shrink: 0;
+}
+.tt-help {
+  margin: -4px 0 0;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.tt-row {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+.tt-row > div {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.tt-row .tt-label {
+  min-height: 2.4em;
+  display: flex;
+  align-items: flex-end;
+}
+.tt-fieldset {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 12px 12px;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.tt-fieldset legend {
+  padding: 0 4px;
+}
+.tt-tiers {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+}
+.tt-check,
+.ob-check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13.5px;
+  color: var(--text);
+  cursor: pointer;
+}
+.tt-check input,
+.ob-check input,
+.ob-step-label input {
+  accent-color: var(--navy);
+}
+.tt-clients {
+  max-height: 180px;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 6px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.tt-client-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.tt-muted {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.tt-delete {
+  color: var(--bad);
+}
+
+/* ---- Onboarding card (client overview) ---- */
+.ob-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+.ob-head .card-title {
+  margin: 0;
+}
+.ob-count {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--text-muted);
+}
+.ob-count.complete {
+  color: var(--good);
+}
+.ob-bar {
+  margin: 10px 0 12px;
+}
+.ob-bar-fill {
+  background: var(--good);
+}
+.ob-steps {
+  list-style: none;
+  margin: 0 0 8px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.ob-step {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+.ob-step-label {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  cursor: pointer;
+  min-width: 0;
+}
+.ob-step-label input {
+  margin-top: 3px;
+  flex-shrink: 0;
+}
+.ob-step-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.ob-step-name {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--text);
+}
+.ob-step.done .ob-step-name {
+  color: var(--text-muted);
+  text-decoration: line-through;
+  text-decoration-color: var(--muted-line);
+}
+.ob-step-desc {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.task-chip.ob-auto {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+.task-chip.ob-auto.on {
+  color: var(--good);
+  background: var(--good-soft);
+  border-color: transparent;
+}
+.ob-badge {
+  background: rgba(199, 174, 134, 0.22);
+  color: var(--gold);
+}
+
+/* Steps editor */
+.ob-edit-list {
+  list-style: none;
+  margin: 4px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.ob-edit-row {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+.ob-edit-row.inactive {
+  opacity: 0.6;
+}
+.ob-edit-move {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.ob-move-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+  font-size: 13px;
+  line-height: 1;
+}
+.ob-move-btn:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+.ob-edit-fields {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.ob-input-desc {
+  font-size: 12.5px;
+}
+.ob-edit-opts {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.ob-add {
+  display: flex;
+  gap: 8px;
+}
+.ob-add .ob-input {
+  flex: 1;
+}
+
+/* ---- Mobile ---- */
+@media (max-width: 760px) {
+  .ct-summary {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .ct-late-setting {
+    margin-left: 0;
+  }
+  .ct-toolbar .ct-field {
+    flex: 1 1 140px;
+  }
+  .ct-client-col {
+    min-width: 120px;
+    max-width: 140px;
+    padding-left: 12px !important;
+  }
+  .ct-grid {
+    min-width: 680px;
+  }
+  .tt-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .tt-item {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .tt-item-actions {
+    justify-content: flex-end;
+  }
+  .tt-intro-actions {
+    width: 100%;
+  }
+  .tt-intro-actions button {
+    flex: 1;
+  }
+}
