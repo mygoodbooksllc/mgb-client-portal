@@ -1,8 +1,8 @@
 -- In-app time: real-time cap per staff member across ALL clients
 -- (owner request 2026-09-29, follow-up to supabase/app-time-tracking.sql).
 --
--- NOT YET APPLIED to production (apply as migration app_time_per_staff_clock
--- once approved). Safe to re-run.
+-- Applied to production 2026-09-29 as migration app_time_per_staff_clock.
+-- Safe to re-run.
 --
 -- Before: record_app_time capped each call at the wall-clock time since THAT
 -- (staff, client, day) row was last updated, so two tabs on two different
