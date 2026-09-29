@@ -4,7 +4,7 @@
 -- the Pro Test Client) got the "no clients assigned" screen. Unassigned test
 -- orgs stay hidden from non-admins; an admin checking one off for someone
 -- under Staff Access now means they see it. Matches App's visibleClients.
--- Safe to re-run.
+-- Safe to re-run. Applied to production 2026-09-29.
 
 drop policy if exists "staff can read clients" on clients;
 create policy "staff can read clients"
