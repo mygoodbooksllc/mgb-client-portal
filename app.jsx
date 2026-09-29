@@ -1280,7 +1280,7 @@ function Sidebar({
                           setStaffMenuOpen(false);
                         }}
                       >
-                        <BarChartIcon />
+                        <GaugeIcon />
                         Usage Stats
                       </button>
                     </React.Fragment>
@@ -1477,7 +1477,7 @@ function Sidebar({
                       onFocus={(e) => showTip(e, "Overview (staff only)")}
                       onBlur={hideTip}
                     >
-                      <GaugeIcon />
+                      <BarChartIcon />
                       <span className="nav-item-label">Overview</span>
                       <span className="nav-staff-tag">Staff</span>
                     </button>
@@ -1735,7 +1735,7 @@ function StaffRail({
         { key: "staff-access", label: "Staff Access", icon: <UsersIcon /> },
         { key: "client-access", label: "Client Roster", icon: <ClientRosterIcon /> },
         { key: "developer-tools", label: "Developer Tools", icon: <WrenchIcon /> },
-        { key: "usage-stats", label: "Usage Stats", icon: <BarChartIcon /> },
+        { key: "usage-stats", label: "Usage Stats", icon: <GaugeIcon /> },
       ]
     : [];
   const initials = (staffUser.name || "")
