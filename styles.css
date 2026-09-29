@@ -5446,6 +5446,12 @@ body:has(.modal-overlay) .chat-fab-wrap {
     height: auto;
   }
 
+  /* Client Messages composer: the text input's default min-width kept it
+     ~200px wide, pushing Send past the card edge. */
+  .message-compose input {
+    min-width: 0;
+  }
+
   /* Client Roster / Home client search: an unstyled browser-default input,
      ~25px tall and hard to hit on a phone. */
   .staff-list-search {
@@ -5719,6 +5725,12 @@ body:has(.modal-overlay) .chat-fab-wrap {
 
   .staff-quick-actions > button {
     min-height: 36px;
+  }
+
+  /* Modal × measured 21x30. */
+  .modal-close {
+    min-width: 44px;
+    min-height: 44px;
   }
 }
 

@@ -1052,6 +1052,12 @@ a.si-ctx-text {
     height: auto;
     min-height: 0;
   }
+  /* New-message picker: the 170px client tag left the contact's name ~70px
+     ("Pastor J..."). Share the row so both truncate evenly. */
+  .si-new-list .si-tag {
+    min-width: 0;
+    max-width: 50%;
+  }
 }
 
 /* ---- launcher (staff) ---- */
