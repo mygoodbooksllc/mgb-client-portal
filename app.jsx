@@ -534,7 +534,6 @@ const NON_CLIENT_PAGES = new Set([
   "staff-team",
   "staff-messages",
   "my-tasks",
-  "my-time",
 ]);
 
 // Tabs that are part of a paid add-on rather than the base product. Always
@@ -1191,25 +1190,6 @@ function Sidebar({
                     </button>
                   )}
 
-                  {!impersonating && (
-                    <button
-                      type="button"
-                      role="menuitem"
-                      className={
-                        "staff-user-menu-item" +
-                        (page === "my-time" ? " active" : "")
-                      }
-                      onClick={() => {
-                        onSelectPage("my-time");
-                        onCloseMobile();
-                        setStaffMenuOpen(false);
-                      }}
-                    >
-                      <ClockIcon width="16" height="16" strokeWidth="1.8" />
-                      My Time
-                    </button>
-                  )}
-
                   {showsAdminPages && (
                     <React.Fragment>
                       <div className="staff-user-menu-divider" />
@@ -1738,11 +1718,6 @@ function StaffRail({
             label: "My Tasks",
             icon: <ChecklistIcon width="16" height="16" strokeWidth="1.8" />,
             due: true,
-          },
-          {
-            key: "my-time",
-            label: "My Time",
-            icon: <ClockIcon width="16" height="16" strokeWidth="1.8" />,
           },
         ]),
   ];
@@ -5512,9 +5487,17 @@ function ClientOverviewPage({ client, messagesByClient, onNavigate, onOpenDetail
       return;
     }
     const since30 = new Date(Date.now() - 30 * 864e5).toISOString();
-    const [time, usage, logins, accounts, bills, syncRuns, profile, notes, docs, sent, closeDone, msHist, activity, allTime] =
+    // Hours come from QuickBooks Time (admin-only RPC, supabase/qbo-firm-time.sql);
+    // the manual time log is retired. In-app time is the automatic count
+    // (supabase/app-time-tracking.sql): admins read everyone's, staff their own.
+    const isAdmin = !!(staffUser && staffUser.role === "admin");
+    const safe = (p) => Promise.resolve(p).then((r) => r, (e) => ({ data: null, error: e }));
+    const [qbHours, appTime, usage, logins, accounts, bills, syncRuns, profile, notes, docs, sent, closeDone, msHist, activity] =
       await Promise.all([
-        sb.from("time_entries").select("staff_email, minutes, entry_date").eq("client_id", client.id).gte("entry_date", monthStart),
+        isAdmin
+          ? safe(sb.rpc("qbo_hours_by_client", { p_from: monthStart, p_to: todayLocal() }))
+          : Promise.resolve({ data: null, error: null }),
+        safe(sb.from("staff_app_time").select("staff_email, seconds").eq("client_id", client.id).gte("day", monthStart)),
         sb.from("usage_events").select("actor_email, page, occurred_at").eq("client_id", client.id).eq("actor_role", "client").gte("occurred_at", since30).order("occurred_at", { ascending: false }).limit(1000),
         sb.from("client_users").select("email", { count: "exact", head: true }).eq("client_id", client.id).eq("active", true),
         sb.from("qbo_accounts").select("name, current_balance, active").eq("client_id", client.id),
@@ -5527,11 +5510,12 @@ function ClientOverviewPage({ client, messagesByClient, onNavigate, onOpenDetail
         sb.from("client_close_items").select("item_key, period, done_by, done_at").eq("client_id", client.id).eq("done", true).order("done_at", { ascending: false }).limit(20),
         milestonesApi.history(sb, client.id),
         sb.from("client_activity_log").select("action, actor_name, actor_email, detail, created_at").eq("client_id", client.id).order("created_at", { ascending: false }).limit(20),
-        sb.from("time_entries").select("staff_email, minutes, entry_date, description, created_at").eq("client_id", client.id).order("created_at", { ascending: false }).limit(15),
       ]);
+    const qbRow = ((qbHours && qbHours.data) || []).find((r) => r.bucket === "client" && r.client_id === client.id);
     setData({
       loading: false,
-      time: time.data || [],
+      qbMinutes: isAdmin && qbHours && !qbHours.error && qbHours.data ? Number((qbRow && qbRow.total_minutes) || 0) : null,
+      appTime: (appTime && appTime.data) || [],
       usage: usage.data || [],
       loginCount: logins.error ? null : logins.count,
       accounts: accounts.data || [],
@@ -5545,9 +5529,8 @@ function ClientOverviewPage({ client, messagesByClient, onNavigate, onOpenDetail
       closeDone: closeDone.data || [],
       msHist: msHist.data || [],
       activity: activity.data || [],
-      allTime: allTime.data || [],
     });
-  }, [client.id, monthStart]);
+  }, [client.id, monthStart, staffUser && staffUser.role]);
   useEffect(() => {
     setData({ loading: true });
     setProfileDraft(null);
@@ -5570,14 +5553,12 @@ function ClientOverviewPage({ client, messagesByClient, onNavigate, onOpenDetail
   const monthlyBill = milestoneFee == null ? null : milestoneFee + planFee + payrollFee;
 
   // ---- Profitability
-  const minutes = (data.time || []).reduce((s, t) => s + (t.minutes || 0), 0);
+  const minutes = data.qbMinutes || 0;
   const hours = minutes / 60;
   const effectiveRate = monthlyBill != null && hours > 0 ? monthlyBill / hours : null;
   const target = data.profile && data.profile.target_hourly_rate != null ? Number(data.profile.target_hourly_rate) : null;
-  const byStaff = {};
-  (data.time || []).forEach((t) => {
-    byStaff[t.staff_email] = (byStaff[t.staff_email] || 0) + (t.minutes || 0);
-  });
+  const appMinutes = (data.appTime || []).reduce((s, t) => s + (t.seconds || 0), 0) / 60;
+  const appIsMine = !(staffUser && staffUser.role === "admin");
 
   // ---- QuickBooks health
   const connected = client.dataSource === "quickbooks";
@@ -5698,12 +5679,6 @@ function ClientOverviewPage({ client, messagesByClient, onNavigate, onOpenDetail
       text: String(a.action || "").replace(/_/g, " "),
       who: a.actor_name || a.actor_email,
     })),
-    ...(data.allTime || []).map((t) => ({
-      at: t.created_at,
-      kind: "Time",
-      text: `${(t.minutes / 60).toFixed(t.minutes % 60 ? 2 : 0)} h${t.description ? " · " + t.description : ""}`,
-      who: t.staff_email,
-    })),
   ]
     .filter((x) => x.at)
     .sort((a, b) => (a.at < b.at ? 1 : -1))
@@ -5763,24 +5738,24 @@ function ClientOverviewPage({ client, messagesByClient, onNavigate, onOpenDetail
           </span>
           <ul className="ov-lines">
             <li>
-              <span>Time logged</span>
-              <span>{fmtHours(minutes)}</span>
+              <span>QuickBooks Time hours</span>
+              <span>{data.qbMinutes == null ? "—" : fmtHours(minutes)}</span>
             </li>
-            {Object.entries(byStaff).map(([email, m]) => (
-              <li key={email} className="muted">
-                <span>{email.split("@")[0]}</span>
-                <span>{fmtHours(m)}</span>
-              </li>
-            ))}
+            <li className="muted" title="Automatic active time in this app on this client. Not billed hours.">
+              <span>{appIsMine ? "Your in-app time" : "In-app time (automatic)"}</span>
+              <span>{fmtHours(appMinutes)}</span>
+            </li>
             <li>
               <span>Target rate</span>
               <span>{target != null ? `${fmtMoney(target)}/h` : "Not set"}</span>
             </li>
           </ul>
           <p className="ov-foot">
-            {hours === 0
-              ? "No time logged for this client this month."
-              : "Monthly bill divided by hours logged in My Time."}
+            {data.qbMinutes == null
+              ? "Hours come from QuickBooks Time. Admins see them here and on the Team page."
+              : hours === 0
+                ? "No QuickBooks Time hours for this client this month."
+                : "Monthly bill divided by QuickBooks Time hours this month."}
           </p>
         </div>
 
@@ -6057,7 +6032,7 @@ function StaffQuickActions({ client, onNavigate, only, onMessage }) {
   if (!staff || !staffUser) return null;
   const sb = window.mgbSupabase;
   const openModal = (kind) => {
-    setF({ date: todayLocal(), hours: "", text: "", due: "", details: "", billable: true, shared: true, pin: false });
+    setF({ text: "", due: "", details: "", shared: true, pin: false });
     setModal(kind);
   };
   async function submit(e) {
@@ -6066,22 +6041,7 @@ function StaffQuickActions({ client, onNavigate, only, onMessage }) {
     setSaving(true);
     let res = { error: null };
     let done = "";
-    if (modal === "time") {
-      const minutes = Math.round(Number(f.hours) * 60);
-      if (!minutes || minutes < 0) {
-        setSaving(false);
-        return;
-      }
-      res = await sb.from("time_entries").insert({
-        staff_email: staffUser.email,
-        client_id: client.id,
-        minutes,
-        description: f.text.trim() || null,
-        entry_date: f.date,
-        billable: !!f.billable,
-      });
-      done = `Logged ${f.hours} h for ${client.name}.`;
-    } else if (modal === "task") {
+    if (modal === "task") {
       res = await staffItemsApi.add(sb, staffUser.email, {
         text: f.text.trim(),
         due_date: f.due || null,
@@ -6113,15 +6073,13 @@ function StaffQuickActions({ client, onNavigate, only, onMessage }) {
     notifyStaffTools();
     if (modal === "task" && window.mgbRefreshStaffItems) window.mgbRefreshStaffItems();
   }
-  const titles = { time: "Log time", task: "Add a task", request: "Request a document", note: "Add a note" };
-  const canSubmit =
-    modal === "time" ? Number(f.hours) > 0 && f.date : (f.text || "").trim().length > 0;
+  const titles = { task: "Add a task", request: "Request a document", note: "Add a note" };
+  const canSubmit = (f.text || "").trim().length > 0;
   const shows = (k) => !only || only.includes(k);
   return (
     <div className={"staff-quick-actions" + (only ? " sqa-subset" : "")} role="toolbar" aria-label="Staff quick actions">
       {!only && <span className="sqa-label">Staff</span>}
       {shows("overview") && <button type="button" onClick={() => onNavigate("client-overview")}>Overview</button>}
-      {shows("time") && <button type="button" onClick={() => openModal("time")}>Log time</button>}
       {shows("task") && <button type="button" onClick={() => openModal("task")}>Add task</button>}
       {shows("request") && <button type="button" onClick={() => openModal("request")}>Request document</button>}
       {shows("note") && <button type="button" onClick={() => openModal("note")}>Add note</button>}
@@ -6140,25 +6098,6 @@ function StaffQuickActions({ client, onNavigate, only, onMessage }) {
               </button>
             </div>
             <div className="modal-body sqa-body">
-              {modal === "time" && (
-                <>
-                  <label className="task-field">
-                    <span>Hours</span>
-                    <input type="number" step="0.25" min="0.25" autoFocus value={f.hours} onChange={(e) => setF({ ...f, hours: e.target.value })} />
-                  </label>
-                  <label className="task-field">
-                    <span>Date</span>
-                    <input type="date" value={f.date} onChange={(e) => setF({ ...f, date: e.target.value })} />
-                  </label>
-                  <label className="task-field sqa-wide">
-                    <span>What you did (optional)</span>
-                    <input type="text" placeholder="Reconciled September bank accounts" value={f.text} onChange={(e) => setF({ ...f, text: e.target.value })} />
-                  </label>
-                  <label className="sqa-check">
-                    <input type="checkbox" checked={f.billable} onChange={(e) => setF({ ...f, billable: e.target.checked })} /> Billable
-                  </label>
-                </>
-              )}
               {(modal === "task" || modal === "request" || modal === "note") && (
                 <label className="task-field sqa-wide">
                   <span>{modal === "task" ? "Task" : modal === "request" ? "What you need" : "Note"}</span>
@@ -16846,329 +16785,6 @@ function saveDocFolders(clientId, folders, assignments) {
 }
 
 // ----------------------------------------------------------------------------
-// My Time — per-client hour logging for the signed-in staffer.
-// ----------------------------------------------------------------------------
-
-function MyTimePage({ staffUser, clients }) {
-  const showToast = useToast();
-  const supabase = window.mgbSupabase;
-  const today = todayLocal();
-  const isAdmin = staffUser && staffUser.role === "admin";
-
-  const [entries, setEntries] = useState(null);
-  const [error, setError] = useState("");
-
-  const [newClientId, setNewClientId] = useState("");
-  const [newHours, setNewHours] = useState("");
-  const [newDate, setNewDate] = useState(today);
-  const [newDescription, setNewDescription] = useState("");
-  const [newBillable, setNewBillable] = useState(true);
-  const [saving, setSaving] = useState(false);
-
-  const [firmEntries, setFirmEntries] = useState(null);
-  const [firmError, setFirmError] = useState("");
-
-  const clientById = useMemo(
-    () => Object.fromEntries((clients || []).map((c) => [c.id, c])),
-    [clients],
-  );
-
-  const loadEntries = useCallback(() => {
-    if (!supabase) return;
-    supabase
-      .from("time_entries")
-      .select(
-        "id, client_id, minutes, description, entry_date, billable, created_at",
-      )
-      .eq("staff_email", staffUser.email)
-      .order("entry_date", { ascending: false })
-      .then(({ data, error }) => {
-        if (error) {
-          setError(
-            "Couldn't load time entries. Has time-entries.sql been run? " +
-              error.message,
-          );
-          setEntries([]);
-        } else {
-          setError("");
-          setEntries(data);
-        }
-      });
-  }, [supabase, staffUser.email]);
-
-  useEffect(() => {
-    loadEntries();
-  }, [loadEntries]);
-
-  useEffect(() => {
-    if (!supabase || !isAdmin) return;
-    supabase
-      .from("time_entries")
-      .select("staff_email, client_id, minutes")
-      .then(({ data, error }) => {
-        if (error) {
-          setFirmError(error.message);
-          setFirmEntries([]);
-        } else {
-          setFirmError("");
-          setFirmEntries(data);
-        }
-      });
-  }, [supabase, isAdmin]);
-
-  async function addEntry() {
-    const hours = parseFloat(newHours);
-    if (!newClientId || !hours || hours <= 0) return;
-    setSaving(true);
-    const { error } = await supabase.from("time_entries").insert({
-      staff_email: staffUser.email,
-      client_id: newClientId,
-      minutes: Math.round(hours * 60),
-      entry_date: newDate || today,
-      description: newDescription.trim() || null,
-      billable: newBillable,
-    });
-    setSaving(false);
-    if (error) {
-      showToast(`Couldn't log time: ${error.message}`);
-      return;
-    }
-    setNewHours("");
-    setNewDescription("");
-    loadEntries();
-  }
-
-  async function removeEntry(entry) {
-    const { error } = await supabase
-      .from("time_entries")
-      .delete()
-      .eq("id", entry.id);
-    if (error) {
-      showToast(`Couldn't remove entry: ${error.message}`);
-      return;
-    }
-    loadEntries();
-  }
-
-  const totalsByClient = useMemo(() => {
-    if (!entries) return [];
-    const totals = {};
-    entries.forEach((e) => {
-      totals[e.client_id] = (totals[e.client_id] || 0) + e.minutes;
-    });
-    return Object.entries(totals)
-      .map(([clientId, minutes]) => ({
-        clientId,
-        client: clientById[clientId],
-        minutes,
-      }))
-      .sort((a, b) => b.minutes - a.minutes);
-  }, [entries, clientById]);
-
-  const totalMinutes = (entries || []).reduce((sum, e) => sum + e.minutes, 0);
-
-  const firmTotalsByStaff = useMemo(() => {
-    if (!firmEntries) return [];
-    const totals = {};
-    firmEntries.forEach((e) => {
-      totals[e.staff_email] = (totals[e.staff_email] || 0) + e.minutes;
-    });
-    return Object.entries(totals)
-      .map(([email, minutes]) => ({ email, minutes }))
-      .sort((a, b) => b.minutes - a.minutes);
-  }, [firmEntries]);
-
-  const firmTotalsByClient = useMemo(() => {
-    if (!firmEntries) return [];
-    const totals = {};
-    firmEntries.forEach((e) => {
-      totals[e.client_id] = (totals[e.client_id] || 0) + e.minutes;
-    });
-    return Object.entries(totals)
-      .map(([clientId, minutes]) => ({
-        clientId,
-        client: clientById[clientId],
-        minutes,
-      }))
-      .sort((a, b) => b.minutes - a.minutes);
-  }, [firmEntries, clientById]);
-
-  function fmtHours(minutes) {
-    return (minutes / 60).toFixed(1) + "h";
-  }
-
-  return (
-    <div>
-      <div className="card" style={{ marginBottom: 20 }}>
-        <h3 className="card-title">Log time</h3>
-        <p className="card-subtitle">
-          Private to you and admins. Admins see individual entries on the Team
-          page.
-        </p>
-        <div className="staff-add-row" style={{ flexWrap: "wrap" }}>
-          <select
-            value={newClientId}
-            onChange={(e) => setNewClientId(e.target.value)}
-          >
-            <option value="">Select a client…</option>
-            {(clients || []).map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
-              </option>
-            ))}
-          </select>
-          <input
-            type="number"
-            min="0.1"
-            step="0.1"
-            placeholder="Hours"
-            value={newHours}
-            onChange={(e) => setNewHours(e.target.value)}
-            style={{ width: 90 }}
-          />
-          <input
-            type="date"
-            value={newDate}
-            onChange={(e) => setNewDate(e.target.value)}
-          />
-          <input
-            type="text"
-            placeholder="What did you work on? (optional)"
-            value={newDescription}
-            onChange={(e) => setNewDescription(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") addEntry();
-            }}
-            style={{ flex: "2 1 220px" }}
-          />
-          <label
-            className="staff-active-toggle"
-            style={{ whiteSpace: "nowrap" }}
-          >
-            <input
-              type="checkbox"
-              checked={newBillable}
-              onChange={(e) => setNewBillable(e.target.checked)}
-            />
-            Billable
-          </label>
-          <button
-            className="btn-primary"
-            disabled={saving || !newClientId || !newHours}
-            onClick={addEntry}
-          >
-            + Log time
-          </button>
-        </div>
-      </div>
-
-      {error && (
-        <div className="card" style={{ marginBottom: 20 }}>
-          <p className="card-subtitle negative">{error}</p>
-        </div>
-      )}
-
-      <div className="card" style={{ marginBottom: 20 }}>
-        <h3 className="card-title">Your totals by client</h3>
-        <p className="card-subtitle">
-          {entries === null
-            ? "Loading…"
-            : `${fmtHours(totalMinutes)} logged total`}
-        </p>
-        {entries && totalsByClient.length > 0 && (
-          <ul className="staff-audit-list">
-            {totalsByClient.map((row) => (
-              <li className="staff-audit-row" key={row.clientId}>
-                <span style={{ flex: 1 }}>
-                  {row.client ? row.client.name : row.clientId}
-                </span>
-                <span className="card-subtitle">{fmtHours(row.minutes)}</span>
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
-
-      <div className="card" style={{ marginBottom: 20 }}>
-        <h3 className="card-title">Recent entries</h3>
-        {entries && entries.length === 0 && !error && (
-          <p className="card-subtitle" style={{ marginTop: 16 }}>
-            No time logged yet — use the form above.
-          </p>
-        )}
-        {entries && entries.length > 0 && (
-          <ul className="staff-audit-list">
-            {entries.map((e) => {
-              const client = clientById[e.client_id];
-              return (
-                <li className="staff-audit-row" key={e.id}>
-                  <div style={{ flex: 1 }}>
-                    <div>
-                      {client ? client.name : e.client_id} —{" "}
-                      {fmtHours(e.minutes)}
-                      {!e.billable ? " (non-billable)" : ""}
-                    </div>
-                    {e.description && (
-                      <div className="card-subtitle">{e.description}</div>
-                    )}
-                  </div>
-                  <span className="card-subtitle">{e.entry_date}</span>
-                  <button
-                    type="button"
-                    className="btn-secondary"
-                    onClick={() => removeEntry(e)}
-                  >
-                    Remove
-                  </button>
-                </li>
-              );
-            })}
-          </ul>
-        )}
-      </div>
-
-      {isAdmin && (
-        <div className="card" style={{ marginBottom: 20 }}>
-          <h3 className="card-title">Firm-wide utilization</h3>
-          <p className="card-subtitle">
-            All staff time entries — visible to admins only.
-          </p>
-          {firmError && <p className="card-subtitle negative">{firmError}</p>}
-          {firmEntries && (
-            <>
-              <h4 style={{ marginTop: 16, marginBottom: 8 }}>By staff</h4>
-              <ul className="staff-audit-list">
-                {firmTotalsByStaff.map((row) => (
-                  <li className="staff-audit-row" key={row.email}>
-                    <span style={{ flex: 1 }}>{row.email}</span>
-                    <span className="card-subtitle">
-                      {fmtHours(row.minutes)}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-              <h4 style={{ marginTop: 16, marginBottom: 8 }}>By client</h4>
-              <ul className="staff-audit-list">
-                {firmTotalsByClient.map((row) => (
-                  <li className="staff-audit-row" key={row.clientId}>
-                    <span style={{ flex: 1 }}>
-                      {row.client ? row.client.name : row.clientId}
-                    </span>
-                    <span className="card-subtitle">
-                      {fmtHours(row.minutes)}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            </>
-          )}
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ----------------------------------------------------------------------------
 // staffItemsApi — the one read/write path for staff_reminders, shared by My
 // Tasks, Home's "Your reminders" card and the sidebar due badge so the three
 // never drift (Home's checkbox used to skip completed_at; My Tasks' didn't).
@@ -22455,8 +22071,11 @@ const PAGE_STORAGE_KEY = "mygoodbooks_page_v1";
 function loadPage() {
   try {
     const raw = localStorage.getItem(PAGE_STORAGE_KEY);
-    // Any known page, staff-only ones included (My Tasks, My Time, Team
-    // Chat, ...); effectivePage still bounces a page this viewer can't see.
+    // Any known page, staff-only ones included (My Tasks, Team Chat, ...);
+    // effectivePage still bounces a page this viewer can't see.
+    // "my-time" (manual time log) was retired 2026-09-29 — QuickBooks Time is
+    // the hours source now — so a saved "my-time" lands on Home instead.
+    if (raw === "my-time") return "bookkeeper-home";
     if (raw && (Object.prototype.hasOwnProperty.call(PAGE_META, raw) || ALL_TAB_KEYS.includes(raw))) {
       return raw;
     }
@@ -23131,10 +22750,6 @@ const PAGE_META = {
   milestone: {
     title: "Milestone",
     subtitle: "Where you stand on MyGoodBooks pricing",
-  },
-  "my-time": {
-    title: "My Time",
-    subtitle: "Log hours per client and see your own running totals",
   },
   documents: {
     title: "Documents",
@@ -24312,9 +23927,7 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
           ? page
           : page === "my-tasks" && staffUser && !impersonating
             ? page
-            : page === "my-time" && staffUser && !impersonating
-              ? page
-              : page === "bookkeeper-home" && staffUser
+            : page === "bookkeeper-home" && staffUser
                 ? page
                 : page === "client-overview" &&
                     !clientPortalUser &&
@@ -24355,6 +23968,27 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
       });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [effectivePage]);
+
+  // The manual "My Time" page was retired 2026-09-29 (QuickBooks Time is the
+  // hours source). Anyone still holding that page id goes Home.
+  useEffect(() => {
+    if (page === "my-time") setPage(staffUser && !clientPortalUser ? "bookkeeper-home" : homeTab);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [page]);
+
+  // Automatic in-app time per staff member per client
+  // (components/staff/AppTimeTracker.js, supabase/app-time-tracking.sql).
+  // Counts only for a real staffer (not a portal client, not an admin in
+  // "View as") with a client page open; the tracker itself adds the
+  // visible-tab and 2-minute-input checks.
+  const appTimeEnabled =
+    !!staffUser && !clientPortalUser && !impersonating && !NON_CLIENT_PAGES.has(effectivePage);
+  const appTimeClientId = client ? client.id : null;
+  useEffect(() => {
+    if (typeof AT_setTrackingContext === "function") {
+      AT_setTrackingContext({ enabled: appTimeEnabled, clientId: appTimeClientId });
+    }
+  }, [appTimeEnabled, appTimeClientId]);
 
   // §136: periodic feedback survey (FeedbackSurveyModal) — shown at most
   // once every FEEDBACK_PROMPT_INTERVAL_DAYS per browser. A short delay
@@ -25360,12 +24994,6 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
               client={client}
               isStaff={isStaffSession && !isPreviewingUser}
               key={"milestone-" + client.id}
-            />
-          )}
-          {effectivePage === "my-time" && (
-            <MyTimePage
-              staffUser={effectiveStaffUser}
-              clients={visibleClients}
             />
           )}
           {effectivePage === "developer-tools" && (

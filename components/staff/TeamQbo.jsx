@@ -9,6 +9,13 @@
 //   - TP_useQboHours + TP_QboPeopleTable / TP_QboClientsTable: the Team page
 //     tables with QuickBooks hours, fee, effective rate and trend.
 //   - TP_QboDrill: raw qbo_time_activities rows behind any table row.
+// QuickBooks Time is the only source of billed hours (the manual in-app time
+// log was retired 2026-09-29). The People and Clients tables also carry an
+// "In app" column: automatic active time per staff/client from
+// staff_app_time (supabase/app-time-tracking.sql), which TeamPage.jsx loads
+// and merges into the roster rows as appMinutes / appByStaff. Those tables
+// still render with only in-app time when QuickBooks isn't connected
+// (qboOn = false).
 // Every call fails soft. Until the migration is live the RPCs don't exist
 // (PostgREST PGRST202 / 404) and the panel says "not set up" instead.
 //
@@ -228,7 +235,7 @@ function TP_QboPanel({ qbo, onOpenMapping, onSynced }) {
         {qbo.kind === "missing" ? (
           <p className="tp-muted tp-q-line">
             Not set up yet. The QuickBooks Time sync hasn't been installed on the server, so hours
-            below come from the app's own time log. Nothing to do here until it is.
+            show in-app time only. Nothing to do here until it is.
           </p>
         ) : qbo.kind === "auth" ? (
           <p className="tp-muted tp-q-line">Sign in as an admin to see the QuickBooks connection.</p>
@@ -435,12 +442,14 @@ function TP_qPeopleRows(people, byStaff) {
       completed: 0,
       assignedCount: 0,
       tempCount: 0,
+      appMinutes: 0,
       q,
     });
   });
   rows.sort(
     (a, b) =>
       TP_qNum(b.q && b.q.total_minutes) - TP_qNum(a.q && a.q.total_minutes) ||
+      TP_qNum(b.appMinutes) - TP_qNum(a.appMinutes) ||
       a.name.localeCompare(b.name),
   );
   const bucketRows = buckets.map((r) => ({
@@ -456,6 +465,17 @@ function TP_qPeopleRows(people, byStaff) {
   return { rows, bucketRows, total };
 }
 
+const TP_APP_TIP =
+  "Automatic active time in this app (client open, tab visible, input in the last 2 minutes). Not billed hours.";
+
+function TP_AppTh({ children }) {
+  return (
+    <th className="num tp-app-col" title={TP_APP_TIP}>
+      {children || "In app"}
+    </th>
+  );
+}
+
 const TP_Q_BUCKET_LABEL = {
   unmapped: "Unmapped",
   ignored: "Ignored",
@@ -469,11 +489,13 @@ function TP_QBucketTag({ bucket }) {
   );
 }
 
-function TP_QboPeopleTable({ people, hours, onOpenPerson, onOpenBucket, onOpenMapping }) {
+function TP_QboPeopleTable({ people, hours, qboOn, onOpenPerson, onOpenBucket, onOpenMapping }) {
+  const loadingPeople = people == null;
   const { rows, bucketRows, total } = useMemo(
-    () => TP_qPeopleRows(people, hours.byStaff),
+    () => TP_qPeopleRows(people || [], hours.byStaff),
     [people, hours.byStaff],
   );
+  const appTotal = rows.reduce((n, r) => n + TP_qNum(r.appMinutes), 0);
   const keyed = (fn) => (e) => {
     if (e.key === "Enter" || e.key === " ") {
       e.preventDefault();
@@ -483,21 +505,25 @@ function TP_QboPeopleTable({ people, hours, onOpenPerson, onOpenBucket, onOpenMa
   const unmappedTotal = bucketRows
     .filter((b) => b.bucket === "unmapped")
     .reduce((n, b) => n + TP_qNum(b.q.total_minutes), 0);
-  const cols = 9;
+  const cols = 10;
+  const dash = <span className="tp-muted">–</span>;
   return (
     <div className="card" style={{ marginBottom: 20 }}>
       <h3 className="card-title">People</h3>
       <p className="card-subtitle">
-        QuickBooks Time hours for the period
-        {total ? ` (${TP_qHours(total)} in all)` : ""}. Open and overdue are as of today; completed is
-        within the period. Select a row for the entries behind it.
+        {qboOn
+          ? `QuickBooks Time hours for the period${total ? ` (${TP_qHours(total)} in all)` : ""}. `
+          : "QuickBooks Time isn't connected, so there are no hours yet. "}
+        In app is automatic active time in the app{appTotal ? ` (${TP_qHours(appTotal)} in all)` : ""}, not billed
+        hours. Open and overdue are as of today; completed is within the period. Select a row for details.
       </p>
       <div className="table-scroll">
         <table className="tx-table tx-table-labeled tp-table">
           <thead>
             <tr>
               <th>Name</th>
-              <th className="num">Hours</th>
+              <th className="num">QB hours</th>
+              <TP_AppTh />
               <th className="num">Billable</th>
               <th className="num">On clients</th>
               <th className="num" title="Hours on QuickBooks customers not yet mapped to a client">Unmapped cust.</th>
@@ -508,10 +534,10 @@ function TP_QboPeopleTable({ people, hours, onOpenPerson, onOpenBucket, onOpenMa
             </tr>
           </thead>
           <tbody>
-            {hours.loading && !hours.byStaff.length ? (
-              <EmptyRow colSpan={cols}>Loading QuickBooks hours…</EmptyRow>
+            {loadingPeople || (hours.loading && !hours.byStaff.length) ? (
+              <EmptyRow colSpan={cols}>Loading…</EmptyRow>
             ) : rows.length === 0 && bucketRows.length === 0 ? (
-              <EmptyRow colSpan={cols}>No staff to show.</EmptyRow>
+              <EmptyRow colSpan={cols}>No staff to show. The roster only loads for a signed-in admin.</EmptyRow>
             ) : (
               <>
                 {rows.map((p) => {
@@ -531,7 +557,10 @@ function TP_QboPeopleTable({ people, hours, onOpenPerson, onOpenBucket, onOpenMa
                         <span className="tp-name">{p.name}</span>
                         {p.role && <span className="tp-muted tp-role">{TP_roleLabel(p.role)}</span>}
                       </td>
-                      <td className="num" data-label="Hours">{q ? TP_qHours(mins) : "–"}</td>
+                      <td className="num" data-label="QB hours">{q ? TP_qHours(mins) : dash}</td>
+                      <td className="num tp-app-col" data-label="In app" title={TP_APP_TIP}>
+                        {p.appMinutes ? TP_qHours(p.appMinutes) : dash}
+                      </td>
                       <td className="num" data-label="Billable">
                         {mins ? `${Math.round((TP_qNum(q.billable_minutes) / mins) * 100)}%` : "–"}
                       </td>
@@ -568,7 +597,8 @@ function TP_QboPeopleTable({ people, hours, onOpenPerson, onOpenBucket, onOpenMa
                         <span className="tp-name">{b.label}</span> <TP_QBucketTag bucket={b.bucket} />
                         {b.q.qbo_entity_type && <span className="tp-muted tp-role">QuickBooks {b.q.qbo_entity_type}</span>}
                       </td>
-                      <td className="num" data-label="Hours">{TP_qHours(mins)}</td>
+                      <td className="num" data-label="QB hours">{TP_qHours(mins)}</td>
+                      <td className="num tp-muted" data-label="In app">–</td>
                       <td className="num" data-label="Billable">
                         {mins ? `${Math.round((TP_qNum(b.q.billable_minutes) / mins) * 100)}%` : "–"}
                       </td>
@@ -640,7 +670,7 @@ function TP_qClientRows({ clientRows, hours, range, today }) {
     if (seen.has(q.client_id)) return;
     rows.push(
       decorate(
-        { id: q.client_id, name: q.client_name || "Unknown client", plan: null, known: false, open: 0, overdue: 0 },
+        { id: q.client_id, name: q.client_name || "Unknown client", plan: null, known: false, open: 0, overdue: 0, appMinutes: 0, appByStaff: [] },
         q,
       ),
     );
@@ -675,18 +705,24 @@ function TP_QTrend({ trend }) {
   return <span className="task-chip tp-q-trend">New hours</span>;
 }
 
-function TP_QboClientsTable({ clientRows, hours, range, today, avg, onOpenClient, onOpenBucket, onOpenMapping }) {
-  const [sort, setSort] = useState({ key: "hours", dir: "desc" });
+function TP_QboClientsTable({ clientRows, hours, qboOn, range, today, avg, onOpenClient, onOpenBucket, onOpenMapping }) {
+  // key null = default: QuickBooks hours when connected, in-app time otherwise.
+  const [sortState, setSort] = useState({ key: null, dir: "desc" });
+  const sort = sortState.key ? sortState : { key: qboOn ? "hours" : "app", dir: sortState.dir };
   const [showIdle, setShowIdle] = useState(false);
+  const loadingRows = clientRows == null;
   const built = useMemo(
-    () => TP_qClientRows({ clientRows, hours, range, today }),
+    () => TP_qClientRows({ clientRows: clientRows || [], hours, range, today }),
     [clientRows, hours, range, today],
   );
   const rows = useMemo(() => {
-    const list = showIdle ? built.rows : built.rows.filter((r) => r.qMinutes || r.qAvgMinutes || r.open);
+    const list = showIdle
+      ? built.rows
+      : built.rows.filter((r) => r.qMinutes || r.qAvgMinutes || r.appMinutes || r.open);
     const dir = sort.dir === "asc" ? 1 : -1;
     const val = {
       hours: (r) => r.qMinutes,
+      app: (r) => TP_qNum(r.appMinutes),
       avg: (r) => r.qAvgMinutes,
       value: (r) => TP_qNum(r.q && r.q.billable_value),
       rate: (r) => (r.rate == null ? (sort.dir === "asc" ? Infinity : -Infinity) : r.rate),
@@ -701,8 +737,8 @@ function TP_QboClientsTable({ clientRows, hours, range, today, avg, onOpenClient
     });
   }, [built, sort, showIdle]);
   const toggle = (key) =>
-    setSort((s) =>
-      s.key === key ? { key, dir: s.dir === "asc" ? "desc" : "asc" } : { key, dir: key === "name" || key === "rate" ? "asc" : "desc" },
+    setSort(() =>
+      sort.key === key ? { key, dir: sort.dir === "asc" ? "desc" : "asc" } : { key, dir: key === "name" || key === "rate" ? "asc" : "desc" },
     );
   const mark = (key) => (sort.key === key ? (sort.dir === "asc" ? " ↑" : " ↓") : "");
   const keyed = (fn) => (e) => {
@@ -716,7 +752,9 @@ function TP_QboClientsTable({ clientRows, hours, range, today, avg, onOpenClient
   const unmappedMin = unmapped.reduce((n, b) => n + TP_qNum(b.q.total_minutes), 0);
   const clientMin = built.rows.reduce((n, r) => n + r.qMinutes, 0);
   const otherMin = built.total - clientMin - unmappedMin;
-  const cols = 10;
+  const appTotal = built.rows.reduce((n, r) => n + TP_qNum(r.appMinutes), 0);
+  const cols = 11;
+  const dash = <span className="tp-muted">–</span>;
 
   return (
     <div className="card">
@@ -724,8 +762,11 @@ function TP_QboClientsTable({ clientRows, hours, range, today, avg, onOpenClient
         <div>
           <h3 className="card-title" style={{ marginBottom: 2 }}>Clients</h3>
           <p className="card-subtitle" style={{ margin: 0 }}>
-            QuickBooks Time hours next to the monthly average for {avg.label}. Effective rate is the
-            client's milestone fee ÷ average monthly hours. Select a row for its entries.
+            {qboOn
+              ? `QuickBooks Time hours next to the monthly average for ${avg.label}. Effective rate is the client's milestone fee ÷ average monthly hours. `
+              : "QuickBooks Time isn't connected, so there are no hours yet. "}
+            In app is automatic active time in the app{appTotal ? ` (${TP_qHours(appTotal)} in all)` : ""}, not
+            billed hours. Select a row for details.
           </p>
         </div>
         <label className="tp-check">
@@ -749,7 +790,8 @@ function TP_QboClientsTable({ clientRows, hours, range, today, avg, onOpenClient
       <div className="tp-sort-mobile">
         <span className="tp-muted">Sort by</span>
         {[
-          ["hours", "Hours"],
+          ["hours", "QB hours"],
+          ["app", "In app"],
           ["avg", "Avg / mo"],
           ["rate", "Rate"],
           ["name", "Name"],
@@ -774,7 +816,10 @@ function TP_QboClientsTable({ clientRows, hours, range, today, avg, onOpenClient
               </th>
               <th>Plan</th>
               <th className="num">
-                <button type="button" className="tp-sort" onClick={() => toggle("hours")}>Hours{mark("hours")}</button>
+                <button type="button" className="tp-sort" onClick={() => toggle("hours")}>QB hours{mark("hours")}</button>
+              </th>
+              <th className="num tp-app-col" title={TP_APP_TIP}>
+                <button type="button" className="tp-sort" onClick={() => toggle("app")}>In app{mark("app")}</button>
               </th>
               <th className="num">
                 <button type="button" className="tp-sort" onClick={() => toggle("avg")}>Avg / mo{mark("avg")}</button>
@@ -792,11 +837,11 @@ function TP_QboClientsTable({ clientRows, hours, range, today, avg, onOpenClient
             </tr>
           </thead>
           <tbody>
-            {hours.loading && !hours.byClient.length ? (
-              <EmptyRow colSpan={cols}>Loading QuickBooks hours…</EmptyRow>
+            {loadingRows || (hours.loading && !hours.byClient.length) ? (
+              <EmptyRow colSpan={cols}>Loading…</EmptyRow>
             ) : rows.length === 0 && built.bucketRows.length === 0 ? (
               <EmptyRow colSpan={cols}>
-                {showIdle ? "No clients to show." : "No QuickBooks hours or open tasks in this period."}
+                {showIdle ? "No clients to show." : "No hours, in-app time or open tasks in this period."}
               </EmptyRow>
             ) : (
               <>
@@ -814,8 +859,11 @@ function TP_QboClientsTable({ clientRows, hours, range, today, avg, onOpenClient
                       <span className="tp-name">{r.name}</span>
                     </td>
                     <td data-label="Plan">{r.known ? planLabel(r.plan) : "–"}</td>
-                    <td className="num" data-label="Hours">{TP_qHours(r.qMinutes)}</td>
-                    <td className="num" data-label={`Avg / mo (${avg.label})`}>{TP_qHours(r.qAvgMinutes)}</td>
+                    <td className="num" data-label="QB hours">{qboOn ? TP_qHours(r.qMinutes) : dash}</td>
+                    <td className="num tp-app-col" data-label="In app" title={TP_APP_TIP}>
+                      {r.appMinutes ? TP_qHours(r.appMinutes) : dash}
+                    </td>
+                    <td className="num" data-label={`Avg / mo (${avg.label})`}>{qboOn ? TP_qHours(r.qAvgMinutes) : dash}</td>
                     <td data-label="Trend">{r.trend ? <TP_QTrend trend={r.trend} /> : <span className="tp-muted">–</span>}</td>
                     <td className="num" data-label="Billable value">
                       {r.q && TP_qNum(r.q.billable_value) ? fmtMoney(TP_qNum(r.q.billable_value)) : "–"}
@@ -842,9 +890,10 @@ function TP_QboClientsTable({ clientRows, hours, range, today, avg, onOpenClient
                       <span className="tp-name">{b.label}</span> <TP_QBucketTag bucket={b.bucket} />
                     </td>
                     <td className="tp-muted" data-label="Plan">–</td>
-                    <td className={"num" + (b.bucket === "unmapped" ? " tp-q-warn" : "")} data-label="Hours">
+                    <td className={"num" + (b.bucket === "unmapped" ? " tp-q-warn" : "")} data-label="QB hours">
                       {TP_qHours(b.q.total_minutes)}
                     </td>
+                    <td className="num tp-muted" data-label="In app">–</td>
                     <td className="num tp-muted" data-label="Avg / mo">–</td>
                     <td className="tp-muted" data-label="Trend">–</td>
                     <td className="num" data-label="Billable value">
@@ -1120,7 +1169,7 @@ function TP_QboDrill({ spec, range, groupBy, emptyText }) {
 }
 
 // Detail page for a client, a person, or a bucket row, in QuickBooks mode.
-function TP_QboDetail({ title, subtitle, stats, spec, groupBy, range, onBack, backLabel, children, note }) {
+function TP_QboDetail({ title, subtitle, stats, spec, groupBy, range, onBack, backLabel, children, note, showQbo = true, beforeQbo }) {
   return (
     <div>
       <div className="card" style={{ marginBottom: 20 }}>
@@ -1134,7 +1183,8 @@ function TP_QboDetail({ title, subtitle, stats, spec, groupBy, range, onBack, ba
         )}
         {note}
       </div>
-      <TP_QboDrill spec={spec} range={range} groupBy={groupBy} />
+      {beforeQbo}
+      {showQbo && <TP_QboDrill spec={spec} range={range} groupBy={groupBy} />}
       {children}
     </div>
   );
@@ -1616,34 +1666,41 @@ function TP_QboMapping({ qbo, clients, staff, onBack, onChanged }) {
 }
 
 // CSV exports in QuickBooks mode.
-function TP_qExportPeople(filename, people, byStaff) {
+const TP_APP_CSV_HEAD = "In-app hours (automatic, not billed)";
+
+function TP_qExportPeople(filename, people, byStaff, qboOn) {
   const { rows, bucketRows } = TP_qPeopleRows(people, byStaff);
   const h = (m) => (TP_qNum(m) / 60).toFixed(2);
+  const qh = (m) => (qboOn ? h(m) : "");
   TP_downloadCsv(
     filename,
-    ["Name", "Email", "Bucket", "QuickBooks hours", "Billable hours", "Hours on mapped clients", "Hours on unmapped customers", "Open tasks", "Overdue tasks", "Completed in period"],
+    ["Name", "Email", "Role", "Bucket", "QuickBooks hours", TP_APP_CSV_HEAD, "Billable hours", "Hours on mapped clients", "Hours on unmapped customers", "Open tasks", "Overdue tasks", "Completed in period", "Assigned clients", "Temporary clients"],
     [
-      ...rows.map((p) => [p.name, p.email, "staff", h(p.q && p.q.total_minutes), h(p.q && p.q.billable_minutes), h(p.q && p.q.client_minutes), h(p.q && p.q.unmapped_customer_minutes), p.open, p.overdue, p.completed]),
-      ...bucketRows.map((b) => [b.label, "", b.bucket, h(b.q.total_minutes), h(b.q.billable_minutes), h(b.q.client_minutes), h(b.q.unmapped_customer_minutes), "", "", ""]),
+      ...rows.map((p) => [p.name, p.email, TP_roleLabel(p.role), "staff", qh(p.q && p.q.total_minutes), h(p.appMinutes), qh(p.q && p.q.billable_minutes), qh(p.q && p.q.client_minutes), qh(p.q && p.q.unmapped_customer_minutes), p.open, p.overdue, p.completed, p.assignedCount, p.tempCount]),
+      ...bucketRows.map((b) => [b.label, "", "", b.bucket, h(b.q.total_minutes), "", h(b.q.billable_minutes), h(b.q.client_minutes), h(b.q.unmapped_customer_minutes), "", "", "", "", ""]),
     ],
   );
 }
 
-function TP_qExportClients(filename, args, avgLabel) {
+function TP_qExportClients(filename, args, avgLabel, qboOn, staffName) {
   const { rows, bucketRows } = TP_qClientRows(args);
   const h = (m) => (TP_qNum(m) / 60).toFixed(2);
+  const qh = (m) => (qboOn ? h(m) : "");
+  const nameOf = staffName || ((e) => String(e || "").split("@")[0]);
   TP_downloadCsv(
     filename,
-    ["Client", "Bucket", "Plan", "QuickBooks hours", `Avg hours / month (${avgLabel})`, "Billable hours", "Billable value", "Milestone fee / month", "Effective rate / hour", "Trend", "Open tasks", "Overdue tasks"],
+    ["Client", "Bucket", "Plan", "QuickBooks hours", TP_APP_CSV_HEAD, "In-app hours by staffer", `Avg hours / month (${avgLabel})`, "Billable hours", "Billable value", "Milestone fee / month", "Effective rate / hour", "Trend", "Open tasks", "Overdue tasks"],
     [
       ...rows
-        .filter((r) => r.qMinutes || r.qAvgMinutes || r.open)
+        .filter((r) => r.qMinutes || r.qAvgMinutes || r.appMinutes || r.open)
         .map((r) => [
           r.name,
           "client",
           r.known ? planLabel(r.plan) : "",
-          h(r.qMinutes),
-          h(r.qAvgMinutes),
+          qh(r.qMinutes),
+          h(r.appMinutes),
+          (r.appByStaff || []).map((s) => `${nameOf(s.email)} ${h(s.minutes)}`).join("; "),
+          qh(r.qAvgMinutes),
           h(r.q && r.q.billable_minutes),
           r.q ? TP_qNum(r.q.billable_value).toFixed(2) : "",
           r.fee != null ? r.fee : "",
@@ -1652,7 +1709,7 @@ function TP_qExportClients(filename, args, avgLabel) {
           r.open,
           r.overdue,
         ]),
-      ...bucketRows.map((b) => [b.label, b.bucket, "", h(b.q.total_minutes), "", h(b.q.billable_minutes), TP_qNum(b.q.billable_value).toFixed(2), "", "", "", "", ""]),
+      ...bucketRows.map((b) => [b.label, b.bucket, "", h(b.q.total_minutes), "", "", "", h(b.q.billable_minutes), TP_qNum(b.q.billable_value).toFixed(2), "", "", "", "", ""]),
     ],
   );
 }

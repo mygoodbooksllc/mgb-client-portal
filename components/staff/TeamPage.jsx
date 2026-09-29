@@ -4,22 +4,26 @@
 // overdue, what got done, and how many hours each client really takes (for
 // pricing, and to spot a bookkeeper working slowly).
 //
+// Hours come only from QuickBooks Time (Workforce); the manual in-app time
+// log ("My Time", time_entries) was retired 2026-09-29. time_entries is kept
+// in the database but nothing here reads it any more.
+//
 // Read-only. Everything is fetched raw and aggregated client-side, the same
 // approach as Usage Stats:
-//   - time_entries: admins already read every row.
-//   - staff_reminders: admins read every row, private ones included, once
-//     supabase/admin-read-all-tasks.sql is applied. Until then RLS returns
-//     only the admin's own and shared tasks, and the page shows just that.
+//   - staff_app_time (supabase/app-time-tracking.sql): automatic in-app
+//     active time per staff member per client per day. Admins read every
+//     row. Shown as the "In app" column and in the drill-downs; it is not
+//     billed time.
+//   - staff_reminders: admins read every row, private ones included.
 //   - staff, staff_client_access, staff_client_access_grants: roster and
 //     assignments, as Staff Access and the client switcher load them.
 // Every query fails soft: no Supabase, a 401 (local, signed out) or a missing
 // table leaves that slice empty and shows a friendly note instead.
 //
 // QuickBooks Time (the firm's own QuickBooks company, supabase/qbo-firm-time.sql)
-// lives in TeamQbo.jsx: the connection panel, customer/staff mapping, and the
-// QuickBooks versions of the People and Clients tables. When QuickBooks has
-// data the page defaults to it; an "App hours" toggle brings back the
-// time_entries tables below unchanged.
+// lives in TeamQbo.jsx: the connection panel, customer/staff mapping, the
+// People and Clients tables and the entry drill-downs. Those tables still
+// render (with in-app time only) when QuickBooks isn't connected.
 //
 // Loaded before app.jsx and shares its global scope, so every top-level name
 // here carries a TP_ prefix, and app.jsx globals (hooks, fmtDate, planLabel,
@@ -34,8 +38,7 @@ const TP_PERIODS = [
 ];
 const TP_PAGE_SIZE = 1000;
 const TP_MAX_ROWS = 20000;
-const TP_ENTRY_COLS =
-  "id, staff_email, client_id, minutes, description, entry_date, created_at, billable";
+const TP_APP_COLS = "staff_email, client_id, day, seconds";
 const TP_TASK_BASE_COLS =
   "id, staff_email, text, due_date, done, completed_at, client_id, priority, created_at";
 const TP_TASK_V2_COLS =
@@ -145,8 +148,10 @@ function TP_taskState(t, today, range) {
 }
 
 // Everything the page shows, from the raw rows. Pure, so it can be exercised
-// directly without Supabase.
-function TP_aggregate({ staff, entries, tasks, access, grants, clients, range, avg, today }) {
+// directly without Supabase. `appTime` rows are staff_app_time
+// (staff_email, client_id, day, seconds); they become appMinutes /
+// appByStaff on the people and client rows.
+function TP_aggregate({ staff, appTime, tasks, access, grants, clients, range, today }) {
   const staffByEmail = {};
   (staff || []).forEach((s) => {
     staffByEmail[TP_lower(s.email)] = s;
@@ -156,21 +161,24 @@ function TP_aggregate({ staff, entries, tasks, access, grants, clients, range, a
     clientById[c.id] = c;
   });
 
-  const inPeriod = (entries || []).filter(
-    (e) => e.entry_date >= range.from && e.entry_date <= range.to,
-  );
-  const inAvg = (entries || []).filter(
-    (e) => e.entry_date >= avg.from && e.entry_date <= avg.to,
-  );
+  // Same shape TP_HoursBars already takes (entry_date, minutes).
+  const appInPeriod = (appTime || [])
+    .filter((r) => r.day >= range.from && r.day <= range.to)
+    .map((r) => ({
+      staff_email: TP_lower(r.staff_email),
+      client_id: r.client_id,
+      entry_date: r.day,
+      minutes: (r.seconds || 0) / 60,
+    }));
 
   // People: active staff; if the roster didn't load, whoever shows up in
-  // the time and task data.
+  // the in-app time and task data.
   let emails = (staff || [])
     .filter((s) => s.active !== false)
     .map((s) => TP_lower(s.email));
   if (!emails.length) {
     const seen = new Set();
-    inPeriod.forEach((e) => seen.add(TP_lower(e.staff_email)));
+    appInPeriod.forEach((e) => seen.add(e.staff_email));
     (tasks || []).forEach((t) => seen.add(TP_taskOwner(t)));
     seen.delete("");
     emails = [...seen];
@@ -190,11 +198,9 @@ function TP_aggregate({ staff, entries, tasks, access, grants, clients, range, a
 
   const people = emails.map((email) => {
     const s = staffByEmail[email] || {};
-    const mine = inPeriod.filter((e) => TP_lower(e.staff_email) === email);
-    const minutes = mine.reduce((n, e) => n + (e.minutes || 0), 0);
-    const billableMinutes = mine
-      .filter((e) => e.billable !== false)
-      .reduce((n, e) => n + (e.minutes || 0), 0);
+    const appMinutes = appInPeriod
+      .filter((e) => e.staff_email === email)
+      .reduce((n, e) => n + e.minutes, 0);
     const counts = { open: 0, overdue: 0, completed: 0 };
     (tasks || []).forEach((t) => {
       if (TP_taskOwner(t) !== email) return;
@@ -209,31 +215,25 @@ function TP_aggregate({ staff, entries, tasks, access, grants, clients, range, a
       email,
       name: s.name || email.split("@")[0],
       role: s.role || "",
-      minutes,
-      billableMinutes,
+      appMinutes,
       ...counts,
       assignedCount: assigned[email] ? assigned[email].size : 0,
       tempCount: temp[email] ? temp[email].size : 0,
     };
   });
-  people.sort((a, b) => b.minutes - a.minutes || a.name.localeCompare(b.name));
 
   // Clients: the whole roster, plus any id the data mentions that the
-  // roster doesn't (a removed client with old time on it).
+  // roster doesn't (a removed client with old in-app time on it).
   const ids = new Set((clients || []).map((c) => c.id));
-  inPeriod.forEach((e) => e.client_id && ids.add(e.client_id));
+  appInPeriod.forEach((e) => e.client_id && ids.add(e.client_id));
   (tasks || []).forEach((t) => !t.done && t.client_id && ids.add(t.client_id));
   const clientRows = [...ids].map((id) => {
     const c = clientById[id];
-    const mine = inPeriod.filter((e) => e.client_id === id);
     const byStaff = {};
-    mine.forEach((e) => {
-      const k = TP_lower(e.staff_email);
-      byStaff[k] = (byStaff[k] || 0) + (e.minutes || 0);
+    appInPeriod.forEach((e) => {
+      if (e.client_id !== id) return;
+      byStaff[e.staff_email] = (byStaff[e.staff_email] || 0) + e.minutes;
     });
-    const avgTotal = inAvg
-      .filter((e) => e.client_id === id)
-      .reduce((n, e) => n + (e.minutes || 0), 0);
     let open = 0;
     let overdue = 0;
     (tasks || []).forEach((t) => {
@@ -249,20 +249,16 @@ function TP_aggregate({ staff, entries, tasks, access, grants, clients, range, a
       name: (c && c.name) || "Unknown client",
       plan: c ? c.plan : null,
       known: !!c,
-      minutes: mine.reduce((n, e) => n + (e.minutes || 0), 0),
-      billableMinutes: mine
-        .filter((e) => e.billable !== false)
-        .reduce((n, e) => n + (e.minutes || 0), 0),
-      byStaff: Object.entries(byStaff)
+      appMinutes: Object.values(byStaff).reduce((n, m) => n + m, 0),
+      appByStaff: Object.entries(byStaff)
         .map(([email, minutes]) => ({ email, minutes }))
         .sort((a, b) => b.minutes - a.minutes),
-      avgMinutes: avgTotal / 3,
       open,
       overdue,
     };
   });
 
-  return { people, clientRows, inPeriod, staffByEmail, clientById };
+  return { people, clientRows, appInPeriod, staffByEmail, clientById };
 }
 
 // Same quoting as the Bank Accounts export, plus a leading apostrophe on
@@ -450,262 +446,56 @@ function TP_Stat({ label, value, bad }) {
   );
 }
 
-function TP_PersonDetail({ person, data, tasks, range, avg, today, onBack, rangeLabel }) {
-  const clientName = (id) =>
-    (data.clientById[id] && data.clientById[id].name) || "Unknown client";
-  const entries = useMemo(
-    () =>
-      data.inPeriod
-        .filter((e) => TP_lower(e.staff_email) === person.email)
-        .sort((a, b) => b.entry_date.localeCompare(a.entry_date) ||
-          String(b.created_at || "").localeCompare(String(a.created_at || ""))),
-    [data, person.email],
-  );
-  const byClient = useMemo(() => {
+// In-app time drill-down: totals grouped by client (for a person) or by
+// staffer (for a client), plus the same daily/weekly bars as QuickBooks.
+function TP_AppTimeCard({ entries, groupBy, nameOf, range, who }) {
+  const list = useMemo(() => {
     const totals = {};
-    entries.forEach((e) => {
-      totals[e.client_id] = (totals[e.client_id] || 0) + (e.minutes || 0);
-    });
-    const rowById = {};
-    data.clientRows.forEach((r) => {
-      rowById[r.id] = r;
+    (entries || []).forEach((e) => {
+      const k = groupBy === "client" ? e.client_id : e.staff_email;
+      totals[k] = (totals[k] || 0) + e.minutes;
     });
     return Object.entries(totals)
-      .map(([id, minutes]) => ({ id, minutes, row: rowById[id] }))
+      .map(([key, minutes]) => ({ key, minutes }))
       .sort((a, b) => b.minutes - a.minutes);
-  }, [entries, data]);
-  const myTasks = useMemo(
-    () => (tasks || []).filter((t) => TP_taskOwner(t) === person.email),
-    [tasks, person.email],
-  );
-  const maxClient = byClient.length ? byClient[0].minutes : 0;
-  const billablePct = person.minutes
-    ? Math.round((person.billableMinutes / person.minutes) * 100)
-    : null;
-
+  }, [entries, groupBy]);
+  const total = list.reduce((n, g) => n + g.minutes, 0);
+  const max = list.length ? list[0].minutes : 0;
   return (
-    <div>
-      <div className="card" style={{ marginBottom: 20 }}>
-        <TP_BackBar
-          label="Back to team"
-          onBack={onBack}
-          title={person.name}
-          subtitle={[person.role && TP_roleLabel(person.role), person.email, rangeLabel]
-            .filter(Boolean)
-            .join(" · ")}
-        />
-        <div className="tp-stats">
-          <TP_Stat label="Hours" value={TP_fmtHM(person.minutes)} />
-          <TP_Stat label="Billable" value={billablePct == null ? "–" : `${billablePct}%`} />
-          <TP_Stat label="Open tasks" value={person.open} />
-          <TP_Stat label="Overdue" value={person.overdue} bad={person.overdue > 0} />
-          <TP_Stat label="Completed" value={person.completed} />
-          <TP_Stat
-            label="Clients"
-            value={person.assignedCount + (person.tempCount ? ` +${person.tempCount}` : "")}
-          />
-        </div>
-      </div>
-
-      <div className="tp-detail-grid">
-        <div className="card">
-          <h3 className="card-title">Hours by client</h3>
-          <p className="card-subtitle">
-            Share is this person's part of all hours logged on the client in the period.
-          </p>
-          <div className="table-scroll">
-            <table className="tx-table tx-table-labeled">
-              <thead>
-                <tr>
-                  <th>Client</th>
-                  <th className="num">Hours</th>
-                  <th className="num">Share</th>
-                  <th className="num">Client avg / mo</th>
-                </tr>
-              </thead>
-              <tbody>
-                {byClient.length === 0 ? (
-                  <EmptyRow colSpan={4}>No time logged in this period.</EmptyRow>
-                ) : (
-                  byClient.map((c) => (
-                    <tr key={c.id}>
-                      <td data-primary="">
-                        {clientName(c.id)}
-                        <div className="bar-track">
-                          <div
-                            className="bar-fill usage"
-                            style={{ width: maxClient ? `${(c.minutes / maxClient) * 100}%` : "0%" }}
-                          />
-                        </div>
-                      </td>
-                      <td className="num" data-label="Hours">{TP_fmtHM(c.minutes)}</td>
-                      <td className="num" data-label="Share">
-                        {c.row && c.row.minutes
-                          ? `${Math.round((c.minutes / c.row.minutes) * 100)}%`
-                          : "–"}
-                      </td>
-                      <td className="num" data-label={`Client avg / mo (${avg.label})`}>
-                        {c.row ? TP_fmtHM(c.row.avgMinutes) : "–"}
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
-        <div className="card">
-          <h3 className="card-title">Hours over the period</h3>
-          <TP_HoursBars entries={entries} range={range} />
-        </div>
-      </div>
-
-      <div className="card" style={{ marginBottom: 20 }}>
-        <h3 className="card-title">Tasks</h3>
-        <p className="card-subtitle">Owned by or assigned to {person.name}.</p>
-        <TP_TaskGroups
-          tasks={myTasks}
-          today={today}
-          range={range}
-          clientName={clientName}
-          emptyText="No open tasks, and nothing completed in this period."
-        />
-      </div>
-
+    <div className="tp-detail-grid">
       <div className="card">
-        <h3 className="card-title">Time log</h3>
+        <h3 className="card-title" title={typeof TP_APP_TIP === "string" ? TP_APP_TIP : undefined}>
+          In-app time by {groupBy === "client" ? "client" : "staffer"}
+          <span className="tp-muted" style={{ fontWeight: 400 }}> · {TP_fmtHM(total)}</span>
+        </h3>
         <p className="card-subtitle">
-          {entries.length} entr{entries.length === 1 ? "y" : "ies"} in the period
+          Automatic active time {who ? `${who} spent ` : ""}in the app, counted only with a client open, the tab
+          visible and recent input. Not billed hours.
         </p>
-        <TP_EntryTable entries={entries} clientName={clientName} />
-      </div>
-    </div>
-  );
-}
-
-function TP_EntryTable({ entries, clientName, staffName }) {
-  return (
-    <div className="table-scroll">
-      <table className="tx-table tx-table-labeled">
-        <thead>
-          <tr>
-            <th>Date</th>
-            {clientName && <th>Client</th>}
-            {staffName && <th>Staffer</th>}
-            <th>Description</th>
-            <th className="num">Hours</th>
-            <th>Billable</th>
-          </tr>
-        </thead>
-        <tbody>
-          {entries.length === 0 ? (
-            <EmptyRow colSpan={5}>No time logged in this period.</EmptyRow>
-          ) : (
-            entries.map((e) => (
-              <tr key={e.id}>
-                <td data-label="Date">{fmtDate(e.entry_date)}</td>
-                {clientName && <td data-label="Client">{clientName(e.client_id)}</td>}
-                {staffName && <td data-label="Staffer">{staffName(e.staff_email)}</td>}
-                <td data-label="Description" className="tp-desc">
-                  {e.description || <span className="tp-muted">No description</span>}
-                </td>
-                <td className="num" data-label="Hours">{TP_fmtHM(e.minutes)}</td>
-                <td data-label="Billable">{e.billable === false ? "No" : "Yes"}</td>
-              </tr>
-            ))
-          )}
-        </tbody>
-      </table>
-    </div>
-  );
-}
-
-function TP_ClientDetail({ row, data, tasks, range, avg, today, onBack, rangeLabel }) {
-  const staffName = (email) => {
-    const s = data.staffByEmail[TP_lower(email)];
-    return (s && s.name) || String(email || "").split("@")[0] || "Unknown";
-  };
-  const entries = useMemo(
-    () =>
-      data.inPeriod
-        .filter((e) => e.client_id === row.id)
-        .sort((a, b) => b.entry_date.localeCompare(a.entry_date) ||
-          String(b.created_at || "").localeCompare(String(a.created_at || ""))),
-    [data, row.id],
-  );
-  const clientTasks = useMemo(
-    () => (tasks || []).filter((t) => t.client_id === row.id),
-    [tasks, row.id],
-  );
-  const maxStaff = row.byStaff.length ? row.byStaff[0].minutes : 0;
-
-  return (
-    <div>
-      <div className="card" style={{ marginBottom: 20 }}>
-        <TP_BackBar
-          label="Back to team"
-          onBack={onBack}
-          title={row.name}
-          subtitle={[row.known ? `${planLabel(row.plan)} plan` : null, rangeLabel]
-            .filter(Boolean)
-            .join(" · ")}
-        />
-        <div className="tp-stats">
-          <TP_Stat label="Hours" value={TP_fmtHM(row.minutes)} />
-          <TP_Stat label="Billable hours" value={TP_fmtHM(row.billableMinutes)} />
-          <TP_Stat label={`Avg / mo (${avg.label})`} value={TP_fmtHM(row.avgMinutes)} />
-          <TP_Stat label="Open tasks" value={row.open} />
-          <TP_Stat label="Overdue" value={row.overdue} bad={row.overdue > 0} />
-        </div>
-      </div>
-
-      <div className="tp-detail-grid">
-        <div className="card">
-          <h3 className="card-title">Hours by staffer</h3>
-          {row.byStaff.length === 0 ? (
-            <p className="card-subtitle">No time logged in this period.</p>
-          ) : (
-            <div className="tp-staff-bars">
-              {row.byStaff.map((s) => (
-                <div key={s.email}>
-                  <div className="tp-staff-bar-head">
-                    <span>{staffName(s.email)}</span>
-                    <span className="tp-muted">{TP_fmtHM(s.minutes)}</span>
-                  </div>
-                  <div className="bar-track">
-                    <div
-                      className="bar-fill usage"
-                      style={{ width: maxStaff ? `${(s.minutes / maxStaff) * 100}%` : "0%" }}
-                    />
-                  </div>
+        {list.length === 0 ? (
+          <p className="card-subtitle">No in-app time in this period.</p>
+        ) : (
+          <div className="tp-staff-bars">
+            {list.map((g) => (
+              <div key={g.key}>
+                <div className="tp-staff-bar-head">
+                  <span className="tp-q-ellipsis">{nameOf(g.key)}</span>
+                  <span className="tp-muted">{TP_fmtHM(g.minutes)}</span>
                 </div>
-              ))}
-            </div>
-          )}
-        </div>
-        <div className="card">
-          <h3 className="card-title">Hours over the period</h3>
-          <TP_HoursBars entries={entries} range={range} />
-        </div>
+                <div className="bar-track">
+                  <div
+                    className="bar-fill usage"
+                    style={{ width: max ? `${(g.minutes / max) * 100}%` : "0%" }}
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
-
-      <div className="card" style={{ marginBottom: 20 }}>
-        <h3 className="card-title">Tasks</h3>
-        <TP_TaskGroups
-          tasks={clientTasks}
-          today={today}
-          range={range}
-          ownerName={staffName}
-          emptyText="No open tasks for this client, and nothing completed in this period."
-        />
-      </div>
-
       <div className="card">
-        <h3 className="card-title">Time entries</h3>
-        <p className="card-subtitle">
-          {entries.length} entr{entries.length === 1 ? "y" : "ies"} in the period
-        </p>
-        <TP_EntryTable entries={entries} staffName={staffName} />
+        <h3 className="card-title">In-app time over the period</h3>
+        <TP_HoursBars entries={entries} range={range} />
       </div>
     </div>
   );
@@ -721,13 +511,10 @@ function TP_TeamPage({ clients }) {
   const [customTo, setCustomTo] = useState("");
   const [raw, setRaw] = useState(null); // null = loading
   const [errors, setErrors] = useState([]);
-  const [view, setView] = useState(null); // { type: "person"|"client", key }
-  const [clientSort, setClientSort] = useState({ key: "hours", dir: "desc" });
-  const [showIdleClients, setShowIdleClients] = useState(false);
-  // QuickBooks Time (TeamQbo.jsx). Hours default to QuickBooks whenever it
-  // has data; "App" keeps the in-app time_entries view.
+  const [view, setView] = useState(null); // { type: "person"|"client"|"bucket"|"mapping", key }
+  // QuickBooks Time (TeamQbo.jsx) is the only hours source.
   const qbo = TP_useQboStatus();
-  const [source, setSource] = useState(null);
+  const qboOn = qbo.available;
   const [qboVersion, setQboVersion] = useState(0);
 
   const range = useMemo(
@@ -736,21 +523,16 @@ function TP_TeamPage({ clients }) {
   );
   const avg = useMemo(() => TP_avgRange(), []);
   const today = TP_ymd(new Date());
-  const src = qbo.available ? source || "qbo" : "app";
-  const qHours = TP_useQboHours(src === "qbo", range, avg, qboVersion);
+  const qHours = TP_useQboHours(qboOn, range, avg, qboVersion);
   const rangeLabel =
     range.from === range.to
       ? fmtDate(range.from)
       : `${fmtDate(range.from)} to ${fmtDate(range.to)}`;
 
-  // One fetch window covers both the period and the 3-month average.
-  const fetchFrom = range.from < avg.from ? range.from : avg.from;
-  const fetchTo = range.to > avg.to ? range.to : avg.to;
-
   const load = useCallback(async () => {
     if (!supabase) {
       setErrors(["Supabase isn't configured, so there's nothing to show here."]);
-      setRaw({ staff: [], entries: [], tasks: [], access: [], grants: [] });
+      setRaw({ staff: [], appTime: [], tasks: [], access: [], grants: [] });
       return;
     }
     setRaw(null);
@@ -761,13 +543,15 @@ function TP_TeamPage({ clients }) {
     const staffP = TP_fetchAll(() =>
       supabase.from("staff").select("email, name, role, active").order("email"),
     );
-    const entriesP = TP_fetchAll(() =>
+    const appP = TP_fetchAll(() =>
       supabase
-        .from("time_entries")
-        .select(TP_ENTRY_COLS)
-        .gte("entry_date", fetchFrom)
-        .lte("entry_date", fetchTo)
-        .order("id"),
+        .from("staff_app_time")
+        .select(TP_APP_COLS)
+        .gte("day", range.from)
+        .lte("day", range.to)
+        .order("day")
+        .order("staff_email")
+        .order("client_id"),
     );
     // Open tasks, plus anything completed since the period began.
     const taskQuery = (cols) => () =>
@@ -799,15 +583,20 @@ function TP_TeamPage({ clients }) {
         .order("id"),
     );
 
-    const [staffR, entriesR, tasksR, accessR, grantsR] = await Promise.all([
+    const [staffR, appR, tasksR, accessR, grantsR] = await Promise.all([
       staffP,
-      entriesP,
+      appP,
       tasksP,
       accessP,
       grantsP,
     ]);
     if (staffR.error) errs.push(TP_friendlyError("the staff list", staffR.error));
-    if (entriesR.error) errs.push(TP_friendlyError("time entries", entriesR.error));
+    if (appR.error) {
+      // A missing table (migration not applied) stays quiet; the column just shows "–".
+      if (TP_qErrorKind(appR.error, appR.error.status) === "missing") {
+        console.warn("Team page: staff_app_time isn't set up:", appR.error.message);
+      } else errs.push(TP_friendlyError("in-app time", appR.error));
+    }
     if (tasksR.error) errs.push(TP_friendlyError("tasks", tasksR.error));
     if (accessR.error) errs.push(TP_friendlyError("client assignments", accessR.error));
     // Temporary access is a bonus column; a missing grants table stays quiet.
@@ -825,12 +614,12 @@ function TP_TeamPage({ clients }) {
     );
     setRaw({
       staff: staffR.data || [],
-      entries: entriesR.data || [],
+      appTime: appR.data || [],
       tasks,
       access: accessR.data || [],
       grants: grantsR.data || [],
     });
-  }, [supabase, range.from, fetchFrom, fetchTo]);
+  }, [supabase, range.from, range.to]);
 
   useEffect(() => {
     load();
@@ -838,110 +627,39 @@ function TP_TeamPage({ clients }) {
 
   const data = useMemo(() => {
     if (!raw) return null;
-    return TP_aggregate({ ...raw, clients, range, avg, today });
-  }, [raw, clients, range, avg, today]);
+    return TP_aggregate({ ...raw, clients, range, today });
+  }, [raw, clients, range, today]);
 
-  const staffShortName = (email) => {
-    const s = data && data.staffByEmail[email];
-    const name = (s && s.name) || email.split("@")[0];
-    return name.split(" ")[0];
+  const staffName = (email) => {
+    const s = data && data.staffByEmail[TP_lower(email)];
+    return (s && s.name) || String(email || "").split("@")[0] || "Unknown";
   };
-
-  const clientRows = useMemo(() => {
-    if (!data) return [];
-    const rows = showIdleClients
-      ? data.clientRows
-      : data.clientRows.filter((r) => r.minutes || r.avgMinutes || r.open);
-    const dir = clientSort.dir === "asc" ? 1 : -1;
-    const val = {
-      hours: (r) => r.minutes,
-      avg: (r) => r.avgMinutes,
-      name: (r) => r.name.toLowerCase(),
-    }[clientSort.key];
-    return [...rows].sort((a, b) => {
-      const x = val(a);
-      const y = val(b);
-      if (x < y) return -1 * dir;
-      if (x > y) return 1 * dir;
-      return a.name.localeCompare(b.name);
-    });
-  }, [data, clientSort, showIdleClients]);
-
-  function toggleSort(key) {
-    setClientSort((s) =>
-      s.key === key
-        ? { key, dir: s.dir === "asc" ? "desc" : "asc" }
-        : { key, dir: key === "name" ? "asc" : "desc" },
-    );
-  }
-  const sortMark = (key) =>
-    clientSort.key === key ? (clientSort.dir === "asc" ? " ↑" : " ↓") : "";
+  const staffShortName = (email) => staffName(email).split(" ")[0];
+  const clientName = (id) =>
+    (data && data.clientById[id] && data.clientById[id].name) || "Unknown client";
 
   const fileSuffix = `${range.from}_to_${range.to}`;
   function exportPeople() {
     if (!data) return;
-    if (src === "qbo") {
-      TP_qExportPeople(`team_people_quickbooks_${fileSuffix}.csv`, data.people, qHours.byStaff);
-      return;
-    }
-    TP_downloadCsv(
-      `team_people_${fileSuffix}.csv`,
-      ["Name", "Email", "Role", "Hours", "Billable hours", "Billable %", "Open tasks", "Overdue tasks", "Completed in period", "Assigned clients", "Temporary clients"],
-      data.people.map((p) => [
-        p.name,
-        p.email,
-        TP_roleLabel(p.role),
-        (p.minutes / 60).toFixed(2),
-        (p.billableMinutes / 60).toFixed(2),
-        p.minutes ? Math.round((p.billableMinutes / p.minutes) * 100) : "",
-        p.open,
-        p.overdue,
-        p.completed,
-        p.assignedCount,
-        p.tempCount,
-      ]),
-    );
+    TP_qExportPeople(`team_people_${fileSuffix}.csv`, data.people, qHours.byStaff, qboOn);
   }
   function exportClients() {
     if (!data) return;
-    if (src === "qbo") {
-      TP_qExportClients(
-        `team_clients_quickbooks_${fileSuffix}.csv`,
-        { clientRows: data.clientRows, hours: qHours, range, today },
-        avg.label,
-      );
-      return;
-    }
-    TP_downloadCsv(
+    TP_qExportClients(
       `team_clients_${fileSuffix}.csv`,
-      ["Client", "Plan", "Hours", "Billable hours", `Avg hours / month (${avg.label})`, "Hours by staffer", "Open tasks", "Overdue tasks"],
-      clientRows.map((r) => [
-        r.name,
-        r.known ? planLabel(r.plan) : "",
-        (r.minutes / 60).toFixed(2),
-        (r.billableMinutes / 60).toFixed(2),
-        (r.avgMinutes / 60).toFixed(2),
-        r.byStaff.map((s) => `${staffShortName(s.email)} ${(s.minutes / 60).toFixed(2)}`).join("; "),
-        r.open,
-        r.overdue,
-      ]),
+      { clientRows: data.clientRows, hours: qHours, range, today },
+      avg.label,
+      qboOn,
+      staffShortName,
     );
   }
 
-  const person =
-    view && view.type === "person" && data && src === "app"
-      ? data.people.find((p) => p.email === view.key)
-      : null;
   const qPerson =
-    view && view.type === "person" && data && src === "qbo"
+    view && view.type === "person" && data
       ? TP_qPeopleRows(data.people, qHours.byStaff).rows.find((p) => p.email === view.key)
       : null;
-  const clientRow =
-    view && view.type === "client" && data && src === "app"
-      ? data.clientRows.find((r) => r.id === view.key)
-      : null;
   const qClientRow =
-    view && view.type === "client" && data && src === "qbo"
+    view && view.type === "client" && data
       ? TP_qClientRows({ clientRows: data.clientRows, hours: qHours, range, today }).rows.find(
           (r) => r.id === view.key,
         )
@@ -954,6 +672,8 @@ function TP_TeamPage({ clients }) {
     } catch (e) {}
   }, [view]);
 
+  const qTotal = qHours.byClient.reduce((n, r) => n + Number(r.total_minutes || 0), 0);
+  const appTotal = data ? data.appInPeriod.reduce((n, e) => n + e.minutes, 0) : 0;
   const periodCard = (
     <div className="card tp-toolbar-card" style={{ marginBottom: 20 }}>
       <div className="tp-toolbar">
@@ -976,24 +696,6 @@ function TP_TeamPage({ clients }) {
             </button>
           ))}
         </div>
-        {qbo.available && (
-          <div className="modal-tabs tp-q-source" style={{ marginTop: 0 }} role="group" aria-label="Hours source">
-            {[
-              ["qbo", "QuickBooks hours"],
-              ["app", "App hours"],
-            ].map(([k, l]) => (
-              <button
-                key={k}
-                type="button"
-                className={"modal-tab" + (src === k ? " active" : "")}
-                aria-pressed={src === k}
-                onClick={() => setSource(k)}
-              >
-                {l}
-              </button>
-            ))}
-          </div>
-        )}
         {!view && (
           <div className="tp-export">
             <button type="button" className="btn-secondary" onClick={exportPeople} disabled={!data}>
@@ -1019,15 +721,20 @@ function TP_TeamPage({ clients }) {
       )}
       <p className="card-subtitle" style={{ margin: "12px 0 0" }}>
         {rangeLabel}
-        {src === "qbo"
+        {qboOn
           ? qHours.loading
             ? " · Loading QuickBooks hours…"
-            : ` · ${TP_fmtHM(qHours.byClient.reduce((n, r) => n + Number(r.total_minutes || 0), 0))} in QuickBooks Time`
-          : data
-            ? ` · ${TP_fmtHM(data.inPeriod.reduce((n, e) => n + (e.minutes || 0), 0))} logged in the app`
-            : " · Loading…"}
+            : ` · ${TP_fmtHM(qTotal)} in QuickBooks Time`
+          : ""}
+        {data ? (
+          <span title={typeof TP_APP_TIP === "string" ? TP_APP_TIP : undefined}>
+            {` · ${TP_fmtHM(appTotal)} active in the app (automatic, not billed)`}
+          </span>
+        ) : (
+          " · Loading…"
+        )}
       </p>
-      {src === "qbo" && qHours.error && (
+      {qboOn && qHours.error && (
         <div className="mock-banner" style={{ marginTop: 16, marginBottom: 0 }}>
           <WarningIcon />
           <span>{qHours.error}</span>
@@ -1059,7 +766,7 @@ function TP_TeamPage({ clients }) {
       />
     );
   }
-  if (view && view.type === "bucket" && src === "qbo") {
+  if (view && view.type === "bucket" && qboOn) {
     const b = view.bucket;
     const isPerson = b.bucket === "no_person" || !!b.q.qbo_person_id;
     return (
@@ -1089,6 +796,7 @@ function TP_TeamPage({ clients }) {
   if (qPerson) {
     const q = qPerson.q;
     const mins = Number((q && q.total_minutes) || 0);
+    const appEntries = data.appInPeriod.filter((e) => e.staff_email === qPerson.email);
     return (
       <div className="tp-page">
         {periodCard}
@@ -1098,8 +806,14 @@ function TP_TeamPage({ clients }) {
             .filter(Boolean)
             .join(" · ")}
           stats={[
-            { label: "Billable", value: mins ? `${Math.round((Number(q.billable_minutes || 0) / mins) * 100)}%` : "–" },
-            { label: "Clients", value: q ? Number(q.client_count || 0) : 0 },
+            ...(qboOn
+              ? [
+                  { label: "QB hours", value: TP_fmtHM(mins) },
+                  { label: "Billable", value: mins ? `${Math.round((Number(q.billable_minutes || 0) / mins) * 100)}%` : "–" },
+                ]
+              : []),
+            { label: "In app", value: TP_fmtHM(qPerson.appMinutes || 0) },
+            { label: "Clients", value: qPerson.assignedCount + (qPerson.tempCount ? ` +${qPerson.tempCount}` : "") },
             { label: "Open tasks", value: qPerson.open },
             { label: "Overdue", value: qPerson.overdue, bad: qPerson.overdue > 0 },
             { label: "Completed", value: qPerson.completed },
@@ -1108,6 +822,16 @@ function TP_TeamPage({ clients }) {
           groupBy="customer"
           range={range}
           onBack={backToTeam}
+          showQbo={qboOn}
+          beforeQbo={
+            <TP_AppTimeCard
+              entries={appEntries}
+              groupBy="client"
+              nameOf={clientName}
+              range={range}
+              who={qPerson.name}
+            />
+          }
         >
           <div className="card" style={{ marginBottom: 20 }}>
             <h3 className="card-title">Tasks</h3>
@@ -1116,7 +840,7 @@ function TP_TeamPage({ clients }) {
               tasks={(raw.tasks || []).filter((t) => TP_taskOwner(t) === qPerson.email)}
               today={today}
               range={range}
-              clientName={(id) => (data.clientById[id] && data.clientById[id].name) || "Unknown client"}
+              clientName={clientName}
               emptyText="No open tasks, and nothing completed in this period."
             />
           </div>
@@ -1126,10 +850,7 @@ function TP_TeamPage({ clients }) {
   }
   if (qClientRow) {
     const r = qClientRow;
-    const staffName = (email) => {
-      const s = data.staffByEmail[TP_lower(email)];
-      return (s && s.name) || String(email || "").split("@")[0] || "Unknown";
-    };
+    const appEntries = data.appInPeriod.filter((e) => e.client_id === r.id);
     return (
       <div className="tp-page">
         {periodCard}
@@ -1137,9 +858,15 @@ function TP_TeamPage({ clients }) {
           title={r.name}
           subtitle={[r.known ? `${planLabel(r.plan)} plan` : null, rangeLabel].filter(Boolean).join(" · ")}
           stats={[
-            { label: `Avg / mo (${avg.label})`, value: TP_fmtHM(r.qAvgMinutes) },
+            ...(qboOn
+              ? [
+                  { label: "QB hours", value: TP_fmtHM(r.qMinutes) },
+                  { label: `Avg / mo (${avg.label})`, value: TP_fmtHM(r.qAvgMinutes) },
+                ]
+              : []),
+            { label: "In app", value: TP_fmtHM(r.appMinutes || 0) },
             { label: "Fee / mo", value: r.fee != null ? fmtMoney(r.fee) : "–" },
-            { label: "Effective rate", value: r.rate != null ? `${fmtMoney(r.rate)}/h` : "–" },
+            ...(qboOn ? [{ label: "Effective rate", value: r.rate != null ? `${fmtMoney(r.rate)}/h` : "–" }] : []),
             { label: "Open tasks", value: r.open },
             { label: "Overdue", value: r.overdue, bad: r.overdue > 0 },
           ]}
@@ -1154,6 +881,10 @@ function TP_TeamPage({ clients }) {
           groupBy="person"
           range={range}
           onBack={backToTeam}
+          showQbo={qboOn}
+          beforeQbo={
+            <TP_AppTimeCard entries={appEntries} groupBy="staff" nameOf={staffName} range={range} />
+          }
         >
           <div className="card" style={{ marginBottom: 20 }}>
             <h3 className="card-title">Tasks</h3>
@@ -1170,257 +901,30 @@ function TP_TeamPage({ clients }) {
     );
   }
 
-  if (person) {
-    return (
-      <div className="tp-page">
-        {periodCard}
-        <TP_PersonDetail
-          person={person}
-          data={data}
-          tasks={raw.tasks}
-          range={range}
-          avg={avg}
-          today={today}
-          rangeLabel={rangeLabel}
-          onBack={() => setView(null)}
-        />
-      </div>
-    );
-  }
-  if (clientRow) {
-    return (
-      <div className="tp-page">
-        {periodCard}
-        <TP_ClientDetail
-          row={clientRow}
-          data={data}
-          tasks={raw.tasks}
-          range={range}
-          avg={avg}
-          today={today}
-          rangeLabel={rangeLabel}
-          onBack={() => setView(null)}
-        />
-      </div>
-    );
-  }
-
-  const openRow = (type, key) => () => setView({ type, key });
-  const rowKeys = (type, key) => (e) => {
-    if (e.key === "Enter" || e.key === " ") {
-      e.preventDefault();
-      setView({ type, key });
-    }
-  };
-
   const openMapping = () => setView({ type: "mapping" });
-  const qboPanel = (
-    <TP_QboPanel qbo={qbo} onOpenMapping={openMapping} onSynced={refreshQbo} />
-  );
-  if (src === "qbo") {
-    return (
-      <div className="tp-page">
-        {qboPanel}
-        {periodCard}
-        <TP_QboPeopleTable
-          people={data ? data.people : []}
-          hours={qHours}
-          onOpenPerson={(email) => setView({ type: "person", key: email })}
-          onOpenBucket={(b) => setView({ type: "bucket", key: b.key, bucket: b })}
-          onOpenMapping={openMapping}
-        />
-        <TP_QboClientsTable
-          clientRows={data ? data.clientRows : []}
-          hours={qHours}
-          range={range}
-          today={today}
-          avg={avg}
-          onOpenClient={(id) => setView({ type: "client", key: id })}
-          onOpenBucket={(b) => setView({ type: "bucket", key: b.key, bucket: b })}
-          onOpenMapping={openMapping}
-        />
-      </div>
-    );
-  }
-
   return (
     <div className="tp-page">
-      {qboPanel}
+      <TP_QboPanel qbo={qbo} onOpenMapping={openMapping} onSynced={refreshQbo} />
       {periodCard}
-
-      <div className="card" style={{ marginBottom: 20 }}>
-        <h3 className="card-title">People</h3>
-        <p className="card-subtitle">
-          Hours logged in the app for the period. Open and overdue are as of today; completed is within the period. Select a person for details.
-        </p>
-        <div className="table-scroll">
-          <table className="tx-table tx-table-labeled tp-table">
-            <thead>
-              <tr>
-                <th>Name</th>
-                <th className="num">Hours</th>
-                <th className="num">Billable</th>
-                <th className="num">Open</th>
-                <th className="num">Overdue</th>
-                <th className="num">Completed</th>
-                <th className="num">Clients</th>
-              </tr>
-            </thead>
-            <tbody>
-              {!data ? (
-                <EmptyRow colSpan={7}>Loading…</EmptyRow>
-              ) : data.people.length === 0 ? (
-                <EmptyRow colSpan={7}>
-                  No staff to show. The roster only loads for a signed-in admin.
-                </EmptyRow>
-              ) : (
-                data.people.map((p) => (
-                  <tr
-                    key={p.email}
-                    className="tp-row"
-                    tabIndex={0}
-                    role="button"
-                    aria-label={`Open ${p.name}`}
-                    onClick={openRow("person", p.email)}
-                    onKeyDown={rowKeys("person", p.email)}
-                  >
-                    <td data-primary="">
-                      <span className="tp-name">{p.name}</span>
-                      {p.role && <span className="tp-muted tp-role">{TP_roleLabel(p.role)}</span>}
-                    </td>
-                    <td className="num" data-label="Hours">{TP_fmtHM(p.minutes)}</td>
-                    <td className="num" data-label="Billable">
-                      {p.minutes ? `${Math.round((p.billableMinutes / p.minutes) * 100)}%` : "–"}
-                    </td>
-                    <td className="num" data-label="Open">{p.open}</td>
-                    <td className={"num" + (p.overdue ? " tp-bad" : "")} data-label="Overdue">
-                      {p.overdue}
-                    </td>
-                    <td className="num" data-label="Completed">{p.completed}</td>
-                    <td className="num" data-label="Clients">
-                      {p.assignedCount}
-                      {p.tempCount > 0 && (
-                        <span className="tp-muted tp-temp"> +{p.tempCount} temporary</span>
-                      )}
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      <div className="card">
-        <div className="tp-card-head">
-          <div>
-            <h3 className="card-title" style={{ marginBottom: 2 }}>Clients</h3>
-            <p className="card-subtitle" style={{ margin: 0 }}>
-              App-logged hours next to the monthly average for {avg.label}. Select a client for details.
-            </p>
-          </div>
-          <label className="tp-check">
-            <input
-              type="checkbox"
-              checked={showIdleClients}
-              onChange={(e) => setShowIdleClients(e.target.checked)}
-            />
-            Show clients with no activity
-          </label>
-        </div>
-        <div className="tp-sort-mobile">
-          <span className="tp-muted">Sort by</span>
-          {[
-            ["hours", "Hours"],
-            ["avg", "Avg / mo"],
-            ["name", "Name"],
-          ].map(([k, l]) => (
-            <button
-              key={k}
-              type="button"
-              className={"task-chip tp-sort-chip" + (clientSort.key === k ? " active" : "")}
-              onClick={() => toggleSort(k)}
-            >
-              {l}
-              {sortMark(k)}
-            </button>
-          ))}
-        </div>
-        <div className="table-scroll">
-          <table className="tx-table tx-table-labeled tp-table">
-            <thead>
-              <tr>
-                <th>
-                  <button type="button" className="tp-sort" onClick={() => toggleSort("name")}>
-                    Client{sortMark("name")}
-                  </button>
-                </th>
-                <th>Plan</th>
-                <th className="num">
-                  <button type="button" className="tp-sort" onClick={() => toggleSort("hours")}>
-                    Hours{sortMark("hours")}
-                  </button>
-                </th>
-                <th className="num">
-                  <button type="button" className="tp-sort" onClick={() => toggleSort("avg")}>
-                    Avg / mo{sortMark("avg")}
-                  </button>
-                </th>
-                <th className="num">Billable</th>
-                <th>By staffer</th>
-                <th className="num">Open</th>
-                <th className="num">Overdue</th>
-              </tr>
-            </thead>
-            <tbody>
-              {!data ? (
-                <EmptyRow colSpan={8}>Loading…</EmptyRow>
-              ) : clientRows.length === 0 ? (
-                <EmptyRow colSpan={8}>
-                  {showIdleClients ? "No clients to show." : "No client activity in this period."}
-                </EmptyRow>
-              ) : (
-                clientRows.map((r) => (
-                  <tr
-                    key={r.id}
-                    className="tp-row"
-                    tabIndex={0}
-                    role="button"
-                    aria-label={`Open ${r.name}`}
-                    onClick={openRow("client", r.id)}
-                    onKeyDown={rowKeys("client", r.id)}
-                  >
-                    <td data-primary="">
-                      <span className="tp-name">{r.name}</span>
-                    </td>
-                    <td data-label="Plan">{r.known ? planLabel(r.plan) : "–"}</td>
-                    <td className="num" data-label="Hours">{TP_fmtHM(r.minutes)}</td>
-                    <td className="num" data-label={`Avg / mo (${avg.label})`}>
-                      {TP_fmtHM(r.avgMinutes)}
-                    </td>
-                    <td className="num" data-label="Billable">{TP_fmtHM(r.billableMinutes)}</td>
-                    <td data-label="By staffer" className="tp-split">
-                      {r.byStaff.length === 0 ? (
-                        <span className="tp-muted">–</span>
-                      ) : (
-                        r.byStaff.map((s) => (
-                          <span key={s.email} className="tp-split-item">
-                            {staffShortName(s.email)} <b>{TP_fmtHM(s.minutes)}</b>
-                          </span>
-                        ))
-                      )}
-                    </td>
-                    <td className="num" data-label="Open">{r.open}</td>
-                    <td className={"num" + (r.overdue ? " tp-bad" : "")} data-label="Overdue">
-                      {r.overdue}
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
+      <TP_QboPeopleTable
+        people={data ? data.people : null}
+        hours={qHours}
+        qboOn={qboOn}
+        onOpenPerson={(email) => setView({ type: "person", key: email })}
+        onOpenBucket={(b) => setView({ type: "bucket", key: b.key, bucket: b })}
+        onOpenMapping={openMapping}
+      />
+      <TP_QboClientsTable
+        clientRows={data ? data.clientRows : null}
+        hours={qHours}
+        qboOn={qboOn}
+        range={range}
+        today={today}
+        avg={avg}
+        onOpenClient={(id) => setView({ type: "client", key: id })}
+        onOpenBucket={(b) => setView({ type: "bucket", key: b.key, bucket: b })}
+        onOpenMapping={openMapping}
+      />
     </div>
   );
 }

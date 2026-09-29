@@ -230,7 +230,8 @@ because some work happens in Claude Code web sessions. Run `git fetch` and compa
   - **Client overview** (page `client-overview`, staff only): staff land here when they open a
     client. It shows:
     - the monthly bill (milestone + plan + logins + payroll)
-    - profitability (bill ÷ hours in My Time, against a target rate)
+    - profitability (bill ÷ QuickBooks Time hours this month, admins only, against a target
+      rate), plus automatic in-app time on the client
     - QuickBooks health: last sync, uncategorized / Ask My Accountant balances, possible
       duplicate bills. Reconciliation data isn't synced, so it isn't shown.
     - engagement: client page views in the last 30 days, and threads waiting on a reply (still
@@ -241,7 +242,7 @@ because some work happens in Claude Code web sessions. Run `git fetch` and compa
     - the month-end close checklist (`client_close_items`)
     - document requests
     - an activity timeline with "Log a call", saved as a `client_private_notes` call note
-  - **Quick-action bar** on every client page: Overview, Log time, Add task, Request document,
+  - **Quick-action bar** on every client page: Overview, Add task, Request document,
     Add note, Message (opens the chat drawer on this client).
   - **Open requests are hard to miss:** a "Your bookkeeper needs N documents · Upload now" banner
     shows on every client page (for the client, and for staff previewing as them), and Documents
@@ -260,7 +261,7 @@ because some work happens in Claude Code web sessions. Run `git fetch` and compa
 
 - **Staff sidebar** (`StaffRail`, desktop and mouse windows): a **Go to client** picker (opens that
   client's dashboard; a search icon when collapsed expands the sidebar), Home, Client view, Inbox, My
-  Tasks, My Time, and for admins Team, Staff Access, Client Roster, Developer Tools and Usage Stats,
+  Tasks, and for admins Team, Staff Access, Client Roster, Developer Tools and Usage Stats,
   plus theme and sign out. On staff pages it replaces the client sidebar and collapses to icons with
   the usual Collapse toggle. On a client's pages it's a 64px icon strip beside the client sidebar.
   It's hidden while you preview as one of the client's people, so the preview shows only what
@@ -309,14 +310,21 @@ because some work happens in Claude Code web sessions. Run `git fetch` and compa
   staff. Esc or a click outside closes it. Hidden on the Inbox page itself and while previewing or
   impersonating.
 - A staffer on a client's **Messages** tab gets the same inbox limited to that client's people.
-- **My Time**: log time per client, totals, recent entries, firm-wide utilization (admins).
+- **Time tracking**: QuickBooks Time (Workforce) is the only source of staff hours. The manual
+  "My Time" page was removed 2026-09-29 (`time_entries` is kept, unused). The app separately
+  records **automatic in-app time** per staffer per client (`components/staff/AppTimeTracker.js`,
+  `supabase/app-time-tracking.sql`): it counts only while a real staffer (not a portal client,
+  not "View as") has a client page open, the tab is visible and there was input in the last 2
+  minutes; it flushes every 60 s and on tab hide through `record_app_time`, which caps each call
+  at 120 s and wall-clock time, 12 h per client per day and 16 h per day. Not billed time.
 - **Client details** (sidebar): Documents (Drive links), QuickBooks (connect / sync /
   disconnect), Notes, SOP, Milestone, Activity.
 - **Manage access** (sidebar): People, Organization tabs, Requests.
 - **Admin pages**:
-  - **Team** (`components/staff/TeamPage.jsx`): hours and tasks by person and by client for a
-    period (open, overdue, completed; hours by client with a 3-month average for pricing), with
-    person and client drill-downs and CSV export. Private tasks show once
+  - **Team** (`components/staff/TeamPage.jsx`): QuickBooks Time hours and tasks by person and by
+    client for a period (open, overdue, completed; hours by client with a 3-month average for
+    pricing), an "In app" column (automatic in-app time, not billed), person and client
+    drill-downs and CSV export. Still shows in-app time when QuickBooks isn't connected. Private tasks show once
     `supabase/admin-read-all-tasks.sql` is applied.
   - **Staff Access**: staff roster, add, bulk import, client assignments, temporary admin grants.
   - **Client Roster**: client organizations (add/edit), client contacts, invite, scoping, bulk
