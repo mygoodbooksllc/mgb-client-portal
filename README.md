@@ -444,8 +444,8 @@ because some work happens in Claude Code web sessions. Run `git fetch` and compa
   Supabase MCP or CLI.
   - Secrets (`QBO_CLIENT_SECRET`, `QBO_TOKEN_ENCRYPTION_KEY`, the service role key, and so on)
     are set only in Supabase.
-  - `qbo-sync`, `qbo-callback` and `qbo-refresh-token` run with `verify_jwt` off and check the
-    caller themselves.
+  - `qbo-sync`, `qbo-callback`, `qbo-refresh-token` and `qbo-firm-sync` run with `verify_jwt`
+    off and check the caller themselves.
   - `invite-client-user` runs with `verify_jwt` on.
 - **A policy mistake to avoid.** An existence subquery inside an RLS policy is itself filtered
   by that table's RLS, so it can quietly let the wrong people through. Put existence checks in
@@ -527,6 +527,14 @@ because some work happens in Claude Code web sessions. Run `git fetch` and compa
 - The every-minute cron syncs every connected company in turn, a few seconds each. Past roughly
   15 companies a sweep takes longer than a minute. Before then, switch to QuickBooks webhooks
   (sync a company when it changes) instead of polling faster.
+
+**QuickBooks Time hours (backend written, NOT applied)**
+
+- `supabase/qbo-firm-time.sql` + `functions/qbo-firm-sync` + a small firm branch in
+  `qbo-callback`: connect the firm's own QuickBooks company, pull `TimeActivity` hourly, map
+  QBO customers to clients and employees to staff, and report hours with
+  `qbo_hours_by_client` / `qbo_hours_by_staff`. Design notes are in the SQL header. Needs the
+  migration applied, both functions deployed, and a Team-page UI.
 
 **Code health (Phase 4)**
 

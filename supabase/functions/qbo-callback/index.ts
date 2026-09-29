@@ -42,6 +42,48 @@ function redirect(status: string) {
   });
 }
 
+// Firm connect: same token exchange, but the tokens go to qbo_firm_tokens
+// (qbo_firm_store_tokens, same pgcrypto encryption and key) and the status to
+// the singleton qbo_firm_connection. Nothing here touches qbo_connections.
+async function connectFirm(supabase: any, code: string, realmId: string, createdBy: string | null) {
+  const redirectUri = `${Deno.env.get("SUPABASE_URL")}/functions/v1/qbo-callback`;
+  const tokenRes = await fetch(TOKEN_URL, {
+    method: "POST",
+    headers: {
+      Authorization: `Basic ${btoa(`${QBO_CLIENT_ID}:${QBO_CLIENT_SECRET}`)}`,
+      "Content-Type": "application/x-www-form-urlencoded",
+      Accept: "application/json",
+    },
+    body: new URLSearchParams({ grant_type: "authorization_code", code, redirect_uri: redirectUri }),
+  });
+  const intuitTid = tokenRes.headers.get("intuit_tid");
+  if (!tokenRes.ok) {
+    await supabase.from("qbo_firm_connection").upsert({
+      id: true,
+      status: "error",
+      last_error: `token exchange failed (${tokenRes.status})${intuitTid ? ` — intuit_tid: ${intuitTid}` : ""}`,
+      updated_at: new Date().toISOString(),
+    });
+    return redirect("error");
+  }
+  console.log(`qbo-callback: firm token exchange succeeded${intuitTid ? ` (intuit_tid: ${intuitTid})` : ""}`);
+  const tokens = await tokenRes.json();
+  const { error: storeErr } = await supabase.rpc("qbo_firm_store_tokens", {
+    p_access_token: tokens.access_token,
+    p_refresh_token: tokens.refresh_token,
+    p_expires_at: new Date(Date.now() + tokens.expires_in * 1000).toISOString(),
+    p_key: QBO_TOKEN_ENCRYPTION_KEY,
+  });
+  if (storeErr) return redirect("error");
+  const { error: markErr } = await supabase.rpc("qbo_firm_mark_connected", {
+    p_realm_id: realmId,
+    p_api_env: QBO_ENV === "production" ? "production" : "sandbox",
+    p_connected_by: createdBy,
+  });
+  if (markErr) return redirect("error");
+  return redirect("connected");
+}
+
 Deno.serve(async (req) => {
   const url = new URL(req.url);
   const code = url.searchParams.get("code");
@@ -70,7 +112,24 @@ Deno.serve(async (req) => {
     .select("client_id, created_by")
     .maybeSingle();
 
-  if (!stateRow) return redirect("invalid");
+  if (!stateRow) {
+    // Not a client connect. It may be a FIRM connect (MyGoodBooks' own
+    // company, for QuickBooks Time hours): those tokens are minted only by the
+    // admin-only qbo_firm_connect_start() RPC into qbo_firm_connect_state
+    // (supabase/qbo-firm-time.sql) and consumed with the same atomic
+    // single-use UPDATE. If that table doesn't exist yet this just errors
+    // into "invalid", exactly as before.
+    const { data: firmState } = await supabase
+      .from("qbo_firm_connect_state")
+      .update({ used: true })
+      .eq("token", stateToken)
+      .eq("used", false)
+      .gt("created_at", new Date(Date.now() - STATE_MAX_AGE_MS).toISOString())
+      .select("created_by")
+      .maybeSingle();
+    if (!firmState) return redirect("invalid");
+    return await connectFirm(supabase, code, realmId, firmState.created_by ?? null);
+  }
   const clientId = stateRow.client_id;
 
   const { data: existing } = await supabase.from("qbo_connections").select("client_id").eq("client_id", clientId).maybeSingle();
