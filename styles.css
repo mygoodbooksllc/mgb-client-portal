@@ -2814,6 +2814,13 @@ body.rb-presenting .main {
      (1700) and modals (2000). */
   z-index: 800;
 }
+/* A modal rendered inside page content (e.g. the offboarding wizard in a
+   Staff Access row) sits in a lower stacking context than the header, so its
+   z-index can't lift it over this button. Hide the search while any
+   modal, dialog or drawer scrim is open. */
+body:has(.modal-overlay, [aria-modal="true"], .si-drawer-scrim) .global-search {
+  visibility: hidden;
+}
 
 .global-search-toggle {
   display: inline-flex;
