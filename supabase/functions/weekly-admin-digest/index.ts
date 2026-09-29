@@ -416,7 +416,7 @@ function render(d: any) {
   </td></tr>
   ${sectionHtml}
   <tr><td style="padding:8px 4px 0 4px;">
-    <p style="${FONT}font-size:11px;color:${C.muted};margin:0;line-height:1.5;">Sent to MyGoodBooks admins. Test clients are excluded. Change recipients or turn this off on the Team page (Weekly digest card) at <a href="${APP_URL}/#/team" style="color:${C.muted};">${APP_URL.replace("https://", "")}</a>.</p>
+    <p style="${FONT}font-size:11px;color:${C.muted};margin:0;line-height:1.5;">Sent to MyGoodBooks admins. Test clients are excluded. Change recipients or turn this off on the Emails page at <a href="${APP_URL}/#/emails" style="color:${C.muted};">${APP_URL.replace("https://", "")}/#/emails</a>.</p>
   </td></tr>
 </table>
 <!--[if mso]></td></tr></table><![endif]-->
@@ -429,7 +429,7 @@ function render(d: any) {
     ...head.map((b) => `* ${b}`),
     "",
     ...sections.flatMap((s) => [s.title.toUpperCase(), s.text, `  ${s.link.label}: ${s.link.href}`, ""]),
-    "Test clients are excluded. Change recipients on the Team page (Weekly digest card).",
+    `Test clients are excluded. Change recipients or turn this off on the Emails page: ${APP_URL}/#/emails`,
   ].join("\n");
 
   return { subject, html, text, headline: head };

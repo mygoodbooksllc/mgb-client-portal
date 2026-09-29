@@ -923,8 +923,21 @@ function TP_TeamPage({ clients }) {
   return (
     <div className="tp-page">
       <TP_QboPanel qbo={qbo} onOpenMapping={openMapping} onSynced={refreshQbo} />
-      {isAdmin && typeof DG_DigestSettings === "function" && <DG_DigestSettings />}
-      {isAdmin && typeof CE_ClientEmailSettings === "function" && <CE_ClientEmailSettings />}
+      {isAdmin && (
+        <p className="em-moved">
+          Weekly digest and client email settings moved →{" "}
+          <a
+            href="#/emails"
+            className="link-btn"
+            onClick={(e) => {
+              e.preventDefault();
+              window.location.hash = "#/emails";
+            }}
+          >
+            Emails
+          </a>
+        </p>
+      )}
       {periodCard}
       {isAdmin && (
         <TP_CapacityCard

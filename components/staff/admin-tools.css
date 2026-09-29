@@ -404,3 +404,118 @@
 .hl-refresh {
   font-size: inherit;
 }
+
+/* ---- Emails page (EmailsPage.jsx, .em-*) ---- */
+.em-page > .card {
+  margin-bottom: 20px;
+}
+.em-banner {
+  border-left: 4px solid var(--border);
+}
+.em-banner-ok {
+  border-left-color: var(--good);
+}
+.em-banner-warn {
+  border-left-color: var(--gold);
+}
+.em-banner-bad {
+  border-left-color: var(--bad);
+}
+.em-banner-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 10px 12px;
+}
+.em-banner-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  margin-top: 6px;
+  flex-shrink: 0;
+  background: var(--text-muted);
+}
+.em-banner-ok .em-banner-dot {
+  background: var(--good);
+}
+.em-banner-warn .em-banner-dot {
+  background: var(--gold);
+}
+.em-banner-bad .em-banner-dot {
+  background: var(--bad);
+}
+.em-banner-line {
+  margin: 4px 0 0;
+  font-size: 13px;
+  color: var(--text-muted);
+  word-break: break-word;
+}
+.em-banner-line b {
+  color: var(--text);
+}
+.em-banner-detail {
+  display: block;
+  margin-top: 2px;
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 12px;
+}
+.em-banner-btn {
+  padding: 7px 14px;
+  flex-shrink: 0;
+}
+.em-banner-steps {
+  margin: 12px 0 0;
+  padding-left: 22px;
+  font-size: 13.5px;
+  line-height: 1.55;
+}
+.em-banner-steps code {
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 12.5px;
+  background: var(--surface-2);
+  padding: 1px 5px;
+  border-radius: 4px;
+}
+.em-banner-steps a {
+  color: var(--gold-deep);
+  font-weight: 600;
+}
+.em-status {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+  background: var(--surface-2);
+  color: var(--text);
+}
+.em-status-sent {
+  background: var(--good-soft);
+}
+.em-status-error,
+.em-status-not_configured {
+  background: var(--bad-soft);
+  color: var(--bad);
+}
+.em-log-who {
+  font-size: 13px;
+  word-break: break-word;
+}
+.em-log-err {
+  color: var(--bad);
+  font-size: 13px;
+}
+.em-moved {
+  margin: 0 0 16px;
+  font-size: 13.5px;
+  color: var(--text-muted);
+}
+.em-moved .link-btn {
+  font-size: 13.5px;
+}
+@media (max-width: 760px) {
+  .em-banner-btn {
+    width: 100%;
+  }
+}

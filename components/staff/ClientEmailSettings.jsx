@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------------
-// Team page: Client emails (owner request 2026-09-29). Admin-only card that
+// Emails page (#/emails): Client emails (owner request 2026-09-29). Admin-only card that
 // controls every client-facing email sent by supabase/functions/client-emails
 // (schema + rules in supabase/client-emails.sql):
 //   - master switch, missing-documents chaser switch, monthly value report
@@ -65,7 +65,7 @@ function CE_Toggle({ checked, disabled, onChange, label, hint }) {
   );
 }
 
-function CE_ClientEmailSettings() {
+function CE_ClientEmailSettings({ onSent } = {}) {
   const toast = typeof useToast === "function" ? useToast() : (m) => window.alert(m);
   const [st, setSt] = React.useState({ loading: true, settings: null, clients: [], prefs: {}, unsubs: [], log: [], error: null });
   const [replyTo, setReplyTo] = React.useState("");
@@ -174,6 +174,7 @@ function CE_ClientEmailSettings() {
     else if (s === "not_configured") toast("Email isn't configured yet. The owner needs to add the RESEND_API_KEY secret in Supabase.");
     else toast("Send failed: " + ((data && data.error) || "unknown error"));
     load();
+    if (typeof onSent === "function") onSent();
   }
 
   if (st.loading || st.error || !st.settings) return null;

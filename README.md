@@ -334,7 +334,8 @@ because some work happens in Claude Code web sessions. Run `git fetch` and compa
 
 ### Admin features added 2026-09-29
 
-- **Team page** (`#/team`): one place for staff, workload, capacity and the weekly digest card.
+- **Team page** (`#/team`): one place for staff, workload and capacity. Email settings moved to
+  the Emails page; the Team page links there.
 - **QuickBooks Time**: firm connection and hours by person and client, which feed
   **profitability** (fee vs. cost at each person's rate) and **capacity** (weekly hours vs. target).
 - **Close tracker** (`#/close-tracker`): month-end close status per client. The "Mine" filter
@@ -345,12 +346,20 @@ because some work happens in Claude Code web sessions. Run `git fetch` and compa
   (`offboard_staff` hands a leaver's clients to a replacement, including the assigned bookkeeper).
 - **Weekly admin digest** (edge function `weekly-admin-digest`) and **client emails**, both sent
   through Resend (`supabase/functions/_shared/email.ts`).
+- **Emails page** (`#/emails`, admins only; `components/staff/EmailsPage.jsx`): a setup banner,
+  the Weekly digest card, the Client emails card (switches, per-client opt-outs, unsubscribed
+  list) and a send log that merges `digest_runs` and `client_email_log`, filterable by type and
+  status. The banner reads the newest real send attempt from those logs: sent means working,
+  `not_configured` means the `RESEND_API_KEY` secret is missing, and a Resend "domain is not
+  verified" error means the key works but the domain isn't verified. "Check the key" asks
+  `weekly-admin-digest?preview=1&format=json` whether the key is set. It sends nothing but
+  logs a preview run. The digest email footer links to `#/emails`.
 - **Assigned bookkeeper**: the Client Roster now picks a real staff member.
   `clients.assigned_bookkeeper_email` references `staff(email)`; the old display JSON is kept in
   step by a trigger. Setting it gives that person client access, and removing their access clears
   it (`supabase/assigned-bookkeeper-email.sql`). Clients whose old name matched no staff member
   show "Not linked to a staff member" until an admin picks someone.
-- **Deep links**: pages have hash URLs such as `#/team`, `#/tasks`, `#/home`,
+- **Deep links**: pages have hash URLs such as `#/team`, `#/emails`, `#/tasks`, `#/home`,
   `#/client/<id>/overview` or `#/client/<id>/<tab>`. A link survives Google sign-in, and staff
   who can't see a page or client are sent to their dashboard instead.
 
@@ -358,6 +367,7 @@ Owner setup:
 
 1. In Supabase > Edge Functions > Secrets, add `RESEND_API_KEY` (and optionally `DIGEST_FROM`),
    and verify the sending domain in Resend. Until then, emails are logged as "not configured".
+   The Emails page banner shows which step is still missing.
 2. Connect the firm's QuickBooks (Time) from the Team page, then map QuickBooks people and
    customers to staff and clients.
 3. Set each staff member's cost rate (and weekly capacity) on the Team page so profitability,

@@ -73,7 +73,7 @@ function DC_DocChaserCard({ client }) {
   }
 
   const status = optedOut
-    ? optedOut + " An admin can change that on the Team page."
+    ? optedOut + " An admin can change that on the Emails page."
     : paused
       ? "Paused. No automatic reminders go out until you resume."
       : testOnly

@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------------
-// Team page: Weekly admin digest settings (owner request 2026-09-29).
+// Emails page (#/emails): Weekly admin digest settings (owner request 2026-09-29).
 // The email itself is built and sent by supabase/functions/weekly-admin-digest
 // every Monday 7:00 America/New_York (pg_cron -> digest_cron_tick(); schema in
 // supabase/weekly-digest.sql). This card lets an admin:
@@ -49,7 +49,7 @@ function DG_when(ts) {
   return new Date(ts).toLocaleString();
 }
 
-function DG_DigestSettings() {
+function DG_DigestSettings({ onSent } = {}) {
   const toast = typeof useToast === "function" ? useToast() : (m) => window.alert(m);
   const [state, setState] = React.useState({ loading: true, settings: null, runs: [], missing: false, error: null });
   const [recipientsText, setRecipientsText] = React.useState("");
@@ -169,11 +169,12 @@ function DG_DigestSettings() {
     else if (st === "not_configured") toast("Email isn't configured yet. The owner needs to add the RESEND_API_KEY secret in Supabase.");
     else toast("Send failed: " + ((data && data.error) || "unknown error"));
     load();
+    if (typeof onSent === "function") onSent();
   }
 
   if (state.loading) return null;
   if (state.error && !state.missing) {
-    // Non-admins can't read digest_settings; keep the Team page clean for them.
+    // Non-admins can't read digest_settings; render nothing for them.
     return null;
   }
 

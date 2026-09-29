@@ -537,6 +537,7 @@ const NON_CLIENT_PAGES = new Set([
   "close-tracker",
   "task-templates",
   "audit-log",
+  "emails",
 ]);
 
 // Tabs that are part of a paid add-on rather than the base product. Always
@@ -1329,6 +1330,24 @@ function Sidebar({
                         Audit log
                       </button>
                       )}
+                      {staffUser.role === "admin" && typeof EM_MailIcon === "function" && (
+                      <button
+                        type="button"
+                        role="menuitem"
+                        className={
+                          "staff-user-menu-item" +
+                          (page === "emails" ? " active" : "")
+                        }
+                        onClick={() => {
+                          onSelectPage("emails");
+                          onCloseMobile();
+                          setStaffMenuOpen(false);
+                        }}
+                      >
+                        <EM_MailIcon width="16" height="16" strokeWidth="1.8" />
+                        Emails
+                      </button>
+                      )}
                     </React.Fragment>
                   )}
 
@@ -1787,6 +1806,9 @@ function StaffRail({
         { key: "developer-tools", label: "Developer Tools", icon: <WrenchIcon /> },
         { key: "usage-stats", label: "Usage Stats", icon: <GaugeIcon /> },
         ...(staffUser.role === "admin" ? [{ key: "audit-log", label: "Audit log", icon: <DocumentIcon /> }] : []),
+        ...(staffUser.role === "admin" && typeof EM_MailIcon === "function"
+          ? [{ key: "emails", label: "Emails", icon: <EM_MailIcon /> }]
+          : []),
       ]
     : [];
   const initials = (staffUser.name || "")
@@ -22874,6 +22896,10 @@ const PAGE_META = {
     title: "Audit log",
     subtitle: "Every change to access, fees, rates, mappings and clients",
   },
+  emails: {
+    title: "Emails",
+    subtitle: "Whether email is set up, the weekly digest, client emails and the send log",
+  },
   "usage-stats": {
     title: "Usage Stats",
     subtitle: "Which pages and features actually get used, most to least",
@@ -23107,7 +23133,7 @@ function QboSyncNowButton({ clientId, onSynced, liveLabel, canSyncNow = true }) 
 
 // Hash routes, so a link can open a specific page (the weekly digest email's
 // section links, a URL pasted into chat):
-//   #/team  #/close-tracker  #/audit-log  #/home  #/templates ...
+//   #/team  #/close-tracker  #/audit-log  #/emails  #/home  #/templates ...
 //   #/client/<client id>/overview  #/client/<client id>/<tab key>
 // Read once on load and on hashchange; App keeps the hash in step with what's
 // on screen via history.replaceState (no history entry per click). It only
@@ -24175,7 +24201,7 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
           (staffUser.role === "admin" || hasTempAdminAccess) &&
           !impersonating
         ? page
-        : page === "audit-log" && staffUser && staffUser.role === "admin" && !impersonating
+        : (page === "audit-log" || page === "emails") && staffUser && staffUser.role === "admin" && !impersonating
           ? page
         : page === "staff-messages" && staffUser && !impersonating
           ? page
@@ -25326,6 +25352,7 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
           {effectivePage === "audit-log" && typeof AL_AuditLogPage === "function" && (
             <AL_AuditLogPage clients={visibleClients} />
           )}
+          {effectivePage === "emails" && typeof EM_EmailsPage === "function" && <EM_EmailsPage />}
           {effectivePage === "staff-team" && <TP_TeamPage clients={visibleClients} />}
           {effectivePage === "close-tracker" && (
             <CT_CloseTrackerPage clients={visibleClients} staffUser={effectiveStaffUser} />
