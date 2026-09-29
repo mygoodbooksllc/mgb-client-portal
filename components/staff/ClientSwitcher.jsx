@@ -606,6 +606,9 @@ function CS_ClientSwitcher({
           </span>
         )}
         <span className="cs-row-name">{nameOf(c)}</span>
+        {!item.locked && typeof OB_OnboardingBadge === "function" && (
+          <OB_OnboardingBadge clientId={c.id} />
+        )}
         {temp && (
           <span className="cs-tag cs-tag-temp">
             Temporary · {CS_timeLeft(temp.expires_at, access.now)}
