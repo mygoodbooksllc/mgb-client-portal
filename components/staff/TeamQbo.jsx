@@ -662,7 +662,7 @@ function TP_qClientRows({ clientRows, hours, range, today }) {
         trend = { dir: "new" };
       }
     }
-    return { ...base, q, qMinutes: minutes, qAvgMinutes: avgMinutes, tier, fee, rate, trend, monthlyEq };
+    return { ...base, q, qMinutes: minutes, qAvgMinutes: avgMinutes, tier, fee, rate, basis, trend, monthlyEq };
   };
   const rows = (clientRows || []).map((r) => decorate(r, byId[r.id] || null));
   const seen = new Set(rows.map((r) => r.id));
@@ -705,7 +705,11 @@ function TP_QTrend({ trend }) {
   return <span className="task-chip tp-q-trend">New hours</span>;
 }
 
-function TP_QboClientsTable({ clientRows, hours, qboOn, range, today, avg, onOpenClient, onOpenBucket, onOpenMapping }) {
+// profit: TP_PF_useProfit() state, passed only for admins. Without it the
+// fee, rate, cost, profit and margin columns are not rendered at all.
+function TP_QboClientsTable({ clientRows, hours, qboOn, range, today, avg, onOpenClient, onOpenBucket, onOpenMapping, profit }) {
+  const showMoney = !!profit;
+  const pv = (id) => TP_PF_rowView(profit, qboOn, id);
   // key null = default: QuickBooks hours when connected, in-app time otherwise.
   const [sortState, setSort] = useState({ key: null, dir: "desc" });
   const sort = sortState.key ? sortState : { key: qboOn ? "hours" : "app", dir: sortState.dir };
@@ -725,9 +729,14 @@ function TP_QboClientsTable({ clientRows, hours, qboOn, range, today, avg, onOpe
       app: (r) => TP_qNum(r.appMinutes),
       avg: (r) => r.qAvgMinutes,
       value: (r) => TP_qNum(r.q && r.q.billable_value),
-      rate: (r) => (r.rate == null ? (sort.dir === "asc" ? Infinity : -Infinity) : r.rate),
+      rate: (r) => TP_PF_orLast(showMoney ? TP_PF_effRate(pv(r.id).fee, r) : null, sort.dir),
       name: (r) => r.name.toLowerCase(),
-    }[sort.key];
+      // Rows with no figure sort last whichever way.
+      fee: (r) => TP_PF_orLast(showMoney ? pv(r.id).fee : null, sort.dir),
+      cost: (r) => TP_PF_orLast(showMoney ? pv(r.id).cost : null, sort.dir),
+      profit: (r) => TP_PF_orLast(showMoney ? pv(r.id).profit : null, sort.dir),
+      margin: (r) => TP_PF_orLast(showMoney ? pv(r.id).margin : null, sort.dir),
+    }[sort.key] || ((r) => r.qMinutes);
     return [...list].sort((a, b) => {
       const x = val(a);
       const y = val(b);
@@ -735,10 +744,10 @@ function TP_QboClientsTable({ clientRows, hours, qboOn, range, today, avg, onOpe
       if (x > y) return 1 * dir;
       return a.name.localeCompare(b.name);
     });
-  }, [built, sort, showIdle]);
+  }, [built, sort, showIdle, profit, qboOn]);
   const toggle = (key) =>
     setSort(() =>
-      sort.key === key ? { key, dir: sort.dir === "asc" ? "desc" : "asc" } : { key, dir: key === "name" || key === "rate" ? "asc" : "desc" },
+      sort.key === key ? { key, dir: sort.dir === "asc" ? "desc" : "asc" } : { key, dir: key === "name" || key === "rate" || key === "margin" ? "asc" : "desc" },
     );
   const mark = (key) => (sort.key === key ? (sort.dir === "asc" ? " ↑" : " ↓") : "");
   const keyed = (fn) => (e) => {
@@ -753,8 +762,9 @@ function TP_QboClientsTable({ clientRows, hours, qboOn, range, today, avg, onOpe
   const clientMin = built.rows.reduce((n, r) => n + r.qMinutes, 0);
   const otherMin = built.total - clientMin - unmappedMin;
   const appTotal = built.rows.reduce((n, r) => n + TP_qNum(r.appMinutes), 0);
-  const cols = 11;
+  const cols = showMoney ? 14 : 9;
   const dash = <span className="tp-muted">–</span>;
+  const leastFirst = sort.key === "margin" && sort.dir === "asc";
 
   return (
     <div className="card">
@@ -763,17 +773,30 @@ function TP_QboClientsTable({ clientRows, hours, qboOn, range, today, avg, onOpe
           <h3 className="card-title" style={{ marginBottom: 2 }}>Clients</h3>
           <p className="card-subtitle" style={{ margin: 0 }}>
             {qboOn
-              ? `QuickBooks Time hours next to the monthly average for ${avg.label}. Effective rate is the client's milestone fee ÷ average monthly hours. `
+              ? `QuickBooks Time hours next to the monthly average for ${avg.label}. ${showMoney ? "Effective rate is the monthly fee ÷ average monthly hours. Cost is hours × each person's loaded hourly cost; margin is profit ÷ revenue for the period. " : ""}`
               : "QuickBooks Time isn't connected, so there are no hours yet. "}
             In app is automatic active time in the app{appTotal ? ` (${TP_qHours(appTotal)} in all)` : ""}, not
             billed hours. Select a row for details.
           </p>
         </div>
-        <label className="tp-check">
-          <input type="checkbox" checked={showIdle} onChange={(e) => setShowIdle(e.target.checked)} />
-          Show clients with no activity
-        </label>
+        <div className="tp-card-actions">
+          {showMoney && (
+            <button
+              type="button"
+              className={"task-chip tp-sort-chip" + (leastFirst ? " active" : "")}
+              aria-pressed={leastFirst}
+              onClick={() => setSort({ key: "margin", dir: "asc" })}
+            >
+              Least profitable first
+            </button>
+          )}
+          <label className="tp-check">
+            <input type="checkbox" checked={showIdle} onChange={(e) => setShowIdle(e.target.checked)} />
+            Show clients with no activity
+          </label>
+        </div>
       </div>
+      {showMoney && <TP_PF_SummaryStrip profit={profit} qboOn={qboOn} />}
       {built.total > 0 && (
         <p className="tp-q-recon">
           <b>{TP_qHours(built.total)}</b> logged = {TP_qHours(clientMin)} on clients
@@ -793,7 +816,13 @@ function TP_QboClientsTable({ clientRows, hours, qboOn, range, today, avg, onOpe
           ["hours", "QB hours"],
           ["app", "In app"],
           ["avg", "Avg / mo"],
-          ["rate", "Rate"],
+          ...(showMoney
+            ? [
+                ["rate", "Rate"],
+                ["profit", "Profit"],
+                ["margin", "Margin"],
+              ]
+            : []),
           ["name", "Name"],
         ].map(([k, l]) => (
           <button
@@ -828,10 +857,25 @@ function TP_QboClientsTable({ clientRows, hours, qboOn, range, today, avg, onOpe
               <th className="num">
                 <button type="button" className="tp-sort" onClick={() => toggle("value")}>Billable value{mark("value")}</button>
               </th>
-              <th className="num">Fee / mo</th>
-              <th className="num">
-                <button type="button" className="tp-sort" onClick={() => toggle("rate")}>Eff. rate{mark("rate")}</button>
-              </th>
+              {showMoney && (
+                <>
+                  <th className="num" title="Actual monthly fee, or the pricing tier's fee when none is set">
+                    <button type="button" className="tp-sort" onClick={() => toggle("fee")}>Fee / mo{mark("fee")}</button>
+                  </th>
+                  <th className="num">
+                    <button type="button" className="tp-sort" onClick={() => toggle("rate")}>Eff. rate{mark("rate")}</button>
+                  </th>
+                  <th className="num">
+                    <button type="button" className="tp-sort" onClick={() => toggle("cost")}>Cost{mark("cost")}</button>
+                  </th>
+                  <th className="num">
+                    <button type="button" className="tp-sort" onClick={() => toggle("profit")}>Profit{mark("profit")}</button>
+                  </th>
+                  <th className="num">
+                    <button type="button" className="tp-sort" onClick={() => toggle("margin")}>Margin %{mark("margin")}</button>
+                  </th>
+                </>
+              )}
               <th className="num">Open</th>
               <th className="num">Overdue</th>
             </tr>
@@ -845,7 +889,9 @@ function TP_QboClientsTable({ clientRows, hours, qboOn, range, today, avg, onOpe
               </EmptyRow>
             ) : (
               <>
-                {rows.map((r) => (
+                {rows.map((r) => {
+                  const m = showMoney ? pv(r.id) : null;
+                  return (
                   <tr
                     key={r.id}
                     className="tp-row"
@@ -868,14 +914,38 @@ function TP_QboClientsTable({ clientRows, hours, qboOn, range, today, avg, onOpe
                     <td className="num" data-label="Billable value">
                       {r.q && TP_qNum(r.q.billable_value) ? fmtMoney(TP_qNum(r.q.billable_value)) : "–"}
                     </td>
-                    <td className="num" data-label="Fee / mo">{r.fee != null ? fmtMoney(r.fee) : "–"}</td>
-                    <td className="num" data-label="Effective rate">
-                      {r.rate != null ? `${fmtMoney(r.rate)}/h` : "–"}
-                    </td>
+                    {showMoney && (
+                      <>
+                        <td className="num" data-label="Fee / mo">
+                          {m.fee != null ? (
+                            <>
+                              {fmtMoney(m.fee)}
+                              <TP_PF_FeeTag source={m.feeSource} />
+                            </>
+                          ) : (
+                            "–"
+                          )}
+                        </td>
+                        <td className="num" data-label="Effective rate">
+                          {TP_PF_effRate(m.fee, r) != null ? `${fmtMoney(TP_PF_effRate(m.fee, r))}/h` : "–"}
+                        </td>
+                        <td className="num" data-label="Cost">
+                          {m.cost != null ? fmtMoney(Math.round(m.cost)) : dash}
+                          {m.estimated && <span className="tp-muted" title="Part of this cost uses the average rate"> est.</span>}
+                        </td>
+                        <td className={"num" + (m.profit != null && m.profit < 0 ? " tp-bad" : "")} data-label="Profit">
+                          {m.profit != null ? fmtMoney(Math.round(m.profit)) : dash}
+                        </td>
+                        <td className="num" data-label="Margin %">
+                          <TP_PF_MarginChip margin={m.margin} target={profit.target} />
+                        </td>
+                      </>
+                    )}
                     <td className="num" data-label="Open">{r.open}</td>
                     <td className={"num" + (r.overdue ? " tp-bad" : "")} data-label="Overdue">{r.overdue}</td>
                   </tr>
-                ))}
+                  );
+                })}
                 {built.bucketRows.map((b) => (
                   <tr
                     key={b.key}
@@ -899,8 +969,15 @@ function TP_QboClientsTable({ clientRows, hours, qboOn, range, today, avg, onOpe
                     <td className="num" data-label="Billable value">
                       {TP_qNum(b.q.billable_value) ? fmtMoney(TP_qNum(b.q.billable_value)) : "–"}
                     </td>
-                    <td className="num tp-muted" data-label="Fee / mo">–</td>
-                    <td className="num tp-muted" data-label="Effective rate">–</td>
+                    {showMoney && (
+                      <>
+                        <td className="num tp-muted" data-label="Fee / mo">–</td>
+                        <td className="num tp-muted" data-label="Effective rate">–</td>
+                        <td className="num tp-muted" data-label="Cost">–</td>
+                        <td className="num tp-muted" data-label="Profit">–</td>
+                        <td className="num tp-muted" data-label="Margin %">–</td>
+                      </>
+                    )}
                     <td className="num tp-muted" data-label="Open">–</td>
                     <td className="num tp-muted" data-label="Overdue">–</td>
                   </tr>
@@ -1682,14 +1759,15 @@ function TP_qExportPeople(filename, people, byStaff, qboOn) {
   );
 }
 
-function TP_qExportClients(filename, args, avgLabel, qboOn, staffName) {
+// profit: TP_PF_useProfit() state for admins, else null (no money columns).
+function TP_qExportClients(filename, args, avgLabel, qboOn, staffName, profit) {
   const { rows, bucketRows } = TP_qClientRows(args);
   const h = (m) => (TP_qNum(m) / 60).toFixed(2);
   const qh = (m) => (qboOn ? h(m) : "");
   const nameOf = staffName || ((e) => String(e || "").split("@")[0]);
   TP_downloadCsv(
     filename,
-    ["Client", "Bucket", "Plan", "QuickBooks hours", TP_APP_CSV_HEAD, "In-app hours by staffer", `Avg hours / month (${avgLabel})`, "Billable hours", "Billable value", "Milestone fee / month", "Effective rate / hour", "Trend", "Open tasks", "Overdue tasks"],
+    ["Client", "Bucket", "Plan", "QuickBooks hours", TP_APP_CSV_HEAD, "In-app hours by staffer", `Avg hours / month (${avgLabel})`, "Billable hours", "Billable value", ...(profit ? ["Effective rate / hour", ...TP_PF_CSV_HEAD] : []), "Trend", "Open tasks", "Overdue tasks"],
     [
       ...rows
         .filter((r) => r.qMinutes || r.qAvgMinutes || r.appMinutes || r.open)
@@ -1703,13 +1781,20 @@ function TP_qExportClients(filename, args, avgLabel, qboOn, staffName) {
           qh(r.qAvgMinutes),
           h(r.q && r.q.billable_minutes),
           r.q ? TP_qNum(r.q.billable_value).toFixed(2) : "",
-          r.fee != null ? r.fee : "",
-          r.rate != null ? r.rate.toFixed(2) : "",
+          ...(profit
+            ? [
+                (() => {
+                  const er = TP_PF_effRate(TP_PF_rowView(profit, qboOn, r.id).fee, r);
+                  return er != null ? er.toFixed(2) : "";
+                })(),
+                ...TP_PF_csvCells(profit, qboOn, r.id),
+              ]
+            : []),
           r.trend ? (r.trend.dir === "new" ? "new" : `${r.trend.dir} ${r.trend.pct}%`) : "",
           r.open,
           r.overdue,
         ]),
-      ...bucketRows.map((b) => [b.label, b.bucket, "", h(b.q.total_minutes), "", "", "", h(b.q.billable_minutes), TP_qNum(b.q.billable_value).toFixed(2), "", "", "", "", ""]),
+      ...bucketRows.map((b) => [b.label, b.bucket, "", h(b.q.total_minutes), "", "", "", h(b.q.billable_minutes), TP_qNum(b.q.billable_value).toFixed(2), ...(profit ? ["", ...TP_PF_CSV_HEAD.map(() => "")] : []), "", "", ""]),
     ],
   );
 }

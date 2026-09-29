@@ -5742,6 +5742,10 @@ function ClientOverviewPage({ client, messagesByClient, onNavigate, onOpenDetail
               <span>Target rate</span>
               <span>{target != null ? `${fmtMoney(target)}/h` : "Not set"}</span>
             </li>
+            {/* Fee, cost, profit, margin: admins only (TeamProfit.jsx). */}
+            {staffUser && staffUser.role === "admin" && typeof TP_PF_OverviewLines === "function" && (
+              <TP_PF_OverviewLines clientId={client.id} qboOn={data.qbMinutes != null} from={monthStart} to={todayLocal()} />
+            )}
           </ul>
           <p className="ov-foot">
             {data.qbMinutes == null
@@ -11724,6 +11728,10 @@ function StaffAccessPage({ staffUser, onImpersonate, readOnly }) {
                             Manage
                           </button>
                         )}
+                        {/* Workload balancer (TeamCapacity.jsx), admins only. */}
+                        {!readOnly && row.role !== "admin" && typeof TP_WorkloadHint === "function" && (
+                          <TP_WorkloadHint email={row.email} />
+                        )}
                       </td>
                       <td data-label="Temp admin access">
                         {readOnly ? (
@@ -11870,6 +11878,15 @@ function StaffAccessPage({ staffUser, onImpersonate, readOnly }) {
             Unchecked means they can't see this client at all — not just a
             restricted view, the client won't appear in their switcher.
           </p>
+          {!readOnly && typeof TP_WorkloadHint === "function" && (
+            <p className="card-subtitle">
+              Workload:
+              <TP_WorkloadHint
+                email={clientAccessFor.email}
+                clientCount={clientAccessLoading ? undefined : clientAccessSet.size}
+              />
+            </p>
+          )}
           <div className="modal-body">
             {clientAccessLoading && <p className="card-subtitle">Loading…</p>}
             {!clientAccessLoading &&

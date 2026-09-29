@@ -690,3 +690,244 @@
     border-radius: 8px;
   }
 }
+
+/* ---------------------------------------------------------------------------
+   Profitability (components/staff/TeamProfit.jsx, admin only)
+   --------------------------------------------------------------------------- */
+.tp-card-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.tp-card-actions .tp-sort-chip {
+  cursor: pointer;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+}
+.tp-card-actions .tp-sort-chip.active {
+  color: var(--ink-strong);
+  border-color: var(--gold);
+}
+.task-chip.pf-chip {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.task-chip.pf-good {
+  color: var(--good);
+  background: var(--good-soft);
+  border-color: var(--good);
+}
+.task-chip.pf-warn {
+  color: var(--warm-text);
+  background: var(--warm-bg);
+  border-color: var(--warm-border);
+}
+.task-chip.pf-bad {
+  color: var(--bad);
+  background: var(--bad-soft);
+  border-color: var(--bad);
+}
+.pf-fee-tag {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 0 6px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  font-size: 10.5px;
+  font-weight: 600;
+  color: var(--text-muted);
+  white-space: nowrap;
+  vertical-align: 1px;
+}
+.pf-strip-wrap {
+  margin: 0 0 14px;
+}
+.pf-strip {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 10px;
+  margin: 0;
+}
+p.pf-strip {
+  display: block;
+  margin: 0 0 12px;
+}
+.pf-strip-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--surface-2);
+  min-width: 0;
+}
+.pf-strip-value {
+  font-family: var(--font-heading);
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--ink-strong);
+  font-variant-numeric: tabular-nums;
+}
+.pf-strip-note {
+  margin-top: 8px;
+}
+.pf-inline-form {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.pf-inline-form input,
+.pf-fee-form input {
+  width: 80px;
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
+}
+.pf-fee-form input[type="date"] {
+  width: auto;
+}
+.pf-btn {
+  padding: 6px 12px;
+  font-size: 12.5px;
+}
+.pf-fee-form {
+  display: flex;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 16px;
+}
+.pf-fee-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+.pf-fee-form input {
+  width: 120px;
+}
+.pf-subhead {
+  margin: 20px 0 8px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ink-strong);
+}
+.pf-rate-history {
+  list-style: none;
+  margin: 14px 0 0;
+  padding: 0;
+  border-top: 1px solid var(--border);
+}
+.pf-rate-history li {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  gap: 14px;
+  align-items: center;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------------------------------------------------------------------------
+   Capacity (components/staff/TeamCapacity.jsx, admin only)
+   --------------------------------------------------------------------------- */
+.tp-cap-util {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.tp-cap-track {
+  position: relative;
+  display: inline-block;
+  width: 90px;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  overflow: hidden;
+  flex: none;
+}
+.tp-cap-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: 999px;
+}
+.tp-cap-fill.tp-cap-room {
+  background: var(--gold);
+}
+.tp-cap-fill.tp-cap-ok {
+  background: var(--good);
+}
+.tp-cap-fill.tp-cap-over {
+  background: var(--bad);
+}
+.tp-cap-mark {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: var(--text-muted);
+  opacity: 0.5;
+}
+.tp-cap-pct {
+  font-size: 12.5px;
+  font-weight: 600;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.tp-cap-text-room {
+  color: var(--gold-deep);
+}
+.tp-cap-text-ok {
+  color: var(--good);
+}
+.tp-cap-text-over {
+  color: var(--bad);
+}
+.tp-cap-edit input {
+  width: 60px;
+}
+.tp-cap-hint {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-left: 8px;
+  font-size: 12px;
+  color: var(--text-muted);
+  font-weight: 500;
+  vertical-align: middle;
+}
+.tp-cap-hint .tp-cap-track {
+  width: 48px;
+  height: 6px;
+}
+.task-chip.tp-cap-room-chip {
+  color: var(--good);
+  background: var(--good-soft);
+  border-color: var(--good);
+}
+@media (max-width: 760px) {
+  .pf-strip {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .pf-fee-form label,
+  .pf-fee-form input {
+    flex: 1 1 140px;
+    width: 100%;
+  }
+  .tp-cap-hint {
+    margin-left: 0;
+  }
+}

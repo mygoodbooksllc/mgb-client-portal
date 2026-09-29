@@ -524,6 +524,13 @@ function TP_TeamPage({ clients }) {
   const avg = useMemo(() => TP_avgRange(), []);
   const today = TP_ymd(new Date());
   const qHours = TP_useQboHours(qboOn, range, avg, qboVersion);
+  // Fees, pay rates, cost and margin are admin-only (TeamProfit.jsx). A
+  // bookkeeper with temporary admin-page access, or an admin in "View as",
+  // never loads or sees them.
+  const { staffUser } = useContext(StaffToolsContext);
+  const isAdmin = !!(staffUser && staffUser.role === "admin");
+  const profit = TP_PF_useProfit(isAdmin, range, qboVersion);
+  const money = isAdmin ? profit : null;
   const rangeLabel =
     range.from === range.to
       ? fmtDate(range.from)
@@ -651,6 +658,7 @@ function TP_TeamPage({ clients }) {
       avg.label,
       qboOn,
       staffShortName,
+      money,
     );
   }
 
@@ -833,6 +841,7 @@ function TP_TeamPage({ clients }) {
             />
           }
         >
+          {money && <TP_PF_RateCard email={qPerson.email} name={qPerson.name} profit={money} today={today} />}
           <div className="card" style={{ marginBottom: 20 }}>
             <h3 className="card-title">Tasks</h3>
             <p className="card-subtitle">Owned by or assigned to {qPerson.name}.</p>
@@ -865,8 +874,16 @@ function TP_TeamPage({ clients }) {
                 ]
               : []),
             { label: "In app", value: TP_fmtHM(r.appMinutes || 0) },
-            { label: "Fee / mo", value: r.fee != null ? fmtMoney(r.fee) : "–" },
-            ...(qboOn ? [{ label: "Effective rate", value: r.rate != null ? `${fmtMoney(r.rate)}/h` : "–" }] : []),
+            ...(money
+              ? (() => {
+                  const fee = TP_PF_rowView(money, qboOn, r.id).fee;
+                  const er = TP_PF_effRate(fee, r);
+                  return [
+                    { label: "Fee / mo", value: fee != null ? fmtMoney(fee) : "–" },
+                    ...(qboOn ? [{ label: "Effective rate", value: er != null ? `${fmtMoney(er)}/h` : "–" }] : []),
+                  ];
+                })()
+              : []),
             { label: "Open tasks", value: r.open },
             { label: "Overdue", value: r.overdue, bad: r.overdue > 0 },
           ]}
@@ -886,6 +903,7 @@ function TP_TeamPage({ clients }) {
             <TP_AppTimeCard entries={appEntries} groupBy="staff" nameOf={staffName} range={range} />
           }
         >
+          {money && <TP_PF_ClientProfitCard clientId={r.id} profit={money} qboOn={qboOn} />}
           <div className="card" style={{ marginBottom: 20 }}>
             <h3 className="card-title">Tasks</h3>
             <TP_TaskGroups
@@ -906,6 +924,13 @@ function TP_TeamPage({ clients }) {
     <div className="tp-page">
       <TP_QboPanel qbo={qbo} onOpenMapping={openMapping} onSynced={refreshQbo} />
       {periodCard}
+      {isAdmin && (
+        <TP_CapacityCard
+          people={data ? data.people : null}
+          qboOn={qboOn}
+          onOpenPerson={(email) => setView({ type: "person", key: email })}
+        />
+      )}
       <TP_QboPeopleTable
         people={data ? data.people : null}
         hours={qHours}
@@ -921,6 +946,7 @@ function TP_TeamPage({ clients }) {
         range={range}
         today={today}
         avg={avg}
+        profit={money}
         onOpenClient={(id) => setView({ type: "client", key: id })}
         onOpenBucket={(b) => setView({ type: "bucket", key: b.key, bucket: b })}
         onOpenMapping={openMapping}
