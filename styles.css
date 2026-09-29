@@ -720,6 +720,27 @@ body {
   z-index: 30;
 }
 
+/* Mobile drawer: the staff tabs are listed inline under the name chip. */
+.staff-user-menu.inline .staff-user-chip {
+  cursor: default;
+}
+.staff-user-menu.inline .staff-user-chip:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+.staff-user-menu.inline .staff-user-dropdown {
+  position: static;
+  margin-top: 6px;
+  background: none;
+  border: none;
+  box-shadow: none;
+  padding: 0;
+}
+.staff-user-menu.inline .staff-user-menu-item {
+  min-height: 44px;
+  font-size: 14px;
+  padding: 8px 12px;
+}
+
 .staff-user-menu-item {
   display: flex;
   align-items: center;

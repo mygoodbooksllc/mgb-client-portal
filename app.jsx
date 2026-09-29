@@ -925,6 +925,24 @@ function Sidebar({
   // same one-click depth as before, just tucked away until wanted.
   const [staffMenuOpen, setStaffMenuOpen] = useState(false);
   const staffMenuRef = useRef(null);
+  // Mobile drawer (same query as the off-canvas sidebar in styles.css): the
+  // staff tabs sit inline in the drawer instead of behind the name dropdown.
+  const drawerQuery =
+    "(max-width: 760px) and (hover: none), (max-width: 760px) and (pointer: coarse)";
+  const [inDrawer, setInDrawer] = useState(
+    () =>
+      typeof window.matchMedia === "function" &&
+      window.matchMedia(drawerQuery).matches,
+  );
+  useEffect(() => {
+    if (typeof window.matchMedia !== "function") return;
+    const mq = window.matchMedia(drawerQuery);
+    const onChange = () => setInDrawer(mq.matches);
+    onChange();
+    mq.addEventListener("change", onChange);
+    return () => mq.removeEventListener("change", onChange);
+  }, []);
+  const staffMenuShown = staffMenuOpen || inDrawer;
   useEffect(() => {
     if (!staffMenuOpen) return;
     const onDocClick = (e) => {
@@ -1095,13 +1113,18 @@ function Sidebar({
           )}
 
           {staffUser && (
-            <div className="staff-user-menu" ref={staffMenuRef}>
+            <div
+              className={"staff-user-menu" + (inDrawer ? " inline" : "")}
+              ref={staffMenuRef}
+            >
               <button
                 type="button"
                 className="staff-user-chip"
-                onClick={() => setStaffMenuOpen((open) => !open)}
-                aria-expanded={staffMenuOpen}
-                aria-haspopup="true"
+                onClick={() => {
+                  if (!inDrawer) setStaffMenuOpen((open) => !open);
+                }}
+                aria-expanded={inDrawer ? undefined : staffMenuOpen}
+                aria-haspopup={inDrawer ? undefined : "true"}
                 aria-label={collapsed ? staffUser.name : undefined}
                 onMouseEnter={(e) => showTip(e, staffUser.name)}
                 onMouseLeave={hideTip}
@@ -1119,21 +1142,26 @@ function Sidebar({
                   <span className="staff-user-chip-name">{staffUser.name}</span>
                   <span className="staff-user-chip-role">{staffUser.role}</span>
                 </span>
-                {staffMessagesUnread && !staffMenuOpen && (
+                {staffMessagesUnread && !staffMenuShown && (
                   <span className="nav-badge-dot" aria-label="Unread" />
                 )}
-                {!staffMenuOpen && !collapsed && !impersonating && (
+                {!staffMenuShown && !collapsed && !impersonating && (
                   <MyTasksDueCount due={myTasksDue} />
                 )}
-                <ChevronDownIcon
-                  className={
-                    "staff-user-chip-chev" + (staffMenuOpen ? " open" : "")
-                  }
-                />
+                {!inDrawer && (
+                  <ChevronDownIcon
+                    className={
+                      "staff-user-chip-chev" + (staffMenuOpen ? " open" : "")
+                    }
+                  />
+                )}
               </button>
 
-              {staffMenuOpen && (
-                <div className="staff-user-dropdown" role="menu">
+              {staffMenuShown && (
+                <div
+                  className="staff-user-dropdown"
+                  role={inDrawer ? undefined : "menu"}
+                >
                   <button
                     type="button"
                     role="menuitem"
@@ -1280,7 +1308,7 @@ function Sidebar({
                           setStaffMenuOpen(false);
                         }}
                       >
-                        <GaugeIcon />
+                        <GaugeIcon width="16" height="16" strokeWidth="1.8" />
                         Usage Stats
                       </button>
                     </React.Fragment>
