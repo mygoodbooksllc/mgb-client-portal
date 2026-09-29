@@ -9,7 +9,12 @@
 //     portal, not an admin in "View as" (impersonating), on a client page
 //     (not a NON_CLIENT_PAGES page like Home or Team);
 //   - the tab is visible;
-//   - there was mouse, keyboard, touch or scroll input in the last 2 minutes.
+//   - there was mouse, keyboard, touch or scroll input in the last 2 minutes;
+//   - this tab holds the per-browser "leader" lock: only the tab a person
+//     most recently used or focused counts, so two tabs never both accrue.
+//     The lock is a localStorage entry {id, ts} rewritten on input/focus;
+//     the server also caps each person to real elapsed time across all
+//     clients (supabase/app-time-per-staff-clock.sql).
 //
 // Seconds accumulate per client in memory, flush every 60 s through the
 // record_app_time RPC (supabase/app-time-tracking.sql), and flush again on
@@ -27,6 +32,8 @@ const AT_TICK_MS = 5000;
 const AT_FLUSH_MS = 60 * 1000;
 const AT_MAX_PER_CALL = 120;
 const AT_MAX_PENDING = 600;
+const AT_LEADER_KEY = "mgb_app_time_leader";
+const AT_TAB_ID = Math.random().toString(36).slice(2) + Date.now().toString(36);
 
 const AT_state = {
   started: false,
@@ -45,6 +52,36 @@ function AT_localDay() {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
+// Claim the lock for this tab (throttled: input can fire constantly).
+let AT_lastClaim = 0;
+function AT_claimLeader(force) {
+  const now = Date.now();
+  if (!force && now - AT_lastClaim < 1000) return;
+  AT_lastClaim = now;
+  try {
+    localStorage.setItem(AT_LEADER_KEY, JSON.stringify({ id: AT_TAB_ID, ts: now }));
+  } catch (e) {}
+}
+
+function AT_isLeader() {
+  try {
+    const raw = localStorage.getItem(AT_LEADER_KEY);
+    if (!raw) return true;
+    const v = JSON.parse(raw);
+    // A leader idle past the input window can't be counting anyway.
+    return !v || v.id === AT_TAB_ID || Date.now() - (v.ts || 0) > AT_IDLE_MS;
+  } catch (e) {
+    return true; // storage blocked: fall back to the server-side cap
+  }
+}
+
+function AT_releaseLeader() {
+  try {
+    const v = JSON.parse(localStorage.getItem(AT_LEADER_KEY) || "null");
+    if (v && v.id === AT_TAB_ID) localStorage.removeItem(AT_LEADER_KEY);
+  } catch (e) {}
+}
+
 function AT_isActive() {
   return (
     AT_state.enabled &&
@@ -52,7 +89,8 @@ function AT_isActive() {
     !AT_state.disabled &&
     typeof document !== "undefined" &&
     document.visibilityState === "visible" &&
-    Date.now() - AT_state.lastInput <= AT_IDLE_MS
+    Date.now() - AT_state.lastInput <= AT_IDLE_MS &&
+    AT_isLeader()
   );
 }
 
@@ -166,6 +204,7 @@ function AT_start() {
   AT_state.started = true;
   const markInput = () => {
     AT_state.lastInput = Date.now();
+    AT_claimLeader(false);
   };
   const opts = { passive: true, capture: true };
   ["mousedown", "keydown", "touchstart", "wheel", "scroll", "pointerdown"].forEach((ev) =>
@@ -180,6 +219,7 @@ function AT_start() {
       if (now - lastMove > 1000) {
         lastMove = now;
         AT_state.lastInput = now;
+        AT_claimLeader(false);
       }
     },
     opts,
@@ -190,9 +230,15 @@ function AT_start() {
     } else {
       AT_state.lastTick = Date.now();
       AT_state.lastInput = Date.now();
+      AT_claimLeader(true);
     }
   });
-  window.addEventListener("pagehide", AT_flushBeacon);
+  window.addEventListener("focus", () => AT_claimLeader(true));
+  window.addEventListener("pagehide", () => {
+    AT_flushBeacon();
+    AT_releaseLeader();
+  });
+  if (document.visibilityState === "visible") AT_claimLeader(true);
   setInterval(AT_tick, AT_TICK_MS);
   setInterval(() => {
     AT_flush();

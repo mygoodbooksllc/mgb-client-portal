@@ -2164,25 +2164,6 @@ function ChecklistIcon(props) {
   );
 }
 
-function ClockIcon(props) {
-  return (
-    <svg
-      width="20"
-      height="20"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.7"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      {...props}
-    >
-      <circle cx="12" cy="12" r="9" />
-      <path d="M12 7v5l3.5 2" />
-    </svg>
-  );
-}
-
 // ----------------------------------------------------------------------------
 // Sidebar nav icons — one per tab (see NAV_SECTIONS), plus Home/Staff
 // Access/Client Roster's own icons rendered separately above the nav. Same
@@ -5470,7 +5451,7 @@ const UNCATEGORIZED_RE = /uncategori[sz]ed|ask my accountant|suspense/i;
 
 // The staff-only first page for a client.
 function ClientOverviewPage({ client, messagesByClient, onNavigate, onOpenDetails }) {
-  const { staffUser } = useContext(StaffToolsContext);
+  const { staffUser, viewingAsName } = useContext(StaffToolsContext);
   const showToast = useToast();
   const sb = window.mgbSupabase;
   const { byId: msById } = useMilestones([client.id]);
@@ -5497,7 +5478,14 @@ function ClientOverviewPage({ client, messagesByClient, onNavigate, onOpenDetail
         isAdmin
           ? safe(sb.rpc("qbo_hours_by_client", { p_from: monthStart, p_to: todayLocal() }))
           : Promise.resolve({ data: null, error: null }),
-        safe(sb.from("staff_app_time").select("staff_email, seconds").eq("client_id", client.id).gte("day", monthStart)),
+        // Non-admins (including an admin in "View as" a bookkeeper, whose
+        // real JWT could read everyone's rows) see only that person's time.
+        safe(
+          (isAdmin
+            ? sb.from("staff_app_time").select("staff_email, seconds")
+            : sb.from("staff_app_time").select("staff_email, seconds").eq("staff_email", String((staffUser && staffUser.email) || "").toLowerCase())
+          ).eq("client_id", client.id).gte("day", monthStart),
+        ),
         sb.from("usage_events").select("actor_email, page, occurred_at").eq("client_id", client.id).eq("actor_role", "client").gte("occurred_at", since30).order("occurred_at", { ascending: false }).limit(1000),
         sb.from("client_users").select("email", { count: "exact", head: true }).eq("client_id", client.id).eq("active", true),
         sb.from("qbo_accounts").select("name, current_balance, active").eq("client_id", client.id),
@@ -5530,7 +5518,7 @@ function ClientOverviewPage({ client, messagesByClient, onNavigate, onOpenDetail
       msHist: msHist.data || [],
       activity: activity.data || [],
     });
-  }, [client.id, monthStart, staffUser && staffUser.role]);
+  }, [client.id, monthStart, staffUser && staffUser.role, staffUser && staffUser.email]);
   useEffect(() => {
     setData({ loading: true });
     setProfileDraft(null);
@@ -5559,6 +5547,11 @@ function ClientOverviewPage({ client, messagesByClient, onNavigate, onOpenDetail
   const target = data.profile && data.profile.target_hourly_rate != null ? Number(data.profile.target_hourly_rate) : null;
   const appMinutes = (data.appTime || []).reduce((s, t) => s + (t.seconds || 0), 0) / 60;
   const appIsMine = !(staffUser && staffUser.role === "admin");
+  const appLabel = !appIsMine
+    ? "In-app time, all staff"
+    : viewingAsName
+      ? `${viewingAsName}'s in-app time`
+      : "Your in-app time";
 
   // ---- QuickBooks health
   const connected = client.dataSource === "quickbooks";
@@ -5742,7 +5735,7 @@ function ClientOverviewPage({ client, messagesByClient, onNavigate, onOpenDetail
               <span>{data.qbMinutes == null ? "—" : fmtHours(minutes)}</span>
             </li>
             <li className="muted" title="Automatic active time in this app on this client. Not billed hours.">
-              <span>{appIsMine ? "Your in-app time" : "In-app time (automatic)"}</span>
+              <span>{appLabel}</span>
               <span>{fmtHours(appMinutes)}</span>
             </li>
             <li>
@@ -23979,10 +23972,15 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
   // Automatic in-app time per staff member per client
   // (components/staff/AppTimeTracker.js, supabase/app-time-tracking.sql).
   // Counts only for a real staffer (not a portal client, not an admin in
-  // "View as") with a client page open; the tracker itself adds the
-  // visible-tab and 2-minute-input checks.
+  // "View as", not previewing the portal as a client user) with a client
+  // page open; the tracker itself adds the visible-tab, 2-minute-input and
+  // one-tab-per-person checks.
   const appTimeEnabled =
-    !!staffUser && !clientPortalUser && !impersonating && !NON_CLIENT_PAGES.has(effectivePage);
+    !!staffUser &&
+    !clientPortalUser &&
+    !impersonating &&
+    viewAsUserId === BOOKKEEPER_VIEW &&
+    !NON_CLIENT_PAGES.has(effectivePage);
   const appTimeClientId = client ? client.id : null;
   useEffect(() => {
     if (typeof AT_setTrackingContext === "function") {
@@ -24519,6 +24517,8 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
         value={{
           staff: isStaffSession && viewAsUserId === BOOKKEEPER_VIEW,
           staffUser: effectiveStaffUser,
+          // Name of the staffer an admin is viewing as ("View as"), else null.
+          viewingAsName: impersonating ? impersonating.name || impersonating.email : null,
         }}
       >
       <div className="mesh-bg" aria-hidden="true">
