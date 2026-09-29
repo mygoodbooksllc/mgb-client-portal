@@ -332,6 +332,38 @@ because some work happens in Claude Code web sessions. Run `git fetch` and compa
   - **Developer Tools**: system info, feature flags, recent activity, local storage.
   - **Usage Stats**: page views and feedback survey results.
 
+### Admin features added 2026-09-29
+
+- **Team page** (`#/team`): one place for staff, workload, capacity and the weekly digest card.
+- **QuickBooks Time**: firm connection and hours by person and client, which feed
+  **profitability** (fee vs. cost at each person's rate) and **capacity** (weekly hours vs. target).
+- **Close tracker** (`#/close-tracker`): month-end close status per client. The "Mine" filter
+  uses the assigned bookkeeper's staff email.
+- **Task templates** (`#/templates`): recurring monthly, quarterly and annual tasks, generated
+  daily for each client's assigned bookkeeper (`supabase/task-templates.sql`).
+- **Onboarding**, **client health**, **audit log** (`#/audit-log`) and **offboarding**
+  (`offboard_staff` hands a leaver's clients to a replacement, including the assigned bookkeeper).
+- **Weekly admin digest** (edge function `weekly-admin-digest`) and **client emails**, both sent
+  through Resend (`supabase/functions/_shared/email.ts`).
+- **Assigned bookkeeper**: the Client Roster now picks a real staff member.
+  `clients.assigned_bookkeeper_email` references `staff(email)`; the old display JSON is kept in
+  step by a trigger. Setting it gives that person client access, and removing their access clears
+  it (`supabase/assigned-bookkeeper-email.sql`). Clients whose old name matched no staff member
+  show "Not linked to a staff member" until an admin picks someone.
+- **Deep links**: pages have hash URLs such as `#/team`, `#/tasks`, `#/home`,
+  `#/client/<id>/overview` or `#/client/<id>/<tab>`. A link survives Google sign-in, and staff
+  who can't see a page or client are sent to their dashboard instead.
+
+Owner setup:
+
+1. In Supabase > Edge Functions > Secrets, add `RESEND_API_KEY` (and optionally `DIGEST_FROM`),
+   and verify the sending domain in Resend. Until then, emails are logged as "not configured".
+2. Connect the firm's QuickBooks (Time) from the Team page, then map QuickBooks people and
+   customers to staff and clients.
+3. Set each staff member's cost rate (and weekly capacity) on the Team page so profitability,
+   price review and capacity have numbers.
+4. On the Client Roster, pick a real assigned bookkeeper for each client.
+
 ### Client side (and staff viewing a client)
 
 - **Basic** has no Dashboard, so a Basic client lands on Reports.
