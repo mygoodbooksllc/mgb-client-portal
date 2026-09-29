@@ -14206,8 +14206,14 @@ function ClientAccessPage({ readOnly }) {
   const [newOrgType, setNewOrgType] = useState("");
   const [newOrgPlan, setNewOrgPlan] = useState("standard");
   const [newOrgPayrollAddOn, setNewOrgPayrollAddOn] = useState(false);
-  const [newOrgBookkeeperName, setNewOrgBookkeeperName] = useState("");
+  // Assigned bookkeeper is picked from the real staff list (stored as
+  // clients.assigned_bookkeeper_email, see supabase/assigned-bookkeeper-email.sql);
+  // the display JSON (name/role/initials) is still written alongside it for
+  // older readers. Saving also gives that person staff_client_access (DB
+  // trigger), so the bookkeeper can actually open the client.
+  const [newOrgBookkeeperEmail, setNewOrgBookkeeperEmail] = useState("");
   const [newOrgBookkeeperRole, setNewOrgBookkeeperRole] = useState("");
+  const [staffOptions, setStaffOptions] = useState([]);
   const [addingOrg, setAddingOrg] = useState(false);
 
   // §139: editing an existing org's fields (left out of §133 as a deliberate
@@ -14218,7 +14224,9 @@ function ClientAccessPage({ readOnly }) {
   const [editOrgType, setEditOrgType] = useState("");
   const [editOrgPlan, setEditOrgPlan] = useState("standard");
   const [editOrgPayrollAddOn, setEditOrgPayrollAddOn] = useState(false);
-  const [editOrgBookkeeperName, setEditOrgBookkeeperName] = useState("");
+  // "" = not assigned, BK_LEGACY = keep an old free-text name that isn't
+  // linked to a staff member, otherwise a staff email.
+  const [editOrgBookkeeperEmail, setEditOrgBookkeeperEmail] = useState("");
   const [editOrgBookkeeperRole, setEditOrgBookkeeperRole] = useState("");
   const [savingOrg, setSavingOrg] = useState(false);
 
@@ -14242,7 +14250,7 @@ function ClientAccessPage({ readOnly }) {
     supabase
       .from("clients")
       .select(
-        "id, name, org_type, plan, test_only, payroll_add_on, assigned_bookkeeper",
+        "id, name, org_type, plan, test_only, payroll_add_on, assigned_bookkeeper, assigned_bookkeeper_email",
       )
       .order("created_at", { ascending: true })
       .then(({ data, error }) => {
@@ -14263,27 +14271,81 @@ function ClientAccessPage({ readOnly }) {
     loadOrgs();
   }, [loadOrgs]);
 
+  useEffect(() => {
+    if (!supabase) return;
+    supabase
+      .from("staff")
+      .select("email, name, role, active")
+      .eq("active", true)
+      .order("name", { ascending: true })
+      .then(({ data, error }) => {
+        if (!error) setStaffOptions(data || []);
+      });
+  }, [supabase]);
+
+  const BK_LEGACY = "__legacy__";
+
+  // Display JSON for clients.assigned_bookkeeper, built from the staff row.
+  function bookkeeperFromStaff(email, role) {
+    const person = staffOptions.find((p) => p.email === email);
+    const name = (person && person.name) || email.split("@")[0];
+    return {
+      name,
+      role: role || "Bookkeeper",
+      email,
+      initials: name
+        .split(" ")
+        .map((p) => p[0])
+        .slice(0, 2)
+        .join("")
+        .toUpperCase(),
+    };
+  }
+
+  function rosterBookkeeper(row) {
+    return row.assigned_bookkeeper
+      ? { ...row.assigned_bookkeeper, email: row.assigned_bookkeeper_email || null }
+      : null;
+  }
+
+  function renderStaffSelect(value, onChange, legacyName) {
+    return (
+      <select value={value} onChange={(e) => onChange(e.target.value)}>
+        <option value="">Not assigned</option>
+        {legacyName && (
+          <option value={BK_LEGACY}>{legacyName} (not linked to staff)</option>
+        )}
+        {staffOptions.map((p) => (
+          <option key={p.email} value={p.email}>
+            {p.name || p.email}
+            {p.role === "admin" ? " (admin)" : ""}
+          </option>
+        ))}
+      </select>
+    );
+  }
+
+  function renderWorkload(email) {
+    if (!email || email === BK_LEGACY || typeof TP_WorkloadHint !== "function") return null;
+    return (
+      <div style={{ marginTop: 4 }}>
+        <TP_WorkloadHint email={email} />
+      </div>
+    );
+  }
+
   async function addOrg() {
     const name = newOrgName.trim();
     const orgType = newOrgType.trim();
-    const bookkeeperName = newOrgBookkeeperName.trim();
+    const bookkeeperEmail = newOrgBookkeeperEmail;
     const bookkeeperRole = newOrgBookkeeperRole.trim();
     if (!name || !orgType || !newOrgId) return;
     if (newOrgIdCollides) {
       showToast(`"${newOrgId}" is already in use by an existing org.`);
       return;
     }
-    const assignedBookkeeper = bookkeeperName
-      ? {
-          name: bookkeeperName,
-          role: bookkeeperRole,
-          initials: bookkeeperName
-            .split(" ")
-            .map((p) => p[0])
-            .slice(0, 2)
-            .join("")
-            .toUpperCase(),
-        }
+    const assignedBookkeeper = bookkeeperEmail
+      ? bookkeeperFromStaff(bookkeeperEmail, bookkeeperRole)
       : null;
     setAddingOrg(true);
     const { data, error } = await supabase
@@ -14295,9 +14357,10 @@ function ClientAccessPage({ readOnly }) {
         plan: newOrgPlan,
         payroll_add_on: newOrgPayrollAddOn,
         assigned_bookkeeper: assignedBookkeeper,
+        assigned_bookkeeper_email: bookkeeperEmail || null,
       })
       .select(
-        "id, name, org_type, plan, test_only, payroll_add_on, assigned_bookkeeper",
+        "id, name, org_type, plan, test_only, payroll_add_on, assigned_bookkeeper, assigned_bookkeeper_email",
       )
       .single();
     setAddingOrg(false);
@@ -14323,14 +14386,14 @@ function ClientAccessPage({ readOnly }) {
         plan: data.plan,
         testOnly: data.test_only,
         payrollAddOn: data.payroll_add_on,
-        assignedBookkeeper: data.assigned_bookkeeper,
+        assignedBookkeeper: rosterBookkeeper(data),
       }),
     );
     setNewOrgName("");
     setNewOrgType("");
     setNewOrgPlan("standard");
     setNewOrgPayrollAddOn(false);
-    setNewOrgBookkeeperName("");
+    setNewOrgBookkeeperEmail("");
     setNewOrgBookkeeperRole("");
     showToast(`Added ${name}.`);
     loadOrgs();
@@ -14342,8 +14405,9 @@ function ClientAccessPage({ readOnly }) {
     setEditOrgType(row.org_type);
     setEditOrgPlan(row.plan);
     setEditOrgPayrollAddOn(row.payroll_add_on);
-    setEditOrgBookkeeperName(
-      row.assigned_bookkeeper ? row.assigned_bookkeeper.name : "",
+    setEditOrgBookkeeperEmail(
+      row.assigned_bookkeeper_email ||
+        (row.assigned_bookkeeper && row.assigned_bookkeeper.name ? BK_LEGACY : ""),
     );
     setEditOrgBookkeeperRole(
       row.assigned_bookkeeper ? row.assigned_bookkeeper.role : "",
@@ -14358,21 +14422,20 @@ function ClientAccessPage({ readOnly }) {
     const id = editingOrgId;
     const name = editOrgName.trim();
     const orgType = editOrgType.trim();
-    const bookkeeperName = editOrgBookkeeperName.trim();
     const bookkeeperRole = editOrgBookkeeperRole.trim();
     if (!name || !orgType) return;
-    const assignedBookkeeper = bookkeeperName
-      ? {
-          name: bookkeeperName,
-          role: bookkeeperRole,
-          initials: bookkeeperName
-            .split(" ")
-            .map((p) => p[0])
-            .slice(0, 2)
-            .join("")
-            .toUpperCase(),
-        }
-      : null;
+    const editingRow = (orgRows || []).find((r) => r.id === id);
+    const bookkeeperEmail =
+      editOrgBookkeeperEmail === BK_LEGACY ? null : editOrgBookkeeperEmail || null;
+    const assignedBookkeeper =
+      editOrgBookkeeperEmail === BK_LEGACY
+        ? {
+            ...((editingRow && editingRow.assigned_bookkeeper) || {}),
+            role: bookkeeperRole,
+          }
+        : bookkeeperEmail
+          ? bookkeeperFromStaff(bookkeeperEmail, bookkeeperRole)
+          : null;
     setSavingOrg(true);
     const { data, error } = await supabase
       .from("clients")
@@ -14382,10 +14445,11 @@ function ClientAccessPage({ readOnly }) {
         plan: editOrgPlan,
         payroll_add_on: editOrgPayrollAddOn,
         assigned_bookkeeper: assignedBookkeeper,
+        assigned_bookkeeper_email: bookkeeperEmail,
       })
       .eq("id", id)
       .select(
-        "id, name, org_type, plan, test_only, payroll_add_on, assigned_bookkeeper",
+        "id, name, org_type, plan, test_only, payroll_add_on, assigned_bookkeeper, assigned_bookkeeper_email",
       )
       .single();
     setSavingOrg(false);
@@ -14405,7 +14469,7 @@ function ClientAccessPage({ readOnly }) {
         plan: data.plan,
         testOnly: data.test_only,
         payrollAddOn: data.payroll_add_on,
-        assignedBookkeeper: data.assigned_bookkeeper,
+        assignedBookkeeper: rosterBookkeeper(data),
       };
     }
     setEditingOrgId(null);
@@ -14698,16 +14762,16 @@ function ClientAccessPage({ readOnly }) {
                           </select>
                         </td>
                         <td>
+                          {renderStaffSelect(
+                            editOrgBookkeeperEmail,
+                            setEditOrgBookkeeperEmail,
+                            !row.assigned_bookkeeper_email &&
+                              row.assigned_bookkeeper &&
+                              row.assigned_bookkeeper.name,
+                          )}
+                          {renderWorkload(editOrgBookkeeperEmail)}
                           <input
-                            type="text"
-                            placeholder="Bookkeeper name"
-                            value={editOrgBookkeeperName}
-                            onChange={(e) =>
-                              setEditOrgBookkeeperName(e.target.value)
-                            }
-                            style={{ marginBottom: 4 }}
-                          />
-                          <input
+                            style={{ marginTop: 4 }}
                             type="text"
                             placeholder="Bookkeeper role"
                             value={editOrgBookkeeperRole}
@@ -14761,6 +14825,12 @@ function ClientAccessPage({ readOnly }) {
                           {row.assigned_bookkeeper
                             ? row.assigned_bookkeeper.name
                             : "—"}
+                          {row.assigned_bookkeeper &&
+                            !row.assigned_bookkeeper_email && (
+                              <div className="card-subtitle" style={{ margin: 0 }}>
+                                Not linked to a staff member
+                              </div>
+                            )}
                         </td>
                         <td>
                           <button onClick={() => startEditOrg(row)}>
@@ -14804,12 +14874,10 @@ function ClientAccessPage({ readOnly }) {
               />
               Payroll add-on
             </label>
-            <input
-              type="text"
-              placeholder="Assigned bookkeeper name"
-              value={newOrgBookkeeperName}
-              onChange={(e) => setNewOrgBookkeeperName(e.target.value)}
-            />
+            <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+              {renderStaffSelect(newOrgBookkeeperEmail, setNewOrgBookkeeperEmail)}
+              {renderWorkload(newOrgBookkeeperEmail)}
+            </div>
             <input
               type="text"
               placeholder="Bookkeeper role (e.g. Senior Bookkeeper)"
