@@ -3078,7 +3078,23 @@ function smoothAreaPath(points, baseline) {
 // Dashboard's generic version of the same chart, which is why Dashboard's
 // own call site never passes budgetTotal and stays exactly as it was.
 function IncomeExpenseChart({ monthly, budgetTotal }) {
-  const width = 640;
+  // Phone width: the fixed 640-wide viewBox shrank to ~300px, so labels
+  // rendered around 5px tall. Under 480px the viewBox follows the real width
+  // (1:1); wider containers keep 640 exactly.
+  const wrapRef = useRef(null);
+  const [wrapW, setWrapW] = useState(0);
+  React.useLayoutEffect(() => {
+    const el = wrapRef.current;
+    if (!el || typeof ResizeObserver === "undefined") return;
+    const ro = new ResizeObserver((entries) => setWrapW(entries[0].contentRect.width));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+  const narrow = wrapW > 0 && wrapW < 480;
+  // Month labels are thinned to every other one when they'd collide.
+  const labelEvery = narrow && monthly.length > 6 ? 2 : 1;
+
+  const width = narrow ? Math.max(280, Math.round(wrapW)) : 640;
   const height = 220;
   const padding = { top: 32, right: 14, bottom: 28, left: 46 };
   const innerW = width - padding.left - padding.right;
@@ -3139,7 +3155,7 @@ function IncomeExpenseChart({ monthly, budgetTotal }) {
   const budgetY = budgetTotal ? yFor(budgetTotal) : null;
 
   return (
-    <div className="chart-wrap">
+    <div className="chart-wrap" ref={wrapRef}>
       <svg
         viewBox={`0 0 ${width} ${height}`}
         width="100%"
@@ -3292,18 +3308,20 @@ function IncomeExpenseChart({ monthly, budgetTotal }) {
           />
         ))}
 
-        {monthly.map((m, i) => (
-          <text
-            key={m.month}
-            x={xFor(i)}
-            y={height - 8}
-            fontSize="11.5"
-            fill="var(--text-muted)"
-            textAnchor="middle"
-          >
-            {m.month}
-          </text>
-        ))}
+        {monthly.map((m, i) =>
+          (monthly.length - 1 - i) % labelEvery !== 0 ? null : (
+            <text
+              key={m.month}
+              x={xFor(i)}
+              y={height - 8}
+              fontSize="11.5"
+              fill="var(--text-muted)"
+              textAnchor="middle"
+            >
+              {m.month}
+            </text>
+          ),
+        )}
       </svg>
     </div>
   );
@@ -8156,7 +8174,7 @@ function BankTransactionsPanel({ client, searchTarget }) {
                 : "Most recent activity on this account — scroll to go back further"}
             </p>
           </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
             <div className="view-toggle">
               <button
                 type="button"
@@ -14951,6 +14969,7 @@ function ClientAccessPage({ readOnly }) {
             </div>
             <input
               type="text"
+              className="staff-list-search"
               placeholder="Search name, email, or client…"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
@@ -16408,6 +16427,7 @@ function BookkeeperHomePage({
                   </div>
                   <input
                     type="text"
+                    className="staff-list-search"
                     placeholder="Search your clients…"
                     value={clientSearch}
                     onChange={(e) => setClientSearch(e.target.value)}

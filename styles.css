@@ -5400,7 +5400,65 @@ body:has(.modal-overlay) .chat-fab-wrap {
 @media (max-width: 760px) {
   .main {
     padding: 18px 16px 40px 16px;
+    /* Room for the last controls to scroll clear of the floating chat button
+       (52px, 16px from the bottom). */
+    padding-bottom: calc(92px + env(safe-area-inset-bottom, 0px));
   }
+
+  /* <fieldset disabled> wraps whole admin pages (Client Roster, Developer
+     Tools). Browsers give fieldsets min-width: min-content, so one wide table
+     stretched the page past 375px instead of scrolling inside .table-scroll. */
+  .main fieldset {
+    min-width: 0;
+  }
+
+  /* The shared segmented control is inline-flex with nowrap buttons, so five
+     tabs (Giving & Funds) ran to ~530px. Wrap onto a second row instead.
+     Task tabs keep their own sideways scroll. */
+  .view-toggle:not(.task-tabs) {
+    flex-wrap: wrap;
+    max-width: 100%;
+  }
+
+  /* The add-row input rule (flex: 1; min-width: 160px) also caught the
+     checkboxes ("Payroll add-on", "Billable"), stretching each into a
+     160px-wide box on its own line. */
+  .staff-add-row input[type="checkbox"] {
+    flex: none;
+    min-width: 0;
+    padding: 0;
+  }
+
+  /* Home "Your clients" rows: name, status and "+ Note" on one line pushed
+     the Note button past the card edge. Name takes the first line; status and
+     Note drop below it. */
+  .staff-due-row:has(> .staff-client-jump) {
+    flex-wrap: wrap;
+  }
+  .staff-due-row > .staff-client-jump {
+    min-width: 100%;
+  }
+
+  /* Income vs. expenses: the chart's viewBox follows the real width on
+     phones (see IncomeExpenseChart), so the fixed 260px box only added empty
+     bands above and below. Let the SVG's own aspect ratio set the height. */
+  .chart-wrap {
+    height: auto;
+  }
+
+  /* Client Roster / Home client search: an unstyled browser-default input,
+     ~25px tall and hard to hit on a phone. */
+  .staff-list-search {
+    width: 100%;
+    min-height: 40px;
+    padding: 8px 12px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    font: inherit;
+    color: var(--text);
+    background: var(--surface);
+  }
+
 
   .page-header {
     margin-bottom: 20px;
@@ -5650,6 +5708,17 @@ body:has(.modal-overlay) .chat-fab-wrap {
 
   .budget-input {
     min-height: 44px;
+  }
+
+  /* Remaining small targets found in a phone-width pass: the segmented
+     control (~30px) and the staff toolbar buttons (~27px). The inbox's own
+     are in staff-inbox.css. */
+  .view-toggle-btn {
+    min-height: 40px;
+  }
+
+  .staff-quick-actions > button {
+    min-height: 36px;
   }
 }
 
@@ -7098,9 +7167,52 @@ body:has(.modal-overlay) .chat-fab-wrap {
     width: 100%;
   }
 
+  /* Five tabs at 10px side padding ran ~20px past a 375px screen and cut off
+     "By client". Tighter padding and letting tabs shrink makes them fit; if
+     counts still push them over, the strip scrolls and the right-edge shadow
+     (hidden by the "local" cover once you reach the end) hints at more. */
+  .task-tabs {
+    background:
+      linear-gradient(to left, var(--surface) 40%, transparent) right center / 28px 100% no-repeat local,
+      linear-gradient(to left, rgba(0, 0, 0, 0.14), transparent) right center / 14px 100% no-repeat scroll,
+      var(--surface);
+  }
+
   .task-tabs .view-toggle-btn {
-    flex: 1 0 auto;
-    padding: 7px 10px;
+    flex: 1 1 auto;
+    padding: 7px 6px;
+  }
+
+  /* Add-task form on iOS Safari: date/time inputs have a wide intrinsic width
+     (the "Remind me" datetime overlapped "Repeat") and, when empty, collapse
+     to a shorter height than the selects, so the two-column rows didn't line
+     up. One fixed height for every field, and date inputs forced to fit. */
+  .task-add input:not([type="checkbox"]),
+  .task-add select {
+    height: 44px;
+    line-height: 1.2;
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .task-add input[type="date"],
+  .task-add input[type="time"],
+  .task-add input[type="datetime-local"] {
+    -webkit-appearance: none;
+    appearance: none;
+    display: block;
+    min-width: 0;
+    box-sizing: border-box;
+    text-align: left;
+  }
+
+  .task-add input::-webkit-date-and-time-value {
+    min-height: 1.2em;
+    text-align: left;
+  }
+
+  .task-add-row input.task-add-text {
+    width: auto;
   }
 
   .task-row {
@@ -8291,6 +8403,18 @@ body:has(.modal-overlay) .chat-fab-wrap {
   flex-shrink: 0;
   white-space: nowrap;
 }
+/* The quick-action modal renders inside the toolbar. The toolbar's button
+   styles are scoped to direct children (">") because the white-on-ink pills
+   otherwise leaked into the modal and made its ×, Cancel and Save invisible
+   on the white panel; and the modal resets the toolbar's nowrap so a long
+   client name in the title wraps instead of pushing the × off the panel. */
+.staff-quick-actions > .modal-overlay {
+  white-space: normal;
+}
+.staff-quick-actions .modal-header > * {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
 .staff-quick-actions .sqa-label {
   font-size: 11px;
   font-weight: 700;
@@ -8299,7 +8423,7 @@ body:has(.modal-overlay) .chat-fab-wrap {
   color: var(--gold);
   padding: 0 6px 0 4px;
 }
-.staff-quick-actions button {
+.staff-quick-actions > button {
   border: 1px solid transparent;
   background: transparent;
   color: var(--sidebar-text-active);
@@ -8310,11 +8434,11 @@ body:has(.modal-overlay) .chat-fab-wrap {
   border-radius: 999px;
   cursor: pointer;
 }
-.staff-quick-actions button:hover {
+.staff-quick-actions > button:hover {
   background: rgba(255, 255, 255, 0.1);
   border-color: rgba(255, 255, 255, 0.16);
 }
-.staff-quick-actions button:focus-visible {
+.staff-quick-actions > button:focus-visible {
   outline: 2px solid var(--gold);
   outline-offset: 1px;
 }

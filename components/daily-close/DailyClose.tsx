@@ -495,7 +495,21 @@ function LineChart({
   lowPointIndex?: number;
   ariaLabel?: string;
 }) {
-  const W = 720,
+  // Phone width: the fixed 720-wide viewBox shrank to ~270px, so axis labels
+  // rendered around 3.5px tall. Under 480px the viewBox follows the real width
+  // (1:1, labels at their intended size); wider containers keep 720 exactly.
+  const wrapRef = useRef<HTMLDivElement>(null);
+  const [wrapW, setWrapW] = useState(0);
+  React.useLayoutEffect(() => {
+    const el = wrapRef.current;
+    if (!el || typeof ResizeObserver === "undefined") return;
+    const ro = new ResizeObserver((entries) => setWrapW(entries[0].contentRect.width));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+  const narrow = wrapW > 0 && wrapW < 480;
+
+  const W = narrow ? Math.max(260, Math.round(wrapW)) : 720,
     H = 210,
     padL = 44,
     padR = 14,
@@ -516,12 +530,12 @@ function LineChart({
     const X = (i: number) => padL + i * stepX;
     const Y = (v: number) => padT + innerH - ((v - yMin) / (yMax - yMin)) * innerH;
     return { yMin, yMax, X, Y };
-  }, [series, floorZero, n]);
+  }, [series, floorZero, n, W]);
 
   const [hover, setHover] = useState<number | null>(null);
 
   const gridVals = [yMin, yMin + (yMax - yMin) / 2, yMax];
-  const everyN = n > 9 ? Math.ceil(n / 7) : 1;
+  const everyN = narrow ? (n > 5 ? Math.ceil(n / 4) : 1) : n > 9 ? Math.ceil(n / 7) : 1;
 
   function handleMove(evt: React.MouseEvent<SVGRectElement> | React.TouchEvent<SVGRectElement>) {
     const svg = (evt.currentTarget.ownerSVGElement ?? evt.currentTarget) as SVGSVGElement;
@@ -540,7 +554,7 @@ function LineChart({
     hover !== null ? (Y(Math.max(...series.map((s) => s.data[hover]))) / H) * 100 : 0;
 
   return (
-    <div className={styles.chartWrap}>
+    <div className={styles.chartWrap} ref={wrapRef}>
       <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label={ariaLabel}>
         {gridVals.map((gv, idx) => (
           <g key={idx}>
@@ -561,6 +575,8 @@ function LineChart({
 
         {labels.map((lab, i) => {
           if (i % everyN !== 0 && i !== n - 1) return null;
+          // Narrow: drop a label that would butt up against the always-shown last one.
+          if (narrow && i !== n - 1 && n - 1 - i < everyN) return null;
           return (
             <text
               key={i}

@@ -1129,3 +1129,18 @@ body:has(.modal-overlay) .si-launcher {
   cursor: pointer;
   padding: 4px 0;
 }
+
+/* Touch devices: the mode, filter and new-thread buttons measured 24-29px and
+   the back/close icon buttons 32px. Only the hit area grows. */
+@media (pointer: coarse) {
+  .si-mode button,
+  .si-filter,
+  .si-new-btn {
+    min-height: 36px;
+  }
+
+  .si-icon-btn {
+    width: 40px;
+    height: 40px;
+  }
+}

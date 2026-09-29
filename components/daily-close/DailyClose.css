@@ -1407,9 +1407,13 @@
   .dc-tabs {
     width: 100%;
   }
+  /* nowrap made the three Outlook tabs ~30px wider than a phone-width card,
+     so "Anomalies" was clipped. Let the labels wrap onto two lines instead. */
   .dc-tab {
     flex: 1;
-    white-space: nowrap;
+    min-width: 0;
+    white-space: normal;
+    line-height: 1.25;
   }
 }
 

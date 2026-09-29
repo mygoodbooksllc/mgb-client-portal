@@ -350,6 +350,9 @@ button.pr-chip:hover, .pr-chip-saved:hover { border-color: var(--gold); backgrou
 
 @media (max-width: 640px) {
   .pr-compare-grid { grid-template-columns: 1fr; }
+  /* Let input + button rows (e.g. "Save as template") wrap instead of
+     pushing the button past the card edge. */
+  .pr-row { flex-wrap: wrap; }
   .pr-share-h1 { font-size: 20px; }
   .pr-share-page { padding-top: 20px; }
 }
