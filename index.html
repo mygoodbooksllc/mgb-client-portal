@@ -228,7 +228,7 @@
           const { data, error } = await supabase
             .from("clients")
             .select(
-              "id, name, org_type, plan, test_only, payroll_add_on, assigned_bookkeeper",
+              "id, name, org_type, plan, test_only, payroll_add_on, assigned_bookkeeper, assigned_bookkeeper_email",
             );
           if (error) {
             console.warn("Couldn't load client roster from Supabase:", error.message);
@@ -246,7 +246,14 @@
               plan: row.plan,
               testOnly: row.test_only,
               payrollAddOn: row.payroll_add_on,
-              assignedBookkeeper: row.assigned_bookkeeper,
+              // assigned_bookkeeper_email (supabase/assigned-bookkeeper-email.sql)
+              // is the real staff link; folded into the display object so
+              // consumers can match on email and fall back to the name.
+              assignedBookkeeper: row.assigned_bookkeeper
+                ? Object.assign({}, row.assigned_bookkeeper, {
+                    email: row.assigned_bookkeeper_email || null,
+                  })
+                : null,
             };
             // withClientDataDefaults (data.js) backfills the empty arrays a
             // roster-only org has none of, so app.jsx's unguarded
