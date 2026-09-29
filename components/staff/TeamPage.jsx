@@ -923,6 +923,7 @@ function TP_TeamPage({ clients }) {
   return (
     <div className="tp-page">
       <TP_QboPanel qbo={qbo} onOpenMapping={openMapping} onSynced={refreshQbo} />
+      {isAdmin && typeof DG_DigestSettings === "function" && <DG_DigestSettings />}
       {periodCard}
       {isAdmin && (
         <TP_CapacityCard

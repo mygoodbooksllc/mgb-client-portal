@@ -5,7 +5,9 @@ import { createClient } from "jsr:@supabase/supabase-js@2";
 // company (the "firm" connection, qbo_firm_connection — see
 // supabase/qbo-firm-time.sql for the whole design) into qbo_time_activities,
 // and keeps the customer->client and employee/vendor->staff map tables
-// current. The per-client qbo-sync function is untouched; this is separate so
+// current. It also replaces qbo_firm_invoices with the firm's open invoices
+// (Balance > 0) for the weekly admin digest (supabase/weekly-digest.sql).
+// The per-client qbo-sync function is untouched; this is separate so
 // the client sync, its cron and its plan schedule never see the firm company.
 //
 // Two callers, two auth modes (same shape as qbo-sync):
@@ -384,6 +386,29 @@ async function syncFirm(admin: any, conn: any, trigger: string) {
       p_rows: timeRows,
     });
     if (c3.error) throw new Error(`time activities: ${c3.error.message}`);
+
+    // --- Open invoices (weekly admin digest "late payers") -------------------
+    // Best effort: a failure here is recorded in counts but never fails the
+    // time sync above. Whole set replaced each run (paid invoices drop out).
+    try {
+      const invoices = await queryAll(accessToken, base, realmId, "Invoice", "where Balance > '0'");
+      const invoiceRows = invoices.map((inv: any) => ({
+        qbo_id: String(inv.Id),
+        customer_qbo_id: str(inv.CustomerRef?.value),
+        customer_name: str(inv.CustomerRef?.name),
+        doc_number: str(inv.DocNumber),
+        txn_date: str(inv.TxnDate)?.slice(0, 10) ?? null,
+        due_date: str(inv.DueDate)?.slice(0, 10) ?? str(inv.TxnDate)?.slice(0, 10) ?? null,
+        total_amt: num(inv.TotalAmt),
+        balance: num(inv.Balance),
+      }));
+      const c4 = await admin.rpc("qbo_firm_replace_invoices", { p_realm_id: realmId, p_rows: invoiceRows });
+      if (c4.error) throw new Error(c4.error.message);
+      counts.open_invoices = invoiceRows.length;
+    } catch (invErr) {
+      counts.open_invoices_failed = 1;
+      console.log(`qbo-firm-sync: open invoices skipped — ${(invErr as Error).message}`);
+    }
 
     const syncedAt = new Date().toISOString();
     await admin.from("qbo_firm_sync_runs").insert({
