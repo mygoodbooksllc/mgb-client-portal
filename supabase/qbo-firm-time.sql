@@ -1,7 +1,7 @@
 -- QuickBooks Time -> staff dashboard: the FIRM's own QuickBooks connection,
 -- its TimeActivity rows, and the customer/employee mapping tables.
 --
--- NOT YET APPLIED. Safe to re-run (if not exists / create or replace / drop
+-- Applied to production 2026-09-29. Safe to re-run (if not exists / create or replace / drop
 -- policy if exists / unschedule-if-exists), wrapped in one transaction.
 --
 -- Companion code:
@@ -396,13 +396,17 @@ begin
   insert into qbo_customer_client_map as m (
     realm_id, qbo_customer_id, customer_name, company_name, fully_qualified_name,
     parent_qbo_id, is_job, active, last_seen_at, updated_at)
-  select p_realm_id, r.qbo_customer_id, r.customer_name, r.company_name,
+  -- distinct on: a duplicate id in p_rows would otherwise abort the whole
+  -- upsert ("ON CONFLICT DO UPDATE command cannot affect row a second time").
+  select distinct on (r.qbo_customer_id)
+         p_realm_id, r.qbo_customer_id, r.customer_name, r.company_name,
          r.fully_qualified_name, r.parent_qbo_id, coalesce(r.is_job, false),
          coalesce(r.active, true), now(), now()
   from jsonb_to_recordset(coalesce(p_rows, '[]'::jsonb)) as r(
     qbo_customer_id text, customer_name text, company_name text,
     fully_qualified_name text, parent_qbo_id text, is_job boolean, active boolean)
   where r.qbo_customer_id is not null
+  order by r.qbo_customer_id
   on conflict (realm_id, qbo_customer_id) do update set
     customer_name = coalesce(excluded.customer_name, m.customer_name),
     company_name = coalesce(excluded.company_name, m.company_name),
@@ -432,11 +436,13 @@ begin
   insert into qbo_employee_staff_map as m (
     realm_id, qbo_entity_type, qbo_id, display_name, qbo_email, active,
     last_seen_at, updated_at)
-  select p_realm_id, r.qbo_entity_type, r.qbo_id, r.display_name,
+  select distinct on (r.qbo_entity_type, r.qbo_id)
+         p_realm_id, r.qbo_entity_type, r.qbo_id, r.display_name,
          nullif(btrim(r.qbo_email), ''), coalesce(r.active, true), now(), now()
   from jsonb_to_recordset(coalesce(p_rows, '[]'::jsonb)) as r(
     qbo_entity_type text, qbo_id text, display_name text, qbo_email text, active boolean)
   where r.qbo_id is not null and r.qbo_entity_type in ('Employee', 'Vendor')
+  order by r.qbo_entity_type, r.qbo_id
   on conflict (realm_id, qbo_entity_type, qbo_id) do update set
     display_name = coalesce(excluded.display_name, m.display_name),
     qbo_email = coalesce(excluded.qbo_email, m.qbo_email),
@@ -619,7 +625,9 @@ begin
                select 1 from qbo_time_activities t
                where t.realm_id = p.realm_id
                  and coalesce(t.employee_qbo_id, t.vendor_qbo_id) = p.qbo_id
-                 and t.name_of is not distinct from p.qbo_entity_type))
+                 -- same Employee-else-Vendor rule qbo_hours_by_staff joins on
+                 and p.qbo_entity_type = case when t.employee_qbo_id is not null
+                                              then 'Employee' else 'Vendor' end))
   from (select 1) one
   left join qbo_firm_connection c on c.id = true;
 end;
