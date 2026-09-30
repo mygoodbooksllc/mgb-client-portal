@@ -7461,10 +7461,124 @@ function FundAccountingProPage({ client }) {
 // Cash Flow page
 // ----------------------------------------------------------------------------
 
+// One open-items table (receivables or payables) with its own search, sort,
+// overdue flag and paging. QuickBooks clients can have hundreds of open bills,
+// so the table shows RP_PAGE rows and a "Show more" button.
+const RP_PAGE = 25;
+function RP_OpenItemsTable({ kind, items, today }) {
+  const [q, setQ] = useState("");
+  const [sort, setSort] = useState("due");
+  const [shown, setShown] = useState(RP_PAGE);
+  const isPay = kind === "payables";
+  const nameOf = (x) => (isPay ? x.vendor || "" : x.description || "");
+  const rows = useMemo(() => {
+    const needle = q.trim().toLowerCase();
+    const list = (items || []).filter(
+      (x) =>
+        !needle ||
+        [nameOf(x), x.description, x.docNumber].some((s) => s && String(s).toLowerCase().includes(needle)),
+    );
+    const by = {
+      due: (a, b) => (a.dueDate < b.dueDate ? -1 : a.dueDate > b.dueDate ? 1 : 0),
+      amount: (a, b) => (b.amount || 0) - (a.amount || 0),
+      name: (a, b) => nameOf(a).localeCompare(nameOf(b)),
+    }[sort];
+    return list.slice().sort(by);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [items, q, sort]);
+  useEffect(() => setShown(RP_PAGE), [q, sort]);
+  const label = isPay ? "payables" : "receivables";
+  return (
+    <>
+      {(items || []).length > 5 && (
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", margin: "4px 0 10px" }}>
+          <input
+            type="search"
+            className="rb-select"
+            placeholder={isPay ? "Search vendors or bill #" : "Search customers or invoice #"}
+            aria-label={"Search " + label}
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            style={{ minWidth: 0, width: 220, maxWidth: "100%" }}
+          />
+          <select
+            className="rb-select"
+            aria-label={"Sort " + label}
+            value={sort}
+            onChange={(e) => setSort(e.target.value)}
+            style={{ width: "auto" }}
+          >
+            <option value="due">Due date</option>
+            <option value="amount">Largest first</option>
+            <option value="name">{isPay ? "Vendor" : "Name"} A–Z</option>
+          </select>
+        </div>
+      )}
+      <div className="table-scroll">
+        <table className="tx-table tx-table-labeled">
+          <thead>
+            <tr>
+              <th>{isPay ? "Vendor" : "Description"}</th>
+              <th>Due</th>
+              <th className="num">Amount</th>
+            </tr>
+          </thead>
+          <tbody>
+            {(items || []).length === 0 && (
+              <EmptyRow colSpan={3}>Nothing outstanding — you&rsquo;re all caught up.</EmptyRow>
+            )}
+            {(items || []).length > 0 && rows.length === 0 && (
+              <EmptyRow colSpan={3}>Nothing matches &ldquo;{q}&rdquo;.</EmptyRow>
+            )}
+            {rows.slice(0, shown).map((x, i) => {
+              const late = daysUntil(x.dueDate, today);
+              const overdue = late < 0;
+              const meta = isPay ? x.description : x.docNumber ? "Invoice #" + x.docNumber : null;
+              return (
+                <tr key={x.id || kind + ":" + i}>
+                  <td data-primary="">
+                    {nameOf(x)}
+                    {meta && <div className="tx-meta">{meta}</div>}
+                  </td>
+                  <td data-label="Due">
+                    {fmtDate(x.dueDate)}
+                    {overdue && (
+                      <div className="tx-meta negative" style={{ fontWeight: 600 }}>
+                        Overdue {-late} day{late === -1 ? "" : "s"}
+                      </div>
+                    )}
+                  </td>
+                  <td className={"num tx-amount " + (isPay ? "negative" : "positive")} data-label="Amount">
+                    {isPay ? "-" : ""}
+                    {fmtMoney(x.amount, { cents: true })}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+      {rows.length > shown && (
+        <div style={{ marginTop: 10 }}>
+          <button type="button" className="btn-secondary" onClick={() => setShown((n) => n + RP_PAGE)}>
+            Show more ({rows.length - shown} left)
+          </button>
+        </div>
+      )}
+    </>
+  );
+}
+
 function ReceivablesPayablesPage({ client }) {
   const totalReceivable = client.receivables.reduce((s, r) => s + r.amount, 0);
   const totalPayable = client.payables.reduce((s, p) => s + p.amount, 0);
   const { flashCardId, jumpToCard } = useCardFlash();
+  const today = todayLocal();
+  const isQbo = client.dataSource === "quickbooks";
+  const overdueOf = (list) => list.filter((x) => daysUntil(x.dueDate, today) < 0);
+  const arOverdue = overdueOf(client.receivables);
+  const apOverdue = overdueOf(client.payables);
+  const net = totalReceivable - totalPayable;
 
   return (
     <div className="cashflow-page">
@@ -7480,6 +7594,7 @@ function ReceivablesPayablesPage({ client }) {
           <span className="kpi-sub positive">
             {client.receivables.length} open item
             {client.receivables.length !== 1 ? "s" : ""}
+            {arOverdue.length > 0 && ` · ${arOverdue.length} overdue`}
           </span>
         </button>
         <button
@@ -7491,14 +7606,15 @@ function ReceivablesPayablesPage({ client }) {
           <span className="kpi-sub negative">
             {client.payables.length} open item
             {client.payables.length !== 1 ? "s" : ""}
+            {apOverdue.length > 0 && ` · ${apOverdue.length} overdue`}
           </span>
         </button>
+        {/* Not a balance-sheet "net position": just open receivables less
+            open payables, so it says exactly that. */}
         <div className="card kpi-card">
-          <span className="kpi-label">Net Position</span>
-          <span className="kpi-value">
-            {fmtMoney(totalReceivable - totalPayable)}
-          </span>
-          <span className="kpi-sub neutral">receivables minus payables</span>
+          <span className="kpi-label">Owed To You, Less What You Owe</span>
+          <span className="kpi-value">{fmtMoney(net)}</span>
+          <span className="kpi-sub neutral">open receivables minus open payables (not cash)</span>
         </div>
       </div>
 
@@ -7511,35 +7627,11 @@ function ReceivablesPayablesPage({ client }) {
         >
           <h3 className="card-title">Receivables</h3>
           <p className="card-subtitle">
-            Grants, pledges, and reimbursements coming in
+            {isQbo
+              ? "Open invoices from QuickBooks"
+              : "Open invoices and other money owed to you"}
           </p>
-          <div className="table-scroll">
-            <table className="tx-table tx-table-labeled">
-              <thead>
-                <tr>
-                  <th>Description</th>
-                  <th>Due</th>
-                  <th className="num">Amount</th>
-                </tr>
-              </thead>
-              <tbody>
-                {client.receivables.length === 0 && (
-                  <EmptyRow colSpan={3}>
-                    Nothing outstanding — you&rsquo;re all caught up.
-                  </EmptyRow>
-                )}
-                {client.receivables.map((r, i) => (
-                  <tr key={i}>
-                    <td data-primary="">{r.description}</td>
-                    <td data-label="Due">{fmtDate(r.dueDate)}</td>
-                    <td className="num tx-amount positive" data-label="Amount">
-                      {fmtMoney(r.amount, { cents: true })}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <RP_OpenItemsTable kind="receivables" items={client.receivables} today={today} />
         </div>
 
         <div
@@ -7547,37 +7639,10 @@ function ReceivablesPayablesPage({ client }) {
           id="rp-payables-card"
         >
           <h3 className="card-title">Payables</h3>
-          <p className="card-subtitle">Bills and commitments going out</p>
-          <div className="table-scroll">
-            <table className="tx-table tx-table-labeled">
-              <thead>
-                <tr>
-                  <th>Vendor</th>
-                  <th>Due</th>
-                  <th className="num">Amount</th>
-                </tr>
-              </thead>
-              <tbody>
-                {client.payables.length === 0 && (
-                  <EmptyRow colSpan={3}>
-                    Nothing outstanding — you&rsquo;re all caught up.
-                  </EmptyRow>
-                )}
-                {client.payables.map((p, i) => (
-                  <tr key={i}>
-                    <td data-primary="">
-                      {p.vendor}
-                      <div className="tx-meta">{p.description}</div>
-                    </td>
-                    <td data-label="Due">{fmtDate(p.dueDate)}</td>
-                    <td className="num tx-amount negative" data-label="Amount">
-                      -{fmtMoney(p.amount, { cents: true })}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <p className="card-subtitle">
+            {isQbo ? "Unpaid bills in QuickBooks" : "Unpaid bills going out"}
+          </p>
+          <RP_OpenItemsTable kind="payables" items={client.payables} today={today} />
         </div>
       </div>
     </div>
@@ -10581,6 +10646,32 @@ function apDueText(diff) {
   return `in ${diff}d`;
 }
 
+// QuickBooks' own aging report buckets (A/P and A/R Aging Summary), so the
+// numbers here line up with what the bookkeeper sees in QuickBooks. `diff`
+// is daysUntil(dueDate, today): negative means overdue.
+const AP_AGING_BUCKETS = [
+  { key: "current", label: "Current", test: (d) => d >= 0, color: "var(--good)" },
+  { key: "d1_30", label: "1–30 days over", test: (d) => d < 0 && d >= -30, color: "var(--warm-text)" },
+  { key: "d31_60", label: "31–60 days over", test: (d) => d < -30 && d >= -60, color: "var(--bad)" },
+  { key: "d61_90", label: "61–90 days over", test: (d) => d < -60 && d >= -90, color: "var(--bad)" },
+  { key: "d91plus", label: "91+ days over", test: (d) => d < -90, color: "var(--bad)" },
+];
+function apAging(rows) {
+  return AP_AGING_BUCKETS.map((b) => ({
+    ...b,
+    amount: rows.filter((r) => b.test(r.diff)).reduce((s, r) => s + r.amount, 0),
+  }));
+}
+
+// A CSV cell that starts with = + - @ (or a tab/CR) is run as a formula by
+// Excel and Sheets; vendor and customer names come from QuickBooks, so
+// prefix those with an apostrophe. Plain numbers (amounts) are left alone.
+function apCsvCell(v) {
+  let s = String(v == null ? "" : v);
+  if (/^[=+\-@\t\r]/.test(s) && !/^-?\d+(\.\d+)?$/.test(s)) s = "'" + s;
+  return `"${s.replace(/"/g, '""')}"`;
+}
+
 function APCommandCenterPage({ client }) {
   const [statusFilter, setStatusFilter] = useState("all");
   const [query, setQuery] = useState("");
@@ -10660,41 +10751,39 @@ function APCommandCenterPage({ client }) {
       .sort((a, b) => a.diff - b.diff);
   }, [rows, statusFilter, query]);
 
-  const agingBuckets = useMemo(() => {
-    const buckets = [
-      {
-        key: "current",
-        label: "Current",
-        test: (d) => d >= 0,
-        color: "var(--good)",
-      },
-      {
-        key: "d1_7",
-        label: "1–7 days over",
-        test: (d) => d < 0 && d >= -7,
-        color: "var(--warm-text)",
-      },
-      {
-        key: "d8_30",
-        label: "8–30 days over",
-        test: (d) => d < -7 && d >= -30,
-        color: "var(--bad)",
-      },
-      {
-        key: "d30plus",
-        label: "30+ days over",
-        test: (d) => d < -30,
-        color: "var(--bad)",
-      },
-    ];
-    return buckets.map((b) => ({
-      ...b,
-      amount: rows
-        .filter((r) => b.test(r.diff))
-        .reduce((s, r) => s + r.amount, 0),
-    }));
-  }, [rows]);
+  const agingBuckets = useMemo(() => apAging(rows), [rows]);
   const maxBucket = Math.max(...agingBuckets.map((b) => b.amount), 1);
+
+  // Receivables: the other half of cash flow, aged the same way.
+  const arRows = useMemo(
+    () =>
+      (client.receivables || []).map((r, i) => ({
+        ...r,
+        diff: daysUntil(r.dueDate, today),
+        rowId: r.id != null ? r.id : "ar" + i,
+      })),
+    [client.receivables, today],
+  );
+  const arAging = useMemo(() => apAging(arRows), [arRows]);
+  const arMaxBucket = Math.max(...arAging.map((b) => b.amount), 1);
+  const arTotal = arRows.reduce((s, r) => s + r.amount, 0);
+  const arOverdue = arRows.filter((r) => r.diff < 0);
+  const arOverdueTotal = arOverdue.reduce((s, r) => s + r.amount, 0);
+  const arTop = useMemo(() => {
+    const by = new Map();
+    arRows.forEach((r) => {
+      const name = r.customerName || r.description || "Customer";
+      const v = by.get(name) || { name, total: 0, count: 0, overdue: 0 };
+      v.total += r.amount;
+      v.count += 1;
+      if (r.diff < 0) v.overdue += 1;
+      by.set(name, v);
+    });
+    return [...by.values()].sort((a, b) => b.total - a.total);
+  }, [arRows]);
+  // Nothing here pays a bill: the approval steps were a prototype. A live
+  // (QuickBooks) client gets a plain "bills to pay" list and CSV instead.
+  const isLive = client.dataSource === "quickbooks";
 
   const nextDue = useMemo(
     () => [...rows].sort((a, b) => a.diff - b.diff).slice(0, 5),
@@ -10765,20 +10854,20 @@ function APCommandCenterPage({ client }) {
         r.dueDate,
       ]),
     ];
-    const csv = csvRows
-      .map((r) => r.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(","))
-      .join("\n");
+    const csv = csvRows.map((r) => r.map(apCsvCell).join(",")).join("\n");
     const blob = new Blob([csv], { type: "text/csv" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `${client.name.replace(/\s+/g, "_")}_ACH_batch.csv`;
+    a.download = `${String(client.name || "bills").replace(/\s+/g, "_")}_${isLive ? "bills_to_pay" : "ACH_batch"}.csv`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
     showToast(
-      `Exported ${list.length} bill${list.length !== 1 ? "s" : ""} for bank upload.`,
+      isLive
+        ? `Exported ${list.length} bill${list.length !== 1 ? "s" : ""}. Pay them in QuickBooks or your bank.`
+        : `Exported ${list.length} bill${list.length !== 1 ? "s" : ""} for bank upload.`,
     );
   };
 
@@ -10829,6 +10918,17 @@ function APCommandCenterPage({ client }) {
           <span className="kpi-sub neutral">
             {totals.scheduled.count} bill
             {totals.scheduled.count !== 1 ? "s" : ""}
+          </span>
+        </button>
+        <button
+          className="card kpi-card kpi-card-clickable"
+          onClick={() => jumpToCard("ap-cc-ar-card", "ar-aging")}
+        >
+          <span className="kpi-label">Owed To You</span>
+          <span className="kpi-value positive">{fmtMoney(arTotal)}</span>
+          <span className={"kpi-sub " + (arOverdue.length ? "negative" : "neutral")}>
+            {arRows.length} open invoice{arRows.length !== 1 ? "s" : ""}
+            {arOverdue.length ? ` · ${arOverdue.length} overdue` : ""}
           </span>
         </button>
       </div>
@@ -10954,7 +11054,13 @@ function APCommandCenterPage({ client }) {
 
       {(selected.size > 0 || payRun) && (
         <div className="card" style={{ marginBottom: 20 }}>
-          <h3 className="card-title">Pay Run</h3>
+          <h3 className="card-title">{isLive ? "Bills to Pay" : "Pay Run"}</h3>
+          {isLive && (
+            <p className="card-subtitle">
+              A planning list only. Nothing is paid or sent from here: pay these
+              in QuickBooks or through your bank.
+            </p>
+          )}
           <p className="card-subtitle">
             {payRun
               ? `${payRun.ids.length} bill${payRun.ids.length !== 1 ? "s" : ""} · ${fmtMoney(
@@ -10978,7 +11084,7 @@ function APCommandCenterPage({ client }) {
             </div>
             <div>
               <span className="ap-cc-age-label">
-                Balance after this pay run
+                {isLive ? "Balance after paying these" : "Balance after this pay run"}
               </span>
               <div
                 className={
@@ -11006,7 +11112,7 @@ function APCommandCenterPage({ client }) {
           )}
 
           <div className="ap-cc-payrun-actions">
-            {!payRun && (
+            {!payRun && !isLive && (
               <button
                 className="btn-primary"
                 onClick={startPayRun}
@@ -11025,8 +11131,13 @@ function APCommandCenterPage({ client }) {
               onClick={exportPayRunCsv}
               disabled={selectedRows.length === 0 && !payRun}
             >
-              Export ACH Batch (CSV)
+              {isLive ? "Export List (CSV)" : "Export ACH Batch (CSV)"}
             </button>
+            {isLive && !payRun && (
+              <button className="btn-secondary" onClick={cancelPayRun}>
+                Clear Selection
+              </button>
+            )}
             {payRun && (
               <button className="btn-secondary" onClick={cancelPayRun}>
                 Clear Pay Run
@@ -11062,8 +11173,8 @@ function APCommandCenterPage({ client }) {
         </div>
 
         <div className="card">
-          <h3 className="card-title">Aging Summary</h3>
-          <p className="card-subtitle">Payables by how overdue they are</p>
+          <h3 className="card-title">Payables Aging</h3>
+          <p className="card-subtitle">Bills by how overdue they are</p>
           <div className="ap-cc-aging">
             {agingBuckets.map((b) => (
               <div className="ap-cc-age-row" key={b.key}>
@@ -11087,8 +11198,8 @@ function APCommandCenterPage({ client }) {
           <h3 className="card-title">Next 5 Due</h3>
           <p className="card-subtitle">Coming up soonest</p>
           <div className="ap-cc-upcoming">
-            {nextDue.map((r, i) => (
-              <div className="ap-cc-upcoming-item" key={i}>
+            {nextDue.map((r) => (
+              <div className="ap-cc-upcoming-item" key={r.rowId}>
                 <div>
                   <div className="ap-cc-upcoming-who">{r.vendor}</div>
                   <div className="ap-cc-upcoming-when">{apDueText(r.diff)}</div>
@@ -11100,6 +11211,64 @@ function APCommandCenterPage({ client }) {
             ))}
             {nextDue.length === 0 && (
               <p className="card-subtitle">No open bills.</p>
+            )}
+          </div>
+        </div>
+
+        <div
+          className={"card " + (flashCardId === "ar-aging" ? "card-flash" : "")}
+          id="ap-cc-ar-card"
+        >
+          <h3 className="card-title">Receivables Aging</h3>
+          <p className="card-subtitle">
+            {fmtMoney(arTotal)} owed to you
+            {arOverdue.length > 0
+              ? ` · ${fmtMoney(arOverdueTotal)} overdue`
+              : ""}
+          </p>
+          {arRows.length === 0 ? (
+            <p className="card-subtitle">No open invoices.</p>
+          ) : (
+            <div className="ap-cc-aging">
+              {arAging.map((b) => (
+                <div className="ap-cc-age-row" key={b.key}>
+                  <span className="ap-cc-age-label">{b.label}</span>
+                  <span className="ap-cc-age-track">
+                    <span
+                      className="ap-cc-age-fill"
+                      style={{
+                        width: `${(b.amount / arMaxBucket) * 100}%`,
+                        background: b.color,
+                      }}
+                    />
+                  </span>
+                  <span className="ap-cc-age-amt">{fmtMoney(b.amount)}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className="card">
+          <h3 className="card-title">Who Owes You</h3>
+          <p className="card-subtitle">Open invoices by customer</p>
+          <div className="ap-cc-upcoming">
+            {arTop.slice(0, 6).map((v) => (
+              <div className="ap-cc-upcoming-item" key={v.name}>
+                <div>
+                  <div className="ap-cc-upcoming-who">{v.name}</div>
+                  <div className="ap-cc-upcoming-when">
+                    {v.count} invoice{v.count !== 1 ? "s" : ""}
+                    {v.overdue > 0 ? ` · ${v.overdue} overdue` : ""}
+                  </div>
+                </div>
+                <span className="ap-cc-upcoming-amt">
+                  {fmtMoney(v.total, { cents: true })}
+                </span>
+              </div>
+            ))}
+            {arTop.length === 0 && (
+              <p className="card-subtitle">No open invoices.</p>
             )}
           </div>
         </div>
