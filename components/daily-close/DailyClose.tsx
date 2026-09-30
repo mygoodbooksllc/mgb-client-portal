@@ -148,12 +148,11 @@ function writeCashFloor(clientId: string | undefined, value: number | null): voi
 
 /* ============================================================
    Widget layout — "customize your Live Report," same idea as the
-   Dashboard's own customize feature in app.jsx (show/hide + reorder via
-   move buttons). Not a call into app.jsx's useWidgetLayout/WidgetPickerModal:
-   this file is deliberately self-contained (loads before app.jsx even
-   exists, and the module comment at the top of this file says why), so this
-   is a small parallel implementation rather than a cross-file dependency on
-   another script's internals.
+   Dashboard's own customize feature in app.jsx (show/hide + reorder). The
+   layout hook is a small parallel implementation rather than a call into
+   app.jsx's useWidgetLayout (this file loads before app.jsx exists). The
+   drawer UI, card dragging and account sync come from
+   components/dashboard/WidgetDrawer.jsx, which loads before this file.
    ============================================================ */
 
 type LiveReportWidgetId =
@@ -244,10 +243,39 @@ function useLiveReportLayout(clientId?: string) {
   const order = saved ? saved.order.filter((id) => LIVE_REPORT_WIDGET_IDS.includes(id as LiveReportWidgetId)).concat(LIVE_REPORT_WIDGET_IDS.filter((id) => !saved!.order.includes(id))) : LIVE_REPORT_WIDGET_IDS.slice();
   const hidden = new Set(saved ? saved.hidden.filter((id) => LIVE_REPORT_WIDGET_IDS.includes(id as LiveReportWidgetId)) : []);
 
+  // Account copy (WD_useBoardSync in components/dashboard/WidgetDrawer.jsx):
+  // follows the signed-in person across devices once the table exists;
+  // localStorage above stays the cache and the fallback.
+  const boardKey = `live-report:${clientId || "default"}`;
+  if (typeof WD_useBoardSync === "function")
+    WD_useBoardSync(
+      boardKey,
+      () => ({ layout: saved || null, views }),
+      (row: { layout?: { order: string[]; hidden: string[] } | null; views?: LiveReportView[] }) => {
+        if (row.layout && Array.isArray(row.layout.order) && Array.isArray(row.layout.hidden)) {
+          writeLiveReportLayout(clientId, row.layout.order, row.layout.hidden);
+          setSaved({ order: row.layout.order, hidden: row.layout.hidden });
+        }
+        if (Array.isArray(row.views)) {
+          writeLiveReportViews(clientId, row.views);
+          setViews(row.views);
+        }
+      }
+    );
+  const saveRemote = (patch: object) => {
+    if (typeof WD_sync === "object" && WD_sync) WD_sync.save(boardKey, patch);
+  };
+
   const update = (nextOrder: string[], nextHidden: Set<string>) => {
     const nextHiddenArr = Array.from(nextHidden);
     writeLiveReportLayout(clientId, nextOrder, nextHiddenArr);
     setSaved({ order: nextOrder, hidden: nextHiddenArr });
+    saveRemote({ layout: { order: nextOrder, hidden: nextHiddenArr } });
+  };
+  const updateViews = (next: LiveReportView[]) => {
+    writeLiveReportViews(clientId, next);
+    setViews(next);
+    saveRemote({ views: next });
   };
 
   return {
@@ -260,13 +288,25 @@ function useLiveReportLayout(clientId?: string) {
       else next.add(id);
       update(order, next);
     },
-    move: (id: string, direction: -1 | 1) => {
-      const index = order.indexOf(id);
-      const targetIndex = index + direction;
-      if (index === -1 || targetIndex < 0 || targetIndex >= order.length) return;
-      const next = order.slice();
-      [next[index], next[targetIndex]] = [next[targetIndex], next[index]];
+    // Drops draggedId into targetId's slot (same direction-aware math as
+    // app.jsx's useWidgetLayout.reorder: a forward move lands after the
+    // target, a backward one before it).
+    reorder: (draggedId: string, targetId: string) => {
+      if (draggedId === targetId) return;
+      const draggedIndex = order.indexOf(draggedId);
+      const targetIndex = order.indexOf(targetId);
+      if (draggedIndex === -1 || targetIndex === -1) return;
+      const next = order.filter((id) => id !== draggedId);
+      let insertAt = next.indexOf(targetId);
+      if (draggedIndex < targetIndex) insertAt += 1;
+      next.splice(insertAt, 0, draggedId);
       update(next, hidden);
+    },
+    // Shows a hidden widget at the end of the report (the drawer's "+").
+    add: (id: string) => {
+      const next = new Set(hidden);
+      next.delete(id);
+      update(order.filter((x) => x !== id).concat(id), next);
     },
     reset: () => update(LIVE_REPORT_WIDGET_IDS.slice(), new Set()),
 
@@ -275,9 +315,7 @@ function useLiveReportLayout(clientId?: string) {
       const trimmed = (name || "").trim();
       if (!trimmed) return;
       const existing = views.filter((v) => v.name !== trimmed);
-      const next = [...existing, { name: trimmed, order, hidden: Array.from(hidden) }];
-      writeLiveReportViews(clientId, next);
-      setViews(next);
+      updateViews([...existing, { name: trimmed, order, hidden: Array.from(hidden) }]);
     },
     applyView: (name: string) => {
       const view = views.find((v) => v.name === name);
@@ -288,145 +326,30 @@ function useLiveReportLayout(clientId?: string) {
       );
     },
     deleteView: (name: string) => {
-      const next = views.filter((v) => v.name !== name);
-      writeLiveReportViews(clientId, next);
-      setViews(next);
+      updateViews(views.filter((v) => v.name !== name));
     },
   };
 }
 
-// Lightweight modal — not ModalShell (also an app.jsx internal, same
-// self-containment reasoning as the layout hook above). Handles Escape and
-// backdrop click; doesn't bother with a full focus trap, since this is a
-// small settings list, not a form with anything to lose by tabbing out of it.
-function LiveReportCustomizeModal({
+// Opens the shared Customize drawer (components/dashboard/WidgetDrawer.jsx,
+// loaded before this file). onOpenChange turns card dragging on only while
+// the drawer is open, so the report behaves exactly as before otherwise.
+function LiveReportCustomizeButton({
   layout,
-  onClose,
+  onOpenChange,
 }: {
   layout: ReturnType<typeof useLiveReportLayout>;
-  onClose: () => void;
+  onOpenChange: (open: boolean) => void;
 }) {
-  const [newViewName, setNewViewName] = useState("");
-
-  React.useEffect(() => {
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-    document.addEventListener("keydown", onKeyDown);
-    return () => document.removeEventListener("keydown", onKeyDown);
-  }, [onClose]);
-
+  if (typeof WD_CustomizeButton !== "function") return null;
   return (
-    <div className={styles.customizeOverlay} onClick={onClose}>
-      <div className={styles.customizePanel} role="dialog" aria-modal="true" aria-labelledby="live-report-customize-title" onClick={(e) => e.stopPropagation()}>
-        <div className={styles.customizeHeader}>
-          <h3 id="live-report-customize-title">Customize your Live Report</h3>
-          <button type="button" className={styles.customizeClose} onClick={onClose} aria-label="Close">
-            ×
-          </button>
-        </div>
-        <div className={styles.customizeList}>
-          {layout.order.map((id, index) => {
-            const meta = LIVE_REPORT_WIDGETS.find((w) => w.id === id)!;
-            const isHidden = layout.hidden.has(id);
-            return (
-              <div className={styles.customizeRow} key={id}>
-                <label className={styles.customizeCheckboxLabel}>
-                  <input type="checkbox" checked={!isHidden} onChange={() => layout.toggle(id)} />
-                  <span>
-                    <span className={styles.customizeRowLabel}>{meta.label}</span>
-                    <span className={styles.customizeRowDesc}>{meta.description}</span>
-                  </span>
-                </label>
-                <div className={styles.customizeMoveGroup}>
-                  <button type="button" disabled={index === 0} onClick={() => layout.move(id, -1)} aria-label={`Move ${meta.label} up`}>
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M5 15l7-7 7 7" />
-                    </svg>
-                  </button>
-                  <button type="button" disabled={index === layout.order.length - 1} onClick={() => layout.move(id, 1)} aria-label={`Move ${meta.label} down`}>
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M5 9l7 7 7-7" />
-                    </svg>
-                  </button>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-
-        <div className={styles.customizeViews}>
-          <h4 className={styles.customizeViewsTitle}>Saved views</h4>
-          <p className={styles.customizeRowDesc} style={{ margin: "0 0 10px" }}>
-            Save this arrangement under a name to switch back to it later.
-          </p>
-          {layout.views.length > 0 && (
-            <div className={styles.customizeViewList}>
-              {layout.views.map((v) => (
-                <div className={styles.customizeViewRow} key={v.name}>
-                  <span className={styles.customizeViewName}>{v.name}</span>
-                  <div className={styles.customizeViewActions}>
-                    <button type="button" className={styles.customizeReset} onClick={() => layout.applyView(v.name)}>
-                      Apply
-                    </button>
-                    <button
-                      type="button"
-                      className={styles.customizeViewRemove}
-                      onClick={() => layout.deleteView(v.name)}
-                      aria-label={`Delete view ${v.name}`}
-                    >
-                      ×
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-          <div className={styles.customizeViewNew}>
-            <input
-              type="text"
-              placeholder="Name this arrangement…"
-              value={newViewName}
-              onChange={(e) => setNewViewName(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && newViewName.trim()) {
-                  layout.saveView(newViewName);
-                  setNewViewName("");
-                }
-              }}
-            />
-            <button
-              type="button"
-              className={styles.customizeReset}
-              disabled={!newViewName.trim()}
-              onClick={() => {
-                layout.saveView(newViewName);
-                setNewViewName("");
-              }}
-            >
-              Save as view
-            </button>
-          </div>
-        </div>
-
-        <div className={styles.customizeFooter}>
-          <button type="button" className={styles.customizeReset} onClick={layout.reset}>
-            Reset to default
-          </button>
-          <button type="button" className={styles.customizeDone} onClick={onClose}>
-            Done
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function LiveReportCustomizeButton({ layout }: { layout: ReturnType<typeof useLiveReportLayout> }) {
-  const [open, setOpen] = useState(false);
-  return (
-    <React.Fragment>
-      <button type="button" className={styles.customizeTrigger} onClick={() => setOpen(true)}>
+    <WD_CustomizeButton
+      widgets={LIVE_REPORT_WIDGETS}
+      layout={layout}
+      className={styles.customizeTrigger}
+      boardName="your Live Report"
+      onOpenChange={onOpenChange}
+    >
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
           <path d="M4 6h16M8 12h12M4 18h16" />
           <circle cx="6" cy="6" r="1.6" fill="currentColor" stroke="none" />
@@ -434,9 +357,7 @@ function LiveReportCustomizeButton({ layout }: { layout: ReturnType<typeof useLi
           <circle cx="9" cy="18" r="1.6" fill="currentColor" stroke="none" />
         </svg>
         Customize Live Report
-      </button>
-      {open && <LiveReportCustomizeModal layout={layout} onClose={() => setOpen(false)} />}
-    </React.Fragment>
+    </WD_CustomizeButton>
   );
 }
 
@@ -1039,6 +960,12 @@ function DailyClose({ data, className, theme, onNavigate }: DailyCloseProps) {
   const [editingFloor, setEditingFloor] = useState(false);
   const [floorDraft, setFloorDraft] = useState("");
   const layout = useLiveReportLayout(data.client.id);
+  // While the Customize drawer is open the report is in edit mode: every
+  // tile/panel is tagged for the drawer's outline + remove chrome and can be
+  // dragged with a mouse to reorder (WD_useDragReorder, WidgetDrawer.jsx).
+  const [editingLayout, setEditingLayout] = useState(false);
+  const drag = typeof WD_useDragReorder === "function" ? WD_useDragReorder(layout) : null;
+  const wdCard = (id: string) => (editingLayout && drag ? drag.dragProps(id) : { "data-wd-id": id });
 
   const agingRef = useRef<HTMLDivElement>(null);
   const outlookRef = useRef<HTMLDivElement>(null);
@@ -1292,7 +1219,7 @@ function DailyClose({ data, className, theme, onNavigate }: DailyCloseProps) {
           </div>
         </header>
 
-        <LiveReportCustomizeButton layout={layout} />
+        <LiveReportCustomizeButton layout={layout} onOpenChange={setEditingLayout} />
 
         {/* ---------- KPI row ---------- */}
         <section className={styles.kpiRow} aria-label="Key metrics">
@@ -1301,7 +1228,7 @@ function DailyClose({ data, className, theme, onNavigate }: DailyCloseProps) {
             .map((id) => {
               if (id === "kpi-cash")
                 return (
-                  <div className={`${styles.kpiTile} ${belowFloor ? styles.kpiTileAlert : ""}`} key={id}>
+                  <div className={`${styles.kpiTile} ${belowFloor ? styles.kpiTileAlert : ""}`} key={id} {...wdCard(id)}>
                     <div className={styles.kpiTileTop}>
                       <div className={styles.kpiLabel}>Cash on hand</div>
                       <button
@@ -1352,7 +1279,7 @@ function DailyClose({ data, className, theme, onNavigate }: DailyCloseProps) {
 
               if (id === "kpi-ar")
                 return (
-                  <button type="button" className={`${styles.kpiTile} ${styles.kpiTileClickable}`} onClick={jumpToAging} key={id}>
+                  <button type="button" className={`${styles.kpiTile} ${styles.kpiTileClickable}`} onClick={jumpToAging} key={id} {...wdCard(id)}>
                     <div className={styles.kpiLabel}>Accounts receivable</div>
                     <div className={styles.kpiValue}>{fmtMoney(data.receivables.total)}</div>
                     <div className={`${styles.chip} ${styles.chipWarn}`}>
@@ -1373,6 +1300,7 @@ function DailyClose({ data, className, theme, onNavigate }: DailyCloseProps) {
                     onClick={() => onNavigate && onNavigate("receivables")}
                     disabled={!onNavigate}
                     key={id}
+                    {...wdCard(id)}
                   >
                     <div className={styles.kpiLabel}>Accounts payable</div>
                     <div className={styles.kpiValue}>{fmtMoney(data.payables.total)}</div>
@@ -1396,7 +1324,7 @@ function DailyClose({ data, className, theme, onNavigate }: DailyCloseProps) {
 
               // kpi-net
               return (
-                <button type="button" className={`${styles.kpiTile} ${styles.kpiTileClickable}`} onClick={() => jumpToOutlook("trend")} key={id}>
+                <button type="button" className={`${styles.kpiTile} ${styles.kpiTileClickable}`} onClick={() => jumpToOutlook("trend")} key={id} {...wdCard(id)}>
                   <div className={styles.kpiLabel}>Net income, MTD</div>
                   <div className={styles.kpiValue}>{fmtMoney(data.netIncome.mtd)}</div>
                   <div className={`${styles.delta} ${data.netIncome.deltaPctVsPriorMonth >= 0 ? styles.deltaUp : styles.deltaDown}`}>
@@ -1425,7 +1353,7 @@ function DailyClose({ data, className, theme, onNavigate }: DailyCloseProps) {
             .map((id) => {
               if (id === "trend")
                 return (
-                  <div className={styles.panel} key={id}>
+                  <div className={styles.panel} key={id} {...wdCard(id)}>
                     <div className={styles.panelHead}>
                       <div>
                         <div className={styles.panelTitle}>Revenue vs. expenses</div>
@@ -1474,7 +1402,7 @@ function DailyClose({ data, className, theme, onNavigate }: DailyCloseProps) {
 
               if (id === "expense-breakdown")
                 return (
-                  <div className={styles.panel} key={id}>
+                  <div className={styles.panel} key={id} {...wdCard(id)}>
                     <div className={styles.panelHead}>
                       <div>
                         <div className={styles.panelTitle}>Where the money went</div>
@@ -1489,7 +1417,7 @@ function DailyClose({ data, className, theme, onNavigate }: DailyCloseProps) {
 
               if (id === "aging")
                 return (
-                  <div className={styles.panel} ref={agingRef} key={id}>
+                  <div className={styles.panel} ref={agingRef} key={id} {...wdCard(id)}>
                     <div className={styles.panelHead}>
                       <div>
                         <div className={styles.panelTitle}>Receivables aging</div>
@@ -1504,7 +1432,7 @@ function DailyClose({ data, className, theme, onNavigate }: DailyCloseProps) {
               if (id === "cash-by-account") {
                 if (!data.cash.byAccount || data.cash.byAccount.length === 0) return null;
                 return (
-                  <div className={styles.panel} key={id}>
+                  <div className={styles.panel} key={id} {...wdCard(id)}>
                     <div className={styles.panelHead}>
                       <div>
                         <div className={styles.panelTitle}>Cash by account</div>
@@ -1519,7 +1447,7 @@ function DailyClose({ data, className, theme, onNavigate }: DailyCloseProps) {
               if (id === "budget-health") {
                 if (!data.budgetHealth || data.budgetHealth.length === 0) return null;
                 return (
-                  <div className={styles.panel} key={id}>
+                  <div className={styles.panel} key={id} {...wdCard(id)}>
                     <div className={styles.panelHead}>
                       <div className={styles.panelTitleRow}>
                         <span className={styles.panelIcon}>
@@ -1560,7 +1488,7 @@ function DailyClose({ data, className, theme, onNavigate }: DailyCloseProps) {
               if (id === "payables-due-soon") {
                 if (!data.payablesDueSoon || data.payablesDueSoon.length === 0) return null;
                 return (
-                  <div className={styles.panel} key={id}>
+                  <div className={styles.panel} key={id} {...wdCard(id)}>
                     <div className={styles.panelHead}>
                       <div className={styles.panelTitleRow}>
                         <span className={styles.panelIcon}>
@@ -1603,7 +1531,7 @@ function DailyClose({ data, className, theme, onNavigate }: DailyCloseProps) {
                 if (!data.fundActivity || data.fundActivity.items.length === 0) return null;
                 const fa = data.fundActivity;
                 return (
-                  <div className={styles.panel} key={id}>
+                  <div className={styles.panel} key={id} {...wdCard(id)}>
                     <div className={styles.panelHead}>
                       <div className={styles.panelTitleRow}>
                         <span className={styles.panelIcon}>
@@ -1649,7 +1577,7 @@ function DailyClose({ data, className, theme, onNavigate }: DailyCloseProps) {
                 const rec = data.reconciliation;
                 const totalOutstandingCount = rec.accounts.reduce((s, a) => s + a.outstandingCount, 0);
                 return (
-                  <div className={styles.panel} key={id}>
+                  <div className={styles.panel} key={id} {...wdCard(id)}>
                     <div className={styles.panelHead}>
                       <div className={styles.panelTitleRow}>
                         <span className={styles.panelIcon}>
@@ -1697,7 +1625,7 @@ function DailyClose({ data, className, theme, onNavigate }: DailyCloseProps) {
                 if (!data.bookkeeper) return null;
                 const bk = data.bookkeeper;
                 return (
-                  <div className={styles.panel} key={id}>
+                  <div className={styles.panel} key={id} {...wdCard(id)}>
                     <div className={styles.bookkeeperCard}>
                       <div className={styles.bookkeeperAvatar}>{bk.initials}</div>
                       <div>
@@ -1718,7 +1646,7 @@ function DailyClose({ data, className, theme, onNavigate }: DailyCloseProps) {
 
               // outlook
               return (
-                <div className={styles.outlook} ref={outlookRef} key={id}>
+                <div className={styles.outlook} ref={outlookRef} key={id} {...wdCard(id)}>
                   <div className={styles.tabs} role="tablist" aria-label="Outlook view">
                     <button
                       type="button"

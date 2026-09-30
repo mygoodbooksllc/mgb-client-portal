@@ -4595,16 +4595,7 @@ body:has(.modal-overlay) .chat-fab-wrap {
   font-size: 22px;
 }
 
-.widget-picker-source {
-  display: block;
-  color: var(--gold);
-  font-weight: 700;
-  font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  margin-bottom: 2px;
-}
-
+/* The Customize drawer itself lives in components/dashboard/widget-drawer.css. */
 .customize-dashboard-btn {
   background: transparent;
   border: 1.5px solid var(--border);
@@ -4622,189 +4613,6 @@ body:has(.modal-overlay) .chat-fab-wrap {
 .customize-dashboard-btn:hover {
   border-color: var(--gold);
   color: var(--ink-strong);
-}
-
-.widget-picker-modal {
-  max-width: 480px;
-}
-
-.widget-picker-list {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  max-height: 50vh;
-  overflow-y: auto;
-}
-
-.widget-picker-row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 10px 8px;
-  border-radius: 8px;
-  border-top: 2px solid transparent;
-  border-bottom: 2px solid transparent;
-  cursor: grab;
-}
-
-.widget-picker-row:hover { background: var(--hover-bg); }
-
-.widget-picker-row-hidden { opacity: 0.5; }
-
-.widget-picker-row-drag-over {
-  border-top-color: var(--gold);
-  background: var(--accent-soft);
-}
-
-.widget-picker-row-dragging { opacity: 0.4; }
-
-.widget-picker-row .drag-handle {
-  flex-shrink: 0;
-}
-
-.widget-picker-move {
-  display: flex;
-  flex-direction: row;
-  gap: 4px;
-  flex-shrink: 0;
-}
-
-.widget-picker-move-btn {
-  appearance: none;
-  border: 1px solid var(--border);
-  background: var(--surface);
-  color: var(--text-muted);
-  width: 28px;
-  height: 24px;
-  border-radius: 5px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 10px;
-  line-height: 1;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.widget-picker-move-btn:hover:not(:disabled) {
-  background: var(--hover-bg);
-  color: var(--text);
-}
-
-.widget-picker-move-btn:disabled {
-  opacity: 0.35;
-  cursor: default;
-}
-
-.widget-picker-label {
-  display: flex;
-  align-items: flex-start;
-  gap: 10px;
-  font-size: 13.5px;
-  color: var(--text);
-  cursor: pointer;
-}
-
-.widget-picker-label input { margin-top: 3px; }
-
-.widget-picker-desc {
-  color: var(--text-muted);
-  font-weight: 400;
-}
-
-.widget-picker-views {
-  margin-top: 16px;
-  padding-top: 16px;
-  border-top: 1px solid var(--border);
-}
-
-.widget-picker-views-title {
-  font-family: var(--font-body);
-  font-size: 13px;
-  font-weight: 700;
-  color: var(--ink-strong);
-  margin: 0 0 4px;
-}
-
-.widget-picker-view-list {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  margin-bottom: 10px;
-}
-
-.widget-picker-view-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  padding: 8px 10px;
-  border-radius: 8px;
-  border: 1px solid var(--border);
-  background: var(--surface);
-}
-
-.widget-picker-view-name {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--ink-strong);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.widget-picker-view-actions {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-shrink: 0;
-}
-
-.widget-picker-view-remove {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 22px;
-  height: 22px;
-  border-radius: 999px;
-  border: none;
-  background: none;
-  font-size: 15px;
-  line-height: 1;
-  color: var(--text-muted);
-  cursor: pointer;
-}
-
-.widget-picker-view-remove:hover {
-  color: var(--bad);
-  background: rgba(0, 0, 0, 0.06);
-}
-
-.widget-picker-view-new {
-  display: flex;
-  gap: 8px;
-}
-
-.widget-picker-view-new input {
-  flex: 1;
-  font-family: var(--font-body);
-  font-size: 14px;
-  padding: 7px 10px;
-  border-radius: 8px;
-  border: 1px solid var(--border);
-  background: var(--surface);
-  color: var(--ink-strong);
-}
-
-.widget-picker-actions {
-  display: flex;
-  justify-content: space-between;
-  gap: 12px;
-  margin-top: 16px;
-  padding-top: 16px;
-  border-top: 1px solid var(--border);
 }
 
 .tab-toggle-row {
@@ -5660,59 +5468,21 @@ body:has(.modal-overlay) .chat-fab-wrap {
 
   /* Checkboxes are the smallest targets in the app (16px). Bigger boxes plus a
      taller row so the label is comfortably tappable too. */
-  .rb-checklist input[type="checkbox"],
-  .widget-picker-label input[type="checkbox"] {
+  .rb-checklist input[type="checkbox"] {
     width: 22px;
     height: 22px;
   }
 
-  .rb-checklist li,
-  .widget-picker-row {
+  .rb-checklist li {
     min-height: 44px;
-  }
-
-  /* The move buttons were left out of this row's touch sizing — 26x22 with a
-     10px glyph, easy to miss and hard to read on a phone. */
-  .widget-picker-move-btn {
-    width: 38px;
-    height: 36px;
-  }
-  .widget-picker-move-btn svg {
-    width: 18px;
-    height: 18px;
-  }
-
-  /* Dragging is mouse-only (see useDragReorder's own comment on why) — the
-     drag handle does nothing on a touch device, just crowds the row next to
-     the move buttons at phone width. Move is the only way to reorder here. */
-  .widget-picker-row .drag-handle {
-    display: none;
   }
 
   /* The label is what actually toggles the box, so it has to fill the row —
      a 44px row wrapping a 28px label leaves a dead band top and bottom that
      silently swallows taps. */
-  .rb-checklist label,
-  .widget-picker-label {
+  .rb-checklist label {
     min-height: 44px;
     flex: 1;
-  }
-
-  /* Every widget's label/description wraps to 2-3 lines at phone width, and
-     the move buttons stack to ~76px tall — vertically centering either
-     against the other reads as cramped, close to overlapping. More room
-     between rows, top-aligned columns, and a bit more side padding gives
-     wrapped text and the button stack their own clear space. */
-  .widget-picker-list {
-    gap: 10px;
-  }
-  .widget-picker-row {
-    align-items: flex-start;
-    padding: 12px 10px;
-    gap: 12px;
-  }
-  .widget-picker-move {
-    margin-top: 2px;
   }
 
   .rb-segmented button {

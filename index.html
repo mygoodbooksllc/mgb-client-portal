@@ -79,6 +79,7 @@
       document.write('<link rel="stylesheet" href="components/staff/admin-tools.css?v=' + Date.now() + '">');
       document.write('<link rel="stylesheet" href="components/staff/staff-guide.css?v=' + Date.now() + '">');
       document.write('<link rel="stylesheet" href="components/staff/top-bar.css?v=' + Date.now() + '">');
+      document.write('<link rel="stylesheet" href="components/dashboard/widget-drawer.css?v=' + Date.now() + '">');
 
       // Kick every source fetch off HERE, in <head>, so all five download in
       // parallel with React/Babel/jsPDF instead of after them. Previously each
@@ -93,6 +94,7 @@
         "components/auth/AuthGate.jsx",
         "components/auth/ClientAuthGate.jsx",
         "data.js",
+        "components/dashboard/WidgetDrawer.jsx",
         "components/daily-close/sampleData.ts",
         "components/daily-close/DailyClose.tsx",
         "components/daily-close/fromClient.js",

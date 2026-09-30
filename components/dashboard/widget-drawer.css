@@ -1,0 +1,479 @@
+/* ---------------------------------------------------------------------------
+   Customize drawer + board edit mode (components/dashboard/WidgetDrawer.jsx).
+   Design tokens only, so light and dark both follow styles.css.
+   --------------------------------------------------------------------------- */
+
+.customize-dashboard-btn.is-active {
+  border-color: var(--gold);
+  color: var(--ink-strong);
+  background: var(--accent-soft);
+}
+
+/* ---- Drawer shell ---- */
+.wd-drawer {
+  --wd-width: 360px;
+  position: fixed;
+  top: var(--wd-top, 0px);
+  right: 0;
+  bottom: 0;
+  width: var(--wd-width);
+  max-width: 100vw;
+  z-index: 650; /* below the staff top bar (700); it sits under it */
+  display: flex;
+  flex-direction: column;
+  background: var(--surface);
+  border-left: 1px solid var(--border);
+  box-shadow: -12px 0 32px rgba(0, 0, 0, 0.08);
+  color: var(--text);
+  font-family: var(--font-body);
+  outline: none;
+  animation: wdSlideIn 0.22s ease-out;
+}
+
+@keyframes wdSlideIn {
+  from { transform: translateX(24px); opacity: 0; }
+  to { transform: none; opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wd-drawer { animation: none; }
+}
+
+@media (max-width: 640px) {
+  .wd-drawer {
+    top: 0;
+    width: 100vw;
+    border-left: none;
+    z-index: 1000; /* a full sheet over everything, top bar included */
+  }
+}
+
+.wd-drawer-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 18px 20px 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.wd-drawer-title {
+  margin: 0;
+  font-family: var(--font-heading);
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--ink-strong);
+}
+
+.wd-drawer-sub {
+  margin: 2px 0 0;
+  font-size: 12.5px;
+  color: var(--text-muted);
+}
+
+.wd-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+.wd-close:hover { background: var(--hover-bg); color: var(--text); }
+
+.wd-drawer-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 16px 20px 20px;
+  overscroll-behavior: contain;
+}
+
+.wd-section-title {
+  margin: 0 0 10px;
+  font-family: var(--font-body);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.wd-visually-hidden {
+  position: absolute !important;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+.wd-empty,
+.wd-hint {
+  margin: 0 0 8px;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--text-muted);
+}
+.wd-hint { margin-top: 10px; }
+
+.wd-drawer button:focus-visible,
+.wd-drawer input:focus-visible,
+.wd-drawer summary:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 2px;
+}
+
+/* ---- "Add widgets" cards ---- */
+.wd-add-list,
+.wd-onboard-list,
+.wd-view-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.wd-add-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.wd-add-card {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 12px 14px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+.wd-add-card:hover { border-color: var(--gold); background: var(--hover-bg); }
+.wd-add-card:hover .wd-add-plus { background: var(--gold); color: var(--on-gold); border-color: var(--gold); }
+
+.wd-add-card-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.wd-add-card-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.wd-add-source {
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--warm-text);
+}
+
+.wd-add-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink-strong);
+}
+
+.wd-add-desc {
+  font-size: 12.5px;
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+
+.wd-add-plus {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+/* ---- Skeleton previews ---- */
+.wd-sk {
+  margin-top: 12px;
+  padding: 10px 12px;
+  height: 64px;
+  box-sizing: border-box;
+  border-radius: 8px;
+  background: var(--surface-2);
+  overflow: hidden;
+}
+
+.wd-sk-line {
+  display: block;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--border);
+}
+.wd-sk-big { height: 12px; }
+
+.wd-sk-number { display: flex; flex-direction: column; gap: 7px; }
+
+.wd-sk-bars { display: flex; flex-direction: column; gap: 6px; }
+.wd-sk-bar-row { display: flex; align-items: center; gap: 8px; }
+.wd-sk-bar-row .wd-sk-line { flex-shrink: 0; }
+.wd-sk-track { flex: 1; height: 6px; border-radius: 999px; background: var(--border); overflow: hidden; }
+.wd-sk-fill { display: block; height: 100%; border-radius: 999px; background: var(--muted-line); }
+
+.wd-sk-chart { display: flex; align-items: flex-end; gap: 6px; height: 100%; }
+.wd-sk-col { flex: 1; border-radius: 3px 3px 0 0; background: var(--muted-line); opacity: 0.7; }
+
+.wd-sk-stats { display: flex; gap: 10px; height: 100%; align-items: center; }
+.wd-sk-stat { flex: 1; display: flex; flex-direction: column; gap: 7px; }
+
+.wd-sk-donut-wrap { display: flex; align-items: center; gap: 14px; height: 100%; }
+.wd-sk-donut {
+  width: 42px;
+  height: 42px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: conic-gradient(var(--muted-line) 0 45%, var(--border) 45% 75%, var(--muted-line) 75% 100%);
+  -webkit-mask: radial-gradient(circle, transparent 11px, #000 12px);
+  mask: radial-gradient(circle, transparent 11px, #000 12px);
+}
+.wd-sk-donut-legend { flex: 1; display: flex; flex-direction: column; gap: 7px; }
+
+.wd-sk-list { display: flex; flex-direction: column; gap: 8px; }
+.wd-sk-list-row { display: flex; align-items: center; gap: 8px; }
+.wd-sk-dot { width: 8px; height: 8px; flex-shrink: 0; border-radius: 50%; background: var(--muted-line); }
+.wd-sk-end { width: 16%; margin-left: auto; }
+
+/* ---- "On your dashboard" rows ---- */
+.wd-onboard {
+  margin-top: 22px;
+  padding-top: 18px;
+  border-top: 1px solid var(--border);
+}
+
+.wd-onboard-group + .wd-onboard-group { margin-top: 12px; }
+
+.wd-onboard-group-title {
+  margin: 0 0 4px;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.wd-onboard-list { display: flex; flex-direction: column; gap: 2px; }
+
+.wd-onboard-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 6px 6px 4px;
+  border-radius: 8px;
+  border-top: 2px solid transparent;
+  cursor: grab;
+}
+.wd-onboard-row:hover { background: var(--hover-bg); }
+.wd-onboard-row.is-dragging { opacity: 0.45; }
+.wd-onboard-row.is-over { border-top-color: var(--gold); background: var(--accent-soft); }
+
+.wd-onboard-handle {
+  width: 16px;
+  flex-shrink: 0;
+  text-align: center;
+  color: var(--muted-line);
+  font-size: 14px;
+  line-height: 1;
+}
+
+.wd-onboard-label {
+  flex: 1;
+  min-width: 0;
+  font-size: 13.5px;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.wd-onboard-actions { display: flex; align-items: center; gap: 2px; flex-shrink: 0; }
+
+.wd-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+}
+.wd-icon-btn:hover:not(:disabled) { background: var(--surface-2); color: var(--text); }
+.wd-icon-btn:disabled { opacity: 0.3; cursor: default; }
+.wd-remove-btn:hover:not(:disabled) { color: var(--bad); background: var(--bad-soft); }
+
+@media (pointer: coarse) {
+  .wd-icon-btn { width: 36px; height: 36px; }
+}
+
+/* ---- Footer: saved views, reset, done ---- */
+.wd-drawer-foot {
+  padding: 12px 20px 16px;
+  border-top: 1px solid var(--border);
+  background: var(--surface);
+}
+
+.wd-views summary {
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink-strong);
+  padding: 4px 0;
+}
+.wd-views[open] { margin-bottom: 10px; }
+.wd-views .wd-hint { margin-top: 4px; }
+
+.wd-view-list { display: flex; flex-direction: column; gap: 4px; margin-bottom: 8px; }
+.wd-view-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 4px 4px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+.wd-view-name {
+  flex: 1;
+  min-width: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink-strong);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.wd-text-btn {
+  border: none;
+  background: transparent;
+  color: var(--warm-text);
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 600;
+  padding: 4px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.wd-text-btn:hover { background: var(--surface-2); }
+
+.wd-view-new { display: flex; gap: 8px; }
+.wd-view-new input {
+  flex: 1;
+  min-width: 0;
+  font-family: var(--font-body);
+  font-size: 13.5px;
+  padding: 7px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--ink-strong);
+}
+
+.wd-foot-actions {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+/* ---- Board edit mode ---- */
+html.wd-editing [data-wd-id] {
+  position: relative;
+  outline: 1.5px dashed var(--muted-line);
+  outline-offset: 2px;
+}
+html.wd-editing [data-wd-id]:hover { outline-color: var(--gold); }
+
+.wd-chrome-host {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  z-index: 3;
+}
+
+.wd-chrome {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+
+.wd-chrome-handle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  color: var(--text-muted);
+  font-size: 13px;
+  cursor: grab;
+}
+
+.wd-chrome-remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+}
+.wd-chrome-remove:hover { background: var(--bad-soft); color: var(--bad); }
+
+/* Touch devices don't drag cards (see WD_useDragReorder); no handle there. */
+@media (pointer: coarse) {
+  .wd-chrome-handle { display: none; }
+}
+
+/* A just-added widget: same ring as .card-flash (styles.css). */
+html.wd-editing [data-wd-id].wd-just-added {
+  animation: cardFlash 2600ms ease-out;
+  outline-color: var(--gold);
+}
+@media (prefers-reduced-motion: reduce) {
+  html.wd-editing [data-wd-id].wd-just-added {
+    animation: none;
+    box-shadow: 0 0 0 3px rgba(199, 174, 134, 0.55);
+  }
+}
+
+/* Wide screens: make room so the drawer doesn't cover the right column of
+   cards while editing. The staff top bar spans .main's padding with a
+   negative margin, so it widens by the same amount to stay edge to edge. */
+@media (min-width: 1100px) {
+  html.wd-editing .main { padding-right: calc(40px + 360px); }
+  html.wd-editing .main > .tb-bar { margin-right: calc(-40px - 360px); }
+}

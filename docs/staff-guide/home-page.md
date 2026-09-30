@@ -2,7 +2,7 @@
 title: What's on my Home page?
 section: Getting started
 audience: staff
-keywords: [home, dashboard, needs attention, reminders, upgrade requests, access requests, needs a visit, recently viewed, customize, status, handoff]
+keywords: [home, dashboard, needs attention, reminders, upgrade requests, access requests, needs a visit, recently viewed, customize, add widgets, saved views, reset layout, live report, status, handoff]
 sort: 40
 ---
 **Home** is your starting point. It shows what needs attention across every client you can see.
@@ -30,7 +30,15 @@ On each row in **Your clients**:
 
 ### Make it yours
 
-Click **Customize dashboard** to drag cards into a different order or hide ones you don't use.
+Click **Customize dashboard** to open the customize panel on the right. The same panel is used on a client's **Dashboard** and on the **Live Report**.
+
+- **Add widgets** shows cards you've hidden, each with a short description and a small preview. Click **+** to add one. It goes to the end of the page and briefly highlights so you can find it.
+- **On your dashboard** lists what's showing. Use the arrows (or drag the handle) to reorder, and **−** to hide a card.
+- While the panel is open, every card on the page gets a dotted outline, a drag handle and an **×** to hide it, so you can also rearrange right on the page.
+- **Saved views** lets you save the current layout under a name and switch back to it later. **Reset to default** puts everything back.
+- Close the panel with **Done**, the **X**, the **Esc** key, or by clicking outside it. Your layout is saved.
+
+While you're using **View as** or previewing a person, changes you make aren't saved to your own layout.
 
 ### Troubleshooting
 

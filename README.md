@@ -33,7 +33,7 @@ because some work happens in Claude Code web sessions. Run `git fetch` and compa
   of time.
 - **Load order.** `window.__SOURCE_ORDER` in `index.html` lists the files in the order they
   run: `auth-config.js`, `qbo-config.js`, `components/auth/*`, `data.js`,
-  `components/daily-close/*`, `components/qbo/mapQboToClient.js`, `components/pro/*`,
+  `components/dashboard/WidgetDrawer.jsx`, `components/daily-close/*`, `components/qbo/mapQboToClient.js`, `components/pro/*`,
   `components/inbox/StaffInbox.jsx`, `components/staff/*` (ending with `StaffGuide.jsx` and
   `TopBar.jsx`), then `app.jsx`. All files start downloading at once, but
   they compile in this order.
@@ -73,6 +73,7 @@ because some work happens in Claude Code web sessions. Run `git fetch` and compa
 | `auth-config.js` | Supabase URL and publishable (anon) key. Safe to be public. |
 | `qbo-config.js` | QuickBooks app Client ID (public) and environment (`production`) |
 | `components/auth/` | `supabaseClient.js`, `AuthGate.jsx` (staff Google gate), `ClientAuthGate.jsx` (client magic-link gate) |
+| `components/dashboard/` | `WidgetDrawer.jsx` + `widget-drawer.css`: the shared **Customize** drawer and board edit mode used by every customizable board (client Dashboard, full client dashboard, Bookkeeper Home, Live Report), plus `WD_sync` for per-account layout saving. Every name is `WD_`/`wd-` prefixed. Loaded before `components/daily-close/*` and `app.jsx`. |
 | `components/daily-close/` | Live Report (`DailyClose.tsx`, its CSS, sample data, and `fromClient.js`, which adapts client data for it) |
 | `components/pro/` | Pro budget and report tools: `ProBudget.jsx` (Budget vs. Actual tabs, next year's draft with approval) and `ProReports.jsx` (board reports suite and the public share page), each with its own CSS. Loaded before `app.jsx`; `app.jsx` falls back to the old pages if either is missing. |
 | `components/inbox/` | `StaffInbox.jsx` (the unified staff inbox, the staff chat drawer and launcher, and `SI_useClientMessaging` for the client Messages page) and `staff-inbox.css`. Loaded before `app.jsx`; every name is `SI_`/`si`/`StaffInbox` prefixed. Without it, `app.jsx` falls back to the old Team Chat page and sample client threads. |
@@ -484,6 +485,17 @@ Owner setup:
   Plans. Collapsed, it shows just the roman numeral.
 - **Dashboard** (customizable widgets and saved views). A Pro, full-access client gets
   **Live Report** here instead.
+  - **Customize** opens a right-side drawer (360px wide, full-width sheet on phones; Esc, X or
+    a click outside closes it). **Add widgets** lists hidden widgets as cards with a skeleton
+    preview, and **+** appends one and flashes it on the board. **On your dashboard** lists what is
+    showing, with up/down, drag, and remove. The footer has saved views and **Reset to default**.
+    While the drawer is open the board is in edit mode: each card gets an outline, a drag handle
+    and a remove button. The same drawer serves Bookkeeper Home and the Live Report.
+  - Layouts and saved views are stored in `localStorage` and, once
+    `supabase/user-board-layouts.sql` is applied (**not yet applied**), in
+    `public.user_board_layouts` per signed-in user and board (debounced saves; an existing local
+    layout is uploaded once). If that table is missing or unreachable, it quietly stays on
+    `localStorage`. Nothing is written while staff use View as or preview a person.
 - **Messages**: each person's private thread with MyGoodBooks (`client_messages`, see the Inbox
   above), with attachments, live updates, and the sidebar dot and ChatFab fed from real read
   markers. Internal notes never show here. Staff previewing a person see their real thread

@@ -22481,12 +22481,11 @@ function useWidgetLayout(scopeKey, allIds) {
   );
   const scopedViews = views[scopeKey] || [];
 
-  const update = (nextOrder, nextHidden) => {
+  // localStorage writers, shared by local edits and by adopting the account
+  // copy below.
+  const writeLayout = (layout) => {
     setLayouts((prev) => {
-      const next = {
-        ...prev,
-        [scopeKey]: { order: nextOrder, hidden: Array.from(nextHidden) },
-      };
+      const next = { ...prev, [scopeKey]: layout };
       try {
         localStorage.setItem(
           DASHBOARD_WIDGETS_STORAGE_KEY,
@@ -22495,6 +22494,42 @@ function useWidgetLayout(scopeKey, allIds) {
       } catch (e) {}
       return next;
     });
+  };
+  const writeViews = (list) => {
+    setViews((prev) => {
+      const next = { ...prev, [scopeKey]: list };
+      try {
+        localStorage.setItem(DASHBOARD_VIEWS_STORAGE_KEY, JSON.stringify(next));
+      } catch (e) {}
+      return next;
+    });
+  };
+
+  // Account copy (components/dashboard/WidgetDrawer.jsx): the scope key is
+  // the board key, so each client/scope/Home keeps its own row. Falls back
+  // to localStorage alone when the table or the session isn't there.
+  WD_useBoardSync(
+    scopeKey,
+    () => ({ layout: saved || null, views: scopedViews }),
+    (row) => {
+      if (
+        row.layout &&
+        Array.isArray(row.layout.order) &&
+        Array.isArray(row.layout.hidden)
+      )
+        writeLayout({ order: row.layout.order, hidden: row.layout.hidden });
+      if (Array.isArray(row.views)) writeViews(row.views);
+    },
+  );
+
+  const update = (nextOrder, nextHidden) => {
+    const layout = { order: nextOrder, hidden: Array.from(nextHidden) };
+    writeLayout(layout);
+    WD_sync.save(scopeKey, { layout });
+  };
+  const updateViews = (list) => {
+    writeViews(list);
+    WD_sync.save(scopeKey, { views: list });
   };
 
   return {
@@ -22524,21 +22559,11 @@ function useWidgetLayout(scopeKey, allIds) {
       next.splice(insertAt, 0, draggedId);
       update(next, hidden);
     },
-    // Swaps id with its immediate neighbor, direction -1 (up/earlier) or +1
-    // (down/later). The button-based reorder path (WidgetPickerModal) —
-    // works identically for a hidden widget (moves it within the full
-    // order, same as reorder above) or a visible one; the modal only ever
-    // calls this on adjacent rows as rendered, so a plain swap is exactly
-    // equivalent to reorder()'s shift-based math for that one-step case,
-    // without needing the shift logic at all.
-    move: (id, direction) => {
-      const index = order.indexOf(id);
-      const targetIndex = index + direction;
-      if (index === -1 || targetIndex < 0 || targetIndex >= order.length)
-        return;
-      const next = order.slice();
-      [next[index], next[targetIndex]] = [next[targetIndex], next[index]];
-      update(next, hidden);
+    // Shows a hidden widget at the end of the board (the drawer's "+").
+    add: (id) => {
+      const next = new Set(hidden);
+      next.delete(id);
+      update(order.filter((x) => x !== id).concat(id), next);
     },
     reset: () => update(allIds.slice(), new Set()),
 
@@ -22550,27 +22575,12 @@ function useWidgetLayout(scopeKey, allIds) {
     saveView: (name) => {
       const trimmed = (name || "").trim();
       if (!trimmed) return;
-      setViews((prev) => {
-        // Saving under a name that already exists overwrites it rather than
-        // piling up duplicates.
-        const existing = (prev[scopeKey] || []).filter(
-          (v) => v.name !== trimmed,
-        );
-        const next = {
-          ...prev,
-          [scopeKey]: [
-            ...existing,
-            { name: trimmed, order, hidden: Array.from(hidden) },
-          ],
-        };
-        try {
-          localStorage.setItem(
-            DASHBOARD_VIEWS_STORAGE_KEY,
-            JSON.stringify(next),
-          );
-        } catch (e) {}
-        return next;
-      });
+      // Saving under a name that already exists overwrites it rather than
+      // piling up duplicates.
+      updateViews([
+        ...scopedViews.filter((v) => v.name !== trimmed),
+        { name: trimmed, order, hidden: Array.from(hidden) },
+      ]);
     },
     applyView: (name) => {
       const view = scopedViews.find((v) => v.name === name);
@@ -22583,288 +22593,26 @@ function useWidgetLayout(scopeKey, allIds) {
       );
     },
     deleteView: (name) => {
-      setViews((prev) => {
-        const next = {
-          ...prev,
-          [scopeKey]: (prev[scopeKey] || []).filter((v) => v.name !== name),
-        };
-        try {
-          localStorage.setItem(
-            DASHBOARD_VIEWS_STORAGE_KEY,
-            JSON.stringify(next),
-          );
-        } catch (e) {}
-        return next;
-      });
+      updateViews(scopedViews.filter((v) => v.name !== name));
     },
   };
 }
 
-// Lets the actual cards on a page (not just the picker modal's rows) be
-// picked up and dropped to reorder — same underlying layout.reorder, just
-// driven by dragging the card itself. dragProps(id) spreads onto the card's
-// wrapper div; dragClass(id) adds the visual feedback classes.
-//
-// Mouse-only, deliberately. An earlier version simulated touch dragging with
-// pointer capture + document.elementFromPoint() hit-testing, long-press to
-// pick up. Four different real-device bugs in a row (never actually
-// reordering, then selecting text instead of dragging, then the browser's
-// own scroll gesture winning the race against the long-press timer every
-// time) made clear that reimplementing native drag-and-drop over touch is
-// fragile in a way that's genuinely hard to fully close out. Touch users
-// reorder via the ▲/▼ buttons in the "Customize dashboard" modal
-// (WidgetPickerModal) instead — see layout.move() — which needs no gesture
-// recognition at all and can't conflict with scrolling, text selection, or
-// anything else the OS is doing with the same touch.
+// Card drag-to-reorder. The implementation (and the long note on why it's
+// mouse-only) lives in components/dashboard/WidgetDrawer.jsx so the Live
+// Report can share it; dragProps(id) also tags each card with data-wd-id,
+// which is how the Customize drawer's edit mode finds the cards.
 function useDragReorder(layout) {
-  const [draggedId, setDraggedId] = useState(null);
-  // The last target reorder() was actually called against. dragover fires
-  // continuously (many times a second) while hovering, and
-  // layout.reorder(draggedId, targetId) is NOT idempotent for a stationary
-  // hover — calling it twice in a row on the same pair swaps them, then
-  // swaps them right back (the dragged item's index vs. the target's flips
-  // after the first call, which flips which branch the insert-position math
-  // takes). Repeated firing during any hover longer than one event tick —
-  // i.e. any real, deliberate drag — oscillates between two arrangements and
-  // can land back where it started by the time you release, which reads as
-  // "picks up fine, never actually swaps." Only reordering once per
-  // newly-entered target (reset when the drag starts or ends) restores the
-  // intended "shuffle the instant you drag over a neighbor" behavior.
-  const lastTarget = useRef(null);
-
-  return {
-    // iPhone-homescreen-style: cards shuffle live the instant you drag over
-    // a neighbor, not just when you release — dropping only ends the grab.
-    // The browser's own drag-and-drop, ghost image and all — mouse only,
-    // see the hook comment above for why there's no touch equivalent here.
-    dragProps: (id) => ({
-      draggable: true,
-      onDragStart: () => {
-        lastTarget.current = null;
-        setDraggedId(id);
-      },
-      onDragOver: (e) => {
-        e.preventDefault();
-        if (draggedId && draggedId !== id && lastTarget.current !== id) {
-          lastTarget.current = id;
-          layout.reorder(draggedId, id);
-        }
-      },
-      onDrop: (e) => {
-        e.preventDefault();
-        lastTarget.current = null;
-        setDraggedId(null);
-      },
-      onDragEnd: () => {
-        lastTarget.current = null;
-        setDraggedId(null);
-      },
-    }),
-    // The card being held stops jiggling and lifts; every other card in the
-    // grid jiggles in place, same as iOS's wiggle-to-rearrange mode.
-    dragClass: (id) =>
-      "draggable-card" +
-      (draggedId === id ? " card-dragging" : draggedId ? " card-jiggling" : ""),
-    isDragging: Boolean(draggedId),
-  };
+  return WD_useDragReorder(layout);
 }
 
-// Modal listing every widget available in this scope, with a checkbox to
-// add/remove it from the dashboard and a drag handle to reorder the ones
-// currently shown. Shared by DashboardPage and ScopedDashboardPage.
-function WidgetPickerModal({ widgets, layout, onClose }) {
-  const [draggedId, setDraggedId] = useState(null);
-  const [dragOverId, setDragOverId] = useState(null);
-  const [newViewName, setNewViewName] = useState("");
-
-  return (
-    <ModalShell
-      onClose={onClose}
-      labelledBy="widget-picker-title"
-      className="widget-picker-modal"
-    >
-      <div className="modal-header">
-        <h3 id="widget-picker-title">Customize your dashboard</h3>
-        <button className="modal-close" onClick={onClose}>
-          ✕
-        </button>
-      </div>
-      <p className="card-subtitle" style={{ marginBottom: 16 }}>
-        Pull in any card you have access to from across the app. Use the ▲▼
-        buttons below to reorder them, or drag the handle with a mouse — make
-        this your hub. On the dashboard itself, drag a card with a mouse to move
-        it directly.
-      </p>
-      <div className="widget-picker-list">
-        {layout.order.map((id, index) => {
-          const w = widgets.find((x) => x.id === id);
-          if (!w) return null;
-          const isHidden = layout.hidden.has(id);
-          return (
-            <div
-              className={
-                "widget-picker-row" +
-                (isHidden ? " widget-picker-row-hidden" : "") +
-                (dragOverId === id && draggedId !== id
-                  ? " widget-picker-row-drag-over"
-                  : "") +
-                (draggedId === id ? " widget-picker-row-dragging" : "")
-              }
-              key={id}
-              draggable
-              onDragStart={() => setDraggedId(id)}
-              onDragOver={(e) => {
-                e.preventDefault();
-                if (draggedId && draggedId !== id) setDragOverId(id);
-              }}
-              onDragLeave={() =>
-                setDragOverId((cur) => (cur === id ? null : cur))
-              }
-              onDrop={(e) => {
-                e.preventDefault();
-                if (draggedId) layout.reorder(draggedId, id);
-                setDraggedId(null);
-                setDragOverId(null);
-              }}
-              onDragEnd={() => {
-                setDraggedId(null);
-                setDragOverId(null);
-              }}
-            >
-              <span className="drag-handle" aria-hidden="true">
-                ⠿
-              </span>
-              <div className="widget-picker-move">
-                <button
-                  type="button"
-                  className="widget-picker-move-btn"
-                  disabled={index === 0}
-                  onClick={() => layout.move(id, -1)}
-                  aria-label={`Move ${w.label} up`}
-                >
-                  <ChevronUpIcon />
-                </button>
-                <button
-                  type="button"
-                  className="widget-picker-move-btn"
-                  disabled={index === layout.order.length - 1}
-                  onClick={() => layout.move(id, 1)}
-                  aria-label={`Move ${w.label} down`}
-                >
-                  <ChevronDownIcon />
-                </button>
-              </div>
-              <label className="widget-picker-label">
-                <input
-                  type="checkbox"
-                  checked={!isHidden}
-                  onChange={() => layout.toggle(id)}
-                />
-                <span>
-                  {w.sourceTab && (
-                    <span className="widget-picker-source">
-                      From {w.sourceTab}
-                    </span>
-                  )}
-                  <strong>{w.label}</strong>
-                  {w.description && (
-                    <span className="widget-picker-desc">
-                      {" "}
-                      — {w.description}
-                    </span>
-                  )}
-                </span>
-              </label>
-            </div>
-          );
-        })}
-      </div>
-      <div className="widget-picker-views">
-        <h4 className="widget-picker-views-title">Saved views</h4>
-        <p className="card-subtitle" style={{ margin: "0 0 10px" }}>
-          Save this arrangement under a name to switch back to it later — a
-          stripped-down board view and your own everyday one, say — without
-          losing either.
-        </p>
-        {layout.views.length > 0 && (
-          <div className="widget-picker-view-list">
-            {layout.views.map((v) => (
-              <div className="widget-picker-view-row" key={v.name}>
-                <span className="widget-picker-view-name">{v.name}</span>
-                <div className="widget-picker-view-actions">
-                  <button
-                    type="button"
-                    className="btn-secondary"
-                    onClick={() => layout.applyView(v.name)}
-                  >
-                    Apply
-                  </button>
-                  <button
-                    type="button"
-                    className="widget-picker-view-remove"
-                    onClick={() => layout.deleteView(v.name)}
-                    aria-label={`Delete view ${v.name}`}
-                  >
-                    ×
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-        <div className="widget-picker-view-new">
-          <input
-            type="text"
-            placeholder="Name this arrangement…"
-            value={newViewName}
-            onChange={(e) => setNewViewName(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && newViewName.trim()) {
-                layout.saveView(newViewName);
-                setNewViewName("");
-              }
-            }}
-          />
-          <button
-            type="button"
-            className="btn-secondary"
-            disabled={!newViewName.trim()}
-            onClick={() => {
-              layout.saveView(newViewName);
-              setNewViewName("");
-            }}
-          >
-            Save as view
-          </button>
-        </div>
-      </div>
-      <div className="widget-picker-actions">
-        <button className="btn-secondary" onClick={layout.reset}>
-          Reset to default
-        </button>
-        <button className="btn-primary" onClick={onClose}>
-          Done
-        </button>
-      </div>
-    </ModalShell>
-  );
-}
-
+// Opens the shared Customize drawer (components/dashboard/WidgetDrawer.jsx).
+// Used by DashboardPage, ScopedDashboardPage and BookkeeperHomePage.
 function CustomizeDashboardButton({ widgets, layout }) {
-  const [open, setOpen] = useState(false);
   return (
-    <>
-      <button className="customize-dashboard-btn" onClick={() => setOpen(true)}>
-        <SlidersIcon /> Customize dashboard
-      </button>
-      {open && (
-        <WidgetPickerModal
-          widgets={widgets}
-          layout={layout}
-          onClose={() => setOpen(false)}
-        />
-      )}
-    </>
+    <WD_CustomizeButton widgets={widgets} layout={layout}>
+      <SlidersIcon /> Customize dashboard
+    </WD_CustomizeButton>
   );
 }
 
@@ -24500,6 +24248,14 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
   // session". A client-portal session is never the bookkeeper, whatever the
   // view-as state happens to say.
   const isStaffSession = !clientPortalUser;
+
+  // Customizable boards save to the signed-in account
+  // (components/dashboard/WidgetDrawer.jsx). Staff "View as" and client-user
+  // preview keep changes on this device only, so they never overwrite the
+  // staff member's own saved layouts. Set during render, not in an effect:
+  // the boards' own sync effects (children) run before this component's.
+  WD_sync.setPaused("view-as", Boolean(impersonating));
+  WD_sync.setPaused("preview", Boolean(isStaffSession && isPreviewingUser));
 
   const clientUsers = client.users || [];
   // Audit log: staff previewing the portal as a client user (AuditLog.jsx).
