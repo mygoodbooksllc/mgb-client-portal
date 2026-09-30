@@ -40,4 +40,6 @@ Team conversations support attachments and groups (**+ New group**). You can edi
 ### Troubleshooting
 
 - **"…these are sample threads and nothing you send is saved."** The portal couldn't reach client messages (or messaging isn't set up yet), so it's showing sample conversations. Refresh; if it continues, tell an admin.
+- **A client says their Messages page shows "Couldn't load your messages."** Clients never see sample threads. If their messages can't load, they see this with a **Try again** button. Ask them to check their connection and click it; if it keeps happening, tell an admin.
+- **A client can't find an older message.** Their Messages page shows the latest 200. **Load earlier messages** at the top brings in older ones. (They can press **Shift+Enter** for a new line; **Enter** sends.)
 - **"Attachments are capped at 25 MB."** Send a smaller file, or share a Google Drive link instead.

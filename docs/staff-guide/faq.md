@@ -2,7 +2,7 @@
 title: Frequently asked questions
 section: Help and FAQ
 audience: staff
-keywords: [faq, stale bank, bank feed, questions, help, sample data, prototype, can clients see, log time, hours, password, access, missing client, not working]
+keywords: [faq, cash flow, net position, owed to you, bills to pay, bill number, receivables aging, giving, tax documents, mark sent, giving statement, year to date, limited access, ministry, expenses by account, stale bank, bank feed, questions, help, sample data, prototype, can clients see, log time, hours, password, access, missing client, not working]
 sort: 900
 ---
 ### Can clients see my notes, tasks or the Client overview?
@@ -14,6 +14,25 @@ No. The Client overview, staff notes, internal notes in the Inbox, SOPs, My Task
 That client's QuickBooks isn't connected (or hasn't synced yet), so the numbers are made up. Connect QuickBooks to show real numbers. See [How do I connect a client's QuickBooks and use Sync now?](#/help/quickbooks-connection).
 
 Some areas are still sample data even for connected clients: giving, funds, pledges, donors and payroll; message threads in the Client overview's Engagement card; and uploads on the client's own Documents page (files uploaded into a document request are stored for real). Reconciliation status is only estimated (for the Close tracker's QuickBooks checks).
+
+### What do the client's Cash Flow numbers mean?
+
+- **Owed To You, Less What You Owe** (it used to say "Net Position") is open receivables minus open payables. It is not cash.
+- Invoices and bills show the number from QuickBooks (for example *Bill #1043*). Until the next QuickBooks sync fills those numbers in, a bill shows its date instead (*Bill dated 2026-08-10*); the app no longer makes up a number.
+- Lists with more than 5 items get a search box and sorting (due date, amount, name), flag how many days each item is overdue, and show 25 at a time with **Show more**.
+- On the AP page for a QuickBooks client, the list is **Bills to Pay**: it's for planning only, nothing is paid or sent from the app, and **Export List (CSV)** downloads the selection. **Receivables Aging** and **Who Owes You** cards sit alongside.
+
+### Does "Mark sent" on the Giving page email the donor?
+
+No. On **Tax Documents**, download the giving statement, send it yourself, then click **Mark sent** (or **Mark All Sent**) to record that it went out. Year-to-date giving counts only gifts from January 1 of this year through today.
+
+### Why doesn't a limited-access person see the income chart or cash flow?
+
+People limited to certain ministries (categories) only see their own areas. Org-wide numbers (monthly income and expense history, receivables, payables, bank accounts, reports and payroll) are hidden for them, and the Budget trend view says so instead of showing the whole church's history.
+
+### Where does the dashboard's "Expenses by account" list come from?
+
+For a QuickBooks client it's the Profit & Loss lines for the chart's latest month (month to date if the month isn't over), the same numbers as the P&L report. It shows the top 8 accounts and rolls the rest into one line. Sample clients show their budget actuals.
 
 ### What does the red "Stale bank" chip mean?
 

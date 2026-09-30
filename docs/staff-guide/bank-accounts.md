@@ -2,7 +2,7 @@
 title: What does the client's Bank Accounts page show?
 section: Working with a client
 audience: staff
-keywords: [bank accounts, bank, cash, cash on hand, credit card, card balances, owed, net cash, transactions, search, filter, this month, last month, 90 days, money in, money out, show more, export csv, type, category, last synced, reconciliation]
+keywords: [bank accounts, bank, cash, cash on hand, credit card, card balances, owed, net cash, transactions, search, filter, this month, last month, 90 days, money in, money out, card charge, sign, recent activity, show more, export csv, type, category, last synced, reconciliation]
 sort: 215
 ---
 **Bank Accounts** is in the client's own sidebar, so the client sees the same page you do.
@@ -30,6 +30,7 @@ The page opens with **all accounts**, most recent first. When no account is pick
 - **This month**, **Last month**, **90 days** or **All** limits the dates.
 - **All**, **In** or **Out** shows everything, only money coming in, or only money going out.
 - The totals line under the filters shows the number of transactions, money in, money out and the net for whatever is showing.
+- Credit card rows read the same way as bank rows: a charge is money **out** (minus) and a card payment or refund is money **in** (plus). QuickBooks itself shows card charges as plus amounts, because the balance owed goes up, so the signs here are the reverse of the QuickBooks card register. The dashboard's **Recent Activity** uses the same signs.
 - For QuickBooks clients the column is called **Type** (the QuickBooks transaction type, such as Deposit, Check or Expense). For others it's **Category**.
 - The list shows 50 rows at a time. Click **Show more** to load the next 50.
 - **Export CSV** downloads every transaction that matches the current filters, not just the rows on screen.
