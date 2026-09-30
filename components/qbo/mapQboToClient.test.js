@@ -298,5 +298,23 @@ const empty = mapQboToClient(base, {});
   ok(Array.isArray(empty[k]) && empty[k].length === 0, `${k} is an empty array, not undefined`);
 });
 eq(empty.lastSyncedAt, null, "lastSyncedAt is null with no connection row");
+ok(Array.isArray(empty.expenseByAccount) && empty.expenseByAccount.length === 0, "expenseByAccount is an empty array");
+
+// --- expenses by account (qbo_pl_lines) ------------------------------------
+// The Live Report's "Where the money went" card reads this even when the
+// company has no QuickBooks budget.
+const exp = mapQboToClient(base, {
+  plLines: [
+    { month: CURRENT_MONTH, account_name: "Rent", account_type: "Expense", amount: "900" },
+    { month: CURRENT_MONTH, account_name: "Utilities", account_type: "Expense", amount: 120.5 },
+    { month: CURRENT_MONTH, account_name: "Refunds", account_type: "Expense", amount: -40 },
+    { month: CURRENT_MONTH, account_name: "Tithes", account_type: "Income", amount: 5000 },
+    { month: "2001-01-01", account_name: "Old", account_type: "Expense", amount: 10 },
+  ],
+});
+eq(exp.expenseByAccount.length, 2, "only this month's positive expense accounts");
+eq(exp.expenseByAccount[0].account, "Rent", "biggest expense first");
+eq(exp.expenseByAccount[1].amount, 120.5, "amounts are numbers");
+eq(exp.budget.length, 0, "no budget is invented from P&L lines");
 
 console.log(`mapQboToClient: ${checks} assertions passed.`);

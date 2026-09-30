@@ -723,9 +723,18 @@ function LineChart({
    Horizontal bar list (expense breakdown)
    ============================================================ */
 
-function BarList({ items }: { items: { label: string; amount: number }[] }) {
-  const max = Math.max(...items.map((i) => i.amount));
-  const sorted = [...items].sort((a, b) => b.amount - a.amount);
+/* Short muted line a panel shows instead of blank space when a live client
+   has no data for it yet (e.g. a QuickBooks company with no expenses posted
+   this month). */
+function EmptyNote({ children }: { children: React.ReactNode }) {
+  return <div className={styles.emptyNote}>{children}</div>;
+}
+
+function BarList({ items, emptyText }: { items: { label: string; amount: number }[]; emptyText?: string }) {
+  const list = (items || []).filter((i) => i && Number.isFinite(i.amount) && i.amount > 0);
+  const max = list.length ? Math.max(...list.map((i) => i.amount)) : 0;
+  if (!list.length || max <= 0) return <EmptyNote>{emptyText || "Nothing to show yet."}</EmptyNote>;
+  const sorted = [...list].sort((a, b) => b.amount - a.amount);
   return (
     <div>
       {sorted.map((item) => (
@@ -806,7 +815,8 @@ function sevLabelClassByTone(tone: AgingTone): string {
 }
 
 function AgingBar({ items }: { items: { label: string; amount: number; tone: AgingTone }[] }) {
-  const total = items.reduce((a, b) => a + b.amount, 0);
+  const total = (items || []).reduce((a, b) => a + (b.amount || 0), 0);
+  if (!(total > 0)) return <EmptyNote>No open invoices right now.</EmptyNote>;
   return (
     <>
       <div className={styles.aging}>
@@ -1384,6 +1394,9 @@ function DailyClose({ data, className, theme, onNavigate }: DailyCloseProps) {
                         </span>
                       </div>
                     </div>
+                    {data.trend.months.length === 0 ? (
+                      <EmptyNote>No monthly income or expenses recorded yet.</EmptyNote>
+                    ) : (
                     <LineChart
                       ariaLabel="Revenue versus expenses"
                       labels={trendLabels}
@@ -1407,6 +1420,7 @@ function DailyClose({ data, className, theme, onNavigate }: DailyCloseProps) {
                       ]}
                       floorZero
                     />
+                    )}
                   </div>
                 );
 
@@ -1420,7 +1434,7 @@ function DailyClose({ data, className, theme, onNavigate }: DailyCloseProps) {
                       </div>
                     </div>
                     <div style={{ marginTop: 8 }}>
-                      <BarList items={data.expenseBreakdown} />
+                      <BarList items={data.expenseBreakdown} emptyText="No expenses recorded this month yet." />
                     </div>
                   </div>
                 );
@@ -1753,6 +1767,9 @@ function DailyClose({ data, className, theme, onNavigate }: DailyCloseProps) {
                           </span>
                         </div>
                       </div>
+                      {data.trend.months.length === 0 ? (
+                        <EmptyNote>No monthly revenue recorded yet.</EmptyNote>
+                      ) : (
                       <LineChart
                         ariaLabel="Revenue trend and projection"
                         labels={trendLabels}
@@ -1769,6 +1786,7 @@ function DailyClose({ data, className, theme, onNavigate }: DailyCloseProps) {
                           },
                         ]}
                       />
+                      )}
                     </div>
                   )}
 

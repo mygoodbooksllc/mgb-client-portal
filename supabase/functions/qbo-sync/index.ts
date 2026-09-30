@@ -324,21 +324,56 @@ function parseProfitAndLoss(report: any): ParsedPL {
   const lines = new Map<string, any>();
   for (const mc of months) monthly.set(mc.month, { revenue: 0, expenses: 0 });
 
+  function addLine(month: string, accountName: string, kind: "income" | "expense", amount: number) {
+    const key = `${month}|${accountName}`;
+    const prev = lines.get(key);
+    if (prev) {
+      prev.amount += amount;
+    } else {
+      lines.set(key, {
+        month,
+        account_name: accountName,
+        account_type: kind === "income" ? "Income" : "Expense",
+        amount,
+      });
+    }
+  }
+
   // Walk depth-first. `kind` is inherited from the nearest enclosing
   // Income/Expenses section; a Section's own Summary row is skipped for the
   // line detail (it would double-count its children) but IS what the monthly
   // totals are taken from, at the top level only.
-  function walkRows(rows: any[], kind: "income" | "expense" | null, depth: number) {
+  //
+  // Returns what the walked rows add up to per month column, so a section can
+  // compare its Summary with its children. A parent account with sub-accounts
+  // is a Section whose Summary ("Total Maintenance and Repair") includes money
+  // posted straight to the parent; Intuit carries that amount on the Header
+  // row, not as a Data row, so it used to be lost (qbo_pl_lines summed short
+  // of qbo_monthly_pl). The difference Summary - children is booked as a line
+  // under the parent's own name, which makes the lines add up to the totals.
+  function walkRows(rows: any[], kind: "income" | "expense" | null, depth: number): number[] {
+    const totals = months.map(() => 0);
     for (const row of rows || []) {
-      const headerName = row?.Header?.ColData?.[0]?.value || "";
+      const headerName = (row?.Header?.ColData?.[0]?.value || "").trim();
       const ownKind = sectionKind(row?.group, headerName) ?? kind;
 
-      if (row?.Rows?.Row) {
-        walkRows(row.Rows.Row, ownKind, depth + 1);
+      if (row?.Rows?.Row || row?.Summary?.ColData) {
+        const childTotals = walkRows(row?.Rows?.Row || [], ownKind, depth + 1);
+        months.forEach((mc, i) => {
+          const summary = row?.Summary?.ColData ? num(row.Summary.ColData[mc.index]?.value) : childTotals[i];
+          const residual = Math.round((summary - childTotals[i]) * 100) / 100;
+          // Only account sections (depth > 0) get a residual line; a stray
+          // difference on a top-level "Income"/"Expenses" section has no
+          // account to belong to.
+          if (residual && ownKind && headerName && depth > 0) {
+            addLine(mc.month, headerName, ownKind, residual);
+          }
+          totals[i] += summary;
+        });
         // Top-level section totals feed qbo_monthly_pl. Nested subsection
         // summaries are already included in their parent's, so only depth 0
         // contributes.
-        if (depth === 0 && row?.Summary?.ColData && ownKind) {
+        if (depth === 0 && row?.Rows?.Row && row?.Summary?.ColData && ownKind) {
           for (const mc of months) {
             const v = num(row.Summary.ColData[mc.index]?.value);
             const bucket = monthly.get(mc.month)!;
@@ -353,24 +388,14 @@ function parseProfitAndLoss(report: any): ParsedPL {
       const cd = row?.ColData;
       if (!cd || !cd.length) continue;
       const accountName = (cd[0]?.value || "").trim();
-      if (!accountName || !ownKind) continue;
-      for (const mc of months) {
+      months.forEach((mc, i) => {
         const amount = num(cd[mc.index]?.value);
-        if (!amount) continue; // don't store a zero row per account per month
-        const key = `${mc.month}|${accountName}`;
-        const prev = lines.get(key);
-        if (prev) {
-          prev.amount += amount;
-        } else {
-          lines.set(key, {
-            month: mc.month,
-            account_name: accountName,
-            account_type: ownKind === "income" ? "Income" : "Expense",
-            amount,
-          });
-        }
-      }
+        totals[i] += amount;
+        if (!amount || !accountName || !ownKind) return; // no zero rows
+        addLine(mc.month, accountName, ownKind, amount);
+      });
     }
+    return totals;
   }
 
   walkRows(report?.Rows?.Row || [], null, 0);

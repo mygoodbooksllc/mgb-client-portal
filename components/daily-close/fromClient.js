@@ -310,11 +310,28 @@
       sparkline14d.push(Math.round(cashWhole - dailyNet * i + wobble));
     }
 
-    const expenseBreakdown = (client.budget || [])
-      .slice()
-      .sort((a, b) => b.actual - a.actual)
-      .slice(0, 6)
-      .map((b) => ({ label: b.category, amount: Math.round(b.actual) }));
+    // "Where the money went": real expenses by account for this month when
+    // QuickBooks supplied them (mapQboToClient's expenseByAccount, from
+    // qbo_pl_lines), top 6 with the rest folded into "Other". Otherwise the
+    // budget actuals, as sample clients have always used. A live client with
+    // neither gets [] and the card shows its empty-state line.
+    let expenseBreakdown = [];
+    const byAccount = (client.expenseByAccount || []).filter((e) => e && e.amount > 0);
+    if (byAccount.length) {
+      const sorted = byAccount.slice().sort((a, b) => b.amount - a.amount);
+      const top = sorted.length > 7 ? sorted.slice(0, 6) : sorted;
+      expenseBreakdown = top.map((e) => ({ label: e.account, amount: Math.round(e.amount) }));
+      if (sorted.length > top.length) {
+        const rest = sorted.slice(top.length).reduce((s, e) => s + e.amount, 0);
+        if (Math.round(rest) > 0) expenseBreakdown.push({ label: "Other", amount: Math.round(rest) });
+      }
+    } else {
+      expenseBreakdown = (client.budget || [])
+        .slice()
+        .sort((a, b) => b.actual - a.actual)
+        .slice(0, 6)
+        .map((b) => ({ label: b.category, amount: Math.round(b.actual) }));
+    }
 
     return {
       firm: { name: "MyGoodBooks" },

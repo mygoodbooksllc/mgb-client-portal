@@ -2,7 +2,7 @@
 title: How do I connect a client's QuickBooks and use Sync now?
 section: QuickBooks
 audience: staff
-keywords: [quickbooks, qbo, sync schedule, every 15 minutes, intuit limit, connect, sync, sync now, live, reconnect, disconnect, intuit, refresh, numbers, sample data, prototype]
+keywords: [quickbooks, where the money went, expenses by account, no expenses recorded, qbo, sync schedule, every 15 minutes, intuit limit, connect, sync, sync now, live, reconnect, disconnect, intuit, refresh, numbers, sample data, prototype]
 sort: 400
 ---
 When a client's QuickBooks Online is connected, their portal shows real numbers from QuickBooks instead of sample data. After that, the portal keeps itself up to date.
@@ -68,4 +68,5 @@ When you click **Disconnect**, the portal asks you to confirm first. Data that a
 - **"Connection failed".** Click **Try again** and go through the Intuit sign-in again.
 - **Sync now doesn't seem to do anything.** You may have synced in the last 60 seconds ("Already synced within the last minute."). Wait a minute and try again. If you used Client details → Sync now, reload the page.
 - **"QuickBooks needs to be reconnected before it can sync."** Go to Client details → QuickBooks and click **Reconnect**.
+- **A dashboard card says "No expenses recorded this month yet." (or "No open invoices right now.").** That's real: QuickBooks has nothing for that card yet. **Where the money went** shows this month's expenses by QuickBooks account (the six biggest, the rest as **Other**), so it stays empty until the first expense of the month is entered in QuickBooks and the next sync runs. It doesn't need a QuickBooks budget.
 - **Some numbers still say sample.** Giving, funds, pledges, donors and payroll don't come from QuickBooks yet, so those pages still show sample data. Account numbers aren't synced either. (Reconciliation is estimated for the close checks; see [How do I track month-end close?](#/help/month-end-close).)

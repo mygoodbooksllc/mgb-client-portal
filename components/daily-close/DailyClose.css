@@ -1522,3 +1522,11 @@
   .dc-anomaly:nth-child(3) { animation-delay: 160ms; }
   .dc-anomaly:nth-child(n + 4) { animation-delay: 240ms; }
 }
+
+/* Muted one-liner a panel shows instead of blank space when there's no data
+   for it yet (EmptyNote in DailyClose.tsx). Same size/colour as panelSub. */
+.dc-emptyNote {
+  font-size: 12.5px;
+  color: var(--ink-500);
+  padding: 14px 0 6px;
+}

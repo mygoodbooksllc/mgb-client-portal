@@ -189,6 +189,12 @@ because some work happens in Claude Code web sessions. Run `git fetch` and compa
 - **Token refresh.** `qbo-refresh-token` runs every 15 minutes (cron `qbo-refresh-tokens`).
 - **Sync.** `qbo-sync` pulls accounts, 12 months of P&L, budget, open invoices, open bills and
   90 days of transactions into the `qbo_*` tables.
+  - The P&L lands twice: monthly totals in `qbo_monthly_pl` and per-account lines in
+    `qbo_pl_lines` (one row per month per account; money posted straight to a parent account is
+    booked under the parent's name, so the lines add up to the totals, since qbo-sync v8).
+    `mapQboToClient` turns this month's expense lines into `client.expenseByAccount` (and last
+    month's into `expenseByAccountPrev`), which feeds Live Report's "Where the money went"
+    whether or not the company has a QuickBooks budget.
   - **Cron** job `qbo-sync-hourly`. Despite the name, it ticks **every 5 minutes** at :02, :07,
     ... (`'2-59/5 * * * *'`, set by `supabase/qbo-usage-guard.sql`), off the token refresher's
     minutes. Each tick syncs only the clients that are due (Pro every 15 min, Plus weekly, Basic
@@ -666,6 +672,11 @@ Owner setup:
   proxy (cleared flags on the last 13 months of bank and card transactions), and CDC only gates
   the full re-read; it doesn't merge deltas.
   Giving, funds and payroll aren't sourced from QuickBooks.
+- Live Report cards with nothing to show for a live client (no expenses posted this month, no
+  open invoices, no monthly P&L yet) show a short muted line instead of rendering blank. Budget
+  health, bills due soon, fund activity and cash by account hide themselves instead. The sandbox
+  company (grace-community) often has little or no current-month activity, so "Where the money
+  went" can legitimately be empty there.
 - `data.js` is loaded before login. That's harmless while it holds only sample data, but real
   client numbers must never go into it.
 

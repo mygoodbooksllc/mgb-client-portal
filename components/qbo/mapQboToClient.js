@@ -90,6 +90,7 @@
     var accounts = rows.accounts || [];
     var monthlyPl = rows.monthlyPl || [];
     var budgetLines = rows.budgetLines || [];
+    var plLines = rows.plLines || [];
     var invoices = rows.invoices || [];
     var bills = rows.bills || [];
     var transactions = rows.transactions || [];
@@ -188,6 +189,37 @@
       return budgetByAccount[name];
     });
 
+    // --- expenseByAccount --------------------------------------------------
+    // qbo_pl_lines (written by qbo-sync from the same monthly ProfitAndLoss
+    // report that feeds qbo_monthly_pl) holds one row per month per account.
+    // The Live Report's "Where the money went" card needs this month's
+    // expenses by account whether or not the company has a QuickBooks budget,
+    // so expose the current and previous month here, biggest first. Refunds
+    // can leave an account net negative; those aren't "where money went" and
+    // are dropped.
+    var prevDate = new Date(Date.UTC(Number(today.slice(0, 4)), Number(today.slice(5, 7)) - 2, 1));
+    var prevMonth = prevDate.toISOString().slice(0, 10);
+    function expensesFor(month) {
+      var byName = {};
+      plLines.forEach(function (l) {
+        if (l.account_type !== "Expense" || toDay(l.month) !== month) return;
+        var name = l.account_name || "Uncategorized";
+        byName[name] = (byName[name] || 0) + toNumber(l.amount);
+      });
+      return Object.keys(byName)
+        .map(function (name) {
+          return { account: name, amount: byName[name] };
+        })
+        .filter(function (r) {
+          return r.amount > 0;
+        })
+        .sort(function (a, b) {
+          return b.amount - a.amount;
+        });
+    }
+    var expenseByAccount = expensesFor(currentMonth);
+    var expenseByAccountPrev = expensesFor(prevMonth);
+
     // --- receivables / payables --------------------------------------------
     // Shapes are data.js's exactly. The "overdue logic" everywhere in app.jsx
     // is daysUntil(dueDate, today) < 0 — there is no separate overdue flag —
@@ -228,12 +260,14 @@
 
     // Object.assign over the existing client keeps everything QuickBooks has
     // no opinion about — the roster fields, the users roster, threads,
-    // documents — exactly as it was. Only the six financial arrays are
+    // documents — exactly as it was. Only the financial arrays are
     // replaced, and only with what actually came back.
     return Object.assign({}, client, {
       bankAccounts: bankAccounts,
       monthly: monthly,
       budget: budget,
+      expenseByAccount: expenseByAccount,
+      expenseByAccountPrev: expenseByAccountPrev,
       receivables: receivables,
       payables: payables,
       dataSource: "quickbooks",
