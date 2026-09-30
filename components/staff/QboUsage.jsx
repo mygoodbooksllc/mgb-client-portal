@@ -182,7 +182,7 @@ function QU_UsageCard() {
           ? `Scheduled syncs are stopped until the 1st because ${stopPct}% of the limit is used. "Sync now" still works.`
           : status.mode === "throttled"
             ? `The month is on pace to pass ${thrPct}% of the limit, so Pro clients sync every ${status.throttled_interval_min} minutes instead of ${status.normal_interval_min}.`
-            : `Pro clients slow to every ${status.throttled_interval_min} minutes if the month is on pace to pass ${thrPct}%, and scheduled syncs stop at ${stopPct}% used. Standard clients sync weekly and Basic on the 15th.`}
+            : `Pro clients slow to every ${status.throttled_interval_min} minutes if the month is on pace to pass ${thrPct}%, and scheduled syncs stop at ${stopPct}% used. Plus clients sync weekly and Basic on the 15th.`}
       </p>
       {sources.length > 0 && (
         <ul className="qu-sources">
