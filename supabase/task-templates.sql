@@ -2,6 +2,9 @@
 --
 -- Applied to production 2026-09-29 as migrations task_templates and
 -- tt_onboarding_advisor_fixes (revoke + client_id index).
+-- The checklist column and the checklist copy in tt_generate_template_tasks()
+-- were applied to production 2026-09-30 as part of migration task_checklists
+-- (tables in supabase/task-checklists.sql).
 -- Safe to re-run.
 --
 --   task_templates        admin-defined recurring work: title, cadence
@@ -85,6 +88,14 @@ begin
   return new;
 end;
 $$;
+
+-- Checklist copied onto every generated task (task_checklist_items), one
+-- step per array element, in order. Added 2026-09-30.
+alter table public.task_templates
+  add column if not exists checklist text[] not null default '{}';
+alter table public.task_templates drop constraint if exists task_templates_checklist_len;
+alter table public.task_templates
+  add constraint task_templates_checklist_len check (cardinality(checklist) <= 50);
 
 drop trigger if exists task_templates_before_write on public.task_templates;
 create trigger task_templates_before_write
@@ -201,7 +212,7 @@ begin
         case t.cadence when 'monthly' then interval '1 month' when 'quarterly' then interval '3 months' else interval '1 year' end
       ) gs
     )
-    select t.id template_id, t.title, t.cadence, t.priority, c.id client_id,
+    select t.id template_id, t.title, t.cadence, t.priority, t.checklist, c.id client_id,
            p.period_start, (p.period_end + t.due_offset_days) due_date
     from t
     join periods p on p.template_id = t.id
@@ -248,6 +259,13 @@ begin
 
       if v_id is not null then
         v_created := v_created + 1;
+        -- The template's checklist, in order, blank lines skipped.
+        if cardinality(coalesce(r.checklist, '{}'::text[])) > 0 then
+          insert into task_checklist_items (reminder_id, text, sort_order)
+          select v_id, left(trim(x.item), 300), (x.ord - 1)::int
+          from unnest(r.checklist) with ordinality as x(item, ord)
+          where nullif(trim(x.item), '') is not null;
+        end if;
       end if;
     end;
   end loop;

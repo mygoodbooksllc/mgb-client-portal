@@ -2,7 +2,7 @@
 title: How do I add and manage my tasks?
 section: Daily work
 audience: staff
-keywords: [my tasks, task, reminder, to do, due, overdue, repeat, recurring, priority, share, complete, today, upcoming, by client, save as template, suggest template, manage templates]
+keywords: [my tasks, task, reminder, to do, due, overdue, repeat, recurring, priority, share, complete, today, upcoming, by client, save as template, suggest template, manage templates, checklist, steps, subtasks, saved checklist]
 sort: 110
 ---
 **My Tasks** (in the sidebar, or the **My Tasks** button in the top bar) is your to-do list. Tasks are **private to you and admins** unless you share one with a client's team.
@@ -36,6 +36,22 @@ You can also add a task from inside a client: click **+** in the top bar and cho
 - When you finish a **repeating** task, the next one is created for you automatically.
 - The people icon shares or stops sharing a task with the client's team. **×** removes it.
 - Chips tell you where a task came from: **From note**, **Access request**, or **Recurring** (made by a [task template](#/help/task-templates)).
+
+### Checklists inside a task
+
+Break a task into steps with its checklist.
+
+1. Click the **Checklist** icon (a list with ticks) on the task.
+2. Type a step in **Add a step** and click **Add**. Repeat for each step.
+3. Tick steps off as you go. Use ↑ / ↓ to reorder and **×** to remove a step.
+
+Once a task has steps, it shows a progress chip such as **3/5** in My Tasks. Click the chip to open the checklist again.
+
+**Reuse a checklist.** Click **Save as my checklist**, give it a name (for example *Month-end close*) and click **Save**. On another task, open the checklist, pick it from **Use a saved checklist…** and click **Add steps**. Saved checklists are private to you. To remove one, pick it and click **Delete saved** (tasks that already have its steps keep them).
+
+Who can see and tick the steps follows the task: a private task's checklist is yours (admins can see it but not change it); on a shared task, everyone on that client's team can tick steps. Tasks made from a template that has a checklist arrive with the steps already there.
+
+When you save a task as a template (admins), its checklist goes into the template too.
 
 ### Save a task as a template
 

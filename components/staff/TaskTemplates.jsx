@@ -25,7 +25,7 @@ const TT_CADENCES = [
 ];
 const TT_TIERS = ["basic", "standard", "premium"];
 const TT_COLS =
-  "id, title, cadence, due_offset_days, lead_days, plan_tiers, client_ids, priority, active, created_by, created_at";
+  "id, title, cadence, due_offset_days, lead_days, plan_tiers, client_ids, priority, active, checklist, created_by, created_at";
 const TT_BLANK = {
   title: "",
   cadence: "monthly",
@@ -35,7 +35,15 @@ const TT_BLANK = {
   client_ids: [],
   priority: "normal",
   active: true,
+  checklist: [],
 };
+const TT_MAX_CHECKLIST = 50;
+const TT_checklistLines = (text) =>
+  String(text || "")
+    .split("\n")
+    .map((s) => s.trim().slice(0, 300))
+    .filter(Boolean)
+    .slice(0, TT_MAX_CHECKLIST);
 
 // ---------------------------------------------------------------------------
 // "Save as template" from a task in My Tasks (owner request 2026-09-30).
@@ -250,6 +258,7 @@ function TT_TaskTemplatesPage({ clients }) {
       client_ids: draft.client_ids,
       priority: draft.priority,
       active: draft.active,
+      checklist: Array.isArray(draft.checklist) ? draft.checklist.slice(0, TT_MAX_CHECKLIST) : [],
     };
     if (!sb) {
       toast("Supabase isn't configured.");
@@ -428,6 +437,11 @@ function TT_TaskTemplatesPage({ clients }) {
                       </span>
                     )}
                     {issued[t.id] ? <span>{issued[t.id]} created so far</span> : null}
+                    {t.checklist && t.checklist.length ? (
+                      <span>
+                        {t.checklist.length}-step checklist
+                      </span>
+                    ) : null}
                   </div>
                 </div>
                 <div className="tt-item-actions">
@@ -461,6 +475,7 @@ function TT_TaskTemplatesPage({ clients }) {
 
 function TT_Editor({ draft: initial, clients, onClose, onSave, onDelete }) {
   const [d, setD] = useState(initial);
+  const [clText, setClText] = useState(() => (initial.checklist || []).join("\n"));
   const [q, setQ] = useState("");
   const [saving, setSaving] = useState(false);
   const set = (k, v) => setD((x) => ({ ...x, [k]: v }));
@@ -480,7 +495,7 @@ function TT_Editor({ draft: initial, clients, onClose, onSave, onDelete }) {
           e.preventDefault();
           if (!d.title.trim()) return;
           setSaving(true);
-          await onSave(d);
+          await onSave({ ...d, checklist: TT_checklistLines(clText) });
           setSaving(false);
         }}
       >
@@ -599,6 +614,22 @@ function TT_Editor({ draft: initial, clients, onClose, onSave, onDelete }) {
             Tasks go to each client's assigned bookkeeper.
           </p>
         </fieldset>
+
+        <label className="tt-label" htmlFor="tt-checklist">
+          Checklist (optional)
+        </label>
+        <textarea
+          id="tt-checklist"
+          className="tt-input tt-textarea"
+          rows={4}
+          value={clText}
+          placeholder={"Download bank statements\nMatch deposits\nClear uncategorized"}
+          onChange={(e) => setClText(e.target.value)}
+        />
+        <p className="tt-help">
+          One step per line, up to {TT_MAX_CHECKLIST}. Every task this template creates gets these steps to tick off.
+          {TT_checklistLines(clText).length ? ` ${TT_checklistLines(clText).length} step${TT_checklistLines(clText).length === 1 ? "" : "s"}.` : ""}
+        </p>
 
         <label className="tt-check">
           <input type="checkbox" checked={d.active} onChange={(e) => set("active", e.target.checked)} />

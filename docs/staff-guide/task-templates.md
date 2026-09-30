@@ -2,7 +2,7 @@
 title: How do recurring tasks from templates work?
 section: Month-end and recurring work
 audience: staff
-keywords: [templates, recurring, repeat, monthly, quarterly, annually, generate, automatic tasks, task templates, suggestions, suggested templates, save as template]
+keywords: [templates, recurring, repeat, monthly, quarterly, annually, generate, automatic tasks, task templates, suggestions, suggested templates, save as template, checklist]
 sort: 320
 ---
 Some work happens for every client on a schedule, like reconciling bank accounts each month. Instead of typing those tasks by hand, an admin sets up a **task template** once, and the portal creates the task for each client automatically.
@@ -14,6 +14,7 @@ Some work happens for every client on a schedule, like reconciling bank accounts
 - The task name ends with the period, for example **"Reconcile bank accounts · Sep 2026"**, so you know which month or quarter it's for.
 - Each task shows up a few days before it's due (the "lead window"), not months ahead.
 - They're shared with the client's team (other staff on that client can see them), and you complete them like any other task.
+- If the template has a checklist, the task arrives with those steps. Changing a template's checklist only affects tasks created after the change.
 - You only get each task once per client per period, even if the template runs again.
 
 ### Setting up a template (admins)
@@ -27,7 +28,8 @@ Some work happens for every client on a schedule, like reconciling bank accounts
 5. **Create (days before due)**: how early the task appears in My Tasks (default 14, up to 90).
 6. Pick a **Priority**: **Low**, **Normal** or **High**.
 7. Under **Applies to**, tick plans (Basic, Plus, Pro) and/or add specific clients. Leave everything unticked for **every client**.
-8. Leave **Active** ticked and click **Save**.
+8. Optional: under **Checklist**, type the steps, one per line (up to 50). Every task the template creates gets these steps to tick off, and shows progress such as **0/5** in My Tasks.
+9. Leave **Active** ticked and click **Save**.
 
 The templates run every morning on their own. **Generate now** runs them immediately. Use **Pause** / **Resume** on a template to stop or restart it without deleting it. To remove one for good, click **Edit**, then **Delete template**. Tasks it already created stay in My Tasks.
 

@@ -18291,7 +18291,9 @@ function MyTasksPage({
   async function saveAsTemplate(task) {
     if (typeof TT_draftFromTask !== "function") return;
     if (canCreateTemplates && onOpenTemplates) {
-      TT_openDraft(TT_draftFromTask(task));
+      const checklist =
+        typeof TCL_fetchTexts === "function" ? await TCL_fetchTexts(supabase, task.id) : [];
+      TT_openDraft(TT_draftFromTask(task, { checklist }));
       onOpenTemplates();
       return;
     }
@@ -18460,6 +18462,12 @@ function MyTasksPage({
     () => Object.fromEntries((notes || []).map((n) => [n.id, n])),
     [notes],
   );
+  // Checklists inside tasks (components/staff/TaskChecklist.jsx): "3/5"
+  // progress per task and which task's checklist is open.
+  const checklistTaskIds = useMemo(() => (tasks || []).map((t) => t.id), [tasks]);
+  const checklistCounts =
+    typeof TCL_useCounts === "function" ? TCL_useCounts(checklistTaskIds) : {};
+  const [openChecklistId, setOpenChecklistId] = useState(null);
   const taskForNote = (n) =>
     (n.linked_task_id && taskById[n.linked_task_id]) ||
     (tasks || []).find((t) => t.source === "note" && t.source_ref === n.id) ||
@@ -18872,6 +18880,22 @@ function MyTasksPage({
             {t.kind === "reminder" && (
               <span className="task-chip">Reminder</span>
             )}
+            {checklistCounts[t.id] && checklistCounts[t.id].total > 0 && (
+              <button
+                type="button"
+                className={
+                  "task-chip tcl-chip" +
+                  (checklistCounts[t.id].done === checklistCounts[t.id].total ? " complete" : "")
+                }
+                onClick={() => setOpenChecklistId(openChecklistId === t.id ? null : t.id)}
+                aria-expanded={openChecklistId === t.id}
+                aria-label={`Checklist ${checklistCounts[t.id].done} of ${checklistCounts[t.id].total} done: ${t.text}`}
+                title="Show checklist"
+              >
+                {typeof TCL_Icon === "function" && <TCL_Icon width="12" height="12" />}
+                {checklistCounts[t.id].done}/{checklistCounts[t.id].total}
+              </button>
+            )}
             {t.priority === "high" && !t.done && (
               <span className="task-chip bad">High priority</span>
             )}
@@ -18927,8 +18951,26 @@ function MyTasksPage({
               )
             )}
           </div>
+          {openChecklistId === t.id && typeof TCL_Checklist === "function" && (
+            <TCL_Checklist
+              task={t}
+              canEdit={mine || (t.visibility === "shared" && !!t.client_id)}
+            />
+          )}
         </div>
         <div className="task-actions">
+          {!legacy && t.kind !== "note" && typeof TCL_Checklist === "function" && (
+            <button
+              type="button"
+              className={"task-icon-btn" + (openChecklistId === t.id ? " active" : "")}
+              onClick={() => setOpenChecklistId(openChecklistId === t.id ? null : t.id)}
+              aria-expanded={openChecklistId === t.id}
+              aria-label={`${openChecklistId === t.id ? "Hide" : "Show"} checklist: ${t.text}`}
+              title={openChecklistId === t.id ? "Hide checklist" : "Checklist"}
+            >
+              <TCL_Icon />
+            </button>
+          )}
           {mine && !legacy && t.client_id && !t.done && (
             <button
               type="button"
