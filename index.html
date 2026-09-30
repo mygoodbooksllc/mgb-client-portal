@@ -67,6 +67,7 @@
 
       // Cache-bust so local edits to styles.css always show up on reload.
       document.write('<link rel="stylesheet" href="styles.css?v=' + Date.now() + '">');
+      document.write('<link rel="stylesheet" href="components/ui/tooltips.css?v=' + Date.now() + '">');
       document.write(
         '<link rel="stylesheet" href="components/daily-close/DailyClose.css?v=' + Date.now() + '">'
       );
@@ -163,6 +164,8 @@
          A mismatched hash makes the browser refuse the script outright, so if
          the app ever boots to a blank page right after a version change, these
          attributes are the first thing to check. -->
+    <!-- Themed tooltips for every title attribute (plain script, no React). -->
+    <script src="components/ui/tooltips.js" defer></script>
     <script
       crossorigin="anonymous"
       integrity="sha384-DGyLxAyjq0f9SPpVevD6IgztCFlnMF6oW/XQGmfe+IsZ8TqEiDrcHkMLKI6fiB/Z"
