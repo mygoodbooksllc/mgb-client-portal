@@ -13,6 +13,15 @@
 //   FB_FeedbackPage     admin page (#/feedback): newest first, filter by
 //                       status / kind, change status + admin note inline.
 //   FB_NavBadge         count of "new" reports on the admin nav item.
+//   FB_Shots            thumbnails of a report's screenshots (1-hour signed
+//                       URLs); click opens the full image in a new tab.
+//
+// Screenshots (supabase/feedback-screenshots.sql): up to 3 images per report
+// via "Add screenshot", drag-and-drop or paste. On Send the modal uploads them
+// to the private feedback-screenshots bucket at <email>/<feedback id>/<n>-<name>
+// (the row id is picked up front), then inserts the row with
+// attachments = [{path, name, size, type}]. If the insert fails the uploads are
+// kept and reused on retry, and nothing typed is lost.
 //
 // Table + RLS: supabase/staff-feedback.sql. The server stamps author_email,
 // forces status 'new' on insert and only lets admins change status /
@@ -27,6 +36,13 @@ const FB_OPEN_EVENT = "mgb:open-feedback";
 const FB_CHANGED_EVENT = "mgb:feedback-changed";
 const FB_MAX = 5000;
 const FB_PAGE_SIZE = 50;
+const FB_BUCKET = "feedback-screenshots";
+const FB_MAX_SHOTS = 3;
+const FB_MAX_BYTES = 10 * 1024 * 1024;
+const FB_SHOT_TYPES = ["image/png", "image/jpeg", "image/webp", "image/gif"];
+const FB_SIGN_SECONDS = 60 * 60;
+const FB_COLS =
+  "id, created_at, updated_at, author_email, kind, message, expected, page, browser, client_id, status, admin_note, attachments";
 
 const FB_KINDS = [
   { value: "bug", label: "Bug" },
@@ -104,6 +120,88 @@ function FB_StatusPill({ status }) {
 }
 
 // ---------------------------------------------------------------------------
+// Screenshots
+// ---------------------------------------------------------------------------
+function FB_uuid() {
+  if (window.crypto && typeof crypto.randomUUID === "function") return crypto.randomUUID();
+  const b = new Uint8Array(16);
+  crypto.getRandomValues(b);
+  b[6] = (b[6] & 0x0f) | 0x40;
+  b[8] = (b[8] & 0x3f) | 0x80;
+  const h = Array.from(b, (x) => x.toString(16).padStart(2, "0")).join("");
+  return `${h.slice(0, 8)}-${h.slice(8, 12)}-${h.slice(12, 16)}-${h.slice(16, 20)}-${h.slice(20)}`;
+}
+
+function FB_safeName(name, type) {
+  const ext = { "image/png": "png", "image/jpeg": "jpg", "image/webp": "webp", "image/gif": "gif" }[type] || "png";
+  let base = String(name || "").replace(/\.[^.]*$/, "");
+  base = base.replace(/[^A-Za-z0-9._-]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 60) || "screenshot";
+  return `${base}.${ext}`;
+}
+
+function FB_fmtSize(n) {
+  if (n >= 1024 * 1024) return (n / (1024 * 1024)).toFixed(1) + " MB";
+  return Math.max(1, Math.round(n / 1024)) + " KB";
+}
+
+// path -> { url, exp } so reopening a list doesn't re-sign every image.
+const FB_signCache = {};
+async function FB_signPaths(paths) {
+  const sb = window.mgbSupabase;
+  const now = Date.now();
+  const out = {};
+  const need = [];
+  for (const p of paths) {
+    const c = FB_signCache[p];
+    if (c && c.exp - now > 5 * 60 * 1000) out[p] = c.url;
+    else need.push(p);
+  }
+  if (need.length && sb) {
+    const { data } = await sb.storage.from(FB_BUCKET).createSignedUrls(need, FB_SIGN_SECONDS);
+    for (const d of data || []) {
+      if (d && d.signedUrl && d.path) {
+        FB_signCache[d.path] = { url: d.signedUrl, exp: now + FB_SIGN_SECONDS * 1000 };
+        out[d.path] = d.signedUrl;
+      }
+    }
+  }
+  return out;
+}
+
+// Thumbnails for a saved report. Click opens the full image in a new tab.
+function FB_Shots({ attachments }) {
+  const list = Array.isArray(attachments) ? attachments.filter((a) => a && a.path) : [];
+  const key = list.map((a) => a.path).join("|");
+  const [urls, setUrls] = React.useState({});
+  React.useEffect(() => {
+    if (!list.length) return;
+    let alive = true;
+    FB_signPaths(list.map((a) => a.path)).then((m) => alive && setUrls(m));
+    return () => {
+      alive = false;
+    };
+  }, [key]);
+  if (!list.length) return null;
+  return (
+    <div className="fb-shots" aria-label="Screenshots">
+      {list.map((a) => {
+        const url = urls[a.path];
+        const label = `Open screenshot ${a.name || ""} full size`.trim();
+        return url ? (
+          <a key={a.path} className="fb-shot" href={url} target="_blank" rel="noopener noreferrer" title={a.name} aria-label={label}>
+            <img src={url} alt={a.name || "Screenshot"} loading="lazy" />
+          </a>
+        ) : (
+          <span key={a.path} className="fb-shot fb-shot-loading" title={a.name}>
+            <span className="fb-dim">…</span>
+          </span>
+        );
+      })}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Modal
 // ---------------------------------------------------------------------------
 function FB_MyFeedback() {
@@ -118,7 +216,7 @@ function FB_MyFeedback() {
       // Admins can read every row, so filter to the sender explicitly.
       let q = sb
         .from("staff_feedback")
-        .select("id, created_at, kind, message, status, admin_note, updated_at")
+        .select("id, created_at, kind, message, status, admin_note, updated_at, attachments")
         .order("created_at", { ascending: false })
         .limit(50);
       if (me) q = q.eq("author_email", me);
@@ -142,6 +240,7 @@ function FB_MyFeedback() {
             <span className="fb-dim" title={FB_fullTime(r.created_at)}>{FB_when(r.created_at)}</span>
           </div>
           <p className="fb-mine-msg">{r.message.length > 240 ? r.message.slice(0, 240) + "…" : r.message}</p>
+          <FB_Shots attachments={r.attachments} />
           {r.admin_note && (
             <p className="fb-mine-note">
               <b>Reply:</b> {r.admin_note}
@@ -163,8 +262,126 @@ function FB_FeedbackModal({ clientId, onClose }) {
   const [error, setError] = React.useState(null);
   // Captured when the modal opens, not when Send is clicked.
   const [page] = React.useState(FB_currentPage);
+  // Row id picked up front so screenshots can be uploaded under it first.
+  const [feedbackId] = React.useState(FB_uuid);
+  // [{ key, file, name, preview (object URL), path (set once uploaded) }]
+  const [shots, setShots] = React.useState([]);
+  const [shotMsg, setShotMsg] = React.useState(null);
+  const [progress, setProgress] = React.useState(null);
+  const [dragging, setDragging] = React.useState(false);
+  const fileRef = React.useRef(null);
+  const shotsRef = React.useRef(shots);
+  shotsRef.current = shots;
   const isBug = kind === "bug";
   const canSend = message.trim().length > 0 && !sending;
+
+  // Free the preview URLs when the modal closes.
+  React.useEffect(
+    () => () => {
+      for (const s of shotsRef.current) if (s.preview) URL.revokeObjectURL(s.preview);
+    },
+    []
+  );
+
+  function addFiles(files) {
+    const incoming = Array.from(files || []);
+    if (!incoming.length || sending) return;
+    const problems = [];
+    const room = FB_MAX_SHOTS - shotsRef.current.length;
+    const ok = [];
+    for (const f of incoming) {
+      if (!f || !FB_SHOT_TYPES.includes(f.type)) {
+        problems.push(`${(f && f.name) || "That file"} isn’t a PNG, JPEG, WebP or GIF image.`);
+      } else if (f.size > FB_MAX_BYTES) {
+        problems.push(`${f.name || "That image"} is ${FB_fmtSize(f.size)}. The limit is 10 MB.`);
+      } else if (f.size <= 0) {
+        problems.push(`${f.name || "That image"} is empty.`);
+      } else if (ok.length >= room) {
+        problems.push(`You can attach up to ${FB_MAX_SHOTS} screenshots.`);
+        break;
+      } else {
+        ok.push(f);
+      }
+    }
+    if (ok.length) {
+      const stamp = new Date().toISOString().slice(0, 19).replace(/[T:]/g, "-");
+      setShots((cur) => [
+        ...cur,
+        ...ok.map((f, i) => {
+          // Pasted images arrive as "image.png"; give them a useful name.
+          const pasted = !f.name || /^image\.(png|jpe?g|gif|webp)$/i.test(f.name);
+          return {
+            key: FB_uuid(),
+            file: f,
+            name: pasted ? `screenshot-${stamp}${ok.length > 1 ? "-" + (i + 1) : ""}` : f.name,
+            preview: URL.createObjectURL(f),
+            path: null,
+          };
+        }),
+      ]);
+    }
+    setShotMsg(problems.length ? problems.join(" ") : null);
+  }
+
+  function removeShot(key) {
+    setShots((cur) => {
+      const s = cur.find((x) => x.key === key);
+      if (s && s.preview) URL.revokeObjectURL(s.preview);
+      return cur.filter((x) => x.key !== key);
+    });
+    setShotMsg(null);
+  }
+
+  // Paste an image (Cmd/Ctrl+V) and drop files anywhere while the send form
+  // is showing. Plain-text pastes into the boxes still work as usual.
+  React.useEffect(() => {
+    if (view !== "send") return;
+    let depth = 0;
+    const hasFiles = (e) => e.dataTransfer && Array.from(e.dataTransfer.types || []).includes("Files");
+    const onPaste = (e) => {
+      const items = Array.from((e.clipboardData && e.clipboardData.items) || []);
+      const files = items.filter((it) => it.kind === "file").map((it) => it.getAsFile()).filter(Boolean);
+      // Rich text copied from elsewhere can carry an image too; let it paste as text.
+      if (!files.length || items.some((it) => it.kind === "string" && it.type === "text/plain")) return;
+      e.preventDefault();
+      addFiles(files);
+    };
+    const onEnter = (e) => {
+      if (!hasFiles(e)) return;
+      e.preventDefault();
+      depth += 1;
+      setDragging(true);
+    };
+    const onOver = (e) => {
+      if (!hasFiles(e)) return;
+      e.preventDefault();
+      e.dataTransfer.dropEffect = "copy";
+    };
+    const onLeave = (e) => {
+      if (!hasFiles(e)) return;
+      depth = Math.max(0, depth - 1);
+      if (!depth) setDragging(false);
+    };
+    const onDrop = (e) => {
+      if (!hasFiles(e)) return;
+      e.preventDefault();
+      depth = 0;
+      setDragging(false);
+      addFiles(e.dataTransfer.files);
+    };
+    window.addEventListener("paste", onPaste);
+    window.addEventListener("dragenter", onEnter);
+    window.addEventListener("dragover", onOver);
+    window.addEventListener("dragleave", onLeave);
+    window.addEventListener("drop", onDrop);
+    return () => {
+      window.removeEventListener("paste", onPaste);
+      window.removeEventListener("dragenter", onEnter);
+      window.removeEventListener("dragover", onOver);
+      window.removeEventListener("dragleave", onLeave);
+      window.removeEventListener("drop", onDrop);
+    };
+  }, [view, sending]);
 
   async function send() {
     if (!canSend) return;
@@ -172,16 +389,49 @@ function FB_FeedbackModal({ clientId, onClose }) {
     if (!sb) return setError("Not connected. Try again after signing in.");
     setSending(true);
     setError(null);
-    const { error: err } = await sb.from("staff_feedback").insert({
-      kind,
-      message: message.trim().slice(0, FB_MAX),
-      expected: isBug && expected.trim() ? expected.trim().slice(0, FB_MAX) : null,
-      page,
-      browser: isBug ? FB_browserInfo() : null,
-      client_id: clientId || null,
-    });
+    try {
+      const list = shotsRef.current.slice();
+      const attachments = [];
+      if (list.length) {
+        const { data: s } = await sb.auth.getSession();
+        const me = s && s.session && s.session.user ? s.session.user.email : null;
+        if (!me) throw new Error("You’re signed out. Sign in again, then press Send.");
+        for (let i = 0; i < list.length; i++) {
+          const shot = list[i];
+          let path = shot.path;
+          if (!path) {
+            setProgress(`Uploading screenshot ${i + 1} of ${list.length}…`);
+            path = `${me}/${feedbackId}/${shot.key.slice(0, 8)}-${FB_safeName(shot.name, shot.file.type)}`;
+            const { error: upErr } = await sb.storage
+              .from(FB_BUCKET)
+              .upload(path, shot.file, { contentType: shot.file.type, upsert: false, cacheControl: "3600" });
+            if (upErr) throw new Error(`Couldn’t upload ${shot.name}: ${upErr.message}`);
+            // Remember the upload so a retry doesn't upload it again.
+            setShots((cur) => cur.map((x) => (x.key === shot.key ? { ...x, path } : x)));
+            shotsRef.current = shotsRef.current.map((x) => (x.key === shot.key ? { ...x, path } : x));
+          }
+          attachments.push({ path, name: String(shot.name).slice(0, 255), size: shot.file.size, type: shot.file.type });
+        }
+      }
+      setProgress(list.length ? "Sending…" : null);
+      const { error: err } = await sb.from("staff_feedback").insert({
+        id: feedbackId,
+        kind,
+        message: message.trim().slice(0, FB_MAX),
+        expected: isBug && expected.trim() ? expected.trim().slice(0, FB_MAX) : null,
+        page,
+        browser: isBug ? FB_browserInfo() : null,
+        client_id: clientId || null,
+        attachments,
+      });
+      if (err) throw new Error("Couldn't send: " + err.message);
+    } catch (e) {
+      setSending(false);
+      setProgress(null);
+      return setError((e && e.message) || "Couldn't send. Try again.");
+    }
     setSending(false);
-    if (err) return setError("Couldn't send: " + err.message);
+    setProgress(null);
     window.dispatchEvent(new CustomEvent(FB_CHANGED_EVENT));
     toast("Thanks — feedback sent");
     onClose();
@@ -232,9 +482,75 @@ function FB_FeedbackModal({ clientId, onClose }) {
               <textarea rows={2} maxLength={FB_MAX} value={expected} onChange={(e) => setExpected(e.target.value)} />
             </label>
           )}
+          <div className={"fb-attach" + (isBug ? " fb-attach-bug" : "") + (dragging ? " fb-attach-drag" : "")}>
+            <div className="fb-attach-top">
+              <span className="fb-attach-label">
+                Screenshots{" "}
+                <span className="fb-dim">
+                  ({isBug ? "a picture really helps" : "optional"}, up to {FB_MAX_SHOTS})
+                </span>
+              </span>
+              <button
+                type="button"
+                className="btn-secondary fb-attach-btn"
+                disabled={sending || shots.length >= FB_MAX_SHOTS}
+                onClick={() => fileRef.current && fileRef.current.click()}
+              >
+                Add screenshot
+              </button>
+              <input
+                ref={fileRef}
+                type="file"
+                accept="image/*"
+                multiple
+                hidden
+                onChange={(e) => {
+                  addFiles(e.target.files);
+                  e.target.value = "";
+                }}
+              />
+            </div>
+            {shots.length > 0 && (
+              <ul className="fb-thumbs">
+                {shots.map((s) => (
+                  <li key={s.key} className="fb-thumb">
+                    <img src={s.preview} alt={s.name} />
+                    <span className="fb-thumb-name" title={s.name}>
+                      {s.name}
+                    </span>
+                    <button
+                      type="button"
+                      className="fb-thumb-x"
+                      disabled={sending}
+                      onClick={() => removeShot(s.key)}
+                      aria-label={`Remove ${s.name}`}
+                      title="Remove"
+                    >
+                      ×
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+            <p className="fb-note">
+              {dragging
+                ? "Drop the image to attach it."
+                : "Drag an image here or paste one. Tip: press ⌘⇧4 (Mac) or Win+Shift+S to grab part of the screen, then paste here."}
+            </p>
+            {shotMsg && (
+              <p className="fb-error" role="alert">
+                {shotMsg}
+              </p>
+            )}
+          </div>
           <p className="fb-note">
             {isBug ? "We’ll include the page you’re on and your browser details." : "We’ll include the page you’re on."}
           </p>
+          {progress && (
+            <p className="fb-note" role="status">
+              {progress}
+            </p>
+          )}
           {error && (
             <p className="fb-error" role="alert">
               {error}
@@ -252,11 +568,11 @@ function FB_FeedbackModal({ clientId, onClose }) {
             <button type="button" className="link-btn fb-mine-link" onClick={() => setView("mine")}>
               My feedback
             </button>
-            <button type="button" className="btn-secondary" onClick={onClose}>
+            <button type="button" className="btn-secondary" onClick={onClose} disabled={sending}>
               Cancel
             </button>
             <button type="button" className="btn-primary" disabled={!canSend} onClick={send}>
-              {sending ? "Sending…" : "Send"}
+              {sending ? (shots.length ? "Uploading…" : "Sending…") : "Send"}
             </button>
           </>
         ) : (
@@ -364,7 +680,7 @@ function FB_Row({ row, clientName, authorName, onSaved }) {
       .from("staff_feedback")
       .update(patch)
       .eq("id", row.id)
-      .select("id, created_at, updated_at, author_email, kind, message, expected, page, browser, client_id, status, admin_note")
+      .select(FB_COLS)
       .single();
     setBusy(false);
     if (error) return toast("Couldn't save: " + error.message);
@@ -393,6 +709,7 @@ function FB_Row({ row, clientName, authorName, onSaved }) {
           <b>Expected:</b> {row.expected}
         </p>
       )}
+      <FB_Shots attachments={row.attachments} />
       {row.browser && <p className="fb-item-browser">{row.browser}</p>}
       <div className="fb-item-admin">
         <label className="fb-field fb-field-inline">
@@ -469,7 +786,7 @@ function FB_FeedbackPage({ clients }) {
       setSt((s) => ({ ...s, loading: true }));
       let q = sb
         .from("staff_feedback")
-        .select("id, created_at, updated_at, author_email, kind, message, expected, page, browser, client_id, status, admin_note")
+        .select(FB_COLS)
         .order("created_at", { ascending: false })
         .limit(limit + 1);
       if (filters.status) q = q.eq("status", filters.status);

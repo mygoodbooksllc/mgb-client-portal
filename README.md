@@ -453,6 +453,16 @@ because some work happens in Claude Code web sessions. Run `git fetch` and compa
   sender inline. RLS: active staff insert + read own; admins read all and update; no deletes. A
   trigger stamps `author_email` from the JWT, forces `new` on insert and lets updates change only
   `status` / `admin_note`. The weekly digest has a **Staff feedback** section (see below).
+  **Screenshots** (`supabase/feedback-screenshots.sql`): up to 3 images per report (png, jpeg,
+  webp, gif; 10 MB each) via "Add screenshot", drag-and-drop onto the window, or paste
+  (Cmd/Ctrl+V). The modal picks the row id up front, uploads on Send to the private
+  `feedback-screenshots` bucket at `<author_email>/<feedback id>/<short id>-<name>`, then inserts
+  the row with `attachments` (jsonb array of `{path, name, size, type}`; a check constraint caps it
+  at 3 and pins paths under the sender's folder, and the insert trigger requires each file to
+  exist). Failed inserts keep the uploads for the retry and keep the typed text. Storage RLS:
+  active staff upload into / read their own email folder; admins read all and may delete; no
+  updates. "My feedback" and the admin page show thumbnails via 1-hour signed URLs
+  (`FB_Shots`); click opens full size in a new tab. `attachments` is locked after insert.
 - **Assigned bookkeeper**: the Client Roster now picks a real staff member.
   `clients.assigned_bookkeeper_email` references `staff(email)`; the old display JSON is kept in
   step by a trigger. Setting it gives that person client access, and removing their access clears

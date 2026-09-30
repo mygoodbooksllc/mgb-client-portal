@@ -2,7 +2,7 @@
 title: How do I review bug reports and feedback?
 section: Admin
 audience: admin
-keywords: [feedback page, weekly digest, bug reports, bugs, feedback, ideas, questions, triage, status, planned, done, won't do, admin note, reply]
+keywords: [feedback page, weekly digest, screenshots, bug reports, bugs, feedback, ideas, questions, triage, status, planned, done, won't do, admin note, reply]
 sort: 575
 ---
 The **Feedback** page (sidebar → **Feedback**, admins only) lists every bug report, idea and question staff have sent from **Report a bug / feedback**. The sidebar item shows a number when there are reports still marked **New**. The Monday weekly digest email also lists the newest **New** reports; see [How does the weekly digest email work?](#/help/weekly-digest).
@@ -15,6 +15,7 @@ Reports are newest first. Bugs have a red **Bug** tag and a red line down the le
 - the client they had open, if any
 - the page they were on. Click it to open that page.
 - their message and, for bugs, **Expected:** (what they expected to happen) and their browser and screen size
+- any screenshots they attached (up to 3), as small previews. Click one to open it full size in a new tab.
 
 Use **Status** and **Kind** at the top to filter, for example **New** bugs only. **Clear filters** shows everything again.
 
@@ -28,4 +29,5 @@ You can't edit what the sender wrote, and reports can't be deleted from the app.
 ### Troubleshooting
 
 - **The page is empty.** Nobody has sent anything yet, or your filters hide everything.
+- **A screenshot preview won't load or the full-size link stopped working.** Preview links last an hour. Reload the page to get fresh ones.
 - **The number on the sidebar didn't go down.** It counts reports with status **New**. Change their status and it updates.
