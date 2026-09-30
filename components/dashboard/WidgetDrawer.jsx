@@ -290,6 +290,11 @@ const WD_sync = (function () {
       if (status !== "ready") return undefined;
       return rows[boardKey] || null;
     },
+    // Every saved board row (Settings > Dashboards lists them). Empty until
+    // loaded.
+    listRows() {
+      return status === "ready" ? Object.values(rows).map((r) => ({ ...r })) : [];
+    },
     // patch: { layout } and/or { views }. Skipped while paused (staff "View
     // as" or client-user preview) so those sessions never overwrite the
     // signed-in staff member's own rows.

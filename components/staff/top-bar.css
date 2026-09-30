@@ -605,8 +605,6 @@
   }
   html.tb-has-avatar .staff-rail-foot > .staff-rail-item,
   html.tb-has-avatar .staff-rail-foot > .staff-rail-user,
-  html.tb-has-avatar .app-shell.has-staff-rail > .sidebar .theme-toggle,
-  html.tb-has-avatar .app-shell.has-staff-rail > .sidebar .sidebar-utility-label,
   html.tb-has-avatar .app-shell.has-staff-rail > .sidebar .staff-temp-access-banner,
   html.tb-has-avatar .app-shell.has-staff-rail > .sidebar .tb-preview-as {
     display: none;

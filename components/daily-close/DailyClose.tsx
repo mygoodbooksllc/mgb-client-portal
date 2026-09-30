@@ -821,11 +821,16 @@ function CollectionsQueue({
       `Hi ${currentName},\n\nThis is a friendly reminder that the following balance${rows.length > 1 ? "s are" : " is"} still outstanding:\n\n` +
       lines.join("\n") +
       `\n\nTotal: ${fmtMoney(selectedTotal)}\n\nPlease let us know if you have any questions.\n\nThank you,\n${clientName}`;
+    // A staff member drafting this for the client gets their Settings email
+    // signature underneath (components/settings/Settings.jsx). Empty for
+    // clients and for staff previewing as a client user.
+    const signature = typeof ST_signatureForDrafts === "function" ? ST_signatureForDrafts() : "";
+    const fullBody = signature ? `${body}\n\n${signature}` : body;
     // Opens a draft in the viewer's own mail client, addressed to the
     // customer's QuickBooks email when there is one. Nothing is sent from
     // the portal — the client reviews and hits send themselves.
     window.open(
-      `mailto:${currentEmail ? encodeURIComponent(currentEmail) : ""}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`,
+      `mailto:${currentEmail ? encodeURIComponent(currentEmail) : ""}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(fullBody)}`,
       "_self"
     );
   };
@@ -1783,7 +1788,7 @@ function DailyClose({ data, className, theme, onNavigate }: DailyCloseProps) {
         </div>
 
         <div className={styles.footer}>
-          <span>Prepared by {data.firm.name} &middot; data refreshes live, automatically</span>
+          <span>Prepared by {data.firm.name} &middot; data syncs from QuickBooks automatically</span>
           <span>
             Questions?{" "}
             {onNavigate ? (

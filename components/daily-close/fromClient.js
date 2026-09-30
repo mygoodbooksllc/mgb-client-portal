@@ -63,17 +63,29 @@
 
   const shortLabel = (date) => `${MONTH_NAMES[date.getMonth()]} ${date.getDate()}`;
 
-  /** "Live as of Sunday, August 30, 2026 · 7:42 AM" — recomputed on an
-      interval by DailyClose.tsx, so this reads as a continuously-updating
-      view rather than a fixed once-a-day snapshot. */
-  function asOfLabel(now) {
-    const hours = now.getHours();
+  /** "As of Sunday, August 30, 2026 · 7:42 AM · synced from QuickBooks every
+      15 minutes". The time is the client's real last QuickBooks sync
+      (client.lastSyncedAt), never the current clock, and the cadence comes
+      from app.jsx's syncCadenceLabel(plan) (PLAN_SYNC), read at call time.
+      Sample-data clients (no sync yet) say so instead. */
+  function asOfLabel(client, plan) {
+    const stamp = client && client.lastSyncedAt ? new Date(client.lastSyncedAt) : null;
+    if (!stamp || isNaN(stamp.getTime())) {
+      return client && client.dataSource === "quickbooks"
+        ? "Waiting for the first QuickBooks sync"
+        : "Sample data";
+    }
+    const hours = stamp.getHours();
     const hour12 = hours % 12 === 0 ? 12 : hours % 12;
-    const minutes = String(now.getMinutes()).padStart(2, "0");
+    const minutes = String(stamp.getMinutes()).padStart(2, "0");
     const meridiem = hours < 12 ? "AM" : "PM";
+    const cadence =
+      typeof syncCadenceLabel === "function" ? syncCadenceLabel(plan) : "Synced from QuickBooks";
     return (
-      `Live as of ${DAY_NAMES[now.getDay()]}, ${MONTH_FULL[now.getMonth()]} ` +
-      `${now.getDate()}, ${now.getFullYear()} · ${hour12}:${minutes} ${meridiem}`
+      `As of ${DAY_NAMES[stamp.getDay()]}, ${MONTH_FULL[stamp.getMonth()]} ` +
+      `${stamp.getDate()}, ${stamp.getFullYear()} · ${hour12}:${minutes} ${meridiem} · ` +
+      cadence.charAt(0).toLowerCase() +
+      cadence.slice(1)
     );
   }
 
@@ -263,9 +275,10 @@
   /**
    * Build the DailyCloseData object for one client from data.js.
    * @param {object} client - a CLIENTS entry
+   * @param {string} [plan] - the viewer's effective plan, for the sync cadence
    * @returns {object} conforming to components/daily-close/types.ts
    */
-  function dailyCloseFromClient(client) {
+  function dailyCloseFromClient(client, plan) {
     const today = startOfToday();
     const seed = seedOf(client.id || client.name);
 
@@ -346,7 +359,7 @@
       client: {
         id: client.id,
         name: client.name,
-        asOfLabel: asOfLabel(new Date()),
+        asOfLabel: asOfLabel(client, plan),
         // The component nests its "Sample data" tag inside the sync chip, so the
         // chip has to render for the warning to show at all. The stock sample
         // claims "Synced with QuickBooks Online", which would contradict every

@@ -100,8 +100,8 @@
 
 /* ---------------------------------------------------------------------------
    Dark mode. Dark is the product default (index.html pins data-theme before
-   first paint, and the app never removes the attribute); the toggle in the page
-   header (see .theme-toggle) sets data-theme on <html> to override it. The
+   first paint, and the app never removes the attribute); Settings > Appearance
+   (and the top bar's avatar menu) sets data-theme on <html> to override it. The
    :not([data-theme="light"]) guard lets an explicit light choice win even
    when the OS is in dark mode. Palette is shared with <DailyClose />
    (components/daily-close/DailyClose.css, same [data-theme] pattern) so the
@@ -411,8 +411,6 @@ body {
   .sidebar.sidebar-collapsed .nav-item-label,
   .sidebar.sidebar-collapsed .staff-user-chip-text,
   .sidebar.sidebar-collapsed .staff-user-chip-chev,
-  .sidebar.sidebar-collapsed .sidebar-utility-label,
-  .sidebar.sidebar-collapsed .customize-tabs-btn span,
   .sidebar.sidebar-collapsed .sidebar-collapse-toggle span {
     display: none;
   }
@@ -430,15 +428,6 @@ body {
     justify-content: center;
     padding-left: 0;
     padding-right: 0;
-  }
-
-  .sidebar.sidebar-collapsed .sidebar-utility-row {
-    flex-direction: column;
-    gap: 10px;
-  }
-
-  .sidebar.sidebar-collapsed .sidebar-utility-btn-group {
-    align-items: center;
   }
 }
 
@@ -772,32 +761,6 @@ body {
   color: var(--gold);
   font-weight: 700;
 }
-
-/* Client sign-out at the foot of the sidebar (staff sign out from their
-   user menu instead). Matches the quiet sidebar rows. */
-.sidebar-signout {
-  display: flex;
-  align-items: center;
-  gap: 9px;
-  width: 100%;
-  min-height: 38px;
-  margin-top: 6px;
-  padding: 8px 12px;
-  background: none;
-  border: none;
-  border-radius: 8px;
-  color: var(--sidebar-text-muted);
-  font: inherit;
-  font-size: 14px;
-  font-weight: 500;
-  text-align: left;
-  cursor: pointer;
-}
-.sidebar-signout svg { flex-shrink: 0; }
-.sidebar-signout:hover { background: rgba(255, 255, 255, 0.06); color: white; }
-.sidebar-signout:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
-.sidebar.sidebar-collapsed .sidebar-signout { justify-content: center; padding: 8px; }
-@media (max-width: 768px) { .sidebar-signout { min-height: 44px; } }
 
 .staff-user-menu-divider {
   height: 1px;
@@ -1283,91 +1246,6 @@ button.nav-ms-name:hover {
 
 .scope-notice strong { color: var(--ink-strong); }
 
-.sidebar-utility-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  margin-top: 12px;
-}
-
-/* Holds "Manage access" + "Client details" together so the row still reads
-   as one button-ish cluster against the theme toggle, now that there are two
-   openers instead of one (see §134's "Manage access" split). */
-.sidebar-utility-btn-group {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 2px;
-}
-
-.customize-tabs-btn {
-  align-self: center;
-  background: transparent;
-  border: none;
-  color: var(--sidebar-text-muted);
-  font-size: 11px;
-  font-weight: 600;
-  padding: 4px 6px;
-  border-radius: 6px;
-  cursor: pointer;
-  text-align: left;
-}
-
-/* Client-side counterpart to .customize-tabs-btn: labels the theme toggle so
-   that row isn't just a lone button floating at the right edge. */
-.sidebar-utility-label {
-  align-self: center;
-  color: var(--sidebar-text-muted);
-  font-size: 11px;
-  font-weight: 600;
-  padding: 4px 6px;
-  letter-spacing: 0.02em;
-}
-
-.customize-tabs-btn:hover {
-  color: var(--gold);
-}
-
-/* Pending-access-request alert on "Manage access" (§140) — went through
-   two louder versions first (a bare dot, then a labelled "New request"
-   pill) before landing here: the button's text itself shimmers gold
-   (.sidebar-text-shimmer, the same treatment the Enterprise sidebar label
-   already uses — applied only to the text span, not the icon, since its
-   background-clip:text would otherwise swallow the SVG's currentColor
-   fill too) plus a soft pulsing glow on the button. Subtle rather than a
-   loud badge, but still catches the eye on a glance since nothing else
-   in this muted-gray utility row moves or shimmers. */
-.customize-tabs-btn-alert {
-  /* Calm step 1: static gold ring instead of the pulsing glow. */
-  box-shadow: 0 0 0 1px var(--gold);
-  border-radius: 6px;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .customize-tabs-btn-alert {
-    animation: none;
-  }
-}
-
-/* Relocated theme toggle — dressed in the same gold "Enterprise Tools"
-   treatment (see .nav-signature-badge / navSignatureShine) instead of the
-   plain light/dark-surface circle it used to be, since it now lives in the
-   dark sidebar chrome rather than the page header. */
-.theme-toggle-signature {
-  margin-left: auto;
-  background: rgba(199, 174, 134, 0.16);
-  border: 1px solid rgba(199, 174, 134, 0.45);
-}
-
-.theme-toggle-signature:hover {
-  background: rgba(199, 174, 134, 0.26);
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .theme-toggle-signature { animation: none; }
-}
-
 .sidebar-footer {
   margin-top: auto;
   padding: 12px 8px 0 8px;
@@ -1541,10 +1419,6 @@ button.nav-ms-name:hover {
   gap: 8px;
   flex-shrink: 0;
 }
-.ms-badge-row {
-  display: flex;
-  justify-content: flex-end;
-}
 
 /* Data-source pill: small and solid gold when live, muted when it's the
    sample-data prototype. No pulse, no glow. */
@@ -1570,31 +1444,6 @@ button.nav-ms-name:hover {
   background: var(--surface-2);
   border-color: var(--border);
 }
-
-.theme-toggle {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 32px;
-  height: 32px;
-  flex-shrink: 0;
-  border-radius: 999px;
-  border: 1px solid var(--border);
-  background: var(--surface);
-  color: var(--text);
-  font-size: 15px;
-  line-height: 1;
-  cursor: pointer;
-  transition: background 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
-}
-
-.theme-toggle:hover {
-  background: var(--hover-bg);
-  border-color: var(--muted-line);
-  transform: translateY(-1px);
-}
-
-.theme-toggle:active { transform: translateY(0); }
 
 /* ---------------- Cards / KPIs ---------------- */
 
@@ -5417,7 +5266,6 @@ body:has(.modal-overlay) .chat-fab-wrap {
     padding-bottom: 11px;
   }
 
-  .theme-toggle,
   .global-search-toggle {
     width: 44px;
     height: 44px;
@@ -5428,7 +5276,7 @@ body:has(.modal-overlay) .chat-fab-wrap {
   }
 
   .nav-section-label,
-  .customize-tabs-btn {
+  .sidebar-settings-btn {
     min-height: 44px;
     display: flex;
     align-items: center;
@@ -7927,9 +7775,6 @@ body:has(.modal-overlay) .chat-fab-wrap {
 /* Phones: both header pills line up on the left, at the same compact
    height, and the badge keeps its name. */
 @media (max-width: 760px) {
-  .app-header .ms-badge-row {
-    justify-content: flex-start;
-  }
   .ms-badge {
     gap: 7px;
     padding: 2px 5px 2px 2px;

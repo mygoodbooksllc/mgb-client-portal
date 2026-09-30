@@ -32,6 +32,20 @@ const CE_STATUS = {
   preview: "Preview",
 };
 
+// client_email_log.feature -> short label for the activity list. The
+// notification kinds come from supabase/notification-emails.sql.
+const CE_FEATURE_LABEL = {
+  doc_chaser: "reminder",
+  value_report: "value report",
+  staff_client_message: "staff: client message",
+  staff_doc_upload: "staff: document uploaded",
+  staff_task_assigned: "staff: task assigned",
+  staff_task_due: "staff: tasks due today",
+  staff_feedback_status: "staff: feedback status",
+  client_message: "client: bookkeeper message",
+  client_reports_ready: "client: reports ready",
+};
+
 function CE_when(ts) {
   if (!ts) return "";
   try {
@@ -331,7 +345,7 @@ function CE_ClientEmailSettings({ onSent } = {}) {
             <div key={r.id} style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
               <span>{CE_STATUS[r.status] || r.status}</span>
               <span className="tp-muted">
-                · {r.feature === "doc_chaser" ? "reminder" : "value report"} · {nameOf(r.client_id)}
+                · {CE_FEATURE_LABEL[r.feature] || String(r.feature || "email").replace(/_/g, " ")} · {nameOf(r.client_id)}
                 {r.trigger === "test" ? ` · test${r.requested_by ? " by " + r.requested_by : ""}` : ""}
                 {r.status === "sent" && r.recipients && r.recipients.length ? ` · to ${r.recipients.join(", ")}` : ""}
                 {r.reason ? ` · ${r.reason}` : ""} · {CE_when(r.created_at)}

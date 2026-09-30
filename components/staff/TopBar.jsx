@@ -10,8 +10,8 @@
 //                              recent clients)
 //            TB_OverviewButton "Overview" chip: the open client's staff
 //                              overview (client pages only)
-//            TB_SyncPill       reuses QboSyncNowButton (the "Live · synced"
-//                              pill; click = Sync now)
+//            TB_SyncPill       reuses QboSyncNowButton (the "Every 15 min ·
+//                              synced 5m ago" pill; click = Sync now)
 //   Middle   TB_Search         clients, my tasks and notes, client SOPs, Help
 //                              articles (search_staff_guide), and on a client
 //                              page that client's transactions, budget,
@@ -274,12 +274,8 @@ function TB_SyncPill({ client, plan, onSynced }) {
       </span>
     );
   }
-  const p = plan || "standard";
-  const info = PLAN_SYNC[p] || PLAN_SYNC.standard;
-  const ago = relTime(client.lastSyncedAt);
-  const label =
-    (p === "premium" ? "Live" : `Synced ${info.short}`) +
-    (ago ? ` · ${p === "premium" ? "synced " : "updated "}${ago}` : " · QuickBooks");
+  // Same words as the page header (app.jsx syncPillLabel / PLAN_SYNC).
+  const label = syncPillLabel(plan, client.lastSyncedAt);
   return (
     <span className="tb-sync">
       <QboSyncNowButton clientId={client.id} onSynced={onSynced} canSyncNow liveLabel={label} />
@@ -586,6 +582,8 @@ function TB_prevMonthStart() {
 }
 
 function TB_useBellItems({ clients, items, me, isAdmin, page }) {
+  // Settings > Notifications > "Show in the bell" (components/settings).
+  const stSnap = typeof ST_useSettings === "function" ? ST_useSettings() : null;
   const [remote, setRemote] = useState({ msgs: [], docs: [], blocked: [] });
   const idsKey = (clients || []).map((c) => c.id).sort().join(",");
   const load = useCallback(async () => {
@@ -700,6 +698,7 @@ function TB_useBellItems({ clients, items, me, isAdmin, page }) {
       }),
     );
   out.sort((a, b) => String(b.at || "").localeCompare(String(a.at || "")));
+  if (stSnap && typeof ST_bellAllows === "function") return out.filter((it) => ST_bellAllows(stSnap.settings, it.id));
   return out;
 }
 
@@ -953,13 +952,26 @@ function TB_AvatarMenu({
   onPreviewAs,
   hasTempAdminAccess,
   tempAdminAccessExpiresAt,
+  realEmail,
+  onOpenSettings,
+  previewPlan,
+  actualPlan,
+  onPreviewPlan,
 }) {
   TB_useRootFlag("tb-has-avatar");
   const menu = TB_useMenu();
   const [showPeople, setShowPeople] = useState(false);
+  const [showPlans, setShowPlans] = useState(false);
   useEffect(() => {
-    if (!menu.open) setShowPeople(false);
+    if (!menu.open) {
+      setShowPeople(false);
+      setShowPlans(false);
+    }
   }, [menu.open]);
+  // Settings > Profile photo. Only the signed-in person's own, never the
+  // impersonated staffer's.
+  const prof = typeof ST_useMyProfile === "function" ? ST_useMyProfile(impersonating ? null : realEmail) : null;
+  const photoUrl = prof && !impersonating ? prof.photoUrl : null;
   const initials = String(staffUser.name || staffUser.email || "?")
     .split(" ")
     .map((p) => p[0])
@@ -978,7 +990,11 @@ function TB_AvatarMenu({
         aria-expanded={menu.open}
         onClick={() => menu.setOpen(!menu.open)}
       >
-        <span className="staff-user-avatar">{initials}</span>
+        {photoUrl ? (
+          <img className="staff-user-avatar tb-avatar-photo" src={photoUrl} alt="" />
+        ) : (
+          <span className="staff-user-avatar">{initials}</span>
+        )}
       </button>
       {menu.open && (
         <div className="tb-panel tb-menu tb-menu-right" role="menu" aria-label="Account">
@@ -1030,6 +1046,41 @@ function TB_AvatarMenu({
                 ))}
             </>
           )}
+          {client && onPreviewPlan && (
+            <>
+              <button
+                type="button"
+                role="menuitem"
+                className="tb-menu-item"
+                aria-expanded={showPlans}
+                onClick={() => setShowPlans((v) => !v)}
+              >
+                <LockIcon />
+                Preview plan{previewPlan ? ` (${PLAN_LABELS[previewPlan]})` : ""}
+                <ChevronDownIcon className={"tb-chev" + (showPlans ? " open" : "")} />
+              </button>
+              {showPlans &&
+                [null, ...PLAN_ORDER].map((p) => {
+                  const on = (previewPlan || null) === p;
+                  return (
+                    <button
+                      key={p || "actual"}
+                      type="button"
+                      role="menuitemradio"
+                      aria-checked={on}
+                      className={"tb-menu-item tb-menu-sub" + (on ? " tb-menu-checked" : "")}
+                      onClick={() => {
+                        menu.close(false);
+                        onPreviewPlan(p);
+                      }}
+                    >
+                      <span className="tb-menu-check" aria-hidden="true">{on ? "✓" : ""}</span>
+                      {p ? PLAN_LABELS[p] : `Actual plan (${PLAN_LABELS[actualPlan] || "Plus"})`}
+                    </button>
+                  );
+                })}
+            </>
+          )}
           {impersonating && (
             <button
               type="button"
@@ -1044,6 +1095,20 @@ function TB_AvatarMenu({
             </button>
           )}
           <div className="tb-menu-divider" />
+          {onOpenSettings && (
+            <button
+              type="button"
+              role="menuitem"
+              className="tb-menu-item"
+              onClick={() => {
+                menu.close(false);
+                onOpenSettings();
+              }}
+            >
+              <ST_GearIcon />
+              Settings
+            </button>
+          )}
           <button
             type="button"
             role="menuitem"
@@ -1124,6 +1189,10 @@ function TB_StaffTopBar({
   hasTempAdminAccess,
   tempAdminAccessExpiresAt,
   clientSearch, // see TB_Search; null on staff pages
+  onOpenSettings,
+  previewPlan, // Preview plan (staff, this browser); undefined when not offered
+  actualPlan,
+  onPreviewPlan, // null on staff pages and during "View as"
 }) {
   const me = realStaffUser ? realStaffUser.email : "";
   // My Tasks, the Inbox and the Close tracker are the signed-in person's own
@@ -1175,6 +1244,11 @@ function TB_StaffTopBar({
           onPreviewAs={onPreviewAs}
           hasTempAdminAccess={hasTempAdminAccess}
           tempAdminAccessExpiresAt={tempAdminAccessExpiresAt}
+          realEmail={me}
+          onOpenSettings={onOpenSettings}
+          previewPlan={previewPlan}
+          actualPlan={actualPlan}
+          onPreviewPlan={onPreviewPlan}
         />
       </div>
     </header>

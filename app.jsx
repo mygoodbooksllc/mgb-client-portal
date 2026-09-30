@@ -54,7 +54,7 @@ const fmtDateTime = (iso) => {
   });
 };
 
-// §170: "synced 4 minutes ago". For the Live pill, where the point is
+// §170: "synced 4 minutes ago". For the sync pill, where the point is
 // freshness rather than the exact moment — fmtDateTime's "Sep 22, 9:48 AM"
 // makes a reader do the subtraction themselves. Falls back to fmtDateTime
 // past a week, where "9 days ago" stops being easier to read than the date,
@@ -540,6 +540,7 @@ const NON_CLIENT_PAGES = new Set([
   "emails",
   "feedback",
   "help",
+  "settings",
 ]);
 
 // Tabs that are part of a paid add-on rather than the base product. Always
@@ -693,12 +694,46 @@ const planLoginLabel = (plan) =>
     : `+ $${PLAN_PRICING[plan].perLogin}/mo per login`;
 
 // How often each plan's numbers refresh from QuickBooks. The schedule itself
-// runs server-side in the qbo-sync edge function; keep the two in step.
+// runs server-side in the qbo-sync edge function (isDueForPlan: Basic on the
+// 15th, Plus weekly, Pro every 15 minutes, 30 while API usage is throttled);
+// keep the two in step. This is the ONLY place freshness copy comes from:
+// use syncCadenceLabel / syncPillLabel below, never hand-written "live" text.
 const PLAN_SYNC = {
-  basic: { label: "Monthly sync, on the 15th", short: "monthly", syncNow: false },
-  standard: { label: "Weekly sync", short: "weekly", syncNow: false },
-  premium: { label: "Live sync every minute, plus Sync now", short: "live", syncNow: true },
+  basic: {
+    label: "Monthly sync, on the 15th",
+    short: "monthly",
+    pill: "Synced monthly",
+    cadence: "Synced from QuickBooks monthly, on the 15th",
+    syncNow: false,
+  },
+  standard: {
+    label: "Weekly sync",
+    short: "weekly",
+    pill: "Synced weekly",
+    cadence: "Synced from QuickBooks weekly",
+    syncNow: false,
+  },
+  premium: {
+    label: "Synced every 15 minutes, plus Sync now",
+    short: "every 15 min",
+    pill: "Every 15 min",
+    cadence: "Synced from QuickBooks every 15 minutes",
+    syncNow: true,
+  },
 };
+function planSyncInfo(plan) {
+  return PLAN_SYNC[plan] || PLAN_SYNC.standard;
+}
+// "Synced from QuickBooks weekly" etc. For subtitles and explanations.
+function syncCadenceLabel(plan) {
+  return planSyncInfo(plan).cadence;
+}
+// The header / top bar pill: "Every 15 min · synced 5m ago",
+// "Synced weekly · synced 2d ago", or "... · QuickBooks" before a first sync.
+function syncPillLabel(plan, lastSyncedAt) {
+  const ago = relTime(lastSyncedAt);
+  return `${planSyncInfo(plan).pill} · ${ago ? "synced " + ago : "QuickBooks"}`;
+}
 
 // Payroll is an add-on for any plan.
 const PAYROLL_PRICING = { base: 49, perEmployee: 6 };
@@ -867,15 +902,12 @@ function Sidebar({
   onSelectPage,
   visibleKeys,
   tabOrder,
-  onOpenSettings,
-  onOpenDetails,
+  onOpenSettingsPage,
   hasPendingAccessRequests,
   pendingRequestsByClient,
   badges,
   mobileOpen,
   onCloseMobile,
-  effectiveTheme,
-  onToggleTheme,
   staffUser,
   onSignOut,
   staffMessagesUnread,
@@ -1048,6 +1080,22 @@ function Sidebar({
       </div>
 
       <div className="brand-tagline">Leave the bookkeeping to us.</div>
+
+      {/* Milestone pill (moved here from the page header, 2026-09-30): the
+          open client's milestone, above the client name / switcher. Hidden
+          on staff pages, for category-scoped users, and when collapsed. */}
+      {client && !NON_CLIENT_PAGES.has(page) && !(access && access.isCategoryScoped) && !collapsed && (
+        <div className="sidebar-ms-row">
+          <MilestoneBadge
+            client={client}
+            staff={viewingAsStaff}
+            onOpen={() => {
+              onSelectPage("milestone");
+              if (onCloseMobile) onCloseMobile();
+            }}
+          />
+        </div>
+      )}
 
       {isBookkeeper ? (
         <React.Fragment>
@@ -1391,6 +1439,19 @@ function Sidebar({
                   <button
                     type="button"
                     role="menuitem"
+                    className={"staff-user-menu-item" + (page === "settings" ? " active" : "")}
+                    onClick={() => {
+                      onSelectPage("settings");
+                      onCloseMobile();
+                      setStaffMenuOpen(false);
+                    }}
+                  >
+                    <ST_GearIcon />
+                    Settings
+                  </button>
+                  <button
+                    type="button"
+                    role="menuitem"
                     className="staff-user-menu-item"
                     onClick={() => {
                       setStaffMenuOpen(false);
@@ -1440,9 +1501,9 @@ function Sidebar({
               </select>
               {/* Staff-only: see this client's pages as if on another plan,
                   in this browser only. Nothing the client pays changes. */}
-              <div className="client-picker-label">Preview plan</div>
+              <div className="client-picker-label tb-preview-as">Preview plan</div>
               <select
-                className={"client-select" + (previewPlan ? " preview-plan-on" : "")}
+                className={"client-select tb-preview-as" + (previewPlan ? " preview-plan-on" : "")}
                 value={previewPlan || ""}
                 onChange={(e) => onPreviewPlan(e.target.value || null)}
               >
@@ -1631,94 +1692,43 @@ function Sidebar({
         </nav>
       )}
 
-      <div className="sidebar-utility-row">
-        {isBookkeeper && !NON_CLIENT_PAGES.has(page) ? (
-          <div className="sidebar-utility-btn-group">
-            <button
-              className={
-                "customize-tabs-btn" +
-                (hasPendingAccessRequests ? " customize-tabs-btn-alert" : "")
-              }
-              onClick={onOpenSettings}
-              aria-label={
-                hasPendingAccessRequests
-                  ? "Manage access — new request pending"
-                  : collapsed
-                    ? "Manage access"
-                    : undefined
-              }
-              onMouseEnter={(e) => showTip(e, "Manage access")}
-              onMouseLeave={hideTip}
-              onFocus={(e) => showTip(e, "Manage access")}
-              onBlur={hideTip}
-            >
-              <SlidersIcon />{" "}
-              <span
-                className={
-                  hasPendingAccessRequests ? "sidebar-text-shimmer" : undefined
-                }
-              >
-                Manage access
-              </span>
-            </button>
-            <button
-              className="customize-tabs-btn"
-              onClick={onOpenDetails}
-              aria-label={collapsed ? "Client details" : undefined}
-              onMouseEnter={(e) => showTip(e, "Client details")}
-              onMouseLeave={hideTip}
-              onFocus={(e) => showTip(e, "Client details")}
-              onBlur={hideTip}
-            >
-              <FolderIcon /> <span>Client details</span>
-            </button>
-          </div>
-        ) : isBookkeeper ? (
-          <span className="sidebar-utility-label">
-            {effectiveTheme === "dark" ? "Dark mode" : "Light mode"}
-          </span>
-        ) : (
-          // Clients don't get "Manage access", and the toggle's margin-left:auto
-          // left it floating alone against the right edge above a tall empty
-          // gap. Labelling it fills the row and says what the button does.
-          <span className="sidebar-utility-label">
-            {effectiveTheme === "dark" ? "Dark mode" : "Light mode"}
-          </span>
-        )}
-        <button
-          className="theme-toggle theme-toggle-signature"
-          onClick={onToggleTheme}
-          aria-label={
-            effectiveTheme === "dark"
-              ? "Switch to light mode"
-              : "Switch to dark mode"
-          }
-          title={
-            effectiveTheme === "dark"
-              ? "Switch to light mode"
-              : "Switch to dark mode"
-          }
-        >
-          {effectiveTheme === "dark" ? <SunIcon /> : <MoonIcon />}
-        </button>
-      </div>
-
-      {/* Clients have no staff user menu (where staff sign out), so they
-          get their own sign-out control at the foot of the sidebar. */}
-      {!staffUser && onSignOut && (
-        <button
-          type="button"
-          className="sidebar-signout"
-          onClick={onSignOut}
-          aria-label={collapsed ? "Sign out" : undefined}
-          onMouseEnter={(e) => collapsed && showTip(e, "Sign out")}
-          onMouseLeave={hideTip}
-          onFocus={(e) => collapsed && showTip(e, "Sign out")}
-          onBlur={hideTip}
-        >
-          <SignOutIcon />
-          {!collapsed && <span>Sign out</span>}
-        </button>
+      {/* Settings (components/settings/Settings.jsx), owner request
+          2026-09-30. On a client's pages the gear opens client Settings: a
+          client's profile, notifications, plan, theme and sign-out; for staff
+          in the bookkeeper view, the Client settings tab (Manage access +
+          Client details, which used to be two links here) and Plan. The
+          theme toggle and the client Sign out button moved into it. Staff
+          reach their own Settings from the user menu above. */}
+      {!NON_CLIENT_PAGES.has(page) && (
+        <div className="sidebar-settings-row">
+          <button
+            type="button"
+            className={
+              "sidebar-settings-btn" +
+              (page === "client-settings" ? " active" : "") +
+              (isBookkeeper && hasPendingAccessRequests ? " pending-alert" : "")
+            }
+            onClick={() => {
+              onOpenSettingsPage();
+              onCloseMobile();
+            }}
+            aria-current={page === "client-settings" ? "page" : undefined}
+            aria-label={
+              isBookkeeper && hasPendingAccessRequests
+                ? "Settings — new access request pending"
+                : collapsed
+                  ? "Settings"
+                  : undefined
+            }
+            onMouseEnter={(e) => collapsed && showTip(e, "Settings")}
+            onMouseLeave={hideTip}
+            onFocus={(e) => collapsed && showTip(e, "Settings")}
+            onBlur={hideTip}
+          >
+            <ST_GearIcon width="18" height="18" />
+            <span className="sidebar-settings-label">Settings</span>
+          </button>
+        </div>
       )}
 
       <button
@@ -1767,8 +1777,6 @@ function StaffRail({
   impersonating,
   showsAdminPages,
   onSignOut,
-  effectiveTheme,
-  onToggleTheme,
   clients,
   onPickClient,
   onExpand,
@@ -1912,18 +1920,22 @@ function StaffRail({
         )}
       </nav>
       <div className="staff-rail-foot">
-        {expanded && (
-          <button
-            type="button"
-            className="staff-rail-item"
-            onClick={onToggleTheme}
-          >
-            {effectiveTheme === "dark" ? <SunIcon /> : <MoonIcon />}
-            <span className="staff-rail-label">
-              {effectiveTheme === "dark" ? "Light mode" : "Dark mode"}
-            </span>
-          </button>
-        )}
+        {/* Theme moved to Settings > Appearance (and the top bar's avatar
+            menu), 2026-09-30. */}
+        <button
+          type="button"
+          className={"staff-rail-item" + (page === "settings" ? " active" : "")}
+          onClick={() => onSelectPage("settings")}
+          aria-label={expanded ? undefined : "Settings"}
+          aria-current={page === "settings" ? "page" : undefined}
+          onMouseEnter={(e) => showTip(e, "Settings")}
+          onMouseLeave={hideTip}
+          onFocus={(e) => showTip(e, "Settings")}
+          onBlur={hideTip}
+        >
+          <ST_GearIcon width="18" height="18" />
+          {expanded && <span className="staff-rail-label">Settings</span>}
+        </button>
         <div
           className="staff-rail-user"
           onMouseEnter={(e) => showTip(e, `${staffUser.name} · ${staffUser.role}`)}
@@ -6642,6 +6654,9 @@ function DashboardPage({
             return null;
           })}
       </div>
+      {/* Settings.jsx: the assigned bookkeeper's name, title, phone and
+          photo (their Settings > Profile), with a Message button. */}
+      {typeof ST_BookkeeperCard === "function" && <ST_BookkeeperCard client={client} />}
     </div>
   );
 }
@@ -9374,7 +9389,7 @@ const ENTERPRISE_FEATURES = [
     title: "Live Report",
     sidebarTab: "Dashboard",
     description:
-      "Your dashboard becomes a continuously-live financial snapshot — cash on hand, receivables, what's due — instead of a static once-a-day view. Click-to-jump KPIs, a low-cash alert, a collections queue, and a one-click PDF snapshot, all customizable to how you work.",
+      "Your dashboard becomes a fuller financial snapshot — cash on hand, receivables, what's due — synced from QuickBooks every 15 minutes, with a Sync now button. Click-to-jump KPIs, a low-cash alert, a collections queue, and a one-click PDF snapshot, all customizable to how you work.",
   },
   {
     icon: <DocumentIcon />,
@@ -9433,7 +9448,7 @@ const ENTERPRISE_COMPARISON = [
       "Customizable widget layout, with saved views",
     ],
     premium: [
-      "Continuously-live snapshot, not just a once-a-day view",
+      "Synced from QuickBooks every 15 minutes, plus a Sync now button",
       "Click-to-jump KPIs: Cash, Receivables, Payables, Net Income MTD",
       "Cash by Account donut and Top Expense Categories",
       "Receivables Aging with a Collections Queue",
@@ -9703,8 +9718,10 @@ function EnterpriseUpgradePage({ client, clientPortalUser }) {
           <strong>Payroll add-on:</strong> {payrollPriceLabel}, on any plan.
         </p>
         <p style={{ marginBottom: 0 }}>
-          <strong>QuickBooks sync:</strong> Basic refreshes once a month on the
-          15th, Plus once a week, and Pro every minute with a Sync now button.
+          <strong>QuickBooks sync:</strong> {PLAN_LABELS.basic}:{" "}
+          {syncCadenceLabel("basic").toLowerCase()}. {PLAN_LABELS.standard}:{" "}
+          {syncCadenceLabel("standard").toLowerCase()}. {PLAN_LABELS.premium}:{" "}
+          {syncCadenceLabel("premium").toLowerCase()}, with a Sync now button.
         </p>
       </div>
 
@@ -11309,7 +11326,9 @@ function inviteCopyFor(row) {
     `Sign in at https://app.mygoodbooks.org with your Google Workspace account (${row.email}) — ` +
     `click "Sign in with Google" and you're in, nothing else to set up.\n\n` +
     `Questions, just reply here.`;
-  return { subject, body };
+  // The staffer's Settings > Email signature (components/settings/Settings.jsx).
+  const signature = typeof ST_signatureForDrafts === "function" ? ST_signatureForDrafts() : "";
+  return { subject, body: signature ? `${body}\n\n${signature}` : body };
 }
 
 // mailto: hands off to whatever the browser/OS has set as the DEFAULT mail
@@ -22238,10 +22257,15 @@ function loadSelectedClientId() {
 // existing session on a page load.
 const SESSION_STARTED_KEY = "mygoodbooks_session_started_v1";
 
-function initialPage() {
+function initialPage(email) {
   try {
     if (!sessionStorage.getItem(SESSION_STARTED_KEY)) {
       sessionStorage.setItem(SESSION_STARTED_KEY, "1");
+      // Settings > Appearance & start page (staff). Read from the cached
+      // copy: a fresh sign-in renders before user_settings has loaded.
+      const start = typeof ST_cachedStartPage === "function" ? ST_cachedStartPage(email) : null;
+      if (start === "tasks") return "my-tasks";
+      if (start === "last-client" && loadSelectedClientId()) return "client-overview";
       return "bookkeeper-home";
     }
   } catch (e) {}
@@ -22520,7 +22544,8 @@ const PAGE_META = {
   // those would churn the whole vendored component for a label change.
   "daily-close": {
     title: "Live Report",
-    subtitle: "A live financial snapshot, updating continuously",
+    // Plan-aware at render time (syncCadenceLabel); this is the fallback.
+    subtitle: "Your financial snapshot, synced from QuickBooks",
   },
   budget: {
     title: "Budget vs. Actual",
@@ -22567,6 +22592,25 @@ const PAGE_META = {
   "enterprise-upgrade": {
     title: "Plans",
     subtitle: "Basic, Plus and Pro — what each includes",
+  },
+  // Settings (components/settings/Settings.jsx). "enterprise-upgrade",
+  // "manage-access" and "client-details" are aliases that open a tab of
+  // client Settings (see effectivePage).
+  settings: {
+    title: "Settings",
+    subtitle: "Your profile, notifications, appearance and more",
+  },
+  "client-settings": {
+    title: "Settings",
+    subtitle: "Your profile, notifications, plan and sign-in",
+  },
+  "manage-access": {
+    title: "Settings",
+    subtitle: "",
+  },
+  "client-details": {
+    title: "Settings",
+    subtitle: "",
   },
   "staff-access": {
     title: "Staff Access",
@@ -22689,7 +22733,7 @@ class ErrorBoundary extends React.Component {
 // effectivePage guards, scopeClientData) already treats "access.user is a
 // real person" as the client-facing view, the same path "Preview As"
 // already exercises, so this reuses it rather than building a parallel one.
-// "Sync now", next to the header's Live pill — for staff and clients alike,
+// "Sync now", next to the header's sync pill — for staff and clients alike,
 // shown only when the viewed client's numbers came from a live QuickBooks
 // connection. Asks the qbo-sync Edge Function to pull this one client now
 // (it re-checks authorization as the caller and throttles to one real pull
@@ -22697,9 +22741,10 @@ class ErrorBoundary extends React.Component {
 // this client so the numbers and "synced X ago" update without a reload.
 // Rendered inside ToastProvider, which App itself sits above — hence its own
 // component rather than a handler in App.
-// With `liveLabel`, renders as one combined pill: "● Live · synced 1 min
-// ago  ↻" (the header's Live badge and Sync now in one control, to save
-// space). Clicking anywhere on it syncs.
+// With `liveLabel` (always syncPillLabel(plan, lastSyncedAt)), renders as one
+// combined pill: "● Every 15 min · synced 1m ago  ↻" (the header's sync
+// badge and Sync now in one control, to save space). Clicking anywhere on it
+// syncs.
 function QboSyncNowButton({ clientId, onSynced, liveLabel, canSyncNow = true }) {
   const showToast = useToast();
   const [syncing, setSyncing] = useState(false);
@@ -22849,6 +22894,23 @@ const HASH_PAGE_SLUGS = Object.fromEntries(
   Object.entries(HASH_PAGE_ALIASES).map(([slug, page]) => [page, slug]),
 );
 
+// Client-route tab slugs that open client Settings.
+const CLIENT_TAB_ALIASES = {
+  settings: "client-settings",
+  plan: "client-settings",
+  plans: "client-settings",
+  "enterprise-upgrade": "client-settings",
+  "manage-access": "client-settings",
+  "client-details": "client-settings",
+};
+const CLIENT_SETTINGS_TAB_OF = {
+  plan: "plan",
+  plans: "plan",
+  "enterprise-upgrade": "plan",
+  "manage-access": "client",
+  "client-details": "client",
+};
+
 function isKnownAppPage(p) {
   return !!p && (Object.prototype.hasOwnProperty.call(PAGE_META, p) || ALL_TAB_KEYS.includes(p));
 }
@@ -22877,7 +22939,12 @@ function parseHashRoute(hash) {
     if (!parts[1]) return null;
     const tab = parts[2] || "overview";
     const page = tab === "overview" ? "client-overview" : tab;
-    return { clientId: parts[1], page: isKnownAppPage(page) ? page : null };
+    // Settings (owner request 2026-09-30): #/client/<id>/settings[/<tab>].
+    // The old Plans, Manage access and Client details entry points now open
+    // a tab of it, so their slugs stay accepted.
+    const aliased = CLIENT_TAB_ALIASES[page] || page;
+    const settingsTab = aliased === "client-settings" ? parts[3] || CLIENT_SETTINGS_TAB_OF[page] || null : null;
+    return { clientId: parts[1], page: isKnownAppPage(aliased) ? aliased : null, settingsTab };
   }
   const page = HASH_PAGE_ALIASES[parts[0]] || parts[0];
   return isKnownAppPage(page) ? { page } : null;
@@ -22892,7 +22959,7 @@ function buildHashRoute(page, clientId) {
     "#/client/" +
     encodeURIComponent(clientId) +
     "/" +
-    (page === "client-overview" ? "overview" : encodeURIComponent(page))
+    (page === "client-overview" ? "overview" : page === "client-settings" ? "settings" : encodeURIComponent(page))
   );
 }
 
@@ -22938,11 +23005,15 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
   // client never lands on "bookkeeper-home" — initialPage()'s fresh-session
   // default is staff-only chrome they can't render (no staffUser).
   const [page, setPage] = useState(() => {
-    const p = initialPage();
+    const p = clientPortalUser ? initialPage() : initialPage(staffUser && staffUser.email);
     const fromHash = initialRoute && initialRoute.page;
     const chosen = fromHash || p;
+    // #/settings is the staff page; a client gets their own Settings.
+    if (clientPortalUser && chosen === "settings") return "client-settings";
     return clientPortalUser && NON_CLIENT_PAGES.has(chosen) ? "dashboard" : chosen;
   });
+  // Which tab client Settings shows (Settings.jsx ST_ClientSettingsPage).
+  const [settingsTab, setSettingsTab] = useState(() => (initialRoute && initialRoute.settingsTab) || null);
   // Sidebar dot for Team Chat — recomputed on every page change and on any
   // Team Chat activity (cheap, single-purpose query) rather than polling,
   // same posture as the rest of this app's Supabase reads. "Read" is now a
@@ -23601,6 +23672,26 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
   // it instead of below.
   const effectiveTheme = theme || autoTheme;
 
+  // Settings (components/settings/Settings.jsx): personal settings load for
+  // whoever is signed in. The theme picked there (or with a theme toggle)
+  // is saved to the account; the saved one is adopted once it loads.
+  const settingsEmail = clientPortalUser ? clientPortalUser.email : staffUser && staffUser.email;
+  useEffect(() => {
+    ST_store.init(settingsEmail, clientPortalUser ? "client" : "staff");
+  }, [settingsEmail, clientPortalUser]);
+  const stSnap = ST_useSettings();
+  const adoptedThemeGen = useRef(null);
+  useEffect(() => {
+    if (stSnap.status !== "ready" || adoptedThemeGen.current === stSnap.generation) return;
+    adoptedThemeGen.current = stSnap.generation;
+    const saved = stSnap.settings.theme;
+    if (saved === "light" || saved === "dark" || saved === null) setTheme(saved);
+  }, [stSnap.status, stSnap.generation]);
+  const chooseTheme = (t) => {
+    setTheme(t);
+    ST_store.update({ theme: t });
+  };
+
   useEffect(() => {
     document.documentElement.setAttribute("data-theme", effectiveTheme);
     try {
@@ -23642,12 +23733,13 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
     };
   }, [baseClient, userAccess]);
 
-  // The server syncs QuickBooks every minute (pg_cron, qbo-sync-cron-1min.sql),
-  // but the page only loaded the numbers once, so "synced 15 min ago" kept
-  // growing while the data sat stale. Once a minute: re-render so the
-  // "synced x ago" label ticks, and if the open client's data is older than
-  // about one sync cycle,
-  // re-fetch it (the same reload Sync now uses). Also on returning to the tab.
+  // The server syncs QuickBooks on each plan's schedule (qbo-sync's
+  // isDueForPlan: Pro every 15 minutes, Plus weekly, Basic on the 15th; see
+  // PLAN_SYNC), and a staffer or another tab can Sync now at any time, but
+  // the page only loaded the numbers once. Once a minute: re-render so the
+  // "synced x ago" label ticks, and if the open client's data is more than
+  // 90 seconds old, re-read it from the database (the same reload Sync now
+  // uses; no QuickBooks call). Also on returning to the tab.
   const [, setClockTick] = useState(0);
   const qboAutoReloadRef = useRef(0);
   useEffect(() => {
@@ -23887,9 +23979,18 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
     : access.tabs.has("reports")
       ? "reports"
       : [...access.tabs][0] || ALWAYS_VISIBLE_KEY;
+  // Settings (components/settings/Settings.jsx): "settings" is the staff
+  // page; "client-settings" is the client's (and, in the bookkeeper view,
+  // staff get its Client settings + Plan tabs). The old Plans, Manage access
+  // and Client details page ids are aliases for a tab of it.
   const effectivePage =
-    page === "enterprise-upgrade"
+    page === "settings" && staffUser && !clientPortalUser
       ? page
+      : page === "client-settings" ||
+          page === "enterprise-upgrade" ||
+          page === "manage-access" ||
+          page === "client-details"
+        ? "client-settings"
       : (page === "staff-access" ||
             page === "client-access" ||
             page === "developer-tools" ||
@@ -23986,9 +24087,12 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
       ) {
         pageAfterClientSwitch.current = route.page || "client-overview";
         setSelectedClientId(route.clientId);
+      } else if (clientPortalUser && route.page === "settings") {
+        setPage("client-settings");
       } else if (route.page && !(clientPortalUser && NON_CLIENT_PAGES.has(route.page))) {
         setPage(route.page);
       }
+      if (route.settingsTab) setSettingsTab(route.settingsTab);
       // Re-sync even when nothing changed (a refused page that was already
       // the stored request would otherwise leave its hash in the bar).
       setHashRewriteTick((t) => t + 1);
@@ -24116,6 +24220,32 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
   // the boards' own sync effects (children) run before this component's.
   WD_sync.setPaused("view-as", Boolean(impersonating));
   WD_sync.setPaused("preview", Boolean(isStaffSession && isPreviewingUser));
+  // Same rule for personal settings (components/settings/Settings.jsx).
+  ST_store.setPaused("view-as", Boolean(impersonating));
+  ST_store.setPaused("preview", Boolean(isStaffSession && isPreviewingUser));
+
+  // Old entry points for what is now a tab of client Settings.
+  useEffect(() => {
+    if (page === "enterprise-upgrade") {
+      setSettingsTab("plan");
+      setPage("client-settings");
+    } else if (page === "manage-access" || page === "client-details") {
+      setSettingsTab("client");
+      setPage("client-settings");
+      if (isStaffSession && !isPreviewingUser) {
+        if (page === "manage-access") setSettingsOpen(true);
+        else {
+          setDetailsTab(null);
+          setDetailsOpen(true);
+        }
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [page]);
+  const openClientSettings = (tab) => {
+    setSettingsTab(tab || null);
+    setPage("client-settings");
+  };
 
   const clientUsers = client.users || [];
   // Audit log: staff previewing the portal as a client user (AuditLog.jsx).
@@ -24248,11 +24378,10 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
     }
   }, [effectivePage, selectedClientId]);
 
-  // Live Report reads as continuously live, not a once-a-day snapshot —
-  // dailyCloseFromClient(client) is called fresh on every render and stamps
-  // its own "Live as of ..." label from the current clock, so a periodic,
-  // otherwise-inert re-render is enough to keep that timestamp (and the
-  // pulsing dot next to it) ticking forward on its own.
+  // dailyCloseFromClient(client, plan) is called fresh on every render. Its
+  // "As of" label comes from client.lastSyncedAt (the real last QuickBooks
+  // sync, see syncCadenceLabel), not the clock; this periodic re-render just
+  // keeps anything relative on the Live Report current.
   const [, tickDailyClose] = useState(0);
   useEffect(() => {
     const id = setInterval(() => tickDailyClose((t) => t + 1), 30000);
@@ -24624,10 +24753,6 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
               (effectiveStaffUser.role === "admin" || hasTempAdminAccess) && !impersonating
             }
             onSignOut={onSignOut}
-            effectiveTheme={effectiveTheme}
-            onToggleTheme={() =>
-              setTheme(effectiveTheme === "dark" ? "light" : "dark")
-            }
             clients={visibleClients}
             onPickClient={(clientId) => {
               if (clientId === selectedClientId) setPage("client-overview");
@@ -24654,11 +24779,7 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
           onSelectPage={setPage}
           visibleKeys={access.tabs}
           tabOrder={tabOrder}
-          onOpenSettings={() => setSettingsOpen(true)}
-          onOpenDetails={() => {
-            setDetailsTab(null);
-            setDetailsOpen(true);
-          }}
+          onOpenSettingsPage={() => openClientSettings(null)}
           collapsed={halfScreen ? !halfScreenExpanded : sidebarCollapsed}
           onToggleCollapse={
             halfScreen ? () => setHalfScreenExpanded((v) => !v) : toggleSidebarCollapsed
@@ -24675,10 +24796,6 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
           }}
           mobileOpen={mobileNavOpen}
           onCloseMobile={() => setMobileNavOpen(false)}
-          effectiveTheme={effectiveTheme}
-          onToggleTheme={() =>
-            setTheme(effectiveTheme === "dark" ? "light" : "dark")
-          }
           staffUser={effectiveStaffUser}
           onSignOut={onSignOut}
           staffMessagesUnread={staffMessagesUnread}
@@ -24707,9 +24824,20 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
               statusOverrides={statusOverrides}
               pendingRequestsByClient={pendingRequestsByClient}
               effectiveTheme={effectiveTheme}
-              onToggleTheme={() => setTheme(effectiveTheme === "dark" ? "light" : "dark")}
+              onToggleTheme={() => chooseTheme(effectiveTheme === "dark" ? "light" : "dark")}
               onSignOut={onSignOut}
               onPreviewAs={setViewAsUserId}
+              onOpenSettings={() => setPage("settings")}
+              previewPlan={!onStaffPage && !impersonating ? getPreviewPlan(client.id) : undefined}
+              actualPlan={client.plan === "basic" || client.plan === "premium" ? client.plan : "standard"}
+              onPreviewPlan={
+                !onStaffPage && !impersonating
+                  ? (plan) => {
+                      setPreviewPlan(client.id, plan);
+                      setPreviewPlanRev((n) => n + 1);
+                    }
+                  : null
+              }
               hasTempAdminAccess={hasTempAdminAccess}
               tempAdminAccessExpiresAt={tempAdminAccessExpiresAt}
               clientSearch={
@@ -24809,19 +24937,17 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
                     ? "MyGoodBooks"
                     : client.name)}
               </h1>
-              <div className={"page-subtitle"}>{meta.subtitle}</div>
+              <div className={"page-subtitle"}>
+                {showsLiveReport && client.dataSource === "quickbooks"
+                  ? `Your financial snapshot. ${syncCadenceLabel(access.plan)}.`
+                  : effectivePage === "client-settings" && isStaffSession && !isPreviewingUser
+                    ? "Staff: this client's access, details and plan"
+                    : meta.subtitle}
+              </div>
             </div>
             <div className="page-header-actions-stack">
-            {/* Milestone badge on its own row, above the sync controls. */}
-            {!NON_CLIENT_PAGES.has(effectivePage) && !access.isCategoryScoped && (
-              <div className="ms-badge-row">
-                <MilestoneBadge
-                  client={client}
-                  staff={isStaffSession && !isPreviewingUser}
-                  onOpen={() => setPage("milestone")}
-                />
-              </div>
-            )}
+            {/* The milestone badge moved to the client sidebar, under the
+                tagline (Sidebar, .sidebar-ms-row). */}
             <div className="page-header-actions">
               {!NON_CLIENT_PAGES.has(effectivePage) &&
                 (!isStaffSession || isPreviewingUser) && (
@@ -24872,18 +24998,11 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
                   onSynced={() => setQboDataRev((r) => r + 1)}
                   // Sync now is a Pro feature; staff can always sync.
                   canSyncNow={
-                    PLAN_SYNC[access.plan || "standard"].syncNow ||
+                    planSyncInfo(access.plan).syncNow ||
                     (isStaffSession && !isPreviewingUser)
                   }
-                  liveLabel={
-                    // Pro is live; Basic and Plus say how often they refresh.
-                    (access.plan === "premium"
-                      ? "Live"
-                      : `Synced ${PLAN_SYNC[access.plan || "standard"].short}`) +
-                    (relTime(client.lastSyncedAt)
-                      ? ` · ${access.plan === "premium" ? "synced " : "updated "}${relTime(client.lastSyncedAt)}`
-                      : " · QuickBooks")
-                  }
+                  // Every plan says how often it refreshes (PLAN_SYNC).
+                  liveLabel={syncPillLabel(access.plan, client.lastSyncedAt)}
                 />
               ) : (
                 <span className="badge-live badge-live--sample">
@@ -24919,7 +25038,7 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
               // from the selected client rather than the shipped Bramblewood
               // sample, so the panel and the rest of the app agree.
               <DailyClose
-                data={dailyCloseFromClient(client)}
+                data={dailyCloseFromClient(client, access.plan)}
                 theme={effectiveTheme}
                 onNavigate={setPage}
                 key={"daily-close-" + client.id}
@@ -25035,11 +25154,51 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
             ) : (
               <ReportsPage client={scopedClient} />
             ))}
-          {effectivePage === "enterprise-upgrade" && (
-            <EnterpriseUpgradePage
-              client={scopedClient}
-              clientPortalUser={clientPortalUser}
-              key={"enterprise-upgrade-" + client.id}
+          {/* Settings (components/settings/Settings.jsx). The Plans page
+              ("enterprise-upgrade") is client Settings' Plan tab now. */}
+          {effectivePage === "settings" && (
+            <ST_StaffSettingsPage
+              staffUser={staffUser}
+              readOnlyReason={
+                impersonating
+                  ? `You're viewing as ${impersonating.name}. Settings here are yours, not theirs, so they can't be changed until you stop viewing as.`
+                  : null
+              }
+              isAdmin={!!staffUser && staffUser.role === "admin" && !impersonating}
+              hasTempAdminAccess={hasTempAdminAccess && !impersonating}
+              clients={visibleClients}
+              theme={theme}
+              onChooseTheme={chooseTheme}
+              onSignOut={onSignOut}
+              onSelectPage={setPage}
+            />
+          )}
+          {effectivePage === "client-settings" && (
+            <ST_ClientSettingsPage
+              key={"client-settings-" + client.id}
+              client={client}
+              access={access}
+              mode={clientPortalUser ? "client" : isPreviewingUser ? "preview" : "staff"}
+              signedInEmail={clientPortalUser ? clientPortalUser.email : null}
+              tab={settingsTab}
+              onTab={setSettingsTab}
+              theme={theme}
+              onChooseTheme={chooseTheme}
+              onSignOut={onSignOut}
+              onSelectPage={setPage}
+              renderPlan={() => (
+                <EnterpriseUpgradePage
+                  client={scopedClient}
+                  clientPortalUser={clientPortalUser}
+                  key={"enterprise-upgrade-" + client.id}
+                />
+              )}
+              onOpenAccess={() => setSettingsOpen(true)}
+              onOpenDetails={() => {
+                setDetailsTab(null);
+                setDetailsOpen(true);
+              }}
+              hasPendingAccessRequests={hasPendingAccessRequests}
             />
           )}
           {effectivePage === "staff-access" && (

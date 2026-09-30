@@ -32,8 +32,17 @@ const EM_TYPES = [
   { value: "digest", label: "Weekly digest" },
   { value: "doc_chaser", label: "Document reminder" },
   { value: "value_report", label: "Value report" },
+  // Notification emails (supabase/notification-emails.sql), logged in
+  // client_email_log with feature = the kind.
+  { value: "staff_client_message", label: "Staff: client message" },
+  { value: "staff_doc_upload", label: "Staff: document uploaded" },
+  { value: "staff_task_assigned", label: "Staff: task assigned" },
+  { value: "staff_task_due", label: "Staff: tasks due today" },
+  { value: "staff_feedback_status", label: "Staff: feedback status" },
+  { value: "client_message", label: "Client: bookkeeper message" },
+  { value: "client_reports_ready", label: "Client: reports ready" },
 ];
-const EM_TYPE_LABEL = { digest: "Weekly digest", doc_chaser: "Document reminder", value_report: "Value report" };
+const EM_TYPE_LABEL = Object.fromEntries(EM_TYPES.filter((t) => t.value).map((t) => [t.value, t.label]));
 const EM_STATUSES = [
   { value: "", label: "All statuses" },
   { value: "sent", label: "Sent" },
