@@ -5,7 +5,7 @@ audience: staff
 keywords: [inbox, message, chat, team chat, reply, internal note, waiting on you, group, attachment, drawer]
 sort: 140
 ---
-The **Inbox** (in the sidebar) holds client conversations and team chat in one place.
+The **Inbox** (in the sidebar) holds client conversations and team chat in one place. The bell in the top bar also lists client messages waiting for a reply.
 
 ### Find a conversation
 

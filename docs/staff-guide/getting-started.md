@@ -2,7 +2,7 @@
 title: Getting started: a tour of the staff portal
 section: Getting started
 audience: staff
-keywords: [new, start, tour, overview, sidebar, menu, navigation, home, first day, orientation]
+keywords: [new, start, tour, overview, sidebar, top bar, menu, navigation, home, first day, orientation]
 sort: 10
 ---
 Welcome! The MyGoodBooks portal is where our clients (mostly churches and nonprofits) see their finances, and where we, the staff, keep track of our work for them. This page shows you around.
@@ -11,15 +11,18 @@ Welcome! The MyGoodBooks portal is where our clients (mostly churches and nonpro
 
 1. [Sign in](#/help/signing-in) with your @mygoodbooks.org Google account.
 2. You land on **Home**, which shows what needs attention across all the clients you can see.
-3. Open a client with the client picker at the top of the sidebar (it says **Choose a client**). You'll see that client's **Client overview** first. See [How do I find and open a client?](#/help/finding-a-client).
+3. Open a client with the client picker at the top left of the page (it says **Choose a client**). You'll see that client's **Client overview** first. See [How do I find and open a client?](#/help/finding-a-client).
 4. Look at **My Tasks** to see what's due today.
-5. Bookmark **Help** (this page). Use the search box at the top whenever you're stuck.
+5. Bookmark **Help** (this page), or click **?** in the top bar. Use the search box at the top whenever you're stuck.
+
+### The top bar
+
+Across the top of the page: the client picker (**Choose a client**), the sync pill, search (**Ctrl+K** / **⌘K**), the bell, **My Tasks**, **+**, **?** and your initials (dark mode, Preview as and **Sign out**). See [What's on the bar at the top of the page?](#/help/top-bar).
 
 ### The staff sidebar
 
-On a computer, the dark sidebar on the left has:
+On a computer, the dark sidebar on the left has the page links:
 
-- **Choose a client** (the client picker): search for a client and open them.
 - **Home**: your clients, reminders and anything that needs attention.
 - **Client view**: jumps back to the client you last had open.
 - **Inbox**: client conversations and team chat in one place.
@@ -29,13 +32,13 @@ On a computer, the dark sidebar on the left has:
 
 Admins also see an **Admin** group (Team, Task templates, Staff Access, Client Roster, Developer Tools, Usage Stats, Audit log and Emails).
 
-At the bottom: **Dark mode / Light mode**, your name and role, **Sign out**, and **Collapse**, which shrinks the sidebar to icons. Hover over an icon to see its name.
+At the bottom: **Collapse**, which shrinks the sidebar to icons. Hover over an icon to see its name. Dark mode, your name and **Sign out** are in the account menu under your initials at the top right.
 
 When you have a client open, the staff sidebar shrinks to a thin strip of icons and the client's own sidebar (Dashboard, Reports, Documents and so on) appears beside it.
 
 ### On a phone
 
-Tap the menu button at the top left to open the menu. Tap your name (the chip with your initials) to reach the staff pages (Home, Inbox, My Tasks, Close tracker, Help and so on) and **Sign out**.
+The top bar keeps the client picker, search and the bell. Tap the menu button at the top left to open the menu. Tap your name (the chip with your initials) to reach the staff pages (Home, Inbox, My Tasks, Close tracker, Help and so on) and **Sign out**.
 
 ### Who sees what
 

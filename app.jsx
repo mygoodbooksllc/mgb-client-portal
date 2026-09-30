@@ -1398,9 +1398,9 @@ function Sidebar({
 
           {!NON_CLIENT_PAGES.has(page) && (
             <React.Fragment>
-              <div className="client-picker-label">Preview as</div>
+              <div className="client-picker-label tb-preview-as">Preview as</div>
               <select
-                className="client-select"
+                className="client-select tb-preview-as"
                 value={viewAsUserId}
                 onChange={(e) => onSelectViewAs(e.target.value)}
               >
@@ -6131,6 +6131,19 @@ function StaffQuickActions({ client, onNavigate, only, onMessage }) {
   const [modal, setModal] = useState(null);
   const [f, setF] = useState({});
   const [saving, setSaving] = useState(false);
+  // The staff top bar's "+" menu (TopBar.jsx) opens these same modals.
+  const listenTopBar = !only && !!staff && !!staffUser;
+  useEffect(() => {
+    if (!listenTopBar) return;
+    const onAdd = (e) => {
+      const kind = e.detail && e.detail.kind;
+      if (kind !== "task" && kind !== "request" && kind !== "note") return;
+      setF({ text: "", due: "", details: "", shared: true, pin: false });
+      setModal(kind);
+    };
+    window.addEventListener("tb:quick-add", onAdd);
+    return () => window.removeEventListener("tb:quick-add", onAdd);
+  }, [listenTopBar]);
   if (!staff || !staffUser) return null;
   const sb = window.mgbSupabase;
   const openModal = (kind) => {
@@ -25038,6 +25051,29 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
           statusOverrides={statusOverrides}
         />
         <main className="main">
+          {/* Staff top bar (components/staff/TopBar.jsx): shown wherever the
+              staff sidebar is, so clients and client-user previews never see it. */}
+          {showStaffRail && typeof TB_StaffTopBar === "function" && (
+            <TB_StaffTopBar
+              staffUser={effectiveStaffUser}
+              realStaffUser={staffUser}
+              impersonating={impersonating}
+              onStopImpersonating={stopImpersonating}
+              clients={visibleClients}
+              client={onStaffPage ? null : client}
+              page={effectivePage}
+              plan={access.plan}
+              onSynced={() => setQboDataRev((r) => r + 1)}
+              statusOverrides={statusOverrides}
+              pendingRequestsByClient={pendingRequestsByClient}
+              effectiveTheme={effectiveTheme}
+              onToggleTheme={() => setTheme(effectiveTheme === "dark" ? "light" : "dark")}
+              onSignOut={onSignOut}
+              onPreviewAs={setViewAsUserId}
+              hasTempAdminAccess={hasTempAdminAccess}
+              tempAdminAccessExpiresAt={tempAdminAccessExpiresAt}
+            />
+          )}
           {!impersonating && !NON_CLIENT_PAGES.has(effectivePage) && (
             <CS_TempAccessNote clientId={client.id} clientName={client.name} />
           )}

@@ -31,3 +31,5 @@ Type the note and save. It's saved as a General staff note on this client.
 
 - **"Couldn't save that. Please try again."** Check your connection and try again. If it keeps happening, tell an admin.
 - **I don't see the bar.** It's hidden while you're using **Preview as** to look at the portal as a client user.
+
+The **+** button in the top bar opens the same **Add task**, **Add note** and **Request document** forms (as **New task**, **New note** and **Request document**). See [What's on the bar at the top of the page?](#/help/top-bar).

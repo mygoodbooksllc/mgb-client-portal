@@ -5,15 +5,15 @@ audience: staff
 keywords: [client switcher, choose a client, search clients, jump to client, go to client, open client, switch client, recent]
 sort: 30
 ---
-There are two quick ways to open a client.
+There are three quick ways to open a client.
 
-### The client picker (sidebar)
+### The client picker (top bar)
 
-1. At the top of the sidebar, click the picker. It says **Choose a client** (or shows how many clients you have).
+1. At the top left of the page, click the picker. It says **Choose a client** (or shows how many clients you have).
 2. Type part of the name in **Search clients**.
 3. Click the client. You land on their **Client overview**.
 
-When a client is open, the picker shows the client's name, plan and health (for example "Plus · Healthy"). Click it again to switch to another client.
+On a phone, the picker is at the top of the screen and also in the menu. When a client is open, the picker shows the client's name, plan and health (for example "Plus · Healthy"). Click it again to switch to another client.
 
 The list has these groups:
 
@@ -22,6 +22,10 @@ The list has these groups:
 - **Other clients** (bookkeepers only): clients you aren't assigned to. They're locked, with a **Request access** button. See [How do I get temporary access to a client?](#/help/temporary-access).
 
 Little tags on a row tell you more: **Onboarding 3/5** means onboarding isn't finished, **Temporary · 2d left** means you have short-term access, and **Pending** means you've asked for access and are waiting.
+
+### Search (top bar)
+
+Press **Ctrl+K** (**⌘K** on a Mac) or click the search box at the top of the page, type part of the name and press **Enter**. See [What's on the bar at the top of the page?](#/help/top-bar).
 
 ### Jump to client (Home)
 

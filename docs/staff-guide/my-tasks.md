@@ -5,7 +5,7 @@ audience: staff
 keywords: [my tasks, task, reminder, to do, due, overdue, repeat, recurring, priority, share, complete, today, upcoming, by client]
 sort: 110
 ---
-**My Tasks** (in the sidebar) is your to-do list. Tasks are **private to you and admins** unless you share one with a client's team.
+**My Tasks** (in the sidebar, or the **My Tasks** button in the top bar) is your to-do list. Tasks are **private to you and admins** unless you share one with a client's team.
 
 ### Add a task
 
@@ -37,7 +37,7 @@ You can also add a task from inside a client with the **Add task** button in the
 - The people icon shares or stops sharing a task with the client's team. **×** removes it.
 - Chips tell you where a task came from: **From note**, **Access request**, or **Recurring** (made by a [task template](#/help/task-templates)).
 
-The number next to **My Tasks** in the sidebar counts items that are overdue, due today, or past their remind-me time.
+The number next to **My Tasks** in the sidebar counts items that are overdue, due today, or past their remind-me time. The **My Tasks** button in the top bar shows how many open tasks you have, with overdue ones in a red number. Search (**Ctrl+K** / **⌘K**) finds your tasks and notes by their text.
 
 ### Troubleshooting
 
