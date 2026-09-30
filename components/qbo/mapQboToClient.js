@@ -44,8 +44,9 @@
     return /^\d{4}-\d{2}-\d{2}/.test(s) ? s.slice(0, 10) : null;
   }
 
-  function todayIso() {
-    var d = new Date();
+  function todayIso(from) {
+    var d = from ? new Date(from) : new Date();
+    if (isNaN(d.getTime())) d = new Date();
     return (
       d.getFullYear() +
       "-" +
@@ -96,7 +97,12 @@
     var bills = rows.bills || [];
     var transactions = rows.transactions || [];
     var connection = rows.connection || null;
-    var today = todayIso();
+    // "This month" is the month of the last sync, not the browser's month.
+    // A Plus client synced weekly on Sep 28 and opened on Oct 2 still has
+    // September as its newest (partial) month; keying off the browser date
+    // would show an empty October budget and call September closed.
+    var today = todayIso(connection && connection.last_synced_at);
+    var syncMonthKey = today.slice(0, 7);
 
     // --- bankAccounts ------------------------------------------------------
     var bankAccounts = accounts
@@ -163,8 +169,17 @@
         return String(a.month) < String(b.month) ? -1 : 1;
       })
       .map(function (r) {
+        var key = String(r.month || "").slice(0, 7);
         return {
           month: monthLabel(r.month),
+          // "2026-09" and 2026: month labels alone repeat across a year
+          // boundary ("Oct" last year vs this year) in 12-month views.
+          key: key,
+          year: Number(key.slice(0, 4)) || null,
+          // qbo-sync's P&L window ends today, so the sync month's row is
+          // month to date. Every average, projection and "last month"
+          // figure leaves it out (window.mgbClosedMonths in data.js).
+          partial: key === syncMonthKey,
           income: toNumber(r.revenue),
           expenses: toNumber(r.expenses),
         };
@@ -179,22 +194,62 @@
     // per account. A client with no QuickBooks budget set up gets an empty
     // array — never the sample budget, which would be a lie sitting next to
     // real numbers.
-    var currentMonth = today.slice(0, 7) + "-01";
-    var budgetByAccount = {};
-    var budgetOrder = [];
-    budgetLines.forEach(function (b) {
-      if (toDay(b.month) !== currentMonth) return;
-      var name = b.account_name || "Uncategorized";
-      if (!budgetByAccount[name]) {
-        budgetByAccount[name] = { category: name, budgeted: 0, actual: 0 };
-        budgetOrder.push(name);
+    //
+    // qbo-sync pulls EVERY Budget line, income included (a church budgets
+    // its giving), and qbo_budget_lines has no account type. Every budget
+    // view in the app is a spending view ("over budget" = spent too much),
+    // so the type is joined back in from qbo_accounts (or, failing a name
+    // match, from which side of the P&L the name appeared on) and income
+    // lines go to budgetIncome instead of budget.
+    var currentMonth = syncMonthKey + "-01";
+    var typeByName = {};
+    accounts.forEach(function (a) {
+      if (a.name && a.account_type) typeByName[a.name] = a.account_type;
+    });
+    var plTypeByName = {};
+    plLines.forEach(function (l) {
+      if (!l.account_name) return;
+      // Expense wins when a name shows up on both sides, same as qbo-sync.
+      if (plTypeByName[l.account_name] !== "Expense") {
+        plTypeByName[l.account_name] = l.account_type;
       }
-      budgetByAccount[name].budgeted += toNumber(b.budgeted);
-      budgetByAccount[name].actual += toNumber(b.actual);
     });
-    var budget = budgetOrder.map(function (name) {
-      return budgetByAccount[name];
+    function accountTypeFor(name) {
+      var tail = String(name).replace(/^.*:/, "");
+      return typeByName[name] || typeByName[tail] || plTypeByName[name] || null;
+    }
+    function budgetRowsFor(month) {
+      var byAccount = {};
+      var order = [];
+      budgetLines.forEach(function (b) {
+        if (toDay(b.month) !== month) return;
+        var name = b.account_name || "Uncategorized";
+        if (!byAccount[name]) {
+          byAccount[name] = {
+            category: name,
+            budgeted: 0,
+            actual: 0,
+            accountType: accountTypeFor(name),
+          };
+          order.push(name);
+        }
+        byAccount[name].budgeted += toNumber(b.budgeted);
+        byAccount[name].actual += toNumber(b.actual);
+      });
+      return order.map(function (name) {
+        return byAccount[name];
+      });
+    }
+    var prevDate = new Date(Date.UTC(Number(today.slice(0, 4)), Number(today.slice(5, 7)) - 2, 1));
+    var prevMonth = prevDate.toISOString().slice(0, 10);
+    var allBudget = budgetRowsFor(currentMonth);
+    var budget = window.mgbExpenseBudget(allBudget);
+    var budgetIncome = allBudget.filter(function (b) {
+      return budget.indexOf(b) === -1;
     });
+    // The last CLOSED month's expense budget vs. actual, for reports that
+    // default to a closed month (the board packet) rather than month to date.
+    var budgetPrev = window.mgbExpenseBudget(budgetRowsFor(prevMonth));
 
     // --- expenseByAccount --------------------------------------------------
     // qbo_pl_lines (written by qbo-sync from the same monthly ProfitAndLoss
@@ -204,8 +259,6 @@
     // so expose the current and previous month here, biggest first. Refunds
     // can leave an account net negative; those aren't "where money went" and
     // are dropped.
-    var prevDate = new Date(Date.UTC(Number(today.slice(0, 4)), Number(today.slice(5, 7)) - 2, 1));
-    var prevMonth = prevDate.toISOString().slice(0, 10);
     function expensesFor(month) {
       var byName = {};
       plLines.forEach(function (l) {
@@ -279,6 +332,8 @@
       bankAccounts: bankAccounts,
       monthly: monthly,
       budget: budget,
+      budgetIncome: budgetIncome,
+      budgetPrev: budgetPrev,
       expenseByAccount: expenseByAccount,
       expenseByAccountPrev: expenseByAccountPrev,
       receivables: receivables,

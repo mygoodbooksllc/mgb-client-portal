@@ -172,7 +172,7 @@ type LiveReportWidgetId =
   | "bookkeeper";
 
 const LIVE_REPORT_WIDGETS: { id: LiveReportWidgetId; label: string; description: string }[] = [
-  { id: "kpi-cash", label: "Cash on Hand", description: "Current balance, delta vs. yesterday, 14-day trend" },
+  { id: "kpi-cash", label: "Cash on Hand", description: "Current balance across cash accounts, with card balances owed" },
   { id: "kpi-ar", label: "Accounts Receivable", description: "Outstanding balance and overdue amount" },
   { id: "kpi-ap", label: "Accounts Payable", description: "Outstanding balance and amount due within 7 days" },
   { id: "kpi-net", label: "Net Income, MTD", description: "Month-to-date net income and margin" },
@@ -1097,7 +1097,7 @@ function DailyClose({ data, className, theme, onNavigate }: DailyCloseProps) {
           b.category,
           fmtMoney(b.budgeted),
           fmtMoney(b.actual),
-          `+${b.overByPct}%`,
+          b.overByPct == null ? "No budget" : `+${b.overByPct}%`,
         ]),
         columnStyles: { 1: { halign: "right" }, 2: { halign: "right" }, 3: { halign: "right" } },
         ...tableTheme,
@@ -1214,6 +1214,11 @@ function DailyClose({ data, className, theme, onNavigate }: DailyCloseProps) {
                 {data.client.isSampleData && <span className={styles.demoTag}>Sample data</span>}
               </div>
             )}
+            {data.client.staleWarning && (
+              <div className={styles.cashFloorWarning} role="status">
+                {data.client.staleWarning}
+              </div>
+            )}
             <button type="button" className={styles.downloadBtn} onClick={downloadPdf}>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M12 3v12m0 0l-4-4m4 4l4-4" />
@@ -1270,13 +1275,22 @@ function DailyClose({ data, className, theme, onNavigate }: DailyCloseProps) {
                           {fmtMoney(data.cash.total)}
                           {data.cash.cents !== undefined && <small>.{String(data.cash.cents).padStart(2, "0")}</small>}
                         </div>
-                        <div className={`${styles.delta} ${data.cash.deltaVsYesterday >= 0 ? styles.deltaUp : styles.deltaDown}`}>
-                          {data.cash.deltaVsYesterday >= 0 ? "▲" : "▼"} {fmtMoney(Math.abs(data.cash.deltaVsYesterday))} vs. yesterday
-                        </div>
+                        {data.cash.deltaVsYesterday != null && (
+                          <div className={`${styles.delta} ${data.cash.deltaVsYesterday >= 0 ? styles.deltaUp : styles.deltaDown}`}>
+                            {data.cash.deltaVsYesterday >= 0 ? "▲" : "▼"} {fmtMoney(Math.abs(data.cash.deltaVsYesterday))} vs. yesterday
+                          </div>
+                        )}
+                        {data.cash.cardsOwed != null && (
+                          <div className={styles.kpiFoot}>
+                            {fmtMoney(data.cash.cardsOwed)} owed on {data.cash.cardCount === 1 ? "a credit card" : `${data.cash.cardCount} credit cards`} (not included)
+                          </div>
+                        )}
                         {belowFloor && (
                           <div className={styles.cashFloorWarning}>Below your {fmtMoney(cashFloor as number)} alert threshold</div>
                         )}
-                        <Sparkline values={data.cash.sparkline14d} color="var(--series-revenue)" />
+                        {data.cash.sparkline14d.length > 1 && (
+                          <Sparkline values={data.cash.sparkline14d} color="var(--series-revenue)" />
+                        )}
                       </React.Fragment>
                     )}
                   </div>
@@ -1330,11 +1344,15 @@ function DailyClose({ data, className, theme, onNavigate }: DailyCloseProps) {
               // kpi-net
               return (
                 <button type="button" className={`${styles.kpiTile} ${styles.kpiTileClickable}`} onClick={() => jumpToOutlook("trend")} key={id} {...wdCard(id)}>
-                  <div className={styles.kpiLabel}>Net income, MTD</div>
+                  <div className={styles.kpiLabel}>{data.netIncome.label || "Net income, MTD"}</div>
                   <div className={styles.kpiValue}>{fmtMoney(data.netIncome.mtd)}</div>
-                  <div className={`${styles.delta} ${data.netIncome.deltaPctVsPriorMonth >= 0 ? styles.deltaUp : styles.deltaDown}`}>
-                    {data.netIncome.deltaPctVsPriorMonth >= 0 ? "▲" : "▼"} {pct(Math.abs(data.netIncome.deltaPctVsPriorMonth))} vs. last month
-                  </div>
+                  {data.netIncome.deltaPctVsPriorMonth != null ? (
+                    <div className={`${styles.delta} ${data.netIncome.deltaPctVsPriorMonth >= 0 ? styles.deltaUp : styles.deltaDown}`}>
+                      {data.netIncome.deltaPctVsPriorMonth >= 0 ? "▲" : "▼"} {pct(Math.abs(data.netIncome.deltaPctVsPriorMonth))} vs. last month
+                    </div>
+                  ) : (
+                    <div className={styles.kpiFoot}>Month still open, no comparison yet</div>
+                  )}
                   <div className={styles.kpiMeter}>
                     <div
                       className={styles.kpiMeterFill}
@@ -1411,7 +1429,7 @@ function DailyClose({ data, className, theme, onNavigate }: DailyCloseProps) {
                     <div className={styles.panelHead}>
                       <div>
                         <div className={styles.panelTitle}>Where the money went</div>
-                        <div className={styles.panelSub}>Expenses, this month</div>
+                        <div className={styles.panelSub}>Expenses, month to date</div>
                       </div>
                     </div>
                     <div style={{ marginTop: 8 }}>
@@ -1477,7 +1495,9 @@ function DailyClose({ data, className, theme, onNavigate }: DailyCloseProps) {
                               <div className={styles.budgetHealthMark} style={{ left: "100%" }} />
                             </div>
                           </div>
-                          <div className={`${styles.budgetHealthPct} ${styles.num}`}>+{b.overByPct}%</div>
+                          <div className={`${styles.budgetHealthPct} ${styles.num}`}>
+                            {b.overByPct == null ? "No budget" : `+${b.overByPct}%`}
+                          </div>
                         </div>
                       ))}
                     </div>
@@ -1704,9 +1724,16 @@ function DailyClose({ data, className, theme, onNavigate }: DailyCloseProps) {
                         ariaLabel="Ninety day cash flow forecast"
                         labels={data.forecast90d.labels}
                         floorZero={false}
-                        lowPointIndex={data.forecast90d.cashBalances.indexOf(
-                          Math.min(...data.forecast90d.cashBalances.slice(1))
-                        )}
+                        lowPointIndex={
+                          // Only mark a low point when the projection actually
+                          // dips below today's balance.
+                          Math.min(...data.forecast90d.cashBalances.slice(1)) <
+                          data.forecast90d.cashBalances[0]
+                            ? data.forecast90d.cashBalances.indexOf(
+                                Math.min(...data.forecast90d.cashBalances.slice(1))
+                              )
+                            : undefined
+                        }
                         series={[
                           {
                             name: "Cash balance",

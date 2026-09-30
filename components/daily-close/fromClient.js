@@ -89,6 +89,29 @@
     );
   }
 
+  // How long past its plan's cadence a sync can be before the report says
+  // the numbers may be stale (Pro every 15 min, Plus weekly, Basic on the
+  // 15th of each month — PLAN_SYNC in app.jsx), with slack for a missed run.
+  const STALE_AFTER_MS = {
+    premium: 2 * 3600000,
+    standard: 9 * 86400000,
+    basic: 35 * 86400000,
+  };
+
+  function staleWarning(client, plan) {
+    if (!client || client.dataSource !== "quickbooks" || !client.lastSyncedAt) return null;
+    const stamp = new Date(client.lastSyncedAt);
+    if (isNaN(stamp.getTime())) return null;
+    const limit = STALE_AFTER_MS[plan] || STALE_AFTER_MS.standard;
+    if (Date.now() - stamp.getTime() <= limit) return null;
+    const ago = typeof relTime === "function" ? relTime(client.lastSyncedAt) : "";
+    return (
+      "Last QuickBooks sync was " +
+      (ago || "a while ago") +
+      ", longer than this plan's schedule. These numbers may be out of date."
+    );
+  }
+
   // A stable per-client number in [0,1), so the modelled series differ between
   // organizations but never change between reloads.
   function seedOf(text) {
@@ -163,6 +186,41 @@
     return Math.max(-0.12, Math.min(0.12, mean));
   }
 
+  // QuickBooks clients: a plain straight line from the average net of the
+  // closed months on file. No scripted dip, no payroll/facilities story —
+  // nothing here knows when individual bills or gifts will land, so the
+  // chart doesn't pretend to.
+  function buildLiveForecast(cashTotal, closedMonths, today) {
+    const labels = [];
+    const balances = [];
+    const recent = closedMonths.slice(-6);
+    const avgNet = recent.length ? sum(recent, (m) => m.income - m.expenses) / recent.length : 0;
+    for (let i = 0; i < 7; i++) {
+      labels.push(shortLabel(addDays(today, i * 15)));
+      balances.push(Math.round(cashTotal + (avgNet / 2) * i));
+    }
+    const lowValue = Math.min(...balances);
+    const lowIndex = balances.indexOf(lowValue);
+    const basis = recent.length
+      ? `the average of the last ${recent.length} closed month${recent.length === 1 ? "" : "s"} ` +
+        `(${avgNet < 0 ? "−" : "+"}$${Math.round(Math.abs(avgNet)).toLocaleString("en-US")} a month)`
+      : "no closed months yet, so a flat line";
+    return {
+      labels,
+      actualCount: 1,
+      cashBalances: balances,
+      lowPoint: { label: labels[lowIndex], amount: lowValue },
+      narrative:
+        avgNet < 0
+          ? `At the recent pace, cash reaches about $${lowValue.toLocaleString("en-US")} by ${labels[lowIndex]}. ` +
+            `Based on ${basis}.`
+          : `At the recent pace, cash holds or grows over the next 90 days. Based on ${basis}.`,
+      methodology:
+        "Straight-line projection from today's cash in QuickBooks and the average net income of recent " +
+        "closed months. It doesn't model the timing of individual bills, payroll or gifts.",
+    };
+  }
+
   function buildForecast(client, cashTotal, monthlyNet, payables, today, seed) {
     // Seven fortnightly points: today, then 90 days out.
     const labels = [];
@@ -216,22 +274,48 @@
     const anomalies = [];
 
     // Over-budget categories — the same signal the dashboard's "Take Note" line uses.
-    const over = (client.budget || [])
+    // Expense lines only (income budget lines are split out by the mapper;
+    // mgbExpenseBudget is belt and braces).
+    const over = window
+      .mgbExpenseBudget(client.budget)
       .filter((b) => b.actual > b.budgeted)
       .map((b) => ({ ...b, overBy: b.actual - b.budgeted }))
       .sort((a, b) => b.overBy - a.overBy);
 
     over.slice(0, 2).forEach((row) => {
-      const pct = Math.round((row.overBy / row.budgeted) * 100);
+      // A $0 budget line has no percentage (it used to read "Infinity% over").
+      const pct = row.budgeted > 0 ? Math.round((row.overBy / row.budgeted) * 100) : null;
       anomalies.push({
-        severity: pct >= 20 ? "serious" : "warn",
+        severity: pct === null || pct >= 20 ? "serious" : "warn",
         title: `${row.category} is over budget`,
         amount: `$${Math.round(row.overBy).toLocaleString("en-US")}`,
         description:
-          `Spent $${Math.round(row.actual).toLocaleString("en-US")} against a ` +
-          `$${Math.round(row.budgeted).toLocaleString("en-US")} budget — ${pct}% over for the period.`,
+          pct === null
+            ? `Spent $${Math.round(row.actual).toLocaleString("en-US")} with nothing budgeted for the period.`
+            : `Spent $${Math.round(row.actual).toLocaleString("en-US")} against a ` +
+              `$${Math.round(row.budgeted).toLocaleString("en-US")} budget — ${pct}% over for the period.`,
       });
     });
+
+    // Bills already past their due date.
+    const lateBills = payables
+      .filter((p) => daysBetween(parseLocalDate(p.dueDate), today) > 0)
+      .sort((a, b) => (a.dueDate < b.dueDate ? -1 : 1));
+    if (lateBills.length) {
+      const oldest = daysBetween(parseLocalDate(lateBills[0].dueDate), today);
+      anomalies.push({
+        severity: oldest > 30 ? "critical" : "serious",
+        title: `${lateBills.length} bill${lateBills.length === 1 ? " is" : "s are"} past due`,
+        amount: `$${Math.round(sum(lateBills, (p) => p.amount)).toLocaleString("en-US")}`,
+        description:
+          lateBills
+            .slice(0, 3)
+            .map((p) => `${p.vendor} (due ${p.dueDate})`)
+            .join(", ") +
+          (lateBills.length > 3 ? `, and ${lateBills.length - 3} more` : "") +
+          ".",
+      });
+    }
 
     // Anything genuinely past due.
     const pastDue = receivables.filter((r) => daysBetween(parseLocalDate(r.dueDate), today) > 0);
@@ -265,7 +349,7 @@
         title: "Nothing needs attention",
         amount: "—",
         description:
-          "Every budget category is within plan, no receivable is past due, and nothing is due in the next 7 days.",
+          "Every budget category is within plan, no receivable or bill is past due, and nothing is due in the next 7 days.",
       });
     }
 
@@ -283,18 +367,32 @@
     const seed = seedOf(client.id || client.name);
 
     // Cash accounts only: a credit card's balance is money owed, not cash.
+    const isLive = client.dataSource === "quickbooks";
     const cashAccounts = window.mgbCashAccounts(client.bankAccounts);
+    const cardAccounts = window.mgbCardAccounts(client.bankAccounts);
     const cashExact = sum(cashAccounts, (a) => a.balance);
-    const cashWhole = Math.floor(cashExact);
-    const cents = Math.round((cashExact - cashWhole) * 100);
+    // Whole dollars and cents from the absolute value: Math.floor on a
+    // negative balance (-12.34) gave -13 and 66 cents, i.e. "-$13.66".
+    const cashCentsTotal = Math.round(cashExact * 100);
+    const cashWhole = Math.trunc(cashCentsTotal / 100);
+    const cents = Math.abs(cashCentsTotal % 100);
 
     const monthly = client.monthly || [];
+    // A QuickBooks client's newest month is month to date. Growth, the
+    // projection, the forecast and the "vs. last month" delta use closed
+    // months only; the MTD figure itself is still shown, labeled.
+    const closedMonths = window.mgbClosedMonths(monthly);
     const latest = monthly[monthly.length - 1] || { income: 0, expenses: 0 };
+    const latestIsPartial = window.mgbIsPartialMonth(latest);
     const prior = monthly[monthly.length - 2] || latest;
 
     const netIncomeMtd = latest.income - latest.expenses;
     const priorNet = prior.income - prior.expenses;
-    const deltaPct = priorNet !== 0 ? ((netIncomeMtd - priorNet) / Math.abs(priorNet)) * 100 : 0;
+    const deltaPct = latestIsPartial
+      ? null
+      : priorNet !== 0
+        ? ((netIncomeMtd - priorNet) / Math.abs(priorNet)) * 100
+        : 0;
     const marginPct = latest.income !== 0 ? (netIncomeMtd / latest.income) * 100 : 0;
 
     const receivables = client.receivables || [];
@@ -307,13 +405,22 @@
 
     const revenue = monthly.map((m) => m.income);
     const expense = monthly.map((m) => m.expenses);
-    const revenueGrowth = growthRate(revenue);
-    const expenseGrowth = growthRate(expense);
+    const closedRevenue = closedMonths.map((m) => m.income);
+    const closedExpense = closedMonths.map((m) => m.expenses);
+    const revenueGrowth = growthRate(closedRevenue);
+    const expenseGrowth = growthRate(closedExpense);
     const projectedMonths = projectMonths(monthly.length ? monthly[monthly.length - 1].month : "Dec", 2);
     const projectedRevenue = [];
     const projectedExpense = [];
-    let lastRevenue = revenue[revenue.length - 1] || 0;
-    let lastExpense = expense[expense.length - 1] || 0;
+    // Projected from the last CLOSED month. When the chart's last actual
+    // point is the partial month, the projection steps over it (one extra
+    // growth step) so it lines up under the right month names.
+    let lastRevenue = closedRevenue[closedRevenue.length - 1] || 0;
+    let lastExpense = closedExpense[closedExpense.length - 1] || 0;
+    if (latestIsPartial) {
+      lastRevenue = Math.round(lastRevenue * (1 + revenueGrowth));
+      lastExpense = Math.round(lastExpense * (1 + expenseGrowth));
+    }
     projectedMonths.forEach(() => {
       lastRevenue = Math.round(lastRevenue * (1 + revenueGrowth));
       lastExpense = Math.round(lastExpense * (1 + expenseGrowth));
@@ -321,14 +428,17 @@
       projectedExpense.push(lastExpense);
     });
 
-    // 14-day cash sparkline: walk backwards from today's balance using the
-    // period's average daily net, so the shape reflects the client's real
-    // direction of travel. Shape only — the component draws no axis.
+    // 14-day cash sparkline and "vs. yesterday": sample clients only. Both
+    // were modelled (a month's net / 30 plus a sine wobble), which is fine
+    // for a demo and wrong next to real QuickBooks balances, where there is
+    // no daily balance history to draw from.
     const dailyNet = netIncomeMtd / 30;
     const sparkline14d = [];
-    for (let i = 13; i >= 0; i--) {
-      const wobble = Math.sin((i + seed * 6) * 1.1) * Math.abs(dailyNet) * 1.6;
-      sparkline14d.push(Math.round(cashWhole - dailyNet * i + wobble));
+    if (!isLive) {
+      for (let i = 13; i >= 0; i--) {
+        const wobble = Math.sin((i + seed * 6) * 1.1) * Math.abs(dailyNet) * 1.6;
+        sparkline14d.push(Math.round(cashWhole - dailyNet * i + wobble));
+      }
     }
 
     // "Where the money went": real expenses by account for this month when
@@ -347,7 +457,8 @@
         if (Math.round(rest) > 0) expenseBreakdown.push({ label: "Other", amount: Math.round(rest) });
       }
     } else {
-      expenseBreakdown = (client.budget || [])
+      expenseBreakdown = window
+        .mgbExpenseBudget(client.budget)
         .slice()
         .sort((a, b) => b.actual - a.actual)
         .slice(0, 6)
@@ -373,13 +484,18 @@
                 : "")
             : "Sample data — not connected to QuickBooks yet",
         isSampleData: false,
+        staleWarning: staleWarning(client, plan),
       },
       cash: {
         total: cashWhole,
         cents,
-        deltaVsYesterday: Math.round(dailyNet),
+        deltaVsYesterday: isLive ? null : Math.round(dailyNet),
         sparkline14d,
         byAccount: cashAccounts.map((a) => ({ name: a.accountName, balance: a.balance })),
+        // What's owed on credit cards, shown under cash rather than netted
+        // into it.
+        cardsOwed: cardAccounts.length ? Math.round(sum(cardAccounts, (a) => a.balance) * 100) / 100 : null,
+        cardCount: cardAccounts.length,
       },
       receivables: {
         total: Math.round(sum(receivables, (r) => r.amount)),
@@ -404,12 +520,17 @@
       },
       netIncome: {
         mtd: Math.round(netIncomeMtd),
-        deltaPctVsPriorMonth: Math.round(deltaPct * 10) / 10,
+        // null while the month is still open: half a month vs. a whole one
+        // isn't a comparison.
+        deltaPctVsPriorMonth: deltaPct === null ? null : Math.round(deltaPct * 10) / 10,
         marginPct: Math.round(marginPct * 10) / 10,
         marginTargetPct: 25,
+        label: isLive && !latestIsPartial && monthly.length
+          ? `Net income, ${latest.month}`
+          : "Net income, MTD",
       },
       trend: {
-        months: monthly.map((m) => m.month),
+        months: monthly.map((m) => (window.mgbIsPartialMonth(m) ? `${m.month} (MTD)` : m.month)),
         revenue,
         expense,
         projectedMonths,
@@ -417,11 +538,16 @@
         projectedExpense,
       },
       expenseBreakdown,
-      forecast90d: buildForecast(client, cashWhole, netIncomeMtd, payables, today, seed),
+      forecast90d: isLive
+        ? buildLiveForecast(cashWhole, closedMonths, today)
+        : buildForecast(client, cashWhole, netIncomeMtd, payables, today, seed),
       anomalies: buildAnomalies(client, receivables, payables, today),
       budgetHealth: buildBudgetHealth(client),
       payablesDueSoon: buildPayablesDueSoon(payables, today),
-      fundActivity: buildFundActivity(client),
+      // Funds, gifts and pledges aren't synced from QuickBooks yet; the
+      // mapper empties them, and this never shows sample gifts to a live
+      // client either way.
+      fundActivity: isLive ? undefined : buildFundActivity(client),
       reconciliation: buildReconciliation(client),
       bookkeeper: client.assignedBookkeeper
         ? {
@@ -437,7 +563,8 @@
   // its top 2 — this surfaces up to 5 as a standalone panel rather than
   // burying the rest in the anomaly list.
   function buildBudgetHealth(client) {
-    const over = (client.budget || [])
+    const over = window
+      .mgbExpenseBudget(client.budget)
       .filter((b) => b.actual > b.budgeted)
       .sort((a, b) => b.actual - b.budgeted - (a.actual - a.budgeted));
     if (!over.length) return undefined;
@@ -445,7 +572,8 @@
       category: b.category,
       budgeted: Math.round(b.budgeted),
       actual: Math.round(b.actual),
-      overByPct: Math.round(((b.actual - b.budgeted) / b.budgeted) * 100),
+      // null for a $0 budget line (was "Infinity%").
+      overByPct: b.budgeted > 0 ? Math.round(((b.actual - b.budgeted) / b.budgeted) * 100) : null,
     }));
   }
 

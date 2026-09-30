@@ -185,6 +185,25 @@ function prShareUrl(token) {
 // Number crunching
 // ---------------------------------------------------------------------------
 
+// The packet reports on the last CLOSED month (see window.mgbClosedMonths).
+// A QuickBooks client's budget[] is the month-to-date sync month, so the
+// packet uses budgetPrev (the closed month's expense budget) instead; sample
+// clients' budget is already a full month.
+function prReportBudget(client) {
+  if (client && client.dataSource === "quickbooks") return client.budgetPrev || [];
+  return window.mgbExpenseBudget(client && client.budget);
+}
+
+// Expense lines for the Statement of Functional Expenses: every expense
+// account QuickBooks reported for the closed month (not just the budgeted
+// ones), else the sample budget's actuals.
+function prExpenseRows(client) {
+  if (client && client.dataSource === "quickbooks") {
+    return (client.expenseByAccountPrev || []).map((e) => ({ category: e.account, actual: e.amount }));
+  }
+  return prReportBudget(client);
+}
+
 // client.monthly carries three-letter month labels, not dates. Give each row a
 // real year/month by walking back from the latest one, which is the most
 // recent month with that name on or before today (QuickBooks-backed rows are
@@ -364,7 +383,7 @@ function prFunctionalSection(budget, fnMap, periodLabel) {
   );
   const pctOf = (v) => (totals.total > 0 ? (v / totals.total) * 100 : null);
   return {
-    periodLabel: `For the month of ${periodLabel} (current month only)`,
+    periodLabel: `For the month of ${periodLabel} (last closed month)`,
     rows,
     totals,
     pct: { program: pctOf(totals.program), management: pctOf(totals.management), fundraising: pctOf(totals.fundraising) },
@@ -607,7 +626,7 @@ function prBuildSnapshot({ client, timeline, config, summary, notes, fnMap, bran
   const cur = timeline[timeline.length - 1] || null;
   const periodKey = cur ? cur.key : null;
   const periodLabel = (config.periodLabel || "").trim() || (cur ? cur.full : "");
-  const comparisons = prComparisons(timeline, client.budget).filter((c) => config.compare[c.key]);
+  const comparisons = prComparisons(timeline, prReportBudget(client)).filter((c) => config.compare[c.key]);
   const orgName = String(client.name || "");
   return {
     v: 1,
@@ -628,10 +647,10 @@ function prBuildSnapshot({ client, timeline, config, summary, notes, fnMap, bran
       months: timeline.slice(-12).map((t) => ({ label: t.label, income: t.income, expenses: t.expenses, net: t.income - t.expenses })),
       comparisons,
     },
-    budget: prBudgetSection(client.budget, notes),
+    budget: prBudgetSection(prReportBudget(client), notes),
     cash: prCashSection(client, timeline),
     giving: prGivingSection(client, periodKey),
-    functional: prFunctionalSection(client.budget, fnMap, cur ? cur.full : periodLabel),
+    functional: prFunctionalSection(prExpenseRows(client), fnMap, cur ? cur.full : periodLabel),
   };
 }
 
@@ -1716,7 +1735,12 @@ function ProReportsSuite({ client, access, clientPortalUser }) {
   const sb = window.mgbSupabase || null;
   const clientId = client && client.id;
 
-  const timeline = useMemo(() => prTimeline(client && client.monthly), [client && client.monthly]);
+  // Closed months only, so the packet defaults to the last closed month
+  // rather than a QuickBooks client's month-to-date row.
+  const timeline = useMemo(
+    () => prTimeline(window.mgbClosedMonths(client && client.monthly)),
+    [client && client.monthly],
+  );
   const current = timeline[timeline.length - 1] || null;
   const periodKey = current ? current.key : null;
   const defaultPeriodLabel = current ? current.full : "";
@@ -1861,8 +1885,8 @@ function ProReportsSuite({ client, access, clientPortalUser }) {
   }, [sb, clientId, periodKey, flagError, loadTemplates, loadShares]);
 
   // Numbers
-  const comparisonsAll = useMemo(() => prComparisons(timeline, client.budget), [timeline, client.budget]);
-  const budgetSec = useMemo(() => prBudgetSection(client.budget, notes), [client.budget, notes]);
+  const comparisonsAll = useMemo(() => prComparisons(timeline, prReportBudget(client)), [timeline, client]);
+  const budgetSec = useMemo(() => prBudgetSection(prReportBudget(client), notes), [client, notes]);
   const cashSec = useMemo(() => prCashSection(client, timeline), [client, timeline]);
   const givingSec = useMemo(() => prGivingSection(client, periodKey), [client, periodKey]);
   const draft = useMemo(
@@ -2327,7 +2351,7 @@ function PrFunctionalPanel({ client, fnMap, setFnMap, functional, sb, clientId, 
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState({});
   const [saving, setSaving] = useState(false);
-  const categories = (client.budget || []).map((b) => b.category);
+  const categories = prExpenseRows(client).map((b) => b.category);
 
   const start = () => {
     const d = {};
@@ -2363,7 +2387,7 @@ function PrFunctionalPanel({ client, fnMap, setFnMap, functional, sb, clientId, 
     <div className="pr-stack">
       <p className="card-subtitle">
         Each expense category is assigned to program services, management &amp; general, or fundraising, the way Form 990 asks.
-        This shows the current month only, since that's where category detail is kept.
+        This shows the last closed month, since that's where category detail is kept.
       </p>
       {!editing ? (
         <>

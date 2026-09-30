@@ -25,17 +25,23 @@ export interface DailyCloseData {
     syncedLabel?: string;
     /** Shows a small "Sample data" tag next to the sync chip. Set false once real data is live. */
     isSampleData?: boolean;
+    /** Shown under the sync chip when the last sync is older than the plan's schedule allows. */
+    staleWarning?: string | null;
   };
 
   cash: {
     /** Whole-dollar amount. Cents are rendered separately for the ledger-style ".55" treatment. */
     total: number;
     cents?: number;
-    deltaVsYesterday: number;
+    /** null hides it (QuickBooks clients: there's no daily balance history). */
+    deltaVsYesterday: number | null;
     /** 10-20 points is plenty; this is a sparkline, not an axis-labeled chart. */
     sparkline14d: number[];
     /** Per-account split backing the "Cash by account" panel. Omit to hide that panel. */
     byAccount?: { name: string; balance: number }[];
+    /** Total owed on credit cards (never netted into `total`); null when there are none. */
+    cardsOwed?: number | null;
+    cardCount?: number;
   };
 
   receivables: {
@@ -75,7 +81,10 @@ export interface DailyCloseData {
 
   netIncome: {
     mtd: number;
-    deltaPctVsPriorMonth: number;
+    /** null while the month is still open (no like-for-like comparison). */
+    deltaPctVsPriorMonth: number | null;
+    /** KPI label, e.g. "Net income, MTD". */
+    label?: string;
     marginPct: number;
     marginTargetPct: number;
   };
@@ -121,7 +130,8 @@ export interface DailyCloseData {
     category: string;
     budgeted: number;
     actual: number;
-    overByPct: number;
+    /** null for a line with nothing budgeted. */
+    overByPct: number | null;
   }[];
 
   /** Upcoming bills, soonest due first — the "don't get surprised" glance

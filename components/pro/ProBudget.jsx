@@ -581,10 +581,12 @@ function ProBudgetHistory({ history, canSeeCategory, whoName }) {
 // ---------------------------------------------------------------- forecast
 
 function ProBudgetForecastCard({ client, budget, orgWide }) {
+  // Last CLOSED month × 12: a QuickBooks row's `actual` is month to date,
+  // and ×12 of a few days' spending forecast a huge underspend.
   const rows = budget
     .map((b) => {
       const annualBudget = pbNum(b.budgeted) * 12;
-      const projected = pbNum(b.actual) * 12;
+      const projected = pbNum(window.mgbClosedMonthActual(client, b)) * 12;
       return { category: b.category, annualBudget, projected, diff: projected - annualBudget };
     })
     .sort((a, b) => b.diff - a.diff);
@@ -592,7 +594,7 @@ function ProBudgetForecastCard({ client, budget, orgWide }) {
   const totalProjected = rows.reduce((s, r) => s + r.projected, 0);
   const maxAbs = Math.max(...rows.map((r) => Math.abs(r.diff)), 1);
 
-  const monthly = client.monthly || [];
+  const monthly = window.mgbClosedMonths(client.monthly);
   const n = monthly.length;
   const avgIncome = n ? pbSum(monthly.map((m) => m.income)) / n : null;
   const avgExpenses = n ? pbSum(monthly.map((m) => m.expenses)) / n : null;
@@ -603,8 +605,9 @@ function ProBudgetForecastCard({ client, budget, orgWide }) {
     <div className="card">
       <h3 className="card-title">Year-End Forecast</h3>
       <p className="card-subtitle">
-        An estimate: each category's spending this month × 12, against its budget × 12. Only this
-        month's category detail is synced, so a seasonal month (like December) can skew a line.
+        An estimate: each category's spending in the last closed month × 12, against its budget ×
+        12. One month of category detail drives it, so a seasonal month (like December) can skew a
+        line.
       </p>
 
       <div className="kpi-grid pb-kpi-inline">
@@ -628,7 +631,7 @@ function ProBudgetForecastCard({ client, budget, orgWide }) {
               {fmtMoney(projectedNet)}
             </span>
             <span className="kpi-sub neutral">
-              Average of the last {n} months × 12 · last {n} months actual: {fmtMoney(trailingNet)}
+              Average of the last {n} closed months × 12 · those {n} months actual: {fmtMoney(trailingNet)}
             </span>
           </div>
         )}
@@ -683,7 +686,8 @@ function ProBudgetWhatIfCard({ client }) {
   const [newCost, setNewCost] = useState("");
   const [newCostLabel, setNewCostLabel] = useState("part-time admin");
 
-  const monthly = client.monthly || [];
+  // Closed months only (a QuickBooks client's newest month is month to date).
+  const monthly = window.mgbClosedMonths(client.monthly);
   const n = monthly.length;
   if (!n) {
     return (
@@ -728,7 +732,7 @@ function ProBudgetWhatIfCard({ client }) {
       <h3 className="card-title">What-If Scenarios</h3>
       <p className="card-subtitle">
         Try a change and see what it does to the monthly bottom line and your operating reserve.
-        Starts from the average of the last {n} months; nothing here is saved.
+        Starts from the average of the last {n} closed months; nothing here is saved.
       </p>
 
       <div className="pb-whatif-grid">
@@ -1034,13 +1038,17 @@ function ProBudgetWorkspace({ client, access, clientPortalUser }) {
         const ref = refByCat[l.category];
         if (!ref) return l;
         seen.add(l.category);
-        return { ...l, proposed: Math.max(Math.round(pbNum(ref.actual) * 12 * f), 0), months: null };
+        return {
+          ...l,
+          proposed: Math.max(Math.round(pbNum(window.mgbClosedMonthActual(client, ref)) * 12 * f), 0),
+          months: null,
+        };
       });
       (client.budget || []).forEach((b) => {
         if (!seen.has(b.category))
           next.push({
             category: b.category,
-            proposed: Math.max(Math.round(pbNum(b.actual) * 12 * f), 0),
+            proposed: Math.max(Math.round(pbNum(window.mgbClosedMonthActual(client, b)) * 12 * f), 0),
             months: null,
             owner_email: null,
           });
@@ -1296,7 +1304,9 @@ function ProBudgetWorkspace({ client, access, clientPortalUser }) {
           <span className="kpi-value">{fmtMoney(totals.budgeted)}</span>
         </button>
         <button className="card kpi-card kpi-card-clickable" onClick={() => setView("actual")}>
-          <span className="kpi-label">Total Actual (this month)</span>
+          <span className="kpi-label">
+            Total Actual ({client.dataSource === "quickbooks" ? "month to date" : "this month"})
+          </span>
           <span className="kpi-value">{fmtMoney(totals.actual)}</span>
         </button>
         <button className="card kpi-card kpi-card-clickable" onClick={() => setView("draft")}>
@@ -1332,7 +1342,8 @@ function ProBudgetWorkspace({ client, access, clientPortalUser }) {
         <div className="card">
           <h3 className="card-title">Spending by Category</h3>
           <p className="card-subtitle">
-            Budgeted vs. actual, {pbPeriodLabel(period)}. Notes explain a variance and are visible to
+            Budgeted vs. actual, {pbPeriodLabel(period)}
+            {client.dataSource === "quickbooks" ? " (month to date)" : ""}. Notes explain a variance and are visible to
             everyone on this budget.
           </p>
           <div className="table-scroll">
@@ -1473,10 +1484,11 @@ function ProBudgetWorkspace({ client, access, clientPortalUser }) {
             {canStructure && (
               <div className="pb-lastyear">
                 <div>
-                  <strong>Start from last year's actuals</strong>
+                  <strong>Start from recent actuals</strong>
                   <p className="pb-muted">
-                    Fills each category with this month's actual × 12, plus the change you set. It's an
-                    estimate from this month's pace — full prior-year actuals aren't synced yet.
+                    Fills each category with the last closed month's actual × 12, plus the change you
+                    set. It's an estimate from one month's pace; a full prior year of actuals isn't
+                    synced yet.
                   </p>
                 </div>
                 <div className="pb-lastyear-controls">
@@ -1484,7 +1496,7 @@ function ProBudgetWorkspace({ client, access, clientPortalUser }) {
                     <span>Change</span>
                     <span className="pb-pct-input">
                       <input className="pb-input" type="text" inputMode="decimal" value={lastYearPct}
-                        onChange={(e) => setLastYearPct(e.target.value)} aria-label="Percent change from last year" />
+                        onChange={(e) => setLastYearPct(e.target.value)} aria-label="Percent change from recent actuals" />
                       <span>%</span>
                     </span>
                   </label>
@@ -1728,7 +1740,7 @@ function ProBudgetWorkspace({ client, access, clientPortalUser }) {
       {modal && modal.kind === "lastYear" && (
         <ConfirmModal
           title="Replace proposed amounts?"
-          body={`This overwrites the proposed amount for every current category with this month's actual × 12 ${pbNum(lastYearPct) >= 0 ? "+" : ""}${pbNum(lastYearPct)}%, and clears their monthly plans. Categories you added yourself are left alone. Nothing is saved until you save the draft.`}
+          body={`This overwrites the proposed amount for every current category with the last closed month's actual × 12 ${pbNum(lastYearPct) >= 0 ? "+" : ""}${pbNum(lastYearPct)}%, and clears their monthly plans. Categories you added yourself are left alone. Nothing is saved until you save the draft.`}
           confirmLabel="Replace amounts"
           onConfirm={applyLastYear}
           onCancel={() => setModal(null)}

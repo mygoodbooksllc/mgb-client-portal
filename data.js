@@ -76,6 +76,62 @@ window.mgbCardAccounts = function (accounts) {
   return (accounts || []).filter(window.mgbIsCardAccount);
 };
 
+// Budget rows are spending lines. QuickBooks budgets can also carry income
+// lines (budgeted giving); mapQboToClient tags each row's accountType and
+// this drops the income ones, so "budgeted", "over budget" and budget totals
+// never mix giving into spending. Sample rows have no accountType and count
+// as expense.
+var MGB_INCOME_ACCOUNT_TYPES = { Income: true, "Other Income": true };
+window.mgbExpenseBudget = function (budget) {
+  return (budget || []).filter(function (b) {
+    return !(b && MGB_INCOME_ACCOUNT_TYPES[b.accountType]);
+  });
+};
+
+// monthly[] for a QuickBooks client ends with the sync month, which is
+// month to date (mapQboToClient sets partial: true on it). Sample months are
+// all closed. Anything that averages, projects or calls a month "last
+// month" uses the closed months only; charts can still show the partial one
+// as long as it's labeled.
+window.mgbIsPartialMonth = function (m) {
+  return Boolean(m && m.partial);
+};
+window.mgbClosedMonths = function (monthly) {
+  return (monthly || []).filter(function (m) {
+    return !window.mgbIsPartialMonth(m);
+  });
+};
+// A budget category's spending in the last CLOSED month. A QuickBooks
+// budget row's `actual` is month to date (the sync month), so anything that
+// multiplies it by 12 reads the real closed-month figure from
+// expenseByAccountPrev instead (matched by account name, or the last segment
+// of "Parent:Child"). Sample rows' actuals are a full month already.
+window.mgbClosedMonthActual = function (client, budgetRow) {
+  if (!budgetRow) return 0;
+  if (!client || client.dataSource !== "quickbooks") return Number(budgetRow.actual) || 0;
+  var prev = client.expenseByAccountPrev || [];
+  var name = String(budgetRow.category || "");
+  var tail = name.replace(/^.*:/, "");
+  for (var i = 0; i < prev.length; i++) {
+    if (prev[i].account === name || prev[i].account === tail) return Number(prev[i].amount) || 0;
+  }
+  return 0;
+};
+
+// "Sep 2026" when the year is known (QuickBooks rows), "Sep" otherwise.
+window.mgbMonthYearLabel = function (m) {
+  if (!m) return "";
+  return m.year ? m.month + " " + m.year : m.month;
+};
+// "Sep 2026 (month to date)" for the partial month.
+window.mgbMonthLabel = function (m) {
+  if (!m) return "";
+  return (
+    window.mgbMonthYearLabel(m) +
+    (window.mgbIsPartialMonth(m) ? " (month to date)" : "")
+  );
+};
+
 const CLIENTS_MOCK_DATA = [
   {
     id: "grace-community",

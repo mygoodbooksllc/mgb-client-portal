@@ -84,6 +84,12 @@ const LAST_MONTH = (() => {
   const d = new Date(now.getFullYear(), now.getMonth() - 1, 1);
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-01`;
 })();
+const SYNCED_AT = new Date(
+  now.getFullYear(),
+  now.getMonth(),
+  now.getDate(),
+  12,
+).toISOString();
 const PAST = ymd(new Date(Date.now() - 20 * 86400000));
 const FUTURE = ymd(new Date(Date.now() + 20 * 86400000));
 
@@ -91,7 +97,9 @@ const ROWS = {
   connection: {
     client_id: "grace-community",
     status: "connected",
-    last_synced_at: "2026-09-22T14:05:00Z",
+    // Midday today, local time: the mapper's "current month" follows the
+    // sync date, and the fixtures' CURRENT_MONTH follows today.
+    last_synced_at: SYNCED_AT,
     last_error: null,
   },
   accounts: [
@@ -195,7 +203,7 @@ const mapped = mapQboToClient(base, ROWS);
 eq(mapped.id, "grace-community", "client id survives the map");
 eq(mapped.name, "Grace Community", "roster fields survive the map");
 eq(mapped.dataSource, "quickbooks", "dataSource");
-eq(mapped.lastSyncedAt, "2026-09-22T14:05:00Z", "lastSyncedAt");
+eq(mapped.lastSyncedAt, SYNCED_AT, "lastSyncedAt");
 ok(base.dataSource === undefined, "the input client is not mutated");
 
 // --- bankAccounts ----------------------------------------------------------
@@ -343,5 +351,52 @@ eq(exp.expenseByAccount.length, 2, "only this month's positive expense accounts"
 eq(exp.expenseByAccount[0].account, "Rent", "biggest expense first");
 eq(exp.expenseByAccount[1].amount, 120.5, "amounts are numbers");
 eq(exp.budget.length, 0, "no budget is invented from P&L lines");
+
+// --- partial month follows the sync date --------------------------------------
+eq(mapped.monthly[2].key, "2026-08", "monthly rows carry a YYYY-MM key");
+eq(mapped.monthly[2].year, 2026, "monthly rows carry the year");
+const partialRun = mapQboToClient(base, {
+  connection: { ...ROWS.connection, last_synced_at: "2026-08-15T12:00:00" },
+  monthlyPl: ROWS.monthlyPl,
+});
+eq(partialRun.monthly[2].partial, true, "the sync month is flagged partial");
+eq(partialRun.monthly[1].partial, false, "earlier months are closed");
+eq(
+  sandbox.window.mgbClosedMonths(partialRun.monthly).length,
+  2,
+  "mgbClosedMonths drops the month to date",
+);
+eq(sandbox.window.mgbMonthLabel(partialRun.monthly[2]), "Aug 2026 (month to date)", "month-to-date label");
+eq(sandbox.window.mgbMonthLabel(partialRun.monthly[1]), "Jul 2026", "closed month label");
+const laterSync = mapQboToClient(base, {
+  connection: { ...ROWS.connection, last_synced_at: "2026-09-02T12:00:00" },
+  monthlyPl: ROWS.monthlyPl,
+});
+ok(!laterSync.monthly.some((m) => m.partial), "a sync after the month ended leaves every month closed");
+
+// --- budget: expense lines only, plus last month's --------------------------
+const typed = mapQboToClient(base, {
+  ...ROWS,
+  accounts: [
+    ...ROWS.accounts,
+    { client_id: "grace-community", qbo_id: "90", name: "Tithes", account_type: "Income", classification: "Revenue", current_balance: 0, active: true },
+  ],
+  budgetLines: [
+    ...ROWS.budgetLines,
+    { client_id: "grace-community", fiscal_year: 2026, month: CURRENT_MONTH, account_name: "Tithes", budgeted: 50000, actual: 41000 },
+    // Matched on the last segment of "Parent:Child".
+    { client_id: "grace-community", fiscal_year: 2026, month: CURRENT_MONTH, account_name: "Giving:Tithes", budgeted: 100, actual: 90 },
+  ],
+});
+ok(!typed.budget.some((b) => /Tithes/.test(b.category)), "income budget lines are left out of client.budget");
+eq(typed.budgetIncome.length, 2, "income budget lines are kept separately");
+eq(typed.budget.length, 2, "expense budget lines are unchanged");
+eq(typed.budgetPrev.length, 1, "budgetPrev holds last month's expense lines");
+eq(typed.budgetPrev[0].category, "Insurance", "budgetPrev row");
+eq(
+  sandbox.window.mgbExpenseBudget([{ category: "A", accountType: "Income" }, { category: "B" }]).length,
+  1,
+  "mgbExpenseBudget drops income rows and keeps untyped ones",
+);
 
 console.log(`mapQboToClient: ${checks} assertions passed.`);

@@ -297,8 +297,12 @@ const totalCash = (client) =>
 // and 0/0 = NaN silently poisons every comparison downstream (NaN > 0 is
 // false, so a "is this healthy?" check quietly answers "yes" — see the
 // Operating Reserve KPI, which used to render a full green ring on no data).
+//
+// Closed months only: a QuickBooks client's newest row is month to date, and
+// averaging a half-finished month in understated expenses and overstated
+// the reserve.
 const avgMonthlyExpenses = (client) => {
-  const months = client.monthly || [];
+  const months = window.mgbClosedMonths(client.monthly);
   if (months.length === 0) return null;
   return months.reduce((sum, m) => sum + m.expenses, 0) / months.length;
 };
@@ -343,7 +347,9 @@ const seedThread = (clientId, userId) => {
 
 function computeAlerts(client) {
   const alerts = [];
-  const months = client.monthly || [];
+  // The last CLOSED month: early in a month the month-to-date row almost
+  // always shows a "deficit" (bills land before income does).
+  const months = window.mgbClosedMonths(client.monthly);
   const current = months[months.length - 1];
   const runway = runwayMonthsFor(client);
 
@@ -354,15 +360,15 @@ function computeAlerts(client) {
   }
   if (current && current.income - current.expenses < 0) {
     alerts.push(
-      `This month ran a deficit of ${fmtMoney(Math.abs(current.income - current.expenses))}.`,
+      `${window.mgbMonthYearLabel(current)} ran a deficit of ${fmtMoney(Math.abs(current.income - current.expenses))}.`,
     );
   }
-  const overBudget = (client.budget || []).filter(
+  const overBudget = window.mgbExpenseBudget(client.budget).filter(
     (b) => b.actual > b.budgeted * 1.05,
   );
   if (overBudget.length > 0) {
     alerts.push(
-      `${overBudget.length} categor${overBudget.length > 1 ? "ies" : "y"} over budget this month: ${overBudget
+      `${overBudget.length} categor${overBudget.length > 1 ? "ies" : "y"} over budget ${client.dataSource === "quickbooks" ? "so far this month" : "this month"}: ${overBudget
         .map((b) => b.category)
         .join(", ")}.`,
     );
@@ -3019,6 +3025,7 @@ function RunwayRing({ pct, tone, children }) {
 // midpoint between each pair as the control-point anchor — cheap and good
 // enough for a year of monthly points, no need for full Catmull-Rom.
 function smoothLinePath(points) {
+  if (!points || !points.length) return "";
   let d = `M ${points[0].x} ${points[0].y}`;
   for (let i = 0; i < points.length - 1; i++) {
     const p0 = points[i];
@@ -3030,6 +3037,7 @@ function smoothLinePath(points) {
 }
 
 function smoothAreaPath(points, baseline) {
+  if (!points || !points.length) return "";
   let d = `M ${points[0].x} ${baseline} L ${points[0].x} ${points[0].y}`;
   for (let i = 0; i < points.length - 1; i++) {
     const p0 = points[i];
@@ -3074,9 +3082,12 @@ function IncomeExpenseChart({ monthly, budgetTotal }) {
   const innerH = height - padding.top - padding.bottom;
   const baseline = padding.top + innerH;
 
+  // Floor of 1: an all-zero history (a brand-new QuickBooks company) made
+  // maxVal 0 and every y coordinate NaN, and an empty one made it -Infinity.
   const maxVal =
     Math.max(
-      ...monthly.flatMap((m) => [m.income, m.expenses]),
+      1,
+      ...monthly.flatMap((m) => [m.income || 0, m.expenses || 0]),
       budgetTotal || 0,
     ) * 1.15;
 
@@ -3126,6 +3137,16 @@ function IncomeExpenseChart({ monthly, budgetTotal }) {
     : [];
 
   const budgetY = budgetTotal ? yFor(budgetTotal) : null;
+
+  if (!monthly.length) {
+    return (
+      <div className="chart-wrap" ref={wrapRef}>
+        <p className="card-subtitle" style={{ margin: 0, padding: "40px 0", textAlign: "center" }}>
+          No monthly income or expenses on file yet.
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="chart-wrap" ref={wrapRef}>
@@ -3284,14 +3305,15 @@ function IncomeExpenseChart({ monthly, budgetTotal }) {
         {monthly.map((m, i) =>
           (monthly.length - 1 - i) % labelEvery !== 0 ? null : (
             <text
-              key={m.month}
+              key={m.key || m.month}
               x={xFor(i)}
               y={height - 8}
               fontSize="11.5"
               fill="var(--text-muted)"
               textAnchor="middle"
             >
-              {m.month}
+              {window.mgbIsPartialMonth(m) ? `${m.month} (MTD)` : m.month}
+              {window.mgbIsPartialMonth(m) && <title>{window.mgbMonthLabel(m)}</title>}
             </text>
           ),
         )}
@@ -3409,7 +3431,10 @@ function crossTabWidgetDefs(client, access) {
       render: () => (
         <>
           <h3 className="card-title">Budget Totals</h3>
-          <p className="card-subtitle">Budgeted vs. actual, this month</p>
+          <p className="card-subtitle">
+            Budgeted vs. actual,{" "}
+            {client.dataSource === "quickbooks" ? "month to date" : "this month"}
+          </p>
           <div className="mini-stat-row">
             <div className="mini-stat">
               <span className="kpi-label">Budgeted</span>
@@ -6244,11 +6269,16 @@ function DashboardPage({
   // client saw was a crash. Empty month falls back to zeros; a single month
   // compares against itself, so the "vs. last month" deltas read 0% rather
   // than lying.
-  const months = client.monthly || [];
+  //
+  // Closed months only: a QuickBooks client's newest row is month to date,
+  // and comparing half a month against all of last month always read as a
+  // drop.
+  const months = window.mgbClosedMonths(client.monthly);
   const EMPTY_MONTH = { income: 0, expenses: 0 };
   const current = months[months.length - 1] || EMPTY_MONTH;
   const prev = months[months.length - 2] || current;
   const hasHistory = months.length > 0;
+  const currentLabel = hasHistory ? window.mgbMonthYearLabel(current) : "this month";
   const cash = totalCash(client);
 
   const netIncome = current.income - current.expenses;
@@ -6274,7 +6304,7 @@ function DashboardPage({
       sub: hasHistory
         ? (netChangePct >= 0 ? "+" : "") +
           netChangePct.toFixed(1) +
-          "% vs. last month"
+          `% ${currentLabel} vs. month before`
         : "no history yet",
       tone: !hasHistory
         ? "neutral"
@@ -6283,10 +6313,10 @@ function DashboardPage({
           : "negative",
     },
     {
-      label: "Revenue (this month)",
+      label: `Revenue (${currentLabel})`,
       value: fmtMoney(current.income),
       sub: hasHistory
-        ? `vs. ${fmtMoney(prev.income)} last month`
+        ? `vs. ${fmtMoney(prev.income)} the month before`
         : "no history yet",
       tone: !hasHistory
         ? "neutral"
@@ -6346,13 +6376,13 @@ function DashboardPage({
       id: "kpi-net",
       group: "kpi",
       label: "Net Surplus / (Deficit)",
-      description: "This month's income minus expenses",
+      description: "Last closed month's income minus expenses",
     },
     {
       id: "kpi-revenue",
       group: "kpi",
-      label: "Revenue (this month)",
-      description: "Compared to last month",
+      label: "Revenue (last closed month)",
+      description: "Compared to the month before",
     },
     {
       id: "kpi-runway",
@@ -6630,7 +6660,9 @@ function BudgetPage({ client, searchTarget }) {
           className="card kpi-card kpi-card-clickable"
           onClick={jumpToSpending}
         >
-          <span className="kpi-label">Total Actual (this month)</span>
+          <span className="kpi-label">
+            Total Actual ({client.dataSource === "quickbooks" ? "month to date" : "this month"})
+          </span>
           <span className="kpi-value">{fmtMoney(totals.actual)}</span>
         </button>
         <button
@@ -8287,38 +8319,74 @@ function newReportDoc(title, subtitle, client) {
   return doc;
 }
 
-// periodKey selects how many of the trailing months in `client.monthly`
-// the headline totals aggregate over — "month" (just the latest), "quarter"
-// (last 3), or "ytd" (every month this mock data carries, which is only a
-// trailing ~8 months, not a real calendar year — see the caveat this app
-// already documents elsewhere for `client.monthly`). The month-by-month
-// table and the category breakdown always show the same full history/
-// current month regardless, since those aren't period-dependent.
+// periodKey selects which CLOSED months in `client.monthly` the headline
+// totals aggregate over. A QuickBooks client's newest row is month to date
+// (see window.mgbClosedMonths), so every period ends at the last closed
+// month:
+//   "month"   — the last closed month
+//   "quarter" — the last 3 closed months (a rolling quarter, labeled as such)
+//   "ytd"     — a true calendar year to date when the rows carry a year
+//               (QuickBooks), else every month on file, labeled by count.
 function periodMonths(monthly, periodKey) {
-  if (periodKey === "quarter") return monthly.slice(-3);
-  if (periodKey === "ytd") return monthly.slice();
-  return monthly.slice(-1);
+  const closed = window.mgbClosedMonths(monthly);
+  const list = closed.length ? closed : monthly || [];
+  if (periodKey === "quarter") return list.slice(-3);
+  if (periodKey === "ytd") {
+    const last = list[list.length - 1];
+    if (last && last.year) return list.filter((m) => m.year === last.year);
+    return list.slice();
+  }
+  return list.slice(-1);
 }
 
 const PERIOD_LABELS = {
-  month: "This Month",
-  quarter: "This Quarter",
+  month: "Last Closed Month",
+  quarter: "Last 3 Months",
   ytd: "Year to Date",
 };
 
+// PERIOD_LABELS, but honest about what "ytd" covers: without a year on the
+// rows it's just every month on file, so say how many.
+function periodLabelFor(monthly, periodKey) {
+  if (periodKey === "ytd") {
+    const list = periodMonths(monthly, "ytd");
+    const last = list[list.length - 1];
+    if (last && last.year) return `Year to Date ${last.year}`;
+    return list.length ? `Last ${list.length} Months` : PERIOD_LABELS.ytd;
+  }
+  return PERIOD_LABELS[periodKey] || PERIOD_LABELS.month;
+}
+
 function buildProfitAndLossPdf(client, periodKey = "month") {
-  // Sourced from `monthly` and `budget`, not the transaction register: the
-  // register is a short sample of recent activity, so summing it would
-  // contradict the revenue figures shown on the dashboard.
-  const latestMonth = client.monthly[client.monthly.length - 1];
-  const monthLabel = `${latestMonth.month} ${new Date().getFullYear()}`;
-  const periodMonthList = periodMonths(client.monthly, periodKey);
-  const periodLabel = PERIOD_LABELS[periodKey] || PERIOD_LABELS.month;
+  // Sourced from `monthly`, not the transaction register: the register is a
+  // short sample of recent activity, so summing it would contradict the
+  // revenue figures shown on the dashboard.
+  const monthly = client.monthly || [];
+  const periodMonthList = periodMonths(monthly, periodKey);
+  const latestMonth = periodMonthList[periodMonthList.length - 1];
+  const monthLabel = latestMonth
+    ? window.mgbMonthYearLabel(latestMonth)
+    : "no months on file";
+  const periodLabel = periodLabelFor(monthly, periodKey);
   const periodIncome = periodMonthList.reduce((s, m) => s + m.income, 0);
   const periodExpenses = periodMonthList.reduce((s, m) => s + m.expenses, 0);
-  const expenseRows = client.budget
-    .map((b) => [b.category, b.actual])
-    .sort((a, b) => b[1] - a[1]);
+  // Expenses by account for the last closed month. QuickBooks clients have
+  // the real P&L lines (expenseByAccountPrev = the month before the sync
+  // month, i.e. the last closed one); sample clients fall back to the
+  // expense budget's actuals. Budget rows alone missed every account
+  // without a budget line and, before income lines were split out, counted
+  // budgeted giving as an expense.
+  const qboLines =
+    client.dataSource === "quickbooks"
+      ? latestMonth && window.mgbIsPartialMonth(latestMonth)
+        ? client.expenseByAccount
+        : client.expenseByAccountPrev
+      : null;
+  const expenseRows = (
+    qboLines
+      ? qboLines.map((r) => [r.account, r.amount])
+      : window.mgbExpenseBudget(client.budget).map((b) => [b.category, b.actual])
+  ).sort((a, b) => b[1] - a[1]);
   const categorizedExpenses = expenseRows.reduce((s, [, v]) => s + v, 0);
 
   const doc = newReportDoc(
@@ -8330,8 +8398,8 @@ function buildProfitAndLossPdf(client, periodKey = "month") {
   doc.autoTable({
     startY: 55,
     head: [["Month", "Income", "Expenses", "Net"]],
-    body: client.monthly.map((m) => [
-      m.month,
+    body: monthly.map((m) => [
+      window.mgbMonthLabel(m),
       fmtMoney(m.income),
       fmtMoney(m.expenses),
       (m.income - m.expenses >= 0 ? "+" : "") + fmtMoney(m.income - m.expenses),
@@ -8481,8 +8549,13 @@ function buildBudgetVsActualPdf(client) {
   const totalBudgeted = client.budget.reduce((s, b) => s + b.budgeted, 0);
   const totalActual = client.budget.reduce((s, b) => s + b.actual, 0);
   const totalVariance = totalActual - totalBudgeted;
-  const latestMonth = client.monthly[client.monthly.length - 1];
-  const period = `${latestMonth.month} ${new Date().getFullYear()}`;
+  const bvaMonths = client.monthly || [];
+  const bvaLatest = bvaMonths[bvaMonths.length - 1];
+  const period = !bvaLatest
+    ? `${MONTH_ABBR[new Date().getMonth()]} ${new Date().getFullYear()}`
+    : bvaLatest.year
+      ? window.mgbMonthLabel(bvaLatest)
+      : `${bvaLatest.month} ${new Date().getFullYear()}`;
 
   const doc = newReportDoc(
     "Budget vs. Actual Report",
@@ -8839,7 +8912,7 @@ function QuickDownloadReports({ client }) {
               className={"view-toggle-btn" + (period === key ? " active" : "")}
               onClick={() => setPeriod(key)}
             >
-              {PERIOD_LABELS[key]}
+              {periodLabelFor(client.monthly, key)}
             </button>
           ))}
         </div>
@@ -8859,7 +8932,7 @@ function QuickDownloadReports({ client }) {
             </h3>
             <p className="card-subtitle">
               {r.key === "pl"
-                ? `${r.description} Currently set to ${PERIOD_LABELS[period]}.`
+                ? `${r.description} Currently set to ${periodLabelFor(client.monthly, period)}.`
                 : r.description}
             </p>
             <button className="btn-primary" onClick={() => handleDownload(r)}>
@@ -8869,7 +8942,7 @@ function QuickDownloadReports({ client }) {
               client={client}
               itemKey={r.key}
               itemLabel={r.name}
-              periodLabel={r.key === "pl" ? PERIOD_LABELS[period] : null}
+              periodLabel={r.key === "pl" ? periodLabelFor(client.monthly, period) : null}
             />
           </div>
         ))}
@@ -8989,7 +9062,7 @@ const ENTERPRISE_FEATURES = [
     title: "Budgeting Tool",
     sidebarTab: "Budget vs. Actual",
     description:
-      "Year-end forecasts by category, what-if scenarios, variance notes, and next year's budget drafted together (by month, with ministry owners, or started from last year) and approved by your board.",
+      "Year-end forecasts by category, what-if scenarios, variance notes, and next year's budget drafted together (by month, with ministry owners, or started from recent actuals) and approved by your board.",
   },
   {
     icon: <StackedBillsIcon />,
@@ -9072,7 +9145,7 @@ const ENTERPRISE_COMPARISON = [
       "Year-end forecast for every category: on pace to overspend or come in under",
       "What-if scenarios: giving or expenses up or down, a new monthly cost, and what it does to your reserve",
       "Variance notes that explain big swings and carry into your reports",
-      "Next year's budget drafted together: by month for seasonal giving, with ministry owners, or started from last year's actuals",
+      "Next year's budget drafted together: by month for seasonal giving, with ministry owners, or started from recent actuals",
       "Board approval: submit, comment on any line, approve or ask for changes, with every version kept",
       "Download Draft Budget PDF",
     ],
@@ -9426,15 +9499,62 @@ const REPORT_MONTH_NAMES = {
 // (e.g. Q4, most clients only have data through August) just reports that
 // honestly rather than being hidden — plus one option per month this
 // client actually has on record.
+//
+// Options match rows by reportMonthKey(): "2026-09" for QuickBooks rows
+// (which carry a year), the bare "Sep" label for sample rows. Year to Date and
+// the quarters only use CLOSED months; a QuickBooks client's month-to-date
+// row is still offered on its own, labelled as such.
+function reportMonthKey(m) {
+  return (m && (m.key || m.month)) || "";
+}
 function reportPeriodOptions(monthly) {
+  const rows = monthly || [];
+  const closed = window.mgbClosedMonths(rows);
+  const hasYears = rows.some((m) => m.year);
+  const monthOptions = rows.map((m) => ({
+    key: "m-" + reportMonthKey(m),
+    label:
+      (REPORT_MONTH_NAMES[m.month] || m.month) +
+      (m.year ? " " + m.year : "") +
+      (window.mgbIsPartialMonth(m) ? " (month to date)" : ""),
+    months: [reportMonthKey(m)],
+  }));
+  if (!hasYears) {
+    return [
+      {
+        key: "ytd",
+        label: `Last ${closed.length} Months`,
+        months: closed.map(reportMonthKey),
+      },
+      ...REPORT_QUARTER_DEFS,
+      ...monthOptions,
+    ];
+  }
+  const lastYear = closed.length ? closed[closed.length - 1].year : null;
+  const ytdRows = closed.filter((m) => m.year === lastYear);
+  const quarters = [];
+  closed.forEach((m) => {
+    const def = REPORT_QUARTER_DEFS.find((q) => q.months.includes(m.month));
+    if (!def) return;
+    const key = `${def.key}-${m.year}`;
+    let q = quarters.find((x) => x.key === key);
+    if (!q) {
+      q = { key, label: `${def.label} ${m.year}`, months: [] };
+      quarters.push(q);
+    }
+    q.months.push(reportMonthKey(m));
+  });
+  quarters.forEach((q) => {
+    if (q.months.length < 3) q.label += ` (${q.months.length} of 3 months)`;
+  });
   return [
-    { key: "ytd", label: "Year to Date", months: monthly.map((m) => m.month) },
-    ...REPORT_QUARTER_DEFS,
-    ...monthly.map((m) => ({
-      key: "m-" + m.month,
-      label: REPORT_MONTH_NAMES[m.month] || m.month,
-      months: [m.month],
-    })),
+    {
+      key: "ytd",
+      label: lastYear ? `Year to Date ${lastYear}` : "Year to Date",
+      months: ytdRows.map(reportMonthKey),
+    },
+    ...quarters,
+    ...monthOptions,
   ];
 }
 
@@ -9474,7 +9594,7 @@ function ReportBuilderPage({ client }) {
 
   const toggleSection = (key) => setSections((s) => ({ ...s, [key]: !s[key] }));
 
-  const monthly = client.monthly;
+  const monthly = client.monthly || [];
   const periodOptions = useMemo(() => reportPeriodOptions(monthly), [monthly]);
   const selectedOption =
     periodOptions.find((p) => p.key === period) || periodOptions[0];
@@ -9486,7 +9606,7 @@ function ReportBuilderPage({ client }) {
   // trendInfo() when nothing precedes the selection.
   const selectedIndices = monthly.reduce(
     (acc, m, i) =>
-      selectedOption.months.includes(m.month) ? [...acc, i] : acc,
+      selectedOption.months.includes(reportMonthKey(m)) ? [...acc, i] : acc,
     [],
   );
   const currentSlice = selectedIndices.map((i) => monthly[i]);
@@ -9540,8 +9660,8 @@ function ReportBuilderPage({ client }) {
   const periodLabel = selectedOption.label;
   const rangeLabel = hasPeriodData
     ? currentSlice.length > 1
-      ? `${currentSlice[0].month} – ${currentSlice[currentSlice.length - 1].month}`
-      : currentSlice[0].month
+      ? `${window.mgbMonthYearLabel(currentSlice[0])} – ${window.mgbMonthLabel(currentSlice[currentSlice.length - 1])}`
+      : window.mgbMonthLabel(currentSlice[0])
     : "No data yet";
   const scopeLabel = scope === "by-fund" ? "By fund" : "Consolidated";
 
@@ -9597,20 +9717,30 @@ function ReportBuilderPage({ client }) {
                   value={period}
                   onChange={(e) => setPeriod(e.target.value)}
                 >
-                  <option value="ytd">Year to Date</option>
-                  <optgroup label="Quarters">
-                    {REPORT_QUARTER_DEFS.map((q) => (
-                      <option key={q.key} value={q.key}>
-                        {q.label}
+                  {periodOptions
+                    .filter((p) => p.key === "ytd")
+                    .map((p) => (
+                      <option key={p.key} value={p.key}>
+                        {p.label}
                       </option>
                     ))}
+                  <optgroup label="Quarters">
+                    {periodOptions
+                      .filter((p) => p.key[0] === "q")
+                      .map((q) => (
+                        <option key={q.key} value={q.key}>
+                          {q.label}
+                        </option>
+                      ))}
                   </optgroup>
                   <optgroup label="Months">
-                    {monthly.map((m) => (
-                      <option key={"m-" + m.month} value={"m-" + m.month}>
-                        {REPORT_MONTH_NAMES[m.month] || m.month}
-                      </option>
-                    ))}
+                    {periodOptions
+                      .filter((p) => p.key.startsWith("m-"))
+                      .map((p) => (
+                        <option key={p.key} value={p.key}>
+                          {p.label}
+                        </option>
+                      ))}
                   </optgroup>
                 </select>
               </div>
@@ -22342,9 +22472,20 @@ class ErrorBoundary extends React.Component {
 // combined pill: "● Every 15 min · synced 1m ago  ↻" (the header's sync
 // badge and Sync now in one control, to save space). Clicking anywhere on it
 // syncs.
-function QboSyncNowButton({ clientId, onSynced, liveLabel, canSyncNow = true }) {
+function QboSyncNowButton({ clientId, onSynced, liveLabel: liveLabelProp, plan, lastSyncedAt, canSyncNow = true }) {
   const showToast = useToast();
   const [syncing, setSyncing] = useState(false);
+  // With plan + lastSyncedAt the pill builds its own label and re-renders
+  // itself every 30s so "synced 5m ago" stays current. (App used to re-render
+  // every page on a 30-second timer just for this.)
+  const ownLabel = plan !== undefined;
+  const [, setRelTick] = useState(0);
+  useEffect(() => {
+    if (!ownLabel) return undefined;
+    const id = setInterval(() => setRelTick((t) => t + 1), 30000);
+    return () => clearInterval(id);
+  }, [ownLabel]);
+  const liveLabel = ownLabel ? syncPillLabel(plan, lastSyncedAt) : liveLabelProp;
 
   async function syncNow() {
     const supabase = window.mgbSupabase;
@@ -23975,15 +24116,19 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
     }
   }, [effectivePage, selectedClientId]);
 
-  // dailyCloseFromClient(client, plan) is called fresh on every render. Its
-  // "As of" label comes from client.lastSyncedAt (the real last QuickBooks
-  // sync, see syncCadenceLabel), not the clock; this periodic re-render just
-  // keeps anything relative on the Live Report current.
-  const [, tickDailyClose] = useState(0);
-  useEffect(() => {
-    const id = setInterval(() => tickDailyClose((t) => t + 1), 30000);
-    return () => clearInterval(id);
-  }, []);
+  // The Live Report's data, derived once per client/plan rather than on
+  // every App render. Its "As of" label comes from client.lastSyncedAt (the
+  // real last QuickBooks sync), not the clock, so nothing needs a timer: the
+  // app-wide 30-second re-render that used to live here re-rendered every
+  // page just to refresh a relative time. A reload of QuickBooks data swaps
+  // the client object, which recomputes this.
+  const dailyCloseData = useMemo(
+    () =>
+      showsLiveReport && client && typeof dailyCloseFromClient === "function"
+        ? dailyCloseFromClient(client, access.plan)
+        : null,
+    [showsLiveReport, client, access.plan],
+  );
 
   // Chart/graph entrance animations (bar fills, the income/expense wipe-in,
   // the account donut, DailyClose's sparklines and anomaly rows) only play
@@ -24599,7 +24744,8 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
                     (isStaffSession && !isPreviewingUser)
                   }
                   // Every plan says how often it refreshes (PLAN_SYNC).
-                  liveLabel={syncPillLabel(access.plan, client.lastSyncedAt)}
+                  plan={access.plan}
+                  lastSyncedAt={client.lastSyncedAt}
                 />
               ) : (
                 <span className="badge-live badge-live--sample">
@@ -24639,7 +24785,7 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
               // from the selected client rather than the shipped Bramblewood
               // sample, so the panel and the rest of the app agree.
               <DailyClose
-                data={dailyCloseFromClient(client, access.plan)}
+                data={dailyCloseData || dailyCloseFromClient(client, access.plan)}
                 theme={effectiveTheme}
                 onNavigate={setPage}
                 key={"daily-close-" + client.id}
