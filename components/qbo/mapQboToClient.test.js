@@ -176,14 +176,14 @@ const ROWS = {
     { client_id: "grace-community", fiscal_year: 2026, month: LAST_MONTH, account_name: "Insurance", budgeted: 1800, actual: 1800 },
   ],
   invoices: [
-    { client_id: "grace-community", qbo_id: "1041", customer_name: "Community Foundation", txn_date: "2026-08-01", due_date: FUTURE, total: 10000, balance: 10000, status: "open" },
+    { client_id: "grace-community", qbo_id: "1041", customer_name: "Community Foundation", doc_number: "1007", txn_date: "2026-08-01", due_date: FUTURE, total: 10000, balance: 10000, status: "open" },
     { client_id: "grace-community", qbo_id: "1042", customer_name: "Johnson Family", txn_date: "2026-07-01", due_date: PAST, total: 5000, balance: 5000, status: "overdue" },
     // No due date at all: falls back to txn_date rather than rendering
     // "Invalid Date" in the receivables table.
     { client_id: "grace-community", qbo_id: "1043", customer_name: "Anonymous Pledge", txn_date: "2026-06-15", due_date: null, total: 250, balance: 250, status: "open" },
   ],
   bills: [
-    { client_id: "grace-community", qbo_id: "77", vendor_name: "ServiceMaster HVAC", txn_date: "2026-08-10", due_date: FUTURE, total: 640, balance: 640, status: "open" },
+    { client_id: "grace-community", qbo_id: "77", vendor_name: "ServiceMaster HVAC", doc_number: "INV-5521", txn_date: "2026-08-10", due_date: FUTURE, total: 640, balance: 640, status: "open" },
     { client_id: "grace-community", qbo_id: "78", vendor_name: "LifeWay Christian Resources", txn_date: "2026-07-20", due_date: PAST, total: 380, balance: 380, status: "overdue" },
   ],
   transactions: [
@@ -312,6 +312,15 @@ hasSampleKeys(mapped.payables[0], SAMPLE.payables[0], "payables[0]");
 const hvac = mapped.payables.find((p) => p.vendor === "ServiceMaster HVAC");
 eq(hvac.amount, 640, "payable amount is the open balance");
 eq(hvac.dueDate, FUTURE, "payable due date");
+eq(hvac.description, "Bill #INV-5521", "a bill shows QuickBooks' DocNumber");
+eq(hvac.id, "bill:77", "payables carry a stable id for React keys");
+const lifeway = mapped.payables.find((p) => p.vendor === "LifeWay Christian Resources");
+eq(lifeway.description, "Bill dated 2026-07-20", "no DocNumber: the bill date, never the internal qbo_id");
+eq(lifeway.docNumber, null, "no invented bill number");
+const foundation = mapped.receivables.find((r) => r.description === "Community Foundation");
+eq(foundation.docNumber, "1007", "invoices carry QuickBooks' DocNumber");
+eq(foundation.id, "inv:1041", "receivables carry a stable id");
+eq(johnson.docNumber, null, "no DocNumber on older invoice rows");
 
 // Every date the app renders goes through fmtDate/daysUntil, which append
 // "T00:00:00" — a non-YYYY-MM-DD value there is an Invalid Date in a

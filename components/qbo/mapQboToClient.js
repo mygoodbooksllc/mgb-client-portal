@@ -291,8 +291,15 @@
       .map(function (inv) {
         var due = toDay(inv.due_date) || toDay(inv.txn_date);
         if (!due) return null;
+        // doc_number is QuickBooks' own invoice number (qbo-sync v11+);
+        // older rows have none, and no number is shown rather than the
+        // internal id, which means nothing to the client.
+        var docNumber = inv.doc_number ? String(inv.doc_number) : null;
         return {
-          description: inv.customer_name || "Invoice " + inv.qbo_id,
+          id: "inv:" + inv.qbo_id,
+          description: inv.customer_name || (docNumber ? "Invoice #" + docNumber : "Invoice"),
+          docNumber: docNumber,
+          issueDate: toDay(inv.txn_date),
           amount: toNumber(inv.balance),
           dueDate: due,
           // The Collections Queue drafts one reminder per customer, addressed
@@ -312,9 +319,16 @@
       .map(function (b) {
         var due = toDay(b.due_date) || toDay(b.txn_date);
         if (!due) return null;
+        var docNumber = b.doc_number ? String(b.doc_number) : null;
+        var issued = toDay(b.txn_date);
         return {
+          id: "bill:" + b.qbo_id,
           vendor: b.vendor_name || "Vendor",
-          description: "Bill #" + b.qbo_id,
+          // The vendor's bill number when QuickBooks has one; otherwise the
+          // bill date, never the internal QuickBooks id.
+          description: docNumber ? "Bill #" + docNumber : issued ? "Bill dated " + issued : "Bill",
+          docNumber: docNumber,
+          issueDate: issued,
           amount: toNumber(b.balance),
           dueDate: due,
         };

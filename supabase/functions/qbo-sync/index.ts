@@ -1076,6 +1076,8 @@ async function syncClient(
           client_id: clientId,
           qbo_id: String(inv.Id),
           customer_name: inv.CustomerRef?.name ?? null,
+          // QuickBooks' own invoice number (supabase/qbo-doc-number.sql).
+          doc_number: inv.DocNumber != null && String(inv.DocNumber).trim() ? String(inv.DocNumber).trim() : null,
           txn_date: inv.TxnDate ?? null,
           due_date: inv.DueDate ?? null,
           total: num(inv.TotalAmt),
@@ -1098,6 +1100,8 @@ async function syncClient(
         client_id: clientId,
         qbo_id: String(b.Id),
         vendor_name: b.VendorRef?.name ?? null,
+        // The vendor's bill number as entered in QuickBooks, often blank.
+        doc_number: b.DocNumber != null && String(b.DocNumber).trim() ? String(b.DocNumber).trim() : null,
         txn_date: b.TxnDate ?? null,
         due_date: b.DueDate ?? null,
         total: num(b.TotalAmt),
