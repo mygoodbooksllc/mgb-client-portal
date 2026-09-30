@@ -30,7 +30,7 @@ The page opens with **all accounts**, most recent first. When no account is pick
 - **This month**, **Last month**, **90 days** or **All** limits the dates.
 - **All**, **In** or **Out** shows everything, only money coming in, or only money going out.
 - The totals line under the filters shows the number of transactions, money in, money out and the net for whatever is showing.
-- For QuickBooks clients the column is called **Type** (the QuickBooks account the transaction was posted to). For others it's **Category**.
+- For QuickBooks clients the column is called **Type** (the QuickBooks transaction type, such as Deposit, Check or Expense). For others it's **Category**.
 - The list shows 50 rows at a time. Click **Show more** to load the next 50.
 - **Export CSV** downloads every transaction that matches the current filters, not just the rows on screen.
 
