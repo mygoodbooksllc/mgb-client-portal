@@ -338,6 +338,19 @@
       expenseByAccountPrev: expenseByAccountPrev,
       receivables: receivables,
       payables: payables,
+      // Nothing syncs these yet (no giving, payroll, reconciliation or
+      // document feed). A roster client whose id matches a data.js sample
+      // would otherwise show the sample's funds, donors, Gusto payroll and
+      // files next to real QuickBooks numbers. Pages show a "not connected
+      // yet" state for a QuickBooks client with none.
+      funds: [],
+      contributions: [],
+      pledges: [],
+      donors: [],
+      fundTransfers: [],
+      payroll: null,
+      bankReconciliations: [],
+      documents: [],
       dataSource: "quickbooks",
       lastSyncedAt: (connection && connection.last_synced_at) || null,
     });

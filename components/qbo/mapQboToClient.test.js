@@ -352,6 +352,14 @@ eq(exp.expenseByAccount[0].account, "Rent", "biggest expense first");
 eq(exp.expenseByAccount[1].amount, 120.5, "amounts are numbers");
 eq(exp.budget.length, 0, "no budget is invented from P&L lines");
 
+// --- nothing sample survives for data QuickBooks doesn't sync -------------------
+const sampled = mapQboToClient(SAMPLE, ROWS);
+["funds", "contributions", "pledges", "donors", "fundTransfers", "bankReconciliations", "documents"].forEach((k) => {
+  ok(Array.isArray(sampled[k]) && sampled[k].length === 0, `${k} is emptied for a QuickBooks client`);
+});
+eq(sampled.payroll, null, "sample payroll is dropped for a QuickBooks client");
+ok(sampled.users === SAMPLE.users, "the users roster is kept");
+
 // --- partial month follows the sync date --------------------------------------
 eq(mapped.monthly[2].key, "2026-08", "monthly rows carry a YYYY-MM key");
 eq(mapped.monthly[2].year, 2026, "monthly rows carry the year");

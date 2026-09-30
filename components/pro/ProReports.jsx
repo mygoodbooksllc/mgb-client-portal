@@ -408,6 +408,11 @@ function prCashSection(client, timeline) {
     accounts,
     totalCash,
     funds,
+    // Fund balances don't sync from QuickBooks yet.
+    fundsNote:
+      client.dataSource === "quickbooks" && funds.length === 0
+        ? "Fund balances (restricted vs. unrestricted) aren't connected yet."
+        : null,
     restrictedTotal: funds.filter((f) => f.restricted).reduce((s, f) => s + f.balance, 0),
     unrestrictedTotal: funds.filter((f) => !f.restricted).reduce((s, f) => s + f.balance, 0),
     runwayMonths: avgExp > 0 && accounts.length ? totalCash / avgExp : null,
@@ -496,6 +501,11 @@ function prGivingSection(client, periodKey) {
   return {
     periodLabel: prPeriodLabelFromKey(periodKey),
     hasAnyGifts: gifts.length > 0,
+    // Giving doesn't sync from QuickBooks yet.
+    emptyText:
+      client.dataSource === "quickbooks"
+        ? "Giving isn't connected yet, so there's no giving to report."
+        : "No giving recorded yet.",
     totalInPeriod: inPeriod.reduce((s, c) => s + prNum(c.amount), 0),
     giftCount: inPeriod.length,
     topDonors,
@@ -912,6 +922,8 @@ function prBuildPacketPdf(snap) {
           foot: [["Restricted / unrestricted", "", `${prMoney(c.restrictedTotal)} / ${prMoney(c.unrestrictedTotal)}`]],
           columnStyles: right([2]),
         });
+      } else if (c.fundsNote) {
+        y = paragraph(c.fundsNote, y, { size: 8.5, color: muted, lh: 4.5 });
       }
       if (c.receivablesTotal || c.payablesTotal) {
         y = paragraph(`Money owed to us: ${prMoney(c.receivablesTotal)}. Bills to pay: ${prMoney(c.payablesTotal)}.`, y);
@@ -921,7 +933,7 @@ function prBuildPacketPdf(snap) {
     giving: (y) => {
       const g = snap.giving;
       if (!g || !g.hasAnyGifts) {
-        y = paragraph("No giving recorded yet.", y);
+        y = paragraph((g && g.emptyText) || "No giving recorded yet.", y);
       } else {
         y = paragraph(`${g.periodLabel}: ${prMoney(g.totalInPeriod)} from ${g.giftCount} gift${g.giftCount === 1 ? "" : "s"}.`, y, { bold: true });
         y += 2;
@@ -1310,6 +1322,9 @@ function PrCashBlock({ cash }) {
           </table>
         </div>
       )}
+      {cash.funds.length === 0 && cash.fundsNote && (
+        <p className="card-subtitle">{cash.fundsNote}</p>
+      )}
       {cash.funds.length > 0 && (
         <div className="pr-table-wrap">
           <table className="tx-table pr-table">
@@ -1351,7 +1366,7 @@ function PrGivingBlock({ giving }) {
   return (
     <div>
       {!g.hasAnyGifts ? (
-        <p className="pr-muted">No giving recorded yet.</p>
+        <p className="pr-muted">{g.emptyText || "No giving recorded yet."}</p>
       ) : (
         <>
           <div className="pr-kpis">

@@ -6888,6 +6888,43 @@ function ContributionsCard({ client }) {
   );
 }
 
+// Giving, funds, pledges and donors don't sync from QuickBooks yet, so a
+// QuickBooks client gets this instead of an empty (or sample) Giving page.
+function GivingNotConnected({ client }) {
+  return (
+    <div className="giving-page">
+      <div
+        className="card"
+        style={{ textAlign: "center", padding: "36px 28px" }}
+      >
+        <div className="eyebrow-badge">Giving &amp; Funds · Not connected yet</div>
+        <h2
+          style={{
+            fontFamily: "var(--font-heading)",
+            fontSize: 24,
+            margin: "10px 0 8px",
+            color: "var(--ink-strong)",
+          }}
+        >
+          Giving isn't connected for {client.name || "this organization"} yet
+        </h2>
+        <p
+          style={{
+            color: "var(--text-muted)",
+            maxWidth: 560,
+            margin: "0 auto",
+          }}
+        >
+          Your books sync from QuickBooks, but gifts, donors, pledges and fund
+          balances don't come across yet. Your income from QuickBooks is on the
+          Dashboard and in Reports. Message your bookkeeper if you'd like
+          giving tracked here.
+        </p>
+      </div>
+    </div>
+  );
+}
+
 function GivingFundsPage({ client }) {
   const totalGiving = client.contributions.reduce((s, c) => s + c.amount, 0);
   const restrictedTotal = client.funds
@@ -7699,7 +7736,7 @@ function PayrollUpsell({ client }) {
         className="card"
         style={{ marginBottom: 20, textAlign: "center", padding: "36px 28px" }}
       >
-        <div className="eyebrow-badge">Payroll · Included</div>
+        <div className="eyebrow-badge">Payroll add-on · Not connected yet</div>
         <h2
           style={{
             fontFamily: "var(--font-heading)",
@@ -7771,7 +7808,13 @@ function PayrollPage({ client, clientPortalUser }) {
   if (!client.payrollAddOn)
     return <PayrollAddOnPage client={client} clientPortalUser={clientPortalUser} />;
   if (!client.payroll) return <PayrollUpsell client={client} />;
+  return <PayrollDetail client={client} />;
+}
 
+// Split from PayrollPage so useCardFlash runs on every render of this
+// component (it used to sit after PayrollPage's early returns, which breaks
+// React's hook order when a client's payroll state changes).
+function PayrollDetail({ client }) {
   const { payroll } = client;
   const { flashCardId, jumpToCard } = useCardFlash();
 
@@ -7786,12 +7829,13 @@ function PayrollPage({ client, clientPortalUser }) {
           marginBottom: 14,
         }}
       >
+        {/* Nothing syncs from Gusto yet, so never claim a live connection. */}
         <span className="badge-live">
           <span
             className="badge-dot"
-            style={{ background: "var(--good)" }}
+            style={{ background: "var(--text-muted)" }}
           ></span>
-          Connected via {payroll.provider}
+          Sample {payroll.provider || "payroll"} data, not connected yet
         </span>
       </div>
 
@@ -7806,7 +7850,7 @@ function PayrollPage({ client, clientPortalUser }) {
           </span>
         </div>
         <div className="card kpi-card">
-          <span className="kpi-label">Next Run Total</span>
+          <span className="kpi-label">Next Run Net Pay</span>
           <span className="kpi-value">{fmtMoney(payroll.nextRun.net)}</span>
           <span className="kpi-sub neutral">
             {fmtDate(payroll.nextRun.date)}
@@ -7894,7 +7938,10 @@ function PayrollPage({ client, clientPortalUser }) {
                   <EmptyRow colSpan={4}>No tax deposits scheduled.</EmptyRow>
                 )}
                 {payroll.taxDeposits.map((d, i) => {
-                  const meta = PAYROLL_DEPOSIT_STATUS_META[d.status];
+                  const meta = PAYROLL_DEPOSIT_STATUS_META[d.status] || {
+                    label: String(d.status || "Unknown"),
+                    cls: "neutral",
+                  };
                   return (
                     <tr key={i}>
                       <td data-primary="">
@@ -7940,7 +7987,10 @@ function PayrollPage({ client, clientPortalUser }) {
                   <EmptyRow colSpan={5}>No employees on payroll yet.</EmptyRow>
                 )}
                 {payroll.employees.map((e, i) => {
-                  const meta = PAYROLL_STATUS_META[e.status];
+                  const meta = PAYROLL_STATUS_META[e.status] || {
+                    label: String(e.status || "Unknown"),
+                    cls: "neutral",
+                  };
                   return (
                     <tr key={i}>
                       <td data-primary="">{e.name}</td>
@@ -8446,11 +8496,15 @@ function buildBalanceSheetPdf(client) {
   // Cards are liabilities (balance = amount owed), not assets.
   const assetAccounts = cashAccountsOf(client);
   const cardAccounts = window.mgbCardAccounts(client.bankAccounts);
-  const totalAssets = assetAccounts.reduce((s, a) => s + a.balance, 0);
+  // Money owed to the organization (open invoices) is an asset too.
+  const bsReceivable = (client.receivables || []).reduce((s, r) => s + r.amount, 0);
+  const totalAssets =
+    assetAccounts.reduce((s, a) => s + a.balance, 0) + bsReceivable;
   const totalLiabilities =
     (client.payables || []).reduce((s, p) => s + p.amount, 0) +
     cardAccounts.reduce((s, a) => s + a.balance, 0);
-  const totalFundBalance = client.funds.reduce((s, f) => s + f.balance, 0);
+  const bsFunds = client.funds || [];
+  const totalFundBalance = bsFunds.reduce((s, f) => s + f.balance, 0);
   const asOf = new Date().toLocaleDateString("en-US", {
     month: "long",
     day: "numeric",
@@ -8462,10 +8516,15 @@ function buildBalanceSheetPdf(client) {
   doc.autoTable({
     startY: 55,
     head: [["Assets", "Balance"]],
-    body: assetAccounts.map((a) => [
-      a.accountMask ? `${a.accountName} (••${a.accountMask})` : a.accountName,
-      fmtMoney(a.balance, { cents: true }),
-    ]),
+    body: [
+      ...assetAccounts.map((a) => [
+        a.accountMask ? `${a.accountName} (••${a.accountMask})` : a.accountName,
+        fmtMoney(a.balance, { cents: true }),
+      ]),
+      ...(bsReceivable
+        ? [["Accounts receivable (open invoices)", fmtMoney(bsReceivable, { cents: true })]]
+        : []),
+    ],
     foot: [["Total Assets", fmtMoney(totalAssets, { cents: true })]],
     columnStyles: { 1: { halign: "right" } },
     ...PDF_TABLE_THEME,
@@ -8499,10 +8558,26 @@ function buildBalanceSheetPdf(client) {
     y,
   );
 
-  const unrestricted = client.funds
+  // No fund data (every QuickBooks client today: funds aren't synced) —
+  // say so instead of printing a $0 fund table under real balances.
+  if (bsFunds.length === 0) {
+    doc.setFont("helvetica", "italic");
+    doc.setFontSize(8);
+    doc.setTextColor(110, 110, 110);
+    doc.text(
+      "Fund balances (restricted vs. unrestricted) aren't connected yet, so they're not shown here.",
+      14,
+      y + 8,
+    );
+    const bsName = `${sanitizeFilename(client.name)} - Balance Sheet.pdf`;
+    doc.save(bsName);
+    return bsName;
+  }
+
+  const unrestricted = bsFunds
     .filter((f) => !f.restricted)
     .reduce((s, f) => s + f.balance, 0);
-  const restricted = client.funds
+  const restricted = bsFunds
     .filter((f) => f.restricted)
     .reduce((s, f) => s + f.balance, 0);
 
@@ -8510,7 +8585,7 @@ function buildBalanceSheetPdf(client) {
     startY: y + 8,
     head: [["Net Assets by Fund", "Balance"]],
     body: [
-      ...client.funds.map((f) => [
+      ...bsFunds.map((f) => [
         f.name + (f.restricted ? " (restricted)" : " (unrestricted)"),
         fmtMoney(f.balance, { cents: true }),
       ]),
@@ -8589,17 +8664,24 @@ function buildBudgetVsActualPdf(client) {
 }
 
 function buildContributionStatementPdf(client) {
-  const contributions = client.contributions || [];
+  const year = new Date().getFullYear();
+  // Year to date: this calendar year's gifts only, through today.
+  const contributions = (client.contributions || [])
+    .filter((c) => String(c.date || "").startsWith(String(year)))
+    .sort((a, b) => (a.date < b.date ? -1 : 1));
   const byFund = {};
   contributions.forEach((c) => {
     byFund[c.fund] = (byFund[c.fund] || 0) + c.amount;
   });
   const total = contributions.reduce((s, c) => s + c.amount, 0);
-  const year = new Date().getFullYear();
+  const throughLabel = new Date().toLocaleDateString("en-US", {
+    month: "long",
+    day: "numeric",
+  });
 
   const doc = newReportDoc(
     "Contribution Statement (YTD)",
-    `January 1 – December 31, ${year}`,
+    `January 1 – ${throughLabel}, ${year}`,
     client,
   );
 
@@ -8876,6 +8958,20 @@ const REPORT_TYPES = [
 // what the standard Reports page could already do, not just its own custom
 // builder — this is what keeps the plain "just give me a PDF" downloads
 // reachable for a premium client too.
+// Why the Contribution Statement can't be built, or null when it can. Giving
+// isn't synced from QuickBooks, so a live client never has contributions.
+function qdrGivingBlocked(client) {
+  const year = String(new Date().getFullYear());
+  const thisYear = (client.contributions || []).filter((c) =>
+    String(c.date || "").startsWith(year),
+  );
+  if (thisYear.length > 0) return null;
+  if (client.dataSource === "quickbooks") {
+    return "Giving isn't connected yet, so there's nothing to put on a contribution statement.";
+  }
+  return `No contributions recorded for ${year} yet.`;
+}
+
 function QuickDownloadReports({ client }) {
   const showToast = useToast();
   // Only the Profit & Loss report has a real trailing-month range to
@@ -8933,9 +9029,15 @@ function QuickDownloadReports({ client }) {
             <p className="card-subtitle">
               {r.key === "pl"
                 ? `${r.description} Currently set to ${periodLabelFor(client.monthly, period)}.`
-                : r.description}
+                : r.key === "giving" && qdrGivingBlocked(client)
+                  ? qdrGivingBlocked(client)
+                  : r.description}
             </p>
-            <button className="btn-primary" onClick={() => handleDownload(r)}>
+            <button
+              className="btn-primary"
+              onClick={() => handleDownload(r)}
+              disabled={r.key === "giving" && Boolean(qdrGivingBlocked(client))}
+            >
               Download PDF
             </button>
             <SentToClient
@@ -24868,7 +24970,9 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
               />
             ))}
           {effectivePage === "giving" &&
-            (showsFundAccountingPro ? (
+            (scopedClient.dataSource === "quickbooks" ? (
+              <GivingNotConnected client={scopedClient} />
+            ) : showsFundAccountingPro ? (
               <FundAccountingProPage
                 client={scopedClient}
                 key={"fund-accounting-pro-" + client.id}
