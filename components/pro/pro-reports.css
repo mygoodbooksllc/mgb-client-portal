@@ -3,7 +3,6 @@
 
 .pr-suite { display: flex; flex-direction: column; gap: 16px; margin-top: 20px; }
 .pr-suite .card-subtitle { margin-bottom: 0; }
-.pr-suite-head .eyebrow-badge { margin-bottom: 6px; }
 
 .pr-tabs { flex-wrap: wrap; max-width: 100%; }
 .pr-tab-body { min-width: 0; }
