@@ -589,6 +589,329 @@
 }
 
 /* ==========================================================================
+   Tight bars on desktop (mouse/trackpad). The room the bar gets depends on
+   the window AND on the rails beside it (staff rail, plus a client sidebar
+   that may be expanded), so these steps are container queries on the bar's
+   own width rather than viewport breakpoints. Without them the search slot
+   shrank to nothing and its icon landed on the bell (owner screenshot,
+   2026-09-30; also at 1280px with a QuickBooks client and the sidebar open).
+   Order things give way in: search collapses to an icon chip (opens over
+   the bar on click or Ctrl/Cmd+K) -> text labels -> the client name (tile
+   only) -> My Tasks, Help and Overview (all still in the staff rail / the
+   picker) -> the sync pill -> "+". Icon chips never shrink.
+   Touch devices keep the phone layout further down (it uses position:fixed
+   panels, which a size container would trap, hence the media guard).
+   With a client open the bar also holds Overview and "+" (.tb-bar:has(
+   .tb-quick)), plus from 900px up the 266px sync pill (.tb-bar:has(
+   .tb-sync) inside a min-width: 900px guard), so those steps come sooner.
+   ========================================================================== */
+@media (hover: hover) and (pointer: fine) {
+  .tb-bar {
+    container: tb / inline-size;
+  }
+  .tb-item,
+  .tb-overview,
+  .tb-throttle {
+    flex-shrink: 0;
+  }
+  .tb-client .cs-trigger {
+    min-width: 0;
+    overflow: hidden;
+  }
+}
+@media (max-width: 760px) and (hover: hover) and (pointer: fine) {
+  .tb-bar {
+    /* .main's padding is 18px 16px at this width. */
+    margin: -18px -16px 16px;
+    padding: 8px 16px;
+    gap: 8px;
+  }
+  .tb-left,
+  .tb-right {
+    gap: 8px;
+  }
+}
+/* Under 900px the 266px sync pill doesn't fit beside the rails, so the page
+   header keeps its own copy instead (see the sync rule after the "Moved,
+   not duplicated" block). */
+@media (max-width: 899px) and (hover: hover) and (pointer: fine) {
+  .tb-sync {
+    display: none;
+  }
+}
+
+/* Step 1: search collapses to a 36px chip; the transparent input covers it
+   so a click lands in the field. Open, it spans the bar (the bar is the
+   containing block). Same rules three times: no client / client open /
+   client open with the sync pill. */
+@container tb (max-width: 640px) {
+  .tb-bar .tb-middle {
+    flex: 0 0 auto;
+  }
+  .tb-bar .tb-search {
+    width: 36px;
+  }
+  .tb-bar .tb-search-box {
+    position: relative;
+    justify-content: center;
+    width: 36px;
+    padding: 0;
+    box-sizing: border-box;
+    cursor: pointer;
+  }
+  .tb-bar .tb-search:not(:focus-within) .tb-search-input {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    opacity: 0;
+    cursor: pointer;
+  }
+  .tb-bar .tb-search:not(:focus-within) .tb-search-panel,
+  .tb-bar .tb-search:not(:focus-within) .tb-kbd {
+    display: none;
+  }
+  .tb-bar .tb-search:focus-within {
+    position: absolute;
+    top: 50%;
+    left: 12px;
+    right: 12px;
+    z-index: 5;
+    width: auto;
+    max-width: none;
+    transform: translateY(-50%);
+  }
+  .tb-bar .tb-search:focus-within .tb-search-box {
+    justify-content: flex-start;
+    width: 100%;
+    padding: 0 10px;
+    background: var(--tb-bg);
+    cursor: text;
+  }
+}
+@container tb (max-width: 730px) {
+  .tb-bar:has(.tb-quick) .tb-middle {
+    flex: 0 0 auto;
+  }
+  .tb-bar:has(.tb-quick) .tb-search {
+    width: 36px;
+  }
+  .tb-bar:has(.tb-quick) .tb-search-box {
+    position: relative;
+    justify-content: center;
+    width: 36px;
+    padding: 0;
+    box-sizing: border-box;
+    cursor: pointer;
+  }
+  .tb-bar:has(.tb-quick) .tb-search:not(:focus-within) .tb-search-input {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    opacity: 0;
+    cursor: pointer;
+  }
+  .tb-bar:has(.tb-quick) .tb-search:not(:focus-within) .tb-search-panel,
+  .tb-bar:has(.tb-quick) .tb-search:not(:focus-within) .tb-kbd {
+    display: none;
+  }
+  .tb-bar:has(.tb-quick) .tb-search:focus-within {
+    position: absolute;
+    top: 50%;
+    left: 12px;
+    right: 12px;
+    z-index: 5;
+    width: auto;
+    max-width: none;
+    transform: translateY(-50%);
+  }
+  .tb-bar:has(.tb-quick) .tb-search:focus-within .tb-search-box {
+    justify-content: flex-start;
+    width: 100%;
+    padding: 0 10px;
+    background: var(--tb-bg);
+    cursor: text;
+  }
+}
+/* Step 2: text labels and the picker's second line go. */
+@container tb (max-width: 540px) {
+  .tb-bar .tb-tasks-label,
+  .tb-bar .tb-throttle-text,
+  .tb-bar .tb-client .cs-trigger-sub {
+    display: none;
+  }
+}
+@container tb (max-width: 650px) {
+  .tb-bar:has(.tb-quick) .tb-overview-label,
+  .tb-bar:has(.tb-quick) .tb-tasks-label,
+  .tb-bar:has(.tb-quick) .tb-throttle-text,
+  .tb-bar:has(.tb-quick) .tb-client .cs-trigger-sub {
+    display: none;
+  }
+}
+
+/* Step 3: too narrow for a readable client name: just the tile (initials,
+   or the search mark when no client is open; the button keeps its
+   aria-label). */
+@container tb (max-width: 250px) {
+  .tb-bar .tb-client {
+    width: auto;
+    flex: 0 0 auto;
+  }
+  .tb-bar .tb-client .cs-trigger {
+    width: auto;
+    padding: 5px;
+  }
+  .tb-bar .tb-client .cs-trigger-text,
+  .tb-bar .tb-client .cs-chev {
+    display: none;
+  }
+}
+@container tb (max-width: 470px) {
+  .tb-bar:has(.tb-quick) .tb-client {
+    width: auto;
+    flex: 0 0 auto;
+  }
+  .tb-bar:has(.tb-quick) .tb-client .cs-trigger {
+    width: auto;
+    padding: 5px;
+  }
+  .tb-bar:has(.tb-quick) .tb-client .cs-trigger-text,
+  .tb-bar:has(.tb-quick) .tb-client .cs-chev {
+    display: none;
+  }
+}
+
+/* Step 4: My Tasks, Help (both in the staff rail) and Overview (reached
+   from the picker) step aside. */
+@container tb (max-width: 340px) {
+  .tb-bar .tb-tasks,
+  .tb-bar .tb-help {
+    display: none;
+  }
+}
+@container tb (max-width: 380px) {
+  .tb-bar:has(.tb-quick) .tb-tasks,
+  .tb-bar:has(.tb-quick) .tb-help,
+  .tb-bar:has(.tb-quick) .tb-overview {
+    display: none;
+  }
+}
+
+/* Step 5 (client open, very tight): the sync pill (a safety net: from 900px
+   up the bar is always wider than this), then "+". */
+@container tb (max-width: 500px) {
+  .tb-bar .tb-sync {
+    display: none;
+  }
+}
+@container tb (max-width: 220px) {
+  .tb-bar .tb-quick {
+    display: none;
+  }
+}
+/* Last resort (320px window beside two rails): tighter gaps, 30px chips. */
+@container tb (max-width: 180px) {
+  .tb-bar .tb-left,
+  .tb-bar .tb-right {
+    gap: 4px;
+  }
+  .tb-bar .tb-middle {
+    margin: 0 -4px;
+  }
+  .tb-bar .tb-icon-btn,
+  .tb-bar .tb-avatar-btn,
+  .tb-bar .tb-search:not(:focus-within) .tb-search-box {
+    width: 30px;
+    height: 30px;
+  }
+  .tb-bar .tb-middle .tb-search {
+    width: 30px;
+  }
+  .tb-bar .tb-left .tb-client .cs-trigger {
+    min-height: 34px;
+    padding: 2px;
+  }
+}
+
+/* From 900px up a client page's bar also carries the 266px sync pill, so
+   steps 1-4 come sooner there. */
+@media (min-width: 900px) {
+  @container tb (max-width: 1060px) {
+    .tb-bar:has(.tb-sync) .tb-middle {
+      flex: 0 0 auto;
+    }
+    .tb-bar:has(.tb-sync) .tb-search {
+      width: 36px;
+    }
+    .tb-bar:has(.tb-sync) .tb-search-box {
+      position: relative;
+      justify-content: center;
+      width: 36px;
+      padding: 0;
+      box-sizing: border-box;
+      cursor: pointer;
+    }
+    .tb-bar:has(.tb-sync) .tb-search:not(:focus-within) .tb-search-input {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      opacity: 0;
+      cursor: pointer;
+    }
+    .tb-bar:has(.tb-sync) .tb-search:not(:focus-within) .tb-search-panel,
+    .tb-bar:has(.tb-sync) .tb-search:not(:focus-within) .tb-kbd {
+      display: none;
+    }
+    .tb-bar:has(.tb-sync) .tb-search:focus-within {
+      position: absolute;
+      top: 50%;
+      left: 12px;
+      right: 12px;
+      z-index: 5;
+      width: auto;
+      max-width: none;
+      transform: translateY(-50%);
+    }
+    .tb-bar:has(.tb-sync) .tb-search:focus-within .tb-search-box {
+      justify-content: flex-start;
+      width: 100%;
+      padding: 0 10px;
+      background: var(--tb-bg);
+      cursor: text;
+    }
+  }
+  @container tb (max-width: 940px) {
+    .tb-bar:has(.tb-sync) .tb-overview-label,
+    .tb-bar:has(.tb-sync) .tb-tasks-label,
+    .tb-bar:has(.tb-sync) .tb-throttle-text,
+    .tb-bar:has(.tb-sync) .tb-client .cs-trigger-sub {
+      display: none;
+    }
+  }
+  @container tb (max-width: 730px) {
+    .tb-bar:has(.tb-sync) .tb-client {
+      width: auto;
+      flex: 0 0 auto;
+    }
+    .tb-bar:has(.tb-sync) .tb-client .cs-trigger {
+      width: auto;
+      padding: 5px;
+    }
+    .tb-bar:has(.tb-sync) .tb-client .cs-trigger-text,
+    .tb-bar:has(.tb-sync) .tb-client .cs-chev {
+      display: none;
+    }
+  }
+  @container tb (max-width: 660px) {
+    .tb-bar:has(.tb-sync) .tb-tasks,
+    .tb-bar:has(.tb-sync) .tb-help,
+    .tb-bar:has(.tb-sync) .tb-overview {
+      display: none;
+    }
+  }
+}
+
+/* ==========================================================================
    Moved, not duplicated: while a top-bar piece is mounted (class on <html>)
    hide the copy it replaced. Desktop / mouse layouts only; the phone drawer
    keeps every original.
@@ -598,15 +921,20 @@
   html.tb-has-client .staff-rail .cs-switcher {
     display: none;
   }
-  html.tb-has-sync .app-header .page-header-actions > .live-sync-pill,
-  html.tb-has-sync .app-header .page-header-actions > .badge-live--sample,
-  html.tb-has-sync .app-header .page-header-actions > .qbo-sync-now-status {
-    display: none;
-  }
   html.tb-has-avatar .staff-rail-foot > .staff-rail-item,
   html.tb-has-avatar .staff-rail-foot > .staff-rail-user,
   html.tb-has-avatar .app-shell.has-staff-rail > .sidebar .staff-temp-access-banner,
   html.tb-has-avatar .app-shell.has-staff-rail > .sidebar .tb-preview-as {
+    display: none;
+  }
+}
+
+/* The sync pill: the bar hides its copy under 900px on desktop and at 760px
+   and under on phones, so the page header keeps its own there. */
+@media (min-width: 900px), (min-width: 761px) and (hover: none), (min-width: 761px) and (pointer: coarse) {
+  html.tb-has-sync .app-header .page-header-actions > .live-sync-pill,
+  html.tb-has-sync .app-header .page-header-actions > .badge-live--sample,
+  html.tb-has-sync .app-header .page-header-actions > .qbo-sync-now-status {
     display: none;
   }
 }
