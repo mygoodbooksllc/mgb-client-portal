@@ -5978,6 +5978,7 @@ function ClientOverviewPage({ client, messagesByClient, onNavigate, onOpenDetail
 
         <div className="ov-col">
           <OB_OnboardingCard client={client} staffUser={staffUser} />
+          {typeof CC_ClientCloseCard === "function" && <CC_ClientCloseCard client={client} />}
           <div className="card">
             <h3 className="card-title">Key dates and coverage</h3>
             {upcoming.length > 0 && (
@@ -14247,6 +14248,9 @@ function ClientAccessPage({ readOnly }) {
   const [orgLoadError, setOrgLoadError] = useState("");
   const [newOrgName, setNewOrgName] = useState("");
   const [newOrgType, setNewOrgType] = useState("");
+  // clients.entity_type (supabase/client-entity-type.sql): nonprofit or
+  // for_profit. Stored and shown only for now.
+  const [newOrgEntityType, setNewOrgEntityType] = useState("nonprofit");
   const [newOrgPlan, setNewOrgPlan] = useState("standard");
   const [newOrgPayrollAddOn, setNewOrgPayrollAddOn] = useState(false);
   // Assigned bookkeeper is picked from the real staff list (stored as
@@ -14265,6 +14269,7 @@ function ClientAccessPage({ readOnly }) {
   const [editingOrgId, setEditingOrgId] = useState(null);
   const [editOrgName, setEditOrgName] = useState("");
   const [editOrgType, setEditOrgType] = useState("");
+  const [editOrgEntityType, setEditOrgEntityType] = useState("nonprofit");
   const [editOrgPlan, setEditOrgPlan] = useState("standard");
   const [editOrgPayrollAddOn, setEditOrgPayrollAddOn] = useState(false);
   // "" = not assigned, BK_LEGACY = keep an old free-text name that isn't
@@ -14293,7 +14298,7 @@ function ClientAccessPage({ readOnly }) {
     supabase
       .from("clients")
       .select(
-        "id, name, org_type, plan, test_only, payroll_add_on, assigned_bookkeeper, assigned_bookkeeper_email",
+        "id, name, org_type, entity_type, plan, test_only, payroll_add_on, assigned_bookkeeper, assigned_bookkeeper_email",
       )
       .order("created_at", { ascending: true })
       .then(({ data, error }) => {
@@ -14397,13 +14402,14 @@ function ClientAccessPage({ readOnly }) {
         id: newOrgId,
         name,
         org_type: orgType,
+        entity_type: newOrgEntityType,
         plan: newOrgPlan,
         payroll_add_on: newOrgPayrollAddOn,
         assigned_bookkeeper: assignedBookkeeper,
         assigned_bookkeeper_email: bookkeeperEmail || null,
       })
       .select(
-        "id, name, org_type, plan, test_only, payroll_add_on, assigned_bookkeeper, assigned_bookkeeper_email",
+        "id, name, org_type, entity_type, plan, test_only, payroll_add_on, assigned_bookkeeper, assigned_bookkeeper_email",
       )
       .single();
     setAddingOrg(false);
@@ -14426,6 +14432,7 @@ function ClientAccessPage({ readOnly }) {
         id: data.id,
         name: data.name,
         orgType: data.org_type,
+        entityType: data.entity_type || "nonprofit",
         plan: data.plan,
         testOnly: data.test_only,
         payrollAddOn: data.payroll_add_on,
@@ -14434,6 +14441,7 @@ function ClientAccessPage({ readOnly }) {
     );
     setNewOrgName("");
     setNewOrgType("");
+    setNewOrgEntityType("nonprofit");
     setNewOrgPlan("standard");
     setNewOrgPayrollAddOn(false);
     setNewOrgBookkeeperEmail("");
@@ -14446,6 +14454,7 @@ function ClientAccessPage({ readOnly }) {
     setEditingOrgId(row.id);
     setEditOrgName(row.name);
     setEditOrgType(row.org_type);
+    setEditOrgEntityType(row.entity_type || "nonprofit");
     setEditOrgPlan(row.plan);
     setEditOrgPayrollAddOn(row.payroll_add_on);
     setEditOrgBookkeeperEmail(
@@ -14485,6 +14494,7 @@ function ClientAccessPage({ readOnly }) {
       .update({
         name,
         org_type: orgType,
+        entity_type: editOrgEntityType,
         plan: editOrgPlan,
         payroll_add_on: editOrgPayrollAddOn,
         assigned_bookkeeper: assignedBookkeeper,
@@ -14492,7 +14502,7 @@ function ClientAccessPage({ readOnly }) {
       })
       .eq("id", id)
       .select(
-        "id, name, org_type, plan, test_only, payroll_add_on, assigned_bookkeeper, assigned_bookkeeper_email",
+        "id, name, org_type, entity_type, plan, test_only, payroll_add_on, assigned_bookkeeper, assigned_bookkeeper_email",
       )
       .single();
     setSavingOrg(false);
@@ -14509,6 +14519,7 @@ function ClientAccessPage({ readOnly }) {
         ...CLIENTS[idx],
         name: data.name,
         orgType: data.org_type,
+        entityType: data.entity_type || "nonprofit",
         plan: data.plan,
         testOnly: data.test_only,
         payrollAddOn: data.payroll_add_on,
@@ -14793,6 +14804,15 @@ function ClientAccessPage({ readOnly }) {
                             value={editOrgType}
                             onChange={(e) => setEditOrgType(e.target.value)}
                           />
+                          <select
+                            style={{ marginTop: 4 }}
+                            aria-label="Entity type"
+                            value={editOrgEntityType}
+                            onChange={(e) => setEditOrgEntityType(e.target.value)}
+                          >
+                            <option value="nonprofit">Nonprofit</option>
+                            <option value="for_profit">For-profit</option>
+                          </select>
                         </td>
                         <td>
                           <select
@@ -14862,7 +14882,12 @@ function ClientAccessPage({ readOnly }) {
                       <tr key={row.id}>
                         <td>{row.id}</td>
                         <td>{row.name}</td>
-                        <td>{row.org_type}</td>
+                        <td>
+                          {row.org_type}
+                          <div className="card-subtitle" style={{ margin: 0 }}>
+                            {row.entity_type === "for_profit" ? "For-profit" : "Nonprofit"}
+                          </div>
+                        </td>
                         <td>{row.plan}</td>
                         <td>
                           {row.assigned_bookkeeper
@@ -14901,6 +14926,14 @@ function ClientAccessPage({ readOnly }) {
               value={newOrgType}
               onChange={(e) => setNewOrgType(e.target.value)}
             />
+            <select
+              aria-label="Entity type"
+              value={newOrgEntityType}
+              onChange={(e) => setNewOrgEntityType(e.target.value)}
+            >
+              <option value="nonprofit">Nonprofit</option>
+              <option value="for_profit">For-profit</option>
+            </select>
             <select
               value={newOrgPlan}
               onChange={(e) => setNewOrgPlan(e.target.value)}

@@ -150,7 +150,8 @@ because some work happens in Claude Code web sessions. Run `git fetch` and compa
   - **Plus**, $25/mo + $9 per login. It gets every standard tab and per-person access.
     QuickBooks syncs weekly, with no Sync now.
   - **Pro**, $39/mo + $9 per login. It adds the Pro tools inline on the same tabs (see below).
-    QuickBooks syncs every minute, and Sync now is available.
+    QuickBooks syncs every 15 minutes (30 when the monthly API budget is running hot; see the
+    usage guard below), and Sync now is available.
   - **Payroll add-on:** $49/mo + $6 per employee, on any plan (Basic included). Clients without it
     (`clients.payroll_add_on` false) see **Payroll** in the sidebar with an "Add-on" tag. It opens
     `PayrollAddOnPage`, which has the price, an employee-count estimate, what's included and an
@@ -186,10 +187,20 @@ because some work happens in Claude Code web sessions. Run `git fetch` and compa
 - **Token refresh.** `qbo-refresh-token` runs every 15 minutes (cron `qbo-refresh-tokens`).
 - **Sync.** `qbo-sync` pulls accounts, 12 months of P&L, budget, open invoices, open bills and
   90 days of transactions into the `qbo_*` tables.
-  - **Cron** job `qbo-sync-hourly`. Despite the name, it runs **every minute** except :00, :15,
-    :30 and :45 (`'1-14,16-29,31-44,46-59 * * * *'`, `supabase/qbo-sync-cron-1min.sql`), which
-    keeps it off the token refresher's minutes. An open page re-fetches the client's numbers once
-    they're more than about 90 seconds old.
+  - **Cron** job `qbo-sync-hourly`. Despite the name, it ticks **every 5 minutes** at :02, :07,
+    ... (`'2-59/5 * * * *'`, set by `supabase/qbo-usage-guard.sql`), off the token refresher's
+    minutes. Each tick syncs only the clients that are due (Pro every 15 min, Plus weekly, Basic
+    on the 15th). An open page re-fetches the client's numbers once they're more than about 90
+    seconds old.
+  - **CDC gate.** Between full reads (at most 24 hours apart), a due client first asks
+    QuickBooks' change-data-capture endpoint what changed since the last sync; if nothing did, the
+    full re-read is skipped. CDC is only used as a gate: the full read still replaces the tables.
+  - **Close data.** Once a day per client (and on Sync now) the sync also pulls 13 months of
+    bank, card, Undeposited Funds and uncategorized account data into `qbo_account_status` and
+    `qbo_period_balances`, then re-runs the close checks (see the Close tracker below).
+  - **Usage guard.** Every Intuit call is counted in `qbo_api_usage` (`qbo-sync` and
+    `qbo-firm-sync`). If the month is on pace to pass 80% of the 500,000-call limit, Pro slows to
+    every 30 minutes; at 95% used, scheduled syncs stop until the 1st (Sync now still works).
   - **Sync now**: clicking the header's gold Live pill (the refresh icon at its right end) syncs,
     for staff and clients; also in Client details → QuickBooks. The function re-checks that the
     caller may sync that client.
@@ -359,6 +370,26 @@ because some work happens in Claude Code web sessions. Run `git fetch` and compa
   step by a trigger. Setting it gives that person client access, and removing their access clears
   it (`supabase/assigned-bookkeeper-email.sql`). Clients whose old name matched no staff member
   show "Not linked to a staff member" until an admin picks someone.
+- **QuickBooks API usage** (added 2026-09-30, Team page, admins): calls this month against
+  Intuit's 500,000 limit, the month-end projection, the current Pro cadence and a per-source
+  breakdown; "Change limits" edits `qbo_usage_settings` (limit, slow-down %, stop %, cadences).
+  The weekly digest's Pending section shows the same line (`supabase/qbo-usage-guard.sql`).
+- **Automated close checks** (added 2026-09-30, Close tracker and client overview): each
+  completed month gets **Ready**, **Blocked** (uncategorized / Ask My Accountant activity in the
+  month, or Undeposited Funds not cleared at month end) or **Behind** (a bank or card account
+  went quiet before month end, or transactions on or before month end aren't reconciled), with
+  the reasons on hover and in the cell editor. The status filter and summary can pick them.
+  Written by `close_checks_evaluate()` after each close-data pull and daily at 11:25 UTC
+  (`supabase/qbo-close-checks.sql`). Reconciliation is read from each transaction's cleared flag
+  and bank-feed health from the last transaction date; QuickBooks exposes neither directly.
+- **Stale-bank flags** (added 2026-09-30): a bank or card account with no transaction in more
+  than N days (default 10; admins set it in the Close tracker toolbar,
+  `month_close_settings.stale_bank_days`) is flagged in the Close tracker client column and on
+  the client overview.
+- **Entity type** (added 2026-09-30): `clients.entity_type` is `nonprofit` (default) or
+  `for_profit`. Set on the client overview's Onboarding card (any staff with access, through
+  `set_client_entity_type()`) or in Client Roster add/edit (admins). Stored and shown only for
+  now (`supabase/client-entity-type.sql`).
 - **Deep links**: pages have hash URLs such as `#/team`, `#/emails`, `#/tasks`, `#/home`,
   `#/client/<id>/overview` or `#/client/<id>/<tab>`. A link survives Google sign-in, and staff
   who can't see a page or client are sent to their dashboard instead.
@@ -601,7 +632,9 @@ Owner setup:
 - Manage access → Organization tabs and dashboard layouts are saved in each browser's
   `localStorage`, not in Supabase, so they don't carry across devices or people. The People
   tab edits sample users.
-- QuickBooks gaps: no account numbers (masks), no reconciliation data, bill memos not synced.
+- QuickBooks gaps: no account numbers (masks), bill memos not synced. Reconciliation is only a
+  proxy (cleared flags on the last 13 months of bank and card transactions), and CDC only gates
+  the full re-read; it doesn't merge deltas.
   Giving, funds and payroll aren't sourced from QuickBooks.
 - `data.js` is loaded before login. That's harmless while it holds only sample data, but real
   client numbers must never go into it.

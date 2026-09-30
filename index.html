@@ -102,10 +102,12 @@
         "components/staff/ClientSwitcher.jsx",
         "components/staff/TeamPage.jsx",
         "components/staff/TeamQbo.jsx",
+        "components/staff/QboUsage.jsx",
         "components/staff/TeamProfit.jsx",
         "components/staff/TeamCapacity.jsx",
         "components/staff/AppTimeTracker.js",
         "components/staff/Onboarding.jsx",
+        "components/staff/CloseChecks.jsx",
         "components/staff/CloseTracker.jsx",
         "components/staff/TaskTemplates.jsx",
         "components/staff/AuditLog.jsx",
@@ -233,7 +235,7 @@
           const { data, error } = await supabase
             .from("clients")
             .select(
-              "id, name, org_type, plan, test_only, payroll_add_on, assigned_bookkeeper, assigned_bookkeeper_email",
+              "id, name, org_type, entity_type, plan, test_only, payroll_add_on, assigned_bookkeeper, assigned_bookkeeper_email",
             );
           if (error) {
             console.warn("Couldn't load client roster from Supabase:", error.message);
@@ -248,6 +250,8 @@
               id: row.id,
               name: row.name,
               orgType: row.org_type,
+              // clients.entity_type (supabase/client-entity-type.sql).
+              entityType: row.entity_type || "nonprofit",
               plan: row.plan,
               testOnly: row.test_only,
               payrollAddOn: row.payroll_add_on,

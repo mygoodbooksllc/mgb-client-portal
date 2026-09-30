@@ -117,14 +117,44 @@ function OB_OnboardingBadge({ clientId }) {
   );
 }
 
+const OB_ENTITY_TYPES = [
+  { value: "nonprofit", label: "Nonprofit" },
+  { value: "for_profit", label: "For-profit" },
+];
+
 function OB_OnboardingCard({ client, staffUser }) {
   const data = OB_useOnboarding();
   const showToast = typeof useToast === "function" ? useToast() : null;
   const [busy, setBusy] = useState(null);
   const [editing, setEditing] = useState(false);
+  const [entityType, setEntityType] = useState((client && client.entityType) || "nonprofit");
   const isAdmin = !!(staffUser && staffUser.role === "admin");
   const toast = (m) => {
     if (showToast) showToast(m);
+  };
+  useEffect(() => {
+    setEntityType((client && client.entityType) || "nonprofit");
+  }, [client && client.id, client && client.entityType]);
+
+  // clients.entity_type via set_client_entity_type() (supabase/
+  // client-entity-type.sql): any staff member with access to the client can
+  // set it here. Stored and shown only for now; later phases use it for
+  // report wording.
+  const saveEntityType = async (next) => {
+    const sb = window.mgbSupabase;
+    const prev = entityType;
+    setEntityType(next);
+    if (!sb) return;
+    setBusy("entity_type");
+    const { error } = await sb.rpc("set_client_entity_type", { p_client_id: client.id, p_entity_type: next });
+    setBusy(null);
+    if (error) {
+      setEntityType(prev);
+      toast("Couldn't save the organization type. " + (error.message || ""));
+      return;
+    }
+    client.entityType = next;
+    toast(next === "for_profit" ? "Marked as a for-profit business." : "Marked as a nonprofit.");
   };
 
   if (!data) {
@@ -174,6 +204,21 @@ function OB_OnboardingCard({ client, staffUser }) {
       <div className="bar-track ob-bar" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={pct} aria-label="Onboarding progress">
         <div className="bar-fill ob-bar-fill" style={{ width: pct + "%" }} />
       </div>
+      <label className="ob-entity">
+        <span>Organization type</span>
+        <select
+          className="ob-input"
+          value={entityType}
+          disabled={busy === "entity_type"}
+          onChange={(e) => saveEntityType(e.target.value)}
+        >
+          {OB_ENTITY_TYPES.map((t) => (
+            <option key={t.value} value={t.value}>
+              {t.label}
+            </option>
+          ))}
+        </select>
+      </label>
       <ul className="ob-steps">
         {steps.map((s) => (
           <li key={s.key} className={"ob-step" + (s.done ? " done" : "")}>

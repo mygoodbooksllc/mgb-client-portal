@@ -20,6 +20,12 @@
 // cell fires OB_CHANGED_EVENT so the onboarding "First close done" step
 // updates.
 //
+// QuickBooks close checks (CloseChecks.jsx, Phase 1 2026-09-30): each
+// completed month's cell also shows the automated status (ready / blocked /
+// behind) with the reasons on hover and in the editor, the client column
+// flags bank or card accounts with no recent transactions, and the status
+// filter can pick either. Admins set the stale-bank threshold here too.
+//
 // Loaded before app.jsx and shares its global scope: top-level names carry a
 // CT_ prefix; app.jsx globals (hooks, ModalShell, useToast, fmtDate) are only
 // touched at render time.
@@ -93,6 +99,10 @@ function CT_CloseTrackerPage({ clients, staffUser }) {
   const [statusFilter, setStatusFilter] = useState("any");
   const [editing, setEditing] = useState(null); // { client, period }
   const [lateDraft, setLateDraft] = useState("");
+  const cc = typeof CC_useCloseChecks === "function" ? CC_useCloseChecks(periods) : null;
+  const checkOf = (clientId, period) => (cc ? cc.checks[clientId + "|" + period] : null);
+  const staleOf = (clientId) =>
+    cc && typeof CC_staleBanks === "function" ? CC_staleBanks(cc.accounts[clientId], cc.staleDays, today) : [];
 
   const load = useCallback(async () => {
     const sb = window.mgbSupabase;
@@ -171,9 +181,31 @@ function CT_CloseTrackerPage({ clients, staffUser }) {
   );
 
   const focusIsLate = (c) => CT_isLate(focus, statusOf(c.id, focus), lateDay, today);
-  const visible = byBookkeeper.filter((c) =>
-    statusFilter === "any" ? true : statusFilter === "late" ? focusIsLate(c) : statusOf(c.id, focus) === statusFilter,
-  );
+  const visible = byBookkeeper.filter((c) => {
+    if (statusFilter === "any") return true;
+    if (statusFilter === "late") return focusIsLate(c);
+    if (statusFilter === "stale") return staleOf(c.id).length > 0;
+    if (statusFilter.startsWith("qb_")) {
+      const k = checkOf(c.id, focus);
+      return !!k && k.status === statusFilter.slice(3);
+    }
+    return statusOf(c.id, focus) === statusFilter;
+  });
+
+  const qbCounts = useMemo(() => {
+    const out = { ready: 0, blocked: 0, behind: 0, stale: 0, any: 0 };
+    if (!cc) return out;
+    byBookkeeper.forEach((c) => {
+      const k = checkOf(c.id, focus);
+      if (k && out[k.status] !== undefined) {
+        out[k.status]++;
+        out.any++;
+      }
+      if (staleOf(c.id).length) out.stale++;
+    });
+    return out;
+    // eslint-disable-next-line
+  }, [byBookkeeper.map((c) => c.id).join(","), cc && cc.checks, cc && cc.accounts, cc && cc.staleDays, focus]);
 
   const counts = useMemo(() => {
     const out = { late: 0 };
@@ -292,6 +324,14 @@ function CT_CloseTrackerPage({ clients, staffUser }) {
                 </option>
               ))}
               <option value="late">Late</option>
+              {cc && (
+                <>
+                  <option value="qb_ready">QuickBooks: ready</option>
+                  <option value="qb_blocked">QuickBooks: blocked</option>
+                  <option value="qb_behind">QuickBooks: behind</option>
+                  <option value="stale">Stale bank feed</option>
+                </>
+              )}
             </select>
           </label>
           {isAdmin && (
@@ -321,6 +361,9 @@ function CT_CloseTrackerPage({ clients, staffUser }) {
               </span>
             </form>
           )}
+          {isAdmin && cc && typeof CC_StaleDaysSetting === "function" && (
+            <CC_StaleDaysSetting value={cc.staleDays} toast={toast} />
+          )}
         </div>
         <div className="ct-summary" aria-label={`Summary for ${CT_monthLabel(focus, true)}`}>
           {CT_STATUSES.map((s) => (
@@ -348,6 +391,29 @@ function CT_CloseTrackerPage({ clients, staffUser }) {
           {CT_ordinal(lateDay)} of the next month if it isn't done or N/A
           {lateAll ? ` · ${lateAll} late cell${lateAll === 1 ? "" : "s"} in the grid` : ""}.
         </p>
+        {cc && (qbCounts.any > 0 || qbCounts.stale > 0) && (
+          <div className="cc-summary" aria-label={`QuickBooks checks for ${CT_monthLabel(focus, true)}`}>
+            <span className="cc-summary-l">QuickBooks checks</span>
+            {["ready", "blocked", "behind"].map((k) => (
+              <button
+                key={k}
+                type="button"
+                className={"cc-badge " + CC_STATUS[k].cls + (statusFilter === "qb_" + k ? " active" : "")}
+                onClick={() => setStatusFilter(statusFilter === "qb_" + k ? "any" : "qb_" + k)}
+              >
+                {qbCounts[k]} {CC_STATUS[k].label.toLowerCase()}
+              </button>
+            ))}
+            <button
+              type="button"
+              className={"cc-badge cc-stale-badge" + (statusFilter === "stale" ? " active" : "")}
+              onClick={() => setStatusFilter(statusFilter === "stale" ? "any" : "stale")}
+              title={`Bank or card accounts with no transactions in over ${cc.staleDays} days`}
+            >
+              {qbCounts.stale} stale bank
+            </button>
+          </div>
+        )}
         {state.error && <div className="mock-banner ct-banner">{state.error}</div>}
       </div>
 
@@ -381,6 +447,17 @@ function CT_CloseTrackerPage({ clients, staffUser }) {
                     <th scope="row" className="ct-client-col">
                       <span className="ct-client-name">{CT_name(c)}</span>
                       <span className="ct-client-bk">{CT_bookkeeperOf(c) || "Unassigned"}</span>
+                      {(() => {
+                        const st = staleOf(c.id);
+                        return st.length ? (
+                          <span
+                            className="cc-badge cc-stale-badge compact"
+                            title={st.map((a) => `${a.name || a.qbo_id}: last transaction ${a.idle} days ago`).join("\n")}
+                          >
+                            Stale bank
+                          </span>
+                        ) : null;
+                      })()}
                     </th>
                     {periods.map((p) => {
                       const r = rows[c.id + "|" + p];
@@ -408,6 +485,7 @@ function CT_CloseTrackerPage({ clients, staffUser }) {
                             )}
                             {r && r.notes && <span className="ct-pill-note" aria-hidden="true">•</span>}
                           </button>
+                          {typeof CC_Badge === "function" && <CC_Badge row={checkOf(c.id, p)} compact />}
                         </td>
                       );
                     })}
@@ -426,6 +504,7 @@ function CT_CloseTrackerPage({ clients, staffUser }) {
           row={rows[editing.client.id + "|" + editing.period]}
           late={CT_isLate(editing.period, statusOf(editing.client.id, editing.period), lateDay, today)}
           deadline={CT_deadline(editing.period, lateDay)}
+          check={checkOf(editing.client.id, editing.period)}
           onClose={() => setEditing(null)}
           onSave={async (status, notes) => {
             const ok = await save(editing.client.id, editing.period, status, notes);
@@ -443,7 +522,7 @@ function CT_ordinal(n) {
   return s[(v - 20) % 10] || s[v] || s[0];
 }
 
-function CT_CellEditor({ client, period, row, late, deadline, onClose, onSave }) {
+function CT_CellEditor({ client, period, row, late, deadline, check, onClose, onSave }) {
   const [status, setStatus] = useState(row ? row.status : "not_started");
   const [notes, setNotes] = useState((row && row.notes) || "");
   const [saving, setSaving] = useState(false);
@@ -465,6 +544,22 @@ function CT_CellEditor({ client, period, row, late, deadline, onClose, onSave })
           Due by {deadline.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
           {late ? " · late" : ""}
         </p>
+        {check && typeof CC_Badge === "function" && (
+          <div className="cc-editor">
+            <div className="cc-head">
+              <span className="ct-legend">QuickBooks checks</span>
+              <CC_Badge row={check} />
+            </div>
+            {(check.reasons || []).length > 0 && (
+              <ul className="cc-reasons">
+                {check.reasons.map((x, i) => (
+                  <li key={i}>{x}</li>
+                ))}
+              </ul>
+            )}
+            {check.status !== "no_data" && <CC_CheckList row={check} />}
+          </div>
+        )}
         <fieldset className="ct-status-group">
           <legend className="ct-legend">Status</legend>
           {CT_STATUSES.map((s) => (

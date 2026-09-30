@@ -923,6 +923,7 @@ function TP_TeamPage({ clients }) {
   return (
     <div className="tp-page">
       <TP_QboPanel qbo={qbo} onOpenMapping={openMapping} onSynced={refreshQbo} />
+      {isAdmin && typeof QU_UsageCard === "function" && <QU_UsageCard />}
       {isAdmin && (
         <p className="em-moved">
           Weekly digest and client email settings moved →{" "}
