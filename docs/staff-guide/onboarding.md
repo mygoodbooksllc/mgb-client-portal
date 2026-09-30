@@ -2,10 +2,16 @@
 title: How does client onboarding work?
 section: Month-end and recurring work
 audience: staff
-keywords: [onboarding, new client, onboarding steps, checklist, auto, quickbooks connected, first close, default steps]
+keywords: [onboarding, organization type, entity type, nonprofit, for-profit, new client, onboarding steps, checklist, auto, quickbooks connected, first close, default steps]
 sort: 330
 ---
 Every new client has an **Onboarding** checklist on their **Client overview** (right column). It shows **X of Y** steps done and a progress bar.
+
+### Organization type
+
+Under the progress bar, choose **Organization type**: **Nonprofit** or **For-profit**. It saves as soon as you pick ("Marked as a nonprofit." / "Marked as a for-profit business."). Admins can also set it when adding or editing a client on **Client Roster**.
+
+New clients start as **Nonprofit**. For now it's only stored. Later, estimated taxes and sales-tax features will apply to for-profit clients only, so set it correctly now.
 
 ### Tick off steps
 

@@ -2,10 +2,12 @@
 title: How does the weekly digest email work?
 section: Admin
 audience: admin
-keywords: [weekly digest, digest, monday email, recipients, preview, send test, scope creep, late payers, timesheet gaps, scorecard]
+keywords: [weekly digest, quickbooks api usage, intuit limit, digest, monday email, recipients, preview, send test, scope creep, late payers, timesheet gaps, scorecard]
 sort: 560
 ---
 The weekly digest is an email for admins covering scope creep, pricing, revenue, late payers, timesheet gaps, the staff scorecard, stale clients and pending items. It's sent **Mondays at 7:00 AM (America/New York)**.
+
+The pending items include a **QuickBooks API usage** line: calls this month, the percent of Intuit's monthly limit, the month-end projection and how often Pro clients sync. It's flagged if syncing has been slowed down, and in red if scheduled syncs are stopped until next month (Sync now still works). It's the same as the card on Team; see [How do I read the QuickBooks API usage card?](#/help/quickbooks-api-usage).
 
 Find it on **Emails** (staff menu → Emails), in the **Weekly digest** card.
 

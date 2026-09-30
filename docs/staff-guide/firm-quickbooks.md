@@ -15,6 +15,8 @@ Staff hours come from the **firm's own** QuickBooks Online company (the one Quic
 
 The first sync can take about 10 minutes. After that it syncs hourly. The panel shows the company, when it last synced and how many entries it has.
 
+These syncs count toward the firm's Intuit monthly limit, shown in the **QuickBooks API usage** card just below the panel. See [How do I read the QuickBooks API usage card?](#/help/quickbooks-api-usage).
+
 - **Sync now**: pull the latest hours right away.
 - **Reconnect QuickBooks**: use this if the connection has expired or failed.
 - **Disconnect**: stops hourly syncing (you'll be asked to confirm). Hours already synced stay on the Team page.

@@ -2,7 +2,7 @@
 title: Frequently asked questions
 section: Help and FAQ
 audience: staff
-keywords: [faq, questions, help, sample data, prototype, can clients see, log time, hours, password, access, missing client, not working]
+keywords: [faq, stale bank, bank feed, questions, help, sample data, prototype, can clients see, log time, hours, password, access, missing client, not working]
 sort: 900
 ---
 ### Can clients see my notes, tasks or the Client overview?
@@ -13,7 +13,11 @@ No. The Client overview, staff notes, internal notes in the Inbox, SOPs, My Task
 
 That client's QuickBooks isn't connected (or hasn't synced yet), so the numbers are made up. Connect QuickBooks to show real numbers. See [How do I connect a client's QuickBooks and use Sync now?](#/help/quickbooks-connection).
 
-Some areas are still sample data even for connected clients: giving, funds, pledges, donors and payroll; message threads in the Client overview's Engagement card; and uploads on the client's own Documents page (files uploaded into a document request are stored for real). Reconciliation status isn't available from QuickBooks yet.
+Some areas are still sample data even for connected clients: giving, funds, pledges, donors and payroll; message threads in the Client overview's Engagement card; and uploads on the client's own Documents page (files uploaded into a document request are stored for real). Reconciliation status is only estimated (for the Close tracker's QuickBooks checks).
+
+### What does the red "Stale bank" chip mean?
+
+One of the client's bank or card accounts has had no transaction in QuickBooks for more than 10 days (admins can change the number with **Stale bank after (days)**). The bank feed has probably stopped. Reconnect the feed in QuickBooks, then click **Sync now** on the client. Hover over the chip to see which account. See [How do I track month-end close?](#/help/month-end-close).
 
 ### How do I log my hours?
 

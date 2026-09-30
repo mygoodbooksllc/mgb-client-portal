@@ -2,7 +2,7 @@
 title: How do I connect a client's QuickBooks and use Sync now?
 section: QuickBooks
 audience: staff
-keywords: [quickbooks, qbo, connect, sync, sync now, live, reconnect, disconnect, intuit, refresh, numbers, sample data, prototype]
+keywords: [quickbooks, qbo, sync schedule, every 15 minutes, intuit limit, connect, sync, sync now, live, reconnect, disconnect, intuit, refresh, numbers, sample data, prototype]
 sort: 400
 ---
 When a client's QuickBooks Online is connected, their portal shows real numbers from QuickBooks instead of sample data. After that, the portal keeps itself up to date.
@@ -34,7 +34,11 @@ The portal syncs on its own, based on the client's plan:
 |---|---|
 | Basic | Monthly, on the 15th |
 | Plus | Weekly |
-| Pro | About every minute |
+| Pro | Every 15 minutes (every 30 if the firm is near its Intuit limit) |
+
+If the firm uses 95% of its Intuit monthly limit, automatic syncs pause until the 1st; **Sync now** still works. Admins can see usage on the Team page.
+
+Month-close data (used by the Close tracker's QuickBooks checks and stale-bank flags) refreshes daily and whenever you use **Sync now**.
 
 ### Sync now
 
@@ -62,4 +66,4 @@ When you click **Disconnect**, the portal asks you to confirm first. Data that a
 - **"Connection failed".** Click **Try again** and go through the Intuit sign-in again.
 - **Sync now doesn't seem to do anything.** You may have synced in the last 60 seconds ("Already synced within the last minute."). Wait a minute and try again. If you used Client details → Sync now, reload the page.
 - **"QuickBooks needs to be reconnected before it can sync."** Go to Client details → QuickBooks and click **Reconnect**.
-- **Some numbers still say sample.** Giving, funds, pledges, donors and payroll don't come from QuickBooks yet, so those pages still show sample data. Reconciliation data and account numbers aren't synced either.
+- **Some numbers still say sample.** Giving, funds, pledges, donors and payroll don't come from QuickBooks yet, so those pages still show sample data. Account numbers aren't synced either. (Reconciliation is estimated for the close checks; see [How do I track month-end close?](#/help/month-end-close).)

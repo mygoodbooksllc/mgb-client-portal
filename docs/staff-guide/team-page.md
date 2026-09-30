@@ -2,7 +2,7 @@
 title: How do I read the Team page?
 section: Admin
 audience: admin
-keywords: [team, hours, quickbooks time, in app, people table, clients table, drill-down, csv, this month, custom range, billable]
+keywords: [team, quickbooks api usage, hours, quickbooks time, in app, people table, clients table, drill-down, csv, this month, custom range, billable]
 sort: 500
 ---
 **Team** (staff menu → Team, or `#/team`) shows hours and tasks by person and by client. Admins see money figures; temporary admins see the page without them.
@@ -10,11 +10,12 @@ sort: 500
 ### Layout, top to bottom
 
 1. **QuickBooks Time** panel: the firm's QuickBooks connection. See [How do I connect the firm's QuickBooks Time?](#/help/firm-quickbooks).
-2. A link to **Emails** (weekly digest and client email settings live there now).
-3. Period tabs: **This week**, **This month** (default), **Last month**, **Custom range**. Use **People CSV** / **Clients CSV** to export.
-4. A summary line: hours in QuickBooks Time and hours active in the app (automatic, not billed).
-5. **Capacity** card. See [How do I check team capacity?](#/help/capacity).
-6. **People** table, then **Clients** table.
+2. **QuickBooks API usage** card (admins): calls to QuickBooks this month against Intuit's limit. See [How do I read the QuickBooks API usage card?](#/help/quickbooks-api-usage).
+3. A link to **Emails** (weekly digest and client email settings live there now).
+4. Period tabs: **This week**, **This month** (default), **Last month**, **Custom range**. Use **People CSV** / **Clients CSV** to export.
+5. A summary line: hours in QuickBooks Time and hours active in the app (automatic, not billed).
+6. **Capacity** card. See [How do I check team capacity?](#/help/capacity).
+7. **People** table, then **Clients** table.
 
 ### Hours: where they come from
 

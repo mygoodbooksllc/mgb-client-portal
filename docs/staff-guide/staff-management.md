@@ -2,7 +2,7 @@
 title: How do I add staff and manage their access?
 section: Admin
 audience: admin
-keywords: [staff access, add staff, bulk import, role, admin, bookkeeper, deactivate, assign clients, manage, temporary admin access, grant, revoke, view as, email invite, client roster]
+keywords: [staff access, entity type, nonprofit, for-profit, add staff, bulk import, role, admin, bookkeeper, deactivate, assign clients, manage, temporary admin access, grant, revoke, view as, email invite, client roster]
 sort: 510
 ---
 **Staff Access** (staff menu → Staff Access) controls who can sign in and with what role.
@@ -47,6 +47,10 @@ It unlocks **Team**, **Task templates**, **Staff Access**, **Client Roster**, **
 ### View as
 
 Click **View as** on an active bookkeeper's row to see exactly what they see, including their assigned clients and reminders. Click **Exit "View as"** to return. Every View as is recorded in the Audit log.
+
+### Client Roster: organization type
+
+On **Client Roster**, the add form and each row's edit mode have a **Nonprofit** / **For-profit** choice under the organization type. New clients default to **Nonprofit**. Staff can also change it on the client's Onboarding card. See [How does client onboarding work?](#/help/onboarding).
 
 ### Troubleshooting
 
