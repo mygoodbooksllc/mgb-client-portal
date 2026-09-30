@@ -435,6 +435,13 @@ because some work happens in Claude Code web sessions. Run `git fetch` and compa
   verified" error means the key works but the domain isn't verified. "Check the key" asks
   `weekly-admin-digest?preview=1&format=json` whether the key is set. It sends nothing but
   logs a preview run. The digest email footer links to `#/emails`.
+- **Digest sections**: scope creep, price review, revenue snapshot, late payers, timesheet gaps,
+  staff scorecard, stale clients, pending, and **Staff feedback** (count of `staff_feedback` rows
+  still `new`, split by kind, e.g. "3 new: 2 bugs, 1 idea"; how many arrived in the last 7 days;
+  the 5 newest `new` reports with kind tag, sender and the first ~120 characters, escaped; link to
+  `#/feedback`; "No new feedback." when there are none). All numbers come from
+  `digest_weekly_data()` (`supabase/weekly-digest.sql`; the `staff_feedback` key was added by
+  `supabase/digest-staff-feedback.sql`).
 - **Bug reports / feedback** (`components/staff/Feedback.jsx`, `FB_` prefix; table
   `staff_feedback`, `supabase/staff-feedback.sql`). Staff open "Report a bug / feedback" from the
   top bar's **?** menu or the bottom of the Help page: kind chips (Bug first and default, Idea,
@@ -445,7 +452,7 @@ because some work happens in Claude Code web sessions. Run `git fetch` and compa
   status/kind, bugs tagged red, change status (new / planned / done / won't do) and a note to the
   sender inline. RLS: active staff insert + read own; admins read all and update; no deletes. A
   trigger stamps `author_email` from the JWT, forces `new` on insert and lets updates change only
-  `status` / `admin_note`. Not in the weekly digest yet.
+  `status` / `admin_note`. The weekly digest has a **Staff feedback** section (see below).
 - **Assigned bookkeeper**: the Client Roster now picks a real staff member.
   `clients.assigned_bookkeeper_email` references `staff(email)`; the old display JSON is kept in
   step by a trigger. Setting it gives that person client access, and removing their access clears

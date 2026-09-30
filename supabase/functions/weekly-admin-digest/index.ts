@@ -18,7 +18,8 @@ import * as L from "../_shared/layout.ts";
 //
 // Every run is logged in digest_runs. If RESEND_API_KEY is missing the send is
 // skipped with status "not_configured". Numbers come from the service-role-only
-// SQL function digest_weekly_data().
+// SQL function digest_weekly_data(), including the Staff feedback section
+// (staff_feedback key; supabase/digest-staff-feedback.sql).
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -352,7 +353,61 @@ function buildSections(d: any): Section[] {
     out.push({ title: "Pending", html, text: textItems.length ? textTable(textItems) : "  Nothing this week.", link: team });
   }
 
+  // 9. Staff feedback (staff_feedback; supabase/digest-staff-feedback.sql)
+  {
+    const f = d.staff_feedback || {};
+    const total = Number(f.new_total || 0);
+    const week = Number(f.last_7_days || 0);
+    const rows: any[] = f.newest || [];
+    const summary = feedbackSummary(f);
+    const weekLine = `${plural(week, "report")} received in the last 7 days.`;
+    let html: string;
+    let text: string;
+    if (!total) {
+      html = para("No new feedback.", "muted") + (week ? para(esc(weekLine), "muted") : "");
+      text = `  No new feedback.${week ? ` ${weekLine}` : ""}`;
+    } else {
+      html = para(`<b>${esc(summary)}</b>`) +
+        tableHtml(
+          ["Kind", "From", "Message"],
+          rows.map((r) => [
+            `<b>${(r.kind === "bug" ? bad : ink)(esc(KIND_LABEL[r.kind] || r.kind))}</b>`,
+            esc(r.author_name || r.author_email || "–") + (r.author_name ? `<br>${muted(esc(r.author_email))}` : "") +
+              `<br>${muted(fmtDay(r.created_at))}`,
+            esc(clip(r.message)),
+          ]),
+        ) +
+        para((total > rows.length ? `Showing the ${rows.length} newest. ` : "") + esc(weekLine), "muted");
+      text = `  ${summary}\n` +
+        textTable(rows.map((r) =>
+          `[${KIND_LABEL[r.kind] || r.kind}] ${r.author_name || r.author_email}: ${clip(r.message)}`
+        )) + `\n  ${weekLine}`;
+    }
+    out.push({ title: "Staff feedback", html, text, link: { label: "Open the Feedback page", href: `${APP_URL}/#/feedback` } });
+  }
+
   return out;
+}
+
+const KIND_LABEL: Record<string, string> = { bug: "Bug", idea: "Idea", question: "Question", other: "Other" };
+const KIND_ORDER = ["bug", "idea", "question", "other"];
+const KIND_PLURAL: Record<string, [string, string]> = {
+  bug: ["bug", "bugs"],
+  idea: ["idea", "ideas"],
+  question: ["question", "questions"],
+  other: ["other", "other"],
+};
+// "3 new: 2 bugs, 1 idea"
+function feedbackSummary(f: any): string {
+  const byKind = f.new_by_kind || {};
+  const parts = KIND_ORDER.filter((k) => Number(byKind[k])).map((k) =>
+    plural(Number(byKind[k]), KIND_PLURAL[k][0], KIND_PLURAL[k][1])
+  );
+  return `${Number(f.new_total || 0)} new${parts.length ? `: ${parts.join(", ")}` : ""}`;
+}
+function clip(s: unknown, n = 120): string {
+  const t = String(s ?? "").trim();
+  return t.length > n ? `${t.slice(0, n).trimEnd()}…` : t;
 }
 
 function headline(d: any): string[] {
@@ -370,6 +425,7 @@ function headline(d: any): string[] {
   if (stale) bits.push(`${plural(stale, "client")} stale or disconnected`);
   const pend = (d.pending?.access_requests || []).length;
   if (pend) bits.push(`${plural(pend, "access request")} waiting`);
+  if (Number(d.staff_feedback?.new_total)) bits.push(plural(Number(d.staff_feedback.new_total), "new staff feedback report"));
   if (bits.length === 1) bits.push("nothing needs attention");
   return bits;
 }

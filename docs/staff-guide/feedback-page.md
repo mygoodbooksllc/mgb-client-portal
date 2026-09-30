@@ -2,10 +2,10 @@
 title: How do I review bug reports and feedback?
 section: Admin
 audience: admin
-keywords: [feedback page, bug reports, bugs, feedback, ideas, questions, triage, status, planned, done, won't do, admin note, reply]
+keywords: [feedback page, weekly digest, bug reports, bugs, feedback, ideas, questions, triage, status, planned, done, won't do, admin note, reply]
 sort: 575
 ---
-The **Feedback** page (sidebar → **Feedback**, admins only) lists every bug report, idea and question staff have sent from **Report a bug / feedback**. The sidebar item shows a number when there are reports still marked **New**.
+The **Feedback** page (sidebar → **Feedback**, admins only) lists every bug report, idea and question staff have sent from **Report a bug / feedback**. The sidebar item shows a number when there are reports still marked **New**. The Monday weekly digest email also lists the newest **New** reports; see [How does the weekly digest email work?](#/help/weekly-digest).
 
 ### Reading a report
 

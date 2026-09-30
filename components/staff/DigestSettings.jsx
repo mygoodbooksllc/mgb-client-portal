@@ -191,7 +191,7 @@ function DG_DigestSettings({ onSent } = {}) {
           <h3 className="card-title" style={{ margin: 0 }}>Weekly digest</h3>
           <p className="card-subtitle" style={{ margin: 0 }}>
             An admin email with scope creep, pricing, revenue, late payers, timesheet gaps, the staff
-            scorecard, stale clients and pending items.{schedule ? ` Sent ${schedule}.` : ""}
+            scorecard, stale clients, pending items and new staff feedback.{schedule ? ` Sent ${schedule}.` : ""}
           </p>
         </div>
         {s && (
