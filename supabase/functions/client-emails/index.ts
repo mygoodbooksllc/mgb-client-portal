@@ -126,8 +126,36 @@ function shell(opts: { title: string; preheader: string; body: string; clientNam
     footer: `You're receiving this because you have access to ${esc(opts.clientName)}'s MyGoodBooks portal. Questions? Just reply to this email. ${L.link(UNSUB_SLOT, "Unsubscribe", "muted")} from these emails.`,
   });
 }
-function signoff(bookkeeper: string | null) {
+// The assigned bookkeeper's own email signature (Settings > Email signature,
+// user_settings.settings.signature) replaces the default sign-off when set.
+// Loaded into client._signature before rendering.
+function signoff(bookkeeper: string | null, signature?: string | null) {
+  if (signature) return p(esc(signature).replace(/\n/g, "<br>"), "text", 15);
   return p(`Thank you,<br>${bookkeeper ? `${esc(bookkeeper)}<br>` : ""}${L.tone("MyGoodBooks", "muted")}`, "text", 15);
+}
+function signoffText(bookkeeper: string | null, signature?: string | null): string[] {
+  if (signature) return [signature];
+  return ["Thank you,", ...(bookkeeper ? [bookkeeper] : []), "MyGoodBooks"];
+}
+async function withSignatures(db: SupabaseClient, clients: any[]): Promise<any[]> {
+  const emails = [...new Set(clients.map((c) => String(c.assigned_bookkeeper_email || "").toLowerCase()).filter(Boolean))];
+  if (!emails.length) return clients;
+  const { data } = await db.from("user_settings").select("user_email, settings").in("user_email", emails);
+  const sig = new Map((data || []).map((r: any) => [String(r.user_email).toLowerCase(), String(r.settings?.signature || "").trim()]));
+  return clients.map((c) => ({ ...c, _signature: sig.get(String(c.assigned_bookkeeper_email || "").toLowerCase()) || null }));
+}
+// Monthly summary: people who turned it off in their own Settings
+// (notify.email.monthly_summary === false) are left out, and when the main
+// contact picked who receives it (client_email_prefs.summary_recipients) only
+// those people get it.
+async function summaryFilter(db: SupabaseClient, to: { email: string; token: string }[], prefs: any) {
+  const chosen: string[] = Array.isArray(prefs?.summary_recipients) ? prefs.summary_recipients.map((e: string) => String(e).toLowerCase()) : [];
+  let list = chosen.length ? to.filter((r) => chosen.includes(r.email.toLowerCase())) : to;
+  if (!list.length) return list;
+  const { data } = await db.from("user_settings").select("user_email, settings").in("user_email", list.map((r) => r.email.toLowerCase()));
+  const off = new Set((data || []).filter((r: any) => r.settings?.notify?.email?.monthly_summary === false).map((r: any) => String(r.user_email).toLowerCase()));
+  list = list.filter((r) => !off.has(r.email.toLowerCase()));
+  return list;
 }
 
 function renderChaser(client: any, requests: any[], firstTime: boolean) {
@@ -152,7 +180,7 @@ function renderChaser(client: any, requests: any[], firstTime: boolean) {
     p("You can upload each one in your portal under <b>Documents</b>. It goes straight to your bookkeeper.") +
     button("Upload in your portal") +
     p("If you've already sent these another way, just reply and let us know.", "muted", 14) +
-    signoff(bk);
+    signoff(bk, client._signature);
   const text = [
     "Hi there,",
     "",
@@ -165,9 +193,7 @@ function renderChaser(client: any, requests: any[], firstTime: boolean) {
     `Upload each one in your portal under Documents: ${PORTAL_URL}`,
     "If you've already sent these another way, just reply and let us know.",
     "",
-    "Thank you,",
-    ...(bk ? [bk] : []),
-    "MyGoodBooks",
+    ...signoffText(bk, client._signature),
     "",
     `Unsubscribe from these emails: ${UNSUB_SLOT}`,
   ].join("\n");
@@ -206,7 +232,7 @@ function renderValue(client: any, period: string, v: any) {
     list("Completed for you", v.tasks.items, v.tasks.count - v.tasks.items.length) +
     list("Documents received", v.docs.items, v.docs.count - v.docs.items.length) +
     button("Open your portal") +
-    signoff(bk);
+    signoff(bk, client._signature);
   const text = [
     "Hi there,",
     "",
@@ -221,9 +247,7 @@ function renderValue(client: any, period: string, v: any) {
     "",
     `Your portal: ${PORTAL_URL}`,
     "",
-    "Thank you,",
-    ...(bk ? [bk] : []),
-    "MyGoodBooks",
+    ...signoffText(bk, client._signature),
     "",
     `Unsubscribe from these emails: ${UNSUB_SLOT}`,
   ].join("\n");
@@ -427,8 +451,9 @@ Deno.serve(async (req) => {
     const action = body?.action === "test" ? "test" : body?.action === "preview" ? "preview" : null;
     const clientId = typeof body?.client_id === "string" ? body.client_id : null;
     if (!action || !clientId) return json({ error: "action (preview|test) and client_id are required" }, 400);
-    const { data: client } = await db.from("clients").select("id, name, test_only, assigned_bookkeeper").eq("id", clientId).maybeSingle();
-    if (!client) return json({ error: "client not found" }, 404);
+    const { data: clientRow } = await db.from("clients").select("id, name, test_only, assigned_bookkeeper, assigned_bookkeeper_email").eq("id", clientId).maybeSingle();
+    if (!clientRow) return json({ error: "client not found" }, 404);
+    const [client] = await withSignatures(db, [clientRow]);
     const { data: prefs } = await db.from("client_email_prefs").select("*").eq("client_id", clientId).maybeSingle();
 
     let email: { subject: string; html: string; text: string };
@@ -489,7 +514,8 @@ Deno.serve(async (req) => {
     return json({ status: "skipped", reason: globalBlock });
   }
 
-  const { data: clients } = await db.from("clients").select("id, name, test_only, assigned_bookkeeper");
+  const { data: clientRows } = await db.from("clients").select("id, name, test_only, assigned_bookkeeper, assigned_bookkeeper_email");
+  const clients = await withSignatures(db, clientRows || []);
   const { data: allPrefs } = await db.from("client_email_prefs").select("*");
   const prefsBy = new Map((allPrefs || []).map((r: any) => [r.client_id, r]));
   const summary: Record<string, number> = { sent: 0, skipped: 0, not_configured: 0, error: 0 };
@@ -582,6 +608,11 @@ Deno.serve(async (req) => {
     const rc = await recipientsFor(db, client.id);
     if (!rc.to.length) {
       await skip(client.id, rc.total ? "Every portal user has unsubscribed" : "No active portal users to email", { period });
+      continue;
+    }
+    rc.to = await summaryFilter(db, rc.to, prefsBy.get(client.id));
+    if (!rc.to.length) {
+      await skip(client.id, "Everyone chosen for the monthly summary has turned it off", { period });
       continue;
     }
     const to = rc.to.map((r) => r.email);
