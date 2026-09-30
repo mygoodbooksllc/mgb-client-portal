@@ -291,7 +291,10 @@ because some work happens in Claude Code web sessions. Run `git fetch` and compa
 
 - **Staff top bar** (`components/staff/TopBar.jsx` + `top-bar.css`, `TB_` prefix). App renders
   `TB_StaffTopBar` at the top of `<main>` whenever the staff sidebar shows (`showStaffRail`), so
-  clients and client-user previews never see it. Sticky; no page links. Each piece is its own
+  clients and client-user previews never see it. Sticky; no page links. Design is "option B"
+  (owner-approved 2026-09-30): navy `var(--sidebar-bg)` bar joined to the sidebar, controls on
+  translucent white chips, gold avatar and focus rings, light dropdown panels; colours are scoped
+  `--tb-*` variables in one commented block in `top-bar.css` (dark mode adds a hairline bottom border). Each piece is its own
   component; delete its line in `TB_StaffTopBar` to drop it:
   - **Left:** `TB_ClientPicker` (reuses `CS_ClientSwitcher`), `TB_SyncPill` (reuses
     `QboSyncNowButton`; click = Sync now).
