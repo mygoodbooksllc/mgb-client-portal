@@ -21,7 +21,7 @@ sort: 110
    - **Share with this client's team**: lets the other staff on that client see it and tick it off (you must pick a client first).
 4. Click **Add**. The client you picked stays selected, so adding several tasks for one client is quick.
 
-You can also add a task from inside a client with the **Add task** button in the staff bar at the top of every client page (see [the quick-action bar](#/help/quick-actions)).
+You can also add a task from inside a client: click **+** in the top bar and choose **New task** (see [How do I add a task, note or document request, or message a client?](#/help/quick-actions)).
 
 ### The tabs
 

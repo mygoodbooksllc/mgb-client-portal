@@ -14,7 +14,7 @@ On any client page there are two preview controls. Neither changes anything for 
 3. A bar appears: "Previewing as {name} — {role}. This is exactly what they see when they sign in."
 4. Click **Exit preview** when you're done.
 
-While previewing, staff-only things are hidden: the top bar, the staff bar, the Client overview and the staff note icons.
+While previewing, staff-only things are hidden: the top bar (with **Overview** and **+**), the Client overview and the staff note icons.
 
 ### Preview a different plan
 

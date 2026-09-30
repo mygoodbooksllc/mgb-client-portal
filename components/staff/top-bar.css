@@ -414,6 +414,21 @@
   border-top: 1px solid var(--border);
 }
 
+/* ---- 1b. Overview chip (client pages; the open client's staff overview) ---- */
+.tb-overview {
+  height: 40px; /* matches the client picker chip beside it */
+  color: var(--tb-fg);
+}
+.tb-overview svg {
+  flex-shrink: 0;
+}
+.tb-overview.is-current,
+.tb-overview.is-current:hover {
+  border-color: var(--tb-accent-border);
+  background: var(--tb-accent-soft);
+  color: var(--tb-accent);
+}
+
 /* ---- 4. Bell (reuses .notif-*) ---- */
 .tb-bell-panel {
   width: 340px;
@@ -562,6 +577,7 @@
 
 /* Narrower desktop windows: drop text labels, keep the icons and counts. */
 @media (max-width: 1180px) {
+  .tb-overview-label,
   .tb-tasks-label,
   .tb-throttle-text,
   .tb-kbd {
@@ -611,12 +627,34 @@
     min-height: 52px;
   }
   .tb-sync,
+  .tb-overview,
   .tb-throttle,
   .tb-tasks,
   .tb-menu-wrap,
   .tb-help,
   .tb-kbd {
     display: none;
+  }
+  /* "+" stays on phones: it's the only way to add a task, note or document
+     request, or message the client, now the quick-action bar is gone.
+     (Overview is reached by picking the client in the picker.) */
+  .tb-menu-wrap.tb-quick {
+    display: block;
+    position: static;
+  }
+  .tb-quick .tb-icon-btn {
+    width: 44px;
+    height: 44px;
+  }
+  .tb-quick .tb-menu {
+    position: fixed;
+    top: 112px;
+    left: auto;
+    right: 8px;
+    min-width: 240px;
+  }
+  .tb-quick .tb-menu-item {
+    min-height: 44px;
   }
   .tb-left,
   .tb-middle {

@@ -31,7 +31,7 @@ Click the **i** button to open details on the right: the client's milestone, cas
 
 ### Chat from any page
 
-The chat button at the bottom right, or **Message** in a client's staff bar, opens a small chat drawer without leaving the page you're on. Press **Esc** or click outside it to close.
+The chat button at the bottom right, or **+** → **Message** in the top bar on a client page, opens a small chat drawer without leaving the page you're on. Press **Esc** or click outside it to close.
 
 ### Team chat
 

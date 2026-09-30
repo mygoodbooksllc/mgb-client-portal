@@ -10,7 +10,7 @@ Client notes are **staff-only**. Clients never see them. The same notes show up 
 ### Where to add a note
 
 - **My Tasks → Notes** card: pick a **Client** and a **Category** (General, Status, Handoff, Call or Meeting), type the note and click **Add note**.
-- The **Add note** button in the staff bar on any client page.
+- **+** → **New note** in the top bar on any client page.
 - **Client details → Notes** (in the client's sidebar): a scratchpad for things like billing quirks or how a client likes to be contacted.
 - **Client overview → Activity → Log a call**: saves a quick call note.
 

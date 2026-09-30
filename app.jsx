@@ -1543,27 +1543,9 @@ function Sidebar({
                   </div>
                 )}
                 <div className="nav-section-items" id={sectionId}>
-                  {isSignature && viewingAsStaff && (
-                    <button
-                      className={
-                        "nav-item nav-item-staff" +
-                        (page === "client-overview" ? " active" : "")
-                      }
-                      onClick={() => {
-                        onSelectPage("client-overview");
-                        onCloseMobile();
-                      }}
-                      aria-label={collapsed ? "Overview (staff only)" : undefined}
-                      onMouseEnter={(e) => showTip(e, "Overview (staff only)")}
-                      onMouseLeave={hideTip}
-                      onFocus={(e) => showTip(e, "Overview (staff only)")}
-                      onBlur={hideTip}
-                    >
-                      <BarChartIcon />
-                      <span className="nav-item-label">Overview</span>
-                      <span className="nav-staff-tag">Staff</span>
-                    </button>
-                  )}
+                  {/* The staff-only Overview lives in the staff top bar
+                      (TB_OverviewButton), so this list is exactly what the
+                      client sees. */}
                   {items.map((item) => {
                     // Same tab, same name, for every plan — the PRO pill (and
                     // the gold shimmer that used to mark a whole separate
@@ -6125,7 +6107,9 @@ function InternalNotesSummary({ client }) {
 // Quick actions on every client page (staff only). `only` limits the bar to
 // some actions (the inbox's context pane shows just "request" and "task");
 // `onMessage` opens the chat drawer instead of the client's Messages tab.
-function StaffQuickActions({ client, onNavigate, only, onMessage }) {
+// `headless` renders no buttons, only the modals, opened from the staff top
+// bar's "+" menu (tb:quick-add); App mounts it that way on client pages.
+function StaffQuickActions({ client, onNavigate, only, onMessage, headless }) {
   const { staff, staffUser } = useContext(StaffToolsContext);
   const showToast = useToast();
   const [modal, setModal] = useState(null);
@@ -6137,13 +6121,18 @@ function StaffQuickActions({ client, onNavigate, only, onMessage }) {
     if (!listenTopBar) return;
     const onAdd = (e) => {
       const kind = e.detail && e.detail.kind;
+      if (kind === "message") {
+        if (onMessage) onMessage();
+        else onNavigate("messages");
+        return;
+      }
       if (kind !== "task" && kind !== "request" && kind !== "note") return;
       setF({ text: "", due: "", details: "", shared: true, pin: false });
       setModal(kind);
     };
     window.addEventListener("tb:quick-add", onAdd);
     return () => window.removeEventListener("tb:quick-add", onAdd);
-  }, [listenTopBar]);
+  }, [listenTopBar, onMessage, onNavigate]);
   if (!staff || !staffUser) return null;
   const sb = window.mgbSupabase;
   const openModal = (kind) => {
@@ -6190,10 +6179,15 @@ function StaffQuickActions({ client, onNavigate, only, onMessage }) {
   }
   const titles = { task: "Add a task", request: "Request a document", note: "Add a note" };
   const canSubmit = (f.text || "").trim().length > 0;
-  const shows = (k) => !only || only.includes(k);
+  const shows = (k) => !headless && (!only || only.includes(k));
+  if (headless && !modal) return null;
+  const Wrap = headless ? React.Fragment : "div";
+  const wrapProps = headless
+    ? {}
+    : { className: "staff-quick-actions" + (only ? " sqa-subset" : ""), role: "toolbar", "aria-label": "Staff quick actions" };
   return (
-    <div className={"staff-quick-actions" + (only ? " sqa-subset" : "")} role="toolbar" aria-label="Staff quick actions">
-      {!only && <span className="sqa-label">Staff</span>}
+    <Wrap {...wrapProps}>
+      {!only && !headless && <span className="sqa-label">Staff</span>}
       {shows("overview") && <button type="button" onClick={() => onNavigate("client-overview")}>Overview</button>}
       {shows("task") && <button type="button" onClick={() => openModal("task")}>Add task</button>}
       {shows("request") && <button type="button" onClick={() => openModal("request")}>Request document</button>}
@@ -6264,7 +6258,7 @@ function StaffQuickActions({ client, onNavigate, only, onMessage }) {
           </form>
         </ModalShell>
       )}
-    </div>
+    </Wrap>
   );
 }
 
@@ -25126,6 +25120,7 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
               in the sidebar would be a non sequitur. */}
           {!NON_CLIENT_PAGES.has(effectivePage) && (
             <StaffQuickActions
+              headless
               client={client}
               onNavigate={setPage}
               onMessage={siStaffChat ? () => setSiDrawer({ clientId: client.id }) : undefined}

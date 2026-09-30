@@ -17,7 +17,7 @@ Welcome! The MyGoodBooks portal is where our clients (mostly churches and nonpro
 
 ### The top bar
 
-Across the top of the page: the client picker (**Choose a client**), the sync pill, search (**Ctrl+K** / **⌘K**), the bell, **My Tasks**, **+**, **?** and your initials (dark mode, Preview as and **Sign out**). See [What's on the bar at the top of the page?](#/help/top-bar).
+Across the top of the page: the client picker (**Choose a client**), **Overview** (back to the open client's Client overview), the sync pill, search (**Ctrl+K** / **⌘K**), the bell, **My Tasks**, **+** (add a task, note or document request, or message the client), **?** and your initials (dark mode, Preview as and **Sign out**). See [What's on the bar at the top of the page?](#/help/top-bar).
 
 ### The staff sidebar
 
@@ -38,7 +38,7 @@ When you have a client open, the staff sidebar shrinks to a thin strip of icons 
 
 ### On a phone
 
-The top bar keeps the client picker, search and the bell. Tap the menu button at the top left to open the menu. Tap your name (the chip with your initials) to reach the staff pages (Home, Inbox, My Tasks, Close tracker, Help and so on) and **Sign out**.
+The top bar keeps the client picker, search, the bell and **+**. Tap the menu button at the top left to open the menu. Tap your name (the chip with your initials) to reach the staff pages (Home, Inbox, My Tasks, Close tracker, Help and so on) and **Sign out**.
 
 ### Who sees what
 

@@ -34,6 +34,7 @@ On **Home**, the **Jump to client** card lets you pick from **Browse your N clie
 ### Getting back
 
 - **Client view** in the staff sidebar takes you back to the client you last had open.
+- **Overview**, next to the client picker, takes you back to the open client's Client overview. On a phone, pick the same client again in the picker.
 - The address bar keeps the client and page, so you can bookmark a client or paste the link to a teammate.
 
 ### Troubleshooting

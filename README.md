@@ -263,8 +263,14 @@ because some work happens in Claude Code web sessions. Run `git fetch` and compa
     - the month-end close checklist (`client_close_items`)
     - document requests
     - an activity timeline with "Log a call", saved as a `client_private_notes` call note
-  - **Quick-action bar** on every client page: Overview, Add task, Request document,
-    Add note, Message (opens the chat drawer on this client).
+  - **Quick actions** (`StaffQuickActions` in `app.jsx`): the visible "Staff" bar on client pages
+    was retired 2026-09-30. App mounts it `headless` on client pages, so it renders no buttons, only
+    the Add task / Request document / Add note modals, opened from the top bar's "+" via the
+    `tb:quick-add` event (kind `task` / `request` / `note`; kind `message` opens the chat drawer, or
+    the Messages tab when the drawer isn't available). The Inbox context pane still renders it with
+    `only={["request", "task"]}` as visible buttons. Overview moved to the top bar
+    (`TB_OverviewButton`); the client sidebar no longer has the staff-only Overview item, so it
+    lists exactly what the client sees. The `client-overview` route is unchanged.
   - **Open requests are hard to miss:** a "Your bookkeeper needs N documents · Upload now" banner
     shows on every client page (for the client, and for staff previewing as them), and Documents
     gets a dot in the sidebar.
@@ -296,8 +302,10 @@ because some work happens in Claude Code web sessions. Run `git fetch` and compa
   translucent white chips, gold avatar and focus rings, light dropdown panels; colours are scoped
   `--tb-*` variables in one commented block in `top-bar.css` (dark mode adds a hairline bottom border). Each piece is its own
   component; delete its line in `TB_StaffTopBar` to drop it:
-  - **Left:** `TB_ClientPicker` (reuses `CS_ClientSwitcher`), `TB_SyncPill` (reuses
-    `QboSyncNowButton`; click = Sync now).
+  - **Left:** `TB_ClientPicker` (reuses `CS_ClientSwitcher`), `TB_OverviewButton` ("Overview"
+    chip, client pages only → `#/client/<id>/overview`; gold `is-current` + `aria-current="page"`
+    on `client-overview`; label drops under 1180px), `TB_SyncPill` (reuses `QboSyncNowButton`;
+    click = Sync now).
   - **Middle:** `TB_Search`, Ctrl/⌘+K. Clients and my tasks/notes are filtered locally; client SOPs
     (`client_sops` ilike, RLS-scoped) and Help (`search_staff_guide`) are queried, debounced. Grouped
     listbox with arrow keys / Enter / Esc.
@@ -306,15 +314,19 @@ because some work happens in Claude Code web sessions. Run `git fetch` and compa
     uploaded, open tasks assigned to me by someone else, last month's `close_checks` Blocked (admins:
     only clients they're the assigned bookkeeper on); seen ids in `localStorage`
     `mgb-topbar-bell-seen:<email>`), `TB_TasksBadge` (open count, overdue in red → `#/tasks`),
-    `TB_QuickAdd` ("+", client pages; dispatches `tb:quick-add`, which `StaffQuickActions` listens for
-    and opens its own modal), `TB_HelpButton` (`#/help/<slug>` for the current page, else `#/help`),
+    `TB_QuickAdd` ("+", client pages: New task / New note / Request document / Message; dispatches
+    `tb:quick-add`, which the headless `StaffQuickActions` listens for and opens its own modal or the
+    chat drawer), `TB_HelpButton` (`#/help/<slug>` for the current page, else `#/help`),
     `TB_AvatarMenu` (theme, Preview as a client user, Exit "View as", temporary access, Sign out).
   - **Moved, not duplicated:** while mounted, the client picker, sync pill and account menu add
     `tb-has-client` / `tb-has-sync` / `tb-has-avatar` on `<html>`, and desktop-only CSS hides the old
     copies (sidebar/rail client switcher, header Live pill, rail theme/name/sign out, sidebar theme
     toggle, temporary-access banner and Preview as select).
-  - **Phones:** the bar sits under the navy `.mobile-topbar` and keeps only the client picker, search
-    and bell; everything else stays in the drawer.
+  - **Phones:** the bar sits under the navy `.mobile-topbar` and keeps only the client picker, search,
+    bell and "+" (44px; its menu opens fixed under the bar), since "+" is now the only way to add a
+    task / note / request or message from a client page. Overview is hidden there: picking a client
+    in the picker, including the one already open, lands on the overview. Everything else stays in
+    the drawer.
   - Bell, My Tasks and the task/note search groups step aside during admin "View as".
 
 - **Home** (`bookkeeper-home`): Your clients (with health dots), Needs attention, Needs a visit,

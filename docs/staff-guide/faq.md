@@ -7,7 +7,7 @@ sort: 900
 ---
 ### Can clients see my notes, tasks or the Client overview?
 
-No. The Client overview, staff notes, internal notes in the Inbox, SOPs, My Tasks and the staff bar are staff-only. Clients only see what you deliberately send them: document requests (on their Documents page), messages sent as **Reply** (not **Note**), and client emails.
+No. The Client overview, staff notes, internal notes in the Inbox, SOPs, My Tasks and the top bar are staff-only. Clients only see what you deliberately send them: document requests (on their Documents page), messages sent as **Reply** (not **Note**), and client emails.
 
 ### Why does a page say "Prototype · Sample Data"?
 

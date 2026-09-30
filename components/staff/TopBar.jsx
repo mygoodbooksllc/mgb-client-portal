@@ -8,6 +8,8 @@
 //
 //   Left     TB_ClientPicker   reuses CS_ClientSwitcher (name, plan, health,
 //                              recent clients)
+//            TB_OverviewButton "Overview" chip: the open client's staff
+//                              overview (client pages only)
 //            TB_SyncPill       reuses QboSyncNowButton (the "Live · synced"
 //                              pill; click = Sync now)
 //   Middle   TB_Search         clients, my tasks and notes, client SOPs, Help
@@ -17,7 +19,8 @@
 //            TB_Bell           client messages waiting, uploaded documents,
 //                              tasks assigned to me, blocked month-end close
 //            TB_TasksBadge     open My Tasks count, overdue in red
-//            TB_QuickAdd       "+" menu: the quick-action bar's own modals
+//            TB_QuickAdd       "+" menu: task, note, document request
+//                              (StaffQuickActions' modals) and Message
 //            TB_HelpButton     "?" -> #/help or the page's article
 //            TB_AvatarMenu     theme, Preview as (client user), Exit "View
 //                              as", temporary access, Sign out
@@ -25,8 +28,9 @@
 // Moving, not duplicating: while a piece is mounted it puts a class on <html>
 // (tb-has-client, tb-has-sync, tb-has-avatar) and top-bar.css hides the old
 // copy on desktop. Remove a piece and its old location comes back on its own.
-// On phones the bar keeps only the client picker, search and bell; the rest
-// stays where it always was, in the menu drawer.
+// On phones the bar keeps only the client picker, search, bell and "+"; the
+// rest stays where it always was, in the menu drawer. (Overview is hidden
+// there too: picking a client, even the one already open, lands on it.)
 //
 // Navigation goes through the URL hash (#/tasks, #/help/<slug>,
 // #/client/<id>/overview ...), which App already routes; the bar has no page
@@ -225,6 +229,28 @@ function TB_ClientPicker({ clients, client, staffUser, statusOverrides, pendingR
         canRequest={!impersonating}
       />
     </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// 1b. Overview: the open client's staff overview (was a "Staff" item in the
+// client sidebar; moved here so that sidebar shows only what the client sees)
+// ---------------------------------------------------------------------------
+function TB_OverviewButton({ client, page }) {
+  if (!client) return null;
+  const current = page === "client-overview";
+  return (
+    <button
+      type="button"
+      className={"tb-item tb-pill-btn tb-overview" + (current ? " is-current" : "")}
+      aria-label={`Overview of ${client.name} (staff only)`}
+      aria-current={current ? "page" : undefined}
+      title={`Overview of ${client.name}`}
+      onClick={() => TB_go(TB_clientHash(client.id, "overview"))}
+    >
+      {typeof BarChartIcon === "function" && <BarChartIcon width="15" height="15" />}
+      <span className="tb-overview-label">Overview</span>
+    </button>
   );
 }
 
@@ -723,7 +749,8 @@ function TB_TasksBadge({ items, me }) {
 }
 
 // ---------------------------------------------------------------------------
-// 6. "+" quick add (opens StaffQuickActions' own modals)
+// 6. "+" quick add (task / note / request open StaffQuickActions' own modals;
+// Message opens the same chat drawer the old quick-action bar did)
 // ---------------------------------------------------------------------------
 function TB_QuickAdd({ client }) {
   const menu = TB_useMenu();
@@ -733,7 +760,7 @@ function TB_QuickAdd({ client }) {
     window.dispatchEvent(new CustomEvent(TB_QUICK_ADD_EVENT, { detail: { kind } }));
   };
   return (
-    <div className="tb-item tb-menu-wrap" ref={menu.rootRef} onKeyDown={menu.onMenuKeyDown}>
+    <div className="tb-item tb-menu-wrap tb-quick" ref={menu.rootRef} onKeyDown={menu.onMenuKeyDown}>
       <button
         ref={menu.triggerRef}
         type="button"
@@ -757,6 +784,9 @@ function TB_QuickAdd({ client }) {
           </button>
           <button type="button" role="menuitem" className="tb-menu-item" onClick={() => run("request")}>
             Request document
+          </button>
+          <button type="button" role="menuitem" className="tb-menu-item" onClick={() => run("message")}>
+            Message
           </button>
         </div>
       )}
@@ -1022,6 +1052,7 @@ function TB_StaffTopBar({
           pendingRequestsByClient={pendingRequestsByClient}
           impersonating={impersonating}
         />
+        <TB_OverviewButton client={client} page={page} />
         <TB_SyncPill client={client} plan={plan} onSynced={onSynced} />
       </div>
       <div className="tb-middle">
