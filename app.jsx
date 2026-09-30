@@ -538,6 +538,7 @@ const NON_CLIENT_PAGES = new Set([
   "task-templates",
   "audit-log",
   "emails",
+  "help",
 ]);
 
 // Tabs that are part of a paid add-on rather than the base product. Always
@@ -1213,6 +1214,22 @@ function Sidebar({
                     </button>
                   )}
 
+                  {!impersonating && typeof HLP_StaffGuidePage === "function" && (
+                    <button
+                      type="button"
+                      role="menuitem"
+                      className={"staff-user-menu-item" + (page === "help" ? " active" : "")}
+                      onClick={() => {
+                        onSelectPage("help");
+                        onCloseMobile();
+                        setStaffMenuOpen(false);
+                      }}
+                    >
+                      <HLP_HelpIcon width="16" height="16" strokeWidth="1.8" />
+                      Help
+                    </button>
+                  )}
+
                   {showsAdminPages && (
                     <React.Fragment>
                       <div className="staff-user-menu-divider" />
@@ -1795,6 +1812,9 @@ function StaffRail({
             due: true,
           },
           { key: "close-tracker", label: "Close tracker", icon: <CalculatorIcon /> },
+          ...(typeof HLP_StaffGuidePage === "function"
+            ? [{ key: "help", label: "Help", icon: <HLP_HelpIcon /> }]
+            : []),
         ]),
   ];
   const adminItems = showsAdminPages
@@ -22908,6 +22928,10 @@ const PAGE_META = {
     title: "Close tracker",
     subtitle: "Month-end close status for every client, month by month",
   },
+  help: {
+    title: "Help",
+    subtitle: "How-to guide for MyGoodBooks staff. Search or browse by topic",
+  },
   "task-templates": {
     title: "Task templates",
     subtitle: "Recurring tasks created automatically for each client's bookkeeper",
@@ -23187,6 +23211,8 @@ function parseHashRoute(hash) {
 }
 
 function buildHashRoute(page, clientId) {
+  // Help keeps its article slug (#/help/<slug>); StaffGuide.jsx reads it.
+  if (page === "help" && /^#\/help\/[a-z0-9-]+$/.test(window.location.hash)) return window.location.hash;
   if (NON_CLIENT_PAGES.has(page)) return "#/" + (HASH_PAGE_SLUGS[page] || page);
   if (!clientId) return "";
   return (
@@ -24208,6 +24234,8 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
           : page === "my-tasks" && staffUser && !impersonating
             ? page
           : page === "close-tracker" && staffUser && !impersonating
+            ? page
+          : page === "help" && staffUser && !impersonating
             ? page
             : page === "bookkeeper-home" && staffUser
                 ? page
@@ -25358,6 +25386,7 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
             <CT_CloseTrackerPage clients={visibleClients} staffUser={effectiveStaffUser} />
           )}
           {effectivePage === "task-templates" && <TT_TaskTemplatesPage clients={visibleClients} />}
+          {effectivePage === "help" && typeof HLP_StaffGuidePage === "function" && <HLP_StaffGuidePage />}
           {effectivePage === "bookkeeper-home" && (
             <BookkeeperHomePage
               staffUser={effectiveStaffUser}

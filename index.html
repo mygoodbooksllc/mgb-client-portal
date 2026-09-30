@@ -77,6 +77,7 @@
       document.write('<link rel="stylesheet" href="components/staff/team-page.css?v=' + Date.now() + '">');
       document.write('<link rel="stylesheet" href="components/staff/staff-ops.css?v=' + Date.now() + '">');
       document.write('<link rel="stylesheet" href="components/staff/admin-tools.css?v=' + Date.now() + '">');
+      document.write('<link rel="stylesheet" href="components/staff/staff-guide.css?v=' + Date.now() + '">');
 
       // Kick every source fetch off HERE, in <head>, so all five download in
       // parallel with React/Babel/jsPDF instead of after them. Previously each
@@ -114,6 +115,7 @@
         "components/staff/ClientEmailSettings.jsx",
         "components/staff/DocChaser.jsx",
         "components/staff/EmailsPage.jsx",
+        "components/staff/StaffGuide.jsx",
         "app.jsx",
       ];
       window.__sources = {};

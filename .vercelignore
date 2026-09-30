@@ -29,3 +29,6 @@ design-system/
 
 # Point-in-time snapshots of the whole app taken before large refactors
 .snapshot-before-*/
+
+# Staff training guide source (published to the staff_guide table, not served)
+docs/
