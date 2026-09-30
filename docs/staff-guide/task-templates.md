@@ -1,0 +1,37 @@
+---
+title: How do recurring tasks from templates work?
+section: Month-end and recurring work
+audience: staff
+keywords: [templates, recurring, repeat, monthly, quarterly, annually, generate, automatic tasks, task templates]
+sort: 320
+---
+Some work happens for every client on a schedule, like reconciling bank accounts each month. Instead of typing those tasks by hand, an admin sets up a **task template** once, and the portal creates the task for each client automatically.
+
+### What bookkeepers see
+
+- The tasks simply appear in **My Tasks** for the clients you're the assigned bookkeeper for.
+- They carry a **Recurring** chip in My Tasks.
+- The task name ends with the period, for example **"Reconcile bank accounts · Sep 2026"**, so you know which month or quarter it's for.
+- Each task shows up a few days before it's due (the "lead window"), not months ahead.
+- They're shared with the client's team (other staff on that client can see them), and you complete them like any other task.
+- You only get each task once per client per period, even if the template runs again.
+
+### Setting up a template (admins)
+
+**Task templates** is in the admin part of the staff menu. Admins and staff with temporary admin access can open it.
+
+1. Click **New template**.
+2. Type the **Task title**, for example *Reconcile bank accounts*. Don't add the month; it's added for you.
+3. Pick how often it **Repeats**: **Monthly**, **Quarterly** or **Annually**.
+4. **Due (days after period end)**: for example 10 means "due 10 days after the month ends".
+5. **Create (days before due)**: how early the task appears in My Tasks (default 14, up to 90).
+6. Pick a **Priority**: **Low**, **Normal** or **High**.
+7. Under **Applies to**, tick plans (Basic, Plus, Pro) and/or add specific clients. Leave everything unticked for **every client**.
+8. Leave **Active** ticked and click **Save**.
+
+The templates run every morning on their own. **Generate now** runs them immediately. Use **Pause** / **Resume** on a template to stop or restart it without deleting it. To remove one for good, click **Edit**, then **Delete template**. Tasks it already created stay in My Tasks.
+
+### Troubleshooting
+
+- **A task didn't appear for a client.** Check that the client has an **assigned bookkeeper** picked on the Client Roster. After a run, the page says how many were skipped because the client's bookkeeper doesn't match a staff login.
+- **"Nothing new to create right now."** Either the tasks already exist for this period, or the due date isn't inside the lead window yet.

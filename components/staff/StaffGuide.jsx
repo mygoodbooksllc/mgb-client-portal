@@ -166,7 +166,7 @@ function HLP_Markdown({ source }) {
       {blocks.map((b, n) => {
         const k = "b" + n;
         if (b.t === "h") {
-          const Tag = b.level <= 2 ? "h3" : "h4";
+          const Tag = b.level <= 3 ? "h3" : "h4";
           return <Tag key={k}>{HLP_inline(b.text, k)}</Tag>;
         }
         if (b.t === "hr") return <hr key={k} />;

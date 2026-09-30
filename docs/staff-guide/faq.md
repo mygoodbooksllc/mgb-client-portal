@@ -1,0 +1,52 @@
+---
+title: Frequently asked questions
+section: Help and FAQ
+audience: staff
+keywords: [faq, questions, help, sample data, prototype, can clients see, log time, hours, password, access, missing client, not working]
+sort: 900
+---
+### Can clients see my notes, tasks or the Client overview?
+
+No. The Client overview, staff notes, internal notes in the Inbox, SOPs, My Tasks and the staff bar are staff-only. Clients only see what you deliberately send them: document requests (on their Documents page), messages sent as **Reply** (not **Note**), and client emails.
+
+### Why does a page say "Prototype · Sample Data"?
+
+That client's QuickBooks isn't connected (or hasn't synced yet), so the numbers are made up. Connect QuickBooks to show real numbers. See [How do I connect a client's QuickBooks and use Sync now?](#/help/quickbooks-connection).
+
+Some areas are still sample data even for connected clients: giving, funds, pledges, donors and payroll; message threads in the Client overview's Engagement card; and uploads on the client's own Documents page (files uploaded into a document request are stored for real). Reconciliation status isn't available from QuickBooks yet.
+
+### How do I log my hours?
+
+You don't log hours in this app. Keep using **QuickBooks Time** as usual; hours sync from there. The app also records "in-app" time automatically, which is not billed. See [How is my time tracked?](#/help/quickbooks-time-and-app-time).
+
+### A client is missing from my client list.
+
+Bookkeepers only see their assigned clients. Ask an admin to assign it to you on Staff Access, or request temporary access. See [How do I get temporary access to a client I don't normally work on?](#/help/temporary-access).
+
+### Where do I keep client passwords?
+
+Not in the portal. In the SOP's **Access & logins** section, note *where* the password is kept (for example the password manager entry name), never the password itself.
+
+### Does "Mark sent to client" email the report?
+
+No. It only records that you sent it. Send the report yourself first.
+
+### Does the app send staff invitations?
+
+No. On Staff Access, **Email invite** opens a draft in Gmail or your mail app for an admin to send.
+
+### Is "Manage access" / Client details access enforced?
+
+Not fully yet. The Client details window shows "Prototype — access isn't enforced yet." Check with an admin before relying on those settings.
+
+### What's the difference between the Close tracker and the Month-end close checklist?
+
+The checklist (on Client overview) is the six steps for one client this month. The Close tracker is the status of every client, month by month. They're separate; update both. See [How do I track month-end close?](#/help/month-end-close).
+
+### Something says "…database update is applied" or "…isn't set up on the server yet".
+
+A feature's database update hasn't been installed. Nothing is wrong with your account. Tell an admin or the owner.
+
+### I'm stuck or found a bug.
+
+Ask an admin, or email holden@mygoodbooks.org.

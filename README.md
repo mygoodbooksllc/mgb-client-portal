@@ -689,3 +689,18 @@ The old `HANDOFF2.md`–`HANDOFF7.md`, `HANDOFF-DESIGN.md` and
 `client-dashboard-claude-code-prompt.md` were retired on 2026-09-23. They're still in git
 history. For example, `git show 3344625:HANDOFF7.md` shows the full running log (§1–§171),
 which explains the reasoning behind most of the decisions above.
+
+## Staff guide
+
+The staff Help page (`#/help`, "Help" in the staff sidebar) is a searchable how-to guide for staff.
+
+- **Source:** one markdown file per article in `docs/staff-guide/*.md`, with frontmatter `title`,
+  `section`, `audience` (`staff` or `admin`), `keywords` and optional `sort`. The file name is the slug
+  (`#/help/<slug>`). `docs/` is in `.vercelignore`, so the source is never served.
+- **Storage:** articles live in the `staff_guide` table (`supabase/staff-guide.sql`). Only active staff
+  can read `staff` articles and only admins can read `admin` ones (RLS). Search is the
+  `search_staff_guide(q)` RPC (full-text search with a partial-word fallback). The app never writes to the table.
+- **Re-sync after editing:** `node docs/staff-guide/sync.mjs --check` validates the files, then
+  `node docs/staff-guide/sync.mjs > /tmp/staff-guide-sync.sql` and run that SQL in the Supabase SQL
+  editor (or through the Supabase MCP `execute_sql`). It upserts every article and removes rows whose
+  file was deleted; it's safe to run again. The UI is `components/staff/StaffGuide.jsx` + `staff-guide.css`.
