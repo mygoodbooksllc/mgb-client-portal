@@ -12,6 +12,14 @@
 // totals line for the filtered rows, paging (50 + "Show more") and a CSV
 // export of exactly the filtered set.
 //
+// Category vs. Type (2026-09-30): on QuickBooks data the Category is the
+// posting ("split") account qbo-sync saves in qbo_transactions.split_account
+// and Type is the transaction type. Until a sync that saves categories has run
+// for the client every category is null: the Category column and the
+// multi-select category filter stay hidden and Type carries the row. Client
+// users get an "Ask" button per row (components/client/TxnQuestions.jsx);
+// staff see a "Question" pill on rows with an open question.
+//
 // Cash vs. card: a card's balance is the amount OWED (QuickBooks reports it as
 // a positive number), so it is never added to cash. window.mgbIsCardAccount
 // (data.js) decides which is which.
@@ -145,16 +153,92 @@ function BA_AccountGroup({ label, accounts, total, isCard, selectedId, onSelect 
   );
 }
 
-function BA_BankTransactionsPanel({ client, searchTarget }) {
+// Multi-select category filter: a button that opens a checklist. `selected`
+// is an array of category labels (BA_UNCAT stands for "no category").
+function BA_CategoryFilter({ options, selected, onChange }) {
+  const [open, setOpen] = React.useState(false);
+  const rootRef = React.useRef(null);
+  React.useEffect(() => {
+    if (!open) return;
+    const onDown = (e) => {
+      if (rootRef.current && !rootRef.current.contains(e.target)) setOpen(false);
+    };
+    const onKey = (e) => e.key === "Escape" && setOpen(false);
+    document.addEventListener("mousedown", onDown);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDown);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
+  const toggle = (c) =>
+    onChange(selected.includes(c) ? selected.filter((x) => x !== c) : [...selected, c]);
+  const label = !selected.length
+    ? "All categories"
+    : selected.length === 1
+      ? selected[0]
+      : `${selected.length} categories`;
+  return (
+    <div className="ba-catfilter" ref={rootRef}>
+      <button
+        type="button"
+        className={"ba-catfilter-btn" + (selected.length ? " is-active" : "")}
+        aria-haspopup="true"
+        aria-expanded={open}
+        onClick={() => setOpen((o) => !o)}
+      >
+        <span className="ba-catfilter-label">{label}</span>
+        <span aria-hidden="true" className="ba-catfilter-caret">▾</span>
+      </button>
+      {open && (
+        <div className="ba-catfilter-panel" role="group" aria-label="Filter by category">
+          <div className="ba-catfilter-head">
+            <span>Category</span>
+            {selected.length > 0 && (
+              <button type="button" className="ba-catfilter-clear" onClick={() => onChange([])}>
+                Clear
+              </button>
+            )}
+          </div>
+          <div className="ba-catfilter-list">
+            {options.map((o) => (
+              <label key={o.value} className="ba-catfilter-opt">
+                <input
+                  type="checkbox"
+                  checked={selected.includes(o.value)}
+                  onChange={() => toggle(o.value)}
+                />
+                <span className="ba-catfilter-name">{o.label}</span>
+                <span className="ba-catfilter-n">{o.count}</span>
+              </label>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+const BA_UNCAT = "\u0000uncategorized";
+
+function BA_BankTransactionsPanel({ client, searchTarget, isClientUser }) {
   const showToast = useToast();
   const { flashCardId, jumpToCard } = useCardFlash();
+  const staffCtx =
+    typeof StaffToolsContext !== "undefined" ? React.useContext(StaffToolsContext) : null;
+  const isStaff = !!(staffCtx && staffCtx.staff);
   const accounts = client.bankAccounts || [];
   const cashAccts = window.mgbCashAccounts(accounts);
   const cardAccts = window.mgbCardAccounts(accounts);
   const cashTotal = cashAccts.reduce((s, a) => s + a.balance, 0);
   const cardTotal = cardAccts.reduce((s, a) => s + a.balance, 0);
-  // QuickBooks rows carry txn_type ("Deposit", "Expense"), not a category.
-  const typeLabel = client.dataSource === "quickbooks" ? "Type" : "Category";
+  const isQbo = client.dataSource === "quickbooks";
+  // Transaction questions (components/client/TxnQuestions.jsx): QuickBooks
+  // rows only, since they need a stable transaction key.
+  const tq =
+    typeof TQ_useQuestions === "function"
+      ? TQ_useQuestions([client.id], { enabled: isQbo })
+      : { byKey: {} };
 
   const [rawSelectedId, setSelectedId] = React.useState(null);
   // An id that isn't one of this client's accounts (a stale search target,
@@ -165,6 +249,7 @@ function BA_BankTransactionsPanel({ client, searchTarget }) {
   const [query, setQuery] = React.useState("");
   const [range, setRange] = React.useState("all");
   const [direction, setDirection] = React.useState("all");
+  const [cats, setCats] = React.useState([]);
   const [limit, setLimit] = React.useState(BA_PAGE_SIZE);
   const [pendingJump, setPendingJump] = React.useState(null);
 
@@ -186,39 +271,84 @@ function BA_BankTransactionsPanel({ client, searchTarget }) {
 
   const selected = accounts.find((a) => a.id === selectedId) || null;
 
+  // Category = the QuickBooks posting (split) account, or data.js's budget
+  // category on sample data. It stays null on QuickBooks rows until the
+  // updated qbo-sync has run for this client; until then the Category column
+  // and filter are hidden and the Type column carries the row.
+  const hasCategories = allRows.some((t) => t.category);
+  const hasTypes = allRows.some((t) => t.type);
+  // With neither known the table still shows one column: Type on QuickBooks
+  // data, Category on sample data.
+  const showCatCol = hasCategories || (!hasTypes && !isQbo);
+  const showTypeCol = hasTypes || (!hasCategories && isQbo);
+  const catOptions = React.useMemo(() => {
+    const counts = {};
+    let uncat = 0;
+    allRows.forEach((t) => {
+      if (t.category) counts[t.category] = (counts[t.category] || 0) + 1;
+      else uncat++;
+    });
+    const opts = Object.keys(counts)
+      .sort((a, b) => a.localeCompare(b))
+      .map((c) => ({ value: c, label: c, count: counts[c] }));
+    if (uncat && opts.length) opts.push({ value: BA_UNCAT, label: "Uncategorized", count: uncat });
+    return opts;
+  }, [allRows]);
+  // Drop picks that no longer exist (re-sync, another client).
+  const activeCats = hasCategories ? cats.filter((c) => catOptions.some((o) => o.value === c)) : [];
+  const catsKey = activeCats.join("\u0001");
+  // Suggestions for "What was this for?": the categories already in use plus
+  // the budget / P&L lines.
+  const askCategories = React.useMemo(() => {
+    const set = new Set();
+    allRows.forEach((t) => t.category && !/^Split \(/.test(t.category) && set.add(t.category));
+    (client.budget || []).forEach((b) => b && b.category && set.add(b.category));
+    return Array.from(set).sort((a, b) => a.localeCompare(b));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [allRows, client]);
+
   const rows = React.useMemo(() => {
     const [from, to] = BA_rangeBounds(range);
     const q = query.trim().toLowerCase();
+    const catSet = activeCats.length ? new Set(activeCats) : null;
     return allRows.filter((t) => {
       if (selectedId && t.accountId !== selectedId) return false;
       if (from && t.date < from) return false;
       if (to && t.date > to) return false;
       if (direction === "in" && !(t.amount > 0)) return false;
       if (direction === "out" && !(t.amount < 0)) return false;
+      if (catSet && !catSet.has(t.category || BA_UNCAT)) return false;
       if (q) {
         const hay = (
           String(t.description || "") +
           " " +
           String(t.memo || "") +
           " " +
-          String(t.category || "")
+          String(t.category || "") +
+          " " +
+          String(t.type || "")
         ).toLowerCase();
         if (!hay.includes(q)) return false;
       }
       return true;
     });
-  }, [allRows, selectedId, range, direction, query]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [allRows, selectedId, range, direction, query, catsKey]);
 
   const moneyIn = rows.reduce((s, t) => s + (t.amount > 0 ? t.amount : 0), 0);
   const moneyOut = rows.reduce((s, t) => s + (t.amount < 0 ? t.amount : 0), 0);
   const filtersOn =
-    !!selectedId || !!query.trim() || range !== "all" || direction !== "all";
+    !!selectedId ||
+    !!query.trim() ||
+    range !== "all" ||
+    direction !== "all" ||
+    activeCats.length > 0;
 
   // Any filter change starts the list over at the first page.
   React.useEffect(() => {
     setLimit((l) => (pendingJump ? l : BA_PAGE_SIZE));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedId, range, direction, query]);
+  }, [selectedId, range, direction, query, catsKey]);
 
   // Search-result deep link: filter to that account, clear the other filters,
   // page far enough to include the row, then scroll to it and flash it.
@@ -234,6 +364,7 @@ function BA_BankTransactionsPanel({ client, searchTarget }) {
     setQuery("");
     setRange("all");
     setDirection("all");
+    setCats([]);
     setLimit(Math.max(BA_PAGE_SIZE, idx + 1));
     setPendingJump(domId);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -247,12 +378,20 @@ function BA_BankTransactionsPanel({ client, searchTarget }) {
   }, [pendingJump, selectedId, limit]);
 
   const exportCSV = () => {
-    const header = ["Date", "Account", "Description", typeLabel, "Amount"];
+    const header = [
+      "Date",
+      "Account",
+      "Description",
+      ...(showCatCol ? ["Category"] : []),
+      ...(showTypeCol ? ["Type"] : []),
+      "Amount",
+    ];
     const body = rows.map((t) => [
       t.date,
       t.accountName,
       t.description,
-      t.category,
+      ...(showCatCol ? [t.category || "Uncategorized"] : []),
+      ...(showTypeCol ? [t.type || ""] : []),
       t.amount,
     ]);
     const csv = [header, ...body]
@@ -289,7 +428,7 @@ function BA_BankTransactionsPanel({ client, searchTarget }) {
   }
 
   const shown = rows.slice(0, limit);
-  const colCount = selectedId ? 4 : 5;
+  const colCount = (selectedId ? 3 : 4) + (showCatCol ? 1 : 0) + (showTypeCol ? 1 : 0);
 
   return (
     <div className="ba-page">
@@ -375,7 +514,7 @@ function BA_BankTransactionsPanel({ client, searchTarget }) {
             <input
               type="search"
               className="ba-search"
-              placeholder="Search description or memo"
+              placeholder={hasCategories ? "Search description, memo or category" : "Search description or memo"}
               aria-label="Search transactions"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
@@ -406,6 +545,9 @@ function BA_BankTransactionsPanel({ client, searchTarget }) {
                 </button>
               ))}
             </div>
+            {hasCategories && catOptions.length > 0 && (
+              <BA_CategoryFilter options={catOptions} selected={activeCats} onChange={setCats} />
+            )}
           </div>
 
           <div className="ba-totals" aria-live="polite">
@@ -434,7 +576,8 @@ function BA_BankTransactionsPanel({ client, searchTarget }) {
                   <th>Date</th>
                   {!selectedId && <th>Account</th>}
                   <th>Description</th>
-                  <th>{typeLabel}</th>
+                  {showCatCol && <th>Category</th>}
+                  {showTypeCol && <th>Type</th>}
                   <th className="num">Amount</th>
                 </tr>
               </thead>
@@ -464,10 +607,29 @@ function BA_BankTransactionsPanel({ client, searchTarget }) {
                           targetKey={`${t.accountName || ""}|${t.date}|${t.description}|${t.amount}`}
                           targetLabel={`${fmtDate(t.date)} · ${t.description} · ${fmtMoney(t.amount)}`}
                         />
+                        {isQbo && typeof TQ_RowControl === "function" && (
+                          <TQ_RowControl
+                            client={client}
+                            txn={t}
+                            question={t.txnKey ? tq.byKey[client.id + "|" + t.txnKey] : null}
+                            isStaff={isStaff}
+                            isClientUser={!!isClientUser}
+                            categories={askCategories}
+                          />
+                        )}
                       </td>
-                      <td data-label={typeLabel}>
-                        <span className="category-tag">{t.category}</span>
-                      </td>
+                      {showCatCol && (
+                        <td data-label="Category">
+                          <span className={"category-tag" + (t.category ? "" : " is-uncat")}>
+                            {t.category || "Uncategorized"}
+                          </span>
+                        </td>
+                      )}
+                      {showTypeCol && (
+                        <td data-label="Type" className="ba-type">
+                          {t.type || "—"}
+                        </td>
+                      )}
                       <td
                         className={
                           "num tx-amount " + (t.amount >= 0 ? "positive" : "negative")

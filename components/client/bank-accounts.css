@@ -278,3 +278,371 @@
     padding: 11px 10px;
   }
 }
+
+/* ---- Category filter (multi-select) ---- */
+
+.ba-catfilter {
+  position: relative;
+}
+
+.ba-catfilter-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 220px;
+  font-family: var(--font-body);
+  font-size: 12.5px;
+  font-weight: 600;
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.ba-catfilter-btn:hover {
+  color: var(--ink-strong);
+  border-color: var(--gold);
+}
+
+.ba-catfilter-btn.is-active {
+  background: var(--accent-soft);
+  border-color: var(--gold);
+  color: var(--ink-strong);
+}
+
+.ba-catfilter-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ba-catfilter-caret {
+  font-size: 10px;
+}
+
+/* The category popover must escape the card: .card clips overflow, and every
+   direct child of .card is its own z-index:1 layer, so the filter row is
+   lifted above the totals and table that follow it, but only while the
+   popover is open, so it never covers a question modal opened from a row. */
+.card.ba-tx {
+  overflow: visible;
+}
+
+.card.ba-tx > .ba-filters:has(.ba-catfilter-panel) {
+  z-index: 2;
+}
+
+.ba-catfilter-panel {
+  position: absolute;
+  z-index: 30;
+  top: calc(100% + 6px);
+  right: 0;
+  width: 280px;
+  max-width: calc(100vw - 32px);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.14);
+  padding: 8px 0;
+}
+
+.ba-catfilter-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 2px 12px 6px;
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.ba-catfilter-clear {
+  border: 0;
+  background: none;
+  font: inherit;
+  text-transform: none;
+  letter-spacing: 0;
+  color: var(--gold-deep, var(--ink-strong));
+  cursor: pointer;
+}
+
+.ba-catfilter-list {
+  max-height: 280px;
+  overflow-y: auto;
+}
+
+.ba-catfilter-opt {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  font-size: 13px;
+  color: var(--ink-strong);
+  cursor: pointer;
+}
+
+.ba-catfilter-opt:hover {
+  background: var(--surface-2);
+}
+
+.ba-catfilter-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.ba-catfilter-n {
+  font-size: 11.5px;
+  color: var(--text-muted);
+}
+
+.category-tag.is-uncat {
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+.ba-type {
+  font-size: 12.5px;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+@media (max-width: 760px) {
+  .ba-catfilter,
+  .ba-catfilter-btn {
+    width: 100%;
+    max-width: none;
+  }
+
+  .ba-catfilter-btn {
+    justify-content: space-between;
+  }
+
+  .ba-catfilter-panel {
+    left: 0;
+    right: auto;
+    width: 100%;
+  }
+}
+
+/* ---- Transaction questions (components/client/TxnQuestions.jsx) ---- */
+
+.tq-ask,
+.tq-pill {
+  margin-left: 8px;
+  vertical-align: middle;
+  font-family: var(--font-body);
+  font-size: 11.5px;
+  font-weight: 600;
+  padding: 2px 9px;
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+.tq-ask {
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-muted);
+}
+
+.tq-ask:hover {
+  color: var(--ink-strong);
+  border-color: var(--gold);
+}
+
+.tq-pill {
+  border: 1px solid transparent;
+  background: var(--warm-bg);
+  color: var(--warm-text);
+}
+
+.tq-pill:hover {
+  border-color: var(--warm-text);
+}
+
+.tq-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* .task-field grows to a 140px basis in row layouts; in this column it
+   would leave tall gaps, so size it to its content. */
+.tq-body .task-field {
+  flex: none;
+}
+
+.tq-body .task-field input,
+.tq-body .task-field textarea {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 9px 12px;
+  font: inherit;
+  font-size: 14px;
+  color: var(--text);
+  background: var(--surface);
+  min-width: 0;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.tq-body .task-field textarea {
+  resize: vertical;
+}
+
+.tq-body .task-field input:focus-visible,
+.tq-body .task-field textarea:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 1px;
+}
+
+.tq-txn {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: var(--surface-2);
+}
+
+.tq-txn-desc {
+  font-weight: 600;
+  color: var(--ink-strong);
+  overflow-wrap: anywhere;
+}
+
+.tq-txn-meta {
+  font-size: 12.5px;
+  color: var(--text-muted);
+}
+
+.tq-facts {
+  margin: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.tq-facts > div {
+  display: grid;
+  grid-template-columns: 130px minmax(0, 1fr);
+  gap: 8px;
+}
+
+.tq-facts dt {
+  font-size: 12.5px;
+  color: var(--text-muted);
+}
+
+.tq-facts dd {
+  margin: 0;
+  color: var(--ink-strong);
+  overflow-wrap: anywhere;
+}
+
+.tq-note {
+  white-space: pre-wrap;
+}
+
+.tq-steps {
+  margin: 0;
+  font-size: 12.5px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: var(--warm-bg);
+  color: var(--warm-text);
+}
+
+.tq-error {
+  margin: 0;
+  font-size: 12.5px;
+  color: var(--bad);
+}
+
+.tq-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.tq-list li + li {
+  border-top: 1px solid var(--border);
+}
+
+.tq-list-btn {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  text-align: left;
+  color: inherit;
+  cursor: pointer;
+}
+
+.tq-list-btn:hover .tq-list-title {
+  text-decoration: underline;
+}
+
+.tq-list-main {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.tq-list-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink-strong);
+  overflow-wrap: anywhere;
+}
+
+.tq-list-sub,
+.tq-list-when {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.tq-list-when {
+  white-space: nowrap;
+}
+
+.tq-list.is-compact li + li {
+  border-top: 0;
+}
+
+.tq-list.is-compact .tq-list-btn {
+  padding: 2px 0;
+}
+
+.tq-count {
+  display: inline-block;
+  margin-left: 8px;
+  min-width: 20px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  font-size: 11.5px;
+  text-align: center;
+  background: var(--warm-bg);
+  color: var(--warm-text);
+  vertical-align: middle;
+}
+
+.tq-open-bank {
+  font-size: 12.5px;
+  padding: 4px 10px;
+}
+
+@media (max-width: 520px) {
+  .tq-facts > div {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 2px;
+  }
+}

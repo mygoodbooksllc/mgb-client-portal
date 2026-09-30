@@ -446,6 +446,10 @@ function parseTransactionList(report: any): any[] {
   const iName = find("name", "customer", "vendor", "payee");
   const iMemo = find("memo/description", "memo", "description");
   const iAcct = find("account", "split");
+  // The posting ("split") account, used as the transaction's category. Only
+  // when it's a separate column from the register account above.
+  const iSplitRaw = find("split");
+  const iSplit = iSplitRaw !== iAcct ? iSplitRaw : -1;
   const iAmt = find("amount", "total");
 
   const out: any[] = [];
@@ -486,6 +490,7 @@ function parseTransactionList(report: any): any[] {
         txn_type: txnType,
         txn_date: txnDate,
         account_name: (iAcct >= 0 ? cd[iAcct]?.value : "") || null,
+        split_account: (iSplit >= 0 ? cd[iSplit]?.value : "") || null,
         name: (iName >= 0 ? cd[iName]?.value : "") || null,
         memo: (iMemo >= 0 ? cd[iMemo]?.value : "") || null,
         amount: iAmt >= 0 ? num(cd[iAmt]?.value) : 0,

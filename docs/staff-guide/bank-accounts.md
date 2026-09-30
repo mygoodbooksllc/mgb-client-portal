@@ -2,7 +2,7 @@
 title: What does the client's Bank Accounts page show?
 section: Working with a client
 audience: staff
-keywords: [bank accounts, bank, cash, cash on hand, credit card, card balances, owed, net cash, transactions, search, filter, this month, last month, 90 days, money in, money out, card charge, sign, recent activity, show more, export csv, type, category, last synced, reconciliation]
+keywords: [bank accounts, bank, cash, cash on hand, credit card, card balances, owed, net cash, transactions, search, filter, this month, last month, 90 days, money in, money out, card charge, sign, recent activity, show more, export csv, type, category, category filter, uncategorized, split, last synced, reconciliation, ask, question]
 sort: 215
 ---
 **Bank Accounts** is in the client's own sidebar, so the client sees the same page you do.
@@ -26,14 +26,18 @@ The **Accounts** card lists every account in two groups, **Cash** and **Cards**,
 
 The page opens with **all accounts**, most recent first. When no account is picked, there's an **Account** column so you can tell them apart.
 
-- **Search** looks in the description, memo and Type/Category.
+- **Search** looks in the description, memo, category and type.
 - **This month**, **Last month**, **90 days** or **All** limits the dates.
 - **All**, **In** or **Out** shows everything, only money coming in, or only money going out.
+- **All categories** opens a checklist of the categories on the page, each with a count. Tick one or more to show only those; **Clear** shows everything again. The button then reads, for example, *2 categories*.
 - The totals line under the filters shows the number of transactions, money in, money out and the net for whatever is showing.
 - Credit card rows read the same way as bank rows: a charge is money **out** (minus) and a card payment or refund is money **in** (plus). QuickBooks itself shows card charges as plus amounts, because the balance owed goes up, so the signs here are the reverse of the QuickBooks card register. The dashboard's **Recent Activity** uses the same signs.
-- For QuickBooks clients the column is called **Type** (the QuickBooks transaction type, such as Deposit, Check or Expense). For others it's **Category**.
+- **Category** is the account the transaction was posted to in QuickBooks (for example *Utilities* or *Tithes & Offerings*). A transaction spread over several accounts shows **Split (several accounts)**, and one with no category shows *Uncategorized*.
+- **Type** is the QuickBooks transaction type, such as Deposit, Check or Expense.
+- Categories come in with each QuickBooks sync, so right after this change a QuickBooks client may show only **Type** until their next sync. How often that is depends on the plan: every 15 minutes on Pro, weekly on Plus, monthly (on the 15th) on Basic. Until then the category filter is hidden.
+- Clients can ask about a transaction from its row. A **Question** tag marks rows with an open question. See *How do I answer a client's question about a transaction?*
 - The list shows 50 rows at a time. Click **Show more** to load the next 50.
-- **Export CSV** downloads every transaction that matches the current filters, not just the rows on screen.
+- **Export CSV** downloads every transaction that matches the current filters, not just the rows on screen, including the Category and Type columns.
 
 You can still add a staff note to any transaction with the note button next to its description. Picking a transaction from the top bar search opens this page, picks the account, clears the filters and highlights the row.
 

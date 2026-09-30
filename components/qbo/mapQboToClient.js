@@ -44,6 +44,16 @@
     return /^\d{4}-\d{2}-\d{2}/.test(s) ? s.slice(0, 10) : null;
   }
 
+  // qbo_transactions.split_account -> the Bank page's Category. Blank means
+  // "not known yet" (null); "-Split-" is QuickBooks' marker for a
+  // transaction posted to several accounts.
+  function categoryFor(v) {
+    var s = String(v == null ? "" : v).trim();
+    if (!s) return null;
+    if (/^-?split-?$/i.test(s)) return "Split (several accounts)";
+    return s;
+  }
+
   function todayIso(from) {
     var d = from ? new Date(from) : new Date();
     if (isNaN(d.getTime())) d = new Date();
@@ -150,9 +160,17 @@
         // name is the fallback, and the transaction type is the last resort
         // so a row is never a blank description.
         description: t.memo || t.name || t.txn_type || "Transaction",
-        // data.js's `category` is a budget category; QuickBooks' nearest
-        // honest equivalent on a register row is the transaction type.
-        category: t.txn_type || "Uncategorized",
+        // Category is the posting ("split") account QuickBooks booked the
+        // other side to (qbo_transactions.split_account). null until a
+        // qbo-sync build that saves it has run for this client; pages then
+        // fall back to the type (t.category || t.type || "Uncategorized").
+        // A multi-line transaction reports "-Split-".
+        category: categoryFor(t.split_account),
+        // The transaction type ("Deposit", "Expense"), kept separately.
+        type: t.txn_type || null,
+        // Stable key for this QuickBooks transaction (the table's primary
+        // key minus client_id), used by transaction questions.
+        txnKey: t.qbo_id ? String(t.txn_type || "") + ":" + String(t.qbo_id) : null,
         // Everywhere in the app a negative amount is money out (sample data,
         // bank registers). On a credit card register QuickBooks reports a
         // charge as positive (the balance owed went up) and a payment or

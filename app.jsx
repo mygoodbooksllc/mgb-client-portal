@@ -2598,7 +2598,7 @@ function buildClientSearchResults(query, client, messages, visibleKeys, limit) {
       (a.transactions || []).forEach((t, i) => {
         if (
           t.description.toLowerCase().includes(q) ||
-          t.category.toLowerCase().includes(q)
+          String(t.category || t.type || "").toLowerCase().includes(q)
         ) {
           out.push({
             type: "Transaction",
@@ -3892,7 +3892,7 @@ function ScopedDashboardPage({
                         <div>
                           <div className="tx-desc">{t.description}</div>
                           <div className="tx-meta">
-                            {fmtDate(t.date)} · {t.category}
+                            {fmtDate(t.date)} · {t.category || t.type || "Uncategorized"}
                           </div>
                         </div>
                         <div
@@ -5905,6 +5905,9 @@ function ClientOverviewPage({ client, messagesByClient, onNavigate, onOpenDetail
 
       <div className="ov-columns">
         <div className="ov-col">
+          {typeof TQ_OpenList === "function" && client.dataSource === "quickbooks" && (
+            <TQ_OpenList client={client} hideEmpty onOpenBank={() => onNavigate("bank")} />
+          )}
           <CloseChecklistCard client={client} />
           <DocumentRequestsCard client={client} />
           {typeof DC_DocChaserCard === "function" && <DC_DocChaserCard client={client} />}
@@ -8179,11 +8182,11 @@ function PayrollDetail({ client }) {
 // standard Bank Accounts and Reconciliation Pro's Transactions view.
 // ----------------------------------------------------------------------------
 
-function BankPage({ client, searchTarget }) {
+function BankPage({ client, searchTarget, isClientUser }) {
   return (
     <div className="bank-accounts-page">
       <MockBanner text="Account balances and transactions are fabricated sample data — no bank is connected yet."client={client} />
-      <BA_BankTransactionsPanel client={client} searchTarget={searchTarget} />
+      <BA_BankTransactionsPanel client={client} searchTarget={searchTarget} isClientUser={isClientUser} />
     </div>
   );
 }
@@ -8199,7 +8202,7 @@ function BankPage({ client, searchTarget }) {
 // current state rather than pretending to let you change it.
 // ----------------------------------------------------------------------------
 
-function BankReconciliationPage({ client, searchTarget }) {
+function BankReconciliationPage({ client, searchTarget, isClientUser }) {
   const [view, setView] = useState("transactions");
 
   // A transaction search result always means "show me that transaction," so
@@ -8236,7 +8239,7 @@ function BankReconciliationPage({ client, searchTarget }) {
       </div>
 
       {view === "transactions" && (
-        <BA_BankTransactionsPanel client={client} searchTarget={searchTarget} />
+        <BA_BankTransactionsPanel client={client} searchTarget={searchTarget} isClientUser={isClientUser} />
       )}
       {view === "reconciliation" && <ReconciliationPanel client={client} />}
     </div>
@@ -8415,7 +8418,7 @@ function ReconciliationPanel({ client }) {
                     <td data-label="Date">{fmtDate(t.date)}</td>
                     <td data-primary="">{t.description}</td>
                     <td data-label="Category">
-                      <span className="category-tag">{t.category}</span>
+                      <span className="category-tag">{t.category || t.type || "Uncategorized"}</span>
                     </td>
                     <td
                       className={
@@ -8912,7 +8915,7 @@ function buildReconciliationReportPdf(
       ? outstanding.map((t) => [
           fmtDate(t.date),
           t.description,
-          t.category,
+          t.category || t.type || "Uncategorized",
           fmtMoney(t.amount, { cents: true }),
         ])
       : [["—", "No outstanding items", "—", "—"]],
@@ -25527,6 +25530,7 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
                     ? searchTarget
                     : null
                 }
+                isClientUser={!!clientPortalUser}
                 key={"bank-reconciliation-" + client.id}
               />
             ) : (
@@ -25537,6 +25541,7 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
                     ? searchTarget
                     : null
                 }
+                isClientUser={!!clientPortalUser}
                 key={"bank-" + client.id}
               />
             ))}

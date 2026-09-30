@@ -547,6 +547,10 @@ function SI_ClientContext({ entry, staffUser, rows, onOpenClient }) {
         )}
       </div>
 
+      {typeof TQ_OpenList === "function" && client.dataSource === "quickbooks" && (
+        <TQ_OpenList client={client} compact hideEmpty />
+      )}
+
       <div className="si-ctx-section">
         <div className="si-ctx-head">Files in thread</div>
         {files.length === 0 ? (

@@ -187,8 +187,8 @@ const ROWS = {
     { client_id: "grace-community", qbo_id: "78", vendor_name: "LifeWay Christian Resources", txn_date: "2026-07-20", due_date: PAST, total: 380, balance: 380, status: "overdue" },
   ],
   transactions: [
-    { client_id: "grace-community", qbo_id: "5001", txn_type: "Deposit", txn_date: "2026-08-24", account_name: "General Operating 1204", name: "Sunday Giving", memo: "Weekly Giving Deposit", amount: 8420 },
-    { client_id: "grace-community", qbo_id: "5002", txn_type: "Expense", txn_date: "2026-08-22", account_name: "General Operating 1204", name: "Gusto", memo: null, amount: -14200 },
+    { client_id: "grace-community", qbo_id: "5001", txn_type: "Deposit", txn_date: "2026-08-24", account_name: "General Operating 1204", split_account: "Tithes & Offerings", name: "Sunday Giving", memo: "Weekly Giving Deposit", amount: 8420 },
+    { client_id: "grace-community", qbo_id: "5002", txn_type: "Expense", txn_date: "2026-08-22", account_name: "General Operating 1204", split_account: "-Split-", name: "Gusto", memo: null, amount: -14200 },
     { client_id: "grace-community", qbo_id: "5003", txn_type: "Transfer", txn_date: "2026-08-18", account_name: "Building Fund Savings", name: null, memo: "Monthly set-aside", amount: 4000 },
     // Belongs to an account that isn't a bank account — must be dropped
     // rather than dumped onto an arbitrary card.
@@ -263,7 +263,23 @@ hasSampleKeys(operating.transactions[0], sampleTx, "a mapped transaction");
 eq(operating.transactions[0].date, "2026-08-24", "transactions sort newest first");
 eq(operating.transactions[0].description, "Weekly Giving Deposit", "memo wins for description");
 eq(operating.transactions[1].description, "Gusto", "payee name is the fallback description");
-eq(operating.transactions[0].category, "Deposit", "category from txn_type");
+eq(operating.transactions[0].category, "Tithes & Offerings", "category from the split (posting) account");
+eq(operating.transactions[0].type, "Deposit", "type from txn_type");
+eq(operating.transactions[0].txnKey, "Deposit:5001", "txnKey is txn_type:qbo_id");
+eq(operating.transactions[1].category, "Split (several accounts)", "QuickBooks' -Split- marker gets a readable label");
+eq(operating.transactions[1].type, "Expense", "type on the split row");
+{
+  // Before the updated qbo-sync runs, split_account is absent: category is
+  // null (pages fall back to the type), never the txn_type in disguise.
+  const building = mapped.bankAccounts.find((a) => a.accountName === "Building Fund Savings");
+  eq(building.transactions[0].category, null, "no split account -> null category");
+  eq(building.transactions[0].type, "Transfer", "type still set without a split account");
+  const blank = mapQboToClient(base, {
+    ...ROWS,
+    transactions: [{ ...ROWS.transactions[0], split_account: "   " }],
+  });
+  eq(blank.bankAccounts.find((a) => a.id === "35").transactions[0].category, null, "a blank split account is null, not an empty category");
+}
 eq(operating.transactions[0].amount, 8420, "amount");
 // Card register: QuickBooks reports a charge as positive (owed went up).
 // Flipped so a charge is money out, like every other register.
