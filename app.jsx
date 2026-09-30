@@ -21147,6 +21147,7 @@ function TabSettingsModal({
   const [addingDoc, setAddingDoc] = useState(false);
   const [qboConnection, setQboConnection] = useState(undefined); // undefined = loading
   const [qboSyncing, setQboSyncing] = useState(false);
+  const [confirmQboDisconnect, setConfirmQboDisconnect] = useState(false);
   const [privateNotes, setPrivateNotes] = useState(undefined); // undefined = loading
   const [newNoteText, setNewNoteText] = useState("");
   const [addingNote, setAddingNote] = useState(false);
@@ -21247,18 +21248,7 @@ function TabSettingsModal({
   }
 
   async function disconnectQuickBooks() {
-    const { error } = await supabase.rpc("qbo_disconnect", {
-      p_client_id: client.id,
-    });
-    if (error) {
-      showToast("Couldn't disconnect QuickBooks: " + error.message);
-      return;
-    }
-    loadQboConnection();
-    showToast("QuickBooks disconnected.");
-  }
-
-  async function disconnectQuickBooks() {
+    setConfirmQboDisconnect(false);
     const { error } = await supabase.rpc("qbo_disconnect", {
       p_client_id: client.id,
     });
@@ -21996,10 +21986,19 @@ function TabSettingsModal({
                   </button>
                   <button
                     className="btn-secondary"
-                    onClick={disconnectQuickBooks}
+                    onClick={() => setConfirmQboDisconnect(true)}
                   >
                     Disconnect
                   </button>
+                  {confirmQboDisconnect && (
+                    <ConfirmModal
+                      title="Disconnect QuickBooks?"
+                      body={`${client.name} stops syncing from QuickBooks. Data already synced stays in the portal. Reconnecting needs someone to sign in to this client's QuickBooks again.`}
+                      confirmLabel="Disconnect"
+                      onConfirm={disconnectQuickBooks}
+                      onCancel={() => setConfirmQboDisconnect(false)}
+                    />
+                  )}
                 </div>
               </div>
             ) : qboConnection && qboConnection.status === "error" ? (

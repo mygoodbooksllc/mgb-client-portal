@@ -54,7 +54,7 @@ On **Client details → QuickBooks**:
 - **Reconnect** runs the Intuit sign-in again. Use it if syncing keeps failing.
 - **Disconnect** stops syncing that client. Only do this if you're sure, for example when a client leaves.
 
-> **Careful: Disconnect in Client details has no "Are you sure?" step.** One click disconnects the client straight away. If you click it by mistake, click **Connect QuickBooks** and go through the Intuit sign-in again.
+When you click **Disconnect**, the portal asks you to confirm first. Data that already synced stays in the portal. To reconnect later, click **Connect QuickBooks** and go through the Intuit sign-in again.
 
 ### Troubleshooting
 

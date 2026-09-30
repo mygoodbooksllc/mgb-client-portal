@@ -700,6 +700,10 @@ The staff Help page (`#/help`, "Help" in the staff sidebar) is a searchable how-
 - **Storage:** articles live in the `staff_guide` table (`supabase/staff-guide.sql`). Only active staff
   can read `staff` articles and only admins can read `admin` ones (RLS). Search is the
   `search_staff_guide(q)` RPC (full-text search with a partial-word fallback). The app never writes to the table.
+- **Keep it current (required):** every change staff would notice (a new page, button, setting, email,
+  workflow or changed behavior) must update or add the matching article in the same commit, then
+  re-sync. Mark admin-only topics `audience: admin`. Write in plain language for bookkeepers, using the
+  exact button labels from the UI. Treat the guide like this README: if a feature changes, the guide changes.
 - **Re-sync after editing:** `node docs/staff-guide/sync.mjs --check` validates the files, then
   `node docs/staff-guide/sync.mjs > /tmp/staff-guide-sync.sql` and run that SQL in the Supabase SQL
   editor (or through the Supabase MCP `execute_sql`). It upserts every article and removes rows whose
