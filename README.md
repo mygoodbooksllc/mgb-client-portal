@@ -34,7 +34,8 @@ because some work happens in Claude Code web sessions. Run `git fetch` and compa
 - **Load order.** `window.__SOURCE_ORDER` in `index.html` lists the files in the order they
   run: `auth-config.js`, `qbo-config.js`, `components/auth/*`, `data.js`,
   `components/daily-close/*`, `components/qbo/mapQboToClient.js`, `components/pro/*`,
-  `components/inbox/StaffInbox.jsx`, then `app.jsx`. All files start downloading at once, but
+  `components/inbox/StaffInbox.jsx`, `components/staff/*` (ending with `StaffGuide.jsx` and
+  `TopBar.jsx`), then `app.jsx`. All files start downloading at once, but
   they compile in this order.
 - **Shared global scope.** There are no imports. Every file shares `window`, so something
   defined in one file (for example `window.mgbSupabase` or `window.CLIENTS`) is visible to the
@@ -75,6 +76,7 @@ because some work happens in Claude Code web sessions. Run `git fetch` and compa
 | `components/daily-close/` | Live Report (`DailyClose.tsx`, its CSS, sample data, and `fromClient.js`, which adapts client data for it) |
 | `components/pro/` | Pro budget and report tools: `ProBudget.jsx` (Budget vs. Actual tabs, next year's draft with approval) and `ProReports.jsx` (board reports suite and the public share page), each with its own CSS. Loaded before `app.jsx`; `app.jsx` falls back to the old pages if either is missing. |
 | `components/inbox/` | `StaffInbox.jsx` (the unified staff inbox, the staff chat drawer and launcher, and `SI_useClientMessaging` for the client Messages page) and `staff-inbox.css`. Loaded before `app.jsx`; every name is `SI_`/`si`/`StaffInbox` prefixed. Without it, `app.jsx` falls back to the old Team Chat page and sample client threads. |
+| `components/staff/` | Staff-only features, each with its own CSS and a name prefix (`CS_` client switcher, `HLP_` Help, `TB_` top bar, ...). `TopBar.jsx` + `top-bar.css` is the staff top bar (see "Staff top bar" under Main features). All loaded before `app.jsx`. |
 | `components/qbo/` | `mapQboToClient.js` converts QuickBooks table rows into the shape the pages use. Its test is `mapQboToClient.test.js`. |
 | `supabase/*.sql` | Every database change: tables, row-level security (RLS) policies, functions, cron jobs. The folder is flat, one file per change. |
 | `supabase/functions/` | Edge functions: `qbo-callback`, `qbo-refresh-token`, `qbo-sync`, `invite-client-user` |
@@ -201,8 +203,9 @@ because some work happens in Claude Code web sessions. Run `git fetch` and compa
   - **Usage guard.** Every Intuit call is counted in `qbo_api_usage` (`qbo-sync` and
     `qbo-firm-sync`). If the month is on pace to pass 80% of the 500,000-call limit, Pro slows to
     every 30 minutes; at 95% used, scheduled syncs stop until the 1st (Sync now still works).
-  - **Sync now**: clicking the header's gold Live pill (the refresh icon at its right end) syncs,
-    for staff and clients; also in Client details → QuickBooks. The function re-checks that the
+  - **Sync now**: clicking the gold Live pill (the refresh icon at its right end) syncs, for
+    staff and clients; also in Client details → QuickBooks. Staff see the pill in the top bar;
+    clients (and phones) see it in the header. The function re-checks that the
     caller may sync that client.
   - **60-second throttle** per connection, for Sync now only (the cron isn't throttled).
   - **Lock.** `qbo_connections.sync_started_at` stops two syncs overlapping; a stale lock
@@ -215,7 +218,8 @@ because some work happens in Claude Code web sessions. Run `git fetch` and compa
   the **Milestone badge** on top, then the **Live pill** ("● Live · synced N minutes ago" plus a
   refresh icon; one button, `QboSyncNowButton` with `liveLabel`) and search. A client without
   QuickBooks data shows a grey **"Prototype · Sample Data"** badge instead of the Live pill. The
-  "synced" label ticks every minute.
+  "synced" label ticks every minute. For staff on desktop the pill moves into the staff top bar
+  (the header copy is hidden by CSS while the top bar's pill is mounted).
 - **Sample banners.** `MockBanner` hides itself on financial pages when
   `client.dataSource === "quickbooks"`.
 - As of 2026-09-22 the connected company was an Intuit **sandbox** company, even though the app
@@ -264,19 +268,45 @@ because some work happens in Claude Code web sessions. Run `git fetch` and compa
   - **Staff notes on anything** (`client_internal_notes`): a note button on budget lines, bank
     transactions and report cards. Clients never see it.
   - **Mark sent to client** on report cards (`client_sent_items`), with history.
-  - **Preview plan** (sidebar, under Preview as): shows the client's pages as Basic / Plus / Pro
+  - **Preview plan** (client sidebar; Preview as itself is in the top bar's account menu on desktop): shows the client's pages as Basic / Plus / Pro
     in this browser only (`mygoodbooks_preview_plan_v1`). It's ignored in client sessions.
   - **Home → Month-end close**: last month's checklist progress for every client.
   - The same SQL lets staff read time entries and client page views for clients they can
     access.
 
-- **Staff sidebar** (`StaffRail`, desktop and mouse windows): a **Go to client** picker (opens that
-  client's dashboard; a search icon when collapsed expands the sidebar), Home, Client view, Inbox, My
-  Tasks, and for admins Team, Staff Access, Client Roster, Developer Tools and Usage Stats,
-  plus theme and sign out. On staff pages it replaces the client sidebar and collapses to icons with
-  the usual Collapse toggle. On a client's pages it's a 64px icon strip beside the client sidebar.
-  It's hidden while you preview as one of the client's people, so the preview shows only what
-  they see. On phones the menu under your name has the same links.
+- **Staff sidebar** (`StaffRail`, desktop and mouse windows): page navigation only: Home, Client
+  view, Inbox, My Tasks, Close tracker, Help, and for admins Team, Staff Access, Client Roster,
+  Developer Tools, Usage Stats and so on, plus Collapse. (Its client picker, theme, name and sign
+  out moved to the top bar; they come back automatically if the top bar piece is removed.) On staff
+  pages it replaces the client sidebar and collapses to icons with the usual Collapse toggle. On a
+  client's pages it's a 64px icon strip beside the client sidebar. It's hidden while you preview as
+  one of the client's people, so the preview shows only what they see. On phones the menu under
+  your name has the same links.
+
+- **Staff top bar** (`components/staff/TopBar.jsx` + `top-bar.css`, `TB_` prefix). App renders
+  `TB_StaffTopBar` at the top of `<main>` whenever the staff sidebar shows (`showStaffRail`), so
+  clients and client-user previews never see it. Sticky; no page links. Each piece is its own
+  component; delete its line in `TB_StaffTopBar` to drop it:
+  - **Left:** `TB_ClientPicker` (reuses `CS_ClientSwitcher`), `TB_SyncPill` (reuses
+    `QboSyncNowButton`; click = Sync now).
+  - **Middle:** `TB_Search`, Ctrl/⌘+K. Clients and my tasks/notes are filtered locally; client SOPs
+    (`client_sops` ilike, RLS-scoped) and Help (`search_staff_guide`) are queried, debounced. Grouped
+    listbox with arrow keys / Enter / Esc.
+  - **Right:** `TB_ThrottleBadge` (admins; `qbo_usage_status` mode throttled/stopped → `#/team`),
+    `TB_Bell` (client messages waiting per the Inbox's read markers, `client_doc_requests` with status
+    uploaded, open tasks assigned to me by someone else, last month's `close_checks` Blocked (admins:
+    only clients they're the assigned bookkeeper on); seen ids in `localStorage`
+    `mgb-topbar-bell-seen:<email>`), `TB_TasksBadge` (open count, overdue in red → `#/tasks`),
+    `TB_QuickAdd` ("+", client pages; dispatches `tb:quick-add`, which `StaffQuickActions` listens for
+    and opens its own modal), `TB_HelpButton` (`#/help/<slug>` for the current page, else `#/help`),
+    `TB_AvatarMenu` (theme, Preview as a client user, Exit "View as", temporary access, Sign out).
+  - **Moved, not duplicated:** while mounted, the client picker, sync pill and account menu add
+    `tb-has-client` / `tb-has-sync` / `tb-has-avatar` on `<html>`, and desktop-only CSS hides the old
+    copies (sidebar/rail client switcher, header Live pill, rail theme/name/sign out, sidebar theme
+    toggle, temporary-access banner and Preview as select).
+  - **Phones:** the bar sits under the navy `.mobile-topbar` and keeps only the client picker, search
+    and bell; everything else stays in the drawer.
+  - Bell, My Tasks and the task/note search groups step aside during admin "View as".
 
 - **Home** (`bookkeeper-home`): Your clients (with health dots), Needs attention, Needs a visit,
   Unread messages, Your reminders, Access requests, Upgrade requests (with the plan asked for), Recently viewed,
@@ -692,7 +722,8 @@ which explains the reasoning behind most of the decisions above.
 
 ## Staff guide
 
-The staff Help page (`#/help`, "Help" in the staff sidebar) is a searchable how-to guide for staff.
+The staff Help page (`#/help`, "Help" in the staff sidebar or **?** in the top bar, which opens the
+current page's article) is a searchable how-to guide for staff.
 
 - **Source:** one markdown file per article in `docs/staff-guide/*.md`, with frontmatter `title`,
   `section`, `audience` (`staff` or `admin`), `keywords` and optional `sort`. The file name is the slug

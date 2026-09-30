@@ -9,7 +9,7 @@ When a client's QuickBooks Online is connected, their portal shows real numbers 
 
 ### Connect a client's QuickBooks
 
-1. Open the client (**Choose a client** in the sidebar). See [How do I find and open a client?](#/help/finding-a-client).
+1. Open the client (**Choose a client** at the top left of the page). See [How do I find and open a client?](#/help/finding-a-client).
 2. In the client's sidebar, click **Client details**, then the **QuickBooks** tab.
 3. Click **Connect QuickBooks**.
 4. Sign in to Intuit and pick the client's company when asked. Approve the connection.
@@ -40,10 +40,12 @@ The portal syncs on its own, based on the client's plan:
 
 Use **Sync now** when you've just made changes in QuickBooks and want to see them right away.
 
-- Click the sync pill at the top right of a client page (**Live · synced …** or **Synced weekly/monthly · updated …**; the whole pill is the Sync now button for staff). The numbers refresh in place. **Or**
+- Click the sync pill in the top bar, next to the client picker (**Live · synced …** or **Synced weekly/monthly · updated …**; the whole pill is the Sync now button for staff). The numbers refresh in place. **Or**
 - Go to **Client details → QuickBooks** and click **Sync now**. This one says "Reload to see the new numbers", so refresh the page afterwards.
 
-Staff can sync any client, on any plan. (Clients can only use Sync now on the Pro plan.)
+Staff can sync any client, on any plan. (Clients can only use Sync now on the Pro plan.) On a phone, the sync pill stays in the page header.
+
+Admins: if the top bar shows **QuickBooks syncs slowed** or **QuickBooks syncs stopped**, the firm is close to Intuit's monthly limit. Sync now still works. The **Team** page has the details.
 
 A sync takes a few seconds. You can't start another one for the same client for about 60 seconds.
 

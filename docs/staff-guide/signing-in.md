@@ -18,7 +18,7 @@ If someone sent you a link to a specific page (for example a task list or a clie
 
 ### Signing out
 
-- On a computer: click **Sign out** at the bottom of the staff sidebar on the left.
+- On a computer: click your initials at the top right of the page, then **Sign out**.
 - On a phone: tap your name at the top of the menu, then **Sign out**.
 
 ### Troubleshooting
