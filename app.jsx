@@ -4039,7 +4039,7 @@ function summarizeMilestone(stats, row) {
             : null,
     churchPlant,
     pendingTier:
-      !churchPlant && computedTier && confirmedTier && computedTier !== confirmedTier
+      !churchPlant && computedTier && confirmedTier != null && computedTier !== confirmedTier
         ? computedTier
         : null,
     unconfirmed: confirmedTier == null && !!computedTier,
@@ -4141,7 +4141,7 @@ function MilestoneStepChart({ currentTier }) {
   });
   const lastY = yFor(paid[paid.length - 1].fee).toFixed(1);
   return (
-    <svg className="ms-chart" viewBox="0 0 900 262" role="img" aria-label={`Step chart of monthly fees by milestone${currentTier ? `; you are at ${milestoneByTier(currentTier).name}` : ""}.`}>
+    <svg className="ms-chart" viewBox="0 0 900 262" role="img" aria-label={`Step chart of monthly fees by milestone${currentTier != null ? `; you are at ${milestoneByTier(currentTier).name}` : ""}.`}>
       {PRICING_MILESTONES.map((m, i) => (
         <rect
           key={m.tier}
@@ -4272,7 +4272,9 @@ function MilestoneMeters({ s }) {
         basis={s.avgTx == null ? null : "3-month average from QuickBooks"}
       />
       <MilestoneMeter
-        label="Annual expenses"
+        // Says what the number actually is: an entered or QuickBooks budget,
+        // or (with no budget) the last 12 months of actual expenses.
+        label={s.budgetBasis && s.budgetBasis !== "Last 12 months of expenses" ? "Annual budget (expenses)" : "Annual expenses"}
         kind="budget"
         value={s.budget}
         tier={s.budgetTier}
@@ -4454,9 +4456,11 @@ function MilestonePage({ client, isStaff }) {
               </div>
             </div>
           </div>
-          {s.lastSyncedAt && (
+          {/* The connection's last sync (same as the sync pill), not the
+              newest transaction row, which stays old when nothing new came in. */}
+          {(client.lastSyncedAt || s.lastSyncedAt) && (
             <span className="card-subtitle" style={{ margin: 0 }}>
-              Updated {relTime(s.lastSyncedAt) || fmtDateTime(s.lastSyncedAt)}
+              Updated {relTime(client.lastSyncedAt || s.lastSyncedAt) || fmtDateTime(client.lastSyncedAt || s.lastSyncedAt)}
             </span>
           )}
         </div>
@@ -4667,7 +4671,7 @@ function MilestoneStaffPanel({ client, formsOnly }) {
             {history.map((h) => (
               <li key={h.id}>
                 <strong>
-                  {h.from_tier ? `${historyTierName(h, h.from_tier)} → ` : ""}
+                  {h.from_tier != null ? `${historyTierName(h, h.from_tier)} → ` : ""}
                   {historyTierName(h, h.to_tier)}
                 </strong>
                 <span className="card-subtitle" style={{ margin: 0 }}>
