@@ -124,7 +124,8 @@ const ROWS = {
       account_type: "Credit Card",
       account_sub_type: "CreditCard",
       classification: "Liability",
-      current_balance: -840.2,
+      // QuickBooks reports a card's balance owed as a POSITIVE number.
+      current_balance: 840.2,
       currency: "USD",
       active: true,
     },
@@ -219,6 +220,32 @@ eq(
 ok(
   !mapped.bankAccounts.some((a) => a.id === "80" || a.id === "99"),
   "expense and inactive accounts are excluded",
+);
+
+// --- cash vs. card -----------------------------------------------------------
+// A card's balance is money owed, never cash on hand.
+const card = mapped.bankAccounts.find((a) => a.id === "37");
+eq(card.kind, "card", "Credit Card accounts are kind: card");
+eq(card.balance, 840.2, "card balance is the amount owed, as QuickBooks reports it");
+eq(operating.kind, "cash", "Bank accounts are kind: cash");
+eq(
+  mapped.bankAccounts[mapped.bankAccounts.length - 1].id,
+  "37",
+  "cards sort after cash accounts",
+);
+const { mgbIsCardAccount, mgbCashAccounts, mgbCardAccounts } = sandbox.window;
+eq(
+  mgbCashAccounts(mapped.bankAccounts).reduce((s, a) => s + a.balance, 0),
+  68420.55 + 142300,
+  "cash total excludes the card balance",
+);
+eq(mgbCardAccounts(mapped.bankAccounts).length, 1, "one card account");
+eq(mgbIsCardAccount({ type: "Checking" }), false, "no kind + bank type → cash");
+eq(mgbIsCardAccount({ type: "Credit Card" }), true, "no kind + credit card type → card");
+eq(mgbIsCardAccount({ kind: "cash", type: "Credit Card" }), false, "explicit kind wins");
+ok(
+  SAMPLE.bankAccounts.every((a) => !mgbIsCardAccount(a) || a.kind === "card"),
+  "sample-data accounts classify without a kind field",
 );
 
 // --- transactions (the shape BankTransactionsPanel reads) ------------------

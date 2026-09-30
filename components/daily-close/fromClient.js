@@ -269,7 +269,9 @@
     const today = startOfToday();
     const seed = seedOf(client.id || client.name);
 
-    const cashExact = sum(client.bankAccounts || [], (a) => a.balance);
+    // Cash accounts only: a credit card's balance is money owed, not cash.
+    const cashAccounts = window.mgbCashAccounts(client.bankAccounts);
+    const cashExact = sum(cashAccounts, (a) => a.balance);
     const cashWhole = Math.floor(cashExact);
     const cents = Math.round((cashExact - cashWhole) * 100);
 
@@ -364,7 +366,7 @@
         cents,
         deltaVsYesterday: Math.round(dailyNet),
         sparkline14d,
-        byAccount: (client.bankAccounts || []).map((a) => ({ name: a.accountName, balance: a.balance })),
+        byAccount: cashAccounts.map((a) => ({ name: a.accountName, balance: a.balance })),
       },
       receivables: {
         total: Math.round(sum(receivables, (r) => r.amount)),

@@ -56,6 +56,26 @@ window.withClientDataDefaults = function (client) {
   return Object.assign({}, window.CLIENT_DATA_DEFAULTS, client);
 };
 
+// bankAccounts[] holds both money the client has (checking, savings) and
+// money they owe on a card. `kind` says which: "cash" | "card". QuickBooks
+// accounts get it from mapQboToClient; sample data mostly omits it, so a
+// missing kind is cash unless the type says credit card. A card's balance is
+// the amount owed (QuickBooks reports it as a positive number) and must never
+// be added to cash on hand.
+window.mgbIsCardAccount = function (account) {
+  if (!account) return false;
+  if (account.kind) return account.kind === "card";
+  return /credit\s*card/i.test(String(account.type || ""));
+};
+window.mgbCashAccounts = function (accounts) {
+  return (accounts || []).filter(function (a) {
+    return !window.mgbIsCardAccount(a);
+  });
+};
+window.mgbCardAccounts = function (accounts) {
+  return (accounts || []).filter(window.mgbIsCardAccount);
+};
+
 const CLIENTS_MOCK_DATA = [
   {
     id: "grace-community",
@@ -205,6 +225,26 @@ const CLIENTS_MOCK_DATA = [
           { date: "2026-04-01", description: "Quarterly Reserve Transfer", category: "Transfer In", amount: 12500.00, cleared: true },
         ],
       },
+      {
+        // A card: `balance` is the amount OWED, never cash (see
+        // window.mgbIsCardAccount). Everything is cleared through the last
+        // statement so Reconciliation's "Difference" reads $0.00.
+        id: "ministry-card",
+        kind: "card",
+        accountName: "Ministry Visa",
+        accountMask: "4417",
+        type: "Credit Card",
+        balance: 1284.50,
+        statementBalance: 1284.50,
+        statementDate: "2026-08-25",
+        transactions: [
+          { date: "2026-08-21", description: "Amazon - Nursery Supplies", category: "Kids Ministry", amount: -212.40, cleared: true },
+          { date: "2026-08-17", description: "Costco - Fellowship Meal", category: "Ministry Programs", amount: -486.10, cleared: true },
+          { date: "2026-08-12", description: "Planning Center Subscription", category: "Worship & Media", amount: -186.00, cleared: true },
+          { date: "2026-08-05", description: "Card Payment - Thank You", category: "Payment", amount: 950.00, cleared: true },
+          { date: "2026-08-02", description: "Youth Retreat Deposit", category: "Ministry Programs", amount: -400.00, cleared: true },
+        ],
+      },
     ],
     // Reconciliation Pro only: prior periods already closed and signed off,
     // one entry per account per period. The current (unlisted) period is
@@ -220,10 +260,11 @@ const CLIENTS_MOCK_DATA = [
     // INVARIANT: fund balances must sum to net assets (total bank balances
     // minus payables). Restricted funds are carved OUT of the cash already in
     // the accounts, never added on top of it, so the unrestricted General Fund
-    // is the balancing figure. Five accounts sum to 242,770.55 cash; minus
-    // 2,220 payables = 240,550.55 net assets − 172,650 restricted = 67,900.55.
+    // is the balancing figure. Five cash accounts sum to 242,770.55; minus
+    // 2,220 payables and 1,284.50 owed on the Ministry Visa = 239,266.05 net
+    // assets − 172,650 restricted = 66,616.05.
     funds: [
-      { name: "General Fund", restricted: false, balance: 67900.55 },
+      { name: "General Fund", restricted: false, balance: 66616.05 },
       { name: "Building Fund", restricted: true, balance: 142300.00 },
       { name: "Missions Fund", restricted: true, balance: 18750.00 },
       { name: "Kids Ministry Fund", restricted: true, balance: 5180.00 },

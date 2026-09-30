@@ -372,7 +372,8 @@ function prFunctionalSection(budget, fnMap, periodLabel) {
 }
 
 function prCashSection(client, timeline) {
-  const accounts = (client.bankAccounts || []).map((a) => ({
+  // Cash accounts only: a credit card's balance is money owed, not cash.
+  const accounts = window.mgbCashAccounts(client.bankAccounts).map((a) => ({
     name: String(a.accountName || a.name || "Account"),
     type: String(a.type || ""),
     balance: prNum(a.balance),

@@ -59,7 +59,8 @@
   // concerned. Credit cards are included because the page is really "money
   // you hold and money you owe on a card" — a church's ministry card belongs
   // on it — and data.js's `type` field is free text ("Checking", "Savings",
-  // "Money Market"), so the sub-type carries straight through.
+  // "Money Market"), so the sub-type carries straight through. Cards are
+  // tagged kind: "card" below so nothing adds what's owed to cash.
   var BANKISH = { "Bank": true, "Credit Card": true };
 
   function prettyType(account) {
@@ -108,11 +109,17 @@
           accountName: a.name || "Account",
           accountMask: maskFor(a),
           type: prettyType(a),
+          // A Credit Card account's current_balance is the amount OWED
+          // (positive when there's a balance due). `kind` keeps it out of
+          // cash on hand — see window.mgbIsCardAccount in data.js.
+          kind: a.account_type === "Credit Card" ? "card" : "cash",
           balance: toNumber(a.current_balance),
           transactions: [],
         };
       })
       .sort(function (x, y) {
+        // Cash accounts first, then cards; biggest balance first within each.
+        if (x.kind !== y.kind) return x.kind === "cash" ? -1 : 1;
         return y.balance - x.balance;
       });
 
