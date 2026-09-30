@@ -13,7 +13,10 @@
 //            TB_SyncPill       reuses QboSyncNowButton (the "Live · synced"
 //                              pill; click = Sync now)
 //   Middle   TB_Search         clients, my tasks and notes, client SOPs, Help
-//                              articles (search_staff_guide). Ctrl+K / Cmd+K.
+//                              articles (search_staff_guide), and on a client
+//                              page that client's transactions, budget,
+//                              documents and messages (replaces the header
+//                              search icon for staff). Ctrl+K / Cmd+K.
 //   Right    TB_ThrottleBadge  admins: QuickBooks sync slowed or stopped
 //                              (qbo_usage_status, supabase/qbo-usage-guard.sql)
 //            TB_Bell           client messages waiting, uploaded documents,
@@ -293,7 +296,13 @@ function TB_safeTerm(q) {
   return String(q || "").replace(/[^\p{L}\p{N} '&.-]/gu, " ").replace(/\s+/g, " ").trim().slice(0, 60);
 }
 
-function TB_Search({ clients, items, showMine, isAdmin }) {
+// clientSearch (only while a client is open, else null): { client (already
+// scoped to the viewer's access), messages, visibleKeys, onNavigate,
+// onHighlight }. Its "In <client>" group is built by app.jsx's
+// buildClientSearchResults, the same function behind the client-facing
+// page-header GlobalSearch, and a pick navigates + highlights the same way.
+// That header search icon is hidden for staff while this bar is shown.
+function TB_Search({ clients, items, showMine, isAdmin, clientSearch }) {
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(0);
@@ -392,6 +401,22 @@ function TB_Search({ clients, items, showMine, isAdmin }) {
         go: () => TB_go(TB_clientHash(c.id)),
       }));
     groups.push({ key: "clients", label: "Clients", items: cl });
+    if (clientSearch && clientSearch.client && typeof buildClientSearchResults === "function") {
+      const cs = clientSearch;
+      groups.push({
+        key: "in-client",
+        label: "In " + cs.client.name,
+        items: buildClientSearchResults(q, cs.client, cs.messages, cs.visibleKeys, 8).map((r, n) => ({
+          key: "cs:" + n + ":" + r.page + ":" + r.highlightKey,
+          title: r.label,
+          sub: r.type + (r.meta ? " · " + r.meta : ""),
+          go: () => {
+            if (cs.onNavigate) cs.onNavigate(r.page);
+            if (cs.onHighlight) cs.onHighlight(r);
+          },
+        })),
+      });
+    }
     if (showMine) {
       const mine = (items || []).filter((t) => !t.done && TB_lc(t.text).includes(ql));
       const toRow = (t) => ({
@@ -477,6 +502,7 @@ function TB_Search({ clients, items, showMine, isAdmin }) {
 
   let idx = -1;
   const panelOpen = open && !!q;
+  const hasClient = !!(clientSearch && clientSearch.client);
   return (
     <div className="tb-search" ref={rootRef}>
       <div className="tb-search-box">
@@ -485,7 +511,10 @@ function TB_Search({ clients, items, showMine, isAdmin }) {
           ref={inputRef}
           type="text"
           className="tb-search-input"
-          placeholder={showMine ? "Search clients, tasks, SOPs and Help" : "Search clients, SOPs and Help"}
+          placeholder={
+            (showMine ? "Search clients, tasks, SOPs" : "Search clients, SOPs") +
+            (hasClient ? ", Help and this client" : " and Help")
+          }
           value={query}
           onChange={(e) => {
             setQuery(e.target.value);
@@ -498,7 +527,11 @@ function TB_Search({ clients, items, showMine, isAdmin }) {
           aria-controls={listId}
           aria-autocomplete="list"
           aria-activedescendant={panelOpen && flat.length ? `${listId}-${active}` : undefined}
-          aria-label="Search clients, tasks, notes, SOPs and Help"
+          aria-label={
+            hasClient
+              ? `Search clients, tasks, notes, SOPs, Help and ${clientSearch.client.name}`
+              : "Search clients, tasks, notes, SOPs and Help"
+          }
         />
         <kbd className="tb-kbd" aria-hidden="true">{isMac ? "⌘K" : "Ctrl K"}</kbd>
       </div>
@@ -1090,6 +1123,7 @@ function TB_StaffTopBar({
   onPreviewAs,
   hasTempAdminAccess,
   tempAdminAccessExpiresAt,
+  clientSearch, // see TB_Search; null on staff pages
 }) {
   const me = realStaffUser ? realStaffUser.email : "";
   // My Tasks, the Inbox and the Close tracker are the signed-in person's own
@@ -1114,7 +1148,13 @@ function TB_StaffTopBar({
         <TB_SyncPill client={client} plan={plan} onSynced={onSynced} />
       </div>
       <div className="tb-middle">
-        <TB_Search clients={clients} items={items} showMine={own} isAdmin={isAdmin} />
+        <TB_Search
+          clients={clients}
+          items={items}
+          showMine={own}
+          isAdmin={isAdmin}
+          clientSearch={client ? clientSearch : null}
+        />
       </div>
       <div className="tb-right">
         {isRealAdmin && own && <TB_ThrottleBadge />}

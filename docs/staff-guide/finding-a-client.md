@@ -5,7 +5,7 @@ audience: staff
 keywords: [client switcher, choose a client, search clients, jump to client, go to client, open client, switch client, recent]
 sort: 30
 ---
-There are three quick ways to open a client.
+There are two quick ways to open a client, both in the bar at the top of the page.
 
 ### The client picker (top bar)
 
@@ -26,10 +26,6 @@ Little tags on a row tell you more: **Onboarding 3/5** means onboarding isn't fi
 ### Search (top bar)
 
 Press **Ctrl+K** (**⌘K** on a Mac) or click the search box at the top of the page, type part of the name and press **Enter**. See [What's on the bar at the top of the page?](#/help/top-bar).
-
-### Jump to client (Home)
-
-On **Home**, the **Jump to client** card lets you pick from **Browse your N clients…** or type in **…or search your clients by name**. Picking one opens that client's Client overview.
 
 ### Getting back
 

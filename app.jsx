@@ -2659,9 +2659,88 @@ function MockBanner({ text, client }) {
   );
 }
 
-// Real (non-AI) search — filters this client's own transactions, budget
-// categories, documents, and messages by keyword and jumps to the right
-// page. Only searches within tabs the current viewer actually has access to.
+// Real (non-AI) search over one client's own transactions, budget categories,
+// documents, and messages. Only searches within tabs the current viewer
+// actually has access to (visibleKeys). Shared by the page-header GlobalSearch
+// (clients) and the staff top bar's "In <client>" result group (TB_Search),
+// so both match exactly the same things. Each result carries `page` (for
+// setPage) and `highlightKey` (for setSearchTarget).
+function buildClientSearchResults(query, client, messages, visibleKeys, limit) {
+  const q = String(query || "").trim().toLowerCase();
+  if (!q || !client || !visibleKeys) return [];
+  const out = [];
+
+  if (visibleKeys.has("bank")) {
+    (client.bankAccounts || []).forEach((a) => {
+      (a.transactions || []).forEach((t, i) => {
+        if (
+          t.description.toLowerCase().includes(q) ||
+          t.category.toLowerCase().includes(q)
+        ) {
+          out.push({
+            type: "Transaction",
+            label: t.description,
+            meta: `${fmtDate(t.date)} · ${fmtMoney(t.amount, { cents: true })} · ${a.accountName}`,
+            page: "bank",
+            highlightKey: "tx-" + i,
+            accountId: a.id,
+          });
+        }
+      });
+    });
+  }
+
+  if (visibleKeys.has("budget")) {
+    (client.budget || []).forEach((b) => {
+      if (b.category.toLowerCase().includes(q)) {
+        out.push({
+          type: "Budget",
+          label: b.category,
+          meta: `${fmtMoney(b.actual)} of ${fmtMoney(b.budgeted)} budgeted`,
+          page: "budget",
+          highlightKey: "budget-row-" + slugify(b.category),
+        });
+      }
+    });
+  }
+
+  if (visibleKeys.has("documents") && client.documents) {
+    client.documents.forEach((d) => {
+      if (
+        d.name.toLowerCase().includes(q) ||
+        d.category.toLowerCase().includes(q)
+      ) {
+        out.push({
+          type: "Document",
+          label: d.name,
+          meta: `${d.category} · ${fmtDate(d.date)}`,
+          page: "documents",
+          highlightKey: "doc-row-" + slugify(d.name),
+        });
+      }
+    });
+  }
+
+  if (visibleKeys.has("messages")) {
+    (messages || []).forEach((m, i) => {
+      if (m.text && m.text.toLowerCase().includes(q)) {
+        out.push({
+          type: "Message",
+          label: m.text.length > 70 ? m.text.slice(0, 70) + "…" : m.text,
+          meta: `${m.author} · ${fmtDate(m.date)}`,
+          page: "messages",
+          highlightKey: "msg-" + i,
+        });
+      }
+    });
+  }
+
+  return out.slice(0, limit || 8);
+}
+
+// Page-header search icon — the client-facing search (staff sessions use the
+// top bar search instead, which covers the same results via
+// buildClientSearchResults). Jumps to the right page and highlights the row.
 function GlobalSearch({
   client,
   messages,
@@ -2700,78 +2779,10 @@ function GlobalSearch({
     return () => document.removeEventListener("mousedown", onDocClick);
   }, []);
 
-  const results = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    if (!q) return [];
-    const out = [];
-
-    if (visibleKeys.has("bank")) {
-      client.bankAccounts.forEach((a) => {
-        a.transactions.forEach((t, i) => {
-          if (
-            t.description.toLowerCase().includes(q) ||
-            t.category.toLowerCase().includes(q)
-          ) {
-            out.push({
-              type: "Transaction",
-              label: t.description,
-              meta: `${fmtDate(t.date)} · ${fmtMoney(t.amount, { cents: true })} · ${a.accountName}`,
-              page: "bank",
-              highlightKey: "tx-" + i,
-              accountId: a.id,
-            });
-          }
-        });
-      });
-    }
-
-    if (visibleKeys.has("budget")) {
-      client.budget.forEach((b) => {
-        if (b.category.toLowerCase().includes(q)) {
-          out.push({
-            type: "Budget",
-            label: b.category,
-            meta: `${fmtMoney(b.actual)} of ${fmtMoney(b.budgeted)} budgeted`,
-            page: "budget",
-            highlightKey: "budget-row-" + slugify(b.category),
-          });
-        }
-      });
-    }
-
-    if (visibleKeys.has("documents") && client.documents) {
-      client.documents.forEach((d) => {
-        if (
-          d.name.toLowerCase().includes(q) ||
-          d.category.toLowerCase().includes(q)
-        ) {
-          out.push({
-            type: "Document",
-            label: d.name,
-            meta: `${d.category} · ${fmtDate(d.date)}`,
-            page: "documents",
-            highlightKey: "doc-row-" + slugify(d.name),
-          });
-        }
-      });
-    }
-
-    if (visibleKeys.has("messages")) {
-      messages.forEach((m, i) => {
-        if (m.text && m.text.toLowerCase().includes(q)) {
-          out.push({
-            type: "Message",
-            label: m.text.length > 70 ? m.text.slice(0, 70) + "…" : m.text,
-            meta: `${m.author} · ${fmtDate(m.date)}`,
-            page: "messages",
-            highlightKey: "msg-" + i,
-          });
-        }
-      });
-    }
-
-    return out.slice(0, 8);
-  }, [query, client, messages, visibleKeys]);
+  const results = useMemo(
+    () => buildClientSearchResults(query, client, messages, visibleKeys, 8),
+    [query, client, messages, visibleKeys],
+  );
 
   const go = (r) => {
     onNavigate(r.page);
@@ -12121,10 +12132,11 @@ function formatStorageValue(raw) {
   }
 }
 
-function DeveloperToolsPage({ staffUser, clients, onJumpToClient, readOnly }) {
+// The old "Jump to client" card here was removed — the staff top bar's client
+// picker (components/staff/TopBar.jsx) does that job on every page now.
+function DeveloperToolsPage({ staffUser, readOnly }) {
   const supabase = window.mgbSupabase;
   const [, forceRerender] = useState(0);
-  const [clientQuery, setClientQuery] = useState("");
   const [storageEntries, setStorageEntries] = useState(
     readAllMygoodbooksStorage,
   );
@@ -12195,24 +12207,6 @@ function DeveloperToolsPage({ staffUser, clients, onJumpToClient, readOnly }) {
     window.location.reload();
   }
 
-  // Scoped to whatever this viewer can actually see — admins get every
-  // client (visibleClients is unrestricted for them), a bookkeeper with
-  // temporary admin access to this page still only gets their own assigned
-  // clients (see App's assignedClientIds/visibleClients). This page used to
-  // search the raw global CLIENTS array here, which quietly bypassed that
-  // gating for anyone on temporary access.
-  const sortedClients = useMemo(
-    () => [...clients].sort((a, b) => (a.name || "").localeCompare(b.name || "")),
-    [clients],
-  );
-  const matchingClients = clientQuery.trim()
-    ? clients
-        .filter((c) =>
-          c.name.toLowerCase().includes(clientQuery.trim().toLowerCase()),
-        )
-        .slice(0, 8)
-    : [];
-
   return (
     <div>
       <MockBanner text="Per-browser testing aids — nothing here is shared with other staff or written to Supabase." />
@@ -12230,65 +12224,6 @@ function DeveloperToolsPage({ staffUser, clients, onJumpToClient, readOnly }) {
         disabled={readOnly}
         style={{ border: 0, margin: 0, padding: 0 }}
       >
-        <div className="card" style={{ marginBottom: 20 }}>
-          <h3 className="card-title">Jump to client</h3>
-          <p className="card-subtitle">
-            Skip the sidebar dropdown — land straight on a client's dashboard.
-          </p>
-          <select
-            className="jump-to-client-select"
-            value=""
-            style={{ width: "100%", marginBottom: 10 }}
-            onChange={(e) => {
-              if (e.target.value)
-                onJumpToClient && onJumpToClient(e.target.value);
-            }}
-          >
-            <option value="">
-              Browse all {sortedClients.length} client
-              {sortedClients.length === 1 ? "" : "s"}…
-            </option>
-            {sortedClients.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name} ({planLabel(c.plan)})
-              </option>
-            ))}
-          </select>
-          <input
-            type="text"
-            className="ap-cc-search"
-            style={{ width: "100%", boxSizing: "border-box" }}
-            placeholder="…or search clients by name"
-            value={clientQuery}
-            onChange={(e) => setClientQuery(e.target.value)}
-          />
-          {matchingClients.length > 0 && (
-            <div className="staff-audit-list" style={{ marginTop: 10 }}>
-              {matchingClients.map((c) => (
-                <button
-                  type="button"
-                  className="staff-due-row"
-                  key={c.id}
-                  style={{
-                    width: "100%",
-                    textAlign: "left",
-                    cursor: "pointer",
-                    background: "none",
-                    border: "none",
-                    font: "inherit",
-                  }}
-                  onClick={() => onJumpToClient && onJumpToClient(c.id)}
-                >
-                  <span className="staff-flag-label">{c.name}</span>
-                  <span className="staff-flag-desc">
-                    {planLabel(c.plan)} · {c.id}
-                  </span>
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-
         <div className="card" style={{ marginBottom: 20 }}>
           <h3 className="card-title">Feature flags</h3>
           <p className="card-subtitle">
@@ -15636,11 +15571,6 @@ function BookkeeperHomePage({
   const [savingStatus, setSavingStatus] = useState(false);
   const { flashCardId, jumpToCard } = useCardFlash();
   const [clientSearch, setClientSearch] = useState("");
-  // Separate from clientSearch below (the full "Your clients" card's own
-  // filter) — this is a quick type-and-jump at the very top of the page,
-  // not tied to that card's position or visibility in Customize dashboard.
-  const [jumpQuery, setJumpQuery] = useState("");
-
   // "Upgrade to Enterprise" requests filed from clients' Enterprise upgrade
   // preview page (EnterpriseUpgradePage) — see
   // supabase/enterprise-upgrade-requests.sql. Any active staff member can
@@ -16062,81 +15992,11 @@ function BookkeeperHomePage({
     (id) => !id.startsWith("kpi-"),
   );
 
-  // clients is already scoped to this bookkeeper's assignments (or
-  // unrestricted for an admin) by App's visibleClients — see the note on
-  // DeveloperToolsPage's matching card for why that matters.
-  const sortedJumpClients = useMemo(
-    () => [...clients].sort((a, b) => (a.name || "").localeCompare(b.name || "")),
-    [clients],
-  );
-  const jumpMatches = jumpQuery.trim()
-    ? clients
-        .filter((c) =>
-          c.name.toLowerCase().includes(jumpQuery.trim().toLowerCase()),
-        )
-        .slice(0, 8)
-    : [];
-
+  // The "Jump to client" card that used to sit here is gone — the staff top
+  // bar's client picker (components/staff/TopBar.jsx) replaces it.
   return (
     <div>
       <CS_AccessRequestsCard />
-      <div className="card" style={{ marginBottom: 20 }}>
-        <h3 className="card-title">Jump to client</h3>
-        <p className="card-subtitle">
-          Skip the sidebar dropdown — land straight on a client's dashboard.
-        </p>
-        <select
-          className="jump-to-client-select"
-          value=""
-          style={{ width: "100%", marginBottom: 10 }}
-          onChange={(e) => {
-            if (e.target.value) onNavigateToClient(e.target.value, "client-overview");
-          }}
-        >
-          <option value="">
-            Browse your {sortedJumpClients.length} client
-            {sortedJumpClients.length === 1 ? "" : "s"}…
-          </option>
-          {sortedJumpClients.map((c) => (
-            <option key={c.id} value={c.id}>
-              {c.name} ({planLabel(c.plan)})
-            </option>
-          ))}
-        </select>
-        <input
-          type="text"
-          className="ap-cc-search"
-          style={{ width: "100%", boxSizing: "border-box" }}
-          placeholder="…or search your clients by name"
-          value={jumpQuery}
-          onChange={(e) => setJumpQuery(e.target.value)}
-        />
-        {jumpMatches.length > 0 && (
-          <div className="staff-audit-list" style={{ marginTop: 10 }}>
-            {jumpMatches.map((c) => (
-              <button
-                type="button"
-                className="staff-due-row"
-                key={c.id}
-                style={{
-                  width: "100%",
-                  textAlign: "left",
-                  cursor: "pointer",
-                  background: "none",
-                  border: "none",
-                  font: "inherit",
-                }}
-                onClick={() => onNavigateToClient(c.id, "client-overview")}
-              >
-                <span className="staff-flag-label">{c.name}</span>
-                <span className="staff-flag-desc">
-                  {planLabel(c.plan)} · {c.id}
-                </span>
-              </button>
-            ))}
-          </div>
-        )}
-      </div>
 
       <div className="card" style={{ marginBottom: 20 }}>
         <h3 className="card-title">Access requests</h3>
@@ -24700,6 +24560,10 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
     effectiveStaffUser &&
     (onStaffPage || !isPreviewingUser)
   );
+  // While the staff top bar is up, its search also covers the open client's
+  // data (TB_Search's "In <client>" group), so the page-header GlobalSearch
+  // icon steps aside. Clients and client-user previews keep the header one.
+  const showStaffTopBar = showStaffRail && typeof TB_StaffTopBar === "function";
 
   return (
     <ToastProvider>
@@ -24829,7 +24693,7 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
         <main className="main">
           {/* Staff top bar (components/staff/TopBar.jsx): shown wherever the
               staff sidebar is, so clients and client-user previews never see it. */}
-          {showStaffRail && typeof TB_StaffTopBar === "function" && (
+          {showStaffTopBar && (
             <TB_StaffTopBar
               staffUser={effectiveStaffUser}
               realStaffUser={staffUser}
@@ -24848,6 +24712,18 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
               onPreviewAs={setViewAsUserId}
               hasTempAdminAccess={hasTempAdminAccess}
               tempAdminAccessExpiresAt={tempAdminAccessExpiresAt}
+              clientSearch={
+                onStaffPage
+                  ? null
+                  : {
+                      client: scopedClient,
+                      messages: liveMessages,
+                      visibleKeys: access.tabs,
+                      onNavigate: setPage,
+                      onHighlight: (r) =>
+                        setSearchTarget({ ...r, nonce: Date.now() }),
+                    }
+              }
             />
           )}
           {!impersonating && !NON_CLIENT_PAGES.has(effectivePage) && (
@@ -25015,16 +24891,18 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
                   Prototype · Sample Data
                 </span>
               )}
-              <GlobalSearch
-                client={scopedClient}
-                messages={liveMessages}
-                visibleKeys={access.tabs}
-                onNavigate={setPage}
-                onHighlightResult={(r) =>
-                  setSearchTarget({ ...r, nonce: Date.now() })
-                }
-                key={"search-" + client.id}
-              />
+              {!showStaffTopBar && (
+                <GlobalSearch
+                  client={scopedClient}
+                  messages={liveMessages}
+                  visibleKeys={access.tabs}
+                  onNavigate={setPage}
+                  onHighlightResult={(r) =>
+                    setSearchTarget({ ...r, nonce: Date.now() })
+                  }
+                  key={"search-" + client.id}
+                />
+              )}
             </div>
             </div>
           </div>
@@ -25213,11 +25091,6 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
           {effectivePage === "developer-tools" && (
             <DeveloperToolsPage
               staffUser={staffUser}
-              clients={visibleClients}
-              onJumpToClient={(clientId) => {
-                setSelectedClientId(clientId);
-                setPage("dashboard");
-              }}
               readOnly={staffUser.role !== "admin"}
             />
           )}

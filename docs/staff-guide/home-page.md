@@ -5,12 +5,11 @@ audience: staff
 keywords: [home, dashboard, needs attention, reminders, upgrade requests, access requests, needs a visit, recently viewed, customize, add widgets, saved views, reset layout, live report, status, handoff]
 sort: 40
 ---
-**Home** is your starting point. It shows what needs attention across every client you can see.
+**Home** is your starting point. It shows what needs attention across every client you can see. To open a client, use the client picker or the search box in the [top bar](#/help/top-bar).
 
 ### Cards you may see
 
 - **Client access requests**: teammates asking to work on one of your clients for a short time. **Approve** or **Deny**. Only shows when there's something to act on.
-- **Jump to client**: open any of your clients quickly.
 - **Access requests**: people a client has asked us to give portal access to. **Review** opens that client's *Manage access* panel.
 - **Upgrade requests**: clients who asked for a bigger plan (or the Payroll add-on) from their Plans page. Follow up with them, then use **Mark contacted**, **Mark completed** or **Dismiss**.
 - **Needs attention**: bills overdue or due soon, across your clients.

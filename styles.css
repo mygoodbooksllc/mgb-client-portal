@@ -237,7 +237,7 @@
 
 /* Global keyboard focus ring.
    Individual rules across this file kill the browser default outline
-   (.global-search-input, .jump-to-client-select and friends) and only some of
+   (.global-search-input and friends) and only some of
    them put anything back, so tabbing through the app went partly or wholly
    invisible. :focus-visible fires for keyboard navigation and not for mouse
    clicks, so this restores the keyboard affordance without putting a ring
@@ -2728,27 +2728,6 @@ body.rb-presenting .main {
   background: var(--surface);
   color: var(--ink-strong);
   cursor: pointer;
-}
-
-/* "Jump to client" dropdowns (Developer Tools, Bookkeeper Home) — a plain
-   unstyled <select> renders with the browser's native gray control, which
-   reads as broken next to .ap-cc-search's themed search box right below
-   it. Same border/background/radius language as .ap-cc-search. */
-.jump-to-client-select {
-  border: 1px solid var(--border);
-  background: var(--surface);
-  color: var(--text);
-  font: inherit;
-  font-family: var(--font-body);
-  font-size: 13px;
-  padding: 7px 12px;
-  border-radius: 9px;
-  cursor: pointer;
-}
-
-.jump-to-client-select:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 1px;
 }
 
 .category-tag {

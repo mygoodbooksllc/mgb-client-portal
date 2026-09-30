@@ -2,7 +2,7 @@
 title: What's on the bar at the top of the page?
 section: Getting started
 audience: staff
-keywords: [top bar, toolbar, header, overview, client overview, search, ctrl k, cmd k, notifications, bell, my tasks, plus, quick add, message, help, report a bug, feedback, account, avatar, sign out, dark mode, sync, live]
+keywords: [top bar, toolbar, header, overview, client overview, search, search transactions, search documents, search messages, ctrl k, cmd k, notifications, bell, my tasks, plus, quick add, message, help, report a bug, feedback, account, avatar, sign out, dark mode, sync, live]
 sort: 25
 ---
 Across the top of every staff page there's a dark bar, joined to the sidebar, with your most-used tools. Clients never see it, and it goes away while you use **Preview as** to look at the portal as a client user. The sidebar on the left still has the page links (Home, Inbox, My Tasks and so on).
@@ -18,9 +18,12 @@ Across the top of every staff page there's a dark bar, joined to the sidebar, wi
 Click the search box, or press **Ctrl+K** (**⌘K** on a Mac) from anywhere. Type a few letters and the results are grouped:
 
 - **Clients**: opens the client's Client overview.
+- **In {client name}** (only when a client is open): that client's transactions, budget categories, documents and messages that match. Picking one opens the right page (Bank, Budget, Documents or Messages) and highlights the row. It only looks in pages you can open for that client.
 - **Tasks** and **Notes**: your open tasks and notes. Opens **My Tasks**.
 - **SOPs**: client SOPs that mention your words. Opens **My Tasks**, where SOPs live.
 - **Help**: articles from this guide.
+
+When a client is open the box says **Search clients, tasks, SOPs, Help and this client**. This replaces the old search icon in the client's page header, which staff no longer see (clients still have it).
 
 Use the **↑** and **↓** keys to move through the results and **Enter** to open one. **Esc** clears the box, and a second **Esc** closes it.
 
@@ -49,5 +52,5 @@ The bar keeps only the client picker, search, the bell and **+**. The sync pill 
 
 - **The bell or My Tasks button is missing.** They're hidden while an admin is using **View as**, because they'd show the admin's own items.
 - **The + or Overview button is missing.** They only show when a client is open.
-- **Search says "Nothing matches".** Search looks at client names, your own open tasks and notes, SOP text and Help articles. It doesn't search a client's financial numbers. For that, use the client's own search box (**Search transactions, budget categories, documents, messages…**) in the page header.
+- **Search says "Nothing matches".** Search looks at client names, your own open tasks and notes, SOP text and Help articles, plus the open client's transactions, budget categories, documents and messages. On a staff page (Home, My Tasks and so on) no client is open, so open the client first to search their data.
 - **The bell number came back after I cleared it.** Something new arrived, or you're on a different browser or computer (what you've seen is remembered per browser).

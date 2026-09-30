@@ -232,7 +232,8 @@ because some work happens in Claude Code web sessions. Run `git fetch` and compa
   (service role) writes to them.
 - **Header (top right of every client page).** Two rows, right-aligned (left-aligned on phones):
   the **Milestone badge** on top, then the **Live pill** ("● Live · synced N minutes ago" plus a
-  refresh icon; one button, `QboSyncNowButton` with `liveLabel`) and search. A client without
+  refresh icon; one button, `QboSyncNowButton` with `liveLabel`) and search (clients only; staff
+  search the client's data from the top bar instead). A client without
   QuickBooks data shows a grey **"Prototype · Sample Data"** badge instead of the Live pill. The
   "synced" label ticks every minute. For staff on desktop the pill moves into the staff top bar
   (the header copy is hidden by CSS while the top bar's pill is mounted).
@@ -317,8 +318,15 @@ because some work happens in Claude Code web sessions. Run `git fetch` and compa
     on `client-overview`; label drops under 1180px), `TB_SyncPill` (reuses `QboSyncNowButton`;
     click = Sync now).
   - **Middle:** `TB_Search`, Ctrl/⌘+K. Clients and my tasks/notes are filtered locally; client SOPs
-    (`client_sops` ilike, RLS-scoped) and Help (`search_staff_guide`) are queried, debounced. Grouped
-    listbox with arrow keys / Enter / Esc.
+    (`client_sops` ilike, RLS-scoped) and Help (`search_staff_guide`) are queried, debounced. On a
+    client page it adds an `In <client name>` group (after Clients): that client's transactions,
+    budget categories, documents and messages, built by `buildClientSearchResults` in `app.jsx` (the
+    same function behind the client-facing header `GlobalSearch`, so it respects `access.tabs` and
+    `scopedClient` exactly the same way); picking one calls `setPage` + `setSearchTarget` to jump and
+    highlight. App passes this in as the `clientSearch` prop (null on staff pages), and the
+    placeholder becomes "Search clients, tasks, SOPs, Help and this client". Grouped listbox with
+    arrow keys / Enter / Esc across all groups. While the top bar is shown (`showStaffTopBar`) the
+    page-header search icon is not rendered; clients and client-user previews keep it.
   - **Right:** `TB_ThrottleBadge` (admins; `qbo_usage_status` mode throttled/stopped → `#/team`),
     `TB_Bell` (client messages waiting per the Inbox's read markers, `client_doc_requests` with status
     uploaded, open tasks assigned to me by someone else, last month's `close_checks` Blocked (admins:
@@ -341,7 +349,8 @@ because some work happens in Claude Code web sessions. Run `git fetch` and compa
 
 - **Home** (`bookkeeper-home`): Your clients (with health dots), Needs attention, Needs a visit,
   Unread messages, Your reminders, Access requests, Upgrade requests (with the plan asked for), Recently viewed,
-  Milestones to review, Jump to client.
+  Milestones to review. (The old "Jump to client" card here and on Developer Tools was removed
+  2026-09-30; the top bar's client picker replaces both.)
 - **My Tasks**:
   - Tabs: **Today / Upcoming / Overdue / All / By client**.
   - Separate **Notes** and **SOPs** cards below the tasks.
