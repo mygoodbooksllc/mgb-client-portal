@@ -2,7 +2,7 @@
 title: How do I connect a client's QuickBooks and use Sync now?
 section: QuickBooks
 audience: staff
-keywords: [quickbooks, where the money went, expenses by account, no expenses recorded, qbo, sync schedule, every 15 minutes, intuit limit, connect, sync, sync now, live, reconnect, disconnect, intuit, refresh, numbers, sample data, prototype]
+keywords: [quickbooks, where the money went, expenses by account, no expenses recorded, qbo, sync schedule, every 15 minutes, every 30 minutes, intuit limit, connect, sync, sync now, sync pill, reconnect, disconnect, intuit, refresh, numbers, sample data, prototype]
 sort: 400
 ---
 When a client's QuickBooks Online is connected, their portal shows real numbers from QuickBooks instead of sample data. After that, the portal keeps itself up to date.
@@ -10,7 +10,7 @@ When a client's QuickBooks Online is connected, their portal shows real numbers 
 ### Connect a client's QuickBooks
 
 1. Open the client (**Choose a client** at the top left of the page). See [How do I find and open a client?](#/help/finding-a-client).
-2. In the client's sidebar, click **Client details**, then the **QuickBooks** tab.
+2. Click the **Settings** gear at the bottom of the client's sidebar, then **Client settings → Client details → Open**, then the **QuickBooks** tab.
 3. Click **Connect QuickBooks**.
 4. Sign in to Intuit and pick the client's company when asked. Approve the connection.
 5. You come back to the portal. The tab now says **Connected** and shows **Last synced …**.
@@ -21,7 +21,7 @@ The first sync can take a minute. Until it finishes, the pages may still show sa
 
 At the top right of every client page:
 
-- **● Live · synced N minutes ago** (Pro clients) or **Synced weekly · updated …** / **Synced monthly · updated …** (Plus and Basic clients) means the numbers are real QuickBooks numbers.
+- **Every 15 min · synced 5m ago** (Pro clients), **Synced weekly · synced …** (Plus) or **Synced monthly · synced …** (Basic) means the numbers are real QuickBooks numbers. The first part is how often that plan syncs; the second is when it last did. Pro is not live: it syncs every 15 minutes, so a change made in QuickBooks can take up to 15 minutes (30 when the firm is near its Intuit limit) to show unless you use **Sync now**.
 - A grey **Prototype · Sample Data** badge means QuickBooks isn't connected (or hasn't synced yet), so you're looking at sample numbers.
 
 The **Client overview** also has a QuickBooks health card that shows the last sync, or **Not connected**.
@@ -44,7 +44,7 @@ Month-close data (used by the Close tracker's QuickBooks checks and stale-bank f
 
 Use **Sync now** when you've just made changes in QuickBooks and want to see them right away.
 
-- Click the sync pill in the top bar, next to the client picker (**Live · synced …** or **Synced weekly/monthly · updated …**; the whole pill is the Sync now button for staff). The numbers refresh in place. **Or**
+- Click the sync pill in the top bar, next to the client picker (**Every 15 min · synced …** or **Synced weekly/monthly · synced …**; the whole pill is the Sync now button for staff). The numbers refresh in place. **Or**
 - Go to **Client details → QuickBooks** and click **Sync now**. This one says "Reload to see the new numbers", so refresh the page afterwards.
 
 Staff can sync any client, on any plan. (Clients can only use Sync now on the Pro plan.) On a phone, the sync pill stays in the page header.

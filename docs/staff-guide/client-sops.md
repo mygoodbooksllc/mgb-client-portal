@@ -10,7 +10,7 @@ A client's **SOP** (standard operating procedure) explains how their books are r
 ### Open a client's SOP
 
 - **My Tasks → SOPs** card: search for the client and click it. Use **Change client** to switch.
-- Or **Client details → SOP** in the client's sidebar shows it read-only. Click **Edit in My Tasks** to change it.
+- Or **Client details → SOP** (the client's **Settings** gear → **Client settings** → **Client details**) shows it read-only. Click **Edit in My Tasks** to change it.
 
 ### The seven sections
 

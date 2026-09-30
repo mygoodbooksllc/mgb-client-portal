@@ -14,8 +14,8 @@ On any client page there are two preview controls. Neither changes anything for 
 3. A bar appears: "Previewing as {name} — {role}. This is exactly what they see when they sign in."
 4. Click **Exit preview** when you're done.
 
-While previewing, staff-only things are hidden: the top bar (with **Overview** and **+**), the Client overview and the staff note icons.
+While previewing, staff-only things are hidden: the top bar (with **Overview** and **+**), the Client overview and the staff note icons. The client's **Settings** show read-only, since their personal settings belong to them.
 
 ### Preview a different plan
 
-**Preview plan** (in the client's sidebar) lets you see the portal as it looks on another plan. It only changes your browser and doesn't change what the client pays. Choose **Actual plan** to go back.
+**Preview plan** lets you see the portal as it looks on another plan. On a computer, click your initials at the top right, then **Preview plan**, and pick **Basic**, **Plus** or **Pro** (a check marks the one showing). On a phone it's in the menu, under **Preview as**. It only changes your browser and doesn't change what the client pays. Choose **Actual plan** to go back. It isn't offered while an admin is using View as.

@@ -24,7 +24,7 @@ A client's monthly fee follows their **confirmed pricing milestone**. The milest
 
 ### Where to see it
 
-- The **Milestone** badge in the client's header (click it to open the Milestone page).
+- The **Milestone** pill at the top of the client's sidebar, under "Leave the bookkeeping to us." (click it to open the Milestone page). It's hidden when the sidebar is collapsed and for people with limited access.
 - In the sidebar's Plan section, where staff see **Set milestone** if it isn't confirmed yet.
 - **Home → Milestones to review**: clients whose numbers point to a different milestone, aren't confirmed yet, or are close to the next one.
 

@@ -11,7 +11,7 @@ sort: 40
 
 - **Client access requests**: teammates asking to work on one of your clients for a short time. **Approve** or **Deny**. Only shows when there's something to act on.
 - **Access requests**: people a client has asked us to give portal access to. **Review** opens that client's *Manage access* panel.
-- **Upgrade requests**: clients who asked for a bigger plan (or the Payroll add-on) from their Plans page. Follow up with them, then use **Mark contacted**, **Mark completed** or **Dismiss**.
+- **Upgrade requests**: clients who asked for a bigger plan (or the Payroll add-on) from the **Plan** tab of their Settings. Follow up with them, then use **Mark contacted**, **Mark completed** or **Dismiss**.
 - **Needs attention**: bills overdue or due soon, across your clients.
 - **Unread messages**: conversations waiting on a reply.
 - **Recently viewed** and **Needs a visit**: clients you opened lately, and ones you haven't opened on this device in a while.

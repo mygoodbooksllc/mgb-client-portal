@@ -137,7 +137,7 @@ because some work happens in Claude Code web sessions. Run `git fetch` and compa
   - Empty lists are stored as `null`, which means "everything".
   - This scoping currently only hides things in the app. The database does not yet filter
     QuickBooks rows by category (see [Known gaps](#known-gaps-and-roadmap)).
-- **Per org.** Sidebar → **Manage access** has People / Organization tabs / Requests.
+- **Per org.** Settings → **Client settings** → **Manage access** has People / Organization tabs / Requests.
   - The People and Organization tabs still work on **sample** users and per-browser settings
     (see [Known gaps](#known-gaps-and-roadmap)).
   - The Requests tab is real (`access_requests`).
@@ -147,7 +147,7 @@ because some work happens in Claude Code web sessions. Run `git fetch` and compa
   schedules live only in `PLAN_LABELS` / `PLAN_PRICING` / `PLAN_SYNC` / `PAYROLL_PRICING` in
   app.jsx. The same prices are published in `marketing/pricing-embed.html`.
   - **Basic**, $9/mo with 1 login included; extra logins are $9/mo each. It gets Reports,
-    Documents and Messages, plus the milestone badge. There is **no Dashboard** and no per-person
+    Documents and Messages, plus the milestone pill. There is **no Dashboard** and no per-person
     access (`BASIC_TAB_KEYS`); the landing tab is Reports. QuickBooks syncs monthly, on the 15th
     (US Central), with no Sync now.
   - **Plus**, $25/mo + $9 per login. It gets every standard tab and per-person access.
@@ -219,7 +219,7 @@ because some work happens in Claude Code web sessions. Run `git fetch` and compa
   - **Usage guard.** Every Intuit call is counted in `qbo_api_usage` (`qbo-sync` and
     `qbo-firm-sync`). If the month is on pace to pass 80% of the 500,000-call limit, Pro slows to
     every 30 minutes; at 95% used, scheduled syncs stop until the 1st (Sync now still works).
-  - **Sync now**: clicking the gold Live pill (the refresh icon at its right end) syncs, for
+  - **Sync now**: clicking the gold sync pill (the refresh icon at its right end) syncs, for
     staff and clients; also in Client details → QuickBooks. Staff see the pill in the top bar;
     clients (and phones) see it in the header. The function re-checks that the
     caller may sync that client.
@@ -231,10 +231,11 @@ because some work happens in Claude Code web sessions. Run `git fetch` and compa
 - **Browser access.** Browsers can only **read** the `qbo_*` tables. Only the sync function
   (service role) writes to them.
 - **Header (top right of every client page).** Two rows, right-aligned (left-aligned on phones):
-  the **Milestone badge** on top, then the **Live pill** ("● Live · synced N minutes ago" plus a
-  refresh icon; one button, `QboSyncNowButton` with `liveLabel`) and search (clients only; staff
+  the **sync pill** (plan-aware copy from `PLAN_SYNC` / `syncPillLabel`: "Every 15 min · synced
+  5m ago" on Pro, "Synced weekly · …" on Plus, "Synced monthly · …" on Basic, plus a refresh
+  icon; one button, `QboSyncNowButton` with `liveLabel`; Pro is never called "live") and search (clients only; staff
   search the client's data from the top bar instead). A client without
-  QuickBooks data shows a grey **"Prototype · Sample Data"** badge instead of the Live pill. The
+  QuickBooks data shows a grey **"Prototype · Sample Data"** badge instead of the sync pill. The
   "synced" label ticks every minute. For staff on desktop the pill moves into the staff top bar
   (the header copy is hidden by CSS while the top bar's pill is mounted).
 - **Sample banners.** `MockBanner` hides itself on financial pages when
@@ -291,7 +292,7 @@ because some work happens in Claude Code web sessions. Run `git fetch` and compa
   - **Staff notes on anything** (`client_internal_notes`): a note button on budget lines, bank
     transactions and report cards. Clients never see it.
   - **Mark sent to client** on report cards (`client_sent_items`), with history.
-  - **Preview plan** (client sidebar; Preview as itself is in the top bar's account menu on desktop): shows the client's pages as Basic / Plus / Pro
+  - **Preview plan** (top bar account menu on client pages, not during View as; the old sidebar select is gone): shows the client's pages as Basic / Plus / Pro
     in this browser only (`mygoodbooks_preview_plan_v1`). It's ignored in client sessions.
   - **Home → Month-end close**: last month's checklist progress for every client.
   - The same SQL lets staff read time entries and client page views for clients they can
@@ -335,11 +336,12 @@ because some work happens in Claude Code web sessions. Run `git fetch` and compa
     `TB_QuickAdd` ("+", client pages: New task / New note / Request document / Message; dispatches
     `tb:quick-add`, which the headless `StaffQuickActions` listens for and opens its own modal or the
     chat drawer), `TB_HelpButton` ("?" menu: `#/help/<slug>` for the current page, else `#/help`, plus "Report a bug / feedback" via `FB_openFeedback`; `FB_FeedbackHost` is mounted next to it),
-    `TB_AvatarMenu` (theme, Preview as a client user, Exit "View as", temporary access, Sign out).
+    `TB_AvatarMenu` (profile photo from `staff_profiles`, theme, Preview as a client user, Preview plan
+    with check marks, Exit "View as", temporary access, **Settings** → `#/settings`, Sign out).
   - **Moved, not duplicated:** while mounted, the client picker, sync pill and account menu add
     `tb-has-client` / `tb-has-sync` / `tb-has-avatar` on `<html>`, and desktop-only CSS hides the old
-    copies (sidebar/rail client switcher, header Live pill, rail theme/name/sign out, sidebar theme
-    toggle, temporary-access banner and Preview as select).
+    copies (sidebar/rail client switcher, header sync pill, rail name/sign out (the rail and sidebar theme toggles were removed; theme
+    lives in the account menu and Settings), temporary-access banner and Preview as select).
   - **Phones:** the bar sits under the navy `.mobile-topbar` and keeps only the client picker, search,
     bell and "+" (44px; its menu opens fixed under the bar), since "+" is now the only way to add a
     task / note / request or message from a client page. Overview is hidden there: picking a client
@@ -398,9 +400,18 @@ because some work happens in Claude Code web sessions. Run `git fetch` and compa
   not "View as") has a client page open, the tab is visible and there was input in the last 2
   minutes; it flushes every 60 s and on tab hide through `record_app_time`, which caps each call
   at 120 s and wall-clock time, 12 h per client per day and 16 h per day. Not billed time.
-- **Client details** (sidebar): Documents (Drive links), QuickBooks (connect / sync /
-  disconnect), Notes, SOP, Milestone, Activity.
-- **Manage access** (sidebar): People, Organization tabs, Requests.
+- **Client details** (Settings gear → **Client settings**, staff only): Documents (Drive links),
+  QuickBooks (connect / sync / disconnect), Notes, SOP, Milestone, Activity. Old links
+  `#/client/<id>/client-details` still open it.
+- **Manage access** (Settings gear → **Client settings**): People, Organization tabs, Requests.
+  Old links `#/client/<id>/manage-access` still open it.
+- **Settings** (`components/settings/Settings.jsx`, `settings.css`; route `#/settings`, from the
+  account menu): Profile (name, title, phone, photo in the private `staff-avatars` bucket, row in
+  `staff_profiles`), Notifications (email kinds + which bell items show), Appearance & start page,
+  Email signature (used by Daily Close reminders and client emails), Dashboards (reset saved
+  layouts), Shortcuts, and Firm settings for admins (Team; no Staff Access). Saved per person in
+  `user_settings` (`ST_store`: localStorage cache `mygoodbooks_user_settings_v1`, debounced upsert
+  on `user_email`). Read-only during View as.
 - **Admin pages**:
   - **Team** (`components/staff/TeamPage.jsx`): QuickBooks Time hours and tasks by person and by
     client for a period (open, overdue, completed; hours by client with a 3-month average for
@@ -506,8 +517,18 @@ Owner setup:
 ### Client side (and staff viewing a client)
 
 - **Basic** has no Dashboard, so a Basic client lands on Reports.
+- **Settings** (gear at the bottom of the client sidebar; `#/client/<id>/settings[/<tab>]`):
+  Profile, Notifications (bookkeeper messages, reports ready, monthly summary), Organization
+  (full-access users: team list and org settings via `client_org_team` /
+  `client_update_org_settings`, others can request access), Plan (the old Plans page;
+  `#/client/<id>/plan`, `plans` and `enterprise-upgrade` still work), Appearance, Security
+  (sign out on all devices) and Help. Staff viewing a client get **Client settings** (Manage
+  access + Client details) and **Plan** instead; Preview as is read-only.
+- **Your bookkeeper** card at the bottom of the Dashboard (`ST_BookkeeperCard`, RPC
+  `bookkeeper_public_profile`, falls back to the assigned bookkeeper) with a Message button.
 - **Sidebar heading:** the client's milestone (for example "III · Growth"), which opens the
-  Milestone page. Next to it is the gold **Pro** pill, or for Basic and Plus a lock that opens
+  Milestone page. The milestone pill sits under the tagline in the sidebar (it used to be in the
+  page header). Next to it is the gold **Pro** pill, or for Basic and Plus a lock that opens
   Plans. Collapsed, it shows just the roman numeral.
 - **Dashboard** (customizable widgets and saved views). A Pro, full-access client gets
   **Live Report** here instead.
@@ -586,7 +607,7 @@ Owner setup:
     allows tier 0.
   - The old six-tier chart's history rows have `chart = 1` and show with their
     old names plus "(old chart)".
-  - **Badge.** Navy-and-gold pill in the header of every client page: "MILESTONE" over the name,
+  - **Badge.** Navy-and-gold pill in the client sidebar, under the tagline: "MILESTONE" over the name,
     the numeral in a gold medallion with a progress ring toward the next milestone, and a note
     right on the badge: "Near X" (within 90%), "Reached X" or "Moving to X" (numbers point to a
     different milestone that staff haven't set yet). Staff also see "Set milestone" on clients not
@@ -608,7 +629,7 @@ Owner setup:
   2026-09-27).
 - **Reports and PDFs** are generated in the browser with jsPDF: P&L, balance sheet, budget vs.
   actual, contribution and giving statements, reconciliation, payroll YTD, draft budget.
-- **Global search**, light/dark toggle, collapsible sidebar. In a mouse/trackpad window at half
+- **Global search**, light/dark (Settings → Appearance), collapsible sidebar. In a mouse/trackpad window at half
   the screen width or less (`isHalfScreenWindow`) the sidebar auto-collapses to icons, however
   narrow the window gets; the expand button still works there without changing the saved
   preference. Touch phones (below 760px) get a hamburger drawer instead. A page refresh keeps you
@@ -693,8 +714,9 @@ Owner setup:
 
 **Client value (Phase 2)**
 
-- Client **"Account"** sidebar item: email notification settings, monthly digest on/off and
-  recipients. Move the theme toggle and Sign out into it. Build this once email features exist.
+- Client Settings is built (2026-09-30). Notification emails queue in `notification_emails`
+  (outbox triggers) and send through the `notification-emails` function once the Resend domain
+  is verified; until then they show as "coming soon" / queued.
 - Email notifications for client messages (the messages themselves are real since 2026-09-28).
 - Point Staff Home's "Unread messages" card and the Client overview's "threads waiting" at
   `client_messages` (they still read the sample threads).

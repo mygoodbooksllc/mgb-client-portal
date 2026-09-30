@@ -32,13 +32,13 @@ On a computer, the dark sidebar on the left has the page links:
 
 Admins also see an **Admin** group (Team, Task templates, Staff Access, Client Roster, Developer Tools, Usage Stats, Audit log and Emails).
 
-At the bottom: **Collapse**, which shrinks the sidebar to icons. Hover over an icon to see its name. Dark mode, your name and **Sign out** are in the account menu under your initials at the top right.
+At the bottom: **Collapse**, which shrinks the sidebar to icons. Hover over an icon to see its name. **Settings** (your profile, notifications, theme and more), dark mode and **Sign out** are in the account menu under your initials at the top right. See [How do I change my settings?](#/help/staff-settings).
 
 When you have a client open, the staff sidebar shrinks to a thin strip of icons and the client's own sidebar (Dashboard, Reports, Documents and so on) appears beside it.
 
 ### On a phone
 
-The top bar keeps the client picker, search, the bell and **+**. Tap the menu button at the top left to open the menu. Tap your name (the chip with your initials) to reach the staff pages (Home, Inbox, My Tasks, Close tracker, Help and so on) and **Sign out**.
+The top bar keeps the client picker, search, the bell and **+**. Tap the menu button at the top left to open the menu. Tap your name (the chip with your initials) to reach the staff pages (Home, Inbox, My Tasks, Close tracker, Help and so on), **Settings** and **Sign out**.
 
 ### Who sees what
 
