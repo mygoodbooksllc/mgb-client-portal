@@ -9,7 +9,7 @@ Offboarding hands a departing staff member's clients and open tasks to someone e
 
 ### Steps
 
-1. Go to **Staff Access** and click **Offboard** on their row. (You can't offboard yourself.)
+1. Go to **Team → Members** and click **Offboard** on their row. (You can't offboard yourself.)
 2. **Replacements**: you'll see how many clients, open tasks and access grants they have.
    - **One person takes everything**: pick a **Replacement**.
    - **Choose per client**: pick a default replacement (also gets tasks with no client), then change individual clients (**Same as above** or **No one (just unassign)**).
@@ -25,4 +25,4 @@ Finished tasks, time, messages and audit history stay as they are.
 
 ### Troubleshooting
 
-- **I need them back.** Reactivate them on Staff Access (tick **Active**). Their clients and tasks won't move back on their own; reassign them with **Manage**.
+- **I need them back.** Reactivate them on Team → Members (tick **Active**). Their clients and tasks won't move back on their own; reassign them with **Manage**.

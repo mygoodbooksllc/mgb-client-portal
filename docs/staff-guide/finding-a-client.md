@@ -35,6 +35,6 @@ Press **Ctrl+K** (**⌘K** on a Mac) or click the search box at the top of the p
 
 ### Troubleshooting
 
-- **A client is missing from my list.** You're only assigned to some clients. Ask an admin to assign you on **Staff Access**, or use **Request access** for short-term cover.
+- **A client is missing from my list.** You're only assigned to some clients. Ask an admin to assign you on **Team → Members**, or use **Request access** for short-term cover.
 - **"No clients yet."** You haven't been assigned any clients. Ask an admin.
 - **A link a teammate sent opened my dashboard instead.** You don't have access to that client or page, so the portal sent you somewhere you can see.

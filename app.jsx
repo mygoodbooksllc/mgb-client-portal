@@ -1291,7 +1291,7 @@ function Sidebar({
                         role="menuitem"
                         className={
                           "staff-user-menu-item" +
-                          (page === "staff-team" ? " active" : "")
+                          (page === "staff-team" || page === "staff-access" ? " active" : "")
                         }
                         onClick={() => {
                           onSelectPage("staff-team");
@@ -1302,122 +1302,9 @@ function Sidebar({
                         <TeamIcon />
                         Team
                       </button>
-                      <button
-                        type="button"
-                        role="menuitem"
-                        className={
-                          "staff-user-menu-item" +
-                          (page === "task-templates" ? " active" : "")
-                        }
-                        onClick={() => {
-                          onSelectPage("task-templates");
-                          onCloseMobile();
-                          setStaffMenuOpen(false);
-                        }}
-                      >
-                        <RepeatIcon />
-                        Task templates
-                      </button>
-                      <button
-                        type="button"
-                        role="menuitem"
-                        className={
-                          "staff-user-menu-item" +
-                          (page === "staff-access" ? " active" : "")
-                        }
-                        onClick={() => {
-                          onSelectPage("staff-access");
-                          onCloseMobile();
-                          setStaffMenuOpen(false);
-                        }}
-                      >
-                        <UsersIcon />
-                        Staff Access
-                      </button>
-                      <button
-                        type="button"
-                        role="menuitem"
-                        className={
-                          "staff-user-menu-item" +
-                          (page === "client-access" ? " active" : "")
-                        }
-                        onClick={() => {
-                          onSelectPage("client-access");
-                          onCloseMobile();
-                          setStaffMenuOpen(false);
-                        }}
-                      >
-                        <ClientRosterIcon />
-                        Client Roster
-                      </button>
-                      <button
-                        type="button"
-                        role="menuitem"
-                        className={
-                          "staff-user-menu-item" +
-                          (page === "developer-tools" ? " active" : "")
-                        }
-                        onClick={() => {
-                          onSelectPage("developer-tools");
-                          onCloseMobile();
-                          setStaffMenuOpen(false);
-                        }}
-                      >
-                        <WrenchIcon />
-                        Developer Tools
-                      </button>
-                      <button
-                        type="button"
-                        role="menuitem"
-                        className={
-                          "staff-user-menu-item" +
-                          (page === "usage-stats" ? " active" : "")
-                        }
-                        onClick={() => {
-                          onSelectPage("usage-stats");
-                          onCloseMobile();
-                          setStaffMenuOpen(false);
-                        }}
-                      >
-                        <GaugeIcon width="16" height="16" strokeWidth="1.8" />
-                        Usage Stats
-                      </button>
-                      {staffUser.role === "admin" && (
-                      <button
-                        type="button"
-                        role="menuitem"
-                        className={
-                          "staff-user-menu-item" +
-                          (page === "audit-log" ? " active" : "")
-                        }
-                        onClick={() => {
-                          onSelectPage("audit-log");
-                          onCloseMobile();
-                          setStaffMenuOpen(false);
-                        }}
-                      >
-                        <DocumentIcon width="16" height="16" strokeWidth="1.8" />
-                        Audit log
-                      </button>
-                      )}
-                      {staffUser.role === "admin" && typeof EM_MailIcon === "function" && (
-                      <button
-                        type="button"
-                        role="menuitem"
-                        className={
-                          "staff-user-menu-item" +
-                          (page === "emails" ? " active" : "")
-                        }
-                        onClick={() => {
-                          onSelectPage("emails");
-                          onCloseMobile();
-                          setStaffMenuOpen(false);
-                        }}
-                      >
-                        <EM_MailIcon width="16" height="16" strokeWidth="1.8" />
-                        Emails
-                      </button>
-                      )}
+                      {/* Task templates, Client roster, Developer tools,
+                          Usage stats, Audit log and Emails live in Settings >
+                          Firm settings now (below). */}
                       {staffUser.role === "admin" && typeof FB_FeedbackPage === "function" && (
                       <button
                         type="button"
@@ -1830,18 +1717,19 @@ function StaffRail({
             : []),
         ]),
   ];
+  // Admin section: Team (which now includes the old Staff Access page, still
+  // reachable as "staff-access") and Feedback. Task templates, Client roster,
+  // Emails, Usage stats, Audit log and Developer tools moved to Settings >
+  // Firm settings (owner request 2026-09-30); their page ids and routes are
+  // unchanged.
   const adminItems = showsAdminPages
     ? [
-        { key: "staff-team", label: "Team", icon: <TeamIcon /> },
-        { key: "task-templates", label: "Task templates", icon: <RepeatIcon /> },
-        { key: "staff-access", label: "Staff Access", icon: <UsersIcon /> },
-        { key: "client-access", label: "Client Roster", icon: <ClientRosterIcon /> },
-        { key: "developer-tools", label: "Developer Tools", icon: <WrenchIcon /> },
-        { key: "usage-stats", label: "Usage Stats", icon: <GaugeIcon /> },
-        ...(staffUser.role === "admin" ? [{ key: "audit-log", label: "Audit log", icon: <DocumentIcon /> }] : []),
-        ...(staffUser.role === "admin" && typeof EM_MailIcon === "function"
-          ? [{ key: "emails", label: "Emails", icon: <EM_MailIcon /> }]
-          : []),
+        {
+          key: "staff-team",
+          label: "Team",
+          icon: <TeamIcon />,
+          active: page === "staff-team" || page === "staff-access",
+        },
         ...(staffUser.role === "admin" && !impersonating && typeof FB_FeedbackPage === "function"
           ? [{ key: "feedback", label: "Feedback", icon: <FB_Icon />, extra: <FB_NavBadge expanded={expanded} /> }]
           : []),
@@ -22308,9 +22196,11 @@ const PAGE_META = {
     title: "Settings",
     subtitle: "",
   },
+  // The old Staff Access page is Team's Members tab now (owner request
+  // 2026-09-30); "staff-access" stays a page id so its links keep working.
   "staff-access": {
-    title: "Staff Access",
-    subtitle: "Who can sign in to the portal, and with what role",
+    title: "Team",
+    subtitle: "Who can sign in, their roles, clients and temporary admin access",
   },
   "client-access": {
     title: "Client Roster",
@@ -22351,7 +22241,7 @@ const PAGE_META = {
   },
   "staff-team": {
     title: "Team",
-    subtitle: "Hours and tasks by person and client",
+    subtitle: "Hours and tasks by person and client, plus who can sign in and with what role",
   },
   "staff-messages": {
     title: "Inbox",
@@ -24334,7 +24224,7 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
         <div className="boot-splash-sub">
           {clientAccessError
             ? `${effectiveStaffUser.name}, we couldn't check which clients you're assigned to, so nothing is being shown. Reload to try again — if it keeps happening, tell an admin.`
-            : `${effectiveStaffUser.name}, you're signed in but no clients are assigned to you yet. Ask an admin to check off at least one client for you under Staff Access.`}
+            : `${effectiveStaffUser.name}, you're signed in but no clients are assigned to you yet. Ask an admin to check off at least one client for you under Team → Members.`}
         </div>
         {/* Temporary access is the other way in; an approval widens
             visibleClients and this screen gives way on its own. */}
@@ -24897,11 +24787,21 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
               hasPendingAccessRequests={hasPendingAccessRequests}
             />
           )}
-          {effectivePage === "staff-access" && (
-            <StaffAccessPage
-              staffUser={staffUser}
-              onImpersonate={startImpersonating}
-              readOnly={staffUser.role !== "admin"}
+          {/* Team (components/staff/TeamPage.jsx, TP_TeamHub): "staff-team"
+              opens its Hours and tasks tab, "staff-access" (the old Staff
+              Access page) its Members tab. Same gating as before. */}
+          {(effectivePage === "staff-team" || effectivePage === "staff-access") && (
+            <TP_TeamHub
+              tab={effectivePage === "staff-access" ? "members" : "hours"}
+              onTab={(t) => setPage(t === "members" ? "staff-access" : "staff-team")}
+              renderMembers={() => (
+                <StaffAccessPage
+                  staffUser={staffUser}
+                  onImpersonate={startImpersonating}
+                  readOnly={staffUser.role !== "admin"}
+                />
+              )}
+              renderHours={() => <TP_TeamPage clients={visibleClients} />}
             />
           )}
           {effectivePage === "client-access" && (
@@ -24957,7 +24857,6 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
           {effectivePage === "feedback" && typeof FB_FeedbackPage === "function" && (
             <FB_FeedbackPage clients={visibleClients} />
           )}
-          {effectivePage === "staff-team" && <TP_TeamPage clients={visibleClients} />}
           {effectivePage === "close-tracker" && (
             <CT_CloseTrackerPage clients={visibleClients} staffUser={effectiveStaffUser} />
           )}

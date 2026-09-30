@@ -30,7 +30,7 @@ On a computer, the dark sidebar on the left has the page links:
 - **Close tracker**: month-end close progress for every client.
 - **Help**: this guide.
 
-Admins also see an **Admin** group (Team, Task templates, Staff Access, Client Roster, Developer Tools, Usage Stats, Audit log and Emails).
+Admins also see an **Admin** group with **Team** (hours and tasks, plus the **Members** tab that used to be Staff Access) and **Feedback**. The other admin pages (Task templates, Client roster, Emails, QuickBooks usage, Usage stats, Audit log and Developer tools) are in **Settings → Firm settings**.
 
 At the bottom: **Collapse**, which shrinks the sidebar to icons. Hover over an icon to see its name. **Settings** (your profile, notifications, theme and more), dark mode and **Sign out** are in the account menu under your initials at the top right. See [How do I change my settings?](#/help/staff-settings).
 

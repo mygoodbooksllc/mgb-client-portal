@@ -18,7 +18,7 @@ Some work happens for every client on a schedule, like reconciling bank accounts
 
 ### Setting up a template (admins)
 
-**Task templates** is in the admin part of the staff menu. Admins and staff with temporary admin access can open it.
+**Task templates** is in **Settings → Firm settings**, under **People and work** (`#/templates` still opens it). Admins and staff with temporary admin access can open it.
 
 1. Click **New template**.
 2. Type the **Task title**, for example *Reconcile bank accounts*. Don't add the month; it's added for you.
@@ -33,5 +33,5 @@ The templates run every morning on their own. **Generate now** runs them immedia
 
 ### Troubleshooting
 
-- **A task didn't appear for a client.** Check that the client has an **assigned bookkeeper** picked on the Client Roster. After a run, the page says how many were skipped because the client's bookkeeper doesn't match a staff login.
+- **A task didn't appear for a client.** Check that the client has an **assigned bookkeeper** picked on the Client roster. After a run, the page says how many were skipped because the client's bookkeeper doesn't match a staff login.
 - **"Nothing new to create right now."** Either the tasks already exist for this period, or the due date isn't inside the lead window yet.

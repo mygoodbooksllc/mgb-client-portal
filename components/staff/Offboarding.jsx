@@ -294,7 +294,7 @@ function OFF_Wizard({ row, staffRows, onClose, onDone }) {
           <React.Fragment>
             <p className="off-warn">
               You're about to offboard <strong>{displayName}</strong> ({row.email}). They lose access straight away.
-              You can reactivate them later on Staff Access, but their clients and tasks won't move back on their own.
+              You can reactivate them later on Team → Members, but their clients and tasks won't move back on their own.
             </p>
             <label className="off-label" htmlFor="off-confirm">
               Type <strong>{displayName}</strong> to confirm

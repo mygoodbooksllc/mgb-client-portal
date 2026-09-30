@@ -9,7 +9,7 @@ Every new client has an **Onboarding** checklist on their **Client overview** (r
 
 ### Organization type
 
-Under the progress bar, choose **Organization type**: **Nonprofit** or **For-profit**. It saves as soon as you pick ("Marked as a nonprofit." / "Marked as a for-profit business."). Admins can also set it when adding or editing a client on **Client Roster**.
+Under the progress bar, choose **Organization type**: **Nonprofit** or **For-profit**. It saves as soon as you pick ("Marked as a nonprofit." / "Marked as a for-profit business."). Admins can also set it when adding or editing a client on **Client roster** (**Settings → Firm settings**).
 
 New clients start as **Nonprofit**. For now it's only stored. Later, estimated taxes and sales-tax features will apply to for-profit clients only, so set it correctly now.
 

@@ -5,7 +5,7 @@ audience: admin
 keywords: [audit log, history, who changed, export csv, filters, access changes, fees, rates, mappings, view as]
 sort: 530
 ---
-The **Audit log** (staff menu → Audit log, admins only) records who changed access, fees, rates, mappings and client settings, and when. The database writes it, so nobody can edit or delete entries.
+The **Audit log** (**Settings → Firm settings → Audit log**, admins only) records who changed access, fees, rates, mappings and client settings, and when. The database writes it, so nobody can edit or delete entries.
 
 ### Find something
 

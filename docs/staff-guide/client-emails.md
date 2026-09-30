@@ -5,7 +5,7 @@ audience: admin
 keywords: [emails page, client emails, send client emails, missing-documents reminders, monthly value report, value report, reply-to, opt out, unsubscribe, resubscribe, send log, test email]
 sort: 570
 ---
-The **Emails** page (staff menu → Emails, admins only) shows whether email works, the weekly digest, client emails and the send log.
+The **Emails** page (**Settings → Firm settings → Emails**, admins only) shows whether email works, the weekly digest, client emails and the send log.
 
 ### Is email working?
 

@@ -25,7 +25,7 @@ You don't log hours in this app. Keep using **QuickBooks Time** as usual; hours 
 
 ### A client is missing from my client list.
 
-Bookkeepers only see their assigned clients. Ask an admin to assign it to you on Staff Access, or request temporary access. See [How do I get temporary access to a client I don't normally work on?](#/help/temporary-access).
+Bookkeepers only see their assigned clients. Ask an admin to assign it to you on Team → Members, or request temporary access. See [How do I get temporary access to a client I don't normally work on?](#/help/temporary-access).
 
 ### Where do I keep client passwords?
 
@@ -37,7 +37,7 @@ No. It only records that you sent it. Send the report yourself first.
 
 ### Does the app send staff invitations?
 
-No. On Staff Access, **Email invite** opens a draft in Gmail or your mail app for an admin to send.
+No. On Team → Members, **Email invite** opens a draft in Gmail or your mail app for an admin to send.
 
 ### Is "Manage access" / Client details access enforced?
 

@@ -11,7 +11,7 @@ The pending items include a **QuickBooks API usage** line: calls this month, the
 
 The **Staff feedback** section shows how many bug reports and ideas are still marked **New** (for example "3 new: 2 bugs, 1 idea"), how many came in over the last 7 days, and the 5 newest **New** reports with who sent them and the start of their message. Click **Open the Feedback page** to triage them; see [How do I review bug reports and feedback?](#/help/feedback-page). If nothing is waiting it says "No new feedback."
 
-Find it on **Emails** (staff menu → Emails), in the **Weekly digest** card.
+Find it on **Emails** (**Settings → Firm settings → Emails**), in the **Weekly digest** card.
 
 ### Settings
 

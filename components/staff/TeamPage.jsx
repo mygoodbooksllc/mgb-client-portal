@@ -504,6 +504,52 @@ function TP_AppTimeCard({ entries, groupBy, nameOf, range, who }) {
 const TP_roleLabel = (role) =>
   role ? role.charAt(0).toUpperCase() + role.slice(1).replace(/_/g, " ") : "";
 
+// Team = Hours and tasks (TP_TeamPage) + Members (the old Staff Access page,
+// StaffAccessPage in app.jsx), merged 2026-09-30. App picks the tab from the
+// page id ("staff-team" -> hours, "staff-access" -> members) so both routes,
+// #/team and #/staff-access, keep working. Each tab renders only while open,
+// so it loads exactly what it loaded as its own page, with the same checks.
+const TP_HUB_TABS = [
+  { key: "hours", label: "Hours and tasks" },
+  { key: "members", label: "Members" },
+];
+function TP_TeamHub({ tab, onTab, renderHours, renderMembers }) {
+  const cur = tab === "members" ? "members" : "hours";
+  const onKeyDown = (e) => {
+    if (e.key !== "ArrowRight" && e.key !== "ArrowLeft") return;
+    e.preventDefault();
+    const i = TP_HUB_TABS.findIndex((t) => t.key === cur);
+    const next = TP_HUB_TABS[(i + (e.key === "ArrowRight" ? 1 : TP_HUB_TABS.length - 1)) % TP_HUB_TABS.length];
+    onTab(next.key);
+    const el = document.getElementById("tp-hub-tab-" + next.key);
+    if (el) el.focus();
+  };
+  return (
+    <div className="tp-hub">
+      <div className="tp-hub-tabs" role="tablist" aria-label="Team" onKeyDown={onKeyDown}>
+        {TP_HUB_TABS.map((t) => (
+          <button
+            key={t.key}
+            id={"tp-hub-tab-" + t.key}
+            type="button"
+            role="tab"
+            aria-selected={cur === t.key}
+            aria-controls="tp-hub-panel"
+            tabIndex={cur === t.key ? 0 : -1}
+            className={"tp-hub-tab" + (cur === t.key ? " active" : "")}
+            onClick={() => onTab(t.key)}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
+      <div id="tp-hub-panel" role="tabpanel" aria-labelledby={"tp-hub-tab-" + cur}>
+        {cur === "members" ? renderMembers() : renderHours()}
+      </div>
+    </div>
+  );
+}
+
 function TP_TeamPage({ clients }) {
   const supabase = window.mgbSupabase;
   const [period, setPeriod] = useState("month");

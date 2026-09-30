@@ -736,6 +736,157 @@ function ST_StaffProfileCard({ staffUser, readOnly }) {
   );
 }
 
+// ---------------------------------------------------------------------------
+// Firm settings (owner request 2026-09-30): the admin pages that used to be
+// staff sidebar links, as grouped rows. Each row opens the existing page by
+// its page id, so routes, deep links and gating are unchanged. `show` mirrors
+// what the sidebar showed: admins everything; staff with temporary admin
+// access the pages App lets them open (effectivePage), never the admin-only
+// Emails, Audit log or QuickBooks usage card.
+// ---------------------------------------------------------------------------
+function ST_firmGroups(isAdmin, hasTempAdminAccess) {
+  const anyAdmin = !!(isAdmin || hasTempAdminAccess);
+  // app.jsx icons, looked up at render time (this file loads first).
+  const icons = {
+    RepeatIcon: typeof RepeatIcon === "function" ? RepeatIcon : null,
+    ClientRosterIcon: typeof ClientRosterIcon === "function" ? ClientRosterIcon : null,
+    EM_MailIcon: typeof EM_MailIcon === "function" ? EM_MailIcon : null,
+    GaugeIcon: typeof GaugeIcon === "function" ? GaugeIcon : null,
+    BarChartIcon: typeof BarChartIcon === "function" ? BarChartIcon : null,
+    DocumentIcon: typeof DocumentIcon === "function" ? DocumentIcon : null,
+    WrenchIcon: typeof WrenchIcon === "function" ? WrenchIcon : null,
+  };
+  const icon = (name) => {
+    const C = icons[name];
+    return C ? React.createElement(C, { width: 18, height: 18, strokeWidth: 1.8 }) : null;
+  };
+  return [
+    {
+      title: "People and work",
+      rows: [
+        { key: "templates", page: "task-templates", label: "Task templates", sub: "Recurring tasks created automatically for each client's bookkeeper.", icon: icon("RepeatIcon"), show: anyAdmin },
+        { key: "roster", page: "client-access", label: "Client roster", sub: "Who at each organization is registered to sign in.", icon: icon("ClientRosterIcon"), show: anyAdmin },
+      ],
+    },
+    {
+      title: "Email and QuickBooks",
+      rows: [
+        { key: "emails", page: "emails", label: "Emails", sub: "Whether sending works, the weekly digest, client emails and the send log.", icon: icon("EM_MailIcon"), show: !!isAdmin && typeof EM_EmailsPage === "function", chip: "email" },
+        { key: "qbo", page: "staff-team", label: "QuickBooks usage and limits", sub: "This month's Intuit API calls, sync slow-down and stop limits (on the Team page).", icon: icon("GaugeIcon"), show: !!isAdmin, chip: "qbo" },
+      ],
+    },
+    {
+      title: "Insight and records",
+      rows: [
+        { key: "usage", page: "usage-stats", label: "Usage stats", sub: "Which pages and features actually get used, most to least.", icon: icon("BarChartIcon"), show: anyAdmin },
+        { key: "audit", page: "audit-log", label: "Audit log", sub: "Every change to access, fees, rates, mappings and clients.", icon: icon("DocumentIcon"), show: !!isAdmin && typeof AL_AuditLogPage === "function" },
+        { key: "dev", page: "developer-tools", label: "Developer tools", sub: "Per-browser testing aids. Nothing here is shared or written to Supabase.", icon: icon("WrenchIcon"), show: anyAdmin },
+      ],
+    },
+  ]
+    .map((g) => ({ ...g, rows: g.rows.filter((r) => r.show) }))
+    .filter((g) => g.rows.length);
+}
+
+// Status chips for the Emails and QuickBooks rows. Admin only, and cheap: the
+// newest send attempt from each email log (the same rows the Emails page's
+// setup banner reads, classified by EM_classify) and qbo_usage_status(), the
+// RPC the top bar already polls. Anything that fails just leaves no chip.
+function ST_useFirmStatus(enabled) {
+  const [st, setSt] = React.useState({ email: null, qbo: null });
+  React.useEffect(() => {
+    const sb = window.mgbSupabase;
+    if (!enabled || !sb) return;
+    let alive = true;
+    const statuses = ["sent", "error", "not_configured"];
+    const safe = (p) => Promise.resolve(p).then((r) => r, (e) => ({ error: e }));
+    Promise.all([
+      safe(sb.from("digest_runs").select("started_at, status, detail").in("status", statuses).order("started_at", { ascending: false }).limit(1)),
+      safe(sb.from("client_email_log").select("created_at, status, reason").in("status", statuses).order("created_at", { ascending: false }).limit(1)),
+      safe(sb.rpc("qbo_usage_status")),
+    ]).then(([d, c, q]) => {
+      if (!alive) return;
+      let email = null;
+      if (!d.error && !c.error && typeof EM_classify === "function") {
+        const rows = [
+          ...((d.data || []).map((r) => ({ at: r.started_at, status: r.status, detail: r.detail || "" }))),
+          ...((c.data || []).map((r) => ({ at: r.created_at, status: r.status, detail: r.reason || "" }))),
+        ].sort((a, b) => String(b.at).localeCompare(String(a.at)));
+        const kind = EM_classify(rows[0] || null);
+        email =
+          kind === "ok"
+            ? { text: "Domain verified", tone: "good" }
+            : kind === "domain"
+              ? { text: "Domain pending", tone: "warn" }
+              : kind === "none"
+                ? { text: "Not checked yet", tone: "neutral" }
+                : { text: "Needs attention", tone: "bad" };
+      }
+      let qbo = null;
+      if (!q.error && q.data && Number(q.data.cap)) {
+        const pct = Math.round((Number(q.data.calls || 0) / Number(q.data.cap)) * 100);
+        const mode = q.data.mode;
+        qbo = {
+          text: `${pct}% used`,
+          tone: mode === "stopped" ? "bad" : mode === "throttled" ? "warn" : "neutral",
+          title: mode === "stopped" ? "Scheduled syncs stopped" : mode === "throttled" ? "Syncs slowed down" : "Normal",
+        };
+      }
+      setSt({ email, qbo });
+    });
+    return () => {
+      alive = false;
+    };
+  }, [enabled]);
+  return st;
+}
+
+function ST_ChevronIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M9 6l6 6-6 6" />
+    </svg>
+  );
+}
+
+function ST_FirmSettings({ groups, isAdmin, onSelectPage }) {
+  const status = ST_useFirmStatus(!!isAdmin);
+  return (
+    <>
+      {groups.map((g) => (
+        <ST_Card key={g.title} title={g.title}>
+          <ul className="st-firm-list">
+            {g.rows.map((r) => {
+              const chip = r.chip ? status[r.chip] : null;
+              return (
+                <li key={r.key}>
+                  <button type="button" className="st-firm-row" onClick={() => onSelectPage(r.page)}>
+                    <span className="st-firm-icon" aria-hidden="true">{r.icon}</span>
+                    <span className="st-row-text">
+                      <span className="st-row-label">
+                        {r.label}
+                        {chip && (
+                          <span className={"st-firm-chip st-firm-chip-" + chip.tone} title={chip.title}>
+                            {chip.text}
+                          </span>
+                        )}
+                      </span>
+                      <span className="st-row-sub">{r.sub}</span>
+                    </span>
+                    <span className="st-firm-chevron">
+                      <ST_ChevronIcon />
+                    </span>
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        </ST_Card>
+      ))}
+    </>
+  );
+}
+
 function ST_StaffSettingsPage({
   staffUser,
   readOnlyReason, // text when viewing as someone else, else null
@@ -769,14 +920,7 @@ function ST_StaffSettingsPage({
       </button>
     </div>
   );
-  const firmLinks = [
-    { page: "staff-team", label: "Team", sub: "People, roles, client assignments and QuickBooks API usage.", show: isAdmin || hasTempAdminAccess },
-    { page: "emails", label: "Emails", sub: "Client and notification emails: settings, history and failures.", show: isAdmin },
-    { page: "staff-team", label: "QuickBooks usage", sub: "This month's Intuit API calls, on the Team page.", show: isAdmin || hasTempAdminAccess },
-    { page: "feedback", label: "Feedback", sub: "Staff and client feedback, and its status.", show: isAdmin },
-    { page: "audit-log", label: "Audit log", sub: "Who changed what, and when.", show: isAdmin },
-    { page: "task-templates", label: "Task templates", sub: "Recurring tasks created for each client.", show: isAdmin || hasTempAdminAccess },
-  ].filter((l) => l.show);
+  const firmGroups = ST_firmGroups(isAdmin, hasTempAdminAccess);
   return (
     <ST_Layout tabs={tabs} tab={tab} onTab={setTab} header={header}>
       {(key) => (
@@ -877,21 +1021,7 @@ function ST_StaffSettingsPage({
             </ST_Card>
           )}
           {key === "firm" && (
-            <ST_Card title="Firm settings" sub="Firm-wide pages for admins.">
-              <ul className="st-list">
-                {firmLinks.map((l) => (
-                  <li key={l.label} className="st-list-row">
-                    <span className="st-row-text">
-                      <span className="st-row-label">{l.label}</span>
-                      <span className="st-row-sub">{l.sub}</span>
-                    </span>
-                    <button type="button" className="btn-secondary st-btn-sm" onClick={() => onSelectPage(l.page)}>
-                      Open
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            </ST_Card>
+            <ST_FirmSettings groups={firmGroups} isAdmin={isAdmin} onSelectPage={onSelectPage} />
           )}
         </>
       )}

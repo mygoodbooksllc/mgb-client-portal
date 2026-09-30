@@ -94,6 +94,31 @@
 .st-list-row:first-child { border-top: 0; }
 .st-request { margin-top: 12px; }
 
+/* Firm settings: grouped rows (icon, title + chip, one-line description, chevron). */
+.st-firm-list { list-style: none; margin: 0 -10px; padding: 0; }
+.st-firm-list li + li { border-top: 1px solid var(--border); }
+.st-firm-row {
+  display: flex; align-items: center; gap: 14px; width: 100%; padding: 12px 10px;
+  background: transparent; border: 0; border-radius: 10px; text-align: left; cursor: pointer;
+  font: inherit; color: inherit;
+}
+.st-firm-row:hover { background: var(--hover-bg); }
+.st-firm-row:focus-visible { outline: 2px solid var(--gold); outline-offset: -2px; }
+.st-firm-row .st-row-text { flex: 1; }
+.st-firm-icon {
+  flex: none; display: inline-flex; align-items: center; justify-content: center;
+  width: 36px; height: 36px; border-radius: 10px; background: var(--accent-soft); color: var(--gold-deep);
+}
+.st-firm-chevron { flex: none; display: inline-flex; color: var(--text-muted); }
+.st-firm-chip {
+  display: inline-flex; align-items: center; padding: 1px 8px; border-radius: 999px;
+  font-size: 11.5px; font-weight: 600; line-height: 1.6; white-space: nowrap;
+  background: var(--surface-2); color: var(--text-muted); border: 1px solid var(--border);
+}
+.st-firm-chip-good { background: var(--good-soft); color: var(--good); border-color: transparent; }
+.st-firm-chip-warn { background: var(--accent-soft); color: var(--gold-deep); border-color: transparent; }
+.st-firm-chip-bad { background: var(--bad-soft); color: var(--bad); border-color: transparent; }
+
 .st-preview { margin-top: 14px; padding: 12px 14px; border: 1px dashed var(--border); border-radius: 10px; }
 .st-preview-label { font-size: 11px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-muted); margin-bottom: 6px; }
 .st-preview pre { margin: 0; white-space: pre-wrap; font: 14px/1.5 var(--font-body); color: var(--text); }

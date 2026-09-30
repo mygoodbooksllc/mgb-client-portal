@@ -23,7 +23,7 @@ If someone sent you a link to a specific page (for example a task list or a clie
 
 ### Troubleshooting
 
-- **"… signed in with Google but isn't on the MyGoodBooks staff list."** Your Google account worked, but you haven't been added to the portal yet, or you picked a personal Google account. Click **Sign out and try a different account** and choose your @mygoodbooks.org account. If it still happens, ask an admin to add you on **Staff Access**.
+- **"… signed in with Google but isn't on the MyGoodBooks staff list."** Your Google account worked, but you haven't been added to the portal yet, or you picked a personal Google account. Click **Sign out and try a different account** and choose your @mygoodbooks.org account. If it still happens, ask an admin to add you on **Team → Members**.
 - **You see the client email screen again.** You typed your email into the client box. Use **Staff? Sign in with Google** instead.
 - **Google says the app is restricted to your organization.** You chose a non-MyGoodBooks Google account. Switch accounts in the Google window.
 - **The page stays on "Loading your portal…".** Refresh the page. If it keeps happening, let an admin know.

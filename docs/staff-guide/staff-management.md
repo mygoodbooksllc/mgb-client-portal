@@ -2,10 +2,10 @@
 title: How do I add staff and manage their access?
 section: Admin
 audience: admin
-keywords: [staff access, entity type, nonprofit, for-profit, add staff, bulk import, role, admin, bookkeeper, deactivate, assign clients, manage, temporary admin access, grant, revoke, view as, email invite, client roster]
+keywords: [staff access, team, members, members tab, entity type, nonprofit, for-profit, add staff, bulk import, role, admin, bookkeeper, deactivate, assign clients, manage, temporary admin access, grant, revoke, view as, email invite, client roster]
 sort: 510
 ---
-**Staff Access** (staff menu → Staff Access) controls who can sign in and with what role.
+The **Members** tab of **Team** (sidebar → **Team** → **Members**) controls who can sign in and with what role. It used to be a separate page called **Staff Access**; old Staff Access links (`#/staff-access`) open this tab.
 
 > This page writes directly to the real staff table. Nothing here is sample data.
 
@@ -42,15 +42,15 @@ Give a bookkeeper short-term access to the admin pages, for example while you're
 
 The cell then shows **Until {date, time}** with a **Revoke** button. It ends on its own at that time.
 
-It unlocks **Team**, **Task templates**, **Staff Access**, **Client Roster**, **Developer Tools** and **Usage Stats**. Staff Access, Client Roster and Developer Tools open **read-only**. **Audit log** and **Emails** stay real-admin-only. Offboarding also ends it.
+It unlocks **Team** (both tabs; the Members tab opens **read-only**) in the sidebar, and **Task templates**, **Client roster**, **Usage stats** and **Developer tools** under **Settings → Firm settings**. Client roster and Developer tools open **read-only**. **Audit log**, **Emails**, **Feedback** and the QuickBooks API usage card stay real-admin-only. Offboarding also ends it.
 
 ### View as
 
 Click **View as** on an active bookkeeper's row to see exactly what they see, including their assigned clients and reminders. Click **Exit "View as"** to return. Every View as is recorded in the Audit log.
 
-### Client Roster: organization type
+### Client roster: organization type
 
-On **Client Roster**, the add form and each row's edit mode have a **Nonprofit** / **For-profit** choice under the organization type. New clients default to **Nonprofit**. Staff can also change it on the client's Onboarding card. See [How does client onboarding work?](#/help/onboarding).
+On **Client roster** (**Settings → Firm settings → Client roster**), the add form and each row's edit mode have a **Nonprofit** / **For-profit** choice under the organization type. New clients default to **Nonprofit**. Staff can also change it on the client's Onboarding card. See [How does client onboarding work?](#/help/onboarding).
 
 ### Troubleshooting
 

@@ -50,7 +50,13 @@ A list of keyboard shortcuts: **Ctrl+K** (**⌘K** on a Mac) to search, **↑** 
 
 ### Firm settings (admins)
 
-Links to the firm-wide admin pages: **Team** (including QuickBooks API usage), **Emails**, **Feedback**, **Audit log** and **Task templates**.
+The firm-wide admin pages that used to be links in the sidebar's Admin group, in three groups. Click a row to open the page; its old link still works too.
+
+- **People and work**: **Task templates** and **Client roster**.
+- **Email and QuickBooks**: **Emails**, with a chip showing whether sending works (**Domain verified**, **Domain pending**, **Needs attention** or **Not checked yet**), and **QuickBooks usage and limits**, with this month's **% used**. It opens the usage card on the Team page.
+- **Insight and records**: **Usage stats**, **Audit log** and **Developer tools**.
+
+Staff with temporary admin access see Task templates, Client roster, Usage stats and Developer tools. **Team** and **Feedback** stay in the sidebar.
 
 ### Sign out
 

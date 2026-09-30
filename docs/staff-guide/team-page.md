@@ -2,12 +2,15 @@
 title: How do I read the Team page?
 section: Admin
 audience: admin
-keywords: [team, quickbooks api usage, hours, quickbooks time, in app, people table, clients table, drill-down, csv, this month, custom range, billable]
+keywords: [team, members, staff access, hours and tasks, quickbooks api usage, hours, quickbooks time, in app, people table, clients table, drill-down, csv, this month, custom range, billable]
 sort: 500
 ---
-**Team** (staff menu → Team, or `#/team`) shows hours and tasks by person and by client. Admins see money figures; temporary admins see the page without them.
+**Team** (sidebar → **Team**, or `#/team`) has two tabs:
 
-### Layout, top to bottom
+- **Hours and tasks** (opens first): hours and tasks by person and by client. Admins see money figures; temporary admins see the tab without them.
+- **Members**: add staff, roles, active/inactive, client assignments, temporary admin access, **View as**, **Offboard** and email invites. This used to be the separate **Staff Access** page, and `#/staff-access` links open this tab. Temporary admins see it read-only. See [How do I add staff and manage their access?](#/help/staff-management).
+
+### Hours and tasks, top to bottom
 
 1. **QuickBooks Time** panel: the firm's QuickBooks connection. See [How do I connect the firm's QuickBooks Time?](#/help/firm-quickbooks).
 2. **QuickBooks API usage** card (admins): calls to QuickBooks this month against Intuit's limit. See [How do I read the QuickBooks API usage card?](#/help/quickbooks-api-usage).
