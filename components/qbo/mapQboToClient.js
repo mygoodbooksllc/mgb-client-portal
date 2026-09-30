@@ -235,6 +235,12 @@
           description: inv.customer_name || "Invoice " + inv.qbo_id,
           amount: toNumber(inv.balance),
           dueDate: due,
+          // The Collections Queue drafts one reminder per customer, addressed
+          // to that customer (qbo-sync v10+; older rows have neither).
+          customerId: inv.customer_id || null,
+          customerName: inv.customer_name || null,
+          customerEmail: inv.customer_email || null,
+          invoiceId: inv.qbo_id,
         };
       })
       .filter(Boolean)

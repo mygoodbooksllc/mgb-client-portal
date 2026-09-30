@@ -842,7 +842,8 @@ function AgingBar({ items }: { items: { label: string; amount: number; tone: Agi
 }
 
 /* ============================================================
-   Collections queue — select overdue receivables and draft a reminder
+   Collections queue — pick one customer's overdue invoices and draft
+   a reminder addressed to that customer
    ============================================================ */
 
 function CollectionsQueue({
@@ -857,31 +858,55 @@ function CollectionsQueue({
 
   if (overdue.length === 0) return null;
 
-  const toggle = (id: number | string) => {
+  // A reminder goes to ONE customer and lists only that customer's invoices —
+  // putting several customers in one email would show each of them the
+  // others' balances. Sample rows have no customer id, so the description
+  // stands in as the key.
+  const keyOf = (r: (typeof overdue)[number]) => r.customerKey || `desc:${r.description}`;
+  const nameOf = (r: (typeof overdue)[number]) => r.customerName || r.description;
+
+  const selectedRows = overdue.filter((r) => selected.has(r.id));
+  const selectedTotal = selectedRows.reduce((s, r) => s + r.amount, 0);
+  const current = selectedRows[0] || null;
+  const currentKey = current ? keyOf(current) : null;
+  const currentName = current ? nameOf(current) : "";
+  const currentEmail = (current && selectedRows.map((r) => r.customerEmail).find(Boolean)) || "";
+  const customerRows = currentKey ? overdue.filter((r) => keyOf(r) === currentKey) : [];
+
+  // Checking a row from a different customer replaces the selection rather
+  // than adding to it.
+  const toggle = (row: (typeof overdue)[number]) => {
     setSelected((prev) => {
+      const prevRows = overdue.filter((r) => prev.has(r.id));
+      if (prevRows.length && keyOf(prevRows[0]) !== keyOf(row)) return new Set([row.id]);
       const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
+      if (next.has(row.id)) next.delete(row.id);
+      else next.add(row.id);
       return next;
     });
   };
 
-  const selectedRows = overdue.filter((r) => selected.has(r.id));
-  const selectedTotal = selectedRows.reduce((s, r) => s + r.amount, 0);
+  const selectAllFromCustomer = () => setSelected(new Set(customerRows.map((r) => r.id)));
+
+  const invoiceLabel = (r: (typeof overdue)[number]) =>
+    r.invoiceId ? `Invoice #${r.invoiceId}` : r.description;
 
   const draftReminder = () => {
-    const rows = selectedRows.length ? selectedRows : overdue;
-    const subject = `Payment reminder — ${clientName}`;
-    const lines = rows.map((r) => `- ${r.description}: ${fmtMoney(r.amount)}, due ${r.dueDate} (${r.daysOverdue} days overdue)`);
+    if (!current) return;
+    const rows = selectedRows;
+    const subject = `Payment reminder from ${clientName}`;
+    const lines = rows.map((r) => `- ${invoiceLabel(r)}: ${fmtMoney(r.amount)}, due ${r.dueDate} (${r.daysOverdue} days overdue)`);
     const body =
-      `Hi,\n\nThis is a friendly reminder that the following balance${rows.length > 1 ? "s are" : " is"} still outstanding:\n\n` +
+      `Hi ${currentName},\n\nThis is a friendly reminder that the following balance${rows.length > 1 ? "s are" : " is"} still outstanding:\n\n` +
       lines.join("\n") +
-      `\n\nTotal: ${fmtMoney(rows.reduce((s, r) => s + r.amount, 0))}\n\nPlease let us know if you have any questions.\n\nThank you,\n${clientName}`;
-    // No customer email address is in the underlying data yet — this opens a
-    // blank-recipient draft in the browser's own mail client for the client
-    // to address and send themselves, same honest-mock posture as the rest
-    // of the app's "real email you review and hit send on" flows.
-    window.open(`mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`, "_self");
+      `\n\nTotal: ${fmtMoney(selectedTotal)}\n\nPlease let us know if you have any questions.\n\nThank you,\n${clientName}`;
+    // Opens a draft in the viewer's own mail client, addressed to the
+    // customer's QuickBooks email when there is one. Nothing is sent from
+    // the portal — the client reviews and hits send themselves.
+    window.open(
+      `mailto:${currentEmail ? encodeURIComponent(currentEmail) : ""}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`,
+      "_self"
+    );
   };
 
   return (
@@ -891,19 +916,42 @@ function CollectionsQueue({
           <div className={styles.panelTitle}>Collections Queue</div>
           <div className={styles.panelSub}>
             {selectedRows.length > 0
-              ? `${selectedRows.length} selected · ${fmtMoney(selectedTotal)}`
-              : `${overdue.length} overdue invoice${overdue.length !== 1 ? "s" : ""}`}
+              ? `${currentName} · ${selectedRows.length} selected · ${fmtMoney(selectedTotal)}`
+              : `${overdue.length} overdue invoice${overdue.length !== 1 ? "s" : ""} · one reminder per customer`}
           </div>
         </div>
-        <button type="button" className={styles.collectionsDraftBtn} onClick={draftReminder}>
-          Draft Reminder{selectedRows.length > 1 ? " Email" : ""}
+        <button
+          type="button"
+          className={styles.collectionsDraftBtn}
+          onClick={draftReminder}
+          disabled={!current}
+          title={current ? `Draft a reminder to ${currentName}` : "Check an invoice to pick the customer"}
+        >
+          {current ? "Draft Reminder" : "Select a customer"}
         </button>
       </div>
+      {current && (customerRows.length > selectedRows.length || !currentEmail) && (
+        <div className={styles.collectionsHints}>
+          {customerRows.length > selectedRows.length && (
+            <button type="button" className={styles.collectionsSelectAll} onClick={selectAllFromCustomer}>
+              Select all from {currentName}
+            </button>
+          )}
+          {!currentEmail && (
+            <div className={styles.collectionsNote}>
+              No email on file in QuickBooks for {currentName} — add it in QuickBooks or type it in the draft.
+            </div>
+          )}
+        </div>
+      )}
       <div className={styles.collectionsList}>
         {overdue.map((r) => (
           <label className={styles.collectionsRow} key={r.id}>
-            <input type="checkbox" checked={selected.has(r.id)} onChange={() => toggle(r.id)} />
-            <span className={styles.collectionsDesc}>{r.description}</span>
+            <input type="checkbox" checked={selected.has(r.id)} onChange={() => toggle(r)} />
+            <span className={styles.collectionsDesc}>
+              {r.description}
+              {r.invoiceId ? <span className={styles.collectionsInv}> · #{r.invoiceId}</span> : null}
+            </span>
             <span className={`${styles.sevLabel} ${sevLabelClassByTone(r.tone)}`}>{r.bucketLabel}</span>
             <span className={`${styles.num} ${styles.collectionsAmt}`}>{fmtMoney(r.amount)}</span>
           </label>

@@ -50,6 +50,15 @@ export interface DailyCloseData {
     list?: {
       id: number | string;
       description: string;
+      /** Groups rows into one reminder per customer. QuickBooks customer id
+          when synced; falls back to the description (sample data). */
+      customerKey?: string;
+      /** Name used in the reminder greeting. Defaults to `description`. */
+      customerName?: string;
+      /** Customer.PrimaryEmailAddr from QuickBooks (or the invoice BillEmail). */
+      customerEmail?: string | null;
+      /** QuickBooks invoice id, when synced. */
+      invoiceId?: string | null;
       amount: number;
       dueDate: string;
       daysOverdue: number;

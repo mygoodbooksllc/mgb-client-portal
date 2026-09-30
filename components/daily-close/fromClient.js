@@ -117,6 +117,12 @@
       return {
         id: i,
         description: r.description,
+        // Reminders are per customer. Live rows carry the QuickBooks customer
+        // id; sample data has none, so the description stands in as the key.
+        customerKey: r.customerId ? "qbo:" + r.customerId : "desc:" + r.description,
+        customerName: r.customerName || r.description,
+        customerEmail: r.customerEmail || null,
+        invoiceId: r.invoiceId || null,
         amount: Math.round(r.amount),
         dueDate: r.dueDate,
         daysOverdue: Math.max(0, overdueBy),
@@ -364,7 +370,7 @@
         total: Math.round(sum(receivables, (r) => r.amount)),
         overdueAmount: Math.round(overdueAmount),
         openInvoiceCount: receivables.length,
-        customerCount: receivables.length,
+        customerCount: new Set(receivables.map((r) => r.customerId || r.description)).size,
         aging: aging.map((b) => ({ ...b, amount: Math.round(b.amount) })),
         list: receivablesList(receivables, today),
       },

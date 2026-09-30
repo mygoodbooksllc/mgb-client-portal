@@ -1022,17 +1022,70 @@ async function syncClient(
         "Invoice query",
       );
       const todayIso = isoDay(today);
-      const invoiceRows = (invoiceRes?.QueryResponse?.Invoice || []).map((inv: any) => ({
-        client_id: clientId,
-        qbo_id: String(inv.Id),
-        customer_name: inv.CustomerRef?.name ?? null,
-        txn_date: inv.TxnDate ?? null,
-        due_date: inv.DueDate ?? null,
-        total: num(inv.TotalAmt),
-        balance: num(inv.Balance),
-        status: inv.DueDate && inv.DueDate < todayIso ? "overdue" : "open",
-        updated_at: new Date().toISOString(),
-      }));
+      const openInvoices: any[] = invoiceRes?.QueryResponse?.Invoice || [];
+
+      // --- Customer emails (for per-customer payment reminders) -------------
+      // Only the customers that have an open invoice, by Id, in one query per
+      // 100 ids — normally a single call, and none at all when nothing is
+      // open. Customer is a CDC entity, so an email edited in QuickBooks
+      // triggers the next full read. Falls back to the invoice's own
+      // BillEmail. A failed lookup keeps the addresses stored last time
+      // rather than failing the sync (the reminder just opens with a blank
+      // To:). Read-only: nothing is written back to QuickBooks.
+      const customerIds = [
+        ...new Set(
+          openInvoices
+            .map((inv) => String(inv.CustomerRef?.value ?? ""))
+            .filter((id) => /^[A-Za-z0-9-]+$/.test(id)),
+        ),
+      ];
+      const emailByCustomer = new Map<string, string>();
+      if (customerIds.length) {
+        try {
+          for (let i = 0; i < customerIds.length; i += 100) {
+            const ids = customerIds.slice(i, i + 100).map((id) => `'${id}'`).join(",");
+            const custRes = await intuitFetch(
+              accessToken,
+              queryUrl(base, realmId, `select * from Customer where Id in (${ids}) maxresults 1000`),
+              "Customer query",
+            );
+            for (const c of custRes?.QueryResponse?.Customer || []) {
+              const email = String(c.PrimaryEmailAddr?.Address ?? "").trim();
+              if (email) emailByCustomer.set(String(c.Id), email);
+            }
+          }
+          counts.customer_emails = emailByCustomer.size;
+        } catch (e) {
+          if (e instanceof IntuitError && e.status === 401) throw e;
+          console.log(`qbo-sync: customer email lookup skipped for client ${clientId}: ${(e as Error).message}`);
+          const { data: stored } = await admin
+            .from("qbo_invoices")
+            .select("customer_id, customer_email")
+            .eq("client_id", clientId)
+            .not("customer_email", "is", null);
+          for (const r of stored || []) {
+            if (r.customer_id && r.customer_email) emailByCustomer.set(r.customer_id, r.customer_email);
+          }
+        }
+      }
+
+      const invoiceRows = openInvoices.map((inv: any) => {
+        const customerId = inv.CustomerRef?.value != null ? String(inv.CustomerRef.value) : null;
+        const billEmail = String(inv.BillEmail?.Address ?? "").trim();
+        return {
+          client_id: clientId,
+          qbo_id: String(inv.Id),
+          customer_name: inv.CustomerRef?.name ?? null,
+          txn_date: inv.TxnDate ?? null,
+          due_date: inv.DueDate ?? null,
+          total: num(inv.TotalAmt),
+          balance: num(inv.Balance),
+          status: inv.DueDate && inv.DueDate < todayIso ? "overdue" : "open",
+          updated_at: new Date().toISOString(),
+          customer_id: customerId,
+          customer_email: (customerId && emailByCustomer.get(customerId)) || billEmail || null,
+        };
+      });
       counts.invoices = await replaceRows(admin, "qbo_invoices", clientId, invoiceRows);
 
       // --- Open A/P ----------------------------------------------------------

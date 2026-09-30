@@ -1301,8 +1301,42 @@
   font-family: inherit;
   flex-shrink: 0;
 }
-.dc-collectionsDraftBtn:hover {
+.dc-collectionsDraftBtn:hover:not(:disabled) {
   background: #d8c39f;
+}
+.dc-collectionsDraftBtn:disabled {
+  background: var(--line);
+  color: var(--ink-500, #6b7280);
+  cursor: not-allowed;
+}
+.dc-collectionsHints {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+  margin-top: 6px;
+  text-align: right;
+}
+.dc-collectionsSelectAll {
+  font: inherit;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--ink-900);
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.dc-collectionsNote {
+  font-size: 11.5px;
+  line-height: 1.4;
+  color: var(--ink-500, #6b7280);
+  max-width: 360px;
+}
+.dc-collectionsInv {
+  color: var(--ink-500, #6b7280);
 }
 .dc-collectionsList {
   margin-top: 8px;

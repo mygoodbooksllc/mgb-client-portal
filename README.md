@@ -197,6 +197,13 @@ because some work happens in Claude Code web sessions. Run `git fetch` and compa
     `mapQboToClient` turns this month's expense lines into `client.expenseByAccount` (and last
     month's into `expenseByAccountPrev`), which feeds Live Report's "Where the money went"
     whether or not the company has a QuickBooks budget.
+  - Open invoices also carry `customer_id` and `customer_email` (qbo-sync v10,
+    `supabase/qbo-invoice-customer-email.sql`). The email is Customer.PrimaryEmailAddr, from one
+    read-only `Customer where Id in (...)` query per full read covering only customers with an
+    open invoice, and falls back to the invoice's BillEmail. Live Report's **Collections Queue**
+    uses them to draft reminders **one customer at a time** as a `mailto:` addressed to that
+    customer. Checking a row from another customer replaces the selection, so one email never
+    shows one customer another's balances. Nothing is sent from the portal.
   - **Cron** job `qbo-sync-hourly`. Despite the name, it ticks **every 5 minutes** at :02, :07,
     ... (`'2-59/5 * * * *'`, set by `supabase/qbo-usage-guard.sql`), off the token refresher's
     minutes. Each tick syncs only the clients that are due (Pro every 15 min, Plus weekly, Basic
