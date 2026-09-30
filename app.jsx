@@ -1467,7 +1467,7 @@ function Sidebar({
                   // The client's milestone sits where "Enterprise" used to:
                   // Pro clients get the gold Pro pill, Basic and Plus the
                   // lock, which opens the plans page.
-                  <div className="nav-section-label nav-section-label-signature nav-section-label-static nav-ms-heading">
+                  <div className="nav-section-label nav-section-label-signature nav-section-label-static nav-ms-heading" data-tour="milestone">
                     {milestoneHeading.clickable ? (
                       <button
                         type="button"
@@ -1533,6 +1533,7 @@ function Sidebar({
                     return (
                       <button
                         key={item.key}
+                        data-tour={"nav-" + item.key}
                         className={
                           "nav-item" +
                           (page === item.key ? " active" : "") +
@@ -1594,6 +1595,7 @@ function Sidebar({
         <div className="sidebar-settings-row">
           <button
             type="button"
+            data-tour="settings"
             className={
               "sidebar-settings-btn" +
               (page === "client-settings" ? " active" : "") +
@@ -24621,6 +24623,10 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
             </div>
           </div>
 
+          {/* Client guided tour + Dashboard setup checklist (components/tour/Tour.jsx). */}
+          {typeof TOUR_Root === "function" && !NON_CLIENT_PAGES.has(effectivePage) && (
+            <TOUR_Root client={client} access={access} page={effectivePage} onSelectPage={setPage} onOpenSettings={openClientSettings} setMobileNavOpen={setMobileNavOpen} clientPortalUser={clientPortalUser} isStaffSession={isStaffSession} isPreviewingUser={Boolean(isPreviewingUser)} impersonating={Boolean(impersonating)} />
+          )}
           {effectivePage === "dashboard" &&
             (showsLiveReport ? (
               // A premium, full-access client's "Dashboard" IS the Live

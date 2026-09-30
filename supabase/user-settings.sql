@@ -15,6 +15,9 @@
 --      signature      staff: plain-text email signature
 --      notify         { email: { <key>: bool }, bell: { <key>: bool } }
 --      name, phone    client profile (display only; sign-in email is fixed)
+--      tour           client guided tour + setup checklist state
+--                     (components/tour/Tour.jsx; added 2026-09-30, a JSON
+--                     key only, so no schema change was needed)
 --    The notification-emails and client-emails edge functions read it with
 --    the service role to honor email preferences (see notification-emails.sql).
 --    The browser keeps a localStorage copy as a cache (components/settings/

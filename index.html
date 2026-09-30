@@ -83,6 +83,7 @@
       document.write('<link rel="stylesheet" href="components/settings/settings.css?v=' + Date.now() + '">');
       document.write('<link rel="stylesheet" href="components/dashboard/widget-drawer.css?v=' + Date.now() + '">');
       document.write('<link rel="stylesheet" href="components/client/bank-accounts.css?v=' + Date.now() + '">');
+      document.write('<link rel="stylesheet" href="components/tour/tour.css?v=' + Date.now() + '">');
 
       // Kick every source fetch off HERE, in <head>, so all five download in
       // parallel with React/Babel/jsPDF instead of after them. Previously each
@@ -128,6 +129,7 @@
         "components/settings/Settings.jsx",
         "components/staff/TopBar.jsx",
         "components/client/BankAccounts.jsx",
+        "components/tour/Tour.jsx",
         "app.jsx",
       ];
       window.__sources = {};

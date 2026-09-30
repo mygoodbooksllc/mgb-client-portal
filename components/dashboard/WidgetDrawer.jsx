@@ -980,6 +980,7 @@ function WD_CustomizeButton({
       <button
         type="button"
         ref={anchorRef}
+        data-tour="customize"
         className={className + (open ? " is-active" : "")}
         aria-haspopup="dialog"
         aria-expanded={open}

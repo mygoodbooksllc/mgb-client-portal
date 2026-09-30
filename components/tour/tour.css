@@ -1,0 +1,282 @@
+/* Guided tour for new client users (components/tour/Tour.jsx).
+   The popover matches the themed tooltip (components/ui/tooltips.css): deep
+   navy with light text and a gold accent, in light and dark mode. The setup
+   checklist is a normal Dashboard card. */
+
+.tour-root {
+  position: fixed;
+  inset: 0;
+  z-index: 9000; /* above the phone drawer (1700) and modals (2100) */
+  pointer-events: none;
+}
+.tour-blocker {
+  position: fixed;
+  inset: 0;
+  pointer-events: auto;
+  background: transparent;
+}
+.tour-blocker.tour-dim {
+  background: rgba(2, 3, 6, 0.58);
+}
+.tour-spotlight {
+  position: fixed;
+  border-radius: 10px;
+  box-shadow:
+    0 0 0 2px var(--gold, #c7ae86),
+    0 0 0 200vmax rgba(2, 3, 6, 0.58);
+  pointer-events: none;
+  transition: top 0.2s ease, left 0.2s ease, width 0.2s ease, height 0.2s ease;
+}
+
+.tour-pop {
+  position: fixed;
+  width: min(340px, calc(100vw - 32px));
+  box-sizing: border-box;
+  padding: 16px 18px 14px;
+  border-radius: 12px;
+  background: var(--navy-deep, #020306);
+  color: #f4f1ea;
+  font-family: var(--font-body, system-ui, sans-serif);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35);
+  pointer-events: auto;
+  opacity: 0;
+  transform: translateY(4px);
+  transition: opacity 0.15s ease, transform 0.15s ease;
+}
+.tour-pop.tour-pop-on {
+  opacity: 1;
+  transform: none;
+}
+:root[data-theme="dark"] .tour-pop {
+  border: 1px solid rgba(255, 255, 255, 0.14);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .tour-pop {
+    border: 1px solid rgba(255, 255, 255, 0.14);
+  }
+}
+.tour-step {
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--gold, #c7ae86);
+  margin-bottom: 4px;
+}
+.tour-title {
+  margin: 0 0 6px;
+  font-family: var(--font-body, system-ui, sans-serif);
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1.3;
+  color: #fff;
+  outline: none;
+}
+.tour-title:focus-visible {
+  text-decoration: underline;
+  text-decoration-color: var(--gold, #c7ae86);
+  text-underline-offset: 3px;
+}
+.tour-body {
+  margin: 0 0 14px;
+  font-size: 13.5px;
+  line-height: 1.5;
+  color: rgba(244, 241, 234, 0.86);
+}
+.tour-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.tour-actions-spacer {
+  flex: 1;
+}
+.tour-btn {
+  font-family: var(--font-body, system-ui, sans-serif);
+  font-size: 13px;
+  font-weight: 700;
+  border-radius: 999px;
+  cursor: pointer;
+  white-space: nowrap;
+  min-height: 34px;
+}
+.tour-btn:focus-visible {
+  outline: 2px solid var(--gold, #c7ae86);
+  outline-offset: 2px;
+}
+.tour-btn-primary {
+  background: var(--gold, #c7ae86);
+  color: #1a1408;
+  border: none;
+  padding: 7px 16px;
+}
+.tour-btn-primary:hover {
+  background: #d4bd97;
+}
+.tour-btn-ghost {
+  background: transparent;
+  color: #f4f1ea;
+  border: 1.5px solid rgba(244, 241, 234, 0.28);
+  padding: 6px 14px;
+}
+.tour-btn-ghost:hover {
+  border-color: var(--gold, #c7ae86);
+}
+.tour-btn-link {
+  background: none;
+  border: none;
+  padding: 6px 2px;
+  color: rgba(244, 241, 234, 0.7);
+  font-weight: 600;
+}
+.tour-btn-link:hover {
+  color: #fff;
+  text-decoration: underline;
+}
+.tour-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ---- Setup checklist (client Dashboard) ---- */
+.tour-check {
+  margin-bottom: 16px;
+  border-left: 3px solid var(--gold, #c7ae86);
+}
+.tour-check-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+.tour-check-title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--ink-strong);
+}
+.tour-check-sub {
+  margin: 2px 0 0;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+.tour-check-close {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+.tour-check-close:hover {
+  border-color: var(--border);
+  color: var(--ink-strong);
+}
+.tour-check-close:focus-visible,
+.tour-check-item:focus-visible {
+  outline: 2px solid var(--gold, #c7ae86);
+  outline-offset: 2px;
+}
+.tour-check-bar {
+  height: 4px;
+  margin: 12px 0 8px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  overflow: hidden;
+}
+.tour-check-bar > span {
+  display: block;
+  height: 100%;
+  background: var(--gold, #c7ae86);
+  border-radius: inherit;
+  transition: width 0.3s ease;
+}
+.tour-check-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 4px 16px;
+}
+.tour-check-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  width: 100%;
+  padding: 8px 6px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  text-align: left;
+  font-family: var(--font-body, system-ui, sans-serif);
+  color: var(--text);
+  cursor: pointer;
+}
+.tour-check-item:hover {
+  background: var(--surface-2);
+}
+.tour-check-box {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  margin-top: 1px;
+  border-radius: 50%;
+  border: 1.5px solid var(--muted-line);
+  color: #1a1408;
+}
+.tour-check-item.is-done .tour-check-box {
+  background: var(--gold, #c7ae86);
+  border-color: var(--gold, #c7ae86);
+}
+.tour-check-text {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+.tour-check-label {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--ink-strong);
+}
+.tour-check-item.is-done .tour-check-label {
+  color: var(--text-muted);
+  text-decoration: line-through;
+  text-decoration-color: var(--muted-line);
+}
+.tour-check-hint {
+  font-size: 12.5px;
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+
+@media (max-width: 600px) {
+  .tour-check-list {
+    grid-template-columns: 1fr;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .tour-pop,
+  .tour-spotlight,
+  .tour-check-bar > span {
+    transition: none;
+  }
+  .tour-pop {
+    transform: none;
+  }
+}

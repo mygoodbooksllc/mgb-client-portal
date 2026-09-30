@@ -26,13 +26,13 @@ Two tabs:
 - **Plan**: the plan comparison, where they can ask to change plans.
 - **Appearance**: Light, Dark or Match my computer.
 - **Security**: **Sign out**, and **Sign out on all devices** for a shared or lost computer. They sign in with Google, so there's no password to change.
-- **Help**: Messages, the privacy policy and the terms of service.
+- **Help**: **Restart the tour** (see "How does the client guided tour work?"), Messages, the privacy policy and the terms of service.
 
 Clients' dark mode switch and **Sign out** button moved from the bottom of their sidebar into Settings.
 
 ### When you use Preview as
 
-While previewing as a client user you see their Settings tabs, read-only. Their personal settings belong to them, so nothing can be changed there, and the Organization tab is hidden.
+While previewing as a client user you see their Settings tabs, read-only. Their personal settings belong to them, so nothing can be changed there, and the Organization tab is hidden. **Help** > **Preview the tour** shows you the guided tour that person gets, without saving anything.
 
 ### Troubleshooting
 

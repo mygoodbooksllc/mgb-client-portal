@@ -1392,6 +1392,21 @@ function ST_ClientSettingsPage({
           {key === "help" && (
             <ST_Card title="Help" sub="Questions about your books or the portal? Your bookkeeper is a message away.">
               <ul className="st-list">
+                {typeof TOUR_start === "function" && (
+                  <li className="st-list-row">
+                    <span className="st-row-text">
+                      <span className="st-row-label">Guided tour</span>
+                      <span className="st-row-sub">
+                        {mode === "preview"
+                          ? "See the tour this person gets. Nothing is saved to their account."
+                          : "A quick walk through the portal and how to finish setting up."}
+                      </span>
+                    </span>
+                    <button type="button" className="btn-secondary st-btn-sm" onClick={() => TOUR_start()}>
+                      {mode === "preview" ? "Preview the tour" : "Restart the tour"}
+                    </button>
+                  </li>
+                )}
                 <li className="st-list-row">
                   <span className="st-row-text">
                     <span className="st-row-label">Message your bookkeeper</span>
