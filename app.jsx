@@ -23866,20 +23866,30 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
   // isDueForPlan: Pro every 15 minutes, Plus weekly, Basic on the 15th; see
   // PLAN_SYNC), and a staffer or another tab can Sync now at any time, but
   // the page only loaded the numbers once. Once a minute: re-render so the
-  // "synced x ago" label ticks, and if the open client's data is more than
-  // 90 seconds old, re-read it from the database (the same reload Sync now
-  // uses; no QuickBooks call). Also on returning to the tab.
+  // "synced x ago" label ticks. Separately, spaced by plan, ask
+  // qbo_connections for this client's last_synced_at (one tiny row) and only
+  // when it has moved past what's on screen re-read all the numbers (the
+  // same reload Sync now uses; no QuickBooks call). Pro checks every 2
+  // minutes, weekly and monthly plans every 15. Also on returning to the tab.
   const [, setClockTick] = useState(0);
   const qboAutoReloadRef = useRef(0);
   useEffect(() => {
+    const spacing = client.plan === "premium" ? 2 * 60 * 1000 : 15 * 60 * 1000;
     const check = async () => {
       setClockTick((t) => t + 1);
       if (document.hidden) return;
-      if (client.dataSource !== "quickbooks" || !window.mgbReloadQboData) return;
-      const age = client.lastSyncedAt ? Date.now() - new Date(client.lastSyncedAt).getTime() : Infinity;
-      if (age < 90 * 1000) return;
-      if (Date.now() - qboAutoReloadRef.current < 50 * 1000) return;
+      const sb = window.mgbSupabase;
+      if (client.dataSource !== "quickbooks" || !window.mgbReloadQboData || !sb) return;
+      if (Date.now() - qboAutoReloadRef.current < spacing) return;
       qboAutoReloadRef.current = Date.now();
+      const { data, error } = await sb
+        .from("qbo_connections")
+        .select("last_synced_at")
+        .eq("client_id", client.id)
+        .maybeSingle();
+      if (error || !data || !data.last_synced_at) return;
+      const onScreen = client.lastSyncedAt ? new Date(client.lastSyncedAt).getTime() : 0;
+      if (new Date(data.last_synced_at).getTime() <= onScreen) return;
       await window.mgbReloadQboData([client.id]);
       setQboDataRev((r) => r + 1);
       notifyMilestonesChanged();
@@ -23893,7 +23903,7 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
       clearInterval(id);
       document.removeEventListener("visibilitychange", onVisible);
     };
-  }, [client.id, client.dataSource, client.lastSyncedAt]);
+  }, [client.id, client.dataSource, client.lastSyncedAt, client.plan]);
 
   // Switching client resets the preview — a person at one org is meaningless at another.
   // Also lands on Dashboard for the newly-selected client (Live Report for a
