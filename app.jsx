@@ -16151,8 +16151,8 @@ function BookkeeperHomePage({
       <div className="card" style={{ marginBottom: 20 }}>
         <h3 className="card-title">Upgrade requests</h3>
         <p className="card-subtitle">
-          Clients who asked to upgrade from their Plans page — follow up, then
-          change their plan under Client organizations.
+          Clients who asked to upgrade from Settings → Plan — follow up, then
+          change their plan under Settings → Firm settings → Client roster.
         </p>
         {upgradeRequests === null && !upgradeRequestsError && (
           <p className="card-subtitle">Loading…</p>
