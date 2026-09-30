@@ -190,8 +190,10 @@ because some work happens in Claude Code web sessions. Run `git fetch` and compa
 - **Sync.** `qbo-sync` pulls accounts, 12 months of P&L, budget, open invoices, open bills and
   90 days of transactions into the `qbo_*` tables.
   - The P&L lands twice: monthly totals in `qbo_monthly_pl` and per-account lines in
-    `qbo_pl_lines` (one row per month per account; money posted straight to a parent account is
-    booked under the parent's name, so the lines add up to the totals, since qbo-sync v8).
+    `qbo_pl_lines` (one row per month per account type per account, so an income and an expense
+    account with the same name stay separate: `supabase/qbo-pl-lines-by-type.sql`, qbo-sync v9;
+    money posted straight to a parent account is booked under the parent's name, so the lines
+    add up to the totals, since v8).
     `mapQboToClient` turns this month's expense lines into `client.expenseByAccount` (and last
     month's into `expenseByAccountPrev`), which feeds Live Report's "Where the money went"
     whether or not the company has a QuickBooks budget.

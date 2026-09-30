@@ -324,8 +324,12 @@ function parseProfitAndLoss(report: any): ParsedPL {
   const lines = new Map<string, any>();
   for (const mc of months) monthly.set(mc.month, { revenue: 0, expenses: 0 });
 
+  // Keyed by section as well as name: a company can have an income and an
+  // expense sub-account with the same short name, and merging them moved the
+  // expense into income (qbo_pl_lines is keyed the same way since
+  // supabase/qbo-pl-lines-by-type.sql).
   function addLine(month: string, accountName: string, kind: "income" | "expense", amount: number) {
-    const key = `${month}|${accountName}`;
+    const key = `${kind}|${month}|${accountName}`;
     const prev = lines.get(key);
     if (prev) {
       prev.amount += amount;
@@ -956,9 +960,13 @@ async function syncClient(
       // Intuit's Budget entity carries no actuals, so `actual` is joined in
       // here from the P&L lines for the same month + account. A budgeted
       // account with no P&L activity that month is a real 0, not a null.
+      // A budget line names an account, not a section; when an income and an
+      // expense account share a name, the expense side wins (budgets are
+      // overwhelmingly about spending).
       const actualByKey = new Map<string, number>();
       for (const l of pl.lines.values()) {
-        actualByKey.set(`${l.month}|${l.account_name}`, l.amount);
+        const k = `${l.month}|${l.account_name}`;
+        if (l.account_type === "Expense" || !actualByKey.has(k)) actualByKey.set(k, l.amount);
       }
       let budgetRows: any[] = [];
       try {

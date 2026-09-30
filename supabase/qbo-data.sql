@@ -75,9 +75,11 @@ create table if not exists qbo_pl_lines (
   client_id text not null,
   month date not null,
   account_name text not null,
-  account_type text,          -- 'Income' | 'Expense' (which P&L section)
+  account_type text not null, -- 'Income' | 'Expense' (which P&L section)
   amount numeric,
-  primary key (client_id, month, account_name)
+  -- account_type is in the key since qbo-pl-lines-by-type.sql (2026-09-30):
+  -- an income and an expense account can share a short name.
+  primary key (client_id, month, account_type, account_name)
 );
 
 -- ---------------------------------------------------------------------------
