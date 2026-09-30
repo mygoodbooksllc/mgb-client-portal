@@ -21,7 +21,8 @@
 //            TB_TasksBadge     open My Tasks count, overdue in red
 //            TB_QuickAdd       "+" menu: task, note, document request
 //                              (StaffQuickActions' modals) and Message
-//            TB_HelpButton     "?" -> #/help or the page's article
+//            TB_HelpButton     "?" menu: help for this page / all topics,
+//                              "Report a bug / feedback" (Feedback.jsx)
 //            TB_AvatarMenu     theme, Preview as (client user), Exit "View
 //                              as", temporary access, Sign out
 //
@@ -65,6 +66,7 @@ const TB_HELP_FOR_PAGE = {
   "audit-log": "audit-log",
   emails: "client-emails",
   milestone: "pricing-milestones",
+  feedback: "feedback-page",
 };
 const TB_ADMIN_ARTICLES = new Set([
   "team-page",
@@ -72,6 +74,7 @@ const TB_ADMIN_ARTICLES = new Set([
   "audit-log",
   "client-emails",
   "pricing-milestones",
+  "feedback-page",
 ]);
 
 const TB_lc = (s) => String(s || "").toLowerCase();
@@ -798,20 +801,75 @@ function TB_QuickAdd({ client }) {
 // 7. Help
 // ---------------------------------------------------------------------------
 function TB_HelpButton({ page, isAdmin }) {
+  const menu = TB_useMenu();
   if (typeof HLP_StaffGuidePage !== "function") return null;
   let slug = TB_HELP_FOR_PAGE[page] || null;
   if (slug && TB_ADMIN_ARTICLES.has(slug) && !isAdmin) slug = null;
   const label = slug ? "Help for this page" : "Help";
+  const goHelp = () => TB_go(page === "help" || !slug ? "#/help" : "#/help/" + slug);
+  // No feedback component loaded: plain Help link, as before.
+  if (typeof FB_openFeedback !== "function") {
+    return (
+      <button type="button" className="tb-item tb-icon-btn tb-help" aria-label={label} title={label} onClick={goHelp}>
+        <TB_QuestionIcon />
+      </button>
+    );
+  }
   return (
-    <button
-      type="button"
-      className="tb-item tb-icon-btn tb-help"
-      aria-label={label}
-      title={label}
-      onClick={() => TB_go(page === "help" || !slug ? "#/help" : "#/help/" + slug)}
-    >
-      <TB_QuestionIcon />
-    </button>
+    <div className="tb-item tb-menu-wrap tb-help" ref={menu.rootRef} onKeyDown={menu.onMenuKeyDown}>
+      <button
+        ref={menu.triggerRef}
+        type="button"
+        className="tb-icon-btn"
+        aria-label="Help and feedback"
+        title="Help and feedback"
+        aria-haspopup="true"
+        aria-expanded={menu.open}
+        onClick={() => menu.setOpen(!menu.open)}
+      >
+        <TB_QuestionIcon />
+      </button>
+      {menu.open && (
+        <div className="tb-panel tb-menu" role="menu" aria-label="Help and feedback">
+          <button
+            type="button"
+            role="menuitem"
+            className="tb-menu-item"
+            autoFocus
+            onClick={() => {
+              menu.close(false);
+              goHelp();
+            }}
+          >
+            {label}
+          </button>
+          {slug && page !== "help" && (
+            <button
+              type="button"
+              role="menuitem"
+              className="tb-menu-item"
+              onClick={() => {
+                menu.close(false);
+                TB_go("#/help");
+              }}
+            >
+              All help topics
+            </button>
+          )}
+          <button
+            type="button"
+            role="menuitem"
+            className="tb-menu-item"
+            onClick={() => {
+              menu.close(false);
+              FB_openFeedback();
+            }}
+          >
+            Report a bug / feedback
+          </button>
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -1064,6 +1122,7 @@ function TB_StaffTopBar({
         {own && <TB_TasksBadge items={items} me={me} />}
         <TB_QuickAdd client={client} />
         <TB_HelpButton page={page} isAdmin={isAdmin} />
+        {typeof FB_FeedbackHost === "function" && <FB_FeedbackHost clientId={client ? client.id : null} />}
         <TB_AvatarMenu
           staffUser={staffUser}
           isRealAdmin={isRealAdmin}

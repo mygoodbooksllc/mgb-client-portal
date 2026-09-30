@@ -519,3 +519,240 @@
     width: 100%;
   }
 }
+
+/* ---- Bug reports / feedback (Feedback.jsx, .fb-*) ---- */
+.fb-modal {
+  width: min(560px, calc(100vw - 32px));
+}
+.fb-body {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.fb-kinds {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.fb-chip {
+  min-height: 34px;
+  padding: 6px 14px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  font-size: 13.5px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.fb-chip:hover {
+  background: var(--hover-bg);
+}
+.fb-chip:focus-visible {
+  outline: 2px solid var(--gold-deep);
+  outline-offset: 2px;
+}
+.fb-chip.active {
+  background: var(--navy);
+  border-color: var(--navy);
+  color: #fff;
+}
+.fb-chip-bug.active {
+  background: var(--bad);
+  border-color: var(--bad);
+}
+.fb-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+}
+.fb-field textarea,
+.fb-field select {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 400;
+  resize: vertical;
+}
+.fb-note {
+  margin: 0;
+  font-size: 12.5px;
+  color: var(--text-muted);
+}
+.fb-dim {
+  color: var(--text-muted);
+  font-size: 13px;
+  font-weight: 400;
+}
+.fb-error {
+  margin: 0;
+  color: var(--bad);
+  font-size: 13px;
+}
+.fb-footer {
+  align-items: center;
+}
+.fb-mine-link {
+  margin-right: auto;
+}
+.fb-kind,
+.fb-status {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+  background: var(--surface-2);
+  color: var(--text);
+}
+.fb-kind-bug {
+  background: var(--bad);
+  color: #fff;
+}
+.fb-kind-idea {
+  background: var(--accent-soft);
+  color: var(--warm-text);
+}
+.fb-status-new {
+  background: var(--accent-soft);
+  color: var(--warm-text);
+}
+.fb-status-done {
+  background: var(--good-soft);
+  color: var(--good);
+}
+.fb-status-wont_do {
+  color: var(--text-muted);
+}
+.fb-mine {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 55vh;
+  overflow-y: auto;
+}
+.fb-mine-item {
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+}
+.fb-mine-item:last-child {
+  border-bottom: 0;
+}
+.fb-mine-top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.fb-mine-msg,
+.fb-mine-note {
+  margin: 6px 0 0;
+  font-size: 13.5px;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.fb-mine-note {
+  padding: 6px 10px;
+  border-left: 3px solid var(--gold);
+  background: var(--warm-bg);
+  border-radius: 4px;
+}
+.fb-help-card {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 20px;
+}
+.fb-list {
+  list-style: none;
+  margin: 12px 0 0;
+  padding: 0;
+}
+.fb-item {
+  padding: 14px 0 14px 12px;
+  border-top: 1px solid var(--border);
+  border-left: 3px solid transparent;
+}
+.fb-item-bug {
+  border-left-color: var(--bad);
+}
+.fb-item-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+  font-size: 13px;
+}
+.fb-item-new .fb-item-who {
+  font-weight: 700;
+}
+.fb-item-who {
+  font-weight: 600;
+}
+.fb-item-client {
+  padding: 1px 8px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  font-size: 12px;
+}
+.fb-item-page {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--gold-deep);
+  word-break: break-all;
+}
+.fb-item-msg {
+  margin: 8px 0 0;
+  font-size: 14px;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.fb-item-expected {
+  margin: 6px 0 0;
+  font-size: 13.5px;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.fb-item-browser {
+  margin: 6px 0 0;
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  color: var(--text-muted);
+  word-break: break-all;
+}
+.fb-item-admin {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 10px;
+  margin-top: 10px;
+}
+.fb-field-inline {
+  flex: 0 0 150px;
+}
+.fb-field-grow {
+  flex: 1 1 240px;
+}
+.fb-save {
+  padding: 8px 14px;
+}
+@media (max-width: 760px) {
+  .fb-field-inline,
+  .fb-field-grow,
+  .fb-save {
+    flex: 1 1 100%;
+  }
+}

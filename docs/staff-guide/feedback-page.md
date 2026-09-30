@@ -1,0 +1,31 @@
+---
+title: How do I review bug reports and feedback?
+section: Admin
+audience: admin
+keywords: [feedback page, bug reports, bugs, feedback, ideas, questions, triage, status, planned, done, won't do, admin note, reply]
+sort: 575
+---
+The **Feedback** page (sidebar → **Feedback**, admins only) lists every bug report, idea and question staff have sent from **Report a bug / feedback**. The sidebar item shows a number when there are reports still marked **New**.
+
+### Reading a report
+
+Reports are newest first. Bugs have a red **Bug** tag and a red line down the left so they stand out. Each report shows:
+
+- who sent it and when
+- the client they had open, if any
+- the page they were on. Click it to open that page.
+- their message and, for bugs, **Expected:** (what they expected to happen) and their browser and screen size
+
+Use **Status** and **Kind** at the top to filter, for example **New** bugs only. **Clear filters** shows everything again.
+
+### Updating a report
+
+- **Status**: change it to **Planned**, **Done** or **Won't do** (or back to **New**). It saves as soon as you pick.
+- **Note to sender**: type a reply and click **Save note**. The sender sees it under **My feedback**, so keep it short and friendly (for example "Fixed on Oct 2, thanks!").
+
+You can't edit what the sender wrote, and reports can't be deleted from the app.
+
+### Troubleshooting
+
+- **The page is empty.** Nobody has sent anything yet, or your filters hide everything.
+- **The number on the sidebar didn't go down.** It counts reports with status **New**. Change their status and it updates.

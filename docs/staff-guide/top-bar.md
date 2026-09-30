@@ -2,7 +2,7 @@
 title: What's on the bar at the top of the page?
 section: Getting started
 audience: staff
-keywords: [top bar, toolbar, header, overview, client overview, search, ctrl k, cmd k, notifications, bell, my tasks, plus, quick add, message, help, account, avatar, sign out, dark mode, sync, live]
+keywords: [top bar, toolbar, header, overview, client overview, search, ctrl k, cmd k, notifications, bell, my tasks, plus, quick add, message, help, report a bug, feedback, account, avatar, sign out, dark mode, sync, live]
 sort: 25
 ---
 Across the top of every staff page there's a dark bar, joined to the sidebar, with your most-used tools. Clients never see it, and it goes away while you use **Preview as** to look at the portal as a client user. The sidebar on the left still has the page links (Home, Inbox, My Tasks and so on).
@@ -30,7 +30,7 @@ Use the **↑** and **↓** keys to move through the results and **Enter** to op
 - **Bell** (Notifications): a red number shows how many new items you haven't looked at. It lists client messages waiting for a reply, documents a client has uploaded, tasks a teammate assigned to you, and clients whose last month-end close is **Blocked**. Click an item to go to it. Opening the bell marks everything as seen (in this browser).
 - **My Tasks**: the number of your open tasks. A red number next to it counts the overdue ones. Click it to open **My Tasks**.
 - **+** (client pages only): **New task**, **New note**, **Request document** or **Message** for the client you have open. See [How do I add a task, note or document request, or message a client?](#/help/quick-actions).
-- **?** (Help): opens the Help article for the page you're on, or the Help home page.
+- **?** (Help): a small menu with **Help for this page** (or **Help**), **All help topics**, and **Report a bug / feedback**. See [How do I report a bug or send feedback?](#/help/send-feedback).
 - **Your initials** (account menu):
   - your name and role
   - **Temporary admin access · expires …** or **Temporary access: {client} · …** when you have short-term access

@@ -503,6 +503,7 @@ function HLP_StaffGuidePage() {
     <div className="hlp-page">
       {searchBox}
       {body}
+      {typeof FB_HelpPageLink === "function" && <FB_HelpPageLink />}
     </div>
   );
 }

@@ -538,6 +538,7 @@ const NON_CLIENT_PAGES = new Set([
   "task-templates",
   "audit-log",
   "emails",
+  "feedback",
   "help",
 ]);
 
@@ -1365,6 +1366,24 @@ function Sidebar({
                         Emails
                       </button>
                       )}
+                      {staffUser.role === "admin" && typeof FB_FeedbackPage === "function" && (
+                      <button
+                        type="button"
+                        role="menuitem"
+                        className={
+                          "staff-user-menu-item" +
+                          (page === "feedback" ? " active" : "")
+                        }
+                        onClick={() => {
+                          onSelectPage("feedback");
+                          onCloseMobile();
+                          setStaffMenuOpen(false);
+                        }}
+                      >
+                        <FB_Icon width="16" height="16" strokeWidth="1.8" />
+                        Feedback
+                      </button>
+                      )}
                     </React.Fragment>
                   )}
 
@@ -1810,6 +1829,9 @@ function StaffRail({
         ...(staffUser.role === "admin" ? [{ key: "audit-log", label: "Audit log", icon: <DocumentIcon /> }] : []),
         ...(staffUser.role === "admin" && typeof EM_MailIcon === "function"
           ? [{ key: "emails", label: "Emails", icon: <EM_MailIcon /> }]
+          : []),
+        ...(staffUser.role === "admin" && !impersonating && typeof FB_FeedbackPage === "function"
+          ? [{ key: "feedback", label: "Feedback", icon: <FB_Icon />, extra: <FB_NavBadge expanded={expanded} /> }]
           : []),
       ]
     : [];
@@ -22959,6 +22981,10 @@ const PAGE_META = {
     title: "Emails",
     subtitle: "Whether email is set up, the weekly digest, client emails and the send log",
   },
+  feedback: {
+    title: "Feedback",
+    subtitle: "Bug reports, ideas and questions from staff, newest first",
+  },
   "usage-stats": {
     title: "Usage Stats",
     subtitle: "Which pages and features actually get used, most to least",
@@ -24266,7 +24292,7 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
           (staffUser.role === "admin" || hasTempAdminAccess) &&
           !impersonating
         ? page
-        : (page === "audit-log" || page === "emails") && staffUser && staffUser.role === "admin" && !impersonating
+        : (page === "audit-log" || page === "emails" || page === "feedback") && staffUser && staffUser.role === "admin" && !impersonating
           ? page
         : page === "staff-messages" && staffUser && !impersonating
           ? page
@@ -25444,6 +25470,9 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
             <AL_AuditLogPage clients={visibleClients} />
           )}
           {effectivePage === "emails" && typeof EM_EmailsPage === "function" && <EM_EmailsPage />}
+          {effectivePage === "feedback" && typeof FB_FeedbackPage === "function" && (
+            <FB_FeedbackPage clients={visibleClients} />
+          )}
           {effectivePage === "staff-team" && <TP_TeamPage clients={visibleClients} />}
           {effectivePage === "close-tracker" && (
             <CT_CloseTrackerPage clients={visibleClients} staffUser={effectiveStaffUser} />

@@ -318,7 +318,7 @@ because some work happens in Claude Code web sessions. Run `git fetch` and compa
     `mgb-topbar-bell-seen:<email>`), `TB_TasksBadge` (open count, overdue in red → `#/tasks`),
     `TB_QuickAdd` ("+", client pages: New task / New note / Request document / Message; dispatches
     `tb:quick-add`, which the headless `StaffQuickActions` listens for and opens its own modal or the
-    chat drawer), `TB_HelpButton` (`#/help/<slug>` for the current page, else `#/help`),
+    chat drawer), `TB_HelpButton` ("?" menu: `#/help/<slug>` for the current page, else `#/help`, plus "Report a bug / feedback" via `FB_openFeedback`; `FB_FeedbackHost` is mounted next to it),
     `TB_AvatarMenu` (theme, Preview as a client user, Exit "View as", temporary access, Sign out).
   - **Moved, not duplicated:** while mounted, the client picker, sync pill and account menu add
     `tb-has-client` / `tb-has-sync` / `tb-has-avatar` on `<html>`, and desktop-only CSS hides the old
@@ -418,6 +418,17 @@ because some work happens in Claude Code web sessions. Run `git fetch` and compa
   verified" error means the key works but the domain isn't verified. "Check the key" asks
   `weekly-admin-digest?preview=1&format=json` whether the key is set. It sends nothing but
   logs a preview run. The digest email footer links to `#/emails`.
+- **Bug reports / feedback** (`components/staff/Feedback.jsx`, `FB_` prefix; table
+  `staff_feedback`, `supabase/staff-feedback.sql`). Staff open "Report a bug / feedback" from the
+  top bar's **?** menu or the bottom of the Help page: kind chips (Bug first and default, Idea,
+  Question, Other), message, optional "What did you expect to happen?" for bugs. The page hash and
+  open client are sent along; bugs also send the browser user agent + screen size. "My feedback" in
+  the modal lists the sender's own reports with status and admin reply. Admins triage on the
+  **Feedback** page (`#/feedback`, admin sidebar, badge = count of `new`): newest first, filter by
+  status/kind, bugs tagged red, change status (new / planned / done / won't do) and a note to the
+  sender inline. RLS: active staff insert + read own; admins read all and update; no deletes. A
+  trigger stamps `author_email` from the JWT, forces `new` on insert and lets updates change only
+  `status` / `admin_note`. Not in the weekly digest yet.
 - **Assigned bookkeeper**: the Client Roster now picks a real staff member.
   `clients.assigned_bookkeeper_email` references `staff(email)`; the old display JSON is kept in
   step by a trigger. Setting it gives that person client access, and removing their access clears
@@ -750,8 +761,8 @@ which explains the reasoning behind most of the decisions above.
 
 ## Staff guide
 
-The staff Help page (`#/help`, "Help" in the staff sidebar or **?** in the top bar, which opens the
-current page's article) is a searchable how-to guide for staff.
+The staff Help page (`#/help`, "Help" in the staff sidebar or **?** in the top bar, whose menu opens the
+current page's article or "Report a bug / feedback") is a searchable how-to guide for staff.
 
 - **Source:** one markdown file per article in `docs/staff-guide/*.md`, with frontmatter `title`,
   `section`, `audience` (`staff` or `admin`), `keywords` and optional `sort`. The file name is the slug
