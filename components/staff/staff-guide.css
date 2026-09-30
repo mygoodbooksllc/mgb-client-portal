@@ -135,11 +135,18 @@
 }
 
 /* ---- Sections (no search) ---- */
+/* CSS columns give a true masonry: each card sits right under the one above
+   it instead of waiting for the tallest card in its row. */
 .hlp-sections {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-  gap: 16px;
-  align-items: start;
+  column-width: 320px;
+  column-gap: 16px;
+}
+.hlp-sections > .hlp-section {
+  break-inside: avoid;
+  display: block;
+  width: 100%;
+  margin: 0 0 16px;
+  box-sizing: border-box;
 }
 .hlp-section-title {
   font-family: var(--font-heading);
