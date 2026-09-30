@@ -1,6 +1,7 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient, SupabaseClient } from "jsr:@supabase/supabase-js@2";
 import { emailConfigured, esc, sendEmail } from "../_shared/email.ts";
+import * as L from "../_shared/layout.ts";
 
 // Client-facing emails (supabase/client-emails.sql has the schema + rules).
 //   job "doc_chaser"   : missing-documents reminders (daily cron)
@@ -108,41 +109,25 @@ function gate(job: Job, trigger: Trigger, settings: any, prefs: any, client: any
 }
 
 // ---------------------------------------------------------------------------
-// Rendering: branded, inline styles, table layout, mobile friendly.
+// Rendering: the shared MyGoodBooks layout (../_shared/layout.ts).
 // ---------------------------------------------------------------------------
-const C = { ink: "#1f2a37", muted: "#6b7280", line: "#e5e7eb", bg: "#f4f5f7", card: "#ffffff", brand: "#1d6b52", gold: "#c7ae86" };
-const FONT = "font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;";
-function p(html: string, color = C.ink, size = 15) {
-  return `<p style="${FONT}font-size:${size}px;line-height:1.55;color:${color};margin:0 0 14px 0;">${html}</p>`;
+function p(html: string, t: "text" | "muted" = "text", size = 15) {
+  return L.p(html, { tone: t, size });
 }
 function button(label: string) {
-  return `<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:6px 0 18px 0;"><tr><td style="background:${C.brand};border-radius:8px;">
-<a href="${PORTAL_URL}" style="${FONT}display:inline-block;padding:12px 22px;font-size:15px;font-weight:600;color:#ffffff;text-decoration:none;">${esc(label)}</a></td></tr></table>`;
+  return L.button(label, PORTAL_URL);
 }
 function shell(opts: { title: string; preheader: string; body: string; clientName: string }) {
-  return `<!DOCTYPE html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light only"><title>${esc(opts.title)}</title></head>
-<body style="margin:0;padding:0;background:${C.bg};">
-<div style="display:none;max-height:0;overflow:hidden;">${esc(opts.preheader)}</div>
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:${C.bg};"><tr><td align="center" style="padding:24px 12px;">
-<!--[if mso]><table role="presentation" width="560" cellpadding="0" cellspacing="0" border="0"><tr><td><![endif]-->
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:560px;">
-  <tr><td style="padding:0 4px 14px 4px;">
-    <span style="${FONT}font-size:18px;font-weight:700;color:${C.brand};">MyGoodBooks</span>
-    <span style="${FONT}font-size:12px;color:${C.muted};">&nbsp;&middot; Bookkeeping for ${esc(opts.clientName)}</span>
-  </td></tr>
-  <tr><td style="background:${C.card};border:1px solid ${C.line};border-top:4px solid ${C.gold};border-radius:10px;padding:24px 22px 8px 22px;">
-    ${opts.body}
-  </td></tr>
-  <tr><td style="padding:14px 6px 0 6px;">
-    <p style="${FONT}font-size:12px;line-height:1.5;color:${C.muted};margin:0;">You're receiving this because you have access to ${esc(opts.clientName)}'s MyGoodBooks portal. Questions? Just reply to this email. <a href="${UNSUB_SLOT}" style="color:${C.muted};text-decoration:underline;">Unsubscribe</a> from these emails.</p>
-  </td></tr>
-</table>
-<!--[if mso]></td></tr></table><![endif]-->
-</td></tr></table></body></html>`;
+  return L.emailDocument({
+    title: opts.title,
+    preheader: opts.preheader,
+    subtitle: `Bookkeeping for ${opts.clientName}`,
+    cards: L.card(opts.body),
+    footer: `You're receiving this because you have access to ${esc(opts.clientName)}'s MyGoodBooks portal. Questions? Just reply to this email. ${L.link(UNSUB_SLOT, "Unsubscribe", "muted")} from these emails.`,
+  });
 }
 function signoff(bookkeeper: string | null) {
-  return p(`Thank you,<br>${bookkeeper ? `${esc(bookkeeper)}<br>` : ""}<span style="color:${C.muted};">MyGoodBooks</span>`);
+  return p(`Thank you,<br>${bookkeeper ? `${esc(bookkeeper)}<br>` : ""}${L.tone("MyGoodBooks", "muted")}`, "text", 15);
 }
 
 function renderChaser(client: any, requests: any[], firstTime: boolean) {
@@ -153,20 +138,20 @@ function renderChaser(client: any, requests: any[], firstTime: boolean) {
     : `Friendly reminder: ${plural(n, "document")} still needed for ${client.name}`;
   const items = requests
     .map((r) => {
-      const due = r.due_date ? `<br><span style="color:${C.muted};font-size:13px;">Needed by ${esc(fmtDay(r.due_date))}</span>` : "";
-      const det = r.details ? `<br><span style="color:${C.muted};font-size:13px;">${esc(r.details)}</span>` : "";
-      return `<tr><td style="${FONT}font-size:15px;line-height:1.45;color:${C.ink};padding:10px 0;border-bottom:1px solid ${C.line};"><b>${esc(r.title)}</b>${det}${due}</td></tr>`;
-    })
-    .join("");
+      const small = (h: string) => `<br><span class="mgb-muted" style="color:${L.T.muted};font-size:13.5px;">${h}</span>`;
+      const due = r.due_date ? small(`Needed by ${esc(fmtDay(r.due_date))}`) : "";
+      const det = r.details ? small(esc(r.details)) : "";
+      return `<b class="mgb-ink" style="color:${L.T.ink};font-weight:600;">${esc(r.title)}</b>${det}${due}`;
+    });
   const body =
     p("Hi there,") +
     p(firstTime
       ? `To keep ${esc(client.name)}'s books up to date, we need the following from you:`
       : `Just a friendly reminder. To keep ${esc(client.name)}'s books up to date, we're still waiting on:`) +
-    `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 16px 0;">${items}</table>` +
+    L.ruledList(items) +
     p("You can upload each one in your portal under <b>Documents</b>. It goes straight to your bookkeeper.") +
     button("Upload in your portal") +
-    p("If you've already sent these another way, just reply and let us know.", C.muted, 14) +
+    p("If you've already sent these another way, just reply and let us know.", "muted", 14) +
     signoff(bk);
   const text = [
     "Hi there,",
@@ -201,20 +186,16 @@ function renderValue(client: any, period: string, v: any) {
   const bk = client.assigned_bookkeeper?.name || null;
   const month = monthName(period);
   const subject = `Your ${month} bookkeeping summary: ${client.name}`;
-  const stat = (big: string, label: string) =>
-    `<td align="center" valign="top" style="padding:12px 6px;border:1px solid ${C.line};border-radius:8px;">
-      <div style="${FONT}font-size:24px;font-weight:700;color:${C.brand};">${esc(big)}</div>
-      <div style="${FONT}font-size:12px;color:${C.muted};margin-top:2px;">${esc(label)}</div></td>`;
   const hours = Math.round(v.hours * 10) / 10;
-  const stats = `<table role="presentation" width="100%" cellpadding="0" cellspacing="6" border="0" style="margin:0 0 14px 0;"><tr>
-    ${stat(String(hours), hours === 1 ? "hour on your books" : "hours on your books")}
-    ${stat(String(v.tasks.count), v.tasks.count === 1 ? "task completed" : "tasks completed")}
-    ${stat(String(v.docs.count), v.docs.count === 1 ? "document received" : "documents received")}
-  </tr></table>`;
+  const stats = L.statTiles([
+    { value: String(hours), label: hours === 1 ? "hour on your books" : "hours on your books" },
+    { value: String(v.tasks.count), label: v.tasks.count === 1 ? "task completed" : "tasks completed" },
+    { value: String(v.docs.count), label: v.docs.count === 1 ? "document received" : "documents received" },
+  ]);
   const list = (title: string, rows: string[], more: number) =>
     rows.length
-      ? `<p style="${FONT}font-size:14px;font-weight:600;color:${C.ink};margin:4px 0 6px 0;">${esc(title)}</p>` +
-        `<ul style="${FONT}font-size:14px;line-height:1.5;color:${C.ink};margin:0 0 14px 0;padding-left:20px;">${rows.map((r) => `<li>${esc(r)}</li>`).join("")}${more > 0 ? `<li style="color:${C.muted};">and ${more} more</li>` : ""}</ul>`
+      ? L.label(title) +
+        L.bullets([...rows.map((r) => esc(r)), ...(more > 0 ? [L.tone(`and ${more} more`, "muted")] : [])])
       : "";
   const closeLine = v.close && CLOSE_LABEL[v.close] ? p(`<b>Month-end close:</b> ${esc(CLOSE_LABEL[v.close])}`) : "";
   const body =

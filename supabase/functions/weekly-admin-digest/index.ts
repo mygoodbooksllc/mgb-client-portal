@@ -1,6 +1,7 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
 import { defaultFrom, emailConfigured, esc, sendEmail } from "../_shared/email.ts";
+import * as L from "../_shared/layout.ts";
 
 // Weekly admin digest (supabase/weekly-digest.sql has the design + schema).
 //
@@ -95,45 +96,26 @@ function plural(n: number, one: string, many = `${one}s`): string {
 }
 
 // ---------------------------------------------------------------------------
-// Rendering. Table layout + inline styles for Gmail/Outlook; 600px max, fluid
-// below that. Plain-text alternative is built alongside.
+// Rendering: the shared MyGoodBooks layout (../_shared/layout.ts). Table
+// layout + inline styles for Gmail/Outlook; 600px max, fluid below that.
+// Plain-text alternative is built alongside.
 // ---------------------------------------------------------------------------
-const C = {
-  ink: "#1f2a37",
-  muted: "#6b7280",
-  line: "#e5e7eb",
-  bg: "#f4f5f7",
-  card: "#ffffff",
-  brand: "#1d6b52",
-  warn: "#b45309",
-  bad: "#b91c1c",
-};
-const FONT = "font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;";
+// Colour helpers: `tone` spans pick up the design system's dark-mode values.
+const ink = (h: string) => L.tone(h, "ink");
+const warn = (h: string) => L.tone(h, "warn");
+const bad = (h: string) => L.tone(h, "bad");
+const muted = (h: string) => L.tone(h, "muted");
 
 type Section = { title: string; html: string; text: string; link: { label: string; href: string } };
 
 function tableHtml(head: string[], rows: string[][], alignRight: number[] = []): string {
-  const th = head
-    .map((h, i) =>
-      `<th align="${alignRight.includes(i) ? "right" : "left"}" style="${FONT}font-size:11px;font-weight:600;color:${C.muted};text-transform:uppercase;letter-spacing:.04em;padding:6px 8px;border-bottom:1px solid ${C.line};">${esc(h)}</th>`
-    )
-    .join("");
-  const tr = rows
-    .map((r) =>
-      `<tr>${r
-        .map((cell, i) =>
-          `<td align="${alignRight.includes(i) ? "right" : "left"}" style="${FONT}font-size:13px;color:${C.ink};padding:6px 8px;border-bottom:1px solid ${C.line};vertical-align:top;">${cell}</td>`
-        )
-        .join("")}</tr>`
-    )
-    .join("");
-  return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;"><tr>${th}</tr>${tr}</table>`;
+  return L.dataTable(head, rows, alignRight);
 }
-function para(html: string, color = C.ink): string {
-  return `<p style="${FONT}font-size:13px;line-height:1.5;color:${color};margin:6px 0;">${html}</p>`;
+function para(html: string, t: "text" | "muted" = "text"): string {
+  return L.p(html, { tone: t, size: 13.5, margin: "8px 0" });
 }
 function empty(): string {
-  return para("Nothing this week.", C.muted);
+  return para("Nothing this week.", "muted");
 }
 function textTable(rows: string[]): string {
   return rows.map((r) => `  - ${r}`).join("\n");
@@ -152,14 +134,14 @@ function buildSections(d: any): Section[] {
           ["Client", "Last week", "Typical week", "4-wk pace /mo", "3-mo avg /mo"],
           rows.map((r) => [
             esc(r.client_name),
-            `<b style="color:${r.week_flag ? C.warn : C.ink};">${hrs(r.week_hours)}</b>`,
+            `<b>${(r.week_flag ? warn : ink)(hrs(r.week_hours))}</b>`,
             hrs(r.base_week_hours),
-            `<b style="color:${r.month_flag ? C.warn : C.ink};">${hrs(r.pace_month_hours)}</b>`,
+            `<b>${(r.month_flag ? warn : ink)(hrs(r.pace_month_hours))}</b>`,
             hrs(r.base_month_hours),
           ]),
           [1, 2, 3, 4],
-        ) + para("Flagged at 1.5× the 3-month average and at least 2 hours more.", C.muted)
-      : empty() + (firmOn ? "" : para("QuickBooks Time isn't connected, so there are no hours to compare.", C.muted));
+        ) + para("Flagged at 1.5× the 3-month average and at least 2 hours more.", "muted")
+      : empty() + (firmOn ? "" : para("QuickBooks Time isn't connected, so there are no hours to compare.", "muted"));
     const text = rows.length
       ? textTable(rows.map((r) =>
         `${r.client_name}: ${hrs(r.week_hours)} last week (typical ${hrs(r.base_week_hours)}); 4-week pace ${hrs(r.pace_month_hours)}/mo vs ${hrs(r.base_month_hours)}/mo`
@@ -176,10 +158,10 @@ function buildSections(d: any): Section[] {
       ? tableHtml(
           ["Client", "Fee /mo", "Cost /mo", "Margin", "Suggested fee"],
           rows.map((r) => [
-            esc(r.client_name) + (r.estimated ? ` <span style="color:${C.muted};">(est.)</span>` : ""),
+            esc(r.client_name) + (r.estimated ? ` ${muted("(est.)")}` : ""),
             money(r.monthly_fee),
             money(r.monthly_cost),
-            `<b style="color:${Number(r.margin_pct) < 0 ? C.bad : C.warn};">${esc(r.margin_pct)}%</b>`,
+            `<b>${(Number(r.margin_pct) < 0 ? bad : warn)(`${esc(r.margin_pct)}%`)}</b>`,
             `<b>${money(r.suggested_fee)}</b>`,
           ]),
           [1, 2, 3, 4],
@@ -189,7 +171,7 @@ function buildSections(d: any): Section[] {
       `Target margin ${esc(d.target_margin_pct)}%. Cost is the last 90 days of QuickBooks Time at each person's cost rate; suggested fee = cost ÷ (1 − target).` +
         (noFee ? ` ${plural(noFee, "client has", "clients have")} no fee set and ${noFee === 1 ? "isn't" : "aren't"} reviewed.` : "") +
         (d.price_review_has_rates ? "" : " No staff cost rates are set yet."),
-      C.muted,
+      "muted",
     );
     const text = (rows.length
       ? textTable(rows.map((r) =>
@@ -210,7 +192,7 @@ function buildSections(d: any): Section[] {
       para(
         (added.length ? `Added in the last 7 days: ${added.map((a) => esc(a.client_name)).join(", ")}.` : "No clients added in the last 7 days.") +
           ` ${esc(r.clients_with_fee ?? 0)} of ${esc(r.active_clients ?? 0)} clients have a fee set. Removed clients aren't tracked yet.`,
-        C.muted,
+        "muted",
       );
     const text =
       `  Monthly fees ${money(r.mrr)} · ${r.active_clients ?? 0} active clients · 3-month projection ${money(r.projection_3m)}\n` +
@@ -229,14 +211,14 @@ function buildSections(d: any): Section[] {
             esc(r.client_name || r.customer_name || "–"),
             esc(r.doc_number || "–"),
             fmtDay(r.due_date),
-            `<b style="color:${Number(r.days_overdue) > 30 ? C.bad : C.warn};">${esc(r.days_overdue)}</b>`,
+            `<b>${(Number(r.days_overdue) > 30 ? bad : warn)(esc(r.days_overdue))}</b>`,
             money(r.balance, true),
           ]),
           [3, 4],
         ) + para(`Total overdue: <b>${money(total, true)}</b>`)
       : empty();
     if (!d.invoices_synced_at) {
-      html += para("Invoices haven't synced from the firm's QuickBooks yet.", C.muted);
+      html += para("Invoices haven't synced from the firm's QuickBooks yet.", "muted");
     }
     const text = rows.length
       ? textTable(rows.map((r) =>
@@ -250,7 +232,7 @@ function buildSections(d: any): Section[] {
   {
     const rows: any[] = firmOn ? d.timesheet_gaps || [] : [];
     const html = !firmOn
-      ? para("QuickBooks Time isn't connected, so timesheets can't be checked.", C.muted)
+      ? para("QuickBooks Time isn't connected, so timesheets can't be checked.", "muted")
       : rows.length
       ? tableHtml(
           ["Person", "Weekdays with no QuickBooks time", "In app, no QuickBooks entry"],
@@ -281,14 +263,14 @@ function buildSections(d: any): Section[] {
             const under = Number(r.qbo_hours) < Number(r.target_hours);
             return [
               esc(r.staff_name),
-              `<b style="color:${under && firmOn ? C.warn : C.ink};">${hrs(r.qbo_hours)}</b> <span style="color:${C.muted};">/ ${hrs(r.target_hours)}</span>`,
+              `<b>${(under && firmOn ? warn : ink)(hrs(r.qbo_hours))}</b> ${muted(`/ ${hrs(r.target_hours)}`)}`,
               esc(r.tasks_done),
-              `${esc(r.tasks_open)} / <span style="color:${Number(r.tasks_overdue) ? C.bad : C.ink};">${esc(r.tasks_overdue)}</span>`,
+              `${esc(r.tasks_open)} / ${(Number(r.tasks_overdue) ? bad : ink)(esc(r.tasks_overdue))}`,
               hrs(r.app_hours),
             ];
           }),
           [1, 2, 3, 4],
-        ) + para(`Target is each person's weekly capacity, or 35h where none is set${d.has_capacity_table ? "" : " (capacity isn't set up yet)"}.`, C.muted)
+        ) + para(`Target is each person's weekly capacity, or 35h where none is set${d.has_capacity_table ? "" : " (capacity isn't set up yet)"}.`, "muted")
       : empty();
     const text = rows.length
       ? textTable(rows.map((r) =>
@@ -335,7 +317,7 @@ function buildSections(d: any): Section[] {
     const items: string[] = [];
     const textItems: string[] = [];
     for (const r of reqs) {
-      items.push(`Access request: <b>${esc(r.staff_name)}</b> → ${esc(r.client_name)} <span style="color:${C.muted};">(${fmtDay(r.requested_at)})</span>`);
+      items.push(`Access request: <b>${esc(r.staff_name)}</b> → ${esc(r.client_name)} ${muted(`(${fmtDay(r.requested_at)})`)}`);
       textItems.push(`Access request: ${r.staff_name} -> ${r.client_name}`);
     }
     if (Number(p.unmapped_customers)) {
@@ -347,7 +329,7 @@ function buildSections(d: any): Section[] {
       textItems.push(`${plural(Number(p.unmapped_people), "unmapped QuickBooks person", "unmapped QuickBooks people")}`);
     }
     if (d.firm_qbo?.status === "error") {
-      items.push(`<span style="color:${C.bad};">The firm's QuickBooks connection needs reconnecting.</span>`);
+      items.push(bad("The firm's QuickBooks connection needs reconnecting."));
       textItems.push("The firm's QuickBooks connection needs reconnecting.");
     }
     const html = items.length ? items.map((i) => para(`• ${i}`)).join("") : empty();
@@ -383,45 +365,26 @@ function render(d: any) {
   const head = headline(d);
 
   const sectionHtml = sections
-    .map((s) => `
-<tr><td style="padding:0 0 12px 0;">
-  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:${C.card};border:1px solid ${C.line};border-radius:8px;">
-    <tr><td style="padding:14px 16px 4px 16px;">
-      <h2 style="${FONT}font-size:15px;font-weight:700;color:${C.ink};margin:0 0 6px 0;">${esc(s.title)}</h2>
-      ${s.html}
-      <p style="${FONT}font-size:12px;margin:8px 0 10px 0;"><a href="${esc(s.link.href)}" style="color:${C.brand};text-decoration:underline;">${esc(s.link.label)} &rarr;</a></p>
-    </td></tr>
-  </table>
-</td></tr>`)
+    .map((s) =>
+      L.card(
+        L.heading(s.title) +
+          s.html +
+          L.p(`${L.link(s.link.href, `${esc(s.link.label)} &rarr;`)}`, { size: 13.5, margin: "12px 0 18px 0" }),
+        { padding: "24px 24px 4px 24px" },
+      )
+    )
     .join("");
 
-  const html = `<!DOCTYPE html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light only"><title>${esc(subject)}</title></head>
-<body style="margin:0;padding:0;background:${C.bg};">
-<div style="display:none;max-height:0;overflow:hidden;">${esc(head.join(" · "))}</div>
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:${C.bg};">
-<tr><td align="center" style="padding:20px 10px;">
-<!--[if mso]><table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0"><tr><td><![endif]-->
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:600px;">
-  <tr><td style="padding:0 0 12px 0;">
-    <p style="${FONT}font-size:12px;color:${C.muted};margin:0;text-transform:uppercase;letter-spacing:.06em;">MyGoodBooks · Weekly digest</p>
-    <h1 style="${FONT}font-size:20px;font-weight:700;color:${C.ink};margin:4px 0 0 0;">Week of ${esc(range)}</h1>
-  </td></tr>
-  <tr><td style="padding:0 0 12px 0;">
-    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:${C.card};border:1px solid ${C.line};border-left:4px solid ${C.brand};border-radius:8px;">
-      <tr><td style="padding:12px 16px;">
-        ${head.map((b) => para(`• ${esc(b)}`)).join("")}
-      </td></tr>
-    </table>
-  </td></tr>
-  ${sectionHtml}
-  <tr><td style="padding:8px 4px 0 4px;">
-    <p style="${FONT}font-size:11px;color:${C.muted};margin:0;line-height:1.5;">Sent to MyGoodBooks admins. Test clients are excluded. Change recipients or turn this off on the Emails page at <a href="${APP_URL}/#/emails" style="color:${C.muted};">${APP_URL.replace("https://", "")}/#/emails</a>.</p>
-  </td></tr>
-</table>
-<!--[if mso]></td></tr></table><![endif]-->
-</td></tr></table>
-</body></html>`;
+  const html = L.emailDocument({
+    title: subject,
+    preheader: head.join(" · "),
+    subtitle: "Weekly digest",
+    intro: L.pageTitle(`Week of ${range}`),
+    cards:
+      L.card(head.map((b) => para(`• ${esc(b)}`)).join(""), { variant: "warm", padding: "16px 24px 12px 24px" }) +
+      sectionHtml,
+    footer: `Sent to MyGoodBooks admins. Test clients are excluded. Change recipients or turn this off on the Emails page at ${L.link(`${APP_URL}/#/emails`, `${APP_URL.replace("https://", "")}/#/emails`, "muted")}.`,
+  });
 
   const text = [
     `MyGoodBooks weekly digest: week of ${range}`,
