@@ -50,6 +50,17 @@ Press **Esc** to close any open menu.
 
 The bar keeps only the client picker, search, the bell and **+**. The sync pill stays in the page header. To get back to a client's overview, tap the client picker and pick the same client again. Everything else (My Tasks, **Settings**, **Sign out**, **Preview as** and **Preview plan**) is in the menu, as before: tap the menu button at the top left.
 
+### In a narrow window
+
+On a computer, when the window is narrow the bar makes room instead of squeezing things together:
+
+- Search shrinks to a magnifier button. Click it, or press **Ctrl+K** (**⌘K**), and it opens across the bar.
+- The client picker shows just the client's initials. Click it to switch clients as usual.
+- **My Tasks**, **Help** and **Overview** hide from the bar. My Tasks is still in the left rail, and you can reopen a client's overview from the client picker.
+- The sync pill moves back into the page header.
+
+Widen the window and everything comes back.
+
 ### Troubleshooting
 
 - **The bell or My Tasks button is missing.** They're hidden while an admin is using **View as**, because they'd show the admin's own items.
