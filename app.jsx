@@ -285,8 +285,12 @@ const slugify = (label) =>
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-|-$/g, "");
 
+// Cash accounts only. A credit card's balance is money OWED (QuickBooks
+// reports it as a positive number), so adding it here inflated cash on hand
+// and the operating reserve. See window.mgbIsCardAccount in data.js.
+const cashAccountsOf = (client) => window.mgbCashAccounts(client.bankAccounts);
 const totalCash = (client) =>
-  (client.bankAccounts || []).reduce((s, a) => s + a.balance, 0);
+  cashAccountsOf(client).reduce((s, a) => s + a.balance, 0);
 
 // Returns null, not NaN, when there's nothing to average. A client org added
 // through Client Roster has no `monthly` at all until real data is wired up,
@@ -3553,8 +3557,9 @@ function crossTabWidgetDefs(client, access) {
         <>
           <h3 className="card-title">Bank Accounts</h3>
           <p className="card-subtitle">
-            {fmtMoney(totalCash(client))} across {client.bankAccounts.length}{" "}
-            account{client.bankAccounts.length > 1 ? "s" : ""}
+            {fmtMoney(totalCash(client))} cash across{" "}
+            {cashAccountsOf(client).length} account
+            {cashAccountsOf(client).length !== 1 ? "s" : ""}
           </p>
           <div className="tx-list">
             {client.bankAccounts.map((a) => (
@@ -3570,9 +3575,15 @@ function crossTabWidgetDefs(client, access) {
                     {a.accountMask ? ` · ending ${a.accountMask}` : ""}
                   </div>
                 </div>
-                <div className="tx-amount positive">
-                  {fmtMoney(a.balance, { cents: true })}
-                </div>
+                {window.mgbIsCardAccount(a) ? (
+                  <div className="tx-amount">
+                    {fmtMoney(a.balance, { cents: true })} owed
+                  </div>
+                ) : (
+                  <div className="tx-amount positive">
+                    {fmtMoney(a.balance, { cents: true })}
+                  </div>
+                )}
               </div>
             ))}
           </div>
@@ -6364,7 +6375,7 @@ function DashboardPage({
     {
       label: "Cash on Hand",
       value: fmtMoney(cash),
-      sub: `${(client.bankAccounts || []).length} account${(client.bankAccounts || []).length !== 1 ? "s" : ""}`,
+      sub: `${cashAccountsOf(client).length} account${cashAccountsOf(client).length !== 1 ? "s" : ""}`,
       tone: "neutral",
     },
     {
@@ -8035,340 +8046,17 @@ function PayrollPage({ client, clientPortalUser }) {
   );
 }
 
-const ACCOUNT_DONUT_COLORS = [
-  "var(--gold)",
-  "var(--good)",
-  "var(--bad)",
-  "var(--gold-deep)",
-  "var(--chart-income)",
-];
-
-function AccountCashDonut({ accounts }) {
-  const total = accounts.reduce((s, a) => s + a.balance, 0);
-  let cursor = 0;
-  const stops = accounts.map((a, i) => {
-    const pct = total > 0 ? (a.balance / total) * 100 : 0;
-    const color = ACCOUNT_DONUT_COLORS[i % ACCOUNT_DONUT_COLORS.length];
-    const stop = `${color} ${cursor}% ${cursor + pct}%`;
-    cursor += pct;
-    return stop;
-  });
-
-  return (
-    <div className="donut-widget compact">
-      <div
-        className="donut"
-        style={{ background: `conic-gradient(${stops.join(", ")})` }}
-      >
-        <div className="donut-hole">
-          <span className="donut-center-value">{fmtMoney(total)}</span>
-          <span className="donut-center-label">Total Cash</span>
-        </div>
-      </div>
-      <div className="donut-legend">
-        {accounts.map((a, i) => (
-          <div className="donut-legend-row" key={a.id}>
-            <span
-              className="legend-swatch"
-              style={{
-                background:
-                  ACCOUNT_DONUT_COLORS[i % ACCOUNT_DONUT_COLORS.length],
-              }}
-            ></span>
-            <span>{a.accountName}</span>
-            <span className="donut-legend-value">{fmtMoney(a.balance)}</span>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
 // ----------------------------------------------------------------------------
-// Bank Accounts page (multiple accounts + CSV export)
+// Bank Accounts page. The balances/transactions view itself is
+// BA_BankTransactionsPanel (components/client/BankAccounts.jsx), shared by
+// standard Bank Accounts and Reconciliation Pro's Transactions view.
 // ----------------------------------------------------------------------------
-
-// The actual balances/transactions view — shared by standard Bank Accounts
-// and Reconciliation Pro (which wraps this in a Transactions/Reconciliation
-// toggle, see BankReconciliationPage below), so the transaction table and
-// its search-jump/CSV-export behavior exist in exactly one place.
-function BankTransactionsPanel({ client, searchTarget }) {
-  // Lazy initialiser, and optional-chained: an org with no linked accounts
-  // used to throw on this very line during render and take the whole app down
-  // to the root ErrorBoundary's "Something went wrong" card. The empty state
-  // is rendered below, after every hook has run.
-  const [activeAccountId, setActiveAccountId] = useState(
-    () => (client.bankAccounts || [])[0]?.id,
-  );
-  // "This Account" (the existing account-tabs-driven view) vs. "All
-  // Accounts" (every account's activity combined, most recent first, with
-  // its own Account column) — the transactions table only, not the KPI
-  // strip above it, which stays about whichever account is picked in the
-  // tabs either way.
-  const [txView, setTxView] = useState("account");
-  const showToast = useToast();
-  const accounts = client.bankAccounts || [];
-  const account = accounts.find((a) => a.id === activeAccountId) || accounts[0];
-  const cash = totalCash(client);
-  const { flashCardId, jumpToCard } = useCardFlash();
-
-  const allTx = useMemo(
-    () =>
-      accounts
-        .flatMap((a) =>
-          (a.transactions || []).map((t) => ({
-            ...t,
-            accountName: a.accountName,
-          })),
-        )
-        .sort((a, b) => (a.date < b.date ? 1 : -1)),
-    [client],
-  );
-
-  // A transaction hit lives on one specific account's tab, so switch to it
-  // first (and drop back to the single-account view, since its row ids only
-  // exist there) — the row won't exist in the DOM until that tab is active.
-  useEffect(() => {
-    if (
-      searchTarget &&
-      searchTarget.accountId &&
-      searchTarget.accountId !== activeAccountId
-    ) {
-      setActiveAccountId(searchTarget.accountId);
-    }
-    if (searchTarget && searchTarget.accountId) setTxView("account");
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchTarget && searchTarget.nonce]);
-
-  useEffect(() => {
-    if (searchTarget && txView === "account")
-      jumpToCard(searchTarget.highlightKey, searchTarget.highlightKey);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchTarget && searchTarget.nonce, activeAccountId, txView]);
-
-  const exportCSV = () => {
-    const isAll = txView === "all";
-    const header = isAll
-      ? ["Date", "Account", "Description", "Category", "Amount"]
-      : ["Date", "Description", "Category", "Amount"];
-    const rows = isAll
-      ? allTx.map((t) => [
-          t.date,
-          t.accountName,
-          t.description,
-          t.category,
-          t.amount,
-        ])
-      : account.transactions.map((t) => [
-          t.date,
-          t.description,
-          t.category,
-          t.amount,
-        ]);
-    const csv = [header, ...rows]
-      .map((r) => r.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(","))
-      .join("\n");
-    const blob = new Blob([csv], { type: "text/csv" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `${client.name.replace(/\s+/g, "_")}_${isAll ? "all_accounts" : account.accountName.replace(/\s+/g, "_")}_transactions.csv`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-    showToast(
-      `Exported ${isAll ? allTx.length : account.transactions.length} transactions to CSV.`,
-    );
-  };
-
-  // Every hook above has run, so this early return is safe. An org whose bank
-  // accounts haven't been linked yet gets told that, rather than crashing the
-  // app out from under the client on their first visit.
-  if (!account) {
-    return (
-      <div className="card">
-        <h3 className="card-title">No accounts connected yet</h3>
-        <p className="muted">
-          Once your bookkeeper links your bank accounts, balances and
-          transactions will show up here.
-        </p>
-      </div>
-    );
-  }
-
-  return (
-    <div>
-      <div className="bank-top-grid">
-        <div className="bank-top-left">
-          <div className="bank-summary-row">
-            <div className="card kpi-card">
-              <span className="kpi-label">Total Cash on Hand</span>
-              <span className="kpi-value">{fmtMoney(cash)}</span>
-              <span className="kpi-sub neutral">
-                across {client.bankAccounts.length} account
-                {client.bankAccounts.length > 1 ? "s" : ""}
-              </span>
-            </div>
-
-            <div className="card kpi-card">
-              <span className="kpi-label">Current Balance</span>
-              <span className="kpi-value">
-                {fmtMoney(account.balance, { cents: true })}
-              </span>
-              <span className="kpi-sub neutral">
-                {account.accountName} ({account.type})
-                {account.accountMask && (
-                  <>
-                    <span className="dot-sep">•</span>
-                    Account ending {account.accountMask}
-                  </>
-                )}
-              </span>
-            </div>
-          </div>
-
-          <div className="account-tabs">
-            {client.bankAccounts.map((a) => (
-              <button
-                key={a.id}
-                className={
-                  "account-tab" + (a.id === activeAccountId ? " active" : "")
-                }
-                onClick={() => setActiveAccountId(a.id)}
-              >
-                <span className="account-tab-name">{a.accountName}</span>
-                <span className="account-tab-balance">
-                  {fmtMoney(a.balance)}
-                </span>
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div className="card bank-top-right">
-          <h3 className="card-title">Cash by Account</h3>
-          <p className="card-subtitle" style={{ margin: 0 }}>
-            Share of total cash on hand
-          </p>
-          <AccountCashDonut accounts={client.bankAccounts} />
-        </div>
-      </div>
-
-      <div className="card">
-        <div className="page-header" style={{ marginBottom: 4 }}>
-          <div>
-            <h3 className="card-title">Recent Transactions</h3>
-            <p className="card-subtitle" style={{ margin: 0 }}>
-              {txView === "all"
-                ? "Every account's activity, most recent first"
-                : "Most recent activity on this account — scroll to go back further"}
-            </p>
-          </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-            <div className="view-toggle">
-              <button
-                type="button"
-                className={
-                  "view-toggle-btn" + (txView === "account" ? " active" : "")
-                }
-                onClick={() => setTxView("account")}
-              >
-                This Account
-              </button>
-              <button
-                type="button"
-                className={
-                  "view-toggle-btn" + (txView === "all" ? " active" : "")
-                }
-                onClick={() => setTxView("all")}
-              >
-                All Accounts
-              </button>
-            </div>
-            <button className="btn-secondary" onClick={exportCSV}>
-              Export CSV
-            </button>
-          </div>
-        </div>
-        <div className="table-scroll tx-list-scroll">
-          <table
-            className="tx-table tx-table-labeled"
-            style={{ marginTop: 16 }}
-          >
-            <thead>
-              <tr>
-                <th>Date</th>
-                {txView === "all" && <th>Account</th>}
-                <th>Description</th>
-                <th>Category</th>
-                <th className="num">Amount</th>
-              </tr>
-            </thead>
-            <tbody>
-              {(txView === "all" ? allTx : account.transactions).length ===
-              0 ? (
-                <EmptyRow colSpan={txView === "all" ? 5 : 4}>
-                  No transactions on this account yet.
-                </EmptyRow>
-              ) : (
-                (txView === "all" ? allTx : account.transactions).map(
-                  (t, i) => {
-                    const rowId = "tx-" + i;
-                    return (
-                      <tr
-                        key={i}
-                        id={txView === "all" ? undefined : rowId}
-                        className={
-                          txView !== "all" && flashCardId === rowId
-                            ? "row-flash"
-                            : ""
-                        }
-                      >
-                        <td data-label="Date">{fmtDate(t.date)}</td>
-                        {txView === "all" && (
-                          <td data-label="Account">{t.accountName}</td>
-                        )}
-                        <td data-primary="">
-                          {t.description}
-                          <InternalNoteButton
-                            client={client}
-                            targetType="transaction"
-                            targetKey={`${t.accountName || account.accountName || ""}|${t.date}|${t.description}|${t.amount}`}
-                            targetLabel={`${fmtDate(t.date)} · ${t.description} · ${fmtMoney(t.amount)}`}
-                          />
-                        </td>
-                        <td data-label="Category">
-                          <span className="category-tag">{t.category}</span>
-                        </td>
-                        <td
-                          className={
-                            "num tx-amount " +
-                            (t.amount >= 0 ? "positive" : "negative")
-                          }
-                          data-label="Amount"
-                        >
-                          {t.amount >= 0 ? "+" : ""}
-                          {fmtMoney(t.amount, { cents: true })}
-                        </td>
-                      </tr>
-                    );
-                  },
-                )
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-  );
-}
 
 function BankPage({ client, searchTarget }) {
   return (
     <div className="bank-accounts-page">
       <MockBanner text="Account balances and transactions are fabricated sample data — no bank is connected yet."client={client} />
-      <BankTransactionsPanel client={client} searchTarget={searchTarget} />
+      <BA_BankTransactionsPanel client={client} searchTarget={searchTarget} />
     </div>
   );
 }
@@ -8421,7 +8109,7 @@ function BankReconciliationPage({ client, searchTarget }) {
       </div>
 
       {view === "transactions" && (
-        <BankTransactionsPanel client={client} searchTarget={searchTarget} />
+        <BA_BankTransactionsPanel client={client} searchTarget={searchTarget} />
       )}
       {view === "reconciliation" && <ReconciliationPanel client={client} />}
     </div>
@@ -8797,11 +8485,13 @@ function buildProfitAndLossPdf(client, periodKey = "month") {
 }
 
 function buildBalanceSheetPdf(client) {
-  const totalAssets = client.bankAccounts.reduce((s, a) => s + a.balance, 0);
-  const totalLiabilities = (client.payables || []).reduce(
-    (s, p) => s + p.amount,
-    0,
-  );
+  // Cards are liabilities (balance = amount owed), not assets.
+  const assetAccounts = cashAccountsOf(client);
+  const cardAccounts = window.mgbCardAccounts(client.bankAccounts);
+  const totalAssets = assetAccounts.reduce((s, a) => s + a.balance, 0);
+  const totalLiabilities =
+    (client.payables || []).reduce((s, p) => s + p.amount, 0) +
+    cardAccounts.reduce((s, a) => s + a.balance, 0);
   const totalFundBalance = client.funds.reduce((s, f) => s + f.balance, 0);
   const asOf = new Date().toLocaleDateString("en-US", {
     month: "long",
@@ -8814,7 +8504,7 @@ function buildBalanceSheetPdf(client) {
   doc.autoTable({
     startY: 55,
     head: [["Assets", "Balance"]],
-    body: client.bankAccounts.map((a) => [
+    body: assetAccounts.map((a) => [
       a.accountMask ? `${a.accountName} (••${a.accountMask})` : a.accountName,
       fmtMoney(a.balance, { cents: true }),
     ]),
@@ -8826,10 +8516,16 @@ function buildBalanceSheetPdf(client) {
   doc.autoTable({
     startY: doc.lastAutoTable.finalY + 8,
     head: [["Liabilities", "Amount"]],
-    body: (client.payables || []).map((p) => [
-      `${p.vendor} — ${p.description}`,
-      fmtMoney(p.amount, { cents: true }),
-    ]),
+    body: [
+      ...cardAccounts.map((a) => [
+        `${a.accountName}${a.accountMask ? ` (••${a.accountMask})` : ""} — card balance`,
+        fmtMoney(a.balance, { cents: true }),
+      ]),
+      ...(client.payables || []).map((p) => [
+        `${p.vendor} — ${p.description}`,
+        fmtMoney(p.amount, { cents: true }),
+      ]),
+    ],
     foot: [["Total Liabilities", fmtMoney(totalLiabilities, { cents: true })]],
     columnStyles: { 1: { halign: "right" } },
     ...PDF_TABLE_THEME,
@@ -10378,8 +10074,8 @@ function ReportBuilderPage({ client }) {
             <div className="rb-stat-row">
               <span className="rb-big">{fmtMoney(cash)}</span>
               <span className="pill neutral">
-                {client.bankAccounts.length} account
-                {client.bankAccounts.length !== 1 ? "s" : ""}
+                {cashAccountsOf(client).length} account
+                {cashAccountsOf(client).length !== 1 ? "s" : ""}
               </span>
             </div>
             <p className="rb-commentary">
