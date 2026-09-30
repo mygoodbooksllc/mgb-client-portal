@@ -7695,7 +7695,7 @@ function PayrollAddOnPage({ client, clientPortalUser }) {
         </p>
         {staff ? (
           <p className="payroll-addon-staff">
-            Staff: turn Payroll on for this client under Staff Access → Client organizations.
+            Staff: turn Payroll on for this client under Settings → Firm settings → Client roster (Client organizations card).
           </p>
         ) : (
           <button className="btn-primary" disabled={requesting} onClick={requestAddOn}>
@@ -20201,14 +20201,43 @@ function MessagesPage({
   live,
   validateAttachment,
   readOnlyNote,
+  // Real threads only: "loading" | "error" | "real" (from the hook), a retry
+  // for the error state, and the "Load earlier messages" pager.
+  loadStatus = "real",
+  onRetry,
+  hasEarlier,
+  onLoadEarlier,
 }) {
   const [draft, setDraft] = useState("");
   const [pendingAttachment, setPendingAttachment] = useState(null);
   const [isDragging, setIsDragging] = useState(false);
   const [sending, setSending] = useState(false);
   const fileInputRef = useRef(null);
+  const threadRef = useRef(null);
+  const draftRef = useRef(null);
   const { flashCardId, jumpToCard } = useCardFlash();
   const showToast = useToast();
+
+  // Keep the newest message in view: jump to the bottom when the thread
+  // opens and whenever a new message lands at the end. Loading earlier
+  // messages adds to the top, so the last id doesn't change and the reader
+  // stays where they were.
+  const lastMsg = messages.length ? messages[messages.length - 1] : null;
+  const lastMsgKey = lastMsg ? lastMsg.id || lastMsg.created_at || messages.length : null;
+  useEffect(() => {
+    const el = threadRef.current;
+    if (el && !searchTarget) el.scrollTop = el.scrollHeight;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lastMsgKey, loadStatus]);
+
+  // The compose box grows with its text up to about six lines.
+  useEffect(() => {
+    const el = draftRef.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = Math.min(el.scrollHeight, 160) + "px";
+    el.style.overflowY = el.scrollHeight > 160 ? "auto" : "hidden";
+  }, [draft]);
 
   // Search only ever looks within the currently-open thread (see
   // GlobalSearch), so there's no other person's conversation to switch to
@@ -20230,7 +20259,7 @@ function MessagesPage({
   };
 
   const send = async () => {
-    if ((!draft.trim() && !pendingAttachment) || sending || readOnlyNote) return;
+    if ((!draft.trim() && !pendingAttachment) || sending || readOnlyNote || loadStatus === "loading") return;
     const res = onSend(draft.trim(), pendingAttachment || undefined);
     if (res && typeof res.then === "function") {
       setSending(true);
@@ -20304,17 +20333,35 @@ function MessagesPage({
                 `Conversation with ${client.assignedBookkeeper.name}`
               : "Conversation with MyGoodBooks"}
         </h3>
-        {messages.length === 0 && (
-          <p className="card-subtitle">No messages yet in this conversation.</p>
+        {loadStatus === "loading" && messages.length === 0 ? (
+          <p className="card-subtitle" role="status">Loading your conversation…</p>
+        ) : loadStatus === "error" ? (
+          <div className="message-load-error" role="alert">
+            <span>Couldn't load your messages. Check your connection and try again.</span>
+            {onRetry && (
+              <button type="button" className="btn-secondary" onClick={onRetry}>
+                Try again
+              </button>
+            )}
+          </div>
+        ) : (
+          messages.length === 0 && (
+            <p className="card-subtitle">No messages yet in this conversation.</p>
+          )
         )}
-        <div className="message-thread">
+        <div className="message-thread" ref={threadRef}>
+          {hasEarlier && onLoadEarlier && (
+            <button type="button" className="btn-secondary message-load-earlier" onClick={onLoadEarlier}>
+              Load earlier messages
+            </button>
+          )}
           {messages.map((m, i) => {
             const rowId = "msg-" + i;
             return (
               <div
                 className={"message-bubble-row " + m.from}
                 id={rowId}
-                key={i}
+                key={m.id || i}
               >
                 <div
                   className={
@@ -20406,16 +20453,23 @@ function MessagesPage({
               e.target.value = "";
             }}
           />
-          <input
-            type="text"
+          {/* Enter sends; Shift+Enter starts a new line. */}
+          <textarea
+            ref={draftRef}
+            rows={1}
             placeholder="Type a message…"
+            aria-label="Message"
+            title="Enter to send, Shift+Enter for a new line"
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
             onKeyDown={(e) => {
-              if (e.key === "Enter") send();
+              if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
+                e.preventDefault();
+                send();
+              }
             }}
           />
-          <button className="btn-primary" onClick={send} disabled={sending}>
+          <button className="btn-primary" onClick={send} disabled={sending || loadStatus === "loading"}>
             {sending ? "Sending…" : "Send"}
           </button>
         </div>
@@ -24352,8 +24406,12 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
           refreshKey: effectivePage,
         })
       : null;
-  const siLive = !!(siMsg && siMsg.status === "real");
-  const siLiveThread = siLive && siRole !== "staff";
+  // A signed-in client with messaging on only ever sees their real thread:
+  // while it loads or after an error they get that state (with a retry),
+  // never the sample thread and its simulated bookkeeper replies.
+  const siClientReal = !!(siMsg && siRole === "client" && siMsg.status !== "off");
+  const siLive = !!(siMsg && siMsg.status === "real") || siClientReal;
+  const siLiveThread = (siLive && siRole !== "staff") || siClientReal;
   // One chat bubble for staff: the drawer launcher replaces ChatFab.
   const siStaffChat =
     typeof SI_ChatDrawer === "function" &&
@@ -25423,6 +25481,10 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
               client={scopedClient}
               messages={liveMessages}
               live={siLiveThread}
+              loadStatus={siLiveThread ? siMsg.status : "real"}
+              onRetry={siLiveThread ? siMsg.retry : undefined}
+              hasEarlier={siLiveThread && !!siMsg.hasMore}
+              onLoadEarlier={siLiveThread ? siMsg.loadEarlier : undefined}
               validateAttachment={siLiveThread ? siMsg.checkFile : undefined}
               readOnlyNote={
                 siLiveThread && siMsg.readOnly

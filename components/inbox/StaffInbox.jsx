@@ -41,6 +41,7 @@ const SI_CHANGED_EVENT = "mgb:client-messages-changed";
 const SI_MSG_COLS =
   "id, client_id, participant_email, author_email, author_name, author_kind, body, internal, attachment_path, attachment_name, created_at";
 const SI_POLL_MS = 30 * 1000;
+const SI_THREAD_PAGE = 200;
 let siInstanceSeq = 0;
 
 const siNotifyChanged = () => {
@@ -1386,6 +1387,9 @@ function SI_useClientMessaging({ enabled, role, clientId, email, name, active, r
   const on = !!(enabled && clientId && (role === "staff" || em) && window.mgbSupabase);
   const [state, setState] = React.useState({ status: on ? "loading" : "off", rows: [], readAt: null, waitingCount: 0 });
   const [me, setMe] = React.useState("");
+  // The thread loads its newest SI_THREAD_PAGE messages; "Load earlier"
+  // raises this a page at a time.
+  const [limit, setLimit] = React.useState(SI_THREAD_PAGE);
   const tokenRef = React.useRef(0);
 
   React.useEffect(() => {
@@ -1393,6 +1397,8 @@ function SI_useClientMessaging({ enabled, role, clientId, email, name, active, r
     if (!sb || !on) return;
     siSessionEmail(sb, "").then(setMe);
   }, [on]);
+
+  React.useEffect(() => setLimit(SI_THREAD_PAGE), [clientId, em]);
 
   const load = React.useCallback(() => {
     const sb = window.mgbSupabase;
@@ -1402,10 +1408,12 @@ function SI_useClientMessaging({ enabled, role, clientId, email, name, active, r
     }
     const token = ++tokenRef.current;
     const stale = () => token !== tokenRef.current;
+    // A signed-in client never falls back to the sample thread: they'd be
+    // chatting with a made-up bookkeeper. They get an error with a retry.
     const fail = (error) =>
       !stale() &&
       setState({
-        status: "sample",
+        status: role === "client" ? "error" : "sample",
         reason: error && typeof isMissingTableError === "function" && isMissingTableError(error) ? "missing" : "error",
         rows: [],
         readAt: null,
@@ -1452,8 +1460,10 @@ function SI_useClientMessaging({ enabled, role, clientId, email, name, active, r
         // RLS already hides notes from clients; this also hides them from
         // staff previewing as the client.
         .eq("internal", false)
-        .order("created_at", { ascending: true })
-        .limit(1000),
+        // Newest first so the limit keeps the latest; one extra row says
+        // whether there's more to load.
+        .order("created_at", { ascending: false })
+        .limit(limit + 1),
       sb
         .from("client_message_reads")
         .select("reader_email, last_read_at")
@@ -1463,17 +1473,28 @@ function SI_useClientMessaging({ enabled, role, clientId, email, name, active, r
       .then(async ([m, r]) => {
         if (stale()) return;
         if (m.error) return fail(m.error);
-        const rows = (m.data || []).filter((x) => !x.internal);
+        const newest = m.data || [];
+        const hasMore = newest.length > limit;
+        const rows = newest
+          .slice(0, limit)
+          .reverse()
+          .filter((x) => !x.internal);
         if (role === "preview" && rows.length === 0)
           return setState({ status: "sample", reason: "none", rows: [], readAt: null, waitingCount: 0 });
         // The person's own read marker (their JWT email is the participant).
         const mine = (r.data || []).find((x) => siLower(x.reader_email) === em);
         const signed = await siSignRows(sb, rows);
         if (stale()) return;
-        setState({ status: "real", rows: signed, readAt: mine ? mine.last_read_at : null, waitingCount: 0 });
+        setState({ status: "real", rows: signed, readAt: mine ? mine.last_read_at : null, waitingCount: 0, hasMore });
       })
       .catch(fail);
-  }, [on, role, clientId, em, me]);
+  }, [on, role, clientId, em, me, limit]);
+
+  const retry = React.useCallback(() => {
+    setState((s) => ({ ...s, status: "loading" }));
+    load();
+  }, [load]);
+  const loadEarlier = React.useCallback(() => setLimit((n) => n + SI_THREAD_PAGE), []);
 
   React.useEffect(() => {
     load();
@@ -1596,6 +1617,9 @@ function SI_useClientMessaging({ enabled, role, clientId, email, name, active, r
     lastText: lastStaff ? lastStaff.body || lastStaff.attachment_name || "" : "",
     waitingCount: state.waitingCount,
     readOnly: role !== "client",
+    hasMore: !!state.hasMore,
+    loadEarlier,
+    retry,
     markRead,
     send,
     checkFile: SI_checkFile,
