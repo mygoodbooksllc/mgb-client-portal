@@ -6849,8 +6849,11 @@ function FundBalancesCard({ client }) {
       <p className="card-subtitle">
         What the money in the bank is designated for
       </p>
+      {(client.funds || []).length === 0 && (
+        <p className="card-subtitle">No funds set up yet.</p>
+      )}
       <div className="fund-grid">
-        {client.funds.map((f) => (
+        {(client.funds || []).map((f) => (
           <div className="fund-card" key={f.name}>
             <div className="fund-card-top">
               <span className="fund-name">{f.name}</span>
@@ -7044,13 +7047,19 @@ function FundAccountingProPage({ client }) {
   const unrestrictedTotal = client.funds
     .filter((f) => !f.restricted)
     .reduce((s, f) => s + f.balance, 0);
-  const pledgesOutstanding = pledges.reduce(
+  // Open = something still to come in. Fulfilled pledges stay in the table
+  // (marked Fulfilled) but aren't "active" and don't count as outstanding.
+  const openPledges = pledges
+    .filter((p) => p.committed - p.received > 0.005)
+    .sort((a, b) => (a.dueDate < b.dueDate ? -1 : a.dueDate > b.dueDate ? 1 : 0));
+  const pledgesOutstanding = openPledges.reduce(
     (s, p) => s + (p.committed - p.received),
     0,
   );
   const [view, setView] = useState("funds");
   const showToast = useToast();
   const today = todayLocal();
+  const yearStart = today.slice(0, 4) + "-01-01";
 
   const handleDownloadStatement = (donor) => {
     const filename = buildGivingStatementPdf(client, donor);
@@ -7068,6 +7077,9 @@ function FundAccountingProPage({ client }) {
     const totals = {};
     client.contributions.forEach((c) => {
       if (c.donor === "Anonymous") return;
+      // Year to date means this calendar year only, Jan 1 through today,
+      // the same range the downloaded statement covers.
+      if (!c.date || c.date < yearStart || c.date > today) return;
       if (!totals[c.donor])
         totals[c.donor] = { donor: c.donor, total: 0, giftCount: 0 };
       totals[c.donor].total += c.amount;
@@ -7076,7 +7088,7 @@ function FundAccountingProPage({ client }) {
     return Object.values(totals)
       .map((d) => ({ ...d, email: emailByDonor[d.donor] || null }))
       .sort((a, b) => b.total - a.total);
-  }, [client.contributions, client.donors]);
+  }, [client.contributions, client.donors, yearStart, today]);
 
   // Which donors already got this year's statement, so nobody sends twice by
   // accident. Per browser (localStorage), like the send itself is a mock;
@@ -7101,27 +7113,27 @@ function FundAccountingProPage({ client }) {
     });
   };
 
-  // No real send path exists (see the referral popup's own "this doesn't
-  // send a real email yet" disclaimer for the same honest-mock posture) —
-  // this simulates success with a toast rather than pretending to open a
-  // mailto draft, since the whole point is attaching a generated PDF, which
-  // a mailto: link can never do.
+  // No real send path exists, and this used to toast "sent" without sending
+  // anything. Now it's honest: the person downloads each statement, emails
+  // it themselves, and marks it sent here so nobody sends twice. (A mailto:
+  // draft can't carry the PDF, so it isn't offered.)
   const sendStatements = (rows) => {
     markSent(rows.map((d) => d.donor));
     showToast(
       rows.length === 1
-        ? `Giving statement sent to ${rows[0].donor} (${rows[0].email}).`
-        : `Sent ${rows.length} giving statements.`,
+        ? `Marked ${rows[0].donor}'s statement as sent.`
+        : `Marked ${rows.length} statements as sent.`,
     );
   };
 
   const handleSendStatement = (d) => {
-    if (!d.email) return;
     if (sentAt[d.donor]) setConfirmResend({ rows: [d] });
     else sendStatements([d]);
   };
 
-  const withEmail = donorRoster.filter((d) => d.email);
+  // Marking sent doesn't need an email on file (a statement can be handed
+  // over or posted), so every named donor counts.
+  const withEmail = donorRoster;
   const unsent = withEmail.filter((d) => !sentAt[d.donor]);
 
   // Send All only sends to donors who haven't had one yet; once everyone
@@ -7172,7 +7184,7 @@ function FundAccountingProPage({ client }) {
           <span className="kpi-label">Pledges Outstanding</span>
           <span className="kpi-value">{fmtMoney(pledgesOutstanding)}</span>
           <span className="kpi-sub neutral">
-            {pledges.length} active pledge{pledges.length !== 1 ? "s" : ""}
+            {openPledges.length} open pledge{openPledges.length !== 1 ? "s" : ""}
           </span>
         </button>
       </div>
@@ -7270,6 +7282,9 @@ function FundAccountingProPage({ client }) {
           <h3 className="card-title">Pledges</h3>
           <p className="card-subtitle">
             Committed vs. received, by donor and fund
+            {pledges.length > 0 && openPledges.length === 0
+              ? " · every pledge is fulfilled"
+              : ""}
           </p>
           <div className="table-scroll">
             <table className="tx-table tx-table-labeled">
@@ -7287,9 +7302,10 @@ function FundAccountingProPage({ client }) {
               </thead>
               <tbody>
                 {pledges.length === 0 ? (
-                  <EmptyRow colSpan={8}>No open pledges.</EmptyRow>
+                  <EmptyRow colSpan={8}>No pledges recorded yet.</EmptyRow>
                 ) : (
-                  pledges.map((p, i) => {
+                  // Open pledges first (soonest due), fulfilled ones after.
+                  [...openPledges, ...pledges.filter((p) => !openPledges.includes(p))].map((p, i) => {
                     const remaining = p.committed - p.received;
                     const isOverdue =
                       remaining > 0.005 && daysUntil(p.dueDate, today) < 0;
@@ -7348,8 +7364,8 @@ function FundAccountingProPage({ client }) {
             <div>
               <h3 className="card-title">Tax Documents</h3>
               <p className="card-subtitle" style={{ margin: 0 }}>
-                Year-end giving statements donors can use to write off their
-                contributions
+                {taxYear} giving statements (January 1 through today) donors
+                can use for their taxes
               </p>
             </div>
             <button
@@ -7358,10 +7374,10 @@ function FundAccountingProPage({ client }) {
               onClick={handleSendAll}
             >
               {!withEmail.length || unsent.length === withEmail.length
-                ? "Send All"
+                ? "Mark All Sent"
                 : unsent.length
-                  ? `Send to ${unsent.length} not yet sent`
-                  : "All sent · Resend all"}
+                  ? `Mark ${unsent.length} not yet sent`
+                  : "All marked sent"}
             </button>
           </div>
           <div className="table-scroll">
@@ -7379,8 +7395,11 @@ function FundAccountingProPage({ client }) {
               <tbody>
                 {donorRoster.length === 0 ? (
                   <EmptyRow colSpan={6}>
-                    No named donors to send statements to — every gift on record
-                    so far is anonymous.
+                    {client.contributions.some(
+                      (c) => c.date >= yearStart && c.date <= today,
+                    )
+                      ? `No named donors to send statements to: every gift in ${taxYear} so far is anonymous.`
+                      : `No gifts recorded in ${taxYear} yet.`}
                   </EmptyRow>
                 ) : (
                   donorRoster.map((d) => (
@@ -7431,15 +7450,10 @@ function FundAccountingProPage({ client }) {
                         </button>
                         <button
                           className="btn-secondary"
-                          disabled={!d.email}
-                          title={
-                            d.email
-                              ? undefined
-                              : "No email on file for this donor"
-                          }
+                          title="Record that you've sent this donor their statement"
                           onClick={() => handleSendStatement(d)}
                         >
-                          {sentAt[d.donor] ? "Resend" : "Send"}
+                          {sentAt[d.donor] ? "Mark sent again" : "Mark sent"}
                         </button>
                       </td>
                     </tr>
@@ -7449,8 +7463,9 @@ function FundAccountingProPage({ client }) {
             </table>
           </div>
           <p className="card-subtitle" style={{ margin: "12px 0 0" }}>
-            Prototype — Send simulates delivery and doesn't actually email
-            anything yet. Sent status is remembered on this device.
+            Statements aren&rsquo;t emailed from here yet. Download each one,
+            send it to the donor yourself, then mark it sent so nobody sends
+            it twice. Sent status is remembered on this device only.
           </p>
         </div>
       )}
@@ -7459,15 +7474,15 @@ function FundAccountingProPage({ client }) {
         <ConfirmModal
           title={
             confirmResend.rows.length === 1
-              ? "Send this statement again?"
-              : `Send all ${confirmResend.rows.length} statements again?`
+              ? "Mark this statement sent again?"
+              : `Mark all ${confirmResend.rows.length} statements sent again?`
           }
           body={
             confirmResend.rows.length === 1
-              ? `${confirmResend.rows[0].donor} was already sent their ${taxYear} giving statement on ${fmtDate(sentAt[confirmResend.rows[0].donor].slice(0, 10))}.`
-              : `Every donor with an email on file has already been sent their ${taxYear} giving statement.`
+              ? `${confirmResend.rows[0].donor}'s ${taxYear} giving statement was already marked sent on ${fmtDate(sentAt[confirmResend.rows[0].donor].slice(0, 10))}.`
+              : `Every donor's ${taxYear} giving statement is already marked sent.`
           }
-          confirmLabel="Send again"
+          confirmLabel="Mark sent again"
           onCancel={() => setConfirmResend(null)}
           onConfirm={() => {
             sendStatements(confirmResend.rows);
