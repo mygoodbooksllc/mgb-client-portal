@@ -2,7 +2,7 @@
 title: How do recurring tasks from templates work?
 section: Month-end and recurring work
 audience: staff
-keywords: [templates, recurring, repeat, monthly, quarterly, annually, generate, automatic tasks, task templates]
+keywords: [templates, recurring, repeat, monthly, quarterly, annually, generate, automatic tasks, task templates, suggestions, suggested templates, save as template]
 sort: 320
 ---
 Some work happens for every client on a schedule, like reconciling bank accounts each month. Instead of typing those tasks by hand, an admin sets up a **task template** once, and the portal creates the task for each client automatically.
@@ -30,6 +30,13 @@ Some work happens for every client on a schedule, like reconciling bank accounts
 8. Leave **Active** ticked and click **Save**.
 
 The templates run every morning on their own. **Generate now** runs them immediately. Use **Pause** / **Resume** on a template to stop or restart it without deleting it. To remove one for good, click **Edit**, then **Delete template**. Tasks it already created stay in My Tasks.
+
+### Templates from tasks and suggestions
+
+Any task in **My Tasks** can become a template with its **Save as template** icon (see [How do I add and manage my tasks?](#/help/my-tasks)).
+
+- Admins go straight to the editor, pre-filled with the title (the period is removed), priority and the task's client. Nothing is saved until you click **Save**.
+- Other staff send a suggestion instead. Pending suggestions show at the top of **Task templates** under **Suggested templates**, and in admins' bell. Click **Create template** to open the pre-filled editor (the suggestion is marked done when you save), or **Dismiss** to clear it.
 
 ### Troubleshooting
 

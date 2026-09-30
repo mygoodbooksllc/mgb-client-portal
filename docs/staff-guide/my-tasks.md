@@ -2,7 +2,7 @@
 title: How do I add and manage my tasks?
 section: Daily work
 audience: staff
-keywords: [my tasks, task, reminder, to do, due, overdue, repeat, recurring, priority, share, complete, today, upcoming, by client]
+keywords: [my tasks, task, reminder, to do, due, overdue, repeat, recurring, priority, share, complete, today, upcoming, by client, save as template, suggest template, manage templates]
 sort: 110
 ---
 **My Tasks** (in the sidebar, or the **My Tasks** button in the top bar) is your to-do list. Tasks are **private to you and admins** unless you share one with a client's team.
@@ -36,6 +36,13 @@ You can also add a task from inside a client: click **+** in the top bar and cho
 - When you finish a **repeating** task, the next one is created for you automatically.
 - The people icon shares or stops sharing a task with the client's team. **×** removes it.
 - Chips tell you where a task came from: **From note**, **Access request**, or **Recurring** (made by a [task template](#/help/task-templates)).
+
+### Save a task as a template
+
+Doing the same task every month? Click the **Save as template** icon (two overlapping squares with a +) on the task.
+
+- **Admins**: the **Task templates** editor opens, pre-filled with the task's title (without the " · Sep 2026" part), its priority and its client. Check the details, pick how often it repeats, and click **Save**. Nothing is saved until you do.
+- **Everyone else** (including temporary admins): the button says **Suggest as template**. It sends the idea to the admins, who see it at the top of Task templates and in their bell. You'll see "Suggested to admins as a recurring template."
 
 Admins (and staff with temporary admin access) see **Manage templates** at the top right of My Tasks. It opens **Task templates** (also in **Settings → Firm settings**).
 

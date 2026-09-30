@@ -37,6 +37,80 @@ const TT_BLANK = {
   active: true,
 };
 
+// ---------------------------------------------------------------------------
+// "Save as template" from a task in My Tasks (owner request 2026-09-30).
+// Admins: TT_openDraft() parks a pre-filled draft, app.jsx navigates here and
+// the page opens the editor with it (nothing saved until Save). Everyone
+// else: TT_suggestFromTask() files a row in task_template_suggestions
+// (supabase/task-template-suggestions.sql) that admins see at the top of
+// this page and in the bell.
+// ---------------------------------------------------------------------------
+const TT_DRAFT_EVENT = "mgb:tt-open-draft";
+let TT_pendingDraft = null;
+
+// Generated task titles end with the period ("… · Sep 2026", "… · Q3 2026",
+// "… · 2026"); a template's title must not.
+function TT_stripPeriod(text) {
+  return String(text || "")
+    .replace(/\s*·\s*(?:[A-Z][a-z]{2,8}\.? \d{4}|Q[1-4] \d{4}|\d{4})\s*$/, "")
+    .trim()
+    .slice(0, 200);
+}
+
+function TT_draftFromTask(task, extra) {
+  return {
+    ...TT_BLANK,
+    plan_tiers: [],
+    client_ids: task && task.client_id ? [task.client_id] : [],
+    title: TT_stripPeriod(task && (task.text || task.title)),
+    priority: ["low", "normal", "high"].includes(task && task.priority) ? task.priority : "normal",
+    _prefilled: true,
+    ...(extra || {}),
+  };
+}
+
+function TT_openDraft(draft) {
+  TT_pendingDraft = draft;
+  try {
+    window.dispatchEvent(new Event(TT_DRAFT_EVENT));
+  } catch (e) {}
+}
+
+async function TT_suggestFromTask(sb, task) {
+  const title = TT_stripPeriod(task && task.text);
+  if (!sb) return { error: { message: "Supabase isn't configured." } };
+  if (!title) return { error: { message: "The task has no title." } };
+  const { error } = await sb.from("task_template_suggestions").insert({
+    title,
+    priority: ["low", "normal", "high"].includes(task.priority) ? task.priority : "normal",
+    client_id: task.client_id || null,
+    reminder_id: task.id && /^[0-9a-f-]{36}$/i.test(String(task.id)) ? task.id : null,
+  });
+  if (error && (error.code === "23505" || /duplicate/i.test(error.message || ""))) return { duplicate: true };
+  return { error };
+}
+
+function TT_TemplateIcon(props) {
+  return (
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      {...props}
+    >
+      <rect x="8" y="8" width="12" height="12" rx="2" />
+      <path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2" />
+      <path d="M14 11v6M11 14h6" />
+    </svg>
+  );
+}
+
 const TT_name = (c) => String((c && (c.name || c.id)) || "");
 const TT_tierLabel = (t) => (typeof planLabel === "function" ? planLabel(t) : t);
 
@@ -93,7 +167,52 @@ function TT_TaskTemplatesPage({ clients }) {
   const [editing, setEditing] = useState(null); // template draft or null
   const [generating, setGenerating] = useState(false);
   const [lastRun, setLastRun] = useState(null);
+  const [suggestions, setSuggestions] = useState([]);
   const clientsById = useMemo(() => Object.fromEntries((clients || []).map((c) => [c.id, c])), [clients]);
+
+  // A draft parked by "Save as template" in My Tasks.
+  useEffect(() => {
+    const take = () => {
+      if (!TT_pendingDraft) return;
+      setEditing(TT_pendingDraft);
+      TT_pendingDraft = null;
+    };
+    take();
+    window.addEventListener(TT_DRAFT_EVENT, take);
+    return () => window.removeEventListener(TT_DRAFT_EVENT, take);
+  }, []);
+
+  const loadSuggestions = useCallback(async () => {
+    const sb = window.mgbSupabase;
+    if (!sb) return;
+    const res = await Promise.resolve(
+      sb
+        .from("task_template_suggestions")
+        .select("id, title, priority, client_id, suggested_by, created_at")
+        .eq("status", "pending")
+        .order("created_at", { ascending: false })
+        .limit(50),
+    ).then((r) => r, (e) => ({ data: null, error: e }));
+    setSuggestions(res && !res.error && Array.isArray(res.data) ? res.data : []);
+  }, []);
+  useEffect(() => {
+    loadSuggestions();
+  }, [loadSuggestions]);
+
+  const resolveSuggestion = async (id, patch) => {
+    const sb = window.mgbSupabase;
+    if (!sb || !id) return false;
+    const { error } = await sb.from("task_template_suggestions").update(patch).eq("id", id);
+    if (error) {
+      toast("Couldn't update the suggestion. " + (error.message || ""));
+      return false;
+    }
+    setSuggestions((l) => l.filter((s) => s.id !== id));
+    try {
+      window.dispatchEvent(new Event("mgb:staff-tools-changed"));
+    } catch (e) {}
+    return true;
+  };
 
   const load = useCallback(async () => {
     const sb = window.mgbSupabase;
@@ -144,6 +263,9 @@ function TT_TaskTemplatesPage({ clients }) {
       return false;
     }
     setList((l) => (draft.id ? l.map((x) => (x.id === draft.id ? res.data : x)) : [...l, res.data]));
+    if (draft._suggestionId && res.data) {
+      await resolveSuggestion(draft._suggestionId, { status: "created", template_id: res.data.id });
+    }
     toast(draft.id ? "Template saved." : "Template added. Tasks appear once they're within the lead window.");
     return true;
   };
@@ -193,6 +315,54 @@ function TT_TaskTemplatesPage({ clients }) {
 
   return (
     <div className="tt-page">
+      {suggestions.length > 0 && (
+        <section className="card tt-suggest" aria-labelledby="tt-suggest-title">
+          <h3 id="tt-suggest-title" className="card-title">
+            Suggested templates <span className="task-tab-count">{suggestions.length}</span>
+          </h3>
+          <p className="card-subtitle">Staff saved these tasks as template ideas. Create one to review it in the editor first.</p>
+          <ul className="tt-suggest-list">
+            {suggestions.map((s) => {
+              const c = s.client_id ? clientsById[s.client_id] : null;
+              const who = String(s.suggested_by || "").split("@")[0] || "Someone";
+              return (
+                <li key={s.id} className="tt-suggest-item">
+                  <div className="tt-item-main">
+                    <div className="tt-item-title">
+                      {s.title}
+                      {s.priority === "high" && <span className="task-chip bad">High</span>}
+                    </div>
+                    <div className="tt-item-meta">
+                      {s.client_id && <span className="task-chip">{c ? TT_name(c) : s.client_id}</span>}
+                      <span>
+                        Suggested by {who}
+                        {s.created_at && typeof relTime === "function" ? ` · ${relTime(s.created_at)}` : ""}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="tt-item-actions">
+                    <button
+                      type="button"
+                      className="link-btn"
+                      onClick={() => resolveSuggestion(s.id, { status: "dismissed" })}
+                      aria-label={`Dismiss suggestion: ${s.title}`}
+                    >
+                      Dismiss
+                    </button>
+                    <button
+                      type="button"
+                      className="btn-primary"
+                      onClick={() => setEditing(TT_draftFromTask(s, { _suggestionId: s.id, _suggestedBy: who }))}
+                    >
+                      Create template
+                    </button>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        </section>
+      )}
       <div className="card tt-intro">
         <div className="tt-intro-text">
           <h3 className="card-title">Recurring task templates</h3>
@@ -317,6 +487,12 @@ function TT_Editor({ draft: initial, clients, onClose, onSave, onDelete }) {
         <h3 id="tt-edit-title" className="card-title">
           {d.id ? "Edit template" : "New template"}
         </h3>
+        {!d.id && d._prefilled && (
+          <p className="tt-help tt-prefill-note">
+            {d._suggestedBy ? `Suggested by ${d._suggestedBy}. ` : "Pre-filled from a task. "}
+            Check the details; nothing is saved until you click Save.
+          </p>
+        )}
 
         <label className="tt-label" htmlFor="tt-title">
           Task title

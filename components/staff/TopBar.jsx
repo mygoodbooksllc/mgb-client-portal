@@ -585,6 +585,29 @@ function TB_useBellItems({ clients, items, me, isAdmin, page }) {
   // Settings > Notifications > "Show in the bell" (components/settings).
   const stSnap = typeof ST_useSettings === "function" ? ST_useSettings() : null;
   const [remote, setRemote] = useState({ msgs: [], docs: [], blocked: [] });
+  // Admins: pending "Save as template" suggestions (task_template_suggestions).
+  const [tplSuggest, setTplSuggest] = useState([]);
+  const loadTplSuggest = useCallback(async () => {
+    const sb = window.mgbSupabase;
+    if (!sb || !isAdmin) {
+      setTplSuggest([]);
+      return;
+    }
+    const res = await Promise.resolve(
+      sb
+        .from("task_template_suggestions")
+        .select("id, title, client_id, suggested_by, created_at")
+        .eq("status", "pending")
+        .order("created_at", { ascending: false })
+        .limit(20),
+    ).then((r) => r, (e) => ({ data: null, error: e }));
+    setTplSuggest(res && !res.error && Array.isArray(res.data) ? res.data : []);
+  }, [isAdmin]);
+  useEffect(() => {
+    loadTplSuggest();
+    window.addEventListener("mgb:staff-tools-changed", loadTplSuggest);
+    return () => window.removeEventListener("mgb:staff-tools-changed", loadTplSuggest);
+  }, [loadTplSuggest, page]);
   const idsKey = (clients || []).map((c) => c.id).sort().join(",");
   const load = useCallback(async () => {
     const sb = window.mgbSupabase;
@@ -697,6 +720,17 @@ function TB_useBellItems({ clients, items, me, isAdmin, page }) {
         go: () => TB_go("#/close-tracker"),
       }),
     );
+  tplSuggest.forEach((row) =>
+    out.push({
+      id: "tsug:" + row.id,
+      at: row.created_at,
+      title: `Template suggestion: ${row.title}`,
+      sub:
+        [String(row.suggested_by || "").split("@")[0], row.client_id ? nameOf(row.client_id) : ""].filter(Boolean).join(" · ") ||
+        "Task templates",
+      go: () => TB_go("#/templates"),
+    }),
+  );
   out.sort((a, b) => String(b.at || "").localeCompare(String(a.at || "")));
   if (stSnap && typeof ST_bellAllows === "function") return out.filter((it) => ST_bellAllows(stSnap.settings, it.id));
   return out;

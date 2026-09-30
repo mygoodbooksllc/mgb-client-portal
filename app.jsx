@@ -17991,7 +17991,14 @@ const TASK_TAB_EMPTY = {
   all: "Nothing on your list — add a task above.",
 };
 
-function MyTasksPage({ staffUser, clients, statusOverrides, canManageTemplates, onOpenTemplates }) {
+function MyTasksPage({
+  staffUser,
+  clients,
+  statusOverrides,
+  canManageTemplates,
+  canCreateTemplates,
+  onOpenTemplates,
+}) {
   const showToast = useToast();
   const supabase = window.mgbSupabase;
   const today = todayLocal();
@@ -18175,6 +18182,21 @@ function MyTasksPage({ staffUser, clients, statusOverrides, canManageTemplates, 
   async function toggleTask(task) {
     const { error } = await staffItemsApi.toggleDone(supabase, me, task);
     if (error) showToast(`Couldn't update task: ${error.message}`);
+  }
+
+  // "Save as template" (components/staff/TaskTemplates.jsx): admins get the
+  // pre-filled template editor; everyone else sends admins a suggestion.
+  async function saveAsTemplate(task) {
+    if (typeof TT_draftFromTask !== "function") return;
+    if (canCreateTemplates && onOpenTemplates) {
+      TT_openDraft(TT_draftFromTask(task));
+      onOpenTemplates();
+      return;
+    }
+    const { error, duplicate } = await TT_suggestFromTask(supabase, task);
+    if (duplicate) showToast("You've already suggested this one. An admin will review it.");
+    else if (error) showToast(`Couldn't send the suggestion: ${error.message}`);
+    else showToast("Suggested to admins as a recurring template.");
   }
 
   async function toggleShared(task) {
@@ -18823,6 +18845,17 @@ function MyTasksPage({ staffUser, clients, statusOverrides, canManageTemplates, 
               }
             >
               <UsersIcon width="16" height="16" />
+            </button>
+          )}
+          {!legacy && t.kind !== "note" && typeof TT_TemplateIcon === "function" && (
+            <button
+              type="button"
+              className="task-icon-btn"
+              onClick={() => saveAsTemplate(t)}
+              aria-label={`${canCreateTemplates ? "Save as template" : "Suggest as template"}: ${t.text}`}
+              title={canCreateTemplates ? "Save as template" : "Suggest as a template (admins review it)"}
+            >
+              <TT_TemplateIcon />
             </button>
           )}
           {mine && (
@@ -24986,6 +25019,7 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
               canManageTemplates={
                 (staffUser.role === "admin" || hasTempAdminAccess) && !impersonating
               }
+              canCreateTemplates={staffUser.role === "admin" && !impersonating}
               onOpenTemplates={() => setPage("task-templates")}
             />
           )}
