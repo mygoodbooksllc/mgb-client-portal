@@ -894,3 +894,21 @@ button.cc-badge { cursor: pointer; }
   color: var(--text-muted);
 }
 .ob-entity .ob-input { width: auto; min-width: 130px; }
+
+/* My Tasks: "Manage templates" link for admins (app.jsx MyTasksPage). */
+.tasks-manage-templates {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px 10px;
+  margin: -4px 0 12px;
+}
+.tasks-manage-templates .link-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+}
+.tasks-manage-templates .link-btn svg { width: 14px; height: 14px; }
+.tasks-manage-hint { font-size: 12px; color: var(--text-muted); }

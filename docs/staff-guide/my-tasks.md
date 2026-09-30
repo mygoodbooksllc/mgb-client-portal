@@ -37,6 +37,8 @@ You can also add a task from inside a client: click **+** in the top bar and cho
 - The people icon shares or stops sharing a task with the client's team. **×** removes it.
 - Chips tell you where a task came from: **From note**, **Access request**, or **Recurring** (made by a [task template](#/help/task-templates)).
 
+Admins (and staff with temporary admin access) see **Manage templates** at the top right of My Tasks. It opens **Task templates** (also in **Settings → Firm settings**).
+
 The number next to **My Tasks** in the sidebar counts items that are overdue, due today, or past their remind-me time. The **My Tasks** button in the top bar shows how many open tasks you have, with overdue ones in a red number. Search (**Ctrl+K** / **⌘K**) finds your tasks and notes by their text.
 
 ### Troubleshooting

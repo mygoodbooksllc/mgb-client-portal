@@ -18,7 +18,7 @@ Some work happens for every client on a schedule, like reconciling bank accounts
 
 ### Setting up a template (admins)
 
-**Task templates** is in **Settings → Firm settings**, under **People and work** (`#/templates` still opens it). Admins and staff with temporary admin access can open it.
+**Task templates** is in **Settings → Firm settings**, under **People and work** (`#/templates` still opens it). Admins and staff with temporary admin access can open it, and also get a **Manage templates** link at the top of **My Tasks**.
 
 1. Click **New template**.
 2. Type the **Task title**, for example *Reconcile bank accounts*. Don't add the month; it's added for you.

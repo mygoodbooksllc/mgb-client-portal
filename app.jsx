@@ -17859,7 +17859,7 @@ const TASK_TAB_EMPTY = {
   all: "Nothing on your list — add a task above.",
 };
 
-function MyTasksPage({ staffUser, clients, statusOverrides }) {
+function MyTasksPage({ staffUser, clients, statusOverrides, canManageTemplates, onOpenTemplates }) {
   const showToast = useToast();
   const supabase = window.mgbSupabase;
   const today = todayLocal();
@@ -18711,6 +18711,15 @@ function MyTasksPage({ staffUser, clients, statusOverrides }) {
 
   return (
     <div className="tasks-page">
+      {canManageTemplates && onOpenTemplates && (
+        <div className="tasks-manage-templates">
+          <button type="button" className="link-btn" onClick={onOpenTemplates}>
+            <RepeatIcon />
+            <span>Manage templates</span>
+          </button>
+          <span className="tasks-manage-hint">Recurring tasks, in Settings → Firm settings</span>
+        </div>
+      )}
       <div className="card" style={{ marginBottom: 20 }}>
         <h3 className="card-title">Add a task or reminder</h3>
         <p className="card-subtitle">
@@ -24822,6 +24831,10 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
               staffUser={effectiveStaffUser}
               clients={visibleClients}
               statusOverrides={statusOverrides}
+              canManageTemplates={
+                (staffUser.role === "admin" || hasTempAdminAccess) && !impersonating
+              }
+              onOpenTemplates={() => setPage("task-templates")}
             />
           )}
           {effectivePage === "client-overview" && (
