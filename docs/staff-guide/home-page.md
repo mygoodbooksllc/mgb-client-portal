@@ -36,7 +36,7 @@ Click **Customize dashboard** to open the customize panel on the right. The same
 - **On your dashboard** lists what's showing. Use the arrows (or drag the handle) to reorder, and **−** to hide a card.
 - While the panel is open, every card on the page gets a dotted outline, a drag handle and an **×** to hide it, so you can also rearrange right on the page.
 - **Saved views** lets you save the current layout under a name and switch back to it later. **Reset to default** puts everything back.
-- Close the panel with **Done**, the **X**, the **Esc** key, or by clicking outside it. Your layout is saved.
+- Close the panel with **Done**, the **X**, the **Esc** key, or by clicking outside it. Your layout is saved to your account, so it follows you to any computer or phone.
 
 While you're using **View as** or previewing a person, changes you make aren't saved to your own layout.
 

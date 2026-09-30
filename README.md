@@ -491,9 +491,8 @@ Owner setup:
     showing, with up/down, drag, and remove. The footer has saved views and **Reset to default**.
     While the drawer is open the board is in edit mode: each card gets an outline, a drag handle
     and a remove button. The same drawer serves Bookkeeper Home and the Live Report.
-  - Layouts and saved views are stored in `localStorage` and, once
-    `supabase/user-board-layouts.sql` is applied (**not yet applied**), in
-    `public.user_board_layouts` per signed-in user and board (debounced saves; an existing local
+  - Layouts and saved views follow the signed-in person across browsers and devices:
+    they are saved in `public.user_board_layouts` (`supabase/user-board-layouts.sql`), with `localStorage` as a cache, per signed-in user and board (debounced saves; an existing local
     layout is uploaded once). If that table is missing or unreachable, it quietly stays on
     `localStorage`. Nothing is written while staff use View as or preview a person.
 - **Messages**: each person's private thread with MyGoodBooks (`client_messages`, see the Inbox

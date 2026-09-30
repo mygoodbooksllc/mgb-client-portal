@@ -1,6 +1,6 @@
 -- Customizable boards follow the signed-in person across browsers and devices
 -- (owner request 2026-09-30).
--- NOT YET APPLIED (apply_migration was denied by the permission system 2026-09-30).
+-- Applied to production 2026-09-30 as migration user_board_layouts (RLS tested: own rows only).
 --
 -- One row per person per board. A "board" is any page with the Customize
 -- drawer (components/dashboard/WidgetDrawer.jsx):
