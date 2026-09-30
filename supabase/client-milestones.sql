@@ -164,6 +164,8 @@ create policy "client reads own milestone history" on public.client_milestone_hi
 --   exactly that window), so the monthly average is tx_90d / 3.
 -- qbo_budget_total: the QuickBooks budget for the latest fiscal year, if any.
 -- expenses_12m: total expenses over the last 12 complete months.
+-- (Superseded by milestone-stats-expense-budget.sql: expense budget lines
+-- only, and expenses_12m annualized from the closed months synced.)
 -- last_synced_at: newest qbo_transactions row, so the app can say how fresh.
 
 create or replace function public.client_milestone_stats(p_client_ids text[])
