@@ -332,6 +332,22 @@ function buildSections(d: any): Section[] {
       items.push(bad("The firm's QuickBooks connection needs reconnecting."));
       textItems.push("The firm's QuickBooks connection needs reconnecting.");
     }
+    // Intuit API usage this month (qbo_usage_status; supabase/qbo-usage-guard.sql).
+    const u = d.qbo_usage;
+    if (u && Number(u.cap)) {
+      const pct = (n: number) => `${Math.round((n / Number(u.cap)) * 100)}%`;
+      const fmt = (n: number) => Number(n || 0).toLocaleString("en-US");
+      const line =
+        `QuickBooks API usage: ${fmt(u.calls)} calls this month (${pct(u.calls)} of ${fmt(u.cap)}), ` +
+        `on pace for ${fmt(u.projected)} (${pct(u.projected)}). Pro syncs every ${u.premium_interval_min} min`;
+      const note =
+        u.mode === "stopped" ? " — scheduled syncs are stopped until next month; Sync now still works."
+        : u.mode === "throttled" ? " — slowed down to stay under the monthly limit."
+        : ".";
+      const text = line + note;
+      items.push(u.mode === "stopped" ? bad(esc(text)) : u.mode === "throttled" ? warn(esc(text)) : esc(text));
+      textItems.push(text);
+    }
     const html = items.length ? items.map((i) => para(`• ${i}`)).join("") : empty();
     out.push({ title: "Pending", html, text: textItems.length ? textTable(textItems) : "  Nothing this week.", link: team });
   }
@@ -477,6 +493,15 @@ Deno.serve(async (req) => {
     await log("error", { detail });
     console.log(`weekly-admin-digest: ${detail}`);
     return json({ status: "error", error: detail }, 500);
+  }
+
+  // Usage guard status for the Pending section. Optional: a failure here
+  // never stops the digest.
+  try {
+    const { data: usage, error: usageErr } = await admin.rpc("qbo_usage_status");
+    if (!usageErr && usage) (data as any).qbo_usage = usage;
+  } catch (_e) {
+    // ignore
   }
 
   const email = render(data);

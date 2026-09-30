@@ -22,8 +22,14 @@ import { createClient } from "jsr:@supabase/supabase-js@2";
 // Both: one sync at a time (sync_started_at lock), and a forced sync inside
 // 60 seconds of a good one returns "fresh" without phoning Intuit.
 //
+// Intuit usage guard (supabase/qbo-usage-guard.sql): every Accounting API
+// call is counted into qbo_api_usage (source 'qbo-firm-sync') once per
+// request, and an unforced cron run is skipped ("usage_stopped") once the
+// month's calls pass the hard stop. Forced and admin runs still go.
+//
 // Response: { status: "ok" | "fresh" | "in_progress" | "not_due" |
-//             "not_connected" | "error", synced_at?, error?, counts? }
+//             "not_connected" | "usage_stopped" | "error", synced_at?,
+//             error?, counts? }
 //
 // verify_jwt must be OFF (the cron caller has no Supabase session); the
 // bearer checks below are the gate. Never logs Intuit response bodies or any
@@ -110,7 +116,22 @@ function qEscape(s: string): string {
 // ---------------------------------------------------------------------------
 // Intuit HTTP
 // ---------------------------------------------------------------------------
+// Intuit Accounting API calls since the last flush (read-and-reset).
+let INTUIT_CALLS = 0;
+
+async function flushUsage(admin: any) {
+  const n = INTUIT_CALLS;
+  INTUIT_CALLS = 0;
+  if (n <= 0) return;
+  const { error } = await admin.rpc("qbo_usage_add", { p_source: "qbo-firm-sync", p_calls: n });
+  if (error) {
+    INTUIT_CALLS += n;
+    console.log(`qbo-firm-sync: usage counter update failed: ${error.message}`);
+  }
+}
+
 async function intuitGet(accessToken: string, url: string, what: string): Promise<any> {
+  INTUIT_CALLS++;
   const res = await fetch(url, {
     headers: { Authorization: `Bearer ${accessToken}`, Accept: "application/json" },
   });
@@ -470,6 +491,14 @@ async function syncFirm(admin: any, conn: any, trigger: string) {
 // Entry point
 // ---------------------------------------------------------------------------
 Deno.serve(async (req) => {
+  try {
+    return await handle(req);
+  } finally {
+    await flushUsage(createClient(SUPABASE_URL, SERVICE_ROLE_KEY)).catch(() => {});
+  }
+});
+
+async function handle(req: Request): Promise<Response> {
   const authHeader = req.headers.get("Authorization") || "";
   const presented = authHeader.replace(/^Bearer\s+/i, "");
   if (!presented) return json({ error: "unauthorized" }, 401);
@@ -523,6 +552,12 @@ Deno.serve(async (req) => {
   if (!force && lastMs && Date.now() - lastMs < SYNC_INTERVAL_MS) {
     return json({ status: "not_due", synced_at: conn.last_synced_at });
   }
+  if (!force) {
+    const { data: usage, error: usageErr } = await admin.rpc("qbo_usage_status");
+    if (!usageErr && usage?.mode === "stopped") {
+      return json({ status: "usage_stopped", synced_at: conn.last_synced_at });
+    }
+  }
   if (force && lastMs && Date.now() - lastMs < MIN_FORCED_INTERVAL_MS) {
     return json({ status: "fresh", synced_at: conn.last_synced_at });
   }
@@ -547,4 +582,4 @@ Deno.serve(async (req) => {
   } finally {
     await admin.from("qbo_firm_connection").update({ sync_started_at: null }).eq("id", true);
   }
-});
+}
