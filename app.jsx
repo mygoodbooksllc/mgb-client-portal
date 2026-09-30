@@ -869,8 +869,19 @@ function scopeClientData(client, access) {
 
   if (!cats && !funds) return { ...client, documents };
 
+  // A category-scoped (ministry) person gets none of the organization-wide
+  // figures: the monthly income/expense history, open receivables and
+  // payables. Their tabs are already hidden (ORG_WIDE_TABS), but these
+  // arrays also feed the Budget page's trend chart, the alerts and the
+  // What-If model. Emptying them here closes every such path at once;
+  // orgWideHidden lets a page say why instead of "no data yet".
+  const orgWide = cats
+    ? { monthly: [], receivables: [], payables: [], orgWideHidden: true }
+    : {};
+
   return {
     ...client,
+    ...orgWide,
     documents,
     budget: cats
       ? client.budget.filter((b) => cats.has(b.category))
@@ -6801,13 +6812,24 @@ function BudgetPage({ client, searchTarget }) {
       {view === "trend" && (
         <div className="card">
           <h3 className="card-title">Spending Trend</h3>
-          <p className="card-subtitle">
-            Income vs. expenses, last {client.monthly.length} months
-          </p>
-          <IncomeExpenseChart
-            monthly={client.monthly}
-            budgetTotal={totals.budgeted}
-          />
+          {client.orgWideHidden ? (
+            <p className="card-subtitle">
+              The income and spending trend covers the whole organization, so
+              it isn&rsquo;t part of your access.
+            </p>
+          ) : (client.monthly || []).length === 0 ? (
+            <p className="card-subtitle">No monthly history yet.</p>
+          ) : (
+            <>
+              <p className="card-subtitle">
+                Income vs. expenses, last {client.monthly.length} months
+              </p>
+              <IncomeExpenseChart
+                monthly={client.monthly}
+                budgetTotal={totals.budgeted}
+              />
+            </>
+          )}
         </div>
       )}
     </div>
