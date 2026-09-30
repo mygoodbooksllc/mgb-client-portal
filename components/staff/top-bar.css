@@ -2,6 +2,138 @@
    Staff top bar (components/staff/TopBar.jsx). Staff side only.
    ========================================================================== */
 
+/* ==========================================================================
+   Option B: navy bar, joined to the sidebar.
+   The bar reads --sidebar-bg so it forms one dark frame with the left
+   sidebar; controls sit on translucent-white chips, text uses the sidebar
+   text colours, accents are gold, badge counts stay red. Dropdown panels
+   (client list, search results, bell, + menu, avatar menu) stay light
+   surface panels with normal text. Everything above/below reads these
+   --tb-* tokens, so to revert: point them back at the surface tokens
+   (--tb-bg: var(--surface), --tb-chip: var(--surface), --tb-fg: var(--text)
+   ...) and delete the "Option B" rules at the end of this block.
+   ========================================================================== */
+.tb-bar {
+  --tb-bg: var(--sidebar-bg);
+  --tb-edge: transparent; /* no light rule under the bar in light mode */
+  --tb-chip: rgba(255, 255, 255, 0.08);
+  --tb-chip-hover: rgba(255, 255, 255, 0.13);
+  --tb-chip-border: rgba(255, 255, 255, 0.1);
+  --tb-fg: var(--sidebar-text);
+  --tb-fg-strong: var(--sidebar-text-active);
+  --tb-muted: var(--sidebar-text-muted);
+  --tb-icon: var(--sidebar-text);
+  --tb-accent: var(--gold);
+  --tb-accent-soft: rgba(199, 174, 134, 0.18);
+  --tb-accent-border: rgba(199, 174, 134, 0.5);
+  --tb-focus: var(--gold);
+  --tb-warn: #f3c979;
+  --tb-warn-bg: rgba(232, 170, 60, 0.14);
+  --tb-warn-border: rgba(232, 170, 60, 0.5);
+  --tb-stop: #f0a193;
+  --tb-stop-bg: rgba(226, 99, 95, 0.14);
+  --tb-stop-border: rgba(226, 99, 95, 0.55);
+}
+/* Dark mode: the page is near-black too, so give the bar a hairline edge. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .tb-bar {
+    --tb-edge: rgba(255, 255, 255, 0.08);
+  }
+}
+:root[data-theme="dark"] .tb-bar {
+  --tb-edge: rgba(255, 255, 255, 0.08);
+}
+
+/* Option B: sync pill as a bar chip with gold text and dot. */
+.tb-sync .live-sync-pill {
+  min-height: 34px;
+  border-color: var(--tb-accent-border);
+  background: var(--tb-chip);
+  color: var(--tb-accent);
+}
+.tb-sync .live-sync-pill:hover:not(:disabled) {
+  border-color: var(--tb-accent);
+  background: var(--tb-chip-hover);
+}
+.tb-sync .live-sync-pill-static:hover {
+  border-color: var(--tb-accent-border);
+  background: var(--tb-chip);
+}
+.tb-sync .live-sync-pill:focus-visible {
+  outline-color: var(--tb-focus);
+}
+.tb-bar .badge-live--sample {
+  min-height: 34px;
+  box-sizing: border-box;
+  border-color: var(--tb-chip-border);
+  background: var(--tb-chip);
+  color: var(--tb-muted);
+  font-weight: 600;
+  white-space: nowrap;
+}
+.tb-bar .badge-live--sample .badge-dot {
+  background: currentColor;
+}
+
+/* Option B: the client picker's list opens as a light surface panel, like
+   the other bar dropdowns (the sidebar copy of the switcher stays navy). */
+.tb-client .cs-popover {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.16);
+  color: var(--text);
+}
+.tb-client .cs-search {
+  background: var(--surface-2, var(--bg));
+  border-color: var(--border);
+  color: var(--text-muted);
+}
+.tb-client .cs-search:focus-within {
+  border-color: var(--gold);
+}
+.tb-client .cs-search-input {
+  color: var(--text);
+}
+.tb-client .cs-search-input::placeholder,
+.tb-client .cs-section-label,
+.tb-client .cs-empty,
+.tb-client .cs-row.locked {
+  color: var(--text-muted);
+}
+.tb-client .cs-row {
+  color: var(--text);
+}
+.tb-client .cs-row.active {
+  background: var(--warm-bg);
+  color: var(--ink-strong);
+}
+.tb-client .cs-row.current {
+  color: var(--gold-deep);
+}
+.tb-client .cs-tag,
+.tb-client .cs-tag-pending {
+  background: var(--hover-bg);
+  color: var(--text-muted);
+}
+.tb-client .cs-tag-temp {
+  background: var(--warm-bg);
+  color: var(--gold-deep);
+}
+.tb-client .cs-tag-count {
+  background: var(--gold);
+  color: var(--on-gold);
+}
+.tb-client .cs-row-action {
+  color: var(--gold-deep);
+}
+.tb-client button.cs-row-action:hover {
+  background: var(--hover-bg);
+}
+.tb-client .cs-error {
+  color: var(--bad);
+}
+/* ======================= end Option B: navy bar ========================== */
+
 .tb-bar {
   position: sticky;
   top: 0;
@@ -14,8 +146,9 @@
   padding: 8px 40px;
   min-height: 56px;
   box-sizing: border-box;
-  background: var(--surface);
-  border-bottom: 1px solid var(--border);
+  background: var(--tb-bg);
+  border-bottom: 1px solid var(--tb-edge);
+  color: var(--tb-fg);
   font-family: var(--font-body);
 }
 @media (max-width: 1024px) {
@@ -53,9 +186,9 @@
   justify-content: center;
   gap: 6px;
   height: 34px;
-  border: 1px solid var(--border);
-  background: var(--surface);
-  color: var(--text-muted);
+  border: 1px solid var(--tb-chip-border);
+  background: var(--tb-chip);
+  color: var(--tb-icon);
   font: inherit;
   cursor: pointer;
 }
@@ -83,19 +216,29 @@
   height: 30px;
   font-size: 11.5px;
 }
+.tb-avatar-btn:hover .staff-user-avatar,
+.tb-avatar-btn[aria-expanded="true"] .staff-user-avatar {
+  box-shadow: 0 0 0 2px var(--tb-chip-hover);
+}
 .tb-icon-btn:hover,
 .tb-pill-btn:hover,
 .tb-icon-btn[aria-expanded="true"] {
-  background: var(--hover-bg);
-  color: var(--ink-strong);
+  background: var(--tb-chip-hover);
+  color: var(--tb-fg-strong);
 }
 .tb-bar button:focus-visible,
 .tb-search-input:focus-visible {
-  outline: 2px solid var(--gold-deep);
+  outline: 2px solid var(--tb-focus);
   outline-offset: 2px;
 }
+/* The bell: unseen state in gold (the base .notif-bell uses --gold-deep,
+   which is too dark on navy in light mode). Count badge stays red. */
+.tb-bar .notif-bell.has-unseen {
+  color: var(--tb-accent);
+  border-color: var(--tb-accent-border);
+}
 
-/* ---- 1. Client picker (sidebar-styled switcher, recoloured for the bar) ---- */
+/* ---- 1. Client picker (the sidebar switcher's trigger, on a bar chip) ---- */
 .tb-client {
   min-width: 0;
   width: 250px;
@@ -107,36 +250,36 @@
 .tb-client .cs-trigger {
   min-height: 40px;
   padding: 4px 8px;
-  background: var(--surface);
-  border-color: var(--border);
-  color: var(--ink-strong);
+  background: var(--tb-chip);
+  border-color: var(--tb-chip-border);
+  color: var(--tb-fg-strong);
 }
 .tb-client .cs-trigger:hover,
 .tb-client .cs-trigger.open {
-  background: var(--hover-bg);
-  border-color: var(--gold);
+  background: var(--tb-chip-hover);
+  border-color: var(--tb-accent-border);
 }
 .tb-client .cs-trigger:focus-visible {
-  outline-color: var(--gold-deep);
+  outline: 2px solid var(--tb-focus);
+  outline-offset: 2px;
 }
 .tb-client .cs-tile {
   width: 28px;
   height: 28px;
-  background: var(--warm-bg);
-  color: var(--gold-deep);
+  background: var(--tb-accent-soft);
+  color: var(--tb-accent);
 }
 .tb-client .cs-tile.empty {
-  background: var(--surface-2);
-  color: var(--text-muted);
+  background: var(--tb-chip);
+  color: var(--tb-muted);
 }
 .tb-client .cs-trigger-sub,
 .tb-client .cs-chev {
-  color: var(--text-muted);
+  color: var(--tb-muted);
 }
 .tb-client .cs-sub-temp {
-  color: var(--gold-deep);
+  color: var(--tb-accent);
 }
-/* The popover keeps its navy styling; just give it room. */
 .tb-client .cs-popover {
   width: max(100%, 320px);
 }
@@ -160,14 +303,17 @@
   gap: 8px;
   height: 36px;
   padding: 0 10px;
-  border: 1px solid var(--border);
+  border: 1px solid var(--tb-chip-border);
   border-radius: 10px;
-  background: var(--surface-2, var(--bg));
-  color: var(--text-muted);
+  background: var(--tb-chip);
+  color: var(--tb-muted);
+}
+.tb-search-box:hover {
+  background: var(--tb-chip-hover);
 }
 .tb-search-box:focus-within {
-  border-color: var(--gold);
-  background: var(--surface);
+  border-color: var(--tb-focus);
+  background: var(--tb-chip-hover);
 }
 .tb-search-box svg {
   width: 15px;
@@ -179,23 +325,24 @@
   min-width: 0;
   border: 0;
   background: transparent;
-  color: var(--text);
+  color: var(--tb-fg-strong);
   font: inherit;
   font-size: 13.5px;
   outline: none;
 }
 .tb-search-input::placeholder {
-  color: var(--text-muted);
+  color: var(--tb-muted);
+  opacity: 1;
 }
 .tb-kbd {
   flex-shrink: 0;
   padding: 1px 6px;
-  border: 1px solid var(--border);
+  border: 1px solid var(--tb-chip-border);
   border-radius: 5px;
   font-family: var(--font-body);
   font-size: 11px;
-  color: var(--text-muted);
-  background: var(--surface);
+  color: var(--tb-muted);
+  background: transparent;
 }
 
 /* ---- Dropdown panels ---- */
@@ -274,7 +421,7 @@
   overflow-y: auto;
 }
 
-/* ---- 5. My Tasks badge (the sidebar's count, recoloured for the bar) ---- */
+/* ---- 5. My Tasks badge ---- */
 .tb-tasks svg {
   flex-shrink: 0;
 }
@@ -283,8 +430,8 @@
   height: 18px;
   padding: 0 5px;
   border-radius: 999px;
-  background: var(--surface-2, var(--hover-bg));
-  color: var(--ink-strong);
+  background: var(--tb-chip-hover);
+  color: var(--tb-fg-strong);
   font-size: 11px;
   font-weight: 700;
   line-height: 18px;
@@ -387,25 +534,30 @@
   background: var(--border);
 }
 
-/* ---- 9. Throttle badge (admins) ---- */
+/* ---- 9. Throttle badge (admins): an amber chip; red when stopped ---- */
 .tb-throttle {
   padding: 0 10px;
   border-radius: 999px;
-  border-color: var(--gold);
-  background: var(--warm-bg);
-  color: var(--ink-strong);
+  border-color: var(--tb-warn-border);
+  background: var(--tb-warn-bg);
+  color: var(--tb-warn);
   font-size: 12px;
   font-weight: 600;
   white-space: nowrap;
 }
+.tb-throttle:hover {
+  border-color: var(--tb-warn);
+}
 .tb-throttle svg {
-  color: var(--gold-deep);
+  color: var(--tb-warn);
 }
 .tb-throttle.stopped {
-  border-color: var(--bad);
+  border-color: var(--tb-stop-border);
+  background: var(--tb-stop-bg);
+  color: var(--tb-stop);
 }
 .tb-throttle.stopped svg {
-  color: var(--bad);
+  color: var(--tb-stop);
 }
 
 /* Narrower desktop windows: drop text labels, keep the icons and counts. */

@@ -5,7 +5,7 @@ audience: staff
 keywords: [top bar, toolbar, header, search, ctrl k, cmd k, notifications, bell, my tasks, plus, quick add, help, account, avatar, sign out, dark mode, sync, live]
 sort: 25
 ---
-Across the top of every staff page there's a white bar with your most-used tools. Clients never see it, and it goes away while you use **Preview as** to look at the portal as a client user. The sidebar on the left still has the page links (Home, Inbox, My Tasks and so on).
+Across the top of every staff page there's a dark bar, joined to the sidebar, with your most-used tools. Clients never see it, and it goes away while you use **Preview as** to look at the portal as a client user. The sidebar on the left still has the page links (Home, Inbox, My Tasks and so on).
 
 ### Left side
 
