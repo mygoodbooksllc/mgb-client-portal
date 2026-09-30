@@ -19433,13 +19433,110 @@ function DocumentsPage({ client, isBookkeeper, searchTarget }) {
   const [folders, setFolders] = useState(
     () => loadDocFolders(client.id).folders,
   );
+  // Three sources, one list:
+  //   - client.documents: data.js sample files (sample clients only; the
+  //     QuickBooks mapper empties it),
+  //   - client_documents: links MyGoodBooks staff add (Google Drive etc.),
+  //   - client-uploads/<client>/shared/: files anyone at the org uploads
+  //     here, stored for real in Supabase Storage.
+  // Each row has a stable `key` that folder assignments are saved under
+  // (they used to be keyed by filename, so two files with the same name
+  // shared a folder).
   const [docs, setDocs] = useState(() => {
     const { assignments } = loadDocFolders(client.id);
-    return client.documents.map((d) => ({
+    return (client.documents || []).map((d) => ({
       ...d,
-      folder: assignments[d.name] || null,
+      key: "sample:" + d.name,
+      source: "sample",
+      folder: assignments["sample:" + d.name] || assignments[d.name] || null,
     }));
   });
+  const [remoteState, setRemoteState] = useState("idle"); // idle | loading | ready | error
+  const [uploading, setUploading] = useState(false);
+  const [docSearch, setDocSearch] = useState("");
+  const [docSort, setDocSort] = useState("newest"); // newest | oldest | name
+  const docSb = window.mgbSupabase || null;
+
+  const loadRemoteDocs = useCallback(async () => {
+    if (!docSb) return;
+    // Signed out (the local prototype): nothing to load, and storage would
+    // just answer "permission denied".
+    const sess = await docSb.auth.getSession();
+    if (!sess.data || !sess.data.session) return;
+    setRemoteState("loading");
+    const [linksRes, filesRes] = await Promise.all([
+      docSb
+        .from("client_documents")
+        .select("id, name, drive_url, category, created_at")
+        .eq("client_id", client.id)
+        .order("created_at", { ascending: false })
+        .limit(500),
+      docSb.storage
+        .from("client-uploads")
+        .list(`${client.id}/shared`, {
+          limit: 500,
+          sortBy: { column: "created_at", order: "desc" },
+        }),
+    ]);
+    if (linksRes.error && filesRes.error) {
+      setRemoteState("error");
+      return;
+    }
+    const { assignments } = loadDocFolders(client.id);
+    const links = (linksRes.data || []).map((r) => ({
+      key: "link:" + r.id,
+      source: "link",
+      name: r.name,
+      category: r.category || "Shared by MyGoodBooks",
+      uploadedBy: "MyGoodBooks",
+      date: String(r.created_at || "").slice(0, 10),
+      size: "Link",
+      url: safeHttpUrl(r.drive_url),
+    }));
+    const files = (filesRes.data || [])
+      .filter((f) => f && f.id && f.name)
+      .map((f) => ({
+        key: "file:" + f.name,
+        source: "upload",
+        // Stored as "<timestamp>-<name>"; show the original name.
+        name: f.name.replace(/^\d+-/, ""),
+        category: "Uploaded",
+        uploadedBy: "Your organization",
+        date: String(f.created_at || "").slice(0, 10),
+        size: f.metadata && f.metadata.size ? formatBytes(f.metadata.size) : "",
+        path: `${client.id}/shared/${f.name}`,
+      }));
+    const remote = [...files, ...links].map((d) => ({
+      ...d,
+      folder: assignments[d.key] || null,
+    }));
+    setDocs((prev) => [...prev.filter((d) => d.source === "sample"), ...remote]);
+    setRemoteState(linksRes.error || filesRes.error ? "error" : "ready");
+  }, [docSb, client.id]);
+
+  useEffect(() => {
+    loadRemoteDocs();
+  }, [loadRemoteDocs]);
+
+  const openDoc = async (d, index) => {
+    if (d.source === "link") {
+      if (d.url) window.open(d.url, "_blank", "noopener");
+      else showToast("That link isn't a valid https:// address.");
+      return;
+    }
+    if (d.source === "upload") {
+      const { data, error } = await docSb.storage
+        .from("client-uploads")
+        .createSignedUrl(d.path, 300);
+      if (error || !data) {
+        showToast("Couldn't open that file. Try again in a moment.");
+        return;
+      }
+      window.open(data.signedUrl, "_blank", "noopener");
+      return;
+    }
+    setPreviewIndex(index);
+  };
   const [activeFolder, setActiveFolder] = useState(null); // null = "All"
   const [addingFolder, setAddingFolder] = useState(false);
   const [newFolderName, setNewFolderName] = useState("");
@@ -19456,48 +19553,56 @@ function DocumentsPage({ client, isBookkeeper, searchTarget }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchTarget && searchTarget.nonce]);
 
-  // Persists folder names + which folder each document is in, by name.
-  // Doesn't persist the documents themselves — a fresh session still starts
-  // from client.documents/newly uploaded files, same as before.
+  // Persists folder names + which folder each document is in, by the
+  // document's stable key. Folders are per browser (localStorage).
   useEffect(() => {
     const assignments = {};
     docs.forEach((d) => {
-      if (d.folder) assignments[d.name] = d.folder;
+      if (d.folder) assignments[d.key] = d.folder;
     });
     saveDocFolders(client.id, folders, assignments);
   }, [client.id, folders, docs]);
 
-  const addFiles = (fileList) => {
+  // Real upload: same bucket and client-folder rule as the document-request
+  // card (storage policy "client uploads own files"), under <client>/shared/.
+  const addFiles = async (fileList) => {
     const files = Array.from(fileList || []);
     if (files.length === 0) return;
-    const today = todayLocal();
-    const newDocs = files.map((f) => ({
-      name: f.name,
-      category: "Uploaded",
-      uploadedBy: "You",
-      date: today,
-      size: formatBytes(f.size),
-      // Org-wide by default, so whoever just uploaded a file can still see it.
-      // MyGoodBooks can restrict it afterwards.
-      visibility: "all",
-      // Kept only for real files uploaded this session, so the preview modal
-      // has actual bytes to show. Pre-loaded sample documents never had a
-      // real file behind them, so they fall back to a metadata-only preview.
-      file: f,
-      folder: activeFolder,
-    }));
-    setDocs((d) => [...newDocs, ...d]);
-    showToast(`Uploaded ${files.length} file${files.length > 1 ? "s" : ""}.`);
-  };
-
-  const toggleVisibility = (index) => {
-    setDocs((d) =>
-      d.map((doc, i) =>
-        i === index
-          ? { ...doc, visibility: doc.visibility === "full" ? "all" : "full" }
-          : doc,
-      ),
-    );
+    const sess = docSb ? await docSb.auth.getSession() : null;
+    if (!sess || !sess.data || !sess.data.session) {
+      showToast("Uploading needs a signed-in account.");
+      return;
+    }
+    const tooBig = files.find((f) => f.size > 25 * 1024 * 1024);
+    if (tooBig) {
+      showToast(`${tooBig.name} is ${formatBytes(tooBig.size)}. Files are capped at 25 MB.`);
+      return;
+    }
+    setUploading(true);
+    let ok = 0;
+    let firstError = null;
+    const { assignments } = loadDocFolders(client.id);
+    for (const f of files) {
+      const safe = f.name.replace(/[^\w.\- ]+/g, "_").slice(-120);
+      const stored = `${Date.now()}-${safe}`;
+      const { error } = await docSb.storage
+        .from("client-uploads")
+        .upload(`${client.id}/shared/${stored}`, f, {
+          upsert: false,
+          contentType: f.type || undefined,
+        });
+      if (error) {
+        firstError = firstError || error.message;
+      } else {
+        ok += 1;
+        if (activeFolder) assignments["file:" + stored] = activeFolder;
+      }
+    }
+    if (activeFolder) saveDocFolders(client.id, folders, assignments);
+    setUploading(false);
+    if (ok) showToast(`Uploaded ${ok} file${ok > 1 ? "s" : ""}. Your bookkeeper can see ${ok > 1 ? "them" : "it"} now.`);
+    if (firstError) showToast(`Couldn't upload: ${firstError}`);
+    loadRemoteDocs();
   };
 
   const moveDocToFolder = (index, folderName) => {
@@ -19534,7 +19639,7 @@ function DocumentsPage({ client, isBookkeeper, searchTarget }) {
   };
 
   // "Full Access Only" filters down to the visibility flag itself
-  // (toggleVisibility, above) rather than some separate "shared with me"
+  // (set on the sample documents) rather than some separate "shared with me"
   // concept — this app's documents only ever carry that one binary flag
   // (org-wide vs. full-access-only), so that's the real, honest thing to
   // filter by. Only worth offering when there's at least one such document
@@ -19547,15 +19652,32 @@ function DocumentsPage({ client, isBookkeeper, searchTarget }) {
     activeFolder === null
       ? docs
       : docs.filter((d) => d.folder === activeFolder);
-  const visibleDocs =
+  const docQuery = docSearch.trim().toLowerCase();
+  const visibleDocs = (
     visFilter === "full"
       ? folderFiltered.filter((d) => d.visibility === "full")
-      : folderFiltered;
+      : folderFiltered
+  )
+    .filter(
+      (d) =>
+        !docQuery ||
+        [d.name, d.category, d.uploadedBy].some((v) =>
+          String(v || "").toLowerCase().includes(docQuery),
+        ),
+    )
+    .slice()
+    .sort((a, b) => {
+      if (docSort === "name") return String(a.name).localeCompare(String(b.name));
+      const cmp = String(a.date || "").localeCompare(String(b.date || ""));
+      return docSort === "oldest" ? cmp : -cmp;
+    });
   const unfiledCount = docs.filter((d) => !d.folder).length;
 
   return (
     <div>
-      <MockBanner text="Uploaded files stay in your browser for this session only — nothing is actually stored yet. Folders you create do stick around on this browser. Files uploaded to a request from your bookkeeper (below) are stored for real." />
+      {docs.some((d) => d.source === "sample") && (
+        <MockBanner text="Sample documents are shown for this prototype client. Files you upload here are stored for real; folders are saved on this browser." client={client} />
+      )}
 
       <DocumentRequestsCard client={client} />
 
@@ -19672,12 +19794,13 @@ function DocumentsPage({ client, isBookkeeper, searchTarget }) {
         </div>
         <button
           className="btn-primary"
+          disabled={uploading}
           onClick={(e) => {
             e.stopPropagation();
             fileInputRef.current.click();
           }}
         >
-          Upload Document
+          {uploading ? "Uploading…" : "Upload Document"}
         </button>
         <input
           ref={fileInputRef}
@@ -19699,8 +19822,31 @@ function DocumentsPage({ client, isBookkeeper, searchTarget }) {
             </h3>
             <p className="card-subtitle" style={{ margin: 0 }}>
               {visibleDocs.length} file{visibleDocs.length !== 1 ? "s" : ""} ·
-              click a document to preview it
+              click a document to open it
+              {remoteState === "loading" ? " · loading…" : ""}
             </p>
+          </div>
+          <div className="doc-tools" style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            <input
+              type="search"
+              className="rb-select"
+              placeholder="Search documents"
+              aria-label="Search documents"
+              value={docSearch}
+              onChange={(e) => setDocSearch(e.target.value)}
+              style={{ minWidth: 0, width: 200, maxWidth: "100%" }}
+            />
+            <select
+              className="rb-select"
+              aria-label="Sort documents"
+              value={docSort}
+              onChange={(e) => setDocSort(e.target.value)}
+              style={{ width: "auto" }}
+            >
+              <option value="newest">Newest first</option>
+              <option value="oldest">Oldest first</option>
+              <option value="name">Name A–Z</option>
+            </select>
           </div>
           {hasRestrictedDocs && (
             <div className="view-toggle">
@@ -19739,20 +19885,37 @@ function DocumentsPage({ client, isBookkeeper, searchTarget }) {
               </tr>
             </thead>
             <tbody>
+              {remoteState === "error" && (
+                <EmptyRow colSpan={isBookkeeper ? 7 : 6}>
+                  Some documents couldn't be loaded.{" "}
+                  <button type="button" className="btn-secondary" onClick={loadRemoteDocs}>
+                    Try again
+                  </button>
+                </EmptyRow>
+              )}
+              {visibleDocs.length === 0 && remoteState !== "loading" && (
+                <EmptyRow colSpan={isBookkeeper ? 7 : 6}>
+                  {docQuery
+                    ? "No documents match that search."
+                    : activeFolder
+                      ? "Nothing in this folder yet."
+                      : "No documents yet. Upload one above, or your bookkeeper can share files here."}
+                </EmptyRow>
+              )}
               {visibleDocs.map((d) => {
                 const i = docs.indexOf(d);
                 const rowId = "doc-row-" + slugify(d.name);
                 return (
                   <tr
-                    key={d.name + i}
+                    key={d.key}
                     id={rowId}
                     className={
                       "doc-row" + (flashCardId === rowId ? " row-flash" : "")
                     }
-                    onClick={() => setPreviewIndex(i)}
+                    onClick={() => openDoc(d, i)}
                     tabIndex={0}
                     onKeyDown={(e) => {
-                      if (e.key === "Enter") setPreviewIndex(i);
+                      if (e.key === "Enter") openDoc(d, i);
                     }}
                   >
                     <td data-primary="">
@@ -19788,16 +19951,13 @@ function DocumentsPage({ client, isBookkeeper, searchTarget }) {
                     </td>
                     {isBookkeeper && (
                       <td data-label="Visible to">
-                        <button
+                        {/* Read-only: there's no stored visibility setting
+                            yet, so a toggle here would only pretend. */}
+                        <span
                           className={
                             "visibility-toggle" +
                             (d.visibility === "full" ? " restricted" : "")
                           }
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            toggleVisibility(i);
-                          }}
-                          title="Click to change who at this organization can see this file"
                         >
                           {d.visibility === "full" ? (
                             <React.Fragment>
@@ -19806,7 +19966,7 @@ function DocumentsPage({ client, isBookkeeper, searchTarget }) {
                           ) : (
                             "Everyone"
                           )}
-                        </button>
+                        </span>
                       </td>
                     )}
                     <td className="num" data-label="Size">
