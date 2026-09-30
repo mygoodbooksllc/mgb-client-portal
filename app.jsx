@@ -3333,61 +3333,58 @@ function IncomeExpenseChart({ monthly, budgetTotal }) {
   );
 }
 
-// Ledger-style breakdown of this month's transactions by subcategory account
-// — income and expense rolled up into the two chart lines above hides which
-// specific accounts (Payroll, Utilities, Giving, ...) actually moved. Reuses
-// the same bar-track/bar-fill visual language as the Budget vs. Actual page
-// so it reads as "the ledger", not a new visual system. Already-scoped data
-// in, so a category-scoped client only ever sees their own subcategories.
+// Where the chart's latest month of expenses went, by expense account.
+// QuickBooks clients: the P&L lines for that month (expenseByAccount for the
+// month-to-date sync month, expenseByAccountPrev for a closed one), the same
+// source as the P&L report. Sample clients: the expense budget's actuals
+// (a full month). This used to add up bank transactions by their category
+// for any month with the same name, which mixed years, counted transfers
+// between accounts twice and called bank categories "subcategory accounts".
+// Category-scoped users get monthly: [] from scopeClientData, so nothing
+// org-wide shows for them.
+const CL_MAX_ROWS = 8;
 function CategoryLedger({ client }) {
   const latestMonth = client.monthly[client.monthly.length - 1];
   if (!latestMonth) return null;
-  const monthPrefix = latestMonth.month; // e.g. "Aug" — matched against tx dates below
-
-  const monthTx = client.bankAccounts
-    .flatMap((a) => a.transactions)
-    .filter((t) => {
-      const d = new Date(t.date + "T00:00:00");
-      return MONTH_ABBR[d.getMonth()] === monthPrefix;
+  const lines =
+    client.dataSource === "quickbooks"
+      ? (window.mgbIsPartialMonth(latestMonth) ? client.expenseByAccount : client.expenseByAccountPrev) || []
+      : window.mgbExpenseBudget(client.budget).map((b) => ({ account: b.category, amount: Number(b.actual) || 0 }));
+  const all = lines
+    .filter((r) => r.amount > 0)
+    .map((r) => ({ category: r.account, amount: r.amount }))
+    .sort((a, b) => b.amount - a.amount);
+  if (all.length === 0) return null;
+  const rows = all.slice(0, CL_MAX_ROWS);
+  const rest = all.slice(CL_MAX_ROWS);
+  if (rest.length) {
+    rows.push({
+      category: `${rest.length} other account${rest.length === 1 ? "" : "s"}`,
+      amount: rest.reduce((s, r) => s + r.amount, 0),
+      other: true,
     });
-
-  if (monthTx.length === 0) return null;
-
-  const byCategory = {};
-  monthTx.forEach((t) => {
-    byCategory[t.category] = (byCategory[t.category] || 0) + t.amount;
-  });
-  const rows = Object.entries(byCategory)
-    .map(([category, amount]) => ({ category, amount }))
-    .sort((a, b) => Math.abs(b.amount) - Math.abs(a.amount));
-  const maxAbs = Math.max(...rows.map((r) => Math.abs(r.amount)), 1);
+  }
+  const maxAbs = Math.max(...rows.map((r) => r.amount), 1);
 
   return (
     <div className="category-ledger">
       <p className="card-subtitle category-ledger-title">
-        Subcategory accounts, {monthPrefix}
+        Expenses by account, {window.mgbMonthLabel(latestMonth)}
       </p>
       <div className="ledger-list">
         {rows.map((r) => {
-          const pct = (Math.abs(r.amount) / maxAbs) * 100;
-          const positive = r.amount >= 0;
+          const pct = (r.amount / maxAbs) * 100;
           return (
-            <div className="ledger-row" key={r.category}>
+            <div className="ledger-row" key={(r.other ? "other:" : "") + r.category}>
               <div className="ledger-row-top">
                 <span className="ledger-category">{r.category}</span>
-                <span
-                  className={
-                    "ledger-amount count-up " +
-                    (positive ? "positive" : "negative")
-                  }
-                >
-                  {positive ? "+" : ""}
+                <span className="ledger-amount count-up">
                   {fmtMoney(r.amount, { cents: true })}
                 </span>
               </div>
               <div className="bar-track">
                 <div
-                  className={"bar-fill " + (positive ? "under" : "over")}
+                  className="bar-fill usage"
                   style={{
                     width: `${pct}%`,
                     animationDuration: `${growDuration(pct)}ms`,
@@ -3618,10 +3615,12 @@ function ScopedDashboardPage({
   const areas = Array.from(access.categories).join(", ");
 
   const twoMonthsAgo = monthsAgoLocal(2);
+  // Newest 50 (DP_RA_PAGE, as on DashboardPage).
   const myTx = client.bankAccounts
     .flatMap((a) => a.transactions)
     .filter((t) => t.date >= twoMonthsAgo)
-    .sort((a, b) => (a.date < b.date ? 1 : -1));
+    .sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0))
+    .slice(0, DP_RA_PAGE);
 
   const myFunds = client.funds || [];
 
@@ -6270,6 +6269,7 @@ function setPreviewPlan(clientId, plan) {
   } catch (e) {}
 }
 
+const DP_RA_PAGE = 50;
 function DashboardPage({
   client,
   access,
@@ -6372,13 +6372,29 @@ function DashboardPage({
     },
   ];
 
+  // Recent Activity. Memoized: it used to rebuild and re-sort every
+  // transaction on every render. Card rows already read as money out for a
+  // charge (mapQboToClient flips QuickBooks' card-register sign).
   const twoMonthsAgo = monthsAgoLocal(2);
-  const allTx = client.bankAccounts
-    .flatMap((a) =>
-      a.transactions.map((t) => ({ ...t, accountName: a.accountName })),
-    )
-    .filter((t) => t.date >= twoMonthsAgo)
-    .sort((a, b) => (a.date < b.date ? 1 : -1));
+  const allTx = useMemo(
+    () =>
+      client.bankAccounts
+        .flatMap((a) =>
+          a.transactions.map((t) => ({ ...t, accountName: a.accountName })),
+        )
+        .filter((t) => t.date >= twoMonthsAgo)
+        .sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0)),
+    [client.bankAccounts, twoMonthsAgo],
+  );
+  const [raSearch, setRaSearch] = useState("");
+  const [raLimit, setRaLimit] = useState(DP_RA_PAGE);
+  const raQuery = raSearch.trim().toLowerCase();
+  const raMatches = raQuery
+    ? allTx.filter((t) =>
+        `${t.description} ${t.accountName} ${t.category || ""}`.toLowerCase().includes(raQuery),
+      )
+    : allTx;
+  const raShown = raMatches.slice(0, raLimit);
 
   const widgets = [
     {
@@ -6563,10 +6579,32 @@ function DashboardPage({
                   <h3 className="card-title">Recent Activity</h3>
                   <p className="card-subtitle">
                     Across all accounts, last 2 months
+                    {allTx.length ? ` · ${allTx.length} transaction${allTx.length === 1 ? "" : "s"}` : ""}
                   </p>
+                  {allTx.length > 5 && (
+                    <input
+                      type="search"
+                      className="rb-select"
+                      style={{ width: 260, maxWidth: "100%", margin: "4px 0 10px" }}
+                      placeholder="Search description or account"
+                      aria-label="Search recent activity"
+                      value={raSearch}
+                      onChange={(e) => {
+                        setRaSearch(e.target.value);
+                        setRaLimit(DP_RA_PAGE);
+                      }}
+                    />
+                  )}
                   <div className="tx-list tx-list-scroll">
-                    {allTx.map((t, i) => (
-                      <div className="tx-row" key={i}>
+                    {raShown.length === 0 && (
+                      <p className="card-subtitle">
+                        {raQuery
+                          ? `No transactions match "${raSearch.trim()}".`
+                          : "No transactions in the last 2 months."}
+                      </p>
+                    )}
+                    {raShown.map((t, i) => (
+                      <div className="tx-row" key={`${t.accountName}|${t.date}|${i}`}>
                         <div>
                           <div className="tx-desc">{t.description}</div>
                           <div className="tx-meta">
@@ -6585,6 +6623,17 @@ function DashboardPage({
                       </div>
                     ))}
                   </div>
+                  {raMatches.length > raShown.length && (
+                    <button
+                      type="button"
+                      className="btn-secondary"
+                      style={{ marginTop: 10 }}
+                      onClick={() => setRaLimit((n) => n + DP_RA_PAGE)}
+                    >
+                      Show {Math.min(DP_RA_PAGE, raMatches.length - raShown.length)} more
+                      {" "}(of {raMatches.length})
+                    </button>
+                  )}
                 </div>
               );
             if (crossTabById[id])

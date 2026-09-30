@@ -153,7 +153,12 @@
         // data.js's `category` is a budget category; QuickBooks' nearest
         // honest equivalent on a register row is the transaction type.
         category: t.txn_type || "Uncategorized",
-        amount: toNumber(t.amount),
+        // Everywhere in the app a negative amount is money out (sample data,
+        // bank registers). On a credit card register QuickBooks reports a
+        // charge as positive (the balance owed went up) and a payment or
+        // credit as negative, so a charge showed as green "+" money in.
+        // Flip card rows to match.
+        amount: acct.kind === "card" ? 0 - toNumber(t.amount) : toNumber(t.amount),
       });
     });
     bankAccounts.forEach(function (acct) {

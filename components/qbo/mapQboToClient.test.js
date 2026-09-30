@@ -265,6 +265,24 @@ eq(operating.transactions[0].description, "Weekly Giving Deposit", "memo wins fo
 eq(operating.transactions[1].description, "Gusto", "payee name is the fallback description");
 eq(operating.transactions[0].category, "Deposit", "category from txn_type");
 eq(operating.transactions[0].amount, 8420, "amount");
+// Card register: QuickBooks reports a charge as positive (owed went up).
+// Flipped so a charge is money out, like every other register.
+{
+  const withCard = mapQboToClient(base, {
+    ...ROWS,
+    transactions: [
+      ...ROWS.transactions,
+      { client_id: "grace-community", qbo_id: "6001", txn_type: "Credit Card Expense", txn_date: "2026-08-21", account_name: "Ministry Card", name: "Amazon", memo: null, amount: 212.4 },
+      { client_id: "grace-community", qbo_id: "6002", txn_type: "Bill Payment (Credit Card)", txn_date: "2026-08-05", account_name: "Ministry Card", name: null, memo: "Card payment", amount: -950 },
+      { client_id: "grace-community", qbo_id: "6003", txn_type: "Credit Card Expense", txn_date: "2026-08-04", account_name: "Ministry Card", name: "Zero", memo: null, amount: 0 },
+    ],
+  });
+  const cardTx = withCard.bankAccounts.find((a) => a.id === "37").transactions;
+  eq(cardTx[0].amount, -212.4, "a card charge maps as money out (negative)");
+  eq(cardTx[1].amount, 950, "a card payment maps as money in (positive)");
+  ok(Object.is(cardTx[2].amount, 0), "a zero card row stays +0, not -0");
+  eq(withCard.bankAccounts.find((a) => a.id === operating.id).transactions[0].amount, 8420, "bank rows keep their sign");
+}
 ok(
   !mapped.bankAccounts.some((a) =>
     (a.transactions || []).some((t) => t.description === "City Water & Power"),
