@@ -1800,9 +1800,7 @@ function StaffRail({
             <span className="brand-sub">Staff</span>
           </>
         ) : (
-          <span className="staff-rail-mark" aria-hidden="true">
-            MGB
-          </span>
+          <span className="staff-rail-mark" role="img" aria-label="MyGoodBooks" />
         )}
       </div>
       {/* Client pages already have the client sidebar's own switcher. Shown
