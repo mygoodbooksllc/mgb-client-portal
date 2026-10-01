@@ -8418,6 +8418,53 @@ tr:hover .inote-btn,
   color: var(--text-muted);
   margin: 0;
 }
+/* Urgent overview cards (owner request 2026-10-01): a slight gold pulse on a
+   card whose own data already says it needs action (health At risk, open
+   transaction questions, close Blocked, QuickBooks needs attention, overdue
+   document request). Shadow only, so no movement or layout shift; the card's
+   normal --shadow is kept underneath. Reduced motion gets a static outline. */
+.client-overview .card.card-urgent {
+  /* --gold (#c7ae86) at low opacity; dark mode needs a touch more to read.
+     --urgent-base keeps the card's own shadow; dark sets --shadow to none,
+     which would void the whole box-shadow list, so dark uses a no-op. */
+  --urgent-base: var(--shadow);
+  --urgent-ring-lo: rgba(199, 174, 134, 0.18);
+  --urgent-ring-hi: rgba(199, 174, 134, 0.35);
+  --urgent-glow-lo: rgba(199, 174, 134, 0.12);
+  --urgent-glow-hi: rgba(199, 174, 134, 0.26);
+  border-color: rgba(199, 174, 134, 0.55);
+  box-shadow: var(--urgent-base), 0 0 0 1px var(--urgent-ring-lo), 0 0 10px 0 var(--urgent-glow-lo);
+  animation: mgb-urgent-pulse 2.4s ease-in-out infinite;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .client-overview .card.card-urgent {
+    --urgent-base: 0 0 0 0 transparent;
+    --urgent-ring-hi: rgba(199, 174, 134, 0.42);
+    --urgent-glow-lo: rgba(199, 174, 134, 0.1);
+    --urgent-glow-hi: rgba(199, 174, 134, 0.3);
+  }
+}
+:root[data-theme="dark"] .client-overview .card.card-urgent {
+  --urgent-base: 0 0 0 0 transparent;
+  --urgent-ring-hi: rgba(199, 174, 134, 0.42);
+  --urgent-glow-lo: rgba(199, 174, 134, 0.1);
+  --urgent-glow-hi: rgba(199, 174, 134, 0.3);
+}
+@keyframes mgb-urgent-pulse {
+  0%,
+  100% {
+    box-shadow: var(--urgent-base), 0 0 0 1px var(--urgent-ring-lo), 0 0 10px 0 var(--urgent-glow-lo);
+  }
+  50% {
+    box-shadow: var(--urgent-base), 0 0 0 2px var(--urgent-ring-hi), 0 0 18px 2px var(--urgent-glow-hi);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .client-overview .card.card-urgent {
+    animation: none;
+    box-shadow: var(--urgent-base), 0 0 0 1px rgba(199, 174, 134, 0.4);
+  }
+}
 .ov-hint {
   color: var(--gold-deep);
   font-weight: 600;

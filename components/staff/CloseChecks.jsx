@@ -181,7 +181,7 @@ function CC_ClientCloseCard({ client }) {
     year: "numeric",
   });
   return (
-    <div className="card cc-card">
+    <div className={"card cc-card" + (row && row.status === "blocked" ? " card-urgent" : "")}>
       <div className="cc-head">
         <h3 className="card-title">{monthName} close</h3>
         <CC_Badge row={row} />

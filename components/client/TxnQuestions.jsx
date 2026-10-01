@@ -438,7 +438,7 @@ function TQ_OpenList({ client, compact, hideEmpty, onOpenBank }) {
     );
   }
   return (
-    <div className="card tq-card">
+    <div className={"card tq-card" + (rows.length > 0 ? " card-urgent" : "")}>
       <div className="ov-card-head">
         <h3 className="card-title">
           Transaction questions

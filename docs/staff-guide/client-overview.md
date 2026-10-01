@@ -2,12 +2,24 @@
 title: What does the Client overview show?
 section: Working with a client
 audience: staff
-keywords: [client overview, close card, month close, ready, blocked, behind, stale bank, organization type, overview, monthly bill, profitability, quickbooks health, engagement, key dates, coverage, activity, log a call, pinned notes, sent to client]
+keywords: [client overview, urgent, gold glow, needs attention, close card, month close, ready, blocked, behind, stale bank, organization type, overview, monthly bill, profitability, quickbooks health, engagement, key dates, coverage, activity, log a call, pinned notes, sent to client]
 sort: 200
 ---
 The **Client overview** is the staff-only summary of one client. You land here whenever you open a client. The client never sees this page.
 
 To come back to it, click **Overview** next to the client picker in the dark bar at the top of the page (it's highlighted while you're on the overview). On a phone, tap the client picker and pick the same client again. The client's own sidebar doesn't list the overview, so it shows exactly what the client sees. A banner reminds you: "Staff only. {client} never sees this page."
+
+### Cards with a gold glow
+
+A card with a soft gold glow that gently pulses needs attention. Only these cards do it, and only when:
+
+- **Client health** is **At risk** (red).
+- **Transaction questions** has at least one open question from the client.
+- **QuickBooks health** shows a red problem: uncategorized balances, possible duplicate bills, no sync in over 26 hours, or the last sync run failed.
+- **Document requests** has a request that's still open past its due date (marked **Overdue**).
+- **{Month} close** has a **Blocked** badge.
+
+Fix the problem and the glow goes away the next time the card loads. Onboarding steps that aren't finished don't glow. If your computer is set to reduce motion, the card gets a still gold outline instead of a pulse.
 
 ### Top row
 

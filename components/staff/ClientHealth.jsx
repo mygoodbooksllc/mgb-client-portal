@@ -130,7 +130,7 @@ function HL_HealthCard({ clientId }) {
   const h = byId[clientId];
   if (status === "missing") return null;
   return (
-    <div className="card ov-stat hl-card">
+    <div className={"card ov-stat hl-card" + (h && h.band === "red" ? " card-urgent" : "")}>
       <span className="kpi-label">Client health</span>
       {!h ? (
         <span className="ov-big muted">{status === "error" ? "Unavailable" : "…"}</span>

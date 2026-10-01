@@ -5182,8 +5182,10 @@ function DocumentRequestsCard({ client, compact }) {
     else notifyStaffTools();
   }
   const today = todayLocal();
+  // Same "overdue" rule as each row below: still open and past its due date.
+  const anyOverdue = open.some((r) => r.status === "open" && r.due_date && r.due_date < today);
   return (
-    <div className="card doc-requests-card">
+    <div className={"card doc-requests-card" + (staff && anyOverdue ? " card-urgent" : "")}>
       <h3 className="card-title">{staff ? "Document requests" : "Your bookkeeper needs"}</h3>
       <p className="card-subtitle">
         {staff
@@ -5653,6 +5655,17 @@ function ClientOverviewPage({ client, messagesByClient, onNavigate, onOpenDetail
     }
   }
   const syncHoursAgo = client.lastSyncedAt ? (Date.now() - new Date(client.lastSyncedAt)) / 36e5 : null;
+  // Gold pulse (card-urgent): the card's own red states — the red headline
+  // (uncategorized balances, possible duplicate bills, no sync in 26+ hours)
+  // or a failed last sync run.
+  const qbUrgent =
+    connected &&
+    !!(
+      uncategorized.length ||
+      dupBills.length ||
+      (syncHoursAgo != null && syncHoursAgo > 26) ||
+      (data.syncRun && data.syncRun.status === "error")
+    );
 
   // ---- Engagement
   const usage = data.usage || [];
@@ -5840,7 +5853,7 @@ function ClientOverviewPage({ client, messagesByClient, onNavigate, onOpenDetail
           </p>
         </div>
 
-        <div className="card ov-stat">
+        <div className={"card ov-stat" + (qbUrgent ? " card-urgent" : "")}>
           <span className="kpi-label">QuickBooks health</span>
           {!connected ? (
             <>
