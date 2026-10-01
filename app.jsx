@@ -1114,7 +1114,10 @@ function Sidebar({
         </button>
       </div>
 
-      <div className="brand-tagline">Leave the bookkeeping to us.</div>
+      <div className="brand-tagline">
+        <span className="brand-tagline-line">Do good work.</span>
+        <span className="brand-tagline-line">Leave the bookkeeping to us.</span>
+      </div>
 
       {/* Milestone pill (moved here from the page header, 2026-09-30): the
           open client's milestone, above the client name / switcher. Hidden

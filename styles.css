@@ -564,6 +564,9 @@ body {
   border-bottom: 1px solid rgba(255,255,255,0.08);
 }
 
+.brand-tagline-line { display: block; }
+.brand-tagline-line + .brand-tagline-line { margin-top: 2px; }
+
 .brand-mark {
   width: 68px;
   height: 68px;
