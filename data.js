@@ -536,7 +536,7 @@ const CLIENTS_MOCK_DATA = [
   {
     // Basic plan test client: one login, the barebones tabs only (Dashboard,
     // Reports, Documents, Messages). The other arrays stay filled so a
-    // switch to Plus or Pro shows real-looking pages straight away.
+    // switch to Pro shows real-looking pages straight away.
     id: "basic-test",
     users: [
       {

@@ -23,7 +23,9 @@ const TT_CADENCES = [
   { key: "quarterly", label: "Quarterly" },
   { key: "annually", label: "Annually" },
 ];
-const TT_TIERS = ["basic", "standard", "premium"];
+// Plans a template can target. "standard" (the retired Plus plan) is left
+// out while Plus is off; the DB check still allows it.
+const TT_TIERS = ["basic", "premium"];
 const TT_COLS =
   "id, title, cadence, due_offset_days, lead_days, plan_tiers, client_ids, priority, active, checklist, created_by, created_at";
 const TT_BLANK = {

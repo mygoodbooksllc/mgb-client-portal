@@ -6,8 +6,8 @@
 // Builder tier). qbo-sync and qbo-firm-sync count their calls into
 // qbo_api_usage; qbo_usage_status() returns month-to-date calls, a
 // straight-line projection to month end and the mode:
-//   normal     Pro clients sync every premium_interval_min (15); Standard
-//              weekly, Basic on the 15th
+//   normal     Pro clients sync every premium_interval_min (15); Basic on
+//              the 15th (the retired Plus plan's weekly branch is unused)
 //   throttled  projection >= throttle_pct of the cap: Pro every 30 min
 //   stopped    calls >= hard_stop_pct of the cap: scheduled syncs stop until
 //              the 1st; "Sync now" still works
@@ -182,7 +182,7 @@ function QU_UsageCard() {
           ? `Scheduled syncs are stopped until the 1st because ${stopPct}% of the limit is used. "Sync now" still works.`
           : status.mode === "throttled"
             ? `The month is on pace to pass ${thrPct}% of the limit, so Pro clients sync every ${status.throttled_interval_min} minutes instead of ${status.normal_interval_min}.`
-            : `Pro clients slow to every ${status.throttled_interval_min} minutes if the month is on pace to pass ${thrPct}%, and scheduled syncs stop at ${stopPct}% used. Plus clients sync weekly and Basic on the 15th.`}
+            : `Pro clients slow to every ${status.throttled_interval_min} minutes if the month is on pace to pass ${thrPct}%, and scheduled syncs stop at ${stopPct}% used. Basic clients sync on the 15th.`}
       </p>
       {sources.length > 0 && (
         <ul className="qu-sources">

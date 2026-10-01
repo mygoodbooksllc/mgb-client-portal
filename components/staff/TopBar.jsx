@@ -393,7 +393,7 @@ function TB_Search({ clients, items, showMine, isAdmin, clientSearch }) {
       .map((c) => ({
         key: "c:" + c.id,
         title: c.name,
-        sub: typeof planLabel === "function" ? planLabel(c.plan === "basic" || c.plan === "premium" ? c.plan : "standard") : "",
+        sub: typeof planLabel === "function" ? planLabel(c.plan) : "",
         go: () => TB_go(TB_clientHash(c.id)),
       }));
     groups.push({ key: "clients", label: "Clients", items: cl });
@@ -1109,7 +1109,7 @@ function TB_AvatarMenu({
                       }}
                     >
                       <span className="tb-menu-check" aria-hidden="true">{on ? "✓" : ""}</span>
-                      {p ? PLAN_LABELS[p] : `Actual plan (${PLAN_LABELS[actualPlan] || "Plus"})`}
+                      {p ? PLAN_LABELS[p] : `Actual plan (${planLabel(actualPlan)})`}
                     </button>
                   );
                 })}

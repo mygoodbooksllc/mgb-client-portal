@@ -25,7 +25,7 @@ It's automatic; you don't have to do anything.
 
 | Mode | When | What changes |
 |---|---|---|
-| **Normal** | Below the limits | Pro clients sync every 15 minutes. Plus clients sync weekly, Basic on the 15th. |
+| **Normal** | Below the limits | Pro clients sync every 15 minutes. Basic clients sync on the 15th. |
 | **Slowed down** | The month is on pace to pass 80% of the limit | Pro clients sync every 30 minutes instead of 15. |
 | **Scheduled syncs stopped** | 95% of the limit is used | Automatic syncs stop until the 1st of next month. **Sync now** still works. |
 

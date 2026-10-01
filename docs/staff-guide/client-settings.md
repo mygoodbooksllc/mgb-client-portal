@@ -16,7 +16,7 @@ Two tabs:
   - **Client details**: contacts, QuickBooks, notes, SOP and the client's other details.
 
   Each **Open** button opens the same window as before. These used to be the **Manage access** and **Client details** links at the bottom of the client's sidebar.
-- **Plan**: the Basic, Plus and Pro comparison the client sees, with the client's plan marked **Your plan**. This used to be its own Plans page. The lock next to **Milestone** in the sidebar opens it too.
+- **Plan**: the Basic and Pro comparison the client sees (Basic is free with 1 login included and extra logins at $20/mo each; Pro is $100/mo plus $20/mo per login; both are on top of the milestone fee), with the client's plan marked **Your plan**. This used to be its own Plans page. The lock next to **Milestone** in the sidebar opens it too.
 
 ### What the client sees
 

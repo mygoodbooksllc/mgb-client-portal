@@ -3566,6 +3566,11 @@ body:has(.modal-overlay, [aria-modal="true"], .si-drawer-scrim) .global-search {
   background: var(--gold-deep);
 }
 
+/* Plans page with Plus off: a single Pro column per tool. */
+.compare-row-body.compare-row-body-single {
+  grid-template-columns: 1fr;
+}
+
 @media (max-width: 640px) {
   .compare-row-body {
     grid-template-columns: 1fr;

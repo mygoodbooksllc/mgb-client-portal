@@ -560,11 +560,7 @@ function CS_ClientSwitcher({
   const currentHealth = currentClient
     ? effectiveClientHealth(currentClient, today, statusOverrides)
     : null;
-  const plan = currentClient
-    ? currentClient.plan === "basic" || currentClient.plan === "premium"
-      ? currentClient.plan
-      : "standard"
-    : null;
+  const plan = currentClient ? planShownKey(currentClient.plan) : null;
   const triggerLabel = currentClient
     ? `Viewing ${currentClient.name}. Switch client`
     : "Choose a client";

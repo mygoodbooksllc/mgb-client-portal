@@ -13,7 +13,7 @@ There are two quick ways to open a client, both in the bar at the top of the pag
 2. Type part of the name in **Search clients**.
 3. Click the client. You land on their **Client overview**.
 
-On a phone, the picker is at the top of the screen and also in the menu. When a client is open, the picker shows the client's name, plan and health (for example "Plus · Healthy"). Click it again to switch to another client.
+On a phone, the picker is at the top of the screen and also in the menu. When a client is open, the picker shows the client's name, plan and health (for example "Pro · Healthy"). Click it again to switch to another client.
 
 The list has these groups:
 

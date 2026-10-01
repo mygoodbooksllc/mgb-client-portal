@@ -440,7 +440,7 @@ const NAV_SECTIONS = [
     // upsell heading is really about the PRO badges scattered across the
     // rest of the sidebar, not about hiding any row of its own.
     // Never shown as text: this section's heading is the client's milestone
-    // plus their plan (Pro pill, or a lock for Basic/Plus). See Sidebar.
+    // plus their plan (Pro pill, or a lock otherwise). See Sidebar.
     label: "Plan",
     // Live Report ("daily-close") isn't a nav item here on purpose — a
     // premium, full-access client's Dashboard tab IS the Live Report, one
@@ -679,35 +679,48 @@ function hasPremiumPlan(client, allowDevOverride = true) {
   );
 }
 
-// Three plans (owner decision 2026-09-26). The stored values stay
+// Two plans: Basic (free) and Pro (owner decision 2026-09-30, which took the
+// middle Plus plan off "for now"). The stored values stay
 // basic/standard/premium so the database never had to migrate them; these
 // are the only names a person ever sees. Rename a plan here and nowhere else.
-const PLAN_ORDER = ["basic", "standard", "premium"];
+// "standard" (the retired Plus plan) keeps its definitions below so it can
+// come back, but PLAN_ORDER leaves it out, so nothing a person can pick or
+// see offers it, and planLabel / planSyncInfo / planShownKey treat it (or
+// any unknown value) as Basic.
+const PLAN_ORDER = ["basic", "premium"];
 const PLAN_LABELS = { basic: "Basic", standard: "Plus", premium: "Pro" };
-const planLabel = (plan) => PLAN_LABELS[plan] || PLAN_LABELS.standard;
+// The plan key a person sees: "premium" stays Pro, anything else reads Basic.
+const planShownKey = (plan) => (plan === "premium" ? "premium" : "basic");
+const planLabel = (plan) => PLAN_LABELS[planShownKey(plan)];
 // Prices, on top of the milestone (bookkeeping) fee. Owner decision
-// 2026-09-27. Basic's $9 includes its one login; Plus and Pro charge $9 for
-// every login. A client who moves down a plan keeps paying $9 per extra
-// login, or those logins are removed.
+// 2026-09-30: Basic is free with one login included, extra logins $20/mo
+// each; Pro is $100/mo plus $20/mo for every login. A client who moves down
+// to Basic keeps paying $20 per extra login, or those logins are removed.
+// (standard is the retired Plus plan's old price, kept for now, never shown.)
 const PLAN_PRICING = {
-  basic: { base: 9, perLogin: 9, includedLogins: 1 },
+  basic: { base: 0, perLogin: 20, includedLogins: 1 },
   standard: { base: 25, perLogin: 9, includedLogins: 0 },
-  premium: { base: 39, perLogin: 9, includedLogins: 0 },
+  premium: { base: 100, perLogin: 20, includedLogins: 0 },
 };
 const planMonthlyTotal = (plan, logins) => {
-  const p = PLAN_PRICING[plan];
+  const p = PLAN_PRICING[plan] || PLAN_PRICING.basic;
   return p.base + p.perLogin * Math.max(0, logins - p.includedLogins);
 };
-const planLoginLabel = (plan) =>
-  PLAN_PRICING[plan].includedLogins
-    ? `1 login included · extra logins $${PLAN_PRICING[plan].perLogin}/mo each`
-    : `+ $${PLAN_PRICING[plan].perLogin}/mo per login`;
+// "Free" for $0, otherwise "$100". Used wherever a plan price is shown.
+const planPriceLabel = (amount) => (amount ? `$${amount}` : "Free");
+const planLoginLabel = (plan) => {
+  const p = PLAN_PRICING[planShownKey(plan)];
+  return p.includedLogins
+    ? `1 login included · extra logins $${p.perLogin}/mo each`
+    : `+ $${p.perLogin}/mo per login`;
+};
 
 // How often each plan's numbers refresh from QuickBooks. The schedule itself
 // runs server-side in the qbo-sync edge function (isDueForPlan: Basic on the
-// 15th, Plus weekly, Pro every 15 minutes, 30 while API usage is throttled);
-// keep the two in step. This is the ONLY place freshness copy comes from:
-// use syncCadenceLabel / syncPillLabel below, never hand-written "live" text.
+// 15th, Pro every 15 minutes, 30 while API usage is throttled; its branch
+// for the retired Plus plan is unused now); keep the two in step. This is
+// the ONLY place freshness copy comes from: use syncCadenceLabel /
+// syncPillLabel below, never hand-written "live" text.
 const PLAN_SYNC = {
   basic: {
     label: "Monthly sync, on the 15th",
@@ -732,14 +745,15 @@ const PLAN_SYNC = {
   },
 };
 function planSyncInfo(plan) {
-  return PLAN_SYNC[plan] || PLAN_SYNC.standard;
+  return PLAN_SYNC[planShownKey(plan)];
 }
-// "Synced from QuickBooks weekly" etc. For subtitles and explanations.
+// "Synced from QuickBooks monthly, on the 15th" etc. For subtitles and
+// explanations.
 function syncCadenceLabel(plan) {
   return planSyncInfo(plan).cadence;
 }
 // The header / top bar pill: "Every 15 min · synced 5m ago",
-// "Synced weekly · synced 2d ago", or "... · QuickBooks" before a first sync.
+// "Synced monthly · synced 2d ago", or "... · QuickBooks" before a first sync.
 function syncPillLabel(plan, lastSyncedAt) {
   const ago = relTime(lastSyncedAt);
   return `${planSyncInfo(plan).pill} · ${ago ? "synced " + ago : "QuickBooks"}`;
@@ -807,7 +821,7 @@ function resolveAccess(client, viewAsUserId, orgHiddenKeys, overrideUser) {
   const premiumForUser =
     hasPremiumPlan(client, !overrideUser) && !(user && user.premiumThrottled);
 
-  // Per-person access is a Plus feature: on Basic everyone sees the whole
+  // Per-person access isn't part of Basic: on Basic everyone sees the whole
   // (already small) Basic set.
   if (!user || user.access === "full" || basic) {
     return {
@@ -1416,7 +1430,7 @@ function Sidebar({
                 onChange={(e) => onPreviewPlan(e.target.value || null)}
               >
                 <option value="">
-                  Actual plan ({planLabel(client.plan === "basic" || client.plan === "premium" ? client.plan : "standard")})
+                  Actual plan ({planLabel(client.plan)})
                 </option>
                 {PLAN_ORDER.map((p) => (
                   <option key={p} value={p}>
@@ -1482,7 +1496,7 @@ function Sidebar({
               >
                 {isSignature && (
                   // The client's milestone sits where "Enterprise" used to:
-                  // Pro clients get the gold Pro pill, Basic and Plus the
+                  // Pro clients get the gold Pro pill, everyone else the
                   // lock, which opens the plans page.
                   <div className="nav-section-label nav-section-label-signature nav-section-label-static nav-ms-heading" data-tour="milestone">
                     {milestoneHeading.clickable ? (
@@ -5594,7 +5608,7 @@ function ClientOverviewPage({ client, messagesByClient, onNavigate, onOpenDetail
   }, [load]);
 
   // ---- Plan and bill
-  const plan = client.plan === "basic" || client.plan === "premium" ? client.plan : "standard";
+  const plan = planShownKey(client.plan);
   // Real logins (client_users); test clients only have sample users.
   const logins = data.loginCount || (client.users || []).length;
   const milestone = ms && ms.current;
@@ -5777,7 +5791,7 @@ function ClientOverviewPage({ client, messagesByClient, onNavigate, onOpenDetail
               <span>
                 {planLabel(plan)} plan · {logins} login{logins === 1 ? "" : "s"}
               </span>
-              <span>{fmtMoney(planFee)}/mo</span>
+              <span>{planFee ? `${fmtMoney(planFee)}/mo` : "Free"}</span>
             </li>
             {client.payrollAddOn && (
               <li>
@@ -7775,7 +7789,7 @@ const PAYROLL_ADDON_FEATURES = [
   },
   {
     title: "Works on any plan",
-    text: "Add it to Basic, Plus or Pro. It's billed monthly with the rest of your MyGoodBooks fee.",
+    text: "Add it to Basic or Pro. It's billed monthly with the rest of your MyGoodBooks fee.",
   },
 ];
 
@@ -7847,7 +7861,7 @@ function PayrollAddOnPage({ client, clientPortalUser }) {
           </span>
         </label>
         <p className="payroll-addon-note">
-          On top of your milestone fee and your {planLabel(client.plan === "basic" || client.plan === "premium" ? client.plan : "standard")} plan. Cancel any time.
+          On top of your milestone fee and your {planLabel(client.plan)} plan. Cancel any time.
         </p>
         {staff ? (
           <p className="payroll-addon-staff">
@@ -9286,7 +9300,7 @@ function ReportBarRows({ items }) {
 
 // ----------------------------------------------------------------------------
 // Plans page (PAGE_META "enterprise-upgrade"; the key predates the Basic/
-// Plus/Pro names) — what a Basic or Plus client's lock in the sidebar opens instead of the real upgraded pages, none of which are
+// Pro names) — what a non-Pro client's lock in the sidebar opens instead of the real upgraded pages, none of which are
 // separate tabs to strip from access.tabs anymore: a standard client's
 // Dashboard/Budget vs. Actual/Cash Flow/Reports/Bank Accounts/Giving & Funds
 // already ARE the tabs they'll keep using after upgrading, just showing the
@@ -9463,7 +9477,9 @@ const ENTERPRISE_COMPARISON = [
 ];
 
 // What each plan includes, for the Plans page cards. Prices live in
-// PLAN_PRICING (next to PLAN_LABELS) so they're set in one place.
+// PLAN_PRICING (next to PLAN_LABELS) so they're set in one place. Pro now
+// includes everything the retired Plus plan had (its "standard" list stays
+// here for now but no card shows it).
 const PLAN_FEATURES = {
   basic: [
     "Monthly financial statements",
@@ -9481,7 +9497,13 @@ const PLAN_FEATURES = {
     "Custom access for each person",
   ],
   premium: [
-    "Everything in Plus, plus:",
+    "Everything in Basic, plus:",
+    "Dashboard: cash on hand, income vs. expenses, recent activity",
+    "Budget vs. Actual, by category",
+    "Bank Accounts with every transaction",
+    "Cash Flow: who owes you and what you owe",
+    "Giving & Funds: fund balances and contributions",
+    "Custom access for each person",
     ...ENTERPRISE_FEATURES.map((f) => `${f.title} on your ${f.sidebarTab} tab`),
   ],
 };
@@ -9493,7 +9515,9 @@ function EnterpriseUpgradePage({ client, clientPortalUser }) {
   // none open so the page loads short, not a wall of text.
   const [openKey, setOpenKey] = useState(null);
   const [requesting, setRequesting] = useState(null);
-  const current = effectivePlan(client, !clientPortalUser);
+  // planShownKey: a client still stored on the retired Plus plan reads as
+  // Basic here, so it is offered Pro and never sees Plus.
+  const current = planShownKey(effectivePlan(client, !clientPortalUser));
   const currentRank = PLAN_ORDER.indexOf(current);
   const loginCount = Math.max(1, (client.users || []).length);
 
@@ -9579,9 +9603,7 @@ function EnterpriseUpgradePage({ client, clientPortalUser }) {
                 {isCurrent ? (
                   <span className="eyebrow-badge">Your plan</span>
                 ) : recommended ? (
-                  <span className="nav-pro-pill">
-                    {plan === "standard" ? "Best value" : "Recommended"}
-                  </span>
+                  <span className="nav-pro-pill">Recommended</span>
                 ) : null}
               </div>
               <h3 className="card-title" style={{ marginTop: 10, marginBottom: 2 }}>
@@ -9592,12 +9614,15 @@ function EnterpriseUpgradePage({ client, clientPortalUser }) {
                   "pricing-value" + (plan === "premium" ? " pricing-value-premium" : "")
                 }
               >
-                ${PLAN_PRICING[plan].base}
-                <span>/mo</span>
+                {planPriceLabel(PLAN_PRICING[plan].base)}
+                {PLAN_PRICING[plan].base > 0 && <span>/mo</span>}
               </div>
               <p className="pricing-total">{planLoginLabel(plan)}</p>
               <p className="plan-card-estimate">
-                ${planMonthlyTotal(plan, loginCount)}/mo for your {loginCount} login
+                {planMonthlyTotal(plan, loginCount)
+                  ? `$${planMonthlyTotal(plan, loginCount)}/mo`
+                  : "Free"}{" "}
+                for your {loginCount} login
                 {loginCount !== 1 ? "s" : ""}
               </p>
               <div className="plan-sync-line">
@@ -9627,8 +9652,8 @@ function EnterpriseUpgradePage({ client, clientPortalUser }) {
 
       <div className="card plans-fine-print" style={{ marginBottom: 20 }}>
         <p>
-          <strong>Moving to a lower plan?</strong> Logins beyond what the new
-          plan includes stay at ${PLAN_PRICING.basic.perLogin}/mo each, or
+          <strong>Moving to {PLAN_LABELS.basic}?</strong> It includes one
+          login; any others stay at ${PLAN_PRICING.basic.perLogin}/mo each, or
           they're removed. Nobody loses their data.
         </p>
         <p>
@@ -9636,9 +9661,10 @@ function EnterpriseUpgradePage({ client, clientPortalUser }) {
         </p>
         <p style={{ marginBottom: 0 }}>
           <strong>QuickBooks sync:</strong> {PLAN_LABELS.basic}:{" "}
-          {syncCadenceLabel("basic").toLowerCase()}. {PLAN_LABELS.standard}:{" "}
-          {syncCadenceLabel("standard").toLowerCase()}. {PLAN_LABELS.premium}:{" "}
-          {syncCadenceLabel("premium").toLowerCase()}, with a Sync now button.
+          {syncCadenceLabel("basic").replace("Synced from QuickBooks ", "")}.{" "}
+          {PLAN_LABELS.premium}:{" "}
+          {syncCadenceLabel("premium").replace("Synced from QuickBooks ", "")}, with a
+          Sync now button.
         </p>
       </div>
 
@@ -9662,10 +9688,10 @@ function EnterpriseUpgradePage({ client, clientPortalUser }) {
 
       <div className="card" style={{ marginBottom: 20 }}>
         <h3 className="card-title">
-          Compare {PLAN_LABELS.standard} and {PLAN_LABELS.premium}, tool by tool
+          {PLAN_LABELS.premium}, tool by tool
         </h3>
         <p className="card-subtitle">
-          Click a tool to see exactly what changes.
+          Click a tool to see exactly what you get.
         </p>
         <div className="compare-list">
           {ENTERPRISE_COMPARISON.map((c) => {
@@ -9687,28 +9713,20 @@ function EnterpriseUpgradePage({ client, clientPortalUser }) {
                 {/* Always mounted (not isOpen &&) so grid-template-rows can
                     animate both open and close. */}
                 <div className="compare-row-body-wrap">
-                  <div className="compare-row-body">
-                    <div className="compare-col">
-                      <div className="compare-col-header">
-                        {c.standardLabel}{" "}
-                        <span className="plan-mini-label">{PLAN_LABELS.standard}</span>
-                      </div>
-                      <ul className="compare-feat-list">
-                        {c.standard.map((f, i) => (
-                          <li key={i}>{f}</li>
-                        ))}
-                      </ul>
-                    </div>
+                  {/* One column now that Plus is off: Basic has none of
+                      these tools, so Pro gets the plain version's features
+                      (c.standard) and the Pro extras (c.premium) together. */}
+                  <div className="compare-row-body compare-row-body-single">
                     <div className="compare-col compare-col-premium">
                       <div className="compare-col-header premium">
                         {c.premiumLabel}{" "}
                         <span className="nav-pro-pill">{PLAN_LABELS.premium}</span>
                       </div>
                       <p className="compare-feat-all">
-                        Everything {c.standardLabel} has, plus:
+                        On your {c.standardLabel} tab:
                       </p>
                       <ul className="compare-feat-list">
-                        {c.premium.map((f, i) => (
+                        {c.standard.concat(c.premium).map((f, i) => (
                           <li key={i}>{f}</li>
                         ))}
                       </ul>
@@ -14312,7 +14330,9 @@ function ClientAccessPage({ readOnly }) {
   // clients.entity_type (supabase/client-entity-type.sql): nonprofit or
   // for_profit. Stored and shown only for now.
   const [newOrgEntityType, setNewOrgEntityType] = useState("nonprofit");
-  const [newOrgPlan, setNewOrgPlan] = useState("standard");
+  // New clients start on Basic (Plus is off; the clients.plan column's own
+  // default is still 'standard', so always send plan explicitly).
+  const [newOrgPlan, setNewOrgPlan] = useState("basic");
   const [newOrgPayrollAddOn, setNewOrgPayrollAddOn] = useState(false);
   // Assigned bookkeeper is picked from the real staff list (stored as
   // clients.assigned_bookkeeper_email, see supabase/assigned-bookkeeper-email.sql);
@@ -14331,7 +14351,7 @@ function ClientAccessPage({ readOnly }) {
   const [editOrgName, setEditOrgName] = useState("");
   const [editOrgType, setEditOrgType] = useState("");
   const [editOrgEntityType, setEditOrgEntityType] = useState("nonprofit");
-  const [editOrgPlan, setEditOrgPlan] = useState("standard");
+  const [editOrgPlan, setEditOrgPlan] = useState("basic");
   const [editOrgPayrollAddOn, setEditOrgPayrollAddOn] = useState(false);
   // "" = not assigned, BK_LEGACY = keep an old free-text name that isn't
   // linked to a staff member, otherwise a staff email.
@@ -14503,7 +14523,7 @@ function ClientAccessPage({ readOnly }) {
     setNewOrgName("");
     setNewOrgType("");
     setNewOrgEntityType("nonprofit");
-    setNewOrgPlan("standard");
+    setNewOrgPlan("basic");
     setNewOrgPayrollAddOn(false);
     setNewOrgBookkeeperEmail("");
     setNewOrgBookkeeperRole("");
@@ -14516,7 +14536,8 @@ function ClientAccessPage({ readOnly }) {
     setEditOrgName(row.name);
     setEditOrgType(row.org_type);
     setEditOrgEntityType(row.entity_type || "nonprofit");
-    setEditOrgPlan(row.plan);
+    // A row still on the retired Plus plan shows (and saves) as Basic.
+    setEditOrgPlan(planShownKey(row.plan));
     setEditOrgPayrollAddOn(row.payroll_add_on);
     setEditOrgBookkeeperEmail(
       row.assigned_bookkeeper_email ||
@@ -15463,7 +15484,7 @@ function ClientUserScopeEditor({ row, readOnly, onClose, onSaved }) {
           onClick={() => setPremiumThrottled(true)}
         >
           Pro features off
-          <span>Plus experience, even on the Pro plan</span>
+          <span>Plain pages without the Pro tools, even on the Pro plan</span>
         </button>
       </div>
 
@@ -21152,7 +21173,7 @@ function UserAccessEditor({
           >
             Pro features off
             <span>
-              Plus experience, even though {client.name} has Pro
+              Plain pages without the Pro tools, even though {client.name} has Pro
             </span>
           </button>
         </div>
@@ -22967,7 +22988,7 @@ const PAGE_META = {
   },
   "enterprise-upgrade": {
     title: "Plans",
-    subtitle: "Basic, Plus and Pro — what each includes",
+    subtitle: "Basic and Pro — what each includes",
   },
   // Settings (components/settings/Settings.jsx). "enterprise-upgrade",
   // "manage-access" and "client-details" are aliases that open a tab of
@@ -23199,7 +23220,7 @@ function QboSyncNowButton({ clientId, onSynced, liveLabel: liveLabelProp, plan, 
     </svg>
   );
   if (liveLabel && !canSyncNow) {
-    // Basic and Plus: the same pill, as a label only (no Sync now).
+    // Basic: the same pill, as a label only (no Sync now).
     return (
       <span className="live-sync-pill live-sync-pill-static" title={liveLabel}>
         <span className="badge-dot" aria-hidden="true"></span>
@@ -24123,14 +24144,14 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
   }, [baseClient, userAccess]);
 
   // The server syncs QuickBooks on each plan's schedule (qbo-sync's
-  // isDueForPlan: Pro every 15 minutes, Plus weekly, Basic on the 15th; see
+  // isDueForPlan: Pro every 15 minutes, Basic on the 15th; see
   // PLAN_SYNC), and a staffer or another tab can Sync now at any time, but
   // the page only loaded the numbers once. Once a minute: re-render so the
   // "synced x ago" label ticks. Separately, spaced by plan, ask
   // qbo_connections for this client's last_synced_at (one tiny row) and only
   // when it has moved past what's on screen re-read all the numbers (the
   // same reload Sync now uses; no QuickBooks call). Pro checks every 2
-  // minutes, weekly and monthly plans every 15. Also on returning to the tab.
+  // minutes, Basic every 15. Also on returning to the tab.
   const [, setClockTick] = useState(0);
   const qboAutoReloadRef = useRef(0);
   useEffect(() => {
@@ -25236,7 +25257,7 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
               onPreviewAs={setViewAsUserId}
               onOpenSettings={() => setPage("settings")}
               previewPlan={!onStaffPage && !impersonating ? getPreviewPlan(client.id) : undefined}
-              actualPlan={client.plan === "basic" || client.plan === "premium" ? client.plan : "standard"}
+              actualPlan={planShownKey(client.plan)}
               onPreviewPlan={
                 !onStaffPage && !impersonating
                   ? (plan) => {

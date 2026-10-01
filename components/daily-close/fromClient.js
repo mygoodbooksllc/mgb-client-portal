@@ -90,8 +90,9 @@
   }
 
   // How long past its plan's cadence a sync can be before the report says
-  // the numbers may be stale (Pro every 15 min, Plus weekly, Basic on the
-  // 15th of each month — PLAN_SYNC in app.jsx), with slack for a missed run.
+  // the numbers may be stale (Pro every 15 min, Basic on the 15th of each
+  // month — PLAN_SYNC in app.jsx), with slack for a missed run. standard is
+  // the retired Plus plan (weekly server-side), kept for now.
   const STALE_AFTER_MS = {
     premium: 2 * 3600000,
     standard: 9 * 86400000,

@@ -19,7 +19,7 @@ On QuickBooks clients, the client can click **Ask** next to any transaction on t
 2. **Recategorize the transaction in QuickBooks yourself.** MyGoodBooks never changes QuickBooks; it only reads from it.
 3. Back in MyGoodBooks, add a short reply if you like (for example *Moved to Building Repairs, thanks!*) and click **Mark resolved**.
 
-Resolving closes the question and posts a reply in the client's thread, so they get the usual message email. The new category shows on the Bank Accounts page after the client's next QuickBooks sync, which depends on their plan: every 15 minutes on Pro, weekly on Plus, monthly (on the 15th) on Basic.
+Resolving closes the question and posts a reply in the client's thread, so they get the usual message email. The new category shows on the Bank Accounts page after the client's next QuickBooks sync, which depends on their plan: every 15 minutes on Pro, monthly (on the 15th) on Basic.
 
 ### Good to know
 

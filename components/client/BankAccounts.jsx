@@ -80,7 +80,7 @@ function BA_domId(accountId, index) {
   return "ba-tx-" + String(accountId).replace(/[^A-Za-z0-9_-]/g, "_") + "-" + index;
 }
 
-// "Last synced 2 hours ago · Synced from QuickBooks weekly".
+// "Last synced 2 hours ago · Synced from QuickBooks monthly, on the 15th".
 function BA_syncLine(client) {
   const plan =
     typeof effectivePlan === "function" ? effectivePlan(client) : "standard";

@@ -108,7 +108,7 @@
     var transactions = rows.transactions || [];
     var connection = rows.connection || null;
     // "This month" is the month of the last sync, not the browser's month.
-    // A Plus client synced weekly on Sep 28 and opened on Oct 2 still has
+    // A client last synced on Sep 28 and opened on Oct 2 still has
     // September as its newest (partial) month; keying off the browser date
     // would show an empty October budget and call September closed.
     var today = todayIso(connection && connection.last_synced_at);

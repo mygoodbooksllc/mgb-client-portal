@@ -18,4 +18,4 @@ While previewing, staff-only things are hidden: the top bar (with **Overview** a
 
 ### Preview a different plan
 
-**Preview plan** lets you see the portal as it looks on another plan. On a computer, click your initials at the top right, then **Preview plan**, and pick **Basic**, **Plus** or **Pro** (a check marks the one showing). On a phone it's in the menu, under **Preview as**. It only changes your browser and doesn't change what the client pays. Choose **Actual plan** to go back. It isn't offered while an admin is using View as.
+**Preview plan** lets you see the portal as it looks on another plan. On a computer, click your initials at the top right, then **Preview plan**, and pick **Basic** or **Pro** (a check marks the one showing). On a phone it's in the menu, under **Preview as**. It only changes your browser and doesn't change what the client pays. Choose **Actual plan** to go back. It isn't offered while an admin is using View as.

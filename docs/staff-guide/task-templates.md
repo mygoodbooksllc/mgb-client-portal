@@ -27,7 +27,7 @@ Some work happens for every client on a schedule, like reconciling bank accounts
 4. **Due (days after period end)**: for example 10 means "due 10 days after the month ends".
 5. **Create (days before due)**: how early the task appears in My Tasks (default 14, up to 90).
 6. Pick a **Priority**: **Low**, **Normal** or **High**.
-7. Under **Applies to**, tick plans (Basic, Plus, Pro) and/or add specific clients. Leave everything unticked for **every client**.
+7. Under **Applies to**, tick plans (Basic, Pro) and/or add specific clients. Leave everything unticked for **every client**.
 8. Optional: under **Checklist**, type the steps, one per line (up to 50). Every task the template creates gets these steps to tick off, and shows progress such as **0/5** in My Tasks.
 9. Leave **Active** ticked and click **Save**.
 
