@@ -22,6 +22,9 @@ New clients start as **Nonprofit**. For now it's only stored. Later, estimated t
 
 Until every step is done, the client shows an **Onboarding 3/5**-style badge in the client picker.
 
+- **Hover** over the badge (or Tab to it) to see the checklist: done steps are ticked and greyed out, so what's left stands out.
+- **Click** the badge (or press Enter on it) to open that client's **Client overview**. The page scrolls to the Onboarding card and briefly outlines it in gold.
+
 ### Change the default steps (admins)
 
 Admins see **Edit default steps** on the card. Every client gets these steps.

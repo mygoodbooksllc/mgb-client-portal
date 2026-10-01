@@ -15,6 +15,7 @@
 // Exposes:
 //   OB_OnboardingCard   progress card on the client overview (staff only)
 //   OB_OnboardingBadge  "Onboarding 3/5" tag for the client picker rows
+//                       (hover: checklist popover; click: overview card)
 //   OB_useOnboarding()  the store, for anything else that wants it
 //
 // Loaded before app.jsx and shares its global scope: every top-level name has
@@ -105,15 +106,146 @@ function OB_progress(data, clientId) {
   return { total: steps.length, done: steps.filter((s) => s.done).length };
 }
 
-function OB_OnboardingBadge({ clientId }) {
+// Clicking the picker badge asks the client overview to scroll its Onboarding
+// card into view. The request is kept here (not just fired as an event)
+// because the overview usually mounts after the click switches client/page;
+// the card checks it on mount and when the event fires. app.jsx listens for
+// the same event to open that client's overview.
+const OB_FOCUS_EVENT = "mgb:focus-onboarding";
+let OB_focusRequest = null; // { clientId, at }
+
+function OB_requestFocus(clientId) {
+  OB_focusRequest = { clientId, at: Date.now() };
+  try {
+    window.dispatchEvent(new CustomEvent(OB_FOCUS_EVENT, { detail: { clientId } }));
+  } catch (e) {}
+}
+
+// Picker badge: hover (or keyboard focus) shows the checklist in a small
+// popover; click / Enter opens the client overview at the Onboarding card.
+// The popover is portalled to <body> with position:fixed so the picker's
+// scrolling list can't clip it.
+function OB_OnboardingBadge({ clientId, onOpen }) {
   const data = OB_useOnboarding();
+  const badgeRef = useRef(null);
+  const popRef = useRef(null);
+  const [show, setShow] = useState(false);
+  const [pos, setPos] = useState(null);
+
+  React.useLayoutEffect(() => {
+    if (!show) {
+      setPos(null);
+      return;
+    }
+    const place = () => {
+      const b = badgeRef.current;
+      const p = popRef.current;
+      if (!b || !p) return;
+      const r = b.getBoundingClientRect();
+      const m = 8;
+      const vw = window.innerWidth;
+      const vh = window.innerHeight;
+      const w = p.offsetWidth;
+      const h = p.offsetHeight;
+      let left = Math.min(r.left, vw - m - w);
+      left = Math.max(m, left);
+      let top = r.bottom + 6;
+      if (top + h > vh - m) top = r.top - 6 - h;
+      top = Math.max(m, Math.min(top, vh - m - h));
+      setPos({ top, left });
+    };
+    place();
+    // The list scrolling under a fixed popover would detach it; just hide.
+    const hide = () => setShow(false);
+    window.addEventListener("scroll", hide, true);
+    window.addEventListener("resize", hide);
+    return () => {
+      window.removeEventListener("scroll", hide, true);
+      window.removeEventListener("resize", hide);
+    };
+  }, [show]);
+
   if (!data || data.missing) return null;
-  const { total, done } = OB_progress(data, clientId);
+  const steps = OB_clientSteps(data, clientId);
+  const total = steps.length;
+  const done = steps.filter((s) => s.done).length;
   if (!total || done >= total) return null;
+
+  const popId = `ob-pop-${clientId}`;
+  const open = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setShow(false);
+    OB_requestFocus(clientId);
+    if (onOpen) onOpen();
+  };
+  const onFocus = (e) => {
+    let keyboard = true;
+    try {
+      keyboard = e.currentTarget.matches(":focus-visible");
+    } catch (err) {}
+    if (keyboard) setShow(true);
+  };
+
   return (
-    <span className="cs-tag ob-badge" title={`Onboarding: ${done} of ${total} steps done`}>
-      Onboarding {done}/{total}
-    </span>
+    <>
+      <span
+        ref={badgeRef}
+        className="cs-tag ob-badge"
+        role="button"
+        tabIndex={0}
+        aria-label={`Onboarding: ${done} of ${total} steps done. Open the checklist`}
+        aria-describedby={show ? popId : undefined}
+        onPointerEnter={(e) => {
+          if (e.pointerType === "mouse") setShow(true);
+        }}
+        onPointerLeave={() => setShow(false)}
+        onFocus={onFocus}
+        onBlur={() => setShow(false)}
+        onClick={open}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") open(e);
+          else if (e.key === "Escape" && show) {
+            e.stopPropagation();
+            setShow(false);
+          }
+        }}
+      >
+        Onboarding {done}/{total}
+      </span>
+      {show &&
+        ReactDOM.createPortal(
+          <div
+            ref={popRef}
+            id={popId}
+            role="tooltip"
+            className="ob-pop"
+            style={pos ? { top: pos.top, left: pos.left } : { top: 0, left: 0, visibility: "hidden" }}
+          >
+            <div className="ob-pop-head">
+              Onboarding · {done} of {total} done
+            </div>
+            <ul className="ob-pop-steps">
+              {steps.map((s) => (
+                <li key={s.key} className={"ob-pop-step" + (s.done ? " done" : "")}>
+                  <span className="ob-pop-box" aria-hidden="true">
+                    {s.done ? "✓" : ""}
+                  </span>
+                  <span className="ob-pop-name">
+                    <span className="ob-pop-sr">{s.done ? "Done: " : "To do: "}</span>
+                    {s.label}
+                  </span>
+                  {s.auto_source && OB_AUTO_LABEL[s.auto_source] && (
+                    <span className="ob-pop-auto">{OB_AUTO_LABEL[s.auto_source]}</span>
+                  )}
+                </li>
+              ))}
+            </ul>
+            <div className="ob-pop-foot">Click to open the checklist</div>
+          </div>,
+          document.body,
+        )}
+    </>
   );
 }
 
@@ -135,6 +267,37 @@ function OB_OnboardingCard({ client, staffUser }) {
   useEffect(() => {
     setEntityType((client && client.entityType) || "nonprofit");
   }, [client && client.id, client && client.entityType]);
+
+  // Picker badge click: scroll here and flash a gold outline. Waits for the
+  // data so the card has its full height before scrolling.
+  const cardRef = useRef(null);
+  const clientIdForFocus = client && client.id;
+  const hasData = !!data;
+  useEffect(() => {
+    if (!clientIdForFocus) return;
+    const tryFocus = () => {
+      const req = OB_focusRequest;
+      if (!req || req.clientId !== clientIdForFocus || Date.now() - req.at > 15000) return;
+      if (!OB_store.data) return;
+      const el = cardRef.current;
+      if (!el) return;
+      OB_focusRequest = null;
+      setTimeout(() => {
+        let reduce = false;
+        try {
+          reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+        } catch (e) {}
+        if (el.scrollIntoView) el.scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "center" });
+        el.classList.remove("ob-focus");
+        void el.offsetWidth; // restart the animation
+        el.classList.add("ob-focus");
+        setTimeout(() => el.classList.remove("ob-focus"), 2400);
+      }, 80);
+    };
+    tryFocus();
+    window.addEventListener(OB_FOCUS_EVENT, tryFocus);
+    return () => window.removeEventListener(OB_FOCUS_EVENT, tryFocus);
+  }, [clientIdForFocus, hasData]);
 
   // clients.entity_type via set_client_entity_type() (supabase/
   // client-entity-type.sql): any staff member with access to the client can
@@ -159,7 +322,7 @@ function OB_OnboardingCard({ client, staffUser }) {
 
   if (!data) {
     return (
-      <div className="card ob-card">
+      <div ref={cardRef} className="card ob-card">
         <h3 className="card-title">Onboarding</h3>
         <p className="card-subtitle">Loading…</p>
       </div>
@@ -167,7 +330,7 @@ function OB_OnboardingCard({ client, staffUser }) {
   }
   if (data.missing) {
     return (
-      <div className="card ob-card">
+      <div ref={cardRef} className="card ob-card">
         <h3 className="card-title">Onboarding</h3>
         <p className="card-subtitle">The onboarding checklist isn't available (sign in, or the migration isn't applied).</p>
       </div>
@@ -194,7 +357,7 @@ function OB_OnboardingCard({ client, staffUser }) {
   };
 
   return (
-    <div className="card ob-card">
+    <div ref={cardRef} className="card ob-card">
       <div className="ob-head">
         <h3 className="card-title">Onboarding</h3>
         <span className={"ob-count" + (done === steps.length && steps.length ? " complete" : "")}>

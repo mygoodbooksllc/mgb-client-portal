@@ -605,7 +605,7 @@ function CS_ClientSwitcher({
         )}
         <span className="cs-row-name">{nameOf(c)}</span>
         {!item.locked && typeof OB_OnboardingBadge === "function" && (
-          <OB_OnboardingBadge clientId={c.id} />
+          <OB_OnboardingBadge clientId={c.id} onOpen={() => activate(item)} />
         )}
         {temp && (
           <span className="cs-tag cs-tag-temp">

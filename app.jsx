@@ -24215,6 +24215,23 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
     pageAfterClientSwitch.current = null;
   }, [selectedClientId]);
 
+  // Client picker "Onboarding 3/5" badge (Onboarding.jsx OB_requestFocus):
+  // always land on that client's overview, where the Onboarding card
+  // scrolls itself into view.
+  useEffect(() => {
+    const onFocusOnboarding = (e) => {
+      const id = e && e.detail && e.detail.clientId;
+      if (!id) return;
+      if (id !== selectedClientId) {
+        pageAfterClientSwitch.current = "client-overview";
+        setSelectedClientId(id);
+      }
+      setPage("client-overview");
+    };
+    window.addEventListener("mgb:focus-onboarding", onFocusOnboarding);
+    return () => window.removeEventListener("mgb:focus-onboarding", onFocusOnboarding);
+  }, [selectedClientId]);
+
   // Only counts as "visiting" a client while actually looking at one of its
   // pages, not while browsing Home/Staff Access (which don't belong to any
   // client, and would otherwise stamp whatever client was last selected
