@@ -596,7 +596,8 @@ body {
 .brand-name {
   font-family: "Lato", var(--font-body, sans-serif);
   font-weight: 900;
-  color: white;
+  /* Light-mode page cream (--bg), fixed so dark mode doesn't flip it. */
+  color: #faf9f6;
   font-size: 17px;
   letter-spacing: -0.01em;
 }
@@ -607,7 +608,7 @@ body {
 
 .brand-sub {
   font-size: 11px;
-  color: var(--sidebar-text-muted);
+  color: #faf9f6;
   text-transform: uppercase;
   letter-spacing: 0.04em;
 }
