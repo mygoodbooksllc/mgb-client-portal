@@ -1101,7 +1101,7 @@ function Sidebar({
           rel="noopener noreferrer"
         >
           <div className="brand-text">
-            <span className="brand-name">MyGoodBooks</span>
+            <span className="brand-name">My<span className="brand-name-good">Good</span>Books</span>
             <span className="brand-sub">Client Portal</span>
           </div>
         </a>
@@ -1813,7 +1813,7 @@ function StaffRail({
       <div className="staff-rail-brand">
         {expanded ? (
           <>
-            <span className="brand-name">MyGoodBooks</span>
+            <span className="brand-name">My<span className="brand-name-good">Good</span>Books</span>
             <span className="brand-sub">Staff</span>
           </>
         ) : (
