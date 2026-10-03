@@ -2,10 +2,10 @@
 title: How does the Collections Queue draft payment reminders?
 section: QuickBooks
 audience: staff
-keywords: [collections, collections queue, overdue, receivables, a/r, accounts receivable, invoice, reminder, payment reminder, draft reminder, customer email, no email on file, live report, past due]
+keywords: [collections, collections queue, overdue, receivables, a/r, accounts receivable, invoice, reminder, payment reminder, draft reminder, customer email, no email on file, financial overview, board-ready, live report, past due]
 sort: 410
 ---
-The **Collections Queue** sits on a client's **Live Report**, under the receivables aging. It lists the client's overdue invoices and drafts a friendly payment reminder for **one customer at a time**.
+The **Collections Queue** sits on a Pro client's **Financial Overview** (formerly the Live Report), under the receivables aging. It lists the client's overdue invoices and drafts a friendly payment reminder for **one customer at a time**.
 
 ### Draft a reminder
 

@@ -569,7 +569,7 @@ function ST_boardLabel(key, clients) {
     return c ? c.name : id;
   };
   if (key === "bookkeeper-home") return { title: "Home", sub: "Your staff Home page" };
-  if (key.startsWith("live-report:")) return { title: nameOf(key.slice(12)), sub: "Live Report" };
+  if (key.startsWith("live-report:")) return { title: nameOf(key.slice(12)), sub: "Financial Overview" };
   const [id, scope] = key.split(":");
   return { title: nameOf(id), sub: scope === "scoped" ? "Dashboard (limited view)" : "Dashboard" };
 }

@@ -2,7 +2,7 @@
 title: How do I change my settings (profile, notifications, theme, signature)?
 section: Getting started
 audience: staff
-keywords: [settings, my settings, profile, photo, avatar, title, phone, notifications, email notifications, bell, dark mode, light mode, theme, match my computer, start page, signature, email signature, dashboards, reset layout, shortcuts, keyboard, firm settings, gear]
+keywords: [settings, my settings, profile, photo, avatar, title, phone, notifications, email notifications, bell, dark mode, light mode, theme, match my computer, start page, signature, email signature, dashboards, reset layout, financial overview, board-ready, live report, shortcuts, keyboard, firm settings, gear]
 sort: 27
 ---
 Your Settings page holds everything that's just about you. To open it, click your initials at the top right of the page, then **Settings**. (On a phone, open the menu, tap your name, then **Settings**.) Changes save on their own a moment after you make them. You'll see **Saved** at the top when they have.
@@ -38,11 +38,11 @@ The emails only say what happened and link to the portal. They never include the
 
 ### Email signature
 
-Type the sign-off you want at the bottom of emails. It's added to emails you send clients from the portal, portal invite drafts, and payment reminder drafts from the Live Report. Plain text, up to 1,000 characters. A preview shows under the box.
+Type the sign-off you want at the bottom of emails. It's added to emails you send clients from the portal, portal invite drafts, and payment reminder drafts from a Pro client's Financial Overview. Plain text, up to 1,000 characters. A preview shows under the box.
 
 ### Dashboards
 
-Lists every board where you've moved or hidden cards (Home, a client's Dashboard or Live Report). **Reset** puts that board back to the standard layout. Saved views are kept.
+Lists every board where you've moved or hidden cards (Home, a client's Dashboard or Financial Overview). **Reset** puts that board back to the standard layout. Saved views are kept.
 
 ### Shortcuts
 
@@ -67,4 +67,4 @@ Click **Sign out** at the top right of the Settings page, or in the account menu
 - **Everything is greyed out with a note about View as.** An admin using **View as** sees their own Settings, read-only, so nothing they change there affects the person they're viewing as. Stop viewing as first.
 - **It says "Couldn't save".** Check your connection and change the setting again.
 - **My photo didn't upload.** It must be PNG, JPEG or WebP and under 2 MB.
-- **A client's Dashboard doesn't show my card.** The card shows for the client's assigned bookkeeper. Check **Key dates and coverage** on the Client overview. Pro clients with the Live Report as their Dashboard don't show the card.
+- **A client's Dashboard doesn't show my card.** The card shows for the client's assigned bookkeeper. Check **Key dates and coverage** on the Client overview. Pro clients with the Financial Overview as their Dashboard don't show the card.

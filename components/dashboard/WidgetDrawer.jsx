@@ -47,7 +47,7 @@ const WD_KIND_BY_ID = {
   "xt-giving-summary": "chart",
   // Bookkeeper Home
   "month-close": "bars",
-  // Live Report
+  // Financial Overview (formerly Live Report)
   trend: "chart",
   outlook: "chart",
   "expense-breakdown": "bars",

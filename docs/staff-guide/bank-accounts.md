@@ -13,7 +13,7 @@ sort: 215
 - **Card balances (owed)**: what the client owes on their credit cards.
 - **Net cash**: cash on hand minus card balances. It turns red if the cards owe more than the bank holds.
 
-The same rule applies everywhere else in the app. Cash on the dashboard, in reports, in the budget and in Daily Close counts bank accounts only. On the balance sheet PDF, card balances appear under liabilities.
+The same rule applies everywhere else in the app. Cash on the dashboard, in reports, in the budget and on the Financial Overview counts bank accounts only. On the balance sheet PDF, card balances appear under liabilities.
 
 ### Accounts
 

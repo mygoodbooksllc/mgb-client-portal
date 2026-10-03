@@ -9329,11 +9329,11 @@ function ReportBarRows({ items }) {
 // premium feature upgrades in place — same pairing ENTERPRISE_COMPARISON
 // already uses via standardLabel/premiumLabel — so a client can match a
 // card here to what they actually see in their own sidebar, since the
-// premium product name (e.g. "Live Report") never appears there itself.
+// premium product name (e.g. "Board-ready Financial Overview") never appears there itself.
 const ENTERPRISE_FEATURES = [
   {
     icon: <BarChartIcon />,
-    title: "Live Report",
+    title: "Board-ready Financial Overview",
     sidebarTab: "Dashboard",
     description:
       "Your dashboard becomes a fuller financial snapshot — cash on hand, receivables, what's due — synced from QuickBooks every 15 minutes, with a Sync now button. Click-to-jump KPIs, a low-cash alert, a collections queue, and a one-click PDF snapshot, all customizable to how you work.",
@@ -9387,7 +9387,7 @@ const ENTERPRISE_COMPARISON = [
     key: "dashboard",
     tool: "Dashboard",
     standardLabel: "Dashboard",
-    premiumLabel: "Live Report",
+    premiumLabel: "Board-ready Financial Overview",
     standard: [
       "KPI row: Cash on Hand, Net Surplus/Deficit, Revenue, Operating Reserve",
       "Income vs. Expenses — 12-month trend chart",
@@ -12325,7 +12325,7 @@ function DeveloperToolsPage({ staffUser, readOnly }) {
   function resetLocalState() {
     if (
       !window.confirm(
-        "Reset this browser's local MyGoodBooks state (theme, tab layout, dashboard/Live Report widget layouts, cash-floor alerts, per-person access overrides, ...)? This only affects this browser — nothing in Supabase is touched. The page will reload.",
+        "Reset this browser's local MyGoodBooks state (theme, tab layout, dashboard/Financial Overview widget layouts, cash-floor alerts, per-person access overrides, ...)? This only affects this browser — nothing in Supabase is touched. The page will reload.",
       )
     ) {
       return;
@@ -22956,7 +22956,7 @@ const PAGE_META = {
   // components/daily-close/ directory keep their original names — renaming
   // those would churn the whole vendored component for a label change.
   "daily-close": {
-    title: "Live Report",
+    title: "Financial Overview",
     // Plan-aware at render time (syncCadenceLabel); this is the fallback.
     subtitle: "Your financial snapshot, synced from QuickBooks",
   },

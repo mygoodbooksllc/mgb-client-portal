@@ -58,7 +58,7 @@ because some work happens in Claude Code web sessions. Run `git fetch` and compa
   - The theme follows the device setting unless the user picks one; the choice is saved in
     `localStorage` as `mygoodbooks_theme_v1`.
   - The current look is the "calm" redesign: static background, opaque cards and a gold accent.
-  - Live Report has its own stylesheet, `components/daily-close/DailyClose.css`.
+  - Financial Overview has its own stylesheet, `components/daily-close/DailyClose.css`.
 - **Version label.** `window.MGB_VERSION` in `index.html` is bumped by hand. It's shown in
   Developer Tools → System info.
 
@@ -73,8 +73,8 @@ because some work happens in Claude Code web sessions. Run `git fetch` and compa
 | `auth-config.js` | Supabase URL and publishable (anon) key. Safe to be public. |
 | `qbo-config.js` | QuickBooks app Client ID (public) and environment (`production`) |
 | `components/auth/` | `supabaseClient.js`, `AuthGate.jsx` (staff Google gate), `ClientAuthGate.jsx` (client magic-link gate) |
-| `components/dashboard/` | `WidgetDrawer.jsx` + `widget-drawer.css`: the shared **Customize** drawer and board edit mode used by every customizable board (client Dashboard, full client dashboard, Bookkeeper Home, Live Report), plus `WD_sync` for per-account layout saving. Every name is `WD_`/`wd-` prefixed. Loaded before `components/daily-close/*` and `app.jsx`. |
-| `components/daily-close/` | Live Report (`DailyClose.tsx`, its CSS, sample data, and `fromClient.js`, which adapts client data for it) |
+| `components/dashboard/` | `WidgetDrawer.jsx` + `widget-drawer.css`: the shared **Customize** drawer and board edit mode used by every customizable board (client Dashboard, full client dashboard, Bookkeeper Home, Financial Overview), plus `WD_sync` for per-account layout saving. Every name is `WD_`/`wd-` prefixed. Loaded before `components/daily-close/*` and `app.jsx`. |
+| `components/daily-close/` | Financial Overview (`DailyClose.tsx`, its CSS, sample data, and `fromClient.js`, which adapts client data for it) |
 | `components/pro/` | Pro budget and report tools: `ProBudget.jsx` (Budget vs. Actual tabs, next year's draft with approval) and `ProReports.jsx` (board reports suite and the public share page), each with its own CSS. Loaded before `app.jsx`; `app.jsx` falls back to the old pages if either is missing. |
 | `components/inbox/` | `StaffInbox.jsx` (the unified staff inbox, the staff chat drawer and launcher, and `SI_useClientMessaging` for the client Messages page) and `staff-inbox.css`. Loaded before `app.jsx`; every name is `SI_`/`si`/`StaffInbox` prefixed. Without it, `app.jsx` falls back to the old Team Chat page and sample client threads. |
 | `components/staff/` | Staff-only features, each with its own CSS and a name prefix (`CS_` client switcher, `HLP_` Help, `TB_` top bar, ...). `TopBar.jsx` + `top-bar.css` is the staff top bar (see "Staff top bar" under Main features). All loaded before `app.jsx`. |
@@ -196,12 +196,12 @@ because some work happens in Claude Code web sessions. Run `git fetch` and compa
     money posted straight to a parent account is booked under the parent's name, so the lines
     add up to the totals, since v8).
     `mapQboToClient` turns this month's expense lines into `client.expenseByAccount` (and last
-    month's into `expenseByAccountPrev`), which feeds Live Report's "Where the money went"
+    month's into `expenseByAccountPrev`), which feeds Financial Overview's "Where the money went"
     whether or not the company has a QuickBooks budget.
   - Open invoices also carry `customer_id` and `customer_email` (qbo-sync v10,
     `supabase/qbo-invoice-customer-email.sql`). The email is Customer.PrimaryEmailAddr, from one
     read-only `Customer where Id in (...)` query per full read covering only customers with an
-    open invoice, and falls back to the invoice's BillEmail. Live Report's **Collections Queue**
+    open invoice, and falls back to the invoice's BillEmail. Financial Overview's **Collections Queue**
     uses them to draft reminders **one customer at a time** as a `mailto:` addressed to that
     customer. Checking a row from another customer replaces the selection, so one email never
     shows one customer another's balances. Nothing is sent from the portal.
@@ -531,13 +531,13 @@ Owner setup:
   page header). Next to it is the gold **Pro** pill, or for Basic and Plus a lock that opens
   Plans. Collapsed, it shows just the roman numeral.
 - **Dashboard** (customizable widgets and saved views). A Pro, full-access client gets
-  **Live Report** here instead.
+  **Financial Overview** here instead.
   - **Customize** opens a right-side drawer (360px wide, full-width sheet on phones; Esc, X or
     a click outside closes it). **Add widgets** lists hidden widgets as cards with a skeleton
     preview, and **+** appends one and flashes it on the board. **On your dashboard** lists what is
     showing, with up/down, drag, and remove. The footer has saved views and **Reset to default**.
     While the drawer is open the board is in edit mode: each card gets an outline, a drag handle
-    and a remove button. The same drawer serves Bookkeeper Home and the Live Report.
+    and a remove button. The same drawer serves Bookkeeper Home and the Financial Overview.
   - Layouts and saved views follow the signed-in person across browsers and devices:
     they are saved in `public.user_board_layouts` (`supabase/user-board-layouts.sql`), with `localStorage` as a cache, per signed-in user and board (debounced saves; an existing local
     layout is uploaded once). If that table is missing or unreachable, it quietly stays on
@@ -551,7 +551,7 @@ Owner setup:
   payables), **Reports**, **Giving & Funds**, **Payroll** (add-on), **Documents** (with folders
   and previews).
 - **Pro upgrades** show inline on the same tabs:
-  - Live Report
+  - Financial Overview
   - Budgeting Tool
   - Cash Flow Pro
   - Report Builder
@@ -766,7 +766,7 @@ Owner setup:
   proxy (cleared flags on the last 13 months of bank and card transactions), and CDC only gates
   the full re-read; it doesn't merge deltas.
   Giving, funds and payroll aren't sourced from QuickBooks.
-- Live Report cards with nothing to show for a live client (no expenses posted this month, no
+- Financial Overview cards with nothing to show for a live client (no expenses posted this month, no
   open invoices, no monthly P&L yet) show a short muted line instead of rendering blank. Budget
   health, bills due soon, fund activity and cash by account hide themselves instead. The sandbox
   company (grace-community) often has little or no current-month activity, so "Where the money

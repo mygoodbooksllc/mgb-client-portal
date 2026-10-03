@@ -147,7 +147,7 @@ function writeCashFloor(clientId: string | undefined, value: number | null): voi
 }
 
 /* ============================================================
-   Widget layout — "customize your Live Report," same idea as the
+   Widget layout — "customize your Financial Overview," same idea as the
    Dashboard's own customize feature in app.jsx (show/hide + reorder). The
    layout hook is a small parallel implementation rather than a call into
    app.jsx's useWidgetLayout (this file loads before app.jsx exists). The
@@ -347,7 +347,7 @@ function LiveReportCustomizeButton({
       widgets={LIVE_REPORT_WIDGETS}
       layout={layout}
       className={styles.customizeTrigger}
-      boardName="your Live Report"
+      boardName="your Financial Overview"
       onOpenChange={onOpenChange}
     >
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
@@ -356,7 +356,7 @@ function LiveReportCustomizeButton({
           <circle cx="16" cy="12" r="1.6" fill="currentColor" stroke="none" />
           <circle cx="9" cy="18" r="1.6" fill="currentColor" stroke="none" />
         </svg>
-        Customize Live Report
+        Customize overview
     </WD_CustomizeButton>
   );
 }
@@ -1029,7 +1029,7 @@ function DailyClose({ data, className, theme, onNavigate }: DailyCloseProps) {
     doc.setTextColor(5, 8, 13);
     doc.setFont("helvetica", "bold");
     doc.setFontSize(14);
-    doc.text("Live Report", 14, 40);
+    doc.text("Board-ready Financial Overview", 14, 40);
     doc.setFont("helvetica", "normal");
     doc.setFontSize(10);
     doc.setTextColor(110, 110, 110);
@@ -1190,7 +1190,7 @@ function DailyClose({ data, className, theme, onNavigate }: DailyCloseProps) {
       doc.text(`Page ${i} of ${pageCount}`, pageWidth - 14, footY, { align: "right" });
     }
 
-    doc.save(`${data.client.name.replace(/\s+/g, "_")}_Live_Report.pdf`);
+    doc.save(`${data.client.name.replace(/\s+/g, "_")}_Financial_Overview.pdf`);
   };
 
   return (
@@ -1199,9 +1199,9 @@ function DailyClose({ data, className, theme, onNavigate }: DailyCloseProps) {
         {/* ---------- Masthead ---------- */}
         <header className={styles.masthead}>
           <div>
-            <div className={styles.brandEyebrow}>{data.firm.name}</div>
+            <div className={styles.brandEyebrow}>Board-ready</div>
             <h1 className={styles.brandTitle}>
-              Live <span className={styles.accentword}>Report</span>
+              Financial <span className={styles.accentword}>Overview</span>
             </h1>
           </div>
           <div className={styles.mastheadRight}>
@@ -1224,7 +1224,7 @@ function DailyClose({ data, className, theme, onNavigate }: DailyCloseProps) {
                 <path d="M12 3v12m0 0l-4-4m4 4l4-4" />
                 <path d="M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2" />
               </svg>
-              Download Live Report
+              Download board-ready overview
             </button>
           </div>
         </header>
@@ -1368,7 +1368,7 @@ function DailyClose({ data, className, theme, onNavigate }: DailyCloseProps) {
         </section>
 
         {/* ---------- Everything below the KPI row is order/visibility-driven
-             by the Customize Live Report layout, same idea as Dashboard's
+             by the Customize overview layout, same idea as Dashboard's
              own customizable content-masonry in app.jsx. ---------- */}
         <div className={styles.contentMasonry}>
           {layout.visibleOrder

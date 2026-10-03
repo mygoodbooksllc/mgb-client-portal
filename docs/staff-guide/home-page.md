@@ -2,7 +2,7 @@
 title: What's on my Home page?
 section: Getting started
 audience: staff
-keywords: [home, dashboard, needs attention, reminders, upgrade requests, access requests, needs a visit, recently viewed, customize, add widgets, saved views, reset layout, live report, status, handoff]
+keywords: [home, dashboard, needs attention, reminders, upgrade requests, access requests, needs a visit, recently viewed, customize, add widgets, saved views, reset layout, financial overview, board-ready, live report, status, handoff]
 sort: 40
 ---
 **Home** is your starting point. It shows what needs attention across every client you can see. To open a client, use the client picker or the search box in the [top bar](#/help/top-bar).
@@ -29,7 +29,7 @@ On each row in **Your clients**:
 
 ### Make it yours
 
-Click **Customize dashboard** to open the customize panel on the right. The same panel is used on a client's **Dashboard** and on the **Live Report**.
+Click **Customize dashboard** to open the customize panel on the right. The same panel is used on a client's **Dashboard** and on a Pro client's **Financial Overview** (it was called the Live Report).
 
 - **Add widgets** shows cards you've hidden, each with a short description and a small preview. Click **+** to add one. It goes to the end of the page and briefly highlights so you can find it.
 - **On your dashboard** lists what's showing. Use the arrows (or drag the handle) to reorder, and **−** to hide a card.
