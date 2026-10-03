@@ -5615,37 +5615,73 @@ body:has(.modal-overlay) .chat-fab-wrap {
   gap: 20px;
 }
 
+/* Sign-in header: dark card with the logo tinted gold in a thin gold box,
+   and the sidebar's Lato wordmark. Fixed colours, so it looks the same in
+   light and dark mode. */
 .auth-logo {
+  width: 100%;
+  box-sizing: border-box;
   display: flex;
   align-items: center;
-  gap: 9px;
-  color: var(--gold-deep);
+  justify-content: center;
+  gap: 18px;
+  padding: 22px 28px;
+  background: #05080d;
+  border-radius: 16px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.18);
 }
 
-.auth-logo-img { display: block; width: 192px; height: 192px; flex-shrink: 0; }
-/* Wordmark matches the logo's own navy (#233746); in dark mode both go light. */
-.auth-logo .auth-wordmark { font-size: 40px; color: #233746; }
-@media (max-width: 480px) {
-  .auth-logo-img { width: 120px; height: 120px; }
-  .auth-logo .auth-wordmark { font-size: 28px; }
+.auth-logo-box {
+  width: 92px;
+  height: 92px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1.5px solid #c7ae86;
+  border-radius: 14px;
 }
 
-/* The logo is navy on transparent; render it light on dark backgrounds. */
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) .auth-logo-img { filter: brightness(0) invert(0.92); }
+/* logo.webp is navy on transparent; masking a gold fill with it recolours it. */
+.auth-logo-mark {
+  width: 74px;
+  height: 74px;
+  background: #c7ae86;
+  -webkit-mask: url(/logo.webp) center / contain no-repeat;
+  mask: url(/logo.webp) center / contain no-repeat;
 }
-[data-theme="dark"] .auth-logo-img { filter: brightness(0) invert(0.92); }
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) .auth-logo .auth-wordmark { color: #ebebeb; }
+
+.auth-logo-text {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.15;
+  min-width: 0;
 }
-[data-theme="dark"] .auth-logo .auth-wordmark { color: #ebebeb; }
 
 .auth-wordmark {
-  font-family: var(--font-heading);
-  font-weight: 600;
-  font-size: 20px;
+  font-family: "Lato", var(--font-body, sans-serif);
+  font-weight: 900;
+  font-size: 34px;
   letter-spacing: -0.01em;
-  color: var(--ink-strong);
+  color: #f0ece3;
+}
+
+.auth-wordmark-good { color: #c7ae86; }
+
+.auth-logo-sub {
+  margin-top: 4px;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #f0ece3;
+}
+
+@media (max-width: 480px) {
+  .auth-logo { gap: 14px; padding: 18px 18px; }
+  .auth-logo-box { width: 68px; height: 68px; border-radius: 12px; }
+  .auth-logo-mark { width: 54px; height: 54px; }
+  .auth-wordmark { font-size: 26px; }
+  .auth-logo-sub { font-size: 11px; }
 }
 
 .auth-card {
