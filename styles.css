@@ -596,8 +596,8 @@ body {
 .brand-name {
   font-family: "Lato", var(--font-body, sans-serif);
   font-weight: 900;
-  /* Light-mode page cream (--bg), fixed so dark mode doesn't flip it. */
-  color: #faf9f6;
+  /* Warm cream, matches the sign-in header wordmark; fixed so dark mode doesn't flip it. */
+  color: #f0ece3;
   font-size: 17px;
   letter-spacing: -0.01em;
 }
@@ -608,7 +608,7 @@ body {
 
 .brand-sub {
   font-size: 11px;
-  color: #faf9f6;
+  color: #f0ece3;
   text-transform: uppercase;
   letter-spacing: 0.04em;
 }
