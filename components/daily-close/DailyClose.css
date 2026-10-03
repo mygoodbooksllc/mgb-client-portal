@@ -145,9 +145,8 @@
   flex-wrap: wrap;
   position: relative;
 }
-/* Replaces a plain border-bottom with a dashed line that scrolls right,
-   forever — a small nod to "Live" in the masthead actually reading as
-   live/streaming rather than a static rule under the title. */
+/* Solid gold rule under the masthead (owner request 2026-10-03; was a
+   dashed line). Fixed to the shell's gold, like .dc-accentword. */
 .dc-masthead::after {
   content: "";
   position: absolute;
@@ -155,14 +154,7 @@
   right: 0;
   bottom: 0;
   height: 1px;
-  background-image: repeating-linear-gradient(
-    to right,
-    var(--line-strong) 0,
-    var(--line-strong) 6px,
-    transparent 6px,
-    transparent 12px
-  );
-  background-size: 24px 1px;
+  background: #c7ae86;
 }
 @media (prefers-reduced-motion: reduce) {
   .dc-masthead::after {
