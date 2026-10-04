@@ -1,6 +1,6 @@
 -- Account manager per client (owner request 2026-10-04, "Option A").
 --
--- NOT applied yet. Safe to re-run. Needs staff-schema.sql,
+-- Applied to production 2026-10-04. Safe to re-run. Needs staff-schema.sql,
 -- clients-roster.sql, staff-client-access.sql, assigned-bookkeeper-email.sql,
 -- client-messages.sql, user-settings.sql and notification-emails.sql first.
 --
