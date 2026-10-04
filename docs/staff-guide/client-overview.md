@@ -27,7 +27,7 @@ Fix the problem and the glow goes away the next time the card loads. Onboarding 
 - **Monthly bill**: what the client pays: milestone fee, plan and logins, plus payroll if they have the add-on. **Milestone details** opens their milestone.
 - **Profitability · this month**: the bill divided by QuickBooks Time hours, against a target rate. Also shows your in-app time. QuickBooks Time hours are shown to admins only.
 - **QuickBooks health**: last sync, uncategorized balances and possible duplicate bills. Shows **Not connected** if QuickBooks isn't set up. (For reconciliation, see the close card below.)
-- **Engagement · 30 days**: when the client last visited, page views, who signed in and their top pages. (Message threads here are still sample data.)
+- **Engagement · 30 days**: when the client last visited, page views, who signed in and their top pages. (The "waiting on a reply" lines here come from sample threads. Real client messages are in the **Inbox**.)
 
 ### Left column
 
