@@ -2,7 +2,7 @@
 title: How do I message a client or a teammate?
 section: Daily work
 audience: staff
-keywords: [inbox, message, chat, team chat, reply, internal note, waiting on you, group, attachment, drawer, seen, new messages, not sent, retry, messaging isn't available]
+keywords: [inbox, message, chat, team chat, reply, internal note, waiting on you, group, attachment, drawer, seen, new messages, not sent, retry, messaging isn't available, account manager, loop in, mention, @mention, bookkeeper, email]
 sort: 140
 ---
 The **Inbox** (in the sidebar) holds client conversations and team chat in one place. The bell in the top bar also lists client messages waiting for a reply.
@@ -20,6 +20,19 @@ The **Inbox** (in the sidebar) holds client conversations and team chat in one p
 2. Make sure **Reply** is selected (not **Note**). The hint under it says who will see your message.
 3. Type your message. **Enter** sends; **Shift+Enter** adds a new line.
 4. Use the paperclip to attach a file (up to 25 MB).
+
+### Who gets emailed when a client writes
+
+Each client has an **account manager** (Jesse to start with), set on the Client overview under **Key dates and coverage**. When a client sends a message, only the account manager gets the "new message" email. If a client has no account manager, everyone with access to that client gets it, as before. Everyone with access can still see and answer the thread in the Inbox.
+
+### Loop in the bookkeeper
+
+The bookkeeper steps in when needed. Two ways to bring them in:
+
+- Click **Loop in Marcus** (it shows the assigned bookkeeper's first name) next to **Reply** / **Note**. They get an email asking them to look at the conversation, and an internal note **"Looped in …"** is added to the thread so everyone on staff can see it. The client doesn't see it.
+- Type **@** and their name in a reply or a note, for example **@Marcus** (first name, full name, or the part of their email before the @ all work). Sending it emails them. In a reply, the client sees the @name in the message, so use a note if you'd rather not.
+
+The button doesn't show if the client has no assigned bookkeeper or you are the bookkeeper.
 
 ### Leave an internal note in a client thread
 
@@ -40,6 +53,8 @@ The chat button at the bottom right, or **+** → **Message** in the top bar on 
 - Your reply appears on their page within a few seconds, without them refreshing. If they've scrolled up to read older messages, they get a **New message ↓** button instead of being jumped to the bottom.
 - When they send, the message shows straight away with **Sending…** under it. If it doesn't go through it says **Not sent**, with **Retry** and **Edit** (Edit puts the text back in their message box).
 - **Seen** appears under their latest message once someone on staff has opened that conversation in the Inbox.
+- The title says **Conversation with your MyGoodBooks team**, with the account manager and bookkeeper named under it.
+- Each reply shows who wrote it: the name and **Title** from that person's **Settings → Profile**. With no title set, it says **Account manager** or **Bookkeeper** if that's their role for the client, otherwise just the name.
 - The **Send** button stays greyed out until they type something or attach a file.
 
 ### Team chat
@@ -54,4 +69,6 @@ Team conversations support attachments and groups (**+ New group**). You can edi
 - **A client says a message shows "Not sent."** It wasn't saved. Ask them to click **Retry** (or **Edit**, then send again) once their connection is back.
 - **A client can't find an older message.** Their Messages page shows the latest 200. **Load earlier messages** at the top brings in older ones. (They can press **Shift+Enter** for a new line; **Enter** sends.)
 - **A client says a file link in their thread won't open.** Links refresh when clicked, so asking them to click it again usually works.
+- **The bookkeeper says they didn't get a loop-in email.** Check their **Settings → Notifications**: loop-ins and @mentions follow "A client sends a message". Admins can check the **Emails** page.
+- **"Loop in isn't set up yet."** A database update is missing. Tell an admin.
 - **"Attachments are capped at 25 MB."** Send a smaller file, or share a Google Drive link instead.

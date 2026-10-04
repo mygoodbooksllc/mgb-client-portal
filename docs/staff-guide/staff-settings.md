@@ -15,13 +15,13 @@ Settings are saved to your account, so they follow you to any computer you sign 
 - **Name**, **Title** (for example "Senior bookkeeper") and **Phone**.
 - **Email** is your sign-in email. Ask an admin if it needs to change.
 
-Your photo shows in the top bar. Your name, title, phone and photo also show on the **Your bookkeeper** card on the Dashboard of every client you're the assigned bookkeeper for, so keep them up to date.
+Your photo shows in the top bar. Your name, title, phone and photo also show on the **Your bookkeeper** or **Your account manager** card on the Dashboard of every client you're the bookkeeper or account manager for, and your name and title show on each reply you send in a client's Messages page, so keep them up to date.
 
 ### Notifications
 
 **Email me when** turns each notification email on or off:
 
-- A client sends a message (on to start with)
+- A client sends a message (on to start with). This goes to the client's account manager. It also covers being looped in on a conversation or @mentioned in a reply or note.
 - A client uploads a requested document (on)
 - Someone assigns me a task (on). Not for tasks you give yourself or recurring template tasks.
 - Tasks due today (off). One morning email listing your open tasks due that day.
@@ -67,4 +67,4 @@ Click **Sign out** at the top right of the Settings page, or in the account menu
 - **Everything is greyed out with a note about View as.** An admin using **View as** sees their own Settings, read-only, so nothing they change there affects the person they're viewing as. Stop viewing as first.
 - **It says "Couldn't save".** Check your connection and change the setting again.
 - **My photo didn't upload.** It must be PNG, JPEG or WebP and under 2 MB.
-- **A client's Dashboard doesn't show my card.** The card shows for the client's assigned bookkeeper. Check **Key dates and coverage** on the Client overview. Pro clients with the Financial Overview as their Dashboard don't show the card.
+- **A client's Dashboard doesn't show my card.** The cards show for the client's assigned bookkeeper and account manager. Check **Key dates and coverage** on the Client overview. If you're both, there's one card, **Your account manager and bookkeeper**. The client may also have hidden the card with **Customize dashboard**. Pro clients with the Financial Overview as their Dashboard don't show the cards.

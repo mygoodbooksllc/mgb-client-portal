@@ -2,7 +2,7 @@
 title: How do I add staff and manage their access?
 section: Admin
 audience: admin
-keywords: [staff access, team, members, members tab, entity type, nonprofit, for-profit, add staff, bulk import, role, admin, bookkeeper, deactivate, assign clients, manage, temporary admin access, grant, revoke, view as, email invite, client roster]
+keywords: [staff access, team, members, members tab, entity type, nonprofit, for-profit, add staff, bulk import, role, admin, bookkeeper, deactivate, assign clients, manage, temporary admin access, grant, revoke, view as, email invite, client roster, account manager]
 sort: 510
 ---
 The **Members** tab of **Team** (sidebar → **Team** → **Members**) controls who can sign in and with what role. It used to be a separate page called **Staff Access**; old Staff Access links (`#/staff-access`) open this tab.
@@ -51,6 +51,10 @@ Click **View as** on an active bookkeeper's row to see exactly what they see, in
 ### Client roster: organization type
 
 On **Client roster** (**Settings → Firm settings → Client roster**), the add form and each row's edit mode have a **Nonprofit** / **For-profit** choice under the organization type. New clients default to **Nonprofit**. Staff can also change it on the client's Onboarding card. See [How does client onboarding work?](#/help/onboarding).
+
+### Client roster: account manager
+
+Each row on **Client roster** has an **Account manager** column, and the add form and edit mode have an **Account manager** picker (active staff). New clients start with Jesse. The account manager gets the email when that client sends a message. You can also change it on the client's Overview under **Key dates and coverage**.
 
 ### Troubleshooting
 

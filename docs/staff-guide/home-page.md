@@ -29,7 +29,7 @@ On each row in **Your clients**:
 
 ### Make it yours
 
-Click **Customize dashboard** to open the customize panel on the right. The same panel is used on a client's **Dashboard** and on a Pro client's **Financial Overview** (it was called the Live Report).
+Click **Customize dashboard** to open the customize panel on the right. The same panel is used on a client's **Dashboard** and on a Pro client's **Financial Overview** (it was called the Live Report). On a client's Dashboard, the **Your account manager** and **Your bookkeeper** contact cards are widgets too: they sit side by side under the other cards and can be hidden or reordered.
 
 - **Add widgets** shows cards you've hidden, each with a short description and a small preview. Click **+** to add one. It goes to the end of the page and briefly highlights so you can find it.
 - **On your dashboard** lists what's showing. Use the arrows (or drag the handle) to reorder, and **−** to hide a card.
