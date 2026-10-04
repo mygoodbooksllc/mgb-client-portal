@@ -2667,7 +2667,8 @@ function buildClientSearchResults(query, client, messages, visibleKeys, limit) {
           label: m.text.length > 70 ? m.text.slice(0, 70) + "…" : m.text,
           meta: `${m.author} · ${fmtDate(m.date)}`,
           page: "messages",
-          highlightKey: "msg-" + i,
+          // Same id MessagesPage gives the bubble (message id, else index).
+          highlightKey: "msg-" + (m.id || i),
         });
       }
     });
@@ -5927,7 +5928,9 @@ function ClientOverviewPage({ client, messagesByClient, onNavigate, onOpenDetail
             ))}
           </ul>
           {upgradeHint && <p className="ov-foot ov-hint">{upgradeHint}</p>}
-          <p className="ov-foot">Message threads are still sample data.</p>
+          {/* waiting is worked out from the sample threads (data.js), not
+              client_messages; real conversations are in the Inbox. */}
+          <p className="ov-foot">"Waiting on a reply" uses sample threads. Real client messages are in the Inbox.</p>
         </div>
       </div>
 
@@ -20481,6 +20484,57 @@ function ChatFab({ unreadCount, onOpen, onDismiss }) {
 // Messages page
 // ----------------------------------------------------------------------------
 
+// Stands in for SI_useClientMessaging when the inbox component isn't loaded:
+// a signed-in client then sees "Messaging isn't available right now".
+const MSG_OFF = {
+  status: "off",
+  messages: [],
+  unread: false,
+  waitingCount: 0,
+  readOnly: true,
+  hasMore: false,
+  lastId: null,
+  lastText: "",
+  retry: () => {},
+  markRead: () => {},
+  loadEarlier: async () => null,
+  send: () => "Messaging isn't available right now.",
+};
+
+// Consecutive messages from one sender within this gap share a group (one
+// author line, tighter spacing).
+const MSG_GROUP_GAP_MS = 10 * 60 * 1000;
+// Within this many pixels of the bottom counts as "reading the latest", so a
+// new message scrolls into view; further up, a "New message" pill shows.
+const MSG_NEAR_BOTTOM_PX = 80;
+// Signed attachment links last 10 minutes; past this, re-sign on click.
+const MSG_LINK_STALE_MS = 9 * 60 * 1000;
+
+// A message's moment: created_at for real rows, noon on its date for the
+// sample rows (which only have a YYYY-MM-DD date).
+function MSG_when(m) {
+  const d = new Date(m.created_at || (m.date ? `${m.date}T12:00:00` : NaN));
+  return isFinite(d.getTime()) ? d : null;
+}
+
+const MSG_dayKey = (d) => (d ? `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}` : "");
+
+// Today, Yesterday, then "Mon, Sep 29" (with the year once it isn't this one).
+function MSG_dayLabel(d) {
+  const now = new Date();
+  const yest = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1);
+  if (MSG_dayKey(d) === MSG_dayKey(now)) return "Today";
+  if (MSG_dayKey(d) === MSG_dayKey(yest)) return "Yesterday";
+  return d.toLocaleDateString("en-US", {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+    ...(d.getFullYear() !== now.getFullYear() ? { year: "numeric" } : {}),
+  });
+}
+
+const MSG_time = (d) => d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+
 function MessagesPage({
   client,
   messages,
@@ -20493,39 +20547,119 @@ function MessagesPage({
   searchTarget,
   bookkeeperTyping,
   // Real messaging (client_messages, see SI_useClientMessaging): no sample
-  // banner, attachments are checked and uploaded, and onSend resolves to an
-  // error message or null. readOnlyNote: staff previewing a real thread.
+  // banner, attachments are checked and uploaded, and onSend returns an
+  // error message or null (the message then shows at once with a "Sending…"
+  // state). readOnlyNote: staff previewing a real thread.
   live,
   validateAttachment,
   readOnlyNote,
-  // Real threads only: "loading" | "error" | "real" (from the hook), a retry
-  // for the error state, and the "Load earlier messages" pager.
+  // Real threads only: "loading" | "error" | "real" | "unavailable" (no
+  // messaging for this signed-in client), a retry for the error state, and
+  // the "Load earlier messages" pager (resolves to an error or null).
   loadStatus = "real",
   onRetry,
   hasEarlier,
   onLoadEarlier,
+  loadingEarlier,
+  // Real threads only: the reader's own read marker as it was when the page
+  // opened (for the "New messages" divider), the latest staff read marker
+  // (for "Seen"), failed-send handlers and a fresh-link getter for
+  // attachments whose signed URL has expired.
+  readAt,
+  staffReadAt,
+  onRetrySend,
+  onDiscardSend,
+  onAttachmentUrl,
 }) {
   const [draft, setDraft] = useState("");
   const [pendingAttachment, setPendingAttachment] = useState(null);
   const [isDragging, setIsDragging] = useState(false);
   const [sending, setSending] = useState(false);
+  const [showNewPill, setShowNewPill] = useState(false);
   const fileInputRef = useRef(null);
   const threadRef = useRef(null);
   const draftRef = useRef(null);
+  const nearBottomRef = useRef(true);
+  const openedRef = useRef(false);
+  const prependRef = useRef(null);
+  const lastPendingRef = useRef(null);
   const { flashCardId, jumpToCard } = useCardFlash();
   const showToast = useToast();
+  const unavailable = loadStatus === "unavailable";
 
-  // Keep the newest message in view: jump to the bottom when the thread
-  // opens and whenever a new message lands at the end. Loading earlier
-  // messages adds to the top, so the last id doesn't change and the reader
-  // stays where they were.
+  // Where unread starts: the first staff message after the reader's own
+  // read marker, worked out once when the thread first loads, before the
+  // page marks it read, so the divider stays put while they read.
+  const newFromRef = useRef(undefined);
+  if (newFromRef.current === undefined && live && loadStatus === "real") {
+    const first = readAt
+      ? messages.find((m) => m.from === "bookkeeper" && m.created_at && new Date(m.created_at) > new Date(readAt))
+      : null;
+    newFromRef.current = first ? first.id : null;
+  }
+  const newFromId = newFromRef.current || null;
+
   const lastMsg = messages.length ? messages[messages.length - 1] : null;
-  const lastMsgKey = lastMsg ? lastMsg.id || lastMsg.created_at || messages.length : null;
-  useEffect(() => {
+  // Unsent messages stay at the bottom, so a reply that arrives while one is
+  // sending lands above it: watch the last sent message as well.
+  const lastSent = [...messages].reverse().find((m) => !m.sendState);
+  const msgKey = (m) => (m ? m.id || m.created_at || "" : "");
+  const lastMsgKey = messages.length ? msgKey(lastMsg) + "|" + msgKey(lastSent) + "|" + messages.length : null;
+  const firstMsgKey = messages.length ? messages[0].id || messages[0].created_at || "first" : null;
+
+  const scrollToBottom = (smooth) => {
     const el = threadRef.current;
-    if (el && !searchTarget) el.scrollTop = el.scrollHeight;
+    if (!el) return;
+    el.scrollTo({ top: el.scrollHeight, behavior: smooth ? "smooth" : "auto" });
+    nearBottomRef.current = true;
+    setShowNewPill(false);
+  };
+
+  // First load: open at the "New messages" divider if there is one, else at
+  // the newest message. After that a new message only scrolls the thread if
+  // the reader is already at the bottom (or sent it); otherwise the pill.
+  React.useLayoutEffect(() => {
+    const el = threadRef.current;
+    if (!el || searchTarget || !messages.length) return;
+    if (!openedRef.current) {
+      openedRef.current = true;
+      const divider = el.querySelector(".msg-new-divider");
+      if (divider) el.scrollTop = Math.max(0, divider.offsetTop - 12);
+      else el.scrollTop = el.scrollHeight;
+      nearBottomRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < MSG_NEAR_BOTTOM_PX;
+      return;
+    }
+    const mineJustAdded = lastMsg && lastMsg.sendState === "sending" && lastMsg.id !== lastPendingRef.current;
+    lastPendingRef.current = lastMsg && lastMsg.sendState ? lastMsg.id : null;
+    if (nearBottomRef.current || mineJustAdded) scrollToBottom(false);
+    else if (lastSent && lastSent.from === "bookkeeper") setShowNewPill(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lastMsgKey, loadStatus]);
+
+  // "Load earlier" adds rows above: keep the reader's place by holding the
+  // distance from the bottom steady.
+  React.useLayoutEffect(() => {
+    const el = threadRef.current;
+    const p = prependRef.current;
+    if (!el || !p) return;
+    if (firstMsgKey !== p.firstKey) el.scrollTop = el.scrollHeight - p.fromBottom;
+    if (!loadingEarlier) prependRef.current = null;
+  }, [firstMsgKey, loadingEarlier]);
+
+  const loadEarlier = async () => {
+    const el = threadRef.current;
+    if (el) prependRef.current = { fromBottom: el.scrollHeight - el.scrollTop, firstKey: firstMsgKey };
+    const err = await onLoadEarlier();
+    if (err) showToast(err);
+  };
+
+  const onThreadScroll = () => {
+    const el = threadRef.current;
+    if (!el) return;
+    const near = el.scrollHeight - el.scrollTop - el.clientHeight < MSG_NEAR_BOTTOM_PX;
+    nearBottomRef.current = near;
+    if (near && showNewPill) setShowNewPill(false);
+  };
 
   // The compose box grows with its text up to about six lines.
   useEffect(() => {
@@ -20555,26 +20689,107 @@ function MessagesPage({
     setPendingAttachment({ file, name: file.name, size: formatBytes(file.size) });
   };
 
+  const canSend =
+    (draft.trim() || pendingAttachment) && !sending && !readOnlyNote && !unavailable && loadStatus !== "loading";
+
   const send = async () => {
-    if ((!draft.trim() && !pendingAttachment) || sending || readOnlyNote || loadStatus === "loading") return;
-    const res = onSend(draft.trim(), pendingAttachment || undefined);
+    if (!canSend) return;
+    let res = onSend(draft.trim(), pendingAttachment || undefined);
     if (res && typeof res.then === "function") {
       setSending(true);
-      const err = await res;
+      res = await res;
       setSending(false);
-      if (err) {
-        showToast(err);
-        return;
-      }
+    }
+    // A message back means nothing was sent: keep the draft.
+    if (typeof res === "string" && res) {
+      showToast(res);
+      return;
     }
     setDraft("");
     setPendingAttachment(null);
+    draftRef.current && draftRef.current.focus();
+  };
+
+  // Puts a failed message back in the compose box (keeping anything already
+  // typed there) and takes it out of the thread.
+  const editFailed = (id) => {
+    const back = onDiscardSend && onDiscardSend(id);
+    if (!back) return;
+    if (back.text) setDraft((d) => (d.trim() ? `${back.text}\n${d}` : back.text));
+    if (back.file && !pendingAttachment)
+      setPendingAttachment({ file: back.file, name: back.file.name, size: back.size || formatBytes(back.file.size) });
+    draftRef.current && draftRef.current.focus();
+  };
+
+  // A signed link older than ~9 minutes has expired: open a tab right away
+  // (so it isn't blocked as a popup), then point it at a fresh link.
+  const openAttachment = async (e, m) => {
+    const a = m.attachment;
+    if (!onAttachmentUrl || (a.url && a.signedAt && Date.now() - a.signedAt < MSG_LINK_STALE_MS)) return;
+    e.preventDefault();
+    const w = window.open("about:blank", "_blank");
+    const url = safeHttpUrl(await onAttachmentUrl(m.id));
+    if (w) {
+      if (url) {
+        w.opener = null;
+        w.location.href = url;
+      } else w.close();
+    }
+    if (!url) showToast(`Couldn't open ${a.name}. Try again in a moment.`);
   };
 
   const activeUser = (users || []).find((u) => u.id === activeUserId);
 
+  // "Seen" sits under the reader's latest sent message once a staff read
+  // marker is at or after it.
+  let seenId = null;
+  if (live && staffReadAt) {
+    const lastOwn = [...messages].reverse().find((m) => m.from === "client" && !m.sendState);
+    if (lastOwn && lastOwn.created_at && new Date(staffReadAt) >= new Date(lastOwn.created_at)) seenId = lastOwn.id;
+  }
+
+  // Day dividers, the "New messages" divider, and sender groups.
+  const items = [];
+  let prevDay = null;
+  let prev = null;
+  messages.forEach((m, i) => {
+    const when = MSG_when(m);
+    const day = MSG_dayKey(when);
+    if (day && day !== prevDay) {
+      items.push({ kind: "day", key: "day-" + day, label: MSG_dayLabel(when) });
+      prevDay = day;
+      prev = null;
+    }
+    if (newFromId && m.id === newFromId) {
+      items.push({ kind: "new", key: "new" });
+      prev = null;
+    }
+    const prevWhen = prev && MSG_when(prev);
+    const grouped = !!(
+      prev &&
+      prev.from === m.from &&
+      prev.author === m.author &&
+      (!when || !prevWhen || when - prevWhen < MSG_GROUP_GAP_MS)
+    );
+    items.push({ kind: "msg", key: m.id || "i" + i, m, i, when, grouped });
+    prev = m;
+  });
+
+  const threadTitle =
+    isBookkeeper && activeUser
+      ? `Conversation with ${activeUser.name}`
+      : client && client.assignedBookkeeper
+        ? // §161: the green "Online now" dot that used to sit here was
+          // hardcoded — nothing checked presence, so it told every client
+          // their bookkeeper was at their desk at 3am on a Sunday. The
+          // staff-side thread list (see .online-dot above) drives the same
+          // indicator off a real `onlineEmails` set; this side has no such
+          // signal, so it shows nothing rather than a false one.
+          `Conversation with ${client.assignedBookkeeper.name}`
+        : "Conversation with MyGoodBooks";
+
   return (
-    <div>
+    <div className="msg-page">
       {!live && (
         <MockBanner text="This is a sample conversation — sending a message here doesn't notify anyone yet." />
       )}
@@ -20605,8 +20820,11 @@ function MessagesPage({
       )}
 
       <div
-        className={"card message-card" + (isDragging ? " dragging" : "")}
+        className={
+          "card message-card msg-page-card" + (unavailable ? " msg-page-card--off" : "") + (isDragging ? " dragging" : "")
+        }
         onDragOver={(e) => {
+          if (unavailable || readOnlyNote) return;
           e.preventDefault();
           setIsDragging(true);
         }}
@@ -20617,20 +20835,15 @@ function MessagesPage({
           stageFile(e.dataTransfer.files && e.dataTransfer.files[0]);
         }}
       >
-        <h3 className="card-title">
-          {isBookkeeper && activeUser
-            ? `Conversation with ${activeUser.name}`
-            : client && client.assignedBookkeeper
-              ? // §161: the green "Online now" dot that used to sit here was
-                // hardcoded — nothing checked presence, so it told every client
-                // their bookkeeper was at their desk at 3am on a Sunday. The
-                // staff-side thread list (see .online-dot above) drives the same
-                // indicator off a real `onlineEmails` set; this side has no such
-                // signal, so it shows nothing rather than a false one.
-                `Conversation with ${client.assignedBookkeeper.name}`
-              : "Conversation with MyGoodBooks"}
-        </h3>
-        {loadStatus === "loading" && messages.length === 0 ? (
+        <h3 className="card-title">{threadTitle}</h3>
+        {unavailable ? (
+          <div className="msg-unavailable" role="status">
+            <strong>Messaging isn't available right now.</strong>
+            <span>
+              Please try again later. If you need us sooner, email your bookkeeper directly.
+            </span>
+          </div>
+        ) : loadStatus === "loading" && messages.length === 0 ? (
           <p className="card-subtitle" role="status">Loading your conversation…</p>
         ) : loadStatus === "error" ? (
           <div className="message-load-error" role="alert">
@@ -20643,65 +20856,135 @@ function MessagesPage({
           </div>
         ) : (
           messages.length === 0 && (
-            <p className="card-subtitle">No messages yet in this conversation.</p>
+            <p className="card-subtitle">No messages yet. Say hello, or ask us anything about your books.</p>
           )
         )}
-        <div className="message-thread" ref={threadRef}>
-          {hasEarlier && onLoadEarlier && (
-            <button type="button" className="btn-secondary message-load-earlier" onClick={onLoadEarlier}>
-              Load earlier messages
-            </button>
-          )}
-          {messages.map((m, i) => {
-            const rowId = "msg-" + i;
-            return (
-              <div
-                className={"message-bubble-row " + m.from}
-                id={rowId}
-                key={m.id || i}
+        {!unavailable && (
+        <div className="msg-thread-wrap">
+          <div
+            className="message-thread msg-thread"
+            ref={threadRef}
+            onScroll={onThreadScroll}
+            role="log"
+            aria-live="polite"
+            aria-label="Messages"
+            aria-busy={loadStatus === "loading" || !!loadingEarlier}
+          >
+            {hasEarlier && onLoadEarlier && (
+              <button
+                type="button"
+                className="btn-secondary message-load-earlier"
+                onClick={loadEarlier}
+                disabled={!!loadingEarlier}
               >
+                {loadingEarlier ? "Loading…" : "Load earlier messages"}
+              </button>
+            )}
+            {items.map((it) => {
+              if (it.kind === "day")
+                return (
+                  <div className="msg-divider" key={it.key} role="separator">
+                    <span>{it.label}</span>
+                  </div>
+                );
+              if (it.kind === "new")
+                return (
+                  <div className="msg-divider msg-new-divider" key={it.key} role="separator">
+                    <span>New messages</span>
+                  </div>
+                );
+              const { m, i, when, grouped } = it;
+              // Stable per message (search results carry the same key), so a
+              // flash target survives "Load earlier" adding rows above.
+              const rowId = "msg-" + (m.id || i);
+              const failed = m.sendState === "failed";
+              const attachUrl = m.attachment && safeHttpUrl(m.attachment.url);
+              // Sample rows have only a date, which the day divider shows.
+              const stamp =
+                m.sendState === "sending"
+                  ? "Sending…"
+                  : failed
+                    ? "Not sent"
+                    : m.created_at && when
+                      ? MSG_time(when)
+                      : null;
+              return (
                 <div
                   className={
-                    "message-bubble" +
-                    (flashCardId === rowId ? " row-flash" : "")
+                    "message-bubble-row " +
+                    m.from +
+                    (grouped ? " msg-grouped" : "") +
+                    (m.sendState ? " msg-" + m.sendState : "")
                   }
+                  id={rowId}
+                  key={it.key}
                 >
-                  <div className="message-author">
-                    {m.from === "bookkeeper" &&
-                    client &&
-                    client.assignedBookkeeper
-                      ? client.assignedBookkeeper.name
-                      : m.author}
-                  </div>
-                  {m.text && <div className="message-text">{m.text}</div>}
-                  {m.attachment &&
-                    (safeHttpUrl(m.attachment.url) ? (
-                      <a
-                        className="message-attachment"
-                        href={safeHttpUrl(m.attachment.url)}
-                        target="_blank"
-                        rel="noreferrer"
-                      >
-                        <PaperclipIcon /> {m.attachment.name}
-                      </a>
-                    ) : (
-                      <div className="message-attachment">
-                        <PaperclipIcon /> {m.attachment.name}{" "}
-                        {m.attachment.size && (
-                          <span className="message-attachment-size">
-                            ({m.attachment.size})
-                          </span>
-                        )}
+                  <div
+                    className={
+                      "message-bubble" +
+                      (flashCardId === rowId ? " row-flash" : "")
+                    }
+                  >
+                    {!grouped && (
+                      <div className="message-author">
+                        {m.from === "bookkeeper" &&
+                        client &&
+                        client.assignedBookkeeper
+                          ? client.assignedBookkeeper.name
+                          : m.author}
                       </div>
-                    ))}
-                  <div className="message-date">
-                    {m.created_at ? fmtDateTime(m.created_at) : fmtDate(m.date)}
+                    )}
+                    {m.text && <div className="message-text">{m.text}</div>}
+                    {m.attachment &&
+                      (attachUrl || (onAttachmentUrl && !m.sendState) ? (
+                        <a
+                          className="message-attachment"
+                          href={attachUrl || "#"}
+                          target="_blank"
+                          rel="noreferrer"
+                          onClick={(e) => openAttachment(e, m)}
+                        >
+                          <PaperclipIcon /> {m.attachment.name}
+                        </a>
+                      ) : (
+                        <div className="message-attachment">
+                          <PaperclipIcon /> {m.attachment.name}{" "}
+                          {m.attachment.size && (
+                            <span className="message-attachment-size">
+                              ({m.attachment.size})
+                            </span>
+                          )}
+                        </div>
+                      ))}
+                    {stamp && <div className="message-date">{stamp}</div>}
                   </div>
+                  {failed && (
+                    <div className="msg-send-failed" role="alert">
+                      <span>{m.sendError || "Couldn't send this message."}</span>
+                      {onRetrySend && (
+                        <button type="button" className="link-btn" onClick={() => onRetrySend(m.id)}>
+                          Retry
+                        </button>
+                      )}
+                      {onDiscardSend && (
+                        <button type="button" className="link-btn" onClick={() => editFailed(m.id)}>
+                          Edit
+                        </button>
+                      )}
+                    </div>
+                  )}
+                  {seenId && m.id === seenId && <div className="msg-seen">Seen</div>}
                 </div>
-              </div>
-            );
-          })}
+              );
+            })}
+          </div>
+          {showNewPill && (
+            <button type="button" className="msg-new-pill" onClick={() => scrollToBottom(true)}>
+              New message ↓
+            </button>
+          )}
         </div>
+        )}
 
         {pendingAttachment && (
           <div className="attachment-chip">
@@ -20721,15 +21004,12 @@ function MessagesPage({
           </div>
         )}
 
-        <div className="typing-indicator">
-          {!isBookkeeper &&
-          bookkeeperTyping &&
-          client &&
-          client.assignedBookkeeper
-            ? `${client.assignedBookkeeper.name} is typing…`
-            : " "}
-        </div>
-        {readOnlyNote ? (
+        {/* Sample threads only: their simulated reply "types" for a moment.
+            Real threads have no typing signal, so nothing is shown there. */}
+        {!live && !isBookkeeper && bookkeeperTyping && client && client.assignedBookkeeper && (
+          <div className="typing-indicator">{`${client.assignedBookkeeper.name} is typing…`}</div>
+        )}
+        {unavailable ? null : readOnlyNote ? (
           <p className="card-subtitle">{readOnlyNote}</p>
         ) : (
         <div className="message-compose">
@@ -20766,7 +21046,7 @@ function MessagesPage({
               }
             }}
           />
-          <button className="btn-primary" onClick={send} disabled={sending || loadStatus === "loading"}>
+          <button className="btn-primary" onClick={send} disabled={!canSend}>
             {sending ? "Sending…" : "Send"}
           </button>
         </div>
@@ -24729,12 +25009,13 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
           active: effectivePage === "messages",
           refreshKey: effectivePage,
         })
-      : null;
-  // A signed-in client with messaging on only ever sees their real thread:
-  // while it loads or after an error they get that state (with a retry),
-  // never the sample thread and its simulated bookkeeper replies.
-  const siClientReal = !!(siMsg && siRole === "client" && siMsg.status !== "off");
-  const siLive = !!(siMsg && siMsg.status === "real") || siClientReal;
+      : MSG_OFF;
+  // A signed-in client only ever sees their real thread: while it loads or
+  // after an error they get that state (with a retry), and with messaging
+  // off a plain "isn't available" note. Never the sample thread, its banner
+  // or its simulated bookkeeper replies; those are for the prototype only.
+  const siClientReal = siRole === "client";
+  const siLive = siMsg.status === "real" || siClientReal;
   const siLiveThread = (siLive && siRole !== "staff") || siClientReal;
   // One chat bubble for staff: the drawer launcher replaces ChatFab.
   const siStaffChat =
@@ -25807,10 +26088,22 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
               client={scopedClient}
               messages={liveMessages}
               live={siLiveThread}
-              loadStatus={siLiveThread ? siMsg.status : "real"}
+              loadStatus={
+                !siLiveThread
+                  ? "real"
+                  : siMsg.status === "off" || (siMsg.status === "error" && siMsg.reason === "missing")
+                    ? "unavailable"
+                    : siMsg.status
+              }
               onRetry={siLiveThread ? siMsg.retry : undefined}
               hasEarlier={siLiveThread && !!siMsg.hasMore}
               onLoadEarlier={siLiveThread ? siMsg.loadEarlier : undefined}
+              loadingEarlier={siLiveThread && siMsg.loadingEarlier}
+              readAt={siLiveThread ? siMsg.readAt : null}
+              staffReadAt={siLiveThread ? siMsg.staffReadAt : null}
+              onRetrySend={siLiveThread ? siMsg.retrySend : undefined}
+              onDiscardSend={siLiveThread ? siMsg.discardSend : undefined}
+              onAttachmentUrl={siLiveThread ? siMsg.attachmentUrl : undefined}
               validateAttachment={siLiveThread ? siMsg.checkFile : undefined}
               readOnlyNote={
                 siLiveThread && siMsg.readOnly

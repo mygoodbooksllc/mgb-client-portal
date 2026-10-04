@@ -4030,6 +4030,7 @@ body:has(.modal-overlay, [aria-modal="true"], .si-drawer-scrim) .global-search {
 
 .message-compose {
   display: flex;
+  align-items: flex-end;
   gap: 10px;
   border-top: 1px solid var(--border);
   padding-top: 16px;
@@ -4071,9 +4072,6 @@ body:has(.modal-overlay, [aria-modal="true"], .si-drawer-scrim) .global-search {
   outline: 2px solid rgba(199, 174, 134, 0.5);
   border-color: var(--gold);
 }
-.message-compose {
-  align-items: flex-end;
-}
 .message-text {
   white-space: pre-wrap;
   overflow-wrap: anywhere;
@@ -4090,6 +4088,187 @@ body:has(.modal-overlay, [aria-modal="true"], .si-drawer-scrim) .global-search {
 .message-load-earlier {
   align-self: center;
   font-size: 13px;
+}
+
+/* Client Messages page (MessagesPage): the card fills the screen below the
+   page header, the thread scrolls inside it and the composer stays pinned
+   at the bottom. Scoped to .msg-page-card so the staff team chat, which
+   shares .message-card/.message-thread, keeps its own layout. */
+.msg-page-card {
+  display: flex;
+  flex-direction: column;
+  height: calc(100vh - 180px);
+  height: calc(100dvh - 180px);
+  min-height: 420px;
+}
+/* Nothing to scroll when messaging is off: just the note. */
+.msg-page-card.msg-page-card--off {
+  height: auto;
+  min-height: 0;
+}
+.msg-page-card > .card-title,
+.msg-page-card > .card-subtitle,
+.msg-page-card > .message-load-error,
+.msg-page-card > .attachment-chip,
+.msg-page-card > .typing-indicator,
+.msg-page-card > .message-compose {
+  flex-shrink: 0;
+}
+.msg-thread-wrap {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.msg-page-card .msg-thread {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  max-height: none;
+  gap: 12px;
+  overscroll-behavior: contain;
+}
+/* Same sender, close together: one author line, tighter spacing. */
+.msg-page-card .msg-grouped {
+  margin-top: -8px;
+}
+.msg-page-card .message-bubble-row {
+  flex-direction: column;
+}
+.msg-page-card .message-bubble-row.client {
+  align-items: flex-end;
+}
+.msg-page-card .message-bubble-row.bookkeeper {
+  align-items: flex-start;
+}
+.msg-page-card .msg-grouped.client .message-bubble {
+  border-top-right-radius: 4px;
+}
+.msg-page-card .msg-grouped.bookkeeper .message-bubble {
+  border-top-left-radius: 4px;
+}
+
+/* Day dividers (Today / Yesterday / Mon, Sep 29) and "New messages". */
+.msg-divider {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 4px 0;
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--text-muted);
+  letter-spacing: 0.02em;
+}
+.msg-divider::before,
+.msg-divider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+.msg-new-divider {
+  color: var(--gold-deep);
+}
+.msg-new-divider::before,
+.msg-new-divider::after {
+  background: var(--gold);
+}
+
+/* Sending / failed own messages. */
+.msg-page-card .msg-sending .message-bubble {
+  opacity: 0.7;
+}
+.msg-page-card .msg-failed .message-bubble {
+  opacity: 0.85;
+  outline: 1px solid var(--bad);
+  outline-offset: 1px;
+}
+.msg-send-failed {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: flex-end;
+  gap: 4px 10px;
+  max-width: 70%;
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--bad);
+  text-align: right;
+}
+.msg-send-failed .link-btn {
+  font-size: 12px;
+}
+.msg-seen {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 3px;
+}
+
+/* Shown when a message arrives while the reader is scrolled up. */
+.msg-new-pill {
+  position: absolute;
+  left: 50%;
+  bottom: 12px;
+  transform: translateX(-50%);
+  border: none;
+  border-radius: 999px;
+  padding: 7px 14px;
+  background: var(--navy);
+  color: #ffffff;
+  font-family: var(--font-body);
+  font-size: 12.5px;
+  font-weight: 700;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.22);
+  cursor: pointer;
+  z-index: 2;
+}
+.msg-new-pill:hover {
+  background: var(--navy-deep);
+}
+.msg-new-pill:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 2px;
+}
+
+/* Signed-in client with no messaging available. */
+.msg-unavailable {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 16px;
+  margin-top: 4px;
+  border: 1px solid var(--warm-border);
+  border-radius: 8px;
+  background: var(--accent-soft);
+  color: var(--ink-strong);
+  font-size: 14px;
+}
+.msg-unavailable span {
+  color: var(--text-muted);
+  font-size: 13px;
+}
+.msg-page-card .message-compose .btn-primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+@media (max-width: 760px) {
+  /* Phone: the mobile top bar and a shorter header sit above the card. */
+  .msg-page-card {
+    height: calc(100vh - 190px);
+    height: calc(100dvh - 190px);
+    min-height: 360px;
+    padding: 14px;
+  }
+  .msg-page-card .message-bubble,
+  .msg-send-failed {
+    max-width: 85%;
+  }
+  .msg-page-card .message-compose {
+    gap: 8px;
+    padding-top: 12px;
+  }
 }
 
 .message-card {

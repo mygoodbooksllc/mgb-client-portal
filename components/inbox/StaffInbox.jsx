@@ -117,17 +117,22 @@ async function siUpload(sb, clientId, participant, file) {
   return { path, error };
 }
 
-// Adds a 10-minute signed URL to every row with an attachment.
+// Adds a 10-minute signed URL to every row with an attachment, with when it
+// was signed so the client thread can re-sign one that's about to expire.
+const SI_SIGN_SECS = 600;
 async function siSignRows(sb, rows) {
   const paths = [...new Set(rows.filter((r) => r.attachment_path).map((r) => r.attachment_path))];
   if (!paths.length) return rows;
   try {
-    const { data } = await sb.storage.from("client-uploads").createSignedUrls(paths, 600);
+    const signedAt = Date.now();
+    const { data } = await sb.storage.from("client-uploads").createSignedUrls(paths, SI_SIGN_SECS);
     const byPath = {};
     (data || []).forEach((d) => {
       if (d && d.path && d.signedUrl) byPath[d.path] = d.signedUrl;
     });
-    return rows.map((r) => (r.attachment_path ? { ...r, attachment_url: byPath[r.attachment_path] || null } : r));
+    return rows.map((r) =>
+      r.attachment_path ? { ...r, attachment_url: byPath[r.attachment_path] || null, attachment_signed_at: signedAt } : r,
+    );
   } catch (e) {
     return rows;
   }
@@ -1383,18 +1388,94 @@ function SI_ChatLauncher({ onOpen, unread }) {
 // role "staff":   the bookkeeper view of a client, for the sidebar badge:
 //                 how many of this client's threads are waiting on staff.
 //
-// status: off | loading | real | sample (table missing, an error, or a
-// preview with no real rows). App keeps its sample behaviour unless "real".
+// status: off | loading | real | error (client only) | sample (table
+// missing, an error, or a preview with no real rows). App keeps its sample
+// behaviour only for staff; a signed-in client never sees sample rows.
+//
+// The client thread is kept in memory and updated in place: a new row from
+// realtime is appended on its own (only its attachment is signed), "Load
+// earlier" fetches only rows older than the oldest one shown, and a sent
+// message shows at once and is confirmed (or marked failed) when the insert
+// returns. A full refresh only happens on first load, retry, a staff send in
+// this browser (SI_CHANGED_EVENT), the 30s poll when realtime can't join,
+// and a rejoin after realtime drops.
 // ----------------------------------------------------------------------------
+
+// Client-made message ids: the optimistic row and the saved row share one
+// id, so the realtime copy of our own insert is a no-op, and a retry after a
+// lost response can't save the message twice (it hits the primary key).
+function siNewId() {
+  try {
+    if (window.crypto && crypto.randomUUID) return crypto.randomUUID();
+  } catch (e) {}
+  const b = new Uint8Array(16);
+  crypto.getRandomValues(b);
+  b[6] = (b[6] & 0x0f) | 0x40;
+  b[8] = (b[8] & 0x3f) | 0x80;
+  const h = Array.from(b, (x) => x.toString(16).padStart(2, "0")).join("");
+  return `${h.slice(0, 8)}-${h.slice(8, 12)}-${h.slice(12, 16)}-${h.slice(16, 20)}-${h.slice(20)}`;
+}
+
+// Oldest first; unsent rows stay at the bottom in the order they were written.
+function siRowOrder(x, y) {
+  const px = x._send ? 1 : 0;
+  const py = y._send ? 1 : 0;
+  if (px !== py) return px - py;
+  if (px) return (x._seq || 0) - (y._seq || 0);
+  const tx = new Date(x.created_at).getTime() || 0;
+  const ty = new Date(y.created_at).getTime() || 0;
+  if (tx !== ty) return tx - ty;
+  return String(x.id) < String(y.id) ? -1 : String(x.id) > String(y.id) ? 1 : 0;
+}
+
+// Union by id (later wins), keeping a still-valid signed URL when the newer
+// copy of the row has none.
+function siMergeRows(base, more) {
+  const byId = new Map();
+  base.forEach((r) => byId.set(r.id, r));
+  more.forEach((r) => {
+    const cur = byId.get(r.id);
+    byId.set(
+      r.id,
+      cur && cur.attachment_url && !r.attachment_url && cur.attachment_path === r.attachment_path
+        ? { ...r, attachment_url: cur.attachment_url, attachment_signed_at: cur.attachment_signed_at }
+        : r,
+    );
+  });
+  return [...byId.values()].sort(siRowOrder);
+}
+
+// The person's own read marker, and the latest marker from anyone else on
+// the thread (staff: only staff and the participant can write one).
+function siReadMarkers(list, em) {
+  let readAt = null;
+  let staffReadAt = null;
+  (list || []).forEach((x) => {
+    if (siLower(x.reader_email) === em) readAt = x.last_read_at;
+    else if (!staffReadAt || new Date(x.last_read_at) > new Date(staffReadAt)) staffReadAt = x.last_read_at;
+  });
+  return { readAt, staffReadAt };
+}
+
+const siLaterOf = (a, b) => (!a ? b : !b ? a : new Date(b) > new Date(a) ? b : a);
+
 function SI_useClientMessaging({ enabled, role, clientId, email, name, active, refreshKey }) {
   const em = siLower(email);
   const on = !!(enabled && clientId && (role === "staff" || em) && window.mgbSupabase);
-  const [state, setState] = React.useState({ status: on ? "loading" : "off", rows: [], readAt: null, waitingCount: 0 });
+  const key = `${role}|${clientId}|${em}`;
+  const blank = (status) => ({ key, status, rows: [], readAt: null, staffReadAt: null, waitingCount: 0, hasMore: false, loadingEarlier: false });
+  const [state, setState] = React.useState(() => blank(on ? "loading" : "off"));
   const [me, setMe] = React.useState("");
-  // The thread loads its newest SI_THREAD_PAGE messages; "Load earlier"
-  // raises this a page at a time.
-  const [limit, setLimit] = React.useState(SI_THREAD_PAGE);
   const tokenRef = React.useRef(0);
+  const seqRef = React.useRef(0);
+  // Callbacks read the latest thread from here instead of re-binding on
+  // every row change.
+  const stateRef = React.useRef(state);
+  stateRef.current = state;
+  const keyRef = React.useRef(key);
+  keyRef.current = key;
+  // True while the client's realtime channel is joined.
+  const joinedRef = React.useRef(false);
 
   React.useEffect(() => {
     const sb = window.mgbSupabase;
@@ -1402,27 +1483,38 @@ function SI_useClientMessaging({ enabled, role, clientId, email, name, active, r
     siSessionEmail(sb, "").then(setMe);
   }, [on]);
 
-  React.useEffect(() => setLimit(SI_THREAD_PAGE), [clientId, em]);
+  // A different person or client: start from an empty thread.
+  React.useEffect(() => {
+    setState((s) => (s.key === key ? s : blank(on ? "loading" : "off")));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [key]);
+
+  // Applies an update only if the thread hasn't changed underneath it.
+  const update = React.useCallback((k, fn) => setState((s) => (s.key === k ? fn(s) : s)), []);
+
+  // Only the staff badge reads the session email; the thread doesn't, so it
+  // isn't refetched when that resolves.
+  const meDep = role === "staff" ? me : "";
 
   const load = React.useCallback(() => {
     const sb = window.mgbSupabase;
     if (!on || !sb) {
-      setState({ status: "off", rows: [], readAt: null, waitingCount: 0 });
+      setState(blank("off"));
       return;
     }
+    const k = key;
     const token = ++tokenRef.current;
     const stale = () => token !== tokenRef.current;
     // A signed-in client never falls back to the sample thread: they'd be
     // chatting with a made-up bookkeeper. They get an error with a retry.
     const fail = (error) =>
       !stale() &&
-      setState({
-        status: role === "client" ? "error" : "sample",
+      setState((s) => ({
+        ...blank(role === "client" ? "error" : "sample"),
+        // Keep what's on screen if a background refresh fails.
+        ...(role === "client" && s.key === k && s.status === "real" ? { ...s } : {}),
         reason: error && typeof isMissingTableError === "function" && isMissingTableError(error) ? "missing" : "error",
-        rows: [],
-        readAt: null,
-        waitingCount: 0,
-      });
+      }));
     if (role === "staff") {
       Promise.all([
         sb
@@ -1432,8 +1524,8 @@ function SI_useClientMessaging({ enabled, role, clientId, email, name, active, r
           .eq("internal", false)
           .order("created_at", { ascending: false })
           .limit(500),
-        me
-          ? sb.from("client_message_reads").select("participant_email, last_read_at").eq("client_id", clientId).eq("reader_email", me)
+        meDep
+          ? sb.from("client_message_reads").select("participant_email, last_read_at").eq("client_id", clientId).eq("reader_email", meDep)
           : Promise.resolve({ data: [] }),
       ])
         .then(([m, r]) => {
@@ -1450,7 +1542,7 @@ function SI_useClientMessaging({ enabled, role, clientId, email, name, active, r
               x.author_kind === "client" &&
               (!readBy[x.participant_email] || new Date(x.created_at) > new Date(readBy[x.participant_email])),
           ).length;
-          setState({ status: "real", rows: [], readAt: null, waitingCount });
+          setState({ ...blank("real"), waitingCount });
         })
         .catch(fail);
       return;
@@ -1467,7 +1559,8 @@ function SI_useClientMessaging({ enabled, role, clientId, email, name, active, r
         // Newest first so the limit keeps the latest; one extra row says
         // whether there's more to load.
         .order("created_at", { ascending: false })
-        .limit(limit + 1),
+        .order("id", { ascending: false })
+        .limit(SI_THREAD_PAGE + 1),
       sb
         .from("client_message_reads")
         .select("reader_email, last_read_at")
@@ -1478,123 +1571,332 @@ function SI_useClientMessaging({ enabled, role, clientId, email, name, active, r
         if (stale()) return;
         if (m.error) return fail(m.error);
         const newest = m.data || [];
-        const hasMore = newest.length > limit;
-        const rows = newest
-          .slice(0, limit)
+        const more = newest.length > SI_THREAD_PAGE;
+        const fetched = newest
+          .slice(0, SI_THREAD_PAGE)
           .reverse()
           .filter((x) => !x.internal);
-        if (role === "preview" && rows.length === 0)
-          return setState({ status: "sample", reason: "none", rows: [], readAt: null, waitingCount: 0 });
-        // The person's own read marker (their JWT email is the participant).
-        const mine = (r.data || []).find((x) => siLower(x.reader_email) === em);
-        const signed = await siSignRows(sb, rows);
+        if (role === "preview" && fetched.length === 0)
+          return setState({ ...blank("sample"), reason: "none" });
+        const marks = siReadMarkers(r.data, em);
+        const signed = await siSignRows(sb, fetched);
         if (stale()) return;
-        setState({ status: "real", rows: signed, readAt: mine ? mine.last_read_at : null, waitingCount: 0, hasMore });
+        setState((s) => {
+          const same = s.key === k && s.status === "real";
+          // Keep pages already loaded with "Load earlier" when this page
+          // still reaches back to them; otherwise there'd be a gap.
+          const overlaps = same && signed.length > 0 && s.rows.some((x) => x.id === signed[0].id);
+          const keepAll = same && (!more || overlaps);
+          const base = keepAll ? s.rows : same ? s.rows.filter((x) => x._send) : [];
+          const rows = siMergeRows(base, signed);
+          const olderKept = keepAll && signed.length > 0 && rows[0] && rows[0].id !== signed[0].id;
+          return {
+            ...blank("real"),
+            rows,
+            readAt: same ? siLaterOf(s.readAt, marks.readAt) : marks.readAt,
+            staffReadAt: same ? siLaterOf(s.staffReadAt, marks.staffReadAt) : marks.staffReadAt,
+            hasMore: olderKept ? s.hasMore : more,
+          };
+        });
       })
       .catch(fail);
-  }, [on, role, clientId, em, me, limit]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [on, role, clientId, em, meDep, key]);
 
   const retry = React.useCallback(() => {
     setState((s) => ({ ...s, status: "loading" }));
     load();
   }, [load]);
-  const loadEarlier = React.useCallback(() => setLimit((n) => n + SI_THREAD_PAGE), []);
+
+  // Only rows older than the oldest one shown (created_at, then id, so rows
+  // sharing a timestamp are neither skipped nor repeated). Resolves to an
+  // error message, or null.
+  const loadEarlier = React.useCallback(async () => {
+    const sb = window.mgbSupabase;
+    const s = stateRef.current;
+    const k = keyRef.current;
+    const oldest = s.rows.find((x) => !x._send);
+    if (!sb || !oldest || s.loadingEarlier || !s.hasMore) return null;
+    update(k, (x) => ({ ...x, loadingEarlier: true }));
+    try {
+      const ts = oldest.created_at;
+      const { data, error } = await sb
+        .from("client_messages")
+        .select(SI_MSG_COLS)
+        .eq("client_id", clientId)
+        .eq("participant_email", em)
+        .eq("internal", false)
+        .or(`created_at.lt."${ts}",and(created_at.eq."${ts}",id.lt.${oldest.id})`)
+        .order("created_at", { ascending: false })
+        .order("id", { ascending: false })
+        .limit(SI_THREAD_PAGE + 1);
+      if (error) throw error;
+      const older = (data || []).slice(0, SI_THREAD_PAGE).filter((x) => !x.internal);
+      const signed = await siSignRows(sb, older);
+      update(k, (x) => ({
+        ...x,
+        rows: siMergeRows(x.rows, signed),
+        hasMore: (data || []).length > SI_THREAD_PAGE,
+        loadingEarlier: false,
+      }));
+      return null;
+    } catch (err) {
+      update(k, (x) => ({ ...x, loadingEarlier: false }));
+      return `Couldn't load earlier messages: ${(err && err.message) || "unexpected error"}`;
+    }
+  }, [clientId, em, update]);
 
   React.useEffect(() => {
     load();
     window.addEventListener(SI_CHANGED_EVENT, load);
     return () => window.removeEventListener(SI_CHANGED_EVENT, load);
-  }, [load, refreshKey]);
+  }, [load]);
+
+  // Page changes (refreshKey) refresh the staff badge and previews, which
+  // have no realtime. The client's joined channel already keeps the thread
+  // current, so they only refresh here when it isn't joined.
+  const firstRefreshRef = React.useRef(true);
+  React.useEffect(() => {
+    if (firstRefreshRef.current) {
+      firstRefreshRef.current = false;
+      return;
+    }
+    if (role !== "client" || !joinedRef.current) load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [refreshKey]);
+
+  // One new row from realtime: ignored if it's already shown (our own send
+  // confirmed first), otherwise its attachment alone is signed and it's
+  // merged in (replacing our optimistic copy if the insert hasn't returned).
+  const addRow = React.useCallback(
+    async (row) => {
+      const k = keyRef.current;
+      if (!row || row.internal || row.client_id !== clientId || siLower(row.participant_email) !== em) return;
+      const cur = stateRef.current.rows.find((x) => x.id === row.id);
+      if (cur && !cur._send) return;
+      const sb = window.mgbSupabase;
+      const [signed] = row.attachment_path && sb ? await siSignRows(sb, [row]) : [row];
+      update(k, (s) => (s.status === "real" ? { ...s, rows: siMergeRows(s.rows, [signed]) } : s));
+    },
+    [clientId, em, update],
+  );
+
+  const addReadMarker = React.useCallback(
+    (row) => {
+      if (!row || row.client_id !== clientId || siLower(row.participant_email) !== em) return;
+      const mine = siLower(row.reader_email) === em;
+      update(keyRef.current, (s) =>
+        mine
+          ? { ...s, readAt: siLaterOf(s.readAt, row.last_read_at) }
+          : { ...s, staffReadAt: siLaterOf(s.staffReadAt, row.last_read_at) },
+      );
+    },
+    [clientId, em, update],
+  );
 
   // Realtime for the signed-in client: new rows in their org arrive here and
-  // RLS drops everything that isn't their own, non-internal thread. The topic
-  // name matches the realtime.messages policy in
-  // supabase/client-messages-realtime.sql. Polls instead if it can't join.
+  // RLS drops everything that isn't their own, non-internal thread (and read
+  // markers on it, for "Seen"). The topic name matches the realtime.messages
+  // policy in supabase/client-messages-realtime.sql. Polls instead if it
+  // can't join, and refreshes once on a rejoin to pick up anything missed.
   React.useEffect(() => {
     const sb = window.mgbSupabase;
-    if (!sb || !on || role !== "client" || state.status === "sample") return;
+    if (!sb || !on || role !== "client") return;
     let poll = null;
+    let joinedOnce = false;
     const startPoll = () => {
       if (!poll) poll = setInterval(() => !document.hidden && load(), SI_POLL_MS);
+    };
+    const stopPoll = () => {
+      if (poll) clearInterval(poll);
+      poll = null;
     };
     const channel = sb
       .channel("client-msgs-" + em, { config: { private: true } })
       .on(
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "client_messages", filter: `client_id=eq.${clientId}` },
-        () => load(),
+        (payload) => addRow(payload && payload.new),
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "client_message_reads", filter: `client_id=eq.${clientId}` },
+        (payload) => addReadMarker(payload && payload.new),
       )
       .subscribe((status) => {
-        if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") startPoll();
+        if (status === "SUBSCRIBED") {
+          joinedRef.current = true;
+          stopPoll();
+          if (joinedOnce) load();
+          joinedOnce = true;
+        } else if (status === "CHANNEL_ERROR" || status === "TIMED_OUT" || status === "CLOSED") {
+          joinedRef.current = false;
+          startPoll();
+        }
       });
     return () => {
-      if (poll) clearInterval(poll);
+      joinedRef.current = false;
+      stopPoll();
       sb.removeChannel(channel);
     };
-  }, [on, role, clientId, em, state.status === "sample", load]);
+  }, [on, role, clientId, em, load, addRow, addReadMarker]);
 
   const rows = state.rows;
-  const lastStaff = [...rows].reverse().find((x) => x.author_kind === "staff");
+  const sentRows = rows.filter((x) => !x._send);
+  const lastStaff = [...sentRows].reverse().find((x) => x.author_kind === "staff");
   const unread =
     state.status === "real" &&
     role !== "staff" &&
-    !!(lastStaff && rows[rows.length - 1] === lastStaff && (!state.readAt || new Date(lastStaff.created_at) > new Date(state.readAt)));
+    !!(lastStaff && sentRows[sentRows.length - 1] === lastStaff && (!state.readAt || new Date(lastStaff.created_at) > new Date(state.readAt)));
 
   const markRead = React.useCallback(() => {
     const sb = window.mgbSupabase;
     if (!sb || role !== "client" || state.status !== "real") return;
     const now = new Date().toISOString();
+    const k = keyRef.current;
     siSessionEmail(sb, em).then((reader) =>
       sb
         .from("client_message_reads")
         .upsert({ client_id: clientId, participant_email: em, reader_email: reader, last_read_at: now })
         .then(({ error }) => {
-          if (!error) setState((s) => ({ ...s, readAt: now }));
+          if (!error) update(k, (s) => ({ ...s, readAt: siLaterOf(s.readAt, now) }));
         }),
     );
-  }, [role, state.status, clientId, em]);
+  }, [role, state.status, clientId, em, update]);
 
   React.useEffect(() => {
     if (active && unread) markRead();
   }, [active, unread, markRead]);
 
-  // Resolves to an error message, or null once the message is saved.
-  const send = React.useCallback(
-    async (text, attachment) => {
+  // Uploads (once, even across retries) and saves one optimistic row, then
+  // swaps in the saved row or marks it failed with the reason.
+  const deliver = React.useCallback(
+    async (row) => {
       const sb = window.mgbSupabase;
-      if (!sb || role !== "client") return "You can't send from here.";
+      const k = keyRef.current;
+      const patch = (fields) =>
+        update(k, (s) => ({ ...s, rows: s.rows.map((x) => (x.id === row.id ? { ...x, ...fields } : x)) }));
+      const failed = (msg) => patch({ _send: "failed", _error: msg });
       try {
         const author = await siSessionEmail(sb, em);
-        let attachment_path = null;
-        let attachment_name = null;
-        const file = attachment && attachment.file;
-        if (file) {
-          const err = SI_checkFile(file);
-          if (err) return err;
-          const up = await siUpload(sb, clientId, em, file);
-          if (up.error) return `Couldn't upload ${file.name}: ${up.error.message}`;
-          attachment_path = up.path;
-          attachment_name = file.name;
+        let path = row._uploaded || null;
+        if (row._file && !path) {
+          const up = await siUpload(sb, clientId, em, row._file);
+          if (up.error) return failed(`Couldn't upload ${row._file.name}: ${up.error.message}`);
+          path = up.path;
+          patch({ _uploaded: path });
         }
-        const { error } = await sb.from("client_messages").insert({
+        const { data, error } = await sb
+          .from("client_messages")
+          .insert({
+            id: row.id,
+            client_id: clientId,
+            participant_email: em,
+            author_email: author,
+            author_name: name || null,
+            author_kind: "client",
+            body: row.body || "",
+            internal: false,
+            attachment_path: path,
+            attachment_name: path ? row.attachment_name : null,
+          })
+          .select(SI_MSG_COLS)
+          .single();
+        // 23505: an earlier try was saved but its response never arrived.
+        if (error && error.code !== "23505") return failed(`Couldn't send: ${error.message}`);
+        const saved = data || {
+          id: row.id,
           client_id: clientId,
           participant_email: em,
           author_email: author,
-          author_name: name || null,
+          author_name: row.author_name,
           author_kind: "client",
-          body: text || "",
+          body: row.body,
           internal: false,
-          attachment_path,
-          attachment_name,
-        });
-        if (error) return `Couldn't send: ${error.message}`;
-        load();
-        return null;
+          attachment_path: path,
+          attachment_name: path ? row.attachment_name : null,
+          created_at: row.created_at,
+        };
+        const [signed] = saved.attachment_path ? await siSignRows(sb, [saved]) : [saved];
+        update(k, (s) => ({ ...s, rows: siMergeRows(s.rows, [signed]) }));
       } catch (err) {
-        return `Couldn't send: ${(err && err.message) || "unexpected error"}`;
+        failed(`Couldn't send: ${(err && err.message) || "unexpected error"}`);
       }
     },
-    [role, clientId, em, name, load],
+    [clientId, em, name, update],
+  );
+
+  // Shows the message at once and sends it in the background. Returns an
+  // error message (nothing was added, keep the draft) or null.
+  const send = React.useCallback(
+    (text, attachment) => {
+      if (!window.mgbSupabase || role !== "client") return "You can't send from here.";
+      if (stateRef.current.status !== "real") return "Your conversation is still loading.";
+      const file = (attachment && attachment.file) || null;
+      if (file) {
+        const err = SI_checkFile(file);
+        if (err) return err;
+      }
+      const row = {
+        id: siNewId(),
+        client_id: clientId,
+        participant_email: em,
+        author_kind: "client",
+        author_name: name || null,
+        body: text || "",
+        internal: false,
+        attachment_path: null,
+        attachment_name: file ? file.name : null,
+        created_at: new Date().toISOString(),
+        _send: "sending",
+        _file: file,
+        _size: attachment && attachment.size,
+        _seq: ++seqRef.current,
+      };
+      update(keyRef.current, (s) => ({ ...s, rows: siMergeRows(s.rows, [row]) }));
+      deliver(row);
+      return null;
+    },
+    [role, clientId, em, name, update, deliver],
+  );
+
+  const retrySend = React.useCallback(
+    (id) => {
+      const row = stateRef.current.rows.find((x) => x.id === id && x._send === "failed");
+      if (!row) return;
+      const next = { ...row, _send: "sending", _error: null };
+      update(keyRef.current, (s) => ({ ...s, rows: s.rows.map((x) => (x.id === id ? next : x)) }));
+      deliver(next);
+    },
+    [update, deliver],
+  );
+
+  // Takes a failed message out of the thread and hands back its text and
+  // file, so the page can put them back in the compose box.
+  const discardSend = React.useCallback(
+    (id) => {
+      const row = stateRef.current.rows.find((x) => x.id === id && x._send === "failed");
+      if (!row) return null;
+      update(keyRef.current, (s) => ({ ...s, rows: s.rows.filter((x) => x.id !== id) }));
+      return { text: row.body || "", file: row._file || null, size: row._size };
+    },
+    [update],
+  );
+
+  // Signed URLs last SI_SIGN_SECS; a link older than that (less a minute)
+  // is re-signed when it's opened. Resolves to a URL or null.
+  const attachmentUrl = React.useCallback(
+    async (id) => {
+      const sb = window.mgbSupabase;
+      const row = stateRef.current.rows.find((x) => x.id === id);
+      if (!sb || !row || !row.attachment_path) return null;
+      if (row.attachment_url && Date.now() - (row.attachment_signed_at || 0) < (SI_SIGN_SECS - 60) * 1000)
+        return row.attachment_url;
+      const [signed] = await siSignRows(sb, [row]);
+      if (signed.attachment_url) update(keyRef.current, (s) => ({ ...s, rows: siMergeRows(s.rows, [signed]) }));
+      return signed.attachment_url || null;
+    },
+    [update],
   );
 
   // In the shape MessagesPage already renders.
@@ -1607,7 +1909,16 @@ function SI_useClientMessaging({ enabled, role, clientId, email, name, active, r
         date: String(x.created_at || "").slice(0, 10),
         created_at: x.created_at,
         text: x.body,
-        attachment: x.attachment_name ? { name: x.attachment_name, url: x.attachment_url || null } : undefined,
+        sendState: x._send || null,
+        sendError: x._error || null,
+        attachment: x.attachment_name
+          ? {
+              name: x.attachment_name,
+              url: x.attachment_url || null,
+              signedAt: x.attachment_signed_at || null,
+              size: x._send ? x._size : undefined,
+            }
+          : undefined,
       })),
     [rows],
   );
@@ -1617,15 +1928,21 @@ function SI_useClientMessaging({ enabled, role, clientId, email, name, active, r
     reason: state.reason,
     messages,
     unread,
-    lastId: rows.length ? rows[rows.length - 1].id : null,
+    readAt: state.readAt,
+    staffReadAt: state.staffReadAt,
+    lastId: sentRows.length ? sentRows[sentRows.length - 1].id : null,
     lastText: lastStaff ? lastStaff.body || lastStaff.attachment_name || "" : "",
     waitingCount: state.waitingCount,
     readOnly: role !== "client",
     hasMore: !!state.hasMore,
+    loadingEarlier: !!state.loadingEarlier,
     loadEarlier,
     retry,
     markRead,
     send,
+    retrySend,
+    discardSend,
+    attachmentUrl,
     checkFile: SI_checkFile,
   };
 }
