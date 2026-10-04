@@ -20,6 +20,8 @@
 --
 -- Kinds (recipient, trigger, Settings key)
 --   staff_client_message   assigned staff     client posts a message        email.client_message
+--                          (2026-10-04: account-manager.sql replaces notify_enqueue_message:
+--                          the account manager only, plus bookkeeper loop-ins and @mentions)
 --   staff_doc_upload       assigned staff     doc request -> uploaded       email.doc_upload
 --   staff_task_assigned    the assignee       task assigned by another      email.task_assigned
 --                                             staffer (insert or reassign)

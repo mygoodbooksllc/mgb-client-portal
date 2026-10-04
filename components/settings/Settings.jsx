@@ -9,8 +9,10 @@
 //            settings" tab (Manage access + Client details, the modals that
 //            used to be two sidebar links) and the "Plan" tab (the old Plans
 //            page, "enterprise-upgrade", still accepted as an alias).
-//   Also:    ST_BookkeeperCard on the client Dashboard (assigned bookkeeper's
-//            public profile: bookkeeper_public_profile RPC + staff-avatars).
+//   Also:    ST_BookkeeperCard and AM_AccountManagerCard on the client
+//            Dashboard (bookkeeper_public_profile / client_team_profiles RPCs
+//            + staff-avatars), and AM_useTeamProfiles for reply attribution
+//            on the client Messages page.
 //
 // Data (supabase/user-settings.sql):
 //   user_settings.settings  one JSON object per signed-in person:
@@ -1435,9 +1437,197 @@ function ST_ClientSettingsPage({
 }
 
 // ---------------------------------------------------------------------------
-// Bookkeeper card (client Dashboard)
+// Team cards (client Dashboard): "Your account manager" and "Your bookkeeper"
+//
+// Both are Dashboard widgets (team-account-manager, team-bookkeeper; hide and
+// reorder them in Customize) drawn in their own row under the board by
+// AM_TeamRow. When one person is both, only the account manager card shows,
+// titled "Your account manager and bookkeeper".
+//
+// Account manager: clients.account_manager_email (supabase/account-manager.sql),
+// the client's main contact, emailed when the client messages. Public profile
+// fields come from client_team_profiles(client_id), which also feeds the name
+// and title on staff replies in the client's Messages page (AM_useTeamProfiles).
+// AM_ names are this feature's top-level helpers.
 // ---------------------------------------------------------------------------
-function ST_BookkeeperCard({ client }) {
+const AM_DEFAULT_EMAIL = "jesse@mygoodbooks.org";
+const AM_CACHE_MS = 60 * 1000;
+const AM_teamCache = new Map(); // clientId -> { at, promise }
+
+// clients row -> client.accountManager ({ name, email }) or null.
+function AM_fromRow(row) {
+  const email = row && row.account_manager_email ? String(row.account_manager_email).toLowerCase() : "";
+  if (!email) return null;
+  return { name: (row.account_manager && String(row.account_manager).trim()) || email.split("@")[0], email };
+}
+
+const AM_lower = (s) => String(s || "").trim().toLowerCase();
+
+// client_team_profiles rows, cached a minute per client. Resolves to
+// { rows, error } and never rejects.
+function AM_loadTeam(clientId, force) {
+  const sb = window.mgbSupabase;
+  if (!sb || !clientId) return Promise.resolve({ rows: [], error: null });
+  const hit = AM_teamCache.get(clientId);
+  if (!force && hit && Date.now() - hit.at < AM_CACHE_MS) return hit.promise;
+  const promise = Promise.resolve(sb.rpc("client_team_profiles", { p_client_id: clientId })).then(
+    ({ data, error }) => ({ rows: !error && Array.isArray(data) ? data : [], error: error || null }),
+    (error) => ({ rows: [], error }),
+  );
+  AM_teamCache.set(clientId, { at: Date.now(), promise });
+  return promise;
+}
+
+// { byEmail, loaded } for a client's team. wantEmails: staff emails the
+// caller needs (message authors); one missing triggers a single fresh load.
+function AM_useTeamProfiles(clientId, wantEmails) {
+  const [state, setState] = React.useState({ key: null, byEmail: {}, loaded: false });
+  const triedRef = React.useRef("");
+  const want = (wantEmails || []).map(AM_lower).filter(Boolean).sort().join(",");
+  React.useEffect(() => {
+    if (!clientId) return;
+    let alive = true;
+    const missing = state.key === clientId && want && want.split(",").some((e) => !state.byEmail[e]);
+    const force = !!(missing && triedRef.current !== clientId + "|" + want);
+    if (state.key === clientId && !force) return;
+    if (force) triedRef.current = clientId + "|" + want;
+    AM_loadTeam(clientId, force).then(({ rows }) => {
+      if (!alive) return;
+      const byEmail = {};
+      rows.forEach((r) => {
+        if (r && r.email) byEmail[AM_lower(r.email)] = r;
+      });
+      setState({ key: clientId, byEmail, loaded: true });
+    });
+    return () => {
+      alive = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [clientId, want, state.key]);
+  return state.key === clientId ? state : { key: null, byEmail: {}, loaded: false };
+}
+
+// Signed photo URL for a staff-avatars path (null while loading or none).
+function AM_usePhoto(path) {
+  const [url, setUrl] = React.useState(null);
+  React.useEffect(() => {
+    let alive = true;
+    setUrl(null);
+    if (path) ST_profile.signed(path).then((u) => alive && setUrl(u));
+    return () => {
+      alive = false;
+    };
+  }, [path]);
+  return url;
+}
+
+// The card itself, shared by both widgets. Looks complete with a name only.
+function AM_ContactCard({ kicker, person, photo, clientId, wrapProps, className }) {
+  return (
+    <section className={"card st-bk-card" + (className ? " " + className : "")} aria-label={kicker} {...(wrapProps || {})}>
+      <ST_Avatar name={person.name} url={photo} size={56} />
+      <div className="st-bk-text">
+        <span className="st-bk-kicker">{kicker}</span>
+        <span className="st-bk-name">{person.name}</span>
+        {person.title && <span className="st-row-sub">{person.title}</span>}
+        {(person.phone || person.email) && (
+          <span className="st-bk-contact">
+            {person.phone && <a href={"tel:" + String(person.phone).replace(/[^\d+]/g, "")}>{person.phone}</a>}
+            {person.email && <a href={"mailto:" + person.email}>{person.email}</a>}
+          </span>
+        )}
+      </div>
+      <button
+        type="button"
+        className="btn-secondary st-btn-sm"
+        onClick={() => {
+          window.location.hash = "#/client/" + encodeURIComponent(clientId) + "/messages";
+        }}
+      >
+        Message
+      </button>
+    </section>
+  );
+}
+
+function AM_sameAsBookkeeper(client) {
+  const am = client && client.accountManager && AM_lower(client.accountManager.email);
+  const bk = client && client.assignedBookkeeper && AM_lower(client.assignedBookkeeper.email);
+  return !!(am && bk && am === bk);
+}
+
+// Widget definitions for the Dashboard's Customize drawer.
+function AM_teamWidgetDefs(client) {
+  const defs = [];
+  const both = AM_sameAsBookkeeper(client);
+  if (client && client.accountManager && client.accountManager.email)
+    defs.push({
+      id: "team-account-manager",
+      group: "team",
+      kind: "list",
+      label: both ? "Your account manager and bookkeeper" : "Your account manager",
+      description: "Your main contact, with a Message button",
+    });
+  if (client && client.assignedBookkeeper && !both)
+    defs.push({
+      id: "team-bookkeeper",
+      group: "team",
+      kind: "list",
+      label: "Your bookkeeper",
+      description: "Your bookkeeper's contact card",
+    });
+  return defs;
+}
+
+// The row of team cards under the Dashboard board, in layout order.
+function AM_TeamRow({ client, ids, drag }) {
+  if (!ids || !ids.length) return null;
+  const wrap = (id) => ({ ...(drag ? drag.dragProps(id) : {}), key: id });
+  return (
+    <div className="am-team-row">
+      {ids.map((id) => {
+        const cls = drag ? drag.dragClass(id) : "";
+        if (id === "team-account-manager")
+          return <AM_AccountManagerCard key={id} client={client} wrapProps={wrap(id)} className={cls} />;
+        if (id === "team-bookkeeper")
+          return <ST_BookkeeperCard key={id} client={client} wrapProps={wrap(id)} className={cls} />;
+        return null;
+      })}
+    </div>
+  );
+}
+
+function AM_AccountManagerCard({ client, wrapProps, className }) {
+  const clientId = client && client.id;
+  const am = client && client.accountManager;
+  const team = AM_useTeamProfiles(am ? clientId : null);
+  const row = am ? team.byEmail[AM_lower(am.email)] : null;
+  const photo = AM_usePhoto(row && row.photo_path);
+  if (!am || !am.email) return null;
+  const person = {
+    name: (row && row.name) || am.name,
+    title: (row && row.title) || null,
+    phone: (row && row.phone) || null,
+    email: am.email,
+  };
+  if (!person.name) return null;
+  const { key, ...rest } = wrapProps || {};
+  return (
+    <AM_ContactCard
+      kicker={AM_sameAsBookkeeper(client) ? "Your account manager and bookkeeper" : "Your account manager"}
+      person={person}
+      photo={photo}
+      clientId={clientId}
+      wrapProps={rest}
+      className={className}
+    />
+  );
+}
+
+// Bookkeeper card: the assigned bookkeeper's public profile
+// (bookkeeper_public_profile RPC + staff-avatars), falling back to the
+// assigned bookkeeper's name.
+function ST_BookkeeperCard({ client, wrapProps, className }) {
   const [bk, setBk] = React.useState(undefined); // undefined loading, null none
   const [photo, setPhoto] = React.useState(null);
   const clientId = client && client.id;
@@ -1464,30 +1654,9 @@ function ST_BookkeeperCard({ client }) {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [clientId]);
-  if (!bk || !bk.name) return null;
-  return (
-    <section className="card st-bk-card" aria-label="Your bookkeeper">
-      <ST_Avatar name={bk.name} url={photo} size={56} />
-      <div className="st-bk-text">
-        <span className="st-bk-kicker">Your bookkeeper</span>
-        <span className="st-bk-name">{bk.name}</span>
-        {bk.title && <span className="st-row-sub">{bk.title}</span>}
-        <span className="st-bk-contact">
-          {bk.phone && <a href={"tel:" + String(bk.phone).replace(/[^\d+]/g, "")}>{bk.phone}</a>}
-          {bk.email && <a href={"mailto:" + bk.email}>{bk.email}</a>}
-        </span>
-      </div>
-      <button
-        type="button"
-        className="btn-secondary st-btn-sm"
-        onClick={() => {
-          window.location.hash = "#/client/" + encodeURIComponent(clientId) + "/messages";
-        }}
-      >
-        Message
-      </button>
-    </section>
-  );
+  if (!bk || !bk.name || AM_sameAsBookkeeper(client)) return null;
+  const { key, ...rest } = wrapProps || {};
+  return <AM_ContactCard kicker="Your bookkeeper" person={bk} photo={photo} clientId={clientId} wrapProps={rest} className={className} />;
 }
 
 // Gear icon for the Settings entry points (client sidebar, staff menus).

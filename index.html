@@ -248,11 +248,19 @@
         const supabase = window.mgbSupabase;
         if (!supabase) return;
         try {
-          const { data, error } = await supabase
+          const baseCols =
+            "id, name, org_type, entity_type, plan, test_only, payroll_add_on, assigned_bookkeeper, assigned_bookkeeper_email";
+          // account_manager / account_manager_email
+          // (supabase/account-manager.sql). Until that migration is applied
+          // the select fails, so retry without them; window.AM_COLS_OK tells
+          // the Client Roster whether to read and write the columns.
+          let { data, error } = await supabase
             .from("clients")
-            .select(
-              "id, name, org_type, entity_type, plan, test_only, payroll_add_on, assigned_bookkeeper, assigned_bookkeeper_email",
-            );
+            .select(baseCols + ", account_manager, account_manager_email");
+          window.AM_COLS_OK = !error;
+          if (error) {
+            ({ data, error } = await supabase.from("clients").select(baseCols));
+          }
           if (error) {
             console.warn("Couldn't load client roster from Supabase:", error.message);
             return;
@@ -278,6 +286,12 @@
                 ? Object.assign({}, row.assigned_bookkeeper, {
                     email: row.assigned_bookkeeper_email || null,
                   })
+                : null,
+              accountManager: row.account_manager_email
+                ? {
+                    name: row.account_manager || row.account_manager_email.split("@")[0],
+                    email: row.account_manager_email,
+                  }
                 : null,
             };
             // withClientDataDefaults (data.js) backfills the empty arrays a

@@ -17,6 +17,9 @@ import * as L from "../_shared/layout.ts";
 // (client_email_settings.enabled), the org's opt_out_all, each person's
 // unsubscribe link (client_email_recipients) and test_only clients. Bodies
 // never contain message text, amounts, fees or rates.
+//
+// staff_client_message rows with payload.loop_in (supabase/account-manager.sql)
+// are a "Loop in bookkeeper" or an @mention: same Settings key, own wording.
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -263,7 +266,9 @@ Deno.serve(async (req) => {
   // Group per kind + person + organization: one email per group.
   const groups = new Map<string, any[]>();
   for (const r of fresh) {
-    const key = `${r.kind}|${r.recipient_email}|${r.client_id || ""}`;
+    // Loop-ins and @mentions (payload.loop_in, supabase/account-manager.sql)
+    // share kind staff_client_message but get their own email.
+    const key = `${r.kind}|${r.recipient_email}|${r.client_id || ""}${r.payload?.loop_in ? "|loop" : ""}`;
     if (!groups.has(key)) groups.set(key, []);
     groups.get(key)!.push(r);
   }
@@ -313,7 +318,21 @@ Deno.serve(async (req) => {
         continue;
       }
       const cname = client?.name || "a client";
-      if (kind === "staff_client_message") {
+      if (kind === "staff_client_message" && list[0].payload?.loop_in) {
+        // "Loop in bookkeeper" from the inbox, or an @mention in a reply or note.
+        const bys = [...new Set(list.map((r: any) => String(r.payload?.by || r.payload?.author_name || "").trim()).filter(Boolean))];
+        const by = bys.length === 1 ? bys[0] : "A teammate";
+        const mentioned = list.every((r: any) => r.payload?.mention);
+        const what = mentioned ? "mentioned you in a conversation with" : "looped you in on a conversation with";
+        email = staffEmail({
+          subject: mentioned ? `${by} mentioned you: ${cname}` : `${by} looped you in: ${cname}`,
+          preheader: `${by} ${what} ${cname}`,
+          lines: [`${esc(by)} ${what} <b>${esc(cname)}</b> in the portal.`],
+          textLines: [`${by} ${what} ${cname} in the portal.`],
+          cta: "Open Messages",
+          href: clientLink(clientId, "messages"),
+        });
+      } else if (kind === "staff_client_message") {
         const authors = [...new Set(list.map((r: any) => String(r.payload?.author_name || "").trim()).filter(Boolean))];
         const who = authors.length === 1 ? authors[0] : "Your client";
         const n = list.length;

@@ -185,3 +185,10 @@
 .tb-avatar-photo { object-fit: cover; padding: 0; }
 .tb-menu-check { display: inline-block; width: 14px; margin-left: -18px; color: var(--gold-deep, var(--gold)); font-weight: 700; }
 .tb-menu-checked { font-weight: 600; }
+
+/* Team cards row under the client Dashboard board (AM_TeamRow): account
+   manager and bookkeeper side by side, stacked on narrow screens. */
+.am-team-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr)); gap: 16px; margin-top: 16px; }
+.am-team-row > .st-bk-card { margin-top: 0; min-width: 0; }
+.msg-author-title { font-weight: 400; color: var(--text-muted); }
+.msg-team-sub { margin: -4px 0 8px; }

@@ -5547,6 +5547,25 @@ function ClientOverviewPage({ client, messagesByClient, onNavigate, onOpenDetail
   const [profileDraft, setProfileDraft] = useState(null);
   const [savingProfile, setSavingProfile] = useState(false);
   const [callText, setCallText] = useState("");
+  // Account manager picker (admins: they're the ones who can read the staff
+  // list and update clients). clients.account_manager_email,
+  // supabase/account-manager.sql.
+  const canPickAm = !!(staffUser && staffUser.role === "admin" && sb && window.AM_COLS_OK !== false);
+  const [amStaff, setAmStaff] = useState([]);
+  useEffect(() => {
+    if (!canPickAm) return;
+    let alive = true;
+    sb.from("staff")
+      .select("email, name, role")
+      .eq("active", true)
+      .order("name", { ascending: true })
+      .then(({ data, error }) => {
+        if (alive && !error) setAmStaff(data || []);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [canPickAm]);
 
   const load = useCallback(async () => {
     if (!sb) {
@@ -5697,6 +5716,7 @@ function ClientOverviewPage({ client, messagesByClient, onNavigate, onOpenDetail
     launch_date: profile.launch_date || "",
     backup_bookkeeper_email: profile.backup_bookkeeper_email || "",
     target_hourly_rate: profile.target_hourly_rate != null ? String(profile.target_hourly_rate) : "",
+    account_manager_email: (client.accountManager && client.accountManager.email) || "",
   };
   const today = todayLocal();
   const upcoming = [
@@ -5720,11 +5740,28 @@ function ClientOverviewPage({ client, messagesByClient, onNavigate, onOpenDetail
       target_hourly_rate: draft.target_hourly_rate === "" ? null : Number(draft.target_hourly_rate),
     };
     const { error } = await staffToolsApi.saveProfile(sb, client.id, fields, staffUser && staffUser.email);
-    setSavingProfile(false);
     if (error) {
+      setSavingProfile(false);
       showToast(isMissingTableError(error) ? STAFF_TOOLS_SETUP_MSG : "Couldn't save those details.");
       return;
     }
+    const amNow = (client.accountManager && client.accountManager.email) || "";
+    if (canPickAm && draft.account_manager_email !== amNow) {
+      const res = await sb
+        .from("clients")
+        .update({ account_manager_email: draft.account_manager_email || null })
+        .eq("id", client.id)
+        .select("account_manager, account_manager_email")
+        .single();
+      if (res.error) {
+        setSavingProfile(false);
+        showToast("Saved the dates, but couldn't change the account manager. " + (res.error.message || ""));
+        return;
+      }
+      // Same object every page holds (CLIENTS), so the change shows at once.
+      client.accountManager = AM_fromRow(res.data);
+    }
+    setSavingProfile(false);
     setProfileDraft(null);
     showToast("Saved.");
     notifyStaffTools();
@@ -6003,6 +6040,10 @@ function ClientOverviewPage({ client, messagesByClient, onNavigate, onOpenDetail
                 <span>Backup</span>
                 <span>{profile.backup_bookkeeper_email || "Not set"}</span>
               </li>
+              <li>
+                <span>Account manager</span>
+                <span>{(client.accountManager && client.accountManager.name) || "Not set"}</span>
+              </li>
               {profile.board_meeting && (
                 <li>
                   <span>Board meets</span>
@@ -6042,6 +6083,28 @@ function ClientOverviewPage({ client, messagesByClient, onNavigate, onOpenDetail
                       />
                     </label>
                   ))}
+                  {canPickAm && (
+                    <label className="task-field">
+                      <span>Account manager</span>
+                      <select
+                        value={draft.account_manager_email}
+                        onChange={(e) => setProfileDraft({ ...draft, account_manager_email: e.target.value })}
+                      >
+                        <option value="">Not set (client messages email everyone on the client)</option>
+                        {draft.account_manager_email && !amStaff.some((p) => p.email === draft.account_manager_email) && (
+                          <option value={draft.account_manager_email}>
+                            {(client.accountManager && client.accountManager.name) || draft.account_manager_email}
+                          </option>
+                        )}
+                        {amStaff.map((p) => (
+                          <option key={p.email} value={p.email}>
+                            {p.name || p.email}
+                            {p.role === "admin" ? " (admin)" : ""}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                  )}
                   <button type="submit" className="btn-primary" disabled={savingProfile || !profileDraft}>
                     {savingProfile ? "Saving…" : "Save"}
                   </button>
@@ -6468,6 +6531,8 @@ function DashboardPage({
       description: "Latest transactions across all accounts",
     },
     ...crossTabWidgetDefs(client, access),
+    // Contact cards (Settings.jsx), in their own row under the board.
+    ...(typeof AM_teamWidgetDefs === "function" ? AM_teamWidgetDefs(client) : []),
   ];
   const crossTabById = Object.fromEntries(
     widgets.filter((w) => w.id.startsWith("xt-")).map((w) => [w.id, w]),
@@ -6683,9 +6748,17 @@ function DashboardPage({
             return null;
           })}
       </div>
-      {/* Settings.jsx: the assigned bookkeeper's name, title, phone and
-          photo (their Settings > Profile), with a Message button. */}
-      {typeof ST_BookkeeperCard === "function" && <ST_BookkeeperCard client={client} />}
+      {/* Settings.jsx: the account manager's and assigned bookkeeper's
+          name, title, phone and photo (their Settings > Profile), each with a
+          Message button. Widgets like the rest of the board (hide, reorder
+          in Customize), in their own row. */}
+      {typeof AM_TeamRow === "function" && (
+        <AM_TeamRow
+          client={client}
+          ids={layout.visibleOrder.filter((id) => id.startsWith("team-"))}
+          drag={drag}
+        />
+      )}
     </div>
   );
 }
@@ -14376,6 +14449,13 @@ function ClientAccessPage({ readOnly }) {
   // linked to a staff member, otherwise a staff email.
   const [editOrgBookkeeperEmail, setEditOrgBookkeeperEmail] = useState("");
   const [editOrgBookkeeperRole, setEditOrgBookkeeperRole] = useState("");
+  // Account manager (clients.account_manager_email, supabase/account-manager.sql):
+  // the client's main contact, emailed when the client messages. New
+  // clients default to Jesse. Only read and written once the migration is
+  // in (window.AM_COLS_OK, set by the roster load in index.html).
+  const amCols = window.AM_COLS_OK !== false;
+  const [newOrgAmEmail, setNewOrgAmEmail] = useState(AM_DEFAULT_EMAIL);
+  const [editOrgAmEmail, setEditOrgAmEmail] = useState("");
   const [savingOrg, setSavingOrg] = useState(false);
 
   const newOrgId = useMemo(
@@ -14397,9 +14477,7 @@ function ClientAccessPage({ readOnly }) {
     }
     supabase
       .from("clients")
-      .select(
-        "id, name, org_type, entity_type, plan, test_only, payroll_add_on, assigned_bookkeeper, assigned_bookkeeper_email",
-      )
+      .select(rosterCols())
       .order("created_at", { ascending: true })
       .then(({ data, error }) => {
         if (error) {
@@ -14432,6 +14510,13 @@ function ClientAccessPage({ readOnly }) {
   }, [supabase]);
 
   const BK_LEGACY = "__legacy__";
+
+  function rosterCols() {
+    return (
+      "id, name, org_type, entity_type, plan, test_only, payroll_add_on, assigned_bookkeeper, assigned_bookkeeper_email" +
+      (amCols ? ", account_manager, account_manager_email" : "")
+    );
+  }
 
   // Display JSON for clients.assigned_bookkeeper, built from the staff row.
   function bookkeeperFromStaff(email, role) {
@@ -14507,10 +14592,9 @@ function ClientAccessPage({ readOnly }) {
         payroll_add_on: newOrgPayrollAddOn,
         assigned_bookkeeper: assignedBookkeeper,
         assigned_bookkeeper_email: bookkeeperEmail || null,
+        ...(amCols ? { account_manager_email: newOrgAmEmail || null } : {}),
       })
-      .select(
-        "id, name, org_type, entity_type, plan, test_only, payroll_add_on, assigned_bookkeeper, assigned_bookkeeper_email",
-      )
+      .select(rosterCols())
       .single();
     setAddingOrg(false);
     if (error) {
@@ -14537,6 +14621,7 @@ function ClientAccessPage({ readOnly }) {
         testOnly: data.test_only,
         payrollAddOn: data.payroll_add_on,
         assignedBookkeeper: rosterBookkeeper(data),
+        accountManager: AM_fromRow(data),
       }),
     );
     setNewOrgName("");
@@ -14546,6 +14631,7 @@ function ClientAccessPage({ readOnly }) {
     setNewOrgPayrollAddOn(false);
     setNewOrgBookkeeperEmail("");
     setNewOrgBookkeeperRole("");
+    setNewOrgAmEmail(AM_DEFAULT_EMAIL);
     showToast(`Added ${name}.`);
     loadOrgs();
   }
@@ -14565,6 +14651,7 @@ function ClientAccessPage({ readOnly }) {
     setEditOrgBookkeeperRole(
       row.assigned_bookkeeper ? row.assigned_bookkeeper.role : "",
     );
+    setEditOrgAmEmail(row.account_manager_email || "");
   }
 
   function cancelEditOrg() {
@@ -14600,11 +14687,10 @@ function ClientAccessPage({ readOnly }) {
         payroll_add_on: editOrgPayrollAddOn,
         assigned_bookkeeper: assignedBookkeeper,
         assigned_bookkeeper_email: bookkeeperEmail,
+        ...(amCols ? { account_manager_email: editOrgAmEmail || null } : {}),
       })
       .eq("id", id)
-      .select(
-        "id, name, org_type, entity_type, plan, test_only, payroll_add_on, assigned_bookkeeper, assigned_bookkeeper_email",
-      )
+      .select(rosterCols())
       .single();
     setSavingOrg(false);
     if (error) {
@@ -14625,6 +14711,7 @@ function ClientAccessPage({ readOnly }) {
         testOnly: data.test_only,
         payrollAddOn: data.payroll_add_on,
         assignedBookkeeper: rosterBookkeeper(data),
+        ...(amCols ? { accountManager: AM_fromRow(data) } : {}),
       };
     }
     setEditingOrgId(null);
@@ -14884,6 +14971,7 @@ function ClientAccessPage({ readOnly }) {
                     <th>Org type</th>
                     <th>Plan</th>
                     <th>Bookkeeper</th>
+                    {amCols && <th>Account manager</th>}
                     <th></th>
                   </tr>
                 </thead>
@@ -14961,6 +15049,11 @@ function ClientAccessPage({ readOnly }) {
                             Payroll add-on
                           </label>
                         </td>
+                        {amCols && (
+                          <td>
+                            {renderStaffSelect(editOrgAmEmail, setEditOrgAmEmail)}
+                          </td>
+                        )}
                         <td>
                           <button
                             className="btn-primary"
@@ -15001,6 +15094,7 @@ function ClientAccessPage({ readOnly }) {
                               </div>
                             )}
                         </td>
+                        {amCols && <td>{row.account_manager || "—"}</td>}
                         <td>
                           <button onClick={() => startEditOrg(row)}>
                             Edit
@@ -15061,6 +15155,12 @@ function ClientAccessPage({ readOnly }) {
               value={newOrgBookkeeperRole}
               onChange={(e) => setNewOrgBookkeeperRole(e.target.value)}
             />
+            {amCols && (
+              <label style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                Account manager
+                {renderStaffSelect(newOrgAmEmail, setNewOrgAmEmail)}
+              </label>
+            )}
           </div>
           <p className="card-subtitle">
             ID: <code>{newOrgId || "—"}</code>
@@ -20587,6 +20687,24 @@ function MessagesPage({
   const showToast = useToast();
   const unavailable = loadStatus === "unavailable";
 
+  // Who wrote each staff reply: name and title from their public profile
+  // (client_team_profiles, Settings.jsx AM_useTeamProfiles), falling back to
+  // the name saved on the message.
+  const staffAuthorEmails = live
+    ? Array.from(new Set(messages.filter((m) => m.from === "bookkeeper" && m.authorEmail).map((m) => String(m.authorEmail).toLowerCase())))
+    : [];
+  const team =
+    typeof AM_useTeamProfiles === "function"
+      ? AM_useTeamProfiles(live && client ? client.id : null, staffAuthorEmails)
+      : { byEmail: {} };
+  const staffAuthor = (m) => {
+    if (!live) return { name: client && client.assignedBookkeeper ? client.assignedBookkeeper.name : m.author, title: null };
+    const p = m.authorEmail ? team.byEmail[String(m.authorEmail).toLowerCase()] : null;
+    // No title on their profile yet: say what they are to this client.
+    const role = p && (p.is_account_manager ? "Account manager" : p.is_bookkeeper ? "Bookkeeper" : null);
+    return { name: (p && p.name) || m.author || "MyGoodBooks", title: (p && p.title) || role || null };
+  };
+
   // Where unread starts: the first staff message after the reader's own
   // read marker, worked out once when the thread first loads, before the
   // page marks it read, so the divider stays put while they read.
@@ -20775,10 +20893,27 @@ function MessagesPage({
     prev = m;
   });
 
+  // The client's thread is with the whole team: name the account manager
+  // (main contact) and the bookkeeper under the title.
+  const amPerson = client && client.accountManager;
+  const bkPerson = client && client.assignedBookkeeper;
+  const teamLine =
+    live && !isBookkeeper && amPerson
+      ? [
+          `${amPerson.name}, account manager`,
+          bkPerson && bkPerson.name && String(bkPerson.email || "").toLowerCase() !== amPerson.email
+            ? `${bkPerson.name}, bookkeeper`
+            : null,
+        ]
+          .filter(Boolean)
+          .join(" · ")
+      : null;
   const threadTitle =
     isBookkeeper && activeUser
       ? `Conversation with ${activeUser.name}`
-      : client && client.assignedBookkeeper
+      : teamLine
+        ? "Conversation with your MyGoodBooks team"
+        : client && client.assignedBookkeeper
         ? // §161: the green "Online now" dot that used to sit here was
           // hardcoded — nothing checked presence, so it told every client
           // their bookkeeper was at their desk at 3am on a Sunday. The
@@ -20836,6 +20971,7 @@ function MessagesPage({
         }}
       >
         <h3 className="card-title">{threadTitle}</h3>
+        {teamLine && <p className="card-subtitle msg-team-sub">{teamLine}</p>}
         {unavailable ? (
           <div className="msg-unavailable" role="status">
             <strong>Messaging isn't available right now.</strong>
@@ -20925,15 +21061,20 @@ function MessagesPage({
                       (flashCardId === rowId ? " row-flash" : "")
                     }
                   >
-                    {!grouped && (
-                      <div className="message-author">
-                        {m.from === "bookkeeper" &&
-                        client &&
-                        client.assignedBookkeeper
-                          ? client.assignedBookkeeper.name
-                          : m.author}
-                      </div>
-                    )}
+                    {!grouped &&
+                      (m.from === "bookkeeper" ? (
+                        (() => {
+                          const a = staffAuthor(m);
+                          return (
+                            <div className="message-author">
+                              {a.name}
+                              {a.title && <span className="msg-author-title"> · {a.title}</span>}
+                            </div>
+                          );
+                        })()
+                      ) : (
+                        <div className="message-author">{m.author}</div>
+                      ))}
                     {m.text && <div className="message-text">{m.text}</div>}
                     {m.attachment &&
                       (attachUrl || (onAttachmentUrl && !m.sendState) ? (

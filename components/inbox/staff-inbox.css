@@ -1150,3 +1150,19 @@ body:has(.modal-overlay) .si-launcher {
     height: 40px;
   }
 }
+
+/* "Loop in <bookkeeper>" in the composer's Reply / Note row
+   (client_message_loop_in, supabase/account-manager.sql). */
+.si-mode .si-loop-in {
+  margin-left: auto;
+  flex-shrink: 0;
+  border: 1px solid var(--border);
+  background: var(--surface, transparent);
+  color: var(--text);
+  border-radius: 999px;
+  padding: 3px 10px;
+  font: 600 11.5px/1.4 var(--font-body);
+  cursor: pointer;
+}
+.si-mode .si-loop-in:hover:not(:disabled) { border-color: var(--gold, #c9a227); color: var(--gold-deep, var(--text)); }
+.si-mode .si-loop-in:disabled { opacity: 0.6; cursor: default; }

@@ -243,6 +243,49 @@ function SI_ClientThread({ entry, mode, me, staffUser, sampleRows, onSampleSend,
   const fileRef = React.useRef(null);
   const endRef = React.useRef(null);
   const textRef = React.useRef(null);
+  const [loopingIn, setLoopingIn] = React.useState(false);
+
+  // The assigned bookkeeper can be looped in (emailed) from here, or by
+  // @mentioning them in a reply or note (supabase/account-manager.sql).
+  const bkInfo = entry.client && entry.client.assignedBookkeeper;
+  const bkEmail = bkInfo && typeof bkInfo === "object" ? siLower(bkInfo.email) : "";
+  const bkFirst = bkEmail ? String(bkInfo.name || bkEmail.split("@")[0]).trim().split(/\s+/)[0] : "";
+  const canLoopIn = !!(bkEmail && bkEmail !== siLower(me || (staffUser && staffUser.email)));
+
+  async function loopIn() {
+    if (!canLoopIn || loopingIn) return;
+    if (mode !== "real" || !sb) {
+      toast("This is a sample thread, so nobody is emailed.");
+      return;
+    }
+    setLoopingIn(true);
+    try {
+      const { data, error } = await sb.rpc("client_message_loop_in", {
+        p_client_id: entry.clientId,
+        p_participant_email: siLower(entry.email),
+      });
+      if (error) {
+        toast(
+          typeof isMissingTableError === "function" && isMissingTableError(error)
+            ? "Loop in isn't set up yet (supabase/account-manager.sql)."
+            : `Couldn't loop in ${bkFirst}: ${error.message}`,
+        );
+        return;
+      }
+      toast(`Looped in ${data || bkInfo.name}. They'll get an email.`);
+      siNotifyChanged();
+      const res = await sb
+        .from("client_messages")
+        .select(SI_MSG_COLS)
+        .eq("client_id", entry.clientId)
+        .eq("participant_email", entry.email)
+        .order("created_at", { ascending: true })
+        .limit(1000);
+      if (res.data) setRows(await siSignRows(sb, res.data));
+    } finally {
+      setLoopingIn(false);
+    }
+  }
 
   React.useEffect(() => {
     if (mode !== "real" || !sb) return;
@@ -402,6 +445,17 @@ function SI_ClientThread({ entry, mode, me, staffUser, sampleRows, onSampleSend,
             Note
           </button>
           <span className="si-mode-hint">{isNote ? "Only staff see notes" : `${entry.name} will see this`}</span>
+          {canLoopIn && (
+            <button
+              type="button"
+              className="si-loop-in"
+              onClick={loopIn}
+              disabled={loopingIn}
+              title={`Email ${bkInfo.name} (the assigned bookkeeper) to look at this conversation. Or type @${bkFirst} in a reply or note.`}
+            >
+              {loopingIn ? "Looping in…" : `Loop in ${bkFirst}`}
+            </button>
+          )}
         </div>
         {file && (
           <div className="si-file-chip">
@@ -429,7 +483,10 @@ function SI_ClientThread({ entry, mode, me, staffUser, sampleRows, onSampleSend,
             rows={1}
             className="si-textarea"
             aria-label={isNote ? "Internal note" : `Reply to ${entry.name}`}
-            placeholder={isNote ? "Add an internal note…" : `Reply to ${entry.name}…`}
+            placeholder={
+              (isNote ? "Add an internal note…" : `Reply to ${entry.name}…`) +
+              (canLoopIn ? ` (@${bkFirst} emails ${bkFirst})` : "")
+            }
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
             onKeyDown={(e) => {
@@ -1906,6 +1963,7 @@ function SI_useClientMessaging({ enabled, role, clientId, email, name, active, r
         id: x.id,
         from: x.author_kind === "client" ? "client" : "bookkeeper",
         author: x.author_name || (x.author_kind === "client" ? "You" : "MyGoodBooks"),
+        authorEmail: x.author_email || null,
         date: String(x.created_at || "").slice(0, 10),
         created_at: x.created_at,
         text: x.body,

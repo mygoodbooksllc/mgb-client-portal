@@ -524,8 +524,14 @@ Owner setup:
   `#/client/<id>/plan`, `plans` and `enterprise-upgrade` still work), Appearance, Security
   (sign out on all devices) and Help. Staff viewing a client get **Client settings** (Manage
   access + Client details) and **Plan** instead; Preview as is read-only.
-- **Your bookkeeper** card at the bottom of the Dashboard (`ST_BookkeeperCard`, RPC
-  `bookkeeper_public_profile`, falls back to the assigned bookkeeper) with a Message button.
+- **Your account manager** and **Your bookkeeper** cards at the bottom of the Dashboard
+  (`AM_TeamRow` in Settings.jsx: `AM_AccountManagerCard` via RPC `client_team_profiles`,
+  `ST_BookkeeperCard` via `bookkeeper_public_profile`), each with a Message button. They are
+  Dashboard widgets (`team-account-manager`, `team-bookkeeper`); one card when the same person is
+  both. The account manager (`clients.account_manager_email`, `supabase/account-manager.sql`,
+  default Jesse) is the only one emailed when the client messages; staff can loop in the
+  bookkeeper (`client_message_loop_in`) or @mention them. Staff replies on the client Messages
+  page show the author's name and title.
 - **Sidebar heading:** the client's milestone (for example "III · Growth"), which opens the
   Milestone page. The milestone pill sits under the tagline in the sidebar (it used to be in the
   page header). Next to it is the gold **Pro** pill, or for Basic and Plus a lock that opens
