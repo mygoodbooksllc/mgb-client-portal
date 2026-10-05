@@ -9,6 +9,43 @@
          blocker that used to back this up is gone too. -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>MyGoodBooks — Client Dashboard (Prototype)</title>
+    <script>
+      // Installable app (manifest.webmanifest + app-icons/). Hidden for now:
+      // the browser only offers "Install" once the manifest is linked, and
+      // that only happens on a device that opened /?install-app=1 (undo with
+      // /?install-app=0), or inside an already-installed copy.
+      // To offer it to everyone, set INSTALL_APP_PUBLIC to true.
+      (function () {
+        var INSTALL_APP_PUBLIC = false;
+        var on = INSTALL_APP_PUBLIC;
+        try {
+          var params = new URLSearchParams(location.search);
+          var flag = params.get("install-app");
+          if (flag === "1") localStorage.setItem("mgb_install_app_v1", "1");
+          if (flag === "0") localStorage.removeItem("mgb_install_app_v1");
+          if (flag !== null) {
+            params.delete("install-app");
+            var qs = params.toString();
+            history.replaceState(null, "", location.pathname + (qs ? "?" + qs : "") + location.hash);
+          }
+          on =
+            on ||
+            localStorage.getItem("mgb_install_app_v1") === "1" ||
+            (window.matchMedia && window.matchMedia("(display-mode: standalone)").matches);
+        } catch (e) {}
+        if (!on) return;
+        function add(tag, attrs) {
+          var el = document.createElement(tag);
+          for (var k in attrs) el.setAttribute(k, attrs[k]);
+          document.head.appendChild(el);
+        }
+        add("link", { rel: "manifest", href: "/manifest.webmanifest" });
+        add("link", { rel: "apple-touch-icon", href: "/app-icons/apple-touch-icon.png" });
+        add("meta", { name: "theme-color", content: "#05080d" });
+        add("meta", { name: "apple-mobile-web-app-title", content: "MyGoodBooks" });
+        add("meta", { name: "mobile-web-app-capable", content: "yes" });
+      })();
+    </script>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <!-- One request for the whole app. Bitter / IBM Plex Sans / IBM Plex Mono are

@@ -7,7 +7,8 @@
 # Keep in sync with index.html's window.__SOURCE_ORDER — everything the boot
 # sequence fetches (auth-config.js, qbo-config.js, components/auth/*,
 # data.js, components/daily-close/*, app.jsx) plus styles.css,
-# components/daily-close/DailyClose.css, logo.webp, the three standalone
+# components/daily-close/DailyClose.css, logo.webp, manifest.webmanifest,
+# app-icons/, the three standalone
 # HTML pages and vercel.json must NOT be listed here.
 
 # Internal notes and handoff docs
