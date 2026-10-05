@@ -44,6 +44,22 @@ function fmtMoney(n: number): string {
   return sign + "$" + Math.abs(v).toLocaleString("en-US");
 }
 
+// Latin-1-safe text for the PDF export (see downloadPdf).
+function pdfSafeText(t: any): any {
+  if (typeof t !== "string") return t;
+  return t
+    .replace(/[\u2212\u2012\u2013\u2014\u2015]/g, "-")
+    .replace(/[\u2018\u2019]/g, "'")
+    .replace(/[\u201C\u201D]/g, '"')
+    .replace(/\u2026/g, "...")
+    .replace(/\u2192/g, "->")
+    .replace(/\u2190/g, "<-")
+    .replace(/\u2248/g, "~")
+    .replace(/\u2022/g, "\u00B7")
+    .replace(/[\u00A0\u2009\u202F]/g, " ")
+    .replace(/[^\x00-\xFF]/g, "");
+}
+
 function pct(n: number, digits = 1): string {
   return `${n.toFixed(digits)}%`;
 }
@@ -1031,6 +1047,15 @@ function DailyClose({ data, className, theme, onNavigate }: DailyCloseProps) {
     const w = window as any;
     if (!w.jspdf) return;
     const doc = new w.jspdf.jsPDF();
+    // jsPDF's built-in Helvetica only has Latin-1 glyphs. One character
+    // outside it (the "−" fmtMoney puts on a negative amount, an en dash,
+    // an arrow) garbles the whole string into spaced-out symbols, so every
+    // string is mapped to safe stand-ins before it's measured or drawn.
+    const rawText = doc.text.bind(doc);
+    doc.text = (t: any, ...rest: any[]) =>
+      rawText(Array.isArray(t) ? t.map(pdfSafeText) : pdfSafeText(t), ...rest);
+    const rawWidth = doc.getTextWidth.bind(doc);
+    doc.getTextWidth = (t: any) => rawWidth(pdfSafeText(t));
     const pageWidth = doc.internal.pageSize.getWidth();
 
     doc.setFillColor(5, 8, 13);
@@ -1846,10 +1871,10 @@ function DailyClose({ data, className, theme, onNavigate }: DailyCloseProps) {
             Questions?{" "}
             {onNavigate ? (
               <button type="button" className={styles.footerLink} onClick={() => onNavigate("messages")}>
-                Message your bookkeeper.
+                Message your account manager.
               </button>
             ) : (
-              "Message your bookkeeper."
+              "Message your account manager."
             )}
           </span>
         </div>

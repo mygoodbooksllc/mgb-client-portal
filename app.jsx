@@ -8605,8 +8605,31 @@ const PDF_TABLE_THEME = {
   margin: { left: 14, right: 14 },
 };
 
+// jsPDF's built-in Helvetica only has Latin-1 glyphs; one character outside
+// it (an em dash, a "••" card mask, a "−") garbles the whole string into
+// spaced-out symbols. newReportDoc routes every string through this.
+function RPT_pdfSafe(t) {
+  if (typeof t !== "string") return t;
+  return t
+    .replace(/[\u2212\u2012\u2013\u2014\u2015]/g, "-")
+    .replace(/[\u2018\u2019]/g, "'")
+    .replace(/[\u201C\u201D]/g, '"')
+    .replace(/\u2026/g, "...")
+    .replace(/\u2192/g, "->")
+    .replace(/\u2190/g, "<-")
+    .replace(/\u2248/g, "~")
+    .replace(/\u2022/g, "*")
+    .replace(/[\u00A0\u2009\u202F]/g, " ")
+    .replace(/[^\x00-\xFF]/g, "");
+}
+
 function newReportDoc(title, subtitle, client) {
   const doc = new window.jspdf.jsPDF();
+  const rawText = doc.text.bind(doc);
+  doc.text = (t, ...rest) =>
+    rawText(Array.isArray(t) ? t.map(RPT_pdfSafe) : RPT_pdfSafe(t), ...rest);
+  const rawWidth = doc.getTextWidth.bind(doc);
+  doc.getTextWidth = (t) => rawWidth(RPT_pdfSafe(t));
   const pageWidth = doc.internal.pageSize.getWidth();
 
   doc.setFillColor(5, 8, 13);
