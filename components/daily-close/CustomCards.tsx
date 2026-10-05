@@ -538,6 +538,7 @@ function ccSuggestTitle(def: CustomCardDef): string {
   const kw = def.txn.keyword.trim();
   switch (def.source) {
     case "categories":
+      if (kw && def.items.length) return `“${kw}” in ${list(def.items)}, ${period}`;
       return def.items.length ? `${list(def.items)}, ${period}` : `Budget, ${period}`;
     case "income":
       return `Income, ${period}`;
@@ -990,6 +991,204 @@ function Checklist({
   );
 }
 
+/* ============================================================
+   Describe it: a free, rule-based reader that turns a sentence like
+   "youth budget for the last 3 months" into builder settings. It only
+   matches words against this client's own category, account and fund
+   names and a fixed list of phrases; nothing leaves the browser.
+   ============================================================ */
+
+const CC_STOP = new Set(
+  ("a an and the of for to in on at by with from my our me show see track give list all any every " +
+    "card cards last past previous recent recently this that these those months month weeks week year years " +
+    "quarter ytd date so far budget budgets budgeted spending spent spend expenses expense costs cost income " +
+    "revenue money transactions transaction activity vs versus compared compare against over above under below " +
+    "more than less large big chart graph trend line bars bar breakdown category categories account accounts " +
+    "bank banks card balance balances fund funds total totals each per how much what where went came is are was " +
+    "it its i we us please want would like can could just only also left net surplus deficit in out deposits " +
+    "deposit payments payment withdrawals charges incoming outgoing blue orange green gold purple slate gray grey " +
+    "color colour one two three four five six twelve half end giving donations donation gifts gift offerings " +
+    "offering tithes tithe contributions").split(" ")
+);
+const CC_NUMBER_WORDS: Record<string, number> = { one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, nine: 9, twelve: 12 };
+
+function ccStem(w: string): string {
+  w = w.replace(/'s$/, "");
+  if (w.length > 4 && w.endsWith("ies")) return w.slice(0, -3) + "y";
+  if (w.length > 3 && w.endsWith("s") && !w.endsWith("ss")) return w.slice(0, -1);
+  return w;
+}
+const ccWords = (s: string) => norm(s).replace(/[^a-z0-9$.,' ]+/g, " ").split(/\s+/).filter(Boolean);
+
+interface CCParseResult {
+  patch: Partial<CustomCardDef> | null;
+  catType: "expense" | "income" | null;
+  understood: string[];
+  hint: string | null;
+}
+
+// A name matches when the whole name appears in the sentence, or when one of
+// its distinctive words does ("missions" -> "Missions & Outreach").
+function ccMatchNames(text: string, words: Set<string>, names: string[]): { hits: string[]; used: Set<string> } {
+  const t = " " + ccWords(text).join(" ") + " ";
+  const used = new Set<string>();
+  const whole = names.filter((n) => {
+    const p = ccWords(tail(n)).join(" ");
+    return p.length > 2 && t.includes(" " + p + " ");
+  });
+  if (whole.length) {
+    whole.forEach((n) => ccWords(tail(n)).forEach((w) => used.add(ccStem(w))));
+    return { hits: whole, used };
+  }
+  const hits = names.filter((n) => {
+    const own = ccWords(tail(n)).map(ccStem).filter((w) => w.length > 2 && !CC_STOP.has(w));
+    const match = own.filter((w) => words.has(w));
+    match.forEach((w) => used.add(w));
+    return match.length > 0;
+  });
+  return { hits, used };
+}
+
+function ccParse(text: string, src: any): CCParseResult {
+  const raw = norm(text);
+  const none: CCParseResult = { patch: null, catType: null, understood: [], hint: null };
+  if (!raw) return none;
+  const list = ccWords(raw);
+  const words = new Set(list.map(ccStem));
+  const has = (...ps: string[]) => ps.some((p) => (p.includes(" ") ? (" " + list.join(" ") + " ").includes(" " + p + " ") : words.has(ccStem(p))));
+  const understood: string[] = [];
+
+  // Period
+  let period: CCPeriod | null = null;
+  const nMatch = raw.match(/(\d+|one|two|three|four|five|six|nine|twelve)\s*(?:-\s*)?(month|week|year)s?/);
+  if (has("year to date", "ytd", "this year", "so far this year")) period = "ytd";
+  else if (nMatch) {
+    const n = /\d/.test(nMatch[1]) ? Number(nMatch[1]) : CC_NUMBER_WORDS[nMatch[1]];
+    const months = nMatch[2] === "year" ? n * 12 : nMatch[2] === "week" ? Math.ceil(n / 4) : n;
+    period = months <= 1 ? "last-month" : months <= 3 ? "last-3" : months <= 6 ? "last-6" : "last-12";
+  } else if (has("this month", "month to date", "so far")) period = "this-month";
+  else if (has("last month", "previous month", "past month")) period = "last-month";
+  else if (has("quarter")) period = "last-3";
+  else if (has("half year", "half a year")) period = "last-6";
+  else if (has("last year", "past year", "year", "annual", "yearly")) period = "last-12";
+  if (period) understood.push((CC_PERIODS.find((p) => p.id === period) as any).label);
+
+  // Amount: "over $1,000", "more than 500", "large"
+  let minAmount: number | null = null;
+  const amt = raw.match(/(?:over|above|more than|greater than|bigger than|at least|>)\s*\$?\s*([\d,]+(?:\.\d+)?)\s*(k)?/);
+  if (amt) minAmount = Number(amt[1].replace(/,/g, "")) * (amt[2] ? 1000 : 1) || null;
+  else if (has("large", "big")) minAmount = 1000;
+  if (minAmount) understood.push(`Over ${fmtMoney(minAmount)}`);
+
+  // Direction
+  let direction: "all" | "in" | "out" = "all";
+  if (has("money in", "deposits", "deposit", "incoming", "received")) direction = "in";
+  else if (has("money out", "payments", "withdrawals", "charges", "outgoing", "paid")) direction = "out";
+  if (direction !== "all") understood.push(direction === "in" ? "Money in only" : "Money out only");
+
+  // Names the client actually has
+  const cats = (src.categories || []) as any[];
+  const accounts = (src.accounts || []) as any[];
+  const funds = (src.funds || []) as any[];
+  const catHit = ccMatchNames(raw, words, cats.map((c) => c.name));
+  const acctHit = ccMatchNames(raw, words, accounts.map((a) => a.name));
+  const fundHit = ccMatchNames(raw, words, funds.map((f) => f.name));
+  const used = new Set([...catHit.used, ...acctHit.used, ...fundHit.used]);
+
+  // Whatever's left is a keyword to look for in transactions ("youth").
+  const leftovers = list.map(ccStem).filter((w) => w.length > 2 && !CC_STOP.has(w) && !used.has(w) && !/^[\d$.,k]+$/.test(w));
+  const kwWord = leftovers.length ? list.find((w) => ccStem(w) === leftovers[0]) || leftovers[0] : "";
+  const allTx = accounts.flatMap((a) => a.transactions || []);
+  const kwTx = kwWord ? allTx.filter((t: any) => norm(t.description).includes(ccStem(kwWord))) : [];
+
+  // Source
+  let source: CCSource;
+  let items: string[] = [];
+  let keyword = "";
+  const wantsBudget = has("budget", "budgets", "budgeted", "spending", "spent", "expenses", "costs");
+  const wantsIncome = has("income", "revenue", "giving", "donations", "gifts", "offerings");
+  if (has("vs", "versus", "net", "left over", "surplus", "deficit") || (has("income") && has("spending", "expenses"))) {
+    source = "net";
+  } else if (has("fund", "funds") || (fundHit.hits.length && !catHit.hits.length)) {
+    source = "funds";
+    items = fundHit.hits;
+  } else if (catHit.hits.length) {
+    source = "categories";
+    items = catHit.hits;
+    // "youth ministry" can hit both Kids Ministry and Ministry Programs; keep
+    // the ones the keyword's transactions are actually booked to.
+    if (items.length > 1 && kwTx.length) {
+      const booked = items.filter((n) => kwTx.some((t: any) => categoryMatches(t.category, n)));
+      if (booked.length) items = booked;
+    }
+    if (kwWord) keyword = kwWord;
+  } else if (acctHit.hits.length || has("account", "accounts", "bank", "balance", "balances", "card")) {
+    source = "accounts";
+    items = acctHit.hits;
+    if (kwWord) keyword = kwWord;
+  } else if (kwWord && kwTx.length) {
+    // "youth budget": no category is called youth, so find the categories
+    // its transactions are booked to and track those, filtered by the word.
+    const counts: Record<string, number> = {};
+    kwTx.forEach((t: any) => {
+      const c = cats.find((c) => categoryMatches(t.category, c.name));
+      if (c) counts[c.name] = (counts[c.name] || 0) + 1;
+    });
+    const viaCats = Object.keys(counts).sort((a, b) => counts[b] - counts[a]);
+    if (wantsBudget && viaCats.length) {
+      source = "categories";
+      items = viaCats.slice(0, 3);
+    } else {
+      source = "accounts";
+    }
+    keyword = kwWord;
+  } else if (wantsIncome) source = "income";
+  else if (has("spending", "spent", "expenses", "costs", "where the money went")) source = "expenses";
+  else if (minAmount || direction !== "all" || has("transactions", "transaction")) source = "accounts";
+  else {
+    return {
+      ...none,
+      understood,
+      hint: kwWord
+        ? `Couldn't find “${kwWord}” in your categories, accounts or recent transactions. Try a category name or a time period.`
+        : "Try naming a category, an account, or a time period, like “Missions last 6 months”.",
+    };
+  }
+
+  const srcLabel = (CC_SOURCES.find((s) => s.id === source) as any).label;
+  understood.unshift(items.length ? `${srcLabel}: ${items.join(", ")}` : srcLabel);
+  if (keyword) understood.push(`Transactions with “${keyword}”`);
+
+  // What to show
+  const isTxnCard = source === "accounts" && !has("balance", "balances");
+  const show = {
+    summary: !(source === "accounts" && minAmount) || has("total", "totals", "summary"),
+    chart: has("chart", "graph", "trend", "line", "bars") || (!isTxnCard && source !== "funds" ? true : source === "funds"),
+    breakdown: has("breakdown", "by category", "where the money went", "where it went", "where it came from") || source === "funds",
+    transactions: has("transactions", "transaction", "list") || isTxnCard || Boolean(keyword) || source === "categories",
+  };
+  if (source === "expenses" || source === "income") show.breakdown = show.breakdown || !has("chart", "graph", "trend");
+
+  const colour = CC_ACCENTS.find((a) => words.has(a.id)) || (has("gray", "grey") ? CC_ACCENTS.find((a) => a.id === "slate") : null);
+
+  const catType = source === "categories" && items.length ? ((cats.find((c) => c.name === items[0]) || {}).type === "income" ? "income" : "expense") : null;
+  const patch: Partial<CustomCardDef> = {
+    source,
+    items,
+    period: period || (source === "accounts" ? "last-month" : "last-3"),
+    show,
+    chart: has("line", "trend") ? "line" : "bars",
+    compareBudget: source !== "accounts" && source !== "funds",
+    txn: { limit: has("all", "every") ? 20 : keyword || isTxnCard ? 10 : 5, direction, keyword, minAmount },
+  };
+  if (colour) {
+    patch.accent = colour.id;
+    understood.push(colour.label);
+  }
+  if (!period) understood.push((CC_PERIODS.find((p) => p.id === patch.period) as any).label + " (default)");
+  return { patch, catType, understood, hint: null };
+}
+
 function validate(def: CustomCardDef, src: any): string | null {
   if (def.source === "categories" && !def.items.length) return "Pick at least one category.";
   if (def.source === "funds" && !(src.funds || []).length) return "No funds are set up for this account yet.";
@@ -1019,6 +1218,18 @@ function CustomCardBuilder({
   });
   const [tried, setTried] = useState(false);
   const templatesRef = useRef<HTMLDetailsElement>(null);
+  const [describe, setDescribe] = useState("");
+  const [parsed, setParsed] = useState<CCParseResult | null>(null);
+  const fillFromText = () => {
+    const r = ccParse(describe, source);
+    setParsed(r);
+    if (!r.patch) return;
+    const base = ccDefaults();
+    setDef((d) => ({ ...base, ...r.patch, id: d.id, accent: r.patch!.accent || d.accent, title: "" }));
+    if (r.catType) setCatType(r.catType);
+    setTitleTouched(false);
+    if (templatesRef.current) templatesRef.current.open = false;
+  };
   const set = (patch: Partial<CustomCardDef>) => setDef((d) => ({ ...d, ...patch }));
   const setShow = (k: keyof CustomCardDef["show"], v: boolean) => setDef((d) => ({ ...d, show: { ...d.show, [k]: v } }));
   const setTxn = (patch: Partial<CustomCardDef["txn"]>) => setDef((d) => ({ ...d, txn: { ...d.txn, ...patch } }));
@@ -1062,6 +1273,34 @@ function CustomCardBuilder({
       <div className="modal-body cc-builderBody">
         <div className="cc-builderGrid">
           <div className="cc-form">
+            <div className="cc-describe">
+              <label htmlFor="cc-describe-input">Describe the card you want</label>
+              <div className="cc-describeRow">
+                <input
+                  id="cc-describe-input"
+                  className="cc-input"
+                  placeholder="e.g. youth budget for the last 3 months"
+                  value={describe}
+                  maxLength={200}
+                  onChange={(e) => setDescribe(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      fillFromText();
+                    }
+                  }}
+                />
+                <button type="button" className="btn-secondary" onClick={fillFromText} disabled={!describe.trim()}>
+                  Fill in
+                </button>
+              </div>
+              {parsed && parsed.patch && (
+                <p className="cc-help cc-understood">
+                  Filled in: {parsed.understood.join(" · ")}. Check the settings below and change anything that's off.
+                </p>
+              )}
+              {parsed && !parsed.patch && <p className="cc-help cc-understood is-miss">{parsed.hint}</p>}
+            </div>
             {isNew && (
               <details className="cc-templates" ref={templatesRef}>
                 <summary>Start from an idea</summary>
@@ -1346,6 +1585,7 @@ window.MGB_CustomCards = {
   MAX: CC_MAX_CARDS,
   newId: ccNewId,
   normalizeList: ccNormalizeList,
+  parse: ccParse,
   describe: ccDescribe,
   suggestTitle: ccSuggestTitle,
   compute: ccCompute,
