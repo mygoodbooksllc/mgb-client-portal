@@ -1710,6 +1710,7 @@ function StaffRail({
   onPickClient,
   onExpand,
   statusOverrides,
+  hideMark,
 }) {
   const [tip, setTip] = useState(null);
   const showTip = (e, text) => {
@@ -1818,7 +1819,7 @@ function StaffRail({
             <span className="brand-name">My<span className="brand-name-good">Good</span>Books</span>
             <span className="brand-sub">Staff</span>
           </>
-        ) : (
+        ) : hideMark ? null : (
           <span className="staff-rail-mark" role="img" aria-label="MyGoodBooks" />
         )}
       </div>
@@ -25661,6 +25662,11 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
               (effectiveStaffUser.role === "admin" || hasTempAdminAccess) && !impersonating
             }
             onSignOut={onSignOut}
+            // On a client page the open client sidebar already shows the
+            // logo box, so the rail drops its own.
+            hideMark={
+              !onStaffPage && !(halfScreen ? !halfScreenExpanded : sidebarCollapsed)
+            }
             clients={visibleClients}
             onPickClient={(clientId) => {
               if (clientId === selectedClientId) setPage("client-overview");
