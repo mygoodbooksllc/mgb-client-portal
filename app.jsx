@@ -20113,7 +20113,10 @@ function DocumentsPage({ client, isBookkeeper, searchTarget }) {
     const sess = await docSb.auth.getSession();
     if (!sess.data || !sess.data.session) return;
     setRemoteState("loading");
-    const [linksRes, filesRes] = await Promise.all([
+    // Staff also see the client's staff-only files (client-uploads/<client>/
+    // internal/, supabase/staff-only-documents.sql). Client users can't read
+    // that folder, so they never ask for it.
+    const [linksRes, filesRes, internalRes] = await Promise.all([
       docSb
         .from("client_documents")
         .select("id, name, drive_url, category, created_at")
@@ -20126,6 +20129,12 @@ function DocumentsPage({ client, isBookkeeper, searchTarget }) {
           limit: 500,
           sortBy: { column: "created_at", order: "desc" },
         }),
+      isBookkeeper
+        ? docSb.storage.from("client-uploads").list(`${client.id}/internal`, {
+            limit: 500,
+            sortBy: { column: "created_at", order: "desc" },
+          })
+        : Promise.resolve({ data: [], error: null }),
     ]);
     if (linksRes.error && filesRes.error) {
       setRemoteState("error");
@@ -20155,17 +20164,39 @@ function DocumentsPage({ client, isBookkeeper, searchTarget }) {
         size: f.metadata && f.metadata.size ? formatBytes(f.metadata.size) : "",
         path: `${client.id}/shared/${f.name}`,
       }));
-    const remote = [...files, ...links].map((d) => ({
+    const internalFiles = ((internalRes && internalRes.data) || [])
+      .filter((f) => f && f.id && f.name)
+      .map((f) => ({
+        key: "file:internal/" + f.name,
+        source: "upload",
+        staffOnly: true,
+        name: f.name.replace(/^\d+-/, ""),
+        category: "Staff only",
+        uploadedBy: "MyGoodBooks",
+        date: String(f.created_at || "").slice(0, 10),
+        size: f.metadata && f.metadata.size ? formatBytes(f.metadata.size) : "",
+        path: `${client.id}/internal/${f.name}`,
+      }));
+    const remote = [...files, ...internalFiles, ...links].map((d) => ({
       ...d,
       folder: assignments[d.key] || null,
     }));
     setDocs((prev) => [...prev.filter((d) => d.source === "sample"), ...remote]);
     setRemoteState(linksRes.error || filesRes.error ? "error" : "ready");
-  }, [docSb, client.id]);
+  }, [docSb, client.id, isBookkeeper]);
 
   useEffect(() => {
     loadRemoteDocs();
   }, [loadRemoteDocs]);
+  // A file dropped anywhere on the page (components/staff/PageDrop.jsx)
+  // lands here too; refresh when it's this client's.
+  useEffect(() => {
+    const onChanged = (e) => {
+      if (!e.detail || e.detail.clientId === client.id) loadRemoteDocs();
+    };
+    window.addEventListener(PD_DOCS_CHANGED_EVENT, onChanged);
+    return () => window.removeEventListener(PD_DOCS_CHANGED_EVENT, onChanged);
+  }, [client.id, loadRemoteDocs]);
 
   const openDoc = async (d, index) => {
     if (d.source === "link") {
@@ -20579,7 +20610,12 @@ function DocumentsPage({ client, isBookkeeper, searchTarget }) {
                       </span>
                     </td>
                     <td data-label="Category">
-                      <span className="category-tag">{d.category}</span>
+                      <span
+                        className={"category-tag" + (d.staffOnly ? " category-tag-staff" : "")}
+                        title={d.staffOnly ? "Only MyGoodBooks staff can see this file" : undefined}
+                      >
+                        {d.category}
+                      </span>
                     </td>
                     <td data-label="Uploaded by">{d.uploadedBy}</td>
                     <td data-label="Date">{fmtDate(d.date)}</td>
@@ -25854,6 +25890,13 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
         <span></span>
         <span></span>
       </div>
+      {typeof PD_PageDrop === "function" && (
+        <PD_PageDrop
+          enabled={isStaffSession && !isPreviewingUser && effectivePage !== "feedback"}
+          clients={visibleClients}
+          currentClient={onStaffPage ? null : client}
+        />
+      )}
       <div
         className={
           "app-shell" +
