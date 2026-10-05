@@ -34,6 +34,7 @@ Click **Customize dashboard** to open the customize panel on the right. The same
 - **Add widgets** shows cards you've hidden, each with a short description and a small preview. Click **+** to add one. It goes to the end of the page and briefly highlights so you can find it.
 - **On your dashboard** lists what's showing. Use the arrows (or drag the handle) to reorder, and **−** to hide a card.
 - While the panel is open, every card on the page gets a dotted outline, a drag handle and an **×** to hide it, so you can also rearrange right on the page.
+- On a Pro client's Financial Overview, **Create a custom card** (also the **New custom card** button) builds a card of your own from menus. See *How do custom cards on the Financial Overview work?*
 - **Saved views** lets you save the current layout under a name and switch back to it later. **Reset to default** puts everything back.
 - Close the panel with **Done**, the **X**, the **Esc** key, or by clicking outside it. Your layout is saved to your account, so it follows you to any computer or phone.
 
