@@ -20108,9 +20108,13 @@ const DOC_STAFF_FOLDER = "\u0000staff-only";
 const DOC_TRASH_FOLDER = "\u0000trash";
 
 function DocumentsPage({ client, isBookkeeper, searchTarget }) {
+  // Folders are shared per client in the database (components/client/
+  // DocFolders.jsx); "local" is the per-browser fallback for prototype
+  // clients and signed-out use.
   const [folders, setFolders] = useState(
     () => loadDocFolders(client.id).folders,
   );
+  const [folderMode, setFolderMode] = useState("local");
   // Three sources, one list:
   //   - client.documents: data.js sample files (sample clients only; the
   //     QuickBooks mapper empties it),
@@ -20136,6 +20140,15 @@ function DocumentsPage({ client, isBookkeeper, searchTarget }) {
   const docSb = window.mgbSupabase || null;
 
   const loadRemoteDocs = useCallback(async () => {
+    const fm = await DF_load(docSb, client.id);
+    const { assignments } = fm;
+    setFolderMode(fm.mode);
+    setFolders(fm.folders);
+    setDocs((prev) =>
+      prev.map((d) =>
+        d.source === "sample" ? { ...d, folder: assignments[d.key] || assignments[d.name] || null } : d,
+      ),
+    );
     if (!docSb) return;
     // Signed out (the local prototype): nothing to load, and storage would
     // just answer "permission denied".
@@ -20173,7 +20186,6 @@ function DocumentsPage({ client, isBookkeeper, searchTarget }) {
       setRemoteState("error");
       return;
     }
-    const { assignments } = loadDocFolders(client.id);
     const linkRow = (r) => ({
       key: "link:" + r.id,
       id: r.id,
@@ -20300,28 +20312,9 @@ function DocumentsPage({ client, isBookkeeper, searchTarget }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchTarget && searchTarget.nonce]);
 
-  // Persists folder names + which folder each document is in, by the
-  // document's stable key. Folders are per browser (localStorage).
-  // Merges into what's saved rather than rebuilding it: on first render the
-  // uploaded files and links haven't loaded yet, and rebuilding from just
-  // the sample rows used to wipe every file's folder on each visit.
-  useEffect(() => {
-    const { assignments } = loadDocFolders(client.id);
-    const put = (key, folder) => {
-      if (folder) assignments[key] = folder;
-      else delete assignments[key];
-    };
-    docs.forEach((d) => put(d.key, d.folder));
-    trashDocs.forEach((d) => put(d.origKey, d.folder));
-    // A deleted folder's files go back to Unfiled.
-    Object.keys(assignments).forEach((k) => {
-      if (!folders.includes(assignments[k])) delete assignments[k];
-    });
-    saveDocFolders(client.id, folders, assignments);
-  }, [client.id, folders, docs, trashDocs]);
-
   // Trash and restore (staff only). Files move between <client>/<sub>/ and
-  // <client>/trash/<sub>/; links flip trashed_at. Nothing is deleted.
+  // <client>/trash/<sub>/; links flip trashed_at. Trash never empties on
+  // its own; only Delete forever (below) removes anything.
   const [trashBusy, setTrashBusy] = useState(null);
   const trashDoc = async (d) => {
     if (!docSb || trashBusy) return;
@@ -20358,6 +20351,36 @@ function DocumentsPage({ client, isBookkeeper, searchTarget }) {
     showToast(`Restored ${d.name}.`);
     loadRemoteDocs();
   };
+  // Delete forever: staff, from Trash only, after a confirm. The storage
+  // and table policies (supabase/document-folders.sql) only allow it for
+  // items already in Trash. Both APIs answer "no error" when a policy
+  // quietly matched nothing, so check something was actually removed.
+  const [deletePending, setDeletePending] = useState(null);
+  const deleteForever = async () => {
+    const d = deletePending;
+    setDeletePending(null);
+    if (!docSb || !d || !d.trashed || trashBusy) return;
+    setTrashBusy(d.key);
+    let res;
+    if (d.source === "link") {
+      res = await docSb
+        .from("client_documents")
+        .delete()
+        .eq("id", d.id)
+        .not("trashed_at", "is", null)
+        .select("id");
+    } else {
+      res = await docSb.storage.from("client-uploads").remove([d.path]);
+    }
+    setTrashBusy(null);
+    if (res.error || !res.data || !res.data.length) {
+      showToast(`Couldn't delete ${d.name}${res.error ? ": " + res.error.message : ". You may not have permission."}`);
+      return;
+    }
+    await DF_assign(docSb, client.id, folderMode, d.origKey, null);
+    showToast(`Deleted ${d.name} forever.`);
+    loadRemoteDocs();
+  };
 
   // Real upload: same bucket and client-folder rule as the document-request
   // card (storage policy "client uploads own files"), under <client>/shared/.
@@ -20380,7 +20403,7 @@ function DocumentsPage({ client, isBookkeeper, searchTarget }) {
     setUploading(true);
     let ok = 0;
     let firstError = null;
-    const { assignments } = loadDocFolders(client.id);
+    const filed = [];
     for (const f of files) {
       const safe = f.name.replace(/[^\w.\- ]+/g, "_").slice(-120);
       const stored = `${Date.now()}-${safe}`;
@@ -20394,10 +20417,13 @@ function DocumentsPage({ client, isBookkeeper, searchTarget }) {
         firstError = firstError || error.message;
       } else {
         ok += 1;
-        if (activeFolder && !staffView) assignments["file:" + stored] = activeFolder;
+        if (activeFolder && !staffView) filed.push("file:" + stored);
       }
     }
-    if (activeFolder && !staffView) saveDocFolders(client.id, folders, assignments);
+    if (filed.length) {
+      const err = await DF_assign(docSb, client.id, folderMode, filed, activeFolder);
+      if (err) showToast(`Uploaded, but couldn't file into ${activeFolder}: ${err}`);
+    }
     setUploading(false);
     if (ok && staffView) showToast(`Uploaded ${ok} staff-only file${ok > 1 ? "s" : ""}. ${client.name} can't see ${ok > 1 ? "them" : "it"}.`);
     else if (ok) showToast(`Uploaded ${ok} file${ok > 1 ? "s" : ""}. Your bookkeeper can see ${ok > 1 ? "them" : "it"} now.`);
@@ -20405,32 +20431,56 @@ function DocumentsPage({ client, isBookkeeper, searchTarget }) {
     loadRemoteDocs();
   };
 
-  const moveDocToFolder = (index, folderName) => {
-    setDocs((d) =>
-      d.map((doc, i) =>
-        i === index ? { ...doc, folder: folderName || null } : doc,
-      ),
-    );
+  const moveDocToFolder = async (index, folderName) => {
+    const doc = docs[index];
+    if (!doc) return;
+    const prevFolder = doc.folder;
+    const setFolder = (f) =>
+      setDocs((d) => d.map((x) => (x.key === doc.key ? { ...x, folder: f || null } : x)));
+    setFolder(folderName);
+    const err = await DF_assign(docSb, client.id, folderMode, doc.key, folderName || null);
+    if (err) {
+      setFolder(prevFolder);
+      showToast(`Couldn't move ${doc.name}: ${err}`);
+    }
   };
 
-  const addFolder = () => {
+  // Returns an error message, or null once the folder exists.
+  const createFolder = async (name) => {
+    if (folders.includes(name)) return `"${name}" already exists.`;
+    const err = await DF_addFolder(docSb, client.id, folderMode, name, folders);
+    if (err) return `Couldn't create "${name}": ${err}`;
+    setFolders((f) => (f.includes(name) ? f : [...f, name]));
+    return null;
+  };
+
+  const addFolder = async () => {
     const name = newFolderName.trim();
     if (!name) return;
-    if (folders.includes(name)) {
-      showToast(`"${name}" already exists.`);
+    const err = await createFolder(name);
+    if (err) {
+      showToast(err);
       return;
     }
-    setFolders((f) => [...f, name]);
     setNewFolderName("");
     setAddingFolder(false);
     setActiveFolder(name);
   };
 
+  // "+ New folder…" in a row's folder menu: the document's index in docs.
+  const [newFolderFor, setNewFolderFor] = useState(null);
+  const NEW_FOLDER_OPTION = "\u0000new";
+
   const [folderPendingDelete, setFolderPendingDelete] = useState(null);
 
-  const confirmRemoveFolder = () => {
+  const confirmRemoveFolder = async () => {
     const name = folderPendingDelete;
     setFolderPendingDelete(null);
+    const err = await DF_removeFolder(docSb, client.id, folderMode, name);
+    if (err) {
+      showToast(`Couldn't delete "${name}": ${err}`);
+      return;
+    }
     setFolders((f) => f.filter((x) => x !== name));
     setDocs((d) =>
       d.map((doc) => (doc.folder === name ? { ...doc, folder: null } : doc)),
@@ -20787,7 +20837,11 @@ function DocumentsPage({ client, isBookkeeper, searchTarget }) {
                         className="doc-folder-select"
                         value={d.folder || ""}
                         onClick={(e) => e.stopPropagation()}
-                        onChange={(e) => moveDocToFolder(i, e.target.value)}
+                        onChange={(e) =>
+                          e.target.value === NEW_FOLDER_OPTION
+                            ? setNewFolderFor(i)
+                            : moveDocToFolder(i, e.target.value)
+                        }
                       >
                         <option value="">Unfiled</option>
                         {folders.map((name) => (
@@ -20795,6 +20849,7 @@ function DocumentsPage({ client, isBookkeeper, searchTarget }) {
                             {name}
                           </option>
                         ))}
+                        <option value={NEW_FOLDER_OPTION}>+ New folder…</option>
                       </select>
                       )}
                     </td>
@@ -20830,6 +20885,7 @@ function DocumentsPage({ client, isBookkeeper, searchTarget }) {
                     {isBookkeeper && (
                       <td className="doc-actions" data-label="">
                         {d.source === "sample" ? null : d.trashed ? (
+                          <span className="doc-actions-row">
                           <button
                             type="button"
                             className="btn-secondary btn-sm"
@@ -20839,8 +20895,20 @@ function DocumentsPage({ client, isBookkeeper, searchTarget }) {
                               restoreDoc(d);
                             }}
                           >
-                            {trashBusy === d.key ? "Restoring…" : "Restore"}
+                            {trashBusy === d.key ? "Working…" : "Restore"}
                           </button>
+                          <button
+                            type="button"
+                            className="btn-secondary btn-sm doc-delete-btn"
+                            disabled={!!trashBusy}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setDeletePending(d);
+                            }}
+                          >
+                            Delete forever
+                          </button>
+                          </span>
                         ) : (
                           <button
                             type="button"
@@ -20876,10 +20944,35 @@ function DocumentsPage({ client, isBookkeeper, searchTarget }) {
       {folderPendingDelete && (
         <ConfirmModal
           title={`Delete "${folderPendingDelete}"?`}
-          body="Its documents move back to Unfiled — nothing is deleted."
+          body="Its documents move back to Unfiled. Nothing is deleted, and this changes the folder for everyone on this client's Documents page."
           confirmLabel="Delete folder"
           onConfirm={confirmRemoveFolder}
           onCancel={() => setFolderPendingDelete(null)}
+        />
+      )}
+
+      {deletePending && (
+        <ConfirmModal
+          title={`Delete "${deletePending.name}" forever?`}
+          body="This can't be undone. It's removed for good and no one, staff or client, can restore it."
+          confirmLabel="Delete forever"
+          onConfirm={deleteForever}
+          onCancel={() => setDeletePending(null)}
+        />
+      )}
+
+      {newFolderFor !== null && docs[newFolderFor] && (
+        <DF_NewFolderModal
+          docName={docs[newFolderFor].name}
+          onCancel={() => setNewFolderFor(null)}
+          onCreate={async (name) => {
+            const err = await createFolder(name);
+            if (err) return err;
+            const index = newFolderFor;
+            setNewFolderFor(null);
+            await moveDocToFolder(index, name);
+            return null;
+          }}
         />
       )}
     </div>

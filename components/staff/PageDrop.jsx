@@ -18,7 +18,7 @@
 //
 // Loaded before app.jsx and shares its global scope, so every top-level name
 // carries a PD_ prefix, and app.jsx globals (hooks, ModalShell, useToast,
-// formatBytes, loadDocFolders...) are only touched at render or call time.
+// formatBytes, DF_load...) are only touched at render or call time.
 // ----------------------------------------------------------------------------
 
 const PD_DOCS_CHANGED_EVENT = "mgb:docs-changed";
@@ -71,7 +71,7 @@ function PD_hasFiles(e) {
 // Uploads files into one client's Documents. Returns { ok, error }.
 async function PD_uploadDocs(sb, clientId, files, { staffOnly, folder }) {
   const sub = staffOnly ? "internal" : "shared";
-  const { folders, assignments } = loadDocFolders(clientId);
+  const filed = [];
   let ok = 0;
   let error = null;
   for (const f of files) {
@@ -86,10 +86,14 @@ async function PD_uploadDocs(sb, clientId, files, { staffOnly, folder }) {
     } else {
       ok += 1;
       // Same keys the Documents page files them under.
-      if (folder) assignments["file:" + (staffOnly ? "internal/" : "") + stored] = folder;
+      if (folder) filed.push("file:" + (staffOnly ? "internal/" : "") + stored);
     }
   }
-  if (folder && ok) saveDocFolders(clientId, folders, assignments);
+  if (filed.length) {
+    const fm = await DF_load(sb, clientId);
+    const err = await DF_assign(sb, clientId, fm.mode, filed, folder);
+    if (err) error = error || `uploaded, but couldn't file into ${folder}: ${err}`;
+  }
   return { ok, error };
 }
 
@@ -100,8 +104,18 @@ function PD_ConfirmModal({ files, clients, currentClient, onClose }) {
   const [visible, setVisible] = useState(false);
   const [busy, setBusy] = useState(false);
   const client = clients.find((c) => c.id === clientId) || (currentClient && currentClient.id === clientId ? currentClient : null);
-  const folders = clientId ? loadDocFolders(clientId).folders : [];
-  useEffect(() => setFolder(""), [clientId]);
+  // The client's shared folders (components/client/DocFolders.jsx).
+  const [folders, setFolders] = useState([]);
+  useEffect(() => {
+    setFolder("");
+    setFolders([]);
+    if (!clientId) return;
+    let live = true;
+    DF_load(window.mgbSupabase, clientId).then((fm) => live && setFolders(fm.folders));
+    return () => {
+      live = false;
+    };
+  }, [clientId]);
   const extra = files.length > PD_MAX_FILES ? files.length - PD_MAX_FILES : 0;
   const list = files.slice(0, PD_MAX_FILES).map((f) => ({ f, problem: PD_problem(f) }));
   const good = list.filter((x) => !x.problem).map((x) => x.f);
