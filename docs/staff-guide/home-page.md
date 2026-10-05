@@ -2,7 +2,7 @@
 title: What's on my Home page?
 section: Getting started
 audience: staff
-keywords: [home, dashboard, needs you, needs attention, needs you now, this week, all clear, colors, red, amber, priority, reminders, upgrade requests, access requests, needs a visit, recently viewed, customize, add widgets, saved views, reset layout, financial overview, board-ready, live report, status, handoff]
+keywords: [home, dashboard, needs you, needs attention, needs you now, this week, all clear, colors, red, amber, priority, reminders, upgrade requests, access requests, needs a visit, recently viewed, customize, add widgets, saved views, reset layout, financial overview, board-ready, live report, status, handoff, custom card, new custom card, watchlist, filtered list, checklist, notes]
 sort: 40
 ---
 **Home** is your starting point. It shows what needs you across every client you can see, sorted by how soon it needs doing. To open a client, use the client picker or the search box in the [top bar](#/help/top-bar).
@@ -48,6 +48,19 @@ On each row in **Your clients**:
 - **Status** lets you set the health dot yourself (green, yellow or red) with a short reason, for example "needs follow-up on missing August bank statement". **Clear override** goes back to the automatic health score.
 - **+ Note** / **Edit note** is the client's **handoff summary**. Every active staff member can see it, so write what a teammate would need to know if they had to step in.
 
+### Your own custom cards
+
+You can add cards of your own to Home. Click **+ New custom card** (next to **Customize dashboard**), or **Create a custom card** at the top of the customize panel. Pick one of four kinds:
+
+- **Client watchlist**: tick the clients you want to keep an eye on. Each row shows the health dot, overdue and due-soon bills, unread messages and last month's close progress (for example **4/6**). Worst health is listed first. Click a client to open their Client overview.
+- **Filtered client list**: build a rule from menus (plan, health, bills, month-end close, messages), for example *Pro* + *Has overdue bills*. The card lists every client that matches right now, with a line like **3 of 12 clients match** at the bottom. It updates by itself, so a client drops off once they no longer match.
+- **One client's numbers**: pick a client, then choose what to show (cash, income, spending, a budget line and so on) with the same builder as a custom card on a Pro client's Financial Overview. See *How do custom cards on the Financial Overview work?* **Open (client) →** under the card takes you to that client.
+- **Notes / checklist**: a note and a to-do checklist. Type in the note and it saves when you click away. Add items, tick them off, and **Clear finished** removes the ticked ones.
+
+Give the card a title, or leave it blank and one is filled in for you. Every custom card has a **⋯** menu with **Edit card**, **Duplicate** and **Delete…** (delete asks you to confirm and can't be undone). You can have up to 12.
+
+Custom cards are private to you, and they're saved with your Home layout, so they follow you to any device. They move, hide and show like the other cards in the customize panel. **Reset to default** puts the built-in cards back in order and keeps your custom cards at the end. Close progress is blank while it loads; a filter that uses **Month-end close** shows a client only once their progress has loaded.
+
 ### Make it yours
 
 Click **Customize dashboard** to open the customize panel on the right. The same panel is used on a client's **Dashboard** and on a Pro client's **Financial Overview** (it was called the Live Report). On a client's Dashboard, the **Your account manager** and **Your bookkeeper** contact cards are widgets too: they sit side by side under the other cards and can be hidden or reordered. A Pro client's Dashboard is the Financial Overview, which has its own **Your Account Manager** and **Your Bookkeeper** widgets in the right-hand column, also hideable and reorderable. If the same person is both, only one card shows.
@@ -55,7 +68,7 @@ Click **Customize dashboard** to open the customize panel on the right. The same
 - **Add widgets** shows cards you've hidden, each with a short description and a small preview. Click **+** to add one. It goes to the end of the page and briefly highlights so you can find it.
 - **On your dashboard** lists what's showing. Use the arrows (or drag the handle) to reorder, and **−** to hide a card.
 - While the panel is open, every card on the page gets a dotted outline, a drag handle and an **×** to hide it, so you can also rearrange right on the page.
-- On a Pro client's Financial Overview, **Create a custom card** (also the **New custom card** button) builds a card of your own from menus. See *How do custom cards on the Financial Overview work?*
+- On Home, **Create a custom card** adds one of your own cards (see *Your own custom cards* above). On a Pro client's Financial Overview, **Create a custom card** (also the **New custom card** button) builds a card of your own from menus. See *How do custom cards on the Financial Overview work?*
 - **Saved views** lets you save the current layout under a name and switch back to it later. **Reset to default** puts everything back. On Home, the default is the priority order described above. If you'd already rearranged your Home, your own order stays until you click **Reset to default**.
 - Close the panel with **Done**, the **X**, the **Esc** key, or by clicking outside it. Your layout is saved to your account, so it follows you to any computer or phone.
 

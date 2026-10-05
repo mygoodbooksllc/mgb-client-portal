@@ -1199,12 +1199,15 @@ function CustomCardBuilder({
   theme,
   onSave,
   onCancel,
+  addLabel,
 }: {
   initial: CustomCardDef | null;
   source: any;
   theme?: string;
   onSave: (def: CustomCardDef) => void;
   onCancel: () => void;
+  /** Save button text for a new card; staff Home passes "Add to Home". */
+  addLabel?: string;
 }) {
   const isNew = !initial;
   // A new card opens on something that already works (all spending), so the
@@ -1594,7 +1597,7 @@ function CustomCardBuilder({
             Cancel
           </button>
           <button type="submit" className="btn-primary">
-            {isNew ? "Add to overview" : "Save changes"}
+            {isNew ? addLabel || "Add to overview" : "Save changes"}
           </button>
             </>
           )}

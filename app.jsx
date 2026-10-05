@@ -16377,7 +16377,7 @@ function BookkeeperHomePage({
   // scope key rather than a per-client one, since Home isn't about any one
   // client. Long-press (touch) or drag (mouse) any card by its body to pick
   // it up; a plain tap/click still reaches the card's own buttons and links.
-  const widgets = [
+  const baseWidgets = [
     {
       id: "kpi-clients",
       group: "kpi",
@@ -16454,8 +16454,45 @@ function BookkeeperHomePage({
   ];
   const layout = useWidgetLayout(
     "bookkeeper-home",
-    widgets.map((w) => w.id),
+    baseWidgets.map((w) => w.id),
   );
+  // The person's own custom cards (components/staff/HomeCards.jsx) join the
+  // widget list, so the Customize drawer can hide, show and reorder them.
+  const widgets = baseWidgets.concat(
+    layout.cards.map((c) => ({
+      id: c.id,
+      group: "content",
+      label: HC_title(c, clients),
+      description: HC_kindLabel(c.kind) + " (your custom card)",
+    })),
+  );
+  const [cardBuilder, setCardBuilder] = useState(null); // { initial } or null
+  const openNewCard = () => {
+    if (layout.cards.length >= HC_MAX_CARDS) {
+      showToast(`You can have up to ${HC_MAX_CARDS} custom cards. Delete one to add another.`);
+      return;
+    }
+    setCardBuilder({ initial: null });
+  };
+  const unreadByClient = useMemo(() => {
+    const map = {};
+    unreadAcrossClients.forEach((r) => {
+      map[r.clientId] = (map[r.clientId] || 0) + 1;
+    });
+    return map;
+  }, [unreadAcrossClients]);
+  const closeCounts = HC_useCloseCounts(
+    layout.cards.some((c) => c.kind === "watchlist" || c.kind === "filter"),
+  );
+  const cardCtx = {
+    clients,
+    today,
+    statusOverrides,
+    dueCountByClient,
+    unreadByClient,
+    closeCounts,
+    onOpenClient: (clientId) => onNavigateToClient(clientId, "client-overview"),
+  };
   const drag = useDragReorder(layout);
   const kpiOrder = layout.visibleOrder.filter((id) => id.startsWith("kpi-"));
   const contentOrder = layout.visibleOrder.filter(
@@ -16505,7 +16542,17 @@ function BookkeeperHomePage({
 
       <CS_AccessRequestsCard />
 
-      <CustomizeDashboardButton widgets={widgets} layout={layout} />
+      <div className="home-toolbar">
+        <CustomizeDashboardButton
+          widgets={widgets}
+          layout={layout}
+          onCreateCustom={openNewCard}
+          createCustomDesc="A client watchlist, a filtered client list, one client's numbers, or a notes checklist"
+        />
+        <button type="button" className="customize-dashboard-btn" onClick={openNewCard}>
+          + New custom card
+        </button>
+      </div>
 
       <div className="kpi-grid">
         {kpiOrder.map((id) => {
@@ -17037,9 +17084,51 @@ function BookkeeperHomePage({
                 )}
               </div>
             );
+          if (HC_isCardId(id)) {
+            const def = layout.cards.find((c) => c.id === id);
+            if (!def) return null;
+            return (
+              <HC_Card
+                key={id}
+                def={def}
+                ctx={cardCtx}
+                dragProps={{ ...drag.dragProps(id), id: "home-" + id }}
+                dragClass={drag.dragClass(id)}
+                flash={flashCardId === id}
+                onEdit={() => setCardBuilder({ initial: def })}
+                onDuplicate={() => {
+                  if (layout.cards.length >= HC_MAX_CARDS) {
+                    showToast(`You can have up to ${HC_MAX_CARDS} custom cards. Delete one to add another.`);
+                    return;
+                  }
+                  layout.saveCard({
+                    ...def,
+                    id: HC_newId(),
+                    title: def.title ? `${def.title} (copy)` : "",
+                  });
+                }}
+                onDelete={() => layout.removeCard(id)}
+                onChange={(next) => layout.saveCard(next)}
+              />
+            );
+          }
           return null;
         })}
       </div>
+
+      {cardBuilder && (
+        <HC_Builder
+          initial={cardBuilder.initial}
+          ctx={cardCtx}
+          onCancel={() => setCardBuilder(null)}
+          onSave={(def) => {
+            const isNew = !layout.cards.some((c) => c.id === def.id);
+            layout.saveCard(def);
+            setCardBuilder(null);
+            if (isNew) setTimeout(() => jumpToCard("home-" + def.id, def.id), 50);
+          }}
+        />
+      )}
 
       {editingNoteFor && (
         <ModalShell
@@ -23320,6 +23409,14 @@ function useWidgetLayout(scopeKey, allIds) {
   const [layouts, setLayouts] = useState(loadDashboardWidgetLayouts);
   const [views, setViews] = useState(loadDashboardViews);
   const saved = layouts[scopeKey];
+  // Custom cards (staff Home, components/staff/HomeCards.jsx) ride in the
+  // same layout as { order, hidden, cards }; their ids join allIds so they
+  // order and hide like any other widget. Other boards never set cards.
+  const cards =
+    saved && Array.isArray(saved.cards) && typeof HC_normalizeList === "function"
+      ? HC_normalizeList(saved.cards)
+      : [];
+  allIds = allIds.concat(cards.map((c) => c.id));
   const order = saved
     ? saved.order
         .filter((id) => allIds.includes(id))
@@ -23366,13 +23463,18 @@ function useWidgetLayout(scopeKey, allIds) {
         Array.isArray(row.layout.order) &&
         Array.isArray(row.layout.hidden)
       )
-        writeLayout({ order: row.layout.order, hidden: row.layout.hidden });
+        writeLayout({
+          order: row.layout.order,
+          hidden: row.layout.hidden,
+          ...(Array.isArray(row.layout.cards) ? { cards: row.layout.cards } : {}),
+        });
       if (Array.isArray(row.views)) writeViews(row.views);
     },
   );
 
-  const update = (nextOrder, nextHidden) => {
+  const update = (nextOrder, nextHidden, nextCards = cards) => {
     const layout = { order: nextOrder, hidden: Array.from(nextHidden) };
+    if (nextCards.length || (saved && saved.cards)) layout.cards = nextCards;
     writeLayout(layout);
     WD_sync.save(scopeKey, { layout });
   };
@@ -23414,7 +23516,31 @@ function useWidgetLayout(scopeKey, allIds) {
       next.delete(id);
       update(order.filter((x) => x !== id).concat(id), next);
     },
+    // Reset puts the built-in cards back in their default order; custom
+    // cards stay, at the end.
     reset: () => update(allIds.slice(), new Set()),
+
+    // Custom cards: add (to the end, visible) or replace by id, and remove.
+    cards,
+    saveCard: (def) => {
+      const exists = cards.some((c) => c.id === def.id);
+      const nextCards = exists
+        ? cards.map((c) => (c.id === def.id ? def : c))
+        : cards.concat(def);
+      const nextOrder = exists ? order : order.filter((x) => x !== def.id).concat(def.id);
+      const nextHidden = new Set(hidden);
+      if (!exists) nextHidden.delete(def.id);
+      update(nextOrder, nextHidden, nextCards);
+    },
+    removeCard: (id) => {
+      const nextHidden = new Set(hidden);
+      nextHidden.delete(id);
+      update(
+        order.filter((x) => x !== id),
+        nextHidden,
+        cards.filter((c) => c.id !== id),
+      );
+    },
 
     // Named snapshots of the current order/hidden set — separate from
     // localStorage's single "current" layout above, so a client can flip
@@ -23457,9 +23583,14 @@ function useDragReorder(layout) {
 
 // Opens the shared Customize drawer (components/dashboard/WidgetDrawer.jsx).
 // Used by DashboardPage, ScopedDashboardPage and BookkeeperHomePage.
-function CustomizeDashboardButton({ widgets, layout }) {
+function CustomizeDashboardButton({ widgets, layout, onCreateCustom, createCustomDesc }) {
   return (
-    <WD_CustomizeButton widgets={widgets} layout={layout}>
+    <WD_CustomizeButton
+      widgets={widgets}
+      layout={layout}
+      onCreateCustom={onCreateCustom}
+      createCustomDesc={createCustomDesc}
+    >
       <SlidersIcon /> Customize dashboard
     </WD_CustomizeButton>
   );

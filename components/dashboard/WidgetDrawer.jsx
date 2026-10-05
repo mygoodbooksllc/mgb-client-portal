@@ -658,7 +658,7 @@ function WD_OnBoardList({ title, ids, widgets, layout, rowRefs, onRemove }) {
   );
 }
 
-function WD_WidgetDrawer({ widgets, layout, anchorRef, onClose, boardName, onCreateCustom }) {
+function WD_WidgetDrawer({ widgets, layout, anchorRef, onClose, boardName, onCreateCustom, createCustomDesc }) {
   const panelRef = useRef(null);
   const rowRefs = useRef({});
   const onCloseRef = useRef(onClose);
@@ -823,8 +823,8 @@ function WD_WidgetDrawer({ widgets, layout, anchorRef, onClose, boardName, onCre
                   <span className="wd-add-card-text">
                     <span className="wd-add-name">Create a custom card</span>
                     <span className="wd-add-desc">
-                      Pick the categories, accounts or funds, a time period and
-                      what to show
+                      {createCustomDesc ||
+                        "Pick the categories, accounts or funds, a time period and what to show"}
                     </span>
                   </span>
                   <span className="wd-add-plus" aria-hidden="true">
@@ -985,6 +985,7 @@ function WD_CustomizeButton({
   boardName,
   onOpenChange,
   onCreateCustom,
+  createCustomDesc,
 }) {
   const [open, setOpen] = useState(false);
   const anchorRef = useRef(null);
@@ -1012,6 +1013,7 @@ function WD_CustomizeButton({
           anchorRef={anchorRef}
           boardName={boardName}
           onClose={() => set(false)}
+          createCustomDesc={createCustomDesc}
           onCreateCustom={
             onCreateCustom
               ? () => {

@@ -9517,3 +9517,98 @@ button.home-todo-main:hover { background: var(--surface-2); }
   .home-page .home-kpi .kpi-label,
   .home-page .home-kpi .kpi-sub { font-size: 12px; }
 }
+
+/* ---- Staff Home custom cards (components/staff/HomeCards.jsx) ---------- */
+.home-toolbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.hc-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
+.hc-head .card-title { margin-bottom: 2px; }
+.hc-sub { margin-top: 0; }
+/* The card menu's tokens come from the Financial Overview's scope; map them
+   onto the app's own here, since Home sits outside that scope. */
+.hc-menu {
+  --surface-2: var(--hover-bg);
+  --line: var(--border);
+  --line-strong: var(--border);
+  --ink-500: var(--text-muted);
+  --ink-600: var(--text-muted);
+  --ink-900: var(--text);
+  --critical: var(--bad, #d03b3b);
+}
+.hc-rows { list-style: none; margin: 8px 0 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+.hc-row {
+  width: 100%; display: flex; align-items: center; gap: 10px; text-align: left;
+  background: none; border: none; border-radius: 8px; padding: 8px; font: inherit; color: var(--text); cursor: pointer;
+}
+.hc-row:hover, .hc-row:focus-visible { background: var(--hover-bg); }
+.hc-row-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.hc-row-name { font-weight: 600; font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hc-row-chips { display: flex; flex-wrap: wrap; gap: 4px; }
+.hc-chip { font-size: 11.5px; font-weight: 600; padding: 1px 7px; border-radius: 999px; line-height: 1.5; }
+.hc-chip-now { background: var(--bad-soft, #fbe4e4); color: var(--bad, #b42318); }
+.hc-chip-week { background: var(--warm-bg); color: var(--warm-text); }
+.hc-chip-calm { color: var(--text-muted); padding-left: 0; font-weight: 500; }
+.hc-row-close { display: flex; align-items: center; gap: 6px; flex: none; }
+.hc-row-close .ov-progress { width: 48px; }
+.hc-row-close-n { font-size: 12px; color: var(--text-muted); font-variant-numeric: tabular-nums; min-width: 24px; text-align: right; }
+.hc-empty { margin: 10px 0 0; }
+.hc-foot { margin: 10px 0 0; font-size: 12.5px; color: var(--text-muted); }
+.hc-notes-text {
+  width: 100%; box-sizing: border-box; margin-top: 8px; resize: vertical; font: inherit; font-size: 14px;
+  color: var(--text); background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px;
+}
+.hc-checklist { list-style: none; margin: 10px 0 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+.hc-checklist li { display: flex; align-items: center; gap: 6px; }
+.hc-checklist label { flex: 1; display: flex; align-items: flex-start; gap: 8px; padding: 5px 2px; cursor: pointer; font-size: 14px; min-width: 0; overflow-wrap: anywhere; }
+.hc-checklist input { margin-top: 3px; width: 16px; height: 16px; flex: none; accent-color: var(--gold-deep); }
+.hc-checklist li.is-done span { text-decoration: line-through; color: var(--text-muted); }
+.hc-check-remove {
+  flex: none; width: 28px; height: 28px; border: none; background: none; border-radius: 6px;
+  color: var(--text-muted); font-size: 18px; line-height: 1; cursor: pointer;
+}
+.hc-check-remove:hover { background: var(--hover-bg); color: var(--text); }
+.hc-check-add { margin-top: 10px; padding-top: 10px; }
+.hc-check-add input { flex: 1; min-width: 0; }
+/* "One client's numbers" uses the Financial Overview card itself. */
+.hc-cc { background: transparent; min-width: 0; }
+.hc-cc > .dc-panel { border-radius: 14px; }
+.hc-cc-open {
+  display: block; margin: 6px 4px 0 auto; background: none; border: none; padding: 2px 0; font: inherit;
+  font-size: 12.5px; font-weight: 600; color: var(--gold-deep); cursor: pointer;
+}
+.hc-cc-open:hover { text-decoration: underline; }
+/* Builder */
+.hc-builder { max-width: 560px; }
+/* The form sits between the panel and its header/body/footer; keep the
+   body the part that scrolls. */
+.hc-builder > form { display: flex; flex-direction: column; min-height: 0; flex: 1; }
+.hc-builder .hc-builder-body { min-height: 0; }
+.hc-builder-body { display: flex; flex-direction: column; gap: 16px; }
+.hc-field { display: flex; flex-direction: column; gap: 6px; border: none; padding: 0; margin: 0; min-width: 0; }
+.hc-label { font-size: 13px; font-weight: 700; color: var(--text); padding: 0; }
+.hc-count { font-weight: 500; color: var(--text-muted); margin-left: 6px; }
+.hc-help { font-size: 12.5px; color: var(--text-muted); }
+.hc-input {
+  font: inherit; font-size: 14px; color: var(--text); background: var(--surface);
+  border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; min-height: 38px; box-sizing: border-box; width: 100%;
+}
+.hc-kinds { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.hc-kind {
+  position: relative; display: flex; flex-direction: column; gap: 3px; padding: 10px 12px;
+  border: 1.5px solid var(--border); border-radius: 10px; cursor: pointer;
+}
+.hc-kind input { position: absolute; opacity: 0; pointer-events: none; }
+.hc-kind.is-on { border-color: var(--gold-deep); background: var(--hover-bg); }
+.hc-kind:focus-within { outline: 2px solid var(--gold-deep); outline-offset: 2px; }
+.hc-kind-name { font-weight: 700; font-size: 13.5px; }
+.hc-kind-desc { font-size: 12px; color: var(--text-muted); line-height: 1.4; }
+.hc-picklist { list-style: none; margin: 0; padding: 4px; max-height: 240px; overflow: auto; border: 1px solid var(--border); border-radius: 8px; }
+.hc-picklist label { display: flex; align-items: center; gap: 8px; padding: 6px; border-radius: 6px; cursor: pointer; font-size: 14px; }
+.hc-picklist label:hover { background: var(--hover-bg); }
+.hc-picklist span:nth-child(2) { flex: 1; min-width: 0; }
+.hc-pick-plan { font-size: 12px; color: var(--text-muted); }
+.hc-rules { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.hc-rule { display: flex; flex-direction: column; gap: 4px; font-size: 12.5px; color: var(--text-muted); }
+@media (max-width: 600px) {
+  .hc-kinds, .hc-rules { grid-template-columns: 1fr; }
+  .hc-row { padding: 10px 6px; }
+}
