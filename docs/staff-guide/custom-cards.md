@@ -2,27 +2,33 @@
 title: How do custom cards on the Financial Overview work?
 section: Getting started
 audience: staff
-keywords: [custom card, describe the card, fill in, custom cards, card builder, new custom card, financial overview, pro, youth budget, budget card, keyword filter, templates, duplicate card, edit card, delete card, dashboard card]
+keywords: [custom card, describe the card, fill in, custom cards, card builder, new custom card, financial overview, pro, youth budget, budget card, keyword filter, quick start, examples, discard, duplicate card, edit card, delete card, dashboard card]
 sort: 45
 ---
 Pro clients can build their own cards on the **Financial Overview**, for example "the youth budget and its transactions for the last 3 months". Cards are built by picking from menus, so nobody has to type a formula.
 
 ### Making a card
 
-1. On the Financial Overview, click **New custom card** next to **Customize dashboard**. You can also open **Customize dashboard** and click **Create a custom card** at the top of **Add widgets**.
-2. Optional: type what you want in **Describe the card you want**, for example "youth budget for the last 3 months", "missions last 6 months" or "payments over 500 on the Visa", then click **Fill in** (or press Enter). The builder fills in the settings below and lists what it picked up. Check them and change anything that's off. It works by matching words to the client's own category, account and fund names and to phrases like "last month" or "over $1,000". If a word isn't a name it knows (like "youth"), it looks for transactions containing it and uses that word as the keyword filter. It doesn't use AI and costs nothing to run. If it can't make sense of the sentence, it says so and changes nothing.
-3. Optional: open **Start from an idea** and pick a template. It fills in the settings for you, and you can change any of them.
-4. **What should it track?** Pick one:
+1. On the Financial Overview, click **New custom card** next to **Customize dashboard**. You can also open **Customize dashboard** and click **Create a custom card** at the top of **Add widgets**. The builder opens on a working card (all spending for the last 3 months), so the **Preview** always shows something.
+2. **Quick start** (the fastest way): type what you want, for example "youth budget for the last 3 months", "missions last 6 months" or "payments over 500 on the Visa", and click **Fill in** (or press Enter). Or click one of the **Try:** examples. A line with a ✓ lists what it picked up. Check the settings below it and change anything that's off. On a phone, the builder jumps to the preview so you can see the result right away.
+   - It works by matching words to the client's own category, account and fund names, and to phrases like "last month", "this year", "over $1,000", "deposits" or "payments".
+   - If a word isn't a name it knows (like "youth"), it looks for transactions that contain it and uses the word as a keyword filter. If you also say "budget" or "spending", it tracks the categories those transactions are booked to.
+   - It doesn't use AI and costs nothing to run. If it can't make sense of the sentence, it says so and changes nothing.
+3. **1. What should it track?** Pick one:
    - **Budget categories**: one or more categories, compared with the budget. Switch between spending and income categories.
    - **All spending** or **All income**: the totals and where the money went or came from.
    - **Income vs. spending**: both totals and what's left over.
    - **Bank & card accounts**: balances, and money in and out. If you pick no accounts, the card uses all of them.
    - **Funds**: fund balances, gifts and transfers. If you pick no funds, the card uses all of them.
-5. Choose the **period**: this month, last month, the last 3, 6 or 12 months, or year to date. Tick **Include this month so far** to count the current, unfinished month.
-6. Choose what to **show**: summary numbers, a chart (bars or line), a breakdown, and recent transactions. **Compare with budget** adds dashed budget marks to the chart.
-7. Optional: filter the transactions by a **keyword** (for example "youth"), by money in or out, or by a minimum amount. A filtered accounts card shows how many transactions match instead of account balances.
-8. Give it a title, or keep the suggested one, then pick a color. The **Preview** on the right updates as you go.
-9. Click **Add to overview**. If something's missing (for example no category picked), the builder says what to fix.
+4. **2. Time period**: click this month, last month, the last 3, 6 or 12 months, or year to date. For longer periods, tick **Include this month so far** to count the current, unfinished month.
+5. **3. Name it**: type a title, or leave it blank to use the suggested name shown in the box.
+6. **More options** (closed when you start a new card, open when you edit one):
+   - **What to show**: summary numbers, a chart (bars or line), a breakdown, and recent transactions. **Compare with budget** adds dashed budget marks to the chart.
+   - **Which transactions**: filter by a keyword (for example "youth"), by money in or out, or by a minimum amount, and choose how many to list. A filtered accounts card shows how many transactions match instead of account balances.
+   - **Color**.
+7. Click **Add to overview**. If something's missing (for example no category picked), the builder says what to fix.
+
+If you close the builder (×, **Cancel**, **Esc** or clicking outside it) after changing something, it asks **Discard this card?** (or **Discard your changes?** when editing). Click **Keep editing** to go back, or **Discard**.
 
 ### Changing a card
 

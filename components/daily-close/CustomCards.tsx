@@ -898,51 +898,6 @@ function CustomCardPanel({
    Builder
    ============================================================ */
 
-const CC_TEMPLATES: { label: string; hint: string; apply: (src: any) => Partial<CustomCardDef> }[] = [
-  {
-    label: "Track a budget category",
-    hint: "Spending vs. budget over the last 3 months, with its transactions",
-    apply: () => ({ source: "categories", period: "last-3", show: { summary: true, chart: true, breakdown: false, transactions: true } }),
-  },
-  {
-    label: "Find transactions by keyword",
-    hint: "Everything with a word like “youth” or “retreat” in it",
-    apply: () => ({
-      source: "accounts",
-      items: [],
-      period: "last-3",
-      show: { summary: true, chart: false, breakdown: false, transactions: true },
-      txn: { limit: 10, direction: "all", keyword: "", minAmount: null },
-    }),
-  },
-  {
-    label: "Where the money went",
-    hint: "Spending by category for the period you choose",
-    apply: () => ({ source: "expenses", period: "this-month", show: { summary: true, chart: false, breakdown: true, transactions: false } }),
-  },
-  {
-    label: "Income vs. spending",
-    hint: "Both totals month by month, and what's left over",
-    apply: () => ({ source: "net", period: "last-6", chart: "bars", show: { summary: true, chart: true, breakdown: false, transactions: false } }),
-  },
-  {
-    label: "Large transactions",
-    hint: "Anything over an amount you set, across your accounts",
-    apply: () => ({
-      source: "accounts",
-      items: [],
-      period: "last-month",
-      show: { summary: false, chart: false, breakdown: false, transactions: true },
-      txn: { limit: 10, direction: "all", keyword: "", minAmount: 1000 },
-    }),
-  },
-  {
-    label: "Fund snapshot",
-    hint: "Fund balances plus recent gifts and transfers",
-    apply: () => ({ source: "funds", items: [], period: "last-3", show: { summary: true, chart: true, breakdown: true, transactions: true } }),
-  },
-];
-
 function Checklist({
   options,
   selected,
@@ -1018,7 +973,12 @@ function ccStem(w: string): string {
   if (w.length > 3 && w.endsWith("s") && !w.endsWith("ss")) return w.slice(0, -1);
   return w;
 }
-const ccWords = (s: string) => norm(s).replace(/[^a-z0-9$.,' ]+/g, " ").split(/\s+/).filter(Boolean);
+const ccWords = (s: string) =>
+  norm(s)
+    .replace(/(\d),(\d)/g, "$1$2")
+    .replace(/[^a-z0-9$' ]+/g, " ")
+    .split(/\s+/)
+    .filter(Boolean);
 
 interface CCParseResult {
   patch: Partial<CustomCardDef> | null;
@@ -1175,7 +1135,7 @@ function ccParse(text: string, src: any): CCParseResult {
   const patch: Partial<CustomCardDef> = {
     source,
     items,
-    period: period || (source === "accounts" ? "last-month" : "last-3"),
+    period: period || "last-3",
     show,
     chart: has("line", "trend") ? "line" : "bars",
     compareBudget: source !== "accounts" && source !== "funds",
@@ -1210,26 +1170,58 @@ function CustomCardBuilder({
   onCancel: () => void;
 }) {
   const isNew = !initial;
-  const [def, setDef] = useState<CustomCardDef>(() => (initial ? ccNormalize(initial) || ccDefaults() : ccDefaults()));
+  // A new card opens on something that already works (all spending), so the
+  // preview is never an empty "pick something" box.
+  const [def, setDef] = useState<CustomCardDef>(() =>
+    initial
+      ? ccNormalize(initial) || ccDefaults()
+      : { ...ccDefaults(), source: "expenses", show: { summary: true, chart: true, breakdown: true, transactions: false } }
+  );
+  const startRef = useRef(JSON.stringify(def));
+  const [confirmClose, setConfirmClose] = useState(false);
+  const previewRef = useRef<HTMLDivElement>(null);
   const [titleTouched, setTitleTouched] = useState(Boolean(initial && initial.title));
   const [catType, setCatType] = useState<"expense" | "income">(() => {
     const first = initial && initial.source === "categories" && (source.categories || []).find((c: any) => c.name === initial.items[0]);
     return first && first.type === "income" ? "income" : "expense";
   });
   const [tried, setTried] = useState(false);
-  const templatesRef = useRef<HTMLDetailsElement>(null);
   const [describe, setDescribe] = useState("");
   const [parsed, setParsed] = useState<CCParseResult | null>(null);
-  const fillFromText = () => {
-    const r = ccParse(describe, source);
+  const fillFromText = (text?: string) => {
+    if (typeof text === "string") setDescribe(text);
+    const r = ccParse(typeof text === "string" ? text : describe, source);
     setParsed(r);
     if (!r.patch) return;
     const base = ccDefaults();
     setDef((d) => ({ ...base, ...r.patch, id: d.id, accent: r.patch!.accent || d.accent, title: "" }));
     if (r.catType) setCatType(r.catType);
     setTitleTouched(false);
-    if (templatesRef.current) templatesRef.current.open = false;
+    showPreviewOnPhone();
   };
+  const showPreviewOnPhone = () => {
+    if (window.matchMedia && window.matchMedia("(max-width: 820px)").matches)
+      setTimeout(() => previewRef.current && previewRef.current.scrollIntoView({ behavior: "smooth", block: "start" }), 50);
+  };
+  // Esc, the ×, Cancel and clicking outside all come here; ask before
+  // throwing away a card the person has changed.
+  const requestClose = () => {
+    const dirty = JSON.stringify(def) !== startRef.current;
+    if (dirty && !confirmClose) setConfirmClose(true);
+    else onCancel();
+  };
+  const examples = useMemo(() => {
+    const out: string[] = [];
+    const topCat = (source.categories || []).filter((c: any) => c.type === "expense").map((c: any) => c.name).sort()[0];
+    const kwTx = (source.accounts || []).flatMap((a: any) => a.transactions || []).find((t: any) => /youth|retreat|camp|mission/i.test(t.description || ""));
+    const kw = kwTx ? (String(kwTx.description).match(/youth|retreat|camp|mission/i) as any)[0].toLowerCase() : null;
+    if (kw) out.push(`${kw} budget, last 3 months`);
+    else if (topCat) out.push(`${tail(topCat).toLowerCase()} last 6 months`);
+    out.push("where the money went this month");
+    out.push("income vs spending this year");
+    out.push("transactions over $1,000 last month");
+    return out.slice(0, 4);
+  }, [source]);
   const set = (patch: Partial<CustomCardDef>) => setDef((d) => ({ ...d, ...patch }));
   const setShow = (k: keyof CustomCardDef["show"], v: boolean) => setDef((d) => ({ ...d, show: { ...d.show, [k]: v } }));
   const setTxn = (patch: Partial<CustomCardDef["txn"]>) => setDef((d) => ({ ...d, txn: { ...d.txn, ...patch } }));
@@ -1266,7 +1258,7 @@ function CustomCardBuilder({
         <h3 className="card-title" id="cc-builder-title" style={{ margin: 0 }}>
           {isNew ? "Create a custom card" : "Edit custom card"}
         </h3>
-        <button type="button" className="modal-close" onClick={onCancel} aria-label="Close">
+        <button type="button" className="modal-close" onClick={requestClose} aria-label="Close">
           ×
         </button>
       </div>
@@ -1274,7 +1266,7 @@ function CustomCardBuilder({
         <div className="cc-builderGrid">
           <div className="cc-form">
             <div className="cc-describe">
-              <label htmlFor="cc-describe-input">Describe the card you want</label>
+              <label htmlFor="cc-describe-input">Quick start: describe the card you want</label>
               <div className="cc-describeRow">
                 <input
                   id="cc-describe-input"
@@ -1290,39 +1282,27 @@ function CustomCardBuilder({
                     }
                   }}
                 />
-                <button type="button" className="btn-secondary" onClick={fillFromText} disabled={!describe.trim()}>
+                <button type="button" className="btn-secondary" onClick={() => fillFromText()} disabled={!describe.trim()}>
                   Fill in
                 </button>
               </div>
               {parsed && parsed.patch && (
                 <p className="cc-help cc-understood">
-                  Filled in: {parsed.understood.join(" · ")}. Check the settings below and change anything that's off.
+                  ✓ {parsed.understood.join(" · ")}. Change anything below that's off.
                 </p>
               )}
               {parsed && !parsed.patch && <p className="cc-help cc-understood is-miss">{parsed.hint}</p>}
-            </div>
-            {isNew && (
-              <details className="cc-templates" ref={templatesRef}>
-                <summary>Start from an idea</summary>
-                <div className="cc-templateList">
-                  {CC_TEMPLATES.filter((t) => !(t.label === "Fund snapshot" && !hasFunds)).map((t) => (
-                    <button
-                      type="button"
-                      key={t.label}
-                      className="cc-template"
-                      onClick={() => {
-                        setDef((d) => ({ ...d, ...t.apply(source), id: d.id }));
-                        setTitleTouched(false);
-                        if (templatesRef.current) templatesRef.current.open = false;
-                      }}
-                    >
-                      <strong>{t.label}</strong>
-                      <span>{t.hint}</span>
+              {!parsed && (
+                <div className="cc-examples">
+                  <span>Try:</span>
+                  {examples.map((ex) => (
+                    <button type="button" key={ex} className="cc-example" onClick={() => fillFromText(ex)}>
+                      {ex}
                     </button>
                   ))}
                 </div>
-              </details>
-            )}
+              )}
+            </div>
 
             <fieldset className="cc-fieldset">
               <legend>1. What should it track?</legend>
@@ -1397,13 +1377,13 @@ function CustomCardBuilder({
             <fieldset className="cc-fieldset">
               <legend>2. Time period</legend>
               <div className="cc-row">
-                <select className="cc-input" value={def.period} onChange={(e) => set({ period: e.target.value as CCPeriod })} aria-label="Time period">
+                <div className="cc-pills" role="radiogroup" aria-label="Time period">
                   {CC_PERIODS.map((p) => (
-                    <option key={p.id} value={p.id}>
+                    <button type="button" key={p.id} role="radio" aria-checked={def.period === p.id} className={`cc-pill ${def.period === p.id ? "is-on" : ""}`} onClick={() => set({ period: p.id })}>
                       {p.label}
-                    </option>
+                    </button>
                   ))}
-                </select>
+                </div>
                 {hasPartial && def.period !== "this-month" && def.period !== "last-month" && (
                   <label className="cc-inline">
                     <input type="checkbox" checked={def.includeCurrent} onChange={(e) => set({ includeCurrent: e.target.checked })} />
@@ -1414,7 +1394,28 @@ function CustomCardBuilder({
             </fieldset>
 
             <fieldset className="cc-fieldset">
-              <legend>3. What to show</legend>
+              <legend>3. Name it</legend>
+              <input
+                type="text"
+                className="cc-input"
+                aria-label="Card title"
+                maxLength={80}
+                placeholder={ccSuggestTitle(def)}
+                value={titleTouched ? def.title : ""}
+                onChange={(e) => {
+                  setTitleTouched(true);
+                  set({ title: e.target.value });
+                }}
+              />
+              <p className="cc-help">Leave it blank to use the name shown.</p>
+            </fieldset>
+
+            <details className="cc-more" open={!isNew}>
+              <summary>
+                More options <span className="cc-moreHint">what to show, chart style, transaction filters, color</span>
+              </summary>
+            <fieldset className="cc-fieldset">
+              <legend>What to show</legend>
               <div className="cc-toggles">
                 <label className="cc-inline">
                   <input type="checkbox" checked={def.show.summary} onChange={(e) => setShow("summary", e.target.checked)} />
@@ -1454,7 +1455,7 @@ function CustomCardBuilder({
 
             {def.show.transactions && (
               <fieldset className="cc-fieldset">
-                <legend>4. Which transactions</legend>
+                <legend>Which transactions</legend>
                 <div className="cc-grid2">
                   <label className="cc-field">
                     <span>Only if the description has</span>
@@ -1507,21 +1508,7 @@ function CustomCardBuilder({
             )}
 
             <fieldset className="cc-fieldset">
-              <legend>{def.show.transactions ? "5." : "4."} Name and color</legend>
-              <label className="cc-field">
-                <span>Card title</span>
-                <input
-                  type="text"
-                  className="cc-input"
-                  maxLength={80}
-                  placeholder={ccSuggestTitle(def)}
-                  value={titleTouched ? def.title : ""}
-                  onChange={(e) => {
-                    setTitleTouched(true);
-                    set({ title: e.target.value });
-                  }}
-                />
-              </label>
+              <legend>Color</legend>
               <div className="cc-swatches" role="radiogroup" aria-label="Card color">
                 {CC_ACCENTS.map((a) => (
                   <button
@@ -1538,9 +1525,10 @@ function CustomCardBuilder({
                 ))}
               </div>
             </fieldset>
+            </details>
           </div>
 
-          <div className="cc-previewCol">
+          <div className="cc-previewCol" ref={previewRef}>
             <div className="cc-previewLabel">Preview</div>
             <div className="dc-dailyClose cc-previewFrame" data-theme={theme}>
               <CustomCardPanel def={finalDef} source={source} preview />
@@ -1551,15 +1539,28 @@ function CustomCardBuilder({
       </div>
       <div className="modal-footer">
         <span className="cc-error" role="alert">
-          {tried && error ? error : ""}
+          {confirmClose ? (isNew ? "Discard this card?" : "Discard your changes?") : tried && error ? error : ""}
         </span>
         <span className="cc-footBtns">
-          <button type="button" className="btn-secondary" onClick={onCancel}>
+          {confirmClose ? (
+            <>
+              <button type="button" className="btn-secondary" onClick={() => setConfirmClose(false)}>
+                Keep editing
+              </button>
+              <button type="button" className="btn-primary cc-danger" onClick={onCancel}>
+                Discard
+              </button>
+            </>
+          ) : (
+            <>
+          <button type="button" className="btn-secondary" onClick={requestClose}>
             Cancel
           </button>
           <button type="submit" className="btn-primary">
             {isNew ? "Add to overview" : "Save changes"}
           </button>
+            </>
+          )}
         </span>
       </div>
     </form>
@@ -1567,11 +1568,11 @@ function CustomCardBuilder({
 
   return ReactDOM.createPortal(
     Shell ? (
-      <Shell onClose={onCancel} labelledBy="cc-builder-title" className="cc-modal">
+      <Shell onClose={requestClose} labelledBy="cc-builder-title" className="cc-modal">
         {content}
       </Shell>
     ) : (
-      <div className="modal-overlay" onClick={onCancel}>
+      <div className="modal-overlay" onClick={requestClose}>
         <div className="modal-panel cc-modal" role="dialog" aria-modal="true" aria-labelledby="cc-builder-title" onClick={(e) => e.stopPropagation()}>
           {content}
         </div>
