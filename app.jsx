@@ -23076,11 +23076,24 @@ function loadPage() {
 // once-per-person accuracy, and this needs no Supabase round trip to decide.
 const FEEDBACK_PROMPT_STORAGE_KEY = "mygoodbooks_feedback_prompted_at_v1";
 const FEEDBACK_PROMPT_INTERVAL_DAYS = 60;
+// Never on someone's first visit: the first sighting starts the clock so
+// the first ask comes this many days later, then every interval after.
+const FEEDBACK_FIRST_PROMPT_DAYS = 14;
 
 function shouldPromptForFeedback() {
   try {
     const raw = localStorage.getItem(FEEDBACK_PROMPT_STORAGE_KEY);
-    if (!raw) return true;
+    if (!raw) {
+      const dayMs = 24 * 60 * 60 * 1000;
+      localStorage.setItem(
+        FEEDBACK_PROMPT_STORAGE_KEY,
+        String(
+          Date.now() -
+            (FEEDBACK_PROMPT_INTERVAL_DAYS - FEEDBACK_FIRST_PROMPT_DAYS) * dayMs,
+        ),
+      );
+      return false;
+    }
     const last = Number(raw);
     if (!Number.isFinite(last)) return true;
     return (
