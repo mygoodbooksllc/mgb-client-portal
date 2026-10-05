@@ -8245,6 +8245,12 @@ body:has(.modal-overlay) .chat-fab-wrap {
 .staff-rail.expanded .staff-rail-brand {
   align-items: flex-start;
 }
+.staff-rail-brand-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
 /* The brand logo in gold, inside a gold square. The logo file is one solid
    color, so it's used as a mask and filled with --gold. */
 .staff-rail-mark {

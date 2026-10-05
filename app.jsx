@@ -1873,10 +1873,14 @@ function StaffRail({
     >
       <div className="staff-rail-brand">
         {expanded ? (
-          <>
-            <span className="brand-name">My<span className="brand-name-good">Good</span>Books</span>
-            <span className="brand-sub">Staff</span>
-          </>
+          <span className="staff-rail-brand-row">
+            {/* Same logo box + wordmark as the client sidebar's brand. */}
+            <span className="staff-rail-mark brand-logo-box" aria-hidden="true" />
+            <span className="brand-text">
+              <span className="brand-name">My<span className="brand-name-good">Good</span>Books</span>
+              <span className="brand-sub">Staff</span>
+            </span>
+          </span>
         ) : hideMark ? null : (
           <span className="staff-rail-mark" role="img" aria-label="MyGoodBooks" />
         )}
