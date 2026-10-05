@@ -1630,8 +1630,8 @@
   .cc-chip { padding: 9px 10px; }
   .cc-chip strong { font-size: 12.5px; }
 }
-/* "+ Track" on overview rows: quiet until the row is hovered or focused;
-   always shown on touch screens, which have no hover. */
+/* "+ Track" on overview rows: always visible but muted, full strength
+   when the row is hovered or focused. */
 .dc-trackBtn {
   flex: none;
   font: inherit;
@@ -1643,7 +1643,7 @@
   background: transparent;
   color: var(--ink-500, var(--text-muted));
   cursor: pointer;
-  opacity: 0;
+  opacity: 0.6;
   transition: opacity 0.12s ease;
   white-space: nowrap;
 }
@@ -1654,7 +1654,6 @@
 .dc-trackBtn.dc-isTracked { opacity: 1; }
 .dc-trackBtn:hover { border-color: var(--gold, #b8975a); color: var(--ink-900, var(--text)); }
 .dc-trackBtn.dc-isTracked { border-style: dashed; font-weight: 500; }
-@media (hover: none) { .dc-trackBtn { opacity: 1; } }
 .dc-trackToast {
   position: fixed;
   left: 50%;

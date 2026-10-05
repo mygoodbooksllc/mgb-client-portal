@@ -9,7 +9,7 @@ Pro clients can build their own cards on the **Financial Overview**, for example
 
 ### The quickest way: + Track
 
-On the Financial Overview, point at a row in **Budget health**, **Where the money went** or **Cash by account** and click **+ Track** (on a phone the button is always showing, as a small **+**). That adds a card for just that category or account: the last 3 months with a chart and its transactions, compared with the budget for categories. The page scrolls to the new card and a message appears at the bottom with **Edit** (opens the builder) and **Undo** (removes the card).
+On the Financial Overview, click **+ Track** at the end of a row in **Budget health**, **Where the money went** or **Cash by account** (on a phone it shows as a small **+**). That adds a card for just that category or account: the last 3 months with a chart and its transactions, compared with the budget for categories. The page scrolls to the new card and a message appears at the bottom with **Edit** (opens the builder) and **Undo** (removes the card).
 
 If a card for that item already exists, the button says **✓ Tracking** instead, and clicking it jumps to that card rather than making a copy. The buttons are hidden while **Customize dashboard** is open, and when the person already has 24 custom cards.
 
