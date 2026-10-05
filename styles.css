@@ -9048,21 +9048,7 @@ tr:hover .inote-btn,
   padding-top: 0;
 }
 
-/* Payroll add-on: sidebar tag + the price page. */
-.nav-addon-tag {
-  margin-left: auto;
-  font-size: 9.5px;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--navy-deep);
-  background: var(--gold);
-  border-radius: 999px;
-  padding: 1px 7px;
-}
-.sidebar.sidebar-collapsed .nav-addon-tag {
-  display: none;
-}
+/* Payroll add-on: the price page. */
 .payroll-addon-hero {
   text-align: center;
   padding: 36px 28px;

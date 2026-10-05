@@ -468,9 +468,8 @@ const NAV_SECTIONS = [
       { key: "receivables", label: "Cash Flow", icon: <SwapIcon /> },
       { key: "reports", label: "Reports", icon: <DownloadIcon /> },
       { key: "giving", label: "Giving & Funds", short: "Giving", icon: <GiftHeartIcon /> },
-      // Last in the section, right above Documents — most clients don't
-      // have the payroll add-on at all, so it doesn't need the same
-      // prominence as the tabs everyone uses. Not in PREMIUM_UPGRADE_TAB_KEYS
+      // Last in the section, right above Documents. Only shows for clients
+      // with the payroll add-on (see resolveAccess). Not in PREMIUM_UPGRADE_TAB_KEYS
       // on purpose — Payroll is a separate add-on (client.payrollAddOn),
       // orthogonal to the standard/premium plan split, not a premium-only
       // upgrade. See PayrollPage.
@@ -765,8 +764,7 @@ const payrollPriceLabel = `$${PAYROLL_PRICING.base}/mo + $${PAYROLL_PRICING.perE
 
 // Basic is barebones: statements, documents and a way to reach the
 // bookkeeper. No dashboard. Everything else is hidden rather than shown locked.
-// Payroll is an add-on for any plan, so Basic shows it too (as an add-on
-// until they have it).
+// Payroll is an add-on for any plan, so Basic shows it too once they have it.
 const BASIC_TAB_KEYS = new Set(["messages", "reports", "documents", "payroll"]);
 
 function isBasicPlan(client, allowDevOverride = true) {
@@ -798,7 +796,10 @@ function resolveAccess(client, viewAsUserId, orgHiddenKeys, overrideUser) {
   const entitled = ALL_TAB_KEYS.filter(
     (k) =>
       (!PREMIUM_TAB_KEYS.has(k) || hasPremiumPlan(client, !overrideUser)) &&
-      (!basic || BASIC_TAB_KEYS.has(k)),
+      (!basic || BASIC_TAB_KEYS.has(k)) &&
+      // No Payroll tab at all unless staff turned on the payroll add-on for
+      // this client (Add/Edit client), owner request 2026-10-05.
+      (k !== "payroll" || !!client.payrollAddOn),
   );
   const orgAllowed = entitled.filter(
     (k) => k === ALWAYS_VISIBLE_KEY || !orgHiddenKeys.has(k),
@@ -1579,18 +1580,8 @@ function Sidebar({
                           onSelectPage(item.key);
                           onCloseMobile();
                         }}
-                        aria-label={
-                          collapsed
-                            ? item.key === "payroll" && client && !client.payrollAddOn
-                              ? "Payroll (add-on)"
-                              : item.label
-                            : undefined
-                        }
-                        onMouseEnter={(e) =>
-                          item.key === "payroll" && client && !client.payrollAddOn
-                            ? showTip(e, "Payroll (add-on)")
-                            : item.short && showTip(e, item.label)
-                        }
+                        aria-label={collapsed ? item.label : undefined}
+                        onMouseEnter={(e) => item.short && showTip(e, item.label)}
                         onMouseLeave={hideTip}
                         onFocus={(e) => item.short && showTip(e, item.label)}
                         onBlur={hideTip}
@@ -1599,9 +1590,6 @@ function Sidebar({
                         <span className="nav-item-label">{item.label}</span>
                         {/* Collapsed sidebar: the tab name under the icon. */}
                         <span className="nav-item-caption" aria-hidden="true">{item.short || item.label}</span>
-                        {item.key === "payroll" && client && !client.payrollAddOn && (
-                          <span className="nav-addon-tag">Add-on</span>
-                        )}
                         {badges[item.key] && (
                           <span
                             className="nav-badge-dot"
@@ -7968,8 +7956,9 @@ const PAYROLL_DEPOSIT_STATUS_META = {
   filed: { label: "Filed", cls: "positive" },
 };
 
-// What a client without the add-on sees: the price and what it includes.
-// The sidebar marks Payroll "Add-on" for them (see Sidebar).
+// The price page for a client without the add-on. Since 2026-10-05 those
+// clients have no Payroll tab at all (resolveAccess), so this is only a
+// fallback if PayrollPage is ever reached without it.
 const PAYROLL_ADDON_FEATURES = [
   {
     title: "Every employee in one place",

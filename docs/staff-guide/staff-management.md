@@ -2,7 +2,7 @@
 title: How do I add staff and manage their access?
 section: Admin
 audience: admin
-keywords: [staff access, team, members, members tab, entity type, nonprofit, for-profit, add staff, bulk import, role, admin, bookkeeper, deactivate, assign clients, manage, temporary admin access, grant, revoke, view as, email invite, client roster, account manager]
+keywords: [staff access, team, members, members tab, entity type, nonprofit, for-profit, add staff, bulk import, role, admin, bookkeeper, deactivate, assign clients, manage, temporary admin access, grant, revoke, view as, email invite, client roster, account manager, payroll, payroll add-on, payroll tab]
 sort: 510
 ---
 The **Members** tab of **Team** (sidebar → **Team** → **Members**) controls who can sign in and with what role. It used to be a separate page called **Staff Access**; old Staff Access links (`#/staff-access`) open this tab.
@@ -55,6 +55,12 @@ On **Client roster** (**Settings → Firm settings → Client roster**), the add
 ### Client roster: account manager
 
 Each row on **Client roster** has an **Account manager** column, and the add form and edit mode have an **Account manager** picker (active staff). New clients start with Jesse. The account manager gets the email when that client sends a message. You can also change it on the client's Overview under **Key dates and coverage**.
+
+### Client roster: payroll add-on
+
+Tick **Payroll add-on** in the add form (or a row's edit mode) for clients who use MyGoodBooks payroll. Only those clients get a **Payroll** tab in their portal. Leave it unticked and the tab doesn't show at all, for the client or for staff viewing that client. Ticking it later adds the tab straight away.
+
+Clients without it don't see the Payroll price page any more, so they can't ask for payroll from the portal. Turn it on here when they sign up for it.
 
 ### Troubleshooting
 
