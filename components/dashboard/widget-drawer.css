@@ -481,3 +481,9 @@ html.wd-editing [data-wd-id].wd-just-added {
 /* Financial Overview: "Create a custom card" (CustomCards.tsx), above the
    list of widgets to add. */
 .wd-create-card { border-style: dashed; margin-bottom: 12px; }
+
+/* Floating chat launchers would cover the drawer's footer (Done). */
+body.wd-drawer-open .si-launcher,
+body.wd-drawer-open .chat-fab-wrap {
+  display: none;
+}

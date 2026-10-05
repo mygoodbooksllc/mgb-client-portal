@@ -666,6 +666,12 @@ function WD_WidgetDrawer({ widgets, layout, anchorRef, onClose, boardName, onCre
   const [top, setTop] = useState(0);
   const [flashId, setFlashId] = useState(null);
   const [newViewName, setNewViewName] = useState("");
+  // The floating chat buttons sit in the same bottom-right corner as the
+  // drawer's Done button; widget-drawer.css hides them while this is open.
+  useEffect(() => {
+    document.body.classList.add("wd-drawer-open");
+    return () => document.body.classList.remove("wd-drawer-open");
+  }, []);
 
   const byId = (id) => widgets.find((w) => w.id === id);
   // Hidden widgets, in the board's default order so the list reads the same
