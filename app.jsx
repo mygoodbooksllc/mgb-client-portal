@@ -7956,9 +7956,9 @@ const PAYROLL_DEPOSIT_STATUS_META = {
   filed: { label: "Filed", cls: "positive" },
 };
 
-// The price page for a client without the add-on. Since 2026-10-05 those
-// clients have no Payroll tab at all (resolveAccess), so this is only a
-// fallback if PayrollPage is ever reached without it.
+// What the add-on includes. Clients without it have no Payroll tab
+// (resolveAccess, 2026-10-05); they ask for it from the Payroll card on
+// Settings → Plan (PayrollAddOnCard), and staff turn it on in Client roster.
 const PAYROLL_ADDON_FEATURES = [
   {
     title: "Every employee in one place",
@@ -7978,7 +7978,30 @@ const PAYROLL_ADDON_FEATURES = [
   },
 ];
 
+// Fallback if PayrollPage is ever reached without the add-on.
 function PayrollAddOnPage({ client, clientPortalUser }) {
+  return (
+    <div className="payroll-addon">
+      <PayrollAddOnCard client={client} clientPortalUser={clientPortalUser} />
+      <div className="report-grid">
+        {PAYROLL_ADDON_FEATURES.map((f) => (
+          <div className="card" key={f.title}>
+            <h3 className="card-title">{f.title}</h3>
+            <p className="card-subtitle" style={{ marginBottom: 0 }}>
+              {f.text}
+            </p>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// The Payroll add-on: price, an employee estimate and an "Add Payroll"
+// request (lands in staff Home → Needs you as an Upgrade). On the Plan page
+// (inPlanPage) it also lists what's included, and says so when the client
+// already has it.
+function PayrollAddOnCard({ client, clientPortalUser, inPlanPage }) {
   const showToast = useToast();
   const { staff } = useContext(StaffToolsContext);
   const [employees, setEmployees] = useState(5);
@@ -8014,17 +8037,31 @@ function PayrollAddOnPage({ client, clientPortalUser }) {
       showToast("Couldn't send that request — please email your bookkeeper and we'll sort it out.");
       return;
     }
+    setRequested(true);
     showToast("Thanks! Your bookkeeper will follow up about adding Payroll.");
+  }
+  const [requested, setRequested] = useState(false);
+
+  if (client.payrollAddOn) {
+    return (
+      <div className="card payroll-addon-hero">
+        <div className="eyebrow-badge">Payroll · Add-on</div>
+        <h2>Payroll is on for {client.name}</h2>
+        <p className="payroll-addon-lede">
+          {payrollPriceLabel}, billed with the rest of your MyGoodBooks fee. Find it under Payroll
+          in the sidebar. To stop it, message your bookkeeper.
+        </p>
+      </div>
+    );
   }
 
   return (
-    <div className="payroll-addon">
       <div className="card payroll-addon-hero">
         <div className="eyebrow-badge">Payroll · Add-on</div>
         <h2>Add Payroll for {client.name}</h2>
         <p className="payroll-addon-lede">
-          Keep running payroll in Gusto. Connect it here and every employee's pay, withholding and
-          upcoming tax deposits sit right alongside the rest of your books.
+          Keep running payroll in Gusto. With the add-on, every employee's pay, withholding and
+          upcoming tax deposits sit right alongside the rest of your books in a Payroll tab.
         </p>
         <div className="payroll-addon-price">
           <span className="payroll-addon-amount">${PAYROLL_PRICING.base}</span>
@@ -8053,23 +8090,20 @@ function PayrollAddOnPage({ client, clientPortalUser }) {
             Staff: turn Payroll on for this client under Settings → Firm settings → Client roster (Client organizations card).
           </p>
         ) : (
-          <button className="btn-primary" disabled={requesting} onClick={requestAddOn}>
-            {requesting ? "Sending…" : "Add Payroll"}
+          <button className="btn-primary" disabled={requesting || requested} onClick={requestAddOn}>
+            {requesting ? "Sending…" : requested ? "Request sent" : "Add Payroll"}
           </button>
         )}
+        {inPlanPage && (
+          <ul className="payroll-addon-includes">
+            {PAYROLL_ADDON_FEATURES.map((f) => (
+              <li key={f.title}>
+                <strong>{f.title}.</strong> {f.text}
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
-
-      <div className="report-grid">
-        {PAYROLL_ADDON_FEATURES.map((f) => (
-          <div className="card" key={f.title}>
-            <h3 className="card-title">{f.title}</h3>
-            <p className="card-subtitle" style={{ marginBottom: 0 }}>
-              {f.text}
-            </p>
-          </div>
-        ))}
-      </div>
-    </div>
   );
 }
 
@@ -9858,14 +9892,16 @@ function EnterpriseUpgradePage({ client, clientPortalUser }) {
         })}
       </div>
 
+      <h3 className="plans-section-title">Add-ons</h3>
+      <div className="payroll-addon">
+        <PayrollAddOnCard client={client} clientPortalUser={clientPortalUser} inPlanPage />
+      </div>
+
       <div className="card plans-fine-print" style={{ marginBottom: 20 }}>
         <p>
           <strong>Moving to {PLAN_LABELS.basic}?</strong> It includes one
           login; any others stay at ${PLAN_PRICING.basic.perLogin}/mo each, or
           they're removed. Nobody loses their data.
-        </p>
-        <p>
-          <strong>Payroll add-on:</strong> {payrollPriceLabel}, on any plan.
         </p>
         <p style={{ marginBottom: 0 }}>
           <strong>QuickBooks sync:</strong> {PLAN_LABELS.basic}:{" "}

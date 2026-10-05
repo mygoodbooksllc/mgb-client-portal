@@ -9048,7 +9048,7 @@ tr:hover .inote-btn,
   padding-top: 0;
 }
 
-/* Payroll add-on: the price page. */
+/* Payroll add-on: the price page and the Payroll card on Settings → Plan. */
 .payroll-addon-hero {
   text-align: center;
   padding: 36px 28px;
@@ -9109,6 +9109,21 @@ tr:hover .inote-btn,
   font-weight: 600;
   color: var(--gold-deep);
   margin: 0;
+}
+.payroll-addon-includes {
+  list-style: none;
+  max-width: 560px;
+  margin: 22px auto 0;
+  padding: 18px 0 0;
+  border-top: 1px solid var(--border);
+  text-align: left;
+  display: grid;
+  gap: 10px;
+  font-size: 13.5px;
+  color: var(--text-muted);
+}
+.payroll-addon-includes strong {
+  color: var(--ink-strong);
 }
 /* "Your bookkeeper needs N documents" banner on client pages. */
 .doc-req-banner {

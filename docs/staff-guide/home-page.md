@@ -25,7 +25,7 @@ At the top, a line like **3 need you now · 5 this week** sums it up. Click it t
 - **Access**: people a client has asked us to give portal access to. **Review** opens that client's *Manage access* panel.
 - **Bills**: overdue or due-soon bills, one row per client with the count and total. Click to open that client's bills.
 - **Message**: a client conversation waiting on a reply. Click to open it.
-- **Upgrade**: a client asked for a bigger plan from the **Plan** tab of their Settings. Follow up with them, then click **Contacted**, **Completed** or **Dismiss**.
+- **Upgrade**: a client asked for a bigger plan, or clicked **Add Payroll**, on the **Plan** tab of their Settings. Follow up with them, then click **Contacted**, **Completed** or **Dismiss**.
 - **Reminder**: one of your reminders that's due. **Done** checks it off. Click the row to open **My Tasks**.
 
 It shows the first 6 of each group. Click **Show everything** to see the rest. When there's nothing, it says **All clear**.

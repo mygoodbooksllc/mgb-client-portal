@@ -60,7 +60,7 @@ Each row on **Client roster** has an **Account manager** column, and the add for
 
 Tick **Payroll add-on** in the add form (or a row's edit mode) for clients who use MyGoodBooks payroll. Only those clients get a **Payroll** tab in their portal. Leave it unticked and the tab doesn't show at all, for the client or for staff viewing that client. Ticking it later adds the tab straight away.
 
-Clients without it don't see the Payroll price page any more, so they can't ask for payroll from the portal. Turn it on here when they sign up for it.
+Clients without it can ask for it from the **Payroll** card under **Add-ons** on the **Plan** tab of their Settings (**Add Payroll**). The request shows on your Home page in **Needs you** as an **Upgrade**. Once they've signed up, tick the box here; the card then says *Payroll is on for {client}*.
 
 ### Troubleshooting
 
