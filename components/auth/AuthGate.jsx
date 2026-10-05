@@ -201,7 +201,7 @@
               Terms
             </a>
             <span aria-hidden="true">·</span>
-            <a href="mailto:holden@mygoodbooks.org?subject=MyGoodBooks%20Support">
+            <a href="mailto:admin@mygoodbooks.org?subject=MyGoodBooks%20Support">
               Contact
             </a>
           </nav>

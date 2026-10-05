@@ -72,4 +72,4 @@ A feature's database update hasn't been installed. Nothing is wrong with your ac
 
 ### I'm stuck or found a bug.
 
-Ask an admin, or email holden@mygoodbooks.org.
+Ask an admin, or email admin@mygoodbooks.org.
