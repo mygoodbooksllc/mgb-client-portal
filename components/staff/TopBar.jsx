@@ -1029,6 +1029,7 @@ function TB_AvatarMenu({
         ) : (
           <span className="staff-user-avatar">{initials}</span>
         )}
+        <ChevronDownIcon className={"tb-avatar-chev" + (menu.open ? " open" : "")} />
       </button>
       {menu.open && (
         <div className="tb-panel tb-menu tb-menu-right" role="menu" aria-label="Account">

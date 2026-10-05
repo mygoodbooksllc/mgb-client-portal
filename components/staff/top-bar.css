@@ -205,12 +205,25 @@
   white-space: nowrap;
 }
 .tb-avatar-btn {
-  width: 34px;
-  padding: 0;
+  width: auto;
+  gap: 2px;
+  padding: 0 2px 0 0;
   border-radius: 999px;
   border-color: transparent;
   background: transparent;
 }
+/* Down arrow beside the avatar so it reads as a menu. */
+.tb-avatar-chev {
+  width: 14px;
+  height: 14px;
+  flex: none;
+  color: var(--tb-icon);
+  transition: transform 0.15s ease;
+}
+.tb-avatar-chev.open { transform: rotate(180deg); }
+.tb-avatar-btn:hover .tb-avatar-chev,
+.tb-avatar-btn[aria-expanded="true"] .tb-avatar-chev { color: var(--tb-fg-strong); }
+@media (prefers-reduced-motion: reduce) { .tb-avatar-chev { transition: none; } }
 .tb-avatar-btn .staff-user-avatar {
   width: 30px;
   height: 30px;
@@ -819,10 +832,16 @@
     margin: 0 -4px;
   }
   .tb-bar .tb-icon-btn,
-  .tb-bar .tb-avatar-btn,
   .tb-bar .tb-search:not(:focus-within) .tb-search-box {
     width: 30px;
     height: 30px;
+  }
+  .tb-bar .tb-avatar-btn {
+    height: 30px;
+  }
+  .tb-bar .tb-avatar-chev {
+    width: 12px;
+    height: 12px;
   }
   .tb-bar .tb-middle .tb-search {
     width: 30px;
