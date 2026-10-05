@@ -8123,15 +8123,15 @@ body:has(.modal-overlay) .chat-fab-wrap {
 }
 
 /* ---------------- Staff sidebar (StaffRail) ----------------
-   Staff pages: replaces the client sidebar (64px icons when collapsed).
-   Client pages: a 64px icon strip beside the client sidebar, hidden while
+   Staff pages: replaces the client sidebar (72px icons + captions when collapsed).
+   Client pages: a 72px icon strip beside the client sidebar, hidden while
    previewing as a client user. Desktop and mouse windows only. */
 .staff-rail {
   display: none;
 }
 @media (min-width: 761px), (hover: hover) and (pointer: fine) {
   .staff-rail {
-    width: 64px;
+    width: 72px;
     flex-shrink: 0;
     display: flex;
     flex-direction: column;
@@ -8241,6 +8241,26 @@ body:has(.modal-overlay) .chat-fab-wrap {
 .staff-rail-label {
   flex: 1;
   white-space: nowrap;
+}
+/* Collapsed rail: the tab name in small text under each icon. */
+.staff-rail:not(.expanded) .staff-rail-item {
+  flex-direction: column;
+  gap: 3px;
+  padding: 7px 2px 6px;
+}
+.staff-rail-caption {
+  font-size: 10.5px;
+  font-weight: 500;
+  line-height: 1.15;
+  letter-spacing: 0.01em;
+  text-align: center;
+  white-space: nowrap;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.staff-rail-item.active .staff-rail-caption {
+  font-weight: 600;
 }
 .staff-rail-dot {
   position: absolute;

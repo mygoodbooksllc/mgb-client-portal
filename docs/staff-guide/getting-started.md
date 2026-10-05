@@ -32,7 +32,7 @@ On a computer, the dark sidebar on the left has the page links:
 
 Admins also see an **Admin** group with **Team** (hours and tasks, plus the **Members** tab that used to be Staff Access) and **Feedback**. The other admin pages (Task templates, Client roster, Emails, QuickBooks usage, Usage stats, Audit log and Developer tools) are in **Settings → Firm settings**.
 
-At the bottom: **Collapse**, which shrinks the sidebar to icons. Hover over an icon to see its name. **Settings** (your profile, notifications, theme and more), dark mode and **Sign out** are in the account menu under your initials at the top right. See [How do I change my settings?](#/help/staff-settings).
+At the bottom: **Collapse**, which shrinks the sidebar to icons with a short name under each one (for example **Client** for Client view, **Tasks** for My Tasks and **Close** for Close tracker). **Settings** (your profile, notifications, theme and more), dark mode and **Sign out** are in the account menu under your initials at the top right. See [How do I change my settings?](#/help/staff-settings).
 
 When you have a client open, the staff sidebar shrinks to a thin strip of icons and the client's own sidebar (Dashboard, Reports, Documents and so on) appears beside it.
 

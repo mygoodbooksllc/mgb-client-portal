@@ -1732,6 +1732,7 @@ function StaffRail({
     {
       key: "dashboard",
       label: "Client view",
+      short: "Client",
       icon: <GridIcon />,
       active: onClientPage,
     },
@@ -1747,10 +1748,11 @@ function StaffRail({
           {
             key: "my-tasks",
             label: "My Tasks",
+            short: "Tasks",
             icon: <ChecklistIcon width="16" height="16" strokeWidth="1.8" />,
             due: true,
           },
-          { key: "close-tracker", label: "Close tracker", icon: <CalculatorIcon /> },
+          { key: "close-tracker", label: "Close tracker", short: "Close", icon: <CalculatorIcon /> },
           ...(typeof HLP_StaffGuidePage === "function"
             ? [{ key: "help", label: "Help", icon: <HLP_HelpIcon /> }]
             : []),
@@ -1792,13 +1794,17 @@ function StaffRail({
         }}
         aria-label={expanded ? undefined : it.label}
         aria-current={active ? "page" : undefined}
-        onMouseEnter={(e) => showTip(e, it.label)}
+        onMouseEnter={(e) => it.short && showTip(e, it.label)}
         onMouseLeave={hideTip}
-        onFocus={(e) => showTip(e, it.label)}
+        onFocus={(e) => it.short && showTip(e, it.label)}
         onBlur={hideTip}
       >
         {it.icon}
-        {expanded && <span className="staff-rail-label">{it.label}</span>}
+        {expanded ? (
+          <span className="staff-rail-label">{it.label}</span>
+        ) : (
+          <span className="staff-rail-caption" aria-hidden="true">{it.short || it.label}</span>
+        )}
         {it.dot && <span className="nav-badge-dot staff-rail-dot" aria-label="Unread" />}
         {it.extra}
         {it.due && expanded && <MyTasksDueCount due={myTasksDue} />}
@@ -1857,13 +1863,15 @@ function StaffRail({
           onClick={() => onSelectPage("settings")}
           aria-label={expanded ? undefined : "Settings"}
           aria-current={page === "settings" ? "page" : undefined}
-          onMouseEnter={(e) => showTip(e, "Settings")}
           onMouseLeave={hideTip}
-          onFocus={(e) => showTip(e, "Settings")}
           onBlur={hideTip}
         >
           <ST_GearIcon width="18" height="18" />
-          {expanded && <span className="staff-rail-label">Settings</span>}
+          {expanded ? (
+            <span className="staff-rail-label">Settings</span>
+          ) : (
+            <span className="staff-rail-caption" aria-hidden="true">Settings</span>
+          )}
         </button>
         <div
           className="staff-rail-user"
@@ -1883,13 +1891,15 @@ function StaffRail({
           className="staff-rail-item"
           onClick={onSignOut}
           aria-label={expanded ? undefined : "Sign out"}
-          onMouseEnter={(e) => showTip(e, "Sign out")}
           onMouseLeave={hideTip}
-          onFocus={(e) => showTip(e, "Sign out")}
           onBlur={hideTip}
         >
           <SignOutIcon />
-          {expanded && <span className="staff-rail-label">Sign out</span>}
+          {expanded ? (
+            <span className="staff-rail-label">Sign out</span>
+          ) : (
+            <span className="staff-rail-caption" aria-hidden="true">Sign out</span>
+          )}
         </button>
         {onToggleCollapse && NON_CLIENT_PAGES.has(page) && (
           <button
