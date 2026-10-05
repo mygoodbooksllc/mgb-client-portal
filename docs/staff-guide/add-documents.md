@@ -1,8 +1,8 @@
 ---
-title: How do I add a file to a client's documents?
+title: How do I add, hide or trash a client's documents?
 section: Working with a client
 audience: staff
-keywords: [upload, drop, drag and drop, drag, file, add file, documents, staff only, internal, visible to client, folder, attach]
+keywords: [upload, drop, drag and drop, drag, file, add file, documents, staff only, internal, visible to client, folder, attach, trash, delete, remove, restore, undelete]
 sort: 225
 ---
 Drag a file from your computer and drop it **anywhere** in the staff app. You don't need to open the Documents page first.
@@ -17,6 +17,22 @@ While you drag, the page shows **Drop to add to {client}'s documents**. Let go a
 4. Click **Upload**. You'll see *Added 1 file to {client}'s documents (staff only).* or *…Their team can see it.*
 
 You can drop up to 10 files at a time. Each file can be up to 25 MB, and must be a PDF, image (PNG, JPEG, HEIC), CSV, text, Excel or Word file. Files that don't fit are crossed out in the box with the reason, and the rest still upload.
+
+### The Staff only folder
+
+On a client's **Documents** page, staff see two extra folders next to **All Documents**: **Staff only** and **Trash**. Clients never see either.
+
+- **Staff only** lists every file the client can't see. While it's open, the upload box says **Add a staff-only file**, and anything you upload there is staff only.
+- Staff-only files also show in **All Documents** with a dashed **Staff only** tag, and **Visible to** says **Staff only**.
+
+### Trash a document
+
+Click the trash can at the end of a document's row (staff only). The file or link moves to the **Trash** folder and the client can't see it any more. You'll see *Moved {name} to Trash. You can restore it from the Trash folder.*
+
+- Open **Trash** and click **Restore** to put it back where it was, in the same folder.
+- Nothing is deleted for good. Trash keeps files until someone restores them.
+- On the client's Client overview, **Move to Trash** on a shared link does the same thing. Restore it from the Documents page.
+- The sample documents on prototype clients can't be trashed.
 
 ### Places that take drops themselves
 

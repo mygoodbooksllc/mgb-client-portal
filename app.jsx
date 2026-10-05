@@ -2628,6 +2628,28 @@ function UploadIcon(props) {
   );
 }
 
+function TrashIcon(props) {
+  return (
+    <svg
+      className="icon-inline"
+      width="14"
+      height="14"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      {...props}
+    >
+      <path d="M4 7h16" />
+      <path d="M10 11v6M14 11v6" />
+      <path d="M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12" />
+      <path d="M9 7V4h6v3" />
+    </svg>
+  );
+}
+
 function FileIcon(props) {
   return (
     <svg
@@ -20078,6 +20100,13 @@ function MyTasksPage({
   );
 }
 
+// Built-in Documents folder (staff only) listing files under
+// <client>/internal/. Not a real folder name, so it can't clash with one.
+const DOC_STAFF_FOLDER = "\u0000staff-only";
+// Built-in Trash folder (staff only): files moved to <client>/trash/ and
+// links with trashed_at set (supabase/document-trash.sql). Restorable.
+const DOC_TRASH_FOLDER = "\u0000trash";
+
 function DocumentsPage({ client, isBookkeeper, searchTarget }) {
   const [folders, setFolders] = useState(
     () => loadDocFolders(client.id).folders,
@@ -20116,10 +20145,17 @@ function DocumentsPage({ client, isBookkeeper, searchTarget }) {
     // Staff also see the client's staff-only files (client-uploads/<client>/
     // internal/, supabase/staff-only-documents.sql). Client users can't read
     // that folder, so they never ask for it.
-    const [linksRes, filesRes, internalRes] = await Promise.all([
+    const staffList = (sub) =>
+      isBookkeeper
+        ? docSb.storage.from("client-uploads").list(`${client.id}/${sub}`, {
+            limit: 500,
+            sortBy: { column: "created_at", order: "desc" },
+          })
+        : Promise.resolve({ data: [], error: null });
+    const [linksRes, filesRes, internalRes, trashSharedRes, trashInternalRes] = await Promise.all([
       docSb
         .from("client_documents")
-        .select("id, name, drive_url, category, created_at")
+        .select(isBookkeeper ? "id, name, drive_url, category, created_at, trashed_at" : "id, name, drive_url, category, created_at")
         .eq("client_id", client.id)
         .order("created_at", { ascending: false })
         .limit(500),
@@ -20129,20 +20165,18 @@ function DocumentsPage({ client, isBookkeeper, searchTarget }) {
           limit: 500,
           sortBy: { column: "created_at", order: "desc" },
         }),
-      isBookkeeper
-        ? docSb.storage.from("client-uploads").list(`${client.id}/internal`, {
-            limit: 500,
-            sortBy: { column: "created_at", order: "desc" },
-          })
-        : Promise.resolve({ data: [], error: null }),
+      staffList("internal"),
+      staffList("trash/shared"),
+      staffList("trash/internal"),
     ]);
     if (linksRes.error && filesRes.error) {
       setRemoteState("error");
       return;
     }
     const { assignments } = loadDocFolders(client.id);
-    const links = (linksRes.data || []).map((r) => ({
+    const linkRow = (r) => ({
       key: "link:" + r.id,
+      id: r.id,
       source: "link",
       name: r.name,
       category: r.category || "Shared by MyGoodBooks",
@@ -20150,7 +20184,8 @@ function DocumentsPage({ client, isBookkeeper, searchTarget }) {
       date: String(r.created_at || "").slice(0, 10),
       size: "Link",
       url: safeHttpUrl(r.drive_url),
-    }));
+    });
+    const links = (linksRes.data || []).filter((r) => !r.trashed_at).map(linkRow);
     const files = (filesRes.data || [])
       .filter((f) => f && f.id && f.name)
       .map((f) => ({
@@ -20182,6 +20217,37 @@ function DocumentsPage({ client, isBookkeeper, searchTarget }) {
       folder: assignments[d.key] || null,
     }));
     setDocs((prev) => [...prev.filter((d) => d.source === "sample"), ...remote]);
+    // Trash keeps each item's original key, so its folder comes back on
+    // restore.
+    const trashFile = (sub) => (f) => {
+      const origKey = "file:" + (sub === "internal" ? "internal/" : "") + f.name;
+      return {
+        key: "trash:" + origKey,
+        origKey,
+        trashed: true,
+        source: "upload",
+        staffOnly: sub === "internal",
+        name: f.name.replace(/^\d+-/, ""),
+        category: sub === "internal" ? "Staff only" : "Uploaded",
+        uploadedBy: sub === "internal" ? "MyGoodBooks" : "Your organization",
+        date: String(f.created_at || "").slice(0, 10),
+        size: f.metadata && f.metadata.size ? formatBytes(f.metadata.size) : "",
+        path: `${client.id}/trash/${sub}/${f.name}`,
+        restorePath: `${client.id}/${sub}/${f.name}`,
+        folder: assignments[origKey] || null,
+      };
+    };
+    const okFile = (f) => f && f.id && f.name;
+    setTrashDocs([
+      ...((trashSharedRes && trashSharedRes.data) || []).filter(okFile).map(trashFile("shared")),
+      ...((trashInternalRes && trashInternalRes.data) || []).filter(okFile).map(trashFile("internal")),
+      ...(linksRes.data || [])
+        .filter((r) => r.trashed_at)
+        .map((r) => {
+          const d = linkRow(r);
+          return { ...d, key: "trash:" + d.key, origKey: d.key, trashed: true, folder: assignments[d.key] || null };
+        }),
+    ]);
     setRemoteState(linksRes.error || filesRes.error ? "error" : "ready");
   }, [docSb, client.id, isBookkeeper]);
 
@@ -20218,6 +20284,7 @@ function DocumentsPage({ client, isBookkeeper, searchTarget }) {
     setPreviewIndex(index);
   };
   const [activeFolder, setActiveFolder] = useState(null); // null = "All"
+  const [trashDocs, setTrashDocs] = useState([]);
   const [addingFolder, setAddingFolder] = useState(false);
   const [newFolderName, setNewFolderName] = useState("");
   const [isDragging, setIsDragging] = useState(false);
@@ -20235,13 +20302,62 @@ function DocumentsPage({ client, isBookkeeper, searchTarget }) {
 
   // Persists folder names + which folder each document is in, by the
   // document's stable key. Folders are per browser (localStorage).
+  // Merges into what's saved rather than rebuilding it: on first render the
+  // uploaded files and links haven't loaded yet, and rebuilding from just
+  // the sample rows used to wipe every file's folder on each visit.
   useEffect(() => {
-    const assignments = {};
-    docs.forEach((d) => {
-      if (d.folder) assignments[d.key] = d.folder;
+    const { assignments } = loadDocFolders(client.id);
+    const put = (key, folder) => {
+      if (folder) assignments[key] = folder;
+      else delete assignments[key];
+    };
+    docs.forEach((d) => put(d.key, d.folder));
+    trashDocs.forEach((d) => put(d.origKey, d.folder));
+    // A deleted folder's files go back to Unfiled.
+    Object.keys(assignments).forEach((k) => {
+      if (!folders.includes(assignments[k])) delete assignments[k];
     });
     saveDocFolders(client.id, folders, assignments);
-  }, [client.id, folders, docs]);
+  }, [client.id, folders, docs, trashDocs]);
+
+  // Trash and restore (staff only). Files move between <client>/<sub>/ and
+  // <client>/trash/<sub>/; links flip trashed_at. Nothing is deleted.
+  const [trashBusy, setTrashBusy] = useState(null);
+  const trashDoc = async (d) => {
+    if (!docSb || trashBusy) return;
+    setTrashBusy(d.key);
+    let error = null;
+    if (d.source === "link") {
+      ({ error } = await docSb.from("client_documents").update({ trashed_at: new Date().toISOString() }).eq("id", d.id));
+    } else {
+      const rel = d.path.slice(client.id.length + 1);
+      ({ error } = await docSb.storage.from("client-uploads").move(d.path, `${client.id}/trash/${rel}`));
+    }
+    setTrashBusy(null);
+    if (error) {
+      showToast(`Couldn't move ${d.name} to Trash: ${error.message}`);
+      return;
+    }
+    showToast(`Moved ${d.name} to Trash. You can restore it from the Trash folder.`);
+    loadRemoteDocs();
+  };
+  const restoreDoc = async (d) => {
+    if (!docSb || trashBusy) return;
+    setTrashBusy(d.key);
+    let error = null;
+    if (d.source === "link") {
+      ({ error } = await docSb.from("client_documents").update({ trashed_at: null }).eq("id", d.id));
+    } else {
+      ({ error } = await docSb.storage.from("client-uploads").move(d.path, d.restorePath));
+    }
+    setTrashBusy(null);
+    if (error) {
+      showToast(`Couldn't restore ${d.name}: ${error.message}`);
+      return;
+    }
+    showToast(`Restored ${d.name}.`);
+    loadRemoteDocs();
+  };
 
   // Real upload: same bucket and client-folder rule as the document-request
   // card (storage policy "client uploads own files"), under <client>/shared/.
@@ -20258,6 +20374,9 @@ function DocumentsPage({ client, isBookkeeper, searchTarget }) {
       showToast(`${tooBig.name} is ${formatBytes(tooBig.size)}. Files are capped at 25 MB.`);
       return;
     }
+    // The Staff only folder uploads to <client>/internal/, which client
+    // users can't read (supabase/staff-only-documents.sql).
+    const staffView = isBookkeeper && activeFolder === DOC_STAFF_FOLDER;
     setUploading(true);
     let ok = 0;
     let firstError = null;
@@ -20267,7 +20386,7 @@ function DocumentsPage({ client, isBookkeeper, searchTarget }) {
       const stored = `${Date.now()}-${safe}`;
       const { error } = await docSb.storage
         .from("client-uploads")
-        .upload(`${client.id}/shared/${stored}`, f, {
+        .upload(`${client.id}/${staffView ? "internal" : "shared"}/${stored}`, f, {
           upsert: false,
           contentType: f.type || undefined,
         });
@@ -20275,12 +20394,13 @@ function DocumentsPage({ client, isBookkeeper, searchTarget }) {
         firstError = firstError || error.message;
       } else {
         ok += 1;
-        if (activeFolder) assignments["file:" + stored] = activeFolder;
+        if (activeFolder && !staffView) assignments["file:" + stored] = activeFolder;
       }
     }
-    if (activeFolder) saveDocFolders(client.id, folders, assignments);
+    if (activeFolder && !staffView) saveDocFolders(client.id, folders, assignments);
     setUploading(false);
-    if (ok) showToast(`Uploaded ${ok} file${ok > 1 ? "s" : ""}. Your bookkeeper can see ${ok > 1 ? "them" : "it"} now.`);
+    if (ok && staffView) showToast(`Uploaded ${ok} staff-only file${ok > 1 ? "s" : ""}. ${client.name} can't see ${ok > 1 ? "them" : "it"}.`);
+    else if (ok) showToast(`Uploaded ${ok} file${ok > 1 ? "s" : ""}. Your bookkeeper can see ${ok > 1 ? "them" : "it"} now.`);
     if (firstError) showToast(`Couldn't upload: ${firstError}`);
     loadRemoteDocs();
   };
@@ -20328,10 +20448,16 @@ function DocumentsPage({ client, isBookkeeper, searchTarget }) {
   // hidden for them.
   const [visFilter, setVisFilter] = useState("all");
   const hasRestrictedDocs = docs.some((d) => d.visibility === "full");
+  const staffView = isBookkeeper && activeFolder === DOC_STAFF_FOLDER;
+  const trashView = isBookkeeper && activeFolder === DOC_TRASH_FOLDER;
   const folderFiltered =
     activeFolder === null
       ? docs
-      : docs.filter((d) => d.folder === activeFolder);
+      : trashView
+        ? trashDocs
+      : staffView
+        ? docs.filter((d) => d.staffOnly)
+        : docs.filter((d) => d.folder === activeFolder);
   const docQuery = docSearch.trim().toLowerCase();
   const visibleDocs = (
     visFilter === "full"
@@ -20373,6 +20499,30 @@ function DocumentsPage({ client, isBookkeeper, searchTarget }) {
           All Documents
           <span className="doc-folder-count">{docs.length}</span>
         </button>
+        {isBookkeeper && (
+          <button
+            type="button"
+            className={"doc-folder-pill doc-folder-staff" + (staffView ? " active" : "")}
+            onClick={() => setActiveFolder(DOC_STAFF_FOLDER)}
+            title="Files only MyGoodBooks staff can see"
+          >
+            <LockIcon />
+            Staff only
+            <span className="doc-folder-count">{docs.filter((d) => d.staffOnly).length}</span>
+          </button>
+        )}
+        {isBookkeeper && (
+          <button
+            type="button"
+            className={"doc-folder-pill doc-folder-staff" + (trashView ? " active" : "")}
+            onClick={() => setActiveFolder(DOC_TRASH_FOLDER)}
+            title="Documents moved to Trash. Clients can't see them."
+          >
+            <TrashIcon width="14" height="14" strokeWidth="1.8" />
+            Trash
+            <span className="doc-folder-count">{trashDocs.length}</span>
+          </button>
+        )}
         {folders.map((name) => {
           const count = docs.filter((d) => d.folder === name).length;
           return (
@@ -20440,6 +20590,7 @@ function DocumentsPage({ client, isBookkeeper, searchTarget }) {
         )}
       </div>
 
+      {!trashView && (
       <div
         className={
           "card upload-card dropzone" + (isDragging ? " dragging" : "")
@@ -20465,10 +20616,11 @@ function DocumentsPage({ client, isBookkeeper, searchTarget }) {
             <UploadIcon width="22" height="22" strokeWidth="1.6" />
           </div>
           <div>
-            <h3 className="card-title">Share a document</h3>
+            <h3 className="card-title">{staffView ? "Add a staff-only file" : "Share a document"}</h3>
             <p className="card-subtitle" style={{ margin: 0 }}>
-              Drag and drop files here, or click to browse. Receipts,
-              statements, or anything your bookkeeper should see.
+              {staffView
+                ? `Drag and drop files here, or click to browse. Only MyGoodBooks staff can see them, never ${client.name}.`
+                : "Drag and drop files here, or click to browse. Receipts, statements, or anything your bookkeeper should see."}
             </p>
           </div>
         </div>
@@ -20493,12 +20645,13 @@ function DocumentsPage({ client, isBookkeeper, searchTarget }) {
           }}
         />
       </div>
+      )}
 
       <div className="card">
         <div className="page-header" style={{ marginBottom: 4 }}>
           <div>
             <h3 className="card-title">
-              {activeFolder === null ? "All Documents" : activeFolder}
+              {activeFolder === null ? "All Documents" : staffView ? "Staff only" : trashView ? "Trash" : activeFolder}
             </h3>
             <p className="card-subtitle" style={{ margin: 0 }}>
               {visibleDocs.length} file{visibleDocs.length !== 1 ? "s" : ""} ·
@@ -20562,11 +20715,14 @@ function DocumentsPage({ client, isBookkeeper, searchTarget }) {
                 <th>Folder</th>
                 {isBookkeeper && <th>Visible To</th>}
                 <th className="num">Size</th>
+                {isBookkeeper && (
+                  <th aria-label="Actions" />
+                )}
               </tr>
             </thead>
             <tbody>
               {remoteState === "error" && (
-                <EmptyRow colSpan={isBookkeeper ? 7 : 6}>
+                <EmptyRow colSpan={isBookkeeper ? 8 : 6}>
                   Some documents couldn't be loaded.{" "}
                   <button type="button" className="btn-secondary" onClick={loadRemoteDocs}>
                     Try again
@@ -20574,10 +20730,14 @@ function DocumentsPage({ client, isBookkeeper, searchTarget }) {
                 </EmptyRow>
               )}
               {visibleDocs.length === 0 && remoteState !== "loading" && (
-                <EmptyRow colSpan={isBookkeeper ? 7 : 6}>
+                <EmptyRow colSpan={isBookkeeper ? 8 : 6}>
                   {docQuery
                     ? "No documents match that search."
-                    : activeFolder
+                    : trashView
+                      ? "Trash is empty."
+                      : staffView
+                      ? "No staff-only files yet. Upload one above, or drop a file anywhere and leave Visible to client off."
+                      : activeFolder
                       ? "Nothing in this folder yet."
                       : "No documents yet. Upload one above, or your bookkeeper can share files here."}
                 </EmptyRow>
@@ -20620,6 +20780,9 @@ function DocumentsPage({ client, isBookkeeper, searchTarget }) {
                     <td data-label="Uploaded by">{d.uploadedBy}</td>
                     <td data-label="Date">{fmtDate(d.date)}</td>
                     <td data-label="Folder">
+                      {d.trashed ? (
+                        d.folder || "Unfiled"
+                      ) : (
                       <select
                         className="doc-folder-select"
                         value={d.folder || ""}
@@ -20633,6 +20796,7 @@ function DocumentsPage({ client, isBookkeeper, searchTarget }) {
                           </option>
                         ))}
                       </select>
+                      )}
                     </td>
                     {isBookkeeper && (
                       <td data-label="Visible to">
@@ -20641,10 +20805,16 @@ function DocumentsPage({ client, isBookkeeper, searchTarget }) {
                         <span
                           className={
                             "visibility-toggle" +
-                            (d.visibility === "full" ? " restricted" : "")
+                            (d.visibility === "full" || d.staffOnly ? " restricted" : "")
                           }
                         >
-                          {d.visibility === "full" ? (
+                          {d.trashed ? (
+                            "Staff only (in Trash)"
+                          ) : d.staffOnly ? (
+                            <React.Fragment>
+                              <LockIcon /> Staff only
+                            </React.Fragment>
+                          ) : d.visibility === "full" ? (
                             <React.Fragment>
                               <LockIcon /> Full access only
                             </React.Fragment>
@@ -20657,6 +20827,37 @@ function DocumentsPage({ client, isBookkeeper, searchTarget }) {
                     <td className="num" data-label="Size">
                       {d.size}
                     </td>
+                    {isBookkeeper && (
+                      <td className="doc-actions" data-label="">
+                        {d.source === "sample" ? null : d.trashed ? (
+                          <button
+                            type="button"
+                            className="btn-secondary btn-sm"
+                            disabled={!!trashBusy}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              restoreDoc(d);
+                            }}
+                          >
+                            {trashBusy === d.key ? "Restoring…" : "Restore"}
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            className="doc-trash-btn"
+                            disabled={!!trashBusy}
+                            aria-label={`Move ${d.name} to Trash`}
+                            title="Move to Trash"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              trashDoc(d);
+                            }}
+                          >
+                            <TrashIcon width="15" height="15" />
+                          </button>
+                        )}
+                      </td>
+                    )}
                   </tr>
                 );
               })}
@@ -22251,6 +22452,7 @@ function TabSettingsModal({
       .from("client_documents")
       .select("id, name, drive_url, category, created_at")
       .eq("client_id", client.id)
+      .is("trashed_at", null)
       .order("created_at", { ascending: false })
       .then(({ data }) => setDocuments(data || []));
   }, [supabase, client.id]);
@@ -22288,8 +22490,15 @@ function TabSettingsModal({
     loadDocuments();
   }
 
+  // Moves the link to the client's Documents Trash (restorable there)
+  // rather than deleting it (supabase/document-trash.sql).
   async function removeDocument(id) {
-    await supabase.from("client_documents").delete().eq("id", id);
+    const { error } = await supabase
+      .from("client_documents")
+      .update({ trashed_at: new Date().toISOString() })
+      .eq("id", id);
+    if (error) showToast("Couldn't move that link to Trash: " + error.message);
+    else showToast("Moved to Trash. Restore it from the Trash folder on Documents.");
     loadDocuments();
   }
 
@@ -22907,7 +23116,7 @@ function TabSettingsModal({
                       className="btn-secondary"
                       onClick={() => removeDocument(d.id)}
                     >
-                      Remove
+                      Move to Trash
                     </button>
                   </div>
                 </div>

@@ -9762,3 +9762,39 @@ button.home-todo-main:hover { background: var(--surface-2); }
 :root[data-theme="dark"] .pd-files li.has-problem .pd-file-meta {
   color: #f97066;
 }
+/* Documents page: the built-in Staff only folder (staff accounts only). */
+.doc-folder-pill.doc-folder-staff {
+  border-style: dashed;
+}
+/* Documents page: Move to Trash / Restore (staff accounts only). */
+.doc-actions {
+  width: 1%;
+  white-space: nowrap;
+  text-align: right;
+}
+.doc-trash-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+.doc-trash-btn:hover:not(:disabled),
+.doc-trash-btn:focus-visible {
+  border-color: var(--border);
+  background: var(--surface-2);
+  color: var(--ink-strong);
+}
+.doc-trash-btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.doc-actions .btn-sm {
+  padding: 5px 12px;
+  font-size: 12.5px;
+}
