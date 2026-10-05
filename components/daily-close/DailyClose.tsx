@@ -211,22 +211,37 @@ const LIVE_REPORT_WIDGET_IDS = LIVE_REPORT_WIDGETS.map((w) => w.id);
 // in at its default spot (just before the next default widget the saved order
 // has), not at the very end, so Your Account Manager lands beside Your
 // Bookkeeper on boards customized before it existed.
-function mergeLiveReportOrder(savedOrder: string[]): string[] {
-  const order = savedOrder.filter((id) => LIVE_REPORT_WIDGET_IDS.includes(id as LiveReportWidgetId));
+//
+// Custom cards (CustomCards.tsx) keep their saved spot; one missing from the
+// saved order (made on another device, or before a saved view) goes last.
+function mergeLiveReportOrder(savedOrder: string[], customIds: string[] = []): string[] {
+  const order = savedOrder.filter(
+    (id, i) => (LIVE_REPORT_WIDGET_IDS.includes(id as LiveReportWidgetId) || customIds.includes(id)) && savedOrder.indexOf(id) === i
+  );
   LIVE_REPORT_WIDGET_IDS.forEach((id, i) => {
     if (order.includes(id)) return;
     const next = LIVE_REPORT_WIDGET_IDS.slice(i + 1).find((n) => order.includes(n));
     if (next) order.splice(order.indexOf(next), 0, id);
     else order.push(id);
   });
+  customIds.forEach((id) => {
+    if (!order.includes(id)) order.push(id);
+  });
   return order;
 }
+
+// Custom card definitions ride inside the saved layout ({ order, hidden,
+// cards }), so the account copy needs no new column.
+const CC = () => (window as any).MGB_CustomCards || null;
+const normalizeCards = (list: any) => (CC() ? CC().normalizeList(list) : []);
 
 function liveReportLayoutKey(clientId?: string): string {
   return `mygoodbooks_live_report_layout_v1:${clientId || "default"}`;
 }
 
-function readLiveReportLayout(clientId?: string): { order: string[]; hidden: string[] } | null {
+type LiveReportSaved = { order: string[]; hidden: string[]; cards?: any[] };
+
+function readLiveReportLayout(clientId?: string): LiveReportSaved | null {
   try {
     const raw = localStorage.getItem(liveReportLayoutKey(clientId));
     if (!raw) return null;
@@ -238,9 +253,9 @@ function readLiveReportLayout(clientId?: string): { order: string[]; hidden: str
   }
 }
 
-function writeLiveReportLayout(clientId: string | undefined, order: string[], hidden: string[]): void {
+function writeLiveReportLayout(clientId: string | undefined, order: string[], hidden: string[], cards: any[] = []): void {
   try {
-    localStorage.setItem(liveReportLayoutKey(clientId), JSON.stringify({ order, hidden }));
+    localStorage.setItem(liveReportLayoutKey(clientId), JSON.stringify({ order, hidden, cards }));
   } catch (e) {}
 }
 
@@ -273,8 +288,11 @@ function writeLiveReportViews(clientId: string | undefined, views: LiveReportVie
 function useLiveReportLayout(clientId?: string) {
   const [saved, setSaved] = useState(() => readLiveReportLayout(clientId));
   const [views, setViews] = useState(() => readLiveReportViews(clientId));
-  const order = saved ? mergeLiveReportOrder(saved.order) : LIVE_REPORT_WIDGET_IDS.slice();
-  const hidden = new Set(saved ? saved.hidden.filter((id) => LIVE_REPORT_WIDGET_IDS.includes(id as LiveReportWidgetId)) : []);
+  const cards = useMemo(() => normalizeCards(saved && saved.cards), [saved]);
+  const cardIds = cards.map((c: any) => c.id);
+  const known = (id: string) => LIVE_REPORT_WIDGET_IDS.includes(id as LiveReportWidgetId) || cardIds.includes(id);
+  const order = saved ? mergeLiveReportOrder(saved.order, cardIds) : LIVE_REPORT_WIDGET_IDS.slice();
+  const hidden = new Set(saved ? saved.hidden.filter(known) : []);
 
   // Account copy (WD_useBoardSync in components/dashboard/WidgetDrawer.jsx):
   // follows the signed-in person across devices once the table exists;
@@ -284,10 +302,11 @@ function useLiveReportLayout(clientId?: string) {
     WD_useBoardSync(
       boardKey,
       () => ({ layout: saved || null, views }),
-      (row: { layout?: { order: string[]; hidden: string[] } | null; views?: LiveReportView[] }) => {
+      (row: { layout?: LiveReportSaved | null; views?: LiveReportView[] }) => {
         if (row.layout && Array.isArray(row.layout.order) && Array.isArray(row.layout.hidden)) {
-          writeLiveReportLayout(clientId, row.layout.order, row.layout.hidden);
-          setSaved({ order: row.layout.order, hidden: row.layout.hidden });
+          const remoteCards = normalizeCards(row.layout.cards);
+          writeLiveReportLayout(clientId, row.layout.order, row.layout.hidden, remoteCards);
+          setSaved({ order: row.layout.order, hidden: row.layout.hidden, cards: remoteCards });
         }
         if (Array.isArray(row.views)) {
           writeLiveReportViews(clientId, row.views);
@@ -299,11 +318,11 @@ function useLiveReportLayout(clientId?: string) {
     if (typeof WD_sync === "object" && WD_sync) WD_sync.save(boardKey, patch);
   };
 
-  const update = (nextOrder: string[], nextHidden: Set<string>) => {
+  const update = (nextOrder: string[], nextHidden: Set<string>, nextCards: any[] = cards) => {
     const nextHiddenArr = Array.from(nextHidden);
-    writeLiveReportLayout(clientId, nextOrder, nextHiddenArr);
-    setSaved({ order: nextOrder, hidden: nextHiddenArr });
-    saveRemote({ layout: { order: nextOrder, hidden: nextHiddenArr } });
+    writeLiveReportLayout(clientId, nextOrder, nextHiddenArr, nextCards);
+    setSaved({ order: nextOrder, hidden: nextHiddenArr, cards: nextCards });
+    saveRemote({ layout: { order: nextOrder, hidden: nextHiddenArr, cards: nextCards } });
   };
   const updateViews = (next: LiveReportView[]) => {
     writeLiveReportViews(clientId, next);
@@ -341,7 +360,33 @@ function useLiveReportLayout(clientId?: string) {
       next.delete(id);
       update(order.filter((x) => x !== id).concat(id), next);
     },
-    reset: () => update(LIVE_REPORT_WIDGET_IDS.slice(), new Set()),
+    // Reset puts the built-in widgets back; custom cards stay (at the end),
+    // since they're the person's own work, not part of the default.
+    reset: () => update([...LIVE_REPORT_WIDGET_IDS, ...cardIds], new Set()),
+
+    cards,
+    // A new card goes on the end of the overview, visible.
+    addCard: (def: any) => {
+      if (cards.length >= (CC() ? CC().MAX : 24)) return;
+      update(order.filter((x) => x !== def.id).concat(def.id), hidden, [...cards, def]);
+    },
+    updateCard: (def: any) => {
+      update(order, hidden, cards.map((c: any) => (c.id === def.id ? def : c)));
+    },
+    // The copy lands right after the original.
+    duplicateCard: (id: string) => {
+      const src = cards.find((c: any) => c.id === id);
+      if (!src || !CC() || cards.length >= CC().MAX) return;
+      const copy = { ...src, id: CC().newId(), title: (src.title || CC().suggestTitle(src)) + " (copy)" };
+      const next = order.slice();
+      next.splice(next.indexOf(id) + 1, 0, copy.id);
+      update(next, hidden, [...cards, copy]);
+    },
+    removeCard: (id: string) => {
+      const nextHidden = new Set(hidden);
+      nextHidden.delete(id);
+      update(order.filter((x) => x !== id), nextHidden, cards.filter((c: any) => c.id !== id));
+    },
 
     views,
     saveView: (name: string) => {
@@ -353,10 +398,7 @@ function useLiveReportLayout(clientId?: string) {
     applyView: (name: string) => {
       const view = views.find((v) => v.name === name);
       if (!view) return;
-      update(
-        mergeLiveReportOrder(view.order),
-        new Set(view.hidden.filter((id) => LIVE_REPORT_WIDGET_IDS.includes(id as LiveReportWidgetId)))
-      );
+      update(mergeLiveReportOrder(view.order, cardIds), new Set(view.hidden.filter(known)));
     },
     deleteView: (name: string) => {
       updateViews(views.filter((v) => v.name !== name));
@@ -370,18 +412,30 @@ function useLiveReportLayout(clientId?: string) {
 function LiveReportCustomizeButton({
   layout,
   onOpenChange,
+  onCreateCustom,
 }: {
   layout: ReturnType<typeof useLiveReportLayout>;
   onOpenChange: (open: boolean) => void;
+  onCreateCustom?: (() => void) | null;
 }) {
   if (typeof WD_CustomizeButton !== "function") return null;
+  const widgets = [
+    ...LIVE_REPORT_WIDGETS,
+    ...layout.cards.map((c: any) => ({
+      id: c.id,
+      label: c.title || CC().suggestTitle(c),
+      description: CC().describe(c),
+      kind: c.show.chart ? "chart" : "list",
+    })),
+  ];
   return (
     <WD_CustomizeButton
-      widgets={LIVE_REPORT_WIDGETS}
+      widgets={widgets}
       layout={layout}
       className={styles.customizeTrigger}
       boardName="your Financial Overview"
       onOpenChange={onOpenChange}
+      onCreateCustom={onCreateCustom}
     >
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
           <path d="M4 6h16M8 12h12M4 18h16" />
@@ -392,6 +446,13 @@ function LiveReportCustomizeButton({
         Customize overview
     </WD_CustomizeButton>
   );
+}
+
+// CustomCards.tsx loads after this file, so its builder is looked up at
+// render time.
+function CCBuilderHost(props: any) {
+  const Builder = CC() && CC().Builder;
+  return Builder ? <Builder {...props} /> : null;
 }
 
 /* ============================================================
@@ -1004,6 +1065,11 @@ function DailyClose({ data, className, theme, onNavigate }: DailyCloseProps) {
   const [editingLayout, setEditingLayout] = useState(false);
   const drag = typeof WD_useDragReorder === "function" ? WD_useDragReorder(layout) : null;
   const wdCard = (id: string) => (editingLayout && drag ? drag.dragProps(id) : { "data-wd-id": id });
+  // Custom card builder: null = closed, { def: null } = new card.
+  const [builder, setBuilder] = useState<{ def: any | null } | null>(null);
+  const canCustomize = Boolean(CC() && (data as any).cardSource);
+  const atCardLimit = canCustomize && layout.cards.length >= CC().MAX;
+  const openNewCard = canCustomize && !atCardLimit ? () => setBuilder({ def: null }) : null;
 
   const agingRef = useRef<HTMLDivElement>(null);
   const outlookRef = useRef<HTMLDivElement>(null);
@@ -1271,7 +1337,30 @@ function DailyClose({ data, className, theme, onNavigate }: DailyCloseProps) {
           </div>
         </header>
 
-        <LiveReportCustomizeButton layout={layout} onOpenChange={setEditingLayout} />
+        <div className={styles.customizeRow}>
+          <LiveReportCustomizeButton layout={layout} onOpenChange={setEditingLayout} onCreateCustom={openNewCard} />
+          {openNewCard && (
+            <button type="button" className={styles.customizeTrigger} onClick={openNewCard}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true">
+                <path d="M12 5v14M5 12h14" />
+              </svg>
+              New custom card
+            </button>
+          )}
+        </div>
+        {builder && canCustomize && (
+          <CCBuilderHost
+            initial={builder.def}
+            source={(data as any).cardSource}
+            theme={theme}
+            onCancel={() => setBuilder(null)}
+            onSave={(def: any) => {
+              if (builder.def) layout.updateCard(def);
+              else layout.addCard(def);
+              setBuilder(null);
+            }}
+          />
+        )}
 
         {/* ---------- KPI row ---------- */}
         <section className={styles.kpiRow} aria-label="Key metrics">
@@ -1416,6 +1505,22 @@ function DailyClose({ data, className, theme, onNavigate }: DailyCloseProps) {
           {layout.visibleOrder
             .filter((id) => !id.startsWith("kpi-"))
             .map((id) => {
+              if (id.startsWith("custom-")) {
+                const def = layout.cards.find((c: any) => c.id === id);
+                if (!def || !canCustomize) return null;
+                const Panel = CC().Panel;
+                return (
+                  <Panel
+                    key={id}
+                    def={def}
+                    source={(data as any).cardSource}
+                    wdProps={wdCard(id)}
+                    onEdit={() => setBuilder({ def })}
+                    onDuplicate={() => layout.duplicateCard(id)}
+                    onDelete={() => layout.removeCard(id)}
+                  />
+                );
+              }
               if (id === "trend")
                 return (
                   <div className={styles.panel} key={id} {...wdCard(id)}>

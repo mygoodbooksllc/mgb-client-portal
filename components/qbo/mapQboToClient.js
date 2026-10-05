@@ -73,6 +73,8 @@
   // "Money Market"), so the sub-type carries straight through. Cards are
   // tagged kind: "card" below so nothing adds what's owed to cash.
   var BANKISH = { "Bank": true, "Credit Card": true };
+  // Same list as data.js's MGB_INCOME_ACCOUNT_TYPES (not reachable from here).
+  var MGB_INCOME_TYPES = { Income: true, "Other Income": true };
 
   function prettyType(account) {
     var sub = account.account_sub_type || "";
@@ -303,6 +305,38 @@
     var expenseByAccount = expensesFor(currentMonth);
     var expenseByAccountPrev = expensesFor(prevMonth);
 
+    // --- categoryMonthly ---------------------------------------------------
+    // Every month, every income/expense account: actual (qbo_pl_lines) next
+    // to budgeted (qbo_budget_lines). Custom dashboard cards
+    // (components/daily-close/CustomCards.tsx) pick a few categories and a
+    // window of months out of this; nothing else reads it. Actuals come from
+    // the P&L lines rather than the budget lines' own `actual`, which only
+    // exist for accounts that have a budget.
+    var catByKey = {};
+    var categoryMonthly = [];
+    function catRow(monthKey, name, type) {
+      var k = monthKey + "|" + name;
+      if (!catByKey[k]) {
+        catByKey[k] = { month: monthKey, category: name, type: type, actual: 0, budgeted: null };
+        categoryMonthly.push(catByKey[k]);
+      }
+      return catByKey[k];
+    }
+    plLines.forEach(function (l) {
+      var day = toDay(l.month);
+      if (!day || (l.account_type !== "Expense" && l.account_type !== "Income")) return;
+      var row = catRow(day.slice(0, 7), l.account_name || "Uncategorized", l.account_type === "Income" ? "income" : "expense");
+      row.actual += toNumber(l.amount);
+    });
+    budgetLines.forEach(function (b) {
+      var day = toDay(b.month);
+      if (!day) return;
+      var name = b.account_name || "Uncategorized";
+      var t = accountTypeFor(name);
+      var row = catRow(day.slice(0, 7), name, t && MGB_INCOME_TYPES[t] ? "income" : "expense");
+      row.budgeted = (row.budgeted || 0) + toNumber(b.budgeted);
+    });
+
     // --- receivables / payables --------------------------------------------
     // Shapes are data.js's exactly. The "overdue logic" everywhere in app.jsx
     // is daysUntil(dueDate, today) < 0 — there is no separate overdue flag —
@@ -373,6 +407,7 @@
       budgetPrev: budgetPrev,
       expenseByAccount: expenseByAccount,
       expenseByAccountPrev: expenseByAccountPrev,
+      categoryMonthly: categoryMonthly,
       receivables: receivables,
       payables: payables,
       // Nothing syncs these yet (no giving, payroll, reconciliation or

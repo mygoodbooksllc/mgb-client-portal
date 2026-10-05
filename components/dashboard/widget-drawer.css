@@ -477,3 +477,7 @@ html.wd-editing [data-wd-id].wd-just-added {
   html.wd-editing .main { padding-right: calc(40px + 360px); }
   html.wd-editing .main > .tb-bar { margin-right: calc(-40px - 360px); }
 }
+
+/* Financial Overview: "Create a custom card" (CustomCards.tsx), above the
+   list of widgets to add. */
+.wd-create-card { border-style: dashed; margin-bottom: 12px; }

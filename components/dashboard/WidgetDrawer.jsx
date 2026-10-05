@@ -658,7 +658,7 @@ function WD_OnBoardList({ title, ids, widgets, layout, rowRefs, onRemove }) {
   );
 }
 
-function WD_WidgetDrawer({ widgets, layout, anchorRef, onClose, boardName }) {
+function WD_WidgetDrawer({ widgets, layout, anchorRef, onClose, boardName, onCreateCustom }) {
   const panelRef = useRef(null);
   const rowRefs = useRef({});
   const onCloseRef = useRef(onClose);
@@ -817,6 +817,22 @@ function WD_WidgetDrawer({ widgets, layout, anchorRef, onClose, boardName }) {
             <h3 id="wd-add-title" className="wd-section-title wd-visually-hidden">
               Available widgets
             </h3>
+            {onCreateCustom && (
+              <button type="button" className="wd-add-card wd-create-card" onClick={onCreateCustom}>
+                <span className="wd-add-card-head">
+                  <span className="wd-add-card-text">
+                    <span className="wd-add-name">Create a custom card</span>
+                    <span className="wd-add-desc">
+                      Pick the categories, accounts or funds, a time period and
+                      what to show
+                    </span>
+                  </span>
+                  <span className="wd-add-plus" aria-hidden="true">
+                    <WD_PlusIcon />
+                  </span>
+                </span>
+              </button>
+            )}
             {available.length === 0 ? (
               <p className="wd-empty">
                 Everything is already on your dashboard. Remove a widget below to
@@ -968,6 +984,7 @@ function WD_CustomizeButton({
   children,
   boardName,
   onOpenChange,
+  onCreateCustom,
 }) {
   const [open, setOpen] = useState(false);
   const anchorRef = useRef(null);
@@ -995,6 +1012,14 @@ function WD_CustomizeButton({
           anchorRef={anchorRef}
           boardName={boardName}
           onClose={() => set(false)}
+          onCreateCustom={
+            onCreateCustom
+              ? () => {
+                  set(false);
+                  onCreateCustom();
+                }
+              : null
+          }
         />
       )}
     </>

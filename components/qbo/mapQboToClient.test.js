@@ -450,4 +450,15 @@ eq(
   "mgbExpenseBudget drops income rows and keeps untyped ones",
 );
 
+// categoryMonthly: per-month actual (P&L lines) beside budgeted (budget
+// lines), income typed as income, for custom dashboard cards.
+const tithes = typed.categoryMonthly.find((r) => r.category === "Tithes" && r.month === CURRENT_MONTH.slice(0, 7));
+ok(tithes, "categoryMonthly has a row for a budget-only income account");
+eq(tithes.type, "income", "categoryMonthly types income accounts");
+eq(tithes.budgeted, 50000, "categoryMonthly budgeted comes from the budget lines");
+ok(
+  typed.categoryMonthly.every((r) => /^\d{4}-\d{2}$/.test(r.month) && typeof r.actual === "number"),
+  "categoryMonthly rows are keyed YYYY-MM with numeric actuals",
+);
+
 console.log(`mapQboToClient: ${checks} assertions passed.`);

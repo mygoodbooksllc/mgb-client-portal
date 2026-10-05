@@ -550,6 +550,7 @@
       // client either way.
       fundActivity: isLive ? undefined : buildFundActivity(client),
       reconciliation: buildReconciliation(client),
+      cardSource: buildCardSource(client, isLive, today),
       bookkeeper: client.assignedBookkeeper
         ? {
             name: client.assignedBookkeeper.name,
@@ -639,6 +640,106 @@
       items,
       pledgesOutstandingTotal: Math.round(sum(outstanding, (p) => p.committed - p.received)),
       pledgesOutstandingCount: outstanding.length,
+    };
+  }
+
+  // Everything a custom dashboard card (CustomCards.tsx) can be built from,
+  // keyed by month ("2026-08") so a card's period is a plain slice.
+  //
+  // QuickBooks clients: per-month category actuals and budgets come from
+  // client.categoryMonthly (mapQboToClient). Sample clients only have ONE
+  // budget period, so earlier months are estimated by scaling each
+  // category's actual by that month's total expenses (income categories by
+  // total income) — deterministic, and flagged `estimatedHistory` so the card
+  // can say so.
+  const monthKeyOf = (y, m) => `${y}-${String(m + 1).padStart(2, "0")}`;
+  function shiftMonthKey(key, delta) {
+    const y = Number(key.slice(0, 4));
+    const m = Number(key.slice(5, 7)) - 1 + delta;
+    const d = new Date(y, m, 1);
+    return monthKeyOf(d.getFullYear(), d.getMonth());
+  }
+  function buildCardSource(client, isLive, today) {
+    const monthly = client.monthly || [];
+    const bankAccounts = client.bankAccounts || [];
+
+    // Sample months are labels only ("Aug"). They end at the month of the
+    // newest sample transaction (or last month when there are none),
+    // stepped back until the label matches the last monthly entry.
+    let anchor = null;
+    bankAccounts.forEach((a) =>
+      (a.transactions || []).forEach((t) => {
+        const k = String(t.date || "").slice(0, 7);
+        if (/^\d{4}-\d{2}$/.test(k) && (!anchor || k > anchor)) anchor = k;
+      })
+    );
+    if (!anchor) anchor = shiftMonthKey(monthKeyOf(today.getFullYear(), today.getMonth()), -1);
+    const lastLabel = monthly.length ? monthly[monthly.length - 1].month : null;
+    for (let i = 0; i < 12 && lastLabel && MONTH_NAMES[Number(anchor.slice(5, 7)) - 1] !== lastLabel; i++) {
+      anchor = shiftMonthKey(anchor, -1);
+    }
+    const months = monthly.map((m, i) => ({
+      key: m.key || shiftMonthKey(anchor, i - (monthly.length - 1)),
+      label: m.month,
+      partial: Boolean(m.partial),
+      income: Number(m.income) || 0,
+      expenses: Number(m.expenses) || 0,
+    }));
+
+    const byName = {};
+    const categories = [];
+    const cat = (name, type) => {
+      if (!byName[name]) {
+        byName[name] = { name, type, byMonth: {} };
+        categories.push(byName[name]);
+      }
+      return byName[name];
+    };
+    if (isLive) {
+      (client.categoryMonthly || []).forEach((r) => {
+        const c = cat(r.category, r.type);
+        const cell = c.byMonth[r.month] || (c.byMonth[r.month] = { actual: 0, budgeted: null });
+        cell.actual += Number(r.actual) || 0;
+        if (r.budgeted != null) cell.budgeted = (cell.budgeted || 0) + Number(r.budgeted);
+      });
+    } else if (months.length) {
+      const last = months[months.length - 1];
+      const spread = (rows, type, pick) =>
+        (rows || []).forEach((b) => {
+          const c = cat(b.category, type);
+          const base = pick(last) || 1;
+          months.forEach((m) => {
+            c.byMonth[m.key] = {
+              actual: m === last ? Number(b.actual) || 0 : Math.round(((Number(b.actual) || 0) * pick(m)) / base),
+              budgeted: b.budgeted == null ? null : Number(b.budgeted),
+            };
+          });
+        });
+      spread(window.mgbExpenseBudget(client.budget), "expense", (m) => m.expenses);
+      spread(client.budgetIncome, "income", (m) => m.income);
+    }
+    categories.sort((a, b) => (a.type === b.type ? a.name.localeCompare(b.name) : a.type === "expense" ? -1 : 1));
+
+    return {
+      months,
+      categories,
+      hasBudget: categories.some((c) => Object.values(c.byMonth).some((v) => v.budgeted != null)),
+      estimatedHistory: !isLive,
+      accounts: bankAccounts.map((a) => ({
+        name: a.accountName,
+        kind: window.mgbIsCardAccount(a) ? "card" : "cash",
+        balance: Number(a.balance) || 0,
+        transactions: (a.transactions || []).map((t) => ({
+          date: t.date,
+          description: t.description || "",
+          category: t.category || null,
+          amount: Number(t.amount) || 0,
+        })),
+      })),
+      funds: (client.funds || []).map((f) => ({ name: f.name, restricted: Boolean(f.restricted), balance: Number(f.balance) || 0 })),
+      contributions: client.contributions || [],
+      fundTransfers: client.fundTransfers || [],
+      pledges: client.pledges || [],
     };
   }
 
