@@ -1149,6 +1149,43 @@ function ccParse(text: string, src: any): CCParseResult {
   return { patch, catType, understood, hint: null };
 }
 
+/* ============================================================
+   Track this: one-click cards from rows elsewhere on the overview
+   ============================================================ */
+
+type CCTrackKind = "category" | "account" | "fund";
+const CC_TRACK_SOURCE: Record<CCTrackKind, CCSource> = { category: "categories", account: "accounts", fund: "funds" };
+
+// The overview's rows and the card data can name things slightly
+// differently ("Utilities" vs "Facilities:Utilities"), so resolve to the
+// card data's own name, or null when there's nothing to track.
+function ccResolveTrack(kind: CCTrackKind, name: string, src: any): string | null {
+  const list = (kind === "category" ? src.categories : kind === "account" ? src.accounts : src.funds) || [];
+  const hit = list.find((x: any) => norm(x.name) === norm(name)) || list.find((x: any) => categoryMatches(x.name, name));
+  return hit ? hit.name : null;
+}
+
+function ccFromItem(kind: CCTrackKind, name: string, src: any): CustomCardDef | null {
+  const resolved = ccResolveTrack(kind, name, src);
+  if (!resolved) return null;
+  const d = ccDefaults();
+  return {
+    ...d,
+    source: CC_TRACK_SOURCE[kind],
+    items: [resolved],
+    period: "last-3",
+    show: { summary: true, chart: true, breakdown: false, transactions: true },
+    compareBudget: kind === "category",
+  };
+}
+
+// An existing card that already tracks just this one item.
+function ccFindTracked(cards: CustomCardDef[], kind: CCTrackKind, name: string, src: any): CustomCardDef | null {
+  const resolved = ccResolveTrack(kind, name, src);
+  if (!resolved) return null;
+  return cards.find((c) => c.source === CC_TRACK_SOURCE[kind] && c.items.length === 1 && c.items[0] === resolved && !c.txn.keyword) || null;
+}
+
 function validate(def: CustomCardDef, src: any): string | null {
   if (def.source === "categories" && !def.items.length) return "Pick at least one category.";
   if (def.source === "funds" && !(src.funds || []).length) return "No funds are set up for this account yet.";
@@ -1587,6 +1624,9 @@ window.MGB_CustomCards = {
   newId: ccNewId,
   normalizeList: ccNormalizeList,
   parse: ccParse,
+  resolveTrack: ccResolveTrack,
+  fromItem: ccFromItem,
+  findTracked: ccFindTracked,
   describe: ccDescribe,
   suggestTitle: ccSuggestTitle,
   compute: ccCompute,

@@ -745,7 +745,7 @@ function EmptyNote({ children }: { children: React.ReactNode }) {
   return <div className={styles.emptyNote}>{children}</div>;
 }
 
-function BarList({ items, emptyText }: { items: { label: string; amount: number }[]; emptyText?: string }) {
+function BarList({ items, emptyText, track }: { items: { label: string; amount: number }[]; emptyText?: string; track?: (name: string) => any }) {
   const list = (items || []).filter((i) => i && Number.isFinite(i.amount) && i.amount > 0);
   const max = list.length ? Math.max(...list.map((i) => i.amount)) : 0;
   if (!list.length || max <= 0) return <EmptyNote>{emptyText || "Nothing to show yet."}</EmptyNote>;
@@ -762,6 +762,7 @@ function BarList({ items, emptyText }: { items: { label: string; amount: number 
             />
           </div>
           <div className={`${styles.bValue} ${styles.num} count-up`}>{fmtMoney(item.amount)}</div>
+          {track && track(item.label)}
         </div>
       ))}
     </div>
@@ -774,7 +775,7 @@ function BarList({ items, emptyText }: { items: { label: string; amount: number 
 
 const DONUT_COLORS = ["var(--series-revenue)", "var(--good)", "var(--warning)", "var(--critical)", "var(--series-expense)"];
 
-function DonutList({ items, total }: { items: { name: string; balance: number }[]; total: number }) {
+function DonutList({ items, total, track }: { items: { name: string; balance: number }[]; total: number; track?: (name: string) => any }) {
   let cursor = 0;
   const stops = items.map((a, i) => {
     const p = total > 0 ? (a.balance / total) * 100 : 0;
@@ -797,6 +798,7 @@ function DonutList({ items, total }: { items: { name: string; balance: number }[
             <span className={styles.donutLegendSwatch} style={{ background: DONUT_COLORS[i % DONUT_COLORS.length] }} />
             <span>{a.name}</span>
             <span className={`${styles.donutLegendValue} ${styles.num}`}>{fmtMoney(a.balance)}</span>
+            {track && track(a.name)}
           </div>
         ))}
       </div>
@@ -1070,6 +1072,59 @@ function DailyClose({ data, className, theme, onNavigate }: DailyCloseProps) {
   const canCustomize = Boolean(CC() && (data as any).cardSource);
   const atCardLimit = canCustomize && layout.cards.length >= CC().MAX;
   const openNewCard = canCustomize && !atCardLimit ? () => setBuilder({ def: null }) : null;
+
+  // "+ Track" on rows elsewhere on the overview: one click makes a card for
+  // that category or account (or jumps to the one that already exists).
+  const [trackToast, setTrackToast] = useState<{ id: string; title: string } | null>(null);
+  const toastTimer = useRef<any>(null);
+  useEffect(() => () => clearTimeout(toastTimer.current), []);
+  const flashCard = (id: string) => {
+    setTimeout(() => {
+      const el = document.querySelector(`[data-wd-id="${CSS.escape(id)}"]`) as HTMLElement | null;
+      if (!el) return;
+      const reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      el.scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "center" });
+      el.classList.add("wd-just-added");
+      setTimeout(() => el.classList.remove("wd-just-added"), 1600);
+    }, 60);
+  };
+  const trackBtn = (kind: "category" | "account" | "fund", name: string) => {
+    if (!canCustomize || editingLayout) return null;
+    const src = (data as any).cardSource;
+    if (!CC().resolveTrack(kind, name, src)) return null;
+    const existing = CC().findTracked(layout.cards, kind, name, src);
+    if (!existing && atCardLimit) return null;
+    return (
+      <button
+        type="button"
+        className={`${styles.trackBtn} ${existing ? styles.isTracked : ""}`}
+        title={existing ? `Go to your “${existing.title || CC().suggestTitle(existing)}” card` : `Add a card that tracks ${name} on its own`}
+        aria-label={existing ? `Go to your card for ${name}` : `Track ${name} on its own card`}
+        onClick={() => {
+          if (existing) return flashCard(existing.id);
+          const def = CC().fromItem(kind, name, src);
+          if (!def) return;
+          layout.addCard(def);
+          setTrackToast({ id: def.id, title: CC().suggestTitle(def) });
+          clearTimeout(toastTimer.current);
+          toastTimer.current = setTimeout(() => setTrackToast(null), 7000);
+          flashCard(def.id);
+        }}
+      >
+        {existing ? (
+          <>
+            <span aria-hidden="true">✓</span>
+            <span className={styles.trackWord}> Tracking</span>
+          </>
+        ) : (
+          <>
+            <span aria-hidden="true">+</span>
+            <span className={styles.trackWord}> Track</span>
+          </>
+        )}
+      </button>
+    );
+  };
 
   const agingRef = useRef<HTMLDivElement>(null);
   const outlookRef = useRef<HTMLDivElement>(null);
@@ -1362,6 +1417,35 @@ function DailyClose({ data, className, theme, onNavigate }: DailyCloseProps) {
           />
         )}
 
+        {/* Portalled: .dc-dailyClose's container-type traps position: fixed. */}
+        {trackToast && ReactDOM.createPortal(
+          <div className={styles.trackToast} role="status">
+            <span>
+              Added “{trackToast.title}” to your overview.
+            </span>
+            <button
+              type="button"
+              onClick={() => {
+                const def = layout.cards.find((c: any) => c.id === trackToast.id);
+                setTrackToast(null);
+                if (def) setBuilder({ def });
+              }}
+            >
+              Edit
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                layout.removeCard(trackToast.id);
+                setTrackToast(null);
+              }}
+            >
+              Undo
+            </button>
+          </div>,
+          document.body
+        )}
+
         {/* ---------- KPI row ---------- */}
         <section className={styles.kpiRow} aria-label="Key metrics">
           {layout.visibleOrder
@@ -1580,7 +1664,7 @@ function DailyClose({ data, className, theme, onNavigate }: DailyCloseProps) {
                       </div>
                     </div>
                     <div style={{ marginTop: 8 }}>
-                      <BarList items={data.expenseBreakdown} emptyText="No expenses recorded this month yet." />
+                      <BarList items={data.expenseBreakdown} emptyText="No expenses recorded this month yet." track={(n) => trackBtn("category", n)} />
                     </div>
                   </div>
                 );
@@ -1609,7 +1693,7 @@ function DailyClose({ data, className, theme, onNavigate }: DailyCloseProps) {
                         <div className={styles.panelSub}>Share of total cash on hand</div>
                       </div>
                     </div>
-                    <DonutList items={data.cash.byAccount} total={data.cash.total} />
+                    <DonutList items={data.cash.byAccount} total={data.cash.total} track={(n) => trackBtn("account", n)} />
                   </div>
                 );
               }
@@ -1645,6 +1729,7 @@ function DailyClose({ data, className, theme, onNavigate }: DailyCloseProps) {
                           <div className={`${styles.budgetHealthPct} ${styles.num}`}>
                             {b.overByPct == null ? "No budget" : `+${b.overByPct}%`}
                           </div>
+                          {trackBtn("category", b.category)}
                         </div>
                       ))}
                     </div>

@@ -2,10 +2,16 @@
 title: How do custom cards on the Financial Overview work?
 section: Getting started
 audience: staff
-keywords: [custom card, describe the card, fill in, custom cards, card builder, new custom card, financial overview, pro, youth budget, budget card, keyword filter, quick start, examples, discard, duplicate card, edit card, delete card, dashboard card]
+keywords: [custom card, track, + track, tracking, track this, describe the card, fill in, custom cards, card builder, new custom card, financial overview, pro, youth budget, budget card, keyword filter, quick start, examples, discard, duplicate card, edit card, delete card, dashboard card]
 sort: 45
 ---
 Pro clients can build their own cards on the **Financial Overview**, for example "the youth budget and its transactions for the last 3 months". Cards are built by picking from menus, so nobody has to type a formula.
+
+### The quickest way: + Track
+
+On the Financial Overview, point at a row in **Budget health**, **Where the money went** or **Cash by account** and click **+ Track** (on a phone the button is always showing, as a small **+**). That adds a card for just that category or account: the last 3 months with a chart and its transactions, compared with the budget for categories. The page scrolls to the new card and a message appears at the bottom with **Edit** (opens the builder) and **Undo** (removes the card).
+
+If a card for that item already exists, the button says **✓ Tracking** instead, and clicking it jumps to that card rather than making a copy. The buttons are hidden while **Customize dashboard** is open, and when the person already has 24 custom cards.
 
 ### Making a card
 

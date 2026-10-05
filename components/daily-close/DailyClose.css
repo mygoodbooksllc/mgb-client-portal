@@ -844,7 +844,9 @@
   flex-direction: column;
   gap: 10px;
   flex: 1;
-  min-width: 140px;
+  /* Wide enough that on a phone the legend wraps under the donut instead
+     of squeezing account names beside it. */
+  min-width: 200px;
 }
 .dc-donutLegendRow {
   display: flex;
@@ -1627,4 +1629,51 @@
   .cc-chips { grid-template-columns: 1fr 1fr; }
   .cc-chip { padding: 9px 10px; }
   .cc-chip strong { font-size: 12.5px; }
+}
+/* "+ Track" on overview rows: quiet until the row is hovered or focused;
+   always shown on touch screens, which have no hover. */
+.dc-trackBtn {
+  flex: none;
+  font: inherit;
+  font-size: 11.5px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border: 1px solid var(--border, rgba(0, 0, 0, 0.12));
+  border-radius: 999px;
+  background: transparent;
+  color: var(--ink-500, var(--text-muted));
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.12s ease;
+  white-space: nowrap;
+}
+.dc-barRow:hover .dc-trackBtn,
+.dc-budgetHealthRow:hover .dc-trackBtn,
+.dc-donutLegendRow:hover .dc-trackBtn,
+.dc-trackBtn:focus-visible,
+.dc-trackBtn.dc-isTracked { opacity: 1; }
+.dc-trackBtn:hover { border-color: var(--gold, #b8975a); color: var(--ink-900, var(--text)); }
+.dc-trackBtn.dc-isTracked { border-style: dashed; font-weight: 500; }
+@media (hover: none) { .dc-trackBtn { opacity: 1; } }
+.dc-trackToast {
+  position: fixed;
+  left: 50%;
+  bottom: 24px;
+  transform: translateX(-50%);
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  max-width: calc(100vw - 32px);
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: #1d1d1b;
+  color: #fff;
+  font-size: 13px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+}
+.dc-trackToast button { font: inherit; font-weight: 600; background: none; border: none; color: #e2c88f; cursor: pointer; padding: 2px 4px; }
+@media (max-width: 600px) {
+  .dc-trackWord { display: none; }
+  .dc-trackBtn { padding: 2px 7px; font-size: 13px; }
 }
