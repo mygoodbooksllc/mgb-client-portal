@@ -169,6 +169,7 @@ type LiveReportWidgetId =
   | "payables-due-soon"
   | "fund-activity"
   | "reconciliation"
+  | "account-manager"
   | "bookkeeper";
 
 const LIVE_REPORT_WIDGETS: { id: LiveReportWidgetId; label: string; description: string }[] = [
@@ -185,9 +186,25 @@ const LIVE_REPORT_WIDGETS: { id: LiveReportWidgetId; label: string; description:
   { id: "payables-due-soon", label: "Bills Due Soon", description: "Upcoming payables, soonest first" },
   { id: "fund-activity", label: "Fund Activity", description: "Recent contributions and fund transfers, plus open pledges" },
   { id: "reconciliation", label: "Reconciliation Status", description: "Open items awaiting clearance, and when each account last closed" },
+  { id: "account-manager", label: "Your Account Manager", description: "Your main contact at MyGoodBooks" },
   { id: "bookkeeper", label: "Your Bookkeeper", description: "Who at MyGoodBooks handles this account" },
 ];
 const LIVE_REPORT_WIDGET_IDS = LIVE_REPORT_WIDGETS.map((w) => w.id);
+
+// A saved order plus any widgets added since it was saved. A new widget goes
+// in at its default spot (just before the next default widget the saved order
+// has), not at the very end, so Your Account Manager lands beside Your
+// Bookkeeper on boards customized before it existed.
+function mergeLiveReportOrder(savedOrder: string[]): string[] {
+  const order = savedOrder.filter((id) => LIVE_REPORT_WIDGET_IDS.includes(id as LiveReportWidgetId));
+  LIVE_REPORT_WIDGET_IDS.forEach((id, i) => {
+    if (order.includes(id)) return;
+    const next = LIVE_REPORT_WIDGET_IDS.slice(i + 1).find((n) => order.includes(n));
+    if (next) order.splice(order.indexOf(next), 0, id);
+    else order.push(id);
+  });
+  return order;
+}
 
 function liveReportLayoutKey(clientId?: string): string {
   return `mygoodbooks_live_report_layout_v1:${clientId || "default"}`;
@@ -240,7 +257,7 @@ function writeLiveReportViews(clientId: string | undefined, views: LiveReportVie
 function useLiveReportLayout(clientId?: string) {
   const [saved, setSaved] = useState(() => readLiveReportLayout(clientId));
   const [views, setViews] = useState(() => readLiveReportViews(clientId));
-  const order = saved ? saved.order.filter((id) => LIVE_REPORT_WIDGET_IDS.includes(id as LiveReportWidgetId)).concat(LIVE_REPORT_WIDGET_IDS.filter((id) => !saved!.order.includes(id))) : LIVE_REPORT_WIDGET_IDS.slice();
+  const order = saved ? mergeLiveReportOrder(saved.order) : LIVE_REPORT_WIDGET_IDS.slice();
   const hidden = new Set(saved ? saved.hidden.filter((id) => LIVE_REPORT_WIDGET_IDS.includes(id as LiveReportWidgetId)) : []);
 
   // Account copy (WD_useBoardSync in components/dashboard/WidgetDrawer.jsx):
@@ -321,7 +338,7 @@ function useLiveReportLayout(clientId?: string) {
       const view = views.find((v) => v.name === name);
       if (!view) return;
       update(
-        view.order.filter((id) => LIVE_REPORT_WIDGET_IDS.includes(id as LiveReportWidgetId)).concat(LIVE_REPORT_WIDGET_IDS.filter((id) => !view.order.includes(id))),
+        mergeLiveReportOrder(view.order),
         new Set(view.hidden.filter((id) => LIVE_REPORT_WIDGET_IDS.includes(id as LiveReportWidgetId)))
       );
     },
@@ -1646,9 +1663,18 @@ function DailyClose({ data, className, theme, onNavigate }: DailyCloseProps) {
                 );
               }
 
-              if (id === "bookkeeper") {
-                if (!data.bookkeeper) return null;
-                const bk = data.bookkeeper;
+              if (id === "account-manager" || id === "bookkeeper") {
+                // Account manager first (main contact). When the same person
+                // is both, the bookkeeper card is dropped and this one says so.
+                const am = data.accountManager;
+                const same = !!(am && data.bookkeeper && am.email && data.bookkeeper.email &&
+                  am.email.toLowerCase() === data.bookkeeper.email.toLowerCase());
+                if (id === "bookkeeper" && same) return null;
+                const bk = id === "account-manager" ? am : data.bookkeeper;
+                if (!bk) return null;
+                const role = id === "account-manager"
+                  ? (same ? "Account manager and bookkeeper" : "Account manager")
+                  : bk.role;
                 return (
                   <div className={styles.panel} key={id} {...wdCard(id)}>
                     <div className={styles.bookkeeperCard}>
@@ -1657,7 +1683,7 @@ function DailyClose({ data, className, theme, onNavigate }: DailyCloseProps) {
                         <div className={styles.panelTitle}>
                           {bk.name} <ChatIcon className={styles.panelIconInline} />
                         </div>
-                        <div className={styles.panelSub}>{bk.role} &middot; MyGoodBooks</div>
+                        <div className={styles.panelSub}>{role} &middot; MyGoodBooks</div>
                       </div>
                     </div>
                     {onNavigate && (

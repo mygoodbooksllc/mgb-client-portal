@@ -25925,21 +25925,12 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
               // passed through so both sides stay in step. Data is derived
               // from the selected client rather than the shipped Bramblewood
               // sample, so the panel and the rest of the app agree.
-              <React.Fragment key={"daily-close-" + client.id}>
-                <DailyClose
-                  data={dailyCloseData || dailyCloseFromClient(client, access.plan)}
-                  theme={effectiveTheme}
-                  onNavigate={setPage}
-                />
-                {/* Same account manager / bookkeeper cards as the standard
-                    Dashboard (Settings.jsx), fixed order, no Customize. */}
-                {typeof AM_TeamRow === "function" && (
-                  <AM_TeamRow
-                    client={scopedClient}
-                    ids={AM_teamWidgetDefs(scopedClient).map((w) => w.id)}
-                  />
-                )}
-              </React.Fragment>
+              <DailyClose
+                data={dailyCloseData || dailyCloseFromClient(client, access.plan)}
+                theme={effectiveTheme}
+                onNavigate={setPage}
+                key={"daily-close-" + client.id}
+              />
             ) : access.isCategoryScoped ? (
               <ScopedDashboardPage
                 client={scopedClient}

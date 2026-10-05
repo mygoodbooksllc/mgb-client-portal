@@ -555,6 +555,19 @@
             name: client.assignedBookkeeper.name,
             role: client.assignedBookkeeper.role,
             initials: client.assignedBookkeeper.initials,
+            email: client.assignedBookkeeper.email || null,
+          }
+        : undefined,
+      accountManager: client.accountManager && client.accountManager.email
+        ? {
+            name: client.accountManager.name,
+            initials: (client.accountManager.name || "")
+              .split(/\s+/)
+              .filter(Boolean)
+              .slice(0, 2)
+              .map((w) => w[0].toUpperCase())
+              .join(""),
+            email: client.accountManager.email,
           }
         : undefined,
     };

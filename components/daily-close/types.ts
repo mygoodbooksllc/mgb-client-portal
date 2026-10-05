@@ -182,5 +182,14 @@ export interface DailyCloseData {
     name: string;
     role: string;
     initials: string;
+    email?: string | null;
+  };
+
+  /** The client's account manager (their main contact), shown beside the
+      bookkeeper. Omit if none is set. */
+  accountManager?: {
+    name: string;
+    initials: string;
+    email?: string | null;
   };
 }
