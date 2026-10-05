@@ -403,7 +403,7 @@ body {
     align-items: center;
   }
 
-  .sidebar.sidebar-collapsed .brand,
+  .sidebar.sidebar-collapsed .brand-text,
   .sidebar.sidebar-collapsed .brand-tagline,
   .sidebar.sidebar-collapsed .client-picker-label,
   .sidebar.sidebar-collapsed .client-select,
@@ -457,6 +457,18 @@ body {
   }
   .sidebar.sidebar-collapsed .nav-item-caption {
     display: block;
+  }
+  /* The logo box stays at the top when collapsed. Beside the staff rail
+     (which has its own) it's dropped, so there's only one logo. */
+  .sidebar.sidebar-collapsed .brand {
+    justify-content: center;
+    padding: 0 0 12px;
+  }
+  .sidebar.sidebar-collapsed .brand-link {
+    flex: none;
+  }
+  .app-shell.has-staff-rail > .sidebar.sidebar-collapsed .brand {
+    display: none;
   }
   .sidebar.sidebar-collapsed .nav-item .nav-badge-dot {
     position: absolute;
