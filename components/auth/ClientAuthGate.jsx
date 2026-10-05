@@ -21,11 +21,22 @@
     const [errorMsg, setErrorMsg] = useState("");
     const [code, setCode] = useState("");
     const [verifying, setVerifying] = useState(false);
+    // Set only when checkClientRow turns a session away, so the "Sign out
+    // and use a different address" button doesn't show for ordinary errors.
+    const [denied, setDenied] = useState(false);
+    const [notice, setNotice] = useState("");
 
     const supabase = window.mgbSupabase;
 
     async function checkClientRow(session) {
       const sessionEmail = session.user.email;
+      // The mirror of AuthGate's check: a staff session (from the staff app
+      // in another tab) belongs in the staff gate, so hand it to RootGate
+      // instead of signing it out.
+      if ((sessionEmail || "").toLowerCase().endsWith("@mygoodbooks.org")) {
+        window.location.replace("/");
+        return;
+      }
       const { data, error } = await supabase
         .from("client_users")
         .select(
@@ -46,6 +57,7 @@
         // survives, so the explanation below stays on screen.
         supabase.auth.signOut();
         setErrorMsg("Couldn't verify your access. Try again in a moment.");
+        setDenied(true);
         setStatus("denied");
         return;
       }
@@ -54,6 +66,7 @@
         setErrorMsg(
           `${sessionEmail} isn't set up for portal access yet. Ask your bookkeeper.`,
         );
+        setDenied(true);
         setStatus("denied");
         return;
       }
@@ -92,6 +105,8 @@
     async function sendLink(e) {
       e.preventDefault();
       setErrorMsg("");
+      setNotice("");
+      setDenied(false);
       // Without emailRedirectTo, Supabase sends the confirmed session back to
       // the bare site URL, dropping ?client-login=1 — which then falls
       // through to the staff AuthGate instead of back here. Security audit
@@ -109,9 +124,16 @@
         },
       });
       if (error) {
-        setErrorMsg(error.message);
+        // Supabase allows one email about every 60 seconds per address.
+        const wait = /after (\d+) seconds?/i.exec(error.message || "");
+        setErrorMsg(
+          wait
+            ? `Please wait ${wait[1]} seconds before asking for another email. Your last code still works.`
+            : "Couldn't send the email. Check the address and try again.",
+        );
         return;
       }
+      if (status === "link-sent") setNotice("New code sent. Use the code from the newest email.");
       setCode("");
       setStatus("link-sent");
     }
@@ -128,6 +150,7 @@
       const token = code.replace(/\s+/g, "");
       if (!token) return;
       setErrorMsg("");
+      setNotice("");
       setVerifying(true);
       const { error } = await supabase.auth.verifyOtp({
         email: email.trim(),
@@ -217,6 +240,11 @@
               type the code from the email below.
             </p>
           </div>
+          {notice && !errorMsg && (
+            <p className="auth-sub" role="status">
+              {notice}
+            </p>
+          )}
           {errorMsg && (
             <p className="auth-error" role="alert">
               {errorMsg}
@@ -259,6 +287,7 @@
               className="auth-text-btn"
               onClick={() => {
                 setErrorMsg("");
+                setNotice("");
                 setCode("");
                 setStatus("signed-out");
               }}
@@ -281,7 +310,7 @@
             {errorMsg}
           </p>
         )}
-        {errorMsg && (
+        {denied && (
           <button
             type="button"
             className="auth-btn auth-btn-secondary"

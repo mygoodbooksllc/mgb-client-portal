@@ -46,6 +46,15 @@
 
     async function checkStaffRow(session) {
       const email = session.user.email;
+      // A client session that started in another tab or the installed app
+      // (they share this browser's session storage) arrives here through
+      // onAuthStateChange. It isn't a failed staff sign-in, so don't sign
+      // it out, which would end the client's sign-in everywhere. Reload so
+      // RootGate sends it to the client gate, which checks client_users.
+      if (!(email || "").toLowerCase().endsWith("@mygoodbooks.org")) {
+        window.location.replace("/");
+        return;
+      }
       const { data, error } = await supabase
         .from("staff")
         .select("email, name, role, active")
