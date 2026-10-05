@@ -6002,6 +6002,25 @@ body:has(.modal-overlay) .chat-fab-wrap {
 
 .auth-footer a:hover { color: var(--text); text-decoration: underline; }
 
+/* Client portal: small staff-only Google link under the footer. */
+.auth-staff-link {
+  align-self: center;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: -4px;
+  padding: 4px 6px;
+  background: none;
+  border: 0;
+  border-radius: 4px;
+  font: inherit;
+  font-size: 12px;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+.auth-staff-link:hover { color: var(--text); text-decoration: underline; }
+.auth-staff-link:focus-visible { outline: 2px solid var(--gold-deep); outline-offset: 2px; }
+
 @media (max-width: 480px) {
   .auth-card { padding: 24px 20px; }
   .auth-title { font-size: 24px; }
