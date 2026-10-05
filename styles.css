@@ -548,6 +548,11 @@ body {
   opacity: 0.85;
 }
 
+/* Client sidebar: the staff rail's gold logo box (.staff-rail-mark) next to
+   the wordmark. */
+.brand-link { gap: 12px; }
+.brand-logo-box { width: 42px; height: 42px; }
+
 .brand-link:focus-visible {
   outline: 2px solid rgba(199, 174, 134, 0.6);
   outline-offset: 2px;
@@ -6001,6 +6006,13 @@ body:has(.modal-overlay) .chat-fab-wrap {
 }
 
 .auth-footer a:hover { color: var(--text); text-decoration: underline; }
+
+/* Client portal: sign-in code step. */
+.auth-code-input { font-family: var(--font-mono, monospace); font-size: 20px; letter-spacing: 0.25em; text-align: center; }
+.auth-code-actions { display: flex; justify-content: center; align-items: center; gap: 8px; font-size: 14px; color: var(--text-muted); }
+.auth-text-btn { background: none; border: 0; padding: 2px 4px; border-radius: 4px; font: inherit; color: var(--gold-deep); cursor: pointer; }
+.auth-text-btn:hover { text-decoration: underline; }
+.auth-text-btn:focus-visible { outline: 2px solid var(--gold-deep); outline-offset: 2px; }
 
 /* Client portal: small staff-only Google link under the footer. */
 .auth-staff-link {

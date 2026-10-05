@@ -19,6 +19,8 @@
     const [clientUser, setClientUser] = useState(null);
     const [email, setEmail] = useState("");
     const [errorMsg, setErrorMsg] = useState("");
+    const [code, setCode] = useState("");
+    const [verifying, setVerifying] = useState(false);
 
     const supabase = window.mgbSupabase;
 
@@ -110,7 +112,33 @@
         setErrorMsg(error.message);
         return;
       }
+      setCode("");
       setStatus("link-sent");
+    }
+
+    // The same email carries a one-time code (the Magic Link template's
+    // {{ .Token }}). Typing it here signs in wherever this page is open. The
+    // link in the email always opens in the browser, so the code is how an
+    // installed copy of the app (manifest.webmanifest) signs in, iPhone
+    // included. Success fires onAuthStateChange, which runs checkClientRow
+    // like the link does. shouldCreateUser: false above means codes only
+    // exist for provisioned emails.
+    async function verifyCode(e) {
+      e.preventDefault();
+      const token = code.replace(/\s+/g, "");
+      if (!token) return;
+      setErrorMsg("");
+      setVerifying(true);
+      const { error } = await supabase.auth.verifyOtp({
+        email: email.trim(),
+        token,
+        type: "email",
+      });
+      setVerifying(false);
+      if (error) {
+        // Supabase reports wrong and expired codes with the same message.
+        setErrorMsg("That code didn't work or has expired. Check it, or send a new one.");
+      }
     }
 
     function signOut() {
@@ -181,10 +209,62 @@
 
     if (status === "link-sent") {
       return frame(
-        <div className="auth-card" role="status">
-          <div className="auth-head">
-            <h1 className="auth-title">Client portal</h1>
-            <p className="auth-sub">Check {email} for a sign-in link.</p>
+        <div className="auth-card">
+          <div className="auth-head" role="status">
+            <h1 className="auth-title">Check your email</h1>
+            <p className="auth-sub">
+              We sent a sign-in email to {email}. Click the link in it, or
+              type the code from the email below.
+            </p>
+          </div>
+          {errorMsg && (
+            <p className="auth-error" role="alert">
+              {errorMsg}
+            </p>
+          )}
+          <form className="auth-form" onSubmit={verifyCode}>
+            <div className="auth-field">
+              <label className="auth-label" htmlFor="client-login-code">
+                Sign-in code
+              </label>
+              <input
+                id="client-login-code"
+                className="auth-input auth-code-input"
+                type="text"
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                pattern="[0-9 ]*"
+                maxLength={12}
+                required
+                placeholder="123456"
+                value={code}
+                onChange={(e) => setCode(e.target.value)}
+              />
+            </div>
+            <button
+              type="submit"
+              className="auth-btn auth-btn-primary"
+              disabled={verifying || !code.trim()}
+            >
+              {verifying ? "Signing in…" : "Sign in"}
+            </button>
+          </form>
+          <div className="auth-code-actions">
+            <button type="button" className="auth-text-btn" onClick={sendLink}>
+              Send a new code
+            </button>
+            <span aria-hidden="true">·</span>
+            <button
+              type="button"
+              className="auth-text-btn"
+              onClick={() => {
+                setErrorMsg("");
+                setCode("");
+                setStatus("signed-out");
+              }}
+            >
+              Use a different email
+            </button>
           </div>
         </div>,
       );

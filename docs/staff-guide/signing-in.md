@@ -2,7 +2,7 @@
 title: How do I sign in?
 section: Getting started
 audience: staff
-keywords: [login, log in, sign in, google, password, sign out, staff list, access denied]
+keywords: [login, log in, sign in, google, password, sign out, staff list, access denied, client sign in, sign-in code, magic link]
 sort: 20
 ---
 Staff sign in with their **MyGoodBooks Google account** (your @mygoodbooks.org address). There is no separate password for the portal.
@@ -20,6 +20,18 @@ If someone sent you a link to a specific page (for example a task list or a clie
 
 - On a computer: click your initials at the top right of the page, then **Sign out**.
 - On a phone: tap your name at the top of the menu, then **Sign out**.
+
+### How clients sign in
+
+Clients don't use Google. On the sign-in page they type their email and click **Email me a sign-in link**. The email has a link and a sign-in code. They can either:
+
+- click the link (it opens in their web browser), or
+- type the code on the **Check your email** screen and click **Sign in**. Use this when they're signing in on a different device, or in the MyGoodBooks app on their phone or computer.
+
+If a client says it's not working:
+
+- **No email arrives.** Only invited addresses get one. Check they're set up for portal access, and ask them to look in spam.
+- **"That code didn't work or has expired."** Codes only last a short time and only the newest one works. Ask them to click **Send a new code** and use the code from the newest email.
 
 ### Troubleshooting
 

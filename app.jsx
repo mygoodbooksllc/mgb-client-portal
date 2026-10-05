@@ -1100,6 +1100,8 @@ function Sidebar({
           target="_blank"
           rel="noopener noreferrer"
         >
+          {/* Gold logo in a gold box, same as the staff rail and sign-in. */}
+          <span className="staff-rail-mark brand-logo-box" aria-hidden="true" />
           <div className="brand-text">
             <span className="brand-name">My<span className="brand-name-good">Good</span>Books</span>
             <span className="brand-sub">Client Portal</span>
