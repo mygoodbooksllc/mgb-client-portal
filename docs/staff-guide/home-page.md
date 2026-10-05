@@ -2,23 +2,44 @@
 title: What's on my Home page?
 section: Getting started
 audience: staff
-keywords: [home, dashboard, needs attention, reminders, upgrade requests, access requests, needs a visit, recently viewed, customize, add widgets, saved views, reset layout, financial overview, board-ready, live report, status, handoff]
+keywords: [home, dashboard, needs you, needs attention, needs you now, this week, all clear, colors, red, amber, priority, reminders, upgrade requests, access requests, needs a visit, recently viewed, customize, add widgets, saved views, reset layout, financial overview, board-ready, live report, status, handoff]
 sort: 40
 ---
-**Home** is your starting point. It shows what needs attention across every client you can see. To open a client, use the client picker or the search box in the [top bar](#/help/top-bar).
+**Home** is your starting point. It shows what needs you across every client you can see, sorted by how soon it needs doing. To open a client, use the client picker or the search box in the [top bar](#/help/top-bar).
 
-### Cards you may see
+### What the colors mean
 
-- **Client access requests**: teammates asking to work on one of your clients for a short time. **Approve** or **Deny**. Only shows when there's something to act on.
-- **Access requests**: people a client has asked us to give portal access to. **Review** opens that client's *Manage access* panel.
-- **Upgrade requests**: clients who asked for a bigger plan (or the Payroll add-on) from the **Plan** tab of their Settings. Follow up with them, then use **Mark contacted**, **Mark completed** or **Dismiss**.
-- **Needs attention**: bills overdue or due soon, across your clients.
-- **Unread messages**: conversations waiting on a reply.
-- **Recently viewed** and **Needs a visit**: clients you opened lately, and ones you haven't opened on this device in a while.
+Home uses three levels. Each one has a colored stripe on the left edge of a card or tile, and is always spelled out in words too:
+
+- **Red: Needs you now.** Something is late or waiting on us: overdue bills, access and upgrade requests, unread client messages, and reminders due today or earlier.
+- **Amber: This week.** Coming up soon: bills due within 7 days and reminders due this week. The **Milestones to review** and **Month-end close** cards turn amber while they have something to finish.
+- **Neutral: Keep in touch.** Reference cards like **Your clients**, **Recently viewed** and **Needs a visit**.
+- **Green: All clear ✓.** Nothing to do there.
+
+At the top, a line like **3 need you now · 5 this week** sums it up. Click it to jump to the **Needs you** list. The number tiles below it work the same way: red or amber when there's something to do, green "all clear ✓" at zero. Click a tile to jump to what it counts.
+
+### Needs you (the to-do list)
+
+**Needs you** puts everything waiting on you in one list, most urgent first, in two groups: **Needs you now** and **This week**. Each row has a tag saying what it is:
+
+- **Access**: people a client has asked us to give portal access to. **Review** opens that client's *Manage access* panel.
+- **Bills**: overdue or due-soon bills, one row per client with the count and total. Click to open that client's bills.
+- **Message**: a client conversation waiting on a reply. Click to open it.
+- **Upgrade**: a client asked for a bigger plan (or the Payroll add-on) from the **Plan** tab of their Settings. Follow up with them, then click **Contacted**, **Completed** or **Dismiss**.
+- **Reminder**: one of your reminders that's due. **Done** checks it off. Click the row to open **My Tasks**.
+
+It shows the first 6 of each group. Click **Show everything** to see the rest. When there's nothing, it says **All clear**.
+
+### Other cards
+
+- **Client access requests** (red, at the top): teammates asking to work on one of your clients for a short time. **Approve** or **Deny**. Only shows when there's something to act on.
+- **Your reminders**: a quick list of all your reminders, with a box to add one. For times, repeats and sharing, use **My Tasks**.
 - **Milestones to review**: clients whose pricing milestone needs a look (see the admin article on pricing milestones).
 - **Month-end close**: last month's close checklist progress for each client, least finished first.
-- **Your clients**: each client with a health dot, overdue counts and notes.
-- **Your reminders**: a quick list of your reminders. For times, repeats and sharing, use **My Tasks**.
+- **Recently viewed** and **Needs a visit**: clients you opened lately, and ones you haven't opened on this device in a while. When nobody needs a visit, the card shrinks to one line.
+- **Your clients**: every client with a health dot, overdue counts and notes. It runs the full width of the page, below the other cards.
+
+The separate **Access requests**, **Upgrade requests** and **Unread messages** cards are gone. Those items are now in **Needs you**.
 
 ### Your clients: Status and Note
 
@@ -35,7 +56,7 @@ Click **Customize dashboard** to open the customize panel on the right. The same
 - **On your dashboard** lists what's showing. Use the arrows (or drag the handle) to reorder, and **−** to hide a card.
 - While the panel is open, every card on the page gets a dotted outline, a drag handle and an **×** to hide it, so you can also rearrange right on the page.
 - On a Pro client's Financial Overview, **Create a custom card** (also the **New custom card** button) builds a card of your own from menus. See *How do custom cards on the Financial Overview work?*
-- **Saved views** lets you save the current layout under a name and switch back to it later. **Reset to default** puts everything back.
+- **Saved views** lets you save the current layout under a name and switch back to it later. **Reset to default** puts everything back. On Home, the default is the priority order described above. If you'd already rearranged your Home, your own order stays until you click **Reset to default**.
 - Close the panel with **Done**, the **X**, the **Esc** key, or by clicking outside it. Your layout is saved to your account, so it follows you to any computer or phone.
 
 While you're using **View as** or previewing a person, changes you make aren't saved to your own layout.

@@ -4774,15 +4774,20 @@ function MilestoneStaffPanel({ client, formsOnly }) {
 }
 
 // Staff Home: clients whose milestone needs a look.
-function MilestonesReviewList({ clients, onOpenClient }) {
+function MilestonesReviewList({ clients, onOpenClient, onCount }) {
   const ids = useMemo(() => clients.map((c) => c.id).sort(), [clients]);
   const { loading, byId, missing } = useMilestones(ids);
-  if (loading) return <p className="card-subtitle">Loading…</p>;
-  if (missing) return <p className="card-subtitle">Milestones turn on once the database update is applied.</p>;
   const rows = clients
     .map((c) => ({ c, s: byId[c.id] }))
     .filter(({ s }) => s && (s.pendingTier || s.unconfirmed || s.approaching))
     .sort((a, b) => (b.s.pendingTier ? 2 : b.s.unconfirmed ? 1 : 0) - (a.s.pendingTier ? 2 : a.s.unconfirmed ? 1 : 0));
+  // Home tints this card amber while anything is waiting for review.
+  const count = loading || missing ? 0 : rows.length;
+  useEffect(() => {
+    if (onCount) onCount(count);
+  }, [count, onCount]);
+  if (loading) return <p className="card-subtitle">Loading…</p>;
+  if (missing) return <p className="card-subtitle">Milestones turn on once the database update is applied.</p>;
   if (!rows.length) return <p className="card-subtitle">Every client's milestone matches their numbers.</p>;
   return (
     <div className="staff-audit-list">
@@ -5560,7 +5565,7 @@ function CloseChecklistCard({ client }) {
 }
 
 // Home widget: close progress across every client this staffer can see.
-function CloseProgressList({ clients, onOpenClient }) {
+function CloseProgressList({ clients, onOpenClient, onBehind }) {
   const period = closePeriodFor();
   const [state, setState] = useState({ loading: true, rows: [], missing: false });
   const load = useCallback(() => {
@@ -5575,7 +5580,6 @@ function CloseProgressList({ clients, onOpenClient }) {
     window.addEventListener(STAFF_TOOLS_EVENT, load);
     return () => window.removeEventListener(STAFF_TOOLS_EVENT, load);
   }, [load]);
-  if (state.missing) return <p className="card-subtitle">{STAFF_TOOLS_SETUP_MSG}</p>;
   const done = {};
   state.rows.forEach((r) => {
     if (r.done) done[r.client_id] = (done[r.client_id] || 0) + 1;
@@ -5583,6 +5587,15 @@ function CloseProgressList({ clients, onOpenClient }) {
   const rows = clients
     .map((c) => ({ c, n: done[c.id] || 0 }))
     .sort((a, b) => a.n - b.n || (a.c.name || "").localeCompare(b.c.name || ""));
+  // Home tints this card amber while any client's close is unfinished.
+  const behind =
+    state.loading || state.missing
+      ? 0
+      : rows.filter(({ n }) => n < CLOSE_CHECKLIST.length).length;
+  useEffect(() => {
+    if (onBehind) onBehind(behind);
+  }, [behind, onBehind]);
+  if (state.missing) return <p className="card-subtitle">{STAFF_TOOLS_SETUP_MSG}</p>;
   return (
     <ul className="close-progress-list">
       {rows.map(({ c, n }) => (
@@ -16232,6 +16245,133 @@ function BookkeeperHomePage({
     return map;
   }, [dueAcrossClients]);
 
+  // The "Needs you" to-do list: everything actionable from every source,
+  // split into two bands by how soon it needs doing. "now" (red) is late or
+  // waiting on us; "week" (amber) is coming up within AP_SOON_DAYS. Bills
+  // are grouped per client so one client with ten bills is one row.
+  const [todoExpanded, setTodoExpanded] = useState(false);
+  const [milestoneCount, setMilestoneCount] = useState(0);
+  const [closeBehind, setCloseBehind] = useState(0);
+  const todo = useMemo(() => {
+    const now = [];
+    const week = [];
+    const billGroups = {};
+    dueAcrossClients.forEach((r) => {
+      const k = r.clientId + ":" + r.status;
+      const g =
+        billGroups[k] ||
+        (billGroups[k] = {
+          clientId: r.clientId,
+          clientName: r.clientName,
+          status: r.status,
+          n: 0,
+          total: 0,
+          first: r.diff,
+        });
+      g.n++;
+      g.total += Number(r.amount) || 0;
+      g.first = Math.min(g.first, r.diff);
+    });
+    Object.values(billGroups).forEach((g) => {
+      const overdue = g.status === "overdue";
+      (overdue ? now : week).push({
+        key: "bill-" + g.clientId + g.status,
+        kind: "Bills",
+        rank: 1,
+        sort: g.first,
+        title: g.clientName,
+        detail:
+          `${g.n} bill${g.n === 1 ? "" : "s"} ${overdue ? "overdue" : "due soon"} · ` +
+          `${fmtMoney(g.total, { cents: true })} · ${overdue ? "oldest " : "next "}${apDueText(g.first).toLowerCase()}`,
+        onClick: () => onNavigateToClient(g.clientId, "receivables"),
+      });
+    });
+    (accessRequests || []).forEach((r) => {
+      const c = clients.find((cl) => cl.id === r.client_id);
+      const people = Array.isArray(r.people) ? r.people.length : 0;
+      const open = () =>
+        onNavigateToClient(r.client_id, "dashboard", { openAccessManager: true });
+      now.push({
+        key: "access-" + r.id,
+        kind: "Access",
+        rank: 0,
+        sort: 0,
+        title: c ? c.name : r.client_id,
+        detail:
+          `Portal access for ${people === 1 ? "1 person" : `${people} people`}` +
+          (r.submitted_by_name ? `, asked by ${r.submitted_by_name}` : "") +
+          (r.submitted_at ? ` on ${fmtDate(r.submitted_at.slice(0, 10))}` : ""),
+        onClick: open,
+        actions: [{ label: "Review", primary: true, onClick: open }],
+      });
+    });
+    unreadAcrossClients.forEach((r) => {
+      now.push({
+        key: "msg-" + r.clientId + r.userId,
+        kind: "Message",
+        rank: 2,
+        sort: 0,
+        title: r.userName,
+        detail: `${r.clientName} · waiting on a reply`,
+        onClick: () => onNavigateToClient(r.clientId, "messages"),
+      });
+    });
+    (upgradeRequests || []).forEach((r) => {
+      const c = clients.find((cl) => cl.id === r.client_id);
+      const busy = upgradeRequestBusyId === r.id;
+      now.push({
+        key: "upgrade-" + r.id,
+        kind: "Upgrade",
+        rank: 3,
+        sort: 0,
+        title: c ? c.name : r.client_id,
+        detail:
+          "Wants " +
+          (r.requested_plan === "payroll"
+            ? "the Payroll add-on"
+            : r.requested_plan
+              ? planLabel(r.requested_plan)
+              : "to upgrade") +
+          (c ? ` (on ${planLabel(c.plan)})` : "") +
+          ` · asked by ${r.requested_by || "unknown"} ${fmtDateTime(r.created_at)}`,
+        actions: [
+          { label: "Contacted", disabled: busy, onClick: () => setUpgradeRequestStatus(r, "contacted") },
+          { label: "Completed", disabled: busy, onClick: () => setUpgradeRequestStatus(r, "completed") },
+          { label: "Dismiss", disabled: busy, onClick: () => setUpgradeRequestStatus(r, "dismissed") },
+        ],
+      });
+    });
+    (reminders || []).forEach((r) => {
+      if (r.done || !r.due_date) return;
+      const diff = daysUntil(r.due_date, today);
+      if (diff > AP_SOON_DAYS) return;
+      (diff <= 0 ? now : week).push({
+        key: "rem-" + r.id,
+        kind: "Reminder",
+        rank: 4,
+        sort: diff,
+        title: r.text,
+        detail: staffItemDueLabel(r, today),
+        onClick: onOpenMyTasks || undefined,
+        actions: [{ label: "Done", onClick: () => toggleReminder(r) }],
+      });
+    });
+    week.sort((a, b) => a.sort - b.sort);
+    return { now: now.sort((a, b) => a.rank - b.rank || a.sort - b.sort), week };
+    // toggleReminder / setUpgradeRequestStatus are redefined every render but
+    // only close over stable setters and supabase.
+  }, [
+    dueAcrossClients,
+    accessRequests,
+    unreadAcrossClients,
+    upgradeRequests,
+    upgradeRequestBusyId,
+    reminders,
+    clients,
+    today,
+  ]);
+  const todoErrors = [accessRequestsError, upgradeRequestsError, reminderError].filter(Boolean);
+
   // Same drag-to-reorder / hide-and-show system the client Dashboard uses
   // (useWidgetLayout + useDragReorder + CustomizeDashboardButton) — a fixed
   // scope key rather than a per-client one, since Home isn't about any one
@@ -16262,35 +16402,18 @@ function BookkeeperHomePage({
       label: "Unread messages",
       description: "Across all your clients",
     },
+    // Default order is the priority order: the to-do list first, then the
+    // amber cards, then the keep-in-touch ones, with the full client table
+    // spanning both columns. Saved layouts keep their own order; "Reset to
+    // default" brings this one back. "needs-attention" keeps its old id so
+    // saved layouts keep it where they put it. It's now the combined to-do
+    // list (the old Unread messages and request cards feed into it).
     {
       id: "needs-attention",
       group: "content",
-      label: "Needs attention",
-      description: "Overdue or due-soon bills",
-    },
-    {
-      id: "unread-list",
-      group: "content",
-      label: "Unread messages",
-      description: "Threads waiting on a reply",
-    },
-    {
-      id: "recently-viewed",
-      group: "content",
-      label: "Recently viewed",
-      description: "Clients you've had open recently on this device",
-    },
-    {
-      id: "needs-visit",
-      group: "content",
-      label: "Needs a visit",
-      description: "Clients not opened in a while",
-    },
-    {
-      id: "your-clients",
-      group: "content",
-      label: "Your clients",
-      description: "Full client list, with search and notes",
+      label: "Needs you",
+      description:
+        "Overdue bills, requests, unread messages and reminders, most urgent first",
     },
     {
       id: "your-reminders",
@@ -16310,6 +16433,24 @@ function BookkeeperHomePage({
       label: "Month-end close",
       description: "Last month's close checklist, client by client",
     },
+    {
+      id: "recently-viewed",
+      group: "content",
+      label: "Recently viewed",
+      description: "Clients you've had open recently on this device",
+    },
+    {
+      id: "your-clients",
+      group: "content",
+      label: "Your clients",
+      description: "Full client list, with search and notes",
+    },
+    {
+      id: "needs-visit",
+      group: "content",
+      label: "Needs a visit",
+      description: "Clients not opened in a while",
+    },
   ];
   const layout = useWidgetLayout(
     "bookkeeper-home",
@@ -16322,264 +16463,188 @@ function BookkeeperHomePage({
   );
 
   // The "Jump to client" card that used to sit here is gone — the staff top
-  // bar's client picker (components/staff/TopBar.jsx) replaces it.
+  // bar's client picker (components/staff/TopBar.jsx) replaces it. The old
+  // Access requests and Upgrade requests cards now feed the "Needs you"
+  // list instead of sitting above everything.
+  const hour = new Date().getHours();
+  const firstName = ((staffUser && staffUser.name) || "").trim().split(/\s+/)[0];
+  const jumpToTodo = layout.hidden.has("needs-attention")
+    ? null
+    : () => jumpToCard("home-needs-attention-card", "needs-attention");
+  const summaryChip = (tone, text) => {
+    const Tag = jumpToTodo && tone !== "clear" ? "button" : "span";
+    return (
+      <Tag
+        {...(Tag === "button" ? { type: "button", onClick: jumpToTodo } : {})}
+        className={"home-band home-band-" + tone}
+      >
+        <span className="home-band-dot" aria-hidden="true" />
+        {text}
+      </Tag>
+    );
+  };
   return (
-    <div>
+    <div className="home-page">
+      <div className="home-summary">
+        <span className="home-greeting">
+          Good {hour < 12 ? "morning" : hour < 17 ? "afternoon" : "evening"}
+          {firstName ? `, ${firstName}` : ""}.
+        </span>
+        <span className="home-summary-chips">
+          {todo.now.length > 0 &&
+            summaryChip(
+              "now",
+              `${todo.now.length} need${todo.now.length === 1 ? "s" : ""} you now`,
+            )}
+          {todo.week.length > 0 && summaryChip("week", `${todo.week.length} this week`)}
+          {todo.now.length === 0 &&
+            todo.week.length === 0 &&
+            summaryChip("clear", "All clear ✓")}
+        </span>
+      </div>
+
       <CS_AccessRequestsCard />
-
-      <div className="card" style={{ marginBottom: 20 }}>
-        <h3 className="card-title">Access requests</h3>
-        <p className="card-subtitle">
-          People a client has asked you to give portal access to. Reviewing one
-          opens that client's Manage access panel.
-        </p>
-        {accessRequests === null && !accessRequestsError && (
-          <p className="card-subtitle">Loading…</p>
-        )}
-        {accessRequestsError && (
-          <p className="card-subtitle negative">{accessRequestsError}</p>
-        )}
-        {accessRequests && accessRequests.length === 0 && (
-          <p className="card-subtitle">Nothing waiting to be reviewed.</p>
-        )}
-        {accessRequests && accessRequests.length > 0 && (
-          <ul className="staff-audit-list">
-            {accessRequests.map((r) => {
-              const c = clients.find((cl) => cl.id === r.client_id);
-              const people = Array.isArray(r.people) ? r.people.length : 0;
-              return (
-                <li className="staff-audit-row" key={r.id}>
-                  <span className="staff-audit-text">
-                    <strong>{c ? c.name : r.client_id}</strong> —{" "}
-                    {people === 1 ? "1 person" : `${people} people`} submitted
-                    {r.submitted_by_name ? ` by ${r.submitted_by_name}` : ""}
-                    {r.submitted_at
-                      ? ` on ${fmtDate(r.submitted_at.slice(0, 10))}`
-                      : ""}
-                  </span>
-                  <span
-                    className="staff-audit-time"
-                    style={{ display: "flex", gap: 6, alignItems: "center" }}
-                  >
-                    <button
-                      type="button"
-                      className="btn-secondary"
-                      style={{ padding: "4px 10px", fontSize: 11.5 }}
-                      onClick={() =>
-                        onNavigateToClient(r.client_id, "dashboard", {
-                          openAccessManager: true,
-                        })
-                      }
-                    >
-                      Review
-                    </button>
-                  </span>
-                </li>
-              );
-            })}
-          </ul>
-        )}
-      </div>
-
-      <div className="card" style={{ marginBottom: 20 }}>
-        <h3 className="card-title">Upgrade requests</h3>
-        <p className="card-subtitle">
-          Clients who asked to upgrade from Settings → Plan — follow up, then
-          change their plan under Settings → Firm settings → Client roster.
-        </p>
-        {upgradeRequests === null && !upgradeRequestsError && (
-          <p className="card-subtitle">Loading…</p>
-        )}
-        {upgradeRequestsError && (
-          <p className="card-subtitle negative">{upgradeRequestsError}</p>
-        )}
-        {upgradeRequests && upgradeRequests.length === 0 && (
-          <p className="card-subtitle">No open requests right now.</p>
-        )}
-        {upgradeRequests && upgradeRequests.length > 0 && (
-          <ul className="staff-audit-list">
-            {upgradeRequests.map((r) => {
-              const c = clients.find((cl) => cl.id === r.client_id);
-              return (
-                <li className="staff-audit-row" key={r.id}>
-                  <span className="staff-audit-text">
-                    <strong>{c ? c.name : r.client_id}</strong> wants
-                    {r.requested_plan === "payroll"
-                      ? " the Payroll add-on"
-                      : r.requested_plan
-                        ? ` ${planLabel(r.requested_plan)}`
-                        : " to upgrade"}
-                    {c ? ` (on ${planLabel(c.plan)})` : ""} — requested by {r.requested_by || "unknown"}
-                  </span>
-                  <span
-                    className="staff-audit-time"
-                    style={{ display: "flex", gap: 6, alignItems: "center" }}
-                  >
-                    {fmtDateTime(r.created_at)}
-                    <button
-                      type="button"
-                      className="btn-secondary"
-                      style={{ padding: "4px 10px", fontSize: 11.5 }}
-                      disabled={upgradeRequestBusyId === r.id}
-                      onClick={() => setUpgradeRequestStatus(r, "contacted")}
-                    >
-                      Mark contacted
-                    </button>
-                    <button
-                      type="button"
-                      className="btn-secondary"
-                      style={{ padding: "4px 10px", fontSize: 11.5 }}
-                      disabled={upgradeRequestBusyId === r.id}
-                      onClick={() => setUpgradeRequestStatus(r, "completed")}
-                    >
-                      Mark completed
-                    </button>
-                    <button
-                      type="button"
-                      className="btn-secondary"
-                      style={{ padding: "4px 10px", fontSize: 11.5 }}
-                      disabled={upgradeRequestBusyId === r.id}
-                      onClick={() => setUpgradeRequestStatus(r, "dismissed")}
-                    >
-                      Dismiss
-                    </button>
-                  </span>
-                </li>
-              );
-            })}
-          </ul>
-        )}
-      </div>
 
       <CustomizeDashboardButton widgets={widgets} layout={layout} />
 
       <div className="kpi-grid">
         {kpiOrder.map((id) => {
-          // Every KPI here jumps to the content card it summarizes, when
-          // that card is actually on the page (not hidden via Customize
-          // dashboard) — a plain, non-clickable tile otherwise, since
-          // there'd be nothing to jump to.
+          // Each tile is tinted by its state: red when something's late or
+          // waiting on us, amber when it's coming up, calm (green "all
+          // clear") at zero. Clicking jumps to the card it summarizes when
+          // that card is on the page; a plain tile otherwise.
+          let tone = "calm";
+          let label;
+          let value;
+          let sub;
+          let jump = null;
           if (id === "kpi-clients") {
-            const jump = layout.hidden.has("your-clients")
-              ? null
-              : () => jumpToCard("home-your-clients-card", "your-clients");
-            const Tag = jump ? "button" : "div";
-            return (
-              <Tag
-                className={
-                  "card kpi-card " +
-                  (jump ? "kpi-card-clickable " : "") +
-                  drag.dragClass(id)
-                }
-                key={id}
-                {...drag.dragProps(id)}
-                {...(jump ? { onClick: jump } : {})}
-              >
-                <span className="kpi-label">Your clients</span>
-                <span className="kpi-value">{clients.length}</span>
-                <span className="kpi-sub neutral">
-                  {clients.length === 0
-                    ? "none assigned yet"
-                    : `client${clients.length === 1 ? "" : "s"} you can see`}
-                </span>
-              </Tag>
-            );
-          }
-          if (id === "kpi-overdue") {
-            const jump = layout.hidden.has("needs-attention")
-              ? null
-              : () =>
-                  jumpToCard("home-needs-attention-card", "needs-attention");
-            const Tag = jump ? "button" : "div";
-            return (
-              <Tag
-                className={
-                  "card kpi-card " +
-                  (jump ? "kpi-card-clickable " : "") +
-                  drag.dragClass(id)
-                }
-                key={id}
-                {...drag.dragProps(id)}
-                {...(jump ? { onClick: jump } : {})}
-              >
-                <span className="kpi-label">Overdue bills</span>
-                <span className="kpi-value negative">{overdueCount}</span>
-                <span className="kpi-sub negative">
-                  across all your clients
-                </span>
-              </Tag>
-            );
-          }
-          if (id === "kpi-soon") {
-            const jump = layout.hidden.has("needs-attention")
-              ? null
-              : () =>
-                  jumpToCard("home-needs-attention-card", "needs-attention");
-            const Tag = jump ? "button" : "div";
-            return (
-              <Tag
-                className={
-                  "card kpi-card " +
-                  (jump ? "kpi-card-clickable " : "") +
-                  drag.dragClass(id)
-                }
-                key={id}
-                {...drag.dragProps(id)}
-                {...(jump ? { onClick: jump } : {})}
-              >
-                <span className="kpi-label">
-                  Due within {AP_SOON_DAYS} days
-                </span>
-                <span className="kpi-value warm">{soonCount}</span>
-                <span className="kpi-sub warm">across all your clients</span>
-              </Tag>
-            );
-          }
-          if (id === "kpi-unread")
-            return unreadAcrossClients.length > 0 ? (
-              <button
-                className={
-                  "card kpi-card kpi-card-clickable " + drag.dragClass(id)
-                }
-                key={id}
-                {...drag.dragProps(id)}
-                onClick={() =>
-                  onNavigateToClient(
-                    unreadAcrossClients[0].clientId,
-                    "messages",
-                  )
-                }
-              >
-                <span className="kpi-label">Unread messages</span>
-                <span className="kpi-value warm">
-                  {unreadAcrossClients.length}
-                </span>
-                <span className="kpi-sub warm">
-                  across all your clients — click to open the oldest
-                </span>
-              </button>
-            ) : (
-              <div
-                className={"card kpi-card " + drag.dragClass(id)}
-                key={id}
-                {...drag.dragProps(id)}
-              >
-                <span className="kpi-label">Unread messages</span>
-                <span className="kpi-value">0</span>
-                <span className="kpi-sub neutral">across all your clients</span>
-              </div>
-            );
-          return null;
+            label = "Your clients";
+            value = clients.length;
+            sub =
+              clients.length === 0
+                ? "none assigned yet"
+                : `client${clients.length === 1 ? "" : "s"} you can see`;
+            tone = "plain";
+            if (!layout.hidden.has("your-clients"))
+              jump = () => jumpToCard("home-your-clients-card", "your-clients");
+          } else if (id === "kpi-overdue") {
+            label = "Overdue bills";
+            value = overdueCount;
+            tone = overdueCount > 0 ? "now" : "calm";
+            sub = overdueCount > 0 ? "needs you now" : "all clear ✓";
+            jump = jumpToTodo;
+          } else if (id === "kpi-soon") {
+            label = `Due within ${AP_SOON_DAYS} days`;
+            value = soonCount;
+            tone = soonCount > 0 ? "week" : "calm";
+            sub = soonCount > 0 ? "coming up this week" : "all clear ✓";
+            jump = jumpToTodo;
+          } else if (id === "kpi-unread") {
+            label = "Unread messages";
+            value = unreadAcrossClients.length;
+            tone = value > 0 ? "now" : "calm";
+            sub = value > 0 ? "click to open the oldest" : "all caught up ✓";
+            if (value > 0)
+              jump = () =>
+                onNavigateToClient(unreadAcrossClients[0].clientId, "messages");
+          } else return null;
+          const Tag = jump ? "button" : "div";
+          return (
+            <Tag
+              className={
+                "card kpi-card home-kpi home-kpi-" +
+                tone +
+                " " +
+                (jump ? "kpi-card-clickable " : "") +
+                drag.dragClass(id)
+              }
+              key={id}
+              {...drag.dragProps(id)}
+              {...(jump ? { type: "button", onClick: jump } : {})}
+            >
+              <span className="kpi-label">{label}</span>
+              <span className="kpi-value">{value}</span>
+              <span className="kpi-sub">{sub}</span>
+            </Tag>
+          );
         })}
       </div>
 
       <div className="content-masonry" style={{ marginBottom: 20 }}>
         {contentOrder.map((id) => {
-          if (id === "needs-attention")
+          if (id === "needs-attention") {
+            const LIMIT = 6;
+            const band = (tone, title, rows) => {
+              if (rows.length === 0) return null;
+              const shown = todoExpanded ? rows : rows.slice(0, LIMIT);
+              return (
+                <section className={"home-todo-band home-todo-" + tone}>
+                  <h4 className="home-todo-heading">
+                    <span className="home-band-dot" aria-hidden="true" />
+                    {title}
+                    <span className="home-todo-count">{rows.length}</span>
+                  </h4>
+                  <ul className="home-todo-list">
+                    {shown.map((r) => (
+                      <li
+                        className={
+                          "home-todo-row" +
+                          (r.actions && r.actions.length > 1 ? " home-todo-row-stack" : "")
+                        }
+                        key={r.key}
+                      >
+                        {r.onClick ? (
+                          <button
+                            type="button"
+                            className="home-todo-main"
+                            onClick={r.onClick}
+                          >
+                            <span className="home-todo-kind">{r.kind}</span>
+                            <span className="home-todo-text">
+                              <span className="staff-flag-label">{r.title}</span>
+                              <span className="staff-flag-desc">{r.detail}</span>
+                            </span>
+                          </button>
+                        ) : (
+                          <span className="home-todo-main">
+                            <span className="home-todo-kind">{r.kind}</span>
+                            <span className="home-todo-text">
+                              <span className="staff-flag-label">{r.title}</span>
+                              <span className="staff-flag-desc">{r.detail}</span>
+                            </span>
+                          </span>
+                        )}
+                        {r.actions && (
+                          <span className="home-todo-actions">
+                            {r.actions.map((a) => (
+                              <button
+                                key={a.label}
+                                type="button"
+                                className={a.primary ? "btn-primary" : "btn-secondary"}
+                                disabled={a.disabled}
+                                onClick={a.onClick}
+                              >
+                                {a.label}
+                              </button>
+                            ))}
+                          </span>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                </section>
+              );
+            };
+            const hasMore =
+              todo.now.length > LIMIT || todo.week.length > LIMIT;
+            const empty = todo.now.length === 0 && todo.week.length === 0;
             return (
               <div
                 className={
-                  "card " +
+                  "card home-card home-tone-" +
+                  (todo.now.length ? "now" : todo.week.length ? "week" : "clear") +
+                  " " +
                   (flashCardId === "needs-attention" ? "card-flash " : "") +
                   drag.dragClass(id)
                 }
@@ -16587,80 +16652,39 @@ function BookkeeperHomePage({
                 id="home-needs-attention-card"
                 {...drag.dragProps(id)}
               >
-                <h3 className="card-title">Needs attention</h3>
+                <h3 className="card-title">Needs you</h3>
                 <p className="card-subtitle">
-                  Overdue or due soon, across every client you can see.
+                  Everything waiting on you across every client you can see,
+                  most urgent first.
                 </p>
-                {dueAcrossClients.length === 0 && (
-                  <p className="card-subtitle">
-                    Nothing due soon — you're caught up.
+                {empty && (
+                  <p className="home-all-clear">
+                    ✓ All clear. Nothing needs you right now.
                   </p>
                 )}
-                {dueAcrossClients.length > 0 && (
-                  <div className="staff-audit-list">
-                    {dueAcrossClients.slice(0, 12).map((r, i) => (
-                      <button
-                        className="staff-due-row"
-                        key={i}
-                        onClick={() =>
-                          onNavigateToClient(r.clientId, "receivables")
-                        }
-                      >
-                        <span>
-                          <span className="staff-flag-label">{r.vendor}</span>
-                          <span className="staff-flag-desc">
-                            {r.clientName} · {apDueText(r.diff)}
-                          </span>
-                        </span>
-                        <span
-                          className={
-                            "pill " + (r.status === "overdue" ? "bad" : "warm")
-                          }
-                        >
-                          {fmtMoney(r.amount, { cents: true })}
-                        </span>
-                      </button>
-                    ))}
-                  </div>
+                {band("now", "Needs you now", todo.now)}
+                {band("week", "This week", todo.week)}
+                {hasMore && (
+                  <button
+                    type="button"
+                    className="home-todo-more"
+                    onClick={() => setTodoExpanded((v) => !v)}
+                  >
+                    {todoExpanded ? "Show less" : "Show everything"}
+                  </button>
                 )}
+                {todoErrors.map((e) => (
+                  <p className="card-subtitle negative" key={e}>
+                    {e}
+                  </p>
+                ))}
               </div>
             );
-          if (id === "unread-list")
-            return (
-              <div
-                className={"card " + drag.dragClass(id)}
-                key={id}
-                {...drag.dragProps(id)}
-              >
-                <h3 className="card-title">Unread messages</h3>
-                <p className="card-subtitle">
-                  Waiting on a reply, across every client you can see.
-                </p>
-                {unreadAcrossClients.length === 0 && (
-                  <p className="card-subtitle">Nothing unread.</p>
-                )}
-                {unreadAcrossClients.length > 0 && (
-                  <div className="staff-audit-list">
-                    {unreadAcrossClients.slice(0, 12).map((r) => (
-                      <button
-                        className="staff-due-row"
-                        key={r.clientId + r.userId}
-                        onClick={() =>
-                          onNavigateToClient(r.clientId, "messages")
-                        }
-                      >
-                        <span className="staff-flag-label">{r.userName}</span>
-                        <span className="staff-flag-desc">{r.clientName}</span>
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-            );
+          }
           if (id === "recently-viewed")
             return (
               <div
-                className={"card " + drag.dragClass(id)}
+                className={"card home-card home-tone-keep " + drag.dragClass(id)}
                 key={id}
                 {...drag.dragProps(id)}
               >
@@ -16696,7 +16720,7 @@ function BookkeeperHomePage({
           if (id === "milestones")
             return (
               <div
-                className={"card " + drag.dragClass(id)}
+                className={"card home-card home-tone-" + (milestoneCount > 0 ? "week " : "keep ") + drag.dragClass(id)}
                 key={id}
                 {...drag.dragProps(id)}
               >
@@ -16707,6 +16731,7 @@ function BookkeeperHomePage({
                 </p>
                 <MilestonesReviewList
                   clients={clients}
+                  onCount={setMilestoneCount}
                   onOpenClient={(id2) => onOpenClientMilestone && onOpenClientMilestone(id2)}
                 />
               </div>
@@ -16714,7 +16739,7 @@ function BookkeeperHomePage({
           if (id === "month-close")
             return (
               <div
-                className={"card " + drag.dragClass(id)}
+                className={"card home-card home-tone-" + (closeBehind > 0 ? "week " : "keep ") + drag.dragClass(id)}
                 key={id}
                 {...drag.dragProps(id)}
               >
@@ -16724,6 +16749,7 @@ function BookkeeperHomePage({
                 </p>
                 <CloseProgressList
                   clients={clients}
+                  onBehind={setCloseBehind}
                   onOpenClient={(id2) => onNavigateToClient(id2, "client-overview")}
                 />
               </div>
@@ -16731,7 +16757,7 @@ function BookkeeperHomePage({
           if (id === "needs-visit")
             return (
               <div
-                className={"card " + drag.dragClass(id)}
+                className={"card home-card home-tone-keep " + (needsVisit.length === 0 ? "home-card-quiet " : "") + drag.dragClass(id)}
                 key={id}
                 {...drag.dragProps(id)}
               >
@@ -16772,7 +16798,7 @@ function BookkeeperHomePage({
             return (
               <div
                 className={
-                  "card " +
+                  "card home-card home-tone-keep home-wide " +
                   (flashCardId === "your-clients" ? "card-flash " : "") +
                   drag.dragClass(id)
                 }
@@ -16891,7 +16917,7 @@ function BookkeeperHomePage({
           if (id === "your-reminders")
             return (
               <div
-                className={"card " + drag.dragClass(id)}
+                className={"card home-card home-tone-keep " + drag.dragClass(id)}
                 key={id}
                 {...drag.dragProps(id)}
               >

@@ -9293,3 +9293,227 @@ tr:hover .inote-btn,
   font-size: 13px;
   text-align: center;
 }
+
+/* ---------------------------------------------------------------------------
+   Staff Home: priority colors. Three levels, used sparingly so red keeps its
+   meaning: "now" (red: late or waiting on us), "week" (amber: coming up),
+   "keep" (neutral: keep in touch). Color is always paired with words (band
+   headings, the kind tag, "all clear ✓"), never color alone.
+   --------------------------------------------------------------------------- */
+.home-page {
+  --home-now: var(--bad);
+  --home-now-soft: var(--bad-soft);
+  --home-week: #c98a1f;
+  --home-week-soft: var(--warm-bg);
+  --home-week-text: var(--warm-text);
+  --home-keep: var(--muted-line);
+  --home-clear: var(--good);
+  --home-clear-soft: var(--good-soft);
+}
+
+.home-summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 14px;
+  margin-bottom: 16px;
+}
+.home-greeting {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--ink-strong);
+}
+.home-summary-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.home-band {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 4px 11px;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 700;
+  line-height: 1.4;
+}
+button.home-band { cursor: pointer; }
+button.home-band:hover { filter: brightness(0.97); }
+.home-band-now { background: var(--home-now-soft); color: var(--home-now); }
+.home-band-week { background: var(--home-week-soft); color: var(--home-week-text); border-color: var(--warm-border); }
+.home-band-clear { background: var(--home-clear-soft); color: var(--home-clear); }
+.home-band-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: currentColor;
+  flex: none;
+}
+.home-band-week .home-band-dot { background: var(--home-week); }
+
+/* Colored left edge on cards and KPI tiles. A pseudo-element rather than a
+   border or box-shadow so the card's size and its jump-to flash ring are
+   untouched; .card's overflow:hidden clips it to the rounded corner. */
+.home-card::before,
+.home-kpi::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  background: var(--home-edge, transparent);
+}
+.home-tone-now { --home-edge: var(--home-now); }
+.home-tone-week { --home-edge: var(--home-week); }
+.home-tone-keep { --home-edge: var(--home-keep); }
+.home-tone-clear { --home-edge: var(--home-clear); }
+/* The approvals card lives in components/staff, outside .home-page's
+   variables when rendered elsewhere. */
+.cs-approvals.home-tone-now { --home-edge: var(--bad); }
+
+.home-kpi-now { --home-edge: var(--home-now); }
+.home-kpi-week { --home-edge: var(--home-week); }
+.home-kpi-calm { --home-edge: var(--home-clear); }
+.home-kpi-now .kpi-value,
+.home-kpi-now .kpi-sub { color: var(--home-now); }
+.home-kpi-week .kpi-value,
+.home-kpi-week .kpi-sub { color: var(--home-week-text); }
+.home-kpi-calm .kpi-sub { color: var(--home-clear); }
+.home-kpi-plain .kpi-sub { color: var(--text-muted); }
+
+/* Full-width card (the client table) under the two columns. */
+.content-masonry > .home-wide { grid-column: 1 / -1; }
+
+/* A card with nothing in it shrinks to its title and a one-line
+   "all clear", so a quiet day looks calm. */
+.home-card-quiet { padding-top: 14px; padding-bottom: 14px; }
+.home-card-quiet > .card-subtitle:first-of-type { display: none; }
+.home-card-quiet > .card-subtitle { color: var(--home-clear); font-weight: 600; margin: 2px 0 0; }
+.home-card-quiet > .card-subtitle::before { content: "✓ "; }
+
+/* "Needs you" to-do list */
+.home-all-clear {
+  margin: 14px 0 0;
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: var(--home-clear-soft);
+  color: var(--home-clear);
+  font-weight: 600;
+  font-size: 14px;
+}
+.home-todo-band { margin-top: 16px; }
+.home-todo-heading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 6px;
+  font-size: 11.5px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.home-todo-now .home-todo-heading { color: var(--home-now); }
+.home-todo-week .home-todo-heading { color: var(--home-week-text); }
+.home-todo-week .home-todo-heading .home-band-dot { background: var(--home-week); }
+.home-todo-count {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0;
+  padding: 1px 7px;
+  border-radius: 999px;
+}
+.home-todo-now .home-todo-count { background: var(--home-now-soft); }
+.home-todo-week .home-todo-count { background: var(--home-week-soft); }
+.home-todo-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border-top: 1px solid var(--border);
+}
+.home-todo-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border-bottom: 1px solid var(--border);
+}
+.home-todo-row:last-child { border-bottom: none; }
+.home-todo-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 10px 6px;
+  background: none;
+  border: none;
+  border-radius: 8px;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+}
+button.home-todo-main { cursor: pointer; }
+button.home-todo-main:hover { background: var(--surface-2); }
+.home-todo-text { min-width: 0; }
+.home-todo-text .staff-flag-label { overflow-wrap: anywhere; }
+.home-todo-kind {
+  flex: none;
+  width: 70px;
+  margin-top: 1px;
+  padding: 2px 0;
+  border-radius: 6px;
+  text-align: center;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.home-todo-now .home-todo-kind { background: var(--home-now-soft); color: var(--home-now); }
+.home-todo-week .home-todo-kind { background: var(--home-week-soft); color: var(--home-week-text); }
+.home-todo-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+  flex: none;
+}
+.home-todo-actions button {
+  padding: 4px 10px;
+  font-size: 12px;
+}
+.home-todo-more {
+  margin-top: 10px;
+  background: none;
+  border: none;
+  padding: 4px 0;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--gold-deep);
+  cursor: pointer;
+  text-decoration: underline;
+}
+.home-todo-row-stack { flex-wrap: wrap; gap: 0; }
+.home-todo-row-stack .home-todo-actions { width: 100%; justify-content: flex-start; padding: 0 6px 10px 88px; }
+@media (max-width: 600px) {
+  .home-todo-row { flex-wrap: wrap; gap: 0; }
+  .home-todo-actions,
+  .home-todo-row-stack .home-todo-actions { width: 100%; justify-content: flex-start; padding: 0 6px 10px 82px; }
+  .home-todo-actions button { min-height: 36px; padding: 6px 12px; }
+  .home-todo-kind { width: 64px; }
+}
+/* Phones: the four tiles go 2×2 so "Needs you" is near the top. */
+@media (max-width: 600px) {
+  .home-page .kpi-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+    margin-bottom: 16px;
+  }
+  .home-page .home-kpi { padding: 12px 14px; }
+  .home-page .home-kpi .kpi-value { font-size: 22px; }
+  .home-page .home-kpi .kpi-label,
+  .home-page .home-kpi .kpi-sub { font-size: 12px; }
+}

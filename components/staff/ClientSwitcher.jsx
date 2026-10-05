@@ -982,7 +982,7 @@ function CS_AccessRequestsCard() {
   const who = (g) => g.staff_name || g.staff_email;
 
   return (
-    <div className="card cs-approvals" style={{ marginBottom: 20 }}>
+    <div className="card cs-approvals home-card home-tone-now" style={{ marginBottom: 20 }}>
       <h3 className="card-title">
         Client access requests
         {toApprove.length > 0 && (
