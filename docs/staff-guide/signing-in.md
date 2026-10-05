@@ -32,6 +32,8 @@ If a client says it's not working:
 
 - **No email arrives.** Only invited addresses get one. Check they're set up for portal access, and ask them to look in spam.
 - **"That code didn't work or has expired."** Codes only last a short time and only the newest one works. Ask them to click **Send a new code** and use the code from the newest email.
+- **"Please wait … seconds before asking for another email."** Only one email can be sent about every minute. The code they already have still works, so they can use it, or wait and send a new one.
+- **Testing a client login yourself.** Signing in as a client signs you out of the staff portal in that browser, since a browser holds one sign-in at a time. Use a private window or a different browser for the client login.
 
 ### Troubleshooting
 
