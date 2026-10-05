@@ -1720,6 +1720,59 @@ function StaffRail({
     if (expanded) setTip(null);
   }, [expanded]);
   const onClientPage = !NON_CLIENT_PAGES.has(page);
+  // Client pages with the client sidebar collapsed: two icon columns side
+  // by side. Their headers differ (logo box vs. avatar / milestone pill),
+  // so nudge whichever icon list starts higher down until the first rows
+  // line up. Items are the same height in both, so the rows below follow.
+  const railRef = useRef(null);
+  React.useLayoutEffect(() => {
+    const rail = railRef.current;
+    const shell = rail && rail.parentElement;
+    if (!shell) return;
+    const railNav = rail.querySelector(".staff-rail-nav");
+    let raf = 0;
+    const firstTop = (nav, sel) => {
+      const el = nav && nav.querySelector(sel);
+      if (!el) return null;
+      return el.getBoundingClientRect().top + nav.scrollTop - (parseFloat(nav.style.marginTop) || 0);
+    };
+    const setPad = (nav, px) => {
+      const v = px > 0.5 ? Math.round(px) + "px" : "";
+      if (nav && nav.style.marginTop !== v) nav.style.marginTop = v;
+    };
+    const run = () => {
+      const sb = shell.querySelector(":scope > .sidebar");
+      const sbNav = sb && sb.querySelector(".nav");
+      const on = !expanded && onClientPage && sb && sb.classList.contains("sidebar-collapsed");
+      const a = on ? firstTop(railNav, ".staff-rail-item") : null;
+      const b = on ? firstTop(sbNav, ".nav-item") : null;
+      if (a == null || b == null) {
+        setPad(railNav, 0);
+        setPad(sbNav, 0);
+        return;
+      }
+      setPad(railNav, b - a);
+      setPad(sbNav, a - b);
+    };
+    const align = () => {
+      clearTimeout(raf);
+      raf = setTimeout(run, 16);
+    };
+    run();
+    const ro = new ResizeObserver(align);
+    ro.observe(rail);
+    const sb = shell.querySelector(":scope > .sidebar");
+    if (sb) Array.from(sb.children).forEach((ch) => ro.observe(ch));
+    const mo = new MutationObserver(align);
+    mo.observe(shell, { childList: true, subtree: true, attributes: true, attributeFilter: ["class"] });
+    window.addEventListener("resize", align);
+    return () => {
+      clearTimeout(raf);
+      ro.disconnect();
+      mo.disconnect();
+      window.removeEventListener("resize", align);
+    };
+  }, [expanded, onClientPage]);
   const items = [
     {
       key: "bookkeeper-home",
@@ -1814,6 +1867,7 @@ function StaffRail({
   };
   return (
     <aside
+      ref={railRef}
       className={"staff-rail" + (expanded ? " expanded" : "")}
       aria-label="Staff navigation"
     >

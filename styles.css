@@ -440,8 +440,20 @@ body {
   .sidebar.sidebar-collapsed .sidebar-settings-btn {
     flex-direction: column;
     gap: 3px;
-    padding-top: 7px;
-    padding-bottom: 6px;
+    height: 46px;
+    min-height: 0;
+    padding-top: 0;
+    padding-bottom: 0;
+  }
+  /* Even spacing between every icon (no extra gap between sections), so
+     the rows line up with the staff rail beside it. */
+  .sidebar.sidebar-collapsed .nav-section {
+    margin-bottom: 0;
+  }
+  /* settings.css pads this button 9px 0 when collapsed; the caption needs
+     the room. */
+  .sidebar.sidebar-collapsed .sidebar-settings-row .sidebar-settings-btn {
+    padding: 0;
   }
   .sidebar.sidebar-collapsed .nav-item-caption {
     display: block;
@@ -8260,7 +8272,7 @@ body:has(.modal-overlay) .chat-fab-wrap {
   border: 0;
   border-radius: 8px;
   background: transparent;
-  color: var(--sidebar-text-muted);
+  color: var(--sidebar-text);
   font: inherit;
   font-size: 14px;
   cursor: pointer;
@@ -8274,17 +8286,29 @@ body:has(.modal-overlay) .chat-fab-wrap {
   flex-shrink: 0;
 }
 .staff-rail-item:hover {
-  background: rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.05);
   color: var(--sidebar-text-active);
 }
 .staff-rail-item:focus-visible {
   outline: 2px solid var(--gold);
   outline-offset: -2px;
 }
+/* Active: same as the client sidebar (.nav-item.active), a faint fill and
+   a gold bar on the left, so the two columns read as one set. */
 .staff-rail-item.active {
-  background: rgba(199, 174, 134, 0.18);
-  color: var(--gold);
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--sidebar-text-active);
   font-weight: 600;
+}
+.staff-rail-item.active::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 8px;
+  bottom: 8px;
+  width: 3px;
+  border-radius: 2px;
+  background: var(--gold);
 }
 .staff-rail-label {
   flex: 1;
@@ -8294,7 +8318,13 @@ body:has(.modal-overlay) .chat-fab-wrap {
 .staff-rail:not(.expanded) .staff-rail-item {
   flex-direction: column;
   gap: 3px;
-  padding: 7px 2px 6px;
+  height: 46px;
+  padding: 0 2px;
+}
+/* Same icon size as the client sidebar, so the two columns match. */
+.staff-rail:not(.expanded) .staff-rail-item svg {
+  width: 16px;
+  height: 16px;
 }
 .staff-rail-caption {
   font-size: 10.5px;
