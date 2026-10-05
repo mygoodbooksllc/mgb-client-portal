@@ -34,7 +34,7 @@ Admins also see an **Admin** group with **Team** (hours and tasks, plus the **Me
 
 At the bottom: **Collapse**, which shrinks the sidebar to icons with a short name under each one (for example **Client** for Client view, **Tasks** for My Tasks and **Close** for Close tracker). **Settings** (your profile, notifications, theme and more), dark mode and **Sign out** are in the account menu under your initials at the top right. See [How do I change my settings?](#/help/staff-settings).
 
-When you have a client open, the staff sidebar shrinks to a thin strip of icons and the client's own sidebar (Dashboard, Reports, Documents and so on) appears beside it.
+When you have a client open, the staff sidebar shrinks to a thin strip of icons and the client's own sidebar (Dashboard, Reports, Documents and so on) appears beside it. On a smaller screen (or after you click **Collapse**) the client's sidebar also shrinks to icons with a short name under each, for example **Budget** for Budget vs. Actual, **Bank** for Bank Accounts and **Giving** for Giving & Funds. Clients see the same thing.
 
 ### On a phone
 

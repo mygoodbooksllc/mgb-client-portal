@@ -429,6 +429,54 @@ body {
     padding-left: 0;
     padding-right: 0;
   }
+
+  /* Collapsed: the tab name in small text under each icon, like the staff
+     rail. Shortened names (Budget, Bank, Giving) keep the hover tip. */
+  .sidebar.sidebar-collapsed {
+    padding-left: 5px;
+    padding-right: 5px;
+  }
+  .sidebar.sidebar-collapsed .nav-item,
+  .sidebar.sidebar-collapsed .sidebar-settings-btn {
+    flex-direction: column;
+    gap: 3px;
+    padding-top: 7px;
+    padding-bottom: 6px;
+  }
+  .sidebar.sidebar-collapsed .nav-item-caption {
+    display: block;
+  }
+  .sidebar.sidebar-collapsed .nav-item .nav-badge-dot {
+    position: absolute;
+    top: 6px;
+    right: 12px;
+    margin: 0;
+  }
+  /* The signed-in chip shrinks to just the avatar. */
+  .sidebar.sidebar-collapsed .signed-in-as {
+    justify-content: center;
+    padding: 6px 0;
+    background: none;
+    border-color: transparent;
+  }
+  .sidebar.sidebar-collapsed .signed-in-text {
+    display: none;
+  }
+}
+.nav-item-caption {
+  display: none;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 10.5px;
+  font-weight: 500;
+  line-height: 1.15;
+  letter-spacing: 0.01em;
+  text-align: center;
+}
+.nav-item.active .nav-item-caption {
+  font-weight: 600;
 }
 
 .sidebar-collapse-toggle {

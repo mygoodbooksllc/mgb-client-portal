@@ -458,16 +458,16 @@ const NAV_SECTIONS = [
   {
     label: "Budget",
     items: [
-      { key: "budget", label: "Budget vs. Actual", icon: <PieChartIcon /> },
+      { key: "budget", label: "Budget vs. Actual", short: "Budget", icon: <PieChartIcon /> },
     ],
   },
   {
     label: "Finances",
     items: [
-      { key: "bank", label: "Bank Accounts", icon: <BankIcon /> },
+      { key: "bank", label: "Bank Accounts", short: "Bank", icon: <BankIcon /> },
       { key: "receivables", label: "Cash Flow", icon: <SwapIcon /> },
       { key: "reports", label: "Reports", icon: <DownloadIcon /> },
-      { key: "giving", label: "Giving & Funds", icon: <GiftHeartIcon /> },
+      { key: "giving", label: "Giving & Funds", short: "Giving", icon: <GiftHeartIcon /> },
       // Last in the section, right above Documents — most clients don't
       // have the payroll add-on at all, so it doesn't need the same
       // prominence as the tabs everyone uses. Not in PREMIUM_UPGRADE_TAB_KEYS
@@ -1587,19 +1587,18 @@ function Sidebar({
                             : undefined
                         }
                         onMouseEnter={(e) =>
-                          showTip(
-                            e,
-                            item.key === "payroll" && client && !client.payrollAddOn
-                              ? "Payroll (add-on)"
-                              : item.label,
-                          )
+                          item.key === "payroll" && client && !client.payrollAddOn
+                            ? showTip(e, "Payroll (add-on)")
+                            : item.short && showTip(e, item.label)
                         }
                         onMouseLeave={hideTip}
-                        onFocus={(e) => showTip(e, item.label)}
+                        onFocus={(e) => item.short && showTip(e, item.label)}
                         onBlur={hideTip}
                       >
                         {item.icon}
                         <span className="nav-item-label">{item.label}</span>
+                        {/* Collapsed sidebar: the tab name under the icon. */}
+                        <span className="nav-item-caption" aria-hidden="true">{item.short || item.label}</span>
                         {item.key === "payroll" && client && !client.payrollAddOn && (
                           <span className="nav-addon-tag">Add-on</span>
                         )}
@@ -1649,13 +1648,12 @@ function Sidebar({
                   ? "Settings"
                   : undefined
             }
-            onMouseEnter={(e) => collapsed && showTip(e, "Settings")}
             onMouseLeave={hideTip}
-            onFocus={(e) => collapsed && showTip(e, "Settings")}
             onBlur={hideTip}
           >
             <ST_GearIcon width="18" height="18" />
             <span className="sidebar-settings-label">Settings</span>
+            <span className="nav-item-caption" aria-hidden="true">Settings</span>
           </button>
         </div>
       )}
