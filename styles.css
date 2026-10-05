@@ -4617,7 +4617,11 @@ body:has(.modal-overlay) .chat-fab-wrap {
 
 .modal-body {
   overflow-y: auto;
-  margin: 8px 0 16px 0;
+  /* overflow-y: auto clips sideways too, which cut the left and right of
+     the focus ring off full-width fields. 4px of padding, cancelled by a
+     negative margin, gives the ring room without moving anything. */
+  padding: 4px;
+  margin: 4px -4px 12px -4px;
   display: flex;
   flex-direction: column;
   gap: 18px;
@@ -9797,4 +9801,12 @@ button.home-todo-main:hover { background: var(--surface-2); }
 .doc-actions .btn-sm {
   padding: 5px 12px;
   font-size: 12.5px;
+}
+
+/* Popups: draw form-field focus rings inside the field, so no scrolling
+   container in a dialog can clip their edges (owner report 2026-10-05:
+   the page-drop box's Client field lost its left and right ring). */
+[role="dialog"] :is(input, select, textarea):focus-visible,
+[aria-modal="true"] :is(input, select, textarea):focus-visible {
+  outline-offset: -2px;
 }
