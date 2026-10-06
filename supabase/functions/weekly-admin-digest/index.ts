@@ -15,6 +15,19 @@ import * as L from "../_shared/layout.ts";
 //         otherwise                               -> "Send test now": sends to the
 //                                                    recipients even if disabled
 //       Optional ?week_start=YYYY-MM-DD (a Monday) for either.
+//   (c) machine preview: the cron key with body {"preview": true} returns the
+//       preview (format json) and sends nothing. Previews (either caller) may
+//       add {"include_test": true} to show test clients in Needs attention /
+//       Fee changes, for checking the layout; real sends never include them.
+//
+// "Needs attention" (digest_needs_attention(), supabase/ops-alerting.sql) is
+// shown first and only when something is wrong: QuickBooks sync failures and
+// last_error, disconnected / errored connections, clients overdue for their
+// plan's sync schedule, failed client/admin emails, Intuit usage near the cap,
+// and health-check alerts still open. "Fee changes to review"
+// (digest_fee_suggestions()) lists clients whose numbers point to a different
+// pricing milestone; staff confirm in Client details > Milestone. Nothing here
+// changes a fee or emails a client.
 //
 // Every run is logged in digest_runs. If RESEND_API_KEY is missing the send is
 // skipped with status "not_configured". Numbers come from the service-role-only
@@ -122,10 +135,173 @@ function textTable(rows: string[]): string {
   return rows.map((r) => `  - ${r}`).join("\n");
 }
 
+function ago(iso: string | null | undefined): string {
+  if (!iso) return "never";
+  const mins = Math.round((Date.now() - new Date(iso).getTime()) / 60000);
+  if (mins < 90) return `${mins} min ago`;
+  const h = Math.round(mins / 60);
+  if (h < 48) return `${h}h ago`;
+  return `${Math.round(h / 24)} days ago`;
+}
+const FEATURE_LABEL: Record<string, string> = {
+  doc_chaser: "Document reminders",
+  value_report: "Monthly value report",
+  staff_client_message: "Staff: client message alerts",
+  staff_doc_upload: "Staff: document upload alerts",
+  staff_task_assigned: "Staff: task assigned",
+  staff_task_due: "Staff: tasks due",
+  staff_feedback_status: "Staff: feedback updates",
+  client_message: "Client: new message",
+  client_reports_ready: "Client: reports ready",
+  weekly_admin_digest: "Weekly admin digest",
+};
+function fmtNum(n: unknown): string {
+  return Number(n || 0).toLocaleString("en-US");
+}
+
+// Counts the problems in digest_needs_attention(); 0 = section omitted.
+function needsAttentionCount(na: any): number {
+  if (!na) return 0;
+  return (na.sync || []).length + (na.connections || []).length + (na.emails || []).length +
+    (na.usage ? 1 : 0) + (na.open_alerts || []).length;
+}
+
+function needsAttentionSection(na: any): Section | null {
+  if (!needsAttentionCount(na)) return null;
+  const testTag = (r: any) => (r.test_only ? ` ${muted("(test)")}` : "");
+  const testTxt = (r: any) => (r.test_only ? " (test)" : "");
+  let html = "";
+  const text: string[] = [];
+
+  const sync: any[] = na.sync || [];
+  if (sync.length) {
+    html += L.label("QuickBooks syncs") + tableHtml(
+      ["Client", "Problem", "Last good sync"],
+      sync.map((r) => {
+        const bits: string[] = [];
+        if (Number(r.errors_7d)) bits.push(`${plural(Number(r.errors_7d), "failed sync")} this week`);
+        if (Number(r.errors_in_a_row) >= 2) bits.push(`${r.errors_in_a_row} in a row now`);
+        if (r.overdue) bits.push(`overdue (expected ${r.expected}${r.paused_by_usage ? "; paused by the usage limit" : ""})`);
+        const err = r.last_run_detail || r.last_error;
+        return [
+          esc(r.client_name) + testTag(r),
+          bad(esc(bits.join("; ") || "last error set")) + (err ? `<br>${muted(esc(clip(err, 140)))}` : ""),
+          `${fmtDay(r.last_synced_at)} ${muted(`(${ago(r.last_synced_at)})`)}`,
+        ];
+      }),
+    );
+    for (const r of sync) {
+      const err = r.last_run_detail || r.last_error;
+      text.push(
+        `${r.client_name}${testTxt(r)}: ${Number(r.errors_7d) || 0} failed syncs this week` +
+          `${r.overdue ? `, overdue (expected ${r.expected})` : ""}; last good sync ${ago(r.last_synced_at)}` +
+          `${err ? ` — ${clip(err, 140)}` : ""}`,
+      );
+    }
+  }
+
+  const conns: any[] = na.connections || [];
+  if (conns.length) {
+    html += L.label("QuickBooks connections") + tableHtml(
+      ["Client", "Status", "Last synced"],
+      conns.map((r) => [
+        esc(r.client_name) + testTag(r),
+        bad(r.status === "error" ? "Needs reconnecting" : "Disconnected") +
+          (r.last_error ? `<br>${muted(esc(clip(r.last_error, 140)))}` : ""),
+        fmtDay(r.last_synced_at),
+      ]),
+    );
+    for (const r of conns) {
+      text.push(`${r.client_name}${testTxt(r)}: QuickBooks ${r.status === "error" ? "needs reconnecting" : "disconnected"}`);
+    }
+  }
+
+  const emails: any[] = na.emails || [];
+  if (emails.length) {
+    html += L.label("Emails that failed") + tableHtml(
+      ["Email", "Failed", "Last failure"],
+      emails.map((r) => [
+        esc(FEATURE_LABEL[r.feature] || r.feature),
+        `<b>${bad(esc(r.failed))}</b>`,
+        `${fmtDay(r.last_at)}${r.last_reason ? `<br>${muted(esc(clip(r.last_reason, 140)))}` : ""}`,
+      ]),
+      [1],
+    );
+    for (const r of emails) {
+      text.push(`${FEATURE_LABEL[r.feature] || r.feature}: ${r.failed} failed (last ${fmtDay(r.last_at)}${r.last_reason ? `: ${clip(r.last_reason, 140)}` : ""})`);
+    }
+  }
+
+  const u = na.usage;
+  if (u) {
+    const cap = Number(u.cap) || 1;
+    const line = `Intuit API usage is near the monthly cap: ${fmtNum(u.calls)} of ${fmtNum(u.cap)} calls ` +
+      `(${Math.round((Number(u.calls) / cap) * 100)}%), on pace for ${fmtNum(u.projected)} (${Math.round((Number(u.projected) / cap) * 100)}%)` +
+      (u.mode === "stopped" ? ". Scheduled syncs are stopped until next month." : u.mode === "throttled" ? ". Pro syncs are slowed to every " + u.premium_interval_min + " min." : ".");
+    html += L.label("QuickBooks API usage") + para((u.mode === "normal" ? warn : bad)(esc(line)));
+    text.push(line);
+  }
+
+  const open: any[] = na.open_alerts || [];
+  if (open.length) {
+    html += L.label("Health-check alerts still open") +
+      open.map((a) => para(`• ${esc(a.title)} ${muted(`(since ${fmtDay(a.first_seen_at)})`)}`)).join("");
+    for (const a of open) text.push(`Open alert: ${a.title} (since ${fmtDay(a.first_seen_at)})`);
+  }
+
+  html += para("Past 7 days. Test clients are excluded" + (na.include_test ? " (shown here because this is a preview)." : "."), "muted");
+  return {
+    title: "Needs attention",
+    html,
+    text: textTable(text),
+    link: { label: "Open the client list", href: `${APP_URL}/#/home` },
+  };
+}
+
+function feeChangesSection(f: any): Section | null {
+  const rows: any[] = f?.changes || [];
+  const unconfirmed = Number(f?.unconfirmed || 0);
+  if (!rows.length && !unconfirmed) return null;
+  const fee = (v: unknown) => (v == null ? "Custom" : `${money(v)}/mo`);
+  const why = (r: any) => {
+    const tx = r.avg_tx != null ? `${fmtNum(Math.round(Number(r.avg_tx)))} transactions/mo (3-month avg)` : null;
+    const b = r.budget != null ? `${money(r.budget)} budget (${r.budget_basis})` : null;
+    const lead = r.driven_by === "transactions" ? tx : r.driven_by === "budget" ? b : [tx, b].filter(Boolean).join(" and ");
+    const other = r.driven_by === "transactions" ? b : r.driven_by === "budget" ? tx : null;
+    return `${lead || "–"}${other ? `; ${other}` : ""}`;
+  };
+  let html = rows.length
+    ? tableHtml(
+        ["Client", "Current → suggested", "Why"],
+        rows.map((r) => [
+          esc(r.client_name),
+          `${esc(r.current_name)} ${muted(esc(fee(r.current_fee)))} → <b>${(r.direction === "up" ? warn : ink)(esc(r.suggested_name))}</b> ${muted(esc(fee(r.suggested_fee)))}`,
+          esc(why(r)),
+        ]),
+      )
+    : para("No milestone changes this week.", "muted");
+  html += para(
+    "Higher of the 3-month average monthly transactions and the annual budget. Suggestions only: confirm or skip each one in Client details › Milestone. Fees go down as well as up; nothing changes and no client is emailed until staff confirm." +
+      (unconfirmed ? ` ${plural(unconfirmed, "client has", "clients have")} no confirmed milestone yet.` : ""),
+    "muted",
+  );
+  const text = (rows.length
+    ? textTable(rows.map((r) =>
+      `${r.client_name}: ${r.current_name} (${fee(r.current_fee)}) -> ${r.suggested_name} (${fee(r.suggested_fee)}), ${why(r)}`
+    ))
+    : "  No milestone changes this week.") +
+    (unconfirmed ? `\n  ${plural(unconfirmed, "client has", "clients have")} no confirmed milestone yet.` : "");
+  return { title: "Fee changes to review", html, text, link: { label: "Open Milestones to review on Home", href: `${APP_URL}/#/home` } };
+}
+
 function buildSections(d: any): Section[] {
   const out: Section[] = [];
   const team = { label: "Open the Team page", href: `${APP_URL}/#/team` };
   const firmOn = d.firm_qbo?.status === "connected" || d.firm_qbo?.status === "error";
+
+  // 0. Needs attention (omitted when everything's fine)
+  const na = needsAttentionSection(d.needs_attention);
+  if (na) out.push(na);
 
   // 1. Scope creep
   {
@@ -180,6 +356,12 @@ function buildSections(d: any): Section[] {
       ))
       : "  Nothing this week.") + (noFee ? `\n  ${plural(noFee, "client has", "clients have")} no fee set.` : "");
     out.push({ title: "Price review", html, text, link: team });
+  }
+
+  // 2b. Fee changes to review (pricing milestones; omitted when none)
+  {
+    const fc = feeChangesSection(d.fee_suggestions);
+    if (fc) out.push(fc);
   }
 
   // 3. Revenue snapshot
@@ -415,6 +597,10 @@ function headline(d: any): string[] {
   const late: any[] = d.late_payers || [];
   const lateTotal = late.reduce((s, r) => s + Number(r.balance || 0), 0);
   bits.push(`${money(d.revenue?.mrr)} monthly fees across ${plural(Number(d.revenue?.active_clients || 0), "active client")}`);
+  const naCount = needsAttentionCount(d.needs_attention);
+  if (naCount) bits.push(`${plural(naCount, "thing")} need${naCount === 1 ? "s" : ""} attention (see the top section)`);
+  const feeCount = (d.fee_suggestions?.changes || []).length;
+  if (feeCount) bits.push(`${plural(feeCount, "fee change")} to review`);
   if ((d.scope_creep || []).length) bits.push(`${plural(d.scope_creep.length, "client")} running over usual hours`);
   if ((d.price_review || []).length) bits.push(`${plural(d.price_review.length, "client")} below target margin`);
   if (late.length) bits.push(`${plural(late.length, "overdue invoice")} (${money(lateTotal)})`);
@@ -500,7 +686,9 @@ Deno.serve(async (req) => {
   let trigger: "cron" | "manual" | "preview";
   let requestedBy: string | null = null;
   if (isMachine) {
-    trigger = "cron";
+    // The cron key may also ask for a preview (sends nothing).
+    trigger = body?.preview === true ? "preview" : "cron";
+    if (trigger === "preview") requestedBy = "machine preview";
   } else {
     const asUser = createClient(SUPABASE_URL, ANON_KEY, {
       global: { headers: { Authorization: authHeader } },
@@ -560,12 +748,32 @@ Deno.serve(async (req) => {
     // ignore
   }
 
+  // Needs attention + fee suggestions (supabase/ops-alerting.sql). Optional:
+  // a failure here never stops the digest. Test clients only ever appear in
+  // a preview that asks for them.
+  const includeTest = trigger === "preview" &&
+    (body?.include_test === true || url.searchParams.get("include_test") === "1");
+  try {
+    const { data: na, error: naErr } = await admin.rpc("digest_needs_attention", { p_include_test: includeTest });
+    if (!naErr && na) (data as any).needs_attention = na;
+    else if (naErr) console.log(`weekly-admin-digest: needs attention unavailable — ${naErr.message}`);
+  } catch (_e) {
+    // ignore
+  }
+  try {
+    const { data: fees, error: feeErr } = await admin.rpc("digest_fee_suggestions", { p_include_test: includeTest });
+    if (!feeErr && fees) (data as any).fee_suggestions = fees;
+    else if (feeErr) console.log(`weekly-admin-digest: fee suggestions unavailable — ${feeErr.message}`);
+  } catch (_e) {
+    // ignore
+  }
+
   const email = render(data);
   const summary = { headline: email.headline, subject: email.subject };
 
   if (trigger === "preview") {
     await log("preview", { summary });
-    if (url.searchParams.get("format") === "json" || body?.format === "json") {
+    if (url.searchParams.get("format") === "json" || body?.format === "json" || requestedBy === "machine preview") {
       return json({ status: "preview", subject: email.subject, html: email.html, text: email.text, email_configured: emailConfigured(), recipients, from: defaultFrom() });
     }
     return new Response(email.html, { headers: { ...CORS, "Content-Type": "text/html; charset=utf-8" } });

@@ -2,7 +2,7 @@
 title: How do pricing milestones work, and how do I set one?
 section: Admin
 audience: admin
-keywords: [milestone, pricing, tier, fee, set milestone, confirm, annual expenses, annual budget, updated, last sync, budget, form 990, church plant, starter, foundation, growth, enterprise]
+keywords: [milestone, pricing, tier, fee, set milestone, confirm, annual expenses, annual budget, updated, last sync, budget, form 990, church plant, weekly digest, fee changes to review, starter, foundation, growth, enterprise]
 sort: 590
 ---
 A client's monthly fee follows their **confirmed pricing milestone**. The milestone is suggested from their numbers (monthly transactions and annual expenses), but a person confirms it.
@@ -27,6 +27,7 @@ A client's monthly fee follows their **confirmed pricing milestone**. The milest
 - The **Milestone** pill at the top of the client's sidebar, under the "Do good work. Leave the bookkeeping to us." tagline (click it to open the Milestone page). It's hidden when the sidebar is collapsed and for people with limited access.
 - In the sidebar's Plan section, where staff see **Set milestone** if it isn't confirmed yet.
 - **Home → Milestones to review**: clients whose numbers point to a different milestone, aren't confirmed yet, or are close to the next one.
+- The Monday **weekly digest**, in **Fee changes to review**: the same suggestions, emailed to admins. They're never applied automatically; a fee only changes when someone sets the milestone below.
 
 ### Set or change a milestone
 
