@@ -89,6 +89,7 @@ function BA_syncLine(client) {
       ? syncCadenceLabel(plan)
       : "Synced from QuickBooks";
   if (client.dataSource !== "quickbooks") {
+    if (client.testOnly === false) return "Not connected to QuickBooks yet · " + cadence.charAt(0).toLowerCase() + cadence.slice(1) + " once connected";
     return "Sample data · " + cadence.charAt(0).toLowerCase() + cadence.slice(1) + " once connected";
   }
   const ago = typeof relTime === "function" ? relTime(client.lastSyncedAt) : null;

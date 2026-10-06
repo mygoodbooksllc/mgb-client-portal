@@ -340,8 +340,13 @@
             // roster-only org has none of, so app.jsx's unguarded
             // client.monthly[...] / client.bankAccounts[0] indexing renders an
             // empty state instead of throwing into the root ErrorBoundary.
+            // Only test clients (clients.test_only = true) get data.js's
+            // sample numbers. A real client starts empty, even when its id
+            // matches a sample entry, and gets QuickBooks data (and real
+            // logins, messages, documents) only.
+            const sample = row.test_only === false ? null : mockById[row.id];
             return window.withClientDataDefaults(
-              Object.assign({}, mockById[row.id], roster),
+              Object.assign({}, sample, roster),
             );
           });
         } catch (err) {
@@ -413,6 +418,10 @@
             // automatic). supabase/client-giving-accounts.sql. Fail-soft:
             // an error here just means automatic detection.
             givingSettings: "client_giving_accounts",
+            // Which balance-sheet accounts are funds, restricted or not
+            // (staff pick; no row = automatic).
+            // supabase/client-fund-accounts.sql. Fail-soft like the above.
+            fundSettings: "client_fund_accounts",
           };
           // PostgREST returns at most 1,000 rows per request, so a busy
           // client's transactions (or several clients' P&L lines) were
@@ -427,6 +436,7 @@
             qbo_bills: ["client_id", "qbo_id"],
             qbo_transactions: ["client_id", "txn_type", "qbo_id"],
             client_giving_accounts: ["client_id"],
+            client_fund_accounts: ["client_id"],
           };
           const QBO_PAGE = 1000;
           const QBO_MAX_PAGES = 50;

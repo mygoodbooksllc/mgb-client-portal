@@ -8,7 +8,15 @@
 // (QG_GivingAccountsPicker below, table client_giving_accounts), otherwise
 // any income account whose name looks like giving.
 //
-// Nothing here writes to QuickBooks. The picker only saves a portal setting.
+// Funds come from QuickBooks too: the balance-sheet accounts staff mark as
+// funds in Client details -> QuickBooks (QG_FundAccountsPicker below, table
+// client_fund_accounts), otherwise equity/asset accounts named like a fund.
+// mgbBuildQboFunds in mapQboToClient.js builds client.funds / client.fundsQbo.
+// Pro clients get the full Giving & Funds page (FundAccountingProPage in
+// app.jsx) fed from these; QG_GivingTrend and QG_qboContributions are the
+// pieces it borrows.
+//
+// Nothing here writes to QuickBooks. The pickers only save portal settings.
 //
 // Globals are QG_-prefixed. app.jsx helpers (fmtMoney, fmtDate, relTime,
 // syncCadenceLabel, useToast) are looked up at render time, guarded.
@@ -102,22 +110,75 @@ function QG_GivingEmptyState({ client }) {
           this up.
         </p>
       </QG_CalmCard>
-      <QG_FundsPending />
+      <QG_FundsSection client={client} />
     </div>
   );
 }
 
-// Funds (restricted / unrestricted balances) don't come from QuickBooks yet,
-// and real clients never see the sample funds.
-function QG_FundsPending() {
+// Fund balances. A QuickBooks client's funds are the accounts staff picked
+// (or auto-detected) in Client details -> QuickBooks, with each account's
+// balance as of the last sync. Real clients never see the sample funds.
+function QG_FundsSection({ client, isStaff }) {
+  const funds = client.funds || [];
+  const fq = client.fundsQbo || null;
+  if (!funds.length) {
+    return (
+      <div className="card" style={{ marginBottom: 20 }}>
+        <h3 className="card-title">Fund Balances</h3>
+        <p className="card-subtitle" style={{ marginBottom: 0 }}>
+          Funds appear here once your bookkeeper sets them up.
+          {isStaff && client.dataSource === "quickbooks"
+            ? " Pick which QuickBooks accounts are funds in Client details → QuickBooks → Fund accounts."
+            : ""}
+        </p>
+      </div>
+    );
+  }
+  const restricted = funds.filter((f) => f.restricted).reduce((s, f) => s + (Number(f.balance) || 0), 0);
+  const unrestricted = funds.filter((f) => !f.restricted).reduce((s, f) => s + (Number(f.balance) || 0), 0);
   return (
     <div className="card" style={{ marginBottom: 20 }}>
       <h3 className="card-title">Fund Balances</h3>
-      <p className="card-subtitle" style={{ marginBottom: 0 }}>
-        Funds appear here once your bookkeeper sets them up.
+      <p className="card-subtitle">
+        {fq && fq.source === "staff"
+          ? "QuickBooks accounts your bookkeeper set up as funds"
+          : "QuickBooks accounts with a name like fund or restricted"}
+        {" · "}
+        {QG_money(unrestricted)} unrestricted, {QG_money(restricted)} restricted, as of last sync
       </p>
+      <div className="fund-grid">
+        {funds.map((f) => (
+          <div className="fund-card" key={f.name}>
+            <div className="fund-card-top">
+              <span className="fund-name">{f.name}</span>
+              <span className={"pill " + (f.restricted ? "restricted" : "unrestricted")}>
+                {f.restricted ? "Restricted" : "Unrestricted"}
+              </span>
+            </div>
+            <span className="fund-balance">{QG_money(f.balance)}</span>
+          </div>
+        ))}
+      </div>
     </div>
   );
+}
+
+// Giving transactions from QuickBooks in data.js's contributions shape
+// ({ date, donor, fund, method, amount }), so the Pro page's Contributions
+// table, Tax Documents donor list and giving statement PDF work unchanged.
+// Donor is the QuickBooks customer / payer name on the transaction; gifts
+// with no name (most bank deposits) count as Anonymous. Only what the sync
+// holds: about the last 90 days of transactions.
+function QG_qboContributions(client) {
+  const g = client && client.givingQbo;
+  if (!g || !g.gifts) return [];
+  return g.gifts.map((t) => ({
+    date: t.date,
+    donor: t.name ? t.name : "Anonymous",
+    fund: t.account,
+    method: t.type || "",
+    amount: Number(t.amount) || 0,
+  }));
 }
 
 // Monthly giving bars. The sync month is month to date and drawn lighter.
@@ -205,6 +266,64 @@ function QG_MonthlyBars({ months }) {
   );
 }
 
+// Giving by month and by account, from client.givingQbo. Used on the
+// Giving page and on the Pro Giving & Funds page's Giving view.
+function QG_GivingTrend({ g }) {
+  if (!g) return null;
+  return (
+    <>
+      <div className="card" style={{ marginBottom: 20 }}>
+        <h3 className="card-title">Giving by month</h3>
+        <p className="card-subtitle">
+          From the QuickBooks profit and loss. The lighter bar is this month so far.
+        </p>
+        <QG_MonthlyBars months={g.months} />
+      </div>
+
+      <div className="card" style={{ marginBottom: 20 }}>
+        <h3 className="card-title">By account</h3>
+        <p className="card-subtitle">
+          {g.source === "staff"
+            ? "Income accounts your bookkeeper picked as giving."
+            : `Income accounts with a name like ${QG_AUTO_WORDS}.`}
+        </p>
+        <div className="table-scroll">
+          <table className="tx-table">
+            <thead>
+              <tr>
+                <th>Account</th>
+                <th className="num">This month</th>
+                <th className="num">Year to date</th>
+                <th className="num">Last 12 months</th>
+              </tr>
+            </thead>
+            <tbody>
+              {g.byAccount.length === 0 && (
+                <tr>
+                  <td colSpan={4} className="card-subtitle">
+                    Nothing posted to {g.accounts.join(", ")} in the last 12 months.
+                  </td>
+                </tr>
+              )}
+              {g.byAccount.map((a) => (
+                <tr key={a.account}>
+                  <td>
+                    <span className="category-tag">{a.account}</span>
+                  </td>
+                  <td className="num">{QG_money(a.thisMonth)}</td>
+                  <td className="num">{QG_money(a.ytd)}</td>
+                  <td className="num">{QG_money(a.last12)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </>
+  );
+}
+
 function QG_QboGivingPage({ client, plan, isStaff }) {
   const g = client.givingQbo;
 
@@ -283,53 +402,7 @@ function QG_QboGivingPage({ client, plan, isStaff }) {
         </div>
       </div>
 
-      <div className="card" style={{ marginBottom: 20 }}>
-        <h3 className="card-title">Giving by month</h3>
-        <p className="card-subtitle">
-          From the QuickBooks profit and loss. The lighter bar is this month so far.
-        </p>
-        <QG_MonthlyBars months={g.months} />
-      </div>
-
-      <div className="card" style={{ marginBottom: 20 }}>
-        <h3 className="card-title">By account</h3>
-        <p className="card-subtitle">
-          {g.source === "staff"
-            ? "Income accounts your bookkeeper picked as giving."
-            : `Income accounts with a name like ${QG_AUTO_WORDS}.`}
-        </p>
-        <div className="table-scroll">
-          <table className="tx-table">
-            <thead>
-              <tr>
-                <th>Account</th>
-                <th className="num">This month</th>
-                <th className="num">Year to date</th>
-                <th className="num">Last 12 months</th>
-              </tr>
-            </thead>
-            <tbody>
-              {g.byAccount.length === 0 && (
-                <tr>
-                  <td colSpan={4} className="card-subtitle">
-                    Nothing posted to {g.accounts.join(", ")} in the last 12 months.
-                  </td>
-                </tr>
-              )}
-              {g.byAccount.map((a) => (
-                <tr key={a.account}>
-                  <td>
-                    <span className="category-tag">{a.account}</span>
-                  </td>
-                  <td className="num">{QG_money(a.thisMonth)}</td>
-                  <td className="num">{QG_money(a.ytd)}</td>
-                  <td className="num">{QG_money(a.last12)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
+      <QG_GivingTrend g={g} />
 
       <div className="card" style={{ marginBottom: 20 }}>
         <h3 className="card-title">Recent giving</h3>
@@ -375,7 +448,7 @@ function QG_QboGivingPage({ client, plan, isStaff }) {
         </div>
       </div>
 
-      <QG_FundsPending />
+      <QG_FundsSection client={client} isStaff={isStaff} />
     </div>
   );
 }
@@ -500,6 +573,194 @@ function QG_GivingAccountsPicker({ client }) {
       <div style={{ display: "flex", gap: 8 }}>
         <button className="btn-primary" onClick={save} disabled={saving || isAuto || state.names.length === 0}>
           {saving ? "Saving…" : "Save giving accounts"}
+        </button>
+        {state.hasRow && (
+          <button className="btn-secondary" onClick={useAutomatic} disabled={saving}>
+            Go back to automatic
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// Client details -> QuickBooks (staff only): which balance-sheet accounts
+// are funds, each restricted or unrestricted. No row in client_fund_accounts
+// = automatic (equity/asset accounts named like "fund" or "restricted", never
+// Undeposited Funds). Saving writes only the portal setting, never QuickBooks.
+function QG_FundAccountsPicker({ client }) {
+  const sb = window.mgbSupabase;
+  const showToast = typeof useToast === "function" ? useToast() : null;
+  const [state, setState] = React.useState({ loading: true });
+  // Map of name -> restricted (boolean), or null = automatic.
+  const [picked, setPicked] = React.useState(null);
+  const [saving, setSaving] = React.useState(false);
+
+  const looks = typeof window.mgbLooksLikeFund === "function" ? window.mgbLooksLikeFund : () => false;
+  const guess = typeof window.mgbGuessRestricted === "function" ? window.mgbGuessRestricted : () => false;
+
+  React.useEffect(() => {
+    let alive = true;
+    if (!sb) {
+      setState({ loading: false, error: "Not connected to the database." });
+      return undefined;
+    }
+    (async () => {
+      const [acc, setting] = await Promise.all([
+        sb
+          .from("qbo_accounts")
+          .select("name, account_type, classification, current_balance, active")
+          .eq("client_id", client.id),
+        sb.from("client_fund_accounts").select("accounts").eq("client_id", client.id).maybeSingle(),
+      ]);
+      if (!alive) return;
+      if (acc.error) {
+        setState({ loading: false, error: acc.error.message });
+        return;
+      }
+      const candidates =
+        typeof window.mgbQboFundCandidates === "function" ? window.mgbQboFundCandidates(acc.data || []) : [];
+      const row = setting && !setting.error ? setting.data : null;
+      setState({ loading: false, candidates, hasRow: !!row });
+      if (row && Array.isArray(row.accounts)) {
+        const m = new Map();
+        row.accounts.forEach((a) => {
+          if (a && a.name) m.set(a.name, typeof a.restricted === "boolean" ? a.restricted : guess(a.name));
+        });
+        setPicked(m);
+      } else {
+        setPicked(null);
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [client.id]);
+
+  if (state.loading) return <p className="card-subtitle">Loading balance-sheet accounts…</p>;
+  if (state.error) return <p className="card-subtitle">Couldn't load accounts: {state.error}</p>;
+
+  const autoMap = new Map(state.candidates.filter((c) => looks(c.name)).map((c) => [c.name, guess(c.name)]));
+  const effective = picked || autoMap;
+  const isAuto = picked === null;
+  // A saved pick whose account no longer syncs still shows, so staff can untick it.
+  const names = state.candidates.map((c) => c.name);
+  const missing = Array.from(effective.keys()).filter((n) => names.indexOf(n) === -1);
+  const balanceOf = {};
+  state.candidates.forEach((c) => {
+    balanceOf[c.name] = c.balance;
+  });
+
+  const toggle = (name) => {
+    const next = new Map(effective);
+    if (next.has(name)) next.delete(name);
+    else next.set(name, guess(name));
+    setPicked(next);
+  };
+  const setRestricted = (name, val) => {
+    const next = new Map(effective);
+    next.set(name, val);
+    setPicked(next);
+  };
+
+  async function afterSave(msg) {
+    if (window.mgbReloadQboData) await window.mgbReloadQboData([client.id]);
+    QG_notifyReloaded();
+    if (showToast) showToast(msg);
+  }
+
+  async function save() {
+    if (!sb || saving) return;
+    setSaving(true);
+    const accounts = Array.from(effective.entries()).map(([name, restricted]) => ({ name, restricted: !!restricted }));
+    const { error } = await sb
+      .from("client_fund_accounts")
+      .upsert({ client_id: client.id, accounts, updated_at: new Date().toISOString() });
+    setSaving(false);
+    if (error) {
+      if (showToast) showToast("Couldn't save: " + error.message);
+      return;
+    }
+    setPicked(new Map(effective));
+    setState((s) => ({ ...s, hasRow: true }));
+    afterSave("Saved. Funds now use the accounts you picked.");
+  }
+
+  async function useAutomatic() {
+    if (!sb || saving) return;
+    setSaving(true);
+    const { error } = await sb.from("client_fund_accounts").delete().eq("client_id", client.id);
+    setSaving(false);
+    if (error) {
+      if (showToast) showToast("Couldn't save: " + error.message);
+      return;
+    }
+    setPicked(null);
+    setState((s) => ({ ...s, hasRow: false }));
+    afterSave("Funds are back to picking accounts automatically.");
+  }
+
+  const row = (n, isMissing) => {
+    const on = effective.has(n);
+    return (
+      <div key={n} style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+        <label style={{ display: "flex", gap: 8, alignItems: "center", cursor: "pointer", flex: "1 1 220px" }}>
+          <input type="checkbox" checked={on} onChange={() => toggle(n)} />
+          <span>{n}</span>
+          <span className="card-subtitle" style={{ margin: 0 }}>
+            {isMissing ? "(no longer in QuickBooks)" : QG_money(balanceOf[n])}
+            {!isMissing && autoMap.has(n) ? " · matches automatically" : ""}
+          </span>
+        </label>
+        {on && (
+          <span className="view-toggle" style={{ margin: 0 }}>
+            <button
+              type="button"
+              className={"view-toggle-btn" + (!effective.get(n) ? " active" : "")}
+              onClick={() => setRestricted(n, false)}
+            >
+              Unrestricted
+            </button>
+            <button
+              type="button"
+              className={"view-toggle-btn" + (effective.get(n) ? " active" : "")}
+              onClick={() => setRestricted(n, true)}
+            >
+              Restricted
+            </button>
+          </span>
+        )}
+      </div>
+    );
+  };
+
+  return (
+    <div className="modal-section">
+      <div className="nav-section-label modal-section-label">Fund accounts</div>
+      <p className="card-subtitle" style={{ marginTop: 0 }}>
+        Which QuickBooks balance-sheet accounts are funds on the client's Giving
+        &amp; Funds page, and whether each is restricted. Balances are as of the
+        last sync.{" "}
+        {isAuto
+          ? 'Right now it\'s automatic: equity and asset accounts with "fund" or "restricted" in the name (not Undeposited Funds), restricted when the name says restricted.'
+          : "Right now it uses the accounts ticked below."}{" "}
+        This is a portal setting only; nothing changes in QuickBooks.
+      </p>
+      {state.candidates.length === 0 && missing.length === 0 ? (
+        <p className="card-subtitle">No equity or asset accounts have synced yet.</p>
+      ) : (
+        <div style={{ display: "grid", gap: 6, margin: "8px 0 12px", maxHeight: 320, overflowY: "auto" }}>
+          {names.map((n) => row(n, false))}
+          {missing.map((n) => row(n, true))}
+        </div>
+      )}
+      <div style={{ display: "flex", gap: 8 }}>
+        <button
+          className="btn-primary"
+          onClick={save}
+          disabled={saving || (isAuto && autoMap.size === 0) || (state.candidates.length === 0 && missing.length === 0)}
+        >
+          {saving ? "Saving…" : "Save fund accounts"}
         </button>
         {state.hasRow && (
           <button className="btn-secondary" onClick={useAutomatic} disabled={saving}>

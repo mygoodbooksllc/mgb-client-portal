@@ -2992,10 +2992,26 @@ function ReferralPopup({ isBookkeeper, promoText, onSave }) {
     setIsReferring(true);
   };
 
+  // Opens a draft in the person's own email app (mailto:), so the note comes
+  // from them and nothing is sent on their behalf. The portal has no
+  // referral email of its own.
   const sendReferral = () => {
-    if (!friendEmail.trim()) return;
+    const to = friendEmail.trim();
+    if (!to) return;
+    const href =
+      "mailto:" +
+      encodeURIComponent(to) +
+      "?subject=" +
+      encodeURIComponent("Bookkeeping for churches and nonprofits") +
+      "&body=" +
+      encodeURIComponent(emailMessage || "");
+    try {
+      window.location.href = href;
+    } catch (e) {
+      /* no mail app registered: the toast below still explains */
+    }
     showToast(
-      `Referral email sent to ${friendName.trim() || friendEmail.trim()}.`,
+      `Opened an email to ${friendName.trim() || to} in your email app.`,
     );
     setIsReferring(false);
   };
@@ -3088,11 +3104,11 @@ function ReferralPopup({ isBookkeeper, promoText, onSave }) {
               disabled={!friendEmail.trim()}
               onClick={sendReferral}
             >
-              Send Email
+              Open in Email
             </button>
           </div>
           <span className="modal-footnote">
-            Prototype — this doesn't send a real email yet.
+            Opens a draft in your email app, so it comes from you.
           </span>
         </div>
       ) : (
@@ -3706,6 +3722,7 @@ function crossTabWidgetDefs(client, access) {
   } else if (
     access.tabs.has("giving") &&
     !isRealClientWithoutQbo(client) &&
+    client.dataSource !== "quickbooks" &&
     ((client.funds || []).length > 0 || (client.contributions || []).length > 0)
   ) {
     const totalGiving = (client.contributions || []).reduce(
@@ -3726,6 +3743,51 @@ function crossTabWidgetDefs(client, access) {
           </p>
           <div className="tx-list">
             {(client.funds || []).map((f) => (
+              <div className="tx-row" key={f.name}>
+                <div>
+                  <div className="tx-desc">{f.name}</div>
+                  <div className="tx-meta">
+                    {f.restricted ? "Restricted" : "Unrestricted"}
+                  </div>
+                </div>
+                <div className="tx-amount positive">{fmtMoney(f.balance)}</div>
+              </div>
+            ))}
+          </div>
+        </>
+      ),
+    });
+  }
+
+  // Fund balances from QuickBooks (the accounts picked in Client details ->
+  // QuickBooks -> Fund accounts; client.funds from mapQboToClient.js).
+  if (
+    access.tabs.has("giving") &&
+    client.dataSource === "quickbooks" &&
+    (client.funds || []).length > 0
+  ) {
+    const qFunds = client.funds;
+    const qRestricted = qFunds
+      .filter((f) => f.restricted)
+      .reduce((s, f) => s + (Number(f.balance) || 0), 0);
+    const qUnrestricted = qFunds
+      .filter((f) => !f.restricted)
+      .reduce((s, f) => s + (Number(f.balance) || 0), 0);
+    defs.push({
+      id: "xt-fund-balances",
+      group: "content",
+      sourceTab: "Giving & Funds",
+      label: "Fund balances",
+      description: "Restricted and unrestricted funds from QuickBooks",
+      render: () => (
+        <>
+          <h3 className="card-title">Fund Balances</h3>
+          <p className="card-subtitle">
+            {fmtMoney(qUnrestricted)} unrestricted · {fmtMoney(qRestricted)}{" "}
+            restricted · as of last sync
+          </p>
+          <div className="tx-list">
+            {qFunds.map((f) => (
               <div className="tx-row" key={f.name}>
                 <div>
                   <div className="tx-desc">{f.name}</div>
@@ -7179,11 +7241,11 @@ function FundBalancesCard({ client }) {
   );
 }
 
-function ContributionsCard({ client }) {
+function ContributionsCard({ client, subtitle }) {
   return (
     <div className="card">
       <h3 className="card-title">Recent Contributions</h3>
-      <p className="card-subtitle">Individual gifts and grants received</p>
+      <p className="card-subtitle">{subtitle || "Individual gifts and grants received"}</p>
       <div className="table-scroll">
         <table className="tx-table tx-table-stack tx-stack-giving">
           <thead>
@@ -7272,7 +7334,7 @@ function GivingFundsPage({ client }) {
 
   return (
     <div className="giving-page">
-      <MockBanner text="Giving records and fund balances shown here are fabricated for this prototype." />
+      <MockBanner text="Giving records and fund balances shown here are fabricated for this prototype." client={client} />
 
       <div className="kpi-grid">
         <button
@@ -7343,7 +7405,24 @@ function GivingFundsPage({ client }) {
 // rather than fabricating six months of numbers.
 // ----------------------------------------------------------------------------
 
-function FundAccountingProPage({ client }) {
+// QuickBooks mode (`qbo`): a QuickBooks-connected Pro client gets this same
+// page fed from the sync. Fund balances are the accounts picked in Client
+// details -> QuickBooks -> Fund accounts (client.funds, mapQboToClient.js);
+// giving is client.givingQbo; Contributions and Tax Documents use the giving
+// transactions QuickBooks synced (about 90 days), with the QuickBooks
+// customer / payer as the donor. QuickBooks has no pledges or fund
+// transfers, so the Pledges view is left out and Fund Activity lists each
+// fund's balance. Nothing here writes to QuickBooks.
+function FundAccountingProPage({ client: rawClient, qbo, plan, isStaff }) {
+  const client = useMemo(
+    () =>
+      qbo && typeof QG_qboContributions === "function"
+        ? { ...rawClient, contributions: QG_qboContributions(rawClient) }
+        : rawClient,
+    [rawClient, qbo],
+  );
+  const gq = qbo ? rawClient.givingQbo || null : null;
+  const qboGiftsFrom = gq && gq.giftsFrom ? gq.giftsFrom : null;
   const fundTransfers = client.fundTransfers || [];
   const pledges = client.pledges || [];
   const totalGiving = client.contributions.reduce((s, c) => s + c.amount, 0);
@@ -7368,7 +7447,13 @@ function FundAccountingProPage({ client }) {
   const yearStart = today.slice(0, 4) + "-01-01";
 
   const handleDownloadStatement = (donor) => {
-    const filename = buildGivingStatementPdf(client, donor);
+    const filename = buildGivingStatementPdf(
+      client,
+      donor,
+      qbo
+        ? `Gifts synced from QuickBooks, ${qboGiftsFrom ? fmtDate(qboGiftsFrom) : "recent"} – ${fmtDate(today)}`
+        : null,
+    );
     showToast(`Downloaded "${filename}"`);
   };
 
@@ -7452,9 +7537,32 @@ function FundAccountingProPage({ client }) {
 
   return (
     <div>
-      <MockBanner text="Giving records, fund balances, transfers, and pledges shown here are fabricated for this prototype." />
+      <MockBanner text="Giving records, fund balances, transfers, and pledges shown here are fabricated for this prototype." client={client} />
+
+      {qbo && (
+        <p className="card-subtitle" style={{ margin: "0 0 12px" }}>
+          From QuickBooks ·{" "}
+          {typeof QG_syncLine === "function"
+            ? QG_syncLine(rawClient, plan)
+            : "as of last sync"}
+        </p>
+      )}
 
       <div className="kpi-grid">
+        {qbo ? (
+          <button
+            className="card kpi-card kpi-card-clickable"
+            onClick={() => setView("giving")}
+          >
+            <span className="kpi-label">Giving Year to Date</span>
+            <span className="kpi-value">{fmtMoney(gq ? gq.ytd : 0)}</span>
+            <span className="kpi-sub neutral">
+              {gq && gq.accounts.length
+                ? `${fmtMoney(gq.thisMonth)} so far this month`
+                : "No giving accounts yet"}
+            </span>
+          </button>
+        ) : (
         <button
           className="card kpi-card kpi-card-clickable"
           onClick={() => setView("contributions")}
@@ -7465,13 +7573,18 @@ function FundAccountingProPage({ client }) {
             {client.contributions.length} gifts
           </span>
         </button>
+        )}
         <button
           className="card kpi-card kpi-card-clickable"
           onClick={() => setView("funds")}
         >
           <span className="kpi-label">Unrestricted Funds</span>
           <span className="kpi-value">{fmtMoney(unrestrictedTotal)}</span>
-          <span className="kpi-sub positive">Available for general use</span>
+          <span className="kpi-sub positive">
+            {qbo && !client.funds.length
+              ? "No funds set up yet"
+              : "Available for general use"}
+          </span>
         </button>
         <button
           className="card kpi-card kpi-card-clickable"
@@ -7483,6 +7596,20 @@ function FundAccountingProPage({ client }) {
             Designated for specific purposes
           </span>
         </button>
+        {qbo ? (
+          <button
+            className="card kpi-card kpi-card-clickable"
+            onClick={() => setView("giving")}
+          >
+            <span className="kpi-label">Giving · Last 12 Months</span>
+            <span className="kpi-value">{fmtMoney(gq ? gq.last12 : 0)}</span>
+            <span className="kpi-sub neutral">
+              {gq && gq.monthlyAverage !== null
+                ? `About ${fmtMoney(gq.monthlyAverage)} a month`
+                : "—"}
+            </span>
+          </button>
+        ) : (
         <button
           className="card kpi-card kpi-card-clickable"
           onClick={() => setView("pledges")}
@@ -7493,6 +7620,7 @@ function FundAccountingProPage({ client }) {
             {openPledges.length} open pledge{openPledges.length !== 1 ? "s" : ""}
           </span>
         </button>
+        )}
       </div>
 
       <div className="view-toggle" style={{ marginBottom: 20 }}>
@@ -7503,6 +7631,15 @@ function FundAccountingProPage({ client }) {
         >
           Fund Balances
         </button>
+        {qbo && (
+          <button
+            type="button"
+            className={"view-toggle-btn" + (view === "giving" ? " active" : "")}
+            onClick={() => setView("giving")}
+          >
+            Giving
+          </button>
+        )}
         <button
           type="button"
           className={
@@ -7519,13 +7656,15 @@ function FundAccountingProPage({ client }) {
         >
           Fund Activity
         </button>
-        <button
-          type="button"
-          className={"view-toggle-btn" + (view === "pledges" ? " active" : "")}
-          onClick={() => setView("pledges")}
-        >
-          Pledges
-        </button>
+        {!qbo && (
+          <button
+            type="button"
+            className={"view-toggle-btn" + (view === "pledges" ? " active" : "")}
+            onClick={() => setView("pledges")}
+          >
+            Pledges
+          </button>
+        )}
         <button
           type="button"
           className={
@@ -7537,10 +7676,84 @@ function FundAccountingProPage({ client }) {
         </button>
       </div>
 
-      {view === "funds" && <FundBalancesCard client={client} />}
-      {view === "contributions" && <ContributionsCard client={client} />}
+      {view === "funds" &&
+        (qbo && typeof QG_FundsSection === "function" ? (
+          <QG_FundsSection client={client} isStaff={isStaff} />
+        ) : (
+          <FundBalancesCard client={client} />
+        ))}
+      {view === "giving" &&
+        qbo &&
+        (gq && gq.accounts.length && typeof QG_GivingTrend === "function" ? (
+          <QG_GivingTrend g={gq} />
+        ) : (
+          <div className="card">
+            <h3 className="card-title">Giving</h3>
+            <p className="card-subtitle" style={{ margin: 0 }}>
+              No giving accounts found in QuickBooks yet.{" "}
+              {isStaff
+                ? "Pick which income accounts count as giving in Client details → QuickBooks."
+                : "Your bookkeeper can choose which income accounts count as giving."}
+            </p>
+          </div>
+        ))}
+      {view === "contributions" && (
+        <ContributionsCard
+          client={client}
+          subtitle={
+            qbo
+              ? `Transactions posted to the giving accounts in QuickBooks${qboGiftsFrom ? ` since ${fmtDate(qboGiftsFrom)}` : ""}. The donor is the QuickBooks customer or payer; a deposit split across several accounts is in the totals but not listed.`
+              : null
+          }
+        />
+      )}
 
-      {view === "activity" && (
+      {view === "activity" && qbo && (
+        <div className="card">
+          <h3 className="card-title">Fund Activity</h3>
+          <p className="card-subtitle">
+            Each fund&rsquo;s balance in QuickBooks as of last sync. Transfers
+            between funds aren&rsquo;t synced from QuickBooks, so they
+            aren&rsquo;t listed here.
+          </p>
+          <div className="table-scroll">
+            <table className="tx-table tx-table-labeled">
+              <thead>
+                <tr>
+                  <th>Fund</th>
+                  <th>Type</th>
+                  <th className="num">Balance</th>
+                </tr>
+              </thead>
+              <tbody>
+                {client.funds.length === 0 ? (
+                  <EmptyRow colSpan={3}>
+                    Funds appear here once your bookkeeper sets them up.
+                  </EmptyRow>
+                ) : (
+                  client.funds.map((f) => (
+                    <tr key={f.name}>
+                      <td data-primary="">
+                        <span className="category-tag">{f.name}</span>
+                      </td>
+                      <td data-label="Type">
+                        <span className={"pill " + (f.restricted ? "restricted" : "unrestricted")}>
+                          {f.restricted ? "Restricted" : "Unrestricted"}
+                        </span>
+                      </td>
+                      <td className="num tx-amount" data-label="Balance">
+                        {fmtMoney(f.balance, { cents: true })}
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {view === "activity" && !qbo && (
         <div className="card">
           <h3 className="card-title">Fund Activity</h3>
           <p className="card-subtitle">
@@ -7583,7 +7796,7 @@ function FundAccountingProPage({ client }) {
         </div>
       )}
 
-      {view === "pledges" && (
+      {view === "pledges" && !qbo && (
         <div className="card">
           <h3 className="card-title">Pledges</h3>
           <p className="card-subtitle">
@@ -7670,8 +7883,9 @@ function FundAccountingProPage({ client }) {
             <div>
               <h3 className="card-title">Tax Documents</h3>
               <p className="card-subtitle" style={{ margin: 0 }}>
-                {taxYear} giving statements (January 1 through today) donors
-                can use for their taxes
+                {qbo
+                  ? `${taxYear} giving by donor from QuickBooks${qboGiftsFrom ? `, ${fmtDate(qboGiftsFrom)} through today` : ""}`
+                  : `${taxYear} giving statements (January 1 through today) donors can use for their taxes`}
               </p>
             </div>
             <button
@@ -7704,8 +7918,12 @@ function FundAccountingProPage({ client }) {
                     {client.contributions.some(
                       (c) => c.date >= yearStart && c.date <= today,
                     )
-                      ? `No named donors to send statements to: every gift in ${taxYear} so far is anonymous.`
-                      : `No gifts recorded in ${taxYear} yet.`}
+                      ? qbo
+                        ? "None of the giving transactions synced from QuickBooks have a donor name (bank deposits usually don't). Gifts recorded as sales receipts with the donor as the customer show up here."
+                        : `No named donors to send statements to: every gift in ${taxYear} so far is anonymous.`
+                      : qbo
+                        ? `No giving transactions synced from QuickBooks in ${taxYear} yet.`
+                        : `No gifts recorded in ${taxYear} yet.`}
                   </EmptyRow>
                 ) : (
                   donorRoster.map((d) => (
@@ -7769,6 +7987,9 @@ function FundAccountingProPage({ client }) {
             </table>
           </div>
           <p className="card-subtitle" style={{ margin: "12px 0 0" }}>
+            {qbo
+              ? "Donors are the customer or payer names on giving transactions in QuickBooks. The sync keeps about the last 90 days of transactions, so these totals aren't a full year yet; check QuickBooks before sending a year-end statement. "
+              : ""}
             Statements aren&rsquo;t emailed from here yet. Download each one,
             send it to the donor yourself, then mark it sent so nobody sends
             it twice. Sent status is remembered on this device only.
@@ -8161,19 +8382,24 @@ function PayrollAddOnCard({ client, clientPortalUser, inPlanPage }) {
   );
 }
 
-// A client that has the add-on but hasn't connected Gusto yet.
+// A test client that has the add-on but hasn't connected Gusto yet. Real
+// clients never get here (PayrollPage sends them to PayrollNotConnected):
+// there is no Gusto connection in the portal yet, so the button is a
+// placeholder.
 function PayrollUpsell({ client }) {
   const showToast = useToast();
 
   const handleConnect = () => {
     showToast(
-      "Prototype — this would send your admin to Gusto to authorize read access.",
+      "Gusto connection isn't built yet. On this test client the button is a placeholder.",
     );
   };
 
+  if (client.testOnly === false) return <PayrollNotConnected client={client} />;
+
   return (
     <div>
-      <MockBanner text="Nothing here is connected to a real Gusto account yet." />
+      <MockBanner text="Nothing here is connected to a real Gusto account yet." client={client} />
 
       <div
         className="card"
@@ -8292,7 +8518,7 @@ function PayrollDetail({ client }) {
 
   return (
     <div>
-      <MockBanner text="Payroll figures are sample data for this prototype. Once connected, this page reflects your live Gusto account." />
+      <MockBanner text="Payroll figures are sample data for this prototype." client={client} />
 
       <div
         style={{
@@ -9267,7 +9493,7 @@ function buildReconciliationReportPdf(
 
 // Fund Accounting Pro only. One donor's gifts across every fund, YTD — the
 // per-donor equivalent of buildContributionStatementPdf's by-fund summary.
-function buildGivingStatementPdf(client, donorName) {
+function buildGivingStatementPdf(client, donorName, periodLabel) {
   const gifts = (client.contributions || []).filter(
     (c) => c.donor === donorName,
   );
@@ -9276,7 +9502,7 @@ function buildGivingStatementPdf(client, donorName) {
 
   const doc = newReportDoc(
     `Giving Statement — ${donorName}`,
-    `January 1 – December 31, ${year}`,
+    periodLabel || `January 1 – December 31, ${year}`,
     client,
   );
 
@@ -23510,6 +23736,13 @@ function TabSettingsModal({
             typeof QG_GivingAccountsPicker === "function" && (
               <QG_GivingAccountsPicker client={client} />
             )}
+
+          {/* Which balance-sheet accounts are funds (components/client/QboGiving.jsx). */}
+          {qboConnection &&
+            qboConnection.status === "connected" &&
+            typeof QG_FundAccountsPicker === "function" && (
+              <QG_FundAccountsPicker client={client} />
+            )}
         </div>
       )}
 
@@ -23664,8 +23897,12 @@ function TabSettingsModal({
       )}
 
       <div className="modal-footer">
+        {/* Real portal logins are enforced at sign-in (ClientAuthGate + RLS).
+            Only a test client's sample people (data.js) are preview-only. */}
         <span className="modal-footnote">
-          Prototype — access isn't enforced yet.
+          {client.testOnly !== false && (client.users || []).length > 0
+            ? "Sample people on this test client are for preview only. Real portal logins are enforced at sign-in."
+            : ""}
         </span>
         <button className="btn-primary" onClick={onClose}>
           Done
@@ -26877,7 +27114,16 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
             // empty state, never sample numbers; only test-only clients
             // without QuickBooks keep the sample Giving pages.
             (scopedClient.dataSource === "quickbooks" ? (
-              typeof QG_QboGivingPage === "function" ? (
+              // Pro: the full Giving & Funds page, fed from QuickBooks.
+              showsFundAccountingPro && !scopedClient.givingQboHidden ? (
+                <FundAccountingProPage
+                  client={scopedClient}
+                  qbo
+                  plan={access.plan}
+                  isStaff={isStaffSession && !isPreviewingUser}
+                  key={"fund-accounting-pro-qbo-" + client.id}
+                />
+              ) : typeof QG_QboGivingPage === "function" ? (
                 <QG_QboGivingPage
                   client={scopedClient}
                   plan={access.plan}

@@ -397,9 +397,12 @@ eq(exp.budget.length, 0, "no budget is invented from P&L lines");
 
 // --- nothing sample survives for data QuickBooks doesn't sync -------------------
 const sampled = mapQboToClient(SAMPLE, ROWS);
-["funds", "contributions", "pledges", "donors", "fundTransfers", "bankReconciliations", "documents"].forEach((k) => {
+["contributions", "pledges", "donors", "fundTransfers", "bankReconciliations", "documents"].forEach((k) => {
   ok(Array.isArray(sampled[k]) && sampled[k].length === 0, `${k} is emptied for a QuickBooks client`);
 });
+// Funds come only from QuickBooks accounts (auto-detected here), never the sample.
+const qboNames = new Set(ROWS.accounts.map((a) => a.name));
+ok(sampled.funds.every((f) => qboNames.has(f.name)), "funds are QuickBooks accounts, not sample funds");
 eq(sampled.payroll, null, "sample payroll is dropped for a QuickBooks client");
 ok(sampled.users === SAMPLE.users, "the users roster is kept");
 
@@ -490,6 +493,36 @@ ok(
   eq(picked.thisMonth, 500, "staff-picked accounts drive the totals");
   const mapped = mapQboToClient(withClientDataDefaults({ id: "x", name: "X" }), { plLines: pl, monthlyPl: [{ month: "2026-09-01", revenue: 2000, expenses: 0 }], connection: { last_synced_at: "2026-09-20T12:00:00Z" } });
   ok(mapped.givingQbo && mapped.givingQbo.accounts.length === 2, "mapQboToClient attaches givingQbo");
+}
+
+// fundsQbo: fund balances from qbo_accounts. Auto picks equity/asset
+// accounts named like a fund (never Undeposited Funds); a client_fund_accounts
+// row replaces it; restricted is guessed from the name unless set.
+{
+  const { mgbBuildQboFunds, mgbGuessRestricted } = sandbox.window;
+  eq(mgbGuessRestricted("Temporarily restricted net assets"), true, "temporarily restricted counts as restricted");
+  eq(mgbGuessRestricted("Unrestricted net assets"), false, "unrestricted is not restricted");
+  eq(mgbGuessRestricted("Missions Fund"), false, "default is unrestricted");
+  const accts = [
+    { name: "Restricted - Building Fund", account_type: "Equity", classification: "Equity", current_balance: "25000", active: true },
+    { name: "Missions Fund", account_type: "Equity", classification: "Equity", current_balance: 4000, active: true },
+    { name: "Undeposited Funds", account_type: "Other Current Asset", classification: "Asset", current_balance: 900, active: true },
+    { name: "Checking", account_type: "Bank", classification: "Asset", current_balance: 12000, active: true },
+    { name: "Tithes", account_type: "Income", classification: "Revenue", current_balance: 0, active: true },
+  ];
+  const auto = mgbBuildQboFunds({ accounts: accts });
+  eq(auto.source, "auto", "funds default to automatic detection");
+  eq(auto.funds.map((f) => f.name).join("|"), "Missions Fund|Restricted - Building Fund", "auto picks fund-named equity/asset accounts, not Undeposited Funds");
+  eq(auto.restrictedTotal, 25000, "restricted total");
+  eq(auto.unrestrictedTotal, 4000, "unrestricted total");
+  eq(auto.candidates.length, 4, "candidates are the balance-sheet accounts only");
+  const picked = mgbBuildQboFunds({ accounts: accts, setting: { accounts: [{ name: "Checking", restricted: true }, { name: "Gone", restricted: false }] } });
+  eq(picked.source, "staff", "a client_fund_accounts row overrides detection");
+  eq(picked.restrictedTotal, 12000, "staff restricted flag wins");
+  eq(picked.funds[1].missing, true, "a picked account that no longer syncs is flagged");
+  const mapped2 = mapQboToClient(withClientDataDefaults({ id: "x", name: "X" }), { accounts: accts, fundSettings: [{ accounts: [{ name: "Missions Fund", restricted: false }] }] });
+  eq(mapped2.funds.length, 1, "mapQboToClient uses the fund pick");
+  eq(mapped2.funds[0].balance, 4000, "fund balance is the account's current balance");
 }
 
 console.log(`mapQboToClient: ${checks} assertions passed.`);

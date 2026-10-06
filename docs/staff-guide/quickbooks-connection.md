@@ -2,7 +2,7 @@
 title: How do I connect a client's QuickBooks and use Sync now?
 section: QuickBooks
 audience: staff
-keywords: [quickbooks, where the money went, expenses by account, no expenses recorded, qbo, sync schedule, every 15 minutes, every 30 minutes, intuit limit, connect, sync, sync now, sync pill, reconnect, disconnect, intuit, refresh, numbers, sample data, prototype, setting up, giving, tithes, offerings, giving accounts]
+keywords: [quickbooks, where the money went, expenses by account, no expenses recorded, qbo, sync schedule, every 15 minutes, every 30 minutes, intuit limit, connect, sync, sync now, sync pill, reconnect, disconnect, intuit, refresh, numbers, sample data, prototype, setting up, giving, tithes, offerings, giving accounts, funds, fund accounts, restricted, unrestricted, fund balances, donor statements, tax documents, pledges]
 sort: 400
 ---
 When a client's QuickBooks Online is connected, their portal shows real numbers from QuickBooks instead of sample data. After that, the portal keeps itself up to date.
@@ -69,6 +69,26 @@ It only reads from QuickBooks. Nothing is written back.
 If no income account matches, the Giving page says **No giving accounts found in QuickBooks yet**. Pick the accounts as above.
 
 QuickBooks only syncs the last 12 months of the profit and loss, so year to date can't go back further than that, and there's no comparison with last year yet.
+
+### Funds from QuickBooks
+
+Fund balances come from the QuickBooks chart of accounts, as of the last sync. Nothing is written back to QuickBooks.
+
+**Which accounts are funds.** By default, any active equity or asset account with "fund" or "restricted" in its name (never "Undeposited Funds"). To choose them yourself, go to **Client details → QuickBooks** and, under **Fund accounts**, tick the accounts that are funds. Each picked account is marked **Restricted** or **Unrestricted**. The portal guesses from the name (names with "restricted" but not "unrestricted" start as Restricted) and you can switch it. Click **Save fund accounts**; **Go back to automatic** undoes your pick. This is a portal setting only. If a picked account is later renamed or removed in QuickBooks, it shows as "(no longer in QuickBooks)" so you can fix the pick.
+
+If no account matches, the Funds section says **Funds appear here once your bookkeeper sets them up**. Staff also see a pointer to the Fund accounts picker.
+
+**Pro clients** get the full Giving & Funds page, filled from QuickBooks:
+
+- **Giving Year to Date**, **Unrestricted Funds**, **Restricted Funds** and **Giving · Last 12 Months** at the top.
+- **Fund Balances**: each fund account with its balance.
+- **Giving**: the monthly bars and by-account table.
+- **Contributions**: transactions posted to the giving accounts in the last 90 days. The donor is the QuickBooks customer or payer on the transaction ("Anonymous" when there isn't one, for example most bank deposits).
+- **Fund Activity**: each fund's balance. Transfers between funds aren't synced from QuickBooks, so they aren't listed.
+- **Tax Documents**: giving by donor, built from those donor names. The portal only keeps about 90 days of transactions, so this isn't a full-year statement yet. Check totals against QuickBooks before sending. **Mark sent** is only remembered on your computer.
+- **Pledges** is hidden for QuickBooks clients, because QuickBooks has no pledges.
+
+Basic clients see the simpler Giving page with the Funds section. The dashboard **Fund balances** card uses the same accounts.
 
 ### Reconnect and Disconnect
 

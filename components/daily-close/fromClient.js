@@ -73,7 +73,9 @@
     if (!stamp || isNaN(stamp.getTime())) {
       return client && client.dataSource === "quickbooks"
         ? "Waiting for the first QuickBooks sync"
-        : "Sample data";
+        : client && client.testOnly === false
+          ? "Not connected to QuickBooks yet"
+          : "Sample data";
     }
     const hours = stamp.getHours();
     const hour12 = hours % 12 === 0 ? 12 : hours % 12;
@@ -483,7 +485,9 @@
               (client.lastSyncedAt && typeof relTime === "function" && relTime(client.lastSyncedAt)
                 ? " · " + relTime(client.lastSyncedAt)
                 : "")
-            : "Sample data — not connected to QuickBooks yet",
+            : client.testOnly === false
+              ? "Not connected to QuickBooks yet"
+              : "Sample data — not connected to QuickBooks yet",
         isSampleData: false,
         staleWarning: staleWarning(client, plan),
       },

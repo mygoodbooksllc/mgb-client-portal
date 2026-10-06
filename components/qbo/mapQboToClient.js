@@ -234,8 +234,7 @@
       })
       .sort(function (a, b) {
         return a.date < b.date ? 1 : a.date > b.date ? -1 : 0;
-      })
-      .slice(0, 50);
+      });
 
     return {
       source: source,
@@ -257,7 +256,100 @@
         .sort(function (a, b) {
           return b.last12 - a.last12;
         }),
-      recent: recent,
+      // Newest 50 for the "Recent giving" list; every synced gift (the
+      // sync keeps about 90 days of transactions) for donor totals.
+      recent: recent.slice(0, 50),
+      gifts: recent,
+      giftsFrom: recent.length ? recent[recent.length - 1].date : null,
+    };
+  };
+
+  // --- funds -----------------------------------------------------------------
+  // Fund balances from the QuickBooks chart of accounts (read-only). Which
+  // balance-sheet accounts are funds: the staff pick in client_fund_accounts
+  // (Client details -> QuickBooks -> Fund accounts), each marked restricted
+  // or not; otherwise equity/asset accounts whose names contain "fund" or
+  // "restricted". "Undeposited Funds" is QuickBooks' clearing account, never
+  // a fund. The balance is qbo_accounts.current_balance as of the last sync.
+  var FUND_NAME_RE = /\bfunds?\b|restricted/i;
+  var NOT_A_FUND_RE = /undeposited/i;
+  var FUND_CLASSES = { Equity: true, Asset: true };
+  window.mgbLooksLikeFund = function (name) {
+    var s = String(name || "");
+    return FUND_NAME_RE.test(s) && !NOT_A_FUND_RE.test(s);
+  };
+  // "Restricted - Building Fund" and "Temporarily restricted net assets" are
+  // restricted; "Unrestricted net assets" and everything else is not.
+  window.mgbGuessRestricted = function (name) {
+    var s = String(name || "");
+    return /restricted/i.test(s) && !/unrestricted/i.test(s);
+  };
+  function isBalanceSheet(a) {
+    if (!a) return false;
+    if (a.classification) return !!FUND_CLASSES[a.classification];
+    return /equity|asset|bank/i.test(String(a.account_type || ""));
+  }
+  // Every active equity/asset account, for the staff picker.
+  window.mgbQboFundCandidates = function (accounts) {
+    return (accounts || [])
+      .filter(function (a) {
+        return a && a.name && a.active !== false && isBalanceSheet(a);
+      })
+      .map(function (a) {
+        return {
+          name: a.name,
+          accountType: a.account_type || "",
+          classification: a.classification || "",
+          balance: toNumber(a.current_balance),
+        };
+      })
+      .sort(function (x, y) {
+        return x.name.toLowerCase() < y.name.toLowerCase() ? -1 : 1;
+      });
+  };
+  window.mgbBuildQboFunds = function (opts) {
+    opts = opts || {};
+    var candidates = window.mgbQboFundCandidates(opts.accounts);
+    var balanceByName = {};
+    (opts.accounts || []).forEach(function (a) {
+      if (a && a.name) balanceByName[a.name] = toNumber(a.current_balance);
+    });
+    var setting = opts.setting || null;
+    var picks = setting && Array.isArray(setting.accounts) ? setting.accounts : null;
+    var funds = picks
+      ? picks
+          .filter(function (p) {
+            return p && p.name;
+          })
+          .map(function (p) {
+            return {
+              name: String(p.name),
+              balance: balanceByName[p.name] || 0,
+              restricted: typeof p.restricted === "boolean" ? p.restricted : window.mgbGuessRestricted(p.name),
+              // A picked account that no longer syncs (renamed or deleted
+              // in QuickBooks) shows $0 and is flagged for staff.
+              missing: !(p.name in balanceByName),
+            };
+          })
+      : candidates
+          .filter(function (c) {
+            return window.mgbLooksLikeFund(c.name);
+          })
+          .map(function (c) {
+            return { name: c.name, balance: c.balance, restricted: window.mgbGuessRestricted(c.name), missing: false };
+          });
+    var restricted = 0;
+    var unrestricted = 0;
+    funds.forEach(function (f) {
+      if (f.restricted) restricted += f.balance;
+      else unrestricted += f.balance;
+    });
+    return {
+      source: picks ? "staff" : "auto",
+      funds: funds,
+      candidates: candidates,
+      restrictedTotal: Math.round(restricted * 100) / 100,
+      unrestrictedTotal: Math.round(unrestricted * 100) / 100,
     };
   };
 
@@ -557,6 +649,11 @@
         return a.dueDate < b.dueDate ? -1 : 1;
       });
 
+    var fundsQbo = window.mgbBuildQboFunds({
+      accounts: accounts,
+      setting: (rows.fundSettings || [])[0] || null,
+    });
+
     // Object.assign over the existing client keeps everything QuickBooks has
     // no opinion about — the roster fields, the users roster, threads,
     // documents — exactly as it was. Only the financial arrays are
@@ -572,12 +669,18 @@
       categoryMonthly: categoryMonthly,
       receivables: receivables,
       payables: payables,
-      // Nothing syncs these yet (no giving, payroll, reconciliation or
+      // Nothing syncs the rest yet (no donor, payroll, reconciliation or
       // document feed). A roster client whose id matches a data.js sample
       // would otherwise show the sample's funds, donors, Gusto payroll and
       // files next to real QuickBooks numbers. Pages show a "not connected
       // yet" state for a QuickBooks client with none.
-      funds: [],
+      // Fund balances from the picked (or auto-detected) QuickBooks
+      // accounts, same { name, balance, restricted } shape as data.js, so
+      // the Funds page, dashboard cards and reports read them unchanged.
+      funds: fundsQbo.funds.map(function (f) {
+        return { name: f.name, balance: f.balance, restricted: f.restricted };
+      }),
+      fundsQbo: fundsQbo,
       contributions: [],
       pledges: [],
       donors: [],

@@ -15,7 +15,9 @@ That's a test client whose QuickBooks isn't connected (or hasn't synced yet), so
 
 A real client is never shown sample numbers or "prototype" wording. Until their QuickBooks is connected, the badge says **Setting up — connecting QuickBooks** and pages are empty (Giving says "Giving appears here once QuickBooks is connected").
 
-Giving comes from QuickBooks for connected clients. Some areas are still sample data on test clients: funds, pledges, donors and payroll (real clients see an empty state there instead); message threads in the Client overview's Engagement card; and uploads on the client's own Documents page (files uploaded into a document request are stored for real). Reconciliation status is only estimated (for the Close tracker's QuickBooks checks).
+This holds even when a real client's id matches one of the built-in sample clients: a real client never picks up sample data.
+
+Giving and funds come from QuickBooks for connected clients (see [Funds from QuickBooks](#/help/quickbooks-connection)). Some areas are still sample data on test clients: pledges, donors on unconnected test clients, and payroll (real clients see an empty state there instead); message threads in the Client overview's Engagement card; and uploads on the client's own Documents page (files uploaded into a document request are stored for real). Reconciliation status is only estimated (for the Close tracker's QuickBooks checks).
 
 ### What do the client's Cash Flow numbers mean?
 
@@ -62,7 +64,7 @@ No. On Team → Members, **Email invite** opens a draft in Gmail or your mail ap
 
 ### Is "Manage access" / Client details access enforced?
 
-Not fully yet. The Client details window shows "Prototype — access isn't enforced yet." Check with an admin before relying on those settings.
+Real portal logins (the client's people in Client details) are enforced at sign-in. On a test client the people listed may be samples for preview only, and the window says so.
 
 ### What's the difference between the Close tracker and the Month-end close checklist?
 

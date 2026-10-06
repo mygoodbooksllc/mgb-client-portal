@@ -50,6 +50,8 @@ window.CLIENT_DATA_DEFAULTS = {
   users: [],
   messages: [],
   threads: {},
+  fundTransfers: [],
+  bankReconciliations: [],
 };
 
 window.withClientDataDefaults = function (client) {
