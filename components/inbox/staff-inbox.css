@@ -1169,3 +1169,59 @@ body:has(.modal-overlay) .si-launcher {
 }
 .si-mode .si-loop-in:hover:not(:disabled) { border-color: var(--gold, #c9a227); color: var(--gold-deep, var(--text)); }
 .si-mode .si-loop-in:disabled { opacity: 0.6; cursor: default; }
+
+/* Details pane extras (SI_useClientExtras). */
+.si-ctx-note {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.si-ctx-line {
+  margin: 0 0 2px;
+  font-size: 13px;
+  color: var(--ink-strong);
+}
+.si-ctx-section > .si-muted + .si-muted {
+  margin-top: 4px;
+}
+.si-ctx-warn {
+  margin: 0 0 6px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--bad);
+}
+.si-overdue {
+  color: var(--bad);
+  font-weight: 600;
+}
+.si-health-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  flex: none;
+  background: var(--good);
+}
+.si-health-yellow { background: var(--gold-deep); }
+.si-health-red { background: var(--bad); }
+.si-ctx-notes li {
+  align-items: flex-start;
+}
+.si-ctx-clamp {
+  flex: 1;
+  min-width: 0;
+  font-size: 12.5px;
+  color: var(--text);
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.si-context-pane .live-sync-pill {
+  max-width: 100%;
+  white-space: normal;
+  text-align: left;
+  height: auto;
+  min-height: 30px;
+}
+.si-context-pane .live-sync-text {
+  white-space: normal;
+}

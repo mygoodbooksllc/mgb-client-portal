@@ -40,7 +40,21 @@ Switch to **Note** before typing (the hint says "Only staff see notes"), then cl
 
 ### Details pane
 
-Click the **i** button to open details on the right: the client's milestone, cash on hand, this month's close progress, their bookkeeper, what's **Open for them** (document requests and tasks) and **Files in thread**. From there you can **Request document**, **Add task** or **Open client**.
+Click the **i** button to open details on the right. From top to bottom:
+
+- The client's milestone, cash on hand and this month's close progress.
+- **Health**: the same status as the client picker (for example **Needs attention**) and the main reason. A status a staff member set by hand wins.
+- **Plan**: Basic or Pro, and how many portal logins they have.
+- **Bookkeeper** and **Account manager**.
+- **Writing**: who sent the thread, their role and whether they have full or limited access (or no portal login), plus the others at the client on the portal.
+- **QuickBooks**: when it last synced. Click the pill to **Sync now**. A red line shows if the connection needs attention.
+- **Waiting**: how many document requests are overdue, when they last wrote, and whether we've replied since.
+- **Open for them**: open document requests (overdue ones say **Overdue** in red) and tasks.
+- **Notes and SOP**: up to three pinned notes and the first two filled-in SOP sections, cut short. Open the client for the full text.
+- **Recent portal visits**: the last few pages people at the client opened, and when.
+- **Files in thread**, then **Request document**, **Add task** and **Open client**.
+
+Any section with nothing to show (or that you can't see) is left out.
 
 ### Chat from any page
 

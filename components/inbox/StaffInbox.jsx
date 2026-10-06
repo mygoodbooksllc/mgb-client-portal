@@ -510,6 +510,82 @@ function SI_ClientThread({ entry, mode, me, staffUser, sampleRows, onSampleSend,
 // ----------------------------------------------------------------------------
 // Context pane for a client thread.
 // ----------------------------------------------------------------------------
+// Extra facts for the client thread's Details pane (owner request
+// 2026-10-06): the client's portal logins, QuickBooks connection, health
+// override, pinned notes, SOP and recent portal visits. One load per client;
+// every query is RLS-scoped to staff who can access the client, and any that
+// fails just leaves its section out.
+function SI_useClientExtras(clientId) {
+  const [x, setX] = React.useState(null);
+  React.useEffect(() => {
+    const sb = window.mgbSupabase;
+    setX(null);
+    if (!sb || !clientId) return;
+    let alive = true;
+    const safe = (p) => Promise.resolve(p).then((r) => (r && !r.error ? r.data : null), () => null);
+    Promise.all([
+      safe(sb.from("client_users").select("email, name, role, access, active").eq("client_id", clientId)),
+      safe(sb.from("qbo_connections").select("status, last_synced_at, last_error").eq("client_id", clientId).maybeSingle()),
+      safe(sb.from("client_status_overrides").select("status, note").eq("client_id", clientId).maybeSingle()),
+      typeof clientNotesApi === "object"
+        ? Promise.resolve(clientNotesApi.list(sb, { clientId })).then((r) => (r && !r.error ? r.data : null), () => null)
+        : null,
+      typeof clientSopsApi === "object"
+        ? Promise.resolve(clientSopsApi.list(sb, clientId)).then((r) => (r && !r.error ? r.data : null), () => null)
+        : null,
+      safe(
+        sb.from("usage_events").select("actor_email, page, occurred_at").eq("client_id", clientId)
+          .eq("actor_role", "client").order("occurred_at", { ascending: false }).limit(40),
+      ),
+    ]).then(([users, qbo, override, notes, sops, visits]) => {
+      if (alive) setX({ users, qbo, override, notes, sops, visits });
+    });
+    return () => {
+      alive = false;
+    };
+  }, [clientId]);
+  return x;
+}
+
+// One visit per person per page in a row, newest first.
+function siRecentVisits(visits, users) {
+  const nameOf = (email) => {
+    const u = (users || []).find((r) => siLower(r.email) === siLower(email));
+    return (u && u.name) || email;
+  };
+  const out = [];
+  (visits || []).forEach((v) => {
+    const last = out[out.length - 1];
+    if (last && last.email === v.actor_email && last.page === v.page) return;
+    out.push({ email: v.actor_email, who: nameOf(v.actor_email), page: v.page, at: v.occurred_at });
+  });
+  return out.slice(0, 5);
+}
+
+function siAgoPhrase(iso) {
+  const s = siShortAgo(iso);
+  if (s === "now") return "just now";
+  return /^\d/.test(s) ? `${s} ago` : `on ${s}`;
+}
+
+function siPageLabel(page) {
+  return (typeof NAV_LABEL_BY_KEY === "object" && NAV_LABEL_BY_KEY[page]) || String(page || "").replace(/-/g, " ");
+}
+
+function siSopSnippets(sops) {
+  if (!sops) return [];
+  const order = typeof CLIENT_SOP_SECTIONS !== "undefined" ? CLIENT_SOP_SECTIONS.map((x) => x.id) : Object.keys(sops);
+  const titles = typeof CLIENT_SOP_SECTIONS !== "undefined"
+    ? Object.fromEntries(CLIENT_SOP_SECTIONS.map((x) => [x.id, x.title]))
+    : {};
+  const ids = order.concat(Object.keys(sops).filter((k) => !order.includes(k)));
+  return ids
+    .map((id) => sops[id])
+    .filter((r) => r && r.body && String(r.body).trim())
+    .slice(0, 2)
+    .map((r) => ({ id: r.section, title: r.title || titles[r.section] || r.section, body: String(r.body).trim() }));
+}
+
 function SI_ClientContext({ entry, staffUser, rows, onOpenClient }) {
   const client = entry.client;
   const staffTools = typeof useStaffToolList === "function" && typeof staffToolsApi === "object";
@@ -549,6 +625,28 @@ function SI_ClientContext({ entry, staffUser, rows, onOpenClient }) {
   const openDocs = (docs.rows || []).filter((r) => r.status === "open");
   const files = (rows || []).filter((r) => r.attachment_name);
   const premium = typeof hasPremiumPlan === "function" && hasPremiumPlan(client, false);
+  const extras = SI_useClientExtras(client.id);
+  const today = new Date().toISOString().slice(0, 10);
+  const isOverdue = (d) => d && String(d).slice(0, 10) < today;
+  const users = (extras && extras.users) || null;
+  const activeUsers = users ? users.filter((u) => u.active !== false) : null;
+  const sender = users ? users.find((u) => siLower(u.email) === siLower(entry.email)) : null;
+  const teammates = activeUsers ? activeUsers.filter((u) => siLower(u.email) !== siLower(entry.email)) : [];
+  const am = client.accountManager;
+  const amName = am && am.name && am.name !== bkName ? am.name : null;
+  const planKey = typeof effectivePlan === "function" ? effectivePlan(client, false) : null;
+  const planText = planKey && typeof planLabel === "function" ? planLabel(planKey) : null;
+  const health =
+    extras && typeof effectiveClientHealth === "function"
+      ? effectiveClientHealth(client, today, extras.override ? { [client.id]: extras.override } : null)
+      : null;
+  const lastFromThem = (rows || []).filter((r) => r.author_kind === "client").map((r) => r.created_at).sort().pop();
+  const lastFromUs = (rows || []).filter((r) => r.author_kind === "staff" && !r.internal).map((r) => r.created_at).sort().pop();
+  const overdueDocs = openDocs.filter((r) => isOverdue(r.due_date));
+  const pinnedNotes = ((extras && extras.notes) || []).filter((n) => n.pinned).slice(0, 3);
+  const sopBits = siSopSnippets(extras && extras.sops);
+  const visits = siRecentVisits(extras && extras.visits, users);
+  const qbo = extras && extras.qbo;
 
   return (
     <div className="si-ctx-body">
@@ -577,13 +675,105 @@ function SI_ClientContext({ entry, staffUser, rows, onOpenClient }) {
             </dd>
           </div>
         )}
+        {health && typeof CLIENT_HEALTH_LABEL === "object" && (
+          <div>
+            <dt>Health</dt>
+            <dd>
+              <span className={"si-health-dot si-health-" + health.status} aria-hidden="true" />
+              {CLIENT_HEALTH_LABEL[health.status]}
+            </dd>
+            {health.reasons && health.reasons[0] && <span className="si-ctx-note">{health.reasons[0]}</span>}
+          </div>
+        )}
+        {planText && (
+          <div>
+            <dt>Plan</dt>
+            <dd>
+              {planText}
+              {activeUsers && ` · ${activeUsers.length} ${activeUsers.length === 1 ? "login" : "logins"}`}
+            </dd>
+          </div>
+        )}
         {bkName && (
           <div>
             <dt>Bookkeeper</dt>
             <dd>{bkName}</dd>
           </div>
         )}
+        {amName && (
+          <div>
+            <dt>Account manager</dt>
+            <dd>{amName}</dd>
+          </div>
+        )}
       </dl>
+
+      {users && (
+        <div className="si-ctx-section">
+          <div className="si-ctx-head">Writing</div>
+          {sender ? (
+            <>
+              <p className="si-ctx-line">
+                <strong>{sender.name || sender.email}</strong>
+                {sender.role ? ` · ${sender.role}` : ""}
+              </p>
+              <p className="si-muted">
+                {sender.active === false
+                  ? "Their portal login is turned off."
+                  : sender.access === "full"
+                    ? "Full access to the portal."
+                    : "Limited access: only some pages or areas."}
+              </p>
+            </>
+          ) : (
+            <p className="si-muted">{entry.email} doesn't have a portal login.</p>
+          )}
+          {teammates.length > 0 && (
+            <p className="si-muted">
+              Also on the portal: {teammates.slice(0, 4).map((u) => u.name || u.email).join(", ")}
+              {teammates.length > 4 ? ` and ${teammates.length - 4} more` : ""}
+            </p>
+          )}
+        </div>
+      )}
+
+      {client.dataSource === "quickbooks" && (
+        <div className="si-ctx-section">
+          <div className="si-ctx-head">QuickBooks</div>
+          {qbo && qbo.status && qbo.status !== "connected" ? (
+            <p className="si-ctx-warn">Connection needs attention ({qbo.status}). Reconnect it in Client details.</p>
+          ) : qbo && qbo.last_error ? (
+            <p className="si-ctx-warn">Last sync had a problem. Check Client details.</p>
+          ) : null}
+          {typeof QboSyncNowButton === "function" ? (
+            <QboSyncNowButton
+              clientId={client.id}
+              onSynced={() => {}}
+              plan={planKey}
+              lastSyncedAt={(qbo && qbo.last_synced_at) || client.lastSyncedAt}
+            />
+          ) : (
+            <p className="si-muted">Synced {siShortAgo((qbo && qbo.last_synced_at) || client.lastSyncedAt) || "never"}</p>
+          )}
+        </div>
+      )}
+
+      {(lastFromThem || overdueDocs.length > 0) && (
+        <div className="si-ctx-section">
+          <div className="si-ctx-head">Waiting</div>
+          {overdueDocs.length > 0 && (
+            <p className="si-ctx-warn">
+              {overdueDocs.length} overdue document {overdueDocs.length === 1 ? "request" : "requests"}
+            </p>
+          )}
+          {lastFromThem && (
+            <p className="si-muted">
+              They last wrote {siAgoPhrase(lastFromThem)}
+              {lastFromUs && lastFromUs > lastFromThem ? ". We've replied since." : ". Waiting on our reply."}
+            </p>
+          )}
+        </div>
+      )}
 
       <div className="si-ctx-section">
         <div className="si-ctx-head">Open for them</div>
@@ -595,7 +785,11 @@ function SI_ClientContext({ entry, staffUser, rows, onOpenClient }) {
               <li key={"d" + r.id}>
                 <span className="si-ctx-kind">Doc</span>
                 <span className="si-ctx-text">{r.title}</span>
-                {r.due_date && typeof fmtDate === "function" && <span className="si-ctx-when">Due {fmtDate(r.due_date)}</span>}
+                {r.due_date && typeof fmtDate === "function" && (
+                  <span className={"si-ctx-when" + (isOverdue(r.due_date) ? " si-overdue" : "")}>
+                    {isOverdue(r.due_date) ? "Overdue" : "Due"} {fmtDate(r.due_date)}
+                  </span>
+                )}
               </li>
             ))}
             {tasks.slice(0, 6).map((t) => (
@@ -611,6 +805,48 @@ function SI_ClientContext({ entry, staffUser, rows, onOpenClient }) {
 
       {typeof TQ_OpenList === "function" && client.dataSource === "quickbooks" && (
         <TQ_OpenList client={client} compact hideEmpty />
+      )}
+
+      {(pinnedNotes.length > 0 || sopBits.length > 0) && (
+        <div className="si-ctx-section">
+          <div className="si-ctx-head">Notes and SOP</div>
+          <ul className="si-ctx-list si-ctx-notes">
+            {pinnedNotes.map((n) => (
+              <li key={"n" + n.id}>
+                <span className="si-ctx-kind">Pinned</span>
+                <span className="si-ctx-clamp">{n.text}</span>
+              </li>
+            ))}
+            {sopBits.map((b) => (
+              <li key={"s" + b.id}>
+                <span className="si-ctx-kind">SOP</span>
+                <span className="si-ctx-clamp">
+                  <strong>{b.title}:</strong> {b.body}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {extras && (
+        <div className="si-ctx-section">
+          <div className="si-ctx-head">Recent portal visits</div>
+          {visits.length === 0 ? (
+            <p className="si-muted">No visits yet.</p>
+          ) : (
+            <ul className="si-ctx-list">
+              {visits.map((v, i) => (
+                <li key={i}>
+                  <span className="si-ctx-text">
+                    {v.who} opened {siPageLabel(v.page)}
+                  </span>
+                  <span className="si-ctx-when">{siShortAgo(v.at)}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
       )}
 
       <div className="si-ctx-section">
