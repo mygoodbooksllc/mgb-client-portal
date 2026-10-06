@@ -7,6 +7,8 @@ sort: 330
 ---
 Every new client has an **Onboarding** checklist on their **Client overview** (right column). It shows **X of Y** steps done and a progress bar.
 
+For the whole setup, from adding the client to their first sign-in, see [How do I set up a new client from start to finish?](#/help/new-client-start-to-finish).
+
 ### Organization type
 
 Under the progress bar, choose **Organization type**: **Nonprofit** or **For-profit**. It saves as soon as you pick ("Marked as a nonprofit." / "Marked as a for-profit business."). Admins can also set it when adding or editing a client on **Client roster** (**Settings → Firm settings**).

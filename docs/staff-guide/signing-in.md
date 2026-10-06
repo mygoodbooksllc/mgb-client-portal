@@ -28,6 +28,8 @@ Clients don't use Google. On the sign-in page they type their email and click **
 - click the link (it opens in their web browser), or
 - type the code on the **Check your email** screen and click **Sign in**. Use this when they're signing in on a different device, or in the MyGoodBooks app on their phone or computer.
 
+For the full client walkthrough and a message you can send them, see [How does a client sign in, and what do I tell them if they can't?](#/help/client-sign-in-help).
+
 If a client says it's not working:
 
 - **No email arrives.** Only invited addresses get one. Check they're set up for portal access, and ask them to look in spam.
