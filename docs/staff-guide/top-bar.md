@@ -2,13 +2,14 @@
 title: What's on the bar at the top of the page?
 section: Getting started
 audience: staff
-keywords: [top bar, toolbar, header, overview, client overview, search, search transactions, search documents, search messages, ctrl k, cmd k, notifications, bell, my tasks, plus, quick add, message, help, report a bug, feedback, account, avatar, sign out, dark mode, sync, every 15 minutes, settings, preview plan, photo]
+keywords: [back, back button, refresh, reload, installed app, app, top bar, toolbar, header, overview, client overview, search, search transactions, search documents, search messages, ctrl k, cmd k, notifications, bell, my tasks, plus, quick add, message, help, report a bug, feedback, account, avatar, sign out, dark mode, sync, every 15 minutes, settings, preview plan, photo]
 sort: 25
 ---
 Across the top of every staff page there's a dark bar, joined to the sidebar, with your most-used tools. Clients never see it, and it goes away while you use **Preview as** to look at the portal as a client user. The sidebar on the left still has the page links (Home, Inbox, My Tasks and so on).
 
 ### Left side
 
+- **Back** and **Refresh** (installed app only): when you use MyGoodBooks as an installed app, there's no browser toolbar, so these two round buttons come first. **Back** goes to the page you were on before (it's greyed out when there's nowhere to go back to), and **Refresh** reloads the page. Clients get the same buttons at the top right of their page header. In a browser tab, use the browser's own buttons.
 - **Client picker**: shows the client you have open, with their plan and health (for example "Pro · Looking good"). Click it to search for and open another client. On a staff page it says **Choose a client**. More in [How do I find and open a client?](#/help/finding-a-client).
 - **Overview** (client pages only): opens the client's staff-only [Client overview](#/help/client-overview). It's highlighted while you're on it.
 - **Sync pill** (client pages only): how often the client's plan syncs, and when it last did: **Every 15 min · synced 5m ago** (Pro) or **Synced monthly · synced …** (Basic). Click it to run **Sync now** for that client. Clients without QuickBooks show **Prototype · Sample Data** instead. See [How do I connect a client's QuickBooks and use Sync now?](#/help/quickbooks-connection).

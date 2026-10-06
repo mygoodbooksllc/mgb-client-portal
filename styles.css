@@ -9815,3 +9815,36 @@ button.home-todo-main:hover { background: var(--surface-2); }
 [aria-modal="true"] :is(input, select, textarea):focus-visible {
   outline-offset: -2px;
 }
+
+/* Installed app Back / Refresh (AN_AppNav in app.jsx). */
+.an-nav {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex: none;
+}
+.an-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-muted);
+  cursor: pointer;
+}
+.an-btn:hover:not(:disabled) {
+  color: var(--text);
+  border-color: var(--text-muted);
+}
+.an-btn:focus-visible {
+  outline: 2px solid var(--gold, #b8975a);
+  outline-offset: 2px;
+}
+.an-nav button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}

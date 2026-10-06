@@ -1240,6 +1240,7 @@ function TB_StaffTopBar({
   return (
     <header className="tb-bar" aria-label="Staff toolbar">
       <div className="tb-left">
+        {typeof AN_AppNav === "function" && <AN_AppNav variant="tb" />}
         <TB_ClientPicker
           clients={clients}
           client={client}

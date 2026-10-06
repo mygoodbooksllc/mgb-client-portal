@@ -24435,6 +24435,75 @@ function buildHashRoute(page, clientId) {
   );
 }
 
+// Back and Refresh buttons for the installed app (owner request 2026-10-06).
+// An installed app window has no browser toolbar, so there's no way back to
+// the last page or to reload it. Only shown in standalone display mode
+// (desktop or phone); in a browser tab the browser's own buttons do this.
+// In standalone, App pushes a history entry per page change (instead of
+// replacing it), numbering each one in history.state.mgbNav so Back knows
+// when there's nothing left to go back to inside the app.
+function AN_isStandalone() {
+  try {
+    return (
+      (window.matchMedia && window.matchMedia("(display-mode: standalone)").matches) ||
+      window.navigator.standalone === true
+    );
+  } catch (e) {
+    return false;
+  }
+}
+function AN_navIndex() {
+  const st = window.history.state;
+  return st && typeof st.mgbNav === "number" ? st.mgbNav : 0;
+}
+
+function AN_AppNav({ variant }) {
+  const [standalone] = useState(AN_isStandalone);
+  const [canBack, setCanBack] = useState(() => AN_navIndex() > 0);
+  useEffect(() => {
+    if (!standalone) return;
+    const sync = () => setCanBack(AN_navIndex() > 0);
+    window.addEventListener("hashchange", sync);
+    window.addEventListener("popstate", sync);
+    window.addEventListener("mgb-nav", sync);
+    return () => {
+      window.removeEventListener("hashchange", sync);
+      window.removeEventListener("popstate", sync);
+      window.removeEventListener("mgb-nav", sync);
+    };
+  }, [standalone]);
+  if (!standalone) return null;
+  const cls = variant === "tb" ? "tb-icon-btn" : "an-btn";
+  return (
+    <span className="an-nav">
+      <button
+        type="button"
+        className={cls}
+        onClick={() => window.history.back()}
+        disabled={!canBack}
+        aria-label="Back"
+        data-tip="Back"
+      >
+        <svg viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <path d="M12.5 4.5 7 10l5.5 5.5" />
+        </svg>
+      </button>
+      <button
+        type="button"
+        className={cls}
+        onClick={() => window.location.reload()}
+        aria-label="Refresh"
+        data-tip="Refresh"
+      >
+        <svg viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <path d="M16 10a6 6 0 1 1-1.76-4.24" />
+          <path d="M16 3.5V7h-3.5" />
+        </svg>
+      </button>
+    </span>
+  );
+}
+
 // Signing in with Google redirects back to the bare origin, which drops the
 // hash. Stash a deep link at boot (this file runs before the sign-in screen)
 // so App can still open it after the round trip.
@@ -25557,16 +25626,26 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
   // rather than assigning location.hash: no history entry per click and no
   // hashchange event back into the listener below.
   const [hashRewriteTick, setHashRewriteTick] = useState(0);
+  // Set by the hashchange listener so the rewrite it triggers replaces
+  // rather than pushes.
+  const hashFromHistory = useRef(false);
   useEffect(() => {
     try {
       if (isAuthHash(window.location.hash)) return;
       const next = buildHashRoute(effectivePage, selectedClientId);
+      const fromHistory = hashFromHistory.current;
+      hashFromHistory.current = false;
       if (next && window.location.hash !== next) {
-        window.history.replaceState(
-          window.history.state,
-          "",
-          window.location.pathname + window.location.search + next,
-        );
+        const url = window.location.pathname + window.location.search + next;
+        // Installed app: one history entry per page, for AN_AppNav's Back.
+        // Not for the first route on load, or when Back/Forward itself
+        // changed the hash (that would bury the entry it went back to).
+        if (AN_isStandalone() && !fromHistory && parseHashRoute(window.location.hash)) {
+          window.history.pushState({ mgbNav: AN_navIndex() + 1 }, "", url);
+          window.dispatchEvent(new Event("mgb-nav"));
+        } else {
+          window.history.replaceState(window.history.state, "", url);
+        }
       }
     } catch (e) {}
     // `page` too: a bounced request (page changes, effectivePage doesn't)
@@ -25578,6 +25657,7 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
     const onHashChange = () => {
       const route = parseHashRoute(window.location.hash);
       if (!route) return;
+      hashFromHistory.current = true;
       if (
         route.clientId &&
         !clientPortalUser &&
@@ -26469,6 +26549,7 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
             {/* The milestone badge moved to the client sidebar, under the
                 tagline (Sidebar, .sidebar-ms-row). */}
             <div className="page-header-actions">
+              {!showStaffTopBar && <AN_AppNav />}
               {!NON_CLIENT_PAGES.has(effectivePage) &&
                 (!isStaffSession || isPreviewingUser) && (
                   <ClientNotifications
