@@ -2,7 +2,7 @@
 title: Where are a client's Settings, Plan, Manage access and Client details?
 section: Working with a client
 audience: staff
-keywords: [client settings, settings, gear, manage access, client details, plan, plans, upgrade, change plan, organization, summary recipients, sign out, sign out all devices, client notifications, client profile, request access, theme, dark mode]
+keywords: [client settings, settings, gear, manage access, client details, plan, plans, upgrade, change plan, organization, summary recipients, sign out, sign out all devices, security, privacy, data, who can see, encryption, delete my data, client notifications, client profile, request access, theme, dark mode]
 sort: 262
 ---
 Every client page has a **Settings** gear at the bottom of the client's sidebar (above **Collapse**). What it opens depends on who's looking.
@@ -25,7 +25,11 @@ Two tabs:
 - **Organization** (people with full access only): the organization's name and mailing address, who gets the monthly summary (everyone, or people they pick), their team list, and **Ask us to add someone**, which sends us an access request (it shows up in Manage access).
 - **Plan**: the plan comparison, where they can ask to change plans.
 - **Appearance**: Light, Dark or Match my computer.
-- **Security**: **Sign out**, and **Sign out on all devices** for a shared or lost computer. They sign in with Google, so there's no password to change.
+- **Security & privacy**: **Sign out**, and **Sign out on all devices** for a shared or lost computer (they sign in with Google, so there's no password to change). Below that, plain-language answers for the client:
+  - **Who can see your books**: their own access level, that MyGoodBooks sets up their team's logins, their bookkeeper and account manager by name, that admins see every client and other staff only when assigned or approved by the bookkeeper, and that every access change is recorded. It also tells them **staff-only working files** exist: files only MyGoodBooks staff can see, stored the same way and never shared outside MyGoodBooks.
+  - **How your data is stored and used**: QuickBooks is read-only, their sync schedule, the connection key is encrypted, and how to disconnect from Intuit. Data is stored with Supabase in the US (Ohio), encrypted, hosted by Vercel, emails via Resend, backed up daily. Never sold or used for ads.
+  - **Keeping and deleting your data**: only staff remove documents, Trash never empties on its own, and how to ask for a copy or deletion (message the bookkeeper or email jeff@mygoodbooks.org).
+  - If a client asks for a copy of their data or to have it deleted, pass it to the owner. Don't promise anything the page doesn't say.
 - **Help**: **Restart the tour** (see "How does the client guided tour work?"), Messages, the privacy policy and the terms of service.
 
 Clients' dark mode switch and **Sign out** button moved from the bottom of their sidebar into Settings.

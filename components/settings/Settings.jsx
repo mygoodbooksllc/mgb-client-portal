@@ -1248,7 +1248,7 @@ function ST_ClientSettingsPage({
           ...(canEditOrg ? [{ key: "organization", label: "Organization" }] : []),
           { key: "plan", label: "Plan" },
           { key: "appearance", label: "Appearance" },
-          { key: "security", label: "Security" },
+          { key: "security", label: "Security & privacy" },
           { key: "help", label: "Help" },
         ];
   const current = tabs.some((t) => t.key === tab) ? tab : tabs[0].key;
@@ -1366,7 +1366,7 @@ function ST_ClientSettingsPage({
             </ST_Card>
           )}
           {key === "security" && (
-            <ST_Card title="Security" sub="You sign in with Google, so there's no portal password to change.">
+            <ST_Card title="Signing in" sub="You sign in with Google, so there's no portal password to change. We never see your Google password.">
               <div className="st-actions st-actions-stack">
                 <button type="button" className="btn-secondary" disabled={readOnly} onClick={onSignOut}>
                   Sign out
@@ -1390,6 +1390,9 @@ function ST_ClientSettingsPage({
                 </span>
               </div>
             </ST_Card>
+          )}
+          {key === "security" && (
+            <ST_SecurityPrivacy client={client} access={access} readOnly={readOnly} onSelectPage={onSelectPage} />
           )}
           {key === "help" && (
             <ST_Card title="Help" sub="Questions about your books or the portal? Your bookkeeper is a message away.">
@@ -1433,6 +1436,111 @@ function ST_ClientSettingsPage({
         </>
       )}
     </ST_Layout>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Settings > Security & privacy (owner request 2026-10-06): who can see the
+// client's books and how their data is stored, kept and deleted. Every claim
+// here must stay true; check with the owner before changing what it promises.
+// Facts behind it: Supabase project in us-east-2 (AES-256 at rest, TLS in
+// transit, daily database backups that don't include uploaded files),
+// QuickBooks is read-only and its tokens are encrypted
+// (supabase/qbo-token-encryption.sql), staff access via can_access_client(),
+// Trash never empties on its own (supabase/document-folders.sql).
+// ---------------------------------------------------------------------------
+function ST_SecRow({ label, children }) {
+  return (
+    <li className="st-list-row">
+      <span className="st-row-text">
+        <span className="st-row-label">{label}</span>
+        <span className="st-row-sub">{children}</span>
+      </span>
+    </li>
+  );
+}
+
+function ST_SecurityPrivacy({ client, access, readOnly, onSelectPage }) {
+  const full = !access || access.isFullAccess;
+  const bk = client && client.assignedBookkeeper && client.assignedBookkeeper.name;
+  const am = client && client.accountManager && client.accountManager.name;
+  const team = [bk && `${bk} (your bookkeeper)`, am && am !== bk && `${am} (your account manager)`].filter(Boolean);
+  const cadence =
+    typeof syncCadenceLabel === "function" && typeof effectivePlan === "function"
+      ? syncCadenceLabel(effectivePlan(client))
+      : "";
+  return (
+    <>
+      <ST_Card title="Who can see your books" sub="Only people you and MyGoodBooks have set up. No one else.">
+        <ul className="st-list">
+          <ST_SecRow label="Your access">
+            {full
+              ? "Full access: you can see every page your plan includes."
+              : "Limited access: you see only the pages and areas your organization chose for you."}
+          </ST_SecRow>
+          <ST_SecRow label="Your team">
+            MyGoodBooks sets up each login for your organization. To add or remove someone, or change what they can see,
+            message your bookkeeper.
+          </ST_SecRow>
+          <ST_SecRow label="MyGoodBooks">
+            {team.length ? `${team.join(" and ")} work on your books. ` : "Your bookkeeper and account manager work on your books. "}
+            A few MyGoodBooks admins can see every client. Other staff can only see your books if they're assigned to
+            you, or for a short time when your bookkeeper approves it. Every access change is recorded.
+          </ST_SecRow>
+          <ST_SecRow label="Staff-only working files">
+            Your bookkeeper may keep working files with your documents that only MyGoodBooks staff can see. They're stored the same secure way as your other files and never shared
+            outside MyGoodBooks.
+          </ST_SecRow>
+        </ul>
+        <div className="st-actions">
+          <button type="button" className="btn-secondary st-btn-sm" disabled={readOnly} onClick={() => onSelectPage("messages")}>
+            Message your bookkeeper
+          </button>
+        </div>
+      </ST_Card>
+      <ST_Card title="How your data is stored and used">
+        <ul className="st-list">
+          <ST_SecRow label="QuickBooks">
+            Read-only. The portal reads your QuickBooks data and never changes it.{cadence ? ` ${cadence}.` : ""} The
+            connection key is encrypted. You can disconnect any time from your Intuit account settings.
+          </ST_SecRow>
+          <ST_SecRow label="Where it's stored">
+            With Supabase, in the United States (Ohio). Everything is encrypted when stored and when sent. The portal
+            is hosted by Vercel and emails are sent through Resend.
+          </ST_SecRow>
+          <ST_SecRow label="Backups">Account details and messages are backed up every day.</ST_SecRow>
+          <ST_SecRow label="How we use it">
+            Only to run the portal and do your bookkeeping. We never sell your data or use it for ads. We record which
+            pages are opened so we can improve the portal.
+          </ST_SecRow>
+        </ul>
+      </ST_Card>
+      <ST_Card title="Keeping and deleting your data">
+        <ul className="st-list">
+          <ST_SecRow label="Documents">
+            Your documents stay until they're removed. Only MyGoodBooks staff can remove them, and removed documents
+            go to a Trash that never empties on its own, so nothing is lost by accident.
+          </ST_SecRow>
+          <ST_SecRow label="A copy, or deleting it">
+            To get a copy of your data or ask us to delete it, message your bookkeeper or email{" "}
+            <a className="st-link" href="mailto:jeff@mygoodbooks.org">
+              jeff@mygoodbooks.org
+            </a>
+            .
+          </ST_SecRow>
+          <li className="st-list-row">
+            <a className="st-link" href="privacy-policy.html" target="_blank" rel="noopener noreferrer">
+              Privacy policy
+            </a>
+          </li>
+          <li className="st-list-row">
+            <a className="st-link" href="terms-of-service.html" target="_blank" rel="noopener noreferrer">
+              Terms of service
+            </a>
+          </li>
+        </ul>
+      </ST_Card>
+    </>
   );
 }
 
