@@ -1366,7 +1366,7 @@ function ST_ClientSettingsPage({
             </ST_Card>
           )}
           {key === "security" && (
-            <ST_Card title="Signing in" sub="You sign in with Google, so there's no portal password to change. We never see your Google password.">
+            <ST_Card title="Signing in" sub="You sign in with a one-time link or code we email you, so there's no portal password to change or steal.">
               <div className="st-actions st-actions-stack">
                 <button type="button" className="btn-secondary" disabled={readOnly} onClick={onSignOut}>
                   Sign out
