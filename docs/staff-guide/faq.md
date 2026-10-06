@@ -32,7 +32,7 @@ No. On **Tax Documents**, download the giving statement, send it yourself, then 
 
 ### Why doesn't a limited-access person see the income chart or cash flow?
 
-People limited to certain ministries (categories) only see their own areas. Org-wide numbers (monthly income and expense history, receivables, payables, bank accounts, reports and payroll) are hidden for them, and the Budget trend view says so instead of showing the whole church's history. This is enforced by the database too, not just hidden on screen: their sign-in can only read QuickBooks rows for the categories and funds they've been given.
+People limited to certain ministries (categories) only see their own areas. Org-wide numbers (monthly income and expense history, receivables, payables, bank accounts, reports and payroll) are hidden for them, and the Budget trend view says so instead of showing the whole church's history. This is enforced by the database too, not just hidden on screen: their sign-in can only read QuickBooks rows for the categories and funds they've been given. That includes bank and credit card accounts: they can't read account names or balances unless that account is one of their categories or funds. Because of this, their dashboard's recent activity list may be empty.
 
 ### Where does the dashboard's "Expenses by account" list come from?
 

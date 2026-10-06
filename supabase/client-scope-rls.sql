@@ -2,7 +2,9 @@
 -- (2026-10-06).
 --
 -- Status: Applied to production 2026-10-06 (migration client_scope_rls).
--- Safe to re-run.
+-- Safe to re-run, but then re-run client-scope-rls-bank.sql too: that later
+-- migration (client_scope_rls_bank) replaced the qbo_accounts policy below
+-- to drop the Bank / Credit Card exception.
 --
 -- Before this, a client user's access limits (client_users.access = 'scoped'
 -- with categories[] / funds[]) were applied only in the browser
