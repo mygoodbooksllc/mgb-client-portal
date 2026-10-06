@@ -303,6 +303,27 @@
   align-items: center;
   flex-shrink: 0;
 }
+/* When the bar is tight the label trims with "…" rather than pushing the
+   pill over the search chip (its aria-label keeps the full wording),
+   never below ~130px. */
+.tb-sync:has(.live-sync-text) {
+  flex-shrink: 1;
+  min-width: 130px;
+}
+.tb-sync .live-sync-pill {
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+.tb-sync .live-sync-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.tb-sync .live-sync-pill > :not(.live-sync-text) {
+  flex-shrink: 0;
+}
 
 /* ---- 3. Search ---- */
 .tb-search {
@@ -314,10 +335,11 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  height: 36px;
-  padding: 0 10px;
+  height: 34px;
+  padding: 0 12px;
+  box-sizing: border-box;
   border: 1px solid var(--tb-chip-border);
-  border-radius: 10px;
+  border-radius: 999px; /* same pill/round shape as the other bar buttons */
   background: var(--tb-chip);
   color: var(--tb-muted);
 }
@@ -653,7 +675,7 @@
   }
 }
 
-/* Step 1: search collapses to a 36px chip; the transparent input covers it
+/* Step 1: search collapses to a 34px chip; the transparent input covers it
    so a click lands in the field. Open, it spans the bar (the bar is the
    containing block). Same rules three times: no client / client open /
    client open with the sync pill. */
@@ -662,12 +684,12 @@
     flex: 0 0 auto;
   }
   .tb-bar .tb-search {
-    width: 36px;
+    width: 34px;
   }
   .tb-bar .tb-search-box {
     position: relative;
     justify-content: center;
-    width: 36px;
+    width: 34px;
     padding: 0;
     box-sizing: border-box;
     cursor: pointer;
@@ -706,12 +728,12 @@
     flex: 0 0 auto;
   }
   .tb-bar:has(.tb-quick) .tb-search {
-    width: 36px;
+    width: 34px;
   }
   .tb-bar:has(.tb-quick) .tb-search-box {
     position: relative;
     justify-content: center;
-    width: 36px;
+    width: 34px;
     padding: 0;
     box-sizing: border-box;
     cursor: pointer;
@@ -822,6 +844,73 @@
     display: none;
   }
 }
+/* ==========================================================================
+   Safety net: the search measures its own slot. The bar-width steps above
+   guess how wide everything else is (a 266px sync pill, a fixed set of
+   right-hand buttons), and the guess goes stale whenever the pill's wording
+   or the buttons change: "Synced monthly · synced 12 minutes ago" is ~300px,
+   so at 1440px the search was squeezed to a 75px sliver and its ⌘K hint
+   spilled onto the bell (owner screenshot, 2026-10-06). .tb-middle is the
+   leftover space, so querying it directly can't go stale: under 240px the
+   hint goes, under 150px the search becomes the 34px magnifier chip (same
+   look and behaviour as step 1). Not on phones, which keep a full-width box.
+   inline-size containers don't trap absolutely positioned children, so the
+   open search still spans the bar.
+   ========================================================================== */
+@media (min-width: 761px), (hover: hover) and (pointer: fine) {
+  .tb-middle {
+    container: tbmid / inline-size;
+    min-width: 34px;
+  }
+}
+@container tbmid (width < 240px) {
+  .tb-kbd {
+    display: none;
+  }
+}
+@container tbmid (width < 150px) {
+  .tb-bar .tb-middle .tb-search {
+    width: 34px;
+    margin-left: auto;
+  }
+  .tb-bar .tb-middle .tb-search-box {
+    position: relative;
+    justify-content: center;
+    width: 34px;
+    padding: 0;
+    box-sizing: border-box;
+    cursor: pointer;
+  }
+  .tb-bar .tb-middle .tb-search:not(:focus-within) .tb-search-input {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    opacity: 0;
+    cursor: pointer;
+  }
+  .tb-bar .tb-middle .tb-search:not(:focus-within) .tb-search-panel {
+    display: none;
+  }
+  .tb-bar .tb-middle .tb-search:focus-within {
+    position: absolute;
+    top: 50%;
+    left: 12px;
+    right: 12px;
+    z-index: 5;
+    width: auto;
+    max-width: none;
+    margin-left: 0;
+    transform: translateY(-50%);
+  }
+  .tb-bar .tb-middle .tb-search:focus-within .tb-search-box {
+    justify-content: flex-start;
+    width: 100%;
+    padding: 0 10px;
+    background: var(--tb-bg);
+    cursor: text;
+  }
+}
+
 /* Last resort (320px window beside two rails): tighter gaps, 30px chips. */
 @container tb (max-width: 180px) {
   .tb-bar .tb-left,
@@ -830,6 +919,7 @@
   }
   .tb-bar .tb-middle {
     margin: 0 -4px;
+    min-width: 30px;
   }
   .tb-bar .tb-icon-btn,
   .tb-bar .tb-search:not(:focus-within) .tb-search-box {
@@ -860,12 +950,12 @@
       flex: 0 0 auto;
     }
     .tb-bar:has(.tb-sync) .tb-search {
-      width: 36px;
+      width: 34px;
     }
     .tb-bar:has(.tb-sync) .tb-search-box {
       position: relative;
       justify-content: center;
-      width: 36px;
+      width: 34px;
       padding: 0;
       box-sizing: border-box;
       cursor: pointer;

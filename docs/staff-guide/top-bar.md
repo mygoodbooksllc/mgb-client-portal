@@ -55,7 +55,9 @@ The bar keeps only the client picker, search, the bell and **+**. The sync pill 
 
 On a computer, when the window is narrow the bar makes room instead of squeezing things together:
 
-- Search shrinks to a magnifier button. Click it, or press **Ctrl+K** (**⌘K**), and it opens across the bar.
+- The **Ctrl K** / **⌘K** hint inside the search box hides first. The shortcut still works.
+- Search shrinks to a round magnifier button whenever there isn't room for a usable box (on a client page with a long sync pill this can happen even on a wide screen). Click it, or press **Ctrl+K** (**⌘K**), and it opens across the bar.
+- A long sync pill trims its wording with "…". Click it to Sync now as usual.
 - The client picker shows just the client's initials. Click it to switch clients as usual.
 - **My Tasks**, **Help** and **Overview** hide from the bar. My Tasks is still in the left rail, and you can reopen a client's overview from the client picker.
 - The sync pill moves back into the page header.
