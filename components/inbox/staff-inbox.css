@@ -852,6 +852,9 @@ a.si-ctx-text {
   flex-direction: column;
   align-items: stretch;
   gap: 8px;
+  /* The toolbar's pill radius + overflow clip stacked buttons' edges. */
+  border-radius: 0;
+  overflow: visible;
 }
 .si-ctx-actions .staff-quick-actions button {
   border: 1px solid var(--border);
