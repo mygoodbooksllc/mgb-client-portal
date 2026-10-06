@@ -26432,7 +26432,13 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
           io.unobserve(el);
         });
       },
-      { threshold: 0.2 },
+      // Reveal as soon as any part of a card enters the viewport (minus a
+      // small strip at the bottom, so the cascade still trails the scroll).
+      // A ratio threshold like 0.2 can never be met by a card taller than
+      // ~5 viewports (a 50-row Bank Accounts transaction list), which left
+      // it at opacity 0 until the user scrolled well past it. Cards already
+      // on screen at mount get the initial callback and reveal at once.
+      { threshold: 0, rootMargin: "0px 0px -8% 0px" },
     );
     const scan = () => {
       // .compare-row: the Enterprise upgrade page's tool-by-tool accordion
