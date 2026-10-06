@@ -4063,11 +4063,6 @@ body:has(.modal-overlay, [aria-modal="true"], .si-drawer-scrim) .global-search {
   font-style: italic;
 }
 
-.message-deleted {
-  font-style: italic;
-  opacity: 0.7;
-}
-
 .message-edit-row {
   display: flex;
   gap: 6px;
@@ -4291,6 +4286,13 @@ body:has(.modal-overlay, [aria-modal="true"], .si-drawer-scrim) .global-search {
   font-size: 11px;
   color: var(--text-muted);
   margin-top: 3px;
+}
+/* Delete under the client's own message (within 24 hours). */
+.msg-own-actions {
+  margin-top: 3px;
+}
+.msg-own-actions .message-confirm-label {
+  color: var(--text-muted);
 }
 
 /* Shown when a message arrives while the reader is scrolled up. */

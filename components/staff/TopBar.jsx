@@ -625,6 +625,8 @@ function TB_useBellItems({ clients, items, me, isAdmin, page }) {
           .from("client_messages")
           .select("id, client_id, participant_email, author_kind, author_name, body, internal, created_at")
           .in("client_id", ids)
+          // A deleted message is as if it was never sent (message-delete-24h.sql).
+          .is("deleted_at", null)
           .order("created_at", { ascending: false })
           .limit(400),
       ),

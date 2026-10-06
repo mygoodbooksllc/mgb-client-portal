@@ -2,7 +2,7 @@
 title: How do I message a client or a teammate?
 section: Daily work
 audience: staff
-keywords: [inbox, message, chat, team chat, reply, internal note, waiting on you, group, attachment, drawer, seen, delete message, unsend, new messages, not sent, retry, messaging isn't available, account manager, loop in, mention, @mention, bookkeeper, email]
+keywords: [inbox, message, chat, team chat, reply, internal note, waiting on you, group, attachment, drawer, seen, delete message, deleted message, unsend, 24 hours, new messages, not sent, retry, messaging isn't available, account manager, loop in, mention, @mention, bookkeeper, email]
 sort: 140
 ---
 The **Inbox** (in the sidebar) holds client conversations and team chat in one place. The bell in the top bar also lists client messages waiting for a reply.
@@ -38,6 +38,14 @@ The button doesn't show if the client has no assigned bookkeeper or you are the 
 
 Switch to **Note** before typing (the hint says "Only staff see notes"), then click **Add note**. It's labeled **"Internal note · only staff see this"** in the thread. The client never sees it.
 
+### Delete a message you sent
+
+You can delete your own reply or internal note for **24 hours** after sending it. Click **Delete** under it, then **Delete** again to confirm (or **Cancel**). The message disappears completely, as if it was never sent: it's gone from the thread for you, your teammates and the client, and from the inbox preview, **Waiting on you**, unread dots and the bell. If the "new message" email hadn't gone out yet, it isn't sent.
+
+- After 24 hours the **Delete** button goes away. You can't delete someone else's message, and you can't undo a delete.
+- Clients can delete their own messages the same way, within 24 hours. If a client's message vanishes from a thread, they deleted it.
+- A file attached to a deleted message is no longer shown in the thread.
+
 ### Details pane
 
 Click the **i** button to open details on the right. From top to bottom:
@@ -67,13 +75,14 @@ The chat button at the bottom right, or **+** → **Message** in the top bar on 
 - Your reply appears on their page within a few seconds, without them refreshing. If they've scrolled up to read older messages, they get a **New message ↓** button instead of being jumped to the bottom.
 - When they send, the message shows straight away with **Sending…** under it. If it doesn't go through it says **Not sent**, with **Retry** and **Edit** (Edit puts the text back in their message box).
 - **Seen** appears under their latest message once someone on staff has opened that conversation in the Inbox.
+- They can delete their own message for 24 hours after sending it (**Delete** under it, then **Delete** to confirm). It disappears for everyone, including you.
 - The title says **Conversation with your MyGoodBooks team**, with the account manager and bookkeeper named under it.
 - Each reply shows who wrote it: the name and **Title** from that person's **Settings → Profile**. With no title set, it says **Account manager** or **Bookkeeper** if that's their role for the client, otherwise just the name.
 - The **Send** button stays greyed out until they type something or attach a file.
 
 ### Team chat
 
-Team conversations support attachments and groups (**+ New group**). You can edit your own message within 15 minutes. You can delete your own message at any time: click **Delete** under it, then **Delete** again to confirm (or **Cancel**). Everyone in the conversation then sees "This message was deleted" in its place, and any file on it is hidden. You can't undo a delete, and you can't delete someone else's message. A group you no longer need can be retired from the details pane: it drops out of everyone's inbox and becomes read-only, and any member can restore it later.
+Team conversations support attachments and groups (**+ New group**). You can edit your own message within 15 minutes. You can delete your own message for 24 hours after sending it: click **Delete** under it, then **Delete** again to confirm (or **Cancel**). The message then disappears completely for everyone, as if it was never sent (no placeholder, and it drops out of previews, unread and **Seen**). After 24 hours the **Delete** button goes away. You can't undo a delete, and you can't delete someone else's message. A group you no longer need can be retired from the details pane: it drops out of everyone's inbox and becomes read-only, and any member can restore it later.
 
 ### Troubleshooting
 
@@ -85,4 +94,6 @@ Team conversations support attachments and groups (**+ New group**). You can edi
 - **A client says a file link in their thread won't open.** Links refresh when clicked, so asking them to click it again usually works.
 - **The bookkeeper says they didn't get a loop-in email.** Check their **Settings → Notifications**: loop-ins and @mentions follow "A client sends a message". Admins can check the **Emails** page.
 - **"Loop in isn't set up yet."** A database update is missing. Tell an admin.
+- **A message disappeared from a thread.** Its author deleted it within 24 hours of sending. Deleted messages can't be brought back.
+- **"You can only delete a message within 24 hours of sending it."** It's past 24 hours, so the message stays. If it needs correcting, send a follow-up.
 - **"Attachments are capped at 25 MB."** Send a smaller file, or share a Google Drive link instead.

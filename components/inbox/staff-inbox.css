@@ -1225,3 +1225,9 @@ body:has(.modal-overlay) .si-launcher {
 .si-context-pane .live-sync-text {
   white-space: normal;
 }
+
+/* Delete (own message, within 24 hours) under a bubble; reuses
+   .message-own-actions from styles.css. */
+.si-msg-actions {
+  margin: 2px 4px 0;
+}

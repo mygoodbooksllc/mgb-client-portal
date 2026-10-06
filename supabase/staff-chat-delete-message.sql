@@ -1,5 +1,10 @@
 -- Delete a Team Chat message (2026-10-06).
 --
+-- SUPERSEDED the same day by message-delete-24h.sql: delete is now limited to
+-- 24 hours after sending and a deleted message disappears completely (no
+-- placeholder). Re-running this file would drop the 24 hour check; run
+-- message-delete-24h.sql after it.
+--
 -- The author of a message can delete it at any age. It's a soft delete: the
 -- row stays, deleted_at / deleted_by are stamped and the text is cleared, and
 -- everyone in the conversation sees "This message was deleted" in its place.

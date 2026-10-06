@@ -12884,8 +12884,9 @@ function DeveloperToolsPage({ staffUser, readOnly }) {
 // two bookkeepers working the same client need this as much as a bookkeeper
 // <-> admin line does), on real Supabase tables (staff_conversations /
 // staff_conversation_members / staff_messages), with file attachments,
-// edit within 15 minutes of sending, delete any time (the author only; see
-// supabase/staff-chat-delete-message.sql), and live read receipts pushed
+// edit within 15 minutes of sending, delete within 24 hours (the author
+// only; the message then disappears for everyone, see
+// supabase/message-delete-24h.sql), and live read receipts pushed
 // over Supabase Realtime.
 // ----------------------------------------------------------------------------
 
@@ -12894,6 +12895,12 @@ function DeveloperToolsPage({ staffUser, readOnly }) {
 // even though it was working exactly as configured. Mirrored in
 // supabase/staff-chat-groups.sql's RLS policy; both must be changed together.
 const CHAT_EDIT_WINDOW_MS = 15 * 60 * 1000;
+// Delete is allowed for 24 hours after sending. Mirrored in
+// delete_staff_message / delete_client_message (supabase/message-delete-24h.sql),
+// which are the real enforcement; this only decides when to show the button.
+const MSG_DELETE_WINDOW_MS = 24 * 60 * 60 * 1000;
+const msgCanDelete = (createdAt) =>
+  !!createdAt && Date.now() - new Date(createdAt).getTime() < MSG_DELETE_WINDOW_MS;
 
 // Security audit finding: attachments were staged and uploaded with no size
 // or type check at all, so the staff-chat-attachments bucket would take an
@@ -13134,6 +13141,7 @@ function useStaffTeamChat(staffUser, onActivity, enabled = true) {
           "id, conversation_id, author_email, author_name, author_role, text, attachment_name, attachment_url, attachment_size, created_at, edited_at, deleted_at",
         )
         .eq("conversation_id", activeConversationId)
+        .is("deleted_at", null)
         .order("created_at", { ascending: true }),
       supabase
         .from("staff_conversation_members")
@@ -13150,18 +13158,15 @@ function useStaffTeamChat(staffUser, onActivity, enabled = true) {
         return;
       }
       setLoadError("");
-      // Deleted messages stay in the thread as "This message was deleted"
-      // (their text is cleared server-side by delete_staff_message), so
-      // nothing is filtered out here.
-      const visible = msgRes.data || [];
+      // A deleted message (Delete, or an old Unsend) disappears completely,
+      // as if it was never sent: the query above leaves it out, and this
+      // catches anything that slips through.
+      const visible = (msgRes.data || []).filter((m) => !m.deleted_at);
       // Security audit finding C1: attachment_url is now a private storage
       // path, not a public URL — resolve a short-lived signed URL per
       // attachment before rendering. Any that fail to sign (deleted object,
-      // etc) just render without a working link. A deleted message's file is
-      // hidden, so it isn't signed.
-      const withAttachments = visible.filter(
-        (m) => m.attachment_url && !m.deleted_at,
-      );
+      // etc) just render without a working link.
+      const withAttachments = visible.filter((m) => m.attachment_url);
       if (withAttachments.length) {
         const signed = await Promise.all(
           withAttachments.map((m) =>
@@ -13176,7 +13181,7 @@ function useStaffTeamChat(staffUser, onActivity, enabled = true) {
         const signedMap = Object.fromEntries(signed);
         setMessages(
           visible.map((m) =>
-            m.attachment_url && !m.deleted_at
+            m.attachment_url
               ? { ...m, attachment_signed_url: signedMap[m.id] || null }
               : m,
           ),
@@ -13569,16 +13574,21 @@ function useStaffTeamChat(staffUser, onActivity, enabled = true) {
     loadMessages();
   }
 
-  // Author-only soft delete, at any age. Goes through an RPC rather than
-  // the 15 minute edit policy: delete_staff_message stamps deleted_at /
-  // deleted_by and clears the text, and nothing else. Other members see the
-  // change through the Realtime subscription above, same as an edit.
+  // Author-only soft delete, within 24 hours of sending. Goes through an
+  // RPC rather than the 15 minute edit policy: delete_staff_message stamps
+  // deleted_at / deleted_by and clears the text, and nothing else. The
+  // message then drops out of the thread, the list preview and unread for
+  // everyone; other members see it go through the Realtime subscription
+  // above, same as an edit.
   async function deleteMessage(id) {
     setConfirmDeleteId(null);
     if (!supabase) return;
     const { error } = await supabase.rpc("delete_staff_message", { p_id: id });
     if (error) showToast(`Couldn't delete: ${error.message}`);
+    else setMessages((prev) => (prev || []).filter((m) => m.id !== id));
     loadMessages();
+    loadConversations();
+    if (onActivity) onActivity();
   }
 
   // Recent conversations first, then anyone in the directory not yet
@@ -13697,7 +13707,8 @@ function useStaffTeamChat(staffUser, onActivity, enabled = true) {
 }
 
 // The open Team Chat conversation: messages, attachments, edit within the
-// window, delete (own messages, any age), read receipts and typing. `chat` is useStaffTeamChat's result;
+// window, delete (own messages, within 24 hours; the message disappears),
+// read receipts and typing. `chat` is useStaffTeamChat's result;
 // hideTitle is for the inbox, which draws its own header.
 function StaffTeamThread({ chat, hideTitle }) {
   const {
@@ -13750,12 +13761,11 @@ function StaffTeamThread({ chat, hideTitle }) {
         <div className="message-thread">
           {messages.map((m) => {
             const mine = m.author_email === staffUser.email;
-            const deleted = !!m.deleted_at;
             const withinWindow =
               mine &&
-              !deleted &&
               Date.now() - new Date(m.created_at).getTime() <
                 CHAT_EDIT_WINDOW_MS;
+            const canDelete = mine && msgCanDelete(m.created_at);
             return (
               <div
                 className={
@@ -13767,11 +13777,7 @@ function StaffTeamThread({ chat, hideTitle }) {
                   <div className="message-author">
                     {m.author_name} · {m.author_role}
                   </div>
-                  {deleted ? (
-                    <div className="message-text message-deleted">
-                      This message was deleted
-                    </div>
-                  ) : editingId === m.id ? (
+                  {editingId === m.id ? (
                     <div className="message-edit-row">
                       <input
                         type="text"
@@ -13826,11 +13832,11 @@ function StaffTeamThread({ chat, hideTitle }) {
                   )}
                   <div className="message-date">
                     {fmtDateTime(m.created_at)}
-                    {m.edited_at && !deleted && (
+                    {m.edited_at && (
                       <span className="message-edited-tag"> · edited</span>
                     )}
                   </div>
-                  {mine && !deleted && editingId !== m.id && (
+                  {(withinWindow || canDelete) && editingId !== m.id && (
                     <div className="message-own-actions">
                       {confirmDeleteId === m.id ? (
                         <React.Fragment>
@@ -13857,12 +13863,14 @@ function StaffTeamThread({ chat, hideTitle }) {
                               Edit
                             </button>
                           )}
-                          <button
-                            type="button"
-                            onClick={() => setConfirmDeleteId(m.id)}
-                          >
-                            Delete
-                          </button>
+                          {canDelete && (
+                            <button
+                              type="button"
+                              onClick={() => setConfirmDeleteId(m.id)}
+                            >
+                              Delete
+                            </button>
+                          )}
                         </React.Fragment>
                       )}
                     </div>
@@ -21357,8 +21365,13 @@ function MessagesPage({
   onRetrySend,
   onDiscardSend,
   onAttachmentUrl,
+  // Real threads, the signed-in client only: delete one of their own
+  // messages within 24 hours (resolves to an error message or null). It
+  // then disappears for everyone.
+  onDeleteMessage,
 }) {
   const [draft, setDraft] = useState("");
+  const [confirmDeleteId, setConfirmDeleteId] = useState(null);
   const [pendingAttachment, setPendingAttachment] = useState(null);
   const [isDragging, setIsDragging] = useState(false);
   const [sending, setSending] = useState(false);
@@ -21797,6 +21810,32 @@ function MessagesPage({
                       {onDiscardSend && (
                         <button type="button" className="link-btn" onClick={() => editFailed(m.id)}>
                           Edit
+                        </button>
+                      )}
+                    </div>
+                  )}
+                  {onDeleteMessage && m.from === "client" && m.id && !m.sendState && msgCanDelete(m.created_at) && (
+                    <div className="message-own-actions msg-own-actions">
+                      {confirmDeleteId === m.id ? (
+                        <React.Fragment>
+                          <span className="message-confirm-label">Delete this message?</span>
+                          <button
+                            type="button"
+                            onClick={async () => {
+                              setConfirmDeleteId(null);
+                              const err = await onDeleteMessage(m.id);
+                              if (err) showToast(err);
+                            }}
+                          >
+                            Delete
+                          </button>
+                          <button type="button" onClick={() => setConfirmDeleteId(null)}>
+                            Cancel
+                          </button>
+                        </React.Fragment>
+                      ) : (
+                        <button type="button" onClick={() => setConfirmDeleteId(m.id)}>
+                          Delete
                         </button>
                       )}
                     </div>
@@ -27119,6 +27158,7 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
               staffReadAt={siLiveThread ? siMsg.staffReadAt : null}
               onRetrySend={siLiveThread ? siMsg.retrySend : undefined}
               onDiscardSend={siLiveThread ? siMsg.discardSend : undefined}
+              onDeleteMessage={siLiveThread && !siMsg.readOnly ? siMsg.deleteMessage : undefined}
               onAttachmentUrl={siLiveThread ? siMsg.attachmentUrl : undefined}
               validateAttachment={siLiveThread ? siMsg.checkFile : undefined}
               readOnlyNote={

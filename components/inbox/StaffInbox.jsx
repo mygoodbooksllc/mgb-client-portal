@@ -41,6 +41,12 @@ const SI_CHANGED_EVENT = "mgb:client-messages-changed";
 const SI_MSG_COLS =
   "id, client_id, participant_email, author_email, author_name, author_kind, body, internal, attachment_path, attachment_name, created_at";
 const SI_POLL_MS = 30 * 1000;
+// The author can delete a message for 24 hours after sending; it then
+// disappears for everyone. delete_client_message (supabase/message-delete-24h.sql)
+// is the real enforcement; this only decides when to show the button.
+const SI_DELETE_WINDOW_MS = 24 * 60 * 60 * 1000;
+const siCanDelete = (createdAt) =>
+  !!createdAt && Date.now() - new Date(createdAt).getTime() < SI_DELETE_WINDOW_MS;
 const SI_THREAD_PAGE = 200;
 let siInstanceSeq = 0;
 
@@ -192,9 +198,12 @@ function SI_useRoster(clients, enabled) {
 
 // ----------------------------------------------------------------------------
 // One message bubble. Theirs on the left in white; ours on the right in ink;
-// an internal note is a dashed gold bubble only staff ever see.
+// an internal note is a dashed gold bubble only staff ever see. onDelete:
+// the viewer wrote it less than 24 hours ago, so it gets Delete (with an
+// inline confirm).
 // ----------------------------------------------------------------------------
-function SI_Bubble({ row, mine, authorLabel }) {
+function SI_Bubble({ row, mine, authorLabel, onDelete }) {
+  const [confirming, setConfirming] = React.useState(false);
   const url = row.attachment_url && typeof safeHttpUrl === "function" ? safeHttpUrl(row.attachment_url) : null;
   const clip = typeof PaperclipIcon === "function" ? <PaperclipIcon /> : null;
   return (
@@ -217,6 +226,31 @@ function SI_Bubble({ row, mine, authorLabel }) {
         {authorLabel ? `${authorLabel} · ` : ""}
         {siTime(row.created_at)}
       </div>
+      {onDelete && (
+        <div className="message-own-actions si-msg-actions">
+          {confirming ? (
+            <React.Fragment>
+              <span className="message-confirm-label">Delete this message?</span>
+              <button
+                type="button"
+                onClick={() => {
+                  setConfirming(false);
+                  onDelete(row.id);
+                }}
+              >
+                Delete
+              </button>
+              <button type="button" onClick={() => setConfirming(false)}>
+                Cancel
+              </button>
+            </React.Fragment>
+          ) : (
+            <button type="button" onClick={() => setConfirming(true)}>
+              Delete
+            </button>
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -279,6 +313,7 @@ function SI_ClientThread({ entry, mode, me, staffUser, sampleRows, onSampleSend,
         .select(SI_MSG_COLS)
         .eq("client_id", entry.clientId)
         .eq("participant_email", entry.email)
+        .is("deleted_at", null)
         .order("created_at", { ascending: true })
         .limit(1000);
       if (res.data) setRows(await siSignRows(sb, res.data));
@@ -294,6 +329,7 @@ function SI_ClientThread({ entry, mode, me, staffUser, sampleRows, onSampleSend,
       .select(SI_MSG_COLS)
       .eq("client_id", entry.clientId)
       .eq("participant_email", entry.email)
+      .is("deleted_at", null)
       .order("created_at", { ascending: true })
       .limit(1000)
       .then(async ({ data, error }) => {
@@ -394,6 +430,7 @@ function SI_ClientThread({ entry, mode, me, staffUser, sampleRows, onSampleSend,
         .select(SI_MSG_COLS)
         .eq("client_id", entry.clientId)
         .eq("participant_email", entry.email)
+        .is("deleted_at", null)
         .order("created_at", { ascending: true })
         .limit(1000);
       if (data) setRows(await siSignRows(sb, data));
@@ -403,6 +440,20 @@ function SI_ClientThread({ entry, mode, me, staffUser, sampleRows, onSampleSend,
       setSending(false);
       if (textRef.current) textRef.current.focus();
     }
+  }
+
+  // My own reply or note, within 24 hours: soft-deleted by
+  // delete_client_message, then gone from the thread for everyone (the
+  // client's open thread drops it through Realtime). Notes too.
+  async function deleteRow(id) {
+    if (mode !== "real" || !sb) return;
+    const { error } = await sb.rpc("delete_client_message", { p_id: id });
+    if (error) {
+      toast(`Couldn't delete: ${error.message}`);
+      return;
+    }
+    setRows((prev) => (prev || []).filter((x) => x.id !== id));
+    siNotifyChanged();
   }
 
   return (
@@ -431,6 +482,15 @@ function SI_ClientThread({ entry, mode, me, staffUser, sampleRows, onSampleSend,
             row={r}
             mine={r.author_kind === "staff"}
             authorLabel={r.author_kind === "staff" ? r.author_name || "MyGoodBooks" : r.author_name || entry.name}
+            onDelete={
+              mode === "real" &&
+              r.author_kind === "staff" &&
+              me &&
+              siLower(r.author_email) === siLower(me) &&
+              siCanDelete(r.created_at)
+                ? deleteRow
+                : null
+            }
           />
         ))}
         <div ref={endRef} />
@@ -1014,7 +1074,7 @@ function SI_NewMessageModal({ people, teammates, teamEnabled, onPickPerson, onPi
         />
         <div className="si-new-head">Client contacts</div>
         {ppl.length === 0 ? (
-          <p className="si-muted">No matches.</p>
+          <p className="si-muted">{needle ? "No matches." : "No portal logins yet."}</p>
         ) : (
           <ul className="si-new-list">
             {ppl.map((p) => (
@@ -1142,6 +1202,7 @@ function StaffInbox({
         .from("client_messages")
         .select(SI_MSG_COLS)
         .in("client_id", ids)
+        .is("deleted_at", null)
         .order("created_at", { ascending: false })
         .limit(1500),
       sb
@@ -1190,6 +1251,12 @@ function StaffInbox({
     const channel = sb
       .channel(`si-inbox-${me}-${instance}`, { config: { private: true } })
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "client_messages" }, bump)
+      // A delete is an UPDATE (deleted_at): refresh the list, the open
+      // thread and the bell so the message disappears everywhere.
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "client_messages" }, () => {
+        siNotifyChanged();
+        setRev((n) => n + 1);
+      })
       .subscribe((status) => {
         if ((status === "CHANNEL_ERROR" || status === "TIMED_OUT") && !poll)
           poll = setInterval(() => !document.hidden && bump(), SI_POLL_MS);
@@ -1815,6 +1882,7 @@ function SI_useClientMessaging({ enabled, role, clientId, email, name, active, r
           .select("client_id, participant_email, author_kind, created_at")
           .eq("client_id", clientId)
           .eq("internal", false)
+          .is("deleted_at", null)
           .order("created_at", { ascending: false })
           .limit(500),
         meDep
@@ -1851,6 +1919,7 @@ function SI_useClientMessaging({ enabled, role, clientId, email, name, active, r
         .eq("internal", false)
         // Newest first so the limit keeps the latest; one extra row says
         // whether there's more to load.
+        .is("deleted_at", null)
         .order("created_at", { ascending: false })
         .order("id", { ascending: false })
         .limit(SI_THREAD_PAGE + 1),
@@ -1920,6 +1989,7 @@ function SI_useClientMessaging({ enabled, role, clientId, email, name, active, r
         .eq("participant_email", em)
         .eq("internal", false)
         .or(`created_at.lt."${ts}",and(created_at.eq."${ts}",id.lt.${oldest.id})`)
+        .is("deleted_at", null)
         .order("created_at", { ascending: false })
         .order("id", { ascending: false })
         .limit(SI_THREAD_PAGE + 1);
@@ -1974,6 +2044,16 @@ function SI_useClientMessaging({ enabled, role, clientId, email, name, active, r
     [clientId, em, update],
   );
 
+  // A row deleted elsewhere (realtime UPDATE with deleted_at): it
+  // disappears, as if it was never sent.
+  const dropRow = React.useCallback(
+    (row) => {
+      if (!row || !row.deleted_at || row.client_id !== clientId) return;
+      update(keyRef.current, (s) => ({ ...s, rows: s.rows.filter((x) => x.id !== row.id) }));
+    },
+    [clientId, update],
+  );
+
   const addReadMarker = React.useCallback(
     (row) => {
       if (!row || row.client_id !== clientId || siLower(row.participant_email) !== em) return;
@@ -2013,6 +2093,11 @@ function SI_useClientMessaging({ enabled, role, clientId, email, name, active, r
       )
       .on(
         "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "client_messages", filter: `client_id=eq.${clientId}` },
+        (payload) => dropRow(payload && payload.new),
+      )
+      .on(
+        "postgres_changes",
         { event: "*", schema: "public", table: "client_message_reads", filter: `client_id=eq.${clientId}` },
         (payload) => addReadMarker(payload && payload.new),
       )
@@ -2032,7 +2117,7 @@ function SI_useClientMessaging({ enabled, role, clientId, email, name, active, r
       stopPoll();
       sb.removeChannel(channel);
     };
-  }, [on, role, clientId, em, load, addRow, addReadMarker]);
+  }, [on, role, clientId, em, load, addRow, dropRow, addReadMarker]);
 
   const rows = state.rows;
   const sentRows = rows.filter((x) => !x._send);
@@ -2176,6 +2261,22 @@ function SI_useClientMessaging({ enabled, role, clientId, email, name, active, r
     [update],
   );
 
+  // The client deletes one of their own messages (within 24 hours; the
+  // server checks). It disappears from their thread at once, and from
+  // staff's inbox through Realtime. Resolves to an error message, or null.
+  const deleteMessage = React.useCallback(
+    async (id) => {
+      const sb = window.mgbSupabase;
+      if (!sb || role !== "client") return "You can't delete from here.";
+      const { error } = await sb.rpc("delete_client_message", { p_id: id });
+      if (error) return `Couldn't delete: ${error.message}`;
+      update(keyRef.current, (s) => ({ ...s, rows: s.rows.filter((x) => x.id !== id) }));
+      siNotifyChanged();
+      return null;
+    },
+    [role, update],
+  );
+
   // Signed URLs last SI_SIGN_SECS; a link older than that (less a minute)
   // is re-signed when it's opened. Resolves to a URL or null.
   const attachmentUrl = React.useCallback(
@@ -2236,6 +2337,7 @@ function SI_useClientMessaging({ enabled, role, clientId, email, name, active, r
     send,
     retrySend,
     discardSend,
+    deleteMessage,
     attachmentUrl,
     checkFile: SI_checkFile,
   };
