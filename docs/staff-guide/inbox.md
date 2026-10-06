@@ -2,7 +2,7 @@
 title: How do I message a client or a teammate?
 section: Daily work
 audience: staff
-keywords: [inbox, message, chat, team chat, reply, internal note, waiting on you, group, attachment, drawer, seen, new messages, not sent, retry, messaging isn't available, account manager, loop in, mention, @mention, bookkeeper, email]
+keywords: [inbox, message, chat, team chat, reply, internal note, waiting on you, group, attachment, drawer, seen, delete message, unsend, new messages, not sent, retry, messaging isn't available, account manager, loop in, mention, @mention, bookkeeper, email]
 sort: 140
 ---
 The **Inbox** (in the sidebar) holds client conversations and team chat in one place. The bell in the top bar also lists client messages waiting for a reply.
@@ -73,7 +73,7 @@ The chat button at the bottom right, or **+** → **Message** in the top bar on 
 
 ### Team chat
 
-Team conversations support attachments and groups (**+ New group**). You can edit or unsend your own message within 15 minutes. A group you no longer need can be retired from the details pane: it drops out of everyone's inbox and becomes read-only, and any member can restore it later.
+Team conversations support attachments and groups (**+ New group**). You can edit your own message within 15 minutes. You can delete your own message at any time: click **Delete** under it, then **Delete** again to confirm (or **Cancel**). Everyone in the conversation then sees "This message was deleted" in its place, and any file on it is hidden. You can't undo a delete, and you can't delete someone else's message. A group you no longer need can be retired from the details pane: it drops out of everyone's inbox and becomes read-only, and any member can restore it later.
 
 ### Troubleshooting
 

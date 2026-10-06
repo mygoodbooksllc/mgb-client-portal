@@ -12801,7 +12801,8 @@ function DeveloperToolsPage({ staffUser, readOnly }) {
 // two bookkeepers working the same client need this as much as a bookkeeper
 // <-> admin line does), on real Supabase tables (staff_conversations /
 // staff_conversation_members / staff_messages), with file attachments,
-// edit/unsend within 5 seconds of sending, and live read receipts pushed
+// edit within 15 minutes of sending, delete any time (the author only; see
+// supabase/staff-chat-delete-message.sql), and live read receipts pushed
 // over Supabase Realtime.
 // ----------------------------------------------------------------------------
 
@@ -12851,7 +12852,8 @@ function useStaffTeamChat(staffUser, onActivity, enabled = true) {
   const [sending, setSending] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [editDraft, setEditDraft] = useState("");
-  const [, setTick] = useState(0); // forces a re-render so the edit/unsend window visibly expires
+  const [confirmDeleteId, setConfirmDeleteId] = useState(null); // inline "Delete this message?" on one of my messages
+  const [, setTick] = useState(0); // forces a re-render so the edit window visibly expires
   const [threadFilter, setThreadFilter] = useState("");
   const [showGroupModal, setShowGroupModal] = useState(false);
   const [onlineEmails, setOnlineEmails] = useState(new Set()); // Realtime Presence
@@ -13065,12 +13067,18 @@ function useStaffTeamChat(staffUser, onActivity, enabled = true) {
         return;
       }
       setLoadError("");
-      const visible = (msgRes.data || []).filter((m) => !m.deleted_at);
+      // Deleted messages stay in the thread as "This message was deleted"
+      // (their text is cleared server-side by delete_staff_message), so
+      // nothing is filtered out here.
+      const visible = msgRes.data || [];
       // Security audit finding C1: attachment_url is now a private storage
       // path, not a public URL — resolve a short-lived signed URL per
       // attachment before rendering. Any that fail to sign (deleted object,
-      // etc) just render without a working link.
-      const withAttachments = visible.filter((m) => m.attachment_url);
+      // etc) just render without a working link. A deleted message's file is
+      // hidden, so it isn't signed.
+      const withAttachments = visible.filter(
+        (m) => m.attachment_url && !m.deleted_at,
+      );
       if (withAttachments.length) {
         const signed = await Promise.all(
           withAttachments.map((m) =>
@@ -13085,7 +13093,7 @@ function useStaffTeamChat(staffUser, onActivity, enabled = true) {
         const signedMap = Object.fromEntries(signed);
         setMessages(
           visible.map((m) =>
-            m.attachment_url
+            m.attachment_url && !m.deleted_at
               ? { ...m, attachment_signed_url: signedMap[m.id] || null }
               : m,
           ),
@@ -13103,7 +13111,7 @@ function useStaffTeamChat(staffUser, onActivity, enabled = true) {
     loadMessages();
   }, [loadMessages]);
 
-  // Live updates: new messages, edits/unsends, and the other side marking
+  // Live updates: new messages, edits/deletes, and the other side marking
   // the thread read, all pushed in — no polling, no manual refresh needed
   // to see a reply or watch "Sent" flip to "Seen".
   const conversationIdsRef = useRef(new Set());
@@ -13245,7 +13253,7 @@ function useStaffTeamChat(staffUser, onActivity, enabled = true) {
     });
   };
 
-  // Live-expire the edit/unsend window on-screen without needing another
+  // Live-expire the edit window on-screen without needing another
   // action to trigger a re-render.
   useEffect(() => {
     const hasRecent = (messages || []).some(
@@ -13478,13 +13486,15 @@ function useStaffTeamChat(staffUser, onActivity, enabled = true) {
     loadMessages();
   }
 
-  async function unsend(id) {
+  // Author-only soft delete, at any age. Goes through an RPC rather than
+  // the 15 minute edit policy: delete_staff_message stamps deleted_at /
+  // deleted_by and clears the text, and nothing else. Other members see the
+  // change through the Realtime subscription above, same as an edit.
+  async function deleteMessage(id) {
+    setConfirmDeleteId(null);
     if (!supabase) return;
-    const { error } = await supabase
-      .from("staff_messages")
-      .update({ deleted_at: new Date().toISOString() })
-      .eq("id", id);
-    if (error) showToast("Couldn't unsend — the 15 minute window has passed.");
+    const { error } = await supabase.rpc("delete_staff_message", { p_id: id });
+    if (error) showToast(`Couldn't delete: ${error.message}`);
     loadMessages();
   }
 
@@ -13545,7 +13555,8 @@ function useStaffTeamChat(staffUser, onActivity, enabled = true) {
     ).length;
   let lastMineMessage = null;
   (messages || []).forEach((m) => {
-    if (m.author_email === staffUser.email) lastMineMessage = m;
+    if (m.author_email === staffUser.email && !m.deleted_at)
+      lastMineMessage = m;
   });
 
   // Retire (hide, read-only, reversible) or restore a group; any member can.
@@ -13597,21 +13608,21 @@ function useStaffTeamChat(staffUser, onActivity, enabled = true) {
     setEditDraft, threadFilter, setThreadFilter, showGroupModal,
     setShowGroupModal, onlineEmails, typingName, fileInputRef, notifyTyping,
     selectConversation, createGroup, stageFile, send, startEdit, saveEdit,
-    unsend, chatEntries, activeEntry, otherActiveMembers, otherHasSeen,
+    deleteMessage, confirmDeleteId, setConfirmDeleteId, chatEntries, activeEntry, otherActiveMembers, otherHasSeen,
     seenCount, lastMineMessage, loadConversations,
   };
 }
 
-// The open Team Chat conversation: messages, attachments, edit/unsend within
-// the window, read receipts and typing. `chat` is useStaffTeamChat's result;
+// The open Team Chat conversation: messages, attachments, edit within the
+// window, delete (own messages, any age), read receipts and typing. `chat` is useStaffTeamChat's result;
 // hideTitle is for the inbox, which draws its own header.
 function StaffTeamThread({ chat, hideTitle }) {
   const {
     staffUser, activeConversationId, messages, loadError, draft, setDraft,
     pendingAttachment, setPendingAttachment, isDragging, setIsDragging, sending,
     editingId, setEditingId, editDraft, setEditDraft, onlineEmails, typingName,
-    fileInputRef, notifyTyping, stageFile, send, startEdit, saveEdit, unsend,
-    activeEntry, otherActiveMembers, otherHasSeen, seenCount, lastMineMessage,
+    fileInputRef, notifyTyping, stageFile, send, startEdit, saveEdit,
+    deleteMessage, confirmDeleteId, setConfirmDeleteId, activeEntry, otherActiveMembers, otherHasSeen, seenCount, lastMineMessage,
   } = chat;
   if (!activeConversationId) return null;
   return (
@@ -13656,8 +13667,10 @@ function StaffTeamThread({ chat, hideTitle }) {
         <div className="message-thread">
           {messages.map((m) => {
             const mine = m.author_email === staffUser.email;
+            const deleted = !!m.deleted_at;
             const withinWindow =
               mine &&
+              !deleted &&
               Date.now() - new Date(m.created_at).getTime() <
                 CHAT_EDIT_WINDOW_MS;
             return (
@@ -13671,7 +13684,11 @@ function StaffTeamThread({ chat, hideTitle }) {
                   <div className="message-author">
                     {m.author_name} · {m.author_role}
                   </div>
-                  {editingId === m.id ? (
+                  {deleted ? (
+                    <div className="message-text message-deleted">
+                      This message was deleted
+                    </div>
+                  ) : editingId === m.id ? (
                     <div className="message-edit-row">
                       <input
                         type="text"
@@ -13726,18 +13743,45 @@ function StaffTeamThread({ chat, hideTitle }) {
                   )}
                   <div className="message-date">
                     {fmtDateTime(m.created_at)}
-                    {m.edited_at && (
+                    {m.edited_at && !deleted && (
                       <span className="message-edited-tag"> · edited</span>
                     )}
                   </div>
-                  {withinWindow && editingId !== m.id && (
+                  {mine && !deleted && editingId !== m.id && (
                     <div className="message-own-actions">
-                      <button type="button" onClick={() => startEdit(m)}>
-                        Edit
-                      </button>
-                      <button type="button" onClick={() => unsend(m.id)}>
-                        Unsend
-                      </button>
+                      {confirmDeleteId === m.id ? (
+                        <React.Fragment>
+                          <span className="message-confirm-label">
+                            Delete this message?
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => deleteMessage(m.id)}
+                          >
+                            Delete
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setConfirmDeleteId(null)}
+                          >
+                            Cancel
+                          </button>
+                        </React.Fragment>
+                      ) : (
+                        <React.Fragment>
+                          {withinWindow && (
+                            <button type="button" onClick={() => startEdit(m)}>
+                              Edit
+                            </button>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => setConfirmDeleteId(m.id)}
+                          >
+                            Delete
+                          </button>
+                        </React.Fragment>
+                      )}
                     </div>
                   )}
                   {mine && m === lastMineMessage && (
