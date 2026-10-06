@@ -270,7 +270,9 @@ function TB_SyncPill({ client, plan, onSynced }) {
     return (
       <span className="badge-live badge-live--sample tb-sync">
         <span className="badge-dot"></span>
-        Prototype · Sample Data
+        {/* "Setting up — connecting QuickBooks" for a real client, the
+            prototype wording for a test-only one (app.jsx unsyncedPillLabel). */}
+        {typeof unsyncedPillLabel === "function" ? unsyncedPillLabel(client) : "Prototype · Sample Data"}
       </span>
     );
   }

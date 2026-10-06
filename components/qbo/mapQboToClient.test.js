@@ -461,4 +461,35 @@ ok(
   "categoryMonthly rows are keyed YYYY-MM with numeric actuals",
 );
 
+// givingQbo: tithes and offerings from the P&L. Automatic detection picks
+// income accounts named like giving; a staff pick (client_giving_accounts)
+// replaces it; transaction split accounts match on their leaf name.
+{
+  const { mgbBuildQboGiving } = sandbox.window;
+  const pl = [
+    { month: "2026-08-01", account_name: "Tithes", account_type: "Income", amount: 1000 },
+    { month: "2026-09-01", account_name: "Tithes", account_type: "Income", amount: 1200 },
+    { month: "2026-09-01", account_name: "Building Fund Offering", account_type: "Income", amount: 300 },
+    { month: "2026-09-01", account_name: "Facility Rental", account_type: "Income", amount: 500 },
+    { month: "2026-09-01", account_name: "Gift Shop Supplies", account_type: "Expense", amount: 80 },
+  ];
+  const tx = [
+    { txn_type: "Deposit", txn_date: "2026-09-07", split_account: "Giving:Tithes", name: "", memo: "Sunday", amount: 600 },
+    { txn_type: "Deposit", txn_date: "2026-09-08", split_account: "Facility Rental", name: "", memo: "", amount: 500 },
+    { txn_type: "Estimate", txn_date: "2026-09-09", split_account: "Tithes", name: "", memo: "", amount: 1 },
+    { txn_type: "Expense", txn_date: "2026-09-10", split_account: "Supplies:Tithes", name: "", memo: "", amount: -5 },
+  ];
+  const auto = mgbBuildQboGiving({ plLines: pl, transactions: tx, monthKeys: ["2026-08", "2026-09"], syncMonthKey: "2026-09" });
+  eq(auto.source, "auto", "giving defaults to automatic detection");
+  eq(auto.accounts.join("|"), "Building Fund Offering|Tithes", "auto picks income accounts named like giving, not expenses");
+  eq(auto.thisMonth, 1500, "giving this month sums the giving accounts only");
+  eq(auto.lastMonth, 1000, "giving last month is the last closed month");
+  eq(auto.recent.length, 1, "recent giving matches split accounts on the leaf name and skips estimates and expenses");
+  const picked = mgbBuildQboGiving({ plLines: pl, transactions: tx, monthKeys: ["2026-08", "2026-09"], syncMonthKey: "2026-09", setting: { account_names: ["Facility Rental"] } });
+  eq(picked.source, "staff", "a client_giving_accounts row overrides detection");
+  eq(picked.thisMonth, 500, "staff-picked accounts drive the totals");
+  const mapped = mapQboToClient(withClientDataDefaults({ id: "x", name: "X" }), { plLines: pl, monthlyPl: [{ month: "2026-09-01", revenue: 2000, expenses: 0 }], connection: { last_synced_at: "2026-09-20T12:00:00Z" } });
+  ok(mapped.givingQbo && mapped.givingQbo.accounts.length === 2, "mapQboToClient attaches givingQbo");
+}
+
 console.log(`mapQboToClient: ${checks} assertions passed.`);

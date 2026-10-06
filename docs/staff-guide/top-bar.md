@@ -12,7 +12,7 @@ Across the top of every staff page there's a dark bar, joined to the sidebar, wi
 - **Back** and **Refresh** (installed app only): when you use MyGoodBooks as an installed app, there's no browser toolbar, so these two round buttons come first. **Back** goes to the page you were on before (it's greyed out when there's nowhere to go back to), and **Refresh** reloads the page. Clients get the same buttons at the top right of their page header. In a browser tab, use the browser's own buttons.
 - **Client picker**: shows the client you have open, with their plan and health (for example "Pro · Looking good"). Click it to search for and open another client. On a staff page it says **Choose a client**. More in [How do I find and open a client?](#/help/finding-a-client).
 - **Overview** (client pages only): opens the client's staff-only [Client overview](#/help/client-overview). It's highlighted while you're on it.
-- **Sync pill** (client pages only): how often the client's plan syncs, and when it last did: **Every 15 min · synced 5m ago** (Pro) or **Synced monthly · synced …** (Basic). Click it to run **Sync now** for that client. Clients without QuickBooks show **Prototype · Sample Data** instead. See [How do I connect a client's QuickBooks and use Sync now?](#/help/quickbooks-connection).
+- **Sync pill** (client pages only): how often the client's plan syncs, and when it last did: **Every 15 min · synced 5m ago** (Pro) or **Synced monthly · synced …** (Basic). Click it to run **Sync now** for that client. Clients without QuickBooks show **Setting up — connecting QuickBooks** instead (test clients show **Prototype · Sample Data**). See [How do I connect a client's QuickBooks and use Sync now?](#/help/quickbooks-connection).
 
 ### Search (middle)
 

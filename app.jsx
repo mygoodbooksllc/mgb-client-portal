@@ -911,6 +911,10 @@ function scopeClientData(client, access) {
     contributions: funds
       ? client.contributions.filter((c) => funds.has(c.fund))
       : client.contributions,
+    // QuickBooks giving is one organization-wide total, so a category- or
+    // fund-scoped person doesn't get it (the page says why).
+    givingQbo: null,
+    givingQboHidden: !!client.givingQbo,
   };
 }
 
@@ -2667,8 +2671,25 @@ function FileIcon(props) {
 // be a non sequitur. Same for the Giving/Funds and Payroll banners — that data
 // comes from a donor system and Gusto, neither of which this sync touches, so
 // it is still sample data on a QuickBooks-connected client.
+// A real client (clients.test_only = false) that isn't on QuickBooks yet.
+// They never see "sample" or "prototype" wording: the pill says "Setting up"
+// and the Giving page shows an empty state. testOnly is undefined when the
+// roster didn't load, which counts as a test client (the old behaviour).
+function isRealClientWithoutQbo(client) {
+  return !!client && client.testOnly === false && client.dataSource !== "quickbooks";
+}
+
+// The grey pill shown instead of the sync pill before QuickBooks data exists.
+function unsyncedPillLabel(client) {
+  return isRealClientWithoutQbo(client)
+    ? "Setting up — connecting QuickBooks"
+    : "Prototype · Sample Data";
+}
+
 function MockBanner({ text, client }) {
   if (client && client.dataSource === "quickbooks") return null;
+  // A real client is never told their page is a prototype.
+  if (client && client.testOnly === false) return null;
   return (
     <div className="mock-banner">
       <FlaskIcon /> {text}
@@ -3650,8 +3671,41 @@ function crossTabWidgetDefs(client, access) {
     });
   }
 
-  if (
+  // Giving from QuickBooks (client.givingQbo, built in mapQboToClient.js).
+  const gq = client.givingQbo;
+  if (access.tabs.has("giving") && gq && gq.accounts && gq.accounts.length) {
+    defs.push({
+      id: "xt-giving-summary",
+      group: "content",
+      sourceTab: "Giving & Funds",
+      label: "Giving",
+      description: "Tithes and offerings from QuickBooks",
+      render: () => (
+        <>
+          <h3 className="card-title">Giving</h3>
+          <p className="card-subtitle">From QuickBooks, as of last sync</p>
+          <div className="mini-stat-row">
+            <div className="mini-stat">
+              <span className="kpi-label">This month so far</span>
+              <span className="kpi-value">{fmtMoney(gq.thisMonth)}</span>
+            </div>
+            <div className="mini-stat">
+              <span className="kpi-label">Last month</span>
+              <span className="kpi-value">
+                {gq.lastMonth === null ? "—" : fmtMoney(gq.lastMonth)}
+              </span>
+            </div>
+            <div className="mini-stat">
+              <span className="kpi-label">Year to date</span>
+              <span className="kpi-value">{fmtMoney(gq.ytd)}</span>
+            </div>
+          </div>
+        </>
+      ),
+    });
+  } else if (
     access.tabs.has("giving") &&
+    !isRealClientWithoutQbo(client) &&
     ((client.funds || []).length > 0 || (client.contributions || []).length > 0)
   ) {
     const totalGiving = (client.contributions || []).reduce(
@@ -8193,9 +8247,38 @@ function PayrollUpsell({ client }) {
   );
 }
 
+// A real (not test-only) client: nothing syncs from Gusto yet, so no sample
+// payroll and no prototype "Connect Gusto" button, just a calm empty state.
+function PayrollNotConnected({ client }) {
+  return (
+    <div>
+      <div className="card" style={{ textAlign: "center", padding: "36px 28px" }}>
+        <div className="eyebrow-badge">Payroll</div>
+        <h2
+          style={{
+            fontFamily: "var(--font-heading)",
+            fontSize: 22,
+            margin: "10px 0 8px",
+            color: "var(--ink-strong)",
+          }}
+        >
+          Payroll appears here once it's connected
+        </h2>
+        <p style={{ color: "var(--text-muted)", maxWidth: 560, margin: "0 auto" }}>
+          Payroll is on for {client.name || "your organization"}. Keep running
+          payroll the way you do today; your bookkeeper will let you know when
+          it shows up here.
+        </p>
+      </div>
+    </div>
+  );
+}
+
 function PayrollPage({ client, clientPortalUser }) {
   if (!client.payrollAddOn)
     return <PayrollAddOnPage client={client} clientPortalUser={clientPortalUser} />;
+  // Test-only clients keep the sample payroll; real ones never see it.
+  if (client.testOnly === false) return <PayrollNotConnected client={client} />;
   if (!client.payroll) return <PayrollUpsell client={client} />;
   return <PayrollDetail client={client} />;
 }
@@ -15122,11 +15205,9 @@ function ClientAccessPage({ readOnly }) {
   return (
     <div>
       <div className="mock-banner">
-        <WarningIcon /> This page writes directly to the real client_users table
-        in Supabase. It only controls who WILL be able to sign in once Phase 2's
-        client login gate is built — until then, nothing here changes who can
-        actually access a client's data (see "Manage access" on each client's
-        dashboard for that).
+        <WarningIcon /> People here can sign in to the client portal. + Add
+        sends an invite; Bulk import doesn't, so click Invite / Resend invite
+        for each.
       </div>
 
       {readOnly && (
@@ -15386,7 +15467,7 @@ function ClientAccessPage({ readOnly }) {
           <h3 className="card-title">Add a contact</h3>
           <p className="card-subtitle">
             One row per person, not per organization — each contact signs in
-            with their own address once Phase 2 is live.
+            with their own email address.
           </p>
           <div className="staff-add-row">
             <select
@@ -23383,6 +23464,13 @@ function TabSettingsModal({
               </button>
             )}
           </div>
+
+          {/* Which income accounts count as giving (components/client/QboGiving.jsx). */}
+          {qboConnection &&
+            qboConnection.status === "connected" &&
+            typeof QG_GivingAccountsPicker === "function" && (
+              <QG_GivingAccountsPicker client={client} />
+            )}
         </div>
       )}
 
@@ -25051,6 +25139,13 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
   // (index.html's loadQboData), so visibleClients — and baseClient under it —
   // pick up the fresh QuickBooks numbers without a page reload.
   const [qboDataRev, setQboDataRev] = useState(0);
+  // Something outside App re-read QuickBooks data into window.CLIENTS (the
+  // Giving accounts picker in Client details): pick it up.
+  useEffect(() => {
+    const onReloaded = () => setQboDataRev((r) => r + 1);
+    window.addEventListener("mgb-qbo-reloaded", onReloaded);
+    return () => window.removeEventListener("mgb-qbo-reloaded", onReloaded);
+  }, []);
   // Clients reachable through a live temporary grant (ClientSwitcher.jsx),
   // so an approval shows up without a reload and an expiry drops out.
   const liveGrantClientIds = CS_useLiveGrantClientIds(staffUser, effectiveStaffUser);
@@ -26653,7 +26748,7 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
               ) : (
                 <span className="badge-live badge-live--sample">
                   <span className="badge-dot"></span>
-                  Prototype · Sample Data
+                  {unsyncedPillLabel(client)}
                 </span>
               )}
               {!showStaffTopBar && (
@@ -26738,8 +26833,26 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
               />
             ))}
           {effectivePage === "giving" &&
+            // Giving comes from QuickBooks (components/client/QboGiving.jsx).
+            // A real (not test-only) client without QuickBooks gets a calm
+            // empty state, never sample numbers; only test-only clients
+            // without QuickBooks keep the sample Giving pages.
             (scopedClient.dataSource === "quickbooks" ? (
-              <GivingNotConnected client={scopedClient} />
+              typeof QG_QboGivingPage === "function" ? (
+                <QG_QboGivingPage
+                  client={scopedClient}
+                  plan={access.plan}
+                  isStaff={isStaffSession && !isPreviewingUser}
+                />
+              ) : (
+                <GivingNotConnected client={scopedClient} />
+              )
+            ) : isRealClientWithoutQbo(scopedClient) ? (
+              typeof QG_GivingEmptyState === "function" ? (
+                <QG_GivingEmptyState client={scopedClient} />
+              ) : (
+                <GivingNotConnected client={scopedClient} />
+              )
             ) : showsFundAccountingPro ? (
               <FundAccountingProPage
                 client={scopedClient}

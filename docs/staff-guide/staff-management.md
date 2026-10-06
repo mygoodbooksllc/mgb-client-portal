@@ -2,7 +2,7 @@
 title: How do I add staff and manage their access?
 section: Admin
 audience: admin
-keywords: [staff access, team, members, members tab, entity type, nonprofit, for-profit, add staff, bulk import, role, admin, bookkeeper, deactivate, assign clients, manage, temporary admin access, grant, revoke, view as, email invite, client roster, account manager, payroll, payroll add-on, payroll tab]
+keywords: [staff access, team, members, members tab, entity type, nonprofit, for-profit, add staff, bulk import, role, admin, bookkeeper, deactivate, assign clients, manage, temporary admin access, grant, revoke, view as, email invite, client roster, account manager, payroll, payroll add-on, payroll tab, portal logins, invite, resend invite]
 sort: 510
 ---
 The **Members** tab of **Team** (sidebar → **Team** → **Members**) controls who can sign in and with what role. It used to be a separate page called **Staff Access**; old Staff Access links (`#/staff-access`) open this tab.
@@ -61,6 +61,10 @@ Each row on **Client roster** has an **Account manager** column, and the add for
 Tick **Payroll add-on** in the add form (or a row's edit mode) for clients who use MyGoodBooks payroll. Only those clients get a **Payroll** tab in their portal. Leave it unticked and the tab doesn't show at all, for the client or for staff viewing that client. Ticking it later adds the tab straight away.
 
 Clients without it can ask for it from the **Payroll** card under **Add-ons** on the **Plan** tab of their Settings (**Add Payroll**). The request shows on your Home page in **Needs you** as an **Upgrade**. Once they've signed up, tick the box here; the card then says *Payroll is on for {client}*.
+
+### Client roster: portal logins
+
+The contacts on **Client roster** can sign in to the client portal (by emailed link or code). **+ Add** sends the person an invite. **Bulk import** doesn't, so click **Invite / Resend invite** on each imported row.
 
 ### Troubleshooting
 

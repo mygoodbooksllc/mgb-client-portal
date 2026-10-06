@@ -2,7 +2,7 @@
 title: How do I connect a client's QuickBooks and use Sync now?
 section: QuickBooks
 audience: staff
-keywords: [quickbooks, where the money went, expenses by account, no expenses recorded, qbo, sync schedule, every 15 minutes, every 30 minutes, intuit limit, connect, sync, sync now, sync pill, reconnect, disconnect, intuit, refresh, numbers, sample data, prototype]
+keywords: [quickbooks, where the money went, expenses by account, no expenses recorded, qbo, sync schedule, every 15 minutes, every 30 minutes, intuit limit, connect, sync, sync now, sync pill, reconnect, disconnect, intuit, refresh, numbers, sample data, prototype, setting up, giving, tithes, offerings, giving accounts]
 sort: 400
 ---
 When a client's QuickBooks Online is connected, their portal shows real numbers from QuickBooks instead of sample data. After that, the portal keeps itself up to date.
@@ -22,7 +22,8 @@ The first sync can take a minute. Until it finishes, the pages may still show sa
 At the top right of every client page:
 
 - **Every 15 min · synced 5m ago** (Pro clients) or **Synced monthly · synced …** (Basic) means the numbers are real QuickBooks numbers. The first part is how often that plan syncs; the second is when it last did. Pro isn't instant: it syncs every 15 minutes, so a change made in QuickBooks can take up to 15 minutes (30 when the firm is near its Intuit limit) to show unless you use **Sync now**.
-- A grey **Prototype · Sample Data** badge means QuickBooks isn't connected (or hasn't synced yet), so you're looking at sample numbers.
+- A grey **Setting up — connecting QuickBooks** badge means a real client isn't connected yet (or hasn't synced yet). They see empty pages, never sample numbers.
+- A grey **Prototype · Sample Data** badge is the same thing for a test client. Test clients show sample numbers until QuickBooks is connected.
 
 The **Client overview** also has a QuickBooks health card that shows the last sync, or **Not connected**.
 
@@ -52,6 +53,23 @@ Admins: if the top bar shows **QuickBooks syncs slowed** or **QuickBooks syncs s
 
 A sync takes a few seconds. You can't start another one for the same client for about 60 seconds.
 
+### Giving from QuickBooks
+
+For a connected client, the **Giving** page shows tithes and offerings from QuickBooks, as of the last sync:
+
+- **This month so far**, **Last month**, **Year to date** and **Last 12 months**.
+- **Giving by month**: a bar for each of the last 12 months. The lighter bar is this month so far.
+- **By account**: each giving account's total.
+- **Recent giving**: transactions posted to the giving accounts in the last 90 days. A deposit split across several accounts isn't listed, but it is in the totals.
+
+It only reads from QuickBooks. Nothing is written back.
+
+**Which accounts count as giving.** By default, any income account with a name like tithe, offering, contribution, donation, giving, pledge or gift. To choose them yourself, go to **Client details → QuickBooks** and, under **Giving accounts**, tick the income accounts that count, then click **Save giving accounts**. **Go back to automatic** undoes your pick. This is a portal setting only; nothing changes in QuickBooks. The Giving page and the dashboard Giving card update straight away.
+
+If no income account matches, the Giving page says **No giving accounts found in QuickBooks yet**. Pick the accounts as above.
+
+QuickBooks only syncs the last 12 months of the profit and loss, so year to date can't go back further than that, and there's no comparison with last year yet.
+
 ### Reconnect and Disconnect
 
 On **Client details → QuickBooks**:
@@ -68,4 +86,4 @@ When you click **Disconnect**, the portal asks you to confirm first. Data that a
 - **Sync now doesn't seem to do anything.** You may have synced in the last 60 seconds ("Already synced within the last minute."). Wait a minute and try again. If you used Client details → Sync now, reload the page.
 - **"QuickBooks needs to be reconnected before it can sync."** Go to Client details → QuickBooks and click **Reconnect**.
 - **A dashboard card says "No expenses recorded this month yet." (or "No open invoices right now.").** That's real: QuickBooks has nothing for that card yet. **Where the money went** shows this month's expenses by QuickBooks account (the six biggest, the rest as **Other**), so it stays empty until the first expense of the month is entered in QuickBooks and the next sync runs. It doesn't need a QuickBooks budget.
-- **Some numbers still say sample.** Giving, funds, pledges, donors and payroll don't come from QuickBooks yet, so those pages still show sample data. Account numbers aren't synced either. (Reconciliation is estimated for the close checks; see [How do I track month-end close?](#/help/month-end-close).)
+- **Some numbers still say sample.** Funds, pledges, donors and payroll don't come from QuickBooks yet. Test clients still show sample data there; real clients see "Funds appear here once your bookkeeper sets them up" and "Payroll appears here once it's connected". Account numbers aren't synced either. (Reconciliation is estimated for the close checks; see [How do I track month-end close?](#/help/month-end-close).)

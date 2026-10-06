@@ -50,4 +50,4 @@ The top bar keeps the client picker, search, the bell and **+**. Tap the menu bu
 
 - Links work: you can copy the address of a page (for example a client's overview) and paste it into chat. The other person lands on the same page after signing in, as long as they're allowed to see it.
 - Refreshing the page keeps you where you were.
-- Some things are still sample data while the portal is being built (for example giving, funds and payroll numbers for most clients). Those pages say so with a sample-data banner.
+- Test clients show sample data where QuickBooks has nothing yet (for example funds and payroll), with a sample-data banner. Real clients never see sample numbers: those pages show a short "appears here once…" note instead. Giving comes from QuickBooks.

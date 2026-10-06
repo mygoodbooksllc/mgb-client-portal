@@ -99,6 +99,168 @@
     return m ? m[1] : "";
   }
 
+  // --- giving ----------------------------------------------------------------
+  // A church's tithes and offerings, read from QuickBooks (read-only). Which
+  // income accounts count as giving: the staff pick in
+  // client_giving_accounts (Client details -> QuickBooks) when there is one,
+  // otherwise every Income / Other Income account whose name looks like
+  // giving. P&L lines carry leaf account names; transaction split accounts
+  // are fully qualified ("Giving:Tithes"), so both sides compare on the leaf.
+  var GIVING_NAME_RE = /\b(tithes?|offerings?|contributions?|donations?|giving|pledges?|gifts?)\b/i;
+  function leafName(name) {
+    return String(name == null ? "" : name).replace(/^.*:/, "").trim();
+  }
+  window.mgbLooksLikeGiving = function (name) {
+    return GIVING_NAME_RE.test(String(name || ""));
+  };
+  // Every income account name known for a client, from the chart of accounts
+  // and from the P&L lines (a parent's residual line can exist without a
+  // matching qbo_accounts row). Sorted, de-duplicated, leaf names.
+  window.mgbQboIncomeAccountNames = function (accounts, plLines) {
+    var seen = {};
+    (accounts || []).forEach(function (a) {
+      if (a && a.name && MGB_INCOME_TYPES[a.account_type]) seen[leafName(a.name)] = true;
+    });
+    (plLines || []).forEach(function (l) {
+      if (l && l.account_name && l.account_type === "Income") seen[leafName(l.account_name)] = true;
+    });
+    return Object.keys(seen).sort(function (a, b) {
+      return a.toLowerCase() < b.toLowerCase() ? -1 : 1;
+    });
+  };
+  // Only transaction types that post to an income account. Matching is on
+  // the leaf name, and a company can have an expense sub-account with the
+  // same leaf as an income one (the Intuit sample's "Plants and Soil"), so
+  // expenses, bills and checks are never giving. Estimates, purchase orders
+  // and delayed charges move no money.
+  var GIVING_TXN_TYPES = {
+    Deposit: true,
+    "Sales Receipt": true,
+    Invoice: true,
+    "Credit Memo": true,
+    Refund: true,
+    "Journal Entry": true,
+  };
+
+  window.mgbBuildQboGiving = function (opts) {
+    opts = opts || {};
+    var plLines = opts.plLines || [];
+    var transactions = opts.transactions || [];
+    var monthKeys = (opts.monthKeys || []).slice().sort();
+    var syncMonthKey = opts.syncMonthKey;
+    var incomeNames = window.mgbQboIncomeAccountNames(opts.accounts, plLines);
+    var setting = opts.setting || null;
+    var source = setting ? "staff" : "auto";
+    var chosen = setting
+      ? (setting.account_names || []).map(leafName).filter(Boolean)
+      : incomeNames.filter(function (n) {
+          return GIVING_NAME_RE.test(n);
+        });
+    var isGiving = {};
+    chosen.forEach(function (n) {
+      isGiving[n.toLowerCase()] = true;
+    });
+
+    // Monthly totals over the synced P&L window (qbo-sync pulls 12 months:
+    // this month to date plus the 11 before it).
+    var byMonth = {};
+    monthKeys.forEach(function (k) {
+      byMonth[k] = 0;
+    });
+    // The sync month always gets a (month-to-date) bar, even before the P&L
+    // has a column for it.
+    if (syncMonthKey && !(syncMonthKey in byMonth)) byMonth[syncMonthKey] = 0;
+    var byAccount = {};
+    var syncYear = String(syncMonthKey || "").slice(0, 4);
+    plLines.forEach(function (l) {
+      if (l.account_type !== "Income") return;
+      var leaf = leafName(l.account_name);
+      if (!isGiving[leaf.toLowerCase()]) return;
+      var day = toDay(l.month);
+      if (!day) return;
+      var k = day.slice(0, 7);
+      var amt = toNumber(l.amount);
+      byMonth[k] = (byMonth[k] || 0) + amt;
+      if (!byAccount[leaf]) byAccount[leaf] = { account: leaf, ytd: 0, last12: 0, thisMonth: 0 };
+      byAccount[leaf].last12 += amt;
+      if (k.slice(0, 4) === syncYear) byAccount[leaf].ytd += amt;
+      if (k === syncMonthKey) byAccount[leaf].thisMonth += amt;
+    });
+    var months = Object.keys(byMonth)
+      .sort()
+      .map(function (k) {
+        return {
+          key: k,
+          month: monthLabel(k + "-01"),
+          year: Number(k.slice(0, 4)) || null,
+          amount: Math.round(byMonth[k] * 100) / 100,
+          partial: k === syncMonthKey,
+        };
+      });
+    var closed = months.filter(function (m) {
+      return !m.partial;
+    });
+    var current = months.find(function (m) {
+      return m.key === syncMonthKey;
+    });
+    var lastClosed = closed.length ? closed[closed.length - 1] : null;
+    var ytdMonths = months.filter(function (m) {
+      return String(m.year) === syncYear;
+    });
+    function sum(list) {
+      return list.reduce(function (s, m) {
+        return s + m.amount;
+      }, 0);
+    }
+    var closedForAvg = closed.slice(-12);
+
+    var recent = transactions
+      .filter(function (t) {
+        if (!GIVING_TXN_TYPES[t.txn_type]) return false;
+        return isGiving[leafName(t.split_account).toLowerCase()];
+      })
+      .map(function (t) {
+        return {
+          date: toDay(t.txn_date),
+          type: t.txn_type || "",
+          name: t.name || "",
+          memo: t.memo || "",
+          account: leafName(t.split_account),
+          amount: toNumber(t.amount),
+        };
+      })
+      .filter(function (t) {
+        return t.date;
+      })
+      .sort(function (a, b) {
+        return a.date < b.date ? 1 : a.date > b.date ? -1 : 0;
+      })
+      .slice(0, 50);
+
+    return {
+      source: source,
+      accounts: chosen,
+      incomeAccounts: incomeNames,
+      months: months,
+      thisMonth: current ? current.amount : 0,
+      thisMonthKey: syncMonthKey || null,
+      lastMonth: lastClosed ? lastClosed.amount : null,
+      lastMonthKey: lastClosed ? lastClosed.key : null,
+      ytd: Math.round(sum(ytdMonths) * 100) / 100,
+      ytdFromKey: ytdMonths.length ? ytdMonths[0].key : null,
+      last12: Math.round(sum(months) * 100) / 100,
+      monthlyAverage: closedForAvg.length ? Math.round((sum(closedForAvg) / closedForAvg.length) * 100) / 100 : null,
+      byAccount: Object.keys(byAccount)
+        .map(function (k) {
+          return byAccount[k];
+        })
+        .sort(function (a, b) {
+          return b.last12 - a.last12;
+        }),
+      recent: recent,
+    };
+  };
+
   window.mapQboToClient = function mapQboToClient(client, rows) {
     rows = rows || {};
     var accounts = rows.accounts || [];
@@ -423,6 +585,19 @@
       payroll: null,
       bankReconciliations: [],
       documents: [],
+      // Tithes and offerings from the QuickBooks P&L (see mgbBuildQboGiving
+      // above). funds/contributions stay empty: those are per-gift donor
+      // records QuickBooks doesn't hold.
+      givingQbo: window.mgbBuildQboGiving({
+        accounts: accounts,
+        plLines: plLines,
+        transactions: transactions,
+        monthKeys: monthly.map(function (m) {
+          return m.key;
+        }),
+        syncMonthKey: syncMonthKey,
+        setting: (rows.givingSettings || [])[0] || null,
+      }),
       dataSource: "quickbooks",
       lastSyncedAt: (connection && connection.last_synced_at) || null,
     });

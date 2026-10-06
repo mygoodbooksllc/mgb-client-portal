@@ -172,6 +172,7 @@
         "components/staff/TopBar.jsx",
         "components/client/TxnQuestions.jsx",
         "components/client/BankAccounts.jsx",
+        "components/client/QboGiving.jsx",
         "components/tour/Tour.jsx",
         "app.jsx",
       ];
@@ -408,6 +409,10 @@
             invoices: "qbo_invoices",
             bills: "qbo_bills",
             transactions: "qbo_transactions",
+            // Which income accounts count as giving (staff pick; no row =
+            // automatic). supabase/client-giving-accounts.sql. Fail-soft:
+            // an error here just means automatic detection.
+            givingSettings: "client_giving_accounts",
           };
           // PostgREST returns at most 1,000 rows per request, so a busy
           // client's transactions (or several clients' P&L lines) were
@@ -421,6 +426,7 @@
             qbo_invoices: ["client_id", "qbo_id"],
             qbo_bills: ["client_id", "qbo_id"],
             qbo_transactions: ["client_id", "txn_type", "qbo_id"],
+            client_giving_accounts: ["client_id"],
           };
           const QBO_PAGE = 1000;
           const QBO_MAX_PAGES = 50;

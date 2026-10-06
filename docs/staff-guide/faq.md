@@ -11,9 +11,11 @@ No. The Client overview, staff notes, internal notes in the Inbox, SOPs, My Task
 
 ### Why does a page say "Prototype · Sample Data"?
 
-That client's QuickBooks isn't connected (or hasn't synced yet), so the numbers are made up. Connect QuickBooks to show real numbers. See [How do I connect a client's QuickBooks and use Sync now?](#/help/quickbooks-connection).
+That's a test client whose QuickBooks isn't connected (or hasn't synced yet), so the numbers are made up. Connect QuickBooks to show real numbers. See [How do I connect a client's QuickBooks and use Sync now?](#/help/quickbooks-connection).
 
-Some areas are still sample data even for connected clients: giving, funds, pledges, donors and payroll; message threads in the Client overview's Engagement card; and uploads on the client's own Documents page (files uploaded into a document request are stored for real). Reconciliation status is only estimated (for the Close tracker's QuickBooks checks).
+A real client is never shown sample numbers or "prototype" wording. Until their QuickBooks is connected, the badge says **Setting up — connecting QuickBooks** and pages are empty (Giving says "Giving appears here once QuickBooks is connected").
+
+Giving comes from QuickBooks for connected clients. Some areas are still sample data on test clients: funds, pledges, donors and payroll (real clients see an empty state there instead); message threads in the Client overview's Engagement card; and uploads on the client's own Documents page (files uploaded into a document request are stored for real). Reconciliation status is only estimated (for the Close tracker's QuickBooks checks).
 
 ### What do the client's Cash Flow numbers mean?
 
