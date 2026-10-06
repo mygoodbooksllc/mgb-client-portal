@@ -907,6 +907,12 @@ function scopeClientData(client, access) {
         ? a.transactions.filter((t) => cats.has(t.category))
         : a.transactions,
     })),
+    // A category-limited user can't read bank rows in qbo_accounts (RLS), so
+    // their visible transactions arrive here instead of under bankAccounts
+    // (mapQboToClient). No account names or balances, just the rows.
+    unattachedTransactions: cats
+      ? (client.unattachedTransactions || []).filter((t) => cats.has(t.category))
+      : client.unattachedTransactions,
     funds: funds ? client.funds.filter((f) => funds.has(f.name)) : client.funds,
     contributions: funds
       ? client.contributions.filter((c) => funds.has(c.fund))
@@ -3826,9 +3832,12 @@ function ScopedDashboardPage({
   const areas = Array.from(access.categories).join(", ");
 
   const twoMonthsAgo = monthsAgoLocal(2);
-  // Newest 50 (DP_RA_PAGE, as on DashboardPage).
+  // Newest 50 (DP_RA_PAGE, as on DashboardPage). For a real limited user
+  // bankAccounts is empty (RLS hides bank rows) and everything comes from
+  // unattachedTransactions; staff previewing them get both, same rows.
   const myTx = client.bankAccounts
     .flatMap((a) => a.transactions)
+    .concat(client.unattachedTransactions || [])
     .filter((t) => t.date >= twoMonthsAgo)
     .sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0))
     .slice(0, DP_RA_PAGE);

@@ -305,6 +305,45 @@ ok(
   ),
   "a non-bank-account transaction is dropped, not reassigned",
 );
+eq(mapped.unattachedTransactions.length, 1, "full access: only the non-bank row is unattached");
+eq(mapped.unattachedTransactions[0].description, "City Water & Power", "full access: the unattached row is the expense-account one");
+
+// Category-limited user: RLS (client_scope_rls_bank) returns no Bank /
+// Credit Card rows from qbo_accounts, only accounts named like their
+// categories, and only transactions whose split account is one of them. The
+// transactions must survive (the scoped dashboard's recent activity), with
+// no bank account, balance or account name invented for them.
+{
+  const limited = mapQboToClient(base, {
+    connection: ROWS.connection,
+    accounts: [
+      { client_id: "grace-community", qbo_id: "90", name: "Kids Ministry", account_type: "Expense", classification: "Expense", current_balance: 0, active: true },
+    ],
+    monthlyPl: [],
+    transactions: [
+      { client_id: "grace-community", qbo_id: "7001", txn_type: "Expense", txn_date: "2026-08-12", account_name: "General Operating 1204", split_account: "Kids Ministry", name: "Oriental Trading", memo: "VBS crafts", amount: -312.5 },
+      { client_id: "grace-community", qbo_id: "7002", txn_type: "Credit Card Expense", txn_date: "2026-08-19", account_name: "Ministry Card", split_account: "Kids Ministry", name: "Costco", memo: null, amount: 88.1 },
+      { client_id: "grace-community", qbo_id: "7003", txn_type: "Credit Card Credit", txn_date: "2026-08-02", account_name: "Ministry Card", split_account: "Kids Ministry", name: "Costco", memo: "Return", amount: -20 },
+      // A/P document: on the A/P register, not bank activity; dropped.
+      { client_id: "grace-community", qbo_id: "7005", txn_type: "Bill", txn_date: "2026-08-15", account_name: "Accounts Payable", split_account: "Kids Ministry", name: "LifeWay", memo: null, amount: 105.8 },
+      { client_id: "grace-community", qbo_id: "7004", txn_type: "Expense", txn_date: null, account_name: "General Operating 1204", split_account: "Kids Ministry", name: "No date", memo: null, amount: -5 },
+    ],
+  });
+  eq(limited.bankAccounts.length, 0, "limited: no bank accounts without bank rows");
+  eq(limited.unattachedTransactions.length, 3, "limited: dated register transactions are kept; undated and A/P rows dropped");
+  eq(limited.unattachedTransactions.map((t) => t.txnKey).join(","), "Credit Card Expense:7002,Expense:7001,Credit Card Credit:7003", "limited: newest first");
+  hasSampleKeys(limited.unattachedTransactions[0], sampleTx, "a limited user's transaction");
+  eq(limited.unattachedTransactions[1].description, "VBS crafts", "limited: same description rule");
+  eq(limited.unattachedTransactions[1].category, "Kids Ministry", "limited: category from the split account");
+  eq(limited.unattachedTransactions[1].amount, -312.5, "limited: bank rows keep their sign");
+  eq(limited.unattachedTransactions[0].amount, -88.1, "limited: a card charge still reads as money out");
+  eq(limited.unattachedTransactions[2].amount, 20, "limited: a card refund reads as money in");
+  ok(
+    limited.unattachedTransactions.every((t) => !("balance" in t) && !("accountName" in t)),
+    "limited: no balance or account name on the rows",
+  );
+  eq(sandbox.window.mgbCashAccounts(limited.bankAccounts).length, 0, "limited: nothing to sum into cash");
+}
 
 // --- monthly ---------------------------------------------------------------
 eq(mapped.monthly.length, 3, "one monthly row per synced month");

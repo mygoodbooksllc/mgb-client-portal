@@ -73,6 +73,14 @@
   // "Money Market"), so the sub-type carries straight through. Cards are
   // tagged kind: "card" below so nothing adds what's owed to cash.
   var BANKISH = { "Bank": true, "Credit Card": true };
+  // Transaction types QuickBooks only posts on a credit card register
+  // (a card charge and a card refund). Used to flip the sign of a row whose
+  // register account isn't loaded (see unattachedTransactions below).
+  var CARD_TXN_RE = /^credit card (expense|credit)$/i;
+  // Accounts receivable / payable documents. They sit on the A/R or A/P
+  // register, never a bank or card one, and their sign there (a bill is
+  // positive) would read as money in, so they're not unattached activity.
+  var AR_AP_TXN_RE = /^(bill|vendor credit|invoice|credit memo|statement charge|estimate|purchase order|delayed charge|delayed credit)$/i;
   // Same list as data.js's MGB_INCOME_ACCOUNT_TYPES (not reachable from here).
   var MGB_INCOME_TYPES = { Income: true, "Other Income": true };
 
@@ -400,17 +408,32 @@
     // TransactionList rows are grouped onto their register account by name.
     // A row whose account isn't one of the bank/credit-card accounts above
     // (an expense-account split line, say) is genuinely not bank activity and
-    // is left out rather than dumped onto an arbitrary account.
+    // is never dumped onto an arbitrary account. It goes into the flat
+    // unattachedTransactions list instead, which only the category-scoped
+    // dashboard reads: RLS (client_scope_rls_bank) hides Bank / Credit Card
+    // rows in qbo_accounts from a category-limited user, so for them
+    // bankAccounts is empty and every transaction they can see lands here.
+    // No account, no balance — nothing on the Bank page changes.
     var byName = {};
     bankAccounts.forEach(function (acct) {
       byName[acct.accountName] = acct;
     });
+    var unattachedTransactions = [];
     transactions.forEach(function (t) {
       var acct = byName[t.account_name];
-      if (!acct) return;
       var date = toDay(t.txn_date);
       if (!date) return;
-      acct.transactions.push({
+      if (!acct) {
+        if (AR_AP_TXN_RE.test(String(t.txn_type || ""))) return;
+        // The register account's type is unknown here, so the card sign
+        // flip below keys off QuickBooks' card-only transaction types.
+        unattachedTransactions.push(txnRow(t, date, CARD_TXN_RE.test(String(t.txn_type || ""))));
+        return;
+      }
+      acct.transactions.push(txnRow(t, date, acct.kind === "card"));
+    });
+    function txnRow(t, date, isCard) {
+      return {
         date: date,
         // memo first: it's what the bookkeeper actually typed. The payee
         // name is the fallback, and the transaction type is the last resort
@@ -432,14 +455,16 @@
         // charge as positive (the balance owed went up) and a payment or
         // credit as negative, so a charge showed as green "+" money in.
         // Flip card rows to match.
-        amount: acct.kind === "card" ? 0 - toNumber(t.amount) : toNumber(t.amount),
-      });
-    });
+        amount: isCard ? 0 - toNumber(t.amount) : toNumber(t.amount),
+      };
+    }
+    function newestFirst(a, b) {
+      return a.date < b.date ? 1 : a.date > b.date ? -1 : 0;
+    }
     bankAccounts.forEach(function (acct) {
-      acct.transactions.sort(function (a, b) {
-        return a.date < b.date ? 1 : a.date > b.date ? -1 : 0;
-      });
+      acct.transactions.sort(newestFirst);
     });
+    unattachedTransactions.sort(newestFirst);
 
     // --- monthly -----------------------------------------------------------
     var monthly = monthlyPl
@@ -660,6 +685,11 @@
     // replaced, and only with what actually came back.
     return Object.assign({}, client, {
       bankAccounts: bankAccounts,
+      // Transactions whose register account isn't in bankAccounts (all of a
+      // category-limited user's, since RLS hides bank rows from them). Same
+      // row shape as bankAccounts[].transactions, newest first; read only by
+      // the scoped dashboard, never summed into a balance.
+      unattachedTransactions: unattachedTransactions,
       monthly: monthly,
       budget: budget,
       budgetIncome: budgetIncome,
