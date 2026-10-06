@@ -2,7 +2,7 @@
 title: How do I connect a client's QuickBooks and use Sync now?
 section: QuickBooks
 audience: staff
-keywords: [quickbooks, where the money went, expenses by account, no expenses recorded, qbo, sync schedule, every 15 minutes, every 30 minutes, intuit limit, connect, sync, sync now, sync pill, reconnect, disconnect, intuit, refresh, numbers, sample data, prototype, setting up, giving, tithes, offerings, giving accounts, funds, fund accounts, restricted, unrestricted, fund balances, donor statements, tax documents, pledges]
+keywords: [quickbooks, where the money went, expenses by account, no expenses recorded, qbo, sync schedule, every 15 minutes, every 30 minutes, intuit limit, connect, sync, sync now, sync pill, reconnect, disconnect, intuit, refresh, numbers, sample data, prototype, setting up, giving, tithes, offerings, giving accounts, funds, fund accounts, restricted, unrestricted, fund balances, donor statements, tax documents, year-end giving statement, last year, anonymous, pledges]
 sort: 400
 ---
 When a client's QuickBooks Online is connected, their portal shows real numbers from QuickBooks instead of sample data. After that, the portal keeps itself up to date.
@@ -85,7 +85,7 @@ If no account matches, the Funds section says **Funds appear here once your book
 - **Giving**: the monthly bars and by-account table.
 - **Contributions**: transactions posted to the giving accounts in the last 90 days. The donor is the QuickBooks customer or payer on the transaction ("Anonymous" when there isn't one, for example most bank deposits).
 - **Fund Activity**: each fund's balance. Transfers between funds aren't synced from QuickBooks, so they aren't listed.
-- **Tax Documents**: giving by donor, built from those donor names. The portal only keeps about 90 days of transactions, so this isn't a full-year statement yet. Check totals against QuickBooks before sending. **Mark sent** is only remembered on your computer.
+- **Tax Documents**: full calendar-year giving by donor, for year-end giving statements. Pick **this year or last year** at the top. Each donor shows their number of gifts and total, and **Download** gives a statement with the church's name and every gift (date, fund or account, memo, amount). The donor is the QuickBooks customer or payer on the gift. Gifts with no name (most bank deposits) are grouped under **Anonymous / no donor in QuickBooks** and can't go on a statement. To include them, record the donor as the customer in QuickBooks. Totals are as of the last sync: this year's giving refreshes about once a day and whenever you press **Sync now**, and last year's refreshes daily through February 15. Statements aren't emailed from the portal. Download, send it yourself, then click **Mark sent**. **Mark sent** is only remembered on your computer. Clients limited to certain ministries or funds don't see donor giving.
 - **Pledges** is hidden for QuickBooks clients, because QuickBooks has no pledges.
 
 Basic clients see the simpler Giving page with the Funds section. The dashboard **Fund balances** card uses the same accounts.

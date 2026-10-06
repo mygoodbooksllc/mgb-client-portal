@@ -7417,9 +7417,11 @@ function GivingFundsPage({ client }) {
 // QuickBooks mode (`qbo`): a QuickBooks-connected Pro client gets this same
 // page fed from the sync. Fund balances are the accounts picked in Client
 // details -> QuickBooks -> Fund accounts (client.funds, mapQboToClient.js);
-// giving is client.givingQbo; Contributions and Tax Documents use the giving
-// transactions QuickBooks synced (about 90 days), with the QuickBooks
-// customer / payer as the donor. QuickBooks has no pledges or fund
+// giving is client.givingQbo; Contributions uses the giving transactions
+// QuickBooks synced (about 90 days). Tax Documents uses full calendar years
+// of giving by donor (qbo_donor_gifts, pulled by qbo-sync; QG_useDonorGifts
+// in components/client/QboGiving.jsx), with the QuickBooks customer / payer
+// as the donor and a year picker for this year and last. QuickBooks has no pledges or fund
 // transfers, so the Pledges view is left out and Fund Activity lists each
 // fund's balance. Nothing here writes to QuickBooks.
 function FundAccountingProPage({ client: rawClient, qbo, plan, isStaff }) {
@@ -7455,14 +7457,47 @@ function FundAccountingProPage({ client: rawClient, qbo, plan, isStaff }) {
   const today = todayLocal();
   const yearStart = today.slice(0, 4) + "-01-01";
 
-  const handleDownloadStatement = (donor) => {
-    const filename = buildGivingStatementPdf(
-      client,
-      donor,
-      qbo
-        ? `Gifts synced from QuickBooks, ${qboGiftsFrom ? fmtDate(qboGiftsFrom) : "recent"} – ${fmtDate(today)}`
+  // Tax year. QuickBooks clients pick this year or last (full calendar
+  // years come from qbo_donor_gifts); the sample data is this year only.
+  const thisYear = today.slice(0, 4);
+  const [qboTaxYear, setQboTaxYear] = useState(thisYear);
+  const taxYear = qbo ? qboTaxYear : thisYear;
+  const useDonorGifts =
+    typeof QG_useDonorGifts === "function" ? QG_useDonorGifts : () => null;
+  const donorYear = useDonorGifts(
+    qbo && view === "tax-documents" ? client.id : null,
+    taxYear,
+  );
+  const donorGroups = useMemo(
+    () =>
+      qbo && donorYear && typeof QG_groupDonorGifts === "function"
+        ? QG_groupDonorGifts(donorYear.rows, gq ? gq.accounts : [])
         : null,
-    );
+    [qbo, donorYear, gq],
+  );
+  const givingAccountCount = gq && gq.accounts ? gq.accounts.length : 0;
+
+  const handleDownloadStatement = (donor) => {
+    let filename;
+    if (qbo) {
+      const d = donorGroups && donorGroups.donors.find((x) => x.donor === donor);
+      const through =
+        taxYear < thisYear
+          ? `December 31, ${taxYear}`
+          : fmtDate(
+              donorYear && donorYear.pulledAt
+                ? String(donorYear.pulledAt).slice(0, 10)
+                : today,
+            );
+      filename = buildGivingStatementPdf(
+        client,
+        donor,
+        `January 1 – ${through}${taxYear < thisYear ? "" : `, ${taxYear}`}`,
+        d ? d.gifts : [],
+      );
+    } else {
+      filename = buildGivingStatementPdf(client, donor, null);
+    }
     showToast(`Downloaded "${filename}"`);
   };
 
@@ -7474,6 +7509,14 @@ function FundAccountingProPage({ client: rawClient, qbo, plan, isStaff }) {
     const emailByDonor = Object.fromEntries(
       (client.donors || []).map((d) => [d.name, d.email]),
     );
+    if (qbo) {
+      return (donorGroups ? donorGroups.donors : []).map((d) => ({
+        donor: d.donor,
+        total: d.total,
+        giftCount: d.giftCount,
+        email: emailByDonor[d.donor] || null,
+      }));
+    }
     const totals = {};
     client.contributions.forEach((c) => {
       if (c.donor === "Anonymous") return;
@@ -7488,13 +7531,12 @@ function FundAccountingProPage({ client: rawClient, qbo, plan, isStaff }) {
     return Object.values(totals)
       .map((d) => ({ ...d, email: emailByDonor[d.donor] || null }))
       .sort((a, b) => b.total - a.total);
-  }, [client.contributions, client.donors, yearStart, today]);
+  }, [qbo, donorGroups, client.contributions, client.donors, yearStart, today]);
 
   // Which donors already got this year's statement, so nobody sends twice by
   // accident. Per browser (localStorage), like the send itself is a mock;
   // when real sending lands this should move to a table so staff and the
-  // client see the same record.
-  const taxYear = today.slice(0, 4);
+  // client see the same record. Kept per tax year.
   const [sentAt, setSentAt] = useState(() => loadTaxDocsSent(client.id, taxYear));
   const [confirmResend, setConfirmResend] = useState(null); // { donors: [...] }
   useEffect(() => {
@@ -7893,10 +7935,31 @@ function FundAccountingProPage({ client: rawClient, qbo, plan, isStaff }) {
               <h3 className="card-title">Tax Documents</h3>
               <p className="card-subtitle" style={{ margin: 0 }}>
                 {qbo
-                  ? `${taxYear} giving by donor from QuickBooks${qboGiftsFrom ? `, ${fmtDate(qboGiftsFrom)} through today` : ""}`
+                  ? `${taxYear} giving by donor from QuickBooks, ${
+                      taxYear < thisYear ? "January 1 – December 31" : "January 1 to date"
+                    } · ${
+                      donorYear && donorYear.pulledAt
+                        ? `as of last sync, ${relTime(donorYear.pulledAt)}`
+                        : "waiting for the first full-year sync"
+                    }`
                   : `${taxYear} giving statements (January 1 through today) donors can use for their taxes`}
               </p>
             </div>
+            <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+            {qbo && (
+              <select
+                className="rb-select"
+                aria-label="Tax year"
+                value={qboTaxYear}
+                onChange={(e) => setQboTaxYear(e.target.value)}
+                style={{ width: "auto" }}
+              >
+                <option value={thisYear}>{thisYear}</option>
+                <option value={String(Number(thisYear) - 1)}>
+                  {Number(thisYear) - 1}
+                </option>
+              </select>
+            )}
             <button
               className={unsent.length || !withEmail.length ? "btn-primary" : "btn-secondary"}
               disabled={!withEmail.length}
@@ -7908,6 +7971,7 @@ function FundAccountingProPage({ client: rawClient, qbo, plan, isStaff }) {
                   ? `Mark ${unsent.length} not yet sent`
                   : "All marked sent"}
             </button>
+            </div>
           </div>
           <div className="table-scroll">
             <table className="tx-table tx-table-labeled">
@@ -7917,22 +7981,38 @@ function FundAccountingProPage({ client: rawClient, qbo, plan, isStaff }) {
                   <th>Email on File</th>
                   <th>Status</th>
                   <th className="num">Gifts</th>
-                  <th className="num">YTD Total</th>
+                  <th className="num">{qbo ? `${taxYear} Total` : "YTD Total"}</th>
                   <th></th>
                 </tr>
               </thead>
               <tbody>
-                {donorRoster.length === 0 ? (
+                {qbo && donorYear && donorYear.loading && !donorYear.rows.length ? (
+                  <EmptyRow colSpan={6}>Loading {taxYear} giving from QuickBooks…</EmptyRow>
+                ) : qbo && donorYear && donorYear.error ? (
+                  <EmptyRow colSpan={6}>
+                    Couldn&rsquo;t load {taxYear} giving: {donorYear.error}
+                  </EmptyRow>
+                ) : qbo && !givingAccountCount ? (
+                  <EmptyRow colSpan={6}>
+                    No income accounts count as giving yet. Staff can pick them in
+                    Client details → QuickBooks → Giving accounts.
+                  </EmptyRow>
+                ) : qbo && donorYear && !donorYear.pulled ? (
+                  <EmptyRow colSpan={6}>
+                    {taxYear}&rsquo;s giving hasn&rsquo;t come in from QuickBooks yet. It
+                    arrives with the next sync.
+                  </EmptyRow>
+                ) : qbo && donorRoster.length === 0 && !(donorGroups && donorGroups.anonymous.giftCount) ? (
+                  <EmptyRow colSpan={6}>
+                    No gifts posted to the giving accounts in QuickBooks in {taxYear}.
+                  </EmptyRow>
+                ) : !qbo && donorRoster.length === 0 ? (
                   <EmptyRow colSpan={6}>
                     {client.contributions.some(
                       (c) => c.date >= yearStart && c.date <= today,
                     )
-                      ? qbo
-                        ? "None of the giving transactions synced from QuickBooks have a donor name (bank deposits usually don't). Gifts recorded as sales receipts with the donor as the customer show up here."
-                        : `No named donors to send statements to: every gift in ${taxYear} so far is anonymous.`
-                      : qbo
-                        ? `No giving transactions synced from QuickBooks in ${taxYear} yet.`
-                        : `No gifts recorded in ${taxYear} yet.`}
+                      ? `No named donors to send statements to: every gift in ${taxYear} so far is anonymous.`
+                      : `No gifts recorded in ${taxYear} yet.`}
                   </EmptyRow>
                 ) : (
                   donorRoster.map((d) => (
@@ -7965,7 +8045,7 @@ function FundAccountingProPage({ client: rawClient, qbo, plan, isStaff }) {
                       <td className="num" data-label="Gifts">
                         {d.giftCount}
                       </td>
-                      <td className="num tx-amount" data-label="YTD Total">
+                      <td className="num tx-amount" data-label={qbo ? `${taxYear} Total` : "YTD Total"}>
                         {fmtMoney(d.total, { cents: true })}
                       </td>
                       <td
@@ -7992,12 +8072,37 @@ function FundAccountingProPage({ client: rawClient, qbo, plan, isStaff }) {
                     </tr>
                   ))
                 )}
+                {qbo &&
+                  donorYear &&
+                  !donorYear.error &&
+                  donorYear.pulled &&
+                  donorGroups &&
+                  donorGroups.anonymous.giftCount > 0 && (
+                    <tr key="__anonymous">
+                      <td data-primary="">Anonymous / no donor in QuickBooks</td>
+                      <td data-label="Email on File">
+                        <span style={{ color: "var(--text-muted)" }}>—</span>
+                      </td>
+                      <td data-label="Status">
+                        <span style={{ color: "var(--text-muted)" }}>
+                          Can&rsquo;t go on a statement
+                        </span>
+                      </td>
+                      <td className="num" data-label="Gifts">
+                        {donorGroups.anonymous.giftCount}
+                      </td>
+                      <td className="num tx-amount" data-label={`${taxYear} Total`}>
+                        {fmtMoney(donorGroups.anonymous.total, { cents: true })}
+                      </td>
+                      <td></td>
+                    </tr>
+                  )}
               </tbody>
             </table>
           </div>
           <p className="card-subtitle" style={{ margin: "12px 0 0" }}>
             {qbo
-              ? "Donors are the customer or payer names on giving transactions in QuickBooks. The sync keeps about the last 90 days of transactions, so these totals aren't a full year yet; check QuickBooks before sending a year-end statement. "
+              ? `Donors are the customer or payer names on gifts posted to the giving accounts in QuickBooks, for the whole calendar year as of the last sync. Gifts with no name (bank deposits usually have none) are grouped under Anonymous and can't go on a statement; to include them, record the donor as the customer in QuickBooks. `
               : ""}
             Statements aren&rsquo;t emailed from here yet. Download each one,
             send it to the donor yourself, then mark it sent so nobody sends
@@ -9502,12 +9607,39 @@ function buildReconciliationReportPdf(
 
 // Fund Accounting Pro only. One donor's gifts across every fund, YTD — the
 // per-donor equivalent of buildContributionStatementPdf's by-fund summary.
-function buildGivingStatementPdf(client, donorName, periodLabel) {
+// qboGifts (QuickBooks clients): the donor's gifts for the selected calendar
+// year from qbo_donor_gifts ({date, amount, fund, memo}), listed with the
+// memo instead of the payment method. Same header (church name) and table look.
+function buildGivingStatementPdf(client, donorName, periodLabel, qboGifts) {
+  const year = new Date().getFullYear();
+  if (Array.isArray(qboGifts)) {
+    const qTotal = qboGifts.reduce((s, g) => s + (Number(g.amount) || 0), 0);
+    const qDoc = newReportDoc(
+      `Giving Statement — ${donorName}`,
+      periodLabel || `January 1 – December 31, ${year}`,
+      client,
+    );
+    qDoc.autoTable({
+      startY: 55,
+      head: [["Date", "Fund / Account", "Memo", "Amount"]],
+      body: qboGifts.map((g) => [
+        fmtDate(g.date),
+        g.fund || "",
+        g.memo || "",
+        fmtMoney(g.amount, { cents: true }),
+      ]),
+      foot: [["", "", "Total", fmtMoney(qTotal, { cents: true })]],
+      columnStyles: { 3: { halign: "right" } },
+      ...PDF_TABLE_THEME,
+    });
+    const qName = `${sanitizeFilename(client.name)} - ${sanitizeFilename(donorName)} Giving Statement.pdf`;
+    qDoc.save(qName);
+    return qName;
+  }
   const gifts = (client.contributions || []).filter(
     (c) => c.donor === donorName,
   );
   const total = gifts.reduce((s, c) => s + c.amount, 0);
-  const year = new Date().getFullYear();
 
   const doc = newReportDoc(
     `Giving Statement — ${donorName}`,

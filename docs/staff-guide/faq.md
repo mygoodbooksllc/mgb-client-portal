@@ -28,7 +28,7 @@ Giving and funds come from QuickBooks for connected clients (see [Funds from Qui
 
 ### Does "Mark sent" on the Giving page email the donor?
 
-No. On **Tax Documents**, download the giving statement, send it yourself, then click **Mark sent** (or **Mark All Sent**) to record that it went out. Year-to-date giving counts only gifts from January 1 of this year through today.
+No. On **Tax Documents**, download the giving statement, send it yourself, then click **Mark sent** (or **Mark All Sent**) to record that it went out. Year-to-date giving counts gifts from January 1 of this year through today. For a QuickBooks client, Tax Documents covers a full calendar year (this year to date, or all of last year) as of the last sync. Gifts with no donor name in QuickBooks are grouped under Anonymous and can't go on a statement. **Mark sent** is remembered on your computer only.
 
 ### Why doesn't a limited-access person see the income chart or cash flow?
 

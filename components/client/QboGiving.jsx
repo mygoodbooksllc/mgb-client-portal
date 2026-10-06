@@ -181,6 +181,118 @@ function QG_qboContributions(client) {
   }));
 }
 
+// Full-year giving by donor for Tax Documents (year-end statements).
+// qbo-sync pulls a whole calendar year per client into qbo_donor_gifts
+// (supabase/qbo-donor-gifts.sql) for every income account; only the
+// client's giving accounts (givingAccounts = client.givingQbo.accounts, leaf
+// names) are kept here. Read-only; RLS keeps category- and fund-limited
+// client users out, so for them this comes back empty.
+//
+// Pure grouping, exported for the page and testable on its own:
+//   { donors: [{ donor, total, giftCount, gifts: [{date, amount, fund, memo, type, num}] }],
+//     anonymous: { total, giftCount } }
+function QG_groupDonorGifts(rows, givingAccounts) {
+  const keep = new Set((givingAccounts || []).map((n) => String(n).trim().toLowerCase()));
+  const byDonor = {};
+  const anonymous = { total: 0, giftCount: 0 };
+  (rows || []).forEach((r) => {
+    const fund = String(r.account_name || "").split(":").pop().trim();
+    if (!keep.has(fund.toLowerCase())) return;
+    const amount = Number(r.amount) || 0;
+    const name = String(r.donor_name || "").trim();
+    if (!name) {
+      anonymous.total += amount;
+      anonymous.giftCount += 1;
+      return;
+    }
+    if (!byDonor[name]) byDonor[name] = { donor: name, total: 0, giftCount: 0, gifts: [] };
+    const d = byDonor[name];
+    d.total += amount;
+    d.giftCount += 1;
+    d.gifts.push({
+      date: r.txn_date,
+      amount,
+      fund,
+      memo: r.memo || "",
+      type: r.txn_type || "",
+      num: r.doc_number || "",
+    });
+  });
+  const donors = Object.values(byDonor).map((d) => ({
+    ...d,
+    total: Math.round(d.total * 100) / 100,
+    gifts: d.gifts.sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0)),
+  }));
+  donors.sort((a, b) => b.total - a.total || a.donor.localeCompare(b.donor));
+  anonymous.total = Math.round(anonymous.total * 100) / 100;
+  return { donors, anonymous };
+}
+
+// Loads one year's rows plus when that year was last pulled. clientId null =
+// don't load (the Tax Documents view isn't open). Returns
+// { loading, error, rows, pulledAt, pulled } where pulled = false means the
+// year hasn't come in from QuickBooks yet.
+function QG_useDonorGifts(clientId, year) {
+  const [state, setState] = React.useState({ loading: false, rows: [], pulledAt: null, pulled: false });
+  React.useEffect(() => {
+    if (!clientId) return undefined;
+    const sb = window.mgbSupabase;
+    if (!sb) {
+      setState({ loading: false, error: "Not connected to the database.", rows: [], pulledAt: null, pulled: false });
+      return undefined;
+    }
+    let alive = true;
+    setState((s) => ({ ...s, loading: true, error: null }));
+    (async () => {
+      const y = Number(year);
+      // Paged by primary key: the API returns at most 1000 rows per request.
+      const fetchGifts = async () => {
+        const PAGE = 1000;
+        let all = [];
+        for (let page = 0; page < 50; page++) {
+          const { data, error } = await sb
+            .from("qbo_donor_gifts")
+            .select("line_key, txn_date, donor_name, amount, account_name, txn_type, doc_number, memo")
+            .eq("client_id", clientId)
+            .eq("year", y)
+            .order("line_key", { ascending: true })
+            .range(page * PAGE, page * PAGE + PAGE - 1);
+          if (error) return { data: all, error };
+          all = all.concat(data || []);
+          if (!data || data.length < PAGE) break;
+        }
+        return { data: all, error: null };
+      };
+      const [gifts, pull] = await Promise.all([
+        fetchGifts(),
+        sb
+          .from("qbo_donor_gift_pulls")
+          .select("pulled_at, row_count")
+          .eq("client_id", clientId)
+          .eq("year", y)
+          .maybeSingle(),
+      ]);
+      if (!alive) return;
+      if (gifts.error) {
+        setState({ loading: false, error: gifts.error.message, rows: [], pulledAt: null, pulled: false });
+        return;
+      }
+      const p = pull && !pull.error ? pull.data : null;
+      setState({
+        loading: false,
+        error: null,
+        rows: gifts.data || [],
+        pulledAt: p ? p.pulled_at : null,
+        pulled: !!p,
+      });
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [clientId, year]);
+  return state;
+}
+
 // Monthly giving bars. The sync month is month to date and drawn lighter.
 function QG_MonthlyBars({ months }) {
   const wrapRef = React.useRef(null);

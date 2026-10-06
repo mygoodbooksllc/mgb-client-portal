@@ -53,6 +53,11 @@ import { createClient } from "jsr:@supabase/supabase-js@2";
 // pull is the 13-month backfill — and then close_checks_evaluate() re-scores
 // that client's last six months.
 //
+// Giving by donor for full calendar years (qbo_donor_gifts; supabase/
+// qbo-donor-gifts.sql): one GeneralLedger call per year, the current year at
+// most once a day or on Sync now, the previous year daily through Feb 15 and
+// then only if never pulled. See pullDonorGifts.
+//
 // Deliberately self-contained — no shared module. Supabase deploys each
 // Edge Function independently; a shared file would mean the QBO functions
 // could only ever be deployed together.
@@ -819,6 +824,173 @@ async function pullCloseData(
 }
 
 // ---------------------------------------------------------------------------
+// Giving by donor for a whole calendar year (supabase/qbo-donor-gifts.sql),
+// for year-end giving statements on the Pro Giving & Funds Tax Documents view.
+//
+// ONE Intuit call per year: a GeneralLedger report for Jan 1 - Dec 31,
+// restricted (`account`) to the client's Income / Other Income accounts, with
+// the date, type, number, name, memo and amount columns. GeneralLedger is used
+// rather than TransactionList because TransactionList has no account filter,
+// so it would return the whole register. The name column is the customer /
+// payer (the donor); rows are grouped under an account section header, which
+// gives the fund / giving account. Every income account is stored and the
+// browser keeps the giving ones (client.givingQbo.accounts), so a change to
+// the giving-account pick needs no new call.
+//
+// Schedule (donorYearsDue): the current year at most once a day, or on Sync
+// now; the previous year once a day through Feb 15 (US Central), afterwards
+// only if it was never pulled. Read-only.
+// ---------------------------------------------------------------------------
+const DONOR_PULL_MAX_AGE_MS = 24 * 60 * 60 * 1000 - 10 * 60 * 1000;
+const INCOME_ACCOUNT_TYPES = new Set(["Income", "Other Income"]);
+
+function donorYearsDue(
+  pulls: Map<number, string>,
+  now: Date,
+  forceCurrent: boolean,
+): number[] {
+  const today = centralDate(now); // YYYY-MM-DD
+  const year = Number(today.slice(0, 4));
+  const stale = (y: number) => {
+    const at = pulls.get(y);
+    return !at || now.getTime() - new Date(at).getTime() >= DONOR_PULL_MAX_AGE_MS;
+  };
+  const due: number[] = [];
+  if (forceCurrent || stale(year)) due.push(year);
+  const prev = year - 1;
+  const inJanFeb = today.slice(5) <= "02-15";
+  if (!pulls.has(prev) || (inJanFeb && stale(prev))) due.push(prev);
+  return due;
+}
+
+// null = status unreadable (table missing etc.): pull nothing this run rather
+// than every year on every run.
+async function donorPullsFor(admin: any, clientIds: string[]): Promise<Map<string, Map<number, string>> | null> {
+  const out = new Map<string, Map<number, string>>();
+  if (!clientIds.length) return out;
+  const { data, error } = await admin
+    .from("qbo_donor_gift_pulls")
+    .select("client_id, year, pulled_at")
+    .in("client_id", clientIds);
+  if (error) {
+    console.log(`qbo-sync: donor pull status unavailable: ${error.message}`);
+    return null;
+  }
+  for (const r of data || []) {
+    const m = out.get(r.client_id) || new Map<number, string>();
+    m.set(Number(r.year), r.pulled_at);
+    out.set(r.client_id, m);
+  }
+  return out;
+}
+
+async function pullDonorGifts(
+  admin: any,
+  accessToken: string,
+  base: string,
+  realmId: string,
+  clientId: string,
+  year: number,
+  accounts: any[],
+): Promise<number> {
+  const income = accounts.filter((a) => INCOME_ACCOUNT_TYPES.has(String(a?.account_type || "")));
+  if (!income.length) {
+    return await replaceDonorGifts(admin, clientId, year, []);
+  }
+  const nameById = new Map<string, string>();
+  const idByName = new Map<string, string>();
+  for (const a of income) {
+    nameById.set(String(a.qbo_id), String(a.name || ""));
+    idByName.set(String(a.name || "").trim().toLowerCase(), String(a.qbo_id));
+  }
+  const resolve = (cell: any): string | null => {
+    if (cell?.id && nameById.has(String(cell.id))) return String(cell.id);
+    const leaf = String(cell?.value || "").split(":").pop()!.trim().toLowerCase();
+    return idByName.get(leaf) || null;
+  };
+
+  const today = isoDay(new Date());
+  const start = `${year}-01-01`;
+  const yearEnd = `${year}-12-31`;
+  const end = yearEnd < today ? yearEnd : today;
+  const gl = await intuitFetch(
+    accessToken,
+    reportUrl(base, realmId, "GeneralLedger", {
+      start_date: start,
+      end_date: end,
+      account: [...nameById.keys()].join(","),
+      columns: "tx_date,txn_type,doc_num,name,memo,account_name,subt_nat_amount",
+    }),
+    "GeneralLedger (giving) report",
+  );
+  const iDate = reportColumn(gl, "tx_date", "date");
+  const iType = reportColumn(gl, "txn_type", "transaction type");
+  const iNum = reportColumn(gl, "doc_num", "num", "no.");
+  const iName = reportColumn(gl, "name", "name");
+  const iMemo = reportColumn(gl, "memo", "memo/description");
+  const iAcct = reportColumn(gl, "account_name", "account");
+  const iAmt = reportColumn(gl, "subt_nat_amount", "amount");
+
+  const rows = new Map<string, any>();
+  walkDataRows(gl?.Rows?.Row || [], (cd, section) => {
+    const d = iDate >= 0 ? String(cd[iDate]?.value || "").slice(0, 10) : "";
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(d) || d.slice(0, 4) !== String(year)) return;
+    const acctId = (section ? resolve(section) : null) || (iAcct >= 0 ? resolve(cd[iAcct]) : null);
+    if (!acctId) return;
+    const amount = iAmt >= 0 ? num(cd[iAmt]?.value) : 0;
+    if (!amount) return;
+    const txnType = (iType >= 0 ? String(cd[iType]?.value || "") : "") || "Transaction";
+    const txnId =
+      (iDate >= 0 && cd[iDate]?.id) || (iType >= 0 && cd[iType]?.id) || "";
+    const nameCell = iName >= 0 ? cd[iName] : null;
+    const donor = String(nameCell?.value || "").trim();
+    const docNum = iNum >= 0 ? String(cd[iNum]?.value || "").trim() : "";
+    const memo = iMemo >= 0 ? String(cd[iMemo]?.value || "").trim() : "";
+    // One gift = one transaction x account x donor (a deposit can carry lines
+    // from several payers; two lines of one sales receipt to the same account
+    // are one gift).
+    const key = (
+      txnId
+        ? `${txnType}|${txnId}|${acctId}|${donor}`
+        : `syn|${d}|${txnType}|${docNum}|${acctId}|${donor}|${memo}|${rows.size}`
+    ).slice(0, 300);
+    const prev = rows.get(key);
+    if (prev) {
+      prev.amount = Math.round((prev.amount + amount) * 100) / 100;
+      if (!prev.memo && memo) prev.memo = memo;
+      return;
+    }
+    rows.set(key, {
+      client_id: clientId,
+      year,
+      line_key: key,
+      txn_date: d,
+      donor_name: donor || null,
+      donor_qbo_id: nameCell?.id ? String(nameCell.id) : null,
+      amount: Math.round(amount * 100) / 100,
+      account_name: nameById.get(acctId) || null,
+      account_qbo_id: acctId,
+      txn_type: txnType,
+      txn_qbo_id: txnId ? String(txnId) : null,
+      doc_number: docNum || null,
+      memo: memo || null,
+    });
+  });
+  const list = [...rows.values()].filter((r) => r.amount !== 0);
+  return await replaceDonorGifts(admin, clientId, year, list);
+}
+
+async function replaceDonorGifts(admin: any, clientId: string, year: number, rows: any[]): Promise<number> {
+  const { data, error } = await admin.rpc("qbo_replace_donor_gifts", {
+    p_client_id: clientId,
+    p_year: year,
+    p_rows: rows,
+  });
+  if (error) throw new Error(`qbo_donor_gifts: ${error.message}`);
+  return typeof data === "number" ? data : rows.length;
+}
+
+// ---------------------------------------------------------------------------
 // One client, end to end.
 // ---------------------------------------------------------------------------
 async function syncClient(
@@ -826,7 +998,7 @@ async function syncClient(
   clientId: string,
   realmId: string,
   apiEnv: string | null,
-  opts: { cdcSince?: Date | null; closeDue?: boolean } = {},
+  opts: { cdcSince?: Date | null; closeDue?: boolean; donorYears?: number[] } = {},
 ) {
   const startedAt = new Date().toISOString();
   const counts: Record<string, number> = {};
@@ -1153,6 +1325,28 @@ async function syncClient(
       }
     }
 
+    // --- Giving by donor, full calendar years (1 call per year due) --------
+    if (opts.donorYears && opts.donorYears.length) {
+      let accts = accountRows;
+      if (skipFull) {
+        const { data: stored } = await admin
+          .from("qbo_accounts")
+          .select("qbo_id, name, account_type")
+          .eq("client_id", clientId);
+        accts = stored || [];
+      }
+      for (const y of opts.donorYears) {
+        try {
+          counts[`donor_gifts_${y}`] = await pullDonorGifts(admin, accessToken, base, realmId, clientId, y, accts);
+        } catch (e) {
+          // Keep the year's previous rows; it's retried on the next run.
+          if (e instanceof IntuitError && e.status === 401) throw e;
+          counts.donor_gifts_error = 1;
+          console.log(`qbo-sync: donor gifts ${y} pull failed for client ${clientId}: ${(e as Error).message}`);
+        }
+      }
+    }
+
     // --- Bookkeeping -------------------------------------------------------
     await admin.from("qbo_sync_runs").insert({
       client_id: clientId,
@@ -1450,10 +1644,15 @@ async function handle(req: Request): Promise<Response> {
 
     let result: any;
     try {
-      // Sync now always does the full read (no CDC gate) and pulls close
-      // data when it's due.
+      // Sync now always does the full read (no CDC gate), pulls close data
+      // when it's due, and always refreshes this year's giving by donor (the
+      // previous year only on its own schedule).
+      const pulls = await donorPullsFor(admin, [conn.client_id]);
       result = await syncClient(admin, conn.client_id, conn.realm_id, conn.api_env ?? null, {
         closeDue: isCloseDue(conn.close_synced_at, new Date()),
+        donorYears: pulls
+          ? donorYearsDue(pulls.get(conn.client_id) || new Map(), new Date(), true)
+          : [],
       });
     } finally {
       if (lock === "acquired") await releaseSyncLock(admin, clientId!);
@@ -1482,10 +1681,14 @@ async function handle(req: Request): Promise<Response> {
   // it. A full sweep of a few dozen clients still finishes well inside the
   // Edge Function timeout.
   const now = new Date();
+  const donorPulls = await donorPullsFor(admin, targets.map((t: any) => t.client_id));
   for (const t of targets) {
     const result = await syncClient(admin, t.client_id, t.realm_id, t.api_env ?? null, {
       cdcSince: cdcSinceFor(t, now),
       closeDue: isCloseDue(t.close_synced_at, now),
+      donorYears: donorPulls
+        ? donorYearsDue(donorPulls.get(t.client_id) || new Map(), now, false)
+        : [],
     });
     if ((result as any).error) errors.push(result);
     else synced.push(result);
