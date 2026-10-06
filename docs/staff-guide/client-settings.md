@@ -28,7 +28,7 @@ Two tabs:
 - **Security & privacy**: **Sign out**, and **Sign out on all devices** for a shared or lost computer (they sign in with Google, so there's no password to change). Below that, plain-language answers for the client:
   - **Who can see your books**: their own access level, that MyGoodBooks sets up their team's logins, their bookkeeper and account manager by name, that admins see every client and other staff only when assigned or approved by the bookkeeper, and that every access change is recorded. It also tells them **staff-only working files** exist: files only MyGoodBooks staff can see, stored the same way and never shared outside MyGoodBooks.
   - **How your data is stored and used**: QuickBooks is read-only, their sync schedule, the connection key is encrypted, and how to disconnect from Intuit. Data is stored with Supabase in the US (Ohio), encrypted, hosted by Vercel, emails via Resend, backed up daily. Never sold or used for ads.
-  - **Keeping and deleting your data**: only staff remove documents, Trash never empties on its own, and how to ask for a copy or deletion (message the bookkeeper or email jeff@mygoodbooks.org).
+  - **Keeping and deleting your data**: only staff remove documents, Trash never empties on its own, and how to ask for a copy or deletion (message the bookkeeper or email admin@mygoodbooks.org).
   - If a client asks for a copy of their data or to have it deleted, pass it to the owner. Don't promise anything the page doesn't say.
 - **Help**: **Restart the tour** (see "How does the client guided tour work?"), Messages, the privacy policy and the terms of service.
 

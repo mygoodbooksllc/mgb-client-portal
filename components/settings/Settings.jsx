@@ -1523,8 +1523,8 @@ function ST_SecurityPrivacy({ client, access, readOnly, onSelectPage }) {
           </ST_SecRow>
           <ST_SecRow label="A copy, or deleting it">
             To get a copy of your data or ask us to delete it, message your bookkeeper or email{" "}
-            <a className="st-link" href="mailto:jeff@mygoodbooks.org">
-              jeff@mygoodbooks.org
+            <a className="st-link" href="mailto:admin@mygoodbooks.org">
+              admin@mygoodbooks.org
             </a>
             .
           </ST_SecRow>
