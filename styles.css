@@ -9406,6 +9406,32 @@ button.home-band:hover { filter: brightness(0.97); }
 /* Full-width card (the client table) under the two columns. */
 .content-masonry > .home-wide { grid-column: 1 / -1; }
 
+/* Home's own masonry. useHomeMasonry (app.jsx) picks the column count,
+   puts each card in the shortest column on a grid of 4px rows, and adds
+   .home-masonry-ready. Until then (or without JavaScript) it's a plain
+   grid with the full-width cards spanning every column. */
+.home-masonry {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 380px), 1fr));
+  gap: 20px;
+  align-items: start;
+  margin-bottom: 20px;
+}
+.home-masonry > * { min-width: 0; margin: 0; }
+.home-masonry > .home-wide { grid-column: 1 / -1; }
+.home-masonry.home-masonry-ready {
+  grid-auto-rows: 4px;
+  row-gap: 0;
+  column-gap: 20px;
+}
+/* Four KPI tiles go 2×2 rather than 3 + 1 when there's no room for a row
+   of four. */
+@media (max-width: 1199px) {
+  .home-page .kpi-grid:has(> :nth-child(4):last-child) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
 /* A card with nothing in it shrinks to its title and a one-line
    "all clear", so a quiet day looks calm. */
 .home-card-quiet { padding-top: 14px; padding-bottom: 14px; }

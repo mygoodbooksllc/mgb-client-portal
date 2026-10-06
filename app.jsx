@@ -16297,6 +16297,94 @@ function useCardFlash() {
   return { flashCardId, jumpToCard };
 }
 
+// Staff Home's card masonry (owner, 2026-10-06: "staff home needs some
+// masonry work"). The shared .content-masonry grid auto-places cards, which
+// let a short card sit under a tall one with a gap beside it, and dropped
+// whatever came after the full-width client list onto a row of its own.
+//
+// This places every card itself, on the same 4px-row grid: cards go in
+// priority order (the Customize order: "Needs you" first, top-left) into
+// whichever column is shortest, ties going left, so the columns stay level.
+// Full-width cards (.home-wide, the client list) go under the columns.
+// Cards stay children of one grid, so moving one between columns never
+// remounts it (a half-typed reminder survives). Columns: as many 380px+
+// columns as fit, up to 3; one on phones. A card that renders nothing
+// (zero height) takes no space. Re-runs when the grid resizes, a card
+// changes height, or cards are added, removed or reordered.
+const HOME_MASONRY_ROW = 4;
+const HOME_MASONRY_GAP = 20;
+const HOME_MASONRY_MIN_COL = 380;
+const HOME_MASONRY_MAX_COLS = 3;
+
+function useHomeMasonry(ref) {
+  React.useLayoutEffect(() => {
+    const grid = ref.current;
+    if (!grid || typeof ResizeObserver === "undefined") return;
+    let frame = 0;
+    const layoutCards = () => {
+      frame = 0;
+      const width = grid.clientWidth;
+      if (!width) return;
+      const cols = Math.max(
+        1,
+        Math.min(
+          HOME_MASONRY_MAX_COLS,
+          Math.floor((width + HOME_MASONRY_GAP) / (HOME_MASONRY_MIN_COL + HOME_MASONRY_GAP)),
+        ),
+      );
+      grid.style.gridTemplateColumns = `repeat(${cols}, minmax(0, 1fr))`;
+      grid.classList.add("home-masonry-ready");
+      const heights = new Array(cols).fill(0); // in rows
+      const wide = [];
+      const span = (el) => {
+        const h = el.getBoundingClientRect().height;
+        return h > 0 ? Math.ceil((h + HOME_MASONRY_GAP) / HOME_MASONRY_ROW) : 0;
+      };
+      const place = (el, column, rowStart, rows) => {
+        const c = String(column);
+        const r = rows ? `${rowStart} / span ${rows}` : "1 / span 1";
+        if (el.style.gridColumn !== c) el.style.gridColumn = c;
+        if (el.style.gridRow !== r) el.style.gridRow = r;
+      };
+      Array.from(grid.children).forEach((el) => {
+        if (el.classList.contains("home-wide")) return wide.push(el);
+        const rows = span(el);
+        if (!rows) return place(el, "1", 1, 0);
+        let col = 0;
+        for (let i = 1; i < cols; i++) if (heights[i] < heights[col]) col = i;
+        place(el, col + 1, heights[col] + 1, rows);
+        heights[col] += rows;
+      });
+      let top = Math.max(0, ...heights);
+      wide.forEach((el) => {
+        const rows = span(el);
+        if (!rows) return place(el, "1 / -1", 1, 0);
+        place(el, "1 / -1", top + 1, rows);
+        top += rows;
+      });
+    };
+    const schedule = () => {
+      if (!frame) frame = requestAnimationFrame(layoutCards);
+    };
+    const ro = new ResizeObserver(schedule);
+    const watch = () => {
+      ro.disconnect();
+      ro.observe(grid);
+      Array.from(grid.children).forEach((el) => ro.observe(el));
+      schedule();
+    };
+    const mo = new MutationObserver(watch);
+    mo.observe(grid, { childList: true });
+    watch();
+    layoutCards(); // first paint already placed, no flash of the fallback
+    return () => {
+      ro.disconnect();
+      mo.disconnect();
+      if (frame) cancelAnimationFrame(frame);
+    };
+  }, [ref]);
+}
+
 function BookkeeperHomePage({
   staffUser,
   clients,
@@ -16909,6 +16997,8 @@ function BookkeeperHomePage({
     onOpenClient: (clientId) => onNavigateToClient(clientId, "client-overview"),
   };
   const drag = useDragReorder(layout);
+  const masonryRef = useRef(null);
+  useHomeMasonry(masonryRef);
   const kpiOrder = layout.visibleOrder.filter((id) => id.startsWith("kpi-"));
   const contentOrder = layout.visibleOrder.filter(
     (id) => !id.startsWith("kpi-"),
@@ -17033,7 +17123,7 @@ function BookkeeperHomePage({
         })}
       </div>
 
-      <div className="content-masonry" style={{ marginBottom: 20 }}>
+      <div className="home-masonry" ref={masonryRef}>
         {contentOrder.map((id) => {
           if (id === "needs-attention") {
             const LIMIT = 6;

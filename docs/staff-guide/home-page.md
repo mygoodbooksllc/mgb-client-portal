@@ -2,7 +2,7 @@
 title: What's on my Home page?
 section: Getting started
 audience: staff
-keywords: [home, dashboard, needs you, needs attention, needs you now, this week, all clear, colors, red, amber, priority, reminders, upgrade requests, access requests, needs a visit, recently viewed, customize, add widgets, saved views, reset layout, financial overview, board-ready, live report, status, handoff, custom card, new custom card, watchlist, filtered list, checklist, notes]
+keywords: [home, dashboard, needs you, needs attention, needs you now, this week, all clear, colors, red, amber, priority, reminders, upgrade requests, access requests, needs a visit, recently viewed, customize, add widgets, saved views, reset layout, financial overview, board-ready, live report, status, handoff, custom card, new custom card, watchlist, filtered list, checklist, notes, layout, columns, arrange]
 sort: 40
 ---
 **Home** is your starting point. It shows what needs you across every client you can see, sorted by how soon it needs doing. To open a client, use the client picker or the search box in the [top bar](#/help/top-bar).
@@ -38,6 +38,10 @@ It shows the first 6 of each group. Click **Show everything** to see the rest. W
 - **Month-end close**: last month's close checklist progress for each client, least finished first.
 - **Recently viewed** and **Needs a visit**: clients you opened lately, and ones you haven't opened on this device in a while. When nobody needs a visit, the card shrinks to one line.
 - **Your clients**: every client with a health dot, overdue counts and notes. It runs the full width of the page, below the other cards.
+
+### How the cards are arranged
+
+Cards fill the page in your order (see *Make it yours* below): the first card goes top-left, and each next card drops into whichever column is shortest, so there are no big gaps under short cards. That means the second card in your list may end up on the right rather than under the first. Wide screens get up to three columns, laptops two, and phones one. **Your clients** always runs full width at the bottom, even if you move it higher in the customize panel.
 
 The separate **Access requests**, **Upgrade requests** and **Unread messages** cards are gone. Those items are now in **Needs you**.
 
