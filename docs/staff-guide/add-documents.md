@@ -2,7 +2,7 @@
 title: How do I add, file, hide or delete a client's documents?
 section: Working with a client
 audience: staff
-keywords: [upload, drop, drag and drop, drag, file, add file, documents, staff only, internal, visible to client, folder, attach, trash, delete, delete forever, permanently delete, remove, restore, undelete, new folder, bank statements, receipts, payroll, tax]
+keywords: [upload, drop, drag and drop, drag, file, add file, documents, staff only, internal, visible to client, folder, attach, trash, delete, delete forever, permanently delete, remove, restore, undelete, new folder, bank statements, receipts, payroll, tax, google drive, document type, year, open in drive]
 sort: 225
 ---
 Drag a file from your computer and drop it **anywhere** in the staff app. You don't need to open the Documents page first.
@@ -11,12 +11,15 @@ While you drag, the page shows **Drop to add to {client}'s documents**. Let go a
 
 1. **Client**: the client you have open is picked for you. On **Home** and other staff pages, choose one from **Choose a client…**.
 2. **Folder**: pick one of the client's folders, or leave it on **No folder**.
-3. **Visible to client**: **off by default**.
+3. **Document type** and **Year**: which Google Drive folder the file goes in (*{client} / 2026 / Bank statements*). It starts on **Other** and this year. Shown once Google Drive is connected; see [Where are client files stored?](#/help/google-drive-files).
+4. **Visible to client**: **off by default**.
    - **Off**: only MyGoodBooks staff can see the file. It shows on the client's **Documents** page with a dashed **Staff only** tag, and the client never sees it.
    - **On**: everyone on the client's team can see it in their Documents.
-4. Click **Upload**. You'll see *Added 1 file to {client}'s documents (staff only).* or *…Their team can see it.*
+5. Click **Upload**. You'll see *Added 1 file to {client}'s documents (staff only).* or *…Their team can see it.*
 
 You can drop up to 10 files at a time. Each file can be up to 25 MB, and must be a PDF, image (PNG, JPEG, HEIC), CSV, text, Excel or Word file. Files that don't fit are crossed out in the box with the reason, and the rest still upload.
+
+Files are stored in the firm's Google Drive (**MGB Client Files**). On the Documents page, staff pick the Drive folder next to **Drive folder** before uploading, and each Drive file's row has **Open in Drive** (staff only). Until the owner finishes the Drive setup, the upload box says *File storage isn't connected yet; tell the owner.* and files are kept in the portal's own storage instead.
 
 ### Folders
 
@@ -39,13 +42,14 @@ On a client's **Documents** page, staff see two extra folders next to **All Docu
 Click the trash can at the end of a document's row (staff only). The file or link moves to the **Trash** folder and the client can't see it any more. You'll see *Moved {name} to Trash. You can restore it from the Trash folder.*
 
 - Open **Trash** and click **Restore** to put it back where it was, in the same folder.
-- Trash never empties on its own. Items stay there until someone restores them or deletes them forever.
+- Trash never empties on its own for links and older files. Items stay there until someone restores them or deletes them forever.
+- **Google Drive files** also go to Google Drive's trash, which Drive empties after **30 days**. Restore before then. You'll see *Restore it within 30 days, before Drive empties its trash.*
 - On the client's Client overview, **Move to Trash** on a shared link does the same thing. Restore it from the Documents page.
 - The sample documents on prototype clients can't be trashed.
 
 ### Delete a document forever
 
-Only staff can do this, and only from **Trash**:
+Only staff can do this, and only from **Trash**. Google Drive files don't have this button: the portal never deletes them, and Drive empties its own trash after 30 days.
 
 1. Open **Trash** and click **Delete forever** on the item.
 2. A box asks *Delete "{name}" forever?* Click **Delete forever** to confirm, or **Cancel**.

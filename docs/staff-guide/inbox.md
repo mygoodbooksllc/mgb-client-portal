@@ -19,7 +19,7 @@ The **Inbox** (in the sidebar) holds client conversations and team chat in one p
 1. Open the conversation.
 2. Make sure **Reply** is selected (not **Note**). The hint under it says who will see your message.
 3. Type your message. **Enter** sends; **Shift+Enter** adds a new line.
-4. Use the paperclip to attach a file (up to 25 MB).
+4. Use the paperclip to attach a file (up to 25 MB). Client message attachments are saved in the firm's Google Drive, in the client's **Messages** folder for the year; an attachment on an internal note stays staff only. See [Where are client files stored?](#/help/google-drive-files).
 
 ### Who gets emailed when a client writes
 

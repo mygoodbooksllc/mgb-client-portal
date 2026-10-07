@@ -78,6 +78,7 @@ because some work happens in Claude Code web sessions. Run `git fetch` and compa
 | `components/pro/` | Pro budget and report tools: `ProBudget.jsx` (Budget vs. Actual tabs, next year's draft with approval) and `ProReports.jsx` (board reports suite and the public share page), each with its own CSS. Loaded before `app.jsx`; `app.jsx` falls back to the old pages if either is missing. |
 | `components/inbox/` | `StaffInbox.jsx` (the unified staff inbox, the staff chat drawer and launcher, and `SI_useClientMessaging` for the client Messages page) and `staff-inbox.css`. Loaded before `app.jsx`; every name is `SI_`/`si`/`StaffInbox` prefixed. Without it, `app.jsx` falls back to the old Team Chat page and sample client threads. |
 | `components/staff/` | Staff-only features, each with its own CSS and a name prefix (`CS_` client switcher, `HLP_` Help, `TB_` top bar, ...). `TopBar.jsx` + `top-bar.css` is the staff top bar (see "Staff top bar" under Main features). All loaded before `app.jsx`. |
+| `components/files/` | `DriveFiles.js`: browser helpers for client files in Google Drive (`DRV_` prefix), calling the `drive-files` edge function. Holds the one fallback switch `DRV_STORAGE_FALLBACK`. Loaded before `StaffInbox.jsx` and `app.jsx`. |
 | `components/qbo/` | `mapQboToClient.js` converts QuickBooks table rows into the shape the pages use. Its test is `mapQboToClient.test.js`. |
 | `supabase/*.sql` | Every database change: tables, row-level security (RLS) policies, functions, cron jobs. The folder is flat, one file per change. |
 | `supabase/functions/` | Edge functions: `qbo-callback`, `qbo-refresh-token`, `qbo-sync`, `invite-client-user` |
@@ -286,9 +287,12 @@ because some work happens in Claude Code web sessions. Run `git fetch` and compa
   - **Open requests are hard to miss:** a "Your bookkeeper needs N documents · Upload now" banner
     shows on every client page (for the client, and for staff previewing as them), and Documents
     gets a dot in the sidebar.
-  - **Document requests** (`client_doc_requests` + private bucket `client-uploads`, path
-    `<client_id>/<request_id>/<file>`): the client sees them on Documents and uploads through
-    `fulfill_doc_request()`. Staff open files with a 5-minute signed URL.
+  - **Document requests** (`client_doc_requests`): the client sees them on Documents and uploads
+    into them. Files go to Google Drive through the `drive-files` function (see **Client files in
+    Google Drive** below), which calls `fulfill_doc_request()` with the path
+    `<client_id>/<request_id>/drive:<client_files id>`. Until Drive is connected the fallback is
+    the private bucket `client-uploads`, path `<client_id>/<request_id>/<file>`. Files open through
+    a short-lived link (Drive) or a 5-minute signed URL (bucket).
   - **Staff notes on anything** (`client_internal_notes`): a note button on budget lines, bank
     transactions and report cards. Clients never see it.
   - **Mark sent to client** on report cards (`client_sent_items`), with history.
@@ -373,8 +377,9 @@ because some work happens in Claude Code web sessions. Run `git fetch` and compa
     with a dot.
   - **Conversation:** theirs on the left, ours on the right in ink. Client threads have a
     **Reply / Note** switch (a note is `internal = true`, shown as a dashed gold "Internal note ·
-    only staff see this" bubble), attachments (`client-uploads` bucket,
-    `<client_id>/messages/<email>/<time>-<file>`, 25 MB and the bucket's types), Enter to send and
+    only staff see this" bubble), attachments (Google Drive through `drive-files`, stored as
+    `<client_id>/messages/<email>/drive:<client_files id>`; fallback `client-uploads` bucket,
+    `<client_id>/messages/<email>/<time>-<file>`; 25 MB and the bucket's types), Enter to send and
     Shift+Enter for a new line; opening a thread marks it read (`client_message_reads`). Team
     conversations reuse Team Chat's thread (`useStaffTeamChat` / `StaffTeamThread` in app.jsx):
     attachments, edit/unsend within 15 minutes, read receipts, groups, presence and typing, all
@@ -663,6 +668,30 @@ Owner setup:
   - `qbo-sync`, `qbo-callback`, `qbo-refresh-token` and `qbo-firm-sync` run with `verify_jwt`
     off and check the caller themselves.
   - `invite-client-user` runs with `verify_jwt` on.
+- **Client files in Google Drive** (`supabase/google-drive-files.sql`, applied 2026-10-06;
+  function `supabase/functions/drive-files/`, `verify_jwt` off, checks the caller's JWT itself).
+  - Files from the Documents page, the page-wide drop, document requests and client message
+    attachments are stored in the "MGB Client Files" Shared Drive under
+    `<Client name>/<Year>/<Document type>`, through a service account that is a Content manager on
+    that Shared Drive (no domain-wide delegation). Secrets: `GOOGLE_SERVICE_ACCOUNT_JSON`,
+    `GOOGLE_DRIVE_SHARED_DRIVE_ID`. Owner setup steps are in the staff guide article
+    `docs/staff-guide/google-drive-files.md`.
+  - Supabase keeps only `client_files` (metadata + Drive file id; browsers can only select, RLS
+    mirrors the old bucket policies) and the folder cache `drive_folders`. `drive_file_events`
+    logs uploads, trash and restore; `drive_status` records whether the secrets are set
+    (written by `ops-health-check`) and the last Google auth result.
+  - Downloads are 10-minute HMAC-signed links back to the function, which streams the file, so
+    clients never need Google access. Staff get an "Open in Drive" link.
+  - Portal Trash = Drive trash (Drive empties it after 30 days). Nothing is ever deleted from
+    Drive by the portal; Drive files have no "Delete forever".
+  - Until the secrets are set the function answers `503 drive_not_connected` and, with
+    `DRV_STORAGE_FALLBACK = true` in `components/files/DriveFiles.js`, uploads keep going to the
+    `client-uploads` bucket. Old bucket files keep working; staff can copy them into Drive
+    (originals untouched) with "Copy older files to Drive".
+  - Avatars, Feedback screenshots and `staff-chat-attachments` stay in Supabase Storage.
+  - `ops-health-check` alerts on 3+ failed Drive uploads in an hour and on Drive not connected
+    while non-test clients exist.
+  - Logic test: `node supabase/functions/drive-files/logic.test.mjs`.
 - **A policy mistake to avoid.** An existence subquery inside an RLS policy is itself filtered
   by that table's RLS, so it can quietly let the wrong people through. Put existence checks in
   a `SECURITY DEFINER` function instead, as `is_conversation_member()` does.

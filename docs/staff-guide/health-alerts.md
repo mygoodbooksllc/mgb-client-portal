@@ -2,7 +2,7 @@
 title: What are the health-check alert emails?
 section: Admin
 audience: admin
-keywords: [alert, health check, outage, sync failing, sync errors, overdue sync, reconnect, quickbooks disconnected, failed emails, usage stopped, resolved, uptime, uptimerobot, admin@mygoodbooks.org, monitoring, down]
+keywords: [alert, health check, outage, sync failing, sync errors, overdue sync, reconnect, quickbooks disconnected, failed emails, usage stopped, google drive, drive uploads failing, file storage not connected, resolved, uptime, uptimerobot, admin@mygoodbooks.org, monitoring, down]
 sort: 565
 ---
 The app checks itself **every 15 minutes**. If something is wrong, it emails **admin@mygoodbooks.org** right away, with a subject starting **"MyGoodBooks alert:"**. Clients are never emailed.
@@ -15,6 +15,8 @@ The app checks itself **every 15 minutes**. If something is wrong, it emails **a
 - **Scheduled syncs not running**: the sync job itself hasn't run in over 20 minutes.
 - **QuickBooks API usage stopped**: scheduled syncs are stopped until next month because the firm hit its Intuit limit (Sync now still works). See [How do I read the QuickBooks API usage card?](#/help/quickbooks-api-usage).
 - **Emails failing**: 3 or more emails failed to send in the last hour.
+- **Google Drive uploads failing**: 3 or more client file uploads to Google Drive failed in the last hour.
+- **Google Drive not connected**: client file storage isn't connected (or Google refused the portal's key) while real, non-test clients exist. See [Where are client files stored?](#/help/google-drive-files).
 
 Test clients never trigger an alert.
 
@@ -28,6 +30,7 @@ Test clients never trigger an alert.
 
 - **Syncs failing / needs reconnecting**: open the client, check the QuickBooks connection and click **Sync now**; reconnect if asked. See [How do I connect a client's QuickBooks?](#/help/quickbooks-connection).
 - **Scheduled syncs not running** or **Emails failing**: tell the owner.
+- **Google Drive uploads failing** or **not connected**: the owner checks the Drive setup in [Where are client files stored?](#/help/google-drive-files).
 
 ### What it can't see
 

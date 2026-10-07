@@ -2,7 +2,7 @@
 title: How do I request a document from a client?
 section: Working with a client
 audience: staff
-keywords: [document request, request document, bank statement, receipt, upload, mark received, docchaser, document reminders, reminder emails, pause reminders, missing documents]
+keywords: [document request, request document, bank statement, receipt, upload, mark received, docchaser, document reminders, reminder emails, pause reminders, missing documents, google drive]
 sort: 220
 ---
 Use a document request when you need a statement, receipt or anything else from the client. The client sees the list on their **Documents** page and uploads straight into it.
@@ -27,6 +27,7 @@ On the **Document requests** card each request shows its due date, **Overdue · 
 
 - **Open file**: view what the client uploaded.
 - **Upload**: upload a file yourself (for example one they emailed you). Files are limited to 25 MB.
+- Uploads go to the firm's Google Drive under *{client} / {year} / {document type}*. The type comes from the request's name (*September bank statement* goes to **Bank statements**), and the year from a year in the name, otherwise this year. See [Where are client files stored?](#/help/google-drive-files).
 - **Mark received**: close the request once you have what you need.
 - **Cancel**: withdraw a request you no longer need.
 

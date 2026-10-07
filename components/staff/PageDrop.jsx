@@ -7,10 +7,16 @@
 // lands in that client's Documents, exactly like uploading from the
 // Documents page:
 //
+//   Google Drive (components/files/DriveFiles.js): the "MGB Client Files"
+//   Shared Drive, <Client>/<Year>/<Document type>, picked here (default
+//   Other, this year). "Visible to client" off = a staff-only file.
+//
+//   Fallback until Drive is connected (Supabase Storage):
 //   client can see it  -> client-uploads/<client_id>/shared/
 //   staff only (default) -> client-uploads/<client_id>/internal/
 //
-// supabase/staff-only-documents.sql keeps client users out of internal/.
+// supabase/staff-only-documents.sql keeps client users out of internal/;
+// client_files RLS (supabase/google-drive-files.sql) does the same in Drive.
 //
 // Places that already take a dropped file (the Documents upload box, a
 // message thread, Feedback) handle it themselves: their handlers call
@@ -69,12 +75,27 @@ function PD_hasFiles(e) {
 }
 
 // Uploads files into one client's Documents. Returns { ok, error }.
-async function PD_uploadDocs(sb, clientId, files, { staffOnly, folder }) {
+async function PD_uploadDocs(sb, clientId, files, { staffOnly, folder, docType, year }) {
   const sub = staffOnly ? "internal" : "shared";
   const filed = [];
   let ok = 0;
   let error = null;
-  for (const f of files) {
+  let useStorage = true;
+  try {
+    useStorage = await DRV_useStorage();
+  } catch (e) {
+    return { ok: 0, error: e.message };
+  }
+  for (const f of useStorage ? [] : files) {
+    try {
+      const res = await DRV_upload({ file: f, clientId, visibility: staffOnly ? "internal" : "shared", docType, year });
+      ok += 1;
+      if (folder && res.file) filed.push("drive:" + res.file.id);
+    } catch (e) {
+      error = error || e.message;
+    }
+  }
+  for (const f of useStorage ? files : []) {
     const safe = f.name.replace(/[^\w.\- ]+/g, "_").slice(-120);
     const stored = `${Date.now()}-${safe}`;
     const res = await sb.storage.from("client-uploads").upload(`${clientId}/${sub}/${stored}`, f, {
@@ -103,6 +124,18 @@ function PD_ConfirmModal({ files, clients, currentClient, onClose }) {
   const [folder, setFolder] = useState("");
   const [visible, setVisible] = useState(false);
   const [busy, setBusy] = useState(false);
+  // Google Drive folder: <Client>/<Year>/<Document type>. Only shown once
+  // Drive is connected.
+  const [docType, setDocType] = useState("Other");
+  const [year, setYear] = useState(() => DRV_currentYear());
+  const [driveOn, setDriveOn] = useState(null);
+  useEffect(() => {
+    let live = true;
+    DRV_status().then((v) => live && setDriveOn(v));
+    return () => {
+      live = false;
+    };
+  }, []);
   const client = clients.find((c) => c.id === clientId) || (currentClient && currentClient.id === clientId ? currentClient : null);
   // The client's shared folders (components/client/DocFolders.jsx).
   const [folders, setFolders] = useState([]);
@@ -130,7 +163,7 @@ function PD_ConfirmModal({ files, clients, currentClient, onClose }) {
       return;
     }
     setBusy(true);
-    const { ok, error } = await PD_uploadDocs(sb, client.id, good, { staffOnly: !visible, folder });
+    const { ok, error } = await PD_uploadDocs(sb, client.id, good, { staffOnly: !visible, folder, docType, year });
     setBusy(false);
     if (ok) {
       window.dispatchEvent(new CustomEvent(PD_DOCS_CHANGED_EVENT, { detail: { clientId: client.id } }));
@@ -197,6 +230,36 @@ function PD_ConfirmModal({ files, clients, currentClient, onClose }) {
               ))}
             </select>
           </label>
+        )}
+
+        {driveOn && (
+          <div className="pd-field" style={{ display: "flex", gap: 8 }}>
+            <label style={{ flex: 1 }}>
+              <span className="pd-label">Document type</span>
+              <select className="hc-input" value={docType} onChange={(e) => setDocType(e.target.value)} disabled={busy}>
+                {DRV_DOC_TYPES.map((t) => (
+                  <option key={t} value={t}>
+                    {t}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              <span className="pd-label">Year</span>
+              <select className="hc-input" value={year} onChange={(e) => setYear(Number(e.target.value))} disabled={busy}>
+                {[0, 1, 2, 3].map((n) => DRV_currentYear() - n).map((y) => (
+                  <option key={y} value={y}>
+                    {y}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+        )}
+        {driveOn === false && (
+          <p className="pd-help" style={{ margin: "0 0 8px" }}>
+            {DRV_NOT_CONNECTED_MSG} Files are kept in the portal's own storage until then.
+          </p>
         )}
 
         <label className="pd-switch">

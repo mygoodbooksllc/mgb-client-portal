@@ -5014,6 +5014,18 @@ const staffToolsApi = {
       .eq("id", id);
   },
   async uploadForRequest(sb, req, file) {
+    // Google Drive (components/files/DriveFiles.js): the drive-files function
+    // stores the file under <Client>/<Year>/<Document type> and marks the
+    // request itself. Supabase Storage below is the fallback until Drive is
+    // connected.
+    try {
+      if (!(await DRV_useStorage())) {
+        await DRV_upload({ file, clientId: req.client_id, visibility: "request", requestId: req.id });
+        return { error: null };
+      }
+    } catch (e) {
+      return { error: e };
+    }
     const safe = file.name.replace(/[^\w.\- ]+/g, "_").slice(-120);
     const path = `${req.client_id}/${req.id}/${Date.now()}-${safe}`;
     const up = await sb.storage
@@ -5022,7 +5034,15 @@ const staffToolsApi = {
     if (up.error) return up;
     return sb.rpc("fulfill_doc_request", { p_id: req.id, p_path: path, p_name: file.name });
   },
-  signedUrl(sb, path) {
+  async signedUrl(sb, path) {
+    const driveId = DRV_driveRef(path);
+    if (driveId) {
+      try {
+        return { data: { signedUrl: await DRV_link(driveId) }, error: null };
+      } catch (e) {
+        return { data: null, error: e };
+      }
+    }
     return sb.storage.from("client-uploads").createSignedUrl(path, 300);
   },
   closeItems(sb, clientId, period) {
@@ -5370,7 +5390,11 @@ function DocumentRequestsCard({ client, compact }) {
     const { error } = await staffToolsApi.uploadForRequest(sb, req, file);
     setBusyId(null);
     if (error) {
-      showToast("Couldn't upload that file. Please try again, or send it to your bookkeeper.");
+      showToast(
+        error.code === "drive_not_connected"
+          ? staff ? DRV_NOT_CONNECTED_MSG : "File uploads are paused for a moment. Please try again later, or send it to your bookkeeper."
+          : "Couldn't upload that file. Please try again, or send it to your bookkeeper.",
+      );
       return;
     }
     showToast(`Uploaded "${file.name}". Thank you!`);
@@ -20829,6 +20853,13 @@ function DocumentsPage({ client, isBookkeeper, searchTarget }) {
   const [uploading, setUploading] = useState(false);
   const [docSearch, setDocSearch] = useState("");
   const [docSort, setDocSort] = useState("newest"); // newest | oldest | name
+  // Google Drive file storage (components/files/DriveFiles.js): connected?,
+  // how many old Storage files haven't been copied yet, and the staff upload
+  // picker (Drive folder <Client>/<Year>/<Document type>).
+  const [driveInfo, setDriveInfo] = useState({ connected: null, legacyCount: 0 });
+  const [uploadDocType, setUploadDocType] = useState("Other");
+  const [uploadYear, setUploadYear] = useState(() => DRV_currentYear());
+  const [copyingLegacy, setCopyingLegacy] = useState(false);
   const docSb = window.mgbSupabase || null;
 
   const loadRemoteDocs = useCallback(async () => {
@@ -20857,6 +20888,13 @@ function DocumentsPage({ client, isBookkeeper, searchTarget }) {
             sortBy: { column: "created_at", order: "desc" },
           })
         : Promise.resolve({ data: [], error: null });
+    // Files in Google Drive (client_files, through the drive-files function).
+    // Listing works whether or not Drive is connected yet.
+    const driveP = Promise.all([
+      DRV_list(client.id, "documents").catch(() => null),
+      isBookkeeper ? DRV_list(client.id, "trash").catch(() => null) : Promise.resolve(null),
+      DRV_status(),
+    ]);
     const [linksRes, filesRes, internalRes, trashSharedRes, trashInternalRes] = await Promise.all([
       docSb
         .from("client_documents")
@@ -20916,9 +20954,40 @@ function DocumentsPage({ client, isBookkeeper, searchTarget }) {
         size: f.metadata && f.metadata.size ? formatBytes(f.metadata.size) : "",
         path: `${client.id}/internal/${f.name}`,
       }));
-    const remote = [...files, ...internalFiles, ...links].map((d) => ({
+    const [driveRes, driveTrashRes, driveConnected] = await driveP;
+    // Old Storage files already copied into Drive show once, as the Drive
+    // copy (the originals stay in Storage untouched).
+    const copied = new Set((driveRes && driveRes.copied_legacy_paths) || []);
+    const fromStaff = (email) => /@mygoodbooks\.org$/i.test(String(email || ""));
+    const driveRow = (r) => {
+      const base = String(r.legacy_path || "").split("/").pop();
+      const legacyKey = r.legacy_path
+        ? r.legacy_path.startsWith(`${client.id}/internal/`)
+          ? "file:internal/" + base
+          : r.legacy_path.startsWith(`${client.id}/shared/`)
+            ? "file:" + base
+            : null
+        : null;
+      return {
+        key: "drive:" + r.id,
+        legacyKey,
+        driveId: r.id,
+        source: "drive",
+        staffOnly: r.visibility === "internal",
+        name: r.name,
+        category: r.visibility === "internal" ? "Staff only" : r.doc_type || "Uploaded",
+        uploadedBy: isBookkeeper ? r.uploaded_by || "" : fromStaff(r.uploaded_by) ? "MyGoodBooks" : "Your organization",
+        date: String(r.uploaded_at || "").slice(0, 10),
+        size: r.size ? formatBytes(r.size) : "",
+        webViewLink: isBookkeeper ? r.web_view_link || null : null,
+      };
+    };
+    const driveFiles = ((driveRes && driveRes.files) || []).map(driveRow);
+    const oldFiles = [...files, ...internalFiles].filter((d) => !copied.has(d.path));
+    setDriveInfo({ connected: !!driveConnected, legacyCount: oldFiles.length });
+    const remote = [...driveFiles, ...oldFiles, ...links].map((d) => ({
       ...d,
-      folder: assignments[d.key] || null,
+      folder: assignments[d.key] || (d.legacyKey && assignments[d.legacyKey]) || null,
     }));
     setDocs((prev) => [...prev.filter((d) => d.source === "sample"), ...remote]);
     // Trash keeps each item's original key, so its folder comes back on
@@ -20943,6 +21012,10 @@ function DocumentsPage({ client, isBookkeeper, searchTarget }) {
     };
     const okFile = (f) => f && f.id && f.name;
     setTrashDocs([
+      ...((driveTrashRes && driveTrashRes.files) || []).map((r) => {
+        const d = driveRow(r);
+        return { ...d, key: "trash:" + d.key, origKey: d.key, trashed: true, folder: assignments[d.key] || null };
+      }),
       ...((trashSharedRes && trashSharedRes.data) || []).filter(okFile).map(trashFile("shared")),
       ...((trashInternalRes && trashInternalRes.data) || []).filter(okFile).map(trashFile("internal")),
       ...(linksRes.data || [])
@@ -20972,6 +21045,14 @@ function DocumentsPage({ client, isBookkeeper, searchTarget }) {
     if (d.source === "link") {
       if (d.url) window.open(d.url, "_blank", "noopener");
       else showToast("That link isn't a valid https:// address.");
+      return;
+    }
+    if (d.source === "drive") {
+      try {
+        window.open(await DRV_link(d.driveId), "_blank", "noopener");
+      } catch (e) {
+        showToast(`Couldn't open that file: ${e.message}`);
+      }
       return;
     }
     if (d.source === "upload") {
@@ -21014,6 +21095,9 @@ function DocumentsPage({ client, isBookkeeper, searchTarget }) {
     let error = null;
     if (d.source === "link") {
       ({ error } = await docSb.from("client_documents").update({ trashed_at: new Date().toISOString() }).eq("id", d.id));
+    } else if (d.source === "drive") {
+      // Google Drive's own trash: nothing is deleted.
+      error = await DRV_trash(d.driveId).then(() => null, (e) => e);
     } else {
       const rel = d.path.slice(client.id.length + 1);
       ({ error } = await docSb.storage.from("client-uploads").move(d.path, `${client.id}/trash/${rel}`));
@@ -21023,7 +21107,11 @@ function DocumentsPage({ client, isBookkeeper, searchTarget }) {
       showToast(`Couldn't move ${d.name} to Trash: ${error.message}`);
       return;
     }
-    showToast(`Moved ${d.name} to Trash. You can restore it from the Trash folder.`);
+    showToast(
+      d.source === "drive"
+        ? `Moved ${d.name} to Trash (also Google Drive's trash). Restore it within 30 days, before Drive empties its trash.`
+        : `Moved ${d.name} to Trash. You can restore it from the Trash folder.`,
+    );
     loadRemoteDocs();
   };
   const restoreDoc = async (d) => {
@@ -21032,6 +21120,8 @@ function DocumentsPage({ client, isBookkeeper, searchTarget }) {
     let error = null;
     if (d.source === "link") {
       ({ error } = await docSb.from("client_documents").update({ trashed_at: null }).eq("id", d.id));
+    } else if (d.source === "drive") {
+      error = await DRV_restore(d.driveId).then(() => null, (e) => e);
     } else {
       ({ error } = await docSb.storage.from("client-uploads").move(d.path, d.restorePath));
     }
@@ -21051,7 +21141,9 @@ function DocumentsPage({ client, isBookkeeper, searchTarget }) {
   const deleteForever = async () => {
     const d = deletePending;
     setDeletePending(null);
-    if (!docSb || !d || !d.trashed || trashBusy) return;
+    // Drive files are never deleted from the portal; Drive empties its own
+    // trash after 30 days.
+    if (!docSb || !d || !d.trashed || trashBusy || d.source === "drive") return;
     setTrashBusy(d.key);
     let res;
     if (d.source === "link") {
@@ -21096,7 +21188,32 @@ function DocumentsPage({ client, isBookkeeper, searchTarget }) {
     let ok = 0;
     let firstError = null;
     const filed = [];
-    for (const f of files) {
+    // Google Drive when it's connected (components/files/DriveFiles.js);
+    // Supabase Storage below is the fallback until then.
+    let useStorage = true;
+    try {
+      useStorage = await DRV_useStorage();
+    } catch (e) {
+      setUploading(false);
+      showToast(isBookkeeper ? e.message : "Uploads are paused for a moment. Please try again later.");
+      return;
+    }
+    for (const f of useStorage ? [] : files) {
+      try {
+        const res = await DRV_upload({
+          file: f,
+          clientId: client.id,
+          visibility: staffView ? "internal" : "shared",
+          docType: isBookkeeper ? uploadDocType : "Other",
+          year: isBookkeeper ? uploadYear : undefined,
+        });
+        ok += 1;
+        if (activeFolder && !staffView && res.file) filed.push("drive:" + res.file.id);
+      } catch (e) {
+        firstError = firstError || e.message;
+      }
+    }
+    for (const f of useStorage ? files : []) {
       const safe = f.name.replace(/[^\w.\- ]+/g, "_").slice(-120);
       const stored = `${Date.now()}-${safe}`;
       const { error } = await docSb.storage
@@ -21120,6 +21237,26 @@ function DocumentsPage({ client, isBookkeeper, searchTarget }) {
     if (ok && staffView) showToast(`Uploaded ${ok} staff-only file${ok > 1 ? "s" : ""}. ${client.name} can't see ${ok > 1 ? "them" : "it"}.`);
     else if (ok) showToast(`Uploaded ${ok} file${ok > 1 ? "s" : ""}. Your bookkeeper can see ${ok > 1 ? "them" : "it"} now.`);
     if (firstError) showToast(`Couldn't upload: ${firstError}`);
+    loadRemoteDocs();
+  };
+
+  // Staff: copy this client's old Storage files into Drive (50 per click).
+  // The originals stay where they are; the page then shows the Drive copy.
+  const copyLegacy = async () => {
+    if (copyingLegacy) return;
+    setCopyingLegacy(true);
+    try {
+      const r = await DRV_copyLegacy(client.id);
+      const left = Math.max(0, r.remaining || 0);
+      showToast(
+        `Copied ${r.copied} file${r.copied === 1 ? "" : "s"} to Google Drive.` +
+          (left ? ` ${left} left; click again to continue.` : "") +
+          (r.errors && r.errors.length ? ` ${r.errors.length} couldn't be copied: ${r.errors[0]}` : ""),
+      );
+    } catch (e) {
+      showToast(`Couldn't copy files to Drive: ${e.message}`);
+    }
+    setCopyingLegacy(false);
     loadRemoteDocs();
   };
 
@@ -21366,6 +21503,47 @@ function DocumentsPage({ client, isBookkeeper, searchTarget }) {
             </p>
           </div>
         </div>
+        {isBookkeeper && (
+          <div
+            className="doc-drive-picker"
+            onClick={(e) => e.stopPropagation()}
+            style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}
+          >
+            {driveInfo.connected ? (
+              <React.Fragment>
+                <label className="tp-muted" style={{ fontSize: 12.5 }}>
+                  Drive folder{" "}
+                  <select
+                    className="rb-select"
+                    aria-label="Document type"
+                    value={uploadDocType}
+                    onChange={(e) => setUploadDocType(e.target.value)}
+                    style={{ width: "auto" }}
+                  >
+                    {DRV_DOC_TYPES.map((t) => (
+                      <option key={t} value={t}>{t}</option>
+                    ))}
+                  </select>
+                </label>
+                <select
+                  className="rb-select"
+                  aria-label="Year"
+                  value={uploadYear}
+                  onChange={(e) => setUploadYear(Number(e.target.value))}
+                  style={{ width: "auto" }}
+                >
+                  {[0, 1, 2, 3].map((n) => DRV_currentYear() - n).map((y) => (
+                    <option key={y} value={y}>{y}</option>
+                  ))}
+                </select>
+              </React.Fragment>
+            ) : driveInfo.connected === false ? (
+              <span className="tp-muted" style={{ fontSize: 12.5 }}>
+                {DRV_NOT_CONNECTED_MSG} Files are kept in the portal's own storage until then.
+              </span>
+            ) : null}
+          </div>
+        )}
         <button
           className="btn-primary"
           disabled={uploading}
@@ -21402,6 +21580,17 @@ function DocumentsPage({ client, isBookkeeper, searchTarget }) {
             </p>
           </div>
           <div className="doc-tools" style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            {isBookkeeper && driveInfo.connected && driveInfo.legacyCount > 0 && (
+              <button
+                type="button"
+                className="btn-secondary btn-sm"
+                disabled={copyingLegacy}
+                onClick={copyLegacy}
+                title="Copies the older files stored in the portal into Google Drive. The originals stay where they are."
+              >
+                {copyingLegacy ? "Copying…" : `Copy ${driveInfo.legacyCount} older file${driveInfo.legacyCount === 1 ? "" : "s"} to Drive`}
+              </button>
+            )}
             <input
               type="search"
               className="rb-select"
@@ -21589,6 +21778,7 @@ function DocumentsPage({ client, isBookkeeper, searchTarget }) {
                           >
                             {trashBusy === d.key ? "Working…" : "Restore"}
                           </button>
+                          {d.source !== "drive" && (
                           <button
                             type="button"
                             className="btn-secondary btn-sm doc-delete-btn"
@@ -21600,8 +21790,22 @@ function DocumentsPage({ client, isBookkeeper, searchTarget }) {
                           >
                             Delete forever
                           </button>
+                          )}
                           </span>
                         ) : (
+                          <span className="doc-actions-row">
+                          {d.webViewLink && (
+                            <a
+                              className="btn-secondary btn-sm"
+                              href={d.webViewLink}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              title="Open in Google Drive (staff only)"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              Open in Drive
+                            </a>
+                          )}
                           <button
                             type="button"
                             className="doc-trash-btn"
@@ -21615,6 +21819,7 @@ function DocumentsPage({ client, isBookkeeper, searchTarget }) {
                           >
                             <TrashIcon width="15" height="15" />
                           </button>
+                          </span>
                         )}
                       </td>
                     )}

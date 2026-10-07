@@ -113,8 +113,21 @@ async function siSessionEmail(sb, fallback) {
   }
 }
 
-// <client_id>/messages/<participant email>/<timestamp>-<file name>
-async function siUpload(sb, clientId, participant, file) {
+// Google Drive (components/files/DriveFiles.js): the file goes to the
+// client's <Year>/Messages folder and the stored path is
+//   <client_id>/messages/<participant email>/drive:<client_files id>
+// Fallback until Drive is connected (Supabase Storage):
+//   <client_id>/messages/<participant email>/<timestamp>-<file name>
+// internal: a staff internal note, so client users never see the file.
+async function siUpload(sb, clientId, participant, file, internal) {
+  try {
+    if (!(await DRV_useStorage())) {
+      const res = await DRV_upload({ file, clientId, visibility: "message", participant: siLower(participant), internal: !!internal });
+      return { path: res.path, error: null };
+    }
+  } catch (e) {
+    return { path: null, error: e };
+  }
   const safe = file.name.replace(/[^a-zA-Z0-9._-]/g, "_").slice(-120);
   const path = `${clientId}/messages/${siLower(participant)}/${Date.now()}-${safe}`;
   const { error } = await sb.storage
@@ -127,14 +140,25 @@ async function siUpload(sb, clientId, participant, file) {
 // was signed so the client thread can re-sign one that's about to expire.
 const SI_SIGN_SECS = 600;
 async function siSignRows(sb, rows) {
-  const paths = [...new Set(rows.filter((r) => r.attachment_path).map((r) => r.attachment_path))];
-  if (!paths.length) return rows;
+  const all = [...new Set(rows.filter((r) => r.attachment_path).map((r) => r.attachment_path))];
+  if (!all.length) return rows;
+  // Drive attachments (".../drive:<id>") get a 10-minute link from the
+  // drive-files function; older ones are signed by Supabase Storage.
+  const drivePaths = all.filter((p) => DRV_driveRef(p));
+  const paths = all.filter((p) => !DRV_driveRef(p));
   try {
     const signedAt = Date.now();
-    const { data } = await sb.storage.from("client-uploads").createSignedUrls(paths, SI_SIGN_SECS);
     const byPath = {};
-    (data || []).forEach((d) => {
+    const [storageRes, links] = await Promise.all([
+      paths.length ? sb.storage.from("client-uploads").createSignedUrls(paths, SI_SIGN_SECS) : Promise.resolve({ data: [] }),
+      drivePaths.length ? DRV_links(drivePaths.map(DRV_driveRef)).catch(() => ({})) : Promise.resolve({}),
+    ]);
+    ((storageRes && storageRes.data) || []).forEach((d) => {
       if (d && d.path && d.signedUrl) byPath[d.path] = d.signedUrl;
+    });
+    drivePaths.forEach((p) => {
+      const url = links[DRV_driveRef(p)];
+      if (url) byPath[p] = url;
     });
     return rows.map((r) =>
       r.attachment_path ? { ...r, attachment_url: byPath[r.attachment_path] || null, attachment_signed_at: signedAt } : r,
@@ -399,7 +423,7 @@ function SI_ClientThread({ entry, mode, me, staffUser, sampleRows, onSampleSend,
       let attachment_path = null;
       let attachment_name = null;
       if (file) {
-        const up = await siUpload(sb, entry.clientId, entry.email, file);
+        const up = await siUpload(sb, entry.clientId, entry.email, file, isNote);
         if (up.error) {
           toast(`Couldn't upload ${file.name}: ${up.error.message}`);
           return;

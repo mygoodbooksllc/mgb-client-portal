@@ -9,7 +9,8 @@ import * as L from "../_shared/layout.ts";
 // asks ops_health_plan() what's wrong right now (QuickBooks syncs failing
 // twice in a row or 2x overdue for the plan, connections needing a reconnect,
 // the qbo-sync cron not running, the Intuit usage hard stop, 3+ failed emails
-// in the last hour) and emails ALERT_TO straight away. ops_alert_state
+// in the last hour, 3+ failed Google Drive uploads in the last hour, Drive file
+// storage not connected while real clients exist) and emails ALERT_TO straight away. ops_alert_state
 // de-duplicates: at most one email per problem per 24 hours, plus one
 // "resolved" note when an alerted problem clears. Test clients never page.
 //
@@ -154,6 +155,14 @@ Deno.serve(async (req) => {
     if (rpcErr || isAdmin !== true) return json({ error: "forbidden" }, 403);
     dryRun = true;
   }
+
+  // Google Drive file storage (supabase/google-drive-files.sql): SQL can't see
+  // function secrets, so record here whether both Drive secrets are set. Only
+  // presence is recorded, never the values. drive_not_connected reads this.
+  await admin.from("drive_status").update({
+    secrets_present: !!(Deno.env.get("GOOGLE_SERVICE_ACCOUNT_JSON") && Deno.env.get("GOOGLE_DRIVE_SHARED_DRIVE_ID")),
+    checked_at: new Date().toISOString(),
+  }).eq("id", 1);
 
   if (dryRun) {
     const { data, error } = await admin.rpc("ops_health_problems");
