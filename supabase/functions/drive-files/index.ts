@@ -23,7 +23,7 @@ import {
 // Client files in the firm's Google Drive (supabase/google-drive-files.sql has
 // the design and schema; docs/staff-guide/google-drive-files.md the setup).
 //
-// The file of record lives in the "MGB Client Files" Shared Drive under
+// The file of record lives in the "~ MGB: Client Files (Portal)" Shared Drive under
 // <Client name> / <Year> / <Document type>. Supabase keeps only client_files
 // (metadata + Drive file id). Drive files are never shared publicly or by
 // link: clients have no Google access, so every download is streamed through

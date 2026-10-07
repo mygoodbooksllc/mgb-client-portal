@@ -5,7 +5,7 @@
 // The browser never talks to Google. Every upload, list, download, trash and
 // restore goes through the drive-files edge function
 // (supabase/functions/drive-files/index.ts), which stores the file in the
-// "MGB Client Files" Shared Drive under <Client name>/<Year>/<Document type>
+// "~ MGB: Client Files (Portal)" Shared Drive under <Client name>/<Year>/<Document type>
 // and keeps only a client_files row (metadata + Drive file id) in Supabase.
 // Downloads are short-lived links back to that function, so clients never
 // need Google access.
@@ -26,7 +26,7 @@
 // top-level name has a DRV_ prefix.
 // ----------------------------------------------------------------------------
 
-const DRV_STORAGE_FALLBACK = true;
+const DRV_STORAGE_FALLBACK = false;
 
 const DRV_FN = "drive-files";
 const DRV_NOT_CONNECTED_MSG = "File storage isn't connected yet; tell the owner.";

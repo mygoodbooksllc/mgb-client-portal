@@ -290,7 +290,7 @@ because some work happens in Claude Code web sessions. Run `git fetch` and compa
   - **Document requests** (`client_doc_requests`): the client sees them on Documents and uploads
     into them. Files go to Google Drive through the `drive-files` function (see **Client files in
     Google Drive** below), which calls `fulfill_doc_request()` with the path
-    `<client_id>/<request_id>/drive:<client_files id>`. Until Drive is connected the fallback is
+    `<client_id>/<request_id>/drive:<client_files id>`. Before Drive was connected (2026-10-07) files went to
     the private bucket `client-uploads`, path `<client_id>/<request_id>/<file>`. Files open through
     a short-lived link (Drive) or a 5-minute signed URL (bucket).
   - **Staff notes on anything** (`client_internal_notes`): a note button on budget lines, bank
@@ -671,7 +671,7 @@ Owner setup:
 - **Client files in Google Drive** (`supabase/google-drive-files.sql`, applied 2026-10-06;
   function `supabase/functions/drive-files/`, `verify_jwt` off, checks the caller's JWT itself).
   - Files from the Documents page, the page-wide drop, document requests and client message
-    attachments are stored in the "MGB Client Files" Shared Drive under
+    attachments are stored in the "~ MGB: Client Files (Portal)" Shared Drive under
     `<Client name>/<Year>/<Document type>`, through a service account that is a Content manager on
     that Shared Drive (no domain-wide delegation). Secrets: `GOOGLE_SERVICE_ACCOUNT_JSON`,
     `GOOGLE_DRIVE_SHARED_DRIVE_ID`. Owner setup steps are in the staff guide article
@@ -684,9 +684,9 @@ Owner setup:
     clients never need Google access. Staff get an "Open in Drive" link.
   - Portal Trash = Drive trash (Drive empties it after 30 days). Nothing is ever deleted from
     Drive by the portal; Drive files have no "Delete forever".
-  - Until the secrets are set the function answers `503 drive_not_connected` and, with
-    `DRV_STORAGE_FALLBACK = true` in `components/files/DriveFiles.js`, uploads keep going to the
-    `client-uploads` bucket. Old bucket files keep working; staff can copy them into Drive
+  - Connected 2026-10-07 (Google project MyGoodBooks Auth, service account mgb-portal-drive).
+    Without the secrets the function answers `503 drive_not_connected`; `DRV_STORAGE_FALLBACK`
+    is now `false`, so uploads then stop with an error instead of going to `client-uploads`. Old bucket files keep working; staff can copy them into Drive
     (originals untouched) with "Copy older files to Drive".
   - Avatars, Feedback screenshots and `staff-chat-attachments` stay in Supabase Storage.
   - `ops-health-check` alerts on 3+ failed Drive uploads in an hour and on Drive not connected
