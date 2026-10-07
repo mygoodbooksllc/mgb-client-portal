@@ -7250,11 +7250,29 @@ function FundBalancesCard({ client }) {
   );
 }
 
-function ContributionsCard({ client, subtitle }) {
+// contributions / title / emptyText / actions: the QuickBooks Pro page passes
+// a full year of gifts (QG_donorGiftContributions), its own heading, the
+// loading or empty message and a year picker. Otherwise client.contributions.
+// A row's sub (QuickBooks sub-customer) shows under the donor; a negative
+// amount (refund) shows without the plus.
+function ContributionsCard({ client, subtitle, contributions, title, emptyText, actions }) {
+  const list = contributions || client.contributions;
   return (
     <div className="card">
-      <h3 className="card-title">Recent Contributions</h3>
-      <p className="card-subtitle">{subtitle || "Individual gifts and grants received"}</p>
+      {actions ? (
+        <div className="page-header" style={{ marginBottom: 4 }}>
+          <div>
+            <h3 className="card-title">{title || "Recent Contributions"}</h3>
+            <p className="card-subtitle" style={{ margin: 0 }}>{subtitle}</p>
+          </div>
+          {actions}
+        </div>
+      ) : (
+        <>
+          <h3 className="card-title">{title || "Recent Contributions"}</h3>
+          <p className="card-subtitle">{subtitle || "Individual gifts and grants received"}</p>
+        </>
+      )}
       <div className="table-scroll">
         <table className="tx-table tx-table-stack tx-stack-giving">
           <thead>
@@ -7267,19 +7285,27 @@ function ContributionsCard({ client, subtitle }) {
             </tr>
           </thead>
           <tbody>
-            {client.contributions.length === 0 && (
-              <EmptyRow colSpan={5}>No contributions recorded yet.</EmptyRow>
+            {list.length === 0 && (
+              <EmptyRow colSpan={5}>{emptyText || "No contributions recorded yet."}</EmptyRow>
             )}
-            {client.contributions.map((c, i) => (
+            {list.map((c, i) => (
               <tr key={i}>
                 <td>{fmtDate(c.date)}</td>
-                <td>{c.donor}</td>
+                <td>
+                  {c.donor}
+                  {c.sub ? (
+                    <span style={{ display: "block", fontSize: 12, color: "var(--text-muted)" }}>
+                      {c.sub}
+                    </span>
+                  ) : null}
+                </td>
                 <td>
                   <span className="category-tag">{c.fund}</span>
                 </td>
                 <td>{c.method}</td>
-                <td className="num tx-amount positive">
-                  +{fmtMoney(c.amount, { cents: true })}
+                <td className={"num tx-amount" + (c.amount < 0 ? "" : " positive")}>
+                  {c.amount < 0 ? "" : "+"}
+                  {fmtMoney(c.amount, { cents: true })}
                 </td>
               </tr>
             ))}
@@ -7417,23 +7443,17 @@ function GivingFundsPage({ client }) {
 // QuickBooks mode (`qbo`): a QuickBooks-connected Pro client gets this same
 // page fed from the sync. Fund balances are the accounts picked in Client
 // details -> QuickBooks -> Fund accounts (client.funds, mapQboToClient.js);
-// giving is client.givingQbo; Contributions uses the giving transactions
-// QuickBooks synced (about 90 days). Tax Documents uses full calendar years
-// of giving by donor (qbo_donor_gifts, pulled by qbo-sync; QG_useDonorGifts
-// in components/client/QboGiving.jsx), with the QuickBooks customer / payer
-// as the donor and a year picker for this year and last. QuickBooks has no pledges or fund
+// giving is client.givingQbo. Contributions and Tax Documents both use full
+// calendar years of giving by donor (qbo_donor_gifts, pulled by qbo-sync;
+// QG_useDonorGifts in components/client/QboGiving.jsx), with the QuickBooks
+// customer / payer as the donor (sub-customers "Parent:Child" rolled up into
+// the parent) and one year picker, this year or last, shared by both views.
+// QuickBooks has no pledges or fund
 // transfers, so the Pledges view is left out and Fund Activity lists each
 // fund's balance. Nothing here writes to QuickBooks.
-function FundAccountingProPage({ client: rawClient, qbo, plan, isStaff }) {
-  const client = useMemo(
-    () =>
-      qbo && typeof QG_qboContributions === "function"
-        ? { ...rawClient, contributions: QG_qboContributions(rawClient) }
-        : rawClient,
-    [rawClient, qbo],
-  );
-  const gq = qbo ? rawClient.givingQbo || null : null;
-  const qboGiftsFrom = gq && gq.giftsFrom ? gq.giftsFrom : null;
+function FundAccountingProPage({ client, qbo, plan, isStaff }) {
+  const rawClient = client;
+  const gq = qbo ? client.givingQbo || null : null;
   const fundTransfers = client.fundTransfers || [];
   const pledges = client.pledges || [];
   const totalGiving = client.contributions.reduce((s, c) => s + c.amount, 0);
@@ -7459,13 +7479,14 @@ function FundAccountingProPage({ client: rawClient, qbo, plan, isStaff }) {
 
   // Tax year. QuickBooks clients pick this year or last (full calendar
   // years come from qbo_donor_gifts); the sample data is this year only.
+  // The same year drives the QuickBooks Contributions table.
   const thisYear = today.slice(0, 4);
   const [qboTaxYear, setQboTaxYear] = useState(thisYear);
   const taxYear = qbo ? qboTaxYear : thisYear;
   const useDonorGifts =
     typeof QG_useDonorGifts === "function" ? QG_useDonorGifts : () => null;
   const donorYear = useDonorGifts(
-    qbo && view === "tax-documents" ? client.id : null,
+    qbo && (view === "tax-documents" || view === "contributions") ? client.id : null,
     taxYear,
   );
   const donorGroups = useMemo(
@@ -7475,7 +7496,40 @@ function FundAccountingProPage({ client: rawClient, qbo, plan, isStaff }) {
         : null,
     [qbo, donorYear, gq],
   );
+  const qboContributions = useMemo(
+    () =>
+      qbo && donorYear && typeof QG_donorGiftContributions === "function"
+        ? QG_donorGiftContributions(donorYear.rows, gq ? gq.accounts : [])
+        : [],
+    [qbo, donorYear, gq],
+  );
   const givingAccountCount = gq && gq.accounts ? gq.accounts.length : 0;
+  const hiddenDonorCount = donorGroups && donorGroups.hiddenDonors ? donorGroups.hiddenDonors.length : 0;
+  // Loading / error / not-pulled-yet message for a full-year QuickBooks view,
+  // or null when the rows are ready. Shared by Contributions and Tax Documents.
+  const donorYearStatus = !qbo
+    ? null
+    : donorYear && donorYear.loading && !donorYear.rows.length
+      ? `Loading ${taxYear} giving from QuickBooks…`
+      : donorYear && donorYear.error
+        ? `Couldn’t load ${taxYear} giving: ${donorYear.error}`
+        : !givingAccountCount
+          ? "No income accounts count as giving yet. Staff can pick them in Client details → QuickBooks → Giving accounts."
+          : donorYear && !donorYear.pulled
+            ? `${taxYear}’s giving hasn’t come in from QuickBooks yet. It arrives with the next sync.`
+            : null;
+  const yearPicker = qbo ? (
+    <select
+      className="rb-select"
+      aria-label="Year"
+      value={qboTaxYear}
+      onChange={(e) => setQboTaxYear(e.target.value)}
+      style={{ width: "auto" }}
+    >
+      <option value={thisYear}>{thisYear}</option>
+      <option value={String(Number(thisYear) - 1)}>{Number(thisYear) - 1}</option>
+    </select>
+  ) : null;
 
   const handleDownloadStatement = (donor) => {
     let filename;
@@ -7748,14 +7802,24 @@ function FundAccountingProPage({ client: rawClient, qbo, plan, isStaff }) {
             </p>
           </div>
         ))}
-      {view === "contributions" && (
+      {view === "contributions" && !qbo && <ContributionsCard client={client} />}
+      {view === "contributions" && qbo && (
         <ContributionsCard
           client={client}
-          subtitle={
-            qbo
-              ? `Transactions posted to the giving accounts in QuickBooks${qboGiftsFrom ? ` since ${fmtDate(qboGiftsFrom)}` : ""}. The donor is the QuickBooks customer or payer; a deposit split across several accounts is in the totals but not listed.`
-              : null
+          title={`${taxYear} Contributions`}
+          contributions={donorYearStatus ? [] : qboContributions}
+          emptyText={
+            donorYearStatus ||
+            `No gifts posted to the giving accounts in QuickBooks in ${taxYear}.`
           }
+          actions={yearPicker}
+          subtitle={`Every gift posted to the giving accounts in QuickBooks, ${
+            taxYear < thisYear ? "January 1 – December 31" : "January 1 to date"
+          }, newest first · ${
+            donorYear && donorYear.pulledAt
+              ? `as of last sync, ${relTime(donorYear.pulledAt)}`
+              : "waiting for the first full-year sync"
+          }. The donor is the QuickBooks customer or payer, with a sub-customer listed under its parent. Refunds show as negative amounts.`}
         />
       )}
 
@@ -7946,20 +8010,7 @@ function FundAccountingProPage({ client: rawClient, qbo, plan, isStaff }) {
               </p>
             </div>
             <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-            {qbo && (
-              <select
-                className="rb-select"
-                aria-label="Tax year"
-                value={qboTaxYear}
-                onChange={(e) => setQboTaxYear(e.target.value)}
-                style={{ width: "auto" }}
-              >
-                <option value={thisYear}>{thisYear}</option>
-                <option value={String(Number(thisYear) - 1)}>
-                  {Number(thisYear) - 1}
-                </option>
-              </select>
-            )}
+            {yearPicker}
             <button
               className={unsent.length || !withEmail.length ? "btn-primary" : "btn-secondary"}
               disabled={!withEmail.length}
@@ -7986,25 +8037,13 @@ function FundAccountingProPage({ client: rawClient, qbo, plan, isStaff }) {
                 </tr>
               </thead>
               <tbody>
-                {qbo && donorYear && donorYear.loading && !donorYear.rows.length ? (
-                  <EmptyRow colSpan={6}>Loading {taxYear} giving from QuickBooks…</EmptyRow>
-                ) : qbo && donorYear && donorYear.error ? (
-                  <EmptyRow colSpan={6}>
-                    Couldn&rsquo;t load {taxYear} giving: {donorYear.error}
-                  </EmptyRow>
-                ) : qbo && !givingAccountCount ? (
-                  <EmptyRow colSpan={6}>
-                    No income accounts count as giving yet. Staff can pick them in
-                    Client details → QuickBooks → Giving accounts.
-                  </EmptyRow>
-                ) : qbo && donorYear && !donorYear.pulled ? (
-                  <EmptyRow colSpan={6}>
-                    {taxYear}&rsquo;s giving hasn&rsquo;t come in from QuickBooks yet. It
-                    arrives with the next sync.
-                  </EmptyRow>
+                {donorYearStatus ? (
+                  <EmptyRow colSpan={6}>{donorYearStatus}</EmptyRow>
                 ) : qbo && donorRoster.length === 0 && !(donorGroups && donorGroups.anonymous.giftCount) ? (
                   <EmptyRow colSpan={6}>
-                    No gifts posted to the giving accounts in QuickBooks in {taxYear}.
+                    {hiddenDonorCount
+                      ? `No donors with a positive ${taxYear} total in QuickBooks.`
+                      : `No gifts posted to the giving accounts in QuickBooks in ${taxYear}.`}
                   </EmptyRow>
                 ) : !qbo && donorRoster.length === 0 ? (
                   <EmptyRow colSpan={6}>
@@ -8102,7 +8141,11 @@ function FundAccountingProPage({ client: rawClient, qbo, plan, isStaff }) {
           </div>
           <p className="card-subtitle" style={{ margin: "12px 0 0" }}>
             {qbo
-              ? `Donors are the customer or payer names on gifts posted to the giving accounts in QuickBooks, for the whole calendar year as of the last sync. Gifts with no name (bank deposits usually have none) are grouped under Anonymous and can't go on a statement; to include them, record the donor as the customer in QuickBooks. `
+              ? `Donors are the customer or payer names on gifts posted to the giving accounts in QuickBooks, for the whole calendar year as of the last sync. Sub-customers are combined under their parent customer, and each gift on the statement notes the sub-customer. Gifts with no name (bank deposits usually have none) are grouped under Anonymous and can't go on a statement; to include them, record the donor as the customer in QuickBooks. ${
+                  hiddenDonorCount
+                    ? `${hiddenDonorCount} donor${hiddenDonorCount === 1 ? "" : "s"} with a $0 or negative total ${hiddenDonorCount === 1 ? "is" : "are"} hidden. `
+                    : ""
+                }`
               : ""}
             Statements aren&rsquo;t emailed from here yet. Download each one,
             send it to the donor yourself, then mark it sent so nobody sends
@@ -9605,6 +9648,27 @@ function buildReconciliationReportPdf(
   return filename;
 }
 
+// The IRS written-acknowledgment line, under the gift table and its total
+// (autoTable puts the foot on the last page). Same small italic grey as the
+// other notes under a table; starts a new page if it wouldn't fit above the
+// bottom margin.
+const GIVING_ACK_TEXT =
+  "No goods or services were provided in exchange for these contributions.";
+function givingStatementAcknowledgment(doc) {
+  const pageHeight = doc.internal.pageSize.getHeight();
+  const width = doc.internal.pageSize.getWidth() - 28;
+  doc.setFont("helvetica", "italic");
+  doc.setFontSize(9);
+  doc.setTextColor(110, 110, 110);
+  const lines = doc.splitTextToSize(GIVING_ACK_TEXT, width);
+  let y = doc.lastAutoTable.finalY + 8;
+  if (y + lines.length * 4.5 > pageHeight - 14) {
+    doc.addPage();
+    y = 20;
+  }
+  doc.text(lines, 14, y);
+}
+
 // Fund Accounting Pro only. One donor's gifts across every fund, YTD — the
 // per-donor equivalent of buildContributionStatementPdf's by-fund summary.
 // qboGifts (QuickBooks clients): the donor's gifts for the selected calendar
@@ -9622,16 +9686,18 @@ function buildGivingStatementPdf(client, donorName, periodLabel, qboGifts) {
     qDoc.autoTable({
       startY: 55,
       head: [["Date", "Fund / Account", "Memo", "Amount"]],
+      // A rolled-up QuickBooks sub-customer is noted after the memo.
       body: qboGifts.map((g) => [
         fmtDate(g.date),
         g.fund || "",
-        g.memo || "",
+        [g.memo || "", g.sub ? `(${g.sub})` : ""].filter(Boolean).join(" "),
         fmtMoney(g.amount, { cents: true }),
       ]),
       foot: [["", "", "Total", fmtMoney(qTotal, { cents: true })]],
       columnStyles: { 3: { halign: "right" } },
       ...PDF_TABLE_THEME,
     });
+    givingStatementAcknowledgment(qDoc);
     const qName = `${sanitizeFilename(client.name)} - ${sanitizeFilename(donorName)} Giving Statement.pdf`;
     qDoc.save(qName);
     return qName;
@@ -9660,6 +9726,7 @@ function buildGivingStatementPdf(client, donorName, periodLabel, qboGifts) {
     columnStyles: { 3: { halign: "right" } },
     ...PDF_TABLE_THEME,
   });
+  givingStatementAcknowledgment(doc);
 
   const filename = `${sanitizeFilename(client.name)} - ${sanitizeFilename(donorName)} Giving Statement.pdf`;
   doc.save(filename);
@@ -17932,10 +17999,20 @@ function docFoldersKey(clientId) {
 function taxDocsSentKey(clientId, year) {
   return `mygoodbooks_tax_docs_sent_v1:${clientId}:${year}`;
 }
+// Keys are the donor as listed. QuickBooks sub-customers ("Parent:Child")
+// now roll up into the parent, so an older mark saved under "Parent:Child"
+// is folded into "Parent" (latest time wins).
 function loadTaxDocsSent(clientId, year) {
   try {
     const parsed = JSON.parse(localStorage.getItem(taxDocsSentKey(clientId, year)) || "{}");
-    return parsed && typeof parsed === "object" ? parsed : {};
+    if (!parsed || typeof parsed !== "object") return {};
+    const out = {};
+    Object.keys(parsed).forEach((k) => {
+      const i = k.indexOf(":");
+      const name = i > 0 && k.slice(0, i).trim() ? k.slice(0, i).trim() : k;
+      if (!out[name] || String(parsed[k]) > String(out[name])) out[name] = parsed[k];
+    });
+    return out;
   } catch (e) {
     return {};
   }

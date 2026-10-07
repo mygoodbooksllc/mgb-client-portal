@@ -13,8 +13,8 @@
 // client_fund_accounts), otherwise equity/asset accounts named like a fund.
 // mgbBuildQboFunds in mapQboToClient.js builds client.funds / client.fundsQbo.
 // Pro clients get the full Giving & Funds page (FundAccountingProPage in
-// app.jsx) fed from these; QG_GivingTrend and QG_qboContributions are the
-// pieces it borrows.
+// app.jsx) fed from these; QG_GivingTrend, QG_useDonorGifts,
+// QG_groupDonorGifts and QG_donorGiftContributions are the pieces it borrows.
 //
 // Nothing here writes to QuickBooks. The pickers only save portal settings.
 //
@@ -163,69 +163,112 @@ function QG_FundsSection({ client, isStaff }) {
   );
 }
 
-// Giving transactions from QuickBooks in data.js's contributions shape
-// ({ date, donor, fund, method, amount }), so the Pro page's Contributions
-// table, Tax Documents donor list and giving statement PDF work unchanged.
-// Donor is the QuickBooks customer / payer name on the transaction; gifts
-// with no name (most bank deposits) count as Anonymous. Only what the sync
-// holds: about the last 90 days of transactions.
-function QG_qboContributions(client) {
-  const g = client && client.givingQbo;
-  if (!g || !g.gifts) return [];
-  return g.gifts.map((t) => ({
-    date: t.date,
-    donor: t.name ? t.name : "Anonymous",
-    fund: t.account,
-    method: t.type || "",
-    amount: Number(t.amount) || 0,
-  }));
-}
-
-// Full-year giving by donor for Tax Documents (year-end statements).
-// qbo-sync pulls a whole calendar year per client into qbo_donor_gifts
-// (supabase/qbo-donor-gifts.sql) for every income account; only the
-// client's giving accounts (givingAccounts = client.givingQbo.accounts, leaf
-// names) are kept here. Read-only; RLS keeps category- and fund-limited
+// Full-year giving by donor for Tax Documents (year-end statements) and the
+// Contributions tab. qbo-sync pulls a whole calendar year per client into
+// qbo_donor_gifts (supabase/qbo-donor-gifts.sql) for every income account;
+// only the client's giving accounts (givingAccounts = client.givingQbo.accounts,
+// leaf names) are kept here. Read-only; RLS keeps category- and fund-limited
 // client users out, so for them this comes back empty.
 //
-// Pure grouping, exported for the page and testable on its own:
-//   { donors: [{ donor, total, giftCount, gifts: [{date, amount, fund, memo, type, num}] }],
-//     anonymous: { total, giftCount } }
-function QG_groupDonorGifts(rows, givingAccounts) {
+// QuickBooks names a sub-customer "Parent:Child" (a job or address under a
+// customer). Those roll up into the parent donor here, in the browser;
+// qbo_donor_gifts keeps the raw name. Each gift remembers its sub-customer
+// (sub) so the statement and the Contributions table can still show it.
+
+// "Freeman Sporting Goods:0969 Ocean View Road" ->
+//   { donor: "Freeman Sporting Goods", sub: "0969 Ocean View Road" }.
+// No ":" = unchanged. Blank = { donor: "" } (Anonymous).
+function QG_rollupDonor(rawName) {
+  const name = String(rawName || "").trim();
+  const i = name.indexOf(":");
+  if (i < 0) return { donor: name, sub: "" };
+  const parent = name.slice(0, i).trim();
+  const sub = name.slice(i + 1).trim();
+  if (!parent) return { donor: sub, sub: "" };
+  return { donor: parent, sub };
+}
+
+// Rows on the giving accounts, with the donor rolled up. Order as given.
+function QG_donorGiftLines(rows, givingAccounts) {
   const keep = new Set((givingAccounts || []).map((n) => String(n).trim().toLowerCase()));
-  const byDonor = {};
-  const anonymous = { total: 0, giftCount: 0 };
+  const out = [];
   (rows || []).forEach((r) => {
     const fund = String(r.account_name || "").split(":").pop().trim();
     if (!keep.has(fund.toLowerCase())) return;
-    const amount = Number(r.amount) || 0;
-    const name = String(r.donor_name || "").trim();
-    if (!name) {
-      anonymous.total += amount;
-      anonymous.giftCount += 1;
-      return;
-    }
-    if (!byDonor[name]) byDonor[name] = { donor: name, total: 0, giftCount: 0, gifts: [] };
-    const d = byDonor[name];
-    d.total += amount;
-    d.giftCount += 1;
-    d.gifts.push({
+    const who = QG_rollupDonor(r.donor_name);
+    out.push({
       date: r.txn_date,
-      amount,
+      amount: Number(r.amount) || 0,
       fund,
       memo: r.memo || "",
       type: r.txn_type || "",
       num: r.doc_number || "",
+      donor: who.donor,
+      sub: who.sub,
     });
   });
-  const donors = Object.values(byDonor).map((d) => ({
+  return out;
+}
+
+// Pure grouping, exported for the page and testable on its own:
+//   { donors: [{ donor, total, giftCount, gifts: [{date, amount, fund, memo, sub, type, num}] }],
+//     hiddenDonors: [same shape], anonymous: { total, giftCount } }
+// donors only holds rolled-up totals above $0.00. A donor whose year nets to
+// $0 or less (all refunded) gets no statement and goes in hiddenDonors.
+// Negative lines (refunds) inside a positive donor stay in the gifts and the
+// total, so the statement matches QuickBooks.
+function QG_groupDonorGifts(rows, givingAccounts) {
+  const byDonor = {};
+  const anonymous = { total: 0, giftCount: 0 };
+  QG_donorGiftLines(rows, givingAccounts).forEach((g) => {
+    if (!g.donor) {
+      anonymous.total += g.amount;
+      anonymous.giftCount += 1;
+      return;
+    }
+    if (!byDonor[g.donor]) byDonor[g.donor] = { donor: g.donor, total: 0, giftCount: 0, gifts: [] };
+    const d = byDonor[g.donor];
+    d.total += g.amount;
+    d.giftCount += 1;
+    d.gifts.push({
+      date: g.date,
+      amount: g.amount,
+      fund: g.fund,
+      memo: g.memo,
+      sub: g.sub,
+      type: g.type,
+      num: g.num,
+    });
+  });
+  const all = Object.values(byDonor).map((d) => ({
     ...d,
     total: Math.round(d.total * 100) / 100,
     gifts: d.gifts.sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0)),
   }));
-  donors.sort((a, b) => b.total - a.total || a.donor.localeCompare(b.donor));
+  all.sort((a, b) => b.total - a.total || a.donor.localeCompare(b.donor));
   anonymous.total = Math.round(anonymous.total * 100) / 100;
-  return { donors, anonymous };
+  return {
+    donors: all.filter((d) => d.total > 0),
+    hiddenDonors: all.filter((d) => !(d.total > 0)),
+    anonymous,
+  };
+}
+
+// The same year as Contributions-table rows ({ date, donor, sub, fund,
+// method, amount }), newest first. Donor rolled up; blank = "Anonymous".
+// Refunds stay in as negative amounts (it's a ledger view).
+function QG_donorGiftContributions(rows, givingAccounts) {
+  return QG_donorGiftLines(rows, givingAccounts)
+    .map((g) => ({
+      date: g.date,
+      donor: g.donor || "Anonymous",
+      sub: g.sub,
+      fund: g.fund,
+      method: [g.type, g.num ? "#" + g.num : ""].filter(Boolean).join(" "),
+      memo: g.memo,
+      amount: g.amount,
+    }))
+    .sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0));
 }
 
 // Loads one year's rows plus when that year was last pulled. clientId null =
