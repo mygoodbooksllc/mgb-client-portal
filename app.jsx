@@ -17219,6 +17219,14 @@ function BookkeeperHomePage({
     // default" brings this one back. "needs-attention" keeps its old id so
     // saved layouts keep it where they put it. It's now the combined to-do
     // list (the old Unread messages and request cards feed into it).
+    // New-hire checklist (StaffOnboarding.jsx). Hides itself once every
+    // step is done or the person hides it.
+    {
+      id: "your-onboarding",
+      group: "content",
+      label: "Your onboarding",
+      description: "Your new-hire checklist, with a Staff guide link for each step",
+    },
     {
       id: "needs-attention",
       group: "content",
@@ -17633,6 +17641,15 @@ function BookkeeperHomePage({
                 <p className="card-subtitle">Days you're out. The whole team can see these.</p>
                 <CV_MyTimeOffBody staffUser={staffUser} />
               </div>
+            ) : null;
+          if (id === "your-onboarding")
+            return typeof SON_HomeCard === "function" ? (
+              <SON_HomeCard
+                key={id}
+                staffUser={staffUser}
+                className={"card home-card home-tone-keep son-home " + drag.dragClass(id)}
+                dragProps={drag.dragProps(id)}
+              />
             ) : null;
           if (id === "shoutouts")
             return typeof SO_ShoutoutsBody === "function" ? (

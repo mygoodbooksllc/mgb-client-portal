@@ -638,6 +638,14 @@ Team Reviews files.
   accurate" on `ClientSopView`; stale (over 180 days, `OPS_sopFreshness`) SOPs add an "SOP" row
   to Home's Needs you (This week) and a "Client SOP" rule on filtered Home cards. Guide:
   `client-sops.md`.
+- **New-hire onboarding.** `supabase/staff-onboarding.sql`: `staff_onboarding_steps` (admin-edited
+  checklist, `guide_slug` links a Staff guide article, retire with `active = false`, no deletes)
+  and `staff_onboarding_progress` (one row per person per step; own or admin read/write; a guard
+  trigger checks the step and person and stamps `done_at`/`done_by`; reserved step `__dismissed`
+  = "Hide this card"). UI: `components/staff/StaffOnboarding.jsx` (`SON_`): Home card
+  `your-onboarding` (shown to every staff member until done or hidden) and the admin
+  Team → Onboarding tab (progress, tick for someone, add/edit/reorder/retire steps). Summary
+  logic: `OPS_onboardingSummary`. Guide: `new-hire-onboarding.md`.
 
 ### Client side (and staff viewing a client)
 

@@ -317,3 +317,46 @@
 @media (max-width: 640px) {
   .sf-mark { margin-left: 0; width: 100%; }
 }
+
+/* New-hire onboarding (StaffOnboarding.jsx) */
+.son-bar-row { display: flex; align-items: center; gap: 10px; margin: 6px 0 10px; }
+.son-bar { flex: 1; min-width: 60px; }
+.son-bar-text { font-size: 13px; color: var(--text-muted); white-space: nowrap; }
+.son-steps { list-style: none; margin: 0; padding: 0; }
+.son-step { display: flex; align-items: flex-start; gap: 10px; padding: 8px 0; border-top: 1px solid var(--border); }
+.son-step:first-child { border-top: 0; }
+.son-check { display: flex; align-items: flex-start; gap: 10px; flex: 1; min-width: 0; cursor: pointer; }
+.son-check input { margin-top: 3px; flex: none; }
+.son-step-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.son-step-title { font-weight: 600; }
+.son-step-desc { font-size: 13px; color: var(--text-muted); }
+.son-done .son-step-title { text-decoration: line-through; color: var(--text-muted); }
+.son-guide { flex: none; font-size: 13px; white-space: nowrap; }
+.son-hide { margin-top: 8px; }
+.son-tab { display: grid; gap: 16px; }
+.son-people { list-style: none; margin: 0; padding: 0; }
+.son-person { border-top: 1px solid var(--border); }
+.son-person:first-child { border-top: 0; }
+.son-person-head { display: grid; grid-template-columns: minmax(120px, 1.2fr) 2fr auto minmax(120px, 1fr); align-items: center; gap: 12px; width: 100%; padding: 10px 0; background: none; border: 0; text-align: left; color: inherit; font: inherit; cursor: pointer; }
+.son-person-name { font-weight: 600; }
+.son-person-when { font-size: 13px; color: var(--text-muted); text-align: right; }
+.son-person .son-steps { padding: 0 0 10px 12px; }
+.son-admin-steps { margin: 8px 0 12px; padding-left: 22px; }
+.son-admin-step { display: flex; align-items: flex-start; gap: 12px; padding: 6px 0; }
+.son-admin-step .son-step-text { flex: 1; }
+.son-admin-actions { display: flex; gap: 10px; flex: none; }
+.son-edit { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 12px; margin: 8px 0 12px; }
+.son-edit-wide { grid-column: 1 / -1; }
+.son-retired { margin-top: 14px; }
+.son-sub { font-size: 13px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-muted); margin: 0 0 6px; }
+.son-retired ul { list-style: none; margin: 0; padding: 0; }
+.son-retired li { display: flex; justify-content: space-between; gap: 12px; padding: 4px 0; color: var(--text-muted); }
+@media (max-width: 640px) {
+  .son-person-head { grid-template-columns: 1fr auto; }
+  .son-person-head .son-bar { grid-column: 1 / -1; grid-row: 2; }
+  .son-person-when { grid-column: 1 / -1; text-align: left; }
+  .son-edit { grid-template-columns: 1fr; }
+  .son-step { flex-wrap: wrap; row-gap: 2px; }
+  .son-step .son-check { flex-basis: 100%; }
+  .son-guide { margin-left: 30px; }
+}

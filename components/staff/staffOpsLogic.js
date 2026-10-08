@@ -373,6 +373,34 @@ function OPS_daysAgo(n) {
   return n === 1 ? "1 day ago" : n + " days ago";
 }
 
+// New-hire onboarding: one person's progress through the active steps.
+// steps = [{key, active}], rows = [{staff_email, step_key, done_at}].
+// "__dismissed" (done_at set) = they hid the Home card.
+var OPS_ONBOARDING_DISMISSED = "__dismissed";
+function OPS_onboardingSummary(steps, rows, email) {
+  var me = String(email || "").trim().toLowerCase();
+  var active = (steps || []).filter(function (s) { return s && s.active !== false; });
+  var done = {};
+  var dismissed = false;
+  var last = null;
+  (rows || []).forEach(function (r) {
+    if (!r || String(r.staff_email || "").toLowerCase() !== me || !r.done_at) return;
+    if (r.step_key === OPS_ONBOARDING_DISMISSED) { dismissed = true; return; }
+    done[r.step_key] = r.done_at;
+    if (!last || r.done_at > last) last = r.done_at;
+  });
+  var n = active.filter(function (s) { return done[s.key]; }).length;
+  return {
+    total: active.length,
+    done: n,
+    doneAt: done,
+    lastAt: last,
+    dismissed: dismissed,
+    complete: active.length > 0 && n === active.length,
+    pct: active.length ? Math.round((n / active.length) * 100) : 0,
+  };
+}
+
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {
     OPS_BUDGET_WARN: OPS_BUDGET_WARN, OPS_BUDGET_OVER: OPS_BUDGET_OVER,
@@ -385,5 +413,6 @@ if (typeof module !== "undefined" && module.exports) {
     OPS_ruleOccurrences: OPS_ruleOccurrences, OPS_deadlineItems: OPS_deadlineItems, OPS_describeDueRule: OPS_describeDueRule,
     OPS_SHOUTOUT_MAX: OPS_SHOUTOUT_MAX, OPS_quarterRange: OPS_quarterRange, OPS_shoutoutError: OPS_shoutoutError,
     OPS_SOP_STALE_DAYS: OPS_SOP_STALE_DAYS, OPS_sopFreshness: OPS_sopFreshness, OPS_daysAgo: OPS_daysAgo,
+    OPS_ONBOARDING_DISMISSED: OPS_ONBOARDING_DISMISSED, OPS_onboardingSummary: OPS_onboardingSummary,
   };
 }

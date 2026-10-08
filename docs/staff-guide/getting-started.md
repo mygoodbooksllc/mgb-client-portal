@@ -2,7 +2,7 @@
 title: Getting started: a tour of the staff portal
 section: Getting started
 audience: staff
-keywords: [new, start, tour, overview, sidebar, top bar, menu, navigation, home, first day, orientation, reviews, deadlines]
+keywords: [onboarding checklist, new, start, tour, overview, sidebar, top bar, menu, navigation, home, first day, orientation, reviews, deadlines]
 sort: 10
 ---
 Welcome! The MyGoodBooks portal is where our clients (mostly churches and nonprofits) see their finances, and where we, the staff, keep track of our work for them. This page shows you around.
@@ -10,7 +10,7 @@ Welcome! The MyGoodBooks portal is where our clients (mostly churches and nonpro
 ### Your first day
 
 1. [Sign in](#/help/signing-in) with your @mygoodbooks.org Google account.
-2. You land on **Home**, which shows what needs attention across all the clients you can see.
+2. You land on **Home**, which shows what needs attention across all the clients you can see. The **Your onboarding** card there is your checklist for the first weeks. See [How does the new-hire onboarding checklist work?](#/help/new-hire-onboarding).
 3. Open a client with the client picker at the top left of the page (it says **Choose a client**). You'll see that client's **Client overview** first. See [How do I find and open a client?](#/help/finding-a-client).
 4. Look at **My Tasks** to see what's due today.
 5. Bookmark **Help** (this page), or click **?** in the top bar. Use the search box at the top whenever you're stuck.

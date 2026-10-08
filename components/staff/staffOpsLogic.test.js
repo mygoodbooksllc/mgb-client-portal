@@ -212,4 +212,22 @@ t("SOP freshness", () => {
   assert.strictEqual(L.OPS_daysAgo(30), "30 days ago");
 });
 
+t("onboarding summary", () => {
+  const steps = [{ key: "a" }, { key: "b" }, { key: "c", active: false }];
+  const rows = [
+    { staff_email: "g@x", step_key: "a", done_at: "2026-10-01T10:00:00Z" },
+    { staff_email: "g@x", step_key: "b", done_at: null },
+    { staff_email: "g@x", step_key: "c", done_at: "2026-10-03T10:00:00Z" },
+    { staff_email: "h@x", step_key: "b", done_at: "2026-10-02T10:00:00Z" },
+  ];
+  let s = L.OPS_onboardingSummary(steps, rows, "G@x");
+  assert.deepStrictEqual([s.total, s.done, s.complete, s.dismissed, s.pct], [2, 1, false, false, 50]);
+  assert.strictEqual(s.lastAt, "2026-10-03T10:00:00Z", "retired steps still count as activity");
+  s = L.OPS_onboardingSummary(steps, rows.concat([{ staff_email: "g@x", step_key: "b", done_at: "2026-10-04T00:00:00Z" }]), "g@x");
+  assert.strictEqual(s.complete, true);
+  s = L.OPS_onboardingSummary(steps, [{ staff_email: "g@x", step_key: "__dismissed", done_at: "2026-10-04T00:00:00Z" }], "g@x");
+  assert.deepStrictEqual([s.done, s.dismissed], [0, true]);
+  assert.strictEqual(L.OPS_onboardingSummary([], [], "g@x").complete, false, "no steps is never complete");
+});
+
 console.log("staffOpsLogic: " + n + " checks passed");
