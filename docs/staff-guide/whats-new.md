@@ -7,6 +7,10 @@ sort: 15
 ---
 The newest changes to the staff side, newest first. For how anything works, search this guide or click **?** → **Help for this page**.
 
+### 2026-10-08: your photo in your email signature
+
+- **Settings › Email signature** has **Include my profile photo**. Turn it on and your Profile photo shows beside your sign-off in the emails the portal sends to your clients. Drafts that open in your own mail app stay text-only. See [How do I change my settings?](#/help/staff-settings).
+
 ### 2026-10-08: birthdays, anniversaries and performance
 
 - **Settings › Profile** has **Birthday** and **Start date**. Add yours so the team can celebrate with you; a first sign-in prompt and a Today item remind you until both are in. See [Birthdays, work anniversaries and gift reminders](#/help/celebrations).

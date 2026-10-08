@@ -21,6 +21,8 @@
 //                 (stored values predate the 2026-10 nav redesign; app.jsx
 //                 maps them to the new pages)
 //     signature   staff: plain-text email signature
+//     signature_photo  staff: true shows the Profile photo beside the signature
+//                 in emails the portal sends to clients (never in mailto drafts)
 //     notify      { email: { key: bool }, bell: { key: bool } }
 //     name, phone client profile
 //   staff_profiles          display name, title, phone, photo_path
@@ -968,6 +970,8 @@ function ST_StaffSettingsPage({
   const ro = !!readOnlyReason;
   const [tab, setTab] = React.useState("profile");
   const set = (patch) => ST_store.update(patch);
+  const prof = ST_useMyProfile(staffUser && staffUser.email);
+  const sigPhotoAvailable = !!(prof && prof.row && prof.row.photo_path);
   const tabs = [
     { key: "profile", label: "Profile" },
     { key: "notifications", label: "Notifications" },
@@ -1086,10 +1090,26 @@ function ST_StaffSettingsPage({
                   placeholder={"Jane Smith\nSenior bookkeeper, MyGoodBooks\n(555) 555-0100"}
                 />
               </ST_Field>
+              <ST_Toggle
+                label="Include my profile photo"
+                sub={
+                  sigPhotoAvailable
+                    ? "Shows your Profile photo beside the signature in emails the portal sends to clients for you. Drafts that open in your own mail app stay text-only."
+                    : "Add a photo under Profile first."
+                }
+                checked={!!s.signature_photo && sigPhotoAvailable}
+                disabled={ro || !sigPhotoAvailable}
+                onChange={(v) => set({ signature_photo: !!v })}
+              />
               {s.signature && (
                 <div className="st-preview" aria-label="Signature preview">
                   <div className="st-preview-label">Preview</div>
-                  <pre>{s.signature}</pre>
+                  <div className="st-sig-preview">
+                    {!!s.signature_photo && sigPhotoAvailable && (
+                      <ST_Avatar name={(prof.row && prof.row.display_name) || (staffUser && staffUser.name) || ""} url={prof.photoUrl} size={56} />
+                    )}
+                    <pre>{s.signature}</pre>
+                  </div>
                 </div>
               )}
             </ST_Card>

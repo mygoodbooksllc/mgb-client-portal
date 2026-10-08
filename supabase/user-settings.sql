@@ -13,6 +13,8 @@
 --      theme          "light" | "dark" | null (match my computer)
 --      startPage      staff: "home" | "tasks" | "last-client"
 --      signature      staff: plain-text email signature
+--      signature_photo staff: true shows the Profile photo beside the signature
+--                     in emails the portal sends (signed URL; bucket stays private)
 --      notify         { email: { <key>: bool }, bell: { <key>: bool } }
 --      name, phone    client profile (display only; sign-in email is fixed)
 --      tour           client guided tour + setup checklist state

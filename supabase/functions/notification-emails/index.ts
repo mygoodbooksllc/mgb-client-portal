@@ -2,6 +2,7 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient, SupabaseClient } from "jsr:@supabase/supabase-js@2";
 import { emailConfigured, esc, sendEmail } from "../_shared/email.ts";
 import * as L from "../_shared/layout.ts";
+import { loadSignoffs, signoffHtml, signoffText, type Signoff } from "../_shared/signature.ts";
 
 // Notification emails behind Settings > Notifications
 // (supabase/notification-emails.sql has the outbox, triggers and schedules).
@@ -91,28 +92,21 @@ function staffEmail(o: { subject: string; preheader: string; lines: string[]; te
   return { subject: o.subject, html, text };
 }
 
-function signoffHtml(name: string | null, signature: string | null) {
-  if (signature) return p(`${esc(signature).replace(/\n/g, "<br>")}`);
-  return p(`Thank you,<br>${name ? `${esc(name)}<br>` : ""}${L.tone("MyGoodBooks", "muted")}`);
-}
-function signoffText(name: string | null, signature: string | null) {
-  if (signature) return [signature];
-  return ["Thank you,", ...(name ? [name] : []), "MyGoodBooks"];
-}
+// Sign-off (signature text plus the optional Profile photo): ../_shared/signature.ts.
 
 function clientEmail(o: {
   subject: string; preheader: string; clientName: string; lines: string[]; textLines: string[];
-  cta: string; href: string; bkName: string | null; signature: string | null; unsubUrl: string;
+  cta: string; href: string; bkName: string | null; signature: Signoff | null; unsubUrl: string;
 }): Email {
   const html = L.emailDocument({
     title: o.subject,
     preheader: o.preheader,
     subtitle: `Bookkeeping for ${o.clientName}`,
-    cards: L.card(p("Hi there,") + o.lines.map((l) => p(l)).join("") + L.button(o.cta, o.href) + signoffHtml(o.bkName, o.signature)),
+    cards: L.card(p("Hi there,") + o.lines.map((l) => p(l)).join("") + L.button(o.cta, o.href) + signoffHtml(o.signature, o.bkName)),
     footer: `You're receiving this because you have access to ${esc(o.clientName)}'s MyGoodBooks portal. You can turn this email off under Settings in your portal, or ${L.link(o.unsubUrl, "unsubscribe", "muted")} from these emails.`,
   });
   const text = [
-    "Hi there,", "", ...o.textLines, "", `${o.cta}: ${o.href}`, "", ...signoffText(o.bkName, o.signature), "",
+    "Hi there,", "", ...o.textLines, "", `${o.cta}: ${o.href}`, "", ...signoffText(o.signature, o.bkName), "",
     `Unsubscribe from these emails: ${o.unsubUrl}`,
   ].join("\n");
   return { subject: o.subject, html, text };
@@ -286,7 +280,7 @@ Deno.serve(async (req) => {
   }
   // Bookkeeper signatures for client emails.
   const bkEmails = [...new Set([...clients.values()].map((c) => String(c.assigned_bookkeeper_email || "").toLowerCase()).filter(Boolean))];
-  const bkPrefs = await prefsFor(db, bkEmails);
+  const bkSigs = await loadSignoffs(db, bkEmails);
 
   for (const [, list] of groups) {
     const kind = list[0].kind as Kind;
@@ -426,7 +420,7 @@ Deno.serve(async (req) => {
       const oneClick = `${SUPABASE_URL}/functions/v1/client-emails?unsub=${encodeURIComponent(rec.token)}`;
       headers = { "List-Unsubscribe": `<${oneClick}>`, "List-Unsubscribe-Post": "List-Unsubscribe=One-Click" };
       const bkName = client.assigned_bookkeeper?.name || null;
-      const bkSig = String(bkPrefs.get(String(client.assigned_bookkeeper_email || "").toLowerCase())?.signature || "").trim() || null;
+      const bkSig = bkSigs.get(String(client.assigned_bookkeeper_email || "").toLowerCase()) || null;
       if (kind === "client_message") {
         const n = list.length;
         const who = bkName || "Your bookkeeper";

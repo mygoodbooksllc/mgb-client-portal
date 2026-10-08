@@ -40,6 +40,8 @@ The emails only say what happened and link to the portal. They never include the
 
 Type the sign-off you want at the bottom of emails. It's added to emails you send clients from the portal, portal invite drafts, and payment reminder drafts from a Pro client's Financial Overview. Plain text, up to 1,000 characters. A preview shows under the box.
 
+Turn on **Include my profile photo** to show your Profile photo beside the signature in the emails the portal sends to your clients, such as new-message and reports-ready notices. The switch is greyed out until you've added a photo under **Profile**. Drafts that open in your own mail app stay text-only.
+
 ### Dashboards
 
 Lists every board where you've moved or hidden cards (a client's Dashboard or Financial Overview). **Reset** puts that board back to the standard layout. Saved views are kept.

@@ -2,6 +2,7 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient, SupabaseClient } from "jsr:@supabase/supabase-js@2";
 import { emailConfigured, esc, sendEmail } from "../_shared/email.ts";
 import * as L from "../_shared/layout.ts";
+import { loadSignoffs, signoffHtml, signoffText } from "../_shared/signature.ts";
 
 // Client-facing emails (supabase/client-emails.sql has the schema + rules).
 //   job "doc_chaser"   : missing-documents reminders (daily cron)
@@ -126,23 +127,12 @@ function shell(opts: { title: string; preheader: string; body: string; clientNam
     footer: `You're receiving this because you have access to ${esc(opts.clientName)}'s MyGoodBooks portal. Questions? Just reply to this email. ${L.link(UNSUB_SLOT, "Unsubscribe", "muted")} from these emails.`,
   });
 }
-// The assigned bookkeeper's own email signature (Settings > Email signature,
-// user_settings.settings.signature) replaces the default sign-off when set.
-// Loaded into client._signature before rendering.
-function signoff(bookkeeper: string | null, signature?: string | null) {
-  if (signature) return p(esc(signature).replace(/\n/g, "<br>"), "text", 15);
-  return p(`Thank you,<br>${bookkeeper ? `${esc(bookkeeper)}<br>` : ""}${L.tone("MyGoodBooks", "muted")}`, "text", 15);
-}
-function signoffText(bookkeeper: string | null, signature?: string | null): string[] {
-  if (signature) return [signature];
-  return ["Thank you,", ...(bookkeeper ? [bookkeeper] : []), "MyGoodBooks"];
-}
+// The assigned bookkeeper's sign-off (Settings > Email signature text, plus
+// their Profile photo when they turned that on) replaces the default sign-off.
+// Loaded into client._signoff before rendering; see ../_shared/signature.ts.
 async function withSignatures(db: SupabaseClient, clients: any[]): Promise<any[]> {
-  const emails = [...new Set(clients.map((c) => String(c.assigned_bookkeeper_email || "").toLowerCase()).filter(Boolean))];
-  if (!emails.length) return clients;
-  const { data } = await db.from("user_settings").select("user_email, settings").in("user_email", emails);
-  const sig = new Map((data || []).map((r: any) => [String(r.user_email).toLowerCase(), String(r.settings?.signature || "").trim()]));
-  return clients.map((c) => ({ ...c, _signature: sig.get(String(c.assigned_bookkeeper_email || "").toLowerCase()) || null }));
+  const sigs = await loadSignoffs(db, clients.map((c) => String(c.assigned_bookkeeper_email || "")));
+  return clients.map((c) => ({ ...c, _signoff: sigs.get(String(c.assigned_bookkeeper_email || "").toLowerCase()) || null }));
 }
 // Monthly summary: people who turned it off in their own Settings
 // (notify.email.monthly_summary === false) are left out, and when the main
@@ -180,7 +170,7 @@ function renderChaser(client: any, requests: any[], firstTime: boolean) {
     p("You can upload each one in your portal under <b>Documents</b>. It goes straight to your bookkeeper.") +
     button("Upload in your portal") +
     p("If you've already sent these another way, just reply and let us know.", "muted", 14) +
-    signoff(bk, client._signature);
+    signoffHtml(client._signoff, bk);
   const text = [
     "Hi there,",
     "",
@@ -193,7 +183,7 @@ function renderChaser(client: any, requests: any[], firstTime: boolean) {
     `Upload each one in your portal under Documents: ${PORTAL_URL}`,
     "If you've already sent these another way, just reply and let us know.",
     "",
-    ...signoffText(bk, client._signature),
+    ...signoffText(client._signoff, bk),
     "",
     `Unsubscribe from these emails: ${UNSUB_SLOT}`,
   ].join("\n");
@@ -232,7 +222,7 @@ function renderValue(client: any, period: string, v: any) {
     list("Completed for you", v.tasks.items, v.tasks.count - v.tasks.items.length) +
     list("Documents received", v.docs.items, v.docs.count - v.docs.items.length) +
     button("Open your portal") +
-    signoff(bk, client._signature);
+    signoffHtml(client._signoff, bk);
   const text = [
     "Hi there,",
     "",
@@ -247,7 +237,7 @@ function renderValue(client: any, period: string, v: any) {
     "",
     `Your portal: ${PORTAL_URL}`,
     "",
-    ...signoffText(bk, client._signature),
+    ...signoffText(client._signoff, bk),
     "",
     `Unsubscribe from these emails: ${UNSUB_SLOT}`,
   ].join("\n");
