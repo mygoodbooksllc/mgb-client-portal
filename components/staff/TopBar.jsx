@@ -61,6 +61,7 @@ const TB_HELP_FOR_PAGE = {
   "my-tasks": "my-tasks",
   "staff-messages": "inbox",
   "close-tracker": "month-end-close",
+  "team-reviews": "quarterly-reviews",
   "client-overview": "client-overview",
   documents: "document-requests",
   "staff-team": "team-page",

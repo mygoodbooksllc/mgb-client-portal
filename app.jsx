@@ -544,6 +544,7 @@ const NON_CLIENT_PAGES = new Set([
   "staff-messages",
   "my-tasks",
   "close-tracker",
+  "team-reviews",
   "task-templates",
   "audit-log",
   "emails",
@@ -1314,6 +1315,22 @@ function Sidebar({
                     </button>
                   )}
 
+                  {!impersonating && typeof TR_TeamReviewsPage === "function" && (
+                    <button
+                      type="button"
+                      role="menuitem"
+                      className={"staff-user-menu-item" + (page === "team-reviews" ? " active" : "")}
+                      onClick={() => {
+                        onSelectPage("team-reviews");
+                        onCloseMobile();
+                        setStaffMenuOpen(false);
+                      }}
+                    >
+                      <TR_Icon />
+                      Reviews
+                    </button>
+                  )}
+
                   {!impersonating && typeof HLP_StaffGuidePage === "function" && (
                     <button
                       type="button"
@@ -1802,6 +1819,10 @@ function StaffRail({
             due: true,
           },
           { key: "close-tracker", label: "Close tracker", short: "Close", icon: <CalculatorIcon /> },
+          // Team Reviews (components/staff/TeamReviews.jsx): everyone on staff.
+          ...(typeof TR_TeamReviewsPage === "function"
+            ? [{ key: "team-reviews", label: "Reviews", short: "Reviews", icon: <TR_Icon />, extra: <TR_NavBadge expanded={expanded} /> }]
+            : []),
           ...(typeof HLP_StaffGuidePage === "function"
             ? [{ key: "help", label: "Help", icon: <HLP_HelpIcon /> }]
             : []),
@@ -17269,6 +17290,7 @@ function BookkeeperHomePage({
       </div>
 
       <CS_AccessRequestsCard />
+      {typeof TR_HomeDueNotice === "function" && <TR_HomeDueNotice staffUser={staffUser} />}
 
       <div className="home-toolbar">
         <CustomizeDashboardButton
@@ -25027,6 +25049,10 @@ const PAGE_META = {
     title: "Close tracker",
     subtitle: "Month-end close status for every client, month by month",
   },
+  "team-reviews": {
+    title: "Reviews",
+    subtitle: "Quarterly reviews and the team survey",
+  },
   help: {
     title: "Help",
     subtitle: "How-to guide for MyGoodBooks staff. Search or browse by topic",
@@ -25282,6 +25308,7 @@ const HASH_PAGE_ALIASES = {
   tasks: "my-tasks",
   chat: "staff-messages",
   templates: "task-templates",
+  reviews: "team-reviews",
 };
 const HASH_PAGE_SLUGS = Object.fromEntries(
   Object.entries(HASH_PAGE_ALIASES).map(([slug, page]) => [page, slug]),
@@ -25346,6 +25373,8 @@ function parseHashRoute(hash) {
 function buildHashRoute(page, clientId) {
   // Help keeps its article slug (#/help/<slug>); StaffGuide.jsx reads it.
   if (page === "help" && /^#\/help\/[a-z0-9-]+$/.test(window.location.hash)) return window.location.hash;
+  // Reviews keeps its sub-route (#/reviews/<tab>, #/reviews/r/<id>); TeamReviews.jsx reads it.
+  if (page === "team-reviews" && /^#\/reviews\/[a-z0-9-]+(\/[a-z0-9-]+)?$/.test(window.location.hash)) return window.location.hash;
   if (NON_CLIENT_PAGES.has(page)) return "#/" + (HASH_PAGE_SLUGS[page] || page);
   if (!clientId) return "";
   return (
@@ -26504,6 +26533,8 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
           : page === "my-tasks" && staffUser && !impersonating
             ? page
           : page === "close-tracker" && staffUser && !impersonating
+            ? page
+          : page === "team-reviews" && staffUser && !impersonating
             ? page
           : page === "help" && staffUser && !impersonating
             ? page
@@ -27852,6 +27883,7 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
           )}
           {effectivePage === "task-templates" && <TT_TaskTemplatesPage clients={visibleClients} />}
           {effectivePage === "help" && typeof HLP_StaffGuidePage === "function" && <HLP_StaffGuidePage />}
+          {effectivePage === "team-reviews" && typeof TR_TeamReviewsPage === "function" && <TR_TeamReviewsPage />}
           {effectivePage === "bookkeeper-home" && (
             <BookkeeperHomePage
               staffUser={effectiveStaffUser}
