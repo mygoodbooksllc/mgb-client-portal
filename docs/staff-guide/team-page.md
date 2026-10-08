@@ -2,7 +2,7 @@
 title: How do I read the Team page?
 section: Admin
 audience: admin
-keywords: [coverage, time off, reply times, hours budget, team, members, staff access, hours and tasks, quickbooks api usage, hours, quickbooks time, in app, people table, clients table, drill-down, csv, this month, custom range, billable]
+keywords: [client health, health board, at risk, coverage, time off, reply times, hours budget, team, members, staff access, hours and tasks, quickbooks api usage, hours, quickbooks time, in app, people table, clients table, drill-down, csv, this month, custom range, billable]
 sort: 500
 ---
 **Team** (sidebar → **Team**, or `#/team`) has these tabs:
@@ -11,6 +11,7 @@ sort: 500
 - **Members**: add staff, roles, active/inactive, client assignments, temporary admin access, **View as**, **Offboard** and email invites. This used to be the separate **Staff Access** page, and `#/staff-access` links open this tab. Temporary admins see it read-only. See [How do I add staff and manage their access?](#/help/staff-management).
 - **Reply times**: how fast we answer client messages, by person and by client, and who's waiting over 24 hours. Opens at `#/team/reply-times`. See [How do I read reply times?](#/help/reply-times).
 - **Coverage**: who's out now and in the next 30 days, their clients, each client's backup and whether the backup can open the client. Give a backup temporary access in one click. Opens at `#/team/coverage`. See [How do I add time off and make sure my clients are covered?](#/help/time-off-coverage).
+- **Client health** (admins): every client's health score, band and the reasons points were taken off, with the bookkeeper and backup. Click a column to sort; filter by band, person or reason. Opens at `#/team/health`. See [What does client health mean?](#/help/client-health).
 
 ### Hours and tasks, top to bottom
 

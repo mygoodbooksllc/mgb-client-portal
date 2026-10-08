@@ -1,7 +1,8 @@
 -- Client health score (owner request 2026-09-29).
 --
--- Applied to production 2026-09-29 as migration client_health.
--- Safe to re-run.
+-- Applied to production 2026-09-29 as migration client_health; extended
+-- 2026-10-07 as migration client_health_board (four new deductions, the
+-- 0-100 clamp and client_sop_status()). Safe to re-run.
 --
 -- client_health(p_default_fees jsonb default '{}')
 --   One row per client the caller can access (can_access_client(), which
@@ -9,7 +10,7 @@
 --   Returns score 0-100, band ('green' >= 80, 'amber' 50-79, 'red' < 50) and
 --   reasons: [{key, label, points}] (points = what was deducted).
 --
---   Deductions (start at 100, floor 0):
+--   Deductions (start at 100, then clamped to 0-100):
 --     overdue       open staff_reminders on the client past due_date:
 --                   10 each, max 30
 --     qbo           no QuickBooks connection / not 'connected': 25
@@ -27,12 +28,48 @@
 --                   profitability_settings: 15. Bookkeepers never get this
 --                   reason or any margin number. p_default_fees is passed
 --                   through to client_profitability() for tier-default fees.
+--     doc_overdue   open client_doc_requests (status 'open') past due_date:
+--                   5 each, max 15
+--     client_wait   a client message thread waiting on a staff reply for
+--                   over 24 hours (same rules as client_reply_times(): no
+--                   internal notes, no deleted messages): 10
+--     hours_over    ADMINS ONLY: QuickBooks Time hours this calendar month
+--                   above client_profile.monthly_hours_budget: 10
+--     sop           client SOP last edited over 180 days ago, or fewer than
+--                   half of the 7 sections filled in (none written counts):
+--                   5. From client_sop_status(), below.
+--
+-- The app's older local signal (clientHealthSignal in app.jsx, used when the
+-- RPC isn't available or for manual overrides) is separate and doesn't use
+-- these rules.
 --
 -- SECURITY DEFINER so a bookkeeper's score reflects everyone's overdue tasks
 -- and time on the client (RLS would otherwise hide colleagues' rows); the
 -- row filter is can_access_client() and only aggregates are returned.
 
 begin;
+
+-- SOP freshness per client: last edit and how many of the app's
+-- CLIENT_SOP_SECTIONS have text. Keep the section list in step with app.jsx.
+create or replace function public.client_sop_status()
+returns table (client_id text, last_touched timestamptz, filled int, total int)
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select s.client_id,
+         max(s.updated_at),
+         count(*) filter (where length(trim(coalesce(s.body, ''))) > 0
+                            and s.section in ('access', 'bank_feeds', 'monthly_close', 'payroll',
+                                              'bills_vendors', 'reporting', 'quirks'))::int,
+         7
+    from client_sops s
+   where public.is_active_staff() and public.can_access_client(s.client_id)
+   group by s.client_id;
+$$;
+revoke all on function public.client_sop_status() from public, anon;
+grant execute on function public.client_sop_status() to authenticated;
 
 create or replace function public.client_health(p_default_fees jsonb default '{}'::jsonb)
 returns table (client_id text, score int, band text, reasons jsonb)
@@ -114,6 +151,43 @@ begin
      where a.txn_date >= current_date - 30 and res.client_id is not null
      group by res.client_id
   ),
+  docs as (
+    select d.client_id, count(*)::int n
+      from client_doc_requests d
+     where d.status = 'open' and d.due_date is not null and d.due_date < current_date
+     group by d.client_id
+  ),
+  msgs as (
+    select m.client_id, lower(m.participant_email) pe, m.author_kind, m.created_at
+      from client_messages m
+     where m.deleted_at is null and coalesce(m.internal, false) = false
+  ),
+  waiting as (
+    select w.client_id, max(w.hours) hours
+      from (
+        select t.client_id,
+               extract(epoch from (now() - min(t.created_at))) / 3600.0 hours
+          from msgs t
+         where t.author_kind = 'client'
+           and t.created_at > coalesce((select max(s2.created_at) from msgs s2
+                                         where s2.client_id = t.client_id and s2.pe = t.pe
+                                           and s2.author_kind = 'staff'), '-infinity'::timestamptz)
+         group by t.client_id, t.pe
+      ) w
+     group by w.client_id
+  ),
+  month_hours as (
+    select res.client_id, sum(a.minutes) / 60.0 h
+      from qbo_time_activities a
+      join qbo_customer_resolution res
+        on res.realm_id = a.realm_id and res.qbo_customer_id = a.customer_qbo_id
+     where v_admin and a.txn_date >= date_trunc('month', current_date)::date
+       and res.client_id is not null
+     group by res.client_id
+  ),
+  sops as (
+    select * from public.client_sop_status()
+  ),
   factors as (
     select c.id,
       case when coalesce(o.n, 0) > 0 then jsonb_build_object(
@@ -138,16 +212,39 @@ begin
       case when v_admin and v_target is not null and v_margin ? c.id
                 and (v_margin ->> c.id)::numeric < v_target then
         jsonb_build_object('key', 'margin', 'points', 15, 'label',
-          'Margin ' || round((v_margin ->> c.id)::numeric) || '% (target ' || round(v_target) || '%)') end f5
+          'Margin ' || round((v_margin ->> c.id)::numeric) || '% (target ' || round(v_target) || '%)') end f5,
+      case when coalesce(dq.n, 0) > 0 then jsonb_build_object(
+        'key', 'doc_overdue', 'points', least(15, dq.n * 5),
+        'label', dq.n || ' overdue document request' || case when dq.n = 1 then '' else 's' end) end f6,
+      case when wt.hours > 24 then jsonb_build_object('key', 'client_wait', 'points', 10, 'label',
+        'Client waiting on a reply for ' || case when wt.hours >= 48 then floor(wt.hours / 24) || ' days'
+                                                 else floor(wt.hours) || ' hours' end) end f7,
+      case when v_admin and cp.monthly_hours_budget is not null and coalesce(mh.h, 0) > cp.monthly_hours_budget then
+        jsonb_build_object('key', 'hours_over', 'points', 10, 'label',
+          'Over hours budget (' || round(mh.h, 1) || ' of ' || round(cp.monthly_hours_budget, 1) || ' h this month)') end f8,
+      case
+        when sp.client_id is null or sp.filled * 2 < sp.total then
+          jsonb_build_object('key', 'sop', 'points', 5, 'label',
+            case when coalesce(sp.filled, 0) = 0 then 'No SOP written yet'
+                 else 'SOP only ' || sp.filled || ' of ' || sp.total || ' sections filled' end)
+        when sp.last_touched < now() - interval '180 days' then
+          jsonb_build_object('key', 'sop', 'points', 5, 'label',
+            'SOP not updated in ' || (current_date - sp.last_touched::date) || ' days')
+      end f9
     from c
     left join overdue o on o.client_id = c.id
     left join qbo_connections q on q.client_id = c.id
     left join app_time apt on apt.client_id = c.id
     left join qbo_time qt on qt.client_id = c.id
+    left join docs dq on dq.client_id = c.id
+    left join waiting wt on wt.client_id = c.id
+    left join month_hours mh on mh.client_id = c.id
+    left join client_profile cp on cp.client_id = c.id
+    left join sops sp on sp.client_id = c.id
   ),
   scored as (
     select f.id,
-      coalesce((select jsonb_agg(x) from unnest(array[f.f1, f.f2, f.f3, f.f4, f.f5]) x where x is not null),
+      coalesce((select jsonb_agg(x) from unnest(array[f.f1, f.f2, f.f3, f.f4, f.f5, f.f6, f.f7, f.f8, f.f9]) x where x is not null),
                '[]'::jsonb) rs
     from factors f
   )
@@ -156,8 +253,8 @@ begin
          z.rs
     from (
       select s.id, s.rs,
-             greatest(0, 100 - coalesce((select sum((e ->> 'points')::int)
-                                          from jsonb_array_elements(s.rs) e), 0))::int sc
+             least(100, greatest(0, 100 - coalesce((select sum((e ->> 'points')::int)
+                                          from jsonb_array_elements(s.rs) e), 0)))::int sc
         from scored s
     ) z;
 end;

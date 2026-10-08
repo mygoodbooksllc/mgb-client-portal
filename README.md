@@ -611,6 +611,16 @@ Team Reviews files.
   UI: `components/staff/Deadlines.jsx` (`DL_`), page `#/deadlines` (all staff) and Home card
   `upcoming-deadlines`. **Create task** adds a `staff_reminders` row with `source='deadline'`,
   `source_ref` = item id. Guide: `deadlines.md`.
+- **Client health board.** `supabase/client-health.sql` (migration `client_health_board`) adds four
+  deductions to `client_health()`: overdue document requests 5 each (max 15), a client waiting over
+  24h for a reply 10, over the monthly hours budget 10 (admins only, QuickBooks Time this calendar
+  month) and SOP stale (over 180 days) or under half filled 5. The score is clamped to 0-100.
+  `client_sop_status()` (staff, `can_access_client`) returns last edit and filled sections; its 7
+  section ids are hardcoded and must match `CLIENT_SOP_SECTIONS` in `app.jsx`. UI:
+  `components/staff/HealthBoard.jsx` (`HLB_`): Team tab **Client health** (`#/team/health`, admins;
+  sortable grid, filters by band, bookkeeper/backup, reason) and Home card `clients-at-risk`
+  (red/amber from the clients the viewer sees). The local `clientHealthSignal` in `app.jsx` is
+  separate and doesn't use these rules. Guide: `client-health.md`.
 
 ### Client side (and staff viewing a client)
 

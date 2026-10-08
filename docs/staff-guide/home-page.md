@@ -2,7 +2,7 @@
 title: What's on my Home page?
 section: Getting started
 audience: staff
-keywords: [home, reply time, my time off, upcoming deadlines, deadlines, time off, dashboard, needs you, needs attention, needs you now, this week, all clear, colors, red, amber, priority, reminders, upgrade requests, access requests, needs a visit, recently viewed, customize, add widgets, saved views, reset layout, financial overview, board-ready, live report, status, handoff, custom card, new custom card, watchlist, filtered list, checklist, notes, layout, columns, arrange]
+keywords: [home, clients at risk, health score, reply time, my time off, upcoming deadlines, deadlines, time off, dashboard, needs you, needs attention, needs you now, this week, all clear, colors, red, amber, priority, reminders, upgrade requests, access requests, needs a visit, recently viewed, customize, add widgets, saved views, reset layout, financial overview, board-ready, live report, status, handoff, custom card, new custom card, watchlist, filtered list, checklist, notes, layout, columns, arrange]
 sort: 40
 ---
 **Home** is your starting point. It shows what needs you across every client you can see, sorted by how soon it needs doing. To open a client, use the client picker or the search box in the [top bar](#/help/top-bar).
@@ -21,6 +21,8 @@ At the top, a line like **3 need you now · 5 this week** sums it up. Click it t
 The **Your reply time** tile shows your median reply to client messages this month and how many conversations are waiting over 24 hours. See [How do I read reply times?](#/help/reply-times).
 
 The **My time off** card lists your upcoming days out. Click **+ Add time off** to add more. See [How do I add time off and make sure my clients are covered?](#/help/time-off-coverage).
+
+The **Clients at risk** card lists clients whose health score is **At risk** (red) or **Watch** (amber), lowest first, with the top two reasons. Bookkeepers see only their own clients. See [What does client health mean?](#/help/client-health).
 
 The **Upcoming deadlines** card lists filing deadlines for your clients in the next 30 days, plus anything overdue and not filed. Verify each date before filing. See [How do I track filing deadlines?](#/help/deadlines).
 

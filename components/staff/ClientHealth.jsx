@@ -156,13 +156,13 @@ function HL_HealthCard({ clientId }) {
               ))}
             </ul>
           ) : (
-            <p className="ov-foot" style={{ marginTop: 8 }}>Nothing flagged. Tasks, QuickBooks, activity and close are on track.</p>
+            <p className="ov-foot" style={{ marginTop: 8 }}>Nothing flagged. Tasks, QuickBooks, activity, close, requests, replies and the SOP are on track.</p>
           )}
         </React.Fragment>
       )}
       <p className="ov-foot">
-        Score out of 100 from overdue tasks, QuickBooks connection, staff activity in the last 30 days and month-end
-        close.{" "}
+        Score out of 100 from overdue tasks, QuickBooks connection, staff activity in the last 30 days, month-end close,
+        overdue document requests, client replies waiting, and the SOP.{" "}
         <button type="button" className="link-btn hl-refresh" onClick={reload}>
           Refresh
         </button>

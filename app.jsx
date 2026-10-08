@@ -17213,6 +17213,12 @@ function BookkeeperHomePage({
         "Overdue bills, requests, unread messages and reminders, most urgent first",
     },
     {
+      id: "clients-at-risk",
+      group: "content",
+      label: "Clients at risk",
+      description: "Clients whose health score is At risk or Watch, worst first",
+    },
+    {
       id: "upcoming-deadlines",
       group: "content",
       label: "Upcoming deadlines",
@@ -17571,6 +17577,18 @@ function BookkeeperHomePage({
               </div>
             );
           }
+          if (id === "clients-at-risk")
+            return typeof HLB_AtRiskBody === "function" ? (
+              <div
+                className={"card home-card home-tone-keep " + drag.dragClass(id)}
+                key={id}
+                {...drag.dragProps(id)}
+              >
+                <h3 className="card-title">Clients at risk</h3>
+                <p className="card-subtitle">Health score At risk (red) or Watch (amber), lowest first.</p>
+                <HLB_AtRiskBody clients={clients} staffUser={staffUser} />
+              </div>
+            ) : null;
           if (id === "upcoming-deadlines")
             return typeof DL_UpcomingDeadlinesBody === "function" ? (
               <div
