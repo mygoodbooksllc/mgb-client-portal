@@ -89,7 +89,7 @@ function render(alerts: Alert[], resolved: Resolved[], open: number) {
     L.p(
       `${open ? `${open} problem${open === 1 ? "" : "s"} open right now. ` : "Nothing else is open right now. "}` +
         `QuickBooks syncs are on each client's page in the app; ` +
-        L.link(`${APP_URL}/#/home`, "open the app &rarr;"),
+        L.link(`${APP_URL}/#/today`, "open the app &rarr;"),
       { size: 13.5, margin: "4px 0 12px 0" },
     ),
     { padding: "16px 24px 8px 24px" },
@@ -116,7 +116,7 @@ function render(alerts: Alert[], resolved: Resolved[], open: number) {
     ...(resolved.length
       ? ["RESOLVED", ...resolved.map((r) => `- ${r.title} (cleared ${when(r.resolved_at)})`), ""]
       : []),
-    `Open the app: ${APP_URL}/#/home`,
+    `Open the app: ${APP_URL}/#/today`,
     "Internal health check, every 15 minutes. At most one email per problem per 24 hours. Test clients are excluded.",
   ].join("\n");
 

@@ -254,7 +254,7 @@ function needsAttentionSection(na: any): Section | null {
     title: "Needs attention",
     html,
     text: textTable(text),
-    link: { label: "Open the client list", href: `${APP_URL}/#/home` },
+    link: { label: "Open the client list", href: `${APP_URL}/#/clients` },
   };
 }
 
@@ -291,12 +291,12 @@ function feeChangesSection(f: any): Section | null {
     ))
     : "  No milestone changes this week.") +
     (unconfirmed ? `\n  ${plural(unconfirmed, "client has", "clients have")} no confirmed milestone yet.` : "");
-  return { title: "Fee changes to review", html, text, link: { label: "Open Milestones to review on Home", href: `${APP_URL}/#/home` } };
+  return { title: "Fee changes to review", html, text, link: { label: "Open Milestones to review on Today", href: `${APP_URL}/#/today` } };
 }
 
 function buildSections(d: any): Section[] {
   const out: Section[] = [];
-  const team = { label: "Open the Team page", href: `${APP_URL}/#/team` };
+  const team = { label: "Open the Hours tab", href: `${APP_URL}/#/team/hours` };
   const firmOn = d.firm_qbo?.status === "connected" || d.firm_qbo?.status === "error";
 
   // 0. Needs attention (omitted when everything's fine)
@@ -489,7 +489,7 @@ function buildSections(d: any): Section[] {
       title: "Stale clients",
       html,
       text: lines.length ? textTable(lines) : "  Nothing this week.",
-      link: { label: "Open the client list", href: `${APP_URL}/#/home` },
+      link: { label: "Open the client list", href: `${APP_URL}/#/clients` },
     });
   }
 
@@ -565,7 +565,7 @@ function buildSections(d: any): Section[] {
           `[${KIND_LABEL[r.kind] || r.kind}] ${r.author_name || r.author_email}: ${clip(r.message)}`
         )) + `\n  ${weekLine}`;
     }
-    out.push({ title: "Staff feedback", html, text, link: { label: "Open the Feedback page", href: `${APP_URL}/#/feedback` } });
+    out.push({ title: "Staff feedback", html, text, link: { label: "Open the Feedback tab", href: `${APP_URL}/#/team/feedback` } });
   }
 
   return out;

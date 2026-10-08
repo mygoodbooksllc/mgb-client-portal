@@ -273,7 +273,7 @@ function fmtDue(d: string | null | undefined): string {
 function emailFor(n: any, to: any, review: any): { subject: string; lines: string[]; cta: string; href: string } | null {
   const p = n.payload || {};
   const cycle = p.cycle || "this quarter";
-  const reviewLink = n.review_id ? `${APP_URL}#/reviews/r/${n.review_id}` : `${APP_URL}#/reviews`;
+  const reviewLink = n.review_id ? `${APP_URL}#/team/reviews/r/${n.review_id}` : `${APP_URL}#/team/reviews`;
   const isReviewer = review && review.reviewer_id === n.to_staff_id;
   const staffName = p.staff_name || review?.staff_name || "the team member";
   const revFirst = firstName(review?.reviewer_name) || "your reviewer";
@@ -336,7 +336,7 @@ function emailFor(n: any, to: any, review: any): { subject: string; lines: strin
       return {
         subject: n.kind === "due_soon" ? `${cycle} review due ${fmtDue(p.due_at)}` : `Reminder: ${cycle} review due ${fmtDue(p.due_at)}`,
         lines: [`Still to do for ${cycle}:`, ...items.map((i) => "- " + i)],
-        cta: "Open Reviews", href: t.survey && !t.self && !t.manager && !t.sign ? `${APP_URL}#/reviews/survey` : reviewLink,
+        cta: "Open Reviews", href: t.survey && !t.self && !t.manager && !t.sign ? `${APP_URL}#/team/reviews/survey` : reviewLink,
       };
     }
     case "locked": {

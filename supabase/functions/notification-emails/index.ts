@@ -231,8 +231,8 @@ Deno.serve(async (req) => {
         preheader: shown.map((t) => t.text).join(", ").slice(0, 140),
         lines: [`You have ${plural(list.length, "open task")} due today (${esc(fmtDay(today))}):`, L.bullets([...items, ...(more > 0 ? [L.tone(`and ${more} more`, "muted")] : [])])],
         textLines: [`You have ${plural(list.length, "open task")} due today (${fmtDay(today)}):`, ...shown.map((t) => `- ${String(t.text || "").slice(0, 200)}`), ...(more > 0 ? [`and ${more} more`] : [])],
-        cta: "Open My Tasks",
-        href: `${APP_URL}#/tasks`,
+        cta: "Open your tasks",
+        href: `${APP_URL}#/work/tasks`,
       });
       await deliver("staff_task_due", to, email, null);
     }
@@ -371,8 +371,8 @@ Deno.serve(async (req) => {
             `${by.length === 1 ? by[0] : "Your team"} assigned you ${list.length === 1 ? "a task" : `${list.length} tasks`}${client ? ` for ${cname}` : ""}:`,
             ...items.map((i) => `- ${i.text}${i.due ? ` (due ${i.due})` : ""}`),
           ],
-          cta: "Open My Tasks",
-          href: `${APP_URL}#/tasks`,
+          cta: "Open your tasks",
+          href: `${APP_URL}#/work/tasks`,
         });
       } else {
         // staff_feedback_status: the latest change per feedback item wins.
