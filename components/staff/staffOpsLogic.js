@@ -324,6 +324,32 @@ function OPS_describeDueRule(rule) {
   return "Every year: " + md(r.month, r.day);
 }
 
+// ---- Shout-outs (supabase/staff-shoutouts.sql)
+var OPS_SHOUTOUT_MAX = 500;
+
+// Calendar quarter q (1-4) of year as [from, toExclusive] "YYYY-MM-DD"
+// strings, for the review form's "Shout-outs this quarter". Bad input => null.
+function OPS_quarterRange(year, quarter) {
+  var y = Number(year), q = Number(quarter);
+  if (!(y > 1900) || !(q >= 1 && q <= 4) || Math.floor(q) !== q) return null;
+  var m = (q - 1) * 3 + 1;
+  var pad = function (n) { return (n < 10 ? "0" : "") + n; };
+  var from = y + "-" + pad(m) + "-01";
+  var to = q === 4 ? (y + 1) + "-01-01" : y + "-" + pad(m + 3) + "-01";
+  return [from, to];
+}
+
+// Problem with a draft shout-out, or "" when it can be sent.
+function OPS_shoutoutError(toEmail, body, meEmail) {
+  var to = String(toEmail || "").trim().toLowerCase();
+  var text = String(body || "").trim();
+  if (!to) return "Pick who it's for.";
+  if (to === String(meEmail || "").trim().toLowerCase()) return "You can't send a shout-out to yourself.";
+  if (!text) return "Write a short note.";
+  if (text.length > OPS_SHOUTOUT_MAX) return "Keep it under " + OPS_SHOUTOUT_MAX + " characters.";
+  return "";
+}
+
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {
     OPS_BUDGET_WARN: OPS_BUDGET_WARN, OPS_BUDGET_OVER: OPS_BUDGET_OVER,
@@ -334,5 +360,6 @@ if (typeof module !== "undefined" && module.exports) {
     OPS_DEADLINE_SOON_DAYS: OPS_DEADLINE_SOON_DAYS, OPS_ymd: OPS_ymd, OPS_dayDiff: OPS_dayDiff,
     OPS_rollWeekend: OPS_rollWeekend, OPS_fyeMonth: OPS_fyeMonth, OPS_ruleApplies: OPS_ruleApplies,
     OPS_ruleOccurrences: OPS_ruleOccurrences, OPS_deadlineItems: OPS_deadlineItems, OPS_describeDueRule: OPS_describeDueRule,
+    OPS_SHOUTOUT_MAX: OPS_SHOUTOUT_MAX, OPS_quarterRange: OPS_quarterRange, OPS_shoutoutError: OPS_shoutoutError,
   };
 }

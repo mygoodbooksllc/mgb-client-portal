@@ -270,3 +270,40 @@
   .hlb-row-red { border-left: 3px solid var(--bad); }
   .hlb-row-amber { border-left: 3px solid var(--gold-deep); }
 }
+
+/* ---- Shout-outs (Shoutouts.jsx, SO_) ---- */
+.so-card { min-width: 0; }
+.so-new { margin: 4px 0 4px; }
+.so-form {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 10px 12px;
+  margin: 8px 0 12px;
+}
+.so-form .task-field { min-width: 0; }
+.so-form .task-field input, .so-form .task-field select, .so-form .task-field textarea { width: 100%; box-sizing: border-box; }
+.so-form textarea { font: inherit; resize: vertical; min-height: 64px; }
+.so-form-body { grid-column: 1 / -1; }
+.so-count { align-self: flex-end; color: var(--text-muted); font-size: 11px; }
+.so-list { list-style: none; margin: 8px 0 0; padding: 0; }
+.so-item { padding: 10px 0; border-top: 1px solid var(--border); min-width: 0; }
+.so-item:first-child { border-top: none; }
+.so-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 6px; font-size: 13px; }
+.so-arrow { color: var(--text-muted); }
+.so-client { font-size: 11px; background: var(--surface-2); color: var(--text-muted); }
+.so-when { margin-left: auto; color: var(--text-muted); font-size: 12px; white-space: nowrap; }
+.so-body { margin: 4px 0 0; font-size: 14px; white-space: pre-wrap; overflow-wrap: anywhere; }
+.so-actions { display: flex; gap: 10px; align-items: baseline; margin-top: 4px; font-size: 12px; }
+.so-hidden .so-head, .so-hidden .so-body { opacity: 0.55; }
+.so-hidden-tag { color: var(--text-muted); font-style: italic; }
+.so-more { margin-top: 8px; }
+.so-empty { margin-top: 8px; }
+.so-review { margin-top: 10px; padding: 10px 12px; border: 1px dashed var(--border); border-radius: 8px; background: var(--surface-2); }
+.so-review-head { font-weight: 600; font-size: 13px; }
+.so-review-note { font-weight: 400; color: var(--text-muted); }
+.so-review-list { list-style: none; margin: 6px 0 0; padding: 0; }
+.so-review-list li { padding: 6px 0; border-top: 1px solid var(--border); font-size: 13px; }
+.so-review-list li:first-child { border-top: none; }
+.so-review-from { display: block; color: var(--text-muted); font-size: 12px; }
+.so-review-body { white-space: pre-wrap; overflow-wrap: anywhere; }
+.so-review .tr-muted { margin: 6px 0 0; }

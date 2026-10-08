@@ -17231,6 +17231,12 @@ function BookkeeperHomePage({
       description: "Your upcoming time off, with a quick way to add some",
     },
     {
+      id: "shoutouts",
+      group: "content",
+      label: "Shout-outs",
+      description: "Thank a teammate, and see the team's recent shout-outs",
+    },
+    {
       id: "your-reminders",
       group: "content",
       label: "Your reminders",
@@ -17611,6 +17617,18 @@ function BookkeeperHomePage({
                 <h3 className="card-title">My time off</h3>
                 <p className="card-subtitle">Days you're out. The whole team can see these.</p>
                 <CV_MyTimeOffBody staffUser={staffUser} />
+              </div>
+            ) : null;
+          if (id === "shoutouts")
+            return typeof SO_ShoutoutsBody === "function" ? (
+              <div
+                className={"card home-card home-tone-keep " + drag.dragClass(id)}
+                key={id}
+                {...drag.dragProps(id)}
+              >
+                <h3 className="card-title">Shout-outs</h3>
+                <p className="card-subtitle">Thank a teammate. The whole team can see these.</p>
+                <SO_ShoutoutsBody clients={clients} staffUser={staffUser} />
               </div>
             ) : null;
           if (id === "recently-viewed")

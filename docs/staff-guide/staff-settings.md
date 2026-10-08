@@ -29,7 +29,7 @@ Your photo shows in the top bar. Your name, title, phone and photo also show on 
 
 The emails only say what happened and link to the portal. They never include the message text or amounts. Until the firm's email sender is fully set up, these emails may not arrive yet; the **Emails** page (admins) shows what was sent.
 
-**Show in the bell** picks what the bell in the top bar lists: client messages waiting, documents uploaded, tasks assigned to you, and month-end closes that are blocked.
+**Show in the bell** picks what the bell in the top bar lists: client messages waiting, documents uploaded, tasks assigned to you, month-end closes that are blocked, and shout-outs for you.
 
 ### Appearance & start page
 

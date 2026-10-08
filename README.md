@@ -621,6 +621,14 @@ Team Reviews files.
   sortable grid, filters by band, bookkeeper/backup, reason) and Home card `clients-at-risk`
   (red/amber from the clients the viewer sees). The local `clientHealthSignal` in `app.jsx` is
   separate and doesn't use these rules. Guide: `client-health.md`.
+- **Shout-outs.** `supabase/staff-shoutouts.sql`: `staff_shoutouts` (all active staff read; insert as
+  yourself only; authors hide their own, admins any, via `hidden_at`/`hidden_by`; no deletes; a
+  guard trigger stamps the author and freezes everything but the hidden flag; hidden rows are
+  visible only to the author and admins). UI: `components/staff/Shoutouts.jsx` (`SO_`): Home card
+  `shoutouts` (feed, last 90 days, plus compose) and `SO_ReviewShoutouts` on the manager's review
+  form (Appreciation, the review's quarter, read-only, not saved into the review). The recipient
+  gets a `shout:` bell item (`TopBar.jsx`; Settings bell toggle "Shout-outs for me"). No email.
+  Guide: `shoutouts.md`.
 
 ### Client side (and staff viewing a client)
 

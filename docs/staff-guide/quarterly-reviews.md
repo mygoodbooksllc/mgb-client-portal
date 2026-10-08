@@ -2,7 +2,7 @@
 title: How do quarterly reviews work?
 section: Daily work
 audience: staff
-keywords: [review, reviews, quarterly review, self-review, performance, jesse, reviewer, compare, comparison, sign, signature, action steps, history, pdf, download, disagree, rating, score, camaraderie, ownership, healthy hustle, year-end]
+keywords: [review, shout-outs, reviews, quarterly review, self-review, performance, jesse, reviewer, compare, comparison, sign, signature, action steps, history, pdf, download, disagree, rating, score, camaraderie, ownership, healthy hustle, year-end]
 sort: 145
 ---
 Once a quarter you fill in a short self-review, your reviewer (usually Jesse) fills in the same form about you, and then you meet, agree on action steps and both sign. Everything lives on the **Reviews** page in the staff sidebar. The number next to **Reviews** shows how many things are waiting on you.
@@ -24,6 +24,8 @@ Rules the form checks before you can submit:
 - Every item needs a rating.
 - Any rating below 3 needs a comment in that section, and an action step.
 - A total below 18 needs comments in all three sections and an action step.
+
+On the reviewer's form, the **Appreciation** box shows that person's shout-outs from the quarter, for reference only. They aren't part of the review. See [How do I give a teammate a shout-out?](#/help/shoutouts).
 
 Your answers save as a draft while you work. Once you submit, the form is read-only.
 

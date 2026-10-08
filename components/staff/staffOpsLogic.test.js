@@ -185,4 +185,17 @@ t("deadline items: filters, overrides, legacy dates, status", () => {
   assert.ok(/after the fiscal year end/.test(L.OPS_describeDueRule(RULES[3])));
 });
 
+t("quarter range and shout-out validation", () => {
+  assert.deepStrictEqual(L.OPS_quarterRange(2026, 1), ["2026-01-01", "2026-04-01"]);
+  assert.deepStrictEqual(L.OPS_quarterRange("2026", "3"), ["2026-07-01", "2026-10-01"]);
+  assert.deepStrictEqual(L.OPS_quarterRange(2026, 4), ["2026-10-01", "2027-01-01"]);
+  assert.strictEqual(L.OPS_quarterRange(2026, 5), null);
+  assert.strictEqual(L.OPS_quarterRange(null, 1), null);
+  assert.strictEqual(L.OPS_shoutoutError("", "hi", "a@x"), "Pick who it's for.");
+  assert.ok(/yourself/.test(L.OPS_shoutoutError("A@x ", "hi", "a@x")));
+  assert.strictEqual(L.OPS_shoutoutError("b@x", "   ", "a@x"), "Write a short note.");
+  assert.ok(/500/.test(L.OPS_shoutoutError("b@x", "y".repeat(501), "a@x")));
+  assert.strictEqual(L.OPS_shoutoutError("b@x", "Thanks!", "a@x"), "");
+});
+
 console.log("staffOpsLogic: " + n + " checks passed");

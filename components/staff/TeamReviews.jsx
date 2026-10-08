@@ -545,6 +545,14 @@ function TR_ReviewForm({ review, kind, onDone }) {
                   {l}
                 </label>
                 <textarea id={"tr-" + k} className="tr-ta" value={form[k] || ""} onChange={(e) => set(k, e.target.value)} />
+                {k === "appreciation" && typeof SO_ReviewShoutouts === "function" && review.staff && review.cycle && (
+                  <SO_ReviewShoutouts
+                    email={review.staff.email}
+                    name={staffFirst}
+                    year={review.cycle.year}
+                    quarter={review.cycle.quarter}
+                  />
+                )}
               </div>
             ))}
           </div>

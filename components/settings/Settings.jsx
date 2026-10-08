@@ -64,6 +64,7 @@ const ST_BELL_PREFS = [
   { key: "documents", prefix: "doc:", label: "Documents uploaded" },
   { key: "tasks", prefix: "task:", label: "Tasks assigned to me" },
   { key: "close", prefix: "close:", label: "Month-end close blocked" },
+  { key: "shoutouts", prefix: "shout:", label: "Shout-outs for me" },
 ];
 const ST_START_PAGES = [
   { value: "home", label: "Home", sub: "Your clients, tasks and messages at a glance." },

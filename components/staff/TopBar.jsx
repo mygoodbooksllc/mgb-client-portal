@@ -611,6 +611,35 @@ function TB_useBellItems({ clients, items, me, isAdmin, page }) {
     window.addEventListener("mgb:staff-tools-changed", loadTplSuggest);
     return () => window.removeEventListener("mgb:staff-tools-changed", loadTplSuggest);
   }, [loadTplSuggest, page]);
+  // Shout-outs to me in the last 30 days (Shoutouts.jsx, staff-shoutouts.sql).
+  const [shouts, setShouts] = useState([]);
+  const loadShouts = useCallback(async () => {
+    const sb = window.mgbSupabase;
+    if (!sb || !me) {
+      setShouts([]);
+      return;
+    }
+    const res = await Promise.resolve(
+      sb
+        .from("staff_shoutouts")
+        .select("id, from_email, body, created_at")
+        .eq("to_email", TB_lc(me))
+        .is("hidden_at", null)
+        .gte("created_at", new Date(Date.now() - 30 * 864e5).toISOString())
+        .order("created_at", { ascending: false })
+        .limit(20),
+    ).then((r) => r, (e) => ({ data: null, error: e }));
+    setShouts(res && !res.error && Array.isArray(res.data) ? res.data : []);
+  }, [me]);
+  useEffect(() => {
+    loadShouts();
+    const id = setInterval(() => !document.hidden && loadShouts(), TB_BELL_REFRESH_MS);
+    window.addEventListener("mgb:staff-tools-changed", loadShouts);
+    return () => {
+      clearInterval(id);
+      window.removeEventListener("mgb:staff-tools-changed", loadShouts);
+    };
+  }, [loadShouts, page]);
   const idsKey = (clients || []).map((c) => c.id).sort().join(",");
   const load = useCallback(async () => {
     const sb = window.mgbSupabase;
@@ -725,6 +754,15 @@ function TB_useBellItems({ clients, items, me, isAdmin, page }) {
         go: () => TB_go("#/close-tracker"),
       }),
     );
+  shouts.forEach((row) =>
+    out.push({
+      id: "shout:" + row.id,
+      at: row.created_at,
+      title: `Shout-out from ${typeof CV_nameOf === "function" && typeof CV_dir !== "undefined" ? CV_nameOf(CV_dir.list, row.from_email) : String(row.from_email || "").split("@")[0]}`,
+      sub: String(row.body || "").replace(/\s+/g, " ").slice(0, 80),
+      go: () => TB_go("#/home"),
+    }),
+  );
   tplSuggest.forEach((row) =>
     out.push({
       id: "tsug:" + row.id,
