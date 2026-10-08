@@ -155,8 +155,16 @@ function NAV_useHashSub(slug, keys, fallback) {
 // tablist (arrow keys move, Home/End jump) styled by staff-nav.css.
 //   <NAV_TabRow label="Work" tabs={[{key,label,badge?}]} current={tab} onSelect={setTab} idPrefix="wk" />
 // `badge` is an optional node rendered after the label (a count or dot).
-function NAV_TabRow({ label, tabs, current, onSelect, idPrefix, className, right }) {
+function NAV_TabRow({ label, tabs, current, onSelect, idPrefix, className, right, inTopbar }) {
   const prefix = idPrefix || "nav";
+  // 2026-10-08: the row renders inside the app's top bar (#app-topbar-tabs,
+  // App in app.jsx) when that slot exists, so the page title and its tabs
+  // share one surface. Layout effect so the row never paints in the body
+  // first. Pass inTopbar={false} to keep a row where it is.
+  const [slot, setSlot] = React.useState(null);
+  React.useLayoutEffect(() => {
+    setSlot(inTopbar === false ? null : document.getElementById("app-topbar-tabs"));
+  }, [inTopbar]);
   const onKeyDown = (e) => {
     const i = tabs.findIndex((t) => t.key === current);
     let next = null;
@@ -170,7 +178,7 @@ function NAV_TabRow({ label, tabs, current, onSelect, idPrefix, className, right
     const el = document.getElementById(prefix + "-tab-" + next.key);
     if (el) el.focus();
   };
-  return (
+  const row = (
     <div className={"nav-tabs-row" + (className ? " " + className : "")}>
       <div className="nav-tabs" role="tablist" aria-label={label} onKeyDown={onKeyDown}>
         {tabs.map((t) => (
@@ -195,4 +203,5 @@ function NAV_TabRow({ label, tabs, current, onSelect, idPrefix, className, right
       {right ? <div className="nav-tabs-right">{right}</div> : null}
     </div>
   );
+  return slot && typeof ReactDOM !== "undefined" ? ReactDOM.createPortal(row, slot) : row;
 }

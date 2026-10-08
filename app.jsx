@@ -25943,17 +25943,13 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
               onMessage={siStaffChat ? () => setSiDrawer({ clientId: client.id }) : undefined}
             />
           )}
-          {/* What the client (or staff previewing as them) sees on every
-              page while their bookkeeper is waiting on a document. */}
-          {!NON_CLIENT_PAGES.has(effectivePage) &&
-            effectivePage !== "documents" &&
-            (!isStaffSession || isPreviewingUser) &&
-            access.tabs.has("documents") && (
-              <DocRequestBanner
-                requests={openDocRequests}
-                onOpen={() => setPage("documents")}
-              />
-            )}
+          {/* 2026-10-08: one top bar. The page header and the current page's
+              tab row share a single surface (styles.css .app-topbar): white
+              over the cream page in light, the sidebar colour in dark so rail,
+              tool bar and header read as one frame. NAV_TabRow
+              (components/staff/StaffNav.jsx) portals a page's tabs into
+              #app-topbar-tabs below. */}
+          <div className="app-topbar">
           <div className="page-header app-header">
             <div>
               {/* Staff on a client's pages get "Clients › Grace Community ›
@@ -26092,6 +26088,21 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
               onOpenClientSettings={openClientSettings}
             />
           )}
+          {/* Slot for the current page's NAV_TabRow (Work, Team, a client's
+              tabs). Empty on pages without tabs; CSS hides it then. */}
+          <div id="app-topbar-tabs" className="app-topbar-tabs" />
+          </div>
+          {/* What the client (or staff previewing as them) sees on every
+              page while their bookkeeper is waiting on a document. */}
+          {!NON_CLIENT_PAGES.has(effectivePage) &&
+            effectivePage !== "documents" &&
+            (!isStaffSession || isPreviewingUser) &&
+            access.tabs.has("documents") && (
+              <DocRequestBanner
+                requests={openDocRequests}
+                onOpen={() => setPage("documents")}
+              />
+            )}
 
           {/* Client guided tour + Dashboard setup checklist (components/tour/Tour.jsx). */}
           {typeof TOUR_Root === "function" && !NON_CLIENT_PAGES.has(effectivePage) && (
