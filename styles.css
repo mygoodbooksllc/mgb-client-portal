@@ -9988,3 +9988,20 @@ button.home-todo-main:hover { background: var(--surface-2); }
   opacity: 0.4;
   cursor: default;
 }
+
+/* Client places (app.jsx CLIENT_PLACES): Messages › Requests and the one
+   locked-tab card Basic sees in place of a Pro tool. */
+.client-locked-card { max-width: 560px; }
+.client-requests-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.client-requests-item {
+  display: flex; justify-content: space-between; align-items: flex-start; gap: 12px;
+  padding: 10px 12px; border: 1px solid var(--border); border-radius: 10px;
+}
+.client-requests-item.overdue { border-color: var(--danger, #c0392b); }
+.client-requests-main { display: grid; gap: 2px; min-width: 0; }
+.client-requests-details { color: var(--text-muted); font-size: 13px; }
+.client-requests-meta { color: var(--text-muted); font-size: 12px; white-space: nowrap; }
+.client-requests-item.overdue .client-requests-meta { color: var(--danger, #c0392b); }
+@media (max-width: 640px) {
+  .client-requests-item { flex-direction: column; }
+}

@@ -516,6 +516,76 @@ function CLIENT_lastTab(placeKey, pages) {
   } catch (e) {}
   return last && pages.indexOf(last) !== -1 ? last : pages[0];
 }
+// Fourth hash segment on a client page (#/client/<id>/reports/packet).
+function CLIENT_subFromHash() {
+  try {
+    const parts = String(window.location.hash || "").replace(/^#\/?/, "").split(/[?]/)[0].split("/").filter(Boolean);
+    if (parts[0] === "client" && parts[2] && parts[3]) return { page: parts[2], sub: parts[3] };
+  } catch (e) {}
+  return { page: null, sub: null };
+}
+// One card for anything Basic doesn't include (owner-approved: replaces
+// the inline upsell panels). See plans opens Settings › Plan.
+function CLIENT_LockedCard({ title, text, onSeePlans }) {
+  return (
+    <div className="card client-locked-card">
+      <h3 className="card-title" style={{ marginBottom: 4 }}>
+        {title}
+      </h3>
+      <p className="card-subtitle" style={{ margin: "0 0 14px" }}>
+        {text}
+      </p>
+      <button type="button" className="btn-primary" onClick={onSeePlans}>
+        See plans
+      </button>
+    </div>
+  );
+}
+// Messages › Requests: what the bookkeeper is waiting on (document
+// requests). Uploading happens on Documents.
+function CLIENT_RequestsPanel({ requests, canUpload, onOpenDocuments }) {
+  const today = todayLocal();
+  const open = (requests || []).filter((r) => r.status === "open" || r.status === "uploaded");
+  return (
+    <div className="card client-requests">
+      <h3 className="card-title" style={{ marginBottom: 4 }}>
+        Requests from your bookkeeper
+      </h3>
+      <p className="card-subtitle" style={{ margin: "0 0 12px" }}>
+        {open.length
+          ? "Documents your bookkeeper has asked for. Upload them on Documents."
+          : "Nothing is waiting on you right now."}
+      </p>
+      {open.length > 0 && (
+        <ul className="client-requests-list">
+          {open.map((r) => {
+            const overdue = r.status === "open" && r.due_date && r.due_date < today;
+            return (
+              <li key={r.id} className={"client-requests-item" + (overdue ? " overdue" : "")}>
+                <div className="client-requests-main">
+                  <strong>{r.title}</strong>
+                  {r.details ? <span className="client-requests-details">{r.details}</span> : null}
+                </div>
+                <span className="client-requests-meta">
+                  {r.status === "uploaded"
+                    ? "Uploaded, waiting for review"
+                    : r.due_date
+                      ? (overdue ? "Overdue · due " : "Due ") + fmtDate(r.due_date)
+                      : "No due date"}
+                </span>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+      {open.length > 0 && canUpload && (
+        <button type="button" className="btn-primary" style={{ marginTop: 12 }} onClick={onOpenDocuments}>
+          Go to Documents
+        </button>
+      )}
+    </div>
+  );
+}
 function CLIENT_rememberTab(page) {
   const key = CLIENT_PLACE_OF_PAGE[page];
   const place = key && CLIENT_PLACES.find((p) => p.key === key);
@@ -1567,140 +1637,42 @@ function Sidebar({
               rendered non-Enterprise section gets a small heading reusing
               the existing "Finances" section label — presentation only, no
               change to NAV_SECTIONS, ordering or visibility. */}
-          {(() => {
-            let groupHeadingShown = false;
-            return NAV_SECTIONS.map((section) => {
-            const isSignature = section.label === "Plan";
-            // Standard-plan clients don't have the premium tabs at all
-            // (stripped out of access.tabs in resolveAccess), so `items`
-            // below already narrows itself to just Dashboard/Messages for
-            // them — no separate branch needed to keep those two reachable.
-            // The Premium badge + lock live on the section heading itself
-            // (clickable, opens the upgrade page) rather than a separate row
-            // spelling out which tools are locked.
-            const showUpsell = isSignature && !access.premiumForUser;
-            const items = orderedSectionItems(
-              section,
-              tabOrder,
-              selectedClientId,
-            ).filter((item) => visibleKeys.has(item.key));
-            if (items.length === 0 && !showUpsell) return null;
-            const showGroupHeading = !isSignature && !groupHeadingShown;
-            if (showGroupHeading) groupHeadingShown = true;
-            // Enterprise gets a static gold heading (not a toggle — it no
-            // longer collapses, so there's nothing for a click to do here).
-            // Every other section renders no heading at all, same as before.
-            const sectionId = "nav-section-" + slugify(section.label);
-            return (
-              <div
-                className={
-                  "nav-section" + (isSignature ? " nav-section-signature" : "")
-                }
-                key={section.label}
-              >
-                {isSignature && (
-                  // The client's milestone sits where "Enterprise" used to:
-                  // Pro clients get the gold Pro pill, everyone else the
-                  // lock, which opens the plans page.
-                  <div className="nav-section-label nav-section-label-signature nav-section-label-static nav-ms-heading" data-tour="milestone">
-                    {milestoneHeading.clickable ? (
-                      <button
-                        type="button"
-                        className="nav-ms-name"
-                        onClick={() => {
-                          onSelectPage("milestone");
-                          onCloseMobile();
-                        }}
-                        title="Open your milestone"
-                      >
-                        {milestoneHeading.text}
-                      </button>
-                    ) : (
-                      <span className="nav-ms-name">{milestoneHeading.text}</span>
-                    )}
-                    {showUpsell ? (
-                      <button
-                        type="button"
-                        className="nav-ms-lock"
-                        aria-label={`See plans — you're on ${planLabel(access.plan)}`}
-                        title={`You're on ${planLabel(access.plan)}. See plans`}
-                        onClick={() => {
-                          onSelectPage("enterprise-upgrade");
-                          onCloseMobile();
-                        }}
-                      >
-                        <LockIcon className="nav-upsell-icon" />
-                      </button>
-                    ) : (
-                      <span className="nav-signature-badge nav-signature-badge-shimmer">
-                        {PLAN_LABELS.premium}
-                      </span>
-                    )}
-                  </div>
-                )}
-                {isSignature && milestoneHeading.roman && (
-                  <div className="nav-ms-collapsed" aria-hidden="true">
-                    {milestoneHeading.roman}
-                  </div>
-                )}
-                {showGroupHeading && NAV_GROUP_HEADING && (
-                  <div className="nav-section-label nav-section-label-static nav-group-label">
-                    <span>{NAV_GROUP_HEADING}</span>
-                  </div>
-                )}
-                <div className="nav-section-items" id={sectionId}>
-                  {/* This list is exactly what the client sees; staff get the
-                      Clients breadcrumb and tab row instead. */}
-                  {items.map((item) => {
-                    // Same tab, same name, for every plan — the PRO pill (and
-                    // the gold shimmer that used to mark a whole separate
-                    // premium-only tab) is the only thing that marks this one
-                    // as showing the upgraded page underneath. See
-                    // PREMIUM_UPGRADE_TAB_KEYS and the showsBudgetingTool/
-                    // showsCashFlowPro/showsReportBuilder/showsReconciliationPro/
-                    // showsFundAccountingPro checks in App.
-                    const isUpgraded =
-                      PREMIUM_UPGRADE_TAB_KEYS.has(item.key) &&
-                      access &&
-                      access.premiumForUser &&
-                      !access.isCategoryScoped;
-                    return (
-                      <button
-                        key={item.key}
-                        data-tour={"nav-" + item.key}
-                        className={
-                          "nav-item" +
-                          (page === item.key ? " active" : "") +
-                          (isUpgraded ? " nav-item-signature" : "")
-                        }
-                        onClick={() => {
-                          onSelectPage(item.key);
-                          onCloseMobile();
-                        }}
-                        aria-label={collapsed ? item.label : undefined}
-                        onMouseEnter={(e) => item.short && showTip(e, item.label)}
-                        onMouseLeave={hideTip}
-                        onFocus={(e) => item.short && showTip(e, item.label)}
-                        onBlur={hideTip}
-                      >
-                        {item.icon}
-                        <span className="nav-item-label">{item.label}</span>
-                        {/* Collapsed sidebar: the tab name under the icon. */}
-                        <span className="nav-item-caption" aria-hidden="true">{item.short || item.label}</span>
-                        {badges[item.key] && (
-                          <span
-                            className="nav-badge-dot"
-                            aria-label="Unread"
-                          ></span>
-                        )}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            );
-            });
-          })()}
+          {/* The five places (CLIENT_PLACES). A tabbed place (Finances)
+              opens its last-used visible tab; the tab row renders in the
+              top bar (App). The milestone and plan moved to Home's org
+              card and Settings › Plan. */}
+          <div className="nav-section">
+            <div className="nav-section-items" id="nav-section-places">
+              {CLIENT_PLACES.map((place) => {
+                const pages = place.tabs
+                  ? place.tabs.filter((k) => visibleKeys.has(k))
+                  : visibleKeys.has(place.page)
+                    ? [place.page]
+                    : [];
+                if (pages.length === 0) return null;
+                const active = CLIENT_PLACE_OF_PAGE[page] === place.key;
+                const hasBadge = pages.some((k) => badges[k]);
+                return (
+                  <button
+                    key={place.key}
+                    data-tour={"nav-" + place.key}
+                    className={"nav-item" + (active ? " active" : "")}
+                    onClick={() => {
+                      onSelectPage(place.tabs ? CLIENT_lastTab(place.key, pages) : place.page);
+                      onCloseMobile();
+                    }}
+                    aria-label={collapsed ? place.label : undefined}
+                    aria-current={active ? "page" : undefined}
+                  >
+                    {place.icon}
+                    <span className="nav-item-label">{place.label}</span>
+                    <span className="nav-item-caption" aria-hidden="true">{place.label}</span>
+                    {hasBadge && <span className="nav-badge-dot" aria-label="Unread"></span>}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
         </nav>
       )}
 
@@ -24780,6 +24752,10 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
   // client never lands on a staff place like "today" — that's staff-only
   // chrome they can't render (no staffUser) — and a staff member never
   // starts on a client's Dashboard by accident (initialPage).
+  // Sub-tab inside a client place that isn't its own page (Reports ›
+  // Downloads | Board packet, Messages › Conversation | Requests). Keyed by
+  // page so it never leaks across pages. Mirrored into the hash's 4th segment.
+  const [clientSub, setClientSub] = useState(CLIENT_subFromHash);
   const [page, setPage] = useState(() => {
     const p = clientPortalUser ? initialPage() : initialPage(staffUser && staffUser.email);
     const fromHash = initialRoute && initialRoute.page;
@@ -25870,6 +25846,9 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
       : null;
     if (!supabase || effectivePage === "usage-stats") return;
     if (!actorEmail) return;
+    const usagePlaceAll = CLIENT_placeOf(effectivePage);
+    const usagePlace = usagePlaceAll && usagePlaceAll.tabs ? usagePlaceAll : null;
+    CLIENT_rememberTab(effectivePage);
     supabase
       .from("usage_events")
       .insert({
@@ -25878,8 +25857,9 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
         client_id: NON_CLIENT_PAGES.has(effectivePage)
           ? null
           : selectedClientId,
-        page: effectivePage,
-        tab: MGB_currentTab(effectivePage),
+        // A tabbed client place logs as place › tab (finances › bank).
+        page: usagePlace ? usagePlace.key : effectivePage,
+        tab: usagePlace ? effectivePage : MGB_currentTab(effectivePage),
         device: MGB_deviceKind(),
       })
       .then(({ error }) => {
@@ -26497,6 +26477,25 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
   // instead of down a second sidebar. Hidden while previewing as one of
   // the client's people, so the preview shows only what that person sees.
   const onStaffPage = NON_CLIENT_PAGES.has(effectivePage);
+  // Client-side places (CLIENT_PLACES): which place the page belongs to,
+  // and the sub-tab for Reports / Messages.
+  const clientPlace = CLIENT_placeOf(effectivePage);
+  const clientReportsSub =
+    clientSub.page === "reports" && clientSub.sub === "packet" ? "packet" : "downloads";
+  const clientMessagesSub =
+    clientSub.page === "messages" && clientSub.sub === "requests" ? "requests" : "conversation";
+  const setClientSubFor = (sub) => {
+    setClientSub({ page: effectivePage, sub });
+    try {
+      const base = buildHashRoute(effectivePage, selectedClientId);
+      if (base)
+        window.history.replaceState(
+          window.history.state,
+          "",
+          window.location.pathname + window.location.search + base + "/" + sub,
+        );
+    } catch (e) {}
+  };
   const showStaffRail = !!(
     isStaffSession &&
     effectiveStaffUser &&
@@ -26838,7 +26837,8 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
                     : client.name}
               </div>
               <h1 className={"page-title"}>
-                {NAV_LABEL_BY_KEY[effectivePage] ||
+                {(!staffClientTabs && clientPlace && clientPlace.tabs && clientPlace.label) ||
+                  NAV_LABEL_BY_KEY[effectivePage] ||
                   (meta && meta.title) ||
                   (NON_CLIENT_PAGES.has(effectivePage)
                     ? "MyGoodBooks"
@@ -26953,6 +26953,42 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
               onSelectPage={setPage}
               hasPendingAccessRequests={hasPendingAccessRequests}
               onOpenClientSettings={openClientSettings}
+            />
+          )}
+          {/* Client view: the tabs of the current place (CLIENT_PLACES). */}
+          {!staffClientTabs && clientPlace && clientPlace.tabs && (
+            <NAV_TabRow
+              label="Finances"
+              tabs={clientPlace.tabs
+                .filter((k) => access.tabs.has(k))
+                .map((k) => ({ key: k, label: NAV_LABEL_BY_KEY[k] || k }))}
+              current={effectivePage}
+              onSelect={setPage}
+              idPrefix="cf"
+            />
+          )}
+          {!staffClientTabs && effectivePage === "reports" && (
+            <NAV_TabRow
+              label="Reports"
+              tabs={[
+                { key: "downloads", label: "Downloads" },
+                { key: "packet", label: "Board packet" },
+              ]}
+              current={clientReportsSub}
+              onSelect={setClientSubFor}
+              idPrefix="cr"
+            />
+          )}
+          {!staffClientTabs && effectivePage === "messages" && (
+            <NAV_TabRow
+              label="Messages"
+              tabs={[
+                { key: "conversation", label: "Conversation" },
+                { key: "requests", label: "Requests" },
+              ]}
+              current={clientMessagesSub}
+              onSelect={setClientSubFor}
+              idPrefix="cm"
             />
           )}
           {/* Slot for the current page's NAV_TabRow (Work, Team, a client's
@@ -27127,23 +27163,33 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
               key={"payroll-" + client.id}
             />
           )}
+          {/* Reports: Downloads (every plan) and Board packet (Pro; Basic
+              sees the locked card). Staff keep the old single view. */}
           {effectivePage === "reports" &&
-            (showsReportBuilder ? (
-              <>
-                <ReportBuilderPage
-                  client={scopedClient}
-                  key={"report-builder-" + client.id}
-                />
-                {/* Pro report tools (components/pro/ProReports.jsx). */}
-                {typeof ProReportsSuite === "function" && (
-                  <ProReportsSuite
+            ((staffClientTabs ? showsReportBuilder : clientReportsSub === "packet") ? (
+              showsReportBuilder ? (
+                <>
+                  <ReportBuilderPage
                     client={scopedClient}
-                    access={access}
-                    clientPortalUser={clientPortalUser}
-                    key={"pro-reports-" + client.id}
+                    key={"report-builder-" + client.id}
                   />
-                )}
-              </>
+                  {/* Pro report tools (components/pro/ProReports.jsx). */}
+                  {typeof ProReportsSuite === "function" && (
+                    <ProReportsSuite
+                      client={scopedClient}
+                      access={access}
+                      clientPortalUser={clientPortalUser}
+                      key={"pro-reports-" + client.id}
+                    />
+                  )}
+                </>
+              ) : (
+                <CLIENT_LockedCard
+                  title="Board packet is part of Pro"
+                  text="Assemble a formatted packet for your board in three steps: pick the reports, add a note, download one PDF. Downloads of your statements stay on the Downloads tab."
+                  onSeePlans={() => setPage("enterprise-upgrade")}
+                />
+              )
             ) : (
               <ReportsPage client={scopedClient} />
             ))}
@@ -27354,6 +27400,12 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
                 sampleThreads={messagesByClient}
                 onSampleSend={sampleInboxSend}
                 key={"inbox-" + client.id + "-" + (inboxFocusEmail || "")}
+              />
+            ) : clientMessagesSub === "requests" ? (
+              <CLIENT_RequestsPanel
+                requests={docRequestsList.rows}
+                canUpload={access.tabs.has("documents")}
+                onOpenDocuments={() => setPage("documents")}
               />
             ) : (
             <MessagesPage
