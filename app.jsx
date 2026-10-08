@@ -10410,7 +10410,7 @@ function EnterpriseUpgradePage({ client, clientPortalUser }) {
             color: "var(--ink-strong)",
           }}
         >
-          {client.name} is on {planLabel(current)}
+          {client.name || "Your organization"} is on {planLabel(current)}
         </h2>
         <p
           style={{
@@ -27348,7 +27348,7 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
             ))}
 
           <div className="main-footer">
-            {!isPreviewingUser
+            {isStaffSession && !isPreviewingUser
               ? "Client and preview switchers are bookkeeper-side tools. Clients never see them."
               : `Signed in to ${client.name}. Access is managed by MyGoodBooks.`}
             <div className="main-footer-links">
