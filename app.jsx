@@ -568,7 +568,8 @@ const PREMIUM_TAB_KEYS = new Set(
   ),
 );
 
-// Per-browser dev/QA toggles, set from Staff Access's "Developer Tools" card.
+// Per-browser dev/QA toggles, set from the Developer Tools page (Settings ›
+// Firm settings › Developer tools).
 // Deliberately localStorage-only, not a Supabase table: these are throwaway
 // testing aids for whoever's browser they're set in, not team-wide settings
 // (a "hide Staff Access for everyone" flag would be a much bigger footgun
@@ -636,6 +637,21 @@ const INFRA_LINKS = [
     name: "Squarespace",
     url: "https://account.squarespace.com",
     note: "The real mygoodbooks.org site · credentials: 1Password vault “MGB Infra”",
+  },
+  {
+    name: "Resend",
+    url: "https://resend.com/overview",
+    note: "Sends every portal email (digest, client notices, reminders) · credentials: 1Password vault “MGB Infra”",
+  },
+  {
+    name: "Google Drive (client files)",
+    url: "https://drive.google.com/drive/shared-drives",
+    note: "MGB shared drive holding client documents and the admin-only reviews drive · service account in Supabase secrets",
+  },
+  {
+    name: "Intuit developer (QuickBooks)",
+    url: "https://developer.intuit.com/app/developer/dashboard",
+    note: "The QuickBooks Online app behind Pro sync and QuickBooks Time · credentials: 1Password vault “MGB Infra”",
   },
 ];
 
@@ -12205,8 +12221,13 @@ function parseStaffCsv(text) {
 // button, not "local state" in the sense this reset is for.
 function resettableLocalStorageKeys() {
   try {
+    // Both key families: the original "mygoodbooks_" keys and the newer
+    // "mgb-"/"mgb_" ones (nav, tour, tips, profile prompt, bell, client
+    // switcher, inbox context). Feature flags are kept on purpose.
     return Object.keys(localStorage).filter(
-      (k) => k.startsWith("mygoodbooks_") && !k.startsWith("mygoodbooks_ff_"),
+      (k) =>
+        (k.startsWith("mygoodbooks_") || k.startsWith("mgb-") || k.startsWith("mgb_")) &&
+        !k.startsWith("mygoodbooks_ff_"),
     );
   } catch (e) {
     return [];
@@ -12983,7 +13004,7 @@ function parseClientUserCsv(text) {
 function readAllMygoodbooksStorage() {
   try {
     return Object.keys(localStorage)
-      .filter((k) => k.startsWith("mygoodbooks_"))
+      .filter((k) => k.startsWith("mygoodbooks_") || k.startsWith("mgb-") || k.startsWith("mgb_"))
       .sort()
       .map((key) => ({ key, value: localStorage.getItem(key) }));
   } catch (e) {
@@ -13064,7 +13085,7 @@ function DeveloperToolsPage({ staffUser, readOnly }) {
   function resetLocalState() {
     if (
       !window.confirm(
-        "Reset this browser's local MyGoodBooks state (theme, tab layout, dashboard/Financial Overview widget layouts, cash-floor alerts, per-person access overrides, ...)? This only affects this browser — nothing in Supabase is touched. The page will reload.",
+        "Reset this browser's local MyGoodBooks state (theme, tab layout, dashboard/Financial Overview widget layouts, cash-floor alerts, per-person access overrides, the tour and first sign-in prompts, dismissed tips, recent clients, ...)? This only affects this browser — nothing in Supabase is touched. The page will reload.",
       )
     ) {
       return;
