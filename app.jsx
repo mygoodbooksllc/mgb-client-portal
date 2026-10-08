@@ -428,59 +428,102 @@ const PREMIUM_UPGRADE_TAB_KEYS = new Set([
   "giving",
 ]);
 
+// Client-portal nav, regrouped 2026-10-08 (owner-approved redesign) into
+// the five places a client sees: Home, Messages, Finances, Reports,
+// Documents. Every key is unchanged, so saved access (access.tabs) and the
+// Organization-tabs order keep working; only the grouping and labels moved.
+// Manage access › Organization tabs renders this list as-is.
 const NAV_SECTIONS = [
   {
-    // Enterprise leads the sidebar, and Messages/Dashboard now live inside
-    // it as its first two items — Messages first (an unread badge shouldn't
-    // be buried below the most-visited page), then Dashboard (which reads
-    // "Dashboard Live" for a premium client, see the label override in
-    // Sidebar), both ahead of Budget/Finances. Neither item here is itself
-    // premium-gated (no item in this whole list carries `premium: true`
-    // anymore — see PREMIUM_UPGRADE_TAB_KEYS above), so this section's
-    // upsell heading is really about the PRO badges scattered across the
-    // rest of the sidebar, not about hiding any row of its own.
-    // Never shown as text: this section's heading is the client's milestone
-    // plus their plan (Pro pill, or a lock otherwise). See Sidebar.
-    label: "Plan",
-    // Live Report ("daily-close") isn't a nav item here on purpose — a
-    // premium, full-access client's Dashboard tab IS the Live Report, one
-    // cohesive page instead of two separate tabs both claiming to be "the
-    // overview." See showsLiveReport in App.
+    label: "Home",
+    items: [{ key: "dashboard", label: "Home", icon: <HomeIcon /> }],
+  },
+  {
+    label: "Messages",
     items: [
       {
         key: "messages",
         label: "Messages",
         icon: <ChatIcon width="16" height="16" strokeWidth="1.8" />,
       },
-      { key: "dashboard", label: "Dashboard", icon: <GridIcon /> },
     ],
   },
   {
-    label: "Budget",
-    items: [
-      { key: "budget", label: "Budget vs. Actual", short: "Budget", icon: <PieChartIcon /> },
-    ],
-  },
-  {
+    // The tabs of the Finances place, in tab order.
     label: "Finances",
     items: [
-      { key: "bank", label: "Bank Accounts", short: "Bank", icon: <BankIcon /> },
-      { key: "receivables", label: "Cash Flow", icon: <SwapIcon /> },
-      { key: "reports", label: "Reports", icon: <DownloadIcon /> },
-      { key: "giving", label: "Giving & Funds", short: "Giving", icon: <GiftHeartIcon /> },
-      // Last in the section, right above Documents. Only shows for clients
-      // with the payroll add-on (see resolveAccess). Not in PREMIUM_UPGRADE_TAB_KEYS
-      // on purpose — Payroll is a separate add-on (client.payrollAddOn),
-      // orthogonal to the standard/premium plan split, not a premium-only
-      // upgrade. See PayrollPage.
+      { key: "budget", label: "Budget", icon: <PieChartIcon /> },
+      { key: "bank", label: "Bank accounts", short: "Bank", icon: <BankIcon /> },
+      { key: "receivables", label: "Cash flow", icon: <SwapIcon /> },
+      { key: "giving", label: "Giving & funds", short: "Giving", icon: <GiftHeartIcon /> },
+      // Only for clients with the payroll add-on (see resolveAccess) — a
+      // separate add-on, orthogonal to Basic/Pro. See PayrollPage.
       { key: "payroll", label: "Payroll", icon: <UsersIcon /> },
     ],
+  },
+  {
+    label: "Reports",
+    items: [{ key: "reports", label: "Reports", icon: <DownloadIcon /> }],
   },
   {
     label: "Documents",
     items: [{ key: "documents", label: "Documents", icon: <FolderIcon /> }],
   },
 ];
+
+// The five places in the client rail (and the phone bottom bar). A place
+// is either one page or a row of tabs; a tabbed place opens its last-used
+// visible tab (CLIENT_lastTab) and shows the row in the top bar.
+const CLIENT_PLACES = [
+  { key: "home", label: "Home", page: "dashboard", icon: <HomeIcon /> },
+  {
+    key: "messages",
+    label: "Messages",
+    page: "messages",
+    icon: <ChatIcon width="16" height="16" strokeWidth="1.8" />,
+  },
+  {
+    key: "finances",
+    label: "Finances",
+    tabs: ["budget", "bank", "receivables", "giving", "payroll"],
+    icon: <BankIcon />,
+  },
+  { key: "reports", label: "Reports", page: "reports", icon: <DownloadIcon /> },
+  { key: "documents", label: "Documents", page: "documents", icon: <FolderIcon /> },
+];
+const CLIENT_PLACE_OF_PAGE = {
+  dashboard: "home",
+  messages: "messages",
+  budget: "finances",
+  bank: "finances",
+  receivables: "finances",
+  giving: "finances",
+  payroll: "finances",
+  reports: "reports",
+  documents: "documents",
+  "client-settings": "settings",
+  milestone: "settings",
+};
+function CLIENT_placeOf(page) {
+  const key = CLIENT_PLACE_OF_PAGE[page];
+  return key ? CLIENT_PLACES.find((p) => p.key === key) || null : null;
+}
+// Last tab opened inside a tabbed place, this browser session only.
+function CLIENT_lastTab(placeKey, pages) {
+  let last = null;
+  try {
+    last = window.sessionStorage.getItem("mgb_client_tab_" + placeKey);
+  } catch (e) {}
+  return last && pages.indexOf(last) !== -1 ? last : pages[0];
+}
+function CLIENT_rememberTab(page) {
+  const key = CLIENT_PLACE_OF_PAGE[page];
+  const place = key && CLIENT_PLACES.find((p) => p.key === key);
+  if (!place || !place.tabs) return;
+  try {
+    window.sessionStorage.setItem("mgb_client_tab_" + key, page);
+  } catch (e) {}
+}
 
 // Calm step 2: heading for the sidebar's second group, taken from the
 // existing section label rather than a new string (see Sidebar).
@@ -15064,7 +15107,14 @@ const USAGE_STATS_RANGES = [
   { key: "all", label: "All time", days: null },
 ];
 // Tab keys that don't read well title-cased; everything else is capitalised.
-const USAGE_TAB_LABELS = { qbo: "QuickBooks", sop: "SOP", "client-overview": "Overview" };
+const USAGE_TAB_LABELS = {
+  qbo: "QuickBooks",
+  sop: "SOP",
+  "client-overview": "Overview",
+  bank: "Bank accounts",
+  receivables: "Cash flow",
+  giving: "Giving & funds",
+};
 // Action buckets MGB_track() writes (see the hooks in TopBar, StaffGuide,
 // Tour). Add a label here when a new call site is added.
 const USAGE_ACTION_LABELS = {
@@ -24145,8 +24195,14 @@ function loadReferralPromo() {
 
 const PAGE_META = {
   dashboard: {
-    title: "Dashboard",
-    subtitle: "A quick look at where things stand",
+    title: "Home",
+    subtitle: "What needs you, and where things stand",
+  },
+  // Label only (Usage Stats): the Finances place; its tabs are the real
+  // pages (budget, bank, receivables, giving, payroll).
+  finances: {
+    title: "Finances",
+    subtitle: "Budget, bank accounts, cash flow, giving and payroll",
   },
   // Display name only. The route key, the DailyClose component and the
   // components/daily-close/ directory keep their original names — renaming
@@ -24157,18 +24213,18 @@ const PAGE_META = {
     subtitle: "Your financial snapshot, synced from QuickBooks",
   },
   budget: {
-    title: "Budget vs. Actual",
+    title: "Budget",
     subtitle: "How spending compares to plan, by category",
   },
   giving: {
-    title: "Giving & Funds",
+    title: "Giving & funds",
     subtitle: "Contributions received and fund balances",
   },
   receivables: {
-    title: "Cash Flow",
+    title: "Cash flow",
     subtitle: "Money coming in and bills going out",
   },
-  bank: { title: "Bank Accounts", subtitle: "Balances and recent activity" },
+  bank: { title: "Bank accounts", subtitle: "Balances and recent activity" },
   payroll: {
     title: "Payroll",
     subtitle: "Employees, pay runs, and tax deposits",
@@ -24526,6 +24582,7 @@ const HASH_SUB_ROUTE_PAGES = new Set(["work", "team", "help"]);
 
 // Client-route tab slugs that open client Settings.
 const CLIENT_TAB_ALIASES = {
+  home: "dashboard",
   settings: "client-settings",
   plan: "client-settings",
   plans: "client-settings",
@@ -24572,7 +24629,11 @@ function parseHashRoute(hash) {
     // Settings (owner request 2026-09-30): #/client/<id>/settings[/<tab>].
     // The old Plans, Manage access and Client details entry points now open
     // a tab of it, so their slugs stay accepted.
-    const aliased = CLIENT_TAB_ALIASES[page] || page;
+    // #/client/<id>/finances opens the last tab used in Finances.
+    const aliased =
+      page === "finances"
+        ? CLIENT_lastTab("finances", CLIENT_PLACES.find((p) => p.key === "finances").tabs)
+        : CLIENT_TAB_ALIASES[page] || page;
     const settingsTab = aliased === "client-settings" ? parts[3] || CLIENT_SETTINGS_TAB_OF[page] || null : null;
     // "sop" (#/client/<id>/sop) is in PAGE_META, so it passes like any tab.
     return { clientId: parts[1], page: isKnownAppPage(aliased) ? aliased : null, settingsTab };
