@@ -602,6 +602,70 @@ function CLIENT_HomeTop({ client, access, needs, onOpenMilestone, onSeePlans }) 
     </div>
   );
 }
+// Phone bottom bar (client view, CSS shows it under 760px): Home,
+// Messages, Finances, Reports, and More → Documents, Settings.
+function CLIENT_TabBar({ page, visibleKeys, badges, onSelect, onOpenSettings }) {
+  const [moreOpen, setMoreOpen] = useState(false);
+  const placeOf = CLIENT_PLACE_OF_PAGE[page];
+  const pagesOf = (place) =>
+    place.tabs ? place.tabs.filter((k) => visibleKeys.has(k)) : visibleKeys.has(place.page) ? [place.page] : [];
+  const main = CLIENT_PLACES.filter((p) => p.key !== "documents" && pagesOf(p).length);
+  const docs = CLIENT_PLACES.find((p) => p.key === "documents");
+  const showDocs = pagesOf(docs).length > 0;
+  const moreActive = placeOf === "documents" || placeOf === "settings";
+  return (
+    <nav className="client-tabbar" aria-label="Main">
+      {main.map((place) => {
+        const pages = pagesOf(place);
+        const active = placeOf === place.key;
+        return (
+          <button
+            key={place.key}
+            type="button"
+            className={"client-tabbar-item" + (active ? " active" : "")}
+            aria-current={active ? "page" : undefined}
+            onClick={() => {
+              setMoreOpen(false);
+              onSelect(place.tabs ? CLIENT_lastTab(place.key, pages) : place.page);
+            }}
+          >
+            {place.icon}
+            <span>{place.label}</span>
+            {pages.some((k) => badges[k]) && <span className="client-tabbar-dot" aria-label="Unread" />}
+          </button>
+        );
+      })}
+      <button
+        type="button"
+        className={"client-tabbar-item" + (moreActive ? " active" : "")}
+        aria-expanded={moreOpen}
+        onClick={() => setMoreOpen((o) => !o)}
+      >
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+          <circle cx="5" cy="12" r="2" />
+          <circle cx="12" cy="12" r="2" />
+          <circle cx="19" cy="12" r="2" />
+        </svg>
+        <span>More</span>
+        {showDocs && badges.documents && <span className="client-tabbar-dot" aria-label="Unread" />}
+      </button>
+      {moreOpen && (
+        <div className="client-tabbar-more" role="menu">
+          {showDocs && (
+            <button type="button" role="menuitem" onClick={() => { setMoreOpen(false); onSelect("documents"); }}>
+              {docs.icon}
+              <span>Documents</span>
+            </button>
+          )}
+          <button type="button" role="menuitem" onClick={() => { setMoreOpen(false); onOpenSettings(); }}>
+            <ST_GearIcon width="18" height="18" />
+            <span>Settings</span>
+          </button>
+        </div>
+      )}
+    </nav>
+  );
+}
 // Messages › Requests: what the bookkeeper is waiting on (document
 // requests). Uploading happens on Documents.
 function CLIENT_RequestsPanel({ requests, canUpload, onOpenDocuments }) {
@@ -26706,7 +26770,8 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
           "app-shell" +
           (isPreviewingUser ? " previewing" : "") +
           (showStaffRail ? " has-staff-rail" : "") +
-          (showStaffRail && onStaffPage ? " on-staff-page" : "")
+          (showStaffRail && onStaffPage ? " on-staff-page" : "") +
+          (!showStaffRail && !NON_CLIENT_PAGES.has(effectivePage) ? " has-client-tabbar" : "")
         }
       >
         <div className="mobile-topbar">
@@ -27573,6 +27638,15 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
             </div>
           </div>
         </main>
+        {!showStaffRail && !NON_CLIENT_PAGES.has(effectivePage) && (
+          <CLIENT_TabBar
+            page={effectivePage}
+            visibleKeys={access.tabs}
+            badges={{ messages: hasUnreadMessages, documents: openDocRequests.length > 0 }}
+            onSelect={setPage}
+            onOpenSettings={() => openClientSettings()}
+          />
+        )}
       </div>
 
       {siStaffChat && effectivePage !== "inbox" && !siDrawer && (

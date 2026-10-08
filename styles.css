@@ -10038,3 +10038,36 @@ button.home-todo-main:hover { background: var(--surface-2); }
   .client-home-top { grid-template-columns: minmax(0, 1fr); }
   .client-needs-item { flex-direction: column; align-items: flex-start; }
 }
+
+/* Phone bottom bar (client view, CLIENT_TabBar). Desktop never shows it. */
+.client-tabbar { display: none; }
+@media (max-width: 760px) {
+  .has-client-tabbar .client-tabbar {
+    display: flex; position: fixed; left: 0; right: 0; bottom: 0; z-index: 60;
+    background: var(--topbar-bg, var(--surface)); border-top: 1px solid var(--border);
+    padding: 4px 4px calc(4px + env(safe-area-inset-bottom));
+  }
+  .has-client-tabbar .main { padding-bottom: calc(72px + env(safe-area-inset-bottom)); }
+  .client-tabbar-item {
+    flex: 1; position: relative; display: grid; justify-items: center; gap: 2px;
+    padding: 6px 2px; border: 0; background: none; color: var(--text-muted);
+    font: inherit; font-size: 11px; border-radius: 8px;
+  }
+  .client-tabbar-item svg { width: 20px; height: 20px; }
+  .client-tabbar-item.active { color: var(--text); font-weight: 600; }
+  .client-tabbar-item.active svg { color: var(--accent, #b8892e); }
+  .client-tabbar-dot {
+    position: absolute; top: 4px; left: calc(50% + 8px); width: 8px; height: 8px;
+    border-radius: 50%; background: var(--danger, #c0392b);
+  }
+  .client-tabbar-more {
+    position: absolute; right: 8px; bottom: calc(100% + 6px); min-width: 180px;
+    background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.18); padding: 6px; display: grid;
+  }
+  .client-tabbar-more button {
+    display: flex; align-items: center; gap: 10px; padding: 10px 12px; border: 0;
+    background: none; color: var(--text); font: inherit; text-align: left; border-radius: 8px;
+  }
+  .client-tabbar-more button:hover { background: var(--hover, rgba(0, 0, 0, 0.05)); }
+}
