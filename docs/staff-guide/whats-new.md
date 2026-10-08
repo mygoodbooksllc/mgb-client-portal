@@ -13,6 +13,7 @@ The newest changes to the staff side, newest first. For how anything works, sear
 - **Home** opens with what needs them, beside a card with their milestone, plan and **See plans**. The milestone moved there from the top of the sidebar.
 - **Finances** gathers Budget, Bank accounts, Cash flow, Giving & funds and Payroll as tabs. **Reports** splits into **Downloads** and **Board packet**. **Messages** gains **Requests**.
 - Phones get a bottom bar: Home, Messages, Finances, Reports and More.
+- **Payroll pricing is no longer shown** to clients or on the website. The Payroll add-on card tells them to message their account manager for pricing and details, and has a **Message your account manager** button. Expect those questions in your inbox.
 
 ### 2026-10-08: tabs you can see, usage stats that count everything
 

@@ -146,7 +146,7 @@ because some work happens in Claude Code web sessions. Run `git fetch` and compa
 - **Plans: Basic, Plus, Pro.** Set per client in `clients.plan`, whose stored values are
   `basic` / `standard` / `premium`. They're shown as Basic / Plus / Pro. Names, prices and sync
   schedules live only in `PLAN_LABELS` / `PLAN_PRICING` / `PLAN_SYNC` / `PAYROLL_PRICING` in
-  app.jsx. The same prices are published in `marketing/pricing-embed.html`.
+  app.jsx. The plan prices (not payroll) are published in `marketing/pricing-embed.html`.
   - **Basic**, $9/mo with 1 login included; extra logins are $9/mo each. It gets Reports,
     Documents and Messages, plus the milestone pill. There is **no Dashboard** and no per-person
     access (`BASIC_TAB_KEYS`); the landing tab is Reports. QuickBooks syncs monthly, on the 15th
@@ -156,10 +156,12 @@ because some work happens in Claude Code web sessions. Run `git fetch` and compa
   - **Pro**, $39/mo + $9 per login. It adds the Pro tools inline on the same tabs (see below).
     QuickBooks syncs every 15 minutes (30 when the monthly API budget is running hot; see the
     usage guard below), and Sync now is available.
-  - **Payroll add-on:** $49/mo + $6 per employee, on any plan (Basic included). Clients without it
-    (`clients.payroll_add_on` false) see **Payroll** in the sidebar with an "Add-on" tag. It opens
-    `PayrollAddOnPage`, which has the price, an employee-count estimate, what's included and an
-    **Add Payroll** button. The button files an upgrade request with `requested_plan = 'payroll'`
+  - **Payroll add-on:** available on any plan (Basic included). Its price is never shown to clients
+    or published (owner 2026-10-08); clients are told to message their account manager.
+    `PAYROLL_PRICING` is internal only, for the staff overview's bill estimate. Clients without it
+    (`clients.payroll_add_on` false) see **Payroll** under Finances with an "Add-on" tag. It opens
+    `PayrollAddOnPage`, which has what's included, an **Add Payroll** button and a **Message your
+    account manager** button. The button files an upgrade request with `requested_plan = 'payroll'`
     . Staff see
     a hint to turn it on under Client organizations. Clients with the add-on but no Gusto data see
     the Connect Gusto screen.

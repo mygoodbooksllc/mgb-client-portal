@@ -1137,8 +1137,10 @@ function syncPillLabel(plan, lastSyncedAt) {
 }
 
 // Payroll is an add-on for any plan.
+// Internal only: the staff Client overview uses it to estimate the monthly
+// bill. Owner 2026-10-08: payroll pricing is never shown to clients or
+// published; the client sees "message your account manager" instead.
 const PAYROLL_PRICING = { base: 49, perEmployee: 6 };
-const payrollPriceLabel = `$${PAYROLL_PRICING.base}/mo + $${PAYROLL_PRICING.perEmployee} per employee`;
 
 // Basic is barebones: statements, documents and a way to reach the
 // bookkeeper. Everything else is hidden rather than shown locked.
@@ -8629,7 +8631,7 @@ const PAYROLL_ADDON_FEATURES = [
   },
   {
     title: "Works on any plan",
-    text: "Add it to Basic or Pro. It's billed monthly with the rest of your MyGoodBooks fee.",
+    text: "Add it to Basic or Pro. Message your account manager for pricing and details.",
   },
 ];
 
@@ -8659,10 +8661,12 @@ function PayrollAddOnPage({ client, clientPortalUser }) {
 function PayrollAddOnCard({ client, clientPortalUser, inPlanPage }) {
   const showToast = useToast();
   const { staff } = useContext(StaffToolsContext);
-  const [employees, setEmployees] = useState(5);
   const [requesting, setRequesting] = useState(false);
-  const count = Math.max(0, Math.round(Number(employees) || 0));
-  const total = PAYROLL_PRICING.base + PAYROLL_PRICING.perEmployee * count;
+  // Opens the client's Messages thread (it goes to their account manager).
+  const messageAccountManager = () => {
+    const route = buildHashRoute("messages", client.id);
+    if (route) window.location.hash = route;
+  };
 
   async function requestAddOn() {
     const supabase = window.mgbSupabase;
@@ -8703,8 +8707,8 @@ function PayrollAddOnCard({ client, clientPortalUser, inPlanPage }) {
         <div className="eyebrow-badge">Payroll · Add-on</div>
         <h2>Payroll is on for {client.name}</h2>
         <p className="payroll-addon-lede">
-          {payrollPriceLabel}, billed with the rest of your MyGoodBooks fee. Find it under Payroll
-          in the sidebar. To stop it, message your bookkeeper.
+          It's billed with the rest of your MyGoodBooks fee. Find it under Finances › Payroll.
+          For billing questions or to stop it, message your account manager.
         </p>
       </div>
     );
@@ -8713,41 +8717,27 @@ function PayrollAddOnCard({ client, clientPortalUser, inPlanPage }) {
   return (
       <div className="card payroll-addon-hero">
         <div className="eyebrow-badge">Payroll · Add-on</div>
-        <h2>Add Payroll for {client.name}</h2>
+        <h2>Add Payroll for {client.name || "your organization"}</h2>
         <p className="payroll-addon-lede">
           Keep running payroll in Gusto. With the add-on, every employee's pay, withholding and
           upcoming tax deposits sit right alongside the rest of your books in a Payroll tab.
         </p>
-        <div className="payroll-addon-price">
-          <span className="payroll-addon-amount">${PAYROLL_PRICING.base}</span>
-          <span className="payroll-addon-unit">
-            /mo + ${PAYROLL_PRICING.perEmployee} per employee
-          </span>
-        </div>
-        <label className="payroll-addon-estimate">
-          <span>Employees</span>
-          <input
-            type="number"
-            min="0"
-            max="999"
-            value={employees}
-            onChange={(e) => setEmployees(e.target.value)}
-          />
-          <span>
-            = <strong>${total}/mo</strong>
-          </span>
-        </label>
         <p className="payroll-addon-note">
-          On top of your milestone fee and your {planLabel(client.plan)} plan. Cancel any time.
+          For pricing and more details, message your account manager.
         </p>
         {staff ? (
           <p className="payroll-addon-staff">
             Staff: turn Payroll on for this client under Settings → Firm settings → Client roster (Client organizations card).
           </p>
         ) : (
-          <button className="btn-primary" disabled={requesting || requested} onClick={requestAddOn}>
-            {requesting ? "Sending…" : requested ? "Request sent" : "Add Payroll"}
-          </button>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "center" }}>
+            <button className="btn-primary" disabled={requesting || requested} onClick={requestAddOn}>
+              {requesting ? "Sending…" : requested ? "Request sent" : "Add Payroll"}
+            </button>
+            <button type="button" className="btn-secondary" onClick={messageAccountManager}>
+              Message your account manager
+            </button>
+          </div>
         )}
         {inPlanPage && (
           <ul className="payroll-addon-includes">
