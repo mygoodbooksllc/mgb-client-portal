@@ -27164,6 +27164,9 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
               page while their bookkeeper is waiting on a document. */}
           {!NON_CLIENT_PAGES.has(effectivePage) &&
             effectivePage !== "documents" &&
+            // Home's "Needs you" and Messages › Requests already list them.
+            effectivePage !== "dashboard" &&
+            effectivePage !== "messages" &&
             (!isStaffSession || isPreviewingUser) &&
             access.tabs.has("documents") && (
               <DocRequestBanner
@@ -27643,7 +27646,7 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
           <div className="main-footer">
             {isStaffSession && !isPreviewingUser
               ? "Client and preview switchers are bookkeeper-side tools. Clients never see them."
-              : `Signed in to ${client.name}. Access is managed by MyGoodBooks.`}
+              : `Signed in to ${client.name || "your organization"}. Access is managed by MyGoodBooks.`}
             <div className="main-footer-links">
               <a href="/privacy" target="_blank" rel="noopener noreferrer">
                 Privacy Policy
