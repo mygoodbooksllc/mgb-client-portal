@@ -449,21 +449,6 @@
   border-top: 1px solid var(--border);
 }
 
-/* ---- 1b. Overview chip (client pages; the open client's staff overview) ---- */
-.tb-overview {
-  height: 40px; /* matches the client picker chip beside it */
-  color: var(--tb-fg);
-}
-.tb-overview svg {
-  flex-shrink: 0;
-}
-.tb-overview.is-current,
-.tb-overview.is-current:hover {
-  border-color: var(--tb-accent-border);
-  background: var(--tb-accent-soft);
-  color: var(--tb-accent);
-}
-
 /* ---- 4. Bell (reuses .notif-*) ---- */
 .tb-bell-panel {
   width: 340px;
@@ -471,7 +456,7 @@
   overflow-y: auto;
 }
 
-/* ---- 5. My Tasks badge ---- */
+/* ---- 5. Tasks badge ---- */
 .tb-tasks svg {
   flex-shrink: 0;
 }
@@ -612,7 +597,6 @@
 
 /* Narrower desktop windows: drop text labels, keep the icons and counts. */
 @media (max-width: 1180px) {
-  .tb-overview-label,
   .tb-tasks-label,
   .tb-throttle-text,
   .tb-kbd {
@@ -632,20 +616,20 @@
    2026-09-30; also at 1280px with a QuickBooks client and the sidebar open).
    Order things give way in: search collapses to an icon chip (opens over
    the bar on click or Ctrl/Cmd+K) -> text labels -> the client name (tile
-   only) -> My Tasks, Help and Overview (all still in the staff rail / the
-   picker) -> the sync pill -> "+". Icon chips never shrink.
+   only) -> the Tasks badge (Work › Tasks is one click away in the rail)
+   -> the sync pill -> "+". Icon chips never shrink, and "?" never hides:
+   it's the only way to help, feedback and the tour from a client page.
    Touch devices keep the phone layout further down (it uses position:fixed
    panels, which a size container would trap, hence the media guard).
-   With a client open the bar also holds Overview and "+" (.tb-bar:has(
-   .tb-quick)), plus from 900px up the 266px sync pill (.tb-bar:has(
-   .tb-sync) inside a min-width: 900px guard), so those steps come sooner.
+   With a client open the bar also holds "+" (.tb-bar:has(.tb-quick)), plus
+   from 900px up the 266px sync pill (.tb-bar:has(.tb-sync) inside a
+   min-width: 900px guard), so those steps come sooner.
    ========================================================================== */
 @media (hover: hover) and (pointer: fine) {
   .tb-bar {
     container: tb / inline-size;
   }
   .tb-item,
-  .tb-overview,
   .tb-throttle {
     flex-shrink: 0;
   }
@@ -776,7 +760,6 @@
   }
 }
 @container tb (max-width: 650px) {
-  .tb-bar:has(.tb-quick) .tb-overview-label,
   .tb-bar:has(.tb-quick) .tb-tasks-label,
   .tb-bar:has(.tb-quick) .tb-throttle-text,
   .tb-bar:has(.tb-quick) .tb-client .cs-trigger-sub {
@@ -816,18 +799,15 @@
   }
 }
 
-/* Step 4: My Tasks, Help (both in the staff rail) and Overview (reached
-   from the picker) step aside. */
+/* Step 4: the Tasks badge (Work › Tasks is one click away in the rail)
+   steps aside. "?" stays. */
 @container tb (max-width: 340px) {
-  .tb-bar .tb-tasks,
-  .tb-bar .tb-help {
+  .tb-bar .tb-tasks {
     display: none;
   }
 }
 @container tb (max-width: 380px) {
-  .tb-bar:has(.tb-quick) .tb-tasks,
-  .tb-bar:has(.tb-quick) .tb-help,
-  .tb-bar:has(.tb-quick) .tb-overview {
+  .tb-bar:has(.tb-quick) .tb-tasks {
     display: none;
   }
 }
@@ -990,7 +970,6 @@
     }
   }
   @container tb (max-width: 940px) {
-    .tb-bar:has(.tb-sync) .tb-overview-label,
     .tb-bar:has(.tb-sync) .tb-tasks-label,
     .tb-bar:has(.tb-sync) .tb-throttle-text,
     .tb-bar:has(.tb-sync) .tb-client .cs-trigger-sub {
@@ -1012,9 +991,7 @@
     }
   }
   @container tb (max-width: 660px) {
-    .tb-bar:has(.tb-sync) .tb-tasks,
-    .tb-bar:has(.tb-sync) .tb-help,
-    .tb-bar:has(.tb-sync) .tb-overview {
+    .tb-bar:has(.tb-sync) .tb-tasks {
       display: none;
     }
   }
@@ -1023,15 +1000,14 @@
 /* ==========================================================================
    Moved, not duplicated: while a top-bar piece is mounted (class on <html>)
    hide the copy it replaced. Desktop / mouse layouts only; the phone drawer
-   keeps every original.
+   keeps every original. The staff rail is left alone: since the 2026-10
+   nav redesign its foot (Settings, user chip, Sign out) shows on every
+   page, and it has no client switcher of its own any more.
    ========================================================================== */
 @media (min-width: 761px), (hover: hover) and (pointer: fine) {
-  html.tb-has-client .app-shell.has-staff-rail > .sidebar .cs-switcher,
-  html.tb-has-client .staff-rail .cs-switcher {
+  html.tb-has-client .app-shell.has-staff-rail > .sidebar .cs-switcher {
     display: none;
   }
-  html.tb-has-avatar .staff-rail-foot > .staff-rail-item,
-  html.tb-has-avatar .staff-rail-foot > .staff-rail-user,
   html.tb-has-avatar .app-shell.has-staff-rail > .sidebar .staff-temp-access-banner,
   html.tb-has-avatar .app-shell.has-staff-rail > .sidebar .tb-preview-as {
     display: none;
@@ -1050,7 +1026,7 @@
 
 /* ==========================================================================
    Phone drawer layout: the bar sits under the navy .mobile-topbar and keeps
-   only the client picker, search and bell.
+   the client picker, search, bell, "+" and "?".
    ========================================================================== */
 @media (max-width: 760px) and (hover: none), (max-width: 760px) and (pointer: coarse) {
   .tb-bar {
@@ -1062,33 +1038,36 @@
     min-height: 52px;
   }
   .tb-sync,
-  .tb-overview,
   .tb-throttle,
   .tb-tasks,
   .tb-menu-wrap,
-  .tb-help,
   .tb-kbd {
     display: none;
   }
   /* "+" stays on phones: it's the only way to add a task, note or document
-     request, or message the client, now the quick-action bar is gone.
-     (Overview is reached by picking the client in the picker.) */
-  .tb-menu-wrap.tb-quick {
+     request, or message the client, now the quick-action bar is gone. "?"
+     stays too: help, feedback and the tour have no other home on a phone.
+     Both menus drop in under the bar, like the search panel. */
+  .tb-menu-wrap.tb-quick,
+  .tb-menu-wrap.tb-help {
     display: block;
     position: static;
   }
-  .tb-quick .tb-icon-btn {
+  .tb-quick .tb-icon-btn,
+  .tb-help .tb-icon-btn {
     width: 44px;
     height: 44px;
   }
-  .tb-quick .tb-menu {
+  .tb-quick .tb-menu,
+  .tb-help .tb-menu {
     position: fixed;
     top: 112px;
     left: auto;
     right: 8px;
     min-width: 240px;
   }
-  .tb-quick .tb-menu-item {
+  .tb-quick .tb-menu-item,
+  .tb-help .tb-menu-item {
     min-height: 44px;
   }
   .tb-left,

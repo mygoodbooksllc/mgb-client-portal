@@ -5,7 +5,6 @@
 // Boards using it:
 //   * client Dashboard, full access and limited user (app.jsx DashboardPage /
 //     ScopedDashboardPage, via CustomizeDashboardButton)
-//   * staff Bookkeeper Home (app.jsx BookkeeperHomePage, same button)
 //   * Live Report (components/daily-close/DailyClose.tsx)
 //
 // Pieces:

@@ -5,31 +5,23 @@
 // decides what each viewer gets: bookkeepers only see clients they can
 // access and never the admin-only reasons (margin, hours budget).
 //
-//   HLB_HealthTab   Team -> Client health (admins): sortable grid with score,
-//                   band, reasons, assignee and backup, plus filters.
-//   HLB_AtRiskBody  Home card "Clients at risk": red and amber clients from
+//   HLB_AtRiskBody  Today card "Clients at risk": red and amber clients from
 //                   the list the viewer already sees (bookkeepers: theirs).
+//   HLB_useDirectory  Names, assignee and backup per client, for the Clients
+//                   list (ClientsPage.jsx).
+//
+// The Team page's sortable health grid (HLB_HealthTab) retired with the staff
+// navigation redesign (2026-10-08): the Clients list shows every client's
+// score, band and bookkeeper, with "Needs attention" doing the filtering.
 
 const HLB_BAND_ORDER = { red: 0, amber: 1, green: 2 };
-const HLB_REASON_LABEL = {
-  overdue: "Overdue tasks",
-  qbo: "QuickBooks connection",
-  qbo_stale: "QuickBooks sync stale",
-  inactive: "No staff time",
-  close_late: "Close late",
-  margin: "Margin below target",
-  doc_overdue: "Overdue document requests",
-  client_wait: "Client waiting on a reply",
-  hours_over: "Over hours budget",
-  sop: "SOP stale or thin",
-};
 
 function HLB_clientHref(id) {
   return "#/client/" + encodeURIComponent(id) + "/overview";
 }
 
-// Names, assignee and backup for the grid. Team tab has no props, so it reads
-// them itself (RLS: staff see the clients they can access; admins all).
+// Names, assignee and backup per client. Reads them itself rather than taking
+// props (RLS: staff see the clients they can access; admins all).
 function HLB_useDirectory() {
   const [state, setState] = useState({ loading: true, clients: {}, staff: {}, error: null });
   useEffect(() => {
@@ -71,182 +63,6 @@ function HLB_Band({ band }) {
   );
 }
 
-function HLB_HealthTab() {
-  const { byId, status, reload } = HL_useHealth();
-  const dir = HLB_useDirectory();
-  const [sort, setSort] = useState({ key: "score", dir: 1 });
-  const [band, setBand] = useState("");
-  const [who, setWho] = useState("");
-  const [reason, setReason] = useState("");
-  const [q, setQ] = useState("");
-
-  const nameOf = (email) => (email ? dir.staff[email] || email.split("@")[0] : "");
-  const rows = Object.keys(byId).map((id) => {
-    const h = byId[id];
-    const c = dir.clients[id] || { id, name: id, assignee: "", backup: "" };
-    return { id, name: c.name, score: h.score, band: h.band, reasons: h.reasons || [], assignee: c.assignee, backup: c.backup };
-  });
-  const people = Array.from(new Set(rows.map((r) => r.assignee).filter(Boolean))).sort((a, b) => nameOf(a).localeCompare(nameOf(b)));
-  const reasonKeys = Array.from(new Set(rows.flatMap((r) => r.reasons.map((x) => x.key))));
-  const needle = q.trim().toLowerCase();
-  const shown = rows
-    .filter(
-      (r) =>
-        (!band || r.band === band) &&
-        (!who || (who === "__none" ? !r.assignee : r.assignee === who || r.backup === who)) &&
-        (!reason || r.reasons.some((x) => x.key === reason)) &&
-        (!needle || r.name.toLowerCase().includes(needle)),
-    )
-    .sort((a, b) => {
-      const k = sort.key;
-      let d;
-      if (k === "score") d = a.score - b.score;
-      else if (k === "band") d = HLB_BAND_ORDER[a.band] - HLB_BAND_ORDER[b.band];
-      else if (k === "reasons") d = b.reasons.length - a.reasons.length;
-      else if (k === "assignee") d = nameOf(a.assignee).localeCompare(nameOf(b.assignee));
-      else if (k === "backup") d = nameOf(a.backup).localeCompare(nameOf(b.backup));
-      else d = a.name.localeCompare(b.name);
-      return d * sort.dir || a.name.localeCompare(b.name);
-    });
-  const counts = { red: 0, amber: 0, green: 0 };
-  rows.forEach((r) => {
-    counts[r.band] = (counts[r.band] || 0) + 1;
-  });
-
-  const Th = ({ k, children }) => {
-    const on = sort.key === k;
-    return (
-      <th aria-sort={on ? (sort.dir === 1 ? "ascending" : "descending") : "none"}>
-        <button type="button" className="hlb-sort" onClick={() => setSort({ key: k, dir: on ? -sort.dir : 1 })}>
-          {children}
-          <span aria-hidden="true">{on ? (sort.dir === 1 ? " ▲" : " ▼") : ""}</span>
-        </button>
-      </th>
-    );
-  };
-
-  if (status === "missing")
-    return (
-      <div className="card">
-        <p className="card-subtitle">Client health isn't set up yet (database step pending).</p>
-      </div>
-    );
-
-  return (
-    <div className="hlb-page">
-      <div className="card">
-        <h3 className="card-title">Client health</h3>
-        <p className="card-subtitle">
-          Every client's score out of 100 and why points were taken off. Lowest first. Click a column to sort.{" "}
-          <button type="button" className="link-btn" onClick={reload}>
-            Refresh
-          </button>
-        </p>
-        <div className="hlb-counts">
-          {["red", "amber", "green"].map((b) => (
-            <button
-              key={b}
-              type="button"
-              className={"hlb-count hlb-count-" + b + (band === b ? " active" : "")}
-              onClick={() => setBand(band === b ? "" : b)}
-              aria-pressed={band === b}
-            >
-              <strong>{counts[b] || 0}</strong> {HL_LABEL[b]}
-            </button>
-          ))}
-        </div>
-        <div className="hlb-filters">
-          <input type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Find a client" aria-label="Find a client" />
-          <select value={band} onChange={(e) => setBand(e.target.value)} aria-label="Band">
-            <option value="">All bands</option>
-            <option value="red">At risk</option>
-            <option value="amber">Watch</option>
-            <option value="green">Healthy</option>
-          </select>
-          <select value={who} onChange={(e) => setWho(e.target.value)} aria-label="Bookkeeper">
-            <option value="">Everyone</option>
-            {people.map((p) => (
-              <option key={p} value={p}>
-                {nameOf(p)} (bookkeeper or backup)
-              </option>
-            ))}
-            <option value="__none">No bookkeeper</option>
-          </select>
-          <select value={reason} onChange={(e) => setReason(e.target.value)} aria-label="Reason">
-            <option value="">Any reason</option>
-            {reasonKeys.map((k) => (
-              <option key={k} value={k}>
-                {HLB_REASON_LABEL[k] || k}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div className="table-scroll">
-          <table className="tx-table tx-table-labeled hlb-table">
-            <thead>
-              <tr>
-                <Th k="name">Client</Th>
-                <Th k="score">Score</Th>
-                <Th k="band">Band</Th>
-                <Th k="reasons">Reasons</Th>
-                <Th k="assignee">Bookkeeper</Th>
-                <Th k="backup">Backup</Th>
-              </tr>
-            </thead>
-            <tbody>
-              {shown.length === 0 ? (
-                <EmptyRow colSpan={6}>
-                  {status === "loading" || status === "idle"
-                    ? "Loading…"
-                    : status === "error"
-                      ? "Couldn't load client health. Try Refresh."
-                      : rows.length
-                        ? "No clients match these filters."
-                        : "No clients yet."}
-                </EmptyRow>
-              ) : (
-                shown.map((r) => (
-                  <tr key={r.id} className={"hlb-row-" + r.band}>
-                    <td data-label="Client">
-                      <a href={HLB_clientHref(r.id)}>{r.name}</a>
-                    </td>
-                    <td data-label="Score">
-                      <strong className={"hl-score hl-" + r.band}>{r.score}</strong>
-                    </td>
-                    <td data-label="Band">
-                      <HLB_Band band={r.band} />
-                    </td>
-                    <td data-label="Reasons">
-                      {r.reasons.length ? (
-                        <ul className="hlb-reasons">
-                          {r.reasons.map((x) => (
-                            <li key={x.key}>
-                              {x.label} <span className="negative">−{x.points}</span>
-                            </li>
-                          ))}
-                        </ul>
-                      ) : (
-                        <span className="hlb-muted">Nothing flagged</span>
-                      )}
-                    </td>
-                    <td data-label="Bookkeeper">{r.assignee ? nameOf(r.assignee) : <span className="hlb-muted">None</span>}</td>
-                    <td data-label="Backup">{r.backup ? nameOf(r.backup) : <span className="hlb-muted">None set</span>}</td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-        <p className="hlb-muted hlb-foot">
-          Showing {shown.length} of {rows.length}. Points: overdue tasks 10 each (max 30), QuickBooks 25 (stale sync 10), no staff time
-          in 30 days 20, late close 20, margin below target 15, overdue document requests 5 each (max 15), client waiting over 24
-          hours 10, over hours budget 10, SOP stale or under half filled 5. Margin and hours budget are admin only.
-        </p>
-      </div>
-    </div>
-  );
-}
-
 function HLB_AtRiskBody({ clients, staffUser }) {
   const { byId, status } = HL_useHealth();
   const isAdmin = staffUser && staffUser.role === "admin";
@@ -284,7 +100,18 @@ function HLB_AtRiskBody({ clients, staffUser }) {
       {(list.length > shown.length || isAdmin) && (
         <p className="hlb-home-foot">
           {list.length > shown.length ? list.length - shown.length + " more. " : ""}
-          {isAdmin && <a href="#/team/health">Open the health board</a>}
+          {isAdmin && (
+            <a
+              href="#/clients"
+              onClick={(e) => {
+                if (typeof NAV_go !== "function") return;
+                e.preventDefault();
+                NAV_go("clients");
+              }}
+            >
+              Open the Clients list
+            </a>
+          )}
         </p>
       )}
     </div>

@@ -5,9 +5,11 @@
 //                     each with a link to its Staff guide article. Hides
 //                     itself once every step is done or you click "Hide
 //                     this card".
-//   SON_ProgressTab   Team → Onboarding (admins): everyone's progress, tick
-//                     for someone, and edit the step list (add, edit,
-//                     reorder, retire / restore; never deleted).
+//   SON_ProgressTab   Team → Onboarding (#/team/onboarding). Admins:
+//                     everyone's progress, tick for someone, and edit the
+//                     step list (add, edit, reorder, retire / restore; never
+//                     deleted). Everyone else: their own steps
+//                     (SON_MyStepsTab), tickable.
 //
 // Mirrors the client onboarding checklist (Onboarding.jsx, OB_). No auto
 // ticks. Top-level names use the SON_ prefix.
@@ -170,7 +172,35 @@ function SON_HomeCard({ staffUser, className, dragProps }) {
   );
 }
 
-// ---- Team → Onboarding (admins) ----
+// ---- Team → Onboarding ----
+
+// What a non-admin sees on the tab: their own steps, tickable, same as the
+// home card but always here even after the card is hidden.
+function SON_MyStepsTab({ staffUser, st, steps }) {
+  const showToast = useToast();
+  const me = String((staffUser && staffUser.email) || "").toLowerCase();
+  const summary = OPS_onboardingSummary(st.steps, st.rows, me);
+  return (
+    <div className="son-tab">
+      <section className="card son-admin-card">
+        <h3 className="card-title">Your onboarding</h3>
+        <p className="card-subtitle">
+          {steps.length === 0
+            ? "No onboarding steps have been set up yet."
+            : summary.complete
+              ? "All done. Every step is ticked."
+              : "Your first steps at MyGoodBooks. Tick each one off as you go."}
+        </p>
+        {steps.length > 0 && <SON_Bar summary={summary} />}
+        {steps.length > 0 && (
+          <SON_StepList steps={steps} summary={summary} email={me} canTick onError={(m) => showToast("Couldn't save: " + m)} />
+        )}
+      </section>
+    </div>
+  );
+}
+
+// ---- Team → Onboarding (admins): everyone's progress and the step list ----
 
 function SON_StepEditor({ step, onDone, nextSort }) {
   const showToast = useToast();
@@ -338,10 +368,11 @@ function SON_ProgressTab() {
   const dir = typeof CV_useDirectory === "function" ? CV_useDirectory() : [];
   const [open, setOpen] = useState("");
   const showToast = useToast();
-  if (!isAdmin) return <p className="card-subtitle">Only admins can see the team's onboarding progress.</p>;
   if (st.loading) return <p className="card-subtitle">Loading…</p>;
   if (st.error) return <p className="card-subtitle">{st.error}</p>;
   const steps = st.steps.filter((s) => s.active !== false);
+  // Everyone else sees just their own steps; the team view is admin-only.
+  if (!isAdmin) return <SON_MyStepsTab staffUser={staffUser} st={st} steps={steps} />;
   const people = dir
     .map((p) => ({ ...p, sum: OPS_onboardingSummary(st.steps, st.rows, p.email) }))
     .sort((a, b) => Number(a.sum.complete) - Number(b.sum.complete) || a.sum.pct - b.sum.pct || String(a.name).localeCompare(String(b.name)));
@@ -349,7 +380,7 @@ function SON_ProgressTab() {
     <div className="son-tab">
       <section className="card son-admin-card">
         <h3 className="card-title">Progress</h3>
-        <p className="card-subtitle">Each person ticks their own steps on Home. Click a name to see their steps or tick one for them.</p>
+        <p className="card-subtitle">Each person ticks their own steps on their own Onboarding tab. Click a name to see their steps or tick one for them.</p>
         {people.length === 0 ? (
           <p className="card-subtitle">No staff found.</p>
         ) : (

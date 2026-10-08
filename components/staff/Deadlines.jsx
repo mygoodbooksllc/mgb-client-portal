@@ -8,7 +8,7 @@
 // (OPS_deadlineItems). The seeded dates are a starting point to verify, not
 // tax or legal advice.
 //
-//   DL_DeadlinesPage        page #/deadlines (all staff): list and month views,
+//   DL_DeadlinesPage        Work → Deadlines (#/work/deadlines, all staff): list and month views,
 //                           mine/all, form filter, Mark filed, Create task,
 //                           rules (admins edit) and client exceptions.
 //   DL_UpcomingDeadlinesBody Home card "Upcoming deadlines" (next 30 days).
@@ -228,7 +228,7 @@ function DL_TaskButton({ it, made }) {
     });
     setBusy(false);
     if (res && res.error) return showToast("Couldn't add the task: " + (res.error.message || "error"));
-    showToast("Task added to My Tasks");
+    showToast("Task added to Work → Tasks");
     DL_load(true);
   }
   return (
@@ -982,7 +982,7 @@ function DL_UpcomingDeadlinesBody({ clients, staffUser }) {
       )}
       <p className="dl-home-foot">
         {items.length > shown.length ? items.length - shown.length + " more · " : ""}
-        <a href="#/deadlines">Open Deadlines</a> · Verify dates before filing.
+        <a href="#/work/deadlines">Open Deadlines</a> · Verify dates before filing.
       </p>
     </div>
   );

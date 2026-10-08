@@ -1,15 +1,16 @@
-// Team Reviews & Team Survey (staff only, #/reviews). Owner request 2026-10-07.
+// Team Reviews & Team Survey (staff only, Team → Reviews). Owner request 2026-10-07.
 //
-// One "Reviews" page in the staff sidebar. Tabs:
+// The "Reviews" tab of the Team hub (TeamPage.jsx TP_TeamHub). Its own tabs:
 //   everyone        My review (current cycle) · History
 //   admins also     Team status · Reviews I'm giving · Survey results · Year-end
 // An admin sees My review only when they are a reviewee this cycle.
 //
-// Routes (hash, kept by app.jsx buildHashRoute):
-//   #/reviews                 default tab
-//   #/reviews/<tab>           my | history | team | giving | results | year-end
-//   #/reviews/survey          this quarter's team survey
-//   #/reviews/r/<review id>   one review: the form you owe, or the comparison
+// Routes (hash; the hub owns #/team/reviews, this file what follows it, and
+// app.jsx buildHashRoute keeps the whole hash):
+//   #/team/reviews                 default tab
+//   #/team/reviews/<tab>           my | history | team | giving | results | year-end
+//   #/team/reviews/survey          this quarter's team survey
+//   #/team/reviews/r/<review id>   one review: the form you owe, or the comparison
 //
 // Everything is enforced in the database (supabase/team-reviews-*.sql): the
 // blind rule, who can see or edit what, locks after signing, no deletes. The
@@ -103,8 +104,9 @@ function TR_poss(name) {
 }
 
 // ---------------------------------------------------------------------------
-// Shared overview (tr_my_overview): powers the page, the sidebar badge and
-// the Home "Review due" card. One request serves all three.
+// Shared overview (tr_my_overview): powers the page, the Reviews tab badge
+// (TeamPage.jsx TP_ReviewsBadge) and the "Review due" notice. One request
+// serves all three.
 // ---------------------------------------------------------------------------
 const TR_store = { data: null, error: "", at: 0, pending: null, subs: new Set() };
 
@@ -166,7 +168,7 @@ function TR_NavBadge({ expanded }) {
 }
 
 function TR_goReviews(path) {
-  const next = "#/reviews" + (path ? "/" + path : "");
+  const next = "#/team/reviews" + (path ? "/" + path : "");
   if (window.location.hash !== next) window.location.hash = next;
 }
 
@@ -614,7 +616,7 @@ function TR_SubmittedBanner({ review, kind }) {
 }
 
 // ---------------------------------------------------------------------------
-// One review (#/reviews/r/<id>): the form you owe, else the comparison.
+// One review (#/team/reviews/r/<id>): the form you owe, else the comparison.
 // ---------------------------------------------------------------------------
 function TR_ReviewPage({ reviewId, onBack }) {
   const [state, setState] = React.useState({ review: null, error: "", loading: true });
@@ -863,7 +865,7 @@ function TR_GivingTab({ ov }) {
 // ---------------------------------------------------------------------------
 function TR_parseRoute() {
   const h = String(window.location.hash || "");
-  const m = /^#\/reviews(?:\/(.*))?$/.exec(h);
+  const m = /^#\/team\/reviews(?:\/(.*))?$/.exec(h);
   const rest = m && m[1] ? m[1].split("/").filter(Boolean) : [];
   if (rest[0] === "r" && rest[1]) return { tab: null, reviewId: rest[1] };
   if (rest[0] === "survey") return { tab: null, survey: true };
@@ -910,10 +912,14 @@ function TR_TeamReviewsPage() {
 
   const back = () => TR_goReviews(lastTab.current && lastTab.current !== defaultTab ? lastTab.current : "");
   const onKeyDown = (e) => {
-    if (e.key !== "ArrowRight" && e.key !== "ArrowLeft") return;
-    e.preventDefault();
     const i = tabs.findIndex((t) => t.key === tab);
-    const next = tabs[(i + (e.key === "ArrowRight" ? 1 : tabs.length - 1)) % tabs.length];
+    let next = null;
+    if (e.key === "ArrowRight") next = tabs[(i + 1) % tabs.length];
+    else if (e.key === "ArrowLeft") next = tabs[(i - 1 + tabs.length) % tabs.length];
+    else if (e.key === "Home") next = tabs[0];
+    else if (e.key === "End") next = tabs[tabs.length - 1];
+    if (!next) return;
+    e.preventDefault();
     TR_goReviews(next.key);
     setTimeout(() => {
       const el = document.getElementById("tr-tab-" + next.key);
@@ -933,24 +939,29 @@ function TR_TeamReviewsPage() {
   else if (tab === "results") body = typeof TR_SurveyResultsTab === "function" ? <TR_SurveyResultsTab /> : null;
   else if (tab === "year-end") body = typeof TR_YearEndTab === "function" ? <TR_YearEndTab ov={ov} /> : null;
 
+  // A nested strip under the Team hub's tab row: .nav-tabs-sub (team-page.css)
+  // draws these as pills so the two levels read apart. Same tablist contract
+  // as NAV_TabRow (arrow keys move, Home/End jump), with the hash as state.
   return (
     <div className="tr-page">
-      <div className="tp-hub-tabs" role="tablist" aria-label="Reviews" onKeyDown={onKeyDown}>
-        {tabs.map((t) => (
-          <button
-            key={t.key}
-            id={"tr-tab-" + t.key}
-            type="button"
-            role="tab"
-            aria-selected={tab === t.key}
-            aria-controls="tr-panel"
-            tabIndex={tab === t.key ? 0 : -1}
-            className={"tp-hub-tab" + (tab === t.key ? " active" : "")}
-            onClick={() => TR_goReviews(t.key)}
-          >
-            {t.label}
-          </button>
-        ))}
+      <div className="nav-tabs-row nav-tabs-row-sub">
+        <div className="nav-tabs nav-tabs-sub" role="tablist" aria-label="Reviews" onKeyDown={onKeyDown}>
+          {tabs.map((t) => (
+            <button
+              key={t.key}
+              id={"tr-tab-" + t.key}
+              type="button"
+              role="tab"
+              aria-selected={tab === t.key}
+              aria-controls="tr-panel"
+              tabIndex={tab === t.key ? 0 : -1}
+              className={"nav-tab" + (tab === t.key ? " active" : "")}
+              onClick={() => TR_goReviews(t.key)}
+            >
+              <span className="nav-tab-label">{t.label}</span>
+            </button>
+          ))}
+        </div>
       </div>
       <div id="tr-panel" role="tabpanel" aria-labelledby={"tr-tab-" + tab}>
         {body}

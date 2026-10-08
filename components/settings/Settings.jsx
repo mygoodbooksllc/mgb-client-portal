@@ -2,7 +2,7 @@
 // Settings (owner request 2026-09-30)
 //
 //   Staff:   #/settings                   ST_StaffSettingsPage (avatar menu >
-//                                         Settings, or the staff sidebar menu)
+//                                         Settings, the rail's foot, or ⌘K)
 //   Clients: #/client/<id>/settings       ST_ClientSettingsPage (the gear at
 //                                         the foot of the client sidebar)
 //            Staff on a client's pages get the same page with the "Client
@@ -17,7 +17,9 @@
 // Data (supabase/user-settings.sql):
 //   user_settings.settings  one JSON object per signed-in person:
 //     theme       "light" | "dark" | null (match my computer)
-//     startPage   staff: "home" | "tasks" | "last-client"
+//     startPage   staff: "home" (Today) | "tasks" (Work › Tasks) | "last-client"
+//                 (stored values predate the 2026-10 nav redesign; app.jsx
+//                 maps them to the new pages)
 //     signature   staff: plain-text email signature
 //     notify      { email: { key: bool }, bell: { key: bool } }
 //     name, phone client profile
@@ -66,9 +68,11 @@ const ST_BELL_PREFS = [
   { key: "close", prefix: "close:", label: "Month-end close blocked" },
   { key: "shoutouts", prefix: "shout:", label: "Shout-outs for me" },
 ];
+// Values are stored as-is ("home" is Today, "tasks" is Work › Tasks): the
+// pages were renamed in the 2026-10 nav redesign, saved choices were not.
 const ST_START_PAGES = [
-  { value: "home", label: "Home", sub: "Your clients, tasks and messages at a glance." },
-  { value: "tasks", label: "My Tasks", sub: "Straight to your task list." },
+  { value: "home", label: "Today", sub: "What needs you, in order." },
+  { value: "tasks", label: "Work › Tasks", sub: "Straight to your task list." },
   { value: "last-client", label: "Last client opened", sub: "Pick up where you left off." },
 ];
 const ST_THEMES = [
@@ -571,9 +575,12 @@ function ST_boardLabel(key, clients) {
     const c = (clients || []).find((x) => x.id === id);
     return c ? c.name : id;
   };
-  if (key === "bookkeeper-home") return { title: "Home", sub: "Your staff Home page" };
   if (key.startsWith("live-report:")) return { title: nameOf(key.slice(12)), sub: "Financial Overview" };
   const [id, scope] = key.split(":");
+  // Not a client's board: the staff Home page's card layout, saved before
+  // the 2026-10 nav redesign replaced that page with Today (which has no
+  // board). Resetting it just clears the old row.
+  if (!scope && !(clients || []).some((x) => x.id === id)) return { title: "Today (old Home layout)", sub: "Cards from the old staff Home page" };
   return { title: nameOf(id), sub: scope === "scoped" ? "Dashboard (limited view)" : "Dashboard" };
 }
 
@@ -740,12 +747,13 @@ function ST_StaffProfileCard({ staffUser, readOnly }) {
 }
 
 // ---------------------------------------------------------------------------
-// Firm settings (owner request 2026-09-30): the admin pages that used to be
-// staff sidebar links, as grouped rows. Each row opens the existing page by
-// its page id, so routes, deep links and gating are unchanged. `show` mirrors
-// what the sidebar showed: admins everything; staff with temporary admin
-// access the pages App lets them open (effectivePage), never the admin-only
-// Emails, Audit log or QuickBooks usage card.
+// Firm settings (owner request 2026-09-30): the admin pages, as grouped rows
+// (they're also in the top bar's ⌘K "Pages" group). Each row opens the
+// existing page by its page id, so routes, deep links and gating are
+// unchanged; a row with `tab` lands on that tab of a hub page (Team ›
+// Hours) through NAV_go. `show`: admins everything; staff with temporary
+// admin access the pages App lets them open (effectivePage), never the
+// admin-only Emails, Audit log or QuickBooks usage card.
 // ---------------------------------------------------------------------------
 function ST_firmGroups(isAdmin, hasTempAdminAccess) {
   const anyAdmin = !!(isAdmin || hasTempAdminAccess);
@@ -775,7 +783,7 @@ function ST_firmGroups(isAdmin, hasTempAdminAccess) {
       title: "Email and QuickBooks",
       rows: [
         { key: "emails", page: "emails", label: "Emails", sub: "Whether sending works, the weekly digest, client emails and the send log.", icon: icon("EM_MailIcon"), show: !!isAdmin && typeof EM_EmailsPage === "function", chip: "email" },
-        { key: "qbo", page: "staff-team", label: "QuickBooks usage and limits", sub: "This month's Intuit API calls, sync slow-down and stop limits (on the Team page).", icon: icon("GaugeIcon"), show: !!isAdmin, chip: "qbo" },
+        { key: "qbo", page: "team", tab: "hours", label: "QuickBooks usage and limits", sub: "This month's Intuit API calls, sync slow-down and stop limits (on Team › Hours).", icon: icon("GaugeIcon"), show: !!isAdmin, chip: "qbo" },
       ],
     },
     {
@@ -863,7 +871,11 @@ function ST_FirmSettings({ groups, isAdmin, onSelectPage }) {
               const chip = r.chip ? status[r.chip] : null;
               return (
                 <li key={r.key}>
-                  <button type="button" className="st-firm-row" onClick={() => onSelectPage(r.page)}>
+                  <button
+                    type="button"
+                    className="st-firm-row"
+                    onClick={() => (r.tab && typeof NAV_go === "function" ? NAV_go(r.page, r.tab) : onSelectPage(r.page))}
+                  >
                     <span className="st-firm-icon" aria-hidden="true">{r.icon}</span>
                     <span className="st-row-text">
                       <span className="st-row-label">
@@ -913,8 +925,34 @@ function ST_StaffSettingsPage({
     { key: "signature", label: "Email signature" },
     { key: "dashboards", label: "Dashboards" },
     { key: "shortcuts", label: "Shortcuts" },
+    { key: "help", label: "Help" },
     ...(isAdmin || hasTempAdminAccess ? [{ key: "firm", label: "Firm settings" }] : []),
   ];
+  // Help tab rows; each shows only when its module is loaded (Tour.jsx,
+  // StaffGuide.jsx, Feedback.jsx). Same shape as the client Help card.
+  const helpRows = [
+    typeof TOUR_startStaff === "function" && {
+      key: "tour",
+      label: "Guided tour",
+      sub: "A quick walk through Today, Inbox, Work, Clients and Team, and the top bar.",
+      action: "Restart the tour",
+      run: () => TOUR_startStaff(),
+    },
+    typeof HLP_StaffGuidePage === "function" && {
+      key: "guide",
+      label: "Staff guide",
+      sub: "How each page works, step by step. The ? in the top bar opens the article for the page you're on.",
+      action: "Open the guide",
+      run: () => onSelectPage("help"),
+    },
+    typeof FB_openFeedback === "function" && {
+      key: "feedback",
+      label: "Send feedback",
+      sub: "Found a bug or have an idea? Tell us what went wrong or what would help.",
+      action: "Send feedback",
+      run: () => FB_openFeedback(),
+    },
+  ].filter(Boolean);
   const header = (
     <div className="st-header">
       <ST_SavedNote saveState={st.saveState} paused={st.paused} />
@@ -1011,7 +1049,7 @@ function ST_StaffSettingsPage({
             <ST_Card title="Keyboard shortcuts">
               <dl className="st-shortcuts">
                 <dt><kbd>Ctrl</kbd> / <kbd>⌘</kbd> + <kbd>K</kbd></dt>
-                <dd>Search clients, tasks, help and the open client's data</dd>
+                <dd>Search clients, tasks, SOPs, help and the open client's data, or jump to any page or action (press it with nothing typed for the list)</dd>
                 <dt><kbd>↑</kbd> <kbd>↓</kbd></dt>
                 <dd>Move through menus, search results and these tabs</dd>
                 <dt><kbd>Enter</kbd></dt>
@@ -1021,6 +1059,27 @@ function ST_StaffSettingsPage({
                 <dt><kbd>Tab</kbd></dt>
                 <dd>Move between controls</dd>
               </dl>
+            </ST_Card>
+          )}
+          {key === "help" && (
+            <ST_Card title="Help" sub="Stuck, or something looks wrong? Start here.">
+              {helpRows.length === 0 ? (
+                <p className="st-muted">Help isn't available right now. Ask an admin if this keeps happening.</p>
+              ) : (
+                <ul className="st-list">
+                  {helpRows.map((r) => (
+                    <li key={r.key} className="st-list-row">
+                      <span className="st-row-text">
+                        <span className="st-row-label">{r.label}</span>
+                        <span className="st-row-sub">{r.sub}</span>
+                      </span>
+                      <button type="button" className="btn-secondary st-btn-sm" onClick={r.run}>
+                        {r.action}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
             </ST_Card>
           )}
           {key === "firm" && (

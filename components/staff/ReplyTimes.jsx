@@ -6,8 +6,8 @@
 // the next staff reply. Internal notes and deleted messages don't count. The
 // goal is OPS_REPLY_GOAL_HOURS (24 calendar hours, staffOpsLogic.js).
 //
-// Shown as the Team hub tab "Reply times" (RT_ReplyTimesTab, admins see
-// everyone) and the Home KPI tile "kpi-reply" (RT_useMyReply, your own
+// Shown as Team → Reply times (#/team/reply-times, RT_ReplyTimesTab, admins
+// see everyone) and the home KPI tile "kpi-reply" (RT_useMyReply, your own
 // median this month). Bookkeepers only ever get their own row and their own
 // clients back from the RPC.
 

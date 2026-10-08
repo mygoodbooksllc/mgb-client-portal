@@ -9,44 +9,149 @@
   min-width: 0;
 }
 
-/* ---- Team tabs: Hours and tasks | Members (TP_TeamHub) ---- */
+/* ---- Team hub (TP_TeamHub): the shared tab row is staff-nav.css ---- */
 .tp-hub {
   min-width: 0;
 }
-.tp-hub-tabs {
-  display: flex;
-  gap: 4px;
-  border-bottom: 1px solid var(--border);
-  margin: 0 0 20px;
-  overflow-x: auto;
-  scrollbar-width: none;
-}
-.tp-hub-tabs::-webkit-scrollbar {
-  display: none;
-}
-.tp-hub-tab {
-  background: transparent;
-  border: none;
-  border-bottom: 2px solid transparent;
-  font-family: var(--font-body);
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--text-muted);
-  padding: 10px 14px;
-  cursor: pointer;
+/* Screen-reader-only text (a tab badge's "2 review items due"). */
+.tp-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
   white-space: nowrap;
 }
-.tp-hub-tab:hover {
-  color: var(--ink-strong);
+
+/* ---- Nested tab strip inside a hub tab (Reviews: My review | History | …).
+   Pills instead of the hub row's underline, so the two levels read apart.
+   Markup: .nav-tabs-row.nav-tabs-row-sub > .nav-tabs.nav-tabs-sub > .nav-tab ---- */
+.nav-tabs-row.nav-tabs-row-sub {
+  border-bottom: 0;
+  margin: 0 0 16px;
 }
-.tp-hub-tab.active {
-  color: var(--ink-strong);
-  border-bottom-color: var(--gold);
+.nav-tabs.nav-tabs-sub {
+  gap: 6px;
+  flex-wrap: wrap;
+  overflow: visible;
 }
-.tp-hub-tab:focus-visible {
+.nav-tabs-sub .nav-tab {
+  font-size: 13px;
+  padding: 6px 12px;
+  margin-bottom: 0;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--text-muted);
+}
+.nav-tabs-sub .nav-tab:hover {
+  color: var(--ink-strong, var(--text));
+  border-color: var(--gold);
+}
+.nav-tabs-sub .nav-tab.active {
+  background: var(--gold);
+  border-color: var(--gold);
+  color: var(--on-gold);
+}
+.nav-tabs-sub .nav-tab:focus-visible {
   outline: 2px solid var(--gold);
-  outline-offset: -2px;
-  border-radius: 6px 6px 0 0;
+  outline-offset: 2px;
+  border-radius: 999px;
+}
+@media (max-width: 760px) {
+  .nav-tabs-row.nav-tabs-row-sub {
+    margin: 0 0 14px;
+    padding: 0;
+  }
+}
+
+/* ---- People tab (TP_PeopleTab) ---- */
+.tp-people {
+  min-width: 0;
+}
+.tp-people > .cv-page + .card,
+.tp-people-col > .card + .card {
+  margin-top: 20px;
+}
+.tp-people-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 20px;
+  align-items: start;
+}
+.tp-people-col {
+  min-width: 0;
+}
+.tp-people-card .card-subtitle + .cv-my,
+.tp-people-card .card-subtitle + .so-card {
+  margin-top: 12px;
+}
+.tp-people-empty {
+  margin-bottom: 0;
+}
+.tp-out-h {
+  margin: 14px 0 6px;
+  font-family: var(--font-body);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.tp-out-list,
+.tp-backup-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.tp-out-list li,
+.tp-backup-list li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 12px;
+  padding: 8px 0;
+  border-top: 1px solid var(--border);
+}
+.tp-out-list li:first-child,
+.tp-backup-list li:first-child {
+  border-top: 0;
+  padding-top: 2px;
+}
+.tp-out-name,
+.tp-backup-client {
+  font-weight: 600;
+  color: var(--ink-strong, var(--text));
+}
+.tp-backup-client {
+  text-decoration: none;
+}
+.tp-backup-client:hover {
+  text-decoration: underline;
+}
+.tp-out-when,
+.tp-out-note,
+.tp-backup-who {
+  font-size: 13px;
+  color: var(--text-muted);
+}
+.tp-backup-who {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 10px;
+  margin-left: auto;
+}
+.tp-backup-list .cv-out-tag {
+  margin-left: 0;
+}
+@media (max-width: 900px) {
+  .tp-people-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .tp-people-col + .tp-people-col {
+    margin-top: 0;
+  }
 }
 
 .tp-muted {

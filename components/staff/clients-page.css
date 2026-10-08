@@ -1,1 +1,469 @@
-/* components/staff/clients-page.css — filled in by the staff navigation build (2026-10-08). */
+/* ---------------------------------------------------------------------------
+   Clients (components/staff/ClientsPage.jsx, staff navigation redesign
+   2026-10-08): the Clients list, the breadcrumb and tab row above a client's
+   pages for staff, and "View as client". Page-surface tokens only.
+   --------------------------------------------------------------------------- */
+
+/* Staff on a client's pages: the client's tabs run across the top
+   (CL_ClientTabs), so the client sidebar steps aside at desktop width. The
+   phone drawer stays — it is how a client's tabs are reached under 760px. */
+@media (min-width: 761px) {
+  html.staff-client-tabs .app-shell > .sidebar {
+    display: none;
+  }
+}
+
+/* ---- Breadcrumb (sits in the page header's .portal-greeting slot, which
+   is uppercase and letter-spaced for the client's name; a path reads better
+   in plain case) */
+.cl-crumbs {
+  margin: 0 0 6px;
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: normal;
+  text-transform: none;
+  color: var(--text-muted);
+  min-width: 0;
+}
+.cl-crumbs ol {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.cl-crumbs li {
+  min-width: 0;
+}
+.cl-crumbs a {
+  color: var(--text-muted);
+  text-decoration: none;
+  border-radius: 4px;
+}
+.cl-crumbs a:hover {
+  color: var(--gold-deep);
+  text-decoration: underline;
+}
+.cl-crumbs a:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 2px;
+}
+.cl-crumb-sep {
+  opacity: 0.6;
+}
+.cl-crumb-current {
+  color: var(--text);
+  font-weight: 600;
+}
+
+/* ---- Tab row extras (the row itself is staff-nav.css). A client can have
+   eleven tabs; on desktop they wrap onto a second line rather than scroll
+   out of sight with no scrollbar to say so. */
+@media (min-width: 761px) {
+  .cl-tabs .nav-tabs {
+    flex-wrap: wrap;
+    overflow: visible;
+  }
+}
+.cl-settings-btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 5px 12px 5px 10px;
+  font-family: var(--font-body);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-muted);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.cl-settings-btn:hover {
+  color: var(--text);
+  border-color: var(--gold);
+}
+.cl-settings-btn.active {
+  color: var(--gold-deep);
+  border-color: var(--gold);
+  background: var(--accent-soft);
+}
+.cl-settings-btn:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 2px;
+}
+.cl-settings-dot {
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--bad);
+  border: 2px solid var(--surface);
+}
+
+/* ---- View as client */
+.cl-viewas-wrap {
+  position: relative;
+  display: inline-flex;
+}
+.cl-viewas {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+.cl-viewas[disabled] {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+.cl-viewas-chev {
+  width: 12px;
+  height: 12px;
+  transition: transform 0.15s;
+}
+.cl-viewas-chev.open {
+  transform: rotate(180deg);
+}
+.cl-viewas-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  min-width: 220px;
+  padding: 6px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.12);
+  z-index: 40;
+}
+.cl-viewas-item {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  padding: 8px 10px;
+  background: transparent;
+  border: none;
+  border-radius: 8px;
+  font-family: var(--font-body);
+  font-size: 13.5px;
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+}
+.cl-viewas-item:hover,
+.cl-viewas-item:focus-visible {
+  background: var(--surface-2);
+  outline: none;
+}
+.cl-viewas-item:focus-visible {
+  box-shadow: inset 0 0 0 2px var(--gold);
+}
+.cl-viewas-role {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.cl-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+/* ---- The list */
+.cl-page {
+  min-width: 0;
+}
+.cl-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px 16px;
+  margin-bottom: 14px;
+}
+.cl-seg {
+  display: inline-flex;
+  gap: 2px;
+  padding: 3px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+.cl-seg-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: transparent;
+  border: none;
+  border-radius: 8px;
+  font-family: var(--font-body);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-muted);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.cl-seg-btn:hover {
+  color: var(--text);
+}
+.cl-seg-btn.active {
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+}
+.cl-seg-btn:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: -2px;
+}
+.cl-seg-count {
+  min-width: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-align: center;
+}
+.cl-seg-btn.active .cl-seg-count {
+  background: var(--gold);
+  border-color: var(--gold);
+  color: var(--on-gold);
+}
+.cl-search {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 1 280px;
+  min-width: 160px;
+  padding: 0 10px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  color: var(--text-muted);
+}
+.cl-search:focus-within {
+  border-color: var(--gold);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+.cl-search-icon {
+  width: 15px;
+  height: 15px;
+  flex-shrink: 0;
+}
+.cl-search input {
+  flex: 1;
+  min-width: 0;
+  padding: 8px 0;
+  border: none;
+  background: transparent;
+  font-family: var(--font-body);
+  font-size: 13.5px;
+  color: var(--text);
+  outline: none;
+}
+.cl-search input::placeholder {
+  color: var(--text-muted);
+}
+
+.cl-table th {
+  white-space: nowrap;
+}
+.cl-table td {
+  vertical-align: middle;
+}
+.cl-row {
+  cursor: pointer;
+}
+.cl-row:hover td {
+  background: var(--surface-2);
+}
+.cl-row-attention td:first-child {
+  box-shadow: inset 3px 0 0 var(--bad);
+  padding-left: 10px;
+}
+.cl-client {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 8px;
+}
+.cl-name {
+  font-weight: 600;
+  color: var(--text);
+  text-decoration: none;
+  border-radius: 4px;
+}
+.cl-name:hover {
+  color: var(--gold-deep);
+  text-decoration: underline;
+}
+.cl-name:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 2px;
+}
+.cl-tag {
+  font-size: 10.5px;
+  padding: 2px 7px;
+}
+.cl-requests {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: var(--gold);
+  color: var(--on-gold);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+}
+.cl-why {
+  margin-top: 3px;
+  font-size: 12px;
+  color: var(--bad);
+}
+.cl-health {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  white-space: nowrap;
+}
+.cl-score {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+.cl-health.hl-red .cl-score {
+  color: var(--bad);
+}
+.cl-health.hl-amber .cl-score {
+  color: var(--warm-text);
+}
+.cl-health.hl-green .cl-score {
+  color: var(--good);
+}
+.cl-band {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.cl-person {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+.cl-hours {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  white-space: nowrap;
+}
+.cl-hours .hb-track {
+  width: 88px;
+}
+.cl-close {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  white-space: nowrap;
+}
+.cl-close-month {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.cl-foot {
+  margin: 14px 0 0;
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+
+/* Phones: each client is a card. .tx-table-labeled (styles.css) does the
+   label/value stacking; this gives the stack a card edge and keeps the row
+   tappable. */
+@media (max-width: 760px) {
+  .cl-toolbar {
+    align-items: stretch;
+  }
+  .cl-seg {
+    width: 100%;
+  }
+  .cl-seg-btn {
+    flex: 1;
+    justify-content: center;
+    padding: 7px 8px;
+  }
+  .cl-search {
+    flex-basis: 100%;
+  }
+  .cl-table tbody tr.cl-row {
+    margin: 0 0 10px;
+    padding: 12px 14px;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background: var(--surface);
+  }
+  .cl-table tbody tr.cl-row:last-child {
+    border-bottom: 1px solid var(--border);
+  }
+  .cl-row:hover td {
+    background: transparent;
+  }
+  .cl-row-attention td:first-child {
+    box-shadow: none;
+    padding-left: 0;
+  }
+  .cl-table tbody tr.cl-row-attention {
+    border-left: 3px solid var(--bad);
+  }
+  .cl-table tbody td.cl-cell-client {
+    padding-bottom: 8px;
+  }
+  .cl-hours {
+    align-items: flex-end;
+  }
+  .cl-why {
+    text-align: left;
+  }
+  .cl-viewas-menu {
+    right: auto;
+    left: 0;
+  }
+}
+
+/* ---- Dark mode (both forms the app supports) */
+@media (prefers-color-scheme: dark) {
+  :where(:root:not([data-theme="light"])) .cl-seg-btn.active {
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+  }
+  :where(:root:not([data-theme="light"])) .cl-viewas-menu {
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+  }
+  :where(:root:not([data-theme="light"])) .cl-health.hl-amber .cl-score {
+    color: var(--gold);
+  }
+}
+:where(:root[data-theme="dark"]) .cl-seg-btn.active {
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+}
+:where(:root[data-theme="dark"]) .cl-viewas-menu {
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+}
+:where(:root[data-theme="dark"]) .cl-health.hl-amber .cl-score {
+  color: var(--gold);
+}

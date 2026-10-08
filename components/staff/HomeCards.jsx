@@ -1,7 +1,8 @@
 // ----------------------------------------------------------------------------
-// Staff Home custom cards (owner request 2026-10-05).
+// Staff Today custom cards (owner request 2026-10-05; the page was called
+// Home until the 2026-10 nav redesign).
 //
-// Each staff member can add their own cards to Home, like a Pro client's
+// Each staff member can add their own cards to Today, like a Pro client's
 // custom cards on the Financial Overview. Four kinds:
 //
 // - watchlist: clients you pick by hand.
@@ -11,7 +12,7 @@
 //              builder (window.MGB_CustomCards) pointed at that client.
 // - notes:     a private note plus a checklist, edited right on the card.
 //
-// Card defs ride inside the "bookkeeper-home" board layout (useWidgetLayout
+// Card defs ride inside the staff Today board layout (useWidgetLayout
 // in app.jsx: { order, hidden, cards }), so they're saved to the person's
 // account (public.user_board_layouts, one row per user) and are private to
 // them. Nothing here writes client data.
@@ -43,7 +44,7 @@ const HC_KINDS = [
   {
     kind: "notes",
     label: "Notes / checklist",
-    desc: "A private note and a to-do checklist you can tick off right on Home.",
+    desc: "A private note and a to-do checklist you can tick off right on Today.",
   },
 ];
 const HC_RULES = [
@@ -137,7 +138,7 @@ const HC_newId = (prefix = "hc-") =>
 const HC_isCardId = (id) => typeof id === "string" && id.startsWith("hc-");
 
 // Cleans a saved list: drops anything malformed so a bad row in the account
-// copy can never break Home.
+// copy can never break Today.
 function HC_normalizeList(list) {
   if (!Array.isArray(list)) return [];
   const seen = new Set();
@@ -319,7 +320,7 @@ function HC_ClientRows({ rows, onOpen, emptyText }) {
   );
 }
 
-// The ⋯ menu on Home's own custom cards. Same look as the Financial
+// The ⋯ menu on Today's own custom cards. Same look as the Financial
 // Overview card menu (.cc-menu, DailyClose.css), with the delete confirm
 // inside the menu.
 function HC_Menu({ title, onEdit, onDuplicate, onDelete }) {
@@ -504,7 +505,7 @@ function HC_theme() {
   return document.documentElement.getAttribute("data-theme") || undefined;
 }
 
-// One custom card on Home. ctx carries Home's per-client data:
+// One custom card on Today. ctx carries Today's per-client data:
 // { clients, today, statusOverrides, dueCountByClient, unreadByClient,
 //   closeCounts, onOpenClient }.
 function HC_Card({ def, ctx, dragProps, dragClass, flash, onEdit, onDuplicate, onDelete, onChange }) {
@@ -652,7 +653,7 @@ function HC_Builder({ initial, ctx, onSave, onCancel }) {
         initial={draft.cc}
         source={source}
         theme={HC_theme()}
-        addLabel="Add to Home"
+        addLabel="Add to Today"
         onCancel={() => setStep(1)}
         onSave={(cc) => onSave({ ...draft, title: "", cc })}
       />
@@ -819,7 +820,7 @@ function HC_Builder({ initial, ctx, onSave, onCancel }) {
                 rows={4}
                 maxLength={4000}
                 value={noteText}
-                placeholder="Anything you want in front of you on Home…"
+                placeholder="Anything you want in front of you on Today…"
                 onChange={(e) => setNoteText(e.target.value)}
               />
               <span className="hc-help">You can add checklist items right on the card. Only you can see it.</span>
@@ -831,7 +832,7 @@ function HC_Builder({ initial, ctx, onSave, onCancel }) {
             Cancel
           </button>
           <button type="submit" className="btn-primary" disabled={!canSave}>
-            {kind === "client" ? "Next" : isNew ? "Add to Home" : "Save"}
+            {kind === "client" ? "Next" : isNew ? "Add to Today" : "Save"}
           </button>
         </div>
       </form>

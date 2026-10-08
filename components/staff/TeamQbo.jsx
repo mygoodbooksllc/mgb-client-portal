@@ -1,13 +1,13 @@
 // ----------------------------------------------------------------------------
-// Team page: QuickBooks Time (owner request 2026-09-29). Staff keep tracking
+// Team › Hours: QuickBooks Time (owner request 2026-09-29). Staff keep tracking
 // time in QuickBooks Time; it lands in the firm's own QuickBooks Online
 // company as TimeActivity, and supabase/functions/qbo-firm-sync copies it into
 // qbo_time_activities. This file is the admin UI on top of that
 // (supabase/qbo-firm-time.sql):
 //   - TP_useQboStatus / TP_QboPanel: connect, disconnect, Sync now, status.
 //   - TP_QboMapping: QuickBooks customers -> clients, employees/vendors -> staff.
-//   - TP_useQboHours + TP_QboPeopleTable / TP_QboClientsTable: the Team page
-//     tables with QuickBooks hours, fee, effective rate and trend.
+//   - TP_useQboHours + TP_QboPeopleTable / TP_QboClientsTable: the Team ›
+//     Hours tables with QuickBooks hours, fee, effective rate and trend.
 //   - TP_QboDrill: raw qbo_time_activities rows behind any table row.
 // QuickBooks Time is the only source of billed hours (the manual in-app time
 // log was retired 2026-09-29). The People and Clients tables also carry an
@@ -360,7 +360,7 @@ function TP_QboPanel({ qbo, onOpenMapping, onSynced }) {
       {confirmDisconnect && (
         <ConfirmModal
           title="Disconnect QuickBooks Time?"
-          body="Hourly syncing stops. Hours already synced stay on the Team page. You can reconnect any time."
+          body="Hourly syncing stops. Hours already synced stay on Team › Hours. You can reconnect any time."
           confirmLabel="Disconnect"
           onConfirm={disconnect}
           onCancel={() => setConfirmDisconnect(false)}
@@ -399,7 +399,7 @@ function TP_useQboHours(enabled, range, avg, version) {
       const errs = [];
       if (c.error) errs.push(TP_qErrorText("QuickBooks hours by client", c.error, c.status));
       if (s.error) errs.push(TP_qErrorText("QuickBooks hours by person", s.error, s.status));
-      if (m && m.error) console.warn("Team page: couldn't load pricing milestones:", m.error.message);
+      if (m && m.error) console.warn("Team › Hours: couldn't load pricing milestones:", m.error.message);
       const tiers = {};
       ((m && m.data) || []).forEach((r) => {
         tiers[r.client_id] = r.confirmed_tier;

@@ -4,8 +4,9 @@
 // their own time off, admins anyone's. Rows are never deleted; Cancel sets
 // cancelled_at. No calendar sync.
 //
-//   CV_MyTimeOffBody   Home card "My time off" (app.jsx wraps it)
-//   CV_CoverageTab     Team hub tab "Coverage" (admins): who's out now and in
+//   CV_MyTimeOffBody   "My time off": Team → People for non-admins
+//                      (TeamPage.jsx) and the home card (app.jsx wraps it)
+//   CV_CoverageTab     Team → People (admins, #/team/people): who's out now and in
 //                      the next 30 days, their clients, each client's backup,
 //                      whether the backup can open the client, and "Give
 //                      access" (grant_coverage_access, a temporary grant in
@@ -272,7 +273,7 @@ function CV_CancelButton({ row, onCancelled }) {
   );
 }
 
-// ---- Home card body ("My time off")
+// ---- "My time off" (home card body; Team → People for non-admins)
 function CV_MyTimeOffBody({ staffUser }) {
   const me = String((staffUser && staffUser.email) || "").toLowerCase();
   const st = CV_useTimeOff();
@@ -313,7 +314,7 @@ function CV_MyTimeOffBody({ staffUser }) {
   );
 }
 
-// ---- Team hub tab "Coverage" (admins)
+// ---- Team → People (admins): coverage
 function CV_CoverageTab() {
   const showToast = useToast();
   const ctx = useContext(StaffToolsContext) || {};

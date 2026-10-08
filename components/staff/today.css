@@ -1,1 +1,483 @@
-/* components/staff/today.css — filled in by the staff navigation build (2026-10-08). */
+/* ---------------------------------------------------------------------------
+   Today (components/staff/Today.jsx): the staff start page.
+
+   Colours come from the app's tokens (styles.css). Two priority tones, used
+   sparingly so red keeps its meaning: "now" (red: late or waiting on you)
+   and "week" (amber: coming up). Colour is always paired with words (the
+   band heading, the kind label, "All clear"), never colour alone.
+   --------------------------------------------------------------------------- */
+.td-page {
+  --td-now: var(--bad);
+  --td-now-soft: var(--bad-soft);
+  --td-week: #c98a1f;
+  --td-week-soft: var(--warm-bg);
+  --td-week-text: var(--warm-text);
+  --td-clear: var(--good);
+  --td-clear-soft: var(--good-soft);
+}
+
+/* ---- Header: greeting, date, summary chips ---- */
+.td-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 10px 16px;
+  margin-bottom: 18px;
+}
+.td-head-text {
+  min-width: 0;
+}
+.td-greeting {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--ink-strong);
+  letter-spacing: -0.01em;
+}
+.td-date {
+  margin: 2px 0 0;
+  font-size: 13.5px;
+  color: var(--text-muted);
+}
+.td-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.td-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 4px 11px;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 700;
+  line-height: 1.4;
+}
+button.td-chip {
+  cursor: pointer;
+}
+button.td-chip:hover {
+  filter: brightness(0.97);
+}
+.td-chip-now {
+  background: var(--td-now-soft);
+  color: var(--td-now);
+}
+.td-chip-week {
+  background: var(--td-week-soft);
+  color: var(--td-week-text);
+  border-color: var(--warm-border);
+}
+.td-chip-clear {
+  background: var(--td-clear-soft);
+  color: var(--td-clear);
+}
+.td-band-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: currentColor;
+  flex: none;
+}
+.td-chip-week .td-band-dot {
+  background: var(--td-week);
+}
+
+/* ---- Tiles ---- */
+/* A coloured left edge on tiles and the list. A pseudo-element rather than
+   a border so the card's size and its jump-to flash ring are untouched;
+   .card's overflow:hidden clips it to the rounded corner. */
+.td-kpi::before,
+.td-list::before,
+.td-card-week::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  background: var(--td-edge, transparent);
+}
+.td-kpi-now {
+  --td-edge: var(--td-now);
+}
+.td-kpi-week {
+  --td-edge: var(--td-week);
+}
+.td-kpi-calm {
+  --td-edge: var(--td-clear);
+}
+.td-kpi-now .kpi-value,
+.td-kpi-now .kpi-sub {
+  color: var(--td-now);
+}
+.td-kpi-week .kpi-value,
+.td-kpi-week .kpi-sub {
+  color: var(--td-week-text);
+}
+.td-kpi-calm .kpi-sub {
+  color: var(--td-clear);
+}
+.td-kpi:hover {
+  background: var(--hover-bg);
+}
+/* Four tiles go 2×2 rather than 3 + 1 when there's no room for a row of
+   four. */
+@media (max-width: 1199px) {
+  .td-page .kpi-grid:has(> :nth-child(4):last-child) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+/* ---- The list ---- */
+.td-list {
+  margin-bottom: 20px;
+}
+.td-tone-now {
+  --td-edge: var(--td-now);
+}
+.td-tone-week {
+  --td-edge: var(--td-week);
+}
+.td-tone-clear {
+  --td-edge: var(--td-clear);
+}
+.td-loading {
+  margin-top: 14px;
+}
+.td-empty {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 14px;
+  padding: 14px 16px;
+  border-radius: 10px;
+  background: var(--td-clear-soft);
+  color: var(--td-clear);
+}
+.td-empty-mark {
+  flex: none;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--surface);
+  font-size: 16px;
+  font-weight: 800;
+}
+.td-empty-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 14px;
+}
+.td-empty-text strong {
+  font-weight: 700;
+}
+.td-empty-text span {
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.td-band {
+  margin-top: 16px;
+}
+.td-band-heading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 6px;
+  font-size: 11.5px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.td-band-now .td-band-heading {
+  color: var(--td-now);
+}
+.td-band-week .td-band-heading {
+  color: var(--td-week-text);
+}
+.td-band-week .td-band-heading .td-band-dot {
+  background: var(--td-week);
+}
+.td-band-count {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0;
+  padding: 1px 7px;
+  border-radius: 999px;
+}
+.td-band-now .td-band-count {
+  background: var(--td-now-soft);
+}
+.td-band-week .td-band-count {
+  background: var(--td-week-soft);
+}
+.td-rows {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border-top: 1px solid var(--border);
+}
+.td-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border-bottom: 1px solid var(--border);
+}
+.td-row:last-child {
+  border-bottom: none;
+}
+.td-row-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 10px 6px;
+  background: none;
+  border: none;
+  border-radius: 8px;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+}
+button.td-row-main {
+  cursor: pointer;
+}
+button.td-row-main:hover {
+  background: var(--surface-2);
+}
+.td-row-kind {
+  flex: none;
+  width: 88px;
+  margin-top: 1px;
+  padding: 3px 6px;
+  border-radius: 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  background: var(--surface-2);
+}
+.td-row-kind svg {
+  flex: none;
+}
+.td-band-now .td-row-kind {
+  background: var(--td-now-soft);
+  color: var(--td-now);
+}
+.td-band-week .td-row-kind {
+  background: var(--td-week-soft);
+  color: var(--td-week-text);
+}
+.td-row-text {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.td-row-title {
+  font-size: 14px;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.td-row-detail {
+  font-size: 13px;
+  color: var(--text-muted);
+  overflow-wrap: anywhere;
+}
+.td-row-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+  flex: none;
+}
+.td-row-actions button {
+  padding: 4px 10px;
+  font-size: 12px;
+}
+/* Rows with two or more buttons put them under the text so the title
+   keeps its width. */
+.td-row-stack {
+  flex-wrap: wrap;
+  gap: 0;
+}
+.td-row-stack .td-row-actions {
+  width: 100%;
+  justify-content: flex-start;
+  padding: 0 6px 10px 106px;
+}
+.td-more {
+  margin-top: 10px;
+  background: none;
+  border: none;
+  padding: 4px 0;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--gold-deep);
+  cursor: pointer;
+  text-decoration: underline;
+}
+.td-error {
+  margin-top: 10px;
+}
+
+/* ---- Optional cards ---- */
+.td-cards-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  margin: 0 0 12px;
+}
+.td-cards-label {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+.td-cards-toggles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.td-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.td-toggle:hover {
+  background: var(--hover-bg);
+}
+/* On: gold, plus a tick so the state reads without colour. */
+.td-toggle.is-on {
+  background: var(--gold);
+  border-color: var(--gold);
+  color: var(--on-gold);
+}
+.td-toggle.is-on::before {
+  content: "✓";
+  font-size: 11px;
+}
+.td-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 340px), 1fr));
+  gap: 20px;
+  align-items: start;
+  margin-bottom: 20px;
+}
+.td-card {
+  margin: 0;
+  min-width: 0;
+}
+.td-card-week {
+  --td-edge: var(--td-week);
+}
+.td-card-note {
+  margin-top: 12px;
+}
+.td-link {
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  color: var(--gold-deep);
+  text-decoration: underline;
+  cursor: pointer;
+}
+.td-reminder {
+  min-width: 0;
+  flex: 1;
+}
+.td-reminder-done {
+  text-decoration: line-through;
+  color: var(--text-muted);
+}
+
+/* ---- Narrow screens ---- */
+@media (max-width: 760px) {
+  .td-head {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .td-cards {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+@media (max-width: 600px) {
+  .td-greeting {
+    font-size: 18px;
+  }
+  /* Phones: the four tiles go 2×2 so the list is near the top. */
+  .td-page .kpi-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+    margin-bottom: 16px;
+  }
+  .td-page .td-kpi {
+    padding: 12px 14px;
+  }
+  .td-page .td-kpi .kpi-value {
+    font-size: 22px;
+  }
+  .td-page .td-kpi .kpi-label,
+  .td-page .td-kpi .kpi-sub {
+    font-size: 12px;
+  }
+  .td-row {
+    flex-wrap: wrap;
+    gap: 0;
+  }
+  .td-row-actions,
+  .td-row-stack .td-row-actions {
+    width: 100%;
+    justify-content: flex-start;
+    padding: 0 6px 10px 94px;
+  }
+  .td-row-actions button {
+    min-height: 36px;
+    padding: 6px 12px;
+  }
+  .td-row-kind {
+    width: 76px;
+  }
+}
+
+/* ---- Dark mode: the amber needs a touch more light on a dark surface ---- */
+@media (prefers-color-scheme: dark) {
+  :where(:root:not([data-theme="light"])) .td-page {
+    --td-week: #e0a33a;
+  }
+  :where(:root:not([data-theme="light"])) .td-empty-mark {
+    background: var(--surface-2);
+  }
+}
+:where(:root[data-theme="dark"]) .td-page {
+  --td-week: #e0a33a;
+}
+:where(:root[data-theme="dark"]) .td-empty-mark {
+  background: var(--surface-2);
+}

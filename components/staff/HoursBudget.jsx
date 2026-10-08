@@ -1,10 +1,14 @@
-// Monthly hours budget per client (owner request 2026-10-07). Admin only.
+// Monthly hours budget per client (owner request 2026-10-07).
 //
 // client_profile.monthly_hours_budget (supabase/client-hours-budget.sql) is
-// the plan; QuickBooks Time hours this calendar month (qbo_hours_by_client,
-// admin-only RPC, read only) are the actual. Shown in the Team page Clients
-// table (TeamQbo.jsx), the client overview Profitability card (app.jsx) and
-// the Home custom-card rule "Hours budget" (HomeCards.jsx).
+// the plan; QuickBooks Time hours this calendar month are the actual. Admins
+// read the hours through qbo_hours_by_client (every client, plus the firm's
+// non-client buckets); everyone else through qbo_my_client_hours
+// (supabase/client-hours-for-bookkeepers.sql), which only returns the
+// caller's own clients. Both are read only. Shown in the Team page Clients
+// table (TeamQbo.jsx), the client overview Profitability card (app.jsx), the
+// Home custom-card rule "Hours budget" (HomeCards.jsx) and the Clients list
+// (ClientsPage.jsx, staff navigation redesign 2026-10-08).
 //
 // Rules live in staffOpsLogic.js (OPS_budgetStatus): near from 80%, over
 // from 100%. No budget or unknown hours never flags.
@@ -15,19 +19,29 @@ function HB_monthStart() {
   return todayLocal().slice(0, 8) + "01";
 }
 
-function HB_load(force) {
+// One cache per month and per RPC, so an admin switching to "View as" a
+// bookkeeper refetches through the bookkeeper's RPC instead of reusing the
+// admin rows.
+function HB_key(admin) {
+  return HB_monthStart() + "|" + todayLocal() + "|" + (admin ? "all" : "mine");
+}
+
+function HB_load(force, admin) {
   const sb = window.mgbSupabase;
   if (!sb) return Promise.resolve(null);
   const from = HB_monthStart();
   const to = todayLocal();
-  const key = from + "|" + to;
+  const key = HB_key(admin);
   if (!force && HB_store.key === key && (HB_store.data || HB_store.promise)) {
     return HB_store.data ? Promise.resolve(HB_store.data) : HB_store.promise;
   }
   HB_store.key = key;
+  HB_store.data = null;
   HB_store.promise = Promise.all([
     sb.from("client_profile").select("client_id, monthly_hours_budget"),
-    sb.rpc("qbo_hours_by_client", { p_from: from, p_to: to }),
+    admin
+      ? sb.rpc("qbo_hours_by_client", { p_from: from, p_to: to })
+      : sb.rpc("qbo_my_client_hours", { p_from: from, p_to: to }),
   ]).then(([prof, hrs]) => {
     const budgets = {};
     ((prof && prof.data) || []).forEach((r) => {
@@ -37,7 +51,10 @@ function HB_load(force) {
     const minutes = {};
     if (qboOn)
       hrs.data.forEach((r) => {
-        if (r.bucket === "client" && r.client_id) minutes[r.client_id] = (minutes[r.client_id] || 0) + Number(r.total_minutes || 0);
+        // The admin RPC also returns the firm's other buckets (unassigned,
+        // internal); only client rows count. The bookkeeper RPC is clients only.
+        if (r.client_id && (!admin || r.bucket === "client"))
+          minutes[r.client_id] = (minutes[r.client_id] || 0) + Number(r.total_minutes || 0);
       });
     const byClient = {};
     Object.keys(budgets).forEach((id) => {
@@ -53,14 +70,20 @@ function HB_load(force) {
 }
 
 // { loading, budgets, minutes, byClient: {clientId: status|null}, qboOn }.
-// enabled=false (non-admins) returns null and never queries.
-function HB_useBudgets(enabled) {
-  const [data, setData] = useState(() => (enabled && HB_store.key === HB_monthStart() + "|" + todayLocal() ? HB_store.data : null));
+// enabled=false returns null and never queries. isAdmin picks the RPC; left
+// out, it follows the signed-in (or viewed-as) staffer from StaffToolsContext,
+// and admin when there is none, which is what the existing admin-only callers
+// (Home watchlist, Team Hours) expect.
+function HB_useBudgets(enabled, isAdmin) {
+  const ctx = typeof StaffToolsContext !== "undefined" ? React.useContext(StaffToolsContext) : null;
+  const admin =
+    isAdmin !== undefined ? !!isAdmin : ctx && ctx.staffUser ? ctx.staffUser.role === "admin" : true;
+  const [data, setData] = useState(() => (enabled && HB_store.key === HB_key(admin) ? HB_store.data : null));
   useEffect(() => {
     if (!enabled) return;
     let alive = true;
     const run = (force) =>
-      HB_load(force).then(
+      HB_load(force, admin).then(
         (d) => alive && setData(d),
         () => alive && setData({ budgets: {}, minutes: {}, byClient: {}, qboOn: false, failed: true }),
       );
@@ -71,7 +94,7 @@ function HB_useBudgets(enabled) {
       alive = false;
       window.removeEventListener(STAFF_TOOLS_EVENT, onChange);
     };
-  }, [enabled]);
+  }, [enabled, admin]);
   return enabled ? data : null;
 }
 

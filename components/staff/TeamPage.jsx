@@ -504,83 +504,264 @@ function TP_AppTimeCard({ entries, groupBy, nameOf, range, who }) {
 const TP_roleLabel = (role) =>
   role ? role.charAt(0).toUpperCase() + role.slice(1).replace(/_/g, " ") : "";
 
-// Team = Hours and tasks (TP_TeamPage) + Members (the old Staff Access page,
-// StaffAccessPage in app.jsx), merged 2026-09-30. App picks the tab from the
-// page id ("staff-team" -> hours, "staff-access" -> members) so both routes,
-// #/team and #/staff-access, keep working. Each tab renders only while open,
-// so it loads exactly what it loaded as its own page, with the same checks.
+// ---------------------------------------------------------------------------
+// Team hub (staff navigation redesign, 2026-10-08): one page, one tab row.
 //
-// Extra tabs (staff ops features, 2026-10-07) live in their own files and
-// join only when that file loaded. Their route is #/team/<key> (App's
-// buildHashRoute keeps it), read here; App still only knows "staff-team".
-const TP_HUB_TABS = [
-  { key: "hours", label: "Hours and tasks" },
-  { key: "members", label: "Members" },
-];
-function TP_hubExtraTabs() {
-  const out = [];
-  if (typeof RT_ReplyTimesTab === "function") out.push({ key: "reply-times", label: "Reply times", render: () => <RT_ReplyTimesTab /> });
-  if (typeof CV_CoverageTab === "function") out.push({ key: "coverage", label: "Coverage", render: () => <CV_CoverageTab /> });
-  if (typeof HLB_HealthTab === "function") out.push({ key: "health", label: "Client health", render: () => <HLB_HealthTab /> });
-  if (typeof SON_ProgressTab === "function") out.push({ key: "onboarding", label: "Onboarding", render: () => <SON_ProgressTab /> });
-  return out;
+//   TP_TeamHub({ tab?, staffUser, isAdmin, isRealAdmin, clients, renderMembers })
+//
+// The tabs come from NAV_PLACES ("team" in StaffNav.jsx): People, Reviews and
+// Onboarding for everyone; Hours, Reply times, Feedback and Members for
+// admins (isAdmin includes a temporary admin grant; isRealAdmin is the staff
+// row's role, which the database checks). The open tab lives in the hash
+// (#/team/<tab>) through NAV_useHashSub, so a deep link opens the right tab,
+// a tab click is not a history entry, and a bookkeeper's link to an admin tab
+// falls back to People. `tab` is App's hint for a legacy route (an old
+// #/staff-access bookmark → "members"); a tab named in the hash wins. Each
+// tab renders only while open, so it loads exactly what it loaded as its own
+// page, with the same checks.
+//
+// Reviews keeps its own sub-route after the tab (#/team/reviews/<sub>, read
+// by TeamReviews.jsx); App's buildHashRoute keeps the whole hash.
+// ---------------------------------------------------------------------------
+
+// Tab badge counts, from data the tabs' own pages already cache, so they cost
+// nothing extra. Each helper either exists for the whole session or never
+// does, so the hook calls are stable across renders. The hub only hands a
+// badge to NAV_TabRow when the count is above zero: the row draws the pill
+// around whatever it is given, so an empty badge would show as an empty pill.
+function TP_useReviewsDue() {
+  const can = typeof TR_useOverview === "function" && typeof TR_dueCount === "function";
+  const ov = can ? TR_useOverview() : null;
+  return can ? TR_dueCount(ov && ov.data) : 0;
 }
-function TP_hubSubFromHash() {
-  const m = /^#\/team\/([a-z0-9-]+)$/.exec(window.location.hash || "");
-  return m ? m[1] : null;
+function TP_useFeedbackNew(enabled) {
+  const can = typeof FB_useNewCount === "function";
+  const n = can ? FB_useNewCount(enabled) : 0;
+  return can && enabled ? n : 0;
 }
-function TP_TeamHub({ tab, onTab, renderHours, renderMembers }) {
-  const extras = TP_hubExtraTabs();
-  const [sub, setSub] = useState(TP_hubSubFromHash);
+// A count with a spoken label, e.g. "2" read as "2 review items due".
+function TP_TabBadge({ n, label }) {
+  return (
+    <>
+      <span aria-hidden="true">{n}</span>
+      <span className="tp-sr">{label}</span>
+    </>
+  );
+}
+
+function TP_TeamHub({ tab, staffUser, isAdmin, isRealAdmin, clients, renderMembers }) {
+  const admin = !!isAdmin;
+  const realAdmin = isRealAdmin != null ? !!isRealAdmin : !!(staffUser && staffUser.role === "admin");
+  const tabs = NAV_visibleTabs("team", { isAdmin: admin });
+  const keys = tabs.map((t) => t.key);
+  const [current, setTab] = NAV_useHashSub("team", keys, "people");
+
+  // App's hint applies once, and only while the hash names no tab.
   useEffect(() => {
-    const onHash = () => setSub(TP_hubSubFromHash());
-    window.addEventListener("hashchange", onHash);
-    return () => window.removeEventListener("hashchange", onHash);
-  }, []);
-  const extra = tab !== "members" && sub ? extras.find((t) => t.key === sub) : null;
-  const cur = tab === "members" ? "members" : extra ? extra.key : "hours";
-  const all = TP_HUB_TABS.concat(extras);
-  const go = (key) => {
-    const isExtra = extras.some((t) => t.key === key);
-    try {
-      if (isExtra) window.history.replaceState(window.history.state, "", window.location.pathname + window.location.search + "#/team/" + key);
-      else if (key === "hours" && sub) window.history.replaceState(window.history.state, "", window.location.pathname + window.location.search + "#/team");
-    } catch (e) {}
-    setSub(isExtra ? key : null);
-    onTab(key === "members" ? "members" : "hours");
+    if (tab && keys.indexOf(tab) !== -1 && !NAV_subFromHash("team")) setTab(tab);
+    // eslint-disable-next-line
+  }, [tab]);
+
+  const reviewsDue = TP_useReviewsDue();
+  const feedbackNew = TP_useFeedbackNew(admin);
+  const badgeFor = (key) => {
+    if (key === "reviews" && reviewsDue > 0)
+      return <TP_TabBadge n={reviewsDue} label={`${reviewsDue} review item${reviewsDue === 1 ? "" : "s"} due`} />;
+    if (key === "feedback" && feedbackNew > 0) return <TP_TabBadge n={feedbackNew} label={`${feedbackNew} new`} />;
+    return null;
   };
-  const onKeyDown = (e) => {
-    if (e.key !== "ArrowRight" && e.key !== "ArrowLeft") return;
-    e.preventDefault();
-    const i = all.findIndex((t) => t.key === cur);
-    const next = all[(i + (e.key === "ArrowRight" ? 1 : all.length - 1)) % all.length];
-    go(next.key);
-    const el = document.getElementById("tp-hub-tab-" + next.key);
-    if (el) el.focus();
-  };
+  const rowTabs = tabs.map((t) => ({
+    key: t.key,
+    label: t.label,
+    tour: "team-" + t.key,
+    badge: badgeFor(t.key),
+  }));
+
+  const missing = (what) => <p className="card-subtitle">{what} isn't available right now.</p>;
+  let body = null;
+  if (current === "people") body = <TP_PeopleTab staffUser={staffUser} isAdmin={realAdmin} clients={clients} />;
+  else if (current === "reviews") body = typeof TR_TeamReviewsPage === "function" ? <TR_TeamReviewsPage /> : missing("Reviews");
+  else if (current === "onboarding") body = typeof SON_ProgressTab === "function" ? <SON_ProgressTab /> : missing("Onboarding");
+  else if (current === "hours") body = <TP_TeamPage clients={clients} />;
+  else if (current === "reply-times") body = typeof RT_ReplyTimesTab === "function" ? <RT_ReplyTimesTab /> : missing("Reply times");
+  else if (current === "feedback") body = typeof FB_FeedbackPage === "function" ? <FB_FeedbackPage clients={clients} /> : missing("Feedback");
+  else if (current === "members") body = typeof renderMembers === "function" ? renderMembers() : missing("Members");
+
+  // App's page header already shows "Team" and its subtitle (PAGE_META), so
+  // the hub starts at the tab row.
   return (
     <div className="tp-hub">
-      <div className="tp-hub-tabs" role="tablist" aria-label="Team" onKeyDown={onKeyDown}>
-        {all.map((t) => (
-          <button
-            key={t.key}
-            id={"tp-hub-tab-" + t.key}
-            type="button"
-            role="tab"
-            aria-selected={cur === t.key}
-            aria-controls="tp-hub-panel"
-            tabIndex={cur === t.key ? 0 : -1}
-            className={"tp-hub-tab" + (cur === t.key ? " active" : "")}
-            onClick={() => go(t.key)}
-          >
-            {t.label}
-          </button>
-        ))}
-      </div>
-      <div id="tp-hub-panel" role="tabpanel" aria-labelledby={"tp-hub-tab-" + cur}>
-        {cur === "members" ? renderMembers() : extra ? extra.render() : renderHours()}
+      <NAV_TabRow label="Team" tabs={rowTabs} current={current} onSelect={setTab} idPrefix="tp" />
+      <div id="tp-panel" role="tabpanel" aria-labelledby={"tp-tab-" + current}>
+        {body}
       </div>
     </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// People tab: who's out, backups and shout-outs.
+//
+// Admins get CV_CoverageTab (Coverage.jsx): who's out now and in the next 30
+// days, their clients, whether each backup can open the client, and "Give
+// access". Its coverage_overview RPC is admin-only (supabase/staff-time-off.sql),
+// so everyone else gets the parts built on what every staff member can read:
+// the time-off table (who's out), their own time off (CV_MyTimeOffBody) and
+// their clients' backups (client_profile, readable for assigned clients).
+// Shout-outs (Shoutouts.jsx) are for everyone.
+// ---------------------------------------------------------------------------
+function TP_PeopleTab({ staffUser, isAdmin, clients }) {
+  const coverage = isAdmin && typeof CV_CoverageTab === "function";
+  const shoutouts = typeof SO_ShoutoutsBody === "function" && (
+    <section className="card tp-people-card" aria-labelledby="tp-shoutouts-title">
+      <h3 className="card-title" id="tp-shoutouts-title">Shout-outs</h3>
+      <p className="card-subtitle">Thank a teammate for something they did. The whole team sees these.</p>
+      <SO_ShoutoutsBody clients={clients} staffUser={staffUser} />
+    </section>
+  );
+  if (coverage) {
+    return (
+      <div className="tp-people">
+        <CV_CoverageTab />
+        {shoutouts}
+      </div>
+    );
+  }
+  return (
+    <div className="tp-people tp-people-grid">
+      <div className="tp-people-col">
+        <TP_WhosOutCard staffUser={staffUser} />
+        <TP_MyBackupsCard staffUser={staffUser} clients={clients} />
+      </div>
+      <div className="tp-people-col">
+        {typeof CV_MyTimeOffBody === "function" && (
+          <section className="card tp-people-card" aria-labelledby="tp-timeoff-title">
+            <h3 className="card-title" id="tp-timeoff-title">My time off</h3>
+            <p className="card-subtitle">Add days you'll be away so the team can plan cover. Admins see who's out and can give your backup access.</p>
+            <CV_MyTimeOffBody staffUser={staffUser} />
+          </section>
+        )}
+        {shoutouts}
+      </div>
+    </div>
+  );
+}
+
+// Everyone's time off, today and the next 30 days (staff_time_off, which
+// every staff member can read; names from the staff_directory RPC).
+function TP_WhosOutCard({ staffUser }) {
+  const st = typeof CV_useTimeOff === "function" ? CV_useTimeOff() : { rows: [], loading: false, error: "Time off isn't available right now." };
+  const dir = typeof CV_useDirectory === "function" ? CV_useDirectory() : [];
+  const me = String((staffUser && staffUser.email) || "").toLowerCase();
+  const today = todayLocal();
+  const to = OPS_addDays(today, 30);
+  const rows = (st.rows || []).filter((r) => !r.cancelled_at && r.ends_on >= today && r.starts_on <= to);
+  const outNow = rows.filter((r) => r.starts_on <= today);
+  const later = rows.filter((r) => r.starts_on > today);
+  const name = (email) => (String(email || "").toLowerCase() === me ? "You" : CV_nameOf(dir, email));
+  const list = (items) => (
+    <ul className="tp-out-list">
+      {items.map((r) => (
+        <li key={r.id}>
+          <span className="tp-out-name">{name(r.staff_email)}</span>
+          <span className="tp-out-when">{CV_range(r)}</span>
+          {r.note && <span className="tp-out-note">{r.note}</span>}
+        </li>
+      ))}
+    </ul>
+  );
+  return (
+    <section className="card tp-people-card" aria-labelledby="tp-out-title">
+      <h3 className="card-title" id="tp-out-title">Who's out</h3>
+      <p className="card-subtitle">Today and the next 30 days.</p>
+      {st.error && <p className="card-subtitle">{st.error}</p>}
+      {!st.error && st.loading && <p className="card-subtitle">Loading…</p>}
+      {!st.error && !st.loading && rows.length === 0 && (
+        <p className="card-subtitle tp-people-empty">Nobody is out today or in the next 30 days.</p>
+      )}
+      {outNow.length > 0 && (
+        <>
+          <h4 className="tp-out-h">Out now</h4>
+          {list(outNow)}
+        </>
+      )}
+      {later.length > 0 && (
+        <>
+          <h4 className="tp-out-h">Coming up</h4>
+          {list(later)}
+        </>
+      )}
+    </section>
+  );
+}
+
+// The backup bookkeeper for each client assigned to me, with a link to set
+// one where it's missing (Client overview → Edit dates and coverage).
+function TP_MyBackupsCard({ staffUser, clients }) {
+  const me = String((staffUser && staffUser.email) || "").toLowerCase();
+  const dir = typeof CV_useDirectory === "function" ? CV_useDirectory() : [];
+  const mine = (clients || []).filter(
+    (c) => c.assignedBookkeeper && String(c.assignedBookkeeper.email || "").toLowerCase() === me,
+  );
+  const ids = mine.map((c) => c.id).join(",");
+  const [state, setState] = useState({ loading: true, backups: {}, error: null });
+  useEffect(() => {
+    let alive = true;
+    const sb = window.mgbSupabase;
+    if (!sb || !ids) {
+      setState({ loading: false, backups: {}, error: null });
+      return;
+    }
+    sb.from("client_profile")
+      .select("client_id, backup_bookkeeper_email")
+      .in("client_id", ids.split(","))
+      .then(({ data, error }) => {
+        if (!alive) return;
+        if (error) return setState({ loading: false, backups: {}, error: "Couldn't load backups." });
+        const m = {};
+        (data || []).forEach((r) => (m[r.client_id] = String(r.backup_bookkeeper_email || "").toLowerCase()));
+        setState({ loading: false, backups: m, error: null });
+      });
+    return () => {
+      alive = false;
+    };
+  }, [ids]);
+  const overview = (id) => "#/client/" + encodeURIComponent(id) + "/overview";
+  return (
+    <section className="card tp-people-card" aria-labelledby="tp-backups-title">
+      <h3 className="card-title" id="tp-backups-title">My clients' backups</h3>
+      <p className="card-subtitle">Who covers each of your clients while you're away.</p>
+      {mine.length === 0 && <p className="card-subtitle tp-people-empty">No clients are assigned to you yet.</p>}
+      {mine.length > 0 && state.error && <p className="card-subtitle">{state.error}</p>}
+      {mine.length > 0 && !state.error && state.loading && <p className="card-subtitle">Loading…</p>}
+      {mine.length > 0 && !state.error && !state.loading && (
+        <ul className="tp-backup-list">
+          {mine.map((c) => {
+            const b = state.backups[c.id] || "";
+            return (
+              <li key={c.id}>
+                <a className="tp-backup-client" href={overview(c.id)}>
+                  {c.name || c.id}
+                </a>
+                {b ? (
+                  <span className="tp-backup-who">
+                    {CV_nameOf(dir, b)}
+                    {typeof CV_OutTag === "function" && <CV_OutTag email={b} />}
+                  </span>
+                ) : (
+                  <span className="tp-backup-who">
+                    <span className="pill warm">No backup set</span>
+                    <a className="link-btn" href={overview(c.id)}>
+                      Set a backup
+                    </a>
+                  </span>
+                )}
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </section>
   );
 }
 

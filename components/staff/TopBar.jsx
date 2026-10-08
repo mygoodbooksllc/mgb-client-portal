@@ -8,37 +8,45 @@
 //
 //   Left     TB_ClientPicker   reuses CS_ClientSwitcher (name, plan, health,
 //                              recent clients)
-//            TB_OverviewButton "Overview" chip: the open client's staff
-//                              overview (client pages only)
 //            TB_SyncPill       reuses QboSyncNowButton (the "Every 15 min ·
 //                              synced 5m ago" pill; click = Sync now)
-//   Middle   TB_Search         clients, my tasks and notes, client SOPs, Help
-//                              articles (search_staff_guide), and on a client
-//                              page that client's transactions, budget,
-//                              documents and messages (replaces the header
-//                              search icon for staff). Ctrl+K / Cmd+K.
+//   Middle   TB_Search         Ctrl+K / Cmd+K. Empty, it is a jump menu: the
+//                              five places and their tabs (StaffNav.jsx
+//                              NAV_PLACES), Settings, the admin pages, and
+//                              actions (new task, dark mode, feedback, tour,
+//                              sign out). Typed, it searches clients, my
+//                              tasks and notes, client SOPs, Help articles
+//                              (search_staff_guide) and, on a client page,
+//                              that client's transactions, budget, documents
+//                              and messages (replaces the header search icon
+//                              for staff).
 //   Right    TB_ThrottleBadge  admins: QuickBooks sync slowed or stopped
 //                              (qbo_usage_status, supabase/qbo-usage-guard.sql)
 //            TB_Bell           client messages waiting, uploaded documents,
 //                              tasks assigned to me, blocked month-end close
-//            TB_TasksBadge     open My Tasks count, overdue in red
+//            TB_TasksBadge     open tasks count (Work › Tasks), overdue in red
 //            TB_QuickAdd       "+" menu: task, note, document request
 //                              (StaffQuickActions' modals) and Message
-//            TB_HelpButton     "?" menu: help for this page / all topics,
-//                              "Report a bug / feedback" (Feedback.jsx)
+//            TB_HelpButton     "?" menu: help for this page, the staff guide,
+//                              feedback (Feedback.jsx), what's new, the tour
+//                              (Tour.jsx TOUR_startStaff)
 //            TB_AvatarMenu     theme, Preview as (client user), Exit "View
-//                              as", temporary access, Sign out
+//                              as", temporary access, Settings, Sign out
 //
 // Moving, not duplicating: while a piece is mounted it puts a class on <html>
 // (tb-has-client, tb-has-sync, tb-has-avatar) and top-bar.css hides the old
-// copy on desktop. Remove a piece and its old location comes back on its own.
-// On phones the bar keeps only the client picker, search, bell and "+"; the
-// rest stays where it always was, in the menu drawer. (Overview is hidden
-// there too: picking a client, even the one already open, lands on it.)
+// copy on desktop (the client sidebar's switcher and sync pill, the
+// temporary-access banner). Remove a piece and its old location comes back
+// on its own. On phones the bar keeps the client picker, search, bell, "+"
+// and "?"; the rest stays where it always was, in the menu drawer.
 //
-// Navigation goes through the URL hash (#/tasks, #/help/<slug>,
-// #/client/<id>/overview ...), which App already routes; the bar has no page
-// links of its own (the sidebar keeps those).
+// Navigation goes through the URL hash (#/work/tasks, #/help/<slug>,
+// #/client/<id>/overview ...), which App already routes. The places
+// themselves live in the rail (app.jsx StaffRail) and the breadcrumb; the
+// bar only jumps to them through ⌘K.
+//
+// Tour hooks (Tour.jsx): data-tour="tb-search", "tb-bell", "tb-quick",
+// "tb-help", "tb-avatar" on the matching wrappers.
 //
 // Loaded before app.jsx and shares its global scope: every top-level name
 // here is TB_-prefixed, and app.jsx globals (hooks, icons, staffItemsApi,
@@ -55,30 +63,36 @@ const TB_THROTTLE_REFRESH_MS = 10 * 60 * 1000;
 const TB_SEARCH_DEBOUNCE_MS = 250;
 const TB_SEARCH_LIMIT = 6;
 
-// Page key -> staff guide article (docs/staff-guide/<slug>.md).
+// Page key -> staff guide article (docs/staff-guide/<slug>.md). The places
+// with tabs (Work, Team) aren't here: their article comes from the open
+// tab's `help` in NAV_PLACES, see TB_helpSlugFor.
 const TB_HELP_FOR_PAGE = {
-  "bookkeeper-home": "home-page",
-  "my-tasks": "my-tasks",
-  "staff-messages": "inbox",
-  "close-tracker": "month-end-close",
-  "team-reviews": "quarterly-reviews",
+  today: "home-page",
+  inbox: "inbox",
+  clients: "clients-page",
+  settings: "staff-settings",
   "client-overview": "client-overview",
   documents: "document-requests",
-  "staff-team": "team-page",
+  sop: "client-sops",
+  milestone: "pricing-milestones",
+  "client-settings": "client-settings",
   "task-templates": "task-templates",
-  "staff-access": "staff-management",
+  "client-access": "client-sign-in-help",
+  "usage-stats": "quickbooks-api-usage",
   "audit-log": "audit-log",
   emails: "client-emails",
-  milestone: "pricing-milestones",
-  feedback: "feedback-page",
 };
+// Articles only admins can read (audience: admin in the guide); a bookkeeper
+// on one of those pages gets no "Help for this page".
 const TB_ADMIN_ARTICLES = new Set([
-  "team-page",
   "staff-management",
   "audit-log",
   "client-emails",
   "pricing-milestones",
   "feedback-page",
+  "hours-budget",
+  "reply-times",
+  "quickbooks-api-usage",
 ]);
 
 const TB_lc = (s) => String(s || "").toLowerCase();
@@ -89,6 +103,22 @@ function TB_go(hash) {
 
 function TB_clientHash(id, tab) {
   return "#/client/" + encodeURIComponent(id) + "/" + (tab || "overview");
+}
+
+// The guide article for the page that's open, or null. Work and Team resolve
+// through the hash (#/work/close -> month-end-close) because a tab switch
+// rewrites the hash without re-rendering the bar, so callers ask at click
+// time, not at render time.
+function TB_helpSlugFor(page, isAdmin) {
+  let slug = TB_HELP_FOR_PAGE[page] || null;
+  const place = typeof NAV_PLACE_BY_KEY !== "undefined" ? NAV_PLACE_BY_KEY[page] : null;
+  if (place) {
+    const sub = typeof NAV_subFromHash === "function" ? NAV_subFromHash(place.slug) : null;
+    const tab = sub && place.tabs ? place.tabs.find((t) => t.key === sub) : null;
+    slug = (tab && tab.help) || place.help || slug;
+  }
+  if (slug && TB_ADMIN_ARTICLES.has(slug) && !isAdmin) slug = null;
+  return slug;
 }
 
 // While mounted, put `cls` on <html> so top-bar.css can hide the old copy of
@@ -240,28 +270,6 @@ function TB_ClientPicker({ clients, client, staffUser, statusOverrides, pendingR
 }
 
 // ---------------------------------------------------------------------------
-// 1b. Overview: the open client's staff overview (was a "Staff" item in the
-// client sidebar; moved here so that sidebar shows only what the client sees)
-// ---------------------------------------------------------------------------
-function TB_OverviewButton({ client, page }) {
-  if (!client) return null;
-  const current = page === "client-overview";
-  return (
-    <button
-      type="button"
-      className={"tb-item tb-pill-btn tb-overview" + (current ? " is-current" : "")}
-      aria-label={`Overview of ${client.name} (staff only)`}
-      aria-current={current ? "page" : undefined}
-      title={`Overview of ${client.name}`}
-      onClick={() => TB_go(TB_clientHash(client.id, "overview"))}
-    >
-      {typeof BarChartIcon === "function" && <BarChartIcon width="15" height="15" />}
-      <span className="tb-overview-label">Overview</span>
-    </button>
-  );
-}
-
-// ---------------------------------------------------------------------------
 // 2. Sync status pill (QboSyncNowButton; staff can always Sync now)
 // ---------------------------------------------------------------------------
 function TB_SyncPill({ client, plan, onSynced }) {
@@ -295,13 +303,76 @@ function TB_safeTerm(q) {
   return String(q || "").replace(/[^\p{L}\p{N} '&.-]/gu, " ").replace(/\s+/g, " ").trim().slice(0, 60);
 }
 
+// The jump menu behind an empty ⌘K: every place and tab this person can open
+// (StaffNav.jsx), Settings, and for admins the firm pages. Same ctx shape as
+// the rail: { role, isAdmin, impersonating }.
+function TB_pageRows(ctx, onOpenSettings) {
+  const rows = [];
+  if (typeof NAV_visiblePlaces !== "function") return rows;
+  NAV_visiblePlaces(ctx).forEach((p) => {
+    rows.push({ key: "p:" + p.key, title: p.label, sub: p.hint || "", go: () => NAV_go(p.key) });
+    NAV_visibleTabs(p, ctx).forEach((t) =>
+      rows.push({ key: "p:" + p.key + "/" + t.key, title: `${p.label} › ${t.label}`, sub: "", go: () => NAV_go(p.key, t.key) }),
+    );
+  });
+  rows.push({
+    key: "p:settings",
+    title: "Settings",
+    sub: "Your profile, notifications and start page",
+    go: () => (onOpenSettings ? onOpenSettings() : TB_go("#/settings")),
+  });
+  if (ctx.isAdmin) {
+    [
+      ["templates", "Task templates", "Recurring tasks for each client's bookkeeper"],
+      ["client-access", "Client roster", "Who at each organization can sign in"],
+      ["emails", "Emails", "Sending, the weekly digest and the send log"],
+      ["usage-stats", "Usage stats", "Which pages and features get used"],
+      ["audit-log", "Audit log", "Every change to access, fees and clients"],
+      ["developer-tools", "Developer tools", "Per-browser testing aids"],
+    ].forEach(([slug, title, sub]) => rows.push({ key: "p:" + slug, title, sub, go: () => TB_go("#/" + slug) }));
+  }
+  return rows;
+}
+
+// Actions in the same menu. New task / note open StaffQuickActions' modals
+// (TB_QUICK_ADD_EVENT) when a client is open; otherwise they land on the
+// Tasks page, whose form takes a task or reminder for any client.
+function TB_actionRows({ client, showMine, effectiveTheme, onToggleTheme, onSignOut }) {
+  const rows = [];
+  const quick = (kind) => () => {
+    if (client) window.dispatchEvent(new CustomEvent(TB_QUICK_ADD_EVENT, { detail: { kind } }));
+    else TB_go("#/work/tasks");
+  };
+  if (showMine) {
+    const forWho = client ? "For " + client.name : "On Work › Tasks";
+    rows.push({ key: "a:task", title: "New task", sub: forWho, go: quick("task") });
+    rows.push({ key: "a:note", title: "New note", sub: forWho, go: quick("note") });
+    rows.push({ key: "a:reminder", title: "New reminder", sub: "On Work › Tasks", go: () => TB_go("#/work/tasks") });
+  }
+  if (onToggleTheme)
+    rows.push({
+      key: "a:theme",
+      title: effectiveTheme === "dark" ? "Switch to light mode" : "Switch to dark mode",
+      sub: "",
+      go: onToggleTheme,
+    });
+  if (typeof FB_openFeedback === "function") rows.push({ key: "a:feedback", title: "Send feedback", sub: "Report a bug or suggest an idea", go: () => FB_openFeedback() });
+  if (typeof TOUR_startStaff === "function") rows.push({ key: "a:tour", title: "Take the tour", sub: "A quick walk through the staff side", go: () => TOUR_startStaff() });
+  if (onSignOut) rows.push({ key: "a:signout", title: "Sign out", sub: "", go: onSignOut });
+  return rows;
+}
+
 // clientSearch (only while a client is open, else null): { client (already
 // scoped to the viewer's access), messages, visibleKeys, onNavigate,
 // onHighlight }. Its "In <client>" group is built by app.jsx's
 // buildClientSearchResults, the same function behind the client-facing
 // page-header GlobalSearch, and a pick navigates + highlights the same way.
 // That header search icon is hidden for staff while this bar is shown.
-function TB_Search({ clients, items, showMine, isAdmin, clientSearch }) {
+//
+// navCtx ({ role, isAdmin, impersonating }) picks the Pages rows; client,
+// effectiveTheme, onToggleTheme, onSignOut and onOpenSettings feed the
+// Actions rows. All optional: without them those groups are just shorter.
+function TB_Search({ clients, items, showMine, isAdmin, clientSearch, navCtx, client, effectiveTheme, onToggleTheme, onSignOut, onOpenSettings }) {
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(0);
@@ -422,7 +493,7 @@ function TB_Search({ clients, items, showMine, isAdmin, clientSearch }) {
         key: "i:" + t.id,
         title: t.text,
         sub: [t.client_id ? clientName(t.client_id) : "", t.due_date ? "Due " + fmtDate(t.due_date) : ""].filter(Boolean).join(" · "),
-        go: () => TB_go("#/tasks"),
+        go: () => TB_go("#/work/tasks"),
       });
       groups.push({ key: "tasks", label: "Tasks", items: mine.filter((t) => t.kind !== "note").slice(0, TB_SEARCH_LIMIT).map(toRow) });
       groups.push({ key: "notes", label: "Notes", items: mine.filter((t) => t.kind === "note").slice(0, TB_SEARCH_LIMIT).map(toRow) });
@@ -438,7 +509,8 @@ function TB_Search({ clients, items, showMine, isAdmin, clientSearch }) {
             key: "s:" + s.client_id + ":" + s.section,
             title: `${clientName(s.client_id)} · ${s.title || s.section}`,
             sub: String(s.body || "").replace(/\s+/g, " ").slice(0, 90),
-            go: () => TB_go("#/tasks"),
+            // The client's SOP tab (#/client/<id>/sop).
+            go: () => TB_go(TB_clientHash(s.client_id, "sop")),
           })),
       });
       groups.push({
@@ -455,6 +527,15 @@ function TB_Search({ clients, items, showMine, isAdmin, clientSearch }) {
       });
     }
   }
+  // Pages and Actions: the whole list on an empty query (⌘K as a jump
+  // menu), the matching rows once something is typed.
+  const byQuery = (r) => !ql || TB_lc(r.title).includes(ql);
+  groups.push({ key: "pages", label: "Pages", items: TB_pageRows(navCtx || { isAdmin }, onOpenSettings).filter(byQuery) });
+  groups.push({
+    key: "actions",
+    label: "Actions",
+    items: TB_actionRows({ client, showMine, effectiveTheme, onToggleTheme, onSignOut }).filter(byQuery),
+  });
   const shown = groups.filter((g) => g.items.length);
   const flat = [];
   shown.forEach((g) => g.items.forEach((it) => flat.push(it)));
@@ -500,20 +581,19 @@ function TB_Search({ clients, items, showMine, isAdmin, clientSearch }) {
   };
 
   let idx = -1;
-  const panelOpen = open && !!q;
+  // Open on focus too: with nothing typed the panel is the jump menu.
+  const panelOpen = open;
   const hasClient = !!(clientSearch && clientSearch.client);
+  const foot = remote.loading && flat.length > 0 ? "Searching SOPs and help…" : !q ? "Type to search clients, tasks, SOPs and help · ↑↓ to move · ↵ to open" : null;
   return (
-    <div className="tb-search" ref={rootRef}>
+    <div className="tb-search" ref={rootRef} data-tour="tb-search">
       <div className="tb-search-box">
         <SearchIcon />
         <input
           ref={inputRef}
           type="text"
           className="tb-search-input"
-          placeholder={
-            (showMine ? "Search clients, tasks, SOPs" : "Search clients, SOPs") +
-            (hasClient ? ", Help and this client" : " and Help")
-          }
+          placeholder={(showMine ? "Search or jump to… clients, tasks, SOPs" : "Search or jump to… clients, SOPs") + (hasClient ? ", help and this client" : " and help")}
           value={query}
           onChange={(e) => {
             setQuery(e.target.value);
@@ -528,15 +608,15 @@ function TB_Search({ clients, items, showMine, isAdmin, clientSearch }) {
           aria-activedescendant={panelOpen && flat.length ? `${listId}-${active}` : undefined}
           aria-label={
             hasClient
-              ? `Search clients, tasks, notes, SOPs, Help and ${clientSearch.client.name}`
-              : "Search clients, tasks, notes, SOPs and Help"
+              ? `Search or jump to a page: clients, tasks, notes, SOPs, help and ${clientSearch.client.name}`
+              : "Search or jump to a page: clients, tasks, notes, SOPs and help"
           }
         />
         <kbd className="tb-kbd" aria-hidden="true">{isMac ? "⌘K" : "Ctrl K"}</kbd>
       </div>
       {panelOpen && (
         <div className="tb-panel tb-search-panel">
-          <div className="tb-search-list" id={listId} role="listbox" ref={listRef} aria-label="Search results">
+          <div className="tb-search-list" id={listId} role="listbox" ref={listRef} aria-label={q ? "Search results" : "Pages and actions"}>
             {shown.map((g) => (
               <div key={g.key} role="group" aria-label={g.label}>
                 <div className="tb-panel-head">{g.label}</div>
@@ -564,11 +644,11 @@ function TB_Search({ clients, items, showMine, isAdmin, clientSearch }) {
             ))}
             {flat.length === 0 && (
               <div className="tb-empty">
-                {remote.loading || (TB_safeTerm(q).length >= 2 && !remote.q) ? "Searching…" : `Nothing matches "${q}".`}
+                {!q ? "Nothing to jump to yet." : remote.loading || (TB_safeTerm(q).length >= 2 && !remote.q) ? "Searching…" : `Nothing matches "${q}".`}
               </div>
             )}
           </div>
-          {remote.loading && flat.length > 0 && <div className="tb-search-foot">Searching SOPs and Help…</div>}
+          {foot && <div className="tb-search-foot">{foot}</div>}
         </div>
       )}
     </div>
@@ -720,7 +800,7 @@ function TB_useBellItems({ clients, items, me, isAdmin, page }) {
       at: row.created_at,
       title: `${row.author_name || row.participant_email} · ${nameOf(row.client_id)}`,
       sub: "Message waiting: " + String(row.body || "").replace(/\s+/g, " ").slice(0, 80),
-      go: () => TB_go("#/chat"),
+      go: () => TB_go("#/inbox"),
     }),
   );
   remote.docs.forEach((row) =>
@@ -739,8 +819,8 @@ function TB_useBellItems({ clients, items, me, isAdmin, page }) {
         id: "task:" + t.id,
         at: t.created_at,
         title: `Assigned to you: ${t.text}`,
-        sub: [t.client_id ? nameOf(t.client_id) : "", t.due_date ? "Due " + fmtDate(t.due_date) : ""].filter(Boolean).join(" · ") || "My Tasks",
-        go: () => TB_go("#/tasks"),
+        sub: [t.client_id ? nameOf(t.client_id) : "", t.due_date ? "Due " + fmtDate(t.due_date) : ""].filter(Boolean).join(" · ") || "Work › Tasks",
+        go: () => TB_go("#/work/tasks"),
       }),
     );
   remote.blocked
@@ -750,8 +830,8 @@ function TB_useBellItems({ clients, items, me, isAdmin, page }) {
         id: "close:" + row.client_id + ":" + row.period,
         at: row.period,
         title: `${nameOf(row.client_id)}: month-end close is Blocked`,
-        sub: Array.isArray(row.reasons) && row.reasons.length ? String(row.reasons[0]) : "See the Close tracker",
-        go: () => TB_go("#/close-tracker"),
+        sub: Array.isArray(row.reasons) && row.reasons.length ? String(row.reasons[0]) : "See Work › Close",
+        go: () => TB_go("#/work/close"),
       }),
     );
   shouts.forEach((row) =>
@@ -760,7 +840,7 @@ function TB_useBellItems({ clients, items, me, isAdmin, page }) {
       at: row.created_at,
       title: `Shout-out from ${typeof CV_nameOf === "function" && typeof CV_dir !== "undefined" ? CV_nameOf(CV_dir.list, row.from_email) : String(row.from_email || "").split("@")[0]}`,
       sub: String(row.body || "").replace(/\s+/g, " ").slice(0, 80),
-      go: () => TB_go("#/home"),
+      go: () => TB_go("#/today"),
     }),
   );
   tplSuggest.forEach((row) =>
@@ -797,7 +877,7 @@ function TB_Bell({ clients, items, me, isAdmin, page }) {
   };
   const n = unseen.length;
   return (
-    <div className="tb-item tb-bell notif-wrap" ref={menu.rootRef} onKeyDown={menu.onMenuKeyDown}>
+    <div className="tb-item tb-bell notif-wrap" ref={menu.rootRef} onKeyDown={menu.onMenuKeyDown} data-tour="tb-bell">
       <button
         ref={menu.triggerRef}
         type="button"
@@ -841,7 +921,7 @@ function TB_Bell({ clients, items, me, isAdmin, page }) {
 }
 
 // ---------------------------------------------------------------------------
-// 5. My Tasks badge
+// 5. Tasks badge (opens Work › Tasks)
 // ---------------------------------------------------------------------------
 function TB_TasksBadge({ items, me }) {
   const today = todayLocal();
@@ -849,11 +929,11 @@ function TB_TasksBadge({ items, me }) {
     (t) => !t.done && t.kind !== "note" && (TB_lc(t.staff_email) === TB_lc(me) || TB_lc(t.assignee_email) === TB_lc(me)),
   );
   const overdue = mine.filter((t) => t.due_date && t.due_date < today).length;
-  const label = `My Tasks: ${mine.length} open` + (overdue ? `, ${overdue} overdue` : "");
+  const label = `Tasks: ${mine.length} open` + (overdue ? `, ${overdue} overdue` : "");
   return (
-    <button type="button" className="tb-item tb-pill-btn tb-tasks" onClick={() => TB_go("#/tasks")} aria-label={label} title={label}>
+    <button type="button" className="tb-item tb-pill-btn tb-tasks" onClick={() => TB_go("#/work/tasks")} aria-label={label} title={label}>
       <ChecklistIcon width="16" height="16" strokeWidth="1.8" />
-      <span className="tb-tasks-label">My Tasks</span>
+      <span className="tb-tasks-label">Tasks</span>
       <span className="tb-count">{mine.length}</span>
       {overdue > 0 && <span className="tb-count overdue">{overdue}</span>}
     </button>
@@ -872,7 +952,7 @@ function TB_QuickAdd({ client }) {
     window.dispatchEvent(new CustomEvent(TB_QUICK_ADD_EVENT, { detail: { kind } }));
   };
   return (
-    <div className="tb-item tb-menu-wrap tb-quick" ref={menu.rootRef} onKeyDown={menu.onMenuKeyDown}>
+    <div className="tb-item tb-menu-wrap tb-quick" ref={menu.rootRef} onKeyDown={menu.onMenuKeyDown} data-tour="tb-quick">
       <button
         ref={menu.triggerRef}
         type="button"
@@ -907,31 +987,42 @@ function TB_QuickAdd({ client }) {
 }
 
 // ---------------------------------------------------------------------------
-// 7. Help
+// 7. "?" menu: help for this page, the staff guide, feedback, what's new,
+// the tour. Each line is optional: it shows only when its module is loaded
+// (StaffGuide.jsx, Feedback.jsx, Tour.jsx), so dropping one never breaks
+// the menu.
 // ---------------------------------------------------------------------------
 function TB_HelpButton({ page, isAdmin }) {
   const menu = TB_useMenu();
-  if (typeof HLP_StaffGuidePage !== "function") return null;
-  let slug = TB_HELP_FOR_PAGE[page] || null;
-  if (slug && TB_ADMIN_ARTICLES.has(slug) && !isAdmin) slug = null;
-  const label = slug ? "Help for this page" : "Help";
-  const goHelp = () => TB_go(page === "help" || !slug ? "#/help" : "#/help/" + slug);
-  // No feedback component loaded: plain Help link, as before.
-  if (typeof FB_openFeedback !== "function") {
-    return (
-      <button type="button" className="tb-item tb-icon-btn tb-help" aria-label={label} title={label} onClick={goHelp}>
-        <TB_QuestionIcon />
-      </button>
-    );
-  }
+  const hasGuide = typeof HLP_StaffGuidePage === "function";
+  const hasFeedback = typeof FB_openFeedback === "function";
+  const hasTour = typeof TOUR_startStaff === "function";
+  if (!hasGuide && !hasFeedback && !hasTour) return null;
+  // Resolved again on click: Work and Team tabs change the hash without
+  // re-rendering the bar (TB_helpSlugFor).
+  const pageHelp = hasGuide && page !== "help" && !!TB_helpSlugFor(page, isAdmin);
+  const items = [];
+  if (pageHelp)
+    items.push({
+      key: "page",
+      label: "Help for this page",
+      run: () => {
+        const slug = TB_helpSlugFor(page, isAdmin);
+        TB_go(slug ? "#/help/" + slug : "#/help");
+      },
+    });
+  if (hasGuide) items.push({ key: "guide", label: "Staff guide", run: () => TB_go("#/help") });
+  if (hasFeedback) items.push({ key: "feedback", label: "Send feedback", run: () => FB_openFeedback() });
+  if (hasGuide) items.push({ key: "new", label: "What's new", run: () => TB_go("#/help/whats-new") });
+  if (hasTour) items.push({ key: "tour", label: "Take the tour", run: () => TOUR_startStaff() });
   return (
-    <div className="tb-item tb-menu-wrap tb-help" ref={menu.rootRef} onKeyDown={menu.onMenuKeyDown}>
+    <div className="tb-item tb-menu-wrap tb-help" ref={menu.rootRef} onKeyDown={menu.onMenuKeyDown} data-tour="tb-help">
       <button
         ref={menu.triggerRef}
         type="button"
         className="tb-icon-btn"
-        aria-label="Help and feedback"
-        title="Help and feedback"
+        aria-label="Help"
+        title="Help"
         aria-haspopup="true"
         aria-expanded={menu.open}
         onClick={() => menu.setOpen(!menu.open)}
@@ -939,43 +1030,22 @@ function TB_HelpButton({ page, isAdmin }) {
         <TB_QuestionIcon />
       </button>
       {menu.open && (
-        <div className="tb-panel tb-menu" role="menu" aria-label="Help and feedback">
-          <button
-            type="button"
-            role="menuitem"
-            className="tb-menu-item"
-            autoFocus
-            onClick={() => {
-              menu.close(false);
-              goHelp();
-            }}
-          >
-            {label}
-          </button>
-          {slug && page !== "help" && (
+        <div className="tb-panel tb-menu" role="menu" aria-label="Help">
+          {items.map((it, n) => (
             <button
+              key={it.key}
               type="button"
               role="menuitem"
               className="tb-menu-item"
+              autoFocus={n === 0}
               onClick={() => {
                 menu.close(false);
-                TB_go("#/help");
+                it.run();
               }}
             >
-              All help topics
+              {it.label}
             </button>
-          )}
-          <button
-            type="button"
-            role="menuitem"
-            className="tb-menu-item"
-            onClick={() => {
-              menu.close(false);
-              FB_openFeedback();
-            }}
-          >
-            Report a bug / feedback
-          </button>
+          ))}
         </div>
       )}
     </div>
@@ -1057,7 +1127,7 @@ function TB_AvatarMenu({
     .toUpperCase();
   const people = (client && client.users) || [];
   return (
-    <div className="tb-item tb-menu-wrap tb-avatar" ref={menu.rootRef} onKeyDown={menu.onMenuKeyDown}>
+    <div className="tb-item tb-menu-wrap tb-avatar" ref={menu.rootRef} onKeyDown={menu.onMenuKeyDown} data-tour="tb-avatar">
       <button
         ref={menu.triggerRef}
         type="button"
@@ -1209,7 +1279,7 @@ function TB_AvatarMenu({
 // 9. Admin: QuickBooks sync throttled / stopped (qbo_usage_status)
 // ---------------------------------------------------------------------------
 // Reads the usage guard added in supabase/qbo-usage-guard.sql (same RPC the
-// Team page's QuickBooks API usage card uses). If the RPC is missing or
+// QuickBooks API usage card on Team › Hours uses). If the RPC is missing or
 // refuses, this renders nothing.
 function TB_ThrottleBadge() {
   const [mode, setMode] = useState(null);
@@ -1236,9 +1306,9 @@ function TB_ThrottleBadge() {
   const title =
     mode === "stopped"
       ? "This month's QuickBooks API calls are near Intuit's limit, so scheduled syncs are paused until the 1st. Sync now still works."
-      : "This month's QuickBooks API calls are running high, so Pro clients sync less often. Open the Team page for details.";
+      : "This month's QuickBooks API calls are running high, so Pro clients sync less often. Open Team › Hours for details.";
   return (
-    <button type="button" className={"tb-item tb-throttle" + (mode === "stopped" ? " stopped" : "")} title={title} onClick={() => TB_go("#/team")}>
+    <button type="button" className={"tb-item tb-throttle" + (mode === "stopped" ? " stopped" : "")} title={title} aria-label={text + ". Open Team › Hours for details."} onClick={() => TB_go("#/team/hours")}>
       <WarningIcon width="13" height="13" />
       <span className="tb-throttle-text">{text}</span>
     </button>
@@ -1273,13 +1343,15 @@ function TB_StaffTopBar({
   onPreviewPlan, // null on staff pages and during "View as"
 }) {
   const me = realStaffUser ? realStaffUser.email : "";
-  // My Tasks, the Inbox and the Close tracker are the signed-in person's own
-  // and aren't reachable during "View as", so their pieces step aside then.
+  // Work, the Inbox and the bell are the signed-in person's own and aren't
+  // reachable during "View as", so their pieces step aside then.
   const own = !impersonating;
   const items = TB_useMyItems(me, own);
   if (!staffUser || !realStaffUser) return null;
   const isRealAdmin = realStaffUser.role === "admin";
   const isAdmin = staffUser.role === "admin";
+  // Same shape the rail hands StaffNav.jsx (NAV_visiblePlaces).
+  const navCtx = { role: staffUser.role, isAdmin: !!(isAdmin || hasTempAdminAccess), impersonating: !!impersonating };
   return (
     <header className="tb-bar" aria-label="Staff toolbar">
       <div className="tb-left">
@@ -1292,7 +1364,6 @@ function TB_StaffTopBar({
           pendingRequestsByClient={pendingRequestsByClient}
           impersonating={impersonating}
         />
-        <TB_OverviewButton client={client} page={page} />
         <TB_SyncPill client={client} plan={plan} onSynced={onSynced} />
       </div>
       <div className="tb-middle">
@@ -1302,6 +1373,12 @@ function TB_StaffTopBar({
           showMine={own}
           isAdmin={isAdmin}
           clientSearch={client ? clientSearch : null}
+          navCtx={navCtx}
+          client={client}
+          effectiveTheme={effectiveTheme}
+          onToggleTheme={onToggleTheme}
+          onSignOut={onSignOut}
+          onOpenSettings={onOpenSettings}
         />
       </div>
       <div className="tb-right">

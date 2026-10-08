@@ -1,6 +1,7 @@
 // Shout-outs (owner request 2026-10-07). Staff only. supabase/staff-shoutouts.sql
 //
-//   SO_ShoutoutsBody     Home card "Shout-outs": the team feed plus a short
+//   SO_ShoutoutsBody     "Shout-outs" (Team → People, TeamPage.jsx; also the
+//                        home card): the team feed plus a short
 //                        compose form (who, optional client, note).
 //   SO_ReviewShoutouts   read-only list on the manager's review form
 //                        (Appreciation), for the review's quarter. Not

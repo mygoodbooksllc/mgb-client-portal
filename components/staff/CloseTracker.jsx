@@ -1,6 +1,6 @@
 // ----------------------------------------------------------------------------
-// Month-end close tracker (owner request 2026-09-29). Staff page
-// "close-tracker", every staff member.
+// Month-end close tracker (owner request 2026-09-29). Work → Close tab
+// (#/work/close, staff navigation redesign 2026-10-08), every staff member.
 //
 // Clients x months grid: the last 6 months plus the current one. Each cell is
 // a month_close row (supabase/month-close.sql); no row = not started.
@@ -10,6 +10,10 @@
 // Scope: the page gets App's visibleClients (a bookkeeper's assigned and
 // temporarily granted clients; admins get everyone) and RLS
 // (can_access_client) enforces the same thing on writes.
+//
+// CT_useCloseStatus loads the rows, the late day and the viewer's own client
+// ids once, for this page and for the Clients list (ClientsPage.jsx), which
+// shows each client's month being closed and whether it is late.
 //
 // Late: a month is late once today is past late_day of the FOLLOWING month
 // and it isn't done / n.a. late_day lives in month_close_settings (default
@@ -84,25 +88,28 @@ const CT_bookkeeperKey = (c) => {
   return bk.name ? "name:" + bk.name : "";
 };
 
-function CT_CloseTrackerPage({ clients, staffUser }) {
-  const showToast = typeof useToast === "function" ? useToast() : null;
-  const toast = (m) => showToast && showToast(m);
-  const isAdmin = !!(staffUser && staffUser.role === "admin");
+// Close status for every client the viewer can see, this month and the
+// CT_MONTHS_BACK before it. Shared by the Close tab below and the Clients
+// list (ClientsPage.jsx).
+//
+//   rows          "client|period" -> month_close row (no row = not started)
+//   setRows       for optimistic saves (the Close tab's editor)
+//   lateDay       month_close_settings.late_day (default 15)
+//   myClientIds   Set of client ids staff_client_access grants the viewer
+//   periods/today oldest period first, current month last
+//   focus         the month being closed right now: last month
+//   statusOf(clientId, period), isLate(clientId, period)
+//   byClient      {clientId: {period, status, late}} for the clients passed
+//                 in — the oldest late month when one is late, else `focus`
+//   loading/error, reload()
+function CT_useCloseStatus(clients, staffUser) {
   const today = useMemo(() => new Date(), []);
   const periods = useMemo(() => CT_periods(today), [today]);
-  const [focus, setFocus] = useState(periods[periods.length - 2]);
+  const focus = periods[periods.length - 2];
   const [rows, setRows] = useState({}); // "client|period" -> row
   const [lateDay, setLateDay] = useState(15);
   const [state, setState] = useState({ loading: true, error: null });
   const [myClientIds, setMyClientIds] = useState(null);
-  const [bkFilter, setBkFilter] = useState("all");
-  const [statusFilter, setStatusFilter] = useState("any");
-  const [editing, setEditing] = useState(null); // { client, period }
-  const [lateDraft, setLateDraft] = useState("");
-  const cc = typeof CC_useCloseChecks === "function" ? CC_useCloseChecks(periods) : null;
-  const checkOf = (clientId, period) => (cc ? cc.checks[clientId + "|" + period] : null);
-  const staleOf = (clientId) =>
-    cc && typeof CC_staleBanks === "function" ? CC_staleBanks(cc.accounts[clientId], cc.staleDays, today) : [];
 
   const load = useCallback(async () => {
     const sb = window.mgbSupabase;
@@ -143,6 +150,57 @@ function CT_CloseTrackerPage({ clients, staffUser }) {
     const r = rows[clientId + "|" + period];
     return r ? r.status : "not_started";
   };
+  const isLate = (clientId, period) => CT_isLate(period, statusOf(clientId, period), lateDay, today);
+
+  const byClient = useMemo(() => {
+    const out = {};
+    (clients || []).forEach((c) => {
+      // Oldest late month first: "August is still open" matters more than
+      // "September is in progress". A month older than the one being closed
+      // with no row at all isn't late, just untracked — otherwise a client
+      // added in September reads as late for April.
+      const late = periods.find((p) => (p === focus || rows[c.id + "|" + p]) && isLate(c.id, p));
+      const period = late || focus;
+      out[c.id] = { period, status: statusOf(c.id, period), late: !!late };
+    });
+    return out;
+    // eslint-disable-next-line
+  }, [(clients || []).map((c) => c.id).join(","), rows, lateDay, periods]);
+
+  return {
+    rows,
+    setRows,
+    lateDay,
+    setLateDay,
+    myClientIds,
+    periods,
+    today,
+    focus,
+    statusOf,
+    isLate,
+    byClient,
+    loading: state.loading,
+    error: state.error,
+    reload: load,
+  };
+}
+
+function CT_CloseTrackerPage({ clients, staffUser }) {
+  const showToast = typeof useToast === "function" ? useToast() : null;
+  const toast = (m) => showToast && showToast(m);
+  const isAdmin = !!(staffUser && staffUser.role === "admin");
+  const close = CT_useCloseStatus(clients, staffUser);
+  const { rows, setRows, lateDay, setLateDay, myClientIds, periods, today, statusOf } = close;
+  const state = { loading: close.loading, error: close.error };
+  const [focus, setFocus] = useState(close.focus);
+  const [bkFilter, setBkFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState("any");
+  const [editing, setEditing] = useState(null); // { client, period }
+  const [lateDraft, setLateDraft] = useState("");
+  const cc = typeof CC_useCloseChecks === "function" ? CC_useCloseChecks(periods) : null;
+  const checkOf = (clientId, period) => (cc ? cc.checks[clientId + "|" + period] : null);
+  const staleOf = (clientId) =>
+    cc && typeof CC_staleBanks === "function" ? CC_staleBanks(cc.accounts[clientId], cc.staleDays, today) : [];
 
   const bookkeepers = useMemo(() => {
     const byKey = new Map();

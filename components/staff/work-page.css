@@ -1,1 +1,20 @@
-/* components/staff/work-page.css — filled in by the staff navigation build (2026-10-08). */
+/* ---------------------------------------------------------------------------
+   Work page (components/staff/WorkPage.jsx): the shared tab row
+   (staff-nav.css) and whichever of Tasks / Close / Deadlines is open. App's
+   page header supplies the title; the tabs' pages keep their own styles.
+   Only the frame lives here.
+   --------------------------------------------------------------------------- */
+
+.wk-page {
+  min-width: 0;
+}
+
+/* Screen-reader-only text (the Tasks badge's "3 due, 1 overdue"). */
+.wk-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}

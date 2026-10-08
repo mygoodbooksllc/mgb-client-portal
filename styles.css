@@ -458,17 +458,18 @@ body {
   .sidebar.sidebar-collapsed .nav-item-caption {
     display: block;
   }
-  /* The logo box stays at the top when collapsed. Beside the staff rail
-     (which has its own) it's dropped, so there's only one logo. */
+  /* The logo box stays at the top when collapsed. (Until the staff nav
+     redesign, 2026-10-08, a staff member's client pages showed this sidebar
+     beside the staff rail and dropped the logo so there was only one; the
+     rail is the only sidebar on those pages now — clients-page.css hides
+     this one under html.staff-client-tabs — so the client's own view keeps
+     its logo.) */
   .sidebar.sidebar-collapsed .brand {
     justify-content: center;
     padding: 0 0 12px;
   }
   .sidebar.sidebar-collapsed .brand-link {
     flex: none;
-  }
-  .app-shell.has-staff-rail > .sidebar.sidebar-collapsed .brand {
-    display: none;
   }
   .sidebar.sidebar-collapsed .nav-item .nav-badge-dot {
     position: absolute;
@@ -8235,9 +8236,12 @@ body:has(.modal-overlay) .chat-fab-wrap {
 }
 
 /* ---------------- Staff sidebar (StaffRail) ----------------
-   Staff pages: replaces the client sidebar (72px icons + captions when collapsed).
-   Client pages: a 72px icon strip beside the client sidebar, hidden while
-   previewing as a client user. Desktop and mouse windows only. */
+   The one sidebar a staff member sees: five places (Today, Inbox, Work,
+   Clients, Team — components/staff/StaffNav.jsx), 224px with labels or 72px
+   icons + captions, the same on staff pages and on a client's pages (where
+   the client's tabs run across the top instead — html.staff-client-tabs in
+   clients-page.css hides the client sidebar). Hidden while previewing as a
+   client user. Desktop and mouse windows only; phones use the drawer. */
 .staff-rail {
   display: none;
 }
@@ -8269,7 +8273,8 @@ body:has(.modal-overlay) .chat-fab-wrap {
   .app-shell.on-staff-page > .sidebar {
     display: none;
   }
-  /* Client pages with the icon strip: its links replace the name menu. */
+  /* Wherever the rail is up, its places replace the drawer's copy of the
+     staff menu (the drawer is still reachable in a narrow mouse window). */
   .app-shell.has-staff-rail > .sidebar .staff-user-menu {
     display: none;
   }

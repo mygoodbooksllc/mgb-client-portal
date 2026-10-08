@@ -9,7 +9,7 @@
 // "task-templates-daily" runs it every morning, and "Generate now" here calls
 // the admin-only tt_generate_now() RPC.
 //
-// Generated tasks land in the bookkeeper's My Tasks (staff_email =
+// Generated tasks land in the bookkeeper's Work › Tasks (staff_email =
 // assignee_email = bookkeeper), shared with the client's team, tagged
 // source='template' and deduplicated per template x client x period.
 //
@@ -48,7 +48,7 @@ const TT_checklistLines = (text) =>
     .slice(0, TT_MAX_CHECKLIST);
 
 // ---------------------------------------------------------------------------
-// "Save as template" from a task in My Tasks (owner request 2026-09-30).
+// "Save as template" from a task in Work › Tasks (owner request 2026-09-30).
 // Admins: TT_openDraft() parks a pre-filled draft, app.jsx navigates here and
 // the page opens the editor with it (nothing saved until Save). Everyone
 // else: TT_suggestFromTask() files a row in task_template_suggestions
@@ -180,7 +180,7 @@ function TT_TaskTemplatesPage({ clients }) {
   const [suggestions, setSuggestions] = useState([]);
   const clientsById = useMemo(() => Object.fromEntries((clients || []).map((c) => [c.id, c])), [clients]);
 
-  // A draft parked by "Save as template" in My Tasks.
+  // A draft parked by "Save as template" in Work › Tasks.
   useEffect(() => {
     const take = () => {
       if (!TT_pendingDraft) return;
@@ -282,7 +282,7 @@ function TT_TaskTemplatesPage({ clients }) {
   };
 
   const remove = async (t) => {
-    if (!window.confirm(`Delete "${t.title}"? Tasks it already created stay in My Tasks.`)) return;
+    if (!window.confirm(`Delete "${t.title}"? Tasks it already created stay in Work › Tasks.`)) return;
     const sb = window.mgbSupabase;
     if (!sb) return;
     const { error } = await sb.from("task_templates").delete().eq("id", t.id);
@@ -378,7 +378,7 @@ function TT_TaskTemplatesPage({ clients }) {
         <div className="tt-intro-text">
           <h3 className="card-title">Recurring task templates</h3>
           <p className="card-subtitle">
-            Each template creates a task in the assigned bookkeeper's My Tasks for every matching client, once per period,
+            Each template creates a task in the assigned bookkeeper's Work › Tasks for every matching client, once per period,
             as soon as the due date is within the lead window. This runs every morning automatically.
           </p>
           {lastRun && (

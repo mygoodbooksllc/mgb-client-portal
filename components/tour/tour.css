@@ -1,7 +1,8 @@
-/* Guided tour for new client users (components/tour/Tour.jsx).
+/* Guided tours for new client users and new staff (components/tour/Tour.jsx).
    The popover matches the themed tooltip (components/ui/tooltips.css): deep
-   navy with light text and a gold accent, in light and dark mode. The setup
-   checklist is a normal Dashboard card. */
+   navy with light text and a gold accent, in light and dark mode; the gold
+   spotlight ring reads on the navy staff rail too. The setup checklist is a
+   normal Dashboard card (client tour only). */
 
 .tour-root {
   position: fixed;

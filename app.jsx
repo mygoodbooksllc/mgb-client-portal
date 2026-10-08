@@ -534,24 +534,25 @@ const BOOKKEEPER_VIEW = "__bookkeeper__";
 // repeating the same three-or-four-way `page !== "x" && page !== "y"` check
 // at every one of those call sites, which is exactly how developer-tools
 // nearly got left out of one of them when it was added.
+// Staff nav redesign (2026-10-08): the five places in the rail (Today, Inbox,
+// Work, Clients, Team — components/staff/StaffNav.jsx) plus Help, Settings
+// and the admin pages the rail doesn't list. Work's Tasks/Close/Deadlines
+// and Team's People/Reviews/Onboarding/... are tabs INSIDE those places
+// (#/work/close, #/team/reviews), not pages of their own any more.
 const NON_CLIENT_PAGES = new Set([
-  "bookkeeper-home",
-  "staff-access",
-  "client-access",
-  "developer-tools",
-  "usage-stats",
-  "staff-team",
-  "staff-messages",
-  "my-tasks",
-  "close-tracker",
-  "deadlines",
-  "team-reviews",
-  "task-templates",
-  "audit-log",
-  "emails",
-  "feedback",
+  "today",
+  "inbox",
+  "work",
+  "clients",
+  "team",
   "help",
   "settings",
+  "task-templates",
+  "client-access",
+  "usage-stats",
+  "audit-log",
+  "emails",
+  "developer-tools",
 ]);
 
 // Tabs that are part of a paid add-on rather than the base product. Always
@@ -1233,169 +1234,58 @@ function Sidebar({
                   className="staff-user-dropdown"
                   role={inDrawer ? undefined : "menu"}
                 >
-                  <button
-                    type="button"
-                    role="menuitem"
-                    className={
-                      "staff-user-menu-item" +
-                      (page === "bookkeeper-home" ? " active" : "")
-                    }
-                    onClick={() => {
-                      onSelectPage("bookkeeper-home");
-                      onCloseMobile();
-                      setStaffMenuOpen(false);
-                    }}
-                  >
-                    <HomeIcon />
-                    Home
-                    <CS_ApprovalsDot />
-                  </button>
-
-                  {!impersonating && (
+                  {/* The same five places as the desktop rail (StaffRail /
+                      components/staff/StaffNav.jsx), with the same
+                      data-tour names so the staff tour can point at them
+                      in the phone drawer. Help, Feedback and the tour live
+                      in the top bar's "?" menu; the admin pages under
+                      Settings > Firm settings. */}
+                  {(typeof NAV_visiblePlaces === "function"
+                    ? NAV_visiblePlaces({
+                        role: staffUser.role,
+                        isAdmin: showsAdminPages,
+                        impersonating: !!impersonating,
+                      })
+                    : []
+                  ).map((p) => (
                     <button
+                      key={p.key}
                       type="button"
                       role="menuitem"
-                      className={
-                        "staff-user-menu-item" +
-                        (page === "staff-messages" ? " active" : "")
-                      }
+                      className={"staff-user-menu-item" + (page === p.key ? " active" : "")}
+                      data-tour={"staff-nav-" + p.key}
+                      aria-current={page === p.key ? "page" : undefined}
                       onClick={() => {
-                        onSelectPage("staff-messages");
+                        onSelectPage(p.key);
                         onCloseMobile();
                         setStaffMenuOpen(false);
                       }}
                     >
-                      <ChatIcon width="16" height="16" strokeWidth="1.8" />
-                      Inbox
-                      {staffMessagesUnread && (
+                      {p.icon ? p.icon() : null}
+                      {p.label}
+                      {p.key === "today" && typeof CS_ApprovalsDot === "function" && <CS_ApprovalsDot />}
+                      {p.key === "inbox" && staffMessagesUnread && (
                         <span
                           className="nav-badge-dot"
                           aria-label="Unread"
                           style={{ marginLeft: "auto" }}
                         />
                       )}
+                      {p.key === "work" && <MyTasksDueCount due={myTasksDue} />}
+                      {p.key === "team" && typeof TR_NavBadge === "function" && <TR_NavBadge expanded />}
+                      {p.key === "team" &&
+                        showsAdminPages &&
+                        staffUser.role === "admin" &&
+                        typeof FB_NavBadge === "function" && <FB_NavBadge expanded />}
                     </button>
-                  )}
-
-                  {!impersonating && (
-                    <button
-                      type="button"
-                      role="menuitem"
-                      className={
-                        "staff-user-menu-item" +
-                        (page === "my-tasks" ? " active" : "")
-                      }
-                      onClick={() => {
-                        onSelectPage("my-tasks");
-                        onCloseMobile();
-                        setStaffMenuOpen(false);
-                      }}
-                    >
-                      <ChecklistIcon width="16" height="16" strokeWidth="1.8" />
-                      My Tasks
-                      <MyTasksDueCount due={myTasksDue} />
-                    </button>
-                  )}
-
-                  {!impersonating && (
-                    <button
-                      type="button"
-                      role="menuitem"
-                      className={
-                        "staff-user-menu-item" +
-                        (page === "close-tracker" ? " active" : "")
-                      }
-                      onClick={() => {
-                        onSelectPage("close-tracker");
-                        onCloseMobile();
-                        setStaffMenuOpen(false);
-                      }}
-                    >
-                      <CalculatorIcon />
-                      Close tracker
-                    </button>
-                  )}
-
-                  {!impersonating && typeof TR_TeamReviewsPage === "function" && (
-                    <button
-                      type="button"
-                      role="menuitem"
-                      className={"staff-user-menu-item" + (page === "team-reviews" ? " active" : "")}
-                      onClick={() => {
-                        onSelectPage("team-reviews");
-                        onCloseMobile();
-                        setStaffMenuOpen(false);
-                      }}
-                    >
-                      <TR_Icon />
-                      Reviews
-                    </button>
-                  )}
-
-                  {!impersonating && typeof HLP_StaffGuidePage === "function" && (
-                    <button
-                      type="button"
-                      role="menuitem"
-                      className={"staff-user-menu-item" + (page === "help" ? " active" : "")}
-                      onClick={() => {
-                        onSelectPage("help");
-                        onCloseMobile();
-                        setStaffMenuOpen(false);
-                      }}
-                    >
-                      <HLP_HelpIcon width="16" height="16" strokeWidth="1.8" />
-                      Help
-                    </button>
-                  )}
-
-                  {showsAdminPages && (
-                    <React.Fragment>
-                      <div className="staff-user-menu-divider" />
-                      <button
-                        type="button"
-                        role="menuitem"
-                        className={
-                          "staff-user-menu-item" +
-                          (page === "staff-team" || page === "staff-access" ? " active" : "")
-                        }
-                        onClick={() => {
-                          onSelectPage("staff-team");
-                          onCloseMobile();
-                          setStaffMenuOpen(false);
-                        }}
-                      >
-                        <TeamIcon />
-                        Team
-                      </button>
-                      {/* Task templates, Client roster, Developer tools,
-                          Usage stats, Audit log and Emails live in Settings >
-                          Firm settings now (below). */}
-                      {staffUser.role === "admin" && typeof FB_FeedbackPage === "function" && (
-                      <button
-                        type="button"
-                        role="menuitem"
-                        className={
-                          "staff-user-menu-item" +
-                          (page === "feedback" ? " active" : "")
-                        }
-                        onClick={() => {
-                          onSelectPage("feedback");
-                          onCloseMobile();
-                          setStaffMenuOpen(false);
-                        }}
-                      >
-                        <FB_Icon width="16" height="16" strokeWidth="1.8" />
-                        Feedback
-                      </button>
-                      )}
-                    </React.Fragment>
-                  )}
+                  ))}
 
                   <div className="staff-user-menu-divider" />
                   <button
                     type="button"
                     role="menuitem"
                     className={"staff-user-menu-item" + (page === "settings" ? " active" : "")}
+                    data-tour="staff-nav-settings"
                     onClick={() => {
                       onSelectPage("settings");
                       onCloseMobile();
@@ -1579,9 +1469,8 @@ function Sidebar({
                   </div>
                 )}
                 <div className="nav-section-items" id={sectionId}>
-                  {/* The staff-only Overview lives in the staff top bar
-                      (TB_OverviewButton), so this list is exactly what the
-                      client sees. */}
+                  {/* This list is exactly what the client sees; staff get the
+                      Clients breadcrumb and tab row instead. */}
                   {items.map((item) => {
                     // Same tab, same name, for every plan — the PRO pill (and
                     // the gold shimmer that used to mark a whole separate
@@ -1720,10 +1609,6 @@ function StaffRail({
   impersonating,
   showsAdminPages,
   onSignOut,
-  clients,
-  onPickClient,
-  onExpand,
-  statusOverrides,
   hideMark,
 }) {
   const [tip, setTip] = useState(null);
@@ -1736,10 +1621,14 @@ function StaffRail({
     if (expanded) setTip(null);
   }, [expanded]);
   const onClientPage = !NON_CLIENT_PAGES.has(page);
-  // Client pages with the client sidebar collapsed: two icon columns side
-  // by side. Their headers differ (logo box vs. avatar / milestone pill),
-  // so nudge whichever icon list starts higher down until the first rows
-  // line up. Items are the same height in both, so the rows below follow.
+  // Client pages with the client sidebar collapsed beside the rail: two
+  // icon columns side by side. Their headers differ (logo box vs. avatar /
+  // milestone pill), so nudge whichever icon list starts higher down until
+  // the first rows line up. Since the staff nav redesign (2026-10-08) the
+  // client sidebar is hidden on desktop while staff are on a client's pages
+  // (html.staff-client-tabs), so this is a no-op whenever the sidebar isn't
+  // laid out (offsetParent === null) and only still matters if both columns
+  // are ever shown together again.
   const railRef = useRef(null);
   React.useLayoutEffect(() => {
     const rail = railRef.current;
@@ -1759,7 +1648,12 @@ function StaffRail({
     const run = () => {
       const sb = shell.querySelector(":scope > .sidebar");
       const sbNav = sb && sb.querySelector(".nav");
-      const on = !expanded && onClientPage && sb && sb.classList.contains("sidebar-collapsed");
+      const on =
+        !expanded &&
+        onClientPage &&
+        sb &&
+        sb.offsetParent !== null &&
+        sb.classList.contains("sidebar-collapsed");
       const a = on ? firstTop(railNav, ".staff-rail-item") : null;
       const b = on ? firstTop(sbNav, ".nav-item") : null;
       if (a == null || b == null) {
@@ -1789,67 +1683,40 @@ function StaffRail({
       window.removeEventListener("resize", align);
     };
   }, [expanded, onClientPage]);
-  const items = [
-    {
-      key: "bookkeeper-home",
-      label: "Home",
-      icon: <HomeIcon />,
-      extra: <CS_ApprovalsDot className="nav-badge-dot staff-rail-dot" />,
-    },
-    {
-      key: "dashboard",
-      label: "Client view",
-      short: "Client",
-      icon: <GridIcon />,
-      active: onClientPage,
-    },
-    ...(impersonating
-      ? []
-      : [
-          {
-            key: "staff-messages",
-            label: "Inbox",
-            icon: <ChatIcon width="16" height="16" strokeWidth="1.8" />,
-            dot: staffMessagesUnread,
-          },
-          {
-            key: "my-tasks",
-            label: "My Tasks",
-            short: "Tasks",
-            icon: <ChecklistIcon width="16" height="16" strokeWidth="1.8" />,
-            due: true,
-          },
-          { key: "close-tracker", label: "Close tracker", short: "Close", icon: <CalculatorIcon /> },
-          ...(typeof DL_DeadlinesPage === "function"
-            ? [{ key: "deadlines", label: "Deadlines", short: "Dates", icon: <DL_Icon /> }]
-            : []),
-          // Team Reviews (components/staff/TeamReviews.jsx): everyone on staff.
-          ...(typeof TR_TeamReviewsPage === "function"
-            ? [{ key: "team-reviews", label: "Reviews", short: "Reviews", icon: <TR_Icon />, extra: <TR_NavBadge expanded={expanded} /> }]
-            : []),
-          ...(typeof HLP_StaffGuidePage === "function"
-            ? [{ key: "help", label: "Help", icon: <HLP_HelpIcon /> }]
-            : []),
-        ]),
-  ];
-  // Admin section: Team (which now includes the old Staff Access page, still
-  // reachable as "staff-access") and Feedback. Task templates, Client roster,
-  // Emails, Usage stats, Audit log and Developer tools moved to Settings >
-  // Firm settings (owner request 2026-09-30); their page ids and routes are
-  // unchanged.
-  const adminItems = showsAdminPages
-    ? [
-        {
-          key: "staff-team",
-          label: "Team",
-          icon: <TeamIcon />,
-          active: page === "staff-team" || page === "staff-access",
-        },
-        ...(staffUser.role === "admin" && !impersonating && typeof FB_FeedbackPage === "function"
-          ? [{ key: "feedback", label: "Feedback", icon: <FB_Icon />, extra: <FB_NavBadge expanded={expanded} /> }]
-          : []),
-      ]
-    : [];
+  // The five places (components/staff/StaffNav.jsx): Today, Inbox, Work,
+  // Clients, Team — the same list on staff pages and a client's pages, so
+  // the rail never changes shape under someone. Inbox, Work and Team step
+  // aside while an admin is in "View as" (see NAV_PLACES). What each place
+  // adds to its row: Today the client-access approvals dot (admins), Inbox
+  // the unread dot, Work the tasks-due count, Team the review / feedback
+  // badges. Help, Feedback and the tour live in the top bar's "?" menu;
+  // Task templates, Client roster, Emails, Usage stats, Audit log and
+  // Developer tools under Settings > Firm settings (owner request
+  // 2026-09-30).
+  const places =
+    typeof NAV_visiblePlaces === "function"
+      ? NAV_visiblePlaces({ role: staffUser.role, isAdmin: showsAdminPages, impersonating: !!impersonating })
+      : [];
+  const items = places.map((p) => {
+    const it = { key: p.key, label: p.label, short: p.label, icon: p.icon ? p.icon() : null };
+    if (p.key === "today" && typeof CS_ApprovalsDot === "function") {
+      it.extra = <CS_ApprovalsDot className="nav-badge-dot staff-rail-dot" />;
+    } else if (p.key === "inbox") {
+      it.dot = staffMessagesUnread;
+    } else if (p.key === "work") {
+      it.due = true;
+    } else if (p.key === "team") {
+      it.extra = (
+        <>
+          {typeof TR_NavBadge === "function" && <TR_NavBadge expanded={expanded} />}
+          {showsAdminPages && staffUser.role === "admin" && typeof FB_NavBadge === "function" && (
+            <FB_NavBadge expanded={expanded} />
+          )}
+        </>
+      );
+    }
+    return it;
+  });
   const initials = (staffUser.name || "")
     .split(" ")
     .map((p) => p[0])
@@ -1862,6 +1729,7 @@ function StaffRail({
         key={it.key}
         type="button"
         className={"staff-rail-item" + (active ? " active" : "")}
+        data-tour={"staff-nav-" + it.key}
         onClick={() => {
           hideTip();
           onSelectPage(it.key);
@@ -1908,30 +1776,10 @@ function StaffRail({
           <span className="staff-rail-mark" role="img" aria-label="MyGoodBooks" />
         )}
       </div>
-      {/* Client pages already have the client sidebar's own switcher. Shown
-          even with no assigned clients, since the switcher is also where a
-          bookkeeper asks for access to one. */}
-      {clients && !onClientPage && (
-        <CS_ClientSwitcher
-          clients={clients}
-          currentClient={null}
-          onPick={onPickClient}
-          staffUser={staffUser}
-          statusOverrides={statusOverrides}
-          compact={!expanded}
-          onExpand={onExpand}
-          canRequest={!impersonating}
-        />
-      )}
-      <nav className="staff-rail-nav">
+      {/* Picking a client happens on the Clients page and in the top bar's
+          client picker, so the rail itself lists only places. */}
+      <nav className="staff-rail-nav" data-tour="staff-nav">
         {items.map(renderItem)}
-        {adminItems.length > 0 && (
-          <>
-            <div className="staff-rail-divider" />
-            {expanded && <div className="staff-rail-heading">Admin</div>}
-            {adminItems.map(renderItem)}
-          </>
-        )}
       </nav>
       <div className="staff-rail-foot">
         {/* Theme moved to Settings > Appearance (and the top bar's avatar
@@ -1939,10 +1787,13 @@ function StaffRail({
         <button
           type="button"
           className={"staff-rail-item" + (page === "settings" ? " active" : "")}
+          data-tour="staff-nav-settings"
           onClick={() => onSelectPage("settings")}
           aria-label={expanded ? undefined : "Settings"}
           aria-current={page === "settings" ? "page" : undefined}
+          onMouseEnter={(e) => showTip(e, "Settings")}
           onMouseLeave={hideTip}
+          onFocus={(e) => showTip(e, "Settings")}
           onBlur={hideTip}
         >
           <ST_GearIcon width="18" height="18" />
@@ -1970,7 +1821,9 @@ function StaffRail({
           className="staff-rail-item"
           onClick={onSignOut}
           aria-label={expanded ? undefined : "Sign out"}
+          onMouseEnter={(e) => showTip(e, "Sign out")}
           onMouseLeave={hideTip}
+          onFocus={(e) => showTip(e, "Sign out")}
           onBlur={hideTip}
         >
           <SignOutIcon />
@@ -1980,7 +1833,8 @@ function StaffRail({
             <span className="staff-rail-caption" aria-hidden="true">Sign out</span>
           )}
         </button>
-        {onToggleCollapse && NON_CLIENT_PAGES.has(page) && (
+        {/* On client pages too: the rail is the only sidebar there now. */}
+        {onToggleCollapse && (
           <button
             type="button"
             className="sidebar-collapse-toggle staff-rail-collapse"
@@ -16585,1631 +16439,6 @@ function useCardFlash() {
   return { flashCardId, jumpToCard };
 }
 
-// Staff Home's card masonry (owner, 2026-10-06: "staff home needs some
-// masonry work"). The shared .content-masonry grid auto-places cards, which
-// let a short card sit under a tall one with a gap beside it, and dropped
-// whatever came after the full-width client list onto a row of its own.
-//
-// This places every card itself, on the same 4px-row grid: cards go in
-// priority order (the Customize order: "Needs you" first, top-left) into
-// whichever column is shortest, ties going left, so the columns stay level.
-// Full-width cards (.home-wide, the client list) go under the columns.
-// Cards stay children of one grid, so moving one between columns never
-// remounts it (a half-typed reminder survives). Columns: as many 380px+
-// columns as fit, up to 3; one on phones. A card that renders nothing
-// (zero height) takes no space. Re-runs when the grid resizes, a card
-// changes height, or cards are added, removed or reordered.
-const HOME_MASONRY_ROW = 4;
-const HOME_MASONRY_GAP = 20;
-const HOME_MASONRY_MIN_COL = 380;
-const HOME_MASONRY_MAX_COLS = 3;
-
-function useHomeMasonry(ref) {
-  React.useLayoutEffect(() => {
-    const grid = ref.current;
-    if (!grid || typeof ResizeObserver === "undefined") return;
-    let frame = 0;
-    const layoutCards = () => {
-      frame = 0;
-      const width = grid.clientWidth;
-      if (!width) return;
-      const cols = Math.max(
-        1,
-        Math.min(
-          HOME_MASONRY_MAX_COLS,
-          Math.floor((width + HOME_MASONRY_GAP) / (HOME_MASONRY_MIN_COL + HOME_MASONRY_GAP)),
-        ),
-      );
-      grid.style.gridTemplateColumns = `repeat(${cols}, minmax(0, 1fr))`;
-      grid.classList.add("home-masonry-ready");
-      const heights = new Array(cols).fill(0); // in rows
-      const wide = [];
-      const span = (el) => {
-        const h = el.getBoundingClientRect().height;
-        return h > 0 ? Math.ceil((h + HOME_MASONRY_GAP) / HOME_MASONRY_ROW) : 0;
-      };
-      const place = (el, column, rowStart, rows) => {
-        const c = String(column);
-        const r = rows ? `${rowStart} / span ${rows}` : "1 / span 1";
-        if (el.style.gridColumn !== c) el.style.gridColumn = c;
-        if (el.style.gridRow !== r) el.style.gridRow = r;
-      };
-      Array.from(grid.children).forEach((el) => {
-        if (el.classList.contains("home-wide")) return wide.push(el);
-        const rows = span(el);
-        if (!rows) return place(el, "1", 1, 0);
-        let col = 0;
-        for (let i = 1; i < cols; i++) if (heights[i] < heights[col]) col = i;
-        place(el, col + 1, heights[col] + 1, rows);
-        heights[col] += rows;
-      });
-      let top = Math.max(0, ...heights);
-      wide.forEach((el) => {
-        const rows = span(el);
-        if (!rows) return place(el, "1 / -1", 1, 0);
-        place(el, "1 / -1", top + 1, rows);
-        top += rows;
-      });
-    };
-    const schedule = () => {
-      if (!frame) frame = requestAnimationFrame(layoutCards);
-    };
-    const ro = new ResizeObserver(schedule);
-    const watch = () => {
-      ro.disconnect();
-      ro.observe(grid);
-      Array.from(grid.children).forEach((el) => ro.observe(el));
-      schedule();
-    };
-    const mo = new MutationObserver(watch);
-    mo.observe(grid, { childList: true });
-    watch();
-    layoutCards(); // first paint already placed, no flash of the fallback
-    return () => {
-      ro.disconnect();
-      mo.disconnect();
-      if (frame) cancelAnimationFrame(frame);
-    };
-  }, [ref]);
-}
-
-function BookkeeperHomePage({
-  staffUser,
-  clients,
-  messagesByClient,
-  readMessageClients,
-  onNavigateToClient,
-  onOpenMyTasks,
-  onOpenClientMilestone,
-  statusOverrides,
-  onStatusOverridesChanged,
-}) {
-  const showToast = useToast();
-  const supabase = window.mgbSupabase;
-  const today = todayLocal();
-
-  const [reminders, setReminders] = useState(null);
-  const [reminderError, setReminderError] = useState("");
-  const [newReminder, setNewReminder] = useState("");
-  const [newReminderDate, setNewReminderDate] = useState("");
-  const [adding, setAdding] = useState(false);
-  const [notes, setNotes] = useState({}); // client_id -> { note, updated_by, updated_at }
-  const [noteError, setNoteError] = useState("");
-  const [editingNoteFor, setEditingNoteFor] = useState(null); // client object, or null
-  const [noteDraft, setNoteDraft] = useState("");
-  const [savingNote, setSavingNote] = useState(false);
-  const [editingStatusFor, setEditingStatusFor] = useState(null); // client object, or null
-  const [statusDraft, setStatusDraft] = useState("green");
-  const [statusNoteDraft, setStatusNoteDraft] = useState("");
-  const [savingStatus, setSavingStatus] = useState(false);
-  const { flashCardId, jumpToCard } = useCardFlash();
-  const [clientSearch, setClientSearch] = useState("");
-  // "Upgrade to Enterprise" requests filed from clients' Enterprise upgrade
-  // preview page (EnterpriseUpgradePage) — see
-  // supabase/enterprise-upgrade-requests.sql. Any active staff member can
-  // see and action these (not admin-only — whoever's around can follow up),
-  // same read-visibility posture as client_notes.
-  const [upgradeRequests, setUpgradeRequests] = useState(null); // null while loading
-  const [upgradeRequestsError, setUpgradeRequestsError] = useState("");
-  const [upgradeRequestBusyId, setUpgradeRequestBusyId] = useState(null);
-
-  const loadUpgradeRequests = useCallback(() => {
-    if (!supabase) return;
-    supabase
-      .from("enterprise_upgrade_requests")
-      // "*" so this keeps working whether or not plans-basic-plus-pro.sql
-      // (which adds requested_plan) has been run yet.
-      .select("*")
-      .eq("status", "new")
-      .order("created_at", { ascending: false })
-      .then(({ data, error }) => {
-        if (error) {
-          setUpgradeRequestsError(
-            "Couldn't load upgrade requests. Has enterprise-upgrade-requests.sql been run? " +
-              error.message,
-          );
-          setUpgradeRequests([]);
-        } else {
-          setUpgradeRequestsError("");
-          setUpgradeRequests(data);
-        }
-      });
-  }, [supabase]);
-
-  useEffect(() => {
-    loadUpgradeRequests();
-  }, [loadUpgradeRequests]);
-
-  // §169: pending access requests, firm-wide. The sidebar's "Manage access"
-  // glow is per-client by design (it must only promise what clicking it
-  // shows), so without this card a request for a client you are not currently
-  // viewing had nowhere to announce itself. This is that central place — the
-  // same role the upgrade-requests card above plays for upgrades.
-  //
-  // No .in() on client_id: access_requests' RLS is scoped to can_access_client
-  // as of the batch-2 hardening, so the database already returns only the
-  // clients this staffer is assigned to.
-  const [accessRequests, setAccessRequests] = useState(null);
-  const [accessRequestsError, setAccessRequestsError] = useState("");
-
-  const loadAccessRequests = useCallback(() => {
-    if (!supabase) return;
-    supabase
-      .from("access_requests")
-      .select("id, client_id, submitted_by_name, submitted_at, people")
-      .eq("reviewed", false)
-      .order("submitted_at", { ascending: false })
-      .then(({ data, error }) => {
-        if (error) {
-          setAccessRequestsError(
-            "Couldn't load access requests. " + error.message,
-          );
-          setAccessRequests([]);
-        } else {
-          setAccessRequestsError("");
-          setAccessRequests(data);
-        }
-      });
-  }, [supabase]);
-
-  useEffect(() => {
-    loadAccessRequests();
-  }, [loadAccessRequests]);
-
-  async function setUpgradeRequestStatus(row, status) {
-    setUpgradeRequestBusyId(row.id);
-    const { error } = await supabase
-      .from("enterprise_upgrade_requests")
-      .update({ status })
-      .eq("id", row.id);
-    setUpgradeRequestBusyId(null);
-    if (error) {
-      showToast(`Couldn't update that request: ${error.message}`);
-      return;
-    }
-    loadUpgradeRequests();
-  }
-
-  // Same read/write path as My Tasks (staffItemsApi), so checking an item
-  // off here sets completed_at, rolls a recurring item forward, and both
-  // views plus the sidebar badge refresh together. Home shows only the
-  // signed-in person's own items (owned or assigned), not teammates' shared
-  // ones — that fuller view is My Tasks.
-  const loadReminders = useCallback(() => {
-    if (!supabase) return;
-    staffItemsApi.list(supabase, staffUser.email).then(({ data, error }) => {
-      if (error) {
-        setReminderError("Couldn't load reminders. " + error.message);
-        setReminders([]);
-        return;
-      }
-      setReminderError("");
-      setReminders(
-        data
-          .filter((r) => isMyStaffItem(r, staffUser.email))
-          .sort((x, y) => {
-            if (x.done !== y.done) return x.done ? 1 : -1;
-            if (!!x.due_date !== !!y.due_date) return x.due_date ? -1 : 1;
-            if (x.due_date !== y.due_date)
-              return x.due_date < y.due_date ? -1 : 1;
-            return (x.due_at || "") < (y.due_at || "") ? -1 : 1;
-          }),
-      );
-    });
-  }, [supabase, staffUser.email]);
-
-  useEffect(() => {
-    loadReminders();
-  }, [loadReminders]);
-  useStaffItemsChanged(loadReminders);
-
-  async function addReminder() {
-    const text = newReminder.trim();
-    if (!text) return;
-    setAdding(true);
-    const { error } = await staffItemsApi.add(supabase, staffUser.email, {
-      text,
-      due_date: newReminderDate || null,
-    });
-    setAdding(false);
-    if (error) {
-      showToast(`Couldn't add reminder: ${error.message}`);
-      return;
-    }
-    setNewReminder("");
-    setNewReminderDate("");
-  }
-
-  async function toggleReminder(reminder) {
-    const { error } = await staffItemsApi.toggleDone(
-      supabase,
-      staffUser.email,
-      reminder,
-    );
-    if (error) showToast(`Couldn't update reminder: ${error.message}`);
-  }
-
-  async function removeReminder(reminder) {
-    const { error } = await staffItemsApi.remove(supabase, reminder.id);
-    if (error) showToast(`Couldn't remove reminder: ${error.message}`);
-  }
-
-  // Handoff summaries — same path as My Tasks' By client tab
-  // (clientNotesApi), so an edit in either shows up in the other.
-  const loadNotes = useCallback(() => {
-    if (!supabase || clients.length === 0) return;
-    clientNotesApi
-      .getHandoffs(
-        supabase,
-        clients.map((c) => c.id),
-      )
-      .then(({ data, error }) => {
-        if (error) {
-          setNoteError(
-            "Couldn't load client notes. Has client-notes.sql been run? " +
-              error.message,
-          );
-          return;
-        }
-        setNoteError("");
-        setNotes(data);
-      });
-  }, [supabase, clients]);
-
-  useEffect(() => {
-    loadNotes();
-  }, [loadNotes]);
-  useClientNotesChanged(loadNotes);
-
-  function openNoteEditor(client) {
-    setEditingNoteFor(client);
-    setNoteDraft((notes[client.id] && notes[client.id].note) || "");
-  }
-
-  async function saveNote() {
-    setSavingNote(true);
-    const { error } = await clientNotesApi.saveHandoff(
-      supabase,
-      editingNoteFor.id,
-      noteDraft,
-      staffUser.email,
-    );
-    setSavingNote(false);
-    if (error) {
-      showToast(`Couldn't save note: ${error.message}`);
-      return;
-    }
-    setEditingNoteFor(null);
-  }
-
-  function openStatusEditor(client) {
-    const existing = statusOverrides && statusOverrides[client.id];
-    setEditingStatusFor(client);
-    setStatusDraft(
-      (existing && existing.status) || clientHealthSignal(client, today).status,
-    );
-    setStatusNoteDraft((existing && existing.note) || "");
-  }
-
-  async function saveStatus() {
-    setSavingStatus(true);
-    const { error } = await supabase.from("client_status_overrides").upsert({
-      client_id: editingStatusFor.id,
-      status: statusDraft,
-      note: statusNoteDraft,
-      set_by: staffUser.email,
-      updated_at: new Date().toISOString(),
-    });
-    setSavingStatus(false);
-    if (error) {
-      showToast(`Couldn't save status: ${error.message}`);
-      return;
-    }
-    setEditingStatusFor(null);
-    if (onStatusOverridesChanged) onStatusOverridesChanged();
-  }
-
-  async function clearStatus() {
-    setSavingStatus(true);
-    const { error } = await supabase
-      .from("client_status_overrides")
-      .delete()
-      .eq("client_id", editingStatusFor.id);
-    setSavingStatus(false);
-    if (error) {
-      showToast(`Couldn't clear status: ${error.message}`);
-      return;
-    }
-    setEditingStatusFor(null);
-    if (onStatusOverridesChanged) onStatusOverridesChanged();
-  }
-
-  // Same "last message is from the bookkeeper, and the viewer hasn't seen it
-  // yet" check the sidebar badge uses for one client (see App's
-  // threadHasUnread), just run across every client/person this staffer can
-  // see instead of only the selected client.
-  const unreadAcrossClients = useMemo(() => {
-    const rows = [];
-    clients.forEach((client) => {
-      (client.users || []).forEach((u) => {
-        const key = threadKeyFor(client.id, u.id);
-        const msgs = messagesByClient[key] || seedThread(client.id, u.id);
-        const unread =
-          lastMessageFromBookkeeper({ messages: msgs }) &&
-          msgs.length > (readMessageClients[key] || 0);
-        if (unread)
-          rows.push({
-            clientId: client.id,
-            clientName: client.name,
-            userId: u.id,
-            userName: u.name,
-          });
-      });
-    });
-    return rows;
-  }, [clients, messagesByClient, readMessageClients]);
-
-  // Per-browser visit history (see recordClientVisit / App's effect that
-  // stamps it on every client switch) — not real-time, just whatever this
-  // browser last recorded, refreshed on mount.
-  const clientVisits = useMemo(() => loadClientVisits(), []);
-  const recentlyViewed = useMemo(
-    () =>
-      clients
-        .filter((c) => clientVisits[c.id])
-        .sort((a, b) => clientVisits[b.id] - clientVisits[a.id])
-        .slice(0, 5),
-    [clients, clientVisits],
-  );
-  const staleMs = CLIENT_VISIT_STALE_DAYS * 24 * 60 * 60 * 1000;
-  const needsVisit = useMemo(
-    () =>
-      clients
-        .filter(
-          (c) =>
-            !clientVisits[c.id] || Date.now() - clientVisits[c.id] > staleMs,
-        )
-        .sort((a, b) => (clientVisits[a.id] || 0) - (clientVisits[b.id] || 0)),
-    [clients, clientVisits],
-  );
-
-  const filteredClients = useMemo(() => {
-    const q = clientSearch.trim().toLowerCase();
-    if (!q) return clients;
-    return clients.filter((c) => c.name.toLowerCase().includes(q));
-  }, [clients, clientSearch]);
-
-  // Every open bill across every client this person can see, newest-due
-  // first — same overdue/soon/scheduled split as Cash Flow Pro, just
-  // rolled up across clients instead of scoped to one.
-  const dueAcrossClients = useMemo(() => {
-    const rows = [];
-    clients.forEach((client) => {
-      (client.payables || []).forEach((p) => {
-        const diff = daysUntil(p.dueDate, today);
-        const status =
-          diff < 0 ? "overdue" : diff <= AP_SOON_DAYS ? "soon" : "scheduled";
-        if (status === "scheduled") return; // only surface what actually needs attention
-        rows.push({
-          ...p,
-          diff,
-          status,
-          clientId: client.id,
-          clientName: client.name,
-        });
-      });
-    });
-    return rows.sort((a, b) => a.diff - b.diff);
-  }, [clients, today]);
-
-  const overdueCount = dueAcrossClients.filter(
-    (r) => r.status === "overdue",
-  ).length;
-  const soonCount = dueAcrossClients.filter((r) => r.status === "soon").length;
-
-  const dueCountByClient = useMemo(() => {
-    const map = {};
-    dueAcrossClients.forEach((r) => {
-      map[r.clientId] = map[r.clientId] || { overdue: 0, soon: 0 };
-      map[r.clientId][r.status]++;
-    });
-    return map;
-  }, [dueAcrossClients]);
-
-  // The "Needs you" to-do list: everything actionable from every source,
-  // split into two bands by how soon it needs doing. "now" (red) is late or
-  // waiting on us; "week" (amber) is coming up within AP_SOON_DAYS. Bills
-  // are grouped per client so one client with ten bills is one row.
-  const [todoExpanded, setTodoExpanded] = useState(false);
-  // client_sop_status() rows (SopFreshness.jsx), for stale-SOP rows here and
-  // the "Client SOP" card rule.
-  const homeSopStatus = typeof SF_useSopStatus === "function" ? SF_useSopStatus(true) : null;
-  const [milestoneCount, setMilestoneCount] = useState(0);
-  const [closeBehind, setCloseBehind] = useState(0);
-  const todo = useMemo(() => {
-    const now = [];
-    const week = [];
-    const billGroups = {};
-    dueAcrossClients.forEach((r) => {
-      const k = r.clientId + ":" + r.status;
-      const g =
-        billGroups[k] ||
-        (billGroups[k] = {
-          clientId: r.clientId,
-          clientName: r.clientName,
-          status: r.status,
-          n: 0,
-          total: 0,
-          first: r.diff,
-        });
-      g.n++;
-      g.total += Number(r.amount) || 0;
-      g.first = Math.min(g.first, r.diff);
-    });
-    Object.values(billGroups).forEach((g) => {
-      const overdue = g.status === "overdue";
-      (overdue ? now : week).push({
-        key: "bill-" + g.clientId + g.status,
-        kind: "Bills",
-        rank: 1,
-        sort: g.first,
-        title: g.clientName,
-        detail:
-          `${g.n} bill${g.n === 1 ? "" : "s"} ${overdue ? "overdue" : "due soon"} · ` +
-          `${fmtMoney(g.total, { cents: true })} · ${overdue ? "oldest " : "next "}${apDueText(g.first).toLowerCase()}`,
-        onClick: () => onNavigateToClient(g.clientId, "receivables"),
-      });
-    });
-    (accessRequests || []).forEach((r) => {
-      const c = clients.find((cl) => cl.id === r.client_id);
-      const people = Array.isArray(r.people) ? r.people.length : 0;
-      const open = () =>
-        onNavigateToClient(r.client_id, "dashboard", { openAccessManager: true });
-      now.push({
-        key: "access-" + r.id,
-        kind: "Access",
-        rank: 0,
-        sort: 0,
-        title: c ? c.name : r.client_id,
-        detail:
-          `Portal access for ${people === 1 ? "1 person" : `${people} people`}` +
-          (r.submitted_by_name ? `, asked by ${r.submitted_by_name}` : "") +
-          (r.submitted_at ? ` on ${fmtDate(r.submitted_at.slice(0, 10))}` : ""),
-        onClick: open,
-        actions: [{ label: "Review", primary: true, onClick: open }],
-      });
-    });
-    unreadAcrossClients.forEach((r) => {
-      now.push({
-        key: "msg-" + r.clientId + r.userId,
-        kind: "Message",
-        rank: 2,
-        sort: 0,
-        title: r.userName,
-        detail: `${r.clientName} · waiting on a reply`,
-        onClick: () => onNavigateToClient(r.clientId, "messages"),
-      });
-    });
-    (upgradeRequests || []).forEach((r) => {
-      const c = clients.find((cl) => cl.id === r.client_id);
-      const busy = upgradeRequestBusyId === r.id;
-      now.push({
-        key: "upgrade-" + r.id,
-        kind: "Upgrade",
-        rank: 3,
-        sort: 0,
-        title: c ? c.name : r.client_id,
-        detail:
-          "Wants " +
-          (r.requested_plan === "payroll"
-            ? "the Payroll add-on"
-            : r.requested_plan
-              ? planLabel(r.requested_plan)
-              : "to upgrade") +
-          (c ? ` (on ${planLabel(c.plan)})` : "") +
-          ` · asked by ${r.requested_by || "unknown"} ${fmtDateTime(r.created_at)}`,
-        actions: [
-          { label: "Contacted", disabled: busy, onClick: () => setUpgradeRequestStatus(r, "contacted") },
-          { label: "Completed", disabled: busy, onClick: () => setUpgradeRequestStatus(r, "completed") },
-          { label: "Dismiss", disabled: busy, onClick: () => setUpgradeRequestStatus(r, "dismissed") },
-        ],
-      });
-    });
-    (reminders || []).forEach((r) => {
-      if (r.done || !r.due_date) return;
-      const diff = daysUntil(r.due_date, today);
-      if (diff > AP_SOON_DAYS) return;
-      (diff <= 0 ? now : week).push({
-        key: "rem-" + r.id,
-        kind: "Reminder",
-        rank: 4,
-        sort: diff,
-        title: r.text,
-        detail: staffItemDueLabel(r, today),
-        onClick: onOpenMyTasks || undefined,
-        actions: [{ label: "Done", onClick: () => toggleReminder(r) }],
-      });
-    });
-    // SOPs not edited or marked accurate in 180 days (SopFreshness.jsx).
-    // Not urgent, so they sit after everything else in "This week".
-    const sopRows =
-      typeof SF_staleTodos === "function"
-        ? SF_staleTodos(clients, homeSopStatus, today, (clientId) => {
-            requestOpenClientSop(clientId);
-            if (onOpenMyTasks) onOpenMyTasks();
-          })
-        : [];
-    week.sort((a, b) => a.sort - b.sort);
-    week.push(...sopRows);
-    return { now: now.sort((a, b) => a.rank - b.rank || a.sort - b.sort), week };
-    // toggleReminder / setUpgradeRequestStatus are redefined every render but
-    // only close over stable setters and supabase.
-  }, [
-    dueAcrossClients,
-    accessRequests,
-    unreadAcrossClients,
-    upgradeRequests,
-    upgradeRequestBusyId,
-    reminders,
-    clients,
-    today,
-    homeSopStatus,
-  ]);
-  const todoErrors = [accessRequestsError, upgradeRequestsError, reminderError].filter(Boolean);
-
-  // Same drag-to-reorder / hide-and-show system the client Dashboard uses
-  // (useWidgetLayout + useDragReorder + CustomizeDashboardButton) — a fixed
-  // scope key rather than a per-client one, since Home isn't about any one
-  // client. Long-press (touch) or drag (mouse) any card by its body to pick
-  // it up; a plain tap/click still reaches the card's own buttons and links.
-  const baseWidgets = [
-    {
-      id: "kpi-clients",
-      group: "kpi",
-      label: "Your clients",
-      description: "How many clients you can see",
-    },
-    {
-      id: "kpi-overdue",
-      group: "kpi",
-      label: "Overdue bills",
-      description: "Across all your clients",
-    },
-    {
-      id: "kpi-soon",
-      group: "kpi",
-      label: `Due within ${AP_SOON_DAYS} days`,
-      description: "Across all your clients",
-    },
-    {
-      id: "kpi-unread",
-      group: "kpi",
-      label: "Unread messages",
-      description: "Across all your clients",
-    },
-    {
-      id: "kpi-reply",
-      group: "kpi",
-      label: "Reply time",
-      description: "Your median reply to clients this month, and who's waiting over 24 hours",
-    },
-    // Default order is the priority order: the to-do list first, then the
-    // amber cards, then the keep-in-touch ones, with the full client table
-    // spanning both columns. Saved layouts keep their own order; "Reset to
-    // default" brings this one back. "needs-attention" keeps its old id so
-    // saved layouts keep it where they put it. It's now the combined to-do
-    // list (the old Unread messages and request cards feed into it).
-    // New-hire checklist (StaffOnboarding.jsx). Hides itself once every
-    // step is done or the person hides it.
-    {
-      id: "your-onboarding",
-      group: "content",
-      label: "Your onboarding",
-      description: "Your new-hire checklist, with a Staff guide link for each step",
-    },
-    {
-      id: "needs-attention",
-      group: "content",
-      label: "Needs you",
-      description:
-        "Overdue bills, requests, unread messages and reminders, most urgent first",
-    },
-    {
-      id: "clients-at-risk",
-      group: "content",
-      label: "Clients at risk",
-      description: "Clients whose health score is At risk or Watch, worst first",
-    },
-    {
-      id: "upcoming-deadlines",
-      group: "content",
-      label: "Upcoming deadlines",
-      description: "Filing deadlines for your clients in the next 30 days",
-    },
-    {
-      id: "my-time-off",
-      group: "content",
-      label: "My time off",
-      description: "Your upcoming time off, with a quick way to add some",
-    },
-    {
-      id: "shoutouts",
-      group: "content",
-      label: "Shout-outs",
-      description: "Thank a teammate, and see the team's recent shout-outs",
-    },
-    {
-      id: "your-reminders",
-      group: "content",
-      label: "Your reminders",
-      description: "Your personal reminders (admins can see them too)",
-    },
-    {
-      id: "milestones",
-      group: "content",
-      label: "Milestones to review",
-      description: "Clients whose pricing milestone needs a look",
-    },
-    {
-      id: "month-close",
-      group: "content",
-      label: "Month-end close",
-      description: "Last month's close checklist, client by client",
-    },
-    {
-      id: "recently-viewed",
-      group: "content",
-      label: "Recently viewed",
-      description: "Clients you've had open recently on this device",
-    },
-    {
-      id: "your-clients",
-      group: "content",
-      label: "Your clients",
-      description: "Full client list, with search and notes",
-    },
-    {
-      id: "needs-visit",
-      group: "content",
-      label: "Needs a visit",
-      description: "Clients not opened in a while",
-    },
-  ];
-  const layout = useWidgetLayout(
-    "bookkeeper-home",
-    baseWidgets.map((w) => w.id),
-  );
-  // The person's own custom cards (components/staff/HomeCards.jsx) join the
-  // widget list, so the Customize drawer can hide, show and reorder them.
-  const widgets = baseWidgets.concat(
-    layout.cards.map((c) => ({
-      id: c.id,
-      group: "content",
-      label: HC_title(c, clients),
-      description: HC_kindLabel(c.kind) + " (your custom card)",
-    })),
-  );
-  const [cardBuilder, setCardBuilder] = useState(null); // { initial } or null
-  const openNewCard = () => {
-    if (layout.cards.length >= HC_MAX_CARDS) {
-      showToast(`You can have up to ${HC_MAX_CARDS} custom cards. Delete one to add another.`);
-      return;
-    }
-    setCardBuilder({ initial: null });
-  };
-  const unreadByClient = useMemo(() => {
-    const map = {};
-    unreadAcrossClients.forEach((r) => {
-      map[r.clientId] = (map[r.clientId] || 0) + 1;
-    });
-    return map;
-  }, [unreadAcrossClients]);
-  const closeCounts = HC_useCloseCounts(
-    layout.cards.some((c) => c.kind === "watchlist" || c.kind === "filter"),
-  );
-  // Hours budget facts for the "Hours budget" card rule (admins only,
-  // HoursBudget.jsx). Only loads when a list card is on Home.
-  const homeIsAdmin = !!(staffUser && staffUser.role === "admin");
-  // Reply time tile (components/staff/ReplyTimes.jsx): only queries while
-  // the tile is showing.
-  const myReply =
-    typeof RT_useMyReply === "function"
-      ? RT_useMyReply(staffUser && staffUser.email, layout.visibleOrder.includes("kpi-reply"))
-      : null;
-  const homeBudgets = HB_useBudgets(
-    homeIsAdmin && layout.cards.some((c) => c.kind === "watchlist" || c.kind === "filter"),
-  );
-  const cardCtx = {
-    clients,
-    today,
-    statusOverrides,
-    dueCountByClient,
-    unreadByClient,
-    closeCounts,
-    isAdmin: homeIsAdmin,
-    budgetByClient: homeBudgets ? homeBudgets.byClient : null,
-    sopByClient: homeSopStatus,
-    onOpenClient: (clientId) => onNavigateToClient(clientId, "client-overview"),
-  };
-  const drag = useDragReorder(layout);
-  const masonryRef = useRef(null);
-  useHomeMasonry(masonryRef);
-  const kpiOrder = layout.visibleOrder.filter((id) => id.startsWith("kpi-"));
-  const contentOrder = layout.visibleOrder.filter(
-    (id) => !id.startsWith("kpi-"),
-  );
-
-  // The "Jump to client" card that used to sit here is gone — the staff top
-  // bar's client picker (components/staff/TopBar.jsx) replaces it. The old
-  // Access requests and Upgrade requests cards now feed the "Needs you"
-  // list instead of sitting above everything.
-  const hour = new Date().getHours();
-  const firstName = ((staffUser && staffUser.name) || "").trim().split(/\s+/)[0];
-  const jumpToTodo = layout.hidden.has("needs-attention")
-    ? null
-    : () => jumpToCard("home-needs-attention-card", "needs-attention");
-  const summaryChip = (tone, text) => {
-    const Tag = jumpToTodo && tone !== "clear" ? "button" : "span";
-    return (
-      <Tag
-        {...(Tag === "button" ? { type: "button", onClick: jumpToTodo } : {})}
-        className={"home-band home-band-" + tone}
-      >
-        <span className="home-band-dot" aria-hidden="true" />
-        {text}
-      </Tag>
-    );
-  };
-  return (
-    <div className="home-page">
-      <div className="home-summary">
-        <span className="home-greeting">
-          Good {hour < 12 ? "morning" : hour < 17 ? "afternoon" : "evening"}
-          {firstName ? `, ${firstName}` : ""}.
-        </span>
-        <span className="home-summary-chips">
-          {todo.now.length > 0 &&
-            summaryChip(
-              "now",
-              `${todo.now.length} need${todo.now.length === 1 ? "s" : ""} you now`,
-            )}
-          {todo.week.length > 0 && summaryChip("week", `${todo.week.length} this week`)}
-          {todo.now.length === 0 &&
-            todo.week.length === 0 &&
-            summaryChip("clear", "All clear ✓")}
-        </span>
-      </div>
-
-      <CS_AccessRequestsCard />
-      {typeof TR_HomeDueNotice === "function" && <TR_HomeDueNotice staffUser={staffUser} />}
-
-      <div className="home-toolbar">
-        <CustomizeDashboardButton
-          widgets={widgets}
-          layout={layout}
-          onCreateCustom={openNewCard}
-          createCustomDesc="A client watchlist, a filtered client list, one client's numbers, or a notes checklist"
-        />
-        <button type="button" className="customize-dashboard-btn" onClick={openNewCard}>
-          + New custom card
-        </button>
-      </div>
-
-      <div className="kpi-grid">
-        {kpiOrder.map((id) => {
-          // Each tile is tinted by its state: red when something's late or
-          // waiting on us, amber when it's coming up, calm (green "all
-          // clear") at zero. Clicking jumps to the card it summarizes when
-          // that card is on the page; a plain tile otherwise.
-          let tone = "calm";
-          let label;
-          let value;
-          let sub;
-          let jump = null;
-          if (id === "kpi-clients") {
-            label = "Your clients";
-            value = clients.length;
-            sub =
-              clients.length === 0
-                ? "none assigned yet"
-                : `client${clients.length === 1 ? "" : "s"} you can see`;
-            tone = "plain";
-            if (!layout.hidden.has("your-clients"))
-              jump = () => jumpToCard("home-your-clients-card", "your-clients");
-          } else if (id === "kpi-overdue") {
-            label = "Overdue bills";
-            value = overdueCount;
-            tone = overdueCount > 0 ? "now" : "calm";
-            sub = overdueCount > 0 ? "needs you now" : "all clear ✓";
-            jump = jumpToTodo;
-          } else if (id === "kpi-soon") {
-            label = `Due within ${AP_SOON_DAYS} days`;
-            value = soonCount;
-            tone = soonCount > 0 ? "week" : "calm";
-            sub = soonCount > 0 ? "coming up this week" : "all clear ✓";
-            jump = jumpToTodo;
-          } else if (id === "kpi-unread") {
-            label = "Unread messages";
-            value = unreadAcrossClients.length;
-            tone = value > 0 ? "now" : "calm";
-            sub = value > 0 ? "click to open the oldest" : "all caught up ✓";
-            if (value > 0)
-              jump = () =>
-                onNavigateToClient(unreadAcrossClients[0].clientId, "messages");
-          } else if (id === "kpi-reply") {
-            if (!myReply) return null;
-            label = "Your reply time";
-            value = myReply.loading ? "\u2026" : myReply.error ? "\u2014" : OPS_fmtWait(myReply.median);
-            const goalH = OPS_REPLY_GOAL_HOURS;
-            sub = myReply.error
-              ? "not available yet"
-              : myReply.openOver > 0
-                ? `${myReply.openOver} waiting over ${goalH} h`
-                : myReply.median == null
-                  ? `median this month · none waiting over ${goalH} h`
-                  : `median this month · none waiting over ${goalH} h ✓`;
-            tone = myReply.openOver > 0 ? "now" : myReply.median == null ? "plain" : "calm";
-            // Admins: the Team hub's Reply times tab. Everyone else: Inbox.
-            jump = () => {
-              window.location.hash = homeIsAdmin ? "#/team/reply-times" : "#/chat";
-            };
-          } else return null;
-          const Tag = jump ? "button" : "div";
-          return (
-            <Tag
-              className={
-                "card kpi-card home-kpi home-kpi-" +
-                tone +
-                " " +
-                (jump ? "kpi-card-clickable " : "") +
-                drag.dragClass(id)
-              }
-              key={id}
-              {...drag.dragProps(id)}
-              {...(jump ? { type: "button", onClick: jump } : {})}
-            >
-              <span className="kpi-label">{label}</span>
-              <span className="kpi-value">{value}</span>
-              <span className="kpi-sub">{sub}</span>
-            </Tag>
-          );
-        })}
-      </div>
-
-      <div className="home-masonry" ref={masonryRef}>
-        {contentOrder.map((id) => {
-          if (id === "needs-attention") {
-            const LIMIT = 6;
-            const band = (tone, title, rows) => {
-              if (rows.length === 0) return null;
-              const shown = todoExpanded ? rows : rows.slice(0, LIMIT);
-              return (
-                <section className={"home-todo-band home-todo-" + tone}>
-                  <h4 className="home-todo-heading">
-                    <span className="home-band-dot" aria-hidden="true" />
-                    {title}
-                    <span className="home-todo-count">{rows.length}</span>
-                  </h4>
-                  <ul className="home-todo-list">
-                    {shown.map((r) => (
-                      <li
-                        className={
-                          "home-todo-row" +
-                          (r.actions && r.actions.length > 1 ? " home-todo-row-stack" : "")
-                        }
-                        key={r.key}
-                      >
-                        {r.onClick ? (
-                          <button
-                            type="button"
-                            className="home-todo-main"
-                            onClick={r.onClick}
-                          >
-                            <span className="home-todo-kind">{r.kind}</span>
-                            <span className="home-todo-text">
-                              <span className="staff-flag-label">{r.title}</span>
-                              <span className="staff-flag-desc">{r.detail}</span>
-                            </span>
-                          </button>
-                        ) : (
-                          <span className="home-todo-main">
-                            <span className="home-todo-kind">{r.kind}</span>
-                            <span className="home-todo-text">
-                              <span className="staff-flag-label">{r.title}</span>
-                              <span className="staff-flag-desc">{r.detail}</span>
-                            </span>
-                          </span>
-                        )}
-                        {r.actions && (
-                          <span className="home-todo-actions">
-                            {r.actions.map((a) => (
-                              <button
-                                key={a.label}
-                                type="button"
-                                className={a.primary ? "btn-primary" : "btn-secondary"}
-                                disabled={a.disabled}
-                                onClick={a.onClick}
-                              >
-                                {a.label}
-                              </button>
-                            ))}
-                          </span>
-                        )}
-                      </li>
-                    ))}
-                  </ul>
-                </section>
-              );
-            };
-            const hasMore =
-              todo.now.length > LIMIT || todo.week.length > LIMIT;
-            const empty = todo.now.length === 0 && todo.week.length === 0;
-            return (
-              <div
-                className={
-                  "card home-card home-tone-" +
-                  (todo.now.length ? "now" : todo.week.length ? "week" : "clear") +
-                  " " +
-                  (flashCardId === "needs-attention" ? "card-flash " : "") +
-                  drag.dragClass(id)
-                }
-                key={id}
-                id="home-needs-attention-card"
-                {...drag.dragProps(id)}
-              >
-                <h3 className="card-title">Needs you</h3>
-                <p className="card-subtitle">
-                  Everything waiting on you across every client you can see,
-                  most urgent first.
-                </p>
-                {empty && (
-                  <p className="home-all-clear">
-                    ✓ All clear. Nothing needs you right now.
-                  </p>
-                )}
-                {band("now", "Needs you now", todo.now)}
-                {band("week", "This week", todo.week)}
-                {hasMore && (
-                  <button
-                    type="button"
-                    className="home-todo-more"
-                    onClick={() => setTodoExpanded((v) => !v)}
-                  >
-                    {todoExpanded ? "Show less" : "Show everything"}
-                  </button>
-                )}
-                {todoErrors.map((e) => (
-                  <p className="card-subtitle negative" key={e}>
-                    {e}
-                  </p>
-                ))}
-              </div>
-            );
-          }
-          if (id === "clients-at-risk")
-            return typeof HLB_AtRiskBody === "function" ? (
-              <div
-                className={"card home-card home-tone-keep " + drag.dragClass(id)}
-                key={id}
-                {...drag.dragProps(id)}
-              >
-                <h3 className="card-title">Clients at risk</h3>
-                <p className="card-subtitle">Health score At risk (red) or Watch (amber), lowest first.</p>
-                <HLB_AtRiskBody clients={clients} staffUser={staffUser} />
-              </div>
-            ) : null;
-          if (id === "upcoming-deadlines")
-            return typeof DL_UpcomingDeadlinesBody === "function" ? (
-              <div
-                className={"card home-card home-tone-keep " + drag.dragClass(id)}
-                key={id}
-                {...drag.dragProps(id)}
-              >
-                <h3 className="card-title">Upcoming deadlines</h3>
-                <p className="card-subtitle">Next 30 days, plus anything overdue and not filed in the last 6 months.</p>
-                <DL_UpcomingDeadlinesBody clients={clients} staffUser={staffUser} />
-              </div>
-            ) : null;
-          if (id === "my-time-off")
-            return typeof CV_MyTimeOffBody === "function" ? (
-              <div
-                className={"card home-card home-tone-keep " + drag.dragClass(id)}
-                key={id}
-                {...drag.dragProps(id)}
-              >
-                <h3 className="card-title">My time off</h3>
-                <p className="card-subtitle">Days you're out. The whole team can see these.</p>
-                <CV_MyTimeOffBody staffUser={staffUser} />
-              </div>
-            ) : null;
-          if (id === "your-onboarding")
-            return typeof SON_HomeCard === "function" ? (
-              <SON_HomeCard
-                key={id}
-                staffUser={staffUser}
-                className={"card home-card home-tone-keep son-home " + drag.dragClass(id)}
-                dragProps={drag.dragProps(id)}
-              />
-            ) : null;
-          if (id === "shoutouts")
-            return typeof SO_ShoutoutsBody === "function" ? (
-              <div
-                className={"card home-card home-tone-keep " + drag.dragClass(id)}
-                key={id}
-                {...drag.dragProps(id)}
-              >
-                <h3 className="card-title">Shout-outs</h3>
-                <p className="card-subtitle">Thank a teammate. The whole team can see these.</p>
-                <SO_ShoutoutsBody clients={clients} staffUser={staffUser} />
-              </div>
-            ) : null;
-          if (id === "recently-viewed")
-            return (
-              <div
-                className={"card home-card home-tone-keep " + drag.dragClass(id)}
-                key={id}
-                {...drag.dragProps(id)}
-              >
-                <h3 className="card-title">Recently viewed</h3>
-                <p className="card-subtitle">
-                  The clients you've had open most recently, on this device.
-                </p>
-                {recentlyViewed.length === 0 && (
-                  <p className="card-subtitle">
-                    Nothing viewed yet this device.
-                  </p>
-                )}
-                {recentlyViewed.length > 0 && (
-                  <div className="staff-audit-list">
-                    {recentlyViewed.map((c) => (
-                      <button
-                        className="staff-due-row"
-                        key={c.id}
-                        onClick={() => onNavigateToClient(c.id, "client-overview")}
-                      >
-                        <span className="staff-flag-label">{c.name}</span>
-                        <span className="staff-flag-desc">
-                          {fmtDateTime(
-                            new Date(clientVisits[c.id]).toISOString(),
-                          )}
-                        </span>
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-            );
-          if (id === "milestones")
-            return (
-              <div
-                className={"card home-card home-tone-" + (milestoneCount > 0 ? "week " : "keep ") + drag.dragClass(id)}
-                key={id}
-                {...drag.dragProps(id)}
-              >
-                <h3 className="card-title">Milestones to review</h3>
-                <p className="card-subtitle">
-                  Numbers pointing to a different milestone, not confirmed yet, or
-                  close to the next one.
-                </p>
-                <MilestonesReviewList
-                  clients={clients}
-                  onCount={setMilestoneCount}
-                  onOpenClient={(id2) => onOpenClientMilestone && onOpenClientMilestone(id2)}
-                />
-              </div>
-            );
-          if (id === "month-close")
-            return (
-              <div
-                className={"card home-card home-tone-" + (closeBehind > 0 ? "week " : "keep ") + drag.dragClass(id)}
-                key={id}
-                {...drag.dragProps(id)}
-              >
-                <h3 className="card-title">Month-end close · {closePeriodLabel(closePeriodFor())}</h3>
-                <p className="card-subtitle">
-                  Least finished first. Open a client to tick items off on its Overview.
-                </p>
-                <CloseProgressList
-                  clients={clients}
-                  onBehind={setCloseBehind}
-                  onOpenClient={(id2) => onNavigateToClient(id2, "client-overview")}
-                />
-              </div>
-            );
-          if (id === "needs-visit")
-            return (
-              <div
-                className={"card home-card home-tone-keep " + (needsVisit.length === 0 ? "home-card-quiet " : "") + drag.dragClass(id)}
-                key={id}
-                {...drag.dragProps(id)}
-              >
-                <h3 className="card-title">Needs a visit</h3>
-                <p className="card-subtitle">
-                  Not opened on this device in {CLIENT_VISIT_STALE_DAYS}+ days
-                  (or ever) — nothing to imply they need anything urgent, just a
-                  nudge not to lose track.
-                </p>
-                {needsVisit.length === 0 && (
-                  <p className="card-subtitle">
-                    You're caught up with all of them.
-                  </p>
-                )}
-                {needsVisit.length > 0 && (
-                  <div className="staff-audit-list">
-                    {needsVisit.slice(0, 8).map((c) => (
-                      <button
-                        className="staff-due-row"
-                        key={c.id}
-                        onClick={() => onNavigateToClient(c.id, "client-overview")}
-                      >
-                        <span className="staff-flag-label">{c.name}</span>
-                        <span className="staff-flag-desc">
-                          {clientVisits[c.id]
-                            ? fmtDateTime(
-                                new Date(clientVisits[c.id]).toISOString(),
-                              )
-                            : "Never viewed"}
-                        </span>
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-            );
-          if (id === "your-clients")
-            return (
-              <div
-                className={
-                  "card home-card home-tone-keep home-wide " +
-                  (flashCardId === "your-clients" ? "card-flash " : "") +
-                  drag.dragClass(id)
-                }
-                key={id}
-                id="home-your-clients-card"
-                {...drag.dragProps(id)}
-              >
-                <div
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "baseline",
-                    flexWrap: "wrap",
-                    gap: 8,
-                  }}
-                >
-                  <div>
-                    <h3 className="card-title">Your clients</h3>
-                    <p className="card-subtitle" style={{ marginTop: 0 }}>
-                      Click through to any of them, or add a note for yourself
-                      or a colleague.
-                    </p>
-                  </div>
-                  <input
-                    type="text"
-                    className="staff-list-search"
-                    placeholder="Search your clients…"
-                    value={clientSearch}
-                    onChange={(e) => setClientSearch(e.target.value)}
-                    style={{ maxWidth: 220 }}
-                  />
-                </div>
-                {clients.length === 0 && (
-                  <p className="card-subtitle">
-                    None assigned yet — ask an admin.
-                  </p>
-                )}
-                {clients.length > 0 && filteredClients.length === 0 && (
-                  <p className="card-subtitle">
-                    No client matches "{clientSearch}".
-                  </p>
-                )}
-                {noteError && (
-                  <p className="card-subtitle negative">{noteError}</p>
-                )}
-                <div className="staff-audit-list">
-                  {filteredClients.map((c) => {
-                    const due = dueCountByClient[c.id];
-                    const note = notes[c.id];
-                    const health = effectiveClientHealth(
-                      c,
-                      today,
-                      statusOverrides,
-                    );
-                    return (
-                      <div
-                        className="staff-due-row"
-                        key={c.id}
-                        style={{ cursor: "default" }}
-                      >
-                        <button
-                          className="staff-client-jump"
-                          onClick={() => onNavigateToClient(c.id, "client-overview")}
-                          style={{
-                            textAlign: "left",
-                            flex: 1,
-                            display: "flex",
-                            // .staff-client-jump defaults to a column; the
-                            // dot sits beside the name here, not above it.
-                            flexDirection: "row",
-                            alignItems: "center",
-                            gap: 10,
-                          }}
-                        >
-                          <ClientHealthDot health={health} />
-                          <span>
-                            <span className="staff-flag-label">{c.name}</span>
-                            <span className="staff-flag-desc">
-                              {planLabel(c.plan)}{" "}
-                              plan
-                              {due && due.overdue > 0
-                                ? ` · ${due.overdue} overdue`
-                                : ""}
-                              {due && due.soon > 0
-                                ? ` · ${due.soon} due soon`
-                                : ""}
-                              {note && note.note ? ` · has a note` : ""}
-                              {health.isOverride && health.reasons[0]
-                                ? ` · ${health.reasons[0]}`
-                                : !health.isOverride &&
-                                    health.status !== "green" &&
-                                    health.reasons[0]
-                                  ? ` · ${health.reasons[0]}`
-                                  : ""}
-                            </span>
-                          </span>
-                        </button>
-                        <button
-                          className="btn-secondary"
-                          onClick={() => openStatusEditor(c)}
-                        >
-                          Status
-                        </button>
-                        <button
-                          className="btn-secondary"
-                          onClick={() => openNoteEditor(c)}
-                        >
-                          {note && note.note ? "Edit note" : "+ Note"}
-                        </button>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            );
-          if (id === "your-reminders")
-            return (
-              <div
-                className={"card home-card home-tone-keep " + drag.dragClass(id)}
-                key={id}
-                {...drag.dragProps(id)}
-              >
-                <h3 className="card-title">Your reminders</h3>
-                <p className="card-subtitle">
-                  Private to you and admins unless you share one with a client's team.
-                  For times, repeats, sharing and client filters, see{" "}
-                  {onOpenMyTasks ? (
-                    <button
-                      type="button"
-                      onClick={onOpenMyTasks}
-                      style={{
-                        background: "none",
-                        border: "none",
-                        padding: 0,
-                        color: "var(--accent, #2563eb)",
-                        textDecoration: "underline",
-                        cursor: "pointer",
-                        font: "inherit",
-                      }}
-                    >
-                      My Tasks
-                    </button>
-                  ) : (
-                    "My Tasks"
-                  )}
-                  .
-                </p>
-
-                <div className="staff-add-row">
-                  <input
-                    type="text"
-                    placeholder="Follow up with Grace Community about..."
-                    value={newReminder}
-                    onChange={(e) => setNewReminder(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") addReminder();
-                    }}
-                  />
-                  <input
-                    type="date"
-                    value={newReminderDate}
-                    onChange={(e) => setNewReminderDate(e.target.value)}
-                  />
-                  <button
-                    className="btn-primary"
-                    disabled={adding || !newReminder.trim()}
-                    onClick={addReminder}
-                  >
-                    + Add
-                  </button>
-                </div>
-
-                {reminderError && (
-                  <p
-                    className="card-subtitle negative"
-                    style={{ marginTop: 16 }}
-                  >
-                    {reminderError}
-                  </p>
-                )}
-                {reminders === null && !reminderError && (
-                  <p className="card-subtitle" style={{ marginTop: 16 }}>
-                    Loading…
-                  </p>
-                )}
-                {reminders && reminders.length === 0 && !reminderError && (
-                  <p className="card-subtitle" style={{ marginTop: 16 }}>
-                    No reminders yet.
-                  </p>
-                )}
-
-                {reminders && reminders.length > 0 && (
-                  <ul className="staff-audit-list">
-                    {reminders.map((r) => (
-                      <li className="staff-audit-row" key={r.id}>
-                        <label
-                          className="staff-active-toggle"
-                          style={{ flex: 1 }}
-                        >
-                          <input
-                            type="checkbox"
-                            checked={r.done}
-                            onChange={() => toggleReminder(r)}
-                          />
-                          <span
-                            style={{
-                              textDecoration: r.done ? "line-through" : "none",
-                            }}
-                          >
-                            {r.text}
-                            {r.due_date && !r.done ? (
-                              <span
-                                className={
-                                  "task-due" +
-                                  (r.due_date < today ? " overdue" : "")
-                                }
-                              >
-                                {" — "}
-                                {staffItemDueLabel(r, today)}
-                              </span>
-                            ) : (
-                              ""
-                            )}
-                          </span>
-                        </label>
-                        <button
-                          className="row-remove-btn"
-                          onClick={() => removeReminder(r)}
-                          aria-label={`Remove reminder: ${r.text}`}
-                        >
-                          ×
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </div>
-            );
-          if (HC_isCardId(id)) {
-            const def = layout.cards.find((c) => c.id === id);
-            if (!def) return null;
-            return (
-              <HC_Card
-                key={id}
-                def={def}
-                ctx={cardCtx}
-                dragProps={{ ...drag.dragProps(id), id: "home-" + id }}
-                dragClass={drag.dragClass(id)}
-                flash={flashCardId === id}
-                onEdit={() => setCardBuilder({ initial: def })}
-                onDuplicate={() => {
-                  if (layout.cards.length >= HC_MAX_CARDS) {
-                    showToast(`You can have up to ${HC_MAX_CARDS} custom cards. Delete one to add another.`);
-                    return;
-                  }
-                  layout.saveCard({
-                    ...def,
-                    id: HC_newId(),
-                    title: def.title ? `${def.title} (copy)` : "",
-                  });
-                }}
-                onDelete={() => layout.removeCard(id)}
-                onChange={(next) => layout.saveCard(next)}
-              />
-            );
-          }
-          return null;
-        })}
-      </div>
-
-      {cardBuilder && (
-        <HC_Builder
-          initial={cardBuilder.initial}
-          ctx={cardCtx}
-          onCancel={() => setCardBuilder(null)}
-          onSave={(def) => {
-            const isNew = !layout.cards.some((c) => c.id === def.id);
-            layout.saveCard(def);
-            setCardBuilder(null);
-            if (isNew) setTimeout(() => jumpToCard("home-" + def.id, def.id), 50);
-          }}
-        />
-      )}
-
-      {editingNoteFor && (
-        <ModalShell
-          onClose={() => setEditingNoteFor(null)}
-          labelledBy="client-note-title"
-        >
-          <div className="modal-header">
-            <h3
-              className="card-title"
-              id="client-note-title"
-              style={{ margin: 0 }}
-            >
-              Note for {editingNoteFor.name}
-            </h3>
-            <button
-              className="modal-close"
-              onClick={() => setEditingNoteFor(null)}
-              aria-label="Close"
-            >
-              ×
-            </button>
-          </div>
-          <p className="card-subtitle">
-            Visible to every active staff member, not just you — for handing off
-            context on this client.
-            {notes[editingNoteFor.id] &&
-              notes[editingNoteFor.id].updated_by &&
-              ` Last edited by ${notes[editingNoteFor.id].updated_by}.`}
-          </p>
-          <div className="modal-body">
-            <textarea
-              className="client-note-textarea"
-              rows={6}
-              value={noteDraft}
-              onChange={(e) => setNoteDraft(e.target.value)}
-              placeholder="Waiting on March bank statement, flagged for QuickBooks migration, ..."
-            />
-          </div>
-          <div className="modal-footer">
-            <button
-              className="btn-secondary"
-              onClick={() => setEditingNoteFor(null)}
-            >
-              Cancel
-            </button>
-            <button
-              className="btn-primary"
-              disabled={savingNote}
-              onClick={saveNote}
-            >
-              Save
-            </button>
-          </div>
-        </ModalShell>
-      )}
-
-      {editingStatusFor && (
-        <ModalShell
-          onClose={() => setEditingStatusFor(null)}
-          labelledBy="client-status-title"
-        >
-          <div className="modal-header">
-            <h3
-              className="card-title"
-              id="client-status-title"
-              style={{ margin: 0 }}
-            >
-              Status for {editingStatusFor.name}
-            </h3>
-            <button
-              className="modal-close"
-              onClick={() => setEditingStatusFor(null)}
-              aria-label="Close"
-            >
-              ×
-            </button>
-          </div>
-          <p className="card-subtitle">
-            Overrides the computed status (budget overruns, overdue items) with
-            your own call — useful for something subjective like "needs
-            follow-up".
-            {statusOverrides[editingStatusFor.id] &&
-              statusOverrides[editingStatusFor.id].set_by &&
-              ` Last set by ${statusOverrides[editingStatusFor.id].set_by}.`}
-          </p>
-          <div className="modal-body">
-            <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
-              {["green", "yellow", "red"].map((s) => (
-                <button
-                  key={s}
-                  type="button"
-                  className={
-                    statusDraft === s ? "btn-primary" : "btn-secondary"
-                  }
-                  onClick={() => setStatusDraft(s)}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 6,
-                    textTransform: "capitalize",
-                  }}
-                >
-                  <ClientHealthDot health={{ status: s, reasons: [] }} />
-                  {s}
-                </button>
-              ))}
-            </div>
-            <textarea
-              className="client-note-textarea"
-              rows={4}
-              value={statusNoteDraft}
-              onChange={(e) => setStatusNoteDraft(e.target.value)}
-              placeholder="e.g. needs follow-up on missing August bank statement"
-            />
-          </div>
-          <div className="modal-footer">
-            {statusOverrides[editingStatusFor.id] && (
-              <button
-                className="btn-secondary"
-                disabled={savingStatus}
-                onClick={clearStatus}
-                style={{ marginRight: "auto" }}
-              >
-                Clear override
-              </button>
-            )}
-            <button
-              className="btn-secondary"
-              onClick={() => setEditingStatusFor(null)}
-            >
-              Cancel
-            </button>
-            <button
-              className="btn-primary"
-              disabled={savingStatus}
-              onClick={saveStatus}
-            >
-              Save
-            </button>
-          </div>
-        </ModalShell>
-      )}
-    </div>
-  );
-}
-
 // ----------------------------------------------------------------------------
 // Documents page (upload)
 // ----------------------------------------------------------------------------
@@ -24693,22 +22922,20 @@ function systemOrClockTheme() {
 // second icon rail — see HANDOFF7.md §124-§128 for why an earlier,
 // fancier split-sidebar redesign got fully reverted after it accumulated
 // layout bugs; this is intentionally the simpler shape.
-// §149: defaults to collapsed — an explicit "0" (the person expanded it
-// themselves) is the only thing that opts back out; a missing key (never
-// touched the toggle) collapses same as an explicit "1" would.
-// §161: that default now applies to STAFF only. Staff live in this app all
-// day, learn the seven icons within a session, and genuinely want the
-// screen width back. A client signs in occasionally and meets the same rail
-// cold: seven unlabelled icons and no way to know what they are without
-// clicking each one. Worse, the collapsed rule hides the Enterprise upsell
-// specifically — the one element of the client sidebar that exists to sell
-// something — so the default was making the revenue surface undiscoverable
-// to exactly the audience it targets. An explicit choice still wins for
-// both tiers; this only changes what happens when there is no choice yet.
+// §149: used to default to collapsed — an explicit "0" (the person expanded
+// it themselves) was the only thing that opted back out.
+// §161: that default was then narrowed to STAFF only, since a client signs
+// in occasionally and meets the icon rail cold.
+// Staff nav redesign (2026-10-08): now defaults to EXPANDED for everyone.
+// The staff rail is five labelled places (Today, Inbox, Work, Clients,
+// Team) and the client sidebar no longer sits beside it, so there's no
+// width to win back by hiding the words; a new hire should read the rail,
+// not guess at it. An explicit choice ("0"/"1") still wins for both tiers;
+// this only changes what happens when there is no choice yet.
 const SIDEBAR_COLLAPSED_STORAGE_KEY = "mygoodbooks_sidebar_collapsed_v1";
 
 function loadSidebarCollapsed(isClientPortal) {
-  const fallback = !isClientPortal;
+  const fallback = false;
   try {
     const raw = localStorage.getItem(SIDEBAR_COLLAPSED_STORAGE_KEY);
     if (raw === "0") return false;
@@ -24729,11 +22956,12 @@ const PAGE_STORAGE_KEY = "mygoodbooks_page_v1";
 function loadPage() {
   try {
     const raw = localStorage.getItem(PAGE_STORAGE_KEY);
-    // Any known page, staff-only ones included (My Tasks, Team Chat, ...);
+    // Any known page, staff-only ones included (Inbox, Work, ...);
     // effectivePage still bounces a page this viewer can't see.
-    // "my-time" (manual time log) was retired 2026-09-29 — QuickBooks Time is
-    // the hours source now — so a saved "my-time" lands on Home instead.
-    if (raw === "my-time") return "bookkeeper-home";
+    // Keys from before the staff nav redesign (2026-10-08) — "my-tasks",
+    // "bookkeeper-home", "close-tracker", "my-time" and friends — aren't in
+    // PAGE_META any more, so they fall through to null here and initialPage
+    // lands a staff session on Today.
     if (raw && (Object.prototype.hasOwnProperty.call(PAGE_META, raw) || ALL_TAB_KEYS.includes(raw))) {
       return raw;
     }
@@ -24803,19 +23031,25 @@ function loadSelectedClientId() {
 // existing session on a page load.
 const SESSION_STARTED_KEY = "mygoodbooks_session_started_v1";
 
+// `email` is only passed for a staff session; a client-portal session calls
+// this with nothing and gets its Dashboard.
 function initialPage(email) {
+  const isStaff = !!email;
   try {
     if (!sessionStorage.getItem(SESSION_STARTED_KEY)) {
       sessionStorage.setItem(SESSION_STARTED_KEY, "1");
       // Settings > Appearance & start page (staff). Read from the cached
       // copy: a fresh sign-in renders before user_settings has loaded.
       const start = typeof ST_cachedStartPage === "function" ? ST_cachedStartPage(email) : null;
-      if (start === "tasks") return "my-tasks";
+      if (start === "tasks") return "work";
       if (start === "last-client" && loadSelectedClientId()) return "client-overview";
-      return "bookkeeper-home";
+      return isStaff ? "today" : "dashboard";
     }
   } catch (e) {}
-  return loadPage() || "dashboard";
+  // A staff member with nothing (or something stale) saved starts on Today,
+  // never on a client's Dashboard — that page belongs to a client they may
+  // not have meant to open.
+  return loadPage() || (isStaff ? "today" : "dashboard");
 }
 
 // When THIS browser last viewed each client — per-device, not shared across
@@ -25074,7 +23308,7 @@ function useDragReorder(layout) {
 }
 
 // Opens the shared Customize drawer (components/dashboard/WidgetDrawer.jsx).
-// Used by DashboardPage, ScopedDashboardPage and BookkeeperHomePage.
+// Used by DashboardPage and ScopedDashboardPage.
 function CustomizeDashboardButton({ widgets, layout, onCreateCustom, createCustomDesc }) {
   return (
     <WD_CustomizeButton
@@ -25200,11 +23434,34 @@ const PAGE_META = {
     title: "Settings",
     subtitle: "",
   },
-  // The old Staff Access page is Team's Members tab now (owner request
-  // 2026-09-30); "staff-access" stays a page id so its links keep working.
-  "staff-access": {
+  // The five staff places (components/staff/StaffNav.jsx). Titles match the
+  // rail labels so the page header, the rail and the browser tab all say
+  // the same word.
+  today: {
+    title: "Today",
+    subtitle: "What needs you, in order",
+  },
+  inbox: {
+    title: "Inbox",
+    subtitle: "Client conversations and team chat in one place",
+  },
+  work: {
+    title: "Work",
+    subtitle: "Tasks, month-end close and deadlines",
+  },
+  clients: {
+    title: "Clients",
+    subtitle: "Every client you can see, with health and close status",
+  },
+  team: {
     title: "Team",
-    subtitle: "Who can sign in, their roles, clients and temporary admin access",
+    subtitle: "People, reviews and onboarding",
+  },
+  // A client's SOP as its own tab (#/client/<id>/sop) — staff only; the
+  // client-side tabs stay in ALL_TAB_KEYS.
+  sop: {
+    title: "SOP",
+    subtitle: "How this client's books are done",
   },
   "client-access": {
     title: "Client Roster",
@@ -25223,25 +23480,9 @@ const PAGE_META = {
     title: "Emails",
     subtitle: "Whether email is set up, the weekly digest, client emails and the send log",
   },
-  feedback: {
-    title: "Feedback",
-    subtitle: "Bug reports, ideas and questions from staff, newest first",
-  },
   "usage-stats": {
     title: "Usage Stats",
     subtitle: "Which pages and features actually get used, most to least",
-  },
-  "close-tracker": {
-    title: "Close tracker",
-    subtitle: "Month-end close status for every client, month by month",
-  },
-  deadlines: {
-    title: "Deadlines",
-    subtitle: "Filing deadlines for every client. Verify each date before filing.",
-  },
-  "team-reviews": {
-    title: "Reviews",
-    subtitle: "Quarterly reviews and the team survey",
   },
   help: {
     title: "Help",
@@ -25250,22 +23491,6 @@ const PAGE_META = {
   "task-templates": {
     title: "Task templates",
     subtitle: "Recurring tasks created automatically for each client's bookkeeper",
-  },
-  "staff-team": {
-    title: "Team",
-    subtitle: "Hours and tasks by person and client, plus who can sign in and with what role",
-  },
-  "staff-messages": {
-    title: "Inbox",
-    subtitle: "Client conversations and team chat in one place",
-  },
-  "bookkeeper-home": {
-    title: "Home",
-    subtitle: "What needs attention across every client you can see",
-  },
-  "my-tasks": {
-    title: "My Tasks",
-    subtitle: "Your tasks and reminders, private to you and admins unless you share one",
   },
   milestone: {
     title: "Milestone",
@@ -25484,25 +23709,33 @@ function QboSyncNowButton({ clientId, onSynced, liveLabel: liveLabelProp, plan, 
 
 // Hash routes, so a link can open a specific page (the weekly digest email's
 // section links, a URL pasted into chat):
-//   #/team  #/close-tracker  #/audit-log  #/emails  #/home  #/templates ...
+//   #/today  #/inbox  #/work/close  #/team/reviews  #/clients  #/help/<slug>
+//   #/audit-log  #/emails  #/templates ...
 //   #/client/<client id>/overview  #/client/<client id>/<tab key>
+//   #/client/<client id>/sop
 // Read once on load and on hashchange; App keeps the hash in step with what's
-// on screen via history.replaceState (no history entry per click). It only
-// ever sets `page` / `selectedClientId`, so the usual gating still decides
-// what renders: effectivePage bounces a page the viewer can't see, the
-// visibleClients check drops a client they aren't assigned, and a client
+// on screen (one history entry per page change, so the browser's Back button
+// walks back through places and clients — see the hash sync effect in App).
+// It only ever sets `page` / `selectedClientId`, so the usual gating still
+// decides what renders: effectivePage bounces a page the viewer can't see,
+// the visibleClients check drops a client they aren't assigned, and a client
 // portal user is always pinned to their own org.
+// A place's slug comes from the shared nav contract (NAV_PLACE_BY_KEY in
+// components/staff/StaffNav.jsx); every other staff page's slug is its key.
 const HASH_PAGE_ALIASES = {
-  home: "bookkeeper-home",
-  team: "staff-team",
-  tasks: "my-tasks",
-  chat: "staff-messages",
   templates: "task-templates",
-  reviews: "team-reviews",
 };
 const HASH_PAGE_SLUGS = Object.fromEntries(
   Object.entries(HASH_PAGE_ALIASES).map(([slug, page]) => [page, slug]),
 );
+function hashSlugOfPage(page) {
+  const place = typeof NAV_PLACE_BY_KEY === "object" && NAV_PLACE_BY_KEY ? NAV_PLACE_BY_KEY[page] : null;
+  return (place && place.slug) || HASH_PAGE_SLUGS[page] || page;
+}
+// Places whose page keeps a sub-route after the slug (#/work/close,
+// #/team/reviews/r/<id>, #/help/<slug>) — the page component owns what
+// comes after, via NAV_useHashSub / StaffGuide.jsx / TeamReviews.jsx.
+const HASH_SUB_ROUTE_PAGES = new Set(["work", "team", "help"]);
 
 // Client-route tab slugs that open client Settings.
 const CLIENT_TAB_ALIASES = {
@@ -25554,20 +23787,31 @@ function parseHashRoute(hash) {
     // a tab of it, so their slugs stay accepted.
     const aliased = CLIENT_TAB_ALIASES[page] || page;
     const settingsTab = aliased === "client-settings" ? parts[3] || CLIENT_SETTINGS_TAB_OF[page] || null : null;
+    // "sop" (#/client/<id>/sop) is in PAGE_META, so it passes like any tab.
     return { clientId: parts[1], page: isKnownAppPage(aliased) ? aliased : null, settingsTab };
   }
-  const page = HASH_PAGE_ALIASES[parts[0]] || parts[0];
+  // A place's slug (#/work, #/team/reviews), an alias (#/templates) or a
+  // bare page key (#/audit-log). Anything after the slug belongs to the page
+  // (see HASH_SUB_ROUTE_PAGES); it isn't parsed here.
+  const place = typeof NAV_PLACE_BY_SLUG === "object" && NAV_PLACE_BY_SLUG ? NAV_PLACE_BY_SLUG[parts[0]] : null;
+  const page = (place && place.key) || HASH_PAGE_ALIASES[parts[0]] || parts[0];
   return isKnownAppPage(page) ? { page } : null;
 }
 
 function buildHashRoute(page, clientId) {
-  // Help keeps its article slug (#/help/<slug>); StaffGuide.jsx reads it.
-  if (page === "help" && /^#\/help\/[a-z0-9-]+$/.test(window.location.hash)) return window.location.hash;
-  // Reviews keeps its sub-route (#/reviews/<tab>, #/reviews/r/<id>); TeamReviews.jsx reads it.
-  if (page === "team-reviews" && /^#\/reviews\/[a-z0-9-]+(\/[a-z0-9-]+)?$/.test(window.location.hash)) return window.location.hash;
-  // Team keeps its extra tab (#/team/<tab>); TP_TeamHub in TeamPage.jsx reads it.
-  if (page === "staff-team" && /^#\/team\/[a-z0-9-]+$/.test(window.location.hash)) return window.location.hash;
-  if (NON_CLIENT_PAGES.has(page)) return "#/" + (HASH_PAGE_SLUGS[page] || page);
+  if (NON_CLIENT_PAGES.has(page)) {
+    const slug = hashSlugOfPage(page);
+    // Work, Team and Help keep whatever sub-route is already in the hash
+    // (#/work/close, #/team/reviews/r/<id>, #/help/<slug>): the page
+    // component put it there and reads it back; App only owns the first
+    // segment.
+    if (
+      HASH_SUB_ROUTE_PAGES.has(page) &&
+      new RegExp("^#\\/" + slug + "\\/[a-z0-9-]+(\\/[a-z0-9-]+)*$").test(window.location.hash)
+    )
+      return window.location.hash;
+    return "#/" + slug;
+  }
   if (!clientId) return "";
   return (
     "#/client/" +
@@ -25685,8 +23929,9 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
       "riverside-pantry",
   );
   // A refresh keeps whatever page was open, for staff and clients alike. A
-  // client never lands on "bookkeeper-home" — initialPage()'s fresh-session
-  // default is staff-only chrome they can't render (no staffUser).
+  // client never lands on a staff place like "today" — that's staff-only
+  // chrome they can't render (no staffUser) — and a staff member never
+  // starts on a client's Dashboard by accident (initialPage).
   const [page, setPage] = useState(() => {
     const p = clientPortalUser ? initialPage() : initialPage(staffUser && staffUser.email);
     const fromHash = initialRoute && initialRoute.page;
@@ -26037,13 +24282,13 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
   const startImpersonating = (row) => {
     if (typeof AL_logEvent === "function") AL_logEvent("view_as.start", null, { target: row.email, name: row.name });
     setImpersonating({ email: row.email, name: row.name, role: row.role });
-    setPage("bookkeeper-home");
+    setPage("today");
   };
   const stopImpersonating = () => {
     if (impersonating && typeof AL_logEvent === "function")
       AL_logEvent("view_as.stop", null, { target: impersonating.email, name: impersonating.name });
     setImpersonating(null);
-    setPage("bookkeeper-home");
+    setPage("today");
   };
 
   useEffect(() => {
@@ -26675,21 +24920,27 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
     [client, access],
   );
 
-  // "enterprise-upgrade", "staff-access"/"client-access"/"developer-tools",
-  // and "staff-messages" are synthetic pages, not real tabs — none is in
-  // ALL_TAB_KEYS/access.tabs, so each needs its own bypass here or the
-  // normal fallback would bounce it straight back to the dashboard. The
-  // admin-only three additionally require the role, matching the sidebar
-  // links that are the only way to reach them — Postgres RLS is the real
-  // enforcement for staff-access (see supabase/staff-admin-policies.sql)
-  // and developer-tools only ever touches this browser's own localStorage,
-  // but the page-level gate still keeps a demoted admin's stale stored page
-  // from rendering either. staff-messages is open to any staff role (a
-  // bookkeeper has their own thread too) but, like the admin-only three,
-  // unreachable while impersonating — "view as" is about seeing a
-  // bookkeeper's CLIENT-facing view, and whose Team Chat thread should show
-  // during that (the real admin's, or the impersonated bookkeeper's) has no
-  // clean answer, so it's simplest to just not offer it mid-impersonation.
+  // The staff places (today, inbox, work, clients, team), "help",
+  // "enterprise-upgrade", "client-access"/"developer-tools"/... and the
+  // staff-only "sop" tab are synthetic pages, not real client tabs — none
+  // is in ALL_TAB_KEYS/access.tabs, so each needs its own bypass here or
+  // the normal fallback would bounce it straight back to the dashboard.
+  // The admin pages additionally require the role, matching the links that
+  // are the only way to reach them — Postgres RLS is the real enforcement
+  // for Team > Members (see supabase/staff-admin-policies.sql) and
+  // developer-tools only ever touches this browser's own localStorage, but
+  // the page-level gate still keeps a demoted admin's stale stored page
+  // from rendering either. Inbox, Work, Team and Help are open to any staff
+  // role (a bookkeeper has their own thread, tasks and reviews too) but,
+  // like the admin pages, unreachable while impersonating — "view as" is
+  // about seeing a bookkeeper's CLIENT-facing view, and whose Team Chat
+  // thread or task list should show during that (the real admin's, or the
+  // impersonated bookkeeper's) has no clean answer, so it's simplest to
+  // just not offer them mid-impersonation. Today and Clients stay, so the
+  // admin can still get around while viewing as someone.
+  // A staff session asking for a key this build doesn't know (a stale
+  // stored page from before the 2026-10-08 nav redesign) lands on Today,
+  // never on a client's Dashboard.
   // Where a client lands: Dashboard, except on Basic, which has none.
   const homeTab = access.tabs.has(ALWAYS_VISIBLE_KEY)
     ? ALWAYS_VISIBLE_KEY
@@ -26708,41 +24959,37 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
           page === "manage-access" ||
           page === "client-details"
         ? "client-settings"
-      : (page === "staff-access" ||
-            page === "client-access" ||
+      : (page === "client-access" ||
             page === "developer-tools" ||
             page === "usage-stats" ||
-            page === "staff-team" ||
             page === "task-templates") &&
           staffUser &&
           (staffUser.role === "admin" || hasTempAdminAccess) &&
           !impersonating
         ? page
-        : (page === "audit-log" || page === "emails" || page === "feedback") && staffUser && staffUser.role === "admin" && !impersonating
+        : (page === "audit-log" || page === "emails") && staffUser && staffUser.role === "admin" && !impersonating
           ? page
-        : page === "staff-messages" && staffUser && !impersonating
+        : (page === "inbox" || page === "work" || page === "team" || page === "help") && staffUser && !impersonating
           ? page
-          : page === "my-tasks" && staffUser && !impersonating
-            ? page
-          : page === "close-tracker" && staffUser && !impersonating
-            ? page
-          : page === "deadlines" && staffUser && !impersonating && typeof DL_DeadlinesPage === "function"
-            ? page
-          : page === "team-reviews" && staffUser && !impersonating
-            ? page
-          : page === "help" && staffUser && !impersonating
-            ? page
-            : page === "bookkeeper-home" && staffUser
-                ? page
-                : page === "client-overview" &&
-                    !clientPortalUser &&
-                    viewAsUserId === BOOKKEEPER_VIEW
-                  ? page
-                : page === "milestone" && !access.isCategoryScoped
-                  ? page
-                : access.tabs.has(page)
-                  ? page
-                  : homeTab;
+        : (page === "today" || page === "clients") && staffUser
+          ? page
+        : page === "client-overview" &&
+            !clientPortalUser &&
+            viewAsUserId === BOOKKEEPER_VIEW
+          ? page
+        : page === "sop" &&
+            !clientPortalUser &&
+            staffUser &&
+            !(viewAsUserId !== BOOKKEEPER_VIEW && access.user) &&
+            client
+          ? page
+        : page === "milestone" && !access.isCategoryScoped
+          ? page
+        : access.tabs.has(page)
+          ? page
+        : staffUser && !clientPortalUser && !isKnownAppPage(page)
+          ? "today"
+          : homeTab;
 
   // §135: one row per page view, staff and client alike, so Usage Stats
   // (admin-only) can rank pages most-to-least used. Fires on effectivePage
@@ -26775,9 +25022,9 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
   }, [effectivePage]);
 
   // Keep the URL hash in step with what's actually on screen (effectivePage,
-  // so a bounced deep link shows where the viewer really landed). replaceState
-  // rather than assigning location.hash: no history entry per click and no
-  // hashchange event back into the listener below.
+  // so a bounced deep link shows where the viewer really landed). pushState /
+  // replaceState rather than assigning location.hash: no hashchange event
+  // back into the listener below.
   const [hashRewriteTick, setHashRewriteTick] = useState(0);
   // Set by the hashchange listener so the rewrite it triggers replaces
   // rather than pushes.
@@ -26790,10 +25037,14 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
       hashFromHistory.current = false;
       if (next && window.location.hash !== next) {
         const url = window.location.pathname + window.location.search + next;
-        // Installed app: one history entry per page, for AN_AppNav's Back.
-        // Not for the first route on load, or when Back/Forward itself
-        // changed the hash (that would bury the entry it went back to).
-        if (AN_isStandalone() && !fromHistory && parseHashRoute(window.location.hash)) {
+        // One history entry per page, in the browser and the installed app
+        // alike (staff nav redesign 2026-10-08): Back from a client's pages
+        // returns to the Clients list, and AN_AppNav's Back has something
+        // to walk. Not for the first route on load, or when Back/Forward
+        // itself changed the hash (that would bury the entry it went back
+        // to). Tab changes inside a place (#/work/close) don't come through
+        // here — NAV_useHashSub replaces in place.
+        if (!fromHistory && parseHashRoute(window.location.hash)) {
           window.history.pushState({ mgbNav: AN_navIndex() + 1 }, "", url);
           window.dispatchEvent(new Event("mgb-nav"));
         } else {
@@ -26834,9 +25085,9 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
   }, [selectedClientId, visibleClients, clientPortalUser]);
 
   // The manual "My Time" page was retired 2026-09-29 (QuickBooks Time is the
-  // hours source). Anyone still holding that page id goes Home.
+  // hours source). Anyone still holding that page id goes to Today.
   useEffect(() => {
-    if (page === "my-time") setPage(staffUser && !clientPortalUser ? "bookkeeper-home" : homeTab);
+    if (page === "my-time") setPage(staffUser && !clientPortalUser ? "today" : homeTab);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [page]);
 
@@ -26863,7 +25114,7 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
   // once every FEEDBACK_PROMPT_INTERVAL_DAYS per browser. A short delay
   // after mount rather than firing immediately, so it never competes with
   // the boot splash or a fresh login for attention. Skipped entirely while
-  // impersonating (same reasoning as staff-messages above: unclear whose
+  // impersonating (same reasoning as Inbox above: unclear whose
   // feedback it would even be) and for a demoted/logged-out viewer with
   // neither staffUser nor clientPortalUser.
   const [feedbackOpen, setFeedbackOpen] = useState(false);
@@ -27024,7 +25275,7 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
     !impersonating &&
     !isPreviewingUser;
   useEffect(() => {
-    if (!siStaffChat || effectivePage === "staff-messages") setSiDrawer(null);
+    if (!siStaffChat || effectivePage === "inbox") setSiDrawer(null);
   }, [siStaffChat, effectivePage]);
   const siInboxClients = useMemo(() => [client], [client]);
 
@@ -27373,6 +25624,47 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
     }));
   };
 
+  // Staff sidebar (desktop; see StaffRail): the same five places on staff
+  // pages and on a client's pages alike — a client's own tabs run across
+  // the top of its pages (CL_ClientTabs, components/staff/ClientsPage.jsx)
+  // instead of down a second sidebar. Hidden while previewing as one of
+  // the client's people, so the preview shows only what that person sees.
+  const onStaffPage = NON_CLIENT_PAGES.has(effectivePage);
+  const showStaffRail = !!(
+    isStaffSession &&
+    effectiveStaffUser &&
+    (onStaffPage || !isPreviewingUser)
+  );
+  // `html.staff-client-tabs` while a staff member has a client's pages open
+  // (not previewing as a client user): clients-page.css hides the client
+  // sidebar and lays the tab row across the top. A class on <html> rather
+  // than on .app-shell so the sidebar's own media queries can key off it.
+  const staffClientTabs = showStaffRail && !isPreviewingUser && !onStaffPage;
+  // Admin or temporary admin, and not "viewing as" someone — the one
+  // definition the rail, Today, Clients and Team all share.
+  const staffIsAdmin =
+    !!staffUser && (staffUser.role === "admin" || hasTempAdminAccess) && !impersonating;
+  useEffect(() => {
+    try {
+      document.documentElement.classList.toggle("staff-client-tabs", staffClientTabs);
+    } catch (e) {}
+    return () => {
+      try {
+        document.documentElement.classList.remove("staff-client-tabs");
+      } catch (e) {}
+    };
+  }, [staffClientTabs]);
+  // Browser tab title: "Today · MyGoodBooks" on a staff page, "Grace
+  // Community · Overview · MyGoodBooks" on a client's — so a row of open
+  // tabs reads at a glance and history entries have names.
+  useEffect(() => {
+    try {
+      const pageTitle = (PAGE_META[effectivePage] && PAGE_META[effectivePage].title) || "";
+      document.title = onStaffPage
+        ? [pageTitle, "MyGoodBooks"].filter(Boolean).join(" · ")
+        : [client && client.name, pageTitle, "MyGoodBooks"].filter(Boolean).join(" · ");
+    } catch (e) {}
+  }, [effectivePage, onStaffPage, client && client.name]);
   // A bookkeeper with a real (successful, non-null) assignment fetch but
   // zero checked clients — the opt-in default from staff-client-access.sql.
   // Nothing below this point has a sensible client to show, so stop here
@@ -27426,16 +25718,6 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
     );
   }
 
-  // Staff sidebar (desktop; see StaffRail): full width on staff pages, an
-  // icon strip beside the client sidebar on a client's pages. Hidden while
-  // previewing as one of the client's people, so the preview shows only
-  // what that person sees.
-  const onStaffPage = NON_CLIENT_PAGES.has(effectivePage);
-  const showStaffRail = !!(
-    isStaffSession &&
-    effectiveStaffUser &&
-    (onStaffPage || !isPreviewingUser)
-  );
   // While the staff top bar is up, its search also covers the open client's
   // data (TB_Search's "In <client>" group), so the page-header GlobalSearch
   // icon steps aside. Clients and client-user previews keep the header one.
@@ -27458,7 +25740,12 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
       </div>
       {typeof PD_PageDrop === "function" && (
         <PD_PageDrop
-          enabled={isStaffSession && !isPreviewingUser && effectivePage !== "feedback"}
+          // Off on Team > Feedback, which has its own drop zone.
+          enabled={
+            isStaffSession &&
+            !isPreviewingUser &&
+            !(effectivePage === "team" && typeof NAV_subFromHash === "function" && NAV_subFromHash("team") === "feedback")
+          }
           clients={visibleClients}
           currentClient={onStaffPage ? null : client}
         />
@@ -27494,9 +25781,10 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
             staffUser={effectiveStaffUser}
             page={effectivePage}
             onSelectPage={setPage}
-            expanded={
-              onStaffPage && !(halfScreen ? !halfScreenExpanded : sidebarCollapsed)
-            }
+            // The same rail, expanded or collapsed per the saved preference,
+            // on staff pages and client pages alike (no client sidebar to
+            // make room for any more).
+            expanded={!(halfScreen ? !halfScreenExpanded : sidebarCollapsed)}
             onToggleCollapse={
               halfScreen ? () => setHalfScreenExpanded((v) => !v) : toggleSidebarCollapsed
             }
@@ -27507,23 +25795,7 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
               (effectiveStaffUser.role === "admin" || hasTempAdminAccess) && !impersonating
             }
             onSignOut={onSignOut}
-            // On a client page the open client sidebar already shows the
-            // logo box, so the rail drops its own.
-            hideMark={
-              !onStaffPage && !(halfScreen ? !halfScreenExpanded : sidebarCollapsed)
-            }
-            clients={visibleClients}
-            onPickClient={(clientId) => {
-              if (clientId === selectedClientId) setPage("client-overview");
-              else {
-                pageAfterClientSwitch.current = "client-overview";
-                setSelectedClientId(clientId);
-              }
-            }}
-            onExpand={
-              halfScreen ? () => setHalfScreenExpanded(true) : toggleSidebarCollapsed
-            }
-            statusOverrides={statusOverrides}
+            hideMark={false}
           />
         )}
         <Sidebar
@@ -27684,10 +25956,23 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
             )}
           <div className="page-header app-header">
             <div>
+              {/* Staff on a client's pages get "Clients › Grace Community ›
+                  Overview" (CL_Breadcrumb, components/staff/ClientsPage.jsx)
+                  so there's always a way back to the list; a client sees
+                  their own name. */}
               <div className="portal-greeting">
                 {NON_CLIENT_PAGES.has(effectivePage)
                   ? "MyGoodBooks"
-                  : client.name}
+                  : staffClientTabs && typeof CL_Breadcrumb === "function"
+                    ? (
+                        <CL_Breadcrumb
+                          client={client}
+                          page={effectivePage}
+                          onOpenClients={() => setPage("clients")}
+                          onOpenOverview={() => setPage("client-overview")}
+                        />
+                      )
+                    : client.name}
               </div>
               <h1 className={"page-title"}>
                 {NAV_LABEL_BY_KEY[effectivePage] ||
@@ -27709,6 +25994,12 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
                 tagline (Sidebar, .sidebar-ms-row). */}
             <div className="page-header-actions">
               {!showStaffTopBar && <AN_AppNav />}
+              {/* "View as client" (CL_ViewAsButton): staff preview the
+                  portal as one of this client's people, right from the
+                  page they're on. Exits via the preview bar above. */}
+              {staffClientTabs && typeof CL_ViewAsButton === "function" && (
+                <CL_ViewAsButton client={client} onPreviewAs={(uid) => setViewAsUserId(uid)} />
+              )}
               {!NON_CLIENT_PAGES.has(effectivePage) &&
                 (!isStaffSession || isPreviewingUser) && (
                   <ClientNotifications
@@ -27786,10 +26077,38 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
             </div>
             </div>
           </div>
+          {/* A client's tabs across the top of its pages for staff
+              (CL_ClientTabs, components/staff/ClientsPage.jsx): Overview,
+              the client's own tabs, SOP, Milestone and a Settings gear.
+              Replaces the client sidebar on desktop (html.staff-client-tabs). */}
+          {staffClientTabs && typeof CL_ClientTabs === "function" && (
+            <CL_ClientTabs
+              client={client}
+              page={effectivePage}
+              access={access}
+              isCategoryScoped={access.isCategoryScoped}
+              onSelectPage={setPage}
+              hasPendingAccessRequests={hasPendingAccessRequests}
+              onOpenClientSettings={openClientSettings}
+            />
+          )}
 
           {/* Client guided tour + Dashboard setup checklist (components/tour/Tour.jsx). */}
           {typeof TOUR_Root === "function" && !NON_CLIENT_PAGES.has(effectivePage) && (
             <TOUR_Root client={client} access={access} page={effectivePage} onSelectPage={setPage} onOpenSettings={openClientSettings} setMobileNavOpen={setMobileNavOpen} clientPortalUser={clientPortalUser} isStaffSession={isStaffSession} isPreviewingUser={Boolean(isPreviewingUser)} impersonating={Boolean(impersonating)} />
+          )}
+          {/* Staff tour: the five places, Today's list, search and the "?"
+              menu (TOUR_StaffRoot, same file). Runs once on a staff member's
+              first sign-in; "?" > Take the tour restarts it. */}
+          {typeof TOUR_StaffRoot === "function" && showStaffRail && !isPreviewingUser && (
+            <TOUR_StaffRoot
+              staffUser={staffUser}
+              impersonating={Boolean(impersonating)}
+              isPreviewingUser={Boolean(isPreviewingUser)}
+              page={effectivePage}
+              onSelectPage={setPage}
+              setMobileNavOpen={setMobileNavOpen}
+            />
           )}
           {effectivePage === "dashboard" &&
             (showsLiveReport ? (
@@ -27997,13 +26316,22 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
               hasPendingAccessRequests={hasPendingAccessRequests}
             />
           )}
-          {/* Team (components/staff/TeamPage.jsx, TP_TeamHub): "staff-team"
-              opens its Hours and tasks tab, "staff-access" (the old Staff
-              Access page) its Members tab. Same gating as before. */}
-          {(effectivePage === "staff-team" || effectivePage === "staff-access") && (
+          {/* The five staff places (components/staff/StaffNav.jsx). Each
+              hub owns its own tab row and reads the tab from the hash
+              (#/work/close, #/team/reviews), so App only mounts the hub.
+              Today, Clients, Work and the client tab row are separate
+              files (Today.jsx, ClientsPage.jsx, WorkPage.jsx) that may
+              still be loading in a partial build — hence the typeof
+              guards. Same gating as the pages they replaced. */}
+          {/* Team (components/staff/TeamPage.jsx, TP_TeamHub): People,
+              Reviews, Onboarding and, for admins, Hours, Reply times,
+              Feedback and Members (the old Staff Access page). */}
+          {effectivePage === "team" && typeof TP_TeamHub === "function" && (
             <TP_TeamHub
-              tab={effectivePage === "staff-access" ? "members" : "hours"}
-              onTab={(t) => setPage(t === "members" ? "staff-access" : "staff-team")}
+              staffUser={effectiveStaffUser}
+              isAdmin={staffIsAdmin}
+              isRealAdmin={staffUser.role === "admin" && !impersonating}
+              clients={visibleClients}
               renderMembers={() => (
                 <StaffAccessPage
                   staffUser={staffUser}
@@ -28011,13 +26339,12 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
                   readOnly={staffUser.role !== "admin"}
                 />
               )}
-              renderHours={() => <TP_TeamPage clients={visibleClients} />}
             />
           )}
           {effectivePage === "client-access" && (
             <ClientAccessPage readOnly={staffUser.role !== "admin"} />
           )}
-          {effectivePage === "staff-messages" && (
+          {effectivePage === "inbox" && (
             <StaffMessagesPage
               staffUser={staffUser}
               onActivity={checkStaffMessagesUnread}
@@ -28027,17 +26354,43 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
               onOpenClient={openClientMessages}
             />
           )}
-          {effectivePage === "my-tasks" && (
-            <MyTasksPage
-              staffUser={effectiveStaffUser}
+          {/* Work (components/staff/WorkPage.jsx): Tasks, Close, Deadlines. */}
+          {effectivePage === "work" && typeof WK_WorkPage === "function" && (
+            <WK_WorkPage
               clients={visibleClients}
+              staffUser={effectiveStaffUser}
               statusOverrides={statusOverrides}
-              canManageTemplates={
-                (staffUser.role === "admin" || hasTempAdminAccess) && !impersonating
-              }
+              canManageTemplates={staffIsAdmin}
               canCreateTemplates={staffUser.role === "admin" && !impersonating}
               onOpenTemplates={() => setPage("task-templates")}
             />
+          )}
+          {/* Clients (components/staff/ClientsPage.jsx): every client this
+              person can see, with health, close status and who's on it.
+              A row opens that client's Overview (or the page it asks for)
+              — the requested page must be parked in pageAfterClientSwitch
+              before the client changes, or the switch reset would bounce
+              it to Overview. */}
+          {effectivePage === "clients" && typeof CL_ClientsPage === "function" && (
+            <CL_ClientsPage
+              clients={visibleClients}
+              staffUser={effectiveStaffUser}
+              isAdmin={staffIsAdmin}
+              statusOverrides={statusOverrides}
+              pendingRequestsByClient={pendingRequestsByClient}
+              onOpenClient={(id, p) => {
+                if (id === selectedClientId) setPage(p || "client-overview");
+                else {
+                  pageAfterClientSwitch.current = p || "client-overview";
+                  setSelectedClientId(id);
+                }
+              }}
+            />
+          )}
+          {/* A client's SOP as a tab of its pages (staff only; the client
+              Settings modal keeps its read-only copy). */}
+          {effectivePage === "sop" && (
+            <ClientSopView client={client} readOnly={false} key={"sop-" + client.id} />
           )}
           {effectivePage === "client-overview" && (
             <ClientOverviewPage
@@ -28069,24 +26422,17 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
             <AL_AuditLogPage clients={visibleClients} />
           )}
           {effectivePage === "emails" && typeof EM_EmailsPage === "function" && <EM_EmailsPage />}
-          {effectivePage === "feedback" && typeof FB_FeedbackPage === "function" && (
-            <FB_FeedbackPage clients={visibleClients} />
-          )}
-          {effectivePage === "close-tracker" && (
-            <CT_CloseTrackerPage clients={visibleClients} staffUser={effectiveStaffUser} />
-          )}
-          {effectivePage === "deadlines" && typeof DL_DeadlinesPage === "function" && (
-            <DL_DeadlinesPage clients={visibleClients} staffUser={effectiveStaffUser} />
-          )}
           {effectivePage === "task-templates" && <TT_TaskTemplatesPage clients={visibleClients} />}
           {effectivePage === "help" && typeof HLP_StaffGuidePage === "function" && <HLP_StaffGuidePage />}
-          {effectivePage === "team-reviews" && typeof TR_TeamReviewsPage === "function" && <TR_TeamReviewsPage />}
-          {effectivePage === "bookkeeper-home" && (
-            <BookkeeperHomePage
+          {/* Today (components/staff/Today.jsx): what needs this person, in
+              order, across every client they can see. */}
+          {effectivePage === "today" && typeof TD_TodayPage === "function" && (
+            <TD_TodayPage
               staffUser={effectiveStaffUser}
               clients={visibleClients}
               messagesByClient={messagesByClient}
               readMessageClients={readMessageClients}
+              isAdmin={staffIsAdmin}
               onNavigateToClient={(clientId, targetPage, opts) => {
                 // Keep the requested page through the client-switch reset.
                 if (clientId !== selectedClientId) pageAfterClientSwitch.current = targetPage;
@@ -28097,7 +26443,6 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
                 // rather than dropping them on the dashboard to find it.
                 if (opts && opts.openAccessManager) setSettingsOpen(true);
               }}
-              onOpenMyTasks={() => setPage("my-tasks")}
               onOpenClientMilestone={(clientId) => {
                 if (clientId !== selectedClientId) pageAfterClientSwitch.current = "milestone";
                 setSelectedClientId(clientId);
@@ -28206,7 +26551,7 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
         </main>
       </div>
 
-      {siStaffChat && effectivePage !== "staff-messages" && !siDrawer && (
+      {siStaffChat && effectivePage !== "inbox" && !siDrawer && (
         <SI_ChatLauncher
           unread={staffMessagesUnread}
           onOpen={() =>
@@ -28278,10 +26623,14 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
           onSetAccessLevel={setAccessLevel}
           onToggleUserPremium={toggleUserPremium}
           staffUser={staffUser}
+          // "Edit the SOP" opens the client's own SOP tab (#/client/<id>/sop)
+          // rather than the read-only copy in this modal.
           onOpenSop={(clientId) => {
-            requestOpenClientSop(clientId);
             setDetailsOpen(false);
-            setPage("my-tasks");
+            if (clientId && clientId !== selectedClientId) {
+              pageAfterClientSwitch.current = "sop";
+              setSelectedClientId(clientId);
+            } else setPage("sop");
           }}
           initialTab={detailsTab}
           onClose={() => {

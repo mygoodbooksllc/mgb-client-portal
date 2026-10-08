@@ -10,7 +10,7 @@
 //                       (bugs), "My feedback" list with statuses + admin notes.
 //                       Page (hash route), current client and, for bugs, the
 //                       browser user agent + screen size are sent along.
-//   FB_FeedbackPage     admin page (#/feedback): newest first, filter by
+//   FB_FeedbackPage     Team → Feedback (admins, #/team/feedback): newest first, filter by
 //                       status / kind, change status + admin note inline.
 //   FB_NavBadge         count of "new" reports on the admin nav item.
 //   FB_Shots            thumbnails of a report's screenshots (1-hour signed
