@@ -601,15 +601,16 @@ goes through `security definer` RPCs that call `tr_me()` / `tr_require_admin()` 
 - Staff guide: `quarterly-reviews.md`, `team-survey.md`, `review-cycles.md`,
   `review-drive-setup.md`.
 
-### Tech Inventory (added 2026-10-08)
+### Inventory (added 2026-10-08)
 
-**Team › Tech** (`#/team/tech`), replacing the old Apps Script sheet. The portal's staff list
+**Team › Inventory** (`#/team/inventory`; old `#/team/tech` links still work through
+`NAV_TAB_ALIASES` in StaffNav.jsx), replacing the old Apps Script sheet. The portal's staff list
 (`public.staff`) is the source of truth for people; nothing is matched by free-text name.
 
 - **Front end:** `components/staff/TechInventory.jsx` (`TI_` globals) and `tech-inventory.css`,
   built on the portal's own classes (`kpi-grid`, `card`, `view-toggle`, `tx-table`, `task-field`,
-  `pill`). Staff get **My tech** (request hardware, log/edit/archive their own items, withdraw an
-  open request) and **Standard setup**. Admins get KPI tiles plus **Requests**, **Inventory**,
+  `pill`). Staff get **My inventory** (request hardware, log/edit/archive their own items, withdraw an
+  open request) and **Standard setup**. Admins get KPI tiles plus **Requests**, **Items**,
   **Roster** (laptop, items, open requests, missing essentials per active staff member),
   **Directory** and **Standard setup**.
 - **Database:** `supabase/tech-inventory.sql` (tables `tech_requests`, `tech_assets`,
@@ -625,9 +626,9 @@ goes through `security definer` RPCs that call `tr_me()` / `tr_require_admin()` 
   don't email). `notification-emails` sends it and skips the active-staff check for this kind only,
   because that inbox isn't a staff login.
 - **Export:** edge function `supabase/functions/tech-inventory/` (`verify_jwt` off; checks the
-  caller is an active admin itself). `export` builds an XLSX (Requests, Inventory, Roster, Standard
-  setup, Directory) and uploads it converted to a Google Sheet named `Tech Inventory YYYY-MM-DD
-  HH:MM` in a "Tech inventory" folder on the admin-only reviews Shared Drive
+  caller is an active admin itself). `export` builds an XLSX (Requests, Items, Roster, Standard
+  setup, Directory) and uploads it converted to a Google Sheet named `Inventory YYYY-MM-DD
+  HH:MM` in an "Inventory" folder on the admin-only reviews Shared Drive
   (`GOOGLE_DRIVE_REVIEWS_DRIVE_ID`, same `GOOGLE_SERVICE_ACCOUNT_JSON`). It never writes to the
   client files drive. Deploy: `npx supabase@latest functions deploy tech-inventory --project-ref
   xumsqmhccgfjnlmieqyu --no-verify-jwt`.
@@ -1074,7 +1075,7 @@ Team Reviews files.
 
 ## History
 
-- **2026-10-08:** Tech Inventory moved into the portal as **Team › Tech** (see **Tech Inventory**
+- **2026-10-08:** Tech Inventory moved into the portal as **Team › Inventory** (see **Inventory**
   above). The Apps Script tool and its passcode are retired once the owner has checked the import.
 - **2026-10-08:** staff navigation redesign (the five places, see **Staff navigation** above).
   Deleted `BookkeeperHomePage`, `useHomeMasonry`, `HLB_HealthTab`, `HLB_AtRiskBody`, the top bar

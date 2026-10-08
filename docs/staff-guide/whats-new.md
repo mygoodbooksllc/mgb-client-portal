@@ -2,15 +2,15 @@
 title: What's new
 section: Getting started
 audience: staff
-keywords: [tech, equipment, what's new, whats new, new, changes, updates, release notes, changelog, navigation, redesign, five places]
+keywords: [inventory, tech, equipment, what's new, whats new, new, changes, updates, release notes, changelog, navigation, redesign, five places]
 sort: 15
 ---
 The newest changes to the staff side, newest first. For how anything works, search this guide or click **?** → **Help for this page**.
 
-### 2026-10-08: Team › Tech
+### 2026-10-08: Team › Inventory
 
-- **Team › Tech** replaces the Tech Inventory spreadsheet. Everyone gets **My tech** (request hardware, log what you have) and **Standard setup**. A new request emails admin@mygoodbooks.org.
-- Admins also get **Requests**, **Inventory**, a **Roster** of who's missing what, the staff **Directory** and **Export to Google Sheet**. Nothing is deleted; rows are archived. See [How do I request equipment or log what I have?](#/help/tech-inventory).
+- **Team › Inventory** replaces the Tech Inventory spreadsheet. Everyone gets **My inventory** (request hardware, log what you have) and **Standard setup**. A new request emails admin@mygoodbooks.org.
+- Admins also get **Requests**, **Items**, a **Roster** of who's missing what, the staff **Directory** and **Export to Google Sheet**. Nothing is deleted; rows are archived. See [How do I request equipment or log what I have?](#/help/tech-inventory).
 
 ### 2026-10-08: a simpler client portal
 

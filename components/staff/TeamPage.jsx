@@ -587,8 +587,8 @@ function TP_TeamHub({ tab, staffUser, isAdmin, isRealAdmin, clients, renderMembe
   else if (current === "feedback") body = typeof FB_FeedbackPage === "function" ? <FB_FeedbackPage clients={clients} /> : missing("Feedback");
   else if (current === "performance")
     body = typeof PF_PerformanceTab === "function" ? <PF_PerformanceTab staffUser={staffUser} isAdmin={realAdmin} /> : missing("Performance");
-  else if (current === "tech")
-    body = typeof TI_TechTab === "function" ? <TI_TechTab staffUser={staffUser} isAdmin={realAdmin} /> : missing("Tech");
+  else if (current === "inventory")
+    body = typeof TI_TechTab === "function" ? <TI_TechTab staffUser={staffUser} isAdmin={realAdmin} /> : missing("Inventory");
   else if (current === "members") body = typeof renderMembers === "function" ? renderMembers() : missing("Members");
 
   // App's page header already shows "Team" and its subtitle (PAGE_META), so

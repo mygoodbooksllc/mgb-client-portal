@@ -72,7 +72,7 @@ const NAV_PLACES = [
       { key: "reply-times", label: "Reply times", help: "reply-times", admin: true, visible: () => typeof RT_ReplyTimesTab === "function" },
       { key: "feedback", label: "Feedback", help: "feedback-page", admin: true, visible: () => typeof FB_FeedbackPage === "function" },
       { key: "performance", label: "Performance", help: "performance", visible: () => typeof PF_PerformanceTab === "function" },
-      { key: "tech", label: "Tech", help: "tech-inventory", visible: () => typeof TI_TechTab === "function" },
+      { key: "inventory", label: "Inventory", help: "tech-inventory", visible: () => typeof TI_TechTab === "function" },
       { key: "members", label: "Members", help: "staff-management", admin: true },
     ],
   },
@@ -99,11 +99,15 @@ function NAV_isPlace(key) {
   return Object.prototype.hasOwnProperty.call(NAV_PLACE_BY_KEY, key);
 }
 
+// Renamed tabs, so old links (and emails already sent) still land on the
+// right tab: "<slug>/<old>" -> new key.
+const NAV_TAB_ALIASES = { "team/tech": "inventory" };
+
 // "#/work/close" -> "close"; "#/work" -> null. Only the second segment.
 function NAV_subFromHash(slug) {
   try {
     const m = new RegExp("^#\\/" + slug + "\\/([a-z0-9-]+)").exec(window.location.hash || "");
-    return m ? m[1] : null;
+    return m ? NAV_TAB_ALIASES[slug + "/" + m[1]] || m[1] : null;
   } catch (e) {
     return null;
   }

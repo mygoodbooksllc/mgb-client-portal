@@ -308,7 +308,7 @@ Deno.serve(async (req) => {
     let extra: Record<string, unknown> = {};
 
     if (!isClientKind(kind)) {
-      // Tech requests go to the shared admin inbox, which isn't a portal login.
+      // Inventory requests go to the shared admin inbox, which isn't a portal login.
       if (kind !== "staff_tech_request" && !activeStaff.has(to)) {
         await skip("Not an active staff member");
         continue;
@@ -377,7 +377,7 @@ Deno.serve(async (req) => {
         });
         const one = items.length === 1 ? items[0] : null;
         email = staffEmail({
-          subject: one ? `Tech request from ${one.by}: ${one.item}` : `${items.length} new tech requests`,
+          subject: one ? `Inventory request from ${one.by}: ${one.item}` : `${items.length} new inventory requests`,
           preheader: items.map((i) => `${i.by}: ${i.item}`).join(", ").slice(0, 140),
           lines: [
             one ? "A new hardware request came in:" : "New hardware requests came in:",
@@ -387,8 +387,8 @@ Deno.serve(async (req) => {
             one ? "A new hardware request came in:" : "New hardware requests came in:",
             ...items.map((i) => `- ${i.item} for ${i.by} (${i.priority} priority)${i.reason ? `\n  ${i.reason.slice(0, 300)}` : ""}`),
           ],
-          cta: "Open Team › Tech",
-          href: `${APP_URL}#/team/tech`,
+          cta: "Open Team › Inventory",
+          href: `${APP_URL}#/team/inventory`,
         });
       } else {
         // staff_feedback_status: the latest change per feedback item wins.

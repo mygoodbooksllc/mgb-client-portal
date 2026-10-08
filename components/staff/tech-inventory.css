@@ -1,4 +1,4 @@
-/* Tech Inventory (TechInventory.jsx). Built on the portal's own classes
+/* Team › Inventory (TechInventory.jsx). Built on the portal's own classes
    (kpi-grid, card, view-toggle, tx-table, task-field, pill, link-btn); this
    file only lays them out. */
 .ti-wrap { display: grid; gap: 16px; }

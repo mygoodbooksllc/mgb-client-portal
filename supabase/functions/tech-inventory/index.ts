@@ -1,10 +1,10 @@
-// Tech Inventory export (owner 2026-10-08). Admins only.
+// Inventory export (owner 2026-10-08; Team › Inventory, was "Tech"). Admins only.
 //
 //   POST { action: "status" }  -> { connected, folder? }   is Drive set up?
 //   POST { action: "export" }  -> { ok, url, name }        new Google Sheet
 //
-// Each export is a new Google Sheet (tabs Requests, Inventory, Roster,
-// Standard setup, Directory) in a "Tech inventory" folder on the admin-only
+// Each export is a new Google Sheet (tabs Requests, Items, Roster,
+// Standard setup, Directory) in an "Inventory" folder on the admin-only
 // Shared Drive (GOOGLE_DRIVE_REVIEWS_DRIVE_ID, the same drive as quarterly
 // reviews), so home addresses never land in the client files drive.
 // verify_jwt is off: the caller's JWT is checked here (active admin staff).
@@ -24,7 +24,7 @@ const DRIVE_UPLOAD = "https://www.googleapis.com/upload/drive/v3";
 const FOLDER_MIME = "application/vnd.google-apps.folder";
 const SHEET_MIME = "application/vnd.google-apps.spreadsheet";
 const XLSX_MIME = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
-const FOLDER_NAME = "Tech inventory";
+const FOLDER_NAME = "Inventory";
 // Same rule as TI_isLaptop in components/staff/TechInventory.jsx.
 const LAPTOP_RE = /mac|laptop|lenovo|dell|thinkpad|chromebook|notebook|\bhp\b/i;
 const NOT_LAPTOP_RE = /desktop|imac|mac mini/i;
@@ -82,7 +82,7 @@ function qs(params: Record<string, string>) {
   return new URLSearchParams({ supportsAllDrives: "true", ...params }).toString();
 }
 
-/** The "Tech inventory" folder at the shared drive root, found by appProperties so a rename never duplicates it. */
+/** The "Inventory" folder at the shared drive root (an earlier "Tech inventory" one is reused), found by appProperties so a rename never duplicates it. */
 async function folderId(): Promise<string> {
   const d = driveId()!;
   const found = await driveJson(`${DRIVE}/files?` + qs({
@@ -120,7 +120,7 @@ async function caller(req: Request, db: SupabaseClient) {
   const email = data?.user?.email?.toLowerCase();
   if (error || !email) throw new HttpError(401, "Sign in again.", "unauthorized");
   const { data: st } = await db.from("staff").select("email, role, active").ilike("email", email.replace(/[\\%_]/g, (c) => "\\" + c)).eq("active", true).maybeSingle();
-  if (!st || st.role !== "admin") throw new HttpError(403, "Only admins can export the tech inventory.", "forbidden");
+  if (!st || st.role !== "admin") throw new HttpError(403, "Only admins can export the inventory.", "forbidden");
   return { email };
 }
 
@@ -171,7 +171,7 @@ async function buildWorkbook(db: SupabaseClient): Promise<Uint8Array> {
   add("Requests", ["Requested", "Person", "Email", "Item", "Why", "Priority", "Status", "Archived"],
     requests.map((r: any) => [stamp(r.created_at), nameOf(r.staff_email), r.staff_email, r.item, r.reason || "", r.priority, r.status, stamp(r.archived_at)]));
 
-  add("Inventory", ["Logged", "Person", "Email", "Category", "Item", "Serial", "Condition", "Received", "Notes", "Archived"],
+  add("Items", ["Logged", "Person", "Email", "Category", "Item", "Serial", "Condition", "Received", "Notes", "Archived"],
     assets.map((a: any) => [stamp(a.created_at), nameOf(a.staff_email), a.staff_email, a.category, a.item, a.serial || "", a.condition, day(a.date_received), a.notes || "", stamp(a.archived_at)]));
 
   add("Roster", ["Person", "Email", "Laptop", "Items", "Open requests", "Missing essentials", ...essentials],
@@ -202,7 +202,7 @@ async function exportSheet(db: SupabaseClient) {
   const when = new Intl.DateTimeFormat("en-CA", {
     timeZone: TZ, year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23",
   }).format(new Date()).replace(",", "");
-  const name = `Tech Inventory ${when}`;
+  const name = `Inventory ${when}`;
   const mp = multipart({ name, mimeType: SHEET_MIME, parents: [parent] }, bytes, XLSX_MIME);
   const f = await driveJson(`${DRIVE_UPLOAD}/files?` + qs({ uploadType: "multipart", fields: "id,webViewLink" }), {
     method: "POST", headers: { "Content-Type": mp.type }, body: mp.body,

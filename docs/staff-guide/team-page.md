@@ -2,10 +2,10 @@
 title: What's on the Team page?
 section: Getting started
 audience: staff
-keywords: [team, tech, equipment, performance, people, who's out, backups, my time off, shout-outs, reviews, onboarding, hours, reply times, feedback, members, staff access, quickbooks time, in app, people table, clients table, drill-down, csv, this month, custom range, billable, hours budget, quickbooks api usage, coverage, client health]
+keywords: [team, inventory, tech, equipment, performance, people, who's out, backups, my time off, shout-outs, reviews, onboarding, hours, reply times, feedback, members, staff access, quickbooks time, in app, people table, clients table, drill-down, csv, this month, custom range, billable, hours budget, quickbooks api usage, coverage, client health]
 sort: 48
 ---
-**Team** (in the left rail, or `#/team`) is about the people you work with. Everyone gets People, Reviews, Onboarding, Performance and Tech. Admins also get Hours, Reply times, Feedback and Members. The tab is part of the address (`#/team/people`, `#/team/reviews` and so on).
+**Team** (in the left rail, or `#/team`) is about the people you work with. Everyone gets People, Reviews, Onboarding, Performance and Inventory. Admins also get Hours, Reply times, Feedback and Members. The tab is part of the address (`#/team/people`, `#/team/reviews` and so on).
 
 ### For everyone
 
@@ -13,7 +13,7 @@ sort: 48
 - **Reviews**: your quarterly review, your history and the team survey. Admins also get Team status, Reviews I'm giving, Survey results and Year-end. The number on the tab shows what's waiting on you. See [How do quarterly reviews work?](#/help/quarterly-reviews).
 - **Onboarding**: your new-hire checklist, **Your onboarding**. Admins also see each person's progress and can edit the steps. See [How does the new-hire onboarding checklist work?](#/help/new-hire-onboarding).
 - **Performance**: your score and the inputs behind it. Admins see everyone, ranked. See [How does Team › Performance score bookkeepers?](#/help/performance).
-- **Tech** (`#/team/tech`): the equipment you have, requests for new equipment, and the standard home-office setup. Admins also get the whole team's inventory, a roster of who's missing what, the staff directory and **Export to Google Sheet**. See [How do I request equipment or log what I have?](#/help/tech-inventory).
+- **Inventory** (`#/team/inventory`): the equipment you have, requests for new equipment, and the standard home-office setup. Admins also get the whole team's inventory, a roster of who's missing what, the staff directory and **Export to Google Sheet**. See [How do I request equipment or log what I have?](#/help/tech-inventory).
 
 ### Admins only
 

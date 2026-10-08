@@ -1,15 +1,15 @@
-// Tech Inventory (owner request 2026-10-08). Team › Tech. Replaces the Apps
+// Inventory (owner request 2026-10-08). Team › Inventory (was "Tech"). Replaces the Apps
 // Script tool. supabase/tech-inventory.sql + tech-inventory-v2.sql; export via
 // supabase/functions/tech-inventory.
 //
 //   Staff:  request hardware, log their own items, see the standard setup.
-//   Admins: Requests, Inventory, Roster, Directory and Standard setup views,
+//   Admins: Requests, Items, Roster, Directory and Standard setup views,
 //           and Export to Google Sheet (admin-only Shared Drive).
 // Nothing is deleted: requests, items and setup rows are archived and can be
 // restored. Names and emails come from the portal's staff list (Members).
 // Top-level names use the TI_ prefix.
 
-const TI_SETUP_MSG = "Tech Inventory isn't set up yet (database step pending).";
+const TI_SETUP_MSG = "Inventory isn't set up yet (database step pending).";
 const TI_STATUSES = ["Open", "Ordered", "Fulfilled", "Declined"];
 const TI_CONDITIONS = ["New", "Good", "Fair", "Poor", "Broken"];
 // Same rule as LAPTOP_RE in supabase/functions/tech-inventory.
@@ -144,13 +144,13 @@ function TI_TechTab({ staffUser, isAdmin }) {
   const views = isAdmin
     ? [
         ["requests", "Requests"],
-        ["inventory", "Inventory"],
+        ["inventory", "Items"],
         ["roster", "Roster"],
         ["directory", "Directory"],
         ["setup", "Standard setup"],
       ]
     : [
-        ["mine", "My tech"],
+        ["mine", "My inventory"],
         ["setup", "Standard setup"],
       ];
   const go = (v, person) => {
@@ -178,7 +178,7 @@ function TI_TechTab({ staffUser, isAdmin }) {
       )}
 
       <div className="ti-toolbar">
-        <div className="view-toggle" role="group" aria-label="Tech view">
+        <div className="view-toggle" role="group" aria-label="Inventory view">
           {views.map(([k, label]) => (
             <button key={k} type="button" className={"view-toggle-btn" + (view === k ? " active" : "")} aria-pressed={view === k} onClick={() => go(k)}>
               {label}
@@ -215,7 +215,7 @@ function TI_TechTab({ staffUser, isAdmin }) {
 }
 
 // ---------------------------------------------------------------------------
-// Staff: My tech
+// Staff: My inventory
 // ---------------------------------------------------------------------------
 function TI_MyTech({ me, requests, assets, setup, categories, sb, run }) {
   const [logging, setLogging] = React.useState(false);
@@ -343,7 +343,7 @@ function TI_Requests({ requests, setup, nameOf, me, sb, run }) {
 }
 
 // ---------------------------------------------------------------------------
-// Admin: Inventory
+// Admin: Items
 // ---------------------------------------------------------------------------
 function TI_Inventory({ assets, staff, setup, categories, nameOf, personFilter, setPersonFilter, sb, run }) {
   const [q, setQ] = React.useState("");
@@ -363,7 +363,7 @@ function TI_Inventory({ assets, staff, setup, categories, nameOf, personFilter, 
     <section className="card">
       <div className="ti-card-head">
         <div>
-          <h3 className="card-title">{showArchived ? "Archived items" : "Inventory"}</h3>
+          <h3 className="card-title">{showArchived ? "Archived items" : "Items"}</h3>
           <p className="card-subtitle">
             {personFilter ? <>Showing {nameOf(personFilter)}. <button type="button" className="link-btn" onClick={() => setPersonFilter("")}>Show everyone</button></> : "Every item the team has, by person."}
           </p>
