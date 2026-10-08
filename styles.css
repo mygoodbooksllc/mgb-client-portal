@@ -3170,6 +3170,29 @@ body:has(.modal-overlay, [aria-modal="true"], .si-drawer-scrim) .global-search {
   background: var(--navy);
 }
 
+/* Dark mode: --navy (#1f2a24) barely shows on the dark card, so primary
+   buttons take the gold fill with on-gold ink. :where() keeps specificity at
+   one class, so local overrides (referral card) still win; the Daily Close
+   danger button keeps its red. */
+@media (prefers-color-scheme: dark) {
+  :where(:root:not([data-theme="light"])) .btn-primary:not(.cc-danger),
+  :where(:root:not([data-theme="light"])) .btn-primary:not(.cc-danger):disabled:hover {
+    background: var(--gold);
+    color: var(--on-gold);
+  }
+  :where(:root:not([data-theme="light"])) .btn-primary:not(.cc-danger):hover {
+    background: var(--gold-deep);
+  }
+}
+:where(:root[data-theme="dark"]) .btn-primary:not(.cc-danger),
+:where(:root[data-theme="dark"]) .btn-primary:not(.cc-danger):disabled:hover {
+  background: var(--gold);
+  color: var(--on-gold);
+}
+:where(:root[data-theme="dark"]) .btn-primary:not(.cc-danger):hover {
+  background: var(--gold-deep);
+}
+
 /* ---------------- Fund balance donut (Dashboard) ---------------- */
 
 .donut-widget {
