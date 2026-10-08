@@ -44,4 +44,24 @@ t("budget rule matching", () => {
   assert.ok(L.OPS_budgetMatches("over", over) && !L.OPS_budgetMatches("over", near));
 });
 
+// ---- Reply times
+t("wait formatting", () => {
+  assert.strictEqual(L.OPS_fmtWait(null), "\u2014");
+  assert.strictEqual(L.OPS_fmtWait(0), "1 min");
+  assert.strictEqual(L.OPS_fmtWait(0.75), "45 min");
+  assert.strictEqual(L.OPS_fmtWait(3.24), "3.2 h");
+  assert.strictEqual(L.OPS_fmtWait(5), "5 h");
+  assert.strictEqual(L.OPS_fmtWait(47.9), "47.9 h");
+  assert.strictEqual(L.OPS_fmtWait(50.4), "2.1 days");
+  assert.strictEqual(L.OPS_fmtWait(72), "3 days");
+  assert.strictEqual(L.OPS_REPLY_GOAL_HOURS, 24);
+});
+t("reply periods", () => {
+  assert.deepStrictEqual(L.OPS_replyPeriod("month", "2026-10-07"), { from: "2026-10-01", to: "2026-10-07" });
+  assert.deepStrictEqual(L.OPS_replyPeriod("last-month", "2026-10-07"), { from: "2026-09-01", to: "2026-09-30" });
+  assert.deepStrictEqual(L.OPS_replyPeriod("last-month", "2026-01-15"), { from: "2025-12-01", to: "2025-12-31" });
+  assert.deepStrictEqual(L.OPS_replyPeriod("90", "2026-10-07"), { from: "2026-07-10", to: "2026-10-07" });
+  assert.deepStrictEqual(L.OPS_replyPeriod("last-month", "2026-03-31"), { from: "2026-02-01", to: "2026-02-28" });
+});
+
 console.log("staffOpsLogic: " + n + " checks passed");

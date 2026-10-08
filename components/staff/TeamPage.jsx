@@ -509,25 +509,59 @@ const TP_roleLabel = (role) =>
 // page id ("staff-team" -> hours, "staff-access" -> members) so both routes,
 // #/team and #/staff-access, keep working. Each tab renders only while open,
 // so it loads exactly what it loaded as its own page, with the same checks.
+//
+// Extra tabs (staff ops features, 2026-10-07) live in their own files and
+// join only when that file loaded. Their route is #/team/<key> (App's
+// buildHashRoute keeps it), read here; App still only knows "staff-team".
 const TP_HUB_TABS = [
   { key: "hours", label: "Hours and tasks" },
   { key: "members", label: "Members" },
 ];
+function TP_hubExtraTabs() {
+  const out = [];
+  if (typeof RT_ReplyTimesTab === "function") out.push({ key: "reply-times", label: "Reply times", render: () => <RT_ReplyTimesTab /> });
+  if (typeof CV_CoverageTab === "function") out.push({ key: "coverage", label: "Coverage", render: () => <CV_CoverageTab /> });
+  if (typeof HLB_HealthTab === "function") out.push({ key: "health", label: "Client health", render: () => <HLB_HealthTab /> });
+  if (typeof SON_ProgressTab === "function") out.push({ key: "onboarding", label: "Onboarding", render: () => <SON_ProgressTab /> });
+  return out;
+}
+function TP_hubSubFromHash() {
+  const m = /^#\/team\/([a-z0-9-]+)$/.exec(window.location.hash || "");
+  return m ? m[1] : null;
+}
 function TP_TeamHub({ tab, onTab, renderHours, renderMembers }) {
-  const cur = tab === "members" ? "members" : "hours";
+  const extras = TP_hubExtraTabs();
+  const [sub, setSub] = useState(TP_hubSubFromHash);
+  useEffect(() => {
+    const onHash = () => setSub(TP_hubSubFromHash());
+    window.addEventListener("hashchange", onHash);
+    return () => window.removeEventListener("hashchange", onHash);
+  }, []);
+  const extra = tab !== "members" && sub ? extras.find((t) => t.key === sub) : null;
+  const cur = tab === "members" ? "members" : extra ? extra.key : "hours";
+  const all = TP_HUB_TABS.concat(extras);
+  const go = (key) => {
+    const isExtra = extras.some((t) => t.key === key);
+    try {
+      if (isExtra) window.history.replaceState(window.history.state, "", window.location.pathname + window.location.search + "#/team/" + key);
+      else if (key === "hours" && sub) window.history.replaceState(window.history.state, "", window.location.pathname + window.location.search + "#/team");
+    } catch (e) {}
+    setSub(isExtra ? key : null);
+    onTab(key === "members" ? "members" : "hours");
+  };
   const onKeyDown = (e) => {
     if (e.key !== "ArrowRight" && e.key !== "ArrowLeft") return;
     e.preventDefault();
-    const i = TP_HUB_TABS.findIndex((t) => t.key === cur);
-    const next = TP_HUB_TABS[(i + (e.key === "ArrowRight" ? 1 : TP_HUB_TABS.length - 1)) % TP_HUB_TABS.length];
-    onTab(next.key);
+    const i = all.findIndex((t) => t.key === cur);
+    const next = all[(i + (e.key === "ArrowRight" ? 1 : all.length - 1)) % all.length];
+    go(next.key);
     const el = document.getElementById("tp-hub-tab-" + next.key);
     if (el) el.focus();
   };
   return (
     <div className="tp-hub">
       <div className="tp-hub-tabs" role="tablist" aria-label="Team" onKeyDown={onKeyDown}>
-        {TP_HUB_TABS.map((t) => (
+        {all.map((t) => (
           <button
             key={t.key}
             id={"tp-hub-tab-" + t.key}
@@ -537,14 +571,14 @@ function TP_TeamHub({ tab, onTab, renderHours, renderMembers }) {
             aria-controls="tp-hub-panel"
             tabIndex={cur === t.key ? 0 : -1}
             className={"tp-hub-tab" + (cur === t.key ? " active" : "")}
-            onClick={() => onTab(t.key)}
+            onClick={() => go(t.key)}
           >
             {t.label}
           </button>
         ))}
       </div>
       <div id="tp-hub-panel" role="tabpanel" aria-labelledby={"tp-hub-tab-" + cur}>
-        {cur === "members" ? renderMembers() : renderHours()}
+        {cur === "members" ? renderMembers() : extra ? extra.render() : renderHours()}
       </div>
     </div>
   );

@@ -17161,6 +17161,12 @@ function BookkeeperHomePage({
       label: "Unread messages",
       description: "Across all your clients",
     },
+    {
+      id: "kpi-reply",
+      group: "kpi",
+      label: "Reply time",
+      description: "Your median reply to clients this month, and who's waiting over 24 hours",
+    },
     // Default order is the priority order: the to-do list first, then the
     // amber cards, then the keep-in-touch ones, with the full client table
     // spanning both columns. Saved layouts keep their own order; "Reset to
@@ -17246,6 +17252,12 @@ function BookkeeperHomePage({
   // Hours budget facts for the "Hours budget" card rule (admins only,
   // HoursBudget.jsx). Only loads when a list card is on Home.
   const homeIsAdmin = !!(staffUser && staffUser.role === "admin");
+  // Reply time tile (components/staff/ReplyTimes.jsx): only queries while
+  // the tile is showing.
+  const myReply =
+    typeof RT_useMyReply === "function"
+      ? RT_useMyReply(staffUser && staffUser.email, layout.visibleOrder.includes("kpi-reply"))
+      : null;
   const homeBudgets = HB_useBudgets(
     homeIsAdmin && layout.cards.some((c) => c.kind === "watchlist" || c.kind === "filter"),
   );
@@ -17365,6 +17377,23 @@ function BookkeeperHomePage({
             if (value > 0)
               jump = () =>
                 onNavigateToClient(unreadAcrossClients[0].clientId, "messages");
+          } else if (id === "kpi-reply") {
+            if (!myReply) return null;
+            label = "Your reply time";
+            value = myReply.loading ? "\u2026" : myReply.error ? "\u2014" : OPS_fmtWait(myReply.median);
+            const goalH = OPS_REPLY_GOAL_HOURS;
+            sub = myReply.error
+              ? "not available yet"
+              : myReply.openOver > 0
+                ? `${myReply.openOver} waiting over ${goalH} h`
+                : myReply.median == null
+                  ? `median this month · none waiting over ${goalH} h`
+                  : `median this month · none waiting over ${goalH} h ✓`;
+            tone = myReply.openOver > 0 ? "now" : myReply.median == null ? "plain" : "calm";
+            // Admins: the Team hub's Reply times tab. Everyone else: Inbox.
+            jump = () => {
+              window.location.hash = homeIsAdmin ? "#/team/reply-times" : "#/chat";
+            };
           } else return null;
           const Tag = jump ? "button" : "div";
           return (
@@ -25395,6 +25424,8 @@ function buildHashRoute(page, clientId) {
   if (page === "help" && /^#\/help\/[a-z0-9-]+$/.test(window.location.hash)) return window.location.hash;
   // Reviews keeps its sub-route (#/reviews/<tab>, #/reviews/r/<id>); TeamReviews.jsx reads it.
   if (page === "team-reviews" && /^#\/reviews\/[a-z0-9-]+(\/[a-z0-9-]+)?$/.test(window.location.hash)) return window.location.hash;
+  // Team keeps its extra tab (#/team/<tab>); TP_TeamHub in TeamPage.jsx reads it.
+  if (page === "staff-team" && /^#\/team\/[a-z0-9-]+$/.test(window.location.hash)) return window.location.hash;
   if (NON_CLIENT_PAGES.has(page)) return "#/" + (HASH_PAGE_SLUGS[page] || page);
   if (!clientId) return "";
   return (

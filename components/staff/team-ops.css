@@ -51,3 +51,32 @@
 .hb-ov-bar .hb-track { flex: 1; width: auto; }
 .hb-ov-line.hb-near .hb-ov-val { color: var(--warm-text); font-weight: 600; }
 .hb-ov-line.hb-over .hb-ov-val { color: var(--bad); font-weight: 700; }
+
+/* ---- Reply times (ReplyTimes.jsx, rt-) */
+.rt-page { min-width: 0; }
+.rt-kpis { margin-bottom: 20px; }
+.rt-kpi-bad .kpi-value { color: var(--bad); }
+.rt-kpi-warn .kpi-value { color: var(--warm-text); }
+.rt-kpi-good .kpi-value { color: var(--good); }
+.rt-muted { color: var(--text-muted); font-size: 13px; overflow-wrap: anywhere; }
+.rt-open-list { list-style: none; margin: 8px 0 0; padding: 0; }
+.rt-open-list li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 12px;
+  padding: 10px 0;
+  border-top: 1px solid var(--border);
+}
+.rt-open-list li:first-child { border-top: none; }
+.rt-open-client { font-weight: 600; }
+.rt-open-list .rt-pill-bad { margin-left: auto; }
+.rt-pill-bad { background: var(--bad-soft); color: var(--bad); }
+/* Home: five KPI tiles (with Reply time) sit in one row when there's room. */
+@media (min-width: 1200px) {
+  .home-page .kpi-grid:has(> :nth-child(5):last-child) {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+}
+.rt-page a { color: var(--text); font-weight: 600; text-decoration: none; }
+.rt-page a:hover { text-decoration: underline; }

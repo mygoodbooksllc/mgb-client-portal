@@ -578,6 +578,16 @@ Team Reviews files.
   month)** column in `TeamQbo.jsx`), the overview Profitability card and the Home filter rule
   `budget` (`HC_RULES` entries can now be `adminOnly`). Near at 80%, over at 100%
   (`OPS_budgetStatus`). Guide: `hours-budget.md`.
+- **Reply-time tracker.** `client_reply_times(p_from, p_to)` (`supabase/client-reply-times.sql`,
+  security definer, read only): a wait starts at the first client message of an unanswered run in
+  a (client, participant) thread and ends at the next non-internal staff message (the replier gets
+  the credit); returns median, p90, % within the goal and open waits, overall, per replier and per
+  client. Admins get everything; others only their own staff row and clients they can access. The
+  goal is 24 calendar hours, a constant in both the RPC (`v_goal`) and `OPS_REPLY_GOAL_HOURS`.
+  `components/staff/ReplyTimes.jsx` (`RT_`): the Team hub tab **Reply times** and the Home KPI tile
+  `kpi-reply` (`RT_useMyReply`). The Team hub (`TP_TeamHub`) now takes extra tabs from the staff
+  ops files (`TP_hubExtraTabs`, routed as `#/team/<tab>`; `buildHashRoute` keeps that sub-route).
+  Guide: `reply-times.md`.
 
 ### Client side (and staff viewing a client)
 
