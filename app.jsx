@@ -894,7 +894,7 @@ const INFRA_LINKS = [
   {
     name: "Google Drive (client files)",
     url: "https://drive.google.com/drive/shared-drives",
-    note: "MGB shared drive holding client documents and the admin-only reviews drive · service account in Supabase secrets",
+    note: "MGB shared drive holding client documents, and the admin-only reviews drive (review PDFs and Tech inventory exports) · service account in Supabase secrets",
   },
   {
     name: "Intuit developer (QuickBooks)",

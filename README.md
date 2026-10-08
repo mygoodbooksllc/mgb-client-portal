@@ -601,6 +601,40 @@ goes through `security definer` RPCs that call `tr_me()` / `tr_require_admin()` 
 - Staff guide: `quarterly-reviews.md`, `team-survey.md`, `review-cycles.md`,
   `review-drive-setup.md`.
 
+### Tech Inventory (added 2026-10-08)
+
+**Team › Tech** (`#/team/tech`), replacing the old Apps Script sheet. The portal's staff list
+(`public.staff`) is the source of truth for people; nothing is matched by free-text name.
+
+- **Front end:** `components/staff/TechInventory.jsx` (`TI_` globals) and `tech-inventory.css`,
+  built on the portal's own classes (`kpi-grid`, `card`, `view-toggle`, `tx-table`, `task-field`,
+  `pill`). Staff get **My tech** (request hardware, log/edit/archive their own items, withdraw an
+  open request) and **Standard setup**. Admins get KPI tiles plus **Requests**, **Inventory**,
+  **Roster** (laptop, items, open requests, missing essentials per active staff member),
+  **Directory** and **Standard setup**.
+- **Database:** `supabase/tech-inventory.sql` (tables `tech_requests`, `tech_assets`,
+  `tech_setup`), `supabase/tech-inventory-v2.sql` (`archived_at` on all three, delete grant revoked,
+  staff can update their own open requests and own items; `staff_contact` for the Directory,
+  admin-only RLS, no delete) and `supabase/tech-inventory-import.sql` (one-time, re-runnable import
+  of the old sheet; only rows whose person is in `public.staff`). Nothing hard-deletes: rows are
+  archived.
+- **Directory** (`staff_contact`, keyed by lower-case staff email): legal name, personal email,
+  phones, home address. Admins only. Name and email shown come from `public.staff`.
+- **Request email:** trigger `notify_enqueue_tech_request` queues `notification_outbox` kind
+  `staff_tech_request` to admin@mygoodbooks.org (rows older than a day are skipped, so imports
+  don't email). `notification-emails` sends it and skips the active-staff check for this kind only,
+  because that inbox isn't a staff login.
+- **Export:** edge function `supabase/functions/tech-inventory/` (`verify_jwt` off; checks the
+  caller is an active admin itself). `export` builds an XLSX (Requests, Inventory, Roster, Standard
+  setup, Directory) and uploads it converted to a Google Sheet named `Tech Inventory YYYY-MM-DD
+  HH:MM` in a "Tech inventory" folder on the admin-only reviews Shared Drive
+  (`GOOGLE_DRIVE_REVIEWS_DRIVE_ID`, same `GOOGLE_SERVICE_ACCOUNT_JSON`). It never writes to the
+  client files drive. Deploy: `npx supabase@latest functions deploy tech-inventory --project-ref
+  xumsqmhccgfjnlmieqyu --no-verify-jwt`.
+- **Laptop rule:** a setup line that names a laptop (e.g. "Mac Neo") is covered by any laptop the
+  person has; other essentials match on category or item name. Same rule in `TI_covers` and the
+  edge function.
+
 ### Staff ops features (added 2026-10-07)
 
 Eight staff-only features, built one per commit. Shared pieces: pure rules in
@@ -1040,6 +1074,8 @@ Team Reviews files.
 
 ## History
 
+- **2026-10-08:** Tech Inventory moved into the portal as **Team › Tech** (see **Tech Inventory**
+  above). The Apps Script tool and its passcode are retired once the owner has checked the import.
 - **2026-10-08:** staff navigation redesign (the five places, see **Staff navigation** above).
   Deleted `BookkeeperHomePage`, `useHomeMasonry`, `HLB_HealthTab`, `HLB_AtRiskBody`, the top bar
   Overview chip, and the Home / Client view / My Tasks / Close tracker / Deadlines / Reviews /

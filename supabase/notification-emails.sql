@@ -27,6 +27,8 @@
 --                                             staffer (insert or reassign)
 --   staff_task_due         the assignee       daily cron, due today         email.task_due
 --   staff_feedback_status  the author         admin changes feedback status email.feedback_status
+--   staff_tech_request     admin@mygoodbooks  new Team › Tech request       (always; trigger in
+--                          .org (not a login)                               tech-inventory-v2.sql)
 --   client_message         the client person  staff replies in their thread email.bookkeeper_message
 --   client_reports_ready   active portal      month-end close marked Done   email.reports_ready
 --                          users of the org
@@ -44,7 +46,8 @@ create table if not exists public.notification_outbox (
   created_at timestamptz not null default now(),
   kind text not null check (kind in (
     'staff_client_message', 'staff_doc_upload', 'staff_task_assigned',
-    'staff_feedback_status', 'client_message', 'client_reports_ready'
+    'staff_feedback_status', 'client_message', 'client_reports_ready',
+    'staff_tech_request'
   )),
   recipient_email text not null check (recipient_email = lower(recipient_email)),
   client_id text,
@@ -67,7 +70,7 @@ alter table public.client_email_log add constraint client_email_log_feature_chec
   check (feature in (
     'doc_chaser', 'value_report',
     'staff_client_message', 'staff_doc_upload', 'staff_task_assigned', 'staff_task_due',
-    'staff_feedback_status', 'client_message', 'client_reports_ready'
+    'staff_feedback_status', 'client_message', 'client_reports_ready', 'staff_tech_request'
   ));
 
 -- ---------------------------------------------------------------------------

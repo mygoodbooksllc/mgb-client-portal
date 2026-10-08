@@ -72,8 +72,8 @@ const NAV_PLACES = [
       { key: "reply-times", label: "Reply times", help: "reply-times", admin: true, visible: () => typeof RT_ReplyTimesTab === "function" },
       { key: "feedback", label: "Feedback", help: "feedback-page", admin: true, visible: () => typeof FB_FeedbackPage === "function" },
       { key: "performance", label: "Performance", help: "performance", visible: () => typeof PF_PerformanceTab === "function" },
-      { key: "tech", label: "Tech", help: "team-page", visible: () => typeof TI_TechTab === "function" },
-    { key: "members", label: "Members", help: "staff-management", admin: true },
+      { key: "tech", label: "Tech", help: "tech-inventory", visible: () => typeof TI_TechTab === "function" },
+      { key: "members", label: "Members", help: "staff-management", admin: true },
     ],
   },
 ];

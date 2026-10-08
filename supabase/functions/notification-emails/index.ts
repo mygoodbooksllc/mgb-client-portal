@@ -32,7 +32,7 @@ const BATCH = 500;
 
 type Kind =
   | "staff_client_message" | "staff_doc_upload" | "staff_task_assigned" | "staff_task_due"
-  | "staff_feedback_status" | "client_message" | "client_reports_ready";
+  | "staff_feedback_status" | "staff_tech_request" | "client_message" | "client_reports_ready";
 
 // Settings key and default for each kind (matches components/settings/Settings.jsx).
 const PREF: Record<Kind, { key: string; def: boolean }> = {
@@ -41,6 +41,7 @@ const PREF: Record<Kind, { key: string; def: boolean }> = {
   staff_task_assigned: { key: "task_assigned", def: true },
   staff_task_due: { key: "task_due", def: false },
   staff_feedback_status: { key: "feedback_status", def: true },
+  staff_tech_request: { key: "tech_request", def: true }, // goes to admin@mygoodbooks.org, which has no settings
   client_message: { key: "bookkeeper_message", def: true },
   client_reports_ready: { key: "reports_ready", def: true },
 };
@@ -307,7 +308,8 @@ Deno.serve(async (req) => {
     let extra: Record<string, unknown> = {};
 
     if (!isClientKind(kind)) {
-      if (!activeStaff.has(to)) {
+      // Tech requests go to the shared admin inbox, which isn't a portal login.
+      if (kind !== "staff_tech_request" && !activeStaff.has(to)) {
         await skip("Not an active staff member");
         continue;
       }
@@ -367,6 +369,26 @@ Deno.serve(async (req) => {
           ],
           cta: "Open your tasks",
           href: `${APP_URL}#/work/tasks`,
+        });
+      } else if (kind === "staff_tech_request") {
+        const items = list.slice(0, 15).map((r: any) => {
+          const pl = r.payload || {};
+          return { item: String(pl.item || "Hardware"), priority: String(pl.priority || "Normal"), reason: String(pl.reason || ""), by: String(pl.by || "A teammate") };
+        });
+        const one = items.length === 1 ? items[0] : null;
+        email = staffEmail({
+          subject: one ? `Tech request from ${one.by}: ${one.item}` : `${items.length} new tech requests`,
+          preheader: items.map((i) => `${i.by}: ${i.item}`).join(", ").slice(0, 140),
+          lines: [
+            one ? "A new hardware request came in:" : "New hardware requests came in:",
+            L.bullets(items.map((i) => `<b>${esc(i.item)}</b> for ${esc(i.by)} ${L.tone(`(${esc(i.priority)} priority)`, "muted")}${i.reason ? `<br>${L.tone(esc(i.reason.slice(0, 300)), "muted")}` : ""}`)),
+          ],
+          textLines: [
+            one ? "A new hardware request came in:" : "New hardware requests came in:",
+            ...items.map((i) => `- ${i.item} for ${i.by} (${i.priority} priority)${i.reason ? `\n  ${i.reason.slice(0, 300)}` : ""}`),
+          ],
+          cta: "Open Team › Tech",
+          href: `${APP_URL}#/team/tech`,
         });
       } else {
         // staff_feedback_status: the latest change per feedback item wins.
