@@ -599,6 +599,18 @@ Team Reviews files.
   backup picker on the overview (`CV_StaffSelect`; the column is still `backup_bookkeeper_email`) and
   the `CV_OutTag` "Out until" tag (overview Key dates card, Inbox details). Emailing client messages
   to the backup was not built. Guide: `time-off-coverage.md`.
+- **Firm deadline calendar.** `supabase/firm-deadlines.sql`: `firm_deadline_rules` (all active staff
+  read, admins add/edit; no deletes, `active=false` turns one off; `due_rule` jsonb checked by
+  `firm_deadline_rule_ok`), `client_deadline_overrides` (skip / different date / turn on an opt-in
+  rule; `removed_at` instead of delete) and `client_deadline_status` ("Mark filed"; `undone_at`
+  instead of delete). The last two need `can_access_client`. A guard trigger stamps who/when and
+  freezes keys. Seeded US federal rules (1099-NEC, W-2, 941, 940, 990, 1096) say to verify.
+  Dates are computed in the browser (`OPS_deadlineItems` in `staffOpsLogic.js`): weekends move to
+  Monday, holidays don't; the 990 counts from `client_profile.fiscal_year_end` (May 15 if blank);
+  the older `form_990_due` / `filing_1099_due` key dates are read as date overrides, never written.
+  UI: `components/staff/Deadlines.jsx` (`DL_`), page `#/deadlines` (all staff) and Home card
+  `upcoming-deadlines`. **Create task** adds a `staff_reminders` row with `source='deadline'`,
+  `source_ref` = item id. Guide: `deadlines.md`.
 
 ### Client side (and staff viewing a client)
 

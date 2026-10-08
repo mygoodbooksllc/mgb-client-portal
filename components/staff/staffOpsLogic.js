@@ -138,6 +138,192 @@ var OPS_BACKUP_ACCESS = {
   none: { label: "No access", tone: "bad" },
 };
 
+// ---- Firm deadline calendar (supabase/firm-deadlines.sql)
+// Rules come from firm_deadline_rules; dates are worked out here. Everything
+// is a "YYYY-MM-DD" string. The seeded dates are a starting point to verify,
+// not tax advice. Weekends roll to the next Monday; federal holidays don't.
+var OPS_DEADLINE_SOON_DAYS = 7;
+var OPS_MONTHS_SHORT = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+// y, m (1-based, may run past 12), d (clamped to the month's last day).
+function OPS_ymd(y, m, d) {
+  y = y + Math.floor((m - 1) / 12);
+  m = ((((m - 1) % 12) + 12) % 12) + 1;
+  var last = new Date(y, m, 0).getDate();
+  return OPS_isoDay(new Date(y, m - 1, Math.min(d, last)));
+}
+
+function OPS_dayDiff(a, b) {
+  var p = String(a).split("-").map(Number), q = String(b).split("-").map(Number);
+  return Math.round((new Date(p[0], p[1] - 1, p[2]) - new Date(q[0], q[1] - 1, q[2])) / 864e5);
+}
+
+// Saturday and Sunday move to Monday.
+function OPS_rollWeekend(day) {
+  var p = String(day).split("-").map(Number);
+  var dow = new Date(p[0], p[1] - 1, p[2]).getDay();
+  return dow === 6 ? OPS_addDays(day, 2) : dow === 0 ? OPS_addDays(day, 1) : day;
+}
+
+// "12-31" or "6/30" => 12 / 6, else null.
+function OPS_fyeMonth(fye) {
+  var m = /^\s*(\d{1,2})\s*[-\/]\s*(\d{1,2})\s*$/.exec(String(fye || ""));
+  if (!m) return null;
+  var mo = Number(m[1]);
+  return mo >= 1 && mo <= 12 ? mo : null;
+}
+
+// Does the rule apply to this client? A live override that isn't "skip"
+// always turns it on (that's how an opt-in rule or an exception is added).
+function OPS_ruleApplies(rule, client, override, forced) {
+  if (!rule || rule.active === false || !client) return false;
+  if (override && override.skip) return false;
+  if (override || forced) return true;
+  if (rule.opt_in) return false;
+  var ent = String(client.entityType || "nonprofit").toLowerCase();
+  if (rule.applies_entity_type && rule.applies_entity_type.length &&
+      !rule.applies_entity_type.some(function (e) { return String(e).toLowerCase() === ent; })) return false;
+  var org = String(client.orgType || "").toLowerCase();
+  if (rule.applies_org_type_excludes && rule.applies_org_type_excludes.some(function (e) { return String(e).toLowerCase() === org; })) return false;
+  if (rule.requires_payroll === true && !client.payrollAddOn) return false;
+  if (rule.requires_payroll === false && client.payrollAddOn) return false;
+  return true;
+}
+
+// Every occurrence of a rule with a nominal date in fromYear-1 .. toYear+1:
+// [{period_key, period_label, nominal, assumed}].
+function OPS_ruleOccurrences(rule, fye, fromYear, toYear) {
+  var r = (rule && rule.due_rule) || {};
+  var out = [];
+  for (var y = fromYear - 1; y <= toYear + 1; y++) {
+    if (rule.cadence === "quarterly") {
+      (r.dates || []).slice(0, 4).forEach(function (dt, i) {
+        var q = i + 1;
+        var dueY = Number(dt.month) < q * 3 ? y + 1 : y;
+        out.push({ period_key: y + "-Q" + q, period_label: "Q" + q + " " + y, nominal: OPS_ymd(dueY, Number(dt.month), Number(dt.day)) });
+      });
+    } else if (rule.cadence === "monthly") {
+      var off = r.offset_months == null ? 1 : Number(r.offset_months);
+      for (var m = 1; m <= 12; m++) {
+        out.push({
+          period_key: y + "-" + (m < 10 ? "0" : "") + m,
+          period_label: OPS_MONTHS_SHORT[m - 1] + " " + y,
+          nominal: OPS_ymd(y, m + off, Number(r.day)),
+        });
+      }
+    } else if (r.fye_months != null) {
+      var fm = OPS_fyeMonth(fye);
+      if (fm) {
+        out.push({
+          period_key: "FY" + y,
+          period_label: "FY ending " + OPS_MONTHS_SHORT[fm - 1] + " " + y,
+          nominal: OPS_ymd(y, fm + Number(r.fye_months), Number(r.day)),
+        });
+      } else {
+        out.push({
+          period_key: "FY" + (y - 1),
+          period_label: "FY " + (y - 1) + " (no fiscal year end set)",
+          nominal: OPS_ymd(y, Number(r.fallback_month), Number(r.fallback_day)),
+          assumed: true,
+        });
+      }
+    } else {
+      out.push({ period_key: String(y), period_label: null, nominal: OPS_ymd(y, Number(r.month), Number(r.day)) });
+    }
+  }
+  return out;
+}
+
+// Older key dates on the client profile act as date overrides.
+var OPS_LEGACY_DEADLINE_FIELDS = { "990": "form_990_due", "1099-nec": "filing_1099_due" };
+
+// All deadlines for the clients between from and to (inclusive), soonest
+// first. opts: {rules, clients, profiles: {client_id: profile}, overrides,
+// statuses, from, to, today}.
+function OPS_deadlineItems(opts) {
+  var rules = (opts.rules || []).filter(function (r) { return r.active !== false; });
+  var profiles = opts.profiles || {};
+  var from = opts.from, to = opts.to, today = opts.today;
+  var fromY = Number(String(from).slice(0, 4)), toY = Number(String(to).slice(0, 4));
+  var ovr = {};
+  (opts.overrides || []).forEach(function (o) {
+    if (!o.removed_at) ovr[o.client_id + "|" + o.rule_key] = o;
+  });
+  var filed = {};
+  (opts.statuses || []).forEach(function (st) {
+    if (!st.undone_at) filed[st.client_id + "|" + st.rule_key + "|" + st.period_key] = st;
+  });
+  var items = [];
+  (opts.clients || []).forEach(function (c) {
+    var prof = profiles[c.id] || {};
+    rules.forEach(function (rule) {
+      var o = ovr[c.id + "|" + rule.key] || null;
+      var legacyField = OPS_LEGACY_DEADLINE_FIELDS[rule.key];
+      var legacy = legacyField && prof[legacyField] ? String(prof[legacyField]).slice(0, 10) : null;
+      var fixed = rule.cadence === "annual" ? (o && o.due_date) || legacy : null;
+      if (!OPS_ruleApplies(rule, c, o, !!fixed)) return;
+      var occ = OPS_ruleOccurrences(rule, prof.fiscal_year_end, fromY, toY).map(function (x) {
+        var due = OPS_rollWeekend(x.nominal);
+        return Object.assign({}, x, { due: due, rolled: due !== x.nominal, source: null });
+      });
+      if (fixed) {
+        var best = null, bestGap = 1e9;
+        occ.forEach(function (x) {
+          var gap = Math.abs(OPS_dayDiff(x.nominal, fixed));
+          if (gap < bestGap) { best = x; bestGap = gap; }
+        });
+        var src = o && o.due_date ? "override" : "key-dates";
+        if (best && bestGap <= 200) {
+          best.due = fixed; best.rolled = false; best.source = src;
+        } else {
+          occ.push({ period_key: "D" + fixed, period_label: null, nominal: fixed, due: fixed, rolled: false, source: src });
+        }
+      }
+      occ.forEach(function (x) {
+        if (x.due < from || x.due > to) return;
+        var st = filed[c.id + "|" + rule.key + "|" + x.period_key] || null;
+        var state = st ? "filed" : x.due < today ? "overdue" : OPS_dayDiff(x.due, today) <= OPS_DEADLINE_SOON_DAYS ? "soon" : "upcoming";
+        items.push({
+          id: c.id + "|" + rule.key + "|" + x.period_key,
+          client_id: c.id,
+          client_name: c.name || c.id,
+          assignee_email: c.assignedBookkeeper && c.assignedBookkeeper.email ? String(c.assignedBookkeeper.email).toLowerCase() : null,
+          rule_key: rule.key,
+          rule_name: rule.name,
+          cadence: rule.cadence,
+          period_key: x.period_key,
+          period_label: x.period_label,
+          due: x.due,
+          nominal: x.nominal,
+          rolled: x.rolled,
+          assumed: !!x.assumed,
+          source: x.source,
+          note: o && o.note ? o.note : null,
+          status: st,
+          state: state,
+        });
+      });
+    });
+  });
+  items.sort(function (a, b) {
+    return a.due < b.due ? -1 : a.due > b.due ? 1 : a.client_name < b.client_name ? -1 : a.client_name > b.client_name ? 1 : a.rule_key < b.rule_key ? -1 : 1;
+  });
+  return items;
+}
+
+// "Mon 15th"-style plain-English rule summary for the admin list.
+function OPS_describeDueRule(rule) {
+  var r = (rule && rule.due_rule) || {};
+  var md = function (m, d) { return OPS_MONTHS_SHORT[Number(m) - 1] + " " + Number(d); };
+  if (rule.cadence === "quarterly") return "Quarterly: " + (r.dates || []).map(function (x) { return md(x.month, x.day); }).join(", ");
+  if (rule.cadence === "monthly") {
+    var off = r.offset_months == null ? 1 : Number(r.offset_months);
+    return "Monthly: day " + Number(r.day) + (off === 0 ? " of the same month" : off === 1 ? " of the next month" : " of the month " + off + " months later");
+  }
+  if (r.fye_months != null) return "Day " + Number(r.day) + " of month " + Number(r.fye_months) + " after the fiscal year end (" + md(r.fallback_month, r.fallback_day) + " if none set)";
+  return "Every year: " + md(r.month, r.day);
+}
+
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {
     OPS_BUDGET_WARN: OPS_BUDGET_WARN, OPS_BUDGET_OVER: OPS_BUDGET_OVER,
@@ -145,5 +331,8 @@ if (typeof module !== "undefined" && module.exports) {
     OPS_REPLY_GOAL_HOURS: OPS_REPLY_GOAL_HOURS, OPS_fmtWait: OPS_fmtWait, OPS_replyPeriod: OPS_replyPeriod,
     OPS_addDays: OPS_addDays, OPS_outUntil: OPS_outUntil, OPS_upcomingTimeOff: OPS_upcomingTimeOff,
     OPS_timeOffError: OPS_timeOffError, OPS_BACKUP_ACCESS: OPS_BACKUP_ACCESS,
+    OPS_DEADLINE_SOON_DAYS: OPS_DEADLINE_SOON_DAYS, OPS_ymd: OPS_ymd, OPS_dayDiff: OPS_dayDiff,
+    OPS_rollWeekend: OPS_rollWeekend, OPS_fyeMonth: OPS_fyeMonth, OPS_ruleApplies: OPS_ruleApplies,
+    OPS_ruleOccurrences: OPS_ruleOccurrences, OPS_deadlineItems: OPS_deadlineItems, OPS_describeDueRule: OPS_describeDueRule,
   };
 }

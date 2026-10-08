@@ -544,6 +544,7 @@ const NON_CLIENT_PAGES = new Set([
   "staff-messages",
   "my-tasks",
   "close-tracker",
+  "deadlines",
   "team-reviews",
   "task-templates",
   "audit-log",
@@ -1819,6 +1820,9 @@ function StaffRail({
             due: true,
           },
           { key: "close-tracker", label: "Close tracker", short: "Close", icon: <CalculatorIcon /> },
+          ...(typeof DL_DeadlinesPage === "function"
+            ? [{ key: "deadlines", label: "Deadlines", short: "Dates", icon: <DL_Icon /> }]
+            : []),
           // Team Reviews (components/staff/TeamReviews.jsx): everyone on staff.
           ...(typeof TR_TeamReviewsPage === "function"
             ? [{ key: "team-reviews", label: "Reviews", short: "Reviews", icon: <TR_Icon />, extra: <TR_NavBadge expanded={expanded} /> }]
@@ -17209,6 +17213,12 @@ function BookkeeperHomePage({
         "Overdue bills, requests, unread messages and reminders, most urgent first",
     },
     {
+      id: "upcoming-deadlines",
+      group: "content",
+      label: "Upcoming deadlines",
+      description: "Filing deadlines for your clients in the next 30 days",
+    },
+    {
       id: "my-time-off",
       group: "content",
       label: "My time off",
@@ -17561,6 +17571,18 @@ function BookkeeperHomePage({
               </div>
             );
           }
+          if (id === "upcoming-deadlines")
+            return typeof DL_UpcomingDeadlinesBody === "function" ? (
+              <div
+                className={"card home-card home-tone-keep " + drag.dragClass(id)}
+                key={id}
+                {...drag.dragProps(id)}
+              >
+                <h3 className="card-title">Upcoming deadlines</h3>
+                <p className="card-subtitle">Next 30 days, plus anything overdue and not filed in the last 6 months.</p>
+                <DL_UpcomingDeadlinesBody clients={clients} staffUser={staffUser} />
+              </div>
+            ) : null;
           if (id === "my-time-off")
             return typeof CV_MyTimeOffBody === "function" ? (
               <div
@@ -25144,6 +25166,10 @@ const PAGE_META = {
     title: "Close tracker",
     subtitle: "Month-end close status for every client, month by month",
   },
+  deadlines: {
+    title: "Deadlines",
+    subtitle: "Filing deadlines for every client. Verify each date before filing.",
+  },
   "team-reviews": {
     title: "Reviews",
     subtitle: "Quarterly reviews and the team survey",
@@ -26631,6 +26657,8 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
             ? page
           : page === "close-tracker" && staffUser && !impersonating
             ? page
+          : page === "deadlines" && staffUser && !impersonating && typeof DL_DeadlinesPage === "function"
+            ? page
           : page === "team-reviews" && staffUser && !impersonating
             ? page
           : page === "help" && staffUser && !impersonating
@@ -27977,6 +28005,9 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
           )}
           {effectivePage === "close-tracker" && (
             <CT_CloseTrackerPage clients={visibleClients} staffUser={effectiveStaffUser} />
+          )}
+          {effectivePage === "deadlines" && typeof DL_DeadlinesPage === "function" && (
+            <DL_DeadlinesPage clients={visibleClients} staffUser={effectiveStaffUser} />
           )}
           {effectivePage === "task-templates" && <TT_TaskTemplatesPage clients={visibleClients} />}
           {effectivePage === "help" && typeof HLP_StaffGuidePage === "function" && <HLP_StaffGuidePage />}

@@ -2,7 +2,7 @@
 title: Getting started: a tour of the staff portal
 section: Getting started
 audience: staff
-keywords: [new, start, tour, overview, sidebar, top bar, menu, navigation, home, first day, orientation, reviews]
+keywords: [new, start, tour, overview, sidebar, top bar, menu, navigation, home, first day, orientation, reviews, deadlines]
 sort: 10
 ---
 Welcome! The MyGoodBooks portal is where our clients (mostly churches and nonprofits) see their finances, and where we, the staff, keep track of our work for them. This page shows you around.
@@ -28,12 +28,13 @@ On a computer, the dark sidebar on the left has the page links:
 - **Inbox**: client conversations and team chat in one place.
 - **My Tasks**: your tasks, notes and client SOPs.
 - **Close tracker**: month-end close progress for every client.
+- **Deadlines**: filing deadlines for every client, with **Mark filed**. See [How do I track filing deadlines?](#/help/deadlines).
 - **Reviews**: your quarterly review, the team survey and your review history. The number beside it shows what's waiting on you. See [How do quarterly reviews work?](#/help/quarterly-reviews).
 - **Help**: this guide.
 
 Admins also see an **Admin** group with **Team** (hours and tasks, plus the **Members** tab that used to be Staff Access) and **Feedback**. The other admin pages (Task templates, Client roster, Emails, QuickBooks usage, Usage stats, Audit log and Developer tools) are in **Settings → Firm settings**.
 
-At the bottom: **Collapse**, which shrinks the sidebar to icons with a short name under each one (for example **Client** for Client view, **Tasks** for My Tasks and **Close** for Close tracker). **Settings** (your profile, notifications, theme and more), dark mode and **Sign out** are in the account menu under your initials at the top right. See [How do I change my settings?](#/help/staff-settings).
+At the bottom: **Collapse**, which shrinks the sidebar to icons with a short name under each one (for example **Client** for Client view, **Tasks** for My Tasks and **Close** for Close tracker and **Dates** for Deadlines). **Settings** (your profile, notifications, theme and more), dark mode and **Sign out** are in the account menu under your initials at the top right. See [How do I change my settings?](#/help/staff-settings).
 
 When you have a client open, the staff sidebar shrinks to a thin strip of icons and the client's own sidebar (Dashboard, Reports, Documents and so on) appears beside it. On a smaller screen (or after you click **Collapse**) the client's sidebar also shrinks to icons with a short name under each, for example **Budget** for Budget vs. Actual, **Bank** for Bank Accounts and **Giving** for Giving & Funds. Clients see the same thing.
 
