@@ -35,7 +35,7 @@
 --                   internal notes, no deleted messages): 10
 --     hours_over    ADMINS ONLY: QuickBooks Time hours this calendar month
 --                   above client_profile.monthly_hours_budget: 10
---     sop           client SOP last edited over 180 days ago, or fewer than
+--     sop           client SOP last edited or reviewed over 180 days ago, or fewer than
 --                   half of the 7 sections filled in (none written counts):
 --                   5. From client_sop_status(), below.
 --
@@ -51,13 +51,21 @@ begin;
 
 -- SOP freshness per client: last edit and how many of the app's
 -- CLIENT_SOP_SECTIONS have text. Keep the section list in step with app.jsx.
+-- Superseded by supabase/sop-freshness.sql (adds "Mark as still accurate"
+-- reviews; returns more columns). Run that file after this one.
+-- Only created here when missing: once sop-freshness.sql has run, its
+-- wider version stays (a plain re-create would fail on the return type).
+do $outer$
+begin
+  if to_regprocedure('public.client_sop_status()') is null then
+    execute $sql$
 create or replace function public.client_sop_status()
 returns table (client_id text, last_touched timestamptz, filled int, total int)
 language sql
 stable
 security definer
 set search_path = public
-as $$
+as $f$
   select s.client_id,
          max(s.updated_at),
          count(*) filter (where length(trim(coalesce(s.body, ''))) > 0
@@ -67,7 +75,11 @@ as $$
     from client_sops s
    where public.is_active_staff() and public.can_access_client(s.client_id)
    group by s.client_id;
-$$;
+$f$;
+    $sql$;
+  end if;
+end;
+$outer$;
 revoke all on function public.client_sop_status() from public, anon;
 grant execute on function public.client_sop_status() to authenticated;
 
@@ -229,7 +241,7 @@ begin
                  else 'SOP only ' || sp.filled || ' of ' || sp.total || ' sections filled' end)
         when sp.last_touched < now() - interval '180 days' then
           jsonb_build_object('key', 'sop', 'points', 5, 'label',
-            'SOP not updated in ' || (current_date - sp.last_touched::date) || ' days')
+            'SOP not reviewed in ' || (current_date - sp.last_touched::date) || ' days')
       end f9
     from c
     left join overdue o on o.client_id = c.id

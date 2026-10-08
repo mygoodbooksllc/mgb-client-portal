@@ -629,6 +629,15 @@ Team Reviews files.
   form (Appreciation, the review's quarter, read-only, not saved into the review). The recipient
   gets a `shout:` bell item (`TopBar.jsx`; Settings bell toggle "Shout-outs for me"). No email.
   Guide: `shoutouts.md`.
+- **SOP freshness.** `supabase/sop-freshness.sql` (run after `client-health.sql`):
+  `client_profile.sheet_reviewed_at`/`sheet_reviewed_by`, set only by `mark_sop_reviewed(client)`
+  (a trigger keeps direct writes from changing them); `client_sop_status()` now returns
+  `last_touched` = later of last section edit and last review, plus `last_edited`,
+  `last_reviewed`, `reviewed_by`; the health reason reads "SOP not reviewed in N days". UI:
+  `components/staff/SopFreshness.jsx` (`SF_`): "Last reviewed N days ago" + "Mark as still
+  accurate" on `ClientSopView`; stale (over 180 days, `OPS_sopFreshness`) SOPs add an "SOP" row
+  to Home's Needs you (This week) and a "Client SOP" rule on filtered Home cards. Guide:
+  `client-sops.md`.
 
 ### Client side (and staff viewing a client)
 

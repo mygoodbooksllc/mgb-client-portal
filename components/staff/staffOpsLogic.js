@@ -350,6 +350,29 @@ function OPS_shoutoutError(toEmail, body, meEmail) {
   return "";
 }
 
+// SOP freshness: the later of the last section edit and the last "Mark as
+// still accurate". Times are ISO strings (or null); today is "YYYY-MM-DD".
+// Returns null when neither exists, else { at, days, stale, source }.
+var OPS_SOP_STALE_DAYS = 180;
+function OPS_sopFreshness(lastEdited, lastReviewed, today) {
+  var e = lastEdited ? Date.parse(lastEdited) : NaN;
+  var r = lastReviewed ? Date.parse(lastReviewed) : NaN;
+  if (isNaN(e) && isNaN(r)) return null;
+  var useReview = !isNaN(r) && (isNaN(e) || r >= e);
+  var at = useReview ? lastReviewed : lastEdited;
+  var t = Date.parse(String(today || "") + "T00:00:00");
+  var d = new Date(useReview ? r : e);
+  var day = Date.parse(OPS_isoDay(d) + "T00:00:00");
+  var days = isNaN(t) ? 0 : Math.max(0, Math.round((t - day) / 864e5));
+  return { at: at, days: days, stale: days > OPS_SOP_STALE_DAYS, source: useReview ? "review" : "edit" };
+}
+
+// "today", "1 day ago", "12 days ago".
+function OPS_daysAgo(n) {
+  if (!(n > 0)) return "today";
+  return n === 1 ? "1 day ago" : n + " days ago";
+}
+
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {
     OPS_BUDGET_WARN: OPS_BUDGET_WARN, OPS_BUDGET_OVER: OPS_BUDGET_OVER,
@@ -361,5 +384,6 @@ if (typeof module !== "undefined" && module.exports) {
     OPS_rollWeekend: OPS_rollWeekend, OPS_fyeMonth: OPS_fyeMonth, OPS_ruleApplies: OPS_ruleApplies,
     OPS_ruleOccurrences: OPS_ruleOccurrences, OPS_deadlineItems: OPS_deadlineItems, OPS_describeDueRule: OPS_describeDueRule,
     OPS_SHOUTOUT_MAX: OPS_SHOUTOUT_MAX, OPS_quarterRange: OPS_quarterRange, OPS_shoutoutError: OPS_shoutoutError,
+    OPS_SOP_STALE_DAYS: OPS_SOP_STALE_DAYS, OPS_sopFreshness: OPS_sopFreshness, OPS_daysAgo: OPS_daysAgo,
   };
 }

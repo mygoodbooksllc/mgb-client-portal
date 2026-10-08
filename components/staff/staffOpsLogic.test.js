@@ -198,4 +198,18 @@ t("quarter range and shout-out validation", () => {
   assert.strictEqual(L.OPS_shoutoutError("b@x", "Thanks!", "a@x"), "");
 });
 
+t("SOP freshness", () => {
+  assert.strictEqual(L.OPS_sopFreshness(null, null, "2026-10-07"), null);
+  let f = L.OPS_sopFreshness("2026-10-01T15:00:00", null, "2026-10-07");
+  assert.deepStrictEqual([f.days, f.stale, f.source], [6, false, "edit"]);
+  f = L.OPS_sopFreshness("2026-01-01T12:00:00", "2026-09-30T12:00:00", "2026-10-07");
+  assert.deepStrictEqual([f.days, f.stale, f.source, f.at], [7, false, "review", "2026-09-30T12:00:00"]);
+  f = L.OPS_sopFreshness("2026-04-09T12:00:00", "2026-01-01T12:00:00", "2026-10-07");
+  assert.deepStrictEqual([f.days, f.stale, f.source], [181, true, "edit"]);
+  assert.strictEqual(L.OPS_sopFreshness("2026-04-10T12:00:00", null, "2026-10-07").stale, false, "180 is not stale");
+  assert.strictEqual(L.OPS_daysAgo(0), "today");
+  assert.strictEqual(L.OPS_daysAgo(1), "1 day ago");
+  assert.strictEqual(L.OPS_daysAgo(30), "30 days ago");
+});
+
 console.log("staffOpsLogic: " + n + " checks passed");

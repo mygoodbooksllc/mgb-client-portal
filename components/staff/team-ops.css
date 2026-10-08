@@ -307,3 +307,13 @@
 .so-review-from { display: block; color: var(--text-muted); font-size: 12px; }
 .so-review-body { white-space: pre-wrap; overflow-wrap: anywhere; }
 .so-review .tr-muted { margin: 6px 0 0; }
+
+/* SOP freshness (SopFreshness.jsx) */
+.sf-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin: 4px 0 12px; }
+.sf-pill-good { background: var(--good-soft); color: var(--good); }
+.sf-pill-bad { background: var(--bad-soft); color: var(--bad); }
+.sf-note { color: var(--text-muted); font-size: 13px; }
+.sf-mark { margin-left: auto; }
+@media (max-width: 640px) {
+  .sf-mark { margin-left: 0; width: 100%; }
+}

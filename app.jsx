@@ -17041,6 +17041,9 @@ function BookkeeperHomePage({
   // waiting on us; "week" (amber) is coming up within AP_SOON_DAYS. Bills
   // are grouped per client so one client with ten bills is one row.
   const [todoExpanded, setTodoExpanded] = useState(false);
+  // client_sop_status() rows (SopFreshness.jsx), for stale-SOP rows here and
+  // the "Client SOP" card rule.
+  const homeSopStatus = typeof SF_useSopStatus === "function" ? SF_useSopStatus(true) : null;
   const [milestoneCount, setMilestoneCount] = useState(0);
   const [closeBehind, setCloseBehind] = useState(0);
   const todo = useMemo(() => {
@@ -17147,7 +17150,17 @@ function BookkeeperHomePage({
         actions: [{ label: "Done", onClick: () => toggleReminder(r) }],
       });
     });
+    // SOPs not edited or marked accurate in 180 days (SopFreshness.jsx).
+    // Not urgent, so they sit after everything else in "This week".
+    const sopRows =
+      typeof SF_staleTodos === "function"
+        ? SF_staleTodos(clients, homeSopStatus, today, (clientId) => {
+            requestOpenClientSop(clientId);
+            if (onOpenMyTasks) onOpenMyTasks();
+          })
+        : [];
     week.sort((a, b) => a.sort - b.sort);
+    week.push(...sopRows);
     return { now: now.sort((a, b) => a.rank - b.rank || a.sort - b.sort), week };
     // toggleReminder / setUpgradeRequestStatus are redefined every render but
     // only close over stable setters and supabase.
@@ -17160,6 +17173,7 @@ function BookkeeperHomePage({
     reminders,
     clients,
     today,
+    homeSopStatus,
   ]);
   const todoErrors = [accessRequestsError, upgradeRequestsError, reminderError].filter(Boolean);
 
@@ -17326,6 +17340,7 @@ function BookkeeperHomePage({
     closeCounts,
     isAdmin: homeIsAdmin,
     budgetByClient: homeBudgets ? homeBudgets.byClient : null,
+    sopByClient: homeSopStatus,
     onOpenClient: (clientId) => onNavigateToClient(clientId, "client-overview"),
   };
   const drag = useDragReorder(layout);
@@ -19192,6 +19207,7 @@ function ClientSopView({ client, readOnly, onEditInMyTasks }) {
         </div>
       </div>
       {loadError && <p className="card-subtitle negative">{loadError}</p>}
+      {typeof SF_FreshnessBar === "function" && <SF_FreshnessBar client={client} rows={rows} />}
 
       {CLIENT_SOP_SECTIONS.map((sec) => {
         const row = rows[sec.id];

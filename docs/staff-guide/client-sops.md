@@ -2,7 +2,7 @@
 title: How do I write or update a client's SOP?
 section: Daily work
 audience: staff
-keywords: [sop, procedure, standard operating procedure, how we do it, version history, restore, print, copy, sections, cover]
+keywords: [sop stale, last reviewed, mark as still accurate, review sop, sop, procedure, standard operating procedure, how we do it, version history, restore, print, copy, sections, cover]
 sort: 130
 ---
 A client's **SOP** (standard operating procedure) explains how their books are run, so anyone on the team can step in. SOPs are **staff-only** and every change is saved in history.
@@ -23,6 +23,17 @@ A client's **SOP** (standard operating procedure) explains how their books are r
 7. **Quirks, contacts & preferences**
 
 The top of the SOP shows how many are filled in, for example "4 of 7 sections filled".
+
+### Keeping it current
+
+Under that line, a tag says **Last reviewed {n} days ago**. It counts from whichever is later: the last edit to any section, or the last time someone clicked **Mark as still accurate**. Hover over it to see both dates and who marked it.
+
+- Green: reviewed in the last 180 days.
+- Red, with "Over 180 days. Give it a read and fix anything out of date.": the SOP is **stale**.
+
+Read it through. Fix anything that's changed. If it's all still right, click **Mark as still accurate**. The tag goes back to **Last reviewed today**. You can do this from **Client details → SOP** too, without opening My Tasks.
+
+Stale SOPs also show on **Home** in **Needs you → This week** with an **SOP** tag, and in Client health. An SOP with nothing written yet isn't counted as stale (Client health flags it as "No SOP written yet" instead).
 
 ### Edit a section
 

@@ -36,7 +36,7 @@ Every client starts at 100. Points come off for each problem, and the score neve
 | Last month's close is late | 20 |
 | Overdue document requests | 5 each, up to 15 |
 | Client waiting on a reply for over 24 hours | 10 |
-| SOP not updated in 180 days, or under half its sections filled | 5 |
+| SOP not edited or marked accurate in 180 days ("SOP not reviewed in N days"), or under half its sections filled | 5 |
 | Margin below target (admins only) | 15 |
 | Over the monthly hours budget (admins only) | 10 |
 

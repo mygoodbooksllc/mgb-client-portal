@@ -111,8 +111,21 @@ const HC_RULES = [
       ["over", "Over hours budget"],
     ],
   },
+  // SOP freshness (SopFreshness.jsx, supabase/sop-freshness.sql): the later
+  // of the last SOP edit and the last "Mark as still accurate". Unknown
+  // (still loading) never matches.
+  {
+    key: "sop",
+    label: "Client SOP",
+    options: [
+      ["any", "Any SOP"],
+      ["stale", "SOP stale (not reviewed in 180 days)"],
+      ["none", "No SOP written yet"],
+      ["fresh", "SOP reviewed in the last 180 days"],
+    ],
+  },
 ];
-const HC_DEFAULT_RULES = { plan: "any", health: "any", bills: "any", close: "any", unread: "any", budget: "any" };
+const HC_DEFAULT_RULES = { plan: "any", health: "any", bills: "any", close: "any", unread: "any", budget: "any", sop: "any" };
 
 // The rules this viewer can pick (adminOnly ones need ctx.isAdmin).
 function HC_rulesFor(ctx) {
@@ -206,7 +219,9 @@ function HC_facts(c, ctx) {
   const close = ctx.closeCounts ? ctx.closeCounts[c.id] || 0 : null;
   // null = unknown (not admin, still loading, no budget): never matches.
   const budget = ctx.isAdmin && ctx.budgetByClient ? ctx.budgetByClient[c.id] || null : null;
-  return { health, due, unread, close, budget };
+  // "stale" | "fresh" | "none", or null while loading.
+  const sop = typeof SF_ruleState === "function" ? SF_ruleState(ctx.sopByClient, c.id) : null;
+  return { health, due, unread, close, budget, sop };
 }
 
 function HC_matches(c, rules, ctx) {
@@ -231,6 +246,7 @@ function HC_matches(c, rules, ctx) {
   if (r.unread === "yes" && !f.unread) return false;
   if (r.unread === "no" && f.unread) return false;
   if (r.budget && r.budget !== "any" && !OPS_budgetMatches(r.budget, f.budget)) return false;
+  if (r.sop && r.sop !== "any" && f.sop !== r.sop) return false;
   return true;
 }
 
@@ -252,6 +268,7 @@ function HC_ClientRow({ c, f, onOpen }) {
   if (f.due.soon) chips.push(["week", `${f.due.soon} due soon`]);
   if (f.unread) chips.push(["now", `${f.unread} unread`]);
   if (f.budget && f.budget.state === "over") chips.push(["now", `Over hours budget (${f.budget.pct}%)`]);
+  if (f.sop === "stale") chips.push(["week", "SOP stale"]);
   return (
     <li>
       <button type="button" className="hc-row" onClick={() => onOpen(c.id)}>
