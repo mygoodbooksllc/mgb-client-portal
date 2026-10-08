@@ -80,3 +80,72 @@
 }
 .rt-page a { color: var(--text); font-weight: 600; text-decoration: none; }
 .rt-page a:hover { text-decoration: underline; }
+
+/* ---- Time off and coverage (Coverage.jsx, cv-) */
+.cv-out-tag {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.5;
+  white-space: nowrap;
+  background: var(--accent-soft);
+  color: var(--warm-text);
+  vertical-align: middle;
+}
+.cv-list { list-style: none; margin: 8px 0 12px; padding: 0; }
+.cv-list li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 10px;
+  padding: 8px 0;
+  border-top: 1px solid var(--border);
+}
+.cv-list li:first-child { border-top: none; }
+.cv-when { font-weight: 600; }
+.cv-now {
+  margin-left: 8px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  font-size: 11px;
+  background: var(--accent-soft);
+  color: var(--warm-text);
+}
+.cv-note { color: var(--text-muted); font-size: 13px; flex: 1 1 160px; min-width: 0; overflow-wrap: anywhere; }
+.cv-list .link-btn, .cv-list .cv-confirm { margin-left: auto; }
+.cv-confirm { display: inline-flex; gap: 10px; }
+.cv-danger { color: var(--bad); }
+.cv-add { margin-top: 4px; }
+.cv-hint { color: var(--text-muted); font-size: 12px; margin: 12px 0 0; }
+.cv-form {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 10px 12px;
+  margin-top: 12px;
+}
+.cv-form .task-field { min-width: 0; }
+.cv-form .task-field input, .cv-form .task-field select { width: 100%; box-sizing: border-box; }
+.cv-form-note, .cv-err, .cv-form-actions { grid-column: 1 / -1; }
+.cv-form-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.cv-err { color: var(--bad); margin: 0; font-size: 13px; }
+.cv-page { min-width: 0; }
+.cv-h { font-size: 15px; margin: 24px 0 10px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em; }
+.cv-block { margin-bottom: 16px; }
+.cv-block-head {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 8px 16px;
+  margin-bottom: 8px;
+}
+.cv-block-side { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.cv-pill-bad { background: var(--bad-soft); color: var(--bad); }
+.cv-pill-good { background: var(--good-soft); color: var(--good); }
+.cv-page a { color: var(--text); font-weight: 600; text-decoration: none; }
+.cv-page a:hover { text-decoration: underline; }
+.cv-page a.link-btn { color: var(--accent); }
+.cv-grant { white-space: nowrap; }

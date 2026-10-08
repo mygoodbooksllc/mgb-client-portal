@@ -2,7 +2,7 @@
 title: What does the Client overview show?
 section: Working with a client
 audience: staff
-keywords: [hours budget, client overview, urgent, gold glow, needs attention, close card, month close, ready, blocked, behind, stale bank, organization type, overview, monthly bill, profitability, quickbooks health, engagement, key dates, coverage, account manager, activity, log a call, pinned notes, sent to client]
+keywords: [hours budget, client overview, urgent, gold glow, needs attention, close card, month close, ready, blocked, behind, stale bank, organization type, overview, monthly bill, profitability, quickbooks health, engagement, key dates, coverage, backup bookkeeper, out until, time off, account manager, activity, log a call, pinned notes, sent to client]
 sort: 200
 ---
 The **Client overview** is the staff-only summary of one client. You land here whenever you open a client. The client never sees this page.
@@ -39,7 +39,7 @@ Fix the problem and the glow goes away the next time the card loads. Onboarding 
 
 - **Onboarding** steps for new clients, plus the client's **Organization type** (Nonprofit or For-profit). See [How does client onboarding work?](#/help/onboarding).
 - **{Month} close** (for example *September 2026 close*): last month's automatic QuickBooks checks, with a **Ready**, **Blocked**, **Behind** or **No data** badge, the reasons and the four checks. If a bank or card account has gone quiet, it also says **Bank feed may have stopped** and lists the accounts with their last transaction date. "From QuickBooks …" shows how fresh the data is. The card only appears for clients with QuickBooks close data. See [How do I track month-end close?](#/help/month-end-close).
-- **Key dates and coverage**: Form 990 and 1099 due dates, launch date (church plants), board meetings, fiscal year end, the bookkeeper, backup and **Account manager**. Click **Edit dates and coverage** to change them (including **Target hourly rate ($)** and, for admins, **Monthly hours budget (admins only)**), then **Save**.
+- **Key dates and coverage**: Form 990 and 1099 due dates, launch date (church plants), board meetings, fiscal year end, the bookkeeper, backup and **Account manager**. Click **Edit dates and coverage** to change them (including **Target hourly rate ($)** and, for admins, **Monthly hours budget (admins only)**), then **Save**. **Backup bookkeeper (covers when they're out)** is a list of active staff. An **Out until {date}** tag shows next to anyone who's on time off. See [How do I add time off and make sure my clients are covered?](#/help/time-off-coverage).
   - **Account manager** is the client's main contact. They get the email when the client sends a message, and they show on the client's Dashboard as **Your account manager**. New clients start with Jesse. Admins pick from the active staff list; others see it read-only. Choosing **Not set** means client messages email everyone with access to the client.
 - **Pinned notes** and the latest **notes on transactions, budget lines and reports**.
 - **Sent to the client**: reports recently marked as sent. See [How do I leave a staff note on a transaction, budget line or report?](#/help/staff-notes).

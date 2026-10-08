@@ -6306,11 +6306,25 @@ function ClientOverviewPage({ client, messagesByClient, onNavigate, onOpenDetail
             <ul className="ov-lines">
               <li>
                 <span>Bookkeeper</span>
-                <span>{(client.assignedBookkeeper && client.assignedBookkeeper.name) || "Not assigned"}</span>
+                <span>
+                  {(client.assignedBookkeeper && client.assignedBookkeeper.name) || "Not assigned"}
+                  {typeof CV_OutTag === "function" && client.assignedBookkeeper && (
+                    <CV_OutTag email={client.assignedBookkeeper.email} />
+                  )}
+                </span>
               </li>
               <li>
                 <span>Backup</span>
-                <span>{profile.backup_bookkeeper_email || "Not set"}</span>
+                <span>
+                  {typeof CV_BackupName === "function" ? (
+                    <CV_BackupName email={profile.backup_bookkeeper_email} />
+                  ) : (
+                    profile.backup_bookkeeper_email || "Not set"
+                  )}
+                  {typeof CV_OutTag === "function" && profile.backup_bookkeeper_email && (
+                    <CV_OutTag email={profile.backup_bookkeeper_email} />
+                  )}
+                </span>
               </li>
               <li>
                 <span>Account manager</span>
@@ -6341,7 +6355,10 @@ function ClientOverviewPage({ client, messagesByClient, onNavigate, onOpenDetail
                     ["filing_1099_due", "1099s due", "date"],
                     ["board_meeting", "Board meets", "text", "2nd Tuesday, monthly"],
                     ["launch_date", "Launch date (church plants)", "date"],
-                    ["backup_bookkeeper_email", "Backup bookkeeper (email)", "email", "name@mygoodbooks.org"],
+                    // Backup is a staff picker below when Coverage.jsx loaded.
+                    ...(typeof CV_StaffSelect === "function"
+                      ? []
+                      : [["backup_bookkeeper_email", "Backup bookkeeper (email)", "email", "name@mygoodbooks.org"]]),
                     ["target_hourly_rate", "Target hourly rate ($)", "number", "75"],
                     ...(isAdminViewer ? [["monthly_hours_budget", "Monthly hours budget (admins only)", "number", "10"]] : []),
                   ].map(([key, label, type, ph]) => (
@@ -6357,6 +6374,17 @@ function ClientOverviewPage({ client, messagesByClient, onNavigate, onOpenDetail
                       />
                     </label>
                   ))}
+                  {typeof CV_StaffSelect === "function" && (
+                    <label className="task-field">
+                      <span>Backup bookkeeper (covers when they're out)</span>
+                      <CV_StaffSelect
+                        value={draft.backup_bookkeeper_email}
+                        onChange={(v) => setProfileDraft({ ...draft, backup_bookkeeper_email: v })}
+                        emptyLabel="Not set"
+                        exclude={client.assignedBookkeeper && client.assignedBookkeeper.email}
+                      />
+                    </label>
+                  )}
                   {canPickAm && (
                     <label className="task-field">
                       <span>Account manager</span>
@@ -17181,6 +17209,12 @@ function BookkeeperHomePage({
         "Overdue bills, requests, unread messages and reminders, most urgent first",
     },
     {
+      id: "my-time-off",
+      group: "content",
+      label: "My time off",
+      description: "Your upcoming time off, with a quick way to add some",
+    },
+    {
       id: "your-reminders",
       group: "content",
       label: "Your reminders",
@@ -17527,6 +17561,18 @@ function BookkeeperHomePage({
               </div>
             );
           }
+          if (id === "my-time-off")
+            return typeof CV_MyTimeOffBody === "function" ? (
+              <div
+                className={"card home-card home-tone-keep " + drag.dragClass(id)}
+                key={id}
+                {...drag.dragProps(id)}
+              >
+                <h3 className="card-title">My time off</h3>
+                <p className="card-subtitle">Days you're out. The whole team can see these.</p>
+                <CV_MyTimeOffBody staffUser={staffUser} />
+              </div>
+            ) : null;
           if (id === "recently-viewed")
             return (
               <div

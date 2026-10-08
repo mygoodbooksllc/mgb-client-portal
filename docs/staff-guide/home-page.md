@@ -2,7 +2,7 @@
 title: What's on my Home page?
 section: Getting started
 audience: staff
-keywords: [home, reply time, dashboard, needs you, needs attention, needs you now, this week, all clear, colors, red, amber, priority, reminders, upgrade requests, access requests, needs a visit, recently viewed, customize, add widgets, saved views, reset layout, financial overview, board-ready, live report, status, handoff, custom card, new custom card, watchlist, filtered list, checklist, notes, layout, columns, arrange]
+keywords: [home, reply time, my time off, time off, dashboard, needs you, needs attention, needs you now, this week, all clear, colors, red, amber, priority, reminders, upgrade requests, access requests, needs a visit, recently viewed, customize, add widgets, saved views, reset layout, financial overview, board-ready, live report, status, handoff, custom card, new custom card, watchlist, filtered list, checklist, notes, layout, columns, arrange]
 sort: 40
 ---
 **Home** is your starting point. It shows what needs you across every client you can see, sorted by how soon it needs doing. To open a client, use the client picker or the search box in the [top bar](#/help/top-bar).
@@ -19,6 +19,8 @@ Home uses three levels. Each one has a colored stripe on the left edge of a card
 At the top, a line like **3 need you now · 5 this week** sums it up. Click it to jump to the **Needs you** list. The number tiles below it work the same way: red or amber when there's something to do, green "all clear ✓" at zero. Click a tile to jump to what it counts.
 
 The **Your reply time** tile shows your median reply to client messages this month and how many conversations are waiting over 24 hours. See [How do I read reply times?](#/help/reply-times).
+
+The **My time off** card lists your upcoming days out. Click **+ Add time off** to add more. See [How do I add time off and make sure my clients are covered?](#/help/time-off-coverage).
 
 ### Needs you (the to-do list)
 

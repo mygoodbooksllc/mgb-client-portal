@@ -53,7 +53,7 @@ Click the **i** button to open details on the right. From top to bottom:
 - The client's milestone, cash on hand and this month's close progress.
 - **Health**: the same status as the client picker (for example **Needs attention**) and the main reason. A status a staff member set by hand wins.
 - **Plan**: Basic or Pro, and how many portal logins they have.
-- **Bookkeeper** and **Account manager**.
+- **Bookkeeper** and **Account manager**. An **Out until {date}** tag means the bookkeeper is on [time off](#/help/time-off-coverage).
 - **Writing**: who sent the thread, their role and whether they have full or limited access (or no portal login), plus the others at the client on the portal.
 - **QuickBooks**: when it last synced. Click the pill to **Sync now**. A red line shows if the connection needs attention.
 - **Waiting**: how many document requests are overdue, when they last wrote, and whether we've replied since.

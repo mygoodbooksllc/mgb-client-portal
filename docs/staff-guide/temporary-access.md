@@ -2,7 +2,7 @@
 title: How do I get temporary access to a client I don't normally work on?
 section: Working with a client
 audience: staff
-keywords: [temporary access, request access, other clients, covering, approve, deny, revoke, give up access, expires, locked client]
+keywords: [temporary access, request access, other clients, covering, approve, deny, revoke, give up access, expires, locked client, time off, backup]
 sort: 250
 ---
 Bookkeepers only see the clients assigned to them. If you need to cover someone else's client (for example during a vacation), request temporary access. It ends on its own when the time is up.

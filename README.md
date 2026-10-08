@@ -588,6 +588,17 @@ Team Reviews files.
   `kpi-reply` (`RT_useMyReply`). The Team hub (`TP_TeamHub`) now takes extra tabs from the staff
   ops files (`TP_hubExtraTabs`, routed as `#/team/<tab>`; `buildHashRoute` keeps that sub-route).
   Guide: `reply-times.md`.
+- **Time off and coverage.** `staff_time_off` (`supabase/staff-time-off.sql`; RLS: all active staff
+  read, people add/edit their own, admins anyone's; no deletes, `cancelled_at` instead; a guard
+  trigger stamps `created_by` and keeps a cancel final). `staff_directory()` lists active staff for
+  pickers (bookkeepers can't read `staff`). Admin RPCs `coverage_overview(from, to)` (time off in the
+  window, each person's clients, the client's backup and `backup_access`) and
+  `grant_coverage_access(time_off_id, client_id)` (an approved `staff_client_access_grants` row for
+  the backup, expiring the day after the time off ends, America/Chicago).
+  `components/staff/Coverage.jsx` (`CV_`): Team hub tab **Coverage**, Home card `my-time-off`, the
+  backup picker on the overview (`CV_StaffSelect`; the column is still `backup_bookkeeper_email`) and
+  the `CV_OutTag` "Out until" tag (overview Key dates card, Inbox details). Emailing client messages
+  to the backup was not built. Guide: `time-off-coverage.md`.
 
 ### Client side (and staff viewing a client)
 

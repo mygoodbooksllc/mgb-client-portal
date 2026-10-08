@@ -64,4 +64,35 @@ t("reply periods", () => {
   assert.deepStrictEqual(L.OPS_replyPeriod("last-month", "2026-03-31"), { from: "2026-02-01", to: "2026-02-28" });
 });
 
+// ---- Time off
+t("out until chains back-to-back entries", () => {
+  const rows = [
+    { staff_email: "A@x.org", starts_on: "2026-10-05", ends_on: "2026-10-09" },
+    { staff_email: "a@x.org", starts_on: "2026-10-10", ends_on: "2026-10-13" },
+    { staff_email: "a@x.org", starts_on: "2026-10-20", ends_on: "2026-10-21" },
+    { staff_email: "b@x.org", starts_on: "2026-10-01", ends_on: "2026-10-30", cancelled_at: "2026-10-02T00:00:00Z" },
+  ];
+  assert.strictEqual(L.OPS_outUntil(rows, "a@x.org", "2026-10-07"), "2026-10-13");
+  assert.strictEqual(L.OPS_outUntil(rows, "a@x.org", "2026-10-14"), null);
+  assert.strictEqual(L.OPS_outUntil(rows, "a@x.org", "2026-10-21"), "2026-10-21");
+  assert.strictEqual(L.OPS_outUntil(rows, "b@x.org", "2026-10-07"), null);
+  assert.strictEqual(L.OPS_outUntil(rows, "", "2026-10-07"), null);
+  assert.strictEqual(L.OPS_addDays("2026-02-28", 1), "2026-03-01");
+});
+t("upcoming time off and validation", () => {
+  const rows = [
+    { staff_email: "a@x.org", starts_on: "2026-11-01", ends_on: "2026-11-02" },
+    { staff_email: "a@x.org", starts_on: "2026-10-01", ends_on: "2026-10-03" },
+    { staff_email: "b@x.org", starts_on: "2026-10-08", ends_on: "2026-10-09" },
+  ];
+  assert.deepStrictEqual(L.OPS_upcomingTimeOff(rows, "2026-10-07").map((r) => r.starts_on), ["2026-10-08", "2026-11-01"]);
+  assert.strictEqual(L.OPS_upcomingTimeOff(rows, "2026-10-07", "A@x.org").length, 1);
+  assert.ok(L.OPS_timeOffError("", "2026-10-09", "2026-10-07"));
+  assert.ok(L.OPS_timeOffError("2026-10-09", "2026-10-08", "2026-10-07"));
+  assert.ok(L.OPS_timeOffError("2026-10-01", "2026-10-02", "2026-10-07"));
+  assert.ok(L.OPS_timeOffError("2026-10-07", "2027-10-09", "2026-10-07"));
+  assert.strictEqual(L.OPS_timeOffError("2026-10-01", "2026-10-07", "2026-10-07"), null);
+  assert.strictEqual(L.OPS_BACKUP_ACCESS.none.tone, "bad");
+});
+
 console.log("staffOpsLogic: " + n + " checks passed");

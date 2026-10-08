@@ -781,7 +781,10 @@ function SI_ClientContext({ entry, staffUser, rows, onOpenClient }) {
         {bkName && (
           <div>
             <dt>Bookkeeper</dt>
-            <dd>{bkName}</dd>
+            <dd>
+              {bkName}
+              {typeof CV_OutTag === "function" && bk && typeof bk === "object" && bk.email && <CV_OutTag email={bk.email} />}
+            </dd>
           </div>
         )}
         {amName && (
