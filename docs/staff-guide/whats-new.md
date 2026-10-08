@@ -7,6 +7,13 @@ sort: 15
 ---
 The newest changes to the staff side, newest first. For how anything works, search this guide or click **?** → **Help for this page**.
 
+### 2026-10-08: a simpler client portal
+
+- Clients now see five places: **Home**, **Messages**, **Finances**, **Reports** and **Documents**, with **Settings** at the bottom. See [What does the client portal look like?](#/help/client-portal).
+- **Home** opens with what needs them, beside a card with their milestone, plan and **See plans**. The milestone moved there from the top of the sidebar.
+- **Finances** gathers Budget, Bank accounts, Cash flow, Giving & funds and Payroll as tabs. **Reports** splits into **Downloads** and **Board packet**. **Messages** gains **Requests**.
+- Phones get a bottom bar: Home, Messages, Finances, Reports and More.
+
 ### 2026-10-08: tabs you can see, usage stats that count everything
 
 - **Tabs** on Work, Team, a client's pages and inside cards are now a filled control (the active tab is gold), so "Tasks, Close, Deadlines" reads as a row of tabs instead of plain text.

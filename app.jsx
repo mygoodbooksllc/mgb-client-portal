@@ -1141,9 +1141,12 @@ const PAYROLL_PRICING = { base: 49, perEmployee: 6 };
 const payrollPriceLabel = `$${PAYROLL_PRICING.base}/mo + $${PAYROLL_PRICING.perEmployee} per employee`;
 
 // Basic is barebones: statements, documents and a way to reach the
-// bookkeeper. No dashboard. Everything else is hidden rather than shown locked.
+// bookkeeper. Everything else is hidden rather than shown locked.
 // Payroll is an add-on for any plan, so Basic shows it too once they have it.
-const BASIC_TAB_KEYS = new Set(["messages", "reports", "documents", "payroll"]);
+// "dashboard" is Home since the 2026-10-08 client redesign (every plan lands
+// there): Basic gets the Needs-you list and org card, and one locked card
+// where the financial snapshot would be.
+const BASIC_TAB_KEYS = new Set(["dashboard", "messages", "reports", "documents", "payroll"]);
 
 function isBasicPlan(client, allowDevOverride = true) {
   const preview = allowDevOverride ? getPreviewPlan(client.id) : null;
@@ -13472,6 +13475,12 @@ function DeveloperToolsPage({ staffUser, readOnly }) {
         localStorage.removeItem(key);
       } catch (e) {}
     });
+    // The client portal's last-used Finances tab (CLIENT_rememberTab).
+    try {
+      Object.keys(sessionStorage)
+        .filter((k) => k.startsWith("mgb_client_tab_"))
+        .forEach((k) => sessionStorage.removeItem(k));
+    } catch (e) {}
     window.location.reload();
   }
 
@@ -25890,7 +25899,7 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
   // A staff session asking for a key this build doesn't know (a stale
   // stored page from before the 2026-10-08 nav redesign) lands on Today,
   // never on a client's Dashboard.
-  // Where a client lands: Dashboard, except on Basic, which has none.
+  // Where a client lands: Home ("dashboard"), on every plan.
   const homeTab = access.tabs.has(ALWAYS_VISIBLE_KEY)
     ? ALWAYS_VISIBLE_KEY
     : access.tabs.has("reports")
@@ -27190,7 +27199,13 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
             />
           )}
           {effectivePage === "dashboard" &&
-            (showsLiveReport ? (
+            (access.plan === "basic" ? (
+              <CLIENT_LockedCard
+                title="Your financial snapshot is part of Pro"
+                text="Pro adds cash, income, spending and runway at a glance, plus Budget, Bank accounts and Cash flow. Your statements are always on Reports."
+                onSeePlans={() => setPage("enterprise-upgrade")}
+              />
+            ) : showsLiveReport ? (
               // A premium, full-access client's "Dashboard" IS the Live
               // Report — one cohesive page instead of two separate tabs
               // both claiming to be "the overview." theme is null until the

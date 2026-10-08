@@ -117,43 +117,33 @@ function TOUR_steps(ctx) {
     },
     {
       id: "dashboard",
-      targets: ["customize", "nav-dashboard"],
-      title: "Your dashboard",
+      targets: ["customize", "nav-home"],
+      title: "Home",
       body: (key) =>
         key === "customize"
-          ? "Your financial snapshot at a glance. Use Customize dashboard to pick which cards show and put them in the order you like."
-          : "Your financial snapshot at a glance, kept up to date by your bookkeeper.",
+          ? "Home starts with what needs you, then your financial snapshot. Use Customize dashboard to pick which cards show and put them in the order you like."
+          : "Home starts with what needs you, then your financial snapshot, kept up to date by your bookkeeper.",
     },
     {
       id: "milestone",
       targets: ["milestone"],
       title: "Your milestone",
       body: () =>
-        "This shows where your organization stands on MyGoodBooks pricing. Open it to see what's included and what's next.",
+        "Your organization card shows your milestone and plan. Open the milestone to see what's included and what's next.",
     },
     {
-      id: "bank",
-      targets: ["nav-bank"],
-      title: "Bank accounts",
-      body: () => "Balances and recent activity for the bank accounts and credit cards in your books.",
-    },
-    {
-      id: "cash-flow",
-      targets: ["nav-receivables"],
-      title: "Cash flow",
-      body: () => "See money coming in and bills going out, so you know what's owed to you and what you owe.",
-    },
-    {
-      id: "budget",
-      targets: ["nav-budget"],
-      title: "Budget",
-      body: () => "Compare what you planned to spend with what you actually spent, category by category.",
+      id: "finances",
+      targets: ["nav-finances"],
+      title: "Finances",
+      body: () =>
+        "Budget, bank accounts, cash flow, giving and payroll live here, as tabs along the top of the page.",
     },
     {
       id: "reports",
       targets: ["nav-reports"],
       title: "Reports",
-      body: () => "Download your financial statements and summaries, like the profit and loss and balance sheet.",
+      body: () =>
+        "Download your financial statements under Downloads. Board packet builds one PDF for your board.",
     },
     {
       id: "documents",
@@ -166,7 +156,7 @@ function TOUR_steps(ctx) {
       id: "messages",
       targets: ["nav-messages"],
       title: "Messages",
-      body: () => "Talk to your bookkeeper here. Ask a question any time, and you'll get an email when they reply.",
+      body: () => "Talk to your bookkeeper here. Ask a question any time, and you'll get an email when they reply. Requests lists anything they've asked you for.",
     },
     {
       id: "settings",
@@ -188,6 +178,13 @@ function TOUR_steps(ctx) {
   ];
 }
 
+// A rail place is visible when its page, or any of its tabs, is (CLIENT_PLACES).
+function TOUR_navVisible(key, tabs) {
+  const place = typeof CLIENT_PLACES !== "undefined" ? CLIENT_PLACES.find((p) => p.key === key) : null;
+  if (!place) return tabs.has(key);
+  return place.tabs ? place.tabs.some((t) => tabs.has(t)) : tabs.has(place.page);
+}
+
 // The steps this person will actually see: centered steps always, others
 // only when one of their targets is on the page.
 function TOUR_visibleSteps(ctx) {
@@ -195,7 +192,7 @@ function TOUR_visibleSteps(ctx) {
     (s) =>
       !s.targets ||
       s.targets.some(
-        (k) => (!k.startsWith("nav-") || !ctx.tabs || ctx.tabs.has(k.slice(4))) && document.querySelector('[data-tour="' + k + '"]'),
+        (k) => (!k.startsWith("nav-") || !ctx.tabs || TOUR_navVisible(k.slice(4), ctx.tabs)) && document.querySelector('[data-tour="' + k + '"]'),
       ),
   );
 }

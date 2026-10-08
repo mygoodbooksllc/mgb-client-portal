@@ -687,7 +687,17 @@ Team Reviews files.
 
 ### Client side (and staff viewing a client)
 
-- **Basic** has no Dashboard, so a Basic client lands on Reports.
+- **Client navigation (redesign 2026-10-08, `CLIENT_PLACES` in app.jsx):** the client rail shows
+  five places, **Home** (`dashboard`), **Messages**, **Finances** (tabs budget, bank,
+  receivables, giving, payroll; reopens the last-used tab, order from Organization tabs),
+  **Reports** (tabs Downloads | Board packet, `#/client/<id>/reports/packet`) and **Documents**,
+  with **Settings** at the bottom. Tab rows are `NAV_TabRow` in the top bar. Messages has
+  Conversation | Requests (`CLIENT_RequestsPanel`, document requests). Home starts with
+  `CLIENT_HomeTop` (Needs you list + org card with milestone, plan, See plans). Phones get
+  `CLIENT_TabBar` (Home, Messages, Finances, Reports, More → Documents, Settings). Usage logs a
+  Finances view as page `finances`, tab `<key>`. `#/client/<id>/home` and `/finances` work.
+- **Basic** lands on Home too: Needs you, the org card, and one locked card (`CLIENT_LockedCard`)
+  where the dashboard would be. Board packet shows the same locked card on Basic.
 - **Settings** (gear at the bottom of the client sidebar, or at the right end of the staff tab
   row; `#/client/<id>/settings[/<tab>]`):
   Profile, Notifications (bookkeeper messages, reports ready, monthly summary), Organization
@@ -704,10 +714,8 @@ Team Reviews files.
   default Jesse) is the only one emailed when the client messages; staff can loop in the
   bookkeeper (`client_message_loop_in`) or @mention them. Staff replies on the client Messages
   page show the author's name and title.
-- **Sidebar heading:** the client's milestone (for example "III · Growth"), which opens the
-  Milestone page. The milestone pill sits under the tagline in the sidebar (it used to be in the
-  page header). Next to it is the gold **Pro** pill, or for Basic and Plus a lock that opens
-  Plans. Collapsed, it shows just the roman numeral.
+- **Milestone and plan:** on Home's organization card (milestone opens the Milestone page,
+  **See plans** opens Settings › Plan). They left the sidebar in the 2026-10-08 redesign.
 - **Dashboard** (customizable widgets and saved views). A Pro, full-access client gets
   **Financial Overview** here instead.
   - **Customize** opens a right-side drawer (360px wide, full-width sheet on phones; Esc, X or

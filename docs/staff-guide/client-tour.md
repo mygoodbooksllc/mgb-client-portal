@@ -9,7 +9,7 @@ The first time a client user signs in to the portal, a short guided tour starts 
 
 ### What the tour covers
 
-In order: a welcome, the Dashboard (and **Customize dashboard**, which picks and orders the cards), the milestone at the top of the sidebar, **Bank Accounts**, **Cash Flow**, **Budget**, **Reports**, **Documents** (where they upload what you ask for), **Messages** (where they talk to you), the **Settings** gear (profile, notifications, inviting teammates under Organization, and their plan), and a last "You're all set" step.
+In order: a welcome, **Home** (and **Customize dashboard**, which picks and orders the cards), the milestone on Home's organization card, **Finances** (Budget, Bank accounts, Cash flow, Giving and Payroll as tabs), **Reports**, **Documents** (where they upload what you ask for), **Messages** (where they talk to you, plus **Requests**), the **Settings** gear (profile, notifications, inviting teammates under Organization, and their plan), and a last "You're all set" step.
 
 A step is left out when that person can't see it: a tab that's not on their plan (Basic has no Dashboard, Bank Accounts, Cash Flow or Budget), a tab their access doesn't include, or anything else that isn't on their screen. So a limited-access person gets a shorter tour, and the step count matches what they'll actually see.
 

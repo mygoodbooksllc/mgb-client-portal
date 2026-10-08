@@ -5,7 +5,7 @@ audience: staff
 keywords: [client settings, settings, gear, manage access, client details, plan, plans, upgrade, change plan, organization, summary recipients, sign out, sign out all devices, security, privacy, data, who can see, encryption, delete my data, client notifications, client profile, request access, theme, dark mode]
 sort: 262
 ---
-Every client page has a **Settings** gear. For staff it's at the right end of the client's tab row (it says **new access request pending** when someone is waiting). Clients have it at the bottom of their sidebar, above **Collapse**. What it opens depends on who's looking.
+Every client page has a **Settings** gear. For staff it's at the right end of the client's tab row (it says **new access request pending** when someone is waiting). Clients have it at the bottom of their sidebar, above **Collapse**, and under **More** in the bottom bar on a phone. What it opens depends on who's looking.
 
 ### What you see (staff)
 
@@ -16,7 +16,7 @@ Two tabs:
   - **Client details**: contacts, QuickBooks, notes, SOP and the client's other details.
 
   Each **Open** button opens the same window as before.
-- **Plan**: the Basic and Pro comparison the client sees (Basic is free with 1 login included and extra logins at $20/mo each; Pro is $100/mo plus $20/mo per login; both are on top of the milestone fee), with the client's plan marked **Your plan**. This used to be its own Plans page. The lock next to **Milestone** in the sidebar opens it too.
+- **Plan**: the Basic and Pro comparison the client sees (Basic is free with 1 login included and extra logins at $20/mo each; Pro is $100/mo plus $20/mo per login; both are on top of the milestone fee), with the client's plan marked **Your plan**. This used to be its own Plans page. **See plans** on the organization card on the client's Home opens it too.
 
 ### What the client sees
 
