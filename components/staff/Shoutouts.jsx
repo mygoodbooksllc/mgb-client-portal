@@ -135,9 +135,21 @@ function SO_Item({ row, dir, me, isAdmin, clientName }) {
   );
 }
 
+// Today's celebration reminders open the composer with the teammate filled
+// in. The People tab may not be mounted yet, so the target waits here.
+let SO_pending = null;
+function SO_openCompose(to) {
+  SO_pending = to || null;
+  if (typeof NAV_go === "function") NAV_go("team", "people");
+  window.dispatchEvent(new Event("so:compose"));
+}
+
 function SO_Compose({ me, clients, onDone }) {
   const showToast = useToast();
-  const [to, setTo] = useState("");
+  const [to, setTo] = useState(SO_pending || "");
+  useEffect(() => {
+    SO_pending = null;
+  }, []);
   const [clientId, setClientId] = useState("");
   const [body, setBody] = useState("");
   const [busy, setBusy] = useState(false);
@@ -224,6 +236,14 @@ function SO_ShoutoutsBody({ clients, staffUser }) {
   const dir = typeof CV_useDirectory === "function" ? CV_useDirectory() : [];
   const [composing, setComposing] = useState(false);
   const [all, setAll] = useState(false);
+  useEffect(() => {
+    const on = () => {
+      if (SO_pending) setComposing(true);
+    };
+    on();
+    window.addEventListener("so:compose", on);
+    return () => window.removeEventListener("so:compose", on);
+  }, []);
   const byId = {};
   (clients || []).forEach((c) => (byId[c.id] = c.name || c.id));
   // A client the viewer can't open stays untagged rather than showing an id.

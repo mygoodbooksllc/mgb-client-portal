@@ -71,7 +71,8 @@ const NAV_PLACES = [
       { key: "hours", label: "Hours", help: "hours-budget", admin: true },
       { key: "reply-times", label: "Reply times", help: "reply-times", admin: true, visible: () => typeof RT_ReplyTimesTab === "function" },
       { key: "feedback", label: "Feedback", help: "feedback-page", admin: true, visible: () => typeof FB_FeedbackPage === "function" },
-      { key: "members", label: "Members", help: "staff-management", admin: true },
+      { key: "performance", label: "Performance", help: "performance", visible: () => typeof PF_PerformanceTab === "function" },
+    { key: "members", label: "Members", help: "staff-management", admin: true },
     ],
   },
 ];

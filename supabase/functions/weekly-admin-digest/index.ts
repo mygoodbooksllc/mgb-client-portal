@@ -294,8 +294,37 @@ function feeChangesSection(f: any): Section | null {
   return { title: "Fee changes to review", html, text, link: { label: "Open Milestones to review on Today", href: `${APP_URL}/#/today` } };
 }
 
+// Birthdays and work anniversaries in the next 14 days, so gifts have lead
+// time. Rows come from staff_celebrations(); an occurrence already marked
+// "gift sent" or dismissed on Today is left out.
+function comingUpSection(d: any): Section | null {
+  const rows: any[] = Array.isArray(d.celebrations) ? d.celebrations : [];
+  const today = String(d.today || new Date().toISOString().slice(0, 10));
+  const t0 = Date.parse(today + "T00:00:00Z");
+  const items: { days: number; when: string; who: string; what: string }[] = [];
+  for (const r of rows) {
+    const add = (iso: string | null, action: string | null, what: string) => {
+      if (!iso || action) return;
+      const days = Math.round((Date.parse(iso + "T00:00:00Z") - t0) / 86400000);
+      if (days < 0 || days > 14) return;
+      items.push({ days, when: fmtDay(iso, true), who: r.name || r.email, what });
+    };
+    add(r.next_birthday, r.birthday_action, "birthday");
+    add(r.next_anniversary, r.anniversary_action, `${r.years} year${r.years === 1 ? "" : "s"} with the firm`);
+  }
+  if (items.length === 0) return null;
+  items.sort((a, b) => a.days - b.days || a.who.localeCompare(b.who));
+  const html =
+    tableHtml(["When", "Who", "What"], items.map((i) => [esc(i.when), esc(i.who), esc(i.what)])) +
+    para("Today reminds you a week ahead with Send shout-out, Gift sent and Dismiss.", "muted");
+  const text = textTable(items.map((i) => `${i.when}: ${i.who}, ${i.what}`));
+  return { title: "Coming up: birthdays and anniversaries", html, text, link: { label: "Open Team › People", href: `${APP_URL}/#/team/people` } };
+}
+
 function buildSections(d: any): Section[] {
   const out: Section[] = [];
+  const cel = comingUpSection(d);
+  if (cel) out.push(cel);
   const team = { label: "Open the Hours tab", href: `${APP_URL}/#/team/hours` };
   const firmOn = d.firm_qbo?.status === "connected" || d.firm_qbo?.status === "error";
 
@@ -737,6 +766,17 @@ Deno.serve(async (req) => {
     await log("error", { detail });
     console.log(`weekly-admin-digest: ${detail}`);
     return json({ status: "error", error: detail }, 500);
+  }
+
+  // Birthdays and work anniversaries for the "Coming up" section
+  // (staff_celebrations in supabase/staff-celebrations-performance.sql).
+  // Optional: a failure here never stops the digest.
+  try {
+    const { data: cel, error: celErr } = await admin.rpc("staff_celebrations");
+    if (!celErr && Array.isArray(cel)) (data as any).celebrations = cel;
+    (data as any).today = today;
+  } catch (_e) {
+    // ignore
   }
 
   // Usage guard status for the Pending section. Optional: a failure here

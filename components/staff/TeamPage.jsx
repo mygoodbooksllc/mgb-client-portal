@@ -585,6 +585,8 @@ function TP_TeamHub({ tab, staffUser, isAdmin, isRealAdmin, clients, renderMembe
   else if (current === "hours") body = <TP_TeamPage clients={clients} />;
   else if (current === "reply-times") body = typeof RT_ReplyTimesTab === "function" ? <RT_ReplyTimesTab /> : missing("Reply times");
   else if (current === "feedback") body = typeof FB_FeedbackPage === "function" ? <FB_FeedbackPage clients={clients} /> : missing("Feedback");
+  else if (current === "performance")
+    body = typeof PF_PerformanceTab === "function" ? <PF_PerformanceTab staffUser={staffUser} isAdmin={realAdmin} /> : missing("Performance");
   else if (current === "members") body = typeof renderMembers === "function" ? renderMembers() : missing("Members");
 
   // App's page header already shows "Team" and its subtitle (PAGE_META), so
@@ -610,6 +612,63 @@ function TP_TeamHub({ tab, staffUser, isAdmin, isRealAdmin, clients, renderMembe
 // their clients' backups (client_profile, readable for assigned clients).
 // Shout-outs (Shoutouts.jsx) are for everyone.
 // ---------------------------------------------------------------------------
+// Birthdays and work anniversaries in the next 30 days, from rpc
+// staff_celebrations (everyone sees the day; only admins the birth year).
+function TP_UpcomingCard() {
+  const [st, setSt] = useState({ loading: true, rows: [] });
+  useEffect(() => {
+    const sb = window.mgbSupabase;
+    if (!sb || typeof sb.rpc !== "function") {
+      setSt({ loading: false, rows: [] });
+      return;
+    }
+    let alive = true;
+    sb.rpc("staff_celebrations").then(({ data, error }) => {
+      if (alive) setSt({ loading: false, rows: error || !Array.isArray(data) ? [] : data });
+    });
+    return () => {
+      alive = false;
+    };
+  }, []);
+  const today = todayLocal();
+  const items = [];
+  st.rows.forEach((r) => {
+    const add = (on, what, key) => {
+      if (!on) return;
+      const d = daysUntil(on, today);
+      if (d < 0 || d > 30) return;
+      items.push({ key: key + r.email, d, on, name: r.name, what });
+    };
+    add(r.next_birthday, "birthday", "b-");
+    add(r.next_anniversary, `${r.years} year${r.years === 1 ? "" : "s"} with the firm`, "a-");
+  });
+  items.sort((a, b) => a.d - b.d || a.name.localeCompare(b.name));
+  return (
+    <section className="card tp-people-card" aria-labelledby="tp-upcoming-title">
+      <h3 className="card-title" id="tp-upcoming-title">
+        Celebrations
+      </h3>
+      <p className="card-subtitle">Birthdays and work anniversaries in the next 30 days. Add yours in Settings › Profile.</p>
+      {st.loading ? (
+        <p className="card-subtitle">Loading…</p>
+      ) : items.length === 0 ? (
+        <p className="card-subtitle">Nothing in the next 30 days.</p>
+      ) : (
+        <ul className="tp-upcoming">
+          {items.map((it) => (
+            <li key={it.key}>
+              <span className="tp-upcoming-when">{it.d === 0 ? "Today" : it.d === 1 ? "Tomorrow" : fmtDate(it.on)}</span>
+              <span className="tp-upcoming-who">
+                <b>{it.name}</b> · {it.what}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  );
+}
+
 function TP_PeopleTab({ staffUser, isAdmin, clients }) {
   const coverage = isAdmin && typeof CV_CoverageTab === "function";
   const shoutouts = typeof SO_ShoutoutsBody === "function" && (
@@ -619,10 +678,12 @@ function TP_PeopleTab({ staffUser, isAdmin, clients }) {
       <SO_ShoutoutsBody clients={clients} staffUser={staffUser} />
     </section>
   );
+  const upcoming = <TP_UpcomingCard />;
   if (coverage) {
     return (
       <div className="tp-people">
         <CV_CoverageTab />
+        {upcoming}
         {shoutouts}
       </div>
     );
@@ -641,6 +702,7 @@ function TP_PeopleTab({ staffUser, isAdmin, clients }) {
             <CV_MyTimeOffBody staffUser={staffUser} />
           </section>
         )}
+        {upcoming}
         {shoutouts}
       </div>
     </div>

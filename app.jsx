@@ -12450,6 +12450,30 @@ function StaffAccessPage({ staffUser, onImpersonate, readOnly }) {
     load();
   }
 
+  // Birthday + start date live on staff_profiles (Settings › Profile for the
+  // person; admins can fill them here). Refetched whenever the roster loads.
+  const [profiles, setProfiles] = useState({});
+  useEffect(() => {
+    if (!supabase || !rows || rows.length === 0) return;
+    supabase
+      .from("staff_profiles")
+      .select("email, birthday, start_date")
+      .then(({ data }) => {
+        const m = {};
+        (data || []).forEach((p) => (m[p.email] = p));
+        setProfiles(m);
+      });
+  }, [supabase, rows]);
+  async function updateProfile(row, patch) {
+    const { error } = await supabase.from("staff_profiles").upsert({ email: row.email, ...patch }, { onConflict: "email" });
+    if (error) {
+      showToast(`Couldn't save ${row.email}: ${error.message}`);
+      return;
+    }
+    setProfiles((p) => ({ ...p, [row.email]: { ...(p[row.email] || {}), ...patch } }));
+    showToast("Saved");
+  }
+
   async function updateRow(row, patch) {
     setBusyId(row.id);
     const { error } = await supabase
@@ -12630,6 +12654,8 @@ function StaffAccessPage({ staffUser, onImpersonate, readOnly }) {
                 <tr>
                   <th>Name</th>
                   <th>Email</th>
+                  <th>Birthday</th>
+                  <th>Start date</th>
                   <th>Role</th>
                   <th>Active</th>
                   <th>Clients</th>
@@ -12652,6 +12678,31 @@ function StaffAccessPage({ staffUser, onImpersonate, readOnly }) {
                     <tr key={row.id}>
                       <td data-primary="">{row.name}</td>
                       <td data-label="Email">{row.email}</td>
+                      <td data-label="Birthday">
+                        {typeof ST_DateInput === "function" ? (
+                          <ST_DateInput
+                            value={(profiles[row.email] || {}).birthday}
+                            max={new Date().toISOString().slice(0, 10)}
+                            disabled={readOnly}
+                            ariaLabel={`Birthday for ${row.name}`}
+                            onSave={(v) => updateProfile(row, { birthday: v })}
+                          />
+                        ) : (
+                          "—"
+                        )}
+                      </td>
+                      <td data-label="Start date">
+                        {typeof ST_DateInput === "function" ? (
+                          <ST_DateInput
+                            value={(profiles[row.email] || {}).start_date}
+                            disabled={readOnly}
+                            ariaLabel={`Start date for ${row.name}`}
+                            onSave={(v) => updateProfile(row, { start_date: v })}
+                          />
+                        ) : (
+                          "—"
+                        )}
+                      </td>
                       <td data-label="Role">
                         <select
                           value={row.role}

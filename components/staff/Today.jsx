@@ -549,6 +549,47 @@ function TD_buildRows(x) {
   // SOPs not edited or marked accurate in 180 days (SopFreshness.jsx).
   (x.staleSops || []).forEach((r) => week.push({ ...r, kind: "sop", rank: 9 }));
 
+  // Birthdays and work anniversaries within 7 days (admins). Today's sit in
+  // "now", the rest in "this week". "Gift sent" or "Dismiss" hides one.
+  (x.celebrations || []).forEach((r) => {
+    const push = (kind, on, action, title, what) => {
+      if (!on || action) return;
+      const d = daysUntil(on, x.today);
+      if (d < 0 || d > 7) return;
+      const when = d === 0 ? "Today" : d === 1 ? "Tomorrow" : fmtDate(on);
+      (d === 0 ? now : week).push({
+        key: "cel-" + kind + "-" + r.email,
+        kind: "celebrate",
+        rank: 0,
+        sort: d,
+        title,
+        detail: `${when} · ${what}`,
+        onClick: () => x.openShoutout(r.email),
+        actions: [
+          { label: "Send shout-out", primary: true, onClick: () => x.openShoutout(r.email) },
+          { label: "Gift sent", onClick: () => x.celebrate(r, kind, "gift") },
+          { label: "Dismiss", onClick: () => x.celebrate(r, kind, "dismissed") },
+        ],
+      });
+    };
+    push("birthday", r.next_birthday, r.birthday_action, `${r.name}'s birthday`, "send a gift or a shout-out");
+    push("anniversary", r.next_anniversary, r.anniversary_action, `${r.name}: ${r.years} year${r.years === 1 ? "" : "s"} with the firm`, "work anniversary");
+  });
+
+  // My own profile is missing its birthday or start date. Stays until done.
+  if (x.profileIncomplete) {
+    now.push({
+      key: "profile",
+      kind: "profile",
+      rank: 10,
+      sort: 0,
+      title: "Complete your profile",
+      detail: "Add your birthday and start date so the team can celebrate with you.",
+      onClick: x.goProfile,
+      actions: [{ label: "Open my profile", primary: true, onClick: x.goProfile }],
+    });
+  }
+
   const order = (a, b) => a.rank - b.rank || a.sort - b.sort;
   return { now: now.sort(order), week: week.sort(order) };
 }
@@ -561,6 +602,21 @@ function TD_KindIcon({ kind }) {
         <svg {...p}>
           <path d="M4 5h16v11H8l-4 4V5z" />
           <path d="M8 10h8M8 13h5" />
+        </svg>
+      );
+    case "celebrate":
+      return (
+        <svg {...p}>
+          <rect x="3" y="10" width="18" height="11" rx="1.5" />
+          <path d="M12 10v11M3 14.5h18" />
+          <path d="M12 10c-1.2-3.2-5.2-4.2-5.2-1.6S10.2 10 12 10zm0 0c1.2-3.2 5.2-4.2 5.2-1.6S13.8 10 12 10z" />
+        </svg>
+      );
+    case "profile":
+      return (
+        <svg {...p}>
+          <circle cx="12" cy="8" r="4" />
+          <path d="M4 21c0-4 3.5-6.5 8-6.5s8 2.5 8 6.5" />
         </svg>
       );
     case "task":
@@ -835,6 +891,37 @@ function TD_RecentCard({ clients, onNavigateToClient }) {
 // ---------------------------------------------------------------------------
 // The page
 // ---------------------------------------------------------------------------
+// Upcoming birthdays and work anniversaries for admins (rpc
+// staff_celebrations) plus the "gift sent" / "dismiss" actions that clear
+// an occurrence. Rows re-fetch after each action.
+function TD_useCelebrations(admin, today) {
+  const [rows, setRows] = React.useState([]);
+  const [tick, setTick] = React.useState(0);
+  React.useEffect(() => {
+    if (!admin) return;
+    const sb = window.mgbSupabase;
+    if (!sb || typeof sb.rpc !== "function") return;
+    let alive = true;
+    sb.rpc("staff_celebrations").then(({ data, error }) => {
+      if (alive && !error) setRows(Array.isArray(data) ? data : []);
+    });
+    return () => {
+      alive = false;
+    };
+  }, [admin, today, tick]);
+  const act = React.useCallback(async (row, kind, action, byEmail) => {
+    const sb = window.mgbSupabase;
+    if (!sb) return { message: "Not connected" };
+    const occurs_on = kind === "birthday" ? row.next_birthday : row.next_anniversary;
+    const { error } = await sb
+      .from("staff_celebration_actions")
+      .upsert({ staff_email: row.email, kind, occurs_on, action, by_email: byEmail }, { onConflict: "staff_email,kind,occurs_on" });
+    if (!error) setTick((t) => t + 1);
+    return error;
+  }, []);
+  return { rows: admin ? rows : [], act };
+}
+
 function TD_TodayPage({ staffUser, clients, onNavigateToClient, onOpenClientMilestone, isAdmin }) {
   const showToast = useToast();
   const me = TD_lc(staffUser && staffUser.email);
@@ -858,6 +945,29 @@ function TD_TodayPage({ staffUser, clients, onNavigateToClient, onOpenClientMile
   const health = typeof HL_useHealth === "function" ? HL_useHealth() : null;
   const sopStatus = typeof SF_useSopStatus === "function" ? SF_useSopStatus(true) : null;
   const st = typeof ST_useSettings === "function" ? ST_useSettings() : null;
+  // Celebrations to act on (admins) and whether my own profile still needs
+  // its birthday and start date (everyone; stays on the list until done).
+  const cel = TD_useCelebrations(admin, today);
+  const myProfile = typeof ST_useMyProfile === "function" ? ST_useMyProfile(me) : null;
+  const profileIncomplete = !!(myProfile && myProfile.loaded && !(myProfile.row && myProfile.row.birthday && myProfile.row.start_date));
+  // First sign-in: one welcome prompt per browser, then the Today item
+  // carries the reminder until both dates are filled in.
+  const promptKey = "mgb-profile-prompt:" + me;
+  const [profilePrompt, setProfilePrompt] = React.useState(false);
+  React.useEffect(() => {
+    if (!profileIncomplete || !me) return;
+    let seen = false;
+    try {
+      seen = !!localStorage.getItem(promptKey);
+    } catch (e) {}
+    if (!seen) setProfilePrompt(true);
+  }, [profileIncomplete, me]);
+  const dismissProfilePrompt = () => {
+    setProfilePrompt(false);
+    try {
+      localStorage.setItem(promptKey, "1");
+    } catch (e) {}
+  };
 
   const [expanded, setExpanded] = React.useState(false);
   const [grantBusy, setGrantBusy] = React.useState(null);
@@ -930,6 +1040,16 @@ function TD_TodayPage({ staffUser, clients, onNavigateToClient, onOpenClientMile
   const reviewData =
     reviews && reviews.data && !(staffUser && staffUser.name && reviews.data.me && reviews.data.me.name && staffUser.name !== reviews.data.me.name) ? reviews.data : null;
 
+  const celebrate = async (row, kind, action) => {
+    const error = await cel.act(row, kind, action, me);
+    showToast(error ? "Couldn't save: " + (error.message || "try again") : action === "gift" ? "Marked as gift sent" : "Dismissed");
+  };
+  const openShoutout = (to) => {
+    if (typeof SO_openCompose === "function") SO_openCompose(to);
+    else NAV_go("team", "people");
+  };
+  const goProfile = () => NAV_go("settings"); // Settings opens on Profile
+
   const nowMs = Date.now();
   const rows = React.useMemo(
     () =>
@@ -939,6 +1059,11 @@ function TD_TodayPage({ staffUser, clients, onNavigateToClient, onOpenClientMile
         today,
         me,
         nowMs,
+        celebrations: cel.rows,
+        celebrate,
+        openShoutout,
+        profileIncomplete,
+        goProfile,
         toApprove: grants && grants.status === "ready" ? grants.toApprove : [],
         grantBusy,
         decideGrant,
@@ -978,6 +1103,8 @@ function TD_TodayPage({ staffUser, clients, onNavigateToClient, onOpenClientMile
       health && health.byId,
       coverage.gaps,
       staleSops,
+      cel.rows,
+      profileIncomplete,
       onNavigateToClient,
     ],
   );
@@ -1064,6 +1191,37 @@ function TD_TodayPage({ staffUser, clients, onNavigateToClient, onOpenClientMile
 
   return (
     <div className="td-page">
+      {profilePrompt && typeof ModalShell === "function" && (
+        <ModalShell onClose={dismissProfilePrompt} labelledBy="td-profile-title" className="confirm-modal">
+          <div className="modal-header">
+            <h3 className="card-title" id="td-profile-title" style={{ margin: 0 }}>
+              Welcome! Finish your profile
+            </h3>
+            <button type="button" className="modal-close" onClick={dismissProfilePrompt} aria-label="Close">
+              ×
+            </button>
+          </div>
+          <div className="modal-body">
+            <p>Add your birthday and start date so the team can celebrate with you. Your name, title and photo show on your clients' dashboards too.</p>
+            <p className="card-subtitle">This stays on your Today list until it's done.</p>
+          </div>
+          <div className="modal-footer">
+            <button type="button" className="btn-secondary" onClick={dismissProfilePrompt}>
+              Later
+            </button>
+            <button
+              type="button"
+              className="btn-primary"
+              onClick={() => {
+                dismissProfilePrompt();
+                goProfile();
+              }}
+            >
+              Open my profile
+            </button>
+          </div>
+        </ModalShell>
+      )}
       <div className="td-head">
         <div className="td-head-text">
           <p className="td-greeting">{TD_greeting(staffUser && staffUser.name)}</p>

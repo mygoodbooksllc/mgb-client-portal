@@ -1091,3 +1091,42 @@ p.pf-strip {
     margin-left: 0;
   }
 }
+
+
+/* Team › People: upcoming celebrations ------------------------------------ */
+.tp-upcoming { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.tp-upcoming li { display: flex; gap: 12px; align-items: baseline; }
+.tp-upcoming-when { min-width: 5.5em; color: var(--text-muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+/* Team › Performance ------------------------------------------------------- */
+.pf-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
+.pf-head .card-subtitle { margin-bottom: 0; }
+.pf-seg { display: inline-flex; border: 1px solid var(--border); border-radius: 999px; overflow: hidden; flex: none; }
+.pf-seg button { border: 0; background: transparent; padding: 6px 12px; font: inherit; font-size: 0.9em; color: var(--text-muted); cursor: pointer; }
+.pf-seg button[aria-pressed="true"] { background: var(--accent-soft); color: var(--text); font-weight: 600; }
+.pf-score { display: inline-block; min-width: 2.6em; text-align: center; font-weight: 700; font-variant-numeric: tabular-nums; border-radius: 999px; padding: 2px 8px; }
+.pf-score-big { font-size: 1.6em; padding: 4px 14px; margin-bottom: 10px; }
+.pf-good { background: var(--good-soft); color: var(--good); }
+.pf-ok { background: var(--accent-soft); color: var(--gold-deep); }
+.pf-low { background: var(--bad-soft); color: var(--bad); }
+.pf-none { color: var(--text-muted); }
+.pf-email { display: block; font-size: 0.85em; color: var(--text-muted); font-weight: 400; }
+.pf-table .num { text-align: right; }
+.pf-detail td { background: var(--accent-soft); }
+.pf-inputs { list-style: none; margin: 0; padding: 4px 0; display: grid; gap: 10px; }
+.pf-input { display: grid; grid-template-columns: 1fr auto; gap: 2px 12px; align-items: center; }
+.pf-input-label { font-weight: 600; }
+.pf-weight { color: var(--text-muted); font-weight: 400; font-size: 0.85em; }
+.pf-pct { font-variant-numeric: tabular-nums; font-weight: 600; }
+.pf-pct.pf-none { font-weight: 400; }
+.pf-bar { grid-column: 1 / -1; height: 6px; border-radius: 3px; background: var(--border); overflow: hidden; }
+.pf-bar > span { display: block; height: 100%; background: var(--accent); }
+.pf-input-none .pf-bar { opacity: 0.5; }
+.pf-input-detail { grid-column: 1 / -1; color: var(--text-muted); font-size: 0.9em; }
+.pf-how { margin-top: 12px; }
+.pf-how-body { margin-top: 8px; }
+.pf-how-list { margin: 8px 0; padding-left: 20px; display: grid; gap: 6px; font-size: 0.95em; }
+@media (max-width: 640px) {
+  .pf-detail td { padding: 10px 12px; }
+  .pf-table .pf-detail td::before { display: none; }
+}

@@ -311,7 +311,8 @@ const ST_profile = (function () {
     if (!sb) return;
     const { data, error } = await sb
       .from("staff_profiles")
-      .select("display_name, title, phone, photo_path")
+      .select("display_name, title, phone, photo_path, birthday, start_date")
+      .eq("email", forEmail)
       .maybeSingle();
     if (forEmail !== email) return;
     row = !error && data ? data : null;
@@ -348,6 +349,8 @@ const ST_profile = (function () {
           title: next.title || null,
           phone: next.phone || null,
           photo_path: next.photo_path || null,
+          birthday: next.birthday || null,
+          start_date: next.start_date || null,
         },
         { onConflict: "email" },
       );
@@ -667,6 +670,47 @@ function ST_DashboardsCard({ clients, readOnly }) {
 // ---------------------------------------------------------------------------
 // Staff Settings page
 // ---------------------------------------------------------------------------
+// Date field that saves once a full date is picked or typed (date inputs
+// report "" while a typed date is incomplete) and saves a clear on blur.
+// Also used by Team › Members, so it never assumes it's your own row.
+function ST_DateInput({ value, disabled, min, max, onSave, ariaLabel }) {
+  const [v, setV] = React.useState(value || "");
+  const timer = React.useRef(null);
+  const sent = React.useRef(null);
+  React.useEffect(() => {
+    setV(value || "");
+    sent.current = null;
+  }, [value]);
+  React.useEffect(() => () => clearTimeout(timer.current), []);
+  const commit = (next) => {
+    const n = next || "";
+    if (n === (value || "") || n === sent.current) return;
+    sent.current = n;
+    onSave(n || null);
+  };
+  return (
+    <input
+      className="st-input st-date"
+      type="date"
+      value={v}
+      min={min}
+      max={max}
+      disabled={disabled}
+      aria-label={ariaLabel}
+      onChange={(e) => {
+        const next = e.target.value;
+        setV(next);
+        clearTimeout(timer.current);
+        if (next) timer.current = setTimeout(() => commit(next), 500);
+      }}
+      onBlur={() => {
+        clearTimeout(timer.current);
+        commit(v);
+      }}
+    />
+  );
+}
+
 function ST_StaffProfileCard({ staffUser, readOnly }) {
   const prof = ST_useMyProfile(staffUser && staffUser.email);
   const [msg, setMsg] = React.useState("");
@@ -736,6 +780,12 @@ function ST_StaffProfileCard({ staffUser, readOnly }) {
         </ST_Field>
         <ST_Field label="Phone">
           <ST_AutoInput value={row.phone} maxLength={40} disabled={!!readOnly} onSave={(v) => save({ phone: v.trim() || null })} autoComplete="tel" inputMode="tel" />
+        </ST_Field>
+        <ST_Field label="Birthday" hint="So the team can celebrate with you. Teammates see the day; only admins see the year.">
+          <ST_DateInput value={row.birthday} max={new Date().toISOString().slice(0, 10)} disabled={!!readOnly} onSave={(v) => save({ birthday: v }, v ? "Birthday saved" : "Birthday cleared")} />
+        </ST_Field>
+        <ST_Field label="Start date" hint="Your first day with the firm, for work anniversaries.">
+          <ST_DateInput value={row.start_date} disabled={!!readOnly} onSave={(v) => save({ start_date: v }, v ? "Start date saved" : "Start date cleared")} />
         </ST_Field>
         <ST_Field label="Email" hint="Your sign-in email. Ask an admin to change it.">
           <input className="st-input" value={(staffUser && staffUser.email) || ""} readOnly disabled />

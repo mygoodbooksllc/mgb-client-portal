@@ -7,6 +7,12 @@ sort: 15
 ---
 The newest changes to the staff side, newest first. For how anything works, search this guide or click **?** → **Help for this page**.
 
+### 2026-10-08: birthdays, anniversaries and performance
+
+- **Settings › Profile** has **Birthday** and **Start date**. Add yours so the team can celebrate with you; a first sign-in prompt and a Today item remind you until both are in. See [Birthdays, work anniversaries and gift reminders](#/help/celebrations).
+- **Team › People › Celebrations** shows the next 30 days of birthdays and work anniversaries. Admins get each one on **Today** a week ahead with **Send shout-out**, **Gift sent** and **Dismiss**, plus a "Coming up" section in the weekly digest. Admins can also fill in dates from **Team › Members**.
+- **Team › Performance** scores every bookkeeper 0 to 100 from replies within goal, month-ends closed on time, client health, tasks and deadlines, hours vs capacity and the latest quarterly review. Admins see the ranking; bookkeepers see their own score and inputs. See [How does Team › Performance score bookkeepers?](#/help/performance).
+
 ### 2026-10-08: new staff navigation
 
 - **Five places** in the left rail: **Today**, **Inbox**, **Work**, **Clients** and **Team**, with **Settings** at the bottom. Every page is a title, one row of tabs and the content.
