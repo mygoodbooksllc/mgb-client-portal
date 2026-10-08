@@ -2,7 +2,7 @@
 title: Getting started: a tour of the staff portal
 section: Getting started
 audience: staff
-keywords: [new, start, tour, overview, sidebar, top bar, menu, navigation, home, first day, orientation]
+keywords: [new, start, tour, overview, sidebar, top bar, menu, navigation, home, first day, orientation, reviews]
 sort: 10
 ---
 Welcome! The MyGoodBooks portal is where our clients (mostly churches and nonprofits) see their finances, and where we, the staff, keep track of our work for them. This page shows you around.
@@ -28,6 +28,7 @@ On a computer, the dark sidebar on the left has the page links:
 - **Inbox**: client conversations and team chat in one place.
 - **My Tasks**: your tasks, notes and client SOPs.
 - **Close tracker**: month-end close progress for every client.
+- **Reviews**: your quarterly review, the team survey and your review history. The number beside it shows what's waiting on you. See [How do quarterly reviews work?](#/help/quarterly-reviews).
 - **Help**: this guide.
 
 Admins also see an **Admin** group with **Team** (hours and tasks, plus the **Members** tab that used to be Staff Access) and **Feedback**. The other admin pages (Task templates, Client roster, Emails, QuickBooks usage, Usage stats, Audit log and Developer tools) are in **Settings → Firm settings**.
@@ -38,7 +39,7 @@ When you have a client open, the staff sidebar shrinks to a thin strip of icons 
 
 ### On a phone
 
-The top bar keeps the client picker, search, the bell and **+**. Tap the menu button at the top left to open the menu. Tap your name (the chip with your initials) to reach the staff pages (Home, Inbox, My Tasks, Close tracker, Help and so on), **Settings** and **Sign out**.
+The top bar keeps the client picker, search, the bell and **+**. Tap the menu button at the top left to open the menu. Tap your name (the chip with your initials) to reach the staff pages (Home, Inbox, My Tasks, Close tracker, Reviews, Help and so on), **Settings** and **Sign out**.
 
 ### Who sees what
 

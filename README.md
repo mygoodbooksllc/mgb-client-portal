@@ -519,6 +519,49 @@ Owner setup:
    price review and capacity have numbers.
 4. On the Client Roster, pick a real assigned bookkeeper for each client.
 
+### Team Reviews and Team Survey (added 2026-10-07)
+
+Staff-only module on the **Reviews** sidebar item (`#/reviews/<tab>`, `#/reviews/r/<id>`,
+`#/reviews/survey`). Clients can't reach any of it: every table has RLS, and every read and write
+goes through `security definer` RPCs that call `tr_me()` / `tr_require_admin()` first.
+
+- **Front end** (in-browser Babel, `TR_` globals, loaded from `index.html` in this order):
+  `components/staff/teamReviewsLogic.js` (scale, items, validation, year-end draft; unit tests in
+  `teamReviewsLogic.test.js`), `TeamReviews.jsx` (page shell, tabs, overview store, sidebar badge,
+  Home "Review due" card, the form), `TeamReviewsCompare.jsx` (comparison, action steps,
+  signatures, reopen, close unsigned, addenda, PDF/Drive), `TeamReviewsSurvey.jsx` (survey and
+  admin results), `TeamReviewsAdmin.jsx` (History, Team status, Year-end), `team-reviews.css`.
+- **Tabs:** My review and History for everyone; admins also get Team status, Reviews I'm giving,
+  Survey results and Year-end.
+- **Database:** `supabase/team-reviews-1-schema.sql` (tables `review_settings`, `review_cycles`,
+  `reviews`, `review_submissions`, `review_signatures`, `action_steps`, `review_events`,
+  `review_addenda`, `survey_responses`, `survey_anonymous_answers`, `review_year_summaries`,
+  `review_notifications`, `review_drive_folders`; locks and no-delete triggers) and
+  `supabase/team-reviews-2-rpcs.sql` (all `tr_*` RPCs, the email outbox and the two crons
+  `team-reviews-sweep` every 5 minutes and `team-reviews-due-soon` daily). Roles come from
+  `public.staff` (bookkeeper = staff, admin = admin).
+- **Blind rule** is enforced in `tr_get_review`: neither side's scores come back until both forms
+  are submitted, admins included.
+- **Signatures** store user id, typed name, account email, UTC time, IP and user agent. IP and
+  user agent are read server-side from PostgREST's `request.headers` (`cf-connecting-ip`, then
+  `x-real-ip`, then the first `x-forwarded-for` entry), never from the browser.
+- **Edge function** `supabase/functions/team-reviews/` (`verify_jwt` off, checks the caller's JWT
+  or the cron bearer itself): `pdf`, `export`, `year_pdf`, `year_export`, `drive_status`, plus the
+  `sweep` job that sends queued emails and retries Drive exports hourly. PDFs are drawn in `pdf.ts`.
+  Drive: Shared Drive id in `GOOGLE_DRIVE_REVIEWS_DRIVE_ID`, same `GOOGLE_SERVICE_ACCOUNT_JSON` as
+  client files; path `{Staff Name}/{YYYY} Q{n} Review.pdf` and `{YYYY} Year-End Summary.pdf`;
+  re-export updates the same file (new revision). Without the secret, reviews still lock and show
+  "Waiting for Drive setup". Staff never get Drive links; PDFs stream through the portal.
+- **Retention:** keep forever. Nothing in the module hard-deletes; unsigned reviews end as
+  `closed_unsigned`, corrections after lock are addenda.
+- **Anonymous survey questions (7 and 10)** are stored in `survey_anonymous_answers` without a
+  staff id and shown only once 3 or more people answered. Caveat: with a small team, timing and
+  writing style can still identify someone, and the table has no timestamp or staff id but someone
+  with direct database access could guess from physical row order. It's "not linked by name", not
+  cryptographic anonymity.
+- Staff guide: `quarterly-reviews.md`, `team-survey.md`, `review-cycles.md`,
+  `review-drive-setup.md`.
+
 ### Client side (and staff viewing a client)
 
 - **Basic** has no Dashboard, so a Basic client lands on Reports.
@@ -741,6 +784,14 @@ Owner setup:
   `design-system/.design-sync/NOTES.md`.
 
 ## Known gaps and roadmap
+
+**Team Reviews (later)**
+
+- Google Chat notifications for review cycles (email only for now).
+- Evidence chips next to Ownership · Behavior (Asana overdue tasks, Calendar sessions outside
+  scheduled hours; later Gmail response time). Spec marks them optional.
+- Survey results "Recurring themes" card from the design: needs text analysis, so results show
+  every answer per question instead.
 
 **Tasks and staff tools**
 
