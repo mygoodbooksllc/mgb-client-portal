@@ -9,7 +9,7 @@ With a client open, click **+** in the dark bar at the top of the page. The menu
 
 | Menu item | What it does |
 |---|---|
-| **New task** | Adds a task for this client to My Tasks. |
+| **New task** | Adds a task for this client to Work › Tasks. |
 | **New note** | Saves a staff note on this client. |
 | **Request document** | Asks the client to upload a file. |
 | **Message** | Opens the chat drawer on this client's people, without leaving the page. |

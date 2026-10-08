@@ -12,7 +12,7 @@ Staff sign in with their **MyGoodBooks Google account** (your @mygoodbooks.org a
 1. Go to **app.mygoodbooks.org**. The first screen is the *client* login, which asks for an email address. Don't type your email there.
 2. Click the small **MyGoodBooks staff? Sign in with Google** link at the very bottom of the page, under Privacy, Terms and Contact.
 3. Pick your @mygoodbooks.org Google account. Google only accepts MyGoodBooks accounts here.
-4. The portal checks that you're on the staff list, then opens your **Home** page.
+4. The portal checks that you're on the staff list, then opens **Today** (or the start page you picked in Settings).
 
 If someone sent you a link to a specific page (for example a task list or a client), open the link first. After you sign in, the portal takes you to that page.
 

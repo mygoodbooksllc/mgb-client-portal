@@ -20,7 +20,7 @@ The client shows **Pending** in the picker until someone decides. Click **Cancel
 
 ### Who approves it
 
-An admin or the client's own bookkeeper. They see the request on **Home**, in the **Client access requests** card ("{who} wants {client} for {duration}"), and click **Approve** or **Deny**.
+An admin or the client's own bookkeeper. They see the request on **Today**, in **Needs you** ("{who} wants {client} for {duration}"), and click **Approve** or **Deny**.
 
 The same card lists **Active temporary access**, where an admin or the bookkeeper can **Revoke** access at any time.
 

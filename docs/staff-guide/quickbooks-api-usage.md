@@ -7,7 +7,7 @@ sort: 585
 ---
 Intuit limits how many times a month the app can read from QuickBooks (500,000 calls by default). Every client sync and every QuickBooks Time sync counts. The **QuickBooks API usage** card keeps the firm under that limit.
 
-Find it on **Team** (sidebar → **Team**, **Hours and tasks** tab), just under the **QuickBooks Time** panel, or open **Settings → Firm settings → QuickBooks usage and limits**, which also shows this month's **% used**. Only admins see it.
+Find it on **Team › Hours** (`#/team/hours`), just under the **QuickBooks Time** panel, or open **Settings → Firm settings → QuickBooks usage and limits**, which also shows this month's **% used**. Only admins see it.
 
 ### What the card shows
 

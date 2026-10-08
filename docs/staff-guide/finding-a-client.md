@@ -29,7 +29,7 @@ Press **Ctrl+K** (**⌘K** on a Mac) or click the search box at the top of the p
 
 ### Getting back
 
-- **Client view** in the staff sidebar takes you back to the client you last had open.
+- **Recently viewed** on Today (turn it on under **Also show**) and the **Last viewed** column on the **Clients** page take you back to clients you had open.
 - **Overview**, next to the client picker, takes you back to the open client's Client overview. On a phone, pick the same client again in the picker.
 - The address bar keeps the client and page, so you can bookmark a client or paste the link to a teammate.
 

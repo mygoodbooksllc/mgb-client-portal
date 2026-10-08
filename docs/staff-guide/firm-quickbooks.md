@@ -19,7 +19,7 @@ These syncs count toward the firm's Intuit monthly limit, shown in the **QuickBo
 
 - **Sync now**: pull the latest hours right away.
 - **Reconnect QuickBooks**: use this if the connection has expired or failed.
-- **Disconnect**: stops hourly syncing (you'll be asked to confirm). Hours already synced stay on the Team page.
+- **Disconnect**: stops hourly syncing (you'll be asked to confirm). Hours already synced stay on Team › Hours.
 
 ### Match QuickBooks customers and people
 

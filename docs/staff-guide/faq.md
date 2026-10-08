@@ -7,7 +7,7 @@ sort: 900
 ---
 ### Can clients see my notes, tasks or the Client overview?
 
-No. The Client overview, staff notes, internal notes in the Inbox, SOPs, My Tasks and the top bar are staff-only. Clients only see what you deliberately send them: document requests (on their Documents page), messages sent as **Reply** (not **Note**), and client emails.
+No. The Client overview, staff notes, internal notes in the Inbox, SOPs, Work and the top bar are staff-only. Clients only see what you deliberately send them: document requests (on their Documents page), messages sent as **Reply** (not **Note**), and client emails.
 
 ### Why does a page say "Prototype · Sample Data"?
 
@@ -66,9 +66,9 @@ No. On Team → Members, **Email invite** opens a draft in Gmail or your mail ap
 
 Real portal logins (the client's people in Client details) are enforced at sign-in. On a test client the people listed may be samples for preview only, and the window says so.
 
-### What's the difference between the Close tracker and the Month-end close checklist?
+### What's the difference between Work › Close and the Month-end close checklist?
 
-The checklist (on Client overview) is the six steps for one client this month. The Close tracker is the status of every client, month by month. They're separate; update both. See [How do I track month-end close?](#/help/month-end-close).
+The checklist (on Client overview) is the six steps for one client this month. Work › Close is the status of every client, month by month. They're separate; update both. See [How do I track month-end close?](#/help/month-end-close).
 
 ### Something says "…database update is applied" or "…isn't set up on the server yet".
 

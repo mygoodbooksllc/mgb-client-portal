@@ -22,9 +22,9 @@ A client only has a **Payroll** tab if **Payroll add-on** is ticked for them on 
 ### Tick off steps
 
 - Tick each step's checkbox as you complete it. The card records who ticked it and when.
-- Some steps tick themselves. They're marked **Auto: QuickBooks** or **Auto: Close tracker** and can't be ticked by hand:
+- Some steps tick themselves. They're marked **Auto: QuickBooks** or **Auto: Close tracker** (the close status on Work › Close) and can't be ticked by hand:
   - **Auto: QuickBooks** ticks when the client's QuickBooks is connected.
-  - **Auto: Close tracker** ticks when the first month is saved in the Close tracker.
+  - **Auto: Close tracker** ticks when the first month is saved on Work › Close.
 
 Until every step is done, the client shows an **Onboarding 3/5**-style badge in the client picker.
 
@@ -43,4 +43,4 @@ Admins see **Edit default steps** on the card. Every client gets these steps.
 
 ### Troubleshooting
 
-- **An Auto step hasn't ticked.** Check that QuickBooks is actually connected (Client details → QuickBooks), or that a month has been saved in the Close tracker.
+- **An Auto step hasn't ticked.** Check that QuickBooks is actually connected (Client details → QuickBooks), or that a month has been saved on Work › Close.

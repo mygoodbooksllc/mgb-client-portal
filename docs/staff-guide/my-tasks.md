@@ -2,10 +2,10 @@
 title: How do I add and manage my tasks?
 section: Daily work
 audience: staff
-keywords: [my tasks, task, reminder, to do, due, overdue, repeat, recurring, priority, share, complete, today, upcoming, by client, save as template, suggest template, manage templates, checklist, steps, subtasks, saved checklist]
+keywords: [my tasks, work, tasks tab, task, reminder, to do, due, overdue, repeat, recurring, priority, share, complete, today, upcoming, by client, save as template, suggest template, manage templates, checklist, steps, subtasks, saved checklist]
 sort: 110
 ---
-**My Tasks** (in the sidebar, or the **My Tasks** button in the top bar) is your to-do list. Tasks are **private to you and admins** unless you share one with a client's team.
+**Work › Tasks** (the left rail → **Work** → **Tasks**, or the **Tasks** button in the top bar; `#/work/tasks`) is your to-do list. It used to be called My Tasks. Tasks are **private to you and admins** unless you share one with a client's team.
 
 ### Add a task
 
@@ -60,9 +60,9 @@ Doing the same task every month? Click the **Save as template** icon (two overla
 - **Admins**: the **Task templates** editor opens, pre-filled with the task's title (without the " · Sep 2026" part), its priority and its client. Check the details, pick how often it repeats, and click **Save**. Nothing is saved until you do.
 - **Everyone else** (including temporary admins): the button says **Suggest as template**. It sends the idea to the admins, who see it at the top of Task templates and in their bell. You'll see "Suggested to admins as a recurring template."
 
-Admins (and staff with temporary admin access) see **Manage templates** at the top right of My Tasks. It opens **Task templates** (also in **Settings → Firm settings**).
+Admins (and staff with temporary admin access) see **Manage templates** at the top right of Work › Tasks. It opens **Task templates** (also in **Settings → Firm settings**).
 
-The number next to **My Tasks** in the sidebar counts items that are overdue, due today, or past their remind-me time. The **My Tasks** button in the top bar shows how many open tasks you have, with overdue ones in a red number. Search (**Ctrl+K** / **⌘K**) finds your tasks and notes by their text.
+Today's **Tasks due today** and **Overdue** tiles count your tasks, and due ones appear in its **Needs you** list. The **Tasks** button in the top bar shows how many open tasks you have, with overdue ones in a red number. Search (**Ctrl+K** / **⌘K**) finds your tasks and notes by their text.
 
 ### Troubleshooting
 

@@ -5,7 +5,7 @@ audience: staff
 keywords: [deadlines, filing deadlines, due dates, tax deadlines, calendar, 990, form 990, 1099, 1099-nec, 1096, w-2, 941, 940, payroll forms, mark filed, filed, overdue, upcoming deadlines, fiscal year end, exceptions, skip, deadline rules]
 sort: 258
 ---
-**Deadlines** in the sidebar (under **Close tracker**) lists the filing deadlines for every client you can see.
+**Work › Deadlines** (`#/work/deadlines`) lists the filing deadlines for every client you can see.
 
 **Always verify a date before you file.** The dates are a starting point the firm keeps up to date, not tax or legal advice. When a due date lands on a weekend it moves to Monday. Holidays aren't handled, so check those yourself.
 
@@ -20,7 +20,7 @@ sort: 258
 
 Click **Mark filed**, add a note if you like (for example "e-filed, confirmation 1234"), then **Save**. The whole team sees who filed it and when. Made a mistake? Click **Undo**.
 
-**Create task** adds the deadline to **My Tasks** with the due date.
+**Create task** adds the deadline to **Work › Tasks** with the due date.
 
 ### Which deadlines a client gets
 
@@ -36,4 +36,4 @@ Under **Client exceptions**, pick a client and a deadline, then choose **Skip fo
 
 Admins see **+ Add deadline**, **Edit** and **Turn off** under **Deadline rules**. Pick how often (every year, quarter or month) and the due date. Say "verify" in the description. Deadlines are never deleted: **Turn off** hides one and **Turn on** brings it back.
 
-The Home card **Upcoming deadlines** shows the next 30 days for your clients, plus anything overdue. Add it with **Customize dashboard**.
+Deadlines coming up also appear as rows in Today's **Needs you** list, with anything overdue and not filed under **Now**.

@@ -5,7 +5,7 @@ audience: staff
 keywords: [settings, my settings, profile, photo, avatar, title, phone, notifications, email notifications, bell, dark mode, light mode, theme, match my computer, start page, signature, email signature, dashboards, reset layout, financial overview, board-ready, live report, shortcuts, keyboard, firm settings, gear]
 sort: 27
 ---
-Your Settings page holds everything that's just about you. To open it, click your initials at the top right of the page, then **Settings**. (On a phone, open the menu, tap your name, then **Settings**.) Changes save on their own a moment after you make them. You'll see **Saved** at the top when they have.
+Your Settings page holds everything that's just about you. To open it, click **Settings** at the bottom of the left rail, or your initials at the top right of the page, then **Settings**. (On a phone, open the menu and tap **Settings**.) Changes save on their own a moment after you make them. You'll see **Saved** at the top when they have.
 
 Settings are saved to your account, so they follow you to any computer you sign in on.
 
@@ -34,7 +34,7 @@ The emails only say what happened and link to the portal. They never include the
 ### Appearance & start page
 
 - **Theme**: **Light**, **Dark** or **Match my computer** (follows your computer's light or dark setting). The **Light mode** / **Dark mode** item in the account menu still works as a quick switch, and it saves here too.
-- **Start page**: where you land when you sign in: **Home**, **My Tasks** or **Last client opened**. A link you open (for example from an email) still goes straight to its page.
+- **Start page**: where you land when you sign in: **Today**, **Work › Tasks** or **Last client opened**. A link you open (for example from an email) still goes straight to its page.
 
 ### Email signature
 
@@ -42,7 +42,7 @@ Type the sign-off you want at the bottom of emails. It's added to emails you sen
 
 ### Dashboards
 
-Lists every board where you've moved or hidden cards (Home, a client's Dashboard or Financial Overview). **Reset** puts that board back to the standard layout. Saved views are kept.
+Lists every board where you've moved or hidden cards (a client's Dashboard or Financial Overview). **Reset** puts that board back to the standard layout. Saved views are kept.
 
 ### Shortcuts
 
@@ -50,13 +50,13 @@ A list of keyboard shortcuts: **Ctrl+K** (**⌘K** on a Mac) to search, **↑** 
 
 ### Firm settings (admins)
 
-The firm-wide admin pages that used to be links in the sidebar's Admin group, in three groups. Click a row to open the page; its old link still works too.
+The firm-wide admin pages, in three groups. Click a row to open the page. Search (**Ctrl+K** / **⌘K**) jumps to them too.
 
 - **People and work**: **Task templates** and **Client roster**.
 - **Email and QuickBooks**: **Emails**, with a chip showing whether sending works (**Domain verified**, **Domain pending**, **Needs attention** or **Not checked yet**), and **QuickBooks usage and limits**, with this month's **% used**. It opens the usage card on the Team page.
 - **Insight and records**: **Usage stats**, **Audit log** and **Developer tools**.
 
-Staff with temporary admin access see Task templates, Client roster, Usage stats and Developer tools. **Team** and **Feedback** stay in the sidebar.
+Staff with temporary admin access see Task templates, Client roster, Usage stats and Developer tools. **Team › Feedback** stays admin-only.
 
 ### Sign out
 

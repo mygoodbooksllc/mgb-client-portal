@@ -5,7 +5,7 @@ audience: admin
 keywords: [staff access, team, members, members tab, entity type, nonprofit, for-profit, add staff, bulk import, role, admin, bookkeeper, deactivate, assign clients, manage, temporary admin access, grant, revoke, view as, email invite, client roster, account manager, payroll, payroll add-on, payroll tab, portal logins, invite, resend invite]
 sort: 510
 ---
-The **Members** tab of **Team** (sidebar → **Team** → **Members**) controls who can sign in and with what role. It used to be a separate page called **Staff Access**; old Staff Access links (`#/staff-access`) open this tab.
+The **Members** tab of **Team** (the left rail → **Team** → **Members**, or `#/team/members`) controls who can sign in and with what role.
 
 > This page writes directly to the real staff table. Nothing here is sample data.
 
@@ -42,7 +42,7 @@ Give a bookkeeper short-term access to the admin pages, for example while you're
 
 The cell then shows **Until {date, time}** with a **Revoke** button. It ends on its own at that time.
 
-It unlocks **Team** (both tabs; the Members tab opens **read-only**) in the sidebar, and **Task templates**, **Client roster**, **Usage stats** and **Developer tools** under **Settings → Firm settings**. Client roster and Developer tools open **read-only**. **Audit log**, **Emails**, **Feedback** and the QuickBooks API usage card stay real-admin-only. Offboarding also ends it.
+It unlocks the admin tabs of **Team** (the Members tab opens **read-only**), and **Task templates**, **Client roster**, **Usage stats** and **Developer tools** under **Settings → Firm settings**. Client roster and Developer tools open **read-only**. **Audit log**, **Emails**, **Feedback** and the QuickBooks API usage card stay real-admin-only. Offboarding also ends it.
 
 ### View as
 
@@ -60,7 +60,7 @@ Each row on **Client roster** has an **Account manager** column, and the add for
 
 Tick **Payroll add-on** in the add form (or a row's edit mode) for clients who use MyGoodBooks payroll. Only those clients get a **Payroll** tab in their portal. Leave it unticked and the tab doesn't show at all, for the client or for staff viewing that client. Ticking it later adds the tab straight away.
 
-Clients without it can ask for it from the **Payroll** card under **Add-ons** on the **Plan** tab of their Settings (**Add Payroll**). The request shows on your Home page in **Needs you** as an **Upgrade**. Once they've signed up, tick the box here; the card then says *Payroll is on for {client}*.
+Clients without it can ask for it from the **Payroll** card under **Add-ons** on the **Plan** tab of their Settings (**Add Payroll**). The request shows on Today in **Needs you** as an upgrade request. Once they've signed up, tick the box here; the card then says *Payroll is on for {client}*.
 
 ### Client roster: portal logins
 

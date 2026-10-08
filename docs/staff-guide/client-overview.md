@@ -7,7 +7,7 @@ sort: 200
 ---
 The **Client overview** is the staff-only summary of one client. You land here whenever you open a client. The client never sees this page.
 
-To come back to it, click **Overview** next to the client picker in the dark bar at the top of the page (it's highlighted while you're on the overview). On a phone, tap the client picker and pick the same client again. The client's own sidebar doesn't list the overview, so it shows exactly what the client sees. A banner reminds you: "Staff only. {client} never sees this page."
+To come back to it, click **Overview**, the first tab in the client's tab row. On a phone, the tab row scrolls sideways. Clients don't have this tab, and **View as client** shows exactly what they see. A banner reminds you: "Staff only. {client} never sees this page."
 
 ### Cards with a gold glow
 

@@ -2,19 +2,18 @@
 title: How does the new-hire onboarding checklist work?
 section: Getting started
 audience: staff
-keywords: [onboarding, new hire, checklist, first week, first steps, training, your onboarding, hide this card, steps, progress]
+keywords: [onboarding, new hire, team, onboarding tab, checklist, first week, first steps, training, your onboarding, hide this card, steps, progress]
 sort: 15
 ---
 Everyone on the team gets a short **onboarding checklist**: the first things to learn and do at MyGoodBooks. Each step can link to the Staff guide article that explains it.
 
 ### Work through your checklist
 
-- The **Your onboarding** card on **Home** lists your steps, with a bar showing how many you've done.
+- **Team › Onboarding** (`#/team/onboarding`) lists your steps under **Your onboarding**, with a bar showing how many you've done.
 - Tick a step when you've done it. Untick it if you ticked it by mistake.
 - Click **Read the guide** next to a step to open the article for it.
 - The card goes away by itself once every step is ticked.
-- Click **Hide this card** if you don't need it (for example, you've been here a while). Hiding can't be undone from Home, so ask an admin if you want it back.
-- You can also move or hide the card with **Customize dashboard**, like any other Home card.
+- Click **Hide this card** if you don't need it (for example, you've been here a while). Hiding can't be undone by you, so ask an admin if you want it back.
 
 ### For admins: Team → Onboarding
 

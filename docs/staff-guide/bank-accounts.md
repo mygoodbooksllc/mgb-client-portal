@@ -5,7 +5,7 @@ audience: staff
 keywords: [bank accounts, bank, cash, cash on hand, credit card, card balances, owed, net cash, transactions, search, filter, this month, last month, 90 days, money in, money out, card charge, sign, recent activity, show more, export csv, type, category, category filter, uncategorized, split, last synced, reconciliation, ask, question]
 sort: 215
 ---
-**Bank Accounts** is in the client's own sidebar, so the client sees the same page you do.
+**Bank Accounts** is one of the client's own pages (the **Bank** tab in the client's tab row), so the client sees the same page you do.
 
 ### The three numbers at the top
 

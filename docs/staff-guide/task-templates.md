@@ -9,8 +9,8 @@ Some work happens for every client on a schedule, like reconciling bank accounts
 
 ### What bookkeepers see
 
-- The tasks simply appear in **My Tasks** for the clients you're the assigned bookkeeper for.
-- They carry a **Recurring** chip in My Tasks.
+- The tasks simply appear in **Work › Tasks** for the clients you're the assigned bookkeeper for.
+- They carry a **Recurring** chip in Work › Tasks.
 - The task name ends with the period, for example **"Reconcile bank accounts · Sep 2026"**, so you know which month or quarter it's for.
 - Each task shows up a few days before it's due (the "lead window"), not months ahead.
 - They're shared with the client's team (other staff on that client can see them), and you complete them like any other task.
@@ -19,23 +19,23 @@ Some work happens for every client on a schedule, like reconciling bank accounts
 
 ### Setting up a template (admins)
 
-**Task templates** is in **Settings → Firm settings**, under **People and work** (`#/templates` still opens it). Admins and staff with temporary admin access can open it, and also get a **Manage templates** link at the top of **My Tasks**.
+**Task templates** is in **Settings → Firm settings**, under **People and work** (`#/templates` still opens it). Admins and staff with temporary admin access can open it, and also get a **Manage templates** link at the top of **Work › Tasks**.
 
 1. Click **New template**.
 2. Type the **Task title**, for example *Reconcile bank accounts*. Don't add the month; it's added for you.
 3. Pick how often it **Repeats**: **Monthly**, **Quarterly** or **Annually**.
 4. **Due (days after period end)**: for example 10 means "due 10 days after the month ends".
-5. **Create (days before due)**: how early the task appears in My Tasks (default 14, up to 90).
+5. **Create (days before due)**: how early the task appears in Work › Tasks (default 14, up to 90).
 6. Pick a **Priority**: **Low**, **Normal** or **High**.
 7. Under **Applies to**, tick plans (Basic, Pro) and/or add specific clients. Leave everything unticked for **every client**.
-8. Optional: under **Checklist**, type the steps, one per line (up to 50). Every task the template creates gets these steps to tick off, and shows progress such as **0/5** in My Tasks.
+8. Optional: under **Checklist**, type the steps, one per line (up to 50). Every task the template creates gets these steps to tick off, and shows progress such as **0/5** in Work › Tasks.
 9. Leave **Active** ticked and click **Save**.
 
-The templates run every morning on their own. **Generate now** runs them immediately. Use **Pause** / **Resume** on a template to stop or restart it without deleting it. To remove one for good, click **Edit**, then **Delete template**. Tasks it already created stay in My Tasks.
+The templates run every morning on their own. **Generate now** runs them immediately. Use **Pause** / **Resume** on a template to stop or restart it without deleting it. To remove one for good, click **Edit**, then **Delete template**. Tasks it already created stay in Work › Tasks.
 
 ### Templates from tasks and suggestions
 
-Any task in **My Tasks** can become a template with its **Save as template** icon (see [How do I add and manage my tasks?](#/help/my-tasks)).
+Any task in **Work › Tasks** can become a template with its **Save as template** icon (see [How do I add and manage my tasks?](#/help/my-tasks)).
 
 - Admins go straight to the editor, pre-filled with the title (the period is removed), priority and the task's client. Nothing is saved until you click **Save**.
 - Other staff send a suggestion instead. Pending suggestions show at the top of **Task templates** under **Suggested templates**, and in admins' bell. Click **Create template** to open the pre-filled editor (the suggestion is marked done when you save), or **Dismiss** to clear it.

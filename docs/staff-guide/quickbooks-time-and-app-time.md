@@ -10,8 +10,8 @@ You don't log hours in the portal. There are two separate things, and only one o
 ### 1. Your real hours: QuickBooks Time
 
 - Keep tracking your hours the way you already do, in **QuickBooks Time** (Workforce), against the right customer.
-- The portal reads those hours from QuickBooks automatically. Admins use them for the Team page, profitability and capacity.
-- The old **My Time** page in the portal was removed. If you have a bookmark to it, it now opens Home.
+- The portal reads those hours from QuickBooks automatically. Admins use them on **Team › Hours** for profitability and capacity, and everyone sees **Hours this month** per client on the **Clients** page.
+- The old **My Time** page in the portal was removed. If you have a bookmark to it, it now opens Today.
 
 ### 2. In-app time: automatic, not billed
 
@@ -30,5 +30,5 @@ It's saved about once a minute and when you switch away from the tab. There are 
 
 ### Troubleshooting
 
-- **My hours look wrong on the Team page.** Check the entries in QuickBooks Time first: the portal only shows what QuickBooks has. The customer on each entry also needs to be matched to a portal client by an admin.
+- **My hours look wrong on Team › Hours or the Clients page.** Check the entries in QuickBooks Time first: the portal only shows what QuickBooks has. The customer on each entry also needs to be matched to a portal client by an admin.
 - **In-app time is lower than I expected.** Time stops counting after 2 minutes without any input, and while the tab is hidden. That's by design.

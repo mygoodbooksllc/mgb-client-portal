@@ -12,8 +12,8 @@ Every client gets a **health score out of 100**. It's a quick way to spot who ne
 - A coloured dot next to each client in the client picker. Hover it for "Health N/100 · …" and the reasons.
 - The **Client health** card at the top of the Client overview, with a meter and the reasons points were taken off.
 - The client name in the picker also shows the health label.
-- The **Clients at risk** card on **Home**: red and amber clients, lowest first. Bookkeepers see only their own clients.
-- Admins: the **Client health** tab on the **Team** page (`#/team/health`) lists every client. Click a column to sort, and filter by band, bookkeeper or backup, or reason.
+- **Today**: red and amber clients appear as rows in **Needs you**, lowest score first. Bookkeepers see only their own clients.
+- The **Clients** page (`#/clients`): the **Health** column shows every client's score and band, and the **Needs attention** filter picks out the ones at risk. The reasons are on the client's Overview.
 
 ### The bands
 
@@ -50,7 +50,9 @@ Click **Refresh** on the card to recalculate after you've fixed something.
 
 ### Manual status override
 
-On **Home**, in the **Your clients** card, click **Status** next to a client to set a green, yellow or red status with a reason (for example *needs follow-up on missing August bank statement*). While an override is set, it's shown instead of the calculated score. Click **Clear override** to go back to the score.
+An admin can store a manual status (green, yellow or red) with a reason for a client, for example *needs follow-up on missing August bank statement*. While one is set it's shown instead of the calculated score: on **Work › Tasks → By client** the card shows the note and who set it, and the client's status dot everywhere uses the override's colour.
+
+There is no button for setting or clearing one in the app right now (it used to live on the old Home page). Ask an admin if a client's status looks wrong and a note needs to go with it.
 
 ### Troubleshooting
 

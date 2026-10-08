@@ -9,7 +9,7 @@ Tell the team when you're out, and make sure each of your clients has a **backup
 
 ### Add your time off
 
-1. On [Home](#/help/home-page), find the **My time off** card. (Not there? Add it with **Customize dashboard**.)
+1. Open **Team › People** (`#/team/people`) and find the **My time off** card.
 2. Click **+ Add time off**.
 3. Pick the **First day off** and **Last day off**. Add a **Note** if you like. Every staff member can see it.
 4. Click **Save time off**.
@@ -37,7 +37,7 @@ A backup doesn't automatically get into the client. If they aren't assigned to i
 
 ### Coverage tab (admins)
 
-**Team** → **Coverage** (or `#/team/coverage`) shows who's out now and in the next 30 days. For each person:
+**Team › People** shows **Who's out** now and in the next 30 days, and **My clients' backups**. For each person:
 
 - Their dates and note, and a pill: **All covered** or **{n} clients not covered**.
 - Each of their clients, the client's **Backup**, and **Backup's access**: **Has access (admin)**, **Has access (assigned)**, **Temporary access**, **No access**, **No backup set** or **Backup isn't active staff**.

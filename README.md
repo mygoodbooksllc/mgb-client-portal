@@ -73,7 +73,7 @@ because some work happens in Claude Code web sessions. Run `git fetch` and compa
 | `auth-config.js` | Supabase URL and publishable (anon) key. Safe to be public. |
 | `qbo-config.js` | QuickBooks app Client ID (public) and environment (`production`) |
 | `components/auth/` | `supabaseClient.js`, `AuthGate.jsx` (staff Google gate), `ClientAuthGate.jsx` (client magic-link gate) |
-| `components/dashboard/` | `WidgetDrawer.jsx` + `widget-drawer.css`: the shared **Customize** drawer and board edit mode used by every customizable board (client Dashboard, full client dashboard, Bookkeeper Home, Financial Overview), plus `WD_sync` for per-account layout saving. Every name is `WD_`/`wd-` prefixed. Loaded before `components/daily-close/*` and `app.jsx`. |
+| `components/dashboard/` | `WidgetDrawer.jsx` + `widget-drawer.css`: the shared **Customize** drawer and board edit mode used by every customizable board (client Dashboard, full client dashboard, Financial Overview), plus `WD_sync` for per-account layout saving. Every name is `WD_`/`wd-` prefixed. Loaded before `components/daily-close/*` and `app.jsx`. |
 | `components/daily-close/` | Financial Overview (`DailyClose.tsx`, its CSS, sample data, and `fromClient.js`, which adapts client data for it) |
 | `components/pro/` | Pro budget and report tools: `ProBudget.jsx` (Budget vs. Actual tabs, next year's draft with approval) and `ProReports.jsx` (board reports suite and the public share page), each with its own CSS. Loaded before `app.jsx`; `app.jsx` falls back to the old pages if either is missing. |
 | `components/inbox/` | `StaffInbox.jsx` (the unified staff inbox, the staff chat drawer and launcher, and `SI_useClientMessaging` for the client Messages page) and `staff-inbox.css`. Loaded before `app.jsx`; every name is `SI_`/`si`/`StaffInbox` prefixed. Without it, `app.jsx` falls back to the old Team Chat page and sample client threads. |
@@ -216,7 +216,7 @@ because some work happens in Claude Code web sessions. Run `git fetch` and compa
     full re-read is skipped. CDC is only used as a gate: the full read still replaces the tables.
   - **Close data.** Once a day per client (and on Sync now) the sync also pulls 13 months of
     bank, card, Undeposited Funds and uncategorized account data into `qbo_account_status` and
-    `qbo_period_balances`, then re-runs the close checks (see the Close tracker below).
+    `qbo_period_balances`, then re-runs the close checks (see Work › Close below).
   - **Usage guard.** Every Intuit call is counted in `qbo_api_usage` (`qbo-sync` and
     `qbo-firm-sync`). If the month is on pace to pass 80% of the 500,000-call limit, Pro slows to
     every 30 minutes; at 95% used, scheduled syncs stop until the 1st (Sync now still works).
@@ -249,8 +249,8 @@ because some work happens in Claude Code web sessions. Run `git fetch` and compa
 - `data.js`: all financials for orgs without QuickBooks, and for every org: giving, funds,
   pledges, donors, payroll (Gusto) and the "Preview as" user list.
 - Client **Messages** fall back to the sample threads (with simulated bookkeeper replies) only
-  when `client_messages` can't be read, and for staff previewing a sample person. Staff Home's
-  "Unread messages" card and the Client overview's "threads waiting" still count the sample
+  when `client_messages` can't be read, and for staff previewing a sample person. Today's
+  "Replies waiting" tile and the Client overview's "threads waiting" still count the sample
   threads.
 - Client **Documents** uploads stay in the browser for that session only.
 - Giving statement "Send" (Tax Documents) only simulates delivery; nothing is emailed.
@@ -259,6 +259,40 @@ because some work happens in Claude Code web sessions. Run `git fetch` and compa
 ## Main features
 
 ### Staff side
+
+- **Staff navigation (owner-approved 2026-10-08; prototype
+  https://claude.ai/artifact/KnuvhLhEBEPYyPJTRbh3zY):** five places in a left rail, Settings at the
+  bottom, and every page is "title, one row of tabs, content".
+  - **Rail and tabs:** `components/staff/StaffNav.jsx` (`NAV_`) + `staff-nav.css`. `NAV_PLACES` is
+    the single source for places, tabs, routes, admin-only flags, tour ids and the help slug each
+    page opens from the **?** menu. The rail is collapsible (default expanded) and becomes the
+    drawer on touch phones; `NAV_TabRow` is the shared tab row; `NAV_useHashSub` lets a hub own its
+    tab in the URL (`replaceState`). App pushes real history entries (`pushState` with `{ mgbNav }`)
+    so Back returns from a client to Clients, and sets `document.title` per place.
+  - **Places:** **Today** (`Today.jsx`, below), **Inbox** (unchanged), **Work** (`WorkPage.jsx`:
+    Tasks = `MyTasksPage`, Close = `CT_CloseTrackerPage`, Deadlines = `DL_DeadlinesPage`, at
+    `#/work/<tab>`), **Clients** (`ClientsPage.jsx`, `CL_`: Mine / All / Needs attention, Find a
+    client, columns Client · Health · Assigned to · Backup · Hours this month · Close · Last viewed;
+    inside a client the breadcrumb "Clients › name › tab", `CL_ClientTabs` (Overview, the client's
+    own tabs by short name, SOP, Milestone, Settings gear) and **View as client**; the client
+    sidebar is not rendered for staff), **Team** (`TeamPage.jsx`: People (Who's out, My clients'
+    backups, My time off, Shout-outs), Reviews, Onboarding; admins also Hours, Reply times,
+    Feedback, Members, at `#/team/<tab>`).
+  - **Hours for bookkeepers:** `supabase/client-hours-for-bookkeepers.sql` adds
+    `qbo_my_client_hours(from, to)` (minutes per client for the caller's own clients; no rates or
+    per-person split), so the Clients page's Hours this month column works for everyone.
+  - **Top bar:** no page links; ⌘K lists Pages and Actions with nothing typed; the **?** menu is
+    Help for this page, Staff guide, Send feedback, What's new, Take the tour. Help and Feedback are
+    no longer sidebar items.
+  - **Tour:** `components/tour/Tour.jsx` staff steps (`TOUR_staffSteps`): welcome, Your five
+    places, Start with Today, Jump anywhere, Help/feedback/tour, You're ready. Auto-starts once
+    (`staffTour` in user settings) and again from the ? menu.
+  - **Routes:** `#/today`, `#/inbox`, `#/work/<tasks|close|deadlines>`, `#/clients`,
+    `#/team/<tab>`, `#/team/reviews/<sub>[/id]`, `#/help[/slug]`, `#/settings`, `#/templates`,
+    `#/client/<id>/<tab>` (incl. `sop`). The old routes (`#/home`, `#/tasks`, `#/close-tracker`,
+    `#/deadlines`, `#/reviews`, `#/feedback`, `#/team/coverage`, `#/team/health`) are gone with no
+    redirects (owner: prototype, nobody is using it yet). Email links in the edge functions were
+    updated the same day.
 
 - **Staff client tools** (`supabase/staff-client-tools.sql`, applied 2026-09-27):
   - **Client overview** (page `client-overview`, staff only): staff land here when they open a
@@ -281,9 +315,9 @@ because some work happens in Claude Code web sessions. Run `git fetch` and compa
     the Add task / Request document / Add note modals, opened from the top bar's "+" via the
     `tb:quick-add` event (kind `task` / `request` / `note`; kind `message` opens the chat drawer, or
     the Messages tab when the drawer isn't available). The Inbox context pane still renders it with
-    `only={["request", "task"]}` as visible buttons. Overview moved to the top bar
-    (`TB_OverviewButton`); the client sidebar no longer has the staff-only Overview item, so it
-    lists exactly what the client sees. The `client-overview` route is unchanged.
+    `only={["request", "task"]}` as visible buttons. Overview is the first tab in the staff
+    client tab row (`CL_ClientTabs`); the client sidebar (clients only) lists exactly what the
+    client sees. The `client-overview` route is unchanged.
   - **Open requests are hard to miss:** a "Your bookkeeper needs N documents · Upload now" banner
     shows on every client page (for the client, and for staff previewing as them), and Documents
     gets a dot in the sidebar.
@@ -298,18 +332,15 @@ because some work happens in Claude Code web sessions. Run `git fetch` and compa
   - **Mark sent to client** on report cards (`client_sent_items`), with history.
   - **Preview plan** (top bar account menu on client pages, not during View as; the old sidebar select is gone): shows the client's pages as Basic / Plus / Pro
     in this browser only (`mygoodbooks_preview_plan_v1`). It's ignored in client sessions.
-  - **Home → Month-end close**: last month's checklist progress for every client.
+  - **Today → Closes open** and **Work › Close**: close progress for every client.
   - The same SQL lets staff read time entries and client page views for clients they can
     access.
 
-- **Staff sidebar** (`StaffRail`, desktop and mouse windows): page navigation only: Home, Client
-  view, Inbox, My Tasks, Close tracker, Help, and for admins Team, Staff Access, Client Roster,
-  Developer Tools, Usage Stats and so on, plus Collapse. (Its client picker, theme, name and sign
-  out moved to the top bar; they come back automatically if the top bar piece is removed.) On staff
-  pages it replaces the client sidebar and collapses to icons with the usual Collapse toggle. On a
-  client's pages it's a 64px icon strip beside the client sidebar. It's hidden while you preview as
-  one of the client's people, so the preview shows only what they see. On phones the menu under
-  your name has the same links.
+- **Staff rail** (`components/staff/StaffNav.jsx`, desktop and mouse windows): the five places
+  (Today, Inbox, Work, Clients, Team) with Settings at the bottom and Collapse, default expanded.
+  It stays beside a client's pages too (staff get the breadcrumb and tab row instead of the client
+  sidebar). Hidden while you preview as one of the client's people or use View as client, so the
+  preview shows only what they see. On touch phones the drawer has the same places.
 
 - **Staff top bar** (`components/staff/TopBar.jsx` + `top-bar.css`, `TB_` prefix). App renders
   `TB_StaffTopBar` at the top of `<main>` whenever the staff sidebar shows (`showStaffRail`), so
@@ -318,28 +349,29 @@ because some work happens in Claude Code web sessions. Run `git fetch` and compa
   translucent white chips, gold avatar and focus rings, light dropdown panels; colours are scoped
   `--tb-*` variables in one commented block in `top-bar.css` (dark mode adds a hairline bottom border). Each piece is its own
   component; delete its line in `TB_StaffTopBar` to drop it:
-  - **Left:** `TB_ClientPicker` (reuses `CS_ClientSwitcher`), `TB_OverviewButton` ("Overview"
-    chip, client pages only → `#/client/<id>/overview`; gold `is-current` + `aria-current="page"`
-    on `client-overview`; label drops under 1180px), `TB_SyncPill` (reuses `QboSyncNowButton`;
-    click = Sync now).
-  - **Middle:** `TB_Search`, Ctrl/⌘+K. Clients and my tasks/notes are filtered locally; client SOPs
+  - **Left:** `TB_ClientPicker` (reuses `CS_ClientSwitcher`) and `TB_SyncPill` (reuses
+    `QboSyncNowButton`; click = Sync now). The Overview chip retired 2026-10-08: Overview is the
+    first tab of the client tab row.
+  - **Middle:** `TB_Search`, Ctrl/⌘+K. With nothing typed it lists every page and action
+    (`TB_pageRows` / `TB_actionRows`, the Pages and Actions groups, also matched while typing).
+    Clients and my tasks/notes are filtered locally; client SOPs
     (`client_sops` ilike, RLS-scoped) and Help (`search_staff_guide`) are queried, debounced. On a
     client page it adds an `In <client name>` group (after Clients): that client's transactions,
     budget categories, documents and messages, built by `buildClientSearchResults` in `app.jsx` (the
     same function behind the client-facing header `GlobalSearch`, so it respects `access.tabs` and
     `scopedClient` exactly the same way); picking one calls `setPage` + `setSearchTarget` to jump and
     highlight. App passes this in as the `clientSearch` prop (null on staff pages), and the
-    placeholder becomes "Search clients, tasks, SOPs, Help and this client". Grouped listbox with
+    placeholder starts "Search or jump to…" and names this client. Grouped listbox with
     arrow keys / Enter / Esc across all groups. While the top bar is shown (`showStaffTopBar`) the
     page-header search icon is not rendered; clients and client-user previews keep it.
-  - **Right:** `TB_ThrottleBadge` (admins; `qbo_usage_status` mode throttled/stopped → `#/team`),
+  - **Right:** `TB_ThrottleBadge` (admins; `qbo_usage_status` mode throttled/stopped → `#/team/hours`),
     `TB_Bell` (client messages waiting per the Inbox's read markers, `client_doc_requests` with status
     uploaded, open tasks assigned to me by someone else, last month's `close_checks` Blocked (admins:
     only clients they're the assigned bookkeeper on); seen ids in `localStorage`
-    `mgb-topbar-bell-seen:<email>`), `TB_TasksBadge` (open count, overdue in red → `#/tasks`),
+    `mgb-topbar-bell-seen:<email>`), `TB_TasksBadge` (open count, overdue in red → `#/work/tasks`),
     `TB_QuickAdd` ("+", client pages: New task / New note / Request document / Message; dispatches
     `tb:quick-add`, which the headless `StaffQuickActions` listens for and opens its own modal or the
-    chat drawer), `TB_HelpButton` ("?" menu: `#/help/<slug>` for the current page, else `#/help`, plus "Report a bug / feedback" via `FB_openFeedback`; `FB_FeedbackHost` is mounted next to it),
+    chat drawer), `TB_HelpButton` ("?" menu: Help for this page (`TB_helpSlugFor`: `TB_HELP_FOR_PAGE` plus the `help` slugs in `NAV_PLACES`), Staff guide, Send feedback via `FB_openFeedback` (`FB_FeedbackHost` is mounted next to it), What's new (`#/help/whats-new`), Take the tour (`TOUR_startStaff`)),
     `TB_AvatarMenu` (profile photo from `staff_profiles`, theme, Preview as a client user, Preview plan
     with check marks, Exit "View as", temporary access, **Settings** → `#/settings`, Sign out).
   - **Moved, not duplicated:** while mounted, the client picker, sync pill and account menu add
@@ -351,13 +383,16 @@ because some work happens in Claude Code web sessions. Run `git fetch` and compa
     task / note / request or message from a client page. Overview is hidden there: picking a client
     in the picker, including the one already open, lands on the overview. Everything else stays in
     the drawer.
-  - Bell, My Tasks and the task/note search groups step aside during admin "View as".
+  - Bell, Tasks and the task/note search groups step aside during admin "View as".
 
-- **Home** (`bookkeeper-home`): Your clients (with health dots), Needs attention, Needs a visit,
-  Unread messages, Your reminders, Access requests, Upgrade requests (with the plan asked for), Recently viewed,
-  Milestones to review. (The old "Jump to client" card here and on Developer Tools was removed
-  2026-09-30; the top bar's client picker replaces both.)
-- **My Tasks**:
+- **Today** (`components/staff/Today.jsx`, `TD_`, `#/today`): greeting, "N need you now", four
+  tiles (Replies waiting, Tasks due today, Overdue, Closes open) and the **Needs you** list in two
+  bands, Now and This week (row kinds: reply, task, bill, close, deadline, access, coverage,
+  upgrade, risk, sop, review; some with inline actions such as Done, Approve/Deny, Contacted).
+  "Also show" toggles the Reminders, Milestones to review and Recently viewed cards (`todayCards`
+  in user settings). No customizable board: `BookkeeperHomePage` and `useHomeMasonry` were deleted
+  2026-10-08.
+- **Work › Tasks** (`MyTasksPage`, mounted by `WorkPage.jsx` at `#/work/tasks`; was My Tasks):
   - Tabs: **Today / Upcoming / Overdue / All / By client**.
   - Separate **Notes** and **SOPs** cards below the tasks.
   - Tasks can have due dates and times, reminders, repeats and priority, and can be shared with
@@ -365,7 +400,7 @@ because some work happens in Claude Code web sessions. Run `git fetch` and compa
   - Completing a repeating task rolls it forward (`complete_staff_item` RPC).
   - Notes can be linked to tasks.
   - **By client** shows each client's **handoff summary**, open tasks and notes.
-  - The staff menu shows a due-count badge.
+  - The top bar's Tasks button shows the open count (overdue in red).
 - **Client SOPs**: sectioned per-client procedures with full version history
   (`client_sops`, `client_sop_history`, `save_client_sop`). Clients never see them.
 - **Inbox** (page `staff-messages`, called "Team Chat" before 2026-09-28; `components/inbox/StaffInbox.jsx`):
@@ -431,11 +466,12 @@ because some work happens in Claude Code web sessions. Run `git fetch` and compa
 
 ### Admin features added 2026-09-29
 
-- **Team page** (`#/team`): one place for staff, workload and capacity. Email settings moved to
-  the Emails page; the Team page links there.
+- **Team page** (`#/team/<tab>`, `components/staff/TeamPage.jsx`): People, Reviews and Onboarding
+  for everyone; Hours, Reply times, Feedback and Members for admins. Email settings live on the
+  Emails page; Team › Hours links there.
 - **QuickBooks Time**: firm connection and hours by person and client, which feed
   **profitability** (fee vs. cost at each person's rate) and **capacity** (weekly hours vs. target).
-- **Close tracker** (`#/close-tracker`): month-end close status per client. The "Mine" filter
+- **Work › Close** (`#/work/close`; was Close tracker): month-end close status per client. The "Mine" filter
   uses the assigned bookkeeper's staff email.
 - **Task templates** (`#/templates`): recurring monthly, quarterly and annual tasks, generated
   daily for each client's assigned bookkeeper (`supabase/task-templates.sql`).
@@ -455,16 +491,16 @@ because some work happens in Claude Code web sessions. Run `git fetch` and compa
   staff scorecard, stale clients, pending, and **Staff feedback** (count of `staff_feedback` rows
   still `new`, split by kind, e.g. "3 new: 2 bugs, 1 idea"; how many arrived in the last 7 days;
   the 5 newest `new` reports with kind tag, sender and the first ~120 characters, escaped; link to
-  `#/feedback`; "No new feedback." when there are none). All numbers come from
+  `#/team/feedback`; "No new feedback." when there are none). All numbers come from
   `digest_weekly_data()` (`supabase/weekly-digest.sql`; the `staff_feedback` key was added by
   `supabase/digest-staff-feedback.sql`).
 - **Bug reports / feedback** (`components/staff/Feedback.jsx`, `FB_` prefix; table
-  `staff_feedback`, `supabase/staff-feedback.sql`). Staff open "Report a bug / feedback" from the
-  top bar's **?** menu or the bottom of the Help page: kind chips (Bug first and default, Idea,
+  `staff_feedback`, `supabase/staff-feedback.sql`). Staff open "Send feedback" from the
+  top bar's **?** menu, the ⌘K Actions group, or the bottom of the Staff guide page: kind chips (Bug first and default, Idea,
   Question, Other), message, optional "What did you expect to happen?" for bugs. The page hash and
   open client are sent along; bugs also send the browser user agent + screen size. "My feedback" in
   the modal lists the sender's own reports with status and admin reply. Admins triage on the
-  **Feedback** page (`#/feedback`, admin sidebar, badge = count of `new`): newest first, filter by
+  **Feedback** tab of Team (`#/team/feedback`, tab badge = count of `new`): newest first, filter by
   status/kind, bugs tagged red, change status (new / planned / done / won't do) and a note to the
   sender inline. RLS: active staff insert + read own; admins read all and update; no deletes. A
   trigger stamps `author_email` from the JWT, forces `new` on insert and lets updates change only
@@ -488,7 +524,7 @@ because some work happens in Claude Code web sessions. Run `git fetch` and compa
   Intuit's 500,000 limit, the month-end projection, the current Pro cadence and a per-source
   breakdown; "Change limits" edits `qbo_usage_settings` (limit, slow-down %, stop %, cadences).
   The weekly digest's Pending section shows the same line (`supabase/qbo-usage-guard.sql`).
-- **Automated close checks** (added 2026-09-30, Close tracker and client overview): each
+- **Automated close checks** (added 2026-09-30, Work › Close and client overview): each
   completed month gets **Ready**, **Blocked** (uncategorized / Ask My Accountant activity in the
   month, or Undeposited Funds not cleared at month end) or **Behind** (a bank or card account
   went quiet before month end, or transactions on or before month end aren't reconciled), with
@@ -497,15 +533,16 @@ because some work happens in Claude Code web sessions. Run `git fetch` and compa
   (`supabase/qbo-close-checks.sql`). Reconciliation is read from each transaction's cleared flag
   and bank-feed health from the last transaction date; QuickBooks exposes neither directly.
 - **Stale-bank flags** (added 2026-09-30): a bank or card account with no transaction in more
-  than N days (default 10; admins set it in the Close tracker toolbar,
-  `month_close_settings.stale_bank_days`) is flagged in the Close tracker client column and on
+  than N days (default 10; admins set it in the Work › Close toolbar,
+  `month_close_settings.stale_bank_days`) is flagged in the Work › Close client column and on
   the client overview.
 - **Entity type** (added 2026-09-30): `clients.entity_type` is `nonprofit` (default) or
   `for_profit`. Set on the client overview's Onboarding card (any staff with access, through
   `set_client_entity_type()`) or in Client Roster add/edit (admins). Stored and shown only for
   now (`supabase/client-entity-type.sql`).
-- **Deep links**: pages have hash URLs such as `#/team`, `#/emails`, `#/tasks`, `#/home`,
-  `#/client/<id>/overview` or `#/client/<id>/<tab>`. A link survives Google sign-in, and staff
+- **Deep links**: pages have hash URLs such as `#/today`, `#/work/<tab>`, `#/clients`,
+  `#/team/<tab>`, `#/emails`, `#/client/<id>/overview` or `#/client/<id>/<tab>` (the tab is part
+  of the URL everywhere). A link survives Google sign-in, and staff
   who can't see a page or client are sent to their dashboard instead.
 
 Owner setup:
@@ -513,22 +550,22 @@ Owner setup:
 1. In Supabase > Edge Functions > Secrets, add `RESEND_API_KEY` (and optionally `DIGEST_FROM`),
    and verify the sending domain in Resend. Until then, emails are logged as "not configured".
    The Emails page banner shows which step is still missing.
-2. Connect the firm's QuickBooks (Time) from the Team page, then map QuickBooks people and
+2. Connect the firm's QuickBooks (Time) from Team › Hours, then map QuickBooks people and
    customers to staff and clients.
-3. Set each staff member's cost rate (and weekly capacity) on the Team page so profitability,
+3. Set each staff member's cost rate (and weekly capacity) on Team › Hours so profitability,
    price review and capacity have numbers.
 4. On the Client Roster, pick a real assigned bookkeeper for each client.
 
 ### Team Reviews and Team Survey (added 2026-10-07)
 
-Staff-only module on the **Reviews** sidebar item (`#/reviews/<tab>`, `#/reviews/r/<id>`,
-`#/reviews/survey`). Clients can't reach any of it: every table has RLS, and every read and write
+Staff-only module on the **Reviews** tab of Team (`#/team/reviews/<tab>`, `#/team/reviews/r/<id>`,
+`#/team/reviews/survey`). Clients can't reach any of it: every table has RLS, and every read and write
 goes through `security definer` RPCs that call `tr_me()` / `tr_require_admin()` first.
 
 - **Front end** (in-browser Babel, `TR_` globals, loaded from `index.html` in this order):
   `components/staff/teamReviewsLogic.js` (scale, items, validation, year-end draft; unit tests in
-  `teamReviewsLogic.test.js`), `TeamReviews.jsx` (page shell, tabs, overview store, sidebar badge,
-  Home "Review due" card, the form), `TeamReviewsCompare.jsx` (comparison, action steps,
+  `teamReviewsLogic.test.js`), `TeamReviews.jsx` (page shell, tabs, overview store, Team tab badge,
+  Today "Review due" row, the form), `TeamReviewsCompare.jsx` (comparison, action steps,
   signatures, reopen, close unsigned, addenda, PDF/Drive), `TeamReviewsSurvey.jsx` (survey and
   admin results), `TeamReviewsAdmin.jsx` (History, Team status, Year-end), `team-reviews.css`.
 - **Tabs:** My review and History for everyone; admins also get Team status, Reviews I'm giving,
@@ -575,8 +612,9 @@ Team Reviews files.
   though they can technically read the column through the existing profile policy).
   `components/staff/HoursBudget.jsx` (`HB_`): one cached load of every budget plus this calendar
   month's `qbo_hours_by_client` (read only), shown in the Team Clients table (**Budget (this
-  month)** column in `TeamQbo.jsx`), the overview Profitability card and the Home filter rule
-  `budget` (`HC_RULES` entries can now be `adminOnly`). Near at 80%, over at 100%
+  month)** column in `TeamQbo.jsx`), the overview Profitability card and the Clients page's **Hours this month** column
+  (everyone assigned, via the narrow `qbo_my_client_hours` RPC in
+  `supabase/client-hours-for-bookkeepers.sql`). Near at 80%, over at 100%
   (`OPS_budgetStatus`). Guide: `hours-budget.md`.
 - **Reply-time tracker.** `client_reply_times(p_from, p_to)` (`supabase/client-reply-times.sql`,
   security definer, read only): a wait starts at the first client message of an unanswered run in
@@ -584,9 +622,9 @@ Team Reviews files.
   the credit); returns median, p90, % within the goal and open waits, overall, per replier and per
   client. Admins get everything; others only their own staff row and clients they can access. The
   goal is 24 calendar hours, a constant in both the RPC (`v_goal`) and `OPS_REPLY_GOAL_HOURS`.
-  `components/staff/ReplyTimes.jsx` (`RT_`): the Team hub tab **Reply times** and the Home KPI tile
-  `kpi-reply` (`RT_useMyReply`). The Team hub (`TP_TeamHub`) now takes extra tabs from the staff
-  ops files (`TP_hubExtraTabs`, routed as `#/team/<tab>`; `buildHashRoute` keeps that sub-route).
+  `components/staff/ReplyTimes.jsx` (`RT_`): the Team tab **Reply times** (admins). The Home KPI tile retired with
+  Home on 2026-10-08; Today's Replies waiting tile counts waiting conversations instead. Team tabs
+  are declared in `NAV_PLACES` (`StaffNav.jsx`) and rendered by the hub in `TeamPage.jsx`.
   Guide: `reply-times.md`.
 - **Time off and coverage.** `staff_time_off` (`supabase/staff-time-off.sql`; RLS: all active staff
   read, people add/edit their own, admins anyone's; no deletes, `cancelled_at` instead; a guard
@@ -595,7 +633,7 @@ Team Reviews files.
   window, each person's clients, the client's backup and `backup_access`) and
   `grant_coverage_access(time_off_id, client_id)` (an approved `staff_client_access_grants` row for
   the backup, expiring the day after the time off ends, America/Chicago).
-  `components/staff/Coverage.jsx` (`CV_`): Team hub tab **Coverage**, Home card `my-time-off`, the
+  `components/staff/Coverage.jsx` (`CV_`): Team › People (Who's out, My clients' backups, My time off), the
   backup picker on the overview (`CV_StaffSelect`; the column is still `backup_bookkeeper_email`) and
   the `CV_OutTag` "Out until" tag (overview Key dates card, Inbox details). Emailing client messages
   to the backup was not built. Guide: `time-off-coverage.md`.
@@ -608,8 +646,8 @@ Team Reviews files.
   Dates are computed in the browser (`OPS_deadlineItems` in `staffOpsLogic.js`): weekends move to
   Monday, holidays don't; the 990 counts from `client_profile.fiscal_year_end` (May 15 if blank);
   the older `form_990_due` / `filing_1099_due` key dates are read as date overrides, never written.
-  UI: `components/staff/Deadlines.jsx` (`DL_`), page `#/deadlines` (all staff) and Home card
-  `upcoming-deadlines`. **Create task** adds a `staff_reminders` row with `source='deadline'`,
+  UI: `components/staff/Deadlines.jsx` (`DL_`), Work › Deadlines (`#/work/deadlines`, all staff)
+  and Today's deadline rows. **Create task** adds a `staff_reminders` row with `source='deadline'`,
   `source_ref` = item id. Guide: `deadlines.md`.
 - **Client health board.** `supabase/client-health.sql` (migration `client_health_board`) adds four
   deductions to `client_health()`: overdue document requests 5 each (max 15), a client waiting over
@@ -617,15 +655,15 @@ Team Reviews files.
   month) and SOP stale (over 180 days) or under half filled 5. The score is clamped to 0-100.
   `client_sop_status()` (staff, `can_access_client`) returns last edit and filled sections; its 7
   section ids are hardcoded and must match `CLIENT_SOP_SECTIONS` in `app.jsx`. UI:
-  `components/staff/HealthBoard.jsx` (`HLB_`): Team tab **Client health** (`#/team/health`, admins;
-  sortable grid, filters by band, bookkeeper/backup, reason) and Home card `clients-at-risk`
-  (red/amber from the clients the viewer sees). The local `clientHealthSignal` in `app.jsx` is
+  `components/staff/HealthBoard.jsx` (`HLB_`): `HLB_useDirectory` feeds the Clients page (Health
+  column, Needs attention filter) and Today lists red/amber clients in Needs you. The Team health
+  grid and the Home card retired 2026-10-08. The local `clientHealthSignal` in `app.jsx` is
   separate and doesn't use these rules. Guide: `client-health.md`.
 - **Shout-outs.** `supabase/staff-shoutouts.sql`: `staff_shoutouts` (all active staff read; insert as
   yourself only; authors hide their own, admins any, via `hidden_at`/`hidden_by`; no deletes; a
   guard trigger stamps the author and freezes everything but the hidden flag; hidden rows are
-  visible only to the author and admins). UI: `components/staff/Shoutouts.jsx` (`SO_`): Home card
-  `shoutouts` (feed, last 90 days, plus compose) and `SO_ReviewShoutouts` on the manager's review
+  visible only to the author and admins). UI: `components/staff/Shoutouts.jsx` (`SO_`): Team › People card
+  Shout-outs (feed, last 90 days, plus compose) and `SO_ReviewShoutouts` on the manager's review
   form (Appreciation, the review's quarter, read-only, not saved into the review). The recipient
   gets a `shout:` bell item (`TopBar.jsx`; Settings bell toggle "Shout-outs for me"). No email.
   Guide: `shoutouts.md`.
@@ -636,21 +674,22 @@ Team Reviews files.
   `last_reviewed`, `reviewed_by`; the health reason reads "SOP not reviewed in N days". UI:
   `components/staff/SopFreshness.jsx` (`SF_`): "Last reviewed N days ago" + "Mark as still
   accurate" on `ClientSopView`; stale (over 180 days, `OPS_sopFreshness`) SOPs add an "SOP" row
-  to Home's Needs you (This week) and a "Client SOP" rule on filtered Home cards. Guide:
+  to Today's Needs you (This week) and the Clients page's Needs attention filter. Guide:
   `client-sops.md`.
 - **New-hire onboarding.** `supabase/staff-onboarding.sql`: `staff_onboarding_steps` (admin-edited
   checklist, `guide_slug` links a Staff guide article, retire with `active = false`, no deletes)
   and `staff_onboarding_progress` (one row per person per step; own or admin read/write; a guard
   trigger checks the step and person and stamps `done_at`/`done_by`; reserved step `__dismissed`
-  = "Hide this card"). UI: `components/staff/StaffOnboarding.jsx` (`SON_`): Home card
-  `your-onboarding` (shown to every staff member until done or hidden) and the admin
-  Team → Onboarding tab (progress, tick for someone, add/edit/reorder/retire steps). Summary
+  = "Hide this card"). UI: `components/staff/StaffOnboarding.jsx` (`SON_`): Team › Onboarding
+  (`SON_ProgressTab`: everyone's own checklist until done or hidden; admins also see each person's
+  progress, tick for someone, add/edit/reorder/retire steps). Summary
   logic: `OPS_onboardingSummary`. Guide: `new-hire-onboarding.md`.
 
 ### Client side (and staff viewing a client)
 
 - **Basic** has no Dashboard, so a Basic client lands on Reports.
-- **Settings** (gear at the bottom of the client sidebar; `#/client/<id>/settings[/<tab>]`):
+- **Settings** (gear at the bottom of the client sidebar, or at the right end of the staff tab
+  row; `#/client/<id>/settings[/<tab>]`):
   Profile, Notifications (bookkeeper messages, reports ready, monthly summary), Organization
   (full-access users: team list and org settings via `client_org_team` /
   `client_update_org_settings`, others can request access), Plan (the old Plans page;
@@ -676,7 +715,7 @@ Team Reviews files.
     preview, and **+** appends one and flashes it on the board. **On your dashboard** lists what is
     showing, with up/down, drag, and remove. The footer has saved views and **Reset to default**.
     While the drawer is open the board is in edit mode: each card gets an outline, a drag handle
-    and a remove button. The same drawer serves Bookkeeper Home and the Financial Overview.
+    and a remove button. The same drawer serves the Financial Overview.
   - Layouts and saved views follow the signed-in person across browsers and devices:
     they are saved in `public.user_board_layouts` (`supabase/user-board-layouts.sql`), with `localStorage` as a cache, per signed-in user and board (debounced saves; an existing local
     layout is uploaded once). If that table is missing or unreachable, it quietly stays on
@@ -755,7 +794,7 @@ Team Reviews files.
   - **Milestone page** (opened from the badge): staff see **Staff: budget and milestone** first
     (budget entry, Set milestone with a note, history), then the client view: summary, the two
     progress bars, the step chart with "You are here", and the full table. Clients see only the
-    client view. Also in **Client details → Milestone**; staff Home has **Milestones to review**.
+    client view. Also in **Client details → Milestone**; Today has a **Milestones to review** card (Also show).
   - **Database:** `supabase/client-milestones.sql` (`client_milestones`,
     `client_milestone_history`, `client_milestone_stats`, `confirm_client_milestone`; only staff
     can set a milestone). Existing databases run `supabase/milestones-nine-tiers.sql` once for the
@@ -889,7 +928,7 @@ Team Reviews files.
   (outbox triggers) and send through the `notification-emails` function once the Resend domain
   is verified; until then they show as "coming soon" / queued.
 - Email notifications for client messages (the messages themselves are real since 2026-09-28).
-- Point Staff Home's "Unread messages" card and the Client overview's "threads waiting" at
+- Point Today's "Replies waiting" tile and the Client overview's "threads waiting" at
   `client_messages` (they still read the sample threads).
 - Tax Documents "Sent" status should move to a Supabase table (client, donor, year, sent_at,
   sent_by) once statements are really emailed. Statement sends and referral sends are still
@@ -991,6 +1030,11 @@ Team Reviews files.
 
 ## History
 
+- **2026-10-08:** staff navigation redesign (the five places, see **Staff navigation** above).
+  Deleted `BookkeeperHomePage`, `useHomeMasonry`, `HLB_HealthTab`, `HLB_AtRiskBody`, the top bar
+  Overview chip, and the Home / Client view / My Tasks / Close tracker / Deadlines / Reviews /
+  Help / Feedback sidebar items. The old routes have no redirects.
+
 The old `HANDOFF2.md`–`HANDOFF7.md`, `HANDOFF-DESIGN.md` and
 `client-dashboard-claude-code-prompt.md` were retired on 2026-09-23. They're still in git
 history. For example, `git show 3344625:HANDOFF7.md` shows the full running log (§1–§171),
@@ -998,8 +1042,11 @@ which explains the reasoning behind most of the decisions above.
 
 ## Staff guide
 
-The staff Help page (`#/help`, "Help" in the staff sidebar or **?** in the top bar, whose menu opens the
-current page's article or "Report a bug / feedback") is a searchable how-to guide for staff.
+The staff guide (`#/help`, opened from the **?** menu in the top bar: Help for this page, Staff
+guide, Send feedback, What's new, Take the tour; also from ⌘K) is a searchable how-to guide for
+staff. The per-page slugs are `TB_HELP_FOR_PAGE` in `TopBar.jsx` and the `help` field on each
+`NAV_PLACES` place and tab in `StaffNav.jsx`; every slug must exist as a file. `whats-new.md` is the
+staff-facing changelog: add an entry with every change staff would notice.
 
 - **Source:** one markdown file per article in `docs/staff-guide/*.md`, with frontmatter `title`,
   `section`, `audience` (`staff` or `admin`), `keywords` and optional `sort`. The file name is the slug

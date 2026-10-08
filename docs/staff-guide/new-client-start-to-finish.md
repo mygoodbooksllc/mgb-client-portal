@@ -70,7 +70,7 @@ Tip: if you can, connect QuickBooks and run the first sync (steps 5 and 6) befor
 
 Staff start the connection. There is no Connect button on the client's side.
 
-1. Open the client, click the **Settings** gear at the bottom of their sidebar, then **Client settings → Client details → Open**, then the **QuickBooks** tab.
+1. Open the client, click **Settings** at the right end of the tab row, then **Client settings → Client details → Open**, then the **QuickBooks** tab.
 2. Click **Connect QuickBooks**. Intuit opens in a new browser tab.
 3. Sign in to Intuit with a QuickBooks login that can manage this client's company, and pick the company. If you don't have one, do this on a call with the client so they can sign in.
 4. Approve the connection. The tab shows **QuickBooks connected** and *You can close this tab and go back to MyGoodBooks.*
@@ -83,7 +83,7 @@ If the Intuit tab says **Connection cancelled**, **Link expired** or **Couldn't 
 ### 6. First sync, Onboarding and folders
 
 - **First sync**: a newly connected client syncs on its own within a few minutes, whatever their plan. To do it now, click **Sync now** on the same QuickBooks tab. You'll see *Synced {n} records from QuickBooks. Reload to see the new numbers.* Reload the page. Until the first sync, the client's pages have little or no data.
-- **Onboarding**: the client's **Client overview** has an **Onboarding** checklist. With the default steps, **QuickBooks connected** ticks itself as soon as the connection is saved (reload if it hasn't yet), and **First close done** ticks itself when a month is marked done in the Close tracker. Tick the others (*Agreement signed*, *Bank feeds added*, *Documents received*) by hand as you finish them. Admins may have changed the default steps. See [How does client onboarding work?](#/help/onboarding).
+- **Onboarding**: the client's **Client overview** has an **Onboarding** checklist. With the default steps, **QuickBooks connected** ticks itself as soon as the connection is saved (reload if it hasn't yet), and **First close done** ticks itself when a month is marked done on Work › Close. Tick the others (*Agreement signed*, *Bank feeds added*, *Documents received*) by hand as you finish them. Admins may have changed the default steps. See [How does client onboarding work?](#/help/onboarding).
 - **Folders**: every new client already has five folders: **Bank statements**, **Financial statements**, **Tax**, **Receipts** and **Payroll**. See [How do I add, file, hide or delete a client's documents?](#/help/add-documents).
 
 ### 7. What the client sees the first time

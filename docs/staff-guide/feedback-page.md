@@ -2,10 +2,10 @@
 title: How do I review bug reports and feedback?
 section: Admin
 audience: admin
-keywords: [feedback page, weekly digest, screenshots, bug reports, bugs, feedback, ideas, questions, triage, status, planned, done, won't do, admin note, reply]
+keywords: [feedback page, feedback tab, team, weekly digest, screenshots, bug reports, bugs, feedback, ideas, questions, triage, status, planned, done, won't do, admin note, reply]
 sort: 575
 ---
-The **Feedback** page (sidebar → **Feedback**, admins only) lists every bug report, idea and question staff have sent from **Report a bug / feedback**. The sidebar item shows a number when there are reports still marked **New**. The Monday weekly digest email also lists the newest **New** reports; see [How does the weekly digest email work?](#/help/weekly-digest).
+The **Feedback** tab of **Team** (`#/team/feedback`, admins only) lists every bug report, idea and question staff have sent from **?** → **Send feedback**. The tab shows a number when there are reports still marked **New**. The Monday weekly digest email also lists the newest **New** reports; see [How does the weekly digest email work?](#/help/weekly-digest).
 
 ### Reading a report
 
@@ -30,4 +30,4 @@ You can't edit what the sender wrote, and reports can't be deleted from the app.
 
 - **The page is empty.** Nobody has sent anything yet, or your filters hide everything.
 - **A screenshot preview won't load or the full-size link stopped working.** Preview links last an hour. Reload the page to get fresh ones.
-- **The number on the sidebar didn't go down.** It counts reports with status **New**. Change their status and it updates.
+- **The number on the tab didn't go down.** It counts reports with status **New**. Change their status and it updates.

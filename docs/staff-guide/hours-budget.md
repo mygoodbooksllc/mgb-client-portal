@@ -18,7 +18,8 @@ An **hours budget** is how many QuickBooks Time hours you plan to spend on a cli
 
 - **Client overview → Profitability · this month**: **Hours budget** shows hours used out of the budget (for example **11.5 h of 10 h**), a bar and the percent.
 - **Team → Hours and tasks → Clients table**: the **Budget (this month)** column. Click the header to sort by it.
-- **Home custom cards**: a **Filtered client list** can use the **Hours budget** rule (**80% or more of budget** or **Over hours budget**). Watchlist and filter rows show **Over hours budget** when a client is past 100%.
+- **Clients page**: the **Hours this month** column shows this month's hours against the budget for everyone assigned to the client, so bookkeepers can see where they stand. Amber from 80%, red when over.
+- **Today**: a client over budget does not make a row on its own; check the Clients page.
 
 ### Colors
 
@@ -28,6 +29,6 @@ An **hours budget** is how many QuickBooks Time hours you plan to spend on a cli
 
 ### Good to know
 
-- **Always this calendar month.** The budget compares hours from the 1st of the month to today, even when the Team page shows another period.
+- **Always this calendar month.** The budget compares hours from the 1st of the month to today, even when Team › Hours shows another period.
 - **Hours come from QuickBooks Time only.** If QuickBooks Time isn't connected, the budget shows on its own with no bar.
 - **No budget, no flag.** A client without a budget never matches the **Hours budget** rule.

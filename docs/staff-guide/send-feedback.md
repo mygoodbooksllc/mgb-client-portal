@@ -9,7 +9,7 @@ If something in the app looks broken, or you have an idea or a question, send it
 
 ### Sending a report
 
-1. Click **?** in the top bar, then **Report a bug / feedback**. You can also scroll to the bottom of the **Help** page and click **Report a bug / feedback**.
+1. Click **?** in the top bar, then **Send feedback**. You can also press **Ctrl+K** (**⌘K**) and type "feedback", or scroll to the bottom of the **Staff guide** page and click **Report a bug / feedback**.
 2. Pick what it is: **Bug** (picked for you), **Idea**, **Question** or **Other**.
 3. Describe it. For a bug, say what you were doing and what happened. There's also an optional box, **What did you expect to happen?**
 4. Add a screenshot if it helps (it usually does for a bug). See **Adding screenshots** below.
@@ -44,5 +44,5 @@ If an admin replied, the note shows under your report as **Reply:**. Screenshots
 
 - One problem per report makes things easier to track.
 - Include the client name or the exact button if it matters. Don't paste passwords or bank details, and crop or skip screenshots that show them.
-- On a phone, the **?** button is hidden. Open **Help** from the menu and use the link at the bottom.
+- On a phone, the **?** button is hidden. Search for the **Staff guide** page and use the link at the bottom.
 - You can't edit or delete a report after sending. Send another one with the extra details.

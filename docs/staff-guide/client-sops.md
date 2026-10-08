@@ -9,8 +9,9 @@ A client's **SOP** (standard operating procedure) explains how their books are r
 
 ### Open a client's SOP
 
-- **My Tasks → SOPs** card: search for the client and click it. Use **Change client** to switch.
-- Or **Client details → SOP** (the client's **Settings** gear → **Client settings** → **Client details**) shows it read-only. Click **Edit in My Tasks** to change it.
+- The client's **SOP** tab: open the client and click **SOP** in the tab row (after the client's own pages).
+- **Work › Tasks → SOPs** card: search for the client and click it. Use **Change client** to switch.
+- Or **Client details → SOP** (the client's **Settings** gear → **Client settings** → **Client details**) shows it read-only. To change it, open the client's **SOP** tab or **Work › Tasks → SOPs**.
 
 ### The seven sections
 
@@ -31,9 +32,9 @@ Under that line, a tag says **Last reviewed {n} days ago**. It counts from which
 - Green: reviewed in the last 180 days.
 - Red, with "Over 180 days. Give it a read and fix anything out of date.": the SOP is **stale**.
 
-Read it through. Fix anything that's changed. If it's all still right, click **Mark as still accurate**. The tag goes back to **Last reviewed today**. You can do this from **Client details → SOP** too, without opening My Tasks.
+Read it through. Fix anything that's changed. If it's all still right, click **Mark as still accurate**. The tag goes back to **Last reviewed today**. You can do this from **Client details → SOP** too, without opening the SOP tab.
 
-Stale SOPs also show on **Home** in **Needs you → This week** with an **SOP** tag, and in Client health. An SOP with nothing written yet isn't counted as stale (Client health flags it as "No SOP written yet" instead).
+Stale SOPs also show on **Today** in **Needs you → This week** with an **SOP** tag, in the **Clients** page's **Needs attention** filter, and in Client health. An SOP with nothing written yet isn't counted as stale (Client health flags it as "No SOP written yet" instead).
 
 ### Edit a section
 

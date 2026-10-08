@@ -2,10 +2,10 @@
 title: How do I read reply times?
 section: Admin
 audience: admin
-keywords: [reply times, reply time, response time, median, p90, within 24 hours, waiting, client messages, inbox, slow replies, goal, kpi]
+keywords: [reply times, team, reply time, response time, median, p90, within 24 hours, waiting, client messages, inbox, slow replies, goal, kpi]
 sort: 550
 ---
-**Reply times** shows how fast we answer client messages. Find it at **Team** → **Reply times** (or `#/team/reply-times`). Everyone also gets a **Your reply time** tile on [Home](#/help/home-page).
+**Reply times** shows how fast we answer client messages. Find it at **Team** → **Reply times** (or `#/team/reply-times`), admins only. Everyone sees the conversations waiting on them as the **Replies waiting** tile on [Today](#/help/home-page).
 
 ### How a reply is timed
 
@@ -27,9 +27,9 @@ When there are no client messages yet, the tables say so.
 ### Who sees what
 
 - Admins see everyone and every client.
-- Bookkeepers see only their own numbers, on the Home tile. A temporary admin who opens this tab sees only their own replies and their own clients.
+- A temporary admin who opens this tab sees only their own replies and their own clients.
 - Clients never see any of this.
 
-### Your reply time (Home tile)
+### Replies waiting (Today tile)
 
-Shows **your** median reply this month and how many conversations are waiting over 24 hours (your clients; firm-wide for admins). Red when someone's waiting. Click it to open the Inbox (admins go to this tab). Hide it with **Customize dashboard** if you don't want it.
+Counts the client conversations waiting on a reply from us (your clients; every client for admins). Click it to open the Inbox. The median and over-24-hour numbers are on this tab, for admins.

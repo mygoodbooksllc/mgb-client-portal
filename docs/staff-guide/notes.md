@@ -9,7 +9,7 @@ Client notes are **staff-only**. Clients never see them. The same notes show up 
 
 ### Where to add a note
 
-- **My Tasks → Notes** card: pick a **Client** and a **Category** (General, Status, Handoff, Call or Meeting), type the note and click **Add note**.
+- **Work › Tasks → Notes** card: pick a **Client** and a **Category** (General, Status, Handoff, Call or Meeting), type the note and click **Add note**.
 - **+** → **New note** in the top bar on any client page.
 - **Client details → Notes** (the client's **Settings** gear → **Client settings** → **Client details**): a scratchpad for things like billing quirks or how a client likes to be contacted.
 - **Client overview → Activity → Log a call**: saves a quick call note.
@@ -24,7 +24,7 @@ Use the **All clients** and **All categories** filters on the Notes card to find
 
 ### Handoff summary
 
-The **handoff summary** is a special note: one per client, visible to every active staff member. Edit it on **Home → Your clients → + Note** or on **My Tasks → By client → Handoff summary**. Keep it short and current, for example *"Waiting on March bank statement, flagged for QuickBooks migration."*
+The **handoff summary** is a special note: one per client, visible to every active staff member. Edit it on **Work › Tasks → By client → Handoff summary**. Keep it short and current, for example *"Waiting on March bank statement, flagged for QuickBooks migration."*
 
 ### Notes on transactions, budget lines and reports
 

@@ -10,7 +10,7 @@ When a client's QuickBooks Online is connected, their portal shows real numbers 
 ### Connect a client's QuickBooks
 
 1. Open the client (**Choose a client** at the top left of the page). See [How do I find and open a client?](#/help/finding-a-client).
-2. Click the **Settings** gear at the bottom of the client's sidebar, then **Client settings → Client details → Open**, then the **QuickBooks** tab.
+2. Click **Settings** at the right end of the client's tab row, then **Client settings → Client details → Open**, then the **QuickBooks** tab.
 3. Click **Connect QuickBooks**.
 4. Sign in to Intuit and pick the client's company when asked. Approve the connection.
 5. You come back to the portal. The tab now says **Connected** and shows **Last synced …**.
@@ -36,9 +36,9 @@ The portal syncs on its own, based on the client's plan:
 | Basic | Monthly, on the 15th |
 | Pro | Every 15 minutes (every 30 if the firm is near its Intuit limit) |
 
-If the firm uses 95% of its Intuit monthly limit, automatic syncs pause until the 1st; **Sync now** still works. Admins can see usage on the Team page.
+If the firm uses 95% of its Intuit monthly limit, automatic syncs pause until the 1st; **Sync now** still works. Admins can see usage on Team › Hours.
 
-Month-close data (used by the Close tracker's QuickBooks checks and stale-bank flags) refreshes daily and whenever you use **Sync now**.
+Month-close data (used by the QuickBooks checks and stale-bank flags on Work › Close) refreshes daily and whenever you use **Sync now**.
 
 ### Sync now
 

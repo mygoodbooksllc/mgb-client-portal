@@ -9,7 +9,7 @@ Drag a file from your computer and drop it **anywhere** in the staff app. You do
 
 While you drag, the page shows **Drop to add to {client}'s documents**. Let go and a short box opens:
 
-1. **Client**: the client you have open is picked for you. On **Home** and other staff pages, choose one from **Choose a client…**.
+1. **Client**: the client you have open is picked for you. On Today and other staff pages, pick one from the **Clients** page or the client picker.
 2. **Folder**: pick one of the client's folders, or leave it on **No folder**.
 3. **Document type** and **Year**: which Google Drive folder the file goes in (*{client} / 2026 / Bank statements*). It starts on **Other** and this year. Shown once Google Drive is connected; see [Where are client files stored?](#/help/google-drive-files).
 4. **Visible to client**: **off by default**.

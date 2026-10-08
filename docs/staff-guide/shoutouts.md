@@ -9,7 +9,7 @@ A **shout-out** is a short public thank-you to a teammate. The whole team can se
 
 ### Give one
 
-1. On **Home**, find the **Shout-outs** card. (If you don't see it, click **Customize dashboard** and add it.)
+1. Open **Team › People** (`#/team/people`) and find the **Shout-outs** card.
 2. Click **+ Give a shout-out**.
 3. Pick **Who** it's for. You can also pick a **Client** it was about (optional).
 4. Write what they did, up to 500 characters, and click **Send shout-out**.

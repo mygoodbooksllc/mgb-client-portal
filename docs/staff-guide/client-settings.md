@@ -5,7 +5,7 @@ audience: staff
 keywords: [client settings, settings, gear, manage access, client details, plan, plans, upgrade, change plan, organization, summary recipients, sign out, sign out all devices, security, privacy, data, who can see, encryption, delete my data, client notifications, client profile, request access, theme, dark mode]
 sort: 262
 ---
-Every client page has a **Settings** gear at the bottom of the client's sidebar (above **Collapse**). What it opens depends on who's looking.
+Every client page has a **Settings** gear. For staff it's at the right end of the client's tab row (it says **new access request pending** when someone is waiting). Clients have it at the bottom of their sidebar, above **Collapse**. What it opens depends on who's looking.
 
 ### What you see (staff)
 
@@ -15,7 +15,7 @@ Two tabs:
   - **Manage access**: who at the client can sign in, what each person sees, and portal access requests. When there's a new request, the gear has a gold dot and the row says **New request**.
   - **Client details**: contacts, QuickBooks, notes, SOP and the client's other details.
 
-  Each **Open** button opens the same window as before. These used to be the **Manage access** and **Client details** links at the bottom of the client's sidebar.
+  Each **Open** button opens the same window as before.
 - **Plan**: the Basic and Pro comparison the client sees (Basic is free with 1 login included and extra logins at $20/mo each; Pro is $100/mo plus $20/mo per login; both are on top of the milestone fee), with the client's plan marked **Your plan**. This used to be its own Plans page. The lock next to **Milestone** in the sidebar opens it too.
 
 ### What the client sees
@@ -40,5 +40,5 @@ While previewing as a client user you see their Settings tabs, read-only. Their 
 
 ### Troubleshooting
 
-- **I can't find Manage access or Client details.** Open the client, click the **Settings** gear at the bottom of their sidebar, then **Client settings**.
+- **I can't find Manage access or Client details.** Open the client, click **Settings** at the right end of the tab row, then **Client settings**.
 - **The client says they don't get the monthly summary.** On their **Organization** tab, someone with full access may have picked only certain people. Their **Notifications** tab says so too.
