@@ -669,6 +669,9 @@
   .tr-comments-grid > .tr-cg-head.tr-cg-col {
     display: none;
   }
+  .tr-comments-grid .tr-cg-cell > .tr-row-label {
+    display: block;
+  }
 }
 @media (max-width: 560px) {
   .tr-rating {
@@ -705,4 +708,18 @@
     grid-template-columns: minmax(0, 1fr);
     gap: 4px;
   }
+}
+
+.tr-cg-cell > .tr-row-label {
+  display: none;
+}
+/* Comparison screen stack */
+.tr-compare {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.tr-compare > .card,
+.tr-compare > .kpi-grid {
+  margin: 0;
 }
