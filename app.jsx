@@ -23269,7 +23269,7 @@ function TabSettingsModal({
         <div className="modal-body">
           <p className="card-subtitle" style={{ marginTop: 0 }}>
             Turn a tab off here and nobody at {client.name} sees it, whatever
-            their individual access. Drag ⠿ to reorder.
+            their individual access. Drag ⠿ to reorder the Finances tabs.
           </p>
           {NAV_SECTIONS.map((section) => {
             const items = orderedSectionItems(section, tabOrder, client.id);
@@ -26605,6 +26605,12 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
   // Client-side places (CLIENT_PLACES): which place the page belongs to,
   // and the sub-tab for Reports / Messages.
   const clientPlace = CLIENT_placeOf(effectivePage);
+  // Finances tab order follows Manage access › Organization tabs (drag ⠿).
+  const financeTabKeys = orderedSectionItems(
+    NAV_SECTIONS.find((sec) => sec.label === "Finances"),
+    tabOrder,
+    selectedClientId,
+  ).map((i) => i.key);
   const clientReportsSub =
     clientSub.page === "reports" && clientSub.sub === "packet" ? "packet" : "downloads";
   const clientMessagesSub =
@@ -27109,7 +27115,7 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
           {!staffClientTabs && clientPlace && clientPlace.tabs && (
             <NAV_TabRow
               label="Finances"
-              tabs={clientPlace.tabs
+              tabs={financeTabKeys
                 .filter((k) => access.tabs.has(k))
                 .map((k) => ({ key: k, label: NAV_LABEL_BY_KEY[k] || k }))}
               current={effectivePage}
