@@ -360,3 +360,49 @@
   .son-step .son-check { flex-basis: 100%; }
   .son-guide { margin-left: 30px; }
 }
+
+/* ---- Form controls (owner report 2026-10-08: plain browser-gray dropdowns,
+   text boxes and textareas on the staff ops forms). Same look as the app's
+   other forms (.ms-form / .hc-input / .staff-add-row): surface background,
+   theme border and text, gold focus ring. Native select arrow like the rest
+   of the app; :root sets color-scheme per theme, so the open dropdown list
+   follows light/dark. :where() keeps this at zero specificity, so the
+   per-form width rules above and the phone 16px font rule in styles.css
+   still win. Scoped to the staff ops containers only. */
+:where(.so-form, .cv-form, .dl-rule-form, .dl-exc-form, .dl-file-form, .dl-controls, .hlb-filters, .son-edit)
+  :where(select, textarea, input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]):not([type="color"])) {
+  font: inherit;
+  font-size: 14px;
+  line-height: 1.4;
+  color: var(--text);
+  background-color: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 10px;
+  min-height: 38px;
+  box-sizing: border-box;
+  min-width: 0;
+}
+:where(.so-form, .cv-form, .dl-rule-form, .dl-exc-form, .dl-file-form, .dl-controls, .hlb-filters, .son-edit) :where(select) {
+  cursor: pointer;
+  padding-right: 6px;
+}
+:where(.so-form, .cv-form, .dl-rule-form, .dl-exc-form, .dl-file-form, .dl-controls, .hlb-filters, .son-edit) :where(textarea) {
+  line-height: 1.45;
+}
+:where(.so-form, .cv-form, .dl-rule-form, .dl-exc-form, .dl-file-form, .dl-controls, .hlb-filters, .son-edit) :where(select, textarea, input)::placeholder {
+  color: var(--text-muted);
+  opacity: 1;
+}
+:where(.so-form, .cv-form, .dl-rule-form, .dl-exc-form, .dl-file-form, .dl-controls, .hlb-filters, .son-edit) :where(select, textarea, input:not([type="checkbox"]):not([type="radio"])):focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 1px;
+  border-color: var(--gold);
+}
+:where(.so-form, .cv-form, .dl-rule-form, .dl-exc-form, .dl-file-form, .dl-controls, .hlb-filters, .son-edit) :where(select, textarea, input):disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+:where(.so-form, .cv-form, .dl-rule-form, .dl-exc-form, .dl-file-form, .dl-controls, .hlb-filters, .son-edit) :where(input[type="checkbox"], input[type="radio"]) {
+  accent-color: var(--gold-deep);
+}
