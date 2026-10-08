@@ -2,7 +2,7 @@
 title: How do I read the Team page?
 section: Admin
 audience: admin
-keywords: [team, members, staff access, hours and tasks, quickbooks api usage, hours, quickbooks time, in app, people table, clients table, drill-down, csv, this month, custom range, billable]
+keywords: [hours budget, team, members, staff access, hours and tasks, quickbooks api usage, hours, quickbooks time, in app, people table, clients table, drill-down, csv, this month, custom range, billable]
 sort: 500
 ---
 **Team** (sidebar → **Team**, or `#/team`) has two tabs:
@@ -33,7 +33,9 @@ Click a person to see their QB hours, billable hours, in-app time by client, tas
 
 ### Clients table
 
-Client, Plan, QB hours, In app, Avg / mo, Trend (for example "▲ 20% vs avg"), Billable value, then admin-only Fee / mo, Eff. rate, Cost, Profit, Margin %, then Open and Overdue.
+Client, Plan, QB hours, In app, Avg / mo, Trend (for example "▲ 20% vs avg"), Billable value, then admin-only Fee / mo, Eff. rate, Cost, Profit, Margin %, **Budget (this month)**, then Open and Overdue.
+
+- **Budget (this month)** (admin) compares this calendar month's QuickBooks Time hours with the client's monthly hours budget: amber from 80%, red with **Over** at 100%. A dash means no budget is set. See [How do I set a monthly hours budget for a client?](#/help/hours-budget).
 
 - **Least profitable first** (admin) sorts by margin.
 - **Show clients with no activity** includes quiet clients.

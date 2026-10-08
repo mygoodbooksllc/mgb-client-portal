@@ -1,0 +1,53 @@
+/* Staff ops features (owner request 2026-10-07): hours budget, reply times,
+   coverage, deadlines, health board, shout-outs, SOP freshness, new-hire
+   onboarding. Components: HoursBudget.jsx (hb-), ReplyTimes.jsx (rt-),
+   Coverage.jsx (cv-), Deadlines.jsx (dl-), HealthBoard.jsx (hlb-),
+   Shoutouts.jsx (sh-), SopFreshness.jsx (sf-), StaffOnboarding.jsx (son-). */
+
+/* ---- Hours budget */
+.hb-bar {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+}
+.hb-track {
+  display: inline-block;
+  width: 72px;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--surface-2, var(--border));
+  overflow: hidden;
+  flex-shrink: 0;
+}
+.hb-compact .hb-track { width: 48px; }
+.hb-track > span {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: var(--good);
+}
+.hb-near .hb-track > span { background: var(--gold-deep); }
+.hb-over .hb-track > span { background: var(--bad); }
+.hb-text { font-variant-numeric: tabular-nums; }
+.hb-near .hb-text { color: var(--warm-text); font-weight: 600; }
+.hb-over .hb-text { color: var(--bad); font-weight: 700; }
+.hb-tag {
+  margin-left: 6px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  font-size: 11px;
+  background: var(--bad-soft);
+  color: var(--bad);
+}
+
+.ov-lines li.hb-ov-line { flex-wrap: wrap; row-gap: 4px; }
+.hb-ov-bar {
+  flex-basis: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.hb-ov-bar .hb-track { flex: 1; width: auto; }
+.hb-ov-line.hb-near .hb-ov-val { color: var(--warm-text); font-weight: 600; }
+.hb-ov-line.hb-over .hb-ov-val { color: var(--bad); font-weight: 700; }

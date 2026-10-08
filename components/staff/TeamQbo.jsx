@@ -710,6 +710,12 @@ function TP_QTrend({ trend }) {
 function TP_QboClientsTable({ clientRows, hours, qboOn, range, today, avg, onOpenClient, onOpenBucket, onOpenMapping, profit }) {
   const showMoney = !!profit;
   const pv = (id) => TP_PF_rowView(profit, qboOn, id);
+  // Hours budget (HoursBudget.jsx): admins only, always this calendar month.
+  const budgets = HB_useBudgets(showMoney);
+  const budgetRatio = (id) => {
+    const st = budgets && budgets.byClient[id];
+    return st ? st.ratio : null;
+  };
   // key null = default: QuickBooks hours when connected, in-app time otherwise.
   const [sortState, setSort] = useState({ key: null, dir: "desc" });
   const sort = sortState.key ? sortState : { key: qboOn ? "hours" : "app", dir: sortState.dir };
@@ -736,6 +742,7 @@ function TP_QboClientsTable({ clientRows, hours, qboOn, range, today, avg, onOpe
       cost: (r) => TP_PF_orLast(showMoney ? pv(r.id).cost : null, sort.dir),
       profit: (r) => TP_PF_orLast(showMoney ? pv(r.id).profit : null, sort.dir),
       margin: (r) => TP_PF_orLast(showMoney ? pv(r.id).margin : null, sort.dir),
+      budget: (r) => TP_PF_orLast(showMoney ? budgetRatio(r.id) : null, sort.dir),
     }[sort.key] || ((r) => r.qMinutes);
     return [...list].sort((a, b) => {
       const x = val(a);
@@ -744,7 +751,7 @@ function TP_QboClientsTable({ clientRows, hours, qboOn, range, today, avg, onOpe
       if (x > y) return 1 * dir;
       return a.name.localeCompare(b.name);
     });
-  }, [built, sort, showIdle, profit, qboOn]);
+  }, [built, sort, showIdle, profit, qboOn, budgets]);
   const toggle = (key) =>
     setSort(() =>
       sort.key === key ? { key, dir: sort.dir === "asc" ? "desc" : "asc" } : { key, dir: key === "name" || key === "rate" || key === "margin" ? "asc" : "desc" },
@@ -762,7 +769,7 @@ function TP_QboClientsTable({ clientRows, hours, qboOn, range, today, avg, onOpe
   const clientMin = built.rows.reduce((n, r) => n + r.qMinutes, 0);
   const otherMin = built.total - clientMin - unmappedMin;
   const appTotal = built.rows.reduce((n, r) => n + TP_qNum(r.appMinutes), 0);
-  const cols = showMoney ? 14 : 9;
+  const cols = showMoney ? 15 : 9;
   const dash = <span className="tp-muted">–</span>;
   const leastFirst = sort.key === "margin" && sort.dir === "asc";
 
@@ -821,6 +828,7 @@ function TP_QboClientsTable({ clientRows, hours, qboOn, range, today, avg, onOpe
                 ["rate", "Rate"],
                 ["profit", "Profit"],
                 ["margin", "Margin"],
+                ["budget", "Budget"],
               ]
             : []),
           ["name", "Name"],
@@ -873,6 +881,9 @@ function TP_QboClientsTable({ clientRows, hours, qboOn, range, today, avg, onOpe
                   </th>
                   <th className="num">
                     <button type="button" className="tp-sort" onClick={() => toggle("margin")}>Margin %{mark("margin")}</button>
+                  </th>
+                  <th className="num" title="QuickBooks Time hours this calendar month against the client's monthly hours budget (set on the client overview). Amber from 80%, red at 100%.">
+                    <button type="button" className="tp-sort" onClick={() => toggle("budget")}>Budget (this month){mark("budget")}</button>
                   </th>
                 </>
               )}
@@ -941,6 +952,9 @@ function TP_QboClientsTable({ clientRows, hours, qboOn, range, today, avg, onOpe
                         <td className="num" data-label="Margin %">
                           <TP_PF_MarginChip margin={m.margin} target={profit.target} />
                         </td>
+                        <td className="num" data-label="Budget (this month)">
+                          <HB_Cell data={budgets} clientId={r.id} />
+                        </td>
                       </>
                     )}
                     <td className="num" data-label="Open">{r.open}</td>
@@ -978,6 +992,7 @@ function TP_QboClientsTable({ clientRows, hours, qboOn, range, today, avg, onOpe
                         <td className="num tp-muted" data-label="Cost">–</td>
                         <td className="num tp-muted" data-label="Profit">–</td>
                         <td className="num tp-muted" data-label="Margin %">–</td>
+                        <td className="num tp-muted" data-label="Budget (this month)">–</td>
                       </>
                     )}
                     <td className="num tp-muted" data-label="Open">–</td>

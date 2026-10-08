@@ -57,13 +57,13 @@ On each row in **Your clients**:
 You can add cards of your own to Home. Click **+ New custom card** (next to **Customize dashboard**), or **Create a custom card** at the top of the customize panel. Pick one of four kinds:
 
 - **Client watchlist**: tick the clients you want to keep an eye on. Each row shows the health dot, overdue and due-soon bills, unread messages and last month's close progress (for example **4/6**). Worst health is listed first. Click a client to open their Client overview.
-- **Filtered client list**: build a rule from menus (plan, health, bills, month-end close, messages), for example *Pro* + *Has overdue bills*. The card lists every client that matches right now, with a line like **3 of 12 clients match** at the bottom. It updates by itself, so a client drops off once they no longer match.
+- **Filtered client list**: build a rule from menus (plan, health, bills, month-end close, messages, and for admins **Hours budget**), for example *Pro* + *Has overdue bills*. The card lists every client that matches right now, with a line like **3 of 12 clients match** at the bottom. It updates by itself, so a client drops off once they no longer match.
 - **One client's numbers**: pick a client, then choose what to show (cash, income, spending, a budget line and so on) with the same builder as a custom card on a Pro client's Financial Overview. See *How do custom cards on the Financial Overview work?* **Open (client) →** under the card takes you to that client.
 - **Notes / checklist**: a note and a to-do checklist. Type in the note and it saves when you click away. Add items, tick them off, and **Clear finished** removes the ticked ones.
 
 Give the card a title, or leave it blank and one is filled in for you. Every custom card has a **⋯** menu with **Edit card**, **Duplicate** and **Delete…** (delete asks you to confirm and can't be undone). You can have up to 12.
 
-Custom cards are private to you, and they're saved with your Home layout, so they follow you to any device. They move, hide and show like the other cards in the customize panel. **Reset to default** puts the built-in cards back in order and keeps your custom cards at the end. Close progress is blank while it loads; a filter that uses **Month-end close** shows a client only once their progress has loaded.
+Custom cards are private to you, and they're saved with your Home layout, so they follow you to any device. They move, hide and show like the other cards in the customize panel. **Reset to default** puts the built-in cards back in order and keeps your custom cards at the end. Close progress is blank while it loads; a filter that uses **Month-end close** shows a client only once their progress has loaded. The **Hours budget** rule (admins) only matches clients that have a budget and QuickBooks Time hours; rows show **Over hours budget** past 100%.
 
 ### Make it yours
 

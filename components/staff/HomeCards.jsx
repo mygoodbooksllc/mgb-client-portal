@@ -97,8 +97,27 @@ const HC_RULES = [
       ["no", "No unread messages"],
     ],
   },
+  // Hours budget (HoursBudget.jsx, supabase/client-hours-budget.sql):
+  // QuickBooks Time hours this month vs client_profile.monthly_hours_budget.
+  // Admins only; for anyone else (or no budget / no QuickBooks Time) it
+  // matches nothing.
+  {
+    key: "budget",
+    label: "Hours budget",
+    adminOnly: true,
+    options: [
+      ["any", "Any hours"],
+      ["near", "80% or more of budget"],
+      ["over", "Over hours budget"],
+    ],
+  },
 ];
-const HC_DEFAULT_RULES = { plan: "any", health: "any", bills: "any", close: "any", unread: "any" };
+const HC_DEFAULT_RULES = { plan: "any", health: "any", bills: "any", close: "any", unread: "any", budget: "any" };
+
+// The rules this viewer can pick (adminOnly ones need ctx.isAdmin).
+function HC_rulesFor(ctx) {
+  return HC_RULES.filter((f) => !f.adminOnly || (ctx && ctx.isAdmin));
+}
 
 const HC_newId = (prefix = "hc-") =>
   prefix + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
@@ -185,7 +204,9 @@ function HC_facts(c, ctx) {
   const due = ctx.dueCountByClient[c.id] || { overdue: 0, soon: 0 };
   const unread = ctx.unreadByClient[c.id] || 0;
   const close = ctx.closeCounts ? ctx.closeCounts[c.id] || 0 : null;
-  return { health, due, unread, close };
+  // null = unknown (not admin, still loading, no budget): never matches.
+  const budget = ctx.isAdmin && ctx.budgetByClient ? ctx.budgetByClient[c.id] || null : null;
+  return { health, due, unread, close, budget };
 }
 
 function HC_matches(c, rules, ctx) {
@@ -209,6 +230,7 @@ function HC_matches(c, rules, ctx) {
   }
   if (r.unread === "yes" && !f.unread) return false;
   if (r.unread === "no" && f.unread) return false;
+  if (r.budget && r.budget !== "any" && !OPS_budgetMatches(r.budget, f.budget)) return false;
   return true;
 }
 
@@ -229,6 +251,7 @@ function HC_ClientRow({ c, f, onOpen }) {
   if (f.due.overdue) chips.push(["now", `${f.due.overdue} overdue`]);
   if (f.due.soon) chips.push(["week", `${f.due.soon} due soon`]);
   if (f.unread) chips.push(["now", `${f.unread} unread`]);
+  if (f.budget && f.budget.state === "over") chips.push(["now", `Over hours budget (${f.budget.pct}%)`]);
   return (
     <li>
       <button type="button" className="hc-row" onClick={() => onOpen(c.id)}>
@@ -723,7 +746,7 @@ function HC_Builder({ initial, ctx, onSave, onCancel }) {
             <div className="hc-field">
               <span className="hc-label">Show clients where…</span>
               <div className="hc-rules">
-                {HC_RULES.map((f) => (
+                {HC_rulesFor(ctx).map((f) => (
                   <label key={f.key} className="hc-rule">
                     <span>{f.label}</span>
                     <select

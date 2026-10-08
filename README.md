@@ -562,6 +562,23 @@ goes through `security definer` RPCs that call `tr_me()` / `tr_require_admin()` 
 - Staff guide: `quarterly-reviews.md`, `team-survey.md`, `review-cycles.md`,
   `review-drive-setup.md`.
 
+### Staff ops features (added 2026-10-07)
+
+Eight staff-only features, built one per commit. Shared pieces: pure rules in
+`components/staff/staffOpsLogic.js` (`OPS_` globals; unit tests in `staffOpsLogic.test.js`, run
+with `node components/staff/staffOpsLogic.test.js`) and styles in `components/staff/team-ops.css`.
+Each feature has its own component file with a unique prefix, loaded from `index.html` after the
+Team Reviews files.
+
+- **Hours budget per client** (admin only). `client_profile.monthly_hours_budget`
+  (`supabase/client-hours-budget.sql`; a trigger keeps non-admins from setting or changing it,
+  though they can technically read the column through the existing profile policy).
+  `components/staff/HoursBudget.jsx` (`HB_`): one cached load of every budget plus this calendar
+  month's `qbo_hours_by_client` (read only), shown in the Team Clients table (**Budget (this
+  month)** column in `TeamQbo.jsx`), the overview Profitability card and the Home filter rule
+  `budget` (`HC_RULES` entries can now be `adminOnly`). Near at 80%, over at 100%
+  (`OPS_budgetStatus`). Guide: `hours-budget.md`.
+
 ### Client side (and staff viewing a client)
 
 - **Basic** has no Dashboard, so a Basic client lands on Reports.

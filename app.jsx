@@ -5813,6 +5813,7 @@ function ClientOverviewPage({ client, messagesByClient, onNavigate, onOpenDetail
   // list and update clients). clients.account_manager_email,
   // supabase/account-manager.sql.
   const canPickAm = !!(staffUser && staffUser.role === "admin" && sb && window.AM_COLS_OK !== false);
+  const isAdminViewer = !!(staffUser && staffUser.role === "admin");
   const [amStaff, setAmStaff] = useState([]);
   useEffect(() => {
     if (!canPickAm) return;
@@ -5978,6 +5979,7 @@ function ClientOverviewPage({ client, messagesByClient, onNavigate, onOpenDetail
     launch_date: profile.launch_date || "",
     backup_bookkeeper_email: profile.backup_bookkeeper_email || "",
     target_hourly_rate: profile.target_hourly_rate != null ? String(profile.target_hourly_rate) : "",
+    monthly_hours_budget: profile.monthly_hours_budget != null ? String(profile.monthly_hours_budget) : "",
     account_manager_email: (client.accountManager && client.accountManager.email) || "",
   };
   const today = todayLocal();
@@ -6001,6 +6003,10 @@ function ClientOverviewPage({ client, messagesByClient, onNavigate, onOpenDetail
       backup_bookkeeper_email: draft.backup_bookkeeper_email.trim() || null,
       target_hourly_rate: draft.target_hourly_rate === "" ? null : Number(draft.target_hourly_rate),
     };
+    // Hours budget: admins only (supabase/client-hours-budget.sql also
+    // ignores a change from anyone else). Left out for bookkeepers so their
+    // save never touches it.
+    if (isAdminViewer) fields.monthly_hours_budget = draft.monthly_hours_budget === "" ? null : Number(draft.monthly_hours_budget);
     const { error } = await staffToolsApi.saveProfile(sb, client.id, fields, staffUser && staffUser.email);
     if (error) {
       setSavingProfile(false);
@@ -6142,6 +6148,10 @@ function ClientOverviewPage({ client, messagesByClient, onNavigate, onOpenDetail
             {/* Fee, cost, profit, margin: admins only (TeamProfit.jsx). */}
             {staffUser && staffUser.role === "admin" && typeof TP_PF_OverviewLines === "function" && (
               <TP_PF_OverviewLines clientId={client.id} qboOn={data.qbMinutes != null} from={monthStart} to={todayLocal()} />
+            )}
+            {/* Hours budget: admins only (HoursBudget.jsx). */}
+            {isAdminViewer && typeof HB_OverviewLine === "function" && !data.loading && (
+              <HB_OverviewLine minutes={data.qbMinutes} budget={data.profile && data.profile.monthly_hours_budget} />
             )}
           </ul>
           <p className="ov-foot">
@@ -6333,6 +6343,7 @@ function ClientOverviewPage({ client, messagesByClient, onNavigate, onOpenDetail
                     ["launch_date", "Launch date (church plants)", "date"],
                     ["backup_bookkeeper_email", "Backup bookkeeper (email)", "email", "name@mygoodbooks.org"],
                     ["target_hourly_rate", "Target hourly rate ($)", "number", "75"],
+                    ...(isAdminViewer ? [["monthly_hours_budget", "Monthly hours budget (admins only)", "number", "10"]] : []),
                   ].map(([key, label, type, ph]) => (
                     <label className="task-field" key={key}>
                       <span>{label}</span>
@@ -6340,6 +6351,7 @@ function ClientOverviewPage({ client, messagesByClient, onNavigate, onOpenDetail
                         type={type}
                         placeholder={ph}
                         min={type === "number" ? 0 : undefined}
+                        step={type === "number" ? "any" : undefined}
                         value={draft[key]}
                         onChange={(e) => setProfileDraft({ ...draft, [key]: e.target.value })}
                       />
@@ -17231,6 +17243,12 @@ function BookkeeperHomePage({
   const closeCounts = HC_useCloseCounts(
     layout.cards.some((c) => c.kind === "watchlist" || c.kind === "filter"),
   );
+  // Hours budget facts for the "Hours budget" card rule (admins only,
+  // HoursBudget.jsx). Only loads when a list card is on Home.
+  const homeIsAdmin = !!(staffUser && staffUser.role === "admin");
+  const homeBudgets = HB_useBudgets(
+    homeIsAdmin && layout.cards.some((c) => c.kind === "watchlist" || c.kind === "filter"),
+  );
   const cardCtx = {
     clients,
     today,
@@ -17238,6 +17256,8 @@ function BookkeeperHomePage({
     dueCountByClient,
     unreadByClient,
     closeCounts,
+    isAdmin: homeIsAdmin,
+    budgetByClient: homeBudgets ? homeBudgets.byClient : null,
     onOpenClient: (clientId) => onNavigateToClient(clientId, "client-overview"),
   };
   const drag = useDragReorder(layout);
