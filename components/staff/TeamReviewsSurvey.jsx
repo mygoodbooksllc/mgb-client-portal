@@ -286,7 +286,7 @@ function TR_SurveyResultsTab() {
   if (d.morale != null && d.morale_prev != null) {
     const diff = Math.round((Number(d.morale) - Number(d.morale_prev)) * 10) / 10;
     moraleSub = (diff > 0 ? "↑ " : diff < 0 ? "↓ " : "") + Math.abs(diff).toFixed(1) + " vs. " + String(d.prev_label || "").split(" ")[0];
-    moraleTone = diff > 0 ? "good" : diff < 0 ? "bad" : "neutral";
+    moraleTone = diff > 0 ? "positive" : diff < 0 ? "negative" : "neutral";
   }
 
   return (
