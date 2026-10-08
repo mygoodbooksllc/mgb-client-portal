@@ -10,6 +10,7 @@ The newest changes to the staff side, newest first. For how anything works, sear
 ### 2026-10-08: new staff navigation
 
 - **Five places** in the left rail: **Today**, **Inbox**, **Work**, **Clients** and **Team**, with **Settings** at the bottom. Every page is a title, one row of tabs and the content.
+- **One top bar.** The page title, its buttons and its tab row now sit on a single bar across the top: white over the cream page in light mode, and the same dark colour as the rail in dark mode so the rail, tool bar and header read as one frame. Clients see the same bar on their side.
 - **Today** replaces Home: one list of what needs you, most urgent first, with four tiles above it. No more cards to arrange. See [What's on my Today page?](#/help/home-page).
 - **Work** holds **Tasks** (was My Tasks), **Close** (was Close tracker) and **Deadlines**. See [What's on the Work page?](#/help/work-page).
 - **Clients** is your client list with health, backup and **Hours this month**, which bookkeepers can now see for their own clients. Inside a client you get a breadcrumb, one tab row (including **SOP** and **Milestone**) and **View as client**. See [How do I use the Clients page?](#/help/clients-page).
