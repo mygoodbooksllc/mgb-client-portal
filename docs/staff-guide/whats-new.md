@@ -7,6 +7,13 @@ sort: 15
 ---
 The newest changes to the staff side, newest first. For how anything works, search this guide or click **?** → **Help for this page**.
 
+### 2026-10-08: tabs you can see, usage stats that count everything
+
+- **Tabs** on Work, Team, a client's pages and inside cards are now a filled control (the active tab is gold), so "Tasks, Close, Deadlines" reads as a row of tabs instead of plain text.
+- **Settings › Usage stats** (admins) now counts in the database, so the numbers are exact at any range: pages *and* tabs, an eight-week trend, who's active and when each person was last seen, clients that have gone quiet for 30 days, key actions (search, guide searches with no result, help, tours), devices, and **Export CSV**. See [Usage stats and Developer tools](#/help/admin-insight).
+- **Settings › Developer tools** (admins) gained **Scheduled jobs** with **Run now**, **Recent errors** caught in people's browsers, **Send me a test email**, **Reload for the latest** and a **Show unreleased features** flag.
+- **Settings › Emails** shows delivered, opened, clicked and bounced counts for the last 30 days once the Resend webhook is set up.
+
 ### 2026-10-08: your photo in your email signature
 
 - **Settings › Email signature** has **Include my profile photo**. Turn it on and your Profile photo shows beside your sign-off in the emails the portal sends to your clients. Drafts that open in your own mail app stay text-only. See [How do I change my settings?](#/help/staff-settings).

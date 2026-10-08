@@ -342,14 +342,26 @@ function HLP_StaffGuidePage() {
     if (!supabase) return;
     const seq = ++searchSeq.current;
     setSearch((s) => ({ ...s, loading: true }));
+    let trackT = null;
     const t = setTimeout(() => {
       supabase.rpc("search_staff_guide", { q }).then(({ data, error }) => {
         if (seq !== searchSeq.current) return;
         if (error) setSearch({ loading: false, error: "Search failed. " + error.message, q, rows: [] });
-        else setSearch({ loading: false, error: null, q, rows: data || [] });
+        else {
+          setSearch({ loading: false, error: null, q, rows: data || [] });
+          // Usage Stats counts the search once typing has paused, not every
+          // keystroke; a search with no result is listed by query so an
+          // article can be added for it.
+          trackT = setTimeout(() => {
+            if (window.MGB_track) window.MGB_track((data || []).length ? "guide-search" : "guide-miss", q.toLowerCase());
+          }, 1500);
+        }
       });
     }, HLP_SEARCH_DEBOUNCE_MS);
-    return () => clearTimeout(t);
+    return () => {
+      clearTimeout(t);
+      if (trackT) clearTimeout(trackT);
+    };
   }, [query]);
 
   const groups = React.useMemo(() => HLP_groupBySection(list.rows), [list.rows]);

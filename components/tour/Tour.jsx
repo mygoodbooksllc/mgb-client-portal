@@ -718,6 +718,7 @@ function TOUR_Root({
     const persist = run && run.persist;
     const home = hasDashboard ? undefined : page;
     setRun(null);
+    if (persist && window.MGB_track) window.MGB_track(status === "done" ? "tour-done" : "tour-skipped", "client");
     if (persist) save({ status, endedAt: new Date().toISOString(), ...(home ? { home } : {}) });
     else if (!isRealClient && isPreviewingUser) setPreviewChecklist((p) => p || { ticks: {}, home });
     if (status === "done" && onSelectPage) onSelectPage("dashboard");
@@ -908,6 +909,7 @@ function TOUR_StaffRoot({ staffUser, impersonating, isPreviewingUser, page, onSe
 
   const end = (status) => {
     setRun(null);
+    if (ownSettings && window.MGB_track) window.MGB_track(status === "done" ? "tour-done" : "tour-skipped", "staff");
     if (ownSettings) ST_store.update({ staffTour: { status, at: new Date().toISOString() } });
     const back = returnFocus.current;
     setTimeout(() => {

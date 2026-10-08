@@ -419,6 +419,95 @@ function EM_SendLog({ reloadKey }) {
   );
 }
 
+// Delivery events Resend posts to the resend-webhook function (email_events,
+// supabase/usage-stats-2.sql). Counts each email once per event over 30 days.
+function EM_DeliveryCard({ reloadKey }) {
+  const supabase = window.mgbSupabase;
+  const [state, setState] = React.useState({ loading: true, error: "", counts: null, total: 0 });
+  React.useEffect(() => {
+    if (!supabase) return;
+    let live = true;
+    const since = new Date(Date.now() - 30 * 86400000).toISOString();
+    supabase
+      .from("email_events")
+      .select("event_type, email_id")
+      .gte("received_at", since)
+      .limit(5000)
+      .then(({ data, error }) => {
+        if (!live) return;
+        if (error) {
+          setState({ loading: false, error: error.message, counts: null, total: 0 });
+          return;
+        }
+        const seen = {};
+        (data || []).forEach((r, i) => {
+          if (!seen[r.event_type]) seen[r.event_type] = new Set();
+          seen[r.event_type].add(r.email_id || "row" + i);
+        });
+        const counts = {};
+        Object.keys(seen).forEach((k) => (counts[k] = seen[k].size));
+        setState({ loading: false, error: "", counts, total: (data || []).length });
+      });
+    return () => {
+      live = false;
+    };
+  }, [supabase, reloadKey]);
+  const tiles = [
+    ["delivered", "Delivered"],
+    ["opened", "Opened"],
+    ["clicked", "Clicked"],
+    ["bounced", "Bounced"],
+    ["complained", "Marked as spam"],
+  ];
+  const c = state.counts || {};
+  const delivered = c.delivered || 0;
+  const hookUrl = window.SUPABASE_CONFIG ? window.SUPABASE_CONFIG.url + "/functions/v1/resend-webhook" : "";
+  return (
+    <div className="card">
+      <div className="al-head">
+        <div style={{ minWidth: 0 }}>
+          <h3 className="card-title" style={{ margin: 0 }}>Delivery, last 30 days</h3>
+          <p className="card-subtitle" style={{ margin: "4px 0 0" }}>
+            What Resend reports back after a send. Each email counts once per event.
+          </p>
+        </div>
+      </div>
+      {state.loading && <p className="card-subtitle">Loading…</p>}
+      {state.error && (
+        <p className="card-subtitle" style={{ color: "var(--bad)" }}>
+          Couldn't load delivery events. {state.error}
+        </p>
+      )}
+      {!state.loading && !state.error && state.total === 0 && (
+        <p className="card-subtitle" style={{ marginTop: 10 }}>
+          No delivery events yet. In Resend, add a webhook at{" "}
+          <a href="https://resend.com/webhooks" target="_blank" rel="noopener noreferrer">
+            resend.com/webhooks
+          </a>{" "}
+          pointed at <code>{hookUrl || "the resend-webhook function"}</code> with the delivered, opened,
+          clicked, bounced and complained events, then put its signing secret in the function secrets as{" "}
+          <code>RESEND_WEBHOOK_SECRET</code>.
+        </p>
+      )}
+      {!state.loading && !state.error && state.total > 0 && (
+        <div className="us-stats">
+          {tiles.map(([k, label]) => (
+            <div key={k}>
+              <strong>{(c[k] || 0).toLocaleString()}</strong>
+              <span>
+                {label}
+                {k !== "delivered" && delivered
+                  ? ` · ${Math.round(((c[k] || 0) / delivered) * 100)}% of delivered`
+                  : ""}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function EM_EmailsPage() {
   // Bumped after a test send in either settings card so the banner and log
   // pick up the new row.
@@ -429,6 +518,7 @@ function EM_EmailsPage() {
       <EM_SetupBanner reloadKey={reloadKey} />
       {typeof DG_DigestSettings === "function" && <DG_DigestSettings onSent={bump} />}
       {typeof CE_ClientEmailSettings === "function" && <CE_ClientEmailSettings onSent={bump} />}
+      <EM_DeliveryCard reloadKey={reloadKey} />
       <EM_SendLog reloadKey={reloadKey} />
     </div>
   );

@@ -24,7 +24,8 @@
 }
 
 /* ---- Nested tab strip inside a hub tab (Reviews: My review | History | …).
-   Pills instead of the hub row's underline, so the two levels read apart.
+   Outlined pills instead of the hub row's filled segmented control, so the
+   two levels read apart. The active pill gets a gold outline and soft fill.
    Markup: .nav-tabs-row.nav-tabs-row-sub > .nav-tabs.nav-tabs-sub > .nav-tab ---- */
 .nav-tabs-row.nav-tabs-row-sub {
   border-bottom: 0;
@@ -34,6 +35,10 @@
   gap: 6px;
   flex-wrap: wrap;
   overflow: visible;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
 }
 .nav-tabs-sub .nav-tab {
   font-size: 13px;
@@ -43,14 +48,22 @@
   border-radius: 999px;
   background: var(--surface);
   color: var(--text-muted);
+  box-shadow: none;
 }
 .nav-tabs-sub .nav-tab:hover {
   color: var(--ink-strong, var(--text));
   border-color: var(--gold);
+  background: var(--surface);
 }
-.nav-tabs-sub .nav-tab.active {
-  background: var(--gold);
+.nav-tabs-sub .nav-tab.active,
+.nav-tabs-sub .nav-tab.active:hover {
+  background: var(--accent-soft);
   border-color: var(--gold);
+  color: var(--ink-strong, var(--text));
+  box-shadow: none;
+}
+.nav-tabs-sub .nav-tab.active .nav-tab-badge {
+  background: var(--gold);
   color: var(--on-gold);
 }
 .nav-tabs-sub .nav-tab:focus-visible {

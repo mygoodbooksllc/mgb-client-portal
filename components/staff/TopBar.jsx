@@ -78,7 +78,8 @@ const TB_HELP_FOR_PAGE = {
   "client-settings": "client-settings",
   "task-templates": "task-templates",
   "client-access": "client-sign-in-help",
-  "usage-stats": "quickbooks-api-usage",
+  "usage-stats": "admin-insight",
+  "developer-tools": "admin-insight",
   "audit-log": "audit-log",
   emails: "client-emails",
 };
@@ -86,6 +87,7 @@ const TB_HELP_FOR_PAGE = {
 // on one of those pages gets no "Help for this page".
 const TB_ADMIN_ARTICLES = new Set([
   "staff-management",
+  "admin-insight",
   "audit-log",
   "client-emails",
   "pricing-milestones",
@@ -390,6 +392,7 @@ function TB_Search({ clients, items, showMine, isAdmin, clientSearch, navCtx, cl
       if ((e.metaKey || e.ctrlKey) && !e.altKey && TB_lc(e.key) === "k") {
         e.preventDefault();
         setOpen(true);
+        if (window.MGB_track) window.MGB_track("palette-open", "keyboard");
         if (inputRef.current) {
           inputRef.current.focus();
           inputRef.current.select();
@@ -1008,6 +1011,7 @@ function TB_HelpButton({ page, isAdmin }) {
       label: "Help for this page",
       run: () => {
         const slug = TB_helpSlugFor(page, isAdmin);
+        if (window.MGB_track) window.MGB_track("help-page", slug || page);
         TB_go(slug ? "#/help/" + slug : "#/help");
       },
     });

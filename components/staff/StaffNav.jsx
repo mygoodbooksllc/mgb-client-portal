@@ -146,6 +146,11 @@ function NAV_useHashSub(slug, keys, fallback) {
         window.history.replaceState(window.history.state, "", url);
       } catch (e) {}
       setSubState(next);
+      // replaceState fires no hashchange, so tell listeners (Usage Stats
+      // counts each tab as its own view) that the tab changed.
+      try {
+        window.dispatchEvent(new Event("mgb-tabchange"));
+      } catch (e) {}
     },
     [slug, keys.join("|"), fallback],
   );

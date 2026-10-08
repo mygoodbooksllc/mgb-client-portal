@@ -597,6 +597,16 @@ const FEATURE_FLAGS = [
     description:
       "Adds a ~1.8s delay to every Supabase request, to test loading states without real network throttling.",
   },
+  {
+    // Read by the install-prompt snippet in index.html before this file
+    // loads, so it checks the same key itself. Add any other hidden feature
+    // here by checking isFlagOn(this key) where it's gated.
+    key: "mygoodbooks_ff_unreleased_v1",
+    label: "Show unreleased features",
+    description:
+      "Preview what's built but hidden from everyone else — right now the Install app prompt. The page reloads when you toggle it.",
+    reloads: true,
+  },
 ];
 
 // A directory, not a vault: where each piece of infrastructure lives and
@@ -669,6 +679,117 @@ function setFlag(key, on) {
     else localStorage.removeItem(key);
   } catch (e) {}
 }
+
+// ---- Usage tracking helpers (supabase/usage-stats-2.sql) -------------------
+// The page-view logger in App sets window.__mgbActor ({email, role, page})
+// so these can fire from anywhere — TopBar, StaffGuide, Tour — without
+// threading props. Everything here is fire-and-forget and never throws.
+
+// Which tab of a hub the hash points at: "#/work/close" while on the work
+// page → "close"; a client's "#/client/<id>/files" → "files". Null when the
+// hash is for some other page (mid-navigation) or has no tab part.
+function MGB_currentTab(page) {
+  try {
+    const parts = window.location.hash
+      .replace(/^#\/?/, "")
+      .split("?")[0]
+      .split("/")
+      .filter(Boolean);
+    if (!parts.length || !page) return null;
+    if (parts[0] === "client") return parts[2] && parts[2] === page ? parts[3] || null : null;
+    if (parts[0] !== page) return null;
+    return parts[1] || null;
+  } catch (e) {
+    return null;
+  }
+}
+
+// "installed" (the home-screen app), "mobile" (a phone-width browser) or
+// "desktop". Usage Stats splits views by this.
+function MGB_deviceKind() {
+  try {
+    if (
+      (window.matchMedia && window.matchMedia("(display-mode: standalone)").matches) ||
+      window.navigator.standalone === true
+    )
+      return "installed";
+    return window.matchMedia && window.matchMedia("(max-width: 760px)").matches ? "mobile" : "desktop";
+  } catch (e) {
+    return "unknown";
+  }
+}
+
+// Counts something someone did rather than a page they opened. `name` is the
+// bucket Usage Stats groups by ("palette-open", "guide-miss", ...), `detail`
+// the specifics; stored as "name:detail" in usage_events.detail.
+function MGB_track(name, detail) {
+  try {
+    const supabase = window.mgbSupabase;
+    const actor = window.__mgbActor;
+    if (!supabase || !actor || !name) return;
+    const d = detail ? String(detail).slice(0, 200) : "";
+    supabase
+      .from("usage_events")
+      .insert({
+        actor_email: actor.email,
+        actor_role: actor.role,
+        client_id: null,
+        page: actor.page || "unknown",
+        kind: "action",
+        detail: d ? name + ":" + d : name,
+        device: MGB_deviceKind(),
+      })
+      .then(({ error }) => {
+        if (error && isFlagOn("mygoodbooks_ff_verbose_logging_v1"))
+          console.warn("Couldn't log action:", error.message);
+      })
+      .catch(() => {});
+  } catch (e) {}
+}
+window.MGB_track = MGB_track;
+
+// Errors the app hits in someone's browser, for the "Recent errors" card on
+// Developer tools. Capped per page load so a render loop can't flood the
+// table; resource-load failures (no message) are ignored.
+let MGB_errorsReported = 0;
+function MGB_reportError(message, extra) {
+  try {
+    if (MGB_errorsReported >= 5) return;
+    const supabase = window.mgbSupabase;
+    if (!supabase) return;
+    const actor = window.__mgbActor || {};
+    MGB_errorsReported += 1;
+    supabase
+      .from("client_errors")
+      .insert({
+        actor_email: actor.email || null,
+        actor_role: actor.role || null,
+        page: actor.page || null,
+        message: String(message || "Unknown error").slice(0, 500),
+        stack: extra && extra.stack ? String(extra.stack).slice(0, 4000) : null,
+        source: extra && extra.source ? String(extra.source).slice(0, 300) : null,
+        app_version: window.MGB_VERSION ? window.MGB_VERSION.label : null,
+        user_agent: (navigator.userAgent || "").slice(0, 300),
+        device: MGB_deviceKind(),
+      })
+      .then(() => {})
+      .catch(() => {});
+  } catch (e) {}
+}
+window.addEventListener("error", (e) => {
+  if (!e || !e.message) return;
+  MGB_reportError(e.message, {
+    stack: e.error && e.error.stack,
+    source: (e.filename || "") + ":" + (e.lineno || 0),
+  });
+});
+window.addEventListener("unhandledrejection", (e) => {
+  const r = e && e.reason;
+  MGB_reportError(r && r.message ? r.message : String(r), {
+    stack: r && r.stack,
+    source: "unhandledrejection",
+  });
+});
 
 // The billing gate. Deliberately outside <DailyClose />, which has no billing
 // logic of its own — same split we will need once this is a real route loader
@@ -13025,6 +13146,35 @@ function formatStorageValue(raw) {
 
 // The old "Jump to client" card here was removed — the staff top bar's client
 // picker (components/staff/TopBar.jsx) does that job on every page now.
+// "*/15 * * * *" → "every 15 min", "0 13 * * 1-5" → "weekdays 13:00 UTC".
+// Anything fancier shows as the raw cron expression.
+function cronScheduleLabel(expr) {
+  if (!expr) return "";
+  const m = String(expr).trim().split(/\s+/);
+  if (m.length !== 5) return expr;
+  const [min, hour, dom, mon, dow] = m;
+  const pad = (n) => String(n).padStart(2, "0");
+  const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+  if (min === "*" && hour === "*") return "every minute";
+  if (/^\*\/\d+$/.test(min) && hour === "*" && dom === "*" && mon === "*" && dow === "*")
+    return `every ${min.slice(2)} min`;
+  if (/^\d+$/.test(min) && /^\*\/\d+$/.test(hour) && dom === "*" && dow === "*")
+    return `every ${hour.slice(2)} h at :${pad(min)}`;
+  if (/^\d+$/.test(min) && /^\d+$/.test(hour) && dom === "*" && mon === "*") {
+    const t = `${pad(hour)}:${pad(min)} UTC`;
+    if (dow === "*") return `daily ${t}`;
+    if (dow === "1-5") return `weekdays ${t}`;
+    const days = dow
+      .split(",")
+      .map((d) => DAYS[Number(d)] || d)
+      .join(", ");
+    return `${days} ${t}`;
+  }
+  if (/^\d+$/.test(min) && /^\d+$/.test(hour) && /^\d+$/.test(dom) && mon === "*")
+    return `day ${dom} of the month, ${pad(hour)}:${pad(min)} UTC`;
+  return expr;
+}
+
 function DeveloperToolsPage({ staffUser, readOnly }) {
   const supabase = window.mgbSupabase;
   const [, forceRerender] = useState(0);
@@ -13038,6 +13188,91 @@ function DeveloperToolsPage({ staffUser, readOnly }) {
   // the staff table succeeds, for the System Info card below.
   const [staffReadOk, setStaffReadOk] = useState(null); // null = checking, else boolean
   const [staffReadError, setStaffReadError] = useState("");
+  const showToast = useToast();
+  // Live cards (supabase/usage-stats-2.sql): every pg_cron job with its last
+  // run, errors the app reported from people's browsers, and a test email
+  // through the dev-tools function.
+  const [jobs, setJobs] = useState(null); // null = loading
+  const [jobsError, setJobsError] = useState("");
+  const [runningJob, setRunningJob] = useState("");
+  const [clientErrors, setClientErrors] = useState(null); // null = loading
+  const [clientErrorsError, setClientErrorsError] = useState("");
+  const [openErrorId, setOpenErrorId] = useState(null);
+  const [testEmail, setTestEmail] = useState({ busy: false, ok: null, text: "" });
+
+  const loadJobs = useCallback(() => {
+    if (!supabase) return;
+    supabase.rpc("cron_health").then(({ data, error }) => {
+      if (error) {
+        setJobsError("Couldn't load scheduled jobs. " + error.message);
+        setJobs([]);
+      } else {
+        setJobsError("");
+        setJobs(Array.isArray(data) ? data : []);
+      }
+    });
+  }, [supabase]);
+
+  useEffect(() => {
+    loadJobs();
+  }, [loadJobs]);
+
+  const loadClientErrors = useCallback(() => {
+    if (!supabase) return;
+    supabase
+      .from("client_errors")
+      .select("id, created_at, actor_email, actor_role, page, message, stack, source, app_version, device")
+      .order("created_at", { ascending: false })
+      .limit(30)
+      .then(({ data, error }) => {
+        if (error) {
+          setClientErrorsError("Couldn't load errors. " + error.message);
+          setClientErrors([]);
+        } else {
+          setClientErrorsError("");
+          setClientErrors(data || []);
+        }
+      });
+  }, [supabase]);
+
+  useEffect(() => {
+    loadClientErrors();
+  }, [loadClientErrors]);
+
+  function runJob(name) {
+    if (!supabase || runningJob) return;
+    if (
+      !window.confirm(
+        `Run "${name}" now? It does exactly what the schedule does at its next tick (emails included).`,
+      )
+    )
+      return;
+    setRunningJob(name);
+    supabase.rpc("cron_run_now", { p_jobname: name }).then(({ error }) => {
+      if (error) showToast("Couldn't start " + name + ": " + error.message);
+      else showToast("Started " + name + ". Its result shows here once it finishes.");
+      setTimeout(() => {
+        setRunningJob("");
+        loadJobs();
+      }, 4000);
+    });
+  }
+
+  function sendTestEmail() {
+    if (!supabase || testEmail.busy) return;
+    setTestEmail({ busy: true, ok: null, text: "Sending…" });
+    supabase.functions
+      .invoke("dev-tools", { body: { action: "test-email" } })
+      .then(({ data, error }) => {
+        if (error || !data || data.ok === false) {
+          const msg = (data && data.error) || (error && error.message) || "Unknown error";
+          setTestEmail({ busy: false, ok: false, text: "Not sent: " + msg });
+        } else {
+          setTestEmail({ busy: false, ok: true, text: `Sent to ${data.to}. Check your inbox (and spam).` });
+        }
+      })
+      .catch((e) => setTestEmail({ busy: false, ok: false, text: "Not sent: " + (e && e.message) }));
+  }
 
   const loadAudit = useCallback(() => {
     if (!supabase) return;
@@ -13080,6 +13315,8 @@ function DeveloperToolsPage({ staffUser, readOnly }) {
   function toggleFlag(key) {
     setFlag(key, !isFlagOn(key));
     forceRerender((v) => v + 1);
+    const spec = FEATURE_FLAGS.find((f) => f.key === key);
+    if (spec && spec.reloads) setTimeout(() => window.location.reload(), 150);
   }
 
   function resetLocalState() {
@@ -13100,7 +13337,7 @@ function DeveloperToolsPage({ staffUser, readOnly }) {
 
   return (
     <div>
-      <MockBanner text="Per-browser testing aids — nothing here is shared with other staff or written to Supabase." />
+      <MockBanner text="Feature flags and local storage are per-browser testing aids. Scheduled jobs, errors and the test email are live: Run now does the real thing." />
 
       {readOnly && (
         <div className="mock-banner">
@@ -13231,6 +13468,185 @@ function DeveloperToolsPage({ staffUser, readOnly }) {
           )}
         </div>
 
+        <div className="card" style={{ marginBottom: 20 }}>
+          <div className="page-header" style={{ marginBottom: 4 }}>
+            <div>
+              <h3 className="card-title">Scheduled jobs</h3>
+              <p className="card-subtitle" style={{ margin: 0 }}>
+                Every automatic job in the database (email outbox, digest,
+                QuickBooks sync, health checks, chasers) with its last run.
+                <strong> Run now</strong> starts one straight away; the HTTP
+                jobs return as soon as the function is called, so check back
+                in a minute for the result.
+              </p>
+            </div>
+            <button className="btn-secondary" onClick={loadJobs}>
+              Refresh
+            </button>
+          </div>
+          {jobs === null && !jobsError && (
+            <p className="card-subtitle">Loading…</p>
+          )}
+          {jobsError && <p className="card-subtitle negative">{jobsError}</p>}
+          {jobs && jobs.length === 0 && !jobsError && (
+            <p className="card-subtitle">No scheduled jobs found.</p>
+          )}
+          {jobs && jobs.length > 0 && (
+            <div className="dt-table-wrap">
+              <table className="dt-table">
+                <thead>
+                  <tr>
+                    <th>Job</th>
+                    <th>Schedule</th>
+                    <th>Last run</th>
+                    <th>Result</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {jobs.map((j) => (
+                    <tr key={j.jobid}>
+                      <td>
+                        <span className="staff-flag-label">{j.jobname}</span>
+                        {!j.active && (
+                          <span className="pill neutral" style={{ marginLeft: 6 }}>
+                            paused
+                          </span>
+                        )}
+                      </td>
+                      <td>
+                        <span title={j.schedule}>{cronScheduleLabel(j.schedule)}</span>
+                      </td>
+                      <td style={{ whiteSpace: "nowrap" }}>
+                        {j.last_start ? fmtDateTime(j.last_start) : "never"}
+                      </td>
+                      <td>
+                        {j.last_status ? (
+                          <span
+                            className={
+                              "pill " +
+                              (j.last_status === "succeeded"
+                                ? "good"
+                                : j.last_status === "failed"
+                                  ? "bad"
+                                  : "neutral")
+                            }
+                          >
+                            {j.last_status}
+                          </span>
+                        ) : (
+                          <span className="pill neutral">no runs yet</span>
+                        )}
+                        {j.failed_7d > 0 && (
+                          <span className="card-subtitle" style={{ margin: "0 0 0 8px" }}>
+                            {j.failed_7d} failed in 7 days
+                          </span>
+                        )}
+                        {j.last_status === "failed" && j.last_message && (
+                          <div
+                            className="card-subtitle"
+                            style={{ margin: "4px 0 0", wordBreak: "break-word" }}
+                          >
+                            {j.last_message}
+                          </div>
+                        )}
+                      </td>
+                      <td style={{ textAlign: "right" }}>
+                        <button
+                          className="btn-secondary"
+                          disabled={!!runningJob}
+                          onClick={() => runJob(j.jobname)}
+                        >
+                          {runningJob === j.jobname ? "Starting…" : "Run now"}
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+
+        <div className="card" style={{ marginBottom: 20 }}>
+          <div className="page-header" style={{ marginBottom: 4 }}>
+            <div>
+              <h3 className="card-title">Recent errors</h3>
+              <p className="card-subtitle" style={{ margin: 0 }}>
+                Errors the app caught in someone's browser, newest first (last
+                30). Click one for the technical detail to pass on to whoever
+                is fixing it.
+              </p>
+            </div>
+            <button className="btn-secondary" onClick={loadClientErrors}>
+              Refresh
+            </button>
+          </div>
+          {clientErrors === null && !clientErrorsError && (
+            <p className="card-subtitle">Loading…</p>
+          )}
+          {clientErrorsError && (
+            <p className="card-subtitle negative">{clientErrorsError}</p>
+          )}
+          {clientErrors && clientErrors.length === 0 && !clientErrorsError && (
+            <p className="card-subtitle">No errors reported. Good.</p>
+          )}
+          {clientErrors && clientErrors.length > 0 && (
+            <div className="dt-table-wrap">
+              <table className="dt-table">
+                <thead>
+                  <tr>
+                    <th>When</th>
+                    <th>Who</th>
+                    <th>Page</th>
+                    <th>Version</th>
+                    <th>Error</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {clientErrors.map((e) => (
+                    <tr
+                      key={e.id}
+                      className="dt-error-row"
+                      onClick={() => setOpenErrorId(openErrorId === e.id ? null : e.id)}
+                    >
+                      <td style={{ whiteSpace: "nowrap" }}>{fmtDateTime(e.created_at)}</td>
+                      <td>
+                        {e.actor_email || "—"}
+                        {e.actor_role ? (
+                          <span className="card-subtitle" style={{ margin: 0 }}>
+                            {" "}
+                            · {e.actor_role}
+                          </span>
+                        ) : null}
+                      </td>
+                      <td>
+                        {e.page || "—"}
+                        {e.device ? (
+                          <span className="card-subtitle" style={{ margin: 0 }}>
+                            {" "}
+                            · {e.device}
+                          </span>
+                        ) : null}
+                      </td>
+                      <td>{e.app_version || "—"}</td>
+                      <td style={{ wordBreak: "break-word" }}>
+                        {e.message}
+                        {openErrorId === e.id && (
+                          <pre className="dt-stack">
+                            {[e.source, e.stack].filter(Boolean).join("\n") ||
+                              "No further detail."}
+                          </pre>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+
         <div className="content-masonry">
           <div className="card">
             <h3 className="card-title">System info</h3>
@@ -13245,6 +13661,14 @@ function DeveloperToolsPage({ staffUser, readOnly }) {
                   {window.MGB_VERSION
                     ? `${window.MGB_VERSION.label} — ${window.MGB_VERSION.note}`
                     : "Not set"}
+                  <div style={{ marginTop: 6 }}>
+                    <button
+                      className="btn-secondary"
+                      onClick={() => window.location.reload()}
+                    >
+                      Reload for the latest
+                    </button>
+                  </div>
                 </dd>
               </div>
               <div>
@@ -13296,6 +13720,41 @@ function DeveloperToolsPage({ staffUser, readOnly }) {
                 </div>
               )}
             </dl>
+          </div>
+
+          <div className="card">
+            <h3 className="card-title">Send me a test email</h3>
+            <p className="card-subtitle">
+              Sends a short email to your own address
+              {staffUser ? ` (${staffUser.email})` : ""} through the firm's
+              sender, so you can confirm email works without involving a
+              client. Nothing else is sent.
+            </p>
+            <div className="staff-reset-row">
+              <button
+                className="btn-secondary"
+                onClick={sendTestEmail}
+                disabled={testEmail.busy || !supabase}
+              >
+                {testEmail.busy ? "Sending…" : "Send test email"}
+              </button>
+              {testEmail.text && (
+                <p
+                  className="card-subtitle"
+                  style={{
+                    margin: 0,
+                    color:
+                      testEmail.ok === false
+                        ? "var(--bad)"
+                        : testEmail.ok
+                          ? "var(--good)"
+                          : undefined,
+                  }}
+                >
+                  {testEmail.text}
+                </p>
+              )}
+            </div>
           </div>
 
           <div className="card">
@@ -14604,46 +15063,53 @@ const USAGE_STATS_RANGES = [
   { key: "90", label: "Last 90 days", days: 90 },
   { key: "all", label: "All time", days: null },
 ];
+// Tab keys that don't read well title-cased; everything else is capitalised.
+const USAGE_TAB_LABELS = { qbo: "QuickBooks", sop: "SOP", "client-overview": "Overview" };
+// Action buckets MGB_track() writes (see the hooks in TopBar, StaffGuide,
+// Tour). Add a label here when a new call site is added.
+const USAGE_ACTION_LABELS = {
+  "palette-open": "Search opened (Ctrl+K / ⌘K)",
+  "guide-search": "Guide searches",
+  "guide-miss": "Guide searches with no result",
+  "help-page": "Help for this page",
+  "tour-done": "Tours finished",
+  "tour-skipped": "Tours skipped",
+};
+const USAGE_DEVICE_LABELS = { desktop: "Desktop", mobile: "Phone", installed: "Installed app", unknown: "Unknown" };
 
 function UsageStatsPage() {
   const supabase = window.mgbSupabase;
   const showToast = useToast();
   const [range, setRange] = useState("30");
-  const [rows, setRows] = useState(null); // null = loading
+  const [summary, setSummary] = useState(null); // null = loading
   const [loadError, setLoadError] = useState("");
+  const [showAllPeople, setShowAllPeople] = useState(false);
   const [feedbackRows, setFeedbackRows] = useState(null); // null = loading
   const [feedbackError, setFeedbackError] = useState("");
 
+  // Counted in the database by usage_summary() (supabase/usage-stats-2.sql),
+  // so the numbers are exact however many rows there are.
   const load = useCallback(() => {
     if (!supabase) {
       setLoadError("Supabase isn't configured — see auth-config.js.");
-      setRows([]);
+      setSummary({});
       return;
     }
-    setRows(null);
-    let query = supabase
-      .from("usage_events")
-      .select("page, actor_role, occurred_at")
-      .order("occurred_at", { ascending: false })
-      .limit(5000);
+    setSummary(null);
     const spec = USAGE_STATS_RANGES.find((r) => r.key === range);
-    if (spec && spec.days) {
-      const since = new Date(
-        Date.now() - spec.days * 24 * 60 * 60 * 1000,
-      ).toISOString();
-      query = query.gte("occurred_at", since);
-    }
-    query.then(({ data, error }) => {
-      if (error) {
-        // Most likely cause: supabase/usage-events.sql hasn't been run yet,
-        // or the viewer isn't an admin (the RLS policy is admin-only).
-        setLoadError("Couldn't load usage events. " + error.message);
-        setRows([]);
-      } else {
-        setLoadError("");
-        setRows(data);
-      }
-    });
+    supabase
+      .rpc("usage_summary", { p_days: spec && spec.days ? spec.days : 0 })
+      .then(({ data, error }) => {
+        if (error) {
+          // Most likely cause: supabase/usage-stats-2.sql hasn't been run,
+          // or the viewer isn't an admin (the function is admin-only).
+          setLoadError("Couldn't load usage. " + error.message);
+          setSummary({});
+        } else {
+          setLoadError("");
+          setSummary(data || {});
+        }
+      });
   }, [supabase, range]);
 
   useEffect(() => {
@@ -14746,29 +15212,69 @@ function UsageStatsPage() {
     }
   }
 
-  const ranked = useMemo(() => {
-    if (!rows) return [];
-    const counts = {};
-    rows.forEach((r) => {
-      const key = r.page;
-      if (!counts[key]) {
-        counts[key] = { page: key, total: 0, staff: 0, client: 0 };
-      }
-      counts[key].total += 1;
-      counts[key][r.actor_role] = (counts[key][r.actor_role] || 0) + 1;
-    });
-    return Object.values(counts).sort((a, b) => b.total - a.total);
-  }, [rows]);
+  const loaded = summary !== null;
+  const pages = (summary && summary.pages) || [];
+  const maxViews = pages.length ? pages[0].views : 0;
+  const totalViews = (summary && summary.total_views) || 0;
+  const active = (summary && summary.active) || {};
+  const weeks = (summary && summary.weeks) || [];
+  const people = (summary && summary.people) || [];
+  const quiet = (summary && summary.quiet_clients) || [];
+  const actions = (summary && summary.actions) || [];
+  const guideMisses = (summary && summary.guide_misses) || [];
+  const devices = (summary && summary.devices) || [];
+  const maxWeek = weeks.reduce((m, w) => Math.max(m, w.views), 0);
+  const thisWeek = weeks.length ? weeks[weeks.length - 1] : null;
+  const lastWeek = weeks.length > 1 ? weeks[weeks.length - 2] : null;
+  const visiblePeople = showAllPeople ? people : people.slice(0, 25);
+  const deviceTotal = devices.reduce((n, d) => n + d.count, 0);
+  const rangeLabel =
+    (USAGE_STATS_RANGES.find((r) => r.key === range) || {}).label || "";
 
-  const maxTotal = ranked.length ? ranked[0].total : 0;
+  function pageLabel(key, tab) {
+    const base = (PAGE_META[key] && PAGE_META[key].title) || key;
+    if (!tab) return base;
+    const t =
+      USAGE_TAB_LABELS[tab] ||
+      tab.charAt(0).toUpperCase() + tab.slice(1).replace(/-/g, " ");
+    return base + " › " + t;
+  }
 
-  function pageLabel(key) {
-    return (PAGE_META[key] && PAGE_META[key].title) || key;
+  // One file, two sections (pages, then people), so it opens in a sheet as-is.
+  function exportCsv() {
+    if (!loaded) return;
+    const rows = [
+      ["Pages (" + rangeLabel + ")"],
+      ["Page", "Tab", "Views", "Staff views", "Client views"],
+      ...pages.map((p) => [
+        pageLabel(p.page),
+        p.tab || "",
+        p.views,
+        p.staff_views,
+        p.client_views,
+      ]),
+      [],
+      ["People"],
+      ["Email", "Name", "Role", "Client", "Last seen", "Views in range"],
+      ...people.map((p) => [
+        p.email,
+        p.name || "",
+        p.role,
+        p.client_name || "",
+        p.last_seen,
+        p.views,
+      ]),
+    ];
+    TP_downloadCsv(
+      `usage-${range}-${new Date().toISOString().slice(0, 10)}.csv`,
+      rows[0],
+      rows.slice(1),
+    );
   }
 
   return (
     <div>
-      <MockBanner text="Page views only, staff and client portal alike — not a full analytics pipeline. Use this to spot what's getting hammered vs. what nobody opens." />
+      <MockBanner text="Page and tab views plus a few key actions, staff and client portal alike — counted in the database, so the numbers are exact. Not a full analytics pipeline." />
 
       <div className="card" style={{ marginBottom: 20 }}>
         <div
@@ -14785,24 +15291,28 @@ function UsageStatsPage() {
               Most-used pages
             </h3>
             <p className="card-subtitle" style={{ margin: 0 }}>
-              {rows
-                ? `${rows.length.toLocaleString()} page view${rows.length === 1 ? "" : "s"}`
+              {loaded
+                ? `${totalViews.toLocaleString()} page view${totalViews === 1 ? "" : "s"} · ${rangeLabel.toLowerCase()}`
                 : "Loading…"}
-              {rows && rows.length >= 5000
-                ? " (capped at 5,000 — narrow the range for exact counts)"
-                : ""}
             </p>
           </div>
-          <div className="modal-tabs" style={{ marginBottom: 0 }}>
-            {USAGE_STATS_RANGES.map((r) => (
-              <button
-                key={r.key}
-                className={"modal-tab" + (range === r.key ? " active" : "")}
-                onClick={() => setRange(r.key)}
-              >
-                {r.label}
-              </button>
-            ))}
+          <div
+            style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}
+          >
+            <div className="modal-tabs" style={{ marginTop: 0 }}>
+              {USAGE_STATS_RANGES.map((r) => (
+                <button
+                  key={r.key}
+                  className={"modal-tab" + (range === r.key ? " active" : "")}
+                  onClick={() => setRange(r.key)}
+                >
+                  {r.label}
+                </button>
+              ))}
+            </div>
+            <button className="btn-secondary" onClick={exportCsv} disabled={!loaded}>
+              Export CSV
+            </button>
           </div>
         </div>
 
@@ -14812,13 +15322,13 @@ function UsageStatsPage() {
           </div>
         )}
 
-        {rows && rows.length === 0 && !loadError && (
+        {loaded && pages.length === 0 && !loadError && (
           <p className="card-subtitle" style={{ marginTop: 16 }}>
             No page views logged yet for this range.
           </p>
         )}
 
-        {ranked.length > 0 && (
+        {pages.length > 0 && (
           <div
             style={{
               marginTop: 20,
@@ -14827,8 +15337,8 @@ function UsageStatsPage() {
               gap: 14,
             }}
           >
-            {ranked.map((r, i) => (
-              <div key={r.page}>
+            {pages.map((r, i) => (
+              <div key={r.page + "/" + (r.tab || "")}>
                 <div
                   style={{
                     display: "flex",
@@ -14844,24 +15354,229 @@ function UsageStatsPage() {
                     >
                       #{i + 1}
                     </span>
-                    {pageLabel(r.page)}
+                    {pageLabel(r.page, r.tab)}
                   </span>
                   <span style={{ color: "var(--text-muted)" }}>
-                    {r.total.toLocaleString()} view{r.total === 1 ? "" : "s"}
+                    {r.views.toLocaleString()} view{r.views === 1 ? "" : "s"}
                     {" · "}
-                    {r.staff || 0} staff / {r.client || 0} client
+                    {r.staff_views} staff / {r.client_views} client
                   </span>
                 </div>
                 <div className="bar-track">
                   <div
                     className="bar-fill usage"
                     style={{
-                      width: maxTotal ? `${(r.total / maxTotal) * 100}%` : "0%",
+                      width: maxViews ? `${(r.views / maxViews) * 100}%` : "0%",
                     }}
                   />
                 </div>
               </div>
             ))}
+          </div>
+        )}
+      </div>
+
+      <div className="content-masonry" style={{ marginBottom: 20 }}>
+        <div className="card">
+          <h3 className="card-title" style={{ marginBottom: 2 }}>
+            Trend
+          </h3>
+          <p className="card-subtitle" style={{ margin: 0 }}>
+            {!loaded
+              ? "Loading…"
+              : thisWeek
+                ? `This week so far: ${thisWeek.views.toLocaleString()} views` +
+                  (lastWeek ? ` · last week: ${lastWeek.views.toLocaleString()}` : "")
+                : "No views in the last eight weeks."}
+          </p>
+          {weeks.length > 0 && (
+            <div
+              style={{ marginTop: 16, display: "flex", flexDirection: "column", gap: 10 }}
+            >
+              {weeks.map((w) => (
+                <div key={w.week_start}>
+                  <div
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      fontSize: 12.5,
+                      gap: 8,
+                    }}
+                  >
+                    <span style={{ fontWeight: 600 }}>Week of {fmtDate(w.week_start)}</span>
+                    <span style={{ color: "var(--text-muted)" }}>
+                      {w.views.toLocaleString()} views · {w.staff_people} staff,{" "}
+                      {w.client_people} client{w.client_people === 1 ? "" : "s"}
+                    </span>
+                  </div>
+                  <div className="bar-track">
+                    <div
+                      className="bar-fill usage"
+                      style={{ width: maxWeek ? `${(w.views / maxWeek) * 100}%` : "0%" }}
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className="card">
+          <h3 className="card-title" style={{ marginBottom: 2 }}>
+            Actions
+          </h3>
+          <p className="card-subtitle" style={{ margin: 0 }}>
+            Things people did, not pages they opened · {rangeLabel.toLowerCase()}
+          </p>
+          {loaded && actions.length === 0 && (
+            <p className="card-subtitle" style={{ marginTop: 12 }}>
+              Nothing counted yet. Search (Ctrl+K), guide searches, Help for
+              this page and tours are counted from now on.
+            </p>
+          )}
+          {actions.length > 0 && (
+            <ul className="staff-audit-list" style={{ marginTop: 12 }}>
+              {actions.map((a) => (
+                <li className="staff-audit-row" key={a.action}>
+                  <span className="staff-audit-text">
+                    {USAGE_ACTION_LABELS[a.action] || a.action}
+                  </span>
+                  <span className="staff-audit-time">{a.count.toLocaleString()}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+          {guideMisses.length > 0 && (
+            <div style={{ marginTop: 14 }}>
+              <p className="staff-flag-label" style={{ margin: "0 0 6px" }}>
+                Guide searches with no result
+              </p>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                {guideMisses.map((g) => (
+                  <span className="pill neutral" key={g.q}>
+                    {g.q} · {g.count}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+          {devices.length > 0 && (
+            <div style={{ marginTop: 16 }}>
+              <p className="staff-flag-label" style={{ margin: "0 0 6px" }}>
+                Devices
+              </p>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                {devices.map((d) => (
+                  <span className="pill neutral" key={d.device}>
+                    {USAGE_DEVICE_LABELS[d.device] || d.device} ·{" "}
+                    {deviceTotal ? Math.round((d.count / deviceTotal) * 100) : 0}%
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      <div className="card" style={{ marginBottom: 20 }}>
+        <h3 className="card-title" style={{ marginBottom: 2 }}>
+          Active people
+        </h3>
+        <p className="card-subtitle" style={{ margin: 0 }}>
+          Who signed in, by last seen. Views are for {rangeLabel.toLowerCase()}.
+        </p>
+        {loaded && (
+          <div className="us-stats">
+            <div>
+              <strong>{active.staff_7d || 0}</strong>
+              <span>staff, last 7 days</span>
+            </div>
+            <div>
+              <strong>{active.staff_30d || 0}</strong>
+              <span>staff, last 30 days</span>
+            </div>
+            <div>
+              <strong>{active.client_7d || 0}</strong>
+              <span>clients, last 7 days</span>
+            </div>
+            <div>
+              <strong>{active.client_30d || 0}</strong>
+              <span>clients, last 30 days</span>
+            </div>
+          </div>
+        )}
+        {visiblePeople.length > 0 && (
+          <div className="dt-table-wrap">
+            <table className="dt-table">
+              <thead>
+                <tr>
+                  <th>Person</th>
+                  <th>Role</th>
+                  <th>Last seen</th>
+                  <th style={{ textAlign: "right" }}>Views</th>
+                </tr>
+              </thead>
+              <tbody>
+                {visiblePeople.map((p) => (
+                  <tr key={p.email + "|" + p.role}>
+                    <td>
+                      <span className="staff-flag-label">{p.name || p.email}</span>
+                      {p.name && (
+                        <div className="card-subtitle" style={{ margin: 0 }}>
+                          {p.email}
+                        </div>
+                      )}
+                    </td>
+                    <td>
+                      {p.role === "client"
+                        ? p.client_name
+                          ? `Client · ${p.client_name}`
+                          : "Client"
+                        : "Staff"}
+                    </td>
+                    <td style={{ whiteSpace: "nowrap" }}>{fmtDateTime(p.last_seen)}</td>
+                    <td style={{ textAlign: "right" }}>{p.views.toLocaleString()}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+        {people.length > 25 && (
+          <button
+            className="btn-secondary"
+            style={{ marginTop: 10 }}
+            onClick={() => setShowAllPeople((v) => !v)}
+          >
+            {showAllPeople ? "Show fewer" : `Show all ${people.length}`}
+          </button>
+        )}
+        {loaded && quiet.length > 0 && (
+          <div style={{ marginTop: 18 }}>
+            <p className="staff-flag-label" style={{ margin: "0 0 2px" }}>
+              Quiet clients
+            </p>
+            <p className="card-subtitle" style={{ margin: "0 0 8px" }}>
+              No client sign-in for 30 days or more, or never. Test clients
+              excluded. Worth a nudge.
+            </p>
+            <ul className="staff-audit-list">
+              {quiet.map((c) => (
+                <li className="staff-audit-row" key={c.id}>
+                  <span className="staff-audit-text">
+                    <strong>{c.name}</strong>{" "}
+                    <span className="card-subtitle" style={{ margin: 0 }}>
+                      {c.users} user{c.users === 1 ? "" : "s"}
+                    </span>
+                  </span>
+                  <span className="staff-audit-time">
+                    {c.last_seen
+                      ? "last seen " + fmtDate(c.last_seen.slice(0, 10))
+                      : "never signed in"}
+                  </span>
+                </li>
+              ))}
+            </ul>
           </div>
         )}
       </div>
@@ -23542,7 +24257,7 @@ const PAGE_META = {
   "developer-tools": {
     title: "Developer Tools",
     subtitle:
-      "Per-browser testing aids — nothing here is shared with other staff or written to Supabase",
+      "Flags for this browser, scheduled jobs, recent errors, a test email and where things live",
   },
   "audit-log": {
     title: "Audit log",
@@ -23554,7 +24269,7 @@ const PAGE_META = {
   },
   "usage-stats": {
     title: "Usage Stats",
-    subtitle: "Which pages and features actually get used, most to least",
+    subtitle: "Which pages, tabs and features get used, who's active and who's gone quiet",
   },
   help: {
     title: "Help",
@@ -25070,28 +25785,47 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
   // the real staffUser doing the impersonating (not the impersonated
   // bookkeeper) since that's whose browser/session generated the view.
   // Fire-and-forget: a logging failure should never surface to the viewer.
+  // A tab switch inside a hub (#/work/tasks → #/work/close) counts as its
+  // own view, so Usage Stats can tell the tabs apart.
+  const [usageTab, setUsageTab] = useState(() => MGB_currentTab(effectivePage));
+  useEffect(() => {
+    const onHash = () => setUsageTab(MGB_currentTab(effectivePage));
+    window.addEventListener("hashchange", onHash);
+    window.addEventListener("mgb-tabchange", onHash); // NAV_useHashSub.setSub
+    return () => {
+      window.removeEventListener("hashchange", onHash);
+      window.removeEventListener("mgb-tabchange", onHash);
+    };
+  }, [effectivePage]);
   useEffect(() => {
     const supabase = window.mgbSupabase;
-    if (!supabase || effectivePage === "usage-stats") return;
     const actorEmail = clientPortalUser
       ? clientPortalUser.email
       : staffUser && staffUser.email;
+    const role = clientPortalUser ? "client" : "staff";
+    // Shared with MGB_track / MGB_reportError, which fire outside React.
+    window.__mgbActor = actorEmail
+      ? { email: actorEmail, role, page: effectivePage }
+      : null;
+    if (!supabase || effectivePage === "usage-stats") return;
     if (!actorEmail) return;
     supabase
       .from("usage_events")
       .insert({
         actor_email: actorEmail,
-        actor_role: clientPortalUser ? "client" : "staff",
+        actor_role: role,
         client_id: NON_CLIENT_PAGES.has(effectivePage)
           ? null
           : selectedClientId,
         page: effectivePage,
+        tab: MGB_currentTab(effectivePage),
+        device: MGB_deviceKind(),
       })
       .then(({ error }) => {
         if (error) console.warn("Couldn't log usage event:", error.message);
       });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [effectivePage]);
+  }, [effectivePage, usageTab]);
 
   // Keep the URL hash in step with what's actually on screen (effectivePage,
   // so a bounced deep link shows where the viewer really landed). pushState /
