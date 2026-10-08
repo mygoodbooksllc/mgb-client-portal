@@ -10005,3 +10005,36 @@ button.home-todo-main:hover { background: var(--surface-2); }
 @media (max-width: 640px) {
   .client-requests-item { flex-direction: column; }
 }
+
+/* Home (client view): Needs you + organization card (CLIENT_HomeTop). */
+.client-home-top {
+  display: grid; grid-template-columns: minmax(0, 2fr) minmax(220px, 1fr);
+  gap: 16px; margin-bottom: 16px;
+}
+.client-home-top.no-org { grid-template-columns: minmax(0, 1fr); }
+.client-home-top > .card { margin: 0; }
+.client-needs-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.client-needs-item {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 10px 12px; border: 1px solid var(--border); border-radius: 10px;
+}
+.client-needs-item.urgent { border-color: var(--danger, #c0392b); }
+.client-needs-main { display: grid; gap: 2px; min-width: 0; }
+.client-needs-sub { color: var(--text-muted); font-size: 13px; }
+.client-home-top .btn-sm { padding: 6px 12px; font-size: 13px; white-space: nowrap; }
+.client-org-card { display: grid; gap: 10px; align-content: start; }
+.client-org-name { font-weight: 600; font-size: 16px; }
+.client-org-ms, .client-org-plan {
+  display: grid; gap: 2px; text-align: left; font: inherit; color: inherit;
+  background: none; border: 0; padding: 0;
+}
+.client-org-ms { cursor: pointer; }
+.client-org-ms:hover span:last-child { text-decoration: underline; }
+.client-org-label {
+  font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-muted);
+}
+.client-org-card .btn-sm { justify-self: start; }
+@media (max-width: 760px) {
+  .client-home-top { grid-template-columns: minmax(0, 1fr); }
+  .client-needs-item { flex-direction: column; align-items: flex-start; }
+}

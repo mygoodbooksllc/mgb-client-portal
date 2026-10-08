@@ -541,6 +541,67 @@ function CLIENT_LockedCard({ title, text, onSeePlans }) {
     </div>
   );
 }
+// Home (client view): "Needs you" list beside the organization card. The
+// dashboard's own KPI cards below are the tiles. `needs` items:
+// { key, text, sub?, action, onClick, tone? } — built in App from data it
+// already loads (unread messages, document requests, budget approval).
+function CLIENT_HomeTop({ client, access, needs, onOpenMilestone, onSeePlans }) {
+  const { byId } = useMilestones(client ? [client.id] : []);
+  const ms = client ? byId[client.id] : null;
+  const cur = ms && ms.current;
+  const msText = cur && !ms.unconfirmed ? (cur.churchPlant ? cur.name : cur.roman + " · " + cur.name) : null;
+  const showOrg = !(access && access.isCategoryScoped);
+  return (
+    <div className={"client-home-top" + (showOrg ? "" : " no-org")}>
+      <div className="card client-needs">
+        <h3 className="card-title" style={{ marginBottom: 8 }}>
+          Needs you
+        </h3>
+        {needs.length === 0 ? (
+          <p className="card-subtitle" style={{ margin: 0 }}>
+            You're all caught up. Nothing is waiting on you.
+          </p>
+        ) : (
+          <ul className="client-needs-list">
+            {needs.map((n) => (
+              <li key={n.key} className={"client-needs-item" + (n.tone ? " " + n.tone : "")}>
+                <div className="client-needs-main">
+                  <strong>{n.text}</strong>
+                  {n.sub ? <span className="client-needs-sub">{n.sub}</span> : null}
+                </div>
+                <button type="button" className="btn-secondary btn-sm" onClick={n.onClick}>
+                  {n.action}
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+      {showOrg && (
+        <div className="card client-org-card">
+          <div className="client-org-name">{client.name || "Your organization"}</div>
+          <button
+            type="button"
+            className="client-org-ms"
+            data-tour="milestone"
+            onClick={onOpenMilestone}
+            title="Open your milestone"
+          >
+            <span className="client-org-label">Milestone</span>
+            <span>{msText || "Not set yet"}</span>
+          </button>
+          <div className="client-org-plan">
+            <span className="client-org-label">Plan</span>
+            <span>{planLabel(access.plan)}</span>
+          </div>
+          <button type="button" className="btn-secondary btn-sm" onClick={onSeePlans}>
+            See plans
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
 // Messages › Requests: what the bookkeeper is waiting on (document
 // requests). Uploading happens on Documents.
 function CLIENT_RequestsPanel({ requests, canUpload, onOpenDocuments }) {
@@ -26496,6 +26557,30 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
         );
     } catch (e) {}
   };
+  // Home's "Needs you" list (CLIENT_HomeTop), most urgent first.
+  const clientNeeds = (() => {
+    const out = [];
+    const today = todayLocal();
+    const reqs = openDocRequests || [];
+    const overdueReqs = reqs.filter((r) => r.due_date && r.due_date < today).length;
+    if (reqs.length && access.tabs.has("documents"))
+      out.push({
+        key: "docs",
+        text: `Your bookkeeper needs ${reqs.length} document${reqs.length === 1 ? "" : "s"}`,
+        sub: reqs[0].title + (reqs.length > 1 ? ` and ${reqs.length - 1} more` : "") + (overdueReqs ? ` · ${overdueReqs} overdue` : ""),
+        action: "See requests",
+        tone: overdueReqs ? "urgent" : null,
+        onClick: () => {
+          setClientSub({ page: "messages", sub: "requests" });
+          setPage("messages");
+        },
+      });
+    if (hasUnreadMessages && access.tabs.has("messages"))
+      out.push({ key: "msg", text: "New message from your bookkeeper", action: "Read it", onClick: () => setPage("messages") });
+    if (budgetAwaiting && access.tabs.has("budget"))
+      out.push({ key: "budget", text: "A budget is waiting for your approval", action: "Review", onClick: () => setPage("budget") });
+    return out;
+  })();
   const showStaffRail = !!(
     isStaffSession &&
     effectiveStaffUser &&
@@ -27022,6 +27107,15 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
               page={effectivePage}
               onSelectPage={setPage}
               setMobileNavOpen={setMobileNavOpen}
+            />
+          )}
+          {effectivePage === "dashboard" && !staffClientTabs && (
+            <CLIENT_HomeTop
+              client={client}
+              access={access}
+              needs={clientNeeds}
+              onOpenMilestone={() => setPage("milestone")}
+              onSeePlans={() => setPage("enterprise-upgrade")}
             />
           )}
           {effectivePage === "dashboard" &&
