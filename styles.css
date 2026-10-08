@@ -312,15 +312,10 @@ body {
    frosted cards' backdrop-filter blurs it exactly as it blurs the blobs —
    which is what keeps it reading as paper UNDER the interface rather than a
    texture laid over it. */
+/* 2026-10-08: the ledger grid is gone on both themes (owner: "lose the faint
+   grid"). The page ground is a flat --bg. */
 .mesh-bg::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  background-image:
-    linear-gradient(to right, var(--grid-line) 1px, transparent 1px),
-    linear-gradient(to bottom, var(--grid-line) 1px, transparent 1px);
-  background-size: var(--grid-cell-w) var(--grid-cell-h);
+  content: none;
 }
 
 /* Calm step 1: the drifting gradient blobs are retired — the page ground is
@@ -5896,9 +5891,6 @@ body:has(.modal-overlay) .chat-fab-wrap {
   justify-content: center;
   padding: 32px 16px;
   background-color: var(--bg);
-  background-image:
-    repeating-linear-gradient(to bottom, var(--grid-line) 0, var(--grid-line) 1px, transparent 1px, transparent var(--grid-cell-h)),
-    repeating-linear-gradient(to right, var(--grid-line) 0, var(--grid-line) 1px, transparent 1px, transparent var(--grid-cell-w));
   color: var(--text);
   font-family: var(--font-body);
 }
