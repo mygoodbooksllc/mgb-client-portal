@@ -20,6 +20,9 @@
 .tr-form > .card {
   margin-bottom: 12px;
 }
+.tr-page .kpi-grid > .card {
+  margin-bottom: 0;
+}
 .tr-sr {
   position: absolute;
   width: 1px;
@@ -499,6 +502,11 @@
 }
 .tr-anon-tag {
   margin-left: 6px;
+}
+.tr-survey-min {
+  flex: 1 1 260px;
+  margin: 0;
+  font-size: 16px;
 }
 
 /* ---- History / bars ---- */
