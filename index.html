@@ -96,7 +96,7 @@
       // step to inject a real commit SHA into (see the no-bundler note up
       // top). Shown in Developer Tools' System info card so staff can confirm
       // which version they're looking at without guessing from Vercel's UI.
-      window.MGB_VERSION = { label: "2026-10-08d", note: "Client portal: five places, Home needs-you list, Finances and Reports tabs, phone bottom bar" };
+      window.MGB_VERSION = { label: "2026-10-08e", note: "Client portal: five places, Home needs-you list, Finances and Reports tabs, phone bottom bar" };
       // The two-finger touchmove preventDefault that used to sit here (a
       // pinch-zoom blocker, kept at the gesture level because touch-action
       // CSS pre-empted the dashboard drag-and-drop) is gone. It only ever
@@ -126,6 +126,7 @@
       document.write('<link rel="stylesheet" href="components/staff/today.css?v=' + Date.now() + '">');
       document.write('<link rel="stylesheet" href="components/staff/clients-page.css?v=' + Date.now() + '">');
       document.write('<link rel="stylesheet" href="components/staff/work-page.css?v=' + Date.now() + '">');
+      document.write('<link rel="stylesheet" href="components/staff/tech-inventory.css?v=' + Date.now() + '">');
       document.write('<link rel="stylesheet" href="components/settings/settings.css?v=' + Date.now() + '">');
       document.write('<link rel="stylesheet" href="components/dashboard/widget-drawer.css?v=' + Date.now() + '">');
       document.write('<link rel="stylesheet" href="components/client/bank-accounts.css?v=' + Date.now() + '">');
@@ -192,6 +193,7 @@
         "components/staff/Deadlines.jsx",
         "components/staff/HealthBoard.jsx",
         "components/staff/Shoutouts.jsx",
+        "components/staff/TechInventory.jsx",
         "components/staff/SopFreshness.jsx",
         "components/staff/StaffOnboarding.jsx",
         "components/settings/Settings.jsx",

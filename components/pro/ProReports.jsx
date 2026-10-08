@@ -58,7 +58,8 @@ const PR_EXPIRY_OPTIONS = [7, 30, 90];
 const PR_PRESETS = [
   {
     name: "Monthly board packet",
-    sections: ["cover", "summary", "incomeExpense", "budget", "cash", "giving", "treasurer"],
+    // Owner 2026-10-08: the Statement of Functional Expenses starts checked.
+    sections: ["cover", "summary", "incomeExpense", "budget", "cash", "giving", "functional", "treasurer"],
     compare: ["budget", "priorMonth", "lastYear"],
   },
   {
