@@ -2,10 +2,17 @@
 title: What's new
 section: Getting started
 audience: staff
-keywords: [inventory, tech, equipment, what's new, whats new, new, changes, updates, release notes, changelog, navigation, redesign, five places]
+keywords: [admin tour, account manager tour, inventory, tech, equipment, what's new, whats new, new, changes, updates, release notes, changelog, navigation, redesign, five places]
 sort: 15
 ---
 The newest changes to the staff side, newest first. For how anything works, search this guide or click **?** → **Help for this page**.
+
+### 2026-10-09: admin and account manager tours
+
+- **Admin tour**: a two-minute walk through the pages only admins see (Team › Members, Hours, Reply times, Performance, Reviews, Feedback and Inventory, then Firm settings and Today). See [Admin guide](#/help/admin-guide).
+- **Account manager tour**, for anyone who is a client's account manager: bookkeeper reviews, client messages, new clients, client health and plans. See [Account manager guide](#/help/account-manager-guide).
+- Each starts by itself once, on a sign-in after the staff tour, and runs again from **?**, **Ctrl+K** / **⌘K** or **Settings › Help**.
+- Dropdowns and date pickers everywhere now match the light and dark themes instead of showing the browser's gray box.
 
 ### 2026-10-08: Team › Inventory
 

@@ -10,7 +10,7 @@ Welcome! The MyGoodBooks portal is where our clients (mostly churches and nonpro
 ### Your first day
 
 1. [Sign in](#/help/signing-in) with your @mygoodbooks.org Google account.
-2. A one-minute **tour** starts by itself and points out the five places, Today, search and the **?** menu. You can run it again any time from **?** → **Take the tour**.
+2. A one-minute **tour** starts by itself and points out the five places, Today, search and the **?** menu. You can run it again any time from **?** → **Take the tour**. Admins also get an **Admin tour**, and account managers an **Account manager tour**, each once on a later sign-in. See [Admin guide](#/help/admin-guide) and [Account manager guide](#/help/account-manager-guide).
 3. You land on **Today**, one list of what needs you across all the clients you can see. See [What's on my Today page?](#/help/home-page).
 4. Open a client from **Clients**, or press **Ctrl+K** (**⌘K** on a Mac) and type their name. You'll see that client's **Client overview** first. See [How do I find and open a client?](#/help/finding-a-client).
 5. Your new-hire checklist is on **Team › Onboarding**. See [How does the new-hire onboarding checklist work?](#/help/new-hire-onboarding).

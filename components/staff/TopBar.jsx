@@ -359,7 +359,10 @@ function TB_actionRows({ client, showMine, effectiveTheme, onToggleTheme, onSign
       go: onToggleTheme,
     });
   if (typeof FB_openFeedback === "function") rows.push({ key: "a:feedback", title: "Send feedback", sub: "Report a bug or suggest an idea", go: () => FB_openFeedback() });
-  if (typeof TOUR_startStaff === "function") rows.push({ key: "a:tour", title: "Take the tour", sub: "A quick walk through the staff side", go: () => TOUR_startStaff() });
+  if (typeof TOUR_startStaff === "function") {
+    const tours = typeof TOUR_staffTourList === "function" ? TOUR_staffTourList() : [{ key: "staff", label: "Take the tour", sub: "A quick walk through the staff side" }];
+    tours.forEach((t) => rows.push({ key: t.key === "staff" ? "a:tour" : "a:tour-" + t.key, title: t.label, sub: t.sub, go: () => TOUR_startStaff(t.key) }));
+  }
   if (onSignOut) rows.push({ key: "a:signout", title: "Sign out", sub: "", go: onSignOut });
   return rows;
 }
@@ -1018,7 +1021,12 @@ function TB_HelpButton({ page, isAdmin }) {
   if (hasGuide) items.push({ key: "guide", label: "Staff guide", run: () => TB_go("#/help") });
   if (hasFeedback) items.push({ key: "feedback", label: "Send feedback", run: () => FB_openFeedback() });
   if (hasGuide) items.push({ key: "new", label: "What's new", run: () => TB_go("#/help/whats-new") });
-  if (hasTour) items.push({ key: "tour", label: "Take the tour", run: () => TOUR_startStaff() });
+  // One line per tour this person can take: the staff tour, plus the admin
+  // and account manager tours when they apply (Tour.jsx).
+  if (hasTour) {
+    const tours = typeof TOUR_staffTourList === "function" ? TOUR_staffTourList() : [{ key: "staff", label: "Take the tour" }];
+    tours.forEach((t) => items.push({ key: "tour-" + t.key, label: t.label, run: () => TOUR_startStaff(t.key) }));
+  }
   return (
     <div className="tb-item tb-menu-wrap tb-help" ref={menu.rootRef} onKeyDown={menu.onMenuKeyDown} data-tour="tb-help">
       <button

@@ -289,6 +289,14 @@ because some work happens in Claude Code web sessions. Run `git fetch` and compa
   - **Tour:** `components/tour/Tour.jsx` staff steps (`TOUR_staffSteps`): welcome, Your five
     places, Start with Today, Jump anywhere, Help/feedback/tour, You're ready. Auto-starts once
     (`staffTour` in user settings) and again from the ? menu.
+  - **Role tours (2026-10-09):** `TOUR_adminSteps` (real admins: each Team admin tab, Settings ›
+    Firm settings, Today) and `TOUR_amSteps` (anyone who is `accountManager` on a client in
+    `window.CLIENTS`: bookkeeper reviews, Inbox, Reply times, Clients › Needs attention, Today
+    requests, Team › Hours, Client roster). `TOUR_STAFF_TOURS` lists staff → admin → am; one
+    auto-starts per page load (first without a status in `staffTour` / `adminTour` / `amTour`).
+    Steps can `go` (open a page first), `press` (click the target) and `when(ctx)`; a target
+    starting with `#` is an element id (`#tp-tab-<key>`, `#st-tab-firm`). The ? menu, ⌘K and
+    Settings › Help list `TOUR_staffTourList()`. Guide: `admin-guide`, `account-manager-guide`.
   - **Routes:** `#/today`, `#/inbox`, `#/work/<tasks|close|deadlines>`, `#/clients`,
     `#/team/<tab>`, `#/team/reviews/<sub>[/id]`, `#/help[/slug]`, `#/settings`, `#/templates`,
     `#/client/<id>/<tab>` (incl. `sop`). The old routes (`#/home`, `#/tasks`, `#/close-tracker`,

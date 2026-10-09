@@ -990,8 +990,12 @@ function ST_StaffSettingsPage({
       label: "Guided tour",
       sub: "A quick walk through Today, Inbox, Work, Clients and Team, and the top bar.",
       action: "Restart the tour",
-      run: () => TOUR_startStaff(),
+      run: () => TOUR_startStaff("staff"),
     },
+    // The admin and account manager tours, for the people they apply to.
+    ...(typeof TOUR_staffTourList === "function" ? TOUR_staffTourList() : [])
+      .filter((t) => t.key !== "staff")
+      .map((t) => ({ key: "tour-" + t.key, label: t.label, sub: t.sub + ".", action: "Start the tour", run: () => TOUR_startStaff(t.key) })),
     typeof HLP_StaffGuidePage === "function" && {
       key: "guide",
       label: "Staff guide",

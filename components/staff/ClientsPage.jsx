@@ -310,7 +310,7 @@ function CL_ClientsPage({ clients, staffUser, isAdmin, statusOverrides, pendingR
     <div className="cl-page">
       <div className="card cl-card">
         <div className="cl-toolbar">
-          <div className="cl-seg" role="group" aria-label="Which clients to show">
+          <div className="cl-seg" role="group" aria-label="Which clients to show" data-tour="clients-filters">
             {CL_FILTERS.map((f) => (
               <button
                 key={f.key}

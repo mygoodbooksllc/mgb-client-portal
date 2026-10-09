@@ -1,6 +1,9 @@
 // ----------------------------------------------------------------------------
-// Guided tours: one for new client users (owner request 2026-09-30) and a
-// short one for staff (navigation redesign, 2026-10-08).
+// Guided tours: one for new client users (owner request 2026-09-30), a
+// short one for staff (navigation redesign, 2026-10-08), and two role tours
+// on the staff side (owner request 2026-10-09): an admin tour of the pages
+// only admins see, and an account manager tour for anyone who is a client's
+// account manager (clients.account_manager_email; Jesse today).
 //
 // A spotlight tour: the page dims, the target element is cut out and
 // highlighted, and a small popover explains it (title, a sentence or two,
@@ -24,6 +27,11 @@
 //   today-list       the ranked list on Today (components/staff/Today.jsx)
 //   tb-search        the ⌘K search box (components/staff/TopBar.jsx)
 //   tb-help          the "?" menu (components/staff/TopBar.jsx)
+//   clients-filters  Mine / All / Needs attention (components/staff/ClientsPage.jsx)
+//   #tp-tab-<key>    a Team tab, found by id (NAV_TabRow, idPrefix "tp")
+//   #st-tab-firm     Settings' Firm settings tab, found by id (Settings.jsx)
+// A role-tour step can `go` somewhere first (NAV_go to a place and tab) and
+// `press` its target (click a Settings tab open) once it's found.
 // A step whose target isn't on the page for this person (limited access, a
 // tab not on their plan, a missing element) is left out of the tour. On a
 // phone the client tabs and the staff places sit in the off-canvas drawer,
@@ -40,13 +48,16 @@
 //                            Dashboard tab (Basic plan, limited access)
 //   staffTour.status         "done" | "skipped"               (staff tour)
 //   staffTour.at             ISO timestamp of that
+//   adminTour, amTour        { status, at }, same shape   (role tours)
 // The client tour starts on its own only for a signed-in client user who has
 // no tour status yet. Never for staff, "View as", or "Preview as a client
 // user". Staff previewing can start it from client Settings > Help to see
 // what the client sees; ST_store is paused then, so nothing is saved.
-// The staff tour starts on its own once, for a staffer signed in as
-// themselves with no staffTour status yet, and again whenever something
-// calls TOUR_startStaff() (the "?" menu's "Take the tour", Settings).
+// The staff tours start on their own once each, for a staffer signed in as
+// themselves: on a page load, the first of staff, admin, account manager
+// that applies to them and has no status yet (so never two in a row). They
+// run again whenever something calls TOUR_startStaff(key) (the "?" menu,
+// ⌘K and Settings › Help list the ones that apply, via TOUR_staffTourList).
 //
 // Loaded before app.jsx in the shared global scope: every top-level name has
 // a TOUR_ prefix, hooks are used as React.*, and app.jsx / Settings.jsx /
@@ -75,11 +86,11 @@ function TOUR_start() {
   } catch (e) {}
 }
 
-// Starts the staff tour. The "?" menu's "Take the tour" and Settings call
-// this; TOUR_StaffRoot listens.
-function TOUR_startStaff() {
+// Starts a staff-side tour: "staff" (the default), "admin" or "am". The "?"
+// menu, ⌘K and Settings call this; TOUR_StaffRoot listens.
+function TOUR_startStaff(which) {
   try {
-    window.dispatchEvent(new CustomEvent(TOUR_STAFF_START_EVENT));
+    window.dispatchEvent(new CustomEvent(TOUR_STAFF_START_EVENT, { detail: { which: which || "staff" } }));
   } catch (e) {}
 }
 
@@ -87,7 +98,12 @@ function TOUR_isObj(v) {
   return !!v && typeof v === "object" && !Array.isArray(v);
 }
 
+// A key is a data-tour value, or "#id" for an element found by id.
 function TOUR_find(key) {
+  if (key.charAt(0) === "#") {
+    const el = document.getElementById(key.slice(1));
+    return el && el.getClientRects().length > 0 ? el : null;
+  }
   const els = document.querySelectorAll('[data-tour="' + key + '"]');
   for (let i = 0; i < els.length; i++) {
     // display:none (and hidden ancestors) give no client rects.
@@ -271,12 +287,216 @@ function TOUR_staffSteps(ctx) {
   ];
 }
 
-// The steps this staffer will see: centered and `wait` steps always, others
-// only when one of their targets is on the page (so a build without, say,
-// the ? menu just has one step fewer).
-function TOUR_visibleStaffSteps(ctx) {
-  return TOUR_staffSteps(ctx).filter(
-    (s) => !s.targets || s.wait || s.targets.some((k) => document.querySelector('[data-tour="' + k + '"]')),
+// Is this Team (or Work) tab one the viewer can open? Role-tour steps on a
+// tab the build or the person doesn't have are left out.
+function TOUR_hasTab(place, tab, ctx) {
+  if (typeof NAV_visibleTabs !== "function") return false;
+  return NAV_visibleTabs(place, { isAdmin: !!ctx.isAdmin }).some((t) => t.key === tab);
+}
+
+function TOUR_go(place, tab) {
+  return () => {
+    if (typeof NAV_go === "function") NAV_go(place, tab);
+  };
+}
+
+// Admin tour: the pages only admins see, about two minutes. Each step opens
+// its page first (`go`), so the spotlight lands on the real tab.
+function TOUR_adminSteps(ctx) {
+  const team = (tab, title, body) => ({
+    id: "team-" + tab,
+    when: (c) => TOUR_hasTab("team", tab, c),
+    go: TOUR_go("team", tab),
+    targets: ["#tp-tab-" + tab],
+    title,
+    body: () => body,
+  });
+  return [
+    {
+      id: "welcome",
+      title: "The admin tour",
+      body: () =>
+        "As an admin you see more than a bookkeeper: people, hours, money and the firm's settings. This tour opens each of those pages in turn. About two minutes.",
+    },
+    team(
+      "members",
+      "Team › Members",
+      "Add staff, set roles, assign clients, give temporary admin access, and use View as to see exactly what a bookkeeper sees. Every View as is in the Audit log.",
+    ),
+    team(
+      "hours",
+      "Team › Hours",
+      "Hours and tasks by person and by client, monthly hours budgets and capacity. Click a client or a person for fees, cost and margin.",
+    ),
+    team("reply-times", "Team › Reply times", "How fast clients hear back, by person, against the 24-hour goal."),
+    team("performance", "Team › Performance", "Every bookkeeper's score out of 100. Admins see the full ranking; bookkeepers see only their own."),
+    team(
+      "reviews",
+      "Team › Reviews",
+      "Run the quarterly reviews: Team status › Open a review cycle, pick who's reviewed and their reviewer (Jesse by default).",
+    ),
+    team("feedback", "Team › Feedback", "Bug reports and ideas from staff and clients. Only admins see this tab."),
+    team("inventory", "Team › Inventory", "Admins also get Requests, Items, a Roster of who's missing what, the staff Directory and Export to Google Sheet."),
+    {
+      id: "firm",
+      when: (c) => c.isAdmin,
+      go: () => {
+        if (ctx.onSelectPage) ctx.onSelectPage("settings");
+      },
+      targets: ["#st-tab-firm"],
+      press: true,
+      title: "Settings › Firm settings",
+      body: () =>
+        "The firm-wide pages: Task templates, Client roster (where a new client is added), Emails, QuickBooks usage, Usage stats, the Audit log and Developer tools.",
+    },
+    {
+      id: "today",
+      go: () => {
+        if (ctx.onSelectPage) ctx.onSelectPage("today");
+      },
+      targets: ["today-list"],
+      spot: "top",
+      title: "Your Today, admin edition",
+      body: () =>
+        "Today covers every client you can open, and admins can open them all: access and upgrade requests, clients at risk, and birthdays and work anniversaries a week ahead. Also show › Milestones adds pricing milestones to review.",
+    },
+    {
+      id: "done",
+      title: "That's the admin side",
+      body: () =>
+        (ctx.amCount ? "Next time you sign in you'll get the account manager tour, or start it now from the ? menu. " : "") +
+        "The written version is in the staff guide: search for “admin guide”.",
+    },
+  ];
+}
+
+// Account manager tour: the client's main contact. Owner, 2026-10-09: the
+// account manager does every bookkeeper's review, answers client messages,
+// sets up new clients, watches client health and handles plans and
+// upgrades. Admin-only stops are left out for an account manager who
+// isn't an admin.
+function TOUR_amSteps(ctx) {
+  const n = ctx.amCount || 0;
+  return [
+    {
+      id: "welcome",
+      title: "The account manager tour",
+      body: () =>
+        `You're the main contact for ${n === 1 ? "1 client" : n + " clients"}. They see you on their Home as their account manager. This tour covers reviews, messages, new clients, health and plans.`,
+    },
+    {
+      id: "reviews",
+      when: (c) => TOUR_hasTab("team", "reviews", c),
+      go: TOUR_go("team", "reviews"),
+      targets: ["#tp-tab-reviews"],
+      title: "You do the bookkeeper reviews",
+      body: () =>
+        "Each quarter you review every bookkeeper. When a cycle opens you get an email; fill each one in under Reviews I'm giving, then meet, agree on action steps and both sign.",
+    },
+    {
+      id: "inbox",
+      targets: ["staff-nav-inbox"],
+      drawer: true,
+      title: "Client messages",
+      body: () =>
+        "When one of your clients writes, you get the email and it lands in Inbox. Reply here, in the portal, so the client sees it and it counts toward reply times.",
+    },
+    {
+      id: "reply-times",
+      when: (c) => TOUR_hasTab("team", "reply-times", c),
+      go: TOUR_go("team", "reply-times"),
+      targets: ["#tp-tab-reply-times"],
+      title: "Reply times",
+      body: () => "How fast clients hear back, by person, against the 24-hour goal. A slow week shows here before a client mentions it.",
+    },
+    {
+      id: "health",
+      go: TOUR_go("clients"),
+      targets: ["clients-filters"],
+      title: "Client health check-ins",
+      body: () =>
+        "Needs attention picks out clients with health at risk, a late close, an access request or a stale SOP. The Health and Hours this month columns show the rest; the reasons are on each client's Overview.",
+    },
+    {
+      id: "requests",
+      go: () => {
+        if (ctx.onSelectPage) ctx.onSelectPage("today");
+      },
+      targets: ["today-list"],
+      spot: "top",
+      title: "Plans and upgrades",
+      body: () =>
+        "Upgrade and Add Payroll requests from a client's Plan tab show on Today. Follow up, then mark each one Contacted, Completed or Dismiss. Also show › Milestones lists pricing milestones to confirm.",
+    },
+    {
+      id: "profit",
+      when: (c) => c.isAdmin && TOUR_hasTab("team", "hours", c),
+      go: TOUR_go("team", "hours"),
+      targets: ["#tp-tab-hours"],
+      title: "Fees and hours",
+      body: () =>
+        "A client's fee follows their confirmed pricing milestone. Team › Hours shows each client's hours against budget; click a client for fees, cost and margin, and see who has outgrown their plan.",
+    },
+    {
+      id: "new-client",
+      when: (c) => c.isAdmin,
+      go: () => {
+        if (ctx.onSelectPage) ctx.onSelectPage("settings");
+      },
+      targets: ["#st-tab-firm"],
+      press: true,
+      title: "New clients",
+      body: () =>
+        "A new client starts in Firm settings › Client roster: name, type, plan, bookkeeper and account manager. Then set their hours budget and confirm their pricing milestone on the Client overview.",
+    },
+    {
+      id: "done",
+      title: "You're set",
+      body: () =>
+        "The full checklist, step by step, is in the staff guide: search for “account manager”. Take this tour again from the ? menu.",
+    },
+  ];
+}
+
+// The staff-side tours, in the order they start on their own (one per page
+// load). `available` decides who gets each; the "?" menu, ⌘K and Settings ›
+// Help list the available ones through TOUR_staffTourList.
+const TOUR_STAFF_TOURS = [
+  { key: "staff", setting: "staffTour", label: "Take the tour", sub: "A quick walk through the staff side", available: () => true, steps: (ctx) => TOUR_staffSteps(ctx) },
+  { key: "admin", setting: "adminTour", label: "Admin tour", sub: "The pages only admins see", available: (ctx) => ctx.isAdmin && !ctx.impersonating, steps: (ctx) => TOUR_adminSteps(ctx) },
+  {
+    key: "am",
+    setting: "amTour",
+    label: "Account manager tour",
+    sub: "Reviews, client messages, new clients, health and plans",
+    available: (ctx) => ctx.amCount > 0 && !ctx.impersonating,
+    steps: (ctx) => TOUR_amSteps(ctx),
+  },
+];
+
+// Who's signed in, for the launchers. TOUR_StaffRoot keeps it current.
+let TOUR_staffCtx = { isAdmin: false, amCount: 0, impersonating: false };
+
+// [{ key, label, sub }] of the tours this staffer can take, staff tour first.
+function TOUR_staffTourList() {
+  return TOUR_STAFF_TOURS.filter((t) => t.available(TOUR_staffCtx)).map((t) => ({ key: t.key, label: t.label, sub: t.sub }));
+}
+
+// How many clients this person is the account manager for (window.CLIENTS is
+// the roster index.html loads before the app, with accountManager on each).
+function TOUR_amCount(email) {
+  const e = String(email || "").trim().toLowerCase();
+  if (!e || !Array.isArray(window.CLIENTS)) return 0;
+  return window.CLIENTS.filter((c) => c && c.accountManager && String(c.accountManager.email || "").toLowerCase() === e).length;
+}
+
+// The steps this staffer will see: centered, `wait` and `go` steps always
+// (a `go` step's target only renders once its page opens), others only when
+// one of their targets is on the page (so a build without, say, the ? menu
+// just has one step fewer). `when(ctx)` drops a step that doesn't apply.
+function TOUR_visibleStaffSteps(steps, ctx) {
+  return steps.filter(
+    (s) => (!s.when || s.when(ctx)) && (!s.targets || s.wait || s.go || s.targets.some((k) => TOUR_find(k) || (k.charAt(0) !== "#" && document.querySelector('[data-tour="' + k + '"]')))),
   );
 }
 
@@ -352,8 +572,15 @@ function TOUR_Overlay({ steps, index, onBack, onNext, onSkip, onFinish, setMobil
     let cancelled = false;
     let poll = 0;
     let key = null;
+    let pressed = false;
     setReady(false);
     const targets = step.targets || [];
+    // A role-tour step opens its page first; give it a moment to render.
+    if (step.go) {
+      try {
+        step.go();
+      } catch (e) {}
+    }
     const find = () => {
       for (const k of targets) {
         const el = TOUR_find(k);
@@ -372,20 +599,27 @@ function TOUR_Overlay({ steps, index, onBack, onNext, onSkip, onFinish, setMobil
     // check the class. A row that only renders once the drawer is open isn't
     // found at all yet, so the step itself says it lives there.
     const needsDrawer = TOUR_inDrawerMode() && (elRef.current ? TOUR_inSidebar(elRef.current) : !!step.drawer);
-    let wait = 0;
+    let wait = step.go ? 450 : 0;
     if (needsDrawer && !drawerOpenedRef.current) {
       setMobileNavOpen(true);
       drawerOpenedRef.current = true;
-      wait = 280;
+      wait = Math.max(wait, 280);
     } else if (!needsDrawer && drawerOpenedRef.current) {
       setMobileNavOpen(false);
       drawerOpenedRef.current = false;
-      wait = 280;
+      wait = Math.max(wait, 280);
     }
     const settle = () => {
       if (cancelled) return;
       if (!elRef.current || !elRef.current.isConnected) adopt(find());
       const el = elRef.current;
+      // `press`: open the tab being pointed at (Settings' Firm settings).
+      if (el && el.isConnected && step.press && !pressed) {
+        pressed = true;
+        try {
+          el.click();
+        } catch (e) {}
+      }
       if (el && el.isConnected) {
         try {
           el.scrollIntoView({ block: key === "customize" ? "center" : "nearest", inline: "nearest" });
@@ -848,56 +1082,75 @@ function TOUR_StaffRoot({ staffUser, impersonating, isPreviewingUser, page, onSe
   // tour started then just runs and remembers nothing.
   const isSelf = !!email && !impersonating && !isPreviewingUser;
   const ownSettings = isSelf && st.role === "staff" && st.email === email;
-  const saved = ownSettings && TOUR_isObj(st.settings && st.settings.staffTour) ? st.settings.staffTour : {};
-  const [run, setRun] = React.useState(null); // { steps, index }
+  const savedOf = (t) => (ownSettings && TOUR_isObj(st.settings && st.settings[t.setting]) ? st.settings[t.setting] : {});
+  // Real admins only: temporary admin access doesn't open Members, Feedback
+  // and the rest of what the admin tour shows.
+  const isAdmin = !!staffUser && staffUser.role === "admin";
+  const amCount = TOUR_amCount(email);
+  const ctx = { isAdmin, amCount, impersonating: !!impersonating };
+  TOUR_staffCtx = ctx;
+  // The first tour that applies and hasn't run, for the once-only start.
+  const pending = ownSettings ? TOUR_STAFF_TOURS.find((t) => t.available(ctx) && !savedOf(t).status) : null;
+  const [run, setRun] = React.useState(null); // { tour, steps, index }
   const autoStarted = React.useRef(false);
   const returnFocus = React.useRef(null);
 
-  const begin = React.useCallback(() => {
-    returnFocus.current = document.activeElement;
-    // The tour starts on Today, where its list lives.
-    if (onSelectPage && page !== "today") onSelectPage("today");
-    // Let Today (and the top bar) render first.
-    setTimeout(() => {
-      const places =
-        typeof NAV_visiblePlaces === "function"
-          ? NAV_visiblePlaces({
-              role: staffUser && staffUser.role,
-              isAdmin: !!staffUser && staffUser.role === "admin",
-              impersonating: !!impersonating,
-            }).map((p) => p.label)
-          : null;
-      const firstName = String((staffUser && staffUser.name) || "")
-        .trim()
-        .split(/\s+/)[0];
-      setRun({ steps: TOUR_visibleStaffSteps({ places, firstName }), index: 0 });
-    }, 350);
-  }, [staffUser, impersonating, page, onSelectPage]);
+  const begin = React.useCallback(
+    (which) => {
+      const tour = TOUR_STAFF_TOURS.find((t) => t.key === which) || TOUR_STAFF_TOURS[0];
+      returnFocus.current = document.activeElement;
+      // The staff tour starts on Today, where its list lives. The role
+      // tours open their own pages step by step.
+      if (tour.key === "staff" && onSelectPage && page !== "today") onSelectPage("today");
+      // Let Today (and the top bar) render first.
+      setTimeout(() => {
+        const places =
+          typeof NAV_visiblePlaces === "function"
+            ? NAV_visiblePlaces({
+                role: staffUser && staffUser.role,
+                isAdmin,
+                impersonating: !!impersonating,
+              }).map((p) => p.label)
+            : null;
+        const firstName = String((staffUser && staffUser.name) || "")
+          .trim()
+          .split(/\s+/)[0];
+        const full = { places, firstName, isAdmin, amCount, onSelectPage };
+        setRun({ tour, steps: TOUR_visibleStaffSteps(tour.steps(full), full), index: 0 });
+      }, 350);
+    },
+    [staffUser, impersonating, page, onSelectPage, isAdmin, amCount],
+  );
 
-  // First sign-in: start once settings have loaded and say it hasn't run.
+  // Once each: start the first pending tour when settings have loaded. One
+  // per page load, so the admin tour waits for a sign-in after the staff one.
+  const pendingKey = pending ? pending.key : null;
   React.useEffect(() => {
-    if (!ownSettings || autoStarted.current || run) return;
+    if (!ownSettings || autoStarted.current || run || !pendingKey) return;
     if (st.status !== "ready" && st.status !== "local") return;
-    if (saved.status) return;
     // The flag is set when the timer fires, so a re-render that reschedules
     // this effect can't cancel the only start.
     const t = setTimeout(() => {
       if (autoStarted.current) return;
       autoStarted.current = true;
-      begin();
+      begin(pendingKey);
     }, 600);
     return () => clearTimeout(t);
-  }, [ownSettings, st.status, saved.status, run, begin]);
+  }, [ownSettings, st.status, pendingKey, run, begin]);
 
-  // Manual start ("?" menu > Take the tour, Settings).
+  // Manual start ("?" menu, ⌘K, Settings › Help). A tour this person can't
+  // take falls back to the staff tour.
   React.useEffect(() => {
-    const onStart = () => {
+    const onStart = (e) => {
       if (run || !staffUser) return;
-      begin();
+      const which = e && e.detail && e.detail.which;
+      const tour = TOUR_STAFF_TOURS.find((t) => t.key === which);
+      begin(tour && tour.available(ctx) ? tour.key : "staff");
     };
     window.addEventListener(TOUR_STAFF_START_EVENT, onStart);
     return () => window.removeEventListener(TOUR_STAFF_START_EVENT, onStart);
-  }, [run, staffUser, begin]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [run, staffUser, begin, isAdmin, amCount, impersonating]);
 
   // "View as", a preview or a different sign-in mid-tour ends it.
   React.useEffect(() => {
@@ -905,9 +1158,10 @@ function TOUR_StaffRoot({ staffUser, impersonating, isPreviewingUser, page, onSe
   }, [impersonating, isPreviewingUser, email]);
 
   const end = (status) => {
+    const tour = (run && run.tour) || TOUR_STAFF_TOURS[0];
     setRun(null);
-    if (ownSettings && window.MGB_track) window.MGB_track(status === "done" ? "tour-done" : "tour-skipped", "staff");
-    if (ownSettings) ST_store.update({ staffTour: { status, at: new Date().toISOString() } });
+    if (ownSettings && window.MGB_track) window.MGB_track(status === "done" ? "tour-done" : "tour-skipped", tour.key);
+    if (ownSettings) ST_store.update({ [tour.setting]: { status, at: new Date().toISOString() } });
     const back = returnFocus.current;
     setTimeout(() => {
       if (back && back.isConnected && typeof back.focus === "function") {
