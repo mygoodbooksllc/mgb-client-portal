@@ -293,6 +293,23 @@ body {
   overscroll-behavior-y: contain;
 }
 
+/* Baseline for every <select> that no other rule styles (Team › Members role
+   and temp-access duration, among others), so none falls back to the
+   browser's gray box. Matches .st-input, the themed date fields beside them.
+   :where() keeps the specificity at zero, so any class or parent rule that
+   already styles a select still wins. Chrome keeps its own arrow once a
+   background is set, so no custom chevron is needed. */
+:where(select) {
+  padding: 9px 11px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background-color: var(--surface);
+  color: var(--text);
+  font: 14px/1.4 var(--font-body);
+}
+:where(select):focus-visible { outline: 2px solid var(--gold); outline-offset: 0; border-color: var(--gold); }
+:where(select):disabled { background-color: var(--surface-2); color: var(--text-muted); cursor: not-allowed; }
+
 /* Ambient gradient mesh behind the glass cards (Option C direction). A fixed
    layer sits behind .app-shell (which needs its own stacking context via
    position:relative + z-index to paint above it reliably). */
