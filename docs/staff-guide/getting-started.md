@@ -2,7 +2,7 @@
 title: Getting started: a tour of the staff portal
 section: Getting started
 audience: staff
-keywords: [onboarding checklist, new, start, tour, overview, rail, sidebar, top bar, menu, navigation, today, five places, first day, orientation, reviews, deadlines, settings]
+keywords: [onboarding checklist, new, start, tour, bookkeeper tour, bookkeeper guide, overview, rail, sidebar, top bar, menu, navigation, today, five places, first day, orientation, reviews, deadlines, settings]
 sort: 10
 ---
 Welcome! The MyGoodBooks portal is where our clients (mostly churches and nonprofits) see their finances, and where we, the staff, keep track of our work for them. This page shows you around.
@@ -10,7 +10,7 @@ Welcome! The MyGoodBooks portal is where our clients (mostly churches and nonpro
 ### Your first day
 
 1. [Sign in](#/help/signing-in) with your @mygoodbooks.org Google account.
-2. A one-minute **tour** starts by itself and points out the five places, Today, search and the **?** menu. You can run it again any time from **?** → **Take the tour**. Admins also get an **Admin tour**, and account managers an **Account manager tour**, each once on a later sign-in. See [Admin guide](#/help/admin-guide) and [Account manager guide](#/help/account-manager-guide).
+2. If you're a bookkeeper, the **Bookkeeper tour** starts by itself. It's about three minutes and walks through your day: Today, your clients, the Inbox, Work and Team. You can run it again any time from **?** → **Bookkeeper tour**. Admins get the **Admin tour** instead (the Bookkeeper tour is in their **?** menu), account managers also get an **Account manager tour**, and anyone given temporary admin access a **Temporary admin tour**, each once. See [Bookkeeper guide](#/help/bookkeeper-guide), [Admin guide](#/help/admin-guide), [Account manager guide](#/help/account-manager-guide) and [Temporary access](#/help/temporary-access).
 3. You land on **Today**, one list of what needs you across all the clients you can see. See [What's on my Today page?](#/help/home-page).
 4. Open a client from **Clients**, or press **Ctrl+K** (**⌘K** on a Mac) and type their name. You'll see that client's **Client overview** first. See [How do I find and open a client?](#/help/finding-a-client).
 5. Your new-hire checklist is on **Team › Onboarding**. See [How does the new-hire onboarding checklist work?](#/help/new-hire-onboarding).
@@ -32,7 +32,7 @@ Every page looks the same: a title, one row of tabs, and the content. The tab is
 
 ### The top bar
 
-Across the top: the client picker, the sync pill (client pages), search (**Ctrl+K** / **⌘K**, which also jumps to any page or action), the bell, **Tasks**, **+** (add a task, note or document request, or message the client), **?** (help for this page, the staff guide, **Send feedback**, **What's new** and the tour) and your initials (dark mode, Preview as and **Sign out**). See [What's on the bar at the top of the page?](#/help/top-bar).
+Across the top: the client picker, the sync pill (client pages), search (**Ctrl+K** / **⌘K**, which also jumps to any page or action), the bell, **Tasks**, **+** (add a task, note or document request, or message the client), **?** (help for this page, the staff guide, **Send feedback**, **What's new** and the tours) and your initials (dark mode, Preview as and **Sign out**). See [What's on the bar at the top of the page?](#/help/top-bar).
 
 ### Inside a client
 
@@ -44,7 +44,7 @@ The top bar keeps the client picker, search, the bell and **+**. Tap the menu bu
 
 ### Who sees what
 
-- **Bookkeepers** see only the clients they're assigned to, and the Team tabs **People**, **Reviews** and **Onboarding**.
+- **Bookkeepers** see only the clients they're assigned to, and the Team tabs **People**, **Reviews**, **Onboarding**, **Performance** and **Inventory**. See [Bookkeeper guide](#/help/bookkeeper-guide).
 - **Admins** see every client, every Team tab, and the firm-wide pages under **Settings**.
 - Clients never see staff notes, SOPs, internal notes or anything on the staff pages.
 

@@ -360,8 +360,9 @@ function TB_actionRows({ client, showMine, effectiveTheme, onToggleTheme, onSign
     });
   if (typeof FB_openFeedback === "function") rows.push({ key: "a:feedback", title: "Send feedback", sub: "Report a bug or suggest an idea", go: () => FB_openFeedback() });
   if (typeof TOUR_startStaff === "function") {
-    const tours = typeof TOUR_staffTourList === "function" ? TOUR_staffTourList() : [{ key: "staff", label: "Take the tour", sub: "A quick walk through the staff side" }];
-    tours.forEach((t) => rows.push({ key: t.key === "staff" ? "a:tour" : "a:tour-" + t.key, title: t.label, sub: t.sub, go: () => TOUR_startStaff(t.key) }));
+    // One row per tour this person can take (Tour.jsx), keyed a:tour-<key>.
+    const tours = typeof TOUR_staffTourList === "function" ? TOUR_staffTourList() : [{ key: "bookkeeper", label: "Bookkeeper tour", sub: "Your day: Today, your clients, Inbox, Work and Team" }];
+    tours.forEach((t) => rows.push({ key: "a:tour-" + t.key, title: t.label, sub: t.sub, go: () => TOUR_startStaff(t.key) }));
   }
   if (onSignOut) rows.push({ key: "a:signout", title: "Sign out", sub: "", go: onSignOut });
   return rows;
@@ -1021,10 +1022,11 @@ function TB_HelpButton({ page, isAdmin }) {
   if (hasGuide) items.push({ key: "guide", label: "Staff guide", run: () => TB_go("#/help") });
   if (hasFeedback) items.push({ key: "feedback", label: "Send feedback", run: () => FB_openFeedback() });
   if (hasGuide) items.push({ key: "new", label: "What's new", run: () => TB_go("#/help/whats-new") });
-  // One line per tour this person can take: the staff tour, plus the admin
-  // and account manager tours when they apply (Tour.jsx).
+  // One line per tour this person can take: the bookkeeper tour, plus the
+  // admin, temporary admin and account manager tours when they apply
+  // (Tour.jsx TOUR_staffTourList).
   if (hasTour) {
-    const tours = typeof TOUR_staffTourList === "function" ? TOUR_staffTourList() : [{ key: "staff", label: "Take the tour" }];
+    const tours = typeof TOUR_staffTourList === "function" ? TOUR_staffTourList() : [{ key: "bookkeeper", label: "Bookkeeper tour" }];
     tours.forEach((t) => items.push({ key: "tour-" + t.key, label: t.label, run: () => TOUR_startStaff(t.key) }));
   }
   return (

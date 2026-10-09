@@ -553,7 +553,7 @@ function CLIENT_HomeTop({ client, access, needs, onOpenMilestone, onSeePlans }) 
   const showOrg = !(access && access.isCategoryScoped);
   return (
     <div className={"client-home-top" + (showOrg ? "" : " no-org")}>
-      <div className="card client-needs">
+      <div className="card client-needs" data-tour="client-needs">
         <h3 className="card-title" style={{ marginBottom: 8 }}>
           Needs you
         </h3>
@@ -20916,6 +20916,7 @@ function DocumentsPage({ client, isBookkeeper, searchTarget }) {
         )}
         <button
           className="btn-primary"
+          data-tour="doc-upload"
           disabled={uploading}
           onClick={(e) => {
             e.stopPropagation();
@@ -24506,8 +24507,9 @@ class ErrorBoundary extends React.Component {
 // With `liveLabel` (always syncPillLabel(plan, lastSyncedAt)), renders as one
 // combined pill: "● Every 15 min · synced 1m ago  ↻" (the header's sync
 // badge and Sync now in one control, to save space). Clicking anywhere on it
-// syncs.
-function QboSyncNowButton({ clientId, onSynced, liveLabel: liveLabelProp, plan, lastSyncedAt, canSyncNow = true }) {
+// syncs. `tour` is a data-tour key for the guided tour (the client header
+// passes "sync").
+function QboSyncNowButton({ clientId, onSynced, liveLabel: liveLabelProp, plan, lastSyncedAt, canSyncNow = true, tour }) {
   const showToast = useToast();
   const [syncing, setSyncing] = useState(false);
   // With plan + lastSyncedAt the pill builds its own label and re-renders
@@ -24585,7 +24587,7 @@ function QboSyncNowButton({ clientId, onSynced, liveLabel: liveLabelProp, plan, 
   if (liveLabel && !canSyncNow) {
     // Basic: the same pill, as a label only (no Sync now).
     return (
-      <span className="live-sync-pill live-sync-pill-static" title={liveLabel}>
+      <span className="live-sync-pill live-sync-pill-static" title={liveLabel} data-tour={tour}>
         <span className="badge-dot" aria-hidden="true"></span>
         <span className="live-sync-text">{liveLabel}</span>
       </span>
@@ -24597,6 +24599,7 @@ function QboSyncNowButton({ clientId, onSynced, liveLabel: liveLabelProp, plan, 
         <button
           type="button"
           className="live-sync-pill"
+          data-tour={tour}
           onClick={syncNow}
           disabled={syncing}
           title={syncing ? "Syncing with QuickBooks" : "Sync now with QuickBooks"}
@@ -24618,6 +24621,7 @@ function QboSyncNowButton({ clientId, onSynced, liveLabel: liveLabelProp, plan, 
       <button
         type="button"
         className="qbo-sync-now"
+        data-tour={tour}
         onClick={syncNow}
         disabled={syncing}
         aria-label={syncing ? "Syncing with QuickBooks" : "Sync now with QuickBooks"}
@@ -25294,27 +25298,42 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
   // pages below regardless (see effectivePage).
   const [tempAdminAccessExpiresAt, setTempAdminAccessExpiresAt] =
     useState(null);
+  // False until the check below has answered (or there's nothing to check),
+  // so a bookkeeper's staff tour can wait for it (TOUR_StaffRoot: the
+  // temporary admin tour goes first).
+  const [tempAdminLoaded, setTempAdminLoaded] = useState(false);
 
   useEffect(() => {
     setTempAdminAccessExpiresAt(null);
-    if (!staffUser || staffUser.role === "admin") return;
+    setTempAdminLoaded(false);
+    if (!staffUser || staffUser.role === "admin") {
+      setTempAdminLoaded(true);
+      return;
+    }
     const supabase = window.mgbSupabase;
-    if (!supabase) return;
+    if (!supabase) {
+      setTempAdminLoaded(true);
+      return;
+    }
     supabase
       .from("staff_temp_admin_access")
       .select("expires_at")
       .eq("staff_email", staffUser.email)
       .maybeSingle()
-      .then(({ data, error }) => {
-        if (error) {
-          console.warn(
-            "Couldn't load temp admin access (staff-temp-admin-access.sql may not be run yet):",
-            error.message,
-          );
-          return;
-        }
-        setTempAdminAccessExpiresAt(data ? data.expires_at : null);
-      });
+      .then(
+        ({ data, error }) => {
+          if (error) {
+            console.warn(
+              "Couldn't load temp admin access (staff-temp-admin-access.sql may not be run yet):",
+              error.message,
+            );
+          } else {
+            setTempAdminAccessExpiresAt(data ? data.expires_at : null);
+          }
+          setTempAdminLoaded(true);
+        },
+        () => setTempAdminLoaded(true),
+      );
   }, [staffUser && staffUser.email, staffUser && staffUser.role]);
 
   // Forces a re-render once a minute so a live temp-access grant actually
@@ -27073,6 +27092,7 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
                   // Every plan says how often it refreshes (PLAN_SYNC).
                   plan={access.plan}
                   lastSyncedAt={client.lastSyncedAt}
+                  tour="sync"
                 />
               ) : (
                 <span className="badge-live badge-live--sample">
@@ -27169,14 +27189,20 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
           {typeof TOUR_Root === "function" && !NON_CLIENT_PAGES.has(effectivePage) && (
             <TOUR_Root client={client} access={access} page={effectivePage} onSelectPage={setPage} onOpenSettings={openClientSettings} setMobileNavOpen={setMobileNavOpen} clientPortalUser={clientPortalUser} isStaffSession={isStaffSession} isPreviewingUser={Boolean(isPreviewingUser)} impersonating={Boolean(impersonating)} />
           )}
-          {/* Staff tour: the five places, Today's list, search and the "?"
-              menu (TOUR_StaffRoot, same file). Runs once on a staff member's
-              first sign-in; "?" > Take the tour restarts it. */}
+          {/* Staff tours: bookkeeper, admin, temporary admin and account
+              manager (TOUR_StaffRoot, same file). Each starts by itself once
+              for the people it applies to; the "?" menu, ⌘K and Settings ›
+              Help start them again. */}
           {typeof TOUR_StaffRoot === "function" && showStaffRail && !isPreviewingUser && (
             <TOUR_StaffRoot
               staffUser={staffUser}
               impersonating={Boolean(impersonating)}
+              viewAsUser={impersonating}
               isPreviewingUser={Boolean(isPreviewingUser)}
+              hasTempAdminAccess={hasTempAdminAccess}
+              tempAdminAccessExpiresAt={tempAdminAccessExpiresAt}
+              tempAdminLoaded={tempAdminLoaded}
+              clients={visibleClients}
               page={effectivePage}
               onSelectPage={setPage}
               setMobileNavOpen={setMobileNavOpen}

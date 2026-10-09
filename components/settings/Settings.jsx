@@ -985,17 +985,15 @@ function ST_StaffSettingsPage({
   // Help tab rows; each shows only when its module is loaded (Tour.jsx,
   // StaffGuide.jsx, Feedback.jsx). Same shape as the client Help card.
   const helpRows = [
-    typeof TOUR_startStaff === "function" && {
-      key: "tour",
-      label: "Guided tour",
-      sub: "A quick walk through Today, Inbox, Work, Clients and Team, and the top bar.",
-      action: "Restart the tour",
-      run: () => TOUR_startStaff("staff"),
-    },
-    // The admin and account manager tours, for the people they apply to.
-    ...(typeof TOUR_staffTourList === "function" ? TOUR_staffTourList() : [])
-      .filter((t) => t.key !== "staff")
-      .map((t) => ({ key: "tour-" + t.key, label: t.label, sub: t.sub + ".", action: "Start the tour", run: () => TOUR_startStaff(t.key) })),
+    // One row per tour this person can take: the bookkeeper tour, plus the
+    // admin, temporary admin and account manager tours when they apply.
+    ...(typeof TOUR_startStaff === "function" && typeof TOUR_staffTourList === "function" ? TOUR_staffTourList() : []).map((t) => ({
+      key: "tour-" + t.key,
+      label: t.label,
+      sub: t.sub + ".",
+      action: "Start the tour",
+      run: () => TOUR_startStaff(t.key),
+    })),
     typeof HLP_StaffGuidePage === "function" && {
       key: "guide",
       label: "Staff guide",

@@ -30,13 +30,13 @@ Two tabs:
   - **How your data is stored and used**: QuickBooks is read-only, their sync schedule, the connection key is encrypted, and how to disconnect from Intuit. Data is stored with Supabase in the US (Ohio), encrypted, hosted by Vercel, emails via Resend, backed up daily. Never sold or used for ads.
   - **Keeping and deleting your data**: only staff remove documents, Trash never empties on its own, and how to ask for a copy or deletion (message the bookkeeper or email admin@mygoodbooks.org).
   - If a client asks for a copy of their data or to have it deleted, pass it to the owner. Don't promise anything the page doesn't say.
-- **Help**: **Restart the tour** (see "How does the client guided tour work?"), Messages, the privacy policy and the terms of service.
+- **Help**: **Restart the tour** (they get the version that fits their plan and access; see "How does the client guided tour work?"), Messages, the privacy policy and the terms of service.
 
 Clients' dark mode switch and **Sign out** button moved from the bottom of their sidebar into Settings.
 
 ### When you use Preview as
 
-While previewing as a client user you see their Settings tabs, read-only. Their personal settings belong to them, so nothing can be changed there, and the Organization tab is hidden. **Help** > **Preview the tour** shows you the guided tour that person gets, without saving anything.
+While previewing as a client user you see their Settings tabs, read-only. Their personal settings belong to them, so nothing can be changed there, and the Organization tab is hidden. **Help** > **Preview the tour** shows you the version of the guided tour that person gets (it depends on their plan, access level and add-ons), without saving anything.
 
 ### Troubleshooting
 

@@ -2,7 +2,7 @@
 title: Account manager guide: reviews, client messages, new clients, health and plans
 section: Admin
 audience: staff
-keywords: [account manager, account manager guide, account manager tour, am, main contact, client contact, jesse, bookkeeper reviews, quarterly reviews, reviewer, reviews i'm giving, client messages, inbox, reply times, new client, onboarding, client health, check-in, needs attention, upgrade, add payroll, plan change, pricing milestone, fee, margin, routine, checklist]
+keywords: [account manager, account manager guide, account manager tour, bookkeeper tour, am, main contact, client contact, jesse, bookkeeper reviews, quarterly reviews, reviewer, reviews i'm giving, client messages, inbox, reply times, new client, onboarding, client health, check-in, needs attention, upgrade, add payroll, plan change, pricing milestone, fee, margin, routine, checklist]
 sort: 505
 ---
 The **account manager** is a client's main contact. Every client has one, and a new client starts with Jesse. The client sees you on their Home as **Your account manager** (or **Your account manager and bookkeeper** when you're both), and you get the email when they send a message.
@@ -11,7 +11,7 @@ The account manager also does every bookkeeper's quarterly review. This is the w
 
 ### Take the tour
 
-- It shows for anyone who is the account manager on at least one client. It starts by itself once (after the staff and admin tours), and runs again from **?** → **Account manager tour**, **Ctrl+K** / **⌘K**, or **Settings › Help**.
+- It shows for anyone who is the account manager on at least one client. It starts by itself once, after your other pending tours (Temporary admin, Bookkeeper or Admin), and runs again from **?** → **Account manager tour**, **Ctrl+K** / **⌘K**, or **Settings › Help**.
 - It covers the five parts below. Stops on admin-only pages are left out if you're not an admin.
 
 ### 1. Bookkeeper reviews

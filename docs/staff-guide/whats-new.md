@@ -2,16 +2,24 @@
 title: What's new
 section: Getting started
 audience: staff
-keywords: [admin tour, account manager tour, inventory, tech, equipment, what's new, whats new, new, changes, updates, release notes, changelog, navigation, redesign, five places]
+keywords: [bookkeeper tour, temporary admin tour, client tour, tour versions, admin tour, account manager tour, inventory, tech, equipment, what's new, whats new, new, changes, updates, release notes, changelog, navigation, redesign, five places]
 sort: 15
 ---
 The newest changes to the staff side, newest first. For how anything works, search this guide or click **?** → **Help for this page**.
+
+### 2026-10-09: bookkeeper, temporary admin and client tour versions
+
+- **Bookkeeper tour** replaces the old staff tour. It's a three-minute walk through a bookkeeper's day: Today, your clients and a client's Overview, the **+** button, the Inbox, Work (Tasks and Close), Team (People, Reviews) and search. It starts by itself once for bookkeepers, including anyone who did the old tour, and admins can run it from **?**. See [Bookkeeper guide](#/help/bookkeeper-guide).
+- **Temporary admin tour**: when an admin gives you temporary admin access, a one-minute tour shows the pages that just opened (Team › Hours, Reply times, Feedback, Members and Settings › Firm settings) and says when your access ends. It starts again for each new grant. See [Temporary access](#/help/temporary-access).
+- **Admin tour**: a new admin now gets the basics (the five places, search and help) first, then the admin pages.
+- **Client tour versions**: clients no longer all get the same tour. It follows their plan (Pro or Basic), their access level (full, limited, or budget-only) and add-ons such as Payroll, and it skips anything they can't see. **Invite a teammate** on the setup checklist now shows only for people who can open **Organization**. See [How does the client guided tour work?](#/help/client-tour).
+- To see a client's version, use **Preview as** and pick that person, then **Settings** > **Help** > **Preview the tour**.
 
 ### 2026-10-09: admin and account manager tours
 
 - **Admin tour**: a two-minute walk through the pages only admins see (Team › Members, Hours, Reply times, Performance, Reviews, Feedback and Inventory, then Firm settings and Today). See [Admin guide](#/help/admin-guide).
 - **Account manager tour**, for anyone who is a client's account manager: bookkeeper reviews, client messages, new clients, client health and plans. See [Account manager guide](#/help/account-manager-guide).
-- Each starts by itself once, on a sign-in after the staff tour, and runs again from **?**, **Ctrl+K** / **⌘K** or **Settings › Help**.
+- Each starts by itself once, one tour per sign-in: admins get the Admin tour first, and the Account manager tour comes after your other pending tours (Temporary admin, Bookkeeper or Admin). Both run again from **?**, **Ctrl+K** / **⌘K** or **Settings › Help**.
 - Dropdowns and date pickers everywhere now match the light and dark themes instead of showing the browser's gray box.
 
 ### 2026-10-08: Team › Inventory

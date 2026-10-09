@@ -89,10 +89,10 @@ If the Intuit tab says **Connection cancelled**, **Link expired** or **Couldn't 
 ### 7. What the client sees the first time
 
 1. They open the invite link (or sign in at **app.mygoodbooks.org/login**).
-2. A short guided tour starts on its own. It only shows pages that are on their plan and in their access.
-3. After the tour, a **Get set up** card asks them to add profile details, check notification emails, invite a teammate (full access only), upload a requested document and message their bookkeeper.
+2. A short guided tour starts on its own. The version depends on their plan and access level (full access on Pro, full access on Basic, limited, or budget-only), and it only shows pages that are on their plan and in their access.
+3. After the tour, a **Get set up** card asks them to add profile details, check notification emails, invite a teammate (only people who can open the Organization tab), upload a requested document and message their bookkeeper.
 
-See [How does the client guided tour work?](#/help/client-tour). **Preview as** only lists sample people, so for a brand-new client it usually has nobody to pick. Use **Preview plan** to see the pages their plan shows. See [How do I see the portal the way a client sees it?](#/help/preview-as).
+See [How does the client guided tour work?](#/help/client-tour). **Preview as** only lists sample people, so for a brand-new client it usually has nobody to pick. Use **Preview plan** to see the pages their plan shows. Once they have people, pick one in **Preview as** and run **Help** > **Preview the tour** to see the exact version they'll get. See [How do I see the portal the way a client sees it?](#/help/preview-as).
 
 ### Troubleshooting
 

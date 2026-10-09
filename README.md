@@ -284,19 +284,38 @@ because some work happens in Claude Code web sessions. Run `git fetch` and compa
     `qbo_my_client_hours(from, to)` (minutes per client for the caller's own clients; no rates or
     per-person split), so the Clients page's Hours this month column works for everyone.
   - **Top bar:** no page links; ⌘K lists Pages and Actions with nothing typed; the **?** menu is
-    Help for this page, Staff guide, Send feedback, What's new, Take the tour. Help and Feedback are
-    no longer sidebar items.
-  - **Tour:** `components/tour/Tour.jsx` staff steps (`TOUR_staffSteps`): welcome, Your five
-    places, Start with Today, Jump anywhere, Help/feedback/tour, You're ready. Auto-starts once
-    (`staffTour` in user settings) and again from the ? menu.
-  - **Role tours (2026-10-09):** `TOUR_adminSteps` (real admins: each Team admin tab, Settings ›
-    Firm settings, Today) and `TOUR_amSteps` (anyone who is `accountManager` on a client in
-    `window.CLIENTS`: bookkeeper reviews, Inbox, Reply times, Clients › Needs attention, Today
-    requests, Team › Hours, Client roster). `TOUR_STAFF_TOURS` lists staff → admin → am; one
-    auto-starts per page load (first without a status in `staffTour` / `adminTour` / `amTour`).
-    Steps can `go` (open a page first), `press` (click the target) and `when(ctx)`; a target
-    starting with `#` is an element id (`#tp-tab-<key>`, `#st-tab-firm`). The ? menu, ⌘K and
-    Settings › Help list `TOUR_staffTourList()`. Guide: `admin-guide`, `account-manager-guide`.
+    Help for this page, Staff guide, Send feedback, What's new, then one entry per tour (Bookkeeper
+    tour, plus Admin, Temporary admin and Account manager tours when they apply). Help and Feedback
+    are no longer sidebar items.
+  - **Tours (`components/tour/Tour.jsx`):** the client tour (`TOUR_Root`) and the staff-side tours
+    (`TOUR_StaffRoot`). Staff tours are listed in `TOUR_STAFF_TOURS` in menu order: **Bookkeeper**
+    (`TOUR_bookkeeperSteps`, setting `bookkeeperTour`; replaces the old generic staff tour, and
+    `TOUR_startStaff()` or `"staff"` still start it), **Admin** (`TOUR_adminSteps`, `adminTour`),
+    **Temporary admin** (`TOUR_tempAdminSteps`, `tempAdminTour`) and **Account manager**
+    (`TOUR_amSteps`, `amTour`). Each saves `{ status, at }` in user settings (the temporary admin tour
+    also saves `until`, the grant's expiry, so a later grant starts it again).
+  - **Staff tour ctx and order:** `TOUR_StaffRoot` builds `isAdmin` (real admin), `isBookkeeper`,
+    `tempAdmin` (a bookkeeper with an unexpired `staff_temp_admin_access` row; App passes
+    `hasTempAdminAccess` and `tempAdminAccessExpiresAt`), `showsAdminPages` (admin or temp admin),
+    `amCount`, `impersonating` and `myClient`. One tour auto-starts per page load, in the order
+    temporary admin → bookkeeper → admin → am, each only when pending. The Bookkeeper tour never
+    starts by itself for admins; during View as it visits only what View as can open (Today, Clients
+    and a client's pages) and skips the rest. A bookkeeper's auto-start waits for App's
+    `tempAdminLoaded` (the grant check), and an auto start waits while Today's profile prompt is open.
+    New admins get the basic steps first (`newToStaff`). The ? menu, ⌘K and Settings › Help all list
+    `TOUR_staffTourList()`.
+  - **Tour steps:** a step can `go` (open a page first, `TOUR_go(place, tab)`), `press` (click the
+    target), `wait` and `when(ctx)`; a target starting with `#` is an element id (`#tp-tab-<key>`,
+    `#st-tab-firm`), anything else is a `data-tour` key. `TOUR_hasTab` takes `showsAdminPages`, so a
+    temporary admin's tour only visits tabs they can open.
+  - **Client tour versions:** `TOUR_clientSteps(ctx)` builds one tour from the plan (`basic`,
+    `standard` worded as Basic, `premium`), `pro` (Pro pages on for this person), payroll tab, access
+    kind (full, limited, budget-only category) and the tabs they have. Steps filter on `when(ctx)`
+    and targets, and the tour returns to Home when it ends or is skipped. The setup checklist's
+    "Invite a teammate" shows only when the person can open Settings › Organization. Staff preview a
+    version with Preview as + Settings › Help › Preview the tour (nothing is saved).
+  - **Tour docs:** `bookkeeper-guide`, `admin-guide`, `account-manager-guide`, `temporary-access`
+    and `client-tour` in `docs/staff-guide`.
   - **Routes:** `#/today`, `#/inbox`, `#/work/<tasks|close|deadlines>`, `#/clients`,
     `#/team/<tab>`, `#/team/reviews/<sub>[/id]`, `#/help[/slug]`, `#/settings`, `#/templates`,
     `#/client/<id>/<tab>` (incl. `sop`). The old routes (`#/home`, `#/tasks`, `#/close-tracker`,
@@ -381,7 +400,7 @@ because some work happens in Claude Code web sessions. Run `git fetch` and compa
     `mgb-topbar-bell-seen:<email>`), `TB_TasksBadge` (open count, overdue in red → `#/work/tasks`),
     `TB_QuickAdd` ("+", client pages: New task / New note / Request document / Message; dispatches
     `tb:quick-add`, which the headless `StaffQuickActions` listens for and opens its own modal or the
-    chat drawer), `TB_HelpButton` ("?" menu: Help for this page (`TB_helpSlugFor`: `TB_HELP_FOR_PAGE` plus the `help` slugs in `NAV_PLACES`), Staff guide, Send feedback via `FB_openFeedback` (`FB_FeedbackHost` is mounted next to it), What's new (`#/help/whats-new`), Take the tour (`TOUR_startStaff`)),
+    chat drawer), `TB_HelpButton` ("?" menu: Help for this page (`TB_helpSlugFor`: `TB_HELP_FOR_PAGE` plus the `help` slugs in `NAV_PLACES`), Staff guide, Send feedback via `FB_openFeedback` (`FB_FeedbackHost` is mounted next to it), What's new (`#/help/whats-new`), then one item per `TOUR_staffTourList()` tour (`TOUR_startStaff(key)`)),
     `TB_AvatarMenu` (profile photo from `staff_profiles`, theme, Preview as a client user, Preview plan
     with check marks, Exit "View as", temporary access, **Settings** → `#/settings`, Sign out).
   - **Moved, not duplicated:** while mounted, the client picker, sync pill and account menu add
@@ -1098,7 +1117,7 @@ which explains the reasoning behind most of the decisions above.
 ## Staff guide
 
 The staff guide (`#/help`, opened from the **?** menu in the top bar: Help for this page, Staff
-guide, Send feedback, What's new, Take the tour; also from ⌘K) is a searchable how-to guide for
+guide, Send feedback, What's new, the tours; also from ⌘K) is a searchable how-to guide for
 staff. The per-page slugs are `TB_HELP_FOR_PAGE` in `TopBar.jsx` and the `help` field on each
 `NAV_PLACES` place and tab in `StaffNav.jsx`; every slug must exist as a file. `whats-new.md` is the
 staff-facing changelog: add an entry with every change staff would notice.

@@ -1492,7 +1492,7 @@ function StaffInbox({
         (hasSel && contextOpen && !compact ? " si-ctx-open" : "")
       }
     >
-      <section className="si-list-pane" aria-label="Conversations">
+      <section className="si-list-pane" aria-label="Conversations" data-tour="inbox-list">
         <div className="si-list-head">
           <h2 className="si-title">{lockClientId || !compact ? "Conversations" : "Inbox"}</h2>
           <button type="button" className="si-new-btn" onClick={() => setShowNew(true)}>
