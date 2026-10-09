@@ -293,13 +293,14 @@ body {
   overscroll-behavior-y: contain;
 }
 
-/* Baseline for every <select> that no other rule styles (Team › Members role
-   and temp-access duration, among others), so none falls back to the
-   browser's gray box. Matches .st-input, the themed date fields beside them.
+/* Baseline for every <select> and date/time input that no other rule styles
+   (Team › Members role and temp-access duration, the date filters and
+   pickers across staff pages), so none falls back to the browser's gray
+   box. Matches .st-input, the themed date fields on Members.
    :where() keeps the specificity at zero, so any class or parent rule that
-   already styles a select still wins. Chrome keeps its own arrow once a
+   already styles the control still wins. Chrome keeps its own arrow once a
    background is set, so no custom chevron is needed. */
-:where(select) {
+:where(select, input[type="date"], input[type="time"], input[type="datetime-local"], input[type="month"], input[type="week"]) {
   padding: 9px 11px;
   border: 1px solid var(--border);
   border-radius: 8px;
@@ -307,8 +308,8 @@ body {
   color: var(--text);
   font: 14px/1.4 var(--font-body);
 }
-:where(select):focus-visible { outline: 2px solid var(--gold); outline-offset: 0; border-color: var(--gold); }
-:where(select):disabled { background-color: var(--surface-2); color: var(--text-muted); cursor: not-allowed; }
+:where(select, input[type="date"], input[type="time"], input[type="datetime-local"], input[type="month"], input[type="week"]):focus-visible { outline: 2px solid var(--gold); outline-offset: 0; border-color: var(--gold); }
+:where(select, input[type="date"], input[type="time"], input[type="datetime-local"], input[type="month"], input[type="week"]):disabled { background-color: var(--surface-2); color: var(--text-muted); cursor: not-allowed; }
 
 /* Ambient gradient mesh behind the glass cards (Option C direction). A fixed
    layer sits behind .app-shell (which needs its own stacking context via
