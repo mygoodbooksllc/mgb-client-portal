@@ -314,8 +314,19 @@ because some work happens in Claude Code web sessions. Run `git fetch` and compa
     and targets, and the tour returns to Home when it ends or is skipped. The setup checklist's
     "Invite a teammate" shows only when the person can open Settings › Organization. Staff preview a
     version with Preview as + Settings › Help › Preview the tour (nothing is saved).
-  - **Tour docs:** `bookkeeper-guide`, `admin-guide`, `account-manager-guide`, `temporary-access`
-    and `client-tour` in `docs/staff-guide`.
+  - **Pro tour (upsell for Basic clients):** `TOUR_proSteps(ctx)` is a two-minute walkthrough that
+    lives on Settings › Plan (`EnterpriseUpgradePage`), offered only when the shown plan is below Pro
+    (`planShownKey(effectivePlan(...))`, so the retired Plus reads as Basic). It never auto-starts.
+    Start it with `TOUR_start("pro")` / `TOUR_startPro()` (plain `TOUR_start()` is still the client
+    tour) from the **Take the Pro tour** button in the Plans hero card, the Basic Home locked card,
+    Settings › Help (**Pro tour**, **Preview the Pro tour** in preview), or the client tour's Plan
+    step. Every step first goes to Settings › Plan, then walks the plan cards, one step per
+    `ENTERPRISE_FEATURES` card, the tool-by-tool comparison, the Payroll add-on (only without it)
+    and the **Upgrade to Pro** button, which it points at but never clicks. A real client's finish
+    or skip is saved as `proTour` `{ status, at }` (informational) and tracked as
+    `MGB_track("tour-done" | "tour-skipped", "pro")`; staff and preview save nothing.
+  - **Tour docs:** `bookkeeper-guide`, `admin-guide`, `account-manager-guide`, `temporary-access`,
+    `client-tour` and `pro-tour` in `docs/staff-guide`.
   - **Routes:** `#/today`, `#/inbox`, `#/work/<tasks|close|deadlines>`, `#/clients`,
     `#/team/<tab>`, `#/team/reviews/<sub>[/id]`, `#/help[/slug]`, `#/settings`, `#/templates`,
     `#/client/<id>/<tab>` (incl. `sop`). The old routes (`#/home`, `#/tasks`, `#/close-tracker`,

@@ -1384,6 +1384,9 @@ function ST_ClientSettingsPage({
           { key: "help", label: "Help" },
         ];
   const current = tabs.some((t) => t.key === tab) ? tab : tabs[0].key;
+  // Below Pro (retired Plus reads as Basic), Help offers the Pro tour.
+  const plan = (access && access.plan) || "basic";
+  const belowPro = (typeof planShownKey === "function" ? planShownKey(plan) : plan === "premium" ? "premium" : "basic") !== "premium";
   const set = (patch) => ST_store.update(patch);
   const onSummaryList =
     org && Array.isArray(org.summary_recipients)
@@ -1541,6 +1544,21 @@ function ST_ClientSettingsPage({
                     </span>
                     <button type="button" className="btn-secondary st-btn-sm" onClick={() => TOUR_start()}>
                       {mode === "preview" ? "Preview the tour" : "Restart the tour"}
+                    </button>
+                  </li>
+                )}
+                {typeof TOUR_start === "function" && belowPro && (
+                  <li className="st-list-row">
+                    <span className="st-row-text">
+                      <span className="st-row-label">Pro tour</span>
+                      <span className="st-row-sub">
+                        {mode === "preview"
+                          ? "See the Pro tour this person gets. Nothing is saved to their account."
+                          : "See what Pro adds, step by step."}
+                      </span>
+                    </span>
+                    <button type="button" className="btn-secondary st-btn-sm" onClick={() => TOUR_start("pro")}>
+                      {mode === "preview" ? "Preview the Pro tour" : "Take the Pro tour"}
                     </button>
                   </li>
                 )}

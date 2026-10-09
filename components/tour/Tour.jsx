@@ -1,8 +1,10 @@
 // ----------------------------------------------------------------------------
 // Guided tours: one for new client users (owner request 2026-09-30), in a
 // version for each plan and access level (2026-10-09: Pro or Basic, full,
-// limited or budget-only access, the payroll add-on), and role tours on the
-// staff side (owner requests 2026-10-09): a bookkeeper
+// limited or budget-only access, the payroll add-on), a Pro tour of the
+// Plans page for clients below Pro (owner request 2026-10-09: "an upsell
+// walk through a basic client can take that lives in the sales page"), and
+// role tours on the staff side (owner requests 2026-10-09): a bookkeeper
 // tour of a bookkeeper's day (it replaced the short generic staff tour of
 // 2026-10-08), an admin tour of the pages only admins see, a temporary admin
 // tour of what a temporary admin grant opens, and an account manager tour
@@ -24,7 +26,8 @@
 //   milestone        the milestone button on the Home organization card
 //                    (app.jsx CLIENT_HomeTop; not for budget-only people)
 //   sync             the header's sync pill / Sync now (app.jsx
-//                    QboSyncNowButton), only once a client syncs QuickBooks
+//                    QboSyncNowButton), only once a client syncs QuickBooks;
+//                    a step only where it's a working Sync now (ctx.syncNow)
 //   #cf-tab-<key>    a Finances tab, found by id (NAV_TabRow, idPrefix "cf"):
 //                    budget, bank, receivables, giving, payroll
 //   #cr-tab-downloads  Reports' Downloads tab (idPrefix "cr")
@@ -35,6 +38,15 @@
 // The client rail (data-tour nav-home, nav-messages, nav-finances,
 // nav-reports, nav-documents and the "settings" gear, app.jsx Sidebar) is
 // marked too, but the client tour doesn't point at it any more.
+//   Pro tour (TOUR_Root too; every step opens Settings › Plan first, app.jsx
+//   EnterpriseUpgradePage)
+//   plan-cards       the Basic and Pro cards (plan-card-<plan> on each)
+//   pro-feature-<key>  a "What Pro adds" card, by ENTERPRISE_FEATURES key:
+//                    dashboard, reports, budget, receivables, bank, giving
+//   pro-compare      the "Pro, tool by tool" card
+//   payroll-addon    the Payroll add-on card (only without the add-on)
+//   upgrade-pro      the Pro card's Upgrade to Pro button (never clicked)
+//   pro-tour-start   the hero's "Take the Pro tour" button (not a step)
 //   Staff tours (TOUR_StaffRoot)
 //   staff-nav        the rail's list of places (app.jsx StaffRail)
 //   staff-nav-<key>  one place, in the rail and in the phone drawer (app.jsx
@@ -53,15 +65,18 @@
 // A role-tour step can `go` somewhere first (NAV_go to a place and tab, or
 // TOUR_openClient to a client's Overview through the #/client/<id>/overview
 // route) and `press` its target (click a Settings tab open) once it's found.
+// A `go` that returns false was already there (the Pro tour, on the Plans
+// page), so the step doesn't wait for a page to render.
 // A `strip` step lights up the whole tab row its target tab sits in (the
 // step names the other tabs too). The popover for a tab in a row of tabs
 // (NAV_TabRow) goes below it, so the rest of the row stays in view, and a
 // target scrolled into view stops
 // below the sticky bars at the top (the phone's navy bar, the staff tool
-// bar). A step that doesn't apply to this person (limited access, a tab not on
+// bar) and above the client's phone tab bar at the bottom. A step that doesn't apply to this person (limited access, a tab not on
 // their plan, a missing element) is left out of the tour. On a phone the
 // staff places sit in the off-canvas drawer, which the overlay opens for
-// those steps and closes again afterwards.
+// those steps and closes again afterwards. The spotlight is kept inside the
+// viewport, ring and all, however wide or tall the target.
 //
 // State lives in the settings JSON of public.user_settings (supabase/
 // user-settings.sql), written through ST_store (Settings.jsx), which also
@@ -80,11 +95,20 @@
 //                            read when the tour started
 //   staffTour                { status, at } of the old generic staff tour;
 //                            no longer written, only read (newToStaff)
+//   proTour                  { status: "done" | "skipped", at } (Pro tour;
+//                            informational, it never starts by itself)
 // The client tour starts on its own only for a signed-in client user who has
 // no tour status yet. Never for staff, "View as", or "Preview as a client
 // user". Staff previewing can start it from client Settings > Help to see
 // the version that person gets; ST_store is paused then, so nothing is
 // saved.
+// The Pro tour starts only when asked: TOUR_start("pro") (or TOUR_startPro())
+// from the Plans hero's "Take the Pro tour", Basic Home's locked card and
+// client Settings › Help, for a client whose plan reads below Pro. Any
+// client user, staff previewing as one, and staff in the bookkeeper view
+// can run it; only a real client user saves proTour and counts in Usage
+// stats (MGB_track tour-done / tour-skipped, detail "pro"). It ends on the
+// Plans page.
 // The staff tours start on their own for a staffer signed in as themselves,
 // one per page load (so never two in a row), in the order temporary admin,
 // bookkeeper, admin, account manager: the first that applies and is pending
@@ -100,8 +124,9 @@
 //
 // Loaded before app.jsx in the shared global scope: every top-level name has
 // a TOUR_ prefix, hooks are used as React.*, and app.jsx / Settings.jsx /
-// StaffNav.jsx globals (ST_store, ST_useSettings, NAV_visiblePlaces) are only
-// touched at render time.
+// StaffNav.jsx globals (ST_store, ST_useSettings, NAV_visiblePlaces,
+// PLAN_SYNC, planSyncInfo, planShownKey, ENTERPRISE_FEATURES) are only
+// touched at render time, behind typeof checks where a fallback exists.
 // ----------------------------------------------------------------------------
 
 const TOUR_START_EVENT = "mgb:tour-start";
@@ -109,6 +134,7 @@ const TOUR_STAFF_START_EVENT = "mgb:staff-tour-start";
 const TOUR_DRAWER_QUERY =
   "(max-width: 760px) and (hover: none), (max-width: 760px) and (pointer: coarse)";
 const TOUR_PAD = 6; // spotlight padding around the target
+const TOUR_RING = 2; // the spotlight's gold ring (tour.css), kept on screen
 const TOUR_GAP = 12; // popover distance from the spotlight
 const TOUR_MARGIN = 16; // popover distance from the viewport edge
 // A target that isn't on the page yet (a list still loading, a drawer row
@@ -118,11 +144,19 @@ const TOUR_FIND_EVERY_MS = 150;
 const TOUR_FIND_TRIES = 12;
 const TOUR_SPOT_MAX = 0.55; // a "top" spotlight covers at most this much of the viewport
 
-// Starts the client tour. Settings > Help calls this; anything else can too.
-function TOUR_start() {
+// Starts the client tour, or with "pro" the Pro tour. Settings > Help calls
+// this; anything else can too. (Only a string counts, so passing it as a
+// click handler still starts the client tour.)
+function TOUR_start(which) {
   try {
-    window.dispatchEvent(new CustomEvent(TOUR_START_EVENT));
+    const w = typeof which === "string" ? which : null;
+    window.dispatchEvent(w ? new CustomEvent(TOUR_START_EVENT, { detail: { which: w } }) : new CustomEvent(TOUR_START_EVENT));
   } catch (e) {}
+}
+
+// Starts the Pro tour (TOUR_start("pro")).
+function TOUR_startPro() {
+  TOUR_start("pro");
 }
 
 // Starts a staff-side tour: "bookkeeper" (the default; "staff" is an alias
@@ -180,23 +214,43 @@ function TOUR_stickyTop() {
   return bottom;
 }
 
+// How much of the bottom of the screen the client's phone tab bar
+// (.client-tabbar, fixed) covers. 0 when it doesn't show.
+function TOUR_stickyBottom() {
+  let top = window.innerHeight;
+  document.querySelectorAll(".client-tabbar").forEach((bar) => {
+    if (!bar.getClientRects().length || window.getComputedStyle(bar).position !== "fixed") return;
+    top = Math.min(top, bar.getBoundingClientRect().top);
+  });
+  return Math.max(0, window.innerHeight - top);
+}
+
 // Scrolls a target into view, stopping below the sticky bars so it isn't
-// left underneath them. A tall target lit at its top (`spot: "top"`) only
-// moves when its top is hidden or below the middle of the screen, and then
+// left underneath them, and above the phone's bottom tab bar. A tall target
+// lit at its top (`spot: "top"`) only moves when its top is hidden, below
+// the middle of the screen or its lit part runs under the tab bar, and then
 // lines up just under the bars. Targets in the drawer or the bars
 // themselves just use scrollIntoView.
 function TOUR_scrollIntoView(el, step, key) {
-  const pinned = TOUR_inSidebar(el) || !!(el.closest && el.closest(".mobile-topbar, .tb-bar"));
+  const pinned = TOUR_inSidebar(el) || !!(el.closest && el.closest(".mobile-topbar, .tb-bar, .client-tabbar"));
   const top = pinned ? 0 : TOUR_stickyTop();
+  const bottomBar = pinned ? 0 : TOUR_stickyBottom();
+  const room = window.innerHeight - bottomBar;
   if (step.spot === "top" && !pinned) {
     const r = el.getBoundingClientRect();
-    if (r.top < top + TOUR_PAD || r.top > window.innerHeight / 2) window.scrollBy(0, r.top - top - TOUR_GAP);
+    const lit = Math.min(r.height, Math.round(window.innerHeight * TOUR_SPOT_MAX));
+    if (r.top < top + TOUR_PAD || r.top > window.innerHeight / 2 || (bottomBar && r.top + lit > room - TOUR_PAD))
+      window.scrollBy(0, r.top - top - TOUR_GAP);
     return;
   }
   el.scrollIntoView({ block: key === "customize" ? "center" : "nearest", inline: "nearest" });
   if (pinned) return;
-  const after = el.getBoundingClientRect().top;
-  if (after < top + TOUR_PAD) window.scrollBy(0, after - top - TOUR_GAP);
+  const r = el.getBoundingClientRect();
+  if (r.top < top + TOUR_PAD) window.scrollBy(0, r.top - top - TOUR_GAP);
+  // Under the tab bar: up until it clears, never past the top bars (and
+  // never down, when its top is already just under them).
+  else if (bottomBar && r.bottom > room - TOUR_PAD)
+    window.scrollBy(0, Math.max(0, Math.min(r.bottom - room + TOUR_GAP, r.top - top - TOUR_GAP)));
 }
 
 // ---------------------------------------------------------------------------
@@ -209,12 +263,20 @@ function TOUR_scrollIntoView(el, step, key) {
 //   scoped      per-person access really narrows their pages (false on
 //               Basic, where a limited person still sees every Basic page,
 //               so they get the plain welcome)
-//   plan       "basic" | "standard" (retired Plus, worded like Basic) |
-//               "premium" (Pro)
+//   plan       "basic" | "standard" (retired Plus: called Basic, but it
+//               still syncs weekly) | "premium" (Pro)
 //   pro         Pro pages for this person (access.premiumForUser; false
 //               when staff turned Pro pages off for them)
 //   tabs        the pages they can open (access.tabs); payroll is there
 //               only with the payroll add-on
+//   qbo         the books come from a QuickBooks connection (client.
+//               dataSource); without one the tour makes no sync claims
+//   syncNow     the header's sync pill is a working Sync now for this
+//               person (QuickBooks and a plan with Sync now: the same test
+//               App uses to render it, whatever their Pro pages)
+//   payrollAddOn  the client has the payroll add-on (the Pro tour skips it)
+//   bankCount, fundCount  bank accounts and funds from QuickBooks, for the
+//               Pro tour's wording; 0 without a QuickBooks connection
 // Each step opens its page first (`go`) and points at something on it, so
 // its targets are page elements only, never the rail: a rail item is on
 // the page the step starts from, and would be picked before the page
@@ -251,10 +313,16 @@ function TOUR_clientCtx(client, access, extra) {
   // server's can_edit reads client_users.access).
   const user = a.user || null;
   const kind = !user || (user.access || "full") === "full" ? "full" : a.isCategoryScoped ? "category" : "limited";
+  const plan = a.plan || "basic";
+  const qbo = !!client && client.dataSource === "quickbooks";
+  // Counts for the Pro tour, only from a QuickBooks sync (otherwise it's
+  // sample data, so the tour stays general) and only for someone who sees
+  // the whole organization.
+  const count = (list) => (qbo && kind === "full" && Array.isArray(list) ? list.length : 0);
   return {
     clientName: (client && client.name) || "",
     kind,
-    plan: a.plan || "basic",
+    plan,
     pro: !!a.premiumForUser,
     tabs,
     categories: a.categories ? Array.from(a.categories) : [],
@@ -262,8 +330,34 @@ function TOUR_clientCtx(client, access, extra) {
     // Per-person access actually narrows what they see (not on Basic,
     // where resolveAccess shows everyone the whole Basic set).
     scoped: kind !== "full" && a.isFullAccess !== true,
+    qbo,
+    // App's test for a working Sync now pill (canSyncNow); staff in the
+    // bookkeeper view, who can always sync, never take the client tour.
+    syncNow: qbo && (typeof planSyncInfo === "function" ? !!planSyncInfo(plan).syncNow : plan === "premium"),
+    payrollAddOn: !!(client && client.payrollAddOn),
+    // Bank accounts only: a credit card has no statement to reconcile here.
+    bankCount: count(client && Array.isArray(client.bankAccounts) ? client.bankAccounts.filter((b) => b && b.kind !== "card") : null),
+    fundCount: count(client && client.funds),
     ...(extra || {}),
   };
+}
+
+// How often a plan's numbers refresh from QuickBooks, in words: "monthly, on
+// the 15th", "weekly" (the retired Plus plan, which still syncs weekly) or
+// "every 15 minutes". From app.jsx PLAN_SYNC, by the stored plan, so it
+// matches the qbo-sync schedule.
+function TOUR_cadence(plan) {
+  const table = typeof PLAN_SYNC !== "undefined" ? PLAN_SYNC : null;
+  const p = table && (table[plan] || table.basic);
+  if (p && p.cadence) return String(p.cadence).replace(/^Synced from QuickBooks /, "");
+  return plan === "premium" ? "every 15 minutes" : plan === "standard" ? "weekly" : "monthly";
+}
+
+// How the books stay current, the same words wherever the client tour says
+// it: from QuickBooks on the plan's schedule, or by the bookkeeper when the
+// client has no QuickBooks connection.
+function TOUR_fresh(ctx) {
+  return ctx.qbo ? "updated from QuickBooks " + TOUR_cadence(ctx.plan) : "kept up to date by your bookkeeper";
 }
 
 // "pro-full", "pro-off-full" (Pro plan, Pro pages off for this person),
@@ -308,10 +402,10 @@ function TOUR_clientSteps(ctx) {
           const pages = TOUR_joinList(TOUR_CLIENT_PAGES.filter(has).map((k) => TOUR_CLIENT_LABELS[k]));
           return `You can see ${pages}. Someone with full access at ${name}, or your bookkeeper, can change that. This tour takes about a minute.`;
         }
-        if (ctx.pro) return "You're on Pro with full access: live books, budgets and reports for your board. This tour takes about two minutes.";
-        if (ctx.plan === "premium")
-          return `You have full access to ${name}'s books, updated from QuickBooks every 15 minutes. This tour takes about two minutes.`;
-        return `You're on Basic: your books are updated each ${ctx.plan === "standard" ? "week" : "month"}, and you can download statements, share documents and message your bookkeeper any time. This tour takes about two minutes.`;
+        if (ctx.pro) return `You're on Pro with full access: ${ctx.qbo ? "live books" : "books"}, budgets and reports for your board. This tour takes about two minutes.`;
+        // On Pro, with Pro pages turned off for this person.
+        if (ctx.plan === "premium") return `You have full access to ${name}'s books, ${TOUR_fresh(ctx)}. This tour takes about two minutes.`;
+        return `You're on Basic: your books are ${TOUR_fresh(ctx)}, and you can download statements, share documents and message ${ctx.qbo ? "your bookkeeper" : "them"} any time. This tour takes about two minutes.`;
       },
     },
     {
@@ -325,7 +419,7 @@ function TOUR_clientSteps(ctx) {
         if (category) return "Home shows what needs you, then your areas of the budget at a glance." + pick;
         if (ctx.plan === "basic")
           return "Home shows what needs you and your organization card. The locked card below shows what Pro adds.";
-        return `Home starts with what needs you, then ${ctx.pro ? "a live snapshot of your finances" : "your financial snapshot"}.` + pick;
+        return `Home starts with what needs you, then ${ctx.pro && ctx.qbo ? "a live snapshot of your finances" : "your financial snapshot"}.` + pick;
       },
     },
     {
@@ -340,13 +434,13 @@ function TOUR_clientSteps(ctx) {
     {
       id: "sync",
       home: true,
-      // Follows this person's Pro pages, like the welcome: someone with Pro
-      // pages off hears about the 15-minute updates there instead.
-      when: () => ctx.pro,
+      // Whenever the pill is a working Sync now (Pro, synced from
+      // QuickBooks), Pro pages on or off: Basic's pill is a label only.
+      when: () => ctx.syncNow,
       go: home,
       targets: ["sync"],
       title: "Up to date with QuickBooks",
-      body: () => "Pro updates from QuickBooks every 15 minutes. Sync now pulls the latest whenever you want it.",
+      body: () => `Your books update from QuickBooks ${TOUR_cadence(ctx.plan)}. Sync now pulls the latest whenever you want it.`,
     },
     {
       id: "finances",
@@ -363,7 +457,7 @@ function TOUR_clientSteps(ctx) {
           return TOUR_joinList(parts) + ".";
         }
         if (ctx.pro) return `Your money, one tab each: ${TOUR_joinList(money.map((k) => TOUR_MONEY_PRO[k]))}.`;
-        return `Your money, one tab each: ${TOUR_joinList(money.map((k) => TOUR_CLIENT_LABELS[k]))}, kept up to date by your bookkeeper.`;
+        return `Your money, one tab each: ${TOUR_joinList(money.map((k) => TOUR_CLIENT_LABELS[k]))}, ${TOUR_fresh(ctx)}.`;
       },
     },
     {
@@ -439,10 +533,9 @@ function TOUR_clientSteps(ctx) {
       press: true,
       title: "Your plan",
       body: () => {
-        const payroll = has("payroll") ? "" : ctx.plan === "premium" ? " Add Payroll is here too." : ", or Add Payroll";
-        return ctx.plan === "premium"
-          ? "Your plan and add-ons." + payroll
-          : `See what Pro adds, then Upgrade to Pro${payroll} when you're ready.`;
+        if (ctx.plan === "premium") return "Your plan and add-ons." + (has("payroll") ? "" : " Add Payroll is here too.");
+        // Below Pro the Plans page has the Pro tour (TOUR_proSteps).
+        return `See what Pro adds, then Upgrade to Pro when you're ready${has("payroll") ? "" : " (Add Payroll is here too)"}, or take the Pro tour there.`;
       },
     },
     {
@@ -467,11 +560,141 @@ function TOUR_visibleClientSteps(steps, ctx) {
 }
 
 // ---------------------------------------------------------------------------
+// Pro tour: the Plans page (Settings › Plan, app.jsx EnterpriseUpgradePage)
+// for a client below Pro, about two minutes. Every step goes there first, so
+// it starts from any page and survives someone clicking away mid-tour. It
+// points at things and never clicks them (not Upgrade to Pro, not Add
+// Payroll, not a comparison row).
+// ---------------------------------------------------------------------------
+
+// The plan this person is shown: retired Plus ("standard") reads as Basic.
+function TOUR_shownPlan(plan) {
+  if (typeof planShownKey === "function") return planShownKey(plan);
+  return plan === "premium" ? "premium" : "basic";
+}
+
+// Opens Settings › Plan unless it's already open (returns false then, so
+// the overlay doesn't wait for a page to render).
+function TOUR_proGo(ctx) {
+  return () => {
+    if (TOUR_find("plan-cards")) return false;
+    if (ctx.onOpenSettings) ctx.onOpenSettings("plan");
+    else if (ctx.onSelectPage) ctx.onSelectPage("client-settings");
+    return true;
+  };
+}
+
+// What each "What Pro adds" card does, by ENTERPRISE_FEATURES key, from the
+// card and its ENTERPRISE_COMPARISON row, ending with where it shows up on
+// Pro (the client nav's names, not the cards' older tab names). Counts are
+// used only when they come from QuickBooks (ctx.bankCount, ctx.fundCount).
+const TOUR_PRO_COPY = {
+  dashboard: (ctx) =>
+    "Cash on hand, money owed to you and bills coming due, at a glance, with a low-cash alert and a one-click PDF snapshot to hand your board. " +
+    (ctx.plan === "basic" ? "On Pro it takes the place of the locked card on your Home." : "On Pro it becomes your Home."),
+  reports: () =>
+    "Your board packet in one PDF: the reports you pick, a cover page and a treasurer's note, with comparisons to budget and last year. Save it as a template to rebuild next month in one click, or share a read-only link with your board. On Pro it's the Board packet tab on Reports.",
+  budget: () =>
+    "See where each category is heading by year-end, try what-if scenarios, and draft next year's budget with the people who run each area, then send it to your board to approve. On Pro it's the Budget tab, under Finances.",
+  receivables: () =>
+    "Every bill in one place, with what's due next and duplicate bills flagged. Pay runs go through an approval step and export an ACH file ready to upload to your bank. On Pro it's the Cash flow tab, under Finances.",
+  bank: (ctx) => {
+    const which = ctx.bankCount > 1 ? ` for each of your ${ctx.bankCount} bank accounts` : ctx.bankCount === 1 ? " for your bank account" : "";
+    return `A real month-end close${which}: check transactions off against your bank statement, see what's still outstanding, and keep a history of who closed each month and when. On Pro it's the Bank accounts tab, under Finances.`;
+  },
+  giving: (ctx) =>
+    `See money move between ${ctx.fundCount > 1 ? `your ${ctx.fundCount} funds` : "funds"}, with the reason for each move, track pledges from promised to received, and prepare year-end giving statements for your donors. On Pro it's the Giving & funds tab, under Finances.`,
+};
+// The cards' keys and titles, in page order, if app.jsx hasn't loaded them.
+const TOUR_PRO_FEATURES = [
+  { key: "dashboard", title: "Board-ready Financial Overview" },
+  { key: "reports", title: "Report Builder" },
+  { key: "budget", title: "Budgeting Tool" },
+  { key: "receivables", title: "Cash Flow Pro" },
+  { key: "bank", title: "Reconciliation Pro" },
+  { key: "giving", title: "Fund Accounting Pro" },
+];
+
+function TOUR_proSteps(ctx) {
+  const go = TOUR_proGo(ctx);
+  const org = ctx.clientName || "your organization";
+  const features = (typeof ENTERPRISE_FEATURES !== "undefined" && Array.isArray(ENTERPRISE_FEATURES) ? ENTERPRISE_FEATURES : TOUR_PRO_FEATURES).filter(
+    (f) => f && TOUR_PRO_COPY[f.key],
+  );
+  return [
+    {
+      id: "welcome",
+      go,
+      title: `See what Pro would do for ${org}`,
+      body: () => "A two-minute look at what Pro adds to the portal you already use. Nothing changes unless you ask for it.",
+    },
+    {
+      id: "plans",
+      go,
+      targets: ["plan-cards"],
+      spot: "top",
+      title: "Basic or Pro",
+      // The cadences are qbo-sync's (PLAN_SYNC); retired Plus syncs weekly.
+      body: () => {
+        const pro = `Pro syncs them every ${TOUR_cadence("premium").replace(/^every /, "")}, with a Sync now button, and adds the tools below. The price is on each card.`;
+        if (!ctx.qbo)
+          return `On Basic, books synced from QuickBooks update ${TOUR_cadence("basic")}; on Pro, ${TOUR_cadence("premium")}, with a Sync now button. Pro also adds the tools below. The price is on each card.`;
+        return `${ctx.plan === "standard" ? "Your plan updates" : "Basic updates"} your books from QuickBooks ${TOUR_cadence(ctx.plan)}. ${pro}`;
+      },
+    },
+    ...features.map((f) => ({
+      id: "pro-" + f.key,
+      go,
+      targets: ["pro-feature-" + f.key],
+      title: f.title,
+      body: () => TOUR_PRO_COPY[f.key](ctx),
+    })),
+    {
+      id: "compare",
+      go,
+      targets: ["pro-compare"],
+      spot: "top",
+      title: "Pro, tool by tool",
+      body: () => "Every tool, line by line. Click one to see exactly what you get.",
+    },
+    {
+      id: "payroll",
+      when: (c) => !c.payrollAddOn,
+      go,
+      targets: ["payroll-addon"],
+      spot: "top",
+      title: "Payroll, on either plan",
+      body: () => "Payroll can be added on either plan. Add Payroll asks your bookkeeper to set it up.",
+    },
+    {
+      id: "upgrade",
+      go,
+      targets: ["upgrade-pro"],
+      title: "Upgrade when you're ready",
+      body: () =>
+        "When you're ready, Upgrade to Pro sends a request to your bookkeeper, who switches your plan and confirms the price with you. Nothing changes until then.",
+    },
+  ];
+}
+
+// ---------------------------------------------------------------------------
 // Staff tour steps
 // ---------------------------------------------------------------------------
 function TOUR_isMac() {
   try {
     return /Mac|iPhone|iPad|iPod/.test(navigator.platform || navigator.userAgent || "");
+  } catch (e) {
+    return false;
+  }
+}
+
+// A phone or tablet with no mouse or trackpad, where ⌘K means nothing.
+function TOUR_touchOnly() {
+  try {
+    return (
+      window.matchMedia("(hover: none) and (pointer: coarse)").matches &&
+      !window.matchMedia("(any-pointer: fine)").matches
+    );
   } catch (e) {
     return false;
   }
@@ -531,7 +754,7 @@ function TOUR_searchStep(go) {
     targets: ["tb-search"],
     title: "Jump anywhere",
     body: () =>
-      `Press ${kbd} to find a client, task or SOP, or to jump to any page. With nothing typed it lists every page and action.`,
+      `${TOUR_touchOnly() ? "Tap the search box" : `Press ${kbd}`} to find a client, task or SOP, or to jump to any page. With nothing typed it lists every page and action.`,
   };
 }
 
@@ -602,8 +825,8 @@ function TOUR_bookkeeperSteps(ctx) {
   };
   const client = ctx.myClient;
   const openClient = TOUR_openClient(client && client.id);
-  const next = ctx.amCount && !ctx.impersonating ? " The Account manager tour is next." : "";
-  const temp = ctx.tempAdmin && !ctx.impersonating ? " While your temporary admin access lasts, the Temporary admin tour shows what it opens." : "";
+  const next = ctx.amPending && !ctx.impersonating ? " The Account manager tour is next." : "";
+  const temp = ctx.tempAdminPending && !ctx.impersonating ? " While your temporary admin access lasts, the Temporary admin tour shows what it opens." : "";
   return [
     {
       id: "welcome",
@@ -1067,18 +1290,33 @@ function TOUR_Overlay({ steps, index, onBack, onNext, onSkip, onFinish, setMobil
     }
     // A tall target (a long list) gets a spotlight on its top part only.
     const height = s && s.spot === "top" ? Math.min(r.height, Math.round(vh * TOUR_SPOT_MAX)) : r.height;
-    setRect({
-      top: Math.max(0, r.top - TOUR_PAD),
-      left: Math.max(0, r.left - TOUR_PAD),
-      width: r.width + TOUR_PAD * 2,
-      height: height + TOUR_PAD * 2,
-      right: r.right + TOUR_PAD,
-      bottom: r.top + height + TOUR_PAD,
+    // The padded box, kept inside the viewport with room for the ring, so a
+    // full-width or partly scrolled target never runs off an edge.
+    const edge = TOUR_RING;
+    const left = Math.max(edge, r.left - TOUR_PAD);
+    const top = Math.max(edge, r.top - TOUR_PAD);
+    const right = Math.max(left, Math.min(vw - edge, r.right + TOUR_PAD));
+    const bottom = Math.max(top, Math.min(vh - edge, r.top + height + TOUR_PAD));
+    const next = {
+      top,
+      left,
+      width: right - left,
+      height: bottom - top,
+      right,
+      bottom,
       // A tab in a row of tabs (NAV_TabRow's .nav-tabs), or the row: the
       // popover goes below, clear of the other tabs. Settings' tabs stand
       // in a column, so theirs stays beside them.
       below: !!(box.closest && box.closest(".nav-tabs")),
-    });
+      // The viewport too: a resize or rotation that leaves the target
+      // where it was still has to re-place the popover (TOUR_place).
+      vw,
+      vh,
+    };
+    // Unchanged (measured again after an unrelated transition): keep it.
+    setRect((prev) =>
+      prev && ["top", "left", "width", "height", "below", "vw", "vh"].every((k) => prev[k] === next[k]) ? prev : next,
+    );
   }, []);
 
   // Find the target, open the phone drawer for drawer steps, scroll it into
@@ -1091,11 +1329,15 @@ function TOUR_Overlay({ steps, index, onBack, onNext, onSkip, onFinish, setMobil
     let pressed = false;
     setReady(false);
     const targets = step.targets || [];
-    // A role-tour step opens its page first; give it a moment to render.
+    // A role-tour step opens its page first; give it a moment to render. A
+    // `go` that returns false found its page already open (the Pro tour).
+    let opened = false;
     if (step.go) {
       try {
-        step.go();
-      } catch (e) {}
+        opened = step.go() !== false;
+      } catch (e) {
+        opened = true;
+      }
     }
     const find = () => {
       for (const k of targets) {
@@ -1115,7 +1357,7 @@ function TOUR_Overlay({ steps, index, onBack, onNext, onSkip, onFinish, setMobil
     // check the class. A row that only renders once the drawer is open isn't
     // found at all yet, so the step itself says it lives there.
     const needsDrawer = TOUR_inDrawerMode() && (elRef.current ? TOUR_inSidebar(elRef.current) : !!step.drawer);
-    let wait = step.go ? 450 : 0;
+    let wait = opened ? 450 : 0;
     if (needsDrawer && !drawerOpenedRef.current) {
       setMobileNavOpen(true);
       drawerOpenedRef.current = true;
@@ -1198,9 +1440,16 @@ function TOUR_Overlay({ steps, index, onBack, onNext, onSkip, onFinish, setMobil
     };
     window.addEventListener("resize", onMove);
     window.addEventListener("scroll", onMove, true);
+    // A target can still be moving once it's scrolled to (the Plans page
+    // cards slide up as they come into view, mgb-reveal-up): measure again
+    // when an animation or a transition ends.
+    document.addEventListener("animationend", onMove, true);
+    document.addEventListener("transitionend", onMove, true);
     return () => {
       window.removeEventListener("resize", onMove);
       window.removeEventListener("scroll", onMove, true);
+      document.removeEventListener("animationend", onMove, true);
+      document.removeEventListener("transitionend", onMove, true);
       if (raf) cancelAnimationFrame(raf);
     };
   }, [measure]);
@@ -1389,7 +1638,7 @@ function TOUR_Root({
   const ownSettings = isRealClient && st.email === email;
   const saved = ownSettings && TOUR_isObj(st.settings && st.settings.tour) ? st.settings.tour : {};
   const s = (ownSettings && st.settings) || {};
-  const [run, setRun] = React.useState(null); // { steps, index, persist }
+  const [run, setRun] = React.useState(null); // { steps, index, persist, version } or, for the Pro tour, { tour: "pro", steps, index, persist }
   // Staff previewing: a checklist that lives only in this tab.
   const [previewChecklist, setPreviewChecklist] = React.useState(null); // null | { ticks: {} }
   const autoStarted = React.useRef(false);
@@ -1428,6 +1677,19 @@ function TOUR_Root({
     [onSelectPage, save, saved.status],
   );
 
+  // The Pro tour: Settings › Plan first, then the steps once it has
+  // rendered. Nothing is saved when it starts.
+  const beginPro = React.useCallback((persist) => {
+    returnFocus.current = document.activeElement;
+    try {
+      TOUR_proGo(ctxRef.current)();
+    } catch (e) {}
+    setTimeout(() => {
+      const c = ctxRef.current;
+      setRun({ tour: "pro", steps: TOUR_visibleClientSteps(TOUR_proSteps(c), c), index: 0, persist });
+    }, 350);
+  }, []);
+
   // First sign-in: start once settings have loaded and say it hasn't run.
   React.useEffect(() => {
     if (!isRealClient || autoStarted.current || run) return;
@@ -1443,17 +1705,25 @@ function TOUR_Root({
     return () => clearTimeout(t);
   }, [isRealClient, ownSettings, st.status, saved.status, run, begin]);
 
-  // Manual start (Settings > Help, "Restart the tour").
+  // Manual start (Settings > Help, "Restart the tour"), or with "pro" the
+  // Pro tour (the Plans hero, Basic Home's locked card, Settings > Help).
   React.useEffect(() => {
-    const onStart = () => {
+    const onStart = (e) => {
       if (run) return;
+      if (e && e.detail && e.detail.which === "pro") {
+        // Only below Pro. Staff in the bookkeeper view can take it too (from
+        // the client's Plan page); it saves nothing for them.
+        if (TOUR_shownPlan(ctxRef.current.plan) === "premium") return;
+        beginPro(isRealClient);
+        return;
+      }
       // Staff in the bookkeeper view (not previewing) have no client tour.
       if (isStaffSession && !isPreviewingUser) return;
       begin(isRealClient);
     };
     window.addEventListener(TOUR_START_EVENT, onStart);
     return () => window.removeEventListener(TOUR_START_EVENT, onStart);
-  }, [run, isStaffSession, isPreviewingUser, isRealClient, begin]);
+  }, [run, isStaffSession, isPreviewingUser, isRealClient, begin, beginPro]);
 
   // Leaving the client (or starting a preview) ends a running tour.
   const clientId = client && client.id;
@@ -1466,8 +1736,31 @@ function TOUR_Root({
   // 2026-10-08 redesign; the fallback to the page the app opened in its
   // place (saved as tour.home) is from before that.
   const hasDashboard = !!(tabs && tabs.has("dashboard"));
+  // `fallback`: a selector to focus when the element the tour started from
+  // has gone (the Pro tour, started from Home or Settings › Help, ends on
+  // the Plan page).
+  const restoreFocus = (fallback) => {
+    const back = returnFocus.current;
+    setTimeout(() => {
+      const el = back && back.isConnected ? back : fallback ? document.querySelector(fallback) : null;
+      if (el && typeof el.focus === "function") {
+        try {
+          el.focus({ preventScroll: true });
+        } catch (e) {}
+      }
+    }, 0);
+  };
   const end = (status) => {
     const persist = run && run.persist;
+    // The Pro tour: saved and counted for a real client user only (detail
+    // "pro"), and it stays on the Plans page, where Upgrade to Pro is.
+    if (run && run.tour === "pro") {
+      setRun(null);
+      if (persist && window.MGB_track) window.MGB_track(status === "done" ? "tour-done" : "tour-skipped", "pro");
+      if (persist) ST_store.update({ proTour: { status, at: new Date().toISOString() } });
+      restoreFocus('[data-tour="pro-tour-start"], [data-tour="upgrade-pro"]');
+      return;
+    }
     const home = hasDashboard ? undefined : page;
     setRun(null);
     // "client-pro-full", "client-limited", ...: Usage Stats groups on the
@@ -1479,14 +1772,7 @@ function TOUR_Root({
     // Finished or skipped, back to Home, where the checklist shows (the tour
     // may have ended on another page).
     if (onSelectPage) onSelectPage("dashboard");
-    const back = returnFocus.current;
-    setTimeout(() => {
-      if (back && back.isConnected && typeof back.focus === "function") {
-        try {
-          back.focus({ preventScroll: true });
-        } catch (e) {}
-      }
-    }, 0);
+    restoreFocus();
   };
 
   // ---- checklist ----
@@ -1669,6 +1955,12 @@ function TOUR_StaffRoot({
       !savedOf(TOUR_staffTour("admin")).status,
     tempAdminUntil: tempAdmin ? tempAdminAccessExpiresAt || null : null,
   };
+  // For the bookkeeper tour's last step, which only points at a tour still
+  // to come: the temporary admin tour not yet taken for this grant, the
+  // account manager tour never ended.
+  const tempTour = TOUR_staffTour("tempAdmin");
+  ctx.tempAdminPending = tempAdmin && !!tempTour && tempTour.pending(ctx, savedOf(tempTour));
+  ctx.amPending = amCount > 0 && !savedOf(TOUR_staffTour("am")).status;
   TOUR_staffCtx = ctx;
   // Read when a tour starts or ends (after a delay), so it's always current.
   const ctxRef = React.useRef(ctx);

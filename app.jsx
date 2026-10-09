@@ -525,8 +525,11 @@ function CLIENT_subFromHash() {
   return { page: null, sub: null };
 }
 // One card for anything Basic doesn't include (owner-approved: replaces
-// the inline upsell panels). See plans opens Settings › Plan.
-function CLIENT_LockedCard({ title, text, onSeePlans }) {
+// the inline upsell panels). See plans opens Settings › Plan; with
+// onTakeTour, "Take the Pro tour" opens it and starts the Pro tour
+// (components/tour/Tour.jsx).
+function CLIENT_LockedCard({ title, text, onSeePlans, onTakeTour }) {
+  const tour = onTakeTour && typeof TOUR_start === "function";
   return (
     <div className="card client-locked-card">
       <h3 className="card-title" style={{ marginBottom: 4 }}>
@@ -535,9 +538,16 @@ function CLIENT_LockedCard({ title, text, onSeePlans }) {
       <p className="card-subtitle" style={{ margin: "0 0 14px" }}>
         {text}
       </p>
-      <button type="button" className="btn-primary" onClick={onSeePlans}>
-        See plans
-      </button>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+        <button type="button" className="btn-primary" onClick={onSeePlans}>
+          See plans
+        </button>
+        {tour && (
+          <button type="button" className="btn-secondary" onClick={onTakeTour}>
+            Take the Pro tour
+          </button>
+        )}
+      </div>
     </div>
   );
 }
@@ -1498,7 +1508,9 @@ function Sidebar({
           <span className="staff-rail-mark brand-logo-box" aria-hidden="true" />
           <div className="brand-text">
             <span className="brand-name">My<span className="brand-name-good">Good</span>Books</span>
-            <span className="brand-sub">Client Portal</span>
+            {/* Staff (the phone drawer, the bookkeeper view) read "Staff",
+                like the desktop staff rail. */}
+            <span className="brand-sub">{isBookkeeper ? "Staff" : "Client Portal"}</span>
           </div>
         </a>
         <button
@@ -10286,9 +10298,12 @@ function ReportBarRows({ items }) {
 // already uses via standardLabel/premiumLabel — so a client can match a
 // card here to what they actually see in their own sidebar, since the
 // premium product name (e.g. "Board-ready Financial Overview") never appears there itself.
+// `key` is the matching ENTERPRISE_COMPARISON row; the Pro tour
+// (components/tour/Tour.jsx) finds each card by it (data-tour pro-feature-<key>).
 const ENTERPRISE_FEATURES = [
   {
     icon: <BarChartIcon />,
+    key: "dashboard",
     title: "Board-ready Financial Overview",
     sidebarTab: "Dashboard",
     description:
@@ -10296,6 +10311,7 @@ const ENTERPRISE_FEATURES = [
   },
   {
     icon: <DocumentIcon />,
+    key: "reports",
     title: "Report Builder",
     sidebarTab: "Reports",
     description:
@@ -10303,6 +10319,7 @@ const ENTERPRISE_FEATURES = [
   },
   {
     icon: <CalculatorIcon />,
+    key: "budget",
     title: "Budgeting Tool",
     sidebarTab: "Budget vs. Actual",
     description:
@@ -10310,6 +10327,7 @@ const ENTERPRISE_FEATURES = [
   },
   {
     icon: <StackedBillsIcon />,
+    key: "receivables",
     title: "Cash Flow Pro",
     sidebarTab: "Cash Flow",
     description:
@@ -10317,6 +10335,7 @@ const ENTERPRISE_FEATURES = [
   },
   {
     icon: <BankIcon />,
+    key: "bank",
     title: "Reconciliation Pro",
     sidebarTab: "Bank Accounts",
     description:
@@ -10324,6 +10343,7 @@ const ENTERPRISE_FEATURES = [
   },
   {
     icon: <GiftHeartIcon />,
+    key: "giving",
     title: "Fund Accounting Pro",
     sidebarTab: "Giving & Funds",
     description:
@@ -10555,15 +10575,39 @@ function EnterpriseUpgradePage({ client, clientPortalUser }) {
           Your bookkeeping fee is set by your milestone. Your plan adds the
           portal on top of it, billed monthly. Change plans any time.
         </p>
+        {/* Below Pro: the Pro tour of this page (components/tour/Tour.jsx). */}
+        {current !== "premium" && typeof TOUR_start === "function" && (
+          <div
+            style={{
+              display: "flex",
+              flexWrap: "wrap",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: 10,
+              marginTop: 18,
+            }}
+          >
+            <button
+              type="button"
+              className="btn-secondary"
+              data-tour="pro-tour-start"
+              onClick={() => TOUR_start("pro")}
+            >
+              Take the Pro tour
+            </button>
+            <span style={{ color: "var(--text-muted)", fontSize: 13 }}>About 2 minutes</span>
+          </div>
+        )}
       </div>
 
-      <div className="pricing-grid plans-grid" style={{ marginBottom: 20 }}>
+      <div className="pricing-grid plans-grid" data-tour="plan-cards" style={{ marginBottom: 20 }}>
         {PLAN_ORDER.map((plan, rank) => {
           const isCurrent = plan === current;
           const recommended = !isCurrent && rank === currentRank + 1;
           return (
             <div
               key={plan}
+              data-tour={"plan-card-" + plan}
               className={
                 "card pricing-card plan-card" +
                 (plan === "premium" ? " pricing-card-premium" : "") +
@@ -10611,6 +10655,7 @@ function EnterpriseUpgradePage({ client, clientPortalUser }) {
               {rank > currentRank && (
                 <button
                   className={plan === "premium" || recommended ? "btn-primary" : "btn-secondary"}
+                  data-tour={plan === "premium" ? "upgrade-pro" : undefined}
                   disabled={!!requesting}
                   onClick={() => requestUpgrade(plan)}
                 >
@@ -10623,7 +10668,7 @@ function EnterpriseUpgradePage({ client, clientPortalUser }) {
       </div>
 
       <h3 className="plans-section-title">Add-ons</h3>
-      <div className="payroll-addon">
+      <div className="payroll-addon" data-tour="payroll-addon">
         <PayrollAddOnCard client={client} clientPortalUser={clientPortalUser} inPlanPage />
       </div>
 
@@ -10645,7 +10690,7 @@ function EnterpriseUpgradePage({ client, clientPortalUser }) {
       <h3 className="plans-section-title">What {PLAN_LABELS.premium} adds</h3>
       <div className="report-grid" style={{ marginBottom: 20 }}>
         {ENTERPRISE_FEATURES.map((f) => (
-          <div className="card" key={f.title}>
+          <div className="card" key={f.title} data-tour={"pro-feature-" + f.key}>
             <div className="icon-badge">{f.icon}</div>
             <h3 className="card-title" style={{ marginTop: 14 }}>
               {f.title}
@@ -10660,7 +10705,7 @@ function EnterpriseUpgradePage({ client, clientPortalUser }) {
         ))}
       </div>
 
-      <div className="card" style={{ marginBottom: 20 }}>
+      <div className="card" data-tour="pro-compare" style={{ marginBottom: 20 }}>
         <h3 className="card-title">
           {PLAN_LABELS.premium}, tool by tool
         </h3>
@@ -27223,6 +27268,8 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
                 title="Your financial snapshot is part of Pro"
                 text="Pro adds cash, income, spending and runway at a glance, plus Budget, Bank accounts and Cash flow. Your statements are always on Reports."
                 onSeePlans={() => setPage("enterprise-upgrade")}
+                // The Pro tour opens Settings › Plan itself (Tour.jsx).
+                onTakeTour={() => TOUR_start("pro")}
               />
             ) : showsLiveReport ? (
               // A premium, full-access client's "Dashboard" IS the Live

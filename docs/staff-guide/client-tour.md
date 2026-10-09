@@ -2,7 +2,7 @@
 title: How does the client guided tour work?
 section: Working with a client
 audience: staff
-keywords: [tour, guided tour, onboarding tour, walkthrough, new client, welcome, setup checklist, get set up, restart the tour, preview the tour, first sign in, help, versions, full access, limited access, budget only, category access, scoped access, basic, pro, payroll add-on, plan, access level, invite a teammate]
+keywords: [tour, guided tour, onboarding tour, walkthrough, new client, welcome, setup checklist, get set up, restart the tour, preview the tour, first sign in, help, versions, full access, limited access, budget only, category access, scoped access, basic, pro, payroll add-on, plan, access level, invite a teammate, pro tour, upsell]
 sort: 263
 ---
 The first time a client user signs in to the portal, a short guided tour starts on its own. The page dims, one part of the portal is highlighted at a time, and a small box explains it in a sentence or two, with **Step 3 of 8**, **Back**, **Next** and **Skip tour**.
@@ -14,14 +14,14 @@ Everyone doesn't get the same tour. It's built from their plan, their access lev
 | Version | Who | The welcome says |
 |---|---|---|
 | **Full access on Pro** | People with full access at a Pro organization | They're on Pro with full access: live books, budgets and reports for their board. |
-| **Full access on Basic** | People with full access at a Basic organization | They're on Basic: their books are updated each month, and they can download statements, share documents and message their bookkeeper any time. |
+| **Full access on Basic** | People with full access at a Basic organization | They're on Basic: their books are updated from QuickBooks each month (on the 15th), or kept up to date by their bookkeeper if they don't use QuickBooks, and they can download statements, share documents and message their bookkeeper any time. |
 | **Limited access** | People you gave certain pages to | The places they can see, and that someone with full access at their organization, or their bookkeeper, can change that. |
 | **Budget-only (category) access** | People limited to certain budget categories | The organization's budget for the areas they look after, with the category names. |
 
 Two things change any version:
 
 - **Payroll add-on**: if the organization has it and the person can see the Payroll tab, the tour adds a Payroll stop.
-- **Pro pages turned off for one person**: that person sees the plain pages even on a Pro plan, so their tour uses the plain wording and skips the Sync stop. The Reports stop tells them Board packet isn't turned on for them and to ask their bookkeeper.
+- **Pro pages turned off for one person**: that person sees the plain pages even on a Pro plan, so their tour uses the plain wording. The Reports stop tells them Board packet isn't turned on for them and to ask their bookkeeper.
 
 At a Basic organization, a person you gave limited access still gets the limited version, even though Basic shows everyone the same pages. They can't open **Organization**, so the tour doesn't send them there. Their welcome is the Basic one, though, since they do see every Basic page and there's nothing for anyone to change.
 
@@ -34,7 +34,7 @@ Every stop is left out when that person can't see it. The step count shown (**St
 | **Welcome** | Yes | Yes | Yes | Yes |
 | **Home**: what needs them, their organization card | Yes, with **Customize dashboard** and a live snapshot | Yes, and the locked card shows what Pro adds | Yes | Yes, their areas of the budget at a glance |
 | **Milestone** on Home's organization card | Yes | Yes | Yes | No |
-| **Sync**: Pro updates from QuickBooks every 15 minutes, and **Sync now** pulls the latest | Yes | No | Yes, on a Pro plan | Yes, on a Pro plan |
+| **Sync**: Pro updates from QuickBooks every 15 minutes, and **Sync now** pulls the latest | Yes, when the organization syncs from QuickBooks | No | On a Pro plan, when the organization syncs from QuickBooks | On a Pro plan, when the organization syncs from QuickBooks |
 | **Finances**: Budget, Bank accounts, Cash flow, Giving & funds | Yes, the tabs they have | No (Basic has no Finances) | Only the tabs they have | Only the budget lines for their areas |
 | **Payroll** | With the add-on | With the add-on | With the add-on and the tab | No |
 | **Reports** | **Downloads** and **Board packet** | **Downloads**; Board packet comes with Pro | If they have Reports | No |
@@ -44,6 +44,8 @@ Every stop is left out when that person can't see it. The step count shown (**St
 | **Organization**: details, monthly summary recipients, team, **Ask us to add someone** | Yes | Yes | No | No |
 | **Plan**: what's included, **Upgrade to Pro**, **Add Payroll** | Yes | Yes | No | No |
 | **You're all set** | Yes | Yes | Yes | Yes |
+
+On Basic, the **Plan** stop ends by pointing at the **Pro tour**, a separate two-minute walkthrough of what Pro adds. Clients start it themselves from the Plan page, the locked card on Home, or **Settings** > **Help**; it never starts on its own. See [How does the Pro tour work?](#/help/pro-tour).
 
 The **Finances**, **Reports** and **Messages** stops light up their whole row of tabs, so the person can see every tab the step names.
 
@@ -92,5 +94,6 @@ Each person's tour status and checklist ticks are saved with their personal sett
 
 - **A client says the tour never started.** It starts once, on their first sign-in. If they skipped or closed it, they can run it again from **Settings** > **Help** > **Restart the tour**.
 - **A step is missing for a client.** That tab isn't on their plan or in their access. Check their plan, or their access in **Settings** > **Client settings** > **Manage access**.
-- **A Pro client's tour has no Sync step or Pro wording.** That person's Pro pages may be turned off, so they see the plain pages. A client on the retired Plus plan is also worded as Basic.
+- **A client's tour has no Sync step.** The organization isn't connected to QuickBooks, or its plan is below Pro. Pro pages turned off for one person don't matter here: they still get it.
+- **A Pro client's tour has no Pro wording.** That person's Pro pages may be turned off, so they see the plain pages. A client on the retired Plus plan is also worded as Basic.
 - **They never got "Invite a teammate".** Only people with full access see it. Give them full access in **Manage access** if they should.

@@ -2,10 +2,17 @@
 title: What's new
 section: Getting started
 audience: staff
-keywords: [bookkeeper tour, temporary admin tour, client tour, tour versions, admin tour, account manager tour, inventory, tech, equipment, what's new, whats new, new, changes, updates, release notes, changelog, navigation, redesign, five places]
+keywords: [pro tour, upsell, upgrade, basic clients, bookkeeper tour, temporary admin tour, client tour, tour versions, admin tour, account manager tour, inventory, tech, equipment, what's new, whats new, new, changes, updates, release notes, changelog, navigation, redesign, five places]
 sort: 15
 ---
 The newest changes to the staff side, newest first. For how anything works, search this guide or click **?** → **Help for this page**.
+
+### 2026-10-09: Pro tour for Basic clients
+
+- **Pro tour**: a two-minute walkthrough on a Basic client's **Settings › Plan** page that shows what Pro would add: live QuickBooks sync every 15 minutes with **Sync now**, the Board-ready Financial Overview, Report Builder, Budgeting Tool, Cash Flow Pro, Reconciliation Pro and Fund Accounting Pro, the tool-by-tool comparison, Payroll (if they don't have it) and **Upgrade to Pro**. It never starts on its own and never clicks anything: an upgrade is still a request to the bookkeeper, which shows on **Today**.
+- Clients start it from **Take the Pro tour** on the Plan page, from the locked card on their Home, or from **Settings › Help**. The client tour's Plan stop points to it on Basic.
+- To see it, use **Preview as** on a Basic client's person, then **Settings › Plan › Take the Pro tour**. See [How does the Pro tour work?](#/help/pro-tour).
+- **Client tour**: the Sync stop now shows for anyone at a Pro organization synced from QuickBooks, even with their Pro pages turned off. See [How does the client guided tour work?](#/help/client-tour).
 
 ### 2026-10-09: bookkeeper, temporary admin and client tour versions
 

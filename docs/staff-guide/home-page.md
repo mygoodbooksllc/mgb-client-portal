@@ -28,7 +28,7 @@ Everything waiting on you, in two bands: **Now** (late, or waiting on us) and **
 - **A filing deadline** coming up: opens **Work › Deadlines**.
 - **A portal access request**, someone a client asked us to give access to: **Review** opens that client's Manage access panel.
 - **A teammate asking for temporary access** to one of your clients: **Approve** or **Deny**.
-- **An upgrade or Add Payroll request** from a client's Plan tab: follow up with them, then **Contacted**, **Completed** or **Dismiss**.
+- **An upgrade or Add Payroll request** from a client's Plan tab: follow up with them, then **Contacted**, **Completed** or **Dismiss**. Clients on Basic can look over what Pro adds first with the Pro tour; see [How does the Pro tour work?](#/help/pro-tour).
 - **A client at risk**: health is **At risk** or **Watch**, with the score. Opens the client. See [What does client health mean?](#/help/client-health).
 - **A stale SOP**: a client's SOP hasn't been edited or marked accurate in over 180 days. Open it, read it, then fix it or click **Mark as still accurate**.
 - **A client you're covering** while their bookkeeper is out.

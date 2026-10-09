@@ -2,7 +2,7 @@
 title: Where are a client's Settings, Plan, Manage access and Client details?
 section: Working with a client
 audience: staff
-keywords: [client settings, settings, gear, manage access, client details, plan, plans, upgrade, change plan, organization, summary recipients, sign out, sign out all devices, security, privacy, data, who can see, encryption, delete my data, client notifications, client profile, request access, theme, dark mode]
+keywords: [client settings, settings, gear, manage access, client details, plan, plans, upgrade, change plan, organization, summary recipients, sign out, sign out all devices, security, privacy, data, who can see, encryption, delete my data, client notifications, client profile, pro tour, request access, theme, dark mode]
 sort: 262
 ---
 Every client page has a **Settings** gear. For staff it's at the right end of the client's tab row (it says **new access request pending** when someone is waiting). Clients have it at the bottom of their sidebar, above **Collapse**, and under **More** in the bottom bar on a phone. What it opens depends on who's looking.
@@ -23,14 +23,14 @@ Two tabs:
 - **Profile**: their name and phone. Their email is shown but can't be changed there.
 - **Notifications**: emails when their bookkeeper sends a message, when month-end reports are ready, and the monthly summary. Document requests from us are always on and can't be turned off.
 - **Organization** (people with full access only): the organization's name and mailing address, who gets the monthly summary (everyone, or people they pick), their team list, and **Ask us to add someone**, which sends us an access request (it shows up in Manage access).
-- **Plan**: the plan comparison, where they can ask to change plans.
+- **Plan**: the plan comparison, where they can ask to change plans. On Basic it has a **Take the Pro tour** button, a two-minute walkthrough of what Pro adds (see [How does the Pro tour work?](#/help/pro-tour)).
 - **Appearance**: Light, Dark or Match my computer.
 - **Security & privacy**: **Sign out**, and **Sign out on all devices** for a shared or lost computer (they sign in with a one-time link or code we email them, so there's no password to change). Below that, plain-language answers for the client:
   - **Who can see your books**: their own access level, that MyGoodBooks sets up their team's logins, their bookkeeper and account manager by name, that admins see every client and other staff only when assigned or approved by the bookkeeper, and that every access change is recorded. It also tells them **staff-only working files** exist: files only MyGoodBooks staff can see, stored the same way and never shared outside MyGoodBooks. (Client files themselves are kept in MyGoodBooks' Google Drive; see [Where are client files stored?](#/help/google-drive-files).)
   - **How your data is stored and used**: QuickBooks is read-only, their sync schedule, the connection key is encrypted, and how to disconnect from Intuit. Data is stored with Supabase in the US (Ohio), encrypted, hosted by Vercel, emails via Resend, backed up daily. Never sold or used for ads.
   - **Keeping and deleting your data**: only staff remove documents, Trash never empties on its own, and how to ask for a copy or deletion (message the bookkeeper or email admin@mygoodbooks.org).
   - If a client asks for a copy of their data or to have it deleted, pass it to the owner. Don't promise anything the page doesn't say.
-- **Help**: **Restart the tour** (they get the version that fits their plan and access; see "How does the client guided tour work?"), Messages, the privacy policy and the terms of service.
+- **Help**: **Restart the tour** (they get the version that fits their plan and access; see "How does the client guided tour work?"), the **Pro tour** on Basic, Messages, the privacy policy and the terms of service.
 
 Clients' dark mode switch and **Sign out** button moved from the bottom of their sidebar into Settings.
 

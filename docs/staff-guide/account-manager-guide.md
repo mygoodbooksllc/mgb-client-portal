@@ -2,7 +2,7 @@
 title: Account manager guide: reviews, client messages, new clients, health and plans
 section: Admin
 audience: staff
-keywords: [account manager, account manager guide, account manager tour, bookkeeper tour, am, main contact, client contact, jesse, bookkeeper reviews, quarterly reviews, reviewer, reviews i'm giving, client messages, inbox, reply times, new client, onboarding, client health, check-in, needs attention, upgrade, add payroll, plan change, pricing milestone, fee, margin, routine, checklist]
+keywords: [account manager, account manager guide, account manager tour, bookkeeper tour, am, main contact, client contact, jesse, bookkeeper reviews, quarterly reviews, reviewer, reviews i'm giving, client messages, inbox, reply times, new client, onboarding, client health, check-in, needs attention, upgrade, pro tour, add payroll, plan change, pricing milestone, fee, margin, routine, checklist]
 sort: 505
 ---
 The **account manager** is a client's main contact. Every client has one, and a new client starts with Jesse. The client sees you on their Home as **Your account manager** (or **Your account manager and bookkeeper** when you're both), and you get the email when they send a message.
@@ -59,6 +59,7 @@ See [What does client health mean?](#/help/client-health) and [How do I use the 
 3. Fees follow the confirmed **pricing milestone**. On Today, turn on **Also show › Milestones** to see clients whose numbers point to a different milestone.
 4. Admins: **Team › Hours** shows each client's hours against budget; click a client for fees, cost and margin.
 5. To see what a client would get on another plan, use **Preview plan**. See [Preview as a client](#/help/preview-as).
+6. Basic clients can take the **Pro tour** from their Plan page, a two-minute walkthrough of what Pro adds. Nothing changes until they click **Upgrade to Pro**, and then it arrives as the request in step 1. See [How does the Pro tour work?](#/help/pro-tour).
 
 See [Staff and access](#/help/staff-management) (payroll add-on), [Pricing milestones](#/help/pricing-milestones) and [Profitability](#/help/profitability).
 
