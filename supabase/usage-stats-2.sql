@@ -222,7 +222,10 @@ create table if not exists email_events (
   payload jsonb
 );
 create index if not exists email_events_received_idx on email_events (received_at desc);
-create unique index if not exists email_events_dedupe_idx on email_events (email_id, event_type, occurred_at) where email_id is not null;
+-- Not partial: the webhook's upsert (ON CONFLICT email_id,event_type,occurred_at)
+-- can't use a partial index, and NULL email_ids never collide anyway.
+drop index if exists email_events_dedupe_idx;
+create unique index email_events_dedupe_idx on email_events (email_id, event_type, occurred_at);
 alter table email_events enable row level security;
 drop policy if exists "admins can read email events" on email_events;
 create policy "admins can read email events"
