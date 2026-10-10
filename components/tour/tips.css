@@ -1,0 +1,170 @@
+/* Tips while you learn (components/tour/Tips.jsx). Deliberately quiet: no
+   dim, no blocker, no pulse. A thin soft ring around the target and a small
+   surface card beside it that fades in over 150 ms. Both are click-through
+   (only the card's three controls take clicks), so a click on whatever is
+   under them still lands and just dismisses the tip. Prefix ltip- (.mgb-tip
+   is the title tooltip, components/ui/tooltips.css). Theme tokens only, so
+   light and dark both follow styles.css. */
+
+.ltip-ring {
+  position: fixed;
+  z-index: 1550; /* above the top bar (700) and phone bars (1400-1500), under the drawer (1700) and modals (2100) */
+  border-radius: 10px;
+  box-shadow: 0 0 0 1.5px color-mix(in srgb, var(--accent) 60%, transparent);
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 150ms ease;
+}
+
+.ltip-card {
+  position: fixed;
+  z-index: 1550;
+  top: 0;
+  left: 0;
+  width: min(280px, calc(100vw - 24px));
+  box-sizing: border-box;
+  padding: 10px 12px 8px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--text);
+  font-family: var(--font-body);
+  box-shadow: 0 4px 16px color-mix(in srgb, var(--navy-deep) 12%, transparent);
+  opacity: 0;
+  transition: opacity 150ms ease;
+  pointer-events: none;
+  /* Not for scrolling: Tips.jsx reads it to keep the phone dock above the
+     home indicator (env() can't be read from script directly). */
+  scroll-margin-bottom: env(safe-area-inset-bottom, 0px);
+}
+.ltip-card a,
+.ltip-card button {
+  pointer-events: auto;
+}
+.ltip-card.ltip-dock {
+  width: auto; /* left and right are set inline (12 px each side) */
+}
+.ltip-ring.ltip-on,
+.ltip-card.ltip-on {
+  opacity: 1;
+}
+
+.ltip-eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-bottom: 4px;
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.ltip-eyebrow svg {
+  color: var(--gold-deep);
+  flex: none;
+}
+
+.ltip-text {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.ltip-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 6px;
+}
+.ltip-off,
+.ltip-more,
+.ltip-got {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  box-sizing: border-box;
+  padding: 4px 6px;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  font: inherit;
+  font-size: 12px;
+  line-height: 1.3;
+  cursor: pointer;
+  text-decoration: none;
+}
+.ltip-off {
+  margin-right: auto;
+  margin-left: -6px;
+  color: var(--text-muted);
+}
+.ltip-more {
+  color: var(--gold-deep);
+  font-weight: 600;
+}
+.ltip-got {
+  color: var(--text);
+  font-weight: 600;
+}
+.ltip-off:hover,
+.ltip-more:hover,
+.ltip-got:hover {
+  background: var(--hover-bg);
+}
+.ltip-off:focus-visible,
+.ltip-more:focus-visible,
+.ltip-got:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+/* Thumb-sized actions on a phone or any touch screen. */
+.ltip-dock .ltip-off,
+.ltip-dock .ltip-more,
+.ltip-dock .ltip-got {
+  min-height: 44px;
+  padding: 4px 10px;
+}
+@media (pointer: coarse) {
+  .ltip-off,
+  .ltip-more,
+  .ltip-got {
+    min-height: 44px;
+    padding: 4px 10px;
+  }
+}
+.ltip-dock .ltip-off {
+  margin-left: -10px;
+}
+@media (pointer: coarse) {
+  .ltip-off {
+    margin-left: -10px;
+  }
+}
+
+/* The live region that reads a tip to screen readers (never seen). */
+.ltip-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* The switch row on the Help page's home. */
+.ltip-switch-card {
+  margin-bottom: 16px;
+  padding: 4px 16px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ltip-ring,
+  .ltip-card {
+    transition: none;
+  }
+}

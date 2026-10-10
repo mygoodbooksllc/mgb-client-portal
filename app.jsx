@@ -5689,7 +5689,7 @@ function DocumentRequestsCard({ client, compact }) {
   // Same "overdue" rule as each row below: still open and past its due date.
   const anyOverdue = open.some((r) => r.status === "open" && r.due_date && r.due_date < today);
   return (
-    <div className={"card doc-requests-card" + (staff && anyOverdue ? " card-urgent" : "")}>
+    <div className={"card doc-requests-card" + (staff && anyOverdue ? " card-urgent" : "")} data-tour="doc-requests">
       <h3 className="card-title">{staff ? "Document requests" : "Your bookkeeper needs"}</h3>
       <p className="card-subtitle">
         {staff
@@ -5956,7 +5956,7 @@ function CloseChecklistCard({ client }) {
     else notifyStaffTools();
   }
   return (
-    <div className="card">
+    <div className="card" data-tour="ov-close">
       <div className="ov-card-head">
         <h3 className="card-title">Month-end close</h3>
         <span className="ov-chip">
@@ -6595,7 +6595,7 @@ function ClientOverviewPage({ client, messagesByClient, onNavigate, onOpenDetail
             {data.profileMissing ? (
               <p className="card-subtitle">{STAFF_TOOLS_SETUP_MSG}</p>
             ) : (
-              <details className="ov-edit">
+              <details className="ov-edit" data-tour="ov-coverage">
                 <summary>Edit dates and coverage</summary>
                 <form className="ms-form ov-profile-form" onSubmit={saveProfile}>
                   {[
@@ -12362,7 +12362,7 @@ function StaffAccessPage({ staffUser, onImpersonate, readOnly }) {
                         ) : row.role === "admin" ? (
                           <span className="staff-self-note">N/A (admin)</span>
                         ) : (
-                          <div className="staff-temp-access-cell">
+                          <div className="staff-temp-access-cell" data-tour="members-temp">
                             {tempActive ? (
                               <React.Fragment>
                                 <span className="staff-self-note">
@@ -12781,7 +12781,7 @@ function DeveloperToolsPage({ staffUser, readOnly }) {
   function resetLocalState() {
     if (
       !window.confirm(
-        "Reset this browser's local MyGoodBooks state (theme, tab layout, dashboard/Financial Overview widget layouts, cash-floor alerts, per-person access overrides, the tour and first sign-in prompts, dismissed tips, recent clients, ...)? This only affects this browser — nothing in Supabase is touched. The page will reload.",
+        "Reset this browser's local MyGoodBooks state (theme, tab layout, dashboard/Financial Overview widget layouts, cash-floor alerts, per-person access overrides, the tour and first sign-in prompts, dismissed page hints, recent clients, ...)? This only affects this browser — nothing in Supabase is touched. The page will reload.",
       )
     ) {
       return;
@@ -14548,6 +14548,9 @@ const USAGE_ACTION_LABELS = {
   "client-help": "Client ? menu clicks",
   "tour-done": "Tours finished",
   "tour-skipped": "Tours skipped",
+  "tip-more": "Tip deep dives",
+  "tips-on": "Tips turned on",
+  "tips-off": "Tips turned off",
 };
 const USAGE_DEVICE_LABELS = { desktop: "Desktop", mobile: "Phone", installed: "Installed app", unknown: "Unknown" };
 
@@ -14773,7 +14776,7 @@ function UsageStatsPage() {
           <div
             style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}
           >
-            <div className="modal-tabs" style={{ marginTop: 0 }}>
+            <div className="modal-tabs" style={{ marginTop: 0 }} data-tour="usage-range">
               {USAGE_STATS_RANGES.map((r) => (
                 <button
                   key={r.key}
@@ -19079,6 +19082,7 @@ function MyTasksPage({
         </p>
         <form
           className="task-add"
+          data-tour="task-add"
           onSubmit={(e) => {
             e.preventDefault();
             addTask();
@@ -26575,6 +26579,17 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
               page={effectivePage}
               onSelectPage={setPage}
               setMobileNavOpen={setMobileNavOpen}
+            />
+          )}
+          {/* Staff tips for a staffer's first 30 days (components/tour/Tips.jsx):
+              one small dismissible card beside a feature, never over a tour. */}
+          {typeof TIPS_Root === "function" && showStaffRail && !isPreviewingUser && (
+            <TIPS_Root
+              staffUser={staffUser}
+              impersonating={Boolean(impersonating)}
+              isPreviewingUser={Boolean(isPreviewingUser)}
+              hasTempAdminAccess={hasTempAdminAccess}
+              page={effectivePage}
             />
           )}
           {effectivePage === "dashboard" && !staffClientTabs && (

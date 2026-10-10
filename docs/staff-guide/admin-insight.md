@@ -22,7 +22,7 @@ Counts come straight from the database for the range you pick (7, 30 or 90 days,
 ### Developer tools
 
 - **Feature flags** are per-browser testing switches: force every client to Pro, verbose console logging, a simulated slow network, and **Show unreleased features** (currently the **Install app** prompt). Nothing here changes anything for anyone else.
-- **Reset local state** clears this browser's saved layouts, theme, tour and tips. Feature flags stay.
+- **Reset local state** clears this browser's saved layouts, theme and other per-browser hints. Feature flags stay. Tours and Tips while you learn are saved to your account, so it doesn't reset them.
 - **Scheduled jobs** lists every automatic job (email outbox, digest, QuickBooks sync, health checks, chasers) with its schedule, last run and result. **Run now** starts one immediately. A red **failed** means the last run errored; **Run now** and read the message.
 - **Recent errors** are errors the app caught in someone's browser: when, who, which page, app version and the message. Click one for the technical detail. Send that to whoever is fixing the app.
 - **Send me a test email** sends a short email to your own address so you can confirm the firm's sender works.

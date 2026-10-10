@@ -9,7 +9,7 @@ sort: 42
 
 ### The list
 
-- **Mine** / **All** / **Needs attention** at the top filter the list. Bookkeepers start on **Mine**. **Needs attention** means health at risk, a late close, a portal access request waiting, or a stale SOP.
+- **Mine** / **All** / **Needs attention** at the top filter the list. Bookkeepers start on **Mine**. **Mine** is the clients you're assigned to, the ones you back up, and any an admin gave you access to. **Needs attention** means health at risk, a late close, a portal access request waiting, or a stale SOP.
 - **Find a client** narrows the list as you type.
 - Columns: **Client**, **Health** (the score and band, see [What does client health mean?](#/help/client-health)), **Assigned to**, **Backup**, **Hours this month**, **Close** (last month's status) and **Last viewed**.
 - **Hours this month** is QuickBooks Time this calendar month against the client's monthly hours budget, for example **6.5 / 10 h**. It turns amber from 80% and red when over. Everyone assigned to a client sees it, so you always know where you stand. A dash means no budget is set.

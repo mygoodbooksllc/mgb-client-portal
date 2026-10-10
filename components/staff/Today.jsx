@@ -719,7 +719,11 @@ function TD_Band({ tone, title, rows, expanded }) {
             </>
           );
           return (
-            <li className={"td-row" + (r.actions && r.actions.length > 1 ? " td-row-stack" : "")} key={r.key}>
+            <li
+              className={"td-row" + (r.actions && r.actions.length > 1 ? " td-row-stack" : "")}
+              key={r.key}
+              data-tour={r.kind === "upgrade" ? "today-upgrade" : undefined}
+            >
               {r.onClick ? (
                 <button type="button" className="td-row-main" onClick={r.onClick}>
                   {body}
@@ -1234,7 +1238,7 @@ function TD_TodayPage({ staffUser, clients, onNavigateToClient, onOpenClientMile
         </div>
       </div>
 
-      <div className="kpi-grid td-kpis">
+      <div className="kpi-grid td-kpis" data-tour="today-kpis">
         {tiles.map((t) => (
           <button type="button" key={t.key} className={"card kpi-card kpi-card-clickable td-kpi td-kpi-" + t.tone} onClick={t.go}>
             <span className="kpi-label">{t.label}</span>

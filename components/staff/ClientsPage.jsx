@@ -336,7 +336,7 @@ function CL_ClientsPage({ clients, staffUser, isAdmin, statusOverrides, pendingR
             <thead>
               <tr>
                 <th scope="col">Client</th>
-                <th scope="col">Health</th>
+                <th scope="col" data-tour="clients-health">Health</th>
                 <th scope="col">Assigned to</th>
                 <th scope="col">Backup</th>
                 <th scope="col">Hours this month</th>
@@ -512,7 +512,7 @@ function CL_ViewAsButton({ client, onPreviewAs }) {
   if (people.length === 1) {
     const u = people[0];
     return (
-      <button type="button" className="btn-secondary cl-viewas" title={`See the portal as ${u.name}`} onClick={() => pick(u.id)}>
+      <button type="button" className="btn-secondary cl-viewas" title={`See the portal as ${u.name}`} data-tour="client-view-as" onClick={() => pick(u.id)}>
         {icon}
         View as client
       </button>
@@ -524,6 +524,7 @@ function CL_ViewAsButton({ client, onPreviewAs }) {
         ref={btnRef}
         type="button"
         className="btn-secondary cl-viewas"
+        data-tour="client-view-as"
         aria-haspopup="menu"
         aria-expanded={open}
         onClick={() => setOpen((v) => !v)}

@@ -35,6 +35,13 @@
 // render, the same way it pauses WD_sync), so those sessions can't overwrite
 // the signed-in staffer's own settings. Email preference keys and defaults
 // must match supabase/functions/notification-emails (PREF) and client-emails.
+// Each save upserts the whole settings object, so a tab must not save a stale
+// copy: a save in another tab of this browser is adopted at once (the
+// "storage" event on the cache, with this tab's own unsaved changes laid back
+// on top), and a tab coming back into view re-reads the server copy (at most
+// once a minute) to pick up changes made on another computer. update(patch,
+// { quiet: true }) saves without moving the "Saving… / Saved" note, for
+// writes the person didn't make themselves (Tips, components/tour/Tips.jsx).
 //
 // Loaded before app.jsx in the shared global scope: every top-level name has
 // an ST_ prefix. app.jsx globals (useToast, relTime, icons, PLAN_LABELS ...)
@@ -43,6 +50,7 @@
 
 const ST_CACHE_KEY = "mygoodbooks_user_settings_v1";
 const ST_SAVE_DEBOUNCE_MS = 700;
+const ST_REFRESH_MS = 60000; // a tab back in view re-reads the server copy, at most this often
 const ST_FIELD_DEBOUNCE_MS = 600;
 const ST_AVATAR_BUCKET = "staff-avatars";
 const ST_AVATAR_MAX_BYTES = 2 * 1024 * 1024;
@@ -112,6 +120,10 @@ const ST_store = (function () {
   let saveState = "idle"; // idle | saving | saved | error
   let timer = null;
   let snapshot = null;
+  let loud = false; // the pending save came from something the person did (ST_SavedNote shows it)
+  let pending = []; // patches not yet sent, laid back over a copy adopted from another tab
+  let inflight = 0; // saves sent and not yet answered
+  let freshAt = 0; // when settings last matched the server (loaded or saved)
 
   const sb = () => window.mgbSupabase || null;
   const emit = () => {
@@ -155,6 +167,7 @@ const ST_store = (function () {
       // A local change made while the request was in flight wins.
       if (data && ST_isObj(data.settings) && !timer) settings = data.settings;
       status = "ready";
+      freshAt = Date.now();
       generation += 1;
       writeCache();
       emit();
@@ -173,24 +186,67 @@ const ST_store = (function () {
     const client = sb();
     if (!client || !email || status !== "ready") return;
     const forEmail = email;
-    saveState = "saving";
-    emit();
+    const shown = loud;
+    loud = false;
+    pending = [];
+    if (shown) {
+      saveState = "saving";
+      emit();
+    }
+    inflight += 1;
     Promise.resolve(
       client.from("user_settings").upsert({ user_email: forEmail, settings }, { onConflict: "user_email" }),
     )
       .then(({ error }) => {
+        inflight -= 1;
         if (forEmail !== email) return;
-        saveState = error ? "error" : "saved";
         if (error) console.warn("Couldn't save settings:", error.message);
+        else freshAt = Date.now();
+        if (!shown) return;
+        saveState = error ? "error" : "saved";
         emit();
       })
       .catch(() => {
+        inflight -= 1;
+        if (!shown) return;
         saveState = "error";
         emit();
       });
   }
+  // Another tab of this browser saved: take its copy, with this tab's own
+  // unsaved changes laid back on top. Never written back to the cache here,
+  // so two tabs can't bounce it between them.
+  function adoptCache(e) {
+    if (e.key !== ST_CACHE_KEY || !email) return;
+    const c = readCache();
+    if (!c || c.email !== email) return;
+    settings = pending.reduce(ST_merge, c.settings);
+    generation += 1;
+    emit();
+  }
+  // Back in view after a while: the server copy may have changed on another
+  // computer. Only when nothing is waiting to save.
+  async function refresh() {
+    const client = sb();
+    if (!client || !email || status !== "ready" || timer || inflight || Date.now() - freshAt < ST_REFRESH_MS) return;
+    const forEmail = email;
+    freshAt = Date.now();
+    try {
+      const { data, error } = await client.from("user_settings").select("settings").maybeSingle();
+      if (forEmail !== email || error || timer || inflight || !data || !ST_isObj(data.settings)) return;
+      if (JSON.stringify(data.settings) === JSON.stringify(settings)) return;
+      settings = data.settings;
+      generation += 1;
+      writeCache();
+      emit();
+    } catch (e) {}
+  }
   if (typeof window !== "undefined") {
     window.addEventListener("pagehide", () => timer && flush());
+    window.addEventListener("storage", adoptCache);
+    document.addEventListener("visibilitychange", () => {
+      if (document.visibilityState === "visible") refresh();
+    });
   }
   return {
     init(nextEmail, nextRole) {
@@ -201,6 +257,9 @@ const ST_store = (function () {
       email = em;
       const cache = readCache();
       settings = cache && cache.email === em ? cache.settings : {};
+      pending = [];
+      loud = false;
+      freshAt = 0;
       saveState = "idle";
       generation += 1;
       status = "idle";
@@ -225,13 +284,18 @@ const ST_store = (function () {
     get paused() {
       return pauseReasons.size > 0;
     },
-    // Returns false (and changes nothing) while paused.
-    update(patch) {
+    // Returns false (and changes nothing) while paused. `quiet`: saved
+    // without the "Saving… / Saved" note (nothing the person did).
+    update(patch, opts) {
       if (pauseReasons.size || !email) return false;
       settings = ST_merge(settings, patch);
       writeCache();
       if (status === "ready") {
-        saveState = "saving";
+        pending.push(patch);
+        if (!(opts && opts.quiet)) {
+          loud = true;
+          saveState = "saving";
+        }
         if (timer) clearTimeout(timer);
         timer = setTimeout(flush, ST_SAVE_DEBOUNCE_MS);
       }
@@ -1152,6 +1216,8 @@ function ST_StaffSettingsPage({
                   ))}
                 </ul>
               )}
+              {/* Tips while you learn on / off (components/tour/Tips.jsx). */}
+              {typeof TIPS_Switch === "function" && <TIPS_Switch where="settings" disabled={ro} />}
             </ST_Card>
           )}
           {key === "firm" && (

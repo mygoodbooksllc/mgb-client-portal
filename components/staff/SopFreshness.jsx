@@ -157,7 +157,7 @@ function SF_FreshnessBar({ client, rows }) {
   }
 
   return (
-    <div className={"sf-bar" + (f.stale ? " sf-stale" : "")} title={tip}>
+    <div className={"sf-bar" + (f.stale ? " sf-stale" : "")} title={tip} data-tour="sop-fresh">
       <span className={"pill sf-pill" + (f.stale ? " sf-pill-bad" : " sf-pill-good")}>
         Last reviewed {OPS_daysAgo(f.days)}
       </span>

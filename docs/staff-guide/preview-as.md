@@ -2,10 +2,12 @@
 title: How do I see the portal the way a client sees it?
 section: Working with a client
 audience: staff
-keywords: [preview as, preview plan, client view, what the client sees, exit preview, plan preview]
+keywords: [preview as, preview plan, client view, what the client sees, exit preview, plan preview, view as client]
 sort: 260
 ---
 On any client page there are two preview controls. Neither changes anything for the client.
+
+Inside a client, the **View as client** button is a shortcut to the same thing: it shows the client's pages as one of the client's people sees them (pick the person when there are several). **Exit preview** brings you back.
 
 ### Preview as a client user
 

@@ -533,6 +533,7 @@ function SI_ClientThread({ entry, mode, me, staffUser, sampleRows, onSampleSend,
             <button
               type="button"
               className="si-loop-in"
+              data-tour="inbox-loop-in"
               onClick={loopIn}
               disabled={loopingIn}
               title={`Email ${bkInfo.name} (the assigned bookkeeper) to look at this conversation. Or type @${bkFirst} in a reply or note.`}
@@ -1619,6 +1620,7 @@ function StaffInbox({
                 <button
                   type="button"
                   className={"si-icon-btn si-ctx-toggle" + (contextOpen ? " active" : "")}
+                  data-tour="inbox-details"
                   aria-pressed={contextOpen}
                   aria-label={contextOpen ? "Hide details" : "Show details"}
                   onClick={toggleContext}

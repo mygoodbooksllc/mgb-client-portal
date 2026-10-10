@@ -2,7 +2,7 @@
 title: Getting started: a tour of the staff portal
 section: Getting started
 audience: staff
-keywords: [onboarding checklist, new, start, tour, bookkeeper tour, bookkeeper guide, overview, rail, sidebar, top bar, menu, navigation, today, five places, first day, orientation, reviews, deadlines, settings]
+keywords: [onboarding checklist, new, start, tips, first 30 days, tour, bookkeeper tour, bookkeeper guide, overview, rail, sidebar, top bar, menu, navigation, today, five places, first day, orientation, reviews, deadlines, settings]
 sort: 10
 ---
 Welcome! The MyGoodBooks portal is where our clients (mostly churches and nonprofits) see their finances, and where we, the staff, keep track of our work for them. This page shows you around.
@@ -15,6 +15,7 @@ Welcome! The MyGoodBooks portal is where our clients (mostly churches and nonpro
 4. Open a client from **Clients**, or press **Ctrl+K** (**⌘K** on a Mac) and type their name. You'll see that client's **Client overview** first. See [How do I find and open a client?](#/help/finding-a-client).
 5. Your new-hire checklist is on **Team › Onboarding**. See [How does the new-hire onboarding checklist work?](#/help/new-hire-onboarding).
 6. Stuck? Click **?** in the top bar, then **Help for this page**, or search this guide.
+7. For your first 30 days, a small **Tip** now and then points out something useful on the page you're on. Click **Got it** to dismiss it, or turn tips off any time. See [How do tips work?](#/help/tips).
 
 ### The five places
 
@@ -32,7 +33,7 @@ Every page looks the same: a title, one row of tabs, and the content. The tab is
 
 ### The top bar
 
-Across the top: the client picker, the sync pill (client pages), search (**Ctrl+K** / **⌘K**, which also jumps to any page or action), the bell, **Tasks**, **+** (add a task, note or document request, or message the client), **?** (help for this page, the staff guide, **Send feedback**, **What's new** and the tours) and your initials (dark mode, Preview as and **Sign out**). See [What's on the bar at the top of the page?](#/help/top-bar).
+Across the top: the client picker, the sync pill (client pages), search (**Ctrl+K** / **⌘K**, which also jumps to any page or action), the bell, **Tasks**, **+** (add a task, note or document request, or message the client), **?** (help for this page, the staff guide, **Send feedback**, **What's new**, **Tips while you learn** and the tours) and your initials (dark mode, Preview as and **Sign out**). See [What's on the bar at the top of the page?](#/help/top-bar).
 
 ### Inside a client
 
@@ -40,7 +41,7 @@ Open a client and the title becomes **Clients › {client} › {tab}**, with one
 
 ### On a phone
 
-The top bar keeps the client picker, search, the bell and **+**. Tap the menu button at the top left to open the five places, **Settings** and **Sign out**. Inside a client, the tab row scrolls sideways.
+The top bar keeps the client picker, search, the bell, **+** and **?**. Tap the menu button at the top left to open the five places, **Settings** and **Sign out**. Inside a client, the tab row scrolls sideways.
 
 ### Who sees what
 

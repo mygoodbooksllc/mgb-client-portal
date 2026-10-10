@@ -2,7 +2,7 @@
 title: How do I change my settings (profile, notifications, theme, signature)?
 section: Getting started
 audience: staff
-keywords: [settings, my settings, profile, photo, avatar, title, phone, notifications, email notifications, bell, dark mode, light mode, theme, match my computer, start page, signature, email signature, dashboards, reset layout, financial overview, board-ready, live report, shortcuts, keyboard, firm settings, gear]
+keywords: [settings, help, tips, turn off tips, my settings, profile, photo, avatar, title, phone, notifications, email notifications, bell, dark mode, light mode, theme, match my computer, start page, signature, email signature, dashboards, reset layout, financial overview, board-ready, live report, shortcuts, keyboard, firm settings, gear]
 sort: 27
 ---
 Your Settings page holds everything that's just about you. To open it, click **Settings** at the bottom of the left rail, or your initials at the top right of the page, then **Settings**. (On a phone, open the menu and tap **Settings**.) Changes save on their own a moment after you make them. You'll see **Saved** at the top when they have.
@@ -49,6 +49,10 @@ Lists every board where you've moved or hidden cards (a client's Dashboard or Fi
 ### Shortcuts
 
 A list of keyboard shortcuts: **Ctrl+K** (**⌘K** on a Mac) to search, **↑** / **↓** to move through menus and results, **Enter** to open, **Esc** to close.
+
+### Help
+
+Start a tour, open the Staff guide or **Send feedback**. The last row, **Tips while you learn**, is the switch for the small first-30-days tips: it shows how many days are left, and turning it off and on again starts another 30 days. See [How do tips work?](#/help/tips).
 
 ### Firm settings (admins)
 

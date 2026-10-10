@@ -2,7 +2,7 @@
 title: What's on the bar at the top of the page?
 section: Getting started
 audience: staff
-keywords: [back, back button, refresh, reload, installed app, app, top bar, toolbar, header, search, jump to, pages, actions, search transactions, search documents, search messages, ctrl k, cmd k, notifications, bell, tasks, plus, quick add, message, help, help for this page, staff guide, send feedback, what's new, take the tour, bookkeeper tour, admin tour, temporary admin tour, account manager tour, report a bug, feedback, account, avatar, sign out, dark mode, sync, every 15 minutes, settings, preview plan, photo]
+keywords: [tips, tips while you learn, turn off tips, back, back button, refresh, reload, installed app, app, top bar, toolbar, header, search, jump to, pages, actions, search transactions, search documents, search messages, ctrl k, cmd k, notifications, bell, tasks, plus, quick add, message, help, help for this page, staff guide, send feedback, what's new, take the tour, bookkeeper tour, admin tour, temporary admin tour, account manager tour, report a bug, feedback, account, avatar, sign out, dark mode, sync, every 15 minutes, settings, preview plan, photo]
 sort: 25
 ---
 Across the top of every staff page there's a dark bar, joined to the rail, with your most-used tools. Clients never see it, and it goes away while you use **Preview as** or **View as client**. The rail on the left has the five places (Today, Inbox, Work, Clients, Team); the bar has no page links of its own.
@@ -32,7 +32,7 @@ Use the **↑** and **↓** keys to move through the results and **Enter** to op
 - **Bell** (Notifications): a red number shows how many new items you haven't looked at. It lists client messages waiting for a reply, documents a client has uploaded, tasks a teammate assigned to you, shout-outs for you, and clients whose last month-end close is **Blocked**. You can turn each kind off in **Settings → Notifications**. Click an item to go to it. Opening the bell marks everything as seen (in this browser).
 - **Tasks**: the number of your open tasks. A red number next to it counts the overdue ones. Click it to open **Work › Tasks**.
 - **+** (client pages only): **New task**, **New note**, **Request document** or **Message** for the client you have open. See [How do I add a task, note or document request, or message a client?](#/help/quick-actions).
-- **?** (Help): **Help for this page** (the article for where you are), **Staff guide** (this guide), **Send feedback**, **What's new** and the tours: **Bookkeeper tour** for everyone, plus **Admin tour** for admins, **Temporary admin tour** while you have temporary admin access, and **Account manager tour** for account managers. See [How do I report a bug or send feedback?](#/help/send-feedback).
+- **?** (Help): **Help for this page** (the article for where you are), **Staff guide** (this guide), **Send feedback**, **What's new**, **Tips while you learn: On** / **Off** (click it to flip the switch for the first-30-days tips; see [How do tips work?](#/help/tips)) and the tours: **Bookkeeper tour** for everyone, plus **Admin tour** for admins, **Temporary admin tour** while you have temporary admin access, and **Account manager tour** for account managers. See [How do I report a bug or send feedback?](#/help/send-feedback).
 - **Your initials or photo** (account menu):
   - your name and role
   - **Temporary admin access · expires …** or **Temporary access: {client} · …** when you have short-term access
@@ -47,7 +47,7 @@ Press **Esc** to close any open menu.
 
 ### On a phone
 
-The bar keeps only the client picker, search, the bell and **+**. The sync pill stays in the page header. Everything else (the five places, **Settings**, **Sign out**, **Preview as** and **Preview plan**) is in the menu: tap the menu button at the top left. Help and feedback are in the **?** menu on a computer; on a phone, open the **Staff guide** page from search and use the link at the bottom to send feedback.
+The bar keeps only the client picker, search, the bell, **+** and **?**. The sync pill stays in the page header. Everything else (the five places, **Settings**, **Sign out**, **Preview as** and **Preview plan**) is in the menu: tap the menu button at the top left. The **?** menu works the same as on a computer: help for this page, the staff guide, feedback, what's new, tips and the tours.
 
 ### In a narrow window
 
@@ -55,9 +55,10 @@ On a computer, when the window is narrow the bar makes room instead of squeezing
 
 - The **Ctrl K** / **⌘K** hint inside the search box hides first. The shortcut still works.
 - Search shrinks to a round magnifier button whenever there isn't room for a usable box. Click it, or press **Ctrl+K** (**⌘K**), and it opens across the bar.
-- A long sync pill trims its wording with "…". Click it to Sync now as usual.
+- Below about 900px wide the sync pill moves to the page header (click it there to Sync now). In a wider but crowded bar it trims its wording with "…".
 - The client picker shows just the client's initials. Click it to switch clients as usual.
-- **Tasks** and **?** hide from the bar. Tasks is still under **Work** in the rail, and search can open any help article.
+- **Tasks** hides from the bar. It's still under **Work** in the rail.
+- In the tightest case **+** hides too. **?** never hides, so help, feedback and the tours stay one click away.
 
 Widen the window and everything comes back.
 

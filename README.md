@@ -284,8 +284,9 @@ because some work happens in Claude Code web sessions. Run `git fetch` and compa
     `qbo_my_client_hours(from, to)` (minutes per client for the caller's own clients; no rates or
     per-person split), so the Clients page's Hours this month column works for everyone.
   - **Top bar:** no page links; ⌘K lists Pages and Actions with nothing typed; the **?** menu is
-    Help for this page, Staff guide, Send feedback, What's new, then one entry per tour (Bookkeeper
-    tour, plus Admin, Temporary admin and Account manager tours when they apply). Help and Feedback
+    Help for this page, Staff guide, Send feedback, What's new, Tips while you learn (On/Off), then
+    one entry per tour (Bookkeeper tour, plus Admin, Temporary admin and Account manager tours when
+    they apply). Help and Feedback
     are no longer sidebar items.
   - **Tours (`components/tour/Tour.jsx`):** the client tour (`TOUR_Root`) and the staff-side tours
     (`TOUR_StaffRoot`). Staff tours are listed in `TOUR_STAFF_TOURS` in menu order: **Bookkeeper**
@@ -329,6 +330,37 @@ because some work happens in Claude Code web sessions. Run `git fetch` and compa
     `MGB_track("tour-done" | "tour-skipped", "pro")`; staff and preview save nothing.
   - **Tour docs:** `bookkeeper-guide`, `admin-guide`, `account-manager-guide`, `temporary-access`,
     `client-tour` and `pro-tour` in `docs/staff-guide`.
+  - **Tips while you learn (`components/tour/Tips.jsx` + `tips.css`, `TIPS_` prefix; owner request
+    2026-10-09):** quiet one-at-a-time tips for a staffer's first 30 days (no overlay, no dimming,
+    focus never moves, nothing scrolls). `TIPS_Root` is mounted beside `TOUR_StaffRoot` in `app.jsx`
+    (not in the client portal, Preview as or View as). State is the user-settings key `tips`
+    `{ on, startedAt, seen: {tipId: iso}, lastAt, day: {d, n, ids} }` (no SQL): the first run for a
+    staffer with no `tips` writes `{ on: true, startedAt: now }`, so new staff start at first sign-in
+    and current staff at launch; turning on (`TIPS_setOn`) writes a fresh `startedAt` and `seen: {}`.
+    `TIPS_CATALOG` lists each tip (`id`, `roles` all / bookkeeper / admin / adminPages / am, `match`,
+    `target` as a `data-tour` key, `#id` or a list of fallbacks, optional `part` (a selector inside
+    a tall target to point at instead), optional `snug: true` (the ring hugs the target's children
+    and text, for a heading or row wider than its contents), `text` as a string or
+    `(env) => string`, `slug`, optional `adminDoc: true` when the article is audience admin,
+    optional `ready()`); the first catalog tip whose target is fully in view wins, so order is
+    priority. Rules (settle 1.5 s, 3 s after sign-in, one tip per page visit, 2 minutes from the
+    last tip going away or a tour ending, 4 a day, never during a tour via `TOUR_staffBusy()`, a
+    modal or menu, or a focused field) are `TIPS_CONFIG`, which a test harness can shorten. The
+    card (280 px, thin ring) is click-through except its controls. Placement (`TIPS_position`):
+    each spot that fits (below, above, right, left, edges lined up with the ring) is scored by the
+    controls it would cover plus the top bar, breadcrumb, page title and tab row (`TIPS_HEAD`);
+    the lowest wins and is kept while the tip shows. Top-bar targets (`TIPS_HEADER`) hang below,
+    under the header band (beside it only when that covers less, above only when nothing below
+    fits). Phones (< 640 px) dock it at the bottom, or at the top under the title and tabs but
+    never over a field of the target's own form; when neither fits, the tip waits for a later
+    visit. Its own writes use `ST_store.update(patch, { quiet: true })`, which saves without the
+    Settings "Saving…" note;
+    `ST_store` also adopts saves from other tabs (the `storage` event) and re-reads the server
+    copy when a tab comes back into view, so a long-open tab doesn't save a stale copy. Switch rows (`TIPS_Switch`, `TIPS_menuItem`):
+    the Staff guide's home, Settings › Help and the ? menu. Tracked as `MGB_track("tip-more", id)`,
+    `"tips-on"` / `"tips-off"` (labels in `USAGE_ACTION_LABELS`). Adding a tip: add the `data-tour`
+    attribute in the owning component and a catalog entry whose `slug` is an existing article, then
+    list it in the "All tips" table in `docs/staff-guide/tips.md`.
   - **Routes:** `#/today`, `#/inbox`, `#/work/<tasks|close|deadlines>`, `#/clients`,
     `#/team/<tab>`, `#/team/reviews/<sub>[/id]`, `#/help[/slug]`, `#/settings`, `#/templates`,
     `#/client/<id>/<tab>` (incl. `sop`). The old routes (`#/home`, `#/tasks`, `#/close-tracker`,
@@ -413,7 +445,7 @@ because some work happens in Claude Code web sessions. Run `git fetch` and compa
     `mgb-topbar-bell-seen:<email>`), `TB_TasksBadge` (open count, overdue in red → `#/work/tasks`),
     `TB_QuickAdd` ("+", client pages: New task / New note / Request document / Message; dispatches
     `tb:quick-add`, which the headless `StaffQuickActions` listens for and opens its own modal or the
-    chat drawer), `TB_HelpButton` ("?" menu: Help for this page (`TB_helpSlugFor`: `TB_HELP_FOR_PAGE` plus the `help` slugs in `NAV_PLACES`), Staff guide, Send feedback via `FB_openFeedback` (`FB_FeedbackHost` is mounted next to it), What's new (`#/help/whats-new`), then one item per `TOUR_staffTourList()` tour (`TOUR_startStaff(key)`)),
+    chat drawer), `TB_HelpButton` ("?" menu: Help for this page (`TB_helpSlugFor`: `TB_HELP_FOR_PAGE` plus the `help` slugs in `NAV_PLACES`), Staff guide, Send feedback via `FB_openFeedback` (`FB_FeedbackHost` is mounted next to it), What's new (`#/help/whats-new`), a Tips while you learn On/Off row (`TIPS_menuItem()`, Tips.jsx), then one item per `TOUR_staffTourList()` tour (`TOUR_startStaff(key)`)),
     `TB_AvatarMenu` (profile photo from `staff_profiles`, theme, Preview as a client user, Preview plan
     with check marks, Exit "View as", temporary access, **Settings** → `#/settings`, Sign out).
   - **Moved, not duplicated:** while mounted, the client picker, sync pill and account menu add
@@ -1154,7 +1186,7 @@ which explains the reasoning behind most of the decisions above.
 ## Staff guide
 
 The staff guide (`#/help`, opened from the **?** menu in the top bar: Help for this page, Staff
-guide, Send feedback, What's new, the tours; also from ⌘K) is a searchable how-to guide for
+guide, Send feedback, What's new, Tips while you learn, the tours; also from ⌘K) is a searchable how-to guide for
 staff. The per-page slugs are `TB_HELP_FOR_PAGE` in `TopBar.jsx` and the `help` field on each
 `NAV_PLACES` place and tab in `StaffNav.jsx`; every slug must exist as a file. `whats-new.md` is the
 staff-facing changelog: add an entry with every change staff would notice.

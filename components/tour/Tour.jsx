@@ -124,6 +124,8 @@
 // TOUR_startStaff(key) (the "?" menu, ⌘K and Settings › Help list the ones
 // that apply, via TOUR_staffTourList). During "View as" only the bookkeeper
 // tour runs: it shows what that bookkeeper sees and saves nothing.
+// Tips while you learn are separate (components/tour/Tips.jsx, no overlay);
+// they wait while a staff tour is open or still to start (TOUR_staffBusy).
 //
 // Loaded before app.jsx in the shared global scope: every top-level name has
 // a TOUR_ prefix, hooks are used as React.*, and app.jsx / Settings.jsx /
@@ -1212,6 +1214,19 @@ function TOUR_staffHold(email, tries) {
   return !!p && !!email && p.email === email && !p.loaded && tries < 15;
 }
 
+// For Tips (components/tour/Tips.jsx), which stay away from tours.
+// TOUR_StaffRoot keeps it current: open (a staff tour on screen), launching
+// (begin() is waiting to show one) and autoPending (one will start by itself
+// in this page load, or may once App knows about a temporary admin grant).
+// Tips also read `open` to wait a couple of minutes after a tour ends.
+let TOUR_staffState = { open: false, launching: false, autoPending: false };
+
+// True while a staff tour is open, starting or still to start by itself,
+// or any tour (the client or Pro tour too) is on screen.
+function TOUR_staffBusy() {
+  return TOUR_staffState.open || TOUR_staffState.launching || TOUR_staffState.autoPending || !!document.querySelector(".tour-root");
+}
+
 // Who's signed in, for the launchers. TOUR_StaffRoot keeps it current.
 let TOUR_staffCtx = { isAdmin: false, isBookkeeper: false, tempAdmin: false, showsAdminPages: false, amCount: 0, impersonating: false };
 
@@ -2002,6 +2017,7 @@ function TOUR_StaffRoot({
     (which, auto) => {
       const tour = TOUR_staffTour(which) || TOUR_STAFF_TOURS[0];
       returnFocus.current = document.activeElement;
+      TOUR_staffState.launching = true;
       // The bookkeeper tour starts on Today, where its list lives. The role
       // tours open their own pages step by step.
       if (tour.key === "bookkeeper" && onSelectPage && page !== "today") onSelectPage("today");
@@ -2009,15 +2025,22 @@ function TOUR_StaffRoot({
       let tries = 0;
       const launch = () => {
         // "View as" began while an auto start was held: drop it.
-        if (auto && ctxRef.current.impersonating) return;
+        if (auto && ctxRef.current.impersonating) {
+          TOUR_staffState.launching = false;
+          return;
+        }
         if (auto && TOUR_staffHold(email, tries++)) {
           setTimeout(launch, 400);
           return;
         }
+        TOUR_staffState.launching = false;
         // The ctx it starts with is kept: the temporary admin tour saves
         // the grant's expiry from it, even if the grant ends mid-tour.
         const full = { ...ctxRef.current, onSelectPage };
         const next = { tour, steps: TOUR_visibleStaffSteps(tour.steps(full), full), index: 0, ctx: full };
+        // Open from now, not from the next render, so Tips never sees a gap
+        // between launching and open (the render sets the exact value).
+        if (next.steps.length) TOUR_staffState.open = true;
         // A tour started from the menu while an auto start was held wins.
         setRun((r) => (r && auto ? r : next));
       };
@@ -2032,6 +2055,14 @@ function TOUR_StaffRoot({
   // (that tour comes first).
   const pendingKey = pending ? pending.key : null;
   const waitForGrant = isBookkeeper && tempAdminLoaded === false;
+  TOUR_staffState.open = !!(run && run.steps.length);
+  TOUR_staffState.autoPending = ownSettings && !TOUR_staffAutoStarted && (!!pendingKey || waitForGrant);
+  React.useEffect(
+    () => () => {
+      TOUR_staffState = { open: false, launching: false, autoPending: false };
+    },
+    [],
+  );
   React.useEffect(() => {
     if (!ownSettings || TOUR_staffAutoStarted || run || !pendingKey || waitForGrant) return;
     if (st.status !== "ready" && st.status !== "local") return;

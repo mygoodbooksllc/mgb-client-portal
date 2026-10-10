@@ -46,7 +46,8 @@
 // bar only jumps to them through ⌘K.
 //
 // Tour hooks (Tour.jsx): data-tour="tb-search", "tb-bell", "tb-quick",
-// "tb-help", "tb-avatar" on the matching wrappers.
+// "tb-help", "tb-avatar" on the matching wrappers; "tb-sync" on the sync
+// pill (a tip, components/tour/Tips.jsx).
 //
 // Loaded before app.jsx and shares its global scope: every top-level name
 // here is TB_-prefixed, and app.jsx globals (hooks, icons, staffItemsApi,
@@ -170,7 +171,7 @@ function TB_useMenu() {
   const onMenuKeyDown = (e) => {
     if (e.key !== "ArrowDown" && e.key !== "ArrowUp") return;
     const items = Array.from(
-      (rootRef.current && rootRef.current.querySelectorAll('[role="menuitem"]:not([disabled])')) || [],
+      (rootRef.current && rootRef.current.querySelectorAll('[role="menuitem"]:not([disabled]), [role="menuitemcheckbox"]:not([disabled]), [role="menuitemradio"]:not([disabled])')) || [],
     );
     if (!items.length) return;
     e.preventDefault();
@@ -291,7 +292,7 @@ function TB_SyncPill({ client, plan, onSynced }) {
   const label = syncPillLabel(plan, client.lastSyncedAt);
   return (
     <span className="tb-sync">
-      <QboSyncNowButton clientId={client.id} onSynced={onSynced} canSyncNow liveLabel={label} />
+      <QboSyncNowButton clientId={client.id} onSynced={onSynced} canSyncNow liveLabel={label} tour="tb-sync" />
     </span>
   );
 }
@@ -1022,6 +1023,10 @@ function TB_HelpButton({ page, isAdmin }) {
   if (hasGuide) items.push({ key: "guide", label: "Staff guide", run: () => TB_go("#/help") });
   if (hasFeedback) items.push({ key: "feedback", label: "Send feedback", run: () => FB_openFeedback() });
   if (hasGuide) items.push({ key: "new", label: "What's new", run: () => TB_go("#/help/whats-new") });
+  // Tips while you learn: On / Off (components/tour/Tips.jsx); left out
+  // while it can't save (View as, settings still loading).
+  const tipsItem = typeof TIPS_menuItem === "function" ? TIPS_menuItem() : null;
+  if (tipsItem) items.push({ key: "tips", ...tipsItem });
   // One line per tour this person can take: the bookkeeper tour, plus the
   // admin, temporary admin and account manager tours when they apply
   // (Tour.jsx TOUR_staffTourList).
@@ -1049,7 +1054,9 @@ function TB_HelpButton({ page, isAdmin }) {
             <button
               key={it.key}
               type="button"
-              role="menuitem"
+              role={it.checked === undefined ? "menuitem" : "menuitemcheckbox"}
+              aria-checked={it.checked === undefined ? undefined : !!it.checked}
+              aria-label={it.ariaLabel}
               className="tb-menu-item"
               autoFocus={n === 0}
               onClick={() => {

@@ -2,7 +2,7 @@
 title: What's new
 section: Getting started
 audience: staff
-keywords: [board packet, presentation view, report builder, client help menu, question mark menu, pro tour, upsell, upgrade, basic clients, bookkeeper tour, temporary admin tour, client tour, tour versions, admin tour, account manager tour, inventory, tech, equipment, what's new, whats new, new, changes, updates, release notes, changelog, navigation, redesign, five places]
+keywords: [board packet, presentation view, report builder, client help menu, question mark menu, tips, tips while you learn, hints, first 30 days, learning, pro tour, upsell, upgrade, basic clients, bookkeeper tour, temporary admin tour, client tour, tour versions, admin tour, account manager tour, inventory, tech, equipment, what's new, whats new, new, changes, updates, release notes, changelog, navigation, redesign, five places]
 sort: 15
 ---
 The newest changes to the staff side, newest first. For how anything works, search this guide or click **?** → **Help for this page**.
@@ -19,6 +19,12 @@ The newest changes to the staff side, newest first. For how anything works, sear
 - **?** in the client's top bar, next to the bell: **Take the tour**, **Take the Pro tour** (Basic clients only), **Message your bookkeeper**, **Help and settings** and **Contact support**. It's the quickest way for a client to restart the tour or ask for help from any page.
 - The client tour's last step now points at the **?** instead of **Settings › Help**. On a phone the QuickBooks sync pill shortens to "Synced 5 minutes ago" (or **Setting up** before QuickBooks is connected) so everything fits.
 - Admins can see how often it's used in **Settings › Firm settings › Usage stats › Actions** as **Client ? menu clicks**. See [How does the client guided tour work?](#/help/client-tour).
+
+### 2026-10-09: Tips while you learn
+
+- **Tips**: for your first 30 days, a small card now and then points out one useful thing on the page you're on, with a thin outline around it. Nothing dims or blocks the page. Click **Got it** to dismiss it or **Learn more** for the full article. Only one shows at a time, each shows once, never during a tour, and at most one every couple of minutes.
+- Everyone on the team gets 30 days starting the first time they open the portal after this change; new staff get 30 days from their first sign-in. Bookkeepers, admins and account managers see a few tips for their own pages too.
+- Turn tips off, or back on for another 30 days, from **?** → **Tips while you learn**, **Settings › Help**, or the top of the Staff guide. Turning them back on shows every tip again. See [How do tips work?](#/help/tips).
 
 ### 2026-10-09: Pro tour for Basic clients
 

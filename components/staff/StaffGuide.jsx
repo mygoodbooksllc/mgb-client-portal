@@ -514,6 +514,9 @@ function HLP_StaffGuidePage() {
   return (
     <div className="hlp-page">
       {searchBox}
+      {/* Tips while you learn on / off (components/tour/Tips.jsx), on the
+          guide's home only. */}
+      {!searching && !slug && typeof TIPS_Switch === "function" && <TIPS_Switch where="help" card />}
       {body}
       {typeof FB_HelpPageLink === "function" && <FB_HelpPageLink />}
     </div>
