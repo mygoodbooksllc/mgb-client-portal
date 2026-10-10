@@ -35,6 +35,8 @@
 //   doc-upload       the Upload Document button (app.jsx DocumentsPage)
 //   #st-tab-profile, #st-tab-organization (full access only), #st-tab-plan
 //                    client Settings tabs (Settings.jsx), clicked open
+//   client-help      the top bar's "?" menu (app.jsx CLIENT_HelpButton),
+//                    the last step, on whatever page is open
 // The client rail (data-tour nav-home, nav-messages, nav-finances,
 // nav-reports, nav-documents and the "settings" gear, app.jsx Sidebar) is
 // marked too, but the client tour doesn't point at it any more.
@@ -99,12 +101,13 @@
 //                            informational, it never starts by itself)
 // The client tour starts on its own only for a signed-in client user who has
 // no tour status yet. Never for staff, "View as", or "Preview as a client
-// user". Staff previewing can start it from client Settings > Help to see
-// the version that person gets; ST_store is paused then, so nothing is
-// saved.
+// user". Anyone can run it again from the client top bar's "?" menu or
+// client Settings > Help; staff previewing get the version that person
+// gets, and ST_store is paused then, so nothing is saved.
 // The Pro tour starts only when asked: TOUR_start("pro") (or TOUR_startPro())
-// from the Plans hero's "Take the Pro tour", Basic Home's locked card and
-// client Settings › Help, for a client whose plan reads below Pro. Any
+// from the Plans hero's "Take the Pro tour", Basic Home's locked card, the
+// client "?" menu and client Settings › Help, for a client whose plan reads
+// below Pro. Any
 // client user, staff previewing as one, and staff in the bookkeeper view
 // can run it; only a real client user saves proTour and counts in Usage
 // stats (MGB_track tour-done / tour-skipped, detail "pro"). It ends on the
@@ -144,8 +147,9 @@ const TOUR_FIND_EVERY_MS = 150;
 const TOUR_FIND_TRIES = 12;
 const TOUR_SPOT_MAX = 0.55; // a "top" spotlight covers at most this much of the viewport
 
-// Starts the client tour, or with "pro" the Pro tour. Settings > Help calls
-// this; anything else can too. (Only a string counts, so passing it as a
+// Starts the client tour, or with "pro" the Pro tour. The client "?" menu
+// (app.jsx CLIENT_HelpButton) and Settings > Help call this; anything else
+// can too. (Only a string counts, so passing it as a
 // click handler still starts the client tour.)
 function TOUR_start(which) {
   try {
@@ -539,12 +543,30 @@ function TOUR_clientSteps(ctx) {
       },
     },
     {
+      // Ends on the top bar's "?" (app.jsx CLIENT_HelpButton): the tour,
+      // Messages and Settings › Help are all there. It stays on whatever
+      // page is open (a `go` that returns false), which also keeps the step
+      // in the tour; centered, with the old Settings wording, if the button
+      // can't be found.
       id: "done",
+      go: () => false,
+      targets: ["client-help"],
       title: "You're all set",
-      body: () =>
-        full
-          ? "A short setup checklist is waiting on Home. " + restart
-          : "Need something you can't see? Message your bookkeeper. " + restart,
+      body: (key) => {
+        if (key !== "client-help")
+          return full
+            ? "A short setup checklist is waiting on Home. " + restart
+            : "Need something you can't see? Message your bookkeeper. " + restart;
+        if (full)
+          return (
+            (has("messages")
+              ? "Take this tour again, message your bookkeeper or get help any time from here."
+              : "Take this tour again or get help any time from here.") + " A short setup checklist is waiting on Home."
+          );
+        return has("messages")
+          ? "Need something you can't see? Message your bookkeeper, take this tour again or get help any time from here."
+          : "Take this tour again or get help any time from here.";
+      },
     },
   ];
 }
@@ -593,7 +615,7 @@ const TOUR_PRO_COPY = {
     "Cash on hand, money owed to you and bills coming due, at a glance, with a low-cash alert and a one-click PDF snapshot to hand your board. " +
     (ctx.plan === "basic" ? "On Pro it takes the place of the locked card on your Home." : "On Pro it becomes your Home."),
   reports: () =>
-    "Your board packet in one PDF: the reports you pick, a cover page and a treasurer's note, with comparisons to budget and last year. Save it as a template to rebuild next month in one click, or share a read-only link with your board. On Pro it's the Board packet tab on Reports.",
+    "Your board packet in one PDF: the reports you pick, a cover page and a treasurer's note, with comparisons to budget and last year. Save it as a template to rebuild next month in one click, share a read-only link with your board, or show it full screen at the meeting. On Pro it's the Board packet tab on Reports.",
   budget: () =>
     "See where each category is heading by year-end, try what-if scenarios, and draft next year's budget with the people who run each area, then send it to your board to approve. On Pro it's the Budget tab, under Finances.",
   receivables: () =>
@@ -608,7 +630,7 @@ const TOUR_PRO_COPY = {
 // The cards' keys and titles, in page order, if app.jsx hasn't loaded them.
 const TOUR_PRO_FEATURES = [
   { key: "dashboard", title: "Board-ready Financial Overview" },
-  { key: "reports", title: "Report Builder" },
+  { key: "reports", title: "Board Packet" },
   { key: "budget", title: "Budgeting Tool" },
   { key: "receivables", title: "Cash Flow Pro" },
   { key: "bank", title: "Reconciliation Pro" },

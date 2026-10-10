@@ -2,7 +2,7 @@
 title: How does the Pro tour work?
 section: Working with a client
 audience: staff
-keywords: [pro tour, upsell, upgrade, upgrade to pro, basic plan, sales page, plans page, see plans, take the pro tour, walkthrough, what pro adds, pro features, guided tour, preview the pro tour, plan page, settings plan, basic client, add payroll, request upgrade, upgrade request]
+keywords: [pro tour, board packet, presentation view, report builder, question mark menu, upsell, upgrade, upgrade to pro, basic plan, sales page, plans page, see plans, take the pro tour, walkthrough, what pro adds, pro features, guided tour, preview the pro tour, plan page, settings plan, basic client, add payroll, request upgrade, upgrade request]
 sort: 264
 ---
 The Pro tour is a short walkthrough that lives on a Basic client's **Plan** page, which is their sales page. It takes about two minutes and shows what Pro would add to the portal they already use. Nothing changes for the client unless they choose to ask for an upgrade, and the tour never starts on its own.
@@ -17,14 +17,15 @@ It's separate from the first-sign-in tour. See [How does the client guided tour 
 
 ### Where a client starts it
 
-It's always the client's choice. There are four places:
+It's always the client's choice. There are five places:
 
 1. **Settings** > **Plan**: the **Plans** card at the top has a **Take the Pro tour** button.
 2. **Home**: the locked card on a Basic client's Home (the one with **See plans**) also has a **Take the Pro tour** link. It opens **Settings** > **Plan** and starts the tour.
 3. **Settings** > **Help**: a **Pro tour** row, "See what Pro adds, step by step". While you preview as a client user it reads **Preview the Pro tour**.
-4. **The client tour's Plan stop** (for Basic clients): it ends by saying they can take the Pro tour there.
+4. **The ? menu** in the client's top bar, next to the bell: **Take the Pro tour**, shown only to clients below Pro (**Preview the Pro tour** while you preview). See [What does the client portal look like?](#/help/client-portal).
+5. **The client tour's Plan stop** (for Basic clients): it ends by saying they can take the Pro tour there.
 
-All four start the same tour. Every step opens on **Settings** > **Plan**, whichever page they were on.
+All five start the same tour. Every step opens on **Settings** > **Plan**, whichever page they were on.
 
 ### What it shows
 
@@ -33,7 +34,7 @@ The page dims and one part of the Plan page is highlighted at a time, with **Ste
 1. **Welcome**: "See what Pro would do for" their organization, a two-minute look at what Pro adds. Nothing changes unless they ask for it.
 2. **Plans**: the plan cards. Basic updates their books once a month, on the 15th. Pro keeps them live, synced from QuickBooks every 15 minutes, with a **Sync now** button, and adds the tools that follow. The price is on each plan card; the tour doesn't quote one.
 3. **Board-ready Financial Overview**: **Home** becomes a fuller snapshot, with click-to-jump numbers, a low-cash alert and a one-click PDF.
-4. **Report Builder**: a board packet in one PDF, with comparisons to budget and last year, a Statement of Functional Expenses and read-only links for the board. It lives on the **Reports** tab.
+4. **Board Packet**: the reports they pick, a cover page and a treasurer's note in one PDF, with comparisons to budget and last year, saved templates, read-only links for the board, and a full-screen **Presentation view** for the board meeting. On Pro it's the **Board packet** tab on **Reports**; the canned statement PDFs stay on **Downloads**. (This step used to be called Report Builder.)
 5. **Budgeting Tool**: year-end forecasts by category, what-if scenarios and next year's budget drafted together and approved by the board. It lives under **Finances** > **Budget**.
 6. **Cash Flow Pro**: every bill in one place, batch pay runs with an approval step, duplicate-bill detection and an ACH export. It lives under **Finances** > **Cash flow**.
 7. **Reconciliation Pro**: a real month-end close on **Bank accounts**, with every period signed off and kept.
@@ -61,7 +62,7 @@ Add Payroll requests arrive the same way. See [What's on my Today page?](#/help/
 The tour never starts on its own for staff, and nothing is saved while you preview.
 
 1. Open a Basic client and use **Preview as** to pick one of their people.
-2. Click the **Settings** gear, then **Plan**, then **Take the Pro tour**. (Or **Help**, then **Preview the Pro tour**.)
+2. Click the **Settings** gear, then **Plan**, then **Take the Pro tour**. (Or **Help**, then **Preview the Pro tour**, or the **?** in the top bar, then **Preview the Pro tour**.)
 
 You can also open **Settings** > **Plan** from the client's tab row without previewing as anyone, and start it from the **Plans** card there. If the client is already on Pro, **Preview plan** > **Basic** shows you the Basic version of the page first. See [How do I see the portal the way a client sees it?](#/help/preview-as).
 

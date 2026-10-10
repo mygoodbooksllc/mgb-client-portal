@@ -14,7 +14,7 @@ Counts come straight from the database for the range you pick (7, 30 or 90 days,
 - **Most-used pages** ranks every page and tab (for example **Team › Performance**), with the staff and client split.
 - **Trend** shows the last eight weeks of page views and how many different people were in each week.
 - **Active people** shows how many staff and clients signed in over the last 7 and 30 days, then everyone by last seen. **Quiet clients** lists client organizations with no sign-in for 30 days or more, or none ever. That's a good list to nudge.
-- **Actions** counts things people did rather than pages they opened: search opened with **Ctrl+K**, guide searches, guide searches that found nothing (the queries are listed so you can add an article), **Help for this page**, and tours finished or skipped.
+- **Actions** counts things people did rather than pages they opened: search opened with **Ctrl+K**, guide searches, guide searches that found nothing (the queries are listed so you can add an article), **Help for this page**, tours finished or skipped, and **Client ? menu clicks** (what clients pick from the **?** in their top bar: the tours, Messages, Help and settings, Contact support; previews don't count).
 - **Devices** splits views across desktop, phone and the installed app.
 - **Export CSV** downloads the page and people tables for the range.
 - **Feature feedback** at the bottom is the in-app survey, with **Copy summary for Claude**.

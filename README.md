@@ -311,16 +311,18 @@ because some work happens in Claude Code web sessions. Run `git fetch` and compa
   - **Client tour versions:** `TOUR_clientSteps(ctx)` builds one tour from the plan (`basic`,
     `standard` worded as Basic, `premium`), `pro` (Pro pages on for this person), payroll tab, access
     kind (full, limited, budget-only category) and the tabs they have. Steps filter on `when(ctx)`
-    and targets, and the tour returns to Home when it ends or is skipped. The setup checklist's
+    and targets, and the tour returns to Home when it ends or is skipped. Its last step (`done`)
+    targets the top bar's **?** (`data-tour="client-help"`, `go: () => false` so it stays on the
+    open page) and falls back to a centred step with the Settings › Help wording. The setup checklist's
     "Invite a teammate" shows only when the person can open Settings › Organization. Staff preview a
-    version with Preview as + Settings › Help › Preview the tour (nothing is saved).
+    version with Preview as + Settings › Help › Preview the tour, or the top bar's ? menu (nothing is saved).
   - **Pro tour (upsell for Basic clients):** `TOUR_proSteps(ctx)` is a two-minute walkthrough that
     lives on Settings › Plan (`EnterpriseUpgradePage`), offered only when the shown plan is below Pro
     (`planShownKey(effectivePlan(...))`, so the retired Plus reads as Basic). It never auto-starts.
     Start it with `TOUR_start("pro")` / `TOUR_startPro()` (plain `TOUR_start()` is still the client
     tour) from the **Take the Pro tour** button in the Plans hero card, the Basic Home locked card,
-    Settings › Help (**Pro tour**, **Preview the Pro tour** in preview), or the client tour's Plan
-    step. Every step first goes to Settings › Plan, then walks the plan cards, one step per
+    Settings › Help (**Pro tour**, **Preview the Pro tour** in preview), the client top bar's **?**
+    menu (`CLIENT_HelpButton`), or the client tour's Plan step. Every step first goes to Settings › Plan, then walks the plan cards, one step per
     `ENTERPRISE_FEATURES` card, the tool-by-tool comparison, the Payroll add-on (only without it)
     and the **Upgrade to Pro** button, which it points at but never clicks. A real client's finish
     or skip is saved as `proTour` `{ status, at }` (informational) and tracked as
@@ -771,6 +773,18 @@ Team Reviews files.
   `CLIENT_HomeTop` (Needs you list + org card with milestone, plan, See plans). Phones get
   `CLIENT_TabBar` (Home, Messages, Finances, Reports, More → Documents, Settings). Usage logs a
   Finances view as page `finances`, tab `<key>`. `#/client/<id>/home` and `/finances` work.
+- **Client ? menu (2026-10-09, `CLIENT_HelpButton` in app.jsx, `.client-help` in styles.css):** a **?**
+  in the client's page header, right after the notification bell (clients and staff previewing a
+  client user; staff have their own `TB_` **?**). It reuses `TB_useMenu`, `TB_QuestionIcon` and the
+  `.tb-icon-btn` / `.tb-panel.tb-menu` styles (TopBar.jsx loads first). Items: **Take the tour**
+  (`TOUR_start()`), **Take the Pro tour** (`TOUR_start("pro")`, only when `planShownKey(plan)` is
+  below Pro), **Message your bookkeeper** (only with the `messages` tab), **Help and settings**
+  (`openClientSettings("help")`) and **Contact support** (`CLIENT_SUPPORT_MAILTO`). Staff previewing
+  get "Preview the tour" labels. Clicks are tracked as `MGB_track("client-help", tour | pro-tour |
+  messages | help | support)` for real clients only ("Client ? menu clicks" in Usage stats). It has
+  `data-tour="client-help"`: the client tour's last step (`done`) points at it and stays on the
+  current page. On phones the sync pill says just "Synced 5 minutes ago" (`.live-sync-short`) so the
+  bell, ? and search fit.
 - **Basic** lands on Home too: Needs you, the org card, and one locked card (`CLIENT_LockedCard`)
   where the dashboard would be. Board packet shows the same locked card on Basic.
 - **Settings** (gear at the bottom of the client sidebar, or at the right end of the staff tab
@@ -815,13 +829,13 @@ Team Reviews files.
   - Financial Overview
   - Budgeting Tool
   - Cash Flow Pro
-  - Report Builder
+  - Board packet (Reports › Board packet, the one report builder; see "Pro board reports" below)
   - Reconciliation Pro
   - Fund Accounting Pro, including **Tax Documents**: year-end giving statements per donor.
     A "Sent" status is saved only in that browser (`mygoodbooks_tax_docs_sent_v1`), and the app
     asks for confirmation before resending.
 - **Notifications from the bookkeeper:** a bell in the page header (clients, and staff
-  previewing as a client) with an unseen count, a "From your bookkeeper" panel, and a pop-up
+  previewing as a client, with the ? menu just after it) with an unseen count, a "From your bookkeeper" panel, and a pop-up
   when something new arrives. Items: open document requests ("Please upload: …") and, for
   full-access users, a budget draft waiting for approval. "Seen" is kept per browser
   (`mygoodbooks_notif_seen_v1:<clientId>`). Documents also shows a request banner and the
@@ -834,9 +848,20 @@ Team Reviews files.
   - Next year's budget: a draft with monthly (seasonal) amounts and a ministry owner per line,
     line comments, and version history. It moves draft → submitted → changes requested /
     approved, and can be exported as a PDF. Category-scoped users see and edit only their lines.
-- **Pro board reports** (`components/pro/ProReports.jsx`), below Report Builder on Reports:
+- **Pro board reports** (`components/pro/ProReports.jsx`, `ProReportsSuite`), the one report builder
+  (the old `ReportBuilderPage`, its Quick Download grid and Custom Report were removed 2026-10-09).
+  Clients get it as **Reports › Board packet** on Pro (Basic sees the locked card; **Downloads** keeps
+  the canned statement PDFs from `ReportsPage`, five with the payroll add-on). Staff on a Pro client's Reports page get one page: the
+  Downloads grid, then the suite ("Board reports"). `showsReportBuilder` is the Pro gate; the page
+  header is `PAGE_META["report-builder"]` ("Download statements and build your board packet"):
   - A board packet PDF with a cover, contents, the sections you pick and the comparison columns
     you pick.
+  - **Presentation view** (`PrPresentation`, a button in `PrPacketPanel`): the packet full screen for
+    a board meeting. A `role="dialog"` layer portalled to `<body>` (so `#root` goes inert and the
+    staff tips stay quiet), org name and period on top, then the ticked sections, Esc or **Exit
+    presentation** to close. Type is trimmed on phones (org name 26px, section titles 20px) and
+    zoomed 1.12x to 1.45x from 900px up; print rules in `pro-reports.css`. The button is disabled
+    until at least one section other than the cover is ticked.
   - Saved templates.
   - Comparisons: vs. budget, prior month, same month last year, and YTD vs. last YTD. When there
     isn't enough history it says so.

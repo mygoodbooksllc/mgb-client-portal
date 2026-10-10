@@ -2,7 +2,7 @@
 title: How does the client guided tour work?
 section: Working with a client
 audience: staff
-keywords: [tour, guided tour, onboarding tour, walkthrough, new client, welcome, setup checklist, get set up, restart the tour, preview the tour, first sign in, help, versions, full access, limited access, budget only, category access, scoped access, basic, pro, payroll add-on, plan, access level, invite a teammate, pro tour, upsell]
+keywords: [tour, guided tour, onboarding tour, walkthrough, new client, welcome, setup checklist, get set up, restart the tour, take the tour, question mark menu, help menu, preview the tour, first sign in, help, versions, full access, limited access, budget only, category access, scoped access, basic, pro, payroll add-on, plan, access level, invite a teammate, pro tour, upsell]
 sort: 263
 ---
 The first time a client user signs in to the portal, a short guided tour starts on its own. The page dims, one part of the portal is highlighted at a time, and a small box explains it in a sentence or two, with **Step 3 of 8**, **Back**, **Next** and **Skip tour**.
@@ -43,13 +43,18 @@ Every stop is left out when that person can't see it. The step count shown (**St
 | **Settings**: their profile and which emails they get | Yes | Yes | Yes | Yes |
 | **Organization**: details, monthly summary recipients, team, **Ask us to add someone** | Yes | Yes | No | No |
 | **Plan**: what's included, **Upgrade to Pro**, **Add Payroll** | Yes | Yes | No | No |
-| **You're all set** | Yes | Yes | Yes | Yes |
+| **You're all set**: points at the **?** menu in the top bar | Yes | Yes | Yes | Yes |
 
-On Basic, the **Plan** stop ends by pointing at the **Pro tour**, a separate two-minute walkthrough of what Pro adds. Clients start it themselves from the Plan page, the locked card on Home, or **Settings** > **Help**; it never starts on its own. See [How does the Pro tour work?](#/help/pro-tour).
+On Basic, the **Plan** stop ends by pointing at the **Pro tour**, a separate two-minute walkthrough of what Pro adds. Clients start it themselves from the Plan page, the locked card on Home, **Settings** > **Help** or the **?** menu in the top bar; it never starts on its own. See [How does the Pro tour work?](#/help/pro-tour).
 
 The **Finances**, **Reports** and **Messages** stops light up their whole row of tabs, so the person can see every tab the step names.
 
-The last step depends on the version. Full access people hear that the setup checklist is on Home and that they can restart the tour from **Settings** > **Help**. Limited and budget-only people are told "Need something you can't see? Message your bookkeeper," plus the restart line.
+The last step, **You're all set**, points at the **?** in the top bar and stays on whatever page is open. What it says depends on the version:
+
+- **Full access:** they can take the tour again, message their bookkeeper or get help any time from the **?**, and a short setup checklist is waiting on Home. (The "message your bookkeeper" part drops out for anyone without the Messages tab.)
+- **Limited and budget-only:** "Need something you can't see? Message your bookkeeper, take this tour again or get help any time from here." Without the Messages tab it just says they can take the tour again or get help from here.
+
+If the **?** can't be found on screen, the step shows in the middle of the page with the older wording that points to **Settings** > **Help**.
 
 When the tour ends, finished or skipped, the person lands back on **Home**, where the checklist is.
 
@@ -73,14 +78,19 @@ Each item opens the right place. Profile and notifications tick themselves once 
 
 ### How a client restarts it
 
-**Settings** > **Help** > **Restart the tour**. They get the same version again. Restarting doesn't bring back a checklist they closed.
+Two ways, both give the same version again:
+
+- The **?** in the top bar, next to the bell, then **Take the tour**. This works from any page.
+- **Settings** > **Help** > **Restart the tour**.
+
+Restarting doesn't bring back a checklist they closed. On Basic, the same **?** menu also has **Take the Pro tour**. See [What does the client portal look like?](#/help/client-portal) for the rest of that menu.
 
 ### How you preview it
 
 The tour never starts on its own for staff, in "View as", or while you're previewing as a client user. To see the version a particular person gets:
 
 1. Open the client and use **Preview as** to pick that person. Their access level and add-ons decide the version.
-2. Click the **Settings** gear, then **Help**, then **Preview the tour**.
+2. Click the **Settings** gear, then **Help**, then **Preview the tour**. Or click the **?** next to the bell in the top bar, then **Preview the tour**.
 
 You get the tour that person would get, followed by their checklist. Nothing is saved to their account or yours, and the checklist goes away when you leave the preview.
 
@@ -92,7 +102,7 @@ Each person's tour status and checklist ticks are saved with their personal sett
 
 ### Troubleshooting
 
-- **A client says the tour never started.** It starts once, on their first sign-in. If they skipped or closed it, they can run it again from **Settings** > **Help** > **Restart the tour**.
+- **A client says the tour never started.** It starts once, on their first sign-in. If they skipped or closed it, they can run it again from the **?** in the top bar (**Take the tour**) or from **Settings** > **Help** > **Restart the tour**.
 - **A step is missing for a client.** That tab isn't on their plan or in their access. Check their plan, or their access in **Settings** > **Client settings** > **Manage access**.
 - **A client's tour has no Sync step.** The organization isn't connected to QuickBooks, or its plan is below Pro. Pro pages turned off for one person don't matter here: they still get it.
 - **A Pro client's tour has no Pro wording.** That person's Pro pages may be turned off, so they see the plain pages. A client on the retired Plus plan is also worded as Basic.

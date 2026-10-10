@@ -411,7 +411,7 @@ function ToastProvider({ children }) {
 // ----------------------------------------------------------------------------
 
 // Premium used to mean a handful of extra, separately-named tabs
-// (Report Builder, Budgeting Tool, Cash Flow Pro) living alongside their
+// (the old Report Builder, removed 2026-10-09; Budgeting Tool; Cash Flow Pro) living alongside their
 // standard counterparts — a premium client saw both "Cash Flow" and "Cash
 // Flow Pro" in the sidebar at once, two names for what a client experiences
 // as one function. As of this pass, every one of those pairs has been
@@ -674,6 +674,78 @@ function CLIENT_TabBar({ page, visibleKeys, badges, onSelect, onOpenSettings }) 
         </div>
       )}
     </nav>
+  );
+}
+// The "?" menu in the client top bar, beside the bell (owner request
+// 2026-10-09: "add the ? menu for clients"): the client's version of the
+// staff bar's TB_HelpButton (components/staff/TopBar.jsx), for client users
+// and staff previewing as one. Items, only those that apply: the client
+// tour; the Pro tour while the plan shown is below Pro (as Settings › Help);
+// Messages, with the messages tab; Settings › Help; Contact support (the
+// footer's mailto). Staff previewing get "Preview the tour" labels, as in
+// Settings › Help. Borrows TopBar.jsx's TB_useMenu (Esc closes and refocuses
+// the button, arrow keys move, the first item takes focus) and
+// TB_QuestionIcon, and the .tb-panel / .tb-menu-item look; App renders it
+// only when TB_useMenu exists. Styles: styles.css .client-help. Tour hook:
+// data-tour="client-help" (Tour.jsx, the client tour's last step).
+const CLIENT_SUPPORT_MAILTO = "mailto:admin@mygoodbooks.org?subject=MyGoodBooks%20Support";
+function CLIENT_HelpButton({ plan, preview, canMessage, onOpenMessages, onOpenHelp }) {
+  const menu = TB_useMenu();
+  const hasTour = typeof TOUR_start === "function";
+  const belowPro = planShownKey(plan || "basic") !== "premium";
+  const items = [];
+  if (hasTour) items.push({ key: "tour", label: preview ? "Preview the tour" : "Take the tour", run: () => TOUR_start() });
+  if (hasTour && belowPro)
+    items.push({ key: "pro-tour", label: preview ? "Preview the Pro tour" : "Take the Pro tour", run: () => TOUR_start("pro") });
+  if (canMessage) items.push({ key: "messages", label: "Message your bookkeeper", run: onOpenMessages });
+  items.push({ key: "help", label: "Help and settings", run: onOpenHelp });
+  items.push({
+    key: "support",
+    label: "Contact support",
+    run: () => {
+      window.location.href = CLIENT_SUPPORT_MAILTO;
+    },
+  });
+  // Usage stats ("client-help", USAGE_ACTION_LABELS): real client users
+  // only, like the tours; staff previewing aren't counted.
+  const track = (key) => {
+    if (!preview && window.MGB_track) window.MGB_track("client-help", key);
+  };
+  return (
+    <div className="client-help" ref={menu.rootRef} onKeyDown={menu.onMenuKeyDown} data-tour="client-help">
+      <button
+        ref={menu.triggerRef}
+        type="button"
+        className="tb-icon-btn"
+        aria-label="Help"
+        title="Help"
+        aria-haspopup="true"
+        aria-expanded={menu.open}
+        onClick={() => menu.setOpen(!menu.open)}
+      >
+        <TB_QuestionIcon />
+      </button>
+      {menu.open && (
+        <div className="tb-panel tb-menu" role="menu" aria-label="Help">
+          {items.map((it, n) => (
+            <button
+              key={it.key}
+              type="button"
+              role="menuitem"
+              className="tb-menu-item"
+              autoFocus={n === 0}
+              onClick={() => {
+                menu.close(false);
+                track(it.key);
+                it.run();
+              }}
+            >
+              {it.label}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
 // Messages › Requests: what the bookkeeper is waiting on (document
@@ -10124,13 +10196,10 @@ const REPORT_TYPES = [
   },
 ];
 
-// The plain per-report "download a PDF" grid — shared by ReportsPage (the
-// standard tab) and ReportBuilderPage (what premium clients see instead).
-// Report Builder replaced this tab entirely rather than sitting alongside
-// it (see PREMIUM_UPGRADE_TAB_KEYS), so it has to be a strict superset of
-// what the standard Reports page could already do, not just its own custom
-// builder — this is what keeps the plain "just give me a PDF" downloads
-// reachable for a premium client too.
+// The plain per-report "download a PDF" grid (ReportsPage): every plan's
+// Reports › Downloads tab, and the top of staff's Reports page for a client.
+// Pro's board reports (ProReportsSuite, components/pro/ProReports.jsx) sit
+// on the Board packet tab and never replace these four canned PDFs.
 // Why the Contribution Statement can't be built, or null when it can. Giving
 // isn't synced from QuickBooks, so a live client never has contributions.
 function qdrGivingBlocked(client) {
@@ -10235,50 +10304,9 @@ function ReportsPage({ client }) {
   );
 }
 
-// ----------------------------------------------------------------------------
-// Report Builder — assembles a formatted board/leadership report from this
-// client's real data (not a separate mock dataset). Two states: pick a
-// period/scope/sections in the builder panel, then "Generate Report" swaps
-// to a printable, presentable report built from those same numbers.
-// ----------------------------------------------------------------------------
-
-// direction-agnostic % change between two totals for the same period length.
-// `goodDir` says which direction reads as positive (expenses down = good).
-function trendInfo(current, prior, goodDir = "up") {
-  if (prior == null || prior === 0) {
-    return {
-      dir: "flat",
-      cls: "neutral",
-      label: "no prior period on record",
-      arrow: "•",
-    };
-  }
-  const pct = ((current - prior) / Math.abs(prior)) * 100;
-  const dir = pct > 0.5 ? "up" : pct < -0.5 ? "down" : "flat";
-  const cls =
-    dir === "flat" ? "neutral" : dir === goodDir ? "positive" : "negative";
-  const label =
-    dir === "flat"
-      ? "steady vs. prior period"
-      : `${Math.abs(pct).toFixed(1)}% vs. prior period`;
-  const arrow = dir === "up" ? "▲" : dir === "down" ? "▼" : "●";
-  return { dir, cls, label, arrow };
-}
-
-function TrendPill({ current, prior, goodDir }) {
-  const t = trendInfo(current, prior, goodDir);
-  const pillClass =
-    t.cls === "positive" ? "good" : t.cls === "negative" ? "bad" : "neutral";
-  return (
-    <span className={"pill " + pillClass}>
-      {t.arrow} {t.label}
-    </span>
-  );
-}
-
-// Small horizontal bar list shared by the budget and fund breakdowns —
-// same visual language as .bar-track/.bar-fill elsewhere, just laid out
-// as rows with a trailing amount instead of inline in a table cell.
+// Small horizontal bar list (Bank accounts' "Outstanding by Account") — same
+// visual language as .bar-track/.bar-fill elsewhere, just laid out as rows
+// with a trailing amount instead of inline in a table cell.
 function ReportBarRows({ items }) {
   const max = Math.max(...items.map((i) => Math.abs(i.amount)), 1);
   return (
@@ -10331,10 +10359,10 @@ const ENTERPRISE_FEATURES = [
   {
     icon: <DocumentIcon />,
     key: "reports",
-    title: "Report Builder",
+    title: "Board Packet",
     sidebarTab: "Reports",
     description:
-      "A board packet in one PDF (cover, contents, your logo and colours) from saved templates, with comparisons to budget and last year, a Statement of Functional Expenses, giving reports, a plain-language monthly summary, and read-only links for your board.",
+      "A board packet in one PDF (cover, contents, your logo and colours) from saved templates, with comparisons to budget and last year, a Statement of Functional Expenses, giving reports, a plain-language monthly summary, read-only links for your board, and a full-screen presentation view for the meeting.",
   },
   {
     icon: <CalculatorIcon />,
@@ -10437,14 +10465,13 @@ const ENTERPRISE_COMPARISON = [
     key: "reports",
     tool: "Reports",
     standardLabel: "Reports",
-    premiumLabel: "Report Builder",
+    premiumLabel: "Board packet",
     standard: [
       "Four canned PDFs — Profit & Loss, Balance Sheet, Budget vs. Actual, Contribution Statement",
     ],
     premium: [
-      "The same canned PDFs, still under Quick Download",
-      "Custom report builder with live preview and a presentation mode for board meetings",
-      "Board packet: several reports, a cover page and a treasurer's note in one PDF with a table of contents",
+      "The same four canned PDFs, still on the Downloads tab",
+      "Board packet: several reports, a cover page and a treasurer's note in one PDF with a table of contents, plus a full-screen presentation view for the meeting",
       "Saved templates like \"Monthly board packet\", rebuilt in one click",
       "Comparison columns: vs budget, vs last month, vs last year, year-to-date, with % change",
       "Statement of Functional Expenses (program, management, fundraising) in the Form 990 layout",
@@ -10775,777 +10802,6 @@ function EnterpriseUpgradePage({ client, clientPortalUser }) {
             );
           })}
         </div>
-      </div>
-    </div>
-  );
-}
-
-// Calendar quarters, matched against the "Mon" month labels client.monthly
-// already uses. Whichever of these months a client actually has recorded
-// data for is what a quarter picks up — most clients only have a trailing
-// handful of months on file, so a quarter can legitimately be partial (one
-// month) or empty (none yet), and the report says so rather than showing
-// fabricated zeros as if they were real figures.
-const REPORT_QUARTER_DEFS = [
-  { key: "q1", label: "Q1", months: ["Jan", "Feb", "Mar"] },
-  { key: "q2", label: "Q2", months: ["Apr", "May", "Jun"] },
-  { key: "q3", label: "Q3", months: ["Jul", "Aug", "Sep"] },
-  { key: "q4", label: "Q4", months: ["Oct", "Nov", "Dec"] },
-];
-
-const REPORT_MONTH_NAMES = {
-  Jan: "January",
-  Feb: "February",
-  Mar: "March",
-  Apr: "April",
-  May: "May",
-  Jun: "June",
-  Jul: "July",
-  Aug: "August",
-  Sep: "September",
-  Oct: "October",
-  Nov: "November",
-  Dec: "December",
-};
-
-// Builds the period dropdown: Year to Date (everything on file) and all
-// four quarters are always offered — a quarter with nothing recorded yet
-// (e.g. Q4, most clients only have data through August) just reports that
-// honestly rather than being hidden — plus one option per month this
-// client actually has on record.
-//
-// Options match rows by reportMonthKey(): "2026-09" for QuickBooks rows
-// (which carry a year), the bare "Sep" label for sample rows. Year to Date and
-// the quarters only use CLOSED months; a QuickBooks client's month-to-date
-// row is still offered on its own, labelled as such.
-function reportMonthKey(m) {
-  return (m && (m.key || m.month)) || "";
-}
-function reportPeriodOptions(monthly) {
-  const rows = monthly || [];
-  const closed = window.mgbClosedMonths(rows);
-  const hasYears = rows.some((m) => m.year);
-  const monthOptions = rows.map((m) => ({
-    key: "m-" + reportMonthKey(m),
-    label:
-      (REPORT_MONTH_NAMES[m.month] || m.month) +
-      (m.year ? " " + m.year : "") +
-      (window.mgbIsPartialMonth(m) ? " (month to date)" : ""),
-    months: [reportMonthKey(m)],
-  }));
-  if (!hasYears) {
-    return [
-      {
-        key: "ytd",
-        label: `Last ${closed.length} Months`,
-        months: closed.map(reportMonthKey),
-      },
-      ...REPORT_QUARTER_DEFS,
-      ...monthOptions,
-    ];
-  }
-  const lastYear = closed.length ? closed[closed.length - 1].year : null;
-  const ytdRows = closed.filter((m) => m.year === lastYear);
-  const quarters = [];
-  closed.forEach((m) => {
-    const def = REPORT_QUARTER_DEFS.find((q) => q.months.includes(m.month));
-    if (!def) return;
-    const key = `${def.key}-${m.year}`;
-    let q = quarters.find((x) => x.key === key);
-    if (!q) {
-      q = { key, label: `${def.label} ${m.year}`, months: [] };
-      quarters.push(q);
-    }
-    q.months.push(reportMonthKey(m));
-  });
-  quarters.forEach((q) => {
-    if (q.months.length < 3) q.label += ` (${q.months.length} of 3 months)`;
-  });
-  return [
-    {
-      key: "ytd",
-      label: lastYear ? `Year to Date ${lastYear}` : "Year to Date",
-      months: ytdRows.map(reportMonthKey),
-    },
-    ...quarters,
-    ...monthOptions,
-  ];
-}
-
-const REPORT_SECTION_DEFS = [
-  { key: "revenue", label: "Revenue & Expenses" },
-  { key: "budget", label: "Budget vs. Actual" },
-  { key: "cash", label: "Cash Position" },
-  { key: "receivables", label: "Cash Flow" },
-  { key: "giving", label: "Giving & Funds" },
-  { key: "outlook", label: "Outlook" },
-];
-
-function ReportBuilderPage({ client }) {
-  const [stage, setStage] = useState("builder"); // "builder" | "report"
-  const [builderTab, setBuilderTab] = useState("quick"); // "custom" | "quick" — see QuickDownloadReports
-  const [presenting, setPresenting] = useState(false);
-  const [period, setPeriod] = useState("ytd");
-  const [scope, setScope] = useState("consolidated"); // "consolidated" | "by-fund"
-
-  const funds = client.funds || [];
-  const contributions = client.contributions || [];
-  const hasFunds = funds.length > 0;
-
-  const [sections, setSections] = useState({
-    revenue: true,
-    budget: true,
-    cash: true,
-    receivables: true,
-    giving: hasFunds || contributions.length > 0,
-    outlook: true,
-  });
-
-  useEffect(() => {
-    document.body.classList.toggle("rb-presenting", presenting);
-    return () => document.body.classList.remove("rb-presenting");
-  }, [presenting]);
-
-  const toggleSection = (key) => setSections((s) => ({ ...s, [key]: !s[key] }));
-
-  const monthly = client.monthly || [];
-  const periodOptions = useMemo(() => reportPeriodOptions(monthly), [monthly]);
-  const selectedOption =
-    periodOptions.find((p) => p.key === period) || periodOptions[0];
-
-  // "Prior period" is the equal-length stretch of months immediately before
-  // whichever ones are selected, by position in this client's own record —
-  // not a literal prior quarter/year, since most clients don't have a full
-  // year (let alone two) on file. Degrades to "no prior period" cleanly via
-  // trendInfo() when nothing precedes the selection.
-  const selectedIndices = monthly.reduce(
-    (acc, m, i) =>
-      selectedOption.months.includes(reportMonthKey(m)) ? [...acc, i] : acc,
-    [],
-  );
-  const currentSlice = selectedIndices.map((i) => monthly[i]);
-  const priorSlice =
-    selectedIndices.length && selectedIndices[0] - selectedIndices.length >= 0
-      ? monthly.slice(
-          selectedIndices[0] - selectedIndices.length,
-          selectedIndices[0],
-        )
-      : [];
-  const hasPeriodData = currentSlice.length > 0;
-  const sum = (arr, key) => arr.reduce((s, m) => s + m[key], 0);
-
-  const revenueTotal = sum(currentSlice, "income");
-  const revenuePrior = priorSlice.length ? sum(priorSlice, "income") : null;
-  const expenseTotal = sum(currentSlice, "expenses");
-  const expensePrior = priorSlice.length ? sum(priorSlice, "expenses") : null;
-  const netTotal = revenueTotal - expenseTotal;
-  const netPrior = priorSlice.length ? revenuePrior - expensePrior : null;
-
-  const cash = totalCash(client);
-  const monthlyExpenses = avgMonthlyExpenses(client);
-  const runwayMonths = runwayMonthsFor(client);
-
-  const totalReceivable = client.receivables.reduce((s, r) => s + r.amount, 0);
-  const totalPayable = client.payables.reduce((s, p) => s + p.amount, 0);
-
-  const totalGiving = contributions.reduce((s, c) => s + c.amount, 0);
-  const restrictedTotal = funds
-    .filter((f) => f.restricted)
-    .reduce((s, f) => s + f.balance, 0);
-  const unrestrictedTotal = funds
-    .filter((f) => !f.restricted)
-    .reduce((s, f) => s + f.balance, 0);
-
-  const overBudget = client.budget
-    .filter((b) => b.actual > b.budgeted)
-    .sort((a, b) => b.actual - b.budgeted - (a.actual - a.budgeted))
-    .slice(0, 5);
-  const budgetTotal = client.budget.reduce(
-    (acc, b) => ({
-      budgeted: acc.budgeted + b.budgeted,
-      actual: acc.actual + b.actual,
-    }),
-    {
-      budgeted: 0,
-      actual: 0,
-    },
-  );
-
-  const periodLabel = selectedOption.label;
-  const rangeLabel = hasPeriodData
-    ? currentSlice.length > 1
-      ? `${window.mgbMonthYearLabel(currentSlice[0])} – ${window.mgbMonthLabel(currentSlice[currentSlice.length - 1])}`
-      : window.mgbMonthLabel(currentSlice[0])
-    : "No data yet";
-  const scopeLabel = scope === "by-fund" ? "By fund" : "Consolidated";
-
-  const generate = () => {
-    setStage("report");
-    window.scrollTo({ top: 0, behavior: "smooth" });
-  };
-
-  if (stage === "builder") {
-    return (
-      <div>
-        <MockBanner text="Report Builder assembles a formatted report from this client's own numbers shown elsewhere in the portal — nothing here is a separate dataset."client={client} />
-
-        <div className="view-toggle" style={{ marginBottom: 20 }}>
-          <button
-            type="button"
-            className={
-              "view-toggle-btn" + (builderTab === "quick" ? " active" : "")
-            }
-            onClick={() => setBuilderTab("quick")}
-          >
-            Quick Download
-          </button>
-          <button
-            type="button"
-            className={
-              "view-toggle-btn" + (builderTab === "custom" ? " active" : "")
-            }
-            onClick={() => setBuilderTab("custom")}
-          >
-            Custom Report
-          </button>
-        </div>
-
-        {builderTab === "quick" && <QuickDownloadReports client={client} />}
-
-        {builderTab === "custom" && (
-          <div className="rb-layout">
-            <div className="card rb-panel">
-              <h3 className="card-title">Build a report</h3>
-              <p className="rb-panel-sub">
-                Choose a period, a scope, and which sections belong in this
-                report.
-              </p>
-
-              <div className="rb-field">
-                <label className="rb-field-label" htmlFor="rb-period">
-                  Reporting period
-                </label>
-                <select
-                  id="rb-period"
-                  className="rb-select"
-                  value={period}
-                  onChange={(e) => setPeriod(e.target.value)}
-                >
-                  {periodOptions
-                    .filter((p) => p.key === "ytd")
-                    .map((p) => (
-                      <option key={p.key} value={p.key}>
-                        {p.label}
-                      </option>
-                    ))}
-                  <optgroup label="Quarters">
-                    {periodOptions
-                      .filter((p) => p.key[0] === "q")
-                      .map((q) => (
-                        <option key={q.key} value={q.key}>
-                          {q.label}
-                        </option>
-                      ))}
-                  </optgroup>
-                  <optgroup label="Months">
-                    {periodOptions
-                      .filter((p) => p.key.startsWith("m-"))
-                      .map((p) => (
-                        <option key={p.key} value={p.key}>
-                          {p.label}
-                        </option>
-                      ))}
-                  </optgroup>
-                </select>
-              </div>
-
-              <div className="rb-field">
-                <label className="rb-field-label">Scope</label>
-                <div className="rb-segmented">
-                  <button
-                    type="button"
-                    aria-pressed={scope === "consolidated"}
-                    onClick={() => setScope("consolidated")}
-                  >
-                    Consolidated
-                  </button>
-                  <button
-                    type="button"
-                    aria-pressed={scope === "by-fund"}
-                    disabled={!hasFunds}
-                    onClick={() => hasFunds && setScope("by-fund")}
-                  >
-                    By fund
-                  </button>
-                </div>
-                {!hasFunds && (
-                  <p className="rb-note">
-                    This client has no tracked funds yet, so fund-level
-                    breakdowns aren't available.
-                  </p>
-                )}
-              </div>
-
-              <div className="rb-field">
-                <label className="rb-field-label">Sections</label>
-                <ul className="rb-checklist">
-                  <li className="locked">
-                    Executive summary{" "}
-                    <span className="locked-note">always included</span>
-                  </li>
-                  {REPORT_SECTION_DEFS.filter(
-                    (s) =>
-                      s.key !== "giving" ||
-                      hasFunds ||
-                      contributions.length > 0,
-                  ).map((s) => (
-                    <li key={s.key}>
-                      <label>
-                        <input
-                          type="checkbox"
-                          checked={sections[s.key]}
-                          onChange={() => toggleSection(s.key)}
-                        />
-                        <span>{s.label}</span>
-                      </label>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-
-              <button
-                className="btn-primary"
-                style={{ width: "100%" }}
-                onClick={generate}
-              >
-                Generate Report
-              </button>
-            </div>
-
-            <div className="card rb-preview">
-              <div className="rb-preview-label">Live Preview</div>
-              <div className="rb-preview-cover">
-                <div className="rb-eyebrow">
-                  Board Report &middot; {scopeLabel}
-                </div>
-                <h3>{client.name}</h3>
-                <div className="rb-meta-row rb-meta-row-compact">
-                  <div>
-                    <b>{periodLabel}</b>Period
-                  </div>
-                  <div>
-                    <b>{rangeLabel}</b>Range
-                  </div>
-                </div>
-              </div>
-
-              {hasPeriodData ? (
-                <div className="rb-preview-stats">
-                  <div>
-                    <span className="rb-preview-stat-label">Revenue</span>
-                    <span className="rb-preview-stat-value">
-                      {fmtMoney(revenueTotal)}
-                    </span>
-                  </div>
-                  <div>
-                    <span className="rb-preview-stat-label">Net Income</span>
-                    <span className="rb-preview-stat-value">
-                      {fmtMoney(netTotal)}
-                    </span>
-                  </div>
-                  <div>
-                    <span className="rb-preview-stat-label">Cash on Hand</span>
-                    <span className="rb-preview-stat-value">
-                      {fmtMoney(cash)}
-                    </span>
-                  </div>
-                </div>
-              ) : (
-                <p className="rb-commentary">
-                  No revenue or expense data recorded for {periodLabel} yet —
-                  the report will still include cash, budget, and other sections
-                  you've checked below.
-                </p>
-              )}
-
-              <div className="rb-preview-sections">
-                <span className="rb-preview-stat-label">Sections included</span>
-                <div className="rb-preview-pills">
-                  <span className="pill neutral">Executive Summary</span>
-                  {REPORT_SECTION_DEFS.filter(
-                    (s) =>
-                      sections[s.key] &&
-                      (s.key !== "giving" ||
-                        hasFunds ||
-                        contributions.length > 0),
-                  ).map((s) => (
-                    <span className="pill neutral" key={s.key}>
-                      {s.label}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
-    );
-  }
-
-  return (
-    <div>
-      <div className="rb-toolbar">
-        <button className="btn-secondary" onClick={() => setStage("builder")}>
-          &larr; Edit report
-        </button>
-        <div className="rb-actions">
-          {presenting ? (
-            <button
-              className="btn-secondary"
-              onClick={() => setPresenting(false)}
-            >
-              &larr; Exit presentation
-            </button>
-          ) : (
-            <button
-              className="btn-secondary"
-              onClick={() => setPresenting(true)}
-            >
-              Presentation view
-            </button>
-          )}
-          <button className="btn-primary" onClick={() => window.print()}>
-            Print / Save as PDF
-          </button>
-        </div>
-      </div>
-
-      <div className="card rb-report">
-        <div className="rb-cover">
-          <div className="rb-eyebrow">Board Report &middot; {scopeLabel}</div>
-          <h1>{client.name}</h1>
-          <div className="rb-meta-row">
-            <div>
-              <b>{periodLabel}</b>Reporting period
-            </div>
-            <div>
-              <b>{rangeLabel}</b>Date range
-            </div>
-            <div>
-              <b>{scopeLabel}</b>Scope
-            </div>
-            <div>
-              <b>Generated by MyGoodBooks</b>Prepared for board review
-            </div>
-          </div>
-        </div>
-
-        <div className="rb-section">
-          <h2>Executive Summary</h2>
-          <p className="rb-section-sub">
-            {periodLabel} &middot; {rangeLabel}
-          </p>
-          <div className="kpi-grid">
-            <div className="card kpi-card">
-              <span className="kpi-label">Revenue</span>
-              {hasPeriodData ? (
-                <>
-                  <span className="kpi-value">{fmtMoney(revenueTotal)}</span>
-                  <TrendPill
-                    current={revenueTotal}
-                    prior={revenuePrior}
-                    goodDir="up"
-                  />
-                </>
-              ) : (
-                <>
-                  <span className="kpi-value">—</span>
-                  <span className="kpi-sub neutral">
-                    no data for this period
-                  </span>
-                </>
-              )}
-            </div>
-            <div className="card kpi-card">
-              <span className="kpi-label">Net Income</span>
-              {hasPeriodData ? (
-                <>
-                  <span className="kpi-value">{fmtMoney(netTotal)}</span>
-                  <TrendPill current={netTotal} prior={netPrior} goodDir="up" />
-                </>
-              ) : (
-                <>
-                  <span className="kpi-value">—</span>
-                  <span className="kpi-sub neutral">
-                    no data for this period
-                  </span>
-                </>
-              )}
-            </div>
-            <div className="card kpi-card">
-              <span className="kpi-label">Cash on Hand</span>
-              <span className="kpi-value">{fmtMoney(cash)}</span>
-              <span className="kpi-sub neutral">as of today</span>
-            </div>
-            <div className="card kpi-card">
-              <span className="kpi-label">Receivables</span>
-              <span className="kpi-value">{fmtMoney(totalReceivable)}</span>
-              <span className="kpi-sub neutral">
-                {client.receivables.length} open item
-                {client.receivables.length !== 1 ? "s" : ""}
-              </span>
-            </div>
-          </div>
-          <p className="rb-commentary">
-            {hasPeriodData ? (
-              <>
-                {periodLabel} was a{" "}
-                {netTotal >= netPrior || netPrior == null ? "solid" : "tighter"}{" "}
-                stretch: revenue{" "}
-                {trendInfo(revenueTotal, revenuePrior).dir === "up"
-                  ? "grew"
-                  : trendInfo(revenueTotal, revenuePrior).dir === "down"
-                    ? "declined"
-                    : "held steady"}
-                , cash on hand stands at {fmtMoney(cash)}, and net income came
-                in at {fmtMoney(netTotal)} for the period.
-              </>
-            ) : (
-              <>
-                No revenue or expense data has been recorded for {periodLabel}{" "}
-                yet — cash on hand stands at {fmtMoney(cash)} as of today.
-              </>
-            )}
-          </p>
-        </div>
-
-        {sections.revenue && (
-          <div className="rb-section">
-            <h2>Revenue &amp; Expenses</h2>
-            <p className="rb-section-sub">{periodLabel}</p>
-            {hasPeriodData ? (
-              <>
-                <div className="rb-stat-row">
-                  <span className="rb-big">{fmtMoney(revenueTotal)}</span>
-                  <TrendPill
-                    current={revenueTotal}
-                    prior={revenuePrior}
-                    goodDir="up"
-                  />
-                </div>
-                <p className="rb-commentary">
-                  Revenue{" "}
-                  {trendInfo(revenueTotal, revenuePrior).dir === "flat"
-                    ? "held steady"
-                    : trendInfo(revenueTotal, revenuePrior).dir === "up"
-                      ? "grew"
-                      : "declined"}{" "}
-                  {revenuePrior != null
-                    ? trendInfo(revenueTotal, revenuePrior).label
-                    : "— no prior period of the same length to compare yet"}
-                  . Expenses totaled {fmtMoney(expenseTotal)} (
-                  {expensePrior != null
-                    ? trendInfo(expenseTotal, expensePrior, "down").label
-                    : "no prior period on record"}
-                  ).
-                </p>
-              </>
-            ) : (
-              <p className="rb-commentary">
-                No revenue or expense data has been recorded for {periodLabel}{" "}
-                yet.
-              </p>
-            )}
-          </div>
-        )}
-
-        {sections.budget && (
-          <div className="rb-section">
-            <h2>Budget vs. Actual</h2>
-            <p className="rb-section-sub">Current month</p>
-            <div className="rb-stat-row">
-              <span className="rb-big">
-                {fmtMoney(budgetTotal.actual - budgetTotal.budgeted)}
-              </span>
-              <span
-                className={
-                  "pill " +
-                  (budgetTotal.actual > budgetTotal.budgeted ? "bad" : "good")
-                }
-              >
-                {budgetTotal.actual > budgetTotal.budgeted
-                  ? "Over budget overall"
-                  : "Under budget overall"}
-              </span>
-            </div>
-            {overBudget.length > 0 ? (
-              <>
-                <p className="rb-commentary">
-                  {overBudget.length} categor
-                  {overBudget.length !== 1 ? "ies are" : "y is"} running over
-                  budget this month:
-                </p>
-                <ReportBarRows
-                  items={overBudget.map((b) => ({
-                    label: b.category,
-                    amount: b.actual - b.budgeted,
-                    tone: "over",
-                  }))}
-                />
-              </>
-            ) : (
-              <p className="rb-commentary">
-                Every category is within budget this month.
-              </p>
-            )}
-          </div>
-        )}
-
-        {sections.cash && (
-          <div className="rb-section">
-            <h2>Cash Position</h2>
-            <p className="rb-section-sub">Company-wide &middot; as of today</p>
-            <div className="rb-stat-row">
-              <span className="rb-big">{fmtMoney(cash)}</span>
-              <span className="pill neutral">
-                {cashAccountsOf(client).length} account
-                {cashAccountsOf(client).length !== 1 ? "s" : ""}
-              </span>
-            </div>
-            <p className="rb-commentary">
-              Cash is managed company-wide and isn't attributed to individual
-              funds or departments.
-            </p>
-          </div>
-        )}
-
-        {sections.receivables && (
-          <div className="rb-section">
-            <h2>Cash Flow</h2>
-            <p className="rb-section-sub">Open balances</p>
-            <div className="content-grid">
-              <div>
-                <div className="rb-stat-row">
-                  <span className="rb-big">{fmtMoney(totalReceivable)}</span>
-                </div>
-                <p className="rb-commentary" style={{ marginTop: -6 }}>
-                  Receivable
-                </p>
-                <div className="tx-list">
-                  {client.receivables.slice(0, 4).map((r, i) => (
-                    <div className="tx-row" key={i}>
-                      <div>
-                        <div className="tx-desc">{r.description}</div>
-                        <div className="tx-meta">Due {fmtDate(r.dueDate)}</div>
-                      </div>
-                      <div className="tx-amount positive">
-                        {fmtMoney(r.amount, { cents: true })}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-              <div>
-                <div className="rb-stat-row">
-                  <span className="rb-big">{fmtMoney(totalPayable)}</span>
-                </div>
-                <p className="rb-commentary" style={{ marginTop: -6 }}>
-                  Payable
-                </p>
-                <div className="tx-list">
-                  {client.payables.slice(0, 4).map((p, i) => (
-                    <div className="tx-row" key={i}>
-                      <div>
-                        <div className="tx-desc">{p.vendor}</div>
-                        <div className="tx-meta">Due {fmtDate(p.dueDate)}</div>
-                      </div>
-                      <div className="tx-amount negative">
-                        -{fmtMoney(p.amount, { cents: true })}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {sections.giving && (hasFunds || contributions.length > 0) && (
-          <div className="rb-section">
-            <h2>Giving &amp; Funds</h2>
-            <p className="rb-section-sub">
-              {scope === "by-fund" ? "By fund" : "Company-wide"}
-            </p>
-            <div className="rb-stat-row">
-              <span className="rb-big">{fmtMoney(totalGiving)}</span>
-              <span className="pill neutral">
-                {contributions.length} gift
-                {contributions.length !== 1 ? "s" : ""} on record
-              </span>
-            </div>
-            {scope === "by-fund" && hasFunds ? (
-              <>
-                <p className="rb-commentary">
-                  Fund balances, unrestricted and restricted:
-                </p>
-                <ReportBarRows
-                  items={funds.map((f) => ({
-                    label: f.name,
-                    amount: f.balance,
-                  }))}
-                />
-              </>
-            ) : (
-              <p className="rb-commentary">
-                Unrestricted funds total {fmtMoney(unrestrictedTotal)};
-                restricted funds total {fmtMoney(restrictedTotal)}. Switch scope
-                to "By fund" for the breakdown.
-              </p>
-            )}
-          </div>
-        )}
-
-        {sections.outlook && (
-          <div className="rb-section">
-            <h2>Outlook</h2>
-            <p className="rb-section-sub">Months of operating reserve</p>
-            <div className="rb-runway-row">
-              <RunwayRing
-                pct={
-                  runwayMonths == null
-                    ? 1
-                    : Math.max(0.08, Math.min(runwayMonths / 6, 1))
-                }
-                tone={
-                  runwayMonths != null && runwayMonths < 3
-                    ? "negative"
-                    : "positive"
-                }
-              >
-                <div className="runway-ring-value">
-                  {runwayMonths == null ? "—" : `${runwayMonths.toFixed(1)} mo`}
-                </div>
-                <div
-                  className={
-                    "runway-ring-status " +
-                    (runwayMonths != null && runwayMonths < 3
-                      ? "negative"
-                      : "positive")
-                  }
-                >
-                  {runwayMonths != null && runwayMonths < 3
-                    ? "Monitor"
-                    : "Healthy"}
-                </div>
-              </RunwayRing>
-              <p className="rb-commentary" style={{ flex: 1, minWidth: 220 }}>
-                {runwayMonths == null
-                  ? "Not enough expense history to calculate an operating reserve."
-                  : `At average operating expenses of ${fmtMoney(monthlyExpenses)}/mo, cash on hand covers approximately ${runwayMonths.toFixed(1)} months. Six months is a common target for an operating reserve.`}
-              </p>
-            </div>
-          </div>
-        )}
       </div>
     </div>
   );
@@ -15274,6 +14530,7 @@ const USAGE_TAB_LABELS = {
   bank: "Bank accounts",
   receivables: "Cash flow",
   giving: "Giving & funds",
+  packet: "Board packet",
 };
 // Action buckets MGB_track() writes (see the hooks in TopBar, StaffGuide,
 // Tour). Add a label here when a new call site is added.
@@ -15282,6 +14539,7 @@ const USAGE_ACTION_LABELS = {
   "guide-search": "Guide searches",
   "guide-miss": "Guide searches with no result",
   "help-page": "Help for this page",
+  "client-help": "Client ? menu clicks",
   "tour-done": "Tours finished",
   "tour-skipped": "Tours skipped",
 };
@@ -24391,9 +23649,10 @@ const PAGE_META = {
     subtitle: "Employees, pay runs, and tax deposits",
   },
   reports: { title: "Reports", subtitle: "Download statements and summaries" },
+  // Header for a Pro Reports page (showsReportBuilder): downloads + board packet.
   "report-builder": {
-    title: "Report Builder",
-    subtitle: "Assemble a formatted report for your board or leadership",
+    title: "Reports",
+    subtitle: "Download statements and build your board packet",
   },
   "budgeting-tool": {
     title: "Budgeting Tool",
@@ -24587,6 +23846,19 @@ function QboSyncNowButton({ clientId, onSynced, liveLabel: liveLabelProp, plan, 
     return () => clearInterval(id);
   }, [ownLabel]);
   const liveLabel = ownLabel ? syncPillLabel(plan, lastSyncedAt) : liveLabelProp;
+  // Phones show just "Synced 5 minutes ago" in the page header, so the
+  // client's bell, "?" and search fit beside the pill at 375px (styles.css
+  // .live-sync-short). The full label stays in the title / aria-label.
+  const syncedAgo = ownLabel ? relTime(lastSyncedAt) : null;
+  const shortLabel = syncedAgo ? "Synced " + syncedAgo : null;
+  const pillText = shortLabel ? (
+    <>
+      <span className="live-sync-full">{liveLabel}</span>
+      <span className="live-sync-short">{shortLabel}</span>
+    </>
+  ) : (
+    liveLabel
+  );
 
   async function syncNow() {
     const supabase = window.mgbSupabase;
@@ -24653,7 +23925,7 @@ function QboSyncNowButton({ clientId, onSynced, liveLabel: liveLabelProp, plan, 
     return (
       <span className="live-sync-pill live-sync-pill-static" title={liveLabel} data-tour={tour}>
         <span className="badge-dot" aria-hidden="true"></span>
-        <span className="live-sync-text">{liveLabel}</span>
+        <span className="live-sync-text">{pillText}</span>
       </span>
     );
   }
@@ -24670,7 +23942,7 @@ function QboSyncNowButton({ clientId, onSynced, liveLabel: liveLabelProp, plan, 
           aria-label={`${liveLabel}. ${syncing ? "Syncing with QuickBooks" : "Sync now with QuickBooks"}`}
         >
           <span className="badge-dot" aria-hidden="true"></span>
-          <span className="live-sync-text">{syncing ? "Syncing…" : liveLabel}</span>
+          <span className="live-sync-text">{syncing ? "Syncing…" : pillText}</span>
           <span className="live-sync-divider" aria-hidden="true"></span>
           {syncIcon}
         </button>
@@ -25746,8 +25018,8 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
   // Also lands on Dashboard for the newly-selected client (Live Report for a
   // premium, full-access client; the plain Dashboard otherwise) rather than
   // keeping whatever tab happened to be open for the PREVIOUS client — e.g.
-  // staying on Report Builder after switching to a standard-plan client that
-  // doesn't even have that tab. Skips its own first run so a page refresh
+  // staying on a Pro-only page after switching to a standard-plan client that
+  // doesn't even have it. Skips its own first run so a page refresh
   // still restores the last-viewed tab as before; this only fires on an
   // actual client switch, after mount.
   const skipFirstClientSwitch = useRef(true);
@@ -26086,7 +25358,18 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
   useEffect(() => {
     try {
       if (isAuthHash(window.location.hash)) return;
-      const next = buildHashRoute(effectivePage, selectedClientId);
+      let next = buildHashRoute(effectivePage, selectedClientId);
+      // A client sub-tab on screen (Reports › Board packet, Messages ›
+      // Requests) keeps its fourth segment (#/client/<id>/reports/packet),
+      // so a refresh or a deep link lands on the same tab.
+      if (
+        next &&
+        next.indexOf("#/client/") === 0 &&
+        clientSub.page === effectivePage &&
+        (effectivePage === "reports" || effectivePage === "messages") &&
+        /^[a-z-]+$/.test(clientSub.sub || "")
+      )
+        next += "/" + clientSub.sub;
       const fromHistory = hashFromHistory.current;
       hashFromHistory.current = false;
       if (next && window.location.hash !== next) {
@@ -26130,6 +25413,9 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
         setPage(route.page);
       }
       if (route.settingsTab) setSettingsTab(route.settingsTab);
+      // #/client/<id>/reports/packet: open that sub-tab too.
+      const sub = CLIENT_subFromHash();
+      if (sub.page && sub.sub) setClientSub(sub);
       // Re-sync even when nothing changed (a refused page that was already
       // the stored request would otherwise leave its hash in the bar).
       setHashRewriteTick((t) => t + 1);
@@ -26536,8 +25822,8 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
     };
   }, []);
 
-  // Every prominent stat (KPI tiles, Report Builder's big numbers, fund
-  // balances, Live Report's own KPI row) counts up from zero as the page
+  // Every prominent stat (KPI tiles, fund balances, Live Report's own KPI
+  // row) counts up from zero as the page
   // first loads. This works on the already-rendered text rather than routing
   // every number through a component: find the first real text node inside
   // the target, pull the numeric run out of it with a regex, and animate that
@@ -26604,7 +25890,7 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
     const scan = () => {
       document
         .querySelectorAll(
-          ".kpi-value, .rb-big, .rb-preview-stat-value, .fund-balance, .dc-kpiValue, .runway-ring-value, .count-up",
+          ".kpi-value, .fund-balance, .dc-kpiValue, .runway-ring-value, .count-up",
         )
         .forEach((el) => {
           if (seen.has(el)) return;
@@ -27140,6 +26426,18 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
                     ]}
                   />
                 )}
+              {/* The "?" menu (CLIENT_HelpButton): tours, Messages,
+                  Settings › Help, Contact support. Clients and client-user
+                  previews; staff have the top bar's own "?". */}
+              {!showStaffTopBar && typeof TB_useMenu === "function" && typeof TB_QuestionIcon === "function" && (
+                <CLIENT_HelpButton
+                  plan={access.plan}
+                  preview={!clientPortalUser}
+                  canMessage={access.tabs.has("messages")}
+                  onOpenMessages={() => setPage("messages")}
+                  onOpenHelp={() => openClientSettings("help")}
+                />
+              )}
               {/* §170: the honest version of this badge. A client whose
                   numbers came out of a real QuickBooks sync gets told when
                   they were last pulled; everyone else still gets the
@@ -27429,25 +26727,44 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
             />
           )}
           {/* Reports: Downloads (every plan) and Board packet (Pro; Basic
-              sees the locked card). Staff keep the old single view. */}
+              sees the locked card). Board packet is ProReportsSuite
+              (components/pro/ProReports.jsx), the one board report builder,
+              presentation view included. Staff get one page: the downloads,
+              then the suite for a Pro client. */}
           {effectivePage === "reports" &&
-            ((staffClientTabs ? showsReportBuilder : clientReportsSub === "packet") ? (
-              showsReportBuilder ? (
-                <>
-                  <ReportBuilderPage
+            (staffClientTabs ? (
+              <>
+                <ReportsPage client={scopedClient} />
+                {showsReportBuilder && typeof ProReportsSuite === "function" && (
+                  <ProReportsSuite
                     client={scopedClient}
-                    key={"report-builder-" + client.id}
+                    access={access}
+                    clientPortalUser={clientPortalUser}
+                    key={"pro-reports-" + client.id}
                   />
-                  {/* Pro report tools (components/pro/ProReports.jsx). */}
-                  {typeof ProReportsSuite === "function" && (
-                    <ProReportsSuite
-                      client={scopedClient}
-                      access={access}
-                      clientPortalUser={clientPortalUser}
-                      key={"pro-reports-" + client.id}
-                    />
-                  )}
-                </>
+                )}
+              </>
+            ) : clientReportsSub === "packet" ? (
+              showsReportBuilder ? (
+                typeof ProReportsSuite === "function" && (
+                  <ProReportsSuite
+                    client={scopedClient}
+                    access={access}
+                    clientPortalUser={clientPortalUser}
+                    key={"pro-reports-" + client.id}
+                  />
+                )
+              ) : planShownKey(access.plan) === "premium" ? (
+                // A Pro organization, but Pro pages are off for this person
+                // (premiumThrottled) or they're category-scoped: no upsell.
+                <div className="card client-locked-card">
+                  <h3 className="card-title" style={{ marginBottom: 4 }}>
+                    Board packet isn't turned on for you
+                  </h3>
+                  <p className="card-subtitle" style={{ margin: 0 }}>
+                    Ask your bookkeeper if you need it. Downloads of your statements stay on the Downloads tab.
+                  </p>
+                </div>
               ) : (
                 <CLIENT_LockedCard
                   title="Board packet is part of Pro"

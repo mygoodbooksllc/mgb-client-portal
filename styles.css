@@ -1193,7 +1193,8 @@ button.nav-ms-name:hover {
   background: rgba(255, 255, 255, 0.04);
 }
 
-/* The tabs under Enterprise Tools (Daily Report, Report Builder, Budgeting
+/* (History: the old Report Builder tab was removed 2026-10-09.) The tabs
+   under Enterprise Tools (Daily Report, Report Builder, Budgeting
    Tool) get the same gold shimmer as the section label itself, so the
    whole group reads as one premium unit rather than a plain label over
    ordinary items. */
@@ -1768,7 +1769,6 @@ button.nav-ms-name:hover {
 .tx-amount,
 .ledger-amount,
 .rb-bar-amt,
-.rb-preview-stat-value,
 .donut-center-value,
 .donut-legend-value,
 .fund-balance,
@@ -2180,47 +2180,11 @@ th {
 .pill.neutral { background: var(--surface-2); color: var(--text-muted); }
 .pill.warm { background: var(--warm-bg); color: var(--warm-text); }
 
-/* ---------------- Report Builder ---------------- */
-
-.rb-layout {
-  display: grid;
-  grid-template-columns: 300px 1fr;
-  gap: 20px;
-  align-items: start;
-}
-
-.rb-panel { position: sticky; top: 20px; }
-
-@media (max-width: 900px) {
-  .rb-layout { grid-template-columns: 1fr; }
-  /* Sticky only makes sense in the two-column desktop layout, where the
-     config panel stays put while the long report scrolls past beside it.
-     Single-column mobile has nothing beside it to scroll independently, so
-     the panel (with the Live Preview card at its bottom) was instead
-     riding along pinned near the top of the viewport as the page scrolled,
-     then releasing abruptly once its own content passed — reading as the
-     bottom card sliding up too far.
-     MUST come after the unconditional `.rb-panel` rule above: two rules of
-     equal specificity where both conditions are true resolve by source
-     order, not by which one "sounds like" the override — putting this
-     media query first (as an earlier attempt did) meant the plain rule
-     below it always won on mobile too, silently no-op'ing this block. */
-  .rb-panel { position: static; top: auto; }
-}
-
-.rb-panel-sub { font-size: 12.5px; color: var(--text-muted); margin: 0 0 18px 0; }
-
-.rb-field { margin-bottom: 20px; }
-
-.rb-field-label {
-  display: block;
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-  color: var(--text-muted);
-  margin-bottom: 8px;
-}
+/* ---------------- Shared select, segmented control, bar rows ----------------
+   The rb- prefix is left over from the old Report Builder (removed; the Pro
+   board packet lives in components/pro/). These few rules are still used:
+   .rb-select (filters and pickers), .rb-segmented (Cash Flow Pro filters),
+   .rb-bar-* (ReportBarRows on Bank accounts). */
 
 .rb-select {
   width: 100%;
@@ -2257,164 +2221,15 @@ th {
 .rb-segmented button[aria-pressed="true"] { background: var(--navy); color: white; }
 .rb-segmented button:disabled { opacity: 0.45; cursor: not-allowed; }
 
-.rb-checklist { list-style: none; margin: 0; padding: 0; }
-
-.rb-checklist li { display: flex; align-items: center; gap: 9px; padding: 7px 0; font-size: 14px; }
-.rb-checklist li.locked { color: var(--text-muted); }
-
-.rb-checklist label { display: flex; align-items: center; gap: 9px; width: 100%; cursor: pointer; }
-
-.rb-checklist input[type="checkbox"] { width: 16px; height: 16px; accent-color: var(--navy); flex-shrink: 0; }
-
-.rb-checklist .locked-note { margin-left: auto; font-size: 10.5px; }
-
-.rb-note {
-  background: var(--warm-bg);
-  border: 1px solid var(--warm-border);
-  border-radius: 12px;
-  padding: 14px 16px;
-  font-size: 12.5px;
-  color: var(--warm-text);
-  line-height: 1.55;
-  margin-top: 4px;
-}
-
-.rb-toolbar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 16px;
-  flex-wrap: wrap;
-}
-
-.rb-toolbar .rb-actions { display: flex; gap: 8px; }
-
-.rb-report { overflow: hidden; }
-
-.rb-cover {
-  padding: 32px 36px 26px;
-  border-bottom: 1px solid var(--border);
-  background: linear-gradient(180deg, var(--tint-on-surface), transparent);
-  margin: -20px -20px 20px -20px;
-}
-
-.rb-eyebrow {
-  font-family: var(--font-mono);
-  font-size: 11px;
-  letter-spacing: 0.07em;
-  text-transform: uppercase;
-  color: var(--gold-deep);
-  margin-bottom: 8px;
-}
-
-.rb-cover h1 { font-family: var(--font-heading); font-size: 29px; font-weight: 700; color: var(--ink-strong); margin: 0 0 6px 0; }
-
-.rb-meta-row { display: flex; gap: 26px; flex-wrap: wrap; color: var(--text-muted); font-size: 12.5px; margin-top: 12px; }
-.rb-meta-row b { display: block; color: var(--text); font-size: 13.5px; font-family: var(--font-heading); }
-
-/* Live preview card in the builder step — a condensed echo of the real
-   report cover + executive summary, updating as the fields change. */
-.rb-preview-label {
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-  color: var(--text-muted);
-  margin-bottom: 14px;
-}
-
-.rb-preview-cover {
-  padding-bottom: 14px;
-  border-bottom: 1px solid var(--border);
-  margin-bottom: 14px;
-}
-
-.rb-preview-cover h3 {
-  font-family: var(--font-heading);
-  font-size: 19px;
-  font-weight: 700;
-  color: var(--ink-strong);
-  margin: 0;
-}
-
-.rb-meta-row-compact { gap: 18px; margin-top: 8px; }
-.rb-meta-row-compact b { font-size: 12.5px; }
-
-.rb-preview-stats {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  margin-bottom: 16px;
-}
-
-.rb-preview-stats > div {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 10px;
-}
-
-.rb-preview-stat-label {
-  font-size: 12px;
-  color: var(--text-muted);
-}
-
-.rb-preview-stat-value {
-  font-family: var(--font-mono);
-  font-size: 15px;
-  font-weight: 600;
-  color: var(--ink-strong);
-}
-
-.rb-preview-sections {
-  padding-top: 14px;
-  border-top: 1px solid var(--border);
-}
-
-.rb-preview-pills {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  margin-top: 8px;
-}
-
-.rb-section { padding: 26px 0; border-bottom: 1px solid var(--border); }
-.rb-section:last-child { border-bottom: none; }
-.rb-section h2 { font-family: var(--font-heading); font-size: 18px; font-weight: 700; color: var(--ink-strong); margin: 0 0 2px 0; }
-.rb-section-sub { font-size: 12.5px; color: var(--text-muted); margin: 0 0 14px 0; }
-.rb-commentary { font-size: 14px; line-height: 1.6; max-width: 68ch; margin: 0 0 14px 0; color: var(--text); }
-
-.rb-stat-row { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; margin-bottom: 8px; }
-.rb-stat-row .rb-big { font-family: var(--font-mono); font-size: 27px; font-weight: 600; color: var(--ink-strong); }
-
 .rb-bar-rows { display: flex; flex-direction: column; gap: 9px; margin-top: 14px; }
 .rb-bar-row { display: grid; grid-template-columns: 140px 1fr 90px; gap: 12px; align-items: center; font-size: 12.5px; }
 .rb-bar-row .rb-bar-amt { text-align: right; font-family: var(--font-mono); }
 .rb-bar-fill { background: var(--gold); }
 
-.rb-runway-row { display: flex; align-items: center; gap: 24px; flex-wrap: wrap; }
-
-body.rb-presenting .sidebar,
-body.rb-presenting .mobile-topbar,
-body.rb-presenting .page-header,
-body.rb-presenting .global-search {
-  display: none !important;
-}
-
-body.rb-presenting .main {
-  max-width: 900px;
-  margin-inline: auto;
-}
-
+/* Printing any page (Ctrl+P / Cmd+P): leave the app chrome off the paper. */
 @media print {
-  .sidebar, .mobile-topbar, .page-header, .global-search, .rb-toolbar {
+  .sidebar, .mobile-topbar, .page-header, .global-search {
     display: none !important;
-  }
-  .rb-report {
-    box-shadow: none !important;
-    border: none !important;
-    background: white !important;
   }
   body, .main { background: white !important; }
 }
@@ -3409,8 +3224,8 @@ body:has(.modal-overlay, [aria-modal="true"], .si-drawer-scrim) .global-search {
 /* ---------------- Shared in-page view toggle (segmented control) ----------------
    Reports (period), Bank Accounts (this account vs. all), Documents
    (all vs. full-access only), Giving & Funds (contributions vs. fund
-   balances), Budget vs. Actual (by category vs. spending trend), and Report
-   Builder (custom vs. quick download) all use this same control. */
+   balances) and Budget vs. Actual (by category vs. spending trend) all use
+   this same control. */
 
 .view-toggle {
   display: inline-flex;
@@ -5689,7 +5504,7 @@ body:has(.modal-overlay) .chat-fab-wrap {
   /* iOS Safari auto-zooms the whole page on focus for any text-entry field
      under 16px — and never zooms back out on its own. Every text/number
      input and <select> in this app renders at 13.5-14px, so focusing any of
-     them (the search bar, the client picker, a budget cell, a Report Builder
+     them (the search bar, the client picker, a budget cell, a filter
      dropdown) left the page zoomed in with no way back except a manual
      pinch — which is what "isn't fitting right, scrolling all around" was.
      16px is the documented threshold; raised exactly to it, nothing more,
@@ -5756,25 +5571,6 @@ body:has(.modal-overlay) .chat-fab-wrap {
      comfortable target without changing how it looks. */
   .global-search-input {
     min-height: 40px;
-  }
-
-  /* Checkboxes are the smallest targets in the app (16px). Bigger boxes plus a
-     taller row so the label is comfortably tappable too. */
-  .rb-checklist input[type="checkbox"] {
-    width: 22px;
-    height: 22px;
-  }
-
-  .rb-checklist li {
-    min-height: 44px;
-  }
-
-  /* The label is what actually toggles the box, so it has to fill the row —
-     a 44px row wrapping a 28px label leaves a dead band top and bottom that
-     silently swallows taps. */
-  .rb-checklist label {
-    min-height: 44px;
-    flex: 1;
   }
 
   .rb-segmented button {
@@ -6299,9 +6095,9 @@ body:has(.modal-overlay) .chat-fab-wrap {
   outline-offset: 1px;
 }
 
-/* .rb-segmented's buttons default to flex:1, which is right for Report
-   Builder's fixed 2-3 option toggles but would stretch 4 filter labels of
-   very different lengths evenly here — let each button size to its label. */
+/* .rb-segmented's buttons default to flex:1, which suits a fixed 2-3 option
+   toggle but would stretch 4 filter labels of very different lengths evenly
+   here — let each button size to its label. */
 .ap-cc-segmented button {
   flex: 0 0 auto;
   padding: 8px 12px;
@@ -6954,6 +6750,33 @@ body:has(.modal-overlay) .chat-fab-wrap {
     min-height: 36px;
     padding: 0 12px;
     font-size: 12.5px;
+  }
+}
+/* Phones: the page header's pill says just "Synced 5 minutes ago"
+   (QboSyncNowButton), so a client's bell, "?" and search fit on one row
+   beside it. Narrower still, the label trims with "…" rather than pushing
+   the row off screen (the title / aria-label keep the full wording). */
+.live-sync-short {
+  display: none;
+}
+@media (max-width: 760px) {
+  .app-header .live-sync-full {
+    display: none;
+  }
+  .app-header .live-sync-short {
+    display: inline;
+  }
+  .app-header .page-header-actions > .live-sync-pill {
+    flex-shrink: 1;
+    min-width: 0;
+  }
+  .app-header .live-sync-pill .live-sync-text {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .app-header .live-sync-pill > :not(.live-sync-text) {
+    flex-shrink: 0;
   }
 }
 
@@ -9401,6 +9224,36 @@ tr:hover .inote-btn,
   .notif-popup {
     right: 16px;
     bottom: 88px;
+  }
+}
+
+/* Client "?" menu (app.jsx CLIENT_HelpButton), beside the bell in the
+   client top bar. Reuses the staff bar's .tb-icon-btn, .tb-panel and
+   .tb-menu-item (components/staff/top-bar.css). The --tb-* tokens there are
+   the navy bar's, so they point back at the surface ones here, to match the
+   bell. Not .tb-menu-wrap: the staff phone layout hides that. */
+.client-help {
+  --tb-chip: var(--surface);
+  --tb-chip-hover: var(--hover-bg);
+  --tb-chip-border: var(--border);
+  --tb-icon: var(--text-muted);
+  --tb-fg-strong: var(--text);
+  position: relative;
+  flex-shrink: 0;
+}
+/* The global :focus-visible floor squares corners off; keep the circle. */
+.client-help .tb-icon-btn:focus-visible {
+  border-radius: 999px;
+}
+@media (max-width: 760px) {
+  /* On phones the ? is near the left of the full-width actions row, so the
+     menu opens rightwards from it rather than off the left edge. */
+  .client-help .tb-menu {
+    left: 0;
+    right: auto;
+  }
+  .client-help .tb-menu-item {
+    min-height: 44px;
   }
 }
 

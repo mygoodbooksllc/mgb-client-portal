@@ -244,6 +244,102 @@ button.pr-chip:hover, .pr-chip-saved:hover { border-color: var(--gold); backgrou
 .pr-cover-title { font-size: 15px; margin-top: 4px; color: var(--text); }
 .pr-cover-period { font-size: 13px; color: var(--text-muted); margin-top: 2px; }
 
+/* Presentation view (PrPresentation): the packet full screen for a board
+   meeting on a projector. One readable column; `zoom` scales every block
+   (tables, cards, bars) together and steps up with the screen width. */
+body.pr-presenting { overflow: hidden; }
+.pr-present {
+  position: fixed;
+  inset: 0;
+  /* Over the sidebar, top bars and phone drawer (up to 1800); under modals
+     and the preview frame (2000+). */
+  z-index: 1900;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+  color: var(--text);
+}
+.pr-present-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+  padding: 10px 16px;
+  padding-top: max(10px, env(safe-area-inset-top));
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+}
+.pr-present-bar-label { font-size: 14px; font-weight: 600; color: var(--ink-strong); }
+.pr-present-bar-hint { font-size: 13px; color: var(--text-muted); }
+.pr-present-exit { margin-left: auto; }
+.pr-present-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 28px 16px 64px;
+  padding-bottom: max(64px, env(safe-area-inset-bottom));
+  outline: none;
+}
+.pr-present-page {
+  width: 100%;
+  max-width: 820px;
+  margin: 0 auto;
+  font-size: 16px;
+  line-height: 1.55;
+}
+.pr-present-head {
+  text-align: center;
+  padding-bottom: 24px;
+  margin-bottom: 32px;
+  border-bottom: 4px solid var(--pr-accent, var(--gold));
+}
+.pr-present-logo { max-width: 200px; max-height: 96px; object-fit: contain; margin-bottom: 14px; }
+.pr-present-eyebrow {
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.pr-present-org {
+  font-family: var(--font-heading);
+  font-size: 34px;
+  line-height: 1.2;
+  color: var(--ink-strong);
+  margin: 6px 0 4px;
+  overflow-wrap: anywhere;
+}
+.pr-present-period { font-size: 18px; color: var(--text); }
+.pr-present .pr-snapshot { gap: 40px; }
+.pr-present .pr-snap-section { border-left-width: 4px; padding-left: 18px; }
+.pr-present .pr-snap-title { font-size: 24px; margin-bottom: 14px; }
+.pr-present-foot { margin-top: 48px; text-align: center; font-size: 13px; color: var(--text-muted); }
+@media (min-width: 900px) {
+  .pr-present-page { zoom: 1.12; }
+}
+@media (min-width: 1200px) {
+  .pr-present-page { zoom: 1.28; }
+  .pr-present-scroll { padding-top: 40px; }
+}
+@media (min-width: 1600px) {
+  .pr-present-page { zoom: 1.45; }
+}
+@media (max-width: 640px) {
+  .pr-present-bar-hint { display: none; }
+  .pr-present-org { font-size: 26px; }
+  .pr-present .pr-snap-title { font-size: 20px; }
+  .pr-present .pr-snapshot { gap: 28px; }
+}
+@media print {
+  body.pr-presenting { overflow: visible; }
+  body.pr-presenting #root { display: none; }
+  .pr-present { position: static; display: block; }
+  .pr-present-bar { display: none; }
+  .pr-present-scroll { overflow: visible; padding: 0; }
+  .pr-present-page { zoom: 1; }
+}
+
 /* Pledges */
 .pr-pledges { display: flex; flex-direction: column; gap: 12px; }
 .pr-pledge-top { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 4px 12px; font-size: 14px; }

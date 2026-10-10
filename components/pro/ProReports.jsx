@@ -1619,6 +1619,97 @@ function PrSnapshotView({ snap, showCover }) {
   );
 }
 
+// Presentation view: the board packet full screen for a board meeting on a
+// projector. One column, large type, the org name and period on top, then the
+// chosen sections in packet order (the same PrSnapshotView the preview uses).
+// A fixed layer portalled to <body> so no transformed ancestor can trap it;
+// the app underneath (#root) is inert while it's open. role="dialog" +
+// aria-modal also tells the staff tips engine to stay quiet. Esc or "Exit
+// presentation" closes it; PrPacketPanel puts focus back on its button.
+function PrPresentation({ snap, onExit }) {
+  const layerRef = useRef(null);
+  const scrollRef = useRef(null);
+  const exitRef = useRef(onExit);
+  exitRef.current = onExit;
+
+  useEffect(() => {
+    const body = document.body;
+    const root = document.getElementById("root");
+    const rootWasInert = root ? !!root.inert : false;
+    body.classList.add("pr-presenting");
+    if (root) root.inert = true;
+    if (scrollRef.current) scrollRef.current.focus({ preventScroll: true });
+    const onKey = (e) => {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        e.stopPropagation();
+        exitRef.current();
+        return;
+      }
+      if (e.key !== "Tab" || !layerRef.current) return;
+      // Keep Tab inside the layer.
+      const items = Array.from(
+        layerRef.current.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'),
+      ).filter((el) => !el.disabled && el.offsetParent !== null);
+      if (!items.length) {
+        e.preventDefault();
+        return;
+      }
+      const idx = items.indexOf(document.activeElement);
+      if (e.shiftKey) {
+        if (idx <= 0) {
+          e.preventDefault();
+          items[items.length - 1].focus();
+        }
+      } else if (idx === -1 || idx === items.length - 1) {
+        e.preventDefault();
+        items[0].focus();
+      }
+    };
+    document.addEventListener("keydown", onKey, true);
+    return () => {
+      document.removeEventListener("keydown", onKey, true);
+      body.classList.remove("pr-presenting");
+      if (root) root.inert = rootWasInert;
+    };
+  }, []);
+
+  if (!snap) return null;
+  const color = prValidHex(snap.branding && snap.branding.color);
+  const logo = prValidLogo(snap.branding && snap.branding.logo);
+  const layer = (
+    <div
+      className="pr-present"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Board packet presentation"
+      ref={layerRef}
+      style={color ? { "--pr-accent": color } : undefined}
+    >
+      <div className="pr-present-bar">
+        <span className="pr-present-bar-label">Presentation view</span>
+        <span className="pr-present-bar-hint">Esc to exit</span>
+        <button type="button" className="btn-primary pr-present-exit" onClick={onExit}>
+          Exit presentation
+        </button>
+      </div>
+      <div className="pr-present-scroll" ref={scrollRef} tabIndex={-1}>
+        <article className="pr-present-page">
+          <header className="pr-present-head">
+            {logo && <img className="pr-present-logo" src={logo} alt="" />}
+            <div className="pr-present-eyebrow">Board packet</div>
+            <h1 className="pr-present-org">{snap.orgName}</h1>
+            {snap.periodLabel && <div className="pr-present-period">{snap.periodLabel}</div>}
+          </header>
+          <PrSnapshotView snap={snap} showCover={false} />
+          <footer className="pr-present-foot">Prepared {prDateLabel(snap.generatedAt)} with MyGoodBooks</footer>
+        </article>
+      </div>
+    </div>
+  );
+  return typeof ReactDOM !== "undefined" && ReactDOM.createPortal ? ReactDOM.createPortal(layer, document.body) : layer;
+}
+
 // ---------------------------------------------------------------------------
 // Public share page — no login, no staff context
 // ---------------------------------------------------------------------------
@@ -2131,6 +2222,14 @@ function PrPacketPanel({
   defaultPeriodLabel, sb, clientId, whoEmail, needSave, flagError, showToast,
 }) {
   const [preview, setPreview] = useState(false);
+  const [presenting, setPresenting] = useState(false);
+  const presentBtnRef = useRef(null);
+  const wasPresenting = useRef(false);
+  // Back on the button that opened the presentation once it closes.
+  useEffect(() => {
+    if (wasPresenting.current && !presenting && presentBtnRef.current) presentBtnRef.current.focus();
+    wasPresenting.current = presenting;
+  }, [presenting]);
   const [newName, setNewName] = useState("");
   const [renaming, setRenaming] = useState(null); // {id, name}
   const [confirmDelete, setConfirmDelete] = useState(null);
@@ -2139,8 +2238,10 @@ function PrPacketPanel({
   const toggle = (group, key) =>
     setConfig((c) => ({ ...c, [group]: { ...c[group], [key]: !c[group][key] } }));
   const chosen = PR_SECTIONS.filter((s) => config.sections[s.key]).length;
+  // The presentation view has no cover page, so it needs at least one body section.
+  const chosenBody = PR_SECTIONS.filter((s) => s.key !== "cover" && config.sections[s.key]).length;
 
-  const load = (cfg, name) => {
+  const load =(cfg, name) => {
     setConfig(prNormalizeConfig({ ...cfg, name }, defaultPeriodLabel));
     showToast(`Loaded "${name}".`);
   };
@@ -2326,6 +2427,16 @@ function PrPacketPanel({
         <button type="button" className="btn-secondary" onClick={() => setPreview((p) => !p)}>
           {preview ? "Hide preview" : "Preview on screen"}
         </button>
+        <button
+          type="button"
+          ref={presentBtnRef}
+          className="btn-secondary"
+          onClick={() => setPresenting(true)}
+          disabled={chosenBody === 0}
+          title="Show the packet full screen for your board meeting"
+        >
+          Presentation view
+        </button>
         <span className="pr-spacer" />
         <span className="ms-form pr-row">
           <input
@@ -2346,6 +2457,8 @@ function PrPacketPanel({
           <PrSnapshotView snap={snapshot} showCover={true} />
         </div>
       )}
+
+      {presenting && <PrPresentation snap={snapshot} onExit={() => setPresenting(false)} />}
 
       {confirmDelete && typeof ConfirmModal === "function" && (
         <ConfirmModal

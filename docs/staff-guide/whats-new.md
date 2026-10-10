@@ -2,14 +2,27 @@
 title: What's new
 section: Getting started
 audience: staff
-keywords: [pro tour, upsell, upgrade, basic clients, bookkeeper tour, temporary admin tour, client tour, tour versions, admin tour, account manager tour, inventory, tech, equipment, what's new, whats new, new, changes, updates, release notes, changelog, navigation, redesign, five places]
+keywords: [board packet, presentation view, report builder, client help menu, question mark menu, pro tour, upsell, upgrade, basic clients, bookkeeper tour, temporary admin tour, client tour, tour versions, admin tour, account manager tour, inventory, tech, equipment, what's new, whats new, new, changes, updates, release notes, changelog, navigation, redesign, five places]
 sort: 15
 ---
 The newest changes to the staff side, newest first. For how anything works, search this guide or click **?** → **Help for this page**.
 
+### 2026-10-09: Board packet is the one report builder
+
+- **One builder**: a Pro client's **Reports › Board packet** is now the only place they build reports. The old Report Builder, with its Quick Download grid and Custom Report, is gone. **Downloads** keeps the canned statement PDFs (Profit & Loss, Balance Sheet, Budget vs. Actual, Contribution Statement, plus Payroll, year to date, with the payroll add-on).
+- **Presentation view**: a new button on the packet shows it full screen for a board meeting, with large type, the organization and period on top, then the sections they ticked. **Esc** or **Exit presentation** closes it.
+- Staff see a Pro client's Reports as one page: the Downloads grid, then **Board reports** below it. Basic clients still see the locked card on Board packet.
+- The Pro tour's report step is now called **Board Packet**. See [What does the client portal look like?](#/help/client-portal).
+
+### 2026-10-09: a ? menu for clients
+
+- **?** in the client's top bar, next to the bell: **Take the tour**, **Take the Pro tour** (Basic clients only), **Message your bookkeeper**, **Help and settings** and **Contact support**. It's the quickest way for a client to restart the tour or ask for help from any page.
+- The client tour's last step now points at the **?** instead of **Settings › Help**. On a phone the QuickBooks sync pill shortens to "Synced 5 minutes ago" so everything fits.
+- Admins can see how often it's used in **Settings › Firm settings › Usage stats › Actions** as **Client ? menu clicks**. See [How does the client guided tour work?](#/help/client-tour).
+
 ### 2026-10-09: Pro tour for Basic clients
 
-- **Pro tour**: a two-minute walkthrough on a Basic client's **Settings › Plan** page that shows what Pro would add: live QuickBooks sync every 15 minutes with **Sync now**, the Board-ready Financial Overview, Report Builder, Budgeting Tool, Cash Flow Pro, Reconciliation Pro and Fund Accounting Pro, the tool-by-tool comparison, Payroll (if they don't have it) and **Upgrade to Pro**. It never starts on its own and never clicks anything: an upgrade is still a request to the bookkeeper, which shows on **Today**.
+- **Pro tour**: a two-minute walkthrough on a Basic client's **Settings › Plan** page that shows what Pro would add: live QuickBooks sync every 15 minutes with **Sync now**, the Board-ready Financial Overview, Board Packet (called Report Builder at the time), Budgeting Tool, Cash Flow Pro, Reconciliation Pro and Fund Accounting Pro, the tool-by-tool comparison, Payroll (if they don't have it) and **Upgrade to Pro**. It never starts on its own and never clicks anything: an upgrade is still a request to the bookkeeper, which shows on **Today**.
 - Clients start it from **Take the Pro tour** on the Plan page, from the locked card on their Home, or from **Settings › Help**. The client tour's Plan stop points to it on Basic.
 - To see it, use **Preview as** on a Basic client's person, then **Settings › Plan › Take the Pro tour**. See [How does the Pro tour work?](#/help/pro-tour).
 - **Client tour**: the Sync stop now shows for anyone at a Pro organization synced from QuickBooks, even with their Pro pages turned off. See [How does the client guided tour work?](#/help/client-tour).

@@ -169,8 +169,8 @@ const CLIENTS_MOCK_DATA = [
       },
     ],
     // Trailing 12 months, Sep (prior year) through Aug (current) — a full
-    // year of history, not a Jan-Dec calendar year, so REPORT_QUARTER_DEFS'
-    // Q1-Q4 match whichever single instance of each month name falls in
+    // year of history, not a Jan-Dec calendar year, so quarter groupings
+    // (the old REPORT_QUARTER_DEFS, removed 2026-10-09, used Q1-Q4) match whichever single instance of each month name falls in
     // this window (there's never more than one of any given month across
     // 12 consecutive months, so this can't accidentally mix two different
     // years' Julys together).
