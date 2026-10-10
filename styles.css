@@ -1992,6 +1992,12 @@ th {
   padding-right: 4px;
   overscroll-behavior-y: contain;
 }
+/* With a mouse or trackpad, "contain" made the wheel feel stuck in the list
+   until the pointer left it. Let the page take over at the list's end there;
+   touch screens keep "contain" for the reason in the body comment above. */
+@media (hover: hover) and (pointer: fine) {
+  .tx-list-scroll { overscroll-behavior-y: auto; }
+}
 
 .tx-row {
   display: flex;
@@ -4324,6 +4330,11 @@ body:has(.modal-overlay, [aria-modal="true"], .si-drawer-scrim) .global-search {
   max-height: none;
   gap: 12px;
   overscroll-behavior: contain;
+}
+/* Mouse and trackpad: at the thread's top or bottom the wheel moves the
+   page instead of feeling stuck until the pointer leaves the thread. */
+@media (hover: hover) and (pointer: fine) {
+  .msg-page-card .msg-thread { overscroll-behavior: auto; }
 }
 /* Same sender, close together: one author line, tighter spacing. */
 .msg-page-card .msg-grouped {

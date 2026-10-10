@@ -1573,6 +1573,11 @@
   padding: 4px;
   overscroll-behavior: contain;
 }
+/* Mouse and trackpad: hand the wheel back to the page at the list's end
+   instead of feeling stuck until the pointer leaves the box. */
+@media (hover: hover) and (pointer: fine) {
+  .cc-checklist { overscroll-behavior: auto; }
+}
 .cc-check { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-radius: 6px; font-size: 13px; color: var(--text); cursor: pointer; }
 .cc-check:hover { background: var(--surface-2); }
 .cc-checkName { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
