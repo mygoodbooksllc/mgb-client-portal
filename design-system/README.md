@@ -45,10 +45,10 @@ overrides that icon's own default sizing/weight.
 - `SlidersIcon` — "Manage access" and "Customize dashboard."
 - `ChatIcon` — the floating chat widget's header, the mobile chat FAB, and the sidebar's Messages link.
 - `DocumentIcon`, `BarChartIcon`, `ShieldCheckIcon` — the Plans
-  page's feature cards (Live Report, Report Builder, Budgeting Tool — the
+  page's feature cards (Live Report, Board Packet, Budgeting Tool — the
   Cash Flow Pro card now uses `StackedBillsIcon` instead of
   `ShieldCheckIcon`, see below). `DocumentIcon` and `BarChartIcon` are
-  reused for the sidebar's Live Report and Report Builder links
+  reused for the sidebar's Live Report and Board Packet links
   respectively — same icon, same meaning, two places it shows up.
 - `LightbulbIcon` — Live Report's forecast callout. That component
   (`components/daily-close/DailyClose.tsx`) is vendored with its own

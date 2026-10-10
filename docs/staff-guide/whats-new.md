@@ -12,12 +12,12 @@ The newest changes to the staff side, newest first. For how anything works, sear
 - **One builder**: a Pro client's **Reports › Board packet** is now the only place they build reports. The old Report Builder, with its Quick Download grid and Custom Report, is gone. **Downloads** keeps the canned statement PDFs (Profit & Loss, Balance Sheet, Budget vs. Actual, Contribution Statement, plus Payroll, year to date, with the payroll add-on).
 - **Presentation view**: a new button on the packet shows it full screen for a board meeting, with large type, the organization and period on top, then the sections they ticked. **Esc** or **Exit presentation** closes it.
 - Staff see a Pro client's Reports as one page: the Downloads grid, then **Board reports** below it. Basic clients still see the locked card on Board packet.
-- The Pro tour's report step is now called **Board Packet**. See [What does the client portal look like?](#/help/client-portal).
+- The Pro tour's report step is now called **Board Packet**, and the public pricing chart and landing page say **Board Packet** too. See [What does the client portal look like?](#/help/client-portal).
 
 ### 2026-10-09: a ? menu for clients
 
 - **?** in the client's top bar, next to the bell: **Take the tour**, **Take the Pro tour** (Basic clients only), **Message your bookkeeper**, **Help and settings** and **Contact support**. It's the quickest way for a client to restart the tour or ask for help from any page.
-- The client tour's last step now points at the **?** instead of **Settings › Help**. On a phone the QuickBooks sync pill shortens to "Synced 5 minutes ago" so everything fits.
+- The client tour's last step now points at the **?** instead of **Settings › Help**. On a phone the QuickBooks sync pill shortens to "Synced 5 minutes ago" (or **Setting up** before QuickBooks is connected) so everything fits.
 - Admins can see how often it's used in **Settings › Firm settings › Usage stats › Actions** as **Client ? menu clicks**. See [How does the client guided tour work?](#/help/client-tour).
 
 ### 2026-10-09: Pro tour for Basic clients

@@ -22,7 +22,7 @@ The first sync can take a minute. Until it finishes, the pages may still show sa
 At the top right of every client page:
 
 - **Every 15 min · synced 5m ago** (Pro clients) or **Synced monthly · synced …** (Basic) means the numbers are real QuickBooks numbers. The first part is how often that plan syncs; the second is when it last did. Pro isn't instant: it syncs every 15 minutes, so a change made in QuickBooks can take up to 15 minutes (30 when the firm is near its Intuit limit) to show unless you use **Sync now**.
-- A grey **Setting up — connecting QuickBooks** badge means a real client isn't connected yet (or hasn't synced yet). They see empty pages, never sample numbers.
+- A grey **Setting up — connecting QuickBooks** badge (just **Setting up** on a phone) means a real client isn't connected yet (or hasn't synced yet). They see empty pages, never sample numbers.
 - A grey **Prototype · Sample Data** badge is the same thing for a test client. Test clients show sample numbers until QuickBooks is connected.
 
 The **Client overview** also has a QuickBooks health card that shows the last sync, or **Not connected**.

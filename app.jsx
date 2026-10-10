@@ -2936,6 +2936,12 @@ function unsyncedPillLabel(client) {
     ? "Setting up — connecting QuickBooks"
     : "Prototype · Sample Data";
 }
+// Phones (760px and below, styles.css .live-sync-short) show this instead so
+// the client's bell, "?" and search stay on one row beside it; the title
+// keeps the full wording.
+function unsyncedPillShortLabel(client) {
+  return isRealClientWithoutQbo(client) ? "Setting up" : "Sample data";
+}
 
 function MockBanner({ text, client }) {
   if (client && client.dataSource === "quickbooks") return null;
@@ -26457,9 +26463,10 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
                   tour="sync"
                 />
               ) : (
-                <span className="badge-live badge-live--sample">
+                <span className="badge-live badge-live--sample" title={unsyncedPillLabel(client)}>
                   <span className="badge-dot"></span>
-                  {unsyncedPillLabel(client)}
+                  <span className="live-sync-full">{unsyncedPillLabel(client)}</span>
+                  <span className="live-sync-short">{unsyncedPillShortLabel(client)}</span>
                 </span>
               )}
               {!showStaffTopBar && (

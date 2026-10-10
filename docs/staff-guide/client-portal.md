@@ -36,7 +36,7 @@ Next to the bell in the client's top bar is a **?**. It's for the client, and it
 
 When you use **Preview as** or **View as client**, the first two read **Preview the tour** and **Preview the Pro tour**, and nothing is saved or counted. Arrow keys move through the items, **Esc** closes the menu, and on a phone the items are larger so they're easy to tap. Admins see how often it's used under **Settings › Firm settings › Usage stats › Actions** as **Client ? menu clicks** (real clients only, not previews).
 
-On a phone the QuickBooks sync pill in the top bar is shortened to "Synced 5 minutes ago" so the bell, **?** and search all fit on one row. The full wording ("Every 15 min · synced 5 minutes ago") shows on larger screens.
+On a phone the QuickBooks sync pill in the top bar is shortened to "Synced 5 minutes ago" so the bell, **?** and search all fit on one row. The full wording ("Every 15 min · synced 5 minutes ago") shows on larger screens. Before QuickBooks is connected, the grey **Setting up — connecting QuickBooks** pill likewise says just **Setting up** on a phone.
 
 ### On a phone
 

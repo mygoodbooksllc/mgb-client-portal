@@ -6753,7 +6753,8 @@ body:has(.modal-overlay) .chat-fab-wrap {
   }
 }
 /* Phones: the page header's pill says just "Synced 5 minutes ago"
-   (QboSyncNowButton), so a client's bell, "?" and search fit on one row
+   (QboSyncNowButton), or "Setting up" before QuickBooks is connected
+   (unsyncedPillShortLabel), so a client's bell, "?" and search fit on one row
    beside it. Narrower still, the label trims with "…" rather than pushing
    the row off screen (the title / aria-label keep the full wording). */
 .live-sync-short {

@@ -783,8 +783,9 @@ Team Reviews files.
   get "Preview the tour" labels. Clicks are tracked as `MGB_track("client-help", tour | pro-tour |
   messages | help | support)` for real clients only ("Client ? menu clicks" in Usage stats). It has
   `data-tour="client-help"`: the client tour's last step (`done`) points at it and stays on the
-  current page. On phones the sync pill says just "Synced 5 minutes ago" (`.live-sync-short`) so the
-  bell, ? and search fit.
+  current page. On phones the sync pill says just "Synced 5 minutes ago" (`.live-sync-short`), and the
+  grey not-yet-connected pill just "Setting up" (`unsyncedPillShortLabel`), so the bell, ? and
+  search fit.
 - **Basic** lands on Home too: Needs you, the org card, and one locked card (`CLIENT_LockedCard`)
   where the dashboard would be. Board packet shows the same locked card on Basic.
 - **Settings** (gear at the bottom of the client sidebar, or at the right end of the staff tab
