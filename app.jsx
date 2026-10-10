@@ -4717,9 +4717,10 @@ function MilestoneStatusNote({ s, staff }) {
   return null;
 }
 
-// Header badge, top right of every client page: roman numeral + milestone
-// name. Opens the Milestone page. For staff, a gold dot means a change is
-// waiting to be confirmed.
+// Sidebar badge, above the client name: roman numeral + milestone name.
+// Opens the Milestone page. A change the numbers point to (or, for staff, an
+// unset milestone) shows as a small note on its own line under the badge, so
+// it never pushes past the sidebar.
 function MilestoneBadge({ client, staff, onOpen }) {
   const { byId } = useMilestones([client.id]);
   // Same hover label as the sidebar's (.icon-hover-tip), not the browser's
@@ -4752,17 +4753,25 @@ function MilestoneBadge({ client, staff, onOpen }) {
   } else if (staff && s.unconfirmed) {
     note = { text: "Set milestone", kind: "staff" };
   }
-  const tipText = cur.churchPlant
-    ? "Church plant rate until launch"
-    : cur.tier < TOP_MILESTONE_TIER
-      ? `${Math.round(progress * 100)}% of the way to ${milestoneByTier(cur.tier + 1).name}`
-      : "Top milestone";
+  // With a pending change the hover text explains the note (the progress
+  // toward the next milestone up would name a third milestone).
+  const pending = s.pendingTier ? milestoneByTier(s.pendingTier) : null;
+  const tipText = pending
+    ? staff
+      ? `Numbers point to ${pending.name}. Review and confirm on the Milestone page.`
+      : `Your numbers point to ${pending.name}. Nothing changes until your bookkeeper confirms it with you.`
+    : cur.churchPlant
+      ? "Church plant rate until launch"
+      : cur.tier < TOP_MILESTONE_TIER
+        ? `${Math.round(progress * 100)}% of the way to ${milestoneByTier(cur.tier + 1).name}`
+        : "Top milestone";
   const title = `Milestone ${cur.roman} ${cur.name}, ${tipText}` + (note ? `. ${note.text}` : "");
   const showTip = (e) => setTipRect(e.currentTarget.getBoundingClientRect());
   const hideTip = () => setTipRect(null);
   const R = 15;
   const C = 2 * Math.PI * R;
   return (
+    <React.Fragment>
     <button
       type="button"
       className={"ms-badge" + (note && note.kind !== "staff" ? " ms-badge-noted" : "")}
@@ -4793,18 +4802,28 @@ function MilestoneBadge({ client, staff, onOpen }) {
         <span className="ms-badge-kicker">Milestone</span>
         <span className="ms-badge-name">{cur.name}</span>
       </span>
-      {note && <span className={"ms-badge-note ms-badge-note-" + note.kind}>{note.text}</span>}
       {tipRect &&
         ReactDOM.createPortal(
           <div
-            className="icon-hover-tip icon-hover-tip-below"
-            style={{ top: tipRect.bottom + 8, left: tipRect.left + tipRect.width / 2 }}
+            className="icon-hover-tip icon-hover-tip-wrap"
+            style={{ top: tipRect.top + tipRect.height / 2, left: tipRect.right + 10 }}
           >
             {tipText}
           </div>,
           document.body,
         )}
     </button>
+    {note && (
+      <button
+        type="button"
+        className={"ms-badge-note ms-badge-note-" + note.kind}
+        onClick={onOpen}
+        title={tipText}
+      >
+        {note.text}
+      </button>
+    )}
+    </React.Fragment>
   );
 }
 

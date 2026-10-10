@@ -621,6 +621,13 @@ body {
   transform: translateX(-50%);
 }
 
+/* Longer tips (the sidebar Milestone badge) wrap instead of running wide. */
+.icon-hover-tip.icon-hover-tip-wrap {
+  white-space: normal;
+  max-width: 260px;
+  line-height: 1.4;
+}
+
 .brand {
   display: flex;
   align-items: center;

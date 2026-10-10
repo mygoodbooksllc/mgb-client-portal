@@ -158,8 +158,16 @@
   content: ""; position: absolute; top: 8px; left: 26px; width: 8px; height: 8px; border-radius: 50%;
   background: var(--gold); box-shadow: 0 0 0 2px var(--navy-deep);
 }
-.sidebar-ms-row { padding: 2px 16px 10px; display: flex; min-width: 0; }
+/* Badge, then any note (Reached / Moving to / Near / Set milestone) on its
+   own line under it, so neither runs past the sidebar. */
+.sidebar-ms-row { padding: 2px 16px 10px; display: flex; flex-direction: column; align-items: flex-start; gap: 6px; min-width: 0; }
 .sidebar-ms-row .ms-badge { max-width: 100%; }
+.sidebar-ms-row .ms-badge-note { max-width: 100%; overflow: hidden; text-overflow: ellipsis; border: 0; font-family: var(--font-body); cursor: pointer; }
+.sidebar-ms-row .ms-badge-note-down,
+.sidebar-ms-row .ms-badge-note-staff { background: transparent; }
+.sidebar-ms-row .ms-badge-note-down { border: 1px solid rgba(199, 174, 134, 0.55); }
+.sidebar-ms-row .ms-badge-note-staff { border: 1px dashed rgba(199, 174, 134, 0.6); }
+.sidebar-ms-row .ms-badge-note:focus-visible { outline: 2px solid var(--gold-deep); outline-offset: 2px; }
 
 @media (min-width: 761px), (hover: hover) and (pointer: fine) {
   .sidebar.sidebar-collapsed .sidebar-ms-row { display: none; }
