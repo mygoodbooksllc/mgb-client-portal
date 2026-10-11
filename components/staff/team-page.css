@@ -82,7 +82,10 @@
 .tp-people {
   min-width: 0;
 }
+/* 20px between every stacked card, in both the admin stack (.cv-page,
+   then Celebrations, then Shout-outs) and the bookkeeper columns. */
 .tp-people > .cv-page + .card,
+.tp-people > .card + .card,
 .tp-people-col > .card + .card {
   margin-top: 20px;
 }
