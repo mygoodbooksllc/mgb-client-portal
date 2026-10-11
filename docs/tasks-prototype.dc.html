@@ -1,0 +1,1051 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>MGB Staff Portal — Tasks</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bitter:ital,wght@0,400;0,600;0,700;0,800;1,400&amp;family=IBM+Plex+Mono:wght@400;600&amp;family=IBM+Plex+Sans:wght@400;500;600;700;800&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background-color:#faf9f6;background-image:linear-gradient(rgba(138,109,52,.032) 1px,transparent 1px),linear-gradient(90deg,rgba(138,109,52,.032) 1px,transparent 1px);background-size:92px 30px;font-family:"IBM Plex Sans",system-ui,sans-serif;color:#26343d;font-size:13px}
+a{color:#8a6d34}a:hover{color:#05080d}
+button{font-family:inherit}
+.nav{display:flex;align-items:center;gap:10px;width:100%;padding:8px 12px;border:0;border-radius:999px;background:transparent;color:#c7d0d6;font-size:13.5px;text-align:left;cursor:pointer;min-height:40px;transition:background-color .2s,color .2s}
+.nav:hover{background:rgba(255,255,255,.07);color:#fff}
+.nav.on{background:rgba(199,174,134,.18);color:#fff;font-weight:600}
+.tab{display:inline-flex;align-items:center;gap:8px;padding:0 14px;border:0;border-radius:999px;background:transparent;color:#c7d0d6;font-size:13px;cursor:pointer;min-height:36px;white-space:nowrap;transition:background-color .2s,color .2s}
+.tab:hover{background:rgba(255,255,255,.07);color:#fff}
+.tab.on{background:rgba(199,174,134,.18);color:#fff;font-weight:600}
+.cnt{font-family:"IBM Plex Mono",monospace;font-size:11.5px;border-radius:999px;padding:1px 7px;background:rgba(255,255,255,.12);color:#fff}
+.cnt.hot{background:#a4442c}
+.btn{display:inline-flex;align-items:center;gap:8px;background:#05080d;color:#fff;border:0;border-radius:999px;padding:0 18px;min-height:40px;font-weight:700;font-size:13.5px;cursor:pointer;transition:background-color .2s;white-space:nowrap}
+.btn:hover{background:#020306}
+.btn.gold{background:#8a6d34}.btn.gold:hover{background:#735a2a}
+.btn.ghost{background:rgba(255,255,255,.1);color:#fff}.btn.ghost:hover{background:rgba(255,255,255,.18)}
+.btn2{display:inline-flex;align-items:center;gap:8px;background:#fff;color:#26343d;border:1px solid #e8e2d6;border-radius:999px;padding:0 16px;min-height:40px;font-weight:600;font-size:13px;cursor:pointer;transition:background-color .2s;white-space:nowrap}
+.btn2:hover{background:#f5f1e8}
+.btn2.on{border-color:#05080d;box-shadow:inset 0 0 0 1px #05080d;color:#05080d}
+.pill{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:999px;font-size:11.5px;font-weight:700;white-space:nowrap;line-height:1.2}
+.st-todo{background:#f0ece3;color:#6b655c}
+.st-progress{background:#f4ecd9;color:#8a6d34}
+.st-review{background:rgba(36,55,70,.09);color:#243746}
+.st-done{background:#e9f0ea;color:#3f6b52}
+.st-late{background:#f7e9e4;color:#a4442c}
+.st-wait{background:#fbf6ea;color:#8a6d34;box-shadow:inset 0 0 0 1px #e3d3ab}
+.st-none{background:transparent;color:#6b655c;box-shadow:inset 0 0 0 1px #d6cebb}
+.due{font-family:"IBM Plex Mono",monospace;font-size:12.5px;color:#6b655c;white-space:nowrap}
+.due.over{color:#a4442c;font-weight:600}
+.chk{width:36px;height:36px;border:0;background:transparent;padding:0;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;flex:none}
+.ring{width:20px;height:20px;border-radius:999px;border:1.5px solid #c9bfa9;background:#fff;display:inline-flex;align-items:center;justify-content:center;color:#fff}
+.chk:hover .ring{border-color:#3f6b52}
+.chk.done .ring{background:#3f6b52;border-color:#3f6b52}
+.row{display:flex;align-items:center;gap:12px;padding:4px 16px 4px 8px;border-top:1px solid #e8e2d6;min-height:48px}
+.row:hover{background:#f5f1e8}
+.row.unread{background:#fbf6ea}
+.rowlink{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px;text-align:left;background:none;border:0;padding:6px 0;color:inherit;cursor:pointer}
+.ttl{font-size:13.5px;font-weight:500;color:#05080d;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ttl.done{text-decoration:line-through;color:#6b655c;font-weight:400}
+.sub{font-size:12.5px;color:#6b655c}
+.av{width:28px;height:28px;border-radius:999px;background:#f0ece3;color:#26343d;font-size:11px;font-weight:700;display:inline-flex;align-items:center;justify-content:center;flex:none}
+.card{background:#fff;border:1px solid #e8e2d6;border-radius:12px;box-shadow:0 1px 2px rgba(38,52,61,.04)}
+.kcard{background:#fff;border:1px solid #e8e2d6;border-radius:12px;padding:20px;display:flex;flex-direction:column;gap:6px;flex:1 1 200px}
+.bcard{display:flex;flex-direction:column;gap:6px;width:100%;text-align:left;background:#fff;border:1px solid #e8e2d6;border-radius:12px;padding:12px 14px;cursor:pointer;color:inherit}
+.bcard:hover{background:#f5f1e8}
+.cal{min-height:104px;padding:8px;border-right:1px solid #e8e2d6;border-bottom:1px solid #e8e2d6;display:flex;flex-direction:column;gap:4px;background:#fff}
+.cal.out{background:#faf9f6;color:#a39c90}
+.cal.today .dnum{background:#05080d;color:#fff}
+.dnum{font-family:"IBM Plex Mono",monospace;font-size:12px;width:24px;height:24px;border-radius:999px;display:inline-flex;align-items:center;justify-content:center}
+.chip{display:block;width:100%;text-align:left;border:0;border-radius:999px;padding:4px 9px;font-size:11.5px;font-weight:600;cursor:pointer;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.th{font-size:12.5px;font-weight:600;color:#6b655c;text-transform:uppercase;letter-spacing:.04em}
+.input{flex:1;min-width:0;min-height:40px;border:1px solid #e8e2d6;border-radius:12px;padding:0 14px;font:inherit;font-size:13.5px;color:#26343d;background:#fff}
+.input:focus{outline:2px solid #c7ae86;outline-offset:1px}
+.track{height:10px;border-radius:999px;background:#f0ece3;overflow:hidden;display:flex}
+.sbtn{border:1px solid #e8e2d6;background:#fff;border-radius:999px;padding:0 12px;min-height:36px;font-size:12.5px;font-weight:600;color:#26343d;cursor:pointer}
+.sbtn:hover{background:#f5f1e8}
+.sbtn.on{background:#05080d;border-color:#05080d;color:#fff}
+.mini{display:flex;align-items:center;gap:10px;border:0;background:none;padding:6px 0;width:100%;text-align:left;cursor:pointer;color:inherit;font-size:13.5px}
+.mini .ring{width:18px;height:18px}
+.mini.done .ring{background:#3f6b52;border-color:#3f6b52}
+.mini.done span.t{text-decoration:line-through;color:#6b655c}
+.ctx{display:flex;align-items:center;gap:8px;min-height:40px;padding:0 12px;border:1px solid #e8e2d6;border-radius:999px;background:#fff;color:#26343d;font-size:12.5px;font-weight:600;text-decoration:none}
+.ctx:hover{background:#f5f1e8;color:#05080d}
+.sw{width:40px;height:24px;border-radius:999px;border:0;padding:2px;background:#d6cebb;cursor:pointer;display:inline-flex;align-items:center;flex:none}
+.sw span{width:20px;height:20px;border-radius:999px;background:#fff;transition:transform .2s}
+.sw.on{background:#3f6b52}.sw.on span{transform:translateX(16px)}
+.h1{margin:0;font-family:Bitter,Georgia,serif;font-size:32px;font-weight:800;letter-spacing:-.02em;color:#05080d}
+.h2{margin:0;font-family:Bitter,Georgia,serif;font-size:16px;font-weight:700;color:#05080d}
+.eyebrow{font-size:13px;font-weight:700;letter-spacing:.04em;color:#8a6d34}
+.subtitle{font-family:Bitter,Georgia,serif;font-style:italic;font-size:14.5px;color:#6b655c}
+@media (prefers-reduced-motion: reduce){*{transition:none!important}}
+</style>
+</helmet>
+<div style="min-height: 100vh; display: flex; flex-wrap: wrap; align-items: stretch;">
+
+<sc-if value="{{standalone}}" hint-placeholder-val="{{ false }}">
+<header style="flex: 1 1 100%; background: #05080d; color: #c7d0d6; padding: 10px 20px; box-sizing: border-box; display: flex; flex-wrap: wrap; align-items: center; gap: 12px;">
+<span style="display: flex; align-items: baseline; gap: 8px; margin-right: 8px;">
+<span style="font-family: Bitter, Georgia, serif; font-size: 17px; font-weight: 800; color: #ffffff;">MGB Tasks</span>
+<span style="font-family: Bitter, Georgia, serif; font-style: italic; font-size: 12.5px; color: #c7ae86;">own window</span>
+</span>
+<button class="{{nav.mytasks}}" onClick="{{goMy}}" style="width: auto;">My Tasks <span class="cnt hot">{{myOverdueCount}}</span></button>
+<button class="{{nav.inbox}}" onClick="{{goInbox}}" style="width: auto;">Inbox <span class="cnt">{{unreadCount}}</span></button>
+<sc-for list="{{clientNav}}" as="cn" hint-placeholder-count="4"><button class="{{cn.cls}}" onClick="{{cn.go}}" style="width: auto;">{{cn.name}}</button></sc-for>
+<button class="{{nav.close}}" onClick="{{goClose}}" style="width: auto;">Close tracker</button>
+<button class="{{nav.workload}}" onClick="{{goWork}}" style="width: auto;">Workload</button>
+<button class="{{nav.templates}}" onClick="{{goTpl}}" style="width: auto;">Templates</button>
+<button class="{{nav.rules}}" onClick="{{goRules}}" style="width: auto;">Automations</button>
+<span style="flex: 1;"></span>
+<span class="av" style="background: #c7ae86; color: #05080d;" title="Nicole Hempel">NH</span>
+<button class="btn ghost" onClick="{{dockIn}}" style="min-height: 36px;">
+<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"></rect><path d="M9 3v18"></path><path d="M14 12h5M16 9l3 3-3 3"></path></svg>
+Dock in portal</button>
+</header>
+</sc-if>
+
+<sc-if value="{{docked}}" hint-placeholder-val="{{ true }}">
+<nav aria-label="Staff portal" style="flex: 1 1 232px; max-width: 100%; background: #05080d; color: #c7d0d6; padding: 22px 14px; box-sizing: border-box; display: flex; flex-direction: column; gap: 18px;">
+<div style="padding: 0 10px; display: flex; flex-direction: column; gap: 2px;">
+<span style="font-family: Bitter, Georgia, serif; font-size: 19px; font-weight: 800; color: #ffffff; letter-spacing: -0.01em;">MyGoodBooks</span>
+<span style="font-family: Bitter, Georgia, serif; font-style: italic; font-size: 13px; color: #c7ae86;">Staff Portal · Tasks</span>
+</div>
+<div style="display: flex; flex-direction: column; gap: 2px;">
+<span style="padding: 0 12px 6px; font-size: 11.5px; font-weight: 700; letter-spacing: 0.06em; color: #93a3ac;">WORK</span>
+<button class="{{nav.mytasks}}" onClick="{{goMy}}">
+<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 11l3 3 8-8"></path><path d="M20 12v6a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h9"></path></svg>
+<span style="flex: 1;">My Tasks</span>
+<span class="cnt hot">{{myOverdueCount}}</span>
+</button>
+<button class="{{nav.inbox}}" onClick="{{goInbox}}">
+<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 13l2.5-8h13L21 13v6a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z"></path><path d="M3 13h5l1.5 3h5L16 13h5"></path></svg>
+<span style="flex: 1;">Inbox</span>
+<span class="cnt">{{unreadCount}}</span>
+</button>
+<span style="padding: 12px 12px 6px; font-size: 11.5px; font-weight: 700; letter-spacing: 0.06em; color: #93a3ac;">CLIENTS</span>
+<sc-for list="{{clientNav}}" as="cn" hint-placeholder-count="4">
+<button class="{{cn.cls}}" onClick="{{cn.go}}">
+<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 21h18"></path><path d="M5 21V10l7-5 7 5v11"></path><path d="M10 21v-5h4v5"></path></svg>
+<span style="flex: 1;">{{cn.name}}</span>
+<span style="font-family: 'IBM Plex Mono', monospace; font-size: 11.5px; color: #93a3ac;">{{cn.open}}</span>
+</button>
+</sc-for>
+<span style="padding: 12px 12px 6px; font-size: 11.5px; font-weight: 700; letter-spacing: 0.06em; color: #93a3ac;">OPERATIONS</span>
+<button class="{{nav.close}}" onClick="{{goClose}}">
+<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"></rect><path d="M3 9h18M9 3v18"></path></svg>
+<span>Close tracker</span>
+</button>
+<button class="{{nav.workload}}" onClick="{{goWork}}">
+<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"></path></svg>
+<span>Workload</span>
+</button>
+<button class="{{nav.templates}}" onClick="{{goTpl}}">
+<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-3-6.7"></path><path d="M21 4v5h-5"></path></svg>
+<span>Recurring templates</span>
+</button>
+<button class="{{nav.rules}}" onClick="{{goRules}}">
+<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 2L4 14h7l-1 8 9-12h-7z"></path></svg>
+<span>Automations</span>
+</button>
+<span style="padding: 12px 12px 6px; font-size: 11.5px; font-weight: 700; letter-spacing: 0.06em; color: #93a3ac;">TEAM</span>
+<button class="nav" type="button">
+<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3.5"></circle><path d="M2.5 20a6.5 6.5 0 0 1 13 0"></path><path d="M16 4.5a3.5 3.5 0 0 1 0 7M21.5 20a6.5 6.5 0 0 0-4-6"></path></svg>
+<span>Quarterly reviews</span>
+</button>
+</div>
+<div style="margin-top: auto; display: flex; flex-direction: column; gap: 12px; padding-top: 12px; border-top: 1px solid rgba(255,255,255,0.1);">
+<button class="btn ghost" onClick="{{popOut}}" style="justify-content: center;">
+<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 4h6v6"></path><path d="M20 4l-9 9"></path><path d="M19 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1h5"></path></svg>
+Open in own window</button>
+<div style="display: flex; align-items: center; gap: 10px; padding: 0 10px;">
+<span class="av" style="background: #c7ae86; color: #05080d;">NH</span>
+<div style="display: flex; flex-direction: column;">
+<span style="color: #ffffff; font-size: 13px; font-weight: 600;">Nicole Hempel</span>
+<span style="font-size: 12px; color: #93a3ac;">Bookkeeper · demo view</span>
+</div>
+</div>
+</div>
+</nav>
+</sc-if>
+
+<main style="flex: 999 1 560px; min-width: 0; padding: 28px clamp(16px, 3vw, 40px) 48px; box-sizing: border-box; display: flex; flex-direction: column; gap: 20px;">
+<div role="note" style="display: flex; align-items: center; gap: 8px; background: #fbf6ea; border: 1px solid #e3d3ab; color: #8a6d34; border-radius: 10px; padding: 10px 14px; font-size: 12.5px; font-weight: 500;">
+<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 3h6M10 3v6l-5 9a2 2 0 0 0 1.7 3h10.6a2 2 0 0 0 1.7-3l-5-9V3"></path></svg>
+<span>Prototype. Task names come from the Manna Church Asana project; workload, inbox and close figures are sample data, not real.</span>
+</div>
+
+<sc-if value="{{is.mytasks}}" hint-placeholder-val="{{ true }}">
+<div style="display: flex; flex-direction: column; gap: 20px;">
+<header style="display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 16px;">
+<div style="display: flex; flex-direction: column; gap: 4px;">
+<span class="eyebrow">GOOD AFTERNOON, NICOLE</span>
+<h1 class="h1">My Tasks</h1>
+<span class="subtitle">{{mySubtitle}}</span>
+</div>
+<div style="display: flex; gap: 8px; flex-wrap: wrap;">
+<button class="btn2" onClick="{{toggleOoo}}">
+<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3 2"></path></svg>
+{{oooLabel}}</button>
+</div>
+</header>
+<sc-if value="{{ooo}}" hint-placeholder-val="{{ false }}">
+<div style="display: flex; align-items: center; gap: 10px; background: #e9f0ea; border: 1px solid #c9dccd; color: #3f6b52; border-radius: 10px; padding: 10px 14px; font-size: 12.5px; font-weight: 500;">Out of office until Oct 14. Tasks due while you're out are reassigned to Debra Ruffin (backup) and come back when you return.</div>
+</sc-if>
+<form onSubmit="{{quickAdd}}" style="display: flex; gap: 10px; flex-wrap: wrap;">
+<label for="qa" style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0);">Add a task</label>
+<input id="qa" class="input" placeholder="Add a task for Manna Church… (press Enter)" value="{{qa}}" onChange="{{onQa}}">
+<button class="btn" type="submit">
+<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>
+Add task</button>
+</form>
+<sc-for list="{{myGroups}}" as="g" hint-placeholder-count="3">
+<section class="card" style="overflow: hidden;">
+<div style="display: flex; align-items: center; gap: 10px; padding: 14px 20px;">
+<h2 class="h2">{{g.name}}</h2>
+<span class="{{g.pillCls}}">{{g.count}}</span>
+</div>
+<sc-for list="{{g.tasks}}" as="t" hint-placeholder-count="3">
+<div class="row">
+<button class="{{t.chkCls}}" onClick="{{t.toggle}}" aria-label="{{t.chkLabel}}"><span class="ring"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5 9-10"></path></svg></span></button>
+<button class="rowlink" onClick="{{t.open}}"><span class="{{t.ttlCls}}">{{t.t}}</span><span class="sub">{{t.c}} · {{t.s}}{{t.repeatTxt}}{{t.blockTxt}}</span></button>
+<span class="{{t.pillCls}}">{{t.stLabel}}</span>
+<span class="{{t.dueCls}}" style="min-width: 54px; text-align: right;">{{t.dueLabel}}</span>
+</div>
+</sc-for>
+<sc-if value="{{g.empty}}" hint-placeholder-val="{{ false }}">
+<div style="padding: 14px 20px; border-top: 1px solid #e8e2d6; color: #6b655c; font-size: 12.5px;">Nothing here. Nice work.</div>
+</sc-if>
+</section>
+</sc-for>
+</div>
+</sc-if>
+
+<sc-if value="{{is.inbox}}" hint-placeholder-val="{{ false }}">
+<div style="display: flex; flex-direction: column; gap: 20px;">
+<header style="display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 16px;">
+<div style="display: flex; flex-direction: column; gap: 4px;">
+<span class="eyebrow">INBOX</span>
+<h1 class="h1">What needs you</h1>
+<span class="subtitle">Mentions and send-backs arrive right away. Everything else waits for the 7:30 AM digest.</span>
+</div>
+<button class="btn2" onClick="{{readAll}}">Mark all read</button>
+</header>
+<sc-for list="{{inboxGroups}}" as="ig" hint-placeholder-count="3">
+<section class="card" style="overflow: hidden;">
+<div style="display: flex; align-items: center; gap: 10px; padding: 14px 20px;">
+<h2 class="h2" style="flex: 1;">{{ig.name}}</h2>
+<button class="sbtn" onClick="{{ig.mute}}">{{ig.muteLabel}}</button>
+</div>
+<sc-for list="{{ig.items}}" as="n" hint-placeholder-count="2">
+<div class="{{n.rowCls}}">
+<span class="av" style="margin-left: 8px;">{{n.ini}}</span>
+<button class="rowlink" onClick="{{n.open}}"><span class="ttl">{{n.text}}</span><span class="sub">{{n.task}} · {{n.when}}</span></button>
+<span class="{{n.kindCls}}">{{n.kind}}</span>
+</div>
+</sc-for>
+</section>
+</sc-for>
+</div>
+</sc-if>
+
+<sc-if value="{{is.project}}" hint-placeholder-val="{{ false }}">
+<div style="display: flex; flex-direction: column; gap: 20px;">
+<header style="display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 16px;">
+<div style="display: flex; flex-direction: column; gap: 4px;">
+<span class="eyebrow">CLIENT</span>
+<h1 class="h1">{{proj.name}}</h1>
+<span class="subtitle">Bookkeeper {{proj.bk}} · Backup Debra Ruffin · Reviewer Bailley Hawkins</span>
+</div>
+<div style="display: flex; flex-direction: column; gap: 8px; min-width: 240px;">
+<div style="display: flex; justify-content: space-between; font-size: 12.5px; color: #6b655c;"><span style="font-weight: 600; color: #26343d;">October 2026 close</span><span style="font-family: 'IBM Plex Mono', monospace;">{{proj.doneCount}} of {{proj.total}} done</span></div>
+<div class="track" role="img" aria-label="{{proj.pct}} percent complete"><span style="background: #3f6b52; width: {{proj.pct}}%;"></span></div>
+</div>
+</header>
+<div style="display: flex; flex-wrap: wrap; gap: 8px; align-items: center;">
+<a class="ctx" href="https://qbo.intuit.com" target="_blank" rel="noopener">
+<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M8 12h8M12 8v8"></path></svg>
+QuickBooks</a>
+<a class="ctx" href="https://drive.google.com" target="_blank" rel="noopener">
+<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path></svg>
+Drive folder</a>
+<a class="ctx" href="#sop">
+<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3h9l5 5v13a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z"></path><path d="M14 3v6h6M9 13h6M9 17h6"></path></svg>
+Client SOP</a>
+<span class="ctx" style="cursor: default;">Contact: Anny (treasurer) · Tim (pastor)</span>
+<span style="flex: 1;"></span>
+<button class="{{viewCls.list}}" onClick="{{setList}}">List</button>
+<button class="{{viewCls.board}}" onClick="{{setBoard}}">Board</button>
+<button class="{{viewCls.cal}}" onClick="{{setCal}}">Calendar</button>
+</div>
+
+<section class="card" style="overflow: hidden; border-color: #e3d3ab; background: #fbf6ea;">
+<div style="display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding: 12px 20px;">
+<h2 class="h2" style="color: #8a6d34;">Waiting on the client</h2>
+<span class="pill st-wait">{{askCount}}</span>
+<span class="sub" style="flex: 1;">Shown to Anny in the Client Portal as "What we need from you". Nudged every 3 business days.</span>
+<button class="btn2" onClick="{{nudgeAll}}">{{nudgeLabel}}</button>
+<button class="btn2" onClick="{{goClientView}}">
+<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6-10-6-10-6z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+Preview as client</button>
+</div>
+<sc-for list="{{askItems}}" as="a" hint-placeholder-count="2">
+<div class="row" style="background: #ffffff;">
+<span class="av" style="margin-left: 8px; background: #f4ecd9; color: #8a6d34;">A</span>
+<button class="rowlink" onClick="{{a.open}}"><span class="ttl">{{a.ask}}</span><span class="sub">Blocks: {{a.t}} · asked {{a.asked}}</span></button>
+<button class="sbtn" onClick="{{a.resolve}}">Client answered</button>
+</div>
+</sc-for>
+<sc-if value="{{askEmpty}}" hint-placeholder-val="{{ false }}">
+<div style="padding: 12px 20px; border-top: 1px solid #e3d3ab; color: #8a6d34; font-size: 12.5px;">Nothing waiting on the client.</div>
+</sc-if>
+</section>
+
+<sc-if value="{{viewIs.list}}" hint-placeholder-val="{{ true }}">
+<div style="display: flex; flex-direction: column; gap: 16px;">
+<sc-for list="{{proj.sections}}" as="sec" hint-placeholder-count="3">
+<section class="card" style="overflow: hidden;">
+<div style="display: flex; align-items: center; gap: 10px; padding: 14px 20px;">
+<h2 class="h2">{{sec.name}}</h2>
+<span class="pill st-todo">{{sec.count}}</span>
+</div>
+<sc-for list="{{sec.tasks}}" as="t" hint-placeholder-count="4">
+<div class="row">
+<button class="{{t.chkCls}}" onClick="{{t.toggle}}" aria-label="{{t.chkLabel}}"><span class="ring"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5 9-10"></path></svg></span></button>
+<button class="rowlink" onClick="{{t.open}}"><span class="{{t.ttlCls}}">{{t.t}}</span><span class="sub">{{t.repeatShort}}{{t.blockTxt}}</span></button>
+<span class="{{t.pillCls}}">{{t.stLabel}}</span>
+<span class="av" title="{{t.aName}}">{{t.aIni}}</span>
+<span class="{{t.dueCls}}" style="min-width: 54px; text-align: right;">{{t.dueLabel}}</span>
+</div>
+</sc-for>
+</section>
+</sc-for>
+</div>
+</sc-if>
+
+<sc-if value="{{viewIs.board}}" hint-placeholder-val="{{ false }}">
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 14px; align-items: start;">
+<sc-for list="{{proj.cols}}" as="col" hint-placeholder-count="4">
+<section style="background: #f0ece3; border-radius: 12px; padding: 12px; display: flex; flex-direction: column; gap: 10px;">
+<div style="display: flex; align-items: center; gap: 8px; padding: 2px 4px;">
+<h2 style="margin: 0; font-family: Bitter, Georgia, serif; font-size: 15px; font-weight: 700; color: #05080d; flex: 1;">{{col.name}}</h2>
+<span style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: #6b655c;">{{col.count}}</span>
+</div>
+<sc-for list="{{col.tasks}}" as="t" hint-placeholder-count="3">
+<button class="bcard" onClick="{{t.open}}">
+<span style="font-size: 13.5px; font-weight: 600; color: #05080d;">{{t.t}}</span>
+<span class="sub">{{t.s}}{{t.repeatTxt}}{{t.blockTxt}}</span>
+<span style="display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 4px;"><span class="av">{{t.aIni}}</span><span class="{{t.dueCls}}">{{t.dueLabel}}</span></span>
+</button>
+</sc-for>
+</section>
+</sc-for>
+</div>
+</sc-if>
+
+<sc-if value="{{viewIs.cal}}" hint-placeholder-val="{{ false }}">
+<section class="card" style="overflow: hidden;">
+<div style="display: flex; align-items: center; justify-content: space-between; padding: 14px 20px;">
+<h2 class="h2">October 2026</h2>
+<span class="sub">Drag to reschedule (full build)</span>
+</div>
+<div style="overflow-x: auto;">
+<div style="min-width: 720px;">
+<div style="display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); border-top: 1px solid #e8e2d6; border-bottom: 1px solid #e8e2d6; background: #faf9f6;">
+<sc-for list="{{dows}}" as="dw" hint-placeholder-count="7"><span class="th" style="padding: 8px;">{{dw}}</span></sc-for>
+</div>
+<div style="display: grid; grid-template-columns: repeat(7, minmax(0, 1fr));">
+<sc-for list="{{calCells}}" as="cc" hint-placeholder-count="35">
+<div class="{{cc.cls}}">
+<span class="dnum">{{cc.d}}</span>
+<sc-for list="{{cc.tasks}}" as="t" hint-placeholder-count="1">
+<button class="{{t.chipCls}}" onClick="{{t.open}}" title="{{t.t}}">{{t.t}}</button>
+</sc-for>
+</div>
+</sc-for>
+</div>
+</div>
+</div>
+</section>
+</sc-if>
+</div>
+</sc-if>
+
+<sc-if value="{{is.clientview}}" hint-placeholder-val="{{ false }}">
+<div style="display: flex; flex-direction: column; gap: 20px; max-width: 760px;">
+<div style="display: flex; flex-wrap: wrap; align-items: center; gap: 10px; background: rgba(36,55,70,0.06); border-radius: 10px; padding: 10px 14px; font-size: 12.5px; color: #243746;">
+<span style="font-weight: 700;">Client Portal preview</span>
+<span style="flex: 1;">This is what Anny sees when she logs in as Manna Church. Staff tools are hidden.</span>
+<button class="btn2" onClick="{{goProject}}" style="min-height: 36px;">Back to staff view</button>
+</div>
+<header style="display: flex; flex-direction: column; gap: 4px;">
+<span class="eyebrow">MANNA CHURCH · CLIENT PORTAL</span>
+<h1 class="h1">What we need from you</h1>
+<span class="subtitle">Your bookkeeper is Nicole Hempel. Items here hold up your October close.</span>
+</header>
+<sc-for list="{{askItems}}" as="a" hint-placeholder-count="2">
+<section class="card" style="padding: 20px; display: flex; flex-direction: column; gap: 12px;">
+<div style="display: flex; align-items: flex-start; gap: 12px;">
+<span class="av" style="background: #c7ae86; color: #05080d;">NH</span>
+<div style="display: flex; flex-direction: column; gap: 4px; flex: 1; min-width: 0;">
+<span style="font-family: Bitter, Georgia, serif; font-size: 17px; font-weight: 700; color: #05080d;">{{a.ask}}</span>
+<span class="sub">Asked by Nicole on {{a.asked}} · needed for the October close</span>
+</div>
+<span class="pill st-wait">Open</span>
+</div>
+<div style="display: flex; flex-wrap: wrap; gap: 8px;">
+<button class="btn" onClick="{{a.resolve}}">
+<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 16V4M6 10l6-6 6 6"></path><path d="M4 20h16"></path></svg>
+Upload file</button>
+<button class="btn2" onClick="{{a.resolve}}">Reply instead</button>
+</div>
+</section>
+</sc-for>
+<sc-if value="{{askEmpty}}" hint-placeholder-val="{{ false }}">
+<section class="card" style="padding: 28px 20px; display: flex; flex-direction: column; align-items: center; gap: 6px; text-align: center;">
+<span class="ring" style="width: 36px; height: 36px; background: #3f6b52; border-color: #3f6b52;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5 9-10"></path></svg></span>
+<span style="font-family: Bitter, Georgia, serif; font-size: 17px; font-weight: 700; color: #05080d;">Nothing needed right now</span>
+<span class="sub">We'll email you if something comes up. October close is on track.</span>
+</section>
+</sc-if>
+<section class="card" style="padding: 16px 20px; display: flex; flex-direction: column; gap: 6px;">
+<span class="th">Recently received</span>
+<span style="font-size: 13px;">Trace Church loan statement · Oct 4 · <span style="color: #3f6b52; font-weight: 600;">Received</span></span>
+<span style="font-size: 13px;">September Divvy statement · Oct 2 · <span style="color: #3f6b52; font-weight: 600;">Received</span></span>
+</section>
+<span class="sub">Don't want to log in? Every request also arrives by email with a secure link that opens just that item.</span>
+</div>
+</sc-if>
+
+<sc-if value="{{is.close}}" hint-placeholder-val="{{ false }}">
+<div style="display: flex; flex-direction: column; gap: 20px;">
+<header style="display: flex; flex-direction: column; gap: 4px;">
+<span class="eyebrow">OPERATIONS</span>
+<h1 class="h1">Close tracker</h1>
+<span class="subtitle">Month-end status for every client, by bookkeeper</span>
+</header>
+<div style="display: flex; flex-wrap: wrap; gap: 8px;">
+<span class="pill st-done">Closed</span><span class="pill st-late">Closed late / overdue</span><span class="pill st-review">In review</span><span class="pill st-progress">In progress</span><span class="pill st-wait">Waiting on client</span><span class="pill st-none">Not started</span>
+</div>
+<section class="card" style="overflow-x: auto;">
+<div style="min-width: 760px;">
+<div style="display: grid; grid-template-columns: minmax(200px, 2fr) minmax(130px, 1.2fr) repeat(4, minmax(110px, 1fr)); padding: 0 20px; align-items: center; min-height: 44px;">
+<span class="th">Client</span><span class="th">Bookkeeper</span><span class="th" style="text-align: center;">Jul</span><span class="th" style="text-align: center;">Aug</span><span class="th" style="text-align: center;">Sep</span><span class="th" style="text-align: center;">Oct</span>
+</div>
+<sc-for list="{{closeRows}}" as="r" hint-placeholder-count="10">
+<div style="display: grid; grid-template-columns: minmax(200px, 2fr) minmax(130px, 1.2fr) repeat(4, minmax(110px, 1fr)); padding: 0 20px; align-items: center; border-top: 1px solid #e8e2d6; min-height: 48px;">
+<button onClick="{{r.go}}" style="border: 0; background: none; padding: 0; text-align: left; font-size: 13.5px; font-weight: 600; color: #05080d; cursor: pointer;">{{r.name}}</button>
+<span style="display: flex; align-items: center; gap: 8px;"><span class="av">{{r.ini}}</span><span>{{r.bk}}</span></span>
+<sc-for list="{{r.cells}}" as="m" hint-placeholder-count="4">
+<span style="display: flex; justify-content: center;"><span class="{{m.cls}}">{{m.label}}</span></span>
+</sc-for>
+</div>
+</sc-for>
+</div>
+</section>
+</div>
+</sc-if>
+
+<sc-if value="{{is.workload}}" hint-placeholder-val="{{ false }}">
+<div style="display: flex; flex-direction: column; gap: 20px;">
+<header style="display: flex; flex-direction: column; gap: 4px;">
+<span class="eyebrow">OPERATIONS</span>
+<h1 class="h1">Workload</h1>
+<span class="subtitle">Week of October 12, 2026</span>
+</header>
+<div style="display: flex; flex-wrap: wrap; gap: 14px;">
+<div class="kcard"><span style="font-size: 12.5px; font-weight: 500; color: #6b655c;">Overdue tasks, firm-wide</span><span style="font-size: 27px; font-weight: 800; letter-spacing: -0.02em; color: #05080d;">22</span><span class="pill st-late" style="align-self: flex-start;">↑ 6 vs. last week</span></div>
+<div class="kcard"><span style="font-size: 12.5px; font-weight: 500; color: #6b655c;">Waiting on review</span><span style="font-size: 27px; font-weight: 800; letter-spacing: -0.02em; color: #05080d;">{{reviewCount}}</span><span class="pill st-review" style="align-self: flex-start;">Oldest: 2 days</span></div>
+<div class="kcard"><span style="font-size: 12.5px; font-weight: 500; color: #6b655c;">Waiting on clients</span><span style="font-size: 27px; font-weight: 800; letter-spacing: -0.02em; color: #05080d;">9</span><span class="pill st-wait" style="align-self: flex-start;">3 clients over 5 days</span></div>
+<div class="kcard"><span style="font-size: 12.5px; font-weight: 500; color: #6b655c;">On-time rate, September</span><span style="font-size: 27px; font-weight: 800; letter-spacing: -0.02em; color: #05080d;">91%</span><span class="pill st-done" style="align-self: flex-start;">↑ 3 pts vs. August</span></div>
+</div>
+<div style="display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-start;">
+<section class="card" style="flex: 3 1 460px; min-width: 0; padding: 20px; display: flex; flex-direction: column; gap: 14px;">
+<div style="display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 8px;">
+<h2 class="h2">Open tasks this week, by bookkeeper</h2>
+<span style="display: flex; gap: 14px; font-size: 12.5px; color: #6b655c;"><span style="display: inline-flex; align-items: center; gap: 6px;"><span style="width: 10px; height: 10px; border-radius: 3px; background: #a4442c;"></span>Overdue</span><span style="display: inline-flex; align-items: center; gap: 6px;"><span style="width: 10px; height: 10px; border-radius: 3px; background: #c7ae86;"></span>Due this week</span><span style="display: inline-flex; align-items: center; gap: 6px;"><span style="width: 10px; height: 10px; border-radius: 3px; background: #e8e2d6;"></span>Capacity</span></span>
+</div>
+<sc-for list="{{workload}}" as="w" hint-placeholder-count="6">
+<div style="display: grid; grid-template-columns: 150px minmax(0, 1fr) 110px; gap: 12px; align-items: center;">
+<span style="display: flex; align-items: center; gap: 8px;"><span class="av">{{w.ini}}</span><span style="display: flex; flex-direction: column;"><span style="font-size: 13px;">{{w.name}}</span><span class="sub">{{w.note}}</span></span></span>
+<div class="track" style="height: 14px; background: #e8e2d6;"><span style="background: #a4442c; width: {{w.overPct}}%;"></span><span style="background: #c7ae86; width: {{w.weekPct}}%;"></span></div>
+<span style="font-family: 'IBM Plex Mono', monospace; font-size: 12.5px; text-align: right;">{{w.total}} / {{w.cap}} hrs</span>
+</div>
+</sc-for>
+<span class="sub">Capacity = hours the bookkeeper's clients usually take this week of the month, from tracked time. Figures: open hours / capacity.</span>
+</section>
+<section class="card" style="flex: 2 1 320px; min-width: 0; overflow: hidden;">
+<div style="padding: 16px 20px; display: flex; align-items: center; gap: 10px;">
+<h2 class="h2">Review queue</h2>
+<span class="pill st-review">{{reviewCount}}</span>
+</div>
+<sc-for list="{{reviewQueue}}" as="t" hint-placeholder-count="2">
+<div class="row">
+<button class="rowlink" style="padding-left: 8px;" onClick="{{t.open}}"><span class="ttl">{{t.t}}</span><span class="sub">{{t.c}} · {{t.aName}}</span></button>
+<span class="{{t.dueCls}}">{{t.dueLabel}}</span>
+</div>
+</sc-for>
+<sc-if value="{{reviewEmpty}}" hint-placeholder-val="{{ false }}">
+<div style="padding: 14px 20px; border-top: 1px solid #e8e2d6; color: #6b655c; font-size: 12.5px;">Queue is clear.</div>
+</sc-if>
+</section>
+</div>
+</div>
+</sc-if>
+
+<sc-if value="{{is.templates}}" hint-placeholder-val="{{ false }}">
+<div style="display: flex; flex-direction: column; gap: 20px;">
+<header style="display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 16px;">
+<div style="display: flex; flex-direction: column; gap: 4px;">
+<span class="eyebrow">RECURRING TEMPLATE</span>
+<h1 class="h1">Manna Church</h1>
+<span class="subtitle">Based on MGB Standard Monthly Close + 6 client-specific items · generates 7 days ahead · business-day aware</span>
+</div>
+<div style="display: flex; gap: 8px; flex-wrap: wrap;">
+<button class="btn2">Preview November</button>
+<button class="btn">
+<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>
+Add item</button>
+</div>
+</header>
+<section class="card" style="overflow-x: auto;">
+<div style="min-width: 820px;">
+<div style="display: grid; grid-template-columns: minmax(240px, 2.4fr) 100px minmax(150px, 1.3fr) 130px 90px 110px; gap: 12px; padding: 0 20px; align-items: center; min-height: 44px;">
+<span class="th">Item</span><span class="th">Cadence</span><span class="th">Due rule</span><span class="th">Assignee</span><span class="th">Review</span><span class="th">SOP</span>
+</div>
+<sc-for list="{{tplRows}}" as="r" hint-placeholder-count="10">
+<div style="display: grid; grid-template-columns: minmax(240px, 2.4fr) 100px minmax(150px, 1.3fr) 130px 90px 110px; gap: 12px; padding: 0 20px; align-items: center; border-top: 1px solid #e8e2d6; min-height: 48px;">
+<span style="display: flex; flex-direction: column; gap: 2px;"><span style="font-size: 13.5px; font-weight: 500; color: #05080d;">{{r.t}}</span><span class="sub">{{r.src}}</span></span>
+<span><span class="pill st-todo">{{r.cad}}</span></span>
+<span style="font-family: 'IBM Plex Mono', monospace; font-size: 12.5px;">{{r.rule}}</span>
+<span style="display: flex; align-items: center; gap: 8px;"><span class="av">{{r.ini}}</span><span>{{r.who}}</span></span>
+<span class="{{r.revCls}}">{{r.rev}}</span>
+<span class="sub">{{r.sop}}</span>
+</div>
+</sc-for>
+</div>
+</section>
+</div>
+</sc-if>
+
+<sc-if value="{{is.rules}}" hint-placeholder-val="{{ false }}">
+<div style="display: flex; flex-direction: column; gap: 20px;">
+<header style="display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 16px;">
+<div style="display: flex; flex-direction: column; gap: 4px;">
+<span class="eyebrow">AUTOMATIONS</span>
+<h1 class="h1">Rules</h1>
+<span class="subtitle">Bookkeeping triggers, not generic ones. Every rule shows how often it fired this month.</span>
+</div>
+<button class="btn">
+<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>
+New rule</button>
+</header>
+<section class="card" style="overflow-x: auto;">
+<div style="min-width: 760px;">
+<div style="display: grid; grid-template-columns: 56px minmax(220px, 1.4fr) minmax(240px, 1.6fr) 110px 90px; gap: 12px; padding: 0 20px; align-items: center; min-height: 44px;">
+<span class="th">On</span><span class="th">When</span><span class="th">Then</span><span class="th">Scope</span><span class="th" style="text-align: right;">Fired</span>
+</div>
+<sc-for list="{{rules}}" as="r" hint-placeholder-count="6">
+<div style="display: grid; grid-template-columns: 56px minmax(220px, 1.4fr) minmax(240px, 1.6fr) 110px 90px; gap: 12px; padding: 0 20px; align-items: center; border-top: 1px solid #e8e2d6; min-height: 52px;">
+<button class="{{r.swCls}}" onClick="{{r.toggle}}" aria-label="{{r.swLabel}}"><span></span></button>
+<span style="font-size: 13.5px; font-weight: 500; color: #05080d;">{{r.when}}</span>
+<span style="font-size: 13px;">{{r.then}}</span>
+<span><span class="pill st-todo">{{r.scope}}</span></span>
+<span style="font-family: 'IBM Plex Mono', monospace; font-size: 12.5px; text-align: right;">{{r.fired}}</span>
+</div>
+</sc-for>
+</div>
+</section>
+<section class="card" style="padding: 20px; display: flex; flex-direction: column; gap: 10px;">
+<h2 class="h2">Email to task</h2>
+<span style="font-size: 13px; line-height: 1.5;">Forward or CC <span style="font-family: 'IBM Plex Mono', monospace;">tasks@mygoodbooks.org</span>. The sender's domain picks the client; the subject becomes the task; the thread is attached. Replies on the thread post as comments.</span>
+<span class="sub">Last 30 days: 41 tasks created from email · 3 needed a client picked by hand</span>
+</section>
+</div>
+</sc-if>
+</main>
+
+<sc-if value="{{hasOpen}}" hint-placeholder-val="{{ false }}">
+<div style="position: fixed; inset: 0; z-index: 30; display: flex; justify-content: flex-end;">
+<button aria-label="Close task" onClick="{{closeTask}}" style="position: absolute; inset: 0; border: 0; padding: 0; background: rgba(5, 8, 13, 0.32); cursor: pointer;"></button>
+<aside aria-label="Task details" style="position: relative; width: min(480px, 100%); height: 100%; overflow-y: auto; background: #ffffff; border-left: 1px solid #e8e2d6; box-sizing: border-box; padding: 24px; display: flex; flex-direction: column; gap: 18px;">
+<div style="display: flex; align-items: center; gap: 10px;">
+<span style="font-size: 12.5px; font-weight: 600; color: #8a6d34; flex: 1;">{{ot.c}} · {{ot.s}} · October 2026</span>
+<button class="btn2" onClick="{{closeTask}}" aria-label="Close" style="padding: 0; width: 40px; justify-content: center;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"></path></svg></button>
+</div>
+<h2 style="margin: 0; font-family: Bitter, Georgia, serif; font-size: 22px; font-weight: 700; line-height: 1.25; color: #05080d;">{{ot.t}}</h2>
+<div style="display: flex; flex-direction: column; gap: 8px;">
+<span class="th">Status</span>
+<div style="display: flex; flex-wrap: wrap; gap: 6px;">
+<sc-for list="{{ot.statusBtns}}" as="sb" hint-placeholder-count="4"><button class="{{sb.cls}}" onClick="{{sb.set}}">{{sb.label}}</button></sc-for>
+</div>
+</div>
+<div style="display: grid; grid-template-columns: 110px 1fr; gap: 10px 12px; font-size: 13px; align-items: center;">
+<span class="sub">Assignee</span><span style="display: flex; align-items: center; gap: 8px;"><span class="av">{{ot.aIni}}</span>{{ot.aName}}</span>
+<span class="sub">Due</span><span class="{{ot.dueCls}}">{{ot.dueLong}}</span>
+<span class="sub">Repeats</span><span>{{ot.repeatLong}}</span>
+<span class="sub">Review</span><span>{{ot.reviewTxt}}</span>
+<span class="sub">Time</span><span style="display: flex; align-items: center; gap: 8px;"><span style="font-family: 'IBM Plex Mono', monospace;">{{ot.timeTxt}}</span><button class="sbtn" onClick="{{ot.timer}}">{{ot.timerLabel}}</button></span>
+</div>
+<sc-if value="{{ot.hasBlock}}" hint-placeholder-val="{{ false }}">
+<div style="display: flex; align-items: center; gap: 8px; background: #f7e9e4; border-radius: 10px; padding: 10px 14px; color: #a4442c; font-size: 13px;">
+<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M5.6 5.6l12.8 12.8"></path></svg>
+<span>Blocked by <strong>{{ot.blockedBy}}</strong>. Due date shifts automatically when the blocker finishes.</span>
+</div>
+</sc-if>
+<div style="display: flex; flex-direction: column; gap: 8px;">
+<span class="th">Client context</span>
+<div style="display: flex; flex-wrap: wrap; gap: 6px;">
+<a class="ctx" href="https://qbo.intuit.com" target="_blank" rel="noopener" style="min-height: 36px;">QuickBooks</a>
+<a class="ctx" href="https://drive.google.com" target="_blank" rel="noopener" style="min-height: 36px;">Drive · 2026-10</a>
+<a class="ctx" href="#sop" style="min-height: 36px;">SOP</a>
+<span class="ctx" style="min-height: 36px; cursor: default;">Last done: Sep 8 by Nicole</span>
+</div>
+</div>
+<sc-if value="{{ot.hasNotes}}" hint-placeholder-val="{{ false }}">
+<div style="background: #fbf6ea; border: 1px solid #e3d3ab; border-radius: 10px; padding: 10px 14px; color: #8a6d34; font-size: 13px;">{{ot.notes}}</div>
+</sc-if>
+<sc-if value="{{ot.isWait}}" hint-placeholder-val="{{ false }}">
+<div style="display: flex; flex-direction: column; gap: 8px; background: #fbf6ea; border: 1px solid #e3d3ab; border-radius: 12px; padding: 14px;">
+<span style="font-family: Bitter, Georgia, serif; font-weight: 700; color: #8a6d34;">Waiting on the client</span>
+<span style="font-size: 13px;">{{ot.askTxt}}</span>
+<span class="sub">Visible in Anny's Client Portal. Next nudge Oct 14.</span>
+<button class="btn2" style="align-self: flex-start;" onClick="{{ot.resolveAsk}}">Client answered</button>
+</div>
+</sc-if>
+<sc-if value="{{ot.canAsk}}" hint-placeholder-val="{{ false }}">
+<form onSubmit="{{askClient}}" style="display: flex; gap: 8px;">
+<label for="ask" style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0);">Ask the client</label>
+<input id="ask" class="input" placeholder="Ask the client for something… (pauses this task)" value="{{askDraft}}" onChange="{{onAsk}}">
+<button class="btn2" type="submit">Ask client</button>
+</form>
+</sc-if>
+<sc-if value="{{ot.isReview}}" hint-placeholder-val="{{ false }}">
+<div style="display: flex; flex-direction: column; gap: 10px; background: rgba(36,55,70,0.06); border-radius: 12px; padding: 14px;">
+<span style="font-family: Bitter, Georgia, serif; font-weight: 700; color: #05080d;">Waiting on Bailley’s review</span>
+<div style="display: flex; gap: 8px; flex-wrap: wrap;">
+<button class="btn" onClick="{{ot.approve}}">Approve</button>
+<button class="btn2" onClick="{{ot.sendBack}}">Send back</button>
+</div>
+</div>
+</sc-if>
+<sc-if value="{{ot.canSubmit}}" hint-placeholder-val="{{ false }}">
+<button class="btn gold" style="align-self: flex-start;" onClick="{{ot.submit}}">Send for review</button>
+</sc-if>
+<sc-if value="{{ot.hasSubs}}" hint-placeholder-val="{{ false }}">
+<div style="display: flex; flex-direction: column; gap: 2px;">
+<span class="th" style="margin-bottom: 4px;">Checklist from SOP · {{ot.subDone}}/{{ot.subTotal}}</span>
+<sc-for list="{{ot.subs}}" as="st" hint-placeholder-count="3">
+<button class="{{st.cls}}" onClick="{{st.toggle}}"><span class="ring"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5 9-10"></path></svg></span><span class="t">{{st.t}}</span></button>
+</sc-for>
+</div>
+</sc-if>
+<div style="display: flex; flex-direction: column; gap: 10px; border-top: 1px solid #e8e2d6; padding-top: 16px;">
+<span class="th">Activity</span>
+<sc-for list="{{ot.comments}}" as="cm" hint-placeholder-count="2">
+<div style="display: flex; gap: 10px;">
+<span class="av">{{cm.ini}}</span>
+<div style="display: flex; flex-direction: column; gap: 2px; min-width: 0;">
+<span style="font-size: 12.5px;"><span style="font-weight: 700; color: #05080d;">{{cm.who}}</span> <span class="sub">· {{cm.when}}</span></span>
+<span style="font-size: 13px; line-height: 1.5;">{{cm.text}}</span>
+</div>
+</div>
+</sc-for>
+<form onSubmit="{{postComment}}" style="display: flex; gap: 8px; margin-top: 4px;">
+<label for="cmt" style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0);">Add a comment</label>
+<input id="cmt" class="input" placeholder="Comment or @mention…" value="{{draft}}" onChange="{{onDraft}}">
+<button class="btn" type="submit">Post</button>
+</form>
+</div>
+</aside>
+</div>
+</sc-if>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":960}}'>
+var TODAY = '2026-10-10';
+var WEEK_END = '2026-10-17';
+var MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+var DAYS = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+var PEOPLE = {
+  nicole: ['Nicole Hempel','NH'], debra: ['Debra Ruffin','DR'], gillian: ['Gillian Gray','GG'],
+  sonya: ['Sonya Johnson','SJ'], naomi: ['Naomi Townes','NT'], sarah: ['Sarah','SA'], bailley: ['Bailley Hawkins','BH'],
+  jesse: ['Jesse Smithwick','JS'], anny: ['Anny (Manna Church)','A'], system: ['System','↻']
+};
+var CLIENTS = [
+  { name: 'Manna Church', bk: 'nicole' },
+  { name: 'Highpoint Church', bk: 'nicole' },
+  { name: 'Crossings Church', bk: 'nicole' },
+  { name: 'Vivid Church', bk: 'nicole' }
+];
+var ST_LABEL = { todo: 'To do', progress: 'In progress', wait: 'Waiting on client', review: 'Ready for review', done: 'Done' };
+
+function T(id, t, c, s, a, d, st, rv, rep, extra) {
+  var o = { id: id, t: t, c: c, s: s, a: a, d: d, st: st, rv: rv, rep: rep, subs: [], comments: [], notes: '', ask: '', askedOn: '', blockedBy: '', mins: 0, timing: false };
+  if (extra) { for (var k in extra) { o[k] = extra[k]; } }
+  return o;
+}
+
+var SEED = [
+  T(1, 'QBO – Accept transactions in all bank feeds', 'Manna Church', 'Weekly', 'nicole', '2026-10-08', 'todo', false, 'Weekly · every Wednesday', { mins: 35 }),
+  T(2, 'Split out income – in-service giving', 'Manna Church', 'Weekly', 'nicole', '2026-10-14', 'todo', false, 'Weekly · every Wednesday'),
+  T(3, 'Split out income – Stripe giving', 'Manna Church', 'Weekly', 'nicole', '2026-10-14', 'todo', false, 'Weekly · every Wednesday'),
+  T(4, 'Split out income – Subsplash giving', 'Manna Church', 'Weekly', 'nicole', '2026-10-08', 'progress', false, 'Weekly · every Wednesday', { mins: 20 }),
+  T(5, 'Divvy – Sync completed transactions', 'Manna Church', 'Weekly', 'nicole', '2026-10-08', 'todo', false, 'Weekly · every Wednesday'),
+  T(6, 'Bank statement to Google Drive', 'Manna Church', 'Monthly', 'nicole', '2026-10-08', 'wait', false, 'Monthly · 8th', {
+    ask: 'October bank statement (Chase ...4412)', askedOn: '2026-10-08',
+    comments: [ { who: 'system', when: 'Oct 8', text: 'Asked client. Shown in Client Portal.' } ]
+  }),
+  T(7, 'Reconcile Checking', 'Manna Church', 'Monthly', 'nicole', '2026-10-08', 'progress', true, 'Monthly · 8th', {
+    blockedBy: 'Bank statement to Google Drive', mins: 95,
+    subs: [ { t: 'Download statement from Drive', done: true }, { t: 'Match cleared items', done: true }, { t: 'Resolve any variance over $1', done: false }, { t: 'Attach reconciliation report', done: false } ],
+    comments: [ { who: 'nicole', when: 'Oct 9, 4:12 PM', text: 'Variance looks like a Subsplash fee posted twice. Fixing before I send for review.' } ]
+  }),
+  T(8, 'Reconcile Divvy', 'Manna Church', 'Monthly', 'nicole', '2026-10-03', 'done', true, 'Monthly · 3rd', { mins: 40 }),
+  T(9, 'Check uncategorized account', 'Manna Church', 'Monthly', 'nicole', '2026-10-03', 'done', false, 'Monthly · 3rd', { mins: 15 }),
+  T(10, '4th-of-month client email', 'Manna Church', 'Monthly', 'nicole', '2026-10-04', 'done', false, 'Monthly · 4th', { notes: 'Ask client for Trace and CDF statements.', mins: 10 }),
+  T(11, 'CDF loan payment', 'Manna Church', 'Monthly', 'nicole', '2026-10-06', 'done', false, 'Monthly · 6th', { mins: 10 }),
+  T(12, 'Trace Church loan payment', 'Manna Church', 'Monthly', 'nicole', '2026-10-09', 'todo', false, 'Monthly · 9th'),
+  T(13, 'Reconcile CDF Capital investment', 'Manna Church', 'Monthly', 'nicole', '2026-10-08', 'wait', true, 'Quarterly · 8th', {
+    ask: 'Q3 CDF Capital investment statement', askedOn: '2026-10-04'
+  }),
+  T(14, 'Run reports & add to Google Drive', 'Manna Church', 'Monthly', 'nicole', '2026-10-11', 'todo', true, 'Monthly · 11th', {
+    blockedBy: 'Reconcile Checking',
+    notes: 'Replaces the old “Email Bailley reports to review” task: sending for review notifies Bailley automatically.'
+  }),
+  T(15, '14th-of-month client email', 'Manna Church', 'Monthly', 'nicole', '2026-10-14', 'todo', false, 'Monthly · 14th'),
+  T(16, 'JE for payroll', 'Manna Church', 'Monthly', 'bailley', '2026-11-01', 'todo', false, 'Monthly · 1st'),
+  T(17, 'Re: miscategorized transaction (from Anny)', 'Manna Church', 'Occasional', 'nicole', '2026-10-09', 'todo', false, '', {
+    comments: [ { who: 'system', when: 'Oct 8', text: 'Created from email to tasks@mygoodbooks.org. Thread attached.' } ]
+  }),
+  T(18, 'Re: new categories (from Tim)', 'Manna Church', 'Occasional', 'nicole', '2026-10-13', 'todo', false, '', {
+    comments: [ { who: 'system', when: 'Oct 9', text: 'Created from email to tasks@mygoodbooks.org. Thread attached.' } ]
+  }),
+  T(19, 'Reconcile Checking', 'Highpoint Church', 'Monthly', 'nicole', '2026-10-08', 'review', true, 'Monthly · 8th', {
+    mins: 80, comments: [ { who: 'nicole', when: 'Oct 8, 2:30 PM', text: 'Reconciled to $48,211.06. Ready for review.' } ]
+  }),
+  T(20, 'Run reports & add to Google Drive', 'Highpoint Church', 'Monthly', 'nicole', '2026-10-12', 'todo', true, 'Monthly · 12th'),
+  T(21, 'QBO – Accept transactions in all bank feeds', 'Crossings Church', 'Weekly', 'nicole', '2026-10-09', 'todo', false, 'Weekly · every Friday'),
+  T(22, 'Payroll journal entry', 'Crossings Church', 'Monthly', 'nicole', '2026-10-15', 'todo', false, 'Monthly · 15th'),
+  T(23, 'Run reports & add to Google Drive', 'Vivid Church', 'Monthly', 'nicole', '2026-10-13', 'todo', true, 'Monthly · 13th'),
+  T(24, 'Reconcile Checking', 'Vivid Church', 'Monthly', 'nicole', '2026-10-07', 'progress', true, 'Monthly · 7th', {
+    comments: [ { who: 'bailley', when: 'Oct 9, 9:05 AM', text: 'Sent back: the Oct 2 deposit is split wrong between General and Building Fund.' } ]
+  })
+];
+
+var INBOX_SEED = [
+  { id: 1, c: 'Vivid Church', taskId: 24, who: 'bailley', kind: 'Sent back', text: 'Bailley sent back Reconcile Checking: deposit split between General and Building Fund.', when: 'Oct 9, 9:05 AM', read: false },
+  { id: 2, c: 'Manna Church', taskId: 17, who: 'anny', kind: 'Email', text: 'New task from Anny’s email: miscategorized transaction.', when: 'Oct 8', read: false },
+  { id: 3, c: 'Manna Church', taskId: 7, who: 'jesse', kind: 'Mention', text: '@Nicole can you note the Subsplash fee fix in the SOP once it’s done?', when: 'Oct 9, 4:40 PM', read: false },
+  { id: 4, c: 'Highpoint Church', taskId: 19, who: 'system', kind: 'Digest', text: 'Reconcile Checking has waited 2 days for review. Bailley has been reminded.', when: 'Today, 7:30 AM', read: true },
+  { id: 5, c: 'Manna Church', taskId: 6, who: 'system', kind: 'Digest', text: 'Client nudged: October bank statement still outstanding (2 days).', when: 'Today, 7:30 AM', read: true }
+];
+
+var RULES_SEED = [
+  { id: 1, on: true, when: 'Task overdue 2 business days', then: 'Notify backup bookkeeper and Jesse; add to Workload overdue list', scope: 'All clients', fired: 14 },
+  { id: 2, on: true, when: 'Period closed', then: 'Post close summary to Client Portal; email treasurer the report pack', scope: 'All clients', fired: 31 },
+  { id: 3, on: true, when: 'Email received at tasks@ from a client domain', then: 'Create task in that client’s Occasional section; attach thread', scope: 'All clients', fired: 41 },
+  { id: 4, on: true, when: 'Waiting on client 3 business days', then: 'Nudge client contact; show badge in Client Portal', scope: 'All clients', fired: 9 },
+  { id: 5, on: true, when: 'Bookkeeper marks out of office', then: 'Reassign tasks due in that window to backup; return on first day back', scope: 'All staff', fired: 2 },
+  { id: 6, on: false, when: 'Task sent back twice', then: 'Flag for Jesse; add to next quarterly review notes', scope: 'All staff', fired: 1 },
+  { id: 7, on: true, when: 'Blocker task completed', then: 'Shift dependent due dates; notify assignee', scope: 'All clients', fired: 23 }
+];
+
+function fmt(iso) { var p = iso.split('-'); return MONTHS[+p[1] - 1] + ' ' + (+p[2]); }
+function dayName(iso) { var p = iso.split('-'); return DAYS[new Date(Date.UTC(+p[0], +p[1] - 1, +p[2])).getUTCDay()]; }
+function isoOf(dt) { return dt.toISOString().slice(0, 10); }
+function hrs(m) { return m ? (Math.round(m / 6) / 10) + ' h' : '—'; }
+
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { standalone: false, screen: 'mytasks', client: 'Manna Church', view: 'list', open: null, draft: '', qa: '', askDraft: '', tasks: SEED, inbox: INBOX_SEED, rules: RULES_SEED, muted: {}, nudged: false, ooo: false, nextId: 100 };
+  }
+
+  patch(id, fn) {
+    this.setState({ tasks: this.state.tasks.map(function (t) { return t.id === id ? fn(Object.assign({}, t)) : t; }) });
+  }
+
+  decorate(t) {
+    var self = this;
+    var done = t.st === 'done';
+    var over = !done && t.st !== 'wait' && t.d < TODAY;
+    var p = PEOPLE[t.a];
+    return Object.assign({}, t, {
+      aName: p[0], aIni: p[1],
+      stLabel: ST_LABEL[t.st],
+      pillCls: 'pill st-' + t.st,
+      dueLabel: t.d === TODAY ? 'Today' : fmt(t.d),
+      dueLong: dayName(t.d) + ', ' + fmt(t.d) + (over ? ' · overdue' : ''),
+      dueCls: over ? 'due over' : 'due',
+      ttlCls: done ? 'ttl done' : 'ttl',
+      chkCls: done ? 'chk done' : 'chk',
+      chkLabel: done ? 'Mark incomplete' : 'Mark complete',
+      chipCls: 'chip st-' + (over ? 'late' : t.st),
+      repeatTxt: t.rep ? ' · ↻ ' + t.rep.split(' · ')[0] : '',
+      repeatShort: t.rep ? '↻ ' + t.rep : 'One-off',
+      blockTxt: t.blockedBy ? ' · blocked by ' + t.blockedBy : '',
+      open: function () { self.setState({ open: t.id, draft: '', askDraft: '' }); },
+      toggle: function () { self.patch(t.id, function (x) { x.st = x.st === 'done' ? 'todo' : 'done'; return x; }); }
+    });
+  }
+
+  renderVals() {
+    var self = this;
+    var s = this.state;
+    var all = s.tasks.map(function (t) { return self.decorate(t); });
+    var byDue = function (a, b) { return a.d < b.d ? -1 : a.d > b.d ? 1 : 0; };
+
+    var mine = all.filter(function (t) { return t.a === 'nicole' && t.st !== 'done'; }).sort(byDue);
+    var waiting = mine.filter(function (t) { return t.st === 'wait'; });
+    var active = mine.filter(function (t) { return t.st !== 'wait'; });
+    var overdue = active.filter(function (t) { return t.d < TODAY; });
+    var week = active.filter(function (t) { return t.d >= TODAY && t.d <= WEEK_END; });
+    var later = active.filter(function (t) { return t.d > WEEK_END; });
+    var clientsOver = {};
+    overdue.forEach(function (t) { clientsOver[t.c] = 1; });
+    var myGroups = [
+      { name: 'Overdue', tasks: overdue, count: overdue.length, pillCls: 'pill st-late', empty: overdue.length === 0 },
+      { name: 'Due this week', tasks: week, count: week.length, pillCls: 'pill st-progress', empty: week.length === 0 },
+      { name: 'Waiting on clients', tasks: waiting, count: waiting.length, pillCls: 'pill st-wait', empty: waiting.length === 0 },
+      { name: 'Later', tasks: later, count: later.length, pillCls: 'pill st-todo', empty: later.length === 0 }
+    ];
+
+    var proj = all.filter(function (t) { return t.c === s.client; });
+    var client = CLIENTS.filter(function (c) { return c.name === s.client; })[0] || CLIENTS[0];
+    var doneCount = proj.filter(function (t) { return t.st === 'done'; }).length;
+    var sections = ['Weekly', 'Monthly', 'Occasional'].map(function (n) {
+      var ts = proj.filter(function (t) { return t.s === n; }).sort(byDue);
+      return { name: n === 'Weekly' ? 'Weekly bookkeeping' : n === 'Monthly' ? 'Monthly bookkeeping' : 'Occasional', tasks: ts, count: ts.length };
+    }).filter(function (x) { return x.count > 0; });
+    var cols = ['todo', 'progress', 'wait', 'review', 'done'].map(function (k) {
+      var ts = proj.filter(function (t) { return t.st === k; }).sort(byDue);
+      return { name: ST_LABEL[k], tasks: ts, count: ts.length };
+    });
+    var askItems = proj.filter(function (t) { return t.st === 'wait'; }).map(function (t) {
+      return { t: t.t, ask: t.ask, asked: fmt(t.askedOn || TODAY), open: t.open,
+        resolve: function () { self.patch(t.id, function (x) { x.st = 'progress'; x.comments = x.comments.concat([{ who: 'system', when: 'Just now', text: 'Client answered. Task resumed.' }]); return x; }); } };
+    });
+
+    var start = new Date(Date.UTC(2026, 8, 27));
+    var calCells = [];
+    for (var i = 0; i < 35; i++) {
+      var dt = new Date(start.getTime() + i * 86400000);
+      var iso = isoOf(dt);
+      var inMonth = dt.getUTCMonth() === 9;
+      calCells.push({
+        d: dt.getUTCDate(),
+        cls: 'cal' + (inMonth ? '' : ' out') + (iso === TODAY ? ' today' : ''),
+        tasks: proj.filter(function (t) { return t.d === iso; })
+      });
+    }
+
+    var navCls = function (on) { return s.standalone ? (on ? 'tab on' : 'tab') : (on ? 'nav on' : 'nav'); };
+    var clientNav = CLIENTS.map(function (c) {
+      var open = all.filter(function (t) { return t.c === c.name && t.st !== 'done'; }).length;
+      return {
+        name: c.name, open: open,
+        cls: navCls(s.screen === 'project' && s.client === c.name),
+        go: function () { self.setState({ screen: 'project', client: c.name }); }
+      };
+    });
+
+    var review = all.filter(function (t) { return t.st === 'review'; }).sort(byDue);
+
+    var inboxVisible = s.inbox.filter(function (n) { return !s.muted[n.c]; });
+    var unread = inboxVisible.filter(function (n) { return !n.read; }).length;
+    var inboxClients = [];
+    s.inbox.forEach(function (n) { if (inboxClients.indexOf(n.c) < 0) { inboxClients.push(n.c); } });
+    var KIND_CLS = { 'Sent back': 'pill st-late', 'Mention': 'pill st-review', 'Email': 'pill st-progress', 'Digest': 'pill st-todo' };
+    var inboxGroups = inboxClients.map(function (c) {
+      var muted = !!s.muted[c];
+      var items = muted ? [] : s.inbox.filter(function (n) { return n.c === c; }).map(function (n) {
+        return {
+          ini: PEOPLE[n.who][1], text: n.text, kind: n.kind, kindCls: KIND_CLS[n.kind], when: n.when,
+          task: (all.filter(function (t) { return t.id === n.taskId; })[0] || {}).t || '',
+          rowCls: n.read ? 'row' : 'row unread',
+          open: function () {
+            self.setState({ open: n.taskId, inbox: self.state.inbox.map(function (x) { return x.id === n.id ? Object.assign({}, x, { read: true }) : x; }) });
+          }
+        };
+      });
+      return { name: c, items: items, muteLabel: muted ? 'Unmute' : 'Mute client',
+        mute: function () { var m = Object.assign({}, self.state.muted); m[c] = !m[c]; self.setState({ muted: m }); } };
+    });
+
+    var CL = { closed: ['pill st-done', 'Closed'], late: ['pill st-late', 'Closed late'], review: ['pill st-review', 'In review'], prog: ['pill st-progress', 'In progress'], wait: ['pill st-wait', 'On client'], none: ['pill st-none', 'Not started'], over: ['pill st-late', 'Overdue'] };
+    var mannaPct = Math.round(doneCount / Math.max(1, proj.length) * 100);
+    var closeData = [
+      ['Manna Church', 'nicole', ['closed', 'closed', 'closed', 'wait']],
+      ['Highpoint Church', 'nicole', ['closed', 'late', 'closed', 'review']],
+      ['Crossings Church', 'nicole', ['closed', 'closed', 'closed', 'prog']],
+      ['Faith Family Church', 'debra', ['closed', 'closed', 'closed', 'prog']],
+      ['Church at the Shores', 'debra', ['closed', 'closed', 'late', 'wait']],
+      ['Grace City Church', 'gillian', ['closed', 'closed', 'closed', 'review']],
+      ['Compassion Church', 'gillian', ['closed', 'closed', 'closed', 'prog']],
+      ['Creative Church', 'sonya', ['closed', 'late', 'closed', 'prog']],
+      ['Life Church', 'sonya', ['closed', 'closed', 'over', 'none']],
+      ['Good Land Church', 'naomi', ['closed', 'closed', 'closed', 'prog']]
+    ];
+    var closeRows = closeData.map(function (r) {
+      var isClient = CLIENTS.some(function (c) { return c.name === r[0]; });
+      return {
+        name: r[0], bk: PEOPLE[r[1]][0], ini: PEOPLE[r[1]][1],
+        cells: r[2].map(function (k, idx) {
+          var lbl = CL[k][1];
+          if (idx === 3 && r[0] === 'Manna Church') { lbl = (askItems.length ? 'On client · ' : '') + mannaPct + '%'; }
+          return { cls: CL[k][0], label: lbl };
+        }),
+        go: function () { if (isClient) { self.setState({ screen: 'project', client: r[0] }); } }
+      };
+    });
+
+    var W = [['nicole', 6, 24, 26, s.ooo ? 'Out Oct 12–14 · Debra covering' : '11 clients'], ['sonya', 9, 27, 22, '9 clients · over capacity'], ['debra', 3, 19, 24, '12 clients'], ['gillian', 2, 17, 22, '10 clients'], ['naomi', 1, 11, 18, '5 clients'], ['sarah', 0, 9, 16, '4 clients · ramping']];
+    var maxW = 30;
+    var workload = W.map(function (w) {
+      return { name: PEOPLE[w[0]][0], ini: PEOPLE[w[0]][1], over: w[1], total: w[2], cap: w[3], note: w[4], overPct: Math.round(w[1] / maxW * 100), weekPct: Math.round((w[2] - w[1]) / maxW * 100) };
+    });
+
+    var tplRows = [
+      ['QBO – Accept transactions in all bank feeds', 'Standard', 'Weekly', 'Every Wednesday', 'nicole', false, 'Bank feeds v3'],
+      ['Split out income – in-service / Stripe / Subsplash', 'Client-specific', 'Weekly', 'Every Wednesday', 'nicole', false, 'Manna giving'],
+      ['Divvy – Sync completed transactions', 'Client-specific', 'Weekly', 'Every Wednesday', 'nicole', false, 'Divvy sync'],
+      ['Bank statement to Google Drive', 'Standard', 'Monthly', 'Business day 5', 'nicole', false, 'Statements'],
+      ['Reconcile Checking', 'Standard', 'Monthly', 'Business day 6', 'nicole', true, 'Reconciliation v2'],
+      ['Reconcile Divvy', 'Client-specific', 'Monthly', '3rd', 'nicole', true, 'Divvy sync'],
+      ['Check uncategorized account', 'Standard', 'Monthly', '3rd', 'nicole', false, 'Month-end v4'],
+      ['CDF / Trace loan payments', 'Client-specific', 'Monthly', '6th / 9th', 'nicole', false, 'Manna loans'],
+      ['Reconcile CDF Capital investment', 'Client-specific', 'Quarterly', 'Business day 6, Jan/Apr/Jul/Oct', 'nicole', true, 'Investments'],
+      ['Run reports & add to Google Drive', 'Standard', 'Monthly', 'Business day 8', 'nicole', true, 'Report pack'],
+      ['Client emails (4th, 14th, 24th)', 'Client-specific', 'Monthly', '4th · 14th · 24th', 'nicole', false, '—'],
+      ['JE for payroll', 'Standard', 'Monthly', '1st', 'bailley', false, 'Payroll JE']
+    ].map(function (r) {
+      return { t: r[0], src: r[1] === 'Standard' ? 'From MGB Standard Monthly Close' : 'Added for this client', cad: r[2], rule: r[3], who: PEOPLE[r[4]][0], ini: PEOPLE[r[4]][1], rev: r[5] ? 'Required' : '—', revCls: r[5] ? 'pill st-review' : 'sub', sop: r[6] };
+    });
+
+    var rules = s.rules.map(function (r) {
+      return { when: r.when, then: r.then, scope: r.scope, fired: r.fired + '×', swCls: r.on ? 'sw on' : 'sw', swLabel: (r.on ? 'Turn off: ' : 'Turn on: ') + r.when,
+        toggle: function () { self.setState({ rules: self.state.rules.map(function (x) { return x.id === r.id ? Object.assign({}, x, { on: !x.on }) : x; }) }); } };
+    });
+
+    var ot = null;
+    var raw = s.tasks.filter(function (t) { return t.id === s.open; })[0];
+    if (raw) {
+      var d = self.decorate(raw);
+      var setSt = function (k) { return function () { self.patch(raw.id, function (x) { x.st = k; return x; }); }; };
+      var addLog = function (k, who, text) {
+        return function () {
+          self.patch(raw.id, function (x) { x.st = k; x.comments = x.comments.concat([{ who: who, when: 'Just now', text: text }]); return x; });
+        };
+      };
+      ot = Object.assign({}, d, {
+        statusBtns: ['todo', 'progress', 'review', 'done'].map(function (k) {
+          return { label: ST_LABEL[k], cls: raw.st === k ? 'sbtn on' : 'sbtn', set: setSt(k) };
+        }),
+        repeatLong: raw.rep ? raw.rep : 'Does not repeat',
+        reviewTxt: raw.rv ? 'Required · Bailley Hawkins' : 'Not required',
+        timeTxt: hrs(raw.mins) + (raw.timing ? ' · running' : ''),
+        timerLabel: raw.timing ? 'Stop' : 'Start timer',
+        timer: function () { self.patch(raw.id, function (x) { if (x.timing) { x.mins += 12; } x.timing = !x.timing; return x; }); },
+        hasBlock: !!raw.blockedBy,
+        hasNotes: !!raw.notes,
+        isWait: raw.st === 'wait',
+        askTxt: raw.ask,
+        canAsk: raw.st === 'todo' || raw.st === 'progress',
+        resolveAsk: addLog('progress', 'system', 'Client answered. Task resumed.'),
+        isReview: raw.st === 'review',
+        canSubmit: raw.rv && (raw.st === 'todo' || raw.st === 'progress'),
+        submit: addLog('review', 'nicole', 'Sent for review.'),
+        approve: addLog('done', 'bailley', 'Approved. Nice work.'),
+        sendBack: addLog('progress', 'bailley', 'Sent back: please attach the reconciliation report.'),
+        hasSubs: raw.subs.length > 0,
+        subTotal: raw.subs.length,
+        subDone: raw.subs.filter(function (x) { return x.done; }).length,
+        subs: raw.subs.map(function (sb, idx) {
+          return {
+            t: sb.t, cls: sb.done ? 'mini done' : 'mini',
+            toggle: function () {
+              self.patch(raw.id, function (x) { x.subs = x.subs.map(function (y, j) { return j === idx ? { t: y.t, done: !y.done } : y; }); return x; });
+            }
+          };
+        }),
+        comments: [{ who: 'System', ini: '↻', when: 'Oct 1', text: raw.rep ? 'Created from the recurring template for the October period.' : 'Task created.' }].concat(raw.comments.map(function (c) {
+          return { who: PEOPLE[c.who][0], ini: PEOPLE[c.who][1], when: c.when, text: c.text };
+        }))
+      });
+    }
+
+    var go = function (k) { return function () { self.setState({ screen: k }); }; };
+    var setView = function (k) { return function () { self.setState({ view: k }); }; };
+
+    return {
+      standalone: s.standalone, docked: !s.standalone,
+      popOut: function () { self.setState({ standalone: true }); },
+      dockIn: function () { self.setState({ standalone: false }); },
+      is: { mytasks: s.screen === 'mytasks', inbox: s.screen === 'inbox', project: s.screen === 'project', clientview: s.screen === 'clientview', close: s.screen === 'close', workload: s.screen === 'workload', templates: s.screen === 'templates', rules: s.screen === 'rules' },
+      nav: {
+        mytasks: navCls(s.screen === 'mytasks'), inbox: navCls(s.screen === 'inbox'), close: navCls(s.screen === 'close'),
+        workload: navCls(s.screen === 'workload'), templates: navCls(s.screen === 'templates'), rules: navCls(s.screen === 'rules')
+      },
+      goMy: go('mytasks'), goInbox: go('inbox'), goClientView: go('clientview'), goProject: go('project'), goClose: go('close'), goWork: go('workload'), goTpl: go('templates'), goRules: go('rules'),
+      myOverdueCount: overdue.length,
+      unreadCount: unread,
+      mySubtitle: 'Saturday, October 10 · ' + overdue.length + ' overdue across ' + Object.keys(clientsOver).length + ' clients · ' + week.length + ' due this week · ' + waiting.length + ' waiting on clients',
+      myGroups: myGroups,
+      ooo: s.ooo, oooLabel: s.ooo ? 'Cancel out of office' : 'Set out of office',
+      toggleOoo: function () { self.setState({ ooo: !self.state.ooo }); },
+      clientNav: clientNav,
+      qa: s.qa,
+      onQa: function (e) { self.setState({ qa: e.target.value }); },
+      quickAdd: function (e) {
+        if (e && e.preventDefault) { e.preventDefault(); }
+        var v = (self.state.qa || '').trim();
+        if (!v) { return; }
+        var nt = T(self.state.nextId, v, 'Manna Church', 'Occasional', 'nicole', '2026-10-12', 'todo', false, '');
+        self.setState({ tasks: self.state.tasks.concat([nt]), nextId: self.state.nextId + 1, qa: '' });
+      },
+      inboxGroups: inboxGroups,
+      readAll: function () { self.setState({ inbox: self.state.inbox.map(function (x) { return Object.assign({}, x, { read: true }); }) }); },
+      proj: { name: client.name, bk: PEOPLE[client.bk][0], sections: sections, cols: cols, doneCount: doneCount, total: proj.length, pct: mannaPct },
+      askItems: askItems, askCount: askItems.length, askEmpty: askItems.length === 0,
+      nudgeLabel: s.nudged ? 'Nudge sent' : 'Nudge now',
+      nudgeAll: function () { self.setState({ nudged: true }); },
+      viewIs: { list: s.view === 'list', board: s.view === 'board', cal: s.view === 'cal' },
+      viewCls: { list: s.view === 'list' ? 'btn2 on' : 'btn2', board: s.view === 'board' ? 'btn2 on' : 'btn2', cal: s.view === 'cal' ? 'btn2 on' : 'btn2' },
+      setList: setView('list'), setBoard: setView('board'), setCal: setView('cal'),
+      dows: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'],
+      calCells: calCells,
+      closeRows: closeRows,
+      workload: workload,
+      reviewQueue: review, reviewCount: review.length, reviewEmpty: review.length === 0,
+      tplRows: tplRows,
+      rules: rules,
+      hasOpen: !!ot,
+      ot: ot || { statusBtns: [], subs: [], comments: [] },
+      closeTask: function () { self.setState({ open: null }); },
+      draft: s.draft,
+      onDraft: function (e) { self.setState({ draft: e.target.value }); },
+      postComment: function (e) {
+        if (e && e.preventDefault) { e.preventDefault(); }
+        var v = (self.state.draft || '').trim();
+        if (!v || !raw) { return; }
+        self.patch(raw.id, function (x) { x.comments = x.comments.concat([{ who: 'nicole', when: 'Just now', text: v }]); return x; });
+        self.setState({ draft: '' });
+      },
+      askDraft: s.askDraft,
+      onAsk: function (e) { self.setState({ askDraft: e.target.value }); },
+      askClient: function (e) {
+        if (e && e.preventDefault) { e.preventDefault(); }
+        var v = (self.state.askDraft || '').trim();
+        if (!v || !raw) { return; }
+        self.patch(raw.id, function (x) { x.st = 'wait'; x.ask = v; x.askedOn = TODAY; x.comments = x.comments.concat([{ who: 'system', when: 'Just now', text: 'Asked client: ' + v + '. Shown in Client Portal.' }]); return x; });
+        self.setState({ askDraft: '' });
+      }
+    };
+  }
+}
+</script>
+</body>
+</html>
