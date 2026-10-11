@@ -43,7 +43,13 @@ function DL_load(force) {
     q(sb.from("client_deadline_overrides").select("*").is("removed_at", null)),
     q(sb.from("client_deadline_status").select("*").is("undone_at", null)),
     q(sb.from("client_profile").select("client_id, fiscal_year_end, form_990_due, filing_1099_due")),
-    q(sb.from("staff_reminders").select("source_ref").eq("source", "deadline")),
+    // Deleted tasks (deleted_at set) don't count, so the task can be added
+    // again. Before the Tasks columns exist, retry without that filter.
+    q(sb.from("staff_reminders").select("source_ref").eq("source", "deadline").is("deleted_at", null)).then((r) =>
+      r && r.error && (r.error.code === "42703" || r.error.code === "PGRST204" || /deleted_at/i.test(String(r.error.message || "")))
+        ? q(sb.from("staff_reminders").select("source_ref").eq("source", "deadline"))
+        : r,
+    ),
   ]).then(([rules, ovr, st, prof, tasks]) => {
     DL_store.promise = null;
     const err = rules.error || ovr.error || st.error;

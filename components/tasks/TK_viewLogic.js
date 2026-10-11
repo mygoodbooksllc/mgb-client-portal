@@ -1,0 +1,589 @@
+// ----------------------------------------------------------------------------
+// TK_viewLogic.js — pure rules for the Tasks views (Phase 1, views slice).
+//
+// No React, no DOM, no Supabase. Everything here is a browser global (the
+// file loads through window.__SOURCE_ORDER) and is exported for node tests:
+//   node components/tasks/TK_viewLogic.test.js
+//
+// What lives here:
+//   pop-out window size and features      TK_POPOUT_DEFAULT, TK_POPOUT_MIN, TK_popOutFeatures
+//   dock decision                         TK_dockPlan (600 ms fallback)
+//   shell layout by width and touch       TK_shellLayout, TK_isTouchPrimary
+//   list grouping, sorting and filters    TK_groupBySection, TK_sortTasks, TK_applyFilters
+//   My Tasks group headings               TK_MY_GROUPS, TK_myGroupsView, TK_focusIds
+//   list keys (j k Enter x s a q ?)       TK_listKeyAction, TK_moveFocus, TK_makeListKeyHandler, TK_bindListKeys
+//   project form helpers                  TK_parseSectionsText, TK_newProjectFields, TK_projectErrorText
+//   small display helpers                 TK_initials, TK_canManageProjectHint, TK_listScopeOf, TK_searchRowToTask
+//
+// TK_logic.js loads first, so TK_compareTasks, TK_isOldDone and
+// TK_CLIENT_SECTION_ORDER are used when they exist. Under node (where only
+// this file is loaded) each has a private fallback with the same rule, so
+// this file tests on its own. Private helpers carry the TK_v prefix so they
+// never collide with another TK file.
+// ----------------------------------------------------------------------------
+
+var TK_POPOUT_DEFAULT = { w: 480, h: 820 };
+var TK_POPOUT_MIN = { w: 380, h: 520 };
+var TK_POPOUT_KEY = "mgb_tk_popout_v1";
+var TK_DOCK_WAIT_MS = 600;
+
+// ---- Pop-out ---------------------------------------------------------------
+
+function TK_vNum(v) {
+  var n = typeof v === "number" ? v : parseFloat(v);
+  return isFinite(n) ? Math.round(n) : null;
+}
+
+// saved: { w, h } from localStorage (or null). scr: { availWidth, availHeight }
+// (defaults to window.screen when there is one). Returns the clamped size.
+function TK_popOutSize(saved, scr) {
+  var s = scr;
+  if (!s && typeof screen !== "undefined" && screen) s = { availWidth: screen.availWidth, availHeight: screen.availHeight };
+  var maxW = s && TK_vNum(s.availWidth) ? TK_vNum(s.availWidth) : Infinity;
+  var maxH = s && TK_vNum(s.availHeight) ? TK_vNum(s.availHeight) : Infinity;
+  var w = saved ? TK_vNum(saved.w) : null;
+  var h = saved ? TK_vNum(saved.h) : null;
+  if (w == null || h == null) {
+    w = TK_POPOUT_DEFAULT.w;
+    h = TK_POPOUT_DEFAULT.h;
+  }
+  w = Math.max(TK_POPOUT_MIN.w, w);
+  h = Math.max(TK_POPOUT_MIN.h, h);
+  // A screen smaller than the minimum still wins: the window must fit.
+  w = Math.min(w, maxW);
+  h = Math.min(h, maxH);
+  return { w: w, h: h };
+}
+
+function TK_popOutFeatures(saved, scr) {
+  var z = TK_popOutSize(saved, scr);
+  return "popup,width=" + z.w + ",height=" + z.h;
+}
+
+// ---- Dock ------------------------------------------------------------------
+// s: { hasOpener, openerClosed, openerTabId, posted, replied, elapsedMs }
+//   "navigate"  no opener, opener closed or no opener tab id, or no reply in 600 ms:
+//               clear the shell flag and location.assign("/" + hash)
+//   "post"      not posted yet (posted false, or elapsedMs not started)
+//   "wait"      posted, no reply yet, under 600 ms
+//   "close"     the opener replied "docked"
+function TK_dockPlan(s) {
+  var o = s || {};
+  if (!o.hasOpener || o.openerClosed || !o.openerTabId) return "navigate";
+  if (o.posted === false || (o.posted == null && o.elapsedMs == null)) return "post";
+  if (o.replied) return "close";
+  var t = typeof o.elapsedMs === "number" ? o.elapsedMs : 0;
+  if (t < TK_DOCK_WAIT_MS) return "wait";
+  return "navigate";
+}
+
+// ---- Layout ----------------------------------------------------------------
+// width >= 900: sidebar rail. 761..899: a "Lists" sheet button. <= 760:
+// compact rows and a full-window drawer. The bottom bar only on a
+// touch-primary device at 760 or less (and only inside the shell; TK_App
+// applies that part).
+function TK_shellLayout(width, touchPrimary) {
+  var w = typeof width === "number" && isFinite(width) ? width : 1280;
+  return {
+    compact: w <= 760,
+    bottomBar: !!touchPrimary && w <= 760,
+    sidebar: w >= 900 ? "rail" : "sheet",
+  };
+}
+
+// "Phone" for the shell is a touch-primary pointer, not width alone.
+// mm: optional matchMedia function (tests pass a fake).
+function TK_isTouchPrimary(mm) {
+  var f = mm;
+  if (!f && typeof window !== "undefined" && window && typeof window.matchMedia === "function") {
+    f = function (q) {
+      return window.matchMedia(q);
+    };
+  }
+  if (typeof f !== "function") return false;
+  try {
+    var r = f("(hover: none) and (pointer: coarse)");
+    return !!(r && r.matches);
+  } catch (e) {
+    return false;
+  }
+}
+
+// ---- Task helpers (fallbacks for node) ---------------------------------------
+
+var TK_vSTATUS_ORDER = ["todo", "in_progress", "waiting_client", "ready_for_review", "done"];
+var TK_vPRIORITY_RANK = { high: 0, normal: 1, low: 2 };
+var TK_vCLIENT_ORDER = ["Weekly", "Monthly", "Quarterly", "Annual", "Occasional"];
+
+function TK_vStatus(t) {
+  if (!t) return "todo";
+  if (t.status && TK_vSTATUS_ORDER.indexOf(t.status) >= 0) return t.status;
+  return t.done ? "done" : "todo";
+}
+
+function TK_vLower(s) {
+  return s == null ? "" : String(s).toLowerCase();
+}
+
+function TK_vNullsLast(a, b) {
+  var an = a == null || a === "";
+  var bn = b == null || b === "";
+  if (an && bn) return 0;
+  if (an) return 1;
+  if (bn) return -1;
+  return a < b ? -1 : a > b ? 1 : 0;
+}
+
+function TK_vCompare(a, b) {
+  if (typeof TK_compareTasks === "function") return TK_compareTasks(a, b);
+  var c = TK_vNullsLast(a.due_date, b.due_date);
+  if (c) return c;
+  var pa = TK_vPRIORITY_RANK[a.priority] != null ? TK_vPRIORITY_RANK[a.priority] : 1;
+  var pb = TK_vPRIORITY_RANK[b.priority] != null ? TK_vPRIORITY_RANK[b.priority] : 1;
+  if (pa !== pb) return pa - pb;
+  c = TK_vNullsLast(a.due_at, b.due_at);
+  if (c) return c;
+  c = TK_vNullsLast(a.created_at, b.created_at);
+  if (c) return c;
+  return TK_vNullsLast(a.id, b.id);
+}
+
+function TK_vMonthsBefore(ymd, months) {
+  var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(ymd || ""));
+  if (!m) return null;
+  var y = +m[1];
+  var mo = +m[2] - months;
+  while (mo <= 0) {
+    mo += 12;
+    y -= 1;
+  }
+  var dim = new Date(Date.UTC(y, mo, 0)).getUTCDate();
+  var d = Math.min(+m[3], dim);
+  return y + "-" + (mo < 10 ? "0" : "") + mo + "-" + (d < 10 ? "0" : "") + d;
+}
+
+function TK_vIsOldDone(t, today) {
+  if (typeof TK_isOldDone === "function") return TK_isOldDone(t, today);
+  if (TK_vStatus(t) !== "done") return false;
+  var at = String(t.completed_at || t.updated_at || "").slice(0, 10);
+  var cut = TK_vMonthsBefore(today, 12);
+  if (!at || !cut) return false;
+  return at < cut;
+}
+
+// ---- Sections (Row 3.2) ----------------------------------------------------
+// Returns [{ key, name, tasks }] in display order. key "" is "No section".
+// opts.kind "project": the project's own sections (even when empty, so each
+//   has its add row), then any other section a task carries (A to Z), then
+//   "No section" when it holds tasks or nothing else exists.
+// opts.kind "client" (and person): the distinct section values, in
+//   TK_CLIENT_SECTION_ORDER first, then A to Z, "No section" last.
+// Task order inside a group is the input order (sort first).
+function TK_groupBySection(tasks, opts) {
+  var o = opts || {};
+  var list = Array.isArray(tasks) ? tasks : [];
+  var order = typeof TK_CLIENT_SECTION_ORDER !== "undefined" && Array.isArray(TK_CLIENT_SECTION_ORDER) ? TK_CLIENT_SECTION_ORDER : TK_vCLIENT_ORDER;
+  var byKey = {};
+  var seen = [];
+  list.forEach(function (t) {
+    var k = t && t.section != null ? String(t.section).trim() : "";
+    if (!byKey[k]) {
+      byKey[k] = [];
+      seen.push(k);
+    }
+    byKey[k].push(t);
+  });
+  var keys = [];
+  var have = {};
+  function add(k) {
+    if (have[k]) return;
+    have[k] = 1;
+    keys.push(k);
+  }
+  var alpha = function (a, b) {
+    var x = a.toLowerCase();
+    var y = b.toLowerCase();
+    return x < y ? -1 : x > y ? 1 : 0;
+  };
+  if (o.kind === "project") {
+    (Array.isArray(o.sections) ? o.sections : []).forEach(function (s) {
+      var k = s == null ? "" : String(s).trim();
+      if (k) add(k);
+    });
+    seen
+      .filter(function (k) {
+        return k && !have[k];
+      })
+      .sort(alpha)
+      .forEach(add);
+  } else {
+    var lowerOrder = order.map(function (s) {
+      return s.toLowerCase();
+    });
+    var named = seen.filter(function (k) {
+      return !!k;
+    });
+    named.sort(function (a, b) {
+      var ia = lowerOrder.indexOf(a.toLowerCase());
+      var ib = lowerOrder.indexOf(b.toLowerCase());
+      if (ia >= 0 && ib >= 0) return ia - ib;
+      if (ia >= 0) return -1;
+      if (ib >= 0) return 1;
+      return alpha(a, b);
+    });
+    named.forEach(add);
+  }
+  if (byKey[""] || !keys.length) add("");
+  return keys.map(function (k) {
+    return { key: k, name: k || "No section", tasks: byKey[k] || [] };
+  });
+}
+
+// ---- Sorting (Row 3.2) -------------------------------------------------------
+var TK_SORT_COLS = ["task", "assignee", "due", "status", "priority"];
+
+// sort: { col, dir: "asc"|"desc" } or null. No col: sort_key (nulls last),
+// then TK_compareTasks. opts.nameOf(email) gives the assignee's display name.
+// Ties always fall back to the default order, so the result is stable.
+function TK_sortTasks(tasks, sort, opts) {
+  var list = Array.isArray(tasks) ? tasks.slice() : [];
+  var s = sort || {};
+  var col = TK_SORT_COLS.indexOf(s.col) >= 0 ? s.col : null;
+  var dir = s.dir === "desc" ? -1 : 1;
+  var nameOf = opts && typeof opts.nameOf === "function" ? opts.nameOf : null;
+  function base(a, b) {
+    var sa = typeof a.sort_key === "number" ? a.sort_key : null;
+    var sb = typeof b.sort_key === "number" ? b.sort_key : null;
+    if (sa != null || sb != null) {
+      if (sa == null) return 1;
+      if (sb == null) return -1;
+      if (sa !== sb) return sa - sb;
+    }
+    return TK_vCompare(a, b);
+  }
+  function who(t) {
+    var e = TK_vLower(t.assignee_email || t.staff_email);
+    var n = nameOf ? nameOf(e) : null;
+    return TK_vLower(n || e);
+  }
+  function key(t) {
+    if (col === "task") return TK_vLower(t.text);
+    if (col === "assignee") return who(t);
+    if (col === "due") return t.due_date || null;
+    if (col === "status") return TK_vSTATUS_ORDER.indexOf(TK_vStatus(t));
+    if (col === "priority") return TK_vPRIORITY_RANK[t.priority] != null ? TK_vPRIORITY_RANK[t.priority] : 1;
+    return null;
+  }
+  list.sort(function (a, b) {
+    if (col) {
+      var ka = key(a);
+      var kb = key(b);
+      if (col === "due") {
+        // Undated tasks stay last in both directions.
+        if (ka == null && kb != null) return 1;
+        if (kb == null && ka != null) return -1;
+      }
+      if (ka !== kb && ka != null && kb != null) return (ka < kb ? -1 : 1) * dir;
+    }
+    return base(a, b);
+  });
+  return list;
+}
+
+// Click on a column header: a new column sorts ascending, the same column
+// flips, and a third click on a descending column goes back to the default.
+function TK_toggleSort(cur, col) {
+  if (TK_SORT_COLS.indexOf(col) < 0) return null;
+  if (!cur || cur.col !== col) return { col: col, dir: "asc" };
+  if (cur.dir === "asc") return { col: col, dir: "desc" };
+  return null;
+}
+
+// ---- Filters (Row 3.2) -------------------------------------------------------
+// f: { assignee: email|"", statuses: [status], showDone, showOlder, today }
+// Deleted tasks never show. Done tasks only with showDone; done more than 12
+// months ago only with showOlder too (D5).
+function TK_applyFilters(tasks, f) {
+  var o = f || {};
+  var who = TK_vLower(o.assignee);
+  var sts = Array.isArray(o.statuses) ? o.statuses : [];
+  return (Array.isArray(tasks) ? tasks : []).filter(function (t) {
+    if (!t || t.deleted_at) return false;
+    var st = TK_vStatus(t);
+    if (st === "done") {
+      if (!o.showDone) return false;
+      if (!o.showOlder && o.today && TK_vIsOldDone(t, o.today)) return false;
+    }
+    if (who && TK_vLower(t.assignee_email || t.staff_email) !== who) return false;
+    if (sts.length && sts.indexOf(st) < 0) return false;
+    return true;
+  });
+}
+
+// ---- My Tasks groups (Row 3.1) -----------------------------------------------
+var TK_MY_GROUPS = [
+  { key: "overdue", label: "Overdue" },
+  { key: "today", label: "Today" },
+  { key: "week", label: "This week" },
+  { key: "later", label: "Later" },
+  { key: "waiting", label: "Waiting on client" },
+  { key: "done", label: "Done" },
+];
+
+// groups: TK_groupMyTasks output. opts: { collapsed: {key: bool}, showDone }.
+// Returns the non-empty groups in order, each { key, label, tasks, collapsed }.
+// Done is collapsed unless the viewer opened it.
+function TK_myGroupsView(groups, opts) {
+  var g = groups || {};
+  var o = opts || {};
+  var col = o.collapsed || {};
+  var out = [];
+  TK_MY_GROUPS.forEach(function (m) {
+    if (m.key === "done" && o.showDone === false) return;
+    var list = Array.isArray(g[m.key]) ? g[m.key] : [];
+    if (!list.length) return;
+    var c = Object.prototype.hasOwnProperty.call(col, m.key) ? !!col[m.key] : m.key === "done";
+    out.push({ key: m.key, label: m.label, tasks: list, collapsed: c });
+  });
+  return out;
+}
+
+// The row ids j and k walk through: every task in an open group, in order.
+function TK_focusIds(view) {
+  var ids = [];
+  (view || []).forEach(function (g) {
+    if (g.collapsed) return;
+    (g.tasks || []).forEach(function (t) {
+      if (t && t.id != null) ids.push(t.id);
+    });
+  });
+  return ids;
+}
+
+// ---- List keys (Row 3.6) -------------------------------------------------------
+var TK_vLIST_KEYS = { j: "next", k: "prev", Enter: "open", x: "toggle", s: "status", a: "assign", q: "add", "?": "help" };
+
+function TK_listKeyAction(key) {
+  return Object.prototype.hasOwnProperty.call(TK_vLIST_KEYS, key) ? TK_vLIST_KEYS[key] : null;
+}
+
+function TK_moveFocus(ids, cur, delta) {
+  var list = Array.isArray(ids) ? ids : [];
+  if (!list.length) return null;
+  var i = list.indexOf(cur);
+  if (i < 0) return delta < 0 ? list[list.length - 1] : list[0];
+  var j = Math.max(0, Math.min(list.length - 1, i + delta));
+  return list[j];
+}
+
+// Enter on a link, button or menu item keeps its own meaning.
+function TK_vActivatable(el) {
+  if (!el) return false;
+  var tag = String(el.tagName || "").toUpperCase();
+  if (tag === "A" || tag === "BUTTON" || tag === "SUMMARY") return true;
+  var role = typeof el.getAttribute === "function" ? el.getAttribute("role") : null;
+  return role === "button" || role === "menuitem" || role === "link" || role === "checkbox" || role === "switch";
+}
+
+// o: { getState() -> { ids, focusedId }, setFocusedId(id), onOpen(id),
+//      onToggleDone(id), onStatusMenu(id), onAssign(id), onQuickAdd(),
+//      onHelp(), shouldHandle(e) -> bool, onUsed(key) }
+// Returns a keydown handler. It never fires for a key outside the keymap,
+// and calls preventDefault on every key it acts on (so the global q handler
+// in TK_QuickAddHost, which checks defaultPrevented, stands down).
+function TK_makeListKeyHandler(o) {
+  var opts = o || {};
+  return function (e) {
+    if (!e) return;
+    var action = TK_listKeyAction(e.key);
+    if (!action) return;
+    if (typeof opts.shouldHandle === "function" && !opts.shouldHandle(e)) return;
+    var st = typeof opts.getState === "function" ? opts.getState() || {} : {};
+    var ids = Array.isArray(st.ids) ? st.ids : [];
+    var cur = st.focusedId != null && ids.indexOf(st.focusedId) >= 0 ? st.focusedId : null;
+    var acted = false;
+    if (action === "next" || action === "prev") {
+      var next = TK_moveFocus(ids, cur, action === "next" ? 1 : -1);
+      if (next != null && typeof opts.setFocusedId === "function") {
+        opts.setFocusedId(next);
+        acted = true;
+      }
+    } else if (action === "open") {
+      if (cur == null) return;
+      // A focused link or button inside the row handles Enter itself; only
+      // the row (or the page) opens through here.
+      if (e.target && TK_vActivatable(e.target)) return;
+      if (typeof opts.onOpen === "function") opts.onOpen(cur);
+      acted = true;
+    } else if (action === "toggle" || action === "status" || action === "assign") {
+      if (cur == null) return;
+      var fn = action === "toggle" ? opts.onToggleDone : action === "status" ? opts.onStatusMenu : opts.onAssign;
+      if (typeof fn === "function") {
+        fn(cur);
+        acted = true;
+      }
+    } else if (action === "add") {
+      if (typeof opts.onQuickAdd === "function") {
+        opts.onQuickAdd();
+        acted = true;
+      }
+    } else if (action === "help") {
+      if (typeof opts.onHelp === "function") {
+        opts.onHelp();
+        acted = true;
+      }
+    }
+    if (!acted) return;
+    if (typeof e.preventDefault === "function") e.preventDefault();
+    if (typeof opts.onUsed === "function") opts.onUsed(e.key);
+  };
+}
+
+// Binds the handler on `target` (the page passes document, bubble phase) and
+// returns the unbind function. With enabled false it binds nothing and
+// returns null, so an open drawer leaves list keys entirely off (C8).
+function TK_bindListKeys(target, o) {
+  if (!o || !o.enabled || !target || typeof target.addEventListener !== "function") return null;
+  var h = TK_makeListKeyHandler(o);
+  target.addEventListener("keydown", h, false);
+  return function () {
+    target.removeEventListener("keydown", h, false);
+  };
+}
+
+// ---- Projects (Row 1.4) -------------------------------------------------------
+
+// One section per line: trimmed, blanks dropped, duplicates (any case)
+// dropped, each cut to 60 characters, at most 30.
+function TK_parseSectionsText(text) {
+  var out = [];
+  var have = {};
+  String(text == null ? "" : text)
+    .split(/\r?\n/)
+    .forEach(function (line) {
+      var s = line.replace(/\s+/g, " ").trim().slice(0, 60).trim();
+      if (!s) return;
+      var k = s.toLowerCase();
+      if (have[k]) return;
+      have[k] = 1;
+      out.push(s);
+    });
+  return out.slice(0, 30);
+}
+
+// The New project form's fields. The "Open to all staff" switch is for
+// admins only.
+function TK_newProjectFields(opts) {
+  var o = opts || {};
+  var f = ["name", "sections"];
+  if (o.isAdmin === true) f.push("openToStaff");
+  return f;
+}
+
+// Maps a createProject or updateProject error to { field, text }.
+// field "name" puts the message under the name field (the modal stays open).
+function TK_projectErrorText(err, copy) {
+  var c = copy || (typeof TK_COPY !== "undefined" ? TK_COPY : {});
+  var code = err && err.code ? String(err.code) : "";
+  if (code === "tk_name_taken" || code === "23505") {
+    return { field: "name", text: c.projectNameTaken || "There's already a project with that name. Try another name." };
+  }
+  if (code === "tk_offline") return { field: null, text: c.offline || "You're offline." };
+  return { field: null, text: c.saveError || "Couldn't save that change. Try again." };
+}
+
+// UI hint only; tk_can_manage_project decides on the server.
+function TK_canManageProjectHint(project, ctx) {
+  if (!project) return false;
+  var c = ctx || {};
+  if (c.isAdmin) return true;
+  var me = TK_vLower(c.email);
+  if (!me) return false;
+  if (TK_vLower(project.owner_email) === me) return true;
+  return (Array.isArray(c.members) ? c.members : []).some(function (m) {
+    return m && TK_vLower(m.staff_email) === me && m.role === "owner";
+  });
+}
+
+// ---- Display helpers -----------------------------------------------------------
+
+// Up to two initials from a name, else from the part of an email before "@".
+function TK_initials(nameOrEmail) {
+  var s = String(nameOrEmail == null ? "" : nameOrEmail).trim();
+  if (!s) return "?";
+  if (s.indexOf("@") > 0 && s.indexOf(" ") < 0) s = s.slice(0, s.indexOf("@")).replace(/[._-]+/g, " ");
+  var words = s.split(/\s+/).filter(Boolean);
+  if (!words.length) return "?";
+  var a = words[0].charAt(0);
+  var b = words.length > 1 ? words[words.length - 1].charAt(0) : words[0].charAt(1);
+  return (a + (b || "")).toUpperCase();
+}
+
+// The list a route shows: { scope, key } for TK_api.listScope and the store,
+// or null. Person lists need the staff row (the email never reaches a URL;
+// the key carries the staff uuid).
+function TK_listScopeOf(route, ctx) {
+  var r = route || {};
+  if (r.view === "client" && r.clientId) return { scope: { clientId: r.clientId }, key: "client:" + r.clientId };
+  if (r.view === "project" && r.projectId) return { scope: { projectId: r.projectId }, key: "project:" + r.projectId };
+  if (r.view === "person" && r.staffId) {
+    var staff = ctx && Array.isArray(ctx.staff) ? ctx.staff : [];
+    var s = null;
+    for (var i = 0; i < staff.length; i++) {
+      if (staff[i] && staff[i].id === r.staffId) s = staff[i];
+    }
+    if (!s || !s.email) return null;
+    return { scope: { assigneeEmail: TK_vLower(s.email) }, key: "person:" + r.staffId, staff: s };
+  }
+  return null;
+}
+
+// A tk_search row as the minimal task shape TK_TaskRow draws.
+function TK_searchRowToTask(row) {
+  var r = row || {};
+  var st = TK_vSTATUS_ORDER.indexOf(r.status) >= 0 ? r.status : "todo";
+  return {
+    id: r.task_id,
+    text: r.task_text || "",
+    client_id: r.client_id || null,
+    project_id: r.project_id || null,
+    status: st,
+    done: st === "done",
+    due_date: r.due_date ? String(r.due_date).slice(0, 10) : null,
+    priority: "normal",
+    deleted_at: null,
+  };
+}
+
+if (typeof module !== "undefined" && module.exports) {
+  module.exports = {
+    TK_POPOUT_DEFAULT: TK_POPOUT_DEFAULT,
+    TK_POPOUT_MIN: TK_POPOUT_MIN,
+    TK_POPOUT_KEY: TK_POPOUT_KEY,
+    TK_DOCK_WAIT_MS: TK_DOCK_WAIT_MS,
+    TK_popOutSize: TK_popOutSize,
+    TK_popOutFeatures: TK_popOutFeatures,
+    TK_dockPlan: TK_dockPlan,
+    TK_shellLayout: TK_shellLayout,
+    TK_isTouchPrimary: TK_isTouchPrimary,
+    TK_groupBySection: TK_groupBySection,
+    TK_SORT_COLS: TK_SORT_COLS,
+    TK_sortTasks: TK_sortTasks,
+    TK_toggleSort: TK_toggleSort,
+    TK_applyFilters: TK_applyFilters,
+    TK_MY_GROUPS: TK_MY_GROUPS,
+    TK_myGroupsView: TK_myGroupsView,
+    TK_focusIds: TK_focusIds,
+    TK_listKeyAction: TK_listKeyAction,
+    TK_moveFocus: TK_moveFocus,
+    TK_makeListKeyHandler: TK_makeListKeyHandler,
+    TK_bindListKeys: TK_bindListKeys,
+    TK_parseSectionsText: TK_parseSectionsText,
+    TK_newProjectFields: TK_newProjectFields,
+    TK_projectErrorText: TK_projectErrorText,
+    TK_canManageProjectHint: TK_canManageProjectHint,
+    TK_initials: TK_initials,
+    TK_listScopeOf: TK_listScopeOf,
+    TK_searchRowToTask: TK_searchRowToTask,
+  };
+}

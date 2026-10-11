@@ -327,6 +327,30 @@ function TD_useCoverageGaps(enabled) {
 // first). Ranks in "Now": 0 waiting on you (access, replies), 1 overdue,
 // 2 due today, 3 reviews, 4 upgrades. In "This week": 1 due soon, 2 clients
 // at risk, 3 coverage gaps, 9 stale SOPs.
+// Tasks module helpers (components/tasks/), asked at call time.
+function TD_tkReady() {
+  try {
+    return typeof TK_api !== "undefined" && !!TK_api && typeof TK_store !== "undefined" && !!TK_store && TK_store.getState().schema === "ok";
+  } catch (e) {
+    return false;
+  }
+}
+// A friendly line for a Tasks error: the TK_COPY text the Tasks pages use for
+// tk_ codes, else the caller's fallback. The raw code goes to the console only.
+function TD_tkErr(e, fallback) {
+  const code = e && e.code ? String(e.code) : "";
+  try {
+    console.warn("[Today]", code || (e && e.message) || e);
+  } catch (x) {}
+  if (/^tk_/.test(code) && typeof TK_vErrText === "function") return TK_vErrText(e);
+  return fallback;
+}
+function TD_toast(text) {
+  try {
+    window.dispatchEvent(new CustomEvent("mgb:toast", { detail: { text } }));
+  } catch (e) {}
+}
+
 function TD_buildRows(x) {
   const now = [];
   const week = [];
@@ -392,21 +416,62 @@ function TD_buildRows(x) {
 
   // My open tasks: overdue and due today go in "Now", the rest of the week
   // below. Done ticks the item off right here (same path as Work › Tasks).
-  (x.items || []).forEach((t) => {
-    if (t.done || t.kind === "note" || !t.due_date) return;
-    const diff = daysUntil(t.due_date, today);
-    if (diff > TD_SOON_DAYS) return;
-    (diff <= 0 ? now : week).push({
-      key: "task-" + t.id,
-      kind: "task",
-      rank: diff < 0 ? 1 : diff === 0 ? 2 : 1,
-      sort: diff,
-      title: t.text,
-      detail: [staffItemDueLabel(t, today), t.client_id ? nameOf(t.client_id) : ""].filter(Boolean).join(" · "),
-      onClick: lk({ place: "work", tab: "tasks", item: "task:" + t.id }),
-      actions: [{ label: "Done", onClick: () => x.toggleItem(t) }],
+  // With the Tasks module loaded, its My Tasks groups decide (overdue and
+  // today are "Now", this week below; waiting on the client never shows) and
+  // Done goes through TK_api.complete, so a task that needs review is sent
+  // for review with one toast. The link stays work/tasks: LK_go hands it to
+  // the task drawer when that's ready.
+  if (typeof TK_groupMyTasks === "function") {
+    const g = TK_groupMyTasks(
+      (x.items || []).filter((t) => t.kind !== "note"),
+      { today, email: me },
+    );
+    const complete = (t) => {
+      if (typeof TK_api !== "undefined" && TK_api && typeof TK_api.complete === "function") {
+        Promise.resolve(TK_api.complete(t, { isAdmin: !!x.isAdmin })).catch((e) => TD_toast(TD_tkErr(e, "Couldn't update that. Try again.")));
+      } else x.toggleItem(t);
+    };
+    const pushTask = (band, t) => {
+      const diff = daysUntil(t.due_date, today);
+      // Waiting for review: no Done (it would only send it again). Admins
+      // get Approve instead; everyone sees that it's in review.
+      const inReview = (typeof TK_effectiveStatus === "function" ? TK_effectiveStatus(t) : t.status) === "ready_for_review";
+      const actions = !inReview
+        ? [{ label: "Done", onClick: () => complete(t) }]
+        : x.isAdmin
+          ? [{ label: "Approve", onClick: () => complete(t) }]
+          : [];
+      band.push({
+        key: "task-" + t.id,
+        kind: "task",
+        rank: diff < 0 ? 1 : diff === 0 ? 2 : 1,
+        sort: diff,
+        title: t.text,
+        detail: [inReview ? "In review" : "", staffItemDueLabel(t, today), t.client_id ? nameOf(t.client_id) : ""].filter(Boolean).join(" · "),
+        onClick: lk({ place: "work", tab: "tasks", item: "task:" + t.id }),
+        actions,
+      });
+    };
+    g.overdue.forEach((t) => pushTask(now, t));
+    g.today.forEach((t) => pushTask(now, t));
+    g.week.forEach((t) => pushTask(week, t));
+  } else {
+    (x.items || []).forEach((t) => {
+      if (t.done || t.kind === "note" || !t.due_date) return;
+      const diff = daysUntil(t.due_date, today);
+      if (diff > TD_SOON_DAYS) return;
+      (diff <= 0 ? now : week).push({
+        key: "task-" + t.id,
+        kind: "task",
+        rank: diff < 0 ? 1 : diff === 0 ? 2 : 1,
+        sort: diff,
+        title: t.text,
+        detail: [staffItemDueLabel(t, today), t.client_id ? nameOf(t.client_id) : ""].filter(Boolean).join(" · "),
+        onClick: lk({ place: "work", tab: "tasks", item: "task:" + t.id }),
+        actions: [{ label: "Done", onClick: () => x.toggleItem(t) }],
+      });
     });
-  });
+  }
 
   // Filing deadlines for my clients (Deadlines.jsx): overdue, or due within
   // the week. Filed ones are already out.
@@ -996,17 +1061,37 @@ function TD_TodayPage({ staffUser, clients, onNavigateToClient, onOpenClientMile
   // recurring item forward and every view refreshes through
   // STAFF_ITEMS_CHANGED_EVENT.
   const sb = window.mgbSupabase;
+  // With the Tasks module loaded these go through TK_api (complete knows the
+  // review gate and falls back to the old toggle by itself; add and remove
+  // wait for the Tasks tables). The old staffItemsApi path stays the else.
   const toggleItem = React.useCallback(
     async (item) => {
       if (!sb) return;
+      if (typeof TK_api !== "undefined" && TK_api && typeof TK_api.complete === "function" && typeof TK_isOpen === "function") {
+        try {
+          await TK_api.complete(item, { done: TK_isOpen(item), isAdmin: admin });
+        } catch (e) {
+          showToast(TD_tkErr(e, "Couldn't update that. Try again."));
+        }
+        return;
+      }
       const { error } = await staffItemsApi.toggleDone(sb, me, item);
       if (error) showToast(`Couldn't update that: ${error.message}`);
     },
-    [sb, me, showToast],
+    [sb, me, showToast, admin],
   );
   const addItem = React.useCallback(
     async (item) => {
       if (!sb) return false;
+      if (TD_tkReady()) {
+        try {
+          await TK_api.create({ text: item.text, due_date: item.due_date || null, kind: "reminder" });
+          return true;
+        } catch (e) {
+          showToast(TD_tkErr(e, "Couldn't add that reminder. Try again."));
+          return false;
+        }
+      }
       const { error } = await staffItemsApi.add(sb, me, item);
       if (error) {
         showToast(`Couldn't add reminder: ${error.message}`);
@@ -1019,6 +1104,14 @@ function TD_TodayPage({ staffUser, clients, onNavigateToClient, onOpenClientMile
   const removeItem = React.useCallback(
     async (item) => {
       if (!sb) return;
+      if (TD_tkReady()) {
+        try {
+          await TK_api.remove(item.id);
+        } catch (e) {
+          showToast(TD_tkErr(e, "Couldn't remove that reminder. Try again."));
+        }
+        return;
+      }
       const { error } = await staffItemsApi.remove(sb, item.id);
       if (error) showToast(`Couldn't remove reminder: ${error.message}`);
     },
@@ -1087,6 +1180,7 @@ function TD_TodayPage({ staffUser, clients, onNavigateToClient, onOpenClientMile
         waiting: waiting.rows,
         items: mine.items || [],
         toggleItem,
+        isAdmin: admin,
         deadlines,
         blocked: closes.blocked,
         reviews: reviewData,
@@ -1122,6 +1216,7 @@ function TD_TodayPage({ staffUser, clients, onNavigateToClient, onOpenClientMile
       cel.rows,
       profileIncomplete,
       onNavigateToClient,
+      admin,
     ],
   );
 

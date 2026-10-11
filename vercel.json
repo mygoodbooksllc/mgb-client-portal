@@ -1,4 +1,8 @@
 {
+  "redirects": [
+    { "source": "/tasks", "destination": "/?shell=tasks", "permanent": false },
+    { "source": "/tasks/", "destination": "/?shell=tasks", "permanent": false }
+  ],
   "rewrites": [
     { "source": "/login", "destination": "/index.html" },
     { "source": "/privacy", "destination": "/privacy-policy.html" },

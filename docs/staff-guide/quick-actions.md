@@ -2,14 +2,16 @@
 title: How do I add a task, note or document request, or message a client?
 section: Working with a client
 audience: staff
-keywords: [quick actions, quick add, plus, "+", add task, new task, request document, add note, new note, message, chat, staff bar, toolbar]
+keywords: [quick actions, quick add, q, q key, add a task anywhere, plus, "+", add task, new task, request document, add note, new note, message, chat, staff bar, toolbar]
 sort: 210
 ---
 With a client open, click **+** in the dark bar at the top of the page. The menu is headed **Add for {client}**. Clients never see it.
 
+On a staff page with no client open (Today, Work, Team and so on), **+** says **Add** and has just **New task**. You can also press **q** on any staff page, as long as you aren't typing in a box, to add a task.
+
 | Menu item | What it does |
 |---|---|
-| **New task** | Adds a task for this client to Work › Tasks. |
+| **New task** | Opens quick add, with this client already picked. |
 | **New note** | Saves a staff note on this client. |
 | **Request document** | Asks the client to upload a file. |
 | **Message** | Opens the chat drawer on this client's people, without leaving the page. |
@@ -18,7 +20,11 @@ The **+** button is on phones too, next to the bell at the top of the screen.
 
 ### New task
 
-Type the task (for example *Follow up on the missing receipts*), pick a **Due** date if you like and click **Add a task**. You'll see *Task added.* **Visible to everyone on this client** is ticked by default, so the other staff on this client can see it. Untick it to keep it private.
+The **Add a task** box opens. Type the task in one line, for example *Follow up on the missing receipts @name fri !high*: **@name** assigns it, **#client** picks a client, a date such as **fri** or **10/31** sets the due date, and **!high** or **!low** sets the priority. What it picked up shows as chips you can remove, and you can also set **Client**, **Due** and **Assignee** in the boxes below.
+
+With a client picked, **Share with the client's team** is ticked, so the other staff on this client can see it. Untick it to keep it private.
+
+Press **Enter** to add it, or **Shift+Enter** to add it and open its details. You'll see *Task added.* The task shows on the assignee's My Tasks and on the client's task list. More in [How do I add and manage my tasks?](#/help/my-tasks).
 
 ### New note
 
@@ -39,4 +45,5 @@ The small **Staff** bar that used to sit at the top of every client page (Overvi
 ### Troubleshooting
 
 - **"Couldn't save that. Please try again."** Check your connection and try again. If it keeps happening, tell an admin.
-- **I don't see the + button.** It only shows when a client is open, and the whole top bar is hidden while you use **Preview as** to look at the portal as a client user.
+- **I don't see the + button.** The whole top bar is hidden while you use **Preview as** to look at the portal as a client user, and **+** hides in a very narrow window. Press **q** to add a task.
+- **q doesn't do anything.** Click somewhere outside the text box first, and close any open menu or tour.

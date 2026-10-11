@@ -886,22 +886,23 @@ function TP_TeamPage({ clients }) {
         .order("staff_email")
         .order("client_id"),
     );
-    // Open tasks, plus anything completed since the period began.
-    const taskQuery = (cols) => () =>
-      supabase
+    // Open tasks, plus anything completed since the period began. Deleted
+    // tasks (Tasks module soft delete, deleted_at) never count; before that
+    // column exists the same missing-column retry drops the filter.
+    const taskQuery = (cols, live) => () => {
+      let q = supabase
         .from("staff_reminders")
         .select(cols)
-        .or(`done.eq.false,completed_at.gte."${periodStartIso}"`)
-        .order("id");
+        .or(`done.eq.false,completed_at.gte."${periodStartIso}"`);
+      if (live) q = q.is("deleted_at", null);
+      return q.order("id");
+    };
+    const missingCol = (res) =>
+      res.error && typeof staffItemsApi !== "undefined" && staffItemsApi.isMissingColumnError(res.error);
     const tasksP = (async () => {
-      let res = await TP_fetchAll(taskQuery(TP_TASK_BASE_COLS + ", " + TP_TASK_V2_COLS));
-      if (
-        res.error &&
-        typeof staffItemsApi !== "undefined" &&
-        staffItemsApi.isMissingColumnError(res.error)
-      ) {
-        res = await TP_fetchAll(taskQuery(TP_TASK_BASE_COLS));
-      }
+      let res = await TP_fetchAll(taskQuery(TP_TASK_BASE_COLS + ", " + TP_TASK_V2_COLS, true));
+      if (missingCol(res)) res = await TP_fetchAll(taskQuery(TP_TASK_BASE_COLS + ", " + TP_TASK_V2_COLS, false));
+      if (missingCol(res)) res = await TP_fetchAll(taskQuery(TP_TASK_BASE_COLS, false));
       return res;
     })();
     const accessP = TP_fetchAll(() =>

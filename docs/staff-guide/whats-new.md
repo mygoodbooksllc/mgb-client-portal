@@ -2,10 +2,23 @@
 title: What's new
 section: Getting started
 audience: staff
-keywords: [board packet, presentation view, report builder, client help menu, question mark menu, tips, tips while you learn, hints, first 30 days, learning, pro tour, upsell, upgrade, basic clients, bookkeeper tour, temporary admin tour, client tour, tour versions, admin tour, account manager tour, inventory, tech, equipment, what's new, whats new, new, changes, updates, release notes, changelog, navigation, redesign, five places, client setup, close tab, client close, last tab, client view, bank on basic, open for this client, deep links]
+keywords: [tasks, my tasks, task details, quick add, q, projects, sops project, 90 day, open to all staff, own window, dock in portal, notes and sops, mentions, task status, ready for review, restore task, tasks tour, board packet, presentation view, report builder, client help menu, question mark menu, tips, tips while you learn, hints, first 30 days, learning, pro tour, upsell, upgrade, basic clients, bookkeeper tour, temporary admin tour, client tour, tour versions, admin tour, account manager tour, inventory, tech, equipment, what's new, whats new, new, changes, updates, release notes, changelog, navigation, redesign, five places, client setup, close tab, client close, last tab, client view, bank on basic, open for this client, deep links]
 sort: 15
 ---
 The newest changes to the staff side, newest first. For how anything works, search this guide or click **?** → **Help for this page**.
+
+### 2026-10-11: Tasks, rebuilt
+
+- **My Tasks**: one list of everything assigned to you, grouped as Overdue, Today, This week, Later, Waiting on client and Done. Open it from the **Tasks** button in the top bar or **Work › Tasks**. A task you assign to someone shows on *their* list, and you follow it. See [How do I add and manage my tasks?](#/help/my-tasks).
+- **Add a task from anywhere**: press **q** on any staff page (not while typing), or **+** → **New task**, with or without a client open. Type one line such as `Reconcile operating account #example-church @name fri !high` and the client, person, date and priority are picked out.
+- **Task details**: click any task for its status, dates, priority, subtasks, checklist, files, comments and history. Five statuses: To do, In progress, Waiting on client, Ready for review and Done. On a task that needs review, Done goes to **Ready for review** and any admin approves it or sends it back. See [What's in a task's details?](#/help/task-details).
+- **@mentions**: type **@** in a comment to bring a teammate in. They get **mentioned you** in the bell (no email yet) and follow the task. Turn it off under **Settings › Notifications** with **Mentions on tasks**.
+- **Client lists and projects**: the Tasks page has a list for each of your clients and shared projects. **SOPs** and **90 Day** are open to all staff to start with; an admin can switch **Open to all staff** off. **Directors** and **Owners** are for admins. See [How do client task lists and projects work?](#/help/task-lists-and-projects).
+- **Deletes are hidden, not erased**: a deleted task keeps its comments, checklist and history, and its owner or an admin can **Restore** it.
+- **Its own window**: **Open in own window** puts Tasks in a slim window beside QuickBooks, and **Dock in portal** brings it back. The `/tasks` address opens the slim view too. Today is still home. See [Can I keep Tasks in its own window?](#/help/tasks-own-window).
+- **Search** (**Ctrl+K** / **⌘K**) now finds words in task descriptions and comments, and the keys **j**, **k**, **Enter**, **x**, **s**, **a** and **?** work on task lists.
+- **Notes & SOPs** moved to their own tab, **Work › Notes & SOPs**, and work as before. The old **By client** view is gone; client lists replace it.
+- A short **Tasks tour** is in the **?** menu, ⌘K and **Settings › Help**. It never starts by itself.
 
 ### 2026-10-10: One tab row for every client
 

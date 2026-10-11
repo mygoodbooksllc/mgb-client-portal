@@ -1,15 +1,22 @@
-// components/staff/WorkPage.jsx — the Work place: Tasks, Close and Deadlines
-// as one page with a tab row (staff navigation redesign, 2026-10-08).
+// components/staff/WorkPage.jsx — the Work place: Tasks, Notes & SOPs, Close
+// and Deadlines as one page with a tab row (staff navigation redesign,
+// 2026-10-08; Notes & SOPs and the new My Tasks, 2026-10-11).
 //
 //   WK_WorkPage({ clients, staffUser, statusOverrides, canManageTemplates,
 //                 canCreateTemplates, onOpenTemplates })
 //
 // App mounts it for the "work" page. The open tab lives in the hash
-// (#/work/tasks, #/work/close, #/work/deadlines) through NAV_useHashSub, so a
+// (#/work/tasks, #/work/notes, #/work/close, #/work/deadlines) through
+// NAV_useHashSub, so a
 // deep link opens the right tab and a tab click is not a history entry. Each
 // tab shows the same component the old standalone page showed (MyTasksPage in
 // app.jsx, CT_CloseTrackerPage, DL_DeadlinesPage) with the same props, so the
 // pages themselves are unchanged; only where they live.
+//
+// Tasks (2026-10-11): the Tasks tab shows the Tasks module's My Tasks
+// (TK_MyTasks, components/tasks/) once its database tables exist, and the
+// old MyTasksPage until then (TK_useSchema() "missing", or the module didn't
+// load). Notes & SOPs shows MyTasksPage's notes and SOP cards (mode "notes").
 //
 // Tab badge: Tasks shows how many of my open items are due now (overdue plus
 // due today), counted from the same staff_reminders rows the top bar reads
@@ -62,11 +69,33 @@ function WK_WorkPage({ clients, staffUser, statusOverrides, canManageTemplates, 
     badge: t.key === "tasks" && due && due.due > 0 ? <WK_TasksBadge due={due} /> : null,
   }));
 
+  // TK_useSchema either exists for the whole session or never does, so the
+  // hook call is stable across renders.
+  const tkSchema = typeof TK_useSchema === "function" ? TK_useSchema() : "missing";
+  const useTk = typeof TK_MyTasks === "function" && tkSchema !== "missing";
+
   let body = null;
   if (tab === "tasks") {
+    body = useTk ? (
+      <TK_MyTasks embedded staffUser={staffUser} clients={clients} isAdmin={isAdmin} />
+    ) : typeof MyTasksPage === "function" ? (
+      <MyTasksPage
+        mode="tasks"
+        staffUser={staffUser}
+        clients={clients}
+        statusOverrides={statusOverrides}
+        canManageTemplates={canManageTemplates}
+        canCreateTemplates={canCreateTemplates}
+        onOpenTemplates={onOpenTemplates}
+      />
+    ) : (
+      <p className="card-subtitle">Tasks aren't available right now.</p>
+    );
+  } else if (tab === "notes") {
     body =
       typeof MyTasksPage === "function" ? (
         <MyTasksPage
+          mode="notes"
           staffUser={staffUser}
           clients={clients}
           statusOverrides={statusOverrides}
@@ -75,7 +104,7 @@ function WK_WorkPage({ clients, staffUser, statusOverrides, canManageTemplates, 
           onOpenTemplates={onOpenTemplates}
         />
       ) : (
-        <p className="card-subtitle">Tasks aren't available right now.</p>
+        <p className="card-subtitle">Notes aren't available right now.</p>
       );
   } else if (tab === "close") {
     body =

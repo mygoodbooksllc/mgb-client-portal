@@ -671,6 +671,13 @@ function WD_WidgetDrawer({ widgets, layout, anchorRef, onClose, boardName, onCre
     document.body.classList.add("wd-drawer-open");
     return () => document.body.classList.remove("wd-drawer-open");
   }, []);
+  // Only one side drawer at a time: opening a task (Tasks module, spec C9)
+  // closes this one.
+  useEffect(() => {
+    const onTask = () => onCloseRef.current && onCloseRef.current();
+    window.addEventListener("tk:drawer-open", onTask);
+    return () => window.removeEventListener("tk:drawer-open", onTask);
+  }, []);
 
   const byId = (id) => widgets.find((w) => w.id === id);
   // Hidden widgets, in the board's default order so the list reads the same

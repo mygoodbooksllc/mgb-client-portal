@@ -44,6 +44,9 @@ const NAV_PLACES = [
     visible: (ctx) => !ctx.impersonating,
     tabs: [
       { key: "tasks", label: "Tasks", help: "my-tasks" },
+      // Client notes and SOPs (#/work/notes), which used to sit under the task
+      // list (Tasks module, 2026-10-11).
+      { key: "notes", label: "Notes & SOPs", help: "notes" },
       { key: "close", label: "Close", help: "month-end-close" },
       { key: "deadlines", label: "Deadlines", help: "deadlines", visible: () => typeof DL_DeadlinesPage === "function" },
     ],
@@ -104,6 +107,7 @@ function NAV_isPlace(key) {
 const NAV_TAB_ALIASES = { "team/tech": "inventory" };
 
 // "#/work/close" -> "close"; "#/work" -> null. Only the second segment.
+// Lowercase slugs only, so "#/work/notes" passes like any tab.
 function NAV_subFromHash(slug) {
   try {
     const m = new RegExp("^#\\/" + slug + "\\/([a-z0-9-]+)").exec(window.location.hash || "");

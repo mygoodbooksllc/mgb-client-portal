@@ -32,7 +32,8 @@ const LK_KINDS = [
 const LK_CLIENT_KINDS = ["docreq", "file", "view"];
 // Non-client places that claim something in this build. Anything else on a
 // non-client place is ignored with no toast (TABS-SPEC 1.2).
-const LK_PLACE_CLAIMS = { "work/tasks": 1, "work/deadlines": 1, "team/hours": 1, inbox: 1 };
+// tasks: the Tasks module (TK_DrawerHost, or TK_App while the schema is missing).
+const LK_PLACE_CLAIMS = { "work/tasks": 1, "work/deadlines": 1, "team/hours": 1, inbox: 1, tasks: 1 };
 
 const LK_COPY = {
   msgDeleted: "That message was deleted.",
@@ -119,8 +120,9 @@ function LK_validClientId(id) {
 }
 
 // t = { clientId, tab, sub, item, month, account } for a client page, or
-//     { place, tab, item, client } for any other place. item = "kind:id"
-//     with the raw id (it is encoded here).
+//     { place, tab, sub, item, client } for any other place. item = "kind:id"
+//     with the raw id (it is encoded here). `sub` on a non-client place is
+//     used by Tasks: { place:"tasks", tab:"c", sub:"Ab/c" } → "#/tasks/c/Ab%2Fc".
 function LK_href(t) {
   if (!t) return "#/";
   let path;
@@ -131,6 +133,7 @@ function LK_href(t) {
   } else {
     path = "#/" + String(t.place || "");
     if (t.tab) path += "/" + encodeURIComponent(String(t.tab));
+    if (t.tab && t.sub) path += "/" + encodeURIComponent(String(t.sub));
   }
   const q = [];
   if (t.item) {
@@ -164,7 +167,10 @@ function LK_parsePath(hash) {
     if (!parts[1]) return null;
     return { place: "client", clientId: parts[1], tab: LK_normTab(parts[2] || ""), sub: (parts[3] || "").toLowerCase() };
   }
-  return { place: parts[0].toLowerCase(), clientId: null, tab: (parts[1] || "").toLowerCase(), sub: (parts[2] || "").toLowerCase() };
+  const place = parts[0].toLowerCase();
+  // Tasks ids are case-sensitive (client ids, uuids): keep tab and sub as typed.
+  if (place === "tasks") return { place, clientId: null, tab: parts[1] || "", sub: parts[2] || "" };
+  return { place, clientId: null, tab: (parts[1] || "").toLowerCase(), sub: (parts[2] || "").toLowerCase() };
 }
 
 // Parse a full hash with a query into an arrival, or null. `invalid: true`
@@ -421,6 +427,10 @@ function LK_go(t, hint, opts) {
       if (typeof window.MGB_exitPreview === "function") window.MGB_exitPreview();
     } catch (e) {}
   }
+  // Tasks (spec C9 item 7): a legacy "work/tasks" task link opens the new task
+  // drawer in place once the Tasks schema is live and the drawer host is
+  // mounted. No loop: TK_openTask only calls LK_go when the schema isn't ok.
+  if (LK_forwardTask(t)) return;
   const full = LK_href(t);
   const qi = full.indexOf("?");
   const clean = qi < 0 ? full : full.slice(0, qi);
@@ -439,6 +449,20 @@ function LK_go(t, hint, opts) {
     LK_dispatch();
   } else {
     window.location.hash = clean;
+  }
+}
+
+function LK_forwardTask(t) {
+  try {
+    if (!t || t.clientId || t.place !== "work" || t.tab !== "tasks") return false;
+    const item = String(t.item || "");
+    if (item.indexOf("task:") !== 0 || item.length <= 5) return false;
+    if (typeof TK_openTask !== "function" || typeof TK_store === "undefined" || !TK_store) return false;
+    if (TK_store.getState().schema !== "ok" || window.TK_drawerHostReady !== true) return false;
+    TK_openTask(item.slice(5), { from: "link" });
+    return true;
+  } catch (e) {
+    return false;
   }
 }
 

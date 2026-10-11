@@ -35,8 +35,12 @@ because some work happens in Claude Code web sessions. Run `git fetch` and compa
   run: `auth-config.js`, `qbo-config.js`, `components/auth/*`, `data.js`,
   `components/dashboard/WidgetDrawer.jsx`, `components/daily-close/*`, `components/qbo/mapQboToClient.js`, `components/pro/*`,
   `components/inbox/StaffInbox.jsx`, `components/staff/*` (ending with `StaffGuide.jsx` and
-  `TopBar.jsx`), then `app.jsx`. All files start downloading at once, but
-  they compile in this order.
+  `TopBar.jsx`), a few `components/client/*` files, the Tasks module `components/tasks/*` (19
+  files, `TK_logic.js` first and `TK_App.jsx` last, right after `components/client/QboGiving.jsx`),
+  `components/tour/Tour.jsx` and `Tips.jsx`, then `app.jsx`. The Tasks stylesheets
+  `components/tasks/tk-views.css` and `tk-drawer.css` are written right after
+  `components/tour/tips.css`. All files start downloading at once, but they compile in this
+  order.
 - **Shared global scope.** There are no imports. Every file shares `window`, so something
   defined in one file (for example `window.mgbSupabase` or `window.CLIENTS`) is visible to the
   files after it.
@@ -79,6 +83,7 @@ because some work happens in Claude Code web sessions. Run `git fetch` and compa
 | `components/inbox/` | `StaffInbox.jsx` (the unified staff inbox, the staff chat drawer and launcher, and `SI_useClientMessaging` for the client Messages page) and `staff-inbox.css`. Loaded before `app.jsx`; every name is `SI_`/`si`/`StaffInbox` prefixed. Without it, `app.jsx` falls back to the old Team Chat page and sample client threads. |
 | `components/staff/` | Staff-only features, each with its own CSS and a name prefix (`CS_` client switcher, `HLP_` Help, `TB_` top bar, ...). `TopBar.jsx` + `top-bar.css` is the staff top bar (see "Staff top bar" under Main features). All loaded before `app.jsx`. |
 | `components/files/` | `DriveFiles.js`: browser helpers for client files in Google Drive (`DRV_` prefix), calling the `drive-files` edge function. Holds the one fallback switch `DRV_STORAGE_FALLBACK`. Loaded before `StaffInbox.jsx` and `app.jsx`. |
+| `components/tasks/` | The Tasks module (2026-10-11; spec `docs/tasks-phase1-spec.md`). Every name is `TK_`/`tk-` prefixed. Logic with node tests: `TK_logic.js` (statuses, grouping, the quick-add parser, keys), `TK_viewLogic.js`, `TK_drawerLogic.js`, `TK_store.js`. Data: `TK_api.js` (Supabase calls), `TK_sync.js` (Realtime plus a `BroadcastChannel` between windows). Views: `TK_App.jsx` (the `#/tasks/...` page and the `/tasks` shell), `TK_Sidebar.jsx`, `TK_MyTasks.jsx`, `TK_List.jsx`, `TK_ClientHeader.jsx`, `TK_TaskRow.jsx`, `TK_StandaloneBar.jsx`, `TK_keys.jsx`. Task details: `TK_Drawer.jsx`, `TK_QuickAdd.jsx`, `TK_Comments.jsx`, `TK_Attachments.jsx`, `TK_Activity.jsx`. Styles: `tk-views.css`, `tk-drawer.css`. Loaded after `components/client/QboGiving.jsx` and before `components/tour/Tour.jsx`. |
 | `components/qbo/` | `mapQboToClient.js` converts QuickBooks table rows into the shape the pages use. Its test is `mapQboToClient.test.js`. |
 | `supabase/*.sql` | Every database change: tables, row-level security (RLS) policies, functions, cron jobs. The folder is flat, one file per change. |
 | `supabase/functions/` | Edge functions: `qbo-callback`, `qbo-refresh-token`, `qbo-sync`, `invite-client-user` |
@@ -278,8 +283,9 @@ because some work happens in Claude Code web sessions. Run `git fetch` and compa
     tab in the URL (`replaceState`). App pushes real history entries (`pushState` with `{ mgbNav }`)
     so Back returns from a client to Clients, and sets `document.title` per place.
   - **Places:** **Today** (`Today.jsx`, below), **Inbox** (unchanged), **Work** (`WorkPage.jsx`:
-    Tasks = `MyTasksPage`, Close = `CT_CloseTrackerPage`, Deadlines = `DL_DeadlinesPage`, at
-    `#/work/<tab>`), **Clients** (`ClientsPage.jsx`, `CL_`: Mine / All / Needs attention, Find a
+    Tasks = `TK_MyTasks` embedded (falls back to the legacy `MyTasksPage` when the Tasks tables
+    are missing), Notes & SOPs = `MyTasksPage mode="notes"`, Close = `CT_CloseTrackerPage`,
+    Deadlines = `DL_DeadlinesPage`, at `#/work/<tab>`), **Clients** (`ClientsPage.jsx`, `CL_`: Mine / All / Needs attention, Find a
     client, columns Client · Health · Assigned to · Backup · Hours this month · Close · Last viewed;
     inside a client the breadcrumb "Clients › name › tab" and `CL_ClientTabs`: one fixed row on
     every plan (`STAFF_CLIENT_TABS`: Overview, Messages, Documents, Bank, Close, Reports, SOP, then
@@ -300,8 +306,10 @@ because some work happens in Claude Code web sessions. Run `git fetch` and compa
     (`TOUR_StaffRoot`). Staff tours are listed in `TOUR_STAFF_TOURS` in menu order: **Bookkeeper**
     (`TOUR_bookkeeperSteps`, setting `bookkeeperTour`; replaces the old generic staff tour, and
     `TOUR_startStaff()` or `"staff"` still start it), **Admin** (`TOUR_adminSteps`, `adminTour`),
-    **Temporary admin** (`TOUR_tempAdminSteps`, `tempAdminTour`) and **Account manager**
-    (`TOUR_amSteps`, `amTour`). Each saves `{ status, at }` in user settings (the temporary admin tour
+    **Temporary admin** (`TOUR_tempAdminSteps`, `tempAdminTour`), **Account manager**
+    (`TOUR_amSteps`, `amTour`) and **Tasks** (`TOUR_tasksSteps`, `tasksTour`, 2026-10-11: My Tasks,
+    status, lists, own window and keys on `#/tasks/my`; listed once `TK_store` reports schema
+    `ok`, never auto-starts because it isn't in `TOUR_STAFF_AUTO_ORDER`). Each saves `{ status, at }` in user settings (the temporary admin tour
     also saves `until`, the grant's expiry, so a later grant starts it again).
   - **Staff tour ctx and order:** `TOUR_StaffRoot` builds `isAdmin` (real admin), `isBookkeeper`,
     `tempAdmin` (a bookkeeper with an unexpired `staff_temp_admin_access` row; App passes
@@ -544,15 +552,63 @@ because some work happens in Claude Code web sessions. Run `git fetch` and compa
   "Also show" toggles the Reminders, Milestones to review and Recently viewed cards (`todayCards`
   in user settings). No customizable board: `BookkeeperHomePage` and `useHomeMasonry` were deleted
   2026-10-08.
-- **Work › Tasks** (`MyTasksPage`, mounted by `WorkPage.jsx` at `#/work/tasks`; was My Tasks):
-  - Tabs: **Today / Upcoming / Overdue / All / By client**.
-  - Separate **Notes** and **SOPs** cards below the tasks.
-  - Tasks can have due dates and times, reminders, repeats and priority, and can be shared with
-    a client's team.
-  - Completing a repeating task rolls it forward (`complete_staff_item` RPC).
-  - Notes can be linked to tasks.
-  - **By client** shows each client's **handoff summary**, open tasks and notes.
-  - The top bar's Tasks button shows the open count (overdue in red).
+- **Tasks** (Tasks module Phase 1, 2026-10-11; `components/tasks/`, `TK_`; spec
+  `docs/tasks-phase1-spec.md`). Tasks are still rows in `staff_reminders`, with new columns and
+  tables from `supabase/tasks-module-v1.sql`.
+  - **Routes:** `#/tasks/my` (My Tasks), `#/tasks/c/<client>`, `#/tasks/p/<project>`,
+    `#/tasks/u/<id>` (admins), `#/tasks/search`; a task opens from any route with
+    `?item=task:<id>`. An unknown route shows "We couldn't find that list." `PAGE_META.tasks` is
+    "Tasks" / "Your tasks, client lists and projects", and the ? menu's help is `my-tasks`.
+  - **My Tasks** (`TK_MyTasks`): groups Overdue, Today (View › Today group, on by default), This
+    week (7 days), Later (and undated), Waiting on client, Done (folded); done tasks older than
+    12 months hide unless Show older. Also embedded as **Work › Tasks**. Mine = assignee, or the
+    creator when unassigned.
+  - **Lists** (`TK_Sidebar`, `TK_List`, `TK_ClientHeader`): My Tasks, Search, Projects, Clients,
+    People (admins). The rail shows at 900px and up, a Lists sheet below. Seeded projects: SOPs
+    and 90 Day (`open_to_staff` on), Directors and Owners (admins only). Only admins change
+    `open_to_staff`. Bookkeepers see a client's tasks only when assigned, covering or granted
+    temporary access.
+  - **Task details** (`TK_Drawer`, mounted once by App as `TK_DrawerHost`): five statuses
+    (`todo`, `in_progress`, `waiting_client`, `ready_for_review`, `done`); a `review_required`
+    task finished by a non-admin goes to Ready for review, and any admin approves or sends it back
+    (`tk_set_status`). Subtasks (`parent_id`), the existing `TCL_Checklist`, comments with
+    @mentions (`tk_comments`; a mention adds a follower and a `tkm:` bell item, no email in
+    Phase 1), followers (`tk_followers`; they can read private tasks), files (client task: the
+    client's Drive as internal files via `DRV_upload`; internal task: the private `task-files`
+    bucket; links on any task) and the Activity history (`tk_activity`). Copy link, Save or
+    Suggest as template, Delete (a soft delete; Restore from the banner).
+  - **Quick add** (`TK_QuickAdd`, `TK_QuickAddHost`): `q` on any staff page (not while typing,
+    or with a modal, menu or tour open), **+** → New task with or without a client, ⌘K New task /
+    New reminder. `TK_parseQuickAdd` reads `@person`, `#client`, `!high`/`!low`, and dates
+    (`today`, `tomorrow`, weekdays, `next week`, `eom`, `in N days`, `+Nd`, `+Nw`, `+Nbd`,
+    `bdN`, `M/D`, `YYYY-MM-DD`). Calendar days unless a business-day token is typed.
+  - **Keys** (`TK_keys`, `TK_KEYMAP`): j/k, Enter, x, s, a, q, Esc, ?. Settings › Shortcuts has a
+    Tasks shortcuts card.
+  - **Own window** (`TK_popOut`, `TK_StandaloneBar`): Open in own window opens
+    `/?shell=tasks#/tasks/...` in a 480×820 popup (size kept in `mgb_tk_popout_v1`); `/tasks`
+    redirects there (`vercel.json`). The shell flag is `sessionStorage` `mgb_shell_v1`, per tab.
+    Dock in portal posts to the opener over `TK_sync` and closes, or turns the window into the
+    full portal after 600 ms. Tours and Tips aren't mounted in the shell.
+  - **Elsewhere:** Today's task rows use `TK_groupMyTasks` and `TK_api.complete`; the Overview's
+    Tasks for this client card opens quick add and the drawer and links to `#/tasks/c/<client>`;
+    the top bar Tasks badge opens `#/tasks/my`; ⌘K searches descriptions and comments
+    (`tk_search`, "In a comment: …"); the bell lists mentions (`ST_BELL_PREFS` `mentions`).
+  - **Notes & SOPs** moved to their own Work tab (`#/work/notes`, `MyTasksPage mode="notes"`).
+    The legacy By client view is no longer reachable while the Tasks tables exist, so the
+    handoff summary (`client_notes`) moved to a Handoff summaries card on that tab
+    (`renderHandoffSection`, shared with the legacy By client cards).
+  - **Schema missing:** every TK view shows "Tasks is being set up" and Work › Tasks falls back to
+    the legacy `MyTasksPage`.
+  - **Usage stats** (`app.jsx` labels): tab label `tasks` "Tasks"; actions `tasks-drawer`, `tasks-quick-add`,
+    `tasks-search`, `tasks-shortcut`, `tasks-popout`, `tasks-dock`, plus `tasks-comment` and
+    `tasks-attach`.
+  - **Version:** `MGB_VERSION` `2026-10-11a`, "Tasks: My Tasks, task details, projects and its own
+    window".
+  - Local storage (all cleared by Developer Tools › Reset local state, which takes every
+    `mgb_` key): `mgb_tk_groups_v1`, `mgb_tk_view_v1`, `mgb_tk_sort_v1`, `mgb_tk_popout_v1`.
+    In `sessionStorage`, per tab and ending with it: the shell flag `mgb_shell_v1` and
+    `mgb_tk_keys_used_v1` (`TK_keys.jsx`).
+  - Guide articles: `my-tasks`, `task-details`, `task-lists-and-projects`, `tasks-own-window`.
 - **Client SOPs**: sectioned per-client procedures with full version history
   (`client_sops`, `client_sop_history`, `save_client_sop`). Clients never see them.
 - **Inbox** (page `staff-messages`, called "Team Chat" before 2026-09-28; `components/inbox/StaffInbox.jsx`):
@@ -1082,6 +1138,28 @@ Team Reviews files.
   - `ops-health-check` alerts on 3+ failed Drive uploads in an hour and on Drive not connected
     while non-test clients exist.
   - Logic test: `node supabase/functions/drive-files/logic.test.mjs`.
+- **Tasks module** (`supabase/tasks-module-v1.sql`, applied to production as migration
+  `tasks_module_v1`, version `20261011154437`). Re-runnable and additive.
+  - Security fix `tasks_module_v1_fix_1`, version `20261011212246`, lives in the same file
+    (`tasks-module-v1.sql`, "fix 1" notes): a direct API insert into `staff_reminders` is staff-only,
+    putting a task on a client (insert, or changing its client) needs `can_access_client()` unless
+    the caller is an admin, and `tk_can_edit_task` and `tk_attachments_before_write` check
+    `is_active_staff()` first (`tk_can_upload_task_file` goes through `tk_can_edit_task`), so a
+    non-staff owner can't edit, attach, upload or set status.
+  - New columns on `staff_reminders` (status, description, start date, section, sort key,
+    `parent_id`, SOP section, review, assignee, `deleted_at` and more) and new tables
+    `tk_projects`, `tk_project_members`, `tk_followers`, `tk_comments`, `tk_activity`,
+    `tk_attachments`, all with RLS and exact grants. Seeds the SOPs, 90 Day, Directors and Owners
+    projects. Adds the private `task-files` storage bucket and puts the tables in
+    `supabase_realtime`.
+  - Functions include `tk_set_status`, `tk_search`, `tk_add_follower`, `tk_client_people`,
+    `tk_assignable_staff`, `tk_can_read_task` / `tk_can_edit_task` and `tk_schema_version`.
+  - A `BEFORE DELETE` trigger turns a signed-in delete on `staff_reminders` into a soft delete,
+    so even an old copy of the app hides rather than erases. Readers (`client_health`,
+    `digest_weekly_data`, `staff_performance`, `offboard_staff_preview`,
+    `complete_staff_item`, `notify_enqueue_task_assigned`) were recreated to skip deleted rows.
+  - The file's header has the deploy-window note: the `notification-emails` and `client-emails`
+    edge functions must also skip `deleted_at` rows.
 - **A policy mistake to avoid.** An existence subquery inside an RLS policy is itself filtered
   by that table's RLS, so it can quietly let the wrong people through. Put existence checks in
   a `SECURITY DEFINER` function instead, as `is_conversation_member()` does.
@@ -1095,7 +1173,8 @@ Team Reviews files.
   - Seeing the signed-in app requires a real Google sign-in or magic link. There's no fake login.
   - Set `MGB_CSP_TEST=1` to serve the CSP as enforcing, for testing.
 - **Test.** `node components/qbo/mapQboToClient.test.js` checks the QuickBooks mapper against
-  `data.js`'s shapes.
+  `data.js`'s shapes. The Tasks module's tests run with
+  `for f in components/tasks/*.test.js; do node "$f" || break; done`.
 - **Commit straight to `main`.** No feature branches unless asked. The owner pushes with GitHub
   Desktop, and Vercel deploys within about a minute.
   - To undo, revert the commit (`git revert <sha>`) and push, or promote the previous

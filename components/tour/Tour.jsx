@@ -86,6 +86,16 @@
 //   #wk-tab-<key>    a Work tab, found by id (NAV_TabRow, idPrefix "wk")
 //   #tp-tab-<key>    a Team tab, found by id (NAV_TabRow, idPrefix "tp")
 //   #st-tab-firm     Settings' Firm settings tab, found by id (Settings.jsx)
+//   Tasks tour (TOUR_StaffRoot too; on the portal's #/tasks/my page, never
+//   in the /tasks shell, where tours aren't mounted; components/tasks/)
+//   tk-add           My Tasks' Add task button (TK_MyTasks.jsx; a list's
+//                    Add task in TK_List.jsx carries it too)
+//   tk-groups        My Tasks' groups, only when there are tasks
+//   tk-status        the first row's status pill (TK_TaskRow.jsx)
+//   tk-sidebar       the lists rail, 900px and up (TK_Sidebar.jsx); below
+//                    that it sits behind the Lists button
+//   tk-popout        Open in own window (TK_App.jsx), not on touch devices,
+//                    compact widths or in the shell
 // A role-tour step can `go` somewhere first (NAV_go to a place and tab, or
 // TOUR_openClient to a client's Overview (or another tab) through the
 // #/client/<id>/overview
@@ -122,6 +132,7 @@
 //                            no longer written, only read (newToStaff)
 //   proTour                  { status: "done" | "skipped", at } (Pro tour;
 //                            informational, it never starts by itself)
+//   tasksTour                { status, at }                 (Tasks tour)
 // The client tour starts on its own only for a signed-in client user who has
 // no tour status yet. Never for staff, "View as", or "Preview as a client
 // user". Anyone can run it again from the client top bar's "?" menu or
@@ -140,7 +151,9 @@
 // bookkeeper, admin, account manager: the first that applies and is pending
 // (TOUR_STAFF_AUTO_ORDER). The bookkeeper tour never starts by itself for an
 // admin; the temporary admin tour is pending again once the grant's expiry
-// differs from the saved `until` (a new grant). For a bookkeeper the pick
+// differs from the saved `until` (a new grant). The Tasks tour (2026-10-11)
+// never starts by itself; it's in the lists for anyone signed in as
+// themselves once the Tasks tables exist. For a bookkeeper the pick
 // waits until App has checked for a temporary admin grant, and an auto
 // start waits while Today's first sign-in profile prompt is open. They run
 // again whenever something calls
@@ -951,7 +964,12 @@ function TOUR_bookkeeperSteps(ctx) {
       body: () =>
         "Client messages land here. Reply sends to the client; Note stays inside the team. Aim to reply within 24 hours.",
     },
-    TOUR_tabStep("work", "tasks", "Work › Tasks", "Your tasks, notes and SOPs, in one place."),
+    TOUR_tabStep(
+      "work",
+      "tasks",
+      "Work › Tasks",
+      "Your tasks, grouped by when they're due. Notes and client SOPs are on the Notes & SOPs tab next to it.",
+    ),
     TOUR_tabStep(
       "work",
       "close",
@@ -1179,6 +1197,93 @@ function TOUR_amSteps(ctx) {
   ];
 }
 
+// Tasks tour (2026-10-11): My Tasks, a task's status, the lists, its own
+// window and the keys, about a minute. Run by hand only (not in
+// TOUR_STAFF_AUTO_ORDER). "tasks" isn't a NAV place, so the first step sets
+// the hash itself. tk-groups and tk-status only render when there are tasks,
+// and tk-sidebar only at 900px and up: those steps still show, centered, and
+// their text reads fine without the spotlight.
+function TOUR_tasksOpen() {
+  return () => {
+    if (/^#\/tasks\/my(\?|$)/.test(window.location.hash || "")) return false;
+    window.location.hash = "#/tasks/my";
+  };
+}
+
+function TOUR_tasksSteps() {
+  const touch = TOUR_touchOnly();
+  return [
+    {
+      id: "welcome",
+      title: "The Tasks tour",
+      body: () =>
+        "Tasks is where your to-dos, each client's list and the firm's projects live. This tour opens My Tasks and shows the main pieces. About a minute.",
+    },
+    {
+      id: "tk-add",
+      go: TOUR_tasksOpen(),
+      targets: ["tk-add"],
+      wait: true,
+      title: "Add a task",
+      body: () =>
+        touch
+          ? "Tap Add task and type what needs doing. Add @name to assign it, #client to file it under a client, a date such as fri, and !high for priority."
+          : "Add task, or press q on any staff page. Type what needs doing, then @name to assign it, #client for the client, a date such as fri, and !high for priority.",
+    },
+    {
+      id: "tk-groups",
+      targets: ["tk-groups"],
+      wait: true,
+      spot: "top",
+      title: "Grouped by when it's due",
+      body: () =>
+        "Overdue, Today, This week and Later, then Waiting on client and Done, which starts folded. Click a group's heading to fold or open it.",
+    },
+    {
+      id: "tk-status",
+      targets: ["tk-status"],
+      wait: true,
+      title: "Status",
+      body: () =>
+        "Each task has a status: To do, In progress, Waiting on client, Ready for review or Done. On a task that needs review, your Done sends it to an admin to approve.",
+    },
+    {
+      id: "tk-sidebar",
+      targets: ["tk-sidebar"],
+      wait: true,
+      spot: "top",
+      title: "Lists and projects",
+      body: () =>
+        (window.innerWidth < 900 ? "The Lists button opens every list. " : "") +
+        "My Tasks, Search, the firm's projects and each of your clients' lists. SOPs and 90 Day are projects open to all staff.",
+    },
+    {
+      id: "tk-popout",
+      when: () => !touch && window.innerWidth > 760,
+      targets: ["tk-popout"],
+      // The tour usually starts on Today or Work, where the button isn't on
+      // the page yet; wait keeps the step (centered if it never shows).
+      wait: true,
+      title: "Its own window",
+      body: () =>
+        "Open in own window puts Tasks in a slim window beside your work. Dock in portal brings it back here.",
+    },
+    {
+      id: "tk-keys",
+      when: () => !touch,
+      title: "Keys",
+      body: () =>
+        "On a list, j and k move, Enter opens a task, x marks it done and s changes its status. Press ? on Tasks for the whole list. They pause while you type.",
+    },
+    {
+      id: "done",
+      title: "That's Tasks",
+      body: () =>
+        "Click any task to open its details: comments, files, subtasks and who's following. Take this tour again from the ? menu.",
+    },
+  ];
+}
+
 // The staff-side tours, in menu order: the "?" menu, ⌘K and Settings › Help
 // list the available ones through TOUR_staffTourList. `available` decides
 // who can take each; `pending(ctx, saved)` (default: no saved status)
@@ -1221,6 +1326,22 @@ const TOUR_STAFF_TOURS = [
     sub: "Reviews, client messages, new clients, health and plans",
     available: (ctx) => ctx.amCount > 0 && !ctx.impersonating,
     steps: (ctx) => TOUR_amSteps(ctx),
+  },
+  {
+    // Run by hand only: it isn't in TOUR_STAFF_AUTO_ORDER. Listed once the
+    // Tasks module's tables answer (TK_store schema "ok").
+    key: "tasks",
+    setting: "tasksTour",
+    label: "Tasks tour",
+    sub: "My Tasks, statuses, lists and projects",
+    available: (ctx) =>
+      !ctx.impersonating &&
+      typeof TK_App === "function" &&
+      typeof TK_store !== "undefined" &&
+      !!TK_store &&
+      typeof TK_store.getState === "function" &&
+      TK_store.getState().schema === "ok",
+    steps: () => TOUR_tasksSteps(),
   },
 ];
 

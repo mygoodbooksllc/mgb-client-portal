@@ -283,8 +283,13 @@ async function CTC_loadTasks(sb, id, opts, force) {
   }
   const mineTest = isMyStaffItem;
   const today = CTC_today();
-  const mine = CTC_store.items.rows.filter((t) => t && t.client_id === id && !t.done && t.kind !== "note" && mineTest(t, me));
-  const overdue = mine.filter((t) => t.due_date && String(t.due_date).slice(0, 10) < today);
+  // Tasks module rules when loaded: open = not done or deleted (a task waiting
+  // for review still counts), and waiting on the client is never overdue.
+  // staffItemsApi.list already leaves deleted rows out once the column exists.
+  const tk = typeof TK_isOpen === "function" && typeof TK_isOverdue === "function";
+  const isOpen = (t) => (tk ? TK_isOpen(t) : !t.done && !t.deleted_at);
+  const mine = CTC_store.items.rows.filter((t) => t && t.client_id === id && isOpen(t) && t.kind !== "note" && mineTest(t, me));
+  const overdue = mine.filter((t) => (tk ? TK_isOverdue(t, today) : t.due_date && String(t.due_date).slice(0, 10) < today));
   const first = overdue[0] || mine.filter((t) => t.due_date).sort((a, b) => String(a.due_date).localeCompare(String(b.due_date)))[0] || mine[0] || null;
   return { mine: mine.length, overdue: overdue.length, firstId: first ? first.id : null };
 }

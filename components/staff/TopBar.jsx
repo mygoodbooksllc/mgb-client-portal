@@ -70,6 +70,7 @@ const TB_SEARCH_LIMIT = 6;
 const TB_HELP_FOR_PAGE = {
   today: "home-page",
   inbox: "inbox",
+  tasks: "my-tasks",
   clients: "clients-page",
   settings: "staff-settings",
   "client-overview": "client-overview",
@@ -103,6 +104,39 @@ const TB_lc = (s) => String(s || "").toLowerCase();
 
 function TB_go(hash) {
   if (window.location.hash !== hash) window.location.hash = hash;
+}
+
+// Tasks module (components/tasks/). Asked at call time: the TK_* globals may
+// not exist at all, and until its tables exist (schema "ok") every caller
+// keeps its old path.
+function TB_tkSchemaOk() {
+  try {
+    return typeof TK_store !== "undefined" && !!TK_store && TK_store.getState().schema === "ok";
+  } catch (e) {
+    return false;
+  }
+}
+// The task drawer can open a task right here.
+function TB_tkCanOpen() {
+  return typeof TK_openTask === "function" && TB_tkSchemaOk() && window.TK_drawerHostReady === true;
+}
+// TK_QuickAddHost is mounted and answers "tk:quick-add".
+function TB_tkQuickReady() {
+  return window.TK_quickAddReady === true;
+}
+function TB_tkQuickAdd(detail) {
+  window.dispatchEvent(new CustomEvent("tk:quick-add", { detail: detail || {} }));
+}
+// A staffer's display name from the directory, else the part before the @
+// while the directory isn't loaded. Someone the directory doesn't know (CV_nameOf
+// hands the email back) shows as "A teammate", never as an email address.
+function TB_personName(email) {
+  const raw = String(email || "");
+  if (typeof CV_nameOf === "function" && typeof CV_dir !== "undefined" && CV_dir) {
+    const name = CV_nameOf(CV_dir.list, raw);
+    return !name || name === raw || name.indexOf("@") >= 0 ? "A teammate" : name;
+  }
+  return raw.split("@")[0] || "A teammate";
 }
 
 // No tab: the bare #/client/<id>, which App opens by the landing rule (the
@@ -341,20 +375,31 @@ function TB_pageRows(ctx, onOpenSettings) {
   return rows;
 }
 
-// Actions in the same menu. New task / note open StaffQuickActions' modals
-// (TB_QUICK_ADD_EVENT) when a client is open; otherwise they land on the
-// Tasks page, whose form takes a task or reminder for any client.
+// Actions in the same menu. New task and New reminder open Tasks quick add
+// (TK_QuickAddHost) when it's mounted. Without it, and for a note, they open
+// StaffQuickActions' modals (TB_QUICK_ADD_EVENT) when a client is open, or
+// land on Work (Tasks, or Notes & SOPs for a note).
 function TB_actionRows({ client, showMine, effectiveTheme, onToggleTheme, onSignOut }) {
   const rows = [];
   const quick = (kind) => () => {
     if (client) window.dispatchEvent(new CustomEvent(TB_QUICK_ADD_EVENT, { detail: { kind } }));
-    else TB_go("#/work/tasks");
+    else TB_go(kind === "note" ? "#/work/notes" : "#/work/tasks");
   };
   if (showMine) {
-    const forWho = client ? "For " + client.name : "On Work › Tasks";
-    rows.push({ key: "a:task", title: "New task", sub: forWho, go: quick("task") });
-    rows.push({ key: "a:note", title: "New note", sub: forWho, go: quick("note") });
-    rows.push({ key: "a:reminder", title: "New reminder", sub: "On Work › Tasks", go: () => TB_go("#/work/tasks") });
+    const tk = TB_tkQuickReady();
+    rows.push({
+      key: "a:task",
+      title: "New task",
+      sub: client ? "For " + client.name : tk ? "Quick add, for any client" : "On Work › Tasks",
+      go: () => (TB_tkQuickReady() ? TB_tkQuickAdd(client ? { client_id: client.id } : {}) : quick("task")()),
+    });
+    rows.push({ key: "a:note", title: "New note", sub: client ? "For " + client.name : "On Work › Notes & SOPs", go: quick("note") });
+    rows.push({
+      key: "a:reminder",
+      title: "New reminder",
+      sub: tk ? "Quick add" : "On Work › Tasks",
+      go: () => (TB_tkQuickReady() ? TB_tkQuickAdd({ kind: "reminder" }) : TB_go("#/work/tasks")),
+    });
   }
   if (onToggleTheme)
     rows.push({
@@ -465,6 +510,33 @@ function TB_Search({ clients, items, showMine, isAdmin, clientSearch, navCtx, cl
     return () => clearTimeout(t);
   }, [q]);
 
+  // Tasks and their comments, searched on the server (tk_search, 2.13) once
+  // the Tasks tables exist: 200 ms after typing stops, 2 characters or more.
+  const [tkHits, setTkHits] = useState({ q: "", rows: [] });
+  const tkSeqRef = useRef(0);
+  useEffect(() => {
+    const seq = ++tkSeqRef.current;
+    const canSearch =
+      showMine && q.length >= 2 && TB_tkSchemaOk() && typeof TK_api !== "undefined" && TK_api && typeof TK_api.search === "function";
+    if (!canSearch) {
+      setTkHits((h) => (h.q || h.rows.length ? { q: "", rows: [] } : h));
+      return undefined;
+    }
+    const t = setTimeout(() => {
+      Promise.resolve(TK_api.search(q, 8)).then(
+        (rows) => {
+          if (seq !== tkSeqRef.current) return;
+          setTkHits({ q, rows: Array.isArray(rows) ? rows : [] });
+          if (window.MGB_track) window.MGB_track("tasks-search");
+        },
+        () => {
+          if (seq === tkSeqRef.current) setTkHits({ q, rows: [] });
+        },
+      );
+    }, 200);
+    return () => clearTimeout(t);
+  }, [q, showMine]);
+
   const clientName = (id) => {
     const c = (window.CLIENTS || []).find((x) => x.id === id);
     return c ? c.name : id;
@@ -500,14 +572,41 @@ function TB_Search({ clients, items, showMine, isAdmin, clientSearch, navCtx, cl
       });
     }
     if (showMine) {
-      const mine = (items || []).filter((t) => !t.done && TB_lc(t.text).includes(ql));
+      const isOpen = typeof TK_isOpen === "function" ? TK_isOpen : (t) => !t.done;
+      const mine = (items || []).filter((t) => isOpen(t) && TB_lc(t.text).includes(ql));
+      // With the Tasks module ready a pick opens the task drawer; otherwise
+      // the old Work › Tasks page.
+      const openTask = (id) => {
+        if (TB_tkCanOpen()) TK_openTask(id, { from: "search" });
+        else TB_go(typeof TK_App === "function" && TB_tkSchemaOk() ? "#/tasks/my" : "#/work/tasks");
+      };
       const toRow = (t) => ({
         key: "i:" + t.id,
         title: t.text,
         sub: [t.client_id ? clientName(t.client_id) : "", t.due_date ? "Due " + fmtDate(t.due_date) : ""].filter(Boolean).join(" · "),
-        go: () => TB_go("#/work/tasks"),
+        go: () => openTask(t.id),
       });
-      groups.push({ key: "tasks", label: "Tasks", items: mine.filter((t) => t.kind !== "note").slice(0, TB_SEARCH_LIMIT).map(toRow) });
+      const localTasks = mine.filter((t) => t.kind !== "note").slice(0, TB_SEARCH_LIMIT).map(toRow);
+      // Server hits (tk_search) after the instant local ones, one row per task.
+      if (tkHits.q && tkHits.q === q) {
+        const have = new Set(localTasks.map((r) => r.key));
+        tkHits.rows.forEach((h) => {
+          const key = "i:" + h.task_id;
+          if (!h.task_id || have.has(key)) return;
+          have.add(key);
+          const snippet = String(h.snippet || "").replace(/\s+/g, " ").trim().slice(0, 90);
+          localTasks.push({
+            key,
+            title: h.task_text || "Task",
+            sub:
+              h.match === "comment"
+                ? "In a comment: " + snippet
+                : [h.client_id ? clientName(h.client_id) : "", h.due_date ? "Due " + fmtDate(h.due_date) : ""].filter(Boolean).join(" · "),
+            go: () => openTask(h.task_id),
+          });
+        });
+      }
+      groups.push({ key: "tasks", label: "Tasks", items: localTasks });
       groups.push({ key: "notes", label: "Notes", items: mine.filter((t) => t.kind === "note").slice(0, TB_SEARCH_LIMIT).map(toRow) });
     }
     if (remote.q) {
@@ -732,6 +831,44 @@ function TB_useBellItems({ clients, items, me, isAdmin, page }) {
       window.removeEventListener("mgb:staff-tools-changed", loadShouts);
     };
   }, [loadShouts, page]);
+  // Comments on tasks that mention me (Tasks module, last 14 days), once its
+  // tables exist. Reloads when a comment changes and when the schema turns ok.
+  const [mentions, setMentions] = useState([]);
+  const loadMentions = useCallback(() => {
+    if (!me || !TB_tkSchemaOk() || typeof TK_api === "undefined" || !TK_api || typeof TK_api.listMentions !== "function") {
+      setMentions((m) => (m.length ? [] : m));
+      return;
+    }
+    Promise.resolve(TK_api.listMentions(me, { sinceDays: 14 })).then(
+      (rows) => setMentions(Array.isArray(rows) ? rows : []),
+      () => setMentions([]),
+    );
+  }, [me]);
+  useEffect(() => {
+    loadMentions();
+    const id = setInterval(() => !document.hidden && loadMentions(), TB_BELL_REFRESH_MS);
+    const onChanged = (e) => {
+      if (!e || !e.detail || e.detail.table === "tk_comments") loadMentions();
+    };
+    window.addEventListener("tk:task-changed", onChanged);
+    let unsub = null;
+    try {
+      if (typeof TK_store !== "undefined" && TK_store && typeof TK_store.subscribe === "function") {
+        let last = TK_store.getState().schema;
+        unsub = TK_store.subscribe((st) => {
+          if (st && st.schema !== last) {
+            last = st.schema;
+            if (last === "ok") loadMentions();
+          }
+        });
+      }
+    } catch (e) {}
+    return () => {
+      clearInterval(id);
+      window.removeEventListener("tk:task-changed", onChanged);
+      if (unsub) unsub();
+    };
+  }, [loadMentions, page]);
   const idsKey = (clients || []).map((c) => c.id).sort().join(",");
   const load = useCallback(async () => {
     const sb = window.mgbSupabase;
@@ -829,8 +966,9 @@ function TB_useBellItems({ clients, items, me, isAdmin, page }) {
       go: () => lkGo({ clientId: row.client_id, tab: "documents", item: "docreq:" + row.id }),
     }),
   );
+  const taskOpen = typeof TK_isOpen === "function" ? TK_isOpen : (t) => !t.done;
   (items || [])
-    .filter((t) => !t.done && t.kind !== "note" && TB_lc(t.assignee_email) === TB_lc(me) && TB_lc(t.staff_email) !== TB_lc(me))
+    .filter((t) => taskOpen(t) && t.kind !== "note" && TB_lc(t.assignee_email) === TB_lc(me) && TB_lc(t.staff_email) !== TB_lc(me))
     .forEach((t) =>
       out.push({
         id: "task:" + t.id,
@@ -851,6 +989,21 @@ function TB_useBellItems({ clients, items, me, isAdmin, page }) {
         go: () => lkGo({ clientId: row.client_id, tab: "close", item: "at:close-qbo" }),
       }),
     );
+  mentions.forEach((m) => {
+    const cm = (m && m.comment) || {};
+    const task = (m && m.task) || {};
+    if (!cm.id || !task.id) return;
+    out.push({
+      id: "tkm:" + cm.id,
+      at: cm.created_at,
+      title: `${TB_personName(cm.author_email)} mentioned you`,
+      sub: String(task.text || "").replace(/\s+/g, " ").slice(0, 80),
+      go: () =>
+        TB_tkCanOpen()
+          ? TK_openTask(task.id, { from: "bell" })
+          : lkGo({ place: "tasks", tab: "my", item: "task:" + task.id }),
+    });
+  });
   shouts.forEach((row) =>
     out.push({
       id: "shout:" + row.id,
@@ -938,17 +1091,24 @@ function TB_Bell({ clients, items, me, isAdmin, page }) {
 }
 
 // ---------------------------------------------------------------------------
-// 5. Tasks badge (opens Work › Tasks)
+// 5. Tasks badge (opens My Tasks: #/tasks/my, or Work › Tasks before the
+// Tasks tables exist)
 // ---------------------------------------------------------------------------
 function TB_TasksBadge({ items, me }) {
   const today = todayLocal();
-  const mine = (items || []).filter(
-    (t) => !t.done && t.kind !== "note" && (TB_lc(t.staff_email) === TB_lc(me) || TB_lc(t.assignee_email) === TB_lc(me)),
+  // The Tasks module's rules when it's loaded: assigned to me (or mine with
+  // nobody assigned), not done or deleted; waiting on the client is never late.
+  const tk = typeof TK_isMine === "function" && typeof TK_isOpen === "function" && typeof TK_isOverdue === "function";
+  const mine = (items || []).filter((t) =>
+    tk
+      ? t.kind !== "note" && TK_isOpen(t) && TK_isMine(t, me)
+      : !t.done && t.kind !== "note" && (TB_lc(t.staff_email) === TB_lc(me) || TB_lc(t.assignee_email) === TB_lc(me)),
   );
-  const overdue = mine.filter((t) => t.due_date && t.due_date < today).length;
+  const overdue = mine.filter((t) => (tk ? TK_isOverdue(t, today) : t.due_date && t.due_date < today)).length;
   const label = `Tasks: ${mine.length} open` + (overdue ? `, ${overdue} overdue` : "");
+  const openTasks = () => TB_go(typeof TK_App === "function" && TB_tkSchemaOk() ? "#/tasks/my" : "#/work/tasks");
   return (
-    <button type="button" className="tb-item tb-pill-btn tb-tasks" onClick={() => TB_go("#/work/tasks")} aria-label={label} title={label}>
+    <button type="button" className="tb-item tb-pill-btn tb-tasks" onClick={openTasks} aria-label={label} title={label}>
       <ChecklistIcon width="16" height="16" strokeWidth="1.8" />
       <span className="tb-tasks-label">Tasks</span>
       <span className="tb-count">{mine.length}</span>
@@ -958,24 +1118,40 @@ function TB_TasksBadge({ items, me }) {
 }
 
 // ---------------------------------------------------------------------------
-// 6. "+" quick add (task / note / request open StaffQuickActions' own modals;
-// Message opens the same chat drawer the old quick-action bar did)
+// 6. "+" quick add. New task opens Tasks quick add (TK_QuickAddHost) when
+// it's mounted; note / request (and task without it) open StaffQuickActions'
+// own modals; Message opens the same chat drawer the old quick-action bar
+// did. With no client open it offers only "New task" (Tasks quick add), and
+// hides when that isn't loaded.
 // ---------------------------------------------------------------------------
 function TB_QuickAdd({ client }) {
   const menu = TB_useMenu();
-  if (!client) return null;
+  // TK_QuickAddHost may mount after this renders: follow its ready event.
+  const [tk, setTk] = useState(TB_tkQuickReady);
+  useEffect(() => {
+    const on = () => setTk(TB_tkQuickReady());
+    window.addEventListener("tk:quick-add-ready", on);
+    on();
+    return () => window.removeEventListener("tk:quick-add-ready", on);
+  }, []);
+  if (!client && !tk) return null;
   const run = (kind) => {
     menu.close(false);
+    if (kind === "task" && TB_tkQuickReady()) {
+      TB_tkQuickAdd(client ? { client_id: client.id } : {});
+      return;
+    }
     window.dispatchEvent(new CustomEvent(TB_QUICK_ADD_EVENT, { detail: { kind } }));
   };
+  const label = client ? `Add for ${client.name}` : "Add";
   return (
     <div className="tb-item tb-menu-wrap tb-quick" ref={menu.rootRef} onKeyDown={menu.onMenuKeyDown} data-tour="tb-quick">
       <button
         ref={menu.triggerRef}
         type="button"
         className="tb-icon-btn"
-        aria-label={`Add for ${client.name}`}
-        title={`Add for ${client.name}`}
+        aria-label={label}
+        title={label}
         aria-haspopup="true"
         aria-expanded={menu.open}
         onClick={() => menu.setOpen(!menu.open)}
@@ -983,20 +1159,24 @@ function TB_QuickAdd({ client }) {
         <TB_PlusIcon />
       </button>
       {menu.open && (
-        <div className="tb-panel tb-menu" role="menu" aria-label={`Add for ${client.name}`}>
-          <div className="tb-panel-head">Add for {client.name}</div>
+        <div className="tb-panel tb-menu" role="menu" aria-label={label}>
+          <div className="tb-panel-head">{label}</div>
           <button type="button" role="menuitem" className="tb-menu-item" autoFocus onClick={() => run("task")}>
             New task
           </button>
-          <button type="button" role="menuitem" className="tb-menu-item" onClick={() => run("note")}>
-            New note
-          </button>
-          <button type="button" role="menuitem" className="tb-menu-item" onClick={() => run("request")}>
-            Request document
-          </button>
-          <button type="button" role="menuitem" className="tb-menu-item" onClick={() => run("message")}>
-            Message
-          </button>
+          {client && (
+            <>
+              <button type="button" role="menuitem" className="tb-menu-item" onClick={() => run("note")}>
+                New note
+              </button>
+              <button type="button" role="menuitem" className="tb-menu-item" onClick={() => run("request")}>
+                Request document
+              </button>
+              <button type="button" role="menuitem" className="tb-menu-item" onClick={() => run("message")}>
+                Message
+              </button>
+            </>
+          )}
         </div>
       )}
     </div>

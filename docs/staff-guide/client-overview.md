@@ -2,7 +2,7 @@
 title: What does the Client overview show?
 section: Working with a client
 audience: staff
-keywords: [client overview, overview, open for this client, chips, status line, tasks for this client, activity, log a call, key dates, coverage, organization type, pinned notes, billing and time, monthly bill, profitability, hours budget, engagement, onboarding, health, why score, duplicate bills, quickbooks sync, deadlines, backup bookkeeper, out until, time off, account manager, close summary]
+keywords: [client overview, overview, open for this client, chips, status line, tasks for this client, client task list, task status, activity, log a call, key dates, coverage, organization type, pinned notes, billing and time, monthly bill, profitability, hours budget, engagement, onboarding, health, why score, duplicate bills, quickbooks sync, deadlines, backup bookkeeper, out until, time off, account manager, close summary]
 sort: 200
 ---
 The **Client overview** is the staff-only summary of one client. It's the first tab in the client's tab row. The client never sees this page.
@@ -39,7 +39,7 @@ Under the strip is one line of facts:
 ### Left column
 
 - **{Month} close · {status} · {n} of 6 steps · QuickBooks: {result}**. This is a one-line summary of last month's close. Click it, or **Open Close →**, to open the **Close** tab. See [What's on a client's Close tab?](#/help/client-close).
-- **Tasks for this client**: the open tasks for this client. **Mine** shows yours. **Everyone** adds shared tasks from the rest of the team (your choice is remembered). Tick the box to mark one done. **Add task** starts a new one for this client. It shows six, with **Show all {n}**. The title opens **Work › Tasks** for this client.
+- **Tasks for this client**: the open tasks for this client. **Mine** shows yours. **Everyone** adds shared tasks from the rest of the team (your choice is remembered). A task that isn't **To do** shows its status, such as **In progress** or **Waiting on client**. Tick the box to mark one done (on a task that needs review, that sends it to an admin). Click a task to open its details. **Add task** opens quick add with this client picked. It shows six, with **Show all {n}**. The card's title opens this client's task list on the Tasks page. See [How do client task lists and projects work?](#/help/task-lists-and-projects).
 - **Activity**: a timeline of notes, calls, meetings, requests, uploads, sends, close items and milestone changes. Type in **Log a call** and click **Log call** to record a phone call. It shows eight entries. Click **Show more** for the rest.
 
 ### Right column

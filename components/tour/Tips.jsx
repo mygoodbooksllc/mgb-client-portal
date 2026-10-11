@@ -307,6 +307,61 @@ const TIPS_CATALOG = [
     text: "Pick a client and tick Share with this client's team so other staff on it can see and tick off the task. Repeat needs a Due date.",
     slug: "my-tasks",
   },
+  // Tasks module (2026-10-11): My Tasks at #/tasks/... and under Work ›
+  // Tasks (the legacy tip above only shows on the old page, its fallback).
+  // Not in the /tasks shell, where tips aren't mounted. While the task
+  // drawer (aria-modal) or a menu is open, TIPS_BUSY holds them.
+  {
+    id: "tk-add",
+    roles: "all",
+    match: (r) => r.page === "tasks" || (r.page === "work" && TIPS_tab("wk-tab-tasks")),
+    target: "tk-add",
+    snug: true,
+    text: (env) =>
+      env.touch
+        ? "Tap Add task and type it in one line: @name assigns it, #client files it, fri or 10/31 sets the date, and !high marks it urgent."
+        : "Press q on any staff page to add a task. Type it in one line: @name assigns it, #client files it, fri or 10/31 sets the date, and !high marks it urgent.",
+    slug: "my-tasks",
+  },
+  {
+    id: "tk-groups",
+    roles: "all",
+    match: (r) => r.page === "tasks" || (r.page === "work" && TIPS_tab("wk-tab-tasks")),
+    target: "tk-groups",
+    part: ".tk-group-head",
+    snug: true,
+    text: "Click a group's heading to fold it; it stays that way next time. Done starts folded, and View can turn the Today group off.",
+    slug: "my-tasks",
+  },
+  {
+    id: "tk-status",
+    roles: "all",
+    match: (r) => r.page === "tasks" || (r.page === "work" && TIPS_tab("wk-tab-tasks")),
+    target: "tk-status",
+    snug: true,
+    text: "Click a status to change it. On a task that needs review, Done becomes Ready for review, and any admin approves it or sends it back.",
+    slug: "task-details",
+  },
+  {
+    id: "tk-sidebar",
+    roles: "all",
+    match: (r) => r.page === "tasks",
+    target: "tk-sidebar",
+    part: ".tk-nav-section .tk-nav-head",
+    snug: true,
+    text: "Projects are shared lists. SOPs and 90 Day are open to all staff, so anyone can add to them. Each client you can see has its own list too.",
+    slug: "task-lists-and-projects",
+  },
+  {
+    id: "tk-popout",
+    roles: "all",
+    match: (r) => r.page === "tasks",
+    target: "tk-popout",
+    snug: true,
+    text: "Open in own window keeps Tasks in a slim window beside your work. Dock in portal brings it back.",
+    slug: "tasks-own-window",
+    ready: () => !TIPS_touch(),
+  },
   {
     id: "work-close-notes",
     roles: "all",

@@ -877,6 +877,8 @@ const NON_CLIENT_PAGES = new Set([
   "today",
   "inbox",
   "work",
+  // Tasks (2026-10-11): #/tasks/..., in the portal and in the /tasks shell.
+  "tasks",
   "clients",
   "team",
   "help",
@@ -2193,6 +2195,8 @@ function StaffRail({
       it.dot = staffMessagesUnread;
     } else if (p.key === "work") {
       it.due = true;
+      // The Tasks page (#/tasks) belongs to Work.
+      it.active = page === "work" || page === "tasks";
     } else if (p.key === "team") {
       it.extra = (
         <>
@@ -6400,6 +6404,14 @@ function CloseProgressList({ clients, onOpenClient, onBehind }) {
 
 const UNCATEGORIZED_RE = /uncategori[sz]ed|ask my accountant|suspense/i;
 
+// Tasks module schema state for legacy call sites: "ok" once the Phase 1
+// migration answers, "missing" before it (or when the TK files aren't
+// loaded), "unknown" while the first probe runs. TK_useSchema either exists
+// for the whole session or never does, so the hook call is stable.
+function useTasksSchema() {
+  return typeof TK_useSchema === "function" ? TK_useSchema() : "missing";
+}
+
 // ---- Overview building blocks (TABS-SPEC WP4 step 6, 1.4). OV_ prefix.
 // Links go through DeepLink.jsx (LK_href / LK_onClick).
 function OV_href(t) {
@@ -6482,6 +6494,7 @@ function OV_Card({ anchor, tour, title, to, hint, linkText, actions, className, 
 // the same counts as the tab badges (WP1 useClientTabCounts), so a chip and
 // its badge never disagree.
 function OV_OpenStrip({ client, counts, staleBanks }) {
+  const tkOk = useTasksSchema() === "ok";
   const [more, setMore] = useState(false);
   useEffect(() => setMore(false), [client.id]);
   const cid = client.id;
@@ -6558,7 +6571,12 @@ function OV_OpenStrip({ client, counts, staleBanks }) {
         key: "tasks",
         tone: t.overdue > 0 ? "bad" : "plain",
         text: t.overdue > 0 ? `${t.overdue} of my tasks overdue` : t.mine === 1 ? "1 of my tasks" : `${t.mine} of my tasks`,
-        to: t.mine === 1 && t.firstId ? { place: "work", tab: "tasks", item: "task:" + t.firstId } : { clientId: cid, tab: "overview", item: "at:ov-tasks" },
+        to:
+          t.mine === 1 && t.firstId
+            ? { place: "work", tab: "tasks", item: "task:" + t.firstId }
+            : tkOk
+              ? { place: "tasks", tab: "c", sub: cid }
+              : { clientId: cid, tab: "overview", item: "at:ov-tasks" },
       });
     }
     const next = counts.deadline && counts.deadline.next;
@@ -6779,9 +6797,13 @@ function OV_StatusLine({ client, plan, counts, syncRun, uncategorized, dupBills,
 const OV_TASKS_SCOPE_KEY = "mgb_ov_tasks_scope_v1";
 
 // Tasks for this client: open items, mine or everyone's (shared + mine).
-// Tick only; no delete here (staffItemsApi.remove is a hard delete).
+// Tick only; no delete here (staffItemsApi.remove is a soft delete: it sets
+// deleted_at, and Restore lives in the task's details).
 function OV_ClientTasks({ client, staffUser }) {
   const showToast = useToast();
+  const isAdmin = !!(staffUser && staffUser.role === "admin");
+  const tkOk = useTasksSchema() === "ok" && typeof TK_api !== "undefined";
+  const tkLogic = typeof TK_isOpen === "function" && typeof TK_isOverdue === "function";
   const sb = window.mgbSupabase;
   const me = String((staffUser && staffUser.email) || "").toLowerCase();
   const [scope, setScopeState] = useState(() => {
@@ -6809,7 +6831,11 @@ function OV_ClientTasks({ client, staffUser }) {
       setRows([]);
       return;
     }
-    setRows((data || []).filter((t) => t && t.client_id === client.id && !t.done && t.kind !== "note"));
+    setRows(
+      (data || []).filter(
+        (t) => t && t.client_id === client.id && (tkLogic ? TK_isOpen(t) : !t.done) && t.kind !== "note",
+      ),
+    );
   }, [client.id, me]);
   useEffect(() => {
     setRows(null);
@@ -6826,17 +6852,34 @@ function OV_ClientTasks({ client, staffUser }) {
   const list = (rows || []).filter((t) => scope === "everyone" || isMyStaffItem(t, me)).sort(compareOpenStaffItems);
   const shown = all ? list : list.slice(0, 6);
   async function tick(t) {
+    if (tkOk) {
+      // One completion path (spec 2.2): the review gate toasts "Sent for
+      // review" itself, so nothing is toasted here on success.
+      try {
+        await TK_api.complete(t, { done: true, isAdmin });
+        load();
+      } catch (e) {
+        showToast("Couldn't update that task.");
+      }
+      return;
+    }
     const { error } = await staffItemsApi.toggleDone(sb, me, t);
     if (error) showToast("Couldn't update that task.");
     else load();
   }
-  const addTask = () => window.dispatchEvent(new CustomEvent("tb:quick-add", { detail: { kind: "task" } }));
+  const addTask = () => {
+    if (window.TK_quickAddReady === true) {
+      window.dispatchEvent(new CustomEvent("tk:quick-add", { detail: { client_id: client.id } }));
+      return;
+    }
+    window.dispatchEvent(new CustomEvent("tb:quick-add", { detail: { kind: "task" } }));
+  };
   return (
     <OV_Card
       anchor="ov-tasks"
       tour="ov-tasks"
       title="Tasks for this client"
-      to={{ place: "work", tab: "tasks", client: client.id }}
+      to={tkOk ? { place: "tasks", tab: "c", sub: client.id } : { place: "work", tab: "tasks", client: client.id }}
       className="ov-tasks"
       actions={
         <div className="ov-tasks-scope" role="group" aria-label="Tasks for this client">
@@ -6858,20 +6901,41 @@ function OV_ClientTasks({ client, staffUser }) {
       ) : (
         <ul className="task-list ov-tasks-list">
           {shown.map((t) => {
-            const overdue = t.due_date && t.due_date < today;
+            const overdue = tkLogic ? TK_isOverdue(t, today) : t.due_date && t.due_date < today;
             const due = staffItemDueLabel(t, today);
             const owner = String(t.assignee_email || t.staff_email || "").toLowerCase();
             const notMine = owner && owner !== me;
             const to = { place: "work", tab: "tasks", item: "task:" + t.id };
+            const status = typeof TK_effectiveStatus === "function" ? TK_effectiveStatus(t) : t.done ? "done" : "todo";
+            const statusLabel =
+              status !== "todo" && typeof TK_STATUS_LABELS !== "undefined" ? TK_STATUS_LABELS[status] || "" : "";
+            const tkLink = tkOk && typeof TK_openTaskClick === "function";
+            // In review: only an admin can tick it (that approves it). For
+            // anyone else a tick would just send it for review again.
+            const inReview = status === "ready_for_review";
             return (
               <li key={t.id} className="task-row ov-row2">
                 <label className="task-check-wrap">
-                  <input type="checkbox" className="task-check" checked={false} onChange={() => tick(t)} aria-label={`Mark done: ${t.text}`} />
+                  <input
+                    type="checkbox"
+                    className="task-check"
+                    checked={false}
+                    disabled={inReview && !isAdmin}
+                    onChange={() => tick(t)}
+                    aria-label={inReview ? (isAdmin ? `Approve: ${t.text}` : `In review: ${t.text}`) : `Mark done: ${t.text}`}
+                  />
                 </label>
-                <OV_Link to={to} className="ov-row2-main">
+                <OV_Link
+                  to={to}
+                  className="ov-row2-main"
+                  {...(tkLink
+                    ? { href: LK_href({ place: "tasks", tab: "my", item: "task:" + t.id }), onClick: TK_openTaskClick(t.id) }
+                    : {})}
+                >
                   <span className="ov-row2-title">{t.text}</span>
                   <span className="task-meta">
                     {due && <span className={"task-due" + (overdue ? " overdue" : "")}>{due}</span>}
+                    {statusLabel && <span className="task-chip">{statusLabel}</span>}
                     {notMine && <span className="task-chip">{owner.split("@")[0]}</span>}
                     {t.visibility !== "shared" && <span className="task-chip">Private</span>}
                   </span>
@@ -7904,6 +7968,8 @@ function StaffQuickActions({ client, onNavigate, only, onMessage, headless }) {
         return;
       }
       if (kind !== "task" && kind !== "request" && kind !== "note") return;
+      // Tasks module: TK_QuickAddHost answers the task kind (one task modal).
+      if (kind === "task" && window.TK_quickAddReady === true) return;
       setF({ text: "", due: "", details: "", shared: true, pin: false });
       setModal(kind);
     };
@@ -7913,6 +7979,10 @@ function StaffQuickActions({ client, onNavigate, only, onMessage, headless }) {
   if (!staff || !staffUser) return null;
   const sb = window.mgbSupabase;
   const openModal = (kind) => {
+    if (kind === "task" && window.TK_quickAddReady === true) {
+      window.dispatchEvent(new CustomEvent("tk:quick-add", { detail: client && client.id ? { client_id: client.id } : {} }));
+      return;
+    }
     setF({ text: "", due: "", details: "", shared: true, pin: false });
     setModal(kind);
   };
@@ -13983,7 +14053,7 @@ function DeveloperToolsPage({ staffUser, readOnly }) {
   function resetLocalState() {
     if (
       !window.confirm(
-        "Reset this browser's local MyGoodBooks state (theme, tab layout, dashboard/Financial Overview widget layouts, cash-floor alerts, per-person access overrides, the tour and first sign-in prompts, dismissed page hints, recent clients, the tab last open on each client, ...)? This only affects this browser — nothing in Supabase is touched. The page will reload.",
+        "Reset this browser's local MyGoodBooks state (theme, tab layout, dashboard/Financial Overview widget layouts, cash-floor alerts, per-person access overrides, the tour and first sign-in prompts, dismissed page hints, recent clients, the tab last open on each client, Tasks views and folded groups, ...)? This only affects this browser — nothing in Supabase is touched. The page will reload.",
       )
     ) {
       return;
@@ -15741,6 +15811,8 @@ const USAGE_STATS_RANGES = [
 ];
 // Tab keys that don't read well title-cased; everything else is capitalised.
 const USAGE_TAB_LABELS = {
+  tasks: "Tasks",
+  notes: "Notes & SOPs",
   qbo: "QuickBooks",
   sop: "SOP",
   "client-overview": "Overview",
@@ -15764,6 +15836,14 @@ const USAGE_ACTION_LABELS = {
   "tip-more": "Tip deep dives",
   "tips-on": "Tips turned on",
   "tips-off": "Tips turned off",
+  "tasks-drawer": "Task details opened",
+  "tasks-quick-add": "Tasks added with quick add",
+  "tasks-search": "Task searches",
+  "tasks-shortcut": "Task keyboard shortcuts used",
+  "tasks-popout": "Tasks opened in its own window",
+  "tasks-dock": "Tasks docked back in the portal",
+  "tasks-comment": "Task comments posted",
+  "tasks-attach": "Files attached to tasks",
 };
 const USAGE_DEVICE_LABELS = { desktop: "Desktop", mobile: "Phone", installed: "Installed app", unknown: "Unknown" };
 
@@ -18028,6 +18108,21 @@ const STAFF_ITEM_V2_FIELDS = [
   "source",
   "source_ref",
 ];
+// Tasks module Phase 1 columns (supabase/tasks-module-v1.sql). Read and
+// written only while staffItemsApi.tkCols is true; the first missing-column
+// error turns it off for the session (never `legacy`, which is the v2 flag).
+const STAFF_ITEM_TK_READ_COLS = ["status", "deleted_at", "project_id", "section", "review_required", "updated_at"];
+const STAFF_ITEM_TK_WRITE_FIELDS = [
+  "status",
+  "project_id",
+  "section",
+  "description",
+  "start_on",
+  "sop_section",
+  "review_required",
+  "parent_id",
+  "deleted_at",
+];
 const TASK_RECURRENCES = ["none", "daily", "weekly", "monthly", "month_end"];
 const TASK_RECURRENCE_LABEL = {
   none: "Doesn't repeat",
@@ -18112,14 +18207,31 @@ function normalizeStaffItem(row) {
     visibility: "private",
     source: "manual",
     source_ref: null,
+    deleted_at: null,
     ...Object.fromEntries(
       Object.entries(row).filter(([, v]) => v !== undefined),
     ),
+    // Tasks module: status mirrors done until the Phase 1 migration fills it.
+    status: row.status || (row.done ? "done" : "todo"),
   };
 }
 
 const staffItemsApi = {
   legacy: false,
+  // Tasks module columns (status, deleted_at, …). True until a missing-column
+  // error says the Phase 1 migration isn't applied here.
+  tkCols: true,
+  noDeletedAt: false, // set once a read proves staff_reminders has no deleted_at
+
+  stripTk(row) {
+    const out = { ...row };
+    STAFF_ITEM_TK_WRITE_FIELDS.forEach((f) => delete out[f]);
+    return out;
+  },
+
+  hasTkFields(row) {
+    return !!row && STAFF_ITEM_TK_WRITE_FIELDS.some((f) => row[f] !== undefined);
+  },
 
   isMissingColumnError(error) {
     if (!error) return false;
@@ -18143,16 +18255,48 @@ const staffItemsApi = {
     return out;
   },
 
+  // PostgREST logic-tree value: double-quoted, with " and \ escaped (the
+  // same as TK_api's quote()).
+  pgq(v) {
+    return '"' + String(v).replace(/\\/g, "\\\\").replace(/"/g, '\\"') + '"';
+  },
+
   // Everything this person can see: their own rows, plus (v2) shared rows
   // for clients they can access — RLS does the client scoping.
   async list(supabase, email) {
     if (!supabase) return { data: [], error: null };
-    if (!this.legacy) {
+    const q = this.pgq(email);
+    if (!this.legacy && this.tkCols) {
+      // Tasks module: assigned-to-me rows too, and soft-deleted rows hidden.
       const { data, error } = await supabase
         .from("staff_reminders")
-        .select(STAFF_ITEM_BASE_COLS + ", " + STAFF_ITEM_V2_FIELDS.join(", "))
-        .or(`staff_email.eq."${email}",visibility.eq.shared`)
+        .select(
+          STAFF_ITEM_BASE_COLS + ", " + STAFF_ITEM_V2_FIELDS.join(", ") + ", " + STAFF_ITEM_TK_READ_COLS.join(", "),
+        )
+        .or(`staff_email.eq.${q},assignee_email.eq.${q},visibility.eq.shared`)
+        .is("deleted_at", null)
         .order("due_date", { ascending: true, nullsFirst: false });
+      if (!error) return { data: data.map(normalizeStaffItem), error: null };
+      if (!this.isMissingColumnError(error)) return { data: null, error };
+      this.tkCols = false;
+      // Only a missing deleted_at drops the soft-delete filter below; any
+      // other missing column keeps it, so deleted rows never come back.
+      if (/deleted_at/i.test(String(error.message || ""))) this.noDeletedAt = true;
+    }
+    if (!this.legacy) {
+      const v2 = (withDeleted) => {
+        let qb = supabase
+          .from("staff_reminders")
+          .select(STAFF_ITEM_BASE_COLS + ", " + STAFF_ITEM_V2_FIELDS.join(", "))
+          .or(`staff_email.eq.${q},visibility.eq.shared`);
+        if (withDeleted) qb = qb.is("deleted_at", null);
+        return qb.order("due_date", { ascending: true, nullsFirst: false });
+      };
+      let { data, error } = await v2(!this.noDeletedAt);
+      if (error && !this.noDeletedAt && this.isMissingColumnError(error) && /deleted_at/i.test(String(error.message || ""))) {
+        this.noDeletedAt = true;
+        ({ data, error } = await v2(false));
+      }
       if (!error) return { data: data.map(normalizeStaffItem), error: null };
       if (!this.isMissingColumnError(error)) return { data: null, error };
       this.legacy = true;
@@ -18166,6 +18310,13 @@ const staffItemsApi = {
   },
 
   async _write(run, row) {
+    if (!this.tkCols && this.hasTkFields(row)) row = this.stripTk(row);
+    if (this.tkCols && !this.legacy && this.hasTkFields(row)) {
+      const res = await run(row);
+      if (!res.error || !this.isMissingColumnError(res.error)) return res;
+      this.tkCols = false;
+      row = this.stripTk(row);
+    }
     if (!this.legacy) {
       const res = await run(row);
       if (!res.error || !this.isMissingColumnError(res.error)) return res;
@@ -18192,6 +18343,14 @@ const staffItemsApi = {
       source: item.source || "manual",
       source_ref: item.source_ref || null,
     };
+    // Tasks module fields pass through when the Phase 1 columns exist.
+    if (this.tkCols) {
+      ["status", "project_id", "section", "description", "start_on", "sop_section", "review_required", "parent_id"].forEach(
+        (f) => {
+          if (item[f] !== undefined && item[f] !== null && item[f] !== "") row[f] = item[f];
+        },
+      );
+    }
     // Returns the new row's id in data.id (used to link a note to the task
     // it spawned).
     const res = await this._write(
@@ -18294,8 +18453,24 @@ const staffItemsApi = {
     });
   },
 
+  // Tasks module (D5, D9): a delete is a soft delete (deleted_at), so
+  // comments, files and history stay and the task can be restored. A hard
+  // delete only before the Phase 1 migration (the server turns any delete
+  // into a soft delete once it is applied).
   async remove(supabase, id) {
-    const res = await supabase.from("staff_reminders").delete().eq("id", id);
+    let res;
+    if (this.tkCols) {
+      res = await supabase.from("staff_reminders").update({ deleted_at: new Date().toISOString() }).eq("id", id).select("id");
+      if (res.error && this.isMissingColumnError(res.error)) {
+        this.tkCols = false;
+        res = null;
+      } else if (!res.error && (!res.data || !res.data.length)) {
+        // 0 rows: RLS refused it, so nothing was deleted. Say so, and don't
+        // tell the other views it changed.
+        return { data: null, error: { code: "42501", message: "You can't delete that one." } };
+      }
+    }
+    if (!res) res = await supabase.from("staff_reminders").delete().eq("id", id);
     if (!res.error) this.notify();
     return res;
   },
@@ -18760,8 +18935,10 @@ function printClientSop(client, rows) {
 }
 
 // One client's SOP. Editable (My Tasks → SOPs) or read-only (Client details →
-// SOP, with a jump to edit in My Tasks).
-function ClientSopView({ client, readOnly, onEditInMyTasks }) {
+// SOP, with a jump to edit in My Tasks). `section` (a CLIENT_SOP_SECTIONS id)
+// shows only that section, without the toolbar or deep-link handling: the
+// task drawer's "View SOP section" panel, which has its own heading.
+function ClientSopView({ client, readOnly, onEditInMyTasks, section }) {
   const supabase = window.mgbSupabase;
   const showToast = useToast();
   const [rows, setRows] = useState(undefined); // undefined = loading
@@ -18897,9 +19074,10 @@ function ClientSopView({ client, readOnly, onEditInMyTasks }) {
     }
   }
 
-  // Deep link: #/client/<id>/sop?item=sop:<section>.
+  // Deep link: #/client/<id>/sop?item=sop:<section>. Not for a one-section
+  // view, which sits inside another page.
   LK_useArrival(
-    { clientId: client && client.id, tab: "sop", kinds: ["sop"], staff: true },
+    section ? null : { clientId: client && client.id, tab: "sop", kinds: ["sop"], staff: true },
     !!missing || rows !== undefined,
     (a) => {
       const known = !missing && CLIENT_SOP_SECTIONS.some((s) => String(s.id) === String(a.id));
@@ -18923,6 +19101,27 @@ function ClientSopView({ client, readOnly, onEditInMyTasks }) {
   const filled = CLIENT_SOP_SECTIONS.filter(
     (s) => rows[s.id] && (rows[s.id].body || "").trim(),
   ).length;
+
+  if (section) {
+    const sec = CLIENT_SOP_SECTIONS.find((x) => String(x.id) === String(section));
+    const row = sec && rows[sec.id];
+    const body = row && (row.body || "").trim();
+    return (
+      <div className="sop-view sop-view-one">
+        {loadError && <p className="card-subtitle negative">{loadError}</p>}
+        {body ? (
+          <SopBody text={row.body} />
+        ) : (
+          <p className="tn-muted sop-hint">Nothing written for this section yet.</p>
+        )}
+        {body && row.updated_at && (
+          <p className="tn-muted tn-small">
+            Last edited by {sopWho(row.updated_by)}, {relTime(row.updated_at)}
+          </p>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className="sop-view">
@@ -19162,16 +19361,30 @@ function useStaffItemsChanged(load) {
   }, [load]);
 }
 
-// "Mine" = I own it or it's assigned to me.
+// "Mine" = I own it or it's assigned to me. With the Tasks module loaded,
+// TK_isMine: assigned to me (or owned by me when nobody is assigned).
 const isMyStaffItem = (item, email) =>
-  item.staff_email === email || item.assignee_email === email;
+  typeof TK_isMine === "function"
+    ? TK_isMine(item, email)
+    : item.staff_email === email || item.assignee_email === email;
 
 // Open items of mine that need attention now: overdue, due today, or past
 // their remind-me time. Drives the sidebar badge.
 function countDueStaffItems(items, email, today, nowMs) {
   let overdue = 0;
   let due = 0;
+  const tk = typeof TK_isOpen === "function" && typeof TK_isOverdue === "function";
   (items || []).forEach((t) => {
+    if (tk) {
+      // Tasks module: waiting on client never counts as late or due.
+      if (!TK_isOpen(t) || !isMyStaffItem(t, email)) return;
+      if (typeof TK_effectiveStatus === "function" && TK_effectiveStatus(t) === "waiting_client") return;
+      const late = TK_isOverdue(t, today);
+      const remind = !!t.remind_at && new Date(t.remind_at).getTime() <= nowMs;
+      if (late) overdue++;
+      if (late || t.due_date === today || remind) due++;
+      return;
+    }
     if (t.done || !isMyStaffItem(t, email)) return;
     const isOverdue = !!t.due_date && t.due_date < today;
     const remindNow = !!t.remind_at && new Date(t.remind_at).getTime() <= nowMs;
@@ -19381,7 +19594,12 @@ function MyTasksPage({
   canManageTemplates,
   canCreateTemplates,
   onOpenTemplates,
+  // "tasks" (the default): the whole page, as before. "notes" (Work › Notes &
+  // SOPs, 2026-10-11): only the client notes and SOP cards, and it claims no
+  // task arrivals, so #/work/tasks?item=task:<id> stays with the Tasks tab.
+  mode,
 }) {
+  const notesOnly = mode === "notes";
   const showToast = useToast();
   const supabase = window.mgbSupabase;
   const today = todayLocal();
@@ -19414,6 +19632,7 @@ function MyTasksPage({
   const [notesLegacy, setNotesLegacy] = useState(clientNotesApi.legacy);
   const [handoffs, setHandoffs] = useState({});
   const [clientSearch, setClientSearch] = useState("");
+  const [handoffSearch, setHandoffSearch] = useState(""); // Notes & SOPs
   const [noteClientFilter, setNoteClientFilter] = useState("");
   const [noteCategoryFilter, setNoteCategoryFilter] = useState("");
   const [composerFor, setComposerFor] = useState(null); // client id on By client
@@ -19691,7 +19910,7 @@ function MyTasksPage({
   }
 
   // Deep link: #/work/tasks?item=task:<id> or ?client=<id>.
-  LK_useArrival({ place: "work", tab: "tasks", kinds: ["task", "view"], staff: true }, tasks != null, (a) => {
+  LK_useArrival(notesOnly ? null : { place: "work", tab: "tasks", kinds: ["task", "view"], staff: true }, tasks != null, (a) => {
     if (a.kind === "view") {
       if (a.client) setClientFilter(a.client);
       return;
@@ -19862,6 +20081,24 @@ function MyTasksPage({
       .slice(0, 5);
   }, [clientSearch, clientCards, clients]);
 
+  // Notes & SOPs › Handoff summaries: every client with a summary (or one
+  // being written), A to Z, narrowed by the search box. Clients without one
+  // show up as "Add" buttons when the search matches them.
+  const handoffClients = useMemo(() => {
+    const q = handoffSearch.trim().toLowerCase();
+    const match = (c) => !q || (c.name || "").toLowerCase().includes(q);
+    const has = (c) => !!(handoffs[c.id] && (handoffs[c.id].note || "").trim());
+    const list = (clients || []).filter(match);
+    return {
+      withSummary: list
+        .filter((c) => has(c) || c.id === editingHandoffFor)
+        .sort((a, b) => (a.name || "").localeCompare(b.name || "")),
+      addable: q
+        ? list.filter((c) => !has(c) && c.id !== editingHandoffFor).slice(0, 5)
+        : [],
+    };
+  }, [clients, handoffs, handoffSearch, editingHandoffFor]);
+
   function renderNote(n, { showClient }) {
     const client = clientById[n.client_id];
     const linked = taskForNote(n);
@@ -19972,10 +20209,76 @@ function MyTasksPage({
     );
   }
 
+  // The handoff summary block: on a By client card (legacy Tasks) and on the
+  // Handoff summaries card of Work › Notes & SOPs, which is its home once the
+  // Tasks module replaced the By client view.
+  function renderHandoffSection(client, handoff) {
+    const editingHandoff = editingHandoffFor === client.id;
+    return (
+      <div className="tn-section">
+        <div className="tn-section-head">
+          <span className="tn-label">Handoff summary</span>
+          {!editingHandoff && (
+            <button
+              type="button"
+              className="note-action"
+              onClick={() => {
+                setEditingHandoffFor(client.id);
+                setHandoffDraft((handoff && handoff.note) || "");
+              }}
+            >
+              {handoff && (handoff.note || "").trim() ? "Edit" : "Add"}
+            </button>
+          )}
+        </div>
+        {editingHandoff ? (
+          <div className="note-edit">
+            <textarea
+              className="note-textarea"
+              rows={4}
+              aria-label={`Handoff summary for ${client.name}`}
+              value={handoffDraft}
+              onChange={(e) => setHandoffDraft(e.target.value)}
+              placeholder="Waiting on March bank statement, flagged for QuickBooks migration, ..."
+            />
+            <div className="note-composer-actions">
+              <button
+                type="button"
+                className="btn-secondary"
+                onClick={() => setEditingHandoffFor(null)}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="btn-primary"
+                disabled={savingHandoff}
+                onClick={() => saveHandoff(client.id)}
+              >
+                {savingHandoff ? "Saving…" : "Save"}
+              </button>
+            </div>
+          </div>
+        ) : handoff && (handoff.note || "").trim() ? (
+          <>
+            <p className="note-text">{handoff.note}</p>
+            {handoff.updated_by && (
+              <p className="tn-muted tn-small">
+                Last edited by {handoff.updated_by.split("@")[0]}
+                {handoff.updated_at ? ` · ${fmtDateTime(handoff.updated_at)}` : ""}
+              </p>
+            )}
+          </>
+        ) : (
+          <p className="tn-muted">No handoff summary yet.</p>
+        )}
+      </div>
+    );
+  }
+
   function renderClientCard(x) {
     const { client, open, notes: cNotes, handoff, override } = x;
     const health = effectiveClientHealth(client, today, statusOverrides);
-    const editingHandoff = editingHandoffFor === client.id;
     return (
       <section className="tn-client-card" key={client.id} aria-label={client.name}>
         <header className="tn-client-head">
@@ -19999,64 +20302,7 @@ function MyTasksPage({
           </p>
         )}
 
-        <div className="tn-section">
-          <div className="tn-section-head">
-            <span className="tn-label">Handoff summary</span>
-            {!editingHandoff && (
-              <button
-                type="button"
-                className="note-action"
-                onClick={() => {
-                  setEditingHandoffFor(client.id);
-                  setHandoffDraft((handoff && handoff.note) || "");
-                }}
-              >
-                {handoff && (handoff.note || "").trim() ? "Edit" : "Add"}
-              </button>
-            )}
-          </div>
-          {editingHandoff ? (
-            <div className="note-edit">
-              <textarea
-                className="note-textarea"
-                rows={4}
-                aria-label={`Handoff summary for ${client.name}`}
-                value={handoffDraft}
-                onChange={(e) => setHandoffDraft(e.target.value)}
-                placeholder="Waiting on March bank statement, flagged for QuickBooks migration, ..."
-              />
-              <div className="note-composer-actions">
-                <button
-                  type="button"
-                  className="btn-secondary"
-                  onClick={() => setEditingHandoffFor(null)}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  className="btn-primary"
-                  disabled={savingHandoff}
-                  onClick={() => saveHandoff(client.id)}
-                >
-                  {savingHandoff ? "Saving…" : "Save"}
-                </button>
-              </div>
-            </div>
-          ) : handoff && (handoff.note || "").trim() ? (
-            <>
-              <p className="note-text">{handoff.note}</p>
-              {handoff.updated_by && (
-                <p className="tn-muted tn-small">
-                  Last edited by {handoff.updated_by.split("@")[0]}
-                  {handoff.updated_at ? ` · ${fmtDateTime(handoff.updated_at)}` : ""}
-                </p>
-              )}
-            </>
-          ) : (
-            <p className="tn-muted">No handoff summary yet.</p>
-          )}
-        </div>
+        {renderHandoffSection(client, handoff)}
 
         <div className="tn-section">
           <div className="tn-section-head">
@@ -20320,7 +20566,9 @@ function MyTasksPage({
   }
 
   return (
-    <div className="tasks-page">
+    <div className={"tasks-page" + (notesOnly ? " tasks-page-notes" : "")}>
+      {!notesOnly && (
+      <>
       {canManageTemplates && onOpenTemplates && (
         <div className="tasks-manage-templates">
           <button type="button" className="link-btn" onClick={onOpenTemplates}>
@@ -20629,7 +20877,9 @@ function MyTasksPage({
         )}
       </div>
 
-      <div className="card" id="my-tasks-notes" style={{ marginTop: 20 }}>
+      </>
+      )}
+      <div className="card" id="my-tasks-notes" style={notesOnly ? undefined : { marginTop: 20 }}>
         <div className="task-toolbar">
           <div>
             <h3 className="card-title">Notes</h3>
@@ -20703,6 +20953,70 @@ function MyTasksPage({
           )}
         </div>
       </div>
+
+      {notesOnly && (
+        <div className="card" id="my-tasks-handoffs" style={{ marginTop: 20 }}>
+          <div className="task-toolbar">
+            <div>
+              <h3 className="card-title">Handoff summaries</h3>
+              <p className="card-subtitle">
+                One short summary per client, so anyone on the team can pick
+                up where you left off. Staff-only.
+              </p>
+            </div>
+            <div className="task-filters">
+              <label className="task-field compact tn-search">
+                <input
+                  type="search"
+                  placeholder="Search clients"
+                  aria-label="Search clients for a handoff summary"
+                  value={handoffSearch}
+                  onChange={(e) => setHandoffSearch(e.target.value)}
+                />
+              </label>
+            </div>
+          </div>
+          <div className="tn-view">
+            {handoffClients.addable.length > 0 && (
+              <div className="tn-start-list">
+                {handoffClients.addable.map((c) => (
+                  <button
+                    key={c.id}
+                    type="button"
+                    className="btn-secondary"
+                    onClick={() => {
+                      setEditingHandoffFor(c.id);
+                      setHandoffDraft("");
+                    }}
+                  >
+                    Add a handoff summary for {c.name}
+                  </button>
+                ))}
+              </div>
+            )}
+            {handoffClients.withSummary.length === 0 ? (
+              handoffClients.addable.length === 0 && (
+                <p className="card-subtitle">
+                  {handoffSearch.trim()
+                    ? "No matching client."
+                    : "No handoff summaries yet. Search for a client to add one."}
+                </p>
+              )
+            ) : (
+              <div className="tn-client-grid">
+                {handoffClients.withSummary.map((c) => (
+                  <section className="tn-client-card" key={c.id} aria-label={c.name}>
+                    <header className="tn-client-head">
+                      <h4 className="tn-client-name">{c.name}</h4>
+                    </header>
+                    {renderHandoffSection(c, handoffs[c.id])}
+                  </section>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       <div className="card" id="my-tasks-sops" style={{ marginTop: 20 }}>
         <div className="task-toolbar">
@@ -24904,7 +25218,11 @@ const PAGE_META = {
   },
   work: {
     title: "Work",
-    subtitle: "Tasks, month-end close and deadlines",
+    subtitle: "Tasks, notes and SOPs, month-end close and deadlines",
+  },
+  tasks: {
+    title: "Tasks",
+    subtitle: "Your tasks, client lists and projects",
   },
   clients: {
     title: "Clients",
@@ -25263,7 +25581,7 @@ function hashSlugOfPage(page) {
 // Places whose page keeps a sub-route after the slug (#/work/close,
 // #/team/reviews/r/<id>, #/help/<slug>) — the page component owns what
 // comes after, via NAV_useHashSub / StaffGuide.jsx / TeamReviews.jsx.
-const HASH_SUB_ROUTE_PAGES = new Set(["work", "team", "help"]);
+const HASH_SUB_ROUTE_PAGES = new Set(["work", "team", "help", "tasks"]);
 
 // Client-route tab slugs that open client Settings.
 const CLIENT_TAB_ALIASES = {
@@ -25343,7 +25661,28 @@ function parseHashRoute(hash) {
   return isKnownAppPage(page) ? { page } : null;
 }
 
+// Tasks hashes (spec 11.1): #/tasks plus up to three segments, case kept
+// (client ids are case-sensitive). withItem also allows the one ?item=
+// pointer a stashed sign-in link can carry. "." and ".." segments never pass.
+function APP_tasksHashOk(hash, withItem) {
+  const h = String(hash || "");
+  const re = withItem
+    ? /^#\/tasks(\/[A-Za-z0-9%._~-]+){0,3}(\?item=[a-z]+:[A-Za-z0-9%._~-]+)?$/
+    : /^#\/tasks(\/[A-Za-z0-9%._~-]+){0,3}$/;
+  if (!re.test(h)) return false;
+  return !h
+    .split("?")[0]
+    .split("/")
+    .some((seg) => seg === "." || seg === "..");
+}
+
 function buildHashRoute(page, clientId, opts) {
+  // Tasks: the TK views own everything after #/tasks (TK_navigate); App
+  // keeps it, or lands on My Tasks.
+  if (page === "tasks") {
+    const cur = String(window.location.hash || "");
+    return APP_tasksHashOk(cur, false) ? cur : "#/tasks/my";
+  }
   if (NON_CLIENT_PAGES.has(page)) {
     const slug = hashSlugOfPage(page);
     // Work, Team and Help keep whatever sub-route is already in the hash
@@ -25462,7 +25801,26 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
     } catch (e) {}
     try {
       let route = parseHashRoute(window.location.hash);
-      if (!route) route = parseHashRoute(sessionStorage.getItem(PENDING_ROUTE_KEY));
+      if (!route) {
+        const stashed = sessionStorage.getItem(PENDING_ROUTE_KEY);
+        route = parseHashRoute(stashed);
+        // Tasks (spec 11.1): a stashed #/tasks/... link comes back exactly
+        // as it was (no lowercasing, no rebuild through buildHashRoute).
+        if (
+          route &&
+          route.page === "tasks" &&
+          !clientPortalUser &&
+          APP_tasksHashOk(stashed, true) &&
+          !isAuthHash(window.location.hash)
+        ) {
+          window.history.replaceState(
+            window.history.state,
+            "",
+            window.location.pathname + window.location.search + stashed,
+          );
+          if (stashed.indexOf("?") >= 0 && typeof LK_capture === "function") LK_capture(stashed);
+        }
+      }
       sessionStorage.removeItem(PENDING_ROUTE_KEY);
       return route;
     } catch (e) {
@@ -26565,6 +26923,12 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
         ? page
         : (page === "audit-log" || page === "emails") && staffUser && staffUser.role === "admin" && !impersonating
           ? page
+        // Tasks: staff only. While viewing as someone it bounces to Today; a
+        // client falls through to their Home below.
+        : page === "tasks" && staffUser && !clientPortalUser
+          ? impersonating
+            ? "today"
+            : page
         : (page === "inbox" || page === "work" || page === "team" || page === "help") && staffUser && !impersonating
           ? page
         : (page === "today" || page === "clients") && staffUser
@@ -27415,6 +27779,21 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
     effectiveStaffUser &&
     (onStaffPage || !isPreviewingUser)
   );
+  // Tasks shell (spec 11.1: /tasks, ?shell=tasks, or "Open in own window"):
+  // only the Tasks page under TK_StandaloneBar, with no rail, top bar, Back
+  // and Refresh, or sidebar. Staff only and not while viewing as someone.
+  // Another page opened from inside it (a client link) gets the full chrome.
+  const tkShell = !!(
+    window.MGB_SHELL === "tasks" &&
+    staffUser &&
+    !clientPortalUser &&
+    !impersonating &&
+    effectivePage === "tasks" &&
+    typeof TK_StandaloneBar === "function"
+  );
+  // The task drawer and quick add (spec C9 item 5) mount once, for a signed-in
+  // staff member who isn't viewing as someone.
+  const tkHosts = !!(staffUser && !clientPortalUser && !impersonating);
   // `html.staff-client-tabs` while a staff member has a client's pages open
   // (not previewing as a client user): clients-page.css hides the client
   // sidebar and lays the tab row across the top. A class on <html> rather
@@ -27434,6 +27813,36 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
       } catch (e) {}
     };
   }, [staffClientTabs]);
+  // Tasks live updates (TK_sync, spec C5/C9 item 5): on for a signed-in staff
+  // member who isn't viewing as someone, off again on sign-out.
+  const tkSyncEmail = tkHosts ? staffUser.email : null;
+  useEffect(() => {
+    if (!tkSyncEmail || typeof TK_sync === "undefined" || !TK_sync) return undefined;
+    try {
+      TK_sync.start(tkSyncEmail);
+    } catch (e) {}
+    return () => {
+      try {
+        TK_sync.stop();
+      } catch (e) {}
+    };
+  }, [tkSyncEmail]);
+  // "Dock in portal" from a Tasks window lands in this tab (11.2). Once,
+  // outside the shell.
+  useEffect(() => {
+    if (!tkHosts || window.MGB_SHELL === "tasks") return;
+    try {
+      if (typeof TK_startDockReceiver === "function") TK_startDockReceiver();
+    } catch (e) {}
+  }, [tkHosts]);
+  // A client never gets the Tasks shell: clear the flag.
+  useEffect(() => {
+    if (!clientPortalUser || window.MGB_SHELL !== "tasks") return;
+    try {
+      sessionStorage.removeItem("mgb_shell_v1");
+    } catch (e) {}
+    window.MGB_SHELL = null;
+  }, [clientPortalUser]);
   // Browser tab title: "Today · MyGoodBooks" on a staff page, "Grace
   // Community · Overview · MyGoodBooks" on a client's — so a row of open
   // tabs reads at a glance and history entries have names.
@@ -27563,7 +27972,7 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
   // While the staff top bar is up, its search also covers the open client's
   // data (TB_Search's "In <client>" group), so the page-header GlobalSearch
   // icon steps aside. Clients and client-user previews keep the header one.
-  const showStaffTopBar = showStaffRail && typeof TB_StaffTopBar === "function";
+  const showStaffTopBar = showStaffRail && !tkShell && typeof TB_StaffTopBar === "function";
 
   return (
     <ToastProvider>
@@ -27596,12 +28005,13 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
         className={
           "app-shell" +
           (isPreviewingUser ? " previewing" : "") +
-          (showStaffRail ? " has-staff-rail" : "") +
-          (showStaffRail && onStaffPage ? " on-staff-page" : "") +
+          (showStaffRail && !tkShell ? " has-staff-rail" : "") +
+          (showStaffRail && !tkShell && onStaffPage ? " on-staff-page" : "") +
+          (tkShell ? " tk-shell-app" : "") +
           (!showStaffRail && !NON_CLIENT_PAGES.has(effectivePage) ? " has-client-tabbar" : "")
         }
       >
-        <div className="mobile-topbar">
+        <div className="mobile-topbar" style={tkShell ? { display: "none" } : undefined}>
           <button
             className="hamburger-btn"
             onClick={() => setMobileNavOpen(true)}
@@ -27619,7 +28029,7 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
           className={"sidebar-scrim" + (mobileNavOpen ? " visible" : "")}
           onClick={() => setMobileNavOpen(false)}
         ></div>
-        {showStaffRail && (
+        {showStaffRail && !tkShell && (
           <StaffRail
             staffUser={effectiveStaffUser}
             page={effectivePage}
@@ -27641,6 +28051,7 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
             hideMark={false}
           />
         )}
+        {!tkShell && (
         <Sidebar
           clients={visibleClients}
           selectedClientId={selectedClientId}
@@ -27683,7 +28094,10 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
           staffClientTabs={staffClientTabs}
           staffRowAdmin={STAFF_isRealAdmin(effectiveStaffUser) && !isPreviewingUser}
         />
+        )}
         <main className="main">
+          {/* Tasks shell: the slim bar replaces the rail and the top bar. */}
+          {tkShell && <TK_StandaloneBar staffUser={staffUser} />}
           {/* Staff top bar (components/staff/TopBar.jsx): shown wherever the
               staff sidebar is, so clients and client-user previews never see it. */}
           {showStaffTopBar && (
@@ -27794,7 +28208,7 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
               tool bar and header read as one frame. NAV_TabRow
               (components/staff/StaffNav.jsx) portals a page's tabs into
               #app-topbar-tabs below. */}
-          <div className="app-topbar">
+          <div className="app-topbar" style={tkShell ? { display: "none" } : undefined}>
           <div className="page-header app-header">
             <div>
               {/* Staff on a client's pages get "Clients › Grace Community ›
@@ -27841,7 +28255,7 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
                 Client setup gear up here so the tab row has room. */}
             {staffClientTabs && <div id="cl-header-tools" className="cl-header-tools" />}
             <div className="page-header-actions">
-              {!showStaffTopBar && <AN_AppNav />}
+              {!showStaffTopBar && !tkShell && <AN_AppNav />}
               {/* "View as client" lives in the tab row's Client view menu
                   (CL_ClientViewMenu, D19). Exits via the preview bar above. */}
               {!NON_CLIENT_PAGES.has(effectivePage) &&
@@ -28016,7 +28430,7 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
               manager (TOUR_StaffRoot, same file). Each starts by itself once
               for the people it applies to; the "?" menu, ⌘K and Settings ›
               Help start them again. */}
-          {typeof TOUR_StaffRoot === "function" && showStaffRail && !isPreviewingUser && (
+          {typeof TOUR_StaffRoot === "function" && showStaffRail && !tkShell && !isPreviewingUser && (
             <TOUR_StaffRoot
               staffUser={staffUser}
               impersonating={Boolean(impersonating)}
@@ -28033,7 +28447,7 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
           )}
           {/* Staff tips for a staffer's first 30 days (components/tour/Tips.jsx):
               one small dismissible card beside a feature, never over a tour. */}
-          {typeof TIPS_Root === "function" && showStaffRail && !isPreviewingUser && (
+          {typeof TIPS_Root === "function" && showStaffRail && !tkShell && !isPreviewingUser && (
             <TIPS_Root
               staffUser={staffUser}
               impersonating={Boolean(impersonating)}
@@ -28356,7 +28770,22 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
               onOpenClient={openClientFromInbox}
             />
           )}
-          {/* Work (components/staff/WorkPage.jsx): Tasks, Close, Deadlines. */}
+          {/* Tasks (components/tasks/TK_App.jsx): My Tasks, client lists and
+              projects, in the portal and in the /tasks shell. */}
+          {effectivePage === "tasks" &&
+            (typeof TK_App === "function" ? (
+              <TK_App
+                staffUser={staffUser}
+                clients={visibleClients}
+                isAdmin={staffIsAdmin}
+                shell={window.MGB_SHELL === "tasks"}
+              />
+            ) : (
+              <div className="card">
+                <p className="card-subtitle">Tasks didn't load. Refresh the page to try again.</p>
+              </div>
+            ))}
+          {/* Work (components/staff/WorkPage.jsx): Tasks, Notes & SOPs, Close, Deadlines. */}
           {effectivePage === "work" && typeof WK_WorkPage === "function" && (
             <WK_WorkPage
               clients={visibleClients}
@@ -28682,6 +29111,25 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
           }
           featureOptions={feedbackFeatureOptions}
           onClose={() => setFeedbackOpen(false)}
+        />
+      )}
+      {/* Tasks (spec C9 item 5): one task drawer and one quick add for the
+          whole app. Quick add starts on the open client's page's client. */}
+      {tkHosts && typeof TK_DrawerHost === "function" && (
+        <TK_DrawerHost
+          staffUser={staffUser}
+          clients={visibleClients}
+          isAdmin={staffIsAdmin}
+          canManageTemplates={staffIsAdmin}
+          canCreateTemplates={staffUser.role === "admin"}
+          onOpenTemplates={() => setPage("task-templates")}
+        />
+      )}
+      {tkHosts && typeof TK_QuickAddHost === "function" && (
+        <TK_QuickAddHost
+          staffUser={staffUser}
+          clients={visibleClients}
+          currentClientId={!onStaffPage && client ? client.id : null}
         />
       )}
       </StaffToolsContext.Provider>

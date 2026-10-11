@@ -1822,6 +1822,13 @@ function SI_ChatDrawer({ onClose, ...inboxProps }) {
   const panelRef = React.useRef(null);
   const onCloseRef = React.useRef(onClose);
   onCloseRef.current = onClose;
+  // Only one side drawer at a time: opening a task (Tasks module, spec C9)
+  // closes this one.
+  React.useEffect(() => {
+    const onTask = () => onCloseRef.current && onCloseRef.current();
+    window.addEventListener("tk:drawer-open", onTask);
+    return () => window.removeEventListener("tk:drawer-open", onTask);
+  }, []);
   React.useEffect(() => {
     const panel = panelRef.current;
     const restore = document.activeElement;

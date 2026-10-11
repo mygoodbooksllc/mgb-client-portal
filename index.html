@@ -10,6 +10,38 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>MyGoodBooks — Client Dashboard (Prototype)</title>
     <script>
+      // Tasks shell (spec 11.1). Runs first, before every other script and
+      // before the CSS document.write lines. /tasks (a Vercel redirect to
+      // /?shell=tasks) or ?shell=tasks turns on the slim Tasks shell for this
+      // tab; ?shell=portal turns it off. The flag lives in sessionStorage so
+      // it survives the Google sign-in round trip. An auth hash is never
+      // rewritten, and every replaceState keeps history.state (AN_AppNav's
+      // mgbNav index).
+      (function () {
+        try {
+          var p = location.pathname, sp = new URLSearchParams(location.search), q = sp.get("shell");
+          var authHash = /access_token=|refresh_token=|error_description=|type=recovery/.test(location.hash);
+          if (q === "portal") { try { sessionStorage.removeItem("mgb_shell_v1"); } catch (e) {} }
+          var onTasksPath = /^\/tasks\/?$/.test(p);
+          var want = onTasksPath || q === "tasks";
+          if (want) { try { sessionStorage.setItem("mgb_shell_v1", "tasks"); } catch (e) {} }
+          // A pop-out opened with window.open copies the opener's sessionStorage;
+          // drop the opener's pending arrival and route so they don't replay here.
+          if (q === "tasks" && window.opener) {
+            try { sessionStorage.removeItem("mgb_lk_arrival_v1"); sessionStorage.removeItem("mygoodbooks_pending_route_v1"); } catch (e) {}
+          }
+          var on = false; try { on = sessionStorage.getItem("mgb_shell_v1") === "tasks"; } catch (e) {}
+          if (on) window.MGB_SHELL = "tasks";
+          if (want || q) {
+            sp.delete("shell");
+            var s = sp.toString(), h = location.hash;
+            if (!authHash && want && !/^#\/tasks(\/|$)/.test(h)) h = "#/tasks/my";
+            // Only /tasks itself moves to "/"; any other path keeps its pathname.
+            history.replaceState(history.state, "", (onTasksPath ? "/" : p) + (s ? "?" + s : "") + h);
+          }
+        } catch (e) {}
+      })();
+
       // Installable app (manifest.webmanifest + app-icons/). Hidden for now:
       // the browser only offers "Install" once the manifest is linked, and
       // that only happens on a device that opened /?install-app=1 (undo with
@@ -28,7 +60,7 @@
           if (flag !== null) {
             params.delete("install-app");
             var qs = params.toString();
-            history.replaceState(null, "", location.pathname + (qs ? "?" + qs : "") + location.hash);
+            history.replaceState(history.state, "", location.pathname + (qs ? "?" + qs : "") + location.hash);
           }
           on =
             on ||
@@ -96,7 +128,7 @@
       // step to inject a real commit SHA into (see the no-bundler note up
       // top). Shown in Developer Tools' System info card so staff can confirm
       // which version they're looking at without guessing from Vercel's UI.
-      window.MGB_VERSION = { label: "2026-10-10a", note: "One tab row for every client, Close tab, Client setup" };
+      window.MGB_VERSION = { label: "2026-10-11a", note: "Tasks: My Tasks, task details, projects and its own window" };
       // The two-finger touchmove preventDefault that used to sit here (a
       // pinch-zoom blocker, kept at the gesture level because touch-action
       // CSS pre-empted the dashboard drag-and-drop) is gone. It only ever
@@ -132,6 +164,8 @@
       document.write('<link rel="stylesheet" href="components/client/bank-accounts.css?v=' + Date.now() + '">');
       document.write('<link rel="stylesheet" href="components/tour/tour.css?v=' + Date.now() + '">');
       document.write('<link rel="stylesheet" href="components/tour/tips.css?v=' + Date.now() + '">');
+      document.write('<link rel="stylesheet" href="components/tasks/tk-views.css?v=' + Date.now() + '">');
+      document.write('<link rel="stylesheet" href="components/tasks/tk-drawer.css?v=' + Date.now() + '">');
 
       // Kick every source fetch off HERE, in <head>, so all five download in
       // parallel with React/Babel/jsPDF instead of after them. Previously each
@@ -208,6 +242,25 @@
         "components/staff/ClientTabCounts.jsx",
         "components/client/BankAccounts.jsx",
         "components/client/QboGiving.jsx",
+        "components/tasks/TK_logic.js",
+        "components/tasks/TK_store.js",
+        "components/tasks/TK_api.js",
+        "components/tasks/TK_sync.js",
+        "components/tasks/TK_viewLogic.js",
+        "components/tasks/TK_drawerLogic.js",
+        "components/tasks/TK_TaskRow.jsx",
+        "components/tasks/TK_keys.jsx",
+        "components/tasks/TK_Comments.jsx",
+        "components/tasks/TK_Attachments.jsx",
+        "components/tasks/TK_Activity.jsx",
+        "components/tasks/TK_Drawer.jsx",
+        "components/tasks/TK_QuickAdd.jsx",
+        "components/tasks/TK_ClientHeader.jsx",
+        "components/tasks/TK_Sidebar.jsx",
+        "components/tasks/TK_MyTasks.jsx",
+        "components/tasks/TK_List.jsx",
+        "components/tasks/TK_StandaloneBar.jsx",
+        "components/tasks/TK_App.jsx",
         "components/tour/Tour.jsx",
         "components/tour/Tips.jsx",
         "app.jsx",

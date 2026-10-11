@@ -2,7 +2,7 @@
 title: What's on the bar at the top of the page?
 section: Getting started
 audience: staff
-keywords: [tips, tips while you learn, turn off tips, back, back button, refresh, reload, installed app, app, top bar, toolbar, header, search, jump to, pages, actions, search transactions, search documents, search messages, ctrl k, cmd k, notifications, bell, tasks, plus, quick add, message, help, help for this page, staff guide, send feedback, what's new, take the tour, bookkeeper tour, admin tour, temporary admin tour, account manager tour, report a bug, feedback, account, avatar, sign out, dark mode, sync, every 15 minutes, settings, preview plan, photo]
+keywords: [tasks tour, mentions, mentioned you, q, quick add task, tips, tips while you learn, turn off tips, back, back button, refresh, reload, installed app, app, top bar, toolbar, header, search, jump to, pages, actions, search transactions, search documents, search messages, ctrl k, cmd k, notifications, bell, tasks, plus, quick add, message, help, help for this page, staff guide, send feedback, what's new, take the tour, bookkeeper tour, admin tour, temporary admin tour, account manager tour, report a bug, feedback, account, avatar, sign out, dark mode, sync, every 15 minutes, settings, preview plan, photo]
 sort: 25
 ---
 Across the top of every staff page there's a dark bar, joined to the rail, with your most-used tools. Clients never see it, and it goes away while you use **Preview as** or **View as client**. The rail on the left has the five places (Today, Inbox, Work, Clients, Team); the bar has no page links of its own.
@@ -20,7 +20,8 @@ Click the search box, or press **Ctrl+K** (**⌘K** on a Mac) from anywhere. Wit
 - **Pages** and **Actions**: anywhere in the portal, by name.
 - **Clients**: opens the client on the tab you last used for them, or on the Client overview if you haven't been there yet this session.
 - **In {client name}** (only when a client is open): that client's transactions, budget categories, documents and messages that match. Picking one opens the right tab and highlights the row. It only looks in pages you can open for that client.
-- **Tasks** and **Notes**: your open tasks and notes. Opens **Work › Tasks**.
+- **Tasks**: open tasks you can see whose name, description or comments match. A match inside a comment says *In a comment:*. Picking one opens the task's details.
+- **Notes**: your notes that match.
 - **SOPs**: client SOPs that mention your words. Opens that client's **SOP** tab.
 - **Help**: articles from this guide.
 
@@ -29,10 +30,10 @@ Use the **↑** and **↓** keys to move through the results and **Enter** to op
 ### Right side
 
 - **QuickBooks syncs slowed** / **QuickBooks syncs stopped** (admins only): appears only when the firm is close to Intuit's monthly limit. Click it to open **Team › Hours**, which has the details.
-- **Bell** (Notifications): a red number shows how many new items you haven't looked at. It lists client messages waiting for a reply, documents a client has uploaded, tasks a teammate assigned to you, shout-outs for you, and clients whose last month-end close is **Blocked**. You can turn each kind off in **Settings → Notifications**. Click an item to go straight to it: a message opens that message (right there on the Inbox if you're on it, otherwise on the client's **Messages** tab), an upload opens **Documents** at the request, a task opens it in **Work › Tasks**, and a blocked close opens the client's **Close** tab at the QuickBooks check. Opening the bell marks everything as seen (in this browser).
-- **Tasks**: the number of your open tasks. A red number next to it counts the overdue ones. Click it to open **Work › Tasks**.
-- **+** (client pages only): **New task**, **New note**, **Request document** or **Message** for the client you have open. See [How do I add a task, note or document request, or message a client?](#/help/quick-actions).
-- **?** (Help): **Help for this page** (the article for where you are), **Staff guide** (this guide), **Send feedback**, **What's new**, **Tips while you learn: On** / **Off** (click it to flip the switch for the first-30-days tips; see [How do tips work?](#/help/tips)) and the tours: **Bookkeeper tour** for everyone, plus **Admin tour** for admins, **Temporary admin tour** while you have temporary admin access, and **Account manager tour** for account managers. See [How do I report a bug or send feedback?](#/help/send-feedback).
+- **Bell** (Notifications): a red number shows how many new items you haven't looked at. It lists client messages waiting for a reply, documents a client has uploaded, tasks a teammate assigned to you, **mentioned you** when someone @mentions you in a task comment, shout-outs for you, and clients whose last month-end close is **Blocked**. You can turn each kind off in **Settings → Notifications**. Click an item to go straight to it: a message opens that message (right there on the Inbox if you're on it, otherwise on the client's **Messages** tab), an upload opens **Documents** at the request, a task or a mention opens the task's details, and a blocked close opens the client's **Close** tab at the QuickBooks check. Opening the bell marks everything as seen (in this browser).
+- **Tasks**: the number of your open tasks. A red number next to it counts the overdue ones. Click it to open the Tasks page at **My Tasks**. See [How do I add and manage my tasks?](#/help/my-tasks).
+- **+**: with a client open, **New task**, **New note**, **Request document** or **Message** for that client. On a staff page with no client open it says **Add** and has **New task**. See [How do I add a task, note or document request, or message a client?](#/help/quick-actions). Pressing **q** on any staff page also adds a task.
+- **?** (Help): **Help for this page** (the article for where you are), **Staff guide** (this guide), **Send feedback**, **What's new**, **Tips while you learn: On** / **Off** (click it to flip the switch for the first-30-days tips; see [How do tips work?](#/help/tips)) and the tours: **Bookkeeper tour** for everyone, plus **Admin tour** for admins, **Temporary admin tour** while you have temporary admin access, **Account manager tour** for account managers, and **Tasks tour** for everyone. See [How do I report a bug or send feedback?](#/help/send-feedback).
 - **Your initials or photo** (account menu):
   - your name and role
   - **Temporary admin access · expires …** or **Temporary access: {client} · …** when you have short-term access
@@ -65,6 +66,6 @@ Widen the window and everything comes back.
 ### Troubleshooting
 
 - **The bell or Tasks button is missing.** They're hidden while an admin is using **View as**, because they'd show the admin's own items.
-- **The + button is missing.** It only shows when a client is open.
+- **The + button is missing.** It's hidden in the tightest narrow window, and while you use **Preview as**. Press **q** to add a task instead.
 - **Search says "Nothing matches".** Search looks at page names, client names, your own open tasks and notes, SOP text and help articles, plus the open client's transactions, budget categories, documents and messages. On a staff page no client is open, so open the client first to search their data.
 - **The bell number came back after I cleared it.** Something new arrived, or you're on a different browser or computer (what you've seen is remembered per browser).

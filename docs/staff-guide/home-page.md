@@ -2,7 +2,7 @@
 title: What's on my Today page?
 section: Getting started
 audience: staff
-keywords: [today, home, start page, needs you, needs you now, now, this week, replies waiting, tasks due today, overdue, closes open, tiles, reminders, milestones to review, recently viewed, also show, show everything, access requests, upgrade requests, bills, deadlines, client at risk, review due, sop, coverage, all clear, nothing needs you]
+keywords: [today, home, start page, tasks, task details, needs you, needs you now, now, this week, replies waiting, tasks due today, overdue, closes open, tiles, reminders, milestones to review, recently viewed, also show, show everything, access requests, upgrade requests, bills, deadlines, client at risk, review due, sop, coverage, all clear, nothing needs you]
 sort: 40
 ---
 **Today** is your starting point: one list of everything waiting on you across every client you can see, most urgent first. It's the first of the five places in the left rail (**Today**, **Inbox**, **Work**, **Clients**, **Team**), and it opens when you sign in unless you picked another start page in [Settings](#/help/staff-settings).
@@ -22,7 +22,7 @@ A tile shows a green **0** when there's nothing to do. Click any tile to go to w
 Everything waiting on you, in two bands: **Now** (late, or waiting on us) and **This week** (coming up, or worth a look). Each row says what it is and which client, and the most urgent rows come first. Click a row to go straight to it. Some rows have their buttons right there:
 
 - **A client message** with no reply: opens the conversation in the Inbox.
-- **A task or reminder** that's due: **Done** checks it off.
+- **A task or reminder** that's due: **Done** checks it off. On a task that needs review, Done sends it to an admin instead. Click the row to open the task's details. Tasks waiting on the client don't show here.
 - **Bills** overdue or due within 7 days, one row per client with the count and total.
 - **A month-end close** that's late or blocked: opens that month in **Work › Close**.
 - **A filing deadline** coming up: opens **Work › Deadlines**.
@@ -40,7 +40,7 @@ Each band shows its first few rows. **Show everything** lists the rest, and **Sh
 
 Under the list, **Also show** has three switches for cards you may want on Today. Your choice is remembered.
 
-- **Reminders**: the **Your reminders** card, a quick list with a box to add one. For times, repeats and sharing, open **Work › Tasks**.
+- **Reminders**: the **Your reminders** card, a quick list with a box to add one. For times, repeats and sharing, open the reminder's details from **Work › Tasks**.
 - **Milestones**: the **Milestones to review** card: clients whose numbers point to a different pricing milestone, aren't confirmed yet, or are close to the next one.
 - **Recently viewed**: the clients you opened lately. Click one to go back.
 

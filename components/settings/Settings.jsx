@@ -75,6 +75,8 @@ const ST_BELL_PREFS = [
   { key: "messages", prefix: "msg:", label: "Client messages waiting" },
   { key: "documents", prefix: "doc:", label: "Documents uploaded" },
   { key: "tasks", prefix: "task:", label: "Tasks assigned to me" },
+  // Tasks module (2026-10-11): someone @mentioned you in a task comment.
+  { key: "mentions", prefix: "tkm:", label: "Mentions on tasks" },
   { key: "close", prefix: "close:", label: "Month-end close blocked" },
   { key: "shoutouts", prefix: "shout:", label: "Shout-outs for me" },
 ];
@@ -1194,6 +1196,18 @@ function ST_StaffSettingsPage({
                 <dd>Close a menu, search or dialog</dd>
                 <dt><kbd>Tab</kbd></dt>
                 <dd>Move between controls</dd>
+              </dl>
+            </ST_Card>
+          )}
+          {key === "shortcuts" && typeof TK_KEYMAP !== "undefined" && Array.isArray(TK_KEYMAP) && TK_KEYMAP.length > 0 && (
+            <ST_Card title="Tasks shortcuts" sub="Single keys for task lists and a task's details, plus q to add a task from anywhere. They don't fire while you're typing.">
+              <dl className="st-shortcuts">
+                {TK_KEYMAP.map((k) => (
+                  <React.Fragment key={k.key + ":" + k.label}>
+                    <dt><kbd>{k.display || k.key}</kbd></dt>
+                    <dd>{k.label}</dd>
+                  </React.Fragment>
+                ))}
               </dl>
             </ST_Card>
           )}

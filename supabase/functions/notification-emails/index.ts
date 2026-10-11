@@ -165,7 +165,7 @@ Deno.serve(async (req) => {
     if (error) console.log(`notification-emails: could not log — ${error.message}`);
   };
 
-  const { data: staffRows } = await db.from("staff").select("email, name, active");
+  const { data: staffRows } = await db.from("staff").select("email, name, active, role");
   const activeStaff = new Map<string, string>();
   for (const s of staffRows || []) if (s.active) activeStaff.set(String(s.email).toLowerCase(), s.name || s.email);
 
@@ -193,17 +193,40 @@ Deno.serve(async (req) => {
   // -------------------------------------------------------------------------
   if (job === "task_due") {
     const today = dateIn(new Date());
-    const { data: tasks } = await db
-      .from("staff_reminders")
-      .select("id, text, client_id, assignee_email")
-      .eq("done", false)
-      .eq("due_date", today)
-      .not("assignee_email", "is", null)
-      .order("created_at", { ascending: true });
+    // Tasks module (2026-10-11): deleted tasks and tasks waiting on the
+    // client never send a due reminder. Until that migration has run the
+    // columns don't exist (42703), so the old query runs instead.
+    const dueQuery = (tk: boolean) => {
+      let q = db
+        .from("staff_reminders")
+        .select("id, text, client_id, assignee_email")
+        .eq("done", false)
+        .eq("due_date", today)
+        .not("assignee_email", "is", null);
+      if (tk) q = q.is("deleted_at", null).neq("status", "waiting_client");
+      return q.order("created_at", { ascending: true });
+    };
+    let { data: tasks, error: dueErr } = await dueQuery(true);
+    if (dueErr && (dueErr as any).code === "42703") ({ data: tasks } = await dueQuery(false));
+    // Client access (D3): a client task only reaches someone who can open
+    // that client in the app (admin, assigned, or an approved unexpired
+    // grant). Same rule as tk_staff_has_client in tasks-module-v1.sql.
+    const admins = new Set<string>();
+    for (const s of staffRows || []) if (s.active && s.role === "admin") admins.add(String(s.email).toLowerCase());
+    const reach = new Set<string>();
+    const dueEmails = [...new Set((tasks || []).filter((t: any) => t.client_id).map((t: any) => String(t.assignee_email).toLowerCase()))];
+    if (dueEmails.length) {
+      const { data: sca } = await db.from("staff_client_access").select("staff_email, client_id").in("staff_email", dueEmails);
+      for (const a of sca || []) reach.add(String(a.staff_email).toLowerCase() + "|" + a.client_id);
+      const { data: grants } = await db.from("staff_client_access_grants").select("staff_email, client_id")
+        .in("staff_email", dueEmails).eq("status", "approved").gt("expires_at", new Date().toISOString());
+      for (const g of grants || []) reach.add(String(g.staff_email).toLowerCase() + "|" + g.client_id);
+    }
     const byPerson = new Map<string, any[]>();
     for (const t of tasks || []) {
       const e = String(t.assignee_email).toLowerCase();
       if (!activeStaff.has(e)) continue;
+      if (t.client_id && !admins.has(e) && !reach.has(e + "|" + t.client_id)) continue;   // D3
       if (!byPerson.has(e)) byPerson.set(e, []);
       byPerson.get(e)!.push(t);
     }

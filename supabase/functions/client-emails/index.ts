@@ -333,16 +333,23 @@ async function valueData(db: SupabaseClient, clientId: string, period: string) {
     for (const a of acts || []) if (keys.has(`${a.realm_id}|${a.customer_qbo_id}`)) minutes += Number(a.minutes || 0);
   }
 
-  const { data: tasks, count: taskCount } = await db
-    .from("staff_reminders")
-    .select("text", { count: "exact" })
-    .eq("client_id", clientId)
-    .eq("visibility", "shared")
-    .eq("done", true)
-    .gte("completed_at", fromTs)
-    .lt("completed_at", toTs)
-    .order("completed_at", { ascending: true })
-    .limit(10);
+  // Deleted tasks (Tasks module soft delete, 2026-10-11) never show in the
+  // report. Before that migration the column doesn't exist (42703), so the
+  // old query runs instead.
+  const doneQuery = (tk: boolean) => {
+    let q = db
+      .from("staff_reminders")
+      .select("text", { count: "exact" })
+      .eq("client_id", clientId)
+      .eq("visibility", "shared")
+      .eq("done", true)
+      .gte("completed_at", fromTs)
+      .lt("completed_at", toTs);
+    if (tk) q = q.is("deleted_at", null);
+    return q.order("completed_at", { ascending: true }).limit(10);
+  };
+  let { data: tasks, count: taskCount, error: doneErr } = await doneQuery(true);
+  if (doneErr && (doneErr as any).code === "42703") ({ data: tasks, count: taskCount } = await doneQuery(false));
 
   const { data: close } = await db.from("month_close").select("status").eq("client_id", clientId).eq("period", period).maybeSingle();
 
