@@ -88,6 +88,192 @@ const CT_bookkeeperKey = (c) => {
   return bk.name ? "name:" + bk.name : "";
 };
 
+// --- One shared month_close writer (tabs redesign 2026-10-10) ---------------
+// Work › Close (this file) and the client's Close tab (ClientClosePage.jsx)
+// both save through CT_saveMonthClose. An existing row is updated only while
+// its updated_at still matches what this browser last saw, so a second save
+// from another tab gets a "Someone else saved first" prompt instead of
+// silently overwriting. A new row is an insert (23505 = it appeared
+// meanwhile, also a conflict). No-op saves are skipped, because the trigger
+// restamps updated_at and the performance score reads it.
+//
+// month_close.period is "YYYY-MM-01"; client_close_items.period is "YYYY-MM".
+const CT_CHANGED_EVENT = "mgb:month-close-changed";
+const CT_toYm = (p) => String(p || "").slice(0, 7); // "2026-09-01" -> "2026-09"
+const CT_fromYm = (ym) => String(ym || "").slice(0, 7) + "-01"; // "2026-09" -> "2026-09-01"
+const CT_COLS = "client_id, period, status, notes, updated_by, updated_at";
+// "client|YYYY-MM-01" keys seen as done in this browser session (loads and
+// saves). Moving one of them back to done asks first: the client "reports
+// are ready" email has no dedupe.
+const CT_doneSeen = new Set();
+const CT_noteDone = (row) => {
+  if (row && row.status === "done") CT_doneSeen.add(row.client_id + "|" + CT_fromYm(row.period));
+};
+const CT_monthName = (period) => {
+  const [y, m] = String(period || "").split("-").map(Number);
+  if (!y || !m) return "";
+  return new Date(y, m - 1, 1).toLocaleDateString("en-US", { month: "long" });
+};
+
+async function CT_conflict(sb, clientId, period, cols) {
+  let theirs = null;
+  try {
+    const r = await sb
+      .from("month_close")
+      .select(cols || CT_COLS)
+      .eq("client_id", clientId)
+      .eq("period", period)
+      .maybeSingle();
+    theirs = (r && r.data) || null;
+  } catch (e) {}
+  CT_noteDone(theirs);
+  return { ok: false, conflict: true, theirs };
+}
+
+// Returns { ok:true, row[, noop] } | { ok:false, conflict:true, theirs } | { ok:false, error }.
+// expectedUpdatedAt must be the server's updated_at string for the row this
+// browser last loaded (null/undefined when there was no row).
+async function CT_saveMonthClose({ sb, clientId, period, status, notes, expectedUpdatedAt, prevRow }) {
+  sb = sb || window.mgbSupabase;
+  period = CT_fromYm(period);
+  notes = String(notes || "").trim() || null;
+  if (prevRow && prevRow.status === status && (prevRow.notes || null) === notes) {
+    return { ok: true, row: prevRow, noop: true }; // never restamp updated_at
+  }
+  if (!sb) return { ok: false, error: { message: "Supabase isn't configured, so nothing is saved." } };
+  let res;
+  try {
+    if (expectedUpdatedAt) {
+      res = await sb
+        .from("month_close")
+        .update({ status, notes })
+        .eq("client_id", clientId)
+        .eq("period", period)
+        .eq("updated_at", expectedUpdatedAt)
+        .select(CT_COLS); // array; length 0 = someone else saved first
+      if (!res.error && (!res.data || res.data.length === 0)) return CT_conflict(sb, clientId, period, CT_COLS);
+    } else {
+      res = await sb.from("month_close").insert({ client_id: clientId, period, status, notes }).select(CT_COLS);
+      if (res.error && res.error.code === "23505") return CT_conflict(sb, clientId, period, CT_COLS);
+    }
+  } catch (e) {
+    return { ok: false, error: e };
+  }
+  if (res.error) return { ok: false, error: res.error };
+  const row = (Array.isArray(res.data) ? res.data[0] : res.data) || {
+    client_id: clientId,
+    period,
+    status,
+    notes,
+    updated_by: null,
+    updated_at: new Date().toISOString(),
+  };
+  CT_noteDone(row);
+  try {
+    window.dispatchEvent(new CustomEvent(CT_CHANGED_EVENT, { detail: { clientId, period, row } }));
+    window.dispatchEvent(
+      new CustomEvent(OB_CHANGED_EVENT, {
+        detail: { clientId, period },
+      }),
+    );
+  } catch (e) {}
+  try {
+    notifyStaffTools();
+  } catch (e) {}
+  return { ok: true, row };
+}
+
+// First-tick rule (D10). Call after a close step was ticked. When no other
+// step was done before this tick and the month_close row is missing or Not
+// started, the month moves to In progress. Never touches review/done/na; a
+// conflict stays silent (someone else already set a status).
+// Returns { changed:true, row } | { changed:false[, conflict] }.
+async function CT_applyFirstTick({ sb, clientId, period, hadOtherDone }) {
+  if (hadOtherDone) return { changed: false };
+  sb = sb || window.mgbSupabase;
+  if (!sb || !clientId) return { changed: false };
+  const p = CT_fromYm(period);
+  let row = null;
+  try {
+    const r = await sb.from("month_close").select(CT_COLS).eq("client_id", clientId).eq("period", p).maybeSingle();
+    if (r.error) return { changed: false };
+    row = r.data || null;
+  } catch (e) {
+    return { changed: false };
+  }
+  if (row && row.status !== "not_started") return { changed: false };
+  const res = await CT_saveMonthClose({
+    sb,
+    clientId,
+    period: p,
+    status: "in_progress",
+    notes: row ? row.notes : null,
+    expectedUpdatedAt: row ? row.updated_at : null,
+    prevRow: row,
+  });
+  return res.ok && !res.noop ? { changed: true, row: res.row } : { changed: false, conflict: !!res.conflict };
+}
+
+// "3:42 PM" today, "Oct 9, 3:42 PM" on another day.
+function CT_clock(iso) {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (isNaN(d)) return "";
+  const t = d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+  return d.toDateString() === new Date().toDateString()
+    ? t
+    : d.toLocaleDateString("en-US", { month: "short", day: "numeric" }) + ", " + t;
+}
+
+// The conflict prompt, shared by Work › Close and the Close tab. Closing it
+// (Escape, backdrop) changes nothing.
+function CT_ConflictModal({ theirs, onLoadTheirs, onKeepMine, onClose }) {
+  const [busy, setBusy] = useState(false);
+  const who = theirs && theirs.updated_by ? CT_who(theirs.updated_by) : "Someone";
+  const time = theirs ? CT_clock(theirs.updated_at) : "";
+  const st = theirs ? CT_STATUS_LABEL[theirs.status] || theirs.status : CT_STATUS_LABEL.not_started;
+  const n = theirs && theirs.notes ? String(theirs.notes) : "";
+  const notesBit = n ? ` · "${n.length > 120 ? n.slice(0, 120) + "…" : n}"` : "";
+  return (
+    <ModalShell onClose={onClose} labelledBy="ct-conflict-title" className="confirm-modal">
+      <div className="modal-header">
+        <h3 className="card-title" id="ct-conflict-title" style={{ margin: 0 }}>
+          Someone else saved first
+        </h3>
+        <button type="button" className="modal-close" onClick={onClose} aria-label="Close">
+          ×
+        </button>
+      </div>
+      <div className="modal-body">
+        <p className="card-subtitle" style={{ margin: 0 }}>
+          {who} changed this{time ? " at " + time : ""}. Their version: {st}
+          {notesBit}.
+        </p>
+      </div>
+      <div className="modal-footer">
+        <button type="button" className="btn-secondary" disabled={busy} onClick={() => onLoadTheirs && onLoadTheirs()}>
+          Load theirs
+        </button>
+        <button
+          type="button"
+          className="btn-primary"
+          disabled={busy}
+          onClick={async () => {
+            setBusy(true);
+            try {
+              if (onKeepMine) await onKeepMine();
+            } finally {
+              setBusy(false);
+            }
+          }}
+        >
+          Keep mine
+        </button>
+      </div>
+    </ModalShell>
+  );
+}
+
 // Close status for every client the viewer can see, this month and the
 // CT_MONTHS_BACK before it. Shared by the Close tab below and the Clients
 // list (ClientsPage.jsx).
@@ -132,6 +318,7 @@ function CT_useCloseStatus(clients, staffUser) {
     const map = {};
     (mc.data || []).forEach((r) => {
       map[r.client_id + "|" + r.period] = r;
+      CT_noteDone(r);
     });
     setRows(map);
     if (st.data && st.data.late_day) setLateDay(st.data.late_day);
@@ -144,6 +331,20 @@ function CT_useCloseStatus(clients, staffUser) {
 
   useEffect(() => {
     load();
+  }, [load]);
+
+  // A save anywhere (the Close tab, another editor) patches the row here, so
+  // Work › Close and the Clients list update without a refresh.
+  useEffect(() => {
+    const on = (e) => {
+      const d = (e && e.detail) || {};
+      if (d.row && d.row.client_id && d.row.period) {
+        const r = d.row;
+        setRows((prev) => ({ ...prev, [r.client_id + "|" + CT_fromYm(r.period)]: r }));
+      } else load();
+    };
+    window.addEventListener(CT_CHANGED_EVENT, on);
+    return () => window.removeEventListener(CT_CHANGED_EVENT, on);
   }, [load]);
 
   const statusOf = (clientId, period) => {
@@ -288,10 +489,16 @@ function CT_CloseTrackerPage({ clients, staffUser }) {
     // eslint-disable-next-line
   }, [byBookkeeper.map((c) => c.id).join(","), rows, lateDay]);
 
-  const save = async (clientId, period, status, notes) => {
+  // Thin wrapper over the shared CT_saveMonthClose: optimistic set, then the
+  // guarded save. A conflict restores the old row and opens the prompt; an
+  // error restores and toasts. The optimistic row is marked _opt and never
+  // used as expectedUpdatedAt (only the server's own updated_at is).
+  const [conflict, setConflict] = useState(null); // { client, period, status, notes, theirs }
+  const save = async (clientId, period, status, notes, expectedOverride) => {
     const sb = window.mgbSupabase;
     const key = clientId + "|" + period;
     const prev = rows[key];
+    const expected = expectedOverride !== undefined ? expectedOverride : prev && !prev._opt ? prev.updated_at : null;
     const optimistic = {
       client_id: clientId,
       period,
@@ -299,28 +506,36 @@ function CT_CloseTrackerPage({ clients, staffUser }) {
       notes: notes || null,
       updated_by: staffUser && staffUser.email,
       updated_at: new Date().toISOString(),
+      _opt: true,
     };
-    setRows((r) => ({ ...r, [key]: optimistic }));
-    if (!sb) return true;
-    const { data, error } = await sb
-      .from("month_close")
-      .upsert({ client_id: clientId, period, status, notes: notes || null }, { onConflict: "client_id,period" })
-      .select("client_id, period, status, notes, updated_by, updated_at")
-      .single();
-    if (error) {
+    const restore = () =>
       setRows((r) => {
         const n = { ...r };
         if (prev) n[key] = prev;
         else delete n[key];
         return n;
       });
-      toast("Couldn't save. " + (error.message || ""));
+    setRows((r) => ({ ...r, [key]: optimistic }));
+    if (!sb) return true;
+    const res = await CT_saveMonthClose({
+      sb,
+      clientId,
+      period,
+      status,
+      notes,
+      expectedUpdatedAt: expected,
+      prevRow: expectedOverride !== undefined ? null : prev,
+    });
+    if (res.conflict) {
+      restore();
+      return { conflict: true, theirs: res.theirs };
+    }
+    if (!res.ok) {
+      restore();
+      toast("Couldn't save. " + ((res.error && res.error.message) || ""));
       return false;
     }
-    setRows((r) => ({ ...r, [key]: data }));
-    try {
-      window.dispatchEvent(new Event(typeof OB_CHANGED_EVENT === "string" ? OB_CHANGED_EVENT : "mgb:onboarding-changed"));
-    } catch (e) {}
+    setRows((r) => ({ ...r, [key]: res.row }));
     return true;
   };
 
@@ -503,7 +718,13 @@ function CT_CloseTrackerPage({ clients, staffUser }) {
                 {visible.map((c) => (
                   <tr key={c.id}>
                     <th scope="row" className="ct-client-col">
-                      <span className="ct-client-name">{CT_name(c)}</span>
+                      <a
+                        className="ct-client-name"
+                        href={TB_clientHash(c.id, "close")}
+                        title={"Open " + CT_name(c) + "'s close"}
+                      >
+                        {CT_name(c)}
+                      </a>
                       <span className="ct-client-bk">{CT_bookkeeperOf(c) || "Unassigned"}</span>
                       {(() => {
                         const st = staleOf(c.id);
@@ -565,8 +786,35 @@ function CT_CloseTrackerPage({ clients, staffUser }) {
           check={checkOf(editing.client.id, editing.period)}
           onClose={() => setEditing(null)}
           onSave={async (status, notes) => {
-            const ok = await save(editing.client.id, editing.period, status, notes);
-            if (ok) setEditing(null);
+            const ed = editing;
+            const ok = await save(ed.client.id, ed.period, status, notes);
+            if (ok && ok.conflict) {
+              setEditing(null);
+              setConflict({ client: ed.client, period: ed.period, status, notes, theirs: ok.theirs });
+            } else if (ok) setEditing(null);
+          }}
+        />
+      )}
+      {conflict && (
+        <CT_ConflictModal
+          theirs={conflict.theirs}
+          onClose={() => setConflict(null)}
+          onLoadTheirs={() => {
+            const k = conflict.client.id + "|" + conflict.period;
+            const t = conflict.theirs;
+            setRows((r) => {
+              const n = { ...r };
+              if (t) n[k] = t;
+              else delete n[k];
+              return n;
+            });
+            setConflict(null);
+          }}
+          onKeepMine={async () => {
+            const cf = conflict;
+            const ok = await save(cf.client.id, cf.period, cf.status, cf.notes, cf.theirs ? cf.theirs.updated_at : null);
+            if (ok && ok.conflict) setConflict({ ...cf, theirs: ok.theirs });
+            else setConflict(null);
           }}
         />
       )}
@@ -584,15 +832,76 @@ function CT_CellEditor({ client, period, row, late, deadline, check, onClose, on
   const [status, setStatus] = useState(row ? row.status : "not_started");
   const [notes, setNotes] = useState((row && row.notes) || "");
   const [saving, setSaving] = useState(false);
+  // Confirms render inside this same ModalShell (a nested ModalShell would
+  // take Escape for the outer one first). ask = "redone" | "latenote" | null.
+  const [ask, setAsk] = useState(null);
+  const month = CT_monthName(period);
+  const prevStatus = row ? row.status : "not_started";
+  const doSave = async () => {
+    setSaving(true);
+    await onSave(status, notes.trim());
+    setSaving(false);
+  };
+  const askFor = () => {
+    const key = client.id + "|" + CT_fromYm(period);
+    if (status === "done" && prevStatus !== "done" && CT_doneSeen.has(key)) return "redone";
+    const notesChanged = (notes.trim() || null) !== ((row && row.notes) || null);
+    if (
+      row &&
+      (status === "done" || status === "na") &&
+      status === prevStatus &&
+      notesChanged &&
+      row.updated_at &&
+      CT_ymd(new Date()) > CT_ymd(deadline) &&
+      CT_ymd(new Date(row.updated_at)) <= CT_ymd(deadline)
+    )
+      return "latenote";
+    return null;
+  };
+  if (ask) {
+    const redone = ask === "redone";
+    return (
+      <ModalShell key="ask" onClose={() => setAsk(null)} labelledBy="ct-ask-title" className="ct-modal">
+        <div className="ct-modal-body">
+          <h3 id="ct-ask-title" className="card-title">
+            {CT_name(client)} · {CT_monthLabel(period, true)}
+          </h3>
+          <p className="ct-ask-text">
+            {redone
+              ? 'This month was already marked done once. Marking it done again sends the "reports are ready" email again.'
+              : "This close was on time. Saving a note now records it as finished today, which can count as late. Save anyway?"}
+          </p>
+          <div className="ct-modal-foot">
+            <button type="button" className="btn-secondary" onClick={() => setAsk(null)}>
+              Cancel
+            </button>
+            <button
+              type="button"
+              className="btn-primary"
+              disabled={saving}
+              onClick={async () => {
+                await doSave();
+              }}
+            >
+              {saving ? "Saving…" : redone ? "Mark done and email again" : "Save note"}
+            </button>
+          </div>
+        </div>
+      </ModalShell>
+    );
+  }
   return (
-    <ModalShell onClose={onClose} labelledBy="ct-edit-title" className="ct-modal">
+    <ModalShell key="edit" onClose={onClose} labelledBy="ct-edit-title" className="ct-modal">
       <form
         className="ct-modal-body"
         onSubmit={async (e) => {
           e.preventDefault();
-          setSaving(true);
-          await onSave(status, notes.trim());
-          setSaving(false);
+          const a = askFor();
+          if (a) {
+            setAsk(a);
+            return;
+          }
+          await doSave();
         }}
       >
         <h3 id="ct-edit-title" className="card-title">
@@ -627,6 +936,11 @@ function CT_CellEditor({ client, period, row, late, deadline, check, onClose, on
             </label>
           ))}
         </fieldset>
+        {status === "done" && prevStatus !== "done" && (
+          <p className="ct-email-warn" role="note">
+            Marking it done emails {CT_name(client)}'s people that {month} reports are ready.
+          </p>
+        )}
         <label className="ct-legend" htmlFor="ct-notes">
           Notes
         </label>

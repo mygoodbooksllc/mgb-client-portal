@@ -56,10 +56,66 @@ function BA_iso(d) {
   );
 }
 
+// ---- Staff extras (TABS-SPEC WP3, 2026-10-10) ------------------------------
+// Staff only (the panel's isStaff, from StaffToolsContext, which already
+// excludes Preview as): a sync line with Sync now and a stale note, the
+// QuickBooks connection states (not connected / needs reconnecting / first
+// sync), filter presets from the path (bank/questions|uncategorized|
+// unreconciled) with removable chips, and the deep-link claim for
+// question: / txn: / rownote: / view (month, account) from DeepLink.jsx
+// (LK_*, loaded earlier). Clients see none of it.
+
+// A local copy of app.jsx UNCATEGORIZED_RE, matched on the category only
+// (mapQboToClient puts split_account there). Not BA_UNCAT, which is a null
+// category ("not synced yet").
+const BA_UNCAT_LIKE_RE = /uncategori[sz]ed|ask my accountant|suspense/i;
+const BA_PRESET_LABELS = {
+  uncategorized: "Uncategorized",
+  questions: "Open questions",
+  unreconciled: "Not reconciled",
+};
+// Fallback toasts live in DeepLink.jsx LK_COPY (TABS-SPEC 1.7).
+function BA_lkCopy(key) {
+  return LK_COPY[key];
+}
+
+function BA_ym(d) {
+  return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0");
+}
+function BA_lastMonthYm() {
+  const now = new Date();
+  return BA_ym(new Date(now.getFullYear(), now.getMonth() - 1, 1));
+}
+// "September 2026"
+function BA_monthLabel(ym, withYear) {
+  const [y, m] = String(ym).split("-").map(Number);
+  return new Date(y, m - 1, 1).toLocaleDateString(
+    "en-US",
+    withYear === false ? { month: "long" } : { month: "long", year: "numeric" },
+  );
+}
+// "Sep 15"
+function BA_shortDate(iso) {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return "";
+  return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+}
+// Range key for a month: last month reuses the "Last month" chip.
+function BA_rangeForMonth(ym) {
+  return ym === BA_lastMonthYm() ? "last" : "m:" + ym;
+}
+
 // [from, to] inclusive YYYY-MM-DD bounds for a range key, in local time.
-// null means unbounded on that side.
+// null means unbounded on that side. "m:YYYY-MM" is one calendar month.
 function BA_rangeBounds(key) {
   const now = new Date();
+  const m = /^m:(\d{4})-(\d{2})$/.exec(String(key || ""));
+  if (m) {
+    const y = Number(m[1]);
+    const mo = Number(m[2]) - 1;
+    return [BA_iso(new Date(y, mo, 1)), BA_iso(new Date(y, mo + 1, 0))];
+  }
   if (key === "month") {
     return [BA_iso(new Date(now.getFullYear(), now.getMonth(), 1)), null];
   }
@@ -94,6 +150,70 @@ function BA_syncLine(client) {
   }
   const ago = typeof relTime === "function" ? relTime(client.lastSyncedAt) : null;
   return (ago ? "Last synced " + ago : "Waiting for the first sync") + " · " + cadence;
+}
+
+// Staff: "Basic syncs monthly, on the 15th" (STAFF_planCadence, D25).
+function BA_staffCadence(client) {
+  return STAFF_planCadence(effectivePlan(client));
+}
+
+// Staff Sync now (QboSyncNowButton lives in app.jsx).
+function BA_SyncNow({ client, canSyncNow }) {
+  if (!canSyncNow) return null;
+  return <QboSyncNowButton clientId={client.id} canSyncNow isStaff />;
+}
+
+// Staff sync line: "Last synced 24 days ago · Basic syncs monthly, on the
+// 15th · Sync now". Sample data says so instead of a sync time.
+function BA_StaffSyncLine({ client, isQbo, canSyncNow }) {
+  const cadence = BA_staffCadence(client);
+  const ago = isQbo ? relTime(client.lastSyncedAt) : null;
+  const lead = isQbo ? (ago ? "Last synced " + ago : "Waiting for the first sync") : "Sample data";
+  return (
+    <div className="ba-sync ba-sync-line" data-tour="bank-sync">
+      <span>
+        {lead} · {cadence}
+      </span>
+      {/* Sample data too (WP3 acceptance): with no connection the server's
+          400 gives the staff toast pointing at Client setup. */}
+      <BA_SyncNow client={client} canSyncNow={canSyncNow} />
+    </div>
+  );
+}
+
+// Staff empty states (no synced data): not connected, needs reconnecting,
+// first sync. `conn` is this client's qbo_connections row (null = none).
+function BA_StaffEmpty({ client, conn, onOpenQuickBooks, canSyncNow }) {
+  if (conn === undefined) return <div className="card ba-empty-staff" aria-busy="true" />;
+  const status = conn && conn.status;
+  let title = "QuickBooks isn't connected yet";
+  let body = "Connect this client's QuickBooks to see their bank accounts and transactions here.";
+  let button = "Connect QuickBooks";
+  let firstSync = false;
+  if (status === "error") {
+    title = "QuickBooks needs to be reconnected";
+    body = "The connection stopped working, so these numbers aren't updating. Reconnect it to start syncing again.";
+    button = "Reconnect QuickBooks";
+  } else if (status === "connected") {
+    title = "Getting the first sync ready";
+    body = "Bank accounts will show up here after the first sync finishes.";
+    button = null;
+    firstSync = true;
+  }
+  return (
+    <div className={"card ba-empty-staff" + (status === "error" ? " is-bad" : "")}>
+      <h3 className="card-title">{title}</h3>
+      <p className="muted">{body}</p>
+      <div className="ba-empty-actions">
+        {button && onOpenQuickBooks && (
+          <button type="button" className="btn-primary" onClick={onOpenQuickBooks}>
+            {button}
+          </button>
+        )}
+        {firstSync && <BA_SyncNow client={client} canSyncNow={canSyncNow} />}
+      </div>
+    </div>
+  );
 }
 
 function BA_AccountRow({ account, share, isCard, selected, onSelect }) {
@@ -222,7 +342,19 @@ function BA_CategoryFilter({ options, selected, onChange }) {
 
 const BA_UNCAT = "\u0000uncategorized";
 
-function BA_BankTransactionsPanel({ client, searchTarget, isClientUser }) {
+// Staff-only props (TABS WP3): bankPreset ({filter}), onClearPreset,
+// onOpenQuickBooks, canSyncNow, onOpenReconciliation (BankReconciliationPage:
+// an "unreconciled" link with an account opens its Reconciliation view).
+function BA_BankTransactionsPanel({
+  client,
+  searchTarget,
+  isClientUser,
+  bankPreset,
+  onClearPreset,
+  onOpenQuickBooks,
+  canSyncNow,
+  onOpenReconciliation,
+}) {
   const showToast = useToast();
   const { flashCardId, jumpToCard } = useCardFlash();
   const staffCtx =
@@ -253,6 +385,43 @@ function BA_BankTransactionsPanel({ client, searchTarget, isClientUser }) {
   const [cats, setCats] = React.useState([]);
   const [limit, setLimit] = React.useState(BA_PAGE_SIZE);
   const [pendingJump, setPendingJump] = React.useState(null);
+  // Staff extras. presetMonth comes from a deep-link arrival (?month=),
+  // the filter from the path (bankPreset); clients ignore both.
+  const [presetMonth, setPresetMonth] = React.useState(null);
+  const [pendingReveal, setPendingReveal] = React.useState(null); // { key, domId }
+  const [activeQuestion, setActiveQuestion] = React.useState(null);
+  const [conn, setConn] = React.useState(undefined); // undefined = loading, null = none
+  const presetFilter =
+    isStaff && bankPreset && BA_PRESET_LABELS[bankPreset.filter] ? bankPreset.filter : null;
+
+  // This client's QuickBooks connection, whatever client.dataSource says:
+  // a connection with no synced data never gets mapped, so the panel reads it itself.
+  React.useEffect(() => {
+    if (!isStaff) return undefined;
+    const sb = window.mgbSupabase;
+    if (!sb) {
+      setConn(null);
+      return undefined;
+    }
+    let alive = true;
+    const load = () =>
+      Promise.resolve(
+        sb
+          .from("qbo_connections")
+          .select("client_id, status, connected_at, last_synced_at, last_error")
+          .eq("client_id", client.id)
+          .maybeSingle(),
+      ).then(
+        (r) => alive && setConn((r && r.data) || null),
+        () => alive && setConn(null),
+      );
+    load();
+    window.addEventListener("mgb-qbo-reloaded", load);
+    return () => {
+      alive = false;
+      window.removeEventListener("mgb-qbo-reloaded", load);
+    };
+  }, [isStaff, client.id]);
 
   const allRows = React.useMemo(
     () =>
@@ -308,12 +477,31 @@ function BA_BankTransactionsPanel({ client, searchTarget, isClientUser }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [allRows, client]);
 
+  // Rows carry `cleared` on sample data only; QuickBooks rows don't yet, so
+  // "Not reconciled" falls back to month (+ account) and says so.
+  const hasClearedFlag = allRows.some((t) => typeof t.cleared === "boolean");
+  const tqByKey = tq.byKey || {};
+
+  // A path preset starts from a clean slate (like a search-result jump);
+  // a month from a deep-link arrival is kept.
+  React.useEffect(() => {
+    if (!presetFilter) return;
+    setQuery("");
+    setDirection("all");
+    setCats([]);
+    if (!presetMonth) setRange("all");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [presetFilter]);
+
   const rows = React.useMemo(() => {
     const [from, to] = BA_rangeBounds(range);
     const q = query.trim().toLowerCase();
     const catSet = activeCats.length ? new Set(activeCats) : null;
     return allRows.filter((t) => {
       if (selectedId && t.accountId !== selectedId) return false;
+      if (presetFilter === "uncategorized" && !BA_UNCAT_LIKE_RE.test(String(t.category || ""))) return false;
+      if (presetFilter === "questions" && !(t.txnKey && tqByKey[client.id + "|" + t.txnKey])) return false;
+      if (presetFilter === "unreconciled" && hasClearedFlag && t.cleared !== false) return false;
       if (from && t.date < from) return false;
       if (to && t.date > to) return false;
       if (direction === "in" && !(t.amount > 0)) return false;
@@ -334,11 +522,12 @@ function BA_BankTransactionsPanel({ client, searchTarget, isClientUser }) {
       return true;
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [allRows, selectedId, range, direction, query, catsKey]);
+  }, [allRows, selectedId, range, direction, query, catsKey, presetFilter, tqByKey, hasClearedFlag]);
 
   const moneyIn = rows.reduce((s, t) => s + (t.amount > 0 ? t.amount : 0), 0);
   const moneyOut = rows.reduce((s, t) => s + (t.amount < 0 ? t.amount : 0), 0);
   const filtersOn =
+    !!presetFilter ||
     !!selectedId ||
     !!query.trim() ||
     range !== "all" ||
@@ -347,9 +536,9 @@ function BA_BankTransactionsPanel({ client, searchTarget, isClientUser }) {
 
   // Any filter change starts the list over at the first page.
   React.useEffect(() => {
-    setLimit((l) => (pendingJump ? l : BA_PAGE_SIZE));
+    setLimit((l) => (pendingJump || pendingReveal ? l : BA_PAGE_SIZE));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedId, range, direction, query, catsKey]);
+  }, [selectedId, range, direction, query, catsKey, presetFilter]);
 
   // Search-result deep link: filter to that account, clear the other filters,
   // page far enough to include the row, then scroll to it and flash it.
@@ -377,6 +566,159 @@ function BA_BankTransactionsPanel({ client, searchTarget, isClientUser }) {
     setPendingJump(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pendingJump, selectedId, limit]);
+
+  // ---- Deep-link arrival (staff): question: / txn: / rownote: / view ------
+  // Show one row: select its account, clear the filters (keep an arrival
+  // month that contains it), page far enough, then reveal it.
+  const revealRow = (t, month) => {
+    const idx = allRows
+      .filter((x) => x.accountId === t.accountId)
+      .findIndex((x) => x.domId === t.domId);
+    setSelectedId(t.accountId);
+    setQuery("");
+    setDirection("all");
+    setCats([]);
+    if (!(month && String(t.date || "").slice(0, 7) === month)) {
+      setPresetMonth(null);
+      setRange("all");
+    }
+    setLimit(Math.max(BA_PAGE_SIZE, idx + 1));
+    setPendingReveal({ key: t.txnKey ? "txn:" + t.txnKey : null, domId: t.domId });
+  };
+  const arriveRef = React.useRef(null);
+  arriveRef.current = (a) => {
+    if (!isStaff || !a) return;
+    const sb = window.mgbSupabase;
+    const month = a.month && /^\d{4}-\d{2}$/.test(a.month) ? a.month : null;
+    if (month) {
+      setPresetMonth(month);
+      setRange(BA_rangeForMonth(month));
+    }
+    if (a.account) {
+      const acct = accounts.find((x) => String(x.id) === String(a.account));
+      if (!acct) {
+        showToast(BA_lkCopy("accountMissing"));
+      } else {
+        const filt = a.sub && BA_PRESET_LABELS[a.sub] ? a.sub : presetFilter;
+        // Pro: a "not reconciled" link opens that account's Reconciliation.
+        if (filt === "unreconciled" && typeof onOpenReconciliation === "function") {
+          onOpenReconciliation(acct.id);
+          return;
+        }
+        setSelectedId(acct.id);
+      }
+    }
+    if (a.kind === "txn") {
+      const t = allRows.find((x) => x.txnKey && x.txnKey === a.id);
+      if (t) revealRow(t, month);
+      else showToast(BA_lkCopy("txnOutside"));
+    } else if (a.kind === "rownote") {
+      if (!sb) return;
+      Promise.resolve(
+        sb
+          .from("client_internal_notes")
+          .select("id, target_type, target_key")
+          .eq("id", a.id)
+          .eq("client_id", client.id)
+          .maybeSingle(),
+      ).then(
+        (r) => {
+          const key = r && r.data && r.data.target_key;
+          const t = key
+            ? allRows.find((x) => `${x.accountName || ""}|${x.date}|${x.description}|${x.amount}` === key)
+            : null;
+          if (t) revealRow(t, month);
+          else showToast(BA_lkCopy("txnOutside"));
+        },
+        () => showToast(BA_lkCopy("txnOutside")),
+      );
+    } else if (a.kind === "question") {
+      const handle = (q) => {
+        if (!q) {
+          showToast(BA_lkCopy("qMissing"));
+          return;
+        }
+        const t = q.txn_key ? allRows.find((x) => x.txnKey === q.txn_key) : null;
+        if (q.status !== "open") {
+          showToast(BA_lkCopy("qAnswered"));
+          if (t) revealRow(t, month);
+          return;
+        }
+        if (t) revealRow(t, month);
+        else showToast(BA_lkCopy("qOld"));
+        setActiveQuestion(q);
+      };
+      const known = (tq.rows || []).find((q) => String(q.id) === String(a.id));
+      if (known) handle(known);
+      else if (sb) {
+        Promise.resolve(
+          sb
+            .from("transaction_questions")
+            .select(TQ_COLS)
+            .eq("id", a.id)
+            .eq("client_id", client.id)
+            .maybeSingle(),
+        ).then(
+          (r) => handle((r && r.data) || null),
+          () => handle(null),
+        );
+      }
+    }
+  };
+  LK_useArrival(
+    { clientId: client.id, tab: "bank", kinds: ["question", "txn", "rownote", "view"], staff: isStaff },
+    !tq.loading,
+    (a) => arriveRef.current && arriveRef.current(a),
+  );
+  React.useEffect(() => {
+    if (!pendingReveal) return;
+    const el =
+      (pendingReveal.key && LK_find(pendingReveal.key)) ||
+      document.getElementById(pendingReveal.domId);
+    if (el) LK_reveal(el, { row: true });
+    else jumpToCard(pendingReveal.domId, pendingReveal.domId);
+    setPendingReveal(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingReveal, selectedId, limit, range]);
+
+  // Staff notes under the sync line and the filters.
+  const todayIso = BA_iso(new Date());
+  const viewedYm = presetMonth || (range === "last" ? BA_lastMonthYm() : BA_ym(new Date()));
+  const viewedEnd = (() => {
+    const [vy, vm] = viewedYm.split("-").map(Number);
+    const e = BA_iso(new Date(vy, vm, 0));
+    return e < todayIso ? e : todayIso;
+  })();
+  const lastSyncIso = client.lastSyncedAt || (conn && conn.last_synced_at) || null;
+  const lastSyncDay = lastSyncIso && !isNaN(new Date(lastSyncIso).getTime()) ? BA_iso(new Date(lastSyncIso)) : null;
+  const showStale = isStaff && isQbo && !!lastSyncDay && lastSyncDay < viewedEnd;
+  const showReconnect = isStaff && isQbo && !!conn && conn.status === "error";
+  const oldestDate = allRows.length ? allRows[allRows.length - 1].date : null;
+  const show90 = isStaff && isQbo && !!presetMonth && !!oldestDate && presetMonth + "-01" < oldestDate;
+  // Open questions whose transaction isn't in Bank's list: older than the
+  // window, or recent but missing (voided or deleted in QuickBooks). Both are
+  // listed under the table so the staffer can still reach them.
+  const hiddenQs =
+    isStaff && presetFilter === "questions"
+      ? (tq.rows || []).filter((q) => q.status === "open" && !allRows.some((t) => t.txnKey && t.txnKey === q.txn_key))
+      : [];
+  const isOlderQ = (q) => !oldestDate || (!!q.txn_date && q.txn_date < oldestDate);
+  const olderQIds = hiddenQs.filter(isOlderQ).map((q) => q.id);
+  const missingQIds = hiddenQs.filter((q) => !isOlderQ(q)).map((q) => q.id);
+  const chips = [];
+  if (presetFilter) {
+    chips.push({ key: "f", label: BA_PRESET_LABELS[presetFilter], onRemove: () => onClearPreset && onClearPreset() });
+  }
+  if (isStaff && presetMonth) {
+    chips.push({
+      key: "m",
+      label: BA_monthLabel(presetMonth),
+      onRemove: () => {
+        setPresetMonth(null);
+        setRange("all");
+      },
+    });
+  }
 
   const exportCSV = () => {
     const header = [
@@ -415,7 +757,15 @@ function BA_BankTransactionsPanel({ client, searchTarget, isClientUser }) {
     );
   };
 
-  // Every hook has run, so this early return is safe.
+  // Every hook has run, so these early returns are safe.
+  // Staff on a real client with nothing synced: why, and what to do (1.6).
+  // Test clients keep their sample data; a synced client with no bank
+  // accounts gets the plain card below.
+  if (isStaff && !isQbo && client.testOnly === false) {
+    return (
+      <BA_StaffEmpty client={client} conn={conn} onOpenQuickBooks={onOpenQuickBooks} canSyncNow={canSyncNow} />
+    );
+  }
   if (!accounts.length) {
     return (
       <div className="card">
@@ -433,6 +783,19 @@ function BA_BankTransactionsPanel({ client, searchTarget, isClientUser }) {
 
   return (
     <div className="ba-page">
+      {showReconnect && (
+        <div className="ba-reconnect" role="alert">
+          <span>
+            QuickBooks needs to be reconnected. These numbers stopped updating on{" "}
+            {BA_shortDate(conn.last_synced_at || client.lastSyncedAt)}.
+          </span>
+          {onOpenQuickBooks && (
+            <button type="button" className="btn-primary" onClick={onOpenQuickBooks}>
+              Reconnect QuickBooks
+            </button>
+          )}
+        </div>
+      )}
       <div className="kpi-grid ba-kpis">
         <div className="card kpi-card">
           <span className="kpi-label">Cash on hand</span>
@@ -477,7 +840,11 @@ function BA_BankTransactionsPanel({ client, searchTarget, isClientUser }) {
               All accounts
             </button>
           </div>
-          <p className="ba-sync">{BA_syncLine(client)}</p>
+          {isStaff ? (
+            <BA_StaffSyncLine client={client} isQbo={isQbo} canSyncNow={canSyncNow} />
+          ) : (
+            <p className="ba-sync">{BA_syncLine(client)}</p>
+          )}
           <BA_AccountGroup
             label="Cash"
             accounts={cashAccts}
@@ -527,11 +894,19 @@ function BA_BankTransactionsPanel({ client, searchTarget, isClientUser }) {
                   type="button"
                   className={"view-toggle-btn" + (range === r.key ? " active" : "")}
                   aria-pressed={range === r.key}
-                  onClick={() => setRange(r.key)}
+                  onClick={() => {
+                    setRange(r.key);
+                    setPresetMonth(null);
+                  }}
                 >
                   {r.label}
                 </button>
               ))}
+              {/^m:/.test(range) && (
+                <button type="button" className="view-toggle-btn active" aria-pressed="true">
+                  {BA_monthLabel(range.slice(2))}
+                </button>
+              )}
             </div>
             <div className="view-toggle" role="group" aria-label="Money in or out">
               {BA_DIRECTIONS.map((d) => (
@@ -550,6 +925,38 @@ function BA_BankTransactionsPanel({ client, searchTarget, isClientUser }) {
               <BA_CategoryFilter options={catOptions} selected={activeCats} onChange={setCats} />
             )}
           </div>
+
+          {showStale && (
+            <p className="ba-stale-note">
+              These numbers stop at {BA_shortDate(lastSyncIso)}. Sync now to see the rest of{" "}
+              {BA_monthLabel(viewedYm, false)}.
+            </p>
+          )}
+          {chips.length > 0 && (
+            <div className="ba-chips">
+              {chips.map((c) => (
+                <span key={c.key} className={"ba-chip" + (c.key === "m" ? " is-month" : "")}>
+                  <span className="ba-chip-label">{c.label}</span>
+                  <button
+                    type="button"
+                    className="ba-chip-x"
+                    aria-label={"Remove filter: " + c.label}
+                    onClick={c.onRemove}
+                  >
+                    <span aria-hidden="true">×</span>
+                  </button>
+                </span>
+              ))}
+            </div>
+          )}
+          {presetFilter === "unreconciled" && !hasClearedFlag && (
+            <p className="ba-preset-note">Bank can't tell which rows are reconciled. Check them in QuickBooks.</p>
+          )}
+          {show90 && (
+            <p className="ba-preset-note">
+              Bank shows the last 90 days. Check QuickBooks for {BA_monthLabel(presetMonth, false)}.
+            </p>
+          )}
 
           <div className="ba-totals" aria-live="polite">
             <span>
@@ -596,6 +1003,7 @@ function BA_BankTransactionsPanel({ client, searchTarget, isClientUser }) {
                     <tr
                       key={t.domId}
                       id={t.domId}
+                      data-lk={t.txnKey ? "txn:" + t.txnKey : undefined}
                       className={flashCardId === t.domId ? "row-flash" : ""}
                     >
                       <td data-label="Date">{fmtDate(t.date)}</td>
@@ -663,6 +1071,33 @@ function BA_BankTransactionsPanel({ client, searchTarget, isClientUser }) {
           )}
         </div>
       </div>
+      {hiddenQs.length > 0 && (
+        <div className="ba-older-qs">
+          {olderQIds.length > 0 && (
+            <p className="ba-preset-note">
+              {olderQIds.length === 1
+                ? "1 more open question is on an older transaction."
+                : `${olderQIds.length} more open questions are on older transactions.`}
+            </p>
+          )}
+          {missingQIds.length > 0 && (
+            <p className="ba-preset-note">
+              {missingQIds.length === 1
+                ? "1 open question is on a transaction Bank isn't showing."
+                : `${missingQIds.length} open questions are on transactions Bank isn't showing.`}
+            </p>
+          )}
+          <TQ_OpenList client={client} filterIds={olderQIds.concat(missingQIds)} hideEmpty />
+        </div>
+      )}
+      {activeQuestion && (
+        <TQ_ResolveModal
+          question={activeQuestion}
+          client={client}
+          canResolve
+          onClose={() => setActiveQuestion(null)}
+        />
+      )}
     </div>
   );
 }

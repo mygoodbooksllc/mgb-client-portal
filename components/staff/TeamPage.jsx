@@ -790,7 +790,8 @@ function TP_MyBackupsCard({ staffUser, clients }) {
       alive = false;
     };
   }, [ids]);
-  const overview = (id) => "#/client/" + encodeURIComponent(id) + "/overview";
+  // Bare client hash: App's landing rule (last tab this session, else Overview).
+  const overview = (id) => "#/client/" + encodeURIComponent(id);
   return (
     <section className="card tp-people-card" aria-labelledby="tp-backups-title">
       <h3 className="card-title" id="tp-backups-title">My clients' backups</h3>
@@ -815,7 +816,7 @@ function TP_MyBackupsCard({ staffUser, clients }) {
                 ) : (
                   <span className="tp-backup-who">
                     <span className="pill warm">No backup set</span>
-                    <a className="link-btn" href={overview(c.id)}>
+                    <a className="link-btn" href={overview(c.id) + "/overview"}>
                       Set a backup
                     </a>
                   </span>
@@ -1004,6 +1005,15 @@ function TP_TeamPage({ clients }) {
       window.scrollTo({ top: 0 });
     } catch (e) {}
   }, [view]);
+
+  // Deep link #/team/hours?client=<id> opens that client's view.
+  LK_useArrival({ place: "team", tab: "hours", staff: true }, !!data, (a) => {
+    if (!a.client) return;
+    const rows = TP_qClientRows({ clientRows: data.clientRows, hours: qHours, range, today }).rows;
+    const hit = rows.find((r) => String(r.id) === String(a.client));
+    if (hit) setView({ type: "client", key: hit.id });
+    else LK_toast(LK_COPY.clientMissing);
+  });
 
   const qTotal = qHours.byClient.reduce((n, r) => n + Number(r.total_minutes || 0), 0);
   const appTotal = data ? data.appInPeriod.reduce((n, e) => n + e.minutes, 0) : 0;

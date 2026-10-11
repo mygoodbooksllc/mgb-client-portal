@@ -126,7 +126,9 @@ function CC_Badge({ row, compact }) {
   );
 }
 
-function CC_CheckList({ row }) {
+// `extra` (optional): key -> node shown under a failing check (the client
+// card's Bank links).
+function CC_CheckList({ row, extra }) {
   if (!row) return null;
   const checks = Array.isArray(row.checks) ? row.checks : [];
   return (
@@ -139,6 +141,7 @@ function CC_CheckList({ row }) {
           <span>
             {c.label}
             {c.ok === null && <span className="cc-sub"> · not enough data yet</span>}
+            {c.ok === false && extra && extra[c.key] ? <span className="cc-check-extra">{extra[c.key]}</span> : null}
           </span>
         </li>
       ))}
@@ -146,13 +149,27 @@ function CC_CheckList({ row }) {
   );
 }
 
-function CC_StaleList({ stale }) {
+// A deep link built with DeepLink.jsx's LK_href.
+// `t` = { clientId, tab, sub, month, account }.
+function CC_link(t, text) {
+  return (
+    <a className="cc-link" href={LK_href(t)}>
+      {text}
+    </a>
+  );
+}
+
+function CC_StaleList({ stale, clientId }) {
   if (!stale || !stale.length) return null;
   return (
     <ul className="cc-stale-list">
       {stale.map((a) => (
         <li key={a.qbo_id}>
-          <span>{a.name || a.qbo_id}</span>
+          <span>
+            {clientId
+              ? CC_link({ clientId, tab: "bank", account: a.qbo_id }, (a.name || a.qbo_id) + " →")
+              : a.name || a.qbo_id}
+          </span>
           <span className="cc-sub">
             last transaction {CC_shortDate(a.last_txn_date)} ({a.idle} days)
           </span>
@@ -162,24 +179,141 @@ function CC_StaleList({ stale }) {
   );
 }
 
-// Client overview card: the latest completed month's close status with its
-// reasons and checks, plus any stale bank or card accounts today.
-function CC_ClientCloseCard({ client }) {
+// "YYYY-MM" or "YYYY-MM-DD" -> "YYYY-MM-01"; anything else -> null.
+function CC_normPeriod(p) {
+  const m = /^(\d{4})-(\d{2})/.exec(String(p || ""));
+  return m ? m[1] + "-" + m[2] + "-01" : null;
+}
+
+// Client close card: one completed month's close status with its reasons and
+// checks, plus any stale bank or card accounts today. Optional (all off by
+// default, so the Overview mount is unchanged):
+//   period        "YYYY-MM" or "YYYY-MM-01" (default last month)
+//   showSyncLine  "From QuickBooks {relTime} · Sync now" (staff Sync now)
+//   linkable      failing checks link to Bank, filtered (DeepLink.jsx)
+function CC_ClientCloseCard({ client, period, showSyncLine, linkable }) {
   const today = useMemo(() => new Date(), []);
-  const lastMonth = useMemo(() => {
+  // Staff Sync now only in a real staff session (StaffToolsContext `staff`
+  // is false while previewing a client user), per D3.
+  const staffCtx = useContext(StaffToolsContext);
+  const canStaffSync = !!(staffCtx && staffCtx.staff);
+  const defaultMonth = useMemo(() => {
     const d = new Date(today.getFullYear(), today.getMonth() - 1, 1);
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-01`;
   }, [today]);
-  const cc = CC_useCloseChecks([lastMonth]);
+  const month = CC_normPeriod(period) || defaultMonth;
+  const cc = CC_useCloseChecks([month]);
+  const row = client ? cc.checks[client.id + "|" + month] : null;
+  const checkFails = (key) =>
+    !!row && Array.isArray(row.checks) && row.checks.some((c) => c.key === key && c.ok === false);
+  const reconFails = !!linkable && checkFails("reconciled");
+  // Per-account "not reconciled" list, from the table the check reads (the
+  // check's own `accounts` text is one joined string, so it isn't parsed).
+  const [recon, setRecon] = useState([]);
+  useEffect(() => {
+    if (!reconFails || !client) {
+      setRecon([]);
+      return undefined;
+    }
+    const sb = window.mgbSupabase;
+    if (!sb) return undefined;
+    let alive = true;
+    Promise.resolve(
+      sb
+        .from("qbo_period_balances")
+        .select("account_qbo_id, account_name, kind, unreconciled_through")
+        .eq("client_id", client.id)
+        .eq("month", month)
+        .in("kind", ["bank", "credit_card"])
+        .gt("unreconciled_through", 0),
+    ).then(
+      (r) => alive && setRecon((r && r.data) || []),
+      () => alive && setRecon([]),
+    );
+    return () => {
+      alive = false;
+    };
+  }, [reconFails, client && client.id, month]);
+
   if (!client) return null;
-  const row = cc.checks[client.id + "|" + lastMonth];
   const stale = CC_staleBanks(cc.accounts[client.id], cc.staleDays, today);
-  // Nothing to say for a client with no QuickBooks close data at all.
-  if (cc.loading || (!row && !stale.length)) return null;
-  const monthName = new Date(today.getFullYear(), today.getMonth() - 1, 1).toLocaleDateString("en-US", {
+  // Nothing to say for a client with no QuickBooks close data at all, except
+  // staff Sync now on the Close tab (not checked yet, needs reconnecting:
+  // the page's own line says "Sync now", so the control must be there).
+  if (cc.loading) return null;
+  if (!row && !stale.length) {
+    if (!showSyncLine || !canStaffSync) return null;
+    return (
+      <div className="card-subtitle cc-asof cc-sync-line">
+        <QboSyncNowButton clientId={client.id} canSyncNow isStaff />
+      </div>
+    );
+  }
+  const [py, pm] = month.split("-").map(Number);
+  const monthName = new Date(py, pm - 1, 1).toLocaleDateString("en-US", {
     month: "long",
     year: "numeric",
   });
+  const ym = month.slice(0, 7);
+
+  let extra = null;
+  if (linkable && row) {
+    extra = {};
+    if (checkFails("uncategorized")) {
+      extra.uncategorized = (
+        <>
+          {CC_link({ clientId: client.id, tab: "bank", sub: "uncategorized", month: ym }, "Review uncategorized transactions →")}
+          <span className="cc-sub cc-link-sub">
+            QuickBooks counts all transactions, not only bank ones, so Bank may show fewer.
+          </span>
+        </>
+      );
+    }
+    if (reconFails && recon.length) {
+      extra.reconciled = (
+        <span className="cc-link-list">
+          {recon.map((a) => (
+            <span key={a.account_qbo_id}>
+              {CC_link(
+                { clientId: client.id, tab: "bank", sub: "unreconciled", month: ym, account: a.account_qbo_id },
+                (a.account_name || a.account_qbo_id) + " →",
+              )}
+            </span>
+          ))}
+        </span>
+      );
+    }
+    if (checkFails("bank_active")) {
+      // Same rule as the SQL: last transaction before month end minus N days.
+      const cut = new Date(py, pm, 0 - cc.staleDays);
+      const cutIso = `${cut.getFullYear()}-${String(cut.getMonth() + 1).padStart(2, "0")}-${String(cut.getDate()).padStart(2, "0")}`;
+      const idle = (cc.accounts[client.id] || []).filter(
+        (a) => (a.kind === "bank" || a.kind === "credit_card") && a.last_txn_date && String(a.last_txn_date).slice(0, 10) < cutIso,
+      );
+      extra.bank_active = (
+        <>
+          {idle.length > 0 && (
+            <span className="cc-link-list">
+              {idle.map((a) => (
+                <span key={a.qbo_id}>
+                  {CC_link({ clientId: client.id, tab: "bank", account: a.qbo_id }, (a.name || a.qbo_id) + " →")}
+                </span>
+              ))}
+            </span>
+          )}
+          <span className="cc-sub cc-link-sub">No new transactions. The bank feed may be disconnected in QuickBooks.</span>
+        </>
+      );
+    }
+    if (checkFails("undeposited")) {
+      extra.undeposited = <span className="cc-link-text">Fix in QuickBooks</span>;
+    }
+  }
+
+  const asOf = row && (row.data_as_of || row.evaluated_at);
+  const asOfText = asOf
+    ? relTime(asOf)
+    : null;
   return (
     <div className={"card cc-card" + (row && row.status === "blocked" ? " card-urgent" : "")}>
       <div className="cc-head">
@@ -193,19 +327,32 @@ function CC_ClientCloseCard({ client }) {
           ))}
         </ul>
       )}
-      {row && row.status !== "no_data" && <CC_CheckList row={row} />}
+      {row && row.status !== "no_data" && <CC_CheckList row={row} extra={extra} />}
       {stale.length > 0 && (
         <div className="cc-stale">
           <p className="cc-stale-title">
             Bank feed may have stopped (no transactions in over {cc.staleDays} days)
           </p>
-          <CC_StaleList stale={stale} />
+          <CC_StaleList stale={stale} clientId={linkable ? client.id : null} />
         </div>
       )}
-      {row && row.data_as_of && (
-        <p className="card-subtitle cc-asof">
-          From QuickBooks {typeof relTime === "function" ? relTime(row.data_as_of) : new Date(row.data_as_of).toLocaleString()}
-        </p>
+      {showSyncLine && row ? (
+        <div className="card-subtitle cc-asof cc-sync-line">
+          <span>From QuickBooks{asOfText ? " " + asOfText : ""}</span>
+          {canStaffSync && (
+            <>
+              <span aria-hidden="true"> · </span>
+              <QboSyncNowButton clientId={client.id} canSyncNow isStaff />
+            </>
+          )}
+        </div>
+      ) : (
+        row &&
+        row.data_as_of && (
+          <p className="card-subtitle cc-asof">
+            From QuickBooks {relTime(row.data_as_of)}
+          </p>
+        )
       )}
     </div>
   );

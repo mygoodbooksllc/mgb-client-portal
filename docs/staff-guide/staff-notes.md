@@ -26,7 +26,7 @@ On each report card on the **Reports** page, under **Download PDF**, there's a *
 2. Click **Mark sent to client**. A **Sent {date}** pill appears; hover it to see the full history.
 3. If it was already sent, you'll be asked to confirm another send (**Mark sent again**).
 
-> **Mark sent to client only records the send. Nothing is emailed.** It feeds the **Sent to the client** card and the Activity timeline on Client overview.
+> **Mark sent to client only records the send. Nothing is emailed.** It feeds the **Sent to the client** panel on the client's **Close** tab and the Activity timeline on the Client overview. When the report is the Profit & Loss Statement for Last Closed Month (or the Board packet for the month being closed), it also ticks **Reports sent to the client** on the Close tab. See [What's on a client's Close tab?](#/help/client-close).
 
 ### Troubleshooting
 

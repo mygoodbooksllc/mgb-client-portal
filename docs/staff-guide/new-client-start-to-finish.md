@@ -40,7 +40,7 @@ To change either later, click **Edit** on the client's row, change it, then **Sa
 - **Plan**: **Basic** or **Pro**. Basic is free with 1 login included; each extra login is $20/mo. Pro is $100/mo plus $20/mo per login. Both are on top of the milestone fee. The plan decides which pages the client sees and how often QuickBooks syncs (Basic monthly, Pro every 15 minutes).
 - **Payroll add-on**: tick it only if the client uses MyGoodBooks payroll. Only then do they get a **Payroll** tab.
 
-You can change both later with **Edit** on the client's row. See [Where are a client's Settings, Plan, Manage access and Client details?](#/help/client-settings).
+You can change both later with **Edit** on the client's row. See [Where are a client's Client setup (staff) and Settings (client)?](#/help/client-settings).
 
 ### 4. Add the client's portal logins
 
@@ -70,7 +70,7 @@ Tip: if you can, connect QuickBooks and run the first sync (steps 5 and 6) befor
 
 Staff start the connection. There is no Connect button on the client's side.
 
-1. Open the client, click **Settings** at the right end of the tab row, then **Client settings → Client details → Open**, then the **QuickBooks** tab.
+1. Open the client, click **Client setup** at the right end of the tab row, then **Access and details → Client details → Open**, then the **QuickBooks** tab.
 2. Click **Connect QuickBooks**. Intuit opens in a new browser tab.
 3. Sign in to Intuit with a QuickBooks login that can manage this client's company, and pick the company. If you don't have one, do this on a call with the client so they can sign in.
 4. Approve the connection. The tab shows **QuickBooks connected** and *You can close this tab and go back to MyGoodBooks.*
@@ -83,7 +83,7 @@ If the Intuit tab says **Connection cancelled**, **Link expired** or **Couldn't 
 ### 6. First sync, Onboarding and folders
 
 - **First sync**: a newly connected client syncs on its own within a few minutes, whatever their plan. To do it now, click **Sync now** on the same QuickBooks tab. You'll see *Synced {n} records from QuickBooks. Reload to see the new numbers.* Reload the page. Until the first sync, the client's pages have little or no data.
-- **Onboarding**: the client's **Client overview** has an **Onboarding** checklist. With the default steps, **QuickBooks connected** ticks itself as soon as the connection is saved (reload if it hasn't yet), and **First close done** ticks itself when a month is marked done on Work › Close. Tick the others (*Agreement signed*, *Bank feeds added*, *Documents received*) by hand as you finish them. Admins may have changed the default steps. See [How does client onboarding work?](#/help/onboarding).
+- **Onboarding**: admins see an **Onboarding** checklist in **Billing and time** at the bottom of the client's **Client overview**. With the default steps, **QuickBooks connected** ticks itself as soon as the connection is saved (reload if it hasn't yet), and **First close done** ticks itself when a month is marked done, on Work › Close or on the client's Close tab. Tick the others (*Agreement signed*, *Bank feeds added*, *Documents received*) by hand as you finish them. Admins may have changed the default steps. See [How does client onboarding work?](#/help/onboarding).
 - **Folders**: every new client already has five folders: **Bank statements**, **Financial statements**, **Tax**, **Receipts** and **Payroll**. See [How do I add, file, hide or delete a client's documents?](#/help/add-documents).
 
 ### 7. What the client sees the first time

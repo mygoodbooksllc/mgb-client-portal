@@ -11,7 +11,7 @@ Two admin pages under **Settings › Firm settings › Insight and records**, ne
 
 Counts come straight from the database for the range you pick (7, 30 or 90 days, or all time), so the numbers are exact.
 
-- **Most-used pages** ranks every page and tab (for example **Team › Performance**), with the staff and client split.
+- **Most-used pages** ranks every page and tab (for example **Team › Performance**), with the staff and client split. A client's **Close** tab shows as **Close**. From Oct 10, 2026, coming back to a client opens the tab you left, so Overview views drop from that day and Close views start then. **Client view menu opened** under **Actions** counts how often staff open the Client view menu.
 - **Trend** shows the last eight weeks of page views and how many different people were in each week.
 - **Active people** shows how many staff and clients signed in over the last 7 and 30 days, then everyone by last seen. **Quiet clients** lists client organizations with no sign-in for 30 days or more, or none ever. That's a good list to nudge.
 - **Actions** counts things people did rather than pages they opened: search opened with **Ctrl+K**, guide searches, guide searches that found nothing (the queries are listed so you can add an article), **Help for this page**, tours finished or skipped, and **Client ? menu clicks** (what clients pick from the **?** in their top bar: the tours, Messages, Help and settings, Contact support; previews don't count).
@@ -22,7 +22,7 @@ Counts come straight from the database for the range you pick (7, 30 or 90 days,
 ### Developer tools
 
 - **Feature flags** are per-browser testing switches: force every client to Pro, verbose console logging, a simulated slow network, and **Show unreleased features** (currently the **Install app** prompt). Nothing here changes anything for anyone else.
-- **Reset local state** clears this browser's saved layouts, theme and other per-browser hints. Feature flags stay. Tours and Tips while you learn are saved to your account, so it doesn't reset them.
+- **Reset local state** clears this browser's saved layouts, theme and other per-browser hints. It also forgets the last tab you used on each client, any link waiting to open, and which Onboarding cards you had open. Feature flags stay. Tours and Tips while you learn are saved to your account, so it doesn't reset them.
 - **Scheduled jobs** lists every automatic job (email outbox, digest, QuickBooks sync, health checks, chasers) with its schedule, last run and result. **Run now** starts one immediately. A red **failed** means the last run errored; **Run now** and read the message.
 - **Recent errors** are errors the app caught in someone's browser: when, who, which page, app version and the message. Click one for the technical detail. Send that to whoever is fixing the app.
 - **Send me a test email** sends a short email to your own address so you can confirm the firm's sender works.

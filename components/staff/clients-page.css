@@ -58,14 +58,122 @@
   font-weight: 600;
 }
 
-/* ---- Tab row extras (the row itself is staff-nav.css). A client can have
-   eleven tabs; on desktop they wrap onto a second line rather than scroll
-   out of sight with no scrollbar to say so. */
-@media (min-width: 761px) {
-  .cl-tabs .nav-tabs {
-    flex-wrap: wrap;
-    overflow: visible;
-  }
+/* ---- Tab row extras (the row itself is staff-nav.css). One fixed row of
+   seven or eight tabs (in-client tabs redesign 2026-10-10), then the Client
+   view menu and the Client setup gear, on one line at 1024px and up. Below
+   that the tabs scroll sideways (the active tab scrolls into view) and the
+   menu and gear stay put. */
+.cl-tabs {
+  display: flex;
+}
+.cl-tabs .nav-tabs {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+/* Slightly tighter tabs than the place rows so an admin's eight tabs, the
+   Client view menu and the gear fit on one line at 1280px. */
+.cl-tabs .nav-tab {
+  padding: 8px 10px;
+  gap: 5px;
+}
+.cl-clientview,
+.cl-tabs .nav-tabs-right {
+  flex: 0 0 auto;
+}
+.cl-tabs .nav-tabs-right {
+  margin-left: 0;
+}
+/* 761-1279px (CL_useHeaderToolsSlot): the Client view menu and the gear sit
+   in the page header, right of the title, so all the tabs show. */
+.cl-header-tools {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.cl-header-tools:empty {
+  display: none;
+}
+.cl-header-tools .nav-tabs-right {
+  display: flex;
+  align-items: center;
+}
+.cl-clientview-btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 5px 10px 5px 12px;
+  font-family: var(--font-body);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-muted);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.cl-clientview-btn:hover,
+.cl-clientview-btn.open {
+  color: var(--text);
+  border-color: var(--gold);
+}
+.cl-clientview-btn.is-current {
+  color: var(--gold-deep);
+  border-color: var(--gold);
+  background: var(--accent-soft);
+}
+.cl-clientview-btn:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 2px;
+}
+.cl-clientview-short {
+  display: none;
+}
+.cl-clientview-menu {
+  min-width: 240px;
+}
+.cl-clientview-head {
+  padding: 6px 10px 4px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.cl-clientview-item {
+  align-items: center;
+}
+.cl-clientview-item.is-current .cl-viewas-name {
+  font-weight: 700;
+}
+.cl-clientview-wait {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--gold-deep);
+}
+.cl-clientview-check {
+  color: var(--gold-deep);
+  font-weight: 700;
+}
+.cl-clientview-sep {
+  height: 1px;
+  margin: 6px 4px;
+  background: var(--border);
+}
+.cl-clientview-menu .cl-viewas-item[disabled] {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+.cl-clientview-menu .cl-viewas-item[disabled]:hover {
+  background: transparent;
 }
 .cl-settings-btn {
   position: relative;
@@ -443,6 +551,32 @@
   .cl-viewas-menu {
     right: auto;
     left: 0;
+  }
+  /* The tab row on a phone: Client view keeps its words (with a page open
+     the aria-label names it), the gear is icon only with a 44px target, and
+     the menu opens leftward so the page never scrolls sideways. */
+  .cl-clientview-full {
+    display: none;
+  }
+  .cl-clientview-short {
+    display: inline;
+  }
+  .cl-clientview .cl-viewas-menu {
+    left: auto;
+    right: 0;
+    max-width: calc(100vw - 32px);
+  }
+  .cl-tabs .cl-settings-label {
+    display: none;
+  }
+  .cl-tabs .cl-settings-btn,
+  .cl-clientview-btn {
+    min-height: 44px;
+  }
+  .cl-tabs .cl-settings-btn {
+    min-width: 44px;
+    justify-content: center;
+    padding: 0 10px;
   }
 }
 

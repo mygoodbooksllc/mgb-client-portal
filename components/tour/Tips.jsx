@@ -221,17 +221,19 @@ const TIPS_CATALOG = [
   {
     id: "ov-close-checklist",
     roles: "all",
-    match: (r) => r.client && r.page === "client-overview",
-    target: "ov-close",
+    // On the client's Close tab (the checklist left the Overview 2026-10-10).
+    // The id stays so a tip already seen stays seen.
+    match: (r) => r.client && r.page === "client-close",
+    target: "close-steps",
     part: ".close-item", // the first step's checkbox and name, not the whole card
     snug: true,
-    text: "Tick each close step as you finish it; it records who and when. This checklist and Work › Close are separate and don't update each other.",
-    slug: "month-end-close",
+    text: "Tick each close step as you finish it; it records who and when. Your first tick sets the month to In progress. Done is always your click, and it emails the client.",
+    slug: "client-close",
   },
   {
     id: "ov-doc-requests",
     roles: "all",
-    match: (r) => r.client && (r.page === "client-overview" || r.page === "documents"),
+    match: (r) => r.client && r.page === "documents",
     target: "doc-requests",
     part: "h3",
     text: "The client sees these on their Documents page and uploads straight into them. Files go to the firm's Google Drive; Mark received closes one.",
@@ -280,15 +282,16 @@ const TIPS_CATALOG = [
     target: ["tb-sync", "sync"],
     // Starts with what it points at: the card hangs below the header band,
     // a way down from the pill.
-    text: "The sync pill: Basic clients sync monthly and Pro every 15 minutes. Click it to Sync now after you change something in QuickBooks.",
+    text: "The sync pill: QuickBooks syncs on the plan's schedule (Basic monthly, Pro every 15 minutes). Staff can click it to Sync now on any plan after changing something in QuickBooks.",
     slug: "quickbooks-connection",
   },
   {
     id: "client-view-as",
     roles: "all",
     match: (r) => r.client,
+    // The label inside the Client view button, there while the menu is closed.
     target: "client-view-as",
-    text: "View as client shows these pages exactly as one of the client's people sees them. Nothing changes for them; Exit preview brings you back.",
+    text: "Client view shows the client's own pages. View as client, at the bottom of it, shows them exactly as one of the client's people sees them. Nothing changes for them; Exit preview brings you back.",
     slug: "preview-as",
   },
   {

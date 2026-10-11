@@ -36,4 +36,6 @@ Under **Client exceptions**, pick a client and a deadline, then choose **Skip fo
 
 Admins see **+ Add deadline**, **Edit** and **Turn off** under **Deadline rules**. Pick how often (every year, quarter or month) and the due date. Say "verify" in the description. Deadlines are never deleted: **Turn off** hides one and **Turn on** brings it back.
 
+Links from Today and from the client's Overview open Deadlines at the exact deadline (it's highlighted). The **Key dates and coverage** title on a client's Overview opens Deadlines for just that client, with a chip showing the client's name. Click the **×** on the chip to see everyone's deadlines again.
+
 Deadlines coming up also appear as rows in Today's **Needs you** list, with anything overdue and not filed under **Now**.

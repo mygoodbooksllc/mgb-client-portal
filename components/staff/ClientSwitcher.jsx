@@ -604,7 +604,8 @@ function CS_ClientSwitcher({
           </span>
         )}
         <span className="cs-row-name">{nameOf(c)}</span>
-        {!item.locked && typeof OB_OnboardingBadge === "function" && (
+        {/* Onboarding badge: real admins only (in-client tabs redesign D20). */}
+        {!item.locked && isAdmin && (
           <OB_OnboardingBadge clientId={c.id} onOpen={() => activate(item)} />
         )}
         {temp && (

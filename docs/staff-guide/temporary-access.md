@@ -37,6 +37,7 @@ Temporary *admin* access is different: an admin gives it to a bookkeeper from **
 
 - A short **Temporary admin tour** starts by itself the next time you open the portal, once for each grant. If you're given access again later, it starts again, because it's a new grant.
 - It points out what's new for you: **Team › Hours** (hours and tasks by person and client, and hours budgets; fees and margin stay with admins), **Reply times** (you see your own replies and your own clients), **Feedback** (you can read only the reports you sent yourself), **Members** (the staff list, read-only for you) and **Settings › Firm settings** (**Task templates**, **Client roster**, **Usage stats** and **Developer tools**). About a minute.
+- Temporary admin access doesn't include **Billing and time** on a client's Overview or the **Milestone** tab in the client's row. You'll find Milestone under **Client setup › Milestone**. Fees and margin stay with real admins.
 - The last step says when your access ends. At that time these pages go away by themselves. **Emails**, **QuickBooks usage**, the **Audit log** and money figures stay with admins.
 - While your access lasts, run it again from **?** → **Temporary admin tour**, from **Ctrl+K** (**⌘K** on a Mac), or from **Settings › Help**.
 

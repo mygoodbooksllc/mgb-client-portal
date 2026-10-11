@@ -2,17 +2,17 @@
 title: How do I request a document from a client?
 section: Working with a client
 audience: staff
-keywords: [document request, request document, bank statement, receipt, upload, mark received, docchaser, document reminders, reminder emails, pause reminders, missing documents, google drive]
+keywords: [document request, request document, documents tab, overdue, uploads to mark received, bank statement, receipt, upload, mark received, docchaser, document reminders, reminder emails, pause reminders, missing documents, google drive]
 sort: 220
 ---
-Use a document request when you need a statement, receipt or anything else from the client. The client sees the list on their **Documents** page and uploads straight into it.
+Use a document request when you need a statement, receipt or anything else from the client. The client sees the list on their **Documents** page and uploads straight into it. You manage the requests on the client's **Documents** tab. The list lives only there. The Overview doesn't repeat it.
 
 ### Ask for a document
 
 Either:
 
 - click **+** in the top bar on any client page and choose **Request document**, or
-- go to the client's **Client overview** and use the **Document requests** card.
+- open the client's **Documents** tab and use the **Document requests** card.
 
 Then fill in:
 
@@ -23,7 +23,7 @@ Then fill in:
 
 ### Follow up on a request
 
-On the **Document requests** card each request shows its due date, **Overdue · was due …**, or **Uploaded … · file**, plus who asked for it.
+On the **Document requests** card (on the **Documents** tab) each request shows its due date, **Overdue · was due …**, or **Uploaded … · file**, plus who asked for it.
 
 - **Open file**: view what the client uploaded.
 - **Upload**: upload a file yourself (for example one they emailed you). Files are limited to 25 MB.
@@ -33,7 +33,7 @@ On the **Document requests** card each request shows its due date, **Overdue · 
 
 ### Automatic reminder emails (Document reminders)
 
-Under Document requests, the **Document reminders** card shows whether the client gets automatic reminders:
+Under Document requests, on the same tab, the **Document reminders** card shows whether the client gets automatic reminders:
 
 > On. Portal users get a reminder on day 0, day 3, day 7, then weekly until each document is uploaded.
 
@@ -42,6 +42,12 @@ Under Document requests, the **Document reminders** card shows whether the clien
 - **History** lists recent reminder emails and whether they were sent or skipped.
 
 Reminders only go out when an admin has client emails turned on. See [How do I manage client emails?](#/help/client-emails).
+
+### Where you hear about them
+
+- The **Documents** tab shows a number for uploads waiting to be marked received, and the Overview shows chips in **Open for this client**: *{n} requests overdue* and *{n} uploads to mark received*. Each chip opens the request.
+- When a client uploads a file, the bell shows it. Clicking that opens **Documents** at the request, with the request highlighted.
+- A request that's overdue gets a gold glow on its card so it's easy to spot.
 
 ### Troubleshooting
 

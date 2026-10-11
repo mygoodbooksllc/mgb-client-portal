@@ -392,10 +392,21 @@ function ToastProvider({ children }) {
     setTimeout(() => setToasts((t) => t.filter((x) => x.id !== id)), 3200);
   };
 
+  // Deep-link fallbacks (DeepLink.jsx LK_toast) and other code outside React
+  // raise toasts through a window event.
+  useEffect(() => {
+    const onToast = (e) => {
+      const text = e && e.detail && e.detail.text;
+      if (text) showToast(String(text));
+    };
+    window.addEventListener("mgb:toast", onToast);
+    return () => window.removeEventListener("mgb:toast", onToast);
+  }, []);
+
   return (
     <ToastContext.Provider value={showToast}>
       {children}
-      <div className="toast-stack">
+      <div className="toast-stack" role="status" aria-live="polite">
         {toasts.map((t) => (
           <div className="toast" key={t.id}>
             {t.text}
@@ -517,12 +528,15 @@ function CLIENT_lastTab(placeKey, pages) {
   return last && pages.indexOf(last) !== -1 ? last : pages[0];
 }
 // Fourth hash segment on a client page (#/client/<id>/reports/packet).
+// Tagged with its client: a sub is view state for that one client and
+// never carries over to the next client's tab.
 function CLIENT_subFromHash() {
   try {
     const parts = String(window.location.hash || "").replace(/^#\/?/, "").split(/[?]/)[0].split("/").filter(Boolean);
-    if (parts[0] === "client" && parts[2] && parts[3]) return { page: parts[2], sub: parts[3] };
+    if (parts[0] === "client" && parts[2] && parts[3])
+      return { clientId: decodeURIComponent(parts[1]), page: parts[2], sub: parts[3] };
   } catch (e) {}
-  return { page: null, sub: null };
+  return { clientId: null, page: null, sub: null };
 }
 // One card for anything Basic doesn't include (owner-approved: replaces
 // the inline upsell panels). See plans opens Settings › Plan; with
@@ -1232,6 +1246,59 @@ const PAYROLL_PRICING = { base: 49, perEmployee: 6 };
 // where the financial snapshot would be.
 const BASIC_TAB_KEYS = new Set(["dashboard", "messages", "reports", "documents", "payroll"]);
 
+// Staff bookkeeper view of a client: one fixed tab row on every plan
+// (TABS-SPEC D1). Client view pages sit in the "Client view" menu, Client
+// setup behind the gear. Milestone is a row tab for real admins only (D4).
+const STAFF_CLIENT_TABS = [
+  { key: "client-overview", label: "Overview", tour: "client-overview" },
+  { key: "messages", label: "Messages", tour: "nav-messages" },
+  { key: "documents", label: "Documents", tour: "nav-documents" },
+  { key: "bank", label: "Bank", tour: "nav-bank" },
+  { key: "client-close", label: "Close", tour: "client-close" },
+  { key: "reports", label: "Reports", tour: "nav-reports" },
+  { key: "sop", label: "SOP", tour: "client-sop" },
+  { key: "milestone", label: "Milestone", tour: "client-milestone", adminOnly: true },
+];
+const STAFF_CLIENT_VIEW_PAGES = ["dashboard", "budget", "receivables", "giving", "payroll"];
+// Staff open these on every plan, whatever the org hides from its users (D2, D17).
+const STAFF_ALWAYS_TABS = new Set(["messages", "documents", "bank", "reports", "client-close"]);
+// One admin gate for the row and the Overview (D5). Layout, not security:
+// temp admins stay bookkeepers here.
+function STAFF_isRealAdmin(u) {
+  return !!u && u.role === "admin";
+}
+// D25: "Basic syncs monthly, on the 15th" / "Pro syncs every 15 minutes".
+function STAFF_planCadence(plan) {
+  return planLabel(plan) + " syncs " + planSyncInfo(plan).cadence.replace(/^Synced from QuickBooks /, "");
+}
+// Landing rule (D9): the row tab last open for a client in this browser tab.
+function STAFF_lastTabKey(id) {
+  return "mgb_staff_client_tab_" + id;
+}
+function STAFF_readLastTab(id) {
+  try {
+    return window.sessionStorage.getItem(STAFF_lastTabKey(id)) || null;
+  } catch (e) {
+    return null;
+  }
+}
+function STAFF_writeLastTab(id, page) {
+  try {
+    window.sessionStorage.setItem(STAFF_lastTabKey(id), page);
+  } catch (e) {
+    /* storage blocked: the next open lands on Overview */
+  }
+}
+// Where a generic open of a client lands for staff: the stored row tab when it
+// is still a row tab this user sees (Milestone only for a real admin), else
+// Overview. Static on purpose: it runs before the client's plan is known.
+function STAFF_resumeTab(id, user) {
+  const k = id ? STAFF_readLastTab(id) : null;
+  const t = k && STAFF_CLIENT_TABS.find((x) => x.key === k);
+  if (!t || (t.adminOnly && !STAFF_isRealAdmin(user))) return "client-overview";
+  return t.key;
+}
+
 function isBasicPlan(client, allowDevOverride = true) {
   const preview = allowDevOverride ? getPreviewPlan(client.id) : null;
   if (preview) return preview === "basic";
@@ -1432,6 +1499,8 @@ function Sidebar({
   isStaffSession,
   previewPlan,
   onPreviewPlan,
+  staffClientTabs,
+  staffRowAdmin,
 }) {
   const today = todayLocal();
   // The milestone that heads the sidebar (same numbers as the header badge).
@@ -1634,8 +1703,11 @@ function Sidebar({
               clients={clients}
               currentClient={NON_CLIENT_PAGES.has(page) ? null : client}
               onPick={(id) => {
+                // A new client lands by App's landing rule (client-switch
+                // effect); reopening the same one from a staff page too.
                 if (id !== selectedClientId) onSelectClient(id);
-                else if (NON_CLIENT_PAGES.has(page)) onSelectPage("client-overview");
+                else if (NON_CLIENT_PAGES.has(page))
+                  onSelectPage(isStaffSession ? STAFF_resumeTab(id, staffUser) : "client-overview");
                 onCloseMobile();
               }}
               staffUser={staffUser}
@@ -1855,6 +1927,51 @@ function Sidebar({
               opens its last-used visible tab; the tab row renders in the
               top bar (App). The milestone and plan moved to Home's org
               card and Settings › Plan. */}
+          {/* Staff bookkeeper view on a phone: the drawer mirrors the tab
+              row (TABS-SPEC WP1 step 7): row tabs, the Client view pages,
+              then Client setup below. */}
+          {staffClientTabs ? (
+            <div className="nav-section">
+              <div className="nav-section-items" id="nav-section-places">
+                {STAFF_CLIENT_TABS.filter((t) => !t.adminOnly || staffRowAdmin).map((t) => (
+                  <button
+                    key={t.key}
+                    type="button"
+                    data-tour={t.tour}
+                    className={"nav-item" + (page === t.key ? " active" : "")}
+                    onClick={() => {
+                      onSelectPage(t.key);
+                      onCloseMobile();
+                    }}
+                    aria-current={page === t.key ? "page" : undefined}
+                  >
+                    <span className="nav-item-label">{t.label}</span>
+                  </button>
+                ))}
+              </div>
+              {STAFF_CLIENT_VIEW_PAGES.some((k) => visibleKeys.has(k)) && (
+                <React.Fragment>
+                  <div className="client-picker-label">Client view</div>
+                  <div className="nav-section-items">
+                    {STAFF_CLIENT_VIEW_PAGES.filter((k) => visibleKeys.has(k)).map((k) => (
+                      <button
+                        key={k}
+                        type="button"
+                        className={"nav-item" + (page === k ? " active" : "")}
+                        onClick={() => {
+                          onSelectPage(k);
+                          onCloseMobile();
+                        }}
+                        aria-current={page === k ? "page" : undefined}
+                      >
+                        <span className="nav-item-label">{NAV_LABEL_BY_KEY[k] || k}</span>
+                      </button>
+                    ))}
+                  </div>
+                </React.Fragment>
+              )}
+            </div>
+          ) : (
           <div className="nav-section">
             <div className="nav-section-items" id="nav-section-places">
               {CLIENT_PLACES.map((place) => {
@@ -1887,6 +2004,7 @@ function Sidebar({
               })}
             </div>
           </div>
+          )}
         </nav>
       )}
 
@@ -1913,18 +2031,22 @@ function Sidebar({
             }}
             aria-current={page === "client-settings" ? "page" : undefined}
             aria-label={
-              isBookkeeper && hasPendingAccessRequests
-                ? "Settings — new access request pending"
-                : collapsed
-                  ? "Settings"
-                  : undefined
+              staffClientTabs
+                ? hasPendingAccessRequests
+                  ? "Client setup, new access request waiting"
+                  : "Client setup"
+                : isBookkeeper && hasPendingAccessRequests
+                  ? "Settings — new access request pending"
+                  : collapsed
+                    ? "Settings"
+                    : undefined
             }
             onMouseLeave={hideTip}
             onBlur={hideTip}
           >
             <ST_GearIcon width="18" height="18" />
-            <span className="sidebar-settings-label">Settings</span>
-            <span className="nav-item-caption" aria-hidden="true">Settings</span>
+            <span className="sidebar-settings-label">{staffClientTabs ? "Client setup" : "Settings"}</span>
+            <span className="nav-item-caption" aria-hidden="true">{staffClientTabs ? "Client setup" : "Settings"}</span>
           </button>
         </div>
       )}
@@ -2677,6 +2799,50 @@ function ChevronDownIcon(props) {
       {...props}
     >
       <path d="M5 9l7 7 7-7" />
+    </svg>
+  );
+}
+
+// Overview card header links ("{Title} Open >"). Decorative: the link text
+// carries the meaning, so it is always aria-hidden.
+function ChevronRightIcon(props) {
+  return (
+    <svg
+      width="14"
+      height="14"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      focusable="false"
+      {...props}
+    >
+      <path d="M9 5l7 7-7 7" />
+    </svg>
+  );
+}
+
+// Overview "Open for this client" empty state ("Nothing needs you on ...").
+// Decorative: the sentence carries the meaning.
+function CheckIcon(props) {
+  return (
+    <svg
+      width="14"
+      height="14"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.4"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      focusable="false"
+      {...props}
+    >
+      <path d="M5 12.5l4.5 4.5L19 7.5" />
     </svg>
   );
 }
@@ -5373,15 +5539,20 @@ function useStaffToolList(loader, clientId, enabled = true) {
       setState({ loading: false, rows: [], missing: false, error: null });
       return;
     }
-    Promise.resolve(loaderRef.current(sb, clientId)).then(({ data, error }) => {
-      const missing = isMissingTableError(error);
-      setState({
-        loading: false,
-        rows: error ? [] : data || [],
-        missing,
-        error: error && !missing ? error.message : null,
-      });
-    });
+    // A loader that throws (sync or async) shows the card's error state
+    // instead of taking the page down.
+    Promise.resolve()
+      .then(() => loaderRef.current(sb, clientId))
+      .then(({ data, error }) => {
+        const missing = isMissingTableError(error);
+        setState({
+          loading: false,
+          rows: error ? [] : data || [],
+          missing,
+          error: error && !missing ? error.message : null,
+        });
+      })
+      .catch((e) => setState({ loading: false, rows: [], missing: false, error: (e && e.message) || "Couldn't load this list." }));
   }, [clientId, enabled]);
   useEffect(() => {
     reload();
@@ -5560,11 +5731,22 @@ function InternalNoteButton({ client, targetType, targetKey, targetLabel }) {
 }
 
 // "Sent to the client" status and history for a report. Staff only.
-function SentToClient({ client, itemKey, itemLabel, periodLabel }) {
+// closePeriod ("YYYY-MM", optional, tabs redesign 2026-10-10): pass it only
+// when the report is known to cover the month being closed (closePeriodFor()).
+// Then a send also ticks "Reports sent to the client" for that month, applies
+// the first-tick In progress rule, and says how many steps are left. Without
+// it the send is only logged (never guessed from periodLabel).
+function SentToClient({ client, itemKey, itemLabel, periodLabel, closePeriod }) {
   const { staff, staffUser } = useContext(StaffToolsContext);
   const store = sentItemsStore.use(client && client.id, staff);
   const showToast = useToast();
   const [confirm, setConfirm] = useState(false);
+  const [nextStep, setNextStep] = useState(null); // { month } for the 15 s "1 step left" link
+  useEffect(() => {
+    if (!nextStep) return undefined;
+    const t = setTimeout(() => setNextStep(null), 15000);
+    return () => clearTimeout(t);
+  }, [nextStep]);
   if (!staff || !client) return null;
   const history = store.rows.filter((r) => r.item_key === itemKey);
   const last = history[0];
@@ -5583,8 +5765,53 @@ function SentToClient({ client, itemKey, itemLabel, periodLabel }) {
       showToast(isMissingTableError(error) ? STAFF_TOOLS_SETUP_MSG : "Couldn't record that.");
       return;
     }
-    showToast(`Marked "${itemLabel}" as sent to ${client.name}.`);
+    const ym = closePeriod ? String(closePeriod).slice(0, 7) : null;
+    if (!ym) {
+      showToast(`Marked "${itemLabel}" as sent to ${client.name}.`);
+      notifyStaffTools();
+      return;
+    }
+    // Tick "Reports sent to the client" for the month being closed.
+    const sb = window.mgbSupabase;
+    let ticked = false;
+    let left = null;
+    let status = null;
+    try {
+      const { data: items, error: e1 } = await staffToolsApi.closeItems(sb, client.id, ym);
+      if (!e1) {
+        const doneKeys = new Set((items || []).filter((i) => i.done).map((i) => i.item_key));
+        const mc = await sb
+          .from("month_close")
+          .select("status, updated_at")
+          .eq("client_id", client.id)
+          .eq("period", ym + "-01")
+          .maybeSingle();
+        status = mc && mc.data ? mc.data.status : null;
+        if (!doneKeys.has("sent")) {
+          const r = await staffToolsApi.setCloseItem(sb, client.id, ym, "sent", true, staffUser && staffUser.email);
+          if (!r.error) {
+            ticked = true;
+            const hadOtherDone = doneKeys.size > 0;
+            doneKeys.add("sent");
+            const ft = await CT_applyFirstTick({ sb, clientId: client.id, period: ym, hadOtherDone });
+            if (ft.changed) status = "in_progress";
+          }
+        }
+        left = CLOSE_CHECKLIST.filter((s) => !doneKeys.has(s.key)).length;
+      }
+    } catch (e) {}
     notifyStaffTools();
+    const month = closeMonthName(ym);
+    if (!ticked || status === "done" || status === "na") {
+      showToast(`Marked "${itemLabel}" as sent to ${client.name}.`);
+    } else if (left > 0) {
+      showToast(
+        `Marked "${itemLabel}" as sent. Ticked "Reports sent to the client" for ${month}. ${left} step${left === 1 ? "" : "s"} left.`,
+      );
+    } else {
+      showToast(`Marked "${itemLabel}" as sent. Ticked "Reports sent to the client" for ${month}.`);
+      setNextStep({ month });
+    }
   }
   return (
     <div className="sent-to-client">
@@ -5602,6 +5829,15 @@ function SentToClient({ client, itemKey, itemLabel, periodLabel }) {
       <button type="button" className="link-btn" onClick={() => (last ? setConfirm(true) : mark())}>
         {last ? "Mark sent again" : "Mark sent to client"}
       </button>
+      {nextStep && (
+        <a
+          className="clc-next-step"
+          href={TB_clientHash(client.id, "close")}
+          onClick={() => setNextStep(null)}
+        >
+          1 step left: mark {nextStep.month} done →
+        </a>
+      )}
       {confirm && (
         <ConfirmModal
           title="Already sent"
@@ -5627,6 +5863,38 @@ function DocumentRequestsCard({ client, compact }) {
   const sb = window.mgbSupabase;
   const open = list.rows.filter((r) => r.status === "open" || r.status === "uploaded");
   const closed = list.rows.filter((r) => r.status === "done").slice(0, 5);
+  // Deep links to one request (TABS-SPEC WP4 step 8, deeplinks.md C.4).
+  // list.rows holds every status, so a stale link gets the right toast.
+  LK_useArrival({ clientId: client.id, tab: "documents", kinds: ["docreq", "at"], staff: !!staff }, !list.loading, (a) => {
+    const copy = LK_COPY;
+    if (a.kind === "at") {
+      OV_revealWhenReady("at:" + a.id, copy.unclaimed);
+      return;
+    }
+    const r = list.rows.find((x) => String(x.id) === String(a.id));
+    if (!r) {
+      LK_toast(copy.reqMissing);
+      return;
+    }
+    if (r.status === "open" || r.status === "uploaded") {
+      OV_revealWhenReady("docreq:" + r.id, copy.reqMissing, { row: true });
+      return;
+    }
+    if (r.status === "cancelled") {
+      LK_toast(copy.reqCancelled);
+      return;
+    }
+    const when = r.fulfilled_at || r.updated_at;
+    const text =
+      a.hint && a.hint.history && when
+        ? LK_fill(copy.reqReceivedOn, { date: fmtDate(when) })
+        : copy.reqReceived;
+    LK_toast(text);
+    setTimeout(() => {
+      const done = document.querySelector('[data-lk="at:doc-requests"] .doc-req-done');
+      if (done) LK_reveal(done, { row: true });
+    }, 0);
+  });
   if (!staff && (list.missing || open.length === 0)) return null;
 
   async function addRequest(e) {
@@ -5689,7 +5957,7 @@ function DocumentRequestsCard({ client, compact }) {
   // Same "overdue" rule as each row below: still open and past its due date.
   const anyOverdue = open.some((r) => r.status === "open" && r.due_date && r.due_date < today);
   return (
-    <div className={"card doc-requests-card" + (staff && anyOverdue ? " card-urgent" : "")} data-tour="doc-requests">
+    <div className={"card doc-requests-card" + (staff && anyOverdue ? " card-urgent" : "")} data-tour="doc-requests" data-lk="at:doc-requests">
       <h3 className="card-title">{staff ? "Document requests" : "Your bookkeeper needs"}</h3>
       <p className="card-subtitle">
         {staff
@@ -5702,8 +5970,8 @@ function DocumentRequestsCard({ client, compact }) {
           {open.map((r) => {
             const overdue = r.status === "open" && r.due_date && r.due_date < today;
             return (
-              <li key={r.id} className={"doc-req" + (r.status === "uploaded" ? " uploaded" : "")}>
-                <div className="doc-req-main">
+              <li key={r.id} className={"doc-req" + (r.status === "uploaded" ? " uploaded" : "")} data-lk={"docreq:" + r.id}>
+                <div className="doc-req-main" tabIndex={-1} data-lk-focus={staff && r.status === "uploaded" ? undefined : ""}>
                   <span className="doc-req-title">{r.title}</span>
                   {r.details && <span className="doc-req-details">{r.details}</span>}
                   <span className={"doc-req-meta" + (overdue ? " overdue" : "")}>
@@ -5736,7 +6004,7 @@ function DocumentRequestsCard({ client, compact }) {
                     </label>
                   )}
                   {staff && r.status === "uploaded" && (
-                    <button type="button" className="btn-primary" disabled={busyId === r.id} onClick={() => setStatus(r, "done")}>
+                    <button type="button" className="btn-primary" disabled={busyId === r.id} onClick={() => setStatus(r, "done")} data-lk-focus>
                       Mark received
                     </button>
                   )}
@@ -5940,50 +6208,136 @@ function DocRequestBanner({ requests, onOpen }) {
 }
 
 // Month-end close for one client.
-function CloseChecklistCard({ client }) {
+// The six close steps for one client and month (tabs redesign 2026-10-10:
+// lives on the client's Close tab; `period` is "YYYY-MM", default last
+// month). Each row: checkbox, label, "{who} · {Mon D}" and a Go link. The
+// first tick of a month that is missing or Not started sets it to In
+// progress (CT_applyFirstTick); unticking never changes the status.
+// data-lk="step:<key>" rows are deep-link targets (#/client/<id>/close?item=step:sent).
+const CLOSE_STEP_GO = {
+  bank_feed: { tab: "bank", sub: "uncategorized" },
+  bank_rec: { tab: "bank", sub: "unreconciled" },
+  card_rec: { tab: "bank", sub: "unreconciled" },
+  review: { tab: "reports" },
+  sent: { tab: "reports" },
+};
+function closeMonthName(ym) {
+  return CT_monthName(ym);
+}
+function closeShortDate(iso) {
+  if (!iso) return "";
+  const d = new Date(iso);
+  return isNaN(d) ? "" : d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+}
+function CloseChecklistCard({ client, period: periodProp, onToggled, compact }) {
   const { staffUser } = useContext(StaffToolsContext);
   const showToast = useToast();
-  const period = closePeriodFor();
+  const period = String(periodProp || closePeriodFor()).slice(0, 7);
   const list = useStaffToolList((sb, id) => staffToolsApi.closeItems(sb, id, period), client.id);
-  const byKey = Object.fromEntries(list.rows.map((r) => [r.item_key, r]));
+  const lastPeriod = useRef(period);
+  useEffect(() => {
+    if (lastPeriod.current === period) return;
+    lastPeriod.current = period;
+    list.reload();
+    // eslint-disable-next-line
+  }, [period]);
+  const [busy, setBusy] = useState(null);
+  const rows = list.rows.filter((r) => !r.period || String(r.period).slice(0, 7) === period);
+  const byKey = Object.fromEntries(rows.map((r) => [r.item_key, r]));
   const doneCount = CLOSE_CHECKLIST.filter((i) => byKey[i.key] && byKey[i.key].done).length;
+  const month = closeMonthName(period);
   async function toggle(item) {
     const done = !(byKey[item.key] && byKey[item.key].done);
+    const hadOtherDone = CLOSE_CHECKLIST.some((i) => i.key !== item.key && byKey[i.key] && byKey[i.key].done);
+    setBusy(item.key);
     const { error } = await staffToolsApi.setCloseItem(
       window.mgbSupabase, client.id, period, item.key, done, staffUser && staffUser.email,
     );
-    if (error) showToast(isMissingTableError(error) ? STAFF_TOOLS_SETUP_MSG : "Couldn't save that.");
-    else notifyStaffTools();
+    setBusy(null);
+    if (error) {
+      showToast(isMissingTableError(error) ? STAFF_TOOLS_SETUP_MSG : "Couldn't save that.");
+      return;
+    }
+    notifyStaffTools();
+    if (done) {
+      const r = await CT_applyFirstTick({ sb: window.mgbSupabase, clientId: client.id, period, hadOtherDone });
+      if (r.changed) showToast(`${month} is now In progress.`);
+    }
+    if (onToggled) onToggled(item.key, done);
   }
+  const goFor = (item) => {
+    if (item.key === "entries") {
+      const t = { clientId: client.id, tab: "sop", item: "sop:monthly_close" };
+      return (
+        <a
+          className="clc-go"
+          href={LK_href(t)}
+          onClick={(e) => {
+            // On the Close tab the SOP panel is right there: scroll to it.
+            const sop = document.querySelector("[data-clc-sop]");
+            if (sop) {
+              e.preventDefault();
+              if (sop.tagName === "DETAILS") sop.open = true;
+              LK_reveal(sop);
+              return;
+            }
+            LK_onClick(t)(e);
+          }}
+        >
+          See your steps →
+        </a>
+      );
+    }
+    const g = CLOSE_STEP_GO[item.key];
+    if (!g) return null;
+    const t = { clientId: client.id, tab: g.tab, sub: g.sub, month: g.tab === "bank" ? period : undefined };
+    return (
+      <a
+        className="clc-go"
+        href={LK_href(t)}
+        onClick={LK_onClick(t)}
+        aria-label={`Go: ${item.label}`}
+      >
+        Go →
+      </a>
+    );
+  };
   return (
-    <div className="card" data-tour="ov-close">
-      <div className="ov-card-head">
-        <h3 className="card-title">Month-end close</h3>
-        <span className="ov-chip">
-          {closePeriodLabel(period)} · {doneCount}/{CLOSE_CHECKLIST.length}
+    <div className={"card clc-steps" + (compact ? " compact" : "")} data-tour="close-steps">
+      <div className="clc-card-head">
+        <h3 className="card-title">Close steps</h3>
+        <span className="clc-chip">
+          {doneCount} of {CLOSE_CHECKLIST.length}
         </span>
       </div>
-      <div className="ov-progress" aria-hidden="true">
+      <div className="clc-progress" aria-hidden="true">
         <div style={{ width: `${(doneCount / CLOSE_CHECKLIST.length) * 100}%` }} />
       </div>
       {list.missing ? (
         <p className="card-subtitle">{STAFF_TOOLS_SETUP_MSG}</p>
       ) : (
-        <ul className="close-list">
+        <ul className="close-list clc-step-list">
           {CLOSE_CHECKLIST.map((item) => {
             const row = byKey[item.key];
             const done = !!(row && row.done);
             return (
-              <li key={item.key}>
+              <li key={item.key} className="clc-step" data-lk={"step:" + item.key}>
                 <label className={"close-item" + (done ? " done" : "")}>
-                  <input type="checkbox" checked={done} onChange={() => toggle(item)} />
+                  <input
+                    type="checkbox"
+                    checked={done}
+                    disabled={busy === item.key}
+                    onChange={() => toggle(item)}
+                    data-lk-focus=""
+                  />
                   <span>{item.label}</span>
                   {done && row.done_by && (
                     <span className="close-by">
-                      {row.done_by.split("@")[0]} · {fmtDate(row.done_at)}
+                      {String(row.done_by).split("@")[0]} · {closeShortDate(row.done_at)}
                     </span>
                   )}
                 </label>
+                {!compact && goFor(item)}
               </li>
             );
           })}
@@ -6046,11 +6400,582 @@ function CloseProgressList({ clients, onOpenClient, onBehind }) {
 
 const UNCATEGORIZED_RE = /uncategori[sz]ed|ask my accountant|suspense/i;
 
-// The staff-only first page for a client.
-function ClientOverviewPage({ client, messagesByClient, onNavigate, onOpenDetails }) {
+// ---- Overview building blocks (TABS-SPEC WP4 step 6, 1.4). OV_ prefix.
+// Links go through DeepLink.jsx (LK_href / LK_onClick).
+function OV_href(t) {
+  return LK_href(t);
+}
+function OV_click(t, hint) {
+  return LK_onClick(t, hint);
+}
+function OV_Link({ to, hint, className, children, ...rest }) {
+  return (
+    <a className={className} href={OV_href(to)} onClick={OV_click(to, hint)} {...rest}>
+      {children}
+    </a>
+  );
+}
+// Hours since the last sync before the sync segment turns red: each plan's
+// own cadence plus a margin (Pro syncs every 15 min, Plus weekly, Basic monthly).
+function OV_syncStaleHours(plan) {
+  const k = planShownKey(plan);
+  if (k === "premium") return 26;
+  if (k === "basic") return 35 * 24;
+  return 8 * 24;
+}
+function OV_monthName(period) {
+  if (!period) return "";
+  const [y, m] = String(period).slice(0, 7).split("-").map(Number);
+  return new Date(y, m - 1, 1).toLocaleDateString("en-US", { month: "long" });
+}
+function OV_daysUntil(ymd, today) {
+  return Math.round((new Date(String(ymd).slice(0, 10) + "T00:00:00") - new Date(today + "T00:00:00")) / 864e5);
+}
+function OV_plural(n, one, many) {
+  return n === 1 ? one : many;
+}
+const OV_CLOSE_STATUS = { not_started: "Not started", in_progress: "In progress", review: "Review" };
+
+// Card shell (deeplinks.md D.1 minus the body click, D7): the header link is
+// the only link the card adds; `linkText` replaces the title inside the link
+// (Engagement's "Usage stats").
+function OV_Card({ anchor, tour, title, to, hint, linkText, actions, className, children, noLk }) {
+  const titleId = "ov-t-" + anchor;
+  const open = (
+    <span className="ov-card2-open">
+      Open
+      <ChevronRightIcon />
+    </span>
+  );
+  return (
+    <section
+      className={"card ov-card2" + (className ? " " + className : "")}
+      data-lk={noLk ? undefined : "at:" + anchor}
+      data-tour={tour}
+      aria-labelledby={titleId}
+    >
+      <div className="ov-card2-head">
+        <h3 className="card-title ov-card2-title">
+          {to && !linkText ? (
+            <OV_Link to={to} hint={hint} className="ov-card2-link">
+              <span id={titleId}>{title}</span>
+              {open}
+            </OV_Link>
+          ) : (
+            <span id={titleId}>{title}</span>
+          )}
+        </h3>
+        {to && linkText && (
+          <OV_Link to={to} hint={hint} className="ov-card2-link ov-card2-sidelink">
+            <span>{linkText}</span>
+            {open}
+          </OV_Link>
+        )}
+        {actions && <div className="ov-card2-actions">{actions}</div>}
+      </div>
+      {children}
+    </section>
+  );
+}
+
+// "Open for this client": the bookkeeper's to-do list for this client, from
+// the same counts as the tab badges (WP1 useClientTabCounts), so a chip and
+// its badge never disagree.
+function OV_OpenStrip({ client, counts, staleBanks }) {
+  const [more, setMore] = useState(false);
+  useEffect(() => setMore(false), [client.id]);
+  const cid = client.id;
+  const cname = client.name || "this client";
+  const qbo = client.dataSource === "quickbooks";
+  const loading = !counts || !counts.loaded;
+  const chips = [];
+  if (!loading && !counts.error) {
+    const today = todayLocal();
+    const close = counts.close || {};
+    if (close.qbo === "error") {
+      chips.push({ key: "qbo", tone: "bad", first: true, text: "QuickBooks needs reconnecting", to: { clientId: cid, tab: "settings", sub: "client", item: "setup:details.quickbooks" } });
+    }
+    const m = counts.messages || {};
+    if (m.count > 0) {
+      chips.push({
+        key: "msg",
+        tone: m.overdue > 0 ? "bad" : "warn",
+        text: m.count === 1 ? "1 reply waiting" : `${m.count} replies waiting`,
+        to: m.firstMsgId ? { clientId: cid, tab: "messages", item: "msg:" + m.firstMsgId } : { clientId: cid, tab: "messages" },
+        hint: m.email ? { email: m.email } : null,
+      });
+    }
+    const b = counts.bank || {};
+    if (qbo && b.open > 0) {
+      const old = b.oldestOpenAt && Date.now() - new Date(b.oldestOpenAt).getTime() > 7 * 864e5;
+      chips.push({
+        key: "q",
+        tone: old ? "bad" : "warn",
+        text: b.open === 1 ? "1 open question" : `${b.open} open questions`,
+        to: b.open === 1 && b.firstId ? { clientId: cid, tab: "bank", sub: "questions", item: "question:" + b.firstId } : { clientId: cid, tab: "bank", sub: "questions" },
+      });
+    }
+    const d = counts.documents || {};
+    if (d.overdueOpen > 0) {
+      chips.push({
+        key: "od",
+        tone: "bad",
+        text: d.overdueOpen === 1 ? "1 request overdue" : `${d.overdueOpen} requests overdue`,
+        to: { clientId: cid, tab: "documents", item: d.overdueOpen === 1 && d.firstOverdueId ? "docreq:" + d.firstOverdueId : "at:doc-requests" },
+      });
+    }
+    if (d.uploaded > 0) {
+      chips.push({
+        key: "up",
+        tone: "warn",
+        text: d.uploaded === 1 ? "1 upload to mark received" : `${d.uploaded} uploads to mark received`,
+        to: { clientId: cid, tab: "documents", item: d.uploaded === 1 && d.firstUploadedId ? "docreq:" + d.firstUploadedId : "at:doc-requests" },
+      });
+    }
+    if (qbo && close.period) {
+      if (close.late && close.latePeriod) {
+        chips.push({ key: "close", tone: "bad", text: `${OV_monthName(close.latePeriod)} close: Late`, to: { clientId: cid, tab: "close" } });
+      } else if (OV_CLOSE_STATUS[close.status]) {
+        chips.push({ key: "close", tone: "warn", text: `${OV_monthName(close.period)} close: ${OV_CLOSE_STATUS[close.status]}`, to: { clientId: cid, tab: "close" } });
+      }
+      const failing = close.failing || [];
+      if (close.qbo !== "error" && (close.check === "blocked" || failing.includes("uncategorized") || failing.includes("undeposited"))) {
+        chips.push({ key: "blocked", tone: "bad", text: "QuickBooks close: blocked", to: { clientId: cid, tab: "close", item: "at:close-qbo" } });
+      }
+    }
+    const stale = staleBanks || [];
+    if (qbo && stale.length) {
+      chips.push({
+        key: "feed",
+        tone: "bad",
+        text: "Bank feed may have stopped",
+        to: stale.length === 1 && stale[0].qbo_id != null ? { clientId: cid, tab: "bank", account: String(stale[0].qbo_id) } : { clientId: cid, tab: "close", item: "at:close-qbo" },
+      });
+    }
+    const t = counts.tasks || {};
+    if (t.mine > 0) {
+      chips.push({
+        key: "tasks",
+        tone: t.overdue > 0 ? "bad" : "plain",
+        text: t.overdue > 0 ? `${t.overdue} of my tasks overdue` : t.mine === 1 ? "1 of my tasks" : `${t.mine} of my tasks`,
+        to: t.mine === 1 && t.firstId ? { place: "work", tab: "tasks", item: "task:" + t.firstId } : { clientId: cid, tab: "overview", item: "at:ov-tasks" },
+      });
+    }
+    const next = counts.deadline && counts.deadline.next;
+    if (next && next.state !== "filed") {
+      const days = OV_daysUntil(next.due, today);
+      if (days < 0 || days <= 30) {
+        chips.push({
+          key: "dl",
+          tone: days < 0 ? "bad" : days <= 14 ? "warn" : "plain",
+          text: days < 0 ? `${next.rule_name} overdue` : days === 0 ? `${next.rule_name} due today` : `${next.rule_name} due in ${days} ${OV_plural(days, "day", "days")}`,
+          to: { place: "work", tab: "deadlines", item: "deadline:" + next.id },
+        });
+      }
+    }
+  }
+  const rank = { bad: 0, warn: 1, plain: 2 };
+  chips.sort((a, b) => (b.first ? 1 : 0) - (a.first ? 1 : 0) || rank[a.tone] - rank[b.tone]);
+  const shown = more ? chips : chips.slice(0, 6);
+  return (
+    <section className="ov-strip" aria-labelledby="ov-open-title" data-tour="ov-open" data-lk="at:ov-open">
+      <h3 id="ov-open-title" className="kpi-label ov-strip-title">
+        Open for this client
+      </h3>
+      {loading ? (
+        <div className="ov-strip-skeleton" aria-hidden="true" />
+      ) : counts.error ? (
+        <p className="ov-strip-error">
+          Couldn't check what's open for {cname}.{" "}
+          <button type="button" className="link-btn" onClick={() => counts.refresh && counts.refresh()}>
+            Try again
+          </button>
+        </p>
+      ) : chips.length === 0 ? (
+        <p className="ov-strip-empty">
+          <CheckIcon aria-hidden="true" /> Nothing needs you on {cname} right now
+        </p>
+      ) : (
+        <ul className="ov-strip-list">
+          {shown.map((c) => (
+            <li key={c.key}>
+              <OV_Link to={c.to} hint={c.hint} className={"ov-strip-chip ov-strip-" + c.tone}>
+                {c.text}
+              </OV_Link>
+            </li>
+          ))}
+          {!more && chips.length > 6 && (
+            <li>
+              <button type="button" className="ov-strip-more" aria-expanded="false" onClick={() => setMore(true)}>
+                +{chips.length - 6} more
+              </button>
+            </li>
+          )}
+        </ul>
+      )}
+    </section>
+  );
+}
+
+// One line of facts: health, QuickBooks sync, uncategorized, duplicate bills,
+// plan cadence. "Why {score}?" and the duplicate list open in place.
+function OV_StatusLine({ client, plan, counts, syncRun, uncategorized, dupBills, showBusiness, whyOpen, setWhyOpen, dupOpen, setDupOpen }) {
+  const staffCtx = useContext(StaffToolsContext);
+  const { byId, reload } = HL_useHealth();
+  const health = byId[client.id];
+  const cid = client.id;
+  const qbo = client.dataSource === "quickbooks";
+  const conn = (counts && counts.close && counts.close.qbo) || null;
+  const qbTo = { clientId: cid, tab: "settings", sub: "client", item: "setup:details.quickbooks" };
+  const syncHoursAgo = client.lastSyncedAt ? (Date.now() - new Date(client.lastSyncedAt)) / 36e5 : null;
+  const stale = syncHoursAgo != null && syncHoursAgo > OV_syncStaleHours(plan);
+  const canSyncNow = !!(planSyncInfo(plan).syncNow || (staffCtx && staffCtx.staff));
+  const band = health ? HL_LABEL[health.band] || health.band : null;
+  const m = (counts && counts.messages) || {};
+  const linkFor = (r) => {
+    const t =
+      r.key === "overdue"
+        ? { clientId: cid, tab: "overview", item: "at:ov-tasks" }
+        : r.key === "qbo" || r.key === "qbo_stale"
+          ? qbTo
+          : r.key === "close_late"
+            ? { clientId: cid, tab: "close" }
+            : r.key === "doc_overdue"
+              ? { clientId: cid, tab: "documents", item: "at:doc-requests" }
+              : r.key === "client_wait"
+                ? m.firstMsgId
+                  ? { clientId: cid, tab: "messages", item: "msg:" + m.firstMsgId }
+                  : { clientId: cid, tab: "messages" }
+                : r.key === "sop"
+                  ? counts && counts.sop && counts.sop.firstStaleSection
+                    ? { clientId: cid, tab: "sop", item: "sop:" + counts.sop.firstStaleSection }
+                    : { clientId: cid, tab: "sop" }
+                  : r.key === "margin" || r.key === "hours_over"
+                    ? { clientId: cid, tab: "overview", item: "at:ov-billing" }
+                    : null;
+    if (!t) return null;
+    const hint = r.key === "client_wait" && m.email ? { email: m.email } : undefined;
+    return { href: OV_href(t), onClick: OV_click(t, hint) };
+  };
+  const filter = showBusiness ? null : (r) => r.key !== "margin" && r.key !== "hours_over";
+  const uncatTotal = uncategorized.reduce((s, a) => s + Math.abs(Number(a.current_balance || 0)), 0);
+  const sep = (
+    <span className="ov-status-sep" aria-hidden="true">
+      ·
+    </span>
+  );
+  let syncSeg;
+  if (!qbo) {
+    syncSeg = (
+      <span className="ov-status-seg ov-status-sync">
+        QuickBooks not connected{" "}
+        <OV_Link to={qbTo}>Connect</OV_Link>
+      </span>
+    );
+  } else if (conn === "error") {
+    syncSeg = (
+      <span className="ov-status-seg ov-status-sync ov-status-bad">
+        QuickBooks needs reconnecting{" "}
+        <OV_Link to={qbTo}>Reconnect</OV_Link>
+      </span>
+    );
+  } else {
+    const failed = syncRun && syncRun.status === "error";
+    syncSeg = (
+      <span className={"ov-status-seg ov-status-sync" + (failed || stale ? " ov-status-bad" : "")}>
+        <OV_Link to={qbTo}>
+          {failed
+            ? `QuickBooks sync failed ${relTime(syncRun.finished_at || syncRun.started_at) || ""}`.trim()
+            : client.lastSyncedAt
+              ? `QuickBooks synced ${relTime(client.lastSyncedAt)}`
+              : "QuickBooks hasn't synced yet"}
+        </OV_Link>
+        {canSyncNow && <QboSyncNowButton clientId={cid} isStaff canSyncNow />}
+      </span>
+    );
+  }
+  const cadence = STAFF_planCadence(plan);
+  return (
+    <div className="ov-status-wrap" data-tour="ov-status">
+      <div className="ov-status">
+        {health && (
+          <>
+            <span className="ov-status-seg">
+              <button
+                type="button"
+                className={"ov-status-health hl-band-" + health.band}
+                aria-expanded={whyOpen ? "true" : "false"}
+                aria-controls="ov-why"
+                onClick={() => setWhyOpen(!whyOpen)}
+              >
+                Health {health.score} · <span className={"ov-status-band hl-" + health.band}>{band}</span> · Why {health.score}?
+              </button>
+            </span>
+            {sep}
+          </>
+        )}
+        {syncSeg}
+        {qbo && (
+          <>
+            {sep}
+            <span className={"ov-status-seg" + (uncategorized.length ? " ov-status-warn" : "")}>
+              {uncategorized.length ? (
+                <OV_Link to={{ clientId: cid, tab: "bank", sub: "uncategorized" }}>
+                  Uncategorized: {fmtMoney(uncatTotal)} in {uncategorized.length} {OV_plural(uncategorized.length, "account", "accounts")}
+                </OV_Link>
+              ) : (
+                "Uncategorized: none"
+              )}
+            </span>
+          </>
+        )}
+        {qbo && dupBills.length > 0 && (
+          <>
+            {sep}
+            <span className="ov-status-seg ov-status-warn">
+              <button
+                type="button"
+                className="ov-status-toggle"
+                aria-expanded={dupOpen ? "true" : "false"}
+                aria-controls="ov-dupbills"
+                title={dupBills.map(([a]) => a.vendor_name).join(", ")}
+                onClick={() => setDupOpen(!dupOpen)}
+              >
+                Possible duplicate bills: {dupBills.length}
+              </button>
+            </span>
+          </>
+        )}
+        {sep}
+        <span className="ov-status-seg ov-status-plan">
+          {planLabel(plan)} plan · {cadence}
+        </span>
+      </div>
+      {health && (
+        <details id="ov-why" className="ov-why" data-lk="at:ov-why" open={!!whyOpen} onToggle={(e) => setWhyOpen(e.currentTarget.open)}>
+          <summary>Why {health.score}?</summary>
+          <HL_Reasons health={health} onRefresh={reload} linkFor={linkFor} filter={filter} />
+        </details>
+      )}
+      {qbo && dupBills.length > 0 && (
+        <details id="ov-dupbills" className="ov-why ov-dupbills" data-lk="dupbills" open={!!dupOpen} onToggle={(e) => setDupOpen(e.currentTarget.open)}>
+          <summary>Possible duplicate bills: {dupBills.length}</summary>
+          <ul className="ov-lines">
+            {dupBills.map(([a, b], i) => (
+              <li key={i}>
+                <span>{a.vendor_name}</span>
+                <span>
+                  {fmtMoney(a.total)} · {fmtDate(a.txn_date)} and {fmtDate(b.txn_date)}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </details>
+      )}
+    </div>
+  );
+}
+
+const OV_TASKS_SCOPE_KEY = "mgb_ov_tasks_scope_v1";
+
+// Tasks for this client: open items, mine or everyone's (shared + mine).
+// Tick only; no delete here (staffItemsApi.remove is a hard delete).
+function OV_ClientTasks({ client, staffUser }) {
+  const showToast = useToast();
+  const sb = window.mgbSupabase;
+  const me = String((staffUser && staffUser.email) || "").toLowerCase();
+  const [scope, setScopeState] = useState(() => {
+    try {
+      return localStorage.getItem(OV_TASKS_SCOPE_KEY) === "everyone" ? "everyone" : "mine";
+    } catch (e) {
+      return "mine";
+    }
+  });
+  const setScope = (v) => {
+    setScopeState(v);
+    try {
+      localStorage.setItem(OV_TASKS_SCOPE_KEY, v);
+    } catch (e) {}
+  };
+  const [rows, setRows] = useState(null);
+  const [all, setAll] = useState(false);
+  const load = useCallback(async () => {
+    if (!sb || !me) {
+      setRows([]);
+      return;
+    }
+    const { data, error } = await staffItemsApi.list(sb, me);
+    if (error) {
+      setRows([]);
+      return;
+    }
+    setRows((data || []).filter((t) => t && t.client_id === client.id && !t.done && t.kind !== "note"));
+  }, [client.id, me]);
+  useEffect(() => {
+    setRows(null);
+    setAll(false);
+    load();
+    window.addEventListener(STAFF_ITEMS_CHANGED_EVENT, load);
+    window.addEventListener(STAFF_TOOLS_EVENT, load);
+    return () => {
+      window.removeEventListener(STAFF_ITEMS_CHANGED_EVENT, load);
+      window.removeEventListener(STAFF_TOOLS_EVENT, load);
+    };
+  }, [load]);
+  const today = todayLocal();
+  const list = (rows || []).filter((t) => scope === "everyone" || isMyStaffItem(t, me)).sort(compareOpenStaffItems);
+  const shown = all ? list : list.slice(0, 6);
+  async function tick(t) {
+    const { error } = await staffItemsApi.toggleDone(sb, me, t);
+    if (error) showToast("Couldn't update that task.");
+    else load();
+  }
+  const addTask = () => window.dispatchEvent(new CustomEvent("tb:quick-add", { detail: { kind: "task" } }));
+  return (
+    <OV_Card
+      anchor="ov-tasks"
+      tour="ov-tasks"
+      title="Tasks for this client"
+      to={{ place: "work", tab: "tasks", client: client.id }}
+      className="ov-tasks"
+      actions={
+        <div className="ov-tasks-scope" role="group" aria-label="Tasks for this client">
+          {[
+            ["mine", "Mine"],
+            ["everyone", "Everyone"],
+          ].map(([k, label]) => (
+            <button key={k} type="button" className={"ov-tasks-seg" + (scope === k ? " active" : "")} aria-pressed={scope === k ? "true" : "false"} onClick={() => setScope(k)}>
+              {label}
+            </button>
+          ))}
+        </div>
+      }
+    >
+      {rows === null ? (
+        <p className="card-subtitle">Loading…</p>
+      ) : list.length === 0 ? (
+        <p className="card-subtitle">{scope === "mine" ? "Nothing open for you here." : "No open tasks for this client."}</p>
+      ) : (
+        <ul className="task-list ov-tasks-list">
+          {shown.map((t) => {
+            const overdue = t.due_date && t.due_date < today;
+            const due = staffItemDueLabel(t, today);
+            const owner = String(t.assignee_email || t.staff_email || "").toLowerCase();
+            const notMine = owner && owner !== me;
+            const to = { place: "work", tab: "tasks", item: "task:" + t.id };
+            return (
+              <li key={t.id} className="task-row ov-row2">
+                <label className="task-check-wrap">
+                  <input type="checkbox" className="task-check" checked={false} onChange={() => tick(t)} aria-label={`Mark done: ${t.text}`} />
+                </label>
+                <OV_Link to={to} className="ov-row2-main">
+                  <span className="ov-row2-title">{t.text}</span>
+                  <span className="task-meta">
+                    {due && <span className={"task-due" + (overdue ? " overdue" : "")}>{due}</span>}
+                    {notMine && <span className="task-chip">{owner.split("@")[0]}</span>}
+                    {t.visibility !== "shared" && <span className="task-chip">Private</span>}
+                  </span>
+                </OV_Link>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+      <div className="ov-tasks-foot">
+        <button type="button" className="btn-secondary" onClick={addTask}>
+          Add task
+        </button>
+        {!all && list.length > 6 && (
+          <button type="button" className="link-btn" aria-expanded="false" onClick={() => setAll(true)}>
+            Show all {list.length}
+          </button>
+        )}
+      </div>
+    </OV_Card>
+  );
+}
+
+const OV_BILLING_KEY = "mgb_ov_billing_open_v1";
+function OV_readBillingOpen(clientId) {
+  try {
+    const map = JSON.parse(localStorage.getItem(OV_BILLING_KEY) || "{}");
+    return typeof map[clientId] === "boolean" ? map[clientId] : null;
+  } catch (e) {
+    return null;
+  }
+}
+function OV_writeBillingOpen(clientId, open) {
+  try {
+    const map = JSON.parse(localStorage.getItem(OV_BILLING_KEY) || "{}");
+    map[clientId] = !!open;
+    localStorage.setItem(OV_BILLING_KEY, JSON.stringify(map));
+  } catch (e) {}
+}
+
+// Poll for a deep-link target that renders a moment after state changes
+// (details opening, health loading), then reveal it or toast the fallback.
+function OV_revealWhenReady(key, fallback, opts) {
+  const started = Date.now();
+  // Same wait as the global unclaimed toast (DeepLink.jsx, 6 s).
+  const limit = typeof LK_UNCLAIMED_MS === "number" ? LK_UNCLAIMED_MS : 6000;
+  const tryIt = () => {
+    const el = LK_find(key);
+    if (el) {
+      LK_reveal(el, opts);
+      return;
+    }
+    if (Date.now() - started > limit) {
+      if (fallback) LK_toast(fallback);
+      return;
+    }
+    setTimeout(tryIt, 150);
+  };
+  setTimeout(tryIt, 0);
+}
+
+// Previous month as "YYYY-MM-01" (close_checks period).
+function OV_lastMonth01() {
+  const d = new Date();
+  const p = new Date(d.getFullYear(), d.getMonth() - 1, 1);
+  return p.getFullYear() + "-" + String(p.getMonth() + 1).padStart(2, "0") + "-01";
+}
+
+// The staff-only first page for a client (TABS-SPEC 1.4). Bookkeepers see
+// only work; Billing and time is rendered for real admins only (D6).
+function ClientOverviewPage({ client, counts, onNavigate, onOpenDetails }) {
   const { staffUser, viewingAsName } = useContext(StaffToolsContext);
   const showToast = useToast();
   const sb = window.mgbSupabase;
+  const showBusiness = STAFF_isRealAdmin(staffUser);
+  const [whyOpen, setWhyOpen] = useState(false);
+  const [dupOpen, setDupOpen] = useState(false);
+  const [notesAll, setNotesAll] = useState(false);
+  const [activityMore, setActivityMore] = useState(false);
+  const [billingOpen, setBillingOpenState] = useState(() => {
+    const v = OV_readBillingOpen(client.id);
+    return v == null ? true : v;
+  });
+  useEffect(() => {
+    const v = OV_readBillingOpen(client.id);
+    setBillingOpenState(v == null ? true : v);
+    setWhyOpen(false);
+    setDupOpen(false);
+    setNotesAll(false);
+    setActivityMore(false);
+  }, [client.id]);
+  const setBillingOpen = (open) => {
+    setBillingOpenState(open);
+    OV_writeBillingOpen(client.id, open);
+  };
+  // Stale bank feeds: kept from the old close card as a strip chip.
+  const lastMonth01 = OV_lastMonth01();
+  const cc = CC_useCloseChecks([lastMonth01]);
+  const staleBanks =
+    cc && !cc.loading && client.dataSource === "quickbooks"
+      ? CC_staleBanks((cc.accounts || {})[client.id], cc.staleDays)
+      : [];
+  // This client's deadlines for Key dates (same records as Work › Deadlines).
+  const dlStore = DL_useStore(true);
   const { byId: msById } = useMilestones([client.id]);
   const ms = msById[client.id];
   const monthStart = todayLocal().slice(0, 8) + "01";
@@ -6114,7 +7039,7 @@ function ClientOverviewPage({ client, messagesByClient, onNavigate, onOpenDetail
         staffToolsApi.sent(sb, client.id),
         sb.from("client_close_items").select("item_key, period, done_by, done_at").eq("client_id", client.id).eq("done", true).order("done_at", { ascending: false }).limit(20),
         milestonesApi.history(sb, client.id),
-        sb.from("client_activity_log").select("action, actor_name, actor_email, detail, created_at").eq("client_id", client.id).order("created_at", { ascending: false }).limit(20),
+        sb.from("client_activity_log").select("id, action, actor_name, actor_email, detail, created_at").eq("client_id", client.id).order("created_at", { ascending: false }).limit(20),
       ]);
     const qbRow = ((qbHours && qbHours.data) || []).find((r) => r.bucket === "client" && r.client_id === client.id);
     setData({
@@ -6143,6 +7068,39 @@ function ClientOverviewPage({ client, messagesByClient, onNavigate, onOpenDetail
     window.addEventListener(STAFF_TOOLS_EVENT, load);
     return () => window.removeEventListener(STAFF_TOOLS_EVENT, load);
   }, [load]);
+  // A pin or edit made anywhere refreshes the notes here.
+  const loadNotes = useCallback(async () => {
+    if (!sb) return;
+    const res = await clientNotesApi.list(sb, { clientId: client.id });
+    if (!res.error) setData((d) => (d.loading ? d : { ...d, notes: res.data || [] }));
+  }, [client.id]);
+  useClientNotesChanged(loadNotes);
+
+  // Deep-link arrivals on this page (TABS-SPEC C.10): open the part first,
+  // then reveal it.
+  LK_useArrival({ clientId: client.id, tab: "overview", kinds: ["at", "note", "dupbills"], staff: true }, !data.loading, (a) => {
+    const unclaimed = LK_COPY.unclaimed;
+    if (a.kind === "note") {
+      setNotesAll(true);
+      OV_revealWhenReady("note:" + a.id, LK_COPY.noteMissing, { row: true });
+      return;
+    }
+    if (a.kind === "dupbills") {
+      setDupOpen(true);
+      OV_revealWhenReady("dupbills", unclaimed);
+      return;
+    }
+    if (a.kind === "at") {
+      if (a.id === "ov-why") setWhyOpen(true);
+      if (a.id === "ov-notes") setNotesAll(true);
+      if ((a.id === "ov-billing" || a.id === "ov-onboarding") && showBusiness) setBillingOpen(true);
+      if (a.id === "ov-onboarding" && showBusiness) {
+        setTimeout(() => OB_requestFocus(client.id), 0);
+        return;
+      }
+      OV_revealWhenReady("at:" + a.id, unclaimed);
+    }
+  });
 
   // ---- Plan and bill
   const plan = planShownKey(client.plan);
@@ -6186,18 +7144,6 @@ function ClientOverviewPage({ client, messagesByClient, onNavigate, onOpenDetail
       if (days <= 7) dupBills.push([a, b]);
     }
   }
-  const syncHoursAgo = client.lastSyncedAt ? (Date.now() - new Date(client.lastSyncedAt)) / 36e5 : null;
-  // Gold pulse (card-urgent): the card's own red states — the red headline
-  // (uncategorized balances, possible duplicate bills, no sync in 26+ hours)
-  // or a failed last sync run.
-  const qbUrgent =
-    connected &&
-    !!(
-      uncategorized.length ||
-      dupBills.length ||
-      (syncHoursAgo != null && syncHoursAgo > 26) ||
-      (data.syncRun && data.syncRun.status === "error")
-    );
 
   // ---- Engagement
   const usage = data.usage || [];
@@ -6206,13 +7152,6 @@ function ClientOverviewPage({ client, messagesByClient, onNavigate, onOpenDetail
   usage.forEach((u) => (pageCounts[u.page] = (pageCounts[u.page] || 0) + 1));
   const topPages = Object.entries(pageCounts).sort((a, b) => b[1] - a[1]).slice(0, 3);
   const activeUsers = new Set(usage.map((u) => u.actor_email)).size;
-  const waiting = (client.users || [])
-    .map((u) => {
-      const thread = (messagesByClient && messagesByClient[threadKeyFor(client.id, u.id)]) || seedThread(client.id, u.id);
-      const last = thread[thread.length - 1];
-      return last && last.from === "client" ? { user: u, since: last.date } : null;
-    })
-    .filter(Boolean);
   const upgradeHint =
     plan !== "premium" && usage.length >= 20
       ? `Active on ${planLabel(plan)} (${usage.length} page views in 30 days). Worth an upgrade conversation.`
@@ -6232,9 +7171,16 @@ function ClientOverviewPage({ client, messagesByClient, onNavigate, onOpenDetail
     account_manager_email: (client.accountManager && client.accountManager.email) || "",
   };
   const today = todayLocal();
+  // This client's deadlines: overdue plus the next 60 days (DL_items honours
+  // the key-date overrides, so 990/1099 dates aren't counted twice).
+  const dlRows =
+    dlStore && !dlStore.loading
+      ? DL_items(dlStore, [client], OPS_addDays(today, -365), OPS_addDays(today, 60)).filter(
+          (it) => it.state === "overdue" || it.due >= today,
+        )
+      : null;
   const upcoming = [
-    ["Form 990 due", profile.form_990_due],
-    ["1099s due", profile.filing_1099_due],
+    ...(dlRows ? [] : [["Form 990 due", profile.form_990_due], ["1099s due", profile.filing_1099_due]]),
     ["Launch date", profile.launch_date],
   ]
     .filter(([, d]) => d)
@@ -6250,8 +7196,9 @@ function ClientOverviewPage({ client, messagesByClient, onNavigate, onOpenDetail
       board_meeting: draft.board_meeting.trim() || null,
       launch_date: draft.launch_date || null,
       backup_bookkeeper_email: draft.backup_bookkeeper_email.trim() || null,
-      target_hourly_rate: draft.target_hourly_rate === "" ? null : Number(draft.target_hourly_rate),
     };
+    // Target hourly rate: admins only now (D20), like the hours budget.
+    if (showBusiness) fields.target_hourly_rate = draft.target_hourly_rate === "" ? null : Number(draft.target_hourly_rate);
     // Hours budget: admins only (supabase/client-hours-budget.sql also
     // ignores a change from anyone else). Left out for bookkeepers so their
     // save never touches it.
@@ -6288,40 +7235,78 @@ function ClientOverviewPage({ client, messagesByClient, onNavigate, onOpenDetail
   const pinned = (data.notes || []).filter((n) => n.pinned).slice(0, 4);
 
   // ---- Activity timeline
+  // Each entry opens the item it is about (deeplinks.md A.4).
+  const cid = client.id;
+  const setupTo = (panel) => ({ clientId: cid, tab: "settings", sub: "client", item: "setup:" + panel });
+  const activityTo = (action) =>
+    action === "document_added" || action === "document_removed"
+      ? { clientId: cid, tab: "documents" }
+      : /^access_(granted|revoked|updated)$/.test(action || "")
+        ? setupTo("access.people")
+        : action === "qbo_status_changed"
+          ? setupTo("details.quickbooks")
+          : action === "note_updated"
+            ? setupTo("details.notes")
+            : setupTo("details.activity");
   const timeline = [
     ...(data.notes || []).map((n) => ({
+      id: "n" + n.id,
       at: n.created_at,
       kind: n.category === "call" ? "Call" : n.category === "meeting" ? "Meeting" : "Note",
       text: n.text,
       who: n.author_name,
+      to: { clientId: cid, tab: "overview", item: "note:" + n.id },
     })),
     ...(data.docs || []).flatMap((r) => [
-      { at: r.created_at, kind: "Request", text: `Asked for "${r.title}"`, who: r.requested_by_name },
-      ...(r.fulfilled_at ? [{ at: r.fulfilled_at, kind: "Upload", text: `Uploaded "${r.file_name || r.title}"`, who: r.uploaded_by }] : []),
+      { id: "r" + r.id, at: r.created_at, kind: "Request", text: `Asked for "${r.title}"`, who: r.requested_by_name, to: { clientId: cid, tab: "documents", item: "docreq:" + r.id } },
+      ...(r.fulfilled_at
+        ? [
+            {
+              id: "u" + r.id,
+              at: r.fulfilled_at,
+              kind: "Upload",
+              text: `Uploaded "${r.file_name || r.title}"`,
+              who: r.uploaded_by,
+              to: { clientId: cid, tab: "documents", item: "docreq:" + r.id },
+              hint: { history: true },
+            },
+          ]
+        : []),
     ]),
     ...(data.sent || []).map((s) => ({
+      id: "s" + s.id,
       at: s.sent_at,
       kind: "Sent",
       text: `Sent ${s.item_label || s.item_key}${s.period_label ? " (" + s.period_label + ")" : ""}`,
       who: s.sent_by_name,
+      to: { clientId: cid, tab: "close", item: "sent:" + s.id },
     })),
     ...(data.closeDone || []).map((c) => ({
+      id: "c" + c.item_key + c.period,
       at: c.done_at,
       kind: "Close",
       text: `${(CLOSE_CHECKLIST.find((i) => i.key === c.item_key) || { label: c.item_key }).label} (${closePeriodLabel(c.period)})`,
       who: c.done_by,
+      to: { clientId: cid, tab: "close", item: "step:" + c.item_key, month: /^\d{4}-\d{2}/.test(c.period || "") ? String(c.period).slice(0, 7) : undefined },
     })),
-    ...(data.msHist || []).map((h) => ({
-      at: h.changed_at,
-      kind: "Milestone",
-      text: `Milestone set to ${(milestoneByTier(h.to_tier) || { name: "tier " + h.to_tier }).name}`,
-      who: h.changed_by,
-    })),
-    ...(data.activity || []).map((a) => ({
+    // Milestone changes are a pricing tier: admins only (1.4).
+    ...(showBusiness
+      ? (data.msHist || []).map((h, i) => ({
+          id: "m" + (h.id || i),
+          at: h.changed_at,
+          kind: "Milestone",
+          text: `Milestone set to ${(milestoneByTier(h.to_tier) || { name: "tier " + h.to_tier }).name}`,
+          who: h.changed_by,
+          to: { clientId: cid, tab: "milestone" },
+        }))
+      : []),
+    ...(data.activity || []).map((a, i) => ({
+      id: "a" + (a.id || i),
       at: a.created_at,
       kind: "Activity",
       text: String(a.action || "").replace(/_/g, " "),
       who: a.actor_name || a.actor_email,
+      to: activityTo(a.action),
     })),
   ]
     .filter((x) => x.at)
@@ -6342,16 +7327,19 @@ function ClientOverviewPage({ client, messagesByClient, onNavigate, onOpenDetail
   }
 
   const fmtHours = (m) => `${(m / 60).toFixed(1)} h`;
-  return (
-    <div className="client-overview">
-      <div className="ov-staff-note">
-        Staff only. {client.name} never sees this page.
-      </div>
-
-      <div className="ov-grid">
-        {typeof HL_HealthCard === "function" && <HL_HealthCard clientId={client.id} />}
-        <div className="card ov-stat">
-          <span className="kpi-label">Monthly bill</span>
+  const tlShown = activityMore ? timeline : timeline.slice(0, 8);
+  const CloseRow = CLC_CloseSummaryRow;
+  const allNotes = data.notes || [];
+  const dlSorted = dlRows ? dlRows.slice().sort((a, b) => (a.due < b.due ? -1 : a.due > b.due ? 1 : 0)) : null;
+  // Billing and time summary: each part only when its number is known.
+  const billingSummary = [
+    "Billing and time",
+    ...(monthlyBill != null ? [`${fmtMoney(monthlyBill)} a month`] : []),
+    ...(data.qbMinutes != null ? [`${(minutes / 60).toFixed(1)} hours this month`] : []),
+  ].join(" · ");
+  const billingCards = !showBusiness ? null : (
+    <div className="ov-grid ov-billing-grid">
+        <OV_Card anchor="ov-bill" title="Monthly bill" to={{ clientId: cid, tab: "milestone" }} className="ov-stat" noLk>
           <span className="ov-big">{monthlyBill == null ? (milestone ? "Custom" : "—") : fmtMoney(monthlyBill)}</span>
           <ul className="ov-lines">
             <li>
@@ -6371,13 +7359,15 @@ function ClientOverviewPage({ client, messagesByClient, onNavigate, onOpenDetail
               </li>
             )}
           </ul>
-          <button type="button" className="link-btn" onClick={() => onNavigate("milestone")}>
-            Milestone details
-          </button>
-        </div>
+        </OV_Card>
 
-        <div className="card ov-stat">
-          <span className="kpi-label">Profitability · this month</span>
+        <OV_Card
+          anchor="ov-profit"
+          title="Profitability · this month"
+          to={{ place: "team", tab: "hours", client: cid }}
+          className="ov-stat"
+          noLk
+        >
           <span className={"ov-big" + (effectiveRate != null && target != null ? (effectiveRate >= target ? " positive" : " negative") : "")}>
             {effectiveRate != null ? `${fmtMoney(Math.round(effectiveRate))}/h` : "—"}
           </span>
@@ -6410,58 +7400,16 @@ function ClientOverviewPage({ client, messagesByClient, onNavigate, onOpenDetail
                 ? "No QuickBooks Time hours for this client this month."
                 : "Monthly bill divided by QuickBooks Time hours this month."}
           </p>
-        </div>
+        </OV_Card>
 
-        <div className={"card ov-stat" + (qbUrgent ? " card-urgent" : "")}>
-          <span className="kpi-label">QuickBooks health</span>
-          {!connected ? (
-            <>
-              <span className="ov-big muted">Not connected</span>
-              <button type="button" className="link-btn" onClick={() => onOpenDetails("quickbooks")}>
-                Connect in Client details
-              </button>
-            </>
-          ) : (
-            <>
-              <span className={"ov-big" + (uncategorized.length || dupBills.length || (syncHoursAgo != null && syncHoursAgo > 26) ? " negative" : " positive")}>
-                {uncategorized.length || dupBills.length ? "Needs attention" : "Looks clean"}
-              </span>
-              <ul className="ov-lines">
-                <li>
-                  <span>Last sync</span>
-                  <span>{relTime(client.lastSyncedAt) || "never"}</span>
-                </li>
-                {data.syncRun && data.syncRun.status && data.syncRun.status !== "ok" && (
-                  <li className="negative">
-                    <span>Last sync run</span>
-                    <span>{data.syncRun.status}</span>
-                  </li>
-                )}
-                <li className={uncategorized.length ? "negative" : ""}>
-                  <span>Uncategorized balances</span>
-                  <span>
-                    {uncategorized.length
-                      ? uncategorized.map((a) => `${fmtMoney(Math.abs(a.current_balance))}`).join(", ")
-                      : "none"}
-                  </span>
-                </li>
-                <li className={dupBills.length ? "negative" : ""}>
-                  <span>Possible duplicate bills</span>
-                  <span>{dupBills.length || "none"}</span>
-                </li>
-              </ul>
-              {dupBills.slice(0, 2).map(([a, b], i) => (
-                <p className="ov-foot" key={i}>
-                  {a.vendor_name}: {fmtMoney(a.total)} on {fmtDate(a.txn_date)} and {fmtDate(b.txn_date)}
-                </p>
-              ))}
-              <p className="ov-foot">Reconciliation status isn't available from QuickBooks yet.</p>
-            </>
-          )}
-        </div>
-
-        <div className="card ov-stat">
-          <span className="kpi-label">Engagement · 30 days</span>
+        <OV_Card
+          anchor="ov-engagement"
+          title="Engagement · 30 days"
+          to={{ place: "usage-stats" }}
+          linkText="Usage stats"
+          className="ov-stat"
+          noLk
+        >
           <span className="ov-big">{lastSeen ? relTime(lastSeen) : "No visits"}</span>
           <ul className="ov-lines">
             <li>
@@ -6478,36 +7426,43 @@ function ClientOverviewPage({ client, messagesByClient, onNavigate, onOpenDetail
                 <span>{n}</span>
               </li>
             ))}
-            {waiting.map((w) => (
-              <li key={w.user.id} className="negative">
-                <span>{w.user.name} is waiting on a reply</span>
-                <span>{fmtDate(w.since)}</span>
-              </li>
-            ))}
           </ul>
           {upgradeHint && <p className="ov-foot ov-hint">{upgradeHint}</p>}
-          {/* waiting is worked out from the sample threads (data.js), not
-              client_messages; real conversations are in the Inbox. */}
-          <p className="ov-foot">"Waiting on a reply" uses sample threads. Real client messages are in the Inbox.</p>
-        </div>
+        </OV_Card>
+    </div>
+  );
+  return (
+    <div className="client-overview" data-tour="client-overview">
+      <div className="ov-staff-note">
+        Staff only. {client.name} never sees this page.
       </div>
+
+      <OV_OpenStrip client={client} counts={counts} staleBanks={staleBanks} />
+      <OV_StatusLine
+        client={client}
+        plan={plan}
+        counts={counts}
+        syncRun={data.syncRun}
+        uncategorized={uncategorized}
+        dupBills={dupBills}
+        showBusiness={showBusiness}
+        whyOpen={whyOpen}
+        setWhyOpen={setWhyOpen}
+        dupOpen={dupOpen}
+        setDupOpen={setDupOpen}
+      />
 
       <div className="ov-columns">
         <div className="ov-col">
-          {typeof TQ_OpenList === "function" && client.dataSource === "quickbooks" && (
-            <TQ_OpenList client={client} hideEmpty onOpenBank={() => onNavigate("bank")} />
-          )}
-          <CloseChecklistCard client={client} />
-          <DocumentRequestsCard client={client} />
-          {typeof DC_DocChaserCard === "function" && <DC_DocChaserCard client={client} />}
-          <div className="card">
-            <h3 className="card-title">Activity</h3>
+          {CloseRow && <CloseRow client={client} counts={counts} onOpen={() => onNavigate("client-close")} />}
+          <OV_ClientTasks client={client} staffUser={staffUser} />
+          <OV_Card anchor="ov-activity" tour="ov-activity" title="Activity" to={setupTo("details.activity")}>
             <form className="ms-form ov-call-form" onSubmit={logCall}>
               <label className="task-field">
                 <span>Log a call</span>
                 <input
                   type="text"
-                  placeholder="Talked with Pastor Mia about the outreach budget"
+                  placeholder="What did you talk about?"
                   value={callText}
                   onChange={(e) => setCallText(e.target.value)}
                 />
@@ -6519,27 +7474,63 @@ function ClientOverviewPage({ client, messagesByClient, onNavigate, onOpenDetail
             {timeline.length === 0 ? (
               <p className="card-subtitle">{data.loading ? "Loading…" : "No activity yet."}</p>
             ) : (
-              <ul className="ov-timeline">
-                {timeline.map((t, i) => (
-                  <li key={i}>
-                    <span className={"ov-kind ov-kind-" + t.kind.toLowerCase()}>{t.kind}</span>
-                    <span className="ov-tl-text">{t.text}</span>
-                    <span className="ov-tl-meta">
-                      {t.who ? String(t.who).split("@")[0] + " · " : ""}
-                      {relTime(t.at)}
-                    </span>
-                  </li>
-                ))}
-              </ul>
+              <>
+                <ul className="ov-timeline">
+                  {tlShown.map((t) => (
+                    <li key={t.id} className="ov-tl-row">
+                      <OV_Link to={t.to} hint={t.hint} className="ov-tl-link">
+                        <span className={"ov-kind ov-kind-" + t.kind.toLowerCase()}>{t.kind}</span>
+                        <span className="ov-tl-text">{t.text}</span>
+                        <span className="ov-tl-meta">
+                          {t.who ? String(t.who).split("@")[0] + " · " : ""}
+                          {relTime(t.at)}
+                        </span>
+                      </OV_Link>
+                    </li>
+                  ))}
+                </ul>
+                {!activityMore && timeline.length > 8 && (
+                  <button type="button" className="link-btn ov-more" onClick={() => setActivityMore(true)}>
+                    Show more
+                  </button>
+                )}
+              </>
             )}
-          </div>
+          </OV_Card>
         </div>
 
         <div className="ov-col">
-          <OB_OnboardingCard client={client} staffUser={staffUser} />
-          {typeof CC_ClientCloseCard === "function" && <CC_ClientCloseCard client={client} />}
-          <div className="card">
-            <h3 className="card-title">Key dates and coverage</h3>
+          <OV_Card anchor="ov-dates" title="Key dates and coverage" to={{ place: "work", tab: "deadlines", client: cid }}>
+            {dlSorted && dlSorted.length === 0 && <p className="card-subtitle">No deadlines in the next 60 days.</p>}
+            {dlSorted && dlSorted.length > 0 && (
+              <ul className="ov-lines ov-upcoming ov-dl">
+                {dlSorted.map((it) => {
+                  const d = OV_daysUntil(it.due, today);
+                  const when =
+                    it.state === "filed"
+                      ? "Filed"
+                      : it.state === "overdue"
+                        ? "overdue"
+                        : d === 0
+                          ? "today"
+                          : `in ${d} days`;
+                  return (
+                    <li key={it.id} className={"ov-row2" + (it.state === "overdue" ? " negative" : it.state !== "filed" && d <= 30 ? " warn" : "")}>
+                      <OV_Link to={{ place: "work", tab: "deadlines", item: "deadline:" + it.id }} className="ov-row2-main">
+                        <span className="ov-row2-title">
+                          {it.rule_name}
+                          {it.period_label ? ` · ${it.period_label}` : ""}
+                        </span>
+                        <span>
+                          {fmtDate(it.due)} · {when}
+                        </span>
+                      </OV_Link>
+                      <DL_FiledControl it={it} />
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
             {upcoming.length > 0 && (
               <ul className="ov-lines ov-upcoming">
                 {upcoming.map((u) => (
@@ -6592,6 +7583,10 @@ function ClientOverviewPage({ client, messagesByClient, onNavigate, onOpenDetail
                 </li>
               )}
             </ul>
+            {/* Organization type drives the 990 and other deadlines (D23). */}
+            <div className="ov-entity">
+              <OB_EntityTypeSelect client={client} />
+            </div>
             {data.profileMissing ? (
               <p className="card-subtitle">{STAFF_TOOLS_SETUP_MSG}</p>
             ) : (
@@ -6608,7 +7603,7 @@ function ClientOverviewPage({ client, messagesByClient, onNavigate, onOpenDetail
                     ...(typeof CV_StaffSelect === "function"
                       ? []
                       : [["backup_bookkeeper_email", "Backup bookkeeper (email)", "email", "name@mygoodbooks.org"]]),
-                    ["target_hourly_rate", "Target hourly rate ($)", "number", "75"],
+                    ...(showBusiness ? [["target_hourly_rate", "Target hourly rate ($)", "number", "75"]] : []),
                     ...(isAdminViewer ? [["monthly_hours_budget", "Monthly hours budget (admins only)", "number", "10"]] : []),
                   ].map(([key, label, type, ph]) => (
                     <label className="task-field" key={key}>
@@ -6662,21 +7657,30 @@ function ClientOverviewPage({ client, messagesByClient, onNavigate, onOpenDetail
                 </form>
               </details>
             )}
-          </div>
+          </OV_Card>
 
-          <div className="card">
-            <div className="ov-card-head">
-              <h3 className="card-title">Pinned notes</h3>
-              <button type="button" className="link-btn" onClick={() => onOpenDetails("notes")}>
-                All notes
+          <OV_Card
+            anchor="ov-notes"
+            title="Pinned notes"
+            to={setupTo("details.notes")}
+            actions={
+              <button type="button" className="link-btn" aria-expanded={notesAll} onClick={() => setNotesAll((v) => !v)}>
+                {notesAll ? "Show fewer" : "All notes"}
               </button>
-            </div>
-            {pinned.length === 0 ? (
-              <p className="card-subtitle">Nothing pinned. Pin a note in Client details → Notes.</p>
+            }
+          >
+            {notesAll ? (
+              allNotes.length === 0 ? (
+                <p className="card-subtitle">No notes yet.</p>
+              ) : (
+                <ClientNotesList compact clientId={client.id} notes={allNotes} onChanged={loadNotes} />
+              )
+            ) : pinned.length === 0 ? (
+              <p className="card-subtitle">Nothing pinned yet. Open All notes to pin one.</p>
             ) : (
               <ul className="ov-notes">
                 {pinned.map((n) => (
-                  <li key={n.id}>
+                  <li key={n.id} data-lk={"note:" + n.id} tabIndex={-1}>
                     <p>{n.text}</p>
                     <span>
                       {n.author_name} · {relTime(n.created_at)}
@@ -6686,28 +7690,30 @@ function ClientOverviewPage({ client, messagesByClient, onNavigate, onOpenDetail
               </ul>
             )}
             <InternalNotesSummary client={client} />
-          </div>
-
-          <div className="card">
-            <h3 className="card-title">Sent to the client</h3>
-            {(data.sent || []).length === 0 ? (
-              <p className="card-subtitle">Nothing recorded yet. Use "Mark sent to client" on the Reports page.</p>
-            ) : (
-              <ul className="ov-lines">
-                {(data.sent || []).slice(0, 6).map((s) => (
-                  <li key={s.id}>
-                    <span>
-                      {s.item_label || s.item_key}
-                      {s.period_label ? ` · ${s.period_label}` : ""}
-                    </span>
-                    <span>{fmtDate(s.sent_at)}</span>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
+          </OV_Card>
         </div>
       </div>
+
+      {/* Billing and time: admins only (D5/D6). Nothing here is in the DOM
+          for bookkeepers. */}
+      {showBusiness && (
+        <details
+          className="ov-billing"
+          data-tour="ov-billing"
+          data-lk="at:ov-billing"
+          open={billingOpen}
+          onToggle={(e) => {
+            const open = e.currentTarget.open;
+            if (open !== billingOpen) setBillingOpen(open);
+          }}
+        >
+          <summary>{billingSummary}</summary>
+          {billingCards}
+          <div className="ov-billing-onboarding" data-lk="at:ov-onboarding">
+            <OB_OnboardingCard client={client} staffUser={staffUser} collapsed />
+          </div>
+        </details>
+      )}
     </div>
   );
 }
@@ -6734,6 +7740,144 @@ function InternalNotesSummary({ client }) {
         ))}
       </ul>
     </div>
+  );
+}
+
+// A client's internal notes with edit and pin (TABS-SPEC WP4 step 12). Shared
+// by Client setup › Notes (allowRemove: keeps today's Remove there) and the
+// Overview's Pinned notes (compact, no Remove: clientNotesApi.remove is a
+// hard delete). Rows carry data-lk="note:<id>" for deep links.
+function ClientNotesList({ clientId, notes, onChanged, compact, allowRemove }) {
+  const showToast = useToast();
+  const supabase = window.mgbSupabase;
+  const [editingId, setEditingId] = useState(null);
+  const [editingText, setEditingText] = useState("");
+  const [busyId, setBusyId] = useState(null);
+  useEffect(() => {
+    setEditingId(null);
+  }, [clientId]);
+  const done = () => {
+    if (onChanged) onChanged();
+  };
+  async function saveEdit(id) {
+    const text = editingText.trim();
+    if (!text || !supabase) return;
+    setBusyId(id);
+    const { error } = await clientNotesApi.update(supabase, id, { text });
+    setBusyId(null);
+    if (error) {
+      showToast("Couldn't update that note: " + error.message);
+      return;
+    }
+    setEditingId(null);
+    done();
+  }
+  async function togglePin(note) {
+    if (!supabase) return;
+    setBusyId(note.id);
+    const { error } = await clientNotesApi.pin(supabase, note);
+    setBusyId(null);
+    if (error) {
+      showToast("Couldn't update that note: " + error.message);
+      return;
+    }
+    done();
+  }
+  async function remove(id) {
+    if (!supabase) return;
+    const { error } = await clientNotesApi.remove(supabase, id);
+    if (error) showToast("Couldn't remove that note: " + error.message);
+    else done();
+  }
+  const editor = (n) => (
+    <>
+      <textarea
+        value={editingText}
+        onChange={(e) => setEditingText(e.target.value)}
+        rows={3}
+        aria-label="Edit note"
+        style={{ width: "100%", resize: "vertical" }}
+      />
+      <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+        <button className="btn-primary" disabled={busyId === n.id || !editingText.trim()} onClick={() => saveEdit(n.id)}>
+          Save
+        </button>
+        <button className="btn-secondary" onClick={() => setEditingId(null)}>
+          Cancel
+        </button>
+      </div>
+    </>
+  );
+  const startEdit = (n) => {
+    setEditingId(n.id);
+    setEditingText(n.text || "");
+  };
+  if (compact) {
+    return (
+      <ul className="ov-notes ov-notes-all">
+        {(notes || []).map((n) => (
+          <li key={n.id} data-lk={"note:" + n.id} tabIndex={-1}>
+            {editingId === n.id ? (
+              editor(n)
+            ) : (
+              <>
+                <p>{n.text}</p>
+                <span>
+                  {n.pinned ? "Pinned · " : ""}
+                  {n.author_name} · {relTime(n.updated_at || n.created_at)}
+                </span>
+                <span className="ov-note-actions">
+                  <button type="button" className="link-btn" disabled={busyId === n.id} onClick={() => togglePin(n)} data-lk-focus>
+                    {n.pinned ? "Unpin" : "Pin"}
+                  </button>
+                  <button type="button" className="link-btn" onClick={() => startEdit(n)}>
+                    Edit
+                  </button>
+                </span>
+              </>
+            )}
+          </li>
+        ))}
+      </ul>
+    );
+  }
+  return (
+    <>
+      {(notes || []).map((n) => (
+        <div className="access-request-row" key={n.id} data-lk={"note:" + n.id}>
+          {editingId === n.id ? (
+            editor(n)
+          ) : (
+            <>
+              <div className="access-request-row-header">
+                <span className="person-name">
+                  {n.pinned && "📌 "}
+                  {n.author_name}
+                </span>
+                <span className="card-subtitle" style={{ margin: 0 }}>
+                  {fmtDateTime(n.updated_at || n.created_at)}
+                  {n.updated_at ? " (edited)" : ""}
+                </span>
+              </div>
+              <p style={{ whiteSpace: "pre-wrap", margin: "4px 0 8px" }}>{n.text}</p>
+              <div style={{ display: "flex", gap: 8 }}>
+                <button className="btn-secondary" disabled={busyId === n.id} onClick={() => togglePin(n)}>
+                  {n.pinned ? "Unpin" : "Pin"}
+                </button>
+                <button className="btn-secondary" onClick={() => startEdit(n)}>
+                  Edit
+                </button>
+                {allowRemove && (
+                  <button className="btn-secondary" onClick={() => remove(n.id)}>
+                    Remove
+                  </button>
+                )}
+              </div>
+            </>
+          )}
+        </div>
+      ))}
+    </>
   );
 }
 
@@ -6785,7 +7929,7 @@ function StaffQuickActions({ client, onNavigate, only, onMessage, headless }) {
         client_id: client.id,
         visibility: f.shared ? "shared" : "private",
       });
-      done = "Task added to My Tasks.";
+      done = "Task added.";
     } else if (modal === "request") {
       res = await staffToolsApi.addDocRequest(sb, {
         client_id: client.id,
@@ -6795,7 +7939,7 @@ function StaffQuickActions({ client, onNavigate, only, onMessage, headless }) {
         requested_by: staffUser.email,
         requested_by_name: staffUser.name || staffUser.email,
       });
-      done = `Requested "${f.text.trim()}" from ${client.name}.`;
+      done = `Requested "${f.text.trim()}" from ${client.name}. It's on their Documents.`;
     } else if (modal === "note") {
       res = await clientNotesApi.add(sb, staffUser, { client_id: client.id, text: f.text.trim(), category: "general" });
       done = "Note added.";
@@ -9201,11 +10345,23 @@ function PayrollDetail({ client }) {
 // standard Bank Accounts and Reconciliation Pro's Transactions view.
 // ----------------------------------------------------------------------------
 
-function BankPage({ client, searchTarget, isClientUser }) {
+// Staff-only extras (TABS WP3): `bankPreset` ({filter} from the
+// bank/<questions|uncategorized|unreconciled> path), `onClearPreset`,
+// `onOpenQuickBooks` (Client setup › QuickBooks) and `canSyncNow`. The panel
+// reads "is staff" from StaffToolsContext itself.
+function BankPage({ client, searchTarget, isClientUser, bankPreset, onClearPreset, onOpenQuickBooks, canSyncNow }) {
   return (
     <div className="bank-accounts-page">
       <MockBanner text="Account balances and transactions are fabricated sample data — no bank is connected yet."client={client} />
-      <BA_BankTransactionsPanel client={client} searchTarget={searchTarget} isClientUser={isClientUser} />
+      <BA_BankTransactionsPanel
+        client={client}
+        searchTarget={searchTarget}
+        isClientUser={isClientUser}
+        bankPreset={bankPreset}
+        onClearPreset={onClearPreset}
+        onOpenQuickBooks={onOpenQuickBooks}
+        canSyncNow={canSyncNow}
+      />
     </div>
   );
 }
@@ -9221,8 +10377,14 @@ function BankPage({ client, searchTarget, isClientUser }) {
 // current state rather than pretending to let you change it.
 // ----------------------------------------------------------------------------
 
-function BankReconciliationPage({ client, searchTarget, isClientUser }) {
+function BankReconciliationPage({ client, searchTarget, isClientUser, bankPreset, onClearPreset, onOpenQuickBooks, canSyncNow }) {
   const [view, setView] = useState("transactions");
+  // Account the Reconciliation view opens on (a close-check "{account} →"
+  // link: bank/unreconciled?account=<qboId>, handed over by the panel).
+  const [reconAccountId, setReconAccountId] = useState(null);
+  const staffCtx = useContext(StaffToolsContext);
+  const isStaffViewer = !!(staffCtx && staffCtx.staff);
+  const presetFilter = isStaffViewer && bankPreset ? bankPreset.filter : null;
 
   // A transaction search result always means "show me that transaction," so
   // it forces the view back to Transactions first, same as Bank Accounts'
@@ -9231,6 +10393,31 @@ function BankReconciliationPage({ client, searchTarget, isClientUser }) {
     if (searchTarget) setView("transactions");
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchTarget && searchTarget.nonce]);
+
+  // Same for a Bank filter preset (path) or a pending deep-link arrival
+  // (TABS WP3): the panel that claims them lives in the Transactions view.
+  useEffect(() => {
+    if (presetFilter) setView("transactions");
+  }, [presetFilter]);
+  useEffect(() => {
+    if (!isStaffViewer) return undefined;
+    const check = () => {
+      const a = LK_peek({ clientId: client.id, tab: "bank", kinds: ["question", "txn", "rownote", "view"], staff: true });
+      if (a) setView("transactions");
+    };
+    const onHash = () => setTimeout(check, 0);
+    const ev = LK_EVENT;
+    window.addEventListener(ev, check);
+    window.addEventListener("hashchange", onHash);
+    return () => {
+      window.removeEventListener(ev, check);
+      window.removeEventListener("hashchange", onHash);
+    };
+  }, [isStaffViewer, client.id]);
+  const openReconciliation = (accountId) => {
+    setReconAccountId(accountId);
+    setView("reconciliation");
+  };
 
   return (
     <div className="bank-accounts-page">
@@ -9258,18 +10445,32 @@ function BankReconciliationPage({ client, searchTarget, isClientUser }) {
       </div>
 
       {view === "transactions" && (
-        <BA_BankTransactionsPanel client={client} searchTarget={searchTarget} isClientUser={isClientUser} />
+        <BA_BankTransactionsPanel
+          client={client}
+          searchTarget={searchTarget}
+          isClientUser={isClientUser}
+          bankPreset={bankPreset}
+          onClearPreset={onClearPreset}
+          onOpenQuickBooks={onOpenQuickBooks}
+          canSyncNow={canSyncNow}
+          onOpenReconciliation={openReconciliation}
+        />
       )}
-      {view === "reconciliation" && <ReconciliationPanel client={client} />}
+      {view === "reconciliation" && (
+        <ReconciliationPanel client={client} initialAccountId={reconAccountId} key={"recon-" + (reconAccountId || "")} />
+      )}
     </div>
   );
 }
 
-function ReconciliationPanel({ client }) {
+function ReconciliationPanel({ client, initialAccountId }) {
   // Same no-linked-accounts crash as BankTransactionsPanel — lazy, optional
   // chained, with the empty state rendered once the hooks have run.
-  const [activeAccountId, setActiveAccountId] = useState(
-    () => (client.bankAccounts || [])[0]?.id,
+  // `initialAccountId` (TABS WP3): open on that account when it exists.
+  const [activeAccountId, setActiveAccountId] = useState(() =>
+    initialAccountId && (client.bankAccounts || []).some((a) => String(a.id) === String(initialAccountId))
+      ? (client.bankAccounts || []).find((a) => String(a.id) === String(initialAccountId)).id
+      : (client.bankAccounts || [])[0]?.id,
   );
   const showToast = useToast();
   const accounts = client.bankAccounts || [];
@@ -10293,6 +11494,7 @@ function QuickDownloadReports({ client }) {
               itemKey={r.key}
               itemLabel={r.name}
               periodLabel={r.key === "pl" ? periodLabelFor(client.monthly, period) : null}
+              closePeriod={r.key === "pl" && period === "month" ? closePeriodFor() : undefined}
             />
           </div>
         ))}
@@ -12781,7 +13983,7 @@ function DeveloperToolsPage({ staffUser, readOnly }) {
   function resetLocalState() {
     if (
       !window.confirm(
-        "Reset this browser's local MyGoodBooks state (theme, tab layout, dashboard/Financial Overview widget layouts, cash-floor alerts, per-person access overrides, the tour and first sign-in prompts, dismissed page hints, recent clients, ...)? This only affects this browser — nothing in Supabase is touched. The page will reload.",
+        "Reset this browser's local MyGoodBooks state (theme, tab layout, dashboard/Financial Overview widget layouts, cash-floor alerts, per-person access overrides, the tour and first sign-in prompts, dismissed page hints, recent clients, the tab last open on each client, ...)? This only affects this browser — nothing in Supabase is touched. The page will reload.",
       )
     ) {
       return;
@@ -12791,10 +13993,19 @@ function DeveloperToolsPage({ staffUser, readOnly }) {
         localStorage.removeItem(key);
       } catch (e) {}
     });
-    // The client portal's last-used Finances tab (CLIENT_rememberTab).
+    // Per-tab memory in sessionStorage: the client portal's last-used Finances
+    // tab (CLIENT_rememberTab), the staff last-open tab per client
+    // (STAFF_lastTabKey), a deep link waiting to land (LK_KEY), and the
+    // Onboarding card's open state per client (OB_openKey).
     try {
       Object.keys(sessionStorage)
-        .filter((k) => k.startsWith("mgb_client_tab_"))
+        .filter(
+          (k) =>
+            k.startsWith("mgb_client_tab_") ||
+            k.startsWith("mgb_staff_client_tab_") ||
+            k === "mgb_lk_arrival_v1" ||
+            k.startsWith("mgb_ov_onboarding_open_"),
+        )
         .forEach((k) => sessionStorage.removeItem(k));
     } catch (e) {}
     window.location.reload();
@@ -14533,6 +15744,7 @@ const USAGE_TAB_LABELS = {
   qbo: "QuickBooks",
   sop: "SOP",
   "client-overview": "Overview",
+  "client-close": "Close",
   bank: "Bank accounts",
   receivables: "Cash flow",
   giving: "Giving & funds",
@@ -14546,6 +15758,7 @@ const USAGE_ACTION_LABELS = {
   "guide-miss": "Guide searches with no result",
   "help-page": "Help for this page",
   "client-help": "Client ? menu clicks",
+  "client-view-open": "Client view menu opened",
   "tour-done": "Tours finished",
   "tour-skipped": "Tours skipped",
   "tip-more": "Tip deep dives",
@@ -14752,6 +15965,9 @@ function UsageStatsPage() {
   return (
     <div>
       <MockBanner text="Page and tab views plus a few key actions, staff and client portal alike — counted in the database, so the numbers are exact. Not a full analytics pipeline." />
+      <p style={{ margin: "-6px 0 16px", fontSize: 13, color: "var(--text-muted)" }}>
+        From Oct 10, 2026, coming back to a client opens the tab you left, so Overview views drop. Close views start that day.
+      </p>
 
       <div className="card" style={{ marginBottom: 20 }}>
         <div
@@ -16692,7 +17908,8 @@ function useCardFlash() {
   useEffect(() => () => clearTimeout(flashTimeoutRef.current), []);
   const jumpToCard = (domId, cardId) => {
     const el = document.getElementById(domId);
-    if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+    const reduce = LK_reduceMotion();
+    if (el) el.scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "start" });
     if (flashTimeoutRef.current) clearTimeout(flashTimeoutRef.current);
     setFlashCardId(cardId);
     flashTimeoutRef.current = setTimeout(
@@ -17680,6 +18897,24 @@ function ClientSopView({ client, readOnly, onEditInMyTasks }) {
     }
   }
 
+  // Deep link: #/client/<id>/sop?item=sop:<section>.
+  LK_useArrival(
+    { clientId: client && client.id, tab: "sop", kinds: ["sop"], staff: true },
+    !!missing || rows !== undefined,
+    (a) => {
+      const known = !missing && CLIENT_SOP_SECTIONS.some((s) => String(s.id) === String(a.id));
+      if (!known) {
+        LK_toast(LK_COPY.sopMissing);
+        return;
+      }
+      requestAnimationFrame(() => {
+        const el = LK_find("sop:" + a.id);
+        if (el) LK_reveal(el, { block: "start" });
+        else LK_toast(LK_COPY.sopMissing);
+      });
+    },
+  );
+
   if (missing) {
     return <p className="card-subtitle sop-missing">{CLIENT_SOP_MISSING_TEXT}</p>;
   }
@@ -17727,7 +18962,7 @@ function ClientSopView({ client, readOnly, onEditInMyTasks }) {
         const showConflict = ed && (ed.conflict || stale);
         const headingId = `sop-${client.id}-${sec.id}`;
         return (
-          <section className="sop-section" key={sec.id} aria-labelledby={headingId}>
+          <section className="sop-section" key={sec.id} aria-labelledby={headingId} data-lk={"sop:" + sec.id}>
             <div className="sop-section-head">
               <h4 className="sop-section-title" id={headingId}>
                 {sec.title}
@@ -18290,7 +19525,8 @@ function MyTasksPage({
   useEffect(() => {
     if (!highlightNoteId) return;
     const el = document.getElementById(`note-${highlightNoteId}`);
-    if (el) el.scrollIntoView({ block: "center", behavior: "smooth" });
+    const reduce = LK_reduceMotion();
+    if (el) el.scrollIntoView({ block: "center", behavior: reduce ? "auto" : "smooth" });
     const id = setTimeout(() => setHighlightNoteId(null), 2500);
     return () => clearTimeout(id);
   }, [highlightNoteId, notes]);
@@ -18453,6 +19689,24 @@ function MyTasksPage({
     setClientFilter(task.client_id || "");
     setScopeFilter("all");
   }
+
+  // Deep link: #/work/tasks?item=task:<id> or ?client=<id>.
+  LK_useArrival({ place: "work", tab: "tasks", kinds: ["task", "view"], staff: true }, tasks != null, (a) => {
+    if (a.kind === "view") {
+      if (a.client) setClientFilter(a.client);
+      return;
+    }
+    const task = (tasks || []).find((t) => String(t.id) === String(a.id));
+    if (!task) {
+      LK_toast(LK_COPY.taskMissing);
+      return;
+    }
+    jumpToTask(task);
+    if (task.done) LK_toast(LK_COPY.taskDone);
+    requestAnimationFrame(() =>
+      requestAnimationFrame(() => LK_reveal(LK_find("task:" + task.id), { row: true })),
+    );
+  });
 
   // Client + mine/shared filters apply to every tab and to Completed.
   const filtered = useMemo(() => {
@@ -18907,12 +20161,13 @@ function MyTasksPage({
     const dueLabel = staffItemDueLabel(t, today);
     const checkboxId = `task-done-${t.id}`;
     return (
-      <li className={"task-row" + (t.done ? " done" : "")} key={t.id}>
+      <li className={"task-row" + (t.done ? " done" : "")} key={t.id} data-lk={"task:" + t.id}>
         <label className="task-check-wrap">
           <input
             id={checkboxId}
             type="checkbox"
             className="task-check"
+            data-lk-focus=""
             checked={t.done}
             onChange={() => toggleTask(t)}
             aria-label={`${t.done ? "Mark not done" : "Mark done"}: ${t.text}`}
@@ -19787,6 +21042,22 @@ function DocumentsPage({ client, isBookkeeper, searchTarget }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchTarget && searchTarget.nonce]);
 
+  // Deep link to one file (TABS-SPEC WP4 step 8): open its folder first,
+  // clear the search, then reveal the row (data-lk="file:<key>").
+  const docsReady = !docSb || remoteState === "ready" || remoteState === "error";
+  LK_useArrival({ clientId: client.id, tab: "documents", kinds: ["file"], staff: !!isBookkeeper }, docsReady, (a) => {
+    const missing = LK_COPY.fileMissing;
+    const d = docs.find((x) => String(x.key) === String(a.id));
+    if (!d) {
+      LK_toast(missing);
+      return;
+    }
+    setDocSearch("");
+    setVisFilter("all");
+    setActiveFolder(d.folder || null);
+    OV_revealWhenReady("file:" + d.key, missing, { row: true });
+  });
+
   // Trash and restore (staff only). Files move between <client>/<sub>/ and
   // <client>/trash/<sub>/; links flip trashed_at. Trash never empties on
   // its own; only Delete forever (below) removes anything.
@@ -20067,6 +21338,8 @@ function DocumentsPage({ client, isBookkeeper, searchTarget }) {
       )}
 
       <DocumentRequestsCard client={client} />
+      {/* Moved from the Overview (TABS-SPEC 1.4); returns null for clients. */}
+      <DC_DocChaserCard client={client} />
 
       <div className="doc-folder-bar">
         <button
@@ -20383,6 +21656,8 @@ function DocumentsPage({ client, isBookkeeper, searchTarget }) {
                   <tr
                     key={d.key}
                     id={rowId}
+                    data-lk={"file:" + d.key}
+                    data-lk-focus=""
                     className={
                       "doc-row" + (flashCardId === rowId ? " row-flash" : "")
                     }
@@ -22061,8 +23336,6 @@ function TabSettingsModal({
   const [privateNotes, setPrivateNotes] = useState(undefined); // undefined = loading
   const [newNoteText, setNewNoteText] = useState("");
   const [addingNote, setAddingNote] = useState(false);
-  const [editingNoteId, setEditingNoteId] = useState(null);
-  const [editingNoteText, setEditingNoteText] = useState("");
   const [activityLog, setActivityLog] = useState(undefined); // undefined = loading
   const showToast = useToast();
 
@@ -22104,7 +23377,7 @@ function TabSettingsModal({
         // qbo-sync's throttle: synced under a minute ago, or already running.
         showToast(
           data.status === "fresh"
-            ? "Already synced within the last minute."
+            ? "Already up to date with QuickBooks."
             : "A sync is already running for this client.",
         );
       } else {
@@ -22271,35 +23544,7 @@ function TabSettingsModal({
     }
     setNewNoteText("");
   }
-
-  function startEditNote(note) {
-    setEditingNoteId(note.id);
-    setEditingNoteText(note.text);
-  }
-
-  async function saveEditedNote(id) {
-    const text = editingNoteText.trim();
-    if (!text) return;
-    const { error } = await clientNotesApi.update(supabase, id, { text });
-    if (error) {
-      showToast("Couldn't update that note: " + error.message);
-      return;
-    }
-    setEditingNoteId(null);
-  }
-
-  async function togglePinNote(note) {
-    const { error } = await clientNotesApi.pin(supabase, note);
-    if (error) {
-      showToast("Couldn't update that note: " + error.message);
-      return;
-    }
-  }
-
-  async function removePrivateNote(id) {
-    const { error } = await clientNotesApi.remove(supabase, id);
-    if (error) showToast("Couldn't remove that note: " + error.message);
-  }
+  // Edit, pin and remove live in ClientNotesList (TABS-SPEC WP4 step 12).
 
   // Read-only feed of client_activity_log — populated entirely by database
   // triggers (see supabase/client-activity-log.sql), not by app writes, so it
@@ -22995,72 +24240,7 @@ function TabSettingsModal({
             ) : privateNotes.length === 0 ? (
               <p className="card-subtitle">No notes yet.</p>
             ) : (
-              privateNotes.map((n) => (
-                <div className="access-request-row" key={n.id}>
-                  {editingNoteId === n.id ? (
-                    <>
-                      <textarea
-                        value={editingNoteText}
-                        onChange={(e) => setEditingNoteText(e.target.value)}
-                        rows={3}
-                        style={{ width: "100%", resize: "vertical" }}
-                      />
-                      <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
-                        <button
-                          className="btn-primary"
-                          onClick={() => saveEditedNote(n.id)}
-                        >
-                          Save
-                        </button>
-                        <button
-                          className="btn-secondary"
-                          onClick={() => setEditingNoteId(null)}
-                        >
-                          Cancel
-                        </button>
-                      </div>
-                    </>
-                  ) : (
-                    <>
-                      <div className="access-request-row-header">
-                        <span className="person-name">
-                          {n.pinned && "📌 "}
-                          {n.author_name}
-                        </span>
-                        <span className="card-subtitle" style={{ margin: 0 }}>
-                          {fmtDateTime(n.updated_at || n.created_at)}
-                          {n.updated_at ? " (edited)" : ""}
-                        </span>
-                      </div>
-                      <p
-                        style={{ whiteSpace: "pre-wrap", margin: "4px 0 8px" }}
-                      >
-                        {n.text}
-                      </p>
-                      <div style={{ display: "flex", gap: 8 }}>
-                        <button
-                          className="btn-secondary"
-                          onClick={() => togglePinNote(n)}
-                        >
-                          {n.pinned ? "Unpin" : "Pin"}
-                        </button>
-                        <button
-                          className="btn-secondary"
-                          onClick={() => startEditNote(n)}
-                        >
-                          Edit
-                        </button>
-                        <button
-                          className="btn-secondary"
-                          onClick={() => removePrivateNote(n.id)}
-                        >
-                          Remove
-                        </button>
-                      </div>
-                    </>
-                  )}
-                </div>
-              ))
+              <ClientNotesList clientId={client.id} notes={privateNotes} allowRemove onChanged={loadPrivateNotes} />
             )}
           </div>
         </div>
@@ -23684,6 +24864,10 @@ const PAGE_META = {
     title: "Client overview",
     subtitle: "Staff only: how this client is doing, at a glance",
   },
+  "client-close": {
+    title: "Close",
+    subtitle: "Staff only: this month's close for this client",
+  },
   "enterprise-upgrade": {
     title: "Plans",
     subtitle: "Basic and Pro — what each includes",
@@ -23842,9 +25026,60 @@ class ErrorBoundary extends React.Component {
 // badge and Sync now in one control, to save space). Clicking anywhere on it
 // syncs. `tour` is a data-tour key for the guided tour (the client header
 // passes "sync").
-function QboSyncNowButton({ clientId, onSynced, liveLabel: liveLabelProp, plan, lastSyncedAt, canSyncNow = true, tour }) {
+// `isStaff` (TABS D24): staff get their own reconnect / not-connected toasts
+// and never the client-facing "included with Pro" one.
+function QboSyncNowButton({ clientId, onSynced, liveLabel: liveLabelProp, plan, lastSyncedAt, canSyncNow = true, tour, isStaff }) {
   const showToast = useToast();
   const [syncing, setSyncing] = useState(false);
+  // "A sync is already running": watch last_synced_at every 10 s for up to
+  // 5 minutes (the server's lock timeout), reload once when it moves.
+  const pollRef = useRef(null);
+  const stopPoll = () => {
+    if (pollRef.current) {
+      clearInterval(pollRef.current.id);
+      pollRef.current = null;
+    }
+  };
+  useEffect(() => stopPoll, []);
+  const reloadAfterSync = async () => {
+    if (window.mgbReloadQboData) {
+      await window.mgbReloadQboData([clientId]);
+      window.dispatchEvent(new Event("mgb-qbo-reloaded"));
+    }
+    notifyMilestonesChanged();
+    if (onSynced) onSynced();
+  };
+  const startInProgressPoll = async () => {
+    const supabase = window.mgbSupabase;
+    if (!supabase || pollRef.current) return;
+    const read = () =>
+      Promise.resolve(
+        supabase.from("qbo_connections").select("last_synced_at").eq("client_id", clientId).maybeSingle(),
+      ).then(
+        (r) => (r && r.data ? r.data.last_synced_at || null : null),
+        () => undefined,
+      );
+    const state = { id: null, base: undefined, started: Date.now() };
+    pollRef.current = state;
+    state.base = await read();
+    if (pollRef.current !== state) return;
+    state.id = setInterval(async () => {
+      if (Date.now() - state.started > 5 * 60 * 1000) {
+        stopPoll();
+        return;
+      }
+      const now = await read();
+      if (pollRef.current !== state || now === undefined) return;
+      if (now && now !== state.base) {
+        stopPoll();
+        try {
+          await reloadAfterSync();
+        } catch (e) {
+          /* the next scheduled freshness check picks it up */
+        }
+      }
+    }, 10000);
+  };
   // With plan + lastSyncedAt the pill builds its own label and re-renders
   // itself every 30s so "synced 5m ago" stays current. (App used to re-render
   // every page on a 30-second timer just for this.)
@@ -23885,22 +25120,26 @@ function QboSyncNowButton({ clientId, onSynced, liveLabel: liveLabelProp, plan, 
         );
         let message = "We couldn't reach QuickBooks just now. Please try again in a few minutes.";
         if (/included with Pro/i.test(detail)) {
-          message = "Sync now is included with Pro. Your numbers refresh on your plan's schedule.";
+          // Staff never see the client's plan pitch (D24).
+          if (!isStaff) message = "Sync now is included with Pro. Your numbers refresh on your plan's schedule.";
         } else if (httpStatus === 401 || httpStatus === 403) {
           message = "You don't have permission to sync this account. Try signing out and back in.";
         } else if (httpStatus === 400) {
-          message = "QuickBooks isn't connected for this account.";
+          message = isStaff
+            ? "QuickBooks isn't connected for this client. Connect it from Client setup."
+            : "QuickBooks isn't connected for this account.";
         } else if (/reconnect/i.test(detail)) {
-          message = "QuickBooks needs to be reconnected before it can sync. Your bookkeeper can do this.";
+          message = isStaff
+            ? "QuickBooks needs to be reconnected. Reconnect it from Client setup."
+            : "QuickBooks needs to be reconnected before it can sync. Your bookkeeper can do this.";
         }
         showToast(message);
         return;
       }
-      if (window.mgbReloadQboData) await window.mgbReloadQboData([clientId]);
-      notifyMilestonesChanged();
-      if (onSynced) onSynced();
+      await reloadAfterSync();
       if (data.status === "in_progress") {
-        showToast("A sync is already running — your numbers will update shortly.");
+        showToast("A sync is already running. Your numbers will update shortly.");
+        startInProgressPoll();
       } else if (data.status === "fresh") {
         showToast("Already up to date with QuickBooks.");
       } else {
@@ -24035,8 +25274,14 @@ const CLIENT_TAB_ALIASES = {
   "enterprise-upgrade": "client-settings",
   "manage-access": "client-settings",
   "client-details": "client-settings",
+  // TABS-SPEC: Close tab and the Client setup alias (#/client/<id>/setup).
+  close: "client-close",
+  setup: "client-settings",
 };
+// Client setup sub-tabs a hash may name (#/client/<id>/settings/<tab>).
+const CLIENT_SETTINGS_SUBTABS = new Set(["client", "plan", "milestone"]);
 const CLIENT_SETTINGS_TAB_OF = {
+  setup: null,
   plan: "plan",
   plans: "plan",
   "enterprise-upgrade": "plan",
@@ -24070,7 +25315,10 @@ function parseHashRoute(hash) {
   if (!parts.length) return null;
   if (parts[0] === "client") {
     if (!parts[1]) return null;
-    const tab = parts[2] || "overview";
+    // A bare #/client/<id> means "open this client": App picks the tab
+    // (staff: the landing rule, D9; clients: Home).
+    if (!parts[2]) return { clientId: parts[1], page: null, bare: true, settingsTab: null };
+    const tab = parts[2];
     const page = tab === "overview" ? "client-overview" : tab;
     // Settings (owner request 2026-09-30): #/client/<id>/settings[/<tab>].
     // The old Plans, Manage access and Client details entry points now open
@@ -24080,7 +25328,10 @@ function parseHashRoute(hash) {
       page === "finances"
         ? CLIENT_lastTab("finances", CLIENT_PLACES.find((p) => p.key === "finances").tabs)
         : CLIENT_TAB_ALIASES[page] || page;
-    const settingsTab = aliased === "client-settings" ? parts[3] || CLIENT_SETTINGS_TAB_OF[page] || null : null;
+    const settingsTab =
+      aliased === "client-settings"
+        ? (CLIENT_SETTINGS_SUBTABS.has(parts[3]) ? parts[3] : null) || CLIENT_SETTINGS_TAB_OF[page] || null
+        : null;
     // "sop" (#/client/<id>/sop) is in PAGE_META, so it passes like any tab.
     return { clientId: parts[1], page: isKnownAppPage(aliased) ? aliased : null, settingsTab };
   }
@@ -24092,7 +25343,7 @@ function parseHashRoute(hash) {
   return isKnownAppPage(page) ? { page } : null;
 }
 
-function buildHashRoute(page, clientId) {
+function buildHashRoute(page, clientId, opts) {
   if (NON_CLIENT_PAGES.has(page)) {
     const slug = hashSlugOfPage(page);
     // Work, Team and Help keep whatever sub-route is already in the hash
@@ -24107,11 +25358,18 @@ function buildHashRoute(page, clientId) {
     return "#/" + slug;
   }
   if (!clientId) return "";
+  const settingsTab = opts && opts.settingsTab;
   return (
     "#/client/" +
     encodeURIComponent(clientId) +
     "/" +
-    (page === "client-overview" ? "overview" : page === "client-settings" ? "settings" : encodeURIComponent(page))
+    (page === "client-overview"
+      ? "overview"
+      : page === "client-close"
+        ? "close"
+        : page === "client-settings"
+          ? "settings" + (CLIENT_SETTINGS_SUBTABS.has(settingsTab) ? "/" + settingsTab : "")
+          : encodeURIComponent(page))
   );
 }
 
@@ -24197,6 +25455,11 @@ try {
 function App({ staffUser, onSignOut, clientPortalUser }) {
   // Deep link from the URL hash, read once on mount (see parseHashRoute).
   const [initialRoute] = useState(() => {
+    // A deep link captured before sign-in gets its time window back once
+    // (DeepLink.jsx LK_rearm, TABS-SPEC 1.2).
+    try {
+      LK_rearm();
+    } catch (e) {}
     try {
       let route = parseHashRoute(window.location.hash);
       if (!route) route = parseHashRoute(sessionStorage.getItem(PENDING_ROUTE_KEY));
@@ -24232,7 +25495,13 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
   const [clientSub, setClientSub] = useState(CLIENT_subFromHash);
   const [page, setPage] = useState(() => {
     const p = clientPortalUser ? initialPage() : initialPage(staffUser && staffUser.email);
-    const fromHash = initialRoute && initialRoute.page;
+    // A bare #/client/<id>: staff land by the landing rule (D9), clients on Home.
+    const fromHash =
+      initialRoute && initialRoute.bare
+        ? clientPortalUser
+          ? "dashboard"
+          : STAFF_resumeTab(selectedClientId, staffUser)
+        : initialRoute && initialRoute.page;
     const chosen = fromHash || p;
     // #/settings is the staff page; a client gets their own Settings.
     if (clientPortalUser && chosen === "settings") return "client-settings";
@@ -24871,8 +26140,15 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
     }));
   };
   // Inbox "Open client": that client's Messages tab, on that person.
-  const openClientMessages = (clientId, email) => {
+  const openClientMessages = (clientId, email, msgId) => {
     setSiDrawer(null);
+    // With a message id, go through the deep link so the thread opens on it.
+    if (msgId) {
+      // The email travels as an in-memory hint (second arg), never in the URL.
+      const hint = { email: email || "" };
+      LK_go({ clientId, tab: "messages", item: "msg:" + msgId }, hint);
+      return;
+    }
     setInboxFocusEmail(email || null);
     if (clientId !== selectedClientId) pageAfterClientSwitch.current = "messages";
     setSelectedClientId(clientId);
@@ -25036,18 +26312,25 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
   // Set when something switches client AND asks for a specific page (Home's
   // Milestones to review), so the reset below doesn't bounce it to Dashboard.
   const pageAfterClientSwitch = useRef(null);
+  // The page the last client switch asked for (read by the last-tab write).
+  const clientSwitchTarget = useRef(null);
   useEffect(() => {
     setViewAsUserId(BOOKKEEPER_VIEW);
     setBookkeeperThreadUserId(null);
     if (skipFirstClientSwitch.current) {
       skipFirstClientSwitch.current = false;
     } else {
-      setPage(
+      // Staff: the landing rule (last row tab for this client, else Overview).
+      const target =
         pageAfterClientSwitch.current ||
-          (!clientPortalUser ? "client-overview" : "dashboard"),
-      );
+        (!clientPortalUser ? STAFF_resumeTab(selectedClientId, effectiveStaffUser) : "dashboard");
+      clientSwitchTarget.current = target;
+      setPage(target);
     }
     pageAfterClientSwitch.current = null;
+    // A sub-tab or Bank preset belongs to one client: drop it unless the
+    // switch itself carried one for this client (a hash with a sub).
+    setClientSub((s) => (s.page && s.clientId !== selectedClientId ? { clientId: null, page: null, sub: null } : s));
   }, [selectedClientId]);
 
   // Client picker "Onboarding 3/5" badge (Onboarding.jsx OB_requestFocus):
@@ -25298,6 +26581,21 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
           ? page
         : page === "milestone" && !access.isCategoryScoped
           ? page
+        // TABS-SPEC D1/D2/D17: the staff bookkeeper view opens Close, and
+        // Messages, Documents, Bank and Reports on every plan, whatever the
+        // org hides. Preview as a client user keeps the plan rules below.
+        : page === "client-close" &&
+            !clientPortalUser &&
+            staffUser &&
+            !(viewAsUserId !== BOOKKEEPER_VIEW && access.user) &&
+            client
+          ? page
+        : STAFF_ALWAYS_TABS.has(page) &&
+            staffUser &&
+            !clientPortalUser &&
+            !(viewAsUserId !== BOOKKEEPER_VIEW && access.user) &&
+            client
+          ? page
         : access.tabs.has(page)
           ? page
         : staffUser && !clientPortalUser && !isKnownAppPage(page)
@@ -25368,22 +26666,30 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
   useEffect(() => {
     try {
       if (isAuthHash(window.location.hash)) return;
-      let next = buildHashRoute(effectivePage, selectedClientId);
+      // Client setup keeps its sub-tab (#/client/<id>/settings/plan).
+      let next = buildHashRoute(effectivePage, selectedClientId, { settingsTab });
       // A client sub-tab on screen (Reports › Board packet, Messages ›
-      // Requests) keeps its fourth segment (#/client/<id>/reports/packet),
-      // so a refresh or a deep link lands on the same tab.
+      // Requests, a Bank preset) keeps its fourth segment
+      // (#/client/<id>/reports/packet), so a refresh or a deep link lands on
+      // the same tab.
       if (
         next &&
         next.indexOf("#/client/") === 0 &&
+        clientSub.clientId === selectedClientId &&
         clientSub.page === effectivePage &&
-        (effectivePage === "reports" || effectivePage === "messages") &&
-        /^[a-z-]+$/.test(clientSub.sub || "")
+        (((effectivePage === "reports" || effectivePage === "messages") && /^[a-z-]+$/.test(clientSub.sub || "")) ||
+          (effectivePage === "bank" && /^(questions|uncategorized|unreconciled)$/.test(clientSub.sub || "")))
       )
         next += "/" + clientSub.sub;
       const fromHistory = hashFromHistory.current;
       hashFromHistory.current = false;
       if (next && window.location.hash !== next) {
         const url = window.location.pathname + window.location.search + next;
+        // Spelling out the same place (a bare #/client/<id>, the /setup
+        // alias) replaces in place: no extra Back step.
+        const cur = parseHashRoute(window.location.hash);
+        const sameSpot =
+          !!cur && !!cur.clientId && cur.clientId === selectedClientId && (cur.bare || cur.page === effectivePage);
         // One history entry per page, in the browser and the installed app
         // alike (staff nav redesign 2026-10-08): Back from a client's pages
         // returns to the Clients list, and AN_AppNav's Back has something
@@ -25391,7 +26697,7 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
         // itself changed the hash (that would bury the entry it went back
         // to). Tab changes inside a place (#/work/close) don't come through
         // here — NAV_useHashSub replaces in place.
-        if (!fromHistory && parseHashRoute(window.location.hash)) {
+        if (!fromHistory && !sameSpot && cur) {
           window.history.pushState({ mgbNav: AN_navIndex() + 1 }, "", url);
           window.dispatchEvent(new Event("mgb-nav"));
         } else {
@@ -25409,14 +26715,19 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
       const route = parseHashRoute(window.location.hash);
       if (!route) return;
       hashFromHistory.current = true;
+      // A bare #/client/<id> lands by the landing rule (D9), even for the
+      // client already open.
+      const landing = route.bare ? (clientPortalUser ? "dashboard" : STAFF_resumeTab(route.clientId, effectiveStaffUser)) : null;
       if (
         route.clientId &&
         !clientPortalUser &&
         route.clientId !== selectedClientId &&
         visibleClients.some((c) => c.id === route.clientId)
       ) {
-        pageAfterClientSwitch.current = route.page || "client-overview";
+        pageAfterClientSwitch.current = route.page || landing || "client-overview";
         setSelectedClientId(route.clientId);
+      } else if (landing && (clientPortalUser || route.clientId === selectedClientId)) {
+        setPage(landing);
       } else if (clientPortalUser && route.page === "settings") {
         setPage("client-settings");
       } else if (route.page && !(clientPortalUser && NON_CLIENT_PAGES.has(route.page))) {
@@ -25426,6 +26737,10 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
       // #/client/<id>/reports/packet: open that sub-tab too.
       const sub = CLIENT_subFromHash();
       if (sub.page && sub.sub) setClientSub(sub);
+      // A page with no sub, or a bare #/client/<id>, drops a stale one
+      // (#/client/x/bank after #/client/x/bank/questions clears the preset).
+      else if (route.clientId && (route.page || route.bare))
+        setClientSub((s) => (s.page ? { clientId: null, page: null, sub: null } : s));
       // Re-sync even when nothing changed (a refused page that was already
       // the stored request would otherwise leave its hash in the bar).
       setHashRewriteTick((t) => t + 1);
@@ -25577,8 +26892,56 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
   }, [page]);
   const openClientSettings = (tab) => {
     setSettingsTab(tab || null);
+    // Already on Client setup: the page doesn't change, so the hash sync
+    // won't run; write the sub-tab into the address bar here.
+    if (effectivePage === "client-settings") {
+      try {
+        const base = buildHashRoute("client-settings", selectedClientId, { settingsTab: tab || null });
+        if (base) window.history.replaceState(window.history.state, "", window.location.pathname + window.location.search + base);
+      } catch (e) {}
+    }
     setPage("client-settings");
   };
+  // Which tab Manage access opens on (people | org | requests), set by a
+  // setup:access.* deep link (Today's access-request row).
+  const [accessTab, setAccessTab] = useState(null);
+  // Claim a setup:<panel>[.<tab>] arrival on Client setup (TABS-SPEC 1.2):
+  // open the panel or sub-tab it names.
+  LK_useArrival(
+      { clientId: selectedClientId, tab: "settings", kinds: ["setup"], staff: true },
+      effectivePage === "client-settings" && isStaffSession && !isPreviewingUser,
+      (a) => {
+        const [panel, sub] = String(a.id || "").split(".");
+        if (panel === "access") {
+          setSettingsTab("client");
+          setAccessTab(/^(people|org|requests)$/.test(sub || "") ? sub : null);
+          setSettingsOpen(true);
+        } else if (panel === "details") {
+          setSettingsTab("client");
+          setDetailsTab(sub || null);
+          setDetailsOpen(true);
+        } else if (panel === "plan" || panel === "milestone") {
+          setSettingsTab(panel);
+        }
+      },
+    );
+  // Inbox "Open client" (D15): close the chat drawer and land by the
+  // landing rule (last row tab or Overview), not on Messages.
+  const openClientFromInbox = (clientId) => {
+    setSiDrawer(null);
+    const t = STAFF_resumeTab(clientId, effectiveStaffUser);
+    if (clientId !== selectedClientId) pageAfterClientSwitch.current = t;
+    setSelectedClientId(clientId);
+    setPage(t);
+  };
+  // LK_go from a staff surface while previewing a client user exits the
+  // preview first (DeepLink.jsx); same call as the "Exit preview" button.
+  useEffect(() => {
+    window.MGB_exitPreview = () => setViewAsUserId(BOOKKEEPER_VIEW);
+    return () => {
+      delete window.MGB_exitPreview;
+    };
+  }, []);
 
   const clientUsers = client.users || [];
   // Audit log: staff previewing the portal as a client user (AuditLog.jsx).
@@ -25989,12 +27352,13 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
     tabOrder,
     selectedClientId,
   ).map((i) => i.key);
+  const subHere = clientSub.clientId === selectedClientId;
   const clientReportsSub =
-    clientSub.page === "reports" && clientSub.sub === "packet" ? "packet" : "downloads";
+    subHere && clientSub.page === "reports" && clientSub.sub === "packet" ? "packet" : "downloads";
   const clientMessagesSub =
-    clientSub.page === "messages" && clientSub.sub === "requests" ? "requests" : "conversation";
+    subHere && clientSub.page === "messages" && clientSub.sub === "requests" ? "requests" : "conversation";
   const setClientSubFor = (sub) => {
-    setClientSub({ page: effectivePage, sub });
+    setClientSub({ clientId: selectedClientId, page: effectivePage, sub });
     try {
       const base = buildHashRoute(effectivePage, selectedClientId);
       if (base)
@@ -26003,6 +27367,23 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
           "",
           window.location.pathname + window.location.search + base + "/" + sub,
         );
+    } catch (e) {}
+  };
+  // Bank preset off (WP3's "Show all"): drop the sub and its hash segment.
+  const clearBankPreset = () => {
+    setClientSub({ clientId: null, page: null, sub: null });
+    try {
+      const base = buildHashRoute("bank", selectedClientId);
+      if (base) window.history.replaceState(window.history.state, "", window.location.pathname + window.location.search + base);
+    } catch (e) {}
+  };
+  // A Client setup sub-tab click: show it and write it into the address bar
+  // in place (#/client/<id>/settings/plan), no history entry.
+  const setSettingsTabFor = (tab) => {
+    setSettingsTab(tab);
+    try {
+      const base = buildHashRoute("client-settings", selectedClientId, { settingsTab: tab });
+      if (base) window.history.replaceState(window.history.state, "", window.location.pathname + window.location.search + base);
     } catch (e) {}
   };
   // Home's "Needs you" list (CLIENT_HomeTop), most urgent first.
@@ -26019,7 +27400,7 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
         action: "See requests",
         tone: overdueReqs ? "urgent" : null,
         onClick: () => {
-          setClientSub({ page: "messages", sub: "requests" });
+          setClientSub({ clientId: selectedClientId, page: "messages", sub: "requests" });
           setPage("messages");
         },
       });
@@ -26058,12 +27439,74 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
   // tabs reads at a glance and history entries have names.
   useEffect(() => {
     try {
-      const pageTitle = (PAGE_META[effectivePage] && PAGE_META[effectivePage].title) || "";
+      // Staff call client-settings "Client setup" (D13); clients keep Settings.
+      const pageTitle =
+        effectivePage === "client-settings" && staffClientTabs
+          ? "Client setup"
+          : (PAGE_META[effectivePage] && PAGE_META[effectivePage].title) || "";
       document.title = onStaffPage
         ? [pageTitle, "MyGoodBooks"].filter(Boolean).join(" · ")
         : [client && client.name, pageTitle, "MyGoodBooks"].filter(Boolean).join(" · ");
     } catch (e) {}
-  }, [effectivePage, onStaffPage, client && client.name]);
+  }, [effectivePage, onStaffPage, client && client.name, staffClientTabs]);
+  // --- In-client tab row hooks (TABS-SPEC section 0: all new App hooks
+  // live here, after staffClientTabs and before the early return). ---
+  // Badge counts for the tab row and the Overview strip (ClientTabCounts.jsx).
+  const clientTabCounts =
+    useClientTabCounts(selectedClientId, {
+      client,
+      me: ((effectiveStaffUser && effectiveStaffUser.email) || "").toLowerCase(),
+      budgetOn: access.tabs.has("budget"),
+      enabled: staffClientTabs,
+    });
+  // Search finds what the row opens: the plan's pages plus the staff
+  // always-tabs (D2, D17). Previews keep the plan's pages.
+  const staffVisibleKeys = staffClientTabs ? new Set([...access.tabs, ...STAFF_ALWAYS_TABS]) : access.tabs;
+  // WP3: Bank preset from #/client/<id>/bank/<questions|uncategorized|unreconciled>.
+  const bankPreset = React.useMemo(() => (staffClientTabs && !isPreviewingUser && clientSub.clientId === selectedClientId && clientSub.page === "bank" && /^(questions|uncategorized|unreconciled)$/.test(clientSub.sub || "")) ? { filter: clientSub.sub } : null, [staffClientTabs, isPreviewingUser, clientSub.clientId, selectedClientId, clientSub.page, clientSub.sub]);
+  // Landing rule (D9): remember the row tab open for this client. Skips the
+  // render where the client just changed: `page` still holds the previous
+  // client's tab until the switch effect's setPage lands.
+  const lastTabClientRef = useRef(selectedClientId);
+  useEffect(() => {
+    if (lastTabClientRef.current !== selectedClientId) {
+      lastTabClientRef.current = selectedClientId;
+      // Same tab on both clients: no re-render follows, so write now.
+      if (clientSwitchTarget.current !== effectivePage) return;
+    }
+    if (staffClientTabs && !isPreviewingUser && selectedClientId && STAFF_CLIENT_TABS.some((t) => t.key === effectivePage))
+      STAFF_writeLastTab(selectedClientId, effectivePage);
+  }, [staffClientTabs, isPreviewingUser, selectedClientId, effectivePage]);
+  // Plan fix-up: a client page this plan doesn't include falls back to the
+  // client's Home; staff land on Overview instead (address bar replaced).
+  useEffect(() => {
+    if (
+      staffClientTabs &&
+      page !== effectivePage &&
+      effectivePage === homeTab &&
+      page !== homeTab &&
+      !NON_CLIENT_PAGES.has(page)
+    ) {
+      hashFromHistory.current = true; // the rewrite this causes replaces
+      setPage("client-overview");
+    }
+  }, [staffClientTabs, page, effectivePage, homeTab]);
+  // Milestone (D4): a row tab for real admins only. Everyone else opens it at
+  // Client setup › Milestone; a real admin sent there goes to the row tab.
+  // Staff session only (portal users open "milestone" as their own page).
+  useEffect(() => {
+    if (!isStaffSession || isPreviewingUser) return;
+    const realAdmin = STAFF_isRealAdmin(effectiveStaffUser);
+    if (effectivePage === "milestone" && !realAdmin) {
+      hashFromHistory.current = true;
+      setSettingsTab("milestone");
+      setPage("client-settings");
+    } else if (effectivePage === "client-settings" && settingsTab === "milestone" && realAdmin) {
+      hashFromHistory.current = true;
+      setSettingsTab(null);
+      setPage("milestone");
+    }
+  }, [effectivePage, settingsTab, isStaffSession, isPreviewingUser, effectiveStaffUser]);
   // A bookkeeper with a real (successful, non-null) assignment fetch but
   // zero checked clients — the opt-in default from staff-client-access.sql.
   // Nothing below this point has a sensible client to show, so stop here
@@ -26237,6 +27680,8 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
           hasTempAdminAccess={hasTempAdminAccess}
           tempAdminAccessExpiresAt={tempAdminAccessExpiresAt}
           statusOverrides={statusOverrides}
+          staffClientTabs={staffClientTabs}
+          staffRowAdmin={STAFF_isRealAdmin(effectiveStaffUser) && !isPreviewingUser}
         />
         <main className="main">
           {/* Staff top bar (components/staff/TopBar.jsx): shown wherever the
@@ -26277,7 +27722,7 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
                   : {
                       client: scopedClient,
                       messages: liveMessages,
-                      visibleKeys: access.tabs,
+                      visibleKeys: staffVisibleKeys,
                       onNavigate: setPage,
                       onHighlight: (r) =>
                         setSearchTarget({ ...r, nonce: Date.now() }),
@@ -26371,7 +27816,8 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
                     : client.name}
               </div>
               <h1 className={"page-title"}>
-                {(!staffClientTabs && clientPlace && clientPlace.tabs && clientPlace.label) ||
+                {(staffClientTabs && effectivePage === "client-settings" && "Client setup") ||
+                  (!staffClientTabs && clientPlace && clientPlace.tabs && clientPlace.label) ||
                   NAV_LABEL_BY_KEY[effectivePage] ||
                   (meta && meta.title) ||
                   (NON_CLIENT_PAGES.has(effectivePage)
@@ -26382,21 +27828,22 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
                 {showsLiveReport && client.dataSource === "quickbooks"
                   ? `Your financial snapshot. ${syncCadenceLabel(access.plan)}.`
                   : effectivePage === "client-settings" && isStaffSession && !isPreviewingUser
-                    ? "Staff: this client's access, details and plan"
+                    ? STAFF_isRealAdmin(effectiveStaffUser)
+                      ? "Only staff see this page. It holds who can sign in, client details and plan."
+                      : "Only staff see this page. It holds who can sign in, client details, plan and milestone."
                     : meta.subtitle}
               </div>
             </div>
             <div className="page-header-actions-stack">
             {/* The milestone badge moved to the client sidebar, under the
                 tagline (Sidebar, .sidebar-ms-row). */}
+            {/* 761-1279px: CL_ClientTabs moves the Client view menu and the
+                Client setup gear up here so the tab row has room. */}
+            {staffClientTabs && <div id="cl-header-tools" className="cl-header-tools" />}
             <div className="page-header-actions">
               {!showStaffTopBar && <AN_AppNav />}
-              {/* "View as client" (CL_ViewAsButton): staff preview the
-                  portal as one of this client's people, right from the
-                  page they're on. Exits via the preview bar above. */}
-              {staffClientTabs && typeof CL_ViewAsButton === "function" && (
-                <CL_ViewAsButton client={client} onPreviewAs={(uid) => setViewAsUserId(uid)} />
-              )}
+              {/* "View as client" lives in the tab row's Client view menu
+                  (CL_ClientViewMenu, D19). Exits via the preview bar above. */}
               {!NON_CLIENT_PAGES.has(effectivePage) &&
                 (!isStaffSession || isPreviewingUser) && (
                   <ClientNotifications
@@ -26465,6 +27912,7 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
                   plan={access.plan}
                   lastSyncedAt={client.lastSyncedAt}
                   tour="sync"
+                  isStaff={isStaffSession && !isPreviewingUser}
                 />
               ) : (
                 <span className="badge-live badge-live--sample" title={unsyncedPillLabel(client)}>
@@ -26477,7 +27925,7 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
                 <GlobalSearch
                   client={scopedClient}
                   messages={liveMessages}
-                  visibleKeys={access.tabs}
+                  visibleKeys={staffVisibleKeys}
                   onNavigate={setPage}
                   onHighlightResult={(r) =>
                     setSearchTarget({ ...r, nonce: Date.now() })
@@ -26497,10 +27945,12 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
               client={client}
               page={effectivePage}
               access={access}
-              isCategoryScoped={access.isCategoryScoped}
+              counts={clientTabCounts}
+              isRealAdmin={STAFF_isRealAdmin(effectiveStaffUser)}
               onSelectPage={setPage}
               hasPendingAccessRequests={hasPendingAccessRequests}
               onOpenClientSettings={openClientSettings}
+              onPreviewAs={(uid) => setViewAsUserId(uid)}
             />
           )}
           {/* Client view: the tabs of the current place (CLIENT_PLACES). */}
@@ -26592,6 +28042,14 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
               page={effectivePage}
             />
           )}
+          {/* The page body. A tab panel of the in-client tab row when a row
+              tab is open (CL_ClientTabs ids are "client-tab-<key>"). */}
+          <div
+            id="client-panel"
+            {...(staffClientTabs && STAFF_CLIENT_TABS.some((t) => t.key === effectivePage)
+              ? { role: "tabpanel", "aria-labelledby": "client-tab-" + effectivePage }
+              : {})}
+          >
           {effectivePage === "dashboard" && !staffClientTabs && (
             <CLIENT_HomeTop
               client={client}
@@ -26727,6 +28185,13 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
                     : null
                 }
                 isClientUser={!!clientPortalUser}
+                bankPreset={bankPreset}
+                onClearPreset={clearBankPreset}
+                onOpenQuickBooks={() => {
+                  setDetailsTab("quickbooks");
+                  setDetailsOpen(true);
+                }}
+                canSyncNow={planSyncInfo(access.plan).syncNow || (isStaffSession && !isPreviewingUser)}
                 key={"bank-reconciliation-" + client.id}
               />
             ) : (
@@ -26738,6 +28203,13 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
                     : null
                 }
                 isClientUser={!!clientPortalUser}
+                bankPreset={bankPreset}
+                onClearPreset={clearBankPreset}
+                onOpenQuickBooks={() => {
+                  setDetailsTab("quickbooks");
+                  setDetailsOpen(true);
+                }}
+                canSyncNow={planSyncInfo(access.plan).syncNow || (isStaffSession && !isPreviewingUser)}
                 key={"bank-" + client.id}
               />
             ))}
@@ -26824,7 +28296,9 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
               mode={clientPortalUser ? "client" : isPreviewingUser ? "preview" : "staff"}
               signedInEmail={clientPortalUser ? clientPortalUser.email : null}
               tab={settingsTab}
-              onTab={setSettingsTab}
+              onTab={setSettingsTabFor}
+              showMilestoneTab={isStaffSession && !isPreviewingUser && !STAFF_isRealAdmin(effectiveStaffUser)}
+              renderMilestone={() => <MilestonePage client={client} isStaff={isStaffSession && !isPreviewingUser} key={"milestone-" + client.id} />}
               theme={theme}
               onChooseTheme={chooseTheme}
               onSignOut={onSignOut}
@@ -26879,7 +28353,7 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
               clients={visibleClients}
               sampleThreads={messagesByClient}
               onSampleSend={sampleInboxSend}
-              onOpenClient={openClientMessages}
+              onOpenClient={openClientFromInbox}
             />
           )}
           {/* Work (components/staff/WorkPage.jsx): Tasks, Close, Deadlines. */}
@@ -26907,9 +28381,11 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
               statusOverrides={statusOverrides}
               pendingRequestsByClient={pendingRequestsByClient}
               onOpenClient={(id, p) => {
-                if (id === selectedClientId) setPage(p || "client-overview");
+                // No page named: the landing rule (last row tab, else Overview).
+                const t = p || STAFF_resumeTab(id, effectiveStaffUser);
+                if (id === selectedClientId) setPage(t);
                 else {
-                  pageAfterClientSwitch.current = p || "client-overview";
+                  pageAfterClientSwitch.current = t;
                   setSelectedClientId(id);
                 }
               }}
@@ -26920,10 +28396,19 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
           {effectivePage === "sop" && (
             <ClientSopView client={client} readOnly={false} key={"sop-" + client.id} />
           )}
+          {effectivePage === "client-close" && (
+            <CLC_ClientClosePage
+              client={client}
+              staffUser={effectiveStaffUser}
+              isAdmin={STAFF_isRealAdmin(effectiveStaffUser)}
+              onNavigate={setPage}
+              key={"close-" + client.id}
+            />
+          )}
           {effectivePage === "client-overview" && (
             <ClientOverviewPage
               client={client}
-              messagesByClient={messagesByClient}
+              counts={clientTabCounts}
               onNavigate={setPage}
               onOpenDetails={(tab) => {
                 setDetailsTab(tab || null);
@@ -27063,6 +28548,7 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
               key={"msgs-" + client.id + "-" + activeThreadUserId}
             />
             ))}
+          </div>
 
           <div className="main-footer">
             {isStaffSession && !isPreviewingUser
@@ -27110,7 +28596,7 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
           defaultClientId={siDrawer.clientId}
           sampleThreads={messagesByClient}
           onSampleSend={sampleInboxSend}
-          onOpenClient={openClientMessages}
+          onOpenClient={openClientFromInbox}
           onClose={() => setSiDrawer(null)}
         />
       )}
@@ -27144,8 +28630,10 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
           onSetAccessLevel={setAccessLevel}
           onToggleUserPremium={toggleUserPremium}
           staffUser={staffUser}
+          initialTab={accessTab}
           onClose={() => {
             setSettingsOpen(false);
+            setAccessTab(null);
             checkPendingAccessRequests();
           }}
         />

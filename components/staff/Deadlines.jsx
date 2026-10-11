@@ -119,7 +119,8 @@ const DL_STATE = {
 };
 
 function DL_clientHref(id) {
-  return "#/client/" + encodeURIComponent(id) + "/overview";
+  // Opens that client's Overview on Key dates.
+  return LK_href({ clientId: id, tab: "overview", item: "at:ov-dates" });
 }
 
 function DL_dueText(it) {
@@ -259,7 +260,7 @@ function DL_Table({ items, taskRefs, empty }) {
               const s = DL_STATE[it.state];
               const src = DL_sourceText(it);
               return (
-                <tr key={it.id} className={"dl-row dl-row-" + it.state}>
+                <tr key={it.id} className={"dl-row dl-row-" + it.state} data-lk={"deadline:" + it.id}>
                   <td data-label="Due">
                     <strong>{fmtDate(it.due)}</strong>
                     {it.rolled && <span className="dl-sub">moved from {fmtDate(it.nominal)} (weekend)</span>}
@@ -823,12 +824,54 @@ function DL_DeadlinesPage({ clients, staffUser }) {
   const [showFiled, setShowFiled] = useState(false);
   const [ym, setYm] = useState(today.slice(0, 7));
   const [selected, setSelected] = useState(null);
+  const [clientFilter, setClientFilter] = useState(""); // set by ?client=<id>
+  const filterClient = clientFilter
+    ? (clients || []).find((c) => String(c.id) === String(clientFilter))
+    : null;
+
+  // Deep link: #/work/deadlines?item=deadline:<client|rule|period> or ?client=<id>.
+  LK_useArrival({ place: "work", tab: "deadlines", kinds: ["deadline", "view"], staff: true }, !st.loading, (a) => {
+    const hasClient = a.client && (clients || []).some((c) => String(c.id) === String(a.client));
+    if (a.client && !hasClient) LK_toast(LK_COPY.clientMissing);
+    if (a.kind === "view") {
+      if (hasClient) {
+        setClientFilter(String(a.client));
+        setWho("all");
+      }
+      return;
+    }
+    const wide = DL_items(st, clients, OPS_addDays(today, -730), OPS_addDays(today, 400));
+    const it = wide.find((x) => String(x.id) === String(a.id));
+    if (!it) {
+      LK_toast(LK_COPY.deadlineMissing);
+      return;
+    }
+    setClientFilter(hasClient ? String(a.client) : "");
+    setWho("all");
+    setForm("");
+    if (it.state === "filed") setShowFiled(true);
+    if (it.due < OPS_addDays(today, -180) || it.due > OPS_addDays(today, 90)) {
+      setView("month");
+      setYm(it.due.slice(0, 7));
+      setSelected(it.due);
+      const d = new Date(Number(it.due.slice(0, 4)), Number(it.due.slice(5, 7)) - 1, 1);
+      LK_toast(LK_fill(LK_COPY.deadlineMonth, { Month: d.toLocaleDateString("en-US", { month: "long", year: "numeric" }) }));
+    } else {
+      setView("list");
+    }
+    requestAnimationFrame(() =>
+      requestAnimationFrame(() => LK_reveal(LK_find("deadline:" + it.id), { row: true })),
+    );
+  });
 
   const from = view === "list" ? OPS_addDays(today, -180) : ym + "-01";
   const to = view === "list" ? OPS_addDays(today, 90) : OPS_ymd(Number(ym.slice(0, 4)), Number(ym.slice(5, 7)) + 1, 0);
   const all = st.loading ? [] : DL_items(st, clients, from, to);
   const filtered = all.filter(
-    (it) => (who === "all" || it.assignee_email === me) && (!form || it.rule_key === form),
+    (it) =>
+      (who === "all" || it.assignee_email === me) &&
+      (!form || it.rule_key === form) &&
+      (!clientFilter || String(it.client_id) === String(clientFilter)),
   );
 
   let body;
@@ -921,6 +964,21 @@ function DL_DeadlinesPage({ clients, staffUser }) {
             <input type="checkbox" checked={showFiled} onChange={(e) => setShowFiled(e.target.checked)} /> Show filed
           </label>
         </div>
+        {clientFilter && (
+          <div className="dl-chips">
+            <span className="dl-chip">
+              <span className="dl-chip-label">{filterClient ? filterClient.name || filterClient.id : clientFilter}</span>
+              <button
+                type="button"
+                className="dl-chip-x"
+                aria-label={"Remove filter: " + (filterClient ? filterClient.name || filterClient.id : clientFilter)}
+                onClick={() => setClientFilter("")}
+              >
+                <span aria-hidden="true">×</span>
+              </button>
+            </span>
+          </div>
+        )}
         <p className="dl-verify">
           <WarningIcon /> {DL_VERIFY_TEXT}
         </p>

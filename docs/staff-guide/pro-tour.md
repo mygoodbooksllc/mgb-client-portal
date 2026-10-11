@@ -64,7 +64,7 @@ The tour never starts on its own for staff, and nothing is saved while you previ
 1. Open a Basic client and use **Preview as** to pick one of their people.
 2. Click the **Settings** gear, then **Plan**, then **Take the Pro tour**. (Or **Help**, then **Preview the Pro tour**, or the **?** in the top bar, then **Preview the Pro tour**.)
 
-You can also open **Settings** > **Plan** from the client's tab row without previewing as anyone, and start it from the **Plans** card there. If the client is already on Pro, **Preview plan** > **Basic** shows you the Basic version of the page first. See [How do I see the portal the way a client sees it?](#/help/preview-as).
+You can also open **Client setup** > **Plan** from the client's tab row without previewing as anyone, and start it from the **Plans** card there. If the client is already on Pro, **Preview plan** > **Basic** shows you the Basic version of the page first. See [How do I see the portal the way a client sees it?](#/help/preview-as).
 
 ### Where it's saved and counted
 

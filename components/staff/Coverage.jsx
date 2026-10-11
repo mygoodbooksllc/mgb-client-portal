@@ -403,7 +403,7 @@ function CV_CoverageTab() {
                   return (
                     <tr key={c.client_id}>
                       <td data-label="Client">
-                        <a href={"#/client/" + encodeURIComponent(c.client_id) + "/overview"}>{c.client_name || c.client_id}</a>
+                        <a href={"#/client/" + encodeURIComponent(c.client_id)}>{c.client_name || c.client_id}</a>
                       </td>
                       <td data-label="Backup">
                         {c.backup_name || c.backup_email || "—"}

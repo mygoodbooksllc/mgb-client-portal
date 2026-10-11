@@ -18,15 +18,15 @@ The **+** button is on phones too, next to the bell at the top of the screen.
 
 ### New task
 
-Type the task (for example *Follow up on the missing receipts*), pick a **Due** date if you like and click **Add a task**. **Visible to everyone on this client** is ticked by default, so the other staff on this client can see it. Untick it to keep it private.
+Type the task (for example *Follow up on the missing receipts*), pick a **Due** date if you like and click **Add a task**. You'll see *Task added.* **Visible to everyone on this client** is ticked by default, so the other staff on this client can see it. Untick it to keep it private.
 
 ### New note
 
-Type the note and click **Add a note**. It's saved as a General staff note on this client.
+Type the note and click **Add a note**. It's saved as a General staff note on this client. You'll see *Note added.*
 
 ### Request document
 
-Type **What you need** (for example *September bank statement*), a **Due** date and optional **Details**, then click **Request a document**. The client sees it on their Documents page and can upload straight into it. More in [How do I request a document from a client?](#/help/document-requests).
+Type **What you need** (for example *September bank statement*), a **Due** date and optional **Details**, then click **Request a document**. You'll see *Requested "{title}" from {client}. It's on their Documents.* The client sees it on their Documents page and can upload straight into it. You manage it on the client's **Documents** tab. More in [How do I request a document from a client?](#/help/document-requests).
 
 ### Message
 
@@ -34,7 +34,7 @@ Opens the small chat drawer for this client. Press **Esc** or click outside it t
 
 ### Where did the Staff bar go?
 
-The small **Staff** bar that used to sit at the top of every client page (Overview, Add task, Request document, Add note, Message) is gone. Its forms are all in **+** now, and **Overview** is a button next to the client picker. See [What's on the bar at the top of the page?](#/help/top-bar).
+The small **Staff** bar that used to sit at the top of every client page (Overview, Add task, Request document, Add note, Message) is gone. Its forms are all in **+** now, and **Overview** is the first tab in the client's tab row. See [What's on the bar at the top of the page?](#/help/top-bar).
 
 ### Troubleshooting
 

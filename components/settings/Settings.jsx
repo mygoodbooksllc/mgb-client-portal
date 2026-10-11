@@ -1414,6 +1414,8 @@ function ST_ClientSettingsPage({
   onSignOut,
   onSelectPage,
   renderPlan,
+  showMilestoneTab, // staff, not a real admin: Client setup › Milestone (D4)
+  renderMilestone,
   onOpenAccess,
   onOpenDetails,
   hasPendingAccessRequests,
@@ -1437,8 +1439,10 @@ function ST_ClientSettingsPage({
   const tabs =
     mode === "staff"
       ? [
-          { key: "client", label: "Client settings", dot: hasPendingAccessRequests },
+          { key: "client", label: "Access and details", dot: hasPendingAccessRequests },
           { key: "plan", label: "Plan" },
+          // Non-admins open Milestone here (the row tab is for real admins, D4).
+          ...(showMilestoneTab ? [{ key: "milestone", label: "Milestone" }] : []),
         ]
       : [
           { key: "profile", label: "Profile" },
@@ -1475,7 +1479,7 @@ function ST_ClientSettingsPage({
           {roText && key !== "plan" && key !== "help" && <ST_ReadOnlyNote text={roText} />}
           {key === "client" && (
             <ST_Card
-              title={`${client.name}: client settings`}
+              title={`${client.name}: client setup`}
               sub="Staff only. Clients never see this tab."
             >
               <ul className="st-list">
@@ -1504,6 +1508,7 @@ function ST_ClientSettingsPage({
             </ST_Card>
           )}
           {key === "plan" && (renderPlan ? renderPlan() : null)}
+          {key === "milestone" && (renderMilestone ? renderMilestone() : null)}
           {key === "profile" && (
             <ST_Card title="Profile" sub="How your bookkeeper sees you in the portal.">
               <div className="st-grid">

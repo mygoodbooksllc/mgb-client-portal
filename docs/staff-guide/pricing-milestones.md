@@ -2,7 +2,7 @@
 title: How do pricing milestones work, and how do I set one?
 section: Admin
 audience: admin
-keywords: [milestone, pricing, tier, fee, set milestone, confirm, annual expenses, annual budget, updated, last sync, budget, form 990, church plant, weekly digest, fee changes to review, starter, foundation, growth, enterprise]
+keywords: [milestone, client setup milestone, pricing, tier, fee, set milestone, confirm, annual expenses, annual budget, updated, last sync, budget, form 990, church plant, weekly digest, fee changes to review, starter, foundation, growth, enterprise]
 sort: 590
 ---
 A client's monthly fee follows their **confirmed pricing milestone**. The milestone is suggested from their numbers (monthly transactions and annual expenses), but a person confirms it.
@@ -24,7 +24,7 @@ A client's monthly fee follows their **confirmed pricing milestone**. The milest
 
 ### Where to see it
 
-- For clients: the organization card on their **Home** shows the milestone and plan, with **See plans** (click the milestone to open the Milestone page). It's hidden for people with limited access. Staff open the client's **Milestone** tab instead.
+- For clients: the organization card on their **Home** shows the milestone and plan, with **See plans** (click the milestone to open the Milestone page). It's hidden for people with limited access. Staff open the client's **Milestone** tab instead. Admins find it in the client's tab row. Everyone else, temporary admins included, finds it under **Client setup › Milestone**.
 - On the client's **Milestone** tab, under **Staff: budget and milestone**, where you can **Set milestone** if it isn't confirmed yet.
 - **Today → Milestones to review** (turn it on under **Also show**): clients whose numbers point to a different milestone, aren't confirmed yet, or are close to the next one.
 - The Monday **weekly digest**, in **Fee changes to review**: the same suggestions, emailed to admins. They're never applied automatically; a fee only changes when someone sets the milestone below.
@@ -33,7 +33,7 @@ A client's monthly fee follows their **confirmed pricing milestone**. The milest
 
 Talk it through with the client first; their fee changes with it.
 
-1. Open the client's Milestone page (or **Client details → Milestone**). The staff section is at the top.
+1. Open the client's **Milestone** tab (admins), or **Client setup › Milestone** (everyone else). The staff section is at the top.
 2. Optional: under **Annual expenses**, enter an **Amount**, **Source** (Form 990, Approved budget, Other) and **As of** date, then **Save budget**. Without it, QuickBooks numbers are used.
 3. Under **Set milestone**, choose the **Milestone** (the suggested one is tagged "suggested"), add a **Note (optional)** such as *Discussed on the Oct 3 call*, and click **Set milestone**.
 

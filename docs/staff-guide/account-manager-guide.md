@@ -41,13 +41,13 @@ Follow [New client, start to finish](#/help/new-client-start-to-finish). In shor
 1. **Settings › Firm settings › Client roster** → add the organization: name, type, plan, payroll add-on, bookkeeper and account manager.
 2. Add the client's portal logins.
 3. Connect their QuickBooks, then let the first sync and onboarding run.
-4. On their **Client overview**, set the monthly hours budget and confirm the pricing milestone. See [Hours budget](#/help/hours-budget) and [Pricing milestones](#/help/pricing-milestones).
+4. On their **Client overview**, set the monthly hours budget (an admin does this under **Key dates and coverage** › **Edit dates and coverage**). Confirm the pricing milestone on their **Milestone** tab. If you're not an admin, it's under **Client setup › Milestone**. See [Hours budget](#/help/hours-budget) and [Pricing milestones](#/help/pricing-milestones).
 
 ### 4. Client health check-ins
 
 1. **Clients** → **Needs attention** picks out clients with health at risk, a late close, a portal access request waiting, or a stale SOP.
 2. The **Health** and **Hours this month** columns show the rest at a glance. Amber hours means 80% of the budget is used; red means over.
-3. Open a client: the **Client health** card on the Overview says why points were taken off, and **Key dates and coverage** has their 990 and 1099 dates, board meetings and fiscal year end.
+3. Open a client: on the Overview, **Health** in the status line (click **Why {score}?**) says why points were taken off, and **Key dates and coverage** has their 990 and 1099 dates, board meetings and fiscal year end.
 4. Clients at risk also show on **Today**.
 
 See [What does client health mean?](#/help/client-health) and [How do I use the Clients page?](#/help/clients-page).
@@ -67,5 +67,5 @@ See [Staff and access](#/help/staff-management) (payroll add-on), [Pricing miles
 
 - **Every day**: Inbox, then the requests and at-risk clients on Today.
 - **Every week**: **Clients › Needs attention**, and reply times if you're an admin.
-- **Every month**: hours against budget, pricing milestones to confirm, and whether each client's close is done.
+- **Every month**: hours against budget, pricing milestones to confirm, and whether each client's **Close** tab says Done.
 - **Every quarter**: the bookkeeper reviews.

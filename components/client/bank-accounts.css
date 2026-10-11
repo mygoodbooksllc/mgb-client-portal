@@ -646,3 +646,163 @@
     gap: 2px;
   }
 }
+
+/* ---- Staff extras (TABS WP3, 2026-10-10): sync line, stale note, preset
+   chips, connection states, reconnect banner. Tokens only (light + dark). */
+.ba-sync-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+}
+.ba-sync-line .qbo-sync-now {
+  font-size: 12px;
+}
+
+.ba-stale-note {
+  margin: 8px 0 4px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-size: 13px;
+  color: var(--warm-text);
+  background: var(--warm-bg);
+  border: 1px solid var(--border);
+}
+
+.ba-preset-note {
+  margin: 6px 0 2px;
+  font-size: 12.5px;
+  color: var(--text-muted);
+}
+
+.ba-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 8px 0 2px;
+}
+.ba-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  max-width: 100%;
+  padding: 2px 2px 2px 10px;
+  border-radius: 999px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text);
+  background: var(--accent-soft);
+  border: 1px solid var(--border);
+}
+.ba-chip.is-month {
+  background: var(--surface-2);
+}
+.ba-chip-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ba-chip-x {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 15px;
+  line-height: 1;
+  cursor: pointer;
+}
+.ba-chip-x:hover,
+.ba-chip-x:focus-visible {
+  color: var(--text);
+  background: var(--surface);
+}
+
+.ba-empty-staff {
+  min-height: 120px;
+}
+.ba-empty-staff.is-bad {
+  border-color: var(--bad);
+  background: var(--bad-soft);
+}
+.ba-empty-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+}
+.ba-empty-actions:empty {
+  display: none;
+}
+
+.ba-reconnect {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 12px;
+  margin-bottom: 14px;
+  padding: 10px 14px;
+  border-radius: var(--radius);
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--bad);
+  background: var(--bad-soft);
+  border: 1px solid var(--bad);
+}
+
+.ba-older-qs {
+  margin-top: 14px;
+}
+
+@media (max-width: 760px) {
+  .ba-chip-x {
+    width: 44px;
+    height: 44px;
+    margin: -10px -2px -10px 0;
+  }
+  .ba-reconnect .btn-primary {
+    width: 100%;
+  }
+}
+
+/* CloseChecks.jsx client card links (TABS WP3) */
+.cc-check-extra {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: 4px;
+}
+.cc-link {
+  font-weight: 600;
+  color: var(--gold-deep);
+  text-decoration: none;
+}
+.cc-link:hover,
+.cc-link:focus-visible {
+  text-decoration: underline;
+}
+.cc-link-text {
+  font-weight: 600;
+  color: var(--text-muted);
+}
+.cc-link-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+}
+.cc-link-sub {
+  font-size: 12px;
+}
+.cc-sync-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+}

@@ -1,22 +1,28 @@
 ---
-title: Where are a client's Settings, Plan, Manage access and Client details?
+title: Where are a client's Client setup (staff) and Settings (client)?
 section: Working with a client
 audience: staff
-keywords: [client settings, settings, gear, help menu, question mark menu, manage access, client details, plan, plans, upgrade, change plan, organization, summary recipients, sign out, sign out all devices, security, privacy, data, who can see, encryption, delete my data, client notifications, client profile, pro tour, request access, theme, dark mode]
+keywords: [client settings, client setup, settings, gear, milestone, help menu, question mark menu, manage access, client details, plan, plans, upgrade, change plan, organization, summary recipients, sign out, sign out all devices, security, privacy, data, who can see, encryption, delete my data, client notifications, client profile, pro tour, request access, theme, dark mode]
 sort: 262
 ---
-Every client page has a **Settings** gear. For staff it's at the right end of the client's tab row (it says **new access request pending** when someone is waiting). Clients have it at the bottom of their sidebar, above **Collapse**, and under **More** in the bottom bar on a phone. What it opens depends on who's looking.
+Staff and clients open different things from the gear. Staff have **Client setup**. Clients have **Settings**.
 
-### What you see (staff)
+- **Staff:** the **Client setup** gear is at the right end of the client's tab row. It says **Client setup, new access request waiting** to a screen reader when someone is waiting, and shows a red dot.
+- **Clients:** **Settings** is at the bottom of their sidebar, above **Collapse**, and under **More** in the bottom bar on a phone.
 
-Two tabs:
+### What you see (staff): Client setup
 
-- **Client settings** (staff only):
-  - **Manage access**: who at the client can sign in, what each person sees, and portal access requests. When there's a new request, the gear has a gold dot and the row says **New request**.
-  - **Client details**: contacts, QuickBooks, notes, SOP and the client's other details.
+Click **Client setup**. The page is called **Client setup**, and the browser tab reads *{client} · Client setup · MyGoodBooks*. You can send a teammate the address: `#/client/{id}/settings`, or `#/client/{id}/setup`. It adds `/client`, `/plan` or `/milestone` for the tab. It has these tabs:
 
-  Each **Open** button opens the same window as before.
-- **Plan**: the Basic and Pro comparison the client sees (Basic is free with 1 login included and extra logins at $20/mo each; Pro is $100/mo plus $20/mo per login; both are on top of the milestone fee), with the client's plan marked **Your plan**. This used to be its own Plans page. **See plans** on the organization card on the client's Home opens it too.
+- **Access and details** (staff only). Clients never see it.
+  - **Manage access**: who at the client can sign in, what each person sees, and portal access requests. When there's a new request, the tab has a gold dot and the row says **New request**.
+  - **Client details**: contacts, QuickBooks connection, notes, SOP, activity and the client's other details.
+
+  Each **Open** button opens a window. Links from other pages open the right window straight away, for example **Reconnect** on the Overview opens the QuickBooks part of Client details.
+- **Plan**: the Basic and Pro comparison the client sees (Basic is free with 1 login included and extra logins at $20/mo each; Pro is $100/mo plus $20/mo per login; both are on top of the milestone fee), with the client's plan marked **Your plan**. **See plans** on the organization card on the client's Home opens it too.
+- **Milestone**: only if you're not a real admin. Real admins have **Milestone** in the tab row instead. If a bookkeeper, an account manager or a temporary admin opens a Milestone link, they land here. This keeps the row simple. It isn't a security lock: what you can see is still set by your role and the client's access.
+
+The **Client view** menu is separate. It's next to the gear and holds the client's own pages. See [How do I use the Clients page?](#/help/clients-page).
 
 ### What the client sees
 
@@ -32,7 +38,7 @@ Two tabs:
   - If a client asks for a copy of their data or to have it deleted, pass it to the owner. Don't promise anything the page doesn't say.
 - **Help**: **Restart the tour** (they get the version that fits their plan and access; see "How does the client guided tour work?"), the **Pro tour** on Basic, Messages, the privacy policy and the terms of service. The tour, Pro tour and Messages rows are also in the **?** menu next to the bell in the top bar, along with **Help and settings** (which opens this tab) and **Contact support**; see [What does the client portal look like?](#/help/client-portal).
 
-Clients' dark mode switch and **Sign out** button moved from the bottom of their sidebar into Settings.
+Clients' dark mode switch and **Sign out** button are in Settings, not the sidebar.
 
 ### When you use Preview as
 
@@ -40,5 +46,6 @@ While previewing as a client user you see their Settings tabs, read-only. Their 
 
 ### Troubleshooting
 
-- **I can't find Manage access or Client details.** Open the client, click **Settings** at the right end of the tab row, then **Client settings**.
+- **I can't find Manage access or Client details.** Open the client, click **Client setup** at the right end of the tab row, then the **Access and details** tab.
+- **I can't find the Milestone tab in the row.** Only real admins see it there. Everyone else finds it in **Client setup › Milestone**.
 - **The client says they don't get the monthly summary.** On their **Organization** tab, someone with full access may have picked only certain people. Their **Notifications** tab says so too.

@@ -254,19 +254,97 @@ const OB_ENTITY_TYPES = [
   { value: "for_profit", label: "For-profit" },
 ];
 
-function OB_OnboardingCard({ client, staffUser }) {
+function OB_entityLabel(value) {
+  const t = OB_ENTITY_TYPES.find((x) => x.value === value);
+  return t ? t.label : OB_ENTITY_TYPES[0].label;
+}
+
+// Organization type select (TABS-SPEC WP4 step 13). Used by the Onboarding
+// card and by Key dates on the Overview, so every staff member can change it
+// (set_client_entity_type, supabase/client-entity-type.sql).
+function OB_EntityTypeSelect({ client, onChanged }) {
+  const showToast = useToast();
+  const [busy, setBusy] = useState(false);
+  const [entityType, setEntityType] = useState((client && client.entityType) || "nonprofit");
+  useEffect(() => {
+    setEntityType((client && client.entityType) || "nonprofit");
+  }, [client && client.id, client && client.entityType]);
+  // A save from the other copy (Onboarding card vs Key dates) updates
+  // client.entityType in place and fires OB_CHANGED_EVENT: re-read it.
+  useEffect(() => {
+    if (!client) return undefined;
+    const onChanged = () => setEntityType(client.entityType || "nonprofit");
+    window.addEventListener(OB_CHANGED_EVENT, onChanged);
+    return () => window.removeEventListener(OB_CHANGED_EVENT, onChanged);
+  }, [client]);
+  const toast = (m) => {
+    if (showToast) showToast(m);
+  };
+  const save = async (next) => {
+    const sb = window.mgbSupabase;
+    const prev = entityType;
+    setEntityType(next);
+    if (!sb) return;
+    setBusy(true);
+    const { error } = await sb.rpc("set_client_entity_type", { p_client_id: client.id, p_entity_type: next });
+    setBusy(false);
+    if (error) {
+      setEntityType(prev);
+      toast("Couldn't save the organization type. " + (error.message || ""));
+      return;
+    }
+    client.entityType = next;
+    toast(next === "for_profit" ? "Marked as a for-profit business." : "Marked as a nonprofit.");
+    window.dispatchEvent(new Event(OB_CHANGED_EVENT));
+    if (onChanged) onChanged(next);
+  };
+  return (
+    <label className="ob-entity">
+      <span>Organization type</span>
+      <select className="ob-input" value={entityType} disabled={busy} onChange={(e) => save(e.target.value)}>
+        {OB_ENTITY_TYPES.map((t) => (
+          <option key={t.value} value={t.value}>
+            {t.label}
+          </option>
+        ))}
+      </select>
+    </label>
+  );
+}
+
+function OB_openKey(clientId) {
+  return "mgb_ov_onboarding_open_" + clientId;
+}
+
+// `collapsed`: when every step is done, show one line with "Show steps"
+// (TABS-SPEC 1.4). The open state is kept per client for the session.
+function OB_OnboardingCard({ client, staffUser, collapsed }) {
   const data = OB_useOnboarding();
   const showToast = typeof useToast === "function" ? useToast() : null;
   const [busy, setBusy] = useState(null);
   const [editing, setEditing] = useState(false);
-  const [entityType, setEntityType] = useState((client && client.entityType) || "nonprofit");
   const isAdmin = !!(staffUser && staffUser.role === "admin");
   const toast = (m) => {
     if (showToast) showToast(m);
   };
+  const readOpen = () => {
+    try {
+      return !!(client && sessionStorage.getItem(OB_openKey(client.id)) === "1");
+    } catch (e) {
+      return false;
+    }
+  };
+  const [stepsOpen, setStepsOpenState] = useState(readOpen);
   useEffect(() => {
-    setEntityType((client && client.entityType) || "nonprofit");
-  }, [client && client.id, client && client.entityType]);
+    setStepsOpenState(readOpen());
+    // eslint-disable-next-line
+  }, [client && client.id]);
+  const setStepsOpen = (v) => {
+    setStepsOpenState(v);
+    try {
+      if (client) sessionStorage.setItem(OB_openKey(client.id), v ? "1" : "0");
+    } catch (e) {}
+  };
 
   // Picker badge click: scroll here and flash a gold outline. Waits for the
   // data so the card has its full height before scrolling.
@@ -279,10 +357,20 @@ function OB_OnboardingCard({ client, staffUser }) {
       const req = OB_focusRequest;
       if (!req || req.clientId !== clientIdForFocus || Date.now() - req.at > 15000) return;
       if (!OB_store.data) return;
-      const el = cardRef.current;
-      if (!el) return;
+      if (!cardRef.current) return;
       OB_focusRequest = null;
+      // A collapsed card opens first, so the flash lands on the steps.
+      if (collapsed) setStepsOpen(true);
+      // The Overview keeps the card inside "Billing and time" (a <details>
+      // that may be closed): open it, or the scroll lands on a hidden card.
+      // Its onToggle keeps the Overview's state in step.
+      try {
+        const d = cardRef.current.closest("details");
+        if (d && !d.open) d.open = true;
+      } catch (e) {}
       setTimeout(() => {
+        const el = cardRef.current;
+        if (!el) return;
         let reduce = false;
         try {
           reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -297,28 +385,7 @@ function OB_OnboardingCard({ client, staffUser }) {
     tryFocus();
     window.addEventListener(OB_FOCUS_EVENT, tryFocus);
     return () => window.removeEventListener(OB_FOCUS_EVENT, tryFocus);
-  }, [clientIdForFocus, hasData]);
-
-  // clients.entity_type via set_client_entity_type() (supabase/
-  // client-entity-type.sql): any staff member with access to the client can
-  // set it here. Stored and shown only for now; later phases use it for
-  // report wording.
-  const saveEntityType = async (next) => {
-    const sb = window.mgbSupabase;
-    const prev = entityType;
-    setEntityType(next);
-    if (!sb) return;
-    setBusy("entity_type");
-    const { error } = await sb.rpc("set_client_entity_type", { p_client_id: client.id, p_entity_type: next });
-    setBusy(null);
-    if (error) {
-      setEntityType(prev);
-      toast("Couldn't save the organization type. " + (error.message || ""));
-      return;
-    }
-    client.entityType = next;
-    toast(next === "for_profit" ? "Marked as a for-profit business." : "Marked as a nonprofit.");
-  };
+  }, [clientIdForFocus, hasData, collapsed]);
 
   if (!data) {
     return (
@@ -356,6 +423,23 @@ function OB_OnboardingCard({ client, staffUser }) {
     window.dispatchEvent(new Event(OB_CHANGED_EVENT));
   };
 
+  const allDone = steps.length > 0 && done >= steps.length;
+  const stepsId = "ob-steps-" + client.id;
+  if (collapsed && allDone && !stepsOpen) {
+    return (
+      <div ref={cardRef} className="card ob-card ob-card-collapsed">
+        <p className="ob-collapsed-line">
+          <span>
+            Onboarding done · {done} of {steps.length} · Organization type: {OB_entityLabel(client.entityType)}
+          </span>
+          <button type="button" className="btn-secondary btn-sm" aria-expanded="false" aria-controls={stepsId} onClick={() => setStepsOpen(true)}>
+            Show steps
+          </button>
+        </p>
+      </div>
+    );
+  }
+
   return (
     <div ref={cardRef} className="card ob-card">
       <div className="ob-head">
@@ -363,26 +447,17 @@ function OB_OnboardingCard({ client, staffUser }) {
         <span className={"ob-count" + (done === steps.length && steps.length ? " complete" : "")}>
           {steps.length ? `${done} of ${steps.length}` : "No steps"}
         </span>
+        {collapsed && allDone && (
+          <button type="button" className="link-btn" aria-expanded="true" aria-controls={stepsId} onClick={() => setStepsOpen(false)}>
+            Hide steps
+          </button>
+        )}
       </div>
       <div className="bar-track ob-bar" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={pct} aria-label="Onboarding progress">
         <div className="bar-fill ob-bar-fill" style={{ width: pct + "%" }} />
       </div>
-      <label className="ob-entity">
-        <span>Organization type</span>
-        <select
-          className="ob-input"
-          value={entityType}
-          disabled={busy === "entity_type"}
-          onChange={(e) => saveEntityType(e.target.value)}
-        >
-          {OB_ENTITY_TYPES.map((t) => (
-            <option key={t.value} value={t.value}>
-              {t.label}
-            </option>
-          ))}
-        </select>
-      </label>
-      <ul className="ob-steps">
+      <OB_EntityTypeSelect client={client} />
+      <ul className="ob-steps" id={stepsId}>
         {steps.map((s) => (
           <li key={s.key} className={"ob-step" + (s.done ? " done" : "")}>
             <label className="ob-step-label">

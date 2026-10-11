@@ -10,12 +10,15 @@
 //                    Client health grid (HLB_HealthTab, retired) as the place
 //                    to scan the whole list.
 //   CL_Breadcrumb    "Clients › {client} › {tab}" above a client's pages.
-//   CL_ClientTabs    The client's tab row for staff (NAV_TabRow): Overview, the
-//                    client's own tabs, SOP, Milestone, and the Settings gear.
+//   CL_ClientTabs    The client's tab row for staff (NAV_TabRow): the same
+//                    row on every plan (STAFF_CLIENT_TABS, app.jsx) with
+//                    badges, the Client view menu and the Client setup gear.
 //                    At desktop width staff don't get the client sidebar
 //                    (clients-page.css, html.staff-client-tabs).
+//   CL_ClientViewMenu "Client view": the client's own pages, then "View as
+//                    client…" (in-client tabs redesign 2026-10-10).
 //   CL_ViewAsButton  "View as client": preview the portal as one of the
-//                    client's people.
+//                    client's people (no longer mounted by App's header).
 //
 // Data comes from the hooks the client overview and Today already use —
 // HL_useHealth (ClientHealth.jsx), HLB_useDirectory (HealthBoard.jsx),
@@ -34,8 +37,11 @@ const CL_FILTERS = [
 
 const CL_lower = (s) => String(s || "").toLowerCase();
 
+// No page: the bare #/client/<id>, which App opens by the landing rule (the
+// tab last open for that client this session, else Overview). Pass a page
+// ("overview", "close") to name one.
 function CL_clientHref(id, page) {
-  return "#/client/" + encodeURIComponent(id) + "/" + (page || "overview");
+  return "#/client/" + encodeURIComponent(id) + (page ? "/" + page : "");
 }
 
 // Tab label for a client page key (breadcrumb, tab row).
@@ -43,7 +49,8 @@ function CL_pageLabel(page) {
   if (!page || page === "client-overview") return "Overview";
   if (page === "sop") return "SOP";
   if (page === "milestone") return "Milestone";
-  if (page === "client-settings") return "Settings";
+  if (page === "client-close") return "Close";
+  if (page === "client-settings") return "Client setup";
   if (page === "enterprise-upgrade") return "Plans";
   const byKey = typeof NAV_LABEL_BY_KEY !== "undefined" ? NAV_LABEL_BY_KEY : {};
   return byKey[page] || page;
@@ -141,19 +148,28 @@ function CL_HoursCell({ data, clientId }) {
 }
 
 // The month being closed and where it stands. cl from CT_useCloseStatus.byClient.
-function CL_CloseCell({ cl, loading }) {
+function CL_CloseCell({ cl, loading, client }) {
   if (!cl) return <span className="muted">{loading ? "…" : "—"}</span>;
   const label = CT_STATUS_LABEL[cl.status] || cl.status;
   const tone = cl.late ? "bad" : cl.status === "done" ? "good" : cl.status === "in_progress" || cl.status === "review" ? "warm" : "neutral";
-  return (
-    <span className="cl-close">
+  const body = (
+    <>
       <span className="cl-close-month">{CT_monthLabel(cl.period)}</span>
       <span className={"pill " + tone}>{cl.late ? label + " · late" : label}</span>
-    </span>
+    </>
   );
+  // Opens the client's Close tab (explicit page, not the bare landing hash).
+  if (client && client.id) {
+    return (
+      <a className="cl-close cl-close-link" href={CL_clientHref(client.id, "close")} title={"Open " + (client.name || client.id) + "'s close"}>
+        {body}
+      </a>
+    );
+  }
+  return <span className="cl-close">{body}</span>;
 }
 
-function CL_Row({ r, hours, closeLoading, hlStatus, onOpen }) {
+function CL_Row({ r, hours, closeLoading, hlStatus, onOpen, isRealAdmin }) {
   const c = r.c;
   const open = (page) => onOpen && onOpen(c.id, page);
   const onRowClick = (e) => {
@@ -184,7 +200,10 @@ function CL_Row({ r, hours, closeLoading, hlStatus, onOpen }) {
               Test
             </span>
           )}
-          {typeof OB_OnboardingBadge === "function" && <OB_OnboardingBadge clientId={c.id} onOpen={() => open("client-overview")} />}
+          {/* Onboarding is admin work (D20): real admins only. */}
+          {isRealAdmin && (
+            <OB_OnboardingBadge clientId={c.id} onOpen={() => open("client-overview")} />
+          )}
           {r.requests > 0 && (
             <span
               className="cl-requests"
@@ -224,7 +243,7 @@ function CL_Row({ r, hours, closeLoading, hlStatus, onOpen }) {
         <CL_HoursCell data={hours} clientId={c.id} />
       </td>
       <td data-label="Close">
-        <CL_CloseCell cl={r.cl} loading={closeLoading} />
+        <CL_CloseCell cl={r.cl} loading={closeLoading} client={c} />
       </td>
       <td data-label="Last viewed">{r.lastViewed ? CL_ago(r.lastViewed) : <span className="muted">Not yet</span>}</td>
     </tr>
@@ -348,7 +367,7 @@ function CL_ClientsPage({ clients, staffUser, isAdmin, statusOverrides, pendingR
               {shown.length === 0 ? (
                 <EmptyRow colSpan={7}>{empty}</EmptyRow>
               ) : (
-                shown.map((r) => <CL_Row key={r.c.id} r={r} hours={hours} closeLoading={close.loading} hlStatus={health.status} onOpen={onOpenClient} />)
+                shown.map((r) => <CL_Row key={r.c.id} r={r} hours={hours} closeLoading={close.loading} hlStatus={health.status} onOpen={onOpenClient} isRealAdmin={STAFF_isRealAdmin(staffUser)} />)
               )}
             </tbody>
           </table>
@@ -388,7 +407,7 @@ function CL_Breadcrumb({ client, page, onOpenClients, onOpenOverview }) {
           ›
         </li>
         <li>
-          <a href={CL_clientHref(client.id)} onClick={go(onOpenOverview)}>
+          <a href={CL_clientHref(client.id, "overview")} onClick={go(onOpenOverview)}>
             {name}
           </a>
         </li>
@@ -405,27 +424,74 @@ function CL_Breadcrumb({ client, page, onOpenClients, onOpenOverview }) {
   );
 }
 
-// The client's tabs for staff: Overview, then the client's own tabs in
-// NAV_SECTIONS order (only the ones access.tabs allows — Basic, Plus and Pro
-// differ, and Payroll needs the add-on), then SOP (staff only), Milestone
-// (not for category-scoped previews), with the Settings gear on the right.
-// Tabs use the sidebar's short names ("Budget", not "Budget vs. Actual") so
-// eleven of them fit one row; the page title and breadcrumb keep the long
-// one. Panel id "client-panel" (NAV_TabRow aria-controls) belongs on the
-// page content wrapper.
-function CL_ClientTabs({ client, page, access, isCategoryScoped, onSelectPage, hasPendingAccessRequests, onOpenClientSettings }) {
-  const allowed = access && access.tabs ? access.tabs : null;
-  const tabs = [{ key: "client-overview", label: "Overview", tour: "client-overview" }];
-  (typeof NAV_SECTIONS !== "undefined" ? NAV_SECTIONS : []).forEach((section) => {
-    (section.items || []).forEach((item) => {
-      if (!allowed || allowed.has(item.key)) tabs.push({ key: item.key, label: item.short || item.label, tour: "nav-" + item.key });
-    });
-  });
-  tabs.push({ key: "sop", label: "SOP", tour: "client-sop" });
-  if (!isCategoryScoped) tabs.push({ key: "milestone", label: "Milestone", tour: "milestone" });
+// "1 reply" / "2 replies": singular or plural noun after a count.
+function CL_n(n, one, many) {
+  return n + " " + (n === 1 ? one : many);
+}
+
+// Badge fields (NAV_TabRow badge, badgeTone, badgeDot, badgeLabel) for one
+// row tab, from useClientTabCounts (ClientTabCounts.jsx). Copy: TABS-SPEC 1.3.
+// Nothing before the counts load, and nothing while they're in error.
+function CL_tabBadge(key, counts) {
+  if (!counts || !counts.loaded || counts.error) return null;
+  if (key === "messages") {
+    const m = counts.messages || {};
+    if (!m.count) return null;
+    return {
+      badge: m.count,
+      badgeTone: m.overdue > 0 ? "bad" : null,
+      badgeLabel:
+        (m.count === 1 ? "1 reply waiting" : m.count + " replies waiting") +
+        (m.overdue > 0 ? ", " + m.overdue + " waiting over a day" : ""),
+    };
+  }
+  if (key === "documents") {
+    const d = counts.documents || {};
+    if (d.uploaded > 0)
+      return {
+        badge: d.uploaded,
+        badgeTone: d.overdueOpen > 0 ? "warn" : null,
+        badgeLabel:
+          CL_n(d.uploaded, "upload", "uploads") +
+          " to mark received" +
+          (d.overdueOpen > 0 ? ", " + CL_n(d.overdueOpen, "request", "requests") + " overdue" : ""),
+      };
+    if (d.overdueOpen > 0)
+      return { badge: 1, badgeDot: true, badgeTone: "warn", badgeLabel: CL_n(d.overdueOpen, "request", "requests") + " overdue" };
+    return null;
+  }
+  if (key === "bank") {
+    const b = counts.bank || {};
+    if (!b.open) return null;
+    return { badge: b.open, badgeLabel: CL_n(b.open, "open question", "open questions") };
+  }
+  if (key === "client-close") {
+    const c = counts.close || {};
+    if (!c.tone || !c.label) return null;
+    return { badge: 1, badgeDot: true, badgeTone: c.tone, badgeLabel: c.label };
+  }
+  if (key === "sop") {
+    const s = counts.sop || {};
+    if (!s.stale) return null;
+    return { badge: 1, badgeDot: true, badgeTone: "warn", badgeLabel: "SOP review due" };
+  }
+  return null;
+}
+
+// The client's tab row for staff (bookkeeper view, not previewing): the same
+// fixed row on every plan (D1): Overview, Messages, Documents, Bank, Close,
+// Reports, SOP, then Milestone for real admins, then the Client view menu and
+// the Client setup gear at the far right. Tabs come from STAFF_CLIENT_TABS
+// (app.jsx). Badges from `counts` (useClientTabCounts). Panel id
+// "client-panel" (NAV_TabRow aria-controls) is the page content wrapper.
+function CL_ClientTabs({ client, page, access, counts, isRealAdmin, onSelectPage, hasPendingAccessRequests, onOpenClientSettings, onPreviewAs }) {
+  const rowTabs = STAFF_CLIENT_TABS;
+  const tabs = rowTabs
+    .filter((t) => !t.adminOnly || isRealAdmin)
+    .map((t) => ({ key: t.key, label: t.label, tour: t.tour, ...(CL_tabBadge(t.key, counts) || {}) }));
   const current = tabs.some((t) => t.key === page) ? page : null;
   const onSettings = page === "client-settings";
-  const settingsLabel = hasPendingAccessRequests ? "Client settings — new access request pending" : "Client settings";
+  const settingsLabel = hasPendingAccessRequests ? "Client setup, new access request waiting" : "Client setup";
   const gear = (
     <button
       type="button"
@@ -433,24 +499,245 @@ function CL_ClientTabs({ client, page, access, isCategoryScoped, onSelectPage, h
       aria-pressed={onSettings}
       aria-label={settingsLabel}
       title={settingsLabel}
-      data-tour="settings"
+      data-tour="client-setup"
       onClick={() => onOpenClientSettings && onOpenClientSettings()}
     >
       {typeof ST_GearIcon === "function" && <ST_GearIcon width="16" height="16" />}
-      <span className="cl-settings-label">Settings</span>
+      <span className="cl-settings-label">Client setup</span>
       {hasPendingAccessRequests && <span className="cl-settings-dot" aria-hidden="true" />}
     </button>
   );
-  return (
+  const viewMenu = (
+    <CL_ClientViewMenu client={client} page={page} access={access} counts={counts} onSelectPage={onSelectPage} onPreviewAs={onPreviewAs} />
+  );
+  // 761-1279px: an admin's eight tabs, the Client view menu and the gear
+  // don't fit on one line, so the menu and gear move up to the page header
+  // (#cl-header-tools, App in app.jsx) and the tabs get the full width.
+  // Phones keep them in the row (it scrolls sideways); 1280px+ fits.
+  const headerSlot = CL_useHeaderToolsSlot();
+  const tabRow = (
     <NAV_TabRow
       label={((client && client.name) || "Client") + " pages"}
       tabs={tabs}
       current={current}
       onSelect={(key) => onSelectPage && onSelectPage(key)}
       idPrefix="client"
-      className="cl-tabs"
-      right={gear}
+      className={"cl-tabs" + (headerSlot ? " cl-tabs-tools-up" : "")}
+      after={headerSlot ? null : viewMenu}
+      right={headerSlot ? null : gear}
     />
+  );
+  if (!headerSlot || typeof ReactDOM === "undefined") return tabRow;
+  return (
+    <>
+      {tabRow}
+      {ReactDOM.createPortal(
+        <>
+          {viewMenu}
+          <div className="nav-tabs-right">{gear}</div>
+        </>,
+        headerSlot,
+      )}
+    </>
+  );
+}
+
+// The header slot for the Client view menu and gear while the viewport is
+// 761-1279px wide (CL_ClientTabs), or null. Layout effect so the row never
+// paints with them in the wrong place first.
+const CL_TOOLS_UP_QUERY = "(min-width: 761px) and (max-width: 1279px)";
+function CL_useHeaderToolsSlot() {
+  const [slot, setSlot] = useState(null);
+  React.useLayoutEffect(() => {
+    if (typeof window.matchMedia !== "function") return undefined;
+    const mq = window.matchMedia(CL_TOOLS_UP_QUERY);
+    const sync = () => setSlot(mq.matches ? document.getElementById("cl-header-tools") : null);
+    sync();
+    if (mq.addEventListener) mq.addEventListener("change", sync);
+    else if (mq.addListener) mq.addListener(sync);
+    return () => {
+      if (mq.removeEventListener) mq.removeEventListener("change", sync);
+      else if (mq.removeListener) mq.removeListener(sync);
+    };
+  }, []);
+  return slot;
+}
+
+// "Client view": the pages the client sees (Home, Budget, Cash flow, Giving
+// & funds, Payroll), filtered by access.tabs at render time, then "View as
+// client…" (preview the portal as one of the client's people). Replaces the
+// header "View as client" button in the bookkeeper view (D19). A menu
+// button: Esc closes and refocuses, outside click closes, ArrowUp/Down
+// cycle, ArrowDown on the closed button opens, first item gets focus.
+function CL_ClientViewMenu({ client, page, access, counts, onSelectPage, onPreviewAs }) {
+  const [open, setOpen] = useState(false);
+  const [mode, setMode] = useState("pages"); // "pages" | "people" (View as client…)
+  const rootRef = useRef(null);
+  const btnRef = useRef(null);
+  const name = (client && client.name) || "this client";
+  const people = (client && client.users) || [];
+  const allowed = access && access.tabs ? access.tabs : null;
+  const keys = STAFF_CLIENT_VIEW_PAGES.filter((k) => !allowed || allowed.has(k));
+  const labels = NAV_LABEL_BY_KEY;
+  const labelOf = (k) => labels[k] || k;
+  const isCurrent = keys.indexOf(page) !== -1 || STAFF_CLIENT_VIEW_PAGES.indexOf(page) !== -1;
+  const budgetWaiting = !!(counts && counts.loaded && !counts.error && counts.budget && counts.budget.awaitingStaff && keys.indexOf("budget") !== -1);
+  const close = (refocus) => {
+    setOpen(false);
+    setMode("pages");
+    if (refocus && btnRef.current) btnRef.current.focus();
+  };
+  useEffect(() => {
+    if (!open) return undefined;
+    const onDown = (e) => {
+      if (rootRef.current && !rootRef.current.contains(e.target)) close(false);
+    };
+    const onKey = (e) => {
+      if (e.key === "Escape") {
+        e.stopPropagation();
+        close(true);
+      }
+    };
+    document.addEventListener("mousedown", onDown);
+    document.addEventListener("touchstart", onDown, { passive: true });
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDown);
+      document.removeEventListener("touchstart", onDown);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
+  // First item gets focus when the menu opens or switches to the people list.
+  useEffect(() => {
+    if (!open || !rootRef.current) return;
+    const first = rootRef.current.querySelector("[role='menuitem']:not([disabled])");
+    if (first) first.focus();
+  }, [open, mode]);
+  const onMenuKeyDown = (e) => {
+    if (e.key !== "ArrowDown" && e.key !== "ArrowUp") return;
+    const items = Array.from((rootRef.current && rootRef.current.querySelectorAll("[role='menuitem']:not([disabled])")) || []);
+    if (!items.length) return;
+    e.preventDefault();
+    const i = items.indexOf(document.activeElement);
+    (e.key === "ArrowDown" ? items[(i + 1) % items.length] : items[(i - 1 + items.length) % items.length]).focus();
+  };
+  const goPage = (k) => {
+    close(false);
+    if (onSelectPage) onSelectPage(k);
+  };
+  const viewAs = () => {
+    if (people.length === 1) {
+      close(false);
+      if (onPreviewAs) onPreviewAs(people[0].id);
+    } else setMode("people");
+  };
+  const pickPerson = (id) => {
+    close(false);
+    if (onPreviewAs) onPreviewAs(id);
+  };
+  const toggle = () => {
+    setMode("pages");
+    setOpen((v) => !v);
+    try {
+      if (!open) MGB_track("client-view-open");
+    } catch (e) {}
+  };
+  const btnLabel = isCurrent ? "Client view · " + labelOf(page) : "Client view";
+  const noOneWhy = "No one at this client can sign in yet.";
+  return (
+    <span className="cl-clientview cl-viewas-wrap" ref={rootRef}>
+      <button
+        ref={btnRef}
+        type="button"
+        className={"cl-clientview-btn" + (isCurrent ? " is-current" : "") + (open ? " open" : "")}
+        data-tour="client-view"
+        aria-haspopup="menu"
+        aria-expanded={open}
+        aria-label={btnLabel + (budgetWaiting ? ", Budget waiting for your decision" : "")}
+        onClick={toggle}
+        onKeyDown={(e) => {
+          if (e.key === "ArrowDown" && !open) {
+            e.preventDefault();
+            setMode("pages");
+            setOpen(true);
+          }
+        }}
+      >
+        <span className="cl-clientview-label" data-tour="client-view-as">
+          <span className="cl-clientview-full">{btnLabel}</span>
+          <span className="cl-clientview-short" aria-hidden="true">
+            Client view
+          </span>
+        </span>
+        {budgetWaiting && <span className="nav-tab-badge is-dot is-warn" aria-hidden="true" />}
+        <ChevronDownIcon className={"cl-viewas-chev" + (open ? " open" : "")} />
+      </button>
+      {open && (
+        <div className="cl-viewas-menu cl-clientview-menu" role="menu" aria-label="Client view" onKeyDown={onMenuKeyDown}>
+          {mode === "pages" ? (
+            <>
+              <div className="cl-clientview-head" role="presentation">
+                What {name} sees
+              </div>
+              {keys.map((k) => {
+                const cur = page === k;
+                return (
+                  <button
+                    key={k}
+                    type="button"
+                    role="menuitem"
+                    className={"cl-viewas-item cl-clientview-item" + (cur ? " is-current" : "")}
+                    aria-current={cur ? "page" : undefined}
+                    onClick={() => goPage(k)}
+                  >
+                    <span className="cl-viewas-name">{labelOf(k)}</span>
+                    {k === "budget" && budgetWaiting && (
+                      <span className="cl-clientview-wait">
+                        <span className="nav-tab-badge is-dot is-warn" aria-hidden="true" />
+                        Waiting for you
+                      </span>
+                    )}
+                    {cur && (
+                      <span className="cl-clientview-check" aria-hidden="true">
+                        ✓
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+              <div className="cl-clientview-sep" role="separator" />
+              {people.length ? (
+                <button type="button" role="menuitem" className="cl-viewas-item" onClick={viewAs}>
+                  <span className="cl-viewas-name">View as client…</span>
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  role="menuitem"
+                  className="cl-viewas-item"
+                  disabled
+                  aria-disabled="true"
+                  aria-describedby="cl-clientview-why"
+                  title={noOneWhy}
+                >
+                  <span className="cl-viewas-name">View as client…</span>
+                  <span id="cl-clientview-why" className="cl-viewas-role">
+                    {noOneWhy}
+                  </span>
+                </button>
+              )}
+            </>
+          ) : (
+            people.map((u) => (
+              <button key={u.id} type="button" role="menuitem" className="cl-viewas-item" onClick={() => pickPerson(u.id)}>
+                <span className="cl-viewas-name">{u.name}</span>
+                {u.role && <span className="cl-viewas-role">{u.role}</span>}
+              </button>
+            ))
+          )}
+        </div>
+      )}
+    </span>
   );
 }
 
@@ -537,7 +824,7 @@ function CL_ViewAsButton({ client, onPreviewAs }) {
       >
         {icon}
         View as client
-        {typeof ChevronDownIcon === "function" && <ChevronDownIcon className={"cl-viewas-chev" + (open ? " open" : "")} />}
+        <ChevronDownIcon className={"cl-viewas-chev" + (open ? " open" : "")} />
       </button>
       {open && (
         <div className="cl-viewas-menu" role="menu" aria-label="View as" onKeyDown={onMenuKeyDown}>

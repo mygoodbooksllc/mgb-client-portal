@@ -103,7 +103,7 @@ Each person's tour status and checklist ticks are saved with their personal sett
 ### Troubleshooting
 
 - **A client says the tour never started.** It starts once, on their first sign-in. If they skipped or closed it, they can run it again from the **?** in the top bar (**Take the tour**) or from **Settings** > **Help** > **Restart the tour**.
-- **A step is missing for a client.** That tab isn't on their plan or in their access. Check their plan, or their access in **Settings** > **Client settings** > **Manage access**.
+- **A step is missing for a client.** That tab isn't on their plan or in their access. Check their plan, or their access in **Client setup** > **Access and details** > **Manage access**.
 - **A client's tour has no Sync step.** The organization isn't connected to QuickBooks, or its plan is below Pro. Pro pages turned off for one person don't matter here: they still get it.
 - **A Pro client's tour has no Pro wording.** That person's Pro pages may be turned off, so they see the plain pages. A client on the retired Plus plan is also worded as Basic.
 - **They never got "Invite a teammate".** Only people with full access see it. Give them full access in **Manage access** if they should.

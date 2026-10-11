@@ -1166,6 +1166,11 @@ function ProBudgetWorkspace({ client, access, clientPortalUser }) {
           : null;
     const ok = await persist({ nextStatus, note, patch });
     if (ok) {
+      // Submit, approve, request changes, reopen: the staff tab row's Client
+      // view "Budget waiting" dot (ClientTabCounts.jsx) refreshes.
+      try {
+        notifyStaffTools();
+      } catch (e) {}
       showToast(
         nextStatus === "submitted" ? "Submitted for approval."
           : nextStatus === "approved" ? "Budget approved."

@@ -335,6 +335,8 @@ function TD_buildRows(x) {
   (clients || []).forEach((c) => (byId[c.id] = c));
   const nameOf = (id) => (byId[id] ? byId[id].name : id);
   const myClientIds = new Set(x.myClients.map((c) => c.id));
+  // Deep link to the exact item (TABS-SPEC D16).
+  const lk = (t, hint) => () => LK_go(t, hint);
 
   // Teammates asking for temporary access to a client I look after.
   (x.toApprove || []).forEach((g) => {
@@ -358,7 +360,7 @@ function TD_buildRows(x) {
   // A client asking for portal access for someone on their side.
   (x.accessRequests || []).forEach((r) => {
     const people = Array.isArray(r.people) ? r.people.length : 0;
-    const open = () => x.onNavigateToClient(r.client_id, "dashboard", { openAccessManager: true });
+    const open = lk({ clientId: r.client_id, tab: "settings", sub: "client", item: "setup:access.requests" });
     now.push({
       key: "access-" + r.id,
       kind: "access",
@@ -384,7 +386,7 @@ function TD_buildRows(x) {
       sort: new Date(row.created_at || 0).getTime(),
       title: `${row.author_name || row.participant_email} · ${nameOf(row.client_id)}`,
       detail: (since ? `Waiting since ${since}` : "Waiting on a reply") + (row.body ? ` · ${String(row.body).replace(/\s+/g, " ").slice(0, 80)}` : ""),
-      onClick: () => x.onNavigateToClient(row.client_id, "messages"),
+      onClick: lk({ clientId: row.client_id, tab: "messages", item: "msg:" + row.id }, { email: row.participant_email }),
     });
   });
 
@@ -401,7 +403,7 @@ function TD_buildRows(x) {
       sort: diff,
       title: t.text,
       detail: [staffItemDueLabel(t, today), t.client_id ? nameOf(t.client_id) : ""].filter(Boolean).join(" · "),
-      onClick: () => NAV_go("work", "tasks"),
+      onClick: lk({ place: "work", tab: "tasks", item: "task:" + t.id }),
       actions: [{ label: "Done", onClick: () => x.toggleItem(t) }],
     });
   });
@@ -418,7 +420,7 @@ function TD_buildRows(x) {
       sort: diff,
       title: it.rule_name + (it.period_label ? " · " + it.period_label : ""),
       detail: `${it.client_name} · ${overdue ? `${-diff} day${diff === -1 ? "" : "s"} overdue` : diff === 0 ? "due today" : `due ${fmtDate(it.due)}`} · verify the date before filing`,
-      onClick: () => NAV_go("work", "deadlines"),
+      onClick: lk({ place: "work", tab: "deadlines", item: "deadline:" + it.id }),
     });
   });
 
@@ -432,7 +434,7 @@ function TD_buildRows(x) {
       sort: 0,
       title: `${nameOf(row.client_id)} · ${TD_monthName(row.period)} close is blocked`,
       detail: Array.isArray(row.reasons) && row.reasons.length ? String(row.reasons[0]) : "Something in QuickBooks needs fixing before the month can close",
-      onClick: () => NAV_go("work", "close"),
+      onClick: lk({ clientId: row.client_id, tab: "close", item: "at:close-qbo" }),
     });
   });
 
@@ -461,7 +463,11 @@ function TD_buildRows(x) {
       detail:
         `${g.n} bill${g.n === 1 ? "" : "s"} ${overdue ? "overdue" : "due soon"} · ` +
         `${fmtMoney(g.total, { cents: true })} · ${overdue ? "oldest " : "next "}${apDueText(g.first).toLowerCase()}`,
-      onClick: () => x.onNavigateToClient(g.clientId, "receivables"),
+      // Basic has no Cash flow tab; the row is admin-only, so Billing and time is on the Overview.
+      onClick:
+        byId[g.clientId] && isBasicPlan(byId[g.clientId])
+          ? lk({ clientId: g.clientId, tab: "overview", item: "at:ov-billing" })
+          : lk({ clientId: g.clientId, tab: "receivables" }),
     });
   });
 
@@ -498,6 +504,7 @@ function TD_buildRows(x) {
         (r.requested_plan === "payroll" ? "the Payroll add-on" : r.requested_plan ? planLabel(r.requested_plan) : "to upgrade") +
         (c ? ` (on ${planLabel(c.plan)})` : "") +
         ` · asked by ${r.requested_by || "unknown"} ${fmtDateTime(r.created_at)}`,
+      onClick: lk({ clientId: r.client_id, tab: "settings", sub: "plan" }),
       actions: [
         { label: "Contacted", disabled: busy, onClick: () => x.setUpgradeStatus(r, "contacted") },
         { label: "Completed", disabled: busy, onClick: () => x.setUpgradeStatus(r, "completed") },
@@ -524,7 +531,7 @@ function TD_buildRows(x) {
         sort: (HLB_BAND_ORDER[h.band] || 0) * 1000 + (Number(h.score) || 0),
         title: `${c.name || c.id} · ${HL_LABEL[h.band] || h.band} (${h.score})`,
         detail: reasons || "Health score below the healthy line",
-        onClick: () => x.onNavigateToClient(c.id, "client-overview"),
+        onClick: lk({ clientId: c.id, tab: "overview", item: "at:ov-why" }),
       });
     });
   }
@@ -881,7 +888,12 @@ function TD_RecentCard({ clients, onNavigateToClient }) {
       {recent.length > 0 && (
         <div className="staff-audit-list">
           {recent.map((c) => (
-            <button type="button" className="staff-due-row" key={c.id} onClick={() => onNavigateToClient(c.id, "client-overview")}>
+            <button
+              type="button"
+              className="staff-due-row"
+              key={c.id}
+              onClick={() => LK_go({ clientId: c.id })}
+            >
               <span className="staff-flag-label">{c.name}</span>
               <span className="staff-flag-desc">{fmtDateTime(new Date(visits[c.id]).toISOString())}</span>
             </button>

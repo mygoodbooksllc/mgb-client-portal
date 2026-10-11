@@ -2,10 +2,10 @@
 title: What does the client's Bank Accounts page show?
 section: Working with a client
 audience: staff
-keywords: [bank accounts, bank, cash, cash on hand, credit card, card balances, owed, net cash, transactions, search, filter, this month, last month, 90 days, money in, money out, card charge, sign, recent activity, show more, export csv, type, category, category filter, uncategorized, split, last synced, reconciliation, ask, question]
+keywords: [bank accounts, bank, bank on basic, sync now, reconnect, open questions, not reconciled, filter chips, cash, cash on hand, credit card, card balances, owed, net cash, transactions, search, filter, this month, last month, 90 days, money in, money out, card charge, sign, recent activity, show more, export csv, type, category, category filter, uncategorized, split, last synced, reconciliation, ask, question]
 sort: 215
 ---
-**Bank Accounts** is one of the client's own pages (the **Bank** tab in the client's tab row), so the client sees the same page you do.
+**Bank Accounts** is the **Bank** tab in the client's tab row. Staff see it on every client, on every plan, even when the client's own access hides it. A Basic client doesn't get a Bank page, so you may see Bank on a client who can't. When the client has the page, they see the same one you do, minus the staff extras below.
 
 ### The three numbers at the top
 
@@ -20,7 +20,7 @@ The same rule applies everywhere else in the app. Cash on the dashboard, in repo
 The **Accounts** card lists every account in two groups, **Cash** and **Cards**, each with its total. The bar under each account shows its share of the group.
 
 - Click an account to show only its transactions. Click it again, or click **All accounts**, to go back to everything.
-- The line under the title says how fresh the data is, for example *Last synced 2 hours ago · Synced from QuickBooks every 15 minutes*. How often it syncs depends on the client's plan. Clients who aren't connected to QuickBooks yet show sample data.
+- The line under the title says how fresh the data is. Clients see, for example, *Last synced 2 hours ago · Synced from QuickBooks every 15 minutes*. How often it syncs depends on the client's plan. Staff see the plan's schedule instead, for example *Last synced 24 days ago · Basic syncs monthly, on the 15th*, with a **Sync now** button next to it. A Basic client's data can be weeks old, so click **Sync now** before you rely on it. Staff have no limit on **Sync now**, on any plan. Clients who aren't connected to QuickBooks yet show sample data.
 
 ### Transactions
 
@@ -44,3 +44,19 @@ You can still add a staff note to any transaction with the note button next to i
 ### Reconciliation
 
 On clients with Reconciliation Pro, a **Transactions / Reconciliation** toggle at the top switches to the reconciliation view. It works one account at a time, the same as before.
+
+### For staff: links, filters and sync
+
+Links from other places open Bank already filtered. You'll see a chip above the totals for each filter, and a **×** on each chip to remove it.
+
+- **Uncategorized**: from the Close tab (its QuickBooks check and the **Bank feed categorized** step) and the Overview status line. With a month chip such as *September 2026*, it shows that month's uncategorized transactions. QuickBooks counts every kind of transaction as uncategorized, not just bank ones, so Bank may show fewer.
+- **Open questions**: from the **Open questions** chip on the Overview. It shows the transactions with an open client question. If some open questions are on older transactions, a line says so (*{n} more open questions are on older transactions*) and lists them below. Questions on a recent transaction Bank isn't showing (voided or deleted in QuickBooks) get their own line, *{n} open questions are on transactions Bank isn't showing*, and are listed there too. The number on the **Bank** tab counts the same open questions. See [How do I answer a client's question about a transaction?](#/help/transaction-questions).
+- **Not reconciled**: from the Close tab, for one account and month. If Bank can't tell which rows are reconciled it says *Bank can't tell which rows are reconciled. Check them in QuickBooks.*
+- Bank only shows the last 90 days. For an older month it says *Bank shows the last 90 days. Check QuickBooks for {Month}.*
+- If the synced data stops before the end of the month you're looking at, it says *These numbers stop at {date}. Sync now to see the rest of {Month}.*
+
+**When QuickBooks isn't working:**
+
+- **QuickBooks isn't connected yet**: there are no bank accounts to show. Click **Connect QuickBooks** to open the QuickBooks part of **Client setup**.
+- **QuickBooks needs to be reconnected**: a red banner sits above the old numbers (*These numbers stopped updating on {date}*). Click **Reconnect QuickBooks**. With no synced data at all, the whole page shows the reconnect message instead.
+- **Getting the first sync ready**: the connection is fine, and the first sync hasn't finished. Click **Sync now**.

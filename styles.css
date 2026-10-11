@@ -1734,6 +1734,54 @@ button.nav-ms-name:hover {
   }
 }
 
+/* Deep-link arrival (DeepLink.jsx LK_reveal): the item a link pointed at.
+   Ring for cards and sections, tint for rows. Same 2600ms hold-then-fade as
+   .card-flash; tokens only, so dark mode reads (--gold-deep is lighter
+   there). Reduced motion: a static outline, no animation, removed after ~2s. */
+@keyframes lkArrive {
+  0% {
+    box-shadow: 0 0 0 0 transparent;
+  }
+  8%,
+  80% {
+    box-shadow: 0 0 0 3px var(--gold-deep);
+  }
+  100% {
+    box-shadow: 0 0 0 3px transparent;
+  }
+}
+@keyframes lkArriveRow {
+  0% {
+    background-color: transparent;
+  }
+  8%,
+  80% {
+    background-color: var(--accent-soft);
+  }
+  100% {
+    background-color: transparent;
+  }
+}
+.lk-arrive {
+  animation: lkArrive 2600ms ease-out;
+}
+.lk-arrive-row {
+  animation: lkArriveRow 2600ms ease-out;
+}
+@media (prefers-reduced-motion: reduce) {
+  .lk-arrive {
+    animation: none;
+    outline: 3px solid var(--gold-deep);
+    outline-offset: 2px;
+  }
+  .lk-arrive-row {
+    animation: none;
+    background-color: var(--accent-soft);
+    outline: 2px solid var(--gold-deep);
+    outline-offset: -2px;
+  }
+}
+
 .kpi-label {
   font-size: 12.5px;
   color: var(--text-muted);
@@ -8768,8 +8816,10 @@ tr:hover .inote-btn,
    card whose own data already says it needs action (health At risk, open
    transaction questions, close Blocked, QuickBooks needs attention, overdue
    document request). Shadow only, so no movement or layout shift; the card's
-   normal --shadow is kept underneath. Reduced motion gets a static outline. */
-.client-overview .card.card-urgent {
+   normal --shadow is kept underneath. Reduced motion gets a static outline.
+   Widened 2026-10-10 from .client-overview so the overdue-request pulse also
+   shows on Documents (the card moved there); the Inbox side pane opts out. */
+.card.card-urgent {
   /* --gold (#c7ae86) at low opacity; dark mode needs a touch more to read.
      --urgent-base keeps the card's own shadow; dark sets --shadow to none,
      which would void the whole box-shadow list, so dark uses a no-op. */
@@ -8783,14 +8833,14 @@ tr:hover .inote-btn,
   animation: mgb-urgent-pulse 2.4s ease-in-out infinite;
 }
 @media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) .client-overview .card.card-urgent {
+  :root:not([data-theme="light"]) .card.card-urgent {
     --urgent-base: 0 0 0 0 transparent;
     --urgent-ring-hi: rgba(199, 174, 134, 0.42);
     --urgent-glow-lo: rgba(199, 174, 134, 0.1);
     --urgent-glow-hi: rgba(199, 174, 134, 0.3);
   }
 }
-:root[data-theme="dark"] .client-overview .card.card-urgent {
+:root[data-theme="dark"] .card.card-urgent {
   --urgent-base: 0 0 0 0 transparent;
   --urgent-ring-hi: rgba(199, 174, 134, 0.42);
   --urgent-glow-lo: rgba(199, 174, 134, 0.1);
@@ -8806,9 +8856,45 @@ tr:hover .inote-btn,
   }
 }
 @media (prefers-reduced-motion: reduce) {
-  .client-overview .card.card-urgent {
+  .card.card-urgent {
     animation: none;
     box-shadow: var(--urgent-base), 0 0 0 1px rgba(199, 174, 134, 0.4);
+  }
+}
+/* No pulse in the Inbox side pane (the compact question list would pulse
+   too). One rule to drop if the owner wants it there. */
+.si-context-pane .card.card-urgent,
+:root[data-theme="dark"] .si-context-pane .card.card-urgent {
+  animation: none;
+  border-color: var(--border);
+  box-shadow: var(--urgent-base);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .si-context-pane .card.card-urgent {
+    animation: none;
+    box-shadow: var(--urgent-base);
+  }
+}
+/* A deep-link arrival on an urgent card: the arrive ring wins over the
+   pulse (DeepLink.jsx LK_reveal), light and dark, side pane included. */
+.card.card-urgent.lk-arrive,
+.si-context-pane .card.card-urgent.lk-arrive,
+:root[data-theme="dark"] .si-context-pane .card.card-urgent.lk-arrive {
+  animation: lkArrive 2600ms ease-out;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .si-context-pane .card.card-urgent.lk-arrive {
+    animation: lkArrive 2600ms ease-out;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .card.card-urgent.lk-arrive,
+  .si-context-pane .card.card-urgent.lk-arrive,
+  :root[data-theme="dark"] .si-context-pane .card.card-urgent.lk-arrive,
+  :root:not([data-theme="light"]) .si-context-pane .card.card-urgent.lk-arrive {
+    animation: none;
+    outline: 3px solid var(--gold-deep);
+    outline-offset: 2px;
   }
 }
 .ov-hint {
@@ -9020,6 +9106,420 @@ tr:hover .inote-btn,
 .ov-call-form {
   border-top: 0;
   padding-top: 0;
+}
+
+/* Overview rebuild (TABS-SPEC WP4, 1.4): card shells with a header link,
+   rows with one main link, the "Open for this client" strip, the status
+   line, Tasks for this client and Billing and time. New class names only;
+   tokens only, so dark mode follows the token values. */
+.ov-card2-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.ov-card2-title {
+  margin: 0;
+  min-width: 0;
+}
+.ov-card2-link {
+  color: inherit;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 4px;
+  margin: -2px -4px;
+  border-radius: 6px;
+}
+.ov-card2-link:hover [id^="ov-t-"],
+.ov-card2-link:focus-visible [id^="ov-t-"],
+.ov-card2-sidelink:hover > span:first-child,
+.ov-card2-sidelink:focus-visible > span:first-child {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.ov-card2-sidelink {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--gold-deep);
+}
+.ov-card2-open {
+  font-family: var(--font-body);
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-muted);
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+.ov-card2-open svg {
+  width: 14px;
+  height: 14px;
+  transition: transform 0.15s ease;
+}
+.ov-card2-link:hover .ov-card2-open svg {
+  transform: translateX(2px);
+}
+.ov-card2:focus-within {
+  border-color: var(--gold);
+}
+.ov-card2-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.ov-row2 {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+.ov-row2-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 4px 8px;
+  margin: -4px -8px;
+  border-radius: 6px;
+  color: inherit;
+  text-decoration: none;
+  overflow-wrap: anywhere;
+}
+.ov-row2-main:hover {
+  background: var(--surface-2);
+}
+.ov-row2-title {
+  color: var(--text);
+  font-weight: 500;
+}
+.ov-lines li.ov-row2 {
+  align-items: center;
+}
+.ov-lines li.ov-row2 .ov-row2-main {
+  flex-direction: row;
+  justify-content: space-between;
+  gap: 10px;
+}
+.ov-lines li.ov-row2 .ov-row2-main > span:last-child {
+  text-align: right;
+  font-weight: 600;
+  color: var(--ink-strong);
+}
+.ov-lines li.ov-row2.negative .ov-row2-main > span {
+  color: var(--bad);
+}
+.ov-lines li.ov-row2.warn .ov-row2-main > span:last-child {
+  color: var(--gold-deep);
+}
+.ov-dl .btn-secondary,
+.ov-dl button {
+  flex-shrink: 0;
+}
+.ov-entity {
+  margin: 10px 0 2px;
+}
+.ov-more {
+  margin-top: 8px;
+}
+
+/* Activity rows: the whole row is one link. */
+.ov-timeline li.ov-tl-row {
+  display: block;
+  padding: 0;
+}
+.ov-tl-link {
+  display: grid;
+  grid-template-columns: 78px minmax(0, 1fr);
+  column-gap: 10px;
+  padding: 7px 4px;
+  margin: 0 -4px;
+  border-radius: 6px;
+  color: inherit;
+  text-decoration: none;
+}
+.ov-tl-link:hover {
+  background: var(--surface-2);
+}
+.ov-tl-text {
+  overflow-wrap: anywhere;
+}
+
+/* Open for this client. */
+.ov-strip {
+  margin: 0 0 12px;
+}
+.ov-strip-title {
+  display: block;
+  margin: 0 0 6px;
+}
+.ov-strip-skeleton {
+  height: 32px;
+  max-width: 420px;
+  border-radius: 999px;
+  background: var(--surface-2);
+}
+.ov-strip-error {
+  margin: 0;
+  font-size: 13px;
+  color: var(--bad);
+}
+.ov-strip-empty {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--good);
+  background: var(--good-soft);
+}
+.ov-strip-empty svg {
+  width: 14px;
+  height: 14px;
+}
+.ov-strip-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.ov-strip-chip,
+.ov-strip-more {
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+  padding: 4px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  font-family: var(--font-body);
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  text-decoration: none;
+  cursor: pointer;
+}
+.ov-strip-bad {
+  color: var(--bad);
+  background: var(--bad-soft);
+  border-color: var(--bad);
+}
+.ov-strip-warn {
+  color: var(--warm-text);
+  background: var(--warm-bg);
+  border-color: var(--gold);
+}
+.ov-strip-plain,
+.ov-strip-more {
+  color: var(--text-muted);
+  background: var(--surface-2);
+  border-color: var(--border);
+}
+.ov-strip-chip:hover,
+.ov-strip-more:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+/* Status line. */
+.ov-status-wrap {
+  margin: 0 0 16px;
+}
+.ov-status {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+  font-size: 13px;
+  color: var(--text);
+}
+.ov-status-seg {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+.ov-status-seg a {
+  color: inherit;
+  text-decoration: underline;
+  text-decoration-color: var(--muted-line);
+  text-underline-offset: 3px;
+}
+.ov-status-sep {
+  color: var(--text-muted);
+}
+.ov-status-bad,
+.ov-status-bad a {
+  color: var(--bad);
+}
+.ov-status-warn,
+.ov-status-warn a,
+.ov-status-warn .ov-status-toggle {
+  color: var(--warm-text);
+}
+.ov-status-plan {
+  color: var(--text-muted);
+}
+.ov-status-health,
+.ov-status-toggle {
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: 0;
+  padding: 2px 0;
+  cursor: pointer;
+  text-decoration: underline;
+  text-decoration-color: var(--muted-line);
+  text-underline-offset: 3px;
+}
+.ov-status-band {
+  font-weight: 600;
+}
+.ov-why {
+  margin-top: 8px;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  font-size: 13px;
+}
+.ov-why:not([open]) {
+  display: none;
+}
+.ov-why > summary {
+  cursor: pointer;
+  font-weight: 600;
+  color: var(--ink-strong);
+}
+
+/* Tasks for this client. */
+.ov-tasks-scope {
+  display: inline-flex;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  overflow: hidden;
+}
+.ov-tasks-seg {
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 4px 12px;
+  border: 0;
+  background: none;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+.ov-tasks-seg.active {
+  background: var(--accent-soft);
+  color: var(--gold-deep);
+}
+.ov-tasks-list {
+  margin: 0;
+}
+.ov-tasks-list .task-row {
+  align-items: flex-start;
+}
+.ov-tasks-foot {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 10px;
+  flex-wrap: wrap;
+}
+
+/* Pinned notes, All notes view. */
+.ov-note-actions {
+  display: inline-flex;
+  gap: 12px;
+  margin-left: 10px;
+}
+
+/* Billing and time (admins only). */
+.ov-billing {
+  margin-top: 16px;
+}
+.ov-billing > summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 4px;
+  cursor: pointer;
+  font-weight: 600;
+  color: var(--ink-strong);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  border-top: 1px solid var(--border);
+}
+.ov-billing-grid {
+  margin: 8px 0 16px;
+}
+.ov-billing-onboarding > .card {
+  margin-bottom: 0;
+}
+.ob-collapsed-line {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  margin: 0;
+  font-size: 13px;
+  color: var(--text);
+}
+.ob-collapsed-line .btn-sm {
+  padding: 6px 12px;
+}
+
+@media (max-width: 600px) {
+  .ov-row2 {
+    flex-wrap: wrap;
+  }
+  .ov-row2-main {
+    min-height: 44px;
+    justify-content: center;
+  }
+  .ov-status {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 6px 12px;
+  }
+  .ov-status-sep {
+    display: none;
+  }
+  .ov-status-plan,
+  .ov-status-sync {
+    grid-column: 1 / -1;
+  }
+  /* The sync line keeps its words on one line; Sync now drops below it
+     if the row is too narrow. */
+  .ov-status-sync {
+    flex-wrap: wrap;
+  }
+}
+@media (max-width: 480px) {
+  .ov-tasks .ov-card2-actions {
+    width: 100%;
+  }
+  .ov-tasks-foot .btn-secondary {
+    width: 100%;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ov-card2-open svg,
+  .ov-card2-link:hover .ov-card2-open svg {
+    transition: none;
+    transform: none;
+  }
 }
 
 /* Payroll add-on: the add-on page and the Payroll card on Settings → Plan. */

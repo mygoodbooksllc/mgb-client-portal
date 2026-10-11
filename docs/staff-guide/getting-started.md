@@ -12,7 +12,7 @@ Welcome! The MyGoodBooks portal is where our clients (mostly churches and nonpro
 1. [Sign in](#/help/signing-in) with your @mygoodbooks.org Google account.
 2. If you're a bookkeeper, the **Bookkeeper tour** starts by itself. It's about three minutes and walks through your day: Today, your clients, the Inbox, Work and Team. You can run it again any time from **?** → **Bookkeeper tour**. Admins get the **Admin tour** instead (the Bookkeeper tour is in their **?** menu), account managers also get an **Account manager tour**, and anyone given temporary admin access a **Temporary admin tour**, each once. See [Bookkeeper guide](#/help/bookkeeper-guide), [Admin guide](#/help/admin-guide), [Account manager guide](#/help/account-manager-guide) and [Temporary access](#/help/temporary-access).
 3. You land on **Today**, one list of what needs you across all the clients you can see. See [What's on my Today page?](#/help/home-page).
-4. Open a client from **Clients**, or press **Ctrl+K** (**⌘K** on a Mac) and type their name. You'll see that client's **Client overview** first. See [How do I find and open a client?](#/help/finding-a-client).
+4. Open a client from **Clients**, or press **Ctrl+K** (**⌘K** on a Mac) and type their name. You'll see that client's **Client overview** first, or the tab you last used for that client if you've been there this session. See [How do I find and open a client?](#/help/finding-a-client).
 5. Your new-hire checklist is on **Team › Onboarding**. See [How does the new-hire onboarding checklist work?](#/help/new-hire-onboarding).
 6. Stuck? Click **?** in the top bar, then **Help for this page**, or search this guide.
 7. For your first 30 days, a small **Tip** now and then points out something useful on the page you're on. Click **Got it** to dismiss it, or turn tips off any time. See [How do tips work?](#/help/tips).
@@ -37,7 +37,7 @@ Across the top: the client picker, the sync pill (client pages), search (**Ctrl+
 
 ### Inside a client
 
-Open a client and the title becomes **Clients › {client} › {tab}**, with one row of tabs: **Overview**, the client's own pages (Dashboard, Budget, Bank, Documents, Messages and so on), **SOP** and **Milestone**, with **Settings** at the right end. **View as client** shows the pages exactly as the client sees them. Click **Clients** in the breadcrumb, or the browser's **Back** button, to return to the list.
+Open a client and the title becomes **Clients › {client} › {tab}**, with one row of tabs, the same for every client: **Overview**, **Messages**, **Documents**, **Bank**, **Close**, **Reports** and **SOP**. Real admins also see **Milestone**. The **Client view** menu holds the client's own pages (Home, Budget, Cash flow, Giving & funds, Payroll), and **View as client…** at the bottom shows them exactly as the client sees them. **Client setup** is at the right end. Details are in [How do I use the Clients page?](#/help/clients-page). Click **Clients** in the breadcrumb, or the browser's **Back** button, to return to the list.
 
 ### On a phone
 

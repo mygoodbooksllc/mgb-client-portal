@@ -10,7 +10,7 @@ Every client gets a **health score out of 100**. It's a quick way to spot who ne
 ### Where you see it
 
 - A coloured dot next to each client in the client picker. Hover it for "Health N/100 · …" and the reasons.
-- The **Client health** card at the top of the Client overview, with a meter and the reasons points were taken off.
+- The status line on the Client overview: **Health {score} · {band} · Why {score}?** Click it to see the reasons points were taken off, each with a link to fix it.
 - The client name in the picker also shows the health label.
 - **Today**: red and amber clients appear as rows in **Needs you**, lowest score first. Bookkeepers see only their own clients.
 - The **Clients** page (`#/clients`): the **Health** column shows every client's score and band, and the **Needs attention** filter picks out the ones at risk. The reasons are on the client's Overview.
@@ -42,7 +42,7 @@ Every client starts at 100. Points come off for each problem, and the score neve
 
 Bookkeepers never see the margin or hours budget reasons, and those points aren't taken off in their view.
 
-The card reads: "Score out of 100 from overdue tasks, QuickBooks connection, staff activity in the last 30 days, month-end close, overdue document requests, client replies waiting, and the SOP."
+The explanation reads: "Score out of 100 from overdue tasks, QuickBooks connection, staff activity in the last 30 days, month-end close, overdue document requests, client replies waiting, and the SOP."
 
 When nothing is wrong, the card says: "Nothing flagged. Tasks, QuickBooks, activity, close, requests, replies and the SOP are on track."
 

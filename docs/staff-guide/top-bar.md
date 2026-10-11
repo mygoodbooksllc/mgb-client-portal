@@ -18,7 +18,7 @@ Across the top of every staff page there's a dark bar, joined to the rail, with 
 Click the search box, or press **Ctrl+K** (**⌘K** on a Mac) from anywhere. With nothing typed it lists every **page** and **action** you can jump to (Work › Close, Team › Reviews, **Send feedback**, **Settings** and so on). Type a few letters and the results are grouped:
 
 - **Pages** and **Actions**: anywhere in the portal, by name.
-- **Clients**: opens the client's Client overview.
+- **Clients**: opens the client on the tab you last used for them, or on the Client overview if you haven't been there yet this session.
 - **In {client name}** (only when a client is open): that client's transactions, budget categories, documents and messages that match. Picking one opens the right tab and highlights the row. It only looks in pages you can open for that client.
 - **Tasks** and **Notes**: your open tasks and notes. Opens **Work › Tasks**.
 - **SOPs**: client SOPs that mention your words. Opens that client's **SOP** tab.
@@ -29,7 +29,7 @@ Use the **↑** and **↓** keys to move through the results and **Enter** to op
 ### Right side
 
 - **QuickBooks syncs slowed** / **QuickBooks syncs stopped** (admins only): appears only when the firm is close to Intuit's monthly limit. Click it to open **Team › Hours**, which has the details.
-- **Bell** (Notifications): a red number shows how many new items you haven't looked at. It lists client messages waiting for a reply, documents a client has uploaded, tasks a teammate assigned to you, shout-outs for you, and clients whose last month-end close is **Blocked**. You can turn each kind off in **Settings → Notifications**. Click an item to go to it. Opening the bell marks everything as seen (in this browser).
+- **Bell** (Notifications): a red number shows how many new items you haven't looked at. It lists client messages waiting for a reply, documents a client has uploaded, tasks a teammate assigned to you, shout-outs for you, and clients whose last month-end close is **Blocked**. You can turn each kind off in **Settings → Notifications**. Click an item to go straight to it: a message opens that message (right there on the Inbox if you're on it, otherwise on the client's **Messages** tab), an upload opens **Documents** at the request, a task opens it in **Work › Tasks**, and a blocked close opens the client's **Close** tab at the QuickBooks check. Opening the bell marks everything as seen (in this browser).
 - **Tasks**: the number of your open tasks. A red number next to it counts the overdue ones. Click it to open **Work › Tasks**.
 - **+** (client pages only): **New task**, **New note**, **Request document** or **Message** for the client you have open. See [How do I add a task, note or document request, or message a client?](#/help/quick-actions).
 - **?** (Help): **Help for this page** (the article for where you are), **Staff guide** (this guide), **Send feedback**, **What's new**, **Tips while you learn: On** / **Off** (click it to flip the switch for the first-30-days tips; see [How do tips work?](#/help/tips)) and the tours: **Bookkeeper tour** for everyone, plus **Admin tour** for admins, **Temporary admin tour** while you have temporary admin access, and **Account manager tour** for account managers. See [How do I report a bug or send feedback?](#/help/send-feedback).

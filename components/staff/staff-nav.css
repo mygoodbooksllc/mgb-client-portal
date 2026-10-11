@@ -96,6 +96,57 @@
   background: color-mix(in srgb, var(--on-gold) 18%, transparent);
   color: var(--on-gold);
 }
+/* Toned badges and dots (a client's tab row, ClientTabCounts.jsx). */
+.nav-tab-badge.is-bad {
+  background: var(--bad-soft);
+  color: var(--bad);
+}
+.nav-tab-badge.is-warn {
+  background: var(--gold-deep);
+  color: var(--on-gold-deep);
+}
+.nav-tab-badge.is-dot {
+  min-width: 8px;
+  width: 8px;
+  height: 8px;
+  padding: 0;
+}
+.nav-tab-badge.is-dot.is-bad {
+  background: var(--bad);
+}
+.nav-tab-badge.is-dot.is-warn {
+  background: var(--gold-deep);
+}
+.nav-tab.active .nav-tab-badge.is-bad,
+.nav-tab.active .nav-tab-badge.is-warn {
+  box-shadow: 0 0 0 2px var(--gold);
+}
+.nav-tab.active .nav-tab-badge.is-bad {
+  background: var(--bad-soft);
+  color: var(--bad);
+}
+.nav-tab.active .nav-tab-badge.is-warn,
+.nav-tab.active .nav-tab-badge.is-dot.is-warn {
+  background: var(--gold-deep);
+  color: var(--on-gold-deep);
+}
+.nav-tab.active .nav-tab-badge.is-dot.is-bad {
+  background: var(--bad);
+}
+/* Screen-reader-only text (badge labels). The badge is its containing block
+   so a label on a tab scrolled out of view stays inside the scrolling row
+   (otherwise it widens the page on a phone). */
+.nav-tab-badge:has(> .nav-sr) {
+  position: relative;
+}
+.nav-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
 .nav-tabs-right {
   display: flex;
   align-items: center;

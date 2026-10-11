@@ -475,6 +475,24 @@
   color: var(--text);
   border-bottom-right-radius: 4px;
 }
+/* Deep-link arrival on a message (styles.css .lk-arrive*): the row tint hides
+   behind the opaque bubble, so ring the bubble itself instead. Reduced
+   motion keeps the row's static outline from styles.css. */
+.si-msg.lk-arrive-row {
+  animation: none;
+  background-color: transparent;
+}
+.si-msg.lk-arrive-row .si-bubble {
+  animation: lkArrive 2600ms ease-out;
+}
+@media (prefers-reduced-motion: reduce) {
+  .si-msg.lk-arrive-row {
+    background-color: transparent;
+  }
+  .si-msg.lk-arrive-row .si-bubble {
+    animation: none;
+  }
+}
 .si-note-label {
   font-size: 10.5px;
   font-weight: 700;

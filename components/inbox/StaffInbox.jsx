@@ -231,7 +231,12 @@ function SI_Bubble({ row, mine, authorLabel, onDelete }) {
   const url = row.attachment_url && typeof safeHttpUrl === "function" ? safeHttpUrl(row.attachment_url) : null;
   const clip = typeof PaperclipIcon === "function" ? <PaperclipIcon /> : null;
   return (
-    <div className={"si-msg " + (row.internal ? "si-msg-note" : mine ? "si-msg-mine" : "si-msg-theirs")}>
+    <div
+      className={"si-msg " + (row.internal ? "si-msg-note" : mine ? "si-msg-mine" : "si-msg-theirs")}
+      data-lk={"msg:" + row.id}
+      data-lk-focus=""
+      tabIndex={-1}
+    >
       <div className="si-bubble">
         {row.internal && <div className="si-note-label">Internal note · only staff see this</div>}
         {row.body && <div className="si-bubble-text">{row.body}</div>}
@@ -283,7 +288,7 @@ function SI_Bubble({ row, mine, authorLabel, onDelete }) {
 // A client person's thread, staff side: messages, Reply / Note composer,
 // attachments, and marking the thread read when it opens.
 // ----------------------------------------------------------------------------
-function SI_ClientThread({ entry, mode, me, staffUser, sampleRows, onSampleSend, rev, onRows }) {
+function SI_ClientThread({ entry, mode, me, staffUser, sampleRows, onSampleSend, rev, onRows, focusId, onFocusDone }) {
   const showToast = typeof useToast === "function" ? useToast() : null;
   const toast = (m) => (showToast ? showToast(m) : console.warn(m));
   const sb = window.mgbSupabase;
@@ -384,11 +389,59 @@ function SI_ClientThread({ entry, mode, me, staffUser, sampleRows, onSampleSend,
     };
   }, [mode, entry.clientId, entry.email, rev, me]);
 
+  // Deep link to one message (TABS-SPEC WP4 step 9): centre it inside the
+  // box with box math (the page itself doesn't jump), skip the
+  // scroll-to-bottom once, then flash and focus it. A thread over 1000
+  // messages loads its oldest 1000, so a miss there loads the newest 1000
+  // once before giving up.
+  const triedNewestRef = React.useRef(false);
+  const focusedSigRef = React.useRef(null);
   React.useEffect(() => {
     if (onRows) onRows(rows || []);
     const box = endRef.current && endRef.current.parentNode;
+    // Clearing focusId after a focus re-runs this; keep the centred view
+    // until the rows actually change.
+    if (focusId == null && focusedSigRef.current === rowsSig) return;
+    focusedSigRef.current = null;
+    if (focusId != null && rows && (mode !== "real" || realRows !== null)) {
+      const hit = rows.some((r) => String(r.id) === String(focusId));
+      if (hit) {
+        let el = null;
+        try {
+          el = box && box.querySelector('[data-lk="' + CSS.escape("msg:" + focusId) + '"]');
+        } catch (e) {}
+        if (box && el) {
+          const br = box.getBoundingClientRect();
+          const er = el.getBoundingClientRect();
+          box.scrollTop += er.top - br.top - (box.clientHeight - er.height) / 2;
+          LK_reveal(el, { noScroll: true, row: true });
+        }
+        focusedSigRef.current = rowsSig;
+        if (onFocusDone) onFocusDone(true);
+        return;
+      }
+      if (mode === "real" && sb && !triedNewestRef.current && rows.length >= 1000) {
+        triedNewestRef.current = true;
+        sb.from("client_messages")
+          .select(SI_MSG_COLS)
+          .eq("client_id", entry.clientId)
+          .eq("participant_email", entry.email)
+          .is("deleted_at", null)
+          .order("created_at", { ascending: false })
+          .limit(1000)
+          .then(async ({ data, error }) => {
+            if (error || !data) {
+              if (onFocusDone) onFocusDone(false);
+              return;
+            }
+            setRows(await siSignRows(sb, data.slice().reverse()));
+          });
+        return;
+      }
+      if (onFocusDone) onFocusDone(false);
+    }
     if (box) box.scrollTop = box.scrollHeight;
-  }, [rowsSig]);
+  }, [rowsSig, focusId]);
 
   const stage = (f) => {
     if (!f) return;
@@ -839,6 +892,7 @@ function SI_ClientContext({ entry, staffUser, rows, onOpenClient }) {
               onSynced={() => {}}
               plan={planKey}
               lastSyncedAt={(qbo && qbo.last_synced_at) || client.lastSyncedAt}
+              isStaff
             />
           ) : (
             <p className="si-muted">Synced {siShortAgo((qbo && qbo.last_synced_at) || client.lastSyncedAt) || "never"}</p>
@@ -1204,6 +1258,16 @@ function StaffInbox({
   const [viewedSample, setViewedSample] = React.useState(() => new Set());
   const searchRef = React.useRef(null);
   const recentTokenRef = React.useRef(0);
+  // Deep link to a message (TABS-SPEC WP4 step 9): a client's Messages tab
+  // claims msg:<id> for that client; the Inbox page claims it for any
+  // client and selects the thread in place. The drawer doesn't claim.
+  const [focusMsgId, setFocusMsgId] = React.useState(null);
+  const arrivingRef = React.useRef(false);
+  const lkMatch = lockClientId
+    ? { clientId: lockClientId, tab: "messages", kinds: ["msg"], staff: true }
+    : !compact
+      ? { place: "inbox", kinds: ["msg"], staff: true }
+      : {};
 
   React.useEffect(() => {
     const sb = window.mgbSupabase;
@@ -1423,6 +1487,8 @@ function StaffInbox({
   // waiting (or the first person) on a wide screen.
   React.useEffect(() => {
     if (!lockClientId || sel || initialEmail || mode === "loading" || compact) return;
+    // A deep link is about to open a specific thread.
+    if (arrivingRef.current || LK_peek(lkMatch)) return;
     if (window.matchMedia && window.matchMedia("(max-width: 759px)").matches) return;
     const first = clientEntries.slice().sort(byRecent).find((e) => e.waiting) || clientEntries.slice().sort(byRecent)[0];
     if (first) openEntry(first);
@@ -1438,6 +1504,50 @@ function StaffInbox({
       chat.selectConversation(e.conv);
     }
   }
+
+  LK_useArrival(lkMatch, mode !== "loading", async (a) => {
+    const copy = LK_COPY;
+    const say = (t) => LK_toast(t);
+    const sb = window.mgbSupabase;
+    const hint = a.hint || {};
+    let email = hint.email ? siLower(hint.email) : "";
+    let clientId = lockClientId || hint.clientId || null;
+    let deleted = false;
+    arrivingRef.current = true;
+    try {
+      if ((!email || !clientId) && sb && mode === "real") {
+        let q = sb.from("client_messages").select("client_id, participant_email, deleted_at").eq("id", a.id);
+        if (lockClientId) q = q.eq("client_id", lockClientId);
+        const { data } = await q.maybeSingle();
+        if (data) {
+          email = siLower(data.participant_email);
+          clientId = data.client_id;
+          deleted = !!data.deleted_at;
+        }
+      }
+    } catch (e) {}
+    arrivingRef.current = false;
+    if (!email || !clientId) {
+      say(copy.msgDeleted);
+      return;
+    }
+    const hit = clientEntries.find((e) => e.clientId === clientId && e.email === email);
+    if (!hit) {
+      say(copy.threadGone);
+      return;
+    }
+    if (!lockClientId) {
+      if (clientFilter && clientFilter !== hit.clientId) setClientFilter(null);
+      setFilter((f) => (f === "team" ? "all" : f));
+      setQuery("");
+    }
+    openEntry(hit);
+    if (deleted) {
+      say(copy.msgDeleted);
+      return;
+    }
+    setFocusMsgId(a.id);
+  });
 
   const selEntry = sel && sel.kind === "client" ? clientEntries.find((e) => e.key === sel.key) : null;
   const teamActive = sel && sel.kind === "team";
@@ -1640,6 +1750,11 @@ function StaffInbox({
                 onSampleSend={onSampleSend}
                 rev={rev}
                 onRows={setThreadRows}
+                focusId={focusMsgId}
+                onFocusDone={(ok) => {
+                  setFocusMsgId(null);
+                  if (!ok) LK_toast(LK_COPY.msgDeleted);
+                }}
               />
             )}
             {teamActive && (

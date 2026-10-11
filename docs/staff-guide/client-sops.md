@@ -9,9 +9,9 @@ A client's **SOP** (standard operating procedure) explains how their books are r
 
 ### Open a client's SOP
 
-- The client's **SOP** tab: open the client and click **SOP** in the tab row (after the client's own pages).
+- The client's **SOP** tab: open the client and click **SOP** in the tab row (after **Reports**).
 - **Work › Tasks → SOPs** card: search for the client and click it. Use **Change client** to switch.
-- Or **Client details → SOP** (the client's **Settings** gear → **Client settings** → **Client details**) shows it read-only. To change it, open the client's **SOP** tab or **Work › Tasks → SOPs**.
+- Or **Client details → SOP** (the client's **Client setup** gear → **Access and details** → **Client details**) shows it read-only. To change it, open the client's **SOP** tab or **Work › Tasks → SOPs**.
 
 ### The seven sections
 

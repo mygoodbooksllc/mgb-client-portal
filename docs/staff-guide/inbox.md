@@ -60,7 +60,7 @@ Click the **i** button to open details on the right. From top to bottom:
 - **Open for them**: open document requests (overdue ones say **Overdue** in red) and tasks.
 - **Notes and SOP**: up to three pinned notes and the first two filled-in SOP sections, cut short. Open the client for the full text.
 - **Recent portal visits**: the last few pages people at the client opened, and when.
-- **Files in thread**, then **Request document**, **Add task** and **Open client**.
+- **Files in thread**, then **Request document**, **Add task** and **Open client**. **Open client** takes you to the tab you last used for that client, or the Overview.
 
 Any section with nothing to show (or that you can't see) is left out.
 

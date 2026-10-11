@@ -138,7 +138,7 @@ because some work happens in Claude Code web sessions. Run `git fetch` and compa
   - Empty lists are stored as `null`, which means "everything".
   - This scoping currently only hides things in the app. The database does not yet filter
     QuickBooks rows by category (see [Known gaps](#known-gaps-and-roadmap)).
-- **Per org.** Settings → **Client settings** → **Manage access** has People / Organization tabs / Requests.
+- **Per org.** **Client setup** (staff) → **Manage access** has People / Organization tabs / Requests.
   - The People and Organization tabs still work on **sample** users and per-browser settings
     (see [Known gaps](#known-gaps-and-roadmap)).
   - The Requests tab is real (`access_requests`).
@@ -150,7 +150,9 @@ because some work happens in Claude Code web sessions. Run `git fetch` and compa
   - **Basic**, $9/mo with 1 login included; extra logins are $9/mo each. It gets Reports,
     Documents and Messages, plus the milestone pill. There is **no Dashboard** and no per-person
     access (`BASIC_TAB_KEYS`); the landing tab is Reports. QuickBooks syncs monthly, on the 15th
-    (US Central), with no Sync now.
+    (US Central), with no Sync now for the client. Staff still see **Bank** and can Sync now on a
+    Basic client (staff override in `effectivePage`; `resolveAccess` is unchanged, so the client
+    portal and Preview as a Basic user still have no Bank).
   - **Plus**, $25/mo + $9 per login. It gets every standard tab and per-person access.
     QuickBooks syncs weekly, with no Sync now.
   - **Pro**, $39/mo + $9 per login. It adds the Pro tools inline on the same tabs (see below).
@@ -170,7 +172,7 @@ because some work happens in Claude Code web sessions. Run `git fetch` and compa
   - Plan fees sit on top of the milestone (bookkeeping) fee.
   - **Sync schedule:** enforced server-side in `qbo-sync` (`isDueForPlan`). The cron runs every
     minute and syncs only the clients that are due. The server refuses client-initiated Sync now
-    on Basic and Plus; staff can sync any plan.
+    on Basic and Plus; staff can sync any plan, with no 60-second throttle (see **Sync now** below).
   - **Plan gates:** tabs and login pricing are checked in the app only. Staff get a toast when
     they add an extra login to a Basic organization.
   - The "Force Pro plan" dev switch is staff-only and saved per browser. It isn't a security
@@ -188,7 +190,7 @@ because some work happens in Claude Code web sessions. Run `git fetch` and compa
 
 **QuickBooks connection:**
 
-- **Connect.** Staff connect a client's QuickBooks from Client details → QuickBooks. This runs
+- **Connect.** Staff connect a client's QuickBooks from Client setup → Access and details → QuickBooks. This runs
   OAuth through the `qbo-callback` edge function; tokens are stored encrypted in `qbo_tokens`.
 - **Token refresh.** `qbo-refresh-token` runs every 15 minutes (cron `qbo-refresh-tokens`).
 - **Sync.** `qbo-sync` pulls accounts, 12 months of P&L, budget, open invoices, open bills and
@@ -216,17 +218,21 @@ because some work happens in Claude Code web sessions. Run `git fetch` and compa
   - **CDC gate.** Between full reads (at most 24 hours apart), a due client first asks
     QuickBooks' change-data-capture endpoint what changed since the last sync; if nothing did, the
     full re-read is skipped. CDC is only used as a gate: the full read still replaces the tables.
-  - **Close data.** Once a day per client (and on Sync now) the sync also pulls 13 months of
+  - **Close data.** Once a day per client (and on every staff Sync now, `closeDue: isStaff || ...`) the sync also pulls 13 months of
     bank, card, Undeposited Funds and uncategorized account data into `qbo_account_status` and
     `qbo_period_balances`, then re-runs the close checks (see Work › Close below).
   - **Usage guard.** Every Intuit call is counted in `qbo_api_usage` (`qbo-sync` and
     `qbo-firm-sync`). If the month is on pace to pass 80% of the 500,000-call limit, Pro slows to
     every 30 minutes; at 95% used, scheduled syncs stop until the 1st (Sync now still works).
   - **Sync now**: clicking the gold sync pill (the refresh icon at its right end) syncs, for
-    staff and clients; also in Client details → QuickBooks. Staff see the pill in the top bar;
+    staff and clients; also in Client setup → QuickBooks, on the Overview's status line, the Close
+    tab's QuickBooks check and Bank's sync line (each passes `canSyncNow={planSyncInfo(plan).syncNow
+    || (isStaffSession && !isPreviewingUser)}`). Staff see the pill in the top bar;
     clients (and phones) see it in the header. The function re-checks that the
     caller may sync that client.
-  - **60-second throttle** per connection, for Sync now only (the cron isn't throttled).
+  - **60-second throttle** per connection, for client Sync now only (Pro clients; the cron isn't
+    throttled). Staff skip it (2026-10-10, `qbo-sync`: `!isStaff &&` in front of the check), so
+    staff Sync now has no limit on any plan. Needs the `qbo-sync` deploy.
   - **Lock.** `qbo_connections.sync_started_at` stops two syncs overlapping; a stale lock
     expires after 5 minutes.
   - **Atomic writes.** Each table's rows are swapped in one transaction by `qbo_replace_rows()`,
@@ -275,9 +281,11 @@ because some work happens in Claude Code web sessions. Run `git fetch` and compa
     Tasks = `MyTasksPage`, Close = `CT_CloseTrackerPage`, Deadlines = `DL_DeadlinesPage`, at
     `#/work/<tab>`), **Clients** (`ClientsPage.jsx`, `CL_`: Mine / All / Needs attention, Find a
     client, columns Client · Health · Assigned to · Backup · Hours this month · Close · Last viewed;
-    inside a client the breadcrumb "Clients › name › tab", `CL_ClientTabs` (Overview, the client's
-    own tabs by short name, SOP, Milestone, Settings gear) and **View as client**; the client
-    sidebar is not rendered for staff), **Team** (`TeamPage.jsx`: People (Who's out, My clients'
+    inside a client the breadcrumb "Clients › name › tab" and `CL_ClientTabs`: one fixed row on
+    every plan (`STAFF_CLIENT_TABS`: Overview, Messages, Documents, Bank, Close, Reports, SOP, then
+    Milestone for real admins only), the **Client view** menu (`CL_ClientViewMenu`: the client's own
+    pages, then **View as client…**) and the **Client setup** gear at the far right; the client
+    sidebar is not rendered for staff). See **Client tab row** below.), **Team** (`TeamPage.jsx`: People (Who's out, My clients'
     backups, My time off, Shout-outs), Reviews, Onboarding; admins also Hours, Reply times,
     Feedback, Members, at `#/team/<tab>`).
   - **Hours for bookkeepers:** `supabase/client-hours-for-bookkeepers.sql` adds
@@ -363,35 +371,44 @@ because some work happens in Claude Code web sessions. Run `git fetch` and compa
     list it in the "All tips" table in `docs/staff-guide/tips.md`.
   - **Routes:** `#/today`, `#/inbox`, `#/work/<tasks|close|deadlines>`, `#/clients`,
     `#/team/<tab>`, `#/team/reviews/<sub>[/id]`, `#/help[/slug]`, `#/settings`, `#/templates`,
-    `#/client/<id>/<tab>` (incl. `sop`). The old routes (`#/home`, `#/tasks`, `#/close-tracker`,
+    `#/client/<id>/<tab>[/<sub>]` (tabs: `overview messages documents bank close reports sop milestone
+    settings`, plus the Client view pages; `setup` is an alias of `settings`). The old routes (`#/home`, `#/tasks`, `#/close-tracker`,
     `#/deadlines`, `#/reviews`, `#/feedback`, `#/team/coverage`, `#/team/health`) are gone with no
     redirects (owner: prototype, nobody is using it yet). Email links in the edge functions were
     updated the same day.
 
 - **Staff client tools** (`supabase/staff-client-tools.sql`, applied 2026-09-27):
-  - **Client overview** (page `client-overview`, staff only): staff land here when they open a
-    client. It shows:
-    - the monthly bill (milestone + plan + logins + payroll)
-    - profitability (bill ÷ QuickBooks Time hours this month, admins only, against a target
-      rate), plus automatic in-app time on the client
-    - QuickBooks health: last sync, uncategorized / Ask My Accountant balances, possible
-      duplicate bills. Reconciliation data isn't synced, so it isn't shown.
-    - engagement: client page views in the last 30 days, and threads waiting on a reply (still
-      sample messages)
-    - key dates and coverage (`client_profile`)
-    - pinned notes and staff notes
-    - "sent to client" history
-    - the month-end close checklist (`client_close_items`)
-    - document requests
-    - an activity timeline with "Log a call", saved as a `client_private_notes` call note
+  - **Client overview** (page `client-overview`, staff only; reworked 2026-10-10, bookkeeping work
+    only). A fresh open of a client lands here; coming back lands on the tab you left (see
+    **Client tab row**). Top to bottom:
+    - the staff note, then the **Open for this client** strip (`OV_OpenStrip`): chips for what
+      needs the bookkeeper (QuickBooks needs reconnecting, replies, open questions, overdue
+      requests, uploads, the month's close, my tasks, the next deadline), from
+      `useClientTabCounts`; each chip opens the exact item
+    - the status line (`OV_StatusLine`): health score and "Why {score}?" (toggles in place),
+      QuickBooks sync with Sync now, uncategorized, possible duplicate bills, and the plan with its
+      sync cadence (`STAFF_planCadence`)
+    - left column: the Close summary row (`CLC_CloseSummaryRow`, opens the Close tab), **Tasks for
+      this client** (`OV_ClientTasks`, Mine / Everyone), and the activity timeline with "Log a
+      call" (saved as a `client_private_notes` call note)
+    - right column: **Key dates and coverage** (`client_profile`; the Organization type select is
+      here for every staff member, the target hourly rate, hours budget and account manager picker
+      for admins) and pinned notes with All notes (edit and pin in place, no remove)
+    - **Billing and time**, real admins only, not in the DOM for anyone else: Monthly bill,
+      Profitability, Engagement (reads "Usage stats") and the Onboarding card. Open by default,
+      state in `mgb_ov_billing_open_v1`.
+    Every card header opens the page that owns it (`OV_Card`; the card body is not a link). The
+    checklist, "Sent to the client" and the QuickBooks check moved to the Close tab, document
+    requests and reminders to Documents, open questions to Bank. The sample "waiting on a reply"
+    list is gone. This is layout, not security: RLS still lets staff read these rows.
   - **Quick actions** (`StaffQuickActions` in `app.jsx`): the visible "Staff" bar on client pages
     was retired 2026-09-30. App mounts it `headless` on client pages, so it renders no buttons, only
     the Add task / Request document / Add note modals, opened from the top bar's "+" via the
     `tb:quick-add` event (kind `task` / `request` / `note`; kind `message` opens the chat drawer, or
     the Messages tab when the drawer isn't available). The Inbox context pane still renders it with
-    `only={["request", "task"]}` as visible buttons. Overview is the first tab in the staff
-    client tab row (`CL_ClientTabs`); the client sidebar (clients only) lists exactly what the
-    client sees. The `client-overview` route is unchanged.
+    `only={["request", "task"]}` as visible buttons. The staff client tab row is `CL_ClientTabs`; the
+    client sidebar (clients only) lists exactly what the client sees. The `client-overview` route is
+    unchanged. The request toast reads "It's on their Documents."
   - **Open requests are hard to miss:** a "Your bookkeeper needs N documents · Upload now" banner
     shows on every client page (for the client, and for staff previewing as them), and Documents
     gets a dot in the sidebar.
@@ -416,6 +433,64 @@ because some work happens in Claude Code web sessions. Run `git fetch` and compa
   sidebar). Hidden while you preview as one of the client's people or use View as client, so the
   preview shows only what they see. On touch phones the drawer has the same places.
 
+- **Client tab row** (bookkeeper in-client tabs redesign, 2026-10-10; `CL_ClientTabs` in
+  `ClientsPage.jsx`, `STAFF_CLIENT_TABS` in `app.jsx`). Staff see one fixed row on every plan:
+  Overview, Messages, Documents, Bank, Close, Reports, SOP, then Milestone for real admins
+  (`STAFF_isRealAdmin`, so temporary admins don't get it), then the **Client view** menu and the
+  **Client setup** gear (`data-tour="client-setup"`). From 761 to 1279 px wide the menu and gear
+  portal up into the page header (`#cl-header-tools`, `CL_useHeaderToolsSlot`) so an admin's eight
+  tabs fit at 1024 px; phones keep them in the row. Positions never move with the plan. Staff
+  ignore `orgHiddenKeys` for the five always-tabs (`STAFF_ALWAYS_TABS`). The gate is layout, not
+  security.
+  - **Client view** (`CL_ClientViewMenu`): Home, Budget, Cash flow, Giving & funds, Payroll (add-on
+    only), filtered by the client's tabs, then **View as client…** (the old header button is gone).
+    Tracked as `MGB_track("client-view-open")`.
+  - **Client setup** is page `client-settings` (clients keep **Settings**). Hash
+    `#/client/<id>/settings[/client|plan|milestone]`, alias `setup`. `#/client/<id>/milestone`
+    sends non-admins there (and a real admin who opens Client setup › Milestone to the row tab).
+  - **Landing rule.** A fresh open lands on Overview. Coming back to a client in the same browser
+    tab opens the tab you left: sessionStorage `mgb_staff_client_tab_<clientId>`
+    (`STAFF_readLastTab` / `STAFF_writeLastTab` / `STAFF_resumeTab`, every access in try/catch).
+    Only row tabs are stored; Client view pages and Client setup never are, and a stored key that
+    is no longer a visible row tab lands on Overview. A link that names a tab always wins. The
+    Inbox's Open client and the Clients page use the same rule (`openClientFromInbox`).
+  - **Badges** (`components/staff/ClientTabCounts.jsx`, `CTC_`): `useClientTabCounts` is called
+    once in App and passed down as `counts`. It feeds the row's badges (Messages replies waiting,
+    Documents uploads and overdue requests, Bank open questions, Close dot, SOP review due,
+    Client view budget waiting) and the Overview's Open strip. Stale-while-revalidate (60 s fresh,
+    2 min poll), each part in its own `safe()`; when it errors the row shows no badges. The Close
+    dot reads `close_checks.checks[]`: red for a QuickBooks reconnect, a blocked check, a late
+    close or the month before still open; amber when bank or card accounts are behind.
+  - **Close tab** (page `client-close`, `components/staff/ClientClosePage.jsx`, `CLC_`):
+    `CLC_ClientClosePage` shows one client and one month: status and notes, the QuickBooks check
+    (`CC_ClientCloseCard`), the six close steps (`CloseChecklistCard`, `data-tour="close-steps"`),
+    Mark done, the read-only `monthly_close` SOP and "Sent to the client". The first tick sets the
+    month to In progress; Done is always a click and emails the client's people that reports are
+    ready (a second Done asks first). Every `month_close` write goes through `CT_saveMonthClose`
+    (`CloseTracker.jsx`), with an `updated_at` guard shared with Work › Close ("Someone else saved
+    first"). "Mark sent to client" on a report for last month ticks "Reports sent to the client".
+    `CLC_CloseSummaryRow` is the one-line summary on the Overview. Names in Work › Close open the
+    client's Close tab.
+  - **Bank for staff** (`components/client/BankAccounts.jsx`): staff on any plan get a sync line
+    ("Last synced … · Basic syncs monthly, on the 15th · Sync now", cadence from
+    `STAFF_planCadence`), a stale note, the not-connected, needs-reconnecting (red banner over the
+    old numbers) and first-sync states, and filter chips from the path: `bank/questions`,
+    `bank/uncategorized`, `bank/unreconciled`, plus month and account. Clients see none of it.
+
+- **Deep links to one item** (`components/staff/DeepLink.jsx`, `LK_`; loaded before `app.jsx`).
+  One grammar: `#/client/<id>/<tab>[/<sub>][?item=<kind>:<id>][&month=YYYY-MM][&account=<qboId>]`
+  and `#/<place>[/<tab>][?item=<kind>:<id>][&client=<id>]` (work, team, inbox, today, clients...).
+  The path is view state that survives a refresh; the query is a one-time pointer. `LK_capture`
+  reads it at boot and on every `hashchange`, stores the arrival in memory and strips the query
+  with `replaceState`, so App never sees it. A destination claims it with `LK_useArrival` or
+  `LK_take`, shows the item with `LK_find` and `LK_reveal` (scroll, short highlight, focus; static
+  under reduced motion), or shows a fallback toast from `LK_COPY`. Kinds: `msg docreq file
+  question txn rownote task deadline step sent sop note setup at dupbills view`; the element
+  carries `data-lk="<kind>:<id>"`. `LK_href`, `LK_go` and `LK_onClick` build links; `LK_go` from a
+  staff surface exits Preview first (`window.MGB_exitPreview`). The sign-in round trip is kept in
+  sessionStorage `mgb_lk_arrival_v1` and re-armed once by `LK_rearm` (up to 10 minutes old).
+  Never put emails, names or free text in a link.
+
 - **Staff top bar** (`components/staff/TopBar.jsx` + `top-bar.css`, `TB_` prefix). App renders
   `TB_StaffTopBar` at the top of `<main>` whenever the staff sidebar shows (`showStaffRail`), so
   clients and client-user previews never see it. Sticky; no page links. Design is "option B"
@@ -425,7 +500,7 @@ because some work happens in Claude Code web sessions. Run `git fetch` and compa
   component; delete its line in `TB_StaffTopBar` to drop it:
   - **Left:** `TB_ClientPicker` (reuses `CS_ClientSwitcher`) and `TB_SyncPill` (reuses
     `QboSyncNowButton`; click = Sync now). The Overview chip retired 2026-10-08: Overview is the
-    first tab of the client tab row.
+    first tab of the client tab row. Staff can Sync now on any plan, with no limit.
   - **Middle:** `TB_Search`, Ctrl/⌘+K. With nothing typed it lists every page and action
     (`TB_pageRows` / `TB_actionRows`, the Pages and Actions groups, also matched while typing).
     Clients and my tasks/notes are filtered locally; client SOPs
@@ -441,7 +516,9 @@ because some work happens in Claude Code web sessions. Run `git fetch` and compa
   - **Right:** `TB_ThrottleBadge` (admins; `qbo_usage_status` mode throttled/stopped → `#/team/hours`),
     `TB_Bell` (client messages waiting per the Inbox's read markers, `client_doc_requests` with status
     uploaded, open tasks assigned to me by someone else, last month's `close_checks` Blocked (admins:
-    only clients they're the assigned bookkeeper on); seen ids in `localStorage`
+    only clients they're the assigned bookkeeper on). A bell row opens the exact item: an upload
+    opens Documents at that request, a message opens that message on the client's Messages (on
+    the Inbox it selects the thread in place), a blocked close opens the client's Close tab. Seen ids in `localStorage`
     `mgb-topbar-bell-seen:<email>`), `TB_TasksBadge` (open count, overdue in red → `#/work/tasks`),
     `TB_QuickAdd` ("+", client pages: New task / New note / Request document / Message; dispatches
     `tb:quick-add`, which the headless `StaffQuickActions` listens for and opens its own modal or the
@@ -455,7 +532,8 @@ because some work happens in Claude Code web sessions. Run `git fetch` and compa
   - **Phones:** the bar sits under the navy `.mobile-topbar` and keeps only the client picker, search,
     bell and "+" (44px; its menu opens fixed under the bar), since "+" is now the only way to add a
     task / note / request or message from a client page. Overview is hidden there: picking a client
-    in the picker, including the one already open, lands on the overview. Everything else stays in
+    in the picker, including the one already open, lands by the landing rule (the tab you left,
+    else Overview). Everything else stays in
     the drawer.
   - Bell, Tasks and the task/note search groups step aside during admin "View as".
 
@@ -514,11 +592,11 @@ because some work happens in Claude Code web sessions. Run `git fetch` and compa
   not "View as") has a client page open, the tab is visible and there was input in the last 2
   minutes; it flushes every 60 s and on tab hide through `record_app_time`, which caps each call
   at 120 s and wall-clock time, 12 h per client per day and 16 h per day. Not billed time.
-- **Client details** (Settings gear → **Client settings**, staff only): Documents (Drive links),
-  QuickBooks (connect / sync / disconnect), Notes, SOP, Milestone, Activity. Old links
-  `#/client/<id>/client-details` still open it.
-- **Manage access** (Settings gear → **Client settings**): People, Organization tabs, Requests.
-  Old links `#/client/<id>/manage-access` still open it.
+- **Client details** (**Client setup** gear at the right end of the staff tab row → Access and
+  details, staff only): Documents (Drive links), QuickBooks (connect / sync / disconnect), Notes,
+  SOP, Milestone, Activity. Old links `#/client/<id>/client-details` still open it.
+- **Manage access** (**Client setup** gear → Access and details): People, Organization tabs,
+  Requests. Old links `#/client/<id>/manage-access` still open it.
 - **Settings** (`components/settings/Settings.jsx`, `settings.css`; route `#/settings`, from the
   account menu): Profile (name, title, phone, photo in the private `staff-avatars` bucket, row in
   `staff_profiles`), Notifications (email kinds + which bell items show), Appearance & start page,
@@ -598,7 +676,8 @@ because some work happens in Claude Code web sessions. Run `git fetch` and compa
   Intuit's 500,000 limit, the month-end projection, the current Pro cadence and a per-source
   breakdown; "Change limits" edits `qbo_usage_settings` (limit, slow-down %, stop %, cadences).
   The weekly digest's Pending section shows the same line (`supabase/qbo-usage-guard.sql`).
-- **Automated close checks** (added 2026-09-30, Work › Close and client overview): each
+- **Automated close checks** (added 2026-09-30, Work › Close, the client's Close tab and the
+  client overview): each
   completed month gets **Ready**, **Blocked** (uncategorized / Ask My Accountant activity in the
   month, or Undeposited Funds not cleared at month end) or **Behind** (a bank or card account
   went quiet before month end, or transactions on or before month end aren't reconciled), with
@@ -611,13 +690,15 @@ because some work happens in Claude Code web sessions. Run `git fetch` and compa
   `month_close_settings.stale_bank_days`) is flagged in the Work › Close client column and on
   the client overview.
 - **Entity type** (added 2026-09-30): `clients.entity_type` is `nonprofit` (default) or
-  `for_profit`. Set on the client overview's Onboarding card (any staff with access, through
-  `set_client_entity_type()`) or in Client Roster add/edit (admins). Stored and shown only for
+  `for_profit`. Set with the Organization type select (`OB_EntityTypeSelect`) in the Overview's Key
+  dates and coverage (any staff with access, through `set_client_entity_type()`; also on the admin
+  Onboarding card) or in Client Roster add/edit (admins). Stored and shown only for
   now (`supabase/client-entity-type.sql`).
 - **Deep links**: pages have hash URLs such as `#/today`, `#/work/<tab>`, `#/clients`,
   `#/team/<tab>`, `#/emails`, `#/client/<id>/overview` or `#/client/<id>/<tab>` (the tab is part
   of the URL everywhere). A link survives Google sign-in, and staff
-  who can't see a page or client are sent to their dashboard instead.
+  who can't see a page or client are sent to their dashboard instead. Links to one item add a
+  one-time pointer (see **Deep links to one item** below).
 
 Owner setup:
 
@@ -820,14 +901,15 @@ Team Reviews files.
   search fit.
 - **Basic** lands on Home too: Needs you, the org card, and one locked card (`CLIENT_LockedCard`)
   where the dashboard would be. Board packet shows the same locked card on Basic.
-- **Settings** (gear at the bottom of the client sidebar, or at the right end of the staff tab
-  row; `#/client/<id>/settings[/<tab>]`):
+- **Settings** (gear at the bottom of the client sidebar; staff get **Client setup** at the right end
+  of their tab row; `#/client/<id>/settings[/<tab>]`):
   Profile, Notifications (bookkeeper messages, reports ready, monthly summary), Organization
   (full-access users: team list and org settings via `client_org_team` /
   `client_update_org_settings`, others can request access), Plan (the old Plans page;
   `#/client/<id>/plan`, `plans` and `enterprise-upgrade` still work), Appearance, Security
-  (sign out on all devices) and Help. Staff viewing a client get **Client settings** (Manage
-  access + Client details) and **Plan** instead; Preview as is read-only.
+  (sign out on all devices) and Help. Staff viewing a client get **Client setup** instead (page key
+  stays `client-settings`; hash `#/client/<id>/settings[/client|plan|milestone]`, alias `setup`):
+  sub-tabs Access and details, Plan and (non-admins only) Milestone. Preview as is read-only.
 - **Your account manager** and **Your bookkeeper** cards at the bottom of the Dashboard
   (`AM_TeamRow` in Settings.jsx: `AM_AccountManagerCard` via RPC `client_team_profiles`,
   `ST_BookkeeperCard` via `bookkeeper_public_profile`), each with a Message button. They are
@@ -935,7 +1017,7 @@ Team Reviews files.
   - **Milestone page** (opened from the badge): staff see **Staff: budget and milestone** first
     (budget entry, Set milestone with a note, history), then the client view: summary, the two
     progress bars, the step chart with "You are here", and the full table. Clients see only the
-    client view. Also in **Client details → Milestone**; Today has a **Milestones to review** card (Also show).
+    client view. Admins have a Milestone tab in the client row; everyone else (temporary admins too) opens it at **Client setup › Milestone**. Today has a **Milestones to review** card (Also show).
   - **Database:** `supabase/client-milestones.sql` (`client_milestones`,
     `client_milestone_history`, `client_milestone_stats`, `confirm_client_milestone`; only staff
     can set a milestone). Existing databases run `supabase/milestones-nine-tiers.sql` once for the
@@ -1171,6 +1253,11 @@ Team Reviews files.
 
 ## History
 
+- **2026-10-10:** bookkeeper in-client tabs redesign (see **Client tab row** and **Deep links to
+  one item** above). One tab row on every plan, the Close tab, **Client setup** (was the Settings
+  gear), Bank and unlimited Sync now for staff on every plan, an Overview that shows only
+  bookkeeping work (billing is admin-only), and links that open the exact item. `qbo-sync` skips
+  the Sync now throttle for staff and always refreshes the close check on a staff sync.
 - **2026-10-08:** Tech Inventory moved into the portal as **Team › Inventory** (see **Inventory**
   above). The Apps Script tool and its passcode are retired once the owner has checked the import.
 - **2026-10-08:** staff navigation redesign (the five places, see **Staff navigation** above).

@@ -44,7 +44,7 @@ Click the trash can at the end of a document's row (staff only). The file or lin
 - Open **Trash** and click **Restore** to put it back where it was, in the same folder.
 - Trash never empties on its own for links and older files. Items stay there until someone restores them or deletes them forever.
 - **Google Drive files** also go to Google Drive's trash, which Drive empties after **30 days**. Restore before then. You'll see *Restore it within 30 days, before Drive empties its trash.*
-- On the client's Client overview, **Move to Trash** on a shared link does the same thing. Restore it from the Documents page.
+- On the client's **Documents** tab, **Move to Trash** on a shared link does the same thing. Restore it from the Documents page.
 - The sample documents on prototype clients can't be trashed.
 
 ### Delete a document forever

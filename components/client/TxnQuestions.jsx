@@ -399,8 +399,13 @@ function TQ_RowControl({ client, txn, question, isStaff, isClientUser, categorie
 // otherwise a card for the client overview. Renders nothing when there are
 // none and `hideEmpty` is set.
 // ---------------------------------------------------------------------------
-function TQ_OpenList({ client, compact, hideEmpty, onOpenBank }) {
-  const { rows, loading, missing } = TQ_useQuestions([client && client.id]);
+// `filterIds` (optional, TABS WP3): only these question ids (Bank's
+// "questions" preset lists the ones on older transactions).
+function TQ_OpenList({ client, compact, hideEmpty, onOpenBank, filterIds }) {
+  const { rows: allQRows, loading, missing } = TQ_useQuestions([client && client.id]);
+  const rows = Array.isArray(filterIds)
+    ? allQRows.filter((q) => filterIds.indexOf(q.id) !== -1)
+    : allQRows;
   const [active, setActive] = React.useState(null);
   if (!client || missing) return null;
   if (hideEmpty && !rows.length) return null;

@@ -40,8 +40,8 @@
 // The client rail (data-tour nav-home, nav-messages, nav-finances,
 // nav-reports, nav-documents and the "settings" gear, app.jsx Sidebar) is
 // marked too, but the client tour doesn't point at it any more.
-//   Pro tour (TOUR_Root too; every step opens Settings › Plan first, app.jsx
-//   EnterpriseUpgradePage)
+//   Pro tour (TOUR_Root too; every step opens Settings › Plan first, Client
+//   setup › Plan for staff, app.jsx EnterpriseUpgradePage)
 //   plan-cards       the Basic and Pro cards (plan-card-<plan> on each)
 //   pro-feature-<key>  a "What Pro adds" card, by ENTERPRISE_FEATURES key:
 //                    dashboard, reports, budget, receivables, bank, giving
@@ -60,12 +60,35 @@
 //   clients-filters  Mine / All / Needs attention (components/staff/ClientsPage.jsx)
 //   inbox-list       Inbox's list of conversations (components/inbox/StaffInbox.jsx)
 //   #client-tab-client-overview  a client's Overview tab (ClientsPage.jsx
-//                    CL_ClientTabs, NAV_TabRow idPrefix "client")
+//                    CL_ClientTabs, NAV_TabRow idPrefix "client"); its Close
+//                    tab is #client-tab-client-close, also data-tour
+//                    "client-close"
+//   client-view      the Client view menu button at the right of that row
+//   client-view-as   the label inside the Client view button (there while the
+//                    menu is closed; View as client sits at the bottom of the
+//                    menu)
+//   client-setup     the staff gear at the far right of the row, labelled
+//                    Client setup (the client sidebar's gear keeps "settings").
+//                    761-1279px: it and Client view sit in the page header
+//                    (#cl-header-tools), same data-tour names
+//   close-page       the Close tab's page (ClientClosePage.jsx)
+//   close-steps      its Close steps card (app.jsx CloseChecklistCard)
+//   close-qbo        its QuickBooks check
+//   close-done       its Mark done control
+//   ov-open          the Overview's "Open for this client" strip
+//   ov-status        the Overview's status line (health, sync, clean-up)
+//   ov-tasks         the Overview's Tasks for this client card
+//   ov-activity      the Overview's Activity card
+//   ov-billing       the Overview's Billing and time section (admins only)
+//   ov-close         the Overview's Close summary row
+//   ov-coverage      the Overview's Edit dates and coverage details
+//   bank-sync        the Bank page's sync line (BankAccounts.jsx)
 //   #wk-tab-<key>    a Work tab, found by id (NAV_TabRow, idPrefix "wk")
 //   #tp-tab-<key>    a Team tab, found by id (NAV_TabRow, idPrefix "tp")
 //   #st-tab-firm     Settings' Firm settings tab, found by id (Settings.jsx)
 // A role-tour step can `go` somewhere first (NAV_go to a place and tab, or
-// TOUR_openClient to a client's Overview through the #/client/<id>/overview
+// TOUR_openClient to a client's Overview (or another tab) through the
+// #/client/<id>/overview
 // route) and `press` its target (click a Settings tab open) once it's found.
 // A `go` that returns false was already there (the Pro tour, on the Plans
 // page), so the step doesn't wait for a page to render.
@@ -584,8 +607,8 @@ function TOUR_visibleClientSteps(steps, ctx) {
 }
 
 // ---------------------------------------------------------------------------
-// Pro tour: the Plans page (Settings › Plan, app.jsx EnterpriseUpgradePage)
-// for a client below Pro, about two minutes. Every step goes there first, so
+// Pro tour: the Plans page (Settings › Plan for the client, Client setup ›
+// Plan for staff; app.jsx EnterpriseUpgradePage) for a client below Pro, about two minutes. Every step goes there first, so
 // it starts from any page and survives someone clicking away mid-tour. It
 // points at things and never clicks them (not Upgrade to Pro, not Add
 // Payroll, not a comparison row).
@@ -597,8 +620,8 @@ function TOUR_shownPlan(plan) {
   return plan === "premium" ? "premium" : "basic";
 }
 
-// Opens Settings › Plan unless it's already open (returns false then, so
-// the overlay doesn't wait for a page to render).
+// Opens Settings › Plan (Client setup › Plan for staff) unless it's already
+// open (returns false then, so the overlay doesn't wait for a page to render).
 function TOUR_proGo(ctx) {
   return () => {
     if (TOUR_find("plan-cards")) return false;
@@ -815,11 +838,12 @@ function TOUR_go(place, tab) {
 // Opens a client's Overview the way a row on the Clients page links to it:
 // the #/client/<id>/overview route, which App's hashchange listener turns
 // into a client switch (or just the page, when that client is already
-// open). A client the viewer can't see is ignored there.
-function TOUR_openClient(id) {
+// open). A client the viewer can't see is ignored there. `tab` is a hash tab
+// name (TB_clientHash): "overview" (the default) or "close", for example.
+function TOUR_openClient(id, tab) {
   return () => {
     if (!id) return;
-    const next = "#/client/" + encodeURIComponent(id) + "/overview";
+    const next = "#/client/" + encodeURIComponent(id) + "/" + (tab || "overview");
     if (window.location.hash !== next) window.location.hash = next;
   };
 }
@@ -849,6 +873,7 @@ function TOUR_bookkeeperSteps(ctx) {
   };
   const client = ctx.myClient;
   const openClient = TOUR_openClient(client && client.id);
+  const openClientClose = TOUR_openClient(client && client.id, "close");
   const next = ctx.amPending && !ctx.impersonating ? " The Account manager tour is next." : "";
   const temp = ctx.tempAdminPending && !ctx.impersonating ? " While your temporary admin access lasts, the Temporary admin tour shows what it opens." : "";
   return [
@@ -897,7 +922,16 @@ function TOUR_bookkeeperSteps(ctx) {
       title: "A client's Overview",
       body: () =>
         (client && client.name ? `This is ${client.name}'s Overview` : "This is the client's Overview") +
-        ": the month-end close checklist, document requests, key dates and coverage. The SOP tab says how this client's books are done.",
+        ": what's open for this client is at the top, then tasks, activity, key dates and notes. The Close tab holds the month's checklist and status. SOP says how this client's books are done.",
+    },
+    {
+      id: "client-close",
+      when: (c) => !!c.myClient,
+      go: openClientClose,
+      targets: ["#client-tab-client-close", "client-close"],
+      title: "A client's Close",
+      body: () =>
+        "Close: tick the month's steps as you go. Your first tick sets the month to In progress. You mark it Done, and that emails the client that reports are ready.",
     },
     {
       id: "quick",
@@ -922,7 +956,7 @@ function TOUR_bookkeeperSteps(ctx) {
       "work",
       "close",
       "Work › Close",
-      "Month-end close: one row per client, one column per month. Click a cell to mark it Done. Deadlines, the next tab, lists 990s, 1099s and other dates.",
+      "Month-end close: one row per client, one column per month. Click a cell to set the month's status, or a client's name to open their Close tab. Deadlines, the next tab, lists 990s, 1099s and other dates.",
     ),
     TOUR_tabStep(
       "team",
@@ -1052,7 +1086,7 @@ function TOUR_tempAdminSteps(ctx) {
       title: "It ends by itself",
       body: () =>
         (until ? `Your access ends ${until}, and these pages go away on their own.` : "When your access ends, these pages go away on their own.") +
-        " Emails, QuickBooks usage, the Audit log and money figures stay with admins. Run this tour again from the ? menu while your access lasts.",
+        " Emails, QuickBooks usage, the Audit log and money figures stay with admins. Temporary admin covers client work. Billing and time and the Milestone tab stay with full admins. You can still open Milestone from Client setup. Run this tour again from the ? menu while your access lasts.",
     },
   ];
 }
@@ -1134,7 +1168,7 @@ function TOUR_amSteps(ctx) {
       press: true,
       title: "New clients",
       body: () =>
-        "A new client starts in Firm settings › Client roster: name, type, plan, bookkeeper and account manager. Then set their hours budget and confirm their pricing milestone on the Client overview.",
+        "A new client starts in Firm settings › Client roster: name, type, plan, bookkeeper and account manager. Then set their hours budget and confirm their pricing milestone on their Milestone tab.",
     },
     {
       id: "done",
@@ -1714,8 +1748,8 @@ function TOUR_Root({
     [onSelectPage, save, saved.status],
   );
 
-  // The Pro tour: Settings › Plan first, then the steps once it has
-  // rendered. Nothing is saved when it starts.
+  // The Pro tour: Settings › Plan (Client setup › Plan for staff) first,
+  // then the steps once it has rendered. Nothing is saved when it starts.
   const beginPro = React.useCallback((persist) => {
     returnFocus.current = document.activeElement;
     try {

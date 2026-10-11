@@ -38,7 +38,7 @@ A new rate starts on its date; hours before it keep the old rate. Rate history i
 
 In the summary strip (Revenue, Cost, Profit, Blended margin), click **Edit** next to **Target margin**, enter 0–100 and **Save**.
 
-Admins also see monthly fee, cost, profit and margin on each client's **Client overview**. Every fee, rate and target change is recorded in the Audit log.
+Admins also see monthly fee, cost, profit and margin on each client's **Client overview**, in **Billing and time** at the bottom. Other staff don't see that section. Every fee, rate and target change is recorded in the Audit log.
 
 ### Troubleshooting
 

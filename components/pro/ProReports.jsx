@@ -2070,22 +2070,40 @@ function ProReportsSuite({ client, access, clientPortalUser }) {
     switch (tab) {
       case "packet":
         return (
-          <PrPacketPanel
-            config={config}
-            setConfig={setConfig}
-            comparisons={comparisonsAll}
-            snapshot={snapshot}
-            onDownload={downloadPacket}
-            templates={templates}
-            reloadTemplates={loadTemplates}
-            defaultPeriodLabel={defaultPeriodLabel}
-            sb={sb}
-            clientId={clientId}
-            whoEmail={whoEmail}
-            needSave={needSave}
-            flagError={flagError}
-            showToast={showToast}
-          />
+          <>
+            <PrPacketPanel
+              config={config}
+              setConfig={setConfig}
+              comparisons={comparisonsAll}
+              snapshot={snapshot}
+              onDownload={downloadPacket}
+              templates={templates}
+              reloadTemplates={loadTemplates}
+              defaultPeriodLabel={defaultPeriodLabel}
+              sb={sb}
+              clientId={clientId}
+              whoEmail={whoEmail}
+              needSave={needSave}
+              flagError={flagError}
+              showToast={showToast}
+            />
+            {/* Staff only (SentToClient returns null otherwise). It ticks the
+                month's "Reports sent" step only when the packet covers the
+                month being closed and its label wasn't changed to another period. */}
+            <SentToClient
+              client={client}
+              itemKey="board_packet"
+              itemLabel="Board packet"
+              periodLabel={(config.periodLabel || "").trim() || (current ? current.full : null)}
+              closePeriod={
+                current &&
+                current.key === closePeriodFor() &&
+                (!(config.periodLabel || "").trim() || config.periodLabel.trim() === defaultPeriodLabel)
+                  ? current.key
+                  : undefined
+              }
+            />
+          </>
         );
       case "summary":
         return (

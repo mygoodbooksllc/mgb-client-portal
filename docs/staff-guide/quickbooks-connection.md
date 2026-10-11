@@ -2,7 +2,7 @@
 title: How do I connect a client's QuickBooks and use Sync now?
 section: QuickBooks
 audience: staff
-keywords: [quickbooks, where the money went, expenses by account, no expenses recorded, qbo, sync schedule, every 15 minutes, every 30 minutes, intuit limit, connect, sync, sync now, sync pill, reconnect, disconnect, intuit, refresh, numbers, sample data, prototype, setting up, giving, tithes, offerings, giving accounts, funds, fund accounts, restricted, unrestricted, fund balances, donor statements, tax documents, year-end giving statement, last year, anonymous, pledges]
+keywords: [quickbooks, where the money went, expenses by account, no expenses recorded, qbo, sync schedule, every 15 minutes, every 30 minutes, intuit limit, connect, sync, sync now, no limit for staff, sync pill, reconnect, client setup, disconnect, intuit, refresh, numbers, sample data, prototype, setting up, giving, tithes, offerings, giving accounts, funds, fund accounts, restricted, unrestricted, fund balances, donor statements, tax documents, year-end giving statement, last year, anonymous, pledges]
 sort: 400
 ---
 When a client's QuickBooks Online is connected, their portal shows real numbers from QuickBooks instead of sample data. After that, the portal keeps itself up to date.
@@ -10,7 +10,7 @@ When a client's QuickBooks Online is connected, their portal shows real numbers 
 ### Connect a client's QuickBooks
 
 1. Open the client (**Choose a client** at the top left of the page). See [How do I find and open a client?](#/help/finding-a-client).
-2. Click **Settings** at the right end of the client's tab row, then **Client settings → Client details → Open**, then the **QuickBooks** tab.
+2. Click **Client setup** at the right end of the client's tab row, then **Access and details → Client details → Open**, then the **QuickBooks** tab. A **Connect** or **Reconnect** link on the Overview, the Close tab or the Bank tab opens this tab for you.
 3. Click **Connect QuickBooks**.
 4. Sign in to Intuit and pick the client's company when asked. Approve the connection.
 5. You come back to the portal. The tab now says **Connected** and shows **Last synced …**.
@@ -25,7 +25,7 @@ At the top right of every client page:
 - A grey **Setting up — connecting QuickBooks** badge (just **Setting up** on a phone) means a real client isn't connected yet (or hasn't synced yet). They see empty pages, never sample numbers.
 - A grey **Prototype · Sample Data** badge is the same thing for a test client. Test clients show sample numbers until QuickBooks is connected.
 
-The **Client overview** also has a QuickBooks health card that shows the last sync, or **Not connected**.
+The **Client overview** status line also shows the last sync (*QuickBooks synced 2 hours ago*), or **QuickBooks not connected** with a **Connect** link, or **QuickBooks needs reconnecting** with a **Reconnect** link.
 
 ### How often it syncs
 
@@ -38,20 +38,21 @@ The portal syncs on its own, based on the client's plan:
 
 If the firm uses 95% of its Intuit monthly limit, automatic syncs pause until the 1st; **Sync now** still works. Admins can see usage on Team › Hours.
 
-Month-close data (used by the QuickBooks checks and stale-bank flags on Work › Close) refreshes daily and whenever you use **Sync now**.
+Month-close data (used by the QuickBooks check on each client's Close tab and the stale-bank flags on Work › Close) refreshes daily. Staff also refresh it whenever they use **Sync now**, on any plan.
 
 ### Sync now
 
 Use **Sync now** when you've just made changes in QuickBooks and want to see them right away.
 
 - Click the sync pill in the top bar, next to the client picker (**Every 15 min · synced …** or **Synced monthly · synced …**; the whole pill is the Sync now button for staff). The numbers refresh in place. **Or**
+- Click **Sync now** on the client's Overview status line, the **Bank** tab's sync line or the **Close** tab's QuickBooks check. Same button, same result. **Or**
 - Go to **Client details → QuickBooks** and click **Sync now**. This one says "Reload to see the new numbers", so refresh the page afterwards.
 
-Staff can sync any client, on any plan. (Clients can only use Sync now on the Pro plan.) On a phone, the sync pill stays in the page header.
+Staff can sync any client, on any plan, as often as they like. There's no wait between syncs for staff. A Basic client's automatic sync is monthly, so their numbers can be weeks old until you click **Sync now**. (Clients can only use Sync now on the Pro plan, and they have to wait about 60 seconds between syncs.) On a phone, the sync pill stays in the page header.
 
 Admins: if the top bar shows **QuickBooks syncs slowed** or **QuickBooks syncs stopped**, the firm is close to Intuit's monthly limit. Sync now still works. The **Team** page has the details.
 
-A sync takes a few seconds. You can't start another one for the same client for about 60 seconds.
+A sync takes a few seconds. Staff can start another straight away. A Pro client has to wait about 60 seconds.
 
 ### Giving from QuickBooks
 
@@ -103,7 +104,7 @@ When you click **Disconnect**, the portal asks you to confirm first. Data that a
 
 - **"Last sync: …" shows an error in red.** Try **Sync now**. If the error comes back, click **Reconnect** and sign in to Intuit again.
 - **"Connection failed".** Click **Try again** and go through the Intuit sign-in again.
-- **Sync now doesn't seem to do anything.** You may have synced in the last 60 seconds ("Already synced within the last minute."). Wait a minute and try again. If you used Client details → Sync now, reload the page.
-- **"QuickBooks needs to be reconnected before it can sync."** Go to Client details → QuickBooks and click **Reconnect**.
+- **Sync now doesn't seem to do anything.** A sync takes a few seconds. If you used Client details → Sync now, reload the page to see the new numbers. A Pro client who clicks it twice within a minute sees "Already up to date with QuickBooks."
+- **"QuickBooks needs to be reconnected. Reconnect it from Client setup."** Go to **Client setup › Client details → QuickBooks** and click **Reconnect**.
 - **A dashboard card says "No expenses recorded this month yet." (or "No open invoices right now.").** That's real: QuickBooks has nothing for that card yet. **Where the money went** shows this month's expenses by QuickBooks account (the six biggest, the rest as **Other**), so it stays empty until the first expense of the month is entered in QuickBooks and the next sync runs. It doesn't need a QuickBooks budget.
 - **Some numbers still say sample.** Funds, pledges, donors and payroll don't come from QuickBooks yet. Test clients still show sample data there; real clients see "Funds appear here once your bookkeeper sets them up" and "Payroll appears here once it's connected". Account numbers aren't synced either. (Reconciliation is estimated for the close checks; see [How do I track month-end close?](#/help/month-end-close).)

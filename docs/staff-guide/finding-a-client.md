@@ -2,7 +2,7 @@
 title: How do I find and open a client?
 section: Getting started
 audience: staff
-keywords: [client switcher, choose a client, search clients, jump to client, go to client, open client, switch client, recent]
+keywords: [client switcher, last tab, landing, choose a client, search clients, jump to client, go to client, open client, switch client, recent]
 sort: 30
 ---
 There are two quick ways to open a client, both in the bar at the top of the page.
@@ -11,7 +11,7 @@ There are two quick ways to open a client, both in the bar at the top of the pag
 
 1. At the top left of the page, click the picker. It says **Choose a client** (or shows how many clients you have).
 2. Type part of the name in **Search clients**.
-3. Click the client. You land on their **Client overview**.
+3. Click the client. You land on the tab you last used for that client in this browser session. If you haven't been there yet, you land on their **Client overview**.
 
 On a phone, the picker is at the top of the screen and also in the menu. When a client is open, the picker shows the client's name, plan and health (for example "Pro · Healthy"). Click it again to switch to another client.
 
@@ -30,7 +30,7 @@ Press **Ctrl+K** (**⌘K** on a Mac) or click the search box at the top of the p
 ### Getting back
 
 - **Recently viewed** on Today (turn it on under **Also show**) and the **Last viewed** column on the **Clients** page take you back to clients you had open.
-- **Overview**, next to the client picker, takes you back to the open client's Client overview. On a phone, pick the same client again in the picker.
+- **Overview**, the first tab in the client's tab row, takes you back to the client's Client overview.
 - The address bar keeps the client and page, so you can bookmark a client or paste the link to a teammate.
 
 ### Troubleshooting

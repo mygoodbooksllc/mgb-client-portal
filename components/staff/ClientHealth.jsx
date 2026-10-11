@@ -146,27 +146,59 @@ function HL_HealthCard({ clientId }) {
           <div className="hl-meter" aria-hidden="true">
             <span style={{ width: Math.max(2, h.score) + "%", background: HL_COLOR[h.band] }} />
           </div>
-          {h.reasons.length ? (
-            <ul className="ov-lines hl-reasons">
-              {h.reasons.map((r) => (
-                <li key={r.key}>
-                  <span>{r.label}</span>
-                  <span className="negative">−{r.points}</span>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="ov-foot" style={{ marginTop: 8 }}>Nothing flagged. Tasks, QuickBooks, activity, close, requests, replies and the SOP are on track.</p>
-          )}
         </React.Fragment>
       )}
+      <HL_Reasons health={h} onRefresh={reload} />
+    </div>
+  );
+}
+
+// The reasons list + Refresh, shared by HL_HealthCard and the Overview's
+// "Why {score}?" (TABS-SPEC WP4 step 11). `linkFor(reason)` returns an href
+// (or { href, onClick }) or null; `filter(reason)` returns false to hide a
+// reason, and when any is hidden the list ends with an admins-only line.
+function HL_Reasons({ health, onRefresh, linkFor, filter }) {
+  const h = health;
+  const all = (h && h.reasons) || [];
+  const shown = filter ? all.filter((r) => filter(r)) : all;
+  const hidden = all.length - shown.length;
+  return (
+    <React.Fragment>
+      {h && shown.length > 0 && (
+        <ul className="ov-lines hl-reasons">
+          {shown.map((r) => {
+            const t = linkFor ? linkFor(r) : null;
+            const href = t && typeof t === "object" ? t.href : t;
+            return (
+              <li key={r.key}>
+                <span>
+                  {href ? (
+                    <a href={href} onClick={t && typeof t === "object" ? t.onClick : undefined}>
+                      {r.label}
+                    </a>
+                  ) : (
+                    r.label
+                  )}
+                </span>
+                <span className="negative">−{r.points}</span>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+      {h && all.length === 0 && (
+        <p className="ov-foot" style={{ marginTop: 8 }}>Nothing flagged. Tasks, QuickBooks, activity, close, requests, replies and the SOP are on track.</p>
+      )}
+      {h && hidden > 0 && <p className="ov-foot">Other reasons are shown to admins only.</p>}
       <p className="ov-foot">
         Score out of 100 from overdue tasks, QuickBooks connection, staff activity in the last 30 days, month-end close,
         overdue document requests, client replies waiting, and the SOP.{" "}
-        <button type="button" className="link-btn hl-refresh" onClick={reload}>
-          Refresh
-        </button>
+        {onRefresh && (
+          <button type="button" className="link-btn hl-refresh" onClick={onRefresh}>
+            Refresh
+          </button>
+        )}
       </p>
-    </div>
+    </React.Fragment>
   );
 }

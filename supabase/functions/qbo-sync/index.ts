@@ -1632,7 +1632,7 @@ async function handle(req: Request): Promise<Response> {
     // without phoning Intuit — a double-click, or a client and their
     // bookkeeper both pressing the button, costs nothing.
     const lastMs = conn.last_synced_at ? new Date(conn.last_synced_at).getTime() : 0;
-    if (lastMs && Date.now() - lastMs < USER_SYNC_MIN_INTERVAL_MS) {
+    if (!isStaff && lastMs && Date.now() - lastMs < USER_SYNC_MIN_INTERVAL_MS) {
       return json({ status: "fresh", synced_at: conn.last_synced_at, synced: [], errors: [] });
     }
     // And one sync per connection at a time. Two concurrent delete-then-
@@ -1649,7 +1649,7 @@ async function handle(req: Request): Promise<Response> {
       // previous year only on its own schedule).
       const pulls = await donorPullsFor(admin, [conn.client_id]);
       result = await syncClient(admin, conn.client_id, conn.realm_id, conn.api_env ?? null, {
-        closeDue: isCloseDue(conn.close_synced_at, new Date()),
+        closeDue: isStaff || isCloseDue(conn.close_synced_at, new Date()),
         donorYears: pulls
           ? donorYearsDue(pulls.get(conn.client_id) || new Map(), new Date(), true)
           : [],

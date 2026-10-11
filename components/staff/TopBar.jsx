@@ -73,6 +73,7 @@ const TB_HELP_FOR_PAGE = {
   clients: "clients-page",
   settings: "staff-settings",
   "client-overview": "client-overview",
+  "client-close": "client-close",
   documents: "document-requests",
   sop: "client-sops",
   milestone: "pricing-milestones",
@@ -104,8 +105,11 @@ function TB_go(hash) {
   if (window.location.hash !== hash) window.location.hash = hash;
 }
 
+// No tab: the bare #/client/<id>, which App opens by the landing rule (the
+// tab last open for that client this session, else Overview). Callers that
+// mean the Overview pass "overview".
 function TB_clientHash(id, tab) {
-  return "#/client/" + encodeURIComponent(id) + "/" + (tab || "overview");
+  return "#/client/" + encodeURIComponent(id) + (tab ? "/" + tab : "");
 }
 
 // The guide article for the page that's open, or null. Work and Team resolve
@@ -292,7 +296,7 @@ function TB_SyncPill({ client, plan, onSynced }) {
   const label = syncPillLabel(plan, client.lastSyncedAt);
   return (
     <span className="tb-sync">
-      <QboSyncNowButton clientId={client.id} onSynced={onSynced} canSyncNow liveLabel={label} tour="tb-sync" />
+      <QboSyncNowButton clientId={client.id} onSynced={onSynced} canSyncNow liveLabel={label} tour="tb-sync" isStaff />
     </span>
   );
 }
@@ -801,6 +805,8 @@ function TB_useBellItems({ clients, items, me, isAdmin, page }) {
     return !!(bk && TB_lc(bk.email) === TB_lc(me));
   };
 
+  // Deep links to the exact item (TABS-SPEC D16).
+  const lkGo = (t, hint) => LK_go(t, hint);
   const out = [];
   remote.msgs.forEach((row) =>
     out.push({
@@ -808,7 +814,10 @@ function TB_useBellItems({ clients, items, me, isAdmin, page }) {
       at: row.created_at,
       title: `${row.author_name || row.participant_email} · ${nameOf(row.client_id)}`,
       sub: "Message waiting: " + String(row.body || "").replace(/\s+/g, " ").slice(0, 80),
-      go: () => TB_go("#/inbox"),
+      go: () =>
+        page === "inbox"
+          ? lkGo({ place: "inbox", item: "msg:" + row.id }, { clientId: row.client_id, email: row.participant_email })
+          : lkGo({ clientId: row.client_id, tab: "messages", item: "msg:" + row.id }, { email: row.participant_email }),
     }),
   );
   remote.docs.forEach((row) =>
@@ -817,7 +826,7 @@ function TB_useBellItems({ clients, items, me, isAdmin, page }) {
       at: row.fulfilled_at,
       title: `${nameOf(row.client_id)} uploaded "${row.title}"`,
       sub: "Document ready to review" + (row.fulfilled_at ? " · " + relTime(row.fulfilled_at) : ""),
-      go: () => TB_go(TB_clientHash(row.client_id)),
+      go: () => lkGo({ clientId: row.client_id, tab: "documents", item: "docreq:" + row.id }),
     }),
   );
   (items || [])
@@ -828,7 +837,7 @@ function TB_useBellItems({ clients, items, me, isAdmin, page }) {
         at: t.created_at,
         title: `Assigned to you: ${t.text}`,
         sub: [t.client_id ? nameOf(t.client_id) : "", t.due_date ? "Due " + fmtDate(t.due_date) : ""].filter(Boolean).join(" · ") || "Work › Tasks",
-        go: () => TB_go("#/work/tasks"),
+        go: () => lkGo({ place: "work", tab: "tasks", item: "task:" + t.id }),
       }),
     );
   remote.blocked
@@ -838,8 +847,8 @@ function TB_useBellItems({ clients, items, me, isAdmin, page }) {
         id: "close:" + row.client_id + ":" + row.period,
         at: row.period,
         title: `${nameOf(row.client_id)}: month-end close is Blocked`,
-        sub: Array.isArray(row.reasons) && row.reasons.length ? String(row.reasons[0]) : "See Work › Close",
-        go: () => TB_go("#/work/close"),
+        sub: Array.isArray(row.reasons) && row.reasons.length ? String(row.reasons[0]) : "Open Close",
+        go: () => lkGo({ clientId: row.client_id, tab: "close", item: "at:close-qbo" }),
       }),
     );
   shouts.forEach((row) =>

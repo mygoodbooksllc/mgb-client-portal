@@ -2,12 +2,12 @@
 title: How do I see the portal the way a client sees it?
 section: Working with a client
 audience: staff
-keywords: [preview as, preview plan, client view, what the client sees, exit preview, plan preview, view as client]
+keywords: [preview as, preview plan, client view, view as client, client view menu, what the client sees, exit preview, plan preview, view as client]
 sort: 260
 ---
 On any client page there are two preview controls. Neither changes anything for the client.
 
-Inside a client, the **View as client** button is a shortcut to the same thing: it shows the client's pages as one of the client's people sees them (pick the person when there are several). **Exit preview** brings you back.
+Inside a client, **View as client…** at the bottom of the **Client view** menu (next to the tabs) is a shortcut to the same thing: it shows the client's pages as one of the client's people sees them. If the client has several people, you pick one. If no one at the client can sign in yet, it's greyed out. **Exit preview** brings you back.
 
 ### Preview as a client user
 
@@ -16,7 +16,7 @@ Inside a client, the **View as client** button is a shortcut to the same thing: 
 3. A bar appears: "Previewing as {name} — {role}. This is exactly what they see when they sign in."
 4. Click **Exit preview** when you're done.
 
-While previewing, staff-only things are hidden: the top bar (with **Overview** and **+**), the Client overview and the staff note icons. The client's **Settings** show read-only, since their personal settings belong to them.
+While previewing, staff-only things are hidden: the top bar (with **+**), the staff tabs (Overview, Close, SOP and so on), **Client setup** and the staff note icons. Bank only shows if that person's plan has it, so a Basic client's person still has no Bank page, even though staff see Bank on every client. The client's **Settings** show read-only, since their personal settings belong to them.
 
 ### Preview a different plan
 

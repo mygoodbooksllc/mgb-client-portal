@@ -96,7 +96,7 @@
       // step to inject a real commit SHA into (see the no-bundler note up
       // top). Shown in Developer Tools' System info card so staff can confirm
       // which version they're looking at without guessing from Vercel's UI.
-      window.MGB_VERSION = { label: "2026-10-09g", note: "Staff tips while you learn" };
+      window.MGB_VERSION = { label: "2026-10-10a", note: "One tab row for every client, Close tab, Client setup" };
       // The two-finger touchmove preventDefault that used to sit here (a
       // pinch-zoom blocker, kept at the gesture level because touch-action
       // CSS pre-empted the dashboard drag-and-drop) is gone. It only ever
@@ -155,6 +155,7 @@
         "components/pro/ProBudget.jsx",
         "components/pro/ProReports.jsx",
         "components/files/DriveFiles.js",
+        "components/staff/DeepLink.jsx",
         "components/inbox/StaffInbox.jsx",
         "components/staff/StaffNav.jsx",
         "components/staff/ClientSwitcher.jsx",
@@ -170,6 +171,7 @@
         "components/staff/Onboarding.jsx",
         "components/staff/CloseChecks.jsx",
         "components/staff/CloseTracker.jsx",
+        "components/staff/ClientClosePage.jsx",
         "components/staff/TaskTemplates.jsx",
         "components/staff/TaskChecklist.jsx",
         "components/staff/AuditLog.jsx",
@@ -203,6 +205,7 @@
         "components/staff/WorkPage.jsx",
         "components/staff/TopBar.jsx",
         "components/client/TxnQuestions.jsx",
+        "components/staff/ClientTabCounts.jsx",
         "components/client/BankAccounts.jsx",
         "components/client/QboGiving.jsx",
         "components/tour/Tour.jsx",
@@ -432,8 +435,11 @@
           (connections || []).forEach((row) => {
             connById[row.client_id] = row;
           });
+          // 'error' too: a connection that broke after syncing keeps its
+          // cached numbers on screen (staff see the red "needs reconnecting"
+          // banner over them) rather than dropping back to no data.
           const liveIds = (connections || [])
-            .filter((row) => row.status === "connected")
+            .filter((row) => row.status === "connected" || row.status === "error")
             .map((row) => row.client_id);
           if (!liveIds.length) return;
 

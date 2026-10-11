@@ -2,10 +2,18 @@
 title: What's new
 section: Getting started
 audience: staff
-keywords: [board packet, presentation view, report builder, client help menu, question mark menu, tips, tips while you learn, hints, first 30 days, learning, pro tour, upsell, upgrade, basic clients, bookkeeper tour, temporary admin tour, client tour, tour versions, admin tour, account manager tour, inventory, tech, equipment, what's new, whats new, new, changes, updates, release notes, changelog, navigation, redesign, five places]
+keywords: [board packet, presentation view, report builder, client help menu, question mark menu, tips, tips while you learn, hints, first 30 days, learning, pro tour, upsell, upgrade, basic clients, bookkeeper tour, temporary admin tour, client tour, tour versions, admin tour, account manager tour, inventory, tech, equipment, what's new, whats new, new, changes, updates, release notes, changelog, navigation, redesign, five places, client setup, close tab, client close, last tab, client view, bank on basic, open for this client, deep links]
 sort: 15
 ---
 The newest changes to the staff side, newest first. For how anything works, search this guide or click **?** → **Help for this page**.
+
+### 2026-10-10: One tab row for every client
+
+- Every client has the same tabs in the same place: Overview, Messages, Documents, Bank, Close, Reports and SOP. Admins also see Milestone.
+- **Close** is new: the month's steps, the QuickBooks check, what was sent and the month's status in one place. Your first tick sets In progress. Done is always your click, and it emails the client that reports are ready. See [What's on a client's Close tab?](#/help/client-close).
+- The client's own pages are under **Client view**, with **View as client…** at the bottom. The gear is now **Client setup**. On a laptop under about 1280 pixels wide, both sit in the page header so every tab fits.
+- Staff see **Bank** on Basic clients too, and Sync now has no limit for staff. Links from the Overview, Close, Today and the bell open the exact item. On the Inbox, a bell message opens that thread right there.
+- Coming back to a client goes to the tab you left. The Overview shows only bookkeeping work; billing is in Billing and time for admins. Organization type is now in Key dates and coverage.
 
 ### 2026-10-09: Board packet is the one report builder
 

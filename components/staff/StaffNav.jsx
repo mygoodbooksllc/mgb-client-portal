@@ -166,8 +166,19 @@ function NAV_useHashSub(slug, keys, fallback) {
 // tablist (arrow keys move, Home/End jump) styled by staff-nav.css.
 //   <NAV_TabRow label="Work" tabs={[{key,label,badge?}]} current={tab} onSelect={setTab} idPrefix="wk" />
 // `badge` is an optional node rendered after the label (a count or dot).
-function NAV_TabRow({ label, tabs, current, onSelect, idPrefix, className, right, inTopbar }) {
+//
+// Badges (a client's tab row): `badge` truthy shows a pill; a number over 9
+// reads "9+". `badgeDot: true` draws a dot instead, `badgeTone` "bad" | "warn"
+// colours it, and `badgeLabel` is screen-reader text that becomes part of the
+// tab's name ("Messages, 2 replies waiting"). Falsy `badge` renders nothing.
+// `after` renders between the tablist and `right`, outside role="tablist"
+// (the client row's Client view menu).
+function NAV_TabRow({ label, tabs, current, onSelect, idPrefix, className, right, after, inTopbar }) {
   const prefix = idPrefix || "nav";
+  // No tab current (a client's Client view page or Client setup is open):
+  // the first tab takes the roving tab stop.
+  const currentInTabs = tabs.some((t) => t.key === current);
+  const tablistRef = React.useRef(null);
   // 2026-10-08: the row renders inside the app's top bar (#app-topbar-tabs,
   // App in app.jsx) when that slot exists, so the page title and its tabs
   // share one surface. Layout effect so the row never paints in the body
@@ -176,11 +187,34 @@ function NAV_TabRow({ label, tabs, current, onSelect, idPrefix, className, right
   React.useLayoutEffect(() => {
     setSlot(inTopbar === false ? null : document.getElementById("app-topbar-tabs"));
   }, [inTopbar]);
+  // Keep the active tab in view (phones scroll the row sideways), on mount
+  // and on every tab change, so a deep link never opens with it off screen.
+  // Badges arrive after the first paint and widen tabs, so a badge change in
+  // the first few seconds after a tab change scrolls again; later ones
+  // (polling) leave a row the person scrolled alone.
+  const badgeSig = tabs.map((t) => t.key + ":" + (t.badge == null ? "" : String(t.badge))).join(",");
+  const scrolledAtRef = React.useRef({ current: null, at: 0 });
+  React.useEffect(() => {
+    try {
+      const mark = scrolledAtRef.current;
+      if (mark.current !== current) scrolledAtRef.current = { current, at: Date.now() };
+      else if (Date.now() - mark.at > 4000) return;
+      const list = tablistRef.current;
+      const el = current && list ? document.getElementById(prefix + "-tab-" + current) : null;
+      if (!el || !list.contains(el) || list.scrollWidth <= list.clientWidth) return;
+      const lr = list.getBoundingClientRect();
+      const er = el.getBoundingClientRect();
+      // Only the row scrolls (scrollIntoView would also move the page).
+      if (er.left < lr.left) list.scrollLeft += er.left - lr.left - 8;
+      else if (er.right > lr.right) list.scrollLeft += er.right - lr.right + 8;
+    } catch (e) {}
+  }, [current, prefix, slot, badgeSig]);
   const onKeyDown = (e) => {
     const i = tabs.findIndex((t) => t.key === current);
     let next = null;
-    if (e.key === "ArrowRight") next = tabs[(i + 1) % tabs.length];
-    else if (e.key === "ArrowLeft") next = tabs[(i - 1 + tabs.length) % tabs.length];
+    // No tab current (i < 0): Right/Home go to the first tab, Left/End the last.
+    if (e.key === "ArrowRight") next = tabs[i < 0 ? 0 : (i + 1) % tabs.length];
+    else if (e.key === "ArrowLeft") next = tabs[i < 0 ? tabs.length - 1 : (i - 1 + tabs.length) % tabs.length];
     else if (e.key === "Home") next = tabs[0];
     else if (e.key === "End") next = tabs[tabs.length - 1];
     if (!next) return;
@@ -191,8 +225,8 @@ function NAV_TabRow({ label, tabs, current, onSelect, idPrefix, className, right
   };
   const row = (
     <div className={"nav-tabs-row" + (className ? " " + className : "")}>
-      <div className="nav-tabs" role="tablist" aria-label={label} onKeyDown={onKeyDown}>
-        {tabs.map((t) => (
+      <div className="nav-tabs" role="tablist" aria-label={label} onKeyDown={onKeyDown} ref={tablistRef}>
+        {tabs.map((t, i) => (
           <button
             key={t.key}
             id={prefix + "-tab-" + t.key}
@@ -200,17 +234,31 @@ function NAV_TabRow({ label, tabs, current, onSelect, idPrefix, className, right
             role="tab"
             aria-selected={current === t.key}
             aria-controls={prefix + "-panel"}
-            tabIndex={current === t.key ? 0 : -1}
+            tabIndex={current === t.key || (!currentInTabs && i === 0) ? 0 : -1}
             className={"nav-tab" + (current === t.key ? " active" : "")}
             data-tour={t.tour || undefined}
             onClick={() => onSelect(t.key)}
           >
             {t.icon ? <span className="nav-tab-icon" aria-hidden="true">{t.icon}</span> : null}
             <span className="nav-tab-label">{t.label}</span>
-            {t.badge ? <span className="nav-tab-badge">{t.badge}</span> : null}
+            {t.badge ? (
+              <span
+                className={
+                  "nav-tab-badge" + (t.badgeTone ? " is-" + t.badgeTone : "") + (t.badgeDot ? " is-dot" : "")
+                }
+              >
+                {t.badgeDot ? null : typeof t.badge === "number" ? (
+                  <span aria-hidden={t.badgeLabel ? "true" : undefined}>{t.badge > 9 ? "9+" : t.badge}</span>
+                ) : (
+                  t.badge
+                )}
+                {t.badgeLabel ? <span className="nav-sr">{", " + t.badgeLabel}</span> : null}
+              </span>
+            ) : null}
           </button>
         ))}
       </div>
+      {after || null}
       {right ? <div className="nav-tabs-right">{right}</div> : null}
     </div>
   );

@@ -2,19 +2,19 @@
 title: How do I track month-end close?
 section: Month-end and recurring work
 audience: staff
-keywords: [month-end close, close tracker, work, close tab, quickbooks checks, ready, blocked, behind, no data, stale bank, bank feed, uncategorized, ask my accountant, undeposited funds, unreconciled, stale bank after, checklist, reconcile, reconciled, late, not started, in progress, review, done, n/a, late after day]
+keywords: [month-end close, close tracker, work, close tab, client close tab, mark done, six steps, quickbooks checks, ready, blocked, behind, no data, stale bank, bank feed, uncategorized, ask my accountant, undeposited funds, unreconciled, stale bank after, checklist, reconcile, reconciled, late, not started, in progress, review, done, n/a, late after day]
 sort: 310
 ---
-There are two separate tools for month-end close. They don't update each other.
+There are two places to work on month-end close, and they show the same record. A change in one shows in the other.
 
-| Tool | Where | What it's for |
+| Place | Where | What it's for |
 |---|---|---|
-| **Month-end close** checklist | Client overview (one client) | Tick off the six close steps for this month. |
+| **Close** tab | One client's tab row | Close one client's month: the six steps, the QuickBooks check, what you've sent. |
 | **Work › Close** | The left rail → **Work** → **Close** | See every client's close status, month by month. |
 
-### The Month-end close checklist (one client)
+### The Close tab (one client)
 
-On the client's **Client overview**, the **Month-end close** card shows the month and progress (for example *Sep 2026 · 3/6*). Tick each item as you finish it:
+Open the client and click **Close** in the tab row. It opens on last month, the one you're closing now. You tick the six close steps, set the status, and mark the month **Done** from there. The steps are:
 
 1. Bank feed categorized
 2. Bank accounts reconciled
@@ -23,11 +23,13 @@ On the client's **Client overview**, the **Month-end close** card shows the mont
 5. Reports reviewed
 6. Reports sent to the client
 
-Each ticked item records who ticked it and when. Today's **Closes open** tile counts your clients' unfinished closes, and late or blocked ones show as rows in **Needs you**.
+Each ticked step records who ticked it and when. Your first tick sets a **Not started** month to **In progress**. **Done** is always your click. Marking a month done emails the client's people that the reports are ready. The full walk-through is in [What's on a client's Close tab?](#/help/client-close).
+
+The Client overview shows a one-line summary, for example *September 2026 close · In progress · 3 of 6 steps*. Click it to open the tab. Today's **Closes open** tile counts your clients' unfinished closes, and late or blocked ones show as rows in **Needs you**.
 
 ### Work › Close (all clients)
 
-Open **Work** in the left rail, then the **Close** tab (`#/work/close`). You'll see a grid of your clients against the last six months plus the current one. Bookkeepers see their assigned clients and any they have temporary access to; admins see everyone.
+Open **Work** in the left rail, then the **Close** tab (`#/work/close`). You'll see a grid of your clients against the last six months plus the current one. Bookkeepers see their assigned clients and any they have temporary access to; admins see everyone. Click a client's name to open that client's **Close** tab.
 
 **To update a month:**
 
@@ -36,7 +38,7 @@ Open **Work** in the left rail, then the **Close** tab (`#/work/close`). You'll 
 3. Add **Notes** if useful, for example *Waiting on bank statement*.
 4. Click **Save**.
 
-Each cell shows the status, who changed it and when, and a dot if there's a note.
+Each cell shows the status, who changed it and when, and a dot if there's a note. If two people save the same month at nearly the same time, the second sees **Someone else saved first** and picks **Load theirs** or **Keep mine**.
 
 **Filters:** use **Month**, **Bookkeeper** (Everyone, My clients, a person, Unassigned) and **Status** (including **Late**). The count buttons at the top also filter the grid when clicked.
 
@@ -51,7 +53,7 @@ For clients with QuickBooks connected, the app also checks each completed month 
 | **Behind** | A bank or card account went quiet before month end (no transactions in the last 10 days of the month), or transactions on or before month end aren't reconciled. | Check the bank feed in QuickBooks and reconnect it if needed; reconcile through month end. |
 | **No data** | QuickBooks close data hasn't synced for this client yet. | Use **Sync now** on the client, or wait for the daily refresh. |
 
-To see why, hover over a badge, or click the cell. The window shows **QuickBooks checks** with the badge, the reasons (for example *2 uncategorized or Ask My Accountant transactions*) and the four checks, each ticked (✓) or flagged (!):
+To see why, hover over a badge, click the cell, or open the client's **Close** tab. The window shows **QuickBooks checks** with the badge, the reasons (for example *2 uncategorized or Ask My Accountant transactions*) and the four checks, each ticked (✓) or flagged (!):
 
 - **Uncategorized is zero**
 - **Undeposited funds cleared**
@@ -73,7 +75,7 @@ The checks refresh every day and after **Sync now** on the client. After you fix
 
 ### Stale bank
 
-A red **Stale bank** chip under a client's name on Work › Close means one of their bank or card accounts has had no transaction for more than 10 days. The bank feed has probably stopped, so reconnect it in QuickBooks. Hover over the chip to see which accounts and how many days. The client's overview shows the same accounts in its close card.
+A red **Stale bank** chip under a client's name on Work › Close means one of their bank or card accounts has had no transaction for more than 10 days. The bank feed has probably stopped, so reconnect it in QuickBooks. Hover over the chip to see which accounts and how many days. The client's **Close** tab lists the same accounts in its QuickBooks check, and the Overview shows a **Bank feed may have stopped** chip.
 
 Admins can change the number of days with **Stale bank after (days)** (1 to 90) and **Save**. Close checks pick up the new number overnight.
 
@@ -81,13 +83,13 @@ Admins can change the number of days with **Stale bank after (days)** (1 to 90) 
 
 A month is late if it isn't **Done** or **N/A** by the 15th of the following month. Admins can change that day with **Late after day** and **Save**.
 
-> Saving a month on Work › Close also ticks the client's "first month closed" onboarding step.
+> Marking a month **Done**, on Work › Close or on the client's Close tab, also ticks the client's "first month closed" onboarding step.
 
 ### Troubleshooting
 
 - **"Couldn't load close status (...). Showing empty months."** Refresh the page. If it keeps happening, tell an admin.
 - **"No clients to show."** You don't have any assigned clients yet. Ask an admin.
-- **I ticked every checklist item but Work › Close still says Not started.** That's expected: they're separate. Update the cell on Work › Close too.
+- **I ticked every step but the month isn't Done.** That's expected. Click **Mark {Month} done** on the client's Close tab, or set the status to **Done** on Work › Close.
 - **The badge says Ready but I haven't closed the month.** The badge is only the automatic QuickBooks checks. Set the status yourself when you're done.
-- **I fixed it in QuickBooks but the badge still says Blocked or Behind.** Click **Sync now** on the client, then refresh Work › Close.
+- **I fixed it in QuickBooks but the badge still says Blocked or Behind.** Click **Sync now** on the client's Close tab (or the Overview), then refresh Work › Close. Staff can use **Sync now** as often as they like.
 - **No badge at all.** The client's QuickBooks isn't connected, or it's the current month (only completed months are checked).
