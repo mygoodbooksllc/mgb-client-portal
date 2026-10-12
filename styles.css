@@ -8676,7 +8676,8 @@ tr:hover .inote-btn,
 }
 
 /* Document requests. */
-.doc-requests-card {
+.doc-requests-card,
+.doc-chaser-card {
   margin-bottom: 20px;
 }
 .doc-req-list {

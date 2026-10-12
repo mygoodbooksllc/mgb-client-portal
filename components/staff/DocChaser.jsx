@@ -81,7 +81,7 @@ function DC_DocChaserCard({ client }) {
         : "On. Portal users get a reminder on day 0, day 3, day 7, then weekly until each document is uploaded.";
 
   return (
-    <div className="card">
+    <div className="card doc-chaser-card">
       <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "flex-start", justifyContent: "space-between" }}>
         <div style={{ minWidth: 0, flex: "1 1 200px" }}>
           <h3 className="card-title" style={{ margin: 0 }}>Document reminders</h3>
