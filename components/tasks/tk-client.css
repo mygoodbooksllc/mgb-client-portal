@@ -1,0 +1,496 @@
+/* ----------------------------------------------------------------------------
+   Tasks module: the client tasks strip, the client tasks panel and the
+   "Follow my client" switch (2026-10-11b).
+   Tokens only (styles.css :root, which already switches for dark mode), plus
+   --tk-scrim from tk-drawer.css. Layers: the panel (1840) sits above tips
+   (1550) and below the task details drawer (1850), so a task opened from the
+   panel stacks on top of it; quick add and sheets (2000) and toasts (2100)
+   cover both.
+---------------------------------------------------------------------------- */
+
+:root {
+  --tk-z-cdrawer: 1840;
+}
+
+/* ---- Strip --------------------------------------------------------------------- */
+
+.tk-cd-strip {
+  margin: -8px 0 16px;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px 14px;
+  min-height: 44px;
+  padding: 6px 12px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  font-family: var(--font-body);
+  font-size: 14px;
+  color: var(--text);
+}
+
+.tk-cd-strip-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
+}
+
+.tk-cd-strip-count {
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.tk-cd-strip-over {
+  color: var(--bad);
+  font-weight: 600;
+}
+
+.tk-cd-strip-msg {
+  color: var(--text-muted);
+}
+
+.tk-cd-strip-next {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  flex: 1 1 280px;
+}
+
+.tk-cd-strip-nlabel {
+  flex: none;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.tk-cd-strip-tick {
+  flex: none;
+}
+
+.tk-cd-strip-tick:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.tk-cd-strip-title {
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-weight: 500;
+  text-align: left;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.tk-cd-strip-title:hover {
+  text-decoration: underline;
+}
+
+.tk-cd-strip-due {
+  flex: none;
+}
+
+.tk-cd-strip-gap {
+  flex: 1 1 0;
+}
+
+.tk-cd-strip-open,
+.tk-cd-strip-add,
+.tk-cd-strip-retry {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 34px;
+  padding: 6px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  font-size: 13.5px;
+  line-height: 1.2;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.tk-cd-strip-open:hover,
+.tk-cd-strip-add:hover,
+.tk-cd-strip-retry:hover {
+  background: var(--hover-bg);
+}
+
+.tk-cd-strip button:focus-visible,
+.tk-cd button:focus-visible,
+.tk-cd a:focus-visible {
+  outline: 2px solid var(--text-muted);
+  outline-offset: 2px;
+}
+
+@media (max-width: 640px) {
+  .tk-cd-strip {
+    margin: 0 0 12px;
+  }
+
+  .tk-cd-strip-next {
+    flex-basis: 100%;
+    order: 5;
+  }
+
+  .tk-cd-strip-gap {
+    display: none;
+  }
+
+  .tk-cd-strip-open {
+    order: 6;
+    margin-left: auto;
+  }
+
+  .tk-cd-strip button {
+    min-height: 44px;
+    min-width: 44px;
+  }
+
+  /* Keep the small 22px tick, with a 44px touch target around it (the shared
+     .tk-check::before hit area, widened from 40px). Two classes so it beats
+     the generic ".tk-cd-strip button" minimum above. */
+  .tk-cd-strip .tk-cd-strip-tick {
+    min-height: 22px;
+    min-width: 22px;
+  }
+
+  .tk-cd-strip .tk-cd-strip-tick::before {
+    inset: -11px;
+  }
+
+  .tk-cd-strip-title {
+    white-space: normal;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+}
+
+/* ---- Panel ---------------------------------------------------------------------- */
+
+.tk-cd-layer {
+  position: fixed;
+  inset: 0;
+  z-index: var(--tk-z-cdrawer);
+}
+
+.tk-cd-scrim {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background: var(--tk-scrim);
+  animation: tk-cd-fade 0.16s ease-out;
+}
+
+.tk-cd {
+  position: absolute;
+  z-index: 1;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: min(420px, 100vw);
+  display: flex;
+  flex-direction: column;
+  background: var(--surface);
+  color: var(--text);
+  border-left: 1px solid var(--border);
+  box-shadow: var(--shadow);
+  font-family: var(--font-body);
+  outline: none;
+  overflow: hidden;
+  animation: tk-cd-in 0.16s ease-out;
+}
+
+@keyframes tk-cd-in {
+  from { transform: translateX(24px); opacity: 0; }
+  to { transform: none; opacity: 1; }
+}
+
+@keyframes tk-cd-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tk-cd,
+  .tk-cd-scrim { animation: none; }
+}
+
+.tk-cd-grab {
+  display: none;
+}
+
+.tk-cd-head {
+  position: relative;
+  flex: none;
+  padding: 16px 56px 12px 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+.tk-cd-eyebrow {
+  margin: 0 0 2px;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.tk-cd-title {
+  margin: 0;
+  font-size: 18px;
+  line-height: 1.3;
+  color: var(--text);
+  overflow-wrap: anywhere;
+}
+
+.tk-cd-note {
+  margin: 2px 0 0;
+  color: var(--text-muted);
+  font-size: 12.5px;
+}
+
+.tk-cd-sum {
+  margin: 6px 0 0;
+  color: var(--text-muted);
+  font-size: 13.5px;
+}
+
+.tk-cd-over {
+  color: var(--bad);
+  font-weight: 600;
+}
+
+.tk-cd-close {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 40px;
+  height: 40px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 24px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.tk-cd-close:hover {
+  background: var(--hover-bg);
+  color: var(--text);
+}
+
+.tk-cd-body {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+  padding: 12px 12px 16px;
+}
+
+.tk-cd-add {
+  margin-bottom: 8px;
+}
+
+.tk-cd-group-head {
+  display: flex;
+  gap: 6px;
+  margin: 16px 4px 4px;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.tk-cd-group[data-group="overdue"] .tk-cd-group-head {
+  color: var(--bad);
+}
+
+.tk-cd-group[data-group="page"] .tk-cd-group-head {
+  color: var(--text);
+}
+
+.tk-cd-group-n {
+  font-weight: 500;
+  color: var(--text-muted);
+}
+
+.tk-cd-empty {
+  padding: 24px 12px;
+  text-align: center;
+  color: var(--text);
+}
+
+.tk-cd-empty p {
+  margin: 0;
+}
+
+.tk-cd-empty-sub {
+  margin-top: 6px !important;
+  color: var(--text-muted);
+  font-size: 13.5px;
+}
+
+.tk-cd-foot {
+  flex: none;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+  padding: 10px 16px;
+  border-top: 1px solid var(--border);
+  background: var(--surface);
+  font-size: 13.5px;
+}
+
+.tk-cd-links {
+  display: flex;
+  gap: 14px;
+  margin-left: auto;
+}
+
+.tk-cd-links a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 34px;
+  color: var(--text);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.tk-cd-hint {
+  flex-basis: 100%;
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 12.5px;
+}
+
+/* ---- Panel on a phone: a bottom sheet --------------------------------------------- */
+
+@media (max-width: 640px) {
+  .tk-cd {
+    top: auto;
+    left: 0;
+    right: 0;
+    width: 100vw;
+    max-height: 85vh;
+    max-height: 85dvh;
+    border-radius: 16px 16px 0 0;
+    border-left: 0;
+    border-top: 1px solid var(--border);
+    padding-bottom: env(safe-area-inset-bottom);
+    animation-name: tk-cd-up;
+  }
+
+  .tk-cd-grab {
+    display: block;
+    flex: none;
+    width: 36px;
+    height: 4px;
+    margin: 8px auto 0;
+    border-radius: 2px;
+    background: var(--border);
+  }
+
+  .tk-cd-head {
+    padding-top: 10px;
+  }
+
+  .tk-cd-close {
+    top: 4px;
+    right: 8px;
+    width: 44px;
+    height: 44px;
+  }
+
+  .tk-cd-links a,
+  .tk-cd-foot .tk-switch {
+    min-height: 44px;
+  }
+}
+
+@keyframes tk-cd-up {
+  from { transform: translateY(24px); opacity: 0; }
+  to { transform: none; opacity: 1; }
+}
+
+/* ---- Page behind the panel -------------------------------------------------------- */
+
+body.tk-cd-open {
+  overflow: hidden;
+}
+
+body.tk-cd-open .si-launcher {
+  display: none;
+}
+
+@media (min-width: 641px) {
+  body.tk-cd-open .toast-stack {
+    right: calc(min(420px, 100vw) + 24px);
+  }
+}
+
+@media (max-width: 640px) {
+  body.tk-cd-open .toast-stack {
+    top: calc(env(safe-area-inset-top) + 64px);
+    bottom: auto;
+    left: 16px;
+    right: 16px;
+    max-width: none;
+  }
+}
+
+/* ---- Follow my client (the Tasks window) ------------------------------------------- */
+
+.tk-sbar-follow {
+  color: var(--sidebar-text-active, var(--sidebar-text));
+}
+
+.tk-sbar-follow .tk-switch-track {
+  box-shadow: inset 0 0 0 1px var(--sidebar-text-muted, var(--sidebar-text));
+}
+
+.tk-sbar-follow .tk-switch-label {
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.tk-sbar-follow-wrap {
+  display: inline-flex;
+  align-items: center;
+}
+
+@media (max-width: 359px) {
+  .tk-sbar-follow .tk-switch-label {
+    position: absolute !important;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+}

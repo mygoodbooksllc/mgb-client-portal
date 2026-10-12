@@ -2,7 +2,7 @@
 title: Can I keep Tasks in its own window?
 section: Daily work
 audience: staff
-keywords: [own window, open in own window, pop out, popout, slim window, dock, dock in portal, side by side, quickbooks, second monitor, /tasks, tasks address, shell, standalone, pop-up blocked, sync between windows]
+keywords: [own window, open in own window, pop out, popout, slim window, dock, dock in portal, side by side, quickbooks, second monitor, /tasks, tasks address, shell, standalone, pop-up blocked, sync between windows, follow my client, follow]
 sort: 116
 ---
 Yes. Tasks can sit in a slim window of its own, for example next to QuickBooks or on a second screen, while the portal stays open in your main window.
@@ -24,6 +24,13 @@ You can also type the portal's address with `/tasks` at the end (for example in 
 The slim window and the portal stay in sync: a change in one shows in the other within a moment. Opening a client from the slim window opens that client's pages with the full portal around them.
 
 Tours and the first-30-days tips don't show in the slim window. Use the Tasks page inside the portal for those.
+
+### Follow my client
+
+- The **Follow my client** switch is in the slim window's top bar. On a phone or tablet it's in the account menu.
+- When it's on, opening a client in the portal switches the slim window to that client's list.
+- Staff pages leave it on the last client.
+- It's remembered in this browser, and both windows need to be open in the same browser.
 
 ### Dock it back
 

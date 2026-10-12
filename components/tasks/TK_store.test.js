@@ -157,6 +157,27 @@ t("upsert keeps the newer row; older ignored; equal taken without churn", () => 
   done();
 });
 
+t("clientcd:<id> (the client panel's list) follows a client's tasks like client:<id>", () => {
+  const x = task({ client_id: "7" });
+  const other = task({ client_id: "8" });
+  let s = reduceAll(null, [
+    { type: "me", email: ME },
+    { type: "listLoaded", key: "client:7", tasks: [x] },
+    { type: "listLoaded", key: "clientcd:7", tasks: [x] },
+  ]);
+  // A new task for client 7 lands in both lists; one for client 8 in neither.
+  const added = task({ client_id: "7" });
+  s = S.TK_reduce(s, { type: "upsert", task: added });
+  s = S.TK_reduce(s, { type: "upsert", task: other });
+  assert.ok(s.lists["clientcd:7"].ids.indexOf(added.id) >= 0);
+  assert.ok(s.lists["client:7"].ids.indexOf(added.id) >= 0);
+  assert.ok(s.lists["clientcd:7"].ids.indexOf(other.id) < 0);
+  // Loading the panel's list never replaces the full list.
+  s = S.TK_reduce(s, { type: "listLoaded", key: "clientcd:7", tasks: [x] });
+  assert.ok(s.lists["client:7"].ids.indexOf(added.id) >= 0);
+  done();
+});
+
 t("upsert of a deleted row removes it from lists, keeps it in tasks", () => {
   const x = task({ client_id: "7" });
   let s = reduceAll(null, [

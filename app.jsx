@@ -14053,7 +14053,7 @@ function DeveloperToolsPage({ staffUser, readOnly }) {
   function resetLocalState() {
     if (
       !window.confirm(
-        "Reset this browser's local MyGoodBooks state (theme, tab layout, dashboard/Financial Overview widget layouts, cash-floor alerts, per-person access overrides, the tour and first sign-in prompts, dismissed page hints, recent clients, the tab last open on each client, Tasks views and folded groups, ...)? This only affects this browser — nothing in Supabase is touched. The page will reload.",
+        "Reset this browser's local MyGoodBooks state (theme, tab layout, dashboard/Financial Overview widget layouts, cash-floor alerts, per-person access overrides, the tour and first sign-in prompts, dismissed page hints, recent clients, the tab last open on each client, Tasks views, folded groups and Follow my client, ...)? This only affects this browser — nothing in Supabase is touched. The page will reload.",
       )
     ) {
       return;
@@ -15842,6 +15842,8 @@ const USAGE_ACTION_LABELS = {
   "tasks-shortcut": "Task keyboard shortcuts used",
   "tasks-popout": "Tasks opened in its own window",
   "tasks-dock": "Tasks docked back in the portal",
+  "tasks-client-drawer": "Client task panel opened",
+  "tasks-follow": "Tasks window set to follow your client",
   "tasks-comment": "Task comments posted",
   "tasks-attach": "Files attached to tasks",
 };
@@ -26169,6 +26171,11 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
   // Staff chat drawer (components/inbox/StaffInbox.jsx): null when closed,
   // else {clientId} — the client whose threads it opens on, if any.
   const [siDrawer, setSiDrawer] = useState(null);
+  // The chat drawer and the client tasks panel share the right edge: opening
+  // chat closes the panel (TK_ClientDrawer.jsx).
+  useEffect(() => {
+    if (siDrawer && typeof TK_cdRequest === "function") TK_cdRequest("close", "chat");
+  }, [siDrawer]);
   // The person "Open client" in the inbox asked for, opened on that client's
   // Messages tab.
   const [inboxFocusEmail, setInboxFocusEmail] = useState(null);
@@ -27799,6 +27806,14 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
   // sidebar and lays the tab row across the top. A class on <html> rather
   // than on .app-shell so the sidebar's own media queries can key off it.
   const staffClientTabs = showStaffRail && !isPreviewingUser && !onStaffPage;
+  // The last client this person really had open in this session. `client`
+  // always falls back to a default, so the client tasks panel needs this to
+  // tell "never opened one" (no-client state) from "opened one, then went to a
+  // staff page". Set only while a client's pages are showing.
+  const [lastOpenedClientId, setLastOpenedClientId] = useState(null);
+  useEffect(() => {
+    if (staffClientTabs && client && client.id != null) setLastOpenedClientId(String(client.id));
+  }, [staffClientTabs, client && client.id]);
   // Admin or temporary admin, and not "viewing as" someone — the one
   // definition the rail, Today, Clients and Team all share.
   const staffIsAdmin =
@@ -28097,7 +28112,7 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
         )}
         <main className="main">
           {/* Tasks shell: the slim bar replaces the rail and the top bar. */}
-          {tkShell && <TK_StandaloneBar staffUser={staffUser} />}
+          {tkShell && <TK_StandaloneBar staffUser={staffUser} clients={visibleClients} />}
           {/* Staff top bar (components/staff/TopBar.jsx): shown wherever the
               staff sidebar is, so clients and client-user previews never see it. */}
           {showStaffTopBar && (
@@ -28407,6 +28422,13 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
               tabs). Empty on pages without tabs; CSS hides it then. */}
           <div id="app-topbar-tabs" className="app-topbar-tabs" />
           </div>
+          {/* Up-next strip for the open client (staff only). Client view pages
+              copy what the client sees, so they don't get it. */}
+          {tkHosts && !tkShell && staffClientTabs && client &&
+            STAFF_CLIENT_VIEW_PAGES.indexOf(effectivePage) < 0 &&
+            typeof TK_ClientStrip === "function" && (
+              <TK_ClientStrip client={client} isAdmin={staffIsAdmin} page={effectivePage} />
+          )}
           {/* What the client (or staff previewing as them) sees on every
               page while their bookkeeper is waiting on a document. */}
           {!NON_CLIENT_PAGES.has(effectivePage) &&
@@ -29123,6 +29145,18 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
           canManageTemplates={staffIsAdmin}
           canCreateTemplates={staffUser.role === "admin"}
           onOpenTemplates={() => setPage("task-templates")}
+        />
+      )}
+      {/* The client tasks panel: t, the strip and the top bar's Tasks pill open it. */}
+      {tkHosts && !tkShell && typeof TK_ClientDrawerHost === "function" && (
+        <TK_ClientDrawerHost
+          staffUser={staffUser}
+          clients={visibleClients}
+          isAdmin={staffIsAdmin}
+          openClientId={staffClientTabs && client ? client.id : null}
+          lastClientId={lastOpenedClientId}
+          page={effectivePage}
+          available={!isPreviewingUser}
         />
       )}
       {tkHosts && typeof TK_QuickAddHost === "function" && (

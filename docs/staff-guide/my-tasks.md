@@ -2,7 +2,7 @@
 title: How do I add and manage my tasks?
 section: Daily work
 audience: staff
-keywords: [my tasks, tasks, work, tasks tab, task, reminder, to do, due, overdue, today, this week, later, waiting on client, done, show done, show older, today group, view, quick add, q, add task, at mention, hashtag, priority, high, low, business days, bd5, keyboard, shortcuts, j k, status, assign, by client, save as template, suggest template, checklist, subtasks, tasks page, lists]
+keywords: [my tasks, tasks, work, tasks tab, task, reminder, to do, due, overdue, today, this week, later, waiting on client, done, show done, show older, today group, view, quick add, q, add task, at mention, hashtag, priority, high, low, business days, bd5, keyboard, shortcuts, j k, status, assign, by client, save as template, suggest template, checklist, subtasks, tasks page, lists, client task panel, t]
 sort: 110
 ---
 **My Tasks** is one list of everything assigned to you, across every client and project. Open it from the **Tasks** button in the top bar (`#/tasks/my`), or from **Work › Tasks** (`#/work/tasks`), which shows the same list inside Work. The Tasks page also has a sidebar with every client list and project; see [How do client task lists and projects work?](#/help/task-lists-and-projects).
@@ -64,6 +64,7 @@ To add a reminder instead, use ⌘K → **New reminder**, or set **Type** to **R
 | **s** | Change status |
 | **a** | Assign |
 | **q** | Add a task (works on every staff page) |
+| **t** | Open or close the client's task panel (works on every staff page) |
 | **Esc** | Close the details |
 | **?** | Show these shortcuts |
 
@@ -81,9 +82,11 @@ See [How do recurring tasks from templates work?](#/help/task-templates).
 ### Elsewhere in the portal
 
 - **Today**'s **Tasks due today** and **Overdue** tiles count your tasks, and due ones show in **Needs you**, where **Done** checks them off.
-- The **Tasks** button in the top bar shows how many open tasks you have, with overdue ones in a red number.
+- The **Tasks** button in the top bar shows how many open tasks you have, with overdue ones in a red number. With a client open, it opens that client's task panel instead.
 - Search (**Ctrl+K** / **⌘K**) finds tasks by their name, description and comments. A match inside a comment says *In a comment:*. Click a result to open the task.
 - A client's Overview has a **Tasks for this client** card. See [What's on a client's Overview?](#/help/client-overview).
+
+On a client's pages, a line under the tabs shows the next task, and **t** opens all of the client's tasks in a side panel. See [How do I see a client's tasks without leaving the page?](#/help/client-tasks-drawer).
 
 ### Troubleshooting
 

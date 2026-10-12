@@ -96,6 +96,8 @@
 //                    that it sits behind the Lists button
 //   tk-popout        Open in own window (TK_App.jsx), not on touch devices,
 //                    compact widths or in the shell
+//   tk-strip         the client task strip under a client's tabs
+//                    (TK_ClientDrawer.jsx), staff only
 // A role-tour step can `go` somewhere first (NAV_go to a place and tab, or
 // TOUR_openClient to a client's Overview (or another tab) through the
 // #/client/<id>/overview
@@ -1269,11 +1271,19 @@ function TOUR_tasksSteps() {
         "Open in own window puts Tasks in a slim window beside your work. Dock in portal brings it back here.",
     },
     {
+      id: "tk-client",
+      title: "Each client's tasks",
+      body: () =>
+        touch
+          ? "On a client's tabs, a line under the tabs shows the next task. All tasks opens every task for that client."
+          : "On a client's tabs, a line under the tabs shows the next task. Press t, or click Tasks in the top bar, for every task for that client.",
+    },
+    {
       id: "tk-keys",
       when: () => !touch,
       title: "Keys",
       body: () =>
-        "On a list, j and k move, Enter opens a task, x marks it done and s changes its status. Press ? on Tasks for the whole list. They pause while you type.",
+        "On a list, j and k move, Enter opens a task, x marks it done and s changes its status. t opens a client's tasks from anywhere. Press ? on Tasks for the whole list. They pause while you type.",
     },
     {
       id: "done",

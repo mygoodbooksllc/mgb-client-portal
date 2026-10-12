@@ -89,7 +89,7 @@ Full rationale per asset is in B3. Corrections applied there: personal checklist
 - N.4 Every screen works at phone width
 - N.5 Bump window.MGB_VERSION
 
-**Phase 2** (23 rows). Brief: recurring engine, review loop, Ask-client. Gate: Asana import and parallel run start here, which needs a real client roster (today 2 test-only clients) and the phase-2 SQL helpers (4.3) first. Pulled forward from phase 3 with reason: 7.2 immediate mentions/send-backs (the review loop needs them), 10.4 review queue, 10.5 waiting list, 9.1 manual OOO reassignment.
+**Phase 2** (25 rows: the 23 from the audit plus 14.1 and 14.2, added with the 2026-10-11b client tasks panel build). Brief: recurring engine, review loop, Ask-client. Gate: Asana import and parallel run start here, which needs a real client roster (today 2 test-only clients) and the phase-2 SQL helpers (4.3) first. Pulled forward from phase 3 with reason: 7.2 immediate mentions/send-backs (the review loop needs them), 10.4 review queue, 10.5 waiting list, 9.1 manual OOO reassignment.
 - 4.1 Per-client template built on the MGB Standard Monthly Close plus client-specific items
 - 4.2 Cadence weekly / monthly / quarterly / annual
 - 4.3 Due rules including business-day N
@@ -113,6 +113,8 @@ Full rationale per asset is in B3. Corrections applied there: personal checklist
 - 12.2 Sections -> cadence; recurring tasks -> draft templates for bookkeeper confirmation
 - 12.3 12 months of completed history; merge duplicate onboarding projects
 - 12.4 Parallel run with Asana through the November close
+- 14.1 Fold (owner decision 2026-10-11): fold the Close tab checklist and document requests into tasks, as this audit already plans, so ticking a Close step or finishing a document request is ticking the task. One checklist, no sync triggers. The link is the task's own record (a `source_ref` back to the step or request, a database change), never a title match. Review still applies: a task that needs review goes to Ready for review, not Done. Every auto-complete is logged in activity and can be undone.
+- 14.2 Suggest (owner decision 2026-10-11): when the only evidence is inferred from QuickBooks `close_checks` (QBO stays read-only), suggest instead of ticking, as one line with one click: "Looks done. QuickBooks shows ... [Mark done]". Same rules as 14.1: never match on title, review still applies, logged in activity, can be undone.
 
 **Phase 3** (13 rows). Brief: Board, Calendar, Inbox, automations, dashboards. Note: 4.4 generated-task notices depend on tk_inbox_items (7.1); either ship the table in phase 2 or accept that phase-2 generated tasks notify only through the existing task_due email.
 - 3.3 Board view

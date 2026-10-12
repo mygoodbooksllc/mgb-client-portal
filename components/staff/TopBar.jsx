@@ -124,6 +124,10 @@ function TB_tkCanOpen() {
 function TB_tkQuickReady() {
   return window.TK_quickAddReady === true;
 }
+// TK_ClientDrawerHost is mounted and can open the client tasks panel.
+function TB_tkCdReady() {
+  return window.TK_clientDrawerReady === true;
+}
 function TB_tkQuickAdd(detail) {
   window.dispatchEvent(new CustomEvent("tk:quick-add", { detail: detail || {} }));
 }
@@ -1091,11 +1095,21 @@ function TB_Bell({ clients, items, me, isAdmin, page }) {
 }
 
 // ---------------------------------------------------------------------------
-// 5. Tasks badge (opens My Tasks: #/tasks/my, or Work › Tasks before the
-// Tasks tables exist)
+// 5. Tasks badge (opens the open client's tasks panel when a client is open,
+// else My Tasks: #/tasks/my, or Work › Tasks before the Tasks tables exist).
+// The counts stay "mine" either way.
 // ---------------------------------------------------------------------------
-function TB_TasksBadge({ items, me }) {
+function TB_TasksBadge({ items, me, client }) {
   const today = todayLocal();
+  // TK_ClientDrawerHost may mount after this renders: follow its state event.
+  const [cd, setCd] = useState(TB_tkCdReady);
+  useEffect(() => {
+    const on = () => setCd(TB_tkCdReady());
+    window.addEventListener("tk:client-drawer-state", on);
+    on();
+    return () => window.removeEventListener("tk:client-drawer-state", on);
+  }, []);
+  const toClient = !!(client && cd);
   // The Tasks module's rules when it's loaded: assigned to me (or mine with
   // nobody assigned), not done or deleted; waiting on the client is never late.
   const tk = typeof TK_isMine === "function" && typeof TK_isOpen === "function" && typeof TK_isOverdue === "function";
@@ -1106,9 +1120,23 @@ function TB_TasksBadge({ items, me }) {
   );
   const overdue = mine.filter((t) => (tk ? TK_isOverdue(t, today) : t.due_date && t.due_date < today)).length;
   const label = `Tasks: ${mine.length} open` + (overdue ? `, ${overdue} overdue` : "");
-  const openTasks = () => TB_go(typeof TK_App === "function" && TB_tkSchemaOk() ? "#/tasks/my" : "#/work/tasks");
+  const full = toClient ? `${label}. Opens ${client.name}'s tasks.` : label;
+  const openTasks = () => {
+    if (toClient && TB_tkCdReady()) {
+      window.dispatchEvent(new CustomEvent("tk:client-drawer", { detail: { action: "open", from: "pill" } }));
+      return;
+    }
+    TB_go(typeof TK_App === "function" && TB_tkSchemaOk() ? "#/tasks/my" : "#/work/tasks");
+  };
   return (
-    <button type="button" className="tb-item tb-pill-btn tb-tasks" onClick={openTasks} aria-label={label} title={label}>
+    <button
+      type="button"
+      className="tb-item tb-pill-btn tb-tasks"
+      onClick={openTasks}
+      aria-label={full}
+      title={full}
+      aria-haspopup={toClient ? "dialog" : undefined}
+    >
       <ChecklistIcon width="16" height="16" strokeWidth="1.8" />
       <span className="tb-tasks-label">Tasks</span>
       <span className="tb-count">{mine.length}</span>
@@ -1594,7 +1622,7 @@ function TB_StaffTopBar({
       <div className="tb-right">
         {isRealAdmin && own && <TB_ThrottleBadge />}
         {own && <TB_Bell clients={clients} items={items} me={me} isAdmin={isAdmin} page={page} />}
-        {own && <TB_TasksBadge items={items} me={me} />}
+        {own && <TB_TasksBadge items={items} me={me} client={client} />}
         <TB_QuickAdd client={client} />
         <TB_HelpButton page={page} isAdmin={isAdmin} />
         {typeof FB_FeedbackHost === "function" && <FB_FeedbackHost clientId={client ? client.id : null} />}

@@ -363,6 +363,16 @@ const TIPS_CATALOG = [
     ready: () => !TIPS_touch(),
   },
   {
+    id: "tk-strip",
+    roles: "all",
+    match: (r) => r.client && ["client-overview", "messages", "documents", "bank", "client-close", "reports", "sop"].indexOf(r.page) >= 0,
+    target: "tk-strip",
+    snug: true,
+    text: "Your next task for this client. Click All tasks, or press t, to see them all without leaving the page.",
+    slug: "client-tasks-drawer",
+    ready: () => !!document.querySelector('[data-tour="tk-strip"]'),
+  },
+  {
     id: "work-close-notes",
     roles: "all",
     match: (r) => r.page === "work" && TIPS_tab("wk-tab-close"),

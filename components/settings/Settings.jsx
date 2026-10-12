@@ -1200,7 +1200,7 @@ function ST_StaffSettingsPage({
             </ST_Card>
           )}
           {key === "shortcuts" && typeof TK_KEYMAP !== "undefined" && Array.isArray(TK_KEYMAP) && TK_KEYMAP.length > 0 && (
-            <ST_Card title="Tasks shortcuts" sub="Single keys for task lists and a task's details, plus q to add a task from anywhere. They don't fire while you're typing.">
+            <ST_Card title="Tasks shortcuts" sub="Single keys for task lists and a task's details, plus q to add a task and t to open a client's tasks from the portal (not the Tasks window). They don't fire while you're typing.">
               <dl className="st-shortcuts">
                 {TK_KEYMAP.map((k) => (
                   <React.Fragment key={k.key + ":" + k.label}>

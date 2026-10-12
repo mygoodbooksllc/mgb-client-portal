@@ -699,6 +699,7 @@ var TK_KEYMAP = [
   { key: "s", display: "s", label: "Change status", scope: "any", scopes: ["list", "drawer"] },
   { key: "a", display: "a", label: "Assign", scope: "any", scopes: ["list", "drawer"] },
   { key: "q", display: "q", label: "Add a task", scope: "any", scopes: ["global"] },
+  { key: "t", display: "t", label: "Open or close this client's tasks", scope: "any", scopes: ["global"] },
   { key: "Escape", display: "Esc", label: "Close details", scope: "drawer", scopes: ["drawer"] },
   { key: "?", display: "?", label: "Show these shortcuts", scope: "any", scopes: ["list", "drawer"] },
 ];

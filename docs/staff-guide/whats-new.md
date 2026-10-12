@@ -2,10 +2,17 @@
 title: What's new
 section: Getting started
 audience: staff
-keywords: [tasks, my tasks, task details, quick add, q, projects, sops project, 90 day, open to all staff, own window, dock in portal, notes and sops, mentions, task status, ready for review, restore task, tasks tour, board packet, presentation view, report builder, client help menu, question mark menu, tips, tips while you learn, hints, first 30 days, learning, pro tour, upsell, upgrade, basic clients, bookkeeper tour, temporary admin tour, client tour, tour versions, admin tour, account manager tour, inventory, tech, equipment, what's new, whats new, new, changes, updates, release notes, changelog, navigation, redesign, five places, client setup, close tab, client close, last tab, client view, bank on basic, open for this client, deep links]
+keywords: [tasks, my tasks, task details, quick add, q, projects, sops project, 90 day, open to all staff, own window, dock in portal, notes and sops, mentions, task status, ready for review, restore task, tasks tour, board packet, presentation view, report builder, client help menu, question mark menu, tips, tips while you learn, hints, first 30 days, learning, pro tour, upsell, upgrade, basic clients, bookkeeper tour, temporary admin tour, client tour, tour versions, admin tour, account manager tour, inventory, tech, equipment, what's new, whats new, new, changes, updates, release notes, changelog, navigation, redesign, five places, client setup, close tab, client close, last tab, client view, bank on basic, open for this client, deep links, client task panel, up next, t, for this page, follow my client]
 sort: 15
 ---
 The newest changes to the staff side, newest first. For how anything works, search this guide or click **?** → **Help for this page**.
+
+### 2026-10-11: A client's tasks, one key away
+
+- **Up next**: on a client's tabs, a line under the tabs shows how many tasks are open and overdue and the next one. Tick it off or click it for details.
+- **The client task panel**: press **t** (or click **All tasks**, or **Tasks** in the top bar with a client open) for every open task for the client, grouped by when it's due, with an add box. It stays open while you move between tabs. See [How do I see a client's tasks without leaving the page?](#/help/client-tasks-drawer).
+- **For this page**: the panel puts tasks that fit the tab you're on at the top, such as reconcile tasks on Bank.
+- **Follow my client**: the Tasks window can follow the client you open in the portal. See [Can I keep Tasks in its own window?](#/help/tasks-own-window).
 
 ### 2026-10-11: Tasks, rebuilt
 

@@ -38,6 +38,8 @@ Not in Phase 1, coming later: board and calendar views, saved filters, the recur
 
 Owner decisions this spec relies on: D1 (any active admin reviews; the Account Manager is the default reviewer from Phase 2), D2 (calendar days), D3 (client access rules), D4 (few or no Asana add-ons), D5 (keep history; hide done tasks older than 12 months), D6 (the Today group is tentative: a view setting can merge it into This week), D9 (Phase 1 is not trimmed), D10 (Owners and Directors open to all admins), D11 (/tasks is a secondary shell). Saved filter presets, when they come, stay personal.
 
+Added after Phase 1 (2026-10-11b): the client tasks strip and panel. Its Phase 2 follow-ups, fold and suggest (auto-tick), are rows 14.1 and 14.2 in `docs/tasks-module-audit.md`.
+
 One default this spec picks for the owner to confirm (Part G, item 3): SOPs and 90 Day start open to all active staff. Directors and Owners stay admin-only. Switching a project's "Open to all staff" setting changes this without a code change.
 
 What the owner checks before Phase 1 is called done is listed in **Part G**.

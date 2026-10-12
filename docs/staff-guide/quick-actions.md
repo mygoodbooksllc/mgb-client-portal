@@ -7,7 +7,7 @@ sort: 210
 ---
 With a client open, click **+** in the dark bar at the top of the page. The menu is headed **Add for {client}**. Clients never see it.
 
-On a staff page with no client open (Today, Work, Team and so on), **+** says **Add** and has just **New task**. You can also press **q** on any staff page, as long as you aren't typing in a box, to add a task.
+On a staff page with no client open (Today, Work, Team and so on), **+** says **Add** and has just **New task**. You can also press **q** on any staff page, as long as you aren't typing in a box, to add a task. With a client's task panel open, **q** adds the task to that client.
 
 | Menu item | What it does |
 |---|---|

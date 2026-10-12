@@ -35,10 +35,10 @@ because some work happens in Claude Code web sessions. Run `git fetch` and compa
   run: `auth-config.js`, `qbo-config.js`, `components/auth/*`, `data.js`,
   `components/dashboard/WidgetDrawer.jsx`, `components/daily-close/*`, `components/qbo/mapQboToClient.js`, `components/pro/*`,
   `components/inbox/StaffInbox.jsx`, `components/staff/*` (ending with `StaffGuide.jsx` and
-  `TopBar.jsx`), a few `components/client/*` files, the Tasks module `components/tasks/*` (19
+  `TopBar.jsx`), a few `components/client/*` files, the Tasks module `components/tasks/*` (21
   files, `TK_logic.js` first and `TK_App.jsx` last, right after `components/client/QboGiving.jsx`),
   `components/tour/Tour.jsx` and `Tips.jsx`, then `app.jsx`. The Tasks stylesheets
-  `components/tasks/tk-views.css` and `tk-drawer.css` are written right after
+  `components/tasks/tk-views.css`, `tk-drawer.css` and `tk-client.css` are written right after
   `components/tour/tips.css`. All files start downloading at once, but they compile in this
   order.
 - **Shared global scope.** There are no imports. Every file shares `window`, so something
@@ -83,7 +83,7 @@ because some work happens in Claude Code web sessions. Run `git fetch` and compa
 | `components/inbox/` | `StaffInbox.jsx` (the unified staff inbox, the staff chat drawer and launcher, and `SI_useClientMessaging` for the client Messages page) and `staff-inbox.css`. Loaded before `app.jsx`; every name is `SI_`/`si`/`StaffInbox` prefixed. Without it, `app.jsx` falls back to the old Team Chat page and sample client threads. |
 | `components/staff/` | Staff-only features, each with its own CSS and a name prefix (`CS_` client switcher, `HLP_` Help, `TB_` top bar, ...). `TopBar.jsx` + `top-bar.css` is the staff top bar (see "Staff top bar" under Main features). All loaded before `app.jsx`. |
 | `components/files/` | `DriveFiles.js`: browser helpers for client files in Google Drive (`DRV_` prefix), calling the `drive-files` edge function. Holds the one fallback switch `DRV_STORAGE_FALLBACK`. Loaded before `StaffInbox.jsx` and `app.jsx`. |
-| `components/tasks/` | The Tasks module (2026-10-11; spec `docs/tasks-phase1-spec.md`). Every name is `TK_`/`tk-` prefixed. Logic with node tests: `TK_logic.js` (statuses, grouping, the quick-add parser, keys), `TK_viewLogic.js`, `TK_drawerLogic.js`, `TK_store.js`. Data: `TK_api.js` (Supabase calls), `TK_sync.js` (Realtime plus a `BroadcastChannel` between windows). Views: `TK_App.jsx` (the `#/tasks/...` page and the `/tasks` shell), `TK_Sidebar.jsx`, `TK_MyTasks.jsx`, `TK_List.jsx`, `TK_ClientHeader.jsx`, `TK_TaskRow.jsx`, `TK_StandaloneBar.jsx`, `TK_keys.jsx`. Task details: `TK_Drawer.jsx`, `TK_QuickAdd.jsx`, `TK_Comments.jsx`, `TK_Attachments.jsx`, `TK_Activity.jsx`. Styles: `tk-views.css`, `tk-drawer.css`. Loaded after `components/client/QboGiving.jsx` and before `components/tour/Tour.jsx`. |
+| `components/tasks/` | The Tasks module (2026-10-11; spec `docs/tasks-phase1-spec.md`). Every name is `TK_`/`tk-` prefixed. Logic with node tests: `TK_logic.js` (statuses, grouping, the quick-add parser, keys), `TK_viewLogic.js`, `TK_drawerLogic.js`, `TK_clientLogic.js` (the client strip and panel rules), `TK_store.js`. Data: `TK_api.js` (Supabase calls), `TK_sync.js` (Realtime plus a `BroadcastChannel` between windows). Views: `TK_App.jsx` (the `#/tasks/...` page and the `/tasks` shell), `TK_Sidebar.jsx`, `TK_MyTasks.jsx`, `TK_List.jsx`, `TK_ClientHeader.jsx`, `TK_ClientDrawer.jsx` (the client task strip and panel, and Follow my client), `TK_TaskRow.jsx`, `TK_StandaloneBar.jsx`, `TK_keys.jsx`. Task details: `TK_Drawer.jsx`, `TK_QuickAdd.jsx`, `TK_Comments.jsx`, `TK_Attachments.jsx`, `TK_Activity.jsx`. Styles: `tk-views.css`, `tk-drawer.css`, `tk-client.css`. Loaded after `components/client/QboGiving.jsx` and before `components/tour/Tour.jsx`. |
 | `components/qbo/` | `mapQboToClient.js` converts QuickBooks table rows into the shape the pages use. Its test is `mapQboToClient.test.js`. |
 | `supabase/*.sql` | Every database change: tables, row-level security (RLS) policies, functions, cron jobs. The folder is flat, one file per change. |
 | `supabase/functions/` | Edge functions: `qbo-callback`, `qbo-refresh-token`, `qbo-sync`, `invite-client-user` |
@@ -308,7 +308,7 @@ because some work happens in Claude Code web sessions. Run `git fetch` and compa
     `TOUR_startStaff()` or `"staff"` still start it), **Admin** (`TOUR_adminSteps`, `adminTour`),
     **Temporary admin** (`TOUR_tempAdminSteps`, `tempAdminTour`), **Account manager**
     (`TOUR_amSteps`, `amTour`) and **Tasks** (`TOUR_tasksSteps`, `tasksTour`, 2026-10-11: My Tasks,
-    status, lists, own window and keys on `#/tasks/my`; listed once `TK_store` reports schema
+    status, lists, own window, each client's tasks and keys on `#/tasks/my`; listed once `TK_store` reports schema
     `ok`, never auto-starts because it isn't in `TOUR_STAFF_AUTO_ORDER`). Each saves `{ status, at }` in user settings (the temporary admin tour
     also saves `until`, the grant's expiry, so a later grant starts it again).
   - **Staff tour ctx and order:** `TOUR_StaffRoot` builds `isAdmin` (real admin), `isBookkeeper`,
@@ -582,16 +582,57 @@ because some work happens in Claude Code web sessions. Run `git fetch` and compa
     New reminder. `TK_parseQuickAdd` reads `@person`, `#client`, `!high`/`!low`, and dates
     (`today`, `tomorrow`, weekdays, `next week`, `eom`, `in N days`, `+Nd`, `+Nw`, `+Nbd`,
     `bdN`, `M/D`, `YYYY-MM-DD`). Calendar days unless a business-day token is typed.
-  - **Keys** (`TK_keys`, `TK_KEYMAP`): j/k, Enter, x, s, a, q, Esc, ?. Settings › Shortcuts has a
-    Tasks shortcuts card.
+  - **Client tasks (2026-10-11b)** (`TK_ClientDrawer.jsx`, `TK_clientLogic.js`, `tk-client.css`;
+    staff only, so nothing renders for `clientPortalUser`, `impersonating` or `isPreviewingUser`):
+    - **Strip** (`TK_ClientStrip`): app.jsx mounts it right under `.app-topbar` (below the client
+      tabs) for an open client, never on the Client view pages (`STAFF_CLIENT_VIEW_PAGES`). It
+      shows "{n} open · {m} overdue" and the next task (`TK_cdSummary`: it prefers a task that fits the
+      page, then overdue first, then soonest due, skipping waiting and in-review; no tick when a
+      non-admin's next task is already in review); the tick
+      goes through `TK_vComplete`, so the review gate and its toast stay in `TK_api`.
+    - **Panel** (`TK_ClientDrawerHost`, mounted once by App beside `TK_DrawerHost`;
+      `TK_ClientDrawerPanel`): a right slide-out (a bottom sheet at 640px and under) at z 1840,
+      under the task details (1850), so a task opened from it stacks on top and the panel is
+      `inert` meanwhile. It reads its own `clientcd:<id>` list of that client (the store
+      matches lists by key prefix, so live updates just arrive) and filters on the client side
+      (no notes, no deleted, done only with Show done). It lists every open task, with no cap.
+      It stays open across hash changes and follows the client. On a staff page it shows the last
+      client really opened this session (`lastOpenedClientId` in app.jsx, set only while client tabs
+      show), or the "Open a client" message when none has been. Opening it closes the chat and widget drawers (it posts
+      `tk:drawer-open` with no id), and opening chat closes it.
+    - **For this page**: `TK_CD_PAGE_RULES` maps a page to sop sections, sources and whole words
+      in the task's title (never the description). A match moves the task up; it is never
+      hidden and never listed twice. Groups: For this page, Overdue, Today, This week, Later,
+      Waiting on client, Ready for review, Done.
+    - **Top bar pill:** `TB_TasksBadge` opens the panel when a client is open and
+      `window.TK_clientDrawerReady` is true, else My Tasks.
+    - **`t`** toggles the panel from anywhere (the `TK_KEYMAP` row has scope `global`); with the
+      panel open, `q` adds a task to that client. List keys pause behind the panel
+      (`TK_vKeyCtx` counts `.tk-cd-layer`).
+    - **Events and globals:** `tk:client-drawer` (`{ action: "open" | "close" | "toggle", from }`)
+      and `tk:client-drawer-state` (`{ open, ready }`); the only new globals are
+      `window.TK_clientDrawerReady` and `window.TK_clientDrawerOpen`.
+    - **Phase 2 (not built):** auto-tick ("fold" and "suggest", audit rows 14.1 and 14.2). Fold:
+      the Close checklist and document requests become tasks, so ticking a Close step or finishing
+      a request is ticking the task (one checklist, no sync). Suggest: when the only evidence is
+      QuickBooks `close_checks`, offer "Looks done. QuickBooks shows ... [Mark done]" instead of
+      ticking. Never matched on title (needs a `source_ref` link, a database change); review still
+      applies; every auto-complete is logged and can be undone.
+  - **Keys** (`TK_keys`, `TK_KEYMAP`): j/k, Enter, x, s, a, q, t, Esc, ?. Settings › Shortcuts has
+    a Tasks shortcuts card.
   - **Own window** (`TK_popOut`, `TK_StandaloneBar`): Open in own window opens
     `/?shell=tasks#/tasks/...` in a 480×820 popup (size kept in `mgb_tk_popout_v1`); `/tasks`
     redirects there (`vercel.json`). The shell flag is `sessionStorage` `mgb_shell_v1`, per tab.
     Dock in portal posts to the opener over `TK_sync` and closes, or turns the window into the
-    full portal after 600 ms. Tours and Tips aren't mounted in the shell.
+    full portal after 600 ms. Tours and Tips aren't mounted in the shell. **Follow my client**
+    (a switch in the bar, a menu item on touch; `mgb_tk_follow_v1`, `TK_useFollowClient`): the
+    portal window posts `client-focus` over `TK_sync` (`{ clientId, at }`, a record id only,
+    never a name or an email) when a client page opens, the window gains focus, or the shell
+    sends `client-ask`; the shell checks it with `TK_cdAcceptFollow` and moves to
+    `#/tasks/c/<id>` with a replace, so an open task stays open.
   - **Elsewhere:** Today's task rows use `TK_groupMyTasks` and `TK_api.complete`; the Overview's
     Tasks for this client card opens quick add and the drawer and links to `#/tasks/c/<client>`;
-    the top bar Tasks badge opens `#/tasks/my`; ⌘K searches descriptions and comments
+    the top bar Tasks badge opens `#/tasks/my`, or the client's task panel with a client open; ⌘K searches descriptions and comments
     (`tk_search`, "In a comment: …"); the bell lists mentions (`ST_BELL_PREFS` `mentions`).
   - **Notes & SOPs** moved to their own Work tab (`#/work/notes`, `MyTasksPage mode="notes"`).
     The legacy By client view is no longer reachable while the Tasks tables exist, so the
@@ -600,15 +641,15 @@ because some work happens in Claude Code web sessions. Run `git fetch` and compa
   - **Schema missing:** every TK view shows "Tasks is being set up" and Work › Tasks falls back to
     the legacy `MyTasksPage`.
   - **Usage stats** (`app.jsx` labels): tab label `tasks` "Tasks"; actions `tasks-drawer`, `tasks-quick-add`,
-    `tasks-search`, `tasks-shortcut`, `tasks-popout`, `tasks-dock`, plus `tasks-comment` and
-    `tasks-attach`.
-  - **Version:** `MGB_VERSION` `2026-10-11a`, "Tasks: My Tasks, task details, projects and its own
-    window".
+    `tasks-search`, `tasks-shortcut`, `tasks-popout`, `tasks-dock`, `tasks-client-drawer`,
+    `tasks-follow`, plus `tasks-comment` and `tasks-attach`.
+  - **Version:** `MGB_VERSION` `2026-10-11b`, "Tasks: client task strip and panel, t shortcut, Follow my
+    client".
   - Local storage (all cleared by Developer Tools › Reset local state, which takes every
-    `mgb_` key): `mgb_tk_groups_v1`, `mgb_tk_view_v1`, `mgb_tk_sort_v1`, `mgb_tk_popout_v1`.
+    `mgb_` key): `mgb_tk_groups_v1`, `mgb_tk_view_v1`, `mgb_tk_sort_v1`, `mgb_tk_popout_v1`, `mgb_tk_follow_v1`.
     In `sessionStorage`, per tab and ending with it: the shell flag `mgb_shell_v1` and
     `mgb_tk_keys_used_v1` (`TK_keys.jsx`).
-  - Guide articles: `my-tasks`, `task-details`, `task-lists-and-projects`, `tasks-own-window`.
+  - Guide articles: `my-tasks`, `task-details`, `task-lists-and-projects`, `tasks-own-window`, `client-tasks-drawer`.
 - **Client SOPs**: sectioned per-client procedures with full version history
   (`client_sops`, `client_sop_history`, `save_client_sop`). Clients never see them.
 - **Inbox** (page `staff-messages`, called "Team Chat" before 2026-09-28; `components/inbox/StaffInbox.jsx`):

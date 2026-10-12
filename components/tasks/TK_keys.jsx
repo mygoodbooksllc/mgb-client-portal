@@ -12,6 +12,8 @@
 // preventDefault, so the global handler stands down and exactly one
 // tk:quick-add goes out, carrying the list's client, project and section.
 //
+// t (TK_ClientDrawerHost) toggles the client tasks panel; list keys pause while it's open.
+//
 // Globals: window.TK_listContext holds the active list's quick add context
 // (client, project and section, or null) while that list has its keys
 // enabled, and is null otherwise. Nothing reads it today; the tk:quick-add
@@ -56,7 +58,7 @@ function TK_vKeyCtx() {
   } catch (e) {}
   if (q(".tb-search-list")) menuOpen = true;
   return {
-    modalOpen: !!q(".modal-overlay"),
+    modalOpen: !!q(".modal-overlay") || !!q(".tk-cd-layer"),
     menuOpen: menuOpen,
     tourOpen: !!q(".tour-root"),
     scope: "list",
@@ -157,6 +159,8 @@ function TK_KeysSheet(props) {
   var map = typeof TK_KEYMAP !== "undefined" && Array.isArray(TK_KEYMAP) ? TK_KEYMAP : [];
   var where = function (k) {
     var s = Array.isArray(k.scopes) ? k.scopes : [k.scope];
+    // t opens the client panel, which the Tasks window doesn't have.
+    if (k.key === "t") return "In the portal (not the Tasks window)";
     if (s.indexOf("global") >= 0) return "Anywhere in the portal";
     if (s.indexOf("list") >= 0 && s.indexOf("drawer") >= 0) return "Lists and task details";
     if (s.indexOf("drawer") >= 0) return "Task details";

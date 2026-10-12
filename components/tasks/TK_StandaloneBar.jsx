@@ -2,10 +2,12 @@
 // TK_StandaloneBar.jsx — the slim bar on top of the Tasks shell (Row 11.2)
 // and the portal side of Dock.
 //
-// TK_StandaloneBar({ staffUser })
+// TK_StandaloneBar({ staffUser, clients })
 //   The gold logo badge on navy deep, the "Tasks" wordmark, a search button
-//   (#/tasks/search), "Dock in portal", and an avatar menu with "Open full
-//   portal" and "Help". While mounted it adds body.tk-shell (which hides the
+//   (#/tasks/search), the "Follow my client" switch (a menu item on touch
+//   screens; mgb_tk_follow_v1; TK_useFollowClient in TK_ClientDrawer.jsx),
+//   "Dock in portal", and an avatar menu with "Open full portal" and
+//   "Help". While mounted it adds body.tk-shell (which hides the
 //   chat button) and, when the window has an opener, remembers its size in
 //   mgb_tk_popout_v1 (debounced 500 ms).
 // TK_startDockReceiver()
@@ -158,6 +160,19 @@ function TK_StandaloneBar(props) {
   var showDock = info.hasOpener || !touch;
   var name = staffUser.name || staffUser.full_name || staffUser.email || "";
 
+  // Follow my client: the list follows the client open in the portal window.
+  var fPair = React.useState(function () {
+    return TK_vLsGet("mgb_tk_follow_v1", false) === true;
+  });
+  var followOn = fPair[0];
+  var setFollowOn = fPair[1];
+  var setFollow = function (v) {
+    TK_vLsSet("mgb_tk_follow_v1", !!v);
+    setFollowOn(!!v);
+    if (v) TK_vTrack("tasks-follow");
+  };
+  var follow = TK_useFollowClient({ enabled: followOn, clients: props.clients || [] });
+
   // body.tk-shell while the bar is up.
   React.useEffect(function () {
     try {
@@ -256,6 +271,9 @@ function TK_StandaloneBar(props) {
         </span>
         <span className="tk-sbar-word">Tasks</span>
       </a>
+      <span className="tk-sbar-live tk-sr" aria-live="polite">
+        {follow.liveText}
+      </span>
       <div className="tk-sbar-actions">
         <a
           className="tk-sbar-btn"
@@ -270,6 +288,11 @@ function TK_StandaloneBar(props) {
         >
           <TK_vIcon name="search" size={18} />
         </a>
+        {touch ? null : (
+          <span className="tk-sbar-follow-wrap" title="Show the tasks for the client open in your portal window">
+            <TK_vSwitch className="tk-sbar-follow" label="Follow my client" checked={followOn} onChange={setFollow} />
+          </span>
+        )}
         {showDock && !phone ? (
           <button type="button" className="tk-sbar-btn tk-sbar-dock" onClick={dock} title="Dock in portal">
             <TK_vIcon name="dock" size={17} />
@@ -299,6 +322,23 @@ function TK_StandaloneBar(props) {
                   }}
                 >
                   Dock in portal
+                </button>,
+              );
+            }
+            if (touch) {
+              items.push(
+                <button
+                  key="follow"
+                  type="button"
+                  role="menuitemcheckbox"
+                  aria-checked={followOn ? "true" : "false"}
+                  className="tk-menu-item"
+                  onClick={function () {
+                    close();
+                    setFollow(!followOn);
+                  }}
+                >
+                  Follow my client
                 </button>,
               );
             }

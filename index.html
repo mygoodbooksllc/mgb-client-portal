@@ -128,7 +128,7 @@
       // step to inject a real commit SHA into (see the no-bundler note up
       // top). Shown in Developer Tools' System info card so staff can confirm
       // which version they're looking at without guessing from Vercel's UI.
-      window.MGB_VERSION = { label: "2026-10-11a", note: "Tasks: My Tasks, task details, projects and its own window" };
+      window.MGB_VERSION = { label: "2026-10-11b", note: "Tasks: client task strip and panel, t shortcut, Follow my client" };
       // The two-finger touchmove preventDefault that used to sit here (a
       // pinch-zoom blocker, kept at the gesture level because touch-action
       // CSS pre-empted the dashboard drag-and-drop) is gone. It only ever
@@ -166,6 +166,7 @@
       document.write('<link rel="stylesheet" href="components/tour/tips.css?v=' + Date.now() + '">');
       document.write('<link rel="stylesheet" href="components/tasks/tk-views.css?v=' + Date.now() + '">');
       document.write('<link rel="stylesheet" href="components/tasks/tk-drawer.css?v=' + Date.now() + '">');
+      document.write('<link rel="stylesheet" href="components/tasks/tk-client.css?v=' + Date.now() + '">');
 
       // Kick every source fetch off HERE, in <head>, so all five download in
       // parallel with React/Babel/jsPDF instead of after them. Previously each
@@ -248,6 +249,7 @@
         "components/tasks/TK_sync.js",
         "components/tasks/TK_viewLogic.js",
         "components/tasks/TK_drawerLogic.js",
+        "components/tasks/TK_clientLogic.js",
         "components/tasks/TK_TaskRow.jsx",
         "components/tasks/TK_keys.jsx",
         "components/tasks/TK_Comments.jsx",
@@ -259,6 +261,7 @@
         "components/tasks/TK_Sidebar.jsx",
         "components/tasks/TK_MyTasks.jsx",
         "components/tasks/TK_List.jsx",
+        "components/tasks/TK_ClientDrawer.jsx",
         "components/tasks/TK_StandaloneBar.jsx",
         "components/tasks/TK_App.jsx",
         "components/tour/Tour.jsx",

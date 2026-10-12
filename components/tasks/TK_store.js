@@ -35,7 +35,8 @@ function TK_initialState() {
   };
 }
 
-// "mine", "client:<id>", "project:<uuid>", "person:<staff uuid>",
+// "mine", "client:<id>", "clientcd:<id>" (the client tasks panel's own copy of
+// a client's list), "project:<uuid>", "person:<staff uuid>",
 // "children:<uuid>". Accepts a ready key string, or a scope object
 // { mine } | { clientId } | { projectId } | { personId } | { parentId }.
 // Never builds a key from an email.
@@ -160,7 +161,9 @@ function TK_stMatches(state, key, task) {
   if (i < 0) return null;
   var kind = key.slice(0, i);
   var val = key.slice(i + 1);
-  if (kind === "client") return task.client_id != null && String(task.client_id) === val;
+  // "clientcd" is the client tasks panel and strip's own list of the same
+  // client (TK_ClientDrawer.jsx), so its filters never touch the full list.
+  if (kind === "client" || kind === "clientcd") return task.client_id != null && String(task.client_id) === val;
   if (kind === "project") return task.project_id != null && String(task.project_id) === val;
   if (kind === "children") return task.parent_id != null && String(task.parent_id) === val;
   if (kind === "person") {

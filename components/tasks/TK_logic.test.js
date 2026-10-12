@@ -771,7 +771,7 @@ t("shouldHandleKey tolerates odd input", () => {
 t("keymap keys are unique, scoped, labelled and have no Ctrl/Cmd combos", () => {
   const keys = L.TK_KEYMAP.map((k) => k.key);
   assert.strictEqual(new Set(keys).size, keys.length);
-  assert.deepStrictEqual(keys, ["j", "k", "Enter", "x", "s", "a", "q", "Escape", "?"]);
+  assert.deepStrictEqual(keys, ["j", "k", "Enter", "x", "s", "a", "q", "t", "Escape", "?"]);
   L.TK_KEYMAP.forEach((k) => {
     assert.ok(["list", "drawer", "any"].indexOf(k.scope) >= 0);
     assert.ok(k.label && k.display);
@@ -779,6 +779,7 @@ t("keymap keys are unique, scoped, labelled and have no Ctrl/Cmd combos", () => 
   });
   assert.strictEqual(L.TK_KEYMAP.find((k) => k.key === "Escape").display, "Esc");
   assert.deepStrictEqual(L.TK_KEYMAP.find((k) => k.key === "q").scopes, ["global"]);
+  assert.deepStrictEqual(L.TK_KEYMAP.find((k) => k.key === "t").scopes, ["global"]);
 });
 
 // ---- Edit hint

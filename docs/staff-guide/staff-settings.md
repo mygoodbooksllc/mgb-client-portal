@@ -50,7 +50,7 @@ Lists every board where you've moved or hidden cards (a client's Dashboard or Fi
 
 A list of keyboard shortcuts: **Ctrl+K** (**⌘K** on a Mac) to search, **↑** / **↓** to move through menus and results, **Enter** to open, **Esc** to close.
 
-**Tasks shortcuts** lists the single keys for task lists and a task's details: **j** / **k** to move, **Enter** to open, **x** done, **s** status, **a** assign, **q** to add a task from any staff page, **Esc** to close and **?** for the list. They don't fire while you're typing. See [How do I add and manage my tasks?](#/help/my-tasks).
+**Tasks shortcuts** lists the single keys for task lists and a task's details: **j** / **k** to move, **Enter** to open, **x** done, **s** status, **a** assign, **q** to add a task from any staff page, **t** to open a client's task panel, **Esc** to close and **?** for the list. They don't fire while you're typing. See [How do I add and manage my tasks?](#/help/my-tasks).
 
 ### Help
 
