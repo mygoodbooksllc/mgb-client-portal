@@ -18,6 +18,7 @@ const AL_ACTIONS = {
   "staff.added": "Staff added",
   "staff.removed": "Staff removed",
   "staff.role_changed": "Role changed",
+  "staff.renamed": "Name changed",
   "staff.activated": "Staff activated",
   "staff.deactivated": "Staff deactivated",
   "staff.offboarded": "Staff offboarded",
@@ -83,7 +84,7 @@ function AL_money(v) {
 function AL_summary(row) {
   const d = row.details || {};
   const a = row.action || "";
-  if (a === "staff.role_changed") return `${d.from || "?"} → ${d.to || "?"}`;
+  if (a === "staff.role_changed" || a === "staff.renamed") return `${d.from || "?"} → ${d.to || "?"}`;
   if (a === "staff.offboarded") {
     const bits = [];
     if (d.clients_reassigned) bits.push(`${d.clients_reassigned} client${d.clients_reassigned === 1 ? "" : "s"} reassigned`);

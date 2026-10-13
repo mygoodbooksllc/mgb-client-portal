@@ -1585,7 +1585,8 @@ function TP_QboMapping({ qbo, clients, staff, onBack, onChanged }) {
         <p className="tp-muted" style={{ marginTop: 12 }}>
           Hours are everything synced that isn't counted against a client or staff member yet, so
           the biggest gaps sort first. Jobs and sub-customers roll up to their parent unless mapped
-          on their own. Reset hands a row back to automatic matching by name or email.
+          on their own. Reset hands a row back to automatic matching (customers by name, people by
+          email).
         </p>
       </div>
 

@@ -696,8 +696,9 @@ because some work happens in Claude Code web sessions. Run `git fetch` and compa
 - **Manage access** (**Client setup** gear → Access and details): People, Organization tabs,
   Requests. Old links `#/client/<id>/manage-access` still open it.
 - **Settings** (`components/settings/Settings.jsx`, `settings.css`; route `#/settings`, from the
-  account menu): Profile (name, title, phone, photo in the private `staff-avatars` bucket, row in
-  `staff_profiles`), Notifications (email kinds + which bell items show), Appearance & start page,
+  account menu): Profile (name is `staff.name`, saved through the `set_my_staff_name` RPC
+  (own row only, `supabase/staff-name-canonical.sql`; `staff_profiles.display_name` is retired);
+  title, phone, photo in the private `staff-avatars` bucket, row in `staff_profiles`), Notifications (email kinds + which bell items show), Appearance & start page,
   Email signature (used by Daily Close reminders and client emails), Dashboards (reset saved
   layouts), Shortcuts, and Firm settings for admins (Team; no Staff Access). Saved per person in
   `user_settings` (`ST_store`: localStorage cache `mygoodbooks_user_settings_v1`, debounced upsert

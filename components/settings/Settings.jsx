@@ -380,7 +380,7 @@ const ST_profile = (function () {
     if (!sb) return;
     const { data, error } = await sb
       .from("staff_profiles")
-      .select("display_name, title, phone, photo_path, birthday, start_date")
+      .select("title, phone, photo_path, birthday, start_date")
       .eq("email", forEmail)
       .maybeSingle();
     if (forEmail !== email) return;
@@ -414,7 +414,6 @@ const ST_profile = (function () {
       const { error } = await sb.from("staff_profiles").upsert(
         {
           email,
-          display_name: next.display_name || null,
           title: next.title || null,
           phone: next.phone || null,
           photo_path: next.photo_path || null,
@@ -821,7 +820,31 @@ function ST_StaffProfileCard({ staffUser, readOnly }) {
     if (sb && old) sb.storage.from(ST_AVATAR_BUCKET).remove([old]).then(() => {}, () => {});
     setBusy(false);
   };
-  const name = row.display_name || (staffUser && staffUser.name) || "";
+  // Name is public.staff.name, the one name the whole app reads. Staff can't
+  // update that table, so it goes through set_my_staff_name (own row only),
+  // then AuthGate's staffUser is refreshed so the top bar updates in place.
+  // A refused name remounts the field (nameKey) so it shows the saved one.
+  const name = (staffUser && staffUser.name) || "";
+  const [nameKey, setNameKey] = React.useState(0);
+  const saveName = async (v) => {
+    const next = String(v || "").replace(/\s+/g, " ").trim();
+    if (!next) {
+      setMsg("Your name can't be empty.");
+      return setNameKey((k) => k + 1);
+    }
+    if (next === name) return;
+    const sb = window.mgbSupabase;
+    if (!sb) return setMsg("Changing your name needs a connection to the server.");
+    setMsg("Saving…");
+    const { data, error } = await sb.rpc("set_my_staff_name", { p_name: next });
+    if (error) {
+      setMsg("Couldn't save: " + (error.message || "try again"));
+      return setNameKey((k) => k + 1);
+    }
+    const saved = typeof data === "string" && data ? data : next;
+    window.dispatchEvent(new CustomEvent("mgb:staff-name-changed", { detail: { email: staffUser.email, name: saved } }));
+    setMsg("Name saved");
+  };
   return (
     <ST_Card title="Profile" sub="Clients see your name, title, phone and photo on their dashboard's bookkeeper card.">
       {readOnly && <ST_ReadOnlyNote text={readOnly} />}
@@ -841,8 +864,8 @@ function ST_StaffProfileCard({ staffUser, readOnly }) {
         </div>
       </div>
       <div className="st-grid">
-        <ST_Field label="Name">
-          <ST_AutoInput value={name} maxLength={120} disabled={!!readOnly} onSave={(v) => save({ display_name: v.trim() || null })} autoComplete="name" />
+        <ST_Field label="Name" hint="Changes it everywhere in the portal, for your team and your clients.">
+          <ST_AutoInput key={nameKey} value={name} maxLength={120} disabled={!!readOnly} onSave={saveName} autoComplete="name" />
         </ST_Field>
         <ST_Field label="Title" hint='For example "Senior bookkeeper".'>
           <ST_AutoInput value={row.title} maxLength={120} disabled={!!readOnly} onSave={(v) => save({ title: v.trim() || null })} />
@@ -1175,7 +1198,7 @@ function ST_StaffSettingsPage({
                   <div className="st-preview-label">Preview</div>
                   <div className="st-sig-preview">
                     {!!s.signature_photo && sigPhotoAvailable && (
-                      <ST_Avatar name={(prof.row && prof.row.display_name) || (staffUser && staffUser.name) || ""} url={prof.photoUrl} size={56} />
+                      <ST_Avatar name={(staffUser && staffUser.name) || ""} url={prof.photoUrl} size={56} />
                     )}
                     <pre>{s.signature}</pre>
                   </div>

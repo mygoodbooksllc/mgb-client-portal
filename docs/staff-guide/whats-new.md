@@ -2,7 +2,7 @@
 title: What's new
 section: Getting started
 audience: staff
-keywords: [install, get the app, desktop app, install tip, app, staff handbook, handbook, sign policy, countersign, policies, review quarter, previous quarter, survey drafts, finish survey later, admins follow reviews, in progress view, no clients yet, tasks, my tasks, task details, quick add, q, projects, sops project, 90 day, open to all staff, own window, dock in portal, notes and sops, mentions, task status, ready for review, restore task, tasks tour, board packet, presentation view, report builder, client help menu, question mark menu, tips, tips while you learn, hints, first 30 days, learning, pro tour, upsell, upgrade, basic clients, bookkeeper tour, temporary admin tour, client tour, tour versions, admin tour, account manager tour, inventory, tech, equipment, what's new, whats new, new, changes, updates, release notes, changelog, navigation, redesign, five places, client setup, close tab, client close, last tab, client view, bank on basic, open for this client, deep links, balance sheet, reports sent, tab row fade, client task panel, up next, t, for this page, follow my client]
+keywords: [change my name, rename, name, install, get the app, desktop app, install tip, app, staff handbook, handbook, sign policy, countersign, policies, review quarter, previous quarter, survey drafts, finish survey later, admins follow reviews, in progress view, no clients yet, tasks, my tasks, task details, quick add, q, projects, sops project, 90 day, open to all staff, own window, dock in portal, notes and sops, mentions, task status, ready for review, restore task, tasks tour, board packet, presentation view, report builder, client help menu, question mark menu, tips, tips while you learn, hints, first 30 days, learning, pro tour, upsell, upgrade, basic clients, bookkeeper tour, temporary admin tour, client tour, tour versions, admin tour, account manager tour, inventory, tech, equipment, what's new, whats new, new, changes, updates, release notes, changelog, navigation, redesign, five places, client setup, close tab, client close, last tab, client view, bank on basic, open for this client, deep links, balance sheet, reports sent, tab row fade, client task panel, up next, t, for this page, follow my client]
 sort: 15
 ---
 The newest changes to the staff side, newest first. For how anything works, search this guide or click **?** → **Help for this page**.
@@ -32,6 +32,11 @@ The newest changes to the staff side, newest first. For how anything works, sear
 - **Admins can follow a review as it happens.** Click **Open** on **Reviews → Team status** to see both forms' scores and comments so far, drafts included. The person and their reviewer (usually Jesse) still can't see each other's side until both are submitted. See [How do quarterly reviews work?](#/help/quarterly-reviews).
 - **No clients yet? Team still opens.** Staff with no clients assigned can now open Today, Inbox, Team (reviews, survey, onboarding), Settings and Help. Only client pages wait for an assignment, and that screen has a **Go to Team** button.
 - **Finish the survey later.** Survey answers now save as a draft on your device as you type, so you can leave and come back. The review form already saved drafts. See [How does the team survey work?](#/help/team-survey).
+
+### 2026-10-12: Your name, changed everywhere
+
+- **Settings › Profile › Name** now changes your name across the whole portal: the top bar, team lists and pickers, Team pages, client cards and new messages and notes. Before, most of the portal kept showing your old name. See [How do I change my settings?](#/help/staff-settings).
+- **For admins**: on the QuickBooks mapping page, people now auto-match to staff by email only, not by name. Map anyone whose QuickBooks email isn't their sign-in email by hand.
 
 ### 2026-10-11: A client's tasks, one key away
 

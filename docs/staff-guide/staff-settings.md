@@ -2,7 +2,7 @@
 title: How do I change my settings (profile, notifications, theme, signature)?
 section: Getting started
 audience: staff
-keywords: [handbook emails, tasks shortcuts, mentions on tasks, tasks tour, settings, help, tips, turn off tips, my settings, profile, photo, avatar, title, phone, notifications, email notifications, bell, dark mode, light mode, theme, match my computer, start page, signature, email signature, dashboards, reset layout, financial overview, board-ready, live report, shortcuts, keyboard, firm settings, gear]
+keywords: [change my name, rename, my name, name, handbook emails, tasks shortcuts, mentions on tasks, tasks tour, settings, help, tips, turn off tips, my settings, profile, photo, avatar, title, phone, notifications, email notifications, bell, dark mode, light mode, theme, match my computer, start page, signature, email signature, dashboards, reset layout, financial overview, board-ready, live report, shortcuts, keyboard, firm settings, gear]
 sort: 27
 ---
 Your Settings page holds everything that's just about you. To open it, click **Settings** at the bottom of the left rail, or your initials at the top right of the page, then **Settings**. (On a phone, open the menu and tap **Settings**.) Changes save on their own a moment after you make them. You'll see **Saved** at the top when they have.
@@ -12,7 +12,8 @@ Settings are saved to your account, so they follow you to any computer you sign 
 ### Profile
 
 - **Photo**: click **Add photo** (or **Change photo**) and pick a PNG, JPEG or WebP image up to 2 MB. **Remove photo** takes it off.
-- **Name**, **Title** (for example "Senior bookkeeper") and **Phone**.
+- **Name**: the name the whole portal uses for you: the top bar, team lists and pickers, Team pages, your clients' Dashboard cards and every new message or note you post. It changes everywhere as soon as it saves. Messages and notes you posted before keep the name they were sent with. Two people can't use the same name, so if yours matches a teammate's, add a middle initial or last name. Name changes show in the Audit log.
+- **Title** (for example "Senior bookkeeper") and **Phone**.
 - **Email** is your sign-in email. Ask an admin if it needs to change.
 
 Your photo shows in the top bar. Your name, title, phone and photo also show on the **Your bookkeeper** or **Your account manager** card on the Dashboard of every client you're the bookkeeper or account manager for, and your name and title show on each reply you send in a client's Messages page, so keep them up to date.

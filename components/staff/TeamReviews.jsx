@@ -149,6 +149,14 @@ function TR_useOverview() {
   return { data: TR_store.data, error: TR_store.error, loading: !TR_store.data && !TR_store.error };
 }
 
+// True while "View as" shows someone else's page. Compares by email (names
+// can change in Settings › Profile); name only for an older cached overview.
+function TR_isSomeoneElse(staffUser, me) {
+  if (!staffUser || !me) return false;
+  if (staffUser.email && me.email) return String(staffUser.email).toLowerCase() !== String(me.email).toLowerCase();
+  return !!(staffUser.name && me.name && staffUser.name !== me.name);
+}
+
 function TR_dueCount(ov) {
   return (ov && ov.due && ov.due.due_at && ov.due.count) || 0;
 }
@@ -178,7 +186,7 @@ function TR_HomeDueNotice({ staffUser }) {
   const { data } = TR_useOverview();
   const n = TR_dueCount(data);
   if (!n) return null;
-  if (staffUser && staffUser.name && data.me && data.me.name && staffUser.name !== data.me.name) return null;
+  if (TR_isSomeoneElse(staffUser, data.me)) return null;
   const items = data.due.items || [];
   return (
     <div className="card home-card home-tone-week tr-home-due" style={{ marginBottom: 20 }}>

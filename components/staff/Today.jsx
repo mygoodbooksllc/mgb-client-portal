@@ -1192,7 +1192,7 @@ function TD_TodayPage({ staffUser, clients, onNavigateToClient, onOpenClientMile
   // Hide reviews while an admin is in "View as" (the overview is theirs,
   // the page being shown is someone else's).
   const reviewData =
-    reviews && reviews.data && !(staffUser && staffUser.name && reviews.data.me && reviews.data.me.name && staffUser.name !== reviews.data.me.name) ? reviews.data : null;
+    reviews && reviews.data && !(typeof TR_isSomeoneElse === "function" && TR_isSomeoneElse(staffUser, reviews.data.me)) ? reviews.data : null;
   // Same for the handbook: hb_status is the signed-in person's, not the viewed one's.
   const handbookItems =
     handbook.me && !(staffUser && staffUser.name && handbook.me.name && staffUser.name !== handbook.me.name) ? handbook.items : TD_NONE;

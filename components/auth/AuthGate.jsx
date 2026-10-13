@@ -116,6 +116,24 @@
       return () => sub.subscription.unsubscribe();
     }, []);
 
+    // Settings › Profile › Name saves staff.name through set_my_staff_name,
+    // then fires this so the top bar and everything reading staffUser.name
+    // update without a reload. Display only; the server row is the truth.
+    useEffect(() => {
+      function onNameChanged(e) {
+        const d = (e && e.detail) || {};
+        const next = typeof d.name === "string" ? d.name.trim() : "";
+        if (!next || !d.email) return;
+        setStaffUser((prev) =>
+          prev && String(prev.email || "").toLowerCase() === String(d.email).toLowerCase() && prev.name !== next
+            ? { ...prev, name: next }
+            : prev,
+        );
+      }
+      window.addEventListener("mgb:staff-name-changed", onNameChanged);
+      return () => window.removeEventListener("mgb:staff-name-changed", onNameChanged);
+    }, []);
+
     function signIn() {
       setErrorMsg("");
       startStaffGoogleSignIn();

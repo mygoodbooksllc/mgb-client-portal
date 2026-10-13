@@ -31,7 +31,7 @@ On the **QuickBooks mapping** page:
 - **People** tab: which staff member each QuickBooks employee or vendor is.
 - Filter **Needs mapping** / **All**. The biggest gaps sort first.
 
-For each row, choose a client (**Choose a client…**) or staff member (**Choose a staff member…**), or click **Ignore** for internal or non-client work. **Reset** hands a row back to automatic matching by name or email.
+For each row, choose a client (**Choose a client…**) or staff member (**Choose a staff member…**), or click **Ignore** for internal or non-client work. **Reset** hands a row back to automatic matching: customers by name, people by email. A QuickBooks employee or vendor whose email isn't their portal sign-in email needs mapping by hand.
 
 Row statuses: **Mapped to X**, **Auto-matched to X**, **Via {parent}: X** (jobs and sub-customers roll up to their parent unless mapped on their own), **Ignored**, **Not mapped**.
 
