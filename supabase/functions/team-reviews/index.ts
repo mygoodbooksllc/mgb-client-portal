@@ -339,6 +339,28 @@ function emailFor(n: any, to: any, review: any): { subject: string; lines: strin
         cta: "Open Reviews", href: t.survey && !t.self && !t.manager && !t.sign ? `${APP_URL}#/team/reviews/survey` : reviewLink,
       };
     }
+    case "cycle_relabelled": {
+      // A cycle's quarter was corrected after the opening emails went out
+      // (2026-10-13: Q4 2026 -> Q3 2026). Queued by hand, one per person.
+      const was = p.was ? `, not ${p.was}` : "";
+      const period = p.period ? ` (${p.period})` : "";
+      const opened = p.opened_on ? ` on ${fmtDue(p.opened_on)}` : "";
+      const due = p.due_at ? ` still due ${fmtDue(p.due_at)}` : " still on the same schedule";
+      const reviewer = p.role === "reviewer";
+      return {
+        subject: reviewer ? `Correction: these are the ${cycle} reviews${was}` : `Correction: it's the ${cycle} review${was}`,
+        lines: [
+          reviewer
+            ? `Quick correction: the reviews that opened${opened} cover ${cycle}${period}${was}. Each review looks back at the quarter that just ended.`
+            : `Quick correction: the review that opened${opened} is your ${cycle} review${period}${was}. Each review looks back at the quarter that just ended.`,
+          reviewer
+            ? `Nothing else changed. Anything you've already entered is saved, and the reviews are${due}.`
+            : `Nothing else changed. Anything you've already entered in your self-review or the survey is saved, and both are${due}.`,
+        ],
+        cta: reviewer ? "Open Reviews" : "Open my review",
+        href: reviewer ? `${APP_URL}#/team/reviews` : reviewLink,
+      };
+    }
     case "locked": {
       const adminWithFile = to.role === "admin" && review?.drive_file_id;
       return {

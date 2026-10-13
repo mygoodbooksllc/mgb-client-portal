@@ -848,6 +848,9 @@ goes through `security definer` RPCs that call `tr_me()` / `tr_require_admin()` 
 - **Edge function** `supabase/functions/team-reviews/` (`verify_jwt` off, checks the caller's JWT
   or the cron bearer itself): `pdf`, `export`, `year_pdf`, `year_export`, `drive_status`, plus the
   `sweep` job that sends queued emails and retries Drive exports hourly. PDFs are drawn in `pdf.ts`.
+  Email kind `cycle_relabelled` is a correction queued by hand when a cycle's quarter is fixed after
+  the opening emails went out (payload `cycle`, `was`, `period`, `opened_on`, `due_at`, `role`
+  reviewee/reviewer); first used 2026-10-13 for Q4 2026 -> Q3 2026.
   Drive: Shared Drive id in `GOOGLE_DRIVE_REVIEWS_DRIVE_ID`, same `GOOGLE_SERVICE_ACCOUNT_JSON` as
   client files; path `{Staff Name}/{YYYY} Q{n} Review.pdf` and `{YYYY} Year-End Summary.pdf`;
   re-export updates the same file (new revision). Without the secret, reviews still lock and show
