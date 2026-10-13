@@ -2,7 +2,7 @@
 title: How does the team survey work?
 section: Daily work
 audience: staff
-keywords: [survey, team survey, morale, workload, anonymous, feedback, questions, quarterly survey, survey results]
+keywords: [survey, team survey, draft, save, finish later, come back, morale, workload, anonymous, feedback, questions, quarterly survey, survey results]
 sort: 146
 ---
 Each review cycle comes with a ten-question team survey. Open it from **Reviews → My review**. It takes about ten minutes.
@@ -10,6 +10,8 @@ Each review cycle comes with a ten-question team survey. Open it from **Reviews 
 ### Answering
 
 Answer at least 3 of the 10 questions, or as many as you like. The counter at the top shows how many you've answered, and **Submit** stays off until you reach 3. Question 6 asks for a 1 to 5 morale rating and question 8 asks whether you want more work, less or about the same; both also have a box for your reasons.
+
+You don't have to finish in one sitting. Your answers save as a draft as you type ("Draft saved on this device"), so you can leave and come back. The draft is kept in your browser, not in the app, so your anonymous answers are never stored with your name. Come back on the same computer and browser to pick up where you left off.
 
 Once you submit, your answers are read-only for that quarter.
 

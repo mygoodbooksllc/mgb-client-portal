@@ -158,10 +158,13 @@ function TR_itemsToDiscuss(rows) {
   return rows.filter(function (r) { return r.result !== "aligned"; }).length;
 }
 
-// Mirrors tr_can_see_submission in SQL (the blind rule).
+// Mirrors tr_can_see_submission in SQL (the blind rule). Admins who aren't
+// on the review watch both sides live, drafts included (owner, 2026-10-13);
+// the reviewee and the reviewer stay blind until both are submitted.
 function TR_canSeeSubmission(o) {
   if (!o.viewer) return false;
   if (o.viewer === o.author) return true;
+  if (o.viewerIsAdmin && o.viewer !== o.staffId && o.viewer !== o.reviewerId) return true;
   if (!o.thisSubmitted) return false;
   if (o.bothSubmitted) return o.viewer === o.staffId || o.viewer === o.reviewerId || !!o.viewerIsAdmin;
   if (o.kind === "manager" && o.viewerIsAdmin && o.viewer !== o.staffId) return true;

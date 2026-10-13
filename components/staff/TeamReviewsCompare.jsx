@@ -24,7 +24,9 @@ function TR_ComparePanel({ review, onChanged }) {
 
   return (
     <div className="tr-compare">
-      {!both ? (
+      {!both && isAdmin && r.my_role === "admin" ? (
+        <TR_AdminLiveView review={r} />
+      ) : !both ? (
         <div className="card">
           <h2 className="card-title">Comparison is locked</h2>
           <p className="card-subtitle">
@@ -145,6 +147,73 @@ function TR_ReasonModal({ title, intro, confirmLabel, danger, onClose, onConfirm
       <textarea id="tr-reason" className="tr-ta" value={reason} onChange={(e) => setReason(e.target.value)} />
       <TR_Error text={error} />
     </TR_Confirm>
+  );
+}
+
+// Admins who aren't on the review watch it as it happens, drafts included
+// (owner, 2026-10-13; tr_can_see_submission). The reviewee and the reviewer
+// still see the locked card until both are submitted.
+function TR_AdminLiveView({ review }) {
+  const r = review;
+  const self = r.self && r.self.visible ? r.self : {};
+  const mgr = r.manager && r.manager.visible ? r.manager : {};
+  const rFirst = TR_first(r.reviewer && r.reviewer.name) || "Reviewer";
+  const rPoss = TR_poss(r.reviewer && r.reviewer.name);
+  const staffFirst = TR_first(r.staff && r.staff.name) || "The team member";
+  const rows = TR_compareRows(self, mgr);
+  const pill = (sub) => (TR_STATUS_PILL[sub.status] || [sub.status])[0];
+  const cell = (v) => (v != null ? v : "—");
+  const open = r.status === "open";
+  return (
+    <>
+      <div className="card">
+        <h2 className="card-title">{open ? "In progress" : "Closed before both sides were in"}</h2>
+        <p className="card-subtitle">
+          {open
+            ? `As an admin you can see both sides as they’re filled in, drafts included. ${staffFirst} and ${rFirst} still can’t see each other’s scores until both are submitted.`
+            : `This review closed with only one side submitted. As an admin you can still see what each side entered.`}
+        </p>
+        <div className="tr-problems">
+          <TR_Pill tone={r.self.status === "submitted" ? "good" : "neutral"}>Self-review: {pill(r.self)}</TR_Pill>
+          <TR_Pill tone={r.manager.status === "submitted" ? "good" : "neutral"}>
+            {rPoss} review: {pill(r.manager)}
+          </TR_Pill>
+        </div>
+      </div>
+      <div className="card">
+        <h2 className="card-title">Scores so far</h2>
+        <div className="al-table-wrap">
+          <table className="tx-table tx-table-labeled tr-table">
+            <thead>
+              <tr>
+                <th scope="col">Item</th>
+                <th scope="col">Self</th>
+                <th scope="col">{rFirst}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((row) => (
+                <tr key={row.key}>
+                  <td data-label="Item">
+                    <span className="tr-row-label">
+                      {TR_sectionTitle(row.item.section)} · {row.item.kind}
+                    </span>
+                    <span className="tr-row-title">{row.item.title}</span>
+                  </td>
+                  <td data-label="Self" className="tr-num" title={TR_scaleLabel(row.self)}>
+                    {cell(row.self)}
+                  </td>
+                  <td data-label={rFirst} className="tr-num" title={TR_scaleLabel(row.manager)}>
+                    {cell(row.manager)}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <TR_CommentsCard self={self} mgr={mgr} rFirst={rFirst} />
+    </>
   );
 }
 

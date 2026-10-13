@@ -678,7 +678,7 @@ function TR_MyReviewTab({ ov }) {
   if (!c || !my) {
     return (
       <div className="card">
-        <h2 className="card-title">No review for you this quarter</h2>
+        <h2 className="card-title">No open review for you</h2>
         <p className="card-subtitle">When an admin opens a review cycle with you in it, it shows up here.</p>
       </div>
     );

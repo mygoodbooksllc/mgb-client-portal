@@ -829,8 +829,19 @@ goes through `security definer` RPCs that call `tr_me()` / `tr_require_admin()` 
   `supabase/team-reviews-2-rpcs.sql` (all `tr_*` RPCs, the email outbox and the two crons
   `team-reviews-sweep` every 5 minutes and `team-reviews-due-soon` daily). Roles come from
   `public.staff` (bookkeeper = staff, admin = admin).
-- **Blind rule** is enforced in `tr_get_review`: neither side's scores come back until both forms
-  are submitted, admins included.
+- **Blind rule** is enforced in `tr_get_review` via `tr_can_see_submission`: the reviewee and the
+  reviewer don't get each other's scores until both forms are submitted, even when either is an
+  admin. Any other admin sees both forms live, drafts included (2026-10-13,
+  `supabase/team-reviews-3-admin-live-view.sql`; the **In progress** view in
+  `TeamReviewsCompare.jsx`).
+- **Reassigning:** a former reviewer can't be put back on a review once its self-review exists
+  (`tr_reassign_reviewer`), since while off it they could see the self-review as "another admin".
+- **Drafts:** review forms autosave to `review_submissions`. Survey drafts stay in the browser
+  (`localStorage`, key `mgb-survey-draft:<user>:<cycle>`) so anonymous Q7/Q10 answers are never
+  stored next to a name; cleared on submit.
+- **Quarter:** a cycle reviews the quarter that just ended. The Open a cycle form defaults to it
+  (`TR_nextQuarter`), with the due date at the end of the next month. A cycle's quarter can't be
+  changed afterwards (`tr_cycles_guard`).
 - **Signatures** store user id, typed name, account email, UTC time, IP and user agent. IP and
   user agent are read server-side from PostgREST's `request.headers` (`cf-connecting-ip`, then
   `x-real-ip`, then the first `x-forwarded-for` entry), never from the browser.

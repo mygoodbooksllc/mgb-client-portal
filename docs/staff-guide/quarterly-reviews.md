@@ -2,10 +2,10 @@
 title: How do quarterly reviews work?
 section: Daily work
 audience: staff
-keywords: [review, shout-outs, reviews, quarterly review, self-review, performance, jesse, reviewer, compare, comparison, sign, signature, action steps, history, pdf, download, disagree, rating, score, camaraderie, ownership, healthy hustle, year-end]
+keywords: [review, previous quarter, quarter just ended, admins see in progress, live view, shout-outs, reviews, quarterly review, self-review, performance, jesse, reviewer, compare, comparison, sign, signature, action steps, history, pdf, download, disagree, rating, score, camaraderie, ownership, healthy hustle, year-end]
 sort: 145
 ---
-Once a quarter you fill in a short self-review, your reviewer (usually Jesse) fills in the same form about you, and then you meet, agree on action steps and both sign. Everything lives on the **Reviews** tab of **Team** (`#/team/reviews`). The number on the tab shows how many things are waiting on you.
+Once a quarter you review the quarter that just ended (in October, that's Q3). You fill in a short self-review, your reviewer (usually Jesse) fills in the same form about you, and then you meet, agree on action steps and both sign. Everything lives on the **Reviews** tab of **Team** (`#/team/reviews`). The number on the tab shows how many things are waiting on you.
 
 When a review is due, you also get an email, a **Review due** row on **Today**, and a number on the **Reviews** tab of **Team**.
 
@@ -27,11 +27,13 @@ Rules the form checks before you can submit:
 
 On the reviewer's form, the **Appreciation** box shows that person's shout-outs from the quarter, for reference only. They aren't part of the review. See [How do I give a teammate a shout-out?](#/help/shoutouts).
 
-Your answers save as a draft while you work. Once you submit, the form is read-only.
+Your answers save as a draft while you work, so you can stop and come back later to finish. Once you submit, the form is read-only.
 
 ### Blind until both are in
 
-You can't see your reviewer's scores, and they can't see yours, until **both** forms are submitted. This applies to admins too.
+You can't see your reviewer's scores, and they can't see yours, until **both** forms are submitted. This applies even when you or your reviewer is an admin.
+
+Other admins can follow a review while it happens: they see both forms as they're filled in, drafts included.
 
 ### Compare, meet, sign
 
@@ -50,5 +52,6 @@ When both of you have signed, the review locks for good. Nothing in it can be ed
 ### Good to know
 
 - Reviews are kept permanently. They're never deleted.
-- Admins can see every review. Other staff can't see yours.
+- Admins can see every review, including ones still in progress. Other staff can't see yours.
+- Your review and the survey open from **Team** even if you don't have any clients assigned yet.
 - If a review isn't signed by the time the quarter's cycle closes, it's marked **Closed unsigned** and kept, read-only.

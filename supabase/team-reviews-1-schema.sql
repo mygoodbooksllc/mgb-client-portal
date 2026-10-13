@@ -25,12 +25,15 @@
 -- components/staff/teamReviewsLogic.js and its test):
 --   a submission's scores/comments are visible to
 --     - its author, always (their own draft or submitted form);
+--     - any admin who is neither the reviewee nor the reviewer, always,
+--       drafts included, so admins can watch a review as it happens
+--       (owner, 2026-10-13; team-reviews-3-admin-live-view.sql);
 --     - once BOTH are submitted: the reviewee, the reviewer and every admin;
 --     - a submitted MANAGER submission: any admin who is not the reviewee.
---   Nobody else, admins included. So no admin sees a self-review's scores in
---   an open review until the manager submission is in, and a reviewee who is
---   also an admin never sees the manager's scores early. Drafts are author-only.
---   The same rule applies to closed_unsigned reviews.
+--   Nobody else. The reviewee and the reviewer stay blind to each other's
+--   scores until both are in, admins included (a reviewee who is an admin
+--   never sees the manager's scores early; a reviewer who is an admin never
+--   sees the self-review early). The same rule applies to closed_unsigned.
 --
 -- Locks (triggers):
 --   * a submitted submission can't change, except an admin reopen (RPC sets
@@ -272,6 +275,9 @@ returns boolean language sql immutable as $$
   select case
     when p_viewer is null then false
     when p_viewer = p_author then true
+    when coalesce(p_viewer_admin, false)
+         and p_viewer is distinct from p_staff_id
+         and p_viewer is distinct from p_reviewer_id then true
     when not coalesce(p_this_submitted, false) then false
     when coalesce(p_both_submitted, false) then
       p_viewer = p_staff_id or p_viewer = p_reviewer_id or coalesce(p_viewer_admin, false)

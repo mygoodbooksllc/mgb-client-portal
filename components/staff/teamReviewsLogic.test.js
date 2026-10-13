@@ -83,12 +83,17 @@ t("blind rule", () => {
   const see = (o) => L.TR_canSeeSubmission(Object.assign({}, base, o));
   // author always sees their own draft
   assert.strictEqual(see({ kind: "self", author: "S", viewer: "S", thisSubmitted: false }), true);
-  // nobody else sees drafts, admins included
-  assert.strictEqual(see({ kind: "manager", author: "R", viewer: "A", viewerIsAdmin: true, thisSubmitted: false }), false);
-  // admin can't see a submitted self-review until the manager one is in
-  assert.strictEqual(see({ kind: "self", author: "S", viewer: "A", viewerIsAdmin: true, thisSubmitted: true, bothSubmitted: false }), false);
-  // reviewer can't see the self-review early either
+  // admins who aren't on the review watch both sides live, drafts included
+  assert.strictEqual(see({ kind: "manager", author: "R", viewer: "A", viewerIsAdmin: true, thisSubmitted: false }), true);
+  assert.strictEqual(see({ kind: "self", author: "S", viewer: "A", viewerIsAdmin: true, thisSubmitted: false }), true);
+  assert.strictEqual(see({ kind: "self", author: "S", viewer: "A", viewerIsAdmin: true, thisSubmitted: true, bothSubmitted: false }), true);
+  // non-admins never see someone else's draft
+  assert.strictEqual(see({ kind: "self", author: "S", viewer: "X", thisSubmitted: false }), false);
+  // the reviewer stays blind to the self-review, even as an admin
+  assert.strictEqual(see({ kind: "self", author: "S", viewer: "R", viewerIsAdmin: true, thisSubmitted: false }), false);
   assert.strictEqual(see({ kind: "self", author: "S", viewer: "R", viewerIsAdmin: true, thisSubmitted: true, bothSubmitted: false }), false);
+  // an admin being reviewed never sees the manager draft
+  assert.strictEqual(see({ kind: "manager", author: "R", viewer: "S", viewerIsAdmin: true, thisSubmitted: false }), false);
   // other admins can see a submitted manager review
   assert.strictEqual(see({ kind: "manager", author: "R", viewer: "A", viewerIsAdmin: true, thisSubmitted: true, bothSubmitted: false }), true);
   // ...but not if they're the reviewee

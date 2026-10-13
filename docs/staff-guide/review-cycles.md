@@ -2,7 +2,7 @@
 title: How do I run a review cycle?
 section: Admin
 audience: admin
-keywords: [review cycle, open cycle, close cycle, quarterly reviews, team status, reviewer, reassign, default reviewer, reminder, add people, close unsigned, reopen, addendum, year-end summary, confirm summary, export, drive, team averages]
+keywords: [review cycle, quarter being reviewed, previous quarter, in progress, live view, follow along, open cycle, close cycle, quarterly reviews, team status, reviewer, reassign, default reviewer, reminder, add people, close unsigned, reopen, addendum, year-end summary, confirm summary, export, drive, team averages]
 sort: 520
 ---
 Admins run quarterly reviews from **Reviews → Team status**. For how reviews work for the person being reviewed, see [How do quarterly reviews work?](#/help/quarterly-reviews).
@@ -12,10 +12,10 @@ Have your lawyer or HR advisor review the review PDF and the keep-forever retent
 ### Open a cycle
 
 1. Go to **Reviews → Team status** and click **Open a review cycle** (the form shows on its own when there's no cycle yet).
-2. Pick the year, quarter, open date and due date.
+2. Pick the year, the **quarter being reviewed**, the open date and the due date. Reviews cover the quarter that just ended, so the form starts on it (Q3 in October, Q4 of last year in January), with the due date at the end of the next month.
 3. Check who's being reviewed. Everyone who isn't an admin is checked to start.
 4. Each person gets a reviewer. It starts as the **Default reviewer** (Jesse, unless you change it), and you can pick a different admin per person. Nobody can review themselves.
-5. Click **Open**. Everyone picked gets an email, and so do their reviewers.
+5. Click **Open the Q… review**. Everyone picked gets an email, and so do their reviewers.
 
 The **Open a review cycle** button only shows when no quarter is open.
 
@@ -25,10 +25,12 @@ The Team status page shows, for each person: reviewer, self-review status, the r
 
 - **Send reminder** emails everyone who still has something to do. A reminder also goes out on its own 3 days before the due date.
 - **Add people** adds someone to the open cycle.
-- **Change a reviewer** with the dropdown in the Reviewer column. This works until the reviewer's review is submitted. You can add a reason; it's kept in the review's history.
+- **Change a reviewer** with the dropdown in the Reviewer column. This works until the reviewer's review is submitted. You can add a reason; it's kept in the review's history. Once the person has started their self-review, a former reviewer can't be put back on it, because other admins can see self-reviews and they could have looked while they were off it.
 - **Close unsigned** closes one person's review without signatures. A reason is required, and it's kept.
 
-Reviewers fill in their reviews from **Reviews → Reviews I'm giving**. The blind rule applies to admins too: you can't see someone's self-review scores until your own review of them is submitted.
+Reviewers fill in their reviews from **Reviews → Reviews I'm giving**. The blind rule still applies to the reviewer: you can't see someone's self-review scores until your own review of them is submitted.
+
+Every other admin can click **Open** on Team status to follow a review as it happens. The **In progress** view shows both forms' scores and comments so far, drafts included. The person and their reviewer still can't see each other's side until both are in. An admin who is being reviewed never sees the reviewer's side early.
 
 ### Reopen and addenda
 

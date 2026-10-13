@@ -243,6 +243,14 @@ begin
   if not exists (select 1 from staff where id = p_reviewer and active and role = 'admin') then
     raise exception 'The reviewer must be an active admin.';
   end if;
+  -- While off the review, a former reviewer counted as "another admin" and
+  -- could see the self-review (team-reviews-3), so they can't come back once
+  -- it's started; otherwise the reviewer's blind could be lifted on purpose.
+  if exists (select 1 from review_submissions where review_id = r.id and kind = 'self')
+     and exists (select 1 from review_events e where e.review_id = r.id and e.kind = 'reassign'
+                 and e.snapshot ->> 'from_reviewer' = p_reviewer::text) then
+    raise exception 'That admin was this review''s reviewer before and may have seen the self-review since. Pick someone else.';
+  end if;
   select * into m from review_submissions where review_id = r.id and kind = 'manager';
   if m.submitted_at is not null then raise exception 'The manager review is already submitted. Reopen it first.'; end if;
   insert into review_events (review_id, cycle_id, kind, actor_id, reason, snapshot)

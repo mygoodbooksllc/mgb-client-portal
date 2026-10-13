@@ -2,10 +2,17 @@
 title: What's new
 section: Getting started
 audience: staff
-keywords: [tasks, my tasks, task details, quick add, q, projects, sops project, 90 day, open to all staff, own window, dock in portal, notes and sops, mentions, task status, ready for review, restore task, tasks tour, board packet, presentation view, report builder, client help menu, question mark menu, tips, tips while you learn, hints, first 30 days, learning, pro tour, upsell, upgrade, basic clients, bookkeeper tour, temporary admin tour, client tour, tour versions, admin tour, account manager tour, inventory, tech, equipment, what's new, whats new, new, changes, updates, release notes, changelog, navigation, redesign, five places, client setup, close tab, client close, last tab, client view, bank on basic, open for this client, deep links, client task panel, up next, t, for this page, follow my client]
+keywords: [review quarter, previous quarter, survey drafts, finish survey later, admins follow reviews, in progress view, no clients yet, tasks, my tasks, task details, quick add, q, projects, sops project, 90 day, open to all staff, own window, dock in portal, notes and sops, mentions, task status, ready for review, restore task, tasks tour, board packet, presentation view, report builder, client help menu, question mark menu, tips, tips while you learn, hints, first 30 days, learning, pro tour, upsell, upgrade, basic clients, bookkeeper tour, temporary admin tour, client tour, tour versions, admin tour, account manager tour, inventory, tech, equipment, what's new, whats new, new, changes, updates, release notes, changelog, navigation, redesign, five places, client setup, close tab, client close, last tab, client view, bank on basic, open for this client, deep links, client task panel, up next, t, for this page, follow my client]
 sort: 15
 ---
 The newest changes to the staff side, newest first. For how anything works, search this guide or click **?** → **Help for this page**.
+
+### 2026-10-13: Reviews: last quarter, live view for admins
+
+- **Reviews cover the quarter that just ended.** Opening a cycle in October starts on Q3, and the due date starts at the end of the next month. The current cycle is now **Q3 2026**. See [How do I run a review cycle?](#/help/review-cycles).
+- **Admins can follow a review as it happens.** Click **Open** on **Reviews → Team status** to see both forms' scores and comments so far, drafts included. The person and their reviewer (usually Jesse) still can't see each other's side until both are submitted. See [How do quarterly reviews work?](#/help/quarterly-reviews).
+- **No clients yet? Team still opens.** Staff with no clients assigned can now open Today, Inbox, Team (reviews, survey, onboarding), Settings and Help. Only client pages wait for an assignment, and that screen has a **Go to Team** button.
+- **Finish the survey later.** Survey answers now save as a draft on your device as you type, so you can leave and come back. The review form already saved drafts. See [How does the team survey work?](#/help/team-survey).
 
 ### 2026-10-11: A client's tasks, one key away
 

@@ -27935,8 +27935,10 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
   // zero checked clients — the opt-in default from staff-client-access.sql.
   // Nothing below this point has a sensible client to show, so stop here
   // rather than let baseClient's CLIENTS[0] fallback silently show data
-  // nobody granted them.
-  if (assignedClientIds && visibleClients.length === 0) {
+  // nobody granted them. Firm-wide places (Today, Inbox, Team, Settings,
+  // Help...) don't need a client, so a new hire with no clients yet can
+  // still open their review, the survey and onboarding from Team.
+  if (assignedClientIds && visibleClients.length === 0 && !NON_CLIENT_PAGES.has(effectivePage)) {
     return (
       <div className="boot-splash" role="main">
         <div className="boot-splash-mark">MyGoodBooks</div>
@@ -27949,6 +27951,11 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
             visibleClients and this screen gives way on its own. */}
         {!clientAccessError && !impersonating && (
           <CS_SplashRequestAccess staffUser={effectiveStaffUser} />
+        )}
+        {!impersonating && (
+          <button className="btn-secondary" style={{ marginTop: 16 }} onClick={() => setPage("team")}>
+            Go to Team (reviews, survey, onboarding)
+          </button>
         )}
         {impersonating && (
           <button

@@ -36,6 +36,38 @@ function TR_fmtDay(iso) {
   return new Date(iso).toLocaleDateString("en-US", { timeZone: "America/Chicago", month: "short", day: "numeric" });
 }
 
+// Survey drafts stay in this browser only, never the database, so the
+// anonymous Q7 and Q10 answers are never stored next to a name before submit.
+async function TR_surveyDraftKey(d) {
+  if (!d || !d.cycle || d.submitted_at || d.cycle.status !== "open" || !d.eligible) return "";
+  try {
+    const sb = window.mgbSupabase;
+    const res = sb ? await sb.auth.getSession() : null;
+    const s = res && res.data && res.data.session;
+    const uid = s && s.user && s.user.id;
+    return uid ? "mgb-survey-draft:" + uid + ":" + d.cycle.id : "";
+  } catch (e) {
+    return "";
+  }
+}
+function TR_readSurveyDraft(key) {
+  try {
+    const v = JSON.parse(localStorage.getItem(key) || "{}");
+    return v && typeof v === "object" && !Array.isArray(v) ? v : {};
+  } catch (e) {
+    return {};
+  }
+}
+function TR_writeSurveyDraft(key, answers) {
+  try {
+    if (!answers || !Object.keys(answers).length) localStorage.removeItem(key);
+    else localStorage.setItem(key, JSON.stringify(answers));
+    return true;
+  } catch (e) {
+    return false;
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Staff: the survey
 // ---------------------------------------------------------------------------
@@ -48,17 +80,34 @@ function TR_SurveyPage({ onBack }) {
   const [confirming, setConfirming] = React.useState(false);
   const [busy, setBusy] = React.useState(false);
   const [error, setError] = React.useState("");
+  const [draftKey, setDraftKey] = React.useState("");
+  const [draftSavedAt, setDraftSavedAt] = React.useState(null);
 
   React.useEffect(() => {
     let alive = true;
     TR_api
       .rpc("tr_survey_get", {})
-      .then((d) => alive && setState({ data: d, error: "", loading: false }))
+      .then(async (d) => {
+        const key = await TR_surveyDraftKey(d);
+        if (!alive) return;
+        setDraftKey(key);
+        if (key) setAnswers(TR_readSurveyDraft(key));
+        setState({ data: d, error: "", loading: false });
+      })
       .catch((e) => alive && setState({ data: null, error: TR_errText(e), loading: false }));
     return () => {
       alive = false;
     };
   }, [ver]);
+
+  // Save a draft on this device a moment after typing stops.
+  React.useEffect(() => {
+    if (!draftKey) return undefined;
+    const t = setTimeout(() => {
+      if (TR_writeSurveyDraft(draftKey, answers)) setDraftSavedAt(Object.keys(answers).length ? new Date() : null);
+    }, 400);
+    return () => clearTimeout(t);
+  }, [draftKey, answers]);
 
   const back = (
     <button type="button" className="link-btn tr-back" onClick={onBack}>
@@ -102,6 +151,9 @@ function TR_SurveyPage({ onBack }) {
       setConfirming(false);
       toast("Survey submitted. Thank you.");
       TR_changed();
+      if (draftKey) TR_writeSurveyDraft(draftKey, {});
+      setDraftKey("");
+      setDraftSavedAt(null);
       setAnswers({});
       setVer((v) => v + 1);
     } catch (e) {
@@ -227,6 +279,12 @@ function TR_SurveyPage({ onBack }) {
           {tried && count < TR_SURVEY_MIN && (
             <span role="alert">
               <TR_Pill tone="bad">Answer at least 3 questions to submit</TR_Pill>
+            </span>
+          )}
+          {draftKey && draftSavedAt && (
+            <span className="tr-muted">
+              Draft saved on this device {draftSavedAt.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}. You can
+              leave and finish later.
             </span>
           )}
         </div>

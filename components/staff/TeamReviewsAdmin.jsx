@@ -534,16 +534,24 @@ function TR_DriveStatusCard() {
   );
 }
 
+// Reviews cover the quarter that just ended (owner, 2026-10-13): in October
+// the default is Q3, in January it's Q4 of last year.
 function TR_nextQuarter(cycles) {
   const now = new Date();
   let y = now.getFullYear();
-  let q = Math.floor(now.getMonth() / 3) + 1;
+  let q = Math.floor(now.getMonth() / 3);
+  if (q < 1) {
+    q = 4;
+    y -= 1;
+  }
   const taken = new Set((cycles || []).map((c) => c.year * 4 + c.quarter));
+  // Already taken: step back to an earlier missed quarter, never forward
+  // into one that hasn't ended yet.
   while (taken.has(y * 4 + q)) {
-    q += 1;
-    if (q > 4) {
-      q = 1;
-      y += 1;
+    q -= 1;
+    if (q < 1) {
+      q = 4;
+      y -= 1;
     }
   }
   return { year: y, quarter: q };
@@ -613,7 +621,14 @@ function TR_OpenCycleCard({ options, cycles, onDone }) {
   const [year, setYear] = React.useState(nq.year);
   const [quarter, setQuarter] = React.useState(nq.quarter);
   const [opens, setOpens] = React.useState(TR_isoDay(new Date()));
-  const [due, setDue] = React.useState(() => TR_isoDay(new Date(nq.year, (nq.quarter - 1) * 3 + 1, 0)));
+  // Due at the end of the first month after the reviewed quarter (Oct 31 for
+  // Q3), or two weeks out if that date is already close or past.
+  const [due, setDue] = React.useState(() => {
+    const monthEnd = new Date(nq.year, nq.quarter * 3 + 1, 0);
+    const twoWeeks = new Date();
+    twoWeeks.setDate(twoWeeks.getDate() + 14);
+    return TR_isoDay(monthEnd > twoWeeks ? monthEnd : twoWeeks);
+  });
   const [picked, setPicked] = React.useState(() => people.filter((p) => p.role !== "admin").map((p) => p.id));
   const [reviewers, setReviewers] = React.useState({});
   const [defRev, setDefRev] = React.useState(options.default_reviewer_id || "");
@@ -654,14 +669,17 @@ function TR_OpenCycleCard({ options, cycles, onDone }) {
   return (
     <div className="card">
       <h2 className="card-title">Open a review cycle</h2>
-      <p className="card-subtitle">Everyone you pick gets an email with their self-review and the team survey. Reviewers are emailed too.</p>
+      <p className="card-subtitle">
+        Each cycle reviews the quarter that just ended, so in October you open Q3. Everyone you pick gets an email with their
+        self-review and the team survey. Reviewers are emailed too.
+      </p>
       <div className="tr-form-grid" style={{ marginTop: 12 }}>
         <label className="al-field">
           <span>Year</span>
           <input type="number" min="2020" max="2100" value={year} onChange={(e) => setYear(e.target.value)} />
         </label>
         <label className="al-field">
-          <span>Quarter</span>
+          <span>Quarter being reviewed</span>
           <select value={quarter} onChange={(e) => setQuarter(Number(e.target.value))}>
             {[1, 2, 3, 4].map((q) => (
               <option key={q} value={q}>
@@ -704,7 +722,7 @@ function TR_OpenCycleCard({ options, cycles, onDone }) {
       />
       <div className="tr-actions">
         <button type="button" className="btn-primary" disabled={busy || !picked.length || !due} onClick={open}>
-          {busy ? "Opening…" : `Open Q${quarter} ${year} for ${picked.length} ${picked.length === 1 ? "person" : "people"}`}
+          {busy ? "Opening…" : `Open the Q${quarter} ${year} review for ${picked.length} ${picked.length === 1 ? "person" : "people"}`}
         </button>
       </div>
       <TR_Error text={error} />
