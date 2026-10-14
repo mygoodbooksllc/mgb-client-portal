@@ -815,7 +815,7 @@ Every employee must block out their hours **(40 working hours for full time)** i
 
 Calendar events must be categorized clearly so the entire firm understands availability:
 
-- **Available (green) / Live Focus Windows:** Dedicated time for live client calls, team check-ins, Slack availability, and active work.
+- **Available (green) / Live Focus Windows:** Dedicated time for live client calls, team check-ins, availability, and active work.
 - **Offline (red) / Outside Commitment Windows:** Explicit blocks for personal appointments, morning business focus, or offline time where the employee is unavailable for firm tasks.
 - **Async (blue) Production / Deep Work Windows:** Dedicated blocks (e.g., evening reconciliation/review sessions) where production work is being completed asynchronously.
 
@@ -837,7 +837,7 @@ During an employee's designated working windows, the following response threshol
 - **Standard Client Inquiry**
   - **Target SLA Threshold:** Within **24 business hours**
   - **Operational Protocol:** Acknowledged and answered during the employee's primary daily online window.
-- **Internal Team Slack/Asana**
+- **Internal Team Asana**
   - **Target SLA Threshold:** Same-day response (by 5:00 PM)
   - **Operational Protocol:** Employees must check internal channels at minimum twice daily (start & end of primary work window).
 - **Emergency Escalations**
@@ -861,7 +861,7 @@ To verify work completion without micromanagement, the firm uses three accountab
 1. **Asana Real-Time Updates:**
   - All tasks must live in Asana and be marked complete as finished.
   - If any deliverable is at risk of missing a deadline, the employee must notify their supervisor **at least 24 hours prior** with an action plan.
-2. **Daily Async Slack Standup (By 1:00 PM Local Time):** Every full time employee posts a daily 3-bullet check-in:
+2. **Daily Async Standup (By 1:00 PM Local Time):** Every full time employee posts a daily 3-bullet check-in:
   - *Completed yesterday / overnight*
   - *Top priorities today*
   - *Blockers or support needed*
