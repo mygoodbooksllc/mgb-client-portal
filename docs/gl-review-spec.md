@@ -442,12 +442,12 @@ Phases 2 to 5 as in PLAN.md. This spec adds no schema for any of them except as 
 
 ---
 
-## 13. Open items
+## 13. Decisions confirmed by the owner (2026-10-14)
 
-1. **Warn vs. block** (0.1): confirm.
-2. Approve the three deviations in 0.2 (sign-off table; greeting name and contact email on `client_profile`; `transaction_questions` direction change).
-3. Can an admin approve a review they did themselves? Spec says no unless a logged override. Confirm, since Jesse is also an admin and may do reviews.
-4. Retention of saved quotes for prospects who never sign (suggest: auto-archive after 12 months; delete on request).
-5. Summary wording variants: does Bailley review the three templates (clean / minor items / needs action) before they ship?
-6. Client emails will carry question text and one amount (3.3): confirm against the notification-emails rule that firm emails don't include message text.
-7. The vendor watch-list starter terms: who approves the first list?
+1. **Warn only** for the "Ledger reviewed" step (`done_gate` = `warn`); block stays available as a setting.
+2. The three deviations in 0.2 are approved (sign-off table; greeting name and contact email on `client_profile`; `transaction_questions` direction change).
+3. Client emails may carry the question text and one amount (3.3). Update the notification-emails rule note accordingly when building.
+4. An admin cannot approve their own review unless a logged override is used (as specced in 4.4).
+5. Saved quotes for prospects who never sign are auto-archived after **90 days** (delete on request). Bailley reviews both the three summary templates (clean / minor items / needs action) and the starting vendor watch list before they ship.
+
+Remaining open items are the live-QuickBooks checks in section 11, which are verified during the build.
