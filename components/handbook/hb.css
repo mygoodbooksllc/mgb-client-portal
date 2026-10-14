@@ -170,6 +170,9 @@
 .hb-doc .hlp-table-wrap {
   overflow-x: auto;
 }
+.hb-doc li[data-tone="green"]::marker { color: var(--good); }
+.hb-doc li[data-tone="red"]::marker { color: var(--bad); }
+.hb-doc li[data-tone="blue"]::marker { color: #3b82c4; }
 .hb-end {
   height: 1px;
 }

@@ -253,6 +253,17 @@ function HB_PolicyView({ slug, versionNo, status, onBack }) {
   const d = st.data;
   const v = d && d.version;
   const seen = HB_useSeen(endRef, (v && v.id) || "none");
+  const docRef = React.useRef(null);
+
+  // Color the calendar bullets to match the words Available (green), Offline (red), Async (blue).
+  React.useEffect(() => {
+    const root = docRef.current;
+    if (!root) return;
+    root.querySelectorAll("li").forEach((li) => {
+      const m = /^\s*(Available|Offline|Async) \((green|red|blue)\)/.exec(li.textContent || "");
+      if (m) li.setAttribute("data-tone", m[2]);
+    });
+  });
 
   const back = (
     <button type="button" className="link-btn hb-back" onClick={onBack}>
@@ -310,7 +321,7 @@ function HB_PolicyView({ slug, versionNo, status, onBack }) {
       </div>
 
       {v ? (
-        <article className="card hb-doc" aria-label={p.title}>
+        <article ref={docRef} className="card hb-doc" aria-label={p.title}>
           <HLP_Markdown source={body} />
           <div ref={endRef} className="hb-end" aria-hidden="true" />
         </article>
