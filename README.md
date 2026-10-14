@@ -105,7 +105,7 @@ because some work happens in Claude Code web sessions. Run `git fetch` and compa
     an account.
   - So a new contact has to be **invited** first. On the Client Roster page, adding a contact
     sends the invite automatically, and each contact has an "Invite / Resend invite" button.
-    Both use the `invite-client-user` edge function, which only staff can call.
+    Both use the `invite-client-user` edge function, which only staff can call. The activity log records the inviting staff member (`supabase/client-users-invite-actor.sql`).
   - Only an active admin (or service role with no JWT) can change a contact's `name`, `email`
     or `client_id` (`client_users_guard_identity`, `supabase/client-tools-author-stamp.sql`).
     The roster's add, invite, deactivate and scope edits don't touch those columns. Changes are

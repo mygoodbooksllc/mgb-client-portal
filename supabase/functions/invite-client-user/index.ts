@@ -160,21 +160,18 @@ Deno.serve(async (req) => {
     );
   }
 
-  if (!existingContact) {
-    const { error: insertError } = await admin.from("client_users").insert({
-      email,
-      client_id: clientId,
-      name: (body.name || "").trim() || email.split("@")[0],
-      role: (body.role || "").trim() || "Contact",
-      active: true,
+  // Written through invite_write_client_user (service_role only) so the
+  // activity log records the staff member as the actor instead of 'System'.
+  // callerEmail comes from auth.getUser(jwt) above, never from the body.
+  if (!existingContact || !existingContact.active) {
+    const { error: writeError } = await admin.rpc("invite_write_client_user", {
+      p_actor_email: callerEmail,
+      p_email: email,
+      p_client_id: clientId,
+      p_name: (body.name || "").trim() || email.split("@")[0],
+      p_role: (body.role || "").trim() || "Contact",
     });
-    if (insertError) return json({ error: insertError.message }, 400);
-  } else if (!existingContact.active) {
-    const { error: activateError } = await admin
-      .from("client_users")
-      .update({ active: true })
-      .eq("email", email);
-    if (activateError) return json({ error: activateError.message }, 400);
+    if (writeError) return json({ error: writeError.message }, 400);
   }
 
   // --- the invite itself -----------------------------------------------
