@@ -106,6 +106,11 @@ because some work happens in Claude Code web sessions. Run `git fetch` and compa
   - So a new contact has to be **invited** first. On the Client Roster page, adding a contact
     sends the invite automatically, and each contact has an "Invite / Resend invite" button.
     Both use the `invite-client-user` edge function, which only staff can call.
+  - Only an active admin (or service role with no JWT) can change a contact's `name`, `email`
+    or `client_id` (`client_users_guard_identity`, `supabase/client-tools-author-stamp.sql`).
+    The roster's add, invite, deactivate and scope edits don't touch those columns. Changes are
+    written to the client's activity log (`access_updated`, `old_name` / `new_name` /
+    `old_email` / `old_client_id`).
 - **Staff** click **"Staff? Sign in with Google"**.
   - Google only accepts `@mygoodbooks.org` accounts.
   - The app then requires an active row in the `staff` table.
@@ -439,6 +444,13 @@ because some work happens in Claude Code web sessions. Run `git fetch` and compa
     a short-lived link (Drive) or a 5-minute signed URL (bucket).
   - **Staff notes on anything** (`client_internal_notes`): a note button on budget lines, bank
     transactions and report cards. Clients never see it.
+  - Authors are set by the database, not the browser (`supabase/client-tools-author-stamp.sql`,
+    trigger `client_tools_stamp_author`) on `client_internal_notes`, `client_budget_comments`,
+    `client_variance_notes` and `client_budget_draft_history`: the email is the signed-in email
+    and the name is `staff.name` (any staff email) or that client's `client_users.name`. Service
+    role with no JWT keeps what it sends. Author fields can't change on update, except a variance
+    note's author follows whoever last changed its text. Staff can't update internal notes and
+    nobody can update budget comments from the browser (insert and delete only).
   - **Mark sent to client** on report cards (`client_sent_items`), with history.
   - **Preview plan** (top bar account menu on client pages, not during View as; the old sidebar select is gone): shows the client's pages as Basic / Plus / Pro
     in this browser only (`mygoodbooks_preview_plan_v1`). It's ignored in client sessions.

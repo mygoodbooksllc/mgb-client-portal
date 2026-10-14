@@ -1138,7 +1138,11 @@ function ProBudgetWorkspace({ client, access, clientPortalUser }) {
         else showToast("Couldn't save the draft. Please try again.");
         return false;
       }
-      const h = await pbApi.insertHistory(sb, historyRow);
+      // changed_by / changed_by_name are stamped by the database from the
+      // signed-in user (client-tools-author-stamp.sql); historyRow keeps them
+      // only for the local display fallback.
+      const { changed_by: _cb, changed_by_name: _cbn, ...historyInsert } = historyRow;
+      const h = await pbApi.insertHistory(sb, historyInsert);
       if (h.error) showToast("Saved, but the version history entry didn't record.");
       applyRow(res.data);
       setHistory((prev) => [...prev, h.data || { ...historyRow, id: "local-" + now }]);
@@ -1192,7 +1196,10 @@ function ProBudgetWorkspace({ client, access, clientPortalUser }) {
       created_at: new Date().toISOString(),
     };
     if (remote) {
-      const res = await pbApi.addComment(sb, r);
+      // author_email / author_name are stamped by the database
+      // (client-tools-author-stamp.sql); r keeps them for the local fallback.
+      const { author_email: _ae, author_name: _an, ...remoteRow } = r;
+      const res = await pbApi.addComment(sb, remoteRow);
       if (res.error) {
         if (pbIsMissing(res.error)) fallBackToLocal();
         else {
@@ -1235,7 +1242,9 @@ function ProBudgetWorkspace({ client, access, clientPortalUser }) {
       }
     }
     if (remote) {
-      const res = await pbApi.upsertNote(sb, r);
+      // Author is stamped by the database (client-tools-author-stamp.sql).
+      const { author_email: _ae, author_name: _an, ...remoteRow } = r;
+      const res = await pbApi.upsertNote(sb, remoteRow);
       if (res.error) {
         if (pbIsMissing(res.error)) fallBackToLocal();
         else {

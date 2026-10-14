@@ -5671,8 +5671,8 @@ function InternalNoteButton({ client, targetType, targetKey, targetLabel }) {
       target_key: targetKey,
       target_label: targetLabel || null,
       body,
-      author_email: staffUser && staffUser.email,
-      author_name: (staffUser && (staffUser.name || staffUser.email)) || null,
+      // author_email / author_name are stamped by the database from the
+      // signed-in user (supabase/client-tools-author-stamp.sql).
     });
     setSaving(false);
     if (error) {
@@ -24092,6 +24092,10 @@ function TabSettingsModal({
           bits.push(`role ${d.old_role} → ${d.new_role}`);
         if (d.old_active !== d.new_active)
           bits.push(d.new_active ? "reactivated" : "deactivated");
+        if (d.old_name !== undefined)
+          bits.push(`name ${d.old_name || "(blank)"} → ${d.new_name || "(blank)"}`);
+        if (d.old_email) bits.push(`email was ${d.old_email}`);
+        if (d.old_client_id) bits.push(`moved from client ${d.old_client_id}`);
         return `${who} updated ${d.email}'s access${bits.length ? " (" + bits.join(", ") + ")" : ""}`;
       }
       case "qbo_status_changed":
