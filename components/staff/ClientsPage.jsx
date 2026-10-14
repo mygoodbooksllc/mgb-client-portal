@@ -50,6 +50,7 @@ function CL_pageLabel(page) {
   if (page === "sop") return "SOP";
   if (page === "milestone") return "Milestone";
   if (page === "client-close") return "Close";
+  if (page === "client-ledger") return "Ledger review";
   if (page === "client-settings") return "Client setup";
   if (page === "enterprise-upgrade") return "Plans";
   const byKey = typeof NAV_LABEL_BY_KEY !== "undefined" ? NAV_LABEL_BY_KEY : {};

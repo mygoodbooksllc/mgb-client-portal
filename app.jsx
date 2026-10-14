@@ -990,7 +990,7 @@ const INFRA_LINKS = [
   {
     name: "Resend",
     url: "https://resend.com/overview",
-    note: "Sends every portal email (digest, client notices, reminders) · credentials: 1Password vault “MGB Infra”",
+    note: "Sends every portal email (digest, client notices, reminders, ledger questions and summaries) · credentials: 1Password vault “MGB Infra”",
   },
   {
     name: "Google Drive (client files)",
@@ -1260,13 +1260,14 @@ const STAFF_CLIENT_TABS = [
   { key: "documents", label: "Documents", tour: "nav-documents" },
   { key: "bank", label: "Bank", tour: "nav-bank" },
   { key: "client-close", label: "Close", tour: "client-close" },
+  { key: "client-ledger", label: "Ledger review", tour: "client-ledger" },
   { key: "reports", label: "Reports", tour: "nav-reports" },
   { key: "sop", label: "SOP", tour: "client-sop" },
   { key: "milestone", label: "Milestone", tour: "client-milestone", adminOnly: true },
 ];
 const STAFF_CLIENT_VIEW_PAGES = ["dashboard", "budget", "receivables", "giving", "payroll"];
 // Staff open these on every plan, whatever the org hides from its users (D2, D17).
-const STAFF_ALWAYS_TABS = new Set(["messages", "documents", "bank", "reports", "client-close"]);
+const STAFF_ALWAYS_TABS = new Set(["messages", "documents", "bank", "reports", "client-close", "client-ledger"]);
 // One admin gate for the row and the Overview (D5). Layout, not security:
 // temp admins stay bookkeepers here.
 function STAFF_isRealAdmin(u) {
@@ -5441,6 +5442,148 @@ const CLOSE_CHECKLIST = [
   { key: "review", label: "Reports reviewed" },
   { key: "sent", label: "Reports sent to the client" },
 ];
+// GL Review (docs/gl-review-spec.md 6.1, 6.3): a seventh step, "Ledger
+// reviewed", sits after "Reports reviewed" for a client whose QuickBooks
+// connection is 'connected', in months on or after
+// gl_review_settings.effective_from. It is ticked only by the sign-off RPCs
+// (gl_review_mark_reviewed / gl_review_send_back), never by a checkbox.
+// closeStepsFor(client, "YYYY-MM") returns the 6 or 7 steps; every count of
+// close steps goes through it. Until gl-review-1-core.sql runs, settings are
+// missing and every client keeps the six steps.
+const CLOSE_LEDGER_STEP = { key: "ledger_reviewed", label: "Ledger reviewed" };
+const CLOSE_STEPS_ALL = [...CLOSE_CHECKLIST.slice(0, 5), CLOSE_LEDGER_STEP, CLOSE_CHECKLIST[5]];
+const CLOSE_STEPS_EVENT = "mgb:close-steps-context";
+// Fired after any sign-off RPC (and by the Ledger tab) so the Close tab,
+// checklist and counts reload.
+const GL_REVIEW_EVENT = "mgb:gl-review-changed";
+const notifyGlReview = () => window.dispatchEvent(new Event(GL_REVIEW_EVENT));
+const closeStepsCtx = { at: 0, loading: null, effectiveFrom: null, gate: "warn", conn: {} };
+function closeStepsLoad(force) {
+  const sb = window.mgbSupabase;
+  if (!sb) return Promise.resolve(closeStepsCtx);
+  if (closeStepsCtx.loading) return closeStepsCtx.loading;
+  if (!force && closeStepsCtx.at && Date.now() - closeStepsCtx.at < 5 * 60 * 1000) {
+    return Promise.resolve(closeStepsCtx);
+  }
+  closeStepsCtx.loading = (async () => {
+    try {
+      const [s, c] = await Promise.all([
+        sb.from("gl_review_settings").select("done_gate, effective_from").limit(1).maybeSingle(),
+        sb.from("qbo_connections").select("client_id, status"),
+      ]);
+      const ef = !s.error && s.data && s.data.effective_from ? String(s.data.effective_from).slice(0, 7) : null;
+      closeStepsCtx.effectiveFrom = ef;
+      closeStepsCtx.gate = (!s.error && s.data && s.data.done_gate) || "warn";
+      if (!c.error) {
+        const conn = {};
+        (c.data || []).forEach((r) => {
+          conn[r.client_id] = r.status;
+        });
+        closeStepsCtx.conn = conn;
+      }
+    } catch (e) {
+      // leave the last good values; no settings means six steps
+    }
+    closeStepsCtx.at = Date.now();
+    closeStepsCtx.loading = null;
+    window.dispatchEvent(new Event(CLOSE_STEPS_EVENT));
+    return closeStepsCtx;
+  })();
+  return closeStepsCtx.loading;
+}
+// True when the Ledger reviewed step applies. connStatus overrides the cached
+// connection status (pass it when the caller already loaded it).
+function closeLedgerApplies(client, period, connStatus) {
+  const id = client && typeof client === "object" ? client.id : client;
+  if (!closeStepsCtx.at) closeStepsLoad();
+  const ef = closeStepsCtx.effectiveFrom;
+  const ym = String(period || "").slice(0, 7);
+  if (!ef || !ym || ym < ef) return false;
+  const status = connStatus !== undefined ? connStatus : closeStepsCtx.conn[id];
+  return status === "connected";
+}
+function closeStepsFor(client, period, connStatus) {
+  return closeLedgerApplies(client, period, connStatus) ? CLOSE_STEPS_ALL : CLOSE_CHECKLIST;
+}
+// Re-renders when the settings / connection cache loads.
+function useCloseStepsCtx() {
+  const [, setN] = React.useState(0);
+  React.useEffect(() => {
+    const on = () => setN((n) => n + 1);
+    const onQboReloaded = () => closeStepsLoad(true);
+    window.addEventListener(CLOSE_STEPS_EVENT, on);
+    window.addEventListener("mgb-qbo-reloaded", onQboReloaded);
+    closeStepsLoad();
+    return () => {
+      window.removeEventListener(CLOSE_STEPS_EVENT, on);
+      window.removeEventListener("mgb-qbo-reloaded", onQboReloaded);
+    };
+  }, []);
+  return closeStepsCtx;
+}
+// Sign-off reads and the four RPCs. period is "YYYY-MM"; the RPCs take a date.
+const closeLedgerApi = {
+  async signoff(sb, clientId, period) {
+    const { data, error } = await sb
+      .from("gl_review_signoffs")
+      .select("*")
+      .eq("client_id", clientId)
+      .eq("period", String(period).slice(0, 7) + "-01")
+      .maybeSingle();
+    if (error) return { data: null, error, missing: isMissingTableError(error) };
+    return { data: data || null, error: null };
+  },
+  async summary(sb, clientId, period) {
+    const p = String(period).slice(0, 7) + "-01";
+    const [f, pull, so] = await Promise.all([
+      sb.from("gl_review_flags").select("id, status, severity").eq("client_id", clientId).eq("period", p),
+      sb.from("gl_review_pulls").select("status, finished_at, started_at, error").eq("client_id", clientId).maybeSingle(),
+      closeLedgerApi.signoff(sb, clientId, period),
+    ]);
+    if (f.error && isMissingTableError(f.error)) return { missing: true };
+    const flags = f.data || [];
+    const n = (st) => flags.filter((x) => x.status === st).length;
+    return {
+      missing: false,
+      error: f.error || null,
+      open: n("open"),
+      asked: n("asked"),
+      cleared: n("cleared") + n("fixed"),
+      highOpen: flags.filter((x) => x.status === "open" && x.severity === "high").length,
+      pull: pull.error ? null : pull.data,
+      signoff: so.data,
+    };
+  },
+  markReviewed(sb, clientId, period) {
+    return sb.rpc("gl_review_mark_reviewed", { p_client_id: clientId, p_period: String(period).slice(0, 7) + "-01" });
+  },
+  approve(sb, clientId, period) {
+    return sb.rpc("gl_review_approve", { p_client_id: clientId, p_period: String(period).slice(0, 7) + "-01" });
+  },
+  sendBack(sb, clientId, period, note) {
+    return sb.rpc("gl_review_send_back", {
+      p_client_id: clientId,
+      p_period: String(period).slice(0, 7) + "-01",
+      p_note: note,
+    });
+  },
+  overrideDone(sb, clientId, period, note) {
+    return sb.rpc("gl_review_override_done", {
+      p_client_id: clientId,
+      p_period: String(period).slice(0, 7) + "-01",
+      p_note: note || null,
+    });
+  },
+};
+// The sub-line under the Ledger reviewed step (spec 6.1).
+function closeLedgerSubline(so) {
+  if (!so) return "";
+  const who = (e) => String(e || "").split("@")[0];
+  if (so.status === "sent_back") return "Sent back" + (so.sent_back_note ? ": " + so.sent_back_note : "");
+  if (so.status === "approved") return "Reviewed by " + who(so.reviewed_by) + " · Approved by " + who(so.approved_by);
+  if (so.status === "reviewed") return "Reviewed by " + who(so.reviewed_by) + " · Waiting for admin approval";
+  return "";
+}
 
 const staffToolsApi = {
   profile(sb, clientId) {
@@ -5824,7 +5967,8 @@ function SentToClient({ client, itemKey, itemLabel, periodLabel, closePeriod }) 
             if (ft.changed) status = "in_progress";
           }
         }
-        left = CLOSE_CHECKLIST.filter((s) => !doneKeys.has(s.key)).length;
+        await closeStepsLoad();
+        left = closeStepsFor(client, ym).filter((s) => !doneKeys.has(s.key)).length;
       }
     } catch (e) {}
     notifyStaffTools();
@@ -6235,7 +6379,8 @@ function DocRequestBanner({ requests, onOpen }) {
 }
 
 // Month-end close for one client.
-// The six close steps for one client and month (tabs redesign 2026-10-10:
+// The close steps (six, or seven with Ledger reviewed: closeStepsFor) for one
+// client and month (tabs redesign 2026-10-10:
 // lives on the client's Close tab; `period` is "YYYY-MM", default last
 // month). Each row: checkbox, label, "{who} · {Mon D}" and a Go link. The
 // first tick of a month that is missing or Not started sets it to In
@@ -6269,13 +6414,45 @@ function CloseChecklistCard({ client, period: periodProp, onToggled, compact }) 
     // eslint-disable-next-line
   }, [period]);
   const [busy, setBusy] = useState(null);
+  useCloseStepsCtx();
+  const steps = closeStepsFor(client, period);
+  const hasLedger = steps.length > CLOSE_CHECKLIST.length;
+  // Ledger reviewed comes from the sign-off (read-only here).
+  const [signoff, setSignoff] = useState(null);
+  useEffect(() => {
+    if (!hasLedger) return;
+    let live = true;
+    const load = () => {
+      const sb = window.mgbSupabase;
+      if (!sb) return;
+      closeLedgerApi
+        .signoff(sb, client.id, period)
+        .then((r) => {
+          if (live) setSignoff(r.data || null);
+        })
+        .catch(() => {});
+    };
+    load();
+    window.addEventListener(GL_REVIEW_EVENT, load);
+    window.addEventListener(STAFF_TOOLS_EVENT, load);
+    return () => {
+      live = false;
+      window.removeEventListener(GL_REVIEW_EVENT, load);
+      window.removeEventListener(STAFF_TOOLS_EVENT, load);
+    };
+  }, [hasLedger, client.id, period]);
   const rows = list.rows.filter((r) => !r.period || String(r.period).slice(0, 7) === period);
   const byKey = Object.fromEntries(rows.map((r) => [r.item_key, r]));
-  const doneCount = CLOSE_CHECKLIST.filter((i) => byKey[i.key] && byKey[i.key].done).length;
+  const isDone = (key) =>
+    key === CLOSE_LEDGER_STEP.key && signoff
+      ? signoff.status === "reviewed" || signoff.status === "approved"
+      : !!(byKey[key] && byKey[key].done);
+  const doneCount = steps.filter((i) => isDone(i.key)).length;
   const month = closeMonthName(period);
   async function toggle(item) {
+    if (item.key === CLOSE_LEDGER_STEP.key) return; // set by the sign-off RPCs only
     const done = !(byKey[item.key] && byKey[item.key].done);
-    const hadOtherDone = CLOSE_CHECKLIST.some((i) => i.key !== item.key && byKey[i.key] && byKey[i.key].done);
+    const hadOtherDone = steps.some((i) => i.key !== item.key && isDone(i.key));
     setBusy(item.key);
     const { error } = await staffToolsApi.setCloseItem(
       window.mgbSupabase, client.id, period, item.key, done, staffUser && staffUser.email,
@@ -6315,6 +6492,14 @@ function CloseChecklistCard({ client, period: periodProp, onToggled, compact }) 
         </a>
       );
     }
+    if (item.key === CLOSE_LEDGER_STEP.key) {
+      const t = { clientId: client.id, tab: "ledger", month: period };
+      return (
+        <a className="clc-go" href={LK_href(t)} onClick={LK_onClick(t)} aria-label="Go: Ledger review">
+          Open Ledger →
+        </a>
+      );
+    }
     const g = CLOSE_STEP_GO[item.key];
     if (!g) return null;
     const t = { clientId: client.id, tab: g.tab, sub: g.sub, month: g.tab === "bank" ? period : undefined };
@@ -6334,34 +6519,45 @@ function CloseChecklistCard({ client, period: periodProp, onToggled, compact }) 
       <div className="clc-card-head">
         <h3 className="card-title">Close steps</h3>
         <span className="clc-chip">
-          {doneCount} of {CLOSE_CHECKLIST.length}
+          {doneCount} of {steps.length}
         </span>
       </div>
       <div className="clc-progress" aria-hidden="true">
-        <div style={{ width: `${(doneCount / CLOSE_CHECKLIST.length) * 100}%` }} />
+        <div style={{ width: `${(doneCount / steps.length) * 100}%` }} />
       </div>
       {list.missing ? (
         <p className="card-subtitle">{STAFF_TOOLS_SETUP_MSG}</p>
       ) : (
         <ul className="close-list clc-step-list">
-          {CLOSE_CHECKLIST.map((item) => {
+          {steps.map((item) => {
             const row = byKey[item.key];
-            const done = !!(row && row.done);
+            const done = isDone(item.key);
+            const ledger = item.key === CLOSE_LEDGER_STEP.key;
+            const sub = ledger ? closeLedgerSubline(signoff) : "";
             return (
               <li key={item.key} className="clc-step" data-lk={"step:" + item.key}>
-                <label className={"close-item" + (done ? " done" : "")}>
+                <label
+                  className={"close-item" + (done ? " done" : "")}
+                  title={ledger ? "Set from the Ledger review tab (Mark reviewed)." : undefined}
+                >
                   <input
                     type="checkbox"
                     checked={done}
-                    disabled={busy === item.key}
+                    disabled={ledger || busy === item.key}
                     onChange={() => toggle(item)}
                     data-lk-focus=""
                   />
                   <span>{item.label}</span>
-                  {done && row.done_by && (
-                    <span className="close-by">
-                      {row.done_by_name || String(row.done_by).split("@")[0]} · {closeShortDate(row.done_at)}
-                    </span>
+                  {ledger && sub ? (
+                    <span className="close-by">{sub}</span>
+                  ) : (
+                    done &&
+                    row &&
+                    row.done_by && (
+                      <span className="close-by">
+                        {row.done_by_name || String(row.done_by).split("@")[0]} · {closeShortDate(row.done_at)}
+                      </span>
+                    )
                   )}
                 </label>
                 {!compact && goFor(item)}
@@ -6390,33 +6586,38 @@ function CloseProgressList({ clients, onOpenClient, onBehind }) {
     window.addEventListener(STAFF_TOOLS_EVENT, load);
     return () => window.removeEventListener(STAFF_TOOLS_EVENT, load);
   }, [load]);
-  const done = {};
+  useCloseStepsCtx();
+  const doneKeys = {};
   state.rows.forEach((r) => {
-    if (r.done) done[r.client_id] = (done[r.client_id] || 0) + 1;
+    if (r.done) (doneKeys[r.client_id] = doneKeys[r.client_id] || new Set()).add(r.item_key);
   });
   const rows = clients
-    .map((c) => ({ c, n: done[c.id] || 0 }))
+    .map((c) => {
+      const steps = closeStepsFor(c, period);
+      const keys = doneKeys[c.id];
+      return { c, n: keys ? steps.filter((s) => keys.has(s.key)).length : 0, total: steps.length };
+    })
     .sort((a, b) => a.n - b.n || (a.c.name || "").localeCompare(b.c.name || ""));
   // Home tints this card amber while any client's close is unfinished.
   const behind =
     state.loading || state.missing
       ? 0
-      : rows.filter(({ n }) => n < CLOSE_CHECKLIST.length).length;
+      : rows.filter(({ n, total }) => n < total).length;
   useEffect(() => {
     if (onBehind) onBehind(behind);
   }, [behind, onBehind]);
   if (state.missing) return <p className="card-subtitle">{STAFF_TOOLS_SETUP_MSG}</p>;
   return (
     <ul className="close-progress-list">
-      {rows.map(({ c, n }) => (
+      {rows.map(({ c, n, total }) => (
         <li key={c.id}>
           <button type="button" className="close-progress-row" onClick={() => onOpenClient(c.id)}>
             <span className="close-progress-name">{c.name}</span>
             <span className="ov-progress small" aria-hidden="true">
-              <span style={{ width: `${(n / CLOSE_CHECKLIST.length) * 100}%` }} />
+              <span style={{ width: `${(n / total) * 100}%` }} />
             </span>
             <span className="close-progress-count">
-              {n}/{CLOSE_CHECKLIST.length}
+              {n}/{total}
             </span>
           </button>
         </li>
@@ -7255,6 +7456,8 @@ function ClientOverviewPage({ client, counts, onNavigate, onOpenDetails }) {
     backup_bookkeeper_email: profile.backup_bookkeeper_email || "",
     target_hourly_rate: profile.target_hourly_rate != null ? String(profile.target_hourly_rate) : "",
     monthly_hours_budget: profile.monthly_hours_budget != null ? String(profile.monthly_hours_budget) : "",
+    greeting_name: profile.greeting_name || "",
+    contact_email: profile.contact_email || "",
     account_manager_email: (client.accountManager && client.accountManager.email) || "",
   };
   const today = todayLocal();
@@ -7284,6 +7487,22 @@ function ClientOverviewPage({ client, counts, onNavigate, onOpenDetails }) {
       launch_date: draft.launch_date || null,
       backup_bookkeeper_email: draft.backup_bookkeeper_email.trim() || null,
     };
+    // Ledger review (spec 4.10): greeting name and contact email. Sent only
+    // when changed, so a save still works before gl-review-1-core.sql is applied.
+    const gName = draft.greeting_name.trim();
+    const gMail = draft.contact_email.trim().toLowerCase();
+    if (gName.length > 80) {
+      setSavingProfile(false);
+      showToast("The greeting name can be up to 80 characters.");
+      return;
+    }
+    if (gMail && (gMail.length > 254 || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(gMail))) {
+      setSavingProfile(false);
+      showToast("That contact email doesn't look right.");
+      return;
+    }
+    if (gName !== (profile.greeting_name || "")) fields.greeting_name = gName || null;
+    if (gMail !== (profile.contact_email || "")) fields.contact_email = gMail || null;
     // Target hourly rate: admins only now (D20), like the hours budget.
     if (showBusiness) fields.target_hourly_rate = draft.target_hourly_rate === "" ? null : Number(draft.target_hourly_rate);
     // Hours budget: admins only (supabase/client-hours-budget.sql also
@@ -7372,7 +7591,7 @@ function ClientOverviewPage({ client, counts, onNavigate, onOpenDetails }) {
       id: "c" + c.item_key + c.period,
       at: c.done_at,
       kind: "Close",
-      text: `${(CLOSE_CHECKLIST.find((i) => i.key === c.item_key) || { label: c.item_key }).label} (${closePeriodLabel(c.period)})`,
+      text: `${(CLOSE_STEPS_ALL.find((i) => i.key === c.item_key) || { label: c.item_key }).label} (${closePeriodLabel(c.period)})`,
       who: c.done_by_name || c.done_by,
       to: { clientId: cid, tab: "close", item: "step:" + c.item_key, month: /^\d{4}-\d{2}/.test(c.period || "") ? String(c.period).slice(0, 7) : undefined },
     })),
@@ -7716,6 +7935,28 @@ function ClientOverviewPage({ client, counts, onNavigate, onOpenDetails }) {
                       />
                     </label>
                   )}
+                  <label className="task-field">
+                    <span>Greeting name (for the ledger summary)</span>
+                    <input
+                      type="text"
+                      maxLength={80}
+                      placeholder="Pastor Mark"
+                      value={draft.greeting_name}
+                      onChange={(e) => setProfileDraft({ ...draft, greeting_name: e.target.value })}
+                    />
+                    <small className="card-subtitle">How the summary says hello, like "Pastor Mark" or "Mrs. Ellis". Left empty, it says "Hello,".</small>
+                  </label>
+                  <label className="task-field">
+                    <span>Contact email (for ledger questions and summaries)</span>
+                    <input
+                      type="email"
+                      maxLength={254}
+                      placeholder="name@theirchurch.org"
+                      value={draft.contact_email}
+                      onChange={(e) => setProfileDraft({ ...draft, contact_email: e.target.value })}
+                    />
+                    <small className="card-subtitle">Used for Ask client by email and Send summary by email on Ledger review. Staff only; not shown to the client.</small>
+                  </label>
                   {canPickAm && (
                     <label className="task-field">
                       <span>Account manager</span>
@@ -16010,6 +16251,7 @@ const USAGE_TAB_LABELS = {
   sop: "SOP",
   "client-overview": "Overview",
   "client-close": "Close",
+  "client-ledger": "Ledger review",
   bank: "Bank accounts",
   receivables: "Cash flow",
   giving: "Giving & funds",
@@ -25381,6 +25623,10 @@ const PAGE_META = {
     title: "Close",
     subtitle: "Staff only: this month's close for this client",
   },
+  "client-ledger": {
+    title: "Ledger review",
+    subtitle: "Staff only: check this client's General Ledger before the month closes",
+  },
   "enterprise-upgrade": {
     title: "Plans",
     subtitle: "Basic and Pro — what each includes",
@@ -25793,6 +26039,7 @@ const CLIENT_TAB_ALIASES = {
   "client-details": "client-settings",
   // TABS-SPEC: Close tab and the Client setup alias (#/client/<id>/setup).
   close: "client-close",
+  ledger: "client-ledger",
   setup: "client-settings",
 };
 // Client setup sub-tabs a hash may name (#/client/<id>/settings/<tab>).
@@ -25905,6 +26152,8 @@ function buildHashRoute(page, clientId, opts) {
       ? "overview"
       : page === "client-close"
         ? "close"
+        : page === "client-ledger"
+          ? "ledger"
         : page === "client-settings"
           ? "settings" + (CLIENT_SETTINGS_SUBTABS.has(settingsTab) ? "/" + settingsTab : "")
           : encodeURIComponent(page))
@@ -26276,6 +26525,17 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
       window.removeEventListener(STAFF_TOOLS_EVENT, load);
     };
   }, [selectedClientId]);
+  // GL Review (spec section 5): questions from the bookkeeper waiting on this
+  // client user. RLS returns only staff questions sent to them in the portal
+  // (plus their own, filtered out here). Signed-in client users only.
+  const tqForMe = TQ_useQuestions([clientPortalUser ? selectedClientId : null], {
+    enabled: !!clientPortalUser,
+    status: "open",
+  });
+  const tqWaitingForMe = (tqForMe.rows || []).filter((q) => q.direction === "staff_asked");
+  // A client user without the Bank tab answers from Home's "Needs you" item:
+  // the answer dialog opens right there (TQ_AnswerModal), one question at a time.
+  const [tqAnswerQ, setTqAnswerQ] = useState(null);
   // Read state and live threads are both keyed "<clientId>::<userId>", since
   // every person at an organization has their own private thread.
   const [readMessageClients, setReadMessageClients] = useState({});
@@ -27158,6 +27418,14 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
             !(viewAsUserId !== BOOKKEEPER_VIEW && access.user) &&
             client
           ? page
+        // Ledger review (docs/gl-review-spec.md): staff only, never in a
+        // client view or a preview as a client user.
+        : page === "client-ledger" &&
+            !clientPortalUser &&
+            staffUser &&
+            !(viewAsUserId !== BOOKKEEPER_VIEW && access.user) &&
+            client
+          ? page
         : STAFF_ALWAYS_TABS.has(page) &&
             staffUser &&
             !clientPortalUser &&
@@ -27972,6 +28240,15 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
           setPage("messages");
         },
       });
+    if (tqWaitingForMe.length)
+      out.push({
+        key: "txnq",
+        text: `Your bookkeeper has ${tqWaitingForMe.length} question${tqWaitingForMe.length === 1 ? "" : "s"} about transactions`,
+        sub: TQ_label(tqWaitingForMe[0]) + (tqWaitingForMe.length > 1 ? ` and ${tqWaitingForMe.length - 1} more` : ""),
+        action: "Answer",
+        // Bank lists them all; without Bank, answer the first one here.
+        onClick: () => (access.tabs.has("bank") ? setPage("bank") : setTqAnswerQ(tqWaitingForMe[0])),
+      });
     if (hasUnreadMessages && access.tabs.has("messages"))
       out.push({ key: "msg", text: "New message from your bookkeeper", action: "Read it", onClick: () => setPage("messages") });
     if (budgetAwaiting && access.tabs.has("budget"))
@@ -28699,6 +28976,9 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
               onSeePlans={() => setPage("enterprise-upgrade")}
             />
           )}
+          {tqAnswerQ && typeof TQ_AnswerModal === "function" && (
+            <TQ_AnswerModal question={tqAnswerQ} onClose={() => setTqAnswerQ(null)} />
+          )}
           {effectivePage === "dashboard" &&
             (access.plan === "basic" ? (
               <CLIENT_LockedCard
@@ -29058,6 +29338,15 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
               isAdmin={STAFF_isRealAdmin(effectiveStaffUser)}
               onNavigate={setPage}
               key={"close-" + client.id}
+            />
+          )}
+          {effectivePage === "client-ledger" && typeof LR_LedgerTab === "function" && (
+            <LR_LedgerTab
+              client={client}
+              staffUser={effectiveStaffUser}
+              isAdmin={STAFF_isRealAdmin(effectiveStaffUser)}
+              onNavigate={setPage}
+              key={"ledger-" + client.id}
             />
           )}
           {effectivePage === "client-overview" && (

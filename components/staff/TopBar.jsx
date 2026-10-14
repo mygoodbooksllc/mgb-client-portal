@@ -75,6 +75,7 @@ const TB_HELP_FOR_PAGE = {
   settings: "staff-settings",
   "client-overview": "client-overview",
   "client-close": "client-close",
+  "client-ledger": "ledger-review",
   documents: "document-requests",
   sop: "client-sops",
   milestone: "pricing-milestones",

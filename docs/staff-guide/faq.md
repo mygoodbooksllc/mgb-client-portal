@@ -68,7 +68,11 @@ Real portal logins (the client's people in Client details) are enforced at sign-
 
 ### What's the difference between Work › Close and a client's Close tab?
 
-The Close tab is one client's month: the six steps, the QuickBooks check and the status. Work › Close is the status of every client, month by month. They show the same record, so a change in one shows in the other. See [How do I track month-end close?](#/help/month-end-close) and [What's on a client's Close tab?](#/help/client-close).
+The Close tab is one client's month: the close steps (six, or seven with **Ledger reviewed**), the QuickBooks check and the status. Work › Close is the status of every client, month by month. They show the same record, so a change in one shows in the other. See [How do I track month-end close?](#/help/month-end-close) and [What's on a client's Close tab?](#/help/client-close).
+
+### Ledger review says "isn't set up yet" or a button does nothing.
+
+Ledger review needs its database update and the two server functions (qbo-gl-review and gl-review-send). Until an admin has applied them, the tab says it isn't set up yet. **Review a file** under Work › Ledger review works regardless, since it never leaves your browser. See [How does Ledger review work?](#/help/ledger-review).
 
 ### Something says "…database update is applied" or "…isn't set up on the server yet".
 

@@ -231,6 +231,17 @@ const TIPS_CATALOG = [
     slug: "client-close",
   },
   {
+    id: "ledger-flags",
+    roles: "all",
+    match: (r) => r.client && r.page === "client-ledger",
+    target: "ledger-flags",
+    part: "h3",
+    snug: true,
+    text: "Clear a flag with a reason, or Ask client when only they can say. Stop flagging this keeps a known pattern quiet for this client only.",
+    slug: "ledger-review",
+    ready: () => !!document.querySelector('[data-tour="ledger-flags"]'),
+  },
+  {
     id: "ov-doc-requests",
     roles: "all",
     match: (r) => r.client && r.page === "documents",

@@ -3,8 +3,10 @@
 //
 //   CLC_ClientClosePage({ client, staffUser, isAdmin, onNavigate })
 //     One client, one month: status and notes (the month_close record),
-//     the QuickBooks check (CC_ClientCloseCard), the six close steps
-//     (CloseChecklistCard), the "Mark {Month} done" control, the read-only
+//     the QuickBooks check (CC_ClientCloseCard), the Ledger review card
+//     (CLC_LedgerCard, GL Review spec 6.2; only when closeStepsFor gives the
+//     seventh step), the close steps (CloseChecklistCard: six, or seven with
+//     "Ledger reviewed"), the "Mark {Month} done" control, the read-only
 //     monthly_close SOP and the "Sent to the client" history.
 //   CLC_CloseSummaryRow({ client, counts, onOpen })
 //     One line for the Overview (WP4 places it), linking here.
@@ -186,7 +188,9 @@ function CLC_ClientClosePage({ client, staffUser, isAdmin, onNavigate }) {
   const row = metaReady ? meta.row : null;
   const status = (row && row.status) || "not_started";
 
-  // --- six steps (count only; CloseChecklistCard renders and ticks them) ---
+  // --- close steps (count only; CloseChecklistCard renders and ticks them) ---
+  // Six, or seven when Ledger reviewed applies (closeStepsFor, app.jsx).
+  useCloseStepsCtx();
   const [items, setItems] = useState({ forYm: null, rows: [] });
   const loadItems = useCallback(() => {
     const sb = window.mgbSupabase;
@@ -202,11 +206,49 @@ function CLC_ClientClosePage({ client, staffUser, isAdmin, onNavigate }) {
     window.addEventListener(evt, loadItems);
     return () => window.removeEventListener(evt, loadItems);
   }, [loadItems]);
-  const stepList = CLOSE_CHECKLIST;
+  // The connection status this page loaded wins over the shared cache.
+  const connStatus = !meta.loading && meta.forKey === metaKey ? (meta.conn ? meta.conn.status || null : null) : undefined;
+  const stepList = closeStepsFor(client, ym, connStatus);
   const stepTotal = stepList.length;
+  const hasLedger = stepTotal > CLOSE_CHECKLIST.length;
   const doneKeys = new Set(
     (items.forYm === ym ? items.rows : []).filter((r) => r.done && (!r.period || String(r.period).slice(0, 7) === ym)).map((r) => r.item_key),
   );
+
+  // --- Ledger review (GL Review spec 6.2) ------------------------------------
+  const [ledger, setLedger] = useState({ forKey: null, data: null });
+  const ledgerKey = client.id + "|" + ym;
+  const ledgerKeyRef = useRef(ledgerKey);
+  ledgerKeyRef.current = ledgerKey;
+  const loadLedger = useCallback(() => {
+    const sb = window.mgbSupabase;
+    if (!sb || !hasLedger) return;
+    const k = client.id + "|" + ym;
+    closeLedgerApi.summary(sb, client.id, ym).then(
+      (d) => {
+        if (k === ledgerKeyRef.current) setLedger({ forKey: k, data: d });
+      },
+      () => {},
+    );
+  }, [client.id, ym, hasLedger]);
+  useEffect(() => {
+    loadLedger();
+    window.addEventListener(GL_REVIEW_EVENT, loadLedger);
+    window.addEventListener(STAFF_TOOLS_EVENT, loadLedger);
+    window.addEventListener(CT_CHANGED_EVENT, loadLedger);
+    return () => {
+      window.removeEventListener(GL_REVIEW_EVENT, loadLedger);
+      window.removeEventListener(STAFF_TOOLS_EVENT, loadLedger);
+      window.removeEventListener(CT_CHANGED_EVENT, loadLedger);
+    };
+  }, [loadLedger]);
+  const ledgerData = ledger.forKey === ledgerKey ? ledger.data : null;
+  const signoff = ledgerData && !ledgerData.missing ? ledgerData.signoff : null;
+  // The sign-off row is the source of truth for the Ledger reviewed step.
+  if (hasLedger && signoff) {
+    if (signoff.status === "reviewed" || signoff.status === "approved") doneKeys.add(CLOSE_LEDGER_STEP.key);
+    else doneKeys.delete(CLOSE_LEDGER_STEP.key);
+  }
   const doneCount = stepList.filter((s) => doneKeys.has(s.key)).length;
   const stepsLeft = stepTotal - doneCount;
 
@@ -281,8 +323,18 @@ function CLC_ClientClosePage({ client, staffUser, isAdmin, onNavigate }) {
       notes: nextNotes,
       expectedUpdatedAt: o.force ? o.expected || null : row ? row.updated_at : null,
       prevRow: prev,
+      // Ledger review warning (spec 6.4, warn mode) in this page's own dialog;
+      // block mode falls back to CT_ledgerGate's reason prompt.
+      confirmLedger: ({ gate }) =>
+        gate === "block"
+          ? Promise.resolve().then(() => {
+              const r = window.prompt("Ledger review isn't approved. Only an admin can override. Reason:", "");
+              return r && r.trim() ? { ok: true, note: r.trim() } : false;
+            })
+          : new Promise((resolve) => setAsk({ kind: "ledger", run: () => resolve(true), cancel: () => resolve(false) })),
     });
     setSaving(false);
+    if (res.cancelled) return false;
     if (res.ok) {
       setMeta((m) => ({ ...m, row: res.row }));
       setDirty(false);
@@ -512,6 +564,18 @@ function CLC_ClientClosePage({ client, staffUser, isAdmin, onNavigate }) {
     </section>
   );
 
+  const ledgerSection = hasLedger ? (
+    <CLC_LedgerCard
+      client={client}
+      ym={ym}
+      month={month}
+      data={ledgerData}
+      isAdmin={!!isAdmin}
+      onChanged={loadLedger}
+      toast={toast}
+    />
+  ) : null;
+
   const stepsSection = (
     <div className="clc-steps-wrap clc-o-steps" data-lk="at:close-steps">
       <CloseChecklistCard client={client} period={ym} />
@@ -688,8 +752,22 @@ function CLC_ClientClosePage({ client, staffUser, isAdmin, onNavigate }) {
       setAsk(null);
       if (run) run();
     };
-    const cancel = () => setAsk(null);
-    if (ask.kind === "anyway") {
+    const cancel = () => {
+      const c = ask.cancel;
+      setAsk(null);
+      if (c) c();
+    };
+    if (ask.kind === "ledger") {
+      askModal = (
+        <ConfirmModal
+          title="Ledger review"
+          body={`Ledger review isn't approved. Mark done anyway?`}
+          confirmLabel="Mark done anyway"
+          onConfirm={done}
+          onCancel={cancel}
+        />
+      );
+    } else if (ask.kind === "anyway") {
       askModal = (
         <ConfirmModal
           title="QuickBooks still shows problems"
@@ -734,6 +812,7 @@ function CLC_ClientClosePage({ client, staffUser, isAdmin, onNavigate }) {
         <div className="clc-col clc-main">
           {statusCard}
           {qboSection}
+          {ledgerSection}
           {stepsSection}
           {doneSection}
         </div>
@@ -770,6 +849,161 @@ function CLC_ClientClosePage({ client, staffUser, isAdmin, onNavigate }) {
 }
 
 // ---------------------------------------------------------------------------
+// Ledger review card (GL Review spec 6.2). Shown only when the seventh step
+// applies. Counts come from gl_review_flags as of the last pull (no scheduled
+// pull in phase 1); the sign-off moves only through the RPCs
+// (closeLedgerApi, app.jsx). An admin may approve their own review (13.4).
+// ---------------------------------------------------------------------------
+
+const CLC_LEDGER_STATUS = {
+  in_review: "In review",
+  reviewed: "Reviewed, waiting for approval",
+  approved: "Approved",
+  sent_back: "Sent back",
+};
+
+function CLC_LedgerCard({ client, ym, month, data, isAdmin, onChanged, toast }) {
+  const [busy, setBusy] = useState(null);
+  const [sendBack, setSendBack] = useState(null); // note draft while the modal is open
+  const so = data && !data.missing ? data.signoff : null;
+  const st = (so && so.status) || null;
+  const href = LK_href({ clientId: client.id, tab: "ledger", month: ym });
+  const go = LK_onClick({ clientId: client.id, tab: "ledger", month: ym });
+  const after = () => {
+    try {
+      notifyGlReview();
+      notifyStaffTools();
+    } catch (e) {}
+    if (onChanged) onChanged();
+  };
+  const fail = (error) => toast("Couldn't save. " + ((error && error.message) || ""));
+  async function run(kind) {
+    const sb = window.mgbSupabase;
+    if (!sb) return;
+    setBusy(kind);
+    let r;
+    try {
+      if (kind === "review") r = await closeLedgerApi.markReviewed(sb, client.id, ym);
+      else if (kind === "approve") r = await closeLedgerApi.approve(sb, client.id, ym);
+      else if (kind === "sendback") r = await closeLedgerApi.sendBack(sb, client.id, ym, String(sendBack || "").trim());
+    } catch (e) {
+      r = { error: e };
+    }
+    setBusy(null);
+    if (r && r.error) return fail(r.error);
+    if (kind === "sendback") setSendBack(null);
+    if (kind === "review") {
+      const d = (r && r.data) || {};
+      const high = d.high_open_at_review || 0;
+      toast(
+        `Ledger marked reviewed for ${month}` +
+          (high ? ` with ${high} high-priority flag${high === 1 ? "" : "s"} open.` : ".") +
+          (d.month_started ? ` ${month} is now In progress.` : ""),
+      );
+      if (d.month_started) {
+        try {
+          window.dispatchEvent(new CustomEvent(CT_CHANGED_EVENT, { detail: { clientId: client.id, period: CT_fromYm(ym) } }));
+        } catch (e) {}
+      }
+    } else if (kind === "approve") toast(`Ledger review approved for ${month}.`);
+    else toast(`Ledger review sent back for ${month}.`);
+    after();
+  }
+
+  let body;
+  if (!data) body = <p className="card-subtitle">Loading…</p>;
+  else if (data.missing) body = <p className="card-subtitle">Ledger review isn't set up yet.</p>;
+  else {
+    const pull = data.pull;
+    let pulled;
+    if (pull && pull.status === "running") pulled = "Pulling from QuickBooks now…";
+    else if (pull && pull.finished_at)
+      pulled =
+        "Last pulled " + CLC_rel(pull.finished_at) + (pull.status === "error" ? " (the last pull failed)" : "") + " · counts as of the last pull";
+    else pulled = "Not pulled yet. Open Ledger review to pull the ledger.";
+    const sub = typeof closeLedgerSubline === "function" ? closeLedgerSubline(so) : "";
+    const canMark = st !== "reviewed" && st !== "approved";
+    const ready = canMark && pull && pull.finished_at && data.highOpen === 0;
+    body = (
+      <>
+        <p className="clc-ledger-counts">
+          {data.open} open · {data.asked} asked · {data.cleared} cleared
+          {data.highOpen > 0 ? <span className="clc-ledger-high"> · {data.highOpen} high priority</span> : null}
+        </p>
+        <p className="card-subtitle clc-ledger-pulled">{pulled}</p>
+        {sub ? <p className="clc-ledger-sub">{sub}</p> : null}
+        {ready ? <p className="clc-ledger-ready">Ready to mark reviewed: no high-priority flags open.</p> : null}
+        <div className="clc-ledger-actions">
+          <a className="btn-secondary" href={href} onClick={go}>
+            Open Ledger review →
+          </a>
+          {canMark && (
+            <button type="button" className="btn-primary" disabled={!!busy} onClick={() => run("review")}>
+              {busy === "review" ? "Saving…" : "Mark reviewed"}
+            </button>
+          )}
+          {isAdmin && st === "reviewed" && (
+            <button type="button" className="btn-primary" disabled={!!busy} onClick={() => run("approve")}>
+              {busy === "approve" ? "Saving…" : "Approve"}
+            </button>
+          )}
+          {isAdmin && (st === "reviewed" || st === "approved") && (
+            <button type="button" className="btn-secondary" disabled={!!busy} onClick={() => setSendBack("")}>
+              Send back
+            </button>
+          )}
+        </div>
+      </>
+    );
+  }
+  const note = String(sendBack || "").trim();
+  return (
+    <section className="card clc-ledger clc-o-ledger" data-lk="at:close-ledger" aria-labelledby="clc-ledger-h">
+      <div className="clc-card-head">
+        <h3 className="card-title" id="clc-ledger-h">
+          Ledger review
+        </h3>
+        {st && <span className="clc-chip">{CLC_LEDGER_STATUS[st] || st}</span>}
+      </div>
+      {body}
+      {sendBack !== null && (
+        <ModalShell onClose={() => setSendBack(null)} labelledBy="clc-sendback-title" className="confirm-modal">
+          <div className="modal-header">
+            <h3 className="card-title" id="clc-sendback-title" style={{ margin: 0 }}>
+              Send back the {month} ledger review
+            </h3>
+            <button className="modal-close" onClick={() => setSendBack(null)} aria-label="Close">
+              ×
+            </button>
+          </div>
+          <div className="modal-body">
+            <label className="ct-legend" htmlFor="clc-sendback-note">
+              What needs another look?
+            </label>
+            <textarea
+              id="clc-sendback-note"
+              className="ct-notes"
+              rows={3}
+              maxLength={1000}
+              value={sendBack}
+              onChange={(e) => setSendBack(e.target.value)}
+            />
+          </div>
+          <div className="modal-footer">
+            <button className="btn-secondary" onClick={() => setSendBack(null)}>
+              Cancel
+            </button>
+            <button className="btn-primary" disabled={!note || busy === "sendback"} onClick={() => run("sendback")}>
+              {busy === "sendback" ? "Sending…" : "Send back"}
+            </button>
+          </div>
+        </ModalShell>
+      )}
+    </section>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Overview summary row
 // ---------------------------------------------------------------------------
 
@@ -792,12 +1026,17 @@ async function CLC_loadSummary(clientId) {
       CLC_soft(sb.from("close_checks").select("status, checks").eq("client_id", clientId).eq("period", period).maybeSingle()),
       CLC_soft(sb.from("qbo_connections").select("status").eq("client_id", clientId).maybeSingle()),
     ]);
-    const keys = CLOSE_CHECKLIST.map((s) => s.key);
+    // Six steps, or seven with Ledger reviewed (closeStepsFor, app.jsx).
+    await closeStepsLoad();
+    const connStatus = conn && !conn.error ? (conn.data ? conn.data.status || null : null) : undefined;
+    const steps = closeStepsFor(clientId, ym, connStatus);
+    const keys = steps.map((s) => s.key);
     const done = ((items && items.data) || []).filter((r) => r.done && (!keys || keys.includes(r.item_key))).length;
     CLC_sumStore.byClient[clientId] = {
       at: Date.now(),
       ym,
       done,
+      total: steps.length,
       status: (mc && mc.data && mc.data.status) || "not_started",
       check: (cc && cc.data) || null,
       conn: (conn && conn.data) || null,
@@ -865,7 +1104,7 @@ function CLC_CloseSummaryRow({ client, counts, onOpen }) {
     failing: cl ? cl.failing : null,
     connected,
   });
-  const total = CLOSE_CHECKLIST.length;
+  const total = e.total || CLOSE_CHECKLIST.length;
   const href = TB_clientHash(id, "close");
   const click = (ev) => {
     if (!onOpen || ev.defaultPrevented || ev.button !== 0 || ev.metaKey || ev.ctrlKey || ev.shiftKey || ev.altKey) return;

@@ -2,10 +2,10 @@
 title: What's on a client's Close tab?
 section: Working with a client
 audience: staff
-keywords: [close tab, client close, month-end close, close steps, checklist, in progress, mark done, reopen, n/a, quickbooks check, sync now, sent to client, reports sent, balance sheet, month end balance sheet, balance sheet from quickbooks, email, reports are ready, late, status, notes, month picker, monthly close steps]
+keywords: [close tab, client close, month-end close, close steps, checklist, ledger reviewed, ledger review, approve, send back, mark reviewed, in progress, mark done, reopen, n/a, quickbooks check, sync now, sent to client, reports sent, balance sheet, month end balance sheet, balance sheet from quickbooks, email, reports are ready, late, status, notes, month picker, monthly close steps]
 sort: 205
 ---
-The **Close** tab is where you close one client's month. It holds the month's status, the QuickBooks check, the six close steps, what you've sent the client, and the client's own written close steps from their SOP. Staff only. The client never sees this tab.
+The **Close** tab is where you close one client's month. It holds the month's status, the QuickBooks check, the close steps (six, or seven with **Ledger reviewed**), what you've sent the client, and the client's own written close steps from their SOP. Staff only. The client never sees this tab.
 
 Open it from the client's tab row, from the **{Month} close** line on the Overview, or by clicking the client's name on **Work › Close**. The address is `#/client/{id}/close`, so you can send a teammate a link.
 
@@ -13,16 +13,17 @@ Open it from the client's tab row, from the **{Month} close** line on the Overvi
 
 - **Month**: pick the month. It opens on last month, the one you're closing now. The list goes back six months and also has the current month.
 - **Due {date}** or **Late · {n} days**, next to the picker. A month is late when it isn't **Done** or **N/A** by the 15th of the next month (an admin can change that day on Work › Close). The chip goes away once the month is **Done** or **N/A**.
-- A one-line summary: the status, **{n} of 6 steps** and the QuickBooks badge. Click it to jump to the status.
+- A one-line summary: the status, **{n} of 6 steps** (or **of 7**) and the QuickBooks badge. Click it to jump to the status.
 - **Status**: **Not started**, **In progress**, **Review**, **Done** or **N/A**, with **Notes** (for example *Waiting on bank statement*) and a **Save** button. Under it: *Last updated by {name} · {time}*.
 - **QuickBooks check**: what QuickBooks says about the month. See below.
-- **Close steps**: the six steps, with a tick box each.
+- **Ledger review** (QuickBooks clients, from the month Ledger review started): this month's open, asked and cleared flags, how many are high priority, and *Last pulled {time} · counts as of the last pull*. It shows the sign-off (*Reviewed by {name} · Waiting for admin approval*, *Approved by {name}* or *Sent back: {note}*) and *Ready to mark reviewed* once no high-priority flags are open. Buttons: **Open Ledger review →**, **Mark reviewed**, and for an admin **Approve** and **Send back** (Send back asks what needs another look). An admin can approve their own review.
+- **Close steps**: the six steps (seven with **Ledger reviewed**), with a tick box each.
 - **Monthly close steps**: this client's own close steps, read-only, from the **SOP** tab. **Edit in SOP →** opens the SOP. If none are written, it says so and links to **Add them in SOP →**.
 - **Sent to the client**: reports you've marked as sent, newest first. It shows the last 10; **Show all** lists the rest. If nothing's been sent, use **Mark sent to client** on Reports. **Go to Reports →** is right there.
 
 On a phone, the tab stacks. **Monthly close steps** and **Sent to the client** fold up, and **Mark {Month} done** stays at the bottom of the screen once it's ready.
 
-### The six close steps
+### The close steps
 
 1. Bank feed categorized
 2. Bank accounts reconciled
@@ -31,18 +32,21 @@ On a phone, the tab stacks. **Monthly close steps** and **Sent to the client** f
 5. Reports reviewed
 6. Reports sent to the client
 
+For a client with QuickBooks connected, from the month Ledger review started, there's a seventh step, **Ledger reviewed**, after **Reports reviewed**. Its box can't be ticked by hand. **Mark reviewed** ticks it, **Send back** unticks it, and the line under it says who reviewed and who approved. Its link is **Open Ledger →**. A client without a working QuickBooks connection keeps six steps.
+
 Each tick records who ticked it and when. Most steps have a **Go →** link that opens the right place for that month: Bank filtered to uncategorized transactions, Bank filtered to not-reconciled rows, or Reports. The payroll and journal entries step says **See your steps →** and scrolls to the client's monthly close steps.
 
 **Your first tick sets the month to In progress.** It only does that when the month is **Not started** (or has no record yet) and no other step is ticked. You'll see *{Month} is now In progress.* Unticking a step never changes the status.
 
 ### Marking the month done
 
-**Done is always your click.** Ticking the sixth step doesn't finish the month.
+**Done is always your click.** Ticking the last step doesn't finish the month.
 
-- Until all six steps are ticked, the tab says *{n} steps left before you can mark {Month} done.*
+- Until every step is ticked, the tab says *{n} steps left before you can mark {Month} done.*
 - When they are, **Mark {Month} done** appears. If QuickBooks still shows a problem for that month, the button reads **Mark {Month} done anyway**, and asks you to confirm: *QuickBooks still shows: {reasons}. Mark {Month} done anyway?*
 - Under the button: *Marking it done emails {client}'s people that {Month} reports are ready.* That's a real email to the client's people. See [How do I manage client emails?](#/help/client-emails).
-- You can also pick **Done** in the **Status** card and click **Save**. That sends the same email, and you don't need all six steps for it.
+- You can also pick **Done** in the **Status** card and click **Save**. That sends the same email, and you don't need every step ticked for it.
+- If the client has the **Ledger reviewed** step and the review isn't approved yet, marking the month done (from the button, the Status card or Work › Close) asks *Ledger review isn't approved. Mark done anyway?* Yes records who went ahead without approval. Reopening a done month clears the approval, so it needs approving again.
 - If this month was already marked done, the app asks first, because marking it done again **sends the "reports are ready" email again**. It remembers a done month for as long as you have the app open. Pick **Mark done and email again** only if you mean to.
 - Once it's done, the tab says *{Month} is done · {name} · {date}* with a **Reopen** link. **Reopen** asks *Reopen {Month}? It goes back to In progress.* and doesn't send an email.
 - **N/A** means the month isn't needed. The tab says *{Month} is marked not needed (N/A).*
@@ -75,7 +79,8 @@ The **Close** tab can show a dot for last month. Red means QuickBooks needs reco
 
 ### Troubleshooting
 
-- **I ticked all six steps and the month still isn't Done.** That's expected. Click **Mark {Month} done**.
+- **I ticked every step and the month still isn't Done.** That's expected. Click **Mark {Month} done**.
+- **I can't tick Ledger reviewed.** That's on purpose. Click **Mark reviewed** on the Ledger review card or tab.
 - **The status didn't change when I ticked a step.** Only the first tick of a month that's **Not started** moves it to **In progress**. If anyone ticked a step earlier, it won't change again.
 - **The QuickBooks check looks old.** Click **Sync now**. On a Basic client the numbers can be weeks old.
 - **The month-end Balance Sheet button isn't there.** It shows only for staff (not in **Preview as**) on a client with QuickBooks connected. Otherwise send the P&L for **Last Closed Month**, or tick the step yourself.

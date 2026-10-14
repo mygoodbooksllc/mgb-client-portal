@@ -725,6 +725,19 @@ function siSopSnippets(sops) {
     .map((r) => ({ id: r.section, title: r.title || titles[r.section] || r.section, body: String(r.body).trim() }));
 }
 
+// Re-render when the close-steps cache (six or seven steps) loads. Always
+// calls the same hooks, whether or not app.jsx's closeStepsLoad is there.
+function SI_useCloseStepsCtx() {
+  const [, setN] = React.useState(0);
+  React.useEffect(() => {
+    const ev = typeof CLOSE_STEPS_EVENT === "string" ? CLOSE_STEPS_EVENT : "mgb:close-steps-context";
+    const on = () => setN((n) => n + 1);
+    window.addEventListener(ev, on);
+    if (typeof closeStepsLoad === "function") closeStepsLoad();
+    return () => window.removeEventListener(ev, on);
+  }, []);
+}
+
 function SI_ClientContext({ entry, staffUser, rows, onOpenClient }) {
   const client = entry.client;
   const staffTools = typeof useStaffToolList === "function" && typeof staffToolsApi === "object";
@@ -735,6 +748,7 @@ function SI_ClientContext({ entry, staffUser, rows, onOpenClient }) {
   const close = staffTools && period
     ? useStaffToolList((sb, id) => staffToolsApi.closeItems(sb, id, period), client.id)
     : { rows: [], loading: false, missing: true };
+  SI_useCloseStepsCtx();
   const ms = typeof useMilestones === "function" ? useMilestones([client.id]) : { byId: {} };
   const [tasks, setTasks] = React.useState([]);
   React.useEffect(() => {
@@ -757,8 +771,16 @@ function SI_ClientContext({ entry, staffUser, rows, onOpenClient }) {
   const summary = ms.byId && ms.byId[client.id];
   const milestone = summary && summary.current;
   const cash = typeof totalCash === "function" ? totalCash(client) : null;
-  const doneCount = (close.rows || []).filter((r) => r.done).length;
-  const totalItems = typeof CLOSE_CHECKLIST !== "undefined" ? CLOSE_CHECKLIST.length : 0;
+  // Six steps, or seven with Ledger reviewed (closeStepsFor, app.jsx).
+  const closeSteps =
+    typeof closeStepsFor === "function" && period
+      ? closeStepsFor(client, period)
+      : typeof CLOSE_CHECKLIST !== "undefined"
+        ? CLOSE_CHECKLIST
+        : [];
+  const closeKeys = new Set(closeSteps.map((s) => s.key));
+  const doneCount = (close.rows || []).filter((r) => r.done && closeKeys.has(r.item_key)).length;
+  const totalItems = closeSteps.length;
   const bk = client.assignedBookkeeper;
   const bkName = bk ? (typeof bk === "string" ? bk : bk.name) : null;
   const openDocs = (docs.rows || []).filter((r) => r.status === "open");

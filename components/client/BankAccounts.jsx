@@ -640,7 +640,9 @@ function BA_BankTransactionsPanel({
           return;
         }
         const t = q.txn_key ? allRows.find((x) => x.txnKey === q.txn_key) : null;
-        if (q.status !== "open") {
+        // Open or answered (GL Review: a staff question the client answered
+        // is still waiting for staff) count as live.
+        if (typeof TQ_isActive === "function" ? !TQ_isActive(q) : q.status !== "open") {
           showToast(BA_lkCopy("qAnswered"));
           if (t) revealRow(t, month);
           return;
@@ -655,7 +657,7 @@ function BA_BankTransactionsPanel({
         Promise.resolve(
           sb
             .from("transaction_questions")
-            .select(TQ_COLS)
+            .select(typeof TQ_cols === "function" ? TQ_cols() : TQ_COLS)
             .eq("id", a.id)
             .eq("client_id", client.id)
             .maybeSingle(),
@@ -701,7 +703,9 @@ function BA_BankTransactionsPanel({
   // listed under the table so the staffer can still reach them.
   const hiddenQs =
     isStaff && presetFilter === "questions"
-      ? (tq.rows || []).filter((q) => q.status === "open" && !allRows.some((t) => t.txnKey && t.txnKey === q.txn_key))
+      ? (tq.rows || []).filter(
+          (q) => (q.status === "open" || q.status === "answered") && !allRows.some((t) => t.txnKey && t.txnKey === q.txn_key),
+        )
       : [];
   const isOlderQ = (q) => !oldestDate || (!!q.txn_date && q.txn_date < oldestDate);
   const olderQIds = hiddenQs.filter(isOlderQ).map((q) => q.id);
@@ -796,6 +800,9 @@ function BA_BankTransactionsPanel({
             </button>
           )}
         </div>
+      )}
+      {isQbo && isClientUser && !isStaff && typeof TQ_ForYouList === "function" && (
+        <TQ_ForYouList questions={tq.rows} />
       )}
       <div className="kpi-grid ba-kpis">
         <div className="card kpi-card">
@@ -1093,14 +1100,17 @@ function BA_BankTransactionsPanel({
           )}
         </div>
       </div>
-      {activeQuestion && (
-        <TQ_ResolveModal
-          question={activeQuestion}
-          client={client}
-          canResolve
-          onClose={() => setActiveQuestion(null)}
-        />
-      )}
+      {activeQuestion &&
+        (!isStaff && activeQuestion.direction === "staff_asked" && activeQuestion.status === "open" ? (
+          <TQ_AnswerModal question={activeQuestion} onClose={() => setActiveQuestion(null)} />
+        ) : (
+          <TQ_ResolveModal
+            question={activeQuestion}
+            client={client}
+            canResolve={isStaff}
+            onClose={() => setActiveQuestion(null)}
+          />
+        ))}
     </div>
   );
 }

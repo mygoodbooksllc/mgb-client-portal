@@ -20,6 +20,7 @@ sort: 48
 
 - **Hours** (`#/team/hours`): hours and tasks by person and by client, with the QuickBooks Time connection and the QuickBooks API usage card. Details below.
 - **Reply times** (`#/team/reply-times`): how fast we answer client messages, by person and by client, and who's waiting over 24 hours. See [How do I read reply times?](#/help/reply-times).
+- **Ledger review** (`#/team/ledger`): Ledger review settings: warn or block when a month is marked done without approval, how much ledger to pull, and the vendor watch list. Only admins see this tab. See [How does Ledger review work?](#/help/ledger-review).
 - **Feedback** (`#/team/feedback`): every bug report and idea staff have sent, with status and replies. The number on the tab counts reports still marked **New**. See [How do I review bug reports and feedback?](#/help/feedback-page).
 - **Members** (`#/team/members`): add staff, roles, active/inactive, client assignments, temporary admin access, **View as**, **Offboard** and email invites. Temporary admins see it read-only. See [How do I add staff and manage their access?](#/help/staff-management).
 

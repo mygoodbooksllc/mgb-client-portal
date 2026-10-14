@@ -130,10 +130,60 @@ async function CT_conflict(sb, clientId, period, cols) {
   return { ok: false, conflict: true, theirs };
 }
 
-// Returns { ok:true, row[, noop] } | { ok:false, conflict:true, theirs } | { ok:false, error }.
+// GL Review gate (docs/gl-review-spec.md 6.4). Runs only when a month moves to
+// Done and the Ledger reviewed step applies (closeStepsFor, app.jsx). With
+// no 'approved' sign-off and no override:
+//   warn (default): "Ledger review isn't approved. Mark done anyway?"; yes
+//     records it through gl_review_override_done and the save goes ahead.
+//   block: a reason is required; gl_review_override_done refuses non-admins,
+//     and the month_close trigger refuses the write without it.
+// confirmLedger({ gate, month }) is the caller's own dialog; it resolves to
+// true / false or { ok, note }. Without one, window.confirm / window.prompt.
+// Returns { ok:true } | { ok:false, cancelled:true } | { ok:false, error }.
+const CT_LEDGER_WARN = "Ledger review isn't approved. Mark done anyway?";
+async function CT_ledgerGate({ sb, clientId, period, confirmLedger }) {
+  if (typeof closeLedgerApplies !== "function" || typeof closeLedgerApi !== "object") return { ok: true };
+  try {
+    await closeStepsLoad();
+    const c = await sb.from("qbo_connections").select("status").eq("client_id", clientId).maybeSingle();
+    const connStatus = c && !c.error ? (c.data ? c.data.status : null) : undefined;
+    if (!closeLedgerApplies(clientId, period, connStatus)) return { ok: true };
+    const so = await closeLedgerApi.signoff(sb, clientId, period);
+    if (so.missing) return { ok: true }; // gl-review-1-core.sql not run yet
+    const s = so.data;
+    if (s && (s.status === "approved" || s.override_at)) return { ok: true };
+  } catch (e) {
+    return { ok: true }; // the check itself failing never blocks a warn-mode close
+  }
+  const gate = (typeof closeStepsCtx === "object" && closeStepsCtx.gate) || "warn";
+  const month = CT_monthName(period);
+  let answer;
+  if (typeof confirmLedger === "function") answer = await confirmLedger({ gate, month });
+  else if (gate === "block") {
+    const r = window.prompt("Ledger review isn't approved. Only an admin can override. Reason:", "");
+    answer = r && r.trim() ? { ok: true, note: r.trim() } : false;
+  } else answer = window.confirm(CT_LEDGER_WARN);
+  const ok = answer === true || !!(answer && answer.ok);
+  if (!ok) return { ok: false, cancelled: true };
+  const note = (answer && typeof answer === "object" && answer.note) || null;
+  if (gate === "block" && !note) return { ok: false, error: { message: "A reason is needed to override the ledger review." } };
+  const r = await closeLedgerApi.overrideDone(sb, clientId, period, note);
+  if (r && r.error) {
+    if (gate === "block") return { ok: false, error: r.error };
+    // warn: the override log failing never stops the close (nothing in the
+    // database blocks it); leave a trace for support.
+    try {
+      console.warn("gl_review_override_done failed", r.error);
+    } catch (e) {}
+  }
+  return { ok: true };
+}
+
+// Returns { ok:true, row[, noop] } | { ok:false, conflict:true, theirs } |
+// { ok:false, cancelled:true } (the ledger warning was declined) | { ok:false, error }.
 // expectedUpdatedAt must be the server's updated_at string for the row this
 // browser last loaded (null/undefined when there was no row).
-async function CT_saveMonthClose({ sb, clientId, period, status, notes, expectedUpdatedAt, prevRow }) {
+async function CT_saveMonthClose({ sb, clientId, period, status, notes, expectedUpdatedAt, prevRow, confirmLedger }) {
   sb = sb || window.mgbSupabase;
   period = CT_fromYm(period);
   notes = String(notes || "").trim() || null;
@@ -141,6 +191,11 @@ async function CT_saveMonthClose({ sb, clientId, period, status, notes, expected
     return { ok: true, row: prevRow, noop: true }; // never restamp updated_at
   }
   if (!sb) return { ok: false, error: { message: "Supabase isn't configured, so nothing is saved." } };
+  const becomesDone = status === "done" && !(prevRow && prevRow.status === "done");
+  if (becomesDone) {
+    const g = await CT_ledgerGate({ sb, clientId, period, confirmLedger });
+    if (!g.ok) return g;
+  }
   let res;
   try {
     if (expectedUpdatedAt) {
@@ -180,6 +235,15 @@ async function CT_saveMonthClose({ sb, clientId, period, status, notes, expected
   try {
     notifyStaffTools();
   } catch (e) {}
+  // Spec 4.5(b): snapshot the closed month's ledger, best effort (a miss is
+  // filled from the last pull print by gl_review_baseline_from_last_print).
+  if (becomesDone && typeof closeLedgerApplies === "function" && closeLedgerApplies(clientId, period)) {
+    try {
+      Promise.resolve(
+        sb.functions.invoke("qbo-gl-review", { body: { action: "baseline", client_id: clientId, period } }),
+      ).catch(() => {});
+    } catch (e) {}
+  }
   return { ok: true, row };
 }
 
@@ -529,7 +593,8 @@ function CT_CloseTrackerPage({ clients, staffUser }) {
     }
     if (!res.ok) {
       restore();
-      toast("Couldn't save. " + ((res.error && res.error.message) || ""));
+      // Declining the ledger-review warning is not an error.
+      if (!res.cancelled) toast("Couldn't save. " + ((res.error && res.error.message) || ""));
       return false;
     }
     setRows((r) => ({ ...r, [key]: res.row }));

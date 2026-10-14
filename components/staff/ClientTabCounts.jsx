@@ -16,7 +16,9 @@
 //              ignored); the wait starts at the first message of the
 //              unanswered run; "overdue" = waits over CTC_WAIT_HOURS.
 //   documents  doc requests marked uploaded; overdue = open and past due.
-//   bank       open transaction questions.
+//   bank       transaction questions that need the bookkeeper: client-asked
+//              and open, or staff-asked and answered (`waiting` = staff-asked,
+//              still with the client).
 //   close      last month's close: red for a QuickBooks reconnect, a blocked
 //              check (uncategorized / undeposited), a late close or the month
 //              before still open; amber when bank or card accounts are behind.
@@ -161,18 +163,37 @@ async function CTC_loadDocuments(sb, id) {
   };
 }
 
+// GL Review (spec section 5): questions now run both ways. `open` counts what
+// needs the bookkeeper: client-asked questions still open, plus staff-asked
+// questions the client has answered. `waiting` counts staff-asked questions
+// still waiting on the client (shown, not counted as work). Before
+// gl-review-2-questions.sql runs there is no `direction` column, so it falls
+// back to the old open-only query.
 async function CTC_loadBank(sb, id) {
-  const rows = await CTC_rows(
+  const q = (cols, statuses) =>
     sb
       .from("transaction_questions")
-      .select("id, status, created_at")
+      .select(cols)
       .eq("client_id", id)
-      .eq("status", "open")
+      .in("status", statuses)
       .order("created_at", { ascending: true })
-      .limit(100),
-  );
-  const open = rows.filter((r) => !r.status || r.status === "open");
-  return { open: open.length, oldestOpenAt: open[0] ? open[0].created_at : null, firstId: open[0] ? open[0].id : null };
+      .limit(200);
+  let rows;
+  const r = await Promise.resolve(q("id, status, created_at, direction", ["open", "answered"]));
+  if (r && r.error && /direction|42703/.test(String(r.error.message || "") + " " + (r.error.code || ""))) {
+    rows = await CTC_rows(q("id, status, created_at", ["open"]));
+  } else {
+    rows = await CTC_rows(r);
+  }
+  const staffAsked = (x) => x.direction === "staff_asked";
+  const open = rows.filter((x) => (staffAsked(x) ? x.status === "answered" : !x.status || x.status === "open"));
+  const waiting = rows.filter((x) => staffAsked(x) && x.status === "open").length;
+  return {
+    open: open.length,
+    waiting,
+    oldestOpenAt: open[0] ? open[0].created_at : null,
+    firstId: open[0] ? open[0].id : null,
+  };
 }
 
 async function CTC_loadClose(sb, id, opts) {
@@ -386,7 +407,7 @@ function CTC_listen() {
 const CTC_ZERO = {
   messages: { count: 0, overdue: 0, oldestWaitAt: null, firstMsgId: null, email: null },
   documents: { uploaded: 0, overdueOpen: 0, firstUploadedId: null, firstOverdueId: null },
-  bank: { open: 0, oldestOpenAt: null, firstId: null },
+  bank: { open: 0, waiting: 0, oldestOpenAt: null, firstId: null },
   close: { period: null, label: null, status: null, check: null, failing: [], late: false, latePeriod: null, qbo: "none", tone: null },
   sop: { stale: false, days: null, firstStaleSection: null },
   budget: { awaitingStaff: false, fiscalYear: null },

@@ -1,5 +1,9 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
+import {
+  ensureFreshToken,
+  IntuitError as SharedIntuitError,
+} from "../_shared/qbo.ts";
 
 // Pulls a client's books out of QuickBooks into the qbo_* tables
 // (supabase/qbo-data.sql), which the browser then reads through RLS and
@@ -61,18 +65,20 @@ import { createClient } from "jsr:@supabase/supabase-js@2";
 // most once a day or on Sync now, the previous year daily through Feb 15 and
 // then only if never pulled. See pullDonorGifts.
 //
-// Deliberately self-contained — no shared module. Supabase deploys each
-// Edge Function independently; a shared file would mean the QBO functions
-// could only ever be deployed together.
+// Self-contained except for the token refresh: getAccessToken below wraps
+// ../_shared/qbo.ts ensureFreshToken, which holds the token_refresh_at lock
+// shared with qbo-refresh-token and qbo-gl-review (gl-review-spec 3.2) and is
+// covered by tests/edge/qbo_lock.test.mjs. _shared is bundled at deploy, so
+// this function picks up changes there only when redeployed. Everything else
+// (intuitFetch, report parsing) is still this file's own; qbo-gl-review uses
+// copies of those helpers in ../_shared/qbo.ts.
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
-const QBO_CLIENT_ID = Deno.env.get("QBO_CLIENT_ID")!;
-const QBO_CLIENT_SECRET = Deno.env.get("QBO_CLIENT_SECRET")!;
-const QBO_TOKEN_ENCRYPTION_KEY = Deno.env.get("QBO_TOKEN_ENCRYPTION_KEY")!;
+// QBO_CLIENT_ID, QBO_CLIENT_SECRET and QBO_TOKEN_ENCRYPTION_KEY are read by
+// ../_shared/qbo.ts (token refresh).
 
-const TOKEN_URL = "https://oauth.platform.intuit.com/oauth2/v1/tokens/bearer";
 // The API host is resolved PER CONNECTION, not from QBO_ENV alone. A realm
 // authorized under production keys returns 403 against the sandbox host and
 // vice versa, so a global default silently breaks every connection made under
@@ -87,10 +93,6 @@ function baseForEnv(env: string | null | undefined): string | null {
   if (env === "sandbox") return SANDBOX_BASE;
   return null;
 }
-
-// Refresh an access token this close to expiry rather than watching a call
-// fail — same window qbo-refresh-token uses.
-const REFRESH_AHEAD_MS = 10 * 60 * 1000;
 
 // The browser calls this function ("Sync now" via supabase.functions.invoke),
 // so it must answer the CORS preflight and tag every reply. Without it the
@@ -225,7 +227,13 @@ async function intuitFetch(
     // Body deliberately not read and never logged — see the header comment.
     throw new IntuitError(res.status, tid, what);
   }
-  return await res.json();
+  try {
+    return await res.json();
+  } catch (_e) {
+    // The runtime's SyntaxError quotes the start of the body; this message
+    // reaches logs and last_error, so it must not carry any of it.
+    throw new Error(`${what}: QuickBooks sent a reply that isn't valid JSON`);
+  }
 }
 
 function queryUrl(base: string, realmId: string, q: string): string {
@@ -241,57 +249,28 @@ function reportUrl(base: string, realmId: string, name: string, params: Record<s
 }
 
 // ---------------------------------------------------------------------------
-// Tokens: read (decrypt) via the same SECURITY DEFINER RPCs qbo-callback and
-// qbo-refresh-token use, and refresh in-line when the access token is within
-// REFRESH_AHEAD_MS of expiring. Intuit ALWAYS rotates the refresh token on
-// use, so a successful refresh must store the new one immediately — the old
-// one is dead the instant the call returns.
+// Tokens: ../_shared/qbo.ts ensureFreshToken reads (decrypts) them through the
+// same SECURITY DEFINER RPCs qbo-callback and qbo-refresh-token use, and
+// refreshes in-line, under the token_refresh_at lock, when the access token is
+// within 10 minutes of expiring. Intuit ALWAYS rotates the refresh token on
+// use; a failure to store the new one is thrown (logged loudly), never ignored.
+//
+// Errors keep their old shapes for runSync's catch: Intuit refusing the
+// refresh is this file's IntuitError(401) (flip to 'error', Reconnect UI);
+// the lock held through every wait is a plain error (last_error only, the
+// connection stays 'connected').
 // ---------------------------------------------------------------------------
 async function getAccessToken(admin: any, clientId: string): Promise<string> {
-  const { data: rows, error } = await admin.rpc("qbo_get_tokens", {
-    p_client_id: clientId,
-    p_key: QBO_TOKEN_ENCRYPTION_KEY,
-  });
-  const row = rows?.[0];
-  if (error || !row?.access_token) throw new Error("no stored QuickBooks tokens");
-
-  const now = Date.now();
-  const expiresAtMs = row.expires_at ? new Date(row.expires_at).getTime() : 0;
-  if (expiresAtMs - now > REFRESH_AHEAD_MS) return row.access_token;
-  if (!row.refresh_token) throw new Error("no refresh token on file");
-
-  const basicAuth = btoa(`${QBO_CLIENT_ID}:${QBO_CLIENT_SECRET}`);
-  const res = await fetch(TOKEN_URL, {
-    method: "POST",
-    headers: {
-      Authorization: `Basic ${basicAuth}`,
-      "Content-Type": "application/x-www-form-urlencoded",
-      Accept: "application/json",
-    },
-    body: new URLSearchParams({
-      grant_type: "refresh_token",
-      refresh_token: row.refresh_token,
-    }),
-  });
-  const tid = res.headers.get("intuit_tid");
-  if (!res.ok) {
-    // A 400 here is nearly always invalid_grant: the refresh token itself
-    // expired or was revoked. Surfaced as a 401-shaped failure so the caller
-    // flips the connection to 'error' and the existing Reconnect UI takes over.
-    throw new IntuitError(401, tid, "token refresh");
+  try {
+    return (await ensureFreshToken(admin, clientId, { logTag: "qbo-sync" })).accessToken;
+  } catch (e) {
+    if (e instanceof SharedIntuitError) {
+      const local = new IntuitError(e.status, e.tid, "token refresh");
+      local.message = e.message;
+      throw local;
+    }
+    throw e;
   }
-  console.log(
-    `qbo-sync: refreshed token for client ${clientId}${tid ? ` (intuit_tid: ${tid})` : ""}`,
-  );
-  const tokens = await res.json();
-  await admin.rpc("qbo_store_tokens", {
-    p_client_id: clientId,
-    p_access_token: tokens.access_token,
-    p_refresh_token: tokens.refresh_token,
-    p_expires_at: new Date(Date.now() + tokens.expires_in * 1000).toISOString(),
-    p_key: QBO_TOKEN_ENCRYPTION_KEY,
-  });
-  return tokens.access_token;
 }
 
 // ---------------------------------------------------------------------------

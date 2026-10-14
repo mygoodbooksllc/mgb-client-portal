@@ -120,6 +120,13 @@ function WK_WorkPage({ clients, staffUser, statusOverrides, canManageTemplates, 
       ) : (
         <p className="card-subtitle">Deadlines aren't available right now.</p>
       );
+  } else if (tab === "ledger") {
+    body =
+      typeof LR_ReviewFilePage === "function" ? (
+        <LR_ReviewFilePage staffUser={staffUser} />
+      ) : (
+        <p className="card-subtitle">Ledger review isn't available right now.</p>
+      );
   }
 
   // App's page header already shows "Work" and its subtitle (PAGE_META), so

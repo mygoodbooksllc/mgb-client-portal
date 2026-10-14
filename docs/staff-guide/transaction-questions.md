@@ -26,3 +26,4 @@ Resolving closes the question and posts a reply in the client's thread, so they 
 - Only staff with access to the client can see or resolve their questions. Clients see only their own organization's questions.
 - Questions can't be deleted, and a resolved question can't be reopened. If the client asks again, they send a new question.
 - If you don't agree with the client's suggestion, reply in the thread to explain, then mark it resolved once it's settled.
+- Questions you ask from **Ledger review** in the portal show on the client's **Home** under *Needs you* and at the top of their **Bank** page. A client user without the Bank page answers right from Home. Once they've answered, they see their own words only (*Your bookkeeper asked* / *You answered*), never your name or email.

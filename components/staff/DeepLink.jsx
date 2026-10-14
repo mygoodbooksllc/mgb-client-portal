@@ -44,7 +44,7 @@ const LK_COPY = {
   reqCancelled: "That request was cancelled.",
   reqMissing: "That request isn't there anymore.",
   fileMissing: "That file isn't in Documents anymore.",
-  qAnswered: "That question was already answered.",
+  qAnswered: "That question was already resolved.",
   qOld: "That transaction is older than Bank shows. Here's the question.",
   qMissing: "That question isn't there anymore.",
   txnOutside: "That transaction isn't in the last 90 days.",
@@ -111,6 +111,7 @@ function LK_normTab(tab) {
   if (t === "setup" || t === "client-settings") return "settings";
   if (t === "client-overview") return "overview";
   if (t === "client-close") return "close";
+  if (t === "client-ledger") return "ledger";
   return t;
 }
 

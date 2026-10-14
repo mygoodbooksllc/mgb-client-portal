@@ -464,6 +464,45 @@
   border-color: var(--warm-text);
 }
 
+/* Client: "Answer" on a row with a question from the bookkeeper. Warm like
+   the pill so it reads as waiting on them, solid border so it reads as a
+   button. */
+.tq-ask.tq-answer {
+  border-color: var(--warm-text);
+  background: var(--warm-bg);
+  color: var(--warm-text);
+}
+
+.tq-ask.tq-answer:hover {
+  color: var(--ink-strong);
+  border-color: var(--gold);
+}
+
+.tq-ask:focus-visible,
+.tq-pill:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 1px;
+}
+
+/* Client: "Questions from your bookkeeper" card at the top of Bank. */
+.tq-for-you {
+  margin-bottom: 16px;
+}
+
+.tq-for-you .ov-card-head {
+  margin-bottom: 4px;
+}
+
+.tq-for-you .tq-list-when {
+  align-self: center;
+  font-weight: 600;
+  color: var(--warm-text);
+}
+
+.tq-for-you .tq-list-btn:hover .tq-list-when {
+  text-decoration: underline;
+}
+
 .tq-body {
   display: flex;
   flex-direction: column;

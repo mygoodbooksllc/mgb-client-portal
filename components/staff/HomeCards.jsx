@@ -190,15 +190,20 @@ function HC_title(def, clients) {
 // card actually needs it. Returns null while loading or when the table
 // isn't there, so cards can leave the close column blank.
 function HC_useCloseCounts(enabled) {
+  // HC_facts asks closeStepsFor (six or seven steps); re-render when the
+  // Ledger-step settings / connection cache loads so totals aren't stuck at six.
+  useCloseStepsCtx();
   const [counts, setCounts] = useState(null);
   const load = useCallback(() => {
     const sb = window.mgbSupabase;
     if (!enabled || !sb) return;
     staffToolsApi.closeItemsForPeriod(sb, closePeriodFor()).then(({ data, error }) => {
       if (error) return setCounts(null);
+      // client_id -> Set of done step keys; HC_facts counts only the steps
+      // that apply to that client (closeStepsFor: six, or seven with Ledger).
       const map = {};
       (data || []).forEach((r) => {
-        if (r.done) map[r.client_id] = (map[r.client_id] || 0) + 1;
+        if (r.done) (map[r.client_id] = map[r.client_id] || new Set()).add(r.item_key);
       });
       setCounts(map);
     });
@@ -217,12 +222,19 @@ function HC_facts(c, ctx) {
   const health = effectiveClientHealth(c, ctx.today, ctx.statusOverrides);
   const due = ctx.dueCountByClient[c.id] || { overdue: 0, soon: 0 };
   const unread = ctx.unreadByClient[c.id] || 0;
-  const close = ctx.closeCounts ? ctx.closeCounts[c.id] || 0 : null;
+  const closeSteps = closeStepsFor(c, closePeriodFor());
+  const closeTotal = closeSteps.length;
+  const cc = ctx.closeCounts ? ctx.closeCounts[c.id] : undefined;
+  const close = !ctx.closeCounts
+    ? null
+    : cc instanceof Set
+      ? closeSteps.filter((s) => cc.has(s.key)).length
+      : cc || 0;
   // null = unknown (not admin, still loading, no budget): never matches.
   const budget = ctx.isAdmin && ctx.budgetByClient ? ctx.budgetByClient[c.id] || null : null;
   // "stale" | "fresh" | "none", or null while loading.
   const sop = typeof SF_ruleState === "function" ? SF_ruleState(ctx.sopByClient, c.id) : null;
-  return { health, due, unread, close, budget, sop };
+  return { health, due, unread, close, closeTotal, budget, sop };
 }
 
 function HC_matches(c, rules, ctx) {
@@ -239,7 +251,7 @@ function HC_matches(c, rules, ctx) {
     // Unknown close progress (still loading, or no table) never matches a
     // close rule, rather than guessing.
     if (f.close === null) return false;
-    const total = CLOSE_CHECKLIST.length;
+    const total = f.closeTotal;
     if (r.close === "unfinished" && f.close >= total) return false;
     if (r.close === "under-half" && f.close >= total / 2) return false;
     if (r.close === "done" && f.close < total) return false;
@@ -263,7 +275,7 @@ function HC_sortClients(list, ctx) {
 }
 
 function HC_ClientRow({ c, f, onOpen }) {
-  const total = CLOSE_CHECKLIST.length;
+  const total = f.closeTotal || CLOSE_CHECKLIST.length;
   const chips = [];
   if (f.due.overdue) chips.push(["now", `${f.due.overdue} overdue`]);
   if (f.due.soon) chips.push(["week", `${f.due.soon} due soon`]);

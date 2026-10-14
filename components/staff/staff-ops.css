@@ -1373,6 +1373,40 @@ a.ct-client-name:focus-visible {
 .clc-qbo-line.is-warn {
   color: var(--warm-text);
 }
+/* Ledger review card on the Close tab (GL Review spec 6.2). */
+.clc-ledger-counts {
+  margin: 0 0 4px;
+  font-size: 14px;
+  color: var(--ink-strong);
+}
+.clc-ledger-high {
+  color: var(--warm-text);
+  font-weight: 600;
+}
+.clc-ledger-pulled,
+.clc-ledger-sub {
+  margin: 0 0 6px;
+}
+.clc-ledger-sub {
+  font-size: 13.5px;
+  color: var(--text);
+}
+.clc-ledger-ready {
+  margin: 0 0 8px;
+  font-size: 13.5px;
+  color: var(--good-text);
+}
+.clc-ledger-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+}
+.clc-ledger-actions .btn-secondary,
+.clc-ledger-actions .btn-primary {
+  min-height: 36px;
+  text-decoration: none;
+}
 .clc-reconnect {
   display: flex;
   flex-wrap: wrap;
@@ -1540,6 +1574,7 @@ a.ct-client-name:focus-visible {
   .clc-o-steps { order: 1; }
   .clc-o-done { order: 2; }
   .clc-o-qbo { order: 3; }
+  .clc-o-ledger { order: 3; }
   .clc-o-status { order: 4; }
   .clc-o-sop { order: 5; }
   .clc-o-sent { order: 6; }

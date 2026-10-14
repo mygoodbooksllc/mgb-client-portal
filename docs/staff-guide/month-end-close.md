@@ -2,19 +2,19 @@
 title: How do I track month-end close?
 section: Month-end and recurring work
 audience: staff
-keywords: [month-end close, close tracker, work, close tab, client close tab, mark done, six steps, quickbooks checks, ready, blocked, behind, no data, stale bank, bank feed, uncategorized, ask my accountant, undeposited funds, unreconciled, stale bank after, checklist, reconcile, reconciled, late, not started, in progress, review, done, n/a, late after day]
+keywords: [month-end close, close tracker, work, close tab, client close tab, mark done, six steps, seven steps, ledger reviewed, ledger review, quickbooks checks, ready, blocked, behind, no data, stale bank, bank feed, uncategorized, ask my accountant, undeposited funds, unreconciled, stale bank after, checklist, reconcile, reconciled, late, not started, in progress, review, done, n/a, late after day]
 sort: 310
 ---
 There are two places to work on month-end close, and they show the same record. A change in one shows in the other.
 
 | Place | Where | What it's for |
 |---|---|---|
-| **Close** tab | One client's tab row | Close one client's month: the six steps, the QuickBooks check, what you've sent. |
+| **Close** tab | One client's tab row | Close one client's month: the close steps, the QuickBooks check, what you've sent. |
 | **Work › Close** | The left rail → **Work** → **Close** | See every client's close status, month by month. |
 
 ### The Close tab (one client)
 
-Open the client and click **Close** in the tab row. It opens on last month, the one you're closing now. You tick the six close steps, set the status, and mark the month **Done** from there. The steps are:
+Open the client and click **Close** in the tab row. It opens on last month, the one you're closing now. You tick the close steps, set the status, and mark the month **Done** from there. The steps are:
 
 1. Bank feed categorized
 2. Bank accounts reconciled
@@ -23,9 +23,11 @@ Open the client and click **Close** in the tab row. It opens on last month, the 
 5. Reports reviewed
 6. Reports sent to the client
 
+For a client with QuickBooks connected, from the month Ledger review started, there's a seventh step, **Ledger reviewed**, after **Reports reviewed**. You don't tick it by hand: it's ticked when someone clicks **Mark reviewed** on the client's **Ledger review** tab (or the **Ledger review** card on the Close tab), and an admin then approves it. Marking the month done before it's approved asks first: *Ledger review isn't approved. Mark done anyway?*
+
 Each ticked step records who ticked it and when. Your first tick sets a **Not started** month to **In progress**. **Done** is always your click. Marking a month done emails the client's people that the reports are ready. The full walk-through is in [What's on a client's Close tab?](#/help/client-close).
 
-The Client overview shows a one-line summary, for example *September 2026 close · In progress · 3 of 6 steps*. Click it to open the tab. Today's **Closes open** tile counts your clients' unfinished closes, and late or blocked ones show as rows in **Needs you**.
+The Client overview shows a one-line summary, for example *September 2026 close · In progress · 3 of 6 steps* (or *of 7* when the client has the Ledger reviewed step). Click it to open the tab. Today's **Closes open** tile counts your clients' unfinished closes, and late or blocked ones show as rows in **Needs you**.
 
 ### Work › Close (all clients)
 

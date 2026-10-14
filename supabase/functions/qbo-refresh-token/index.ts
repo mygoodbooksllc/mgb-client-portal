@@ -1,5 +1,6 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
+import { ensureFreshToken, IntuitError, NoTokensError, TokenBusyError, TokenStoreError } from "../_shared/qbo.ts";
 
 // Batch-refreshes QBO access tokens before they expire. QBO access tokens
 // last ~1hr and refresh tokens ~100 days of inactivity with NO refresh
@@ -19,15 +20,18 @@ import { createClient } from "jsr:@supabase/supabase-js@2";
 //
 // Never logs token values — only lengths/status, matching the qbo-callback
 // precedent.
+//
+// The refresh itself is ../_shared/qbo.ts ensureFreshToken (tested in
+// tests/edge/qbo_lock.test.mjs): it reads the stored tokens first and returns
+// them untouched when they have more than 10 minutes left (REFRESH_AHEAD_MS
+// there), and only when a refresh is due takes the token_refresh_at lock
+// (shared with qbo-sync and qbo-gl-review), re-reads under it and refreshes.
+// lockTries 0: a lock held by someone else means they're refreshing that
+// connection right now, so it's skipped rather than waited on. QBO_CLIENT_ID,
+// QBO_CLIENT_SECRET and QBO_TOKEN_ENCRYPTION_KEY are read there. One
+// connection's failure (network, timeout, a bad reply) never stops the loop.
 
-const QBO_CLIENT_ID = Deno.env.get("QBO_CLIENT_ID")!;
-const QBO_CLIENT_SECRET = Deno.env.get("QBO_CLIENT_SECRET")!;
-const QBO_TOKEN_ENCRYPTION_KEY = Deno.env.get("QBO_TOKEN_ENCRYPTION_KEY")!;
 const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-const TOKEN_URL = "https://oauth.platform.intuit.com/oauth2/v1/tokens/bearer";
-
-// Refresh anything expiring within this window (or already expired).
-const REFRESH_AHEAD_MS = 10 * 60 * 1000;
 // Skip a connection that was touched more recently than this — avoids a
 // double-refresh race if this job somehow overlaps itself or a manual
 // reconnect that just ran.
@@ -84,7 +88,6 @@ Deno.serve(async (req) => {
   }
 
   const now = Date.now();
-  const basicAuth = btoa(`${QBO_CLIENT_ID}:${QBO_CLIENT_SECRET}`);
   const result = { checked: connections?.length || 0, refreshed: 0, skipped: 0, errored: 0 };
 
   for (const conn of connections || []) {
@@ -95,71 +98,56 @@ Deno.serve(async (req) => {
       continue;
     }
 
-    const { data: tokenRows, error: tokErr } = await supabase.rpc("qbo_get_tokens", {
-      p_client_id: clientId,
-      p_key: QBO_TOKEN_ENCRYPTION_KEY,
-    });
-    const tokenRow = tokenRows?.[0];
-    if (tokErr || !tokenRow?.refresh_token) {
-      result.skipped++;
-      continue;
-    }
-
-    const expiresAtMs = tokenRow.expires_at ? new Date(tokenRow.expires_at).getTime() : 0;
-    if (expiresAtMs - now > REFRESH_AHEAD_MS) {
-      result.skipped++;
-      continue;
-    }
-
-    const tokenRes = await fetch(TOKEN_URL, {
-      method: "POST",
-      headers: {
-        Authorization: `Basic ${basicAuth}`,
-        "Content-Type": "application/x-www-form-urlencoded",
-        Accept: "application/json",
-      },
-      body: new URLSearchParams({ grant_type: "refresh_token", refresh_token: tokenRow.refresh_token }),
-    });
-
-    // intuit_tid uniquely identifies this call in Intuit's own server-side
-    // logs — captured on every response so a failed/disputed call can be
-    // correlated with Intuit support without digging through logs.
-    const intuitTid = tokenRes.headers.get("intuit_tid");
-
-    if (!tokenRes.ok) {
-      // Deliberately not logging the response body — see qbo-callback. A
-      // 400/invalid_grant here almost always means the refresh token itself
-      // expired or was revoked (e.g. 100+ days idle, or disconnected from
-      // Intuit's side) — nothing left to retry, surface it for reconnect.
-      const lastError = intuitTid
-        ? `Connection expired — please reconnect QuickBooks. (intuit_tid: ${intuitTid})`
-        : "Connection expired — please reconnect QuickBooks.";
-      await supabase
-        .from("qbo_connections")
-        .update({
-          status: "error",
-          last_error: lastError,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("client_id", clientId);
+    let refreshedTid: string | null = null;
+    try {
+      const r = await ensureFreshToken(supabase, clientId, { logTag: "qbo-refresh-token", lockTries: 0 });
+      if (!r.refreshed) {
+        // Not due yet, or another process refreshed it while we waited.
+        result.skipped++;
+        continue;
+      }
+      refreshedTid = r.tid;
+    } catch (e) {
+      if (e instanceof TokenBusyError || e instanceof NoTokensError) {
+        // Someone else is refreshing it right now / nothing to refresh.
+        result.skipped++;
+        continue;
+      }
+      if (e instanceof IntuitError && e.status === 401) {
+        // Deliberately not logging the response body — see qbo-callback. A
+        // 400/invalid_grant here almost always means the refresh token itself
+        // expired or was revoked (e.g. 100+ days idle, or disconnected from
+        // Intuit's side) — nothing left to retry, surface it for reconnect.
+        // intuit_tid identifies the call in Intuit's own logs.
+        const lastError = e.tid
+          ? `Connection expired — please reconnect QuickBooks. (intuit_tid: ${e.tid})`
+          : "Connection expired — please reconnect QuickBooks.";
+        await supabase
+          .from("qbo_connections")
+          .update({ status: "error", last_error: lastError, updated_at: new Date().toISOString() })
+          .eq("client_id", clientId);
+        result.errored++;
+        continue;
+      }
+      if (e instanceof TokenStoreError) {
+        // Intuit rotated the refresh token and the new one couldn't be saved,
+        // so the one on file is probably dead. Say so where staff will see it
+        // (already logged loudly by ensureFreshToken). Status is left alone:
+        // the next refresh attempt settles whether a reconnect is needed.
+        await supabase
+          .from("qbo_connections")
+          .update({ last_error: e.message, updated_at: new Date().toISOString() })
+          .eq("client_id", clientId);
+        result.errored++;
+        continue;
+      }
+      // Network / timeout / unreadable reply: our own strings only, no body.
+      console.log(`qbo-refresh-token: refresh failed for client ${clientId}: ${(e as Error)?.message || e}`);
       result.errored++;
       continue;
     }
 
-    console.log(`qbo-refresh-token: refresh succeeded for client ${clientId}${intuitTid ? ` (intuit_tid: ${intuitTid})` : ""}`);
-
-    const tokens = await tokenRes.json();
-    const newExpiresAt = new Date(now + tokens.expires_in * 1000).toISOString();
-
-    // Intuit always rotates the refresh token on every use — the old one is
-    // invalid the instant this call succeeds, so the new one MUST be stored.
-    await supabase.rpc("qbo_store_tokens", {
-      p_client_id: clientId,
-      p_access_token: tokens.access_token,
-      p_refresh_token: tokens.refresh_token,
-      p_expires_at: newExpiresAt,
-      p_key: QBO_TOKEN_ENCRYPTION_KEY,
-    });
+    console.log(`qbo-refresh-token: refresh succeeded for client ${clientId}${refreshedTid ? ` (intuit_tid: ${refreshedTid})` : ""}`);
 
     await supabase
       .from("qbo_connections")

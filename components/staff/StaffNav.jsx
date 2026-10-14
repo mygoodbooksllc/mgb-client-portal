@@ -49,6 +49,9 @@ const NAV_PLACES = [
       { key: "notes", label: "Notes & SOPs", help: "notes" },
       { key: "close", label: "Close", help: "month-end-close" },
       { key: "deadlines", label: "Deadlines", help: "deadlines", visible: () => typeof DL_DeadlinesPage === "function" },
+      // Review a file (docs/gl-review-spec.md section 8): any staff member,
+      // any exported General Ledger, checked in the browser, nothing saved.
+      { key: "ledger", label: "Ledger review", help: "ledger-review", visible: () => typeof LR_ReviewFilePage === "function" },
     ],
   },
   {
@@ -77,6 +80,7 @@ const NAV_PLACES = [
       { key: "feedback", label: "Feedback", help: "feedback-page", admin: true, visible: () => typeof FB_FeedbackPage === "function" },
       { key: "performance", label: "Performance", help: "performance", visible: () => typeof PF_PerformanceTab === "function" },
       { key: "inventory", label: "Inventory", help: "tech-inventory", visible: () => typeof TI_TechTab === "function" },
+      { key: "ledger", label: "Ledger review", help: "ledger-review", admin: true, visible: () => typeof LR_SettingsPanel === "function" },
       { key: "members", label: "Members", help: "staff-management", admin: true },
     ],
   },

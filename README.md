@@ -85,9 +85,10 @@ because some work happens in Claude Code web sessions. Run `git fetch` and compa
 | `components/handbook/` | The Staff Handbook (2026-10-13; spec `docs/staff-handbook-spec.md`), Team › Handbook. Every name is `HB_`/`hb-` prefixed. `HB_api.js` (RPC wrappers, the PDF download, the shared `hb_status` store), `HB_PolicyView.jsx` (one policy, sign and countersign), `HB_HandbookTab.jsx` (the tab, its routes and the deep-link claim), `HB_Admin.jsx` (admin status grid, not-filed list with Retry filing, publish editor), `hb.css`. Loaded after `TeamReviewsAdmin.jsx` and before `app.jsx`. |
 | `components/files/` | `DriveFiles.js`: browser helpers for client files in Google Drive (`DRV_` prefix), calling the `drive-files` edge function. Holds the one fallback switch `DRV_STORAGE_FALLBACK`. Loaded before `StaffInbox.jsx` and `app.jsx`. |
 | `components/tasks/` | The Tasks module (2026-10-11; spec `docs/tasks-phase1-spec.md`). Every name is `TK_`/`tk-` prefixed. Logic with node tests: `TK_logic.js` (statuses, grouping, the quick-add parser, keys), `TK_viewLogic.js`, `TK_drawerLogic.js`, `TK_clientLogic.js` (the client strip and panel rules), `TK_store.js`. Data: `TK_api.js` (Supabase calls), `TK_sync.js` (Realtime plus a `BroadcastChannel` between windows). Views: `TK_App.jsx` (the `#/tasks/...` page and the `/tasks` shell), `TK_Sidebar.jsx`, `TK_MyTasks.jsx`, `TK_List.jsx`, `TK_ClientHeader.jsx`, `TK_ClientDrawer.jsx` (the client task strip and panel, and Follow my client), `TK_TaskRow.jsx`, `TK_StandaloneBar.jsx`, `TK_keys.jsx`. Task details: `TK_Drawer.jsx`, `TK_QuickAdd.jsx`, `TK_Comments.jsx`, `TK_Attachments.jsx`, `TK_Activity.jsx`. Styles: `tk-views.css`, `tk-drawer.css`, `tk-client.css`. Loaded after `components/client/QboGiving.jsx` and before `components/tour/Tour.jsx`. |
+| `components/ledger/` | Ledger review (GL Review phase 1, 2026-10-14; spec `docs/gl-review-spec.md`). `GLR_*.js` are pure logic with node tests in `tests/ledger/` (parse, checks, compare, summary); `LR_*` is the UI: `LR_Tab.jsx` (client tab `client-ledger`, `#/client/<id>/ledger`), `LR_Panels.jsx`, `LR_ReviewFile.jsx` (Work › Ledger review), `LR_Settings.jsx` (Team › Ledger review), `LR_api.js` (RPC and edge-function wrappers; fires `mgb:ledger-review-changed` and `mgb:gl-review-changed` so the Close card refreshes). Database: `supabase/gl-review-1-core.sql`. |
 | `components/qbo/` | `mapQboToClient.js` converts QuickBooks table rows into the shape the pages use. Its test is `mapQboToClient.test.js`. |
 | `supabase/*.sql` | Every database change: tables, row-level security (RLS) policies, functions, cron jobs. The folder is flat, one file per change. |
-| `supabase/functions/` | Edge functions: `qbo-callback`, `qbo-refresh-token`, `qbo-sync`, `invite-client-user` |
+| `supabase/functions/` | Edge functions: `qbo-callback`, `qbo-refresh-token`, `qbo-sync`, `invite-client-user`, `qbo-gl-review` (pulls the General Ledger, staff only), `gl-review-send` (emails a ledger question or summary), plus shared helpers in `_shared/` |
 | `privacy-policy.html`, `terms-of-service.html`, `qbo-connected.html` | Standalone public pages, served at `/privacy`, `/terms` and `/quickbooks-connected` |
 | `vercel.json` | URL rewrites (`/login`, `/privacy`, `/terms`, `/quickbooks-connected`) and security headers |
 | `.vercelignore` | Keeps internal files out of the public deploy (see [Working on it](#working-on-it)) |
@@ -519,7 +520,8 @@ because some work happens in Claude Code web sessions. Run `git fetch` and compa
     close or the month before still open; amber when bank or card accounts are behind.
   - **Close tab** (page `client-close`, `components/staff/ClientClosePage.jsx`, `CLC_`):
     `CLC_ClientClosePage` shows one client and one month: status and notes, the QuickBooks check
-    (`CC_ClientCloseCard`), the six close steps (`CloseChecklistCard`, `data-tour="close-steps"`),
+    (`CC_ClientCloseCard`), the Ledger review card (`CLC_LedgerCard`), the close steps (six, or seven
+    with Ledger reviewed via `closeStepsFor(client, period)`; `CloseChecklistCard`, `data-tour="close-steps"`),
     Mark done, the read-only `monthly_close` SOP and "Sent to the client". The first tick sets the
     month to In progress; Done is always a click and emails the client's people that reports are
     ready (a second Done asks first). Every `month_close` write goes through `CT_saveMonthClose`
@@ -954,6 +956,20 @@ goes through `security definer` RPCs that call `tr_me()` / `tr_require_admin()` 
 - **Laptop rule:** a setup line that names a laptop (e.g. "Mac Neo") is covered by any laptop the
   person has; other essentials match on category or item name. Same rule in `TI_covers` and the
   edge function.
+
+### Ledger review (added 2026-10-14)
+
+- **Where:** a client tab "Ledger review" after Close (`client-ledger`), Work › Ledger review ("Review a
+  file", browser only, nothing stored), and admin Team › Ledger review (settings: `done_gate` warn or
+  block, pull window, start month, vendor watch list). A "Ledger reviewed" Close step (seven steps
+  instead of six, `closeStepsFor`) follows the month's sign-off; the box can't be ticked by hand.
+- **Flow:** `qbo-gl-review` pulls the ledger, the browser runs the checks (`GLR_checks.js`) and saves
+  flags through RPCs; Clear, Stop flagging (a per-client rule), Ask client (portal question or email via
+  `gl-review-send`), Mark reviewed, admin Approve or Send back. Ships as **warn only**.
+- **Client setup:** `client_profile.greeting_name` and `contact_email` (Overview › Edit dates and
+  coverage). Ask-by-email and send-summary-by-email need `contact_email`.
+- **Docs and upkeep:** staff guide `ledger-review.md`; tour steps in `Tour.jsx` (`client-ledger`,
+  Work and Team tab steps); tip `ledger-flags` in `Tips.jsx`; help slug `ledger-review`; Dev Tools links.
 
 ### Staff Handbook (added 2026-10-13)
 

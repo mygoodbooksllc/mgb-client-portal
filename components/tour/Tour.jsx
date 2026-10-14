@@ -949,6 +949,15 @@ function TOUR_bookkeeperSteps(ctx) {
         "Close: tick the month's steps as you go. Your first tick sets the month to In progress. You mark it Done, and that emails the client that reports are ready.",
     },
     {
+      id: "client-ledger",
+      when: (c) => !!c.myClient && typeof LR_LedgerTab === "function",
+      go: TOUR_openClient(client && client.id, "ledger"),
+      targets: ["#client-tab-client-ledger", "client-ledger"],
+      title: "A client's Ledger review",
+      body: () =>
+        "Ledger review checks the month's General Ledger for things worth a second look. Pull from QuickBooks, then Clear a flag, Ask the client or stop flagging it. Mark reviewed when none are high priority; an admin approves.",
+    },
+    {
       id: "quick",
       when: (c) => !!c.myClient,
       go: openClient,
@@ -977,6 +986,12 @@ function TOUR_bookkeeperSteps(ctx) {
       "close",
       "Work › Close",
       "Month-end close: one row per client, one column per month. Click a cell to set the month's status, or a client's name to open their Close tab. Deadlines, the next tab, lists 990s, 1099s and other dates.",
+    ),
+    TOUR_tabStep(
+      "work",
+      "ledger",
+      "Work › Ledger review",
+      "Review a file: drop in any exported General Ledger and it's checked right in your browser. Nothing is saved or sent. Copy for Excel gives you the flags.",
     ),
     TOUR_tabStep(
       "team",
@@ -1045,6 +1060,11 @@ function TOUR_adminSteps(ctx) {
       "handbook",
       "Team › Handbook",
       "Staff policies that bookkeepers sign and the Account Manager countersigns. Admins see who countersigns, each bookkeeper's state and every signed copy.",
+    ),
+    team(
+      "ledger",
+      "Team › Ledger review",
+      "Ledger review settings: whether an unapproved review only warns or blocks marking a month done, how far back a pull looks, and the vendor watch list.",
     ),
     team("feedback", "Team › Feedback", "Bug reports and ideas from staff and clients. Only admins see all of it."),
     team("inventory", "Team › Inventory", "Admins also get Requests, Items, a Roster of who's missing what, the staff Directory and Export to Google Sheet."),
