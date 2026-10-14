@@ -19,7 +19,7 @@
 --                        threshold (0.80 of the cap, on the month-end
 --                        projection), the hard-stop threshold (0.95 of the
 --                        cap, on calls actually made), and the Pro cadence in
---                        minutes (15 normally, 30 when throttled). Admins edit.
+--                        minutes (60 normally, 120 when throttled). Admins edit.
 --   qbo_usage_add()      SECURITY DEFINER, service_role only. The edge
 --                        functions call it once per run with the number of
 --                        Intuit calls that run made.
@@ -35,8 +35,8 @@
 --                        itself on the 1st.
 --
 -- Also moves the qbo-sync-hourly cron from every minute to every 5 minutes
--- ('2-59/5', still off the token refresher's :00/:15/:30/:45). With Pro on a
--- 15-minute cadence a per-minute tick only burned Edge Function invocations.
+-- ('2-59/5', still off the token refresher's :00/:15/:30/:45). With Pro on an
+-- hourly cadence a per-minute tick only burned Edge Function invocations.
 --
 -- RLS: admins read usage and settings; admins update settings. No browser
 -- writes to qbo_api_usage at all.
@@ -67,8 +67,8 @@ create table if not exists public.qbo_usage_settings (
   monthly_cap            integer not null default 500000,
   throttle_pct           numeric(4,3) not null default 0.800,
   hard_stop_pct          numeric(4,3) not null default 0.950,
-  premium_interval_min   integer not null default 15,
-  throttled_interval_min integer not null default 30,
+  premium_interval_min   integer not null default 60,
+  throttled_interval_min integer not null default 120,
   updated_by             text,
   updated_at             timestamptz not null default now(),
   constraint qbo_usage_settings_singleton check (id),
@@ -169,8 +169,8 @@ begin
     s.monthly_cap := 500000;
     s.throttle_pct := 0.8;
     s.hard_stop_pct := 0.95;
-    s.premium_interval_min := 15;
-    s.throttled_interval_min := 30;
+    s.premium_interval_min := 60;
+    s.throttled_interval_min := 120;
   end if;
 
   select coalesce(sum(calls), 0), coalesce(jsonb_object_agg(source, calls), '{}'::jsonb)
@@ -224,7 +224,7 @@ select public.qbo_usage_month(), 'estimate',
  where started_at >= (public.qbo_usage_month()::timestamp at time zone 'America/Chicago')
 on conflict (month, source) do nothing;
 
--- Cron: every 5 minutes instead of every minute. Pro's 15-minute cadence is
+-- Cron: every 5 minutes instead of every minute. Pro's hourly cadence is
 -- decided in qbo-sync (isDueForPlan); the tick only has to be finer than it.
 select cron.alter_job(jobid, schedule := '2-59/5 * * * *')
   from cron.job

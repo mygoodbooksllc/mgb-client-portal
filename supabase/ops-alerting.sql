@@ -79,7 +79,7 @@ set search_path = public
 as $$
 declare
   v_usage  jsonb;
-  v_int    integer := 15;
+  v_int    integer := 60;
   v_paused boolean := false;
   v_today  date := (now() at time zone 'America/Chicago')::date;
   v_d15    date;
@@ -87,7 +87,7 @@ declare
 begin
   begin
     v_usage := public.qbo_usage_status();
-    v_int := coalesce((v_usage ->> 'premium_interval_min')::integer, 15);
+    v_int := coalesce((v_usage ->> 'premium_interval_min')::integer, 60);
     v_paused := coalesce(v_usage ->> 'mode', '') = 'stopped';
   exception when others then
     null;  -- usage status unavailable: assume the normal cadence
