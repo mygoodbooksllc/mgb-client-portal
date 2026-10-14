@@ -428,6 +428,17 @@ const TIPS_CATALOG = [
     adminDoc: true,
   },
   {
+    id: "install-app-desktop",
+    roles: "all",
+    match: (r) => r.page === "today",
+    target: "tb-help",
+    text: "On a computer you can install MyGoodBooks as an app. In Chrome or Edge, click the install icon at the right end of the address bar.",
+    slug: "get-the-app",
+    // Only once the browser has actually offered Install (desktop Chrome/Edge,
+    // signed in as staff, not already installed).
+    ready: () => !!(window.mgbInstallApp && window.mgbInstallApp.canOffer && window.mgbInstallApp.canOffer()),
+  },
+  {
     id: "settings-start-page",
     roles: "all",
     match: (r) => r.page === "settings",

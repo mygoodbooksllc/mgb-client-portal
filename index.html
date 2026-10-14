@@ -42,7 +42,7 @@
         } catch (e) {}
       })();
 
-      // Installable app (manifest.webmanifest + app-icons/). STAFF ONLY.
+      // Installable app (manifest.webmanifest + app-icons/). STAFF ONLY, DESKTOP ONLY.
       // The browser only offers "Install" / "Add to Home Screen" once the
       // manifest is linked, so the links are added only when one of these is
       // true: INSTALL_APP_PUBLIC (everyone; clients stay off for now because
@@ -51,7 +51,8 @@
       // staff row checks out, and set(false) on sign-out, so a client never
       // gets the links), an already-installed copy, or a tester override
       // (/?install-app=1 on, /?install-app=0 off, or the "Show unreleased
-      // features" flag in Developer tools).
+      // features" flag in Developer tools). Phones and tablets (iPhone, iPad,
+      // Android) never get the links at all: they just use the website.
       (function () {
         var INSTALL_APP_PUBLIC = false;
         var STAFF_KEY = "mgb_install_staff_v1";
@@ -74,11 +75,28 @@
           }
         } catch (e) {}
         var staffOn = false; // in-memory fallback if localStorage throws
-        function wanted() {
-          var standalone = false;
+        // iPhone, iPad (incl. iPadOS posing as a Mac) and Android devices.
+        function isMobile() {
           try {
-            standalone = !!(window.matchMedia && window.matchMedia("(display-mode: standalone)").matches);
+            var ua = navigator.userAgent || "";
+            if (/iPhone|iPad|iPod|Android|Mobile|Tablet/i.test(ua)) return true;
+            if (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1) return true;
+            // Android Chrome "Request desktop site" (and big tablets) send a
+            // Linux desktop UA; a touch screen on Linux is not a desktop.
+            if (/Linux/.test(ua) && !/CrOS/.test(ua) && navigator.maxTouchPoints > 0) return true;
           } catch (e) {}
+          return false;
+        }
+        function isStandalone() {
+          try {
+            return !!(window.matchMedia && window.matchMedia("(display-mode: standalone)").matches);
+          } catch (e) {
+            return false;
+          }
+        }
+        function wanted() {
+          if (isMobile()) return false;
+          var standalone = isStandalone();
           return (
             INSTALL_APP_PUBLIC ||
             standalone ||
@@ -95,6 +113,12 @@
           document.head.appendChild(el);
           added.push(el);
         }
+        // Chromium fires this only when Install is really on offer (page
+        // installable, app not already installed).
+        var installable = false;
+        window.addEventListener("beforeinstallprompt", function () {
+          installable = true;
+        });
         function apply() {
           var on = wanted();
           if (on && !added.length) {
@@ -121,6 +145,12 @@
             apply();
           },
           isPublic: INSTALL_APP_PUBLIC,
+          // True only when the browser has actually offered Install in this
+          // tab (used by the "install the app" tip). False on phones, inside
+          // the app, and once it's installed.
+          canOffer: function () {
+            return !isMobile() && !isStandalone() && installable && wanted();
+          },
         };
         apply();
       })();
@@ -172,7 +202,7 @@
       // step to inject a real commit SHA into (see the no-bundler note up
       // top). Shown in Developer Tools' System info card so staff can confirm
       // which version they're looking at without guessing from Vercel's UI.
-      window.MGB_VERSION = { label: "2026-10-14a", note: "Installable app on for signed-in staff only (clients stay off)" };
+      window.MGB_VERSION = { label: "2026-10-14b", note: "Installable app on for signed-in staff on desktop only (phones and clients stay off); install tip" };
       // The two-finger touchmove preventDefault that used to sit here (a
       // pinch-zoom blocker, kept at the gesture level because touch-action
       // CSS pre-empted the dashboard drag-and-drop) is gone. It only ever

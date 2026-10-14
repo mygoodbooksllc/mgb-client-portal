@@ -1435,17 +1435,17 @@ The old `HANDOFF2.md`–`HANDOFF7.md`, `HANDOFF-DESIGN.md` and
 history. For example, `git show 3344625:HANDOFF7.md` shows the full running log (§1–§171),
 which explains the reasoning behind most of the decisions above.
 
-## Installable app (staff only)
+## Installable app (staff only, desktop only)
 
 `manifest.webmanifest` + `app-icons/` make the portal installable (Add to Home Screen, Chrome/Edge Install).
-The links are added by the first `<script>` in `index.html`, only when `INSTALL_APP_PUBLIC` is true, the page is
+The links are added by the first `<script>` in `index.html`, never on phones/tablets (`isMobile()`: iPhone, iPad incl. iPadOS-as-Mac, Android), and otherwise only when `INSTALL_APP_PUBLIC` is true, the page is
 already running installed, a tester override is set (`/?install-app=1`, or the Developer tools "Show unreleased
 features" flag), or a staff member is signed in: `AuthGate` calls `window.mgbInstallApp.set(true)` after the `staff`
 row checks out and `set(false)` on sign-out; `ClientAuthGate` calls `set(false)` for an authorized client. Keep
 `INSTALL_APP_PUBLIC = false` until clients' sign-in works inside the installed app (their sign-in email link opens in
 the browser, so they'd type the emailed code instead). Staff sign-in inside the installed app: Google link, or type the
 work email + emailed code in the first (client) form; `RootGate` then routes the `@mygoodbooks.org` session to `AuthGate`.
-`/?install-app=0` no longer hides it for signed-in staff; tester overrides (`/?install-app=1`, the unreleased flag) are never cleared by sign-out. Staff guide article: `get-the-app.md`.
+`/?install-app=0` no longer hides it for signed-in staff; tester overrides (`/?install-app=1`, the unreleased flag) are never cleared by sign-out. Staff guide article: `get-the-app.md` (desktop Chrome/Edge only; phones use the website). Tip `install-app-desktop` (Today, ring on the ? button) shows only where `mgbInstallApp.canOffer()` is true.
 
 ## Staff guide
 

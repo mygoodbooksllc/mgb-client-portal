@@ -943,7 +943,7 @@ const FEATURE_FLAGS = [
     key: "mygoodbooks_ff_unreleased_v1",
     label: "Show unreleased features",
     description:
-      "Preview what's built but hidden from everyone else. Nothing is hidden right now: the Install app option is already on for signed-in staff (and off for clients). The page reloads when you toggle it.",
+      "Preview what's built but hidden from everyone else. Nothing is hidden right now: the Install app option is already on for signed-in staff on desktop (and off for clients and phones). The page reloads when you toggle it.",
     reloads: true,
   },
 ];

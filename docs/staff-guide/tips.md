@@ -64,6 +64,7 @@ Here is every tip, in the order they're considered when two fit the same page (t
 | Work › Close | Click a cell to set the month's status and add a note, like waiting on a bank statement. The cell shows who changed it and when. | [How do I track month-end close?](#/help/month-end-close) |
 | Work › Deadlines | Weekend due dates move to Monday, but holidays don't, so verify each date before filing. Mark filed shows the team who filed it. | [How do I track filing deadlines?](#/help/deadlines) |
 | Team › Reviews | Your self-review saves as a draft as you go. You and your reviewer can't see each other's scores until both forms are in. Other admins can follow along. | [How do quarterly reviews work?](#/help/quarterly-reviews) |
+| Today | On a computer you can install MyGoodBooks as an app. In Chrome or Edge, click the install icon at the right end of the address bar. | [How do I install MyGoodBooks as an app?](#/help/get-the-app) |
 | Settings | Choose where you land after signing in: Today, Work › Tasks or the last client you opened. It's under Appearance & start page. | [How do I change my settings (profile, notifications, theme, signature)?](#/help/staff-settings) |
 | Any client page | Search (or Ctrl+K, ⌘K on a Mac) also looks inside the open client: transactions, budget lines, documents and messages, as well as clients, SOPs and help. | [What's on the bar at the top of the page?](#/help/top-bar) |
 
