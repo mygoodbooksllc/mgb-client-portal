@@ -33,7 +33,7 @@ The newest changes to the staff side, newest first. For how anything works, sear
 - **No clients yet? Team still opens.** Staff with no clients assigned can now open Today, Inbox, Team (reviews, survey, onboarding), Settings and Help. Only client pages wait for an assignment, and that screen has a **Go to Team** button.
 - **Finish the survey later.** Survey answers now save as a draft on your device as you type, so you can leave and come back. The review form already saved drafts. See [How does the team survey work?](#/help/team-survey).
 
-### 2026-10-12: Your name, changed everywhere
+### 2026-10-14: Your name, changed everywhere
 
 - **Settings › Profile › Name** now changes your name across the whole portal: the top bar, team lists and pickers, Team pages, client cards and new messages and notes. It saves when you click out of the field or press **Enter**. Before, most of the portal kept showing your old name. See [How do I change my settings?](#/help/staff-settings).
 - **For admins**: on the QuickBooks mapping page, people now auto-match to staff by email only, not by name. Map anyone whose QuickBooks email isn't their sign-in email by hand.

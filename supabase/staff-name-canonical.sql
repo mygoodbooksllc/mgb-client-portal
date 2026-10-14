@@ -1,5 +1,5 @@
 -- One canonical staff name: public.staff.name (2026-10-12)
--- NOT YET APPLIED (WIP, review fixes pending).
+-- Applied to production 2026-10-14.
 --
 -- Bug: Settings › Profile › Name saved to staff_profiles.display_name, but
 -- almost everything reads staff.name (AuthGate's staffUser, team lists and
