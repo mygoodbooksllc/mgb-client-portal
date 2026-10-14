@@ -451,6 +451,31 @@ because some work happens in Claude Code web sessions. Run `git fetch` and compa
     role with no JWT keeps what it sends. Author fields can't change on update, except a variance
     note's author follows whoever last changed its text. Staff can't update internal notes and
     nobody can update budget comments from the browser (insert and delete only).
+  - **Soft delete** (`supabase/budget-approval-and-soft-delete.sql`): `client_internal_notes`,
+    `client_budget_comments` and `client_variance_notes` have `deleted_at` / `deleted_by_email`.
+    The browser can't hard delete them; it calls `delete_client_internal_note(p_id)`,
+    `delete_client_budget_comment(p_id)` or `delete_client_variance_note(p_client_id, p_period,
+    p_category)`, which allow the author or an active admin and stamp the deleter from the JWT.
+    Every app query filters `deleted_at is null`; RLS also hides deleted rows from non-admins
+    (admins can still read them through the API). Trigger `client_tools_guard_soft_delete` stops
+    signed-in users setting the delete columns. Variance notes are saved through
+    `save_client_variance_note(p_client_id, p_period, p_category, p_note)`: only the author or an
+    admin can change a live note's text, the key (client, period, category) can't change, and new
+    text on a deleted note revives it after copying the deleted version to
+    `client_variance_note_tombstones` (admin read only). Same text on a deleted note is refused.
+  - **Budget approval: admins and the client's full-access contacts** (same file, trigger
+    `client_budget_drafts_guard`): moving a draft into `approved`, or changing a row that is
+    already approved, needs `can_approve_client_budget(client_id)`: an active staff admin, or an
+    active `client_users` row for that client with `access = 'full'`. Non-admin staff and limited
+    contacts can't. A signed-in user can't change a draft's `client_id` or `fiscal_year`. `submitted_by` / `submitted_by_name` / `submitted_at` and
+    `decided_by` / `decided_by_name` / `decided_at` are stamped from the JWT on the status change
+    and frozen otherwise; `updated_by` is the JWT email. Submitting and requesting changes are
+    unchanged. Only the same people can insert an `approved` history row, and the browser can't delete
+    drafts. Service role with no JWT keeps what it sends.
+  - **Close checklist names** (same file, trigger `client_close_items_stamp_done`): ticking stamps
+    `done_by`, `done_by_name` (staff name) and `done_at` from the JWT; a step that stays ticked
+    keeps its first stamp (moving it to another client, period or step re-stamps it); unticking
+    clears them. The browser can't delete close items.
   - **Mark sent to client** on report cards (`client_sent_items`), with history.
   - **Preview plan** (top bar account menu on client pages, not during View as; the old sidebar select is gone): shows the client's pages as Basic / Plus / Pro
     in this browser only (`mygoodbooks_preview_plan_v1`). It's ignored in client sessions.

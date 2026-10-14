@@ -620,6 +620,7 @@ function BA_BankTransactionsPanel({
           .select("id, target_type, target_key")
           .eq("id", a.id)
           .eq("client_id", client.id)
+          .is("deleted_at", null)
           .maybeSingle(),
       ).then(
         (r) => {

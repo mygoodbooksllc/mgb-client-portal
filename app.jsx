@@ -5529,14 +5529,17 @@ const staffToolsApi = {
       .from("client_internal_notes")
       .select("*")
       .eq("client_id", clientId)
+      .is("deleted_at", null)
       .order("created_at", { ascending: false })
       .limit(500);
   },
   addNote(sb, row) {
     return sb.from("client_internal_notes").insert(row);
   },
+  // Soft delete: the note is kept with who deleted it and when
+  // (supabase/budget-approval-and-soft-delete.sql). Author or admin only.
   removeNote(sb, id) {
-    return sb.from("client_internal_notes").delete().eq("id", id);
+    return sb.rpc("delete_client_internal_note", { p_id: id });
   },
   sent(sb, clientId) {
     return sb
@@ -5684,7 +5687,7 @@ function InternalNoteButton({ client, targetType, targetKey, targetLabel }) {
   }
   async function remove(id) {
     const { error } = await staffToolsApi.removeNote(window.mgbSupabase, id);
-    if (error) showToast("Couldn't delete that note.");
+    if (error) showToast(error.code === "42501" ? error.message : "Couldn't delete that note.");
     else notifyStaffTools();
   }
   const top = rect ? Math.min(rect.bottom + 6, window.innerHeight - 320) : 0;
@@ -5721,7 +5724,8 @@ function InternalNoteButton({ client, targetType, targetKey, targetLabel }) {
                     <span>
                       {n.author_name || n.author_email} · {relTime(n.created_at)}
                     </span>
-                    {staffUser && n.author_email === staffUser.email && (
+                    {staffUser && (String(n.author_email || "").toLowerCase() === String(staffUser.email || "").toLowerCase()
+                      || staffUser.role === "admin") && (
                       <button type="button" className="link-btn" onClick={() => remove(n.id)}>
                         Delete
                       </button>
@@ -6356,7 +6360,7 @@ function CloseChecklistCard({ client, period: periodProp, onToggled, compact }) 
                   <span>{item.label}</span>
                   {done && row.done_by && (
                     <span className="close-by">
-                      {String(row.done_by).split("@")[0]} · {closeShortDate(row.done_at)}
+                      {row.done_by_name || String(row.done_by).split("@")[0]} · {closeShortDate(row.done_at)}
                     </span>
                   )}
                 </label>
@@ -7120,7 +7124,7 @@ function ClientOverviewPage({ client, counts, onNavigate, onOpenDetails }) {
         clientNotesApi.list(sb, { clientId: client.id }),
         staffToolsApi.docRequests(sb, client.id),
         staffToolsApi.sent(sb, client.id),
-        sb.from("client_close_items").select("item_key, period, done_by, done_at").eq("client_id", client.id).eq("done", true).order("done_at", { ascending: false }).limit(20),
+        sb.from("client_close_items").select("item_key, period, done_by, done_by_name, done_at").eq("client_id", client.id).eq("done", true).order("done_at", { ascending: false }).limit(20),
         milestonesApi.history(sb, client.id),
         sb.from("client_activity_log").select("id, action, actor_name, actor_email, detail, created_at").eq("client_id", client.id).order("created_at", { ascending: false }).limit(20),
       ]);
@@ -7369,7 +7373,7 @@ function ClientOverviewPage({ client, counts, onNavigate, onOpenDetails }) {
       at: c.done_at,
       kind: "Close",
       text: `${(CLOSE_CHECKLIST.find((i) => i.key === c.item_key) || { label: c.item_key }).label} (${closePeriodLabel(c.period)})`,
-      who: c.done_by,
+      who: c.done_by_name || c.done_by,
       to: { clientId: cid, tab: "close", item: "step:" + c.item_key, month: /^\d{4}-\d{2}/.test(c.period || "") ? String(c.period).slice(0, 7) : undefined },
     })),
     // Milestone changes are a pricing tier: admins only (1.4).

@@ -14,7 +14,7 @@ You can pin a private note to a single bank transaction, budget line or report. 
 3. Click it. A small window opens titled **Staff notes** ("Clients never see these").
 4. Type your note (for example *Asked Kelly about this on 9/12…*) and click **Add note**.
 
-Each note shows who wrote it and when. You can **Delete** your own notes, but not other people's.
+Each note shows who wrote it and when. You can **Delete** your own notes; admins can delete anyone's. A deleted note disappears from the app but is kept, with who deleted it and when.
 
 The latest five of these notes also show on the client's **Client overview**, under **Notes on transactions, budget lines and reports**.
 

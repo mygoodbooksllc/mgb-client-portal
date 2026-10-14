@@ -204,6 +204,7 @@ const pbApi = {
     pbSafe(() =>
       sb.from("client_budget_comments").select("*")
         .eq("client_id", clientId).eq("fiscal_year", fy)
+        .is("deleted_at", null)
         .order("created_at", { ascending: true }),
     ),
   addComment: (sb, row) =>
@@ -211,18 +212,25 @@ const pbApi = {
   loadNotes: (sb, clientId, period) =>
     pbSafe(() =>
       sb.from("client_variance_notes").select("*")
-        .eq("client_id", clientId).eq("period", period),
+        .eq("client_id", clientId).eq("period", period)
+        .is("deleted_at", null),
     ),
+  // Soft delete: the note is kept with who deleted it and when; only its
+  // author or an admin may (supabase/budget-approval-and-soft-delete.sql).
   deleteNote: (sb, clientId, period, category) =>
     pbSafe(() =>
-      sb.from("client_variance_notes").delete()
-        .eq("client_id", clientId).eq("period", period).eq("category", category),
+      sb.rpc("delete_client_variance_note", {
+        p_client_id: clientId, p_period: period, p_category: category,
+      }),
     ),
+  // Saved through an RPC so new text can revive a deleted note (the old
+  // text is kept); the database checks author / admin rules.
   upsertNote: (sb, row) =>
     pbSafe(() =>
-      sb.from("client_variance_notes")
-        .upsert(row, { onConflict: "client_id,period,category" })
-        .select().single(),
+      sb.rpc("save_client_variance_note", {
+        p_client_id: row.client_id, p_period: row.period,
+        p_category: row.category, p_note: row.note,
+      }).single(),
     ),
 };
 
@@ -830,6 +838,12 @@ function ProBudgetWorkspace({ client, access, clientPortalUser }) {
   const scoped = !staff && !!acc.categories;
   const orgWide = !scoped;
   const canDecide = !!staff || !!acc.isFullAccess;
+  // Approving (and changing or reopening an approved budget): MyGoodBooks
+  // admins, or the client's own full-access contacts. Non-admin staff can't.
+  // The database enforces it too (budget-approval-and-soft-delete.sql).
+  const canApprove = staff
+    ? !!staffUser && staffUser.role === "admin"
+    : !!acc.isFullAccess;
 
   const refByCat = useMemo(() => {
     const m = {};
@@ -1135,6 +1149,7 @@ function ProBudgetWorkspace({ client, access, clientPortalUser }) {
       if (res.error) {
         setSaving(false);
         if (pbIsMissing(res.error)) fallBackToLocal();
+        else if (res.error.code === "42501") showToast(res.error.message);
         else showToast("Couldn't save the draft. Please try again.");
         return false;
       }
@@ -1229,7 +1244,7 @@ function ProBudgetWorkspace({ client, access, clientPortalUser }) {
     if (remote && !String(text || "").trim()) {
       const del = await pbApi.deleteNote(sb, clientId, period, category);
       if (del.error && !pbIsMissing(del.error)) {
-        showToast("Couldn't remove that note.");
+        showToast(del.error.code === "42501" ? del.error.message : "Couldn't remove that note.");
         return false;
       }
       if (!del.error) {
@@ -1248,7 +1263,7 @@ function ProBudgetWorkspace({ client, access, clientPortalUser }) {
       if (res.error) {
         if (pbIsMissing(res.error)) fallBackToLocal();
         else {
-          showToast("Couldn't save that note.");
+          showToast(res.error.code === "42501" ? res.error.message : "Couldn't save that note.");
           return false;
         }
       } else {
@@ -1283,9 +1298,9 @@ function ProBudgetWorkspace({ client, access, clientPortalUser }) {
     if (!row) return "Not saved yet — saving records version 1 and shares it with everyone on this budget.";
     const bits = [];
     if (status === "submitted" && row.submitted_at)
-      bits.push(`Submitted by ${whoName(row.submitted_by) || "someone"} ${relTime(row.submitted_at)}`);
+      bits.push(`Submitted by ${row.submitted_by_name || whoName(row.submitted_by) || "someone"} ${relTime(row.submitted_at)}`);
     if ((status === "approved" || status === "changes_requested") && row.decided_at)
-      bits.push(`${status === "approved" ? "Approved" : "Changes requested"} by ${whoName(row.decided_by) || "someone"} ${relTime(row.decided_at)}`);
+      bits.push(`${status === "approved" ? "Approved" : "Changes requested"} by ${row.decided_by_name || whoName(row.decided_by) || "someone"} ${relTime(row.decided_at)}`);
     if (row.updated_at && !bits.length)
       bits.push(`Last saved by ${whoName(row.updated_by) || "someone"} ${relTime(row.updated_at)}`);
     return bits.join(" · ");
@@ -1481,7 +1496,8 @@ function ProBudgetWorkspace({ client, access, clientPortalUser }) {
                 {status === "submitted"
                   ? "This draft is waiting on approval, so it's locked for editing."
                   : "This budget is approved and locked."}
-                {canDecide && " You can reopen it as a draft if something needs to change."}
+                {canDecide && (status !== "approved" || canApprove) && " You can reopen it as a draft if something needs to change."}
+                {status === "approved" && !canApprove && " Only a MyGoodBooks admin or the organization's full-access contact can reopen it."}
               </div>
             )}
             {conflict && (
@@ -1713,12 +1729,16 @@ function ProBudgetWorkspace({ client, access, clientPortalUser }) {
                     <button className="btn-secondary" disabled={saving} onClick={() => setModal({ kind: "changes" })}>
                       Request changes
                     </button>
-                    <button className="btn-primary" disabled={saving} onClick={() => setModal({ kind: "approve" })}>
-                      Approve
-                    </button>
+                    {canApprove ? (
+                      <button className="btn-primary" disabled={saving} onClick={() => setModal({ kind: "approve" })}>
+                        Approve
+                      </button>
+                    ) : (
+                      <span className="pb-muted" id="pb-approve-admin-only">Only a MyGoodBooks admin or the organization's full-access contact can approve a budget.</span>
+                    )}
                   </>
                 )}
-                {locked && canDecide && (
+                {locked && canDecide && (status !== "approved" || canApprove) && (
                   <button className="link-btn" disabled={saving} onClick={() => setModal({ kind: "reopen" })}>
                     Reopen draft
                   </button>

@@ -1971,6 +1971,7 @@ function ProReportsSuite({ client, access, clientPortalUser }) {
           .from("client_variance_notes")
           .select("category,note,period")
           .eq("client_id", clientId)
+          .is("deleted_at", null)
           .in("period", periods);
         if (cancelled) return;
         if (error) flagError(error);
