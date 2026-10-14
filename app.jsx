@@ -934,13 +934,16 @@ const FEATURE_FLAGS = [
       "Adds a ~1.8s delay to every Supabase request, to test loading states without real network throttling.",
   },
   {
-    // Read by the install-prompt snippet in index.html before this file
+    // Read by the install-app snippet in index.html before this file
     // loads, so it checks the same key itself. Add any other hidden feature
-    // here by checking isFlagOn(this key) where it's gated.
+    // here by checking isFlagOn(this key) where it's gated. (The install
+    // app itself is no longer hidden from staff: index.html turns it on for
+    // any signed-in staff member. INSTALL_APP_PUBLIC there stays false so
+    // clients never get it.)
     key: "mygoodbooks_ff_unreleased_v1",
     label: "Show unreleased features",
     description:
-      "Preview what's built but hidden from everyone else — right now the Install app prompt. The page reloads when you toggle it.",
+      "Preview what's built but hidden from everyone else. Nothing is hidden right now: the Install app option is already on for signed-in staff (and off for clients). The page reloads when you toggle it.",
     reloads: true,
   },
 ];

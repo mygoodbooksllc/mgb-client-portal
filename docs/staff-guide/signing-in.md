@@ -2,7 +2,7 @@
 title: How do I sign in?
 section: Getting started
 audience: staff
-keywords: [login, log in, sign in, google, password, sign out, staff list, access denied, client sign in, sign-in code, magic link]
+keywords: [installed app, home screen app, login, log in, sign in, google, password, sign out, staff list, access denied, client sign in, sign-in code, magic link]
 sort: 20
 ---
 Staff sign in with their **MyGoodBooks Google account** (your @mygoodbooks.org address). There is no separate password for the portal.
@@ -40,6 +40,6 @@ If a client says it's not working:
 ### Troubleshooting
 
 - **"… signed in with Google but isn't on the MyGoodBooks staff list."** Your Google account worked, but you haven't been added to the portal yet, or you picked a personal Google account. Click **Sign out and try a different account** and choose your @mygoodbooks.org account. If it still happens, ask an admin to add you on **Team → Members**.
-- **You see the client email screen again.** You typed your email into the client box. Use the **MyGoodBooks staff? Sign in with Google** link at the bottom of the page instead.
+- **You see the client email screen again.** You typed your email into the client box. In the browser, use the **MyGoodBooks staff? Sign in with Google** link at the bottom of the page instead. In the installed app, typing your @mygoodbooks.org email and the emailed **code** is an accepted way in; see [How do I install MyGoodBooks as an app?](#/help/get-the-app).
 - **Google says the app is restricted to your organization.** You chose a non-MyGoodBooks Google account. Switch accounts in the Google window.
 - **The page stays on "Loading your portal…".** Refresh the page. If it keeps happening, let an admin know.

@@ -71,12 +71,14 @@
         // screen renders now, the token is torn down behind it. Signing out
         // flips status to "signed-out" via onAuthStateChange, but errorMsg
         // survives, so the explanation below stays on screen.
+        if (window.mgbInstallApp) window.mgbInstallApp.set(false);
         supabase.auth.signOut();
         setErrorMsg("Couldn't verify staff access. Try again in a moment.");
         setStatus("denied");
         return;
       }
       if (!data || !data.active) {
+        if (window.mgbInstallApp) window.mgbInstallApp.set(false);
         supabase.auth.signOut();
         setErrorMsg(
           `${email} signed in with Google but isn't on the MyGoodBooks staff list.`,
@@ -84,6 +86,8 @@
         setStatus("denied");
         return;
       }
+      // Only a verified staff member gets the "install the app" links.
+      if (window.mgbInstallApp) window.mgbInstallApp.set(true);
       setStaffUser({ email: data.email, name: data.name, role: data.role });
       setStatus("authorized");
     }
@@ -103,6 +107,7 @@
         (_event, session) => {
           if (session) checkStaffRow(session);
           else {
+            if (window.mgbInstallApp) window.mgbInstallApp.set(false);
             setStaffUser(null);
             setStatus("signed-out");
           }

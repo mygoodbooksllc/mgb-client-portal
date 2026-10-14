@@ -42,43 +42,87 @@
         } catch (e) {}
       })();
 
-      // Installable app (manifest.webmanifest + app-icons/). Hidden for now:
-      // the browser only offers "Install" once the manifest is linked, and
-      // that only happens on a device that opened /?install-app=1 (undo with
-      // /?install-app=0), or inside an already-installed copy.
-      // To offer it to everyone, set INSTALL_APP_PUBLIC to true. Admins can
-      // preview it with the "Show unreleased features" flag in Developer
-      // tools (localStorage mygoodbooks_ff_unreleased_v1 = "1").
+      // Installable app (manifest.webmanifest + app-icons/). STAFF ONLY.
+      // The browser only offers "Install" / "Add to Home Screen" once the
+      // manifest is linked, so the links are added only when one of these is
+      // true: INSTALL_APP_PUBLIC (everyone; clients stay off for now because
+      // their sign-in emails open in the browser, not the app), a signed-in
+      // staff member (AuthGate calls window.mgbInstallApp.set(true) once the
+      // staff row checks out, and set(false) on sign-out, so a client never
+      // gets the links), an already-installed copy, or a tester override
+      // (/?install-app=1 on, /?install-app=0 off, or the "Show unreleased
+      // features" flag in Developer tools).
       (function () {
         var INSTALL_APP_PUBLIC = false;
-        var on = INSTALL_APP_PUBLIC;
+        var STAFF_KEY = "mgb_install_staff_v1";
+        function ls(fn) {
+          try {
+            return fn(localStorage);
+          } catch (e) {
+            return null;
+          }
+        }
         try {
           var params = new URLSearchParams(location.search);
           var flag = params.get("install-app");
-          if (flag === "1") localStorage.setItem("mgb_install_app_v1", "1");
-          if (flag === "0") localStorage.removeItem("mgb_install_app_v1");
+          if (flag === "1") ls(function (l) { l.setItem("mgb_install_app_v1", "1"); });
+          if (flag === "0") ls(function (l) { l.removeItem("mgb_install_app_v1"); });
           if (flag !== null) {
             params.delete("install-app");
             var qs = params.toString();
             history.replaceState(history.state, "", location.pathname + (qs ? "?" + qs : "") + location.hash);
           }
-          on =
-            on ||
-            localStorage.getItem("mgb_install_app_v1") === "1" ||
-            localStorage.getItem("mygoodbooks_ff_unreleased_v1") === "1" ||
-            (window.matchMedia && window.matchMedia("(display-mode: standalone)").matches);
         } catch (e) {}
-        if (!on) return;
+        var staffOn = false; // in-memory fallback if localStorage throws
+        function wanted() {
+          var standalone = false;
+          try {
+            standalone = !!(window.matchMedia && window.matchMedia("(display-mode: standalone)").matches);
+          } catch (e) {}
+          return (
+            INSTALL_APP_PUBLIC ||
+            standalone ||
+            staffOn ||
+            ls(function (l) { return l.getItem(STAFF_KEY); }) === "1" ||
+            ls(function (l) { return l.getItem("mgb_install_app_v1"); }) === "1" ||
+            ls(function (l) { return l.getItem("mygoodbooks_ff_unreleased_v1"); }) === "1"
+          );
+        }
+        var added = [];
         function add(tag, attrs) {
           var el = document.createElement(tag);
           for (var k in attrs) el.setAttribute(k, attrs[k]);
           document.head.appendChild(el);
+          added.push(el);
         }
-        add("link", { rel: "manifest", href: "/manifest.webmanifest" });
-        add("link", { rel: "apple-touch-icon", href: "/app-icons/apple-touch-icon.png" });
-        add("meta", { name: "theme-color", content: "#05080d" });
-        add("meta", { name: "apple-mobile-web-app-title", content: "MyGoodBooks" });
-        add("meta", { name: "mobile-web-app-capable", content: "yes" });
+        function apply() {
+          var on = wanted();
+          if (on && !added.length) {
+            add("link", { rel: "manifest", href: "/manifest.webmanifest" });
+            add("link", { rel: "apple-touch-icon", href: "/app-icons/apple-touch-icon.png" });
+            add("meta", { name: "theme-color", content: "#05080d" });
+            add("meta", { name: "apple-mobile-web-app-title", content: "MyGoodBooks" });
+            add("meta", { name: "mobile-web-app-capable", content: "yes" });
+          } else if (!on) {
+            added.forEach(function (el) {
+              if (el.parentNode) el.parentNode.removeChild(el);
+            });
+            added = [];
+          }
+        }
+        window.mgbInstallApp = {
+          // true once a staff member is signed in; false when signed out.
+          set: function (staff) {
+            staffOn = !!staff;
+            ls(function (l) {
+              if (staff) l.setItem(STAFF_KEY, "1");
+              else l.removeItem(STAFF_KEY);
+            });
+            apply();
+          },
+          isPublic: INSTALL_APP_PUBLIC,
+        };
+        apply();
       })();
     </script>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -128,7 +172,7 @@
       // step to inject a real commit SHA into (see the no-bundler note up
       // top). Shown in Developer Tools' System info card so staff can confirm
       // which version they're looking at without guessing from Vercel's UI.
-      window.MGB_VERSION = { label: "2026-10-13b", note: "Staff Handbook: Team › Handbook, sign and countersign policies, Today rows, signed PDF download" };
+      window.MGB_VERSION = { label: "2026-10-14a", note: "Installable app on for signed-in staff only (clients stay off)" };
       // The two-finger touchmove preventDefault that used to sit here (a
       // pinch-zoom blocker, kept at the gesture level because touch-action
       // CSS pre-empted the dashboard drag-and-drop) is gone. It only ever

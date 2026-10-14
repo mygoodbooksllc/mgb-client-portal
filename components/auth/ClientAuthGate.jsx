@@ -77,6 +77,8 @@
       // experience — the only field of the row whose snake_case name didn't
       // happen to match. Both spellings are kept so nothing reading the raw
       // row breaks.
+      // Clients never get the install links (staff-only for now).
+      if (window.mgbInstallApp) window.mgbInstallApp.set(false);
       setClientUser({ ...data, premiumThrottled: data.premium_throttled });
       setStatus("authorized");
     }
@@ -88,7 +90,12 @@
       }
       supabase.auth.getSession().then(({ data }) => {
         if (data.session) checkClientRow(data.session);
-        else setStatus("signed-out");
+        else {
+          // A stale staff flag (expired staff session) must not leave the
+          // install links on the client sign-in screen.
+          if (window.mgbInstallApp) window.mgbInstallApp.set(false);
+          setStatus("signed-out");
+        }
       });
       const { data: sub } = supabase.auth.onAuthStateChange(
         (_event, session) => {
