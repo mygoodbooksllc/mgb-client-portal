@@ -2,7 +2,7 @@
 title: How do I see the portal the way a client sees it?
 section: Working with a client
 audience: staff
-keywords: [preview as, preview plan, client view, view as client, client view menu, what the client sees, exit preview, plan preview, view as client]
+keywords: [preview as, preview plan, client view, view as client, client view menu, what the client sees, exit preview, plan preview, view as client, test client, test clients, try a change, sample data, sandbox]
 sort: 260
 ---
 On any client page there are two preview controls. Neither changes anything for the client.
@@ -21,3 +21,13 @@ While previewing, staff-only things are hidden: the top bar (with **+**), the st
 ### Preview a different plan
 
 **Preview plan** lets you see the portal as it looks on another plan. On a computer, click your initials at the top right, then **Preview plan**, and pick **Basic** or **Pro** (a check marks the one showing). On a phone it's in the menu, under **Preview as**. It only changes your browser and doesn't change what the client pays. Choose **Actual plan** to go back. It isn't offered while an admin is using View as.
+
+### Try things on the test clients first
+
+Before a change reaches real clients, try it on **Basic Test Client** or **Pro Test Client**. They hold made-up sample data, so nothing you do there affects a real client.
+
+- **Not counted anywhere:** test clients are left out of reports, digests, alerts, usage numbers, performance scores and client emails.
+- **Pro Test Client** has a sample contact you can **Preview as**, a 2027 budget draft, and a QuickBooks sandbox, so you can try syncing and ledger review safely.
+- **Both** have a sample fee, a document request and a month-end close in progress.
+- Test clients only show in your client list if you're an admin or have been assigned to them.
+- If something looks wrong on a test client, tell an admin before it goes near a real one.
