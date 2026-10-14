@@ -1195,7 +1195,7 @@ function TD_TodayPage({ staffUser, clients, onNavigateToClient, onOpenClientMile
     reviews && reviews.data && !(typeof TR_isSomeoneElse === "function" && TR_isSomeoneElse(staffUser, reviews.data.me)) ? reviews.data : null;
   // Same for the handbook: hb_status is the signed-in person's, not the viewed one's.
   const handbookItems =
-    handbook.me && !(staffUser && staffUser.name && handbook.me.name && staffUser.name !== handbook.me.name) ? handbook.items : TD_NONE;
+    handbook.me && !(typeof TR_isSomeoneElse === "function" && TR_isSomeoneElse(staffUser, handbook.me)) ? handbook.items : TD_NONE;
 
   const celebrate = async (row, kind, action) => {
     const error = await cel.act(row, kind, action, me);
