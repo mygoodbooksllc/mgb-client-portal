@@ -35,7 +35,7 @@ The newest changes to the staff side, newest first. For how anything works, sear
 
 ### 2026-10-12: Your name, changed everywhere
 
-- **Settings › Profile › Name** now changes your name across the whole portal: the top bar, team lists and pickers, Team pages, client cards and new messages and notes. Before, most of the portal kept showing your old name. See [How do I change my settings?](#/help/staff-settings).
+- **Settings › Profile › Name** now changes your name across the whole portal: the top bar, team lists and pickers, Team pages, client cards and new messages and notes. It saves when you click out of the field or press **Enter**. Before, most of the portal kept showing your old name. See [How do I change my settings?](#/help/staff-settings).
 - **For admins**: on the QuickBooks mapping page, people now auto-match to staff by email only, not by name. Map anyone whose QuickBooks email isn't their sign-in email by hand.
 
 ### 2026-10-11: A client's tasks, one key away

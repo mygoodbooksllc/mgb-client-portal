@@ -56,6 +56,11 @@ const ST_AVATAR_BUCKET = "staff-avatars";
 const ST_AVATAR_MAX_BYTES = 2 * 1024 * 1024;
 const ST_AVATAR_TYPES = ["image/png", "image/jpeg", "image/webp"];
 const ST_SIGNATURE_MAX = 1000;
+const ST_NAME_MAX = 120;
+// Same rule as set_my_staff_name (supabase/staff-name-canonical.sql): control,
+// zero-width, bidi, filler, variation-selector and tag characters.
+const ST_NAME_BAD_CHARS =
+  /[\u0001-\u001F\u007F-\u009F\u00AD\u034F\u061C\u115F\u1160\u180B-\u180F\u200B-\u200F\u2028-\u202E\u2060-\u2069\u3164\uFE00-\uFE0F\uFEFF\uFFA0\u{E0000}-\u{E007F}]/u;
 
 // Email notifications. `def` must match notification-emails' PREF table.
 const ST_STAFF_EMAIL_PREFS = [
@@ -518,15 +523,17 @@ function ST_Field({ label, children, hint }) {
   );
 }
 
-// A text input that saves itself a moment after typing stops.
-function ST_AutoInput({ value, onSave, disabled, multiline, maxLength, ...rest }) {
+// A text input that saves itself a moment after typing stops. With
+// saveOnBlur it saves once, when you leave the field or press Enter, for
+// fields where every save is costly (Name: an RPC, client rows, an audit row).
+function ST_AutoInput({ value, onSave, disabled, multiline, maxLength, saveOnBlur, ...rest }) {
   const [text, setText] = React.useState(value || "");
   const dirty = React.useRef(false);
   React.useEffect(() => {
     if (!dirty.current) setText(value || "");
   }, [value]);
   React.useEffect(() => {
-    if (!dirty.current) return;
+    if (saveOnBlur || !dirty.current) return;
     const t = setTimeout(() => {
       dirty.current = false;
       onSave(text);
@@ -545,6 +552,18 @@ function ST_AutoInput({ value, onSave, disabled, multiline, maxLength, ...rest }
     },
     ...rest,
   };
+  if (saveOnBlur) {
+    props.onBlur = (e) => {
+      if (rest.onBlur) rest.onBlur(e);
+      if (!dirty.current) return;
+      dirty.current = false;
+      onSave(text);
+    };
+    props.onKeyDown = (e) => {
+      if (rest.onKeyDown) rest.onKeyDown(e);
+      if (e.key === "Enter" && !multiline && !e.nativeEvent.isComposing) e.currentTarget.blur();
+    };
+  }
   return multiline ? <textarea rows={5} {...props} /> : <input type="text" {...props} />;
 }
 
@@ -827,11 +846,16 @@ function ST_StaffProfileCard({ staffUser, readOnly }) {
   const name = (staffUser && staffUser.name) || "";
   const [nameKey, setNameKey] = React.useState(0);
   const saveName = async (v) => {
-    const next = String(v || "").replace(/\s+/g, " ").trim();
-    if (!next) {
-      setMsg("Your name can't be empty.");
-      return setNameKey((k) => k + 1);
-    }
+    if (readOnly) return;
+    const next = String(v || "").normalize("NFKC").replace(/\s+/g, " ").trim();
+    const refuse = (text) => {
+      setMsg(text);
+      setNameKey((k) => k + 1);
+    };
+    if (!next) return refuse("Your name can't be empty.");
+    if ([...next].length > ST_NAME_MAX) return refuse("Keep your name to " + ST_NAME_MAX + " characters or fewer.");
+    if (next.includes("@")) return refuse("Your name can't include @.");
+    if (ST_NAME_BAD_CHARS.test(next)) return refuse("Your name has a character that can't be used.");
     if (next === name) return;
     const sb = window.mgbSupabase;
     if (!sb) return setMsg("Changing your name needs a connection to the server.");
@@ -864,8 +888,8 @@ function ST_StaffProfileCard({ staffUser, readOnly }) {
         </div>
       </div>
       <div className="st-grid">
-        <ST_Field label="Name" hint="Changes it everywhere in the portal, for your team and your clients.">
-          <ST_AutoInput key={nameKey} value={name} maxLength={120} disabled={!!readOnly} onSave={saveName} autoComplete="name" />
+        <ST_Field label="Name" hint="Changes it everywhere in the portal, for your team and your clients. Saves when you leave the field or press Enter.">
+          <ST_AutoInput key={nameKey} value={name} maxLength={ST_NAME_MAX} disabled={!!readOnly} onSave={saveName} saveOnBlur autoComplete="name" />
         </ST_Field>
         <ST_Field label="Title" hint='For example "Senior bookkeeper".'>
           <ST_AutoInput value={row.title} maxLength={120} disabled={!!readOnly} onSave={(v) => save({ title: v.trim() || null })} />

@@ -414,15 +414,12 @@ function CT_CloseTrackerPage({ clients, staffUser }) {
       .sort((a, b) => a.label.localeCompare(b.label));
   }, [clients]);
 
+  // By id/email only: staff can rename themselves, so no name matching.
   const isMine = (c) =>
     (myClientIds && myClientIds.has(c.id)) ||
     (staffUser &&
       staffUser.email &&
-      CT_bookkeeperKey(c) === "email:" + String(staffUser.email).toLowerCase()) ||
-    (staffUser &&
-      staffUser.name &&
-      !(c.assignedBookkeeper && c.assignedBookkeeper.email) &&
-      CT_bookkeeperOf(c).toLowerCase() === String(staffUser.name).toLowerCase());
+      CT_bookkeeperKey(c) === "email:" + String(staffUser.email).toLowerCase());
 
   const sorted = useMemo(
     () => (clients || []).slice().sort((a, b) => CT_name(a).localeCompare(CT_name(b))),

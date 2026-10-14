@@ -10,12 +10,15 @@
 -- Fix:
 --   1. set_my_staff_name(p_name): SECURITY DEFINER, renames only the
 --      caller's own staff row (email from the JWT). Only the name column;
---      role/active/email are never touched. Trims and collapses spaces,
---      rejects empty, over-120, control and invisible characters, and a
---      name another staff member already has (so nobody can pass as a
---      teammate). Refreshes the denormalized "current" copies on clients
---      (account_manager, assigned_bookkeeper.name/initials) for rows the
---      caller already holds, and writes a staff.renamed audit row.
+--      role/active/email are never touched. NFKC-normalizes, trims and
+--      collapses spaces, rejects empty, over-120, '@', control and invisible
+--      characters, and a name another staff member already has (so nobody
+--      can pass as a teammate). Settings mirrors the same checks.
+--      staff_after_rename (AFTER UPDATE OF name on staff, so admin renames
+--      are covered too) refreshes the denormalized "current" copies on
+--      clients (account_manager, assigned_bookkeeper.name/initials) and
+--      writes a staff.renamed audit row. Neither older staff audit trigger
+--      (log_staff_change, audit_row_change) logs names, so no double entry.
 --      Past author stamps (messages, notes) keep the name they were sent with.
 --   2. staff_profiles.display_name is retired: the guard now always stores
 --      null (old cached browser tabs that still send it are ignored, not
@@ -31,6 +34,8 @@
 -- No trigger copies between staff and staff_profiles (staff_profiles_guard
 -- raises without a JWT, which would break service-role updates to staff).
 
+begin;
+
 -- ---------------------------------------------------------------------------
 -- 1. The RPC
 -- ---------------------------------------------------------------------------
@@ -42,7 +47,9 @@ set search_path = public, pg_temp
 as $$
 declare
   v_email text := lower(nullif(btrim(auth.jwt() ->> 'email'), ''));
-  v_name text := btrim(regexp_replace(coalesce(p_name, ''), '\s+', ' ', 'g'));
+  -- NFKC first, so full-width letters and odd spaces fold to plain ones
+  -- before the checks and the duplicate test.
+  v_name text := btrim(regexp_replace(normalize(coalesce(p_name, ''), NFKC), '\s+', ' ', 'g'));
   v_old text;
 begin
   if v_email is null or not public.is_active_staff() then
@@ -54,8 +61,14 @@ begin
   if char_length(v_name) > 120 then
     raise exception 'Keep your name to 120 characters or fewer.' using errcode = '22023';
   end if;
-  -- Control characters, zero-width and bidi-override characters.
-  if v_name ~ '[[:cntrl:]]' or v_name ~ '[­​-‏‪-‮⁠-⁩﻿]' then
+  if position('@' in v_name) > 0 then
+    raise exception 'Your name can''t include @.' using errcode = '22023';
+  end if;
+  -- Control, soft-hyphen, zero-width, bidi, Hangul/Mongolian filler,
+  -- variation-selector and tag characters. Escapes only, no literal
+  -- invisible characters (Settings.jsx ST_NAME_BAD_CHARS mirrors this).
+  if v_name ~ '[[:cntrl:]]'
+     or v_name ~ '[\u0001-\u001F\u007F-\u009F\u00AD\u034F\u061C\u115F\u1160\u180B-\u180F\u200B-\u200F\u2028-\u202E\u2060-\u2069\u3164\uFE00-\uFE0F\uFEFF\uFFA0\U000E0000-\U000E007F]' then
     raise exception 'Your name has a character that can''t be used.' using errcode = '22023';
   end if;
 
@@ -76,18 +89,42 @@ begin
   if exists (
     select 1 from staff s
      where s.email <> v_email
-       and lower(regexp_replace(btrim(s.name), '\s+', ' ', 'g')) = lower(v_name)
+       and lower(btrim(regexp_replace(normalize(s.name, NFKC), '\s+', ' ', 'g'))) = lower(v_name)
   ) then
     raise exception 'Another team member already uses that name. Add a middle initial or last name.'
       using errcode = '23505';
   end if;
 
+  -- staff_after_rename refreshes clients and writes the audit row.
   update staff set name = v_name where email = v_email;
 
-  -- Current-state copies on clients the caller already holds. Neither the
-  -- before-write triggers (they return early when the email is unchanged)
-  -- nor the after-write ones (they fire only on the email columns) change
-  -- access here.
+  return v_name;
+end;
+$$;
+
+revoke all on function public.set_my_staff_name(text) from public, anon;
+grant execute on function public.set_my_staff_name(text) to authenticated;
+
+comment on function public.set_my_staff_name(text) is
+  'Settings › Profile › Name. Renames the caller''s own staff row only (JWT email). staff.name is the one canonical staff name.';
+
+-- After any rename (the RPC above or an admin editing staff): refresh the
+-- current-state copies on clients and write the audit row. Neither the
+-- clients before-write triggers (they return early when the email is
+-- unchanged) nor the after-write ones (they fire only on the email columns)
+-- change access here, and none of them need a JWT. audit_write falls back to
+-- actor 'system' when there's no JWT (service role).
+create or replace function public.staff_after_rename()
+returns trigger
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+declare
+  v_email text := lower(new.email);
+  -- Same fallback as the clients before-write triggers.
+  v_name text := coalesce(nullif(btrim(new.name), ''), split_part(lower(new.email), '@', 1));
+begin
   update clients
      set account_manager = v_name
    where account_manager_email = v_email
@@ -101,17 +138,19 @@ begin
      and (assigned_bookkeeper ->> 'name') is distinct from v_name;
 
   perform public.audit_write('staff.renamed', null, 'staff', v_email,
-    jsonb_build_object('from', v_old, 'to', v_name));
-
-  return v_name;
+    jsonb_build_object('from', old.name, 'to', new.name));
+  return null;
 end;
 $$;
 
-revoke all on function public.set_my_staff_name(text) from public, anon;
-grant execute on function public.set_my_staff_name(text) to authenticated;
+revoke all on function public.staff_after_rename() from public, anon, authenticated;
 
-comment on function public.set_my_staff_name(text) is
-  'Settings › Profile › Name. Renames the caller''s own staff row only (JWT email). staff.name is the one canonical staff name.';
+drop trigger if exists staff_after_rename on public.staff;
+create trigger staff_after_rename
+  after update of name on public.staff
+  for each row
+  when (old.name is distinct from new.name)
+  execute function public.staff_after_rename();
 
 -- ---------------------------------------------------------------------------
 -- 2. Retire staff_profiles.display_name
@@ -310,3 +349,5 @@ as $function$
       order by sca.created_at limit 1)
   );
 $function$;
+
+commit;

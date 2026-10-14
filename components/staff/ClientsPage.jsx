@@ -71,14 +71,13 @@ function CL_ago(ts, now) {
 }
 
 // A client is yours when you're its bookkeeper, its backup, or an admin gave
-// you access to it (staff_client_access). Same name fallback as the Close
-// tab: a legacy roster row names the bookkeeper without an email.
+// you access to it (staff_client_access). Matched by email only: staff can
+// rename themselves, so a name match could claim someone else's client.
 function CL_isMine(c, me, backupEmail, grantedIds) {
   if (!me || !me.email) return false;
   const email = CL_lower(me.email);
   const bk = c.assignedBookkeeper || {};
   if (bk.email && CL_lower(bk.email) === email) return true;
-  if (!bk.email && bk.name && me.name && CL_lower(bk.name) === CL_lower(me.name)) return true;
   if (backupEmail && CL_lower(backupEmail) === email) return true;
   return !!(grantedIds && grantedIds.has(c.id));
 }

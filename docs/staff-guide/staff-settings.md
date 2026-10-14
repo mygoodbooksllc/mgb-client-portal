@@ -12,7 +12,7 @@ Settings are saved to your account, so they follow you to any computer you sign 
 ### Profile
 
 - **Photo**: click **Add photo** (or **Change photo**) and pick a PNG, JPEG or WebP image up to 2 MB. **Remove photo** takes it off.
-- **Name**: the name the whole portal uses for you: the top bar, team lists and pickers, Team pages, your clients' Dashboard cards and every new message or note you post. It changes everywhere as soon as it saves. Messages and notes you posted before keep the name they were sent with. Two people can't use the same name, so if yours matches a teammate's, add a middle initial or last name. Name changes show in the Audit log.
+- **Name**: the name the whole portal uses for you: the top bar, team lists and pickers, Team pages, your clients' Dashboard cards and every new message or note you post. It saves when you click out of the field or press **Enter**, then changes everywhere. Messages and notes you posted before keep the name they were sent with. Two people can't use the same name, so if yours matches a teammate's, add a middle initial or last name. A name can't include **@** or hidden characters. Name changes show in the Audit log.
 - **Title** (for example "Senior bookkeeper") and **Phone**.
 - **Email** is your sign-in email. Ask an admin if it needs to change.
 
