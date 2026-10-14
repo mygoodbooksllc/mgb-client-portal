@@ -687,6 +687,12 @@ because some work happens in Claude Code web sessions. Run `git fetch` and compa
   - Live over Realtime (polls every 30 seconds if the channel can't be joined).
   - If `client_messages` is missing or unreadable, client threads fall back to the sample
     threads with a note that nothing is saved.
+  - Who a message is from is set by the database, not the browser
+    (`supabase/client-messages-author-stamp.sql`): `author_name` is stamped from `staff.name`
+    (staff) or that client's `client_users.name` (clients), keyed on `author_email`, which RLS
+    ties to the signed-in email. Service-role inserts with no JWT email keep the name they send.
+    Author fields can't change after a message is saved. The staff "new client message" email
+    uses the stamped name.
 - **Chat drawer:** a compact inbox (list, then the conversation with a back arrow) that slides in
   from the right over any page. Opened from the staff toolbar's **Message** button (starts on that
   client's people) or the ink chat button bottom-right, which replaces the client chat bubble for

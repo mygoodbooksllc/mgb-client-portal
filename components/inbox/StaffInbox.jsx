@@ -488,7 +488,8 @@ function SI_ClientThread({ entry, mode, me, staffUser, sampleRows, onSampleSend,
         client_id: entry.clientId,
         participant_email: siLower(entry.email),
         author_email: author,
-        author_name: (staffUser && staffUser.name) || author,
+        // author_name is stamped server-side from staff.name
+        // (supabase/client-messages-author-stamp.sql); never sent from here.
         author_kind: "staff",
         body,
         internal: isNote,
@@ -2322,7 +2323,9 @@ function SI_useClientMessaging({ enabled, role, clientId, email, name, active, r
             client_id: clientId,
             participant_email: em,
             author_email: author,
-            author_name: name || null,
+            // author_name is stamped server-side from client_users.name
+            // (supabase/client-messages-author-stamp.sql); the optimistic
+            // row keeps the local name for display only.
             author_kind: "client",
             body: row.body || "",
             internal: false,

@@ -2,10 +2,14 @@
 title: What's new
 section: Getting started
 audience: staff
-keywords: [month end balance sheet, balance sheet from quickbooks, change my name, rename, name, install, get the app, desktop app, install tip, app, staff handbook, handbook, sign policy, countersign, policies, review quarter, previous quarter, survey drafts, finish survey later, admins follow reviews, in progress view, no clients yet, tasks, my tasks, task details, quick add, q, projects, sops project, 90 day, open to all staff, own window, dock in portal, notes and sops, mentions, task status, ready for review, restore task, tasks tour, board packet, presentation view, report builder, client help menu, question mark menu, tips, tips while you learn, hints, first 30 days, learning, pro tour, upsell, upgrade, basic clients, bookkeeper tour, temporary admin tour, client tour, tour versions, admin tour, account manager tour, inventory, tech, equipment, what's new, whats new, new, changes, updates, release notes, changelog, navigation, redesign, five places, client setup, close tab, client close, last tab, client view, bank on basic, open for this client, deep links, balance sheet, reports sent, tab row fade, client task panel, up next, t, for this page, follow my client]
+keywords: [message names, message sender, fake name, month end balance sheet, balance sheet from quickbooks, change my name, rename, name, install, get the app, desktop app, install tip, app, staff handbook, handbook, sign policy, countersign, policies, review quarter, previous quarter, survey drafts, finish survey later, admins follow reviews, in progress view, no clients yet, tasks, my tasks, task details, quick add, q, projects, sops project, 90 day, open to all staff, own window, dock in portal, notes and sops, mentions, task status, ready for review, restore task, tasks tour, board packet, presentation view, report builder, client help menu, question mark menu, tips, tips while you learn, hints, first 30 days, learning, pro tour, upsell, upgrade, basic clients, bookkeeper tour, temporary admin tour, client tour, tour versions, admin tour, account manager tour, inventory, tech, equipment, what's new, whats new, new, changes, updates, release notes, changelog, navigation, redesign, five places, client setup, close tab, client close, last tab, client view, bank on basic, open for this client, deep links, balance sheet, reports sent, tab row fade, client task panel, up next, t, for this page, follow my client]
 sort: 15
 ---
 The newest changes to the staff side, newest first. For how anything works, search this guide or click **?** → **Help for this page**.
+
+### 2026-10-14: Message names are checked
+
+- **The name on a client message now comes from the sender's account.** MyGoodBooks fills it in from your Team name, or from the client's name on their portal access. The app can't be used to type in a different name, and the "new client message" email uses the same name. Nothing changes in how you send.
 
 ### 2026-10-14: Month-end Balance Sheet from QuickBooks
 
