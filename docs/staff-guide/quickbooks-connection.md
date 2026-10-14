@@ -2,7 +2,7 @@
 title: How do I connect a client's QuickBooks and use Sync now?
 section: QuickBooks
 audience: staff
-keywords: [quickbooks, where the money went, expenses by account, no expenses recorded, qbo, sync schedule, every hour, every 2 hours, intuit limit, connect, sync, sync now, no limit for staff, sync pill, reconnect, client setup, disconnect, intuit, refresh, numbers, sample data, prototype, setting up, giving, tithes, offerings, giving accounts, funds, fund accounts, restricted, unrestricted, fund balances, donor statements, tax documents, year-end giving statement, last year, anonymous, pledges]
+keywords: [quickbooks, connect failed, couldn't finish connecting, error id, not set up for this account type, production keys, sandbox company, test client sandbox, where the money went, expenses by account, no expenses recorded, qbo, sync schedule, every hour, every 2 hours, intuit limit, connect, sync, sync now, no limit for staff, sync pill, reconnect, client setup, disconnect, intuit, refresh, numbers, sample data, prototype, setting up, giving, tithes, offerings, giving accounts, funds, fund accounts, restricted, unrestricted, fund balances, donor statements, tax documents, year-end giving statement, last year, anonymous, pledges]
 sort: 400
 ---
 When a client's QuickBooks Online is connected, their portal shows real numbers from QuickBooks instead of sample data. After that, the portal keeps itself up to date.
@@ -16,6 +16,14 @@ When a client's QuickBooks Online is connected, their portal shows real numbers 
 5. You come back to the portal. The tab now says **Connected** and shows **Last synced …**.
 
 The first sync can take a minute. Until it finishes, the pages may still show sample numbers.
+
+**Test clients vs. real clients.** A test client connects to an Intuit **sandbox** (test) company, not a real one, so use it to practise. Real clients connect to their real QuickBooks company. The firm's own QuickBooks (Team › QuickBooks Time) also connects to a real company. Which kind of connection you get depends on the client; there's nothing to choose.
+
+**If connecting fails.**
+
+- A red message on the QuickBooks tab such as **Production QuickBooks keys aren't set up yet — ask an admin.** means an admin has to finish the setup first. Tell an admin.
+- If the page after Intuit says **We couldn't finish connecting QuickBooks. Ask an admin to retry. Error id: …**, give an admin that error id. A connection that ended in an error can simply be connected again: click **Connect QuickBooks** (or **Reconnect**) again.
+- If it says **QuickBooks isn't set up for this account type yet. Ask an admin.**, an admin needs to finish setup for that type of account (test or real).
 
 ### How to tell if a client is connected
 
@@ -103,7 +111,7 @@ When you click **Disconnect**, the portal asks you to confirm first. Data that a
 ### Troubleshooting
 
 - **"Last sync: …" shows an error in red.** Try **Sync now**. If the error comes back, click **Reconnect** and sign in to Intuit again.
-- **"Connection failed".** Click **Try again** and go through the Intuit sign-in again.
+- **"Connection failed" or "We couldn't finish connecting QuickBooks".** Click **Connect QuickBooks** or **Reconnect** and go through the Intuit sign-in again. If it fails again, ask an admin to retry and quote the **Error id** shown on the page.
 - **Sync now doesn't seem to do anything.** A sync takes a few seconds. If you used Client details → Sync now, reload the page to see the new numbers. A Pro client who clicks it twice within a minute sees "Already up to date with QuickBooks."
 - **"QuickBooks needs to be reconnected. Reconnect it from Client setup."** Go to **Client setup › Client details → QuickBooks** and click **Reconnect**.
 - **A dashboard card says "No expenses recorded this month yet." (or "No open invoices right now.").** That's real: QuickBooks has nothing for that card yet. **Where the money went** shows this month's expenses by QuickBooks account (the six biggest, the rest as **Other**), so it stays empty until the first expense of the month is entered in QuickBooks and the next sync runs. It doesn't need a QuickBooks budget.

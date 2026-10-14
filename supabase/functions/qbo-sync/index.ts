@@ -2,7 +2,9 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
 import {
   ensureFreshToken,
+  flagKeysMissing,
   IntuitError as SharedIntuitError,
+  QboKeysMissingError,
 } from "../_shared/qbo.ts";
 
 // Pulls a client's books out of QuickBooks into the qbo_* tables
@@ -76,10 +78,13 @@ import {
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
-// QBO_CLIENT_ID, QBO_CLIENT_SECRET and QBO_TOKEN_ENCRYPTION_KEY are read by
-// ../_shared/qbo.ts (token refresh).
+// The Intuit app keys (QBO_PRODUCTION_* / QBO_SANDBOX_* / legacy
+// QBO_CLIENT_ID + QBO_CLIENT_SECRET) and QBO_TOKEN_ENCRYPTION_KEY are read by
+// ../_shared/qbo.ts (token refresh), lazily and per connection: each refresh
+// uses the keys of that connection's api_env (../_shared/qbo-env.ts). There is
+// no global QBO_ENV any more.
 
-// The API host is resolved PER CONNECTION, not from QBO_ENV alone. A realm
+// The API host is resolved PER CONNECTION, never from a global. A realm
 // authorized under production keys returns 403 against the sandbox host and
 // vice versa, so a global default silently breaks every connection made under
 // the other set of keys. qbo_connections.api_env records the truth per client, and a
@@ -258,11 +263,16 @@ function reportUrl(base: string, realmId: string, name: string, params: Record<s
 // Errors keep their old shapes for runSync's catch: Intuit refusing the
 // refresh is this file's IntuitError(401) (flip to 'error', Reconnect UI);
 // the lock held through every wait is a plain error (last_error only, the
-// connection stays 'connected').
+// connection stays 'connected'); this connection's environment having no keys
+// configured is QboKeysMissingError (secret names only; last_error only,
+// nothing sent to Intuit).
+//
+// apiEnv: the connection's qbo_connections.api_env, which picks the Intuit
+// app keys for a refresh (NULL = a legacy row = sandbox/legacy keys).
 // ---------------------------------------------------------------------------
-async function getAccessToken(admin: any, clientId: string): Promise<string> {
+async function getAccessToken(admin: any, clientId: string, apiEnv: string | null): Promise<string> {
   try {
-    return (await ensureFreshToken(admin, clientId, { logTag: "qbo-sync" })).accessToken;
+    return (await ensureFreshToken(admin, clientId, { logTag: "qbo-sync", apiEnv })).accessToken;
   } catch (e) {
     if (e instanceof SharedIntuitError) {
       const local = new IntuitError(e.status, e.tid, "token refresh");
@@ -1002,7 +1012,7 @@ async function syncClient(
 
   try {
     if (!realmId) throw new Error("connection has no realm_id — reconnect QuickBooks");
-    const accessToken = await getAccessToken(admin, clientId);
+    const accessToken = await getAccessToken(admin, clientId, apiEnv);
 
     const today = new Date();
     const plStart = isoDay(addMonths(firstOfMonth(today), -11));
@@ -1398,6 +1408,9 @@ async function syncClient(
           updated_at: new Date().toISOString(),
         })
         .eq("client_id", clientId);
+    } else if (e instanceof QboKeysMissingError) {
+      // Secret names only; status left alone (works again once they're set).
+      await flagKeysMissing(admin, clientId, e, "qbo-sync");
     } else {
       await admin
         .from("qbo_connections")
@@ -1585,7 +1598,7 @@ async function balanceSheetAsOf(admin: any, clientId: string, endDate: unknown):
   }
 
   try {
-    const accessToken = await getAccessToken(admin, clientId);
+    const accessToken = await getAccessToken(admin, clientId, conn.api_env ?? null);
     // Balances are cumulative, so only end_date sets the figures. start_date
     // is pinned to Jan 1 of that year (QuickBooks' own "this year to date"
     // default for a calendar-year company) so Intuit never fills in a

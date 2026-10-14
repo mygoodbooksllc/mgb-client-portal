@@ -139,19 +139,21 @@ function TP_QboPanel({ qbo, onOpenMapping, onSynced }) {
   const st = qbo.status;
 
   async function connect() {
-    const clientId = window.QBO_CONFIG && window.QBO_CONFIG.clientId;
-    if (!clientId) {
-      showToast("QuickBooks isn't configured yet — see qbo-config.js.");
+    // The firm's own company always connects with the production Intuit keys.
+    // qbo-connect-start (admins only) mints the state token and builds the
+    // Intuit URL server-side; see window.mgbStartQboConnect in qbo-config.js.
+    if (typeof window.mgbStartQboConnect !== "function") {
+      showToast("Couldn't start the QuickBooks connection. Reload and try again.");
       return;
     }
     setBusy("connect");
-    const res = await TP_qRpc("qbo_firm_connect_start", { p_intuit_client_id: clientId });
+    const r = await window.mgbStartQboConnect(window.mgbSupabase, { kind: "firm" });
     setBusy(null);
-    if (res.error || !res.data) {
-      showToast("Couldn't start the QuickBooks connection: " + ((res.error && res.error.message) || "no link returned"));
+    if (!r.ok) {
+      showToast(r.message);
       return;
     }
-    window.open(String(res.data), "_blank", "noopener");
+    window.open(r.url, "_blank", "noopener");
     showToast("Finish connecting in the QuickBooks tab, then come back here.");
   }
 

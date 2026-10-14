@@ -24,13 +24,24 @@
     <script>
       // The Edge Function redirects here with only a plain status word in the
       // query string — never the OAuth code or any token, since this page's
-      // own URL can end up in browser history / Referer headers.
-      var status = new URLSearchParams(location.search).get("status");
+      // own URL can end up in browser history / Referer headers. On an
+      // exchange failure it may add ref=<intuit_tid> (Intuit's id for the
+      // call, for support). The ref is re-checked here with the same pattern
+      // qbo-callback uses (letters, digits, dashes, 8-64 long) and shown only
+      // as text, so a crafted link can't inject anything.
+      var qs = new URLSearchParams(location.search);
+      var status = qs.get("status");
+      var rawRef = qs.get("ref");
+      var ref = typeof rawRef === "string" && /^[0-9A-Za-z-]{8,64}$/.test(rawRef) ? rawRef : null;
       var copy = {
         connected: ["QuickBooks connected", "You can close this tab and go back to MyGoodBooks."],
         cancelled: ["Connection cancelled", "You can close this tab and go back to MyGoodBooks."],
         invalid: ["Link expired", "This QuickBooks connection link is invalid or expired. Ask MyGoodBooks to try again."],
-        error: ["Couldn't connect", "Something went wrong finishing the QuickBooks connection. Ask MyGoodBooks to try again."],
+        error: [
+          "Couldn't connect",
+          "We couldn't finish connecting QuickBooks. Ask an admin to retry." + (ref ? " Error id: " + ref : ""),
+        ],
+        not_configured: ["Couldn't connect", "QuickBooks isn't set up for this account type yet. Ask an admin."],
       }[status] || ["Couldn't connect", "Something went wrong. Ask MyGoodBooks to try again."];
       document.getElementById("title").textContent = copy[0];
       document.getElementById("sub").textContent = copy[1];

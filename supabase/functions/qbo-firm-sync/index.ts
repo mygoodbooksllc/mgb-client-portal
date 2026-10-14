@@ -1,5 +1,6 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
+import { denoEnv, keysForStoredEnv, QboKeysMissingError } from "../_shared/qbo-env.ts";
 
 // Pulls QuickBooks Time hours out of MyGoodBooks' OWN QuickBooks Online
 // company (the "firm" connection, qbo_firm_connection — see
@@ -34,17 +35,21 @@ import { createClient } from "jsr:@supabase/supabase-js@2";
 // verify_jwt must be OFF (the cron caller has no Supabase session); the
 // bearer checks below are the gate. Never logs Intuit response bodies or any
 // token — status codes, counts and intuit_tid only (Intuit review rule, same
-// as qbo-sync). Self-contained on purpose: Supabase deploys each function
-// independently.
+// as qbo-sync). Self-contained on purpose (Supabase deploys each function
+// independently), except for ../_shared/qbo-env.ts, which picks the Intuit
+// app keys from the firm connection's own api_env (bundled at deploy).
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
-const QBO_CLIENT_ID = Deno.env.get("QBO_CLIENT_ID")!;
-const QBO_CLIENT_SECRET = Deno.env.get("QBO_CLIENT_SECRET")!;
+// Intuit app keys are NOT read here at module load: getAccessToken resolves
+// them per refresh from qbo_firm_connection.api_env (keysForStoredEnv), so the
+// firm connection refreshes with the app that minted it (production for any
+// connection made through qbo-connect-start).
 const QBO_TOKEN_ENCRYPTION_KEY = Deno.env.get("QBO_TOKEN_ENCRYPTION_KEY")!;
 
 const TOKEN_URL = "https://oauth.platform.intuit.com/oauth2/v1/tokens/bearer";
+const TOKEN_FETCH_TIMEOUT_MS = 20 * 1000;
 const PROD_BASE = "https://quickbooks.api.intuit.com";
 const SANDBOX_BASE = "https://sandbox-quickbooks.api.intuit.com";
 const MINOR_VERSION = "75";
@@ -179,7 +184,10 @@ async function queryAll(
 // ---------------------------------------------------------------------------
 // Tokens (qbo_firm_get_tokens / qbo_firm_store_tokens, service_role only)
 // ---------------------------------------------------------------------------
-async function getAccessToken(admin: any): Promise<string> {
+// apiEnv: qbo_firm_connection.api_env (NULL = a legacy row = sandbox/legacy
+// keys). Throws QboKeysMissingError (secret names only) before calling Intuit
+// when that environment has no keys configured.
+async function getAccessToken(admin: any, apiEnv: string | null): Promise<string> {
   const { data: rows, error } = await admin.rpc("qbo_firm_get_tokens", {
     p_key: QBO_TOKEN_ENCRYPTION_KEY,
   });
@@ -190,21 +198,38 @@ async function getAccessToken(admin: any): Promise<string> {
   if (expiresAtMs - Date.now() > REFRESH_AHEAD_MS) return row.access_token;
   if (!row.refresh_token) throw authError("no refresh token on file");
 
-  const res = await fetch(TOKEN_URL, {
-    method: "POST",
-    headers: {
-      Authorization: `Basic ${btoa(`${QBO_CLIENT_ID}:${QBO_CLIENT_SECRET}`)}`,
-      "Content-Type": "application/x-www-form-urlencoded",
-      Accept: "application/json",
-    },
-    body: new URLSearchParams({ grant_type: "refresh_token", refresh_token: row.refresh_token }),
-  });
+  const keys = keysForStoredEnv(apiEnv, denoEnv); // throws QboKeysMissingError
+  let res: Response;
+  try {
+    res = await fetch(TOKEN_URL, {
+      method: "POST",
+      headers: {
+        Authorization: `Basic ${btoa(`${keys.clientId}:${keys.clientSecret}`)}`,
+        "Content-Type": "application/x-www-form-urlencoded",
+        Accept: "application/json",
+      },
+      body: new URLSearchParams({ grant_type: "refresh_token", refresh_token: row.refresh_token }),
+      signal: AbortSignal.timeout(TOKEN_FETCH_TIMEOUT_MS),
+    });
+  } catch (e) {
+    // Not an auth failure: the connection stays as it is, last_error only.
+    const timedOut = (e as Error)?.name === "TimeoutError" || (e as Error)?.name === "AbortError";
+    throw new Error(`token refresh failed (${timedOut ? "timed out" : "network error"})`);
+  }
   const tid = res.headers.get("intuit_tid");
   if (!res.ok) {
-    await res.body?.cancel();
+    try { await res.body?.cancel(); } catch (_e) { /* ignore */ }
     throw new IntuitError(401, tid, "token refresh");
   }
-  const tokens = await res.json();
+  let tokens: any = null;
+  try {
+    tokens = await res.json();
+  } catch (_e) {
+    tokens = null; // never surface the parse error: it can quote the body
+  }
+  if (!tokens?.access_token || !tokens?.refresh_token || !(Number(tokens?.expires_in) > 0)) {
+    throw new Error(`token refresh failed (unreadable reply)${tid ? ` — intuit_tid: ${tid}` : ""}`);
+  }
   // Intuit rotates the refresh token; store the new one before anything else.
   const { error: storeErr } = await admin.rpc("qbo_firm_store_tokens", {
     p_access_token: tokens.access_token,
@@ -285,7 +310,7 @@ async function syncFirm(admin: any, conn: any, trigger: string) {
 
   try {
     if (!realmId) throw authError("the firm connection has no realm");
-    const accessToken = await getAccessToken(admin);
+    const accessToken = await getAccessToken(admin, conn.api_env ?? null);
 
     // Host: known api_env, else probe with CompanyInfo (production first).
     const companyPath = `/v3/company/${realmId}/companyinfo/${realmId}?minorversion=${MINOR_VERSION}`;
@@ -477,6 +502,9 @@ async function syncFirm(admin: any, conn: any, trigger: string) {
         ...(authFailure ? { status: "error" } : {}),
         last_error: authFailure
           ? `QuickBooks rejected the firm connection — please reconnect. (${detail})`
+          : e instanceof QboKeysMissingError
+          // Secret names only; status left alone (works once they're set).
+          ? `${detail}. Ask an admin to add them.`
           : detail,
         updated_at: new Date().toISOString(),
       })

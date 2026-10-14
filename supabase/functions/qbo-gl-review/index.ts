@@ -1,6 +1,7 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
 import {
+  flagKeysMissing,
   flagReconnect,
   getAccessToken,
   IntuitAuthError,
@@ -9,6 +10,7 @@ import {
   meterUsage,
   newCtx,
   type QboCtx,
+  QboKeysMissingError,
   queryUrl,
   reportUrl,
   resolveApiBase,
@@ -128,6 +130,9 @@ class PullError extends Error {
 
 // Short plain-language errors for the screen. Never Intuit text.
 function friendly(e: unknown): string {
+  if (e instanceof QboKeysMissingError) {
+    return "QuickBooks isn't set up for this account type yet. Ask an admin.";
+  }
   if (e instanceof TokenBusyError) return "QuickBooks is busy refreshing its sign-in. Try again in a minute.";
   if (e instanceof PullError) {
     return e.kind === "too_large"
@@ -406,7 +411,8 @@ Deno.serve(async (req) => {
   };
 
   try {
-    ctx.accessToken = await getAccessToken(admin, clientId, { logTag: TAG });
+    // The connection's own api_env picks the Intuit app keys for a refresh.
+    ctx.accessToken = await getAccessToken(admin, clientId, { logTag: TAG, apiEnv: conn.api_env ?? null });
 
     // Preferences: the company's own accounting method, pinned and sent
     // explicitly on every report (spec 2.1), plus class/location tracking.
@@ -557,6 +563,8 @@ Deno.serve(async (req) => {
     // Same as qbo-sync: a 401 (refresh refused / token rejected) sends the
     // connection to 'error' so the Reconnect UI takes over. Not TokenBusyError.
     if (e instanceof IntuitError && e.status === 401) await flagReconnect(admin, clientId, e, TAG);
+    // This connection's environment has no keys configured: names only.
+    if (e instanceof QboKeysMissingError) await flagKeysMissing(admin, clientId, e, TAG);
     if (!finished) await finish("error", null, msg);
     return json({ status: "error", error: msg });
   } finally {

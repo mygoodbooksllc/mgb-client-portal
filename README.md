@@ -75,7 +75,7 @@ because some work happens in Claude Code web sessions. Run `git fetch` and compa
 | `styles.css` | All app styles and theme tokens |
 | `data.js` | **Sample** financial data for the test orgs, plus `withClientDataDefaults()`, which keeps pages from crashing when an org has no data yet |
 | `auth-config.js` | Supabase URL and publishable (anon) key. Safe to be public. |
-| `qbo-config.js` | QuickBooks app Client ID (public) and environment (`production`) |
+| `qbo-config.js` | `window.mgbStartQboConnect`: asks `qbo-connect-start` for the Intuit URL. No client id or environment any more (keys are chosen per connection, server-side) |
 | `components/auth/` | `supabaseClient.js`, `AuthGate.jsx` (staff Google gate), `ClientAuthGate.jsx` (client magic-link gate) |
 | `components/dashboard/` | `WidgetDrawer.jsx` + `widget-drawer.css`: the shared **Customize** drawer and board edit mode used by every customizable board (client Dashboard, full client dashboard, Financial Overview), plus `WD_sync` for per-account layout saving. Every name is `WD_`/`wd-` prefixed. Loaded before `components/daily-close/*` and `app.jsx`. |
 | `components/daily-close/` | Financial Overview (`DailyClose.tsx`, its CSS, sample data, and `fromClient.js`, which adapts client data for it) |
@@ -88,7 +88,7 @@ because some work happens in Claude Code web sessions. Run `git fetch` and compa
 | `components/ledger/` | Ledger review (GL Review phase 1, 2026-10-14; spec `docs/gl-review-spec.md`). `GLR_*.js` are pure logic with node tests in `tests/ledger/` (parse, checks, compare, summary); `LR_*` is the UI: `LR_Tab.jsx` (client tab `client-ledger`, `#/client/<id>/ledger`), `LR_Panels.jsx`, `LR_ReviewFile.jsx` (Work › Ledger review), `LR_Settings.jsx` (Team › Ledger review), `LR_api.js` (RPC and edge-function wrappers; fires `mgb:ledger-review-changed` and `mgb:gl-review-changed` so the Close card refreshes). Database: `supabase/gl-review-1-core.sql`. |
 | `components/qbo/` | `mapQboToClient.js` converts QuickBooks table rows into the shape the pages use. Its test is `mapQboToClient.test.js`. |
 | `supabase/*.sql` | Every database change: tables, row-level security (RLS) policies, functions, cron jobs. The folder is flat, one file per change. |
-| `supabase/functions/` | Edge functions: `qbo-callback`, `qbo-refresh-token`, `qbo-sync`, `invite-client-user`, `qbo-gl-review` (pulls the General Ledger, staff only), `gl-review-send` (emails a ledger question or summary), plus shared helpers in `_shared/` |
+| `supabase/functions/` | Edge functions: `qbo-connect-start` (starts the Intuit connect; picks sandbox vs production keys per connection), `qbo-callback`, `qbo-refresh-token`, `qbo-sync`, `invite-client-user`, `qbo-gl-review` (pulls the General Ledger, staff only), `gl-review-send` (emails a ledger question or summary), plus shared helpers in `_shared/` |
 | `privacy-policy.html`, `terms-of-service.html`, `qbo-connected.html` | Standalone public pages, served at `/privacy`, `/terms` and `/quickbooks-connected` |
 | `vercel.json` | URL rewrites (`/login`, `/privacy`, `/terms`, `/quickbooks-connected`) and security headers |
 | `.vercelignore` | Keeps internal files out of the public deploy (see [Working on it](#working-on-it)) |
@@ -1267,11 +1267,17 @@ Team Reviews files.
   database (`select * from cron.job`, `pg_policies`, `pg_proc`) before trusting a header.
 - **Edge functions** live in `supabase/functions/<name>/index.ts` and are deployed with the
   Supabase MCP or CLI.
-  - Secrets (`QBO_CLIENT_SECRET`, `QBO_TOKEN_ENCRYPTION_KEY`, the service role key, and so on)
+  - QuickBooks keys are chosen per connection: test clients (`test_only`) use the Intuit sandbox
+    pair, real clients and the firm (Team › QuickBooks Time) use the production pair. Secrets:
+    `QBO_PRODUCTION_CLIENT_ID`, `QBO_PRODUCTION_CLIENT_SECRET`, `QBO_SANDBOX_CLIENT_ID`,
+    `QBO_SANDBOX_CLIENT_SECRET` (sandbox pair optional; falls back to the legacy `QBO_CLIENT_ID` /
+    `QBO_CLIENT_SECRET`). `QBO_ENV` is retired. Migration: `supabase/qbo-env-per-connection.sql`
+    (+ `-tests.sql`), NOT APPLIED until the owner runs it.
+  - Other secrets (`QBO_TOKEN_ENCRYPTION_KEY`, the service role key, and so on)
     are set only in Supabase.
   - `qbo-sync`, `qbo-callback`, `qbo-refresh-token` and `qbo-firm-sync` run with `verify_jwt`
     off and check the caller themselves.
-  - `invite-client-user` runs with `verify_jwt` on.
+  - `invite-client-user` and `qbo-connect-start` run with `verify_jwt` on.
 - **Client files in Google Drive** (`supabase/google-drive-files.sql`, applied 2026-10-06;
   function `supabase/functions/drive-files/`, `verify_jwt` off, checks the caller's JWT itself).
   - Files from the Documents page, the page-wide drop, document requests and client message

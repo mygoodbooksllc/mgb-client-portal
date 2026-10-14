@@ -1,6 +1,14 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
-import { ensureFreshToken, IntuitError, NoTokensError, TokenBusyError, TokenStoreError } from "../_shared/qbo.ts";
+import {
+  ensureFreshToken,
+  flagKeysMissing,
+  IntuitError,
+  NoTokensError,
+  QboKeysMissingError,
+  TokenBusyError,
+  TokenStoreError,
+} from "../_shared/qbo.ts";
 
 // Batch-refreshes QBO access tokens before they expire. QBO access tokens
 // last ~1hr and refresh tokens ~100 days of inactivity with NO refresh
@@ -27,9 +35,14 @@ import { ensureFreshToken, IntuitError, NoTokensError, TokenBusyError, TokenStor
 // there), and only when a refresh is due takes the token_refresh_at lock
 // (shared with qbo-sync and qbo-gl-review), re-reads under it and refreshes.
 // lockTries 0: a lock held by someone else means they're refreshing that
-// connection right now, so it's skipped rather than waited on. QBO_CLIENT_ID,
-// QBO_CLIENT_SECRET and QBO_TOKEN_ENCRYPTION_KEY are read there. One
-// connection's failure (network, timeout, a bad reply) never stops the loop.
+// connection right now, so it's skipped rather than waited on. Each connection
+// refreshes with the Intuit keys of ITS OWN api_env (passed in from the select
+// below; NULL = a legacy row = sandbox keys): see ../_shared/qbo-env.ts. If
+// that environment's keys aren't configured, nothing is sent to Intuit and the
+// connection's last_error names the missing secrets (status left alone, so it
+// just works on the next run once they're set). QBO_TOKEN_ENCRYPTION_KEY is
+// read there too. One connection's failure (network, timeout, a bad reply,
+// missing keys) never stops the loop.
 
 const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 // Skip a connection that was touched more recently than this — avoids a
@@ -77,7 +90,7 @@ Deno.serve(async (req) => {
 
   const { data: connections, error: connErr } = await supabase
     .from("qbo_connections")
-    .select("client_id, updated_at")
+    .select("client_id, updated_at, api_env")
     .eq("status", "connected");
 
   if (connErr) {
@@ -100,7 +113,11 @@ Deno.serve(async (req) => {
 
     let refreshedTid: string | null = null;
     try {
-      const r = await ensureFreshToken(supabase, clientId, { logTag: "qbo-refresh-token", lockTries: 0 });
+      const r = await ensureFreshToken(supabase, clientId, {
+        logTag: "qbo-refresh-token",
+        lockTries: 0,
+        apiEnv: conn.api_env ?? null,
+      });
       if (!r.refreshed) {
         // Not due yet, or another process refreshed it while we waited.
         result.skipped++;
@@ -111,6 +128,13 @@ Deno.serve(async (req) => {
       if (e instanceof TokenBusyError || e instanceof NoTokensError) {
         // Someone else is refreshing it right now / nothing to refresh.
         result.skipped++;
+        continue;
+      }
+      if (e instanceof QboKeysMissingError) {
+        // Secret NAMES only (never values). Nothing was sent to Intuit.
+        await flagKeysMissing(supabase, clientId, e, "qbo-refresh-token");
+        console.log(`qbo-refresh-token: client ${clientId} skipped — ${e.env} keys not configured`);
+        result.errored++;
         continue;
       }
       if (e instanceof IntuitError && e.status === 401) {

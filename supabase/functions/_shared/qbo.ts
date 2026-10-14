@@ -13,11 +13,20 @@
 // (no module-level global), queryUrl, reportUrl, reportColumn, walkDataRows,
 // num, baseForEnv, resolveApiBase (per-connection api_env, probing both hosts
 // once), meterUsage, isTooLargeFault, reconnectMessage / flagReconnect (the
-// qbo-sync "please reconnect" path), and getAccessToken / ensureFreshToken
-// with the token-refresh lock.
+// qbo-sync "please reconnect" path), flagKeysMissing + QboKeysMissingError
+// (re-exported from ./qbo-env.ts), and getAccessToken / ensureFreshToken with
+// the token-refresh lock.
 //
 // Never logs Intuit response bodies or token values: status codes, counts and
 // intuit_tid only.
+//
+// Intuit app keys are chosen PER CONNECTION (./qbo-env.ts): a refresh uses
+// keysForStoredEnv(qbo_connections.api_env), NULL = legacy sandbox keys. The
+// caller passes the api_env it already holds (`apiEnv`), or it is read with
+// one select, and only when a refresh is actually due. Keys are read lazily
+// per call, never at module load. Missing keys throw QboKeysMissingError
+// (secret names only) before the lock is taken; flagKeysMissing records it on
+// the connection.
 //
 // The token-refresh lock (qbo_connections.token_refresh_at, spec 3.2): Intuit
 // rotates the refresh token on every use and the old one dies at once, so two
@@ -33,7 +42,9 @@
 // window), so a hung or failed refresh can't leave the lock held.
 // ----------------------------------------------------------------------------
 import { num, reportColumn, walkDataRows } from "./qbo_report.ts";
+import { denoEnv, type GetEnv, keysForStoredEnv, QboKeysMissingError } from "./qbo-env.ts";
 export { num, reportColumn, walkDataRows };
+export { QboKeysMissingError };
 
 export const TOKEN_URL = "https://oauth.platform.intuit.com/oauth2/v1/tokens/bearer";
 export const PROD_BASE = "https://quickbooks.api.intuit.com";
@@ -295,8 +306,15 @@ export type TokenDeps = {
   fetch: typeof fetch;
   sleep: (ms: number) => Promise<void>;
   now: () => number;
-  clientIdKey: string; // QBO_CLIENT_ID
-  clientSecret: string; // QBO_CLIENT_SECRET
+  // Explicit Intuit app keys (tests). Both set = used as is, no env lookup.
+  // Otherwise the keys come from keysForStoredEnv(apiEnv, getEnv).
+  clientIdKey: string;
+  clientSecret: string;
+  // The connection's qbo_connections.api_env when the caller already has it
+  // (null = legacy row = sandbox keys). undefined = read it (one select, only
+  // when a refresh is due).
+  apiEnv: string | null | undefined;
+  getEnv: GetEnv;
   encKey: string; // QBO_TOKEN_ENCRYPTION_KEY
   logTag: string;
   // Extra tries after the lock is found held (2 s apart). 0 = don't wait:
@@ -310,8 +328,10 @@ function tokenDeps(over: Partial<TokenDeps> = {}): TokenDeps {
     fetch: over.fetch ?? ((...a: Parameters<typeof fetch>) => fetch(...a)),
     sleep: over.sleep ?? defaultSleep,
     now: over.now ?? (() => Date.now()),
-    clientIdKey: over.clientIdKey ?? env("QBO_CLIENT_ID"),
-    clientSecret: over.clientSecret ?? env("QBO_CLIENT_SECRET"),
+    clientIdKey: over.clientIdKey ?? "",
+    clientSecret: over.clientSecret ?? "",
+    apiEnv: over.apiEnv,
+    getEnv: over.getEnv ?? denoEnv,
     encKey: over.encKey ?? env("QBO_TOKEN_ENCRYPTION_KEY"),
     logTag: over.logTag ?? "qbo",
     lockTries: Math.max(0, over.lockTries ?? TOKEN_LOCK_TRIES),
@@ -348,6 +368,34 @@ async function readTokens(admin: any, clientId: string, encKey: string): Promise
   return row;
 }
 
+// The Intuit app keys to refresh this connection with (see TokenDeps).
+async function refreshKeys(admin: any, clientId: string, d: TokenDeps): Promise<{ id: string; secret: string }> {
+  if (d.clientIdKey && d.clientSecret) return { id: d.clientIdKey, secret: d.clientSecret };
+  let apiEnv = d.apiEnv;
+  if (apiEnv === undefined) {
+    const { data, error } = await admin.from("qbo_connections").select("api_env").eq("client_id", clientId).maybeSingle();
+    if (error) throw new Error("could not read this connection's QuickBooks environment");
+    apiEnv = data?.api_env ?? null;
+  }
+  const k = keysForStoredEnv(apiEnv, d.getEnv); // throws QboKeysMissingError
+  return { id: k.clientId, secret: k.clientSecret };
+}
+
+// Records "keys not configured" on the connection (secret names only, never a
+// value). Status is left alone: the tokens are fine, and once the secrets are
+// set the next refresh just works without a reconnect. Never throws.
+export async function flagKeysMissing(admin: any, clientId: string, e: QboKeysMissingError, logTag = "qbo"): Promise<void> {
+  try {
+    const { error } = await admin
+      .from("qbo_connections")
+      .update({ last_error: `${e.message}. Ask an admin to add them.`, updated_at: new Date().toISOString() })
+      .eq("client_id", clientId);
+    if (error) console.log(`${logTag}: could not record missing keys for client ${clientId}: ${error.message}`);
+  } catch (err) {
+    console.log(`${logTag}: could not record missing keys for client ${clientId}: ${(err as Error).message}`);
+  }
+}
+
 function isFresh(row: any, now: number): boolean {
   const exp = row?.expires_at ? new Date(row.expires_at).getTime() : 0;
   return !!row?.access_token && exp - now > REFRESH_AHEAD_MS;
@@ -364,11 +412,16 @@ export type FreshToken = { accessToken: string; refreshed: boolean; tid: string 
 //   TokenBusyError    another process held the lock through every wait
 //   NoTokensError     nothing stored, or no refresh token when one is needed
 //   TokenStoreError   refreshed, but saving the rotated tokens failed (loud)
+//   QboKeysMissingError  this connection's environment has no keys configured
+//                     (thrown before the lock; nothing sent to Intuit)
 export async function ensureFreshToken(admin: any, clientId: string, over: Partial<TokenDeps> = {}): Promise<FreshToken> {
   const d = tokenDeps(over);
   let row = await readTokens(admin, clientId, d.encKey);
   if (isFresh(row, d.now())) return { accessToken: row.access_token, refreshed: false, tid: null };
   if (!row.refresh_token) throw new NoTokensError("no refresh token on file");
+  // Before the lock: a connection whose keys aren't configured fails here,
+  // without touching the lock or Intuit.
+  const keys = await refreshKeys(admin, clientId, d);
 
   let lock = await takeTokenLock(admin, clientId, d.now());
   for (let i = 0; lock === "held" && i < d.lockTries; i++) {
@@ -393,7 +446,7 @@ export async function ensureFreshToken(admin: any, clientId: string, over: Parti
       res = await d.fetch(TOKEN_URL, {
         method: "POST",
         headers: {
-          Authorization: `Basic ${btoa(`${d.clientIdKey}:${d.clientSecret}`)}`,
+          Authorization: `Basic ${btoa(`${keys.id}:${keys.secret}`)}`,
           "Content-Type": "application/x-www-form-urlencoded",
           Accept: "application/json",
         },

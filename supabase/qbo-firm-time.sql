@@ -633,6 +633,10 @@ begin
 end;
 $$;
 
+-- SUPERSEDED by supabase/qbo-env-per-connection.sql, which DROPS this
+-- (text) signature and replaces it with qbo_firm_connect_start() (no args,
+-- returns {token, api_env}; the qbo-connect-start edge function builds the
+-- URL with the production keys). Do not re-run this block after that file.
 -- Start a firm connect. Pass the public Intuit app client id the browser
 -- already has (window.QBO_CONFIG.clientId). Returns the authorize URL; open it
 -- the same way connectQuickBooks() does.

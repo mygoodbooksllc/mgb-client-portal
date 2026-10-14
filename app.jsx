@@ -24149,36 +24149,23 @@ function TabSettingsModal({
   }
 
   async function connectQuickBooks() {
-    if (!window.QBO_CONFIG || !window.QBO_CONFIG.clientId) {
-      showToast("QuickBooks isn't configured yet — see qbo-config.js.");
+    // The qbo-connect-start Edge Function (via window.mgbStartQboConnect in
+    // qbo-config.js) checks access as the caller, mints the unpredictable
+    // single-use `state` token server-side (never the bare client id, so a
+    // crafted callback can't attribute a connection to a client nobody
+    // started), picks the Intuit keys from the client's test_only flag
+    // (test client -> sandbox, real client -> production) and returns the
+    // Intuit sign-in URL. Missing production keys -> a toast, no Intuit tab.
+    if (typeof window.mgbStartQboConnect !== "function") {
+      showToast("Couldn't start the QuickBooks connection. Reload and try again.");
       return;
     }
-    // `state` must be an unpredictable, single-use token, not the bare client
-    // id — otherwise anyone could craft their own OAuth callback URL with a
-    // guessed state and attribute a connection to a client they don't manage.
-    // The Edge Function looks this token up server-side rather than trusting
-    // whatever client_id shows up in the URL.
-    const token = secureRandomToken();
-    const { error } = await supabase
-      .from("qbo_connect_state")
-      .insert({ token, client_id: client.id });
-    if (error) {
-      showToast("Couldn't start the QuickBooks connection: " + error.message);
+    const r = await window.mgbStartQboConnect(supabase, { kind: "client", client_id: client.id });
+    if (!r.ok) {
+      showToast(r.message);
       return;
     }
-    const redirectUri = `${window.SUPABASE_CONFIG.url}/functions/v1/qbo-callback`;
-    const params = new URLSearchParams({
-      client_id: window.QBO_CONFIG.clientId,
-      response_type: "code",
-      scope: "com.intuit.quickbooks.accounting",
-      redirect_uri: redirectUri,
-      state: token,
-    });
-    window.open(
-      `https://appcenter.intuit.com/connect/oauth2?${params}`,
-      "_blank",
-      "noopener",
-    );
+    window.open(r.url, "_blank", "noopener");
   }
 
   async function disconnectQuickBooks() {
@@ -24858,18 +24845,18 @@ function TabSettingsModal({
             entering them by hand.
           </p>
 
-          {window.QBO_CONFIG &&
-            window.QBO_CONFIG.environment !== "production" && (
-              <p
-                className="card-subtitle"
-                style={{ color: "#e0664f", marginTop: 0 }}
-              >
-                Sandbox mode only — this connects test QuickBooks companies, not
-                a real client's account. Real clients need Intuit's production
-                keys (separate from sandbox) and Intuit's app review to pass
-                first.
-              </p>
-            )}
+          {/* Which Intuit keys a connect uses is decided on the server from
+              the client's test_only flag (supabase/qbo-env-per-connection.sql). */}
+          {client.testOnly === true && (
+            <p
+              className="card-subtitle"
+              style={{ color: "#e0664f", marginTop: 0 }}
+            >
+              Test client — this connects a QuickBooks sandbox (test) company,
+              not a real one. Real clients connect with MyGoodBooks' production
+              QuickBooks keys.
+            </p>
+          )}
 
           <div className="modal-section">
             {qboConnection === undefined ? (
