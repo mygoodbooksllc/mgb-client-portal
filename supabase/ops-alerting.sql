@@ -13,7 +13,7 @@
 --        schedule, overdue / 2x overdue, errors in a row, errors in 7 days.
 --        Mirrors isDueForPlan() in supabase/functions/qbo-sync/index.ts:
 --          premium (Pro)    every qbo_usage_status().premium_interval_min
---                           (15, or 30 while throttled)
+--                           (60, or 120 while throttled)
 --          standard (Plus)  weekly
 --          basic            monthly, on the 15th (US Central date)
 --        "Overdue" allows one cron tick of slack; "2x overdue" is twice the

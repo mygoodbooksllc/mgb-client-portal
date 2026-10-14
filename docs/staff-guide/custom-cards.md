@@ -50,7 +50,7 @@ Custom cards can be moved and hidden in **Customize dashboard** like any other c
 
 - **Pro only.** Other plans don't see the builder.
 - **Each person's cards are their own.** Only the person who made a card sees it. Cards are saved to their account, so they follow them to any computer or phone.
-- **Numbers come from QuickBooks.** They update with each Pro sync, about every 15 minutes.
+- **Numbers come from QuickBooks.** They update with each Pro sync, about every hour.
 - **Classes and departments aren't brought in from QuickBooks.** To track a program like youth ministry, pick its budget category and add a keyword such as "youth" to filter the transactions.
 - **Sample data note.** On the sample (demo) data, earlier months are estimated from the current budget, and the card says so. Connected clients see their real monthly figures.
 - **Staff previewing a client.** While you're using **View as** or previewing someone, cards you make aren't saved to their layout.

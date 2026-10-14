@@ -41,7 +41,7 @@ function QG_monthName(key) {
   return names[Number(m[2]) - 1] + " " + m[1];
 }
 
-// "As of last sync, 2 hours ago · Synced from QuickBooks every 15 minutes".
+// "As of last sync, 2 hours ago · Synced from QuickBooks every hour".
 function QG_syncLine(client, plan) {
   const cadence =
     typeof syncCadenceLabel === "function" ? syncCadenceLabel(plan || client.plan) : "Synced from QuickBooks";

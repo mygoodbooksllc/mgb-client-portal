@@ -388,13 +388,13 @@ function TOUR_clientCtx(client, access, extra) {
 
 // How often a plan's numbers refresh from QuickBooks, in words: "monthly, on
 // the 15th", "weekly" (the retired Plus plan, which still syncs weekly) or
-// "every 15 minutes". From app.jsx PLAN_SYNC, by the stored plan, so it
+// "every hour". From app.jsx PLAN_SYNC, by the stored plan, so it
 // matches the qbo-sync schedule.
 function TOUR_cadence(plan) {
   const table = typeof PLAN_SYNC !== "undefined" ? PLAN_SYNC : null;
   const p = table && (table[plan] || table.basic);
   if (p && p.cadence) return String(p.cadence).replace(/^Synced from QuickBooks /, "");
-  return plan === "premium" ? "every 15 minutes" : plan === "standard" ? "weekly" : "monthly";
+  return plan === "premium" ? "every hour" : plan === "standard" ? "weekly" : "monthly";
 }
 
 // How the books stay current, the same words wherever the client tour says

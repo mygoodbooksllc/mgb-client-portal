@@ -7,6 +7,11 @@ sort: 15
 ---
 The newest changes to the staff side, newest first. For how anything works, search this guide or click **?** → **Help for this page**.
 
+### 2026-10-14: Pro QuickBooks sync is now hourly
+
+- **Pro clients now sync from QuickBooks every hour instead of every 15 minutes.** The sync pill reads **Every hour · synced 5m ago**. Changes made in QuickBooks can take up to an hour to show; **Sync now** still pulls them straight away, any time. When the firm is near its Intuit limit, Pro slows to every 2 hours instead of every 30 minutes.
+- **The wording is updated everywhere it appeared**, including the plan cards, the tours and the pricing page.
+
 ### 2026-10-14: Note and comment names are checked
 
 - **The name on internal notes, budget comments, budget notes and budget history now comes from the writer's account**, the same way client messages already do: your Team name, or the client's name on their portal access. The app can't be used to put a different name on them. Nothing changes in how you write them.

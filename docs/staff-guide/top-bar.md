@@ -2,7 +2,7 @@
 title: What's on the bar at the top of the page?
 section: Getting started
 audience: staff
-keywords: [tasks tour, mentions, mentioned you, q, quick add task, tips, tips while you learn, turn off tips, back, back button, refresh, reload, installed app, app, top bar, toolbar, header, search, jump to, pages, actions, search transactions, search documents, search messages, ctrl k, cmd k, notifications, bell, tasks, plus, quick add, message, help, help for this page, staff guide, send feedback, what's new, take the tour, bookkeeper tour, admin tour, temporary admin tour, account manager tour, report a bug, feedback, account, avatar, sign out, dark mode, sync, every 15 minutes, settings, preview plan, photo, client task panel]
+keywords: [tasks tour, mentions, mentioned you, q, quick add task, tips, tips while you learn, turn off tips, back, back button, refresh, reload, installed app, app, top bar, toolbar, header, search, jump to, pages, actions, search transactions, search documents, search messages, ctrl k, cmd k, notifications, bell, tasks, plus, quick add, message, help, help for this page, staff guide, send feedback, what's new, take the tour, bookkeeper tour, admin tour, temporary admin tour, account manager tour, report a bug, feedback, account, avatar, sign out, dark mode, sync, every hour, settings, preview plan, photo, client task panel]
 sort: 25
 ---
 Across the top of every staff page there's a dark bar, joined to the rail, with your most-used tools. Clients never see it, and it goes away while you use **Preview as** or **View as client**. The rail on the left has the five places (Today, Inbox, Work, Clients, Team); the bar has no page links of its own.
@@ -11,7 +11,7 @@ Across the top of every staff page there's a dark bar, joined to the rail, with 
 
 - **Back** and **Refresh** (installed app only): when you use MyGoodBooks as an installed app, there's no browser toolbar, so these two round buttons come first. **Back** goes to the page you were on before (it's greyed out when there's nowhere to go back to), and **Refresh** reloads the page. In a browser tab, use the browser's own buttons.
 - **Client picker**: shows the client you have open, with their plan and health (for example "Pro · Looking good"). Click it to search for and open another client. On a staff page it says **Choose a client**. More in [How do I find and open a client?](#/help/finding-a-client).
-- **Sync pill** (client pages only): how often the client's plan syncs, and when it last did: **Every 15 min · synced 5m ago** (Pro) or **Synced monthly · synced …** (Basic). Click it to run **Sync now** for that client. Clients without QuickBooks show **Setting up — connecting QuickBooks** instead (test clients show **Prototype · Sample Data**). See [How do I connect a client's QuickBooks and use Sync now?](#/help/quickbooks-connection).
+- **Sync pill** (client pages only): how often the client's plan syncs, and when it last did: **Every hour · synced 5m ago** (Pro) or **Synced monthly · synced …** (Basic). Click it to run **Sync now** for that client. Clients without QuickBooks show **Setting up — connecting QuickBooks** instead (test clients show **Prototype · Sample Data**). See [How do I connect a client's QuickBooks and use Sync now?](#/help/quickbooks-connection).
 
 ### Search (middle)
 

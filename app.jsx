@@ -1195,7 +1195,7 @@ const planLoginLabel = (plan) => {
 
 // How often each plan's numbers refresh from QuickBooks. The schedule itself
 // runs server-side in the qbo-sync edge function (isDueForPlan: Basic on the
-// 15th, Pro every 15 minutes, 30 while API usage is throttled; its branch
+// 15th, Pro every hour, 2 hours while API usage is throttled; its branch
 // for the retired Plus plan is unused now); keep the two in step. This is
 // the ONLY place freshness copy comes from: use syncCadenceLabel /
 // syncPillLabel below, never hand-written "live" text.
@@ -1215,10 +1215,10 @@ const PLAN_SYNC = {
     syncNow: false,
   },
   premium: {
-    label: "Synced every 15 minutes, plus Sync now",
-    short: "every 15 min",
-    pill: "Every 15 min",
-    cadence: "Synced from QuickBooks every 15 minutes",
+    label: "Synced every hour, plus Sync now",
+    short: "every hour",
+    pill: "Every hour",
+    cadence: "Synced from QuickBooks every hour",
     syncNow: true,
   },
 };
@@ -1230,7 +1230,7 @@ function planSyncInfo(plan) {
 function syncCadenceLabel(plan) {
   return planSyncInfo(plan).cadence;
 }
-// The header / top bar pill: "Every 15 min · synced 5m ago",
+// The header / top bar pill: "Every hour · synced 5m ago",
 // "Synced monthly · synced 2d ago", or "... · QuickBooks" before a first sync.
 function syncPillLabel(plan, lastSyncedAt) {
   const ago = relTime(lastSyncedAt);
@@ -1272,7 +1272,7 @@ const STAFF_ALWAYS_TABS = new Set(["messages", "documents", "bank", "reports", "
 function STAFF_isRealAdmin(u) {
   return !!u && u.role === "admin";
 }
-// D25: "Basic syncs monthly, on the 15th" / "Pro syncs every 15 minutes".
+// D25: "Basic syncs monthly, on the 15th" / "Pro syncs every hour".
 function STAFF_planCadence(plan) {
   return planLabel(plan) + " syncs " + planSyncInfo(plan).cadence.replace(/^Synced from QuickBooks /, "");
 }
@@ -6447,7 +6447,7 @@ function OV_Link({ to, hint, className, children, ...rest }) {
   );
 }
 // Hours since the last sync before the sync segment turns red: each plan's
-// own cadence plus a margin (Pro syncs every 15 min, Plus weekly, Basic monthly).
+// own cadence plus a margin (Pro syncs every hour, Plus weekly, Basic monthly).
 function OV_syncStaleHours(plan) {
   const k = planShownKey(plan);
   if (k === "premium") return 26;
@@ -11821,7 +11821,7 @@ const ENTERPRISE_FEATURES = [
     title: "Board-ready Financial Overview",
     sidebarTab: "Dashboard",
     description:
-      "Your dashboard becomes a fuller financial snapshot — cash on hand, receivables, what's due — synced from QuickBooks every 15 minutes, with a Sync now button. Click-to-jump KPIs, a low-cash alert, a collections queue, and a one-click PDF snapshot, all customizable to how you work.",
+      "Your dashboard becomes a fuller financial snapshot — cash on hand, receivables, what's due — synced from QuickBooks every hour, with a Sync now button. Click-to-jump KPIs, a low-cash alert, a collections queue, and a one-click PDF snapshot, all customizable to how you work.",
   },
   {
     icon: <DocumentIcon />,
@@ -11885,7 +11885,7 @@ const ENTERPRISE_COMPARISON = [
       "Customizable widget layout, with saved views",
     ],
     premium: [
-      "Synced from QuickBooks every 15 minutes, plus a Sync now button",
+      "Synced from QuickBooks every hour, plus a Sync now button",
       "Click-to-jump KPIs: Cash, Receivables, Payables, Net Income MTD",
       "Cash by Account donut and Top Expense Categories",
       "Receivables Aging with a Collections Queue",
@@ -25535,7 +25535,7 @@ class ErrorBoundary extends React.Component {
 // Rendered inside ToastProvider, which App itself sits above — hence its own
 // component rather than a handler in App.
 // With `liveLabel` (always syncPillLabel(plan, lastSyncedAt)), renders as one
-// combined pill: "● Every 15 min · synced 1m ago  ↻" (the header's sync
+// combined pill: "● Every hour · synced 1m ago  ↻" (the header's sync
 // badge and Sync now in one control, to save space). Clicking anywhere on it
 // syncs. `tour` is a data-tour key for the guided tour (the client header
 // passes "sync").
@@ -26816,7 +26816,7 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
   }, [baseClient, userAccess]);
 
   // The server syncs QuickBooks on each plan's schedule (qbo-sync's
-  // isDueForPlan: Pro every 15 minutes, Basic on the 15th; see
+  // isDueForPlan: Pro every hour, Basic on the 15th; see
   // PLAN_SYNC), and a staffer or another tab can Sync now at any time, but
   // the page only loaded the numbers once. Once a minute: re-render so the
   // "synced x ago" label ticks. Separately, spaced by plan, ask

@@ -34,7 +34,7 @@ Every stop is left out when that person can't see it. The step count shown (**St
 | **Welcome** | Yes | Yes | Yes | Yes |
 | **Home**: what needs them, their organization card | Yes, with **Customize dashboard** and a live snapshot | Yes, and the locked card shows what Pro adds | Yes | Yes, their areas of the budget at a glance |
 | **Milestone** on Home's organization card | Yes | Yes | Yes | No |
-| **Sync**: Pro updates from QuickBooks every 15 minutes, and **Sync now** pulls the latest | Yes, when the organization syncs from QuickBooks | No | On a Pro plan, when the organization syncs from QuickBooks | On a Pro plan, when the organization syncs from QuickBooks |
+| **Sync**: Pro updates from QuickBooks every hour, and **Sync now** pulls the latest | Yes, when the organization syncs from QuickBooks | No | On a Pro plan, when the organization syncs from QuickBooks | On a Pro plan, when the organization syncs from QuickBooks |
 | **Finances**: Budget, Bank accounts, Cash flow, Giving & funds | Yes, the tabs they have | No (Basic has no Finances) | Only the tabs they have | Only the budget lines for their areas |
 | **Payroll** | With the add-on | With the add-on | With the add-on and the tab | No |
 | **Reports** | **Downloads** and **Board packet** | **Downloads**; Board packet comes with Pro | If they have Reports | No |

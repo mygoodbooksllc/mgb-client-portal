@@ -282,7 +282,7 @@ const TIPS_CATALOG = [
     target: ["tb-sync", "sync"],
     // Starts with what it points at: the card hangs below the header band,
     // a way down from the pill.
-    text: "The sync pill: QuickBooks syncs on the plan's schedule (Basic monthly, Pro every 15 minutes). Staff can click it to Sync now on any plan after changing something in QuickBooks.",
+    text: "The sync pill: QuickBooks syncs on the plan's schedule (Basic monthly, Pro every hour). Staff can click it to Sync now on any plan after changing something in QuickBooks.",
     slug: "quickbooks-connection",
   },
   {

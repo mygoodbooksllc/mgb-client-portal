@@ -10,7 +10,7 @@ The app checks itself **every 15 minutes**. If something is wrong, it emails **a
 ### What it watches
 
 - **QuickBooks syncs failing**: a client's sync has failed 2 or more times in a row. The email includes the last error.
-- **QuickBooks syncs overdue**: a client hasn't synced in twice their plan's normal gap (Pro every 15 minutes, Plus weekly, Basic monthly on the 15th). This is skipped while scheduled syncs are stopped by the API usage limit.
+- **QuickBooks syncs overdue**: a client hasn't synced in twice their plan's normal gap (Pro every hour, Plus weekly, Basic monthly on the 15th). This is skipped while scheduled syncs are stopped by the API usage limit.
 - **QuickBooks needs reconnecting**: a client's connection was revoked or expired.
 - **Scheduled syncs not running**: the sync job itself hasn't run in over 20 minutes.
 - **QuickBooks API usage stopped**: scheduled syncs are stopped until next month because the firm hit its Intuit limit (Sync now still works). See [How do I read the QuickBooks API usage card?](#/help/quickbooks-api-usage).

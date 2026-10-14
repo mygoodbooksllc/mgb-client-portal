@@ -13,7 +13,7 @@ Find it on **Team › Hours** (`#/team/hours`), just under the **QuickBooks Time
 
 - **Calls in {month}**: calls so far this month, and the percent of the monthly limit used.
 - **Projected by month end**: where the month will land at the current pace.
-- **Pro clients sync every**: how often Pro clients sync right now (15 minutes normally).
+- **Pro clients sync every**: how often Pro clients sync right now (every hour normally).
 - A bar showing used and projected calls, with marks at the slow-down and stop points.
 - A breakdown by source: **Client syncs**, **QuickBooks Time**, and **Estimated (before counting started)** for the part of the month before counting began.
 
@@ -25,8 +25,8 @@ It's automatic; you don't have to do anything.
 
 | Mode | When | What changes |
 |---|---|---|
-| **Normal** | Below the limits | Pro clients sync every 15 minutes. Basic clients sync on the 15th. |
-| **Slowed down** | The month is on pace to pass 80% of the limit | Pro clients sync every 30 minutes instead of 15. |
+| **Normal** | Below the limits | Pro clients sync every hour. Basic clients sync on the 15th. |
+| **Slowed down** | The month is on pace to pass 80% of the limit | Pro clients sync every 2 hours instead of every hour. |
 | **Scheduled syncs stopped** | 95% of the limit is used | Automatic syncs stop until the 1st of next month. **Sync now** still works. |
 
 Everything goes back to normal on the 1st, when the count resets.

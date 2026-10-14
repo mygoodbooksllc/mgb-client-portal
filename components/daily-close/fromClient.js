@@ -64,7 +64,7 @@
   const shortLabel = (date) => `${MONTH_NAMES[date.getMonth()]} ${date.getDate()}`;
 
   /** "As of Sunday, August 30, 2026 · 7:42 AM · synced from QuickBooks every
-      15 minutes". The time is the client's real last QuickBooks sync
+      hour". The time is the client's real last QuickBooks sync
       (client.lastSyncedAt), never the current clock, and the cadence comes
       from app.jsx's syncCadenceLabel(plan) (PLAN_SYNC), read at call time.
       Sample-data clients (no sync yet) say so instead. */
@@ -92,11 +92,11 @@
   }
 
   // How long past its plan's cadence a sync can be before the report says
-  // the numbers may be stale (Pro every 15 min, Basic on the 15th of each
+  // the numbers may be stale (Pro every hour, 2 hours when throttled, Basic on the 15th of each
   // month — PLAN_SYNC in app.jsx), with slack for a missed run. standard is
   // the retired Plus plan (weekly server-side), kept for now.
   const STALE_AFTER_MS = {
-    premium: 2 * 3600000,
+    premium: 4 * 3600000,
     standard: 9 * 86400000,
     basic: 35 * 86400000,
   };

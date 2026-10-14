@@ -13,7 +13,7 @@ import { createClient } from "jsr:@supabase/supabase-js@2";
 //       Presents the generated cron key — or the project's service_role key —
 //       as its bearer token, exactly like qbo-refresh-token does, and syncs
 //       every connected client that is due on its plan's schedule (see
-//       isDueForPlan: Pro every 15 minutes — 30 when the Intuit usage guard
+//       isDueForPlan: Pro every hour — 2 hours when the Intuit usage guard
 //       has throttled — Plus weekly, Basic on the 15th). Skips every client
 //       when qbo_usage_status() says the month's calls passed the hard stop.
 //       For a Pro client whose last full read is under a day old, a CDC call
@@ -1655,8 +1655,8 @@ const USER_SYNC_MIN_INTERVAL_MS = 60 * 1000;
 // Sync schedule by client plan (clients.plan; owner decisions 2026-09-27 and
 // 2026-09-30). The cron calls this function every 5 minutes; each run syncs
 // only the clients that are due:
-//   premium (Pro)   every 15 minutes (qbo_usage_settings.premium_interval_min;
-//                   30 when the usage guard throttles), and clients may press
+//   premium (Pro)   every hour (qbo_usage_settings.premium_interval_min;
+//                   2 hours when the usage guard throttles), and clients may press
 //                   Sync now
 //   standard (Plus) once a week: when the last good sync is 7+ days old
 //   basic (Basic)   once a month, on the 15th (US Central date)
@@ -1667,13 +1667,13 @@ function centralDate(d: Date): string {
   return new Intl.DateTimeFormat("en-CA", { timeZone: "America/Chicago" }).format(d);
 }
 // Slack for the 5-minute cron tick: a sync that finished a few seconds after
-// :00 must still count as due at :15, not :20.
+// :00 must still count as due an hour later, not 5 minutes after that.
 const CRON_SLACK_MS = 3 * 60 * 1000;
 function isDueForPlan(
   plan: string | null,
   lastSyncedAt: string | null,
   now: Date,
-  premiumIntervalMin = 15,
+  premiumIntervalMin = 60,
 ): boolean {
   if (!lastSyncedAt) return true;
   const last = new Date(lastSyncedAt);
@@ -1771,7 +1771,7 @@ async function handle(req: Request): Promise<Response> {
       console.log(`qbo-sync: usage hard stop (${usage.calls} of ${usage.cap}); scheduled syncs skipped`);
       return json({ synced: [], errors: [], skipped: "all", reason: "usage_hard_stop", usage });
     }
-    const premiumIntervalMin = Number(usage?.premium_interval_min) || 15;
+    const premiumIntervalMin = Number(usage?.premium_interval_min) || 60;
 
     const { data, error } = await admin
       .from("qbo_connections")

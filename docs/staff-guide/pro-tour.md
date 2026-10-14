@@ -32,7 +32,7 @@ All five start the same tour. Every step opens on **Settings** > **Plan**, which
 The page dims and one part of the Plan page is highlighted at a time, with **Step 4 of 11**, **Back**, **Next** and **Skip tour**, just like the client tour. The Plan page is long, so each step scrolls its part into view, on a phone too.
 
 1. **Welcome**: "See what Pro would do for" their organization, a two-minute look at what Pro adds. Nothing changes unless they ask for it.
-2. **Plans**: the plan cards. Basic updates their books once a month, on the 15th. Pro keeps them live, synced from QuickBooks every 15 minutes, with a **Sync now** button, and adds the tools that follow. The price is on each plan card; the tour doesn't quote one.
+2. **Plans**: the plan cards. Basic updates their books once a month, on the 15th. Pro keeps them live, synced from QuickBooks every hour, with a **Sync now** button, and adds the tools that follow. The price is on each plan card; the tour doesn't quote one.
 3. **Board-ready Financial Overview**: **Home** becomes a fuller snapshot, with click-to-jump numbers, a low-cash alert and a one-click PDF.
 4. **Board Packet**: the reports they pick, a cover page and a treasurer's note in one PDF, with comparisons to budget and last year, saved templates, read-only links for the board, and a full-screen **Presentation view** for the board meeting. On Pro it's the **Board packet** tab on **Reports**; the canned statement PDFs stay on **Downloads**. (This step used to be called Report Builder.)
 5. **Budgeting Tool**: year-end forecasts by category, what-if scenarios and next year's budget drafted together and approved by the board. It lives under **Finances** > **Budget**.

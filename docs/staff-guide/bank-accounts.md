@@ -20,7 +20,7 @@ The same rule applies everywhere else in the app. Cash on the dashboard, in repo
 The **Accounts** card lists every account in two groups, **Cash** and **Cards**, each with its total. The bar under each account shows its share of the group.
 
 - Click an account to show only its transactions. Click it again, or click **All accounts**, to go back to everything.
-- The line under the title says how fresh the data is. Clients see, for example, *Last synced 2 hours ago · Synced from QuickBooks every 15 minutes*. How often it syncs depends on the client's plan. Staff see the plan's schedule instead, for example *Last synced 24 days ago · Basic syncs monthly, on the 15th*, with a **Sync now** button next to it. A Basic client's data can be weeks old, so click **Sync now** before you rely on it. Staff have no limit on **Sync now**, on any plan. Clients who aren't connected to QuickBooks yet show sample data.
+- The line under the title says how fresh the data is. Clients see, for example, *Last synced 2 hours ago · Synced from QuickBooks every hour*. How often it syncs depends on the client's plan. Staff see the plan's schedule instead, for example *Last synced 24 days ago · Basic syncs monthly, on the 15th*, with a **Sync now** button next to it. A Basic client's data can be weeks old, so click **Sync now** before you rely on it. Staff have no limit on **Sync now**, on any plan. Clients who aren't connected to QuickBooks yet show sample data.
 
 ### Transactions
 
@@ -34,7 +34,7 @@ The page opens with **all accounts**, most recent first. When no account is pick
 - Credit card rows read the same way as bank rows: a charge is money **out** (minus) and a card payment or refund is money **in** (plus). QuickBooks itself shows card charges as plus amounts, because the balance owed goes up, so the signs here are the reverse of the QuickBooks card register. The dashboard's **Recent Activity** uses the same signs.
 - **Category** is the account the transaction was posted to in QuickBooks (for example *Utilities* or *Tithes & Offerings*). A transaction spread over several accounts shows **Split (several accounts)**, and one with no category shows *Uncategorized*.
 - **Type** is the QuickBooks transaction type, such as Deposit, Check or Expense.
-- Categories come in with each QuickBooks sync, so right after this change a QuickBooks client may show only **Type** until their next sync. How often that is depends on the plan: every 15 minutes on Pro, monthly (on the 15th) on Basic. Until then the category filter is hidden.
+- Categories come in with each QuickBooks sync, so right after this change a QuickBooks client may show only **Type** until their next sync. How often that is depends on the plan: every hour on Pro, monthly (on the 15th) on Basic. Until then the category filter is hidden.
 - Clients can ask about a transaction from its row. A **Question** tag marks rows with an open question. See *How do I answer a client's question about a transaction?*
 - The list shows 50 rows at a time. Click **Show more** to load the next 50.
 - **Export CSV** downloads every transaction that matches the current filters, not just the rows on screen, including the Category and Type columns.

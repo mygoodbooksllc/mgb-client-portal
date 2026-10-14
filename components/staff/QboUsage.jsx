@@ -6,9 +6,9 @@
 // Builder tier). qbo-sync and qbo-firm-sync count their calls into
 // qbo_api_usage; qbo_usage_status() returns month-to-date calls, a
 // straight-line projection to month end and the mode:
-//   normal     Pro clients sync every premium_interval_min (15); Basic on
+//   normal     Pro clients sync every premium_interval_min (60); Basic on
 //              the 15th (the retired Plus plan's weekly branch is unused)
-//   throttled  projection >= throttle_pct of the cap: Pro every 30 min
+//   throttled  projection >= throttle_pct of the cap: Pro every 2 hours (throttled_interval_min)
 //   stopped    calls >= hard_stop_pct of the cap: scheduled syncs stop until
 //              the 1st; "Sync now" still works
 // Admins edit the thresholds and cadences (qbo_usage_settings, admin-only RLS).

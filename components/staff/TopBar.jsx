@@ -8,7 +8,7 @@
 //
 //   Left     TB_ClientPicker   reuses CS_ClientSwitcher (name, plan, health,
 //                              recent clients)
-//            TB_SyncPill       reuses QboSyncNowButton (the "Every 15 min ·
+//            TB_SyncPill       reuses QboSyncNowButton (the "Every hour ·
 //                              synced 5m ago" pill; click = Sync now)
 //   Middle   TB_Search         Ctrl+K / Cmd+K. Empty, it is a jump menu: the
 //                              five places and their tabs (StaffNav.jsx

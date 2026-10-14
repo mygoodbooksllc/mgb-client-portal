@@ -37,7 +37,7 @@ To change either later, click **Edit** on the client's row, change it, then **Sa
 
 ### 3. Choose the plan and payroll add-on
 
-- **Plan**: **Basic** or **Pro**. Basic is free with 1 login included; each extra login is $20/mo. Pro is $100/mo plus $20/mo per login. Both are on top of the milestone fee. The plan decides which pages the client sees and how often QuickBooks syncs (Basic monthly, Pro every 15 minutes).
+- **Plan**: **Basic** or **Pro**. Basic is free with 1 login included; each extra login is $20/mo. Pro is $100/mo plus $20/mo per login. Both are on top of the milestone fee. The plan decides which pages the client sees and how often QuickBooks syncs (Basic monthly, Pro every hour).
 - **Payroll add-on**: tick it only if the client uses MyGoodBooks payroll. Only then do they get a **Payroll** tab.
 
 You can change both later with **Edit** on the client's row. See [Where are a client's Client setup (staff) and Settings (client)?](#/help/client-settings).

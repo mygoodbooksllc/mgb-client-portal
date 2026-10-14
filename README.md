@@ -167,7 +167,7 @@ because some work happens in Claude Code web sessions. Run `git fetch` and compa
   - **Plus**, $25/mo + $9 per login. It gets every standard tab and per-person access.
     QuickBooks syncs weekly, with no Sync now.
   - **Pro**, $39/mo + $9 per login. It adds the Pro tools inline on the same tabs (see below).
-    QuickBooks syncs every 15 minutes (30 when the monthly API budget is running hot; see the
+    QuickBooks syncs every hour (2 hours when the monthly API budget is running hot; see the
     usage guard below), and Sync now is available.
   - **Payroll add-on:** available on any plan (Basic included). Its price is never shown to clients
     or published (owner 2026-10-08); clients are told to message their account manager.
@@ -181,8 +181,8 @@ because some work happens in Claude Code web sessions. Run `git fetch` and compa
   - **Downgrades:** logins beyond what the new plan includes stay at $9/mo each, or they're
     removed.
   - Plan fees sit on top of the milestone (bookkeeping) fee.
-  - **Sync schedule:** enforced server-side in `qbo-sync` (`isDueForPlan`). The cron runs every
-    minute and syncs only the clients that are due. The server refuses client-initiated Sync now
+  - **Sync schedule:** enforced server-side in `qbo-sync` (`isDueForPlan`). The cron ticks every
+    5 minutes and syncs only the clients that are due. The server refuses client-initiated Sync now
     on Basic and Plus; staff can sync any plan, with no 60-second throttle (see **Sync now** below).
   - **Plan gates:** tabs and login pricing are checked in the app only. Staff get a toast when
     they add an extra login to a Basic organization.
@@ -223,7 +223,7 @@ because some work happens in Claude Code web sessions. Run `git fetch` and compa
     shows one customer another's balances. Nothing is sent from the portal.
   - **Cron** job `qbo-sync-hourly`. Despite the name, it ticks **every 5 minutes** at :02, :07,
     ... (`'2-59/5 * * * *'`, set by `supabase/qbo-usage-guard.sql`), off the token refresher's
-    minutes. Each tick syncs only the clients that are due (Pro every 15 min, Plus weekly, Basic
+    minutes. Each tick syncs only the clients that are due (Pro every hour, Plus weekly, Basic
     on the 15th). An open page re-fetches the client's numbers once they're more than about 90
     seconds old.
   - **CDC gate.** Between full reads (at most 24 hours apart), a due client first asks
@@ -234,7 +234,7 @@ because some work happens in Claude Code web sessions. Run `git fetch` and compa
     `qbo_period_balances`, then re-runs the close checks (see Work › Close below).
   - **Usage guard.** Every Intuit call is counted in `qbo_api_usage` (`qbo-sync` and
     `qbo-firm-sync`). If the month is on pace to pass 80% of the 500,000-call limit, Pro slows to
-    every 30 minutes; at 95% used, scheduled syncs stop until the 1st (Sync now still works).
+    every 2 hours; at 95% used, scheduled syncs stop until the 1st (Sync now still works).
   - **Sync now**: clicking the gold sync pill (the refresh icon at its right end) syncs, for
     staff and clients; also in Client setup → QuickBooks, on the Overview's status line, the Close
     tab's QuickBooks check and Bank's sync line (each passes `canSyncNow={planSyncInfo(plan).syncNow
@@ -261,7 +261,7 @@ because some work happens in Claude Code web sessions. Run `git fetch` and compa
 - **Browser access.** Browsers can only **read** the `qbo_*` tables. Only the sync function
   (service role) writes to them.
 - **Header (top right of every client page).** Two rows, right-aligned (left-aligned on phones):
-  the **sync pill** (plan-aware copy from `PLAN_SYNC` / `syncPillLabel`: "Every 15 min · synced
+  the **sync pill** (plan-aware copy from `PLAN_SYNC` / `syncPillLabel`: "Every hour · synced
   5m ago" on Pro, "Synced weekly · …" on Plus, "Synced monthly · …" on Basic, plus a refresh
   icon; one button, `QboSyncNowButton` with `liveLabel`; Pro is never called "live") and search (clients only; staff
   search the client's data from the top bar instead). A client without
