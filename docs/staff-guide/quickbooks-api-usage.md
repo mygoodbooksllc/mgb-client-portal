@@ -5,7 +5,7 @@ audience: admin
 keywords: [quickbooks api usage, api usage, intuit limit, monthly limit, calls, projected, slowed down, scheduled syncs stopped, change limits, pro sync every, throttle, cadence]
 sort: 585
 ---
-Intuit limits how many times a month the app can read from QuickBooks (500,000 calls by default). Every client sync and every QuickBooks Time sync counts. The **QuickBooks API usage** card keeps the firm under that limit.
+Intuit limits how many times a month the app can read from QuickBooks (500,000 calls by default). Every client sync and every QuickBooks Time sync counts. So does each press of **Balance Sheet as of {month end} (QuickBooks)** on a client's Reports page: one call, counted under **Client syncs**. The **QuickBooks API usage** card keeps the firm under that limit.
 
 Find it on **Team › Hours** (`#/team/hours`), just under the **QuickBooks Time** panel, or open **Settings → Firm settings → QuickBooks usage and limits**, which also shows this month's **% used**. Only admins see it.
 

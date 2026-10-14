@@ -26,7 +26,7 @@ On each report card on the **Reports** page, under **Download PDF**, there's a *
 2. Click **Mark sent to client**. A **Sent {date}** pill appears; hover it to see the full history.
 3. If it was already sent, you'll be asked to confirm another send (**Mark sent again**).
 
-> **Mark sent to client only records the send. Nothing is emailed.** It feeds the **Sent to the client** panel on the client's **Close** tab and the Activity timeline on the Client overview. When the report is the Profit & Loss Statement for Last Closed Month (or the Board packet for the month being closed), it also ticks **Reports sent to the client** on the Close tab. See [What's on a client's Close tab?](#/help/client-close).
+> **Mark sent to client only records the send. Nothing is emailed.** It feeds the **Sent to the client** panel on the client's **Close** tab and the Activity timeline on the Client overview. When the report is the Profit & Loss Statement for Last Closed Month (or the Board packet for the month being closed), it also ticks **Reports sent to the client** on the Close tab. So does the month-end Balance Sheet: on a QuickBooks client, the Balance Sheet card has a second button, **Balance Sheet as of {last day of last month} (QuickBooks)**, with its own **Mark sent to client**. The plain Balance Sheet **Download PDF** is as of today and is only logged. See [What's on a client's Close tab?](#/help/client-close).
 
 ### Troubleshooting
 

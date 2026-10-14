@@ -2,7 +2,7 @@
 title: What's on a client's Close tab?
 section: Working with a client
 audience: staff
-keywords: [close tab, client close, month-end close, close steps, checklist, in progress, mark done, reopen, n/a, quickbooks check, sync now, sent to client, reports sent, email, reports are ready, late, status, notes, month picker, monthly close steps]
+keywords: [close tab, client close, month-end close, close steps, checklist, in progress, mark done, reopen, n/a, quickbooks check, sync now, sent to client, reports sent, balance sheet, month end balance sheet, balance sheet from quickbooks, email, reports are ready, late, status, notes, month picker, monthly close steps]
 sort: 205
 ---
 The **Close** tab is where you close one client's month. It holds the month's status, the QuickBooks check, the six close steps, what you've sent the client, and the client's own written close steps from their SOP. Staff only. The client never sees this tab.
@@ -63,7 +63,7 @@ For clients with QuickBooks connected, the app checks each finished month on its
 
 ### Reports sent
 
-On **Reports**, **Mark sent to client** logs the send. When the report is the **Profit & Loss Statement** set to **Last Closed Month**, it also ticks **Reports sent to the client** for that month and shows *Ticked "Reports sent to the client" for {Month}.* The **Board packet** does the same when it covers the month being closed. The **Balance Sheet** has no period of its own, so it counts only when its as-of date is the last day of the month being closed; a Balance Sheet as of any other day is only logged. For now the Balance Sheet PDF is always as of the day you download it, so it is only logged until it can be run as of a month end. Any other report, or another period, is only logged. If that was the last step, a link appears for 15 seconds: **1 step left: mark {Month} done →**. If the month is already **Done** or **N/A**, the step is still ticked but the status doesn't change, and no link appears.
+On **Reports**, **Mark sent to client** logs the send. When the report is the **Profit & Loss Statement** set to **Last Closed Month**, it also ticks **Reports sent to the client** for that month and shows *Ticked "Reports sent to the client" for {Month}.* The **Board packet** does the same when it covers the month being closed. The **Balance Sheet** has no period of its own, so it counts only when its as-of date is the last day of the month being closed; a Balance Sheet as of any other day is only logged. For a client with QuickBooks connected, the Balance Sheet card has a second button, **Balance Sheet as of {last day of last month} (QuickBooks)**. It asks QuickBooks for the Balance Sheet as of that day and downloads it as a PDF that says it came from QuickBooks. Its own **Mark sent to client** (logged as *As of {date} (QuickBooks)*) ticks **Reports sent to the client** for the month being closed. The plain **Download PDF** is still as of today and is only logged. Any other report, or another period, is only logged. If that was the last step, a link appears for 15 seconds: **1 step left: mark {Month} done →**. If the month is already **Done** or **N/A**, the step is still ticked but the status doesn't change, and no link appears.
 
 ### One record, two places
 
@@ -78,5 +78,7 @@ The **Close** tab can show a dot for last month. Red means QuickBooks needs reco
 - **I ticked all six steps and the month still isn't Done.** That's expected. Click **Mark {Month} done**.
 - **The status didn't change when I ticked a step.** Only the first tick of a month that's **Not started** moves it to **In progress**. If anyone ticked a step earlier, it won't change again.
 - **The QuickBooks check looks old.** Click **Sync now**. On a Basic client the numbers can be weeks old.
+- **The month-end Balance Sheet button isn't there.** It shows only for staff (not in **Preview as**) on a client with QuickBooks connected. Otherwise send the P&L for **Last Closed Month**, or tick the step yourself.
+- **"We couldn't get the Balance Sheet from QuickBooks just now."** Try again in a few minutes. If it says QuickBooks needs to be reconnected, reconnect it from **Client setup** first.
 - **"Someone else saved first."** A teammate saved the same month. Read their version, then pick **Load theirs** or **Keep mine**.
 - **No close steps in the side panel.** Add them on the client's **SOP** tab. See [How do I write or update a client's SOP?](#/help/client-sops).

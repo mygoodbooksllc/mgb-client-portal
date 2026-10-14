@@ -2,14 +2,19 @@
 title: What's new
 section: Getting started
 audience: staff
-keywords: [change my name, rename, name, install, get the app, desktop app, install tip, app, staff handbook, handbook, sign policy, countersign, policies, review quarter, previous quarter, survey drafts, finish survey later, admins follow reviews, in progress view, no clients yet, tasks, my tasks, task details, quick add, q, projects, sops project, 90 day, open to all staff, own window, dock in portal, notes and sops, mentions, task status, ready for review, restore task, tasks tour, board packet, presentation view, report builder, client help menu, question mark menu, tips, tips while you learn, hints, first 30 days, learning, pro tour, upsell, upgrade, basic clients, bookkeeper tour, temporary admin tour, client tour, tour versions, admin tour, account manager tour, inventory, tech, equipment, what's new, whats new, new, changes, updates, release notes, changelog, navigation, redesign, five places, client setup, close tab, client close, last tab, client view, bank on basic, open for this client, deep links, balance sheet, reports sent, tab row fade, client task panel, up next, t, for this page, follow my client]
+keywords: [month end balance sheet, balance sheet from quickbooks, change my name, rename, name, install, get the app, desktop app, install tip, app, staff handbook, handbook, sign policy, countersign, policies, review quarter, previous quarter, survey drafts, finish survey later, admins follow reviews, in progress view, no clients yet, tasks, my tasks, task details, quick add, q, projects, sops project, 90 day, open to all staff, own window, dock in portal, notes and sops, mentions, task status, ready for review, restore task, tasks tour, board packet, presentation view, report builder, client help menu, question mark menu, tips, tips while you learn, hints, first 30 days, learning, pro tour, upsell, upgrade, basic clients, bookkeeper tour, temporary admin tour, client tour, tour versions, admin tour, account manager tour, inventory, tech, equipment, what's new, whats new, new, changes, updates, release notes, changelog, navigation, redesign, five places, client setup, close tab, client close, last tab, client view, bank on basic, open for this client, deep links, balance sheet, reports sent, tab row fade, client task panel, up next, t, for this page, follow my client]
 sort: 15
 ---
 The newest changes to the staff side, newest first. For how anything works, search this guide or click **?** → **Help for this page**.
 
+### 2026-10-15: Month-end Balance Sheet from QuickBooks
+
+- **Balance Sheet as of last month's end.** On a client with QuickBooks connected, the Balance Sheet card on **Reports** has a second button, **Balance Sheet as of {last day of last month} (QuickBooks)**. It pulls that day's Balance Sheet straight from QuickBooks (read-only) and downloads a PDF that says so. Each press is one QuickBooks call.
+- **It counts as Reports sent.** Its own **Mark sent to client** ticks **Reports sent to the client** for the month being closed. The plain **Download PDF** is still as of today and is only logged. See [What's on a client's Close tab?](#/help/client-close).
+
 ### 2026-10-14: Client tabs polish
 
-- **Balance Sheet and Reports sent.** A Balance Sheet counts as **Reports sent to the client** for last month when its as-of date is last month's last day. A Balance Sheet as of any other day is only logged, and for now the PDF is always as of the day you download it, so this waits on a month-end Balance Sheet. See [What's on a client's Close tab?](#/help/client-close).
+- **Balance Sheet and Reports sent.** A Balance Sheet counts as **Reports sent to the client** for last month when its as-of date is last month's last day. A Balance Sheet as of any other day is only logged. See [What's on a client's Close tab?](#/help/client-close).
 - **A fade shows when the tab row scrolls.** When a client's tabs don't all fit (a narrow window), the edge with more tabs behind it fades out.
 - **Bank: open questions Bank isn't showing** now sit right under the Transactions card, not at the bottom of the page.
 - **Client setup (staff) has no empty gap** at the top any more.

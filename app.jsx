@@ -11513,6 +11513,144 @@ function qdrGivingBlocked(client) {
   return `No contributions recorded for ${year} yet.`;
 }
 
+// Balance Sheet as of last month's last day, straight from QuickBooks (BSQ_,
+// 2026-10-15). Staff only, QuickBooks clients only, on the Balance Sheet
+// card under the "as of today" download (which stays as it was). One
+// read-only QuickBooks report call per press: qbo-sync's
+// action "balance_sheet_asof" (supabase/functions/qbo-sync). Its own
+// Mark sent (item_key "bs_month_end") passes closePeriodForAsOf(month end),
+// so it ticks "Reports sent to the client" for the month being closed (D5).
+const BSQ_ITEM_KEY = "bs_month_end";
+const BSQ_lastMonthEnd = (now = new Date()) => {
+  const [y, m] = closePeriodFor(now).split("-").map(Number);
+  return new Date(y, m, 0);
+};
+const BSQ_iso = (d) =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+const BSQ_long = (d) => d.toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
+const BSQ_short = (d) => d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+const BSQ_ERR = "We couldn't get the Balance Sheet from QuickBooks just now. Please try again in a few minutes.";
+
+function buildBalanceSheetQboPdf(client, bs, asOfDate) {
+  const money = (n) => (n === null || n === undefined ? "" : fmtMoney(Number(n) || 0, { cents: true }));
+  const titleOf = (s) => {
+    const t = String((s && s.title) || "").trim();
+    const fallback = { assets: "Assets", liabilities: "Liabilities", equity: "Equity" }[s && s.key] || "Section";
+    if (!t) return fallback;
+    return t === t.toUpperCase() ? t.toLowerCase().replace(/(^|\s)\S/g, (c) => c.toUpperCase()) : t;
+  };
+  const doc = newReportDoc("Balance Sheet", `As of ${BSQ_long(asOfDate)}`, client);
+  doc.setFontSize(8);
+  doc.setTextColor(110, 110, 110);
+  doc.text(
+    `From QuickBooks Online${bs.basis ? ` (${String(bs.basis).toLowerCase()} basis)` : ""}, pulled ${BSQ_long(new Date())}.`,
+    14,
+    52,
+  );
+  let y = 57;
+  for (const s of bs.sections || []) {
+    const lines = s.lines || [];
+    doc.autoTable({
+      startY: y,
+      head: [[titleOf(s), "Balance"]],
+      body: lines.length
+        ? lines.map((l) => {
+            const bold = l.type !== "line" ? { fontStyle: "bold" } : {};
+            return [
+              { content: l.name, styles: { ...bold, cellPadding: { top: 3, right: 3, bottom: 3, left: 3 + 5 * (Number(l.depth) || 0) } } },
+              { content: money(l.amount), styles: bold },
+            ];
+          })
+        : [["Nothing on file", ""]],
+      foot: [[`Total ${titleOf(s)}`, money(s.total)]],
+      columnStyles: { 1: { halign: "right" } },
+      ...PDF_TABLE_THEME,
+    });
+    y = doc.lastAutoTable.finalY + 8;
+  }
+  if (y > doc.internal.pageSize.getHeight() - 20) {
+    doc.addPage();
+    y = 20;
+  }
+  const t = bs.totals || {};
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(11);
+  doc.setTextColor(5, 8, 13);
+  doc.text(`Total Liabilities and Equity: ${money(t.liabilities_and_equity)}`, 14, y + 4);
+  const filename = `${sanitizeFilename(client.name)} - Balance Sheet ${BSQ_iso(asOfDate)} (QuickBooks).pdf`;
+  doc.save(filename);
+  return filename;
+}
+
+function BSQ_MonthEndBalanceSheet({ client }) {
+  const { staff } = useContext(StaffToolsContext);
+  const showToast = useToast();
+  const [loading, setLoading] = useState(false);
+  if (!staff || !client || client.dataSource !== "quickbooks") return null;
+  const asOf = BSQ_lastMonthEnd();
+  const label = `Balance Sheet as of ${BSQ_long(asOf)} (QuickBooks)`;
+  async function run() {
+    const sb = window.mgbSupabase;
+    if (loading) return;
+    if (!sb || !sb.functions) {
+      showToast(BSQ_ERR);
+      return;
+    }
+    setLoading(true);
+    try {
+      const { data, error } = await sb.functions.invoke("qbo-sync", {
+        body: { action: "balance_sheet_asof", client_id: client.id, end_date: BSQ_iso(asOf) },
+      });
+      if (error || !data || data.status !== "ok") {
+        const httpStatus = error && error.context && error.context.status;
+        let detail = String((data && data.error) || "");
+        if (!detail && error && error.context && typeof error.context.json === "function") {
+          try {
+            const b = await error.context.clone().json();
+            detail = String((b && b.error) || "");
+          } catch (e) {}
+        }
+        let message = BSQ_ERR;
+        if (/reconnect/i.test(detail)) message = "QuickBooks needs to be reconnected. Reconnect it from Client setup.";
+        else if (/isn't connected/i.test(detail)) message = "QuickBooks isn't connected for this client. Connect it from Client setup.";
+        else if (httpStatus === 401 || httpStatus === 403) message = "You don't have permission to run this report for this client.";
+        showToast(message);
+        return;
+      }
+      if (data.empty) {
+        showToast(`QuickBooks has no Balance Sheet figures as of ${BSQ_long(asOf)}.`);
+        return;
+      }
+      const filename = buildBalanceSheetQboPdf(client, data, asOf);
+      showToast(`Downloaded "${filename}"`);
+    } catch (e) {
+      console.warn("Month-end Balance Sheet failed:", e && e.message);
+      showToast(BSQ_ERR);
+    } finally {
+      setLoading(false);
+    }
+  }
+  return (
+    <div className="bsq-month-end">
+      <p className="bsq-note">
+        Download PDF is as of today. The month-end one comes from QuickBooks and counts toward Reports sent for{" "}
+        {closeMonthName(closePeriodFor())}.
+      </p>
+      <button type="button" className="btn-secondary bsq-btn" onClick={run} disabled={loading} aria-busy={loading}>
+        {loading && <span className="bsq-spin" aria-hidden="true" />}
+        {loading ? "Getting it from QuickBooks…" : label}
+      </button>
+      <SentToClient
+        client={client}
+        itemKey={BSQ_ITEM_KEY}
+        itemLabel="Balance Sheet"
+        periodLabel={`As of ${BSQ_short(asOf)} (QuickBooks)`}
+        closePeriod={closePeriodForAsOf(asOf)}
+      />
+    </div>
+  );
+}
+
 function QuickDownloadReports({ client }) {
   const showToast = useToast();
   // Only the Profit & Loss report has a real trailing-month range to
@@ -11602,6 +11740,7 @@ function QuickDownloadReports({ client }) {
                     : undefined
               }
             />
+            {r.key === "bs" && <BSQ_MonthEndBalanceSheet client={client} />}
           </div>
         ))}
       </div>

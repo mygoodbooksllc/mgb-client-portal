@@ -241,6 +241,16 @@ because some work happens in Claude Code web sessions. Run `git fetch` and compa
     staff Sync now has no limit on any plan. Needs the `qbo-sync` deploy.
   - **Lock.** `qbo_connections.sync_started_at` stops two syncs overlapping; a stale lock
     expires after 5 minutes.
+  - **Balance Sheet as of a month end** (`action: "balance_sheet_asof"`, staff only, same
+    `can_access_client()` check as Sync now). Body `{ action, client_id, end_date: "YYYY-MM-DD" }`;
+    `end_date` must be the last day of a month that has ended (checked against the latest date on
+    Earth, UTC+14) and not before 2000. One read-only BalanceSheet report call per press (no
+    `accounting_method`, like every other report here, so the company's own basis), counted in
+    `qbo_api_usage`, nothing stored and no lock or throttle. Returns `{ status: "ok", as_of, basis,
+    currency, empty, sections: [{ key, title, total, lines: [{ name, amount, depth, type }] }],
+    totals: { assets, liabilities, equity, liabilities_and_equity } }` or `{ status: "error", error }`
+    (a 401 says "reconnect"); 400 for a bad date or no connection, 403 for non-staff. Logs counts
+    only. Needs the `qbo-sync` deploy.
   - **Atomic writes.** Each table's rows are swapped in one transaction by `qbo_replace_rows()`,
     so no one sees a half-finished sync.
 - **Browser access.** Browsers can only **read** the `qbo_*` tables. Only the sync function
@@ -477,7 +487,7 @@ because some work happens in Claude Code web sessions. Run `git fetch` and compa
     month to In progress; Done is always a click and emails the client's people that reports are
     ready (a second Done asks first). Every `month_close` write goes through `CT_saveMonthClose`
     (`CloseTracker.jsx`), with an `updated_at` guard shared with Work › Close ("Someone else saved
-    first"). "Mark sent to client" on a report for last month ticks "Reports sent to the client" (P&L set to Last Closed Month; a Balance Sheet only when its as-of date is that month's last day, `closePeriodForAsOf`).
+    first"). "Mark sent to client" on a report for last month ticks "Reports sent to the client" (P&L set to Last Closed Month; a Balance Sheet only when its as-of date is that month's last day, `closePeriodForAsOf`). The plain Balance Sheet PDF is as of today, so only the month-end one counts: on a QuickBooks client, staff get a second button on the Balance Sheet card, "Balance Sheet as of {last month end} (QuickBooks)" (`BSQ_MonthEndBalanceSheet`, `buildBalanceSheetQboPdf`), which calls `qbo-sync` with `action: "balance_sheet_asof"` and logs its send as item_key `bs_month_end` with `closePeriodForAsOf(month end)`.
     `CLC_CloseSummaryRow` is the one-line summary on the Overview. Names in Work › Close open the
     client's Close tab.
   - **Bank for staff** (`components/client/BankAccounts.jsx`): staff on any plan get a sync line

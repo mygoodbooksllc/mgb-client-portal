@@ -32,6 +32,9 @@ import { createClient } from "jsr:@supabase/supabase-js@2";
 //       progress, returns its last synced_at without calling Intuit.
 //       Response: { status: "ok" | "fresh" | "in_progress" | "error",
 //                   synced_at, error?, synced[], errors[] }.
+//       With { action: "balance_sheet_asof", end_date } (staff only) it
+//       instead returns one read-only Balance Sheet as of a past month end
+//       and syncs nothing; see balanceSheetAsOf.
 //
 // verify_jwt is off on this function (caller (a) is Postgres, which has no
 // Supabase session), so mode (b)'s checks are done by hand below against the
@@ -1422,6 +1425,224 @@ async function syncClient(
 }
 
 // ---------------------------------------------------------------------------
+// Balance Sheet as of a month end (action "balance_sheet_asof"; staff only,
+// mode (b)). Reports page › Balance Sheet › "Balance Sheet as of <month end>
+// (QuickBooks)": the PDF needs the true month-end figures so Mark sent can
+// tick "Reports sent to the client" (owner decision D5, closePeriodForAsOf in
+// app.jsx). On demand, ONE Intuit report call per press (two only when the
+// connection's API host isn't known yet), counted into qbo_api_usage like
+// every other call. Nothing is stored: no table writes besides the token
+// refresh getAccessToken already does. READ-ONLY toward QuickBooks: a GET of
+// the BalanceSheet report, never a write.
+//
+// No accounting_method is passed, exactly like every other report this
+// function pulls, so QuickBooks uses the company's own preference; the basis
+// it used comes back as `basis`.
+//
+// Request:  { action: "balance_sheet_asof", client_id, end_date: "YYYY-MM-DD" }
+// Response: { status: "ok", as_of, basis, currency, empty,
+//             sections: [{ key: "assets"|"liabilities"|"equity", title,
+//                          total, lines: [{ name, amount, depth,
+//                                           type: "header"|"line"|"subtotal" }] }],
+//             totals: { assets, liabilities, equity, liabilities_and_equity } }
+//        or { status: "error", error } (QuickBooks failed or wants a reconnect)
+//        or HTTP 400 { error } (bad end_date / not connected), 403 (not staff).
+// ---------------------------------------------------------------------------
+
+// The latest calendar date anywhere on Earth (UTC+14), so a staffer whose
+// browser has already rolled into a new month is never refused "last month".
+// end_date must be a month's last day, no later than the last day of the
+// month before that date, and not before 2000.
+// BS_VALIDATE_START
+function bsValidateEndDate(raw: unknown, now: Date): string | null {
+  if (typeof raw !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(raw)) {
+    return "end_date must be a date (YYYY-MM-DD)";
+  }
+  const [y, m, d] = raw.split("-").map(Number);
+  const dt = new Date(Date.UTC(y, m - 1, d));
+  if (dt.getUTCFullYear() !== y || dt.getUTCMonth() !== m - 1 || dt.getUTCDate() !== d) {
+    return "end_date isn't a real date";
+  }
+  if (y < 2000) return "end_date is too far back";
+  const lastOfMonth = new Date(Date.UTC(y, m, 0)).getUTCDate();
+  if (d !== lastOfMonth) return "end_date must be the last day of a month";
+  const latest = new Date(now.getTime() + 14 * 60 * 60 * 1000);
+  const maxEnd = isoDay(new Date(Date.UTC(latest.getUTCFullYear(), latest.getUTCMonth(), 0)));
+  if (raw > maxEnd) return "end_date must be the last day of a month that has ended";
+  return null;
+}
+// BS_VALIDATE_END
+
+// BS_PARSE_START
+interface BsLine {
+  name: string;
+  amount: number | null;
+  depth: number;
+  type: "header" | "line" | "subtotal";
+}
+interface BsSection {
+  key: "assets" | "liabilities" | "equity";
+  title: string;
+  total: number;
+  lines: BsLine[];
+}
+
+function bsAmount(cd: any[] | undefined, idx: number): number | null {
+  const raw = cd?.[idx]?.value;
+  if (raw === undefined || raw === null || String(raw).trim() === "") return null;
+  return num(raw);
+}
+
+// Flattens one top-level section (its own header and summary are the
+// section's title and total, so they're not repeated as lines).
+function bsFlatten(rows: any[], amtIdx: number, depth: number, out: BsLine[]) {
+  for (const row of rows || []) {
+    if (row?.Rows?.Row || row?.Header || row?.Summary) {
+      const name = String(row?.Header?.ColData?.[0]?.value || "").trim();
+      const own = bsAmount(row?.Header?.ColData, amtIdx);
+      if (name) out.push({ name, amount: own, depth, type: "header" });
+      bsFlatten(row?.Rows?.Row || [], amtIdx, depth + 1, out);
+      const sumName = String(row?.Summary?.ColData?.[0]?.value || "").trim();
+      if (sumName || row?.Summary?.ColData) {
+        out.push({
+          name: sumName || (name ? `Total ${name}` : "Total"),
+          amount: bsAmount(row?.Summary?.ColData, amtIdx) ?? 0,
+          depth,
+          type: "subtotal",
+        });
+      }
+      continue;
+    }
+    if (row?.ColData?.length) {
+      const name = String(row.ColData[0]?.value || "").trim();
+      if (!name) continue;
+      out.push({ name, amount: bsAmount(row.ColData, amtIdx) ?? 0, depth, type: "line" });
+    }
+  }
+}
+
+function parseBalanceSheet(report: any): {
+  sections: BsSection[];
+  totals: { assets: number; liabilities: number; equity: number; liabilities_and_equity: number };
+  basis: string | null;
+  currency: string | null;
+  empty: boolean;
+} {
+  const cols = report?.Columns?.Column || [];
+  let amtIdx = reportColumn(report, "total", "total");
+  if (amtIdx < 0) amtIdx = Math.max(1, cols.length - 1);
+  const top: any[] = report?.Rows?.Row || [];
+  const headerOf = (r: any) => String(r?.Header?.ColData?.[0]?.value || "").trim();
+  const find = (rows: any[], group: string, re: RegExp) =>
+    rows.find((r) => r?.group === group) || rows.find((r) => re.test(headerOf(r)));
+  const assetsRow = find(top, "TotalAssets", /^(total\s+)?assets$/i);
+  const leRow = find(top, "TotalLiabilitiesAndEquity", /liabilities\s+and\s+(equity|net assets)/i);
+  const inner: any[] = leRow?.Rows?.Row || top;
+  const liabRow = find(inner, "Liabilities", /^liabilities$/i);
+  const equityRow = find(inner, "Equity", /^(equity|net assets)$/i);
+
+  const build = (row: any, key: BsSection["key"], fallback: string): BsSection => {
+    const lines: BsLine[] = [];
+    bsFlatten(row?.Rows?.Row || [], amtIdx, 0, lines);
+    return {
+      key,
+      title: headerOf(row) || fallback,
+      total: bsAmount(row?.Summary?.ColData, amtIdx) ?? 0,
+      lines,
+    };
+  };
+  const sections = [
+    build(assetsRow, "assets", "Assets"),
+    build(liabRow, "liabilities", "Liabilities"),
+    build(equityRow, "equity", "Equity"),
+  ];
+  const totals = {
+    assets: sections[0].total,
+    liabilities: sections[1].total,
+    equity: sections[2].total,
+    liabilities_and_equity:
+      bsAmount(leRow?.Summary?.ColData, amtIdx) ?? sections[1].total + sections[2].total,
+  };
+  const noData = (report?.Header?.Option || []).some(
+    (o: any) => o?.Name === "NoReportData" && String(o?.Value) === "true",
+  );
+  const anyAmount = sections.some(
+    (s) => s.total !== 0 || s.lines.some((l) => l.amount !== null && l.amount !== 0),
+  );
+  return {
+    sections,
+    totals,
+    basis: report?.Header?.ReportBasis ? String(report.Header.ReportBasis) : null,
+    currency: report?.Header?.Currency ? String(report.Header.Currency) : null,
+    empty: noData || !anyAmount,
+  };
+}
+// BS_PARSE_END
+
+async function balanceSheetAsOf(admin: any, clientId: string, endDate: unknown): Promise<Response> {
+  const bad = bsValidateEndDate(endDate, new Date());
+  if (bad) return json({ error: bad }, 400);
+  const asOf = endDate as string;
+
+  const { data: conn } = await admin
+    .from("qbo_connections")
+    .select("client_id, realm_id, status, api_env")
+    .eq("client_id", clientId)
+    .maybeSingle();
+  if (!conn) return json({ error: "QuickBooks isn't connected for this client" }, 400);
+  if (conn.status !== "connected" || !conn.realm_id) {
+    return json({ status: "error", error: "QuickBooks needs to be reconnected — please reconnect" });
+  }
+
+  try {
+    const accessToken = await getAccessToken(admin, clientId);
+    // Balances are cumulative, so only end_date sets the figures. start_date
+    // is pinned to Jan 1 of that year (QuickBooks' own "this year to date"
+    // default for a calendar-year company) so Intuit never fills in a
+    // start of its own that falls after an older end_date.
+    const params = { start_date: asOf.slice(0, 4) + "-01-01", end_date: asOf };
+    const known = baseForEnv(conn.api_env);
+    let report: any;
+    if (known) {
+      report = await intuitFetch(accessToken, reportUrl(known, conn.realm_id, "BalanceSheet", params), "Balance Sheet");
+    } else {
+      // A connection made before api_env existed: production first, then
+      // sandbox, as syncClient's probe does (not written back here; the next
+      // sync settles it).
+      try {
+        report = await intuitFetch(accessToken, reportUrl(PROD_BASE, conn.realm_id, "BalanceSheet", params), "Balance Sheet");
+      } catch (e) {
+        if (!(e instanceof IntuitError)) throw e;
+        try {
+          report = await intuitFetch(accessToken, reportUrl(SANDBOX_BASE, conn.realm_id, "BalanceSheet", params), "Balance Sheet");
+        } catch (e2) {
+          if (!(e2 instanceof IntuitError)) throw e2;
+          const authish = (st: number) => st === 401 || st === 403;
+          if (authish(e.status) && authish(e2.status)) throw new IntuitAuthError(e2.tid ?? e.tid, e.status, e2.status);
+          throw e;
+        }
+      }
+    }
+    const parsed = parseBalanceSheet(report);
+    // Counts only: no amounts, no account names (customer financial data).
+    console.log(
+      `qbo-sync: balance_sheet_asof client ${clientId} ${asOf} ok — ` +
+        `${parsed.sections.map((s) => s.lines.length).join("/")} lines${parsed.empty ? " (empty)" : ""}`,
+    );
+    return json({ status: "ok", as_of: asOf, ...parsed });
+  } catch (e) {
+    const err = e as Error;
+    // Message only: status code + intuit_tid, or one of our own strings.
+    let detail = err.message || "Balance Sheet failed";
+    if (e instanceof IntuitError && e.status === 401 && !(e instanceof IntuitAuthError)) {
+      detail = `QuickBooks rejected the connection — please reconnect. (${detail})`;
+    }
+    console.log(`qbo-sync: balance_sheet_asof client ${clientId} ${asOf} failed — ${detail}`);
+    return json({ status: "error", error: detail });
+  }
+}
+
+// ---------------------------------------------------------------------------
 // "Sync now" guards (mode (b)) and the plan schedule (mode (a)).
 // ---------------------------------------------------------------------------
 
@@ -1624,6 +1845,14 @@ async function handle(req: Request): Promise<Response> {
       if (org && org.plan !== "premium") {
         return json({ error: "Sync now is included with Pro" }, 403);
       }
+    }
+
+    // Read-only report actions (no action = Sync now, unchanged). Staff only,
+    // after the same can_access_client() check Sync now uses above.
+    if (body?.action !== undefined && body?.action !== null) {
+      if (body.action !== "balance_sheet_asof") return json({ error: "unknown action" }, 400);
+      if (!isStaff) return json({ error: "forbidden" }, 403);
+      return await balanceSheetAsOf(admin, clientId!, body.end_date);
     }
 
     const { data: conn } = await admin
