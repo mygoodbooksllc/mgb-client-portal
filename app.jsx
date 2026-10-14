@@ -11514,7 +11514,7 @@ function qdrGivingBlocked(client) {
 }
 
 // Balance Sheet as of last month's last day, straight from QuickBooks (BSQ_,
-// 2026-10-15). Staff only, QuickBooks clients only, on the Balance Sheet
+// 2026-10-14). Staff only, QuickBooks clients only, on the Balance Sheet
 // card under the "as of today" download (which stays as it was). One
 // read-only QuickBooks report call per press: qbo-sync's
 // action "balance_sheet_asof" (supabase/functions/qbo-sync). Its own
@@ -11586,16 +11586,22 @@ function BSQ_MonthEndBalanceSheet({ client }) {
   const { staff } = useContext(StaffToolsContext);
   const showToast = useToast();
   const [loading, setLoading] = useState(false);
+  // The month-end date of the last successful pull in this page view. Mark sent
+  // only works against it, so a page left open across a month boundary can
+  // never tick a month that was not downloaded.
+  const [pulledAsOf, setPulledAsOf] = useState(null);
+  const busyRef = useRef(false);
   if (!staff || !client || client.dataSource !== "quickbooks") return null;
-  const asOf = BSQ_lastMonthEnd();
-  const label = `Balance Sheet as of ${BSQ_long(asOf)} (QuickBooks)`;
+  const label = `Balance Sheet as of ${BSQ_long(BSQ_lastMonthEnd())} (QuickBooks)`;
   async function run() {
     const sb = window.mgbSupabase;
-    if (loading) return;
+    if (busyRef.current) return;
+    const asOf = BSQ_lastMonthEnd();
     if (!sb || !sb.functions) {
       showToast(BSQ_ERR);
       return;
     }
+    busyRef.current = true;
     setLoading(true);
     try {
       const { data, error } = await sb.functions.invoke("qbo-sync", {
@@ -11611,7 +11617,9 @@ function BSQ_MonthEndBalanceSheet({ client }) {
           } catch (e) {}
         }
         let message = BSQ_ERR;
-        if (/reconnect/i.test(detail)) message = "QuickBooks needs to be reconnected. Reconnect it from Client setup.";
+        if (/Press Sync now once first/i.test(detail)) message = "Press Sync now once first, then try again.";
+        else if (/shape we couldn't read|didn't balance/i.test(detail)) message = detail;
+        else if (/reconnect/i.test(detail)) message = "QuickBooks needs to be reconnected. Reconnect it from Client setup.";
         else if (/isn't connected/i.test(detail)) message = "QuickBooks isn't connected for this client. Connect it from Client setup.";
         else if (httpStatus === 401 || httpStatus === 403) message = "You don't have permission to run this report for this client.";
         showToast(message);
@@ -11622,11 +11630,13 @@ function BSQ_MonthEndBalanceSheet({ client }) {
         return;
       }
       const filename = buildBalanceSheetQboPdf(client, data, asOf);
+      setPulledAsOf(asOf);
       showToast(`Downloaded "${filename}"`);
     } catch (e) {
       console.warn("Month-end Balance Sheet failed:", e && e.message);
       showToast(BSQ_ERR);
     } finally {
+      busyRef.current = false;
       setLoading(false);
     }
   }
@@ -11640,13 +11650,17 @@ function BSQ_MonthEndBalanceSheet({ client }) {
         {loading && <span className="bsq-spin" aria-hidden="true" />}
         {loading ? "Getting it from QuickBooks…" : label}
       </button>
-      <SentToClient
-        client={client}
-        itemKey={BSQ_ITEM_KEY}
-        itemLabel="Balance Sheet"
-        periodLabel={`As of ${BSQ_short(asOf)} (QuickBooks)`}
-        closePeriod={closePeriodForAsOf(asOf)}
-      />
+      {pulledAsOf ? (
+        <SentToClient
+          client={client}
+          itemKey={BSQ_ITEM_KEY}
+          itemLabel="Balance Sheet"
+          periodLabel={`As of ${BSQ_short(pulledAsOf)} (QuickBooks)`}
+          closePeriod={closePeriodForAsOf(pulledAsOf)}
+        />
+      ) : (
+        <p className="bsq-note">Download the month-end Balance Sheet first.</p>
+      )}
     </div>
   );
 }

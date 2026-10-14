@@ -7,9 +7,9 @@ sort: 15
 ---
 The newest changes to the staff side, newest first. For how anything works, search this guide or click **?** → **Help for this page**.
 
-### 2026-10-15: Month-end Balance Sheet from QuickBooks
+### 2026-10-14: Month-end Balance Sheet from QuickBooks
 
-- **Balance Sheet as of last month's end.** On a client with QuickBooks connected, the Balance Sheet card on **Reports** has a second button, **Balance Sheet as of {last day of last month} (QuickBooks)**. It pulls that day's Balance Sheet straight from QuickBooks (read-only) and downloads a PDF that says so. Each press is one QuickBooks call.
+- **Balance Sheet as of last month's end.** On a client with QuickBooks connected, the Balance Sheet card on **Reports** has a second button, **Balance Sheet as of {last day of last month} (QuickBooks)**. It pulls that day's Balance Sheet straight from QuickBooks (read-only) and downloads a PDF that says so. Each press is one QuickBooks call. Mark sent only appears after the month-end PDF has downloaded.
 - **It counts as Reports sent.** Its own **Mark sent to client** ticks **Reports sent to the client** for the month being closed. The plain **Download PDF** is still as of today and is only logged. See [What's on a client's Close tab?](#/help/client-close).
 
 ### 2026-10-14: Client tabs polish

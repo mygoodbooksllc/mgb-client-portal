@@ -180,8 +180,14 @@ function monthTitleToDate(title: string): string | null {
 }
 
 function num(v: unknown): number {
-  const n = typeof v === "number" ? v : parseFloat(String(v ?? "").replace(/,/g, ""));
-  return Number.isFinite(n) ? n : 0;
+  if (typeof v === "number") return Number.isFinite(v) ? v : 0;
+  let t = String(v ?? "").trim();
+  // Accounting negatives: "(1,234.50)" is -1234.50.
+  const paren = /^\(.*\)$/.test(t);
+  if (paren) t = t.slice(1, -1);
+  const n = parseFloat(t.replace(/,/g, ""));
+  if (!Number.isFinite(n)) return 0;
+  return paren ? -Math.abs(n) : n;
 }
 
 // ---------------------------------------------------------------------------
@@ -1527,6 +1533,7 @@ function parseBalanceSheet(report: any): {
   basis: string | null;
   currency: string | null;
   empty: boolean;
+  unreadable: boolean;
 } {
   const cols = report?.Columns?.Column || [];
   let amtIdx = reportColumn(report, "total", "total");
@@ -1569,9 +1576,13 @@ function parseBalanceSheet(report: any): {
   const anyAmount = sections.some(
     (s) => s.total !== 0 || s.lines.some((l) => l.amount !== null && l.amount !== 0),
   );
+  // A report with no Assets row, or with neither a Liabilities nor an Equity
+  // row, is a shape we couldn't read (not "no data"): the caller errors.
+  const unreadable = !noData && (!assetsRow || (!liabRow && !equityRow));
   return {
     sections,
     totals,
+    unreadable,
     basis: report?.Header?.ReportBasis ? String(report.Header.ReportBasis) : null,
     currency: report?.Header?.Currency ? String(report.Header.Currency) : null,
     empty: noData || !anyAmount,
@@ -1602,28 +1613,19 @@ async function balanceSheetAsOf(admin: any, clientId: string, endDate: unknown):
     // start of its own that falls after an older end_date.
     const params = { start_date: asOf.slice(0, 4) + "-01-01", end_date: asOf };
     const known = baseForEnv(conn.api_env);
-    let report: any;
-    if (known) {
-      report = await intuitFetch(accessToken, reportUrl(known, conn.realm_id, "BalanceSheet", params), "Balance Sheet");
-    } else {
-      // A connection made before api_env existed: production first, then
-      // sandbox, as syncClient's probe does (not written back here; the next
-      // sync settles it).
-      try {
-        report = await intuitFetch(accessToken, reportUrl(PROD_BASE, conn.realm_id, "BalanceSheet", params), "Balance Sheet");
-      } catch (e) {
-        if (!(e instanceof IntuitError)) throw e;
-        try {
-          report = await intuitFetch(accessToken, reportUrl(SANDBOX_BASE, conn.realm_id, "BalanceSheet", params), "Balance Sheet");
-        } catch (e2) {
-          if (!(e2 instanceof IntuitError)) throw e2;
-          const authish = (st: number) => st === 401 || st === 403;
-          if (authish(e.status) && authish(e2.status)) throw new IntuitAuthError(e2.tid ?? e.tid, e.status, e2.status);
-          throw e;
-        }
-      }
+    // A connection made before api_env existed: don't guess production then
+    // sandbox (two Intuit calls); a normal sync records the environment.
+    if (!known) return json({ status: "error", error: "Press Sync now once first, then try again." });
+    const report = await intuitFetch(accessToken, reportUrl(known, conn.realm_id, "BalanceSheet", params), "Balance Sheet");
+    const { unreadable, ...parsed } = parseBalanceSheet(report);
+    if (unreadable) {
+      console.log(`qbo-sync: balance_sheet_asof client ${clientId} ${asOf} failed — unreadable shape`);
+      return json({ status: "error", error: "QuickBooks returned a Balance Sheet in a shape we couldn't read." });
     }
-    const parsed = parseBalanceSheet(report);
+    if (!parsed.empty && Math.abs(parsed.totals.assets - parsed.totals.liabilities_and_equity) >= 0.005) {
+      console.log(`qbo-sync: balance_sheet_asof client ${clientId} ${asOf} failed — did not balance`);
+      return json({ status: "error", error: "QuickBooks' Balance Sheet didn't balance, so no PDF was made." });
+    }
     // Counts only: no amounts, no account names (customer financial data).
     console.log(
       `qbo-sync: balance_sheet_asof client ${clientId} ${asOf} ok — ` +
@@ -1750,6 +1752,16 @@ async function handle(req: Request): Promise<Response> {
   let usage: any = null;
 
   if (isServiceRole) {
+    // The scheduled call sends '{}'. An action is only for signed-in staff.
+    let machineBody: any = {};
+    try {
+      machineBody = await req.json();
+    } catch (_e) {
+      machineBody = {};
+    }
+    if (machineBody?.action !== undefined && machineBody?.action !== null) {
+      return json({ error: "unknown action" }, 400);
+    }
     // Intuit usage guard (supabase/qbo-usage-guard.sql). Past the hard stop,
     // scheduled syncs stop for the rest of the month; Sync now still works.
     // If the status can't be read, carry on at the normal cadence.

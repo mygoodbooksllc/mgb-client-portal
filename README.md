@@ -249,7 +249,7 @@ because some work happens in Claude Code web sessions. Run `git fetch` and compa
     `qbo_api_usage`, nothing stored and no lock or throttle. Returns `{ status: "ok", as_of, basis,
     currency, empty, sections: [{ key, title, total, lines: [{ name, amount, depth, type }] }],
     totals: { assets, liabilities, equity, liabilities_and_equity } }` or `{ status: "error", error }`
-    (a 401 says "reconnect"); 400 for a bad date or no connection, 403 for non-staff. Logs counts
+    (a 401 says "reconnect"; a connection with no `api_env` yet says "Press Sync now once first" and makes no Intuit call; a report missing its Assets row or both Liabilities and Equity, or one that doesn't balance, is an error rather than a PDF; `empty: true` is only QuickBooks' real no-data case); 400 for a bad date or no connection, 403 for non-staff. Logs counts
     only. Needs the `qbo-sync` deploy.
   - **Atomic writes.** Each table's rows are swapped in one transaction by `qbo_replace_rows()`,
     so no one sees a half-finished sync.
