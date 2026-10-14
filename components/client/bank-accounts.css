@@ -757,6 +757,11 @@
   border: 1px solid var(--bad);
 }
 
+/* Right column: the Transactions card, then the open questions Bank can't
+   show, so that line sits next to the card it explains (not under Accounts). */
+.ba-main {
+  min-width: 0;
+}
 .ba-older-qs {
   margin-top: 14px;
 }

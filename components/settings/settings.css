@@ -3,6 +3,8 @@
 
 .st-page { display: flex; flex-direction: column; gap: 16px; max-width: 1080px; }
 .st-header { display: flex; align-items: center; justify-content: flex-end; gap: 12px; min-height: 36px; }
+/* Staff mode renders no header controls: no empty row, no 75px gap. */
+.st-header:empty { display: none; }
 .st-layout { display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: 24px; align-items: start; }
 
 .st-tabs { display: flex; flex-direction: column; gap: 2px; position: sticky; top: 16px; }

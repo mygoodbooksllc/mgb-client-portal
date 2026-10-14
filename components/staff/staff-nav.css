@@ -34,6 +34,22 @@
 .nav-tabs::-webkit-scrollbar {
   display: none;
 }
+/* Scroll cue: the edge with more tabs behind it fades out (StaffNav.jsx sets
+   data-more). A mask, so it follows light and dark with no colours. */
+.nav-tabs[data-more] {
+  --nav-fade-l: 0px;
+  --nav-fade-r: 0px;
+  -webkit-mask-image: linear-gradient(to right, transparent 0, #000 var(--nav-fade-l), #000 calc(100% - var(--nav-fade-r)), transparent 100%);
+  mask-image: linear-gradient(to right, transparent 0, #000 var(--nav-fade-l), #000 calc(100% - var(--nav-fade-r)), transparent 100%);
+}
+.nav-tabs[data-more="start"],
+.nav-tabs[data-more="both"] {
+  --nav-fade-l: 28px;
+}
+.nav-tabs[data-more="end"],
+.nav-tabs[data-more="both"] {
+  --nav-fade-r: 28px;
+}
 .nav-tab {
   display: inline-flex;
   align-items: center;

@@ -477,7 +477,7 @@ because some work happens in Claude Code web sessions. Run `git fetch` and compa
     month to In progress; Done is always a click and emails the client's people that reports are
     ready (a second Done asks first). Every `month_close` write goes through `CT_saveMonthClose`
     (`CloseTracker.jsx`), with an `updated_at` guard shared with Work › Close ("Someone else saved
-    first"). "Mark sent to client" on a report for last month ticks "Reports sent to the client".
+    first"). "Mark sent to client" on a report for last month ticks "Reports sent to the client" (P&L set to Last Closed Month; a Balance Sheet only when its as-of date is that month's last day, `closePeriodForAsOf`).
     `CLC_CloseSummaryRow` is the one-line summary on the Overview. Names in Work › Close open the
     client's Close tab.
   - **Bank for staff** (`components/client/BankAccounts.jsx`): staff on any plan get a sync line

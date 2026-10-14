@@ -210,10 +210,37 @@ function NAV_TabRow({ label, tabs, current, onSelect, idPrefix, className, right
       const lr = list.getBoundingClientRect();
       const er = el.getBoundingClientRect();
       // Only the row scrolls (scrollIntoView would also move the page).
-      if (er.left < lr.left) list.scrollLeft += er.left - lr.left - 8;
-      else if (er.right > lr.right) list.scrollLeft += er.right - lr.right + 8;
+      if (er.left < lr.left) list.scrollLeft += er.left - lr.left - 32;
+      else if (er.right > lr.right) list.scrollLeft += er.right - lr.right + 32;
     } catch (e) {}
   }, [current, prefix, slot, badgeSig]);
+  // Scroll cue (bookkeeper tabs polish 2026-10-14): when the row scrolls
+  // sideways (761-1023px with an admin's tabs, and phones), the edge that has
+  // more tabs behind it fades out. data-more = "start" | "end" | "both".
+  const [more, setMore] = React.useState("");
+  React.useEffect(() => {
+    const list = tablistRef.current;
+    if (!list) return undefined;
+    const update = () => {
+      const max = list.scrollWidth - list.clientWidth;
+      const next = max <= 2 ? "" : list.scrollLeft > 2 ? (list.scrollLeft < max - 2 ? "both" : "start") : "end";
+      setMore((m) => (m === next ? m : next));
+    };
+    update();
+    list.addEventListener("scroll", update, { passive: true });
+    window.addEventListener("resize", update);
+    let ro = null;
+    if (typeof ResizeObserver !== "undefined") {
+      ro = new ResizeObserver(update);
+      ro.observe(list);
+      Array.from(list.children).forEach((c) => ro.observe(c));
+    }
+    return () => {
+      list.removeEventListener("scroll", update);
+      window.removeEventListener("resize", update);
+      if (ro) ro.disconnect();
+    };
+  }, [slot, badgeSig]);
   const onKeyDown = (e) => {
     const i = tabs.findIndex((t) => t.key === current);
     let next = null;
@@ -230,7 +257,7 @@ function NAV_TabRow({ label, tabs, current, onSelect, idPrefix, className, right
   };
   const row = (
     <div className={"nav-tabs-row" + (className ? " " + className : "")}>
-      <div className="nav-tabs" role="tablist" aria-label={label} onKeyDown={onKeyDown} ref={tablistRef}>
+      <div className="nav-tabs" role="tablist" aria-label={label} onKeyDown={onKeyDown} ref={tablistRef} data-more={more || undefined}>
         {tabs.map((t, i) => (
           <button
             key={t.key}

@@ -863,233 +863,235 @@ function BA_BankTransactionsPanel({
           />
         </div>
 
-        <div className="card ba-tx">
-          <div className="page-header" style={{ marginBottom: 4 }}>
-            <div>
-              <h3 className="card-title">Transactions</h3>
-              <p className="card-subtitle" style={{ margin: 0 }}>
-                {selected
-                  ? `${selected.accountName} only, most recent first`
-                  : "All accounts, most recent first"}
-              </p>
+        <div className="ba-main">
+          <div className="card ba-tx">
+            <div className="page-header" style={{ marginBottom: 4 }}>
+              <div>
+                <h3 className="card-title">Transactions</h3>
+                <p className="card-subtitle" style={{ margin: 0 }}>
+                  {selected
+                    ? `${selected.accountName} only, most recent first`
+                    : "All accounts, most recent first"}
+                </p>
+              </div>
+              <button className="btn-secondary" onClick={exportCSV} disabled={!rows.length}>
+                Export CSV
+              </button>
             </div>
-            <button className="btn-secondary" onClick={exportCSV} disabled={!rows.length}>
-              Export CSV
-            </button>
-          </div>
 
-          <div className="ba-filters">
-            <input
-              type="search"
-              className="ba-search"
-              placeholder={hasCategories ? "Search description, memo or category" : "Search description or memo"}
-              aria-label="Search transactions"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-            />
-            <div className="view-toggle" role="group" aria-label="Date range">
-              {BA_RANGES.map((r) => (
-                <button
-                  key={r.key}
-                  type="button"
-                  className={"view-toggle-btn" + (range === r.key ? " active" : "")}
-                  aria-pressed={range === r.key}
-                  onClick={() => {
-                    setRange(r.key);
-                    setPresetMonth(null);
-                  }}
-                >
-                  {r.label}
-                </button>
-              ))}
-              {/^m:/.test(range) && (
-                <button type="button" className="view-toggle-btn active" aria-pressed="true">
-                  {BA_monthLabel(range.slice(2))}
-                </button>
+            <div className="ba-filters">
+              <input
+                type="search"
+                className="ba-search"
+                placeholder={hasCategories ? "Search description, memo or category" : "Search description or memo"}
+                aria-label="Search transactions"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+              />
+              <div className="view-toggle" role="group" aria-label="Date range">
+                {BA_RANGES.map((r) => (
+                  <button
+                    key={r.key}
+                    type="button"
+                    className={"view-toggle-btn" + (range === r.key ? " active" : "")}
+                    aria-pressed={range === r.key}
+                    onClick={() => {
+                      setRange(r.key);
+                      setPresetMonth(null);
+                    }}
+                  >
+                    {r.label}
+                  </button>
+                ))}
+                {/^m:/.test(range) && (
+                  <button type="button" className="view-toggle-btn active" aria-pressed="true">
+                    {BA_monthLabel(range.slice(2))}
+                  </button>
+                )}
+              </div>
+              <div className="view-toggle" role="group" aria-label="Money in or out">
+                {BA_DIRECTIONS.map((d) => (
+                  <button
+                    key={d.key}
+                    type="button"
+                    className={"view-toggle-btn" + (direction === d.key ? " active" : "")}
+                    aria-pressed={direction === d.key}
+                    onClick={() => setDirection(d.key)}
+                  >
+                    {d.label}
+                  </button>
+                ))}
+              </div>
+              {hasCategories && catOptions.length > 0 && (
+                <BA_CategoryFilter options={catOptions} selected={activeCats} onChange={setCats} />
               )}
             </div>
-            <div className="view-toggle" role="group" aria-label="Money in or out">
-              {BA_DIRECTIONS.map((d) => (
-                <button
-                  key={d.key}
-                  type="button"
-                  className={"view-toggle-btn" + (direction === d.key ? " active" : "")}
-                  aria-pressed={direction === d.key}
-                  onClick={() => setDirection(d.key)}
-                >
-                  {d.label}
-                </button>
-              ))}
+
+            {showStale && (
+              <p className="ba-stale-note">
+                These numbers stop at {BA_shortDate(lastSyncIso)}. Sync now to see the rest of{" "}
+                {BA_monthLabel(viewedYm, false)}.
+              </p>
+            )}
+            {chips.length > 0 && (
+              <div className="ba-chips">
+                {chips.map((c) => (
+                  <span key={c.key} className={"ba-chip" + (c.key === "m" ? " is-month" : "")}>
+                    <span className="ba-chip-label">{c.label}</span>
+                    <button
+                      type="button"
+                      className="ba-chip-x"
+                      aria-label={"Remove filter: " + c.label}
+                      onClick={c.onRemove}
+                    >
+                      <span aria-hidden="true">×</span>
+                    </button>
+                  </span>
+                ))}
+              </div>
+            )}
+            {presetFilter === "unreconciled" && !hasClearedFlag && (
+              <p className="ba-preset-note">Bank can't tell which rows are reconciled. Check them in QuickBooks.</p>
+            )}
+            {show90 && (
+              <p className="ba-preset-note">
+                Bank shows the last 90 days. Check QuickBooks for {BA_monthLabel(presetMonth, false)}.
+              </p>
+            )}
+
+            <div className="ba-totals" aria-live="polite">
+              <span>
+                {rows.length} transaction{rows.length !== 1 ? "s" : ""}
+              </span>
+              <span>
+                In <strong className="positive">+{fmtMoney(moneyIn, { cents: true })}</strong>
+              </span>
+              <span>
+                Out <strong className="negative">{fmtMoney(moneyOut, { cents: true })}</strong>
+              </span>
+              <span>
+                Net{" "}
+                <strong className={moneyIn + moneyOut >= 0 ? "positive" : "negative"}>
+                  {moneyIn + moneyOut >= 0 ? "+" : ""}
+                  {fmtMoney(moneyIn + moneyOut, { cents: true })}
+                </strong>
+              </span>
             </div>
-            {hasCategories && catOptions.length > 0 && (
-              <BA_CategoryFilter options={catOptions} selected={activeCats} onChange={setCats} />
+
+            <div className="table-scroll">
+              <table className="tx-table tx-table-labeled ba-table">
+                <thead>
+                  <tr>
+                    <th>Date</th>
+                    {!selectedId && <th>Account</th>}
+                    <th>Description</th>
+                    {showCatCol && <th>Category</th>}
+                    {showTypeCol && <th>Type</th>}
+                    <th className="num">Amount</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {shown.length === 0 ? (
+                    <EmptyRow colSpan={colCount}>
+                      {filtersOn && allRows.length
+                        ? "No transactions match these filters."
+                        : selected
+                          ? "No transactions on this account yet."
+                          : "No transactions yet."}
+                    </EmptyRow>
+                  ) : (
+                    shown.map((t) => (
+                      <tr
+                        key={t.domId}
+                        id={t.domId}
+                        data-lk={t.txnKey ? "txn:" + t.txnKey : undefined}
+                        className={flashCardId === t.domId ? "row-flash" : ""}
+                      >
+                        <td data-label="Date">{fmtDate(t.date)}</td>
+                        {!selectedId && <td data-label="Account">{t.accountName}</td>}
+                        <td data-primary="">
+                          {t.description}
+                          <InternalNoteButton
+                            client={client}
+                            targetType="transaction"
+                            targetKey={`${t.accountName || ""}|${t.date}|${t.description}|${t.amount}`}
+                            targetLabel={`${fmtDate(t.date)} · ${t.description} · ${fmtMoney(t.amount)}`}
+                          />
+                          {isQbo && typeof TQ_RowControl === "function" && (
+                            <TQ_RowControl
+                              client={client}
+                              txn={t}
+                              question={t.txnKey ? tq.byKey[client.id + "|" + t.txnKey] : null}
+                              isStaff={isStaff}
+                              isClientUser={!!isClientUser}
+                              categories={askCategories}
+                            />
+                          )}
+                        </td>
+                        {showCatCol && (
+                          <td data-label="Category">
+                            <span className={"category-tag" + (t.category ? "" : " is-uncat")}>
+                              {t.category || "Uncategorized"}
+                            </span>
+                          </td>
+                        )}
+                        {showTypeCol && (
+                          <td data-label="Type" className="ba-type">
+                            {t.type || "—"}
+                          </td>
+                        )}
+                        <td
+                          className={
+                            "num tx-amount " + (t.amount >= 0 ? "positive" : "negative")
+                          }
+                          data-label="Amount"
+                        >
+                          {t.amount >= 0 ? "+" : ""}
+                          {fmtMoney(t.amount, { cents: true })}
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            {rows.length > shown.length && (
+              <div className="ba-more">
+                <button
+                  type="button"
+                  className="btn-secondary"
+                  onClick={() => setLimit((l) => l + BA_PAGE_SIZE)}
+                >
+                  Show more
+                </button>
+                <span className="ba-more-count">
+                  Showing {shown.length} of {rows.length}
+                </span>
+              </div>
             )}
           </div>
-
-          {showStale && (
-            <p className="ba-stale-note">
-              These numbers stop at {BA_shortDate(lastSyncIso)}. Sync now to see the rest of{" "}
-              {BA_monthLabel(viewedYm, false)}.
-            </p>
-          )}
-          {chips.length > 0 && (
-            <div className="ba-chips">
-              {chips.map((c) => (
-                <span key={c.key} className={"ba-chip" + (c.key === "m" ? " is-month" : "")}>
-                  <span className="ba-chip-label">{c.label}</span>
-                  <button
-                    type="button"
-                    className="ba-chip-x"
-                    aria-label={"Remove filter: " + c.label}
-                    onClick={c.onRemove}
-                  >
-                    <span aria-hidden="true">×</span>
-                  </button>
-                </span>
-              ))}
-            </div>
-          )}
-          {presetFilter === "unreconciled" && !hasClearedFlag && (
-            <p className="ba-preset-note">Bank can't tell which rows are reconciled. Check them in QuickBooks.</p>
-          )}
-          {show90 && (
-            <p className="ba-preset-note">
-              Bank shows the last 90 days. Check QuickBooks for {BA_monthLabel(presetMonth, false)}.
-            </p>
-          )}
-
-          <div className="ba-totals" aria-live="polite">
-            <span>
-              {rows.length} transaction{rows.length !== 1 ? "s" : ""}
-            </span>
-            <span>
-              In <strong className="positive">+{fmtMoney(moneyIn, { cents: true })}</strong>
-            </span>
-            <span>
-              Out <strong className="negative">{fmtMoney(moneyOut, { cents: true })}</strong>
-            </span>
-            <span>
-              Net{" "}
-              <strong className={moneyIn + moneyOut >= 0 ? "positive" : "negative"}>
-                {moneyIn + moneyOut >= 0 ? "+" : ""}
-                {fmtMoney(moneyIn + moneyOut, { cents: true })}
-              </strong>
-            </span>
-          </div>
-
-          <div className="table-scroll">
-            <table className="tx-table tx-table-labeled ba-table">
-              <thead>
-                <tr>
-                  <th>Date</th>
-                  {!selectedId && <th>Account</th>}
-                  <th>Description</th>
-                  {showCatCol && <th>Category</th>}
-                  {showTypeCol && <th>Type</th>}
-                  <th className="num">Amount</th>
-                </tr>
-              </thead>
-              <tbody>
-                {shown.length === 0 ? (
-                  <EmptyRow colSpan={colCount}>
-                    {filtersOn && allRows.length
-                      ? "No transactions match these filters."
-                      : selected
-                        ? "No transactions on this account yet."
-                        : "No transactions yet."}
-                  </EmptyRow>
-                ) : (
-                  shown.map((t) => (
-                    <tr
-                      key={t.domId}
-                      id={t.domId}
-                      data-lk={t.txnKey ? "txn:" + t.txnKey : undefined}
-                      className={flashCardId === t.domId ? "row-flash" : ""}
-                    >
-                      <td data-label="Date">{fmtDate(t.date)}</td>
-                      {!selectedId && <td data-label="Account">{t.accountName}</td>}
-                      <td data-primary="">
-                        {t.description}
-                        <InternalNoteButton
-                          client={client}
-                          targetType="transaction"
-                          targetKey={`${t.accountName || ""}|${t.date}|${t.description}|${t.amount}`}
-                          targetLabel={`${fmtDate(t.date)} · ${t.description} · ${fmtMoney(t.amount)}`}
-                        />
-                        {isQbo && typeof TQ_RowControl === "function" && (
-                          <TQ_RowControl
-                            client={client}
-                            txn={t}
-                            question={t.txnKey ? tq.byKey[client.id + "|" + t.txnKey] : null}
-                            isStaff={isStaff}
-                            isClientUser={!!isClientUser}
-                            categories={askCategories}
-                          />
-                        )}
-                      </td>
-                      {showCatCol && (
-                        <td data-label="Category">
-                          <span className={"category-tag" + (t.category ? "" : " is-uncat")}>
-                            {t.category || "Uncategorized"}
-                          </span>
-                        </td>
-                      )}
-                      {showTypeCol && (
-                        <td data-label="Type" className="ba-type">
-                          {t.type || "—"}
-                        </td>
-                      )}
-                      <td
-                        className={
-                          "num tx-amount " + (t.amount >= 0 ? "positive" : "negative")
-                        }
-                        data-label="Amount"
-                      >
-                        {t.amount >= 0 ? "+" : ""}
-                        {fmtMoney(t.amount, { cents: true })}
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-
-          {rows.length > shown.length && (
-            <div className="ba-more">
-              <button
-                type="button"
-                className="btn-secondary"
-                onClick={() => setLimit((l) => l + BA_PAGE_SIZE)}
-              >
-                Show more
-              </button>
-              <span className="ba-more-count">
-                Showing {shown.length} of {rows.length}
-              </span>
+          {hiddenQs.length > 0 && (
+            <div className="ba-older-qs">
+              {olderQIds.length > 0 && (
+                <p className="ba-preset-note">
+                  {olderQIds.length === 1
+                    ? "1 more open question is on an older transaction."
+                    : `${olderQIds.length} more open questions are on older transactions.`}
+                </p>
+              )}
+              {missingQIds.length > 0 && (
+                <p className="ba-preset-note">
+                  {missingQIds.length === 1
+                    ? "1 open question is on a transaction Bank isn't showing."
+                    : `${missingQIds.length} open questions are on transactions Bank isn't showing.`}
+                </p>
+              )}
+              <TQ_OpenList client={client} filterIds={olderQIds.concat(missingQIds)} hideEmpty />
             </div>
           )}
         </div>
       </div>
-      {hiddenQs.length > 0 && (
-        <div className="ba-older-qs">
-          {olderQIds.length > 0 && (
-            <p className="ba-preset-note">
-              {olderQIds.length === 1
-                ? "1 more open question is on an older transaction."
-                : `${olderQIds.length} more open questions are on older transactions.`}
-            </p>
-          )}
-          {missingQIds.length > 0 && (
-            <p className="ba-preset-note">
-              {missingQIds.length === 1
-                ? "1 open question is on a transaction Bank isn't showing."
-                : `${missingQIds.length} open questions are on transactions Bank isn't showing.`}
-            </p>
-          )}
-          <TQ_OpenList client={client} filterIds={olderQIds.concat(missingQIds)} hideEmpty />
-        </div>
-      )}
       {activeQuestion && (
         <TQ_ResolveModal
           question={activeQuestion}

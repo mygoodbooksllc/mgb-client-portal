@@ -5412,6 +5412,22 @@ const closePeriodFor = (d = new Date()) => {
   const x = new Date(d.getFullYear(), d.getMonth() - 1, 1);
   return `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, "0")}`;
 };
+// A report with no period of its own (the Balance Sheet) counts toward the
+// month being closed only when its as-of date is that month's last day
+// (owner decision D5, 2026-10-13). Returns "YYYY-MM" or undefined. A Date
+// built from the day it is generated never matches, so a report as of today
+// is only logged, never guessed to belong to last month.
+const closePeriodForAsOf = (asOf, now = new Date()) => {
+  if (!(asOf instanceof Date) || isNaN(asOf)) return undefined;
+  const p = closePeriodFor(now);
+  const [y, m] = p.split("-").map(Number);
+  const last = new Date(y, m, 0);
+  return asOf.getFullYear() === last.getFullYear() &&
+    asOf.getMonth() === last.getMonth() &&
+    asOf.getDate() === last.getDate()
+    ? p
+    : undefined;
+};
 const closePeriodLabel = (p) =>
   new Date(p + "-01T12:00:00").toLocaleDateString(undefined, {
     month: "long",
@@ -11444,6 +11460,9 @@ const REPORT_PDF_BUILDERS = {
 // Reports page
 // ----------------------------------------------------------------------------
 
+// The as-of date a no-period report is built for. The Balance Sheet PDF
+// prints the day it is generated (buildBalanceSheetPdf), so that is the date.
+const reportAsOf = (key) => new Date();
 const REPORT_TYPES = [
   {
     key: "pl",
@@ -11566,8 +11585,22 @@ function QuickDownloadReports({ client }) {
               client={client}
               itemKey={r.key}
               itemLabel={r.name}
-              periodLabel={r.key === "pl" ? periodLabelFor(client.monthly, period) : null}
-              closePeriod={r.key === "pl" && period === "month" ? closePeriodFor() : undefined}
+              periodLabel={
+                r.key === "pl"
+                  ? periodLabelFor(client.monthly, period)
+                  : r.key === "bs"
+                    ? "As of " + reportAsOf(r.key).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
+                    : null
+              }
+              closePeriod={
+                r.key === "pl"
+                  ? period === "month"
+                    ? closePeriodFor()
+                    : undefined
+                  : r.key === "bs"
+                    ? closePeriodForAsOf(reportAsOf(r.key))
+                    : undefined
+              }
             />
           </div>
         ))}
