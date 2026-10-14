@@ -25,7 +25,7 @@ Two instructions reached this session on D2 and they disagree:
 - The owner's answer typed in this session: **warn only.**
 - A relayed message from the "MGB App 10/27" session, said to come from the owner: **block; "Ledger reviewed" is required.**
 
-I followed the direct answer, and I'm not treating the relayed message as an override. Either value is one setting (`gl_review_settings.done_gate`, section 4.9, default `warn`), so the build is identical and flipping it later is one admin click. **Needs one confirming word from the owner before phase 1 ships.** If it is `block`, section 6.4 lists what else turns on (the database guard, and an admin override with a reason).
+I followed the direct answer, and I'm not treating the relayed message as an override. Either value is one setting (`gl_review_settings.done_gate`, section 4.9, default `warn`), so the build is identical and flipping it later is one admin click. **Confirmed by the owner 2026-10-14: warn.** If it is `block`, section 6.4 lists what else turns on (the database guard, and an admin override with a reason).
 
 ### 0.2 Deviations from PLAN.md (each needs a "yes" or a "no")
 
@@ -224,7 +224,7 @@ updated_at
 
 Three security-definer RPCs, each checking staff + `can_access_client`:
 - `gl_review_mark_reviewed(client, period)`: any staff. Sets `reviewed`, records the open high count, and upserts `client_close_items(item_key='ledger_reviewed', done=true)`.
-- `gl_review_approve(client, period)`: `is_active_staff_admin()` only. Any admin (Jesse by default). **An admin who is the recorded reviewer cannot approve their own review** (compare lowercased emails: `is_active_staff_admin` and `is_client_member` compare case-sensitively today), so a second admin is needed; the same RPC can be called with `p_override_note` for a sole-admin emergency, which is logged. (Open question 3.)
+- `gl_review_approve(client, period)`: `is_active_staff_admin()` only. Any admin (Jesse by default). **An admin may approve their own review** (owner decision 2026-10-14; Jesse is both reviewer and admin). The approval row still records `reviewer` and `approved_by` separately, so the audit shows when they were the same person. Emails are compared lowercased (`is_active_staff_admin` and `is_client_member` compare case-sensitively today). No override argument is needed for approval.
 - `gl_review_send_back(client, period, note)`: admin only, note required (1 to 1,000 characters). Sets `sent_back`, sets the close item `done=false`, so the Close step reopens.
 No direct table writes from the browser. SELECT for staff on assigned clients. The close-item upsert converts `period` (date) to `to_char(period,'YYYY-MM')` explicitly. Reopening a month (Done to anything else) **clears** the approval and any override, so a warn-era approval or override can't satisfy block mode later. Because the RPC bypasses the UI, it also performs the first-tick effect `CT_applyFirstTick` does (month to In progress).
 
@@ -447,7 +447,7 @@ Phases 2 to 5 as in PLAN.md. This spec adds no schema for any of them except as 
 1. **Warn only** for the "Ledger reviewed" step (`done_gate` = `warn`); block stays available as a setting.
 2. The three deviations in 0.2 are approved (sign-off table; greeting name and contact email on `client_profile`; `transaction_questions` direction change).
 3. Client emails may carry the question text and one amount (3.3). Update the notification-emails rule note accordingly when building.
-4. An admin cannot approve their own review unless a logged override is used (as specced in 4.4).
+4. **Changed:** an admin may approve their own review (no second admin or override needed); reviewer and approver are both recorded.
 5. Saved quotes for prospects who never sign are auto-archived after **90 days** (delete on request). Bailley reviews both the three summary templates (clean / minor items / needs action) and the starting vendor watch list before they ship.
 
 Remaining open items are the live-QuickBooks checks in section 11, which are verified during the build.
