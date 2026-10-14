@@ -7,10 +7,14 @@
 //     year_pdf     { staff_id, year }   confirmed year-end summary PDF. That person or an admin.
 //     year_export  { staff_id, year }   admin: save the confirmed summary to Drive.
 //     drive_status {}                   admin: is the reviews Shared Drive reachable?
+//     export_handbook       { signature_id }  admin: file a countersigned Handbook signature (retry).
+//     download_handbook_pdf { signature_id }  the signer, its countersigner or an admin: the filed PDF, streamed from Drive.
 //   Machine (service role key, or the Vault qbo_cron_key used by tr_kick / tr_cron):
 //     { job: "export_review", id }      after the second signature / an addendum
 //     { job: "sweep" }                  send queued emails, retry failed exports
 //     { action: "drive_status" }        read-only check (also allowed for the cron key)
+//     { job: "export_handbook", id }    after hb_countersign / hb_retry_export (staff-handbook.sql);
+//       or { action: "export_handbook", signature_id }
 //
 // Clients never reach anything here: callers must be active rows in public.staff.
 // Staff never get Drive links; they download through `pdf` / `year_pdf`.
@@ -28,7 +32,7 @@ import * as PDFLib from "npm:pdf-lib@1.17.1";
 import { DRIVE_SCOPE, driveQ, parseServiceAccount, signServiceAccountJwt, TOKEN_URL, UUID_RE } from "../drive-files/logic.ts";
 import { esc, sendEmail } from "../_shared/email.ts";
 import * as L from "../_shared/layout.ts";
-import { buildReviewPdf, buildYearPdf } from "./pdf.ts";
+import { buildHandbookPdf, buildReviewPdf, buildYearPdf, isoDateCT } from "./pdf.ts";
 
 void DRIVE_SCOPE; // scope is baked into signServiceAccountJwt's claims
 
@@ -260,6 +264,84 @@ async function exportYear(db: SupabaseClient, staffId: string, year: number) {
   const now = new Date().toISOString();
   await db.from("review_year_summaries").update({ drive_file_id: fileId, drive_exported_at: now }).eq("id", doc.id);
   return { ok: true, drive: { exported_at: now } };
+}
+
+// ---------------------------------------------------------------------------
+// Staff Handbook (supabase/staff-handbook.sql): file the signed PDF once.
+// Drive layout: "Handbook" at the drive root, then one folder per policy, both
+// found by appProperties so a rename never duplicates them.
+// ---------------------------------------------------------------------------
+const safeName = (s: unknown, fallback: string) =>
+  String(s ?? "").replace(/[\/\\]/g, "-").replace(/\s+/g, " ").trim().slice(0, 150) || fallback;
+
+async function ensureFolder(parent: string, name: string, prop: Record<string, string>): Promise<string> {
+  const [k, v] = Object.entries(prop)[0];
+  const found = await findOne(
+    `'${driveQ(parent)}' in parents and mimeType='${FOLDER_MIME}' and trashed=false and appProperties has { key='${k}' and value='${driveQ(v)}' }`,
+  );
+  if (found) {
+    if (found.name !== name) {
+      await driveJson(`${DRIVE}/files/${found.id}?` + qs({ fields: "id" }), {
+        method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name }),
+      });
+    }
+    return found.id;
+  }
+  const f = await driveJson(`${DRIVE}/files?` + qs({ fields: "id,name" }), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ name, mimeType: FOLDER_MIME, parents: [parent], appProperties: prop }),
+  });
+  return f.id as string;
+}
+
+async function sha256Hex(bytes: Uint8Array): Promise<string> {
+  const d = new Uint8Array(await crypto.subtle.digest("SHA-256", bytes));
+  return Array.from(d, (b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+/** Everything the PDF needs (public.hb_signature_doc, service role). 404 / 409 when it isn't a countersigned record. */
+async function handbookDoc(db: SupabaseClient, signatureId: string): Promise<any> {
+  const { data: doc, error } = await db.rpc("hb_signature_doc", { p_signature_id: signatureId });
+  if (error) throw new HttpError(500, error.message);
+  if (doc) return doc;
+  const { data: sig } = await db.from("handbook_signatures").select("id").eq("id", signatureId).maybeSingle();
+  if (!sig) throw new HttpError(404, "Signature not found.", "not_found");
+  throw new HttpError(409, "The signed copy is ready once it's countersigned.", "not_countersigned");
+}
+
+const handbookFileName = (d: any) =>
+  `${safeName(d.policy?.title, "Policy")} v${d.version?.version_no} — ${safeName(d.signer?.name || d.signer?.typed_name, "Team member")} — ${d.effective_date || isoDateCT(d.signer?.signed_at)}.pdf`;
+
+/**
+ * Builds, files and records the signed PDF (job/action export_handbook).
+ * Idempotent: an already-filed signature is left alone. On any failure the PDF
+ * columns stay null and { ok: false, error } comes back, so hb_retry_export can try again.
+ */
+async function exportHandbook(db: SupabaseClient, signatureId: string) {
+  const d = await handbookDoc(db, signatureId);
+  if (d.pdf_drive_file_id) return { ok: true, already_filed: true, pdf_sha256: d.pdf_sha256 };
+  if (!driveReady()) return { ok: false, error: WAITING };
+  try {
+    const bytes = await buildHandbookPdf(PDFLib, d);
+    const hash = await sha256Hex(bytes);
+    const root = await ensureFolder(reviewsDriveId()!, "Handbook", { mgbHandbookRoot: "1" });
+    const folder = await ensureFolder(root, safeName(d.policy?.title, "Policy"), { mgbHandbookPolicyId: String(d.policy?.id) });
+    // A failed write-back can leave a file behind; savePdf finds it by appProperties and adds a revision.
+    const fileId = await savePdf(folder, handbookFileName(d), bytes, null, { mgbHandbookSignatureId: signatureId });
+    // Sets both PDF columns once (the guard trigger refuses a second time) and audits handbook.exported.
+    const { error } = await db.rpc("hb_record_export", { p_signature_id: signatureId, p_drive_file_id: fileId, p_pdf_sha256: hash });
+    if (error) {
+      const { data: now } = await db.from("handbook_signatures").select("pdf_sha256").eq("id", signatureId).not("pdf_drive_file_id", "is", null).maybeSingle();
+      if (now) return { ok: true, already_filed: true, pdf_sha256: now.pdf_sha256 }; // another run filed it first
+      throw new Error(`Couldn't record the filed PDF: ${error.message}`);
+    }
+    return { ok: true, pdf_sha256: hash };
+  } catch (e) {
+    const msg = clip((e as Error).message, 500);
+    console.log(`team-reviews: export_handbook ${signatureId} failed: ${msg}`);
+    return { ok: false, error: msg };
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -497,6 +579,12 @@ Deno.serve(async (req) => {
         return json({ ...r, emails });
       }
       if (body.job === "sweep") return json(await sweep(db));
+      const hbId = body.job === "export_handbook" ? String(body.id || "") : body.action === "export_handbook" ? String(body.signature_id || "") : null;
+      if (hbId !== null) {
+        if (!UUID_RE.test(hbId)) return json({ error: "bad_request", message: "Missing signature." }, 400);
+        const r = await exportHandbook(db, hbId);
+        return json(r, r.ok || r.error === WAITING ? 200 : 502);
+      }
       return json({ error: "bad_request", message: "Unknown job." }, 400);
     }
 
@@ -546,6 +634,41 @@ Deno.serve(async (req) => {
       if (!doc) throw new HttpError(409, "The year-end summary isn't confirmed yet.", "not_confirmed");
       const bytes = await buildYearPdf(PDFLib, doc);
       return pdfResponse(bytes, `${doc.staff?.name || "Staff"} - ${year} Year-End Summary.pdf`);
+    }
+
+    if (action === "export_handbook") {
+      requireAdmin();
+      const id = String(body.signature_id || "");
+      if (!UUID_RE.test(id)) throw new HttpError(400, "Missing signature.", "bad_request");
+      const res = await exportHandbook(db, id);
+      if (!res.ok && res.error !== WAITING) throw new HttpError(502, `Couldn't save to Drive: ${res.error}`, "drive_error");
+      return json(res);
+    }
+
+    if (action === "download_handbook_pdf") {
+      const id = String(body.signature_id || "");
+      if (!UUID_RE.test(id)) throw new HttpError(400, "Missing signature.", "bad_request");
+      const { data: sig } = await db.from("handbook_signatures").select("id, staff_email, countersigner_email").eq("id", id).maybeSingle();
+      const mine = sig && (String(sig.staff_email).toLowerCase() === me.email || String(sig.countersigner_email || "").toLowerCase() === me.email);
+      if (!sig || !(me.isAdmin || mine)) throw new HttpError(404, "Signed copy not found.", "not_found");
+      const d = await handbookDoc(db, id);
+      if (!d.pdf_drive_file_id) throw new HttpError(409, "The signed copy is still being filed. Try again in a minute.", "not_filed");
+      if (!driveReady()) throw new HttpError(503, "Google Drive isn't connected yet.", WAITING);
+      const res = await drive(`${DRIVE}/files/${encodeURIComponent(d.pdf_drive_file_id)}?` + qs({ alt: "media" }));
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new HttpError(res.status === 404 ? 404 : 502, `Google Drive: ${err?.error?.message || res.statusText}`, "drive_error");
+      }
+      const bytes = new Uint8Array(await res.arrayBuffer());
+      const hash = await sha256Hex(bytes);
+      if (hash !== d.pdf_sha256) console.log(`team-reviews: handbook PDF ${id} in Drive no longer matches its recorded hash`);
+      const { error: logErr } = await db.rpc("hb_log_export", { p_signature_id: id, p_actor_email: me.email });
+      if (logErr) console.log(`team-reviews: hb_log_export failed: ${clip(logErr.message, 200)}`);
+      const out = pdfResponse(bytes, handbookFileName(d));
+      out.headers.set("X-PDF-SHA256", hash);
+      out.headers.set("X-PDF-Hash-Matches", hash === d.pdf_sha256 ? "true" : "false");
+      out.headers.set("Access-Control-Expose-Headers", "Content-Disposition, X-PDF-SHA256, X-PDF-Hash-Matches");
+      return out;
     }
 
     throw new HttpError(400, "Unknown action.", "bad_request");

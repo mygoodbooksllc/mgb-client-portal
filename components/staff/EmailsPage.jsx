@@ -39,6 +39,8 @@ const EM_TYPES = [
   { value: "staff_task_assigned", label: "Staff: task assigned" },
   { value: "staff_task_due", label: "Staff: tasks due today" },
   { value: "staff_feedback_status", label: "Staff: feedback status" },
+  { value: "handbook_sign_needed", label: "Staff: handbook policy to sign" },
+  { value: "handbook_countersign_needed", label: "Staff: handbook countersign" },
   { value: "client_message", label: "Client: bookkeeper message" },
   { value: "client_reports_ready", label: "Client: reports ready" },
 ];

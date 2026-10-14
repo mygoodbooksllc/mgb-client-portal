@@ -2,7 +2,7 @@
 title: What's on my Today page?
 section: Getting started
 audience: staff
-keywords: [today, home, start page, tasks, task details, needs you, needs you now, now, this week, replies waiting, tasks due today, overdue, closes open, tiles, reminders, milestones to review, recently viewed, also show, show everything, access requests, upgrade requests, bills, deadlines, client at risk, review due, sop, coverage, all clear, nothing needs you]
+keywords: [handbook, sign policy, countersign, today, home, start page, tasks, task details, needs you, needs you now, now, this week, replies waiting, tasks due today, overdue, closes open, tiles, reminders, milestones to review, recently viewed, also show, show everything, access requests, upgrade requests, bills, deadlines, client at risk, review due, sop, coverage, all clear, nothing needs you]
 sort: 40
 ---
 **Today** is your starting point: one list of everything waiting on you across every client you can see, most urgent first. It's the first of the five places in the left rail (**Today**, **Inbox**, **Work**, **Clients**, **Team**), and it opens when you sign in unless you picked another start page in [Settings](#/help/staff-settings).
@@ -33,6 +33,7 @@ Everything waiting on you, in two bands: **Now** (late, or waiting on us) and **
 - **A stale SOP**: a client's SOP hasn't been edited or marked accurate in over 180 days. Open it, read it, then fix it or click **Mark as still accurate**.
 - **A client you're covering** while their bookkeeper is out.
 - **Your quarterly review** when it's due: **Open**. See [How do quarterly reviews work?](#/help/quarterly-reviews).
+- **Sign: <policy> v<n>** (bookkeepers) when a Staff Handbook policy needs your signature, with its due date or **Overdue**, and **Countersign: <name>, <policy> v<n>** for the countersigner: **Sign** or **Countersign** opens the policy. See [How do I sign the Staff Handbook?](#/help/staff-handbook).
 
 Each band shows its first few rows. **Show everything** lists the rest, and **Show less** folds it back. When nothing is waiting, the list says **Nothing needs you right now.**
 

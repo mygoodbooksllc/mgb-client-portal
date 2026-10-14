@@ -25,7 +25,7 @@ The dark rail on the left has five places. Everything you do lives in one of the
 - **Inbox**: client conversations and team chat in one place. See [How do I message a client or a teammate?](#/help/inbox).
 - **Work**: your **Tasks**, the month-end **Close** and filing **Deadlines**. See [What's on the Work page?](#/help/work-page).
 - **Clients**: every client you can see, and the way into a client's pages. See [How do I use the Clients page?](#/help/clients-page).
-- **Team**: **People** (who's out, your backups, time off, shout-outs), **Reviews** and **Onboarding**. Admins also see **Hours**, **Reply times**, **Feedback** and **Members**. See [What's on the Team page?](#/help/team-page).
+- **Team**: **People** (who's out, your backups, time off, shout-outs), **Reviews**, **Onboarding** and **Handbook** (staff policies to read and sign). Admins also see **Hours**, **Reply times**, **Feedback** and **Members**. See [What's on the Team page?](#/help/team-page).
 
 At the bottom of the rail: **Settings** (your profile, notifications, theme, start page and signature; admins also find the firm-wide pages there) and **Collapse**, which shrinks the rail to icons. See [How do I change my settings?](#/help/staff-settings).
 
@@ -45,7 +45,7 @@ The top bar keeps the client picker, search, the bell, **+** and **?**. Tap the 
 
 ### Who sees what
 
-- **Bookkeepers** see only the clients they're assigned to, and the Team tabs **People**, **Reviews**, **Onboarding**, **Performance** and **Inventory**. See [Bookkeeper guide](#/help/bookkeeper-guide).
+- **Bookkeepers** see only the clients they're assigned to, and the Team tabs **People**, **Reviews**, **Onboarding**, **Handbook**, **Performance** and **Inventory**. See [Bookkeeper guide](#/help/bookkeeper-guide).
 - **Admins** see every client, every Team tab, and the firm-wide pages under **Settings**.
 - Clients never see staff notes, SOPs, internal notes or anything on the staff pages.
 

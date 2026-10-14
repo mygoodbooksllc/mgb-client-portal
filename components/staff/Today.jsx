@@ -20,6 +20,8 @@
 //                     (blocked in QuickBooks), my clients
 //   reviews           TR_useOverview (TeamReviews.jsx); replaces the old
 //                     TR_HomeDueNotice card
+//   handbook          HB_useStatus (components/handbook/HB_api.js): policies
+//                     I need to sign (bookkeepers), signatures I countersign
 //   clients at risk   HL_useHealth (ClientHealth.jsx)
 //   stale SOPs        SF_useSopStatus / SF_staleTodos (SopFreshness.jsx)
 //   access            teammates' temporary-access requests to approve
@@ -67,6 +69,7 @@ const TD_KIND_LABEL = {
   close: "Close",
   bill: "Bills",
   review: "Review",
+  handbook: "Handbook",
   upgrade: "Upgrade",
   risk: "Health",
   coverage: "Coverage",
@@ -321,11 +324,29 @@ function TD_useCoverageGaps(enabled) {
 // The ranked list
 // ---------------------------------------------------------------------------
 
+const TD_NONE = [];
+// Staff Handbook: "Sign" and "Countersign" items from the shared hb_status
+// store (HB_api.js). Quiet: no schema, no access or no module = no rows.
+function TD_useHandbookItems() {
+  const can = typeof HB_useStatus === "function" && typeof HB_todayItems === "function";
+  const st = can ? HB_useStatus() : null;
+  const data = st && st.data;
+  return React.useMemo(() => {
+    if (!can || !data) return { me: null, items: TD_NONE };
+    try {
+      return { me: data.me || null, items: HB_todayItems(data) };
+    } catch (e) {
+      return { me: null, items: TD_NONE };
+    }
+  }, [data]);
+}
+
 // Builds the two bands. Every row: { key, kind, rank, sort, title, detail,
 // onClick?, actions?: [{ label, primary?, disabled?, onClick }] }. Lower rank
 // first, then lower sort (days until / most overdue first, oldest wait
 // first). Ranks in "Now": 0 waiting on you (access, replies), 1 overdue,
-// 2 due today, 3 reviews, 4 upgrades. In "This week": 1 due soon, 2 clients
+// 2 due today, 3 reviews and handbook signatures not yet late (an overdue
+// one is 1, a countersign 0), 4 upgrades. In "This week": 1 due soon, 2 clients
 // at risk, 3 coverage gaps, 9 stale SOPs.
 // Tasks module helpers (components/tasks/), asked at call time.
 function TD_tkReady() {
@@ -554,6 +575,21 @@ function TD_buildRows(x) {
     });
   }
 
+  // Staff Handbook: sign (bookkeepers) and countersign (the countersigner).
+  (x.handbook || []).forEach((h) => {
+    const open = lk({ place: "team", tab: "handbook", item: "handbook:" + h.slug });
+    now.push({
+      key: h.key,
+      kind: "handbook",
+      rank: h.kind === "countersign" ? 0 : h.overdue ? 1 : 3,
+      sort: h.due ? daysUntil(h.due, today) : 0,
+      title: h.title,
+      detail: h.detail,
+      onClick: open,
+      actions: [{ label: h.kind === "countersign" ? "Countersign" : "Sign", primary: true, onClick: open }],
+    });
+  });
+
   // Clients asking to move up a plan.
   (x.upgrades || []).forEach((r) => {
     const c = byId[r.client_id];
@@ -723,6 +759,14 @@ function TD_KindIcon({ kind }) {
       return (
         <svg {...p}>
           <path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.8l-5.2 2.8 1-5.8-4.3-4.1 5.9-.9L12 3.5z" />
+        </svg>
+      );
+    case "handbook":
+      return (
+        <svg {...p}>
+          <path d="M6 3h9l3 3v15H6V3z" />
+          <path d="M9 9h6M9 12h6" />
+          <path d="M9 17.5c1-1.6 1.8-1.6 2.4 0s1.4 1.6 2.6-.5" />
         </svg>
       );
     case "upgrade":
@@ -1023,6 +1067,7 @@ function TD_TodayPage({ staffUser, clients, onNavigateToClient, onOpenClientMile
   const grants = typeof CS_useAccessGrants === "function" ? CS_useAccessGrants() : null;
   const dl = typeof DL_useStore === "function" ? DL_useStore(true) : null;
   const reviews = typeof TR_useOverview === "function" ? TR_useOverview() : null;
+  const handbook = TD_useHandbookItems();
   const health = typeof HL_useHealth === "function" ? HL_useHealth() : null;
   const sopStatus = typeof SF_useSopStatus === "function" ? SF_useSopStatus(true) : null;
   const st = typeof ST_useSettings === "function" ? ST_useSettings() : null;
@@ -1148,6 +1193,9 @@ function TD_TodayPage({ staffUser, clients, onNavigateToClient, onOpenClientMile
   // the page being shown is someone else's).
   const reviewData =
     reviews && reviews.data && !(staffUser && staffUser.name && reviews.data.me && reviews.data.me.name && staffUser.name !== reviews.data.me.name) ? reviews.data : null;
+  // Same for the handbook: hb_status is the signed-in person's, not the viewed one's.
+  const handbookItems =
+    handbook.me && !(staffUser && staffUser.name && handbook.me.name && staffUser.name !== handbook.me.name) ? handbook.items : TD_NONE;
 
   const celebrate = async (row, kind, action) => {
     const error = await cel.act(row, kind, action, me);
@@ -1184,6 +1232,7 @@ function TD_TodayPage({ staffUser, clients, onNavigateToClient, onOpenClientMile
         deadlines,
         blocked: closes.blocked,
         reviews: reviewData,
+        handbook: handbookItems,
         upgrades: upgrades.rows,
         upgradeBusyId: upgrades.busyId,
         setUpgradeStatus: upgrades.setStatus,
@@ -1207,6 +1256,7 @@ function TD_TodayPage({ staffUser, clients, onNavigateToClient, onOpenClientMile
       deadlines,
       closes.blocked,
       reviewData,
+      handbookItems,
       upgrades.rows,
       upgrades.busyId,
       health && health.status,

@@ -992,7 +992,7 @@ const INFRA_LINKS = [
   {
     name: "Google Drive (client files)",
     url: "https://drive.google.com/drive/shared-drives",
-    note: "MGB shared drive holding client documents, and the admin-only reviews drive (review PDFs and Inventory exports) · service account in Supabase secrets",
+    note: "MGB shared drive holding client documents, and the admin-only reviews drive (review PDFs, signed Staff Handbook PDFs under Handbook, and Inventory exports) · service account in Supabase secrets",
   },
   {
     name: "Intuit developer (QuickBooks)",
@@ -25232,7 +25232,7 @@ const PAGE_META = {
   },
   team: {
     title: "Team",
-    subtitle: "People, reviews and onboarding",
+    subtitle: "People, reviews, onboarding and the handbook",
   },
   // A client's SOP as its own tab (#/client/<id>/sop) — staff only; the
   // client-side tabs stay in ALL_TAB_KEYS.

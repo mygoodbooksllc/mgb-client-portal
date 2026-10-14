@@ -2,7 +2,7 @@
 title: How do I change my settings (profile, notifications, theme, signature)?
 section: Getting started
 audience: staff
-keywords: [tasks shortcuts, mentions on tasks, tasks tour, settings, help, tips, turn off tips, my settings, profile, photo, avatar, title, phone, notifications, email notifications, bell, dark mode, light mode, theme, match my computer, start page, signature, email signature, dashboards, reset layout, financial overview, board-ready, live report, shortcuts, keyboard, firm settings, gear]
+keywords: [handbook emails, tasks shortcuts, mentions on tasks, tasks tour, settings, help, tips, turn off tips, my settings, profile, photo, avatar, title, phone, notifications, email notifications, bell, dark mode, light mode, theme, match my computer, start page, signature, email signature, dashboards, reset layout, financial overview, board-ready, live report, shortcuts, keyboard, firm settings, gear]
 sort: 27
 ---
 Your Settings page holds everything that's just about you. To open it, click **Settings** at the bottom of the left rail, or your initials at the top right of the page, then **Settings**. (On a phone, open the menu and tap **Settings**.) Changes save on their own a moment after you make them. You'll see **Saved** at the top when they have.
@@ -26,6 +26,7 @@ Your photo shows in the top bar. Your name, title, phone and photo also show on 
 - Someone assigns me a task (on). Not for tasks you give yourself, recurring template tasks, or a task on a client you can't open.
 - Tasks due today (off). One morning email listing your open tasks due that day. Tasks on a client you can't open are left out, and so are tasks waiting on the client.
 - My feedback changes status (on)
+- Staff Handbook signatures (on). When a policy needs your signature (bookkeepers) or your countersignature (the countersigner). See [How do I sign the Staff Handbook?](#/help/staff-handbook).
 
 The emails only say what happened and link to the portal. They never include the message text or amounts. Until the firm's email sender is fully set up, these emails may not arrive yet; the **Emails** page (admins) shows what was sent.
 

@@ -521,7 +521,8 @@ const TP_roleLabel = (role) =>
 // page, with the same checks.
 //
 // Reviews keeps its own sub-route after the tab (#/team/reviews/<sub>, read
-// by TeamReviews.jsx); App's buildHashRoute keeps the whole hash.
+// by TeamReviews.jsx), and so does Handbook (#/team/handbook/<slug>, read by
+// HB_HandbookTab.jsx); App's buildHashRoute keeps the whole hash.
 // ---------------------------------------------------------------------------
 
 // Tab badge counts, from data the tabs' own pages already cache, so they cost
@@ -533,6 +534,12 @@ function TP_useReviewsDue() {
   const can = typeof TR_useOverview === "function" && typeof TR_dueCount === "function";
   const ov = can ? TR_useOverview() : null;
   return can ? TR_dueCount(ov && ov.data) : 0;
+}
+// Handbook: my unsigned policies plus signatures I countersign (hb_status).
+function TP_useHandbookDue() {
+  const can = typeof HB_useStatus === "function" && typeof HB_badgeCount === "function";
+  const st = can ? HB_useStatus() : null;
+  return can ? HB_badgeCount(st && st.data) : 0;
 }
 function TP_useFeedbackNew(enabled) {
   const can = typeof FB_useNewCount === "function";
@@ -564,9 +571,12 @@ function TP_TeamHub({ tab, staffUser, isAdmin, isRealAdmin, clients, renderMembe
 
   const reviewsDue = TP_useReviewsDue();
   const feedbackNew = TP_useFeedbackNew(admin);
+  const handbookDue = TP_useHandbookDue();
   const badgeFor = (key) => {
     if (key === "reviews" && reviewsDue > 0)
       return <TP_TabBadge n={reviewsDue} label={`${reviewsDue} review item${reviewsDue === 1 ? "" : "s"} due`} />;
+    if (key === "handbook" && handbookDue > 0)
+      return <TP_TabBadge n={handbookDue} label={`${handbookDue} handbook item${handbookDue === 1 ? "" : "s"} to sign`} />;
     if (key === "feedback" && feedbackNew > 0) return <TP_TabBadge n={feedbackNew} label={`${feedbackNew} new`} />;
     return null;
   };
@@ -582,6 +592,8 @@ function TP_TeamHub({ tab, staffUser, isAdmin, isRealAdmin, clients, renderMembe
   if (current === "people") body = <TP_PeopleTab staffUser={staffUser} isAdmin={realAdmin} clients={clients} />;
   else if (current === "reviews") body = typeof TR_TeamReviewsPage === "function" ? <TR_TeamReviewsPage /> : missing("Reviews");
   else if (current === "onboarding") body = typeof SON_ProgressTab === "function" ? <SON_ProgressTab /> : missing("Onboarding");
+  else if (current === "handbook")
+    body = typeof HB_HandbookTab === "function" ? <HB_HandbookTab staffUser={staffUser} isAdmin={realAdmin} /> : missing("Handbook");
   else if (current === "hours") body = <TP_TeamPage clients={clients} />;
   else if (current === "reply-times") body = typeof RT_ReplyTimesTab === "function" ? <RT_ReplyTimesTab /> : missing("Reply times");
   else if (current === "feedback") body = typeof FB_FeedbackPage === "function" ? <FB_FeedbackPage clients={clients} /> : missing("Feedback");

@@ -64,6 +64,7 @@ const ST_STAFF_EMAIL_PREFS = [
   { key: "task_assigned", label: "Someone assigns me a task", sub: "Not for tasks you give yourself or recurring template tasks.", def: true },
   { key: "task_due", label: "Tasks due today", sub: "One morning email listing your open tasks due that day.", def: false },
   { key: "feedback_status", label: "My feedback changes status", sub: "When an admin marks your feedback planned, done or declined.", def: true },
+  { key: "handbook", label: "Staff Handbook signatures", sub: "When a policy needs your signature or countersignature.", def: true },
 ];
 const ST_CLIENT_EMAIL_PREFS = [
   { key: "bookkeeper_message", label: "My bookkeeper sends me a message", sub: "A short email with a link to Messages. The message itself stays in the portal.", def: true },

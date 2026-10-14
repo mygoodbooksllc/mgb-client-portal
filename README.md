@@ -82,6 +82,7 @@ because some work happens in Claude Code web sessions. Run `git fetch` and compa
 | `components/pro/` | Pro budget and report tools: `ProBudget.jsx` (Budget vs. Actual tabs, next year's draft with approval) and `ProReports.jsx` (board reports suite and the public share page), each with its own CSS. Loaded before `app.jsx`; `app.jsx` falls back to the old pages if either is missing. |
 | `components/inbox/` | `StaffInbox.jsx` (the unified staff inbox, the staff chat drawer and launcher, and `SI_useClientMessaging` for the client Messages page) and `staff-inbox.css`. Loaded before `app.jsx`; every name is `SI_`/`si`/`StaffInbox` prefixed. Without it, `app.jsx` falls back to the old Team Chat page and sample client threads. |
 | `components/staff/` | Staff-only features, each with its own CSS and a name prefix (`CS_` client switcher, `HLP_` Help, `TB_` top bar, ...). `TopBar.jsx` + `top-bar.css` is the staff top bar (see "Staff top bar" under Main features). All loaded before `app.jsx`. |
+| `components/handbook/` | The Staff Handbook (2026-10-13; spec `docs/staff-handbook-spec.md`), Team › Handbook. Every name is `HB_`/`hb-` prefixed. `HB_api.js` (RPC wrappers, the PDF download, the shared `hb_status` store), `HB_PolicyView.jsx` (one policy, sign and countersign), `HB_HandbookTab.jsx` (the tab, its routes and the deep-link claim), `hb.css`. Loaded after `TeamReviewsAdmin.jsx` and before `app.jsx`. |
 | `components/files/` | `DriveFiles.js`: browser helpers for client files in Google Drive (`DRV_` prefix), calling the `drive-files` edge function. Holds the one fallback switch `DRV_STORAGE_FALLBACK`. Loaded before `StaffInbox.jsx` and `app.jsx`. |
 | `components/tasks/` | The Tasks module (2026-10-11; spec `docs/tasks-phase1-spec.md`). Every name is `TK_`/`tk-` prefixed. Logic with node tests: `TK_logic.js` (statuses, grouping, the quick-add parser, keys), `TK_viewLogic.js`, `TK_drawerLogic.js`, `TK_clientLogic.js` (the client strip and panel rules), `TK_store.js`. Data: `TK_api.js` (Supabase calls), `TK_sync.js` (Realtime plus a `BroadcastChannel` between windows). Views: `TK_App.jsx` (the `#/tasks/...` page and the `/tasks` shell), `TK_Sidebar.jsx`, `TK_MyTasks.jsx`, `TK_List.jsx`, `TK_ClientHeader.jsx`, `TK_ClientDrawer.jsx` (the client task strip and panel, and Follow my client), `TK_TaskRow.jsx`, `TK_StandaloneBar.jsx`, `TK_keys.jsx`. Task details: `TK_Drawer.jsx`, `TK_QuickAdd.jsx`, `TK_Comments.jsx`, `TK_Attachments.jsx`, `TK_Activity.jsx`. Styles: `tk-views.css`, `tk-drawer.css`, `tk-client.css`. Loaded after `components/client/QboGiving.jsx` and before `components/tour/Tour.jsx`. |
 | `components/qbo/` | `mapQboToClient.js` converts QuickBooks table rows into the shape the pages use. Its test is `mapQboToClient.test.js`. |
@@ -900,6 +901,32 @@ goes through `security definer` RPCs that call `tr_me()` / `tr_require_admin()` 
   person has; other essentials match on category or item name. Same rule in `TI_covers` and the
   edge function.
 
+### Staff Handbook (added 2026-10-13)
+
+**Team › Handbook** (`#/team/handbook`): the firm's staff policies, each with versions. Spec:
+`docs/staff-handbook-spec.md`. Only active staff with role `bookkeeper` sign (`hb_is_signer`);
+the countersigner is one setting (`handbook_settings`, set by an admin with `hb_set_countersigner`).
+
+- **Database:** `supabase/staff-handbook.sql` (tables `handbook_policies`, `handbook_versions`
+  (immutable), `handbook_signatures` (no deletes; countersign and PDF columns set once),
+  `handbook_settings`). RPCs: `hb_status`, `hb_get_policy`, `hb_sign`, `hb_countersign`,
+  `hb_publish_version`, `hb_set_countersigner`, `hb_retry_export`. Every write is audited
+  (`handbook.*`). Re-signing is due 7 days after a "needs re-signing" version is published, then
+  shows Overdue; nothing locks.
+- **Front end:** `components/handbook/` (see the repo map). Routes: `#/team/handbook`,
+  `#/team/handbook/<slug>`, `#/team/handbook/<slug>/v<n>`. Deep link
+  `#/team/handbook?item=handbook:<slug>` (kind `handbook` in `LK_KINDS`, claimed by the tab).
+  Today rows (`TD_useHandbookItems`): "Sign: <policy> v<n>" (Due / Overdue) and "Countersign:
+  <signer>, <policy> v<n>". The Team tab badge is `hb_status().badge`.
+- **Signed PDF:** after the countersignature, the `team-reviews` edge function (`export_handbook`)
+  builds the PDF once and files it on the admin-only reviews Shared Drive under
+  `Handbook / <Policy>`. `download_handbook_pdf` streams it to the signer, its countersigner or an admin.
+- **Email:** `notification-emails` kinds `handbook_sign_needed` and `handbook_countersign_needed`
+  (link only), preference `notify.email.handbook` (on by default).
+- **Not built yet:** the publish-version editor, the admin status grid, re-sign reminder emails and
+  the retry-export button. `hb_status()` already returns `grid`, `bookkeepers` and `unfiled_count`
+  for admins.
+
 ### Staff ops features (added 2026-10-07)
 
 Eight staff-only features, built one per commit. Shared pieces: pure rules in
@@ -1215,6 +1242,10 @@ Team Reviews files.
     `complete_staff_item`, `notify_enqueue_task_assigned`) were recreated to skip deleted rows.
   - The file's header has the deploy-window note: the `notification-emails` and `client-emails`
     edge functions must also skip `deleted_at` rows.
+- **Staff Handbook** (`supabase/staff-handbook.sql`, applied 2026-10-13). Re-runnable. Four
+  `handbook_*` tables with RLS and no direct writes, the `hb_*` RPCs, two new outbox kinds
+  (`handbook_sign_needed`, `handbook_countersign_needed`) added to both email check constraints,
+  and the v1 seed of `flexible-work-sla`. See "Staff Handbook" under Main features.
 - **A policy mistake to avoid.** An existence subquery inside an RLS policy is itself filtered
   by that table's RLS, so it can quietly let the wrong people through. Put existence checks in
   a `SECURITY DEFINER` function instead, as `is_conversation_member()` does.

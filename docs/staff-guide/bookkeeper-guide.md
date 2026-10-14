@@ -2,7 +2,7 @@
 title: Bookkeeper guide: your day, step by step
 section: Daily work
 audience: staff
-keywords: [bookkeeper guide, bookkeeper, bookkeeper tour, tour, walkthrough, first day, daily routine, routine, checklist, daily, weekly, monthly, quarterly, today, clients, client overview, close tab, open for this client, inbox, reply, note, work, tasks, close, month-end close, deadlines, team, time off, backup, reviews, self-review, performance, hours, quickbooks time, search, help]
+keywords: [handbook, sign policy, bookkeeper guide, bookkeeper, bookkeeper tour, tour, walkthrough, first day, daily routine, routine, checklist, daily, weekly, monthly, quarterly, today, clients, client overview, close tab, open for this client, inbox, reply, note, work, tasks, close, month-end close, deadlines, team, time off, backup, reviews, self-review, performance, hours, quickbooks time, search, help]
 sort: 105
 ---
 As a bookkeeper you look after your own clients: you keep their books, answer their messages and close each month. This is the written version of the **Bookkeeper tour**, with a routine to follow.
@@ -11,7 +11,7 @@ As a bookkeeper you look after your own clients: you keep their books, answer th
 
 - It starts by itself once, the first time you open the portal. If you did the older staff tour, you still get this one, because it's new.
 - Run it again any time from **?** → **Bookkeeper tour**, from **Ctrl+K** (**⌘K** on a Mac) by typing "bookkeeper tour", or from **Settings › Help**.
-- It opens each part of your day in turn and points at it: **Today**, **Clients**, a client's **Overview** and **Close** tab, the **+** button, the **Inbox**, **Work › Tasks** and **Close** (which points you to **Deadlines**), **Team › People** and **Reviews**, search and the **?** menu. About three minutes.
+- It opens each part of your day in turn and points at it: **Today**, **Clients**, a client's **Overview** and **Close** tab, the **+** button, the **Inbox**, **Work › Tasks** and **Close** (which points you to **Deadlines**), **Team › People**, **Reviews** and **Handbook**, search and the **?** menu. About three minutes.
 - Admins can run it from the **?** menu too. During **View as**, it only visits the pages View as can open (Today, Clients and a client's pages); the Inbox, Work and Team stops are skipped.
 
 If you're also a client's account manager, the **Account manager tour** comes next. If you have temporary admin access, you'll get the **Temporary admin tour** first. See [Account manager guide](#/help/account-manager-guide) and [Temporary access](#/help/temporary-access).
@@ -54,6 +54,7 @@ See [How do I message a client or a teammate?](#/help/inbox).
 
 - **People**: who's out and who's covering. Add your own time off with **+ Add time off**, and make sure each of your clients has a backup. See [How do I add time off and make sure my clients are covered?](#/help/time-off-coverage).
 - **Reviews**: your quarterly review. When a cycle opens, fill in your self-review. Then meet your account manager and you both sign. See [How do quarterly reviews work?](#/help/quarterly-reviews).
+- **Handbook**: the firm's staff policies. Read each one and sign it at the end. When a new version needs re-signing, a **Sign** row shows on **Today** and you have 7 days. See [How do I sign the Staff Handbook?](#/help/staff-handbook).
 - **Performance**: your score out of 100 and what's behind it. You see your own, never the ranking. See [How does Team › Performance score bookkeepers?](#/help/performance).
 
 ### 7. Search and help

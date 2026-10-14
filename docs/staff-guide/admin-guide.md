@@ -11,7 +11,7 @@ As an admin you see everything a bookkeeper sees, plus the pages that run the fi
 
 - It starts by itself once, the first time you sign in as an admin. If you're new to the portal, it opens with the basics first (the five places, search and the **?** menu), so you learn to get around before the admin pages.
 - Run it again any time from **?** → **Admin tour**, from **Ctrl+K** (**⌘K** on a Mac) by typing "admin tour", or from **Settings › Help**.
-- It opens each admin page in turn and points at it: **Team › Members**, **Hours**, **Reply times**, **Performance**, **Reviews**, **Feedback** and **Inventory**, then **Settings › Firm settings** and **Today**. About two minutes, a little longer with the basics.
+- It opens each admin page in turn and points at it: **Team › Members**, **Hours**, **Reply times**, **Performance**, **Reviews**, **Handbook**, **Feedback** and **Inventory**, then **Settings › Firm settings** and **Today**. About two minutes, a little longer with the basics.
 - To see what your bookkeepers see, run the **Bookkeeper tour** from **?**. It's the same walk they get. Inside **View as**, it only visits the pages View as can open (Today, Clients and a client's pages); other stops are skipped. See [Bookkeeper guide](#/help/bookkeeper-guide).
 
 If you're also a client's account manager, the **Account manager tour** comes next. See [Account manager guide](#/help/account-manager-guide).
@@ -25,6 +25,7 @@ If you're also a client's account manager, the **Account manager tour** comes ne
 | **Team › Reply times** | How fast clients hear back, against the 24-hour goal | [Reply times](#/help/reply-times) |
 | **Team › Performance** | Every bookkeeper's score out of 100, as a ranking (bookkeepers see only their own) | [Performance](#/help/performance) |
 | **Team › Reviews › Team status** | Open and run the quarterly review cycle | [Review cycles](#/help/review-cycles) |
+| **Team › Handbook** | Staff policies bookkeepers sign; who countersigns, each bookkeeper's state and their signed copies | [Staff Handbook](#/help/staff-handbook) |
 | **Team › Feedback** | Bug reports and ideas from staff and clients | [Feedback](#/help/feedback-page) |
 | **Team › Inventory** | Equipment **Requests**, **Items**, the **Roster** of who's missing what, the staff **Directory** and **Export to Google Sheet** | [Inventory](#/help/tech-inventory) |
 | **Settings › Firm settings** | **Task templates**, **Client roster** (where new clients are added), **Emails**, **QuickBooks usage**, **Usage stats**, **Audit log** and **Developer tools** | [Settings](#/help/staff-settings), [Usage stats and Developer tools](#/help/admin-insight), [Audit log](#/help/audit-log) |

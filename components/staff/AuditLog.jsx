@@ -46,6 +46,11 @@ const AL_ACTIONS = {
   "view_as.stop": "View as ended",
   "portal_preview.start": "Portal preview started",
   "portal_preview.stop": "Portal preview ended",
+  "handbook.signed": "Handbook policy signed",
+  "handbook.countersigned": "Handbook policy countersigned",
+  "handbook.published": "Handbook version published",
+  "handbook.countersigner_changed": "Handbook countersigner changed",
+  "handbook.exported": "Handbook signed copy filed or downloaded",
 };
 
 // Action filter groups: value is a PostgREST "like" prefix.
@@ -61,6 +66,7 @@ const AL_ACTION_GROUPS = [
   { value: "client.", label: "Clients" },
   { value: "view_as.", label: "View as" },
   { value: "portal_preview.", label: "Portal preview" },
+  { value: "handbook.", label: "Staff Handbook" },
 ];
 
 function AL_actionLabel(a) {
@@ -104,6 +110,12 @@ function AL_summary(row) {
   }
   if (a.startsWith("qbo_firm.")) return [d.company, d.from && d.to ? `${d.from} → ${d.to}` : "", d.error].filter(Boolean).join(" · ");
   if (a.startsWith("view_as.") || a.startsWith("portal_preview.")) return d.name || d.target || "";
+  if (a === "handbook.countersigner_changed") return `${d.from || "none"} → ${d.to || "none"}`;
+  if (a === "handbook.exported") return d.event === "download" ? "Downloaded" : d.event === "filed" ? "Filed to Drive" : "";
+  if (a.startsWith("handbook."))
+    return [d.policy ? `${d.policy}${d.version_no ? " v" + d.version_no : ""}` : "", a === "handbook.published" ? (d.requires_resign ? "needs re-signing" : "minor edit") : "", d.staff_email]
+      .filter(Boolean)
+      .join(" · ");
   return "";
 }
 

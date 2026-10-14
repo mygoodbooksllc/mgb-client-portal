@@ -990,6 +990,12 @@ function TOUR_bookkeeperSteps(ctx) {
       "Team › Reviews",
       "Your quarterly review: fill in your self-review when a cycle opens, then meet your account manager and both sign. Performance, next to it, shows your score out of 100.",
     ),
+    TOUR_tabStep(
+      "team",
+      "handbook",
+      "Team › Handbook",
+      "The firm's staff policies. Read each one to the end, tick the agreement, type your name and Sign. A new version that needs re-signing shows here and on Today.",
+    ),
     TOUR_searchStep(today),
     TOUR_helpStep(),
     {
@@ -1034,6 +1040,11 @@ function TOUR_adminSteps(ctx) {
       "reviews",
       "Team › Reviews",
       "Run the quarterly reviews: Team status › Open a review cycle, pick who's reviewed and their reviewer (Jesse by default).",
+    ),
+    team(
+      "handbook",
+      "Team › Handbook",
+      "Staff policies that bookkeepers sign and the Account Manager countersigns. Admins see who countersigns, each bookkeeper's state and every signed copy.",
     ),
     team("feedback", "Team › Feedback", "Bug reports and ideas from staff and clients. Only admins see all of it."),
     team("inventory", "Team › Inventory", "Admins also get Requests, Items, a Roster of who's missing what, the staff Directory and Export to Google Sheet."),

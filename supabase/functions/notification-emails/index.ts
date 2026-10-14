@@ -21,6 +21,11 @@ import { loadSignoffs, signoffHtml, signoffText, type Signoff } from "../_shared
 //
 // staff_client_message rows with payload.loop_in (supabase/account-manager.sql)
 // are a "Loop in bookkeeper" or an @mention: same Settings key, own wording.
+//
+// Staff Handbook (supabase/staff-handbook.sql, hb_queue): handbook_sign_needed
+// and handbook_countersign_needed. Link only, never the policy text. Payload:
+// { policy_title, policy_slug, version_no, link, due_date? (sign),
+//   signer_name?, signature_id? (countersign) }. Settings key notify.email.handbook.
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -32,7 +37,8 @@ const BATCH = 500;
 
 type Kind =
   | "staff_client_message" | "staff_doc_upload" | "staff_task_assigned" | "staff_task_due"
-  | "staff_feedback_status" | "staff_tech_request" | "client_message" | "client_reports_ready";
+  | "staff_feedback_status" | "staff_tech_request" | "client_message" | "client_reports_ready"
+  | "handbook_sign_needed" | "handbook_countersign_needed";
 
 // Settings key and default for each kind (matches components/settings/Settings.jsx).
 const PREF: Record<Kind, { key: string; def: boolean }> = {
@@ -44,6 +50,8 @@ const PREF: Record<Kind, { key: string; def: boolean }> = {
   staff_tech_request: { key: "tech_request", def: true }, // goes to admin@mygoodbooks.org, which has no settings
   client_message: { key: "bookkeeper_message", def: true },
   client_reports_ready: { key: "reports_ready", def: true },
+  handbook_sign_needed: { key: "handbook", def: true },
+  handbook_countersign_needed: { key: "handbook", def: true },
 };
 const isClientKind = (k: Kind) => k === "client_message" || k === "client_reports_ready";
 
@@ -69,6 +77,10 @@ function monthName(period: string): string {
 }
 function plural(n: number, one: string, many = `${one}s`) {
   return `${n} ${n === 1 ? one : many}`;
+}
+function handbookLink(slug: unknown) {
+  const s = String(slug || "").trim();
+  return s ? `${APP_URL}#/team/handbook?item=handbook:${encodeURIComponent(s)}` : `${APP_URL}#/team/handbook`;
 }
 function clientLink(clientId: string | null, page: string) {
   return clientId ? `${APP_URL}#/client/${encodeURIComponent(clientId)}/${page}` : APP_URL;
@@ -317,6 +329,12 @@ Deno.serve(async (req) => {
       await finish(ids, "skipped", reason);
     };
 
+    // A kind this deploy doesn't know (newer SQL than function): skip the
+    // row instead of throwing in wants() and stopping every later email.
+    if (!PREF[kind]) {
+      await skip("Unknown email kind");
+      continue;
+    }
     if (!wants(prefs.get(to), kind)) {
       await skip("Turned off in the person's settings");
       continue;
@@ -334,6 +352,10 @@ Deno.serve(async (req) => {
       // Inventory requests go to the shared admin inbox, which isn't a portal login.
       if (kind !== "staff_tech_request" && !activeStaff.has(to)) {
         await skip("Not an active staff member");
+        continue;
+      }
+      if (kind === "handbook_sign_needed" && !(staffRows || []).some((x: any) => x.active && x.role === "bookkeeper" && String(x.email).toLowerCase() === to)) {
+        await skip("No longer a bookkeeper (only bookkeepers sign staff policies)");
         continue;
       }
       const cname = client?.name || "a client";
@@ -412,6 +434,73 @@ Deno.serve(async (req) => {
           ],
           cta: "Open Team › Inventory",
           href: `${APP_URL}#/team/inventory`,
+        });
+      } else if (kind === "handbook_sign_needed") {
+        // One row per published version that needs re-signing; the newest version per policy wins.
+        const byPolicy = new Map<string, any>();
+        for (const r of list) {
+          const pl = r.payload || {};
+          const k = String(pl.policy_slug || pl.policy_title || r.ref_id);
+          if (!byPolicy.has(k) || Number(pl.version_no) > Number(byPolicy.get(k).version_no)) byPolicy.set(k, pl);
+        }
+        const items = [...byPolicy.values()].map((pl: any) => ({
+          title: String(pl.policy_title || "A staff policy").slice(0, 200),
+          v: pl.version_no ? ` v${pl.version_no}` : "",
+          due: pl.due_date ? fmtDay(pl.due_date) : "",
+          slug: pl.policy_slug,
+        }));
+        const one = items.length === 1 ? items[0] : null;
+        email = staffEmail({
+          subject: one ? `Please sign: ${one.title}${one.v}` : `${items.length} staff policies need your signature`,
+          preheader: one ? `A new version needs your signature${one.due ? ` by ${one.due}` : ""}` : items.map((i) => i.title).join(", ").slice(0, 140),
+          lines: [
+            one
+              ? `A new version of <b>${esc(one.title)}</b>${esc(one.v)} was published and needs your signature${one.due ? ` by <b>${esc(one.due)}</b>` : ""}.`
+              : "New versions of these staff policies need your signature:",
+            ...(one ? [] : [L.bullets(items.map((i) => `<b>${esc(i.title)}</b>${esc(i.v)}${i.due ? L.tone(` (sign by ${esc(i.due)})`, "muted") : ""}`))]),
+            "Read it in the portal under Team › Handbook, then sign at the bottom.",
+          ],
+          textLines: [
+            one
+              ? `A new version of ${one.title}${one.v} was published and needs your signature${one.due ? ` by ${one.due}` : ""}.`
+              : "New versions of these staff policies need your signature:",
+            ...(one ? [] : items.map((i) => `- ${i.title}${i.v}${i.due ? ` (sign by ${i.due})` : ""}`)),
+            "Read it in the portal under Team › Handbook, then sign at the bottom.",
+          ],
+          cta: one ? "Read and sign" : "Open the Handbook",
+          href: one ? handbookLink(one.slug) : handbookLink(null),
+        });
+      } else if (kind === "handbook_countersign_needed") {
+        const items = list.slice(0, 15).map((r: any) => {
+          const pl = r.payload || {};
+          return {
+            who: String(pl.signer_name || "A teammate").slice(0, 120),
+            title: String(pl.policy_title || "a staff policy").slice(0, 200),
+            v: pl.version_no ? ` v${pl.version_no}` : "",
+            slug: pl.policy_slug,
+          };
+        });
+        const one = items.length === 1 ? items[0] : null;
+        const slugs = [...new Set(items.map((i) => String(i.slug || "")))];
+        email = staffEmail({
+          subject: one ? `Countersign: ${one.who}, ${one.title}` : `${items.length} handbook signatures to countersign`,
+          preheader: one ? `${one.who} signed ${one.title}${one.v}` : items.map((i) => `${i.who}: ${i.title}`).join(", ").slice(0, 140),
+          lines: [
+            one
+              ? `${esc(one.who)} signed <b>${esc(one.title)}</b>${esc(one.v)}. It's ready for your countersignature.`
+              : "These staff policy signatures are ready for your countersignature:",
+            ...(one ? [] : [L.bullets(items.map((i) => `${esc(i.who)}: <b>${esc(i.title)}</b>${esc(i.v)}`))]),
+            "Countersign in the portal under Team › Handbook. The signed copy is filed once you do.",
+          ],
+          textLines: [
+            one
+              ? `${one.who} signed ${one.title}${one.v}. It's ready for your countersignature.`
+              : "These staff policy signatures are ready for your countersignature:",
+            ...(one ? [] : items.map((i) => `- ${i.who}: ${i.title}${i.v}`)),
+            "Countersign in the portal under Team › Handbook. The signed copy is filed once you do.",
+          ],
+          cta: "Open the Handbook",
+          href: handbookLink(slugs.length === 1 ? slugs[0] : null),
         });
       } else {
         // staff_feedback_status: the latest change per feedback item wins.

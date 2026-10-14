@@ -26,14 +26,15 @@ const LK_REARM_MAX_MS = 600000; // sign-in round trip: an arrival up to 10 min o
 const LK_UNCLAIMED_MS = 6000; // after the destination mounts, with no claimer
 const LK_KINDS = [
   "msg", "docreq", "file", "question", "txn", "rownote", "task", "deadline",
-  "step", "sent", "sop", "note", "setup", "at", "dupbills", "view",
+  "step", "sent", "sop", "note", "setup", "at", "dupbills", "handbook", "view",
 ];
 // Kinds a client portal user may claim (RLS limits them to their own rows).
 const LK_CLIENT_KINDS = ["docreq", "file", "view"];
 // Non-client places that claim something in this build. Anything else on a
 // non-client place is ignored with no toast (TABS-SPEC 1.2).
 // tasks: the Tasks module (TK_DrawerHost, or TK_App while the schema is missing).
-const LK_PLACE_CLAIMS = { "work/tasks": 1, "work/deadlines": 1, "team/hours": 1, inbox: 1, tasks: 1 };
+// team/handbook: handbook:<policy slug> (HB_HandbookTab.jsx).
+const LK_PLACE_CLAIMS = { "work/tasks": 1, "work/deadlines": 1, "team/hours": 1, "team/handbook": 1, inbox: 1, tasks: 1 };
 
 const LK_COPY = {
   msgDeleted: "That message was deleted.",
@@ -57,6 +58,7 @@ const LK_COPY = {
   sopMissing: "That SOP section isn't there anymore.",
   noteMissing: "That note was removed.",
   clientMissing: "That client isn't on this list.",
+  policyMissing: "That policy isn't in the handbook anymore.",
   unclaimed: "We couldn't find that item. It may have been moved or removed.",
 };
 
