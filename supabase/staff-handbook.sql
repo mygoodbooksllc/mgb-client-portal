@@ -2,6 +2,10 @@
 -- 2026-10-13; spec docs/staff-handbook-spec.md Parts B, C, F and G.
 -- Safe to re-run. Flat file; every function pins search_path = public.
 --
+-- Later changes: supabase/staff-handbook-2-admin.sql redefines hb_publish_version
+-- (refuses identical text) and hb_status (adds `unfiled` for admins). If you
+-- re-run this file, run that one right after it.
+--
 -- Depends on (checked against the live database 2026-10-13):
 --   * public.staff (id, email unique + lower-case @mygoodbooks.org, name,
 --     role in ('bookkeeper', 'admin'), active, created_at)

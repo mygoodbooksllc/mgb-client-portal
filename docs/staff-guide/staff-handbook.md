@@ -2,7 +2,7 @@
 title: How do I sign the Staff Handbook?
 section: Daily work
 audience: staff
-keywords: [handbook, staff handbook, policy, policies, sign, signature, sign policy, countersign, countersigner, account manager, re-sign, resign, needs re-signing, overdue, flexible work, scheduling, sla, effective date, signed copy, pdf, download, version, version history, minor edit, staff reviews drive]
+keywords: [handbook, staff handbook, policy, policies, sign, signature, sign policy, countersign, countersigner, account manager, re-sign, resign, needs re-signing, overdue, flexible work, scheduling, sla, effective date, signed copy, pdf, download, version, version history, minor edit, staff reviews drive, publish, new version, publish new version, status grid, signatures by bookkeeper, not filed, retry filing, change note]
 sort: 146
 ---
 The firm's staff policies live on the **Handbook** tab of **Team** (`#/team/handbook`). Anyone on the team can read them. Bookkeepers sign each one in the portal, and the Account Manager countersigns. The number on the tab shows what's waiting on you.
@@ -41,10 +41,10 @@ To get your copy, open the policy and click **Download signed copy** under **My 
 
 ### When a policy changes
 
-A new version of a policy is one of two kinds (admins publish it; the publish screen comes in a later update):
+A new version of a policy is one of two kinds (an admin picks one when publishing):
 
 - **Needs re-signing**: every bookkeeper gets a **Sign** row on **Today**, a number on the Handbook tab and one email. You have 7 days to sign the new version. After that, the row says **Overdue**. Nothing is locked; it just stays on your list until you sign.
-- **Minor edit** (a typo or formatting): nobody re-signs. Your signature stays tied to the version you signed.
+- **Minor edit** (a typo or formatting): nobody re-signs. Your signature stays tied to the version you signed, and you aren't asked to sign the edit.
 
 Your older signed copies are kept. **Version history**, at the bottom of each policy, lists every version with its date, its kind and **Signed by you** on the ones you signed. Click **View** to read an older version.
 
@@ -55,14 +55,28 @@ Your older signed copies are kept. **Version history**, at the bottom of each po
 ### For admins
 
 - The top of the Handbook tab shows who countersigns, or **No active countersigner set**. While nobody is set, signatures wait for a countersigner. **Change** (or **Set countersigner**) picks an active staff member. Open countersign items move to the new person.
-- Each policy lists every bookkeeper's state (Signed, Awaiting countersign, Not signed, Needs re-sign or Overdue). Click **Download** for anyone's signed copy.
-- Every sign, countersign, countersigner change and download is in the [Audit log](#/help/audit-log) under **Staff Handbook**.
-- Publishing a new version, the full status grid and retrying a failed Drive filing come in a later update.
+- **Signatures by bookkeeper**, at the bottom of the Handbook tab, is a grid with policies down the side and active bookkeepers across the top. Each cell shows **Signed**, **Awaiting countersign**, **Needs re-sign**, **Overdue** or **Not signed**, with the date (countersigned, signed, or due). On a phone, swipe the grid sideways. Click a policy name to open it.
+- Each policy also lists every bookkeeper's state. Click **Download** for anyone's signed copy.
+- **Not filed to Drive yet** appears when a countersigned copy hasn't reached the Staff Reviews drive. It usually files within a minute. **Retry filing** unlocks 2 minutes after the countersignature; click it to try again. If it stays, check Google Drive in Dev Tools.
+- Every sign, countersign, publish, countersigner change and download is in the [Audit log](#/help/audit-log) under **Staff Handbook**.
+
+### Publish a new version (admins)
+
+1. Open the policy on its current version and click **Publish new version**.
+2. Edit the text on the left. It's Markdown, and the preview on the right shows it the way staff will see it. Keep `{{effective_date}}` and `{{employee_name}}` where the signing date and the signer's name go.
+3. Write a one-line **Change note**. Everyone sees it in **Version history**.
+4. Choose **Needs re-signing** (every bookkeeper gets one email, a Today row and a badge, and has 7 days) or **Minor edit** (nobody is emailed or asked to re-sign).
+5. Click **Publish version N**, read the confirmation, and click **Yes, publish**.
+
+Published versions can't be edited or deleted, so check the preview first. The portal won't publish text that's identical to the current version. The first version of a new policy always needs signing.
+
+If you leave the editor before publishing, your unsaved text comes back the next time you open it in the same browser tab. If another admin publishes while you're editing, the portal stops you from publishing over their version: copy what you want to keep, click **Cancel** and start again. A bookkeeper who joins after a version is published gets 7 days from the day they joined.
 
 ### Troubleshooting
 
 - **"Type your full name exactly as it appears on your staff profile."** Your typed name has to match your name on the staff list (**Team › Members**). Capitals and extra spaces don't matter. Ask an admin if it looks wrong.
 - **"A newer version of this policy has been published."** Reload and sign the latest version.
+- **"You have already signed this policy."** Only minor edits came after the version you signed, so there's nothing to sign.
 - **"Check the box to agree before signing."** Tick the agreement, then sign.
 - **The sign panel stays locked.** Scroll all the way to the end of the policy text.
 - **"The signed copy is still being filed."** The PDF is saved right after the countersignature. Try again in a minute.

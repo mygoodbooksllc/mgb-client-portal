@@ -82,7 +82,7 @@ because some work happens in Claude Code web sessions. Run `git fetch` and compa
 | `components/pro/` | Pro budget and report tools: `ProBudget.jsx` (Budget vs. Actual tabs, next year's draft with approval) and `ProReports.jsx` (board reports suite and the public share page), each with its own CSS. Loaded before `app.jsx`; `app.jsx` falls back to the old pages if either is missing. |
 | `components/inbox/` | `StaffInbox.jsx` (the unified staff inbox, the staff chat drawer and launcher, and `SI_useClientMessaging` for the client Messages page) and `staff-inbox.css`. Loaded before `app.jsx`; every name is `SI_`/`si`/`StaffInbox` prefixed. Without it, `app.jsx` falls back to the old Team Chat page and sample client threads. |
 | `components/staff/` | Staff-only features, each with its own CSS and a name prefix (`CS_` client switcher, `HLP_` Help, `TB_` top bar, ...). `TopBar.jsx` + `top-bar.css` is the staff top bar (see "Staff top bar" under Main features). All loaded before `app.jsx`. |
-| `components/handbook/` | The Staff Handbook (2026-10-13; spec `docs/staff-handbook-spec.md`), Team › Handbook. Every name is `HB_`/`hb-` prefixed. `HB_api.js` (RPC wrappers, the PDF download, the shared `hb_status` store), `HB_PolicyView.jsx` (one policy, sign and countersign), `HB_HandbookTab.jsx` (the tab, its routes and the deep-link claim), `hb.css`. Loaded after `TeamReviewsAdmin.jsx` and before `app.jsx`. |
+| `components/handbook/` | The Staff Handbook (2026-10-13; spec `docs/staff-handbook-spec.md`), Team › Handbook. Every name is `HB_`/`hb-` prefixed. `HB_api.js` (RPC wrappers, the PDF download, the shared `hb_status` store), `HB_PolicyView.jsx` (one policy, sign and countersign), `HB_HandbookTab.jsx` (the tab, its routes and the deep-link claim), `HB_Admin.jsx` (admin status grid, not-filed list with Retry filing, publish editor), `hb.css`. Loaded after `TeamReviewsAdmin.jsx` and before `app.jsx`. |
 | `components/files/` | `DriveFiles.js`: browser helpers for client files in Google Drive (`DRV_` prefix), calling the `drive-files` edge function. Holds the one fallback switch `DRV_STORAGE_FALLBACK`. Loaded before `StaffInbox.jsx` and `app.jsx`. |
 | `components/tasks/` | The Tasks module (2026-10-11; spec `docs/tasks-phase1-spec.md`). Every name is `TK_`/`tk-` prefixed. Logic with node tests: `TK_logic.js` (statuses, grouping, the quick-add parser, keys), `TK_viewLogic.js`, `TK_drawerLogic.js`, `TK_clientLogic.js` (the client strip and panel rules), `TK_store.js`. Data: `TK_api.js` (Supabase calls), `TK_sync.js` (Realtime plus a `BroadcastChannel` between windows). Views: `TK_App.jsx` (the `#/tasks/...` page and the `/tasks` shell), `TK_Sidebar.jsx`, `TK_MyTasks.jsx`, `TK_List.jsx`, `TK_ClientHeader.jsx`, `TK_ClientDrawer.jsx` (the client task strip and panel, and Follow my client), `TK_TaskRow.jsx`, `TK_StandaloneBar.jsx`, `TK_keys.jsx`. Task details: `TK_Drawer.jsx`, `TK_QuickAdd.jsx`, `TK_Comments.jsx`, `TK_Attachments.jsx`, `TK_Activity.jsx`. Styles: `tk-views.css`, `tk-drawer.css`, `tk-client.css`. Loaded after `components/client/QboGiving.jsx` and before `components/tour/Tour.jsx`. |
 | `components/qbo/` | `mapQboToClient.js` converts QuickBooks table rows into the shape the pages use. Its test is `mapQboToClient.test.js`. |
@@ -940,9 +940,15 @@ the countersigner is one setting (`handbook_settings`, set by an admin with `hb_
   `Handbook / <Policy>`. `download_handbook_pdf` streams it to the signer, its countersigner or an admin.
 - **Email:** `notification-emails` kinds `handbook_sign_needed` and `handbook_countersign_needed`
   (link only), preference `notify.email.handbook` (on by default).
-- **Not built yet:** the publish-version editor, the admin status grid, re-sign reminder emails and
-  the retry-export button. `hb_status()` already returns `grid`, `bookkeepers` and `unfiled_count`
-  for admins.
+- **Admin tools (2026-10-14, `HB_Admin.jsx`, `supabase/staff-handbook-2-admin.sql`, run after
+  `staff-handbook.sql`):** **Publish new version** in the policy view (latest version only):
+  markdown textarea, live `HLP_Markdown` preview, change note, Needs re-signing / Minor edit, then
+  a confirm step; calls `hb_publish_version`, which now refuses text identical to the current
+  version (no duplicate versions or emails from a double click). **Signatures by bookkeeper**
+  grid (policies x active bookkeepers, from `hb_status().grid`). **Not filed to Drive yet** list
+  (`hb_status().unfiled`, admins) with **Retry filing** (`hb_retry_export`). Re-sign nudges are
+  the shipped ones: one `handbook_sign_needed` email per active bookkeeper on publish, the Today
+  row, the tab badge, Overdue after 7 days. No reminder cron (spec Part F).
 
 ### Staff ops features (added 2026-10-07)
 

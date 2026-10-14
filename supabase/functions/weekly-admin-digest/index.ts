@@ -153,6 +153,9 @@ const FEATURE_LABEL: Record<string, string> = {
   staff_feedback_status: "Staff: feedback updates",
   client_message: "Client: new message",
   client_reports_ready: "Client: reports ready",
+  staff_tech_request: "Staff: Inventory requests",
+  handbook_sign_needed: "Staff: handbook policy to sign",
+  handbook_countersign_needed: "Staff: handbook countersign",
   weekly_admin_digest: "Weekly admin digest",
 };
 function fmtNum(n: unknown): string {

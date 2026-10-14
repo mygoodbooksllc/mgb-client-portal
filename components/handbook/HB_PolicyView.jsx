@@ -10,6 +10,8 @@
 //   - Countersign cards for the countersigner (from hb_status to_countersign).
 //   - For admins: each bookkeeper's state on this policy, with Download.
 //   - Version history (HB_VersionHistory, HB_HandbookTab.jsx).
+//   - For admins on the latest version: "Publish new version", which swaps
+//     the text for HB_PublishEditor (HB_Admin.jsx).
 // Admins who aren't bookkeepers never see a sign prompt.
 // The server decides everything; its error message is shown as is.
 
@@ -230,6 +232,7 @@ function HB_useSeen(ref, resetKey) {
 function HB_PolicyView({ slug, versionNo, status, onBack }) {
   const [st, setSt] = React.useState({ loading: true, data: null, error: "" });
   const [tick, setTick] = React.useState(0);
+  const [editing, setEditing] = React.useState(false);
   const endRef = React.useRef(null);
 
   React.useEffect(() => {
@@ -242,6 +245,9 @@ function HB_PolicyView({ slug, versionNo, status, onBack }) {
       live = false;
     };
   }, [slug, versionNo, tick]);
+
+  // Leaving the policy (or opening another version) closes the editor.
+  React.useEffect(() => setEditing(false), [slug, versionNo]);
 
   // Reload after a sign or countersign anywhere.
   React.useEffect(() => {
@@ -287,8 +293,13 @@ function HB_PolicyView({ slug, versionNo, status, onBack }) {
   const fill = sigHere ? { date: HB_fmtDate(sigHere.signed_at), name: me.name || "" } : null;
   const body = v ? HB_fillPlaceholders(v.body_md, fill) : "";
   const pill = HB_statePill(me.status);
-  const canSign = !!(me.is_signer && v && v.is_latest && !sigHere);
+  // Sign only when the server says this person still owes a signature. After
+  // a minor edit, someone who signed the version that needs signing stays
+  // Signed and isn't asked again (hb_sign refuses it too).
+  const owes = !me.status || me.status.state === "not_signed" || me.status.state === "overdue";
+  const canSign = !!(me.is_signer && v && v.is_latest && !sigHere && owes);
   const queue = ((status && status.to_countersign) || []).filter((q) => q.policy_slug === p.slug);
+  const canPublish = !!(me.is_admin && p.active !== false && (!v || v.is_latest) && typeof HB_PublishEditor === "function");
   const gridRows = me.is_admin && status && status.grid ? status.grid.filter((g) => g.policy_slug === p.slug) : [];
 
   return (
@@ -297,7 +308,14 @@ function HB_PolicyView({ slug, versionNo, status, onBack }) {
       <div className="card hb-head">
         <div className="hb-row-head">
           <h2 className="hb-title">{p.title}</h2>
-          {pill && <HB_Pill tone={pill[1]}>{pill[0]}</HB_Pill>}
+          <span className="hb-list-side">
+            {pill && <HB_Pill tone={pill[1]}>{pill[0]}</HB_Pill>}
+            {canPublish && !editing && (
+              <button type="button" className="btn-secondary" onClick={() => setEditing(true)}>
+                Publish new version
+              </button>
+            )}
+          </span>
         </div>
         {v && (
           <p className="hb-muted">
@@ -320,7 +338,18 @@ function HB_PolicyView({ slug, versionNo, status, onBack }) {
         )}
       </div>
 
-      {v ? (
+      {editing && canPublish ? (
+        <HB_PublishEditor
+          policy={p}
+          version={v}
+          bookkeeperCount={((status && status.bookkeepers) || []).length}
+          onCancel={() => setEditing(false)}
+          onDone={() => {
+            setEditing(false);
+            setTick((n) => n + 1);
+          }}
+        />
+      ) : v ? (
         <article ref={docRef} className="card hb-doc" aria-label={p.title}>
           <HLP_Markdown source={body} />
           <div ref={endRef} className="hb-end" aria-hidden="true" />
@@ -329,7 +358,7 @@ function HB_PolicyView({ slug, versionNo, status, onBack }) {
         <p className="hb-muted">This policy has no published text yet.</p>
       )}
 
-      {canSign && <HB_SignPanel version={v} unlocked={seen} onSigned={() => setTick((n) => n + 1)} />}
+      {canSign && !editing && <HB_SignPanel version={v} unlocked={seen} onSigned={() => setTick((n) => n + 1)} />}
 
       {me.is_signer && mySigs.length > 0 && (
         <section className="card hb-mine">

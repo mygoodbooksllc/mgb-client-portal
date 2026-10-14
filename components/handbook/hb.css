@@ -251,6 +251,110 @@
   max-width: 100%;
 }
 
+/* Admin: status grid (HB_StatusGrid). The table scrolls inside its card, so
+   the page never scrolls sideways on a phone. */
+.hb-gc-wrap {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  margin-top: 8px;
+  max-width: 100%;
+}
+.hb-gc-wrap:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 2px;
+}
+.hb-gc-table {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: 13px;
+}
+.hb-gc-table th,
+.hb-gc-table td {
+  text-align: left;
+  vertical-align: top;
+  padding: 8px 10px;
+  border-top: 1px solid var(--border);
+}
+.hb-gc-table thead th {
+  border-top: 0;
+  color: var(--text-muted);
+  font-weight: 600;
+  white-space: nowrap;
+}
+.hb-gc-table tbody th {
+  min-width: 180px;
+  font-weight: 600;
+  color: var(--ink-strong);
+}
+.hb-gc-policy {
+  text-align: left;
+  font-weight: 600;
+  padding: 0;
+}
+.hb-gc {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 3px;
+  min-width: 120px;
+}
+.hb-gc-date {
+  display: block;
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--text-muted);
+}
+
+/* Admin: publish editor (HB_PublishEditor). */
+.hb-pub-cols {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 16px;
+  margin: 8px 0 4px;
+}
+.hb-pub-col {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.hb-pub-text {
+  max-width: none;
+  width: 100%;
+  min-height: 420px;
+  resize: vertical;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 13px;
+  line-height: 1.5;
+  box-sizing: border-box;
+}
+.hb-pub-preview {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px 14px;
+  background: var(--surface);
+  max-height: 520px;
+  overflow: auto;
+  min-height: 420px;
+  box-sizing: border-box;
+}
+.hb-pub-kind {
+  border: 0;
+  padding: 0;
+  margin: 12px 0 0;
+}
+.hb-pub-kind .hb-check {
+  margin-top: 6px;
+}
+.hb-pub-confirm {
+  margin-top: 12px;
+}
+.hb-pub-confirm p {
+  margin: 0 0 8px;
+}
+.hb-unfiled .btn-secondary {
+  flex-shrink: 0;
+}
+
 @media (max-width: 640px) {
   .hb-title {
     font-size: 18px;
@@ -263,5 +367,21 @@
   }
   .hb-cs-pick .hb-sel {
     flex: 1 1 100%;
+  }
+  .hb-pub-cols {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .hb-pub-text,
+  .hb-pub-preview {
+    min-height: 260px;
+  }
+  .hb-gc-table {
+    font-size: 12px;
+  }
+  .hb-gc-table tbody th {
+    min-width: 140px;
+  }
+  .hb-unfiled .hb-list-row {
+    flex-wrap: wrap;
   }
 }

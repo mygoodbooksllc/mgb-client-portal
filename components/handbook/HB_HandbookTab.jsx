@@ -10,10 +10,9 @@
 // that policy; this tab claims it with LK_useArrival.
 //
 // List view: the countersigner line (admins), the countersign queue (the
-// countersigner), and each policy with my status (bookkeepers).
-// Not built yet (spec Part E, later): the publish-version editor, the admin
-// status grid, re-sign nudges and retry export. Hooks for them: HB_statusStore
-// (status incl. grid / unfiled_count for admins) and HB_api.
+// countersigner), each policy with my status (bookkeepers), then for admins
+// the status grid and the not-filed list (HB_Admin.jsx). The publish editor
+// lives in the policy view (HB_PolicyView, admins, latest version).
 
 function HB_parseRoute() {
   const h = String(window.location.hash || "").split("?")[0];
@@ -277,6 +276,9 @@ function HB_HandbookTab({ staffUser, isAdmin }) {
           <p className="hb-muted">No policies yet.</p>
         )}
       </section>
+
+      {me.is_admin && typeof HB_UnfiledCard === "function" && <HB_UnfiledCard status={data} />}
+      {me.is_admin && typeof HB_StatusGrid === "function" && <HB_StatusGrid status={data} />}
     </div>
   );
 }

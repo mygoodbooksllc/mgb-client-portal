@@ -2,10 +2,17 @@
 title: What's new
 section: Getting started
 audience: staff
-keywords: [message names, message sender, fake name, month end balance sheet, balance sheet from quickbooks, change my name, rename, name, install, get the app, desktop app, install tip, app, staff handbook, handbook, sign policy, countersign, policies, review quarter, previous quarter, survey drafts, finish survey later, admins follow reviews, in progress view, no clients yet, tasks, my tasks, task details, quick add, q, projects, sops project, 90 day, open to all staff, own window, dock in portal, notes and sops, mentions, task status, ready for review, restore task, tasks tour, board packet, presentation view, report builder, client help menu, question mark menu, tips, tips while you learn, hints, first 30 days, learning, pro tour, upsell, upgrade, basic clients, bookkeeper tour, temporary admin tour, client tour, tour versions, admin tour, account manager tour, inventory, tech, equipment, what's new, whats new, new, changes, updates, release notes, changelog, navigation, redesign, five places, client setup, close tab, client close, last tab, client view, bank on basic, open for this client, deep links, balance sheet, reports sent, tab row fade, client task panel, up next, t, for this page, follow my client]
+keywords: [publish policy version, publish new version, handbook grid, signatures by bookkeeper, retry filing, message names, message sender, fake name, month end balance sheet, balance sheet from quickbooks, change my name, rename, name, install, get the app, desktop app, install tip, app, staff handbook, handbook, sign policy, countersign, policies, review quarter, previous quarter, survey drafts, finish survey later, admins follow reviews, in progress view, no clients yet, tasks, my tasks, task details, quick add, q, projects, sops project, 90 day, open to all staff, own window, dock in portal, notes and sops, mentions, task status, ready for review, restore task, tasks tour, board packet, presentation view, report builder, client help menu, question mark menu, tips, tips while you learn, hints, first 30 days, learning, pro tour, upsell, upgrade, basic clients, bookkeeper tour, temporary admin tour, client tour, tour versions, admin tour, account manager tour, inventory, tech, equipment, what's new, whats new, new, changes, updates, release notes, changelog, navigation, redesign, five places, client setup, close tab, client close, last tab, client view, bank on basic, open for this client, deep links, balance sheet, reports sent, tab row fade, client task panel, up next, t, for this page, follow my client]
 sort: 15
 ---
 The newest changes to the staff side, newest first. For how anything works, search this guide or click **?** → **Help for this page**.
+
+### 2026-10-14: Staff Handbook admin tools
+
+- **Publish a new policy version (admins).** Open a policy and click **Publish new version**. Edit the text with a live preview, add a change note, and choose **Needs re-signing** (each bookkeeper gets one email, a Today row and 7 days to sign) or **Minor edit** (nobody is emailed). See [How do I sign the Staff Handbook?](#/help/staff-handbook).
+- **Signatures by bookkeeper (admins).** The Handbook tab now ends with a grid: policies down the side, bookkeepers across the top, and each person's state with its date, including **Overdue**.
+- **Retry filing (admins).** If a countersigned copy doesn't reach the Staff Reviews drive, it shows under **Not filed to Drive yet** with a **Retry filing** button.
+- **No double signing after a minor edit.** If you already signed, a later minor edit doesn't ask you to sign again.
 
 ### 2026-10-14: Message names are checked
 

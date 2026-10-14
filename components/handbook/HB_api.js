@@ -10,6 +10,8 @@
 //   HB_api.sign(versionId, typedName, ack)  hb_sign()
 //   HB_api.countersign(sigId, name, ack)    hb_countersign()
 //   HB_api.setCountersigner(email)          hb_set_countersigner() (admins)
+//   HB_api.publish(policyId, body, resign, note)  hb_publish_version() (admins)
+//   HB_api.retryExport(sigId)               hb_retry_export() (admins)
 //   HB_downloadPdf(signatureId, filename)   team-reviews download_handbook_pdf
 //
 // HB_useStatus() is one shared hb_status() request for the tab, the Team tab
@@ -56,6 +58,17 @@ const HB_api = {
   },
   setCountersigner(email) {
     return HB_api.rpc("hb_set_countersigner", { p_email: email || null });
+  },
+  publish(policyId, bodyMd, requiresResign, changeNote) {
+    return HB_api.rpc("hb_publish_version", {
+      p_policy_id: policyId,
+      p_body_md: bodyMd,
+      p_requires_resign: !!requiresResign,
+      p_change_note: changeNote || null,
+    });
+  },
+  retryExport(signatureId) {
+    return HB_api.rpc("hb_retry_export", { p_signature_id: signatureId });
   },
   // The team-reviews edge function (PDF download). Same call shape as TR_api.call.
   async call(body, wantBlob) {
