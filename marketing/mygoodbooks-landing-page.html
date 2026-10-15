@@ -306,7 +306,7 @@ appifact-capabilities meta records the declaration the page was built for).
      is `border-style: none`, so a bare `border` class would paint nothing.
      Tailwind preflight normally supplies this reset, but preflight is off
      here (this file owns the reset). Every component sets its own border
-     colour via `border-om-*`, so no default colour is needed. */
+     color via `border-om-*`, so no default color is needed. */
   border-width: 0;
   border-style: solid;
 }
@@ -3866,7 +3866,7 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
   // directly; see its doc comment for the promotion and sizing rules).
   var selR=null;
   // Whole-artboard capture: the declared frame \u2014 padded with the page
-  // background colour when the content is shorter, today's length past it.
+  // background color when the content is shorter, today's length past it.
   var frame=__FRAME__;
   // Paginated frame capture ({h,max}): page-height windows over ONE clone,
   // a raster each at a scale set by the page \u2014 the reply carries pg/pt.
@@ -3914,7 +3914,7 @@ function(a,b,c){if(!Vd(b))throw Error(m(200));return Wd(null,a,b,!1,c)};Q.unmoun
     scale=Math.min(__SCALE__||(__MAX__?Math.min(1,__MAX__/Math.max(w,ph)):2),${P5}/Math.max(w,ph),Math.sqrt(${A5}/(w*ph)));
     // JPEG backdrop: first non-transparent ancestor background. PNG keeps
     // alpha (the fill below is skipped). A frame capture pads with the
-    // page background colour instead (root-bg propagation: html, body,
+    // page background color instead (root-bg propagation: html, body,
     // white) and fills for PNG too.
     if(frame){
       var hb=getComputedStyle(document.documentElement).backgroundColor;
@@ -5138,8 +5138,8 @@ startxref
     }
     return out;
   }
-  // A CSS colour in any space \u2192 'rgb(r, g, b)' / 'rgba(r, g, b, a)' by
-  // rasterizing one canvas pixel; legacy rgb(), non-colours and anything
+  // A CSS color in any space \u2192 'rgb(r, g, b)' / 'rgba(r, g, b, a)' by
+  // rasterizing one canvas pixel; legacy rgb(), non-colors and anything
   // the canvas can't parse pass through unchanged.
   var srgbCtx = null;
   function toSrgb(v){
@@ -10760,7 +10760,7 @@ startxref
         var p = props[i];
         // Custom properties aren't reachable by index \u2014 getPropertyValue only.
         out[p] = p.indexOf('--') === 0 ? cs.getPropertyValue(p) : cs[p];
-        // srgb: colour values in other spaces (oklch, lab, color()) come
+        // srgb: color values in other spaces (oklch, lab, color()) come
         // back as sRGB rgb()/rgba() \u2014 rasterized through a 1x1 canvas.
         if (srgb && /color|fill|stroke/i.test(p)) out[p] = toSrgb(out[p]);
       }

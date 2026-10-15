@@ -75,7 +75,7 @@ const TONE_COLOR: Record<Tone, string> = {
   good: T.good,
 };
 
-/** Wrap already-escaped HTML in a coloured span (dark mode follows). */
+/** Wrap already-escaped HTML in a colored span (dark mode follows). */
 export function tone(html: string, t: Tone): string {
   return `<span class="mgb-${t}" style="color:${TONE_COLOR[t]};">${html}</span>`;
 }

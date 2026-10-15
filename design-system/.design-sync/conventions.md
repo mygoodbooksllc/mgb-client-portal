@@ -51,7 +51,7 @@ another font or a second font `<link>`.
 **Where the truth lives**: `styles.css` (imports `_ds_bundle.css`, the real
 compiled component CSS), each component's own `.d.ts` for its prop contract,
 and `guidelines/guides/brand-guide.md` for the brand rules (warm not
-corporate, calm about money, colour never the only signal, label sample data
+corporate, calm about money, color never the only signal, label sample data
 with `MockBanner`, pill radius on every control, `--ink-strong` for headings,
 never `--navy`). Read those before styling — this summary is not exhaustive.
 

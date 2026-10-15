@@ -59,7 +59,7 @@ const TD_CARDS = [
   { key: "recent", label: "Recently viewed" },
 ];
 const TD_CARD_DEFAULTS = { reminders: true, milestones: true, recent: true };
-// The word shown beside each row's icon. Colour never carries the meaning
+// The word shown beside each row's icon. Color never carries the meaning
 // on its own: the band heading and this label say it in words.
 const TD_KIND_LABEL = {
   access: "Access",

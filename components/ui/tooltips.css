@@ -30,7 +30,7 @@
   transform: none;
   transition: opacity 0.12s ease, transform 0.12s ease;
 }
-/* Dark mode: navy-deep sits close to the page colour, so add an edge. */
+/* Dark mode: navy-deep sits close to the page color, so add an edge. */
 :root[data-theme="dark"] .mgb-tip {
   border: 1px solid rgba(255, 255, 255, 0.12);
 }

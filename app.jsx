@@ -8575,7 +8575,7 @@ function DashboardPage({
       sub: "of expenses covered by cash",
       // Absence of data must never render as a positive financial signal.
       // This previously filled the ring to 100%, labelled it "Healthy" and
-      // coloured it green whenever runwayMonths was null — i.e. a client with
+      // colored it green whenever runwayMonths was null — i.e. a client with
       // no expense data at all was shown a full green reserve ring next to an
       // em-dash. For a bookkeeping product that is the worst possible
       // direction to fail in, so no data now reads explicitly as no data.
@@ -12178,7 +12178,7 @@ const ENTERPRISE_FEATURES = [
     title: "Board Packet",
     sidebarTab: "Reports",
     description:
-      "A board packet in one PDF (cover, contents, your logo and colours) from saved templates, with comparisons to budget and last year, a Statement of Functional Expenses, giving reports, a plain-language monthly summary, read-only links for your board, and a full-screen presentation view for the meeting.",
+      "A board packet in one PDF (cover, contents, your logo and colors) from saved templates, with comparisons to budget and last year, a Statement of Functional Expenses, giving reports, a plain-language monthly summary, read-only links for your board, and a full-screen presentation view for the meeting.",
   },
   {
     icon: <CalculatorIcon />,
@@ -12294,7 +12294,7 @@ const ENTERPRISE_COMPARISON = [
       "Giving reports: top and lapsed donors, giving by fund, pledge progress",
       "A plain-language \"what happened this month\" summary, drafted for you to edit",
       "Read-only share links for your board that expire, no login needed",
-      "Your church's logo and colours on every packet",
+      "Your church's logo and colors on every packet",
     ],
   },
   {
@@ -25529,8 +25529,8 @@ function loadTheme() {
 // This replaced a sunrise/sunset calculation driven by navigator.geolocation.
 // That version worked, but it put a browser "allow location access?" prompt in
 // front of a bookkeeping portal on first load, and the only thing it bought was
-// a colour scheme. Asking a client for their physical location to guess a
-// background colour is a bad trade at any accuracy — and prefers-color-scheme
+// a color scheme. Asking a client for their physical location to guess a
+// background color is a bad trade at any accuracy — and prefers-color-scheme
 // is strictly better information anyway, since it reports the preference the
 // person actually set rather than inferring one from the sun. It also costs no
 // permission, no cache, and no sunrise equation.
@@ -29276,7 +29276,7 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
           )}
           {/* 2026-10-08: one top bar. The page header and the current page's
               tab row share a single surface (styles.css .app-topbar): white
-              over the cream page in light, the sidebar colour in dark so rail,
+              over the cream page in light, the sidebar color in dark so rail,
               tool bar and header read as one frame. NAV_TabRow
               (components/staff/StaffNav.jsx) portals a page's tabs into
               #app-topbar-tabs below. */}

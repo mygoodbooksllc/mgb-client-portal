@@ -5,7 +5,7 @@
    styles.css; reuses .card, .task-chip, .bar-track, .btn-* and ModalShell.
    --------------------------------------------------------------------------- */
 
-/* Status colours shared by grid pills, summary tiles and the editor. */
+/* Status colors shared by grid pills, summary tiles and the editor. */
 .ct-s-not_started { --ct-fg: var(--text-muted); --ct-bg: var(--surface-2); }
 .ct-s-in_progress { --ct-fg: var(--warm-text); --ct-bg: var(--warm-bg); }
 .ct-s-review { --ct-fg: var(--ink-strong); --ct-bg: var(--accent-soft); }

@@ -6,7 +6,7 @@
    Option B: navy bar, joined to the sidebar.
    The bar reads --sidebar-bg so it forms one dark frame with the left
    sidebar; controls sit on translucent-white chips, text uses the sidebar
-   text colours, accents are gold, badge counts stay red. Dropdown panels
+   text colors, accents are gold, badge counts stay red. Dropdown panels
    (client list, search results, bell, + menu, avatar menu) stay light
    surface panels with normal text. Everything above/below reads these
    --tb-* tokens, so to revert: point them back at the surface tokens

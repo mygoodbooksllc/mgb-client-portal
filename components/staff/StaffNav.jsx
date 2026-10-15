@@ -192,7 +192,7 @@ function NAV_useHashSub(slug, keys, fallback) {
 //
 // Badges (a client's tab row): `badge` truthy shows a pill; a number over 9
 // reads "9+". `badgeDot: true` draws a dot instead, `badgeTone` "bad" | "warn"
-// colours it, and `badgeLabel` is screen-reader text that becomes part of the
+// colors it, and `badgeLabel` is screen-reader text that becomes part of the
 // tab's name ("Messages, 2 replies waiting"). Falsy `badge` renders nothing.
 // `after` renders between the tablist and `right`, outside role="tablist"
 // (the client row's Client view menu).

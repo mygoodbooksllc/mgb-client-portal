@@ -114,7 +114,7 @@ function plural(n: number, one: string, many = `${one}s`): string {
 // layout + inline styles for Gmail/Outlook; 600px max, fluid below that.
 // Plain-text alternative is built alongside.
 // ---------------------------------------------------------------------------
-// Colour helpers: `tone` spans pick up the design system's dark-mode values.
+// Color helpers: `tone` spans pick up the design system's dark-mode values.
 const ink = (h: string) => L.tone(h, "ink");
 const warn = (h: string) => L.tone(h, "warn");
 const bad = (h: string) => L.tone(h, "bad");

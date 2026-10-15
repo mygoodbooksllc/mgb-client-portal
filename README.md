@@ -634,7 +634,7 @@ hours, fees and revenue all use it. See "MGB (internal) and flagged clients" und
   `TB_StaffTopBar` at the top of `<main>` whenever the staff sidebar shows (`showStaffRail`), so
   clients and client-user previews never see it. Sticky; no page links. Design is "option B"
   (owner-approved 2026-09-30): navy `var(--sidebar-bg)` bar joined to the sidebar, controls on
-  translucent white chips, gold avatar and focus rings, light dropdown panels; colours are scoped
+  translucent white chips, gold avatar and focus rings, light dropdown panels; colors are scoped
   `--tb-*` variables in one commented block in `top-bar.css` (dark mode adds a hairline bottom border). Each piece is its own
   component; delete its line in `TB_StaffTopBar` to drop it:
   - **Left:** `TB_ClientPicker` (reuses `CS_ClientSwitcher`) and `TB_SyncPill` (reuses
@@ -1317,7 +1317,7 @@ Team Reviews files.
   - An editable "what happened this month" summary.
   - Read-only share links (7/30/90 days, can be turned off). They open at `/?share=<token>`
     without signing in, through `get_report_share`.
-  - The church's logo and colour on PDFs.
+  - The church's logo and color on PDFs.
 - All of these need `supabase/pro-budget-reports.sql` (applied 2026-09-27). Pro gating is in
   the app, and the tables are open to the org's client users and to staff who can access the
   client.

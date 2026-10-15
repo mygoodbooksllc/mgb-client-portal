@@ -1129,7 +1129,7 @@ function ccParse(text: string, src: any): CCParseResult {
   };
   if (source === "expenses" || source === "income") show.breakdown = show.breakdown || !has("chart", "graph", "trend");
 
-  const colour = CC_ACCENTS.find((a) => words.has(a.id)) || (has("gray", "grey") ? CC_ACCENTS.find((a) => a.id === "slate") : null);
+  const color = CC_ACCENTS.find((a) => words.has(a.id)) || (has("gray", "grey") ? CC_ACCENTS.find((a) => a.id === "slate") : null);
 
   const catType = source === "categories" && items.length ? ((cats.find((c) => c.name === items[0]) || {}).type === "income" ? "income" : "expense") : null;
   const patch: Partial<CustomCardDef> = {
@@ -1141,9 +1141,9 @@ function ccParse(text: string, src: any): CCParseResult {
     compareBudget: source !== "accounts" && source !== "funds",
     txn: { limit: has("all", "every") ? 20 : keyword || isTxnCard ? 10 : 5, direction, keyword, minAmount },
   };
-  if (colour) {
-    patch.accent = colour.id;
-    understood.push(colour.label);
+  if (color) {
+    patch.accent = color.id;
+    understood.push(color.label);
   }
   if (!period) understood.push((CC_PERIODS.find((p) => p.id === patch.period) as any).label + " (default)");
   return { patch, catType, understood, hint: null };

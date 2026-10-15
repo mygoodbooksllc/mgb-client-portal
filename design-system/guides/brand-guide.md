@@ -8,15 +8,15 @@ MyGoodBooks is bookkeeping for churches and small nonprofits. The people reading
 
 That is where the whole visual language comes from. Deep navy and warm gold on a cream ground, a serif for headings and a humanist sans for figures — the register of a well-kept ledger, not a fintech dashboard. Surfaces are flat and opaque, separated by a hairline border, over a ground ruled like ledger paper. The warmth is doing real work: it is what keeps a page of variance figures from reading as a bill.
 
-**This is the product after the calm redesign.** An earlier version of this interface floated frosted-glass cards over a mesh of slowly drifting colour blobs, lifted them on hover and swept a shimmer across them. All of that is retired. What is written below is the current system; where a retired treatment left a token or a class behind, it is marked.
+**This is the product after the calm redesign.** An earlier version of this interface floated frosted-glass cards over a mesh of slowly drifting color blobs, lifted them on hover and swept a shimmer across them. All of that is retired. What is written below is the current system; where a retired treatment left a token or a class behind, it is marked.
 
 ## Principles
 
 **Warm, not corporate.** The ground is cream, not white; the neutrals are warm-biased all the way down. If a screen starts looking grey and institutional, the warm tokens have been swapped for plain neutrals somewhere.
 
-**Calm about money.** Green and red exist, but they are muted — `#3f6b52` and `#a4442c`, not alarm colours. A budget overrun is information, not a siren. Never escalate a financial state with motion, size or saturation beyond what the pills and rings already do.
+**Calm about money.** Green and red exist, but they are muted — `#3f6b52` and `#a4442c`, not alarm colors. A budget overrun is information, not a siren. Never escalate a financial state with motion, size or saturation beyond what the pills and rings already do.
 
-**Colour is never the only signal.** Every trend carries an arrow, every ring carries a status word, every donut segment carries a legend row with its own amount. A reader who cannot tell the green from the red loses nothing.
+**Color is never the only signal.** Every trend carries an arrow, every ring carries a status word, every donut segment carries a legend row with its own amount. A reader who cannot tell the green from the red loses nothing.
 
 **Say when the number is not real.** Sample, prototype or projected figures get a MockBanner. In a product about someone's actual ledger, an unlabeled fake number is a correctness bug.
 
@@ -24,7 +24,7 @@ That is where the whole visual language comes from. Deep navy and warm gold on a
 
 ## Foundations
 
-### Colour
+### Color
 
 The palette has three layers, and mixing them up is the fastest way to break a screen.
 
@@ -32,7 +32,7 @@ The palette has three layers, and mixing them up is the fastest way to break a s
 - **Ink** — `ink-strong`, `text`, `text-muted`. `ink-strong` exists because navy plays two opposite roles: dark chrome and dark ink on a light surface. Only the ink role may flip in dark mode. **Use `ink-strong` for headings; never `navy`.**
 - **Signal** — `good`/`good-soft`, `bad`/`bad-soft`, `warm-*`, and the two chart series. Each is a soft ground plus an ink that clears 4.5:1 on it in both themes.
 
-`accent` aliases `gold` — reach for `accent` in product code so a rebrand moves one value. Gold itself is the one colour identical in both themes.
+`accent` aliases `gold` — reach for `accent` in product code so a rebrand moves one value. Gold itself is the one color identical in both themes.
 
 Dark mode is a genuine re-pitch, not an inversion: the navy shifts green (`#1f2a24`), the ground goes near-black (`#0f1512`), shadows drop their tint for long black spreads, and `chart-income` becomes a light blue because a navy series is invisible on a dark card. Two tokens change meaning rather than value — `selected-outline` rings in gold instead of near-white, and the referral panel tints *lighter* than the page instead of darker. Both are noted in their `usage`.
 
@@ -50,7 +50,7 @@ Bitter for display, IBM Plex Sans for everything else, IBM Plex Mono for tabular
 
 Spacing is a loose 4px scale; **20px is the card padding and the step you reach for by default**. Radius is effectively binary: 12px for cards and panels, `999px` for everything interactive or status-bearing. Every button, pill, badge and bar in the product is a pill — a square corner on a control is off-system.
 
-**Elevation is all but gone.** `shadow` is a hairline in light mode and `none` in dark; `shadow-hover` is identical to it and exists only so old call sites resolve. Surfaces are separated by their border, not by depth. If something is hard to pick out, fix the border — do not reintroduce a shadow. The coloured drop that used to sit under a primary button is gone too.
+**Elevation is all but gone.** `shadow` is a hairline in light mode and `none` in dark; `shadow-hover` is identical to it and exists only so old call sites resolve. Surfaces are separated by their border, not by depth. If something is hard to pick out, fix the border — do not reintroduce a shadow. The colored drop that used to sit under a primary button is gone too.
 
 ### Surfaces
 
@@ -61,7 +61,7 @@ Cards are opaque `surface` panels with a 1px `border`. Two rules:
 
 ### Motion
 
-Almost none, and that is the point. What is left: 200ms colour transitions on buttons, a 1px lift on a secondary button's hover, and a 200ms toast rise. The card hover lift, the card shimmer and the mesh drift were all removed. Figures are set in tabular numerals so a column of them does not shift as values update. Anything still animated is disabled under `prefers-reduced-motion`.
+Almost none, and that is the point. What is left: 200ms color transitions on buttons, a 1px lift on a secondary button's hover, and a 200ms toast rise. The card hover lift, the card shimmer and the mesh drift were all removed. Figures are set in tabular numerals so a column of them does not shift as values update. Anything still animated is disabled under `prefers-reduced-motion`.
 
 ### Iconography
 
@@ -69,7 +69,7 @@ Thirty-one line icons, in the **Icons** asset group. They were drawn for this pr
 
 All of them are 24x24, `fill="none"`, round caps and joins, stroke weight 1.8 (a few at 1.6 where the shape is dense). That shared weight and corner treatment is what makes them read as one family despite having been drawn one at a time. **Render at 16px**; a few dense rows use 15. Never scale one past 24 — the 1.8 stroke starts to look drawn-on.
 
-In product code each icon is inline SVG with `stroke="currentColor"`, so it takes `--text-muted` by default or the signal colour of its context. The files in the asset group are baked to `#7a7369` instead, because a shipped `.svg` renders through `<img>` where `currentColor` resolves to black and would vanish on the dark theme; that mid-tone was picked to hold up on both grounds. Inline them and give the stroke back to `currentColor`. The group's README covers this.
+In product code each icon is inline SVG with `stroke="currentColor"`, so it takes `--text-muted` by default or the signal color of its context. The files in the asset group are baked to `#7a7369` instead, because a shipped `.svg` renders through `<img>` where `currentColor` resolves to black and would vanish on the dark theme; that mid-tone was picked to hold up on both grounds. Inline them and give the stroke back to `currentColor`. The group's README covers this.
 
 An icon is never the sole carrier of a state — pair it with a word, a pill or a number.
 

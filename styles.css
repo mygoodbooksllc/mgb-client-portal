@@ -11,7 +11,7 @@
   /* Was #b3925f, which measured 2.77:1 against --bg — below the 4.5:1 WCAG AA
      floor, and this token is `color:` on ~15 rules including the org name
      (.portal-greeting) and, at the time, every premium page heading. The
-     replacement is the existing --warm-text value rather than a new colour, so
+     replacement is the existing --warm-text value rather than a new color, so
      the palette gains nothing, and it measures 4.62:1 on cream. Decorative
      uses (borders, chips, gradient stops) only get crisper. */
   --gold-deep: #8a6d34;
@@ -1439,7 +1439,7 @@ button.nav-ms-name:hover {
    personal greeting, with the tab name in a small pill underneath it —
    collapsed into one line per feedback). Bumped up from 26px so it
    reads as a real page title rather than a greeting's leftover size.
-   §162: the colour is now simply the plain ink token, for premium and
+   §162: the color is now simply the plain ink token, for premium and
    standard pages alike — the conditional gold .premium-shimmer override
    that used to sit on top of it is gone. */
 .page-title {
@@ -1499,7 +1499,7 @@ button.nav-ms-name:hover {
 /* ---- 2026-10-08: one top bar. The page header (greeting, title, subtitle,
    actions) and the current page's tab row sit on a single surface that
    spans .main's padding. Light: white over the cream page. Dark: the
-   sidebar colour, so rail + staff tool bar + header read as one frame over
+   sidebar color, so rail + staff tool bar + header read as one frame over
    the dark page. Tokens: --topbar-bg / --topbar-border. ---- */
 .app-topbar {
   margin: -32px -40px 24px;
@@ -5783,7 +5783,7 @@ body:has(.modal-overlay) .chat-fab-wrap {
 /* ---------------- Boot splash ----------------
    Sits inside #root in index.html and is replaced the moment React renders.
    Uses the theme tokens, so it matches whichever theme <head> just pinned
-   instead of flashing a different colour before the app appears. */
+   instead of flashing a different color before the app appears. */
 
 .boot-splash {
   min-height: 100vh;
@@ -5866,7 +5866,7 @@ body:has(.modal-overlay) .chat-fab-wrap {
 }
 
 /* Sign-in header: dark card with the logo tinted gold in a thin gold box,
-   and the sidebar's Lato wordmark. Fixed colours, so it looks the same in
+   and the sidebar's Lato wordmark. Fixed colors, so it looks the same in
    light and dark mode. */
 .auth-logo {
   width: 100%;
@@ -5892,7 +5892,7 @@ body:has(.modal-overlay) .chat-fab-wrap {
   border-radius: 14px;
 }
 
-/* logo.webp is navy on transparent; masking a gold fill with it recolours it. */
+/* logo.webp is navy on transparent; masking a gold fill with it recolors it. */
 .auth-logo-mark {
   width: 74px;
   height: 74px;
@@ -8458,7 +8458,7 @@ body:has(.modal-overlay) .chat-fab-wrap {
 /* Quick-action bar at the top of every client page (staff only). */
 /* Staff toolbar: ink, like the sidebar, so it reads as a staff tool and
    never as a client notice. The border keeps it visible in dark mode, where
-   the sidebar colour is close to the page. */
+   the sidebar color is close to the page. */
 .staff-quick-actions {
   display: flex;
   /* One row that scrolls sideways when narrow; wrapping turned the pill

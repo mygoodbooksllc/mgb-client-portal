@@ -1,10 +1,10 @@
 /* ---------------------------------------------------------------------------
    Today (components/staff/Today.jsx): the staff start page.
 
-   Colours come from the app's tokens (styles.css). Two priority tones, used
+   Colors come from the app's tokens (styles.css). Two priority tones, used
    sparingly so red keeps its meaning: "now" (red: late or waiting on you)
-   and "week" (amber: coming up). Colour is always paired with words (the
-   band heading, the kind label, "All clear"), never colour alone.
+   and "week" (amber: coming up). Color is always paired with words (the
+   band heading, the kind label, "All clear"), never color alone.
    --------------------------------------------------------------------------- */
 .td-page {
   --td-now: var(--bad);
@@ -88,7 +88,7 @@ button.td-chip:hover {
 }
 
 /* ---- Tiles ---- */
-/* A coloured left edge on tiles and the list. A pseudo-element rather than
+/* A colored left edge on tiles and the list. A pseudo-element rather than
    a border so the card's size and its jump-to flash ring are untouched;
    .card's overflow:hidden clips it to the rounded corner. */
 .td-kpi::before,
@@ -372,7 +372,7 @@ button.td-row-main:hover {
 .td-toggle:hover {
   background: var(--hover-bg);
 }
-/* On: gold, plus a tick so the state reads without colour. */
+/* On: gold, plus a tick so the state reads without color. */
 .td-toggle.is-on {
   background: var(--gold);
   border-color: var(--gold);

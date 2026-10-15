@@ -1831,7 +1831,7 @@ const PR_TABS = [
   { key: "giving", label: "Giving" },
   { key: "functional", label: "Functional expenses" },
   { key: "share", label: "Share links" },
-  { key: "brand", label: "Logo & colours" },
+  { key: "brand", label: "Logo & colors" },
 ];
 
 function ProReportsSuite({ client, access, clientPortalUser }) {
@@ -2763,7 +2763,7 @@ function PrSharesPanel({ shares, reloadShares, snapshot, orgName, sb, clientId, 
   );
 }
 
-// ---- Logo & colours --------------------------------------------------------
+// ---- Logo & colors --------------------------------------------------------
 
 function PrBrandingPanel({ branding, setBranding, orgName, periodLabel, sb, clientId, whoEmail, needSave, flagError, showToast }) {
   const [logo, setLogo] = useState(branding.logo);
@@ -2813,7 +2813,7 @@ function PrBrandingPanel({ branding, setBranding, orgName, periodLabel, sb, clie
         { onConflict: "client_id" },
       );
       if (error) flagError(error, "Couldn't save the branding.");
-      else showToast("Logo and colour saved.");
+      else showToast("Logo and color saved.");
     } catch (err) {
       showToast("Couldn't save the branding.");
     }
@@ -2826,7 +2826,7 @@ function PrBrandingPanel({ branding, setBranding, orgName, periodLabel, sb, clie
     <div className="pr-grid-2">
       <div className="pr-stack">
         <p className="card-subtitle">
-          Your logo and colour go on the board packet's cover and page headers, and on share links.
+          Your logo and color go on the board packet's cover and page headers, and on share links.
         </p>
         <div>
           <span className="pr-label">Logo</span>
@@ -2844,13 +2844,13 @@ function PrBrandingPanel({ branding, setBranding, orgName, periodLabel, sb, clie
           <p className="pr-hint">PNG or JPEG. We shrink it to 400px wide so it stays light.</p>
         </div>
         <div className="ms-form">
-          <span className="pr-label">Brand colour</span>
+          <span className="pr-label">Brand color</span>
           <div className="pr-row">
             <input
               type="color"
               className="pr-color"
               value={previewColor}
-              aria-label="Brand colour"
+              aria-label="Brand color"
               onChange={(e) => {
                 setColor(e.target.value);
                 setColorText(e.target.value);
@@ -2859,7 +2859,7 @@ function PrBrandingPanel({ branding, setBranding, orgName, periodLabel, sb, clie
             <input
               value={colorText}
               maxLength={7}
-              aria-label="Brand colour hex"
+              aria-label="Brand color hex"
               className="pr-hex"
               onChange={(e) => {
                 const v = e.target.value.trim();
@@ -2871,7 +2871,7 @@ function PrBrandingPanel({ branding, setBranding, orgName, periodLabel, sb, clie
         </div>
         <div className="pr-row">
           <button type="button" className="btn-primary" onClick={save} disabled={saving || processing}>
-            {saving ? "Saving…" : "Save logo & colour"}
+            {saving ? "Saving…" : "Save logo & color"}
           </button>
         </div>
       </div>

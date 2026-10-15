@@ -19,7 +19,7 @@ Basic and Pro clients both land on **Home**. Turning a tab off under **Manage ac
 
 There's no separate Report Builder or Custom Report any more. On Pro, **Reports › Board packet** is the one place a client builds reports, and **Downloads** keeps the canned statement PDFs. The Quick Download grid and Custom Report that used to sit above the packet are gone from the client's Board packet tab.
 
-- **Board packet** (the tab) holds the board reports: pick the reports, add a cover page and a treasurer's note, and download one PDF with a table of contents. It also has saved templates, comparison columns, the Statement of Functional Expenses, giving reports, a plain-language summary, read-only share links and the church's logo and colours.
+- **Board packet** (the tab) holds the board reports: pick the reports, add a cover page and a treasurer's note, and download one PDF with a table of contents. It also has saved templates, comparison columns, the Statement of Functional Expenses, giving reports, a plain-language summary, read-only share links and the church's logo and colors.
 - **Presentation view** is a button on the packet. It shows the packet full screen for a board meeting on a projector: large type, the organization's name and period at the top, then the sections the client ticked. **Esc** or **Exit presentation** closes it. It needs at least one section ticked.
 - Staff see one page instead of two tabs. For a Pro client, **Reports** shows the Downloads grid first, then **Board reports** below it, so you can check either without switching.
 - The Reports header on Pro reads "Download statements and build your board packet".

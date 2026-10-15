@@ -35,7 +35,7 @@
   display: none;
 }
 /* Scroll cue: the edge with more tabs behind it fades out (StaffNav.jsx sets
-   data-more). A mask, so it follows light and dark with no colours. */
+   data-more). A mask, so it follows light and dark with no colors. */
 .nav-tabs[data-more] {
   --nav-fade-l: 0px;
   --nav-fade-r: 0px;
