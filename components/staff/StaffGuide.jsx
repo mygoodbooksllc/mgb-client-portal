@@ -460,6 +460,7 @@ function HLP_StaffGuidePage() {
                 {row.audience === "admin" && <HLP_AdminPill />}
               </div>
               <h2 className="hlp-article-title">{row.title}</h2>
+              {slug === "whats-new" && typeof ANN_LaunchList === "function" && <ANN_LaunchList />}
               <HLP_Markdown source={row.body_md} />
               {row.updated_at && <p className="hlp-updated">Last updated {HLP_fmtDate(row.updated_at)}</p>}
             </>

@@ -17280,6 +17280,8 @@ function UsageStatsPage() {
           </div>
         )}
       </div>
+      {/* Who has seen, toured or skipped each launch notice (components/tour/Announcements.jsx). */}
+      {typeof ANN_UsageCard === "function" && <ANN_UsageCard />}
     </div>
   );
 }
@@ -29526,6 +29528,18 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
               one small dismissible card beside a feature, never over a tour. */}
           {typeof TIPS_Root === "function" && showStaffRail && !tkShell && !isPreviewingUser && (
             <TIPS_Root
+              staffUser={staffUser}
+              impersonating={Boolean(impersonating)}
+              isPreviewingUser={Boolean(isPreviewingUser)}
+              hasTempAdminAccess={hasTempAdminAccess}
+              page={effectivePage}
+            />
+          )}
+          {/* Launch announcements (components/tour/Announcements.jsx): one quiet
+              notice after a launch, with a 1-minute tour. Staff only; waits
+              for tours, the profile prompt, View as and previews. */}
+          {typeof ANN_Root === "function" && showStaffRail && !tkShell && !isPreviewingUser && (
+            <ANN_Root
               staffUser={staffUser}
               impersonating={Boolean(impersonating)}
               isPreviewingUser={Boolean(isPreviewingUser)}

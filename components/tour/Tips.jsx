@@ -63,7 +63,7 @@
 //   - no tip yet on this visit to the page (route = page + hash, so each
 //     Work or Team tab is its own); the next waits for a later visit
 //   - nothing busy: no tour open or about to start by itself
-//     (TOUR_staffBusy), no modal, drawer, menu or popover open (TIPS_BUSY),
+//     (TOUR_staffBusy), no launch notice showing (ANN_visible), no modal, drawer, menu or popover open (TIPS_BUSY),
 //     no text field focused, the browser tab visible
 //   - its target on the page and fully in view, with room for the card
 //     beside it
@@ -876,10 +876,12 @@ function TIPS_layout(shown, card, ring) {
   return true;
 }
 
-// A tour open or about to start, a modal, menu or popover open, or a text
-// field focused.
+// A tour open or about to start, a launch notice showing, a modal, menu or
+// popover open, or a text field focused.
 function TIPS_busy() {
   if (typeof TOUR_staffBusy === "function" ? TOUR_staffBusy() : document.querySelector(".tour-root")) return true;
+  // A launch announcement's notice (Announcements.jsx) is on screen.
+  if (typeof ANN_visible === "function" && ANN_visible()) return true;
   if (document.querySelector(TIPS_BUSY)) return true;
   const a = document.activeElement;
   return !!(a && a !== document.body && a.matches && a.matches(TIPS_FIELD));

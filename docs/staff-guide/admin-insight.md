@@ -2,7 +2,7 @@
 title: Usage stats and Developer tools
 section: Admin
 audience: staff
-keywords: [usage stats, usage, analytics, page views, active users, last seen, quiet clients, developer tools, dev tools, feature flags, unreleased, scheduled jobs, cron, run now, errors, error log, test email, app version, reload, where things live, export csv, delivery, opened, clicked, webhook]
+keywords: [announcements, launch notice, who toured, usage stats, usage, analytics, page views, active users, last seen, quiet clients, developer tools, dev tools, feature flags, unreleased, scheduled jobs, cron, run now, errors, error log, test email, app version, reload, where things live, export csv, delivery, opened, clicked, webhook]
 sort: 560
 ---
 Two admin pages under **Settings › Firm settings › Insight and records**, next to the [Audit log](#/help/audit-log). Search (**Ctrl+K** / **⌘K**) jumps to each one too.
@@ -17,12 +17,13 @@ Counts come straight from the database for the range you pick (7, 30 or 90 days,
 - **Actions** counts things people did rather than pages they opened: search opened with **Ctrl+K**, guide searches, guide searches that found nothing (the queries are listed so you can add an article), **Help for this page**, tours finished or skipped, and **Client ? menu clicks** (what clients pick from the **?** in their top bar: the tours, Messages, Help and settings, Contact support; previews don't count).
 - **Devices** splits views across desktop, phone and the installed app.
 - **Export CSV** downloads the page and people tables for the range.
-- **Feature feedback** at the bottom is the in-app survey, with **Copy summary for Claude**.
+- **Feature feedback** is the in-app survey, with **Copy summary for Claude**.
+- **Announcements** at the very bottom lists each launch notice with how many people **Toured**, have **Seen** it (this includes Later), **Skipped** it or are **Not yet**, and a click on any count shows the names. Temporary admins and account managers only appear once they have answered, since the staff list can't tell them apart.
 
 ### Developer tools
 
 - **Feature flags** are per-browser testing switches: force every client to Pro, verbose console logging, a simulated slow network, and **Show unreleased features** (currently the **Install app** prompt). Nothing here changes anything for anyone else.
-- **Reset local state** clears this browser's saved layouts, theme and other per-browser hints. It also forgets the last tab you used on each client, any link waiting to open, which Onboarding cards you had open, and the **Show test clients** switch. Feature flags stay. Tours and Tips while you learn are saved to your account, so it doesn't reset them.
+- **Reset local state** clears this browser's saved layouts, theme and other per-browser hints. It also forgets the last tab you used on each client, any link waiting to open, which Onboarding cards you had open, and the **Show test clients** switch. Feature flags stay. Tours, Tips while you learn and launch announcements are saved to your account, so it doesn't reset them.
 - **Scheduled jobs** lists every automatic job (email outbox, digest, QuickBooks sync, health checks, chasers) with its schedule, last run and result. **Run now** starts one immediately. A red **failed** means the last run errored; **Run now** and read the message.
 - **Recent errors** are errors the app caught in someone's browser: when, who, which page, app version and the message. Click one for the technical detail. Send that to whoever is fixing the app.
 - **Recent activity** is every change to the staff list (added, removed, role changed, deactivated, reactivated), plus each Google sign-in account the app set up ("set up Google sign-in for …") and each **Fix sign-in** run. See [How do I add staff and manage their access?](#/help/staff-management).

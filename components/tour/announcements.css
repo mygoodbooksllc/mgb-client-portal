@@ -1,0 +1,169 @@
+/* Launch announcements (components/tour/Announcements.jsx). Prefix ann-.
+   The notice is an in-flow strip at the top of the page body, drawn like the
+   top bar (surface, thin border, gold edge), so it never covers anything and
+   needs no fixed positioning; it scrolls away with the page and the phone's
+   bottom bar and home indicator are never involved. Theme tokens only. */
+
+.ann-notice {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px 16px;
+  flex-wrap: wrap;
+  margin: 0 0 16px;
+  padding: 10px 16px;
+  border: 1px solid var(--topbar-border, var(--border));
+  border-left: 4px solid var(--gold);
+  border-radius: 12px;
+  background: var(--topbar-bg, var(--surface));
+  color: var(--text);
+  font-family: var(--font-body);
+  font-size: 14px;
+  /* Keeps it clear of the home indicator if something scrolls it into view. */
+  scroll-margin-bottom: env(safe-area-inset-bottom, 0px);
+  animation: ann-in 150ms ease;
+}
+.ann-text {
+  display: flex;
+  align-items: baseline;
+  gap: 4px 10px;
+  flex-wrap: wrap;
+  flex: 1 1 280px;
+  min-width: 0;
+}
+.ann-kicker {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--gold-deep);
+}
+.ann-title {
+  color: var(--ink-strong);
+}
+.ann-summary {
+  color: var(--text-muted);
+}
+.ann-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px 12px;
+  flex-wrap: wrap;
+}
+.ann-skip {
+  padding: 4px 6px;
+}
+@media (pointer: coarse) {
+  .ann-notice .btn-primary,
+  .ann-notice .btn-secondary,
+  .ann-notice .ann-skip,
+  .ann-launches .btn-primary,
+  .ann-launches .btn-secondary {
+    min-height: 44px;
+  }
+  .ann-skip {
+    padding: 4px 12px;
+  }
+}
+@media (max-width: 640px) {
+  .ann-notice {
+    padding: 12px 14px;
+  }
+  .ann-actions {
+    width: 100%;
+  }
+  .ann-notice .btn-primary {
+    flex: 1 1 100%;
+  }
+}
+@keyframes ann-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ann-notice {
+    animation: none;
+  }
+}
+
+/* What's new: Launches */
+.ann-launches {
+  margin: 0 0 20px;
+  padding: 14px 16px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+}
+.ann-launches-title {
+  margin: 0 0 2px;
+  font-size: 15px;
+  color: var(--ink-strong);
+}
+.ann-launches-note {
+  margin: 0 0 10px;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+.ann-launches ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.ann-launches li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+  flex-wrap: wrap;
+  padding: 10px 0;
+  border-top: 1px solid var(--border);
+}
+.ann-launch-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1 1 260px;
+  min-width: 0;
+}
+.ann-launch-date {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.ann-launches a.btn-secondary {
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+}
+
+/* Usage Stats: Announcements */
+.ann-usage {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.ann-usage li {
+  padding: 10px 0;
+  border-top: 1px solid var(--border);
+}
+.ann-usage li > .ann-launch-date {
+  margin-left: 8px;
+}
+.ann-usage-counts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 18px;
+  margin-top: 6px;
+  font-size: 13px;
+}
+.ann-usage-counts summary {
+  cursor: pointer;
+}
+.ann-usage-counts details > span {
+  display: block;
+  margin-top: 2px;
+  color: var(--text-muted);
+}

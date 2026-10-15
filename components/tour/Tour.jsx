@@ -162,6 +162,15 @@
 // TOUR_startStaff(key) (the "?" menu, ⌘K and Settings › Help list the ones
 // that apply, via TOUR_staffTourList). During "View as" only the bookkeeper
 // tour runs: it shows what that bookkeeper sees and saves nothing.
+// Launch announcements (2026-10-15, Announcements.jsx + announcements.js) reuse
+// this engine rather than adding another: a quiet notice after each launch
+// offers a 1-minute tour, started with TOUR_startStaff("ann:<id>"). That key
+// resolves (TOUR_staffTour) to a synthetic tour built from the registry
+// entry's `steps(ctx)`; it has no `setting`, never auto-starts, is appended to
+// TOUR_staffTourList as "New: <title> tour", and end() records it as toured
+// (finished or skipped) through ANN_store and MGB_track with detail
+// "ann:<id>", instead of saving to user settings. Every new product or
+// feature ships with a registry entry and its steps in the same commit (README).
 // Tips while you learn are separate (components/tour/Tips.jsx, no overlay);
 // they wait while a staff tour is open or still to start (TOUR_staffBusy).
 //
@@ -1390,7 +1399,9 @@ const TOUR_STAFF_TOURS = [
 const TOUR_STAFF_AUTO_ORDER = ["tempAdmin", "bookkeeper", "admin", "am"];
 
 // A tour by key; "staff" (the old generic tour) is the bookkeeper tour now.
+// "ann:<id>" is a launch announcement's tour (ANN_tour, Announcements.jsx).
 function TOUR_staffTour(key) {
+  if (typeof key === "string" && key.indexOf("ann:") === 0) return typeof ANN_tour === "function" ? ANN_tour(key.slice(4)) : null;
   const k = !key || key === "staff" ? "bookkeeper" : key;
   return TOUR_STAFF_TOURS.find((t) => t.key === k) || null;
 }
@@ -1427,12 +1438,14 @@ function TOUR_staffBusy() {
 let TOUR_staffCtx = { isAdmin: false, isBookkeeper: false, tempAdmin: false, showsAdminPages: false, amCount: 0, impersonating: false };
 
 // [{ key, label, sub }] of the tours this staffer can take, in menu order.
+// The launch announcement tours ("New: ... tour", newest first) come last.
 function TOUR_staffTourList() {
-  return TOUR_STAFF_TOURS.filter((t) => t.available(TOUR_staffCtx)).map((t) => ({
+  const roleTours = TOUR_STAFF_TOURS.filter((t) => t.available(TOUR_staffCtx)).map((t) => ({
     key: t.key,
     label: t.label,
     sub: typeof t.sub === "function" ? t.sub(TOUR_staffCtx) : t.sub,
   }));
+  return roleTours.concat(typeof ANN_tourList === "function" ? ANN_tourList(TOUR_staffCtx) : []);
 }
 
 // How many clients this person is the account manager for (window.CLIENTS is
@@ -2278,7 +2291,11 @@ function TOUR_StaffRoot({
   React.useEffect(() => {
     const onStart = (e) => {
       if (run || !staffUser) return;
-      const tour = TOUR_staffTour(e && e.detail && e.detail.which);
+      const which = e && e.detail && e.detail.which;
+      const tour = TOUR_staffTour(which);
+      // A launch tour this person can't take (or one that was retired) isn't
+      // swapped for the bookkeeper tour.
+      if (typeof which === "string" && which.indexOf("ann:") === 0 && !(tour && tour.available(ctxRef.current))) return;
       begin(tour && tour.available(ctxRef.current) ? tour.key : "bookkeeper");
     };
     window.addEventListener(TOUR_STAFF_START_EVENT, onStart);
@@ -2294,7 +2311,10 @@ function TOUR_StaffRoot({
     const tour = (run && run.tour) || TOUR_STAFF_TOURS[0];
     setRun(null);
     if (ownSettings && window.MGB_track) window.MGB_track(status === "done" ? "tour-done" : "tour-skipped", tour.key);
-    if (ownSettings)
+    // A launch tour is saved by the announcements store, not in user settings:
+    // finishing or skipping it both count as toured.
+    if (isSelf && tour.ann && typeof ANN_store !== "undefined") ANN_store.record(tour.ann, "tour");
+    else if (ownSettings)
       ST_store.update({
         [tour.setting]: {
           status,

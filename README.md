@@ -37,7 +37,8 @@ because some work happens in Claude Code web sessions. Run `git fetch` and compa
   `components/inbox/StaffInbox.jsx`, `components/staff/*` (ending with `StaffGuide.jsx` and
   `TopBar.jsx`), a few `components/client/*` files, the Tasks module `components/tasks/*` (21
   files, `TK_logic.js` first and `TK_App.jsx` last, right after `components/client/QboGiving.jsx`),
-  `components/tour/Tour.jsx` and `Tips.jsx`, then `app.jsx`. The Tasks stylesheets
+  `components/tour/Tour.jsx` and `Tips.jsx`, then the launch announcements (`announcements.js`,
+  `announcementsLogic.js`, `Announcements.jsx`), then `app.jsx`. The Tasks stylesheets
   `components/tasks/tk-views.css`, `tk-drawer.css` and `tk-client.css` are written right after
   `components/tour/tips.css`. All files start downloading at once, but they compile in this
   order.
@@ -85,6 +86,7 @@ because some work happens in Claude Code web sessions. Run `git fetch` and compa
 | `components/handbook/` | The Staff Handbook (2026-10-13; spec `docs/staff-handbook-spec.md`), Team › Handbook. Every name is `HB_`/`hb-` prefixed. `HB_api.js` (RPC wrappers, the PDF download, the shared `hb_status` store), `HB_PolicyView.jsx` (one policy, sign and countersign), `HB_HandbookTab.jsx` (the tab, its routes and the deep-link claim), `HB_Admin.jsx` (admin status grid, not-filed list with Retry filing, publish editor), `hb.css`. Loaded after `TeamReviewsAdmin.jsx` and before `app.jsx`. |
 | `components/files/` | `DriveFiles.js`: browser helpers for client files in Google Drive (`DRV_` prefix), calling the `drive-files` edge function. Holds the one fallback switch `DRV_STORAGE_FALLBACK`. Loaded before `StaffInbox.jsx` and `app.jsx`. |
 | `components/tasks/` | The Tasks module (2026-10-11; spec `docs/tasks-phase1-spec.md`). Every name is `TK_`/`tk-` prefixed. Logic with node tests: `TK_logic.js` (statuses, grouping, the quick-add parser, keys), `TK_viewLogic.js`, `TK_drawerLogic.js`, `TK_clientLogic.js` (the client strip and panel rules), `TK_store.js`. Data: `TK_api.js` (Supabase calls), `TK_sync.js` (Realtime plus a `BroadcastChannel` between windows). Views: `TK_App.jsx` (the `#/tasks/...` page and the `/tasks` shell), `TK_Sidebar.jsx`, `TK_MyTasks.jsx`, `TK_List.jsx`, `TK_ClientHeader.jsx`, `TK_ClientDrawer.jsx` (the client task strip and panel, and Follow my client), `TK_TaskRow.jsx`, `TK_StandaloneBar.jsx`, `TK_keys.jsx`. Task details: `TK_Drawer.jsx`, `TK_QuickAdd.jsx`, `TK_Comments.jsx`, `TK_Attachments.jsx`, `TK_Activity.jsx`. Styles: `tk-views.css`, `tk-drawer.css`, `tk-client.css`. Loaded after `components/client/QboGiving.jsx` and before `components/tour/Tour.jsx`. |
+| `components/tour/` | Tours, tips and launch announcements. `Tour.jsx` (client and staff tours), `Tips.jsx` (`TIPS_`), and the launch announcements (2026-10-15, `ANN_` prefix): `announcements.js` is the registry (one entry per launch), `announcementsLogic.js` the pure rules with its node test `announcementsLogic.test.js`, `Announcements.jsx` the store, notice, What's new list and Usage Stats card. Styles: `tour.css`, `tips.css`, `announcements.css`. Database: `supabase/staff-announcements.sql` (+ `staff-announcements-tests.sql`). |
 | `components/ledger/` | Ledger review (GL Review phase 1, 2026-10-14; spec `docs/gl-review-spec.md`). `GLR_*.js` are pure logic with node tests in `tests/ledger/` (parse, checks, compare, summary); `LR_*` is the UI: `LR_Tab.jsx` (client tab `client-ledger`, `#/client/<id>/ledger`), `LR_Panels.jsx`, `LR_ReviewFile.jsx` (Work › Ledger review), `LR_Settings.jsx` (Team › Ledger review), `LR_api.js` (RPC and edge-function wrappers; fires `mgb:ledger-review-changed` and `mgb:gl-review-changed` so the Close card refreshes). Database: `supabase/gl-review-1-core.sql`. |
 | `components/qbo/` | `mapQboToClient.js` converts QuickBooks table rows into the shape the pages use. Its test is `mapQboToClient.test.js`. |
 | `supabase/*.sql` | Every database change: tables, row-level security (RLS) policies, functions, cron jobs. The folder is flat, one file per change. |
@@ -367,7 +369,7 @@ hours, fees and revenue all use it. See "MGB (internal) and flagged clients" und
   - **Top bar:** no page links; ⌘K lists Pages and Actions with nothing typed; the **?** menu is
     Help for this page, Staff guide, Send feedback, What's new, Tips while you learn (On/Off), then
     one entry per tour (Bookkeeper tour, plus Admin, Temporary admin and Account manager tours when
-    they apply). Help and Feedback
+    they apply, then "New: <title> tour" for each launch announcement). Help and Feedback
     are no longer sidebar items.
   - **Tours (`components/tour/Tour.jsx`):** the client tour (`TOUR_Root`) and the staff-side tours
     (`TOUR_StaffRoot`). Staff tours are listed in `TOUR_STAFF_TOURS` in menu order: **Bookkeeper**
@@ -413,6 +415,35 @@ hours, fees and revenue all use it. See "MGB (internal) and flagged clients" und
     `MGB_track("tour-done" | "tour-skipped", "pro")`; staff and preview save nothing.
   - **Tour docs:** `bookkeeper-guide`, `admin-guide`, `account-manager-guide`, `temporary-access`,
     `client-tour` and `pro-tour` in `docs/staff-guide`.
+  - **Launch announcements (`components/tour/announcements.js`, `announcementsLogic.js`,
+    `Announcements.jsx` + `announcements.css`, `ANN_` prefix; owner request 2026-10-15):** when
+    something new ships, each staffer gets one quiet notice the next time they visit, with **Take the
+    1-minute tour**, **Later** and **Skip**, so a launch doesn't get lost. Staff side only today (the
+    registry allows a `client` role for later, but no client notice exists). It reuses the staff tour
+    engine: the tour key is `ann:<id>`, which `TOUR_staffTour` resolves to `ANN_tour(id)`, a synthetic
+    tour built from the entry's `steps(ctx)`. It has no user-settings key and never auto-starts;
+    `end()` records it as toured (finished or skipped) and `MGB_track("tour-done" | "tour-skipped",
+    "ann:<id>")`.
+    - **Rules** (`announcementsLogic.js`, node-tested): audience by role (`admin` = real admins,
+      `tempAdmin`, `bookkeeper` includes temp admins, `accountManager`); at most ONE notice per page
+      load, newest launch first (ties: registry order); statuses `seen` (shown, ignored: comes back),
+      `later` (comes back next visit, the third Later counts as Skip), `toured`, `dismissed` (Skip);
+      only launches dated on or after the person's account start (`staff.created_at`); nothing shows
+      more than 60 days after its date; never while a tour is open or starting (`TOUR_staffBusy`),
+      Today's first sign-in profile prompt is open, or during View as and Preview as. Tips wait while
+      the notice is on screen (`ANN_visible()` in `TIPS_busy`).
+    - **State:** `public.staff_announcements` (`supabase/staff-announcements.sql`, **not applied until
+      you run it**): one row per (lower-cased staff email, announcement id) with `status`,
+      `later_count`, `first_seen_at`, `updated_at`; own-row select/insert/update only; admins read
+      everyone through `staff_announcement_report()` (SECURITY DEFINER, admins only). Check it with
+      `supabase/staff-announcements-tests.sql` on a branch. `ANN_store` loads the person's rows once per
+      session; `localStorage` (`mygoodbooks_announcements_v1`) is only a cache, and an answer the
+      database hasn't taken yet is retried. If the table is missing or the load fails, no notice shows.
+    - **Where else a launch appears:** a **Launches** list (Open + Take the tour) at the top of the
+      What's new article, and "New: <title> tour" entries in the ? menu, ⌘K and Settings › Help
+      (`TOUR_staffTourList` appends `ANN_tourList`). Admins see counts and names of who has seen,
+      toured, skipped or not yet seen each launch in Usage Stats › Announcements.
+    - **Test:** `node components/tour/announcementsLogic.test.js` (rules and registry integrity).
   - **Tips while you learn (`components/tour/Tips.jsx` + `tips.css`, `TIPS_` prefix; owner request
     2026-10-09):** quiet one-at-a-time tips for a staffer's first 30 days (no overlay, no dimming,
     focus never moves, nothing scrolls). `TIPS_Root` is mounted beside `TOUR_StaffRoot` in `app.jsx`
@@ -1431,7 +1462,8 @@ Team Reviews files.
   - Seeing the signed-in app requires a real Google sign-in or magic link. There's no fake login.
   - Set `MGB_CSP_TEST=1` to serve the CSP as enforcing, for testing.
 - **Test.** `node components/qbo/mapQboToClient.test.js` checks the QuickBooks mapper against
-  `data.js`'s shapes. The Tasks module's tests run with
+  `data.js`'s shapes. `node components/tour/announcementsLogic.test.js` checks the launch announcement
+  rules and registry. The Tasks module's tests run with
   `for f in components/tasks/*.test.js; do node "$f" || break; done`.
 - **Commit straight to `main`.** No feature branches unless asked. The owner pushes with GitHub
   Desktop, and Vercel deploys within about a minute.
@@ -1637,6 +1669,26 @@ staff-facing changelog: add an entry with every change staff would notice.
   workflow or changed behavior) must update or add the matching article in the same commit, then
   re-sync. Mark admin-only topics `audience: admin`. Write in plain language for bookkeepers, using the
   exact button labels from the UI. Treat the guide like this README: if a feature changes, the guide changes.
+- **Every new product or feature ships with an announcement (required):** add a registry entry in
+  `components/tour/announcements.js` with its tour steps in the same commit as the feature, next to
+  the guide article and What's new entry above. How to add one:
+  1. Append an object to `ANN_REGISTRY` in `components/tour/announcements.js`: `id` (short, lower-case,
+     hyphens, never reused), `date` (`YYYY-MM-DD` it ships), `title`, `summary` (one sentence), `roles`
+     (any of `admin`, `tempAdmin`, `bookkeeper`, `accountManager`), `hash` (where **Open** goes, such as
+     `#/team/reviews`) and `steps: (ctx) => [...]`.
+  2. Write 3 to 6 steps (about a minute). The first is a centered welcome (no `targets`). Build the rest
+     with `TOUR_tabStep(place, tab, title, body)` for a Work or Team tab, or a plain step with `go`
+     (`TOUR_go(place, tab)` or a hash change), `targets` (`"#element-id"` or a `data-tour` key) and
+     `wait: true` when the target loads late. Check each target exists (`grep` for the id or
+     `data-tour`) and re-point it if a layout change moves it, as with Tips.
+  3. Add the matching What's new entry in `docs/staff-guide/whats-new.md` (the Launches list reads the
+     registry, not that file) and run `node docs/staff-guide/sync.mjs --check`.
+  4. Run `node components/tour/announcementsLogic.test.js` (it checks unique ids, valid roles, date
+     format, 3 to 6 steps and a centered first step), bump `MGB_VERSION` in `index.html`, and commit.
+  Nothing else is needed: the notice, the Launches list, the menu entries and the Usage Stats counts
+  all come from the entry. Never change an `id` after it ships (the database keys on it).
+  A notice that is shown and ignored stays `seen` and returns on every visit until it is answered or
+  its 60 days end.
 - **Re-sync after editing:** `node docs/staff-guide/sync.mjs --check` validates the files, then
   `node docs/staff-guide/sync.mjs > /tmp/staff-guide-sync.sql` and run that SQL in the Supabase SQL
   editor (or through the Supabase MCP `execute_sql`). It upserts every article and removes rows whose
