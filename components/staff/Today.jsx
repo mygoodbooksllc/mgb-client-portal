@@ -279,7 +279,7 @@ function TD_useCloses(clientIds) {
     }
     const ids = idsKey.split(",");
     const [mc, cc] = await Promise.all([
-      TD_safe(sb.from("month_close").select("client_id, period, status").eq("period", period).in("client_id", ids)),
+      TD_safe(sb.from("month_close").select("client_id, period, status").eq("period_kind", "month").eq("period", period).in("client_id", ids)),
       TD_safe(sb.from("close_checks").select("client_id, period, status, reasons").eq("status", "blocked").eq("period", period).in("client_id", ids)),
     ]);
     const statusOf = {};

@@ -78,7 +78,7 @@ At the bottom of the tab is the sign-off for the month:
 
 ### Marking the month done
 
-By default Ledger review **warns** but doesn't block. If you mark the month done before it's approved, the app asks *Ledger review isn't approved. Mark done anyway?* Yes records who went ahead. An admin can change this to **Block** in Team › Ledger review.
+By default Ledger review **warns** but doesn't block. If an admin signs off the month before it's approved, the app asks *Ledger review isn't approved. Sign off anyway?* Yes records who went ahead. An admin can change this to **Block** in Team › Ledger review.
 
 ### Review a file
 
@@ -94,7 +94,7 @@ The file is read in your browser. Nothing is uploaded, stored or sent to QuickBo
 
 **Team › Ledger review**. Only admins see this tab.
 
-- **Marking a month done**: *Warn* (the default) or *Block*. With Block, a month can't be marked done until its review is approved, and an admin can override with a reason.
+- **Marking a month done**: *Warn* (the default) or *Block*. With Block, a month can't be signed off until its review is approved, and an admin can override with a reason.
 - **Go back to**: the usual range for every pull, 14 months back (recommended) or this year so far. Staff can go further back for one pull on the client's tab.
 - **Count the Close step from**: the first month the Ledger reviewed step applies to, so older months don't suddenly look behind.
 - **Vendor watch list**: names that get a *Watch-list vendor* flag for every client. Add a name with a category, edit it, or turn it off.

@@ -380,7 +380,7 @@ Deno.serve(async (req) => {
   const w: PullWindow = wr;
 
   if (action === "baseline") {
-    const { data: mc } = await admin.from("month_close").select("status").eq("client_id", clientId).eq("period", w.start).maybeSingle();
+    const { data: mc } = await admin.from("month_close").select("status").eq("client_id", clientId).eq("period_kind", "month").eq("period", w.start).maybeSingle();
     if (mc?.status !== "done") return json({ status: "error", error: "Mark the month Done first, then take the snapshot." });
   }
 
@@ -533,7 +533,7 @@ Deno.serve(async (req) => {
     // before Done. Best effort.
     try {
       const { data: closed } = await admin.from("month_close").select("period")
-        .eq("client_id", clientId).eq("status", "done").gte("period", w.start).lte("period", w.end);
+        .eq("client_id", clientId).eq("period_kind", "month").eq("status", "done").gte("period", w.start).lte("period", w.end);
       const periods = (closed || []).map((r: any) => String(r.period).slice(0, 10));
       if (periods.length) {
         const { data: have } = await admin.from("gl_review_month_prints").select("period")

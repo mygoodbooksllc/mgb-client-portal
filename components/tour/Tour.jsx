@@ -74,7 +74,7 @@
 //   close-page       the Close tab's page (ClientClosePage.jsx)
 //   close-steps      its Close steps card (app.jsx CloseChecklistCard)
 //   close-qbo        its QuickBooks check
-//   close-done       its Mark done control
+//   close-done       its Ready for sign-off / Sign off control
 //   ov-open          the Overview's "Open for this client" strip
 //   ov-status        the Overview's status line (health, sync, clean-up)
 //   ov-tasks         the Overview's Tasks for this client card
@@ -955,7 +955,7 @@ function TOUR_bookkeeperSteps(ctx) {
       targets: ["#client-tab-client-close", "client-close"],
       title: "A client's Close",
       body: () =>
-        "Close: tick the month's steps as you go. Your first tick sets the month to In progress. You mark it Done, and that emails the client that reports are ready.",
+        "Close: tick the month's steps as you go. Your first tick sets the month to In progress. When your part is finished, mark it Ready for sign-off. An admin signs it off, and that emails the client that reports are ready.",
     },
     {
       id: "client-ledger",

@@ -603,9 +603,11 @@ hours, fees and revenue all use it. See "MGB (internal) and flagged clients" und
     `CLC_ClientClosePage` shows one client and one month: status and notes, the QuickBooks check
     (`CC_ClientCloseCard`), the Ledger review card (`CLC_LedgerCard`), the close steps (six, or seven
     with Ledger reviewed via `closeStepsFor(client, period)`; `CloseChecklistCard`, `data-tour="close-steps"`),
-    Mark done, the read-only `monthly_close` SOP and "Sent to the client". The first tick sets the
-    month to In progress; Done is always a click and emails the client's people that reports are
-    ready (a second Done asks first). Every `month_close` write goes through `CT_saveMonthClose`
+    Mark ready / Sign off, the read-only `monthly_close` SOP and "Sent to the client". The first tick sets the
+    month to In progress; bookkeepers mark it Ready for sign-off (status `review`) and only an admin
+    signs it off (Done, `tk_sign_off_period`), which emails the client's people that reports are
+    ready (a second sign-off asks first). Reopening a signed-off month is admin-only with a reason
+    (`tk_reopen_period`). Every `month_close` write goes through `CT_saveMonthClose`
     (`CloseTracker.jsx`), with an `updated_at` guard shared with Work › Close ("Someone else saved
     first"). "Mark sent to client" on a report for last month ticks "Reports sent to the client" (P&L set to Last Closed Month; a Balance Sheet only when its as-of date is that month's last day, `closePeriodForAsOf`). The plain Balance Sheet PDF is as of today, so only the month-end one counts: on a QuickBooks client, staff get a second button on the Balance Sheet card, "Balance Sheet as of {last month end} (QuickBooks)" (`BSQ_MonthEndBalanceSheet`, `buildBalanceSheetQboPdf`), which calls `qbo-sync` with `action: "balance_sheet_asof"` and logs its send as item_key `bs_month_end` with `closePeriodForAsOf(month end)`.
     `CLC_CloseSummaryRow` is the one-line summary on the Overview. Names in Work › Close open the
@@ -1463,6 +1465,28 @@ Team Reviews files.
     and `select * from tk_recurrence_selftest()` (admin; returns failures only, so 0 rows = pass).
     After editing the fixtures, `node components/tasks/TK_recurrenceLogic.test.js --sql` prints
     the seed and values to paste into the SQL file.
+- **Tasks Phase 2, S2 period sign-off** (`supabase/tasks-p2-2-periods.sql`, applied 2026-10-15;
+  spec C2 and F). Re-runnable; run it after S1 (`tk_schema_version()` becomes 3). Tests:
+  `supabase/tasks-p2-2-periods-tests.sql` (one transaction, rolls back; needs no real data).
+  - `month_close` gets `period_kind` (`month`/`quarter`/`year`, default `month`) and its primary
+    key is now `(client_id, period_kind, period)`; a copy of the old rows is in
+    `month_close_p2_backup` (admins read). **Every reader and writer must filter
+    `period_kind = 'month'`** (done in CloseTracker, ClientClosePage, Today, Onboarding,
+    ClientTabCounts, app.jsx, `client-emails`, `qbo-gl-review` and the SQL files that read it).
+    Quarters are calendar quarters (Jan/Apr/Jul/Oct); a year row starts on the client's fiscal
+    year start (`client_profile.fiscal_year_end`).
+  - New columns: `signed_off_by/at`, `reopened_by/at/reason`, `reviewer_email`, `ready_at`.
+    Status `review` now means **Ready for sign-off**; `ready_at` is stamped the first time a
+    period reaches review or done, and `staff_performance` counts on-time from it.
+  - **Only an admin sign-off makes a period Done.** `tk_sign_off_period(client, kind, period,
+    note, ack_open, expected_updated_at)` (admins; open shared tasks linked to the period return
+    `needs_ack` and never block; 40001 when someone saved first) and `tk_reopen_period(client,
+    kind, period, reason)` (admins; 3-500 character reason). `month_close_signoff_guard` stops any
+    signed-in user from moving a period into or out of Done any other way (the RPCs set the
+    transaction flag `mgb.tk_signoff`). `tk_period_summary` and `tk_period_start` are staff reads.
+  - The reports-ready email (`notify_enqueue_reports_ready`) is month-only and skips a person who
+    got it for the same month in the last 7 days. Quarter and year sign-offs never email clients.
+  - Non-admins can't change a client's fiscal year end once a year row exists.
 - **Staff Handbook** (`supabase/staff-handbook.sql`, applied 2026-10-13). Re-runnable. Four
   `handbook_*` tables with RLS and no direct writes, the `hb_*` RPCs, two new outbox kinds
   (`handbook_sign_needed`, `handbook_countersign_needed`) added to both email check constraints,

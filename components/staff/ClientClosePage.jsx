@@ -133,7 +133,7 @@ function CLC_ClientClosePage({ client, staffUser, isAdmin, onNavigate }) {
       const want = parts || ["row", "settings", "check", "conn"];
       const [mc, st, cc, conn] = await Promise.all([
         want.includes("row")
-          ? CLC_soft(sb.from("month_close").select(CT_COLS).eq("client_id", client.id).eq("period", period).maybeSingle())
+          ? CLC_soft(sb.from("month_close").select(CT_COLS).eq("client_id", client.id).eq("period_kind", "month").eq("period", period).maybeSingle())
           : null,
         want.includes("settings") ? CLC_soft(sb.from("month_close_settings").select("late_day").maybeSingle()) : null,
         want.includes("check")
@@ -285,6 +285,7 @@ function CLC_ClientClosePage({ client, staffUser, isAdmin, onNavigate }) {
   const [dirty, setDirty] = useState(false);
   const [saving, setSaving] = useState(false);
   const [ask, setAsk] = useState(null); // { kind, run }
+  const [reopenText, setReopenText] = useState("");
   const [conflict, setConflict] = useState(null); // { theirs, mine: {status, notes} }
   useEffect(() => {
     if (dirty) return;
@@ -332,6 +333,12 @@ function CLC_ClientClosePage({ client, staffUser, isAdmin, onNavigate }) {
               return r && r.trim() ? { ok: true, note: r.trim() } : false;
             })
           : new Promise((resolve) => setAsk({ kind: "ledger", run: () => resolve(true), cancel: () => resolve(false) })),
+      // Tasks still open for the month warn, never block (tk_sign_off_period).
+      confirmOpenTasks: ({ openTasks, sample }) =>
+        new Promise((resolve) =>
+          setAsk({ kind: "opentasks", openTasks, sample, run: () => resolve(true), cancel: () => resolve(false) }),
+        ),
+      reopenReason: o.reopenReason,
     });
     setSaving(false);
     if (res.cancelled) return false;
@@ -340,7 +347,9 @@ function CLC_ClientClosePage({ client, staffUser, isAdmin, onNavigate }) {
       setDirty(false);
       setDraft({ status: res.row.status, notes: res.row.notes || "" });
       if (!res.noop && nextStatus === "done" && was !== "done") {
-        toast(`${month} marked done. ${clientName}'s people will get an email.`);
+        toast(`${month} signed off. ${clientName}'s people will get an email.`);
+      } else if (!res.noop && nextStatus === "review" && was !== "review") {
+        toast(`${month} is ready for sign-off.`);
       }
       return true;
     }
@@ -355,14 +364,20 @@ function CLC_ClientClosePage({ client, staffUser, isAdmin, onNavigate }) {
   // Status card Save: re-done and late-note confirms (close-tab.md §6c, §11).
   function onSaveStatus() {
     const notes = draft.notes.trim();
+    if (status === "done" && draft.status !== "done") {
+      askReopen(draft.status, notes);
+      return;
+    }
     if (draft.status === "done" && status !== "done" && doneBefore) {
       setAsk({ kind: "redone", run: () => save("done", notes) });
       return;
     }
     const notesChanged = (notes || null) !== ((row && row.notes) || null);
+    // A signed-off month's KPI time is its ready / sign-off time, so only an
+    // N/A month's note can move it.
     if (
       row &&
-      (draft.status === "done" || draft.status === "na") &&
+      draft.status === "na" &&
       draft.status === status &&
       notesChanged &&
       row.updated_at &&
@@ -375,12 +390,20 @@ function CLC_ClientClosePage({ client, staffUser, isAdmin, onNavigate }) {
     save(draft.status, notes);
   }
 
-  // Done button: anyway confirm, then re-done confirm, then save.
+  // Reopen a signed-off month (admins only): asks for a reason first.
+  function askReopen(target, notes) {
+    setReopenText("");
+    setAsk({ kind: "reopen", target, notes });
+  }
+
+  // Done button: anyway confirm, then re-done confirm, then save. Admins sign
+  // off (done); everyone else marks the month Ready for sign-off (review).
   function markDone(anyway) {
     // Keep notes typed in the Status card but not saved yet (a stray click never throws away a draft).
     const notes = dirty ? (draft.notes || "").trim() || null : (row && row.notes) || null;
     const finish = () => {
-      if (doneBefore) setAsk({ kind: "redone", run: () => save("done", notes) });
+      if (!isAdmin) save("review", notes);
+      else if (doneBefore) setAsk({ kind: "redone", run: () => save("done", notes) });
       else save("done", notes);
     };
     if (anyway) setAsk({ kind: "anyway", run: finish });
@@ -475,25 +498,35 @@ function CLC_ClientClosePage({ client, staffUser, isAdmin, onNavigate }) {
       </h3>
       <fieldset className="ct-status-group">
         <legend className="ct-legend clc-sr">Status</legend>
-        {CT_STATUSES.map((s) => (
+        {CT_STATUSES.filter((s) => isAdmin || s.key !== "done" || status === "done").map((s) => (
           <label key={s.key} className={"ct-status-opt ct-s-" + s.key + (draft.status === s.key ? " selected" : "")}>
             <input
               type="radio"
               name={"clc-status-" + client.id}
               value={s.key}
               checked={draft.status === s.key}
+              disabled={!isAdmin && status === "done"}
               onChange={() => {
                 setDraft((d) => ({ ...d, status: s.key }));
                 setDirty(true);
               }}
             />
-            {s.label}
+            {s.key === "done" ? "Done (sign off)" : s.label}
           </label>
         ))}
       </fieldset>
+      {!isAdmin && status === "done" ? (
+        <p className="card-subtitle" role="note">
+          Signed off{row && row.signed_off_by ? " by " + CT_who(row.signed_off_by) : ""}. Only an admin can reopen it.
+        </p>
+      ) : !isAdmin ? (
+        <p className="card-subtitle" role="note">
+          When your part is finished, pick Ready for sign-off. An admin signs {month} off.
+        </p>
+      ) : null}
       {draft.status === "done" && status !== "done" && (
         <p className="ct-email-warn" role="note">
-          Marking it done emails {clientName}'s people that {month} reports are ready.
+          Signing off emails {clientName}'s people that {month} reports are ready.
         </p>
       )}
       <label className="ct-legend" htmlFor={"clc-notes-" + client.id}>
@@ -587,14 +620,21 @@ function CLC_ClientClosePage({ client, staffUser, isAdmin, onNavigate }) {
   let doneEnabled = false;
   if (metaReady) {
     if (status === "done") {
+      const by = row && (row.signed_off_by || row.updated_by);
+      const at = row && (row.signed_off_at || row.updated_at);
       doneBody = (
         <p className="clc-done-state">
-          {month} is done
-          {row && row.updated_by ? " · " + CT_who(row.updated_by) : ""}
-          {row && row.updated_at ? " · " + CLC_shortDate(row.updated_at) : ""} ·{" "}
-          <button type="button" className="link-btn" disabled={saving} onClick={() => setAsk({ kind: "reopen", run: () => save("in_progress", (row && row.notes) || null) })}>
-            Reopen
-          </button>
+          {month} is signed off
+          {by ? " · " + CT_who(by) : ""}
+          {at ? " · " + CLC_shortDate(at) : ""}
+          {isAdmin ? (
+            <>
+              {" · "}
+              <button type="button" className="link-btn" disabled={saving} onClick={() => askReopen("in_progress", (row && row.notes) || null)}>
+                Reopen
+              </button>
+            </>
+          ) : null}
         </p>
       );
     } else if (status === "na") {
@@ -602,7 +642,15 @@ function CLC_ClientClosePage({ client, staffUser, isAdmin, onNavigate }) {
     } else if (stepsLeft > 0) {
       doneBody = (
         <p className="card-subtitle clc-steps-left">
-          {stepsLeft === 1 ? `1 step left before you can mark ${month} done.` : `${stepsLeft} steps left before you can mark ${month} done.`}
+          {stepsLeft === 1 ? "1 step left" : `${stepsLeft} steps left`}
+          {isAdmin ? ` before you can sign off ${month}.` : ` before ${month} is ready for sign-off.`}
+        </p>
+      );
+    } else if (!isAdmin && status === "review") {
+      doneBody = (
+        <p className="clc-done-state">
+          {month} is ready for sign-off
+          {row && row.ready_at ? " · " + CLC_shortDate(row.ready_at) : ""}. An admin signs it off.
         </p>
       );
     } else {
@@ -611,16 +659,22 @@ function CLC_ClientClosePage({ client, staffUser, isAdmin, onNavigate }) {
         <>
           {cs.pass ? (
             <button type="button" className="btn-primary clc-done-btn" disabled={saving} onClick={() => markDone(false)}>
-              Mark {month} done
+              {isAdmin ? `Sign off ${month}` : `Mark ${month} ready for sign-off`}
             </button>
           ) : (
             <button type="button" className="btn-secondary clc-done-btn" disabled={saving} onClick={() => markDone(true)}>
-              Mark {month} done anyway
+              {isAdmin ? `Sign off ${month} anyway` : `Mark ${month} ready anyway`}
             </button>
           )}
-          <p className="ct-email-warn" role="note">
-            Marking it done emails {clientName}'s people that {month} reports are ready.
-          </p>
+          {isAdmin ? (
+            <p className="ct-email-warn" role="note">
+              Signing off emails {clientName}'s people that {month} reports are ready.
+            </p>
+          ) : (
+            <p className="card-subtitle" role="note">
+              An admin signs it off. That's when {clientName}'s people get the "reports are ready" email.
+            </p>
+          )}
         </>
       );
     }
@@ -630,7 +684,7 @@ function CLC_ClientClosePage({ client, staffUser, isAdmin, onNavigate }) {
       className={"clc-done clc-o-done" + (doneEnabled && isPhone ? " is-sticky" : "")}
       data-lk="at:close-done"
       data-tour="close-done"
-      aria-label={`Mark ${month} done`}
+      aria-label={isAdmin ? `Sign off ${month}` : `Mark ${month} ready for sign-off`}
     >
       {doneBody}
     </section>
@@ -761,8 +815,8 @@ function CLC_ClientClosePage({ client, staffUser, isAdmin, onNavigate }) {
       askModal = (
         <ConfirmModal
           title="Ledger review"
-          body={`Ledger review isn't approved. Mark done anyway?`}
-          confirmLabel="Mark done anyway"
+          body={`Ledger review isn't approved. Sign off anyway?`}
+          confirmLabel="Sign off anyway"
           onConfirm={done}
           onCancel={cancel}
         />
@@ -771,8 +825,8 @@ function CLC_ClientClosePage({ client, staffUser, isAdmin, onNavigate }) {
       askModal = (
         <ConfirmModal
           title="QuickBooks still shows problems"
-          body={`QuickBooks still shows: ${CLC_failReasons(check)}. Mark ${month} done anyway?`}
-          confirmLabel="Mark done anyway"
+          body={`QuickBooks still shows: ${CLC_failReasons(check)}. ${isAdmin ? `Sign off ${month}` : `Mark ${month} ready for sign-off`} anyway?`}
+          confirmLabel={isAdmin ? "Sign off anyway" : "Mark ready anyway"}
           onConfirm={done}
           onCancel={cancel}
         />
@@ -780,9 +834,9 @@ function CLC_ClientClosePage({ client, staffUser, isAdmin, onNavigate }) {
     } else if (ask.kind === "redone") {
       askModal = (
         <ConfirmModal
-          title={`Mark ${month} done`}
-          body={'This month was already marked done once. Marking it done again sends the "reports are ready" email again.'}
-          confirmLabel="Mark done and email again"
+          title={`Sign off ${month}`}
+          body={'This month was signed off before. Signing it off again sends the "reports are ready" email again, unless it went out in the last 7 days.'}
+          confirmLabel="Sign off again"
           onConfirm={done}
           onCancel={cancel}
         />
@@ -797,9 +851,65 @@ function CLC_ClientClosePage({ client, staffUser, isAdmin, onNavigate }) {
           onCancel={cancel}
         />
       );
-    } else if (ask.kind === "reopen") {
+    } else if (ask.kind === "opentasks") {
+      const n = ask.openTasks || 0;
+      const names = (ask.sample || []).map((t) => t.title).join(", ");
       askModal = (
-        <ConfirmModal title={`Reopen ${month}?`} body="It goes back to In progress." confirmLabel="Reopen" onConfirm={done} onCancel={cancel} />
+        <ConfirmModal
+          title={`Sign off ${month}`}
+          body={`${n} open ${n === 1 ? "task is" : "tasks are"} still linked to ${month}${names ? ": " + names : ""}. Sign off anyway?`}
+          confirmLabel="Sign off anyway"
+          onConfirm={done}
+          onCancel={cancel}
+        />
+      );
+    } else if (ask.kind === "reopen") {
+      const target = ask.target || "in_progress";
+      const label = (CT_STATUSES.find((s) => s.key === target) || {}).label || "In progress";
+      const okReason = reopenText.trim().length >= 3;
+      askModal = (
+        <ModalShell onClose={cancel} labelledBy="clc-reopen-title" className="confirm-modal">
+          <div className="modal-header">
+            <h3 className="card-title" id="clc-reopen-title" style={{ margin: 0 }}>
+              Reopen {month}?
+            </h3>
+            <button className="modal-close" onClick={cancel} aria-label="Close">
+              ×
+            </button>
+          </div>
+          <div className="modal-body">
+            <p className="card-subtitle" style={{ marginTop: 0 }}>
+              It goes back to {label}. Say why, so the team can see it later.
+            </p>
+            <label className="ct-legend" htmlFor="clc-reopen-reason">
+              Why reopen it?
+            </label>
+            <input
+              id="clc-reopen-reason"
+              className="ct-notes"
+              maxLength={500}
+              value={reopenText}
+              placeholder="Found a missing bill, client asked for a change…"
+              onChange={(e) => setReopenText(e.target.value)}
+            />
+          </div>
+          <div className="modal-footer">
+            <button className="btn-secondary" onClick={cancel}>
+              Cancel
+            </button>
+            <button
+              className="btn-primary"
+              disabled={!okReason}
+              onClick={() => {
+                const why = reopenText.trim();
+                setAsk(null);
+                save(target, ask.notes, { reopenReason: why });
+              }}
+            >
+              Reopen
+            </button>
+          </div>
+        </ModalShell>
       );
     }
   }
@@ -1022,7 +1132,7 @@ async function CLC_loadSummary(clientId) {
     CLC_sumStore.byClient[clientId] = { ...(prev || {}), loading: true };
     const [items, mc, cc, conn] = await Promise.all([
       CLC_soft(sb.from("client_close_items").select("item_key, done").eq("client_id", clientId).eq("period", ym)),
-      CLC_soft(sb.from("month_close").select("status").eq("client_id", clientId).eq("period", period).maybeSingle()),
+      CLC_soft(sb.from("month_close").select("status").eq("client_id", clientId).eq("period_kind", "month").eq("period", period).maybeSingle()),
       CLC_soft(sb.from("close_checks").select("status, checks").eq("client_id", clientId).eq("period", period).maybeSingle()),
       CLC_soft(sb.from("qbo_connections").select("status").eq("client_id", clientId).maybeSingle()),
     ]);

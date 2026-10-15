@@ -353,7 +353,7 @@ async function valueData(db: SupabaseClient, clientId: string, period: string) {
   let { data: tasks, count: taskCount, error: doneErr } = await doneQuery(true);
   if (doneErr && (doneErr as any).code === "42703") ({ data: tasks, count: taskCount } = await doneQuery(false));
 
-  const { data: close } = await db.from("month_close").select("status").eq("client_id", clientId).eq("period", period).maybeSingle();
+  const { data: close } = await db.from("month_close").select("status").eq("client_id", clientId).eq("period_kind", "month").eq("period", period).maybeSingle();
 
   const { data: reqs } = await db
     .from("client_doc_requests")

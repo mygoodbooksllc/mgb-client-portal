@@ -51,7 +51,7 @@ const OB_store = {
       safe(sb.from("onboarding_steps").select("key, label, description, sort_order, auto_source, active").order("sort_order")),
       safe(sb.from("client_onboarding").select("client_id, step_key, done, done_by, done_at")),
       safe(sb.from("qbo_connections").select("client_id, status")),
-      safe(sb.from("month_close").select("client_id").eq("status", "done")),
+      safe(sb.from("month_close").select("client_id").eq("period_kind", "month").eq("status", "done")),
     ]);
     this.loading = false;
     const byClient = {};

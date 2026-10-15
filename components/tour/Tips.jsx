@@ -227,7 +227,7 @@ const TIPS_CATALOG = [
     target: "close-steps",
     part: ".close-item", // the first step's checkbox and name, not the whole card
     snug: true,
-    text: "Tick each close step as you finish it; it records who and when. Your first tick sets the month to In progress. Done is always your click, and it emails the client.",
+    text: "Tick each close step as you finish it; it records who and when. Your first tick sets the month to In progress. When your part is done, mark it Ready for sign-off; an admin signs it off, and that emails the client.",
     slug: "client-close",
   },
   {

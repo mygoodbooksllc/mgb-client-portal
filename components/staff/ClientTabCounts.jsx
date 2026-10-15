@@ -202,7 +202,7 @@ async function CTC_loadClose(sb, id, opts) {
   const client = (opts && opts.client) || null;
   const soft = (q) => Promise.resolve(q).then((r) => r, (e) => ({ data: null, error: e }));
   const jobs = [
-    CTC_rows(sb.from("month_close").select("period, status").eq("client_id", id).gte("period", P2)),
+    CTC_rows(sb.from("month_close").select("period, status").eq("client_id", id).eq("period_kind", "month").gte("period", P2)),
     CTC_rows(sb.from("close_checks").select("period, status, checks").eq("client_id", id).eq("period", P)),
     soft(sb.from("qbo_connections").select("status").eq("client_id", id).maybeSingle()),
     CTC_store.lateDay == null ? soft(sb.from("month_close_settings").select("late_day").maybeSingle()) : null,

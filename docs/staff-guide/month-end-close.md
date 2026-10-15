@@ -2,7 +2,7 @@
 title: How do I track month-end close?
 section: Month-end and recurring work
 audience: staff
-keywords: [month-end close, close tracker, work, close tab, client close tab, mark done, six steps, seven steps, ledger reviewed, ledger review, quickbooks checks, ready, blocked, behind, no data, stale bank, bank feed, uncategorized, ask my accountant, undeposited funds, unreconciled, stale bank after, checklist, reconcile, reconciled, late, not started, in progress, review, done, n/a, late after day]
+keywords: [month-end close, close tracker, sign off, signed off, ready for sign-off, admin sign-off, reopen, work, close tab, client close tab, mark done, six steps, seven steps, ledger reviewed, ledger review, quickbooks checks, ready, blocked, behind, no data, stale bank, bank feed, uncategorized, ask my accountant, undeposited funds, unreconciled, stale bank after, checklist, reconcile, reconciled, late, not started, in progress, review, done, n/a, late after day]
 sort: 310
 ---
 There are two places to work on month-end close, and they show the same record. A change in one shows in the other.
@@ -14,7 +14,7 @@ There are two places to work on month-end close, and they show the same record. 
 
 ### The Close tab (one client)
 
-Open the client and click **Close** in the tab row. It opens on last month, the one you're closing now. You tick the close steps, set the status, and mark the month **Done** from there. The steps are:
+Open the client and click **Close** in the tab row. It opens on last month, the one you're closing now. You tick the close steps, set the status, and mark the month **Ready for sign-off** (admins sign it off) from there. The steps are:
 
 1. Bank feed categorized
 2. Bank accounts reconciled
@@ -23,9 +23,9 @@ Open the client and click **Close** in the tab row. It opens on last month, the 
 5. Reports reviewed
 6. Reports sent to the client
 
-For a client with QuickBooks connected, from the month Ledger review started, there's a seventh step, **Ledger reviewed**, after **Reports reviewed**. You don't tick it by hand: it's ticked when someone clicks **Mark reviewed** on the client's **Ledger review** tab (or the **Ledger review** card on the Close tab), and an admin then approves it. Marking the month done before it's approved asks first: *Ledger review isn't approved. Mark done anyway?*
+For a client with QuickBooks connected, from the month Ledger review started, there's a seventh step, **Ledger reviewed**, after **Reports reviewed**. You don't tick it by hand: it's ticked when someone clicks **Mark reviewed** on the client's **Ledger review** tab (or the **Ledger review** card on the Close tab), and an admin then approves it. Signing off the month before it's approved asks first: *Ledger review isn't approved. Sign off anyway?*
 
-Each ticked step records who ticked it and when. Your first tick sets a **Not started** month to **In progress**. **Done** is always your click. Marking a month done emails the client's people that the reports are ready. The full walk-through is in [What's on a client's Close tab?](#/help/client-close).
+Each ticked step records who ticked it and when. Your first tick sets a **Not started** month to **In progress**. When your part is finished, mark it **Ready for sign-off**. **Done** is an admin's sign-off, and signing off emails the client's people that the reports are ready. See [Who signs off a month, quarter or year?](#/help/period-sign-off). The full walk-through is in [What's on a client's Close tab?](#/help/client-close).
 
 The Client overview shows a one-line summary, for example *September 2026 close · In progress · 3 of 6 steps* (or *of 7* when the client has the Ledger reviewed step). Click it to open the tab. Today's **Closes open** tile counts your clients' unfinished closes, and late or blocked ones show as rows in **Needs you**.
 
@@ -36,11 +36,11 @@ Open **Work** in the left rail, then the **Close** tab (`#/work/close`). You'll 
 **To update a month:**
 
 1. Click the cell for the client and month.
-2. Choose a **Status**: **Not started**, **In progress**, **Review**, **Done** or **N/A**.
+2. Choose a **Status**: **Not started**, **In progress**, **Ready for sign-off** or **N/A**. Admins also see **Done (sign off)**.
 3. Add **Notes** if useful, for example *Waiting on bank statement*.
-4. Click **Save**.
+4. Click **Save** (admins: **Sign off** when picking Done, **Reopen** when moving a signed-off month back, which asks *Why reopen it?*).
 
-Each cell shows the status, who changed it and when, and a dot if there's a note. If two people save the same month at nearly the same time, the second sees **Someone else saved first** and picks **Load theirs** or **Keep mine**.
+Each cell shows the status, who changed it and when, and a dot if there's a note. A signed-off month also says who signed it off. Bookkeepers can't change a signed-off month: the cell says *Signed off by {name}. Only an admin can reopen it.* If two people save the same month at nearly the same time, the second sees **Someone else saved first** and picks **Load theirs** or **Keep mine**.
 
 **Filters:** use **Month**, **Bookkeeper** (Everyone, My clients, a person, Unassigned) and **Status** (including **Late**). The count buttons at the top also filter the grid when clicked.
 
@@ -85,13 +85,13 @@ Admins can change the number of days with **Stale bank after (days)** (1 to 90) 
 
 A month is late if it isn't **Done** or **N/A** by the 15th of the following month. Admins can change that day with **Late after day** and **Save**.
 
-> Marking a month **Done**, on Work › Close or on the client's Close tab, also ticks the client's "first month closed" onboarding step.
+> Signing off a month (**Done**), on Work › Close or on the client's Close tab, also ticks the client's "first month closed" onboarding step.
 
 ### Troubleshooting
 
 - **"Couldn't load close status (...). Showing empty months."** Refresh the page. If it keeps happening, tell an admin.
 - **"No clients to show."** You don't have any assigned clients yet. Ask an admin.
-- **I ticked every step but the month isn't Done.** That's expected. Click **Mark {Month} done** on the client's Close tab, or set the status to **Done** on Work › Close.
+- **I ticked every step but the month isn't Done.** That's expected. Click **Mark {Month} ready for sign-off** on the client's Close tab, or set the status to **Ready for sign-off** on Work › Close. An admin signs it off.
 - **The badge says Ready but I haven't closed the month.** The badge is only the automatic QuickBooks checks. Set the status yourself when you're done.
 - **I fixed it in QuickBooks but the badge still says Blocked or Behind.** Click **Sync now** on the client's Close tab (or the Overview), then refresh Work › Close. Staff can use **Sync now** as often as they like.
 - **No badge at all.** The client's QuickBooks isn't connected, or it's the current month (only completed months are checked).

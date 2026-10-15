@@ -68,6 +68,45 @@ var ANN_REGISTRY = [
       },
     ],
   },
+  {
+    id: "month-sign-off",
+    date: "2026-10-15",
+    title: "Admin sign-off for each month",
+    summary: "Bookkeepers now mark a month Ready for sign-off; only an admin signs it off (Done), and reopening needs a reason.",
+    roles: ["admin", "bookkeeper"],
+    hash: "#/work/close",
+    steps: (ctx) => [
+      {
+        id: "ann-welcome",
+        title: "Months are now signed off by an admin",
+        body: () =>
+          "A quick look at how a month gets finished now. The Review status is now Ready for sign-off, and only an admin can make a month Done. About a minute.",
+      },
+      TOUR_tabStep(
+        "work",
+        "close",
+        "Work › Close",
+        "Every client's months are here. A month marked Ready for sign-off shows as Ready; an admin signs it off from the cell, which emails the client that reports are ready.",
+      ),
+      {
+        id: "ann-grid",
+        go: TOUR_go("work", "close"),
+        targets: ["close-grid"],
+        wait: true,
+        title: "Ready, then signed off",
+        body: () =>
+          ctx && ctx.isAdmin
+            ? "Click a cell and pick Done (sign off). Open tasks for the month only warn. To reopen a signed-off month, pick another status and say why."
+            : "Click a cell and pick Ready for sign-off when your part is finished. Your on-time score counts from then, not from the sign-off.",
+      },
+      {
+        id: "ann-done",
+        title: "That's it",
+        body: () =>
+          "On a client's Close tab the button now reads Mark {Month} ready for sign-off (admins: Sign off {Month}). To see this again, press ? and pick New: Admin sign-off for each month tour.",
+      },
+    ],
+  },
 ];
 
 if (typeof module !== "undefined" && module.exports) module.exports = { ANN_REGISTRY: ANN_REGISTRY };

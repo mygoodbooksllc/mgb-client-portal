@@ -6058,6 +6058,7 @@ function SentToClient({ client, itemKey, itemLabel, periodLabel, closePeriod }) 
           .from("month_close")
           .select("status, updated_at")
           .eq("client_id", client.id)
+          .eq("period_kind", "month")
           .eq("period", ym + "-01")
           .maybeSingle();
         status = mc && mc.data ? mc.data.status : null;
@@ -6774,7 +6775,7 @@ function OV_daysUntil(ymd, today) {
 function OV_plural(n, one, many) {
   return n === 1 ? one : many;
 }
-const OV_CLOSE_STATUS = { not_started: "Not started", in_progress: "In progress", review: "Review" };
+const OV_CLOSE_STATUS = { not_started: "Not started", in_progress: "In progress", review: "Ready for sign-off" };
 
 // Card shell (deeplinks.md D.1 minus the body click, D7): the header link is
 // the only link the card adds; `linkText` replaces the title inside the link

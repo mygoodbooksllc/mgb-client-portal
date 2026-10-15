@@ -38,7 +38,9 @@
 const CT_STATUSES = [
   { key: "not_started", label: "Not started", short: "—" },
   { key: "in_progress", label: "In progress", short: "In progress" },
-  { key: "review", label: "Review", short: "Review" },
+  // Tasks Phase 2 S2: only an admin sign-off makes a month Done
+  // (tk_sign_off_period); everyone else marks it Ready for sign-off.
+  { key: "review", label: "Ready for sign-off", short: "Ready" },
   { key: "done", label: "Done", short: "Done" },
   { key: "na", label: "N/A", short: "N/A" },
 ];
@@ -101,10 +103,14 @@ const CT_bookkeeperKey = (c) => {
 const CT_CHANGED_EVENT = "mgb:month-close-changed";
 const CT_toYm = (p) => String(p || "").slice(0, 7); // "2026-09-01" -> "2026-09"
 const CT_fromYm = (ym) => String(ym || "").slice(0, 7) + "-01"; // "2026-09" -> "2026-09-01"
-const CT_COLS = "client_id, period, status, notes, updated_by, updated_at";
+// Every month_close read and write here is a month row (period_kind 'month');
+// quarter and year rows (tasks-p2-2-periods.sql) share the table.
+const CT_COLS =
+  "client_id, period_kind, period, status, notes, updated_by, updated_at, signed_off_by, signed_off_at, ready_at, reopened_by, reopened_at, reopened_reason";
 // "client|YYYY-MM-01" keys seen as done in this browser session (loads and
 // saves). Moving one of them back to done asks first: the client "reports
-// are ready" email has no dedupe.
+// are ready" email goes out again unless it went to that person in the last
+// 7 days (notify_enqueue_reports_ready).
 const CT_doneSeen = new Set();
 const CT_noteDone = (row) => {
   if (row && row.status === "done") CT_doneSeen.add(row.client_id + "|" + CT_fromYm(row.period));
@@ -122,6 +128,7 @@ async function CT_conflict(sb, clientId, period, cols) {
       .from("month_close")
       .select(cols || CT_COLS)
       .eq("client_id", clientId)
+      .eq("period_kind", "month")
       .eq("period", period)
       .maybeSingle();
     theirs = (r && r.data) || null;
@@ -179,11 +186,114 @@ async function CT_ledgerGate({ sb, clientId, period, confirmLedger }) {
   return { ok: true };
 }
 
+// Sign-off and reopen (Tasks Phase 2 S2, tasks-p2-2-periods.sql). Moving a
+// month into Done is an admin sign-off: CT_ledgerGate runs first (its
+// override must exist before the RPC, or the GL gate trigger refuses), then
+// tk_sign_off_period with the row's updated_at (40001 = someone else saved
+// first, the same conflict prompt). Tasks linked to the month that are
+// still open warn (needs_ack) and never block: confirmOpenTasks({ openTasks,
+// sample, month }) answers, else window.confirm. Moving a month out of Done
+// is tk_reopen_period with a reason (reopenReason, else window.prompt).
+// The database refuses both for non-admins (month_close_signoff_guard).
+const CT_openTasksText = (n, sample, month) =>
+  `${n} open ${n === 1 ? "task is" : "tasks are"} still linked to ${month}` +
+  ((sample || []).length ? ": " + sample.map((t) => t.title).join(", ") : "") +
+  ". Sign off anyway?";
+async function CT_monthRow(sb, clientId, period) {
+  const r = await sb
+    .from("month_close")
+    .select(CT_COLS)
+    .eq("client_id", clientId)
+    .eq("period_kind", "month")
+    .eq("period", period)
+    .maybeSingle();
+  if (r.error) throw r.error;
+  return r.data || null;
+}
+async function CT_saveNotesOnly(sb, clientId, period, row, notes) {
+  if (!row || (row.notes || null) === notes) return { ok: true, row };
+  const res = await sb
+    .from("month_close")
+    .update({ notes })
+    .eq("client_id", clientId)
+    .eq("period_kind", "month")
+    .eq("period", period)
+    .eq("updated_at", row.updated_at)
+    .select(CT_COLS);
+  if (res.error) return { ok: false, error: res.error };
+  if (!res.data || !res.data.length) return CT_conflict(sb, clientId, period, CT_COLS);
+  return { ok: true, row: res.data[0] };
+}
+async function CT_signOff({ sb, clientId, period, notes, expectedUpdatedAt, confirmOpenTasks }) {
+  let ack = false;
+  for (let i = 0; i < 2; i++) {
+    const r = await sb.rpc("tk_sign_off_period", {
+      p_client_id: clientId,
+      p_kind: "month",
+      p_period: period,
+      p_ack_open: ack,
+      p_expected_updated_at: expectedUpdatedAt || null,
+    });
+    if (r.error) {
+      if (r.error.code === "40001") return CT_conflict(sb, clientId, period, CT_COLS);
+      return { ok: false, error: r.error };
+    }
+    const d = r.data || {};
+    if (!d.needs_ack) break;
+    const month = CT_monthName(period);
+    const yes =
+      typeof confirmOpenTasks === "function"
+        ? await confirmOpenTasks({ openTasks: d.open_tasks, sample: d.sample || [], month })
+        : window.confirm(CT_openTasksText(d.open_tasks, d.sample, month));
+    if (!yes) return { ok: false, cancelled: true };
+    ack = true;
+  }
+  return CT_saveNotesOnly(sb, clientId, period, await CT_monthRow(sb, clientId, period), notes);
+}
+async function CT_reopen({ sb, clientId, period, status, notes, reopenReason }) {
+  let reason = String(reopenReason || "").trim();
+  if (!reason) {
+    const r = window.prompt(`Reopen ${CT_monthName(period)}? Say why (at least 3 characters):`, "");
+    if (r === null) return { ok: false, cancelled: true };
+    reason = r.trim();
+  }
+  if (reason.length < 3) return { ok: false, error: { message: "Say why it's being reopened (at least 3 characters)." } };
+  const r = await sb.rpc("tk_reopen_period", { p_client_id: clientId, p_kind: "month", p_period: period, p_reason: reason.slice(0, 500) });
+  if (r.error) return { ok: false, error: r.error };
+  let row = await CT_monthRow(sb, clientId, period);
+  if (row && row.status !== status) {
+    const res = await sb
+      .from("month_close")
+      .update({ status, notes })
+      .eq("client_id", clientId)
+      .eq("period_kind", "month")
+      .eq("period", period)
+      .eq("updated_at", row.updated_at)
+      .select(CT_COLS);
+    if (res.error) return { ok: false, error: res.error };
+    if (!res.data || !res.data.length) return CT_conflict(sb, clientId, period, CT_COLS);
+    return { ok: true, row: res.data[0] };
+  }
+  return CT_saveNotesOnly(sb, clientId, period, row, notes);
+}
+
 // Returns { ok:true, row[, noop] } | { ok:false, conflict:true, theirs } |
-// { ok:false, cancelled:true } (the ledger warning was declined) | { ok:false, error }.
-// expectedUpdatedAt must be the server's updated_at string for the row this
-// browser last loaded (null/undefined when there was no row).
-async function CT_saveMonthClose({ sb, clientId, period, status, notes, expectedUpdatedAt, prevRow, confirmLedger }) {
+// { ok:false, cancelled:true } (a warning or the reopen reason was declined) |
+// { ok:false, error }. expectedUpdatedAt must be the server's updated_at
+// string for the row this browser last loaded (null/undefined when there
+// was no row).
+async function CT_saveMonthClose({
+  sb,
+  clientId,
+  period,
+  status,
+  notes,
+  expectedUpdatedAt,
+  prevRow,
+  confirmLedger,
+  confirmOpenTasks,
+  reopenReason,
+}) {
   sb = sb || window.mgbSupabase;
   period = CT_fromYm(period);
   notes = String(notes || "").trim() || null;
@@ -192,17 +302,25 @@ async function CT_saveMonthClose({ sb, clientId, period, status, notes, expected
   }
   if (!sb) return { ok: false, error: { message: "Supabase isn't configured, so nothing is saved." } };
   const becomesDone = status === "done" && !(prevRow && prevRow.status === "done");
+  const leavesDone = !!(prevRow && prevRow.status === "done") && status !== "done";
   if (becomesDone) {
     const g = await CT_ledgerGate({ sb, clientId, period, confirmLedger });
     if (!g.ok) return g;
   }
   let res;
   try {
-    if (expectedUpdatedAt) {
+    if (becomesDone || leavesDone) {
+      const out = becomesDone
+        ? await CT_signOff({ sb, clientId, period, notes, expectedUpdatedAt, confirmOpenTasks })
+        : await CT_reopen({ sb, clientId, period, status, notes, reopenReason });
+      if (!out.ok) return out;
+      res = { data: out.row ? [out.row] : [] };
+    } else if (expectedUpdatedAt) {
       res = await sb
         .from("month_close")
         .update({ status, notes })
         .eq("client_id", clientId)
+        .eq("period_kind", "month")
         .eq("period", period)
         .eq("updated_at", expectedUpdatedAt)
         .select(CT_COLS); // array; length 0 = someone else saved first
@@ -259,7 +377,13 @@ async function CT_applyFirstTick({ sb, clientId, period, hadOtherDone }) {
   const p = CT_fromYm(period);
   let row = null;
   try {
-    const r = await sb.from("month_close").select(CT_COLS).eq("client_id", clientId).eq("period", p).maybeSingle();
+    const r = await sb
+      .from("month_close")
+      .select(CT_COLS)
+      .eq("client_id", clientId)
+      .eq("period_kind", "month")
+      .eq("period", p)
+      .maybeSingle();
     if (r.error) return { changed: false };
     row = r.data || null;
   } catch (e) {
@@ -372,7 +496,8 @@ function CT_useCloseStatus(clients, staffUser) {
       safe(
         sb
           .from("month_close")
-          .select("client_id, period, status, notes, updated_by, updated_at")
+          .select(CT_COLS)
+          .eq("period_kind", "month")
           .gte("period", periods[0])
           .lte("period", periods[periods.length - 1]),
       ),
@@ -555,7 +680,7 @@ function CT_CloseTrackerPage({ clients, staffUser }) {
   // error restores and toasts. The optimistic row is marked _opt and never
   // used as expectedUpdatedAt (only the server's own updated_at is).
   const [conflict, setConflict] = useState(null); // { client, period, status, notes, theirs }
-  const save = async (clientId, period, status, notes, expectedOverride) => {
+  const save = async (clientId, period, status, notes, expectedOverride, opts) => {
     const sb = window.mgbSupabase;
     const key = clientId + "|" + period;
     const prev = rows[key];
@@ -586,6 +711,7 @@ function CT_CloseTrackerPage({ clients, staffUser }) {
       notes,
       expectedUpdatedAt: expected,
       prevRow: expectedOverride !== undefined ? null : prev,
+      reopenReason: opts && opts.reopenReason,
     });
     if (res.conflict) {
       restore();
@@ -808,6 +934,7 @@ function CT_CloseTrackerPage({ clients, staffUser }) {
                         `${CT_name(c)} · ${CT_monthLabel(p, true)}: ${CT_STATUS_LABEL[s]}` +
                         (late ? " (late)" : "") +
                         (r && r.updated_by ? ` · ${CT_who(r.updated_by)}, ${new Date(r.updated_at).toLocaleDateString()}` : "") +
+                        (r && s === "done" && r.signed_off_by ? ` · signed off by ${CT_who(r.signed_off_by)}` : "") +
                         (r && r.notes ? ` · ${r.notes}` : "");
                       return (
                         <td key={p} className={"ct-cell" + (p === focus ? " focus" : "")}>
@@ -840,6 +967,7 @@ function CT_CloseTrackerPage({ clients, staffUser }) {
 
       {editing && (
         <CT_CellEditor
+          isAdmin={isAdmin}
           client={editing.client}
           period={editing.period}
           row={rows[editing.client.id + "|" + editing.period]}
@@ -847,9 +975,9 @@ function CT_CloseTrackerPage({ clients, staffUser }) {
           deadline={CT_deadline(editing.period, lateDay)}
           check={checkOf(editing.client.id, editing.period)}
           onClose={() => setEditing(null)}
-          onSave={async (status, notes) => {
+          onSave={async (status, notes, opts) => {
             const ed = editing;
-            const ok = await save(ed.client.id, ed.period, status, notes);
+            const ok = await save(ed.client.id, ed.period, status, notes, undefined, opts);
             if (ok && ok.conflict) {
               setEditing(null);
               setConflict({ client: ed.client, period: ed.period, status, notes, theirs: ok.theirs });
@@ -890,27 +1018,34 @@ function CT_ordinal(n) {
   return s[(v - 20) % 10] || s[v] || s[0];
 }
 
-function CT_CellEditor({ client, period, row, late, deadline, check, onClose, onSave }) {
+function CT_CellEditor({ isAdmin, client, period, row, late, deadline, check, onClose, onSave }) {
   const [status, setStatus] = useState(row ? row.status : "not_started");
   const [notes, setNotes] = useState((row && row.notes) || "");
+  const [reason, setReason] = useState("");
   const [saving, setSaving] = useState(false);
   // Confirms render inside this same ModalShell (a nested ModalShell would
   // take Escape for the outer one first). ask = "redone" | "latenote" | null.
   const [ask, setAsk] = useState(null);
   const month = CT_monthName(period);
   const prevStatus = row ? row.status : "not_started";
+  // Only an admin signs off (Done) or reopens a signed-off month.
+  const locked = !isAdmin && prevStatus === "done";
+  const reopening = prevStatus === "done" && status !== "done";
+  const choices = CT_STATUSES.filter((s) => isAdmin || s.key !== "done" || prevStatus === "done");
   const doSave = async () => {
     setSaving(true);
-    await onSave(status, notes.trim());
+    await onSave(status, notes.trim(), reopening ? { reopenReason: reason.trim() } : undefined);
     setSaving(false);
   };
   const askFor = () => {
     const key = client.id + "|" + CT_fromYm(period);
     if (status === "done" && prevStatus !== "done" && CT_doneSeen.has(key)) return "redone";
     const notesChanged = (notes.trim() || null) !== ((row && row.notes) || null);
+    // A signed-off month's KPI time is its ready / sign-off time, so only an
+    // N/A month's note can move it (staff_performance, tasks-p2-2-periods.sql).
     if (
       row &&
-      (status === "done" || status === "na") &&
+      status === "na" &&
       status === prevStatus &&
       notesChanged &&
       row.updated_at &&
@@ -930,7 +1065,7 @@ function CT_CellEditor({ client, period, row, late, deadline, check, onClose, on
           </h3>
           <p className="ct-ask-text">
             {redone
-              ? 'This month was already marked done once. Marking it done again sends the "reports are ready" email again.'
+              ? 'This month was signed off before. Signing it off again sends the "reports are ready" email again, unless it went out in the last 7 days.'
               : "This close was on time. Saving a note now records it as finished today, which can count as late. Save anyway?"}
           </p>
           <div className="ct-modal-foot">
@@ -945,7 +1080,7 @@ function CT_CellEditor({ client, period, row, late, deadline, check, onClose, on
                 await doSave();
               }}
             >
-              {saving ? "Saving…" : redone ? "Mark done and email again" : "Save note"}
+              {saving ? "Saving…" : redone ? "Sign off again" : "Save note"}
             </button>
           </div>
         </div>
@@ -991,17 +1126,48 @@ function CT_CellEditor({ client, period, row, late, deadline, check, onClose, on
         )}
         <fieldset className="ct-status-group">
           <legend className="ct-legend">Status</legend>
-          {CT_STATUSES.map((s) => (
+          {choices.map((s) => (
             <label key={s.key} className={"ct-status-opt ct-s-" + s.key + (status === s.key ? " selected" : "")}>
-              <input type="radio" name="ct-status" value={s.key} checked={status === s.key} onChange={() => setStatus(s.key)} />
-              {s.label}
+              <input
+                type="radio"
+                name="ct-status"
+                value={s.key}
+                checked={status === s.key}
+                disabled={locked}
+                onChange={() => setStatus(s.key)}
+              />
+              {s.key === "done" ? "Done (sign off)" : s.label}
             </label>
           ))}
         </fieldset>
+        {locked ? (
+          <p className="card-subtitle" role="note">
+            Signed off{row && row.signed_off_by ? " by " + CT_who(row.signed_off_by) : ""}. Only an admin can reopen it.
+          </p>
+        ) : !isAdmin ? (
+          <p className="card-subtitle" role="note">
+            When your part is finished, pick Ready for sign-off. An admin signs {month} off.
+          </p>
+        ) : null}
         {status === "done" && prevStatus !== "done" && (
           <p className="ct-email-warn" role="note">
-            Marking it done emails {CT_name(client)}'s people that {month} reports are ready.
+            Signing off emails {CT_name(client)}'s people that {month} reports are ready.
           </p>
+        )}
+        {reopening && (
+          <>
+            <label className="ct-legend" htmlFor="ct-reopen-reason">
+              Why reopen it?
+            </label>
+            <input
+              id="ct-reopen-reason"
+              className="ct-notes"
+              maxLength={500}
+              value={reason}
+              placeholder="Found a missing bill, client asked for a change…"
+              onChange={(e) => setReason(e.target.value)}
+            />
+          </>
         )}
         <label className="ct-legend" htmlFor="ct-notes">
           Notes
@@ -1024,8 +1190,8 @@ function CT_CellEditor({ client, period, row, late, deadline, check, onClose, on
           <button type="button" className="btn-secondary" onClick={onClose}>
             Cancel
           </button>
-          <button type="submit" className="btn-primary" disabled={saving}>
-            {saving ? "Saving…" : "Save"}
+          <button type="submit" className="btn-primary" disabled={saving || (reopening && reason.trim().length < 3)}>
+            {saving ? "Saving…" : status === "done" && prevStatus !== "done" ? "Sign off" : reopening ? "Reopen" : "Save"}
           </button>
         </div>
       </form>
