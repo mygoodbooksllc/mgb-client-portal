@@ -195,11 +195,7 @@ function CL_Row({ r, hours, closeLoading, hlStatus, onOpen, isRealAdmin }) {
             {c.name || c.id}
           </a>
           {plan && <span className="pill neutral cl-tag">{plan}</span>}
-          {c.testOnly && (
-            <span className="pill warm cl-tag" title="A test client: sample numbers, not a real organization">
-              Test
-            </span>
-          )}
+          <CF_Badge client={c} />
           {/* Onboarding is admin work (D20): real admins only. */}
           {isRealAdmin && (
             <OB_OnboardingBadge clientId={c.id} onOpen={() => open("client-overview")} />
@@ -300,20 +296,32 @@ function CL_ClientsPage({ clients, staffUser, isAdmin, statusOverrides, pendingR
     };
   });
 
+  // The tab counts are real clients only: test clients and MGB (internal) are
+  // listed (when the switch is on) but never counted.
+  const realRows = rows.filter((r) => !r.c.testOnly && !r.c.isInternal);
   const counts = {
-    mine: rows.filter((r) => r.mine).length,
-    all: rows.length,
-    attention: rows.filter((r) => r.reasons.length > 0).length,
+    mine: realRows.filter((r) => r.mine).length,
+    all: realRows.length,
+    attention: realRows.filter((r) => r.reasons.length > 0).length,
   };
   // Mine by default when anything is yours; the viewer's own pick sticks.
   const active = filter || (counts.mine > 0 ? "mine" : "all");
   const needle = q.trim().toLowerCase();
-  const shown = rows
+  const shown = CF_sort(rows
     .filter((r) => (active === "mine" ? r.mine : active === "attention" ? r.reasons.length > 0 : true))
     .filter((r) => !needle || CL_lower(r.c.name).includes(needle) || CL_lower(r.c.id).includes(needle) || CL_lower(r.assigneeName).includes(needle))
-    .sort((a, b) => (b.reasons.length > 0) - (a.reasons.length > 0) || String(a.c.name || a.c.id).localeCompare(String(b.c.name || b.c.id)));
+    .sort((a, b) => (b.reasons.length > 0) - (a.reasons.length > 0) || String(a.c.name || a.c.id).localeCompare(String(b.c.name || b.c.id))), (r) => r.c);
 
-  const empty = !rows.length
+  // Only test clients exist and the switch is hiding them: say so, rather than
+  // "No clients yet".
+  const testHidden =
+    !rows.length &&
+    typeof CF_readShow === "function" &&
+    !CF_readShow(window.mgbViewerEmail) &&
+    (window.CLIENTS || []).some((c) => c && c.testOnly === true);
+  const empty = testHidden
+    ? 'No real clients yet. Test clients are hidden: turn on "Show test clients" to see them.'
+    : !rows.length
     ? isAdmin
       ? "No clients yet. Add one from Team → Members, or wait for the roster to load."
       : "No clients are assigned to you yet. An admin can assign you from the client's settings."
@@ -345,6 +353,7 @@ function CL_ClientsPage({ clients, staffUser, isAdmin, statusOverrides, pendingR
               </button>
             ))}
           </div>
+          <CF_Toggle email={staffUser && staffUser.email} />
           <label className="cl-search">
             {typeof SearchIcon === "function" && <SearchIcon className="cl-search-icon" aria-hidden="true" />}
             <input type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Find a client" aria-label="Find a client" />
@@ -373,7 +382,8 @@ function CL_ClientsPage({ clients, staffUser, isAdmin, statusOverrides, pendingR
           </table>
         </div>
         <p className="cl-foot muted">
-          Showing {shown.length} of {rows.length}. Needs attention means health at risk, a late close, a portal access request waiting, or a
+          Showing {shown.length} of {rows.length}. Test clients are listed last and not counted
+          {typeof CF_readShow === "function" && !CF_readShow(window.mgbViewerEmail) ? '; turn "Show test clients" on to see them.' : "."} Needs attention means health at risk, a late close, a portal access request waiting, or a
           stale SOP. Hours are QuickBooks Time this calendar month against the client's monthly budget.
           {health.status === "missing" && " Client health isn't set up yet (database step pending)."}
           {close.error && " " + close.error}
@@ -399,9 +409,16 @@ function CL_Breadcrumb({ client, page, onOpenClients, onOpenOverview }) {
     <nav className="cl-crumbs" aria-label="Breadcrumb">
       <ol>
         <li>
-          <a href="#/clients" onClick={go(onOpenClients)}>
-            Clients
-          </a>
+          {client.isInternal ? (
+            // MGB (internal) is not a client: no way back to the Clients list.
+            <span className="cl-internal-badge" title="MyGoodBooks' own workspace. Not a client.">
+              MGB (internal)
+            </span>
+          ) : (
+            <a href="#/clients" onClick={go(onOpenClients)}>
+              Clients
+            </a>
+          )}
         </li>
         <li className="cl-crumb-sep" aria-hidden="true">
           ›

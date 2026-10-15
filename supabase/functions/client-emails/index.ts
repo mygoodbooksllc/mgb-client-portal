@@ -106,6 +106,8 @@ function gate(job: Job, trigger: Trigger, settings: any, prefs: any, client: any
   if (job === "value_report" && prefs?.opt_out_value_report) return "This client is opted out of the value report";
   if (job === "doc_chaser" && prefs?.chaser_paused) return "Reminders are paused for this client";
   if (trigger === "cron" && client?.test_only) return "Test client";
+  // The internal company profile (MGB itself) is not a client: it never gets client emails.
+  if (client?.is_internal) return "Internal company profile";
   return null;
 }
 
@@ -448,7 +450,13 @@ Deno.serve(async (req) => {
     const action = body?.action === "test" ? "test" : body?.action === "preview" ? "preview" : null;
     const clientId = typeof body?.client_id === "string" ? body.client_id : null;
     if (!action || !clientId) return json({ error: "action (preview|test) and client_id are required" }, 400);
-    const { data: clientRow } = await db.from("clients").select("id, name, test_only, assigned_bookkeeper, assigned_bookkeeper_email").eq("id", clientId).maybeSingle();
+    // Everything below reads with the service role, so check the CALLER first.
+    // can_access_client() also refuses the internal company profile unless this
+    // admin has been given access to it.
+    const callerDb = createClient(SUPABASE_URL, ANON_KEY, { global: { headers: { Authorization: authHeader } } });
+    const { data: mayOpen, error: openErr } = await callerDb.rpc("can_access_client", { p_client_id: clientId });
+    if (openErr || mayOpen !== true) return json({ error: "forbidden" }, 403);
+    const { data: clientRow } = await db.from("clients").select("id, name, test_only, is_internal, assigned_bookkeeper, assigned_bookkeeper_email").eq("id", clientId).maybeSingle();
     if (!clientRow) return json({ error: "client not found" }, 404);
     const [client] = await withSignatures(db, [clientRow]);
     const { data: prefs } = await db.from("client_email_prefs").select("*").eq("client_id", clientId).maybeSingle();
@@ -511,7 +519,7 @@ Deno.serve(async (req) => {
     return json({ status: "skipped", reason: globalBlock });
   }
 
-  const { data: clientRows } = await db.from("clients").select("id, name, test_only, assigned_bookkeeper, assigned_bookkeeper_email");
+  const { data: clientRows } = await db.from("clients").select("id, name, test_only, is_internal, assigned_bookkeeper, assigned_bookkeeper_email");
   const clients = await withSignatures(db, clientRows || []);
   const { data: allPrefs } = await db.from("client_email_prefs").select("*");
   const prefsBy = new Map((allPrefs || []).map((r: any) => [r.client_id, r]));

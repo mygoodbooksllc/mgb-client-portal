@@ -219,17 +219,21 @@ function TK_vMyTasksBody(props) {
       all.forEach(function (t) {
         if (t && t.client_id != null) seen[String(t.client_id)] = 1;
       });
-      return Object.keys(seen)
+      var list = Object.keys(seen)
         .map(function (id) {
-          return { id: id, name: clientNames[id] || id };
+          var full = (props.clients || []).filter(function (c) { return c && String(c.id) === id; })[0] || {};
+          return { id: id, name: clientNames[id] || id, testOnly: full.testOnly, isInternal: full.isInternal };
         })
         .sort(function (a, b) {
           var x = a.name.toLowerCase();
           var y = b.name.toLowerCase();
           return x < y ? -1 : x > y ? 1 : 0;
         });
+      // Test clients and MGB (internal) last, tagged (ClientFlags.jsx).
+      if (typeof CF_sort === "function") list = CF_sort(list);
+      return list;
     },
-    [all, clientNames],
+    [all, clientNames, props.clients],
   );
 
   var keys = TK_useKeys({
@@ -370,7 +374,7 @@ function TK_vMyTasksBody(props) {
                 {myClients.map(function (c) {
                   return (
                     <option key={c.id} value={c.id}>
-                      {c.name}
+                      {typeof CF_label === "function" ? CF_label(c) : c.name}
                     </option>
                   );
                 })}

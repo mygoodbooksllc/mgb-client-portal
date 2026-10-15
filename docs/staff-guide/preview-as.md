@@ -2,7 +2,7 @@
 title: How do I see the portal the way a client sees it?
 section: Working with a client
 audience: staff
-keywords: [preview as, preview plan, client view, view as client, client view menu, what the client sees, exit preview, plan preview, view as client, test client, test clients, try a change, sample data, sandbox]
+keywords: [show test clients, test badge, hide test clients, preview as, preview plan, client view, view as client, client view menu, what the client sees, exit preview, plan preview, view as client, test client, test clients, try a change, sample data, sandbox]
 sort: 260
 ---
 On any client page there are two preview controls. Neither changes anything for the client.
@@ -26,8 +26,18 @@ While previewing, staff-only things are hidden: the top bar (with **+**), the st
 
 Before a change reaches real clients, try it on **Basic Test Client** or **Pro Test Client**. They hold made-up sample data, so nothing you do there affects a real client.
 
+A small **Test** tag sits beside their names, and they sort to the bottom of every client list and picker. MyGoodBooks' own books carry an **Internal** tag in the same way (see [What is MGB (internal), and who can open it?](#/help/mgb-internal)).
+
+### Show test clients
+
+Test clients are **hidden** from lists and pickers until you ask for them. Tick **Show test clients** at the top of the **Clients** page, or at the bottom of the client picker. It's remembered on this browser for you only, and turning it off hides them again.
+
+- If you're assigned to a test client (as bookkeeper or account manager, by access or by temporary access), it stays in your lists at the bottom whatever the switch says.
+- The one you have open stays in the picker, so you never lose your place.
+- The switch changes only what's listed. It doesn't change who is allowed to open a client.
+
 - **Not counted anywhere:** test clients are left out of reports, digests, alerts, usage numbers, performance scores and client emails.
 - **Pro Test Client** has a sample contact you can **Preview as**, a 2027 budget draft, and a QuickBooks sandbox, so you can try syncing and ledger review safely.
 - **Both** have a sample fee, a document request and a month-end close in progress.
-- Test clients only show in your client list if you're an admin or have been assigned to them.
+- Test clients only open for admins and the people assigned to them.
 - If something looks wrong on a test client, tell an admin before it goes near a real one.

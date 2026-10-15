@@ -212,13 +212,15 @@ Deno.serve(async (req) => {
   };
 
   const [{ data: client }, { data: profile }, { data: settings }, { data: prefs }, { data: staffRow }] = await Promise.all([
-    admin.from("clients").select("id, name, test_only").eq("id", clientId).maybeSingle(),
+    admin.from("clients").select("id, name, test_only, is_internal").eq("id", clientId).maybeSingle(),
     admin.from("client_profile").select("contact_email, greeting_name").eq("client_id", clientId).maybeSingle(),
     admin.from("client_email_settings").select("*").eq("id", true).maybeSingle(),
     admin.from("client_email_prefs").select("*").eq("client_id", clientId).maybeSingle(),
     admin.from("staff").select("name").ilike("email", caller.replace(/[\\%_]/g, (c) => "\\" + c)).maybeSingle(),
   ]);
   if (!client) return json({ status: "error", error: "Client not found." }, 404);
+  // The internal company profile (MGB itself) has no client to email.
+  if (client.is_internal === true) return json({ status: "error", error: "The internal company profile has no client to email." }, 400);
   const contact = String(profile?.contact_email || "").trim().toLowerCase();
   const greeting = String(profile?.greeting_name || "").trim() || null;
 

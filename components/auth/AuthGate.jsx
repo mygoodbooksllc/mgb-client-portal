@@ -88,7 +88,38 @@
       }
       // Only a verified staff member gets the "install the app" links.
       if (window.mgbInstallApp) window.mgbInstallApp.set(true);
-      setStaffUser({ email: data.email, name: data.name, role: data.role });
+      // MGB (internal): a per-admin grant the owner sets under Team › Members.
+      // The database answers it (can_view_internal() = active admin AND a row
+      // in internal_access; supabase/internal-company-profile.sql). Read on its
+      // own so a database that hasn't had that migration yet can't lock anyone
+      // out: a failed call just means "no". isInternalOwner is the owner-only
+      // switch for the Members toggle (the database enforces it either way).
+      let canViewInternal = false;
+      let isInternalOwner = false;
+      if (data.role === "admin") {
+        try {
+          const flag = await supabase.rpc("can_view_internal");
+          if (flag.error) throw flag.error;
+          canViewInternal = flag.data === true;
+          if (canViewInternal) {
+            const own = await supabase.rpc("is_internal_owner");
+            isInternalOwner = !own.error && own.data === true;
+          }
+        } catch (e) {
+          // A failed call (e.g. during a token refresh) keeps the last good answer
+          // for this person instead of dropping them out of MGB (internal).
+          const prev = window.__mgbInternalGrant;
+          if (prev && prev.email === data.email) {
+            canViewInternal = prev.canViewInternal;
+            isInternalOwner = prev.isInternalOwner;
+          } else {
+            canViewInternal = false;
+            isInternalOwner = false;
+          }
+        }
+        window.__mgbInternalGrant = { email: data.email, canViewInternal, isInternalOwner };
+      }
+      setStaffUser({ email: data.email, name: data.name, role: data.role, canViewInternal, isInternalOwner });
       setStatus("authorized");
     }
 

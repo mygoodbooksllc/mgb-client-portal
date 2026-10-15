@@ -161,7 +161,9 @@ function TT_appliesText(t, clientsById) {
   return parts.length ? parts.join(" · ") : "Every client";
 }
 
-function TT_matchCount(t, clients) {
+function TT_matchCount(t, clientsIn) {
+  // Counts are real clients only (no test clients, no MGB (internal)).
+  const clients = typeof window.mgbRealClients === "function" ? window.mgbRealClients(clientsIn) : clientsIn;
   const tiers = t.plan_tiers || [];
   const ids = t.client_ids || [];
   if (!tiers.length && !ids.length) return clients.length;
@@ -483,9 +485,15 @@ function TT_Editor({ draft: initial, clients, onClose, onSave, onDelete }) {
   const set = (k, v) => setD((x) => ({ ...x, [k]: v }));
   const toggleIn = (k, v) =>
     setD((x) => ({ ...x, [k]: x[k].includes(v) ? x[k].filter((y) => y !== v) : [...x[k], v] }));
-  const shown = clients
-    .filter((c) => !q || TT_name(c).toLowerCase().includes(q.toLowerCase()))
-    .sort((a, b) => TT_name(a).localeCompare(TT_name(b)));
+  // Test clients and MGB (internal) sort last with a tag; test clients hide unless "Show test clients" is on
+  // (ones already chosen for this template stay listed).
+  const pickedClients = CF_usePicked(clients, null, null);
+  const shown = CF_sort(
+    clients
+      .filter((c) => pickedClients.includes(c) || d.client_ids.includes(c.id))
+      .filter((c) => !q || TT_name(c).toLowerCase().includes(q.toLowerCase()))
+      .sort((a, b) => TT_name(a).localeCompare(TT_name(b))),
+  );
   const everyone = !d.plan_tiers.length && !d.client_ids.length;
   const next = TT_nextDue(d);
 
@@ -603,7 +611,7 @@ function TT_Editor({ draft: initial, clients, onClose, onSave, onDelete }) {
             {shown.map((c) => (
               <label key={c.id} className="tt-check">
                 <input type="checkbox" checked={d.client_ids.includes(c.id)} onChange={() => toggleIn("client_ids", c.id)} />
-                <span className="tt-client-name">{TT_name(c)}</span>
+                <span className="tt-client-name">{TT_name(c)}<CF_Badge client={c} /></span>
                 <span className="tt-muted">{TT_tierLabel(c.plan || "standard")}</span>
               </label>
             ))}
@@ -611,7 +619,7 @@ function TT_Editor({ draft: initial, clients, onClose, onSave, onDelete }) {
           </div>
           <p className="tt-help">
             {everyone
-              ? `Nothing selected, so it applies to every client (${clients.length}).`
+              ? `Nothing selected, so it applies to every client (${TT_matchCount(d, clients)}).`
               : `Matches ${TT_matchCount(d, clients)} client${TT_matchCount(d, clients) === 1 ? "" : "s"}.`}{" "}
             Tasks go to each client's assigned bookkeeper.
           </p>

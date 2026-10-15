@@ -549,14 +549,17 @@ function TB_Search({ clients, items, showMine, isAdmin, clientSearch, navCtx, cl
 
   const groups = [];
   if (ql) {
-    const cl = (clients || [])
-      .filter((c) => TB_lc(c.name).includes(ql))
-      .sort((a, b) => TB_lc(a.name).indexOf(ql) - TB_lc(b.name).indexOf(ql))
+    // Test clients (and MGB (internal)) sort last and carry a Test / Internal tag.
+    const cl = CF_sort(
+      (clients || [])
+        .filter((c) => TB_lc(c.name).includes(ql))
+        .sort((a, b) => TB_lc(a.name).indexOf(ql) - TB_lc(b.name).indexOf(ql)),
+    )
       .slice(0, TB_SEARCH_LIMIT)
       .map((c) => ({
         key: "c:" + c.id,
         title: c.name,
-        sub: typeof planLabel === "function" ? planLabel(c.plan) : "",
+        sub: [typeof planLabel === "function" ? planLabel(c.plan) : "", CF_badgeText(c)].filter(Boolean).join(" · "),
         go: () => TB_go(TB_clientHash(c.id)),
       }));
     groups.push({ key: "clients", label: "Clients", items: cl });
@@ -972,7 +975,11 @@ function TB_useBellItems({ clients, items, me, isAdmin, page }) {
     }),
   );
   const taskOpen = typeof TK_isOpen === "function" ? TK_isOpen : (t) => !t.done;
+  // Work on test clients and MGB (internal) never rings the bell.
+  const skipIds = typeof CF_excludedIds === "function" ? CF_excludedIds() : new Set();
+  const skipped = (id) => !!id && skipIds.has(id);
   (items || [])
+    .filter((t) => !skipped(t.client_id))
     .filter((t) => taskOpen(t) && t.kind !== "note" && TB_lc(t.assignee_email) === TB_lc(me) && TB_lc(t.staff_email) !== TB_lc(me))
     .forEach((t) =>
       out.push({
@@ -997,7 +1004,7 @@ function TB_useBellItems({ clients, items, me, isAdmin, page }) {
   mentions.forEach((m) => {
     const cm = (m && m.comment) || {};
     const task = (m && m.task) || {};
-    if (!cm.id || !task.id) return;
+    if (!cm.id || !task.id || skipped(task.client_id)) return;
     out.push({
       id: "tkm:" + cm.id,
       at: cm.created_at,
@@ -1018,7 +1025,7 @@ function TB_useBellItems({ clients, items, me, isAdmin, page }) {
       go: () => TB_go("#/today"),
     }),
   );
-  tplSuggest.forEach((row) =>
+  tplSuggest.filter((row) => !skipped(row.client_id)).forEach((row) =>
     out.push({
       id: "tsug:" + row.id,
       at: row.created_at,
@@ -1590,7 +1597,14 @@ function TB_StaffTopBar({
   const isRealAdmin = realStaffUser.role === "admin";
   const isAdmin = staffUser.role === "admin";
   // Same shape the rail hands StaffNav.jsx (NAV_visiblePlaces).
-  const navCtx = { role: staffUser.role, isAdmin: !!(isAdmin || hasTempAdminAccess), impersonating: !!impersonating };
+  // canViewInternal: MGB (internal) in the ⌘K pages, for the signed-in admin
+  // the owner granted it to (never in "View as").
+  const navCtx = {
+    role: staffUser.role,
+    isAdmin: !!(isAdmin || hasTempAdminAccess),
+    impersonating: !!impersonating,
+    canViewInternal: typeof STAFF_canViewInternal === "function" && STAFF_canViewInternal(realStaffUser, impersonating),
+  };
   return (
     <header className="tb-bar" aria-label="Staff toolbar">
       <div className="tb-left">
@@ -1622,7 +1636,7 @@ function TB_StaffTopBar({
       </div>
       <div className="tb-right">
         {isRealAdmin && own && <TB_ThrottleBadge />}
-        {own && <TB_Bell clients={clients} items={items} me={me} isAdmin={isAdmin} page={page} />}
+        {own && <TB_Bell clients={typeof window.mgbRealClients === "function" ? window.mgbRealClients(clients) : clients} items={items} me={me} isAdmin={isAdmin} page={page} />}
         {own && <TB_TasksBadge items={items} me={me} client={client} />}
         <TB_QuickAdd client={client} />
         <TB_HelpButton page={page} isAdmin={isAdmin} />

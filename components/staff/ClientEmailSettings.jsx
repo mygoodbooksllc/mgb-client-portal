@@ -100,10 +100,14 @@ function CE_ClientEmailSettings({ onSent } = {}) {
     if (s.error || !s.data) return setSt((x) => ({ ...x, loading: false, error: s.error || new Error("no settings") }));
     const prefs = {};
     for (const r of (p && p.data) || []) prefs[r.client_id] = r;
-    const clients = (c && c.data) || [];
+    // MGB (internal) is the firm's own books, not a client: no client email settings.
+    const clients = ((c && c.data) || [])
+      .filter((x) => !(typeof window.mgbIsInternalClient === "function" && window.mgbIsInternalClient(x.id)))
+      .map((x) => ({ ...x, testOnly: x.test_only === true }));
     setSt({ loading: false, settings: s.data, clients, prefs, unsubs: (u && u.data) || [], log: (l && l.data) || [], error: null });
     setReplyTo(s.data.reply_to || "");
-    setPick((cur) => cur || (clients[0] && clients[0].id) || "");
+    // First pick is a real client: test clients sort last.
+    setPick((cur) => cur || ((CF_sort(clients)[0] || {}).id) || "");
   }, []);
 
   React.useEffect(() => {
@@ -191,11 +195,13 @@ function CE_ClientEmailSettings({ onSent } = {}) {
     if (typeof onSent === "function") onSent();
   }
 
+  // Test clients last with a tag; hidden unless "Show test clients" is on (the picked one stays).
+  const shownClients = CF_usePicked(st.clients, null, pick);
   if (st.loading || st.error || !st.settings) return null;
   const s = st.settings;
   const nameOf = (id) => (st.clients.find((c) => c.id === id) || {}).name || id || "All clients";
   const off = !s.enabled;
-  const clientsShown = showAll ? st.clients : st.clients.slice(0, 8);
+  const clientsShown = showAll ? shownClients : shownClients.slice(0, 8);
 
   return (
     <div className="card" style={{ marginBottom: 20 }}>
@@ -253,10 +259,9 @@ function CE_ClientEmailSettings({ onSent } = {}) {
         <div className="tp-muted" style={{ marginBottom: 6 }}>Preview or send yourself a test</div>
         <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center" }}>
           <select className="tp-q-input" value={pick} onChange={(e) => setPick(e.target.value)} style={{ flex: "1 1 200px", maxWidth: 320 }} aria-label="Client">
-            {st.clients.map((c) => (
+            {shownClients.map((c) => (
               <option key={c.id} value={c.id}>
-                {c.name}
-                {c.test_only ? " (test)" : ""}
+                {CF_label(c)}
               </option>
             ))}
           </select>
@@ -305,7 +310,8 @@ function CE_ClientEmailSettings({ onSent } = {}) {
                 <tr key={c.id} style={{ borderTop: "1px solid var(--border, rgba(0,0,0,0.08))" }}>
                   <td style={{ padding: "4px 6px 4px 0" }}>
                     {c.name}
-                    {c.test_only && <span className="tp-muted"> · test, never emailed</span>}
+                    <CF_Badge client={c} />
+                    {c.test_only && <span className="tp-muted"> never emailed</span>}
                   </td>
                   {cell("opt_out_all")}
                   {cell("opt_out_doc_chaser")}
@@ -316,9 +322,9 @@ function CE_ClientEmailSettings({ onSent } = {}) {
             })}
           </tbody>
         </table>
-        {st.clients.length > 8 && (
+        {shownClients.length > 8 && (
           <button type="button" className="btn-secondary" style={{ marginTop: 6 }} onClick={() => setShowAll((v) => !v)}>
-            {showAll ? "Show fewer" : `Show all ${st.clients.length} clients`}
+            {showAll ? "Show fewer" : `Show all ${shownClients.length} clients`}
           </button>
         )}
       </div>

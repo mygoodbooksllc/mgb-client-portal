@@ -200,6 +200,14 @@ because some work happens in Claude Code web sessions. Run `git fetch` and compa
 - Document links (Google Drive links only; no files are stored)
 - QuickBooks data for connected clients
 
+**Real clients vs. test clients vs. MGB (internal):** two flags keep non-clients out of real numbers.
+`clients.test_only` marks the practice orgs (`basic-test`, `grace-community`); `clients.is_internal`
+marks MyGoodBooks' own books (`mygoodbooks`). Anything that measures real clients counts only rows
+that are neither (the server rule is `is_roster_client()` in `supabase/internal-company-profile.sql`;
+the browser rule is `window.mgbRealClients(list)`, plus `CF_excludedIds()` for rows keyed by
+`client_id`). The Clients page, client picker, Today, Team, Work, deadlines, close counts, task badges,
+hours, fees and revenue all use it. See "MGB (internal) and flagged clients" under Main features.
+
 **QuickBooks connection:**
 
 - **Connect.** Staff connect a client's QuickBooks from Client setup → Access and details → QuickBooks. This runs
@@ -956,6 +964,31 @@ goes through `security definer` RPCs that call `tr_me()` / `tr_require_admin()` 
 - **Laptop rule:** a setup line that names a laptop (e.g. "Mac Neo") is covered by any laptop the
   person has; other essentials match on category or item name. Same rule in `TI_covers` and the
   edge function.
+
+### MGB (internal) and flagged clients (added 2026-10-15)
+
+- **MGB (internal)** (`clients.id = 'mygoodbooks'`, `clients.is_internal`) is the firm's own books, run
+  through the normal client workspace. It is not a client: never in rosters, counts, the client
+  switcher list, Today or Team numbers. It has its own rail item (`NAV_PLACES` key `internal`, label
+  "MGB (internal)") and the alias `#/internal`.
+- **Who sees it:** admins holding the per-admin permission only (table `internal_access`; RPCs
+  `can_view_internal()`, `is_internal_owner()`, `set_internal_access(p_email, p_allowed)`, all in
+  `supabase/internal-company-profile.sql`, with a restrictive RLS lock server-side). `AuthGate` reads the two
+  checks into `staffUser.canViewInternal` / `isInternalOwner` (a failing RPC counts as "no", so the app still
+  loads before the SQL is applied). Temp admins, bookkeepers, account managers and clients never see it, and
+  View as hides it (`STAFF_canViewInternal(realUser, impersonating)` gates the nav item, route resolution and
+  `visibleClients`). The owner toggles it per admin in Team › Members (an owner-only "MGB (internal)" column).
+- **Lists and pickers:** `components/staff/ClientFlags.jsx` (`CF_`) is the one helper for flagged clients: `CF_sort`
+  (normal, then Test, then Internal), `CF_Badge` (the Test / Internal pill), `CF_label` (plain-text option
+  label), `CF_pick` / `CF_usePicked` (sort and hide), `CF_Toggle` (the "Show test clients" switch, Clients page
+  and client picker footer) and `CF_excludedIds`. The switch is OFF by default, stored per person in
+  localStorage `mgb-show-test-clients:<email>` (covered by Dev Tools' reset). Off hides test clients from lists and
+  pickers except ones the person is assigned to (bookkeeper, account manager, `staff_client_access`, live
+  temporary grant) and the client open now. It never changes what anyone may open. App derives
+  `visibleClients` (routes and permissions) ⊇ `rosterClients` (no internal) ⊇ `listClients` (lists and pickers).
+- **Docs and upkeep:** staff guide `mgb-internal.md`, `preview-as.md` ("Try things on the test clients first"),
+  `clients-page.md`, `finding-a-client.md`, `admin-guide.md`, `firm-quickbooks.md`, `staff-management.md`,
+  `whats-new.md`. A new table with a `client_id` column needs the lock policy (see the SQL header).
 
 ### Ledger review (added 2026-10-14)
 

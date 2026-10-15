@@ -89,6 +89,19 @@
   color: var(--gold);
   font-weight: 600;
 }
+/* MGB (internal): the sub-line badge that says this is not a client. */
+.cs-internal-badge {
+  display: inline-block;
+  padding: 0 7px;
+  border-radius: 999px;
+  border: 1px solid var(--gold);
+  color: var(--gold-deep, var(--gold));
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  line-height: 16px;
+  white-space: nowrap;
+}
 .cs-chev {
   flex-shrink: 0;
   color: var(--sidebar-text-muted);
@@ -527,4 +540,19 @@ button.cs-row-action:disabled {
   font-size: 13px;
   color: rgba(255, 255, 255, 0.75);
   margin: 0 2px 8px;
+}
+
+/* Test / Internal pills and the "Show test clients" switch on the dark popover. */
+.cs-popover .cf-badge {
+  border-color: rgba(255, 255, 255, 0.28);
+  color: var(--sidebar-text-muted);
+}
+.cs-popover .cf-badge-internal {
+  border-color: var(--gold);
+  color: var(--gold);
+}
+.cs-popover .cf-toggle-compact {
+  border-top-color: rgba(255, 255, 255, 0.1);
+  color: var(--sidebar-text-muted);
+  margin-top: 6px;
 }

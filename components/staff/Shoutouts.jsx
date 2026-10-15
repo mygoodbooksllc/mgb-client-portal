@@ -175,7 +175,9 @@ function SO_Compose({ me, clients, onDone }) {
     SO_changed();
     if (onDone) onDone();
   }
-  const sorted = (clients || []).slice().sort((a, b) => String(a.name || a.id).localeCompare(String(b.name || b.id)));
+  // Test clients and MGB (internal) sort last with a tag; test clients hide unless "Show test clients" is on.
+  const picked = CF_usePicked(clients || [], null, clientId);
+  const sorted = CF_sort(picked.slice().sort((a, b) => String(a.name || a.id).localeCompare(String(b.name || b.id))));
   return (
     <form className="so-form" onSubmit={send}>
       <label className="task-field">
@@ -192,7 +194,7 @@ function SO_Compose({ me, clients, onDone }) {
           <option value="">None</option>
           {sorted.map((c) => (
             <option key={c.id} value={c.id}>
-              {c.name || c.id}
+              {CF_label(c)}
             </option>
           ))}
         </select>

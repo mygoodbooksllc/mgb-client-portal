@@ -84,12 +84,26 @@ const NAV_PLACES = [
       { key: "members", label: "Members", help: "staff-management", admin: true },
     ],
   },
+  // MGB (internal): MyGoodBooks' own books, files and close, in the same
+  // workspace a client gets. Not a place with its own page: a click opens the
+  // internal client (App's openInternal), so it has no tabs here and no
+  // route of its own beyond #/internal (-> #/client/<id>/...). Only an admin
+  // the owner granted the MGB (internal) permission sees it, never in "View as".
+  {
+    key: "internal",
+    slug: "internal",
+    label: "MGB (internal)",
+    hint: "MyGoodBooks' own books, files and close. Not a client",
+    help: "mgb-internal",
+    icon: () => <InternalIcon width="16" height="16" strokeWidth="1.8" />,
+    visible: (ctx) => !!ctx.canViewInternal && !ctx.impersonating,
+  },
 ];
 
 const NAV_PLACE_BY_KEY = Object.fromEntries(NAV_PLACES.map((p) => [p.key, p]));
 const NAV_PLACE_BY_SLUG = Object.fromEntries(NAV_PLACES.map((p) => [p.slug, p]));
 
-// ctx: { role, isAdmin (admin or temporary admin), impersonating }.
+// ctx: { role, isAdmin (admin or temporary admin), impersonating, canViewInternal }.
 function NAV_visiblePlaces(ctx) {
   const c = ctx || {};
   return NAV_PLACES.filter((p) => !p.visible || p.visible(c));

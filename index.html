@@ -202,7 +202,23 @@
       // step to inject a real commit SHA into (see the no-bundler note up
       // top). Shown in Developer Tools' System info card so staff can confirm
       // which version they're looking at without guessing from Vercel's UI.
-      window.MGB_VERSION = { label: "2026-10-15c", note: "Ledger review: plain labels, Pull transactions back to, covered months shown" };
+      window.MGB_VERSION = { label: "2026-10-15d", note: "MGB (internal) for chosen admins, not counted as a client; test clients tagged, sorted last and hidden unless Show test clients is on" };
+      // True for MyGoodBooks' own profile (clients.is_internal): it is not a
+      // client, so lists and counts that read the clients table directly skip
+      // it. Reads window.CLIENTS at call time (index.html's roster loader).
+      window.mgbIsInternalClient = function (id) {
+        return (window.CLIENTS || []).some(function (c) {
+          return c && c.id === id && c.isInternal === true;
+        });
+      };
+      // Real clients only: not a test client (basic-test, grace-community) and
+      // not MGB (internal). Every firm-wide count, total, alert and workload
+      // figure in the app reads this list, so test and internal work never
+      // inflates a real number. Lists people open clients from keep using the
+      // wider roster.
+      window.mgbRealClients = function (list) {
+        return (list || []).filter(function (c) { return c && !c.testOnly && !c.isInternal; });
+      };
       // The two-finger touchmove preventDefault that used to sit here (a
       // pinch-zoom blocker, kept at the gesture level because touch-action
       // CSS pre-empted the dashboard drag-and-drop) is gone. It only ever
@@ -221,6 +237,7 @@
       document.write('<link rel="stylesheet" href="components/pro/pro-reports.css?v=' + Date.now() + '">');
       document.write('<link rel="stylesheet" href="components/inbox/staff-inbox.css?v=' + Date.now() + '">');
       document.write('<link rel="stylesheet" href="components/staff/client-switcher.css?v=' + Date.now() + '">');
+      document.write('<link rel="stylesheet" href="components/staff/client-flags.css?v=' + Date.now() + '">');
       document.write('<link rel="stylesheet" href="components/staff/team-page.css?v=' + Date.now() + '">');
       document.write('<link rel="stylesheet" href="components/staff/staff-ops.css?v=' + Date.now() + '">');
       document.write('<link rel="stylesheet" href="components/staff/admin-tools.css?v=' + Date.now() + '">');
@@ -269,6 +286,7 @@
         "components/staff/DeepLink.jsx",
         "components/inbox/StaffInbox.jsx",
         "components/staff/StaffNav.jsx",
+        "components/staff/ClientFlags.jsx",
         "components/staff/ClientSwitcher.jsx",
         "components/staff/HomeCards.jsx",
         "components/client/DocFolders.jsx",
@@ -481,9 +499,18 @@
           // (supabase/account-manager.sql). Until that migration is applied
           // the select fails, so retry without them; window.AM_COLS_OK tells
           // the Client Roster whether to read and write the columns.
+          // clients.is_internal (supabase/internal-company-profile.sql) marks
+          // MyGoodBooks' own profile ("MGB (internal)"), which is not a
+          // client. Asked for first; if that migration isn't applied yet the
+          // select fails and we retry without it, so nothing else changes.
           let { data, error } = await supabase
             .from("clients")
-            .select(baseCols + ", account_manager, account_manager_email");
+            .select(baseCols + ", account_manager, account_manager_email, is_internal");
+          if (error) {
+            ({ data, error } = await supabase
+              .from("clients")
+              .select(baseCols + ", account_manager, account_manager_email"));
+          }
           window.AM_COLS_OK = !error;
           if (error) {
             ({ data, error } = await supabase.from("clients").select(baseCols));
@@ -505,6 +532,9 @@
               entityType: row.entity_type || "nonprofit",
               plan: row.plan,
               testOnly: row.test_only,
+              // MGB's own profile: shown only in the MGB (internal) place,
+              // never in a client list or count (app.jsx rosterClients).
+              isInternal: row.is_internal === true,
               payrollAddOn: row.payroll_add_on,
               // assigned_bookkeeper_email (supabase/assigned-bookkeeper-email.sql)
               // is the real staff link; folded into the display object so

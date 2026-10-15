@@ -221,10 +221,13 @@ function TK_QuickAddDialog(props) {
   };
 
   var heading = kind === "reminder" ? "Add a reminder" : "Add a task";
-  var sortedClients = clients
+  // Test clients and MGB (internal) sort last with a tag; test clients hide unless "Show test clients" is on.
+  var pickedClients = typeof CF_usePicked === "function" ? CF_usePicked(clients, null, clientId ? String(clientId) : null) : clients;
+  var sortedClients = pickedClients
     .filter(function (c) { return c && c.id != null; })
     .slice()
     .sort(function (a, b) { return String(a.name || "").localeCompare(String(b.name || "")); });
+  if (typeof CF_sort === "function") sortedClients = CF_sort(sortedClients);
 
   if (typeof ModalShell !== "function") return null;
   return TK_dwPortal(
@@ -318,7 +321,7 @@ function TK_QuickAddDialog(props) {
                 {sortedClients.map(function (c) {
                   return (
                     <option key={c.id} value={String(c.id)}>
-                      {c.name}
+                      {typeof CF_label === "function" ? CF_label(c) : c.name}
                     </option>
                   );
                 })}

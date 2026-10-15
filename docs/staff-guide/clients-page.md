@@ -2,7 +2,7 @@
 title: How do I use the Clients page?
 section: Getting started
 audience: staff
-keywords: [clients, client list, client setup, client view, close tab, your clients, mine, all, needs attention, find a client, health, assigned to, backup, hours this month, hours budget, close, last viewed, breadcrumb, tabs, overview, sop, milestone, client settings, view as client, back]
+keywords: [show test clients, test tag, internal tag, clients, client list, client setup, client view, close tab, your clients, mine, all, needs attention, find a client, health, assigned to, backup, hours this month, hours budget, close, last viewed, breadcrumb, tabs, overview, sop, milestone, client settings, view as client, back]
 sort: 42
 ---
 **Clients** (in the left rail) lists every client you can see, one per row, and is the way into a client's pages.
@@ -11,8 +11,11 @@ sort: 42
 
 - **Mine** / **All** / **Needs attention** at the top filter the list. Bookkeepers start on **Mine**. **Mine** is the clients you're assigned to, the ones you back up, and any an admin gave you access to. **Needs attention** means health at risk, a late close, a portal access request waiting, or a stale SOP.
 - **Find a client** narrows the list as you type.
+- **Show test clients** (off by default) adds the practice clients to the bottom of the list, each with a **Test** tag. It's remembered for you on this browser. Test clients you're assigned to always show. The counts on the filters are real clients only. See [Try things on the test clients first](#/help/preview-as).
 - Columns: **Client**, **Health** (the score and band, see [What does client health mean?](#/help/client-health)), **Assigned to**, **Backup**, **Hours this month**, **Close** (last month's status; click it to open the client's **Close** tab) and **Last viewed**.
 - **Hours this month** is QuickBooks Time this calendar month against the client's monthly hours budget, for example **6.5 / 10 h**. It turns amber from 80% and red when over. Everyone assigned to a client sees it, so you always know where you stand. A dash means no budget is set.
+
+MyGoodBooks' own books (**MGB (internal)**) never appear in this list. Admins with the permission open it from its own place in the left rail. See [What is MGB (internal), and who can open it?](#/help/mgb-internal).
 
 Click a row to open the client. You land on the tab you last used for that client in this browser session. If you haven't been there yet, you land on the [Client overview](#/help/client-overview).
 

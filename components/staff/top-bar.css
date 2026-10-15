@@ -132,6 +132,18 @@
 .tb-client .cs-error {
   color: var(--bad);
 }
+.tb-client .cs-popover .cf-badge {
+  border-color: var(--border);
+  color: var(--text-muted);
+}
+.tb-client .cs-popover .cf-badge-internal {
+  border-color: var(--gold);
+  color: var(--gold-deep, var(--gold));
+}
+.tb-client .cs-popover .cf-toggle-compact {
+  border-top-color: var(--border);
+  color: var(--text-muted);
+}
 /* ======================= end Option B: navy bar ========================== */
 
 .tb-bar {

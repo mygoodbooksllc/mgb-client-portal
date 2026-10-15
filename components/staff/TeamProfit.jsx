@@ -228,7 +228,9 @@ function TP_PF_SummaryStrip({ profit, qboOn, clientIds }) {
   if (!profit || profit.loading) return <p className="pf-strip tp-muted">Loading profit…</p>;
   if (profit.kind) return <p className="pf-strip tp-muted">{blocker}</p>;
   const ids = clientIds ? new Set(clientIds) : null;
-  const rows = profit.rows.filter((r) => !ids || ids.has(r.client_id));
+  // Test clients and MGB (internal) never count toward firm revenue, cost or profit.
+  const excl = typeof CF_excludedIds === "function" ? CF_excludedIds() : new Set();
+  const rows = profit.rows.filter((r) => (!ids || ids.has(r.client_id)) && !excl.has(r.client_id));
   const canCost = qboOn && profit.hasRates;
   let revenue = 0;
   let cost = 0;

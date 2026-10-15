@@ -219,7 +219,10 @@ function TK_Sidebar(props) {
     return c && c.id != null;
   });
   var f = filter.trim().toLowerCase();
-  var shownClients = clients
+  // Test clients and MGB (internal) sort last with a tag; test clients hide unless "Show test clients" is on.
+  var openRoute = props.route && props.route.view === "client" ? String(props.route.clientId) : null;
+  var pickedClients = typeof CF_usePicked === "function" ? CF_usePicked(clients, null, openRoute) : clients;
+  var shownClients = pickedClients
     .filter(function (c) {
       return !f || String(c.name || c.id).toLowerCase().indexOf(f) >= 0;
     })
@@ -229,6 +232,7 @@ function TK_Sidebar(props) {
       var y = String(b.name || b.id).toLowerCase();
       return x < y ? -1 : x > y ? 1 : 0;
     });
+  if (typeof CF_sort === "function") shownClients = CF_sort(shownClients);
   var people = (Array.isArray(staff) ? staff : []).filter(function (s) {
     return s && s.active !== false && s.id && (typeof TK_isUuid !== "function" || TK_isUuid(s.id));
   });
@@ -305,7 +309,7 @@ function TK_Sidebar(props) {
           {clients.length && !shownClients.length ? <li className="tk-nav-empty">No client matches that.</li> : null}
           {shownClients.map(function (c) {
             var r = { view: "client", clientId: String(c.id) };
-            return <TK_vNavItem key={c.id} route={r} label={c.name || String(c.id)} active={TK_vSameRoute(route, r)} onNavigate={nav} />;
+            return <TK_vNavItem key={c.id} route={r} label={c.name || String(c.id)} tag={typeof CF_badgeText === "function" ? CF_badgeText(c) || null : null} active={TK_vSameRoute(route, r)} onNavigate={nav} />;
           })}
         </ul>
       </div>

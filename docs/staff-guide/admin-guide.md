@@ -2,7 +2,7 @@
 title: Admin guide: what admins do, step by step
 section: Admin
 audience: admin
-keywords: [admin guide, admin tour, admin walkthrough, bookkeeper tour, temporary admin tour, administrator, what admins see, admin pages, firm settings, members, hours, reply times, feedback, performance, reviews, inventory, view as, temporary admin access, new client, routine, checklist, daily, weekly, monthly, quarterly]
+keywords: [mgb internal, internal permission, admin guide, admin tour, admin walkthrough, bookkeeper tour, temporary admin tour, administrator, what admins see, admin pages, firm settings, members, hours, reply times, feedback, performance, reviews, inventory, view as, temporary admin access, new client, routine, checklist, daily, weekly, monthly, quarterly]
 sort: 500
 ---
 As an admin you see everything a bookkeeper sees, plus the pages that run the firm: people, hours and money, and the firm's settings. This is the written version of the **Admin tour**, with a routine to follow.
@@ -29,6 +29,7 @@ If you're also a client's account manager, the **Account manager tour** comes ne
 | **Team › Feedback** | Bug reports and ideas from staff and clients | [Feedback](#/help/feedback-page) |
 | **Team › Ledger review** | Ledger review settings: warn or block when a month is marked done unapproved, how much ledger to pull, and the vendor watch list | [Ledger review](#/help/ledger-review) |
 | **Team › Inventory** | Equipment **Requests**, **Items**, the **Roster** of who's missing what, the staff **Directory** and **Export to Google Sheet** | [Inventory](#/help/tech-inventory) |
+| **MGB (internal)** in the left rail | MyGoodBooks' own books, set up like a client. Only for admins the owner has given the permission (off by default; the owner turns it on in **Team › Members**). Never counted in client numbers | [MGB (internal)](#/help/mgb-internal) |
 | **Settings › Firm settings** | **Task templates**, **Client roster** (where new clients are added), **Emails**, **QuickBooks usage**, **Usage stats**, **Audit log** and **Developer tools** | [Settings](#/help/staff-settings), [Usage stats and Developer tools](#/help/admin-insight), [Audit log](#/help/audit-log) |
 | **Today** | Every client you can open, which for an admin is all of them, plus birthdays and work anniversaries a week ahead | [Today](#/help/home-page), [Celebrations](#/help/celebrations) |
 | **Email** to admin@mygoodbooks.org | Health-check alerts and the weekly digest | [Alerts](#/help/health-alerts), [Weekly digest](#/help/weekly-digest) |

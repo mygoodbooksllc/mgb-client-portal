@@ -23,6 +23,8 @@ The app doesn't send invitations. **Email invite** opens a pre-filled draft in G
 
 Each row has Name, Email, Role, Active, Clients and Temp admin access. You can't change your own row.
 
+The owner also sees an **MGB (internal)** column on admin rows: tick it to let that admin open MyGoodBooks' own books. It's off by default and nobody else sees the column. See [What is MGB (internal), and who can open it?](#/help/mgb-internal).
+
 - **Role**: switch between bookkeeper and admin.
 - **Active**: untick to deactivate someone (they can no longer sign in). To move their work to someone else first, use **Offboard**. See [How do I offboard a staff member?](#/help/offboarding).
 - **×** removes the person. They lose portal access immediately.

@@ -468,13 +468,14 @@ function CS_ClientSwitcher({
   const byName = (a, b) => nameOf(a).localeCompare(nameOf(b));
   const q = query.trim().toLowerCase();
   const matches = (c) => !q || nameOf(c).toLowerCase().includes(q);
-  const accessible = (clients || []).filter(matches).sort(byName);
+  // Test clients (and MGB (internal), when it's in the list) sort to the bottom.
+  const accessible = CF_sort((clients || []).filter(matches).sort(byName));
   // The roster is readable by all staff, so the locked list comes straight
   // from CLIENTS. Admins can open everything and never see it.
   const locked = isAdmin
     ? []
     : (window.CLIENTS || [])
-        .filter((c) => !c.testOnly && !accessibleIds.has(c.id) && matches(c))
+        .filter((c) => !c.testOnly && !c.isInternal && !accessibleIds.has(c.id) && matches(c))
         .sort(byName);
   // With only a handful of clients, "Recent" would just repeat the list.
   const recent = q || (clients || []).length <= CS_RECENT_MAX
@@ -603,7 +604,7 @@ function CS_ClientSwitcher({
             )}
           </span>
         )}
-        <span className="cs-row-name">{nameOf(c)}</span>
+        <span className="cs-row-name">{nameOf(c)}<CF_Badge client={c} /></span>
         {/* Onboarding badge: real admins only (in-client tabs redesign D20). */}
         {!item.locked && isAdmin && (
           <OB_OnboardingBadge clientId={c.id} onOpen={() => activate(item)} />
@@ -694,7 +695,9 @@ function CS_ClientSwitcher({
             </span>
             <span className="cs-trigger-sub">
               {currentClient ? (
-                currentTemp ? (
+                currentClient.isInternal ? (
+                  <span className="cs-internal-badge">MGB (internal)</span>
+                ) : currentTemp ? (
                   <span className="cs-sub-temp">
                     Temporary · {CS_timeLeft(currentTemp.expires_at, access.now)}
                   </span>
@@ -770,6 +773,7 @@ function CS_ClientSwitcher({
               {actionError}
             </div>
           )}
+          <CF_Toggle email={staffUser && staffUser.email} compact />
         </div>
       )}
 

@@ -234,10 +234,32 @@ Deno.serve(async (req) => {
         .in("staff_email", dueEmails).eq("status", "approved").gt("expires_at", new Date().toISOString());
       for (const g of grants || []) reach.add(String(g.staff_email).toLowerCase() + "|" + g.client_id);
     }
+    // Test clients and the internal company profile (clients.is_internal):
+    // a test client's task never sends a due reminder, and an internal task
+    // only reaches an admin who holds the per-admin internal_access grant
+    // (the same rule the database enforces). is_internal is read in a second,
+    // tolerant query so this still runs before internal-company-profile.sql.
+    const testIds = new Set<string>();
+    const internalIds = new Set<string>();
+    const internalOk = new Set<string>();
+    {
+      const { data: tc } = await db.from("clients").select("id").eq("test_only", true);
+      for (const c of tc || []) testIds.add(String(c.id));
+      const { data: ic, error: icErr } = await db.from("clients").select("id").eq("is_internal", true);
+      if (!icErr) {
+        for (const c of ic || []) internalIds.add(String(c.id));
+        if (internalIds.size) {
+          const { data: ia } = await db.from("internal_access").select("staff_email");
+          for (const a of ia || []) internalOk.add(String(a.staff_email).toLowerCase());
+        }
+      }
+    }
     const byPerson = new Map<string, any[]>();
     for (const t of tasks || []) {
       const e = String(t.assignee_email).toLowerCase();
       if (!activeStaff.has(e)) continue;
+      if (t.client_id && testIds.has(String(t.client_id))) continue;
+      if (t.client_id && internalIds.has(String(t.client_id)) && !(admins.has(e) && internalOk.has(e))) continue;
       if (t.client_id && !admins.has(e) && !reach.has(e + "|" + t.client_id)) continue;   // D3
       if (!byPerson.has(e)) byPerson.set(e, []);
       byPerson.get(e)!.push(t);
@@ -309,7 +331,7 @@ Deno.serve(async (req) => {
   const clients = new Map<string, any>();
   const clientPrefs = new Map<string, any>();
   if (clientIds.length) {
-    const { data: cs } = await db.from("clients").select("id, name, test_only, assigned_bookkeeper, assigned_bookkeeper_email").in("id", clientIds);
+    const { data: cs } = await db.from("clients").select("id, name, test_only, is_internal, assigned_bookkeeper, assigned_bookkeeper_email").in("id", clientIds);
     for (const c of cs || []) clients.set(c.id, c);
     const { data: cp } = await db.from("client_email_prefs").select("*").in("client_id", clientIds);
     for (const c of cp || []) clientPrefs.set(c.client_id, c);
@@ -537,6 +559,10 @@ Deno.serve(async (req) => {
       }
       if (client.test_only) {
         await skip("Test client");
+        continue;
+      }
+      if (client.is_internal) {
+        await skip("Internal company profile");
         continue;
       }
       const { data: member } = await db.from("client_users").select("email").eq("client_id", clientId).eq("active", true).ilike("email", to.replace(/[\\%_]/g, "\\$&")).limit(1).maybeSingle();

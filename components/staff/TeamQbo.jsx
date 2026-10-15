@@ -636,9 +636,12 @@ function TP_qClientRows({ clientRows, hours, range, today }) {
   const byId = {};
   const avgById = {};
   const buckets = [];
+  // Test clients and MGB (internal) never count toward client hours.
+  const excl = typeof CF_excludedIds === "function" ? CF_excludedIds() : new Set();
   (hours.byClient || []).forEach((r) => {
-    if (r.bucket === "client") byId[r.client_id] = r;
-    else buckets.push(r);
+    if (r.bucket === "client") {
+      if (!excl.has(r.client_id)) byId[r.client_id] = r;
+    } else buckets.push(r);
   });
   (hours.avgByClient || []).forEach((r) => {
     if (r.bucket === "client") avgById[r.client_id] = TP_qNum(r.total_minutes) / 3;
@@ -686,7 +689,7 @@ function TP_qClientRows({ clientRows, hours, range, today }) {
         : r.qbo_customer_name || `QuickBooks customer ${r.qbo_customer_id}`,
     q: r,
   }));
-  const total = (hours.byClient || []).reduce((n, r) => n + TP_qNum(r.total_minutes), 0);
+  const total = (hours.byClient || []).reduce((n, r) => (r.bucket === "client" && excl.has(r.client_id) ? n : n + TP_qNum(r.total_minutes)), 0);
   return { rows, bucketRows, total };
 }
 
@@ -1361,6 +1364,7 @@ function TP_QClientPicker({ clients, value, onPick, disabled, label }) {
                 onMouseEnter={() => setHi(i)}
               >
                 {c.name}
+                <CF_Badge client={c} />
               </li>
             ))
           )}
@@ -1460,12 +1464,16 @@ function TP_QboMapping({ qbo, clients, staff, onBack, onChanged }) {
     };
   }, [version, st.realm_id, st.earliest_txn_date, st.latest_txn_date]);
 
+  // Test clients and MGB (internal) sort last with a tag; test clients hide unless "Show test clients" is on.
+  const pickedClients = CF_usePicked(clients || [], null, null);
   const clientList = useMemo(
     () =>
-      (clients || [])
-        .map((c) => ({ id: c.id, name: c.name || c.id }))
-        .sort((a, b) => a.name.localeCompare(b.name)),
-    [clients],
+      CF_sort(
+        pickedClients
+          .map((c) => ({ id: c.id, name: c.name || c.id, testOnly: c.testOnly, isInternal: c.isInternal }))
+          .sort((a, b) => a.name.localeCompare(b.name)),
+      ),
+    [pickedClients],
   );
   const clientName = (id) => {
     const c = (clients || []).find((x) => x.id === id);

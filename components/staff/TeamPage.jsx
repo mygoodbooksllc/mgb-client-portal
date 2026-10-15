@@ -151,7 +151,17 @@ function TP_taskState(t, today, range) {
 // directly without Supabase. `appTime` rows are staff_app_time
 // (staff_email, client_id, day, seconds); they become appMinutes /
 // appByStaff on the people and client rows.
-function TP_aggregate({ staff, appTime, tasks, access, grants, clients, range, today }) {
+function TP_aggregate({ staff, appTime, tasks, access, grants, clients, range, today, excludeIds }) {
+  // Test clients and MGB (internal) never count: drop their time, tasks and
+  // assignments before anything is added up (and keep them off the client rows).
+  if (excludeIds && excludeIds.size) {
+    const out = (id) => !!id && excludeIds.has(id);
+    appTime = (appTime || []).filter((r) => !out(r.client_id));
+    tasks = (tasks || []).filter((t) => !out(t.client_id));
+    access = (access || []).filter((a) => !out(a.client_id));
+    grants = (grants || []).filter((g) => !out(g.client_id));
+    clients = (clients || []).filter((c) => !out(c.id));
+  }
   const staffByEmail = {};
   (staff || []).forEach((s) => {
     staffByEmail[TP_lower(s.email)] = s;
@@ -975,7 +985,7 @@ function TP_TeamPage({ clients }) {
 
   const data = useMemo(() => {
     if (!raw) return null;
-    return TP_aggregate({ ...raw, clients, range, today });
+    return TP_aggregate({ ...raw, clients, range, today, excludeIds: typeof CF_excludedIds === "function" ? CF_excludedIds() : null });
   }, [raw, clients, range, today]);
 
   const staffName = (email) => {

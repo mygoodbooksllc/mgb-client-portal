@@ -38,7 +38,10 @@ function WK_useTasksDue(staffUser, given) {
   const rows = typeof TB_useMyItems === "function" ? TB_useMyItems(email, canCount) : [];
   if (given) return given;
   if (!canCount) return null;
-  return countDueStaffItems(rows, email, todayLocal(), Date.now());
+  // Tasks tied to a test client or MGB (internal) don't count toward the badge.
+  const flagged = typeof CF_excludedIds === "function" ? CF_excludedIds() : null;
+  const counted = flagged && flagged.size ? (rows || []).filter((r) => !(r && r.client_id && flagged.has(r.client_id))) : rows;
+  return countDueStaffItems(counted, email, todayLocal(), Date.now());
 }
 
 // The small count on the Tasks tab, read aloud as "3 due, 1 overdue". Only
@@ -55,12 +58,16 @@ function WK_TasksBadge({ due }) {
   );
 }
 
-function WK_WorkPage({ clients, staffUser, statusOverrides, canManageTemplates, canCreateTemplates, onOpenTemplates, myTasksDue }) {
+// clients: the clients staff can open. Close and Deadlines (firm-wide counts) read
+// only the real ones: no test clients, no MGB (internal). taskClients: all of them,
+// so tasks and notes tied to a test client or MGB (internal) still show a name.
+function WK_WorkPage({ clients, taskClients, staffUser, statusOverrides, canManageTemplates, canCreateTemplates, onOpenTemplates, myTasksDue }) {
   const isAdmin = !!(staffUser && staffUser.role === "admin");
   const tabs = NAV_visibleTabs("work", { isAdmin });
   const keys = tabs.map((t) => t.key);
   const [tab, setTab] = NAV_useHashSub("work", keys, "tasks");
   const due = WK_useTasksDue(staffUser, myTasksDue);
+  const realClients = React.useMemo(() => (typeof window.mgbRealClients === "function" ? window.mgbRealClients(clients) : clients), [clients]);
 
   const rowTabs = tabs.map((t) => ({
     key: t.key,
@@ -77,12 +84,12 @@ function WK_WorkPage({ clients, staffUser, statusOverrides, canManageTemplates, 
   let body = null;
   if (tab === "tasks") {
     body = useTk ? (
-      <TK_MyTasks embedded staffUser={staffUser} clients={clients} isAdmin={isAdmin} />
+      <TK_MyTasks embedded staffUser={staffUser} clients={taskClients || clients} isAdmin={isAdmin} />
     ) : typeof MyTasksPage === "function" ? (
       <MyTasksPage
         mode="tasks"
         staffUser={staffUser}
-        clients={clients}
+        clients={taskClients || clients}
         statusOverrides={statusOverrides}
         canManageTemplates={canManageTemplates}
         canCreateTemplates={canCreateTemplates}
@@ -97,7 +104,7 @@ function WK_WorkPage({ clients, staffUser, statusOverrides, canManageTemplates, 
         <MyTasksPage
           mode="notes"
           staffUser={staffUser}
-          clients={clients}
+          clients={taskClients || clients}
           statusOverrides={statusOverrides}
           canManageTemplates={canManageTemplates}
           canCreateTemplates={canCreateTemplates}
@@ -109,14 +116,14 @@ function WK_WorkPage({ clients, staffUser, statusOverrides, canManageTemplates, 
   } else if (tab === "close") {
     body =
       typeof CT_CloseTrackerPage === "function" ? (
-        <CT_CloseTrackerPage clients={clients} staffUser={staffUser} />
+        <CT_CloseTrackerPage clients={realClients} staffUser={staffUser} />
       ) : (
         <p className="card-subtitle">The close tracker isn't available right now.</p>
       );
   } else if (tab === "deadlines") {
     body =
       typeof DL_DeadlinesPage === "function" ? (
-        <DL_DeadlinesPage clients={clients} staffUser={staffUser} />
+        <DL_DeadlinesPage clients={realClients} staffUser={staffUser} />
       ) : (
         <p className="card-subtitle">Deadlines aren't available right now.</p>
       );

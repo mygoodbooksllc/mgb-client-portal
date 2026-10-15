@@ -79,7 +79,10 @@ async function TP_capFetch() {
     return m;
   };
   const clients = {};
+  // Test clients and MGB (internal) don't count toward anyone's client load.
+  const flagged = typeof CF_excludedIds === "function" ? CF_excludedIds() : new Set();
   ((!acc.error && acc.data) || []).forEach((r) => {
+    if (flagged.has(r.client_id)) return;
     const k = TP_lower(r.staff_email);
     (clients[k] = clients[k] || new Set()).add(r.client_id);
   });

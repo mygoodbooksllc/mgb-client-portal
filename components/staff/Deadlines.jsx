@@ -816,7 +816,9 @@ function DL_ExceptionsCard({ st, clients }) {
 }
 
 // ---- Page
-function DL_DeadlinesPage({ clients, staffUser }) {
+function DL_DeadlinesPage({ clients: allClientsIn, staffUser }) {
+  // Firm-wide calendar: real clients only (no test clients, no MGB (internal)).
+  const clients = React.useMemo(() => (typeof window.mgbRealClients === "function" ? window.mgbRealClients(allClientsIn) : allClientsIn), [allClientsIn]);
   const me = String((staffUser && staffUser.email) || "").toLowerCase();
   const isAdmin = staffUser && staffUser.role === "admin";
   const st = DL_useStore(true);
@@ -1008,7 +1010,8 @@ function DL_DeadlinesPage({ clients, staffUser }) {
 }
 
 // ---- Home card body: next 30 days for my clients (admins with none: all)
-function DL_UpcomingDeadlinesBody({ clients, staffUser }) {
+function DL_UpcomingDeadlinesBody({ clients: allClientsIn, staffUser }) {
+  const clients = React.useMemo(() => (typeof window.mgbRealClients === "function" ? window.mgbRealClients(allClientsIn) : allClientsIn), [allClientsIn]);
   const me = String((staffUser && staffUser.email) || "").toLowerCase();
   const st = DL_useStore(true);
   const today = todayLocal();

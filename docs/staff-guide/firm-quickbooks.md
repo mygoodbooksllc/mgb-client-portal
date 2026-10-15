@@ -2,7 +2,7 @@
 title: How do I connect the firm's QuickBooks Time and match customers and staff?
 section: Admin
 audience: admin
-keywords: [firm quickbooks, quickbooks time, timesheets, connect, reconnect, disconnect, sync now, mapping, customer mapping, employee mapping, unmapped, ignore, reset, auto-matched]
+keywords: [test clients hours, internal hours, firm quickbooks, quickbooks time, timesheets, connect, reconnect, disconnect, sync now, mapping, customer mapping, employee mapping, unmapped, ignore, reset, auto-matched]
 sort: 580
 ---
 Staff hours come from the **firm's own** QuickBooks Online company (the one QuickBooks Time sends timesheets to). This is separate from each client's QuickBooks. Staff keep using QuickBooks Time exactly as they do now.
@@ -30,6 +30,8 @@ On the **QuickBooks mapping** page:
 - **Customers** tab: which client each QuickBooks customer is.
 - **People** tab: which staff member each QuickBooks employee or vendor is.
 - Filter **Needs mapping** / **All**. The biggest gaps sort first.
+
+In the client choices, test clients come last with a **Test** tag and stay hidden until **Show test clients** is on. MyGoodBooks' own books and the test clients are never counted in client hours.
 
 For each row, choose a client (**Choose a client…**) or staff member (**Choose a staff member…**), or click **Ignore** for internal or non-client work. **Reset** hands a row back to automatic matching: customers by name, people by email. A QuickBooks employee or vendor whose email isn't their portal sign-in email needs mapping by hand.
 

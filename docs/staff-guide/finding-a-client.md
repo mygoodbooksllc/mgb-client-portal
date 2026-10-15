@@ -2,7 +2,7 @@
 title: How do I find and open a client?
 section: Getting started
 audience: staff
-keywords: [client switcher, last tab, landing, choose a client, search clients, jump to client, go to client, open client, switch client, recent]
+keywords: [show test clients, test tag, client switcher, last tab, landing, choose a client, search clients, jump to client, go to client, open client, switch client, recent]
 sort: 30
 ---
 There are two quick ways to open a client, both in the bar at the top of the page.
@@ -21,6 +21,8 @@ The list has these groups:
 - **Your clients** (bookkeepers) or **All clients** (admins).
 - **Other clients** (bookkeepers only): clients you aren't assigned to. They're locked, with a **Request access** button. See [How do I get temporary access to a client?](#/help/temporary-access).
 
+Test clients sort to the bottom with a **Test** tag, and stay hidden until you tick **Show test clients** at the bottom of the picker (the same switch as on the **Clients** page; ones you're assigned to always show). MyGoodBooks' own books are never in this list: admins with the permission open **MGB (internal)** from the left rail.
+
 Little tags on a row tell you more: **Onboarding 3/5** means onboarding isn't finished, **Temporary · 2d left** means you have short-term access, and **Pending** means you've asked for access and are waiting.
 
 ### Search (top bar)
@@ -35,6 +37,7 @@ Press **Ctrl+K** (**⌘K** on a Mac) or click the search box at the top of the p
 
 ### Troubleshooting
 
+- **A test client is missing from my list.** Tick **Show test clients** (Clients page, or the bottom of the picker).
 - **A client is missing from my list.** You're only assigned to some clients. Ask an admin to assign you on **Team → Members**, or use **Request access** for short-term cover.
 - **"No clients yet."** You haven't been assigned any clients. Ask an admin.
 - **A link a teammate sent opened my dashboard instead.** You don't have access to that client or page, so the portal sent you somewhere you can see.

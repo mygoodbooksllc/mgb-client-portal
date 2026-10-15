@@ -294,6 +294,8 @@ function AL_AuditLogPage({ clients }) {
   }, [people]);
 
   const clientList = clients && clients.length ? clients : window.CLIENTS || [];
+  // The filter dropdown: test clients last with a tag, hidden unless "Show test clients" is on (the one filtered stays).
+  const pickedClients = CF_usePicked(clientList, null, filters.client || null);
   const who = (email) => (email === "system" ? "System" : nameByEmail[email] || email);
   const target = (r) => {
     if (!r.target_id) return "";
@@ -391,8 +393,8 @@ function AL_AuditLogPage({ clients }) {
             <span>Client</span>
             <select value={filters.client} onChange={set("client")}>
               <option value="">All clients</option>
-              {clientList.map((c) => (
-                <option key={c.id} value={c.id}>{c.name}</option>
+              {pickedClients.map((c) => (
+                <option key={c.id} value={c.id}>{CF_label(c)}</option>
               ))}
             </select>
           </label>

@@ -1273,6 +1273,19 @@ const STAFF_ALWAYS_TABS = new Set(["messages", "documents", "bank", "reports", "
 function STAFF_isRealAdmin(u) {
   return !!u && u.role === "admin";
 }
+// MGB (internal): MyGoodBooks' own profile (clients.is_internal). It opens as
+// a normal client workspace but is not a client: no roster, switcher, count or
+// Today/Team figure includes it (App's rosterClients). Only an admin the owner
+// has granted the MGB (internal) permission to may open it, and never while in
+// "View as" (a preview as anyone else must look exactly like theirs).
+// realUser is the signed-in staffUser, not the impersonated one.
+function STAFF_canViewInternal(realUser, impersonating) {
+  return !!realUser && realUser.role === "admin" && realUser.canViewInternal === true && !impersonating;
+}
+// The internal client row, or null (before the migration, or not loaded).
+function STAFF_internalClient() {
+  return (window.CLIENTS || []).find((c) => c && c.isInternal === true) || null;
+}
 // D25: "Basic syncs monthly, on the 15th" / "Pro syncs every hour".
 function STAFF_planCadence(plan) {
   return planLabel(plan) + " syncs " + planSyncInfo(plan).cadence.replace(/^Synced from QuickBooks /, "");
@@ -1497,6 +1510,7 @@ function Sidebar({
   staffMessagesUnread,
   myTasksDue,
   impersonating,
+  canViewInternal,
   hasTempAdminAccess,
   tempAdminAccessExpiresAt,
   statusOverrides,
@@ -1787,6 +1801,7 @@ function Sidebar({
                         role: staffUser.role,
                         isAdmin: showsAdminPages,
                         impersonating: !!impersonating,
+                        canViewInternal: !!canViewInternal,
                       })
                     : []
                   ).map((p) => (
@@ -1794,9 +1809,18 @@ function Sidebar({
                       key={p.key}
                       type="button"
                       role="menuitem"
-                      className={"staff-user-menu-item" + (page === p.key ? " active" : "")}
+                      className={
+                        "staff-user-menu-item" +
+                        ((p.key === "internal" ? !!client && client.isInternal === true && !NON_CLIENT_PAGES.has(page) : page === p.key)
+                          ? " active"
+                          : "")
+                      }
                       data-tour={"staff-nav-" + p.key}
-                      aria-current={page === p.key ? "page" : undefined}
+                      aria-current={
+                        (p.key === "internal" ? !!client && client.isInternal === true && !NON_CLIENT_PAGES.has(page) : page === p.key)
+                          ? "page"
+                          : undefined
+                      }
                       onClick={() => {
                         onSelectPage(p.key);
                         onCloseMobile();
@@ -2102,6 +2126,8 @@ function StaffRail({
   myTasksDue,
   impersonating,
   showsAdminPages,
+  canViewInternal,
+  internalOpen,
   onSignOut,
   hideMark,
 }) {
@@ -2189,7 +2215,12 @@ function StaffRail({
   // 2026-09-30).
   const places =
     typeof NAV_visiblePlaces === "function"
-      ? NAV_visiblePlaces({ role: staffUser.role, isAdmin: showsAdminPages, impersonating: !!impersonating })
+      ? NAV_visiblePlaces({
+          role: staffUser.role,
+          isAdmin: showsAdminPages,
+          impersonating: !!impersonating,
+          canViewInternal: !!canViewInternal,
+        })
       : [];
   const items = places.map((p) => {
     const it = { key: p.key, label: p.label, short: p.label, icon: p.icon ? p.icon() : null };
@@ -2197,6 +2228,9 @@ function StaffRail({
       it.extra = <CS_ApprovalsDot className="nav-badge-dot staff-rail-dot" />;
     } else if (p.key === "inbox") {
       it.dot = staffMessagesUnread;
+    } else if (p.key === "internal") {
+      // MGB (internal) is a client workspace, so it is "on" while it is open.
+      it.active = !!internalOpen;
     } else if (p.key === "work") {
       it.due = true;
       // The Tasks page (#/tasks) belongs to Work.
@@ -2717,6 +2751,29 @@ function UsersIcon(props) {
 
 // Team page: a person with a clock (hours by person), distinct from Staff
 // Access' two-person UsersIcon.
+// MGB (internal): a small office building.
+function InternalIcon(props) {
+  return (
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      {...props}
+    >
+      <path d="M4 21V5a1 1 0 0 1 1-1h8a1 1 0 0 1 1 1v16" />
+      <path d="M14 10h5a1 1 0 0 1 1 1v10" />
+      <path d="M2 21h20" />
+      <path d="M8 8h2M8 12h2M8 16h2" />
+    </svg>
+  );
+}
+
 function TeamIcon(props) {
   return (
     <svg
@@ -13566,6 +13623,56 @@ function StaffAccessPage({ staffUser, onImpersonate, readOnly }) {
   const [tempAccessDurationFor, setTempAccessDurationFor] = useState({}); // row.id -> selected ms
   const [tempAccessBusyId, setTempAccessBusyId] = useState(null);
 
+  // MGB (internal) grants, owner only. internal_access holds one row per
+  // admin who may open it; the owner can read every row, so a non-owner never
+  // sees this column. Writes go through the owner-only set_internal_access().
+  // Test clients: last in the client-access list, tagged, hidden unless "Show test clients" is on (checked ones always stay).
+  const [cfShowTest] = CF_useShowTest(window.mgbViewerEmail);
+  const isInternalOwner = !!(staffUser && staffUser.isInternalOwner) && !readOnly;
+  const [internalGrants, setInternalGrants] = useState({}); // email -> { is_owner }
+  const [internalBusyId, setInternalBusyId] = useState(null);
+
+  const loadInternalGrants = useCallback(() => {
+    if (!supabase || !isInternalOwner) return;
+    supabase
+      .from("internal_access")
+      .select("staff_email, is_owner")
+      .then(({ data, error }) => {
+        if (error) {
+          console.warn("Couldn't load MGB (internal) access:", error.message);
+          return;
+        }
+        const map = {};
+        (data || []).forEach((r) => {
+          map[String(r.staff_email).toLowerCase()] = r;
+        });
+        setInternalGrants(map);
+      });
+  }, [supabase, isInternalOwner]);
+
+  useEffect(() => {
+    loadInternalGrants();
+  }, [loadInternalGrants]);
+
+  async function toggleInternalAccess(row, allowed) {
+    setInternalBusyId(row.id);
+    const { error } = await supabase.rpc("set_internal_access", {
+      p_email: row.email,
+      p_allowed: allowed,
+    });
+    setInternalBusyId(null);
+    if (error) {
+      showToast(`Couldn't change MGB (internal) access: ${error.message}`);
+      return;
+    }
+    showToast(
+      allowed
+        ? `${row.name} can now open MGB (internal).`
+        : `${row.name} can no longer open MGB (internal).`,
+    );
+    loadInternalGrants();
+  }
+
   const loadTempAccess = useCallback(() => {
     if (!supabase) return;
     supabase
@@ -13967,6 +14074,7 @@ function StaffAccessPage({ staffUser, onImpersonate, readOnly }) {
                   <th>Active</th>
                   <th>Clients</th>
                   <th>Temp admin access</th>
+                  {isInternalOwner && <th>MGB (internal)</th>}
                   <th></th>
                   <th></th>
                   <th></th>
@@ -14117,6 +14225,28 @@ function StaffAccessPage({ staffUser, onImpersonate, readOnly }) {
                           </div>
                         )}
                       </td>
+                      {isInternalOwner && (
+                        <td data-label="MGB (internal)">
+                          {row.role !== "admin" ? (
+                            <span className="staff-self-note">Admins only</span>
+                          ) : (internalGrants[String(row.email).toLowerCase()] || {}).is_owner ? (
+                            <span className="staff-self-note">Owner</span>
+                          ) : (
+                            <label className="staff-active-toggle" data-tour="members-internal">
+                              <input
+                                type="checkbox"
+                                checked={!!internalGrants[String(row.email).toLowerCase()]}
+                                disabled={internalBusyId === row.id || !row.active}
+                                aria-label={`Let ${row.name} open MGB (internal)`}
+                                onChange={(e) => toggleInternalAccess(row, e.target.checked)}
+                              />
+                              <span>
+                                {internalGrants[String(row.email).toLowerCase()] ? "Can open" : "No access"}
+                              </span>
+                            </label>
+                          )}
+                        </td>
+                      )}
                       <td data-label="">
                         {!isSelf && row.role !== "admin" && row.active && (
                           <button
@@ -14215,14 +14345,21 @@ function StaffAccessPage({ staffUser, onImpersonate, readOnly }) {
           <div className="modal-body">
             {clientAccessLoading && <p className="card-subtitle">Loading…</p>}
             {!clientAccessLoading &&
-              CLIENTS.map((c) => (
+              CF_sort(
+                CLIENTS.filter(
+                  (c) => !c.isInternal && (c.testOnly !== true || cfShowTest || clientAccessSet.has(c.id)),
+                ),
+              ).map((c) => (
                 <label className="tab-toggle-row" key={c.id}>
                   <input
                     type="checkbox"
                     checked={clientAccessSet.has(c.id)}
                     onChange={() => toggleClientAccess(c.id)}
                   />
-                  <span>{c.name}</span>
+                  <span>
+                    {c.name}
+                    <CF_Badge client={c} />
+                  </span>
                 </label>
               ))}
           </div>
@@ -14557,9 +14694,9 @@ function DeveloperToolsPage({ staffUser, readOnly }) {
               Reset local state
             </button>
             <p className="card-subtitle" style={{ margin: 0 }}>
-              Clears every saved theme, tab layout, widget layout, and
-              per-person access override under this browser's "mygoodbooks_"
-              storage (feature flags excepted — those stay, right above), then
+              Clears every saved theme, tab layout, widget layout, the "Show
+              test clients" switch, and per-person access override under this
+              browser's "mygoodbooks_" / "mgb-" storage (feature flags excepted — those stay, right above), then
               reloads. Doesn't touch Supabase or any other browser.
             </p>
           </div>
@@ -17053,7 +17190,7 @@ function ClientAccessPage({ readOnly }) {
   const [busyEmail, setBusyEmail] = useState(null);
   const [search, setSearch] = useState("");
   const [newClientId, setNewClientId] = useState(
-    CLIENTS[0] ? CLIENTS[0].id : "",
+    (CLIENTS.find((c) => !c.isInternal) || {}).id || "",
   );
   const [newEmail, setNewEmail] = useState("");
   const [newName, setNewName] = useState("");
@@ -17078,6 +17215,9 @@ function ClientAccessPage({ readOnly }) {
   // same rows for rendering/editing.
   const [orgRows, setOrgRows] = useState(null);
   const [orgLoadError, setOrgLoadError] = useState("");
+  // Test clients sort last with a Test tag and hide unless "Show test clients"
+  // is on (or you're the bookkeeper / account manager on one, or editing it).
+  const [cfShowTest] = CF_useShowTest(window.mgbViewerEmail);
   const [newOrgName, setNewOrgName] = useState("");
   const [newOrgType, setNewOrgType] = useState("");
   // clients.entity_type (supabase/client-entity-type.sql): nonprofit or
@@ -17101,6 +17241,26 @@ function ClientAccessPage({ readOnly }) {
   // follow-up). `id` is never editable — it's the join key against
   // CLIENTS_MOCK_DATA and every other client_id-referencing table.
   const [editingOrgId, setEditingOrgId] = useState(null);
+  const orgList = useMemo(() => {
+    const me = String(window.mgbViewerEmail || "").toLowerCase();
+    const mine = (r) =>
+      !!me &&
+      (String(r.assigned_bookkeeper_email || "").toLowerCase() === me ||
+        String(r.account_manager_email || "").toLowerCase() === me);
+    const kept = (orgRows || []).filter(
+      (r) => !r.test_only || cfShowTest || mine(r) || r.id === editingOrgId,
+    );
+    return CF_sort(kept, (r) => ({ testOnly: r.test_only === true }));
+  }, [orgRows, cfShowTest, editingOrgId]);
+  // Add-a-contact client picker: test clients last, tagged, hidden unless shown.
+  const contactClients = useMemo(
+    () =>
+      CF_pick(
+        CLIENTS.filter((c) => !c.isInternal),
+        { show: cfShowTest, keepId: newClientId, isAssigned: (c) => CF_isAssigned(c, window.mgbViewerEmail) },
+      ),
+    [cfShowTest, newClientId],
+  );
   const [editOrgName, setEditOrgName] = useState("");
   const [editOrgType, setEditOrgType] = useState("");
   const [editOrgEntityType, setEditOrgEntityType] = useState("nonprofit");
@@ -17149,7 +17309,13 @@ function ClientAccessPage({ readOnly }) {
           setOrgRows([]);
         } else {
           setOrgLoadError("");
-          setOrgRows(data);
+          // MGB (internal) is the firm's own books, not a client: it never
+          // appears in the client roster admin list.
+          setOrgRows(
+            (data || []).filter(
+              (r) => !(typeof window.mgbIsInternalClient === "function" && window.mgbIsInternalClient(r.id)),
+            ),
+          );
         }
       });
   }, [supabase]);
@@ -17635,7 +17801,7 @@ function ClientAccessPage({ readOnly }) {
                   </tr>
                 </thead>
                 <tbody>
-                  {orgRows.map((row) =>
+                  {orgList.map((row) =>
                     editingOrgId === row.id ? (
                       <tr key={row.id}>
                         <td>{row.id}</td>
@@ -17734,7 +17900,10 @@ function ClientAccessPage({ readOnly }) {
                     ) : (
                       <tr key={row.id}>
                         <td>{row.id}</td>
-                        <td>{row.name}</td>
+                        <td>
+                          {row.name}
+                          <CF_Badge flag={row.test_only ? "test" : undefined} />
+                        </td>
                         <td>
                           {row.org_type}
                           <div className="card-subtitle" style={{ margin: 0 }}>
@@ -17856,9 +18025,9 @@ function ClientAccessPage({ readOnly }) {
               value={newClientId}
               onChange={(e) => setNewClientId(e.target.value)}
             >
-              {CLIENTS.map((c) => (
+              {contactClients.map((c) => (
                 <option key={c.id} value={c.id}>
-                  {c.name}
+                  {CF_label(c)}
                 </option>
               ))}
             </select>
@@ -19974,7 +20143,7 @@ function NoteComposer({ clients, fixedClientId, legacy, onSubmit, onCancel }) {
               <option value="">Pick a client</option>
               {(clients || []).map((c) => (
                 <option key={c.id} value={c.id}>
-                  {c.name}
+                  {CF_label(c)}
                 </option>
               ))}
             </select>
@@ -20091,6 +20260,9 @@ function MyTasksPage({
     () => Object.fromEntries((clients || []).map((c) => [c.id, c])),
     [clients],
   );
+  // Pickers and lists: test clients / MGB (internal) last with a tag; test clients
+  // hidden unless "Show test clients" is on (the open or chosen one stays).
+  const pickClients = CF_usePicked(clients || [], me, newClientId || clientFilter || sopClientId || null);
 
   const loadTasks = useCallback(() => {
     if (!supabase) return;
@@ -20171,11 +20343,13 @@ function MyTasksPage({
   const sopClient = sopClientId ? clientById[sopClientId] : null;
   const sopPickerClients = useMemo(() => {
     const q = sopSearch.trim().toLowerCase();
-    return (clients || [])
-      .filter((c) => !q || (c.name || "").toLowerCase().includes(q))
-      .slice()
-      .sort((a, b) => (a.name || "").localeCompare(b.name || ""));
-  }, [clients, sopSearch]);
+    return CF_sort(
+      pickClients
+        .filter((c) => !q || (c.name || "").toLowerCase().includes(q))
+        .slice()
+        .sort((a, b) => (a.name || "").localeCompare(b.name || "")),
+    );
+  }, [pickClients, sopSearch]);
 
   // Bring a note into view after jumping to it from a task's link chip.
   useEffect(() => {
@@ -20466,7 +20640,7 @@ function MyTasksPage({
     visibleNotes.forEach((n) => {
       (notesByClient[n.client_id] = notesByClient[n.client_id] || []).push(n);
     });
-    return (clients || [])
+    return pickClients
       .map((c) => {
         const open = (openByClient[c.id] || []).sort(compareOpenStaffItems);
         const cNotes = notesByClient[c.id] || [];
@@ -20492,9 +20666,12 @@ function MyTasksPage({
         if (rank(a) !== rank(b)) return rank(a) - rank(b);
         if (a.overdue !== b.overdue) return b.overdue - a.overdue;
         return (a.client.name || "").localeCompare(b.client.name || "");
-      });
+      })
+      .map((x, i) => [x, i])
+      .sort((a, b) => CF_rank(a[0].client) - CF_rank(b[0].client) || a[1] - b[1])
+      .map((p) => p[0]);
   }, [
-    clients,
+    pickClients,
     tasks,
     visibleNotes,
     handoffs,
@@ -20511,12 +20688,12 @@ function MyTasksPage({
     const q = clientSearch.trim().toLowerCase();
     if (!q) return [];
     const shownIds = new Set(clientCards.map((x) => x.client.id));
-    return (clients || [])
+    return pickClients
       .filter(
         (c) => !shownIds.has(c.id) && (c.name || "").toLowerCase().includes(q),
       )
       .slice(0, 5);
-  }, [clientSearch, clientCards, clients]);
+  }, [clientSearch, clientCards, pickClients]);
 
   // Notes & SOPs › Handoff summaries: every client with a summary (or one
   // being written), A to Z, narrowed by the search box. Clients without one
@@ -20525,16 +20702,18 @@ function MyTasksPage({
     const q = handoffSearch.trim().toLowerCase();
     const match = (c) => !q || (c.name || "").toLowerCase().includes(q);
     const has = (c) => !!(handoffs[c.id] && (handoffs[c.id].note || "").trim());
-    const list = (clients || []).filter(match);
+    const list = pickClients.filter(match);
     return {
-      withSummary: list
-        .filter((c) => has(c) || c.id === editingHandoffFor)
-        .sort((a, b) => (a.name || "").localeCompare(b.name || "")),
+      withSummary: CF_sort(
+        list
+          .filter((c) => has(c) || c.id === editingHandoffFor)
+          .sort((a, b) => (a.name || "").localeCompare(b.name || "")),
+      ),
       addable: q
         ? list.filter((c) => !has(c) && c.id !== editingHandoffFor).slice(0, 5)
         : [],
     };
-  }, [clients, handoffs, handoffSearch, editingHandoffFor]);
+  }, [pickClients, handoffs, handoffSearch, editingHandoffFor]);
 
   function renderNote(n, { showClient }) {
     const client = clientById[n.client_id];
@@ -20719,7 +20898,10 @@ function MyTasksPage({
     return (
       <section className="tn-client-card" key={client.id} aria-label={client.name}>
         <header className="tn-client-head">
-          <h4 className="tn-client-name">{client.name}</h4>
+          <h4 className="tn-client-name">
+            {client.name}
+            <CF_Badge client={client} />
+          </h4>
           <span className="tn-client-status">
             <ClientHealthDot health={health} />
             <span>{CLIENT_HEALTH_LABEL[health.status] || ""}</span>
@@ -21057,9 +21239,9 @@ function MyTasksPage({
                 }}
               >
                 <option value="">No client</option>
-                {(clients || []).map((c) => (
+                {pickClients.map((c) => (
                   <option key={c.id} value={c.id}>
-                    {c.name}
+                    {CF_label(c)}
                   </option>
                 ))}
               </select>
@@ -21225,9 +21407,9 @@ function MyTasksPage({
               >
                 <option value="">All clients</option>
                 <option value="__none">No client</option>
-                {(clients || []).map((c) => (
+                {pickClients.map((c) => (
                   <option key={c.id} value={c.id}>
-                    {c.name}
+                    {CF_label(c)}
                   </option>
                 ))}
               </select>
@@ -21304,7 +21486,7 @@ function MyTasksPage({
                     className="btn-secondary"
                     onClick={() => setComposerFor(c.id)}
                   >
-                    Add a note for {c.name}
+                    Add a note for {CF_label(c)}
                   </button>
                 ))}
               </div>
@@ -21332,9 +21514,9 @@ function MyTasksPage({
                 onChange={(e) => setNoteClientFilter(e.target.value)}
               >
                 <option value="">All clients</option>
-                {(clients || []).map((c) => (
+                {pickClients.map((c) => (
                   <option key={c.id} value={c.id}>
-                    {c.name}
+                    {CF_label(c)}
                   </option>
                 ))}
               </select>
@@ -21364,7 +21546,7 @@ function MyTasksPage({
         )}
         <div className="tn-view">
           <NoteComposer
-            clients={clients}
+            clients={pickClients}
             fixedClientId={null}
             legacy={notesLegacy}
             onSubmit={addNote}
@@ -21426,7 +21608,7 @@ function MyTasksPage({
                       setHandoffDraft("");
                     }}
                   >
-                    Add a handoff summary for {c.name}
+                    Add a handoff summary for {CF_label(c)}
                   </button>
                 ))}
               </div>
@@ -21444,7 +21626,10 @@ function MyTasksPage({
                 {handoffClients.withSummary.map((c) => (
                   <section className="tn-client-card" key={c.id} aria-label={c.name}>
                     <header className="tn-client-head">
-                      <h4 className="tn-client-name">{c.name}</h4>
+                      <h4 className="tn-client-name">
+                        {c.name}
+                        <CF_Badge client={c} />
+                      </h4>
                     </header>
                     {renderHandoffSection(c, handoffs[c.id])}
                   </section>
@@ -21509,7 +21694,10 @@ function MyTasksPage({
                     className="sop-picker-btn"
                     onClick={() => setSopClientId(c.id)}
                   >
-                    <span className="sop-picker-name">{c.name}</span>
+                    <span className="sop-picker-name">
+                      {c.name}
+                      <CF_Badge client={c} />
+                    </span>
                     <span className="sop-picker-count">
                       {sopCounts[c.id] || 0} of {CLIENT_SOP_SECTIONS.length} filled
                     </span>
@@ -25204,7 +25392,8 @@ const SELECTED_CLIENT_STORAGE_KEY = "mygoodbooks_selected_client_v1";
 function loadSelectedClientId() {
   try {
     const raw = localStorage.getItem(SELECTED_CLIENT_STORAGE_KEY);
-    return raw && CLIENTS.some((c) => c.id === raw) ? raw : null;
+    // MGB (internal) is never the remembered default landing.
+    return raw && CLIENTS.some((c) => c.id === raw && !c.isInternal) ? raw : null;
   } catch (e) {
     return null;
   }
@@ -26086,6 +26275,12 @@ function parseHashRoute(hash) {
     // "sop" (#/client/<id>/sop) is in PAGE_META, so it passes like any tab.
     return { clientId: parts[1], page: isKnownAppPage(aliased) ? aliased : null, settingsTab };
   }
+  // #/internal: MGB (internal), MyGoodBooks' own workspace. Opens like a bare
+  // #/client/<id>; App refuses it for anyone without the grant.
+  if (parts[0] === "internal") {
+    const ic = STAFF_internalClient();
+    return ic ? { clientId: ic.id, page: null, bare: true, settingsTab: null } : null;
+  }
   // A place's slug (#/work, #/team/reviews), an alias (#/templates) or a
   // bare page key (#/audit-log). Anything after the slug belongs to the page
   // (see HASH_SUB_ROUTE_PAGES); it isn't parsed here.
@@ -26273,7 +26468,9 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
       (clientPortalUser && clientPortalUser.client_id) ||
       (initialRoute &&
         initialRoute.clientId &&
-        CLIENTS.some((c) => c.id === initialRoute.clientId) &&
+        CLIENTS.some(
+          (c) => c.id === initialRoute.clientId && (!c.isInternal || STAFF_canViewInternal(staffUser, null)),
+        ) &&
         initialRoute.clientId) ||
       loadSelectedClientId() ||
       "riverside-pantry",
@@ -26370,8 +26567,12 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
   const recountMyTasksDue = useCallback(() => {
     if (!staffUser) return;
     setMyTasksDue((prev) => {
+      // Tasks tied to a test client or MGB (internal) don't count toward the badge.
+      const flagged = typeof CF_excludedIds === "function" ? CF_excludedIds() : null;
       const next = countDueStaffItems(
-        myTasksRowsRef.current,
+        flagged && flagged.size
+          ? myTasksRowsRef.current.filter((r) => !(r && r.client_id && flagged.has(r.client_id)))
+          : myTasksRowsRef.current,
         staffUser.email,
         todayLocal(),
         Date.now(),
@@ -26795,6 +26996,11 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
   // Clients reachable through a live temporary grant (ClientSwitcher.jsx),
   // so an approval shows up without a reload and an expiry drops out.
   const liveGrantClientIds = CS_useLiveGrantClientIds(staffUser, effectiveStaffUser);
+  // MGB (internal) is reachable only by an admin with the owner's grant, and
+  // never in "View as" (STAFF_canViewInternal). It stays in visibleClients for
+  // them so routes and the open client resolve; every roster, switcher and
+  // count reads rosterClients below instead.
+  const canViewInternal = STAFF_canViewInternal(staffUser, impersonating);
   const visibleClients = useMemo(() => {
     const base = assignedClientIds
       ? CLIENTS.filter(
@@ -26805,11 +27011,39 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
     // test client off for someone means for them to see it.
     return base.filter(
       (c) =>
-        !c.testOnly ||
-        (effectiveStaffUser && effectiveStaffUser.role === "admin") ||
-        (assignedClientIds && assignedClientIds.has(c.id)),
+        (!c.isInternal || canViewInternal) &&
+        (!c.testOnly ||
+          (effectiveStaffUser && effectiveStaffUser.role === "admin") ||
+          (assignedClientIds && assignedClientIds.has(c.id))),
     );
-  }, [assignedClientIds, liveGrantClientIds, effectiveStaffUser && effectiveStaffUser.role, qboDataRev]);
+  }, [assignedClientIds, liveGrantClientIds, effectiveStaffUser && effectiveStaffUser.role, qboDataRev, canViewInternal]);
+  // The clients (MGB (internal) left out): the roster, the switcher, Today,
+  // Team, Work, the Home cards, health and every "N clients" count.
+  const rosterClients = useMemo(() => visibleClients.filter((c) => !c.isInternal), [visibleClients]);
+  // What client lists and pickers show: rosterClients with the test clients
+  // sorted to the bottom, and hidden while this viewer's "Show test clients"
+  // switch is off (ClientFlags.jsx) unless they're assigned to that client or
+  // have it open. Routes and permissions still use visibleClients; every
+  // count and total drops test clients itself (window.mgbRealClients).
+  // The same "explicitly assigned" answer for the lists inside components
+  // (CF_usePicked): staff_client_access rows and live temporary grants.
+  window.mgbAssignedClientIds = useMemo(() => {
+    const ids = new Set(assignedClientIds ? Array.from(assignedClientIds) : []);
+    liveGrantClientIds.forEach((id) => ids.add(id));
+    return ids;
+  }, [assignedClientIds, liveGrantClientIds]);
+  window.mgbViewerEmail = staffUser && staffUser.email ? staffUser.email : null;
+  const [showTestClients] = CF_useShowTest(staffUser && staffUser.email);
+  const flagMe = String((effectiveStaffUser && effectiveStaffUser.email) || "").toLowerCase();
+  const listClients = useMemo(
+    () =>
+      CF_pick(rosterClients, {
+        show: showTestClients,
+        keepId: selectedClientId,
+        isAssigned: (c) => CF_isAssigned(c, flagMe),
+      }),
+    [rosterClients, showTestClients, selectedClientId, flagMe, assignedClientIds, liveGrantClientIds],
+  );
 
   // §140: in-app-only substitute for the "email me on every access request"
   // idea from HANDOFF7.md's smaller-open-items list — no inbox noise, just
@@ -27033,12 +27267,15 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
     } catch (e) {}
   }, [theme, effectiveTheme]);
 
+  // The fallbacks skip MGB (internal), so a normal landing never opens it.
   const baseClient = useMemo(
     () =>
       visibleClients.find((c) => c.id === selectedClientId) ||
+      rosterClients[0] ||
       visibleClients[0] ||
+      CLIENTS.find((c) => !c.isInternal) ||
       CLIENTS[0],
-    [selectedClientId, visibleClients],
+    [selectedClientId, visibleClients, rosterClients],
   );
 
   // A restricted bookkeeper's selectedClientId can point at a client that
@@ -27050,9 +27287,9 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
   useEffect(() => {
     if (visibleClients.length === 0) return;
     if (!visibleClients.find((c) => c.id === selectedClientId)) {
-      setSelectedClientId(visibleClients[0].id);
+      setSelectedClientId((rosterClients[0] || visibleClients[0]).id);
     }
-  }, [visibleClients]);
+  }, [visibleClients, rosterClients]);
 
   // Apply any access edits the bookkeeper made in this session on top of the
   // access records that ship with the data.
@@ -27757,6 +27994,18 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
     setSelectedClientId(clientId);
     setPage(t);
   };
+  // MGB (internal) in the rail / phone menu: open MyGoodBooks' own workspace
+  // by the same landing rule as any client. Refused without the grant.
+  const internalOpen = !!client && client.isInternal === true && !NON_CLIENT_PAGES.has(effectivePage);
+  const openInternal = () => {
+    const ic = STAFF_internalClient();
+    if (!ic || !canViewInternal || !visibleClients.some((c) => c.id === ic.id)) return;
+    const t = STAFF_resumeTab(ic.id, effectiveStaffUser);
+    if (ic.id !== selectedClientId) pageAfterClientSwitch.current = t;
+    setSelectedClientId(ic.id);
+    setPage(t);
+  };
+  const selectPlace = (key) => (key === "internal" ? openInternal() : setPage(key));
   // LK_go from a staff surface while previewing a client user exits the
   // preview first (DeepLink.jsx); same call as the "Exit preview" button.
   useEffect(() => {
@@ -28516,7 +28765,9 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
           <StaffRail
             staffUser={effectiveStaffUser}
             page={effectivePage}
-            onSelectPage={setPage}
+            onSelectPage={selectPlace}
+            canViewInternal={canViewInternal}
+            internalOpen={internalOpen}
             // The same rail, expanded or collapsed per the saved preference,
             // on staff pages and client pages alike (no client sidebar to
             // make room for any more).
@@ -28536,7 +28787,7 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
         )}
         {!tkShell && (
         <Sidebar
-          clients={visibleClients}
+          clients={listClients}
           selectedClientId={selectedClientId}
           onSelectClient={setSelectedClientId}
           client={client}
@@ -28544,7 +28795,8 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
           onSelectViewAs={setViewAsUserId}
           access={access}
           page={effectivePage}
-          onSelectPage={setPage}
+          onSelectPage={selectPlace}
+          canViewInternal={canViewInternal}
           visibleKeys={access.tabs}
           tabOrder={tabOrder}
           onOpenSettingsPage={() => openClientSettings(null)}
@@ -28589,7 +28841,7 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
               realStaffUser={staffUser}
               impersonating={impersonating}
               onStopImpersonating={stopImpersonating}
-              clients={visibleClients}
+              clients={listClients}
               client={onStaffPage ? null : client}
               page={effectivePage}
               plan={access.plan}
@@ -28929,7 +29181,7 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
               hasTempAdminAccess={hasTempAdminAccess}
               tempAdminAccessExpiresAt={tempAdminAccessExpiresAt}
               tempAdminLoaded={tempAdminLoaded}
-              clients={visibleClients}
+              clients={rosterClients}
               page={effectivePage}
               onSelectPage={setPage}
               setMobileNavOpen={setMobileNavOpen}
@@ -29188,7 +29440,7 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
               }
               isAdmin={!!staffUser && staffUser.role === "admin" && !impersonating}
               hasTempAdminAccess={hasTempAdminAccess && !impersonating}
-              clients={visibleClients}
+              clients={listClients}
               theme={theme}
               onChooseTheme={chooseTheme}
               onSignOut={onSignOut}
@@ -29240,7 +29492,7 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
               staffUser={effectiveStaffUser}
               isAdmin={staffIsAdmin}
               isRealAdmin={staffUser.role === "admin" && !impersonating}
-              clients={visibleClients}
+              clients={listClients}
               renderMembers={() => (
                 <StaffAccessPage
                   staffUser={staffUser}
@@ -29257,7 +29509,7 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
             <StaffMessagesPage
               staffUser={staffUser}
               onActivity={checkStaffMessagesUnread}
-              clients={visibleClients}
+              clients={listClients}
               sampleThreads={messagesByClient}
               onSampleSend={sampleInboxSend}
               onOpenClient={openClientFromInbox}
@@ -29281,7 +29533,8 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
           {/* Work (components/staff/WorkPage.jsx): Tasks, Notes & SOPs, Close, Deadlines. */}
           {effectivePage === "work" && typeof WK_WorkPage === "function" && (
             <WK_WorkPage
-              clients={visibleClients}
+              clients={listClients}
+              taskClients={visibleClients}
               staffUser={effectiveStaffUser}
               statusOverrides={statusOverrides}
               canManageTemplates={staffIsAdmin}
@@ -29297,7 +29550,7 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
               it to Overview. */}
           {effectivePage === "clients" && typeof CL_ClientsPage === "function" && (
             <CL_ClientsPage
-              clients={visibleClients}
+              clients={listClients}
               staffUser={effectiveStaffUser}
               isAdmin={staffIsAdmin}
               statusOverrides={statusOverrides}
@@ -29373,7 +29626,7 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
           {effectivePage === "today" && typeof TD_TodayPage === "function" && (
             <TD_TodayPage
               staffUser={effectiveStaffUser}
-              clients={visibleClients}
+              clients={listClients}
               messagesByClient={messagesByClient}
               readMessageClients={readMessageClients}
               isAdmin={staffIsAdmin}

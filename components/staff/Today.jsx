@@ -1052,7 +1052,25 @@ function TD_TodayPage({ staffUser, clients, onNavigateToClient, onOpenClientMile
   const me = TD_lc(staffUser && staffUser.email);
   const admin = !!(isAdmin || (staffUser && staffUser.role === "admin"));
   const today = todayLocal();
-  const allClients = clients || [];
+  // Totals and "my clients" lists count real clients only: no test clients, no
+  // MGB (internal). The Recent card keeps the wider list so a test client you
+  // opened still shows up there.
+  const openableClients = React.useMemo(() => clients || [], [clients]);
+  const allClients = React.useMemo(() => (typeof window.mgbRealClients === "function" ? window.mgbRealClients(openableClients) : openableClients), [clients]);
+  // Ids of test / internal clients: anything tied to one of them stays out of
+  // the Today list and its counts (rows keyed by client_id).
+  // From the whole roster (CF_excludedIds), not just this list: the list
+  // never holds MGB (internal) and drops test clients while "Show test
+  // clients" is off, but their rows must stay out of the counts either way.
+  const hiddenIds = React.useMemo(() => {
+    const real = new Set(allClients.map((c) => c.id));
+    const out = typeof CF_excludedIds === "function" ? CF_excludedIds() : new Set();
+    openableClients.forEach((c) => {
+      if (c && !real.has(c.id)) out.add(c.id);
+    });
+    return out;
+  }, [openableClients, allClients]);
+  const notHidden = (r) => !r || !r.client_id || !hiddenIds.has(r.client_id);
   const myClients = React.useMemo(() => TD_myClients(allClients, me, admin), [allClients, me, admin]);
   const myClientIds = React.useMemo(() => myClients.map((c) => c.id), [myClients]);
 
@@ -1221,19 +1239,19 @@ function TD_TodayPage({ staffUser, clients, onNavigateToClient, onOpenClientMile
         openShoutout,
         profileIncomplete,
         goProfile,
-        toApprove: grants && grants.status === "ready" ? grants.toApprove : [],
+        toApprove: grants && grants.status === "ready" ? grants.toApprove.filter(notHidden) : [],
         grantBusy,
         decideGrant,
-        accessRequests: access.rows,
+        accessRequests: (access.rows || []).filter(notHidden),
         waiting: waiting.rows,
-        items: mine.items || [],
+        items: (mine.items || []).filter(notHidden),
         toggleItem,
         isAdmin: admin,
         deadlines,
         blocked: closes.blocked,
         reviews: reviewData,
         handbook: handbookItems,
-        upgrades: upgrades.rows,
+        upgrades: (upgrades.rows || []).filter(notHidden),
         upgradeBusyId: upgrades.busyId,
         setUpgradeStatus: upgrades.setStatus,
         health: health && health.status === "ready" ? health.byId : null,
@@ -1253,6 +1271,7 @@ function TD_TodayPage({ staffUser, clients, onNavigateToClient, onOpenClientMile
       access.rows,
       waiting.rows,
       mine.items,
+      hiddenIds,
       deadlines,
       closes.blocked,
       reviewData,
@@ -1272,7 +1291,7 @@ function TD_TodayPage({ staffUser, clients, onNavigateToClient, onOpenClientMile
 
   // Tiles. Overdue = everything late that's mine: tasks, filing deadlines and
   // bills. Its only home is the "Now" band right below, so it scrolls there.
-  const openItems = (mine.items || []).filter((t) => !t.done && t.kind !== "note" && t.due_date);
+  const openItems = (mine.items || []).filter(notHidden).filter((t) => !t.done && t.kind !== "note" && t.due_date);
   const dueToday = openItems.filter((t) => t.due_date === today).length;
   const overdue =
     openItems.filter((t) => t.due_date < today).length +
@@ -1456,7 +1475,7 @@ function TD_TodayPage({ staffUser, clients, onNavigateToClient, onOpenClientMile
         <div className="td-cards">
           {cards.reminders && <TD_RemindersCard me={me} items={mine.items} error={mine.error} today={today} onAdd={addItem} onToggle={toggleItem} onRemove={removeItem} />}
           {cards.milestones && <TD_MilestonesCard clients={allClients} onOpenClientMilestone={onOpenClientMilestone} />}
-          {cards.recent && <TD_RecentCard clients={allClients} onNavigateToClient={onNavigateToClient} />}
+          {cards.recent && <TD_RecentCard clients={openableClients} onNavigateToClient={onNavigateToClient} />}
         </div>
       )}
     </div>

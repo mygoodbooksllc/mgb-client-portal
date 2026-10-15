@@ -1440,7 +1440,7 @@ function TOUR_staffTourList() {
 function TOUR_amCount(email) {
   const e = String(email || "").trim().toLowerCase();
   if (!e || !Array.isArray(window.CLIENTS)) return 0;
-  return window.CLIENTS.filter((c) => c && c.accountManager && String(c.accountManager.email || "").toLowerCase() === e).length;
+  return window.CLIENTS.filter((c) => c && !c.isInternal && !c.testOnly && c.accountManager && String(c.accountManager.email || "").toLowerCase() === e).length;
 }
 
 // The client the bookkeeper tour opens: the first one this person can open
@@ -1449,7 +1449,7 @@ function TOUR_amCount(email) {
 // App's visibleClients (window.CLIENTS without it), so the route the tour
 // takes is never refused. { id, name } or null.
 function TOUR_myClient(clients, email) {
-  const list = (Array.isArray(clients) ? clients : Array.isArray(window.CLIENTS) ? window.CLIENTS : []).filter((c) => c && c.id);
+  const list = (Array.isArray(clients) ? clients : Array.isArray(window.CLIENTS) ? window.CLIENTS : []).filter((c) => c && c.id && !c.isInternal);
   const e = String(email || "").trim().toLowerCase();
   const mine = e ? list.find((c) => c.assignedBookkeeper && String(c.assignedBookkeeper.email || "").toLowerCase() === e) : null;
   const c = mine || list[0];

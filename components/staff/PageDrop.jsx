@@ -152,7 +152,9 @@ function PD_ConfirmModal({ files, clients, currentClient, onClose }) {
   const extra = files.length > PD_MAX_FILES ? files.length - PD_MAX_FILES : 0;
   const list = files.slice(0, PD_MAX_FILES).map((f) => ({ f, problem: PD_problem(f) }));
   const good = list.filter((x) => !x.problem).map((x) => x.f);
-  const sorted = clients.slice().sort((a, b) => (a.name || "").localeCompare(b.name || ""));
+  // Test clients (and MGB (internal)) sort last with a tag; test clients hide unless "Show test clients" is on.
+  const picked = CF_usePicked(clients, null, currentClient ? currentClient.id : clientId);
+  const sorted = CF_sort(picked.slice().sort((a, b) => (a.name || "").localeCompare(b.name || "")));
 
   const upload = async () => {
     if (!client || !good.length || busy) return;
@@ -212,7 +214,7 @@ function PD_ConfirmModal({ files, clients, currentClient, onClose }) {
             )}
             {sorted.map((c) => (
               <option key={c.id} value={c.id}>
-                {c.name}
+                {CF_label(c)}
               </option>
             ))}
           </select>
