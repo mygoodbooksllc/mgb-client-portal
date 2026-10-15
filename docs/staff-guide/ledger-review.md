@@ -13,7 +13,7 @@ Open it from the client's tab row, or go straight to `#/client/{id}/ledger`. Che
 
 1. Pick the **Month**. It opens on the last completed month.
 2. The tab gets the ledger from QuickBooks (a "pull") and saves the flags it finds. **Pull from QuickBooks** gets the latest any time, for example after you fix something in QuickBooks. The line next to it says when the last pull happened and the months it covered, like *covered Aug 2025 – Oct 2026*. **Review month** is just the month you're checking.
-   - **Pull transactions back to** (next to the button) chooses how far back that one pull goes: the usual range (14 months), or any earlier month up to 24 months back. It applies to this pull only and never changes the saved setting in Settings; it goes back to the usual range after the pull. An earlier-month pull always runs fresh, and it doesn't clear flags that dropped out of QuickBooks (only the usual pull does that). It also saves only the checks that don't depend on how much history is loaded; round amounts, weekends, large, repeat vendors, check gaps and uncleared loans are shown but not saved. Use the usual range for the routine pull.
+   - **Go back to** (next to the button; the **i** explains it) chooses how far back that one pull goes: the usual 14 months, or any earlier month up to 24 months back. It applies to this pull only and never changes the saved setting in Settings; it goes back to the usual range after the pull. An earlier-month pull always runs fresh, and it doesn't clear flags that dropped out of QuickBooks (only the usual pull does that). It also saves only the checks that don't depend on how much history is loaded; round amounts, weekends, large, repeat vendors, check gaps and uncleared loans are shown but not saved. Use the usual range for the routine pull.
 3. If someone else is pulling the same client, the tab says so. Wait a minute and click **Try again**.
 
 A client without a working QuickBooks connection has no ledger to pull. The tab says so and points you to **Review a file**.
@@ -94,7 +94,7 @@ The file is read in your browser. Nothing is uploaded, stored or sent to QuickBo
 **Team › Ledger review**. Only admins see this tab.
 
 - **Marking a month done**: *Warn* (the default) or *Block*. With Block, a month can't be marked done until its review is approved, and an admin can override with a reason.
-- **Pull transactions back to**: the usual range for every pull, 14 months back (recommended) or this year so far. Staff can go further back for one pull on the client's tab.
+- **Go back to**: the usual range for every pull, 14 months back (recommended) or this year so far. Staff can go further back for one pull on the client's tab.
 - **Count the Close step from**: the first month the Ledger reviewed step applies to, so older months don't suddenly look behind.
 - **Vendor watch list**: names that get a *Watch-list vendor* flag for every client. Add a name with a category, edit it, or turn it off.
 

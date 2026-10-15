@@ -35,16 +35,55 @@
   align-items: center;
   gap: 8px;
 }
+.lr-toolbar {
+  align-items: flex-end;
+}
 .lr-field {
+  position: relative;
   display: inline-flex;
   flex-direction: column;
   gap: 3px;
   max-width: 280px;
 }
-.lr-field .lr-hint {
-  margin: 0;
+.lr-field-note {
+  font-weight: 400;
+}
+.lr-field .lr-select,
+.lr-toolbar .btn-secondary {
+  height: 36px;
+  box-sizing: border-box;
+}
+.lr-info {
+  margin-left: 6px;
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  background: var(--surface);
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1;
+  cursor: help;
+  vertical-align: middle;
+}
+.lr-tip {
+  position: absolute;
+  z-index: 5;
+  top: 100%;
+  left: 0;
+  margin-top: 4px;
+  width: 230px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.12);
   font-size: 12px;
   line-height: 1.35;
+  color: var(--text);
 }
 .lr-month-label {
   font-size: 12px;
@@ -74,8 +113,12 @@
   outline-offset: 1px;
 }
 .lr-pull-line {
+  flex: 1 1 100%;
+  margin: 0;
+  min-width: 0;
   font-size: 13px;
   color: var(--text-muted);
+  overflow-wrap: anywhere;
 }
 .lr-note {
   margin: 0;
@@ -826,10 +869,16 @@ ul.lr-note {
   }
   .lr-month,
   .lr-field,
+  .lr-toolbar .btn-secondary {
+    width: 100%;
+  }
   .lr-month .lr-select,
   .lr-field .lr-select {
     width: 100%;
     max-width: none;
+  }
+  .lr-toolbar .btn-secondary {
+    width: 100%;
   }
   .lr-month .lr-select,
   .lr-field .lr-select {

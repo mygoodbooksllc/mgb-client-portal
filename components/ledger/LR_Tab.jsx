@@ -276,6 +276,7 @@ function LR_LedgerTab({ client, staffUser, isAdmin, onNavigate }) {
   // Per-run "Pull from" month start ('' = the saved default). Never saved.
   const [pullFrom, setPullFrom] = useState("");
   const pullFromRef = useRef("");
+  const [tipOpen, setTipOpen] = useState(false);
   // The month the saved flags are checked as of (the last complete month).
   // Fixed for the life of the tab, never the picker.
   const saveYm = monthOpts[0].ym;
@@ -755,7 +756,7 @@ function LR_LedgerTab({ client, staffUser, isAdmin, onNavigate }) {
   if (pullRow && pullRow.status === "ok") {
     pullLine = `Last pulled ${LR_when(pullRow.finished_at || pullRow.started_at)}${pullRow.pulled_by ? " by " + LR_logic.who(pullRow.pulled_by) : ""}`;
     const covered = LR_logic.coveredLabel(pullRow);
-    if (covered) pullLine += " · covered " + covered;
+    if (covered) pullLine += " · " + covered;
     else if (pullRow.window_kind) pullLine += " · " + LR_logic.pullWindowLabel(pullRow);
   } else if (pullRow && pullRow.status === "running") pullLine = "A pull is running…";
   else if (!pullRow) pullLine = "Not pulled yet";
@@ -775,10 +776,25 @@ function LR_LedgerTab({ client, staffUser, isAdmin, onNavigate }) {
       </label>
       {ctx.connected && (
         <label className="lr-field">
-          <span className="lr-month-label">Pull transactions back to</span>
+          <span className="lr-month-label">
+            Go back to
+            <button
+              type="button"
+              className="lr-info"
+              aria-label="About Go back to"
+              aria-expanded={tipOpen}
+              title="Applies to this pull only. Your saved setting doesn't change."
+              onClick={(e) => {
+                e.preventDefault();
+                setTipOpen((v) => !v);
+              }}
+            >
+              i
+            </button>
+            {pullFrom && <span className="lr-field-note"> · This pull only</span>}
+          </span>
           <select
             className="lr-select"
-            title="Applies to this pull only; your saved setting doesn't change."
             value={pullFrom}
             disabled={pulling}
             onChange={(e) => {
@@ -786,14 +802,18 @@ function LR_LedgerTab({ client, staffUser, isAdmin, onNavigate }) {
               setPullFrom(e.target.value);
             }}
           >
-            <option value="">Usual range ({(ctx.settings && ctx.settings.pull_window) === "ytd" ? "this year so far" : "14 months back"})</option>
+            <option value="">Usual ({(ctx.settings && ctx.settings.pull_window) === "ytd" ? "this year" : "14 months"})</option>
             {pullFromOpts.map((m) => (
               <option key={m.ym} value={m.start}>
-                {m.label}
+                {m.label.replace(/^(\w{3})\w*/, "$1")}
               </option>
             ))}
           </select>
-          <span className="lr-hint">Choose an earlier month to include older transactions. Applies to this pull only; your saved setting doesn't change.</span>
+          {tipOpen && (
+            <span className="lr-tip" role="status">
+              Applies to this pull only. Your saved setting doesn't change.
+            </span>
+          )}
         </label>
       )}
       {ctx.connected && (
@@ -801,7 +821,7 @@ function LR_LedgerTab({ client, staffUser, isAdmin, onNavigate }) {
           {pull.phase === "pulling" ? "Getting latest…" : pull.phase === "saving" ? "Saving flags…" : "Pull from QuickBooks"}
         </button>
       )}
-      <span className="lr-pull-line">{pullLine}</span>
+      {pullLine && <p className="lr-pull-line">{pullLine}</p>}
     </div>
   );
 

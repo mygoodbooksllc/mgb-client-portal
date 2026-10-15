@@ -236,16 +236,13 @@ function LR_SettingsPanel({ staffUser, isAdmin }) {
             </label>
           </fieldset>
           <label className="ct-legend" htmlFor="lrs-win">
-            Pull transactions back to
+            Go back to
           </label>
           <select id="lrs-win" className="lr-select" value={win} disabled={ro} onChange={(e) => setWin(e.target.value)}>
-            <option value="rolling14">Usual range: 14 months back (recommended)</option>
-            <option value="ytd">This year so far (lighter)</option>
+            <option value="rolling14">Usual (14 months)</option>
+            <option value="ytd">This year so far</option>
           </select>
-          <p className="lr-hint">
-            14 months covers the year comparison and lets the app mark flags fixed when they drop out of QuickBooks. "This year so far" is
-            lighter but skips both in January. Staff can choose an earlier month (up to 24 months back) for a single pull on the client's Ledger review tab; that never changes this setting.
-          </p>
+          <p className="lr-hint">14 months is recommended. Staff can go back further for a single pull.</p>
           <label className="ct-legend" htmlFor="lrs-from">
             Count the Close step from
           </label>
