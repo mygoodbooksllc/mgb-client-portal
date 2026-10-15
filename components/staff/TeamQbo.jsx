@@ -1381,7 +1381,7 @@ function TP_QboMapping({ qbo, clients, staff, onBack, onChanged }) {
   const [search, setSearch] = useState("");
   const [version, setVersion] = useState(0);
   const [busyKey, setBusyKey] = useState(null);
-  const [state, setState] = useState({ loading: true, customers: [], resolution: {}, people: [], hoursC: {}, hoursP: {}, error: null });
+  const [state, setState] = useState({ loading: true, customers: [], resolution: {}, people: [], hoursC: {}, hoursP: {}, hoursP30: {}, error: null });
   const st = qbo.status || {};
 
   useEffect(() => {
@@ -1395,8 +1395,13 @@ function TP_QboMapping({ qbo, clients, staff, onBack, onChanged }) {
     // Hours over everything synced, so the big unmapped ones sort first.
     const from = st.earliest_txn_date || "2000-01-01";
     const to = st.latest_txn_date || TP_ymd(new Date());
+    // The last 30 days, shown beside the all-time total.
+    const d30 = new Date();
+    d30.setDate(d30.getDate() - 29);
+    const from30 = TP_ymd(d30);
+    const to30 = TP_ymd(new Date());
     (async () => {
-      const [cm, rs, pm, hc, hp] = await Promise.all([
+      const [cm, rs, pm, hc, hp, hp30] = await Promise.all([
         TP_fetchAll(() =>
           supabase
             .from("qbo_customer_client_map")
@@ -1417,6 +1422,7 @@ function TP_QboMapping({ qbo, clients, staff, onBack, onChanged }) {
         ),
         TP_qRpc("qbo_hours_by_client", { p_from: from, p_to: to }),
         TP_qRpc("qbo_hours_by_staff", { p_from: from, p_to: to }),
+        TP_qRpc("qbo_hours_by_staff", { p_from: from30, p_to: to30 }),
       ]);
       if (!alive) return;
       const realm = st.realm_id;
@@ -1433,6 +1439,10 @@ function TP_QboMapping({ qbo, clients, staff, onBack, onChanged }) {
       (hp.data || []).forEach((r) => {
         if (r.bucket === "unmapped" || r.bucket === "ignored") hoursP[`${r.qbo_entity_type}:${r.qbo_person_id}`] = TP_qNum(r.total_minutes);
       });
+      const hoursP30 = {};
+      (hp30.data || []).forEach((r) => {
+        if (r.bucket === "unmapped" || r.bucket === "ignored") hoursP30[`${r.qbo_entity_type}:${r.qbo_person_id}`] = TP_qNum(r.total_minutes);
+      });
       const err = cm.error || pm.error || rs.error;
       setState({
         loading: false,
@@ -1441,6 +1451,7 @@ function TP_QboMapping({ qbo, clients, staff, onBack, onChanged }) {
         people: (pm.data || []).filter(inRealm),
         hoursC,
         hoursP,
+        hoursP30,
         error: err ? TP_qErrorText("the QuickBooks mapping", err, err.status) : null,
       });
     })();
@@ -1516,14 +1527,15 @@ function TP_QboMapping({ qbo, clients, staff, onBack, onChanged }) {
       state.people.map((p) => {
         const key = `${p.qbo_entity_type}:${p.qbo_id}`;
         const minutes = state.hoursP[key] || 0;
+        const minutes30 = state.hoursP30[key] || 0;
         let status;
         if (p.staff_email)
           status = { tone: "good", text: `${p.manual ? "Mapped" : "Auto-matched"} to ${staffName(p.staff_email)}` };
         else if (p.ignored) status = { tone: "muted", text: "Ignored" };
         else status = { tone: "warn", text: "Not mapped" };
-        return { p, key, minutes, status, unresolved: !p.staff_email && !p.ignored };
+        return { p, key, minutes, minutes30, status, unresolved: !p.staff_email && !p.ignored };
       }),
-    [state.people, state.hoursP, staff],
+    [state.people, state.hoursP, state.hoursP30, staff],
   );
 
   const t = TP_lower(search);
@@ -1684,7 +1696,7 @@ function TP_QboMapping({ qbo, clients, staff, onBack, onChanged }) {
           </p>
         ) : (
           <ul className="tp-q-map-list">
-            {shownPeople.map(({ p, key: pk, minutes, status }) => {
+            {shownPeople.map(({ p, key: pk, minutes, minutes30, status }) => {
               const key = "p:" + pk;
               const busy = busyKey === key;
               const name = p.display_name || `${p.qbo_entity_type} ${p.qbo_id}`;
@@ -1705,7 +1717,8 @@ function TP_QboMapping({ qbo, clients, staff, onBack, onChanged }) {
                     {minutes ? (
                       <>
                         {TP_qHours(minutes)}
-                        <span className="tp-muted tp-q-map-hours-label">hrs</span>
+                        <span className="tp-muted tp-q-map-hours-label">hrs all time</span>
+                        <div className="tp-muted" style={{ fontSize: 12 }}>{TP_qHours(minutes30)} hrs last 30 days</div>
                       </>
                     ) : (
                       <span className="tp-muted">–</span>
