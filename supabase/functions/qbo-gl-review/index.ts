@@ -84,6 +84,10 @@ const SOURCE = "gl_review"; // qbo_usage_add source
 const TAG = "qbo-gl-review";
 const CONCURRENCY = 3; // GeneralLedger chunks in flight at once (spec 2.2)
 const MAX_CALLS = 60; // hard stop for one request (halving included)
+// Stop starting Intuit calls this long after the request began, so the pull
+// finishes (or fails cleanly) before the platform's ~150 s limit cuts it off
+// and leaves the pull row stuck on "running".
+const PULL_BUDGET_MS = envInt("QBO_GL_PULL_BUDGET_MS", 110000, 20000, 140000);
 
 function envFlag(name: string, dflt: boolean): boolean {
   const v = String(Deno.env.get(name) ?? "").trim().toLowerCase();
@@ -225,7 +229,7 @@ async function settleAll<T>(ps: Promise<T>[]): Promise<T[]> {
   return rs.map((r) => (r as PromiseFulfilledResult<T>).value);
 }
 
-async function pullGl(ctx: QboCtx, base: string, realm: string, w: PullWindow, basis: string): Promise<GlPull> {
+async function pullGl(ctx: QboCtx, base: string, realm: string, w: PullWindow, basis: string, deadline: number): Promise<GlPull> {
   // Rows are kept per chunk and joined in date order at the end, so the row
   // order (and each line's seq) is Intuit's own order within a chunk, chunks
   // in date order, whatever order the concurrent fetches finished in.
@@ -237,6 +241,7 @@ async function pullGl(ctx: QboCtx, base: string, realm: string, w: PullWindow, b
 
   const one = async (c: Chunk): Promise<Chunk[]> => {
     if (ctx.calls >= MAX_CALLS) throw new PullError("too_large", `call cap ${MAX_CALLS} reached`);
+    if (Date.now() > deadline) throw new PullError("too_large", `time budget ${PULL_BUDGET_MS} ms reached`);
     let report: any;
     try {
       report = await intuitFetch(
@@ -300,9 +305,13 @@ async function pullGl(ctx: QboCtx, base: string, realm: string, w: PullWindow, b
 
 // is_cleared missing from GeneralLedger (spec 11.1): one TransactionList call
 // per chunk, joined on the txn key, applied to bank and credit card lines.
-async function pullClearedFallback(ctx: QboCtx, base: string, realm: string, chunks: Chunk[]): Promise<Map<string, string>> {
+async function pullClearedFallback(ctx: QboCtx, base: string, realm: string, chunks: Chunk[], deadline: number): Promise<Map<string, string>> {
   const out = new Map<string, string>();
+  // Best effort: never push the request past the call cap or the time budget.
+  if (ctx.calls + chunks.length > MAX_CALLS) throw new Error(`skipped, would pass the ${MAX_CALLS}-call cap`);
+  if (Date.now() > deadline) throw new Error("skipped, time budget reached");
   for (let i = 0; i < chunks.length; i += CONCURRENCY) {
+    if (Date.now() > deadline) throw new Error("time budget reached");
     const batch = chunks.slice(i, i + CONCURRENCY);
     const reports = await settleAll(batch.map((c) =>
       intuitFetch(ctx, reportUrl(base, realm, "TransactionList", { start_date: c.start, end_date: c.end, columns: TXN_LIST_COLUMNS }), "TransactionList")
@@ -316,6 +325,7 @@ async function pullClearedFallback(ctx: QboCtx, base: string, realm: string, chu
 // Handler
 // ---------------------------------------------------------------------------
 Deno.serve(async (req) => {
+  const startedAt = Date.now();
   if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
   if (req.method !== "POST") return json({ status: "error", error: "Method not allowed" }, 405);
 
@@ -395,6 +405,7 @@ Deno.serve(async (req) => {
   const pulledAt: string = begin.pulled_at;
 
   const ctx = newCtx("");
+  const deadline = startedAt + PULL_BUDGET_MS;
   let finished = false;
   const finish = async (status: "ok" | "error", lineCount: number | null, error: string | null) => {
     finished = true;
@@ -436,7 +447,7 @@ Deno.serve(async (req) => {
     }
     const vendors = action === "pull" ? await loadVendors(ctx, base, realm, clientId) : null;
 
-    const gl = await pullGl(ctx, base, realm, w, basis);
+    const gl = await pullGl(ctx, base, realm, w, basis, deadline);
 
     if (!accountsQueried && gl.rows.some((r) => r.acct_id && !accounts.has(r.acct_id))) {
       await queryAccounts(ctx, base, realm, accounts, clientId);
@@ -446,7 +457,7 @@ Deno.serve(async (req) => {
     let clearedAvailable = gl.has.cleared;
     if (!clearedAvailable && action === "pull" && gl.chunks.length) {
       try {
-        clearedByKey = await pullClearedFallback(ctx, base, realm, gl.chunks);
+        clearedByKey = await pullClearedFallback(ctx, base, realm, gl.chunks, deadline);
         clearedAvailable = true;
       } catch (e) {
         if (isAuthFailure(e)) throw e;
