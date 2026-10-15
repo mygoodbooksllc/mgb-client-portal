@@ -11,7 +11,7 @@
 //   viewFlags / tabCounts / typeCounts / openSince
 //   isAskable / defaultQuestion / CLEAR_REASONS / clearReasonLabel
 //   toTsv / flagsToTsv / compareToTsv     "Copy for Excel"
-//   chunk / pullWindowLabel / ruleLabel / fileRules / holdingSplit
+//   pullFromOptions / pullWindowFrom / chunk / pullWindowLabel / ruleLabel / fileRules / holdingSplit
 //   signoffSummary / chartBars
 //
 // UMD like the GLR_ files: window.LR_logic in the browser, require() in Node.
@@ -28,9 +28,15 @@
   var who = function (email) { return String(email || "").split("@")[0]; };
 
   // ---- Months ---------------------------------------------------------------
-  // The month before today's, in local time ("last completed month").
+  // A local-fields Date for the firm's (America/Chicago) calendar day, so month
+  // math never uses the browser's own timezone.
+  function firmDate(now) {
+    var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(firmToday(now));
+    return new Date(+m[1], +m[2] - 1, +m[3]);
+  }
+  // The month before today's, in the firm's timezone ("last completed month").
   function lastCompleteMonth(today) {
-    var d = today instanceof Date ? today : new Date();
+    var d = firmDate(today);
     var y = d.getFullYear(), m = d.getMonth(); // m is 0-based, so this is last month
     if (m === 0) { y -= 1; m = 12; }
     return y + "-" + pad2(m);
@@ -215,9 +221,54 @@
     for (var i = 0; i < (a || []).length; i += size) out.push(a.slice(i, i + size));
     return out;
   }
+  var MONTH_NAMES = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+  function ymdMonthLabel(ymd) {
+    var m = /^(\d{4})-(\d{2})/.exec(String(ymd || ""));
+    return m && MONTH_NAMES[+m[2] - 1] ? MONTH_NAMES[+m[2] - 1] + " " + m[1] : "";
+  }
+  // Month starts for the "Pull from" picker: the current calendar month and
+  // back, newest first. 24 entries stay inside the server's 24-month limit.
+  function pullFromOptions(today, count) {
+    var d = firmDate(today);
+    var cur = d.getFullYear() * 12 + d.getMonth();
+    var out = [];
+    for (var i = 0; i < (count || 24); i++) {
+      var k = C.ymFromIndex(cur - i);
+      out.push({ ym: k, label: C.monthLabel(k), start: k + "-01" });
+    }
+    return out;
+  }
+  // Today as YYYY-MM-DD in the firm's timezone (the server rejects a future end).
+  function firmToday(now) {
+    var parts = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Chicago", year: "numeric", month: "2-digit", day: "2-digit" })
+      .formatToParts(now instanceof Date ? now : new Date());
+    var g = function (t) { return (parts.filter(function (p) { return p.type === t; })[0] || {}).value; };
+    return g("year") + "-" + g("month") + "-" + g("day");
+  }
+  // A custom (picked-start) pull holds less history than the 14-month pull, so
+  // checks whose result depends on how much history is in the window (round
+  // amounts, weekends, large, repeat vendors, check gaps, uncleared loans) can
+  // flag or miss differently. Only the window-independent types are saved.
+  var CUSTOM_SAVE_TYPES = ["suspense", "obe", "dup", "jecash", "blank", "loan_expense", "watch_vendor", "negbank"];
+  function rowsForWindow(rows, windowKind) {
+    if (windowKind !== "custom") return rows || [];
+    return (rows || []).filter(function (r) { return CUSTOM_SAVE_TYPES.indexOf(r.flag_type) >= 0; });
+  }
+  // The { start, end } window for a picked month start, ending today (firm date).
+  function pullWindowFrom(start, now) {
+    return { start: start, end: firmToday(now) };
+  }
+  // w: a window kind, a { start, end } window, or a gl_review_pulls row
+  // (window_kind + window_start + window_end).
   function pullWindowLabel(w) {
     if (w === "rolling14") return "Last 14 months";
     if (w === "ytd") return "Year to date";
+    if (w && typeof w === "object" && w.window_kind === "custom") {
+      var from = ymdMonthLabel(w.window_start);
+      if (!from) return "";
+      return w.window_end && w.window_end === firmToday() ? "Since " + from : from + " to " + (ymdMonthLabel(w.window_end) || w.window_end);
+    }
+    if (w && typeof w === "object" && w.window_kind) return pullWindowLabel(w.window_kind);
     if (w && typeof w === "object" && w.start && w.end) return w.start + " to " + w.end;
     if (w && typeof w === "object" && w.kind) return pullWindowLabel(w.kind);
     return "";
@@ -312,6 +363,9 @@
   }
 
   return {
+    firmDate: firmDate,
+    CUSTOM_SAVE_TYPES: CUSTOM_SAVE_TYPES,
+    rowsForWindow: rowsForWindow,
     lastCompleteMonth: lastCompleteMonth,
     monthOptions: monthOptions,
     toPeriod: toPeriod,
@@ -333,6 +387,9 @@
     compareStatusLabel: compareStatusLabel,
     chunk: chunk,
     pullWindowLabel: pullWindowLabel,
+    pullFromOptions: pullFromOptions,
+    pullWindowFrom: pullWindowFrom,
+    firmToday: firmToday,
     ruleLabel: ruleLabel,
     fileRules: fileRules,
     holdingSplit: holdingSplit,

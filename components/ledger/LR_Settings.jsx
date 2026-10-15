@@ -244,7 +244,7 @@ function LR_SettingsPanel({ staffUser, isAdmin }) {
           </select>
           <p className="lr-hint">
             14 months covers the year comparison and lets the app mark flags fixed when they drop out of QuickBooks. "This year so far" is
-            lighter but skips both in January.
+            lighter but skips both in January. Staff can also pick a start month (up to 24 months back) for a single pull with Pull from on the client's tab.
           </p>
           <label className="ct-legend" htmlFor="lrs-from">
             Start with this month

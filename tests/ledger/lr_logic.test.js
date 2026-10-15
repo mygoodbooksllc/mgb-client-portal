@@ -96,6 +96,12 @@ test("chunk, pullWindowLabel and clearReasonLabel", () => {
   assert.deepEqual(L.chunk([], 2), []);
   assert.equal(L.pullWindowLabel("rolling14"), "Last 14 months");
   assert.equal(L.pullWindowLabel({ start: "2026-01-01", end: "2026-09-30" }), "2026-01-01 to 2026-09-30");
+  assert.equal(L.pullWindowLabel({ window_kind: "rolling14" }), "Last 14 months");
+  assert.equal(
+    L.pullWindowLabel({ window_kind: "custom", window_start: "2026-03-01", window_end: "2026-04-30" }),
+    "March 2026 to April 2026",
+  );
+  assert.equal(L.pullWindowLabel({ window_kind: "custom", window_start: "2026-03-01", window_end: L.firmToday() }), "Since March 2026");
   assert.equal(L.clearReasonLabel("fixed_in_qbo"), "Fixed it in QuickBooks");
   assert.equal(L.clearReasonLabel("rule"), "Hidden by a rule");
 });
@@ -155,4 +161,37 @@ test("chartBars scales to the largest absolute value", () => {
   assert.equal(g.bars[1].x, 50);
   assert.equal(g.avgY, 30);
   assert.deepEqual(L.chartBars([], 100, 40).bars, []);
+});
+
+test("pullFromOptions stays inside the server's 24-month limit", () => {
+  const opts = L.pullFromOptions(new Date(2026, 9, 15));
+  assert.equal(opts.length, 24);
+  assert.deepEqual(opts[0], { ym: "2026-10", label: opts[0].label, start: "2026-10-01" });
+  assert.equal(opts[1].start, "2026-09-01");
+  assert.equal(opts[23].start, "2024-11-01");
+  // server: start >= addMonths(end, -24) = first of the month 24 back
+  assert.ok(opts[23].start >= "2024-10-01");
+  assert.equal(L.pullFromOptions(new Date(2026, 0, 31), 2)[1].start, "2025-12-01");
+});
+
+test("pullWindowFrom ends on the firm (Chicago) date, not UTC", () => {
+  // 2026-10-16 03:00 UTC is still 10-15 in Chicago
+  assert.equal(L.firmToday(new Date("2026-10-16T03:00:00Z")), "2026-10-15");
+  assert.deepEqual(L.pullWindowFrom("2025-03-01", new Date("2026-10-16T03:00:00Z")), { start: "2025-03-01", end: "2026-10-15" });
+});
+
+test("month lists use the firm (Chicago) month, not UTC or the browser month", () => {
+  // 2026-11-01 03:00 UTC is still 2026-10-31 in Chicago
+  const now = new Date("2026-11-01T03:00:00Z");
+  assert.equal(L.pullFromOptions(now, 2)[0].ym, "2026-10");
+  assert.equal(L.monthOptions(now, 1)[0].ym, "2026-09");
+  assert.equal(L.lastCompleteMonth(now), "2026-09");
+  // and just after Chicago midnight it rolls over
+  assert.equal(L.pullFromOptions(new Date("2026-11-01T06:30:00Z"), 1)[0].ym, "2026-11");
+});
+
+test("a custom pull saves only window-independent flag types", () => {
+  const rows = ["suspense", "round", "weekend", "large", "vendor_acct", "gap", "recon_uncleared", "negbank", "dup"].map((t) => ({ flag_type: t }));
+  assert.deepEqual(L.rowsForWindow(rows, "custom").map((r) => r.flag_type), ["suspense", "negbank", "dup"]);
+  assert.equal(L.rowsForWindow(rows, "rolling14").length, rows.length);
 });

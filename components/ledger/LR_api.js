@@ -5,6 +5,7 @@
 // Every write is an RPC (no direct table writes from the browser), and the
 // two edge functions are:
 //   qbo-gl-review   { action:'pull', client_id, window?, force? }
+//                   window is 'rolling14' | 'ytd' | { start, end } (YYYY-MM-DD)
 //   gl-review-send  { kind:'question'|'summary', id }
 //
 // Errors come back as Error objects with a plain-language message (the RPCs
@@ -148,7 +149,7 @@ const LR_api = {
   async loadFlags(clientId, sincePeriod) {
     const sb = LR_sb();
     const [recent, older] = await Promise.all([
-      sb.from("gl_review_flags").select(LR_FLAG_COLS).eq("client_id", clientId).gte("period", sincePeriod).order("txn_date").limit(5000),
+      sb.from("gl_review_flags").select(LR_FLAG_COLS).eq("client_id", clientId).gte("period", sincePeriod).order("txn_date", { ascending: false }).limit(5000),
       sb
         .from("gl_review_flags")
         .select(LR_FLAG_COLS)
@@ -159,7 +160,8 @@ const LR_api = {
         .limit(1000),
     ]);
     if (recent.error) throw LR_toError(recent.error);
-    return (older.data || []).concat(recent.data || []);
+    // Newest first so the 5000 cap cuts the oldest; hand back oldest first.
+    return (older.data || []).concat((recent.data || []).slice().reverse());
   },
 
   async loadQuestions(ids) {
@@ -202,7 +204,7 @@ const LR_api = {
   // ---- Pull -----------------------------------------------------------------
   pull(clientId, windowKind, force) {
     const body = { action: "pull", client_id: clientId, force: !!force };
-    if (windowKind) body.window = windowKind;
+    if (windowKind) body.window = windowKind; // a name, or { start, end } for a custom range
     return LR_invoke("qbo-gl-review", body);
   },
 

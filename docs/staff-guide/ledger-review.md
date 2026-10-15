@@ -12,7 +12,8 @@ Open it from the client's tab row, or go straight to `#/client/{id}/ledger`. Che
 ### Pull the ledger
 
 1. Pick the **Month**. It opens on the last completed month.
-2. The tab pulls the ledger from QuickBooks and saves the flags it finds. **Pull again** pulls it fresh any time, for example after you fix something in QuickBooks. The line next to it says when the last pull happened.
+2. The tab pulls the ledger from QuickBooks and saves the flags it finds. **Pull again** pulls it fresh any time, for example after you fix something in QuickBooks. The line next to it says when the last pull happened and how far back it covered.
+   - **Pull from** (next to the button) picks how far back that one pull starts: any month, up to 24 months back. It only changes this pull; the admin default stays as set and the picker goes back to **Default** as soon as the pull finishes (and when you reopen the tab). A pull from a picked month always runs fresh, and it doesn't clear flags that dropped out of QuickBooks (only the 14-month default pull does that). It also saves only the checks that don't depend on how much history is loaded; round amounts, weekends, large, repeat vendors, check gaps and uncleared loans are shown but not saved. So use **Default** for the routine pull.
 3. If someone else is pulling the same client, the tab says so. Wait a minute and click **Try again**.
 
 A client without a working QuickBooks connection has no ledger to pull. The tab says so and points you to **Review a file**.

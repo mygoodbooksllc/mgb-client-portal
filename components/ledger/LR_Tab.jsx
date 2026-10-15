@@ -270,7 +270,12 @@ function LR_LedgerTab({ client, staffUser, isAdmin, onNavigate }) {
   const toast = (m) => showToast && showToast(m);
   const isPhone = LR_useIsPhone();
   const clientName = (client && (client.name || client.id)) || "this client";
-  const monthOpts = useMemo(() => LR_logic.monthOptions(new Date(), 14), []);
+  // Month lists use the firm (America/Chicago) date, not the browser's.
+  const monthOpts = useMemo(() => LR_logic.monthOptions(new Date(), 24), []);
+  const pullFromOpts = useMemo(() => LR_logic.pullFromOptions(new Date(), 24), []);
+  // Per-run "Pull from" month start ('' = the saved default). Never saved.
+  const [pullFrom, setPullFrom] = useState("");
+  const pullFromRef = useRef("");
   // The month the saved flags are checked as of (the last complete month).
   // Fixed for the life of the tab, never the picker.
   const saveYm = monthOpts[0].ym;
@@ -338,14 +343,16 @@ function LR_LedgerTab({ client, staffUser, isAdmin, onNavigate }) {
 
   // ---- Pull + save -------------------------------------------------------
   const doPull = useCallback(
-    async (force) => {
+    async (force, useDefault) => {
       const c = ctxRef.current;
       if (!c || pullingRef.current) return;
       pullingRef.current = true;
       setPull({ phase: "pulling" });
       try {
-        const windowKind = (c.settings && c.settings.pull_window) || "rolling14";
-        let res = await LR_api.pull(client.id, windowKind, force);
+        const picked = useDefault ? "" : pullFromRef.current;
+        const windowKind = picked ? LR_logic.pullWindowFrom(picked) : (c.settings && c.settings.pull_window) || "rolling14";
+        // A custom range always runs a new pull.
+        let res = await LR_api.pull(client.id, windowKind, force || !!picked);
         if (res && res.status === "fresh") {
           const cached = LR_cache().get(client.id);
           if (cached) {
@@ -383,6 +390,7 @@ function LR_LedgerTab({ client, staffUser, isAdmin, onNavigate }) {
         // mark_fixed compares against, never depends on the month picker.
         let saveError = "";
         let fixed = 0;
+        let pulledKind = "";
         // null = the firm watch list didn't load and the checks used the
         // built-in list; then nothing is marked fixed this time, so a
         // watch_vendor flag isn't retired just because the list was missing.
@@ -394,9 +402,12 @@ function LR_LedgerTab({ client, staffUser, isAdmin, onNavigate }) {
             clearedAvailable: parsed.cleared_available,
             reviewPeriod: saveYm,
           });
-          const rows = GLR_checks.toUpsertRows(run.flags);
+          // A custom pull has less history, so only window-independent flag
+          // types are saved (the in-memory run still shows everything).
           const pid = await LR_api.pullIdFor(client.id, res);
+          const rows = LR_logic.rowsForWindow(GLR_checks.toUpsertRows(run.flags), pid && pid.window_kind);
           if (!pid || !pid.pull_id) throw new Error("This pull couldn't be matched to its record, so the flags weren't saved. Pull again.");
+          pulledKind = pid.window_kind;
           await LR_api.upsertFlags(client.id, pid.pull_id, GLR_config.CHECKS_VERSION, rows);
           if (pid.window_kind === "rolling14" && !watchFallback) {
             const r = await LR_api.markFixed(client.id, pid.pull_id, GLR_config.CHECKS_VERSION);
@@ -410,7 +421,12 @@ function LR_LedgerTab({ client, staffUser, isAdmin, onNavigate }) {
         if (!alive.current) return;
         if (pullRow) setCtx((x) => (x ? { ...x, pull: pullRow } : x));
         setRulesChanged(false);
-        setPull({ phase: "done", saveError, fixed, watchFallback });
+        // A custom range is one-off: later re-pulls go back to the default.
+        if (pulledKind === "custom") {
+          pullFromRef.current = "";
+          setPullFrom("");
+        }
+        setPull({ phase: "done", saveError, fixed, watchFallback, custom: pulledKind === "custom", covers: pullRow ? LR_logic.pullWindowLabel(pullRow) : "" });
         LR_api.notifyChanged(client.id, LR_logic.toPeriod(ymRef.current));
       } catch (e) {
         if (alive.current) setPull({ phase: "error", error: (e && e.message) || "The ledger pull didn't finish." });
@@ -431,7 +447,7 @@ function LR_LedgerTab({ client, staffUser, isAdmin, onNavigate }) {
         setCtx(c);
         ctxRef.current = c;
         await reloadFlags();
-        if (!off && alive.current && c.connected && !LR_cache().get(client.id)) doPull(false);
+        if (!off && alive.current && c.connected && !LR_cache().get(client.id)) doPull(false, true);
       } catch (e) {
         if (!off && alive.current) setCtxErr(e.message || "Couldn't load Ledger review.");
       }
@@ -738,7 +754,7 @@ function LR_LedgerTab({ client, staffUser, isAdmin, onNavigate }) {
   let pullLine = "";
   if (pullRow && pullRow.status === "ok") {
     pullLine = `Last pulled ${LR_when(pullRow.finished_at || pullRow.started_at)}${pullRow.pulled_by ? " by " + LR_logic.who(pullRow.pulled_by) : ""}`;
-    if (pullRow.window_kind) pullLine += " · " + LR_logic.pullWindowLabel(pullRow.window_kind);
+    if (pullRow.window_kind) pullLine += " · " + LR_logic.pullWindowLabel(pullRow);
   } else if (pullRow && pullRow.status === "running") pullLine = "A pull is running…";
   else if (!pullRow) pullLine = "Not pulled yet";
   const reviewFileHref = "#/work/ledger";
@@ -756,6 +772,27 @@ function LR_LedgerTab({ client, staffUser, isAdmin, onNavigate }) {
         </select>
       </label>
       {ctx.connected && (
+        <label className="lr-month">
+          <span className="lr-month-label">Pull from</span>
+          <select
+            className="lr-select"
+            value={pullFrom}
+            disabled={pulling}
+            onChange={(e) => {
+              pullFromRef.current = e.target.value;
+              setPullFrom(e.target.value);
+            }}
+          >
+            <option value="">Default ({LR_logic.pullWindowLabel((ctx.settings && ctx.settings.pull_window) || "rolling14").toLowerCase()})</option>
+            {pullFromOpts.map((m) => (
+              <option key={m.ym} value={m.start}>
+                {m.label}
+              </option>
+            ))}
+          </select>
+        </label>
+      )}
+      {ctx.connected && (
         <button type="button" className="btn-secondary" disabled={pulling} onClick={() => doPull(true)}>
           {pull.phase === "pulling" ? "Pulling…" : pull.phase === "saving" ? "Saving flags…" : "Pull again"}
         </button>
@@ -763,6 +800,10 @@ function LR_LedgerTab({ client, staffUser, isAdmin, onNavigate }) {
       <span className="lr-pull-line">{pullLine}</span>
     </div>
   );
+
+  // The picked month is earlier than the loaded pull's first day.
+  const winStart = data && data.window && data.window.start;
+  const beforeWindow = !!winStart && String(ym) < String(winStart).slice(0, 7);
 
   let banner = null;
   if (!ctx.connected) {
@@ -813,6 +854,13 @@ function LR_LedgerTab({ client, staffUser, isAdmin, onNavigate }) {
       <p className="lr-note is-warn" role="status">
         The firm watch list didn't load, so this pull used the built-in list and didn't mark anything fixed. Pull again later to retire flags QuickBooks
         no longer shows.
+      </p>
+    );
+  } else if (pull.phase === "done" && !pull.saveError && pull.custom) {
+    banner = (
+      <p className="lr-note" role="status">
+        Covers {pull.covers || "the picked range"}. Flags that dropped out of QuickBooks weren't cleaned up; only the 14-month pull does that. History-based checks
+        (round amounts, weekends, large, repeat vendors, check gaps, uncleared loans) are shown but not saved on a custom pull.
       </p>
     );
   } else if (pull.phase === "done" && pull.saveError) {
@@ -1130,6 +1178,11 @@ function LR_LedgerTab({ client, staffUser, isAdmin, onNavigate }) {
     <div className="lr-page" data-tour="client-ledger">
       {toolbar}
       {banner}
+      {beforeWindow && (
+        <p className="lr-note" role="status">
+          This month wasn't in the last pull. Use Pull from to go back further.
+        </p>
+      )}
       {data && data.warnings && data.warnings.length > 0 && (
         <ul className="lr-note is-warn" aria-label="Warnings from the pull">
           {data.warnings.map((w, i) => (

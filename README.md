@@ -968,6 +968,7 @@ goes through `security definer` RPCs that call `tr_me()` / `tr_require_admin()` 
   `gl-review-send`), Mark reviewed, admin Approve or Send back. Ships as **warn only**.
 - **Client setup:** `client_profile.greeting_name` and `contact_email` (Overview › Edit dates and
   coverage). Ask-by-email and send-summary-by-email need `contact_email`.
+- **Pull from (2026-10-15):** per-run picker in `LR_Tab.jsx` (local state, never saved, resets to Default after a custom pull; settings `pull_window` stays the default). Picks a month start up to 24 back and sends `window:{start,end}` (end = today in America/Chicago); custom runs force a new pull, skip `mark_fixed`, and save only window-independent flag types (`LR_logic.CUSTOM_SAVE_TYPES`). Month lists use the firm (Chicago) date.
 - **Docs and upkeep:** staff guide `ledger-review.md`; tour steps in `Tour.jsx` (`client-ledger`,
   Work and Team tab steps); tip `ledger-flags` in `Tips.jsx`; help slug `ledger-review`; Dev Tools links.
 
