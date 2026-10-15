@@ -7,6 +7,10 @@ sort: 15
 ---
 The newest changes to the staff side, newest first. For how anything works, search this guide or click **?** → **Help for this page**.
 
+### 2026-10-15: Reviewers hear when a self-review is in
+
+- **Your reviewer gets an email when you submit your self-review.** It says who submitted and for which quarter, that their own review is still open, and links to their form. It never includes your scores or answers. It's sent once per review, so re-submitting after an admin reopens your form doesn't send it again, and it's skipped if they've already submitted (the comparison email covers that). See [How do quarterly reviews work?](#/help/quarterly-reviews).
+
 ### 2026-10-15: New staff can sign in straight away
 
 - **Adding someone now sets up their sign-in too (admins).** New sign-ups are switched off for the portal on purpose, which meant a newly added bookkeeper could be turned away by Google. **+ Add**, **Bulk import** and reactivating someone on **Team → Members** now also make their sign-in account. If that step fails you'll see "sign-in setup failed — use Fix sign-in", and the person stays on the list. Their first sign-in must be with Google; after that the installed app's emailed code works too.

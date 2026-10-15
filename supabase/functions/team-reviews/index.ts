@@ -33,6 +33,7 @@ import { DRIVE_SCOPE, driveQ, parseServiceAccount, signServiceAccountJwt, TOKEN_
 import { esc, sendEmail } from "../_shared/email.ts";
 import * as L from "../_shared/layout.ts";
 import { buildHandbookPdf, buildReviewPdf, buildYearPdf, isoDateCT } from "./pdf.ts";
+import { selfSubmittedEmail } from "./selfsubmitted.ts";
 
 void DRIVE_SCOPE; // scope is baked into signServiceAccountJwt's claims
 
@@ -386,6 +387,10 @@ function emailFor(n: any, to: any, review: any): { subject: string; lines: strin
           : [`Both reviews are in for your ${cycle} review. The comparison is open.`, `Schedule your review meeting with ${revFirst}. You'll agree action steps together, then both sign.`],
         cta: "See the comparison", href: reviewLink,
       };
+    case "self_review_submitted":
+      // Reassigned since it was queued: the former reviewer must not get it.
+      if (!review || review.reviewer_id !== n.to_staff_id) return null;
+      return selfSubmittedEmail(p, !!review.manager_submitted, reviewLink, fmtDue);
     case "reopened":
       return {
         subject: `Your ${p.kind === "manager" ? "review of " + staffName : "self-review"} was reopened`,
@@ -470,7 +475,12 @@ async function sendOutbox(db: SupabaseClient) {
       if (r) {
         const { data: ppl } = await db.from("staff").select("id, name").in("id", [r.staff_id, r.reviewer_id]);
         const nm = (id: string) => (ppl || []).find((x: any) => x.id === id)?.name;
-        review = { ...r, staff_name: nm(r.staff_id), reviewer_name: nm(r.reviewer_id) };
+        let managerSubmitted = false;
+        if (n.kind === "self_review_submitted") {
+          const { data: m } = await db.from("review_submissions").select("submitted_at").eq("review_id", n.review_id).eq("kind", "manager").maybeSingle();
+          managerSubmitted = !!m?.submitted_at;
+        }
+        review = { ...r, staff_name: nm(r.staff_id), reviewer_name: nm(r.reviewer_id), manager_submitted: managerSubmitted };
       }
     }
     const msg = to?.active && to.email ? emailFor(n, to, review) : null;

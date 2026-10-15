@@ -318,6 +318,14 @@ begin
   end if;
   update review_submissions set submitted_at = now() where id = s.id;
   select * into o from review_submissions where review_id = r.id and kind <> p_kind;
+  -- Heads-up to the reviewer when the team member's self-review lands first.
+  -- No scores or answers in the payload (blind rule). One email per review, ever:
+  -- the key has no reopen counter, so a re-submit after an admin reopen stays quiet.
+  if p_kind = 'self' and o.submitted_at is null then
+    perform tr_notify('self_review_submitted', r.reviewer_id, r.id, r.cycle_id,
+      jsonb_build_object('cycle', tr_cycle_label(r.cycle_id), 'staff_name', (select name from staff where id = r.staff_id),
+                         'due_at', c.due_at), 'self_submitted:' || r.id);
+  end if;
   if o.submitted_at is not null then
     update reviews set status = 'comparing' where id = r.id;
     select count(*) into v_reopens from review_events where review_id = r.id and kind = 'reopen';

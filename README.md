@@ -941,6 +941,11 @@ goes through `security definer` RPCs that call `tr_me()` / `tr_require_admin()` 
   admin. Any other admin sees both forms live, drafts included (2026-10-13,
   `supabase/team-reviews-3-admin-live-view.sql`; the **In progress** view in
   `TeamReviewsCompare.jsx`).
+- **Self-review heads-up email** (2026-10-15, `supabase/team-reviews-4-self-submitted.sql`):
+  `tr_save_submission` queues `self_review_submitted` for the review's `reviewer_id` when the
+  self form is submitted first (dedupe `self_submitted:<review id>`, no reopen counter, so once per
+  review). Payload has cycle, name and due date only. The edge function (`selfsubmitted.ts`) skips
+  it at send time if the reviewer has since submitted. Tests: `tests/edge/self_submitted.test.mjs`.
 - **Reassigning:** a former reviewer can't be put back on a review once its self-review exists
   (`tr_reassign_reviewer`), since while off it they could see the self-review as "another admin".
 - **Drafts:** review forms autosave to `review_submissions`. Survey drafts stay in the browser

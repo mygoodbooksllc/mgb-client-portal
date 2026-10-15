@@ -7,7 +7,7 @@ sort: 145
 ---
 Once a quarter you review the quarter that just ended (in October, that's Q3). You fill in a short self-review, your reviewer (usually Jesse) fills in the same form about you, and then you meet, agree on action steps and both sign. Everything lives on the **Reviews** tab of **Team** (`#/team/reviews`). The number on the tab shows how many things are waiting on you.
 
-When a review is due, you also get an email, a **Review due** row on **Today**, and a number on the **Reviews** tab of **Team**.
+When someone submits their self-review before you've done yours, their reviewer gets an email saying so (no scores). When a review is due, you also get an email, a **Review due** row on **Today**, and a number on the **Reviews** tab of **Team**.
 
 ### The form
 
