@@ -82,7 +82,7 @@ insert into _who select 'owner', ia.staff_email from internal_access ia
  where ia.is_owner limit 1;
 insert into _who select 'adm_no', s.email from staff s
  where s.role = 'admin' and s.active and s.email <> (select email from _who where k = 'owner')
-   and not exists (select 1 from internal_access ia where ia.staff_email = s.email)
+   -- default is ON for every admin; the owner switches this one off below
  order by s.email limit 1;
 with b as (select email, row_number() over (order by email) rn from staff where role = 'bookkeeper' and active)
 insert into _who select case rn when 1 then 'bk_sca' when 2 then 'bk_am' else 'bk_temp' end, email
@@ -98,6 +98,7 @@ insert into clients (id, name, org_type, assigned_bookkeeper_email, account_mana
 create temp table _rc as select id from clients where id = 'icp-real-client';
 
 select pg_temp.claims((select email from _who where k = 'owner'));
+select set_internal_access((select email from _who where k = 'adm_no'), false);
 insert into staff_client_access (staff_email, client_id)
   select email, 'mygoodbooks' from _who where k = 'bk_sca' on conflict do nothing;
 insert into staff_client_access (staff_email, client_id)
@@ -129,8 +130,8 @@ begin
     (select count(*) from clients where is_internal) = 1 and (select is_internal from clients where id = 'mygoodbooks'));
   perform pg_temp.chk('internal client is NOT test_only (never reuse test_only)',
     not (select coalesce(test_only, false) from clients where id = 'mygoodbooks'));
-  perform pg_temp.chk('internal_access: exactly one row and it is the owner',
-    (select count(*) from internal_access) = 1 and (select is_owner from internal_access limit 1));
+  perform pg_temp.chk('internal_access: exactly one owner row (every other active admin has a default row)',
+    (select count(*) from internal_access where is_owner) = 1);
   begin
     update clients set is_internal = true where id = 'basic-test';
     perform pg_temp.chk('a second internal client is refused (unique index)', false);
@@ -230,8 +231,8 @@ begin
     perform pg_temp.chk(p.k || ': direct DELETE from internal_access refused',
       pg_temp.probe(p.email, 'with x as (delete from internal_access returning 1) select count(*) from x') like 'ERR:42501%');
   end loop;
-  perform pg_temp.chk('still exactly one internal_access row after all self-grant attempts',
-    (select count(*) from internal_access) = 1);
+  perform pg_temp.chk('internal_access unchanged by all self-grant attempts (default rows only, opted-out admin still off)',
+    (select count(*) from internal_access) = (select count(*) from staff where role = 'admin' and active and email <> adm));
   perform pg_temp.chk('bk_sca / client cannot read the grant list (0 rows or no access)',
     pg_temp.probe(bk, 'select count(*) from internal_access') in ('0')
     and pg_temp.probe((select email from _who where k = 'client_mgb'), 'select count(*) from internal_access') in ('0')
@@ -246,8 +247,8 @@ begin
     pg_temp.probe(adm, 'select count(*) from qbo_transactions where client_id = ''mygoodbooks''') = tx::text);
   perform pg_temp.chk('a granted admin cannot pass it on (not the owner)',
     pg_temp.probe(adm, 'select public.set_internal_access(''' || bk || ''', true)::text') like 'ERR:42501%');
-  perform pg_temp.chk('owner sees the whole grant list (2); the granted admin sees only own (1); a bookkeeper 0',
-    pg_temp.probe(own, 'select count(*) from internal_access') = '2'
+  perform pg_temp.chk('owner sees the whole grant list; a granted admin sees only own (1); a bookkeeper 0',
+    pg_temp.probe(own, 'select count(*) from internal_access') = (select count(*) from internal_access)::text
     and pg_temp.probe(adm, 'select count(*) from internal_access') = '1'
     and pg_temp.probe(bk, 'select count(*) from internal_access') = '0');
   perform pg_temp.chk('owner cannot grant a bookkeeper (admins only)',
@@ -264,8 +265,8 @@ begin
     not exists (select 1 from internal_access where staff_email = adm));
   update staff set role = 'admin' where email = adm;
   perform pg_temp.claims(null);
-  perform pg_temp.chk('re-promoted admin has no access until the owner grants it again',
-    pg_temp.probe(adm, 'select count(*) from clients where id = ''mygoodbooks''') = '0');
+  perform pg_temp.chk('re-promoted admin (not opted out) gets access again by default',
+    pg_temp.probe(adm, 'select count(*) from clients where id = ''mygoodbooks''') = '1');
 
   -- Owner revokes.
   perform pg_temp.probe(own, 'select public.set_internal_access(''' || adm || ''', true)::text');
@@ -420,6 +421,51 @@ end $$;
 -- 5b. Review follow-ups: task write paths, client portal, offboarding preview,
 --     ops alerts, QBO mapping, helper grants, email rename
 -- ---------------------------------------------------------------------------
+-- ---------------------------------------------------------------------------
+-- 7. Default ON for admins, owner can switch OFF (section 6 of the migration)
+-- ---------------------------------------------------------------------------
+do $$
+declare
+  own text := (select email from _who where k = 'owner');
+  adm text := (select email from _who where k = 'adm_no');
+  bk  text := (select email from _who where k = 'bk_sca');
+  other text := (select s.email from staff s join internal_access ia on ia.staff_email = s.email
+                  where s.role = 'admin' and s.active and s.email <> own and s.email <> adm limit 1);
+begin
+  perform pg_temp.chk('default-on: every active admin except the opted-out one has a row',
+    not exists (select 1 from staff s where s.role = 'admin' and s.active and s.email <> adm
+                  and not exists (select 1 from internal_access ia where ia.staff_email = s.email)));
+  perform pg_temp.chk('default-on: the opted-out admin has no access and cannot see the client',
+    not exists (select 1 from internal_access where staff_email = adm)
+    and pg_temp.probe(adm, 'select count(*)::text from clients where id = ''mygoodbooks''') = '0');
+  perform pg_temp.chk('default-on: another admin (not opted out) sees MGB',
+    other is null or pg_temp.probe(other, 'select count(*)::text from clients where id = ''mygoodbooks''') = '1');
+  perform pg_temp.chk('default-on: a non-owner cannot switch anyone on',
+    pg_temp.probe(adm, format('select set_internal_access(%L, true)::text', adm)) like 'ERR:42501%');
+  perform pg_temp.claims(own);
+  perform set_internal_access(adm, true);
+  perform pg_temp.chk('owner can switch an admin back on',
+    exists (select 1 from internal_access where staff_email = adm)
+    and not exists (select 1 from internal_access_optout where staff_email = adm));
+  perform set_internal_access(adm, false);
+  perform pg_temp.claims(null);
+  perform pg_temp.chk('owner can switch an admin off (remembered)',
+    not exists (select 1 from internal_access where staff_email = adm)
+    and exists (select 1 from internal_access_optout where staff_email = adm));
+  update staff set role = 'admin' where email = bk;
+  perform pg_temp.chk('a newly promoted admin gets access by default',
+    exists (select 1 from internal_access where staff_email = bk));
+  update staff set role = 'bookkeeper' where email = bk;
+  perform pg_temp.chk('a demoted admin loses the row',
+    not exists (select 1 from internal_access where staff_email = bk));
+  update staff set role = 'bookkeeper' where email = adm;
+  update staff set role = 'admin' where email = adm;
+  perform pg_temp.chk('an opted-out admin stays off after demote + promote',
+    not exists (select 1 from internal_access where staff_email = adm));
+  perform pg_temp.chk('bookkeeper / temp admin still see nothing',
+    pg_temp.probe((select email from _who where k = 'bk_temp'), 'select count(*)::text from clients where id = ''mygoodbooks''') = '0');
+end $$;
+
 do $$
 declare
   own text := (select email from _who where k = 'owner'); adm text := (select email from _who where k = 'adm_no');

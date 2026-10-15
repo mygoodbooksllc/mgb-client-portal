@@ -626,3 +626,104 @@ select pg_temp.patch_fn('public.qbo_set_customer_mapping(text,text,boolean,text)
 -- 5f. The by-id roster helper is for server-side code only (no anonymous caller).
 revoke all on function public.is_roster_client_id(text) from public, anon;
 grant execute on function public.is_roster_client_id(text) to authenticated, service_role;
+
+-- ===========================================================================
+-- 6. Default ON for every admin; the owner can still switch a person OFF
+-- ===========================================================================
+-- Owner decision (2026-10-15): every active admin may open MGB (internal) unless
+-- the owner turns it off for them. A row in internal_access still means "has
+-- access" (so every function above is unchanged); what is new is
+--   * a backfill row for every active admin,
+--   * internal_access_optout: who the owner switched OFF (remembered, so the
+--     person is not silently re-granted when they are promoted again),
+--   * a trigger that grants a row to any admin who becomes active and is not
+--     opted out. Temp admins and bookkeepers are not DB admins: still no access.
+create table if not exists public.internal_access_optout (
+  staff_email text primary key,
+  opted_out_by text,
+  opted_out_at timestamptz not null default now()
+);
+alter table public.internal_access_optout enable row level security;
+revoke all on table public.internal_access_optout from anon, authenticated;
+-- no policies: only the definer functions below touch it
+
+create or replace function public.set_internal_access(p_email text, p_allowed boolean)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_caller text := auth.jwt() ->> 'email';
+  v_target text;
+  v_target_role text;
+begin
+  if not public.is_internal_owner() then
+    raise exception 'Only the owner can change who can see the internal company profile.' using errcode = '42501';
+  end if;
+  select s.email, s.role into v_target, v_target_role
+    from public.staff s
+   where lower(s.email) = lower(btrim(coalesce(p_email, ''))) and s.active
+   limit 1;
+  if v_target is null then
+    raise exception 'That person is not an active staff member.' using errcode = '22023';
+  end if;
+  if exists (select 1 from public.internal_access ia where ia.staff_email = v_target and ia.is_owner) then
+    raise exception 'The owner always has access.' using errcode = '22023';
+  end if;
+  if p_allowed then
+    if v_target_role <> 'admin' then
+      raise exception 'Only an admin can be given access to the internal company profile.' using errcode = '22023';
+    end if;
+    insert into public.internal_access (staff_email, is_owner, granted_by)
+    values (v_target, false, v_caller)
+    on conflict (staff_email) do nothing;
+    delete from public.internal_access_optout where staff_email = v_target;
+  else
+    delete from public.internal_access where staff_email = v_target and not is_owner;
+    insert into public.internal_access_optout (staff_email, opted_out_by)
+    values (v_target, v_caller)
+    on conflict (staff_email) do nothing;
+  end if;
+  perform public.audit_write(
+    case when p_allowed then 'internal_access.granted' else 'internal_access.revoked' end,
+    null, 'staff', v_target, '{}'::jsonb);
+end;
+$$;
+revoke all on function public.set_internal_access(text, boolean) from public, anon;
+grant execute on function public.set_internal_access(text, boolean) to authenticated, service_role;
+
+create or replace function public.internal_access_staff_sync()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if tg_op = 'UPDATE' and old.email is distinct from new.email then
+    update public.internal_access set staff_email = new.email where staff_email = old.email;
+    update public.internal_access_optout set staff_email = new.email where staff_email = old.email;
+  end if;
+  if new.role <> 'admin' or not new.active then
+    delete from public.internal_access where staff_email = new.email and not is_owner;
+  elsif not exists (select 1 from public.internal_access_optout o where o.staff_email = new.email) then
+    insert into public.internal_access (staff_email, is_owner, granted_by)
+    values (new.email, false, 'default')
+    on conflict (staff_email) do nothing;
+  end if;
+  return null;
+end;
+$$;
+revoke all on function public.internal_access_staff_sync() from public, anon, authenticated;
+drop trigger if exists internal_access_staff_sync on public.staff;
+create trigger internal_access_staff_sync
+  after insert or update of role, active, email on public.staff
+  for each row execute function public.internal_access_staff_sync();
+
+-- Backfill: every active admin that is not opted out.
+insert into public.internal_access (staff_email, is_owner, granted_by)
+select s.email, false, 'default'
+  from public.staff s
+ where s.role = 'admin' and s.active
+   and not exists (select 1 from public.internal_access_optout o where o.staff_email = s.email)
+on conflict (staff_email) do nothing;

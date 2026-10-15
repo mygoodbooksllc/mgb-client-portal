@@ -976,7 +976,7 @@ goes through `security definer` RPCs that call `tr_me()` / `tr_require_admin()` 
   through the normal client workspace. It is not a client: never in rosters, counts, the client
   switcher list, Today or Team numbers. It has its own rail item (`NAV_PLACES` key `internal`, label
   "MGB (internal)") and the alias `#/internal`.
-- **Who sees it:** admins holding the per-admin permission only (table `internal_access`; RPCs
+- **Who sees it:** active admins whose row exists in `internal_access`: default ON for every admin (backfill + trigger on `staff`), the owner can switch a person OFF (remembered in `internal_access_optout`, so a later re-promotion does not re-grant) (table `internal_access`; RPCs
   `can_view_internal()`, `is_internal_owner()`, `set_internal_access(p_email, p_allowed)`, all in
   `supabase/internal-company-profile.sql`, with a restrictive RLS lock server-side). `AuthGate` reads the two
   checks into `staffUser.canViewInternal` / `isInternalOwner` (a failing RPC counts as "no", so the app still
