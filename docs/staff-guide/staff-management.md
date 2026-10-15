@@ -2,7 +2,7 @@
 title: How do I add staff and manage their access?
 section: Admin
 audience: admin
-keywords: [staff access, team, members, members tab, entity type, nonprofit, for-profit, add staff, bulk import, role, admin, bookkeeper, deactivate, assign clients, manage, temporary admin access, grant, revoke, view as, email invite, client roster, account manager, payroll, payroll add-on, payroll tab, portal logins, invite, resend invite]
+keywords: [staff access, team, members, members tab, entity type, nonprofit, for-profit, add staff, bulk import, role, admin, bookkeeper, deactivate, assign clients, manage, temporary admin access, grant, revoke, view as, email invite, client roster, account manager, payroll, payroll add-on, payroll tab, portal logins, invite, resend invite, fix sign-in, can't sign in, sign-in account, signup disabled, signups not allowed, new sign-ups off]
 sort: 510
 ---
 The **Members** tab of **Team** (the left rail → **Team** → **Members**, or `#/team/members`) controls who can sign in and with what role.
@@ -12,10 +12,24 @@ The **Members** tab of **Team** (the left rail → **Team** → **Members**, or 
 ### Add a staff member
 
 1. In **Add staff**, enter their **@mygoodbooks.org** email, **Full name** and role (**bookkeeper** or **admin**).
-2. Click **+ Add**.
-3. Tell them to sign in with Google using that exact address. Add them here first, or Google will let them in and the app will turn them away.
+2. Click **+ Add**. The app also sets up their sign-in account, so Google will let them in.
+3. Tell them to sign in with Google using that exact address. Add them here first, or Google will turn them away.
 
-To add several people at once, paste `email, name, role` rows into **Bulk import**, check the preview for errors and click **Import N staff**.
+Their first sign-in must be with Google. Until they've done that once, the emailed sign-in code in the installed app won't let them in.
+
+To add several people at once, paste `email, name, role` rows into **Bulk import**, check the preview for errors and click **Import N staff**. Everyone imported gets a sign-in account too. Ticking **Active** again for someone who was deactivated does the same.
+
+If you see **"Added …, but sign-in setup failed — use Fix sign-in"**, the person is on the list but can't sign in yet. Use **Fix sign-in** (below). If it says the address is **already a client portal login**, Fix sign-in can't help: that address belongs to a client, so use a different one for the staff member.
+
+### Fix sign-in
+
+New sign-ups are switched off for the portal on purpose, so nobody can make their own account. That means being on the staff list isn't enough: each person also needs a sign-in account, which the app makes when you add them here.
+
+If someone active has no sign-in account (they were added another way, or setup failed), a **Can't sign in yet** card shows at the top of this page, and their row has a red **Can't sign in** tag. Click **Fix sign-in** and they can sign in with Google straight away. Only real admins see the card; it never makes accounts for clients or deactivated staff.
+
+Each fix shows in **Developer tools → Recent activity** as "set up Google sign-in for …". There's a limit of about 60 new accounts per admin per hour (200 for everyone together); if you hit it, wait a bit and click **Fix sign-in** again. It fixes up to 50 people per click; if more are waiting, the message says to run it again for the rest.
+
+Why there's no automatic fix in the database: sign-in accounts can only be made safely by Supabase's own sign-in service, not by a database rule. So the page checks for anyone missing one and gives you the button instead.
 
 The app doesn't send invitations. **Email invite** opens a pre-filled draft in Gmail (click **or mail app** to use your mail app instead) for you to send yourself.
 
@@ -72,3 +86,4 @@ The contacts on **Client roster** can sign in to the client portal (by emailed l
 
 - **"Staff email must be a mygoodbooks.org address…"** Google sign-in only accepts the firm domain.
 - **"…signed in with Google but isn't on the MyGoodBooks staff list."** They aren't on the roster, or they're deactivated.
+- **Google says sign-ups are not allowed (or "signup disabled") for a new staff member.** They're on the list but have no sign-in account. Click **Fix sign-in** on the **Can't sign in yet** card, then have them try again.

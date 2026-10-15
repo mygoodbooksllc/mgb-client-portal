@@ -2,7 +2,7 @@
 title: How do I sign in?
 section: Getting started
 audience: staff
-keywords: [staff page, /staff, bookmark, installed app, desktop app, login, log in, sign in, google, password, sign out, staff list, access denied, couldn't sign you in, sign-in failed, back to client page, cookies, private window, client sign in, sign-in code, magic link]
+keywords: [staff page, /staff, bookmark, installed app, desktop app, login, log in, sign in, google, password, sign out, staff list, access denied, couldn't sign you in, sign-in failed, back to client page, cookies, private window, client sign in, sign-in code, magic link, signup disabled, signups not allowed, new staff can't sign in]
 sort: 20
 ---
 Staff sign in with their **MyGoodBooks Google account** (your @mygoodbooks.org address). There is no separate password for the portal.
@@ -43,6 +43,7 @@ If a client says it's not working:
 
 - **"… signed in with Google but isn't on the MyGoodBooks staff list."** Your Google account worked, but you haven't been added to the portal yet, or you picked a personal Google account. Click **Sign out and try a different account** and choose your @mygoodbooks.org account. If it still happens, ask an admin to add you on **Team → Members**.
 - **"We couldn't sign you in. Use your @mygoodbooks.org Google account…"** The Google sign-in came back without signing you in, and the page says so (with the address you used when it knows it). Use your @mygoodbooks.org account, not a personal Gmail. If it still fails, try a normal (not private) browser window with cookies allowed, then ask an admin to check your Google Workspace account (it may not be set up or may be suspended). Under the message you'll see a **Reason:** line, and **Started sign-in at … Browser: …**. Take a screenshot of them for the admin. They say either that Google returned an error (for example *access_denied*), or that *no error and no session came back* (usually blocked cookies or storage). They never include codes or passwords.
-- **You see the client email screen again.** You typed your email into the client box. In the browser, go to **app.mygoodbooks.org/staff** instead. In the installed desktop app, typing your @mygoodbooks.org email and the emailed **code** is an accepted way in; see [How do I install MyGoodBooks as an app?](#/help/get-the-app).
+- **You see the client email screen again.** You typed your email into the client box. In the browser, go to **app.mygoodbooks.org/staff** instead. In the installed desktop app, typing your @mygoodbooks.org email and the emailed **code** is an accepted way in once you've signed in with Google at least once; see [How do I install MyGoodBooks as an app?](#/help/get-the-app).
+- **New to the team and the sign-in page says sign-ups aren't allowed (or "signup disabled").** You're on the staff list but your sign-in account wasn't set up. Ask an admin to click **Fix sign-in** on **Team → Members**, then try again. Your first sign-in must be with Google: until you've done that once, the emailed code in the installed app won't let you in.
 - **Google says the app is restricted to your organization.** You chose a non-MyGoodBooks Google account. Switch accounts in the Google window.
 - **The page stays on "Loading your portal…".** Refresh the page. If it keeps happening, let an admin know.

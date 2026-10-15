@@ -88,7 +88,7 @@ because some work happens in Claude Code web sessions. Run `git fetch` and compa
 | `components/ledger/` | Ledger review (GL Review phase 1, 2026-10-14; spec `docs/gl-review-spec.md`). `GLR_*.js` are pure logic with node tests in `tests/ledger/` (parse, checks, compare, summary); `LR_*` is the UI: `LR_Tab.jsx` (client tab `client-ledger`, `#/client/<id>/ledger`), `LR_Panels.jsx`, `LR_ReviewFile.jsx` (Work › Ledger review), `LR_Settings.jsx` (Team › Ledger review), `LR_api.js` (RPC and edge-function wrappers; fires `mgb:ledger-review-changed` and `mgb:gl-review-changed` so the Close card refreshes). Database: `supabase/gl-review-1-core.sql`. |
 | `components/qbo/` | `mapQboToClient.js` converts QuickBooks table rows into the shape the pages use. Its test is `mapQboToClient.test.js`. |
 | `supabase/*.sql` | Every database change: tables, row-level security (RLS) policies, functions, cron jobs. The folder is flat, one file per change. |
-| `supabase/functions/` | Edge functions: `qbo-connect-start` (starts the Intuit connect; picks sandbox vs production keys per connection), `qbo-callback`, `qbo-refresh-token`, `qbo-sync`, `invite-client-user`, `qbo-gl-review` (pulls the General Ledger, staff only), `gl-review-send` (emails a ledger question or summary), plus shared helpers in `_shared/` |
+| `supabase/functions/` | Edge functions: `qbo-connect-start` (starts the Intuit connect; picks sandbox vs production keys per connection), `qbo-callback`, `qbo-refresh-token`, `qbo-sync`, `invite-client-user`, `staff-auth` (makes staff Google sign-in accounts, active admins only), `qbo-gl-review` (pulls the General Ledger, staff only), `gl-review-send` (emails a ledger question or summary), plus shared helpers in `_shared/` |
 | `privacy-policy.html`, `terms-of-service.html`, `qbo-connected.html` | Standalone public pages, served at `/privacy`, `/terms` and `/quickbooks-connected` |
 | `vercel.json` | URL rewrites (`/login`, `/privacy`, `/terms`, `/quickbooks-connected`) and security headers |
 | `.vercelignore` | Keeps internal files out of the public deploy (see [Working on it](#working-on-it)) |
@@ -120,6 +120,38 @@ because some work happens in Claude Code web sessions. Run `git fetch` and compa
   to the client gate and is not signed out.
   - Google only accepts `@mygoodbooks.org` accounts.
   - The app then requires an active row in the `staff` table.
+  - **Supabase Auth → "Allow new users to sign up" stays OFF** (deliberate). So a Google sign-in
+    only works for an address that already has an `auth.users` row; without one Google comes back
+    with `signup_disabled`. Team › Members (`StaffAccessPage`) calls the `staff-auth` edge function
+    (`supabase/functions/staff-auth/`, `verify_jwt` on) after **+ Add**, after each **Bulk import**
+    (one call, up to 50 addresses each) and after reactivating someone. It runs
+    `auth.admin.createUser` (email confirmed, random 48-byte password never logged or returned,
+    `user_metadata.created_by = 'staff-auth'`) and Supabase then links the Google identity by email.
+    - Caller: `auth.getUser(jwt)` plus `is_active_staff_admin()` called with the caller's JWT (the
+      same rule as the `staff` write policy; temp admins fail it), plus a service-role check that
+      their staff row is `admin` and active. Its `jwt_has_google()` part means Google has *ever*
+      been linked to the account (`app_metadata.providers` contains `google`), not that this
+      session used Google, so an admin in an installed-app email-code session still passes.
+    - Targets: after NFKC + trim + lowercase, ASCII `^[a-z0-9._%+-]+@mygoodbooks\.org$`, an ACTIVE
+      `staff` row (two rows normalizing to one address are skipped as `ambiguous`), and not a
+      `client_users` login. Results per address: `created` / `exists` / `skipped` / `error`
+      (+ `reason`). `exists` only on `email_exists` / `user_already_exists` or an "already
+      registered" message; any other createUser failure is `error` and writes no audit row.
+    - Rate limit: about 60 new accounts per admin per hour, 200 overall; not strictly atomic under
+      parallel requests, bounded by number of staff rows missing an account. Counted from
+      `staff_audit_log` `auth_user_created` rows only; out of budget returns 429. Both
+      `auth_user_created` and `auth_repair` show in Developer tools › Recent activity.
+    - A brand-new staff member's account has only the email identity until their first Google
+      sign-in, so they can't use the installed-app email code (which needs `jwt_has_google()`)
+      until they've signed in with Google once.
+    - `supabase/staff-auth-repair.sql` adds `staff_missing_auth()` (admins only; active staff with
+      no `auth.users` row, case-insensitive). The page shows a **Can't sign in yet** card and a
+      **Can't sign in** row tag from it, and **Fix sign-in** calls `staff-auth` with
+      `{action: 'repair'}`. Tests: `supabase/staff-auth-repair-tests.sql` (rolled back) and
+      `node --test tests/edge/staff_auth.test.mjs` (`logic.ts`).
+    - No trigger on `staff` makes the account: `auth.users` can't safely be written from SQL, and
+      pg_net from a trigger needs a stored secret and fails silently. Rows added outside the app
+      are caught by the missing-account card instead.
   - Someone with a Google account who isn't on the staff list is signed out again.
   - A staff Google sign-in that comes back without a session, with an OAuth `error`, or with a
     non-`@mygoodbooks.org` email shows a plain-language notice on the sign-in page
@@ -1326,7 +1358,11 @@ Team Reviews files.
     are set only in Supabase.
   - `qbo-sync`, `qbo-callback`, `qbo-refresh-token` and `qbo-firm-sync` run with `verify_jwt`
     off and check the caller themselves.
-  - `invite-client-user` and `qbo-connect-start` run with `verify_jwt` on.
+  - `invite-client-user`, `staff-auth` and `qbo-connect-start` run with `verify_jwt` on.
+  - `staff-auth` (2026-10-15): deploy with `npx supabase@latest functions deploy staff-auth
+    --project-ref xumsqmhccgfjnlmieqyu` (no `--no-verify-jwt`; bundles `./logic.ts`). No new
+    secret. Apply `supabase/staff-auth-repair.sql` first, or the page's missing-account card stays
+    hidden and `repair` returns 503 (`ensure` still works).
 - **Client files in Google Drive** (`supabase/google-drive-files.sql`, applied 2026-10-06;
   function `supabase/functions/drive-files/`, `verify_jwt` off, checks the caller's JWT itself).
   - Files from the Documents page, the page-wide drop, document requests and client message

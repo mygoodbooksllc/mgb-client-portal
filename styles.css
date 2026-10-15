@@ -6383,6 +6383,12 @@ body:has(.modal-overlay) .chat-fab-wrap {
   vertical-align: middle;
 }
 
+/* No sign-in account yet (staff_missing_auth); fixed by Fix sign-in. */
+.staff-roster-nosignin {
+  border-color: var(--bad);
+  color: var(--bad);
+}
+
 .staff-roster-inactive {
   opacity: 0.6;
 }

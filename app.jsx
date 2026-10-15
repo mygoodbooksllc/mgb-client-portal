@@ -965,7 +965,7 @@ const INFRA_LINKS = [
   {
     name: "Supabase",
     url: "https://supabase.com/dashboard",
-    note: "Project “MGB Client Portal” · org “Mygoodbooks LLC” · credentials: 1Password vault “MGB Infra”",
+    note: "Project “MGB Client Portal” · org “Mygoodbooks LLC” · Auth: new sign-ups stay OFF; staff sign-in accounts are made by the staff-auth edge function (Team › Members › Fix sign-in) · credentials: 1Password vault “MGB Infra”",
   },
   {
     name: "Vercel",
@@ -13513,10 +13513,80 @@ const STAFF_AUDIT_VERBS = {
   role_changed: "changed the role of",
   activated: "reactivated",
   deactivated: "deactivated",
+  // Written by the staff-auth edge function, not the staff trigger.
+  auth_user_created: "set up Google sign-in for",
+  auth_repair: "ran Fix sign-in for",
 };
 
 function staffAuditVerb(action) {
   return STAFF_AUDIT_VERBS[action] || action;
+}
+
+// Supabase Auth has new sign-ups switched off, so a staff row alone isn't
+// enough for Google sign-in: the person also needs a sign-in account
+// (auth.users row). supabase/functions/staff-auth makes it (admins only,
+// active @mygoodbooks.org staff only). body: { action: "ensure", emails }
+// or { action: "repair" }. Resolves { ok, results, summary, message } and
+// never throws.
+const STAFF_AUTH_REASONS = {
+  invalid_email: "not a mygoodbooks.org address",
+  not_staff: "not on the staff list",
+  not_active_staff: "deactivated",
+  ambiguous: "listed twice on the staff list",
+  client_login: "already a client portal login",
+  rate_limited: "hourly limit reached, try again later",
+  create_failed: "setup failed",
+};
+
+// Toast for one person whose sign-in account wasn't made. `verb` is
+// "Added" / "Reactivated". Fix sign-in can't help with a client login or a
+// deactivated row, so those get their own wording.
+function staffAuthFailMessage(verb, name, failure) {
+  const reason = failure && failure.reason;
+  if (reason === "client_login")
+    return `${verb} ${name}, but that address is already a client portal login, so it can't also sign in as staff. Use a different address.`;
+  if (reason === "not_active_staff")
+    return `${verb} ${name}, but they're deactivated, so no sign-in was set up. Reactivate them first.`;
+  if (reason === "rate_limited")
+    return `${verb} ${name}, but the hourly sign-in limit is reached. Use Fix sign-in in an hour.`;
+  return `${verb} ${name}, but sign-in setup failed — use Fix sign-in.`;
+}
+
+async function staffAuthInvoke(supabase, body) {
+  if (!supabase) return { ok: false, results: [], message: "Supabase isn't configured." };
+  try {
+    const { data, error } = await supabase.functions.invoke("staff-auth", { body });
+    if (error) {
+      // FunctionsHttpError keeps the JSON body on .context (same as
+      // inviteContact): show the endpoint's friendly message.
+      let message = error.message;
+      try {
+        const b = await error.context.json();
+        if (b && (b.message || b.error)) message = b.message || b.error;
+      } catch (_) {
+        /* non-JSON body — keep error.message */
+      }
+      return { ok: false, results: [], message };
+    }
+    const results = (data && data.results) || [];
+    return { ok: true, results, summary: (data && data.summary) || {}, more: (data && data.more) || 0 };
+  } catch (e) {
+    return { ok: false, results: [], message: (e && e.message) || "Network error" };
+  }
+}
+
+// [{ email, reason }] for addresses in `emails` that did NOT end up with a
+// sign-in account ("skipped" and "error" both count as failures).
+function staffAuthFailures(res, emails) {
+  if (!res.ok) return emails.map((email) => ({ email, reason: "request_failed" }));
+  const byEmail = new Map(res.results.map((r) => [r.email, r]));
+  const out = [];
+  for (const email of emails) {
+    const r = byEmail.get(String(email).toLowerCase());
+    if (r && (r.status === "created" || r.status === "exists")) continue;
+    out.push({ email, reason: (r && r.reason) || "request_failed" });
+  }
+  return out;
 }
 
 // Shared invite copy for both send paths below. There's no backend to send
@@ -13827,12 +13897,25 @@ function StaffAccessPage({ staffUser, onImpersonate, readOnly }) {
     });
   }
 
+  // Active staff with no sign-in account yet (staff_missing_auth(),
+  // supabase/staff-auth-repair.sql). Admins only; hidden silently if the RPC
+  // errors (migration not applied, or not a real admin). Refreshed by load().
+  const [missingAuth, setMissingAuth] = useState(null);
+  const [fixingAuth, setFixingAuth] = useState(false);
+  const loadMissingAuth = useCallback(() => {
+    if (!supabase || readOnly) return;
+    supabase.rpc("staff_missing_auth").then(({ data, error }) => {
+      setMissingAuth(error ? null : data || []);
+    });
+  }, [supabase, readOnly]);
+
   const load = useCallback(() => {
     if (!supabase) {
       setLoadError("Supabase isn't configured — see auth-config.js.");
       setRows([]);
       return;
     }
+    loadMissingAuth();
     supabase
       .from("staff")
       .select("id, email, name, role, active, created_at")
@@ -13848,11 +13931,56 @@ function StaffAccessPage({ staffUser, onImpersonate, readOnly }) {
           setRows(data);
         }
       });
-  }, [supabase]);
+  }, [supabase, loadMissingAuth]);
 
   useEffect(() => {
     load();
   }, [load]);
+
+  const missingAuthSet = useMemo(
+    () => new Set((missingAuth || []).map((m) => String(m.email).toLowerCase())),
+    [missingAuth],
+  );
+
+  // Make the sign-in account for people just added/reactivated. Returns
+  // [{ email, reason }] for those who still can't sign in (empty when all
+  // went through).
+  async function ensureSignIn(emails) {
+    const failed = [];
+    for (let i = 0; i < emails.length; i += 50) {
+      const chunk = emails.slice(i, i + 50);
+      const res = await staffAuthInvoke(supabase, { action: "ensure", emails: chunk });
+      failed.push(...staffAuthFailures(res, chunk));
+    }
+    loadMissingAuth();
+    return failed;
+  }
+
+  async function fixSignIn() {
+    setFixingAuth(true);
+    const res = await staffAuthInvoke(supabase, { action: "repair" });
+    setFixingAuth(false);
+    if (!res.ok) {
+      showToast(`Couldn't fix sign-in: ${res.message}`);
+    } else {
+      const created = (res.summary && res.summary.created) || 0;
+      const problems = res.results.filter((r) => r.status !== "created" && r.status !== "exists");
+      const parts = [];
+      if (created > 0)
+        parts.push(`Sign-in fixed for ${created} ${created === 1 ? "person" : "people"}. They can sign in with Google now.`);
+      if (problems.length)
+        parts.push(
+          "Not fixed: " +
+            problems.map((r) => `${r.email} (${STAFF_AUTH_REASONS[r.reason] || r.reason || "setup failed"})`).join(", ") +
+            ".",
+        );
+      if (res.more > 0)
+        parts.push(`${res.more} more still ${res.more === 1 ? "needs" : "need"} it: run Fix sign-in again for the rest.`);
+      if (parts.length === 0) parts.push("Nothing to fix: everyone active can already sign in.");
+      showToast(parts.join(" "));
+    }
+    loadMissingAuth();
+  }
 
   async function addStaff() {
     const email = newEmail.trim().toLowerCase();
@@ -13868,15 +13996,22 @@ function StaffAccessPage({ staffUser, onImpersonate, readOnly }) {
     const { error } = await supabase
       .from("staff")
       .insert({ email, name, role: newRole, active: true });
-    setAdding(false);
     if (error) {
+      setAdding(false);
       showToast(`Couldn't add ${email}: ${error.message}`);
       return;
     }
     setNewEmail("");
     setNewName("");
     setNewRole("bookkeeper");
-    showToast(`Added ${name} to the staff list.`);
+    // The row stays even if this fails; the Fix sign-in card picks it up.
+    const failed = await ensureSignIn([email]);
+    setAdding(false);
+    showToast(
+      failed.length
+        ? staffAuthFailMessage("Added", name, failed[0])
+        : `Added ${name} to the staff list. They can sign in with Google now.`,
+    );
     load();
   }
 
@@ -13899,13 +14034,23 @@ function StaffAccessPage({ staffUser, onImpersonate, readOnly }) {
         message: error ? error.message : "",
       });
     }
+    // One staff-auth call for everyone who went in (chunks of 50).
+    const added = results.filter((r) => r.ok).map((r) => r.email);
+    const signInFailed = new Map(
+      (added.length ? await ensureSignIn(added) : []).map((f) => [f.email, f]),
+    );
+    results.forEach((r) => {
+      if (r.ok && signInFailed.has(r.email)) r.signInFailed = signInFailed.get(r.email);
+    });
     setCsvImporting(false);
     setCsvResults(results);
     const okCount = results.filter((r) => r.ok).length;
     showToast(
-      okCount === results.length
-        ? `Imported ${okCount} staff.`
-        : `Imported ${okCount} of ${results.length} — see the results below for what failed.`,
+      signInFailed.size
+        ? `Imported ${okCount} of ${results.length}, but sign-in wasn't set up for ${signInFailed.size} — see the results below.`
+        : okCount === results.length
+          ? `Imported ${okCount} staff.`
+          : `Imported ${okCount} of ${results.length} — see the results below for what failed.`,
     );
     if (okCount === results.length) setCsvText("");
     load();
@@ -13941,11 +14086,17 @@ function StaffAccessPage({ staffUser, onImpersonate, readOnly }) {
       .from("staff")
       .update(patch)
       .eq("id", row.id);
-    setBusyId(null);
     if (error) {
+      setBusyId(null);
       showToast(`Couldn't update ${row.email}: ${error.message}`);
       return;
     }
+    if (patch.active === true) {
+      const failed = await ensureSignIn([row.email]);
+      if (failed.length) showToast(staffAuthFailMessage("Reactivated", row.name, failed[0]));
+    }
+    // Cleared only now, so the row stays busy until sign-in setup finishes.
+    setBusyId(null);
     load();
   }
 
@@ -13978,6 +14129,32 @@ function StaffAccessPage({ staffUser, onImpersonate, readOnly }) {
         <div className="mock-banner">
           <WarningIcon /> You have temporary read-only access to this page —
           contact an admin to make changes.
+        </div>
+      )}
+
+      {!readOnly && missingAuth && missingAuth.length > 0 && (
+        <div className="card staff-signin-card" style={{ marginBottom: 20 }}>
+          <h3 className="card-title">
+            Can't sign in yet{" "}
+            <span className="staff-roster-count">({missingAuth.length})</span>
+          </h3>
+          <p className="card-subtitle">
+            These active staff have no sign-in account, so Google will turn
+            them away (new sign-ups are switched off). This happens when
+            someone is added outside this page, or setup failed.
+          </p>
+          <ul className="staff-csv-preview">
+            {missingAuth.map((m) => (
+              <li key={m.email} className="negative">
+                {m.name || m.email} ({m.email}) · {m.role}
+              </li>
+            ))}
+          </ul>
+          <div className="staff-reset-row">
+            <button className="btn-primary" disabled={fixingAuth} onClick={fixSignIn}>
+              {fixingAuth ? "Fixing…" : "Fix sign-in"}
+            </button>
+          </div>
         </div>
       )}
 
@@ -14084,9 +14261,11 @@ function StaffAccessPage({ staffUser, onImpersonate, readOnly }) {
             {csvResults && (
               <ul className="staff-csv-preview" style={{ marginTop: 12 }}>
                 {csvResults.map((r, i) => (
-                  <li key={i} className={r.ok ? "positive" : "negative"}>
+                  <li key={i} className={r.ok && !r.signInFailed ? "positive" : "negative"}>
                     {r.ok
-                      ? `Added ${r.name}`
+                      ? r.signInFailed
+                        ? staffAuthFailMessage("Added", r.name, r.signInFailed)
+                        : `Added ${r.name}`
                       : `${r.name || r.email} — ${r.message}`}
                   </li>
                 ))}
@@ -14161,6 +14340,14 @@ function StaffAccessPage({ staffUser, onImpersonate, readOnly }) {
                         {row.name}
                         {tempActive && row.role !== "admin" && (
                           <span className="staff-roster-temp" title="Has temporary admin access">Temp admin</span>
+                        )}
+                        {row.active && missingAuthSet.has(String(row.email).toLowerCase()) && (
+                          <span
+                            className="staff-roster-temp staff-roster-nosignin"
+                            title="No sign-in account yet: use Fix sign-in at the top of this page"
+                          >
+                            Can't sign in
+                          </span>
                         )}
                       </td>
                       <td data-label="Email">{row.email}</td>
