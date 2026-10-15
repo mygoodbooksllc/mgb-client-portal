@@ -567,6 +567,9 @@ reset role;
 set local role authenticated;
 select set_config('request.jwt.claims', '{"email":"gltest-admin@example.test","role":"authenticated"}', true);
 do $$ begin
+  -- Since tasks-p2-2-periods.sql only the sign-off RPCs move a month in or
+  -- out of Done (month_close_signoff_guard); stand in for them here.
+  perform set_config('mgb.tk_signoff', 'on', true);
   perform public.gl_review_approve('gltest-a', current_date);
   update public.month_close set status = 'done'
    where client_id = 'gltest-a' and period = date_trunc('month', current_date)::date;

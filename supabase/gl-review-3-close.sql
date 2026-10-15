@@ -134,7 +134,7 @@ begin
     new.done_at := null;
   end if;
 
-  if not v_becomes_done then
+  if not v_becomes_done or new.period_kind <> 'month' then   -- period_kind: added by tasks-p2-2-periods.sql
     return new;
   end if;
 
@@ -177,7 +177,7 @@ declare
   v_actor text := lower(nullif(btrim(auth.jwt() ->> 'email'), ''));
   n int;
 begin
-  if old.status <> 'done' or (tg_op = 'UPDATE' and new.status = 'done') then
+  if old.status <> 'done' or old.period_kind <> 'month' or (tg_op = 'UPDATE' and new.status = 'done') then
     return null;
   end if;
   update public.gl_review_signoffs
@@ -222,7 +222,7 @@ declare
   p public.gl_review_month_prints;
 begin
   select done_at into v_done_at from month_close
-   where client_id = p_client_id and period = v_period and status = 'done';
+   where client_id = p_client_id and period_kind = 'month' and period = v_period and status = 'done';
   if v_done_at is null then
     raise exception 'A baseline is only stored for a month marked Done.' using errcode = '22023';
   end if;

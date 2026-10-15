@@ -1262,7 +1262,7 @@ begin
                  where client_id = p_client_id and period = v_ym and done and item_key <> 'ledger_reviewed') then
     insert into month_close as m (client_id, period, status)
     values (p_client_id, v_period, 'in_progress')
-    on conflict (client_id, period) do update set status = 'in_progress'
+    on conflict (client_id, period_kind, period) do update set status = 'in_progress'   -- period_kind: added by tasks-p2-2-periods.sql
       where m.status = 'not_started';
     v_first := found;
   end if;
@@ -1601,7 +1601,7 @@ declare
   v_period date := public.gl_review_month(p_period);
   v_id uuid;
 begin
-  if not exists (select 1 from month_close where client_id = p_client_id and period = v_period and status = 'done') then
+  if not exists (select 1 from month_close where client_id = p_client_id and period_kind = 'month' and period = v_period and status = 'done') then
     raise exception 'A baseline is only stored for a month marked Done.' using errcode = '22023';
   end if;
   if p_lines is null or jsonb_typeof(p_lines) <> 'array' then

@@ -223,10 +223,10 @@ begin
   cz as (
     select cl.email,
            count(*)::int as total,
-           count(*) filter (where mc.status in ('done', 'na') and mc.updated_at::date <= pr.deadline)::int as done
+           count(*) filter (where mc.status in ('done', 'na', 'review') and coalesce(mc.ready_at, mc.signed_off_at, mc.done_at, mc.updated_at)::date <= pr.deadline)::int as done
     from cl
     cross join pr
-    left join public.month_close mc on mc.client_id = cl.client_id and mc.period = pr.period
+    left join public.month_close mc on mc.client_id = cl.client_id and mc.period_kind = 'month' and mc.period = pr.period
     where pr.deadline between v_from and current_date
       and cl.created_at <= pr.period + interval '1 month'
     group by cl.email

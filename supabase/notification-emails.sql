@@ -201,13 +201,22 @@ security definer
 set search_path = public
 as $$
 begin
-  if new.status = 'done' and (tg_op = 'INSERT' or old.status is distinct from 'done') then
+  -- Months only, and not again to the same person for the same month within
+  -- 7 days (tasks-p2-2-periods.sql: owner answer Q3, critique m9).
+  if new.status = 'done' and new.period_kind = 'month'
+     and (tg_op = 'INSERT' or old.status is distinct from 'done') then
     insert into notification_outbox (kind, recipient_email, client_id, ref_id, payload)
     select 'client_reports_ready', lower(cu.email), new.client_id,
            new.client_id || ':' || new.period::text,
            jsonb_build_object('period', new.period)
     from client_users cu
-    where cu.client_id = new.client_id and cu.active;
+    where cu.client_id = new.client_id and cu.active
+      and not exists (
+        select 1 from notification_outbox o
+         where o.kind = 'client_reports_ready'
+           and o.ref_id = new.client_id || ':' || new.period::text
+           and o.recipient_email = lower(cu.email)
+           and o.created_at > now() - interval '7 days');
   end if;
   return null;
 end;

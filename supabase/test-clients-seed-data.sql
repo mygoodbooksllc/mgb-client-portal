@@ -34,7 +34,7 @@ where not exists (select 1 from public.client_doc_requests d
 insert into public.month_close (client_id, period, status, notes) values
   ('basic-test', '2026-09-01', 'in_progress', 'Sample close for testing.'),
   ('grace-community', '2026-09-01', 'in_progress', 'Sample close for testing.')
-on conflict (client_id, period) do nothing;
+on conflict (client_id, period_kind, period) do nothing;   -- period_kind defaults to 'month' (tasks-p2-2-periods.sql)
 
 insert into public.client_close_items (client_id, period, item_key, done)
 select c, '2026-09', k, true
