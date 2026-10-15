@@ -978,6 +978,7 @@ goes through `security definer` RPCs that call `tr_me()` / `tr_require_admin()` 
 ### First-load safety (added 2026-10-15)
 
 - `baseClient` in `app.jsx` ends in an `isPlaceholder` client (via `withClientDataDefaults`), so an empty roster (new bookkeeper with no access rows, or a failed roster fetch) reaches the zero-clients splash instead of throwing on first render. `tests/firstload.test.js` guards it (`node tests/firstload.test.js`).
+- `loadClientsRoster` (index.html) sets `window.ROSTER_LOAD_ERROR` when the client fetch errors; `app.jsx` then shows a "couldn't load the client list" splash with Reload on client pages (firm-wide pages still open).
 - `ErrorBoundary` logs to `client_errors` (React doesn't send caught render errors to `window.onerror`), shows an `MGB_errorCode`, and has a Copy details button (`MGB_errorDetailsText`: message, version, path, a few frames; tokens scrubbed). `MGB_reportError` falls back to the session email when `__mgbActor` isn't set yet.
 
 ### MGB (internal) and flagged clients (added 2026-10-15)

@@ -28776,6 +28776,26 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
   // nobody granted them. Firm-wide places (Today, Inbox, Team, Settings,
   // Help...) don't need a client, so a new hire with no clients yet can
   // still open their review, the survey and onboarding from Team.
+  // The client list itself failed to load (index.html loadClientsRoster):
+  // anyone, admins included, would otherwise see blank client pages.
+  if (
+    window.ROSTER_LOAD_ERROR &&
+    client.isPlaceholder &&
+    !NON_CLIENT_PAGES.has(effectivePage)
+  ) {
+    return (
+      <div className="boot-splash" role="main">
+        <div className="boot-splash-mark">MyGoodBooks</div>
+        <div className="boot-splash-sub">
+          We couldn't load the client list, so nothing is being shown. Reload
+          to try again — if it keeps happening, tell an admin.
+        </div>
+        <button className="btn-primary" style={{ marginTop: 16 }} onClick={() => window.location.reload()}>
+          Reload
+        </button>
+      </div>
+    );
+  }
   if (assignedClientIds && visibleClients.length === 0 && !NON_CLIENT_PAGES.has(effectivePage)) {
     return (
       <div className="boot-splash" role="main">
