@@ -140,14 +140,14 @@ async function CT_conflict(sb, clientId, period, cols) {
 // GL Review gate (docs/gl-review-spec.md 6.4). Runs only when a month moves to
 // Done and the Ledger reviewed step applies (closeStepsFor, app.jsx). With
 // no 'approved' sign-off and no override:
-//   warn (default): "Ledger review isn't approved. Mark done anyway?"; yes
+//   warn (default): "Ledger review isn't approved. Sign off anyway?"; yes
 //     records it through gl_review_override_done and the save goes ahead.
 //   block: a reason is required; gl_review_override_done refuses non-admins,
 //     and the month_close trigger refuses the write without it.
 // confirmLedger({ gate, month }) is the caller's own dialog; it resolves to
 // true / false or { ok, note }. Without one, window.confirm / window.prompt.
 // Returns { ok:true } | { ok:false, cancelled:true } | { ok:false, error }.
-const CT_LEDGER_WARN = "Ledger review isn't approved. Mark done anyway?";
+const CT_LEDGER_WARN = "Ledger review isn't approved. Sign off anyway?";
 async function CT_ledgerGate({ sb, clientId, period, confirmLedger }) {
   if (typeof closeLedgerApplies !== "function" || typeof closeLedgerApi !== "object") return { ok: true };
   try {
@@ -297,6 +297,16 @@ async function CT_saveMonthClose({
   sb = sb || window.mgbSupabase;
   period = CT_fromYm(period);
   notes = String(notes || "").trim() || null;
+  // "Keep mine" after a conflict passes no prevRow, only theirs' updated_at.
+  // Load that row so a signed-off month still routes through sign-off /
+  // reopen (a plain update into or out of Done is refused by
+  // month_close_signoff_guard). A changed row stays a conflict below.
+  if (!prevRow && expectedUpdatedAt && sb) {
+    try {
+      const cur = await CT_monthRow(sb, clientId, period);
+      if (cur && cur.updated_at === expectedUpdatedAt) prevRow = cur;
+    } catch (e) {}
+  }
   if (prevRow && prevRow.status === status && (prevRow.notes || null) === notes) {
     return { ok: true, row: prevRow, noop: true }; // never restamp updated_at
   }

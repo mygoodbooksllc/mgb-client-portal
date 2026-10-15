@@ -424,6 +424,14 @@ begin
   if not public.is_active_staff_admin() then
     raise exception 'Only an admin can reopen a period' using errcode = '42501';
   end if;
+  if p_kind is null or p_kind not in ('month', 'quarter', 'year') then
+    raise exception 'Unknown period kind %', p_kind using errcode = '22023';
+  end if;
+  -- Same client check as tk_sign_off_period: SECURITY DEFINER skips RLS, so
+  -- the internal-company lock (can_view_internal) is enforced here.
+  if not public.can_access_client(p_client_id) then
+    raise exception 'Unknown client' using errcode = '22023';
+  end if;
   if char_length(v_reason) < 3 or char_length(v_reason) > 500 then
     raise exception 'Give a reason (3 to 500 characters)' using errcode = '22023';
   end if;

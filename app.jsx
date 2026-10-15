@@ -6111,7 +6111,7 @@ function SentToClient({ client, itemKey, itemLabel, periodLabel, closePeriod }) 
           href={TB_clientHash(client.id, "close")}
           onClick={() => setNextStep(null)}
         >
-          1 step left: mark {nextStep.month} done →
+          1 step left: {staffUser && staffUser.role === "admin" ? `sign off ${nextStep.month}` : `mark ${nextStep.month} ready for sign-off`} →
         </a>
       )}
       {confirm && (
