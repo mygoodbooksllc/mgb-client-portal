@@ -1091,28 +1091,44 @@ window.MGB_track = MGB_track;
 // Developer tools. Capped per page load so a render loop can't flood the
 // table; resource-load failures (no message) are ignored.
 let MGB_errorsReported = 0;
+function MGB_scrub(t) {
+  return String(t == null ? "" : t)
+    .replace(/(access_token|refresh_token|token|apikey|code)=[^\s&"')]+/gi, "$1=…")
+    .replace(/eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]*/g, "[jwt]");
+}
 function MGB_reportError(message, extra) {
   try {
     if (MGB_errorsReported >= 5) return;
     const supabase = window.mgbSupabase;
     if (!supabase) return;
-    const actor = window.__mgbActor || {};
     MGB_errorsReported += 1;
-    supabase
-      .from("client_errors")
-      .insert({
-        actor_email: actor.email || null,
-        actor_role: actor.role || null,
-        page: actor.page || null,
-        message: String(message || "Unknown error").slice(0, 500),
-        stack: extra && extra.stack ? String(extra.stack).slice(0, 4000) : null,
-        source: extra && extra.source ? String(extra.source).slice(0, 300) : null,
-        app_version: window.MGB_VERSION ? window.MGB_VERSION.label : null,
-        user_agent: (navigator.userAgent || "").slice(0, 300),
-        device: MGB_deviceKind(),
+    const send = (email) => {
+      // A crash on first render happens before the page-view logger has set
+      // window.__mgbActor, so fall back to the session's email.
+      const actor = window.__mgbActor || {};
+      supabase
+        .from("client_errors")
+        .insert({
+          actor_email: actor.email || email || null,
+          actor_role: actor.role || null,
+          page: actor.page || null,
+          message: MGB_scrub(message || "Unknown error").slice(0, 500),
+          stack: extra && extra.stack ? MGB_scrub(extra.stack).slice(0, 4000) : null,
+          source: extra && extra.source ? String(extra.source).slice(0, 300) : null,
+          app_version: window.MGB_VERSION ? window.MGB_VERSION.label : null,
+          user_agent: (navigator.userAgent || "").slice(0, 300),
+          device: MGB_deviceKind(),
+        })
+        .then(() => {})
+        .catch(() => {});
+    };
+    if ((window.__mgbActor || {}).email) return send(null);
+    Promise.resolve(supabase.auth.getSession())
+      .then((r) => {
+        const u = r && r.data && r.data.session && r.data.session.user;
+        send(u && u.email ? u.email : null);
       })
-      .then(() => {})
-      .catch(() => {});
+      .catch(() => send(null));
   } catch (e) {}
 }
 window.addEventListener("error", (e) => {
@@ -1129,6 +1145,37 @@ window.addEventListener("unhandledrejection", (e) => {
     source: "unhandledrejection",
   });
 });
+
+// Short code shown on the error screen and stored with the logged error so
+// a screenshot can be matched to its client_errors row.
+function MGB_errorCode(error) {
+  try {
+    const src =
+      String((error && error.message) || error || "") +
+      String((error && error.stack ? error.stack : "").split("\n")[1] || "");
+    let h = 0;
+    for (let i = 0; i < src.length; i++) h = (h * 31 + src.charCodeAt(i)) >>> 0;
+    return h.toString(36).toUpperCase().padStart(5, "0").slice(-5);
+  } catch (e) {
+    return "E0000";
+  }
+}
+// What "Copy details" puts on the clipboard: message, first stack frames,
+// version and path only. No query/hash (can hold auth tokens), no cookies.
+function MGB_errorDetailsText(code, error) {
+  const frames = String((error && error.stack) || "")
+    .split("\n")
+    .slice(0, 6)
+    .join("\n");
+  return MGB_scrub([
+    "MGB error " + code,
+    "Version: " + (window.MGB_VERSION ? window.MGB_VERSION.label : "?"),
+    "Path: " + window.location.pathname,
+    "Time: " + new Date().toISOString(),
+    "Message: " + String((error && error.message) || error || "").slice(0, 300),
+    frames,
+  ].join("\n"));
+}
 
 // The billing gate. Deliberately outside <DailyClose />, which has no billing
 // logic of its own — same split we will need once this is a real route loader
@@ -25941,12 +25988,37 @@ class ErrorBoundary extends React.Component {
     this.state = { hasError: false };
   }
 
-  static getDerivedStateFromError() {
-    return { hasError: true };
+  static getDerivedStateFromError(error) {
+    return { hasError: true, error, code: MGB_errorCode(error) };
   }
 
   componentDidCatch(error, info) {
     console.error("Uncaught error in app tree:", error, info);
+    // React doesn't re-throw caught render errors to window.onerror, so
+    // without this a crash behind the boundary never reached client_errors.
+    const code = MGB_errorCode(error);
+    this.setState({ code });
+    const msg = error && error.message ? error.message : String(error);
+    MGB_reportError("[" + code + "] " + msg, {
+      stack:
+        (error && error.stack ? error.stack : "") +
+        (info && info.componentStack
+          ? "\nComponent stack:" + info.componentStack
+          : ""),
+      source: "ErrorBoundary",
+    });
+  }
+
+  copyDetails() {
+    const text = MGB_errorDetailsText(this.state.code, this.state.error);
+    try {
+      navigator.clipboard.writeText(text).then(
+        () => this.setState({ copied: true }),
+        () => this.setState({ copied: "failed" }),
+      );
+    } catch (e) {
+      this.setState({ copied: "failed" });
+    }
   }
 
   render() {
@@ -25959,11 +26031,26 @@ class ErrorBoundary extends React.Component {
               This page hit an unexpected error. Reloading usually fixes it —
               your data hasn't been affected.
             </p>
+            <p className="error-boundary-body" style={{ fontSize: 12 }}>
+              Error code <strong>{this.state.code}</strong> — send it to your
+              admin if it keeps happening.
+            </p>
             <button
               className="btn-primary"
               onClick={() => window.location.reload()}
             >
               Reload
+            </button>
+            <button
+              className="btn-secondary"
+              style={{ marginLeft: 8 }}
+              onClick={() => this.copyDetails()}
+            >
+              {this.state.copied === true
+                ? "Copied"
+                : this.state.copied === "failed"
+                  ? "Copy failed"
+                  : "Copy details"}
             </button>
           </div>
         </div>
@@ -27303,7 +27390,19 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
       rosterClients[0] ||
       visibleClients[0] ||
       CLIENTS.find((c) => !c.isInternal) ||
-      CLIENTS[0],
+      CLIENTS[0] ||
+      // An empty roster is normal for a brand-new bookkeeper (RLS returns
+      // no rows, not an error) and for a failed roster fetch. Without this
+      // last fallback `client` is undefined and the first render throws,
+      // before the zero-clients splash below can ever show.
+      window.withClientDataDefaults({
+        id: "__none__",
+        name: "No client",
+        plan: "basic",
+        testOnly: false,
+        isInternal: false,
+        isPlaceholder: true,
+      }),
     [selectedClientId, visibleClients, rosterClients],
   );
 

@@ -975,6 +975,11 @@ goes through `security definer` RPCs that call `tr_me()` / `tr_require_admin()` 
   person has; other essentials match on category or item name. Same rule in `TI_covers` and the
   edge function.
 
+### First-load safety (added 2026-10-15)
+
+- `baseClient` in `app.jsx` ends in an `isPlaceholder` client (via `withClientDataDefaults`), so an empty roster (new bookkeeper with no access rows, or a failed roster fetch) reaches the zero-clients splash instead of throwing on first render. `tests/firstload.test.js` guards it (`node tests/firstload.test.js`).
+- `ErrorBoundary` logs to `client_errors` (React doesn't send caught render errors to `window.onerror`), shows an `MGB_errorCode`, and has a Copy details button (`MGB_errorDetailsText`: message, version, path, a few frames; tokens scrubbed). `MGB_reportError` falls back to the session email when `__mgbActor` isn't set yet.
+
 ### MGB (internal) and flagged clients (added 2026-10-15)
 
 - **MGB (internal)** (`clients.id = 'mygoodbooks'`, `clients.is_internal`) is the firm's own books, run
