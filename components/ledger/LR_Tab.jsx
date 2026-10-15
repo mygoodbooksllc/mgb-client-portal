@@ -773,9 +773,10 @@ function LR_LedgerTab({ client, staffUser, isAdmin, onNavigate }) {
       </label>
       {ctx.connected && (
         <label className="lr-month">
-          <span className="lr-month-label">Pull from</span>
+          <span className="lr-month-label">Start with this month</span>
           <select
             className="lr-select"
+            title="For the next pull only. Settings aren't changed."
             value={pullFrom}
             disabled={pulling}
             onChange={(e) => {
@@ -790,6 +791,7 @@ function LR_LedgerTab({ client, staffUser, isAdmin, onNavigate }) {
               </option>
             ))}
           </select>
+          <span className="lr-hint">{pullFrom ? "This pull only. Settings stay as they are." : "Pick a month to pull further back, this pull only."}</span>
         </label>
       )}
       {ctx.connected && (
@@ -1180,7 +1182,7 @@ function LR_LedgerTab({ client, staffUser, isAdmin, onNavigate }) {
       {banner}
       {beforeWindow && (
         <p className="lr-note" role="status">
-          This month wasn't in the last pull. Use Pull from to go back further.
+          This month wasn't in the last pull. Use Start with this month (next to Pull again) to go back further.
         </p>
       )}
       {data && data.warnings && data.warnings.length > 0 && (

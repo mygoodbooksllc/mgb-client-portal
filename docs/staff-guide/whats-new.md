@@ -7,9 +7,9 @@ sort: 15
 ---
 The newest changes to the staff side, newest first. For how anything works, search this guide or click **?** → **Help for this page**.
 
-### 2026-10-15: Pull from, on Ledger review
+### 2026-10-15: Start with this month, on Ledger review
 
-- **Choose how far back one ledger pull starts.** Next to **Pull again** on a client's Ledger review tab, **Pull from** lists the last 24 months. Pick one and that pull covers that month to today; the line beside the button shows what the last pull covered. The admin default isn't changed, and a pull from a picked month doesn't clear flags that dropped out of QuickBooks. See [How does Ledger review work?](#/help/ledger-review).
+- **Choose how far back one ledger pull starts.** Next to **Pull again** on a client's Ledger review tab, **Start with this month** lists the last 24 months. Pick one and that pull covers that month to today; the line beside the button shows what the last pull covered. The admin default isn't changed, and a pull from a picked month doesn't clear flags that dropped out of QuickBooks. See [How does Ledger review work?](#/help/ledger-review).
 
 ### 2026-10-14: QuickBooks connects the right way for each client
 
