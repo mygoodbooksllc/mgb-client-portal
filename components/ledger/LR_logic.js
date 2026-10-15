@@ -111,6 +111,33 @@
   // lists transactions dated on or after the shown pull's first day.
   // `start` is 'YYYY-MM-DD' (or empty = no limit). Flags with no txn_date
   // are kept. Returns { shown, hidden }.
+  // Mirror of gl_review_rule_hides (SQL): does an active rule hide this flag?
+  function ruleHides(r, f) {
+    if (!r || r.status !== "active") return false;
+    var low = function (x) { return String(x == null ? "" : x).toLowerCase(); };
+    if (r.kind === "stop_flagging") {
+      return r.flag_type === f.flag_type &&
+        (!r.match_name || low(r.match_name) === low(f.name)) &&
+        (!r.account_qbo_id || r.account_qbo_id === f.account_qbo_id) &&
+        (!!r.account_qbo_id || !r.account_name || low(r.account_name) === low(f.account_name));
+    }
+    if (r.kind === "pass_through") {
+      return (!!r.account_qbo_id && r.account_qbo_id === f.account_qbo_id) ||
+        (!r.account_qbo_id && !!r.account_name && low(r.account_name) === low(f.account_name));
+    }
+    return false;
+  }
+  // Ignored flags never count: drop open/asked flags an active rule hides
+  // (they stay stored until the next full pull clears them). Cleared/fixed
+  // flags are already ignored by every open/asked count.
+  function dropRuleHidden(flags, rules) {
+    var act = (rules || []).filter(function (r) { return r && r.status === "active"; });
+    if (!act.length) return flags || [];
+    return (flags || []).filter(function (f) {
+      if (f.status !== "open" && f.status !== "asked") return true;
+      return !act.some(function (r) { return ruleHides(r, f); });
+    });
+  }
   function windowSplit(flags, start) {
     var s = String(start || "").slice(0, 10);
     var shown = [], hidden = [];
@@ -395,6 +422,8 @@
     makeMemoryCache: makeMemoryCache,
     attachRun: attachRun,
     windowSplit: windowSplit,
+    ruleHides: ruleHides,
+    dropRuleHidden: dropRuleHidden,
     ymdMonthLabel: ymdMonthLabel,
     viewFlags: viewFlags,
     tabCounts: tabCounts,

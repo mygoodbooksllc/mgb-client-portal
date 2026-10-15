@@ -216,3 +216,27 @@ test("windowSplit hides flags dated before the pull window, keeps them stored", 
   // counts only include what is shown
   assert.equal(L.tabCounts(r.shown.map((f) => ({ ...f, period: "2025-09-01" })), "2026-09").open, 2);
 });
+
+test("ignored flags never count: cleared is out of open/asked, rule-hidden open flags are dropped", () => {
+  const rules = [
+    { kind: "stop_flagging", status: "active", flag_type: "large", match_name: "ACME" },
+    { kind: "stop_flagging", status: "dismissed", flag_type: "large", match_name: "Zed" },
+    { kind: "pass_through", status: "active", account_name: "Clearing" },
+  ];
+  const flags = [
+    flag({ txn_key: "a", name: "acme" }),                          // hidden by stop_flagging rule
+    flag({ txn_key: "b", name: "Zed" }),                           // dismissed rule: still counts
+    flag({ txn_key: "c", name: "Other", account_name: "clearing" }), // pass_through
+    flag({ txn_key: "d", name: "Other" }),                         // counts
+    flag({ txn_key: "e", name: "Other", status: "asked" }),        // counts
+    flag({ txn_key: "f", name: "Other", status: "cleared", cleared_reason: "expected" }), // ignored
+    flag({ txn_key: "g", name: "ACME", status: "cleared", cleared_reason: "rule" }),
+  ];
+  const kept = L.dropRuleHidden(flags, rules);
+  assert.deepEqual(kept.map((f) => f.txn_key), ["b", "d", "e", "f", "g"]);
+  const c = L.tabCounts(kept, "2026-09");
+  assert.equal(c.open, 2);
+  assert.equal(c.asked, 1);
+  assert.equal(c.cleared, 2);
+  assert.equal(L.dropRuleHidden(flags, []).length, flags.length);
+});

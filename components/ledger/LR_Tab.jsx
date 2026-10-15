@@ -503,11 +503,11 @@ function LR_LedgerTab({ client, staffUser, isAdmin, onNavigate }) {
           .filter((f) => f.flag_type !== "recon_uncleared" || LR_logic.ymOf(f.period) === saveYm)
           .map((f) => ({ ...f, id: null, status: "open", first_period: f.period, run: f, unsaved: true }))
       : [];
-    return merged.concat(unsaved).map((f) => {
+    return LR_logic.dropRuleHidden(merged.concat(unsaved), rules).map((f) => {
       const q = f.question_id ? questions[f.question_id] : null;
       return q ? { ...f, question: q.note, q } : f;
     });
-  }, [stored, run, questions, saveYm]);
+  }, [stored, run, questions, saveYm, rules]);
   // Older flags stay saved; they just aren't listed or counted here.
   const windowed = useMemo(() => LR_logic.windowSplit(allFlags, winStart), [allFlags, winStart]);
   const flags = showOlder ? allFlags : windowed.shown;
