@@ -202,7 +202,7 @@
       // step to inject a real commit SHA into (see the no-bundler note up
       // top). Shown in Developer Tools' System info card so staff can confirm
       // which version they're looking at without guessing from Vercel's UI.
-      window.MGB_VERSION = { label: "2026-10-15e", note: "Show test clients now hides them for everyone; MGB (internal) for chosen admins, not counted as a client; test clients tagged, sorted last and hidden unless Show test clients is on" };
+      window.MGB_VERSION = { label: "2026-10-15f", note: "A failed staff sign-in now says why; Show test clients hides them for everyone; MGB (internal) for chosen admins" };
       // True for MyGoodBooks' own profile (clients.is_internal): it is not a
       // client, so lists and counts that read the clients table directly skip
       // it. Reads window.CLIENTS at call time (index.html's roster loader).
@@ -270,6 +270,7 @@
       window.__SOURCE_ORDER = [
         "auth-config.js",
         "qbo-config.js",
+        "components/auth/signInNotice.js",
         "components/auth/supabaseClient.js",
         "components/auth/AuthGate.jsx",
         "components/auth/ClientAuthGate.jsx",

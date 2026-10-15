@@ -76,7 +76,7 @@ because some work happens in Claude Code web sessions. Run `git fetch` and compa
 | `data.js` | **Sample** financial data for the test orgs, plus `withClientDataDefaults()`, which keeps pages from crashing when an org has no data yet |
 | `auth-config.js` | Supabase URL and publishable (anon) key. Safe to be public. |
 | `qbo-config.js` | `window.mgbStartQboConnect`: asks `qbo-connect-start` for the Intuit URL. No client id or environment any more (keys are chosen per connection, server-side) |
-| `components/auth/` | `supabaseClient.js`, `AuthGate.jsx` (staff Google gate), `ClientAuthGate.jsx` (client magic-link gate) |
+| `components/auth/` | `signInNotice.js` (explains a failed sign-in), `supabaseClient.js`, `AuthGate.jsx` (staff Google gate), `ClientAuthGate.jsx` (client magic-link gate) |
 | `components/dashboard/` | `WidgetDrawer.jsx` + `widget-drawer.css`: the shared **Customize** drawer and board edit mode used by every customizable board (client Dashboard, full client dashboard, Financial Overview), plus `WD_sync` for per-account layout saving. Every name is `WD_`/`wd-` prefixed. Loaded before `components/daily-close/*` and `app.jsx`. |
 | `components/daily-close/` | Financial Overview (`DailyClose.tsx`, its CSS, sample data, and `fromClient.js`, which adapts client data for it) |
 | `components/pro/` | Pro budget and report tools: `ProBudget.jsx` (Budget vs. Actual tabs, next year's draft with approval) and `ProReports.jsx` (board reports suite and the public share page), each with its own CSS. Loaded before `app.jsx`; `app.jsx` falls back to the old pages if either is missing. |
@@ -116,6 +116,11 @@ because some work happens in Claude Code web sessions. Run `git fetch` and compa
   - Google only accepts `@mygoodbooks.org` accounts.
   - The app then requires an active row in the `staff` table.
   - Someone with a Google account who isn't on the staff list is signed out again.
+  - A staff Google sign-in that comes back without a session, with an OAuth `error`, or with a
+    non-`@mygoodbooks.org` email shows a plain-language notice on the sign-in page
+    (`components/auth/signInNotice.js`, loaded before `supabaseClient.js`). It keeps a one-shot
+    `sessionStorage` flag and notice, strips `error*` params from the address bar, and never
+    stores or logs codes or tokens. Client sessions are never signed out by it.
 
 **Routing.** `RootGate` in `app.jsx` decides which login screen to show:
 

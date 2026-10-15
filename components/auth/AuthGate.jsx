@@ -18,6 +18,9 @@
   // "/" is fine: app.jsx's RootGate sends a @mygoodbooks.org session to this
   // gate, and this gate still checks the staff table either way.
   function startStaffGoogleSignIn() {
+    // Lets the return trip tell "this staff sign-in came back empty" from an
+    // ordinary page load (components/auth/signInNotice.js).
+    if (window.mgbSignInNotice) window.mgbSignInNotice.markStaffStart();
     window.mgbSupabase.auth.signInWithOAuth({
       provider: "google",
       options: {
@@ -41,6 +44,8 @@
     const [status, setStatus] = useState("loading");
     const [staffUser, setStaffUser] = useState(null);
     const [errorMsg, setErrorMsg] = useState("");
+    // Why a sign-in that just came back didn't sign anyone in (signInNotice.js).
+    const [signInNotice, setSignInNotice] = useState("");
 
     const supabase = window.mgbSupabase;
 
@@ -52,6 +57,10 @@
       // it out, which would end the client's sign-in everywhere. Reload so
       // RootGate sends it to the client gate, which checks client_users.
       if (!(email || "").toLowerCase().endsWith("@mygoodbooks.org")) {
+        // Keep the explanation across the reload when this was a staff
+        // Google sign-in; the client gate shows it if it turns the session away.
+        const sin = window.mgbSignInNotice;
+        if (sin) sin.stash(sin.resolve(session));
         window.location.replace("/");
         return;
       }
@@ -130,8 +139,13 @@
       }
 
       supabase.auth.getSession().then(({ data }) => {
+        const sin = window.mgbSignInNotice;
+        const returnNotice = sin ? sin.resolve(data.session) : null;
         if (data.session) checkStaffRow(data.session);
-        else setStatus("signed-out");
+        else {
+          if (returnNotice) setSignInNotice(sin.text(returnNotice));
+          setStatus("signed-out");
+        }
       });
 
       const { data: sub } = supabase.auth.onAuthStateChange(
@@ -167,6 +181,7 @@
 
     function signIn() {
       setErrorMsg("");
+      setSignInNotice("");
       startStaffGoogleSignIn();
     }
 
@@ -224,6 +239,11 @@
                 Sign in with your MyGoodBooks Google account.
               </p>
             </div>
+            {signInNotice && !errorMsg && (
+              <p className="auth-error" role="alert">
+                {signInNotice}
+              </p>
+            )}
             {errorMsg && (
               <p className="auth-error" role="alert">
                 {errorMsg}

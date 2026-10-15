@@ -62,9 +62,16 @@
         return;
       }
       if (!data || !data.active) {
+        const returnNotice = window.mgbSignInNotice
+          ? window.mgbSignInNotice.resolve(session)
+          : null;
         supabase.auth.signOut();
         setErrorMsg(
-          `${sessionEmail} isn't set up for portal access yet. Ask your bookkeeper.`,
+          // After a staff Google sign-in (signInNotice.js), say why in staff
+          // terms instead of "ask your bookkeeper".
+          returnNotice
+            ? window.mgbSignInNotice.text(returnNotice)
+            : `${sessionEmail} isn't set up for portal access yet. Ask your bookkeeper.`,
         );
         setDenied(true);
         setStatus("denied");
@@ -89,8 +96,11 @@
         return;
       }
       supabase.auth.getSession().then(({ data }) => {
+        const sin = window.mgbSignInNotice;
+        const returnNotice = sin ? sin.resolve(data.session) : null;
         if (data.session) checkClientRow(data.session);
         else {
+          if (returnNotice) setErrorMsg(sin.text(returnNotice));
           // A stale staff flag (expired staff session) must not leave the
           // install links on the client sign-in screen.
           if (window.mgbInstallApp) window.mgbInstallApp.set(false);
