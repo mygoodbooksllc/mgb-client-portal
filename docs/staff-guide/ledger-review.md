@@ -12,8 +12,8 @@ Open it from the client's tab row, or go straight to `#/client/{id}/ledger`. Che
 ### Pull the ledger
 
 1. Pick the **Month**. It opens on the last completed month.
-2. The tab pulls the ledger from QuickBooks and saves the flags it finds. **Pull again** pulls it fresh any time, for example after you fix something in QuickBooks. The line next to it says when the last pull happened and how far back it covered.
-   - **Start with this month** (next to the button) picks how far back that one pull starts: any month, up to 24 months back. It's for this pull only and never changes the saved setting (the admin default in Settings, and the Close step's own **Start with this month** there, are separate); the admin default stays as set and the picker goes back to **Default** as soon as the pull finishes (and when you reopen the tab). A pull from a picked month always runs fresh, and it doesn't clear flags that dropped out of QuickBooks (only the 14-month default pull does that). It also saves only the checks that don't depend on how much history is loaded; round amounts, weekends, large, repeat vendors, check gaps and uncleared loans are shown but not saved. So use **Default** for the routine pull.
+2. The tab gets the ledger from QuickBooks (a "pull") and saves the flags it finds. **Pull from QuickBooks** gets the latest any time, for example after you fix something in QuickBooks. The line next to it says when the last pull happened and the months it covered, like *covered Aug 2025 – Oct 2026*. **Review month** is just the month you're checking.
+   - **Pull transactions back to** (next to the button) chooses how far back that one pull goes: the usual range (14 months), or any earlier month up to 24 months back. It applies to this pull only and never changes the saved setting in Settings; it goes back to the usual range after the pull. An earlier-month pull always runs fresh, and it doesn't clear flags that dropped out of QuickBooks (only the usual pull does that). It also saves only the checks that don't depend on how much history is loaded; round amounts, weekends, large, repeat vendors, check gaps and uncleared loans are shown but not saved. Use the usual range for the routine pull.
 3. If someone else is pulling the same client, the tab says so. Wait a minute and click **Try again**.
 
 A client without a working QuickBooks connection has no ledger to pull. The tab says so and points you to **Review a file**.
@@ -94,8 +94,8 @@ The file is read in your browser. Nothing is uploaded, stored or sent to QuickBo
 **Team › Ledger review**. Only admins see this tab.
 
 - **Marking a month done**: *Warn* (the default) or *Block*. With Block, a month can't be marked done until its review is approved, and an admin can override with a reason.
-- **How much ledger to pull**: the last 14 months (recommended) or this year so far.
-- **Start with this month**: the first month the Ledger reviewed step applies to, so older months don't suddenly look behind.
+- **Pull transactions back to**: the usual range for every pull, 14 months back (recommended) or this year so far. Staff can go further back for one pull on the client's tab.
+- **Count the Close step from**: the first month the Ledger reviewed step applies to, so older months don't suddenly look behind.
 - **Vendor watch list**: names that get a *Watch-list vendor* flag for every client. Add a name with a category, edit it, or turn it off.
 
 ### Troubleshooting
@@ -103,7 +103,7 @@ The file is read in your browser. Nothing is uploaded, stored or sent to QuickBo
 - **There's nothing to pull.** The client's QuickBooks isn't connected. Reconnect it, or use **Review a file**.
 - **Send by email is greyed out.** Add a contact email under Client setup above.
 - **Send via portal is greyed out.** The client has no active portal users who can see the whole company. If it says *portal users couldn't load*, the database update isn't applied yet; email still works.
-- **"The firm watch list didn't load."** That pull used the built-in list, so nothing was marked fixed. Pull again later.
+- **"The firm watch list didn't load."** That pull used the built-in list, so nothing was marked fixed. Pull from QuickBooks again later.
 - **I can't tick Ledger reviewed.** That's on purpose. Click **Mark reviewed**.
 - **A flag keeps coming back.** Clear it with **Stop flagging this** to keep that pattern quiet for this client.
 - **A message says the database update isn't applied.** An admin needs to run the Ledger review database update. See [the FAQ](#/help/faq).

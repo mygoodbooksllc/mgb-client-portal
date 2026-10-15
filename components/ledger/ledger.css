@@ -35,6 +35,17 @@
   align-items: center;
   gap: 8px;
 }
+.lr-field {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 3px;
+  max-width: 280px;
+}
+.lr-field .lr-hint {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.35;
+}
 .lr-month-label {
   font-size: 12px;
   font-weight: 700;
@@ -814,10 +825,14 @@ ul.lr-note {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
   .lr-month,
-  .lr-month .lr-select {
+  .lr-field,
+  .lr-month .lr-select,
+  .lr-field .lr-select {
     width: 100%;
+    max-width: none;
   }
-  .lr-month .lr-select {
+  .lr-month .lr-select,
+  .lr-field .lr-select {
     flex: 1 1 auto;
   }
 }

@@ -426,7 +426,7 @@ function LR_LedgerTab({ client, staffUser, isAdmin, onNavigate }) {
           pullFromRef.current = "";
           setPullFrom("");
         }
-        setPull({ phase: "done", saveError, fixed, watchFallback, custom: pulledKind === "custom", covers: pullRow ? LR_logic.pullWindowLabel(pullRow) : "" });
+        setPull({ phase: "done", saveError, fixed, watchFallback, custom: pulledKind === "custom", covers: pullRow ? LR_logic.coveredLabel(pullRow) : "" });
         LR_api.notifyChanged(client.id, LR_logic.toPeriod(ymRef.current));
       } catch (e) {
         if (alive.current) setPull({ phase: "error", error: (e && e.message) || "The ledger pull didn't finish." });
@@ -754,15 +754,17 @@ function LR_LedgerTab({ client, staffUser, isAdmin, onNavigate }) {
   let pullLine = "";
   if (pullRow && pullRow.status === "ok") {
     pullLine = `Last pulled ${LR_when(pullRow.finished_at || pullRow.started_at)}${pullRow.pulled_by ? " by " + LR_logic.who(pullRow.pulled_by) : ""}`;
-    if (pullRow.window_kind) pullLine += " · " + LR_logic.pullWindowLabel(pullRow);
+    const covered = LR_logic.coveredLabel(pullRow);
+    if (covered) pullLine += " · covered " + covered;
+    else if (pullRow.window_kind) pullLine += " · " + LR_logic.pullWindowLabel(pullRow);
   } else if (pullRow && pullRow.status === "running") pullLine = "A pull is running…";
   else if (!pullRow) pullLine = "Not pulled yet";
   const reviewFileHref = "#/work/ledger";
 
   const toolbar = (
     <div className="lr-toolbar app-topbar-row">
-      <label className="lr-month">
-        <span className="lr-month-label">Month</span>
+      <label className="lr-field">
+        <span className="lr-month-label">Review month</span>
         <select className="lr-select" value={ym} onChange={(e) => setYm(e.target.value)}>
           {monthOpts.map((m) => (
             <option key={m.ym} value={m.ym}>
@@ -772,11 +774,11 @@ function LR_LedgerTab({ client, staffUser, isAdmin, onNavigate }) {
         </select>
       </label>
       {ctx.connected && (
-        <label className="lr-month">
-          <span className="lr-month-label">Start with this month</span>
+        <label className="lr-field">
+          <span className="lr-month-label">Pull transactions back to</span>
           <select
             className="lr-select"
-            title="For the next pull only. Settings aren't changed."
+            title="Applies to this pull only; your saved setting doesn't change."
             value={pullFrom}
             disabled={pulling}
             onChange={(e) => {
@@ -784,19 +786,19 @@ function LR_LedgerTab({ client, staffUser, isAdmin, onNavigate }) {
               setPullFrom(e.target.value);
             }}
           >
-            <option value="">Default ({LR_logic.pullWindowLabel((ctx.settings && ctx.settings.pull_window) || "rolling14").toLowerCase()})</option>
+            <option value="">Usual range ({(ctx.settings && ctx.settings.pull_window) === "ytd" ? "this year so far" : "14 months back"})</option>
             {pullFromOpts.map((m) => (
               <option key={m.ym} value={m.start}>
                 {m.label}
               </option>
             ))}
           </select>
-          <span className="lr-hint">{pullFrom ? "This pull only. Settings stay as they are." : "Pick a month to pull further back, this pull only."}</span>
+          <span className="lr-hint">Choose an earlier month to include older transactions. Applies to this pull only; your saved setting doesn't change.</span>
         </label>
       )}
       {ctx.connected && (
         <button type="button" className="btn-secondary" disabled={pulling} onClick={() => doPull(true)}>
-          {pull.phase === "pulling" ? "Pulling…" : pull.phase === "saving" ? "Saving flags…" : "Pull again"}
+          {pull.phase === "pulling" ? "Getting latest…" : pull.phase === "saving" ? "Saving flags…" : "Pull from QuickBooks"}
         </button>
       )}
       <span className="lr-pull-line">{pullLine}</span>
@@ -861,7 +863,7 @@ function LR_LedgerTab({ client, staffUser, isAdmin, onNavigate }) {
   } else if (pull.phase === "done" && !pull.saveError && pull.custom) {
     banner = (
       <p className="lr-note" role="status">
-        Covers {pull.covers || "the picked range"}. Flags that dropped out of QuickBooks weren't cleaned up; only the 14-month pull does that. History-based checks
+        Covered {pull.covers || "the picked range"}. Flags that dropped out of QuickBooks weren't cleaned up; only the 14-month pull does that. History-based checks
         (round amounts, weekends, large, repeat vendors, check gaps, uncleared loans) are shown but not saved on a custom pull.
       </p>
     );
@@ -1182,7 +1184,7 @@ function LR_LedgerTab({ client, staffUser, isAdmin, onNavigate }) {
       {banner}
       {beforeWindow && (
         <p className="lr-note" role="status">
-          This month wasn't in the last pull. Use Start with this month (next to Pull again) to go back further.
+          This month wasn't in the last pull. Use Pull transactions back to (next to Pull from QuickBooks) to include older months.
         </p>
       )}
       {data && data.warnings && data.warnings.length > 0 && (
@@ -1244,9 +1246,9 @@ function LR_RulesCard({
       </p>
       {rulesChanged && (
         <div className="lr-note is-warn" role="status">
-          <p>Rules changed. Pull again to update the saved flags.</p>
+          <p>Rules changed. Pull from QuickBooks again to update the saved flags.</p>
           <button type="button" className="btn-secondary lr-btn-sm" onClick={onPull} disabled={busy}>
-            Pull again
+            Pull from QuickBooks
           </button>
         </div>
       )}

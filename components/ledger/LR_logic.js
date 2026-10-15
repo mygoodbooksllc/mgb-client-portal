@@ -260,6 +260,15 @@
   }
   // w: a window kind, a { start, end } window, or a gl_review_pulls row
   // (window_kind + window_start + window_end).
+  // "Aug 2025 – Oct 2026" for a gl_review_pulls row (real start and end
+  // months), or "" when the row has no dates.
+  function coveredLabel(row) {
+    var f = /^(\d{4})-(\d{2})/.exec(String((row && row.window_start) || ""));
+    var t = /^(\d{4})-(\d{2})/.exec(String((row && row.window_end) || ""));
+    if (!f || !t) return "";
+    var short = function (m) { return MONTH_NAMES[Number(m[2]) - 1].slice(0, 3) + " " + m[1]; };
+    return short(f) + " \u2013 " + short(t);
+  }
   function pullWindowLabel(w) {
     if (w === "rolling14") return "Last 14 months";
     if (w === "ytd") return "Year to date";
@@ -387,6 +396,7 @@
     compareStatusLabel: compareStatusLabel,
     chunk: chunk,
     pullWindowLabel: pullWindowLabel,
+    coveredLabel: coveredLabel,
     pullFromOptions: pullFromOptions,
     pullWindowFrom: pullWindowFrom,
     firmToday: firmToday,

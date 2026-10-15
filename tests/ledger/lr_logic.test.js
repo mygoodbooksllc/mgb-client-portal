@@ -195,3 +195,9 @@ test("a custom pull saves only window-independent flag types", () => {
   assert.deepEqual(L.rowsForWindow(rows, "custom").map((r) => r.flag_type), ["suspense", "negbank", "dup"]);
   assert.equal(L.rowsForWindow(rows, "rolling14").length, rows.length);
 });
+
+test("coveredLabel shows the real start and end months", () => {
+  assert.equal(L.coveredLabel({ window_start: "2025-08-15", window_end: "2026-10-15" }), "Aug 2025 \u2013 Oct 2026");
+  assert.equal(L.coveredLabel({ window_kind: "ytd" }), "");
+  assert.equal(L.coveredLabel(null), "");
+});
