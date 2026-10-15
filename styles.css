@@ -6367,6 +6367,26 @@ body:has(.modal-overlay) .chat-fab-wrap {
   color: var(--text-muted);
 }
 
+.staff-roster-count {
+  font-weight: 400;
+  color: var(--text-muted);
+}
+
+.staff-roster-temp {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  border: 1px solid var(--gold);
+  font-size: 10.5px;
+  font-weight: 600;
+  vertical-align: middle;
+}
+
+.staff-roster-inactive {
+  opacity: 0.6;
+}
+
 .staff-invite-links {
   display: flex;
   flex-direction: column;

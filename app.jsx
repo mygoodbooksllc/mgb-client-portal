@@ -14049,7 +14049,7 @@ function StaffAccessPage({ staffUser, onImpersonate, readOnly }) {
         </React.Fragment>
       )}
 
-      <div className="card" style={{ marginBottom: 20 }}>
+      <div className="staff-roster-intro" style={{ marginBottom: 12 }}>
         <h3 className="card-title">Staff roster</h3>
         <p className="card-subtitle">
           Who can sign in to the portal, and with what role. You can't change
@@ -14060,8 +14060,27 @@ function StaffAccessPage({ staffUser, onImpersonate, readOnly }) {
           <p className="card-subtitle">Loading…</p>
         )}
         {loadError && <p className="card-subtitle negative">{loadError}</p>}
+      </div>
 
-        {rows && rows.length > 0 && (
+      {rows && rows.length > 0 && [
+        { key: "admin", title: "Admins", empty: "No admins yet." },
+        { key: "bookkeeper", title: "Bookkeepers", empty: "No bookkeepers yet." },
+      ].map((grp) => {
+        // Display only: split by role, active first, then A-Z by name.
+        const list = rows
+          .filter((r) => (r.role === "admin" ? "admin" : "bookkeeper") === grp.key)
+          .sort(
+            (x, y) =>
+              (x.active === false) - (y.active === false) ||
+              String(x.name || x.email).localeCompare(String(y.name || y.email), undefined, { sensitivity: "base" }),
+          );
+        return (
+      <div className="card staff-roster-card" key={grp.key} data-roster={grp.key} style={{ marginBottom: 20 }}>
+        <h3 className="card-title">
+          {grp.title} <span className="staff-roster-count">({list.length})</span>
+        </h3>
+        {list.length === 0 && <p className="card-subtitle">{grp.empty}</p>}
+        {list.length > 0 && (
           <div className="table-scroll">
             <table className="tx-table tx-table-labeled">
               <thead>
@@ -14081,7 +14100,7 @@ function StaffAccessPage({ staffUser, onImpersonate, readOnly }) {
                 </tr>
               </thead>
               <tbody>
-                {rows.map((row) => {
+                {list.map((row) => {
                   const isSelf = row.email === staffUser.email;
                   const busy = busyId === row.id;
                   const tempAccess = tempAccessMap[row.email];
@@ -14090,8 +14109,13 @@ function StaffAccessPage({ staffUser, onImpersonate, readOnly }) {
                     new Date(tempAccess.expires_at).getTime() > Date.now();
                   const tempBusy = tempAccessBusyId === row.id;
                   return (
-                    <tr key={row.id}>
-                      <td data-primary="">{row.name}</td>
+                    <tr key={row.id} className={row.active === false ? "staff-roster-inactive" : undefined}>
+                      <td data-primary="">
+                        {row.name}
+                        {tempActive && row.role !== "admin" && (
+                          <span className="staff-roster-temp" title="Has temporary admin access">Temp admin</span>
+                        )}
+                      </td>
                       <td data-label="Email">{row.email}</td>
                       <td data-label="Birthday">
                         {typeof ST_DateInput === "function" ? (
@@ -14303,10 +14327,15 @@ function StaffAccessPage({ staffUser, onImpersonate, readOnly }) {
           </div>
         )}
 
-        {rows && rows.length === 0 && !loadError && (
+              </div>
+        );
+      })}
+
+      {rows && rows.length === 0 && !loadError && (
+        <div className="card" style={{ marginBottom: 20 }}>
           <p className="card-subtitle">No staff rows yet.</p>
-        )}
-      </div>
+        </div>
+      )}
 
       {clientAccessFor && (
         <ModalShell

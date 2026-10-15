@@ -782,7 +782,7 @@ hours, fees and revenue all use it. See "MGB (internal) and flagged clients" und
     pricing), an "In app" column (automatic in-app time, not billed), person and client
     drill-downs and CSV export. Still shows in-app time when QuickBooks isn't connected. Private tasks show once
     `supabase/admin-read-all-tasks.sql` is applied.
-  - **Staff Access**: staff roster, add, bulk import, client assignments, temporary admin grants.
+  - **Staff Access**: staff roster (Admins and Bookkeepers cards), add, bulk import, client assignments, temporary admin grants.
   - **Client Roster**: client organizations (add/edit), client contacts, invite, scoping, bulk
     import.
   - **Developer Tools**: system info, feature flags, recent activity, local storage.
