@@ -107,6 +107,19 @@
     if (tab === "cleared") return (f.status === "cleared" || f.status === "fixed") && p === ym;
     return false;
   }
+  // Saved flags from an earlier, wider pull stay stored, but the screen only
+  // lists transactions dated on or after the shown pull's first day.
+  // `start` is 'YYYY-MM-DD' (or empty = no limit). Flags with no txn_date
+  // are kept. Returns { shown, hidden }.
+  function windowSplit(flags, start) {
+    var s = String(start || "").slice(0, 10);
+    var shown = [], hidden = [];
+    (flags || []).forEach(function (f) {
+      var d = String(f.txn_date || "").slice(0, 10);
+      (s && d && d < s ? hidden : shown).push(f);
+    });
+    return { shown: shown, hidden: hidden };
+  }
   function viewFlags(flags, opts) {
     var o = opts || {};
     var tab = o.tab || "open";
@@ -381,6 +394,8 @@
     ymOf: ymOf,
     makeMemoryCache: makeMemoryCache,
     attachRun: attachRun,
+    windowSplit: windowSplit,
+    ymdMonthLabel: ymdMonthLabel,
     viewFlags: viewFlags,
     tabCounts: tabCounts,
     typeCounts: typeCounts,

@@ -112,6 +112,12 @@
   outline: 2px solid var(--accent);
   outline-offset: 1px;
 }
+.lr-window-line {
+  margin: 0;
+  font-size: 13px;
+  color: var(--text-muted);
+  overflow-wrap: anywhere;
+}
 .lr-pull-line {
   flex: 1 1 100%;
   margin: 0;

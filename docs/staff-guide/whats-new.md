@@ -20,6 +20,8 @@ The newest changes to the staff side, newest first. For how anything works, sear
 
 ### 2026-10-15: Go further back on Ledger review
 
+- **The list now matches the range.** Ledger review only shows transactions inside the range of the pull on screen, with a line saying which months. Older flags stay saved and come back when you pull further back.
+
 - **Choose how far back one pull goes.** On a client's Ledger review tab, **Go back to** (next to **Pull from QuickBooks**) lists the last 24 months. Pick one to include older transactions in that pull only; your saved setting doesn't change. The line beside the button shows the months the last pull covered, and **Review month** is the month you're checking. See [How does Ledger review work?](#/help/ledger-review).
 
 ### 2026-10-14: QuickBooks connects the right way for each client

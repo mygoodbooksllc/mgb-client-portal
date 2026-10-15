@@ -201,3 +201,18 @@ test("coveredLabel shows the real start and end months", () => {
   assert.equal(L.coveredLabel({ window_kind: "ytd" }), "");
   assert.equal(L.coveredLabel(null), "");
 });
+
+test("windowSplit hides flags dated before the pull window, keeps them stored", () => {
+  const flags = [
+    { txn_date: "2025-05-10", status: "open" },
+    { txn_date: "2025-08-15", status: "open" },
+    { txn_date: "2026-03-02", status: "cleared" },
+    { txn_date: null, status: "open" },
+  ];
+  const r = L.windowSplit(flags, "2025-08-15");
+  assert.deepEqual(r.hidden.map((f) => f.txn_date), ["2025-05-10"]);
+  assert.equal(r.shown.length, 3);
+  assert.equal(L.windowSplit(flags, "").shown.length, 4);
+  // counts only include what is shown
+  assert.equal(L.tabCounts(r.shown.map((f) => ({ ...f, period: "2025-09-01" })), "2026-09").open, 2);
+});

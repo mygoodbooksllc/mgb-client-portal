@@ -487,7 +487,9 @@ function LR_LedgerTab({ client, staffUser, isAdmin, onNavigate }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [data, ctx && ctx.rules, ctx && ctx.watchVendors, ym]);
 
-  const flags = useMemo(() => {
+  // The pull on screen: the one just run, else the last saved pull row.
+  const winStart = (data && data.window && data.window.start) || (ctx && ctx.pull && ctx.pull.status === "ok" && ctx.pull.window_start) || "";
+  const allFlags = useMemo(() => {
     const merged = LR_logic.attachRun(stored || [], run ? run.flags : []);
     const have = new Set(merged.map((f) => f.txn_key + "|" + f.flag_type));
     // A month-dependent flag (recon_uncleared) for a month other than
@@ -504,6 +506,10 @@ function LR_LedgerTab({ client, staffUser, isAdmin, onNavigate }) {
       return q ? { ...f, question: q.note, q } : f;
     });
   }, [stored, run, questions, saveYm]);
+  // Older flags stay saved; they just aren't listed or counted here.
+  const windowed = useMemo(() => LR_logic.windowSplit(allFlags, winStart), [allFlags, winStart]);
+  const flags = windowed.shown;
+  const hiddenOlder = windowed.hidden.filter((f) => f.status === "open" || f.status === "asked").length;
 
   const counts = LR_logic.tabCounts(flags, ym);
   const chips = LR_logic.typeCounts(flags, ym, tab);
@@ -826,7 +832,6 @@ function LR_LedgerTab({ client, staffUser, isAdmin, onNavigate }) {
   );
 
   // The picked month is earlier than the loaded pull's first day.
-  const winStart = data && data.window && data.window.start;
   const beforeWindow = !!winStart && String(ym) < String(winStart).slice(0, 7);
 
   let banner = null;
@@ -1202,6 +1207,12 @@ function LR_LedgerTab({ client, staffUser, isAdmin, onNavigate }) {
     <div className="lr-page" data-tour="client-ledger">
       {toolbar}
       {banner}
+      {winStart && (
+        <p className="lr-window-line">
+          Showing transactions from {LR_logic.ymdMonthLabel(winStart)} to {GLR_config.monthLabel(ym)}.
+          {hiddenOlder > 0 ? ` ${hiddenOlder} older open flag${hiddenOlder === 1 ? " is" : "s are"} saved but hidden; use Go back to for a longer pull.` : ""}
+        </p>
+      )}
       {beforeWindow && (
         <p className="lr-note" role="status">
           This month wasn't in the last pull. Use Pull transactions back to (next to Pull from QuickBooks) to include older months.
