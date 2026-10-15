@@ -64,10 +64,16 @@ const ROLLING_DAYS = 60;
 const PAGE = 1000;
 const MAX_PAGES = 100; // 100k rows: a safety stop, not an expected size
 
+const CORS = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+};
+
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { "Content-Type": "application/json" },
+    headers: { ...CORS, "Content-Type": "application/json" },
   });
 }
 
@@ -527,6 +533,7 @@ Deno.serve(async (req) => {
 });
 
 async function handle(req: Request): Promise<Response> {
+  if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
   const authHeader = req.headers.get("Authorization") || "";
   const presented = authHeader.replace(/^Bearer\s+/i, "");
   if (!presented) return json({ error: "unauthorized" }, 401);
