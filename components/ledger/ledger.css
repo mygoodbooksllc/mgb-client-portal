@@ -118,6 +118,14 @@
   color: var(--text-muted);
   overflow-wrap: anywhere;
 }
+.lr-older {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: 10px;
+  white-space: nowrap;
+  cursor: pointer;
+}
 .lr-pull-line {
   flex: 1 1 100%;
   margin: 0;

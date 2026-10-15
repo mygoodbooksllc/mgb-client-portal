@@ -277,6 +277,8 @@ function LR_LedgerTab({ client, staffUser, isAdmin, onNavigate }) {
   const [pullFrom, setPullFrom] = useState("");
   const pullFromRef = useRef("");
   const [tipOpen, setTipOpen] = useState(false);
+  // Show the saved flags dated before the pulled range (off by default).
+  const [showOlder, setShowOlder] = useState(false);
   // The month the saved flags are checked as of (the last complete month).
   // Fixed for the life of the tab, never the picker.
   const saveYm = monthOpts[0].ym;
@@ -508,7 +510,7 @@ function LR_LedgerTab({ client, staffUser, isAdmin, onNavigate }) {
   }, [stored, run, questions, saveYm]);
   // Older flags stay saved; they just aren't listed or counted here.
   const windowed = useMemo(() => LR_logic.windowSplit(allFlags, winStart), [allFlags, winStart]);
-  const flags = windowed.shown;
+  const flags = showOlder ? allFlags : windowed.shown;
   const hiddenOlder = windowed.hidden.filter((f) => f.status === "open" || f.status === "asked").length;
 
   const counts = LR_logic.tabCounts(flags, ym);
@@ -1209,8 +1211,15 @@ function LR_LedgerTab({ client, staffUser, isAdmin, onNavigate }) {
       {banner}
       {winStart && (
         <p className="lr-window-line">
-          Showing transactions from {LR_logic.ymdMonthLabel(winStart)} to {GLR_config.monthLabel(ym)}.
-          {hiddenOlder > 0 ? ` ${hiddenOlder} older open flag${hiddenOlder === 1 ? " is" : "s are"} saved but hidden; use Go back to for a longer pull.` : ""}
+          {showOlder
+            ? `Showing everything saved up to ${GLR_config.monthLabel(ym)}, including flags older than ${LR_logic.ymdMonthLabel(winStart)}.`
+            : `Showing transactions from ${LR_logic.ymdMonthLabel(winStart)} to ${GLR_config.monthLabel(ym)}.`}
+          {windowed.hidden.length > 0 && (
+            <label className="lr-older">
+              <input type="checkbox" checked={showOlder} onChange={(e) => setShowOlder(e.target.checked)} />
+              Show {hiddenOlder} older unresolved flag{hiddenOlder === 1 ? "" : "s"}
+            </label>
+          )}
         </p>
       )}
       {beforeWindow && (
