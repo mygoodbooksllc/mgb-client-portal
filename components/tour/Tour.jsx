@@ -1003,7 +1003,7 @@ function TOUR_bookkeeperSteps(ctx) {
       "team",
       "reviews",
       "Team › Reviews",
-      "Your quarterly review: fill in your self-review when a cycle opens, then meet your account manager and both sign. Performance, next to it, shows your score out of 100.",
+      "Your quarterly review: fill in your self-review when a cycle opens, then meet your account manager and both sign. Your review total is out of 30. Performance, next to it, is a separate score out of 100 that counts your latest review as one part.",
     ),
     TOUR_tabStep(
       "team",
