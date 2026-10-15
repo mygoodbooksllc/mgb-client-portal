@@ -24590,7 +24590,7 @@ function TabSettingsModal({
 
   function copyLink() {
     if (!activeLink) return;
-    const url = `${window.location.origin}${window.location.pathname}?access-form=${activeLink.token}`;
+    const url = `${window.location.origin}/?access-form=${activeLink.token}`;
     navigator.clipboard.writeText(url).then(() => {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
@@ -24862,7 +24862,7 @@ function TabSettingsModal({
                 <input
                   type="text"
                   readOnly
-                  value={`${window.location.origin}${window.location.pathname}?access-form=${activeLink.token}`}
+                  value={`${window.location.origin}/?access-form=${activeLink.token}`}
                   onFocus={(e) => e.target.select()}
                 />
                 <button className="btn-secondary" onClick={copyLink}>
@@ -29928,9 +29928,14 @@ const clientLoginMode =
   window.location.pathname === "/login" ||
   new URLSearchParams(window.location.search).get("client-login") === "1";
 
+// /staff is the staff front door: signed out it shows the staff Google
+// sign-in (AuthGate) with no client email form. Same rewrite trick as /login.
+// A session whose email isn't on the staff domain still goes to the client
+// gate, and AuthGate still checks the staff table, so this grants nothing.
+const staffLoginMode = /^\/staff\/?$/.test(window.location.pathname);
+
 // The bare site URL is the client front door: signed out, it shows the
-// client login (whose "Staff? Sign in with Google" button starts the staff
-// flow). A session whose email is on the staff Workspace domain goes to the
+// client login (whose small "Staff? Sign in with Google" link goes to /staff). A session whose email is on the staff Workspace domain goes to the
 // staff AuthGate instead, so staff bookmarks and the Google return trip to
 // "/" still land in the staff app. This only picks which gate renders; each
 // gate still verifies its own table (staff / client_users), so the domain
@@ -29947,7 +29952,10 @@ function RootGate() {
     supabase.auth.getSession().then(({ data }) => {
       const email = (data.session && data.session.user.email) || "";
       setMode(
-        email.toLowerCase().endsWith("@mygoodbooks.org") ? "staff" : "client",
+        email.toLowerCase().endsWith("@mygoodbooks.org") ||
+          (staffLoginMode && !data.session)
+          ? "staff"
+          : "client",
       );
     });
   }, []);

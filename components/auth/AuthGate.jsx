@@ -13,9 +13,8 @@
 (function () {
   const { useEffect, useState } = React;
 
-  // Shared with ClientAuthGate's "Staff? Sign in with Google" button, so the
-  // client-facing front door can start the staff flow directly. Returning to
-  // "/" is fine: app.jsx's RootGate sends a @mygoodbooks.org session to this
+  // The staff sign-in button below starts it. Returning to "/staff" (or "/"
+  // if the allow-list falls back) is fine: app.jsx's RootGate sends a @mygoodbooks.org session to this
   // gate, and this gate still checks the staff table either way.
   function startStaffGoogleSignIn() {
     // Lets the return trip tell "this staff sign-in came back empty" from an
@@ -33,7 +32,10 @@
         // Return to whichever host started sign-in (prod, a Vercel
         // preview, or localhost). Supabase only honors hosts on its
         // Redirect URLs allow-list and falls back to the Site URL otherwise.
-        redirectTo: window.location.origin,
+        // /staff is the staff front door. If that URL isn't on the Redirect
+        // URLs allow-list yet, Supabase falls back to the Site URL ("/"),
+        // which RootGate still routes to this gate, so nothing breaks.
+        redirectTo: window.location.origin + "/staff",
       },
     });
   }
@@ -266,6 +268,9 @@
               Sign in with Google
             </button>
           </div>
+          <p className="auth-sub" style={{ textAlign: "center", marginTop: 12 }}>
+            <a href="/login">Client? Sign in here</a>
+          </p>
           <nav className="auth-footer" aria-label="Legal and support">
             <a href="/privacy" target="_blank" rel="noopener noreferrer">
               Privacy

@@ -360,7 +360,7 @@
       <button
         type="button"
         className="auth-staff-link"
-        onClick={() => window.mgbStartStaffGoogleSignIn()}
+        onClick={() => window.location.assign("/staff")}
       >
         <svg width="12" height="12" viewBox="0 0 18 18" aria-hidden="true">
           <path

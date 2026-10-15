@@ -179,7 +179,7 @@ function prRandomToken() {
 }
 
 function prShareUrl(token) {
-  return `${window.location.origin}${window.location.pathname}?share=${token}`;
+  return `${window.location.origin}/?share=${token}`;
 }
 
 // ---------------------------------------------------------------------------

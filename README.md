@@ -112,7 +112,12 @@ because some work happens in Claude Code web sessions. Run `git fetch` and compa
     The roster's add, invite, deactivate and scope edits don't touch those columns. Changes are
     written to the client's activity log (`access_updated`, `old_name` / `new_name` /
     `old_email` / `old_client_id`).
-- **Staff** click **"Staff? Sign in with Google"**.
+- **Staff** go to **`/staff`** (`vercel.json` rewrite; `staffLoginMode` in `app.jsx`) and click
+  **Sign in with Google**. The small "Staff? Sign in with Google" link on the client page goes
+  there. The Google return trip targets `/staff`; add `https://app.mygoodbooks.org/staff` to
+  Supabase Auth → Redirect URLs. Until it's allow-listed Supabase falls back to the Site URL
+  (`/`), which `RootGate` still sends to the staff gate. A client session opening `/staff` goes
+  to the client gate and is not signed out.
   - Google only accepts `@mygoodbooks.org` accounts.
   - The app then requires an active row in the `staff` table.
   - Someone with a Google account who isn't on the staff list is signed out again.
