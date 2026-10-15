@@ -32,7 +32,7 @@ A small **Test** tag sits beside their names, and they sort to the bottom of eve
 
 Test clients are **hidden** from lists and pickers until you ask for them. Tick **Show test clients** at the top of the **Clients** page, or at the bottom of the client picker. It's remembered on this browser for you only, and turning it off hides them again.
 
-- If you're assigned to a test client (as bookkeeper or account manager, by access or by temporary access), it stays in your lists at the bottom whatever the switch says.
+- It applies to everyone, even if you're assigned to a test client. Search, direct links and View as still reach hidden test clients.
 - The one you have open stays in the picker, so you never lose your place.
 - The switch changes only what's listed. It doesn't change who is allowed to open a client.
 

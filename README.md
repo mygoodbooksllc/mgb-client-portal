@@ -983,8 +983,7 @@ goes through `security definer` RPCs that call `tr_me()` / `tr_require_admin()` 
   label), `CF_pick` / `CF_usePicked` (sort and hide), `CF_Toggle` (the "Show test clients" switch, Clients page
   and client picker footer) and `CF_excludedIds`. The switch is OFF by default, stored per person in
   localStorage `mgb-show-test-clients:<email>` (covered by Dev Tools' reset). Off hides test clients from lists and
-  pickers except ones the person is assigned to (bookkeeper, account manager, `staff_client_access`, live
-  temporary grant) and the client open now. It never changes what anyone may open. App derives
+  pickers for everyone, assigned or not, except the client open now (search, direct links and View as still reach them). It never changes what anyone may open. App derives
   `visibleClients` (routes and permissions) ⊇ `rosterClients` (no internal) ⊇ `listClients` (lists and pickers).
 - **Docs and upkeep:** staff guide `mgb-internal.md`, `preview-as.md` ("Try things on the test clients first"),
   `clients-page.md`, `finding-a-client.md`, `admin-guide.md`, `firm-quickbooks.md`, `staff-management.md`,

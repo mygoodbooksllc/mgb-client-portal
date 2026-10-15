@@ -10,10 +10,9 @@
 //   CF_Toggle             the switch itself (Clients page header + client switcher)
 //   CF_pick(list, opts)   sort, and hide test clients while the switch is off
 //
-// The switch is OFF by default. Off hides test clients from lists and pickers,
-// except ones this person is explicitly assigned to (assigned bookkeeper,
-// account manager, staff_client_access, an approved temporary grant) and the
-// client they have open right now. It never changes what a person is ALLOWED to
+// The switch is OFF by default. Off hides test clients from lists and pickers for
+// EVERYONE, assigned or not, except the client they have open right now (so the
+// picker never loses its place). Search, direct links and View as still reach them. It never changes what a person is ALLOWED to
 // open (routes, links and permissions are untouched), and it never decides who
 // sees MGB (internal): that stays with the per-admin permission.
 //
@@ -121,17 +120,17 @@ function CF_useShowTest(emailIn) {
   return [show, setShow];
 }
 
-// opts: { show, isAssigned(c) -> bool, keepId }
+// opts: { show, keepId }  (isAssigned is accepted but ignored: assignment no longer
+// overrides the switch)
 // Normal clients and MGB (internal) pass straight through (internal visibility
-// is decided elsewhere); a test client stays when the switch is on, when
-// isAssigned says so, or when it is the open client (keepId).
+// is decided elsewhere); a test client stays when the switch is on or when it is
+// the open client (keepId).
 function CF_pick(list, opts) {
   const o = opts || {};
   const kept = (list || []).filter((c) => {
     if (!c || c.testOnly !== true || c.isInternal === true) return true;
     if (o.show) return true;
-    if (o.keepId && c.id === o.keepId) return true;
-    return typeof o.isAssigned === "function" && !!o.isAssigned(c);
+    return !!(o.keepId && c.id === o.keepId);
   });
   return CF_sort(kept);
 }
@@ -166,7 +165,10 @@ function CF_Toggle({ email, compact, count }) {
   return (
     <label className={"cf-toggle" + (compact ? " cf-toggle-compact" : "")} data-tour="show-test-clients">
       <input type="checkbox" checked={!!show} onChange={(e) => setShow(e.target.checked)} />
-      <span>Show test clients{typeof count === "number" && count > 0 ? ` (${count})` : ""}</span>
+      <span className="cf-toggle-text">
+        Show test clients{typeof count === "number" && count > 0 ? ` (${count})` : ""}
+        <small className="cf-toggle-hint">Test clients are hidden unless this is on</small>
+      </span>
     </label>
   );
 }

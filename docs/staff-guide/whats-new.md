@@ -12,7 +12,7 @@ The newest changes to the staff side, newest first. For how anything works, sear
 - **MGB (internal)** is MyGoodBooks' own books, set up like a client. It has its own place in the left rail, only for admins the owner has given the new permission (off by default). Temp admins, bookkeepers, account managers and clients never see it, and **View as** hides it. The owner turns it on per admin in **Team → Members**. See [What is MGB (internal), and who can open it?](#/help/mgb-internal).
 - **Test clients and MGB (internal) no longer count as clients.** They're left out of client totals, deadline and close counts, alerts, performance, workload, fees and revenue.
 - **A Test tag, and test clients at the bottom of every list.** Basic Test Client and Pro Test Client keep their names but sort last everywhere you pick a client, with a small **Test** tag.
-- **Show test clients** (off by default) at the top of the Clients page and the bottom of the client picker brings them back to the lists. It's remembered for you. Ones you're assigned to always show. See [Try things on the test clients first](#/help/preview-as).
+- **Show test clients** (off by default) at the top of the Clients page and the bottom of the client picker brings them back to the lists. It's remembered for you. It applies to everyone, even if you're assigned to a test client. See [Try things on the test clients first](#/help/preview-as).
 
 ### 2026-10-15: Go further back on Ledger review
 
