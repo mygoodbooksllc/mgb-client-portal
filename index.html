@@ -202,7 +202,7 @@
       // step to inject a real commit SHA into (see the no-bundler note up
       // top). Shown in Developer Tools' System info card so staff can confirm
       // which version they're looking at without guessing from Vercel's UI.
-      window.MGB_VERSION = { label: "2026-10-15r", note: "New: launch announcements. After a launch, staff get one quiet notice with a 1-minute tour on their next visit (Later, Skip), every launch is listed under What's new, and the tour reruns from the ? menu; admins see who has seen each in Usage Stats; Reviewers get an email when their team member submits a self-review (no scores in it; once per review); New staff can sign in straight away: adding, importing or reactivating staff also sets up their Google sign-in (staff-auth), and a Fix sign-in card on Team › Members lists anyone who can't; MGB (internal) task emails go to one owner-set address; Admins see a clear screen when the client list fails to load; First sign-in no longer crashes when a bookkeeper has no clients; error screen shows a code + Copy details and now logs to Recent errors; Failed staff sign-in shows a Reason line; Members: staff roster split into Admins and Bookkeepers cards; Staff sign-in page at /staff; Ledger review list limited to the pulled range; MGB (internal) now on for every admin, owner can switch off; A failed staff sign-in now says why; Show test clients hides them for everyone; MGB (internal) for chosen admins" };
+      window.MGB_VERSION = { label: "2026-10-15s", note: "Tasks: a business-day calendar with firm holidays (groundwork for recurring tasks, nothing changes on screen yet); New: launch announcements. After a launch, staff get one quiet notice with a 1-minute tour on their next visit (Later, Skip), every launch is listed under What's new, and the tour reruns from the ? menu; admins see who has seen each in Usage Stats; Reviewers get an email when their team member submits a self-review (no scores in it; once per review); New staff can sign in straight away: adding, importing or reactivating staff also sets up their Google sign-in (staff-auth), and a Fix sign-in card on Team › Members lists anyone who can't; MGB (internal) task emails go to one owner-set address; Admins see a clear screen when the client list fails to load; First sign-in no longer crashes when a bookkeeper has no clients; error screen shows a code + Copy details and now logs to Recent errors; Failed staff sign-in shows a Reason line; Members: staff roster split into Admins and Bookkeepers cards; Staff sign-in page at /staff; Ledger review list limited to the pulled range; MGB (internal) now on for every admin, owner can switch off; A failed staff sign-in now says why; Show test clients hides them for everyone; MGB (internal) for chosen admins" };
       // True for MyGoodBooks' own profile (clients.is_internal): it is not a
       // client, so lists and counts that read the clients table directly skip
       // it. Reads window.CLIENTS at call time (index.html's roster loader).
@@ -357,6 +357,7 @@
         "components/ledger/LR_ReviewFile.jsx",
         "components/ledger/LR_Settings.jsx",
         "components/tasks/TK_logic.js",
+        "components/tasks/TK_recurrenceLogic.js",
         "components/tasks/TK_store.js",
         "components/tasks/TK_api.js",
         "components/tasks/TK_sync.js",
