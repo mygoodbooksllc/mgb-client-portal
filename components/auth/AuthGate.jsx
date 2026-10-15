@@ -242,7 +242,7 @@
               </p>
             </div>
             {signInNotice && !errorMsg && (
-              <p className="auth-error" role="alert">
+              <p className="auth-error" role="alert" style={{ whiteSpace: "pre-line" }}>
                 {signInNotice}
               </p>
             )}

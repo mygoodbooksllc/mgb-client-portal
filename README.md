@@ -125,7 +125,7 @@ because some work happens in Claude Code web sessions. Run `git fetch` and compa
     non-`@mygoodbooks.org` email shows a plain-language notice on the sign-in page
     (`components/auth/signInNotice.js`, loaded before `supabaseClient.js`). It keeps a one-shot
     `sessionStorage` flag and notice, strips `error*` params from the address bar, and never
-    stores or logs codes or tokens. Client sessions are never signed out by it.
+    stores or logs codes or tokens. It also shows a `Reason:` line (cleaned `error` / `error_code` / `error_description`; long token-like text is redacted) and keeps a small `mgb_signin_diag_v1` record (start time, browser, outcome) in `sessionStorage`. Client sessions are never signed out by it.
 
 **Routing.** `RootGate` in `app.jsx` decides which login screen to show:
 

@@ -323,7 +323,7 @@
           <p className="auth-sub">Sign in with your email.</p>
         </div>
         {errorMsg && (
-          <p className="auth-error" role="alert">
+          <p className="auth-error" role="alert" style={{ whiteSpace: "pre-line" }}>
             {errorMsg}
           </p>
         )}
