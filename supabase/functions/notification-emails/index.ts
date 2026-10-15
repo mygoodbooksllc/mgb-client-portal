@@ -180,6 +180,14 @@ Deno.serve(async (req) => {
   const { data: staffRows } = await db.from("staff").select("email, name, active, role");
   const activeStaff = new Map<string, string>();
   for (const s of staffRows || []) if (s.active) activeStaff.set(String(s.email).toLowerCase(), s.name || s.email);
+  // Where MGB (internal) task emails go: one configured address instead of
+  // the people on the task (internal_notify_settings). Unset or not yet
+  // migrated = internal emails are not sent.
+  let internalNotify = "";
+  {
+    const { data: ns } = await db.from("internal_notify_settings").select("notify_email").maybeSingle();
+    internalNotify = String(ns?.notify_email || "").trim().toLowerCase();
+  }
 
   // Send one email to one person; returns the outcome for the outbox rows.
   const deliver = async (
@@ -259,7 +267,12 @@ Deno.serve(async (req) => {
       const e = String(t.assignee_email).toLowerCase();
       if (!activeStaff.has(e)) continue;
       if (t.client_id && testIds.has(String(t.client_id))) continue;
-      if (t.client_id && internalIds.has(String(t.client_id)) && !(admins.has(e) && internalOk.has(e))) continue;
+      if (t.client_id && internalIds.has(String(t.client_id))) {
+        if (!internalNotify) continue;
+        if (!byPerson.has(internalNotify)) byPerson.set(internalNotify, []);
+        byPerson.get(internalNotify)!.push(t);
+        continue;
+      }
       if (t.client_id && !admins.has(e) && !reach.has(e + "|" + t.client_id)) continue;   // D3
       if (!byPerson.has(e)) byPerson.set(e, []);
       byPerson.get(e)!.push(t);
@@ -315,8 +328,6 @@ Deno.serve(async (req) => {
   summary.skipped += stale.length;
   const fresh = pending.filter((r: any) => now - Date.parse(r.created_at) <= STALE_MS);
 
-  // Group per kind + person + organization: one email per group.
-  const groups = new Map<string, any[]>();
   for (const r of fresh) {
     // Loop-ins and @mentions (payload.loop_in, supabase/account-manager.sql)
     // share kind staff_client_message but get their own email.
@@ -325,8 +336,6 @@ Deno.serve(async (req) => {
     groups.get(key)!.push(r);
   }
 
-  const recipients = [...new Set(fresh.map((r: any) => r.recipient_email))];
-  const prefs = await prefsFor(db, recipients);
   const clientIds = [...new Set(fresh.map((r: any) => r.client_id).filter(Boolean))];
   const clients = new Map<string, any>();
   const clientPrefs = new Map<string, any>();
@@ -335,6 +344,30 @@ Deno.serve(async (req) => {
     for (const c of cs || []) clients.set(c.id, c);
     const { data: cp } = await db.from("client_email_prefs").select("*").in("client_id", clientIds);
     for (const c of cp || []) clientPrefs.set(c.client_id, c);
+  }
+  // MGB (internal) staff emails (task, message, upload, mention) go to the one
+  // configured address instead of the people on the row; nothing is sent when
+  // it is unset. Client-facing kinds for it are already skipped further down.
+  const isInternalRow = (r: any) => !!r.client_id && !isClientKind(r.kind as Kind) && !!clients.get(r.client_id)?.is_internal;
+  const toSkip: any[] = [];
+  const routed: any[] = [];
+  for (const r of fresh) {
+    if (!isInternalRow(r)) { routed.push(r); continue; }
+    if (!internalNotify) { toSkip.push(r); continue; }
+    routed.push({ ...r, recipient_email: internalNotify });
+  }
+  await finish(toSkip.map((r: any) => r.id), "skipped", "Internal company emails have no address set");
+  summary.skipped += new Set(toSkip.map((r: any) => `${r.kind}|${r.recipient_email}|${r.client_id}`)).size;
+  const recipients = [...new Set(routed.map((r: any) => String(r.recipient_email).toLowerCase()))];
+  const prefs = await prefsFor(db, recipients);
+  // Group per kind + person + organization: one email per group.
+  const groups = new Map<string, any[]>();
+  for (const r of routed) {
+    // Loop-ins and @mentions (payload.loop_in, supabase/account-manager.sql)
+    // share kind staff_client_message but get their own email.
+    const key = `${r.kind}|${r.recipient_email}|${r.client_id || ""}${r.payload?.loop_in ? "|loop" : ""}`;
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key)!.push(r);
   }
   // Bookkeeper signatures for client emails.
   const bkEmails = [...new Set([...clients.values()].map((c) => String(c.assigned_bookkeeper_email || "").toLowerCase()).filter(Boolean))];

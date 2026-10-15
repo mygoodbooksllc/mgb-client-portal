@@ -727,3 +727,44 @@ select s.email, false, 'default'
  where s.role = 'admin' and s.active
    and not exists (select 1 from public.internal_access_optout o where o.staff_email = s.email)
 on conflict (staff_email) do nothing;
+
+-- ---------------------------------------------------------------------------
+-- 7. Where MGB (internal) task / notification emails go.
+--    One singleton setting instead of the MGB account manager. Empty = no
+--    internal email is sent at all. Only the service role (edge functions) and
+--    the owner (RPC) touch it; the address is set live, not stored in the repo.
+-- ---------------------------------------------------------------------------
+create table if not exists public.internal_notify_settings (
+  id           boolean primary key default true check (id),
+  notify_email text,
+  updated_by   text,
+  updated_at   timestamptz not null default now()
+);
+insert into public.internal_notify_settings (id) values (true) on conflict (id) do nothing;
+alter table public.internal_notify_settings enable row level security;
+revoke all on public.internal_notify_settings from anon, authenticated;
+grant all on public.internal_notify_settings to service_role;
+
+create or replace function public.set_internal_notify_email(p_email text)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v text := nullif(lower(btrim(coalesce(p_email, ''))), '');
+begin
+  if not public.is_internal_owner() then
+    raise exception 'Only the owner can change where internal company emails go.' using errcode = '42501';
+  end if;
+  if v is not null and v !~ '^[^@\s]+@[^@\s]+\.[^@\s]+$' then
+    raise exception 'That does not look like an email address.' using errcode = '22023';
+  end if;
+  update public.internal_notify_settings
+     set notify_email = v, updated_by = auth.jwt() ->> 'email', updated_at = now()
+   where id;
+  perform public.audit_write('internal_notify.changed', null, 'settings', 'internal_notify', '{}'::jsonb);
+end;
+$$;
+revoke all on function public.set_internal_notify_email(text) from public, anon;
+grant execute on function public.set_internal_notify_email(text) to authenticated, service_role;

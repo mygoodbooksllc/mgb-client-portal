@@ -38,6 +38,8 @@ MGB (internal) is left out of everything that measures real clients, the same wa
 - Hours budgets, workload, fees, revenue, cost and profit.
 - Client emails. It never receives them.
 
+Emails about MGB (internal) tasks and messages (new task, due today, mentions) do not go to the people on the task. They all go to one address the owner sets, and nothing is sent until that address is set.
+
 It does show in a few pickers (for example when you pick a client for a note), last in the list with its **Internal** tag, so you can still log work against it. Whether you see it there depends on the permission, not on **Show test clients**.
 
 See also [What are the test clients, and how do I show them?](#/help/preview-as) and [Staff and access](#/help/staff-management).
