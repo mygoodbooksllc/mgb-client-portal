@@ -560,10 +560,10 @@ function TK_vSendBackModal(props) {
             }}
           />
         </label>
-        <p id="tk-sendback-help" className={"tk-dw-hint" + (tried && errKey ? " tk-field-error" : "")}>
+        <p id="tk-sendback-help" role={tried && errKey ? "alert" : undefined} className={"tk-dw-hint" + (tried && errKey ? " tk-field-error" : "")}>
           {tried && errKey
             ? TK_vCopy(errKey, "Add a short note on what needs another look.")
-            : "They get this note by email and see it on the task."}
+            : "They see this note in the task's comments, and by email if their task emails are on."}
         </p>
       </div>
       <div className="modal-footer tk-modal-footer">
@@ -596,7 +596,7 @@ function TK_StatusPill(props) {
   var menuRef = React.useRef(null);
   var items = React.useMemo(
     function () {
-      return typeof TK_nextStatuses === "function" ? TK_nextStatuses(task, { isAdmin: !!props.isAdmin, me: TK_vMe() }) : [];
+      return typeof TK_nextStatuses === "function" ? TK_nextStatuses(task, { isAdmin: !!props.isAdmin, me: props.me || TK_vMe() }) : [];
     },
     [task, props.isAdmin],
   );
@@ -750,7 +750,8 @@ function TK_StatusPill(props) {
 // Additions: columns (the list view's Assignee | Due | Status | Priority cells),
 //   statusSignal (the `s` key), tourStatus (data-tour on the first row's pill),
 //   snippet (a search hit's comment line), onFocusRow(id),
-//   note (one more meta line), trailing (buttons before the status pill; the review queue).
+//   note (one more meta line), trailing (buttons before the status pill; the review queue),
+//   me (the signed-in email; else the store's).
 
 function TK_TaskRow(props) {
   var task = props.task;
@@ -800,6 +801,7 @@ function TK_TaskRow(props) {
     <TK_StatusPill
       task={task}
       isAdmin={props.isAdmin}
+      me={props.me}
       canEdit={props.canEdit !== false && !!props.onStatus}
       compact={!props.columns}
       openSignal={props.statusSignal}

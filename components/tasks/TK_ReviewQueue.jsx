@@ -139,7 +139,7 @@ function TK_rqStats(props) {
       <h3 className="tk-group-head tk-rq-stats-title" id="tk-rq-stats-title">
         Last 30 days
       </h3>
-      <p className="tk-field-help">On time means approved by the end of the due date, not counting time spent waiting on the client.</p>
+      <p className="tk-field-help">On time means finished (or approved, when it needs review) by the end of its due date. Time spent waiting on the client before then is added.</p>
       {body}
     </section>
   );
@@ -250,6 +250,7 @@ function TK_vReviewBody(props) {
                       showAssignee={g.key !== "own"}
                       assigneeName={who ? nameOf(who) : ""}
                       note={TK_rqNote(t, nameOf)}
+                      me={me}
                       isAdmin={isAdmin}
                       canEdit={online}
                       onOpen={function (id) {

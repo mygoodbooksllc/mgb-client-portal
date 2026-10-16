@@ -626,10 +626,10 @@ function TK_dwSendBack(props) {
           aria-describedby="tk-dw-sendback-help"
           onChange={function (e) { setNote(e.target.value); }}
         />
-        <p id="tk-dw-sendback-help" className={"tk-dw-hint" + (tried && errKey ? " tk-field-error" : "")}>
+        <p id="tk-dw-sendback-help" role={tried && errKey ? "alert" : undefined} className={"tk-dw-hint" + (tried && errKey ? " tk-field-error" : "")}>
           {tried && errKey
             ? TK_dwCopy(errKey, "Add a short note on what needs another look.")
-            : "They get this note by email and see it on the task."}
+            : "They see this note in the task's comments, and by email if their task emails are on."}
         </p>
       </div>
       <div className="modal-footer">
