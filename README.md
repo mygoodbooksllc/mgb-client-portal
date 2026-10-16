@@ -1122,8 +1122,8 @@ matches. Spec `docs/staff-photo-spec.md`; database `supabase/staff-photo.sql` (r
   crop at least 400 x 400.
 - **The gate.** `PG_Gate` (mounted in `app.jsx` before the staff tours) is a full-page overlay
   `#pg-gate` for any active, non-exempt staffer with no photo. Not shown while viewing as someone,
-  previewing a client, or on Settings. **Continue for now** (after a failed upload) hides it for
-  that page load only. If the status can't load, it fails open. **Order:** photo gate, Today's
+  previewing a client, or on Settings. **Later** (always shown) and **Continue for now** (after a failed upload) hide it for
+  that page load only, so it returns on every visit until a photo is saved. If the status can't load, it fails open. **Order:** photo gate, Today's
   first-sign-in profile prompt, role tour, announcements and tips; each waits while `#pg-gate`
   exists.
 - **Admin UI.** Team › Members has a **Photo** column (`data-tour="members-photo"` on the first

@@ -12,14 +12,14 @@
 // Data and rules: components/staff/staffPhotoApi.js (SP_*), staffPhotoImage.js
 // (SPI_*), staffPhotoLogic.js (pure rules). The database enforces everything
 // (supabase/staff-photo.sql); this file only mirrors it. Nothing is stored in
-// localStorage: "Continue for now" lasts for this page load only.
+// localStorage: "Later" lasts for this page load only.
 //
 // Loaded in the shared global scope after Settings.jsx: every top-level name
 // has a PG_ prefix, hooks are used as React.*. ModalShell, ST_Avatar and
 // ST_profile are only touched at render time.
 
-// "Continue for now" after an upload error hides the gate until the next page
-// load. In memory on purpose.
+// "Later" (and "Continue for now" after an upload error) hides the gate until
+// the next page load or sign-in, so it returns every visit. In memory on purpose.
 let PG_dismissedThisLoad = false;
 
 const PG_VIEW_PX = 480; // canvas resolution of the crop preview (shown at most 320 CSS px)
@@ -467,6 +467,10 @@ function PG_PhotoPicker({ email, onDone, onSkip, compact }) {
 function PG_Gate({ staffUser, impersonating, isPreviewingUser, page, onOpenSettings, onSignOut }) {
   const st = SP_useMyStatus(staffUser && staffUser.email);
   const [, force] = React.useState(0);
+  const later = () => {
+    PG_dismissedThisLoad = true;
+    force((n) => n + 1);
+  };
   const [savedFlash, setSavedFlash] = React.useState(false);
   const titleRef = React.useRef(null);
   const rootRef = React.useRef(null);
@@ -559,11 +563,14 @@ function PG_Gate({ staffUser, impersonating, isPreviewingUser, page, onOpenSetti
           <PG_PhotoPicker
             email={staffUser.email}
             onDone={() => setSavedFlash(true)}
-            onSkip={() => {
-              PG_dismissedThisLoad = true;
-              force((n) => n + 1);
-            }}
+            onSkip={later}
           />
+          <p className="pg-later">
+            <button type="button" className="btn-secondary pg-btn" onClick={later}>
+              Later
+            </button>
+            <span className="pg-later-note">This screen comes back every time you open the portal until your photo is saved.</span>
+          </p>
         </div>
       </main>
     </div>
