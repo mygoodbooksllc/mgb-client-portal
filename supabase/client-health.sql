@@ -118,7 +118,7 @@ begin
                  'period', $1, 'status', coalesce(m.status, 'not_started'))), '{}'::jsonb)
           from public.clients c
           left join public.month_close m on m.client_id = c.id and m.period_kind = 'month' and m.period = $1
-         where coalesce(m.status, 'not_started') not in ('done', 'na')
+         where coalesce(m.status, 'not_started') not in ('done', 'na', 'review')
            and c.created_at < ($1 + interval '1 month')
       $q$ into v_close using v_period;
     exception when others then

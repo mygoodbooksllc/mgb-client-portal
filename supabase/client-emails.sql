@@ -142,7 +142,14 @@ create policy "staff read doc chase" on public.client_doc_chase
 create table if not exists public.client_email_log (
   id uuid primary key default gen_random_uuid(),
   created_at timestamptz not null default now(),
-  feature text not null check (feature in ('doc_chaser', 'value_report')),
+  feature text not null check (feature in (
+    'doc_chaser', 'value_report', 'staff_client_message', 'staff_doc_upload', 'staff_task_assigned',
+    'staff_task_due', 'staff_feedback_status', 'client_message', 'client_reports_ready', 'staff_tech_request',
+    'handbook_sign_needed', 'handbook_countersign_needed', 'gl_review_question', 'gl_review_summary',
+    'staff_task_review_ready', 'staff_task_sent_back', 'staff_task_mention',
+    'staff_task_client_answered', 'staff_task_batch',
+    'client_request', 'client_request_nudge'   -- full list: tasks-p2-3b-review-email-kinds.sql
+  )),
   trigger text not null check (trigger in ('cron', 'test', 'preview')),
   client_id text references public.clients(id) on delete set null,
   status text not null check (status in ('sent', 'skipped', 'not_configured', 'error', 'preview')),

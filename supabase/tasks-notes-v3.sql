@@ -1,3 +1,4 @@
+-- NOTE: staff_reminders_before_write, tk_set_status, tk_staff_reminders_activity and tk_client_people (where defined here) are superseded by tasks-p2-3-review.sql; re-run that file after this one.
 -- Tasks + notes v3: categorised dated notes, note -> task linking, and a
 -- server-side "complete this item" that works for shared recurring tasks.
 --

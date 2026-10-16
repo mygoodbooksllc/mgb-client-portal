@@ -1710,11 +1710,13 @@ create trigger client_profile_normalize_contact
 -- + the two new values. Any later file that redoes this check must keep them.
 alter table public.client_email_log drop constraint if exists client_email_log_feature_check;
 alter table public.client_email_log add constraint client_email_log_feature_check check (feature in (
-  'doc_chaser', 'value_report', 'staff_client_message', 'staff_doc_upload', 'staff_task_assigned',
-  'staff_task_due', 'staff_feedback_status', 'client_message', 'client_reports_ready', 'staff_tech_request',
-  'handbook_sign_needed', 'handbook_countersign_needed',
-  'gl_review_question', 'gl_review_summary'
-));
+    'doc_chaser', 'value_report', 'staff_client_message', 'staff_doc_upload', 'staff_task_assigned',
+    'staff_task_due', 'staff_feedback_status', 'client_message', 'client_reports_ready', 'staff_tech_request',
+    'handbook_sign_needed', 'handbook_countersign_needed', 'gl_review_question', 'gl_review_summary',
+    'staff_task_review_ready', 'staff_task_sent_back', 'staff_task_mention',
+    'staff_task_client_answered', 'staff_task_batch',
+    'client_request', 'client_request_nudge'   -- full list: tasks-p2-3b-review-email-kinds.sql
+  ));
 -- trigger: client-emails.sql allows cron / test / preview; a staff-clicked send is 'manual'.
 alter table public.client_email_log drop constraint if exists client_email_log_trigger_check;
 alter table public.client_email_log add constraint client_email_log_trigger_check

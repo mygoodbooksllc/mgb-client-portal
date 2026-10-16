@@ -1,3 +1,4 @@
+-- NOTE: staff_reminders_before_write, tk_set_status, tk_staff_reminders_activity and tk_client_people (where defined here) are superseded by tasks-p2-3-review.sql; re-run that file after this one.
 -- My Tasks v2: tasks + reminders, due times, recurrence, and opt-in sharing
 -- with a client's team.
 --

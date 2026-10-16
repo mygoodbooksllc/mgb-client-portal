@@ -1,3 +1,4 @@
+-- NOTE: tk_tasks, staff_reminders_before_write, tk_set_status, tk_staff_reminders_activity and tk_client_people (where defined here) are superseded by tasks-p2-3-review.sql; re-run that file after this one.
 -- =====================================================================
 -- Tasks module, Phase 1 (tk v1). Spec: docs/tasks-phase1-spec.md Part D.
 --
