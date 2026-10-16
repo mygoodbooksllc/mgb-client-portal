@@ -507,4 +507,14 @@ t("hub: My tasks groups drop Done and Unassigned and cap the rows", () => {
   assert.deepStrictEqual(L.WB_hubTaskGroups(null), { groups: [], total: 0, shown: 0, more: 0 });
 });
 
+t("WB_hubShouldReload: once per distinct missing set", () => {
+  assert.strictEqual(L.WB_hubShouldReload("", "", true), false);
+  assert.strictEqual(L.WB_hubShouldReload("", "a", true), false);
+  assert.strictEqual(L.WB_hubShouldReload("a", "", true), true);
+  assert.strictEqual(L.WB_hubShouldReload("a", undefined, true), true);
+  assert.strictEqual(L.WB_hubShouldReload("a,b", "a,b", true), false);
+  assert.strictEqual(L.WB_hubShouldReload("a,b", "a", true), true);
+  assert.strictEqual(L.WB_hubShouldReload("a", "", false), false);
+});
+
 console.log("WB_logic: " + n + " checks passed");

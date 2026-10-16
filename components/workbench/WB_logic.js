@@ -476,6 +476,13 @@ function WB_hubTaskGroups(view, cap) {
 // Has the My tasks list settled? True once a load started and finished, or
 // there are rows, or it failed. Before that the tab shows its skeleton and
 // reports no count (never a false 0). listState {loading, tasks, error}.
+// Reload the hub list for a missing-task set at most once per distinct set:
+// a reload that still disagrees with the store must not loop forever.
+function WB_hubShouldReload(missingStr, lastReloadedStr, loadedOnce) {
+  if (!missingStr || !loadedOnce) return false;
+  return missingStr !== (lastReloadedStr || "");
+}
+
 function WB_hubTasksReady(listState, sawLoading) {
   var l = listState || {};
   if (Array.isArray(l.tasks) && l.tasks.length > 0) return true;
@@ -826,6 +833,7 @@ if (typeof module !== "undefined" && module.exports) {
     WB_hubArrival: WB_hubArrival,
     WB_hubTaskGroups: WB_hubTaskGroups,
     WB_hubTasksReady: WB_hubTasksReady,
+    WB_hubShouldReload: WB_hubShouldReload,
     WB_HUB_OPEN_MS: WB_HUB_OPEN_MS,
     WB_HUB_SCROLL_MS: WB_HUB_SCROLL_MS,
     WB_LAYERS: WB_LAYERS,

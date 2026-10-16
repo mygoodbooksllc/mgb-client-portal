@@ -108,17 +108,25 @@ function WB_HubTasksBody(props) {
   });
   var reloadRef = React.useRef(list.reload);
   reloadRef.current = list.reload;
+  var lastReloadedRef = React.useRef("");
+  var loadedRef = React.useRef(false);
+  loadedRef.current = loaded;
   React.useEffect(
     function () {
-      if (!missing) return undefined;
+      if (!missing) {
+        lastReloadedRef.current = "";
+        return undefined;
+      }
+      if (!WB_hubShouldReload(missing, lastReloadedRef.current, loadedRef.current)) return undefined;
       var tm = setTimeout(function () {
+        lastReloadedRef.current = missing;
         if (reloadRef.current) reloadRef.current();
       }, 500);
       return function () {
         clearTimeout(tm);
       };
     },
-    [missing],
+    [missing, loaded],
   );
 
   var projects = TK_vUseProjects();
@@ -180,8 +188,14 @@ function WB_HubTasksBody(props) {
   var onClickCapture = function (e) {
     var t = e.target;
     var a = t && t.closest ? t.closest("a.tk-row-title") : null;
-    if (!a || e.button || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
-    var row = a.closest("[data-tk-id],[data-tk-sub]");
+    if (e.button || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+    var row = a ? a.closest("[data-tk-id],[data-tk-sub]") : null;
+    if (!a && t && t.closest) {
+      // A body click on a subtask row (not on a control) counts like a main row.
+      var sub = t.closest("li[data-tk-sub]");
+      if (sub && !t.closest("a, button, input, select, textarea, [role='menu']")) row = sub;
+    }
+    if (!row) return;
     var id = row ? row.getAttribute("data-tk-id") || row.getAttribute("data-tk-sub") : null;
     if (!id) return;
     setFocusedId(id);
@@ -208,6 +222,11 @@ function WB_HubTasksBody(props) {
     if (e.key === "Enter" && e.target && e.target.matches && e.target.matches("li.tk-row[data-tk-id]") && !e.defaultPrevented) {
       e.preventDefault();
       openTask(e.target.getAttribute("data-tk-id"));
+      return;
+    }
+    if (e.key === "Enter" && e.target && e.target.matches && e.target.matches("li[data-tk-sub]") && !e.defaultPrevented) {
+      e.preventDefault();
+      openTask(e.target.getAttribute("data-tk-sub"));
       return;
     }
     if (e.key !== "ArrowDown" && e.key !== "ArrowUp") return;
