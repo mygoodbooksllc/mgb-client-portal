@@ -528,6 +528,22 @@ function WB_isOn(settingValue, previewOn, classicOn) {
   return !!previewOn || WB_flagValueOn(settingValue);
 }
 
+// Where the drawer bar starts, so it sits beside the left nav instead of on
+// top of it. `rails` are the visible left columns' rects ({left,right,width});
+// the answer is the right edge of the widest-reaching one, kept sane: never
+// negative, never past 60% of the window (a bar that narrow is useless, so
+// the full width wins). No rail (phones, client pages) = 0.
+function WB_barLeft(rails, vw) {
+  let left = 0;
+  (rails || []).forEach((r) => {
+    if (!r || !(r.width > 0)) return;
+    const right = Number(r.right);
+    if (isFinite(right) && right > left && r.left <= 1) left = right;
+  });
+  const max = Math.round((Number(vw) || 0) * 0.6);
+  return left > max ? 0 : Math.max(0, Math.round(left));
+}
+
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {
     WB_NAME: WB_NAME,
@@ -547,6 +563,7 @@ if (typeof module !== "undefined" && module.exports) {
     WB_build: WB_build,
     WB_drawerChip: WB_drawerChip,
     WB_nextRow: WB_nextRow,
+    WB_barLeft: WB_barLeft,
     WB_fromToday: WB_fromToday,
     WB_primaryAction: WB_primaryAction,
     WB_menuActions: WB_menuActions,

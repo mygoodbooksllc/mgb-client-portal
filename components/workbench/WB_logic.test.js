@@ -282,4 +282,17 @@ t("switch: setting, preview, classic", () => {
   assert.strictEqual(L.WB_NAME, "Workbench");
 });
 
+t("bar left edge follows the nav", () => {
+  const R = (l, r) => ({ left: l, right: r, width: r - l });
+  assert.strictEqual(L.WB_barLeft([R(0, 72)], 1440), 72);
+  assert.strictEqual(L.WB_barLeft([R(0, 224)], 1024), 224);
+  assert.strictEqual(L.WB_barLeft([R(0, 72), R(0, 224)], 1440), 224);
+  assert.strictEqual(L.WB_barLeft([], 390), 0);
+  assert.strictEqual(L.WB_barLeft(null, 390), 0);
+  assert.strictEqual(L.WB_barLeft([R(0, 0)], 1440), 0); // hidden
+  assert.strictEqual(L.WB_barLeft([R(-300, -76)], 1440), 0); // off-canvas
+  assert.strictEqual(L.WB_barLeft([R(0, 300)], 400), 0); // too wide for the window
+  assert.strictEqual(L.WB_barLeft([R(0, 72.4)], 1440), 72);
+});
+
 console.log("WB_logic: " + n + " checks passed");

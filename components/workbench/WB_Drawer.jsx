@@ -2,8 +2,11 @@
 // WB_Drawer: Workbench as a bottom drawer on every staff page (spec addendum
 // 2026-10-16, owner approved).
 //
-// Collapsed: a 44px bar with the count, the next item and "Press W".
-// Open: a 360px panel over the page with a scrim; tabs All / Tasks / Reviews
+// Collapsed: a 44px bar across the whole bottom of the content area (beside
+// the left nav, above the phone's safe area) with the count, the next item
+// and "Press W".
+// Open: the panel rises from the bar, the full width of the content area,
+// with a scrim; tabs All / Tasks / Reviews
 // / Messages / Files; Mine / Everyone for admins; rows grouped Overdue /
 // Today / This week with one quick action each. Phones get a full-height
 // sheet. W toggles it (never while typing, in a dialog, a menu or a tour);
@@ -37,11 +40,47 @@ function WB_Drawer({ me, isAdmin }) {
   const next = WB_nextRow(allView);
   const count = allView.counts.all;
 
-  // Room for the bar at the bottom of the page.
+  // Room for the bar at the bottom of the page, and where it starts: the
+  // bar and the open panel span the content area, beside the left nav
+  // (--wb-bar-left, measured from the staff rail so it follows the rail
+  // collapsing or expanding; 0 on phones, where the nav is off-canvas).
   React.useEffect(() => {
     const el = document.documentElement;
     el.classList.toggle("wb-drawer-on", live);
-    return () => el.classList.remove("wb-drawer-on");
+    if (!live) {
+      el.style.removeProperty("--wb-bar-left");
+      return () => el.classList.remove("wb-drawer-on");
+    }
+    let last = null;
+    let watched = null;
+    let ro = null;
+    const measure = () => {
+      const rail = document.querySelector(".staff-rail");
+      if (rail !== watched) {
+        if (ro) ro.disconnect();
+        watched = rail;
+        if (rail && typeof ResizeObserver === "function") {
+          ro = new ResizeObserver(measure);
+          ro.observe(rail);
+        }
+      }
+      const rails = rail ? [rail.getBoundingClientRect()] : [];
+      const left = WB_barLeft(rails, window.innerWidth);
+      if (left !== last) {
+        last = left;
+        el.style.setProperty("--wb-bar-left", left + "px");
+      }
+    };
+    measure();
+    window.addEventListener("resize", measure);
+    const id = setInterval(measure, 600); // the rail can mount or change late
+    return () => {
+      window.removeEventListener("resize", measure);
+      clearInterval(id);
+      if (ro) ro.disconnect();
+      el.classList.remove("wb-drawer-on");
+      el.style.removeProperty("--wb-bar-left");
+    };
   }, [live]);
 
   // W toggles; Esc closes.
@@ -135,9 +174,9 @@ function WB_Drawer({ me, isAdmin }) {
           <span className="wb-bar-name">{WB_NAME}</span>
           <span className="wb-bar-count">{loading ? "…" : count}</span>
           <span className="wb-bar-next">{next ? next.title : loading ? "" : "All clear"}</span>
-          <kbd className="wb-bar-kbd" aria-hidden="true">
-            W
-          </kbd>
+          <span className="wb-bar-hint" aria-hidden="true">
+            Press <kbd className="wb-bar-kbd">W</kbd>
+          </span>
         </button>
       )}
       {open && (

@@ -123,7 +123,7 @@ var ANN_REGISTRY = [
           wait: true,
           title: "The drawer, on every page",
           body: () =>
-            "This bar shows your count and the next item. Click it or press W anywhere (not while typing) to open the list over the page; Esc closes it.",
+            "This bar runs across the bottom of the page and shows your count and the next item. Click it or press W anywhere (not while typing) and the list slides up from it, full width; Esc closes it.",
         },
         {
           id: "ann-done",

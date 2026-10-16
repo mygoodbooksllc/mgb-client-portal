@@ -45,7 +45,7 @@ Items also leave by themselves when the work is done: you reply, finish or appro
 
 ### The drawer on every page
 
-The bar at the bottom right of every staff page shows your count and the next item. Click it or press **W** to open the list over the page. It has tabs (**All**, **Tasks**, **Reviews**, **Messages**, **Files**) and the same buttons as the full page. **Full page** goes to Today. **Esc** or **W** closes it. On a phone it opens as a full-screen sheet.
+A bar runs across the whole bottom of every staff page, beside the left menu, and shows your count, the next item and **Press W**. Click it or press **W** and the list slides up from it, the full width of the page, with the rest of the page dimmed behind it. It has tabs (**All**, **Tasks**, **Reviews**, **Messages**, **Files**) and the same buttons as the full page. **Full page** goes to Today. **Esc** or **W** closes it. On a phone it opens as a full-screen sheet.
 
 The **Workbench** item in the left rail shows how many items are overdue or due today (a dot when the rail is narrow).
 

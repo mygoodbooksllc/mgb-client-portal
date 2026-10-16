@@ -21,7 +21,7 @@ Each new launch also has a **Launches** list above, with **Open** and **Take the
 
 - **Today becomes one list of everything that needs you**: tasks, reviews, client messages with no reply, Ledger flags, new client files and the rest of Today's rows, grouped **Overdue**, **Today** and **This week**. Tiles at the top count **Needs reply**, **Due today**, **Overdue** and **Reviews**; chips filter by source. See [How do I use the Workbench?](#/help/workbench).
 - **One button per row** does the next thing (**Reply**, **Start**, **Open**, **Review**, **File**). The **⋯** menu has **Snooze**, **No reply needed** for a message and **Mark checked** for a client file, each with **Undo**.
-- **A drawer on every staff page**: the bar at the bottom right shows your count and the next item. Click it or press **W**; **Esc** closes it.
+- **A drawer on every staff page**: a bar across the bottom of the page shows your count, the next item and **Press W**. Click it or press **W**; **Esc** closes it.
 - **No reply needed** is also in the Inbox thread header. See [How do I message a client or a teammate?](#/help/inbox).
 - **Prefer the old Today?** **?** on the Workbench → **Use classic Today in this browser**; Today then offers the way back.
 - **Admins** get **Mine** or **Everyone**. Dev Tools has **Workbench preview** and **Classic Today** (your browser only), and **Tasks switches** shows `wb_enabled`.

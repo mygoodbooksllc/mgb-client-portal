@@ -316,10 +316,11 @@ function TOUR_stickyTop() {
 }
 
 // How much of the bottom of the screen the client's phone tab bar
-// (.client-tabbar, fixed) covers. 0 when it doesn't show.
+// (.client-tabbar, fixed) or the Workbench drawer bar (.wb-bar, fixed, the
+// bottom of every staff page) covers. 0 when neither shows.
 function TOUR_stickyBottom() {
   let top = window.innerHeight;
-  document.querySelectorAll(".client-tabbar").forEach((bar) => {
+  document.querySelectorAll(".client-tabbar, .wb-bar").forEach((bar) => {
     if (!bar.getClientRects().length || window.getComputedStyle(bar).position !== "fixed") return;
     top = Math.min(top, bar.getBoundingClientRect().top);
   });
@@ -333,7 +334,7 @@ function TOUR_stickyBottom() {
 // lines up just under the bars. Targets in the drawer or the bars
 // themselves just use scrollIntoView.
 function TOUR_scrollIntoView(el, step, key) {
-  const pinned = TOUR_inSidebar(el) || !!(el.closest && el.closest(".mobile-topbar, .tb-bar, .client-tabbar"));
+  const pinned = TOUR_inSidebar(el) || !!(el.closest && el.closest(".mobile-topbar, .tb-bar, .client-tabbar, .wb-bar"));
   const top = pinned ? 0 : TOUR_stickyTop();
   const bottomBar = pinned ? 0 : TOUR_stickyBottom();
   const room = window.innerHeight - bottomBar;

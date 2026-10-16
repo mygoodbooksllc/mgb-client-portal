@@ -752,7 +752,7 @@ function TIPS_part(el, part) {
 // Targets in the bars themselves (the top bar, the phone bars, the rails)
 // aren't covered by them.
 function TIPS_pinned(el) {
-  return !!(el.closest && el.closest(".tb-bar, .mobile-topbar, .client-tabbar, .sidebar, .staff-rail"));
+  return !!(el.closest && el.closest(".tb-bar, .mobile-topbar, .client-tabbar, .wb-bar, .sidebar, .staff-rail"));
 }
 
 function TIPS_barTop(el) {
