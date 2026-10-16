@@ -526,7 +526,8 @@ function TK_ClientDrawerPanel(props) {
                             today={today}
                             showClient={false}
                             showAssignee={true}
-                            assigneeName={nameOf(t.assignee_email || t.staff_email)}
+                            assigneeName={t.assignee_email ? nameOf(t.assignee_email) : ""}
+                            onClaim={online ? TK_vClaim : undefined}
                             isAdmin={isAdmin}
                             canEdit={online}
                             columns={false}

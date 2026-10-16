@@ -2,12 +2,12 @@
 title: How do I add and manage my tasks?
 section: Daily work
 audience: staff
-keywords: [my tasks, tasks, work, tasks tab, task, reminder, to do, due, overdue, today, this week, later, waiting on client, done, show done, show older, today group, view, quick add, q, add task, at mention, hashtag, priority, high, low, business days, bd5, keyboard, shortcuts, j k, status, assign, by client, save as template, suggest template, checklist, subtasks, tasks page, lists, client task panel, t, waiting on client list, ask client, #/tasks/waiting]
+keywords: [my tasks, tasks, work, tasks tab, task, reminder, to do, due, overdue, today, this week, later, waiting on client, done, show done, show older, today group, view, quick add, q, add task, at mention, hashtag, priority, high, low, business days, bd5, keyboard, shortcuts, j k, status, assign, by client, save as template, suggest template, checklist, subtasks, tasks page, lists, client task panel, t, waiting on client list, ask client, #/tasks/waiting, unassigned, claim, claim a task, nobody assigned, no assignee, unassigned group, asana import]
 sort: 110
 ---
 **My Tasks** is one list of everything assigned to you, across every client and project. Open it from the **Tasks** button in the top bar (`#/tasks/my`), or from **Work › Tasks** (`#/work/tasks`), which shows the same list inside Work. The Tasks page also has a sidebar with every client list and project; see [How do client task lists and projects work?](#/help/task-lists-and-projects).
 
-A task is yours when it's assigned to you, or when you made it and it isn't assigned to anyone. A task you give someone else shows on *their* My Tasks, not yours. You still see it on the client's or project's list, and you follow it automatically.
+A task is yours when it's assigned to you. A task you give someone else shows on *their* My Tasks, not yours. You still see it on the client's or project's list, and you follow it automatically.
 
 ### The groups
 
@@ -16,11 +16,25 @@ A task is yours when it's assigned to you, or when you made it and it isn't assi
 - **This week**: due in the next 7 days.
 - **Later**: due after that, or with no due date.
 - **Waiting on client**: tasks paused with the **Waiting on client** status. They never count as late, whatever the date. **Tasks › Waiting on client** in the sidebar lists every open client request, longest wait first; see [How do I ask a client something from a task?](#/help/ask-client).
+- **Unassigned**: open tasks on your clients that nobody is on yet (see below). Click **Claim** to take one.
 - **Done**: finished tasks. It starts folded.
 
 Click a group's heading to fold or open it. The portal remembers which groups you folded. Empty groups don't show.
 
 The toolbar has **Add task**, a client filter (**All clients**, or one client), **Show done** and, once Show done is on, **Show older**. Done tasks finished more than 12 months ago stay hidden unless you turn on **Show older**. Nothing is deleted.
+
+### Unassigned tasks and Claim
+
+Some tasks have nobody on them: tasks brought over from Asana without an owner, and recurring tasks whose template says **Leave unassigned**. They show as **Unassigned** wherever the person's name would be.
+
+- **My Tasks** has an **Unassigned** group with the open ones on clients you can see. Admins see only the ones on their own clients (where they are the bookkeeper) or ones they made, so the group stays short.
+- Click **Claim** on the row, or in the task's details next to the **Unassigned** chip, to take it. You'll see *It's yours. Find it in My Tasks.* and it moves into your groups.
+- If someone claimed it a moment before you, you'll see *Someone already took this task.*
+- Admins can also pick a person in the task's details instead of claiming it.
+- An unassigned task never counts as anyone's overdue, and it isn't in anyone's performance score, on-time or review numbers, or weekly digest until someone claims it. Time off hand-off leaves it alone, and when you tick off a recurring unassigned task the next one stays unassigned too.
+- On a client's or project's list, the person filter has an **Unassigned** option.
+
+The first time you see an unassigned task, a short notice offers a tour of the group and **Claim**. It's also under **What's new** and in the **?** menu.
 
 ### Add a task
 
@@ -93,5 +107,6 @@ On a client's pages, a line under the tabs shows the next task, and **t** opens 
 - **Notes and SOPs used to be here.** They moved to **Work › Notes & SOPs**. See [How do I keep notes on a client?](#/help/notes).
 - **The By client view is gone.** Each client now has its own list in the Tasks sidebar, with the client's people, SOP and Drive folder at the top. Handoff summaries moved to **Work › Notes & SOPs → Handoff summaries**.
 - **"Tasks is being set up"**: the update is still finishing. Your tasks are safe; use the page again in a few minutes.
+- **Claim says "Someone already took this task."** A teammate claimed it first. It now shows their name; it's no longer in your Unassigned group.
 - **I assigned a task and it left my list.** That's expected. Find it on the client's or project's list. You follow it, so its comments still reach you.
 - **"They can't see this client yet, so they won't see this task."** The person you picked isn't assigned to that client and has no coverage or temporary access. Pick someone else, or ask an admin to give them access.

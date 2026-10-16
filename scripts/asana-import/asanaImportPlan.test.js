@@ -34,6 +34,7 @@ function snap(extra) {
     users: [
       { gid: "u1", email: "nicole@x.org", name: "Nicole N" },
       { gid: "u2", email: "gone@x.org", name: "Gone Person" },
+      { gid: "u3", email: "naomi@x.org", name: "Naomi Leaving" },
     ],
     teams: TEAMS,
     projects: [
@@ -49,7 +50,8 @@ function snap(extra) {
       { g: "1", p: "p1", n: "Reconcile bank", a: "nicole@x.org", an: "Nicole N", d: "2026-10-20", sec: "Monthly", cf: { "Task Progress": "In progress" } },
       { g: "2", p: "p1", n: "Year end", a: "gone@x.org", an: "Gone Person", d: "2026-10-18", sec: "Annual", cf: {} },
       { g: "3", p: "p1", n: "No owner", a: null, an: null, d: null, sec: "Other", cf: {} },
-      { g: "4", p: "p2", n: "Kickoff call", a: "nicole@x.org", d: "2026-08-01", sec: "Week 1", cf: {} },
+      { g: "4", p: "p2", n: "Kickoff call", a: "nicole@x.org", d: "2026-10-21", sec: "Week 1", cf: {} },
+      { g: "4b", p: "p2", n: "Kickoff call", a: "nicole@x.org", d: "2026-08-01", sec: "Week 1", cf: {} },
       { g: "5", p: "p3", n: "Kickoff call", a: "nicole@x.org", d: "2026-10-21", sec: "Week 1", cf: {} },
       { g: "6", p: "p2", n: "Only in old copy", a: "nicole@x.org", d: "2026-10-22", sec: "Week 2", cf: {} },
       { g: "7", p: "p4", n: "Board prep", a: "owner@x.org", d: "2026-10-30", sec: "", cf: {} },
@@ -164,22 +166,28 @@ t("plan: unknown Asana user goes to fallback with a note", function () {
   assert.strictEqual(plan.report.unmapped_users[0].asana_email, "gone@x.org");
 });
 
-t("plan: unassigned task goes to the client's bookkeeper", function () {
+t("plan: unassigned task stays unassigned; the client's bookkeeper owns the row", function () {
   var r = byGid(plan, "3");
-  assert.strictEqual(r.assignee_email, "gina@x.org");
-  assert.strictEqual(r.owner_how, "unassigned_client_bookkeeper");
+  assert.strictEqual(r.assignee_email, null);
+  assert.strictEqual(r.staff_email, "gina@x.org");
+  assert.strictEqual(r.owner_how, "unassigned");
+  assert.strictEqual(r.owner_from, "client_bookkeeper");
+  assert.ok(r.description.indexOf("Unassigned in Asana") < 0);
+  assert.ok(plan.report.totals.unassigned_tasks >= 1);
+  assert.strictEqual(plan.report.tasks_by_owner["(unassigned)"], plan.report.totals.unassigned_tasks);
   assert.ok(plan.report.anomalies.some(function (a) {
     return a.gid === "3" && a.kind === "no_due_date";
   }));
 });
 
-t("plan: duplicate onboarding merges, newest wins, duplicate titles dropped", function () {
+t("plan: duplicate onboarding combines; only same title+section+due repeats drop", function () {
   assert.strictEqual(plan.report.duplicates.length, 1);
   var d = plan.report.duplicates[0];
   assert.strictEqual(d.winner_gid, "p3");
   assert.strictEqual(d.tasks_dropped, 1);
-  assert.strictEqual(d.tasks_merged, 1);
+  assert.strictEqual(d.tasks_merged, 2);
   assert.strictEqual(byGid(plan, "4"), undefined);
+  assert.strictEqual(byGid(plan, "4b").project_gid, "p3", "same title, other due date: kept");
   assert.strictEqual(byGid(plan, "5").project_gid, "p3");
   assert.strictEqual(byGid(plan, "6").project_gid, "p3");
   assert.ok(plan.skipped.some(function (s) {
@@ -194,18 +202,134 @@ t("plan: duplicate onboarding merges, newest wins, duplicate titles dropped", fu
   assert.deepStrictEqual(proj.sections, ["Week 1", "Week 2"]);
 });
 
-t("plan: archived loser never wins and its tasks drop by default", function () {
+t("plan: archived copy never wins but its open tasks come along", function () {
   var s = snap();
   s.projects.push({ gid: "p8", name: "Grace City Church", team: null, archived: true, modified_at: "2026-12-01" });
   s.tasks.push({ g: "20", p: "p8", n: "From archived copy", a: "nicole@x.org", cf: {} });
+  s.tasks.push({ g: "21", p: "p8", n: "Reconcile bank", a: "nicole@x.org", d: "2026-10-20", sec: "Monthly", cf: {} });
   var pl = P.AI_plan(s, ctx());
   var d = pl.report.duplicates.filter(function (x) {
     return x.winner_gid === "p1";
   })[0];
   assert.ok(d, "p1 wins over a newer archived copy");
-  assert.strictEqual(d.tasks_dropped_archived, 1);
-  var pl2 = P.AI_plan(s, ctx({ unionArchivedLosers: true }));
-  assert.strictEqual(byGid(pl2, "20").client_id, "grace-city");
+  assert.strictEqual(d.tasks_from_archived, 1);
+  assert.strictEqual(byGid(pl, "20").client_id, "grace-city");
+  assert.strictEqual(byGid(pl, "21"), undefined, "obvious repeat of task 1 drops");
+});
+
+t("plan: userRemap sends a departed user's tasks and team to another person", function () {
+  var s = snap();
+  s.teams = TEAMS.concat([{ gid: "t9", name: "Naomi's Clients" }]);
+  s.projects.push({ gid: "p9", name: "Manna Church", team: "Naomi's Clients", archived: false });
+  s.tasks.push({ g: "50", p: "p9", n: "Naomi task", a: "naomi@x.org", an: "Naomi Leaving", d: "2026-10-22", cf: {} });
+  s.tasks.push({ g: "51", p: "p9", n: "Nobody task", a: null, d: "2026-10-22", cf: {} });
+  var pl = P.AI_plan(s, ctx({ userRemap: { naomi: "nicole@x.org" } }));
+  assert.strictEqual(byGid(pl, "50").assignee_email, "nicole@x.org");
+  assert.strictEqual(byGid(pl, "50").owner_how, "remapped");
+  assert.ok(byGid(pl, "50").description.indexOf("Asana assignee: Naomi Leaving") >= 0);
+  assert.strictEqual(byGid(pl, "51").assignee_email, null);
+  assert.strictEqual(byGid(pl, "51").staff_email, "nicole@x.org", "team owner via remap");
+  assert.strictEqual(byGid(pl, "51").owner_from, "team_bookkeeper");
+  assert.strictEqual(P.AI_teamBookkeeper("Naomi's Clients", STAFF, { naomi: "nicole@x.org" }), "nicole@x.org");
+  var noMap = P.AI_plan(s, ctx());
+  assert.strictEqual(byGid(noMap, "50").assignee_email, "owner@x.org");
+});
+
+t("plan: a first-name remap never beats a real email match and needs one person with that name", function () {
+  var staff = STAFF.concat([{ email: "naomi.k@x.org", name: "Naomi Keeps", active: true }]);
+  var s = snap();
+  s.users.push({ gid: "u4", email: "naomi.k@x.org", name: "Naomi Keeps" });
+  s.tasks.push({ g: "60", p: "p1", n: "Active Naomi task", a: "naomi.k@x.org", an: "Naomi Keeps", d: "2026-10-22", cf: {} });
+  s.tasks.push({ g: "61", p: "p1", n: "Leaving Naomi task", a: "naomi@x.org", an: "Naomi Leaving", d: "2026-10-22", cf: {} });
+  var pl = P.AI_plan(s, ctx({ staff: staff, userRemap: { naomi: "nicole@x.org" } }));
+  assert.strictEqual(byGid(pl, "60").assignee_email, "naomi.k@x.org", "active email match kept");
+  assert.strictEqual(byGid(pl, "61").assignee_email, "owner@x.org", "two Naomis: first-name remap does not guess");
+  var byEmail = P.AI_plan(s, ctx({ staff: staff, userRemap: { "naomi@x.org": "nicole@x.org" } }));
+  assert.strictEqual(byGid(byEmail, "61").assignee_email, "nicole@x.org", "an email remap key still works");
+  assert.strictEqual(byGid(byEmail, "60").assignee_email, "naomi.k@x.org");
+});
+
+t("due rule: mirrors the Asana instance date per cadence", function () {
+  assert.deepStrictEqual(P.AI_dueRule("weekly", "2026-10-21").rule, { type: "weekday", dow: 3 });
+  assert.strictEqual(P.AI_dueRule("weekly", "2026-10-18").note, "weekend_due_rolls_to_monday");
+  assert.deepStrictEqual(P.AI_dueRule("monthly", "2026-10-20").rule, { type: "day_of_month", day: 20, month_offset: 1, roll: "none" });
+  assert.strictEqual(P.AI_dueRule("quarterly", "2026-10-15").rule.month_offset, 1);
+  assert.strictEqual(P.AI_dueRule("quarterly", "2026-12-15").rule.month_offset, 3);
+  assert.strictEqual(P.AI_dueRule("quarterly", "2027-01-31").rule.month_offset, 1);
+  assert.strictEqual(P.AI_dueRule("annually", "2027-04-15").rule.month_offset, 4);
+  assert.strictEqual(P.AI_dueRule("monthly", null).rule, null);
+  assert.strictEqual(P.AI_dueRule("monthly", null).note, "no_due_date");
+  assert.strictEqual(P.AI_dueRule("weekly", "2026-10-21").lead_days, 4);
+});
+
+t("roster: groups Asana names, matches QuickBooks, team bookkeeper, No team yet", function () {
+  var projects = [
+    { gid: "a", name: "Golden City", target_kind: "client", team: null },
+    { gid: "b", name: "Golden City Church Onboarding", target_kind: "onboarding", team: null, archived: true },
+    { gid: "c", name: "MBTR+V Club", target_kind: "client", team: null },
+    { gid: "d", name: "Good Land Church", target_kind: "client", team: "Naomi's Clients" },
+    { gid: "e", name: "Unco Church", target_kind: "client", team: "Nicole's Clients" },
+    { gid: "f", name: "Directors Tasks", target_kind: "internal", team: "Directors" },
+  ];
+  var qbo = [
+    { id: "1", name: "Golden City Church", display: "Golden City Church", active: true },
+    { id: "2", name: "Myrtle Beach Therapeutic Riding + Vaulting Club", display: "Myrtle Beach Therapeutic Riding + Vaulting Club", active: true },
+    { id: "3", name: "Good Land Church", display: "Good Land Church", active: true },
+    { id: "4", name: "UNCO Church", display: "UNCO Church", active: true, last_invoice: "2026-10-01" },
+    { id: "5", name: "Unco Church", display: "Unco Church_1761053752763", active: true },
+    { id: "6", name: "Old Church", display: "Old Church (deleted)", active: false },
+    { id: "7", name: "Hilda Person", display: "Hilda Person", active: true },
+    { id: "8", name: "My Good Books", display: "My Good Books (Clock-in Option)", active: true },
+  ];
+  var r = P.AI_buildRoster({ projects: projects, qbo: qbo, staff: STAFF.concat([{ email: "sonya@x.org", name: "Sonya S" }]), userRemap: { naomi: "sonya@x.org" } });
+  var by = function (n) {
+    return r.entries.filter(function (e) {
+      return e.aliases.indexOf(n) >= 0;
+    })[0];
+  };
+  assert.strictEqual(r.entries.length, 4, "golden city client + onboarding combine; internal ignored");
+  assert.strictEqual(by("Golden City").qbo.id, "1");
+  assert.strictEqual(by("Golden City").proposed_client_id, "golden-city-church");
+  assert.strictEqual(by("Golden City").group, "No team yet");
+  assert.strictEqual(by("MBTR+V Club").qbo.id, "2");
+  assert.strictEqual(by("MBTR+V Club").qbo_confidence, "acronym");
+  assert.strictEqual(by("Good Land Church").bookkeeper_email, "sonya@x.org");
+  assert.strictEqual(by("Unco Church").qbo.id, "4", "plain record beats the _digits duplicate");
+  assert.strictEqual(by("Unco Church").bookkeeper_email, "nicole@x.org");
+  assert.deepStrictEqual(r.qbo_only.map(function (q) { return q.id; }), ["7"]);
+  assert.strictEqual(r.qbo_only[0].looks_personal, true);
+  assert.strictEqual(r.summary.no_team_yet, 2);
+  // the roster feeds the what-if plan; aliases let Asana names find the QuickBooks-named client
+  var rc = P.AI_rosterClients(r);
+  assert.strictEqual(P.AI_matchClient("MBTR+V Club", rc).client_id, by("MBTR+V Club").proposed_client_id);
+});
+
+t("roster: same-name records collapse to high; first-word fallback marked for checking", function () {
+  var r = P.AI_buildRoster({
+    projects: [
+      { gid: "a", name: "Manna Church", target_kind: "client", team: null },
+      { gid: "b", name: "Zeal Church", target_kind: "client", team: null },
+      { gid: "c", name: "Life Church", target_kind: "client", team: null },
+    ],
+    qbo: [
+      { id: "1", name: "Manna Church", display: "Manna Church", active: true },
+      { id: "2", name: "Manna Church (deleted)", display: "Manna Church (deleted)", active: false },
+      { id: "3", name: "Zeal City Church", display: "Zeal City Church", active: true },
+      { id: "4", name: "Life West", display: "Life West", active: true },
+      { id: "5", name: "Life Church Danville", display: "Life Church Danville", active: true },
+    ],
+    staff: STAFF,
+  });
+  var by = function (n) {
+    return r.entries.filter(function (e) { return e.name === n || e.aliases.indexOf(n) >= 0; })[0];
+  };
+  assert.strictEqual(by("Manna Church").qbo.id, "1");
+  assert.strictEqual(by("Manna Church").qbo_confidence, "high");
+  assert.strictEqual(by("Zeal Church").qbo.id, "3");
+  assert.strictEqual(by("Zeal Church").qbo_confidence, "first word");
+  assert.strictEqual(by("Life Church").qbo, null, "two Life records: owner picks");
+  assert.strictEqual(by("Life Church").qbo_confidence, "ambiguous");
+  assert.strictEqual(by("Life Church").qbo_candidates.length, 2);
 });
 
 t("plan: internal project is private-owned project row; unmatched client skipped", function () {
@@ -241,7 +365,8 @@ t("plan: subtasks flatten to the top imported parent; orphans skipped", function
   assert.strictEqual(s2.parent_gid, "1");
   assert.strictEqual(s2.flattened, true);
   assert.strictEqual(s1.client_id, "grace-city");
-  assert.strictEqual(s1.assignee_email, "gina@x.org");
+  assert.strictEqual(s1.assignee_email, null, "unassigned subtask stays unassigned");
+  assert.strictEqual(s1.staff_email, "gina@x.org");
   assert.ok(plan.skipped.some(function (s) {
     return s.gid === "s3" && s.reason === "parent_not_imported";
   }));
@@ -258,12 +383,37 @@ t("plan: draft templates from cadence sections, with subtask checklist", functio
   assert.strictEqual(tpl.cadence, "monthly");
   assert.strictEqual(tpl.client_id, "grace-city");
   assert.deepStrictEqual(tpl.checklist, ["Checking", "Deep child"]);
+  // mirrors the open instance: due on the 20th, Nicole is not Grace City's bookkeeper (Gina) -> a named person
+  assert.deepStrictEqual(tpl.due_rule, { type: "day_of_month", day: 20, month_offset: 1, roll: "none" });
+  assert.strictEqual(tpl.lead_days, 14);
+  assert.strictEqual(tpl.assignee_mode, "person");
+  assert.strictEqual(tpl.assignee_email, "nicole@x.org");
+  assert.strictEqual(tpl.leave_unassigned, false);
+  assert.strictEqual(tpl.instance_gid, "1");
+  assert.strictEqual(tpl.instance_due, "2026-10-20");
   assert.ok(plan.templates.some(function (x) {
     return x.asana_gid === "2" && x.cadence === "annually";
   }));
   assert.ok(!plan.templates.some(function (x) {
     return x.asana_gid === "3";
   }));
+});
+
+t("plan: template assignee mirrors Asana: the client's bookkeeper, or left unassigned", function () {
+  var s = snap();
+  s.users.push({ gid: "u4", email: "gina@x.org", name: "Gina G" });
+  s.tasks.push({ g: "60", p: "p1", n: "Payroll", a: "gina@x.org", d: "2026-10-23", sec: "Weekly", cf: {} });
+  s.tasks.push({ g: "61", p: "p1", n: "Check mail", a: null, d: "2026-10-31", sec: "Quarterly", cf: {} });
+  var pl = P.AI_plan(s, ctx());
+  var t60 = pl.templates.filter(function (x) { return x.asana_gid === "60"; })[0];
+  var t61 = pl.templates.filter(function (x) { return x.asana_gid === "61"; })[0];
+  assert.strictEqual(t60.assignee_mode, "bookkeeper");
+  assert.strictEqual(t60.assignee_email, null);
+  assert.deepStrictEqual(t60.due_rule, { type: "weekday", dow: 5 });
+  assert.strictEqual(t61.assignee_mode, "unassigned");
+  assert.strictEqual(t61.leave_unassigned, true);
+  assert.strictEqual(t61.due_rule.month_offset, 1);
+  assert.strictEqual(pl.report.templates_by_assignee_mode.unassigned, 1);
 });
 
 t("plan: review step counted, progress Done flagged but stays open", function () {

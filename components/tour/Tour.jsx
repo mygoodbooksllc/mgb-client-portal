@@ -93,6 +93,14 @@
 //   tk-add           My Tasks' Add task button (TK_MyTasks.jsx; a list's
 //                    Add task in TK_List.jsx carries it too)
 //   tk-groups        My Tasks' groups, only when there are tasks
+//   tk-unassigned-group  My Tasks' Unassigned group, only when it has tasks (S8b)
+//   tk-claim         the first Claim button in that group (TK_TaskRow.jsx)
+//   tk-claim-drawer  Claim beside the Unassigned chip in a task's details (TK_Drawer.jsx)
+//   tk-no-team       the sidebar's No team yet group, admins, only when a
+//                    client is in it (TK_Sidebar.jsx)
+//   tk-assign-team   Assign team in a client list's header, admins, only on a
+//                    client with no bookkeeper (TK_ClientHeader.jsx)
+//   tk-tpl-assign    the template editor's Assign to field (TK_Templates.jsx)
 //   tk-status        the first row's status pill (TK_TaskRow.jsx)
 //   tk-sidebar       the lists rail, 900px and up (TK_Sidebar.jsx); below
 //                    that it sits behind the Lists button

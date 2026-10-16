@@ -547,25 +547,76 @@ function TK_tplEditor(props) {
               />
               {errs && errs.lead_days ? <span className="tk-field-error">{errs.lead_days}</span> : null}
             </label>
-            <label className="tk-field">
-              <span className="tk-field-label">Who does it</span>
+            <label className="tk-field" data-tour="tk-tpl-assign">
+              <span className="tk-field-label">Assign to</span>
               <select
                 className="tk-select"
-                value={d.assignee_role}
+                value={d.assign_mode === "person" ? "person" : d.assign_mode === "unassigned" ? "unassigned" : "role:" + d.assignee_role}
                 onChange={function (e) {
-                  set({ assignee_role: e.target.value });
+                  var v = e.target.value;
+                  if (v === "person") set({ assign_mode: "person" });
+                  else if (v === "unassigned") set({ assign_mode: "unassigned", assignee_email: "" });
+                  else set({ assign_mode: "role", assignee_email: "", assignee_role: v.slice(5) });
                 }}
               >
                 {TK_TPL_ROLES.map(function (r) {
                   return (
-                    <option key={r.value} value={r.value}>
+                    <option key={r.value} value={"role:" + r.value}>
                       {"The client's " + r.label.toLowerCase()}
                     </option>
                   );
                 })}
+                <option value="person">A named person</option>
+                <option value="unassigned">Leave unassigned (anyone on the client can claim it)</option>
               </select>
-              <span className="tk-field-help">If nobody has that role, it goes to the bookkeeper, then the account manager.</span>
+              <span className="tk-field-help">
+                {d.assign_mode === "person"
+                  ? "Every client's task goes to this person."
+                  : d.assign_mode === "unassigned"
+                    ? "Tasks show as Unassigned. Anyone on the client's team can claim one from My Tasks."
+                    : "If nobody has that role, it goes to the bookkeeper, then the account manager."}
+              </span>
             </label>
+            {d.assign_mode === "person" ? (
+              <label className="tk-field">
+                <span className="tk-field-label">Person</span>
+                <select
+                  className="tk-select"
+                  value={d.assignee_email || ""}
+                  aria-invalid={errs && errs.assignee_email ? "true" : undefined}
+                  onChange={function (e) {
+                    set({ assignee_email: e.target.value });
+                  }}
+                >
+                  <option value="">Pick someone</option>
+                  {(function () {
+                    var people = (props.staff || []).filter(function (s) {
+                      return s && s.email && s.active !== false;
+                    });
+                    var cur = String(d.assignee_email || "").toLowerCase();
+                    if (cur && !people.some(function (s) { return String(s.email).toLowerCase() === cur; })) {
+                      people = [{ email: cur, name: cur + " (not active)" }].concat(people);
+                    }
+                    return people
+                      .slice()
+                      .sort(function (a, b) {
+                        var x = String(a.name || a.email).toLowerCase();
+                        var y = String(b.name || b.email).toLowerCase();
+                        return x < y ? -1 : x > y ? 1 : 0;
+                      })
+                      .map(function (s) {
+                        var em = String(s.email).toLowerCase();
+                        return (
+                          <option key={em} value={em}>
+                            {s.name || em}
+                          </option>
+                        );
+                      });
+                  })()}
+                </select>
+                {errs && errs.assignee_email ? <span className="tk-field-error">{errs.assignee_email}</span> : null}
+              </label>
+            ) : null}
             <label className="tk-field">
               <span className="tk-field-label">Priority</span>
               <select
@@ -1580,6 +1631,11 @@ function TK_vTemplatesBody(props) {
             )}
             <span className={"tk-tpl-status is-" + status}>{TK_TPL_STATUS_LABELS[status]}</span>
             {t.review_required ? <span className="tk-tpl-status is-review">Needs approval</span> : null}
+            {t.source === "asana" ? (
+              <span className="tk-tpl-tag-asana" title="Made from an Asana recurring task by the import. Check it, then turn it on.">
+                From Asana
+              </span>
+            ) : null}
           </div>
           <div className="tk-tpl-meta tk-muted">
             {TK_tplLabelOf(TK_TPL_CADENCES, t.cadence) +
@@ -1588,7 +1644,7 @@ function TK_vTemplatesBody(props) {
               " · " +
               applies +
               " · " +
-              TK_tplLabelOf(TK_TPL_ROLES, t.assignee_role || "bookkeeper")}
+              (typeof TK_tplAssignText === "function" ? TK_tplAssignText(t, nameOf) : TK_tplLabelOf(TK_TPL_ROLES, t.assignee_role || "bookkeeper"))}
           </div>
           <div className="tk-tpl-meta">
             {next && next.length ? (status === "active" ? "Next: " : "If turned on today, next: ") + next[0].label + ", due " + TK_tplFmtDate(next[0].due) + fyNote : ""}
@@ -1877,6 +1933,7 @@ function TK_vTemplatesBody(props) {
           today={today}
           holidays={data.holidays}
           online={online}
+          staff={staff}
           onClose={function () {
             setEditing(null);
           }}

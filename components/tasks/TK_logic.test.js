@@ -196,11 +196,49 @@ t("isOpen", () => {
 t("isMine", () => {
   assert.strictEqual(L.TK_isMine(task(), "ME@Example.test"), true);
   assert.strictEqual(L.TK_isMine(task({ assignee_email: OTHER }), ME), false);
-  assert.strictEqual(L.TK_isMine(task({ assignee_email: null }), ME), true);
+  // S8b: an Unassigned task is nobody's, the owner's included.
+  assert.strictEqual(L.TK_isMine(task({ assignee_email: null }), ME), false);
   assert.strictEqual(L.TK_isMine(task({ assignee_email: "", staff_email: OTHER }), ME), false);
   assert.strictEqual(L.TK_isMine(task({ assignee_email: " Me@Example.Test " }), ME), true);
   assert.strictEqual(L.TK_isMine(task(), ""), false);
   assert.strictEqual(L.TK_isMine(task(), null), false);
+});
+t("assigneeOf: the assignee only, lowercased, or empty (S8b)", () => {
+  assert.strictEqual(L.TK_assigneeOf(task({ assignee_email: " Me@Example.Test " })), ME);
+  assert.strictEqual(L.TK_assigneeOf(task({ assignee_email: null, staff_email: ME })), "");
+  assert.strictEqual(L.TK_assigneeOf(task({ assignee_email: "" })), "");
+  assert.strictEqual(L.TK_assigneeOf(null), "");
+  assert.strictEqual(L.TK_isUnassigned(task({ assignee_email: null })), true);
+  assert.strictEqual(L.TK_isUnassigned(task()), false);
+});
+t("normalizeTask keeps a null assignee and sets is_unassigned (S8b)", () => {
+  const n1 = L.TK_normalizeTask(task({ assignee_email: null, staff_email: "Me@Example.test" }));
+  assert.strictEqual(n1.assignee_email, null);
+  assert.strictEqual(n1.is_unassigned, true);
+  assert.strictEqual(n1.staff_email, ME);
+  const n2 = L.TK_normalizeTask(task({ assignee_email: "OTHER@example.test" }));
+  assert.strictEqual(n2.assignee_email, OTHER);
+  assert.strictEqual(n2.is_unassigned, false);
+});
+t("groupMyTasks: open Unassigned tasks get their own group, never a time group (S8b)", () => {
+  const un = task({ id: "u1", assignee_email: null, staff_email: OTHER, due_date: "2026-10-01", client_id: "c1" });
+  const unMine = task({ id: "u2", assignee_email: null, staff_email: ME, due_date: TODAY, client_id: "c2" });
+  const unDone = task({ id: "u3", assignee_email: null, staff_email: ME, status: "done", done: true, completed_at: "2026-10-10T00:00:00Z" });
+  const unDel = task({ id: "u4", assignee_email: null, deleted_at: "x" });
+  const unWait = task({ id: "u5", assignee_email: null, staff_email: OTHER, status: "waiting_client", client_id: "c3" });
+  const mine = task({ id: "m1", due_date: "2026-10-01" });
+  const list = [un, unMine, unDone, unDel, unWait, mine];
+  const g = L.TK_groupMyTasks(list, TODAY, { email: ME });
+  assert.deepStrictEqual(g.unassigned.map((x) => x.id).sort(), ["u1", "u2", "u5"]);
+  assert.deepStrictEqual(g.overdue.map((x) => x.id), ["m1"]);
+  assert.strictEqual(g.today.length, 0);
+  assert.strictEqual(g.waiting.length, 0);
+  assert.strictEqual(g.done.length, 0);
+  // Admins: only the ones they own or on their own book's clients.
+  const a = L.TK_groupMyTasks(list, TODAY, { email: ME, isAdmin: true, inMyBook: (id) => id === "c3" });
+  assert.deepStrictEqual(a.unassigned.map((x) => x.id).sort(), ["u2", "u5"]);
+  const a2 = L.TK_groupMyTasks(list, TODAY, { email: ME, isAdmin: true });
+  assert.deepStrictEqual(a2.unassigned.map((x) => x.id), ["u2"]);
 });
 t("isOverdue excludes waiting, done and deleted", () => {
   assert.strictEqual(L.TK_isOverdue(task({ due_date: "2026-10-13" }), TODAY), true);
@@ -844,7 +882,8 @@ t("normalizeTask fills defaults and lowercases emails", () => {
   assert.strictEqual(r.status, "done");
   assert.strictEqual(r.done, true);
   assert.strictEqual(r.staff_email, ME);
-  assert.strictEqual(r.assignee_email, ME);
+  assert.strictEqual(r.assignee_email, null); // S8b: no assignee stays Unassigned
+  assert.strictEqual(r.is_unassigned, true);
   assert.strictEqual(r.priority, "normal");
   assert.strictEqual(r.kind, "task");
   assert.strictEqual(r.recurrence, "none");
@@ -909,7 +948,7 @@ t("every C4 name is exported", () => {
   [
     "TK_STATUSES", "TK_STATUS_LABELS", "TK_PRIORITIES", "TK_PRIORITY_LABELS", "TK_SOP_SECTION_IDS", "TK_SOON_DAYS",
     "TK_OLD_DONE_MONTHS", "TK_CLIENT_SECTION_ORDER", "TK_effectiveStatus", "TK_canTransition", "TK_resolveStatus",
-    "TK_nextStatuses", "TK_isOpen", "TK_isMine", "TK_isOverdue", "TK_isOldDone", "TK_groupMyTasks", "TK_compareTasks",
+    "TK_nextStatuses", "TK_isOpen", "TK_isMine", "TK_assigneeOf", "TK_isUnassigned", "TK_isOverdue", "TK_isOldDone", "TK_groupMyTasks", "TK_compareTasks",
     "TK_dueLabel", "TK_ymd", "TK_addDays", "TK_dayDiff", "TK_weekday", "TK_isBusinessDay", "TK_addBusinessDays",
     "TK_nthBusinessDay", "TK_parseQuickAdd", "TK_slug", "TK_mentionTokens", "TK_handleOf", "TK_parseRoute",
     "TK_formatRoute", "TK_KEYMAP", "TK_shouldHandleKey", "TK_canEdit", "TK_normalizeTask", "TK_isMissingColumn",

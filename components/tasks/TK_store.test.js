@@ -1139,20 +1139,56 @@ t("42501 maps to tk_forbidden; PGRST116 to tk_not_found", async () => {
   done();
 });
 
-t("listMine filters on assignee, legacy owner, and the 12-month done window", async () => {
-  const env = makeEnv({ query: () => ({ data: [row()], error: null }) });
+t("listMine: my rows by assignee only, plus open Unassigned rows, and the 12-month done window (S8b)", async () => {
+  const shared = row();
+  const env = makeEnv({
+    query: (q) =>
+      q.ops.some((o) => o[0] === "is" && o[1] === "assignee_email")
+        ? { data: [shared, row({ assignee_email: null })], error: null }
+        : { data: [row(), shared], error: null },
+  });
   const rows = await env.api.listMine(ME);
-  assert.strictEqual(rows.length, 1);
-  const q = env.counts.queries[env.counts.queries.length - 1];
-  assert.strictEqual(q.table, "tk_tasks");
-  const ors = q.ops.filter((o) => o[0] === "or").map((o) => o[1]);
-  assert.strictEqual(ors.length, 2);
-  assert.ok(ors[0].indexOf('assignee_email.eq."' + ME + '"') >= 0);
-  assert.ok(ors[0].indexOf("and(assignee_email.is.null,staff_email.eq.") >= 0);
-  assert.ok(ors[1].indexOf("done.eq.false,completed_at.gte.") === 0);
+  assert.strictEqual(rows.length, 3); // the row in both answers counts once
+  assert.ok(rows.some((r) => r.assignee_email === null && r.is_unassigned === true));
+  const qs = env.counts.queries.filter((q) => q.table === "tk_tasks");
+  const mine = qs.find((q) => q.filters.assignee_email === ME);
+  const open = qs.find((q) => q.ops.some((o) => o[0] === "is" && o[1] === "assignee_email" && o[2] === null));
+  assert.ok(mine && open);
+  const ors = mine.ops.filter((o) => o[0] === "or").map((o) => o[1]);
+  assert.strictEqual(ors.length, 1);
+  assert.ok(ors[0].indexOf("done.eq.false,completed_at.gte.") === 0);
+  assert.ok(!ors.some((x) => x.indexOf("staff_email") >= 0), "the owner never stands in for the assignee");
+  assert.strictEqual(open.filters.done, false);
+  const before = env.counts.queries.length;
   await env.api.listMine(ME, { showOlder: true });
-  const q2 = env.counts.queries[env.counts.queries.length - 1];
-  assert.strictEqual(q2.ops.filter((o) => o[0] === "or").length, 1);
+  const q2 = env.counts.queries.slice(before).find((q) => q.filters.assignee_email === ME);
+  assert.strictEqual(q2.ops.filter((o) => o[0] === "or").length, 0);
+  done();
+});
+
+t("normalize keeps a null assignee and sets is_unassigned (S8b)", () => {
+  const env = makeEnv();
+  const t1 = env.api.normalize(row({ assignee_email: null, staff_email: ME }));
+  assert.strictEqual(t1.assignee_email, null);
+  assert.strictEqual(t1.is_unassigned, true);
+  const t2 = env.api.normalize(row({ assignee_email: "ME@Example.test" }));
+  assert.strictEqual(t2.assignee_email, ME);
+  assert.strictEqual(t2.is_unassigned, false);
+  done();
+});
+
+t("the mine list holds my tasks and open Unassigned ones, not others' (S8b)", () => {
+  const mineT = task();
+  const un = task({ assignee_email: null, staff_email: OTHER });
+  const unDone = task({ assignee_email: null, staff_email: OTHER, status: "done", done: true });
+  const other = task({ assignee_email: OTHER, staff_email: ME });
+  let s = reduceAll(null, [{ type: "me", email: ME }, { type: "listLoaded", key: "mine", tasks: [] }]);
+  [mineT, un, unDone, other].forEach((x) => { s = S.TK_reduce(s, { type: "upsert", task: x }); });
+  const ids = S.TK_selectList(s, "mine").tasks.map((x) => x.id);
+  assert.ok(ids.indexOf(mineT.id) >= 0);
+  assert.ok(ids.indexOf(un.id) >= 0);
+  assert.ok(ids.indexOf(unDone.id) < 0);
+  assert.ok(ids.indexOf(other.id) < 0, "owning a task someone else is on doesn't make it mine");
   done();
 });
 

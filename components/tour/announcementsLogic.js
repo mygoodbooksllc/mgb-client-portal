@@ -108,6 +108,19 @@ function ANN_owed(entry, state, now) {
   return true;
 }
 
+// Has the entry's own precondition been met? An entry may carry
+// ready(ctx) -> boolean (for example "has seen an Unassigned task"); without
+// one it is always ready. A ready() that throws counts as not ready yet.
+// Only the notice waits for it: What's new and the ? menu list it anyway.
+function ANN_ready(entry, ctx) {
+  if (!entry || typeof entry.ready !== "function") return true;
+  try {
+    return !!entry.ready(ctx || {});
+  } catch (e) {
+    return false;
+  }
+}
+
 // The one announcement to show now, or null. ctx has the staff tour ctx
 // fields (isAdmin, tempAdmin, isBookkeeper, amCount) plus busy, profileOpen,
 // impersonating, previewing. state.hidden lists ids put away this page load
@@ -117,7 +130,7 @@ function ANN_pickNext(registry, state, ctx, now) {
   var hidden = (state && state.hidden) || [];
   var owed = ANN_audience(registry, ctx)
     .map(function (a, i) { return { a: a, i: i }; })
-    .filter(function (x) { return hidden.indexOf(x.a.id) === -1 && ANN_owed(x.a, state, now); })
+    .filter(function (x) { return hidden.indexOf(x.a.id) === -1 && ANN_owed(x.a, state, now) && ANN_ready(x.a, ctx); })
     .sort(function (x, y) {
       if (x.a.date !== y.a.date) return x.a.date < y.a.date ? 1 : -1;
       return x.i - y.i;
@@ -167,6 +180,6 @@ if (typeof module !== "undefined" && module.exports) {
     ANN_STATUSES: ANN_STATUSES, ANN_ROLES: ANN_ROLES, ANN_LATER_MAX: ANN_LATER_MAX, ANN_CAP_DAYS: ANN_CAP_DAYS,
     ANN_roleSet: ANN_roleSet, ANN_audience: ANN_audience, ANN_effectiveStatus: ANN_effectiveStatus,
     ANN_apply: ANN_apply, ANN_merge: ANN_merge, ANN_day: ANN_day, ANN_blocked: ANN_blocked, ANN_owed: ANN_owed,
-    ANN_pickNext: ANN_pickNext, ANN_report: ANN_report,
+    ANN_pickNext: ANN_pickNext, ANN_report: ANN_report, ANN_ready: ANN_ready,
   };
 }

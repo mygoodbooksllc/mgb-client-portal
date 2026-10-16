@@ -197,13 +197,35 @@ function TK_vMyTasksBody(props) {
     [projects],
   );
 
+  // S8b: admins see only the Unassigned tasks they own or on their own
+  // book's clients (they are the bookkeeper); everyone else sees them all.
+  var myBook = React.useMemo(
+    function () {
+      var out = {};
+      (props.clients || []).forEach(function (c) {
+        var bk = c && c.assignedBookkeeper && c.assignedBookkeeper.email;
+        if (bk && TK_vLower(bk) === email) out[String(c.id)] = 1;
+      });
+      return out;
+    },
+    [props.clients, email],
+  );
+  var groupOpts = {
+    email: email,
+    showOlder: showOlder,
+    todayGroup: prefs.todayGroup,
+    isAdmin: isAdmin,
+    inMyBook: function (clientId) {
+      return !!myBook[String(clientId)];
+    },
+  };
   var all = Array.isArray(list.tasks) ? list.tasks : [];
   var tasks = clientFilter
     ? all.filter(function (t) {
         return t && String(t.client_id) === clientFilter;
       })
     : all;
-  var groups = typeof TK_groupMyTasks === "function" ? TK_groupMyTasks(tasks, today, { email: email, showOlder: showOlder, todayGroup: prefs.todayGroup }) : {};
+  var groups = typeof TK_groupMyTasks === "function" ? TK_groupMyTasks(tasks, today, groupOpts) : {};
   var view = TK_myGroupsView(groups, { collapsed: collapsed, showDone: prefs.showDone });
   var ids = TK_focusIds(view);
   var byId = {};
@@ -212,12 +234,14 @@ function TK_vMyTasksBody(props) {
   });
   var counts = TK_vUseChecklist(ids);
 
-  // My clients for the filter: the ones my tasks point at, by name.
+  // My clients for the filter: the ones my tasks point at, by name (and the
+  // Unassigned ones My Tasks shows; not every open Unassigned task loaded).
   var myClients = React.useMemo(
     function () {
       var seen = {};
+      var shown = typeof TK_groupMyTasks === "function" ? TK_groupMyTasks(all, today, groupOpts).unassigned || [] : [];
       all.forEach(function (t) {
-        if (t && t.client_id != null) seen[String(t.client_id)] = 1;
+        if (t && t.client_id != null && (t.assignee_email || shown.indexOf(t) >= 0)) seen[String(t.client_id)] = 1;
       });
       var list = Object.keys(seen)
         .map(function (id) {
@@ -233,7 +257,8 @@ function TK_vMyTasksBody(props) {
       if (typeof CF_sort === "function") list = CF_sort(list);
       return list;
     },
-    [all, clientNames, props.clients],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [all, clientNames, props.clients, myBook, isAdmin, email],
   );
 
   var keys = TK_useKeys({
@@ -274,6 +299,7 @@ function TK_vMyTasksBody(props) {
   if (err && (err === "tk_schema_missing" || err.code === "tk_schema_missing")) return <TK_SetupCard embedded={embedded} />;
 
   var firstRowDone = false;
+  var firstClaimDone = false;
   var body;
   if (loading) body = <TK_vSkeletonRows count={6} />;
   else if (err) body = <TK_vErrorState onRetry={list.reload} />;
@@ -289,7 +315,12 @@ function TK_vMyTasksBody(props) {
         {view.map(function (g) {
           var gid = "tk-group-" + g.key;
           return (
-            <section key={g.key} className={"tk-group tk-group-" + g.key + (g.collapsed ? " is-collapsed" : "")} aria-labelledby={gid}>
+            <section
+              key={g.key}
+              className={"tk-group tk-group-" + g.key + (g.collapsed ? " is-collapsed" : "")}
+              aria-labelledby={gid}
+              data-tour={g.key === "unassigned" ? "tk-unassigned-group" : undefined}
+            >
               <h3 className="tk-group-head" id={gid}>
                 <button
                   type="button"
@@ -309,6 +340,10 @@ function TK_vMyTasksBody(props) {
                   {g.tasks.map(function (t) {
                     var tour = !firstRowDone;
                     firstRowDone = true;
+                    // S8b: an Unassigned row is claimed first, then worked.
+                    var un = g.key === "unassigned";
+                    var claimTour = un && !firstClaimDone;
+                    if (un) firstClaimDone = true;
                     return (
                       <TK_TaskRow
                         key={t.id}
@@ -329,15 +364,21 @@ function TK_vMyTasksBody(props) {
                           TK_vOpenTask(id, { from: "list" });
                         }}
                         onToggleDone={
-                          online
+                          online && !un
                             ? function (task) {
                                 TK_vComplete(task, isAdmin);
                               }
                             : undefined
                         }
-                        onStatus={function (task, s, note) {
-                          TK_vSetStatus(task, s, note, isAdmin);
-                        }}
+                        onStatus={
+                          un
+                            ? null
+                            : function (task, s, note) {
+                                TK_vSetStatus(task, s, note, isAdmin);
+                              }
+                        }
+                        onClaim={online ? TK_vClaim : undefined}
+                        tourClaim={claimTour}
                       />
                     );
                   })}

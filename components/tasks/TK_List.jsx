@@ -214,6 +214,7 @@ function TK_vFilters(props) {
             }}
           >
             <option value="">Anyone</option>
+            <option value={typeof TK_UNASSIGNED !== "undefined" ? TK_UNASSIGNED : "__unassigned__"}>Unassigned</option>
             {people.map(function (p) {
               return (
                 <option key={p.email} value={p.email}>
@@ -1006,12 +1007,13 @@ function TK_vListBody(props) {
   });
   var counts = TK_vUseChecklist(ids);
 
-  // People in the assignee filter: who holds tasks in this list.
+  // People in the assignee filter: who holds tasks in this list (the
+  // assignee only; Unassigned is its own choice, S8b).
   var people = (function () {
     var seen = {};
     var out = [];
     all.forEach(function (t) {
-      var e = TK_vLower(t && (t.assignee_email || t.staff_email));
+      var e = TK_vLower(t && t.assignee_email);
       if (!e || seen[e]) return;
       seen[e] = 1;
       out.push({ email: e, name: nameOf(e) });
@@ -1081,7 +1083,7 @@ function TK_vListBody(props) {
   if (route.view === "client" && clients.length && !client) return <TK_vNotice text={TK_vCopy("notFound", "We couldn't find that list.")} />;
 
   var header = null;
-  if (route.view === "client") header = <TK_ClientHeader client={client || { id: route.clientId, name: "" }} staffUser={staffUser} isAdmin={isAdmin} />;
+  if (route.view === "client") header = <TK_ClientHeader client={client || { id: route.clientId, name: "" }} staffUser={staffUser} isAdmin={isAdmin} onTeamChanged={list.reload} />;
   else if (route.view === "project") header = project ? <TK_vProjectHeader project={project} isAdmin={isAdmin} email={email} staff={staff} /> : null;
   else if (route.view === "person") header = <TK_vPersonHeader person={person} />;
 
@@ -1188,7 +1190,8 @@ function TK_vListBody(props) {
           projectName={route.view !== "project" && t.project_id ? projectNames[t.project_id] || "" : ""}
           showClient={route.view !== "client"}
           showSection={!!sort}
-          assigneeName={nameOf(t.assignee_email || t.staff_email)}
+          assigneeName={t.assignee_email ? nameOf(t.assignee_email) : ""}
+          onClaim={readOnly ? undefined : TK_vClaim}
           focused={focusedId === t.id}
           checklist={counts[t.id] || null}
           isAdmin={isAdmin}

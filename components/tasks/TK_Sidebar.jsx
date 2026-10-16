@@ -3,6 +3,7 @@
 // (views slice, Row 1.4 and Row 11.5).
 //
 // TK_Sidebar({ route, clients, isAdmin, staffUser, onNavigate(route) })
+//   Admins also get "No team yet" (S8b): imported clients with no bookkeeper.
 //   My Tasks, Review (admins see a count of work they can approve), Search,
 //   Projects (archived hidden, "New project"), Clients and, for admins, People. Every item is a real link (TK_formatRoute), so a
 //   modifier click opens a new tab; a plain click calls onNavigate.
@@ -265,6 +266,30 @@ function TK_Sidebar(props) {
       window.removeEventListener("mgb:tk-requests-changed", load);
     };
   }, []);
+  // S8b, admins: imported clients with open tasks and no bookkeeper yet.
+  // Fetched once (and again after Assign team); hidden on error or when empty.
+  var ntPair = React.useState([]);
+  var noTeam = ntPair[0];
+  var setNoTeam = ntPair[1];
+  React.useEffect(
+    function () {
+      if (!isAdmin || typeof TK_api === "undefined" || !TK_api || typeof TK_api.noTeamClients !== "function") return undefined;
+      var live = true;
+      var load = function () {
+        TK_api.noTeamClients().then(
+          function (rows) { if (live) setNoTeam(Array.isArray(rows) ? rows : []); },
+          function () { if (live) setNoTeam([]); },
+        );
+      };
+      load();
+      window.addEventListener("mgb:tk-team-assigned", load);
+      return function () {
+        live = false;
+        window.removeEventListener("mgb:tk-team-assigned", load);
+      };
+    },
+    [isAdmin],
+  );
   var reviewCount = isAdmin && typeof TK_reviewQueueCount === "function" ? TK_reviewQueueCount(reviewList && reviewList.tasks, me) : 0;
   var people = (Array.isArray(staff) ? staff : []).filter(function (s) {
     return s && s.active !== false && s.id && (typeof TK_isUuid !== "function" || TK_isUuid(s.id));
@@ -323,6 +348,30 @@ function TK_Sidebar(props) {
           <span>New project</span>
         </button>
       </div>
+
+      {isAdmin && noTeam.length ? (
+        <div className="tk-nav-section" data-tour="tk-no-team">
+          <div className="tk-nav-head">
+            <h3 className="tk-nav-title">No team yet</h3>
+          </div>
+          <ul className="tk-nav">
+            {noTeam.map(function (c) {
+              var r = { view: "client", clientId: String(c.client_id) };
+              var n = Number(c.open_tasks) || 0;
+              return (
+                <TK_vNavItem
+                  key={c.client_id}
+                  route={r}
+                  label={c.client_name || String(c.client_id)}
+                  tag={n + (n === 1 ? " task" : " tasks")}
+                  active={TK_vSameRoute(route, r)}
+                  onNavigate={nav}
+                />
+              );
+            })}
+          </ul>
+        </div>
+      ) : null}
 
       <div className="tk-nav-section">
         <div className="tk-nav-head">

@@ -180,6 +180,71 @@ function TK_vComplete(task, isAdmin) {
   });
 }
 
+// ---- Unassigned tasks (S8b) ------------------------------------------------------
+// The assignee only ("" when nobody is on it). TK_assigneeOf lives in
+// TK_logic.js; this copy keeps the row working if that loads late.
+function TK_vAssigneeOf(task) {
+  if (typeof TK_assigneeOf === "function") return TK_assigneeOf(task);
+  return task && task.assignee_email ? String(task.assignee_email).trim().toLowerCase() : "";
+}
+
+function TK_vCanClaim(task) {
+  if (!task || task.deleted_at || TK_vAssigneeOf(task)) return false;
+  var st = TK_vStatusOf(task);
+  return st === "todo" || st === "in_progress" || st === "waiting_client";
+}
+
+// Set once an Unassigned task has been on screen; the "Unassigned tasks and
+// Claim" launch notice waits for it (components/tour/announcements.js).
+var TK_SEEN_UNASSIGNED_KEY = "mgb_tk_seen_unassigned_v1";
+
+function TK_vMarkSeenUnassigned() {
+  try {
+    if (window.localStorage.getItem(TK_SEEN_UNASSIGNED_KEY) !== "1") window.localStorage.setItem(TK_SEEN_UNASSIGNED_KEY, "1");
+  } catch (e) {}
+}
+
+// Claim: TK_api.claim toasts both success and failure itself.
+function TK_vClaim(task) {
+  if (!task || typeof TK_api === "undefined" || !TK_api || typeof TK_api.claim !== "function") return Promise.resolve(null);
+  return TK_api.claim(task.id).catch(function () {
+    return null;
+  });
+}
+
+// "Unassigned" plus a Claim button (when the row offers one).
+function TK_vUnassignedClaim(props) {
+  var task = props.task;
+  var busyPair = React.useState(false);
+  var busy = busyPair[0];
+  var setBusy = busyPair[1];
+  var canClaim = !!props.onClaim && TK_vCanClaim(task);
+  return (
+    <span className="tk-unassigned">
+      <span className="tk-muted">Unassigned</span>
+      {canClaim ? (
+        <button
+          type="button"
+          className="tk-tool-btn tk-claim-btn"
+          data-tour={props.tour || undefined}
+          disabled={busy}
+          aria-label={"Claim " + (task.text || "this task")}
+          onClick={function (e) {
+            e.stopPropagation();
+            setBusy(true);
+            Promise.resolve(props.onClaim(task)).then(
+              function () { setBusy(false); },
+              function () { setBusy(false); },
+            );
+          }}
+        >
+          {busy ? "Claiming…" : "Claim"}
+        </button>
+      ) : null}
+    </span>
+  );
+}
+
 function TK_vSetStatus(task, status, note, isAdmin) {
   if (!task || typeof TK_api === "undefined" || !TK_api) return Promise.resolve(null);
   // Tasks p2 s3: approve and send back have their own RPCs.
@@ -753,7 +818,9 @@ function TK_StatusPill(props) {
 //   statusSignal (the `s` key), tourStatus (data-tour on the first row's pill),
 //   snippet (a search hit's comment line), onFocusRow(id),
 //   note (one more meta line), trailing (buttons before the status pill; the review queue),
-//   me (the signed-in email; else the store's).
+//   me (the signed-in email; else the store's),
+//   onClaim(task) (S8b: an open Unassigned row shows "Unassigned" and Claim),
+//   showUnassigned (false hides that label off the columns layout), tourClaim.
 
 function TK_TaskRow(props) {
   var task = props.task;
@@ -774,8 +841,18 @@ function TK_TaskRow(props) {
     },
     [focused],
   );
+  // S8b: an open Unassigned task on screen unlocks its launch notice.
+  var unassignedOpen = !!task && TK_vCanClaim(task);
+  React.useEffect(
+    function () {
+      if (unassignedOpen) TK_vMarkSeenUnassigned();
+    },
+    [unassignedOpen],
+  );
   if (!task) return null;
   var id = task.id;
+  var unassigned = !TK_vAssigneeOf(task);
+  var claimBits = unassigned ? <TK_vUnassignedClaim task={task} onClaim={props.onClaim} tour={props.tourClaim ? "tk-claim" : undefined} /> : null;
   var today = props.today || TK_vToday();
   var status = TK_vStatusOf(task);
   var done = status === "done";
@@ -867,7 +944,7 @@ function TK_TaskRow(props) {
           {props.columns ? (
             <span className="tk-row-phone">
               <TK_DuePill task={task} today={today} />
-              {props.assigneeName ? <span>{props.assigneeName}</span> : null}
+              {props.assigneeName ? <span>{props.assigneeName}</span> : unassigned ? <span className="tk-muted">Unassigned</span> : null}
               {priority !== "normal" ? <span className={"tk-prio tk-prio-" + priority}>{priorityLabel}</span> : null}
             </span>
           ) : null}
@@ -882,6 +959,8 @@ function TK_TaskRow(props) {
                 <TK_vAvatar name={props.assigneeName} size="sm" decorative />
                 <span className="tk-who-name">{props.assigneeName}</span>
               </span>
+            ) : unassigned ? (
+              claimBits
             ) : (
               <span className="tk-muted">No one</span>
             )}
@@ -899,6 +978,7 @@ function TK_TaskRow(props) {
       ) : (
         <div className="tk-cell tk-cell-status" role="gridcell">
           {priority === "high" ? <span className="tk-prio tk-prio-high">High</span> : null}
+          {props.showUnassigned !== false ? claimBits : null}
           {props.trailing || null}
           {statusPill}
         </div>

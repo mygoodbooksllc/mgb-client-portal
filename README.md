@@ -444,6 +444,10 @@ hours, fees and revenue all use it. See "MGB (internal) and flagged clients" und
       What's new article, and "New: <title> tour" entries in the ? menu, ⌘K and Settings › Help
       (`TOUR_staffTourList` appends `ANN_tourList`). Admins see counts and names of who has seen,
       toured, skipped or not yet seen each launch in Usage Stats › Announcements.
+    - **Optional `ready(ctx)`** on an entry (S8b): the notice waits until it returns true (a throw
+      counts as false), for launches a person should only hear about once they've met the feature.
+      `unassigned-tasks` reads `localStorage` `mgb_tk_seen_unassigned_v1`, which `TK_TaskRow` sets
+      when an open unassigned row renders. What's new and the ? menu list the tour either way.
     - **Test:** `node components/tour/announcementsLogic.test.js` (rules and registry integrity).
   - **Tips while you learn (`components/tour/Tips.jsx` + `tips.css`, `TIPS_` prefix; owner request
     2026-10-09):** quiet one-at-a-time tips for a staffer's first 30 days (no overlay, no dimming,
@@ -695,8 +699,10 @@ hours, fees and revenue all use it. See "MGB (internal) and flagged clients" und
     "Tasks" / "Your tasks, client lists and projects", and the ? menu's help is `my-tasks`.
   - **My Tasks** (`TK_MyTasks`): groups Overdue, Today (View › Today group, on by default), This
     week (7 days), Later (and undated), Waiting on client, Done (folded); done tasks older than
-    12 months hide unless Show older. Also embedded as **Work › Tasks**. Mine = assignee, or the
-    creator when unassigned.
+    12 months hide unless Show older. Also embedded as **Work › Tasks**. Mine = the assignee only
+    (S8b, 2026-10-16: a task can have no assignee). Open unassigned tasks the person can see form an
+    **Unassigned** group (before Done; for admins only their own book or ones they own) with
+    **Claim** (`TK_api.claim` → `tk_claim_task`); `TK_api.listMine` reads mine plus open unassigned.
   - **Lists** (`TK_Sidebar`, `TK_List`, `TK_ClientHeader`): My Tasks, Search, Projects, Clients,
     People (admins). The rail shows at 900px and up, a Lists sheet below. Seeded projects: SOPs
     and 90 Day (`open_to_staff` on), Directors and Owners (admins only). Only admins change
@@ -1738,6 +1744,29 @@ Team Reviews files.
     retires templates). Imported rows carry `source = 'asana'`; templates arrive as inactive drafts.
   - **No emails**: `notify_enqueue_task_assigned` skips `mgb.tk_import = 'on'` and any
     `source = 'asana'` insert. Activity rows show `asana-import` as the actor.
+- **Tasks Phase 2, S8b unassigned tasks + Asana import v2** (`supabase/tasks-p2-10-asana-import-v2.sql`,
+  applied 2026-10-16; `tk_schema_version()` = 10; tests `tasks-p2-10-asana-import-v2-tests.sql`).
+  The import apply is still switched off. No email from any of it.
+  - `staff_reminders.is_unassigned` (generated, `assignee_email is null`), in `tk_tasks` and
+    `TK_TASK_COLS`. The front end keeps a null assignee (`TK_normalizeTask`, `TK_assigneeOf`,
+    `TK_isUnassigned`); "who is on it" reads the assignee only. Review safety checks (self-review,
+    review role, default reviewer) still fall back to the owner on purpose; stats do not (below).
+  - `tk_claim_task(id)`: the only way a non-admin sets the assignee on an unassigned task (the
+    trigger pins it otherwise). UI: **Claim** on rows (`TK_vUnassignedClaim`) and in the drawer.
+  - Templates: `assignee_email` + `leave_unassigned` (`tk_save_template`); the editor's **Assign
+    to** is a role, a named person, or Leave unassigned; the list shows who and a **From Asana** tag.
+  - Admins: `tk_import_no_team_clients()` (sidebar **No team yet**) and
+    `tk_import_assign_team(client, email)` (**Assign team** in `TK_ClientHeader`; sets the
+    bookkeeper, joins projects, makes them owner of parked unassigned tasks, which stay claimable).
+  - Review fixes (`supabase/tasks-p2-11-s8b-review-fixes.sql`, applied 2026-10-16; schema stays 10;
+    tests `tasks-p2-11-s8b-review-fixes-tests.sql`, rolled back). Unassigned tasks count for nobody:
+    `staff_performance`, `digest_weekly_data`, `tk_on_time_stats`, `tk_review_stats` read
+    `assignee_email` only (no `coalesce` with `staff_email`). Time off (`tk__ooo_apply`,
+    `tk__ooo_return`) moves and returns only tasks assigned to the person who is out. The default
+    reviewer skips the owner of an unassigned task. `complete_staff_item` keeps the next copy of an
+    unassigned series unassigned. `tk_import_assign_team` only takes real (not test) clients that
+    have imported (`source = 'asana'`) tasks. The planner's first-name remap never beats an active
+    email match and only applies when one Asana user has that first name.
 - **Staff Handbook** (`supabase/staff-handbook.sql`, applied 2026-10-13). Re-runnable. Four
   `handbook_*` tables with RLS and no direct writes, the `hb_*` RPCs, two new outbox kinds
   (`handbook_sign_needed`, `handbook_countersign_needed`) added to both email check constraints,

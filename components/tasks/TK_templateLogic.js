@@ -282,11 +282,42 @@ function TK_tplBlank() {
     priority: "normal",
     checklist: [],
     assignee_role: "bookkeeper",
+    // S8b: who each task goes to. "role" = assignee_role on the client's
+    // team; "person" = assignee_email; "unassigned" = nobody (anyone on the
+    // client can claim it).
+    assign_mode: "role",
+    assignee_email: "",
     review_required: false,
     sop_section: "",
     estimate_minutes: "",
     period_basis: "calendar",
   };
+}
+
+var TK_TPL_ASSIGN_MODES = [
+  { value: "role", label: "The role on each client's team" },
+  { value: "person", label: "A named person" },
+  { value: "unassigned", label: "Leave unassigned (anyone on the client can claim it)" },
+];
+
+// "role" | "person" | "unassigned" for a task_templates row (or draft).
+function TK_tplAssignMode(r) {
+  if (!r) return "role";
+  if (r.assignee_email) return "person";
+  if (r.leave_unassigned) return "unassigned";
+  return "role";
+}
+
+// Plain words for who a template's tasks go to, for the list.
+// nameOf(email) -> display name (optional).
+function TK_tplAssignText(r, nameOf) {
+  var mode = TK_tplAssignMode(r);
+  if (mode === "person") {
+    var e = String(r.assignee_email).toLowerCase();
+    return (nameOf && nameOf(e)) || e;
+  }
+  if (mode === "unassigned") return "Unassigned";
+  return TK_tplLabelOf(TK_TPL_ROLES, r.assignee_role || "bookkeeper");
 }
 
 // A task_templates row -> the editor's draft.
@@ -303,6 +334,9 @@ function TK_tplFromRow(row) {
   d.priority = r.priority || "normal";
   d.checklist = Array.isArray(r.checklist) ? r.checklist.slice() : [];
   d.assignee_role = r.assignee_role || "bookkeeper";
+  d.assign_mode = TK_tplAssignMode(r);
+  d.assignee_email = r.assignee_email ? String(r.assignee_email).toLowerCase() : "";
+  d.source = r.source || null;
   d.review_required = !!r.review_required;
   d.sop_section = r.sop_section || "";
   d.estimate_minutes = r.estimate_minutes != null ? String(r.estimate_minutes) : "";
@@ -334,6 +368,7 @@ function TK_tplValidate(d) {
     if (!(Math.floor(n) === n && n >= 1 && n <= 10000)) e.estimate_minutes = "Use whole minutes, 1 to 10000.";
   }
   if (d && Array.isArray(d.checklist) && d.checklist.length > 50) e.checklist = "Keep it to 50 steps.";
+  if (d && d.assign_mode === "person" && !String(d.assignee_email || "").trim()) e.assignee_email = "Pick who gets these tasks.";
   return Object.keys(e).length ? e : null;
 }
 
@@ -350,6 +385,9 @@ function TK_tplToPayload(d) {
     priority: d.priority || "normal",
     checklist: (d.checklist || []).slice(0, 50),
     assignee_role: d.assignee_role || "bookkeeper",
+    // S8b: always both keys; "" clears the named person.
+    assignee_email: d.assign_mode === "person" ? String(d.assignee_email || "").trim().toLowerCase() : "",
+    leave_unassigned: d.assign_mode === "unassigned",
     review_required: !!d.review_required,
     sop_section: d.sop_section || "",
     estimate_minutes: d.estimate_minutes === "" || d.estimate_minutes == null ? "" : String(Number(d.estimate_minutes)),
@@ -446,6 +484,7 @@ var TK_TPL_ERR_TEXT = {
   tk_offline: "You're offline. Try again when you're back online.",
   tk_cadence_locked: "How often it repeats can't change once a template has been on. Retire it and make a new one.",
   tk_review_admin_only: "Only an admin can turn approval off for a client.",
+  tk_bad_assignee: "Pick someone who's active on staff.",
 };
 
 var TK_TPL_CADENCE_LOCK_NOTE = "How often it repeats can't change once a template has been on. Retire it and make a new one.";
@@ -576,6 +615,9 @@ if (typeof module !== "undefined" && module.exports) {
     TK_tplFromRow: TK_tplFromRow,
     TK_tplValidate: TK_tplValidate,
     TK_tplToPayload: TK_tplToPayload,
+    TK_TPL_ASSIGN_MODES: TK_TPL_ASSIGN_MODES,
+    TK_tplAssignMode: TK_tplAssignMode,
+    TK_tplAssignText: TK_tplAssignText,
     TK_tplSkipReasonText: TK_tplSkipReasonText,
     TK_tplRunSummary: TK_tplRunSummary,
     TK_tplGroups: TK_tplGroups,

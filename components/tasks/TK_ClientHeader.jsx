@@ -1,7 +1,7 @@
 // ----------------------------------------------------------------------------
 // TK_ClientHeader.jsx — the header on a client's task list (Row 1.2).
 //
-// TK_ClientHeader({ client, staffUser, isAdmin, compact })
+// TK_ClientHeader({ client, staffUser, isAdmin, compact, onTeamChanged })
 //   name, "Open client" and "SOP" links, the QuickBooks pill (text only),
 //   "Open Drive folder", "Contacts" (a popover; a sheet on phones), the People
 //   chips (Bookkeeper, Backup, Account Manager) and "New onboarding project".
@@ -10,6 +10,10 @@
 // renders nothing when its read fails, so a denied or broken read never
 // breaks the list under it. Emails show only inside the contacts list, never
 // in a URL.
+//
+// S8b: an admin on a client with no bookkeeper gets "Assign team": pick an
+// active staffer, tk_import_assign_team makes them the bookkeeper and hands
+// over the imported Unassigned tasks it owns. No email is sent.
 // ----------------------------------------------------------------------------
 
 var TK_vPEOPLE_ROLES = [
@@ -77,6 +81,23 @@ function TK_ClientHeader(props) {
   var setNewOnboarding = nPair[1];
   var popRef = React.useRef(null);
   var btnRef = React.useRef(null);
+  var plPair = React.useState(false);
+  var peopleLoaded = plPair[0];
+  var setPeopleLoaded = plPair[1];
+  var rvPair = React.useState(0);
+  var rv = rvPair[0];
+  var setRv = rvPair[1];
+  var atPair = React.useState(false);
+  var assignOpen = atPair[0];
+  var setAssignOpen = atPair[1];
+  var apPair = React.useState("");
+  var assignPick = apPair[0];
+  var setAssignPick = apPair[1];
+  var abPair = React.useState(false);
+  var assignBusy = abPair[0];
+  var setAssignBusy = abPair[1];
+  var isAdmin = !!props.isAdmin;
+  var allStaff = TK_vUseStaff(isAdmin && assignOpen);
 
   React.useEffect(
     function () {
@@ -84,6 +105,7 @@ function TK_ClientHeader(props) {
       var live = true;
       setHeader(null);
       setPeople([]);
+      setPeopleLoaded(false);
       var api = typeof TK_api !== "undefined" && TK_api ? TK_api : null;
       if (api && typeof api.clientHeader === "function") {
         Promise.resolve()
@@ -106,10 +128,12 @@ function TK_ClientHeader(props) {
           })
           .then(
             function (rows) {
-              if (live) setPeople(Array.isArray(rows) ? rows : []);
+              if (!live) return;
+              setPeople(Array.isArray(rows) ? rows : []);
+              setPeopleLoaded(true);
             },
             function () {
-              if (live) setPeople([]);
+              if (live) setPeople([]); // unknown: no Assign team on a failed read
             },
           );
       }
@@ -133,7 +157,7 @@ function TK_ClientHeader(props) {
         live = false;
       };
     },
-    [id],
+    [id, rv],
   );
 
   // The desktop popover closes on an outside click and on Esc.
@@ -178,6 +202,58 @@ function TK_ClientHeader(props) {
     for (var i = 0; i < people.length; i++) if (people[i] && people[i].role === r.key) hit = people[i];
     return hit ? { key: r.key, label: r.label, name: hit.name || hit.email || "" } : null;
   }).filter(Boolean);
+
+  // S8b: no bookkeeper on the client (and the roster agrees) -> Assign team.
+  var hasBookkeeper =
+    people.some(function (x) { return x && x.role === "bookkeeper"; }) ||
+    !!(client.assignedBookkeeper && client.assignedBookkeeper.email);
+  var canAssignTeam = isAdmin && peopleLoaded && !hasBookkeeper && typeof TK_api !== "undefined" && TK_api && typeof TK_api.assignTeam === "function";
+  var activeStaff = (Array.isArray(allStaff) ? allStaff : [])
+    .filter(function (x) { return x && x.email && x.active !== false; })
+    .slice()
+    .sort(function (a, b) {
+      var x = String(a.name || a.email).toLowerCase();
+      var y = String(b.name || b.email).toLowerCase();
+      return x < y ? -1 : x > y ? 1 : 0;
+    });
+  var doAssignTeam = function () {
+    if (!assignPick || assignBusy) return;
+    var who = activeStaff.filter(function (x) { return String(x.email).toLowerCase() === assignPick; })[0];
+    var whoName = (who && who.name) || assignPick;
+    setAssignBusy(true);
+    TK_api.assignTeam(id, assignPick).then(
+      function (res) {
+        setAssignBusy(false);
+        setAssignOpen(false);
+        setAssignPick("");
+        var n = res && Number(res.tasks_moved) > 0 ? Number(res.tasks_moved) : 0;
+        TK_toast("Assigned " + whoName + " as bookkeeper." + (n ? " They now own " + n + (n === 1 ? " unassigned task" : " unassigned tasks") + "; anyone on the team can claim them." : ""));
+        setRv(function (x) { return x + 1; });
+        try {
+          window.dispatchEvent(new CustomEvent("mgb:tk-team-assigned", { detail: { clientId: id } }));
+        } catch (e) {}
+        if (typeof props.onTeamChanged === "function") props.onTeamChanged();
+      },
+      function (err) {
+        setAssignBusy(false);
+        var why = (err && (err.reason || err.code)) || "";
+        var text =
+          why === "tk_has_team"
+            ? "This client already has a bookkeeper."
+            : why === "tk_bad_assignee"
+              ? "Pick someone who's active on staff."
+              : why === "tk_forbidden"
+                ? "Only admins can assign a team."
+                : why === "tk_not_found"
+                  ? "We couldn't find that client."
+                  : typeof TK_vErrText === "function"
+                    ? TK_vErrText(err)
+                    : "Couldn't assign the team. Try again.";
+        TK_toast(text);
+        if (why === "tk_has_team") setRv(function (x) { return x + 1; });
+      },
+    );
+  };
 
   return (
     <header className="tk-head tk-client-head">
@@ -231,6 +307,19 @@ function TK_ClientHeader(props) {
               ) : null}
             </span>
           ) : null}
+          {canAssignTeam && !assignOpen ? (
+            <button
+              type="button"
+              className="tk-tool-btn is-primary"
+              data-tour="tk-assign-team"
+              onClick={function () {
+                setAssignOpen(true);
+              }}
+            >
+              <TK_vIcon name="people" size={15} />
+              <span>Assign team</span>
+            </button>
+          ) : null}
           {typeof TK_NewProjectModal === "function" ? (
             <button
               type="button"
@@ -245,6 +334,46 @@ function TK_ClientHeader(props) {
           ) : null}
         </div>
       </div>
+      {canAssignTeam && assignOpen ? (
+        <div className="tk-assign-team" role="group" aria-label="Assign team">
+          <label className="tk-select-wrap">
+            <span className="tk-field-label">Bookkeeper</span>
+            <select
+              className="tk-select"
+              value={assignPick}
+              disabled={assignBusy}
+              onChange={function (e) {
+                setAssignPick(e.target.value);
+              }}
+            >
+              <option value="">{allStaff == null ? "Loading…" : "Pick someone"}</option>
+              {activeStaff.map(function (x) {
+                var em = String(x.email).toLowerCase();
+                return (
+                  <option key={em} value={em}>
+                    {x.name || em}
+                  </option>
+                );
+              })}
+            </select>
+          </label>
+          <button type="button" className="btn-primary" disabled={!assignPick || assignBusy} onClick={doAssignTeam}>
+            {assignBusy ? "Assigning…" : "Assign"}
+          </button>
+          <button
+            type="button"
+            className="btn-secondary"
+            disabled={assignBusy}
+            onClick={function () {
+              setAssignOpen(false);
+              setAssignPick("");
+            }}
+          >
+            Cancel
+          </button>
+          <span className="tk-field-help">They become the bookkeeper and get this client's imported tasks that nobody is on yet. No email is sent.</span>
+        </div>
+      ) : null}
       {chips.length ? (
         <div className="tk-people" aria-label="People on this client">
           {chips.map(function (c) {

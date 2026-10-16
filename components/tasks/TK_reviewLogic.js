@@ -35,6 +35,7 @@ function TK_reviewRole(task, ctx) {
   var me = TK__rvLower(ctx && ctx.me);
   var isAdmin = !!(ctx && ctx.isAdmin);
   var inReview = TK__rvStatus(task) === "ready_for_review" && !(task && task.deleted_at);
+  // Owner fallback on purpose (S8b): an Unassigned task's owner still can't approve it.
   var assignee = TK__rvLower(task && (task.assignee_email || task.staff_email));
   var submitter = TK__rvLower(task && task.submitted_by);
   var isAssignee = !!me && me === assignee;
@@ -222,6 +223,7 @@ function TK_onTimeEligible(task) {
   if (TK_ON_TIME_SKIP_SOURCES.indexOf(src) >= 0) return false;
   if (src === "template") return true;
   var creator = TK__rvLower(task.created_by);
+  // Owner fallback on purpose (S8b): an Unassigned task counts against its owner.
   var assignee = TK__rvLower(task.assignee_email || task.staff_email);
   return creator !== assignee;
 }

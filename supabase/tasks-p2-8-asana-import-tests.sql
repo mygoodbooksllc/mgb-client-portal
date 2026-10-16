@@ -53,7 +53,7 @@ insert into t_ctx select 'a2', lower(email) from staff where active and role = '
 insert into t_ctx select 'bk1', lower(email) from staff where active and role = 'bookkeeper' order by email limit 1;
 select pg_temp.ok(pg_temp.ctx('a1') is not null and pg_temp.ctx('a2') is not null and pg_temp.ctx('bk1') is not null, 'test people found');
 select pg_temp.ok(exists (select 1 from clients where id = 'basic-test' and test_only), 'test client basic-test exists');
-select pg_temp.ok(public.tk_schema_version() = 9, 'schema version 9');
+select pg_temp.ok(public.tk_schema_version() >= 9, 'schema version 9 or later');
 select pg_temp.ok(not exists (select 1 from tk_settings where key = 'asana_import_apply_enabled' and value = 'true'::jsonb),
                   'apply switch is not on in the live data');
 select pg_temp.ok(not exists (select 1 from staff_reminders where source_ref like 's8-test-%'), 'no leftover test gids');

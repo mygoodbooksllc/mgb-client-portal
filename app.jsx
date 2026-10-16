@@ -1025,6 +1025,11 @@ const INFRA_LINKS = [
     note: "MGB shared drive holding client documents, and the admin-only reviews drive (review PDFs, signed Staff Handbook PDFs under Handbook, and Inventory exports) · service account in Supabase secrets",
   },
   {
+    name: "Supabase SQL (Tasks unassigned + Asana import)",
+    url: "https://supabase.com/dashboard/project/xumsqmhccgfjnlmieqyu/sql/new",
+    note: "supabase/tasks-p2-10-asana-import-v2.sql: tasks can have no assignee (is_unassigned); tk_claim_task (Claim; only way a non-admin sets the assignee on an unassigned task) · tk_save_template takes assignee_email and leave_unassigned · tk_import_no_team_clients and tk_import_assign_team (admins: No team yet, Assign team; no email sent) · the import apply stays behind asana_import_apply_enabled (Tasks switches below) · no edge function",
+  },
+  {
     name: "Intuit developer (QuickBooks)",
     url: "https://developer.intuit.com/app/developer/dashboard",
     note: "The QuickBooks Online app behind Pro sync and QuickBooks Time · credentials: 1Password vault “MGB Infra”",
@@ -7263,7 +7268,9 @@ function OV_ClientTasks({ client, staffUser }) {
           {shown.map((t) => {
             const overdue = tkLogic ? TK_isOverdue(t, today) : t.due_date && t.due_date < today;
             const due = staffItemDueLabel(t, today);
-            const owner = String(t.assignee_email || t.staff_email || "").toLowerCase();
+            // S8b: the assignee only; an Unassigned task (null) says so.
+            const owner = String(t.assignee_email || "").toLowerCase();
+            const unassigned = !owner && t.kind !== "note" && !t.done;
             const notMine = owner && owner !== me;
             const to = { place: "work", tab: "tasks", item: "task:" + t.id };
             const status = typeof TK_effectiveStatus === "function" ? TK_effectiveStatus(t) : t.done ? "done" : "todo";
@@ -7297,6 +7304,7 @@ function OV_ClientTasks({ client, staffUser }) {
                     {due && <span className={"task-due" + (overdue ? " overdue" : "")}>{due}</span>}
                     {statusLabel && <span className="task-chip">{statusLabel}</span>}
                     {notMine && <span className="task-chip">{owner.split("@")[0]}</span>}
+                    {unassigned && <span className="task-chip">Unassigned</span>}
                     {t.visibility !== "shared" && <span className="task-chip">Private</span>}
                   </span>
                 </OV_Link>
@@ -15025,7 +15033,7 @@ function DeveloperToolsPage({ staffUser, readOnly }) {
   function resetLocalState() {
     if (
       !window.confirm(
-        "Reset this browser's local MyGoodBooks state (theme, tab layout, dashboard/Financial Overview widget layouts, cash-floor alerts, per-person access overrides, the tour and first sign-in prompts, dismissed page hints, recent clients, the tab last open on each client, Tasks views, folded groups and Follow my client, ...)? This only affects this browser — nothing in Supabase is touched. The page will reload.",
+        "Reset this browser's local MyGoodBooks state (theme, tab layout, dashboard/Financial Overview widget layouts, cash-floor alerts, per-person access overrides, the tour and first sign-in prompts, dismissed page hints, recent clients, the tab last open on each client, Tasks views, folded groups, Follow my client and whether you have seen an Unassigned task, ...)? This only affects this browser — nothing in Supabase is touched. The page will reload.",
       )
     ) {
       return;
@@ -20434,7 +20442,7 @@ function useStaffItemsChanged(load) {
 }
 
 // "Mine" = I own it or it's assigned to me. With the Tasks module loaded,
-// TK_isMine: assigned to me (or owned by me when nobody is assigned).
+// TK_isMine: assigned to me (an Unassigned task is nobody's until claimed).
 const isMyStaffItem = (item, email) =>
   typeof TK_isMine === "function"
     ? TK_isMine(item, email)
@@ -26309,7 +26317,7 @@ const PAGE_META = {
   },
   tasks: {
     title: "Tasks",
-    subtitle: "Your tasks, review, waiting on client, recurring work, client lists and projects",
+    subtitle: "Your tasks, unassigned work to claim, review, waiting on client, recurring work, client lists and projects",
   },
   clients: {
     title: "Clients",

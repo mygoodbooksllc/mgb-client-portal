@@ -2,7 +2,7 @@
 title: How do recurring tasks from templates work?
 section: Month-end and recurring work
 audience: staff
-keywords: [templates, recurring, recurring tasks, repeat, weekly, monthly, quarterly, annually, fiscal year, generate, make due tasks now, automatic tasks, task templates, suggestions, suggested templates, save as template, checklist, due rule, business day, last business day, lead days, draft, turn on, pause, resume, retire, missed periods, dismissed, skip for this client, repeats locked, live for real clients, change for this client, standard set, standard close set, preview, recurring badge, #/tasks/templates]
+keywords: [templates, recurring, recurring tasks, repeat, weekly, monthly, quarterly, annually, fiscal year, generate, make due tasks now, automatic tasks, task templates, suggestions, suggested templates, save as template, checklist, due rule, business day, last business day, lead days, draft, turn on, pause, resume, retire, missed periods, dismissed, skip for this client, repeats locked, live for real clients, change for this client, standard set, standard close set, preview, recurring badge, #/tasks/templates, assign to, named person, leave unassigned, unassigned, claim, from asana, asana import]
 sort: 320
 ---
 Some work happens for every client on a schedule, like reconciling bank accounts each month. Instead of typing those tasks by hand, an admin sets up a **recurring template** once, and the portal makes the task for each client on its own every morning.
@@ -11,7 +11,7 @@ Templates live in **Tasks › Recurring** (`#/tasks/templates`). The old **Task 
 
 ### What bookkeepers see
 
-- The tasks appear on your **My Tasks** (and on the client's task list) for the clients you look after. A template picks who does it: the client's **bookkeeper** (the default), **backup bookkeeper**, **account manager** or **reviewer**. If nobody has that role, it goes to the bookkeeper, then the account manager.
+- The tasks appear on your **My Tasks** (and on the client's task list) for the clients you look after. A template picks who does it in **Assign to**: the client's **bookkeeper** (the default), **backup bookkeeper**, **account manager** or **reviewer**; **a named person** for every client; or **Leave unassigned (anyone on the client can claim it)**. If nobody has the chosen role, it goes to the bookkeeper, then the account manager. An unassigned task shows in the **Unassigned** group of **My Tasks** for everyone on the client, and **Claim** takes it (see [How do I add and manage my tasks?](#/help/my-tasks)).
 - The task name ends with the period, for example **"Reconcile bank accounts · Sep 2026"**, **"· Q3 2026"**, **"· FY 2027"** or **"· Wk of Sep 7"**.
 - Each one shows a small **Recurring** tag on the row and in its details.
 - It shows up a set number of days before it's due (the template's "show it early" days), not months ahead.
@@ -47,7 +47,7 @@ Everyone can open **Tasks › Recurring** to see the templates. Under **One clie
 3. Pick how often it **Repeats**: **Weekly**, **Monthly**, **Quarterly** or **Annually**. Annual templates can follow the calendar year or **each client's fiscal year**.
 4. Pick when it's **Due** (see above).
 5. **Show it this many days early** (0 to 90).
-6. Pick **Who does it**, the **Priority**, and optionally the minutes it takes and the client's **SOP section** it links to.
+6. Pick **Assign to** (a role on the client, **A named person** and then the **Person**, or **Leave unassigned**), the **Priority**, and optionally the minutes it takes and the client's **SOP section** it links to.
 7. Turn on **An admin approves it before it counts as done** if it needs review.
 8. Under **Which clients**, tick plans and/or pick clients. Nothing ticked means every client.
 9. Optional: a **Checklist**, one step per line (up to 50).
@@ -60,6 +60,8 @@ Everyone can open **Tasks › Recurring** to see the templates. Under **One clie
 Before turning one on, click **Preview** on its row to see what it would make for every client today. **Preview 30 days** shows what all templates that are on will make in the next 30 days. Nothing is created by a preview.
 
 **Make due tasks now** runs the morning job straight away. It only makes what's already due to show up; anything already made is left alone.
+
+The list says who each template goes to, for example *The client's bookkeeper*, a person's name, or *Unassigned*. Templates brought over from Asana have a **From Asana** tag.
 
 ### Missed periods (admins)
 
@@ -84,4 +86,5 @@ Any task can become a template: open it and pick **More actions** → **Save as 
 
 - **A task didn't appear for a client.** Check the template is **On**, that the client's plan or name is ticked, and that the client has a bookkeeper. **Recent runs** (admins) shows how many were skipped each morning, and **Preview** on a template lists each skipped client with the reason.
 - **"Firm holidays run out on …"** in a preview: business-day due dates need next year's firm holidays. Ask an admin to add them.
+- **"Pick someone who's active on staff."** The person picked under **Assign to** has left or isn't on staff. Pick someone else, or a role.
 - **Temporary admins** can see templates but can't change them.

@@ -238,7 +238,8 @@ function TK_vReviewBody(props) {
               </h3>
               <ul className="tk-rows" role="grid" aria-label={g.label}>
                 {rows.map(function (t) {
-                  var who = t.assignee_email || t.staff_email;
+                  // S8b: the assignee; an unassigned task in review shows who submitted it (never the row owner)
+                  var who = t.assignee_email || t.submitted_by;
                   return (
                     <TK_TaskRow
                       key={t.id}

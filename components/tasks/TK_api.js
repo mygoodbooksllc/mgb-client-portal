@@ -26,7 +26,7 @@ var TK_TASK_COLS =
   "staff_email, created_by, visibility, source, source_ref, series_id, completed_at, status_changed_at, " +
   "status_changed_by, waiting_since, waiting_minutes, created_at, updated_at, deleted_at, " +
   "reviewer_email, send_back_count, ready_at, submitted_by, submitted_at, approved_by, approved_at, " +
-  "due_date_original, waiting_before_due_minutes";
+  "due_date_original, waiting_before_due_minutes, is_unassigned";
 
 // Raises a toast through the existing window event that ToastProvider handles.
 function TK_toast(text) {
@@ -64,6 +64,7 @@ var TK_api = (function () {
     "tk_template_retired", "tk_not_found", "tk_cadence_locked", "tk_review_admin_only",
     "tk_has_open_requests", "tk_email_off", "tk_no_recipients", "tk_bad_recipient", "tk_legacy_request",
     "tk_reply_required", "tk_not_open", "tk_not_answered", "tk_contact_exists", "tk_bad_contact", "tk_bad_request",
+    "tk_already_assigned", "tk_bad_assignee", "tk_has_team",
   ];
   var COPY_FALLBACK = {
     sentForReview: "Sent for review. An admin will approve it.",
@@ -212,7 +213,9 @@ var TK_api = (function () {
     out.status = status;
     out.done = status === "done";
     out.staff_email = lower(r.staff_email);
-    out.assignee_email = lower(r.assignee_email) || out.staff_email;
+    // S8b: null means Unassigned; never filled in from the owner.
+    out.assignee_email = lower(r.assignee_email) || null;
+    out.is_unassigned = !out.assignee_email;
     out.priority = r.priority || "normal";
     out.kind = r.kind || "task";
     out.recurrence = r.recurrence || "none";
@@ -401,19 +404,36 @@ var TK_api = (function () {
     return "done.eq.false,completed_at.gte." + cut + ",and(completed_at.is.null,updated_at.gte." + cut + ")";
   }
 
+  // S8b: my rows (assignee only) plus every open Unassigned row I can see,
+  // fetched apart so a big import can't crowd my own tasks out of the limit.
+  // My Tasks decides which Unassigned ones to show (TK_groupMyTasks).
   api.listMine = function (email, opts) {
     var who = lower(email || me());
     var showOlder = !!(opts && opts.showOlder);
     if (!who) return Promise.resolve([]);
-    return run(function (c) {
-      var q = c
-        .from("tk_tasks")
-        .select(TK_TASK_COLS)
-        .or("assignee_email.eq." + quote(who) + ",and(assignee_email.is.null,staff_email.eq." + quote(who) + ")");
+    var mine = run(function (c) {
+      var q = c.from("tk_tasks").select(TK_TASK_COLS).eq("assignee_email", who);
       if (!showOlder) q = q.or(recentFilter());
       return q.order("due_date", { ascending: true, nullsFirst: false }).limit(1000);
-    }, { where: "listMine" }).then(function (rows) {
-      return (rows || []).map(normalize);
+    }, { where: "listMine" });
+    var open = run(function (c) {
+      return c
+        .from("tk_tasks")
+        .select(TK_TASK_COLS)
+        .is("assignee_email", null)
+        .eq("done", false)
+        .order("due_date", { ascending: true, nullsFirst: false })
+        .limit(1000);
+    }, { where: "listMine" }).then(null, function () { return []; });
+    return Promise.all([mine, open]).then(function (res) {
+      var seen = {};
+      var out = [];
+      (res[0] || []).concat(res[1] || []).forEach(function (r) {
+        if (!r || seen[r.id]) return;
+        seen[r.id] = 1;
+        out.push(normalize(r));
+      });
+      return out;
     });
   };
 
@@ -428,8 +448,8 @@ var TK_api = (function () {
       if (s.projectId) q = q.eq("project_id", s.projectId);
       if (s.parentId) q = q.eq("parent_id", s.parentId);
       if (s.assigneeEmail) {
-        var who = lower(s.assigneeEmail);
-        q = q.or("assignee_email.eq." + quote(who) + ",and(assignee_email.is.null,staff_email.eq." + quote(who) + ")");
+        // S8b: the assignee only; an Unassigned task is nobody's list.
+        q = q.eq("assignee_email", lower(s.assigneeEmail));
       }
       if (!showDone) q = q.eq("done", false);
       else if (!showOlder) q = q.or(recentFilter());
@@ -793,6 +813,53 @@ var TK_api = (function () {
       },
     );
   }
+
+  // ---- Claim (S8b) ------------------------------------------------------------
+  // Take an open Unassigned task. Only tk_claim_task can set the assignee on
+  // one (a plain update is pinned by a trigger). Sends no email. Resolves with
+  // the refreshed task; on failure toasts friendly copy and rejects.
+  var CLAIM_TEXT = {
+    tk_already_assigned: "Someone already took this task.",
+    tk_not_found: "That task is gone. It may have been deleted.",
+    tk_forbidden: "You can't claim tasks on this client.",
+    tk_bad_transition: "Only open tasks can be claimed.",
+  };
+  api.claim = function (id) {
+    if (!id) return Promise.reject(errOf("tk_not_found", "No task"));
+    var who = me();
+    return reviewCall(id, "tk_claim_task", { p_id: id }, "claim", who ? { assignee_email: who, is_unassigned: false } : null).then(
+      function (r) {
+        TK_toast("It's yours. Find it in My Tasks.");
+        return r.task;
+      },
+      function (e) {
+        var why = (e && (e.reason || e.code)) || "";
+        if (why === "tk_already_assigned") refresh(id);
+        TK_toast(CLAIM_TEXT[why] || (typeof TK_vErrText === "function" ? TK_vErrText(e) : "Couldn't claim that. Try again."));
+        throw e;
+      },
+    );
+  };
+
+  // ---- No team yet (S8b, admins) -------------------------------------------
+  // Imported clients with open tasks and no bookkeeper: [{ client_id,
+  // client_name, open_tasks, unassigned_tasks }]. Admin only (server checks).
+  api.noTeamClients = function () {
+    return run(function (c) {
+      return c.rpc("tk_import_no_team_clients");
+    }, { where: "noTeamClients" }).then(function (rows) { return rows || []; });
+  };
+
+  // Give a client with no bookkeeper one. Resolves with { client_id,
+  // bookkeeper, tasks_moved, projects_joined, by }. Sends no email.
+  api.assignTeam = function (clientId, bookkeeperEmail) {
+    return rpcWrite("tk_import_assign_team", { p_client_id: String(clientId), p_bookkeeper_email: lower(bookkeeperEmail) }, "assignTeam").then(
+      function (data) {
+        afterWrite(null);
+        return Array.isArray(data) ? data[0] || null : data;
+      },
+    );
+  };
 
   // Approve: ready_for_review -> done (series roll forward). { status, nextId }
   api.approve = function (id, note) {
@@ -1372,7 +1439,7 @@ var TK_api = (function () {
   var TPL_COLS =
     "id, title, cadence, due_offset_days, due_rule, lead_days, plan_tiers, client_ids, priority, active, status, checklist, " +
     "assignee_role, review_required, sop_section, estimate_minutes, period_basis, template_set_id, close_key, activated_at, " +
-    "source, created_by, created_at, updated_by";
+    "source, created_by, created_at, updated_by, assignee_email, leave_unassigned";
 
   function rpcWrite(name, args, where) {
     var off = requireOnline();

@@ -21,6 +21,8 @@ function t(name, fn) {
 }
 
 const SQL = fs.readFileSync(path.join(__dirname, "../../supabase/tasks-p2-4-recurring.sql"), "utf8");
+// S8b: tk_save_template also reads assignee_email and leave_unassigned there.
+const SQL_S8B = fs.readFileSync(path.join(__dirname, "../../supabase/tasks-p2-10-asana-import-v2.sql"), "utf8");
 
 t("SOP sections match TK_SOP_SECTION_IDS", () => {
   assert.deepStrictEqual(T.TK_TPL_SOP.map((s) => s.value), L.TK_SOP_SECTION_IDS);
@@ -221,15 +223,44 @@ t("row -> draft -> payload", () => {
   const p = T.TK_tplToPayload(d);
   assert.deepStrictEqual(p, {
     title: "Close", cadence: "annually", due_rule: { type: "offset", days: 20 }, lead_days: 14, plan_tiers: ["basic"],
-    client_ids: [], priority: "high", checklist: ["a"], assignee_role: "backup", review_required: true,
-    sop_section: "reporting", estimate_minutes: "30", period_basis: "fiscal", due_offset_days: 20,
+    client_ids: [], priority: "high", checklist: ["a"], assignee_role: "backup", assignee_email: "", leave_unassigned: false,
+    review_required: true, sop_section: "reporting", estimate_minutes: "30", period_basis: "fiscal", due_offset_days: 20,
   });
   const m = T.TK_tplToPayload(Object.assign(T.TK_tplBlank(), { title: "x", period_basis: "fiscal" }));
   assert.strictEqual(m.period_basis, "calendar", "basis only matters for annual");
   assert.strictEqual(m.estimate_minutes, "");
   assert.strictEqual(m.due_offset_days, undefined);
   // every payload key is one tk_save_template reads
-  Object.keys(p).forEach((k) => assert.ok(SQL.indexOf("p_tpl ->> '" + k + "'") >= 0 || SQL.indexOf("p_tpl -> '" + k + "'") >= 0, k));
+  const both = SQL + SQL_S8B;
+  Object.keys(p).forEach((k) => assert.ok(both.indexOf("p_tpl ->> '" + k + "'") >= 0 || both.indexOf("p_tpl -> '" + k + "'") >= 0, k));
+});
+
+t("assign to: role, a named person, or leave unassigned (S8b)", () => {
+  const base = { id: "x", title: "Close", cadence: "monthly", assignee_role: "account_manager" };
+  const role = T.TK_tplFromRow(base);
+  assert.strictEqual(role.assign_mode, "role");
+  assert.strictEqual(T.TK_tplAssignText(base), "Account manager");
+  const person = T.TK_tplFromRow(Object.assign({}, base, { assignee_email: "Pat@Example.test" }));
+  assert.strictEqual(person.assign_mode, "person");
+  assert.strictEqual(person.assignee_email, "pat@example.test");
+  let p = T.TK_tplToPayload(person);
+  assert.strictEqual(p.assignee_email, "pat@example.test");
+  assert.strictEqual(p.leave_unassigned, false);
+  assert.strictEqual(T.TK_tplAssignText({ assignee_email: "pat@example.test" }, (e) => (e === "pat@example.test" ? "Pat" : "")), "Pat");
+  const un = T.TK_tplFromRow(Object.assign({}, base, { leave_unassigned: true }));
+  assert.strictEqual(un.assign_mode, "unassigned");
+  p = T.TK_tplToPayload(un);
+  assert.strictEqual(p.assignee_email, "", "an empty string clears the named person");
+  assert.strictEqual(p.leave_unassigned, true);
+  assert.strictEqual(T.TK_tplAssignText({ leave_unassigned: true }), "Unassigned");
+  // back to the role clears both
+  p = T.TK_tplToPayload(Object.assign({}, person, { assign_mode: "role" }));
+  assert.strictEqual(p.assignee_email, "");
+  assert.strictEqual(p.leave_unassigned, false);
+  // a named person must be picked
+  const errs = T.TK_tplValidate(Object.assign(T.TK_tplBlank(), { title: "Close", assign_mode: "person", assignee_email: "" }));
+  assert.ok(errs && errs.assignee_email);
+  assert.ok(T.TK_tplErrorText({ reason: "tk_bad_assignee" }));
 });
 
 t("run summary", () => {

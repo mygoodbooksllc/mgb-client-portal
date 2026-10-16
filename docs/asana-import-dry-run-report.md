@@ -1,4 +1,4 @@
-# Asana import dry-run report (Tasks Phase 2, S8)
+# Asana import dry-run report (Tasks Phase 2, S8 + S8b owner decisions)
 
 Snapshot taken 2026-10-16T17:00:00Z from the MGB Asana workspace (read-only). Built 2026-10-16 by `scripts/asana-import/buildDryRun.js`.
 
@@ -8,46 +8,65 @@ This committed copy is aggregate only: no emails, staff by first name, person na
 
 ## Headline
 
-|  | Today (live clients) | If every client project had a client row |
+|  | Today (live clients) | With the proposed roster loaded |
 |---|---|---|
-| Asana users (mapped by email / to fallback) | 10 (9 / 1) | same |
+| Asana users (mapped by email / remapped or fallback) | 10 (9 / 1) | same |
 | Projects (client / onboarding / internal / tracker / skip) | 84: 59 / 10 / 9 / 1 / 5 | 84: 59 / 10 / 9 / 1 / 5 |
-| Duplicate projects merged away | 3 | 3 |
+| Duplicate project copies combined into another | 3 | 3 |
 | Open top-level task lines in snapshot (incl. multi-project repeats) | 1062 | 1062 |
 | Open subtasks in snapshot | 851 | 851 |
-| Tasks that would be created (incl. subtasks) | 160 | 1113 |
+| Tasks that would be created (incl. subtasks) | 160 | 1132 |
 |   of which subtasks | 75 | 135 |
+|   of which left unassigned (as in Asana) | 10 | 176 |
+|   of which open but Task Progress says Done (import as To do, flagged) | 0 | 12 |
 | Projects that would be created | 8 | 17 |
-| Draft recurring templates | 0 | 743 |
+| Draft recurring templates (created switched off) | 0 | 743 |
 | Review-step tasks (email/send reports for review) | 2 | 41 |
-| Skipped | 1745 | 792 |
+| Skipped | 1745 | 773 |
 
-The portal has no real client rows yet (only the MGB internal row and two test clients), so **today almost every client task would be skipped**. The right-hand column is the same snapshot with one hypothetical client per unmatched project name; it shows what the import looks like once the client roster is loaded.
+The portal has no real client rows yet (only the MGB internal row and two test clients), so **today almost every client task would be skipped**. The right-hand column is the same snapshot with the proposed roster (below and `docs/asana-import-proposed-roster.md`) loaded as clients; it shows what the import looks like once the owner approves the roster and the client rows exist.
+
+## Proposed client roster (owner approves; nothing created)
+
+Built from the Asana client and onboarding projects (copies of one client combined), matched to the firm's QuickBooks customer list. Team gives the bookkeeper ("Nicole's Clients" -> Nicole; Naomi's Clients -> Sonya). Full list: `docs/asana-import-proposed-roster.md`.
+
+|  | Count |
+|---|---|
+| Asana clients (proposed client rows) | 60 |
+|   matched to one QuickBooks customer | 58 |
+|   more than one QuickBooks candidate (owner picks) | 1 |
+|   no QuickBooks match | 1 |
+|   with a bookkeeper from their Asana team | 29 |
+|   No team yet (no Asana team) | 16 |
+| Active QuickBooks customers with no Asana project | 22 |
+
+**By group:** No team yet 16, All Team 14, Nicole's Clients 11, Gillian's Clients 8, Debra's Clients 6, Sonya's Clients 3, Illumination Health and Home 1, Naomi's Clients 1.
+
+**Tasks by roster group (with roster):** No team yet 263, Nicole's Clients 229, All Team 158, Debra's Clients 104, Gillian's Clients 102, Sonya's Clients 88, Illumination Health and Home 20, Naomi's Clients 8.
 
 ## Skipped, and why (today / if clients existed)
 
 | Reason | Today | With clients |
 |---|---|---|
-| archived_duplicate_project | 27 | 27 |
-| client_missing | 787 | 0 |
-| duplicate_in_merged_project | 23 | 23 |
-| onboarding_client_missing | 104 | 0 |
+| client_missing | 791 | 0 |
+| duplicate_in_merged_project | 31 | 31 |
+| onboarding_client_missing | 119 | 0 |
 | parent_not_imported | 776 | 716 |
 | project_archived | 9 | 9 |
 | project_template_project | 17 | 17 |
 | tracker_client_missing | 2 | 0 |
 
-`client_missing`: the project's client is not in the portal. `project_template_project`: Asana template projects. `project_archived`: archived in Asana. `duplicate_in_merged_project` / `archived_duplicate_project`: dropped in a duplicate merge (below). `parent_not_imported`: subtask whose parent is skipped or closed.
+`client_missing`: the project's client is not in the portal. `project_template_project`: Asana template projects. `project_archived`: archived in Asana (and not a copy of another project). `duplicate_in_merged_project`: an obvious repeat in a combined project (below). `parent_not_imported`: subtask whose parent is skipped or closed.
 
-## Duplicates merged (newest wins)
+## Duplicate projects combined (owner decision 3)
 
-Rule used: an archived copy never wins; otherwise the latest `modified_at` wins. Every gid of the group maps to the winner, so a re-run never imports the loser. Tasks in the loser whose title and section match a winner task are dropped; the rest move into the winner. Tasks in an archived loser are dropped (flag `unionArchivedLosers` keeps them).
+Every copy becomes ONE project (the live, most recently modified copy gives the name; every gid maps to it, so a re-run imports nothing twice). Open tasks from all copies come along, archived copies included. Only obvious repeats drop: same title, same section and same due date as a task already kept. A client project and an onboarding project of the same church (Golden City) land on the same client.
 
-| Name | Kind | Gids | Winner | Winner modified | Moved in | Dropped (same title) | Dropped (archived copy) |
-|---|---|---|---|---|---|---|---|
-| mbtr v club | client | 1215718715307741, 1215285448822817 | 1215718715307741 | 2026-10-16 | 0 | 0 | 4 |
-| collective church | onboarding | 1216724702812359, 1217023362693718 | 1217023362693718 | 2026-09-26 | 1 | 23 | 0 |
-| golden city church | onboarding | 1216788123556297, 1216724702812363 | 1216788123556297 | 2026-09-20 | 0 | 0 | 23 |
+| Name | Kind | Gids | Kept as | Moved in from other copies | of which from archived copy | Dropped (obvious repeat) |
+|---|---|---|---|---|---|---|
+| mbtr v club | client | 1215718715307741, 1215285448822817 | 1215718715307741 | 4 | 4 | 0 |
+| collective church | onboarding | 1216724702812359, 1217023362693718 | 1217023362693718 | 1 | 0 | 23 |
+| golden city church | onboarding | 1216788123556297, 1216724702812363 | 1216788123556297 | 15 | 15 | 8 |
 
 ## Unmatched clients (66 projects)
 
@@ -208,55 +227,70 @@ Each needs a client row (or an owner override to another target) before apply. `
 | [name]'s To Do (archived) | 1153417106098749 | - | skip | none | archived | 0 |
 | Centerpoint Church (archived) | 1206159414085026 | - | skip | none | archived | 0 |
 | Copeland Magic (archived) | 1206194958298971 | - | skip | none | archived | 0 |
-| MBTR+V Club (archived) | 1215285448822817 | - | client -> 1215718715307741 | high |  | 0 |
-| Golden City Church Onboarding (archived) | 1216724702812363 | - | onboarding -> 1216788123556297 | high |  | 0 |
+| MBTR+V Club (archived) | 1215285448822817 | - | client -> 1215718715307741 | high |  | 4 |
+| Golden City Church Onboarding (archived) | 1216724702812363 | - | onboarding -> 1216788123556297 | high |  | 15 |
 
 ## Users
 
-Mapped by email to an active staff row; anything else goes to the fallback (the owner) with the Asana assignee name kept in the task description. Unassigned tasks go to the client's assigned bookkeeper, else the team's bookkeeper ("Nicole's Clients" -> Nicole), else the fallback.
+Mapped by email to an active staff row. A departed user named in the owner decisions goes to the person named there (Naomi -> Sonya, her tasks and her team); anyone else goes to the fallback (the owner). Either way the Asana assignee name stays in the task description.
+
+**Unassigned tasks stay unassigned** (owner decision 7): they show in an Unassigned group and anyone who can see the task can claim it. Each row still needs an owner behind the scenes (who can always edit it): the client's bookkeeper, else the team's bookkeeper, else the fallback. Row owners of unassigned tasks: fallback 138, client_bookkeeper 38.
 
 | Asana user | Open tasks (with clients) | Goes to |
 |---|---|---|
-| Naomi | 34 | Holden |
+| Naomi | 34 | Sonya |
 
-**Tasks per owner (with clients):**
+**Tasks per assignee (with roster):**
 
 | Owner | Tasks |
 |---|---|
-| Nicole | 247 |
-| Holden | 246 |
-| Sonya | 200 |
-| Gillian | 157 |
-| Debra | 142 |
+| Sonya | 231 |
+| Nicole | 227 |
+| (unassigned) | 176 |
+| Gillian | 154 |
+| Debra | 131 |
+| Holden | 89 |
 | Jesse | 67 |
-| Bailley | 39 |
+| Bailley | 42 |
 | Jeff | 12 |
 | Carmen | 3 |
 
-**How owners were chosen (with clients):** email 918, unassigned_fallback 123, unassigned_client_bookkeeper 38, fallback 34.
+**How assignees were chosen (with roster):** email 922, unassigned 176, remapped 34.
 
-## Tasks per client (if clients existed)
+## Draft recurring templates (owner decision 6)
+
+One draft per client + cadence + title from the open tasks in Weekly / Monthly / Quarterly / Annual sections. The Asana snapshot carries no repeat settings, so each template mirrors its open Asana instance: the same weekday (weekly) or the same day of the month (monthly, quarterly, annual), Asana's exact dates (weekends kept), and the same assignee: the client's bookkeeper role when Asana had the bookkeeper, that named person when it was someone else, left unassigned when Asana had nobody. The open Asana task is linked to its template as the current period, so switching a template on does not create a second copy. **All are created switched OFF (draft)**; an admin reviews and turns each on in Tasks > Recurring.
+
+|  | Templates (with roster) |
+|---|---|
+| By cadence | monthly 608, weekly 116, quarterly 18, annually 1 |
+| By assignee | bookkeeper 459, person 277, unassigned 7 |
+| Rule notes | no_due_date 14 |
+
+`no_due_date`: the Asana task had no due date, so the draft keeps the default due offset; set a due rule before switching it on. `weekend_due_rolls_to_monday`: a weekly task due on a weekend lands on the Monday after. `day_clamped_in_short_months`: due on the 29th-31st, so short months use their last day. Lead time (how early the task appears): weekly 4 days, monthly 14, quarterly and annual 30.
+
+## Tasks per client (with roster)
 
 | Client (suggested id) | Tasks |
 |---|---|
 | life-church | 39 |
 | creative-church | 37 |
+| golden-city-church | 37 |
 | church-at-the-shores | 32 |
 | highpoint-church | 32 |
 | manna-church | 29 |
-| christ-church | 28 |
+| christ-church-murrells-inlet | 28 |
 | creative-academy | 28 |
 | collective-church | 26 |
 | dreamraise | 26 |
 | p23-church | 24 |
-| golden-city | 22 |
 | the-way | 22 |
-| crossings-church | 20 |
+| crossings-community-church | 20 |
 | hosanna-church | 20 |
-| illumination | 20 |
-| life-west-church | 20 |
+| illumination-health-home | 20 |
+| life-west | 20 |
 | manna-church-clarksville | 20 |
-| space-city | 20 |
+| space-city-church | 20 |
 | manna-retreat-center | 19 |
 | cistern-church | 18 |
 | city-church-lufkin | 18 |
@@ -265,25 +299,25 @@ Mapped by email to an active staff row; anything else goes to the fallback (the 
 | renaissance-church | 18 |
 | vivid-church | 18 |
 | grace-city-church | 16 |
-| pathway-church | 16 |
+| pathway-community-church | 16 |
 | ascension-of-anglican | 15 |
-| faith-family-church | 15 |
+| faith-family-church-baytown | 15 |
 | fervent-church | 15 |
+| myrtle-beach-therapeutic-riding-vaulting-club | 15 |
 | glory-church | 14 |
-| grace-reformed-baptist | 14 |
+| grace-reformed-baptist-church | 14 |
 | new-circle-church | 14 |
 | city-church-of-lancaster | 13 |
-| fresh-start | 13 |
-| voice-church | 13 |
-| ascent | 12 |
+| fresh-start-network | 13 |
+| voice-church-oc | 13 |
+| ascent-church | 12 |
 | believing-church | 12 |
-| eternal-rock | 12 |
+| eternal-rock-church | 12 |
 | hilltop-church | 12 |
 | limitless-church | 12 |
 | 99-network | 11 |
 | city-house-church | 11 |
-| life-on-mission-church | 11 |
-| mbtr-v-club | 11 |
+| life-on-mission-church-inc | 11 |
 | tree-city-church | 11 |
 | unco-church | 11 |
 | vida-church | 10 |
@@ -291,54 +325,55 @@ Mapped by email to an active staff row; anything else goes to the fallback (the 
 | citymark-church | 8 |
 | good-land-church | 8 |
 | zeal-church | 8 |
-| pink-parcels | 7 |
-| tampa-design | 7 |
-| lifot | 6 |
+| pink-parcels-llc | 7 |
+| tampa-design-company | 7 |
+| lifot-faith | 6 |
 | the-plant-california-initiative | 5 |
 | e320-cadency | 4 |
 | careerspring | 3 |
 | fade | 1 |
-| hhcr | 1 |
+| happy-horizons-childrens-ranch | 1 |
 
-**Status mapping (Task Progress custom field):** Not started -> todo, In progress -> in_progress, Incomplete -> todo, no value -> todo. An open task whose field says Done/Completed stays open, gets a note, and is flagged below. Result: todo 1113.
+**Status mapping (Task Progress custom field):** Not started -> todo, In progress -> in_progress, Incomplete -> todo, no value -> todo. An open task whose field says Done/Completed stays open, gets a note, and is flagged below. Result: todo 1132.
 
 ## Date anomalies (with clients)
 
 | Kind | Tasks |
 |---|---|
-| no_due_date | 269 |
+| no_due_date | 287 |
 | due_on_weekend | 174 |
-| overdue_over_60_days | 16 |
+| overdue_over_60_days | 17 |
 | open_but_progress_says_done | 12 |
 
 No dates are changed except: a start date after the due date is dropped. Overdue tasks import as overdue so owners see them.
 
 ## 15 sample mapped rows (with clients)
 
-| Asana gid | Title | Client | Project | Parent | Section | Status | Due | Owner | How |
+| Asana gid | Title | Client | Project | Parent | Section | Status | Due | Assignee | How |
 |---|---|---|---|---|---|---|---|---|---|
 | 1206311177667773 | Update Q1 Ask Client | e320-cadency | - | - | Monthly | todo | - | Debra | email |
 | 1206754180805395 | Fade - accept all transactions to current | fade | - | - | Monthly Bookkeeping | todo | - | Debra | email |
 | 1206760644519599 | Reconcile Checking | e320-cadency | - | - | Monthly | todo | - | Debra | email |
 | 1207004703396476 | Reconcile CC | e320-cadency | - | - | Monthly | todo | - | Debra | email |
-| 1214238747338909 | Connect bank accounts | p23-church | tracker:1213787925210683:p23 | - | P23 | todo | - | Holden | unassigned_fallback |
-| 1214238747338911 | Import CoA | p23-church | tracker:1213787925210683:p23 | - | P23 | todo | - | Holden | unassigned_fallback |
+| 1214238747338909 | Connect bank accounts | p23-church | tracker:1213787925210683:p23 | - | P23 | todo | - | (unassigned) | unassigned |
+| 1214238747338911 | Import CoA | p23-church | tracker:1213787925210683:p23 | - | P23 | todo | - | (unassigned) | unassigned |
 | 1214718310376205 | Ask for any questions/concerns | p23-church | 1214702463679879 | - | Hand-Off Meeting | todo | - | Debra | email |
 | 1213889502744471 | Create employee handbook | - | 1213889502744443 | - | - | todo | - | Bailley | email |
 | 1213889502744473 | Create employee onboarding Asana list and documents | - | 1213889502744443 | - | - | todo | - | Bailley | email |
-| 1213889502744482 | Catch up personal expenses and check personal budget | - | 1213889502744443 | - | - | todo | - | Holden | unassigned_fallback |
-| 1217062706647506 | cash app expenses that are in ask client have to be matched  | space-city | - | 1217063386274381 | Monthly Tasks | todo | - | Holden | unassigned_fallback |
-| 1217062706647515 | there will also be expenses on the Amegy checking statement  | space-city | - | 1217063386274381 | Monthly Tasks | todo | - | Holden | unassigned_fallback |
+| 1213889502744482 | Catch up personal expenses and check personal budget | - | 1213889502744443 | - | - | todo | - | (unassigned) | unassigned |
+| 1217062706647506 | cash app expenses that are in ask client have to be matched  | space-city-church | - | 1217063386274381 | Monthly Tasks | todo | - | (unassigned) | unassigned |
+| 1217062706647515 | there will also be expenses on the Amegy checking statement  | space-city-church | - | 1217063386274381 | Monthly Tasks | todo | - | (unassigned) | unassigned |
 | 1214718310501519 | Review reports | p23-church | 1214702463679879 | - | Hand-Off Meeting | todo | - | Debra | email |
 | 1207123728421235 | Categorize QB transactions | e320-cadency | - | - | Weekly | todo | - | Debra | email |
 | 1211043609717508 | Update Creative Debt spreadsheet- SEE NOTE | creative-church | - | - | Quarterly | todo | - | Sonya | email |
 
 ## Apply plan (not run)
 
-1. Owner answers the decisions below and loads the client roster (or gives overrides).
+1. Owner approves the proposed roster (`docs/asana-import-proposed-roster.md`); the client rows are created with the normal client tools (this import never creates clients).
 2. Re-take the snapshot the day of the switch, with task notes (the dry run did not pull notes), and re-run `buildDryRun.js` with `--stage-json <scratchpad>/stage-live.json`. Read `plan-live.json`; `already_imported` must be 0 on a first run.
 3. Stage the plan as an admin: `select tk_import_asana_stage(<snapshot_at>, <report>, <rows>)` with the three parts of `stage-live.json`. It returns the run id and writes only to `tk_import_runs` and `tk_import_plan_rows`.
 4. Turn the switch on: `insert into tk_settings(key, value) values ('asana_import_apply_enabled', 'true') on conflict (key) do update set value = 'true';`
-5. Apply, as an admin: `select public.tk_import_asana_apply('<run id>', 'IMPORT <first 8 of run id>', '<fallback staff email>');`. It runs with `mgb.tk_import = on`, so no assignment emails go out. Rows are tagged with the run id in `tk_asana_import_map`; a second call creates nothing.
+5. Apply, as an admin: `select public.tk_import_asana_apply('<run id>', 'IMPORT <first 8 of run id>', '<fallback staff email>');`. It runs with `mgb.tk_import = on`, so no assignment emails go out. Unassigned tasks stay unassigned; templates are drafts linked to their open Asana task. Rows are tagged with the run id in `tk_asana_import_map`; a second call creates nothing.
+5b. Clients in the No team yet group: an admin gives each a bookkeeper with `tk_import_assign_team(client, bookkeeper)`; the client's imported tasks owned by the fallback move to that bookkeeper (unassigned ones stay unassigned).
 6. Turn the switch off again (`value = 'false'`).
 7. Rollback if needed: `select public.tk_import_asana_undo('<run id>', 'UNDO <first 8 of run id>');` soft-deletes the run's tasks, archives its projects, retires its draft templates and marks the map rows undone.

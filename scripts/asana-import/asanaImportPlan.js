@@ -6,12 +6,20 @@
 // staff_reminders rows and draft task_templates rows an apply would create,
 // what it would skip and why, and the dry-run report.
 //
-// Owner decisions (spec OD7): OPEN tasks only, no completed history. Asana
-// users with no staff row go to the fallback address (passed in, never
-// hard-coded). Duplicate onboarding projects merge and the newest wins. We
-// never create clients: a project whose client is not in `clients` is skipped
-// and listed. Nothing here writes anywhere; supabase/tasks-p2-8-asana-import.sql
-// applies a staged plan, and only when the owner turns it on.
+// Owner decisions (spec OD7, revised 2026-10-16 in S8b): OPEN tasks only, no
+// completed history. Asana users with no staff row go to a remap target
+// (ctx.userRemap, e.g. Naomi -> Sonya) or else the fallback address (passed
+// in, never hard-coded). Duplicate projects COMBINE: open tasks from every
+// copy (archived copies too) land on one project, and only obvious repeats
+// (same title, section and due date) drop. Unassigned Asana tasks stay
+// unassigned (assignee_email null; staff_email is only the row owner).
+// Recurring sections become draft templates whose due rule, lead time and
+// assignee mirror the open Asana instance. We never create clients: a
+// project whose client is not in `clients` is skipped and listed; the
+// roster step (AI_buildRoster) proposes the client list for the owner to
+// approve. Nothing here writes anywhere; supabase/tasks-p2-8-asana-import.sql
+// and tasks-p2-10-asana-import-v2.sql apply a staged plan, and only when the
+// owner turns it on.
 //
 // Idempotency: every planned row carries `key` = "asana:<kind>:<gid>". The
 // apply RPC records each key in tk_asana_import_map with the run (batch) id,
@@ -99,6 +107,8 @@ function AI_weekday(d) {
 }
 
 // Best client for a project name. Returns {client_id, confidence, candidates}.
+// A client may carry aliases (the Asana project names a roster entry was built
+// from); an exact alias hit counts as high.
 function AI_matchClient(name, clients) {
   var core = AI_coreName(name);
   var norm = AI_normName(name);
@@ -106,7 +116,10 @@ function AI_matchClient(name, clients) {
   var medium = [];
   (clients || []).forEach(function (c) {
     var cCore = AI_coreName(c.name);
-    if (c.id === AI_slug(name) || AI_normName(c.name) === norm || (cCore && cCore === core)) {
+    var aliasHit = (c.aliases || []).some(function (a) {
+      return AI_normName(a) === norm || AI_coreName(a) === core;
+    });
+    if (aliasHit || c.id === AI_slug(name) || AI_normName(c.name) === norm || (cCore && cCore === core)) {
       high.push(c.id);
       return;
     }
@@ -125,11 +138,14 @@ function AI_matchClient(name, clients) {
   return { client_id: null, confidence: "none", candidates: [] };
 }
 
-// "Nicole's Clients" -> the staff row whose first name is Nicole.
-function AI_teamBookkeeper(teamName, staff) {
+// "Nicole's Clients" -> the staff row whose first name is Nicole. remap
+// (ctx.userRemap) sends a departed bookkeeper's team to someone else:
+// {naomi: "sonya@..."} makes "Naomi's Clients" Sonya's.
+function AI_teamBookkeeper(teamName, staff, remap) {
   var m = /^\s*([A-Za-z]+)['’]s clients\s*$/i.exec(teamName || "");
   if (!m) return null;
   var first = m[1].toLowerCase();
+  if (remap && remap[first]) return AI_lower(remap[first]);
   var hit = (staff || []).filter(function (s) {
     return s.active !== false && String(s.name || "").trim().split(/\s+/)[0].toLowerCase() === first;
   });
@@ -143,6 +159,273 @@ function AI_teamFirstNames(teams) {
       return m ? m[1].toLowerCase() : null;
     })
     .filter(Boolean);
+}
+
+// Recurring due rule that reproduces an open Asana instance's due date in the
+// recurring engine (tk_resolve_due, supabase/tasks-p2-1-calendar.sql). The
+// snapshot has no Asana repeat settings, so the cadence comes from the section
+// name and the day from the open instance:
+//   weekly    -> {weekday, dow}: same weekday every week
+//   monthly   -> {day_of_month, day, month_offset 1, roll none}: same day each
+//                month, labeled for the month before (month-end work)
+//   quarterly -> {day_of_month, day, month_offset 1..3 after the quarter end}
+//   annually  -> {day_of_month, day, month_offset = month (from Dec 31)}
+// roll 'none' keeps Asana's exact dates, weekends included. Lead days (how
+// early the task appears) stand in for Asana showing the next one at once.
+var AI_LEAD = { weekly: 4, monthly: 14, quarterly: 30, annually: 30 };
+function AI_dueRule(cadence, due) {
+  var lead = AI_LEAD[cadence] || 14;
+  if (!AI_LEAD[cadence]) return { rule: null, lead_days: lead, note: "unknown_cadence" };
+  if (!AI_dateOk(due)) return { rule: null, lead_days: lead, note: "no_due_date" };
+  var dt = new Date(Date.parse(due + "T00:00:00Z"));
+  var dom = dt.getUTCDate();
+  var m = dt.getUTCMonth() + 1;
+  var isodow = dt.getUTCDay() === 0 ? 7 : dt.getUTCDay();
+  if (cadence === "weekly") {
+    return { rule: { type: "weekday", dow: isodow }, lead_days: lead, note: isodow > 5 ? "weekend_due_rolls_to_monday" : null };
+  }
+  var off = cadence === "monthly" ? 1 : cadence === "quarterly" ? ((m - 1) % 3) + 1 : m;
+  return { rule: { type: "day_of_month", day: dom, month_offset: off, roll: "none" }, lead_days: lead, note: dom > 28 ? "day_clamped_in_short_months" : null };
+}
+
+// ---- Roster (owner decision 1) ------------------------------------------------
+// Proposes one client per Asana client (client and onboarding projects and the
+// onboarding tracker's sections that share a core name, duplicates combined),
+// matched to the firm's QuickBooks customers. It never writes: the owner
+// approves the list, then clients are created by hand / the client tools.
+// input = {projects: AI_plan().project_map, trackerSections: [name],
+//          qbo: [{id, name, display, active, is_job, last_invoice}],
+//          staff, userRemap, liveClients}
+var AI_ORG_WORDS = /church|ministr|llc|inc\b|foundation|network|center|club|academy|company|group|services|insurance|associates|county|mission|initiative|ranch|solutions|photography|therapy|fellowship|wheels|health|novo|together|newport/i;
+function AI_qboClean(s) {
+  return AI_clean(s)
+    .replace(/\s*\(deleted\)\s*$/i, "")
+    .replace(/\s*\(\s*\d+\s*\)\s*/g, " ")
+    .replace(/_\d{6,}$/, "")
+    .replace(/-\d+$/, "")
+    .trim();
+}
+function AI_initials(s) {
+  return AI_normName(s)
+    .split(" ")
+    .filter(Boolean)
+    .map(function (w) {
+      return w[0];
+    })
+    .join("");
+}
+function AI_buildRoster(input) {
+  var projects = (input.projects || []).filter(function (p) {
+    return p.target_kind === "client" || p.target_kind === "onboarding";
+  });
+  var sources = projects.map(function (p) {
+    return { name: p.name, kind: p.target_kind, gid: p.gid, team: p.team || null, archived: !!p.archived };
+  });
+  (input.trackerSections || []).forEach(function (s) {
+    if (AI_clean(s)) sources.push({ name: AI_clean(s), kind: "tracker_section", gid: null, team: null, archived: false });
+  });
+  var groups = {};
+  var order = [];
+  sources.forEach(function (s) {
+    var k = AI_coreName(s.name);
+    if (!groups[k]) {
+      groups[k] = [];
+      order.push(k);
+    }
+    groups[k].push(s);
+  });
+  var qbo = (input.qbo || [])
+    .filter(function (q) {
+      return !q.is_job && !/my good ?books/i.test(q.display || q.name || "");
+    })
+    .map(function (q) {
+      var display = AI_qboClean(q.display || q.name);
+      var company = AI_qboClean(q.name || q.display);
+      return {
+        id: String(q.id),
+        name: display,
+        aliases: company && company !== display ? [company] : [],
+        active: q.active !== false && !/\(deleted\)/i.test(q.display || ""),
+        suffixed: /_\d{6,}$|-\d+$|\(\s*\d+\s*\)/.test(q.display || ""),
+        last_invoice: q.last_invoice || null,
+      };
+    });
+  var live = (input.liveClients || []).filter(function (c) {
+    return !c.test_only && !c.is_internal;
+  });
+  var usedIds = {};
+  var usedQbo = {};
+  var entries = order.map(function (k) {
+    var list = groups[k];
+    var main =
+      list.filter(function (s) {
+        return s.kind === "client" && !s.archived;
+      })[0] ||
+      list.filter(function (s) {
+        return !s.archived;
+      })[0] ||
+      list[0];
+    var teamSrc =
+      list.filter(function (s) {
+        return /'s clients$/i.test(s.team || "");
+      })[0] ||
+      list.filter(function (s) {
+        return s.team;
+      })[0];
+    var team = teamSrc ? teamSrc.team : null;
+    var bk = team ? AI_teamBookkeeper(team, input.staff, input.userRemap) : null;
+    // QuickBooks match: every Asana name in the group, then acronyms (MBTR+V)
+    var cands = {};
+    var conf = "none";
+    list.forEach(function (s) {
+      var m = AI_matchClient(s.name, qbo);
+      m.candidates.forEach(function (id) {
+        cands[id] = true;
+      });
+      if (m.confidence === "high" || (m.confidence === "medium" && conf !== "high")) conf = m.confidence;
+      else if (m.confidence === "ambiguous" && conf === "none") conf = "ambiguous";
+    });
+    if (!Object.keys(cands).length) {
+      list.forEach(function (s) {
+        var first = AI_normName(s.name).split(" ")[0] || "";
+        if (first.length < 3) return;
+        qbo.forEach(function (q) {
+          if (AI_initials(q.name).indexOf(first) === 0) cands[q.id] = true;
+        });
+      });
+      if (Object.keys(cands).length) conf = "acronym";
+    }
+    var candList = qbo.filter(function (q) {
+      return cands[q.id];
+    });
+    var active = candList.filter(function (q) {
+      return q.active;
+    });
+    var pool = active.length ? active : candList;
+    // one record per name: the duplicate QuickBooks records (Unco Church_1761…, -1) lose to the plain one
+    var byNorm = {};
+    pool.forEach(function (q) {
+      var n = AI_normName(q.name);
+      var cur = byNorm[n];
+      if (!cur || (cur.suffixed && !q.suffixed) || (!cur.last_invoice && q.last_invoice)) byNorm[n] = q;
+    });
+    var picked = Object.keys(byNorm).map(function (n) {
+      return byNorm[n];
+    });
+    var qPick = picked.length === 1 ? picked[0] : null;
+    if (picked.length > 1) conf = "ambiguous";
+    // several records of one name (Manna Church + Manna Church (deleted)) that collapse to one: a plain hit
+    else if (qPick && conf === "ambiguous") conf = "high";
+    if (qPick) usedQbo[qPick.id] = true;
+    var liveHit = AI_matchClient(main.name, live);
+    var name = qPick ? qPick.name : main.name;
+    var id = liveHit.client_id || AI_slug(name);
+    var base = id;
+    var n = 2;
+    while (usedIds[id] && !liveHit.client_id) id = base + "-" + n++;
+    usedIds[id] = true;
+    return {
+      proposed_client_id: id,
+      existing_client: !!liveHit.client_id,
+      name: name,
+      aliases: list
+        .map(function (s) {
+          return s.name;
+        })
+        .filter(function (v, i, a) {
+          return a.indexOf(v) === i;
+        }),
+      asana_projects: list,
+      team: team,
+      group: team || "No team yet",
+      bookkeeper_email: bk,
+      qbo: qPick ? { id: qPick.id, name: qPick.name, active: qPick.active, last_invoice: qPick.last_invoice } : null,
+      qbo_confidence: qPick ? conf : picked.length > 1 ? "ambiguous" : "none",
+      qbo_candidates: picked.length > 1
+        ? picked.map(function (q) {
+            return { id: q.id, name: q.name, active: q.active };
+          })
+        : [],
+      status: "proposed",
+    };
+  });
+  // Last try for the rest: same first word ("Zeal Church" -> "Zeal City Church", "Fade" -> "Fade Group LLC"),
+  // among active records no other entry took. Marked "first word" so the owner checks it.
+  entries.forEach(function (e) {
+    if (e.qbo || e.qbo_candidates.length) return;
+    var hits = {};
+    e.asana_projects.forEach(function (s) {
+      var w = AI_coreName(s.name).split(" ")[0] || "";
+      if (w.length < 3) return;
+      qbo.forEach(function (q) {
+        if (q.active && !q.suffixed && !usedQbo[q.id] && AI_coreName(q.name).split(" ")[0] === w) hits[q.id] = q;
+      });
+    });
+    var list = Object.keys(hits).map(function (id) {
+      return hits[id];
+    });
+    if (list.length === 1) {
+      usedQbo[list[0].id] = true;
+      e.qbo = { id: list[0].id, name: list[0].name, active: list[0].active, last_invoice: list[0].last_invoice };
+      e.qbo_confidence = "first word";
+    } else if (list.length > 1) {
+      e.qbo_confidence = "ambiguous";
+      e.qbo_candidates = list.map(function (q) {
+        return { id: q.id, name: q.name, active: q.active };
+      });
+    }
+  });
+  entries.sort(function (a, b) {
+    var ga = a.group === "No team yet" ? "~" : a.group;
+    var gb = b.group === "No team yet" ? "~" : b.group;
+    if (ga !== gb) return ga < gb ? -1 : 1;
+    return a.name.toLowerCase() < b.name.toLowerCase() ? -1 : 1;
+  });
+  var qboOnly = qbo
+    .filter(function (q) {
+      return q.active && !q.suffixed && !usedQbo[q.id];
+    })
+    .filter(function (q) {
+      // a plain duplicate of a matched record is not "QuickBooks only"
+      return !entries.some(function (e) {
+        return e.qbo && AI_normName(e.qbo.name) === AI_normName(q.name);
+      });
+    })
+    .map(function (q) {
+      return { id: q.id, name: q.name, last_invoice: q.last_invoice, looks_personal: !AI_ORG_WORDS.test(q.name) };
+    });
+  var byGroup = AI_count(entries, function (e) {
+    return e.group;
+  });
+  return {
+    entries: entries,
+    qbo_only: qboOnly,
+    summary: {
+      asana_clients: entries.length,
+      qbo_matched: entries.filter(function (e) {
+        return e.qbo;
+      }).length,
+      qbo_ambiguous: entries.filter(function (e) {
+        return e.qbo_confidence === "ambiguous";
+      }).length,
+      qbo_none: entries.filter(function (e) {
+        return !e.qbo && e.qbo_confidence !== "ambiguous";
+      }).length,
+      with_bookkeeper: entries.filter(function (e) {
+        return e.bookkeeper_email;
+      }).length,
+      no_team_yet: byGroup["No team yet"] || 0,
+      by_group: byGroup,
+      qbo_only_active: qboOnly.length,
+    },
+  };
+}
+
+// Roster entries as the `clients` input of AI_plan (the what-if plan).
+function AI_rosterClients(roster) {
+  return (roster.entries || []).map(function (e) {
+    return { id: e.proposed_client_id, name: e.name, aliases: e.aliases, assigned_bookkeeper_email: e.bookkeeper_email, roster_group: e.group };
+  });
 }
 
 // Step 1: what each Asana project becomes. Owner overrides win:
@@ -244,8 +527,9 @@ function AI_pickWinner(list) {
   })[0];
 }
 
+// "Obvious repeat" in a combined project: same title, same section, same due date.
 function AI_taskTitleKey(t) {
-  return AI_clean(t.n).toLowerCase().replace(/[^a-z0-9]+/g, " ").trim() + "|" + AI_clean(t.sec || "").toLowerCase();
+  return AI_clean(t.n).toLowerCase().replace(/[^a-z0-9]+/g, " ").trim() + "|" + AI_clean(t.sec || "").toLowerCase() + "|" + (t.d || "");
 }
 
 function AI_status(cf) {
@@ -290,7 +574,9 @@ function AI_truncate(s, n) {
 // subtasks: {g, par, n, a, an, d, s, c, m, notes?}
 // ctx = {staff:[{email,name,active}], clients:[{id,name,assigned_bookkeeper_email,test_only}],
 //        fallbackEmail, today:'YYYY-MM-DD', overrides:{gid:{target_kind,client_id}},
-//        importedKeys:[...] (keys already in tk_asana_import_map), unionArchivedLosers:false}
+//        importedKeys:[...] (keys already in tk_asana_import_map),
+//        userRemap:{<asana email or first name, lower case>: staff email} (Naomi -> Sonya)}
+// A client may carry aliases[] and roster_group (from AI_rosterClients).
 function AI_plan(snapshot, ctx) {
   ctx = ctx || {};
   var fallback = AI_lower(ctx.fallbackEmail);
@@ -324,7 +610,9 @@ function AI_plan(snapshot, ctx) {
     projByGid[p.gid] = p;
   });
 
-  // 2. Duplicates: same target and same normalized name. Newest wins; both gids map to the winner.
+  // 2. Duplicates: same target and same normalized name. They COMBINE (owner, S8b): the newest
+  // copy is the one project every copy maps to, and open tasks from all copies (archived too)
+  // come along; only obvious repeats drop (same title, section and due date).
   var groups = {};
   projects.forEach(function (p) {
     if (p.target_kind === "skip" || p.target_kind === "tracker") return;
@@ -357,7 +645,7 @@ function AI_plan(snapshot, ctx) {
       winner_modified_at: win.modified_at,
       tasks_merged: 0,
       tasks_dropped: 0,
-      tasks_dropped_archived: 0,
+      tasks_from_archived: 0,
     });
   });
   var dupByWinner = {};
@@ -378,9 +666,31 @@ function AI_plan(snapshot, ctx) {
   }
 
   // 3. Users
+  var remap = {};
+  Object.keys(ctx.userRemap || {}).forEach(function (k) {
+    remap[String(k).toLowerCase()] = ctx.userRemap[k];
+  });
   var asanaUsers = {};
   (snapshot.users || []).forEach(function (u) {
     asanaUsers[AI_lower(u.email) || "gid:" + u.gid] = u;
+  });
+  // A first-name remap key ({naomi: ...}) is meant for one person: it applies only
+  // when exactly one Asana identity in the snapshot has that first name.
+  var firstNameIds = {};
+  function firstOf(name) {
+    return String(name || "").trim().split(/\s+/)[0].toLowerCase();
+  }
+  function noteFirst(email, name) {
+    var f = firstOf(name);
+    if (!f) return;
+    var id = AI_lower(email) || "name:" + String(name).trim().toLowerCase();
+    (firstNameIds[f] = firstNameIds[f] || {})[id] = true;
+  }
+  (snapshot.users || []).forEach(function (u) {
+    noteFirst(u.email, u.name);
+  });
+  (snapshot.tasks || []).concat(snapshot.subtasks || []).forEach(function (t) {
+    noteFirst(t.a, t.an || (asanaUsers[AI_lower(t.a)] || {}).name);
   });
   var userStats = {};
   function mapUser(email, name) {
@@ -393,7 +703,18 @@ function AI_plan(snapshot, ctx) {
       how: null,
       open_tasks: 0,
     });
-    if (e && staffByEmail[e]) {
+    var first = firstOf(name || (asanaUsers[e] || {}).name);
+    var activeMatch = !!(e && staffByEmail[e] && staffByEmail[e].active !== false);
+    // An email remap always wins; a first-name remap never overrides a real (active)
+    // email match and only applies to the single person with that first name.
+    var re = AI_lower(
+      remap[e] ||
+        (first && !activeMatch && remap[first] && Object.keys(firstNameIds[first] || {}).length === 1 ? remap[first] : null)
+    );
+    if (re && staffByEmail[re] && staffByEmail[re].active !== false) {
+      st.mapped_to = re;
+      st.how = "remapped";
+    } else if (e && staffByEmail[e]) {
       st.mapped_to = e;
       st.how = staffByEmail[e].active === false ? "inactive_staff" : "email";
     } else if (e || name) {
@@ -455,18 +776,16 @@ function AI_plan(snapshot, ctx) {
     var proj = finalProject(t.p);
     if (src.merged_into) {
       var d = dupByWinner[proj.gid];
-      if (src.archived && !ctx.unionArchivedLosers) {
-        if (d) d.tasks_dropped_archived++;
-        skip(t.g, t.p, "archived_duplicate_project");
-        return;
-      }
       var tk = proj.gid + "|" + AI_taskTitleKey(t);
       if (winnerTitleKeys[tk]) {
         if (d) d.tasks_dropped++;
         skip(t.g, t.p, "duplicate_in_merged_project", { kept_gid: winnerTitleKeys[tk] });
         return;
       }
-      if (d) d.tasks_merged++;
+      if (d) {
+        d.tasks_merged++;
+        if (src.archived) d.tasks_from_archived++;
+      }
     }
     var titleKey = proj.gid + "|" + AI_taskTitleKey(t);
     if (!winnerTitleKeys[titleKey]) winnerTitleKeys[titleKey] = t.g;
@@ -559,30 +878,33 @@ function AI_plan(snapshot, ctx) {
   // 6. Owners, status, dates, anomalies, idempotency
   rows.forEach(function (r) {
     var u = mapUser(r._a, r._an);
-    var owner = u.mapped_to;
+    var assignee = u.mapped_to;
     var ownerHow = u.how;
-    if (!owner) {
-      // unassigned: the client's bookkeeper, else the team's bookkeeper, else the fallback
+    // The row owner (staff_email, never null): the assignee, else the client's bookkeeper,
+    // else the team's bookkeeper, else the fallback. An unassigned Asana task stays
+    // unassigned (assignee null, owner decision 7); anyone who can see it may claim it.
+    var owner = assignee;
+    var ownerFrom = "assignee";
+    if (!assignee) {
       var c = r.client_id ? clientById[r.client_id] : null;
-      var tb = AI_teamBookkeeper(r._team, ctx.staff);
+      var tb = AI_teamBookkeeper(r._team, ctx.staff, remap);
       if (c && c.assigned_bookkeeper_email && staffByEmail[AI_lower(c.assigned_bookkeeper_email)]) {
         owner = AI_lower(c.assigned_bookkeeper_email);
-        ownerHow = "unassigned_client_bookkeeper";
-      } else if (tb) {
+        ownerFrom = "client_bookkeeper";
+      } else if (tb && staffByEmail[tb]) {
         owner = tb;
-        ownerHow = "unassigned_team_bookkeeper";
+        ownerFrom = "team_bookkeeper";
       } else {
         owner = fallback;
-        ownerHow = "unassigned_fallback";
+        ownerFrom = "fallback";
       }
     }
     u.open_tasks++;
-    r.assignee_email = owner;
+    r.assignee_email = assignee || null;
     r.staff_email = owner;
     r.owner_how = ownerHow;
-    if (ownerHow === "fallback" && r._an) r.description_footer.push("Asana assignee: " + r._an);
-    if (ownerHow === "unassigned_fallback" || ownerHow === "unassigned_team_bookkeeper" || ownerHow === "unassigned_client_bookkeeper")
-      r.description_footer.push("Unassigned in Asana");
+    r.owner_from = ownerFrom;
+    if ((ownerHow === "fallback" || ownerHow === "remapped") && r._an) r.description_footer.push("Asana assignee: " + r._an);
 
     if (r.due_date && !AI_dateOk(r.due_date)) {
       anomalies.push({ gid: r.asana_gid, kind: "bad_due_date", value: r.due_date });
@@ -665,8 +987,9 @@ function AI_plan(snapshot, ctx) {
     var mem = [];
     mine.forEach(function (r) {
       if (r.section && secs.indexOf(r.section) < 0 && secs.length < 30) secs.push(r.section);
-      if (r.assignee_email && mem.indexOf(r.assignee_email) < 0 && staffByEmail[r.assignee_email] && staffByEmail[r.assignee_email].active !== false)
-        mem.push(r.assignee_email);
+      [r.assignee_email, r.staff_email].forEach(function (e) {
+        if (e && mem.indexOf(e) < 0 && staffByEmail[e] && staffByEmail[e].active !== false) mem.push(e);
+      });
     });
     pr.sections = secs;
     pr.members = mem.sort();
@@ -694,6 +1017,11 @@ function AI_plan(snapshot, ctx) {
         return AI_truncate(s.title, 200);
       })
       .slice(0, 50);
+    // Mirror the Asana instance: due rule from its date, assignee from its assignee.
+    var dr = AI_dueRule(cad, r.due_date);
+    var cl = clientById[r.client_id] || {};
+    var bk = AI_lower(cl.assigned_bookkeeper_email);
+    var mode = !r.assignee_email ? "unassigned" : r.assignee_email === bk ? "bookkeeper" : "person";
     templates.push({
       key: AI_key("template", r.asana_gid),
       asana_gid: r.asana_gid,
@@ -701,6 +1029,15 @@ function AI_plan(snapshot, ctx) {
       cadence: cad,
       client_id: r.client_id,
       checklist: checklist,
+      due_rule: dr.rule,
+      lead_days: dr.lead_days,
+      rule_note: dr.note,
+      assignee_role: "bookkeeper",
+      assignee_email: mode === "person" ? r.assignee_email : null,
+      leave_unassigned: mode === "unassigned",
+      assignee_mode: mode,
+      instance_gid: r.asana_gid,
+      instance_due: r.due_date,
       already_imported: !!imported[AI_key("template", r.asana_gid)],
     });
   });
@@ -726,6 +1063,8 @@ function AI_plan(snapshot, ctx) {
         assignee_email: r.assignee_email,
         staff_email: r.staff_email,
         owner_how: r.owner_how,
+        owner_from: r.owner_from,
+        roster_group: (clientById[r.client_id] || {}).roster_group || null,
         review_step: r.review_step,
         flattened: r.flattened,
         already_imported: r.already_imported,
@@ -814,7 +1153,7 @@ function AI_report(x) {
     return x.userStats[k];
   });
   var unmapped = users.filter(function (u) {
-    return u.how === "fallback";
+    return u.how === "fallback" || u.how === "remapped";
   });
   var asanaUserCount = (x.snapshot.users || []).length;
   var mappedUsers = (x.snapshot.users || []).filter(function (u) {
@@ -874,16 +1213,42 @@ function AI_report(x) {
       review_step_tasks: x.taskRows.filter(function (r) {
         return r.review_step;
       }).length,
+      unassigned_tasks: x.taskRows.filter(function (r) {
+        return !r.assignee_email;
+      }).length,
+      says_done_tasks: x.anomalies.filter(function (a) {
+        return a.kind === "open_but_progress_says_done";
+      }).length,
       skipped: x.skipped.length,
     },
     skipped_by_reason: AI_count(x.skipped, function (s) {
       return s.reason;
     }),
     tasks_by_owner: AI_count(x.taskRows, function (r) {
-      return r.assignee_email;
+      return r.assignee_email || "(unassigned)";
     }),
     owner_how: AI_count(x.taskRows, function (r) {
       return r.owner_how;
+    }),
+    unassigned_row_owner: AI_count(
+      x.taskRows.filter(function (r) {
+        return !r.assignee_email;
+      }),
+      function (r) {
+        return r.owner_from;
+      }
+    ),
+    tasks_by_roster_group: AI_count(x.taskRows, function (r) {
+      return r.roster_group;
+    }),
+    templates_by_cadence: AI_count(x.templates, function (t) {
+      return t.cadence;
+    }),
+    templates_by_assignee_mode: AI_count(x.templates, function (t) {
+      return t.assignee_mode;
+    }),
+    templates_rule_notes: AI_count(x.templates, function (t) {
+      return t.rule_note;
     }),
     tasks_by_client: AI_count(x.taskRows, function (r) {
       return r.client_id;
@@ -892,7 +1257,7 @@ function AI_report(x) {
       return r.status;
     }),
     unmapped_users: unmapped.map(function (u) {
-      return { asana_name: u.asana_name, asana_email: u.asana_email, open_tasks: u.open_tasks, mapped_to: u.mapped_to };
+      return { asana_name: u.asana_name, asana_email: u.asana_email, open_tasks: u.open_tasks, mapped_to: u.mapped_to, how: u.how };
     }),
     duplicates: x.duplicates,
     projects: projectsOut,
@@ -919,6 +1284,10 @@ if (typeof module !== "undefined" && module.exports) {
     AI_slug: AI_slug,
     AI_matchClient: AI_matchClient,
     AI_teamBookkeeper: AI_teamBookkeeper,
+    AI_dueRule: AI_dueRule,
+    AI_buildRoster: AI_buildRoster,
+    AI_rosterClients: AI_rosterClients,
+    AI_qboClean: AI_qboClean,
     AI_classifyProject: AI_classifyProject,
     AI_pickWinner: AI_pickWinner,
     AI_status: AI_status,

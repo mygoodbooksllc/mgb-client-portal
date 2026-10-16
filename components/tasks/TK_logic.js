@@ -219,6 +219,7 @@ function TK_resolveStatus(task, to, opts) {
 }
 
 // The assignee or the person who sent it for review can't approve it (M3).
+// Owner fallback on purpose (S8b): an Unassigned task's owner can't either.
 function TK__isSelfReview(task, me) {
   var who = TK__lower(me);
   if (!task || !who) return false;
@@ -272,11 +273,23 @@ function TK_isOpen(task) {
   return !!task && !task.deleted_at && TK_effectiveStatus(task) !== "done";
 }
 
+// The person the task is on, lowercased, or "" when it is Unassigned (S8b:
+// assignee_email is null). Display, sort, filters and "mine" use this; the
+// owner (staff_email) is never a stand-in for it. Safety checks (self review,
+// on-time scoring) still fall back to the owner on purpose.
+function TK_assigneeOf(task) {
+  return task ? TK__lower(task.assignee_email) : "";
+}
+
+function TK_isUnassigned(task) {
+  return !!task && !TK_assigneeOf(task);
+}
+
 function TK_isMine(task, email) {
   if (!task) return false;
   var me = TK__lower(email);
   if (!me) return false;
-  return TK__lower(task.assignee_email || task.staff_email) === me;
+  return TK_assigneeOf(task) === me;
 }
 
 function TK_isOverdue(task, today) {
@@ -339,11 +352,24 @@ function TK_groupMyTasks(tasks, today, opts) {
   var email = opts.email;
   var showOlder = !!opts.showOlder;
   var todayGroup = opts.todayGroup !== false;
-  var g = { overdue: [], today: [], week: [], later: [], waiting: [], done: [] };
+  // S8b: open Unassigned tasks get their own group and never go into the time
+  // groups. Admins see only the ones they own or on their own book's clients
+  // (opts.inMyBook(clientId)); everyone else sees every one they can see.
+  var isAdmin = !!opts.isAdmin;
+  var inMyBook = typeof opts.inMyBook === "function" ? opts.inMyBook : null;
+  var me = TK__lower(email);
+  var g = { overdue: [], today: [], week: [], later: [], waiting: [], unassigned: [], done: [] };
   var list = Array.isArray(tasks) ? tasks : [];
   for (var i = 0; i < list.length; i++) {
     var t = list[i];
-    if (!t || t.deleted_at || !TK_isMine(t, email)) continue;
+    if (!t || t.deleted_at) continue;
+    if (TK_isUnassigned(t)) {
+      if (!TK_isOpen(t)) continue;
+      if (isAdmin && !(me && TK__lower(t.staff_email) === me) && !(inMyBook && t.client_id && inMyBook(t.client_id))) continue;
+      g.unassigned.push(t);
+      continue;
+    }
+    if (!TK_isMine(t, email)) continue;
     var st = TK_effectiveStatus(t);
     if (st === "done") {
       if (showOlder || !TK_isOldDone(t, today)) g.done.push(t);
@@ -366,6 +392,7 @@ function TK_groupMyTasks(tasks, today, opts) {
   g.week.sort(TK_compareTasks);
   g.later.sort(TK_compareTasks);
   g.waiting.sort(TK_compareTasks);
+  g.unassigned.sort(TK_compareTasks);
   g.done.sort(function (a, b) {
     var c = TK__cmpNullsLast(b.completed_at || b.updated_at, a.completed_at || a.updated_at);
     // nulls last even in descending order
@@ -846,7 +873,9 @@ function TK_normalizeTask(row) {
   out.parent_id = r.parent_id || null;
   out.sop_section = r.sop_section || null;
   out.review_required = !!r.review_required;
-  out.assignee_email = TK__lower(r.assignee_email) || staffEmail;
+  // S8b: null means Unassigned; never filled in from the owner.
+  out.assignee_email = TK__lower(r.assignee_email) || null;
+  out.is_unassigned = !out.assignee_email;
   out.staff_email = staffEmail;
   out.created_by = TK__lowerOrNull(r.created_by);
   out.visibility = TK__pickEnum(r.visibility, ["private", "shared"], "private");
@@ -912,6 +941,8 @@ if (typeof module !== "undefined" && module.exports) {
     TK_nextStatuses: TK_nextStatuses,
     TK_isOpen: TK_isOpen,
     TK_isMine: TK_isMine,
+    TK_assigneeOf: TK_assigneeOf,
+    TK_isUnassigned: TK_isUnassigned,
     TK_isOverdue: TK_isOverdue,
     TK_isOldDone: TK_isOldDone,
     TK_groupMyTasks: TK_groupMyTasks,

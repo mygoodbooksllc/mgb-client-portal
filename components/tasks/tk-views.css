@@ -2092,3 +2092,40 @@ li.tk-empty-inline {
     grid-template-columns: 1fr;
   }
 }
+
+/* S8b: Unassigned tasks and Claim */
+.tk-unassigned {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.tk-claim-btn {
+  min-height: 28px;
+  padding: 3px 10px;
+  font-size: 13px;
+}
+
+.tk-tpl-tag-asana {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.tk-assign-team {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.tk-assign-team select {
+  min-height: 34px;
+  max-width: 100%;
+}

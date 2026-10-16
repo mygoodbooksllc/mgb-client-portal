@@ -261,8 +261,10 @@ function TK_sortTasks(tasks, sort, opts) {
     }
     return TK_vCompare(a, b);
   }
+  // S8b: the assignee only; Unassigned (null) sorts last both ways.
   function who(t) {
-    var e = TK_vLower(t.assignee_email || t.staff_email);
+    var e = TK_vLower(t.assignee_email);
+    if (!e) return null;
     var n = nameOf ? nameOf(e) : null;
     return TK_vLower(n || e);
   }
@@ -278,8 +280,8 @@ function TK_sortTasks(tasks, sort, opts) {
     if (col) {
       var ka = key(a);
       var kb = key(b);
-      if (col === "due") {
-        // Undated tasks stay last in both directions.
+      if (col === "due" || col === "assignee") {
+        // Undated (or Unassigned) tasks stay last in both directions.
         if (ka == null && kb != null) return 1;
         if (kb == null && ka != null) return -1;
       }
@@ -300,7 +302,10 @@ function TK_toggleSort(cur, col) {
 }
 
 // ---- Filters (Row 3.2) -------------------------------------------------------
-// f: { assignee: email|"", statuses: [status], showDone, showOlder, today }
+// The assignee filter's "Unassigned" choice (S8b): tasks with nobody on them.
+var TK_UNASSIGNED = "__unassigned__";
+
+// f: { assignee: email|TK_UNASSIGNED|"", statuses: [status], showDone, showOlder, today }
 // Deleted tasks never show. Done tasks only with showDone; done more than 12
 // months ago only with showOlder too (D5).
 function TK_applyFilters(tasks, f) {
@@ -314,7 +319,10 @@ function TK_applyFilters(tasks, f) {
       if (!o.showDone) return false;
       if (!o.showOlder && o.today && TK_vIsOldDone(t, o.today)) return false;
     }
-    if (who && TK_vLower(t.assignee_email || t.staff_email) !== who) return false;
+    // S8b: the assignee only, never the owner.
+    if (who === TK_UNASSIGNED) {
+      if (TK_vLower(t.assignee_email)) return false;
+    } else if (who && TK_vLower(t.assignee_email) !== who) return false;
     if (sts.length && sts.indexOf(st) < 0) return false;
     return true;
   });
@@ -327,6 +335,7 @@ var TK_MY_GROUPS = [
   { key: "week", label: "This week" },
   { key: "later", label: "Later" },
   { key: "waiting", label: "Waiting on client" },
+  { key: "unassigned", label: "Unassigned" },
   { key: "done", label: "Done" },
 ];
 
@@ -571,6 +580,7 @@ if (typeof module !== "undefined" && module.exports) {
     TK_sortTasks: TK_sortTasks,
     TK_toggleSort: TK_toggleSort,
     TK_applyFilters: TK_applyFilters,
+    TK_UNASSIGNED: TK_UNASSIGNED,
     TK_MY_GROUPS: TK_MY_GROUPS,
     TK_myGroupsView: TK_myGroupsView,
     TK_focusIds: TK_focusIds,

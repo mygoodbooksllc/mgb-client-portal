@@ -26,6 +26,11 @@
 //            TOUR_tabStep(place, tab, title, body) and TOUR_go; it is a
 //            function so those helpers are looked up when the tour starts.
 //            Point only at targets that exist (a `#id` or a data-tour key).
+//   ready    optional (ctx) => boolean. The notice waits until it is true
+//            (checked every render of the notice, so it can read
+//            localStorage); What's new and the ? menu list the tour anyway.
+//            Use it when the feature only makes sense once the person has
+//            met it, like "unassigned-tasks" (mgb_tk_seen_unassigned_v1).
 
 var ANN_REGISTRY = [
   {
@@ -339,6 +344,58 @@ var ANN_REGISTRY = [
         title: "Where you'll see it",
         body: () =>
           "A covered task says Covering for … in its drawer and on Today, and its Activity shows the hand-off and the hand-back. Set each client's backup on Client overview. To see this again, press ? and pick New: Time off hands tasks to backups tour.",
+      },
+    ],
+  },
+  {
+    id: "unassigned-tasks",
+    date: "2026-10-16",
+    title: "Unassigned tasks and Claim",
+    summary: "Tasks with nobody on them now show as Unassigned. My Tasks has an Unassigned group, and Claim makes one yours.",
+    roles: ["admin", "bookkeeper"],
+    hash: "#/tasks/my",
+    // Only once an Unassigned task has been on screen (TK_TaskRow.jsx sets
+    // the flag), so nobody is toured through a group they've never had.
+    ready: () => {
+      try {
+        return window.localStorage.getItem("mgb_tk_seen_unassigned_v1") === "1";
+      } catch (e) {
+        return false;
+      }
+    },
+    steps: (ctx) => [
+      {
+        id: "ann-welcome",
+        title: "Some tasks start with nobody on them",
+        body: () =>
+          "Tasks brought over from Asana without an assignee, and recurring tasks set to leave unassigned, now show as Unassigned instead of landing on someone by default. About a minute.",
+      },
+      {
+        id: "ann-group",
+        go: () => {
+          if (!/^#\/tasks\/my(\?|$)/.test(window.location.hash || "")) window.location.hash = "#/tasks/my";
+        },
+        targets: ["tk-unassigned-group", "tk-groups"],
+        wait: true,
+        title: "The Unassigned group",
+        body: () =>
+          ctx && ctx.isAdmin
+            ? "My Tasks lists open Unassigned tasks after Waiting on client: the ones you own and the ones on clients where you're the bookkeeper. They never count as anyone's overdue."
+            : "My Tasks lists open Unassigned tasks on your clients after Waiting on client. They aren't yours until you claim one.",
+      },
+      {
+        id: "ann-claim",
+        targets: ["tk-claim"],
+        wait: true,
+        title: "Claim",
+        body: () =>
+          "Claim makes the task yours and moves it into your dated groups. If someone got there first you'll see Someone already took this task. Claiming never sends an email.",
+      },
+      {
+        id: "ann-done",
+        title: "Anywhere you see Unassigned",
+        body: () =>
+          "Client and project lists say Unassigned in the Assignee column, the Assignee filter has an Unassigned choice, and a task's details show an Unassigned chip with Claim. To see this again, press ? and pick New: Unassigned tasks and Claim tour.",
       },
     ],
   },

@@ -73,7 +73,14 @@ function TK_stIsMine(task, email) {
   var f = TK_stLogic("TK_isMine");
   if (f) return f(task, email);
   if (!task || !email) return false;
-  return String(task.assignee_email || task.staff_email || "").toLowerCase() === String(email).toLowerCase();
+  // S8b: the assignee only; an Unassigned task (null) is nobody's.
+  return String(task.assignee_email || "").toLowerCase() === String(email).toLowerCase();
+}
+
+// An open task with nobody on it (S8b). The "mine" list also carries these
+// (api.listMine fetches them), so a claim or a new one lands in place.
+function TK_stIsOpenUnassigned(task) {
+  return !!task && !task.deleted_at && !task.assignee_email && task.status !== "done" && !task.done;
 }
 
 // Canonical form of a Postgres / PostgREST / Realtime timestamp string, so two
@@ -156,7 +163,7 @@ function TK_stOpsFor(pending, id) {
 // left as the last load set it.
 function TK_stMatches(state, key, task) {
   if (!task || task.deleted_at) return false;
-  if (key === "mine") return state.me ? TK_stIsMine(task, state.me) : null;
+  if (key === "mine") return state.me ? TK_stIsMine(task, state.me) || TK_stIsOpenUnassigned(task) : null;
   if (key === "review") return task.status === "ready_for_review"; // the review queue (tasks p2 s3)
   var i = key.indexOf(":");
   if (i < 0) return null;

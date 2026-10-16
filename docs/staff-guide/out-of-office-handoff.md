@@ -22,6 +22,7 @@ What **stays with you**:
 - Tasks due **after** you're back.
 - **Ready for review** tasks. Review and sign-off work exactly as before.
 - **Private** tasks and **MGB (internal)** tasks.
+- **Unassigned** tasks, even ones you made. Nobody is on them, so they stay where they are for anyone to **Claim**.
 - A client with **no backup**, or whose backup is **also out that day**.
 - A client the backup **can't open**. If you hand off yourself, an admin is asked to give them access. An admin's hand-off gives the access itself, for the time off only.
 

@@ -80,6 +80,21 @@ t("an admin-only launch never reaches a bookkeeper", () => {
   assert.strictEqual(L.ANN_pickNext([entry("a", "2026-10-15", ["admin"])], state(), bk, NOW), null);
 });
 
+// ---- ready(): the notice waits for the entry's own precondition (S8b)
+t("ready: a gated launch waits, the next one shows instead, and a throwing ready counts as not yet", () => {
+  let seen = false;
+  const gated = Object.assign(entry("g", "2026-10-16"), { ready: () => seen });
+  const older = entry("o", "2026-10-15");
+  assert.strictEqual(L.ANN_pickNext([gated, older], state(), admin, NOW).id, "o");
+  seen = true;
+  assert.strictEqual(L.ANN_pickNext([gated, older], state(), admin, NOW).id, "g");
+  const broken = Object.assign(entry("b", "2026-10-16"), { ready: () => { throw new Error("no storage"); } });
+  assert.strictEqual(L.ANN_pickNext([broken], state(), admin, NOW), null);
+  assert.strictEqual(L.ANN_ready(entry("x", "2026-10-16"), admin), true, "no ready() means ready");
+  // the audience (What's new, the ? menu) still lists a gated launch
+  assert.deepStrictEqual(L.ANN_audience([broken], admin).map((x) => x.id), ["b"]);
+});
+
 // ---- Statuses
 t("a new announcement is picked, a toured or dismissed one is not", () => {
   const reg = [entry("a", "2026-10-15")];
@@ -249,6 +264,13 @@ t("registry: 3 to 6 steps, a centered welcome first, unique step ids", () => {
 });
 t("registry: the id fits the database key and the tour key", () => {
   ANN_REGISTRY.forEach((a) => assert.ok(("ann:" + a.id).length <= 68));
+});
+
+t("registry: unassigned-tasks is gated on having seen an Unassigned task", () => {
+  const a = ANN_REGISTRY.find((x) => x.id === "unassigned-tasks");
+  assert.ok(a && typeof a.ready === "function");
+  // node has no window/localStorage: not ready, and it doesn't throw out
+  assert.strictEqual(L.ANN_ready(a, admin), false);
 });
 
 console.log("announcementsLogic: " + n + " checks passed");

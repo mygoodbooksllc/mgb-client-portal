@@ -196,6 +196,23 @@ t("sortTasks by task text and assignee name", () => {
     ["a", "b"],
   );
 });
+t("sortTasks by assignee puts Unassigned last both ways (S8b)", () => {
+  const rows = [
+    tk("u", { assignee_email: null, staff_email: "a@example.test" }),
+    tk("z", { assignee_email: "z@example.test" }),
+    tk("y", { assignee_email: "y@example.test" }),
+  ];
+  assert.deepStrictEqual(L.TK_sortTasks(rows, { col: "assignee", dir: "asc" }).map((x) => x.id), ["y", "z", "u"]);
+  assert.deepStrictEqual(L.TK_sortTasks(rows, { col: "assignee", dir: "desc" }).map((x) => x.id), ["z", "y", "u"]);
+});
+t("My Tasks groups: Unassigned sits after Waiting and before Done (S8b)", () => {
+  const keys = L.TK_MY_GROUPS.map((g) => g.key);
+  assert.strictEqual(keys.indexOf("unassigned"), keys.indexOf("waiting") + 1);
+  assert.strictEqual(keys.indexOf("done"), keys.indexOf("unassigned") + 1);
+  const v = L.TK_myGroupsView({ overdue: [], today: [], week: [], later: [], waiting: [tk("w")], unassigned: [tk("u")], done: [] }, { collapsed: {} });
+  assert.deepStrictEqual(v.map((g) => g.key), ["waiting", "unassigned"]);
+  assert.strictEqual(v[1].label, "Unassigned");
+});
 t("sortTasks does not mutate", () => {
   const rows = [tk("b", { sort_key: 2 }), tk("a", { sort_key: 1 })];
   L.TK_sortTasks(rows, null);
@@ -228,9 +245,14 @@ t("applyFilters by assignee and statuses", () => {
     tk("2", { assignee_email: "b@example.test" }),
     tk("3", { assignee_email: null, staff_email: "A@example.test", status: "waiting_client" }),
   ];
+  // S8b: the assignee only; an Unassigned task never matches its owner.
   assert.deepStrictEqual(
     L.TK_applyFilters(rows, { assignee: "a@example.test" }).map((x) => x.id),
-    ["1", "3"],
+    ["1"],
+  );
+  assert.deepStrictEqual(
+    L.TK_applyFilters(rows, { assignee: L.TK_UNASSIGNED }).map((x) => x.id),
+    ["3"],
   );
   assert.deepStrictEqual(
     L.TK_applyFilters(rows, { statuses: ["waiting_client", "todo"] }).map((x) => x.id),

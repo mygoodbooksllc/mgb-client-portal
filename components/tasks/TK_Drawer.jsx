@@ -664,6 +664,7 @@ function TK_dwReview(props) {
   var role = typeof TK_reviewRole === "function" ? TK_reviewRole(task, { me: p.me, isAdmin: p.isAdmin }) : {};
   var reviewerName = task.reviewer_email ? TK_dlNameOf(task.reviewer_email, staff) : "any admin";
   var wait = inReview && typeof TK_reviewWaitLabel === "function" ? TK_reviewWaitLabel(task) : "";
+  // Owner fallback on purpose (S8b): an Unassigned task's owner can't review it either.
   var assignee = TK_dwLower(task.assignee_email || task.staff_email);
   // tk_set_reviewer refuses the assignee, and the submitter while in review.
   var submitter = inReview ? TK_dwLower(task.submitted_by) : "";
@@ -923,7 +924,8 @@ function TK_dwSubtasks(props) {
         client_id: task.client_id || null,
         project_id: task.project_id || null,
         section: task.section || null,
-        assignee_email: task.assignee_email || task.staff_email || null,
+        // S8b: an Unassigned parent's subtask goes to whoever adds it.
+        assignee_email: task.assignee_email || null,
         visibility: task.visibility,
       })
       .then(
@@ -1668,7 +1670,9 @@ function TK_Drawer(props) {
   }
 
   var assignees = (assignable || []).slice();
-  var curAssignee = task ? TK_dwLower(task.assignee_email || task.staff_email) : "";
+  // S8b: the assignee only; "" is Unassigned (anyone on the client can claim it).
+  var curAssignee = task ? TK_dwLower(task.assignee_email) : "";
+  var canClaim = !!task && !curAssignee && !deleted && online && ["todo", "in_progress", "waiting_client"].indexOf(status) >= 0;
   if (curAssignee && !assignees.some(function (a) { return TK_dwLower(a.email) === curAssignee; })) {
     assignees.unshift({ email: curAssignee, name: nameOf(curAssignee), can_see: true });
   }
@@ -1761,8 +1765,13 @@ function TK_Drawer(props) {
                     ? "Only the task's owner or an admin can reassign it."
                     : undefined
               }
-              onChange={function (e) { save({ assignee_email: e.target.value }); }}
+              onChange={function (e) { if (e.target.value) save({ assignee_email: e.target.value }); }}
             >
+              {curAssignee ? null : (
+                <option value="" disabled>
+                  Unassigned
+                </option>
+              )}
               {assignees.map(function (a) {
                 var em = TK_dwLower(a.email);
                 return (
@@ -1772,6 +1781,26 @@ function TK_Drawer(props) {
                 );
               })}
             </select>
+            {!curAssignee && (
+              <span className="tk-unassigned tk-dw-unassigned">
+                <span className="tk-chip tk-chip-unassigned">
+                  <span className="tk-chip-name">Unassigned</span>
+                </span>
+                {canClaim && (
+                  <button
+                    type="button"
+                    className="tk-tool-btn tk-claim-btn"
+                    data-tour="tk-claim-drawer"
+                    onClick={function () {
+                      var api = TK_dwApi();
+                      if (api && typeof api.claim === "function") api.claim(task.id).catch(function () {});
+                    }}
+                  >
+                    Claim
+                  </button>
+                )}
+              </span>
+            )}
             {assigneeWarn && (
               <p className="tk-dw-warn" role="note">
                 {TK_dwCopy("noClientAccess", "They can't see this client yet, so they won't see this task.")}
@@ -2222,7 +2251,7 @@ function TK_Drawer(props) {
                 if (/late$/.test(dl)) return " · " + dl;
                 return " · Due " + (dl === "Today" || dl === "Tomorrow" || dl === "Yesterday" ? dl.toLowerCase() : dl);
               })()}
-              {task.assignee_email || task.staff_email ? " · " + nameOf(task.assignee_email || task.staff_email) : ""}
+              {task.assignee_email ? " · " + nameOf(task.assignee_email) : " · Unassigned"}
               {task.source === "template" ? <span className="tk-dw-recurring" title="Made by a recurring template. See Tasks › Recurring."> · Recurring</span> : null}
             </p>
           )}

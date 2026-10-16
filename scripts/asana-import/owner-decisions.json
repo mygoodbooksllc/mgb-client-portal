@@ -1,0 +1,4 @@
+{
+  "_comment": "Owner decisions for the Asana import (S8b, 2026-10-16). First names only; buildDryRun.js resolves them to active staff.",
+  "user_remap": { "naomi": "sonya" }
+}
