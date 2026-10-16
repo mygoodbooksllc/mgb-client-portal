@@ -27620,7 +27620,8 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
   const [bookkeeperTyping, setBookkeeperTyping] = useState(false);
   const [chatWidgetOpen, setChatWidgetOpen] = useState(false);
   // Staff chat drawer (components/inbox/StaffInbox.jsx): null when closed,
-  // else {clientId} — the client whose threads it opens on, if any.
+  // else {clientId, email?, seq?} — the client whose threads it opens on, if
+  // any, and (from the Workbench hub's Reply) the person's thread to open.
   const [siDrawer, setSiDrawer] = useState(null);
   // The chat drawer and the client tasks panel share the right edge: opening
   // chat closes the panel (TK_ClientDrawer.jsx).
@@ -28879,6 +28880,23 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
     !isPreviewingUser;
   useEffect(() => {
     if (!siStaffChat || effectivePage === "inbox") setSiDrawer(null);
+  }, [siStaffChat, effectivePage]);
+  // The Workbench hub's Reply (components/workbench/WB_store.js, WB_hubOpen):
+  // open the chat drawer on that client and person so the page under the hub
+  // never changes. It sets detail.handled when it took the request, and
+  // declines (so the hub follows the thread's link instead) when staff chat
+  // isn't available or the page is the Inbox itself, which is the chat.
+  useEffect(() => {
+    const onOpenChat = (e) => {
+      const d = e && e.detail;
+      if (!d || !siStaffChat || effectivePage === "inbox") return;
+      // seq remounts the drawer, so a second Reply while it is open lands on
+      // the newly picked person.
+      setSiDrawer({ clientId: d.clientId || null, email: d.email || null, seq: Date.now() });
+      d.handled = true;
+    };
+    window.addEventListener("mgb:open-chat", onOpenChat);
+    return () => window.removeEventListener("mgb:open-chat", onOpenChat);
   }, [siStaffChat, effectivePage]);
   const siInboxClients = useMemo(() => [client], [client]);
 
@@ -30663,10 +30681,12 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
       )}
       {siStaffChat && siDrawer && (
         <SI_ChatDrawer
+          key={siDrawer.seq || 0}
           staffUser={staffUser}
           onActivity={checkStaffMessagesUnread}
           clients={visibleClients}
           defaultClientId={siDrawer.clientId}
+          initialEmail={siDrawer.email || undefined}
           sampleThreads={messagesByClient}
           onSampleSend={sampleInboxSend}
           onOpenClient={openClientFromInbox}

@@ -545,8 +545,10 @@ function WB_isStacked(ids) {
 }
 
 // What a row does in the hub (spec 2.4). Tasks and reviews open in the task
-// drawer on top of the hub; everything else keeps going where it lives
-// (messages and files get their own hub actions in H3).
+// drawer on top of the hub; a client message opens the chat drawer on that
+// person and a new client file opens in Drive (H3), both without leaving the
+// page. Everything else keeps going where it lives. A message with no client
+// or a file with no id has nothing to open in place, so it goes where it lives.
 function WB_hubAction(row) {
   if (!row || row.source === "other") return { type: "own" };
   switch (row.kind) {
@@ -557,22 +559,34 @@ function WB_hubAction(row) {
     case "client_answered":
     case "doc_request":
       return row.ref_id && row.ref_id !== row.source_id ? { type: "task", taskId: String(row.ref_id) } : { type: "go" };
+    case "message":
+      return row.client_id
+        ? { type: "chat", clientId: String(row.client_id), email: row.participant_email ? String(row.participant_email) : null }
+        : { type: "go" };
+    case "doc_upload":
+      return row.source_id ? { type: "file", fileId: String(row.source_id) } : { type: "go" };
     default:
       return { type: "go" };
   }
 }
 
-// The hub's main button: tasks Open (a todo task's Start moves to the menu).
+// The hub's main button: tasks Open (a todo task's Start moves to the menu),
+// messages Reply, new files Open file.
 function WB_hubPrimary(row) {
   var p = WB_primaryAction(row);
   if (p && p.id === "start" && WB_hubAction(row).type === "task") return { id: "open", label: "Open" };
+  if (p && row.kind === "doc_upload" && WB_hubAction(row).type === "file") return { id: "open", label: "Open file" };
   return p;
 }
 
-// The hub's menu: Start, Snooze, Open full page for task rows.
+// The hub's menu: Start, Snooze, Open full page for task rows; the clearing
+// action, Snooze, Open full page for messages and files.
 function WB_hubMenu(row) {
   var items = WB_menuActions(row);
-  if (!row || row.source === "other" || WB_hubAction(row).type !== "task") return items;
+  if (!row || row.source === "other") return items;
+  var kind = WB_hubAction(row).type;
+  if (kind === "chat" || kind === "file") return items.concat([{ id: "fullpage", label: "Open full page" }]);
+  if (kind !== "task") return items;
   var out = [];
   if (row.kind === "task" && row.status === "todo") out.push({ id: "start", label: "Start" });
   items.forEach(function (a) {

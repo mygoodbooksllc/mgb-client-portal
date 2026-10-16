@@ -652,17 +652,86 @@ function WB__taskDrawerReady() {
   return TK_dlOpenTarget({ schema: st ? st.schema : "unknown", hostReady: host }) === "drawer";
 }
 
-// Hub rows (spec 2.4): a task or review opens in the task drawer on top of
-// the hub, so the page underneath never changes. Anything else, a hub that is
-// closed (Today's own list) or a task drawer that can't open goes where it
-// lives as before (WB_go logs it as a normal open). Returns true only when the
-// drawer was opened in place.
+// Asks the app to open the staff chat drawer on a client and person
+// (listener in app.jsx). The listener sets detail.handled = true when it took
+// the request; it declines when staff chat isn't available (View as, preview,
+// the Inbox page itself). dispatchEvent runs listeners synchronously, so the
+// answer is known as soon as it returns.
+function WB__openChat(clientId, email) {
+  var detail = { clientId: clientId || null, email: email || null, handled: false };
+  try {
+    window.dispatchEvent(new CustomEvent("mgb:open-chat", { detail: detail }));
+  } catch (e) {}
+  return detail.handled === true;
+}
+
+// Opens a client file in Google Drive in a new browser tab through the same
+// link helper as the Files tab (DRV_link). The tab is opened first, inside the
+// click, so a pop-up blocker lets it through, then pointed at the link when it
+// arrives. Resolves true when the file was opened, false after a toast.
+function WB__openDriveFile(fileId) {
+  if (typeof DRV_link !== "function") return Promise.resolve(false);
+  var win = null;
+  try {
+    win = window.open("", "_blank");
+    if (win) win.opener = null;
+  } catch (e) {
+    win = null;
+  }
+  var giveUp = function (text) {
+    try {
+      if (win) win.close();
+    } catch (e) {}
+    WB_toast(text);
+    return false;
+  };
+  return Promise.resolve()
+    .then(function () {
+      return DRV_link(fileId);
+    })
+    .then(
+      function (url) {
+        if (!/^https:\/\//i.test(String(url || ""))) return giveUp("Couldn't open that file. Try Open full page in the ⋯ menu.");
+        if (win) win.location.href = url;
+        else if (!window.open(url, "_blank", "noopener")) return giveUp("Your browser blocked the new tab. Allow pop-ups for this site, then try again.");
+        WB_track("wb-action", "doc_upload:open-in-drive");
+        return true;
+      },
+      function (err) {
+        return giveUp("Couldn't open that file: " + String((err && err.message) || "try again in a moment") + ". Open full page is in the ⋯ menu.");
+      },
+    );
+}
+
+// Hub rows (spec 2.4, H3). While the hub is open, the page underneath never
+// changes for:
+//   - a task or review: the task drawer opens on top;
+//   - a client message: the staff chat drawer opens on top, on that person;
+//   - a new client file: it opens in Drive in a new tab (the hub stays).
+// Anything else, a hub that is closed (Today's own list), a task drawer that
+// can't open or a chat drawer the app declines goes where it lives as before
+// (WB_go logs it as a normal open). Returns true when the item was opened in
+// place. lastFocus lets the hub give focus back to the row when the drawer
+// closes.
 function WB_hubOpen(row, action) {
   var a = WB_hubAction(row);
-  if (a.type === "task" && WB_store.getState().drawerOpen && WB__taskDrawerReady()) {
+  var open = WB_store.getState().drawerOpen;
+  if (a.type === "task" && open && WB__taskDrawerReady()) {
     WB_store.setHub({ lastFocus: row.item_key }, true);
     WB_track("wb-action", (row.kind || "other") + ":open-in-place");
     TK_openTask(a.taskId, { from: "wb-hub" });
+    return true;
+  }
+  if (a.type === "chat" && open) {
+    WB_store.setHub({ lastFocus: row.item_key }, true);
+    if (WB__openChat(a.clientId, a.email)) {
+      WB_track("wb-action", "message:reply-in-place");
+      return true;
+    }
+  }
+  if (a.type === "file" && open && typeof DRV_link === "function") {
+    WB_store.setHub({ lastFocus: row.item_key }, true);
+    WB__openDriveFile(a.fileId);
     return true;
   }
   WB_go(row, action || "open");

@@ -303,8 +303,16 @@ t("hub: row action per kind", () => {
   assert.deepStrictEqual(a({ kind: "task_review", source: "review", source_id: "t3" }), { type: "task", taskId: "t3" });
   assert.deepStrictEqual(a({ kind: "client_answered", source_id: "r1", ref_id: "t4" }), { type: "task", taskId: "t4" });
   assert.deepStrictEqual(a({ kind: "doc_request", source_id: "r2", ref_id: "r2" }), { type: "go" });
-  assert.deepStrictEqual(a({ kind: "message", source: "message", source_id: "m1" }), { type: "go" });
-  assert.deepStrictEqual(a({ kind: "doc_upload", source: "doc", source_id: "f1" }), { type: "go" });
+  // H3: a message opens the chat drawer on that client and person; a new file opens in Drive.
+  assert.deepStrictEqual(a({ kind: "message", source: "message", source_id: "m1", client_id: "c9", participant_email: "pat@client.com" }), {
+    type: "chat",
+    clientId: "c9",
+    email: "pat@client.com",
+  });
+  assert.deepStrictEqual(a({ kind: "message", source: "message", source_id: "m1", client_id: "c9", participant_email: null }), { type: "chat", clientId: "c9", email: null });
+  assert.deepStrictEqual(a({ kind: "message", source: "message", source_id: "m1", client_id: null }), { type: "go" });
+  assert.deepStrictEqual(a({ kind: "doc_upload", source: "doc", source_id: "f1" }), { type: "file", fileId: "f1" });
+  assert.deepStrictEqual(a({ kind: "doc_upload", source: "doc", source_id: null }), { type: "go" });
   assert.deepStrictEqual(a({ kind: "gl_flags", source: "gl", source_id: "g1" }), { type: "go" });
   assert.deepStrictEqual(a({ kind: "task", source_id: null }), { type: "go" });
   assert.deepStrictEqual(a({ kind: "other", source: "other" }), { type: "own" });
@@ -325,10 +333,31 @@ t("hub: primary and menu for task rows", () => {
   );
   const rv = row({ kind: "task_review", source: "review", source_id: "t3" });
   assert.deepStrictEqual(L.WB_hubPrimary(rv), { id: "open", label: "Review" });
-  // A message keeps its usual button and menu.
+  // A message keeps Reply; its menu gains Open full page (H3).
   const msg = row({ kind: "message", source: "message", source_id: "m1" });
   assert.deepStrictEqual(L.WB_hubPrimary(msg), L.WB_primaryAction(msg));
-  assert.deepStrictEqual(L.WB_hubMenu(msg), L.WB_menuActions(msg));
+  assert.deepStrictEqual(L.WB_hubPrimary(msg), { id: "reply", label: "Reply" });
+  assert.deepStrictEqual(
+    L.WB_hubMenu(msg).map((x) => x.id),
+    ["noreply", "snooze", "fullpage"],
+  );
+  // A new file says Open file; Mark checked and Snooze stay, plus Open full page.
+  const doc = row({ kind: "doc_upload", source: "doc", source_id: "f1" });
+  assert.deepStrictEqual(L.WB_hubPrimary(doc), { id: "open", label: "Open file" });
+  assert.deepStrictEqual(
+    L.WB_hubMenu(doc).map((x) => x.id),
+    ["checked", "snooze", "fullpage"],
+  );
+  // Nothing to open in place: the old button and menu, unchanged.
+  const bare = row({ kind: "message", source: "message", source_id: "m2", client_id: null });
+  assert.deepStrictEqual(L.WB_hubPrimary(bare), L.WB_primaryAction(bare));
+  assert.deepStrictEqual(L.WB_hubMenu(bare), L.WB_menuActions(bare));
+  const bareDoc = row({ kind: "doc_upload", source: "doc", source_id: null });
+  assert.deepStrictEqual(L.WB_hubPrimary(bareDoc), { id: "open", label: "File" });
+  assert.deepStrictEqual(L.WB_hubMenu(bareDoc), L.WB_menuActions(bareDoc));
+  // Ledger rows keep going where they live.
+  const gl = row({ kind: "gl_flags", source: "gl", source_id: "g1" });
+  assert.deepStrictEqual(L.WB_hubMenu(gl), L.WB_menuActions(gl));
 });
 
 t("hub: layer selectors and order", () => {

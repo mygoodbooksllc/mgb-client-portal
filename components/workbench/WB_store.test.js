@@ -4,7 +4,9 @@
 // store: saved per person (mgb_wb_hub:<email>), the old unscoped key ignored
 // and removed, writes throttled to one per 500 ms, a flush on pagehide and
 // close, reopen only on the same page without an arrival link, and
-// WB_hubOpen logging "open-in-place" only when the task drawer really opens.
+// WB_hubOpen logging "open-in-place" only when the task drawer really opens,
+// and (H3) Reply asking the app for the chat drawer (falling back to the page
+// when the app declines) and Open file opening Drive in a new tab.
 
 const assert = require("assert");
 const fs = require("fs");
@@ -31,6 +33,9 @@ function load(opts) {
   const tracked = [];
   const opened = [];
   const went = [];
+  const events = [];
+  const opens = [];
+  const popup = { location: { href: "" }, opener: "page", closed: false, close() { this.closed = true; } };
   const win = {
     localStorage: {
       getItem: (k) => (Object.prototype.hasOwnProperty.call(store, k) ? store[k] : null),
@@ -46,7 +51,15 @@ function load(opts) {
       (listeners[ev] = listeners[ev] || []).push(fn);
     },
     removeEventListener: () => {},
-    dispatchEvent: () => true,
+    dispatchEvent: (ev) => {
+      events.push(ev);
+      (listeners[ev && ev.type] || []).forEach((fn) => fn(ev));
+      return true;
+    },
+    open: (url, target, feat) => {
+      opens.push([url, target, feat]);
+      return o.popup === false ? null : popup;
+    },
     MGB_track: (name, detail) => tracked.push([name, detail]),
     TK_drawerHostReady: o.hostReady !== false,
   };
@@ -60,7 +73,10 @@ function load(opts) {
     document: { hidden: false, addEventListener() {}, removeEventListener() {} },
     Date: FakeDate,
     console,
-    CustomEvent: function () {},
+    CustomEvent: function (type, init) {
+      this.type = type;
+      this.detail = init && init.detail;
+    },
     setTimeout: (fn, ms) => {
       timers.push({ fn, ms, id: timers.length + 1, live: true });
       return timers.length;
@@ -76,6 +92,7 @@ function load(opts) {
     LK_go: (t, hint) => went.push([t, hint]),
     LK_href: () => "#/x",
   };
+  if (o.drvLink) sandbox.DRV_link = o.drvLink;
   win.window = win;
   vm.createContext(sandbox);
   const dir = __dirname;
@@ -89,6 +106,9 @@ function load(opts) {
     opened,
     went,
     win,
+    events,
+    opens,
+    popup,
     listeners,
     advance(ms) {
       clock += ms;
@@ -266,4 +286,144 @@ t("WB_hubOpen logs open-in-place only when the task drawer really opens", () => 
   assert.deepStrictEqual(JSON.parse(JSON.stringify(e.tracked)), [["wb-action", "task:open"]]);
 });
 
-console.log("WB_store: " + n + " checks passed");
+// ---- H3: Reply and Open file -----------------------------------------------------
+const plain = (x) => JSON.parse(JSON.stringify(x));
+const msgRow = { item_key: "message:message:m1", kind: "message", source: "message", source_id: "m1", client_id: "c9", participant_email: "pat@client.com" };
+const fileRow = { item_key: "doc:doc_upload:f1", kind: "doc_upload", source: "doc", source_id: "f1", client_id: "c9" };
+
+t("Reply asks the app for the chat drawer and stays on the page when it takes it", () => {
+  const c = load();
+  c.S.join("pat@example.com", false);
+  c.S.setDrawerOpen(true);
+  c.listeners["mgb:open-chat"] = [(ev) => (ev.detail.handled = true)];
+  assert.strictEqual(c.sandbox.WB_hubOpen(msgRow, "open"), true);
+  const ev = c.events.filter((e) => e.type === "mgb:open-chat");
+  assert.strictEqual(ev.length, 1);
+  assert.deepStrictEqual(plain({ c: ev[0].detail.clientId, e: ev[0].detail.email }), { c: "c9", e: "pat@client.com" });
+  assert.strictEqual(c.went.length, 0, "the page does not change");
+  assert.strictEqual(c.S.getState().drawerOpen, true, "the hub stays open");
+  assert.strictEqual(c.S.getState().hub.lastFocus, "message:message:m1", "focus returns to this row");
+  assert.deepStrictEqual(plain(c.tracked), [["wb-action", "message:reply-in-place"]]);
+});
+
+t("Reply falls back to the thread's page when the app declines (staff chat off, Inbox page)", () => {
+  const c = load();
+  c.S.join("pat@example.com", false);
+  c.S.setDrawerOpen(true);
+  c.listeners["mgb:open-chat"] = [() => {}]; // listener present but declines
+  assert.strictEqual(c.sandbox.WB_hubOpen(msgRow, "open"), false);
+  assert.strictEqual(c.went.length, 1);
+  assert.deepStrictEqual(plain(c.tracked), [["wb-action", "message:reply"]]);
+  // No listener at all: same.
+  const d = load();
+  d.S.join("pat@example.com", false);
+  d.S.setDrawerOpen(true);
+  assert.strictEqual(d.sandbox.WB_hubOpen(msgRow, "open"), false);
+  assert.strictEqual(d.went.length, 1);
+});
+
+t("Reply never asks for the chat drawer when the hub is closed or the row has no client", () => {
+  const c = load();
+  c.S.join("pat@example.com", false);
+  c.listeners["mgb:open-chat"] = [(ev) => (ev.detail.handled = true)];
+  assert.strictEqual(c.sandbox.WB_hubOpen(msgRow, "open"), false, "hub closed: Today's own list");
+  assert.strictEqual(c.events.filter((e) => e.type === "mgb:open-chat").length, 0);
+  c.S.setDrawerOpen(true);
+  assert.strictEqual(c.sandbox.WB_hubOpen(Object.assign({}, msgRow, { client_id: null }), "open"), false);
+  assert.strictEqual(c.events.filter((e) => e.type === "mgb:open-chat").length, 0);
+});
+
+const later = [];
+function ta(name, fn) {
+  later.push(
+    fn().then(
+      () => {
+        n++;
+      },
+      (e) => {
+        console.error("FAIL " + name);
+        throw e;
+      },
+    ),
+  );
+}
+const tick = () => new Promise((r) => setImmediate(r));
+
+ta("Open file opens Drive in a new tab, opened first and pointed at the link", async () => {
+  const asked = [];
+  const c = load({ drvLink: (id) => (asked.push(id), Promise.resolve("https://drive.google.com/file/d/abc/view")) });
+  c.S.join("pat@example.com", false);
+  c.S.setDrawerOpen(true);
+  assert.strictEqual(c.sandbox.WB_hubOpen(fileRow, "open"), true);
+  assert.deepStrictEqual(plain(c.opens), [["", "_blank", null]], "the tab opens inside the click");
+  assert.strictEqual(c.popup.opener, null, "the new tab can't reach back");
+  await tick();
+  assert.deepStrictEqual(asked, ["f1"]);
+  assert.strictEqual(c.popup.location.href, "https://drive.google.com/file/d/abc/view");
+  assert.strictEqual(c.popup.closed, false);
+  assert.strictEqual(c.went.length, 0, "the page does not change");
+  assert.strictEqual(c.S.getState().drawerOpen, true);
+  assert.strictEqual(c.S.getState().hub.lastFocus, "doc:doc_upload:f1");
+  assert.deepStrictEqual(plain(c.tracked), [["wb-action", "doc_upload:open-in-drive"]]);
+});
+
+ta("Open file: a failed link closes the blank tab and says so; nothing navigates", async () => {
+  const c = load({ drvLink: () => Promise.reject(new Error("That file isn't available.")) });
+  c.S.join("pat@example.com", false);
+  c.S.setDrawerOpen(true);
+  assert.strictEqual(c.sandbox.WB_hubOpen(fileRow, "open"), true);
+  await tick();
+  assert.strictEqual(c.popup.closed, true);
+  assert.strictEqual(c.popup.location.href, "");
+  const toast = c.events.filter((e) => e.type === "mgb:toast");
+  assert.strictEqual(toast.length, 1);
+  assert.ok(/That file isn't available/.test(toast[0].detail.text));
+  assert.strictEqual(c.went.length, 0);
+  assert.strictEqual(c.tracked.length, 0, "a failed open is not logged as opened");
+});
+
+ta("Open file: a link that isn't https is refused", async () => {
+  const c = load({ drvLink: () => Promise.resolve("javascript:alert(1)") });
+  c.S.join("pat@example.com", false);
+  c.S.setDrawerOpen(true);
+  c.sandbox.WB_hubOpen(fileRow, "open");
+  await tick();
+  assert.strictEqual(c.popup.closed, true);
+  assert.strictEqual(c.popup.location.href, "");
+  assert.strictEqual(c.events.filter((e) => e.type === "mgb:toast").length, 1);
+});
+
+ta("Open file: pop-ups blocked still opens from the link, or explains", async () => {
+  const c = load({ popup: false, drvLink: () => Promise.resolve("https://drive.google.com/x") });
+  c.S.join("pat@example.com", false);
+  c.S.setDrawerOpen(true);
+  c.sandbox.WB_hubOpen(fileRow, "open");
+  await tick();
+  // First open("") returned null, the second open(url) returned null too: a toast, no crash.
+  assert.strictEqual(c.opens.length, 2);
+  assert.strictEqual(c.opens[1][0], "https://drive.google.com/x");
+  assert.strictEqual(c.opens[1][2], "noopener");
+  assert.strictEqual(c.events.filter((e) => e.type === "mgb:toast").length, 1);
+});
+
+ta("Open file falls back to the Files page when Drive helpers aren't loaded or the hub is closed", async () => {
+  const a = load(); // no DRV_link
+  a.S.join("pat@example.com", false);
+  a.S.setDrawerOpen(true);
+  assert.strictEqual(a.sandbox.WB_hubOpen(fileRow, "open"), false);
+  assert.strictEqual(a.went.length, 1);
+  assert.strictEqual(a.opens.length, 0);
+  const b = load({ drvLink: () => Promise.resolve("https://x.test/") });
+  b.S.join("pat@example.com", false);
+  assert.strictEqual(b.sandbox.WB_hubOpen(fileRow, "open"), false, "hub closed");
+  assert.strictEqual(b.went.length, 1);
+  assert.strictEqual(b.opens.length, 0);
+});
+
+Promise.all(later).then(
+  () => console.log("WB_store: " + n + " checks passed"),
+  (e) => {
+    console.error(e);
+    process.exit(1);
+  },
+);

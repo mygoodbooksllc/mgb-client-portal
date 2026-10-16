@@ -1500,7 +1500,10 @@ function StaffInbox({
   const initialDone = React.useRef(false);
   React.useEffect(() => {
     if (initialDone.current || mode === "loading" || !initialEmail) return;
-    const hit = clientEntries.find((e) => e.email === siLower(initialEmail));
+    // With a client named (a client's Messages tab, or the Workbench hub's
+    // Reply), the person on that client: the same email can be a contact for
+    // more than one client.
+    const hit = clientEntries.find((e) => e.email === siLower(initialEmail) && (!defaultClientId || e.clientId === defaultClientId));
     if (hit) {
       initialDone.current = true;
       openEntry(hit);
