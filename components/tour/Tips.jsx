@@ -374,6 +374,16 @@ const TIPS_CATALOG = [
     ready: () => !!document.querySelector('[data-tour="tk-recurring-nav"]'),
   },
   {
+    id: "tk-waiting-nav",
+    roles: "all",
+    match: (r) => r.page === "tasks",
+    target: "tk-waiting-nav",
+    snug: true,
+    text: "Waiting on client lists everything you've asked a client for from a task, longest wait first. Ask client is in a client task's details.",
+    slug: "ask-client",
+    ready: () => !!document.querySelector('[data-tour="tk-waiting-nav"]'),
+  },
+  {
     id: "tk-sidebar",
     roles: "all",
     match: (r) => r.page === "tasks",

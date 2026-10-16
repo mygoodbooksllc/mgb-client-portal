@@ -62,6 +62,8 @@ var TK_api = (function () {
     "tk_server_owned", "tk_owner_only",
     "tk_bad_due_rule", "tk_bad_template", "tk_checklist_too_long", "tk_bad_override", "tk_bad_action",
     "tk_template_retired", "tk_not_found", "tk_cadence_locked", "tk_review_admin_only",
+    "tk_has_open_requests", "tk_email_off", "tk_no_recipients", "tk_bad_recipient", "tk_legacy_request",
+    "tk_reply_required", "tk_not_open", "tk_not_answered", "tk_contact_exists", "tk_bad_contact", "tk_bad_request",
   ];
   var COPY_FALLBACK = {
     sentForReview: "Sent for review. An admin will approve it.",
@@ -1538,6 +1540,97 @@ var TK_api = (function () {
       try { window.dispatchEvent(new Event("mgb:staff-tools-changed")); } catch (e) {}
       return true;
     });
+  };
+
+  // ---- Ask client (Tasks Phase 2, S5) ----------------------------------------
+  // Every write is an RPC in supabase/tasks-p2-5-requests.sql (staff cannot
+  // write client_requests or client_contacts directly). Sending is a dry run
+  // until S6: nothing is emailed and the result says dry_run.
+
+  function afterRequestWrite(taskId) {
+    try { window.dispatchEvent(new CustomEvent("mgb:tk-requests-changed", { detail: { taskId: taskId || null } })); } catch (e) {}
+    if (!taskId) return Promise.resolve(null);
+    return refresh(taskId).then(function (t) {
+      if (t) afterWrite({ type: "upsert", task: t });
+      afterChildWrite(taskId, "client_requests");
+      return t;
+    });
+  }
+
+  // { portal: [{email, name, role, opted_out}], contacts: [{id, name, email, role, can_answer, notes}] }
+  api.requestRecipients = function (clientId) {
+    return run(function (c) {
+      return c.rpc("tk_request_recipients", { p_client_id: String(clientId) });
+    }, { where: "requestRecipients" }).then(function (r) { return r || { portal: [], contacts: [] }; });
+  };
+
+  api.saveClientContact = function (id, clientId, fields) {
+    var f = fields || {};
+    return rpcWrite("tk_save_client_contact", {
+      p_id: id || null, p_client_id: clientId ? String(clientId) : null, p_name: f.name || "", p_email: f.email || "",
+      p_role: f.role || null, p_can_answer: f.can_answer !== false, p_notes: f.notes || null,
+    }, "saveClientContact");
+  };
+
+  api.retireClientContact = function (id) {
+    return rpcWrite("tk_retire_client_contact", { p_id: id }, "retireClientContact");
+  };
+
+  // req: { clientId, taskId, title, prompt, kind, needsUpload, dueDate, emails[], contactIds[] }
+  api.askClient = function (req) {
+    var r = req || {};
+    return rpcWrite("tk_ask_client", {
+      p_client_id: String(r.clientId || ""), p_task_id: r.taskId || null, p_title: r.title || "", p_prompt: r.prompt || "",
+      p_kind: r.kind || "question", p_needs_upload: !!r.needsUpload, p_due_date: r.dueDate || null,
+      p_recipient_emails: r.emails || [], p_contact_ids: r.contactIds || [],
+    }, "askClient").then(function (id) {
+      return afterRequestWrite(r.taskId).then(function () { return id; });
+    });
+  };
+
+  // action: preview | send | resend | nudge. Resolves { mode, dry_run, sent, recipients, subject }.
+  api.sendClientRequest = function (id, action, taskId) {
+    return rpcWrite("tk_client_request_send", { p_id: id, p_action: action || "send" }, "sendClientRequest").then(function (res) {
+      if (action !== "preview") afterRequestWrite(taskId);
+      return res;
+    });
+  };
+
+  api.listClientRequests = function (taskId, clientId) {
+    return run(function (c) {
+      return c.rpc("tk_list_client_requests", { p_task_id: taskId || null, p_client_id: clientId ? String(clientId) : null });
+    }, { where: "listClientRequests" }).then(function (rows) { return rows || []; });
+  };
+
+  api.waitingOnClient = function (clientId) {
+    return run(function (c) {
+      return c.rpc("tk_waiting_on_client", { p_client_id: clientId ? String(clientId) : null });
+    }, { where: "waitingOnClient" }).then(function (rows) { return rows || []; });
+  };
+
+  api.cancelClientRequest = function (id, reason, taskId) {
+    return rpcWrite("tk_cancel_client_request", { p_id: id, p_reason: reason || null }, "cancelClientRequest")
+      .then(function () { return afterRequestWrite(taskId); });
+  };
+
+  api.acceptClientRequest = function (id, taskId) {
+    return rpcWrite("tk_accept_client_request", { p_id: id }, "acceptClientRequest")
+      .then(function () { return afterRequestWrite(taskId); });
+  };
+
+  api.recordClientAnswer = function (id, reply, taskId) {
+    return rpcWrite("tk_record_client_answer", { p_id: id, p_reply: reply || "" }, "recordClientAnswer")
+      .then(function () { return afterRequestWrite(taskId); });
+  };
+
+  api.revokeRequestLinks = function (id, taskId) {
+    return rpcWrite("tk_revoke_request_tokens", { p_request_id: id, p_reason: "staff" }, "revokeRequestLinks")
+      .then(function (n) { afterRequestWrite(taskId); return n; });
+  };
+
+  api.setRequestNudgePaused = function (id, paused, taskId) {
+    return rpcWrite("tk_set_request_nudge_paused", { p_id: id, p_paused: !!paused }, "setRequestNudgePaused")
+      .then(function () { return afterRequestWrite(taskId); });
   };
 
   // ---- Exposed for TK_sync and tests ----------------------------------------

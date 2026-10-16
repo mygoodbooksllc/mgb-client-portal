@@ -2,7 +2,7 @@
 title: Admin guide: what admins do, step by step
 section: Admin
 audience: admin
-keywords: [mgb internal, internal permission, admin guide, admin tour, admin walkthrough, bookkeeper tour, temporary admin tour, administrator, what admins see, admin pages, firm settings, members, hours, reply times, feedback, performance, reviews, inventory, view as, temporary admin access, new client, routine, checklist, daily, weekly, monthly, quarterly]
+keywords: [mgb internal, internal permission, admin guide, admin tour, admin walkthrough, bookkeeper tour, temporary admin tour, administrator, what admins see, admin pages, firm settings, members, hours, reply times, feedback, performance, reviews, inventory, view as, temporary admin access, new client, routine, checklist, daily, weekly, monthly, quarterly, waiting on client, ask client]
 sort: 500
 ---
 As an admin you see everything a bookkeeper sees, plus the pages that run the firm: people, hours and money, and the firm's settings. This is the written version of the **Admin tour**, with a routine to follow.
@@ -31,6 +31,7 @@ If you're also a client's account manager, the **Account manager tour** comes ne
 | **Team › Ledger review** | Ledger review settings: warn or block when a month is marked done unapproved, how much ledger to pull, and the vendor watch list | [Ledger review](#/help/ledger-review) |
 | **Team › Inventory** | Equipment **Requests**, **Items**, the **Roster** of who's missing what, the staff **Directory** and **Export to Google Sheet** | [Inventory](#/help/tech-inventory) |
 | **MGB (internal)** in the left rail | MyGoodBooks' own books, set up like a client. Open to every admin by default; the owner can switch it off for a person in **Team › Members**. Never counted in client numbers | [MGB (internal)](#/help/mgb-internal) |
+| **Tasks › Waiting on client** | Every open Ask client request for every client, longest wait first, with **Send reminder**, **Email again** and **Cancel** | [Ask client](#/help/ask-client) |
 | **Tasks › Recurring** | Recurring task templates: drafts, **Turn on**, previews, **Make due tasks now**, **Missed periods** and the standard close set | [Recurring tasks](#/help/task-templates) |
 | **Settings › Firm settings** | **Task templates** (a link to Tasks › Recurring), **Client roster** (where new clients are added), **Emails**, **QuickBooks usage**, **Usage stats**, **Audit log** and **Developer tools** | [Settings](#/help/staff-settings), [Usage stats and Developer tools](#/help/admin-insight), [Audit log](#/help/audit-log) |
 | **Today** | Every client you can open, which for an admin is all of them, plus birthdays and work anniversaries a week ahead | [Today](#/help/home-page), [Celebrations](#/help/celebrations) |
@@ -43,6 +44,7 @@ If you're also a client's account manager, the **Account manager tour** comes ne
 1. Work through **Today**: client messages, access and upgrade requests, and clients at risk.
 2. Glance at admin@mygoodbooks.org for any **"MyGoodBooks alert:"** email and deal with it first. See [What are the health-check alert emails?](#/help/health-alerts).
 3. **Review** in the Tasks sidebar (`#/tasks/review`): approve or send back work waiting for you, oldest first. See [How does task review work?](#/help/task-review).
+4. **Waiting on client** in the Tasks sidebar (`#/tasks/waiting`): anything marked **No reply** needs a call. See [How do I ask a client something from a task?](#/help/ask-client).
 
 **Every week**
 

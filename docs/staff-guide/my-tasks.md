@@ -2,7 +2,7 @@
 title: How do I add and manage my tasks?
 section: Daily work
 audience: staff
-keywords: [my tasks, tasks, work, tasks tab, task, reminder, to do, due, overdue, today, this week, later, waiting on client, done, show done, show older, today group, view, quick add, q, add task, at mention, hashtag, priority, high, low, business days, bd5, keyboard, shortcuts, j k, status, assign, by client, save as template, suggest template, checklist, subtasks, tasks page, lists, client task panel, t]
+keywords: [my tasks, tasks, work, tasks tab, task, reminder, to do, due, overdue, today, this week, later, waiting on client, done, show done, show older, today group, view, quick add, q, add task, at mention, hashtag, priority, high, low, business days, bd5, keyboard, shortcuts, j k, status, assign, by client, save as template, suggest template, checklist, subtasks, tasks page, lists, client task panel, t, waiting on client list, ask client, #/tasks/waiting]
 sort: 110
 ---
 **My Tasks** is one list of everything assigned to you, across every client and project. Open it from the **Tasks** button in the top bar (`#/tasks/my`), or from **Work › Tasks** (`#/work/tasks`), which shows the same list inside Work. The Tasks page also has a sidebar with every client list and project; see [How do client task lists and projects work?](#/help/task-lists-and-projects).
@@ -15,7 +15,7 @@ A task is yours when it's assigned to you, or when you made it and it isn't assi
 - **Today**: due today. To fold these into This week, open **View** and untick **Today group**.
 - **This week**: due in the next 7 days.
 - **Later**: due after that, or with no due date.
-- **Waiting on client**: tasks paused with the **Waiting on client** status. They never count as late, whatever the date.
+- **Waiting on client**: tasks paused with the **Waiting on client** status. They never count as late, whatever the date. **Tasks › Waiting on client** in the sidebar lists every open client request, longest wait first; see [How do I ask a client something from a task?](#/help/ask-client).
 - **Done**: finished tasks. It starts folded.
 
 Click a group's heading to fold or open it. The portal remembers which groups you folded. Empty groups don't show.

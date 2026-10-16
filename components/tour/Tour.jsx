@@ -100,6 +100,11 @@
 //   tk-review-stats  the queue's Last 30 days card (admins)
 //   tk-review-strip  the review strip in a task's details (TK_Drawer.jsx)
 //   tk-recurring-nav the sidebar's Recurring item (TK_Sidebar.jsx), same widths
+//   tk-waiting-nav   the sidebar's Waiting on client item (TK_Sidebar.jsx), same widths
+//   tk-waiting-head  Tasks › Waiting on client's heading (TK_WaitingList.jsx)
+//   tk-waiting-groups its client groups, only when something is waiting
+//   tk-ask-client    a client task's Client requests section (TK_AskClientModal.jsx)
+//   tk-ask-people    the Ask client window's Who should answer? list
 //   tk-recurring-client  Tasks › Recurring's One client card (TK_Templates.jsx)
 //   tk-recurring-actions New template / Preview / Make due tasks now (admins)
 //   tk-recurring-list    the template groups, once loaded
@@ -1308,7 +1313,16 @@ function TOUR_tasksSteps() {
       title: "Lists and projects",
       body: () =>
         (window.innerWidth < 900 ? "The Lists button opens every list. " : "") +
-        "My Tasks, Review (work waiting for an admin's approval), Search, the firm's projects and each of your clients' lists. SOPs and 90 Day are projects open to all staff.",
+        "My Tasks, Review (work waiting for an admin's approval), Waiting on client (everything you've asked a client for), Search, the firm's projects and each of your clients' lists. SOPs and 90 Day are projects open to all staff.",
+    },
+    {
+      id: "tk-waiting-nav",
+      when: () => window.innerWidth >= 900,
+      targets: ["tk-waiting-nav"],
+      wait: true,
+      title: "Waiting on client",
+      body: () =>
+        "On a client task, Ask client in its details sends the client a question, a document request or an approval, and the task waits until they answer. Waiting on client lists every open request, longest wait first.",
     },
     {
       id: "tk-popout",

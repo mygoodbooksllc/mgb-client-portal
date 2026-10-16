@@ -168,6 +168,11 @@ function TK_dwIsTyping(el) {
 // One toast per error code (C5). Returns the code.
 function TK_dwSaveError(e) {
   var code = e && e.code;
+  // Ask client refusals (tasks p2 s5), e.g. leaving Waiting with open requests.
+  if (e && e.reason && typeof TK_REQUEST_ERROR_COPY !== "undefined" && TK_REQUEST_ERROR_COPY[e.reason] && e.reason !== "tk_forbidden") {
+    TK_dwToast(TK_REQUEST_ERROR_COPY[e.reason]);
+    return e.reason;
+  }
   if (code === "tk_conflict") TK_dwToast(TK_dwCopy("conflict", "Someone else just changed this task. Showing the latest."));
   else if (code === "tk_reverted" || code === "tk_forbidden" || code === "42501") {
     TK_dwToast(TK_dwCopy("reverted", "Only the task's owner or an admin can change that."));
@@ -2054,6 +2059,10 @@ function TK_Drawer(props) {
             <h3 className="tk-dw-h">Checklist</h3>
             <TCL_Checklist task={task} canEdit={canEdit && !deleted && online} />
           </section>
+        )}
+
+        {typeof TK_dwRequests === "function" && task.client_id && (
+          <TK_dwRequests task={task} canEdit={canEdit && !deleted && online} isAdmin={isAdmin} nameOf={nameOf} />
         )}
 
         <section className="tk-dw-section" aria-labelledby="tk-dw-files-h">

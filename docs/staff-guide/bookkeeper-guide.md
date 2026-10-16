@@ -2,7 +2,7 @@
 title: Bookkeeper guide: your day, step by step
 section: Daily work
 audience: staff
-keywords: [recurring, handbook, sign policy, bookkeeper guide, bookkeeper, bookkeeper tour, tour, walkthrough, first day, daily routine, routine, checklist, daily, weekly, monthly, quarterly, today, clients, client overview, close tab, open for this client, inbox, reply, note, work, tasks, close, month-end close, deadlines, team, time off, backup, reviews, self-review, performance, hours, quickbooks time, search, help]
+keywords: [recurring, handbook, sign policy, bookkeeper guide, bookkeeper, bookkeeper tour, tour, walkthrough, first day, daily routine, routine, checklist, daily, weekly, monthly, quarterly, today, clients, client overview, close tab, open for this client, inbox, reply, note, work, tasks, close, month-end close, deadlines, team, time off, backup, reviews, self-review, performance, hours, quickbooks time, search, help, ask client, waiting on client]
 sort: 105
 ---
 As a bookkeeper you look after your own clients: you keep their books, answer their messages and close each month. This is the written version of the **Bookkeeper tour**, with a routine to follow.
@@ -68,7 +68,7 @@ See [How do I message a client or a teammate?](#/help/inbox).
 
 1. **Today**: clear what's marked **Now**.
 2. **Inbox**: reply to every client waiting on you.
-3. **Work › Tasks**: finish what's due. Anything sent back from review is back in your list as **In progress**, with the reviewer's note in its comments. See [How does task review work?](#/help/task-review). Tasks with a **Recurring** tag come from a template each period; see [How do recurring tasks from templates work?](#/help/task-templates).
+3. **Work › Tasks**: finish what's due. Anything sent back from review is back in your list as **In progress**, with the reviewer's note in its comments. See [How does task review work?](#/help/task-review). Tasks with a **Recurring** tag come from a template each period; see [How do recurring tasks from templates work?](#/help/task-templates). Stuck on the client? Use **Ask client** in the task's details, and check **Tasks › Waiting on client** for anything that needs a nudge; see [How do I ask a client something from a task?](#/help/ask-client).
 
 **Every week**
 

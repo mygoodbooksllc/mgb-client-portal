@@ -244,6 +244,27 @@ function TK_Sidebar(props) {
     return TK_api.listReview();
   });
   var me = TK_vLower(props.staffUser && props.staffUser.email);
+  // Waiting on client count (Tasks p2 S5): open requests and waiting tasks on
+  // clients you can reach. Refreshes when a request changes.
+  var waitPair = React.useState(0);
+  var waitCount = waitPair[0];
+  var setWaitCount = waitPair[1];
+  React.useEffect(function () {
+    if (typeof TK_api === "undefined" || !TK_api || typeof TK_api.waitingOnClient !== "function") return undefined;
+    var live = true;
+    var load = function () {
+      TK_api.waitingOnClient(null).then(
+        function (rows) { if (live) setWaitCount((rows || []).length); },
+        function () {},
+      );
+    };
+    load();
+    window.addEventListener("mgb:tk-requests-changed", load);
+    return function () {
+      live = false;
+      window.removeEventListener("mgb:tk-requests-changed", load);
+    };
+  }, []);
   var reviewCount = isAdmin && typeof TK_reviewQueueCount === "function" ? TK_reviewQueueCount(reviewList && reviewList.tasks, me) : 0;
   var people = (Array.isArray(staff) ? staff : []).filter(function (s) {
     return s && s.active !== false && s.id && (typeof TK_isUuid !== "function" || TK_isUuid(s.id));
@@ -254,6 +275,7 @@ function TK_Sidebar(props) {
       <ul className="tk-nav">
         <TK_vNavItem route={{ view: "my" }} label="My Tasks" icon="home" active={route.view === "my"} onNavigate={nav} />
         <TK_vNavItem route={{ view: "review" }} label="Review" icon="check" count={reviewCount} tour="tk-review-nav" active={route.view === "review"} onNavigate={nav} />
+        <TK_vNavItem route={{ view: "waiting" }} label="Waiting on client" icon="hourglass" count={waitCount} tour="tk-waiting-nav" active={route.view === "waiting"} onNavigate={nav} />
         <TK_vNavItem route={{ view: "templates" }} label="Recurring" icon="repeat" tour="tk-recurring-nav" active={route.view === "templates"} onNavigate={nav} />
         <TK_vNavItem route={{ view: "search" }} label="Search" icon="search" active={route.view === "search"} onNavigate={nav} />
       </ul>

@@ -1,0 +1,179 @@
+/* Tasks › Ask client (tasks phase 2, S5): drawer "Client requests" section,
+   the Ask client modal and the Waiting on client list. Existing variables only. */
+
+/* ---- Drawer section ---- */
+.tk-cr-list {
+  list-style: none;
+  margin: 0 0 10px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.tk-cr-item {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  padding: 10px 12px;
+}
+.tk-cr-item.is-open { border-color: var(--warm-border); }
+.tk-cr-item.is-cancelled,
+.tk-cr-item.is-accepted { opacity: 0.8; }
+.tk-cr-top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+.tk-cr-title { color: var(--ink-strong); font-weight: 600; }
+.tk-cr-kind,
+.tk-cr-legacy {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.tk-cr-legacy::before { content: "· "; }
+.tk-cr-chip {
+  display: inline-block;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1;
+  padding: 4px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+.tk-cr-chip.tone-wait { background: var(--warm-bg); color: var(--warm-text); border-color: var(--warm-border); }
+.tk-cr-chip.tone-warn { background: var(--bad-soft); color: var(--bad); border-color: var(--bad); }
+.tk-cr-chip.tone-ok { background: var(--good-soft); color: var(--good); border-color: var(--good); }
+.tk-cr-prompt {
+  margin: 6px 0 4px;
+  color: var(--text);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.tk-cr-who,
+.tk-cr-meta {
+  margin: 2px 0;
+  font-size: 13px;
+  color: var(--text-muted);
+  overflow-wrap: anywhere;
+}
+.tk-cr-answer {
+  margin: 8px 0 4px;
+  padding: 8px 10px;
+  border-left: 3px solid var(--good);
+  background: var(--surface-2);
+  border-radius: 0 var(--radius) var(--radius) 0;
+}
+.tk-cr-answer p { margin: 4px 0 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.tk-cr-answer-by { font-size: 12px; color: var(--text-muted); font-weight: 600; }
+.tk-cr-files { font-size: 13px; color: var(--text-muted); }
+.tk-cr-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+  margin-top: 8px;
+}
+.tk-cr-actions:empty { display: none; }
+.tk-cr-cancel { color: var(--bad); }
+.tk-cr-ask { margin-top: 2px; }
+
+/* ---- Ask client modal ---- */
+.tk-ask-modal .modal-body { display: flex; flex-direction: column; gap: 6px; }
+.tk-ask-client { color: var(--text-muted); font-weight: 400; }
+.tk-ask-kinds,
+.tk-ask-people {
+  border: 0;
+  margin: 0 0 6px;
+  padding: 0;
+  min-width: 0;
+}
+.tk-ask-kinds { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+.tk-ask-kinds legend { grid-column: 1 / -1; }
+.tk-ask-kind {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  cursor: pointer;
+  background: var(--surface);
+}
+.tk-ask-kind input { position: absolute; opacity: 0; pointer-events: none; }
+.tk-ask-kind.is-on { border-color: var(--accent); background: var(--accent-soft); }
+.tk-ask-kind:focus-within { outline: 2px solid var(--accent); outline-offset: 1px; }
+.tk-ask-kind-name { font-weight: 600; color: var(--ink-strong); }
+.tk-ask-kind-hint { font-size: 12px; color: var(--text-muted); }
+.tk-ask-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 8px 16px;
+}
+.tk-ask-check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  color: var(--text);
+}
+.tk-ask-due { display: flex; flex-direction: column; gap: 2px; font-size: 13px; color: var(--text-muted); }
+.tk-ask-person {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  column-gap: 8px;
+  align-items: center;
+  padding: 6px 4px;
+  border-bottom: 1px solid var(--muted-line);
+  cursor: pointer;
+}
+.tk-ask-person:hover { background: var(--hover-bg); }
+.tk-ask-person-name { color: var(--ink-strong); overflow-wrap: anywhere; }
+.tk-ask-person-note { grid-column: 2; font-size: 12px; color: var(--text-muted); }
+.tk-ask-addbtn { margin-top: 6px; }
+.tk-cr-addcontact {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr) auto;
+  gap: 6px;
+  margin-top: 8px;
+  align-items: center;
+}
+.tk-cr-addcontact .btn-secondary,
+.tk-cr-addcontact .link-btn { justify-self: start; }
+
+/* ---- Waiting on client list ---- */
+.tk-wt-mine {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+  color: var(--text);
+  margin-top: 6px;
+}
+.tk-wt-rows {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+}
+.tk-wt-row { padding: 10px 12px; border-top: 1px solid var(--muted-line); }
+.tk-wt-row:first-child { border-top: 0; }
+.tk-wt-main {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 8px;
+}
+.tk-wt-open { font-weight: 600; text-align: left; }
+.tk-wt-task { color: var(--text-muted); font-size: 13px; overflow-wrap: anywhere; }
+
+@media (max-width: 760px) {
+  .tk-ask-kinds { grid-template-columns: minmax(0, 1fr); }
+  .tk-cr-addcontact { grid-template-columns: minmax(0, 1fr); }
+}

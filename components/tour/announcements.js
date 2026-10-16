@@ -216,6 +216,47 @@ var ANN_REGISTRY = [
       },
     ],
   },
+  {
+    id: "ask-client",
+    date: "2026-10-16",
+    title: "Ask client",
+    summary: "Ask a client a question, for a document or for an approval right from a client task; the task waits until they answer, and Tasks › Waiting on client lists every open request.",
+    roles: ["admin", "bookkeeper"],
+    hash: "#/tasks/waiting",
+    steps: (ctx) => [
+      {
+        id: "ann-welcome",
+        title: "Ask the client from a task",
+        body: () =>
+          "Open any client task and you'll find Client requests above Files and links. Ask client sends a question, a document request or an approval to the client's portal users or contacts, and the task waits on the client until they answer. About a minute.",
+      },
+      {
+        id: "ann-nav",
+        go: () => {
+          if (!/^#\/tasks\/waiting(\?|$)/.test(window.location.hash || "")) window.location.hash = "#/tasks/waiting";
+        },
+        targets: ["tk-waiting-nav"],
+        wait: true,
+        title: "Waiting on client",
+        body: () => "Every open request for the clients you work on. The number is how many are still waiting.",
+      },
+      {
+        id: "ann-list",
+        targets: ["tk-waiting-head"],
+        wait: true,
+        spot: "top",
+        title: "Longest wait first",
+        body: () =>
+          "Grouped by client. Click a request to open its task, or use Send reminder, Email again or Cancel right here. After four reminders a request says No reply: time to call.",
+      },
+      {
+        id: "ann-done",
+        title: "Nothing is emailed yet",
+        body: () =>
+          "Client emails for requests are a dry run until the owner switches them on, so tell the client yourself and use Record answer when they reply. To see this again, press ? and pick New: Ask client tour.",
+      },
+    ],
+  },
 ];
 
 if (typeof module !== "undefined" && module.exports) module.exports = { ANN_REGISTRY: ANN_REGISTRY };

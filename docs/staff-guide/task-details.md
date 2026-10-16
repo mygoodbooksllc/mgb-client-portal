@@ -2,7 +2,7 @@
 title: What's in a task's details?
 section: Daily work
 audience: staff
-keywords: [task details, details panel, drawer, open task, status, to do, in progress, waiting on client, ready for review, done, review, needs review, approve, send back, take back, review strip, review queue, reviewer, assignee, due, start, priority, section, repeat, remind me, sharing, private, share with the client's team, sop section, description, subtasks, checklist, comments, mentions, at mention, followers, follow, files, attachments, links, google drive, activity, history, copy link, delete, restore, deleted]
+keywords: [task details, details panel, drawer, open task, status, to do, in progress, waiting on client, ready for review, done, review, needs review, approve, send back, take back, review strip, review queue, reviewer, assignee, due, start, priority, section, repeat, remind me, sharing, private, share with the client's team, sop section, description, subtasks, checklist, comments, mentions, at mention, followers, follow, files, attachments, links, google drive, activity, history, copy link, delete, restore, deleted, client requests, ask client, record answer, accept answer]
 sort: 112
 ---
 Click a task anywhere (My Tasks, a client or project list, Today, a client's Overview, the bell or search) and its details slide in from the right. On a phone they fill the screen. Press **Esc** or click **Close** to put them away. Changes save as you make them.
@@ -18,7 +18,7 @@ Click a task anywhere (My Tasks, a client or project list, Today, a client's Ove
 
 Every task has one of five statuses: **To do**, **In progress**, **Waiting on client**, **Ready for review** and **Done**.
 
-- **Waiting on client** pauses the task. It moves to the Waiting on client group on My Tasks and never shows as overdue.
+- **Waiting on client** pauses the task. It moves to the Waiting on client group on My Tasks and never shows as overdue. **Ask client** (below) sets it for you, and while a request is open the task stays waiting until the client answers or you cancel the request.
 - A task with **Needs review before it's done** ticked has a review step, for admins too. When you finish it, the status menu says **Send for review** and the task goes to **Ready for review**. You'll see *Sent for review. An admin will approve it.* A strip at the top of the details shows the reviewer (**any admin** if nobody is named), how long it has waited and how often it was sent back.
 - On a task that's **Ready for review**, the reviewer (any admin who didn't do the work) sees **Approve** (it becomes Done) and **Send back**, which asks *What needs another look?* (a short note is required) and moves the task back to **In progress** with your note as a comment. The person who did the work sees **Take back** instead, and can't change the assignee until it's out of review.
 - Anyone who can edit a task can tick **Needs review**. Only an admin can turn it off.
@@ -49,6 +49,10 @@ The people line under the title shows who made the task and who has it. Only the
 Type in **Add a comment. Type @ to mention someone.** and click **Post** (or press **Ctrl+Enter** / **⌘+Enter**). Type **@** and pick a teammate to bring them in: they get a **mentioned you** item in their bell (no email for now) and start following the task. You can edit or delete your own comments. Admins can edit any comment; when someone other than the author changes one, the comment shows who edited it, for example **(edited by** and their name**)**, instead of just **(edited)**.
 
 The tabs above the comments show **All**, just **Comments**, or the **Activity**: a history of every change to the task, who made it and when.
+
+### Client requests
+
+On a client task, **Client requests** lists what you've asked the client for and their answers. **Ask client** sends a question, a document request or an approval to the client's portal users or contacts, and puts the task in **Waiting on client**. Each request has **Email again**, **Send reminder**, **Record answer**, **Accept**, **Cancel** and more. Client emails for requests are a dry run for now: nothing is sent. See [How do I ask a client something from a task?](#/help/ask-client).
 
 ### Files and links
 

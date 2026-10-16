@@ -219,7 +219,8 @@ function TK_cmComment(props) {
   var mine = TK_dwLower(c.author_email) === p.me;
   var deleted = !!(c.deleted || c.deleted_at);
   var api = TK_dwApi();
-  var name = p.nameOf(c.author_email);
+  // Client answers (tasks p2 s5) carry client:<email> or contact:<id>.
+  var name = (typeof TK_requestAuthorLabel === "function" && TK_requestAuthorLabel(c.author_email, p.requestNames)) || p.nameOf(c.author_email);
   var staffRow = (p.staff || []).filter(function (s) { return TK_dwLower(s.email) === TK_dwLower(c.author_email); })[0];
 
   var saveEdit = function () {
@@ -325,7 +326,10 @@ function TK_cmActivityLine(props) {
     <li className="tk-cm-activity">
       <span className="tk-cm-dot" aria-hidden="true" />
       <span className="tk-cm-activity-text">
-        <span className="tk-cm-name">{props.nameOf(a.actor_email)}</span> {text}
+        <span className="tk-cm-name">
+          {(typeof TK_requestAuthorLabel === "function" && TK_requestAuthorLabel(a.actor_email, props.requestNames)) || props.nameOf(a.actor_email)}
+        </span>{" "}
+        {text}
       </span>
       <TK_cmTime at={a.created_at} />
     </li>

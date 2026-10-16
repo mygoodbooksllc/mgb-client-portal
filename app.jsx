@@ -14785,8 +14785,20 @@ function DeveloperToolsPage({ staffUser, readOnly }) {
         (data || []).forEach((r) => {
           out[r.key] = r;
         });
-        setTkSettingsError("");
-        setTkSettings(out);
+        // Ask client's owner-only live switch sits on client_email_settings
+        // (tasks p2 s5); shown here read-only next to the tk_settings rows.
+        supabase
+          .from("client_email_settings")
+          .select("client_request_enabled, updated_at")
+          .eq("id", true)
+          .maybeSingle()
+          .then((res) => {
+            if (res && !res.error && res.data) {
+              out.__client_request_enabled = { key: "client_request_enabled", value: !!res.data.client_request_enabled, updated_at: null };
+            }
+            setTkSettingsError("");
+            setTkSettings(Object.assign({}, out));
+          });
       });
   }, [supabase]);
 
@@ -14956,7 +14968,7 @@ function DeveloperToolsPage({ staffUser, readOnly }) {
       <div className="card" style={{ marginBottom: 20 }}>
         <h3 className="card-title">Tasks switches</h3>
         <p className="card-subtitle">
-          Firm-wide, from tk_settings. Read-only here: the owner flips the standard close set on Tasks › Recurring.
+          Firm-wide, from tk_settings (and the Ask client switch from client_email_settings). Read-only here: the owner flips the standard close set on Tasks › Recurring.
         </p>
         {tkSettingsError ? <p className="card-subtitle">{tkSettingsError}</p> : null}
         {tkSettings === null ? (
@@ -14964,7 +14976,10 @@ function DeveloperToolsPage({ staffUser, readOnly }) {
         ) : (
           [
             ["standard_set_live", "Standard close set live for real clients", "Off (or missing) means the set only reaches test clients."],
-            ["client_request_enabled", "Clients can request tasks", "Client task requests (later phase)."],
+            ["__client_request_enabled", "Ask client emails live", "Owner-only, on Emails (client_email_settings). Off means every Ask client email and reminder is a dry run; nothing is sent."],
+            ["client_request_pilot", "Ask client pilot clients", "Which real clients get Ask client emails once the switch above is on (\"all\" or a list of client ids)."],
+            ["nudge_max", "Ask client reminders before No reply", "Reminders sent before a request shows No reply."],
+            ["token_ttl_days", "Answer link lifetime (days)", "How long an Ask client answer link works."],
             ["on_time_since", "On-time counted since", "Start date for on-time stats and the missed-periods floor."],
           ].map(([key, label, desc]) => {
             const row = tkSettings[key];
@@ -14976,7 +14991,7 @@ function DeveloperToolsPage({ staffUser, readOnly }) {
                 <span>
                   <span className="staff-flag-label">{label}</span>
                   <span className="staff-flag-desc">
-                    {desc} <code>{key}</code>
+                    {desc} <code>{key.replace(/^__/, "")}</code>
                     {row && row.updated_at ? " · changed " + String(row.updated_at).slice(0, 10) : ""}
                   </span>
                 </span>
@@ -26191,7 +26206,7 @@ const PAGE_META = {
   },
   tasks: {
     title: "Tasks",
-    subtitle: "Your tasks, review, recurring work, client lists and projects",
+    subtitle: "Your tasks, review, waiting on client, recurring work, client lists and projects",
   },
   clients: {
     title: "Clients",

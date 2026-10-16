@@ -689,6 +689,7 @@ function TK_parseRoute(hash) {
   if (n === 2 && kind === "search") return { view: "search" };
   if (n === 2 && kind === "review") return { view: "review" };
   if (n === 2 && kind === "templates") return { view: "templates" }; // tasks p2 s4
+  if (n === 2 && kind === "waiting") return { view: "waiting" }; // tasks p2 s5
   var hasListSuffix = n === 4 && parts[3].toLowerCase() === "list";
   if (kind === "c" && (n === 3 || hasListSuffix)) {
     var id;
@@ -721,6 +722,7 @@ function TK_formatRoute(route) {
   if (r.view === "search") return "#/tasks/search";
   if (r.view === "review") return "#/tasks/review";
   if (r.view === "templates") return "#/tasks/templates";
+  if (r.view === "waiting") return "#/tasks/waiting";
   return "#/tasks/my";
 }
 
