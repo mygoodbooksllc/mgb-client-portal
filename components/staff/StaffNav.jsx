@@ -15,13 +15,30 @@
 // entry. App's buildHashRoute keeps a hash that already starts with the
 // page's slug, so the tab survives a re-render.
 
+// True when Workbench is on for this person (WB_store, loaded after this file).
+function NAV_wbOn() {
+  try {
+    return typeof WB_store !== "undefined" && typeof WB_NAME === "string" && !!WB_store.getState().on;
+  } catch (e) {
+    return false;
+  }
+}
+
 const NAV_PLACES = [
   {
     key: "today",
     slug: "today",
-    label: "Today",
-    hint: "What needs you, in order",
-    help: "home-page",
+    // Workbench (components/workbench/, spec E3): while it's on, Today is
+    // named WB_NAME and its help is the Workbench article. The slug stays.
+    get label() {
+      return NAV_wbOn() ? WB_NAME : "Today";
+    },
+    get hint() {
+      return NAV_wbOn() ? "Everything that needs you, in order" : "What needs you, in order";
+    },
+    get help() {
+      return NAV_wbOn() ? "workbench" : "home-page";
+    },
     icon: () => <HomeIcon />,
   },
   {

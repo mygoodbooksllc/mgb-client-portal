@@ -1,0 +1,575 @@
+// ----------------------------------------------------------------------------
+// WB_store: the one Workbench data path (spec F). The Today page, the bottom
+// drawer and the rail badge all read this store, so one fetch feeds them all.
+//
+// Reads rpc("wb_inbox") under the signed-in staff member's JWT; the server
+// decides what each person may see. Refetches (debounced 1.5 s) on Realtime
+// changes to client_messages and staff_reminders, on the app's change events,
+// on focus, on a 2-minute poll while the tab is visible, and when another
+// window says so over BroadcastChannel("mgb-wb").
+//
+// Writes (snooze, No reply needed, Mark checked, Start) change the store at
+// once and roll back on error; each one offers a 5-second Undo.
+//
+// The switch: tk_settings.wb_enabled (never set by code), or a person's own
+// preview (localStorage mgb_wb_preview = "1"); "Classic Today"
+// (mgb_wb_classic = "1") turns it off for that person. Until the switch is
+// read, the last answer is remembered per browser (mgb_wb_on_cache).
+//
+// Browser file; loads after WB_logic.js. Uses window.mgbSupabase, TK_api,
+// MGB_track at call time only.
+// ----------------------------------------------------------------------------
+
+var WB_EVENTS = [
+  "mgb:client-messages-changed",
+  "mgb:staff-items-changed",
+  "mgb:gl-review-changed",
+  "mgb:ledger-review-changed",
+  "mgb:files-changed",
+  "mgb:docs-changed",
+  "mgb:client-requests-changed",
+  "mgb:tk-requests-changed",
+  "mgb:txn-questions-changed",
+  "mgb:tk-coverage-changed",
+];
+var WB_DEBOUNCE_MS = 1500;
+var WB_UNDO_MS = 5000;
+
+function WB__ls(key) {
+  try {
+    return window.localStorage.getItem(key);
+  } catch (e) {
+    return null;
+  }
+}
+function WB__lsSet(key, val) {
+  try {
+    if (val == null) window.localStorage.removeItem(key);
+    else window.localStorage.setItem(key, val);
+  } catch (e) {}
+}
+function WB_toast(text) {
+  try {
+    window.dispatchEvent(new CustomEvent("mgb:toast", { detail: { text: String(text) } }));
+  } catch (e) {}
+}
+function WB_track(name, detail) {
+  try {
+    if (typeof window.MGB_track === "function") window.MGB_track(name, detail);
+  } catch (e) {}
+}
+
+var WB_store = (function () {
+  var listeners = [];
+  var state = {
+    on: WB__ls("mgb_wb_on_cache") === "1", // last known switch; confirmed by readFlag()
+    flagKnown: false,
+    status: "idle", // idle | loading | ready | error | missing
+    rows: [],
+    error: null,
+    at: 0, // last good fetch (ms)
+    offline: typeof navigator !== "undefined" && navigator.onLine === false,
+    scope: "mine",
+    me: "",
+    isAdmin: false,
+    undo: null, // { id, text, run, until }
+    drawerOpen: false,
+  };
+  var users = 0;
+  var timer = null;
+  var poll = null;
+  var channel = null;
+  var bc = null;
+  var inflight = null;
+  var again = false;
+  var undoTimer = null;
+  var cleanups = [];
+
+  function emit() {
+    listeners.slice().forEach(function (fn) {
+      try {
+        fn(state);
+      } catch (e) {}
+    });
+  }
+  function set(patch) {
+    state = Object.assign({}, state, patch);
+    emit();
+  }
+  function sb() {
+    return typeof window !== "undefined" ? window.mgbSupabase : null;
+  }
+
+  function previewOn() {
+    return WB__ls("mgb_wb_preview") === "1";
+  }
+  function classicOn() {
+    return WB__ls("mgb_wb_classic") === "1";
+  }
+
+  // Reads the switch once per configure and after a Dev Tools flag change.
+  function readFlag() {
+    var c = sb();
+    var local = function (v) {
+      var on = WB_isOn(v, previewOn(), classicOn());
+      WB__lsSet("mgb_wb_on_cache", on ? "1" : null);
+      var was = state.on;
+      set({ on: on, flagKnown: true });
+      if (on && !was && users > 0) refresh();
+    };
+    if (!c) return local(undefined);
+    c.from("tk_settings")
+      .select("value")
+      .eq("key", "wb_enabled")
+      .maybeSingle()
+      .then(
+        function (res) {
+          local(res && !res.error && res.data ? res.data.value : undefined);
+        },
+        function () {
+          local(undefined);
+        },
+      );
+  }
+
+  function isMissing(err) {
+    var code = err && (err.code || "");
+    var msg = String((err && err.message) || "");
+    return code === "PGRST202" || code === "42883" || /wb_inbox/.test(msg) && /not find|does not exist/i.test(msg);
+  }
+
+  function curScope() {
+    return state.isAdmin && state.scope === "everyone" ? "everyone" : "mine";
+  }
+  function isForbidden(err) {
+    return (err && err.code === "42501") || /wb_forbidden/.test(String((err && err.message) || ""));
+  }
+
+  function refresh() {
+    var c = sb();
+    if (!c || !state.on || !state.me) return Promise.resolve();
+    if (inflight) {
+      again = true;
+      return inflight;
+    }
+    if (state.status !== "ready") set({ status: state.rows.length ? state.status : "loading" });
+    var scope = curScope();
+    // A response for another person or scope (the scope or user changed while
+    // it was in flight) is dropped, and the list is fetched again.
+    var stamp = state.me + "|" + scope;
+    var stale = function () {
+      if (stamp === state.me + "|" + curScope()) return false;
+      again = true;
+      return true;
+    };
+    inflight = c
+      .rpc("wb_inbox", { p_scope: scope })
+      .then(function (res) {
+        if (res.error) throw res.error;
+        if (stale()) return;
+        set({ rows: res.data || [], status: "ready", error: null, at: Date.now(), offline: false });
+      })
+      .catch(function (err) {
+        if (stale()) return;
+        if (scope === "everyone" && isForbidden(err)) {
+          // Everyone is for admins only; fall back to Mine and remember it.
+          WB__lsSet("mgb_wb_scope_" + state.me, "mine");
+          set({ scope: "mine", rows: [], at: 0, status: "loading" });
+          again = true;
+          return;
+        }
+        if (isMissing(err)) set({ status: "missing", error: null });
+        else
+          set({
+            status: state.rows.length || state.at ? "ready" : "error",
+            error: err || { message: "error" },
+            offline: typeof navigator !== "undefined" && navigator.onLine === false,
+          });
+      })
+      .then(function () {
+        inflight = null;
+        if (again) {
+          again = false;
+          return refresh();
+        }
+      });
+    return inflight;
+  }
+
+  function soon() {
+    if (timer) clearTimeout(timer);
+    timer = setTimeout(function () {
+      timer = null;
+      if (!document.hidden) refresh();
+    }, WB_DEBOUNCE_MS);
+  }
+
+  function post() {
+    try {
+      if (bc) bc.postMessage({ t: "changed", at: Date.now() });
+    } catch (e) {}
+  }
+
+  function wire() {
+    var c = sb();
+    WB_EVENTS.forEach(function (name) {
+      window.addEventListener(name, soon);
+      cleanups.push(function () {
+        window.removeEventListener(name, soon);
+      });
+    });
+    var onFocus = function () {
+      if (!document.hidden && Date.now() - state.at > 20000) refresh();
+    };
+    var onOnline = function () {
+      set({ offline: false });
+      refresh();
+    };
+    var onOffline = function () {
+      set({ offline: true });
+    };
+    var onFlags = function () {
+      readFlag();
+    };
+    // Another tab changed a Workbench flag (or cleared storage).
+    var onStorage = function (e) {
+      if (!e || !e.key || /^mgb_wb_(preview|classic)$/.test(e.key)) readFlag();
+    };
+    window.addEventListener("focus", onFocus);
+    document.addEventListener("visibilitychange", onFocus);
+    window.addEventListener("online", onOnline);
+    window.addEventListener("offline", onOffline);
+    window.addEventListener("mgb:feature-flags-changed", onFlags);
+    window.addEventListener("storage", onStorage);
+    cleanups.push(function () {
+      window.removeEventListener("focus", onFocus);
+      document.removeEventListener("visibilitychange", onFocus);
+      window.removeEventListener("online", onOnline);
+      window.removeEventListener("offline", onOffline);
+      window.removeEventListener("mgb:feature-flags-changed", onFlags);
+      window.removeEventListener("storage", onStorage);
+    });
+    poll = setInterval(function () {
+      if (!document.hidden && state.on) refresh();
+    }, WB_REFRESH_MS);
+    try {
+      if (typeof BroadcastChannel === "function") {
+        bc = new BroadcastChannel("mgb-wb");
+        bc.onmessage = soon;
+      }
+    } catch (e) {
+      bc = null;
+    }
+    if (c && typeof c.channel === "function") {
+      try {
+        channel = c
+          .channel("wb-" + state.me + "-" + Math.random().toString(36).slice(2, 8), { config: { private: true } })
+          .on("postgres_changes", { event: "*", schema: "public", table: "client_messages" }, soon)
+          .on("postgres_changes", { event: "*", schema: "public", table: "staff_reminders" }, soon)
+          .subscribe();
+      } catch (e) {
+        channel = null;
+      }
+    }
+  }
+  function unwire() {
+    cleanups.forEach(function (f) {
+      f();
+    });
+    cleanups = [];
+    if (poll) clearInterval(poll);
+    poll = null;
+    if (timer) clearTimeout(timer);
+    timer = null;
+    try {
+      if (bc) bc.close();
+    } catch (e) {}
+    bc = null;
+    var c = sb();
+    try {
+      if (channel && c) c.removeChannel(channel);
+    } catch (e) {}
+    channel = null;
+  }
+
+  // A mount (page, drawer, badge) joins; the last one out tears down.
+  function join(me, isAdmin) {
+    var email = String(me || "").toLowerCase();
+    var changed = email !== state.me || !!isAdmin !== state.isAdmin;
+    if (changed) {
+      var scope = isAdmin && WB__ls("mgb_wb_scope_" + email) === "everyone" ? "everyone" : "mine";
+      set({ me: email, isAdmin: !!isAdmin, scope: scope, rows: email === state.me ? state.rows : [], at: email === state.me ? state.at : 0 });
+    }
+    users++;
+    if (users === 1) {
+      wire();
+      readFlag();
+    }
+    if (state.on && (changed || !state.at)) refresh();
+    return function leave() {
+      users = Math.max(0, users - 1);
+      if (users === 0) unwire();
+    };
+  }
+
+  function setScope(scope) {
+    if (!state.isAdmin) return;
+    var s = scope === "everyone" ? "everyone" : "mine";
+    if (s === state.scope) return;
+    WB__lsSet("mgb_wb_scope_" + state.me, s);
+    set({ scope: s, rows: [], at: 0, status: "loading" });
+    WB_track("wb-scope", s);
+    refresh();
+  }
+
+  // ---- optimistic writes ----------------------------------------------------
+  function patchRow(key, patch) {
+    var before = null;
+    var rows = state.rows.map(function (r) {
+      if (r.item_key !== key) return r;
+      before = r;
+      return Object.assign({}, r, patch);
+    });
+    set({ rows: rows });
+    return before;
+  }
+  function restoreRow(before) {
+    if (!before) return;
+    set({
+      rows: state.rows.map(function (r) {
+        return r.item_key === before.item_key ? before : r;
+      }),
+    });
+  }
+  function offerUndo(text, run) {
+    if (undoTimer) clearTimeout(undoTimer);
+    var id = Date.now();
+    set({ undo: { id: id, text: text, run: run, until: id + WB_UNDO_MS } });
+    undoTimer = setTimeout(function () {
+      if (state.undo && state.undo.id === id) set({ undo: null });
+    }, WB_UNDO_MS);
+  }
+  function runUndo() {
+    var u = state.undo;
+    if (!u) return;
+    set({ undo: null });
+    try {
+      u.run();
+    } catch (e) {}
+  }
+  function dismissUndo() {
+    set({ undo: null });
+  }
+  function rpc(name, args) {
+    var c = sb();
+    if (!c) return Promise.reject(new Error("offline"));
+    return c.rpc(name, args).then(function (res) {
+      if (res.error) throw res.error;
+      return res.data;
+    });
+  }
+  function failed(what, err) {
+    var offline = typeof navigator !== "undefined" && navigator.onLine === false;
+    WB_toast(offline ? "You're offline. " + what + " didn't save." : what + " didn't save. Try again.");
+    if (err && window.console) console.warn("[wb]", what, err);
+  }
+  function done() {
+    post();
+    soon();
+  }
+
+  function snooze(row, preset, pick) {
+    var until = WB_snoozeUntil(preset, Date.now(), pick);
+    if (!row || !until) return Promise.resolve(false);
+    var before = patchRow(row.item_key, { snoozed_until: until, snoozed_version: row.version });
+    WB_track("wb-snooze", (row.kind || "other") + ":" + preset);
+    return rpc("wb_snooze", { p_item_key: row.item_key, p_version: row.version || null, p_until: until }).then(
+      function () {
+        offerUndo("Snoozed.", function () {
+          unsnooze(row);
+        });
+        done();
+        return true;
+      },
+      function (err) {
+        restoreRow(before);
+        failed("The snooze", err);
+        return false;
+      },
+    );
+  }
+  function unsnooze(row) {
+    if (!row) return Promise.resolve(false);
+    var before = patchRow(row.item_key, { snoozed_until: null, snoozed_version: null });
+    return rpc("wb_unsnooze", { p_item_key: row.item_key }).then(
+      function () {
+        done();
+        return true;
+      },
+      function (err) {
+        restoreRow(before);
+        failed("Unsnooze", err);
+        return false;
+      },
+    );
+  }
+  function noReply(row) {
+    if (!row || row.kind !== "message" || !row.ref_id) return Promise.resolve(false);
+    var before = patchRow(row.item_key, { cleared: true });
+    return rpc("wb_mark_no_reply", { p_message_id: row.ref_id }).then(
+      function (id) {
+        WB_track("wb-noreply", "manual");
+        offerUndo("Marked no reply needed.", function () {
+          rpc("wb_undo_no_reply", { p_id: id }).then(
+            function () {
+              restoreRow(before);
+              WB_track("wb-noreply", "undo");
+              try {
+                window.dispatchEvent(new Event("mgb:client-messages-changed"));
+              } catch (e) {}
+              done();
+            },
+            function (err) {
+              failed("Undo", err);
+            },
+          );
+        });
+        try {
+          window.dispatchEvent(new Event("mgb:client-messages-changed"));
+        } catch (e) {}
+        done();
+        return true;
+      },
+      function (err) {
+        restoreRow(before);
+        var code = String((err && err.message) || "");
+        if (/wb_not_latest/.test(code)) {
+          WB_toast("A newer message came in. Have a look first.");
+          refresh();
+        } else failed("No reply needed", err);
+        return false;
+      },
+    );
+  }
+  function fileChecked(row) {
+    if (!row || row.kind !== "doc_upload") return Promise.resolve(false);
+    var before = patchRow(row.item_key, { cleared: true });
+    return rpc("wb_mark_file_checked", { p_file_id: row.source_id, p_note: null }).then(
+      function (id) {
+        WB_track("wb-action", "doc_upload:checked");
+        offerUndo("Marked checked.", function () {
+          rpc("wb_undo_file_checked", { p_id: id }).then(
+            function () {
+              restoreRow(before);
+              done();
+            },
+            function (err) {
+              failed("Undo", err);
+            },
+          );
+        });
+        done();
+        return true;
+      },
+      function (err) {
+        restoreRow(before);
+        failed("Mark checked", err);
+        return false;
+      },
+    );
+  }
+  // Start a to-do task in place (tk_set_status through TK_api, which raises
+  // its own toasts and change events).
+  function startTask(row) {
+    if (!row || row.kind !== "task" || typeof TK_api === "undefined" || !TK_api.setStatus) return Promise.resolve(false);
+    var before = patchRow(row.item_key, { status: "in_progress" });
+    WB_track("wb-action", "task:start");
+    return TK_api.setStatus(row.source_id, "in_progress").then(
+      function () {
+        offerUndo("Started.", function () {
+          TK_api.setStatus(row.source_id, "todo").then(
+            function () {
+              restoreRow(before);
+              done();
+            },
+            function (err) {
+              failed("Undo", err);
+            },
+          );
+        });
+        done();
+        return true;
+      },
+      function (err) {
+        restoreRow(before);
+        failed("Start", err);
+        return false;
+      },
+    );
+  }
+
+  function setDrawerOpen(open) {
+    if (!!open === state.drawerOpen) return;
+    set({ drawerOpen: !!open });
+  }
+
+  return {
+    getState: function () {
+      return state;
+    },
+    subscribe: function (fn) {
+      listeners.push(fn);
+      return function () {
+        listeners = listeners.filter(function (f) {
+          return f !== fn;
+        });
+      };
+    },
+    join: join,
+    refresh: refresh,
+    readFlag: readFlag,
+    setScope: setScope,
+    snooze: snooze,
+    unsnooze: unsnooze,
+    noReply: noReply,
+    fileChecked: fileChecked,
+    startTask: startTask,
+    runUndo: runUndo,
+    dismissUndo: dismissUndo,
+    setDrawerOpen: setDrawerOpen,
+  };
+})();
+
+// React hook: the store's state, re-rendering on change. join=true also
+// keeps the data path running while the component is mounted.
+function WB_useStore(me, isAdmin, join) {
+  var pair = React.useState(WB_store.getState());
+  var setS = pair[1];
+  React.useEffect(function () {
+    var off = WB_store.subscribe(function (s) {
+      setS(s);
+    });
+    setS(WB_store.getState());
+    return off;
+  }, []);
+  React.useEffect(
+    function () {
+      if (!join || !me) return undefined;
+      return WB_store.join(me, isAdmin);
+    },
+    [join, me, isAdmin],
+  );
+  return pair[0];
+}
+
+// Follow the item's link (spec D2) and record the action.
+function WB_go(row, action) {
+  var link = WB_linkTarget(row, action);
+  if (!link) return;
+  WB_track("wb-action", (row.kind || "other") + ":" + (action === "request" ? "request" : row.kind === "message" ? "reply" : "open"));
+  try {
+    WB_store.setDrawerOpen(false);
+  } catch (e) {}
+  if (typeof LK_go === "function") LK_go(link.t, link.hint || null);
+  else if (typeof LK_href === "function") window.location.hash = LK_href(link.t);
+}

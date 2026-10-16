@@ -87,6 +87,7 @@ because some work happens in Claude Code web sessions. Run `git fetch` and compa
 | `components/handbook/` | The Staff Handbook (2026-10-13; spec `docs/staff-handbook-spec.md`), Team › Handbook. Every name is `HB_`/`hb-` prefixed. `HB_api.js` (RPC wrappers, the PDF download, the shared `hb_status` store), `HB_PolicyView.jsx` (one policy, sign and countersign), `HB_HandbookTab.jsx` (the tab, its routes and the deep-link claim), `HB_Admin.jsx` (admin status grid, not-filed list with Retry filing, publish editor), `hb.css`. Loaded after `TeamReviewsAdmin.jsx` and before `app.jsx`. |
 | `components/files/` | `DriveFiles.js`: browser helpers for client files in Google Drive (`DRV_` prefix), calling the `drive-files` edge function. Holds the one fallback switch `DRV_STORAGE_FALLBACK`. Loaded before `StaffInbox.jsx` and `app.jsx`. |
 | `components/tasks/` | The Tasks module (2026-10-11; spec `docs/tasks-phase1-spec.md`). Every name is `TK_`/`tk-` prefixed. Logic with node tests: `TK_logic.js` (statuses, grouping, the quick-add parser, keys), `TK_viewLogic.js`, `TK_drawerLogic.js`, `TK_clientLogic.js` (the client strip and panel rules), `TK_reviewLogic.js` (Phase 2 S3: review roles, the review queue groups and a JS copy of the on-time rule), `TK_store.js`, `TK_recurrenceLogic.js` (Phase 2: the business calendar, due rules and periods; fixtures in `TK_recurrence.fixtures.js`), `TK_templateLogic.js` (Phase 2 S4: template form checks, next due dates, period labels, preview rows and error text), `TK_requestLogic.js` (Phase 2 S5: Ask client form checks, request chips and actions, waiting groups and error text), `TK_coverageLogic.js` (Phase 2 S7: time-off hand-off preview groups, skip copy and Covering for labels). Data: `TK_api.js` (Supabase calls), `TK_sync.js` (Realtime plus a `BroadcastChannel` between windows). Views: `TK_App.jsx` (the `#/tasks/...` page and the `/tasks` shell), `TK_Sidebar.jsx`, `TK_MyTasks.jsx`, `TK_List.jsx`, `TK_ClientHeader.jsx`, `TK_ClientDrawer.jsx` (the client task strip and panel, and Follow my client), `TK_TaskRow.jsx`, `TK_StandaloneBar.jsx`, `TK_keys.jsx`, `TK_ReviewQueue.jsx` (`#/tasks/review`), `TK_Templates.jsx` (`#/tasks/templates`, recurring templates), `TK_WaitingList.jsx` (`#/tasks/waiting`, open Ask client requests), `TK_ManageProjects.jsx` (`#/tasks/manage`, admin Manage projects). Task details: `TK_AskClientModal.jsx` (Client requests and the Ask client window), `TK_ClientContacts.jsx` (Phase 2 S6: the client drawer's Client contacts section), `TK_Drawer.jsx`, `TK_QuickAdd.jsx`, `TK_Comments.jsx`, `TK_Attachments.jsx`, `TK_Activity.jsx`. Styles: `tk-views.css`, `tk-drawer.css`, `tk-client.css`, `tk-requests.css`. Loaded after `components/client/QboGiving.jsx` and before `components/tour/Tour.jsx`. |
+| `components/workbench/` | The Workbench (Tasks Phase 3, 2026-10-16; spec `docs/workbench-phase3-spec.md`), off until the owner sets `tk_settings.wb_enabled`. Every name is `WB_`/`wb-` prefixed; `WB_NAME` is the one place the name lives. `WB_logic.js` (pure: groups Overdue / Today / This week, ranking, tiles, chips, actions, snooze times, the Today-row adapter; node test `WB_logic.test.js`), `WB_store.js` (the one data path: `rpc("wb_inbox")`, Realtime on `client_messages` and `staff_reminders`, app events, a 2-minute poll, `BroadcastChannel("mgb-wb")`, optimistic writes with Undo, the switch), `WB_Row.jsx` (rows, menus, snooze picker, Undo bar, rail badge, shortcut sheet), `WB_Page.jsx` (Today's tiles and list), `WB_Drawer.jsx` (the bottom drawer on every staff page, W toggles), `WB.css`. Loaded right after `components/tasks/TK_App.jsx`. |
 | `components/tour/` | Tours, tips and launch announcements. `Tour.jsx` (client and staff tours), `Tips.jsx` (`TIPS_`), and the launch announcements (2026-10-15, `ANN_` prefix): `announcements.js` is the registry (one entry per launch), `announcementsLogic.js` the pure rules with its node test `announcementsLogic.test.js`, `Announcements.jsx` the store, notice, What's new list and Usage Stats card. Styles: `tour.css`, `tips.css`, `announcements.css`. Database: `supabase/staff-announcements.sql` (+ `staff-announcements-tests.sql`). |
 | `components/ledger/` | Ledger review (GL Review phase 1, 2026-10-14; spec `docs/gl-review-spec.md`). `GLR_*.js` are pure logic with node tests in `tests/ledger/` (parse, checks, compare, summary); `LR_*` is the UI: `LR_Tab.jsx` (client tab `client-ledger`, `#/client/<id>/ledger`), `LR_Panels.jsx`, `LR_ReviewFile.jsx` (Work › Ledger review), `LR_Settings.jsx` (Team › Ledger review), `LR_api.js` (RPC and edge-function wrappers; fires `mgb:ledger-review-changed` and `mgb:gl-review-changed` so the Close card refreshes). Database: `supabase/gl-review-1-core.sql`. |
 | `components/qbo/` | `mapQboToClient.js` converts QuickBooks table rows into the shape the pages use. Its test is `mapQboToClient.test.js`. |
@@ -1830,6 +1831,32 @@ Team Reviews files.
   - Upkeep: launch announcement `tasks-subtasks-colors`, What's new, guide articles `my-tasks`,
     `task-lists-and-projects`, `manage-projects`, Tasks tour stop `tk-subtasks`, tips `tk-subtoggle` and
     `tk-project-dot`, INFRA_LINKS "Supabase SQL (Tasks project colors)".
+- **Workbench (Tasks Phase 3), 2026-10-16** (`supabase/workbench-1-core.sql`, applied; self-test
+  `workbench-1-core-tests.sql`, rolled back; spec `docs/workbench-phase3-spec.md` with "Build notes
+  2026-10-16"). Off until the owner sets `tk_settings.wb_enabled` to true; no code sets it.
+  - **Server:** tables `wb_item_state` (per-person snooze), `wb_thread_noreply` (firm-wide No reply
+    needed on a client thread) and `client_file_checks` (firm-wide Mark checked on a client upload),
+    each revoke-all + RLS + select only, soft-undone. `wb_inbox(p_scope, p_sources, p_include_test)`
+    returns facts only (kinds task, task_sent_back, task_review, client_answered, doc_request,
+    message, gl_flags, gl_sent_back, gl_approve, gl_answer, doc_upload); Mine includes items you
+    cover for someone out; Everyone is admin only. Writes: `wb_snooze`, `wb_unsnooze`,
+    `wb_mark_no_reply`, `wb_undo_no_reply`, `wb_mark_file_checked`, `wb_undo_file_checked`
+    (SECURITY DEFINER). `wb_schema_version()` = 1. `client_messages` and `staff_reminders` are in
+    the realtime publication. Optional settings `wb_gl_due_bday` (default 10) and
+    `wb_doc_check_from` (default 2026-10-16). No email, no outbox kind, no edge function.
+  - **UI:** `TD_TodayPage` renders `WB_Page` in place of its tiles and Needs you list when on (the
+    old body is the fallback while `wb_inbox` isn't live, and always under View as). `WB_Drawer` is
+    mounted in `app.jsx` for signed-in staff (not View as, not previewing, not the `/tasks` shell).
+    The rail's Today item gets `WB_NavBadge` (Overdue + Today) and its label/hint/help follow the
+    switch (`NAV_wbOn` in `StaffNav.jsx`). Inbox's thread header has **No reply needed**
+    (`data-tour` `si-noreply`) when the client wrote last. New app event `mgb:files-changed`.
+  - **Switch, per browser:** Dev Tools flags `mgb_wb_preview` (on for you only) and
+    `mgb_wb_classic` (off for you only; wins). Kept by Reset local state.
+  - Upkeep: launch announcement `workbench-launch` (waits until it's on for the person), What's new,
+    guide article `workbench` plus `home-page`, `inbox`, `admin-guide`, `admin-insight`, tips
+    `wb-more` and `wb-noreply`, `data-tour` keys `wb-tiles`, `wb-chips`, `wb-list`, `wb-row-action`,
+    `wb-bar`, `si-noreply`, Usage Stats labels `wb-*`, Dev Tools Tasks switches rows, INFRA_LINKS
+    "Supabase SQL (Workbench)", MGB_VERSION `2026-10-16p`.
 - **Asana import ran live, 2026-10-16.** First `supabase/asana-import-roster-clients.sql` (61 roster
   clients), then run `49b3186a`: 1132 tasks (135 subtasks, 176 unassigned, 160 with no client),
   16 projects + 1 merged, 749 recurring templates as drafts (off). `asana_import_apply_enabled` is

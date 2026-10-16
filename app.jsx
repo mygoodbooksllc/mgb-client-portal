@@ -973,6 +973,21 @@ const FEATURE_FLAGS = [
       "Preview what's built but hidden from everyone else. Nothing is hidden right now: the Install app option is already on for signed-in staff on desktop (and off for clients and phones). The page reloads when you toggle it.",
     reloads: true,
   },
+  {
+    // Read by WB_store (components/workbench/WB_store.js).
+    key: "mgb_wb_preview",
+    label: "Workbench preview",
+    description:
+      "Turns the Workbench on for you only, in this browser, while the firm-wide wb_enabled switch is off: Today becomes the Workbench list and the bottom drawer (press W) shows on every staff page. Classic Today below wins if both are on. The page reloads when you toggle it.",
+    reloads: true,
+  },
+  {
+    key: "mgb_wb_classic",
+    label: "Classic Today",
+    description:
+      "Turns the Workbench off for you only, in this browser, even after the owner switches it on for everyone: Today goes back to its old tiles and list and the drawer is hidden. The page reloads when you toggle it.",
+    reloads: true,
+  },
 ];
 
 // A directory, not a vault: where each piece of infrastructure lives and
@@ -1038,6 +1053,11 @@ const INFRA_LINKS = [
     name: "Google Drive (client files)",
     url: "https://drive.google.com/drive/shared-drives",
     note: "MGB shared drive holding client documents, and the admin-only reviews drive (review PDFs, signed Staff Handbook PDFs under Handbook, and Inventory exports) · service account in Supabase secrets",
+  },
+  {
+    name: "Supabase SQL (Workbench)",
+    url: "https://supabase.com/dashboard/project/xumsqmhccgfjnlmieqyu/sql/new",
+    note: "supabase/workbench-1-core.sql (self-test: workbench-1-core-tests.sql, rolls back): tables wb_item_state (snooze, per person), wb_thread_noreply (No reply needed on a client thread) and client_file_checks (Mark checked on a client upload) · RPCs wb_inbox (one ordered list: tasks, reviews, Ask client answers, client messages, Ledger flags, new client files; Mine or Everyone for admins), wb_snooze, wb_unsnooze, wb_mark_no_reply, wb_undo_no_reply, wb_mark_file_checked, wb_undo_file_checked, wb_schema_version · switches wb_enabled, wb_gl_due_bday, wb_doc_check_from in tk_settings (Tasks switches below) · client_messages and staff_reminders are in the realtime publication · no email, no edge function",
   },
   {
     name: "Supabase SQL (Tasks manage projects)",
@@ -1934,6 +1954,7 @@ function Sidebar({
                       {p.icon ? p.icon() : null}
                       {p.label}
                       {p.key === "today" && typeof CS_ApprovalsDot === "function" && <CS_ApprovalsDot />}
+                      {p.key === "today" && !impersonating && typeof WB_NavBadge === "function" && <WB_NavBadge />}
                       {p.key === "inbox" && staffMessagesUnread && (
                         <span
                           className="nav-badge-dot"
@@ -2328,8 +2349,13 @@ function StaffRail({
       : [];
   const items = places.map((p) => {
     const it = { key: p.key, label: p.label, short: p.label, icon: p.icon ? p.icon() : null };
-    if (p.key === "today" && typeof CS_ApprovalsDot === "function") {
-      it.extra = <CS_ApprovalsDot className="nav-badge-dot staff-rail-dot" />;
+    if (p.key === "today") {
+      it.extra = (
+        <>
+          {typeof CS_ApprovalsDot === "function" && <CS_ApprovalsDot className="nav-badge-dot staff-rail-dot" />}
+          {!impersonating && typeof WB_NavBadge === "function" && <WB_NavBadge expanded={expanded} />}
+        </>
+      );
     } else if (p.key === "inbox") {
       it.dot = staffMessagesUnread;
     } else if (p.key === "internal") {
@@ -5617,6 +5643,13 @@ const CLOSE_STEPS_EVENT = "mgb:close-steps-context";
 // Fired after any sign-off RPC (and by the Ledger tab) so the Close tab,
 // checklist and counts reload.
 const GL_REVIEW_EVENT = "mgb:gl-review-changed";
+// Workbench (components/workbench/WB_store.js) refetches on this: a client
+// file was trashed or restored on Documents, so "New file" rows stay true.
+function WB_filesChanged(clientId) {
+  try {
+    window.dispatchEvent(new CustomEvent("mgb:files-changed", { detail: { clientId: clientId || null } }));
+  } catch (e) {}
+}
 const notifyGlReview = () => window.dispatchEvent(new Event(GL_REVIEW_EVENT));
 const closeStepsCtx = { at: 0, loading: null, effectiveFrom: null, gate: "warn", conn: {} };
 function closeStepsLoad(force) {
@@ -13748,11 +13781,14 @@ function resettableLocalStorageKeys() {
   try {
     // Both key families: the original "mygoodbooks_" keys and the newer
     // "mgb-"/"mgb_" ones (nav, tour, tips, profile prompt, bell, client
-    // switcher, inbox context). Feature flags are kept on purpose.
+    // switcher, inbox context). Feature flags are kept on purpose, including
+    // the ones without the mygoodbooks_ff_ prefix (mgb_wb_preview,
+    // mgb_wb_classic).
     return Object.keys(localStorage).filter(
       (k) =>
         (k.startsWith("mygoodbooks_") || k.startsWith("mgb-") || k.startsWith("mgb_")) &&
-        !k.startsWith("mygoodbooks_ff_"),
+        !k.startsWith("mygoodbooks_ff_") &&
+        !FEATURE_FLAGS.some((f) => f.key === k),
     );
   } catch (e) {
     return [];
@@ -15117,6 +15153,9 @@ function DeveloperToolsPage({ staffUser, readOnly }) {
             ["on_time_since", "On-time counted since", "Start date for on-time stats and the missed-periods floor."],
             ["ooo_auto_apply", "Time off hands tasks to backups", "Off (false or not set, the default): only the manual Hand my tasks to backups button moves tasks. Set to true and the tk-ooo-daily cron (11:00 UTC) also moves open tasks due during someone's time off to each client's backup on their first day off (never re-taking a task someone handed back). Handing back after the time off always runs."],
             ["asana_import_apply_enabled", "Asana import apply", "Off (or missing) blocks tk_import_asana_apply, the one-time Asana import. Turn on only for the import, then off again. Undo works with it off."],
+            ["wb_enabled", "Workbench on for staff", "Off (or missing, the default) keeps Today and the nav as they were for everyone. Owner turns it on (true) to give every staff member the Workbench list on Today and the bottom drawer (press W). Each person can still opt out with Classic Today in Feature flags, or try it early with Workbench preview."],
+            ["wb_gl_due_bday", "Workbench Ledger flags due (business day)", "Business day of the month after a period when open Ledger flags count as due on the Workbench. Not set means 10."],
+            ["wb_doc_check_from", "Workbench new files from", "Client uploads before this date never show as new files on the Workbench. Not set means 2026-10-16."],
           ].map(([key, label, desc]) => {
             const row = tkSettings[key];
             const raw = row ? row.value : undefined;
@@ -16908,6 +16947,12 @@ const USAGE_ACTION_LABELS = {
   "tasks-attach": "Files attached to tasks",
   "client-needs-answer": "Client answers to requests (portal)",
   "client-needs-upload": "Client uploads to requests (portal)",
+  "wb-action": "Workbench row actions",
+  "wb-snooze": "Workbench items snoozed",
+  "wb-noreply": "Threads marked No reply needed",
+  "wb-filter": "Workbench filters and drawer tabs",
+  "wb-scope": "Workbench Mine / Everyone switches",
+  "wb-drawer": "Workbench drawer opened",
 };
 const USAGE_DEVICE_LABELS = { desktop: "Desktop", mobile: "Phone", installed: "Installed app", unknown: "Unknown" };
 
@@ -22542,6 +22587,7 @@ function DocumentsPage({ client, isBookkeeper, searchTarget }) {
         ? `Moved ${d.name} to Trash (also Google Drive's trash). Restore it within 30 days, before Drive empties its trash.`
         : `Moved ${d.name} to Trash. You can restore it from the Trash folder.`,
     );
+    WB_filesChanged(client.id);
     loadRemoteDocs();
   };
   const restoreDoc = async (d) => {
@@ -22561,6 +22607,7 @@ function DocumentsPage({ client, isBookkeeper, searchTarget }) {
       return;
     }
     showToast(`Restored ${d.name}.`);
+    WB_filesChanged(client.id);
     loadRemoteDocs();
   };
   // Delete forever: staff, from Trash only, after a confirm. The storage
@@ -26349,7 +26396,7 @@ const PAGE_META = {
   // the same word.
   today: {
     title: "Today",
-    subtitle: "What needs you, in order",
+    subtitle: "What needs you, in order (the Workbench list when it's on)",
   },
   inbox: {
     title: "Inbox",
@@ -29858,6 +29905,14 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
               page={effectivePage}
             />
           )}
+          {/* Workbench drawer (components/workbench/WB_Drawer.jsx): a bar at the
+              bottom of every staff page, W opens it. Renders nothing while
+              Workbench is off; never while viewing as someone or previewing. */}
+          {typeof WB_Drawer === "function" && showStaffRail && !tkShell && !isPreviewingUser && !impersonating && staffUser && staffUser.email && (
+            // Mine / Everyone is for real admins only (wb_inbox refuses
+            // Everyone to a temporary admin).
+            <WB_Drawer me={String(staffUser.email).toLowerCase()} isAdmin={staffUser.role === "admin"} />
+          )}
           {/* The page body. A tab panel of the in-client tab row when a row
               tab is open (CL_ClientTabs ids are "client-tab-<key>"). */}
           <div
@@ -30286,6 +30341,7 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
           {effectivePage === "today" && typeof TD_TodayPage === "function" && (
             <TD_TodayPage
               staffUser={effectiveStaffUser}
+              impersonating={Boolean(impersonating)}
               clients={listClients}
               messagesByClient={messagesByClient}
               readMessageClients={readMessageClients}

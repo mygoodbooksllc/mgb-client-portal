@@ -34,6 +34,77 @@
 
 var ANN_REGISTRY = [
   {
+    id: "workbench-launch",
+    date: "2026-10-16",
+    title: "The Workbench",
+    summary: "Today is now one ordered list of everything that needs you (tasks, reviews, client messages, Ledger flags and new client files), and a drawer at the bottom of every page shows it too. Press W.",
+    roles: ["admin", "bookkeeper"],
+    hash: "#/today",
+    // Only once the Workbench is on for this person (the owner's wb_enabled
+    // switch, or the Workbench preview flag), so nobody is toured through
+    // tiles they can't see. Classic Today keeps it waiting.
+    ready: () => typeof WB_store !== "undefined" && !!WB_store.getState().on,
+    steps: (ctx) => {
+      const on = () => typeof WB_store !== "undefined" && !!WB_store.getState().on;
+      const goToday = () => {
+        if (!/^#\/today(\?|$)/.test(window.location.hash || "")) window.location.hash = "#/today";
+      };
+      return [
+        {
+          id: "ann-welcome",
+          title: "Everything that needs you, in one list",
+          body: () =>
+            "Today now pulls your tasks, reviews, client messages, Ledger flags and new client files into one list, most urgent first, and the same list sits in a drawer at the bottom of every page. About a minute.",
+        },
+        {
+          id: "ann-tiles",
+          when: on,
+          go: goToday,
+          targets: ["wb-tiles"],
+          wait: true,
+          title: "Four numbers at the top",
+          body: () =>
+            "Needs reply, Due today, Overdue and Reviews. Click one to jump to those items.",
+        },
+        {
+          id: "ann-chips",
+          when: on,
+          targets: ["wb-chips"],
+          wait: true,
+          title: "Filter by where it came from",
+          body: () =>
+            ctx && ctx.isAdmin
+              ? "Tasks, Reviews, Messages, Ledger, Documents and Other, each with a count. As an admin you also get Mine or Everyone; items you're covering for someone show in Mine."
+              : "Tasks, Reviews, Messages, Ledger, Documents and Other, each with a count. Items you're covering for someone show here too.",
+        },
+        {
+          id: "ann-row",
+          when: on,
+          targets: ["wb-row-action", "wb-list"],
+          wait: true,
+          title: "One button does the next thing",
+          body: () =>
+            "Each row has one main button (Reply, Start, Open, Review or File). The ⋯ menu has Snooze, No reply needed for a message and Mark checked for a file, and each one has Undo for a few seconds.",
+        },
+        {
+          id: "ann-bar",
+          when: on,
+          targets: ["wb-bar"],
+          wait: true,
+          title: "The drawer, on every page",
+          body: () =>
+            "This bar shows your count and the next item. Click it or press W anywhere (not while typing) to open the list over the page; Esc closes it.",
+        },
+        {
+          id: "ann-done",
+          title: "That's it",
+          body: () =>
+            "Messages you've answered, tasks you've finished and files you've checked drop off by themselves. To see this again, press ? and pick New: The Workbench tour, or read Use the Workbench in the guide.",
+        },
+      ];
+    },
+  },
+  {
     id: "team-reviews-self-review-emails",
     date: "2026-10-15",
     title: "Team › Reviews emails",

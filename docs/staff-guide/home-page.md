@@ -2,10 +2,12 @@
 title: What's on my Today page?
 section: Getting started
 audience: staff
-keywords: [handbook, sign policy, countersign, today, home, start page, tasks, task details, needs you, needs you now, now, this week, replies waiting, tasks due today, overdue, closes open, tiles, reminders, milestones to review, recently viewed, also show, show everything, access requests, upgrade requests, bills, deadlines, client at risk, review due, sop, coverage, all clear, nothing needs you]
+keywords: [workbench, press w, handbook, sign policy, countersign, today, home, start page, tasks, task details, needs you, needs you now, now, this week, replies waiting, tasks due today, overdue, closes open, tiles, reminders, milestones to review, recently viewed, also show, show everything, access requests, upgrade requests, bills, deadlines, client at risk, review due, sop, coverage, all clear, nothing needs you]
 sort: 40
 ---
 **Today** is your starting point: one list of everything waiting on you across every client you can see, most urgent first. It's the first of the five places in the left rail (**Today**, **Inbox**, **Work**, **Clients**, **Team**), and it opens when you sign in unless you picked another start page in [Settings](#/help/staff-settings).
+
+**Workbench:** once the owner turns it on, the tiles and the **Needs you** list below are replaced by the Workbench: one list of your tasks, reviews, client messages, Ledger flags and new client files, with **Snooze**, **No reply needed** and **Mark checked**, and a drawer on every page (press **W**). The greeting and **Also show** stay. See [How do I use the Workbench?](#/help/workbench).
 
 ### The top of the page
 

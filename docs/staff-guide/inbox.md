@@ -2,7 +2,7 @@
 title: How do I message a client or a teammate?
 section: Daily work
 audience: staff
-keywords: [inbox, message, chat, team chat, reply, internal note, waiting on you, group, attachment, drawer, seen, delete message, deleted message, unsend, 24 hours, new messages, not sent, retry, messaging isn't available, account manager, loop in, mention, @mention, bookkeeper, email]
+keywords: [no reply needed, workbench, inbox, message, chat, team chat, reply, internal note, waiting on you, group, attachment, drawer, seen, delete message, deleted message, unsend, 24 hours, new messages, not sent, retry, messaging isn't available, account manager, loop in, mention, @mention, bookkeeper, email]
 sort: 140
 ---
 The **Inbox** (in the left rail) holds client conversations and team chat in one place. The bell in the top bar also lists client messages waiting for a reply.
@@ -20,6 +20,10 @@ The **Inbox** (in the left rail) holds client conversations and team chat in one
 2. Make sure **Reply** is selected (not **Note**). The hint under it says who will see your message.
 3. Type your message. **Enter** sends; **Shift+Enter** adds a new line.
 4. Use the paperclip to attach a file (up to 25 MB). Client message attachments are saved in the firm's Google Drive, in the client's **Messages** folder for the year; an attachment on an internal note stays staff only. See [Where are client files stored?](#/help/google-drive-files).
+
+### No reply needed
+
+When the Workbench is on and the client wrote last, the thread header has **No reply needed**. Use it when their message doesn't need an answer, like a thank-you: the thread leaves everyone's Workbench and **Needs reply** count without sending anything, with **Undo** for a few seconds. A new message from the client puts it back. See [How do I use the Workbench?](#/help/workbench).
 
 ### Who gets emailed when a client writes
 

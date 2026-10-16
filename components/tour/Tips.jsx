@@ -201,6 +201,16 @@ const TIPS_CATALOG = [
     slug: "home-page",
   },
   {
+    // Workbench (components/workbench): only on screen while it's on.
+    id: "wb-more",
+    roles: "all",
+    match: (r) => r.page === "today",
+    target: "wb-row-action",
+    snug: true,
+    text: "The button does the next thing. The ⋯ beside it has Snooze, and No reply needed or Mark checked; each has Undo. Press W on any page for this list in a drawer.",
+    slug: "workbench",
+  },
+  {
     id: "clients-mine",
     roles: "all",
     match: (r) => r.page === "clients",
@@ -275,6 +285,15 @@ const TIPS_CATALOG = [
     target: "inbox-loop-in",
     text: "Loop in emails the assigned bookkeeper and adds a staff-only note. @name in a Note does the same; in a Reply the client sees the @name.",
     slug: "inbox",
+  },
+  {
+    // Only shows while the Workbench is on (StaffInbox renders it then).
+    id: "wb-noreply",
+    roles: "all",
+    match: (r) => r.page === "inbox",
+    target: "si-noreply",
+    text: "A client's last message just says thanks? No reply needed takes the thread off your Workbench without sending anything. A new message from them puts it back.",
+    slug: "workbench",
   },
   {
     id: "client-messages-details",

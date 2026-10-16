@@ -1586,6 +1586,30 @@ function StaffInbox({
   };
 
   const counts = { all: clientList.length + teamList.length, clients: clientList.length, team: teamList.length };
+
+  // Workbench "No reply needed" (components/workbench/): while Workbench is
+  // on, a client thread whose latest message is the client's can be marked
+  // as needing no reply (it leaves Workbench; Undo in its bar). Nothing is
+  // sent to the client.
+  const wbOn = typeof WB_useSwitch === "function" ? WB_useSwitch() : false;
+  const [wbMarked, setWbMarked] = React.useState(null);
+  React.useEffect(() => {
+    const reset = () => setWbMarked(null);
+    window.addEventListener("mgb:client-messages-changed", reset);
+    return () => window.removeEventListener("mgb:client-messages-changed", reset);
+  }, []);
+  const wbLast =
+    wbOn && mode === "real" && selEntry
+      ? (threadRows || [])
+          .filter((r) => r && !r.internal && !r.deleted_at)
+          .reduce((a, r) => (!a || String(r.created_at || "") >= String(a.created_at || "") ? r : a), null)
+      : null;
+  const wbCanNoReply = !!(wbLast && wbLast.author_kind === "client" && /^[0-9a-f-]{36}$/i.test(String(wbLast.id || "")));
+  const wbNoReply = () => {
+    if (!wbCanNoReply || typeof WB_store === "undefined") return;
+    const id = wbLast.id;
+    WB_store.noReply({ kind: "message", ref_id: id, item_key: "inbox:" + id }).then((ok) => ok && setWbMarked(id));
+  };
   const scopedClient = clientFilter && allClients.find((c) => c.id === clientFilter);
 
   const header = selEntry ? (
@@ -1749,6 +1773,18 @@ function StaffInbox({
                 ‹
               </button>
               {header}
+              {wbCanNoReply && (
+                <button
+                  type="button"
+                  className="btn-secondary si-noreply"
+                  data-tour="si-noreply"
+                  disabled={wbMarked === wbLast.id}
+                  title={"Take this thread off " + WB_NAME + " without replying"}
+                  onClick={wbNoReply}
+                >
+                  {wbMarked === wbLast.id ? "No reply needed ✓" : "No reply needed"}
+                </button>
+              )}
               {!compact && (
                 <button
                   type="button"

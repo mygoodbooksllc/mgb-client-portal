@@ -36,7 +36,7 @@ If you're also a client's account manager, the **Account manager tour** comes ne
 | **Tasks › No team yet** | Clients brought over from Asana with no bookkeeper; open one and click **Assign team** to give it one (they own its parked unassigned tasks, which stay claimable; no email) | [Task lists and projects](#/help/task-lists-and-projects) |
 | **Tasks › Recurring** | Recurring task templates: drafts, **Turn on**, previews, **Make due tasks now**, **Missed periods** and the standard close set | [Recurring tasks](#/help/task-templates) |
 | **Settings › Firm settings** | **Task templates** (a link to Tasks › Recurring), **Client roster** (where new clients are added), **Emails**, **QuickBooks usage**, **Usage stats**, **Audit log** and **Developer tools** | [Settings](#/help/staff-settings), [Usage stats and Developer tools](#/help/admin-insight), [Audit log](#/help/audit-log) |
-| **Today** | Every client you can open, which for an admin is all of them, plus birthdays and work anniversaries a week ahead | [Today](#/help/home-page), [Celebrations](#/help/celebrations) |
+| **Today** | Every client you can open, which for an admin is all of them, plus birthdays and work anniversaries a week ahead; once the Workbench is on, **Mine** or **Everyone** to see every staff member's items | [Today](#/help/home-page), [Workbench](#/help/workbench), [Celebrations](#/help/celebrations) |
 | **Email** to admin@mygoodbooks.org | Health-check alerts and the weekly digest | [Alerts](#/help/health-alerts), [Weekly digest](#/help/weekly-digest) |
 
 ### A routine

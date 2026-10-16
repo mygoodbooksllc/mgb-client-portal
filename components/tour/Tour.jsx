@@ -137,6 +137,15 @@
 //                    compact widths or in the shell
 //   tk-strip         the client task strip under a client's tabs
 //                    (TK_ClientDrawer.jsx), staff only
+//   wb-tiles         the Workbench tiles on Today (WB_Page.jsx), only while
+//                    the Workbench is on
+//   wb-chips         its source filter chips
+//   wb-list          its grouped list (the full page, not the drawer)
+//   wb-row-action    the first row's main button and ⋯ menu (WB_Row.jsx)
+//   wb-bar           the drawer's collapsed bar at the bottom of every staff
+//                    page (WB_Drawer.jsx), hidden while it is open
+//   si-noreply       No reply needed in Inbox's thread header (StaffInbox.jsx),
+//                    while the Workbench is on and the client wrote last
 // A role-tour step can `go` somewhere first (NAV_go to a place and tab, or
 // TOUR_openClient to a client's Overview (or another tab) through the
 // #/client/<id>/overview

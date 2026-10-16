@@ -523,3 +523,20 @@ The client-facing Workbench comes after the staff Workbench ships and S5 is live
 Workbench also appears as a drawer that slides up from the bottom of every staff page. Collapsed: a 44px bar with the count, the next item and a "Press W" hint. Open: a 360px panel over the page with a scrim; tabs All / Tasks / Reviews / Messages / Files; Mine / Everyone toggle (admins); rows grouped Overdue / Today / This week with one quick action each (Approve, Reply, Open). It reads from the same `wb_inbox` function as the Today page, so there is one data path.
 
 Decisions: the drawer and the full-page Today both stay (drawer for quick triage, Today for deep work); `W` toggles the drawer and Esc closes it; phones get a full-height sheet instead of the 360px panel; the client-facing drawer is a later, separate slice. Build the drawer as its own slice after W1 to W3 (data function, ranking, Today page), behind `wb.enabled`.
+
+## Build notes 2026-10-16
+
+What shipped differs from the plan above in these places:
+
+- **One slice, not five.** W1 to W5 and the drawer landed together, off behind `tk_settings.wb_enabled` (the spec's `wb.enabled`). No code sets it. Per browser, Dev Tools flags `mgb_wb_preview` (on for you) and `mgb_wb_classic` (off for you, wins) override it; both survive Reset local state.
+- **Name.** `WB_NAME = "Workbench"` in `WB_logic.js` is the only place the name lives. The rail item keeps the `today` key and `#/today`; its label, hint and help slug follow the switch (`NAV_wbOn` in `StaffNav.jsx`).
+- **Files.** The planned `WB_Chips` and `WB_SnoozeMenu` were folded into `WB_Page.jsx` and `WB_Row.jsx`; `WB_Drawer.jsx` is new. The Undo bar is a single instance: the drawer owns it whenever it is mounted, and the page shows its own only when the drawer isn't.
+- **Today rows.** Today's own row kinds that `wb_inbox` doesn't return (deadlines, bills, close blocked, handbook, access and upgrade requests, health, SOPs, coverage and the rest) come in as the **Other** source through `WB_fromToday`, keep their own buttons, and map Now to the Today group. The drawer and the rail badge count only `wb_inbox` rows.
+- **Drawer actions.** Each row opens where the work lives (Reply, Start, Open, Review, File); there is no inline Approve in the drawer yet. The quick reply from the drawer (W7) is later.
+- **Requests trash filter.** `client_answered` and `doc_request` rows skip requests whose task is in the trash (`r.task_id is null or tt.deleted_at is null`); the self-test checks it.
+- **No reply needed** is also in Inbox's thread header (`StaffInbox.jsx`) while the switch is on and the client wrote last; it uses the same `wb_mark_no_reply` and Undo.
+- **Reviews tile.** Named **Reviews** and counts exactly the Reviews chip (task_review and task_sent_back); Ledger approvals (gl_approve) stay under the Ledger chip.
+- **Everyone is for real admins only.** Temporary admins get Mine only (wb_inbox refuses Everyone to them); a refused Everyone falls back to Mine.
+- **Classic Today for anyone.** The page's ? sheet has **Use classic Today in this browser** (the same `mgb_wb_classic` key), and classic Today then shows **Switch back to the Workbench**.
+- **Never under View as.** Today falls back to its classic body while impersonating, and the drawer and badge aren't mounted.
+- **Upkeep.** Announcement `workbench-launch` waits (`ready`) until the Workbench is on for the person, and its targeted stops have `when` gates so the tour still makes sense from the ? menu while it's off.

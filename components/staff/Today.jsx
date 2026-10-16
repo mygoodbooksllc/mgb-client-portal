@@ -1083,8 +1083,22 @@ function TD_useCelebrations(admin, today) {
   return { rows: admin ? rows : [], act };
 }
 
-function TD_TodayPage({ staffUser, clients, onNavigateToClient, onOpenClientMilestone, isAdmin }) {
+function TD_TodayPage({ staffUser, clients, onNavigateToClient, onOpenClientMilestone, isAdmin, impersonating }) {
   const showToast = useToast();
+  // Workbench (components/workbench/): when it's on, its list and tiles take
+  // the place of "Needs you" and the old tiles. Off, or while viewing as
+  // someone, Today is unchanged.
+  const wbSwitch = typeof WB_useSwitch === "function" ? WB_useSwitch() : false;
+  const wbOn = !!wbSwitch && !impersonating && typeof WB_Page === "function";
+  // Classic Today chosen in this browser (WB_HelpSheet or Dev Tools): offer
+  // the way back to the Workbench.
+  const wbClassic = (() => {
+    try {
+      return !impersonating && typeof WB_Page === "function" && window.localStorage.getItem("mgb_wb_classic") === "1";
+    } catch (e) {
+      return false;
+    }
+  })();
   const me = TD_lc(staffUser && staffUser.email);
   const admin = !!(isAdmin || (staffUser && staffUser.role === "admin"));
   const today = todayLocal();
@@ -1446,51 +1460,10 @@ function TD_TodayPage({ staffUser, clients, onNavigateToClient, onOpenClientMile
     );
   };
 
-  return (
-    <div className="td-page">
-      {profilePrompt && typeof ModalShell === "function" && (
-        <ModalShell onClose={dismissProfilePrompt} labelledBy="td-profile-title" className="confirm-modal">
-          <div className="modal-header">
-            <h3 className="card-title" id="td-profile-title" style={{ margin: 0 }}>
-              Welcome! Finish your profile
-            </h3>
-            <button type="button" className="modal-close" onClick={dismissProfilePrompt} aria-label="Close">
-              ×
-            </button>
-          </div>
-          <div className="modal-body">
-            <p>Add your birthday and start date so the team can celebrate with you. Your name, title and photo show on your clients' dashboards too.</p>
-            <p className="card-subtitle">This stays on your Today list until it's done.</p>
-          </div>
-          <div className="modal-footer">
-            <button type="button" className="btn-secondary" onClick={dismissProfilePrompt}>
-              Later
-            </button>
-            <button
-              type="button"
-              className="btn-primary"
-              onClick={() => {
-                dismissProfilePrompt();
-                goProfile();
-              }}
-            >
-              Open my profile
-            </button>
-          </div>
-        </ModalShell>
-      )}
-      <div className="td-head">
-        <div className="td-head-text">
-          <p className="td-greeting">{TD_greeting(staffUser && staffUser.name)}</p>
-          <p className="td-date">{TD_dateLine()}</p>
-        </div>
-        <div className="td-chips">
-          {rows.now.length > 0 && chip("now", `${rows.now.length} need${rows.now.length === 1 ? "s" : ""} you now`, jumpToNow)}
-          {rows.week.length > 0 && chip("week", `${rows.week.length} this week`)}
-          {empty && chip("clear", "All clear")}
-        </div>
-      </div>
-
+  // Today's own tiles and "Needs you" list (the classic view, and Workbench's
+  // fallback while its server side isn't live).
+  const classicBody = () => (
+    <>
       <div className="kpi-grid td-kpis" data-tour="today-kpis">
         {tiles.map((t) => (
           <button type="button" key={t.key} className={"card kpi-card kpi-card-clickable td-kpi td-kpi-" + t.tone} onClick={t.go}>
@@ -1535,6 +1508,74 @@ function TD_TodayPage({ staffUser, clients, onNavigateToClient, onOpenClientMile
           </p>
         ))}
       </section>
+    </>
+  );
+
+  return (
+    <div className="td-page">
+      {profilePrompt && typeof ModalShell === "function" && (
+        <ModalShell onClose={dismissProfilePrompt} labelledBy="td-profile-title" className="confirm-modal">
+          <div className="modal-header">
+            <h3 className="card-title" id="td-profile-title" style={{ margin: 0 }}>
+              Welcome! Finish your profile
+            </h3>
+            <button type="button" className="modal-close" onClick={dismissProfilePrompt} aria-label="Close">
+              ×
+            </button>
+          </div>
+          <div className="modal-body">
+            <p>Add your birthday and start date so the team can celebrate with you. Your name, title and photo show on your clients' dashboards too.</p>
+            <p className="card-subtitle">This stays on your Today list until it's done.</p>
+          </div>
+          <div className="modal-footer">
+            <button type="button" className="btn-secondary" onClick={dismissProfilePrompt}>
+              Later
+            </button>
+            <button
+              type="button"
+              className="btn-primary"
+              onClick={() => {
+                dismissProfilePrompt();
+                goProfile();
+              }}
+            >
+              Open my profile
+            </button>
+          </div>
+        </ModalShell>
+      )}
+      <div className="td-head">
+        <div className="td-head-text">
+          <p className="td-greeting">{TD_greeting(staffUser && staffUser.name)}</p>
+          <p className="td-date">{TD_dateLine()}</p>
+        </div>
+        {!wbOn && (
+          <div className="td-chips">
+            {rows.now.length > 0 && chip("now", `${rows.now.length} need${rows.now.length === 1 ? "s" : ""} you now`, jumpToNow)}
+            {rows.week.length > 0 && chip("week", `${rows.week.length} this week`)}
+            {empty && chip("clear", "All clear")}
+          </div>
+        )}
+      </div>
+
+      {!wbOn && wbClassic && (
+        <p className="wb-classic-note">
+          You're using classic Today in this browser.{" "}
+          <button
+            type="button"
+            className="wb-linkish"
+            onClick={() => {
+              try {
+                window.localStorage.removeItem("mgb_wb_classic");
+              } catch (e) {}
+              window.location.reload();
+            }}
+          >
+            Switch back to the Workbench
+          </button>
+        </p>
+      )}
+      {wbOn ? <WB_Page me={me} isAdmin={!!(staffUser && staffUser.role === "admin")} td={rows} fallback={classicBody()} /> : classicBody()}
 
       <div className="td-cards-bar">
         <span className="td-cards-label" id="td-cards-label">
