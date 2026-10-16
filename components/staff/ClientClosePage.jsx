@@ -446,7 +446,7 @@ function CLC_ClientClosePage({ client, staffUser, isAdmin, onNavigate }) {
   const statusCls = late ? "late" : status;
 
   const deadlineChip =
-    status === "done" || status === "na" ? null : late ? (
+    status === "done" || status === "na" || status === "review" ? null : late ? (
       <span className="clc-deadline is-late">Late · {lateDays} {lateDays === 1 ? "day" : "days"}</span>
     ) : (
       <span className="clc-deadline">Due {CLC_shortDate(deadline)}</span>

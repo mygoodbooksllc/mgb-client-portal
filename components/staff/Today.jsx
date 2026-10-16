@@ -284,7 +284,7 @@ function TD_useCloses(clientIds) {
     ]);
     const statusOf = {};
     ((mc && mc.data) || []).forEach((r) => (statusOf[r.client_id] = r.status));
-    const open = mc.error ? [] : ids.filter((id) => !["done", "na"].includes(statusOf[id] || "not_started")).map((id) => ({ client_id: id, status: statusOf[id] || "not_started" }));
+    const open = mc.error ? [] : ids.filter((id) => !["done", "na", "review"].includes(statusOf[id] || "not_started")).map((id) => ({ client_id: id, status: statusOf[id] || "not_started" }));
     setState({ open, blocked: cc.error ? [] : cc.data || [], loaded: true });
   }, [idsKey, period]);
   TD_useRefresh(load, [STAFF_TOOLS_EVENT, "mgb:close-checks-changed", typeof OB_CHANGED_EVENT === "string" ? OB_CHANGED_EVENT : null]);

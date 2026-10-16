@@ -16,6 +16,7 @@ var TK_vPEOPLE_ROLES = [
   { key: "bookkeeper", label: "Bookkeeper" },
   { key: "backup", label: "Backup" },
   { key: "account_manager", label: "Account Manager" },
+  { key: "reviewer", label: "Reviewer" },
 ];
 
 function TK_vClientRoleLabel(role) {

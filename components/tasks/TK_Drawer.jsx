@@ -179,6 +179,16 @@ function TK_dwSaveError(e) {
   return code;
 }
 
+// Review refusals (tk_self_review, tk_reason_required …) get their own line.
+function TK_dwReviewError(e) {
+  var key = typeof TK_reviewErrorKey === "function" ? TK_reviewErrorKey(e) : null;
+  if (key && TK_dwCopy(key, "")) {
+    TK_dwToast(TK_dwCopy(key, ""));
+    return key;
+  }
+  return TK_dwSaveError(e);
+}
+
 function TK_dwTrackShortcut(key) {
   try {
     var seen = (window.TK_shortcutTracked = window.TK_shortcutTracked || {});
@@ -573,13 +583,25 @@ function TK_dwConfirm(props) {
   );
 }
 
-// Send back from ready_for_review asks for an optional reason (p_note).
+// Send back from ready_for_review needs a reason (tasks p2 s3: 3-2000
+// characters, tk_send_back). It goes to the assignee by email and on the task.
 function TK_dwSendBack(props) {
   var p = props;
   var pair = React.useState("");
   var note = pair[0];
   var setNote = pair[1];
+  var triedPair = React.useState(false);
+  var tried = triedPair[0];
+  var setTried = triedPair[1];
   if (typeof ModalShell !== "function") return null;
+  var errKey = typeof TK_sendBackReasonError === "function" ? TK_sendBackReasonError(note) : note.trim().length < 3 ? "reasonRequired" : null;
+  var submit = function () {
+    if (errKey) {
+      setTried(true);
+      return;
+    }
+    p.onConfirm(note.trim());
+  };
   return TK_dwPortal(
     <ModalShell onClose={p.onCancel} labelledBy="tk-dw-sendback-title" className="tk-dw-modal">
       <div className="modal-header">
@@ -592,26 +614,113 @@ function TK_dwSendBack(props) {
       </div>
       <div className="modal-body">
         <label className="tk-dw-label" htmlFor="tk-dw-sendback-note">
-          What needs another look? (optional)
+          What needs another look?
         </label>
         <textarea
           id="tk-dw-sendback-note"
           className="tk-dw-textarea"
           rows={3}
-          maxLength={1000}
+          maxLength={2000}
           value={note}
+          aria-invalid={tried && errKey ? "true" : undefined}
+          aria-describedby="tk-dw-sendback-help"
           onChange={function (e) { setNote(e.target.value); }}
         />
+        <p id="tk-dw-sendback-help" className={"tk-dw-hint" + (tried && errKey ? " tk-field-error" : "")}>
+          {tried && errKey
+            ? TK_dwCopy(errKey, "Add a short note on what needs another look.")
+            : "They get this note by email and see it on the task."}
+        </p>
       </div>
       <div className="modal-footer">
         <button type="button" className="btn-secondary" onClick={p.onCancel}>
           Cancel
         </button>
-        <button type="button" className="btn-primary" onClick={function () { p.onConfirm(note.trim()); }}>
+        <button type="button" className="btn-primary" onClick={submit}>
           Send back
         </button>
       </div>
     </ModalShell>,
+  );
+}
+
+// The review strip (tasks p2 s3). In review: who reviews it, how long it has
+// waited, and Approve / Send back (an admin who isn't the assignee or the
+// submitter) or Take back (the assignee or submitter). Before review, admins
+// can name the reviewer (blank = the default picked on submit).
+function TK_dwReview(props) {
+  var p = props;
+  var task = p.task;
+  var staff = p.staff || [];
+  if (!task || task.deleted_at) return null;
+  var status = TK_dwEffectiveStatus(task);
+  var inReview = status === "ready_for_review";
+  if (!inReview && !(task.review_required && p.isAdmin && status !== "done")) return null;
+  var role = typeof TK_reviewRole === "function" ? TK_reviewRole(task, { me: p.me, isAdmin: p.isAdmin }) : {};
+  var reviewerName = task.reviewer_email ? TK_dlNameOf(task.reviewer_email, staff) : "any admin";
+  var wait = inReview && typeof TK_reviewWaitLabel === "function" ? TK_reviewWaitLabel(task) : "";
+  var assignee = TK_dwLower(task.assignee_email || task.staff_email);
+  var admins = staff.filter(function (s) {
+    return s && s.active !== false && s.role === "admin" && TK_dwLower(s.email) !== assignee;
+  });
+  var picker = p.isAdmin && !p.readOnly && (
+    <label className="tk-dw-review-pick">
+      <span>Reviewer</span>
+      <select
+        className="tk-dw-select"
+        aria-label="Reviewer"
+        value={task.reviewer_email || ""}
+        onChange={function (e) { p.onSetReviewer(e.target.value || null); }}
+      >
+        <option value="">{inReview ? "Any admin" : "Default (picked when sent)"}</option>
+        {admins.map(function (s) {
+          return (
+            <option key={s.email} value={TK_dwLower(s.email)}>
+              {s.name || s.email}
+            </option>
+          );
+        })}
+      </select>
+    </label>
+  );
+  if (!inReview) {
+    return (
+      <div className="tk-dw-review" data-tour="tk-review-strip">
+        <span className="tk-dw-review-text">Needs review before it's done.</span>
+        {picker}
+      </div>
+    );
+  }
+  return (
+    <div className="tk-dw-review is-waiting" role="status" data-tour="tk-review-strip">
+      <div className="tk-dw-review-text">
+        <strong>Waiting for review</strong>
+        <span>{" · Reviewer: " + reviewerName}</span>
+        {wait ? <span>{" · " + wait}</span> : null}
+        {task.send_back_count > 0 ? (
+          <span>{" · Sent back " + task.send_back_count + (task.send_back_count === 1 ? " time" : " times")}</span>
+        ) : null}
+      </div>
+      {role.blockedReason ? <p className="tk-dw-hint">{TK_dwCopy(role.blockedReason, "Another admin will review it.")}</p> : null}
+      <div className="tk-dw-review-actions">
+        {role.canApprove && !p.readOnly && (
+          <button type="button" className="btn-primary tk-dw-btn-sm" onClick={p.onApprove}>
+            Approve
+          </button>
+        )}
+        {role.canSendBack && !p.readOnly && (
+          <button type="button" className="btn-secondary tk-dw-btn-sm" onClick={p.onSendBack}>
+            Send back
+          </button>
+        )}
+        {(role.isAssignee || role.isSubmitter) && !p.readOnly && (
+          <button type="button" className="btn-secondary tk-dw-btn-sm" onClick={p.onWithdraw}>
+            Take back
+          </button>
+        )}
+        {picker}
+      </div>
+    </div>
   );
 }
 
@@ -683,7 +792,7 @@ function TK_dwStatus(props) {
 // Bookkeeper, Backup and Account Manager chips (1.1). Cached for the session,
 // so an offline drawer still shows them.
 var TK_dwPeopleCache = {};
-var TK_DW_ROLE_LABELS = { bookkeeper: "Bookkeeper", backup: "Backup", account_manager: "Account Manager" };
+var TK_DW_ROLE_LABELS = { bookkeeper: "Bookkeeper", backup: "Backup", account_manager: "Account Manager", reviewer: "Reviewer" };
 
 function TK_dwPeople(props) {
   var p = props;
@@ -743,7 +852,9 @@ function TK_dwPeople(props) {
           </span>
         );
       })}
-      {p.reviewRequired && <span className="tk-dw-chip tk-dw-chip-note">Reviewer: any admin</span>}
+      {p.reviewRequired && !rows.some(function (r) { return r.role === "reviewer"; }) && (
+        <span className="tk-dw-chip tk-dw-chip-note">Reviewer: any admin</span>
+      )}
     </div>
   );
 }
@@ -1305,9 +1416,20 @@ function TK_Drawer(props) {
     if (!t || !api || readOnly) return;
     var cur = TK_dwEffectiveStatus(t);
     if (status === cur) return;
-    if (cur === "ready_for_review" && status === "in_progress" && isAdmin) {
-      setModal("sendback");
-      return;
+    if (cur === "ready_for_review") {
+      var role = typeof TK_reviewRole === "function" ? TK_reviewRole(t, { me: me, isAdmin: isAdmin }) : {};
+      if (status === "in_progress" && role.canSendBack) {
+        setModal("sendback");
+        return;
+      }
+      if (status === "in_progress" && typeof api.withdraw === "function") {
+        api.withdraw(t.id).catch(TK_dwReviewError);
+        return;
+      }
+      if (status === "done" && typeof api.approve === "function") {
+        api.approve(t.id).catch(TK_dwReviewError);
+        return;
+      }
     }
     if (status === "done") {
       api.complete(t, { done: true, isAdmin: isAdmin }).catch(TK_dwSaveError);
@@ -1583,6 +1705,26 @@ function TK_Drawer(props) {
             {TK_dwCopy("offline", "You're offline.")}
           </div>
         )}
+        <TK_dwReview
+          task={task}
+          staff={staff}
+          me={me}
+          isAdmin={isAdmin}
+          readOnly={readOnly}
+          onApprove={function () {
+            var api = TK_dwApi();
+            if (api && typeof api.approve === "function") api.approve(task.id).catch(TK_dwReviewError);
+          }}
+          onSendBack={function () { setModal("sendback"); }}
+          onWithdraw={function () {
+            var api = TK_dwApi();
+            if (api && typeof api.withdraw === "function") api.withdraw(task.id).catch(TK_dwReviewError);
+          }}
+          onSetReviewer={function (email) {
+            var api = TK_dwApi();
+            if (api && typeof api.setReviewer === "function") api.setReviewer(task.id, email).catch(TK_dwReviewError);
+          }}
+        />
         {task.parent_id && (
           <p className="tk-dw-parent">
             <a href={TK_dwTaskHref(task.parent_id)} onClick={TK_openTaskClick(task.parent_id)} className="link-btn">
@@ -1601,8 +1743,14 @@ function TK_Drawer(props) {
               ref={assigneeRef}
               className="tk-dw-select"
               value={curAssignee}
-              disabled={!canAssign}
-              title={!canAssign && !readOnly ? "Only the task's owner or an admin can reassign it." : undefined}
+              disabled={!canAssign || status === "ready_for_review"}
+              title={
+                status === "ready_for_review" && canAssign
+                  ? TK_dwCopy("inReview", "This is in review. Take it back from review before you reassign it.")
+                  : !canAssign && !readOnly
+                    ? "Only the task's owner or an admin can reassign it."
+                    : undefined
+              }
               onChange={function (e) { save({ assignee_email: e.target.value }); }}
             >
               {assignees.map(function (a) {
@@ -2089,7 +2237,7 @@ function TK_Drawer(props) {
           onConfirm={function (note) {
             setModal(null);
             var api = TK_dwApi();
-            if (api && task) api.setStatus(task.id, "in_progress", note || null).catch(TK_dwSaveError);
+            if (api && task && typeof api.sendBack === "function") api.sendBack(task.id, note).catch(TK_dwReviewError);
           }}
         />
       )}

@@ -141,10 +141,13 @@ function TK_ClientStrip(props) {
   var summary = TK_cdSummary(list.tasks, today, page);
   var next = summary.next;
   var title = next ? next.text || "Untitled task" : "";
-  var gated = !!(next && next.review_required && !isAdmin);
-  var tickLabel = (gated ? "Send for review: " : "Mark done: ") + title;
-  // Already waiting on review: there is nothing for a non-admin to tick.
-  var inReview = !!(next && !isAdmin && typeof TK_effectiveStatus === "function" && TK_effectiveStatus(next) === "ready_for_review");
+  var nextInReview = !!(next && typeof TK_effectiveStatus === "function" && TK_effectiveStatus(next) === "ready_for_review");
+  var canApprove = !!(nextInReview && typeof TK_reviewRole === "function" && TK_reviewRole(next, { me: TK_vMe(), isAdmin: isAdmin }).canApprove);
+  // Tasks p2 s3: a gated task goes to review for admins too.
+  var gated = !!(next && next.review_required && !nextInReview);
+  var tickLabel = (canApprove ? "Approve: " : gated ? "Send for review: " : "Mark done: ") + title;
+  // Already waiting on review: nothing to tick unless this admin can approve it.
+  var inReview = nextInReview && !canApprove;
 
   var tick = function () {
     if (!next || busy || !online) return;

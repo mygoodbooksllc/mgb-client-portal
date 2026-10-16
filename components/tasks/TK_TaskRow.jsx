@@ -85,6 +85,8 @@ function TK_vCopy(key, fallback) {
 // The C10 line for a failed write or read.
 function TK_vErrText(err, fallbackKey) {
   var code = err && err.code ? String(err.code) : "";
+  var rk = typeof TK_reviewErrorKey === "function" ? TK_reviewErrorKey(err) : null; // tasks p2 s3
+  if (rk && TK_vCopy(rk)) return TK_vCopy(rk);
   if (code === "tk_offline") return TK_vCopy("offline");
   if (code === "tk_conflict") return TK_vCopy("conflict");
   if (code === "tk_reverted" || code === "tk_forbidden") return TK_vCopy("reverted");
@@ -138,6 +140,33 @@ function TK_vOpenTask(id, opts) {
   } catch (e) {}
 }
 
+// Send back with a reason (required, 3+ characters). Toasts on failure.
+function TK_vSendBack(task, reason) {
+  if (!task || typeof TK_api === "undefined" || !TK_api || typeof TK_api.sendBack !== "function") return Promise.resolve(null);
+  return TK_api.sendBack(task.id, reason).catch(function (e) {
+    TK_vToast(TK_vErrText(e));
+    return null;
+  });
+}
+
+function TK_vWithdraw(task) {
+  if (!task || typeof TK_api === "undefined" || !TK_api || typeof TK_api.withdraw !== "function") return Promise.resolve(null);
+  return TK_api.withdraw(task.id, null).catch(function (e) {
+    TK_vToast(TK_vErrText(e));
+    return null;
+  });
+}
+
+// The signed-in staff email from the store ("" when unknown).
+function TK_vMe() {
+  try {
+    var st = typeof TK_store !== "undefined" && TK_store ? TK_store.getState() : null;
+    return st && st.me ? String(st.me).toLowerCase() : "";
+  } catch (e) {
+    return "";
+  }
+}
+
 // The one completion path. Toasts come from TK_api.complete itself; this only
 // toasts a failure.
 function TK_vComplete(task, isAdmin) {
@@ -153,6 +182,13 @@ function TK_vComplete(task, isAdmin) {
 
 function TK_vSetStatus(task, status, note, isAdmin) {
   if (!task || typeof TK_api === "undefined" || !TK_api) return Promise.resolve(null);
+  // Tasks p2 s3: approve and send back have their own RPCs.
+  if (TK_vStatusOf(task) === "ready_for_review" && status === "done" && typeof TK_api.approve === "function") {
+    return TK_api.approve(task.id, note || null).catch(function (e) {
+      TK_vToast(TK_vErrText(e));
+      return null;
+    });
+  }
   if (status === "done" && typeof TK_api.complete === "function" && TK_vStatusOf(task) !== "ready_for_review") {
     var opts = { done: true };
     if (typeof isAdmin === "boolean") opts.isAdmin = isAdmin;
@@ -487,7 +523,18 @@ function TK_vSendBackModal(props) {
   var pair = React.useState("");
   var note = pair[0];
   var setNote = pair[1];
+  var triedPair = React.useState(false);
+  var tried = triedPair[0];
+  var setTried = triedPair[1];
   var id = "tk-sendback-title";
+  var errKey = typeof TK_sendBackReasonError === "function" ? TK_sendBackReasonError(note) : note.trim().length < 3 ? "reasonRequired" : null;
+  var submit = function () {
+    if (errKey) {
+      setTried(true);
+      return;
+    }
+    props.onConfirm(note.trim());
+  };
   return (
     <TK_vModal onClose={props.onClose} labelledBy={id} className="tk-modal">
       <div className="modal-header">
@@ -500,29 +547,30 @@ function TK_vSendBackModal(props) {
       </div>
       <div className="modal-body">
         <label className="tk-field">
-          <span className="tk-field-label">What needs another look? (optional)</span>
+          <span className="tk-field-label">What needs another look?</span>
           <textarea
             className="tk-input tk-textarea"
             rows={3}
             maxLength={2000}
             value={note}
+            aria-invalid={tried && errKey ? "true" : undefined}
+            aria-describedby="tk-sendback-help"
             onChange={function (e) {
               setNote(e.target.value);
             }}
           />
         </label>
+        <p id="tk-sendback-help" className={"tk-dw-hint" + (tried && errKey ? " tk-field-error" : "")}>
+          {tried && errKey
+            ? TK_vCopy(errKey, "Add a short note on what needs another look.")
+            : "They get this note by email and see it on the task."}
+        </p>
       </div>
       <div className="modal-footer tk-modal-footer">
         <button type="button" className="btn-secondary" onClick={props.onClose}>
           Cancel
         </button>
-        <button
-          type="button"
-          className="btn-primary"
-          onClick={function () {
-            props.onConfirm(note.trim());
-          }}
-        >
+        <button type="button" className="btn-primary" onClick={submit}>
           Send back
         </button>
       </div>
@@ -548,7 +596,7 @@ function TK_StatusPill(props) {
   var menuRef = React.useRef(null);
   var items = React.useMemo(
     function () {
-      return typeof TK_nextStatuses === "function" ? TK_nextStatuses(task, { isAdmin: !!props.isAdmin }) : [];
+      return typeof TK_nextStatuses === "function" ? TK_nextStatuses(task, { isAdmin: !!props.isAdmin, me: TK_vMe() }) : [];
     },
     [task, props.isAdmin],
   );
@@ -622,8 +670,12 @@ function TK_StatusPill(props) {
 
   var choose = function (item) {
     close(true);
-    if (item.status === "in_progress" && status === "ready_for_review" && props.isAdmin) {
+    if (item.action === "send_back") {
       setSendBack(true);
+      return;
+    }
+    if (item.action === "withdraw" && item.status === "in_progress") {
+      TK_vWithdraw(task);
       return;
     }
     props.onChange(item.status, null);
@@ -683,7 +735,7 @@ function TK_StatusPill(props) {
           }}
           onConfirm={function (note) {
             setSendBack(false);
-            props.onChange("in_progress", note || null);
+            TK_vSendBack(task, note);
           }}
         />
       ) : null}
@@ -697,7 +749,8 @@ function TK_StatusPill(props) {
 //   onToggleDone(task), onStatus(task, status, note) }
 // Additions: columns (the list view's Assignee | Due | Status | Priority cells),
 //   statusSignal (the `s` key), tourStatus (data-tour on the first row's pill),
-//   snippet (a search hit's comment line), onFocusRow(id).
+//   snippet (a search hit's comment line), onFocusRow(id),
+//   note (one more meta line), trailing (buttons before the status pill; the review queue).
 
 function TK_TaskRow(props) {
   var task = props.task;
@@ -766,6 +819,7 @@ function TK_TaskRow(props) {
   if (task.section && props.showSection) meta.push(<span key="s">{task.section}</span>);
   if (cl) meta.push(<span key="cl" className="tk-meta-check" title="Checklist">{cl.done + "/" + cl.total}</span>);
   if (props.snippet) meta.push(<span key="sn" className="tk-meta-snippet">{"In a comment: " + props.snippet}</span>);
+  if (props.note) meta.push(<span key="nt" className="tk-meta-note">{props.note}</span>);
 
   return (
     <li
@@ -839,6 +893,7 @@ function TK_TaskRow(props) {
       ) : (
         <div className="tk-cell tk-cell-status" role="gridcell">
           {priority === "high" ? <span className="tk-prio tk-prio-high">High</span> : null}
+          {props.trailing || null}
           {statusPill}
         </div>
       )}

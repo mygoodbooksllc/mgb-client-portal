@@ -72,7 +72,8 @@ function CT_deadline(period, lateDay) {
 }
 
 function CT_isLate(period, status, lateDay, today) {
-  if (status === "done" || status === "na") return false;
+  // "review" = Ready for sign-off: the bookkeeper's part is in on time (tasks p2 s3).
+  if (status === "done" || status === "na" || status === "review") return false;
   const dl = CT_deadline(period, lateDay);
   const t = new Date(today.getFullYear(), today.getMonth(), today.getDate());
   return t > dl;

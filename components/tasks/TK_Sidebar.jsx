@@ -3,8 +3,8 @@
 // (views slice, Row 1.4 and Row 11.5).
 //
 // TK_Sidebar({ route, clients, isAdmin, staffUser, onNavigate(route) })
-//   My Tasks, Search, Projects (archived hidden, "New project"), Clients and,
-//   for admins, People. Every item is a real link (TK_formatRoute), so a
+//   My Tasks, Review (admins see a count of work they can approve), Search,
+//   Projects (archived hidden, "New project"), Clients and, for admins, People. Every item is a real link (TK_formatRoute), so a
 //   modifier click opens a new tab; a plain click calls onNavigate.
 // TK_NewProjectModal({ isAdmin, kind, clientId, clientName, onClose, onCreated(project) })
 //   name, sections (one per line) and, for admins only, "Open to all staff".
@@ -169,7 +169,7 @@ function TK_vNavItem(props) {
   var r = props.route;
   var href = typeof TK_formatRoute === "function" ? TK_formatRoute(r) : "#/tasks/my";
   return (
-    <li>
+    <li data-tour={props.tour || undefined}>
       <a
         className={"tk-nav-item" + (props.active ? " is-active" : "")}
         href={href}
@@ -183,6 +183,11 @@ function TK_vNavItem(props) {
         {props.icon ? <TK_vIcon name={props.icon} size={16} /> : null}
         <span className="tk-nav-label">{props.label}</span>
         {props.tag ? <span className="tk-nav-tag">{props.tag}</span> : null}
+        {props.count ? (
+          <span className="tk-nav-count" aria-label={props.count + " waiting"}>
+            {props.count > 99 ? "99+" : props.count}
+          </span>
+        ) : null}
       </a>
     </li>
   );
@@ -233,6 +238,13 @@ function TK_Sidebar(props) {
       return x < y ? -1 : x > y ? 1 : 0;
     });
   if (typeof CF_sort === "function") shownClients = CF_sort(shownClients);
+  // Review count: what this admin can approve (Tasks p2 S3).
+  var reviewList = TK_vUseList(isAdmin ? "review" : null, function () {
+    if (typeof TK_api === "undefined" || !TK_api || typeof TK_api.listReview !== "function") return Promise.resolve([]);
+    return TK_api.listReview();
+  });
+  var me = TK_vLower(props.staffUser && props.staffUser.email);
+  var reviewCount = isAdmin && typeof TK_reviewQueueCount === "function" ? TK_reviewQueueCount(reviewList && reviewList.tasks, me) : 0;
   var people = (Array.isArray(staff) ? staff : []).filter(function (s) {
     return s && s.active !== false && s.id && (typeof TK_isUuid !== "function" || TK_isUuid(s.id));
   });
@@ -241,6 +253,7 @@ function TK_Sidebar(props) {
     <nav className="tk-sidebar" aria-label="Task lists" data-tour="tk-sidebar">
       <ul className="tk-nav">
         <TK_vNavItem route={{ view: "my" }} label="My Tasks" icon="home" active={route.view === "my"} onNavigate={nav} />
+        <TK_vNavItem route={{ view: "review" }} label="Review" icon="check" count={reviewCount} tour="tk-review-nav" active={route.view === "review"} onNavigate={nav} />
         <TK_vNavItem route={{ view: "search" }} label="Search" icon="search" active={route.view === "search"} onNavigate={nav} />
       </ul>
 

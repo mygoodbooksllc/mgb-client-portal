@@ -220,7 +220,8 @@ async function CTC_loadClose(sb, id, opts) {
     const row = mc.find((r) => String(r.period).slice(0, 10) === p);
     return (row && row.status) || "not_started";
   };
-  const isClosed = (s) => s === "done" || s === "na";
+  // "review" (Ready for sign-off) is not late or unfinished (tasks p2 s3).
+  const isClosed = (s) => s === "done" || s === "na" || s === "review";
   const status = statusOf(P);
   const statusP2 = statusOf(P2);
   const check = cc.find((r) => String(r.period).slice(0, 10) === P) || null;

@@ -1121,3 +1121,56 @@
     min-height: 44px;
   }
 }
+
+/* ---- Review strip (Tasks p2 S3) ------------------------------------------------------ */
+
+.tk-dw-review {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 12px;
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface-2);
+  color: var(--text);
+  font-size: 13px;
+}
+
+.tk-dw-review.is-waiting {
+  border-color: var(--warm-border);
+  background: var(--warm-bg);
+  color: var(--warm-text);
+}
+
+.tk-dw-review-text {
+  flex: 1 1 220px;
+  min-width: 0;
+}
+
+.tk-dw-review .tk-dw-hint {
+  flex: 1 1 100%;
+  margin: 0;
+}
+
+.tk-dw-review-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.tk-dw-review-pick {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+}
+
+.tk-dw-review-pick .tk-dw-select {
+  width: auto;
+  min-width: 140px;
+  max-width: 220px;
+}

@@ -45,6 +45,7 @@ function TK_vRoleLabel(role) {
   if (r === "admin" || r === "owner") return "Admin";
   if (r === "account_manager") return "Account Manager";
   if (r === "bookkeeper") return "Bookkeeper";
+  if (r === "reviewer") return "Reviewer";
   if (!r) return "Staff";
   return r.charAt(0).toUpperCase() + r.slice(1).replace(/_/g, " ");
 }
