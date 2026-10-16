@@ -42,21 +42,21 @@ export const T = {
 
 // Dark tokens (design-system dark-mode block).
 export const TD = {
-  bg: "#0f1512",
-  surface: "#161d1a",
-  border: "#293530",
-  surface2: "#1c2420",
-  text: "#e9ece6",
-  muted: "#9aa59c",
-  ink: "#f2f5ef",
+  bg: "#101920",
+  surface: "#17222b",
+  border: "#2d3f4d",
+  surface2: "#1f2d38",
+  text: "#e8ebed",
+  muted: "#a4afb7",
+  ink: "#f2f4f5",
   gold: "#c7ae86",
   goldDeep: "#d8c39f",
-  warmBg: "#1f2a22",
-  warmBorder: "#3f4f42",
+  warmBg: "#1f2d38",
+  warmBorder: "#3a5060",
   warmText: "#d8c9a4",
   good: "#5fbf7a",
   bad: "#e2635f",
-  onGold: "#0b100e",
+  onGold: "#0c1318",
 } as const;
 
 // Font stacks: brand web font first, then a solid system fallback. Outlook

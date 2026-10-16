@@ -34,7 +34,7 @@ The palette has three layers, and mixing them up is the fastest way to break a s
 
 `accent` aliases `gold` — reach for `accent` in product code so a rebrand moves one value. Gold itself is the one color identical in both themes.
 
-Dark mode is a genuine re-pitch, not an inversion: the navy shifts green (`#1f2a24`), the ground goes near-black (`#0f1512`), shadows drop their tint for long black spreads, and `chart-income` becomes a light blue because a navy series is invisible on a dark card. Two tokens change meaning rather than value — `selected-outline` rings in gold instead of near-white, and the referral panel tints *lighter* than the page instead of darker. Both are noted in their `usage`.
+Dark mode is a genuine re-pitch, not an inversion: the navy shifts to a deeper blue-navy (`#243746`, taken from mygoodbooks.org), the ground goes near-black (`#101920`), shadows drop their tint for long black spreads, and `chart-income` becomes a light blue because a navy series is invisible on a dark card. Two tokens change meaning rather than value — `selected-outline` rings in gold instead of near-white, and the referral panel tints *lighter* than the page instead of darker. Both are noted in their `usage`.
 
 The ground is flat `bg` with one thing on it: a faint spreadsheet ruling, `grid-line`, on a `grid-cell-w` x `grid-cell-h` cell (92x30px). Wider than tall on purpose — square cells read as a table someone might try to click into, ledger proportions read as paper. It is texture, not furniture, and dark mode needs a warm *light* line rather than the same alpha, since a dark line at 3% is invisible on a near-black ground.
 
