@@ -96,7 +96,7 @@ function WB_Drawer({ me, isAdmin, clients }) {
     if (open && !wasOpen.current) {
       if (Date.now() - s.at > 20000) WB_store.refresh();
       setTimeout(() => {
-        const first = panelRef.current && (panelRef.current.querySelector(".wb-row[tabindex='0']") || panelRef.current);
+        const first = panelRef.current && WB_hubFocusTarget(panelRef.current, null);
         if (first) first.focus();
       }, 30);
     } else if (!open && wasOpen.current) {

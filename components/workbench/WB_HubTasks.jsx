@@ -78,6 +78,49 @@ function WB_HubTasksBody(props) {
   var list = TK_vUseList(email ? "wb:mine" : null, loader);
   var all = Array.isArray(list.tasks) ? list.tasks : [];
 
+  // The first load is "settled" only after it really started and finished (or
+  // there are rows, or it failed), so the tab never reports a false 0.
+  var sawRef = React.useRef(false);
+  if (list.loading) sawRef.current = true;
+  var loaded = WB_hubTasksReady(list, sawRef.current);
+
+  // A task assigned to me that the store knows but this list lacks (made by
+  // quick add, reassigned to me): TK_stMatches cannot place the wb:mine key, so
+  // reload it, debounced. The selector returns a string so it only re-renders
+  // when the set of missing ids changes.
+  var missing = TK_vUseStore(function (st) {
+    if (!email || !st || !st.tasks) return "";
+    var L = st.lists && st.lists["wb:mine"];
+    if (!L || L.loading || !L.at) return "";
+    var have = {};
+    (L.ids || []).forEach(function (id) {
+      have[id] = 1;
+    });
+    var out = [];
+    for (var id in st.tasks) {
+      if (!Object.prototype.hasOwnProperty.call(st.tasks, id) || have[id]) continue;
+      var t = st.tasks[id];
+      if (!t || t.deleted_at || t.done || t.status === "done") continue;
+      if (String(t.assignee_email || "").toLowerCase() !== email) continue;
+      out.push(id);
+    }
+    return out.sort().join(",");
+  });
+  var reloadRef = React.useRef(list.reload);
+  reloadRef.current = list.reload;
+  React.useEffect(
+    function () {
+      if (!missing) return undefined;
+      var tm = setTimeout(function () {
+        if (reloadRef.current) reloadRef.current();
+      }, 500);
+      return function () {
+        clearTimeout(tm);
+      };
+    },
+    [missing],
+  );
+
   var projects = TK_vUseProjects();
   var clientNames = React.useMemo(
     function () {
@@ -103,14 +146,16 @@ function WB_HubTasksBody(props) {
       if (t && t.id != null) ids.push(t.id);
     });
   });
+  // One row is always focusable (roving tabindex): the one I last used, else the first.
+  var rovingId = focusedId != null && ids.indexOf(focusedId) >= 0 ? focusedId : ids.length ? ids[0] : null;
   var counts = TK_vUseChecklist(ids);
 
-  var loading = !!list.loading && !all.length;
+  var loading = !loaded;
   var err = list.error && !all.length ? list.error : null;
   var onCount = props.onCount;
   var onReady = props.onReady;
   var total = shown.total;
-  var settled = !loading;
+  var settled = loaded;
   React.useEffect(
     function () {
       if (onCount) onCount(settled && !err ? total : null);
@@ -127,8 +172,21 @@ function WB_HubTasksBody(props) {
   var openTask = function (id) {
     setFocusedId(id);
     WB_store.setHub({ lastFocus: "tk:" + id }, true);
-    WB_track("wb-action", "task:open-in-place");
+    WB_track("wb-action", WB__taskDrawerReady() ? "task:open-in-place" : "task:open");
     TK_vOpenTask(id, { from: "wb-hub" });
+  };
+  // A plain click on a row's title link (TK_TaskRow handles the open itself):
+  // remember the row for focus return and log the same way.
+  var onClickCapture = function (e) {
+    var t = e.target;
+    var a = t && t.closest ? t.closest("a.tk-row-title") : null;
+    if (!a || e.button || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+    var row = a.closest("[data-tk-id],[data-tk-sub]");
+    var id = row ? row.getAttribute("data-tk-id") || row.getAttribute("data-tk-sub") : null;
+    if (!id) return;
+    setFocusedId(id);
+    WB_store.setHub({ lastFocus: "tk:" + id }, true);
+    WB_track("wb-action", WB__taskDrawerReady() ? "task:open-in-place" : "task:open");
   };
   var addTask = function () {
     WB_track("wb-action", "task:add");
@@ -147,6 +205,11 @@ function WB_HubTasksBody(props) {
 
   // Arrow keys move between rows (the row list is roving: one row is focusable).
   var onKeyDown = function (e) {
+    if (e.key === "Enter" && e.target && e.target.matches && e.target.matches("li.tk-row[data-tk-id]") && !e.defaultPrevented) {
+      e.preventDefault();
+      openTask(e.target.getAttribute("data-tk-id"));
+      return;
+    }
     if (e.key !== "ArrowDown" && e.key !== "ArrowUp") return;
     var t = e.target;
     if (!t || !t.closest || t.closest("input, select, textarea, [role='menu']")) return;
@@ -196,7 +259,7 @@ function WB_HubTasksBody(props) {
                   <span className="tk-count">{g.total}</span>
                 </button>
               </h3>
-              {g.collapsed ? null : (
+              {g.collapsed || !g.tasks.length ? null : (
                 <ul className="tk-rows" role="grid" aria-label={g.label}>
                   {g.tasks.map(function (t) {
                     return (
@@ -209,7 +272,7 @@ function WB_HubTasksBody(props) {
                         projectColor={t.project_id && typeof TK_projectColorById === "function" ? TK_projectColorById(projects, t.project_id) : ""}
                         subs={subs}
                         showClient
-                        focused={focusedId === t.id}
+                        focused={rovingId === t.id}
                         checklist={counts[t.id] || null}
                         isAdmin={isAdmin}
                         canEdit={online}
@@ -217,7 +280,13 @@ function WB_HubTasksBody(props) {
                         onOpen={openTask}
                         onToggleDone={online ? complete : undefined}
                         onStatus={function (task, s, note) {
-                          TK_vSetStatus(task, s, note, isAdmin);
+                          Promise.resolve(TK_vSetStatus(task, s, note, isAdmin)).then(function () {
+                            if (s === "done") {
+                              try {
+                                window.dispatchEvent(new CustomEvent("mgb:staff-items-changed"));
+                              } catch (x) {}
+                            }
+                          });
                         }}
                       />
                     );
@@ -232,7 +301,7 @@ function WB_HubTasksBody(props) {
   }
 
   return (
-    <div className="tk-view wb-hub-tasks" ref={paneRef} onKeyDown={onKeyDown} data-tour="wb-hub-tasks">
+    <div className="tk-view wb-hub-tasks" ref={paneRef} onKeyDown={onKeyDown} onClickCapture={onClickCapture} data-tour="wb-hub-tasks">
       {!online ? <p className="wb-offline-line" role="status">Offline. Changes wait until you're back.</p> : null}
       {body}
       {shown.more > 0 ? (

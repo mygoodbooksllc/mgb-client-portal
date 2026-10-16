@@ -184,6 +184,23 @@ t("writes are throttled to one per 500 ms and the last value wins", () => {
   assert.strictEqual(c.pending(), 1, "a new change after the write starts a new throttle");
 });
 
+t("switching people with a save pending: the first person's state is flushed to their own key, never to the next one's", () => {
+  const c = load();
+  c.S.join("pat@example.com", false);
+  c.S.setHub({ chip: "task" });
+  assert.strictEqual(c.pending(), 1);
+  c.S.join("sam@example.com", false);
+  assert.strictEqual(JSON.parse(c.store[K("pat@example.com")]).chip, "task", "Pat's pending change was flushed to Pat's key");
+  assert.strictEqual(c.S.getState().hub.chip, "all", "Sam starts clean");
+  c.fire(); // any leftover timer must not write Pat's state under Sam
+  const sam = c.store[K("sam@example.com")];
+  assert.ok(sam === undefined || JSON.parse(sam).chip !== "task", "Sam's key never holds Pat's filter");
+  c.S.setHub({ chip: "doc" });
+  c.S.flushHub();
+  assert.strictEqual(JSON.parse(c.store[K("sam@example.com")]).chip, "doc");
+  assert.strictEqual(JSON.parse(c.store[K("pat@example.com")]).chip, "task");
+});
+
 t("the timer is 500 ms", () => {
   const c = load();
   c.S.join("pat@example.com", false);

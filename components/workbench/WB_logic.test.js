@@ -349,7 +349,23 @@ t("hub: layer selectors and order", () => {
   assert.strictEqual(L.WB_isStacked(["menu", "task-drawer"]), true);
   assert.strictEqual(L.WB_isStacked([]), false);
   // The hub's own panel is never a layer above it.
-  assert.ok(L.WB_LAYER_SELECTORS.every((x) => !/^\.wb-panel/.test(x)));
+  assert.ok(L.WB_LAYER_SELECTORS.every((x) => !/^\.wb-panel/.test(x) || /\.tk-menu/.test(x)));
+  // A My tasks row's status menu inside the panel is a layer above the hub: Esc closes it first.
+  const tkMenu = ".wb-panel .tk-menu[role='menu']";
+  assert.ok(sels.indexOf(tkMenu) >= 0);
+  assert.deepStrictEqual(L.WB_layersPresent(has(tkMenu)), ["tk-menu"]);
+  assert.strictEqual(L.WB_layerAbove(L.WB_layersPresent(has(tkMenu))), true);
+  assert.strictEqual(L.WB_isStacked(["tk-menu"]), false);
+});
+
+t("hub: My tasks tab is ready only after a real load, never a false zero", () => {
+  assert.strictEqual(L.WB_hubTasksReady({ loading: false, tasks: [], error: null }, false), false, "before the first load starts");
+  assert.strictEqual(L.WB_hubTasksReady({ loading: true, tasks: [], error: null }, true), false, "while loading");
+  assert.strictEqual(L.WB_hubTasksReady({ loading: false, tasks: [], error: null }, true), true, "loaded and empty");
+  assert.strictEqual(L.WB_hubTasksReady({ loading: true, tasks: [{ id: 1 }], error: null }, false), true, "rows already there");
+  assert.strictEqual(L.WB_hubTasksReady({ loading: false, tasks: [], error: "x" }, false), true, "a failure settles it");
+  assert.strictEqual(L.WB_hubTasksReady(null, true), true);
+  assert.strictEqual(L.WB_hubTasksReady(undefined, false), false);
 });
 
 t("hub: tab keys", () => {
@@ -472,15 +488,18 @@ t("hub: My tasks groups drop Done and Unassigned and cap the rows", () => {
   const r = L.WB_hubTaskGroups(view, 100);
   assert.deepStrictEqual(r.groups.map((x) => x.key), ["overdue", "today", "week", "later"]);
   assert.strictEqual(r.total, 11);
-  assert.strictEqual(r.shown, 11);
+  assert.strictEqual(r.shown, 10, "a folded group draws no rows");
   assert.strictEqual(r.more, 0);
   assert.strictEqual(r.groups[2].collapsed, true);
+  assert.strictEqual(r.groups[2].tasks.length, 0);
+  assert.strictEqual(r.groups[2].total, 1);
   // The cap cuts across groups in order and every group keeps its full total.
   const c = L.WB_hubTaskGroups(view, 4);
-  assert.deepStrictEqual(c.groups.map((x) => x.tasks.length), [3, 1]);
-  assert.deepStrictEqual(c.groups.map((x) => x.total), [3, 2]);
+  // Groups the cap cut to nothing keep their header and full count; a folded group does not use the cap.
+  assert.deepStrictEqual(c.groups.map((x) => x.tasks.length), [3, 1, 0, 0]);
+  assert.deepStrictEqual(c.groups.map((x) => x.total), [3, 2, 1, 5]);
   assert.strictEqual(c.total, 11);
-  assert.strictEqual(c.more, 7);
+  assert.strictEqual(c.more, 6);
   assert.strictEqual(L.WB_HUB_TASK_CAP, 200);
   const big = L.WB_hubTaskGroups([g("later", 250)]);
   assert.strictEqual(big.shown, 200);

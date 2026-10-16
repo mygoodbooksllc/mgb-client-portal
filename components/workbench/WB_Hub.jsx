@@ -74,10 +74,12 @@ function WB_useHubKeys(live, panelRef) {
         return;
       }
       const inPanel = panel && e.target && panel.contains(e.target);
-      // This listener runs in the window's capture phase, ahead of the page's
-      // own handlers. If something earlier already claimed W (preventDefault),
-      // that must not block the hub toggle, so the check below ignores
-      // defaultPrevented; typing, modifiers, dialogs and menus still block it.
+      // This listener runs in the window's capture phase, so page handlers
+      // (bubble phase) have not seen the key yet; only another capture listener
+      // registered earlier could have set defaultPrevented. The check below
+      // ignores it so such a listener cannot block the hub toggle; typing,
+      // modifiers, dialogs and menus still block it, and stopPropagation below
+      // keeps later handlers from acting on W as well.
       if (!inPanel && WB_keyBlocked({ key: e.key, target: e.target, ctrlKey: e.ctrlKey, metaKey: e.metaKey, altKey: e.altKey, isComposing: e.isComposing, keyCode: e.keyCode, defaultPrevented: false })) return;
       if (inPanel && e.target && /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName || "")) return;
       e.preventDefault();
@@ -89,6 +91,35 @@ function WB_useHubKeys(live, panelRef) {
     window.addEventListener("keydown", onKey, true);
     return () => window.removeEventListener("keydown", onKey, true);
   }, [live]);
+}
+
+// The element to focus inside the open panel: the row for `key` if it is on
+// screen in the visible pane (Inbox rows carry data-wb-key, My tasks rows and
+// their subtasks are "tk:<id>"), else the first visible row, else the selected
+// tab. Hidden panes (kept mounted) are never searched.
+function WB_hubFocusTarget(panel, key) {
+  if (!panel) return null;
+  const pane = panel.querySelector(".wb-hub-pane:not([hidden])") || panel;
+  const shown = (el) => !!el && el.offsetParent !== null;
+  let el = null;
+  if (key) {
+    const tk = String(key).indexOf("tk:") === 0;
+    const want = tk ? String(key).slice(3) : String(key);
+    const rows = pane.querySelectorAll(tk ? "[data-tk-id],[data-tk-sub]" : "[data-wb-key]");
+    for (let i = 0; i < rows.length && !el; i++) {
+      const r = rows[i];
+      const v = tk ? r.getAttribute("data-tk-id") || r.getAttribute("data-tk-sub") : r.getAttribute("data-wb-key");
+      if (v === want && shown(r)) el = r;
+    }
+  }
+  if (!el) {
+    const sels = [".wb-row[tabindex='0']", ".tk-row[tabindex='0']", ".tk-row"];
+    for (let k = 0; k < sels.length && !el; k++) {
+      const found = pane.querySelectorAll(sels[k]);
+      for (let i = 0; i < found.length && !el; i++) if (shown(found[i])) el = found[i];
+    }
+  }
+  return el || panel.querySelector('[role="tab"][aria-selected="true"]') || panel.querySelector(".wb-tab.is-on") || panel;
 }
 
 function WB_useHubLayers(open, panelRef) {
@@ -104,16 +135,7 @@ function WB_useHubLayers(open, panelRef) {
       const ae = document.activeElement;
       if (ae && ae !== document.body && panel.contains(ae)) return; // the drawer already put it back
       const key = WB_store.getState().hub.lastFocus;
-      let el = null;
-      if (key) {
-        // Inbox rows carry data-wb-key; My tasks rows (TK_TaskRow) are "tk:<id>".
-        const tk = key.indexOf("tk:") === 0;
-        const attr = tk ? "data-tk-id" : "data-wb-key";
-        const want = tk ? key.slice(3) : key;
-        const rows = panel.querySelectorAll("[" + attr + "]");
-        for (let i = 0; i < rows.length && !el; i++) if (rows[i].getAttribute(attr) === want) el = rows[i];
-      }
-      if (!el) el = panel.querySelector(".wb-row[tabindex='0']") || panel.querySelector(".tk-row[tabindex='0']") || panel.querySelector('[role="tab"][aria-selected="true"]') || panel.querySelector(".wb-tab.is-on") || panel;
+      const el = WB_hubFocusTarget(panel, key);
       if (el && typeof el.focus === "function") el.focus();
     };
     const check = () => {
@@ -289,8 +311,9 @@ function WB_Hub({ s, me, isAdmin, clients, panelRef, view, allView, chip, today,
               </p>
             )}
           </div>
-          {tasksSeen && (
-            <div className="wb-hub-pane" hidden={tab !== "tasks"} {...(tabbed ? { role: "tabpanel", id: "wb-hub-pane-tasks", "aria-labelledby": "wb-hub-tab-tasks" } : {})}>
+          {/* The wrapper always exists (it is the tab's aria-controls target); only the content waits for the first visit. */}
+          <div className="wb-hub-pane" hidden={tab !== "tasks"} {...(tabbed ? { role: "tabpanel", id: "wb-hub-pane-tasks", "aria-labelledby": "wb-hub-tab-tasks" } : {})}>
+            {tasksSeen && (
               <WB_HubTasks
                 me={me}
                 isAdmin={isAdmin}
@@ -300,8 +323,8 @@ function WB_Hub({ s, me, isAdmin, clients, panelRef, view, allView, chip, today,
                 onCount={setTasksCount}
                 onReady={() => setTasksReady(true)}
               />
-            </div>
-          )}
+            )}
+          </div>
         </div>
         <p className="wb-panel-foot">
           <kbd>W</kbd> opens and closes · <kbd>Esc</kbd> closes one layer at a time

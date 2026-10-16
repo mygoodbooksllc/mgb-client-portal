@@ -456,15 +456,31 @@ function WB_hubTaskGroups(view, cap) {
   var groups = [];
   var total = 0;
   var shown = 0;
+  var expanded = 0;
   (Array.isArray(view) ? view : []).forEach(function (g) {
     if (!g || WB_HUB_TASK_GROUPS.indexOf(g.key) < 0 || !Array.isArray(g.tasks) || !g.tasks.length) return;
-    var room = Math.max(0, max - shown);
-    var tasks = g.tasks.slice(0, room);
     total += g.tasks.length;
-    shown += tasks.length;
-    if (tasks.length) groups.push({ key: g.key, label: g.label, tasks: tasks, total: g.tasks.length, collapsed: !!g.collapsed });
+    // A folded group draws no rows, so it neither uses the cap nor counts as "more".
+    var tasks = [];
+    if (!g.collapsed) {
+      expanded += g.tasks.length;
+      tasks = g.tasks.slice(0, Math.max(0, max - shown));
+      shown += tasks.length;
+    }
+    // A group the cap cut to nothing keeps its header and full count.
+    groups.push({ key: g.key, label: g.label, tasks: tasks, total: g.tasks.length, collapsed: !!g.collapsed });
   });
-  return { groups: groups, total: total, shown: shown, more: total - shown };
+  return { groups: groups, total: total, shown: shown, more: expanded - shown };
+}
+
+// Has the My tasks list settled? True once a load started and finished, or
+// there are rows, or it failed. Before that the tab shows its skeleton and
+// reports no count (never a false 0). listState {loading, tasks, error}.
+function WB_hubTasksReady(listState, sawLoading) {
+  var l = listState || {};
+  if (Array.isArray(l.tasks) && l.tasks.length > 0) return true;
+  if (l.error) return true;
+  return !!sawLoading && !l.loading;
 }
 
 // Arrow keys on the tab list (ARIA tabs): returns the tab to move to, or null.
@@ -483,6 +499,8 @@ function WB_tabMove(ids, cur, key) {
 // themselves, so the hub's own scrim stops taking clicks while one is open).
 var WB_LAYERS = [
   { id: "menu", sel: ".wb-menu", z: 3000, stacked: false },
+  // A My tasks row's status menu (TK_TaskRow) lives inside the panel; Esc must close it before the hub.
+  { id: "tk-menu", sel: ".wb-panel .tk-menu[role='menu']", z: 3000, stacked: false },
   { id: "tour", sel: ".tour-root", z: 2900, stacked: false },
   { id: "modal", sel: ".modal-overlay", z: 2000, stacked: true },
   { id: "aria-modal", sel: '[aria-modal="true"]:not(.wb-panel)', z: 1900, stacked: true },
@@ -807,6 +825,7 @@ if (typeof module !== "undefined" && module.exports) {
     WB_hubRoute: WB_hubRoute,
     WB_hubArrival: WB_hubArrival,
     WB_hubTaskGroups: WB_hubTaskGroups,
+    WB_hubTasksReady: WB_hubTasksReady,
     WB_HUB_OPEN_MS: WB_HUB_OPEN_MS,
     WB_HUB_SCROLL_MS: WB_HUB_SCROLL_MS,
     WB_LAYERS: WB_LAYERS,
