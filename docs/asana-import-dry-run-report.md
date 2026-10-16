@@ -377,3 +377,5 @@ No dates are changed except: a start date after the due date is dropped. Overdue
 5b. Clients in the No team yet group: an admin gives each a bookkeeper with `tk_import_assign_team(client, bookkeeper)`; the client's imported tasks owned by the fallback move to that bookkeeper (unassigned ones stay unassigned).
 6. Turn the switch off again (`value = 'false'`).
 7. Rollback if needed: `select public.tk_import_asana_undo('<run id>', 'UNDO <first 8 of run id>');` soft-deletes the run's tasks, archives its projects, retires its draft templates and marks the map rows undone.
+
+**Import run on 2026-10-16:** 61 roster clients created first (`supabase/asana-import-roster-clients.sql`; 55 linked to their QBO customer by exact name). Applied run `49b3186a`: 1132 tasks created (135 subtasks, 176 unassigned, 160 with no client), 16 projects created + 1 merged, 749 draft templates (735 linked to their open task; 14 not linked because that task has no due date), 0 skipped, 0 already imported. No email or notification rows were added. Switch set back to off. Undo phrase: `UNDO 49b3186a`.
