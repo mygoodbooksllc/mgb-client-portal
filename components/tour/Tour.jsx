@@ -99,6 +99,12 @@
 //                    when something is waiting
 //   tk-review-stats  the queue's Last 30 days card (admins)
 //   tk-review-strip  the review strip in a task's details (TK_Drawer.jsx)
+//   tk-recurring-nav the sidebar's Recurring item (TK_Sidebar.jsx), same widths
+//   tk-recurring-client  Tasks › Recurring's One client card (TK_Templates.jsx)
+//   tk-recurring-actions New template / Preview / Make due tasks now (admins)
+//   tk-recurring-list    the template groups, once loaded
+//   tk-recurring-standard the standard close set note (when the set exists)
+//   tk-recurring-missed  the Missed periods card (admins, when any are open)
 //   tk-popout        Open in own window (TK_App.jsx), not on touch devices,
 //                    compact widths or in the shell
 //   tk-strip         the client task strip under a client's tabs
@@ -1092,7 +1098,7 @@ function TOUR_adminSteps(ctx) {
       press: true,
       title: "Settings › Firm settings",
       body: () =>
-        "The firm-wide pages: Task templates, Client roster (where a new client is added), Emails, QuickBooks usage, Usage stats, the Audit log and Developer tools.",
+        "The firm-wide pages: Task templates (they open Tasks › Recurring), Client roster (where a new client is added), Emails, QuickBooks usage, Usage stats, the Audit log and Developer tools.",
     },
     {
       id: "today",
@@ -1144,7 +1150,7 @@ function TOUR_tempAdminSteps(ctx) {
       targets: ["#st-tab-firm"],
       press: true,
       title: "Settings › Firm settings",
-      body: () => "Task templates, Client roster, Usage stats and Developer tools.",
+      body: () => "Task templates (read-only), Client roster, Usage stats and Developer tools.",
     },
     {
       id: "done",

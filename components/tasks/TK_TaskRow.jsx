@@ -481,6 +481,7 @@ function TK_vIcon(props) {
   if (name === "more") return <svg {...common}><circle cx="5" cy="12" r="1.3" /><circle cx="12" cy="12" r="1.3" /><circle cx="19" cy="12" r="1.3" /></svg>;
   if (name === "keyboard") return <svg {...common}><rect x="2.5" y="6" width="19" height="12" rx="2" /><line x1="7" y1="14.5" x2="17" y2="14.5" /><line x1="6.5" y1="10" x2="7.5" y2="10" /><line x1="11.5" y1="10" x2="12.5" y2="10" /><line x1="16.5" y1="10" x2="17.5" y2="10" /></svg>;
   if (name === "people") return <svg {...common}><circle cx="9" cy="8.5" r="3.2" /><path d="M3.5 19c.6-3.2 2.8-5 5.5-5s4.9 1.8 5.5 5" /><circle cx="17" cy="9.5" r="2.4" /><path d="M15.8 14.2c2.2.2 3.8 1.8 4.4 4.3" /></svg>;
+  if (name === "repeat") return <svg {...common}><path d="M4 11V9a3 3 0 0 1 3-3h12" /><polyline points="16 3 19 6 16 9" /><path d="M20 13v2a3 3 0 0 1-3 3H5" /><polyline points="8 21 5 18 8 15" /></svg>;
   if (name === "folder") return <svg {...common}><path d="M3.5 7.5a2 2 0 0 1 2-2h4l2 2h7a2 2 0 0 1 2 2v7.5a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2z" /></svg>;
   return <svg {...common}><circle cx="12" cy="12" r="8" /></svg>;
 }
@@ -820,6 +821,8 @@ function TK_TaskRow(props) {
   if (props.projectName) meta.push(<span key="p" className="tk-meta-project">{props.projectName}</span>);
   if (task.section && props.showSection) meta.push(<span key="s">{task.section}</span>);
   if (cl) meta.push(<span key="cl" className="tk-meta-check" title="Checklist">{cl.done + "/" + cl.total}</span>);
+  // tasks p2 s4: made by a recurring template
+  if (task.source === "template") meta.push(<span key="rc" className="tk-meta-recurring" title="Made by a recurring template">Recurring</span>);
   if (props.snippet) meta.push(<span key="sn" className="tk-meta-snippet">{"In a comment: " + props.snippet}</span>);
   if (props.note) meta.push(<span key="nt" className="tk-meta-note">{props.note}</span>);
 

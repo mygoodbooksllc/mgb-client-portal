@@ -946,7 +946,7 @@ function ST_firmGroups(isAdmin, hasTempAdminAccess) {
     {
       title: "People and work",
       rows: [
-        { key: "templates", page: "task-templates", label: "Task templates", sub: "Recurring tasks created automatically for each client's bookkeeper.", icon: icon("RepeatIcon"), show: anyAdmin },
+        { key: "templates", page: "task-templates", label: "Task templates", sub: "Recurring tasks for each client, now in Tasks › Recurring.", icon: icon("RepeatIcon"), show: anyAdmin },
         { key: "roster", page: "client-access", label: "Client roster", sub: "Who at each organization is registered to sign in.", icon: icon("ClientRosterIcon"), show: anyAdmin },
       ],
     },

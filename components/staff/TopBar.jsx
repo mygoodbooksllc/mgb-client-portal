@@ -369,7 +369,7 @@ function TB_pageRows(ctx, onOpenSettings) {
   });
   if (ctx.isAdmin) {
     [
-      ["templates", "Task templates", "Recurring tasks for each client's bookkeeper"],
+      ["templates", "Recurring tasks", "Task templates, in Tasks › Recurring"],
       ["client-access", "Client roster", "Who at each organization can sign in"],
       ["emails", "Emails", "Sending, the weekly digest and the send log"],
       ["usage-stats", "Usage stats", "Which pages and features get used"],
@@ -1032,8 +1032,8 @@ function TB_useBellItems({ clients, items, me, isAdmin, page }) {
       title: `Template suggestion: ${row.title}`,
       sub:
         [String(row.suggested_by || "").split("@")[0], row.client_id ? nameOf(row.client_id) : ""].filter(Boolean).join(" · ") ||
-        "Task templates",
-      go: () => TB_go("#/templates"),
+        "Tasks › Recurring",
+      go: () => TB_go("#/tasks/templates"),
     }),
   );
   out.sort((a, b) => String(b.at || "").localeCompare(String(a.at || "")));

@@ -189,6 +189,11 @@
   color: var(--text-muted);
 }
 
+/* Tasks p2 S4: made by a recurring template */
+.tk-dw-recurring {
+  color: var(--text-muted);
+}
+
 /* Fallback status select (used when the views slice's pill isn't loaded). */
 .tk-dw-status-select {
   height: 28px;

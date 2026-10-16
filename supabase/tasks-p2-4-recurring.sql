@@ -1000,7 +1000,7 @@ select v.title, 'monthly', 10, v.rule, v.lead, 'normal', 'draft', true, s.id, v.
    and not exists (select 1 from public.task_templates t where t.template_set_id = s.id and t.close_key = v.key);
 
 -- standard_set_live is an owner-only tk_settings key: not seeded here
--- (missing = off). The owner turns it on from Settings when ready.
+-- (missing = off). The owner turns it on in Tasks › Recurring when ready.
 
 -- 14. Cron: plain SQL, no secret ---------------------------------------------
 select cron.unschedule(jobid) from cron.job where jobname in ('task-templates-daily');

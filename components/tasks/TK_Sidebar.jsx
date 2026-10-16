@@ -254,6 +254,7 @@ function TK_Sidebar(props) {
       <ul className="tk-nav">
         <TK_vNavItem route={{ view: "my" }} label="My Tasks" icon="home" active={route.view === "my"} onNavigate={nav} />
         <TK_vNavItem route={{ view: "review" }} label="Review" icon="check" count={reviewCount} tour="tk-review-nav" active={route.view === "review"} onNavigate={nav} />
+        <TK_vNavItem route={{ view: "templates" }} label="Recurring" icon="repeat" tour="tk-recurring-nav" active={route.view === "templates"} onNavigate={nav} />
         <TK_vNavItem route={{ view: "search" }} label="Search" icon="search" active={route.view === "search"} onNavigate={nav} />
       </ul>
 

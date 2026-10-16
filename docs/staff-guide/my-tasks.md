@@ -74,8 +74,8 @@ The shortcuts pause while you type in a box or have a menu open. Click the keybo
 
 Doing the same task every month? Open the task, click **More actions** in its header and pick **Save as template**.
 
-- **Admins**: the **Task templates** editor opens, pre-filled with the task's title (without the " · Sep 2026" part), its priority, its client and its checklist. Check the details, pick how often it repeats, and click **Save**. Nothing is saved until you do.
-- **Everyone else** (including temporary admins): the item says **Suggest as template**. It sends the idea to the admins, who see it at the top of Task templates and in their bell. You'll see "Suggested to admins as a recurring template."
+- **Admins**: the template editor opens on **Tasks › Recurring**, pre-filled with the task's title (without the " · Sep 2026" part), its priority, its client and its checklist. Check the details, pick how often it repeats, and click **Save draft**. Nothing is saved until you do, and nothing is made until you turn the template on.
+- **Everyone else** (including temporary admins): the item says **Suggest as template**. It sends the idea to the admins, who see it at the top of **Tasks › Recurring** and in their bell. You'll see "Suggested to admins as a recurring template."
 
 See [How do recurring tasks from templates work?](#/help/task-templates).
 

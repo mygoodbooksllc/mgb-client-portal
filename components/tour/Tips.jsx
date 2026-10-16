@@ -364,6 +364,16 @@ const TIPS_CATALOG = [
     ready: () => !!document.querySelector('[data-tour="tk-review-nav"]'),
   },
   {
+    id: "tk-recurring-nav",
+    roles: "all",
+    match: (r) => r.page === "tasks",
+    target: "tk-recurring-nav",
+    snug: true,
+    text: "Recurring holds the templates that make monthly, quarterly and yearly tasks for each client. Tasks they make show a Recurring tag.",
+    slug: "task-templates",
+    ready: () => !!document.querySelector('[data-tour="tk-recurring-nav"]'),
+  },
+  {
     id: "tk-sidebar",
     roles: "all",
     match: (r) => r.page === "tasks",

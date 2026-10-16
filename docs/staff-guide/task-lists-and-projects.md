@@ -9,6 +9,7 @@ The **Tasks** page (the **Tasks** button in the top bar, or `#/tasks/my`) has a 
 
 - **My Tasks**: everything assigned to you. See [How do I add and manage my tasks?](#/help/my-tasks).
 - **Review**: work waiting for an admin's approval, with a count for admins. See [How does task review work?](#/help/task-review).
+- **Recurring**: the templates that make monthly, quarterly, yearly and weekly tasks on their own. See [How do recurring tasks from templates work?](#/help/task-templates).
 - **Search**: searches task names, descriptions and comments.
 - **Projects**: shared lists for internal work. **New project** (the + next to the heading) starts one.
 - **Clients**: one list for each client you can see. With more than 8, a **Find a client** box narrows the list.

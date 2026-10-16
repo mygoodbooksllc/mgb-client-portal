@@ -7193,7 +7193,7 @@ function OV_ClientTasks({ client, staffUser }) {
       return;
     }
     const { error } = await staffItemsApi.toggleDone(sb, me, t);
-    if (error) showToast("Couldn't update that task.");
+    if (error) showToast(error.friendly ? error.message : "Couldn't update that task.");
     else load();
   }
   const addTask = () => {
@@ -14765,6 +14765,30 @@ function DeveloperToolsPage({ staffUser, readOnly }) {
   const [clientErrorsError, setClientErrorsError] = useState("");
   const [openErrorId, setOpenErrorId] = useState(null);
   const [testEmail, setTestEmail] = useState({ busy: false, ok: null, text: "" });
+  // Tasks switches (tk_settings, read-only here): the owner flips
+  // standard_set_live on Tasks › Recurring.
+  const [tkSettings, setTkSettings] = useState(null); // null = loading
+  const [tkSettingsError, setTkSettingsError] = useState("");
+
+  useEffect(() => {
+    if (!supabase) return;
+    supabase
+      .from("tk_settings")
+      .select("key, value, updated_by, updated_at")
+      .then(({ data, error }) => {
+        if (error) {
+          setTkSettingsError("Couldn't load Tasks switches. " + error.message);
+          setTkSettings({});
+          return;
+        }
+        const out = {};
+        (data || []).forEach((r) => {
+          out[r.key] = r;
+        });
+        setTkSettingsError("");
+        setTkSettings(out);
+      });
+  }, [supabase]);
 
   const loadJobs = useCallback(() => {
     if (!supabase) return;
@@ -14928,6 +14952,39 @@ function DeveloperToolsPage({ staffUser, readOnly }) {
           and Client Roster.)
         </div>
       )}
+
+      <div className="card" style={{ marginBottom: 20 }}>
+        <h3 className="card-title">Tasks switches</h3>
+        <p className="card-subtitle">
+          Firm-wide, from tk_settings. Read-only here: the owner flips the standard close set on Tasks › Recurring.
+        </p>
+        {tkSettingsError ? <p className="card-subtitle">{tkSettingsError}</p> : null}
+        {tkSettings === null ? (
+          <p className="card-subtitle">Loading…</p>
+        ) : (
+          [
+            ["standard_set_live", "Standard close set live for real clients", "Off (or missing) means the set only reaches test clients."],
+            ["client_request_enabled", "Clients can request tasks", "Client task requests (later phase)."],
+            ["on_time_since", "On-time counted since", "Start date for on-time stats and the missed-periods floor."],
+          ].map(([key, label, desc]) => {
+            const row = tkSettings[key];
+            const raw = row ? row.value : undefined;
+            const val = raw === undefined || raw === null ? "Not set" : raw === true ? "On" : raw === false ? "Off" : String(raw);
+            return (
+              <div className="staff-flag-row" key={key}>
+                <span className={"pill " + (raw === true ? "good" : "neutral")} style={{ flexShrink: 0 }}>{val}</span>
+                <span>
+                  <span className="staff-flag-label">{label}</span>
+                  <span className="staff-flag-desc">
+                    {desc} <code>{key}</code>
+                    {row && row.updated_at ? " · changed " + String(row.updated_at).slice(0, 10) : ""}
+                  </span>
+                </span>
+              </div>
+            );
+          })
+        )}
+      </div>
 
       <fieldset
         disabled={readOnly}
@@ -19260,7 +19317,28 @@ const staffItemsApi = {
     );
   },
 
+  // Tasks p2 S3 leftover (c): ticking a task that is waiting for review is
+  // an approval. tk_approve decides who may (admins, never the person who
+  // did the work); anyone else gets a plain message instead of an error code.
+  async approveFromTick(supabase, item) {
+    const res = await supabase.rpc("tk_approve", { p_id: item.id, p_note: null });
+    if (!res.error) {
+      this.notify();
+      return res;
+    }
+    const m = String(res.error.message || "");
+    const msg = /tk_self_review/.test(m)
+      ? "You can't approve your own work. Another admin will review it."
+      : /tk_forbidden|tk_needs_approval|42501/.test(m + " " + (res.error.code || ""))
+        ? "It's waiting for an admin to approve it. Open it in Tasks › Review."
+        : m;
+    return { data: null, error: { code: res.error.code, message: msg, friendly: msg !== m } };
+  },
+
   async toggleDone(supabase, email, item) {
+    if (!item.done && item.status === "ready_for_review" && !this.legacy) {
+      return this.approveFromTick(supabase, item);
+    }
     if (!this.legacy && !this.rpcMissing) {
       const res = await supabase.rpc("complete_staff_item", {
         p_id: item.id,
@@ -19270,6 +19348,10 @@ const staffItemsApi = {
       if (!res.error) {
         this.notify();
         return res;
+      }
+      // The row was sent for review since this list loaded.
+      if (!item.done && /tk_needs_approval/.test(String(res.error.message || ""))) {
+        return this.approveFromTick(supabase, item);
       }
       if (!this.isMissingFunctionError(res.error)) return res;
       this.rpcMissing = true;
@@ -20661,7 +20743,7 @@ function MyTasksPage({
 
   async function toggleTask(task) {
     const { error } = await staffItemsApi.toggleDone(supabase, me, task);
-    if (error) showToast(`Couldn't update task: ${error.message}`);
+    if (error) showToast(error.friendly ? error.message : `Couldn't update task: ${error.message}`);
   }
 
   // "Save as template" (components/staff/TaskTemplates.jsx): admins get the
@@ -21460,7 +21542,7 @@ function MyTasksPage({
             <RepeatIcon />
             <span>Manage templates</span>
           </button>
-          <span className="tasks-manage-hint">Recurring tasks, in Settings → Firm settings</span>
+          <span className="tasks-manage-hint">Recurring tasks, in Tasks › Recurring</span>
         </div>
       )}
       <div className="card" style={{ marginBottom: 20 }}>
@@ -26109,7 +26191,7 @@ const PAGE_META = {
   },
   tasks: {
     title: "Tasks",
-    subtitle: "Your tasks, review, client lists and projects",
+    subtitle: "Your tasks, review, recurring work, client lists and projects",
   },
   clients: {
     title: "Clients",
@@ -26151,8 +26233,8 @@ const PAGE_META = {
     subtitle: "How-to guide for MyGoodBooks staff. Search or browse by topic",
   },
   "task-templates": {
-    title: "Task templates",
-    subtitle: "Recurring tasks created automatically for each client's bookkeeper",
+    title: "Recurring tasks",
+    subtitle: "Moved to Tasks › Recurring (#/tasks/templates)",
   },
   milestone: {
     title: "Milestone",
@@ -29889,7 +29971,7 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
               statusOverrides={statusOverrides}
               canManageTemplates={staffIsAdmin}
               canCreateTemplates={staffUser.role === "admin" && !impersonating}
-              onOpenTemplates={() => setPage("task-templates")}
+              onOpenTemplates={() => { window.location.hash = "#/tasks/templates"; }}
             />
           )}
           {/* Clients (components/staff/ClientsPage.jsx): every client this
@@ -30227,7 +30309,7 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
           isAdmin={staffIsAdmin}
           canManageTemplates={staffIsAdmin}
           canCreateTemplates={staffUser.role === "admin"}
-          onOpenTemplates={() => setPage("task-templates")}
+          onOpenTemplates={() => { window.location.hash = "#/tasks/templates"; }}
         />
       )}
       {/* The client tasks panel: t, the strip and the top bar's Tasks pill open it. */}

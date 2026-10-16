@@ -31,7 +31,8 @@ If you're also a client's account manager, the **Account manager tour** comes ne
 | **Team › Ledger review** | Ledger review settings: warn or block when a month is marked done unapproved, how much ledger to pull, and the vendor watch list | [Ledger review](#/help/ledger-review) |
 | **Team › Inventory** | Equipment **Requests**, **Items**, the **Roster** of who's missing what, the staff **Directory** and **Export to Google Sheet** | [Inventory](#/help/tech-inventory) |
 | **MGB (internal)** in the left rail | MyGoodBooks' own books, set up like a client. Open to every admin by default; the owner can switch it off for a person in **Team › Members**. Never counted in client numbers | [MGB (internal)](#/help/mgb-internal) |
-| **Settings › Firm settings** | **Task templates**, **Client roster** (where new clients are added), **Emails**, **QuickBooks usage**, **Usage stats**, **Audit log** and **Developer tools** | [Settings](#/help/staff-settings), [Usage stats and Developer tools](#/help/admin-insight), [Audit log](#/help/audit-log) |
+| **Tasks › Recurring** | Recurring task templates: drafts, **Turn on**, previews, **Make due tasks now**, **Missed periods** and the standard close set | [Recurring tasks](#/help/task-templates) |
+| **Settings › Firm settings** | **Task templates** (a link to Tasks › Recurring), **Client roster** (where new clients are added), **Emails**, **QuickBooks usage**, **Usage stats**, **Audit log** and **Developer tools** | [Settings](#/help/staff-settings), [Usage stats and Developer tools](#/help/admin-insight), [Audit log](#/help/audit-log) |
 | **Today** | Every client you can open, which for an admin is all of them, plus birthdays and work anniversaries a week ahead | [Today](#/help/home-page), [Celebrations](#/help/celebrations) |
 | **Email** to admin@mygoodbooks.org | Health-check alerts and the weekly digest | [Alerts](#/help/health-alerts), [Weekly digest](#/help/weekly-digest) |
 

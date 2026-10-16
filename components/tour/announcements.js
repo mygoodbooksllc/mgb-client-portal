@@ -164,6 +164,58 @@ var ANN_REGISTRY = [
       },
     ],
   },
+  {
+    id: "recurring-tasks",
+    date: "2026-10-15",
+    title: "Recurring tasks",
+    summary: "Recurring templates moved to Tasks › Recurring. They start as drafts, tasks they make carry a Recurring tag, and you can skip or change a template for one client.",
+    roles: ["admin", "bookkeeper"],
+    hash: "#/tasks/templates",
+    steps: (ctx) => [
+      {
+        id: "ann-welcome",
+        title: "Recurring tasks have a home",
+        body: () =>
+          ctx && ctx.isAdmin
+            ? "A quick look at recurring templates. They now live in Tasks, start as drafts, and only make tasks once you turn them on. About a minute."
+            : "A quick look at where recurring tasks come from. Tasks made from a template show a Recurring tag and end with the period, like \"· Sep 2026\". About a minute.",
+      },
+      {
+        id: "ann-nav",
+        go: () => {
+          if (!/^#\/tasks\/templates(\?|$)/.test(window.location.hash || "")) window.location.hash = "#/tasks/templates";
+        },
+        targets: ["tk-recurring-nav"],
+        wait: true,
+        title: "Recurring in the Tasks sidebar",
+        body: () => "Every recurring template, grouped by set, with how often it repeats and when it's due.",
+      },
+      {
+        id: "ann-client",
+        targets: ["tk-recurring-client"],
+        wait: true,
+        spot: "top",
+        title: "One client",
+        body: () =>
+          "Pick a client you look after to see which templates reach them. Skip one for that client, change its title, due date or who does it, or preview the next 60 days.",
+      },
+      {
+        id: "ann-actions",
+        when: (c) => !!(c && c.isAdmin),
+        targets: ["tk-recurring-actions"],
+        wait: true,
+        title: "New template, previews and runs",
+        body: () =>
+          "New templates are drafts. Use Preview on a row before you click Turn on. Make due tasks now runs the morning job straight away; nothing already made is made twice.",
+      },
+      {
+        id: "ann-done",
+        title: "That's it",
+        body: () =>
+          "Tasks from a template don't send an assignment email; they're on your list the next morning. To see this again, press ? and pick New: Recurring tasks tour.",
+      },
+    ],
+  },
 ];
 
 if (typeof module !== "undefined" && module.exports) module.exports = { ANN_REGISTRY: ANN_REGISTRY };

@@ -688,6 +688,7 @@ function TK_parseRoute(hash) {
   if (n === 1 || (n === 2 && (kind === "" || kind === "my"))) return { view: "my" };
   if (n === 2 && kind === "search") return { view: "search" };
   if (n === 2 && kind === "review") return { view: "review" };
+  if (n === 2 && kind === "templates") return { view: "templates" }; // tasks p2 s4
   var hasListSuffix = n === 4 && parts[3].toLowerCase() === "list";
   if (kind === "c" && (n === 3 || hasListSuffix)) {
     var id;
@@ -719,6 +720,7 @@ function TK_formatRoute(route) {
   if (r.view === "person" && TK_isUuid(r.staffId)) return "#/tasks/u/" + r.staffId;
   if (r.view === "search") return "#/tasks/search";
   if (r.view === "review") return "#/tasks/review";
+  if (r.view === "templates") return "#/tasks/templates";
   return "#/tasks/my";
 }
 

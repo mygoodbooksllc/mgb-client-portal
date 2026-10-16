@@ -86,6 +86,7 @@ function TK_App(props) {
   if (route.view === "my") main = <TK_MyTasks staffUser={staffUser} clients={clients} isAdmin={isAdmin} />;
   else if (route.view === "search") main = <TK_SearchView staffUser={staffUser} clients={clients} isAdmin={isAdmin} />;
   else if (route.view === "review") main = <TK_ReviewQueue staffUser={staffUser} clients={clients} isAdmin={isAdmin} />;
+  else if (route.view === "templates") main = <TK_Templates staffUser={staffUser} clients={clients} isAdmin={isAdmin} />;
   else if (route.view === "client" || route.view === "project" || route.view === "person") {
     main = <TK_List route={route} staffUser={staffUser} clients={clients} isAdmin={isAdmin} />;
   } else {

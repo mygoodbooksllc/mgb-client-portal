@@ -2201,6 +2201,7 @@ function TK_Drawer(props) {
                 return " · Due " + (dl === "Today" || dl === "Tomorrow" || dl === "Yesterday" ? dl.toLowerCase() : dl);
               })()}
               {task.assignee_email || task.staff_email ? " · " + nameOf(task.assignee_email || task.staff_email) : ""}
+              {task.source === "template" ? <span className="tk-dw-recurring" title="Made by a recurring template. See Tasks › Recurring."> · Recurring</span> : null}
             </p>
           )}
         </header>

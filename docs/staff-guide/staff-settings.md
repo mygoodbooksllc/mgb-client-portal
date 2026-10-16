@@ -62,11 +62,11 @@ Start a tour (the **Tasks tour** is here too), open the Staff guide or **Send fe
 
 The firm-wide admin pages, in three groups. Click a row to open the page. Search (**Ctrl+K** / **⌘K**) jumps to them too.
 
-- **People and work**: **Task templates** and **Client roster**.
+- **People and work**: **Task templates** (it opens **Tasks › Recurring**) and **Client roster**.
 - **Email and QuickBooks**: **Emails**, with a chip showing whether sending works (**Domain verified**, **Domain pending**, **Needs attention** or **Not checked yet**), and **QuickBooks usage and limits**, with this month's **% used**. It opens the usage card on the Team page.
 - **Insight and records**: **Usage stats**, **Audit log** and **Developer tools**.
 
-Staff with temporary admin access see Task templates, Client roster, Usage stats and Developer tools. **Team › Feedback** stays admin-only.
+Staff with temporary admin access see Task templates (read-only), Client roster, Usage stats and Developer tools. **Team › Feedback** stays admin-only.
 
 ### Sign out
 

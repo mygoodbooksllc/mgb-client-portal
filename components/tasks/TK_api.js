@@ -60,6 +60,8 @@ var TK_api = (function () {
     "tk_use_drive", "tk_member_inactive", "tk_name_taken",
     "tk_self_review", "tk_needs_approval", "tk_in_review", "tk_reason_required", "tk_bad_reviewer",
     "tk_server_owned", "tk_owner_only",
+    "tk_bad_due_rule", "tk_bad_template", "tk_checklist_too_long", "tk_bad_override", "tk_bad_action",
+    "tk_template_retired", "tk_not_found",
   ];
   var COPY_FALLBACK = {
     sentForReview: "Sent for review. An admin will approve it.",
@@ -1357,6 +1359,184 @@ var TK_api = (function () {
         };
       });
       return { qbo: qbo, driveFolderId: driveFolderId, contacts: contacts };
+    });
+  };
+
+  // ---- Recurring templates (Tasks Phase 2, S4) -------------------------------
+  // Reads are RLS (admins see every template; staff see firm-wide ones and
+  // ones for a client they can reach). Every write is an RPC in
+  // supabase/tasks-p2-4-recurring.sql; the server decides who may call it.
+
+  var TPL_COLS =
+    "id, title, cadence, due_offset_days, due_rule, lead_days, plan_tiers, client_ids, priority, active, status, checklist, " +
+    "assignee_role, review_required, sop_section, estimate_minutes, period_basis, template_set_id, close_key, activated_at, " +
+    "source, created_by, created_at, updated_by";
+
+  function rpcWrite(name, args, where) {
+    var off = requireOnline();
+    if (off) return off;
+    return run(function (c) {
+      return c.rpc(name, args);
+    }, { where: where });
+  }
+
+  api.listTemplates = function () {
+    return run(function (c) {
+      return c.from("task_templates").select(TPL_COLS).order("created_at", { ascending: true }).limit(1000);
+    }, { where: "listTemplates" }).then(function (rows) { return rows || []; });
+  };
+
+  api.listTemplateSets = function () {
+    return run(function (c) {
+      return c.from("tk_template_sets").select("id, name, is_standard, deleted_at").order("name", { ascending: true });
+    }, { where: "listTemplateSets" }).then(function (rows) { return rows || []; });
+  };
+
+  // template id -> how many periods it has created (all clients you can see).
+  api.templateIssuedCounts = function () {
+    return run(function (c) {
+      return c.from("task_template_issued").select("template_id").limit(10000);
+    }, { where: "templateIssuedCounts" }).then(function (rows) {
+      var counts = {};
+      (rows || []).forEach(function (r) { counts[r.template_id] = (counts[r.template_id] || 0) + 1; });
+      return counts;
+    });
+  };
+
+  // Create (id null, always a draft) or edit. Resolves with the id.
+  api.saveTemplate = function (id, payload) {
+    return rpcWrite("tk_save_template", { p_id: id || null, p_tpl: payload }, "saveTemplate");
+  };
+
+  // action: activate | pause | resume | retire | draft
+  api.setTemplateStatus = function (id, action) {
+    return rpcWrite("tk_set_template_status", { p_id: id, p_action: action }, "setTemplateStatus");
+  };
+
+  api.listOverrides = function (clientId) {
+    if (!clientId) return Promise.resolve([]);
+    return run(function (c) {
+      return c
+        .from("tk_client_template_overrides")
+        .select("template_id, skip, override, updated_by, updated_at")
+        .eq("client_id", String(clientId));
+    }, { where: "listOverrides" }).then(function (rows) { return rows || []; });
+  };
+
+  api.setClientOverride = function (clientId, templateId, skip, override) {
+    return rpcWrite(
+      "tk_set_client_override",
+      { p_client_id: String(clientId), p_template_id: templateId, p_skip: !!skip, p_override: override || {} },
+      "setClientOverride",
+    );
+  };
+
+  // Dry run: what the next run would create, plus the next `days` days.
+  // A client needs access; all clients or one template needs an admin.
+  api.generatePreview = function (clientId, days, templateId) {
+    return run(function (c) {
+      return c.rpc("tk_generate_preview", {
+        p_client_id: clientId ? String(clientId) : null,
+        p_days: days == null ? 30 : days,
+        p_template_id: templateId || null,
+      });
+    }, { where: "generatePreview" });
+  };
+
+  // A real run now (admins). clientId limits it to one client.
+  api.generateNow = function (clientId) {
+    return rpcWrite("tk_generate", { p_today: null, p_dry_run: false, p_client_id: clientId ? String(clientId) : null, p_horizon_days: null }, "generateNow");
+  };
+
+  api.listRuns = function (limit) {
+    return run(function (c) {
+      return c
+        .from("tk_generator_runs")
+        .select("id, ran_at, p_today, trigger, ran_by, created, skipped, missed, result")
+        .order("ran_at", { ascending: false })
+        .limit(limit || 15);
+    }, { where: "listRuns" }).then(function (rows) { return rows || []; });
+  };
+
+  // Open missed periods (admins): neither created nor dismissed.
+  api.listMissed = function () {
+    return run(function (c) {
+      return c
+        .from("tk_generate_missed")
+        .select("template_id, client_id, period_start, due_date, label, first_seen_at")
+        .is("dismissed_at", null)
+        .is("issued_at", null)
+        .order("due_date", { ascending: true })
+        .limit(300);
+    }, { where: "listMissed" }).then(function (rows) { return rows || []; });
+  };
+
+  api.issueMissed = function (templateId, clientId, periodStart) {
+    return rpcWrite("tk_issue_missed", { p_template_id: templateId, p_client_id: String(clientId), p_period_start: periodStart }, "issueMissed");
+  };
+
+  api.dismissMissed = function (templateId, clientId, periodStart) {
+    return rpcWrite("tk_dismiss_missed", { p_template_id: templateId, p_client_id: String(clientId), p_period_start: periodStart }, "dismissMissed");
+  };
+
+  // Firm-closed days as 'YYYY-MM-DD' (the preview's business-day maths).
+  api.holidays = function () {
+    return run(function (c) {
+      return c.from("tk_holidays").select("day").eq("firm_closed", true).order("day", { ascending: true }).limit(2000);
+    }, { where: "holidays" }).then(function (rows) {
+      return (rows || []).map(function (r) { return String(r.day).slice(0, 10); });
+    });
+  };
+
+  // tk_settings as { key: value }.
+  api.getSettings = function () {
+    return run(function (c) {
+      return c.from("tk_settings").select("key, value, updated_by, updated_at");
+    }, { where: "getSettings" }).then(function (rows) {
+      var out = {};
+      (rows || []).forEach(function (r) { out[r.key] = r.value; });
+      return out;
+    });
+  };
+
+  // Owner-only keys (standard_set_live …) are refused for anyone else
+  // (tk_owner_only); every change is audited.
+  api.setSetting = function (key, value) {
+    var off = requireOnline();
+    if (off) return off;
+    return run(function (c) {
+      return c.from("tk_settings").upsert({ key: key, value: value }, { onConflict: "key" });
+    }, { where: "setSetting" });
+  };
+
+  api.clientFiscalYearEnd = function (clientId) {
+    if (!clientId) return Promise.resolve(null);
+    return run(function (c) {
+      return c.from("client_profile").select("fiscal_year_end").eq("client_id", String(clientId)).maybeSingle();
+    }, { where: "clientFiscalYearEnd" }).then(function (row) { return row ? row.fiscal_year_end || null : null; });
+  };
+
+  // "Save as template" suggestions from staff (admins resolve them).
+  api.listSuggestions = function () {
+    return run(function (c) {
+      return c
+        .from("task_template_suggestions")
+        .select("id, title, priority, client_id, suggested_by, created_at")
+        .eq("status", "pending")
+        .order("created_at", { ascending: false })
+        .limit(50);
+    }, { where: "listSuggestions" }).then(function (rows) { return rows || []; });
+  };
+
+  // patch: { status: 'dismissed' } or { status: 'created', template_id }.
+  api.resolveSuggestion = function (id, patch) {
+    var off = requireOnline();
+    if (off) return off;
+    return run(function (c) {
+      return c.from("task_template_suggestions").update(patch).eq("id", id);
+    }, { where: "resolveSuggestion" }).then(function () {
+      try { window.dispatchEvent(new Event("mgb:staff-tools-changed")); } catch (e) {}
+      return true;
     });
   };
 
