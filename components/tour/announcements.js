@@ -59,7 +59,7 @@ var ANN_REGISTRY = [
         id: "ann-done",
         title: "Nothing is guessed",
         body: () =>
-          "A name it doesn't know stays in the title. If a name fits more than one person or client, Did you mean offers each choice, and the x on a chip puts its words back. To see this again, press ? and pick New: Quick add understands plain words tour.",
+          "A name it doesn't know stays in the title. If a name fits more than one person or client, Did you mean offers each choice, and the x on a plain-words chip puts its words back. To see this again, press ? and pick New: Quick add understands plain words tour.",
       },
     ],
   },

@@ -12,7 +12,7 @@ Each new launch also has a **Launches** list above, with **Open** and **Take the
 ### 2026-10-16: Quick add understands plain words
 
 - **Type the task the way you'd say it.** *Send the payroll summary for Sierra re Example Church by Friday* picks the person, the client and the due date. Also *for me*, *assign to Sierra*, **@me**, *tomorrow*, *next week*, *due the 15th* and *end of month*.
-- **A Will add line** under the box shows what it understood before you press Enter, as chips you can remove. **×** puts those words back in the title.
+- **A Will add line** under the box shows what it understood before you press Enter, as chips you can remove. **×** on a plain-words chip puts those words back in the title.
 - **Never a silent guess.** A name it doesn't know stays in the title. If it could be two people, a client and a person, or two clients, a **Did you mean** line offers each choice as a button, with **Neither**.
 - The symbols (**@name**, **#client**, **!high**) still work. The small add box on a project or client list reads only those symbols and dates.
 - A launch notice and tour come with it; rerun it from **?** → **New: Quick add understands plain words tour**. See [How do I add a task, note or document request, or message a client?](#/help/quick-actions).

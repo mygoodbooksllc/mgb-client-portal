@@ -27,7 +27,7 @@ The **Add a task** box opens. Type the task in one line, the way you would say i
 - **When:** *Friday*, *tomorrow*, *next week*, *by Friday*, *due the 15th*, *the 15th*, *end of month*, **10/31** and the other dates it already knew.
 - **Priority:** **!high** or **!low**.
 
-What it picked up shows as chips you can remove; **×** on a chip puts those words back in the title and they are not picked up again. You can also set **Client**, **Due** and **Assignee** in the boxes below, and a box you set by hand wins over the line.
+What it picked up shows as chips you can remove; **×** on a chip from plain words (*for Sierra*, *by Friday*) puts those words back in the title and they are not picked up again; **×** on a chip from a symbol (**@name**, **#client**, **!high**) removes the symbol. You can also set **Client**, **Due** and **Assignee** in the boxes below, and a box you set by hand wins over the line.
 
 If a name could be two people, a person and a client, or more than one client, nothing is picked. The words stay in the title and a **Did you mean** line offers each choice as a button, with **Neither** to leave them as words. A name it doesn't know stays in the title too.
 
