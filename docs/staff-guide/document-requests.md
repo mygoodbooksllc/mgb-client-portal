@@ -2,10 +2,10 @@
 title: How do I request a document from a client?
 section: Working with a client
 audience: staff
-keywords: [document request, request document, documents tab, overdue, uploads to mark received, bank statement, receipt, upload, mark received, docchaser, document reminders, reminder emails, pause reminders, missing documents, google drive, ask client, client requests]
+keywords: [document request, request document, documents tab, overdue, uploads to mark received, bank statement, receipt, upload, mark received, docchaser, document reminders, reminder emails, pause reminders, missing documents, google drive, ask client, client requests, what we need from you, messages requests]
 sort: 220
 ---
-Use a document request when you need a statement, receipt or anything else from the client. The client sees the list on their **Documents** page and uploads straight into it. You manage the requests on the client's **Documents** tab. The list lives only there. The Overview doesn't repeat it.
+Use a document request when you need a statement, receipt or anything else from the client. The client sees it on their **Documents** page and under **Messages › Requests** (**What we need from you**), and uploads straight into it. You manage the requests on the client's **Documents** tab. The list lives only there. The Overview doesn't repeat it.
 
 > **Asking from a task?** On a client task, **Ask client** in the task details can ask for a document, a typed answer or an approval, and keeps the task waiting until the client answers. See [How do I ask a client something from a task?](#/help/ask-client). Requests made here on the Documents tab aren't linked to a task.
 

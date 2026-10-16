@@ -533,6 +533,15 @@ function CLIENT_lastTab(placeKey, pages) {
 function CLIENT_subFromHash() {
   try {
     const parts = String(window.location.hash || "").replace(/^#\/?/, "").split(/[?]/)[0].split("/").filter(Boolean);
+    // Tasks p2 S6: #/client/<id>/needs[/<request id>] is Messages › Requests
+    // ("What we need from you", ClientNeeds.jsx), focused on that request.
+    if (parts[0] === "client" && parts[1] && parts[2] === "needs")
+      return {
+        clientId: decodeURIComponent(parts[1]),
+        page: "messages",
+        sub: "requests",
+        focus: /^[0-9a-f-]{36}$/.test(parts[3] || "") ? parts[3] : null,
+      };
     if (parts[0] === "client" && parts[2] && parts[3])
       return { clientId: decodeURIComponent(parts[1]), page: parts[2], sub: parts[3] };
   } catch (e) {}
@@ -695,7 +704,8 @@ function CLIENT_TabBar({ page, visibleKeys, badges, onSelect, onOpenSettings }) 
 // staff bar's TB_HelpButton (components/staff/TopBar.jsx), for client users
 // and staff previewing as one. Items, only those that apply: the client
 // tour; the Pro tour while the plan shown is below Pro (as Settings › Help);
-// Messages, with the messages tab; Settings › Help; Contact support (the
+// Messages and What we need from you (Messages › Requests), with the
+// messages tab; Settings › Help; Contact support (the
 // footer's mailto). Staff previewing get "Preview the tour" labels, as in
 // Settings › Help. Borrows TopBar.jsx's TB_useMenu (Esc closes and refocuses
 // the button, arrow keys move, the first item takes focus) and
@@ -703,7 +713,7 @@ function CLIENT_TabBar({ page, visibleKeys, badges, onSelect, onOpenSettings }) 
 // only when TB_useMenu exists. Styles: styles.css .client-help. Tour hook:
 // data-tour="client-help" (Tour.jsx, the client tour's last step).
 const CLIENT_SUPPORT_MAILTO = "mailto:admin@mygoodbooks.org?subject=MyGoodBooks%20Support";
-function CLIENT_HelpButton({ plan, preview, canMessage, onOpenMessages, onOpenHelp }) {
+function CLIENT_HelpButton({ plan, preview, canMessage, onOpenMessages, onOpenNeeds, onOpenHelp }) {
   const menu = TB_useMenu();
   const hasTour = typeof TOUR_start === "function";
   const belowPro = planShownKey(plan || "basic") !== "premium";
@@ -712,6 +722,8 @@ function CLIENT_HelpButton({ plan, preview, canMessage, onOpenMessages, onOpenHe
   if (hasTour && belowPro)
     items.push({ key: "pro-tour", label: preview ? "Preview the Pro tour" : "Take the Pro tour", run: () => TOUR_start("pro") });
   if (canMessage) items.push({ key: "messages", label: "Message your bookkeeper", run: onOpenMessages });
+  // Tasks p2 S6: Messages › Requests (ClientNeeds.jsx), where they answer.
+  if (canMessage && onOpenNeeds) items.push({ key: "needs", label: "What we need from you", run: onOpenNeeds });
   items.push({ key: "help", label: "Help and settings", run: onOpenHelp });
   items.push({
     key: "support",
@@ -990,7 +1002,12 @@ const INFRA_LINKS = [
   {
     name: "Resend",
     url: "https://resend.com/overview",
-    note: "Sends every portal email (digest, client notices, reminders, ledger questions and summaries) · credentials: 1Password vault “MGB Infra”",
+    note: "Sends every portal email (digest, client notices, reminders, Ask client requests, ledger questions and summaries) · credentials: 1Password vault “MGB Infra”",
+  },
+  {
+    name: "Supabase edge functions (Ask client)",
+    url: "https://supabase.com/dashboard/project/xumsqmhccgfjnlmieqyu/functions",
+    note: "tk-client-requests (staff sends, JWT on) · tk-request-respond (the public /respond answer page, JWT off; token in a header, hashed, rate-limited) · client-emails runs the client-request-nudge cron · drive-files takes portal uploads to a request · no extra secrets (RESEND_API_KEY, Google service account)",
   },
   {
     name: "Google Drive (client files)",
@@ -5709,15 +5726,19 @@ const staffToolsApi = {
       .order("created_at", { ascending: false })
       .limit(200);
   },
+  // Tasks p2 S6: client_doc_requests is read-only to the browser now. Writes
+  // go through RPCs (tasks-p2-6-tokens.sql), which stamp who asked from the
+  // signed-in staff member and keep client_requests (Ask client) in step.
   addDocRequest(sb, row) {
-    return sb.from("client_doc_requests").insert(row);
+    return sb.rpc("tk_add_doc_request", {
+      p_client_id: row.client_id,
+      p_title: row.title,
+      p_details: row.details || null,
+      p_due_date: row.due_date || null,
+    });
   },
   setDocRequestStatus(sb, id, status) {
-    const closed = status === "done" || status === "cancelled";
-    return sb
-      .from("client_doc_requests")
-      .update({ status, closed_at: closed ? new Date().toISOString() : null })
-      .eq("id", id);
+    return sb.rpc("tk_set_doc_request_status", { p_id: id, p_status: status });
   },
   async uploadForRequest(sb, req, file) {
     // Google Drive (components/files/DriveFiles.js): the drive-files function
@@ -14976,7 +14997,7 @@ function DeveloperToolsPage({ staffUser, readOnly }) {
         ) : (
           [
             ["standard_set_live", "Standard close set live for real clients", "Off (or missing) means the set only reaches test clients."],
-            ["__client_request_enabled", "Ask client emails live", "Owner-only, on Emails (client_email_settings). Off means every Ask client email and reminder is a dry run; nothing is sent."],
+            ["__client_request_enabled", "Ask client emails live", "Owner-only, on Emails (client_email_settings). Off means every Ask client email and reminder to a real client is a dry run; nothing is sent. Test clients get one [Test] copy to the sender (needs Send client emails on). Sent by the tk-client-requests edge function; reminders by client-emails (cron client-request-nudge)."],
             ["client_request_pilot", "Ask client pilot clients", "Which real clients get Ask client emails once the switch above is on (\"all\" or a list of client ids)."],
             ["nudge_max", "Ask client reminders before No reply", "Reminders sent before a request shows No reply."],
             ["token_ttl_days", "Answer link lifetime (days)", "How long an Ask client answer link works."],
@@ -26261,7 +26282,7 @@ const PAGE_META = {
   },
   messages: {
     title: "Messages",
-    subtitle: "Talk directly with your bookkeeping team",
+    subtitle: "Talk with your bookkeeping team and answer what they need",
   },
 };
 
@@ -26620,6 +26641,8 @@ const CLIENT_TAB_ALIASES = {
   close: "client-close",
   ledger: "client-ledger",
   setup: "client-settings",
+  // Tasks p2 S6: the emailed portal link (Messages › Requests).
+  needs: "messages",
 };
 // Client setup sub-tabs a hash may name (#/client/<id>/settings/<tab>).
 const CLIENT_SETTINGS_SUBTABS = new Set(["client", "plan", "milestone"]);
@@ -26818,6 +26841,35 @@ function AN_AppNav({ variant }) {
 // hash. Stash a deep link at boot (this file runs before the sign-in screen)
 // so App can still open it after the round trip.
 const PENDING_ROUTE_KEY = "mygoodbooks_pending_route_v1";
+// Tasks p2 S6: an emailed portal link is /login?next=%23%2Fclient%2F<id>%2Fneeds%2F<req>.
+// Only this one route shape is accepted from ?next= (never a full URL or any
+// other route). It moves into the hash here, and into localStorage for 30
+// minutes because the sign-in email's link opens a NEW tab where the
+// sessionStorage stash below doesn't exist.
+const APP_NEXT_RE = /^#\/client\/[a-z0-9-]+\/needs(\/[0-9a-f-]{36})?$/;
+const APP_NEXT_KEY = "mgb_login_next_v1";
+const APP_NEXT_TTL_MS = 30 * 60 * 1000;
+try {
+  const qs = new URLSearchParams(window.location.search);
+  const next = qs.get("next");
+  if (next !== null) {
+    qs.delete("next");
+    const rest = qs.toString();
+    const ok = APP_NEXT_RE.test(next) && !window.location.hash;
+    window.history.replaceState(
+      window.history.state,
+      "",
+      window.location.pathname + (rest ? "?" + rest : "") + (ok ? next : window.location.hash),
+    );
+    if (ok) localStorage.setItem(APP_NEXT_KEY, JSON.stringify({ h: next, at: Date.now() }));
+  } else if (!parseHashRoute(window.location.hash)) {
+    const saved = JSON.parse(localStorage.getItem(APP_NEXT_KEY) || "null");
+    if (saved && APP_NEXT_RE.test(String(saved.h || "")) && Date.now() - (saved.at || 0) < APP_NEXT_TTL_MS) {
+      sessionStorage.setItem(PENDING_ROUTE_KEY, saved.h);
+    }
+    if (saved) localStorage.removeItem(APP_NEXT_KEY);
+  }
+} catch (e) {}
 try {
   if (parseHashRoute(window.location.hash)) {
     sessionStorage.setItem(PENDING_ROUTE_KEY, window.location.hash);
@@ -27131,6 +27183,13 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
   // every person at an organization has their own private thread.
   const [readMessageClients, setReadMessageClients] = useState({});
   const [viewAsUserId, setViewAsUserId] = useState(BOOKKEEPER_VIEW);
+  // Tasks p2 S6: every request for this client (Ask client + old document
+  // requests), live (ClientNeeds.jsx). Drives Home's "Needs you" item, so
+  // only the client view loads it (a client, or staff previewing as one).
+  const cnRequests =
+    typeof CN_useRequests === "function"
+      ? CN_useRequests(clientPortalUser || viewAsUserId !== BOOKKEEPER_VIEW ? selectedClientId : null)
+      : null;
   const [userAccess, setUserAccess] = useState({});
   const [referralPromo, setReferralPromo] = useState(loadReferralPromo);
   // null until the header toggle is used, at which point it pins the choice
@@ -28877,14 +28936,16 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
   const clientNeeds = (() => {
     const out = [];
     const today = todayLocal();
-    const reqs = openDocRequests || [];
+    // Tasks p2 S6: requests come from ClientNeeds (questions, documents and
+    // approvals); the old document list is the fallback.
+    const reqs = cnRequests && cnRequests.loaded && !cnRequests.error ? CN_openOf(cnRequests.rows) : openDocRequests || [];
     const overdueReqs = reqs.filter((r) => r.due_date && r.due_date < today).length;
-    if (reqs.length && access.tabs.has("documents"))
+    if (reqs.length && (access.tabs.has("messages") || access.tabs.has("documents")))
       out.push({
         key: "docs",
-        text: `Your bookkeeper needs ${reqs.length} document${reqs.length === 1 ? "" : "s"}`,
+        text: `Your bookkeeper is waiting on ${reqs.length} item${reqs.length === 1 ? "" : "s"} from you`,
         sub: reqs[0].title + (reqs.length > 1 ? ` and ${reqs.length - 1} more` : "") + (overdueReqs ? ` · ${overdueReqs} overdue` : ""),
-        action: "See requests",
+        action: "Answer",
         tone: overdueReqs ? "urgent" : null,
         onClick: () => {
           setClientSub({ clientId: selectedClientId, page: "messages", sub: "requests" });
@@ -29476,6 +29537,10 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
                   preview={!clientPortalUser}
                   canMessage={access.tabs.has("messages")}
                   onOpenMessages={() => setPage("messages")}
+                  onOpenNeeds={() => {
+                    setClientSub({ clientId: selectedClientId, page: "messages", sub: "requests" });
+                    setPage("messages");
+                  }}
                   onOpenHelp={() => openClientSettings("help")}
                 />
               )}
@@ -30122,11 +30187,21 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
                 key={"inbox-" + client.id + "-" + (inboxFocusEmail || "")}
               />
             ) : clientMessagesSub === "requests" ? (
-              <CLIENT_RequestsPanel
-                requests={docRequestsList.rows}
-                canUpload={access.tabs.has("documents")}
-                onOpenDocuments={() => setPage("documents")}
-              />
+              typeof ClientNeeds === "function" ? (
+                <ClientNeeds
+                  clientId={client.id}
+                  canUpload={access.tabs.has("documents")}
+                  focusId={subHere && clientSub.focus ? clientSub.focus : null}
+                  readOnly={!clientPortalUser}
+                  onOpenDocuments={() => setPage("documents")}
+                />
+              ) : (
+                <CLIENT_RequestsPanel
+                  requests={docRequestsList.rows}
+                  canUpload={access.tabs.has("documents")}
+                  onOpenDocuments={() => setPage("documents")}
+                />
+              )
             ) : (
             <MessagesPage
               client={scopedClient}

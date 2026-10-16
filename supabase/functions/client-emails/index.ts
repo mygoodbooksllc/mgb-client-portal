@@ -3,10 +3,15 @@ import { createClient, SupabaseClient } from "jsr:@supabase/supabase-js@2";
 import { emailConfigured, esc, sendEmail } from "../_shared/email.ts";
 import * as L from "../_shared/layout.ts";
 import { loadSignoffs, signoffHtml, signoffText } from "../_shared/signature.ts";
+import { newToken, nudgeEmail, portalLink, respondLink, tokenHashParam } from "../_shared/tk_requests.ts";
 
 // Client-facing emails (supabase/client-emails.sql has the schema + rules).
 //   job "doc_chaser"   : missing-documents reminders (daily cron)
 //   job "value_report" : monthly value report (cron on the 3rd; default OFF)
+//   job "client_request_nudge" : Tasks p2 S6 Ask-client reminders (weekdays
+//                        10:00 ET, cron only). Dry run (one skipped log row
+//                        per client per day, nothing sent) until the owner
+//                        turns on client_request_enabled.
 //
 // Callers / auth (verify_jwt is OFF; these checks are the gate):
 //   (a) pg_cron via client_emails_cron(job) with the Vault qbo_cron_key (or the
@@ -298,6 +303,136 @@ async function sendToEach(
   return out;
 }
 
+// ---------------------------------------------------------------------------
+// Tasks p2 S6: Ask-client reminders (job client_request_nudge, cron only)
+// ---------------------------------------------------------------------------
+// rpc tk_nudge_plan picks what is due (3 business days since the ask or the
+// last reminder, under nudge_max, not paused, not test/internal) grouped per
+// client and recipient, each with the database's send mode:
+//   dry_run -> one client_email_log row (skipped, dry_run) per client per
+//              day + a dry_run event per request. Nothing sent, no tokens,
+//              no counts.
+//   live    -> one email per recipient per client per day. Contacts get a
+//              fresh link per request (nudges never revoke links, M9) and a
+//              Stop reminders link; portal users the sign-in link and their
+//              unsubscribe link. Then tk_nudge_mark counts the reminder.
+async function nudgeJob(db: SupabaseClient) {
+  const NUDGE = "client_request_nudge";
+  const out = { status: "ok", dry_run_clients: 0, sent: 0, skipped: 0, error: 0, not_configured: 0 };
+  const { data: settings } = await db.from("client_email_settings").select("*").eq("id", true).maybeSingle();
+  if (!settings || settings.enabled === false) return { ...out, status: "skipped", reason: "Client emails are turned off (master switch)" };
+  const { data: plan, error } = await db.rpc("tk_nudge_plan");
+  if (error) return { ...out, status: "error", reason: error.message };
+  const groups: any[] = Array.isArray(plan) ? plan : [];
+  const dayStart = nyMidnight(dateIn(new Date()));
+  const already = async (clientId: string, status: string, reason: string | null, email: string | null) => {
+    let q = db.from("client_email_log").select("id", { count: "exact", head: true })
+      .eq("feature", NUDGE).eq("client_id", clientId).eq("status", status).gte("created_at", dayStart);
+    if (reason) q = q.eq("reason", reason);
+    if (email) q = q.contains("recipients", [email]);
+    const { count } = await q;
+    return (count || 0) > 0;
+  };
+  const log = async (row: Record<string, unknown>) => {
+    const { error: e } = await db.from("client_email_log").insert({ feature: NUDGE, trigger: "cron", ...row });
+    if (e) console.log(`client-emails nudge: could not log: ${e.message}`);
+  };
+
+  // Dry run: one row per client per day.
+  const dry = new Map<string, any[]>();
+  for (const g of groups) if (g.mode === "dry_run") dry.set(g.client_id, [...(dry.get(g.client_id) || []), g]);
+  for (const [clientId, gs] of dry) {
+    if (await already(clientId, "skipped", "dry_run", null)) continue;
+    const ids = [...new Set(gs.flatMap((g) => (g.items || []).map((i: any) => i.request_id)))];
+    const emails = [...new Set(gs.map((g) => String(g.recipient?.email || "").toLowerCase()).filter(Boolean))];
+    await log({ client_id: clientId, status: "skipped", reason: "dry_run", recipients: emails, request_ids: ids,
+                subject: `Reminder: ${ids.length} item${ids.length === 1 ? "" : "s"} ${gs[0].client_name} still needs from you`.slice(0, 300) });
+    for (const id of ids) {
+      await db.rpc("tk_log_token_event", { p_token_id: null, p_request_id: id, p_event: "dry_run", p_ip_hash: null, p_detail: { job: "nudge" } });
+    }
+    out.dry_run_clients++;
+  }
+
+  // Live.
+  const live = groups.filter((g) => g.mode === "live");
+  if (!live.length) return out;
+  if (!emailConfigured()) {
+    for (const cid of new Set(live.map((g) => g.client_id))) {
+      if (!(await already(cid, "not_configured", null, null))) await log({ client_id: cid, status: "not_configured", reason: "RESEND_API_KEY is not set" });
+      out.not_configured++;
+    }
+    return out;
+  }
+  const askers = [...new Set(live.flatMap((g) => (g.items || []).map((i: any) => String(i.asked_by || ""))).filter(Boolean))];
+  const { data: staffRows } = askers.length ? await db.from("staff").select("email, name").in("email", askers) : { data: [] as any[] };
+  const firstOf = new Map((staffRows || []).map((s: any) => [String(s.email).toLowerCase(), String(s.name || "").trim().split(/\s+/)[0] || null]));
+  const unsubCache = new Map<string, Map<string, string>>();
+  const counted = new Set<string>();
+  for (const g of live) {
+    const r = g.recipient || {};
+    const email = String(r.email || "").toLowerCase();
+    const items: any[] = g.items || [];
+    if (!email || !items.length) continue;
+    if (await already(g.client_id, "sent", null, email)) {
+      out.skipped++;
+      continue;
+    }
+    const asker = String(items[0].asked_by || "").toLowerCase();
+    const links: { title: string; href: string }[] = [];
+    const tokenIds: { id: string; request: string }[] = [];
+    let stopHref: string | null = null;
+    let unsubHref: string | null = null;
+    let headers: Record<string, string> | undefined;
+    if (r.type === "contact") {
+      for (const it of items) {
+        const token = newToken();
+        const { data: tid, error: iErr } = await db.rpc("tk_issue_request_token", {
+          p_request_id: it.request_id, p_contact_id: r.contact_id, p_email: email, p_hash: await tokenHashParam(token),
+          p_ttl_days: Number(it.link_ttl_days) || 14, p_actor: "system:nudge", p_is_test: false, p_mode: "nudge",
+        });
+        if (iErr) continue;
+        tokenIds.push({ id: tid as string, request: it.request_id });
+        links.push({ title: it.title, href: respondLink(token) });
+        if (!stopHref) stopHref = respondLink(token, true);
+      }
+    } else {
+      if (!unsubCache.has(g.client_id)) {
+        const rc = await recipientsFor(db, g.client_id);
+        unsubCache.set(g.client_id, new Map(rc.to.map((x) => [x.email.toLowerCase(), x.token])));
+      }
+      const ut = unsubCache.get(g.client_id)!.get(email);
+      if (!ut) {
+        out.skipped++;
+        continue;
+      }
+      unsubHref = `${UNSUB_PAGE}?t=${encodeURIComponent(ut)}`;
+      headers = { "List-Unsubscribe": `<${SUPABASE_URL}/functions/v1/client-emails?unsub=${encodeURIComponent(ut)}>`, "List-Unsubscribe-Post": "List-Unsubscribe=One-Click" };
+      for (const it of items) links.push({ title: it.title, href: portalLink(g.client_id, it.request_id) });
+    }
+    if (!links.length) {
+      out.error++;
+      continue;
+    }
+    const mail = nudgeEmail({
+      clientName: g.client_name, recipientName: r.name, items: links, viaPortal: r.type !== "contact",
+      stopHref, unsubscribeHref: unsubHref, replyToFirstName: firstOf.get(asker) || null,
+    });
+    const sent = await sendEmail({ to: [email], subject: mail.subject, html: mail.html, text: mail.text,
+                                   replyTo: asker || settings.reply_to || undefined, tags: [{ name: "kind", value: NUDGE }], headers });
+    await log({ client_id: g.client_id, status: sent.ok ? "sent" : "error", reason: sent.ok ? null : sent.error, recipients: [email],
+                request_ids: items.map((i) => i.request_id), subject: mail.subject, provider_id: sent.ok ? sent.id : null });
+    if (sent.ok) {
+      out.sent++;
+      for (const it of items) counted.add(it.request_id);
+      for (const t of tokenIds) {
+        await db.rpc("tk_log_token_event", { p_token_id: t.id, p_request_id: t.request, p_event: "emailed", p_ip_hash: null, p_detail: { job: "nudge" } });
+      }
+    } else out.error++;
+  }
+  if (counted.size) await db.rpc("tk_nudge_mark", { p_request_ids: [...counted] });
+  return out;
+}
+
 // Unsubscribe / resubscribe by token. No auth: the 64-hex-char random token is the proof.
 async function handleUnsub(db: SupabaseClient, token: string, action: "unsubscribe" | "resubscribe" | "unsub_info", via: string) {
   if (!/^[a-f0-9]{32,128}$/.test(token)) return json({ status: "invalid" }, 404);
@@ -415,14 +550,21 @@ Deno.serve(async (req) => {
   const authHeader = req.headers.get("Authorization") || "";
   const presented = authHeader.replace(/^Bearer\s+/i, "");
   if (!presented) return json({ error: "unauthorized" }, 401);
+  const isNudge = body?.job === "client_request_nudge";
   const job: Job | null = body?.job === "doc_chaser" || body?.job === "value_report" ? body.job : null;
-  if (!job) return json({ error: "job must be doc_chaser or value_report" }, 400);
+  if (!job && !isNudge) return json({ error: "job must be doc_chaser, value_report or client_request_nudge" }, 400);
 
   let isMachine = secretsMatch(presented, SERVICE_ROLE_KEY);
   if (!isMachine) {
     const { data: cronKey } = await db.rpc("qbo_cron_key");
     isMachine = typeof cronKey === "string" && cronKey.length > 0 && secretsMatch(presented, cronKey);
   }
+
+  if (isNudge) {
+    if (!isMachine) return json({ error: "client_request_nudge runs from cron only" }, 403);
+    return json(await nudgeJob(db));
+  }
+  if (!job) return json({ error: "job must be doc_chaser or value_report" }, 400);
 
   let adminEmail: string | null = null;
   if (!isMachine) {

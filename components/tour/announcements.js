@@ -257,6 +257,45 @@ var ANN_REGISTRY = [
       },
     ],
   },
+  {
+    id: "client-answers",
+    date: "2026-10-16",
+    title: "Clients answer requests",
+    summary: "Clients now answer your requests themselves: in the portal under Messages › Requests (What we need from you), or from an emailed link with no login. Client contacts live in each client's tasks drawer.",
+    roles: ["admin", "bookkeeper"],
+    hash: "#/tasks/waiting",
+    steps: (ctx) => [
+      {
+        id: "ann-welcome",
+        title: "Clients answer for themselves",
+        body: () =>
+          "When you Ask client, portal users see it under Messages › Requests, called What we need from you, and can reply or upload there. A client contact without a login (a treasurer, a pastor) gets a link that opens just that one request. About a minute.",
+      },
+      {
+        id: "ann-nav",
+        go: () => {
+          if (!/^#\/tasks\/waiting(\?|$)/.test(window.location.hash || "")) window.location.hash = "#/tasks/waiting";
+        },
+        targets: ["tk-waiting-nav"],
+        wait: true,
+        title: "Answers come back here",
+        body: () =>
+          "When a client answers, the request leaves Waiting on client, the task comes back to you with their reply and files, and you get a notification.",
+      },
+      {
+        id: "ann-contacts",
+        title: "Client contacts",
+        body: () =>
+          "Open a client's tasks drawer and expand Client contacts to add the people who answer by link. Untick Can answer requests by email link, or remove them, and their open links stop working at once.",
+      },
+      {
+        id: "ann-done",
+        title: "Emails still wait for the owner",
+        body: () =>
+          "Until the owner switches client emails on, Email again and Send reminder are a dry run (or a test copy to you only). To see this again, press ? and pick New: Clients answer requests tour.",
+      },
+    ],
+  },
 ];
 
 if (typeof module !== "undefined" && module.exports) module.exports = { ANN_REGISTRY: ANN_REGISTRY };

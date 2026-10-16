@@ -2,7 +2,7 @@
 title: How do I manage client emails?
 section: Admin
 audience: admin
-keywords: [emails page, client emails, send client emails, missing-documents reminders, monthly value report, value report, reply-to, opt out, unsubscribe, resubscribe, send log, test email, ask client, client requests, request reminders, dry run]
+keywords: [emails page, client emails, send client emails, missing-documents reminders, monthly value report, value report, reply-to, opt out, unsubscribe, resubscribe, send log, test email, ask client, client requests, request reminders, dry run, test copy, pilot, client_request_enabled, request emails]
 sort: 570
 ---
 The **Emails** page (**Settings → Firm settings → Emails**, admins only) shows whether email works, the weekly digest, client emails and the send log.
@@ -21,7 +21,7 @@ In the **Client emails** card:
 | **Missing-documents reminders** | Daily at 10 AM. Emails a client about open document requests on day 0, day 3, day 7, then weekly until uploaded. |
 | **Monthly value report** | On the 3rd: last month's hours, tasks completed, month-end close status and documents received. |
 
-> **Ask client emails are not on yet.** Requests sent from a task (**Ask client**) and their reminders are a dry run: they're logged as *skipped* and nothing is emailed until the owner switches client requests on. See [How do I ask a client something from a task?](#/help/ask-client).
+> **Ask client emails wait for the owner's switch.** Requests sent from a task (**Ask client**) and their reminders are a dry run, logged as *skipped*, until the owner switches client requests on (for chosen clients first). **Send client emails** must be on too. For a test client the person who sends gets one **[Test]** copy instead. Automatic reminders go out each morning once a request has waited a few business days, up to four. See [How do I ask a client something from a task?](#/help/ask-client).
 
 > **The Monthly value report is off by default.** Nothing goes out until an admin ticks it. Preview it for a few clients first.
 

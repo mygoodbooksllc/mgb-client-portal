@@ -125,8 +125,15 @@ function TK_sendResultText(res, action) {
     return "Would go to " + who + ".";
   }
   var what = action === "nudge" ? "Reminder" : "Email";
+  var sent = Number(r.sent) || 0;
+  // S6: the tk-client-requests function really sent (test clients: to you).
+  if (sent > 0 && r.mode === "test") return "Test " + what.toLowerCase() + " sent to you only.";
+  if (sent > 0) {
+    var failed = Number(r.failed) || 0;
+    return what + " sent to " + (sent === 1 ? "1 person" : sent + " people") + "." + (failed ? " " + failed + " didn't go out." : "");
+  }
   if (r.mode === "test") return "Dry run: nothing sent. " + what + " for a test client would go only to you.";
-  if (r.mode === "live") return "Dry run: nothing sent. Live sending arrives with the next update.";
+  if (r.mode === "live") return "Dry run: nothing sent. The email sender isn't switched on yet.";
   return "Dry run: nothing sent. " + what + " would go to " + who + " once the owner turns on client requests.";
 }
 
@@ -187,6 +194,10 @@ var TK_REQUEST_ERROR_COPY = {
   tk_bad_transition: "Reopen the task first.",
   tk_forbidden: "You don't have access to this client.",
   tk_offline: "You're offline. Try again when you're back online.",
+  tk_too_soon: "An email for this request went out in the last 10 minutes. Try again later.",
+  tk_not_configured: "Email isn't set up yet, so nothing was sent.",
+  tk_send_failed: "The email didn't go out. Try again.",
+  tk_mode_changed: "The client email setting just changed. Try again.",
 };
 
 function TK_requestErrorText(err) {

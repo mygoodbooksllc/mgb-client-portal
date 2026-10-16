@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="robots" content="noindex" />
+    <meta name="referrer" content="no-referrer" />
+    <meta name="color-scheme" content="light dark" />
+    <title>MyGoodBooks: Reply or upload</title>
+    <!-- Tasks p2 S6: the answer link a client contact gets by email
+         (/respond#t=<token>). No app bundle: respond.js only. vercel.json
+         serves this with an enforced CSP (no inline script or style) and
+         Referrer-Policy: no-referrer. -->
+    <link rel="stylesheet" href="/respond.css" />
+  </head>
+  <body>
+    <main class="rs" aria-live="polite">
+      <div class="rs-brand">MyGoodBooks</div>
+
+      <section id="loading" class="rs-panel">
+        <p class="rs-muted">Loading your request…</p>
+      </section>
+
+      <section id="form" class="rs-panel" hidden>
+        <p class="rs-eyebrow" id="client"></p>
+        <h1 id="title"></h1>
+        <p class="rs-prompt" id="prompt"></p>
+        <p class="rs-muted" id="meta"></p>
+        <form id="answer" novalidate>
+          <label class="rs-label" for="reply">Your answer</label>
+          <textarea id="reply" rows="5" maxlength="4000"></textarea>
+          <div id="filebox" hidden>
+            <label class="rs-label" for="files">Files</label>
+            <input id="files" type="file" multiple />
+            <p class="rs-muted rs-small" id="limits"></p>
+            <ul id="filelist" class="rs-files"></ul>
+          </div>
+          <p id="err" class="rs-err" role="alert" hidden></p>
+          <button id="send" type="submit">Send</button>
+          <p class="rs-muted rs-small" id="once">You can send this once. This page only shows this one request.</p>
+        </form>
+      </section>
+
+      <section id="done" class="rs-panel" hidden>
+        <h1 id="done-title">Thanks</h1>
+        <p id="done-sub"></p>
+      </section>
+
+      <section id="closed" class="rs-panel" hidden>
+        <h1 id="closed-title">This link has closed</h1>
+        <p id="closed-sub"></p>
+        <p><a id="closed-mail" href="mailto:admin@mygoodbooks.org">Email MyGoodBooks</a></p>
+      </section>
+
+      <section id="stop" class="rs-panel" hidden>
+        <h1 id="stop-title">Stop reminders?</h1>
+        <p id="stop-sub">We'll stop sending reminders about this request. Your bookkeeper can still reach you directly.</p>
+        <button id="stop-go" type="button">Stop reminders</button>
+      </section>
+    </main>
+    <script src="/respond.js"></script>
+  </body>
+</html>

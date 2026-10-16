@@ -1612,8 +1612,8 @@ function ST_ClientSettingsPage({
           {key === "notifications" && (
             <ST_Card title="Email me when" sub="Emails say what happened and link to the portal.">
               <ST_Toggle
-                label="My bookkeeper asks for a document"
-                sub="Requests and reminders for documents your bookkeeper needs. These can't be turned off, so nothing gets missed."
+                label="My bookkeeper asks for something"
+                sub="Requests and reminders for a document, an answer or an approval your bookkeeper needs. These can't be turned off, so nothing gets missed."
                 locked
               />
               {ST_CLIENT_EMAIL_PREFS.map((p) => (

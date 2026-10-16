@@ -547,6 +547,7 @@ function TK_ClientDrawerPanel(props) {
                   </section>
                 );
               })}
+              {typeof TK_ClientContacts === "function" ? <TK_ClientContacts clientId={clientId} online={online} /> : null}
             </React.Fragment>
           ) : (
             <div className="tk-cd-empty">

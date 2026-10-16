@@ -35,7 +35,7 @@ because some work happens in Claude Code web sessions. Run `git fetch` and compa
   run: `auth-config.js`, `qbo-config.js`, `components/auth/*`, `data.js`,
   `components/dashboard/WidgetDrawer.jsx`, `components/daily-close/*`, `components/qbo/mapQboToClient.js`, `components/pro/*`,
   `components/inbox/StaffInbox.jsx`, `components/staff/*` (ending with `StaffGuide.jsx` and
-  `TopBar.jsx`), a few `components/client/*` files, the Tasks module `components/tasks/*` (21
+  `TopBar.jsx`), a few `components/client/*` files, the Tasks module `components/tasks/*` (30
   files, `TK_logic.js` first and `TK_App.jsx` last, right after `components/client/QboGiving.jsx`),
   `components/tour/Tour.jsx` and `Tips.jsx`, then the launch announcements (`announcements.js`,
   `announcementsLogic.js`, `Announcements.jsx`), then `app.jsx`. The Tasks stylesheets
@@ -85,7 +85,7 @@ because some work happens in Claude Code web sessions. Run `git fetch` and compa
 | `components/staff/` | Staff-only features, each with its own CSS and a name prefix (`CS_` client switcher, `HLP_` Help, `TB_` top bar, ...). `TopBar.jsx` + `top-bar.css` is the staff top bar (see "Staff top bar" under Main features). All loaded before `app.jsx`. |
 | `components/handbook/` | The Staff Handbook (2026-10-13; spec `docs/staff-handbook-spec.md`), Team › Handbook. Every name is `HB_`/`hb-` prefixed. `HB_api.js` (RPC wrappers, the PDF download, the shared `hb_status` store), `HB_PolicyView.jsx` (one policy, sign and countersign), `HB_HandbookTab.jsx` (the tab, its routes and the deep-link claim), `HB_Admin.jsx` (admin status grid, not-filed list with Retry filing, publish editor), `hb.css`. Loaded after `TeamReviewsAdmin.jsx` and before `app.jsx`. |
 | `components/files/` | `DriveFiles.js`: browser helpers for client files in Google Drive (`DRV_` prefix), calling the `drive-files` edge function. Holds the one fallback switch `DRV_STORAGE_FALLBACK`. Loaded before `StaffInbox.jsx` and `app.jsx`. |
-| `components/tasks/` | The Tasks module (2026-10-11; spec `docs/tasks-phase1-spec.md`). Every name is `TK_`/`tk-` prefixed. Logic with node tests: `TK_logic.js` (statuses, grouping, the quick-add parser, keys), `TK_viewLogic.js`, `TK_drawerLogic.js`, `TK_clientLogic.js` (the client strip and panel rules), `TK_reviewLogic.js` (Phase 2 S3: review roles, the review queue groups and a JS copy of the on-time rule), `TK_store.js`, `TK_recurrenceLogic.js` (Phase 2: the business calendar, due rules and periods; fixtures in `TK_recurrence.fixtures.js`), `TK_templateLogic.js` (Phase 2 S4: template form checks, next due dates, period labels, preview rows and error text), `TK_requestLogic.js` (Phase 2 S5: Ask client form checks, request chips and actions, waiting groups and error text). Data: `TK_api.js` (Supabase calls), `TK_sync.js` (Realtime plus a `BroadcastChannel` between windows). Views: `TK_App.jsx` (the `#/tasks/...` page and the `/tasks` shell), `TK_Sidebar.jsx`, `TK_MyTasks.jsx`, `TK_List.jsx`, `TK_ClientHeader.jsx`, `TK_ClientDrawer.jsx` (the client task strip and panel, and Follow my client), `TK_TaskRow.jsx`, `TK_StandaloneBar.jsx`, `TK_keys.jsx`, `TK_ReviewQueue.jsx` (`#/tasks/review`), `TK_Templates.jsx` (`#/tasks/templates`, recurring templates), `TK_WaitingList.jsx` (`#/tasks/waiting`, open Ask client requests). Task details: `TK_AskClientModal.jsx` (Client requests and the Ask client window), `TK_Drawer.jsx`, `TK_QuickAdd.jsx`, `TK_Comments.jsx`, `TK_Attachments.jsx`, `TK_Activity.jsx`. Styles: `tk-views.css`, `tk-drawer.css`, `tk-client.css`, `tk-requests.css`. Loaded after `components/client/QboGiving.jsx` and before `components/tour/Tour.jsx`. |
+| `components/tasks/` | The Tasks module (2026-10-11; spec `docs/tasks-phase1-spec.md`). Every name is `TK_`/`tk-` prefixed. Logic with node tests: `TK_logic.js` (statuses, grouping, the quick-add parser, keys), `TK_viewLogic.js`, `TK_drawerLogic.js`, `TK_clientLogic.js` (the client strip and panel rules), `TK_reviewLogic.js` (Phase 2 S3: review roles, the review queue groups and a JS copy of the on-time rule), `TK_store.js`, `TK_recurrenceLogic.js` (Phase 2: the business calendar, due rules and periods; fixtures in `TK_recurrence.fixtures.js`), `TK_templateLogic.js` (Phase 2 S4: template form checks, next due dates, period labels, preview rows and error text), `TK_requestLogic.js` (Phase 2 S5: Ask client form checks, request chips and actions, waiting groups and error text). Data: `TK_api.js` (Supabase calls), `TK_sync.js` (Realtime plus a `BroadcastChannel` between windows). Views: `TK_App.jsx` (the `#/tasks/...` page and the `/tasks` shell), `TK_Sidebar.jsx`, `TK_MyTasks.jsx`, `TK_List.jsx`, `TK_ClientHeader.jsx`, `TK_ClientDrawer.jsx` (the client task strip and panel, and Follow my client), `TK_TaskRow.jsx`, `TK_StandaloneBar.jsx`, `TK_keys.jsx`, `TK_ReviewQueue.jsx` (`#/tasks/review`), `TK_Templates.jsx` (`#/tasks/templates`, recurring templates), `TK_WaitingList.jsx` (`#/tasks/waiting`, open Ask client requests). Task details: `TK_AskClientModal.jsx` (Client requests and the Ask client window), `TK_ClientContacts.jsx` (Phase 2 S6: the client drawer's Client contacts section), `TK_Drawer.jsx`, `TK_QuickAdd.jsx`, `TK_Comments.jsx`, `TK_Attachments.jsx`, `TK_Activity.jsx`. Styles: `tk-views.css`, `tk-drawer.css`, `tk-client.css`, `tk-requests.css`. Loaded after `components/client/QboGiving.jsx` and before `components/tour/Tour.jsx`. |
 | `components/tour/` | Tours, tips and launch announcements. `Tour.jsx` (client and staff tours), `Tips.jsx` (`TIPS_`), and the launch announcements (2026-10-15, `ANN_` prefix): `announcements.js` is the registry (one entry per launch), `announcementsLogic.js` the pure rules with its node test `announcementsLogic.test.js`, `Announcements.jsx` the store, notice, What's new list and Usage Stats card. Styles: `tour.css`, `tips.css`, `announcements.css`. Database: `supabase/staff-announcements.sql` (+ `staff-announcements-tests.sql`). |
 | `components/ledger/` | Ledger review (GL Review phase 1, 2026-10-14; spec `docs/gl-review-spec.md`). `GLR_*.js` are pure logic with node tests in `tests/ledger/` (parse, checks, compare, summary); `LR_*` is the UI: `LR_Tab.jsx` (client tab `client-ledger`, `#/client/<id>/ledger`), `LR_Panels.jsx`, `LR_ReviewFile.jsx` (Work › Ledger review), `LR_Settings.jsx` (Team › Ledger review), `LR_api.js` (RPC and edge-function wrappers; fires `mgb:ledger-review-changed` and `mgb:gl-review-changed` so the Close card refreshes). Database: `supabase/gl-review-1-core.sql`. |
 | `components/qbo/` | `mapQboToClient.js` converts QuickBooks table rows into the shape the pages use. Its test is `mapQboToClient.test.js`. |
@@ -1575,6 +1575,35 @@ Team Reviews files.
   - UI: `TK_requestLogic.js`, `TK_AskClientModal.jsx` (the drawer's **Client requests** section,
     `data-tour="tk-ask-client"`, and the Ask client window), `TK_WaitingList.jsx`
     (`#/tasks/waiting`, sidebar item `tk-waiting-nav`) and `tk-requests.css`.
+- **Tasks Phase 2, S6 Clients answer** (`supabase/tasks-p2-6-tokens.sql`, applied 2026-10-16; spec S6
+  and critique M8, M13). Re-runnable; run it after S5 (`tk_schema_version()` becomes 7). Tests:
+  `supabase/tasks-p2-6-tokens-tests.sql` (one transaction, rolls back),
+  `node --test tests/edge/tk_requests.test.mjs tests/edge/tk_request_respond.test.mjs tests/edge/respond_page.test.mjs`.
+  - `client_doc_requests` is **read-only to the browser**: staff writes go through
+    `tk_add_doc_request` / `tk_set_doc_request_status` (app.jsx `staffToolsApi`), which keep
+    `client_requests` in step. Readers are unchanged.
+  - **Edge functions** (shared code in `supabase/functions/_shared/tk_requests.ts` and `drive.ts`):
+    `tk-client-requests` (staff, **verify_jwt on**: preview, send, resend, nudge; the RPC decides
+    off / dry_run / test / live, a test client sends one **[Test]** copy to the caller) and
+    `tk-request-respond` (public, **verify_jwt off**: `POST ?action=view|upload|answer|stop_nudges`,
+    token only in the `X-MGB-Token` header, stored as sha256 only, CORS app.mygoodbooks.org only,
+    token and size checked before the body is read, one file per upload call, rate-limited).
+    `client-emails` sends the automatic reminders (cron `client-request-nudge`, `tk_nudge_plan`), and
+    `drive-files` takes portal uploads to a request (`visibility: "request"`). Nothing sends to a
+    real client until the owner turns on `client_email_settings.client_request_enabled` and lists
+    the client in `tk_settings.client_request_pilot`.
+  - **Deploy order**: `tk-request-respond` (`--no-verify-jwt`), `tk-client-requests`, `drive-files`
+    (`--no-verify-jwt`), `client-emails` (`--no-verify-jwt`). No new secrets.
+  - **/respond** (`respond.html`, `respond.js`, `respond.css`; `vercel.json` rewrite plus an
+    enforced CSP, `Referrer-Policy: no-referrer`, `noindex`, `no-store`): the contact's answer page.
+    The token is read from the `#t=` fragment and wiped from the address bar before any request;
+    everything is rendered with `textContent`.
+  - **Client portal**: `components/client/ClientNeeds.jsx` + `client-needs.css` (Messages ›
+    Requests, "What we need from you"; `client_requests_for_client`, realtime on
+    `client_requests`, `tk_answer_client_request`; `data-tour="client-needs-page"`). Deep link
+    `#/client/<id>/needs[/<request id>]`; an emailed portal link is
+    `/login?next=%23%2Fclient%2F<id>%2Fneeds%2F<id>`, allow-listed and kept across sign-in in
+    `localStorage` `mgb_login_next_v1` (30 minutes).
 - **Staff Handbook** (`supabase/staff-handbook.sql`, applied 2026-10-13). Re-runnable. Four
   `handbook_*` tables with RLS and no direct writes, the `hb_*` RPCs, two new outbox kinds
   (`handbook_sign_needed`, `handbook_countersign_needed`) added to both email check constraints,

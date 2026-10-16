@@ -1588,10 +1588,44 @@ var TK_api = (function () {
     });
   };
 
-  // action: preview | send | resend | nudge. Resolves { mode, dry_run, sent, recipients, subject }.
-  api.sendClientRequest = function (id, action, taskId) {
-    return rpcWrite("tk_client_request_send", { p_id: id, p_action: action || "send" }, "sendClientRequest").then(function (res) {
-      if (action !== "preview") afterRequestWrite(taskId);
+  // action: preview | send | resend | nudge; target: one contact id or portal
+  // email (optional). Resolves { mode, dry_run, sent, recipients, subject }.
+  // S6: the tk-client-requests edge function sends (test clients: one copy to
+  // you; live only once the owner turns on client_request_enabled). Until it
+  // is deployed (404) or when it can't be reached, the RPC answers instead:
+  // a dry run that sends nothing.
+  function sendViaRpc(id, action, target) {
+    return rpcWrite("tk_client_request_send", { p_id: id, p_action: action, p_target: target || null }, "sendClientRequest");
+  }
+  api.sendClientRequest = function (id, action, taskId, target) {
+    var act = action || "send";
+    var off = requireOnline();
+    if (off) return off;
+    var c = db();
+    var p;
+    if (!c || !c.functions || typeof c.functions.invoke !== "function") p = sendViaRpc(id, act, target);
+    else {
+      p = Promise.resolve()
+        .then(function () {
+          return c.functions.invoke("tk-client-requests", { body: { action: act, request_id: id, target: target || null } });
+        })
+        .then(function (res) {
+          if (res && !res.error) return res.data || {};
+          var resp = res && res.error && res.error.context;
+          var status = resp && resp.status;
+          if (!status || status === 404) return sendViaRpc(id, act, target);
+          return Promise.resolve(resp && typeof resp.json === "function" ? resp.json().catch(function () { return {}; }) : {})
+            .then(function (b) {
+              if (b && Number(b.sent) > 0) return b;
+              var code = "tk_" + String((b && b.error) || "send_failed").replace(/[^a-z_]/g, "");
+              throw errOf(code, code, { reason: code });
+            });
+        }, function () {
+          return sendViaRpc(id, act, target);
+        });
+    }
+    return p.then(function (res) {
+      if (act !== "preview") afterRequestWrite(taskId);
       return res;
     });
   };

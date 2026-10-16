@@ -182,7 +182,8 @@ returns void language plpgsql security definer set search_path = public, extensi
 declare
   v_key text;
 begin
-  if p_job not in ('doc_chaser', 'value_report') then
+  -- client_request_nudge: Ask-client reminders (tasks-p2-6-tokens.sql)
+  if p_job not in ('doc_chaser', 'value_report', 'client_request_nudge') then
     raise exception 'unknown job %', p_job;
   end if;
   select decrypted_secret into v_key from vault.decrypted_secrets where name = 'qbo_cron_key' limit 1;
@@ -199,9 +200,11 @@ begin
 end $$;
 revoke all on function public.client_emails_cron(text) from public, anon, authenticated;
 
-select cron.unschedule(jobid) from cron.job where jobname in ('client-doc-chaser', 'client-value-report');
+select cron.unschedule(jobid) from cron.job where jobname in ('client-doc-chaser', 'client-value-report', 'client-request-nudge');
 select cron.schedule('client-doc-chaser', '0 14 * * *', $$select public.client_emails_cron('doc_chaser');$$);
 select cron.schedule('client-value-report', '0 14 3 * *', $$select public.client_emails_cron('value_report');$$);
+-- Ask-client reminders, weekdays 10:00 ET (dry run until the owner turns on client_request_enabled).
+select cron.schedule('client-request-nudge', '0 14 * * 1-5', $$select public.client_emails_cron('client_request_nudge');$$);
 
 -- ---------------------------------------------------------------------------
 -- 6. Per-recipient unsubscribe (migration client_email_unsubscribe).

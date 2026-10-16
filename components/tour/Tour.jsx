@@ -21,6 +21,8 @@
 // Targets are marked with data-tour="..." attributes:
 //   Client tour (TOUR_Root; each step opens its page first)
 //   client-needs     Home's "Needs you" card (app.jsx CLIENT_HomeTop)
+//   client-needs-page Messages › Requests, "What we need from you"
+//                    (components/client/ClientNeeds.jsx)
 //   customize        Customize dashboard button (WidgetDrawer.jsx), on
 //                    Home for every plan but Basic
 //   milestone        the milestone button on the Home organization card
@@ -105,6 +107,8 @@
 //   tk-waiting-groups its client groups, only when something is waiting
 //   tk-ask-client    a client task's Client requests section (TK_AskClientModal.jsx)
 //   tk-ask-people    the Ask client window's Who should answer? list
+//   tk-contacts      the client tasks drawer's Client contacts section
+//                    (TK_ClientContacts.jsx)
 //   tk-recurring-client  Tasks › Recurring's One client card (TK_Templates.jsx)
 //   tk-recurring-actions New template / Preview / Make due tasks now (admins)
 //   tk-recurring-list    the template groups, once loaded
@@ -572,7 +576,7 @@ function TOUR_clientSteps(ctx) {
       strip: true,
       title: "Messages",
       body: () =>
-        "Ask your bookkeeper anything, any time, and you'll get an email when they reply. Requests, the next tab, lists what they've asked you for.",
+        "Ask your bookkeeper anything, any time, and you'll get an email when they reply. Requests, the next tab, is What we need from you: answer their questions or upload what they asked for right there.",
     },
     {
       id: "settings",

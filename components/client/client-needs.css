@@ -1,0 +1,88 @@
+/* "What we need from you" (components/client/ClientNeeds.jsx, Tasks p2 S6).
+   Existing variables only. */
+.cn-head { margin-bottom: 4px; }
+.cn-sub { margin: 0 0 12px; }
+.cn-list,
+.cn-done {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 10px;
+}
+.cn-card {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  padding: 12px 14px;
+  outline: none;
+}
+.cn-card.is-overdue { border-color: var(--warm-border); }
+.cn-card.is-focused { box-shadow: 0 0 0 2px var(--accent); }
+.cn-card-top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px;
+}
+.cn-title { color: var(--ink-strong); overflow-wrap: anywhere; }
+.cn-kind { font-size: 12px; color: var(--text-muted); }
+.cn-prompt {
+  margin: 6px 0;
+  color: var(--text);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.cn-meta { margin: 2px 0 8px; font-size: 13px; color: var(--text-muted); }
+.cn-due.is-late { color: var(--warm-text); font-weight: 600; }
+.cn-note { margin: 4px 0 0; font-size: 13px; color: var(--text-muted); font-style: italic; }
+.cn-answer { display: grid; gap: 6px; }
+.cn-label { font-size: 13px; font-weight: 600; color: var(--text); }
+.cn-reply {
+  width: 100%;
+  box-sizing: border-box;
+  min-height: 72px;
+  resize: vertical;
+  font: inherit;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 8px 10px;
+}
+.cn-files { margin: 0; font-size: 13px; color: var(--good); }
+.cn-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 4px;
+}
+.cn-file { position: relative; overflow: hidden; cursor: pointer; }
+.cn-file.is-busy { opacity: 0.6; cursor: default; }
+.cn-file input[type="file"] {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+.cn-msg { margin: 8px 0 0; font-size: 13px; }
+.cn-msg.is-ok { color: var(--good); }
+.cn-msg.is-bad { color: var(--bad); }
+.cn-history { margin-top: 14px; }
+.cn-done { margin-top: 8px; gap: 6px; }
+.cn-done-row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 4px 12px;
+  font-size: 14px;
+  padding: 6px 0;
+  border-top: 1px solid var(--border);
+}
+.cn-done-title { color: var(--text); overflow-wrap: anywhere; }
+.cn-done-meta { color: var(--text-muted); font-size: 13px; }
+@media (max-width: 760px) {
+  .cn-card { padding: 10px 12px; }
+  .cn-actions > * { flex: 1 1 auto; text-align: center; }
+}

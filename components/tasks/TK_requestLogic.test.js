@@ -98,6 +98,13 @@ t("send results always say dry run and nothing sent", () => {
   assert.match(L.TK_sendResultText({ mode: "live", recipients: ["a"] }, "send"), /^Dry run: nothing sent/);
   assert.strictEqual(L.TK_sendResultText({ mode: "dry_run", recipients: ["a"] }, "preview"), "Would go to 1 person.");
 });
+t("S6: real sends say what went out", () => {
+  assert.strictEqual(L.TK_sendResultText({ mode: "test", sent: 1, recipients: ["me"] }, "send"), "Test email sent to you only.");
+  assert.strictEqual(L.TK_sendResultText({ mode: "test", sent: 1 }, "nudge"), "Test reminder sent to you only.");
+  assert.strictEqual(L.TK_sendResultText({ mode: "live", sent: 2, failed: 1 }, "send"), "Email sent to 2 people. 1 didn't go out.");
+  assert.match(L.TK_sendResultText({ mode: "live", sent: 0 }, "send"), /^Dry run: nothing sent/);
+  assert.match(L.TK_requestErrorText({ code: "tk_too_soon" }), /10 minutes/);
+});
 t("comment author labels for client and link answers", () => {
   assert.strictEqual(L.TK_requestAuthorLabel("client:pat@example.invalid", { "pat@example.invalid": "Pat" }), "Pat (client)");
   assert.strictEqual(L.TK_requestAuthorLabel("client:pat@example.invalid", {}), "pat@example.invalid (client)");

@@ -11,7 +11,8 @@
     { "source": "/privacy", "destination": "/privacy-policy.html" },
     { "source": "/terms", "destination": "/terms-of-service.html" },
     { "source": "/quickbooks-connected", "destination": "/qbo-connected.html" },
-    { "source": "/unsubscribe", "destination": "/unsubscribe.html" }
+    { "source": "/unsubscribe", "destination": "/unsubscribe.html" },
+    { "source": "/respond", "destination": "/respond.html" }
   ],
   "headers": [
     {
@@ -34,6 +35,30 @@
         {
           "key": "Content-Security-Policy-Report-Only",
           "value": "default-src 'self'; script-src 'self' 'unsafe-inline' https://unpkg.com https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob: https://xumsqmhccgfjnlmieqyu.supabase.co; connect-src 'self' https://xumsqmhccgfjnlmieqyu.supabase.co wss://xumsqmhccgfjnlmieqyu.supabase.co; frame-src 'self' blob:; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'"
+        }
+      ]
+    },
+    {
+      "source": "/respond",
+      "headers": [
+        { "key": "Referrer-Policy", "value": "no-referrer" },
+        { "key": "X-Robots-Tag", "value": "noindex, nofollow" },
+        { "key": "Cache-Control", "value": "no-store" },
+        {
+          "key": "Content-Security-Policy",
+          "value": "default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src https://xumsqmhccgfjnlmieqyu.supabase.co; base-uri 'none'; form-action 'none'; frame-ancestors 'none'; object-src 'none'"
+        }
+      ]
+    },
+    {
+      "source": "/respond.html",
+      "headers": [
+        { "key": "Referrer-Policy", "value": "no-referrer" },
+        { "key": "X-Robots-Tag", "value": "noindex, nofollow" },
+        { "key": "Cache-Control", "value": "no-store" },
+        {
+          "key": "Content-Security-Policy",
+          "value": "default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src https://xumsqmhccgfjnlmieqyu.supabase.co; base-uri 'none'; form-action 'none'; frame-ancestors 'none'; object-src 'none'"
         }
       ]
     }
