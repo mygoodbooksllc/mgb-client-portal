@@ -15069,7 +15069,7 @@ function DeveloperToolsPage({ staffUser, readOnly }) {
       <div className="card" style={{ marginBottom: 20 }}>
         <h3 className="card-title">Tasks switches</h3>
         <p className="card-subtitle">
-          Firm-wide, from tk_settings (and the Ask client switch from client_email_settings). Read-only here: the owner flips the standard close set on Tasks › Recurring.
+          Firm-wide, from tk_settings (and the Ask client switch from client_email_settings). Read-only here: the owner flips the standard close set on Tasks › Recurring and Ask client emails live on Settings › Firm settings › Emails (Client emails card).
         </p>
         {tkSettingsError ? <p className="card-subtitle">{tkSettingsError}</p> : null}
         {tkSettings === null ? (
@@ -15077,8 +15077,8 @@ function DeveloperToolsPage({ staffUser, readOnly }) {
         ) : (
           [
             ["standard_set_live", "Standard close set live for real clients", "Off (or missing) means the set only reaches test clients."],
-            ["__client_request_enabled", "Ask client emails live", "Owner-only, on Emails (client_email_settings). Off means every Ask client email and reminder to a real client is a dry run; nothing is sent. Test clients get one [Test] copy to the sender (needs Send client emails on). Sent by the tk-client-requests edge function; reminders by client-emails (cron client-request-nudge)."],
-            ["client_request_pilot", "Ask client pilot clients", "Which real clients get Ask client emails once the switch above is on (\"all\" or a list of client ids)."],
+            ["__client_request_enabled", "Ask client emails live", "Owner-only. The owner flips it on Settings › Firm settings › Emails, Client emails card, row Ask client emails live (client_email_settings.client_request_enabled; turning on asks to confirm who gets emailed; every change is in tk_settings_audit). Off means every Ask client email and reminder to a real client is a dry run; nothing is sent. On sends only to real clients in the pilot list below. Test clients always get one [Test] copy to the sender only (needs Send client emails on). Sent by the tk-client-requests edge function; reminders by client-emails (cron client-request-nudge)."],
+            ["client_request_pilot", "Ask client pilot clients", "Which real clients get Ask client emails once the switch above is on (\"all\" or a list of client ids). Not set means none. Owner-only; shown on the Emails page next to the switch."],
             ["nudge_max", "Ask client reminders before No reply", "Reminders sent before a request shows No reply."],
             ["token_ttl_days", "Answer link lifetime (days)", "How long an Ask client answer link works."],
             ["on_time_since", "On-time counted since", "Start date for on-time stats and the missed-periods floor."],

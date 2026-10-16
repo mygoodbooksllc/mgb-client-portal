@@ -4,6 +4,12 @@
 // (schema + rules in supabase/client-emails.sql):
 //   - master switch, missing-documents chaser switch, monthly value report
 //     switch (default OFF), reply-to address  -> client_email_settings
+//   - "Ask client emails live" (client_request_enabled, owner-only, default
+//     OFF). Saved with the same plain update; the database trigger
+//     tk_guard_client_request_switch refuses anyone but the owner
+//     (is_internal_owner) and audits who/when in tk_settings_audit. Shows the
+//     pilot list (tk_settings.client_request_pilot, read-only here). Rules and
+//     copy in clientEmailsAskLogic.js.
 //   - per-client opt-outs (all / chaser / value report) and chaser pause
 //                                             -> client_email_prefs
 //   - people who unsubscribed via the email link, with Resubscribe
@@ -81,7 +87,7 @@ function CE_Toggle({ checked, disabled, onChange, label, hint }) {
 
 function CE_ClientEmailSettings({ onSent } = {}) {
   const toast = typeof useToast === "function" ? useToast() : (m) => window.alert(m);
-  const [st, setSt] = React.useState({ loading: true, settings: null, clients: [], prefs: {}, unsubs: [], log: [], error: null });
+  const [st, setSt] = React.useState({ loading: true, settings: null, clients: [], prefs: {}, unsubs: [], log: [], error: null, isOwner: false, pilot: null, askAudit: null });
   const [replyTo, setReplyTo] = React.useState("");
   const [pick, setPick] = React.useState("");
   const [busy, setBusy] = React.useState(null);
@@ -90,12 +96,19 @@ function CE_ClientEmailSettings({ onSent } = {}) {
   const load = React.useCallback(async () => {
     const sb = window.mgbSupabase;
     if (!sb) return setSt((s) => ({ ...s, loading: false }));
-    const [s, c, p, u, l] = await Promise.all([
-      sb.from("client_email_settings").select("enabled, doc_chaser_enabled, value_report_enabled, reply_to, updated_at, updated_by").eq("id", true).maybeSingle(),
+    const [s, c, p, u, l, own, pil, aud] = await Promise.all([
+      sb.from("client_email_settings").select("enabled, doc_chaser_enabled, value_report_enabled, reply_to, updated_at, updated_by, client_request_enabled").eq("id", true).maybeSingle(),
       sb.from("clients").select("id, name, test_only").order("name"),
       sb.from("client_email_prefs").select("client_id, opt_out_all, opt_out_doc_chaser, opt_out_value_report, chaser_paused"),
       sb.from("client_email_recipients").select("client_id, email, opted_out_at, opted_out_via").not("opted_out_at", "is", null).order("opted_out_at", { ascending: false }),
       sb.from("client_email_log").select("id, created_at, feature, trigger, client_id, status, reason, recipients, requested_by").order("created_at", { ascending: false }).limit(15),
+      // Owner-only Ask client switch: who may flip it, the pilot list, the last change.
+      // Each fails soft (a failed call means "not owner" / "not set" / no line).
+      Promise.resolve(sb.rpc("is_internal_owner")).catch(() => ({ data: false })),
+      Promise.resolve(sb.from("tk_settings").select("value").eq("key", "client_request_pilot").maybeSingle()).catch(() => ({ data: null })),
+      Promise.resolve(
+        sb.from("tk_settings_audit").select("new_value, changed_by, changed_at").eq("key", "client_email_settings.client_request_enabled").order("changed_at", { ascending: false }).limit(1)
+      ).catch(() => ({ data: null })),
     ]);
     if (s.error || !s.data) return setSt((x) => ({ ...x, loading: false, error: s.error || new Error("no settings") }));
     const prefs = {};
@@ -104,7 +117,18 @@ function CE_ClientEmailSettings({ onSent } = {}) {
     const clients = ((c && c.data) || [])
       .filter((x) => !(typeof window.mgbIsInternalClient === "function" && window.mgbIsInternalClient(x.id)))
       .map((x) => ({ ...x, testOnly: x.test_only === true }));
-    setSt({ loading: false, settings: s.data, clients, prefs, unsubs: (u && u.data) || [], log: (l && l.data) || [], error: null });
+    setSt({
+      loading: false,
+      settings: s.data,
+      clients,
+      prefs,
+      unsubs: (u && u.data) || [],
+      log: (l && l.data) || [],
+      error: null,
+      isOwner: !!(own && !own.error && own.data === true),
+      pilot: pil && !pil.error && pil.data ? pil.data.value : null,
+      askAudit: (aud && !aud.error && aud.data && aud.data[0]) || null,
+    });
     setReplyTo(s.data.reply_to || "");
     // First pick is a real client: test clients sort last.
     setPick((cur) => cur || ((CF_sort(clients)[0] || {}).id) || "");
@@ -120,6 +144,24 @@ function CE_ClientEmailSettings({ onSent } = {}) {
     setBusy(null);
     if (error) return toast("Couldn't save: " + error.message);
     toast(msg);
+    load();
+  }
+
+  // Ask client emails live: ON needs a confirm that says who gets emailed;
+  // OFF is immediate. The database refuses anyone but the owner.
+  async function saveAskSwitch(v) {
+    if (v) {
+      const pilot = CEA_pilotStatus(st.pilot, st.clients);
+      if (!window.confirm(CEA_confirmText({ pilot, masterOn: !!(st.settings && st.settings.enabled) }))) return;
+    }
+    setBusy("settings");
+    const { error } = await window.mgbSupabase.from("client_email_settings").update({ client_request_enabled: v }).eq("id", true);
+    setBusy(null);
+    if (error) {
+      toast(CEA_saveError(error));
+      return load();
+    }
+    toast(v ? "Ask client emails are live for the pilot clients." : "Ask client emails are a dry run again.");
     load();
   }
 
@@ -207,7 +249,7 @@ function CE_ClientEmailSettings({ onSent } = {}) {
     <div className="card" style={{ marginBottom: 20 }}>
       <h3 className="card-title" style={{ margin: 0 }}>Client emails</h3>
       <p className="card-subtitle" style={{ margin: 0 }}>
-        Emails that go to clients' portal users. Test clients never get them. Nothing here shows fees, rates or margins.
+        Emails that go to clients' portal users. Test clients never get the automatic ones; Send test to me and Ask client on a test client send one [Test] copy to you only. Nothing here shows fees, rates or margins.
       </p>
 
       <div style={{ marginTop: 10 }}>
@@ -233,6 +275,31 @@ function CE_ClientEmailSettings({ onSent } = {}) {
             hint="On the 3rd: last month's hours, tasks completed, month-end close status and documents received."
             onChange={(v) => saveSettings({ value_report_enabled: v }, v ? "Monthly value report turned on." : "Monthly value report turned off.")}
           />
+          {typeof CEA_pilotStatus === "function" && "client_request_enabled" in s && (() => {
+            const rs = CEA_rowState({ isOwner: st.isOwner, busy });
+            const pilot = CEA_pilotStatus(st.pilot, st.clients);
+            const last = CEA_lastChange(st.askAudit, CE_when);
+            return (
+              <div data-tour="ce-ask-live">
+                <CE_Toggle
+                  checked={s.client_request_enabled}
+                  disabled={!rs.canToggle}
+                  label={
+                    <span>
+                      Ask client emails live
+                      {rs.note && <span className="pill neutral" style={{ marginLeft: 6, fontSize: 11 }}>{rs.note}</span>}
+                    </span>
+                  }
+                  hint={CEA_hint()}
+                  onChange={saveAskSwitch}
+                />
+                <div className="tp-muted" style={{ fontSize: 12, paddingLeft: 24, marginTop: -2 }}>
+                  {CEA_statusLine({ pilot })}
+                  {last ? <span style={{ display: "block" }}>{last}</span> : null}
+                </div>
+              </div>
+            );
+          })()}
         </div>
       </div>
 

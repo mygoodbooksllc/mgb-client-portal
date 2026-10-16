@@ -16,7 +16,7 @@ When a task can't move until the client tells you something, sends a file or say
 5. Under **Who should answer?**, tick one or more people: the client's portal users, or its **contacts** (people without a portal sign-in, like a treasurer, who answer through a link in the email). Up to 20 people.
 6. Click **Ask**. The task moves to **Waiting on client**.
 
-**Client request emails wait for the owner's switch.** Until the owner turns them on for a client, nothing is emailed: the toast says *Dry run: nothing sent* and who it would have gone to, so tell the client yourself and use **Record answer** when they reply. For a **test client** you get one copy marked **[Test]** instead, sent to you only, with a working link so you can try the whole thing. Once a client is switched on, the toast says how many people it went to.
+**Client request emails wait for the owner's switch.** Until the owner turns on **Ask client emails live** (**Settings → Firm settings → Emails**, **Client emails** card) and the client is in the pilot list, nothing is emailed: the toast says *Dry run: nothing sent* and who it would have gone to, so tell the client yourself and use **Record answer** when they reply. For a **test client** you get one copy marked **[Test]** instead, sent to you only, with a working link so you can try the whole thing. Once a client is switched on, the toast says how many people it went to.
 
 ### Add a client contact
 

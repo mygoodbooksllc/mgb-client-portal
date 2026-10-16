@@ -879,6 +879,15 @@ hours, fees and revenue all use it. See "MGB (internal) and flagged clients" und
   verified" error means the key works but the domain isn't verified. "Check the key" asks
   `weekly-admin-digest?preview=1&format=json` whether the key is set. It sends nothing but
   logs a preview run. The digest email footer links to `#/emails`.
+  - **Ask client emails live** (Client emails card, owner only, default off) edits
+    `client_email_settings.client_request_enabled` with the same plain update as the other
+    switches. No RPC: the trigger `tk_guard_client_request_switch` refuses anyone but
+    `is_internal_owner()` (`tk_owner_only`) and writes `tk_settings_audit` (who, when, old, new).
+    The row asks `is_internal_owner` to decide clickable vs **Owner only**, shows
+    `tk_settings.client_request_pilot` read-only (not set / empty / all / N clients) and the last
+    audit row. Turning on confirms who gets emailed; off is immediate. Rules and copy:
+    `components/staff/clientEmailsAskLogic.js` (`node components/staff/clientEmailsAskLogic.test.js`).
+    Live self-test (one transaction, rolls back): `supabase/ask-client-switch-tests.sql`.
 - **Digest sections**: scope creep, price review, revenue snapshot, late payers, timesheet gaps,
   staff scorecard, stale clients, pending, and **Staff feedback** (count of `staff_feedback` rows
   still `new`, split by kind, e.g. "3 new: 2 bugs, 1 idea"; how many arrived in the last 7 days;
@@ -1616,7 +1625,8 @@ Team Reviews files.
     (M9). `tk_ask_client` never writes `client_doc_requests`, so the doc chaser never sees an Ask
     client request (B1). `client_reply` comments are
     written under `mgb.tk_request` (B2). Real sending stays off: the owner-only
-    `client_email_settings.client_request_enabled` plus `tk_settings.client_request_pilot`
+    `client_email_settings.client_request_enabled` (the owner flips it on Settings › Firm
+    settings › Emails, Client emails card) plus `tk_settings.client_request_pilot`
     decide it, and only the S6 edge function will send.
   - UI: `TK_requestLogic.js`, `TK_AskClientModal.jsx` (the drawer's **Client requests** section,
     `data-tour="tk-ask-client"`, and the Ask client window), `TK_WaitingList.jsx`
@@ -1646,8 +1656,9 @@ Team Reviews files.
     token and size checked before the body is read, one file per upload call, rate-limited).
     `client-emails` sends the automatic reminders (cron `client-request-nudge`, `tk_nudge_plan`), and
     `drive-files` takes portal uploads to a request (`visibility: "request"`). Nothing sends to a
-    real client until the owner turns on `client_email_settings.client_request_enabled` and lists
-    the client in `tk_settings.client_request_pilot`.
+    real client until the owner turns on `client_email_settings.client_request_enabled` (Settings ›
+    Firm settings › Emails, **Ask client emails live**) and lists the client in
+    `tk_settings.client_request_pilot`.
   - **Deploy order**: `tk-request-respond` (`--no-verify-jwt`), `tk-client-requests`, `drive-files`
     (`--no-verify-jwt`), `client-emails` (`--no-verify-jwt`). No new secrets.
   - **/respond** (`respond.html`, `respond.js`, `respond.css`; `vercel.json` rewrite plus an
