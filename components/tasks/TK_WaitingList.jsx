@@ -108,7 +108,7 @@ function TK_WaitingList(props) {
                           onClick={function () { TK_vOpenTask(r.task_id, { from: "list" }); }}>
                           {r.request_title}
                         </button>
-                        <span className="tk-wt-task">{"on " + r.title}</span>
+                        {r.title && <span className="tk-wt-task">{"on " + r.title}</span>}
                       </div>
                       <p className="tk-cr-meta">{meta.join(" · ")}</p>
                       <div className="tk-cr-actions">
