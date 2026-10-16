@@ -300,7 +300,7 @@ var ANN_REGISTRY = [
     id: "ooo-handoff",
     date: "2026-10-16",
     title: "Time off hands tasks to backups",
-    summary: "When you're out, your open tasks due during your time off go to each client's backup bookkeeper and come back after. Hand my tasks to backups on My time off does it now.",
+    summary: "When you're out, your open tasks due during your time off go to each client's backup bookkeeper and come back after. Click Hand my tasks to backups on My time off before you go.",
     roles: ["admin", "bookkeeper"],
     hash: "#/team/people",
     steps: (ctx) => [
@@ -308,7 +308,7 @@ var ANN_REGISTRY = [
         id: "ann-welcome",
         title: "Your tasks are covered while you're out",
         body: () =>
-          "On your first day off, open tasks due while you're away move to each client's backup bookkeeper. When you're back they come home on their own. Ready for review, private and MGB (internal) tasks stay with you. About a minute.",
+          "Click Hand my tasks to backups before you go and open tasks due while you're away move to each client's backup bookkeeper. When you're back they come home on their own. Ready for review, private and MGB (internal) tasks stay with you. About a minute.",
       },
       TOUR_tabStep(
         "team",

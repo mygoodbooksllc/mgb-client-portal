@@ -1,5 +1,6 @@
 -- =====================================================================
--- Self-test for tasks-p2-7-ooo.sql (out-of-office coverage).
+-- Self-test for tasks-p2-7-ooo.sql (out-of-office coverage) and its review
+-- fixes in tasks-p2-9-ooo-fixes.sql (sections 11-16).
 --
 -- Run it whole; it ends in ROLLBACK, so nothing it writes is kept and no
 -- email is sent (outbox rows vanish with the rollback). Tasks live on the
@@ -67,7 +68,7 @@ insert into t_ctx select 'bk3', lower(email) from staff where active and role = 
 insert into t_ctx select 'a1', lower(email) from staff where active and role = 'admin' order by email limit 1;
 select pg_temp.ok(pg_temp.ctx('bk1') is not null and pg_temp.ctx('bk2') is not null and pg_temp.ctx('bk3') is not null
                   and pg_temp.ctx('a1') is not null, 'test people found');
-select pg_temp.ok(public.tk_schema_version() = 8, 'schema version 8');
+select pg_temp.ok(public.tk_schema_version() >= 8, 'schema version 8 or later');
 
 -- Clients: basic-test has bk2 as backup (bk1 + bk2 have access); grace-community
 -- has bk2 as backup but bk2 has no access there.
@@ -375,5 +376,158 @@ reset role;
 select pg_temp.ok(pg_temp.who('T5') = pg_temp.ctx('bk1') and pg_temp.who('T1') = pg_temp.ctx('bk1'),
                   'return now: everything back with the owner');
 
-select 'S7 self-test passed' as result;
+-- ===== tasks-p2-9-ooo-fixes.sql =================================================
+select set_config('mgb.tk_ooo_waiting_only', '', true);
+update staff_time_off set cancelled_at = now() where id = pg_temp.id('W2');   -- one bk1 window (W3) from here on
+
+-- 11. MAJOR 1: auto apply is off unless set to true ---------------------------
+select pg_temp.ok((select value from tk_settings where key = 'ooo_auto_apply') = 'false'::jsonb,
+                  'MAJOR 1: ooo_auto_apply is seeded as false');
+select pg_temp.mk('T12', pg_temp.ctx('bk1'), pg_temp.ctx('bk1'), 'basic-test', pg_temp.d(3));
+select pg_temp.as_user(null);
+select pg_temp.ok((public.tk_ooo_daily() ->> 'auto_apply')::boolean = false and pg_temp.who('T12') = pg_temp.ctx('bk1'),
+                  'MAJOR 1: switch false, the daily job moves nothing');
+delete from tk_settings where key = 'ooo_auto_apply';
+select pg_temp.ok((public.tk_ooo_daily() ->> 'auto_apply')::boolean = false and pg_temp.who('T12') = pg_temp.ctx('bk1'),
+                  'MAJOR 1: no row means off');
+insert into tk_settings (key, value) values ('ooo_auto_apply', 'true'::jsonb);
+select pg_temp.ok((public.tk_ooo_daily() ->> 'auto_apply')::boolean = true and pg_temp.who('T12') = pg_temp.ctx('bk2'),
+                  'MAJOR 1: switch true, the daily job hands W3 tasks off (control)');
+update tk_settings set value = 'false'::jsonb where key = 'ooo_auto_apply';
+select pg_temp.ok(pg_temp.who('T1') = pg_temp.ctx('bk1'),
+                  'MAJOR 2 (cron): a task handed back by Hand back now is not re-taken by the daily job');
+
+-- 12. MAJOR 2: a manual re-apply moves handed-back tasks again ----------------
+insert into t_ctx select 'n3', (select count(*) from tk_ooo_reassignments where time_off_id = pg_temp.id('W3'))::text;
+insert into t_ctx select 'r0', (select count(*) from tk_ooo_runs)::text;
+select public.tk__ooo_apply(pg_temp.id('W3'), false, '{}'::jsonb, 'cron', false);
+select pg_temp.ok(pg_temp.who('T1') = pg_temp.ctx('bk1')
+                  and (select count(*) from tk_ooo_runs)::text = pg_temp.ctx('r0'),
+                  'minor b: a cron apply that moves nothing logs no run');
+select pg_temp.as_user(pg_temp.ctx('bk1'));
+set local role authenticated;
+insert into t_ctx select 'ap12', public.tk_apply_ooo(pg_temp.id('W3'), false)::text;
+reset role;
+select pg_temp.ok(pg_temp.who('T1') = pg_temp.ctx('bk2') and pg_temp.who('T5') = pg_temp.ctx('bk2'),
+                  'MAJOR 2: re-apply moves T1 and T5 again');
+select pg_temp.ok((select count(*) from tk_ooo_reassignments where time_off_id = pg_temp.id('W3'))::text = pg_temp.ctx('n3')
+                  and (select returned_at is null and return_skipped_reason is null and reassigned_by = pg_temp.ctx('bk1')
+                         from tk_ooo_reassignments where time_off_id = pg_temp.id('W3') and task_id = pg_temp.id('T1')),
+                  'MAJOR 2: the returned ledger row is reopened, no duplicate rows');
+select pg_temp.ok((select count(*) from tk_ooo_runs)::int = pg_temp.ctx('r0')::int + 1, 'minor b: a manual apply logs a run');
+select pg_temp.as_user(pg_temp.ctx('bk1'));
+set local role authenticated;
+select public.tk_apply_ooo(pg_temp.id('W3'), false);
+reset role;
+select pg_temp.ok((select count(*) from tk_ooo_runs)::int = pg_temp.ctx('r0')::int + 2
+                  and exists (select 1 from tk_ooo_runs where time_off_id = pg_temp.id('W3') and action = 'apply'
+                                 and mode = 'manual' and moved = 0),
+                  'minor b: a manual apply that moves nothing still logs');
+
+-- 13. minor b (return): a cron return with only in-review tasks logs nothing ---
+select set_config('mgb.tk_migrate', 'on', true);
+update staff_reminders set status = 'ready_for_review', review_required = true, reviewer_email = pg_temp.ctx('a1')
+ where id in (select task_id from tk_ooo_reassignments where time_off_id = pg_temp.id('W3') and returned_at is null);
+select set_config('mgb.tk_migrate', '', true);
+insert into t_ctx select 'r1', (select count(*) from tk_ooo_runs)::text;
+select pg_temp.as_user(null);
+select public.tk__ooo_return(pg_temp.id('W3'), null, null, false, 'cron');
+select pg_temp.ok((select count(*) from tk_ooo_runs)::text = pg_temp.ctx('r1')
+                  and pg_temp.who('T1') = pg_temp.ctx('bk2')
+                  and (select return_skipped_reason from tk_ooo_reassignments
+                        where time_off_id = pg_temp.id('W3') and task_id = pg_temp.id('T1')) = 'in_review',
+                  'minor b: cron return, everything in review: no run row, tasks wait');
+
+-- 14. minor c: a running window only retries tasks left waiting on review -----
+select set_config('mgb.tk_migrate', 'on', true);
+update staff_reminders set status = 'todo' where id = pg_temp.id('T1');
+select set_config('mgb.tk_migrate', '', true);
+select public.tk_ooo_daily();
+select pg_temp.ok(pg_temp.who('T1') = pg_temp.ctx('bk1') and pg_temp.who('T5') = pg_temp.ctx('bk2'),
+                  'minor c: daily hands back T1 once out of review; T5 (still in review) waits');
+select pg_temp.as_user(pg_temp.ctx('bk1'));
+set local role authenticated;
+select public.tk_apply_ooo(pg_temp.id('W3'), false);
+reset role;
+select pg_temp.ok(pg_temp.who('T1') = pg_temp.ctx('bk2'), 'setup: T1 with the backup again');
+select set_config('mgb.tk_migrate', 'on', true);
+update staff_reminders set due_date = pg_temp.d(9) where id = pg_temp.id('T1');   -- past W3's last day (d6)
+select set_config('mgb.tk_migrate', '', true);
+select pg_temp.as_user(null);
+select public.tk_ooo_daily();
+select pg_temp.ok(pg_temp.who('T1') = pg_temp.ctx('bk2')
+                  and (select returned_at is null from tk_ooo_reassignments
+                        where time_off_id = pg_temp.id('W3') and task_id = pg_temp.id('T1')),
+                  'minor c: due date moved past the last day off: stays with the backup while the owner is out');
+
+-- 15. minor a: a denied access request is not filed again ---------------------
+update staff_client_access_grants set status = 'revoked'
+ where lower(staff_email) = pg_temp.ctx('bk2') and client_id = 'grace-community' and status = 'approved';
+update staff_client_access_grants set status = 'cancelled'
+ where lower(staff_email) = pg_temp.ctx('bk2') and client_id = 'grace-community' and status = 'pending';
+select pg_temp.ok(not public.tk_staff_has_client(pg_temp.ctx('bk2'), 'grace-community'), 'setup: bk2 cannot open grace-community again');
+select public.tk__ooo_request_access(o, pg_temp.ctx('bk2'), 'grace-community') from staff_time_off o where o.id = pg_temp.id('W3');
+select pg_temp.ok((select count(*) from staff_client_access_grants where lower(staff_email) = pg_temp.ctx('bk2')
+                    and client_id = 'grace-community' and status = 'pending') = 1, 'setup: one access request');
+update staff_client_access_grants set status = 'denied', decided_at = now()
+ where lower(staff_email) = pg_temp.ctx('bk2') and client_id = 'grace-community' and status = 'pending';
+select pg_temp.mk('T13', pg_temp.ctx('bk1'), pg_temp.ctx('bk1'), 'grace-community', pg_temp.d(4));
+select pg_temp.as_user(pg_temp.ctx('bk1'));
+set local role authenticated;
+insert into t_ctx select 'ap15', public.tk_apply_ooo(pg_temp.id('W3'), false)::text;
+reset role;
+select pg_temp.as_user(null);
+select public.tk__ooo_request_access(o, pg_temp.ctx('bk2'), 'grace-community') from staff_time_off o where o.id = pg_temp.id('W3');
+select pg_temp.ok(pg_temp.who('T13') = pg_temp.ctx('bk1')
+                  and exists (select 1 from jsonb_array_elements(pg_temp.ctx('ap15')::jsonb -> 'skip') e
+                               where e ->> 'task_id' = pg_temp.ctx('T13') and e ->> 'reason' = 'no_access')
+                  and (select count(*) from staff_client_access_grants where lower(staff_email) = pg_temp.ctx('bk2')
+                        and client_id = 'grace-community' and status = 'pending') = 0,
+                  'minor a: after a denial, apply and the daily path file no new request');
+update staff_client_access_grants g set requested_at = o.created_at - interval '1 day'
+  from staff_time_off o
+ where o.id = pg_temp.id('W3') and lower(g.staff_email) = pg_temp.ctx('bk2') and g.client_id = 'grace-community'
+   and g.status = 'denied';
+select public.tk__ooo_request_access(o, pg_temp.ctx('bk2'), 'grace-community') from staff_time_off o where o.id = pg_temp.id('W3');
+select pg_temp.ok((select count(*) from staff_client_access_grants where lower(staff_email) = pg_temp.ctx('bk2')
+                    and client_id = 'grace-community' and status = 'pending') = 1,
+                  'minor a (control): a denial from before this time off does not block a new request');
+
+-- 16. minor d: moving a whole time off later ----------------------------------
+update staff_time_off set cancelled_at = now() where id = pg_temp.id('W3');
+select pg_temp.mk('T14', pg_temp.ctx('bk1'), pg_temp.ctx('bk1'), 'basic-test', pg_temp.d(3));
+with w as (insert into staff_time_off (staff_email, starts_on, ends_on, note)
+           values (pg_temp.ctx('bk1'), pg_temp.d(2), pg_temp.d(5), 'S7 test 5') returning id)
+insert into t_ctx select 'W5', id::text from w;
+select pg_temp.as_user(pg_temp.ctx('bk1'));
+set local role authenticated;
+select public.tk_apply_ooo(pg_temp.id('W5'), false);
+reset role;
+select pg_temp.ok(pg_temp.who('T14') = pg_temp.ctx('bk2'), 'setup: T14 handed off for W5');
+insert into t_ctx select 'ob16', (select count(*) from notification_outbox)::text;
+select pg_temp.as_user(pg_temp.ctx('bk1'));
+set local role authenticated;
+update staff_time_off set starts_on = pg_temp.d(3), ends_on = pg_temp.d(9) where id = pg_temp.id('W5');
+reset role;
+select pg_temp.ok(pg_temp.who('T14') = pg_temp.ctx('bk1')
+                  and (select count(*) from tk_ooo_reassignments where time_off_id = pg_temp.id('W5') and returned_at is null
+                         and coalesce(return_skipped_reason, '') <> 'in_review') = 0,
+                  'minor d: moved later, not started: every task comes home (even one due in the new dates)');
+select pg_temp.ok(exists (select 1 from notification_outbox where kind = 'staff_task_batch'
+                           and ref_id = 'ooo_owner_back:' || pg_temp.ctx('W5') and recipient_email = pg_temp.ctx('bk1')
+                           and payload ->> 'title' like 'Time off changed:%'),
+                  'minor d: the owner email says the time off changed (not Welcome back)');
+update staff_time_off set cancelled_at = now() where id = pg_temp.id('W5');
+with w as (insert into staff_time_off (staff_email, starts_on, ends_on, note)
+           values (pg_temp.ctx('bk1'), pg_temp.d(-2), pg_temp.d(4), 'S7 test 6') returning id)
+insert into t_ctx select 'W6', id::text from w;
+select pg_temp.as_user(pg_temp.ctx('bk1'));
+set local role authenticated;
+select public.tk_apply_ooo(pg_temp.id('W6'), false);
+update staff_time_off set starts_on = pg_temp.d(-1), ends_on = pg_temp.d(9) where id = pg_temp.id('W6');
+reset role;
+select pg_temp.ok(pg_temp.who('T14') = pg_temp.ctx('bk2'),
+                  'minor d (control): a started time off moved later keeps tasks still inside it with the backup');
+
+select 'S7 self-test passed (with S7 fixes)' as result;
 rollback;

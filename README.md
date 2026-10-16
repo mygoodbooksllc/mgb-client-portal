@@ -1667,7 +1667,7 @@ Team Reviews files.
   - **Tables** (RLS on, no browser access; read through the RPCs): `tk_ooo_reassignments` (one
     row per task moved for a time off: from, to, reason, `returned_at` / `return_skipped_reason`)
     and `tk_ooo_runs` (each apply or return run, with its moves and skips).
-  - **Rules**: on the first day off, open tasks (To do, In progress, Waiting on client) assigned to
+  - **Rules**: on a hand-off, open tasks (To do, In progress, Waiting on client) assigned to
     the person and **due inside the window** go to `client_profile.backup_bookkeeper_email`. Ready
     for review, private, internal and after-window tasks stay. Skips: `no_backup`, `self`,
     `backup_away` (the backup is out on the due date), `no_access` (cron and non-admin runs only
@@ -1682,14 +1682,24 @@ Team Reviews files.
     per-task email for an OOO move), `tk__issue_period` (a generated task due while its assignee
     is out goes to the backup) and `complete_staff_item` (a covered repeating task rolls forward
     to the backup inside the window, else to the owner).
-  - **Cron `tk-ooo-daily`** (`0 11 * * *`, `tk_ooo_daily()`): applies windows that start today or
-    earlier and returns ended ones. The `tk_settings` key `ooo_auto_apply` (`false` stops the
-    apply half; returns always run). Summaries use the existing `staff_task_batch` outbox kind,
+  - **Cron `tk-ooo-daily`** (`0 11 * * *`, `tk_ooo_daily()`): returns ended or cancelled windows
+    (and retries rows waiting on review in running ones). It applies windows that start today or
+    earlier only when the `tk_settings` key `ooo_auto_apply` is `true` (seeded `false`; a missing
+    row also means off). Returns always run. Summaries use the existing `staff_task_batch` outbox kind,
     one per person, staff only, following the `task_batch` preference and email dry-run.
   - **UI**: `TK_coverageLogic.js` (preview groups, skip copy, labels), `CV_Handoff` in
     `components/staff/Coverage.jsx` (**Hand my tasks to backups** / **Hand off tasks**, **Hand back
     now**), the **Covering for** chip in `TK_Drawer.jsx` and on Today. Tour targets
     `cv-my-timeoff`, `cv-coverage`; launch notice `ooo-handoff`. No edge function changes.
+  - **Review fixes** (`supabase/tasks-p2-9-ooo-fixes.sql`, applied 2026-10-16, schema version
+    stays 9; tests added to `tasks-p2-7-ooo-tests.sql` sections 11-16): `ooo_auto_apply` off by
+    default; only open ledger rows (`returned_at` null) block a move, and a manual re-apply reopens
+    the returned row (the cron never re-takes a handed-back task); a denied access request is not
+    re-filed for the same time off; `tk_ooo_runs` logs cron runs only when something moved or is
+    left over (manual runs always log); a running window no longer hands tasks back by due date
+    (a task whose due date moves past the last day off stays with the backup until the end); a
+    window moved later that hasn't started under its new dates hands everything back (email:
+    "Time off changed"), and one already started keeps the partial return.
 - **Staff profile photos** (`supabase/staff-photo.sql`, re-runnable; see "Staff profile photos"
   under Main features). `staff_photo_versions` and `staff_photo_exemptions` (RLS, no direct writes),
   the `sp_*` RPCs, the `staff_profiles_guard` change (`photo_path` moves only through RPCs), the

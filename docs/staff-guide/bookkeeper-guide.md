@@ -88,7 +88,7 @@ See [How do I message a client or a teammate?](#/help/inbox).
 **When you're away**
 
 1. Add your time off on **Team › People** and set each client's backup on the **Overview** (**Key dates and coverage** › **Edit dates and coverage**).
-2. Your open tasks due while you're out go to each backup on your first day off and come back after. To do it early, click **Hand my tasks to backups** under your time off. See [What happens to my tasks while I'm out?](#/help/out-of-office-handoff).
+2. Before you go, click **Hand my tasks to backups** under your time off: open tasks due while you're out go to each backup and come back after. See [What happens to my tasks while I'm out?](#/help/out-of-office-handoff).
 
 ### Good to know
 

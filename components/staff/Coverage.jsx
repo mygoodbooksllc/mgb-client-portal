@@ -282,8 +282,8 @@ function CV_CancelButton({ row, onCancelled }) {
 // tk_apply_ooo / tk_return_ooo / tk_my_coverage (supabase/tasks-p2-7-ooo.sql)
 // through TK_api. Open tasks due while someone is out go to each client's
 // backup bookkeeper; Ready for review, private and MGB (internal) tasks stay.
-// The tk-ooo-daily job also does this on the first day off and hands
-// everything back after the last one; these buttons do it sooner.
+// The tk-ooo-daily job hands everything back after the last day off; it only
+// hands off on the first day off when tk_settings.ooo_auto_apply = true (off by default).
 // Wording: TK_coverageLogic.js.
 const CV_NO_ROWS = [];
 const CV_cov = { rows: null, promise: null, at: 0, subs: new Set(), listening: false };
@@ -583,8 +583,8 @@ function CV_MyTimeOffBody({ staffUser }) {
         )
       )}
       <p className="cv-hint">
-        Before you go, check each of your clients has a backup bookkeeper (Client overview → Edit dates and coverage). On your first day off, open
-        tasks due while you're out go to each client's backup and come back after; Hand my tasks to backups does it now.
+        Before you go, check each of your clients has a backup bookkeeper (Client overview → Edit dates and coverage). Then click Hand my tasks
+        to backups: open tasks due while you're out go to each client's backup and come back after.
       </p>
     </div>
   );
@@ -723,7 +723,7 @@ function CV_CoverageTab() {
             <h3 className="card-title" style={{ margin: 0 }}>Coverage, today to {fmtDate(to)}</h3>
             <p className="card-subtitle" style={{ margin: "2px 0 0" }}>
               Who's out, their clients and whether each client's backup can open it. "Give access" starts now and ends the day after they're back.
-              "Hand off tasks" moves their open tasks due while they're out to each client's backup (the daily job does it on the first day off)
+              "Hand off tasks" moves their open tasks due while they're out to each client's backup (the daily job only does it when the ooo_auto_apply switch is on)
               and they come back after.
             </p>
           </div>

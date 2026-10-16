@@ -18,8 +18,8 @@ Each new launch also has a **Launches** list above, with **Open** and **Take the
 
 ### 2026-10-16: Time off hands tasks to backups
 
-- **Your tasks are covered while you're out.** On your first day off, open tasks due while you're away go to each client's **backup bookkeeper**, and come back to you after your last day. **Ready for review**, private and MGB (internal) tasks stay with you.
-- **Do it early.** **Team › People › My time off** has **Hand my tasks to backups**: a preview of what goes to whom and what stays, then **Hand off {n} tasks**. **Hand back now** ends it early; cancelling or shortening the time off brings tasks back too.
+- **Your tasks are covered while you're out.** Click **Hand my tasks to backups** before you go and open tasks due while you're away go to each client's **backup bookkeeper**, then come back to you after your last day. (An automatic hand-off on the first day off is off unless an admin turns it on.) **Ready for review**, private and MGB (internal) tasks stay with you.
+- **Hand my tasks to backups.** **Team › People › My time off** has the button: a preview of what goes to whom and what stays, then **Hand off {n} tasks**. **Hand back now** ends it early; cancelling, shortening or moving the time off later brings tasks back too. Clicking it again re-sends anything that came back.
 - **Backups see it.** The task drawer says **Covering for {name} until {date}**, **Today** says **Covering for {name}**, and the task's Activity shows the hand-off and the hand-back.
 - **Admins** get **Hand off tasks** on each person's time off, with a cover pick for clients with no backup and access given for the time off.
 - **One summary email per person**, staff only, following the **Task summaries** setting. Nothing goes to clients. See [What happens to my tasks while I'm out?](#/help/out-of-office-handoff).

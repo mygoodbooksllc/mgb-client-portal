@@ -1017,7 +1017,7 @@ const INFRA_LINKS = [
   {
     name: "Supabase cron (time-off task hand-off)",
     url: "https://supabase.com/dashboard/project/xumsqmhccgfjnlmieqyu/integrations/cron/jobs",
-    note: "tk-ooo-daily (11:00 UTC) runs tk_ooo_daily(): hands open tasks due during time off to each client's backup and hands them back after · logs in tk_ooo_runs (admins) · ledger tk_ooo_reassignments · switch ooo_auto_apply in tk_settings · no edge function",
+    note: "tk-ooo-daily (11:00 UTC) runs tk_ooo_daily(): hands tasks back after time off; hands them off on the first day only if ooo_auto_apply = true (off by default) · logs in tk_ooo_runs (admins) · ledger tk_ooo_reassignments · switch ooo_auto_apply in tk_settings · no edge function",
   },
   {
     name: "Google Drive (client files)",
@@ -15082,7 +15082,7 @@ function DeveloperToolsPage({ staffUser, readOnly }) {
             ["nudge_max", "Ask client reminders before No reply", "Reminders sent before a request shows No reply."],
             ["token_ttl_days", "Answer link lifetime (days)", "How long an Ask client answer link works."],
             ["on_time_since", "On-time counted since", "Start date for on-time stats and the missed-periods floor."],
-            ["ooo_auto_apply", "Time off hands tasks to backups", "Not set or On: the tk-ooo-daily cron (11:00 UTC) moves open tasks due during someone's time off to each client's backup on their first day off. Set to false to keep only the manual Hand my tasks to backups button. Handing back after the time off always runs."],
+            ["ooo_auto_apply", "Time off hands tasks to backups", "Off (false or not set, the default): only the manual Hand my tasks to backups button moves tasks. Set to true and the tk-ooo-daily cron (11:00 UTC) also moves open tasks due during someone's time off to each client's backup on their first day off (never re-taking a task someone handed back). Handing back after the time off always runs."],
             ["asana_import_apply_enabled", "Asana import apply", "Off (or missing) blocks tk_import_asana_apply, the one-time Asana import. Turn on only for the import, then off again. Undo works with it off."],
           ].map(([key, label, desc]) => {
             const row = tkSettings[key];

@@ -5,11 +5,11 @@ audience: staff
 keywords: [out of office, ooo, time off, vacation, away, hand off, handoff, hand my tasks to backups, hand off tasks, hand back now, covering, covering for, covered by, backup, backup bookkeeper, reassigned while out of office, handed back, tk-ooo-daily, ooo_auto_apply, pick a cover, backup is also out, no backup, can't open this client, ready for review stays]
 sort: 256
 ---
-While you're out, your open tasks go to each client's **backup bookkeeper** and come back to you when you return. Nothing is lost and nobody has to reassign tasks one by one.
+While you're out, your open tasks can go to each client's **backup bookkeeper** and come back to you when you return. Nothing is lost and nobody has to reassign tasks one by one.
 
 ### What moves
 
-On your **first day off**, early in the morning, every task that is:
+When you click **Hand my tasks to backups** (or an admin clicks **Hand off tasks**), every task that is:
 
 - assigned to you,
 - **To do**, **In progress** or **Waiting on client**, and
@@ -29,14 +29,14 @@ You stay the task's creator, so it still shows as yours in its history. The back
 
 ### Do it now: Hand my tasks to backups
 
-You don't have to wait for the first day off.
+Tasks don't move on their own unless an admin has switched on the automatic hand-off (see **Admins** below), so do this before you leave.
 
 1. Open **Team › People** (`#/team/people`) and find **My time off**.
 2. Under the dates, click **Hand my tasks to backups**.
 3. Check the list: **To {backup}** shows what moves and when it's due; **Staying with {your name}** shows what stays and why.
 4. Click **Hand off {n} tasks**, or **Close** to leave it.
 
-Doing it again later only moves tasks that weren't moved yet.
+Doing it again later moves anything that's back with you, including tasks you took back with **Hand back now**. If a backup is refused access to a client, that client isn't asked about again for the same time off.
 
 ### Coming back
 
@@ -44,6 +44,8 @@ After your **last day off**, everything that went to a backup comes back to you 
 
 - **Cancel** your time off and covered tasks come back at once.
 - **Shorten** it and tasks now due after you're back come home.
+- **Move it later** before it starts and every covered task comes back to you. Click **Hand my tasks to backups** again closer to the new dates.
+- A task whose **due date is moved** past your last day off stays with the backup until you're back.
 - A task someone **reassigned by hand** while you were out is left where they put it.
 - A task that is **Ready for review** waits until the review is finished, then comes back.
 - A recurring task the backup ticks off rolls forward: if the next one is still due while you're out it stays with them, otherwise it comes straight back to you.
@@ -63,7 +65,7 @@ On **Team › People**, each person's time off has **Hand off tasks**:
 - **Pick someone to cover (admins)**: for a client with no backup, a backup who is out or one without access, choose a person, then **Check again**.
 - **{n} tasks with backups** and **Hand back now** show while tasks are out.
 
-The automatic hand-off can be switched off firm-wide with the `ooo_auto_apply` setting (Dev Tools › **Tasks switches** shows it). Handing back always runs. The job is the **tk-ooo-daily** cron.
+The automatic hand-off is **off** unless the `ooo_auto_apply` setting is `true` (Dev Tools › **Tasks switches** shows it). When it's on, the **tk-ooo-daily** cron hands tasks off early on the first day off. It never takes back a task someone handed back. Handing back after the last day off always runs.
 
 ### Related
 
