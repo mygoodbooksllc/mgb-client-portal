@@ -491,6 +491,110 @@ t("searchRowToTask", () => {
   assert.strictEqual(L.TK_searchRowToTask({ task_id: "t2", status: "weird" }).status, "todo");
 });
 
+// ---- Group by Due date | Client ------------------------------------------------------------
+t("normalizeGroupBy only allows due or client", () => {
+  assert.strictEqual(L.TK_normalizeGroupBy("client"), "client");
+  assert.strictEqual(L.TK_normalizeGroupBy("due"), "due");
+  assert.strictEqual(L.TK_normalizeGroupBy("nonsense"), "due");
+  assert.strictEqual(L.TK_normalizeGroupBy(null), "due");
+});
+t("flattenMyGroups keeps group order and can drop Done", () => {
+  const g = { overdue: [{ id: "a" }], today: [], week: [{ id: "b" }], later: [], waiting: [{ id: "c" }], done: [{ id: "d" }] };
+  assert.deepStrictEqual(L.TK_flattenMyGroups(g).map((x) => x.id), ["a", "b", "c", "d"]);
+  assert.deepStrictEqual(L.TK_flattenMyGroups(g, { showDone: false }).map((x) => x.id), ["a", "b", "c"]);
+  assert.deepStrictEqual(L.TK_flattenMyGroups(null), []);
+});
+const GC = [
+  { id: "c1", name: "Zeta Corp" },
+  { id: "c2", name: "alpha LLC" },
+  { id: "c3", name: "Demo Test", testOnly: true },
+  { id: "c4", name: "MGB Internal", isInternal: true },
+];
+t("groupByClient sorts by name, then No client, then test, then internal", () => {
+  const tasks = [
+    { id: "1", client_id: "c4" },
+    { id: "2", client_id: "c1" },
+    { id: "3", client_id: null },
+    { id: "4", client_id: "c3" },
+    { id: "5", client_id: "c2" },
+    { id: "6", client_id: "c1" },
+  ];
+  const g = L.TK_groupByClient(tasks, { clients: GC });
+  assert.deepStrictEqual(g.map((x) => x.name), ["alpha LLC", "Zeta Corp", "No client", "Demo Test", "MGB Internal"]);
+  assert.deepStrictEqual(g[1].tasks.map((x) => x.id), ["2", "6"]);
+  assert.strictEqual(g[2].clientId, null);
+});
+t("groupByClient handles unknown clients, empty input and collapsed", () => {
+  assert.deepStrictEqual(L.TK_groupByClient([], { clients: GC }), []);
+  assert.deepStrictEqual(L.TK_groupByClient(null), []);
+  const g = L.TK_groupByClient([{ id: "1", client_id: "zz" }, { id: "2" }], { clients: GC, collapsed: { "client:zz": true } });
+  assert.strictEqual(g[0].name, "zz");
+  assert.strictEqual(g[0].collapsed, true);
+  assert.strictEqual(g[1].collapsed, false);
+});
+t("groupByClient accepts a custom flag function", () => {
+  const g = L.TK_groupByClient([{ id: "1", client_id: "c1" }, { id: "2", client_id: "c2" }], {
+    clients: GC,
+    flagOf: (c) => (c && c.id === "c2" ? "test" : null),
+  });
+  assert.deepStrictEqual(g.map((x) => x.name), ["Zeta Corp", "alpha LLC"]);
+});
+
+// ---- Manage projects ---------------------------------------------------------------------
+const MR = [
+  { id: "p1", name: "Monthly close", state: "active", client_name: "Zeta Corp", owner_name: "Dana", owner_email: "dana@x.com", open_tasks: 3, done_tasks: 2 },
+  { id: "p2", name: "Old cleanup", state: "archived", client_name: null, owner_name: "Sam", owner_email: "sam@x.com", open_tasks: 0, done_tasks: 5 },
+  { id: "p3", name: "Gone", state: "trashed", trashed_at: "2026-10-10T00:00:00Z", open_tasks: 1, done_tasks: 0 },
+  { id: "p4", name: "Gone long ago", state: "expired", trashed_at: "2026-08-01T00:00:00Z" },
+];
+t("manageCounts splits active, archived and trash", () => {
+  assert.deepStrictEqual(L.TK_manageCounts(MR), { all: 2, active: 1, archived: 1, trashed: 2 });
+  assert.deepStrictEqual(L.TK_manageCounts(null), { all: 0, active: 0, archived: 0, trashed: 0 });
+});
+t("manageFilterRows filters by tab and query", () => {
+  assert.deepStrictEqual(L.TK_manageFilterRows(MR, { filter: "all" }).map((r) => r.id), ["p1", "p2"]);
+  assert.deepStrictEqual(L.TK_manageFilterRows(MR, { filter: "active" }).map((r) => r.id), ["p1"]);
+  assert.deepStrictEqual(L.TK_manageFilterRows(MR, { filter: "archived" }).map((r) => r.id), ["p2"]);
+  assert.deepStrictEqual(L.TK_manageFilterRows(MR, { filter: "trashed" }).map((r) => r.id), ["p3", "p4"]);
+  assert.deepStrictEqual(L.TK_manageFilterRows(MR, { filter: "all", query: "ZETA" }).map((r) => r.id), ["p1"]);
+  assert.deepStrictEqual(L.TK_manageFilterRows(MR, { filter: "all", query: "sam@" }).map((r) => r.id), ["p2"]);
+  assert.deepStrictEqual(L.TK_manageFilterRows(MR, { filter: "trashed", query: "long" }).map((r) => r.id), ["p4"]);
+  assert.deepStrictEqual(L.TK_manageFilterRows(null), []);
+});
+t("manageActions per state", () => {
+  assert.deepStrictEqual(L.TK_manageActions(MR[0]), ["rename", "archive", "trash"]);
+  assert.deepStrictEqual(L.TK_manageActions(MR[1]), ["rename", "unarchive", "trash"]);
+  assert.deepStrictEqual(L.TK_manageActions(MR[2]), ["restore"]);
+  assert.deepStrictEqual(L.TK_manageActions(MR[3]), ["restore"]);
+  assert.deepStrictEqual(L.TK_manageActions(null), []);
+});
+t("manageTrashNote counts days left", () => {
+  const now = Date.parse("2026-10-13T12:00:00Z");
+  assert.strictEqual(L.TK_manageTrashNote(MR[0], now), "");
+  assert.strictEqual(L.TK_manageTrashNote(MR[2], now), "In the trash for 3 days. 27 days left in the usual window.");
+  assert.ok(/Past the 30-day mark/.test(L.TK_manageTrashNote(MR[3], now)));
+  assert.strictEqual(
+    L.TK_manageTrashNote({ state: "trashed", trashed_at: "2026-10-13T01:00:00Z" }, now),
+    "Moved to the trash today. 30 days left in the usual window.",
+  );
+  assert.strictEqual(L.TK_manageTrashNote({ state: "trashed" }, now), "In the trash.");
+});
+t("manageTrashConfirm names the project and task counts", () => {
+  const c = L.TK_manageTrashConfirm(MR[0]);
+  assert.ok(c.title.indexOf("Monthly close") >= 0);
+  assert.ok(c.body.indexOf("5 tasks (3 open, 2 done)") >= 0);
+  assert.ok(/Nothing is deleted/.test(c.body));
+  assert.strictEqual(c.confirm, "Move to trash");
+  assert.ok(L.TK_manageTrashConfirm({ name: "Empty" }).body.indexOf("disappear from every list") >= 0);
+});
+t("manageErrorText maps the server reasons", () => {
+  assert.ok(/already a project/.test(L.TK_manageErrorText({ reason: "tk_name_taken" })));
+  assert.ok(/1 to 120/.test(L.TK_manageErrorText({ reason: "tk_bad_name" })));
+  assert.ok(/waiting on a client/.test(L.TK_manageErrorText({ reason: "tk_has_open_requests" })));
+  assert.ok(/30 days/.test(L.TK_manageErrorText({ reason: "tk_trash_expired" })));
+  assert.ok(/Couldn't save/.test(L.TK_manageErrorText(null)));
+});
+
 // ---- With TK_logic loaded (the browser order) -------------------------------------------
 t("works with TK_logic globals present", () => {
   let logic = null;

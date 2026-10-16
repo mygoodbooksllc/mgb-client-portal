@@ -14,6 +14,50 @@
 var TK_vGROUPS_KEY = "mgb_tk_groups_v1";
 var TK_vVIEW_KEY = "mgb_tk_view_v1";
 
+var TK_vGROUPBY_KEY = "mgb_tk_groupby_v1";
+
+// "Group by: Due date | Client", remembered per signed-in person (localStorage,
+// never the server). Used by My Tasks and a person's list.
+function TK_vUseGroupBy(email) {
+  var key = TK_vGROUPBY_KEY + ":" + (email || "");
+  var pair = React.useState(function () {
+    var v = TK_vLsGet(key, "due");
+    return typeof TK_normalizeGroupBy === "function" ? TK_normalizeGroupBy(v) : v === "client" ? "client" : "due";
+  });
+  var set = function (v) {
+    var n = typeof TK_normalizeGroupBy === "function" ? TK_normalizeGroupBy(v) : v;
+    pair[1](n);
+    TK_vLsSet(key, n);
+  };
+  return [pair[0], set];
+}
+
+function TK_vGroupBySwitch(props) {
+  return (
+    <label className="tk-select-wrap tk-groupby" data-tour="tk-groupby">
+      <span className="tk-groupby-label">Group by</span>
+      <select
+        className="tk-select"
+        value={props.value}
+        aria-label="Group by"
+        onChange={function (e) {
+          props.onChange(e.target.value);
+        }}
+      >
+        <option value="due">{props.dueLabel || "Due date"}</option>
+        <option value="client">Client</option>
+      </select>
+    </label>
+  );
+}
+
+// Client group tag text for test and internal clients.
+function TK_vGroupFlagText(flag) {
+  if (flag === "internal") return "Internal";
+  if (flag === "test") return "Test";
+  return "";
+}
+
 function TK_vNameMap(list, keyField, nameField) {
   var m = {};
   (Array.isArray(list) ? list : []).forEach(function (x) {
@@ -226,7 +270,16 @@ function TK_vMyTasksBody(props) {
       })
     : all;
   var groups = typeof TK_groupMyTasks === "function" ? TK_groupMyTasks(tasks, today, groupOpts) : {};
-  var view = TK_myGroupsView(groups, { collapsed: collapsed, showDone: prefs.showDone });
+  var gbPair = TK_vUseGroupBy(email);
+  var groupBy = gbPair[0];
+  var byClient = groupBy === "client" && typeof TK_groupByClient === "function";
+  var view = byClient
+    ? TK_groupByClient(TK_flattenMyGroups(groups, { showDone: prefs.showDone }), {
+        clients: props.clients || [],
+        collapsed: collapsed,
+        flagOf: typeof CF_flag === "function" ? CF_flag : undefined,
+      })
+    : TK_myGroupsView(groups, { collapsed: collapsed, showDone: prefs.showDone });
   var ids = TK_focusIds(view);
   var byId = {};
   tasks.forEach(function (t) {
@@ -313,11 +366,11 @@ function TK_vMyTasksBody(props) {
     body = (
       <div className="tk-groups" data-tour="tk-groups">
         {view.map(function (g) {
-          var gid = "tk-group-" + g.key;
+          var gid = "tk-group-" + String(g.key).replace(/[^a-zA-Z0-9_-]/g, "_");
           return (
             <section
               key={g.key}
-              className={"tk-group tk-group-" + g.key + (g.collapsed ? " is-collapsed" : "")}
+              className={"tk-group " + (byClient ? "tk-group-client" : "tk-group-" + g.key) + (g.collapsed ? " is-collapsed" : "")}
               aria-labelledby={gid}
               data-tour={g.key === "unassigned" ? "tk-unassigned-group" : undefined}
             >
@@ -332,6 +385,7 @@ function TK_vMyTasksBody(props) {
                 >
                   <TK_vIcon name="chevron" size={14} className="tk-chev" />
                   <span className="tk-group-name">{g.label}</span>
+                  {byClient && g.flag ? <span className="tk-group-flag">{TK_vGroupFlagText(g.flag)}</span> : null}
                   <span className="tk-count">{g.tasks.length}</span>
                 </button>
               </h3>
@@ -341,7 +395,7 @@ function TK_vMyTasksBody(props) {
                     var tour = !firstRowDone;
                     firstRowDone = true;
                     // S8b: an Unassigned row is claimed first, then worked.
-                    var un = g.key === "unassigned";
+                    var un = byClient ? !t.assignee_email && !t.done : g.key === "unassigned";
                     var claimTour = un && !firstClaimDone;
                     if (un) firstClaimDone = true;
                     return (
@@ -351,7 +405,7 @@ function TK_vMyTasksBody(props) {
                         today={today}
                         clientName={t.client_id != null ? clientNames[String(t.client_id)] || "" : ""}
                         projectName={t.project_id ? projectNames[t.project_id] || "" : ""}
-                        showClient={!clientFilter}
+                        showClient={!clientFilter && !byClient}
                         focused={focusedId === t.id}
                         checklist={counts[t.id] || null}
                         isAdmin={isAdmin}
@@ -422,6 +476,7 @@ function TK_vMyTasksBody(props) {
               </select>
             </label>
           ) : null}
+          <TK_vGroupBySwitch value={groupBy} onChange={gbPair[1]} />
           <TK_vSwitch
             checked={prefs.showDone}
             label="Show done"

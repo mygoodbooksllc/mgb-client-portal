@@ -703,6 +703,9 @@ t("parseRoute", () => {
   assert.deepStrictEqual(P("#/tasks/waiting"), { view: "waiting" });
   assert.deepStrictEqual(P("#/tasks/Waiting/"), { view: "waiting" });
   assert.deepStrictEqual(P("#/tasks/waiting/x"), { view: "unknown" });
+  assert.deepStrictEqual(P("#/tasks/manage"), { view: "manage" });
+  assert.deepStrictEqual(P("#/tasks/Manage/"), { view: "manage" });
+  assert.deepStrictEqual(P("#/tasks/manage/x"), { view: "unknown" });
   assert.deepStrictEqual(P("#/tasks/c/ExampleChurch"), { view: "client", clientId: "ExampleChurch" });
   assert.deepStrictEqual(P("#/tasks/c/Ab%2Fc"), { view: "client", clientId: "Ab/c" });
   assert.deepStrictEqual(P("#/tasks/c/Ab%2Fc/list"), { view: "client", clientId: "Ab/c" });
@@ -732,6 +735,7 @@ t("formatRoute and round trips", () => {
   assert.strictEqual(F({ view: "review" }), "#/tasks/review");
   assert.strictEqual(F({ view: "templates" }), "#/tasks/templates");
   assert.strictEqual(F({ view: "waiting" }), "#/tasks/waiting");
+  assert.strictEqual(F({ view: "manage" }), "#/tasks/manage");
   assert.strictEqual(F({ view: "client", clientId: "Ab/c" }), "#/tasks/c/Ab%2Fc");
   assert.strictEqual(F({ view: "project", projectId: U }), "#/tasks/p/" + U);
   assert.strictEqual(F({ view: "person", staffId: U }), "#/tasks/u/" + U);

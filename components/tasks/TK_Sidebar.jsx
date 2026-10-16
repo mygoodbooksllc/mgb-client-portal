@@ -5,7 +5,7 @@
 // TK_Sidebar({ route, clients, isAdmin, staffUser, onNavigate(route) })
 //   Admins also get "No team yet" (S8b): imported clients with no bookkeeper.
 //   My Tasks, Review (admins see a count of work they can approve), Search,
-//   Projects (archived hidden, "New project"), Clients and, for admins, People. Every item is a real link (TK_formatRoute), so a
+//   Projects (archived hidden, "New project"; admins also get "Manage projects"), Clients and, for admins, People. Every item is a real link (TK_formatRoute), so a
 //   modifier click opens a new tab; a plain click calls onNavigate.
 // TK_NewProjectModal({ isAdmin, kind, clientId, clientName, onClose, onCreated(project) })
 //   name, sections (one per line) and, for admins only, "Open to all staff".
@@ -347,6 +347,11 @@ function TK_Sidebar(props) {
           <TK_vIcon name="plus" size={14} />
           <span>New project</span>
         </button>
+        {isAdmin ? (
+          <ul className="tk-nav">
+            <TK_vNavItem route={{ view: "manage" }} label="Manage projects" icon="folder" tour="tk-manage-nav" active={route.view === "manage"} onNavigate={nav} />
+          </ul>
+        ) : null}
       </div>
 
       {isAdmin && noTeam.length ? (

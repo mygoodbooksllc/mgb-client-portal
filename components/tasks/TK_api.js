@@ -65,6 +65,7 @@ var TK_api = (function () {
     "tk_has_open_requests", "tk_email_off", "tk_no_recipients", "tk_bad_recipient", "tk_legacy_request",
     "tk_reply_required", "tk_not_open", "tk_not_answered", "tk_contact_exists", "tk_bad_contact", "tk_bad_request",
     "tk_already_assigned", "tk_bad_assignee", "tk_has_team",
+    "tk_project_trashed", "tk_bad_name", "tk_trash_expired",
   ];
   var COPY_FALLBACK = {
     sentForReview: "Sent for review. An admin will approve it.",
@@ -1342,6 +1343,48 @@ var TK_api = (function () {
 
   api.archiveProject = function (id) {
     return api.updateProject(id, { archived_at: nowIso() });
+  };
+
+  // ---- Manage projects (tasks p3): rename, archive, trash, restore ---------------------
+  // All go through SECURITY DEFINER RPCs. Trash hides the project and its tasks
+  // (nothing is deleted); restore brings them back. After each one, re-list the
+  // projects so the sidebar and pickers drop or regain the row.
+
+  function afterProjectManage() {
+    afterWrite(null, { legacy: true });
+    return api.listProjects().then(null, function () { return []; });
+  }
+
+  api.adminListProjects = function () {
+    return run(function (c) {
+      return c.rpc("tk_admin_list_projects");
+    }, { where: "adminListProjects" }).then(function (rows) { return Array.isArray(rows) ? rows : []; });
+  };
+
+  api.renameProject = function (id, name) {
+    return rpcWrite("tk_project_rename", { p_project: id, p_name: String(name == null ? "" : name).trim() }, "renameProject").then(function (v) {
+      return afterProjectManage().then(function () { return v; });
+    });
+  };
+
+  api.setProjectArchived = function (id, archive) {
+    return rpcWrite("tk_project_archive", { p_project: id, p_archive: archive !== false }, "archiveProject").then(function (v) {
+      return afterProjectManage().then(function () { return v; });
+    });
+  };
+
+  // Resolves with how many tasks were hidden along with the project.
+  api.trashProject = function (id) {
+    return rpcWrite("tk_project_trash", { p_project: id }, "trashProject").then(function (n) {
+      return afterProjectManage().then(function () { return Number(n) || 0; });
+    });
+  };
+
+  // Resolves with how many tasks came back.
+  api.restoreProject = function (id) {
+    return rpcWrite("tk_project_restore", { p_project: id }, "restoreProject").then(function (n) {
+      return afterProjectManage().then(function () { return Number(n) || 0; });
+    });
   };
 
   api.listMembers = function (projectId) {

@@ -653,6 +653,21 @@ function TK_vProjectHeader(props) {
     );
   };
 
+  var trash = function () {
+    setModal(null);
+    TK_api.trashProject(project.id).then(
+      function () {
+        TK_vToast("Moved to the trash. " + (isAdmin ? "Restore it from Manage projects." : "An admin can restore it."));
+        try {
+          TK_navigate({ view: "my" });
+        } catch (e3) {}
+      },
+      function (e2) {
+        TK_vToast(typeof TK_manageErrorText === "function" ? TK_manageErrorText(e2) : TK_vErrText(e2, "saveError"));
+      },
+    );
+  };
+
   var shown = members.slice(0, 5);
   return (
     <header className="tk-head tk-project-head">
@@ -800,6 +815,18 @@ function TK_vProjectHeader(props) {
                   >
                     Archive project
                   </button>,
+                  <button
+                    key="trash"
+                    type="button"
+                    role="menuitem"
+                    className="tk-menu-item tk-menu-danger"
+                    onClick={function () {
+                      close();
+                      setModal("trash");
+                    }}
+                  >
+                    Move to trash
+                  </button>,
                 );
                 return items;
               }}
@@ -847,6 +874,17 @@ function TK_vProjectHeader(props) {
             setModal(null);
           }}
           onConfirm={archive}
+        />
+      ) : null}
+      {modal === "trash" ? (
+        <TK_vConfirm
+          title={TK_manageTrashConfirm(project).title}
+          body={TK_manageTrashConfirm(project).body}
+          confirmLabel="Move to trash"
+          onCancel={function () {
+            setModal(null);
+          }}
+          onConfirm={trash}
         />
       ) : null}
     </header>
@@ -913,6 +951,9 @@ function TK_vListBody(props) {
   var drawerId = TK_vUseStore(function (s) {
     return s ? s.drawerId : null;
   });
+  // Person lists can group by client (remembered per signed-in person).
+  var gbPair = TK_vUseGroupBy(email);
+  var byClient = route.view === "person" && gbPair[0] === "client" && typeof TK_groupByClient === "function";
 
   var scopeInfo = TK_listScopeOf(route, { staff: staff || [] });
   var listKey = scopeInfo ? scopeInfo.key : null;
@@ -991,7 +1032,11 @@ function TK_vListBody(props) {
   var all = Array.isArray(list.tasks) ? list.tasks : [];
   var shown = TK_applyFilters(all, { assignee: filters.assignee, statuses: filters.statuses, showDone: filters.showDone, showOlder: filters.showOlder, today: today });
   var sorted = TK_sortTasks(shown, sort, { nameOf: nameOf });
-  var groups = sort
+  var groups = byClient
+    ? TK_groupByClient(sorted, { clients: clients, collapsed: collapsed, flagOf: typeof CF_flag === "function" ? CF_flag : undefined }).map(function (g) {
+        return { key: g.key, name: g.label, flag: g.flag, tasks: g.tasks };
+      })
+    : sort
     ? [{ key: "\u0000flat", name: "", tasks: sorted }]
     : TK_groupBySection(sorted, { kind: route.view === "project" ? "project" : "client", sections: project ? project.sections : [] });
   var ids = [];
@@ -1124,7 +1169,8 @@ function TK_vListBody(props) {
       ) : (
         <TK_vFilters value={filters} onChange={patchFilters} people={people} hideAssignee={route.view === "person"} />
       )}
-      {sort ? (
+      {route.view === "person" ? <TK_vGroupBySwitch value={gbPair[0]} dueLabel="Default" onChange={gbPair[1]} /> : null}
+      {sort && !byClient ? (
         <button
           type="button"
           className="tk-tool-btn"
@@ -1188,7 +1234,7 @@ function TK_vListBody(props) {
           columns={true}
           clientName={t.client_id != null ? clientNames[String(t.client_id)] || "" : ""}
           projectName={route.view !== "project" && t.project_id ? projectNames[t.project_id] || "" : ""}
-          showClient={route.view !== "client"}
+          showClient={route.view !== "client" && !byClient}
           showSection={!!sort}
           assigneeName={t.assignee_email ? nameOf(t.assignee_email) : ""}
           onClaim={readOnly ? undefined : TK_vClaim}
@@ -1255,6 +1301,7 @@ function TK_vListBody(props) {
                 >
                   <TK_vIcon name="chevron" size={14} className="tk-chev" />
                   <span className="tk-group-name">{g.name}</span>
+                  {byClient && g.flag ? <span className="tk-group-flag">{TK_vGroupFlagText(g.flag)}</span> : null}
                   <span className="tk-count">{g.tasks.length}</span>
                 </button>
               </h3>
@@ -1264,7 +1311,7 @@ function TK_vListBody(props) {
                   {nothing && !activeFilters && !g.tasks.length && groups.length === 1 ? (
                     <li className="tk-empty tk-empty-inline">{TK_vCopy("emptyList", "Nothing here yet.")}</li>
                   ) : null}
-                  <TK_vAddRow section={g.key || null} sectionName={g.key ? g.name : ""} ctx={addCtx} disabled={readOnly} />
+                  {byClient ? null : <TK_vAddRow section={g.key || null} sectionName={g.key ? g.name : ""} ctx={addCtx} disabled={readOnly} />}
                 </ul>
               )}
             </section>

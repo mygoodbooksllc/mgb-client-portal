@@ -13,6 +13,9 @@
 //   My Tasks group headings               TK_MY_GROUPS, TK_myGroupsView, TK_focusIds
 //   list keys (j k Enter x s a q ?)       TK_listKeyAction, TK_moveFocus, TK_makeListKeyHandler, TK_bindListKeys
 //   project form helpers                  TK_parseSectionsText, TK_newProjectFields, TK_projectErrorText
+//   group by Due date | Client            TK_normalizeGroupBy, TK_flattenMyGroups, TK_groupByClient
+//   Manage projects (admin screen)        TK_manageCounts, TK_manageFilterRows, TK_manageActions,
+//                                         TK_manageTrashNote, TK_manageTrashConfirm, TK_manageErrorText
 //   small display helpers                 TK_initials, TK_canManageProjectHint, TK_listScopeOf, TK_searchRowToTask
 //
 // TK_logic.js loads first, so TK_compareTasks, TK_isOldDone and
@@ -564,6 +567,210 @@ function TK_searchRowToTask(row) {
   };
 }
 
+// ---- Group by: Due date | Client (tasks p3) -----------------------------------
+// My Tasks and a person's list can group by client instead of by due date.
+// The choice is remembered per person (localStorage, never the server).
+var TK_GROUP_BY_VALUES = ["due", "client"];
+
+function TK_normalizeGroupBy(v) {
+  return v === "client" ? "client" : "due";
+}
+
+// TK_groupMyTasks output -> one flat list, in group order (Overdue first,
+// Done last), so a client's group still reads most urgent first. Done tasks
+// are left out when opts.showDone === false.
+function TK_flattenMyGroups(groups, opts) {
+  var g = groups || {};
+  var o = opts || {};
+  var out = [];
+  TK_MY_GROUPS.forEach(function (m) {
+    if (m.key === "done" && o.showDone === false) return;
+    var list = Array.isArray(g[m.key]) ? g[m.key] : [];
+    list.forEach(function (t) {
+      if (t) out.push(t);
+    });
+  });
+  return out;
+}
+
+var TK_NO_CLIENT_KEY = "client:__none__";
+
+// Groups tasks by client. Order: real clients A to Z, then "No client", then
+// Test clients, then Internal (the same last-place rule as ClientFlags.jsx).
+// opts: { clients: [{ id, name, testOnly, isInternal }], collapsed: {key: bool},
+//         flagOf(client) -> "internal" | "test" | null (CF_flag when the page has it) }.
+// Returns [{ key, name, label, clientId, flag, tasks, collapsed }]; empty
+// groups never appear. Task order inside a group is the input order.
+function TK_groupByClient(tasks, opts) {
+  var o = opts || {};
+  var list = Array.isArray(tasks) ? tasks : [];
+  var clients = Array.isArray(o.clients) ? o.clients : [];
+  var col = o.collapsed || {};
+  var flagOf =
+    typeof o.flagOf === "function"
+      ? o.flagOf
+      : function (c) {
+          if (!c) return null;
+          if (c.isInternal === true) return "internal";
+          if (c.testOnly === true) return "test";
+          return null;
+        };
+  var byId = {};
+  clients.forEach(function (c) {
+    if (c && c.id != null) byId[String(c.id)] = c;
+  });
+  var buckets = {};
+  var order = [];
+  list.forEach(function (t) {
+    if (!t) return;
+    var hasClient = t.client_id != null && String(t.client_id) !== "";
+    var key = hasClient ? "client:" + String(t.client_id) : TK_NO_CLIENT_KEY;
+    if (!buckets[key]) {
+      var c = hasClient ? byId[String(t.client_id)] || null : null;
+      var name = hasClient ? (c && c.name) || String(t.client_id) : "No client";
+      buckets[key] = {
+        key: key,
+        name: name,
+        label: name,
+        clientId: hasClient ? String(t.client_id) : null,
+        flag: hasClient ? flagOf(c) : null,
+        tasks: [],
+        collapsed: Object.prototype.hasOwnProperty.call(col, key) ? !!col[key] : false,
+      };
+      order.push(key);
+    }
+    buckets[key].tasks.push(t);
+  });
+  function rank(g) {
+    if (g.clientId == null) return 1;
+    if (g.flag === "internal") return 3;
+    if (g.flag === "test") return 2;
+    return 0;
+  }
+  return order
+    .map(function (k) {
+      return buckets[k];
+    })
+    .sort(function (a, b) {
+      var r = rank(a) - rank(b);
+      if (r) return r;
+      var x = a.name.toLowerCase();
+      var y = b.name.toLowerCase();
+      if (x !== y) return x < y ? -1 : 1;
+      return String(a.clientId) < String(b.clientId) ? -1 : String(a.clientId) > String(b.clientId) ? 1 : 0;
+    });
+}
+
+// ---- Manage projects (tasks p3) ---------------------------------------------------
+// rows: tk_admin_list_projects output. state is "active", "archived",
+// "trashed" or "expired" (30+ days in the trash; still restorable by an admin).
+var TK_MANAGE_FILTERS = [
+  { key: "all", label: "All" },
+  { key: "active", label: "Active" },
+  { key: "archived", label: "Archived" },
+  { key: "trashed", label: "Trash" },
+];
+
+function TK_manageIsTrashed(r) {
+  return !!r && (r.state === "trashed" || r.state === "expired");
+}
+
+function TK_manageCounts(rows) {
+  var c = { all: 0, active: 0, archived: 0, trashed: 0 };
+  (Array.isArray(rows) ? rows : []).forEach(function (r) {
+    if (!r) return;
+    if (TK_manageIsTrashed(r)) c.trashed++;
+    else if (r.state === "archived") c.archived++;
+    else c.active++;
+    if (!TK_manageIsTrashed(r)) c.all++;
+  });
+  return c;
+}
+
+// filter: "all" (everything not in the trash), "active", "archived", "trashed".
+// query: matches the project name, client, owner name or owner email.
+function TK_manageFilterRows(rows, opts) {
+  var o = opts || {};
+  var f = o.filter || "all";
+  var q = String(o.query == null ? "" : o.query).trim().toLowerCase();
+  return (Array.isArray(rows) ? rows : []).filter(function (r) {
+    if (!r) return false;
+    var trashed = TK_manageIsTrashed(r);
+    if (f === "trashed") {
+      if (!trashed) return false;
+    } else if (trashed) {
+      return false;
+    } else if (f === "active" && r.state !== "active") return false;
+    else if (f === "archived" && r.state !== "archived") return false;
+    if (!q) return true;
+    return [r.name, r.client_name, r.owner_name, r.owner_email].some(function (x) {
+      return String(x == null ? "" : x).toLowerCase().indexOf(q) >= 0;
+    });
+  });
+}
+
+// The buttons a row offers, in order.
+function TK_manageActions(row) {
+  if (!row) return [];
+  if (TK_manageIsTrashed(row)) return ["restore"];
+  if (row.state === "archived") return ["rename", "unarchive", "trash"];
+  return ["rename", "archive", "trash"];
+}
+
+function TK_manageDaysBetween(fromIso, nowMs) {
+  var t = Date.parse(fromIso || "");
+  if (!isFinite(t)) return null;
+  return Math.max(0, Math.floor(((typeof nowMs === "number" ? nowMs : Date.now()) - t) / 86400000));
+}
+
+function TK_managePlural(n, one, many) {
+  return n + " " + (n === 1 ? one : many);
+}
+
+// One line under a trashed row. nowMs is optional (tests pass it).
+function TK_manageTrashNote(row, nowMs) {
+  if (!TK_manageIsTrashed(row)) return "";
+  var days = TK_manageDaysBetween(row.trashed_at, nowMs);
+  if (days == null) return "In the trash.";
+  if (row.state === "expired" || days >= 30) {
+    return "In the trash for " + TK_managePlural(days, "day", "days") + ". Past the 30-day mark, but an admin can still restore it.";
+  }
+  var left = 30 - days;
+  var when = days === 0 ? "Moved to the trash today" : "In the trash for " + TK_managePlural(days, "day", "days");
+  return when + ". " + TK_managePlural(left, "day", "days") + " left in the usual window.";
+}
+
+// Wording for the "Move to trash" confirm.
+function TK_manageTrashConfirm(row) {
+  var name = (row && row.name) || "this project";
+  var open = row && typeof row.open_tasks === "number" ? row.open_tasks : 0;
+  var done = row && typeof row.done_tasks === "number" ? row.done_tasks : 0;
+  var tasks = open + done;
+  var body = tasks
+    ? TK_managePlural(tasks, "task", "tasks") + " (" + open + " open, " + done + " done) will disappear from every list, including My Tasks, with the project."
+    : "The project will disappear from every list.";
+  return {
+    title: "Move “" + name + "” to the trash?",
+    body: body + " Nothing is deleted. An admin can restore it from Manage projects.",
+    confirm: "Move to trash",
+  };
+}
+
+// Friendly text for an RPC error from rename, archive, trash or restore.
+function TK_manageErrorText(err) {
+  var why = err && (err.reason || err.code) ? String(err.reason || err.code) : "";
+  if (why === "tk_name_taken" || why === "23505") return "There's already a project with that name. Try another name.";
+  if (why === "tk_bad_name") return "A project name needs 1 to 120 characters.";
+  if (why === "tk_has_open_requests") {
+    return "A task in this project is waiting on a client (an Ask client request is open or answered but not accepted). Finish or cancel it first, then move the project to the trash.";
+  }
+  if (why === "tk_project_trashed") return "That project is in the trash. Restore it first.";
+  if (why === "tk_trash_expired") return "This project has been in the trash for over 30 days. Only an admin can restore it.";
+  if (why === "tk_forbidden") return "You can't do that to this project.";
+  if (why === "tk_offline") return "You're offline. Try again when you're back online.";
+  return "Couldn't save that change. Try again.";
+}
+
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {
     TK_POPOUT_DEFAULT: TK_POPOUT_DEFAULT,
@@ -595,5 +802,17 @@ if (typeof module !== "undefined" && module.exports) {
     TK_initials: TK_initials,
     TK_listScopeOf: TK_listScopeOf,
     TK_searchRowToTask: TK_searchRowToTask,
+    TK_GROUP_BY_VALUES: TK_GROUP_BY_VALUES,
+    TK_normalizeGroupBy: TK_normalizeGroupBy,
+    TK_flattenMyGroups: TK_flattenMyGroups,
+    TK_NO_CLIENT_KEY: TK_NO_CLIENT_KEY,
+    TK_groupByClient: TK_groupByClient,
+    TK_MANAGE_FILTERS: TK_MANAGE_FILTERS,
+    TK_manageCounts: TK_manageCounts,
+    TK_manageFilterRows: TK_manageFilterRows,
+    TK_manageActions: TK_manageActions,
+    TK_manageTrashNote: TK_manageTrashNote,
+    TK_manageTrashConfirm: TK_manageTrashConfirm,
+    TK_manageErrorText: TK_manageErrorText,
   };
 }
