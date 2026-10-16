@@ -9,6 +9,11 @@
 -- or emails of real people live in this file. Link-token values are random
 -- bytes kept in a temp table and never selected or printed.
 -- A failed check raises and stops the run.
+--
+-- SUPERSEDED IN PART (2026-10-16): S6 (tasks-p2-6-tokens.sql) dropped the S5
+-- link-token signatures, so section 10 on stops at tk_token_lookup(bytea).
+-- Sections 1-9 still pass live; tasks-p2-6-tokens-tests.sql covers links,
+-- answers and the rest.
 -- =====================================================================
 begin;
 
@@ -67,18 +72,27 @@ select pg_temp.ctx('bk'), 'basic-test'
 delete from staff_client_access where lower(staff_email) = pg_temp.ctx('bk') and client_id = 'grace-community';
 -- grace-community stands in for a real client from here on (rolled back).
 update clients set test_only = false, is_internal = false where id = 'grace-community';
-select pg_temp.ok(public.tk_schema_version() = 6, 'schema version 6');
+select pg_temp.ok(public.tk_schema_version() >= 6, 'schema version 6 or later');
+-- The owner turned Ask client emails live on 2026-10-16. These checks start
+-- from off inside this transaction only; it ends in ROLLBACK, so the live
+-- value (and its audit trail) is untouched.
+select set_config('mgb.tk_owner_override', 'on', true);
+update client_email_settings set client_request_enabled = false where id = true;
+select set_config('mgb.tk_owner_override', '', true);
 
 -- 1. Legacy document requests (M13) -----------------------------------------
 select pg_temp.ok(not exists (select 1 from client_doc_requests d join clients c on c.id = d.client_id
                                where not exists (select 1 from client_requests r where r.id = d.id and r.legacy_doc_request
                                                    and r.status = public.tk__legacy_status(d.status))),
                   'every legacy row (live client) copied with the same id and mapped status');
+-- Since S6 the legacy table is read-only except behind this flag (the staff RPCs set it).
+select set_config('mgb.tk_legacy_write', 'on', true);
 insert into client_doc_requests (client_id, title, status, requested_by_name) values ('basic-test', 'S5 legacy mirror', 'open', 'Self test');
 insert into t_ctx select 'leg', id::text from client_doc_requests where title = 'S5 legacy mirror';
 select pg_temp.ok((select legacy_doc_request and status = 'open' and kind = 'document' and needs_upload
                      from client_requests where id = pg_temp.ctx('leg')::uuid), 'new legacy row mirrored');
 update client_doc_requests set status = 'uploaded', fulfilled_at = now() where id = pg_temp.ctx('leg')::uuid;
+select set_config('mgb.tk_legacy_write', '', true);
 select pg_temp.ok((select status = 'answered' and answered_at is not null from client_requests where id = pg_temp.ctx('leg')::uuid),
                   'legacy update mirrored (uploaded -> answered)');
 

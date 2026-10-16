@@ -242,7 +242,8 @@ begin
 end $$;
 reset role;
 do $$ begin
-  if exists (select 1 from public.notification_outbox where client_id = 'p2test-a' and ref_id <> 'p2test-a:2026-08-01') then
+  -- Client emails only: staff_* notices (S3 'ready for sign-off' to admins) are not client email.
+  if exists (select 1 from public.notification_outbox where client_id = 'p2test-a' and kind not like 'staff\_%' and ref_id <> 'p2test-a:2026-08-01') then
     raise exception 'FAIL 5e: a quarter or year sign-off queued a client email';
   end if;
 end $$;

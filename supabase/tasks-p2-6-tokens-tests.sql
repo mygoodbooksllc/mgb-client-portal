@@ -76,8 +76,14 @@ select pg_temp.ctx('bk'), 'basic-test'
  where not exists (select 1 from staff_client_access where lower(staff_email) = pg_temp.ctx('bk') and client_id = 'basic-test');
 delete from staff_client_access where lower(staff_email) = pg_temp.ctx('bk') and client_id = 'grace-community';
 update clients set test_only = false, is_internal = false where id = 'grace-community';
-select pg_temp.ok(public.tk_schema_version() = 7, 'schema version 7');
-select pg_temp.ok(not (select client_request_enabled from client_email_settings limit 1), 'live Ask-client email switch is off');
+select pg_temp.ok(public.tk_schema_version() >= 7, 'schema version 7 or later');
+-- The owner turned Ask client emails live on 2026-10-16. These checks start
+-- from off inside this transaction only; it ends in ROLLBACK, so the live
+-- value (and its audit trail) is untouched.
+select set_config('mgb.tk_owner_override', 'on', true);
+update client_email_settings set client_request_enabled = false where id = true;
+select set_config('mgb.tk_owner_override', '', true);
+select pg_temp.ok(not (select client_request_enabled from client_email_settings limit 1), 'Ask-client email switch is off for this test');
 
 -- 1. Old signatures gone, grants ------------------------------------------------------
 select pg_temp.ok(to_regprocedure('public.tk_token_lookup(bytea)') is null

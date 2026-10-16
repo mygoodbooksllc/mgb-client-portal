@@ -54,11 +54,17 @@ begin
   return n;
 end $$;
 
+-- The owner turned Ask client emails live on 2026-10-16. These checks start
+-- from off inside this transaction only; it ends in ROLLBACK, so the live
+-- value (and its audit trail) is untouched.
+select set_config('mgb.tk_owner_override', 'on', true);
+update client_email_settings set client_request_enabled = false where id = true;
+select set_config('mgb.tk_owner_override', '', true);
 -- Starting state (read as the migration role, before any switch of role).
 insert into t_ctx select 'start', client_request_enabled::text from client_email_settings where id;
 insert into t_ctx select 'pilot', coalesce((select value::text from tk_settings where key = 'client_request_pilot'), '<missing>');
 insert into t_ctx select 'audit0', count(*)::text from tk_settings_audit where key = 'client_email_settings.client_request_enabled';
-select pg_temp.ok(pg_temp.ctx('start') = 'false', 'the switch starts off (never flipped live)');
+select pg_temp.ok(pg_temp.ctx('start') = 'false', 'the switch starts off for this test');
 
 -- People: ow = the owner (active admin with internal_access.is_owner),
 -- na = an active admin who is not the owner, bk = an active bookkeeper.
