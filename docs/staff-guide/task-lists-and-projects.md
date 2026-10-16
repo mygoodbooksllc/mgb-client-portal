@@ -2,12 +2,13 @@
 title: How do client task lists and projects work?
 section: Daily work
 audience: staff
-keywords: [tasks page, sidebar, lists, client list, client tasks, projects, internal work, sops project, directors, owners, 90 day, open to all staff, members, add member, project owner, new project, sections, weekly, monthly, quarterly, annual, archive project, rename, people, person view, search tasks, filters, assignee, status, columns, coverage, temporary access, onboarding project, client header, drive folder, contacts]
+keywords: [tasks page, sidebar, lists, review, review queue, review count, client list, client tasks, projects, internal work, sops project, directors, owners, 90 day, open to all staff, members, add member, project owner, new project, sections, weekly, monthly, quarterly, annual, archive project, rename, people, person view, search tasks, filters, assignee, status, columns, coverage, temporary access, onboarding project, client header, drive folder, contacts]
 sort: 114
 ---
 The **Tasks** page (the **Tasks** button in the top bar, or `#/tasks/my`) has a sidebar of lists down the left. Below about 900 pixels wide, the sidebar sits behind the **Lists** button at the top of the page.
 
 - **My Tasks**: everything assigned to you. See [How do I add and manage my tasks?](#/help/my-tasks).
+- **Review**: work waiting for an admin's approval, with a count for admins. See [How does task review work?](#/help/task-review).
 - **Search**: searches task names, descriptions and comments.
 - **Projects**: shared lists for internal work. **New project** (the + next to the heading) starts one.
 - **Clients**: one list for each client you can see. With more than 8, a **Find a client** box narrows the list.

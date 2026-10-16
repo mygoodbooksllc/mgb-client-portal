@@ -49,7 +49,7 @@ To add a reminder instead, use ⌘K → **New reminder**, or set **Type** to **R
 
 ### Work with a task
 
-- Click the check box at the start of a row to mark a task done, and again to undo. On a task that needs review, your Done sends it to an admin instead. See [What's in a task's details?](#/help/task-details).
+- Click the check box at the start of a row to mark a task done, and again to undo. On a task that needs review, your Done sends it to an admin instead. See [What's in a task's details?](#/help/task-details) and [How does task review work?](#/help/task-review).
 - Click the status (for example **To do**) to change it.
 - Click the task's name to open its details: dates, priority, comments, files, subtasks, the checklist and its history.
 - A task with checklist steps shows its progress, such as **3/5**.

@@ -68,7 +68,7 @@ See [How do I message a client or a teammate?](#/help/inbox).
 
 1. **Today**: clear what's marked **Now**.
 2. **Inbox**: reply to every client waiting on you.
-3. **Work › Tasks**: finish what's due.
+3. **Work › Tasks**: finish what's due. Anything sent back from review is back in your list as **In progress**, with the reviewer's note in its comments. See [How does task review work?](#/help/task-review).
 
 **Every week**
 

@@ -2,7 +2,7 @@
 title: What's in a task's details?
 section: Daily work
 audience: staff
-keywords: [task details, details panel, drawer, open task, status, to do, in progress, waiting on client, ready for review, done, review, needs review, approve, send back, reviewer, assignee, due, start, priority, section, repeat, remind me, sharing, private, share with the client's team, sop section, description, subtasks, checklist, comments, mentions, at mention, followers, follow, files, attachments, links, google drive, activity, history, copy link, delete, restore, deleted]
+keywords: [task details, details panel, drawer, open task, status, to do, in progress, waiting on client, ready for review, done, review, needs review, approve, send back, take back, review strip, review queue, reviewer, assignee, due, start, priority, section, repeat, remind me, sharing, private, share with the client's team, sop section, description, subtasks, checklist, comments, mentions, at mention, followers, follow, files, attachments, links, google drive, activity, history, copy link, delete, restore, deleted]
 sort: 112
 ---
 Click a task anywhere (My Tasks, a client or project list, Today, a client's Overview, the bell or search) and its details slide in from the right. On a phone they fill the screen. Press **Esc** or click **Close** to put them away. Changes save as you make them.
@@ -19,9 +19,10 @@ Click a task anywhere (My Tasks, a client or project list, Today, a client's Ove
 Every task has one of five statuses: **To do**, **In progress**, **Waiting on client**, **Ready for review** and **Done**.
 
 - **Waiting on client** pauses the task. It moves to the Waiting on client group on My Tasks and never shows as overdue.
-- A task with **Needs review before it's done** ticked has a review step. When someone who isn't an admin finishes it, the status menu says **Send for review** and the task goes to **Ready for review**. You'll see *Sent for review. An admin will approve it.* The details say **Reviewer: any admin**.
-- On a task that's **Ready for review**, any admin sees **Approve** (it becomes Done) and **Send back**, which asks *What needs another look? (optional)* and moves the task back to **In progress** with your note.
+- A task with **Needs review before it's done** ticked has a review step, for admins too. When you finish it, the status menu says **Send for review** and the task goes to **Ready for review**. You'll see *Sent for review. An admin will approve it.* A strip at the top of the details shows the reviewer (**any admin** if nobody is named), how long it has waited and how often it was sent back.
+- On a task that's **Ready for review**, the reviewer (any admin who didn't do the work) sees **Approve** (it becomes Done) and **Send back**, which asks *What needs another look?* (a short note is required) and moves the task back to **In progress** with your note as a comment. The person who did the work sees **Take back** instead, and can't change the assignee until it's out of review.
 - Anyone who can edit a task can tick **Needs review**. Only an admin can turn it off.
+- All the work waiting for review is on **Review** in the Tasks sidebar. See [How does task review work?](#/help/task-review).
 
 ### The fields
 

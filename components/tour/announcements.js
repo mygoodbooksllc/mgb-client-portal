@@ -107,6 +107,63 @@ var ANN_REGISTRY = [
       },
     ],
   },
+  {
+    id: "task-review",
+    date: "2026-10-15",
+    title: "Task review and on-time",
+    summary: "Work that needs review now goes to a named reviewer (never the person who did it), send-backs need a note, and Review in the Tasks sidebar lists everything waiting.",
+    roles: ["admin", "bookkeeper"],
+    hash: "#/tasks/review",
+    steps: (ctx) => [
+      {
+        id: "ann-welcome",
+        title: "Task review got a proper loop",
+        body: () =>
+          ctx && ctx.isAdmin
+            ? "A quick look at reviewing staff work. Each task in review has a reviewer, sending it back needs a note, and nobody approves their own work, admins included. About a minute."
+            : "A quick look at what happens when your task needs review. You send it, an admin approves it or sends it back with a note, and you can take it back while it waits. About a minute.",
+      },
+      {
+        id: "ann-nav",
+        go: () => {
+          if (!/^#\/tasks\/review(\?|$)/.test(window.location.hash || "")) window.location.hash = "#/tasks/review";
+        },
+        targets: ["tk-review-nav"],
+        wait: true,
+        title: "Review in the Tasks sidebar",
+        body: () =>
+          ctx && ctx.isAdmin
+            ? "Everything waiting for review, oldest first. The number is what you can approve now."
+            : "Your work waiting for an admin's approval is listed here.",
+      },
+      {
+        id: "ann-groups",
+        targets: ["tk-review-groups"],
+        wait: true,
+        spot: "top",
+        title: "Who it's waiting on",
+        body: () =>
+          ctx && ctx.isAdmin
+            ? "Waiting on you, Any admin, Other reviewers, then Your work in review. Open a task to Approve it or Send back with a short note. Your own work goes to another admin."
+            : "Open a task to see who reviews it and how long it has waited. Take back moves it to In progress if you need to change something.",
+      },
+      {
+        id: "ann-stats",
+        when: (c) => !!(c && c.isAdmin),
+        targets: ["tk-review-stats"],
+        wait: true,
+        title: "On time, last 30 days",
+        body: () =>
+          "For each person: how much was finished (or approved) by the end of its due date, with client-wait time added, plus approvals, first passes and send-backs.",
+      },
+      {
+        id: "ann-done",
+        title: "That's it",
+        body: () =>
+          "A task sent back shows up as In progress with the reviewer's note in its comments. To see this again, press ? and pick New: Task review and on-time tour.",
+      },
+    ],
+  },
 ];
 
 if (typeof module !== "undefined" && module.exports) module.exports = { ANN_REGISTRY: ANN_REGISTRY };

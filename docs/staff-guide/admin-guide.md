@@ -24,6 +24,7 @@ If you're also a client's account manager, the **Account manager tour** comes ne
 | **Team › Hours** | Hours and tasks by person and by client, monthly hours budgets, capacity, and fees, cost and margin | [Hours budget](#/help/hours-budget), [Capacity](#/help/capacity), [Profitability](#/help/profitability) |
 | **Team › Reply times** | How fast clients hear back, against the 24-hour goal | [Reply times](#/help/reply-times) |
 | **Team › Performance** | Every bookkeeper's score out of 100, as a ranking (bookkeepers see only their own) | [Performance](#/help/performance) |
+| **Review** in the Tasks sidebar | Approve or send back staff work that needs review, and each person's on-time rate for the last 30 days | [Task review](#/help/task-review) |
 | **Team › Reviews › Team status** | Open and run the quarterly review cycle | [Review cycles](#/help/review-cycles) |
 | **Team › Handbook** | Staff policies bookkeepers sign; who countersigns, each bookkeeper's state and their signed copies | [Staff Handbook](#/help/staff-handbook) |
 | **Team › Feedback** | Bug reports and ideas from staff and clients | [Feedback](#/help/feedback-page) |
@@ -40,6 +41,7 @@ If you're also a client's account manager, the **Account manager tour** comes ne
 
 1. Work through **Today**: client messages, access and upgrade requests, and clients at risk.
 2. Glance at admin@mygoodbooks.org for any **"MyGoodBooks alert:"** email and deal with it first. See [What are the health-check alert emails?](#/help/health-alerts).
+3. **Review** in the Tasks sidebar (`#/tasks/review`): approve or send back work waiting for you, oldest first. See [How does task review work?](#/help/task-review).
 
 **Every week**
 

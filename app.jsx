@@ -26109,7 +26109,7 @@ const PAGE_META = {
   },
   tasks: {
     title: "Tasks",
-    subtitle: "Your tasks, client lists and projects",
+    subtitle: "Your tasks, review, client lists and projects",
   },
   clients: {
     title: "Clients",

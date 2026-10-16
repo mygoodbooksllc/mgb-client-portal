@@ -11,7 +11,7 @@ When you have a client open, their tasks are one glance or one key away. A line 
 
 On a client's tabs (Overview, Messages, Documents, Bank, Close, Reports, SOP and the others), a line under the tabs shows how many tasks are open and how many are overdue, and the next one. The next one is a task for the page you're on when there is one, otherwise the most overdue or soonest due.
 
-- Tick the box to mark the next task done. On a task that needs review, your tick sends it to an admin instead. If it's already waiting for review, there's no box.
+- Tick the box to mark the next task done. On a task that needs review, your tick sends it to an admin instead. If it's already waiting for review, there's no box, unless you're an admin who can approve it: then the tick approves it.
 - Click the task's name to open its details.
 - **All tasks** opens the panel.
 - With nothing open, the strip says so and has an **Add task** button.

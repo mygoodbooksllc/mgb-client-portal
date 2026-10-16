@@ -94,6 +94,11 @@
 //   tk-status        the first row's status pill (TK_TaskRow.jsx)
 //   tk-sidebar       the lists rail, 900px and up (TK_Sidebar.jsx); below
 //                    that it sits behind the Lists button
+//   tk-review-nav    the sidebar's Review item (TK_Sidebar.jsx), same widths
+//   tk-review-groups the review queue's groups (TK_ReviewQueue.jsx), only
+//                    when something is waiting
+//   tk-review-stats  the queue's Last 30 days card (admins)
+//   tk-review-strip  the review strip in a task's details (TK_Drawer.jsx)
 //   tk-popout        Open in own window (TK_App.jsx), not on touch devices,
 //                    compact widths or in the shell
 //   tk-strip         the client task strip under a client's tabs
@@ -1287,7 +1292,7 @@ function TOUR_tasksSteps() {
       wait: true,
       title: "Status",
       body: () =>
-        "Each task has a status: To do, In progress, Waiting on client, Ready for review or Done. On a task that needs review, your Done sends it to an admin to approve.",
+        "Each task has a status: To do, In progress, Waiting on client, Ready for review or Done. On a task that needs review, Done becomes Send for review, and an admin who didn't do the work approves it or sends it back.",
     },
     {
       id: "tk-sidebar",
@@ -1297,7 +1302,7 @@ function TOUR_tasksSteps() {
       title: "Lists and projects",
       body: () =>
         (window.innerWidth < 900 ? "The Lists button opens every list. " : "") +
-        "My Tasks, Search, the firm's projects and each of your clients' lists. SOPs and 90 Day are projects open to all staff.",
+        "My Tasks, Review (work waiting for an admin's approval), Search, the firm's projects and each of your clients' lists. SOPs and 90 Day are projects open to all staff.",
     },
     {
       id: "tk-popout",
