@@ -550,10 +550,10 @@ var TK__QA_DATE_RULES = [
 // they count as dates only after "due" or "on", or as the last word.
 var TK__QA_AMBIGUOUS = { tom: 1, sun: 1, mon: 1, sat: 1 };
 
-function TK__qaAmbiguousOk(source, hit) {
+function TK__qaAmbiguousOk(source, hit, plain) {
   if (!TK__QA_AMBIGUOUS[String(hit.raw).toLowerCase()]) return true;
   if (/^[\s),.;:!?]*$/.test(source.slice(hit.end))) return true;
-  return /(^|[\s(,])(due|on|by)\s+$/i.test(source.slice(0, hit.start));
+  return (plain ? /(^|[\s(,])(due|on|by)\s+$/i : /(^|[\s(,])(due|on)\s+$/i).test(source.slice(0, hit.start));
 }
 
 function TK__qaMatchAll(source, body, flags) {
@@ -751,13 +751,17 @@ function TK_parseQuickAdd(input, opts) {
       for (var h = 0; h < hits.length; h++) {
         var hit = hits[h];
         if (!free(hit.start, hit.end)) continue;
-        if (!TK__qaAmbiguousOk(source, hit)) continue;
+        if (!TK__qaAmbiguousOk(source, hit, plain)) continue;
         var start = hit.start;
         if (plain) {
           var ps = TK__qaDatePrefixStart(source, hit.start);
           if (ps >= 0 && free(ps, hit.start)) start = ps;
         }
-        if (rule.restrict && start === hit.start && !atEnd(hit.end)) continue;
+        // Words that are also everyday title words ("the 2nd floor", "Monday
+        // deposits") count only at the end of the line or right after by / due;
+        // "on" does not free them ("Meet on the 2nd floor").
+        var restricted = rule.restrict;
+        if (restricted && !(start !== hit.start && !/^on\b/i.test(source.slice(start, hit.start))) && !atEnd(hit.end)) continue;
         var raw = source.slice(start, hit.end);
         if (ignored("date", raw) || ignored("date", hit.raw)) continue;
         if (best && (start > best.start || (start === best.start && hit.end <= best.end))) continue;
@@ -814,7 +818,7 @@ function TK_parseQuickAdd(input, opts) {
         if (TK_slug(s.name) === phrase) return true;
         return n === 1 && TK__qaFirstName(s.name) === phrase;
       });
-      if (ms.length) return { start: words[k].start, end: words[last].end, matches: ms };
+      if (ms.length) return { start: words[k].start, end: words[last].end, matches: ms, weak: c === "to" };
     }
     return null;
   }
@@ -824,7 +828,10 @@ function TK_parseQuickAdd(input, opts) {
     var live = clients.filter(function (c) { return c && c.id != null && c.name; });
     var exact = live.filter(function (c) { return TK_slug(c.name) === phrase; });
     if (exact.length) return exact;
-    return live.filter(function (c) { return TK_slug(c.name).indexOf(phrase + "-") === 0; });
+    // A start of a name is only a guess: it becomes a "Did you mean" option.
+    return live.filter(function (c) { return TK_slug(c.name).indexOf(phrase + "-") === 0; }).map(function (c) {
+      return { id: c.id, name: c.name, prefix: true };
+    });
   }
   var dateAhead = null;
   function clientAt(k) {
@@ -874,7 +881,7 @@ function TK_parseQuickAdd(input, opts) {
         var praw = source.slice(pc.start, pc.end);
         if (!ignored("person", praw)) {
           pc.matches.forEach(function (s) {
-            options.push({ kind: "person", value: TK__lower(s.email), label: s.name || s.email, start: pc.start, end: pc.end, raw: praw });
+            options.push({ kind: "person", value: TK__lower(s.email), label: s.name || s.email, start: pc.start, end: pc.end, raw: praw, weak: !!pc.weak });
           });
         }
       }
@@ -882,12 +889,17 @@ function TK_parseQuickAdd(input, opts) {
         var craw = source.slice(cc.start, cc.end);
         if (!ignored("client", craw)) {
           cc.matches.forEach(function (c) {
-            options.push({ kind: "client", value: c.id, label: c.name, start: cc.start, end: cc.end, raw: craw });
+            options.push({ kind: "client", value: c.id, label: c.name, start: cc.start, end: cc.end, raw: craw, weak: !!c.prefix });
           });
         }
       }
       if (!options.length) continue;
-      if (options.length === 1) {
+      // A full client name that covers more words than a person's first name wins ("Sierra Club").
+      if (pc && cc && !options.some(function (x) { return x.kind === "client" && x.weak; }) && cc.start <= pc.start && cc.end > pc.end) {
+        options = options.filter(function (x) { return x.kind === "client"; });
+      }
+      // A bare "to <name>" or the start of a client name is a guess: ask.
+      if (options.length === 1 && !options[0].weak) {
         var o = options[0];
         take(o.kind, o, o.value, true);
         if (o.kind === "person") {
@@ -906,6 +918,11 @@ function TK_parseQuickAdd(input, opts) {
       });
     }
   }
+
+  // A pick made by a later phrase leaves nothing to ask about that field.
+  result.suggestions = result.suggestions.map(function (sg) {
+    return { start: sg.start, end: sg.end, options: sg.options.filter(function (o) { return o.kind === "person" ? !personSet : !clientSet; }) };
+  }).filter(function (sg) { return sg.options.length > 0; });
 
   var best = findDate();
   if (best) {
@@ -927,11 +944,18 @@ function TK_parseQuickAdd(input, opts) {
     .replace(/\s+/g, " ")
     .trim()
     .replace(/^[,;:]\s*/, "")
-    .replace(/\s*[,;:]$/, "")
+    .replace(/(\s*[,;:])+$/, "")
     .replace(/\s+\.$/, "")
     .trim();
   var anyPlain = result.tokens.some(function (x) { return x.plain === true; });
-  if (anyPlain) text = text.replace(/^[-\u2013\u2014]+\s+/, "").replace(/\s+[-\u2013\u2014]+$/, "").trim();
+  if (anyPlain) {
+    text = text.replace(/^[-\u2013\u2014]+\s+/, "").replace(/\s+[-\u2013\u2014]+$/, "").trim();
+  }
+  if (plain && result.tokens.some(function (x) { return x.kind === "date"; })) {
+    // "Plan for next week" leaves "Plan for": a joining word left at the end goes too.
+    var trimmed = text.replace(/\s+(for|to|re|by|due|on)$/i, "").replace(/(\s*[,;:])+$/, "").trim();
+    if (trimmed) text = trimmed;
+  }
   // A line that is only plain words ("for Sierra") keeps its words as the title.
   if (!text && anyPlain) {
     var again = {};

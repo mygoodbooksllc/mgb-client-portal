@@ -22,14 +22,14 @@ The **+** button is on phones too, next to the bell at the top of the screen.
 
 The **Add a task** box opens. Type the task in one line, the way you would say it, for example *Send the payroll summary for Sierra re Example Church by Friday*. The portal picks out who, which client and when, and shows it on a **Will add** line under the box before you save anything.
 
-- **Who:** *for Sierra*, *to Sierra*, *assign to Sierra* or **@sierra** assigns it by first name (or full name). *For me* and **@me** mean you.
-- **Which client:** *for Example Church*, *re Example Church*, *client Example Church* or *Example Church -* picks the client, when the name is at the end of the line or opens it (*re Example Church: statements*).
+- **Who:** *for Sierra*, *assign to Sierra* or **@sierra** assigns it by first name (or full name); *to Sierra* offers a **Did you mean** button instead, because *Reply to Sierra* may not mean she does it. *For me* and **@me** mean you.
+- **Which client:** *for Example Church*, *re Example Church* or *client Example Church* picks the client, when the name ends the line or opens it (*re Example Church: statements*); a dash works too (*statements - Example Church*). Type the whole name; a start of a name such as *for Example* only offers a **Did you mean** button.
 - **When:** *Friday*, *tomorrow*, *next week*, *by Friday*, *due the 15th*, *the 15th*, *end of month*, **10/31** and the other dates it already knew.
 - **Priority:** **!high** or **!low**.
 
 What it picked up shows as chips you can remove; **×** on a chip puts those words back in the title and they are not picked up again. You can also set **Client**, **Due** and **Assignee** in the boxes below, and a box you set by hand wins over the line.
 
-If a name could be two people, a person and a client, or more than one client, nothing is picked. The words stay in the title and a **Did you mean** line offers each choice as a button, with **Skip** to leave them as words. A name it doesn't know stays in the title too.
+If a name could be two people, a person and a client, or more than one client, nothing is picked. The words stay in the title and a **Did you mean** line offers each choice as a button, with **Neither** to leave them as words. A name it doesn't know stays in the title too.
 
 With a client picked, **Share with the client's team** is ticked, so the other staff on this client can see it. Untick it to keep it private.
 

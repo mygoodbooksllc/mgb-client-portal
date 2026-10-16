@@ -59,8 +59,8 @@ You can also type it in plain words. The box shows a **Will add** line with what
 
 | Type | What it does | Examples |
 |---|---|---|
-| *for*, *to* or *assign to* a first name | Assigns it. *For me* is you. | `Send payroll summary for Sierra`, `call the bank for me` |
-| *for*, *re* or *client* a client's name | Files it under that client (at the end of the line, or at the start before a colon). | `Statements re Example Church`, `re Example Church: reconcile` |
+| *for* or *assign to* a first name | Assigns it (*to Sierra* offers a **Did you mean** button). *For me* is you. | `Send payroll summary for Sierra`, `call the bank for me` |
+| *for*, *re* or *client* a client's name | Files it under that client (type the whole name; at the end of the line, or at the start before a colon). | `Statements re Example Church`, `re Example Church: reconcile` |
 | *by Friday*, *due the 15th*, *the 15th*, *end of month* | Sets the due date. | `Send invoices by Friday` |
 
 If a name matches more than one person or client, or both a person and a client, nothing is picked: the words stay in the title and a **Did you mean** line lets you pick. Click **×** on a chip to put its words back in the title. The inline add box on a project or client list still reads only the symbols (**@**, **#**, **!**) and dates.

@@ -75,6 +75,9 @@ function TK_QuickAddDialog(props) {
   var inputRef = React.useRef(null);
 
   var today = TK_qaToday();
+  // An "x" or Neither only lasts while those words are still in the line.
+  var flatInput = String(input).toLowerCase().replace(/\s+/g, " ");
+  var activeIgnored = ignored.filter(function (k) { return flatInput.indexOf(k.slice(k.indexOf("|") + 1)) >= 0; });
   var parsed =
     typeof TK_parseQuickAdd === "function"
       ? TK_parseQuickAdd(input, {
@@ -83,7 +86,7 @@ function TK_QuickAddDialog(props) {
           clients: base.project_id ? [] : clients,
           defaultClientId: base.client_id,
           me: me,
-          ignore: ignored,
+          ignore: activeIgnored,
         })
       : { text: input.trim(), client_id: base.client_id, assignee_email: null, due_date: null, priority: null, tokens: [], suggestions: [], errors: input.trim() ? [] : ["Add a few words about the task."] };
 
@@ -224,7 +227,12 @@ function TK_QuickAddDialog(props) {
   // Turn a part of the line off: its words stay in the title and are not
   // picked up again while they are typed.
   var removeToken = function (tok) {
-    setIgnored(ignored.concat(TK_qaIgnoreKey(tok.kind, tok.raw)));
+    if (tok.plain !== true) {
+      // A symbol (@name, #client, !high) comes out of the title, as before.
+      setInput(TK_qaCut(input, tok.start, tok.end));
+    } else {
+      setIgnored(ignored.concat(TK_qaIgnoreKey(tok.kind, tok.raw)));
+    }
     setTimeout(function () { if (inputRef.current) inputRef.current.focus(); }, 0);
   };
 
@@ -350,10 +358,10 @@ function TK_QuickAddDialog(props) {
             );
           })}
         {!titleError && ((parsed.tokens && parsed.tokens.length > 0) || (parsed.suggestions && parsed.suggestions.length > 0)) && (
-          <p className="tk-qa-preview" aria-live="polite">
+          <p className="tk-qa-preview">
             {TK_qaWillAdd({
               title: String(parsed.text).trim(),
-              assigneeName: assignee && assignee !== me ? nameOf(assignee) : "",
+              assigneeName: assignee && (assignee !== me || parsed.assignee_email) ? (assignee === me ? "me" : nameOf(assignee)) : "",
               clientName: client ? client.name : "",
               dueLabel: dueDate ? TK_dlShortDate(dueDate, today) : "",
               priority: priority,
