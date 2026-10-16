@@ -909,6 +909,15 @@ declare
 begin
   if tg_op = 'INSERT' then
     new.author_email := v_me;
+    -- tk p2 s5 (B2): a client or link answer, inserted by a definer answer RPC
+    if new.kind = 'client_reply' and coalesce(current_setting('mgb.tk_request', true), '') = 'on'
+       and coalesce(current_setting('mgb.tk_actor', true), '') <> '' then
+      new.author_email := left(current_setting('mgb.tk_actor', true), 300);
+      new.mentions := '{}';
+      new.created_at := now();
+      new.edited_at := null; new.edited_by := null; new.deleted_at := null; new.deleted_by := null;
+      return new;
+    end if;
     if v_me = '' or not public.is_active_staff() then
       raise exception 'tk_forbidden' using errcode = '42501';
     end if;
@@ -993,7 +1002,8 @@ language plpgsql security definer
 set search_path = public
 as $$
 declare
-  v_actor text := coalesce(nullif(lower(coalesce(auth.jwt() ->> 'email', '')), ''), 'system');
+  v_actor text := coalesce(nullif(current_setting('mgb.tk_actor', true), ''),   -- tk p2 s5 (B2)
+                            nullif(lower(coalesce(auth.jwt() ->> 'email', '')), ''), 'system');
 begin
   if coalesce(current_setting('mgb.tk_migrate', true), '') = 'on' then
     return null;

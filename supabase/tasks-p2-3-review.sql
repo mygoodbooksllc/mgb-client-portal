@@ -618,7 +618,8 @@ security definer
 set search_path to 'public'
 as $function$
 declare
-  v_actor text := coalesce(nullif(lower(coalesce(auth.jwt() ->> 'email', '')), ''), 'system');
+  v_actor text := coalesce(nullif(current_setting('mgb.tk_actor', true), ''),   -- tk p2 s5 (B2)
+                            nullif(lower(coalesce(auth.jwt() ->> 'email', '')), ''), 'system');
   v_flag text := coalesce(current_setting('mgb.tk_approve', true), '');   -- tk p2 s3
 begin
   if coalesce(current_setting('mgb.tk_migrate', true), '') = 'on' then
