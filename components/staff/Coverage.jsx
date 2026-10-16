@@ -16,6 +16,10 @@
 //                      context panel, Client overview).
 //   CV_StaffSelect     staff picker (staff_directory RPC), used for the
 //                      client's backup bookkeeper.
+//   CV_Handoff         Tasks Phase 2 S7: "Hand my tasks to backups" (preview,
+//                      hand off, Hand back now) on each time off; admins can
+//                      pick a cover per client. CV_useMyCoverage feeds the
+//                      task drawer and Today "Covering for" labels.
 //
 // Rules live in staffOpsLogic.js (OPS_outUntil, OPS_upcomingTimeOff,
 // OPS_timeOffError, OPS_BACKUP_ACCESS).
@@ -251,8 +255,9 @@ function CV_CancelButton({ row, onCancelled }) {
     setBusy(false);
     setConfirming(false);
     if (error) return showToast("Couldn't cancel: " + error.message);
-    showToast("Time off cancelled");
+    showToast("Time off cancelled. Any tasks with backups come back.");
     CV_load(true);
+    CV_coverageChanged();
     if (onCancelled) onCancelled();
   }
   if (!confirming)
@@ -273,6 +278,271 @@ function CV_CancelButton({ row, onCancelled }) {
   );
 }
 
+// ---- Task hand-off for time off (Tasks Phase 2, S7) -------------------------
+// tk_apply_ooo / tk_return_ooo / tk_my_coverage (supabase/tasks-p2-7-ooo.sql)
+// through TK_api. Open tasks due while someone is out go to each client's
+// backup bookkeeper; Ready for review, private and MGB (internal) tasks stay.
+// The tk-ooo-daily job also does this on the first day off and hands
+// everything back after the last one; these buttons do it sooner.
+// Wording: TK_coverageLogic.js.
+const CV_NO_ROWS = [];
+const CV_cov = { rows: null, promise: null, at: 0, subs: new Set(), listening: false };
+
+function CV_loadCoverage(force) {
+  if (typeof TK_api === "undefined" || !TK_api || typeof TK_api.myCoverage !== "function") return Promise.resolve([]);
+  if (!force && CV_cov.promise) return CV_cov.promise;
+  if (!force && CV_cov.rows && Date.now() - CV_cov.at < 60000) return Promise.resolve(CV_cov.rows);
+  CV_cov.promise = TK_api.myCoverage().then(
+    (rows) => {
+      CV_cov.rows = rows || [];
+      CV_cov.at = Date.now();
+      CV_cov.promise = null;
+      CV_cov.subs.forEach((fn) => {
+        try {
+          fn();
+        } catch (e) {}
+      });
+      return CV_cov.rows;
+    },
+    () => {
+      CV_cov.rows = CV_cov.rows || [];
+      CV_cov.promise = null;
+      return CV_cov.rows;
+    },
+  );
+  return CV_cov.promise;
+}
+
+// Open hand-offs that involve me (admins: everyone's). [] until loaded or
+// before the database step.
+function CV_useMyCoverage() {
+  const [, setN] = useState(0);
+  useEffect(() => {
+    const fn = () => setN((x) => x + 1);
+    CV_cov.subs.add(fn);
+    if (!CV_cov.listening) {
+      CV_cov.listening = true;
+      try {
+        window.addEventListener("mgb:tk-coverage-changed", () => CV_loadCoverage(true));
+      } catch (e) {}
+    }
+    CV_loadCoverage(false);
+    return () => {
+      CV_cov.subs.delete(fn);
+    };
+  }, []);
+  return CV_cov.rows || CV_NO_ROWS;
+}
+
+function CV_coverageChanged() {
+  try {
+    window.dispatchEvent(new CustomEvent("mgb:tk-coverage-changed"));
+  } catch (e) {}
+}
+
+// "Hand my tasks to backups" for one time off: preview, then hand off; and
+// "Hand back now" while tasks are out. Admins can pick a cover for clients
+// with no usable backup, and their hand-off gives the backup access.
+function CV_Handoff({ row, isAdmin, coveredCount }) {
+  const showToast = useToast();
+  const [open, setOpen] = useState(false);
+  const [preview, setPreview] = useState(null);
+  const [err, setErr] = useState("");
+  const [busy, setBusy] = useState("");
+  const [overrides, setOverrides] = useState({});
+  const [confirmBack, setConfirmBack] = useState(false);
+  const ready = typeof TK_api !== "undefined" && TK_api && typeof TK_api.oooPreview === "function";
+  if (!ready || !row || row.cancelled_at) return null;
+
+  const errText = (e) => {
+    const code = (e && (e.reason || e.code)) || "";
+    if (code === "tk_forbidden") return "Only the person who is out or an admin can do this.";
+    if (code === "tk_bad_request") return "That time off is over or cancelled.";
+    if (code === "tk_schema_missing" || code === "PGRST202") return "Task hand-off isn't set up yet (database step pending).";
+    return (e && e.message) || "Something went wrong. Try again.";
+  };
+
+  async function loadPreview(ov) {
+    setBusy("preview");
+    setErr("");
+    try {
+      const res = await TK_api.oooPreview(row.id, isAdmin ? ov || overrides : {});
+      setPreview(res);
+      setOpen(true);
+    } catch (e) {
+      setErr(errText(e));
+    }
+    setBusy("");
+  }
+  async function apply() {
+    setBusy("apply");
+    setErr("");
+    try {
+      const res = await TK_api.oooApply(row.id, isAdmin ? overrides : {});
+      showToast(TK_oooApplyText(res));
+      setOpen(false);
+      setPreview(null);
+      setOverrides({});
+      CV_coverageChanged();
+      if (typeof notifyStaffTools === "function") notifyStaffTools();
+    } catch (e) {
+      setErr(errText(e));
+    }
+    setBusy("");
+  }
+  async function handBack() {
+    setBusy("back");
+    setErr("");
+    try {
+      const res = await TK_api.oooReturn(row.id);
+      showToast(TK_oooReturnText(res));
+      setConfirmBack(false);
+      CV_coverageChanged();
+    } catch (e) {
+      setErr(errText(e));
+    }
+    setBusy("");
+  }
+
+  const g = preview ? TK_oooPreviewGroups(preview, isAdmin) : null;
+  const pickable = preview && isAdmin ? TK_oooOverrideClients(preview) : [];
+  const owner = (preview && preview.owner) || row.staff_email;
+
+  return (
+    <div className="cv-handoff">
+      <div className="cv-handoff-bar">
+        {coveredCount > 0 && (
+          <span className="pill cv-pill-good" title="These go back automatically when the time off ends">
+            {coveredCount} task{coveredCount === 1 ? "" : "s"} with backups
+          </span>
+        )}
+        {!open && (
+          <button type="button" className="link-btn" disabled={busy === "preview"} onClick={() => loadPreview()}>
+            {busy === "preview" ? "Checking…" : isAdmin ? "Hand off tasks" : "Hand my tasks to backups"}
+          </button>
+        )}
+        {coveredCount > 0 &&
+          (confirmBack ? (
+            <span className="cv-confirm">
+              <button type="button" className="link-btn" disabled={busy === "back"} onClick={handBack}>
+                {busy === "back" ? "Handing back…" : "Yes, hand back now"}
+              </button>
+              <button type="button" className="link-btn" onClick={() => setConfirmBack(false)}>
+                Keep
+              </button>
+            </span>
+          ) : (
+            <button type="button" className="link-btn" onClick={() => setConfirmBack(true)}>
+              Hand back now
+            </button>
+          ))}
+      </div>
+      {err && <p className="cv-err" role="alert">{err}</p>}
+      {open && g && (
+        <div className="cv-handoff-panel">
+          {preview.inactive ? (
+            <p className="card-subtitle">That time off is over or cancelled.</p>
+          ) : g.moveCount === 0 ? (
+            <p className="card-subtitle">No open tasks due {CV_range(preview)} can move.</p>
+          ) : (
+            <>
+              <p className="cv-handoff-lead">
+                {g.moveCount} open task{g.moveCount === 1 ? "" : "s"} due {CV_range(preview)} go to each client's backup. They come back
+                automatically after the last day off. Ready for review stays put.
+              </p>
+              {g.byBackup.map((b) => (
+                <div key={b.to} className="cv-handoff-group">
+                  <div className="cv-handoff-to">To {b.toName}</div>
+                  <ul>
+                    {b.items.map((m) => (
+                      <li key={m.task_id}>
+                        <span className="cv-handoff-title">{m.title}</span>
+                        <span className="cv-note">
+                          {m.client_name || ""} · due {fmtDate(m.due)}
+                          {m.grant ? " · gives access" : ""}
+                          {m.reason === "manual" ? " · your pick" : ""}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
+            </>
+          )}
+          {g.skips.length > 0 && (
+            <div className="cv-handoff-skips">
+              <div className="cv-handoff-to">Staying with {preview.owner_name || "them"}</div>
+              {g.skips.map((s) => (
+                <div key={s.reason} className="cv-handoff-skip">
+                  <span className="cv-note">{s.text}</span>
+                  <ul>
+                    {s.items.map((x) => (
+                      <li key={x.task_id}>
+                        <span className="cv-handoff-title">{x.title}</span>
+                        <span className="cv-note">
+                          {x.client_name || ""} · due {fmtDate(x.due)}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
+            </div>
+          )}
+          {g.privateCount > 0 && (
+            <p className="cv-note">
+              {g.privateCount} private or internal task{g.privateCount === 1 ? "" : "s"} stay{g.privateCount === 1 ? "s" : ""} with you.
+            </p>
+          )}
+          {pickable.length > 0 && (
+            <div className="cv-handoff-pick">
+              <div className="cv-handoff-to">Pick someone to cover (admins)</div>
+              {pickable.map((c) => (
+                <label key={c.client_id} className="task-field">
+                  <span>
+                    {c.client_name} ({c.count})
+                  </span>
+                  <CV_StaffSelect
+                    value={overrides[c.client_id] || ""}
+                    exclude={owner}
+                    emptyLabel="Leave with them"
+                    onChange={(v) => {
+                      const next = Object.assign({}, overrides);
+                      if (v) next[c.client_id] = v;
+                      else delete next[c.client_id];
+                      setOverrides(next);
+                    }}
+                  />
+                </label>
+              ))}
+              <button type="button" className="btn-secondary" disabled={busy === "preview"} onClick={() => loadPreview(overrides)}>
+                {busy === "preview" ? "Checking…" : "Check again"}
+              </button>
+            </div>
+          )}
+          <div className="cv-form-actions">
+            {g.moveCount > 0 && !preview.inactive && (
+              <button type="button" className="btn-primary" disabled={!!busy} onClick={apply}>
+                {busy === "apply" ? "Handing off…" : `Hand off ${g.moveCount} task${g.moveCount === 1 ? "" : "s"}`}
+              </button>
+            )}
+            <button
+              type="button"
+              className="btn-secondary"
+              onClick={() => {
+                setOpen(false);
+                setPreview(null);
+              }}
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ---- "My time off" (home card body; Team → People for non-admins)
 function CV_MyTimeOffBody({ staffUser }) {
   const me = String((staffUser && staffUser.email) || "").toLowerCase();
@@ -280,6 +550,8 @@ function CV_MyTimeOffBody({ staffUser }) {
   const today = todayLocal();
   const mine = OPS_upcomingTimeOff(st.rows, today, me);
   const [adding, setAdding] = useState(false);
+  const cov = CV_useMyCoverage();
+  const covCount = TK_coverageCountByTimeOff(cov.filter((c) => String(c.from_email || "").toLowerCase() === me));
   return (
     <div className="cv-my">
       {st.error && <p className="card-subtitle">{st.error}</p>}
@@ -296,6 +568,7 @@ function CV_MyTimeOffBody({ staffUser }) {
               </span>
               {r.note && <span className="cv-note">{r.note}</span>}
               <CV_CancelButton row={r} />
+              <CV_Handoff row={r} isAdmin={false} coveredCount={covCount[r.id] || 0} />
             </li>
           ))}
         </ul>
@@ -309,7 +582,10 @@ function CV_MyTimeOffBody({ staffUser }) {
           </button>
         )
       )}
-      <p className="cv-hint">Before you go, check each of your clients has a backup bookkeeper (Client overview → Edit dates and coverage).</p>
+      <p className="cv-hint">
+        Before you go, check each of your clients has a backup bookkeeper (Client overview → Edit dates and coverage). On your first day off, open
+        tasks due while you're out go to each client's backup and come back after; Hand my tasks to backups does it now.
+      </p>
     </div>
   );
 }
@@ -327,6 +603,7 @@ function CV_CoverageTab() {
   const [busyKey, setBusyKey] = useState(null);
   const st = CV_useTimeOff(); // re-runs the overview after add/cancel
   const stamp = (st.rows || []).map((r) => r.id).join(",");
+  const covCount = TK_coverageCountByTimeOff(CV_useMyCoverage());
   useEffect(() => {
     let alive = true;
     const sb = window.mgbSupabase;
@@ -382,6 +659,7 @@ function CV_CoverageTab() {
             <CV_CancelButton row={t} onCancelled={() => setTick((x) => x + 1)} />
           </div>
         </div>
+        <CV_Handoff row={t} isAdmin coveredCount={covCount[t.id] || 0} />
         <div className="table-scroll">
           <table className="tx-table tx-table-labeled cv-table">
             <thead>
@@ -439,12 +717,14 @@ function CV_CoverageTab() {
 
   return (
     <div className="cv-page">
-      <div className="card" style={{ marginBottom: 20 }}>
+      <div className="card" style={{ marginBottom: 20 }} data-tour="cv-coverage">
         <div className="cv-block-head">
           <div>
             <h3 className="card-title" style={{ margin: 0 }}>Coverage, today to {fmtDate(to)}</h3>
             <p className="card-subtitle" style={{ margin: "2px 0 0" }}>
               Who's out, their clients and whether each client's backup can open it. "Give access" starts now and ends the day after they're back.
+              "Hand off tasks" moves their open tasks due while they're out to each client's backup (the daily job does it on the first day off)
+              and they come back after.
             </p>
           </div>
           {!adding && (

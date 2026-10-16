@@ -2,7 +2,7 @@
 title: How do I check team capacity?
 section: Admin
 audience: admin
-keywords: [capacity, workload, utilisation, utilization, weekly target, hours per week, has room, overloaded, 35 hours]
+keywords: [capacity, workload, utilisation, utilization, weekly target, hours per week, has room, overloaded, 35 hours, time off, covered tasks, backup]
 sort: 550
 ---
 The **Capacity** card on **Team** (admins only) compares each person's QuickBooks Time hours with their weekly target.
@@ -10,6 +10,8 @@ The **Capacity** card on **Team** (admins only) compares each person's QuickBook
 ### Reading the card
 
 Columns: Name, **Target / wk**, This week, **Avg / wk (4 wks)**, **Utilisation**, Clients, Open and Overdue tasks.
+
+Open and Overdue count by who the task is assigned to now. While someone is out, tasks handed to a backup count for the backup until they go back. See [What happens to my tasks while I'm out?](#/help/out-of-office-handoff).
 
 Utilisation uses the 4-week average:
 

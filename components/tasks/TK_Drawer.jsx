@@ -1250,6 +1250,8 @@ function TK_Drawer(props) {
   var assignPair = React.useState(null);
   var assignable = assignPair[0];
   var setAssignable = assignPair[1];
+  // Open out-of-office hand-offs (Tasks Phase 2 S7; Coverage.jsx).
+  var coverRows = typeof CV_useMyCoverage === "function" ? CV_useMyCoverage() : [];
 
   var panelRef = React.useRef(null);
   var titleRef = React.useRef(null);
@@ -1775,6 +1777,17 @@ function TK_Drawer(props) {
                 {TK_dwCopy("noClientAccess", "They can't see this client yet, so they won't see this task.")}
               </p>
             )}
+            {(function () {
+              if (typeof TK_coverageLabel !== "function") return null;
+              var row = coverRows.filter(function (r) { return r && r.task_id === task.id; })[0];
+              var lbl = TK_coverageLabel(row, me);
+              if (!lbl) return null;
+              return (
+                <p className="tk-cover-chip tk-dw-cover" title={lbl.title}>
+                  {lbl.text}
+                </p>
+              );
+            })()}
           </div>
 
           <label className="tk-dw-label" htmlFor="tk-dw-due">

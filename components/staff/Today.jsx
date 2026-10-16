@@ -372,10 +372,17 @@ function TD_toast(text) {
   } catch (e) {}
 }
 
+const TD_NO_ROWS = [];
+
 function TD_buildRows(x) {
   const now = [];
   const week = [];
   const { clients, today, me } = x;
+  const coverByTask = typeof TK_coverageByTask === "function" ? TK_coverageByTask(x.coverRows) : {};
+  const coverText = (t) => {
+    const lbl = coverByTask[t.id] && typeof TK_coverageLabel === "function" ? TK_coverageLabel(coverByTask[t.id], me) : null;
+    return lbl && lbl.tone === "covering" ? lbl.text : "";
+  };
   const byId = {};
   (clients || []).forEach((c) => (byId[c.id] = c));
   const nameOf = (id) => (byId[id] ? byId[id].name : id);
@@ -468,7 +475,7 @@ function TD_buildRows(x) {
         rank: diff < 0 ? 1 : diff === 0 ? 2 : 1,
         sort: diff,
         title: t.text,
-        detail: [inReview ? "In review" : "", staffItemDueLabel(t, today), t.client_id ? nameOf(t.client_id) : ""].filter(Boolean).join(" · "),
+        detail: [inReview ? "In review" : "", staffItemDueLabel(t, today), t.client_id ? nameOf(t.client_id) : "", coverText(t)].filter(Boolean).join(" · "),
         onClick: lk({ place: "work", tab: "tasks", item: "task:" + t.id }),
         actions,
       });
@@ -1226,6 +1233,8 @@ function TD_TodayPage({ staffUser, clients, onNavigateToClient, onOpenClientMile
   const goProfile = () => NAV_go("settings"); // Settings opens on Profile
 
   const nowMs = Date.now();
+  // Out-of-office hand-offs (Tasks Phase 2 S7): "Covering for Ann" on tasks I hold for someone.
+  const coverRows = typeof CV_useMyCoverage === "function" ? CV_useMyCoverage() : TD_NO_ROWS;
   const rows = React.useMemo(
     () =>
       TD_buildRows({
@@ -1256,6 +1265,7 @@ function TD_TodayPage({ staffUser, clients, onNavigateToClient, onOpenClientMile
         setUpgradeStatus: upgrades.setStatus,
         health: health && health.status === "ready" ? health.byId : null,
         coverageGaps: coverage.gaps,
+        coverRows,
         staleSops,
         onNavigateToClient,
       }),
@@ -1281,6 +1291,7 @@ function TD_TodayPage({ staffUser, clients, onNavigateToClient, onOpenClientMile
       health && health.status,
       health && health.byId,
       coverage.gaps,
+      coverRows,
       staleSops,
       cel.rows,
       profileIncomplete,

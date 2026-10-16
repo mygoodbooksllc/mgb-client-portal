@@ -2,7 +2,7 @@
 title: How do I add time off and make sure my clients are covered?
 section: Working with a client
 audience: staff
-keywords: [time off, vacation, out of office, pto, sick, my time off, out until, backup, backup bookkeeper, coverage, covering, cover, away, temporary access]
+keywords: [time off, vacation, out of office, pto, sick, my time off, out until, backup, backup bookkeeper, coverage, covering, cover, away, temporary access, hand off, hand my tasks to backups, tasks while I'm out]
 sort: 255
 ---
 Tell the team when you're out, and make sure each of your clients has a **backup bookkeeper** who covers while you're away.
@@ -33,6 +33,8 @@ If you see it on a client's bookkeeper, send the work to the **Backup** instead.
 2. Pick someone in **Backup bookkeeper (covers when they're out)**. It lists active staff.
 3. Click **Save**.
 
+While you're out, your open tasks due on those days go to each client's backup and come back afterwards. See [What happens to my tasks while I'm out?](#/help/out-of-office-handoff).
+
 A backup doesn't automatically get into the client. If they aren't assigned to it, they can [request temporary access](#/help/temporary-access), or an admin can give it from the **Coverage** tab.
 
 ### Coverage tab (admins)
@@ -43,6 +45,7 @@ A backup doesn't automatically get into the client. If they aren't assigned to i
 - Each of their clients, the client's **Backup**, and **Backup's access**: **Has access (admin)**, **Has access (assigned)**, **Temporary access**, **No access**, **No backup set** or **Backup isn't active staff**.
 - **Give access for this time off**: gives the backup temporary access to that client right away. It ends the day after the time off ends. It shows up under [temporary access](#/help/temporary-access) like any other grant and can be ended early there.
 - **Set a backup**: opens the client's overview so you can pick one.
+- **Hand off tasks**: previews and hands their open tasks to the backups now, with a cover pick for clients that have no backup. **{n} tasks with backups** and **Hand back now** show while tasks are out. See [What happens to my tasks while I'm out?](#/help/out-of-office-handoff).
 
 Admins can also **+ Add time off** for anyone, and cancel anyone's.
 

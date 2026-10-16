@@ -1179,3 +1179,6 @@
   min-width: 140px;
   max-width: 220px;
 }
+
+/* Out-of-office hand-off label under Assignee (Tasks Phase 2 S7; chip style in team-ops.css) */
+.tk-dw-cover { margin: 6px 0 0; }

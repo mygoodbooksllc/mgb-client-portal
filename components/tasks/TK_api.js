@@ -1667,6 +1667,41 @@ var TK_api = (function () {
       .then(function () { return afterRequestWrite(taskId); });
   };
 
+  // ---- Out-of-office hand-off (Tasks Phase 2, S7) ---------------------------
+  // supabase/tasks-p2-7-ooo.sql. The server decides who may call: the person
+  // who is out or an admin; only admins pass overrides ({ client_id: email })
+  // and only an admin hand-off gives the backup access to a client.
+  // Resolves { dry_run, owner, owner_name, starts_on, ends_on, move[], skip[] }.
+  api.oooPreview = function (timeOffId, overrides) {
+    return run(function (c) {
+      return c.rpc("tk_apply_ooo", { p_time_off_id: timeOffId, p_dry_run: true, p_overrides: overrides || {} });
+    }, { where: "oooPreview" });
+  };
+  api.oooApply = function (timeOffId, overrides) {
+    return rpcWrite("tk_apply_ooo", { p_time_off_id: timeOffId, p_dry_run: false, p_overrides: overrides || {} }, "oooApply")
+      .then(function (res) { return refreshAfterOoo(res && res.move).then(function () { return res; }); });
+  };
+  // Hands every covered task back now. Resolves { returned[], left[] }.
+  api.oooReturn = function (timeOffId) {
+    return rpcWrite("tk_return_ooo", { p_time_off_id: timeOffId, p_dry_run: false }, "oooReturn")
+      .then(function (res) { return refreshAfterOoo(res && res.returned).then(function () { return res; }); });
+  };
+  // Open hand-offs that involve me (admins: everyone's).
+  api.myCoverage = function () {
+    return run(function (c) {
+      return c.rpc("tk_my_coverage");
+    }, { where: "myCoverage" }).then(function (rows) { return rows || []; });
+  };
+  // Re-reads the tasks that changed hands so lists update now (other tabs and
+  // people get them through realtime).
+  function refreshAfterOoo(list) {
+    try { window.dispatchEvent(new CustomEvent("mgb:tk-coverage-changed")); } catch (e) {}
+    var ids = (list || []).map(function (x) { return x && x.task_id; }).filter(Boolean).slice(0, 50);
+    return Promise.all(ids.map(function (id) {
+      return refresh(id).then(function (t) { if (t) afterWrite({ type: "upsert", task: t }); });
+    })).catch(function () {});
+  }
+
   // ---- Exposed for TK_sync and tests ----------------------------------------
   api.normalize = normalize;
   api._client = null; // tests inject a stub client here

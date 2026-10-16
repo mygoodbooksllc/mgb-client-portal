@@ -722,9 +722,11 @@ function TP_PeopleTab({ staffUser, isAdmin, clients }) {
       </div>
       <div className="tp-people-col">
         {typeof CV_MyTimeOffBody === "function" && (
-          <section className="card tp-people-card" aria-labelledby="tp-timeoff-title">
+          <section className="card tp-people-card" aria-labelledby="tp-timeoff-title" data-tour="cv-my-timeoff">
             <h3 className="card-title" id="tp-timeoff-title">My time off</h3>
-            <p className="card-subtitle">Add days you'll be away so the team can plan cover. Admins see who's out and can give your backup access.</p>
+            <p className="card-subtitle">
+              Add days you'll be away so the team can plan cover. Your open tasks due while you're out go to each client's backup and come back after.
+            </p>
             <CV_MyTimeOffBody staffUser={staffUser} />
           </section>
         )}

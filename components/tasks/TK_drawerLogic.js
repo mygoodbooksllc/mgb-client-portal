@@ -182,6 +182,9 @@ function TK_activityText(entry, opts) {
     case "client_answered":
       return "The client answered";
     case "reassigned_ooo":
+      // Tasks Phase 2 S7: meta.direction "back" when the time off ended.
+      if (e.meta && e.meta.direction === "back")
+        return to ? "Handed back to " + nameOf(to) + " after time off" : "Handed back after time off";
       return to ? "Reassigned to " + nameOf(to) + " while out of office" : "Reassigned while out of office";
     case "imported":
       return "Imported";

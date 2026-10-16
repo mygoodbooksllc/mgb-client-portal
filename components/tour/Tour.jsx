@@ -109,6 +109,10 @@
 //   tk-ask-people    the Ask client window's Who should answer? list
 //   tk-contacts      the client tasks drawer's Client contacts section
 //                    (TK_ClientContacts.jsx)
+//   cv-my-timeoff    Team › People's My time off card, non-admins (TeamPage.jsx);
+//                    each time off has Hand my tasks to backups (Coverage.jsx)
+//   cv-coverage      Team › People's Coverage card, admins (Coverage.jsx
+//                    CV_CoverageTab); each time off has Hand off tasks
 //   tk-recurring-client  Tasks › Recurring's One client card (TK_Templates.jsx)
 //   tk-recurring-actions New template / Preview / Make due tasks now (admins)
 //   tk-recurring-list    the template groups, once loaded

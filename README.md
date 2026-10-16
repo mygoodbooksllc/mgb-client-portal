@@ -85,7 +85,7 @@ because some work happens in Claude Code web sessions. Run `git fetch` and compa
 | `components/staff/` | Staff-only features, each with its own CSS and a name prefix (`CS_` client switcher, `HLP_` Help, `TB_` top bar, ...). `TopBar.jsx` + `top-bar.css` is the staff top bar (see "Staff top bar" under Main features). All loaded before `app.jsx`. |
 | `components/handbook/` | The Staff Handbook (2026-10-13; spec `docs/staff-handbook-spec.md`), Team › Handbook. Every name is `HB_`/`hb-` prefixed. `HB_api.js` (RPC wrappers, the PDF download, the shared `hb_status` store), `HB_PolicyView.jsx` (one policy, sign and countersign), `HB_HandbookTab.jsx` (the tab, its routes and the deep-link claim), `HB_Admin.jsx` (admin status grid, not-filed list with Retry filing, publish editor), `hb.css`. Loaded after `TeamReviewsAdmin.jsx` and before `app.jsx`. |
 | `components/files/` | `DriveFiles.js`: browser helpers for client files in Google Drive (`DRV_` prefix), calling the `drive-files` edge function. Holds the one fallback switch `DRV_STORAGE_FALLBACK`. Loaded before `StaffInbox.jsx` and `app.jsx`. |
-| `components/tasks/` | The Tasks module (2026-10-11; spec `docs/tasks-phase1-spec.md`). Every name is `TK_`/`tk-` prefixed. Logic with node tests: `TK_logic.js` (statuses, grouping, the quick-add parser, keys), `TK_viewLogic.js`, `TK_drawerLogic.js`, `TK_clientLogic.js` (the client strip and panel rules), `TK_reviewLogic.js` (Phase 2 S3: review roles, the review queue groups and a JS copy of the on-time rule), `TK_store.js`, `TK_recurrenceLogic.js` (Phase 2: the business calendar, due rules and periods; fixtures in `TK_recurrence.fixtures.js`), `TK_templateLogic.js` (Phase 2 S4: template form checks, next due dates, period labels, preview rows and error text), `TK_requestLogic.js` (Phase 2 S5: Ask client form checks, request chips and actions, waiting groups and error text). Data: `TK_api.js` (Supabase calls), `TK_sync.js` (Realtime plus a `BroadcastChannel` between windows). Views: `TK_App.jsx` (the `#/tasks/...` page and the `/tasks` shell), `TK_Sidebar.jsx`, `TK_MyTasks.jsx`, `TK_List.jsx`, `TK_ClientHeader.jsx`, `TK_ClientDrawer.jsx` (the client task strip and panel, and Follow my client), `TK_TaskRow.jsx`, `TK_StandaloneBar.jsx`, `TK_keys.jsx`, `TK_ReviewQueue.jsx` (`#/tasks/review`), `TK_Templates.jsx` (`#/tasks/templates`, recurring templates), `TK_WaitingList.jsx` (`#/tasks/waiting`, open Ask client requests). Task details: `TK_AskClientModal.jsx` (Client requests and the Ask client window), `TK_ClientContacts.jsx` (Phase 2 S6: the client drawer's Client contacts section), `TK_Drawer.jsx`, `TK_QuickAdd.jsx`, `TK_Comments.jsx`, `TK_Attachments.jsx`, `TK_Activity.jsx`. Styles: `tk-views.css`, `tk-drawer.css`, `tk-client.css`, `tk-requests.css`. Loaded after `components/client/QboGiving.jsx` and before `components/tour/Tour.jsx`. |
+| `components/tasks/` | The Tasks module (2026-10-11; spec `docs/tasks-phase1-spec.md`). Every name is `TK_`/`tk-` prefixed. Logic with node tests: `TK_logic.js` (statuses, grouping, the quick-add parser, keys), `TK_viewLogic.js`, `TK_drawerLogic.js`, `TK_clientLogic.js` (the client strip and panel rules), `TK_reviewLogic.js` (Phase 2 S3: review roles, the review queue groups and a JS copy of the on-time rule), `TK_store.js`, `TK_recurrenceLogic.js` (Phase 2: the business calendar, due rules and periods; fixtures in `TK_recurrence.fixtures.js`), `TK_templateLogic.js` (Phase 2 S4: template form checks, next due dates, period labels, preview rows and error text), `TK_requestLogic.js` (Phase 2 S5: Ask client form checks, request chips and actions, waiting groups and error text), `TK_coverageLogic.js` (Phase 2 S7: time-off hand-off preview groups, skip copy and Covering for labels). Data: `TK_api.js` (Supabase calls), `TK_sync.js` (Realtime plus a `BroadcastChannel` between windows). Views: `TK_App.jsx` (the `#/tasks/...` page and the `/tasks` shell), `TK_Sidebar.jsx`, `TK_MyTasks.jsx`, `TK_List.jsx`, `TK_ClientHeader.jsx`, `TK_ClientDrawer.jsx` (the client task strip and panel, and Follow my client), `TK_TaskRow.jsx`, `TK_StandaloneBar.jsx`, `TK_keys.jsx`, `TK_ReviewQueue.jsx` (`#/tasks/review`), `TK_Templates.jsx` (`#/tasks/templates`, recurring templates), `TK_WaitingList.jsx` (`#/tasks/waiting`, open Ask client requests). Task details: `TK_AskClientModal.jsx` (Client requests and the Ask client window), `TK_ClientContacts.jsx` (Phase 2 S6: the client drawer's Client contacts section), `TK_Drawer.jsx`, `TK_QuickAdd.jsx`, `TK_Comments.jsx`, `TK_Attachments.jsx`, `TK_Activity.jsx`. Styles: `tk-views.css`, `tk-drawer.css`, `tk-client.css`, `tk-requests.css`. Loaded after `components/client/QboGiving.jsx` and before `components/tour/Tour.jsx`. |
 | `components/tour/` | Tours, tips and launch announcements. `Tour.jsx` (client and staff tours), `Tips.jsx` (`TIPS_`), and the launch announcements (2026-10-15, `ANN_` prefix): `announcements.js` is the registry (one entry per launch), `announcementsLogic.js` the pure rules with its node test `announcementsLogic.test.js`, `Announcements.jsx` the store, notice, What's new list and Usage Stats card. Styles: `tour.css`, `tips.css`, `announcements.css`. Database: `supabase/staff-announcements.sql` (+ `staff-announcements-tests.sql`). |
 | `components/ledger/` | Ledger review (GL Review phase 1, 2026-10-14; spec `docs/gl-review-spec.md`). `GLR_*.js` are pure logic with node tests in `tests/ledger/` (parse, checks, compare, summary); `LR_*` is the UI: `LR_Tab.jsx` (client tab `client-ledger`, `#/client/<id>/ledger`), `LR_Panels.jsx`, `LR_ReviewFile.jsx` (Work › Ledger review), `LR_Settings.jsx` (Team › Ledger review), `LR_api.js` (RPC and edge-function wrappers; fires `mgb:ledger-review-changed` and `mgb:gl-review-changed` so the Close card refreshes). Database: `supabase/gl-review-1-core.sql`. |
 | `components/qbo/` | `mapQboToClient.js` converts QuickBooks table rows into the shape the pages use. Its test is `mapQboToClient.test.js`. |
@@ -1160,7 +1160,7 @@ Team Reviews files.
   the backup, expiring the day after the time off ends, America/Chicago).
   `components/staff/Coverage.jsx` (`CV_`): Team › People (Who's out, My clients' backups, My time off), the
   backup picker on the overview (`CV_StaffSelect`; the column is still `backup_bookkeeper_email`) and
-  the `CV_OutTag` "Out until" tag (overview Key dates card, Inbox details). Emailing client messages
+  the `CV_OutTag` "Out until" tag (overview Key dates card, Inbox details), and `CV_Handoff` (Tasks Phase 2 S7: hand tasks to backups and back). Emailing client messages
   to the backup was not built. Guide: `time-off-coverage.md`.
 - **Firm deadline calendar.** `supabase/firm-deadlines.sql`: `firm_deadline_rules` (all active staff
   read, admins add/edit; no deletes, `active=false` turns one off; `due_rule` jsonb checked by
@@ -1614,6 +1614,36 @@ Team Reviews files.
     `#/client/<id>/needs[/<request id>]`; an emailed portal link is
     `/login?next=%23%2Fclient%2F<id>%2Fneeds%2F<id>`, allow-listed and kept across sign-in in
     `localStorage` `mgb_login_next_v1` (30 minutes).
+- **Tasks Phase 2, S7 time-off hand-off** (`supabase/tasks-p2-7-ooo.sql`, applied 2026-10-16; spec
+  C7, H, K and critique M1, M2, m13, m14, Q5). Re-runnable; run it after S6 (`tk_schema_version()`
+  becomes 8). Tests: `supabase/tasks-p2-7-ooo-tests.sql` (one transaction, rolls back) and
+  `node components/tasks/TK_coverageLogic.test.js`. Guide: `out-of-office-handoff.md`.
+  - **Tables** (RLS on, no browser access; read through the RPCs): `tk_ooo_reassignments` (one
+    row per task moved for a time off: from, to, reason, `returned_at` / `return_skipped_reason`)
+    and `tk_ooo_runs` (each apply or return run, with its moves and skips).
+  - **Rules**: on the first day off, open tasks (To do, In progress, Waiting on client) assigned to
+    the person and **due inside the window** go to `client_profile.backup_bookkeeper_email`. Ready
+    for review, private, internal and after-window tasks stay. Skips: `no_backup`, `self`,
+    `backup_away` (the backup is out on the due date), `no_access` (cron and non-admin runs only
+    file an access request; an admin hand-off grants temporary access for the window, M1).
+    Moving is a bypass via `mgb.tk_ooo` (M2), so admin sign-off is unchanged. A task changed by
+    hand while out is not taken back; a task in review comes back once reviewed.
+  - **RPCs**: `tk_apply_ooo(time_off_id, dry_run, overrides)` (owner or admin; admins can pick a
+    cover per client), `tk_return_ooo(time_off_id)`, `tk_my_coverage()` (rows where I'm the owner
+    or the backup, admins see all; ids and names only, no task titles). Cancelling or
+    shortening a time off hands tasks back (`tk_staff_time_off_after_update` trigger).
+  - **Patched**: `staff_reminders_before_write` (bypass), `notify_enqueue_task_assigned` (no
+    per-task email for an OOO move), `tk__issue_period` (a generated task due while its assignee
+    is out goes to the backup) and `complete_staff_item` (a covered repeating task rolls forward
+    to the backup inside the window, else to the owner).
+  - **Cron `tk-ooo-daily`** (`0 11 * * *`, `tk_ooo_daily()`): applies windows that start today or
+    earlier and returns ended ones. The `tk_settings` key `ooo_auto_apply` (`false` stops the
+    apply half; returns always run). Summaries use the existing `staff_task_batch` outbox kind,
+    one per person, staff only, following the `task_batch` preference and email dry-run.
+  - **UI**: `TK_coverageLogic.js` (preview groups, skip copy, labels), `CV_Handoff` in
+    `components/staff/Coverage.jsx` (**Hand my tasks to backups** / **Hand off tasks**, **Hand back
+    now**), the **Covering for** chip in `TK_Drawer.jsx` and on Today. Tour targets
+    `cv-my-timeoff`, `cv-coverage`; launch notice `ooo-handoff`. No edge function changes.
 - **Staff Handbook** (`supabase/staff-handbook.sql`, applied 2026-10-13). Re-runnable. Four
   `handbook_*` tables with RLS and no direct writes, the `hb_*` RPCs, two new outbox kinds
   (`handbook_sign_needed`, `handbook_countersign_needed`) added to both email check constraints,

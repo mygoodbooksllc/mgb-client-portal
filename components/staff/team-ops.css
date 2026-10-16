@@ -149,6 +149,51 @@
 .cv-page a:hover { text-decoration: underline; }
 .cv-page a.link-btn { color: var(--accent); }
 .cv-grant { white-space: nowrap; }
+/* Task hand-off for time off (CV_Handoff, Tasks Phase 2 S7) */
+.cv-handoff { flex: 1 1 100%; min-width: 0; }
+.cv-block > .cv-handoff { margin: 4px 0 12px; }
+.cv-handoff-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; }
+.cv-handoff-panel {
+  margin-top: 8px;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-2, var(--surface));
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+}
+.cv-handoff-lead { margin: 0; font-size: 13px; }
+.cv-handoff-to { font-weight: 600; font-size: 13px; margin-bottom: 2px; }
+.cv-handoff ul { list-style: none; margin: 0; padding: 0; }
+.cv-list .cv-handoff li, .cv-handoff li {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 8px;
+  padding: 3px 0;
+  border-top: none;
+  min-width: 0;
+}
+.cv-handoff-title { overflow-wrap: anywhere; min-width: 0; }
+.cv-handoff .cv-note { flex: 0 1 auto; }
+.cv-handoff-pick { display: grid; gap: 8px; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); align-items: end; }
+.cv-handoff-pick .cv-handoff-to { grid-column: 1 / -1; }
+.cv-handoff-pick .task-field { min-width: 0; }
+.cv-handoff-pick select { width: 100%; box-sizing: border-box; }
+.cv-list .cv-handoff .link-btn, .cv-list .cv-handoff .cv-confirm { margin-left: 0; }
+/* "Covering for" chip (task drawer, Today) */
+.tk-cover-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--accent-soft, var(--surface-2));
+  color: var(--text);
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
 
 /* ---- Firm deadline calendar (Deadlines.jsx, DL_) ---- */
 .dl-page { min-width: 0; display: flex; flex-direction: column; gap: 16px; }

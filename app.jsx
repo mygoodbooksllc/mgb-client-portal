@@ -1010,6 +1010,11 @@ const INFRA_LINKS = [
     note: "tk-client-requests (staff sends, JWT on) · tk-request-respond (the public /respond answer page, JWT off; token in a header, hashed, rate-limited) · client-emails runs the client-request-nudge cron · drive-files takes portal uploads to a request · no extra secrets (RESEND_API_KEY, Google service account)",
   },
   {
+    name: "Supabase cron (time-off task hand-off)",
+    url: "https://supabase.com/dashboard/project/xumsqmhccgfjnlmieqyu/integrations/cron/jobs",
+    note: "tk-ooo-daily (11:00 UTC) runs tk_ooo_daily(): hands open tasks due during time off to each client's backup and hands them back after · logs in tk_ooo_runs (admins) · ledger tk_ooo_reassignments · switch ooo_auto_apply in tk_settings · no edge function",
+  },
+  {
     name: "Google Drive (client files)",
     url: "https://drive.google.com/drive/shared-drives",
     note: "MGB shared drive holding client documents, and the admin-only reviews drive (review PDFs, signed Staff Handbook PDFs under Handbook, and Inventory exports) · service account in Supabase secrets",
@@ -15002,6 +15007,7 @@ function DeveloperToolsPage({ staffUser, readOnly }) {
             ["nudge_max", "Ask client reminders before No reply", "Reminders sent before a request shows No reply."],
             ["token_ttl_days", "Answer link lifetime (days)", "How long an Ask client answer link works."],
             ["on_time_since", "On-time counted since", "Start date for on-time stats and the missed-periods floor."],
+            ["ooo_auto_apply", "Time off hands tasks to backups", "Not set or On: the tk-ooo-daily cron (11:00 UTC) moves open tasks due during someone's time off to each client's backup on their first day off. Set to false to keep only the manual Hand my tasks to backups button. Handing back after the time off always runs."],
           ].map(([key, label, desc]) => {
             const row = tkSettings[key];
             const raw = row ? row.value : undefined;
@@ -26235,7 +26241,7 @@ const PAGE_META = {
   },
   team: {
     title: "Team",
-    subtitle: "People, reviews, onboarding and the handbook",
+    subtitle: "People, time off and task hand-off, reviews, onboarding and the handbook",
   },
   // A client's SOP as its own tab (#/client/<id>/sop) — staff only; the
   // client-side tabs stay in ALL_TAB_KEYS.

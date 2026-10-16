@@ -151,6 +151,8 @@ t("activityText vectors", () => {
     [{ kind: "client_asked" }, "Asked the client"],
     [{ kind: "client_answered" }, "The client answered"],
     [{ kind: "reassigned_ooo", to_value: "bk@example.test" }, "Reassigned to Pat Bookkeeper while out of office"],
+    [{ kind: "reassigned_ooo", to_value: "bk@example.test", meta: { direction: "out" } }, "Reassigned to Pat Bookkeeper while out of office"],
+    [{ kind: "reassigned_ooo", to_value: "bk@example.test", meta: { direction: "back" } }, "Handed back to Pat Bookkeeper after time off"],
     [{ kind: "imported" }, "Imported"],
     [{ kind: "something_new" }, "Changed"],
   ];

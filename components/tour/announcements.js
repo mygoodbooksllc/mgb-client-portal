@@ -296,6 +296,52 @@ var ANN_REGISTRY = [
       },
     ],
   },
+  {
+    id: "ooo-handoff",
+    date: "2026-10-16",
+    title: "Time off hands tasks to backups",
+    summary: "When you're out, your open tasks due during your time off go to each client's backup bookkeeper and come back after. Hand my tasks to backups on My time off does it now.",
+    roles: ["admin", "bookkeeper"],
+    hash: "#/team/people",
+    steps: (ctx) => [
+      {
+        id: "ann-welcome",
+        title: "Your tasks are covered while you're out",
+        body: () =>
+          "On your first day off, open tasks due while you're away move to each client's backup bookkeeper. When you're back they come home on their own. Ready for review, private and MGB (internal) tasks stay with you. About a minute.",
+      },
+      TOUR_tabStep(
+        "team",
+        "people",
+        "Team › People",
+        "Time off lives here. Add your days off and the team sees who's out.",
+      ),
+      {
+        id: "ann-mine",
+        when: (c) => !(c && c.isAdmin),
+        targets: ["cv-my-timeoff"],
+        wait: true,
+        title: "Hand my tasks to backups",
+        body: () =>
+          "Each time off has Hand my tasks to backups. It shows what goes to whom and what stays (and why) before anything moves. Hand back now ends it early.",
+      },
+      {
+        id: "ann-admin",
+        when: (c) => !!(c && c.isAdmin),
+        targets: ["cv-coverage"],
+        wait: true,
+        title: "Hand off anyone's tasks",
+        body: () =>
+          "Each person's time off has Hand off tasks. For a client with no backup, or a backup who is also out, pick someone to cover. Your hand-off also gives the backup access to the client for the time off.",
+      },
+      {
+        id: "ann-done",
+        title: "Where you'll see it",
+        body: () =>
+          "A covered task says Covering for … in its drawer and on Today, and its Activity shows the hand-off and the hand-back. Set each client's backup on Client overview. To see this again, press ? and pick New: Time off hands tasks to backups tour.",
+      },
+    ],
+  },
 ];
 
 if (typeof module !== "undefined" && module.exports) module.exports = { ANN_REGISTRY: ANN_REGISTRY };
