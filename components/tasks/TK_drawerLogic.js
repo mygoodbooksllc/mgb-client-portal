@@ -157,6 +157,10 @@ function TK_activityText(entry, opts) {
       return "Approved";
     case "review_sent_back":
       return "Sent back";
+    case "review_withdrawn":
+      return "Taken back from review";
+    case "reviewer":
+      return to ? "Reviewer set to " + nameOf(to) : "Reviewer cleared";
     case "assignee":
       return to ? "Assigned to " + nameOf(to) : "Unassigned";
     case "due":

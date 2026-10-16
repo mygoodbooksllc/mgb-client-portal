@@ -69,7 +69,8 @@ t("copy strings are final", () => {
   assert.strictEqual(L.TK_COPY.taskAdded, "Task added.");
   assert.ok(/Work › Tasks\.$/.test(L.TK_COPY.setupBody));
   Object.keys(L.TK_COPY).forEach((k) => assert.ok(!/!/.test(L.TK_COPY[k]), k + " has no exclamation mark"));
-  assert.strictEqual(Object.keys(L.TK_COPY).length, 27);
+  assert.strictEqual(Object.keys(L.TK_COPY).length, 39);
+  assert.strictEqual(L.TK_COPY.selfReview, "You can't approve your own work. Another admin will review it.");
 });
 
 // ---- Status workflow
@@ -97,12 +98,17 @@ t("canTransition matrix (25 pairs) mirrors tk_set_status", () => {
 t("resolveStatus review gate", () => {
   const gated = task({ review_required: true, status: "in_progress" });
   assert.strictEqual(L.TK_resolveStatus(gated, "done", { isAdmin: false }), "ready_for_review");
-  assert.strictEqual(L.TK_resolveStatus(gated, "done", { isAdmin: true }), "done");
+  assert.strictEqual(L.TK_resolveStatus(gated, "done", { isAdmin: true }), "ready_for_review"); // s3: admins divert too
   assert.strictEqual(L.TK_resolveStatus(gated, "done", {}), "ready_for_review");
   assert.strictEqual(L.TK_resolveStatus(gated, "waiting_client", { isAdmin: false }), "waiting_client");
   const rfr = task({ review_required: true, status: "ready_for_review" });
   assert.strictEqual(L.TK_resolveStatus(rfr, "done", { isAdmin: false }), "ready_for_review");
   assert.strictEqual(L.TK_resolveStatus(rfr, "done", { isAdmin: true }), "done");
+  const own = task({ review_required: true, status: "ready_for_review", assignee_email: "a@x.test", submitted_by: "a@x.test" });
+  assert.strictEqual(L.TK_resolveStatus(own, "done", { isAdmin: true, me: "A@x.test" }), "ready_for_review");
+  const sub = task({ review_required: true, status: "ready_for_review", assignee_email: "b@x.test", submitted_by: "a@x.test" });
+  assert.strictEqual(L.TK_resolveStatus(sub, "done", { isAdmin: true, me: "a@x.test" }), "ready_for_review");
+  assert.strictEqual(L.TK_resolveStatus(sub, "done", { isAdmin: true, me: "c@x.test" }), "done");
   const plain = task({ review_required: false });
   assert.strictEqual(L.TK_resolveStatus(plain, "done", { isAdmin: false }), "done");
   const doneGated = task({ review_required: true, status: "done", done: true });
@@ -121,6 +127,10 @@ t("nextStatuses for a non-admin", () => {
   assert.deepStrictEqual(nexts(task({ status: "ready_for_review", review_required: true }), false), [
     "todo:To do", "in_progress:In progress", "waiting_client:Waiting on client",
   ]);
+  assert.deepStrictEqual(
+    L.TK_nextStatuses(task({ status: "ready_for_review", review_required: true }), { isAdmin: false }).map((x) => x.action),
+    ["withdraw", "withdraw", "withdraw"],
+  );
   assert.deepStrictEqual(nexts(task({ status: "ready_for_review" }), false), [
     "todo:To do", "in_progress:In progress", "waiting_client:Waiting on client",
   ]);
@@ -130,10 +140,22 @@ t("nextStatuses for a non-admin", () => {
 });
 t("nextStatuses for an admin", () => {
   assert.deepStrictEqual(nexts(task({ status: "in_progress", review_required: true }), true), [
+    "todo:To do", "waiting_client:Waiting on client", "ready_for_review:Send for review",
+  ]);
+  assert.deepStrictEqual(nexts(task({ status: "in_progress" }), true), [
     "todo:To do", "waiting_client:Waiting on client", "ready_for_review:Ready for review", "done:Done",
   ]);
   assert.deepStrictEqual(nexts(task({ status: "ready_for_review", review_required: true }), true), [
     "todo:To do", "in_progress:Send back", "waiting_client:Waiting on client", "done:Approve",
+  ]);
+  const rv = task({ status: "ready_for_review", review_required: true, assignee_email: "a@x.test", submitted_by: "a@x.test" });
+  assert.deepStrictEqual(
+    L.TK_nextStatuses(rv, { isAdmin: true, me: "b@x.test" }).map((x) => x.status + ":" + x.label + ":" + (x.action || "")),
+    ["todo:To do:withdraw", "in_progress:Send back:send_back", "waiting_client:Waiting on client:withdraw", "done:Approve:approve"],
+  );
+  // Own work: no Approve or Send back, only withdraw moves (M3).
+  assert.deepStrictEqual(L.TK_nextStatuses(rv, { isAdmin: true, me: "a@x.test" }).map((x) => x.status + ":" + x.label), [
+    "todo:To do", "in_progress:In progress", "waiting_client:Waiting on client",
   ]);
   assert.deepStrictEqual(nexts(task({ status: "done", done: true }), true), ["todo:To do", "in_progress:In progress"]);
 });
@@ -634,6 +656,9 @@ t("parseRoute", () => {
   assert.deepStrictEqual(P("#/tasks/my/"), { view: "my" });
   assert.deepStrictEqual(P("#/tasks/my?item=task:" + U), { view: "my" });
   assert.deepStrictEqual(P("#/tasks/search"), { view: "search" });
+  assert.deepStrictEqual(P("#/tasks/review"), { view: "review" });
+  assert.deepStrictEqual(P("#/tasks/Review/"), { view: "review" });
+  assert.deepStrictEqual(P("#/tasks/review/x"), { view: "unknown" });
   assert.deepStrictEqual(P("#/tasks/c/ExampleChurch"), { view: "client", clientId: "ExampleChurch" });
   assert.deepStrictEqual(P("#/tasks/c/Ab%2Fc"), { view: "client", clientId: "Ab/c" });
   assert.deepStrictEqual(P("#/tasks/c/Ab%2Fc/list"), { view: "client", clientId: "Ab/c" });
@@ -660,6 +685,7 @@ t("formatRoute and round trips", () => {
   const U = "1b4e28ba-2fa1-41d2-883f-0016d3cca427";
   assert.strictEqual(F({ view: "my" }), "#/tasks/my");
   assert.strictEqual(F({ view: "search" }), "#/tasks/search");
+  assert.strictEqual(F({ view: "review" }), "#/tasks/review");
   assert.strictEqual(F({ view: "client", clientId: "Ab/c" }), "#/tasks/c/Ab%2Fc");
   assert.strictEqual(F({ view: "project", projectId: U }), "#/tasks/p/" + U);
   assert.strictEqual(F({ view: "person", staffId: U }), "#/tasks/u/" + U);
@@ -670,6 +696,7 @@ t("formatRoute and round trips", () => {
   [
     { view: "my" },
     { view: "search" },
+    { view: "review" },
     { view: "client", clientId: "MiXeD-Case_1" },
     { view: "client", clientId: "Ab/c" },
     { view: "client", clientId: "a b&c?d#e" },

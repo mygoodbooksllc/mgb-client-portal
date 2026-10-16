@@ -35,6 +35,18 @@ var TK_COPY = {
   reverted: "Only the task's owner or an admin can change that.",
   sentForReview: "Sent for review. An admin will approve it.",
   approved: "Approved.",
+  sentBack: "Sent back with your note.",
+  withdrawn: "Taken back from review.",
+  awaitingReview: "This is waiting for an admin to approve it.",
+  selfReview: "You can't approve your own work. Another admin will review it.",
+  needsApproval: "Only an admin can approve this.",
+  inReview: "This is in review. Take it back from review before you reassign it.",
+  reasonRequired: "Add a short note on what needs another look.",
+  reasonTooLong: "Keep the note under 2,000 characters.",
+  badReviewer: "Pick an active admin who isn't doing the work.",
+  serverOwned: "That part is set by the app and can't be edited.",
+  ownerOnly: "Only the owner can change that setting.",
+  reviewEmpty: "Nothing is waiting for review.",
   deleted: "Task deleted.",
   restored: "Task restored.",
   emptyMine: "Nothing assigned to you. Press q or Add task to start one.",
@@ -192,41 +204,62 @@ function TK_canTransition(from, to) {
   return true;
 }
 
-// The status the server will land on. Only the review gate changes it: a
-// non-admin finishing a review_required task that is not done yet.
+// The status the server will land on. Only the review gate changes it: done
+// on a review_required task that is not done or in review yet lands in
+// ready_for_review, for admins too (tasks p2 s3). From ready_for_review, done
+// is an approval: only an admin (who is not the assignee or submitter) gets it.
 function TK_resolveStatus(task, to, opts) {
   var isAdmin = !!(opts && opts.isAdmin);
-  if (to === "done" && task && task.review_required && !isAdmin && TK_effectiveStatus(task) !== "done") {
-    return "ready_for_review";
+  var from = TK_effectiveStatus(task);
+  if (to === "done" && from === "ready_for_review") {
+    return isAdmin && !TK__isSelfReview(task, opts && opts.me) ? "done" : "ready_for_review";
   }
+  if (to === "done" && task && task.review_required && from !== "done") return "ready_for_review";
   return to;
 }
 
+// The assignee or the person who sent it for review can't approve it (M3).
+function TK__isSelfReview(task, me) {
+  var who = TK__lower(me);
+  if (!task || !who) return false;
+  return who === TK__lower(task.assignee_email || task.staff_email) || who === TK__lower(task.submitted_by);
+}
+
 // Menu items for the status pill, in TK_STATUSES order. Never the current
-// status; from done never waiting_client or ready_for_review.
+// status; from done never waiting_client or ready_for_review. A review_required
+// task offers "Send for review" instead of Done, for admins too. In review, an
+// admin who is not the assignee or submitter gets Approve (action "approve")
+// and Send back (action "send_back", needs a reason); everyone else's moves
+// out of review are a withdraw (action "withdraw").
+// opts: { isAdmin, me }
 function TK_nextStatuses(task, opts) {
   var isAdmin = !!(opts && opts.isAdmin);
   var from = TK_effectiveStatus(task);
-  var gated = !!(task && task.review_required) && !isAdmin;
+  var gated = !!(task && task.review_required);
+  var reviewer = from === "ready_for_review" && isAdmin && !TK__isSelfReview(task, opts && opts.me);
   var out = [];
   for (var i = 0; i < TK_STATUSES.length; i++) {
     var s = TK_STATUSES[i];
     if (!TK_canTransition(from, s)) continue;
-    if (s === "done") {
-      if (from === "ready_for_review") {
-        if (isAdmin) out.push({ status: "done", label: "Approve" });
+    if (from === "ready_for_review") {
+      if (s === "done") {
+        if (reviewer) out.push({ status: "done", label: "Approve", action: "approve" });
         continue;
       }
+      if (s === "in_progress" && reviewer) {
+        out.push({ status: "in_progress", label: "Send back", action: "send_back" });
+        continue;
+      }
+      out.push({ status: s, label: TK_STATUS_LABELS[s], action: "withdraw" });
+      continue;
+    }
+    if (s === "done") {
       if (gated) continue; // replaced by "Send for review" below
       out.push({ status: "done", label: TK_STATUS_LABELS.done });
       continue;
     }
     if (s === "ready_for_review" && gated) {
       out.push({ status: "ready_for_review", label: "Send for review" });
-      continue;
-    }
-    if (s === "in_progress" && from === "ready_for_review" && isAdmin) {
-      out.push({ status: "in_progress", label: "Send back" });
       continue;
     }
     out.push({ status: s, label: TK_STATUS_LABELS[s] });
@@ -654,6 +687,7 @@ function TK_parseRoute(hash) {
   var n = parts.length;
   if (n === 1 || (n === 2 && (kind === "" || kind === "my"))) return { view: "my" };
   if (n === 2 && kind === "search") return { view: "search" };
+  if (n === 2 && kind === "review") return { view: "review" };
   var hasListSuffix = n === 4 && parts[3].toLowerCase() === "list";
   if (kind === "c" && (n === 3 || hasListSuffix)) {
     var id;
@@ -684,6 +718,7 @@ function TK_formatRoute(route) {
   if (r.view === "project" && TK_isUuid(r.projectId)) return "#/tasks/p/" + r.projectId;
   if (r.view === "person" && TK_isUuid(r.staffId)) return "#/tasks/u/" + r.staffId;
   if (r.view === "search") return "#/tasks/search";
+  if (r.view === "review") return "#/tasks/review";
   return "#/tasks/my";
 }
 
@@ -819,6 +854,15 @@ function TK_normalizeTask(row) {
   out.status_changed_by = TK__lowerOrNull(r.status_changed_by);
   out.waiting_since = r.waiting_since || null;
   out.waiting_minutes = Number(r.waiting_minutes) > 0 ? Number(r.waiting_minutes) : 0;
+  out.reviewer_email = TK__lowerOrNull(r.reviewer_email);
+  out.send_back_count = Number(r.send_back_count) > 0 ? Number(r.send_back_count) : 0;
+  out.ready_at = r.ready_at || null;
+  out.submitted_by = TK__lowerOrNull(r.submitted_by);
+  out.submitted_at = r.submitted_at || null;
+  out.approved_by = TK__lowerOrNull(r.approved_by);
+  out.approved_at = r.approved_at || null;
+  out.due_date_original = r.due_date_original ? String(r.due_date_original).slice(0, 10) : null;
+  out.waiting_before_due_minutes = Number(r.waiting_before_due_minutes) > 0 ? Number(r.waiting_before_due_minutes) : 0;
   out.created_at = r.created_at || null;
   out.updated_at = r.updated_at || null;
   out.deleted_at = r.deleted_at || null;

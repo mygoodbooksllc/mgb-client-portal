@@ -35,7 +35,7 @@ function TK_initialState() {
   };
 }
 
-// "mine", "client:<id>", "clientcd:<id>" (the client tasks panel's own copy of
+// "mine", "review" (everything in review), "client:<id>", "clientcd:<id>" (the client tasks panel's own copy of
 // a client's list), "project:<uuid>", "person:<staff uuid>",
 // "children:<uuid>". Accepts a ready key string, or a scope object
 // { mine } | { clientId } | { projectId } | { personId } | { parentId }.
@@ -157,6 +157,7 @@ function TK_stOpsFor(pending, id) {
 function TK_stMatches(state, key, task) {
   if (!task || task.deleted_at) return false;
   if (key === "mine") return state.me ? TK_stIsMine(task, state.me) : null;
+  if (key === "review") return task.status === "ready_for_review"; // the review queue (tasks p2 s3)
   var i = key.indexOf(":");
   if (i < 0) return null;
   var kind = key.slice(0, i);

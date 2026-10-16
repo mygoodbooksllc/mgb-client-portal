@@ -24,7 +24,9 @@ var TK_TASK_COLS =
   "id, text, description, status, done, due_date, due_at, remind_at, start_on, priority, kind, recurrence, " +
   "client_id, project_id, section, sort_key, parent_id, sop_section, review_required, assignee_email, " +
   "staff_email, created_by, visibility, source, source_ref, series_id, completed_at, status_changed_at, " +
-  "status_changed_by, waiting_since, waiting_minutes, created_at, updated_at, deleted_at";
+  "status_changed_by, waiting_since, waiting_minutes, created_at, updated_at, deleted_at, " +
+  "reviewer_email, send_back_count, ready_at, submitted_by, submitted_at, approved_by, approved_at, " +
+  "due_date_original, waiting_before_due_minutes";
 
 // Raises a toast through the existing window event that ToastProvider handles.
 function TK_toast(text) {
@@ -50,16 +52,21 @@ var TK_api = (function () {
   var MEMBER_COLS = "project_id, staff_email, role, added_by, added_at";
   var STAFF_COLS = "id, email, name, role, active";
   var PROJECT_UPDATE_FIELDS = ["name", "sections", "open_to_staff", "archived_at"];
-  var EMAIL_FIELDS = { assignee_email: 1, staff_email: 1, created_by: 1 };
+  var EMAIL_FIELDS = { assignee_email: 1, staff_email: 1, created_by: 1, reviewer_email: 1 };
   var STAMP_FIELDS = { due_at: 1, remind_at: 1, deleted_at: 1 };
   var REPROBE_MS = 30000;
   var TK_REASONS = [
     "tk_forbidden", "tk_bad_status", "tk_bad_transition", "tk_follower_no_access", "tk_wrong_client",
     "tk_use_drive", "tk_member_inactive", "tk_name_taken",
+    "tk_self_review", "tk_needs_approval", "tk_in_review", "tk_reason_required", "tk_bad_reviewer",
+    "tk_server_owned", "tk_owner_only",
   ];
   var COPY_FALLBACK = {
     sentForReview: "Sent for review. An admin will approve it.",
     approved: "Approved.",
+    sentBack: "Sent back with your note.",
+    withdrawn: "Taken back from review.",
+    awaitingReview: "This is waiting for an admin to approve it.",
   };
 
   // ---- small helpers -------------------------------------------------------
@@ -668,7 +675,18 @@ var TK_api = (function () {
         var target = done ? "done" : "todo";
         var guess = target;
         var isAdmin = opts && typeof opts.isAdmin === "boolean" ? opts.isAdmin : meIsAdmin();
-        if (done && task.review_required && !isAdmin) guess = "ready_for_review";
+        // Tasks p2 s3: done on a gated task lands in review for admins too;
+        // done from review is an approval, which only an admin can give.
+        if (done && current === "ready_for_review") {
+          if (!isAdmin) {
+            TK_toast(copy("awaitingReview"));
+            return { status: current, sentForReview: false, nextId: null };
+          }
+          return api.approve(task.id).then(function (r) {
+            return { status: r.status, sentForReview: false, nextId: r.nextId };
+          });
+        }
+        if (done && task.review_required) guess = "ready_for_review";
         var opId = "tk-done-" + task.id + "-" + Date.now().toString(36);
         dispatch({
           type: "optimistic",
@@ -733,6 +751,129 @@ var TK_api = (function () {
   api.toggleDone = function (task, opts) {
     return api.complete(task, { done: isOpen(task), isAdmin: opts && opts.isAdmin }).then(function (r) {
       return r.status;
+    });
+  };
+
+  // ---- Review (tasks p2 s3) -------------------------------------------------
+  // The server enforces who may do what (tk__review_target). Each call
+  // refreshes the task and runs the after-write sequence. Failures reject
+  // with .reason (tk_self_review, tk_reason_required …) for the caller's toast.
+  function reviewCall(id, rpcName, args, where, optimistic) {
+    var off = requireOnline();
+    if (off) return off;
+    var opId = null;
+    if (optimistic) {
+      opId = "tk-rv-" + id + "-" + Date.now().toString(36);
+      dispatch({ type: "optimistic", id: id, opId: opId, patch: optimistic });
+    }
+    return run(function (c) {
+      return c.rpc(rpcName, args);
+    }, { where: where }).then(
+      function (data) {
+        return refresh(id).then(
+          function (t) {
+            if (opId) dispatch({ type: "commit", opId: opId, task: t || undefined });
+            afterWrite(t ? { type: "upsert", task: t } : null);
+            return { data: data, task: t || null };
+          },
+          function () {
+            if (opId) dispatch({ type: "commit", opId: opId });
+            afterWrite(null);
+            return { data: data, task: null };
+          },
+        );
+      },
+      function (e) {
+        if (opId) dispatch({ type: "rollback", opId: opId });
+        throw e;
+      },
+    );
+  }
+
+  // Approve: ready_for_review -> done (series roll forward). { status, nextId }
+  api.approve = function (id, note) {
+    return reviewCall(id, "tk_approve", { p_id: id, p_note: note ? String(note) : null }, "approve", {
+      status: "done",
+      done: true,
+      completed_at: nowIso(),
+    }).then(function (r) {
+      TK_toast(copy("approved"));
+      var d = r.data || {};
+      return { status: r.task ? r.task.status : "done", nextId: d.next_id || null };
+    });
+  };
+
+  // Send back with a reason (3-2000 characters): back to In progress.
+  api.sendBack = function (id, reason) {
+    var why = String(reason == null ? "" : reason).trim();
+    if (why.length < 3 || why.length > 2000) {
+      return Promise.reject(errOf("tk_reason_required", "tk_reason_required", { reason: "tk_reason_required" }));
+    }
+    return reviewCall(id, "tk_send_back", { p_id: id, p_reason: why }, "sendBack", { status: "in_progress", done: false }).then(
+      function (r) {
+        TK_toast(copy("sentBack"));
+        return { status: r.task ? r.task.status : "in_progress" };
+      },
+    );
+  };
+
+  // The assignee (or an admin) takes it back out of review.
+  api.withdraw = function (id, note) {
+    return reviewCall(id, "tk_withdraw_review", { p_id: id, p_note: note ? String(note) : null }, "withdraw", {
+      status: "in_progress",
+      done: false,
+    }).then(function (r) {
+      TK_toast(copy("withdrawn"));
+      return { status: r.task ? r.task.status : "in_progress" };
+    });
+  };
+
+  api.readyForReview = function (id, note) {
+    return reviewCall(id, "tk_ready_for_review", { p_id: id, p_note: note ? String(note) : null }, "readyForReview", {
+      status: "ready_for_review",
+      done: false,
+    }).then(function (r) {
+      TK_toast(copy("sentForReview"));
+      return { status: r.task ? r.task.status : String(r.data || "ready_for_review") };
+    });
+  };
+
+  // Admin only. Empty email clears it (the server picks the default on submit).
+  api.setReviewer = function (id, email) {
+    var who = lower(email) || null;
+    return reviewCall(id, "tk_set_reviewer", { p_id: id, p_email: who }, "setReviewer", { reviewer_email: who }).then(function (r) {
+      return r.task;
+    });
+  };
+
+  // Everything in review this person can see (RLS decides), oldest first.
+  api.listReview = function () {
+    return run(function (c) {
+      return c
+        .from("tk_tasks")
+        .select(TK_TASK_COLS)
+        .eq("status", "ready_for_review")
+        .order("submitted_at", { ascending: true, nullsFirst: true })
+        .limit(500);
+    }, { where: "listReview" }).then(function (rows) {
+      return (rows || []).map(normalize);
+    });
+  };
+
+  // Stats (admins see everyone; others only themselves). Dates are YYYY-MM-DD.
+  api.reviewStats = function (from, to, email) {
+    return run(function (c) {
+      return c.rpc("tk_review_stats", { p_from: from, p_to: to, p_email: email ? lower(email) : null });
+    }, { where: "reviewStats" }).then(function (rows) {
+      return rows || [];
+    });
+  };
+
+  api.onTimeStats = function (from, to, email) {
+    return run(function (c) {
+      return c.rpc("tk_on_time_stats", { p_from: from, p_to: to, p_email: email ? lower(email) : null });
+    }, { where: "onTimeStats" }).then(function (rows) {
+      return rows || [];
     });
   };
 

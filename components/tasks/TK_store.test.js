@@ -131,6 +131,18 @@ t("listLoaded keeps server order, skips deleted and non-matching rows", () => {
   done();
 });
 
+t("review list holds tasks in review and follows status changes (tasks p2 s3)", () => {
+  const a = task({ status: "ready_for_review", assignee_email: OTHER });
+  const b = task({ status: "in_progress" });
+  let s = reduceAll(null, [{ type: "listLoaded", key: "review", tasks: [a, b] }]);
+  assert.deepStrictEqual(s.lists.review.ids, [a.id]);
+  s = S.TK_reduce(s, { type: "upsert", task: Object.assign({}, b, { status: "ready_for_review", updated_at: "2026-10-11T11:00:00Z" }) });
+  assert.deepStrictEqual(s.lists.review.ids, [a.id, b.id]);
+  s = S.TK_reduce(s, { type: "upsert", task: Object.assign({}, a, { status: "done", done: true, updated_at: "2026-10-11T11:00:00Z" }) });
+  assert.deepStrictEqual(s.lists.review.ids, [b.id]);
+  done();
+});
+
 t("listLoading / listError", () => {
   let s = S.TK_reduce(S.TK_initialState(), { type: "listLoading", key: "mine" });
   assert.strictEqual(s.lists.mine.loading, true);
