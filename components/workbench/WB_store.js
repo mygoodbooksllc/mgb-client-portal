@@ -685,6 +685,9 @@ function WB__openDriveFile(fileId) {
     WB_toast(text);
     return false;
   };
+  // The tab has to open inside the click. If the browser refused it, a second
+  // open once the link arrives would be refused too, so say so now.
+  if (!win) return Promise.resolve(giveUp("Your browser blocked the new tab. Allow pop-ups for this site, then try again."));
   return Promise.resolve()
     .then(function () {
       return DRV_link(fileId);
@@ -692,8 +695,7 @@ function WB__openDriveFile(fileId) {
     .then(
       function (url) {
         if (!/^https:\/\//i.test(String(url || ""))) return giveUp("Couldn't open that file. Try Open full page in the ⋯ menu.");
-        if (win) win.location.href = url;
-        else if (!window.open(url, "_blank", "noopener")) return giveUp("Your browser blocked the new tab. Allow pop-ups for this site, then try again.");
+        win.location.href = url;
         WB_track("wb-action", "doc_upload:open-in-drive");
         return true;
       },

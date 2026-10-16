@@ -12,7 +12,7 @@ Each new launch also has a **Launches** list above, with **Open** and **Take the
 ### 2026-10-16: Reply and Open file in the Workbench without leaving the page (the Workbench is still off until the owner turns it on)
 
 - **Reply** on a client message opens the Messages chat drawer on top of the Workbench, on that person's thread. **Esc** closes it and puts you back on the row. The Workbench keeps its filter, tab and scroll.
-- **Open file** on a new client file opens it in Google Drive in a new tab; the Workbench stays open. **Mark checked** is still in the **⋯** menu.
+- **Open file** on a new client file opens or downloads it in a new tab (a PDF or image shows, a spreadsheet or Word file downloads); the Workbench stays open. **Mark checked** is still in the **⋯** menu.
 - **Open full page** is now in the **⋯** menu of messages and files for the old behavior.
 - See [How do I use the Workbench?](#/help/workbench).
 

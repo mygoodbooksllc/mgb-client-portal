@@ -393,17 +393,20 @@ ta("Open file: a link that isn't https is refused", async () => {
   assert.strictEqual(c.events.filter((e) => e.type === "mgb:toast").length, 1);
 });
 
-ta("Open file: pop-ups blocked still opens from the link, or explains", async () => {
-  const c = load({ popup: false, drvLink: () => Promise.resolve("https://drive.google.com/x") });
+ta("Open file: pop-ups blocked says so once, without asking Drive or opening a second window", async () => {
+  const asked = [];
+  const c = load({ popup: false, drvLink: (id) => (asked.push(id), Promise.resolve("https://drive.google.com/x")) });
   c.S.join("pat@example.com", false);
   c.S.setDrawerOpen(true);
-  c.sandbox.WB_hubOpen(fileRow, "open");
+  assert.strictEqual(c.sandbox.WB_hubOpen(fileRow, "open"), true);
   await tick();
-  // First open("") returned null, the second open(url) returned null too: a toast, no crash.
-  assert.strictEqual(c.opens.length, 2);
-  assert.strictEqual(c.opens[1][0], "https://drive.google.com/x");
-  assert.strictEqual(c.opens[1][2], "noopener");
-  assert.strictEqual(c.events.filter((e) => e.type === "mgb:toast").length, 1);
+  assert.strictEqual(c.opens.length, 1, "no second window.open after the link arrives");
+  assert.deepStrictEqual(asked, [], "Drive isn't asked when there is no tab to show it in");
+  const toast = c.events.filter((e) => e.type === "mgb:toast");
+  assert.strictEqual(toast.length, 1);
+  assert.ok(/blocked/.test(toast[0].detail.text));
+  assert.strictEqual(c.tracked.length, 0);
+  assert.strictEqual(c.went.length, 0);
 });
 
 ta("Open file falls back to the Files page when Drive helpers aren't loaded or the hub is closed", async () => {

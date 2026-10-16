@@ -67,10 +67,10 @@ In the Workbench drawer, a client message has **Reply** and a new client file ha
 
 - **Reply** opens the Messages chat drawer on top of the Workbench, already on that person's thread. Type and send as usual. Once you reply, the item leaves your list within a couple of seconds.
 - **Esc**, or a click on the dimmed page, closes the chat drawer and puts you back on the row you came from. Your filter, tab and scroll are as you left them.
-- **Open file** opens the file in Google Drive in a new browser tab. The Workbench stays open. The item stays in your list until you tick **Mark checked** in its **⋯** menu (there's an Undo).
+- **Open file** opens or downloads the file in a new browser tab: a PDF or an image shows in the tab, while a spreadsheet, Word file or CSV downloads. The Workbench stays open. The item stays in your list until you tick **Mark checked** in its **⋯** menu (there's an Undo).
 - If your browser blocks the new tab, allow pop-ups for this site and click **Open file** again. If Drive can't find the file, a message says so; **Open full page** in the **⋯** menu goes to the client's Files tab.
 - The **⋯** menu on a message or file also has **Open full page**, which goes to the thread or the Files tab as before. On the Messages page itself, **Reply** goes to the thread instead of stacking a second inbox.
-- The Messages drawer only lists clients you can open. If you've lost access to a client, their thread won't appear there, and nothing from another client shows in its place.
+- The Messages drawer only lists clients you can open. If you've lost access to a client, or the person isn't in that client's list, a message says it couldn't find the conversation (use **Open full page** in the **⋯** menu), and nothing from another client shows in its place.
 
 ### My tasks in the Workbench
 

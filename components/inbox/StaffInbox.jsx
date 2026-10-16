@@ -1254,6 +1254,8 @@ function StaffInbox({
   );
   const idsKey = scopeClients.map((c) => c.id).join(",");
   const roster = SI_useRoster(scopeClients, true);
+  const showToast = typeof useToast === "function" ? useToast() : null;
+  const toast = (m) => (showToast ? showToast(m) : console.warn(m));
 
   const [instance] = React.useState(() => ++siInstanceSeq);
   const [me, setMe] = React.useState((staffUser && staffUser.email) || "");
@@ -1500,15 +1502,23 @@ function StaffInbox({
   const initialDone = React.useRef(false);
   React.useEffect(() => {
     if (initialDone.current || mode === "loading" || !initialEmail) return;
-    // With a client named (a client's Messages tab, or the Workbench hub's
-    // Reply), the person on that client: the same email can be a contact for
-    // more than one client.
-    const hit = clientEntries.find((e) => e.email === siLower(initialEmail) && (!defaultClientId || e.clientId === defaultClientId));
+    // With a client named (the Workbench hub's Reply), the person on that
+    // client: the same email can be a contact for more than one client
+    // (SI_findInitialEntry).
+    const hit = SI_findInitialEntry(clientEntries, initialEmail, defaultClientId);
     if (hit) {
       initialDone.current = true;
       openEntry(hit);
+      return;
     }
-  }, [mode, clientEntries, initialEmail]);
+    // Not there once the roster has loaded: say so rather than leaving a
+    // plain list that looks like nothing happened. Only when a client was
+    // named, so a client's own Messages tab behaves as before.
+    if (defaultClientId && roster.loaded) {
+      initialDone.current = true;
+      toast("Couldn't find that conversation in this list. Use Open full page in the ⋯ menu to reach it.");
+    }
+  }, [mode, clientEntries, initialEmail, defaultClientId, roster.loaded]);
   // On a client's Messages tab with nothing picked, open the thread that's
   // waiting (or the first person) on a wide screen.
   React.useEffect(() => {
