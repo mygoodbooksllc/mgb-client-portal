@@ -86,7 +86,7 @@ because some work happens in Claude Code web sessions. Run `git fetch` and compa
 | `components/staff/` (profile photos, 2026-10-16) | Staff profile photos; spec `docs/staff-photo-spec.md`, database `supabase/staff-photo.sql`. `staffPhotoLogic.js` (`SP_`, pure rules, the zip writer, node test `staffPhotoLogic.test.js`), `staffPhotoApi.js` (`SP_api` RPC and storage wrappers, the shared `SP_useMyStatus` / `SP_useAdminList` stores, `SP_changed()`), `staffPhotoImage.js` (`SPI_` canvas crop and re-encode, HEIC detection, download), `StaffPhotoGate.jsx` + `staff-photo.css` (`PG_`: the required-photo gate and the shared picker), `StaffPhotoAdmin.jsx` + `staff-photo-admin.css` (`SPA_`: the Team › Members Photo column, per-person drawer and Download all). |
 | `components/handbook/` | The Staff Handbook (2026-10-13; spec `docs/staff-handbook-spec.md`), Team › Handbook. Every name is `HB_`/`hb-` prefixed. `HB_api.js` (RPC wrappers, the PDF download, the shared `hb_status` store), `HB_PolicyView.jsx` (one policy, sign and countersign), `HB_HandbookTab.jsx` (the tab, its routes and the deep-link claim), `HB_Admin.jsx` (admin status grid, not-filed list with Retry filing, publish editor), `hb.css`. Loaded after `TeamReviewsAdmin.jsx` and before `app.jsx`. |
 | `components/files/` | `DriveFiles.js`: browser helpers for client files in Google Drive (`DRV_` prefix), calling the `drive-files` edge function. Holds the one fallback switch `DRV_STORAGE_FALLBACK`. Loaded before `StaffInbox.jsx` and `app.jsx`. |
-| `components/tasks/` | The Tasks module (2026-10-11; spec `docs/tasks-phase1-spec.md`). Every name is `TK_`/`tk-` prefixed. Logic with node tests: `TK_logic.js` (statuses, grouping, the quick-add parser, keys), `TK_viewLogic.js`, `TK_drawerLogic.js`, `TK_clientLogic.js` (the client strip and panel rules), `TK_reviewLogic.js` (Phase 2 S3: review roles, the review queue groups and a JS copy of the on-time rule), `TK_store.js`, `TK_recurrenceLogic.js` (Phase 2: the business calendar, due rules and periods; fixtures in `TK_recurrence.fixtures.js`), `TK_templateLogic.js` (Phase 2 S4: template form checks, next due dates, period labels, preview rows and error text), `TK_requestLogic.js` (Phase 2 S5: Ask client form checks, request chips and actions, waiting groups and error text), `TK_coverageLogic.js` (Phase 2 S7: time-off hand-off preview groups, skip copy and Covering for labels). Data: `TK_api.js` (Supabase calls), `TK_sync.js` (Realtime plus a `BroadcastChannel` between windows). Views: `TK_App.jsx` (the `#/tasks/...` page and the `/tasks` shell), `TK_Sidebar.jsx`, `TK_MyTasks.jsx`, `TK_List.jsx`, `TK_ClientHeader.jsx`, `TK_ClientDrawer.jsx` (the client task strip and panel, and Follow my client), `TK_TaskRow.jsx`, `TK_StandaloneBar.jsx`, `TK_keys.jsx`, `TK_ReviewQueue.jsx` (`#/tasks/review`), `TK_Templates.jsx` (`#/tasks/templates`, recurring templates), `TK_WaitingList.jsx` (`#/tasks/waiting`, open Ask client requests). Task details: `TK_AskClientModal.jsx` (Client requests and the Ask client window), `TK_ClientContacts.jsx` (Phase 2 S6: the client drawer's Client contacts section), `TK_Drawer.jsx`, `TK_QuickAdd.jsx`, `TK_Comments.jsx`, `TK_Attachments.jsx`, `TK_Activity.jsx`. Styles: `tk-views.css`, `tk-drawer.css`, `tk-client.css`, `tk-requests.css`. Loaded after `components/client/QboGiving.jsx` and before `components/tour/Tour.jsx`. |
+| `components/tasks/` | The Tasks module (2026-10-11; spec `docs/tasks-phase1-spec.md`). Every name is `TK_`/`tk-` prefixed. Logic with node tests: `TK_logic.js` (statuses, grouping, the quick-add parser, keys), `TK_viewLogic.js`, `TK_drawerLogic.js`, `TK_clientLogic.js` (the client strip and panel rules), `TK_reviewLogic.js` (Phase 2 S3: review roles, the review queue groups and a JS copy of the on-time rule), `TK_store.js`, `TK_recurrenceLogic.js` (Phase 2: the business calendar, due rules and periods; fixtures in `TK_recurrence.fixtures.js`), `TK_templateLogic.js` (Phase 2 S4: template form checks, next due dates, period labels, preview rows and error text), `TK_requestLogic.js` (Phase 2 S5: Ask client form checks, request chips and actions, waiting groups and error text), `TK_coverageLogic.js` (Phase 2 S7: time-off hand-off preview groups, skip copy and Covering for labels). Data: `TK_api.js` (Supabase calls), `TK_sync.js` (Realtime plus a `BroadcastChannel` between windows). Views: `TK_App.jsx` (the `#/tasks/...` page and the `/tasks` shell), `TK_Sidebar.jsx`, `TK_MyTasks.jsx`, `TK_List.jsx`, `TK_ClientHeader.jsx`, `TK_ClientDrawer.jsx` (the client task strip and panel, and Follow my client), `TK_TaskRow.jsx`, `TK_StandaloneBar.jsx`, `TK_keys.jsx`, `TK_ReviewQueue.jsx` (`#/tasks/review`), `TK_Templates.jsx` (`#/tasks/templates`, recurring templates), `TK_WaitingList.jsx` (`#/tasks/waiting`, open Ask client requests), `TK_ManageProjects.jsx` (`#/tasks/manage`, admin Manage projects). Task details: `TK_AskClientModal.jsx` (Client requests and the Ask client window), `TK_ClientContacts.jsx` (Phase 2 S6: the client drawer's Client contacts section), `TK_Drawer.jsx`, `TK_QuickAdd.jsx`, `TK_Comments.jsx`, `TK_Attachments.jsx`, `TK_Activity.jsx`. Styles: `tk-views.css`, `tk-drawer.css`, `tk-client.css`, `tk-requests.css`. Loaded after `components/client/QboGiving.jsx` and before `components/tour/Tour.jsx`. |
 | `components/tour/` | Tours, tips and launch announcements. `Tour.jsx` (client and staff tours), `Tips.jsx` (`TIPS_`), and the launch announcements (2026-10-15, `ANN_` prefix): `announcements.js` is the registry (one entry per launch), `announcementsLogic.js` the pure rules with its node test `announcementsLogic.test.js`, `Announcements.jsx` the store, notice, What's new list and Usage Stats card. Styles: `tour.css`, `tips.css`, `announcements.css`. Database: `supabase/staff-announcements.sql` (+ `staff-announcements-tests.sql`). |
 | `components/ledger/` | Ledger review (GL Review phase 1, 2026-10-14; spec `docs/gl-review-spec.md`). `GLR_*.js` are pure logic with node tests in `tests/ledger/` (parse, checks, compare, summary); `LR_*` is the UI: `LR_Tab.jsx` (client tab `client-ledger`, `#/client/<id>/ledger`), `LR_Panels.jsx`, `LR_ReviewFile.jsx` (Work › Ledger review), `LR_Settings.jsx` (Team › Ledger review), `LR_api.js` (RPC and edge-function wrappers; fires `mgb:ledger-review-changed` and `mgb:gl-review-changed` so the Close card refreshes). Database: `supabase/gl-review-1-core.sql`. |
 | `components/qbo/` | `mapQboToClient.js` converts QuickBooks table rows into the shape the pages use. Its test is `mapQboToClient.test.js`. |
@@ -786,7 +786,7 @@ hours, fees and revenue all use it. See "MGB (internal) and flagged clients" und
   - **Version:** `MGB_VERSION` `2026-10-11b`, "Tasks: client task strip and panel, t shortcut, Follow my
     client".
   - Local storage (all cleared by Developer Tools › Reset local state, which takes every
-    `mgb_` key): `mgb_tk_groups_v1`, `mgb_tk_view_v1`, `mgb_tk_sort_v1`, `mgb_tk_popout_v1`, `mgb_tk_follow_v1`.
+    `mgb_` key): `mgb_tk_groups_v1`, `mgb_tk_view_v1`, `mgb_tk_groupby_v1:<email>`, `mgb_tk_sort_v1`, `mgb_tk_popout_v1`, `mgb_tk_follow_v1`.
     In `sessionStorage`, per tab and ending with it: the shell flag `mgb_shell_v1` and
     `mgb_tk_keys_used_v1` (`TK_keys.jsx`).
   - Guide articles: `my-tasks`, `task-details`, `task-lists-and-projects`, `tasks-own-window`, `client-tasks-drawer`.
@@ -1767,6 +1767,38 @@ Team Reviews files.
     unassigned series unassigned. `tk_import_assign_team` only takes real (not test) clients that
     have imported (`source = 'asana'`) tasks. The planner's first-name remap never beats an active
     email match and only applies when one Asana user has that first name.
+- **Tasks Phase 3, Manage projects + Group by client** (2026-10-16; `supabase/tasks-p3-manage-projects.sql`,
+  applied; schema stays 10; self-test `tasks-p3-manage-projects-tests.sql`, rolled back). Owner decisions:
+  no teams yet; "delete" is trash only (restorable, never purged). No feature switch, no edge function.
+  - **Server:** `tk_projects.trashed_at / trashed_by / trash_expired_at`, `staff_reminders.trashed_with_project`.
+    A RESTRICTIVE policy hides trashed projects. Trash reuses `staff_reminders.deleted_at` for the
+    project's tasks (tagged `trashed_with_project`), so every reader, digest and performance function
+    already honors it; nothing was redeployed. Restore revives only the tasks the trash hid. Triggers
+    block forged trash columns and new live tasks in a trashed project (`tk_project_trashed`). The
+    unique project name ignores trashed rows (`tk_projects_name_uniq_v2`).
+  - **RPCs** (SECURITY DEFINER, audit rows `tk_project.*`): `tk_project_rename`, `tk_project_archive`,
+    `tk_project_trash` (refused with `tk_has_open_requests` while a live task has an open or answered
+    Ask client request), `tk_project_restore` (after 30 days only an admin), and admin-only
+    `tk_admin_list_projects()`. The 30-day expiry only marks (`trash_expired_at`, lazily when the list
+    is read, audit `tk_project.trash_expired`); there is no purge and no cron.
+  - **UI:** `TK_ManageProjects.jsx` at `#/tasks/manage` (sidebar **Manage projects** for full admins,
+    `data-tour` `tk-manage-nav` / `tk-manage-head`; temporary admins don't see it). **Move to trash**
+    is also in the project header's options menu (owners and admins). Pure logic in `TK_viewLogic.js`
+    (`TK_manage*`, `TK_groupByClient`, `TK_flattenMyGroups`, `TK_normalizeGroupBy`), tested in
+    `TK_viewLogic.test.js`; API wrappers `adminListProjects`, `renameProject`, `setProjectArchived`,
+    `trashProject`, `restoreProject` in `TK_api.js`.
+  - **Group by Due date | Client** on My Tasks, and **Default | Client** on a person's list
+    (`data-tour` `tk-groupby`): clients A to Z, then **No client**, then test, then internal
+    (`CF_flag`). Remembered per signed-in person in `localStorage` `mgb_tk_groupby_v1:<email>`
+    (cleared by Developer Tools › Reset local state).
+  - Known gaps: a project owner who isn't an admin can trash from the project header but can't see or
+    restore it afterward (Manage projects is admin only); `tk_can_see_project` still resolves for
+    admins on a trashed project (its tasks stay hidden).
+  - Upkeep: launch announcement `tasks-manage-projects`, What's new, guide article `manage-projects`
+    (admin) plus `task-lists-and-projects`, `my-tasks`, `admin-guide`, Admin tour stop
+    `tasks-manage`, tips `tk-groupby` and `tk-manage-nav`, `?` Help for this page maps
+    `#/tasks/manage` to `manage-projects`, Usage Stats label `Tasks › Manage projects`, INFRA_LINKS
+    "Supabase SQL (Tasks manage projects)".
 - **Asana import ran live, 2026-10-16.** First `supabase/asana-import-roster-clients.sql` (61 roster
   clients), then run `49b3186a`: 1132 tasks (135 subtasks, 176 unassigned, 160 with no client),
   16 projects + 1 merged, 749 recurring templates as drafts (off). `asana_import_apply_enabled` is

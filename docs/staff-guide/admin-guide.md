@@ -11,7 +11,7 @@ As an admin you see everything a bookkeeper sees, plus the pages that run the fi
 
 - It starts by itself once, the first time you sign in as an admin. If you're new to the portal, it opens with the basics first (the five places, search and the **?** menu), so you learn to get around before the admin pages.
 - Run it again any time from **?** → **Admin tour**, from **Ctrl+K** (**⌘K** on a Mac) by typing "admin tour", or from **Settings › Help**.
-- It opens each admin page in turn and points at it: **Team › Members**, **Hours**, **Reply times**, **Performance**, **Reviews**, **Handbook**, **Ledger review**, **Feedback** and **Inventory**, then **Tasks › Review**, **Settings › Firm settings** and **Today**. About two minutes, a little longer with the basics.
+- It opens each admin page in turn and points at it: **Team › Members**, **Hours**, **Reply times**, **Performance**, **Reviews**, **Handbook**, **Ledger review**, **Feedback** and **Inventory**, then **Tasks › Review**, **Tasks › Manage projects**, **Settings › Firm settings** and **Today**. About two minutes, a little longer with the basics.
 - To see what your bookkeepers see, run the **Bookkeeper tour** from **?**. It's the same walk they get. Inside **View as**, it only visits the pages View as can open (Today, Clients and a client's pages); other stops are skipped. See [Bookkeeper guide](#/help/bookkeeper-guide).
 
 If you're also a client's account manager, the **Account manager tour** comes next. See [Account manager guide](#/help/account-manager-guide).
@@ -24,6 +24,7 @@ If you're also a client's account manager, the **Account manager tour** comes ne
 | **Team › Hours** | Hours and tasks by person and by client, monthly hours budgets, capacity, and fees, cost and margin | [Hours budget](#/help/hours-budget), [Capacity](#/help/capacity), [Profitability](#/help/profitability) |
 | **Team › Reply times** | How fast clients hear back, against the 24-hour goal | [Reply times](#/help/reply-times) |
 | **Team › Performance** | Every bookkeeper's score out of 100, as a ranking (bookkeepers see only their own) | [Performance](#/help/performance) |
+| **Manage projects** in the Tasks sidebar | Rename, archive, trash or restore any project | [Manage projects](#/help/manage-projects) |
 | **Review** in the Tasks sidebar | Approve or send back staff work that needs review, and each person's on-time rate for the last 30 days | [Task review](#/help/task-review) |
 | **Team › Reviews › Team status** | Open and run the quarterly review cycle | [Review cycles](#/help/review-cycles) |
 | **Team › Handbook** | Staff policies bookkeepers sign; who countersigns, each bookkeeper's state and their signed copies | [Staff Handbook](#/help/staff-handbook) |

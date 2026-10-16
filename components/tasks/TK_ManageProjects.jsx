@@ -175,12 +175,13 @@ function TK_mpRow(props) {
 function TK_ManageProjects(props) {
   var schema = TK_vUseSchema();
   if (schema === "missing") return <TK_SetupCard />;
-  if (!props.isAdmin) {
+  // The RPCs need a full admin (is_active_staff_admin); temporary admins get the note.
+  if (!(props.isAdmin && props.staffUser && props.staffUser.role === "admin")) {
     return (
       <div className="tk-view tk-manage">
         <h2 className="tk-view-title">Manage projects</h2>
         <div className="tk-state" role="status">
-          <p>Only admins can manage projects. You can rename or archive a project you own from its page.</p>
+          <p>Only admins (not temporary admins) can manage projects. You can rename or archive a project you own from its page.</p>
         </div>
       </div>
     );

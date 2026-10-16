@@ -2,7 +2,7 @@
 title: How do client task lists and projects work?
 section: Daily work
 audience: staff
-keywords: [tasks page, sidebar, lists, review, review queue, review count, client list, client tasks, projects, internal work, sops project, directors, owners, 90 day, open to all staff, members, add member, project owner, new project, sections, weekly, monthly, quarterly, annual, archive project, rename, people, person view, search tasks, filters, assignee, status, columns, coverage, temporary access, onboarding project, client header, drive folder, contacts, unassigned, claim, no team yet, assign team, no bookkeeper, asana import, imported clients]
+keywords: [manage projects, move to trash, trash a project, restore project, group by client, person list group by, tasks page, sidebar, lists, review, review queue, review count, client list, client tasks, projects, internal work, sops project, directors, owners, 90 day, open to all staff, members, add member, project owner, new project, sections, weekly, monthly, quarterly, annual, archive project, rename, people, person view, search tasks, filters, assignee, status, columns, coverage, temporary access, onboarding project, client header, drive folder, contacts, unassigned, claim, no team yet, assign team, no bookkeeper, asana import, imported clients]
 sort: 114
 ---
 The **Tasks** page (the **Tasks** button in the top bar, or `#/tasks/my`) has a sidebar of lists down the left. Below about 900 pixels wide, the sidebar sits behind the **Lists** button at the top of the page.
@@ -14,6 +14,7 @@ The **Tasks** page (the **Tasks** button in the top bar, or `#/tasks/my`) has a 
 - **Projects**: shared lists for internal work. **New project** (the + next to the heading) starts one.
 - **Clients**: one list for each client you can see. With more than 8, a **Find a client** box narrows the list.
 - **People** (admins only): any staff member's tasks.
+- **Manage projects** (admins only, under **Projects**): rename, archive or trash any project. See [How do I rename, archive or trash a project?](#/help/manage-projects).
 - **No team yet** (admins only, above Clients): clients brought over from Asana that have no bookkeeper, with how many tasks each has. It hides when there are none. See *Clients with no team yet* below.
 
 ### A list
@@ -62,14 +63,16 @@ Projects hold internal work that isn't for one client. Four are set up for you:
 
 **Start a project**: click **New project** in the sidebar, type a **Name**, add **Sections (optional, one per line)**, and click **Create project**. You become its owner.
 
-**Manage a project** (its owners and admins): use **Add member** to add someone as a **Member** or as an **Owner (can manage the project)**, and the **Project options** menu to **Rename** it, edit its **Sections**, switch **Open to all staff** (admins), or **Archive project**. Archiving takes it out of the sidebar and makes its tasks read-only. Nothing is deleted.
+**Manage a project** (its owners and admins): use **Add member** to add someone as a **Member** or as an **Owner (can manage the project)**, and the **Project options** menu to **Rename** it, edit its **Sections**, switch **Open to all staff** (admins), **Archive project** or **Move to trash**. Archiving takes it out of the sidebar and makes its tasks read-only. **Move to trash** hides the project and its tasks from every list until an admin restores it from **Manage projects**; it's refused while a task in the project is waiting on a client request. Nothing is deleted either way. See [How do I rename, archive or trash a project?](#/help/manage-projects).
 
 ### Another person's tasks (admins)
 
 Under **People**, pick a staff member to see their list. It's useful for covering or checking someone's load. Only admins can open it; anyone else sees *Only admins can see another person's list.*
 
+The toolbar has a **Group by** switch: **Default** (the list's sections) or **Client**, which groups the person's tasks one client at a time, clients A to Z, then **No client**, then test and internal clients. The portal remembers your choice.
+
 ### Troubleshooting
 
 - **A client is missing from the sidebar.** You only see clients you're assigned to, covering, or have temporary access to. Ask an admin.
-- **"We couldn't find that list."** The project was archived, or you don't have access to it. Click **Go to My Tasks**.
+- **"We couldn't find that list."** The project was archived or moved to the trash, or you don't have access to it. An admin can restore a trashed one from **Manage projects**. Click **Go to My Tasks**.
 - **"There's already a project with that name. Try another name."** Project names must be unique.

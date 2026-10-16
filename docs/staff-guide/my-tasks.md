@@ -2,7 +2,7 @@
 title: How do I add and manage my tasks?
 section: Daily work
 audience: staff
-keywords: [my tasks, tasks, work, tasks tab, task, reminder, to do, due, overdue, today, this week, later, waiting on client, done, show done, show older, today group, view, quick add, q, add task, at mention, hashtag, priority, high, low, business days, bd5, keyboard, shortcuts, j k, status, assign, by client, save as template, suggest template, checklist, subtasks, tasks page, lists, client task panel, t, waiting on client list, ask client, #/tasks/waiting, unassigned, claim, claim a task, nobody assigned, no assignee, unassigned group, asana import]
+keywords: [group by, group by client, by client, due date, client groups, no client, my tasks, tasks, work, tasks tab, task, reminder, to do, due, overdue, today, this week, later, waiting on client, done, show done, show older, today group, view, quick add, q, add task, at mention, hashtag, priority, high, low, business days, bd5, keyboard, shortcuts, j k, status, assign, by client, save as template, suggest template, checklist, subtasks, tasks page, lists, client task panel, t, waiting on client list, ask client, #/tasks/waiting, unassigned, claim, claim a task, nobody assigned, no assignee, unassigned group, asana import]
 sort: 110
 ---
 **My Tasks** is one list of everything assigned to you, across every client and project. Open it from the **Tasks** button in the top bar (`#/tasks/my`), or from **Work › Tasks** (`#/work/tasks`), which shows the same list inside Work. The Tasks page also has a sidebar with every client list and project; see [How do client task lists and projects work?](#/help/task-lists-and-projects).
@@ -20,6 +20,10 @@ A task is yours when it's assigned to you. A task you give someone else shows on
 - **Done**: finished tasks. It starts folded.
 
 Click a group's heading to fold or open it. The portal remembers which groups you folded. Empty groups don't show.
+
+### Group by client
+
+The toolbar's **Group by** switch changes **Due date** (the groups above) to **Client**. Your tasks are then grouped one client at a time, clients A to Z, with **No client** after them and test and internal clients last (tagged **Test** or **Internal**). Inside a client the most urgent task comes first, and **Show done** still applies. The client filter still works. The portal remembers your choice, per person, in this browser.
 
 The toolbar has **Add task**, a client filter (**All clients**, or one client), **Show done** and, once Show done is on, **Show older**. Done tasks finished more than 12 months ago stay hidden unless you turn on **Show older**. Nothing is deleted.
 

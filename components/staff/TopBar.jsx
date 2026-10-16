@@ -99,6 +99,7 @@ const TB_ADMIN_ARTICLES = new Set([
   "hours-budget",
   "reply-times",
   "quickbooks-api-usage",
+  "manage-projects",
 ]);
 
 const TB_lc = (s) => String(s || "").toLowerCase();
@@ -152,7 +153,7 @@ function TB_clientHash(id, tab) {
 }
 
 // #/tasks/<sub> -> its guide article (null keeps the Tasks default, my-tasks).
-const TB_TASKS_HELP = { review: "task-review", waiting: "ask-client", templates: "task-templates", c: "task-lists-and-projects", p: "task-lists-and-projects" };
+const TB_TASKS_HELP = { review: "task-review", waiting: "ask-client", templates: "task-templates", manage: "manage-projects", c: "task-lists-and-projects", p: "task-lists-and-projects" };
 function TB_tasksHelpSlug(hash) {
   const m = /^#\/tasks\/([^/?#]+)/.exec(hash || "");
   return (m && TB_TASKS_HELP[m[1]]) || null;
@@ -379,6 +380,7 @@ function TB_pageRows(ctx, onOpenSettings) {
   if (ctx.isAdmin) {
     [
       ["templates", "Recurring tasks", "Task templates, in Tasks › Recurring"],
+      ["tasks/manage", "Manage projects", "Rename, archive or trash projects, in Tasks"],
       ["client-access", "Client roster", "Who at each organization can sign in"],
       ["emails", "Emails", "Sending, the weekly digest and the send log"],
       ["usage-stats", "Usage stats", "Which pages and features get used"],

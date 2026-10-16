@@ -347,7 +347,7 @@ function TK_Sidebar(props) {
           <TK_vIcon name="plus" size={14} />
           <span>New project</span>
         </button>
-        {isAdmin ? (
+        {isAdmin && props.staffUser && props.staffUser.role === "admin" ? (
           <ul className="tk-nav">
             <TK_vNavItem route={{ view: "manage" }} label="Manage projects" icon="folder" tour="tk-manage-nav" active={route.view === "manage"} onNavigate={nav} />
           </ul>

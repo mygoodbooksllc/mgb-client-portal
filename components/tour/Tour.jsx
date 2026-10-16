@@ -110,6 +110,9 @@
 //   tk-review-stats  the queue's Last 30 days card (admins)
 //   tk-review-strip  the review strip in a task's details (TK_Drawer.jsx)
 //   tk-recurring-nav the sidebar's Recurring item (TK_Sidebar.jsx), same widths
+//   tk-manage-nav    the sidebar's Manage projects item (admins; TK_Sidebar.jsx)
+//   tk-manage-head   Tasks › Manage projects' heading (TK_ManageProjects.jsx)
+//   tk-groupby       the Group by switch in My Tasks' toolbar (TK_MyTasks.jsx)
 //   tk-waiting-nav   the sidebar's Waiting on client item (TK_Sidebar.jsx), same widths
 //   tk-waiting-head  Tasks › Waiting on client's heading (TK_WaitingList.jsx)
 //   tk-waiting-groups its client groups, only when something is waiting
@@ -1122,6 +1125,18 @@ function TOUR_adminSteps(ctx) {
         "Work your team sent for review lands here: approve it or send it back with a note, oldest first. You never review your own work. The same page shows each person's on-time and review numbers for the last 30 days.",
     },
     {
+      id: "tasks-manage",
+      when: (c) => c.isAdmin && window.innerWidth >= 900,
+      go: () => {
+        if (!/^#\/tasks\/manage(\?|$)/.test(window.location.hash || "")) window.location.hash = "#/tasks/manage";
+      },
+      targets: ["tk-manage-head", "tk-manage-nav"],
+      wait: true,
+      title: "Tasks › Manage projects",
+      body: () =>
+        "Every project in one list, with its owner and task counts. Rename or archive one, or move it to the trash: a trashed project and its tasks leave every list until you restore it from the Trash tab. Nothing is deleted.",
+    },
+    {
       id: "firm",
       when: (c) => c.isAdmin,
       go: () => {
@@ -1341,7 +1356,7 @@ function TOUR_tasksSteps() {
       title: "Lists and projects",
       body: () =>
         (window.innerWidth < 900 ? "The Lists button opens every list. " : "") +
-        "My Tasks, Review (work waiting for an admin's approval), Waiting on client (everything you've asked a client for), Recurring (templates that make tasks on a schedule), Search, the firm's projects and each of your clients' lists. SOPs and 90 Day are projects open to all staff.",
+        "My Tasks (group it by due date or by client), Review (work waiting for an admin's approval), Waiting on client (everything you've asked a client for), Recurring (templates that make tasks on a schedule), Search, the firm's projects and each of your clients' lists. SOPs and 90 Day are projects open to all staff. Admins also get Manage projects.",
     },
     {
       id: "tk-review-nav",

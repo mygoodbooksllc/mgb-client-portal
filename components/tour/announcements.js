@@ -442,6 +442,51 @@ var ANN_REGISTRY = [
     ],
   },
   {
+    id: "tasks-manage-projects",
+    date: "2026-10-16",
+    title: "Group tasks by client, and manage projects",
+    summary: "My Tasks can group by client instead of due date, and admins get a Manage projects screen to rename, archive or move projects to the trash.",
+    roles: ["admin", "bookkeeper"],
+    hash: "#/tasks/my",
+    steps: (ctx) => [
+      {
+        id: "ann-welcome",
+        title: "Two small Tasks upgrades",
+        body: () =>
+          "My Tasks can now group by client instead of by due date, and admins can rename, archive or trash projects from one screen. About a minute.",
+      },
+      {
+        id: "ann-groupby",
+        go: () => {
+          if (!/^#\/tasks\/my(\?|$)/.test(window.location.hash || "")) window.location.hash = "#/tasks/my";
+        },
+        targets: ["tk-groupby"],
+        wait: true,
+        title: "Group by Client",
+        body: () =>
+          "Switch Group by from Due date to Client to see your tasks one client at a time, clients A to Z, with No client after them and test or internal clients last. The portal remembers your choice. Admins get the same switch on a person's list under People.",
+      },
+      {
+        id: "ann-manage",
+        when: (c) => !!(c && c.isAdmin),
+        go: () => {
+          if (!/^#\/tasks\/my(\?|$)/.test(window.location.hash || "")) window.location.hash = "#/tasks/my";
+        },
+        targets: ["tk-manage-nav", "tk-sidebar"],
+        wait: true,
+        title: "Admins: Manage projects",
+        body: () =>
+          "Manage projects, under Projects in the sidebar, lists every project with its owner and task counts. Rename or archive one, or move it to the trash. A trashed project and its tasks disappear from every list until you restore it. Nothing is deleted.",
+      },
+      {
+        id: "ann-done",
+        title: "Where to find it again",
+        body: () =>
+          "Project owners can also move their own project to the trash from its Project options menu; an admin restores it from Manage projects. To see this again, press ? and pick New: Group tasks by client, and manage projects tour.",
+      },
+    ],
+  },
+  {
     id: "staff-profile-photos",
     date: "2026-10-16",
     title: "Profile photos",
