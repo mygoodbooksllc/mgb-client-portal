@@ -34,6 +34,36 @@
 
 var ANN_REGISTRY = [
   {
+    id: "tasks-quick-add-plain-words",
+    date: "2026-10-16",
+    title: "Quick add understands plain words",
+    summary: "Type a task the way you'd say it, like Send the payroll summary for Sierra re Example Church by Friday, and quick add picks the person, client and due date.",
+    roles: ["admin", "bookkeeper"],
+    hash: "#/tasks/my",
+    steps: (ctx) => [
+      {
+        id: "ann-welcome",
+        title: "Quick add reads plain words",
+        body: () =>
+          "Type a task the way you'd say it and quick add picks out the person, the client and the due date, and shows what it understood before you save. About a minute.",
+      },
+      {
+        id: "ann-quick",
+        targets: ["tb-quick"],
+        wait: true,
+        title: "Try it from the + button",
+        body: () =>
+          "Click + then New task (or press q) and type something like: Send the payroll summary for Sierra re Example Church by Friday. A Will add line shows who, which client and when, before you save.",
+      },
+      {
+        id: "ann-done",
+        title: "Nothing is guessed",
+        body: () =>
+          "A name it doesn't know stays in the title. If a name fits more than one person or client, Did you mean offers each choice, and the x on a chip puts its words back. To see this again, press ? and pick New: Quick add understands plain words tour.",
+      },
+    ],
+  },
+  {
     id: "workbench-launch",
     date: "2026-10-16",
     title: "The Workbench",

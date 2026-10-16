@@ -16937,6 +16937,7 @@ const USAGE_ACTION_LABELS = {
   "tips-off": "Tips turned off",
   "tasks-drawer": "Task details opened",
   "tasks-quick-add": "Tasks added with quick add",
+  "tasks-quick-add-plain": "Quick adds that used plain words",
   "tasks-search": "Task searches",
   "tasks-shortcut": "Task keyboard shortcuts used",
   "tasks-popout": "Tasks opened in its own window",
@@ -26408,7 +26409,7 @@ const PAGE_META = {
   },
   tasks: {
     title: "Tasks",
-    subtitle: "Your tasks (by due date or client), unassigned work to claim, review, waiting on client, recurring work, client lists and projects with color dots (admins: Manage projects), subtasks open in place under their task",
+    subtitle: "Your tasks (by due date or client), unassigned work to claim, review, waiting on client, recurring work, client lists and projects with color dots (admins: Manage projects), subtasks open in place under their task, quick add that reads plain words (for Sierra, re a client, by Friday)",
   },
   clients: {
     title: "Clients",

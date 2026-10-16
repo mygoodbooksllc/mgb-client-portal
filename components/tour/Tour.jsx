@@ -57,7 +57,7 @@
 //                    StaffRail / Sidebar): today, inbox, work, clients, team
 //   today-list       the ranked list on Today (components/staff/Today.jsx)
 //   tb-search        the ⌘K search box (components/staff/TopBar.jsx)
-//   tb-quick         the "+" menu, only with a client open (TopBar.jsx)
+//   tb-quick         the "+" menu (TopBar.jsx), on every staff page
 //   tb-help          the "?" menu (components/staff/TopBar.jsx)
 //   clients-filters  Mine / All / Needs attention (components/staff/ClientsPage.jsx)
 //   inbox-list       Inbox's list of conversations (components/inbox/StaffInbox.jsx)
@@ -1020,7 +1020,7 @@ function TOUR_bookkeeperSteps(ctx) {
       go: openClient,
       targets: ["tb-quick"],
       title: "Add something for this client",
-      body: () => "With a client open, the + button adds a New task, a New note or a Request document for them, or starts a Message.",
+      body: () => "With a client open, the + button adds a New task, a New note or a Request document for them, or starts a Message. In a new task, plain words work: for Sierra, re Example Church, by Friday.",
     },
     {
       id: "inbox",

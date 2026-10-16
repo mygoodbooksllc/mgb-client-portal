@@ -153,6 +153,7 @@ function TK_QuickAddDialog(props) {
     var done = function (task) {
       setBusy(false);
       TK_dwTrack("tasks-quick-add", { client: !!clientId, project: !!projectId, open: !!openAfter });
+      if ((parsed.tokens || []).some(function (x) { return x && x.plain === true; })) TK_dwTrack("tasks-quick-add-plain");
       if (openAfter && task && task.id && !useLegacy) {
         p.onClose();
         TK_openTask(task.id, { from: "quick-add" });

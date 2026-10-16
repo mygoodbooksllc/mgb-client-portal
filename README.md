@@ -1831,6 +1831,21 @@ Team Reviews files.
   - Upkeep: launch announcement `tasks-subtasks-colors`, What's new, guide articles `my-tasks`,
     `task-lists-and-projects`, `manage-projects`, Tasks tour stop `tk-subtasks`, tips `tk-subtoggle` and
     `tk-project-dot`, INFRA_LINKS "Supabase SQL (Tasks project colors)".
+  - **Quick add reads plain words** (Phase 4 P4-1, client-side only; no SQL). `TK_parseQuickAdd(input, opts)` in
+    `TK_logic.js` works on positioned words plus a list of taken spans. Symbols (`@name #client !high`, dates)
+    parse as before. Plain words, on by default, are off with `{ plain: false }` (the inline add box in
+    `TK_List.jsx` passes that, because it has no preview): `for` / `to` / `assign to` + first or full name
+    (`for me` / `@me` use `opts.me`, the user's email), `for` / `re` / `client` / a dash + a client name at the
+    end of the line (or before a colon when the line opens with it; whole-word prefix of the client slug, 4
+    characters minimum), `by` / `due` / `on` + a date, `the 15th` (after by/due/on or last; a day the month lacks
+    is not guessed) and `end of month`. A name that fits two people, a person and a client, or two clients is
+    never picked: it stays in the title and the result carries `suggestions` (each option has its own span).
+    `opts.ignore` holds keys from `TK_qaIgnoreKey(kind, raw)`; the chip x adds one, so those words stay in the
+    title. If picking everything would leave an empty title the line is re-parsed with `plain: false`. Plain
+    tokens carry `plain: true`. `TK_QuickAdd.jsx` shows the `Will add` line (`TK_qaWillAdd`) and `Did you mean`
+    buttons; tests are the `pw:` group in `TK_logic.test.js`. Usage Stats event `tasks-quick-add-plain`.
+  - Upkeep (P4-1): launch announcement `tasks-quick-add-plain-words`, tip `tk-quick-plain` on the `+` button,
+    What's new, guide articles `quick-actions` and `my-tasks`.
 - **Workbench (Tasks Phase 3), 2026-10-16** (`supabase/workbench-1-core.sql`, applied; self-test
   `workbench-1-core-tests.sql`, rolled back; spec `docs/workbench-phase3-spec.md` with "Build notes
   2026-10-16"). Off until the owner sets `tk_settings.wb_enabled` to true; no code sets it.

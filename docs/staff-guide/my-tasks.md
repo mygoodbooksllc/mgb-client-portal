@@ -2,7 +2,7 @@
 title: How do I add and manage my tasks?
 section: Daily work
 audience: staff
-keywords: [subtasks inline, open subtasks, expand subtasks, collapse subtasks, subtask count, 2/5, chevron, project color, project colors, color dot, group by, group by client, by client, due date, client groups, no client, my tasks, tasks, work, tasks tab, task, reminder, to do, due, overdue, today, this week, later, waiting on client, done, show done, show older, today group, view, quick add, q, add task, at mention, hashtag, priority, high, low, business days, bd5, keyboard, shortcuts, j k, status, assign, by client, save as template, suggest template, checklist, subtasks, tasks page, lists, client task panel, t, waiting on client list, ask client, #/tasks/waiting, unassigned, claim, claim a task, nobody assigned, no assignee, unassigned group, asana import]
+keywords: [plain words, quick add plain words, for me, re client, by friday, did you mean, will add, subtasks inline, open subtasks, expand subtasks, collapse subtasks, subtask count, 2/5, chevron, project color, project colors, color dot, group by, group by client, by client, due date, client groups, no client, my tasks, tasks, work, tasks tab, task, reminder, to do, due, overdue, today, this week, later, waiting on client, done, show done, show older, today group, view, quick add, q, add task, at mention, hashtag, priority, high, low, business days, bd5, keyboard, shortcuts, j k, status, assign, by client, save as template, suggest template, checklist, subtasks, tasks page, lists, client task panel, t, waiting on client list, ask client, #/tasks/waiting, unassigned, claim, claim a task, nobody assigned, no assignee, unassigned group, asana import]
 sort: 110
 ---
 **My Tasks** is one list of everything assigned to you, across every client and project. Open it from the **Tasks** button in the top bar (`#/tasks/my`), or from **Work › Tasks** (`#/work/tasks`), which shows the same list inside Work. The Tasks page also has a sidebar with every client list and project; see [How do client task lists and projects work?](#/help/task-lists-and-projects).
@@ -54,6 +54,16 @@ Type the task in one line. The portal picks out the details and shows them as ch
 | A date | Sets the due date. | `today`, `tomorrow`, `fri`, `next week`, `eom`, `in 3 days`, `+2w`, `10/31`, `2026-11-15` |
 
 For example: `Reconcile operating account #example-church @name fri !high`, where `@name` stands for a teammate.
+
+You can also type it in plain words. The box shows a **Will add** line with what it understood before you save:
+
+| Type | What it does | Examples |
+|---|---|---|
+| *for*, *to* or *assign to* a first name | Assigns it. *For me* is you. | `Send payroll summary for Sierra`, `call the bank for me` |
+| *for*, *re* or *client* a client's name | Files it under that client (at the end of the line, or at the start before a colon). | `Statements re Example Church`, `re Example Church: reconcile` |
+| *by Friday*, *due the 15th*, *the 15th*, *end of month* | Sets the due date. | `Send invoices by Friday` |
+
+If a name matches more than one person or client, or both a person and a client, nothing is picked: the words stay in the title and a **Did you mean** line lets you pick. Click **×** on a chip to put its words back in the title. The inline add box on a project or client list still reads only the symbols (**@**, **#**, **!**) and dates.
 
 - A weekday such as `fri` means the next one, never today.
 - `tom`, `sun`, `mon` and `sat` are also everyday words, so they only count as dates right after "due" or "on", or as the last word. *Call Tom about payroll* stays as you typed it.

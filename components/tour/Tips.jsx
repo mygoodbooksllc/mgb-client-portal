@@ -423,6 +423,15 @@ const TIPS_CATALOG = [
     ready: () => !!document.querySelector('[data-tour="tk-manage-nav"]'),
   },
   {
+    id: "tk-quick-plain",
+    roles: "all",
+    match: (r) => r.page === "tasks",
+    target: "tb-quick",
+    snug: true,
+    text: "Add a task in plain words: Send the payroll summary for Sierra re Example Church by Friday. Quick add shows what it understood before you save.",
+    slug: "quick-actions",
+  },
+  {
     id: "tk-subtoggle",
     roles: "all",
     match: (r) => r.page === "tasks",
