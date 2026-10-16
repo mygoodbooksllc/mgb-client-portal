@@ -343,6 +343,25 @@ select pg_temp.ok((select not skip and override -> 'review_required' = 'false'::
                      from tk_client_template_overrides where client_id = 'grace-community' and template_id = pg_temp.ctx('T2')::uuid),
                   'bookkeeper resend (false or true) leaves the admin''s setting as it is');
 
+-- S5 fix: an admin's "needs approval" on a no-approval template is never weakened by a non-admin
+select pg_temp.as_user(pg_temp.ctx('a1'));
+select pg_temp.ok((select not review_required from task_templates where id = pg_temp.ctx('T1')::uuid), 'T1 template has no approval');
+select public.tk_set_client_override('grace-community', pg_temp.ctx('T1')::uuid, false, '{"review_required":true}');
+select pg_temp.as_user(pg_temp.ctx('bk'));
+select public.tk_set_client_override('grace-community', pg_temp.ctx('T1')::uuid, false, '{}');
+select pg_temp.ok((select override -> 'review_required' = 'true'::jsonb
+                     from tk_client_template_overrides where client_id = 'grace-community' and template_id = pg_temp.ctx('T1')::uuid),
+                  'bookkeeper {} ("Same as the template") keeps the stored needs-approval');
+select public.tk_set_client_override('grace-community', pg_temp.ctx('T1')::uuid, true, '{"review_required":false,"title":"BK"}');
+select pg_temp.ok((select skip and override -> 'review_required' = 'true'::jsonb and override ->> 'title' = 'BK'
+                     from tk_client_template_overrides where client_id = 'grace-community' and template_id = pg_temp.ctx('T1')::uuid),
+                  'bookkeeper false keeps the stored needs-approval; skip + title still save');
+select pg_temp.as_user(pg_temp.ctx('a1'));
+select public.tk_set_client_override('grace-community', pg_temp.ctx('T1')::uuid, false, '{}');
+select pg_temp.ok((select not (override ? 'review_required')
+                     from tk_client_template_overrides where client_id = 'grace-community' and template_id = pg_temp.ctx('T1')::uuid),
+                  'control: an admin can still clear it');
+
 -- major 1 + minor: live_since and a lenient standard_set_live
 select pg_temp.as_user(null);
 select set_config('mgb.tk_owner_override', 'on', true);

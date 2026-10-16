@@ -880,6 +880,8 @@ function TK_tplOverrideModal(props) {
 
   // an admin turned approval off for this client: only an admin changes that
   var reviewLocked = !props.isAdmin && o.review_required === false;
+  // approval is on for this client: a non-admin can't pick anything weaker
+  var reviewKeptOn = !props.isAdmin && o.review_required === true;
 
   var save = function (e) {
     e.preventDefault();
@@ -974,12 +976,16 @@ function TK_tplOverrideModal(props) {
                 setReview(e.target.value);
               }}
             >
-              <option value="">{"Same as the template (" + (t.review_required ? "needs approval" : "no approval") + ")"}</option>
+              <option value="" disabled={reviewKeptOn && !t.review_required}>
+                {"Same as the template (" + (t.review_required ? "needs approval" : "no approval") + ")"}
+              </option>
               <option value="yes">Needs an admin to approve</option>
               {props.isAdmin || reviewLocked ? <option value="no">No approval for this client</option> : null}
             </select>
             {reviewLocked ? (
               <span className="tk-field-help">An admin turned approval off for this client. Only an admin can change that; your other changes still save.</span>
+            ) : reviewKeptOn ? (
+              <span className="tk-field-help">Approval is on for this client. Only an admin can turn it off; your other changes still save.</span>
             ) : !props.isAdmin ? (
               <span className="tk-field-help">Only an admin can turn approval off.</span>
             ) : null}

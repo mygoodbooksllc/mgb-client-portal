@@ -349,6 +349,11 @@ t("override payload: a non-admin never sends or changes the admin's no-approval"
   });
   assert.deepStrictEqual(T.TK_tplOverridePayload({ review: "" }, { isAdmin: true, stored }), { checklist: ["a"] }, "admin: blank clears it");
   assert.strictEqual(T.TK_tplOverridePayload({ title: "Close · Sep 2026" }, {}).title, "Close");
+  // a stored "needs approval" stays on for a non-admin, whatever they pick
+  const on = { review_required: true };
+  assert.deepStrictEqual(T.TK_tplOverridePayload({ review: "" }, { isAdmin: false, stored: on }), { review_required: true });
+  assert.deepStrictEqual(T.TK_tplOverridePayload({ review: "no" }, { isAdmin: false, stored: on }), { review_required: true });
+  assert.deepStrictEqual(T.TK_tplOverridePayload({ review: "" }, { isAdmin: true, stored: on }), {}, "an admin can still clear it");
 });
 
 t("Make task outcome: created / exists close the row; skipped keeps it with the reason", () => {

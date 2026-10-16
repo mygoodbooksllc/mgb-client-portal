@@ -521,6 +521,8 @@ function TK_tplOverridePayload(choice, opts) {
     if (c.review === "yes") next.review_required = true;
     if (c.review === "no" && o.isAdmin) next.review_required = false;
   }
+  // a stored "needs approval" is never weakened by a non-admin (the server keeps it too)
+  if (!o.isAdmin && o.stored && o.stored.review_required === true) next.review_required = true;
   if (o.stored && Array.isArray(o.stored.checklist)) next.checklist = o.stored.checklist;
   return next;
 }

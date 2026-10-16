@@ -955,12 +955,17 @@ begin
   -- only admins switch review off for a client. Review fix (major 3): when an
   -- admin already switched it off, a non-admin's save keeps that setting as
   -- it is (whatever the call sends), so they can still skip or change the rest.
+  -- S5 fix: a stored true is never weakened by a non-admin either. Leaving it
+  -- out ({} or "Same as the template" on a no-approval template) or sending
+  -- false keeps the stored true.
   if not public.is_active_staff_admin() then
     select (o.override -> 'review_required') into v_admin_review
       from tk_client_template_overrides o
      where o.client_id = p_client_id and o.template_id = p_template_id;
     if v_admin_review = 'false'::jsonb then
       v_o := jsonb_set(v_o, '{review_required}', 'false'::jsonb);
+    elsif v_admin_review = 'true'::jsonb then
+      v_o := jsonb_set(v_o, '{review_required}', 'true'::jsonb);
     elsif v_o -> 'review_required' = 'false'::jsonb then
       raise exception 'tk_review_admin_only' using errcode = '42501';
     end if;
