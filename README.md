@@ -1695,6 +1695,28 @@ Team Reviews files.
   the `sp_*` RPCs, the `staff_profiles_guard` change (`photo_path` moves only through RPCs), the
   `staff-avatars` bucket limit raised to 5 MB with the staff update and delete policies dropped,
   the onboarding step `profile-photo` and a backfill for staff who already have a photo.
+- **Tasks Phase 2, S8 Asana import tooling** (`supabase/tasks-p2-8-asana-import.sql`, applied
+  2026-10-16; `tk_schema_version()` becomes 9). One-time import of **open** Asana tasks. **Dry run
+  only: the apply is switched off and has not been run.** Tests:
+  `supabase/tasks-p2-8-asana-import-tests.sql` (one transaction, rolls back) and
+  `node scripts/asana-import/asanaImportPlan.test.js`.
+  - **Planner** (`scripts/asana-import/asanaImportPlan.js`, pure): classifies projects (client,
+    onboarding, internal, the New Client Onboarding tracker, templates skipped), merges duplicate
+    projects (newest wins), maps Asana users to staff by email (unmapped and unassigned go to the
+    fallback, holden@), flattens subtasks to one level and lists date anomalies.
+    `scripts/asana-import/buildDryRun.js <snapshotDir> <outDir> [--redacted-md <path>]
+    [--stage-json <path>]` writes the plan and report. Snapshots and full reports have names and
+    emails, so they stay in a scratchpad; the committed `docs/asana-import-dry-run-report.md` is
+    redacted (first names, no emails).
+  - **Tables** (RLS on, admin read, no direct writes): `tk_import_runs`, `tk_import_plan_rows`,
+    `tk_asana_import_map` (one row per Asana gid, so a gid is never imported twice).
+  - **RPCs** (admin only): `tk_import_asana_stage(snapshot_at, report, rows)`,
+    `tk_import_asana_apply(run_id, 'IMPORT <first 8 of run id>', fallback_email)` (refused unless
+    the `tk_settings` key `asana_import_apply_enabled` is `true`) and
+    `tk_import_asana_undo(run_id, 'UNDO <first 8>')` (soft-deletes tasks, archives projects,
+    retires templates). Imported rows carry `source = 'asana'`; templates arrive as inactive drafts.
+  - **No emails**: `notify_enqueue_task_assigned` skips `mgb.tk_import = 'on'` and any
+    `source = 'asana'` insert. Activity rows show `asana-import` as the actor.
 - **Staff Handbook** (`supabase/staff-handbook.sql`, applied 2026-10-13). Re-runnable. Four
   `handbook_*` tables with RLS and no direct writes, the `hb_*` RPCs, two new outbox kinds
   (`handbook_sign_needed`, `handbook_countersign_needed`) added to both email check constraints,

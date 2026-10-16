@@ -15083,6 +15083,7 @@ function DeveloperToolsPage({ staffUser, readOnly }) {
             ["token_ttl_days", "Answer link lifetime (days)", "How long an Ask client answer link works."],
             ["on_time_since", "On-time counted since", "Start date for on-time stats and the missed-periods floor."],
             ["ooo_auto_apply", "Time off hands tasks to backups", "Not set or On: the tk-ooo-daily cron (11:00 UTC) moves open tasks due during someone's time off to each client's backup on their first day off. Set to false to keep only the manual Hand my tasks to backups button. Handing back after the time off always runs."],
+            ["asana_import_apply_enabled", "Asana import apply", "Off (or missing) blocks tk_import_asana_apply, the one-time Asana import. Turn on only for the import, then off again. Undo works with it off."],
           ].map(([key, label, desc]) => {
             const row = tkSettings[key];
             const raw = row ? row.value : undefined;
