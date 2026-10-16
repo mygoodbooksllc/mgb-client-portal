@@ -98,7 +98,7 @@ function TK_vAddRow(props) {
     var today = TK_vToday();
     var parsed =
       typeof TK_parseQuickAdd === "function"
-        ? TK_parseQuickAdd(raw, { today: today, staff: ctx.staff || [], clients: ctx.clients || [], defaultClientId: ctx.clientId != null ? ctx.clientId : null })
+        ? TK_parseQuickAdd(raw, { today: today, staff: ctx.staff || [], clients: ctx.clients || [], defaultClientId: ctx.clientId != null ? ctx.clientId : null, plain: false })
         : { text: raw, errors: [], client_id: ctx.clientId != null ? ctx.clientId : null };
     if (parsed.errors && parsed.errors.length) {
       setMsg(parsed.errors[0]);

@@ -7,9 +7,13 @@
 //       the top bar's "tb:quick-add" with kind "task", and on the q key.
 //   TK_QuickAddDialog(props)
 //
-// The title line understands @person, #client, !high or !low, and dates such
-// as "fri" or "oct 14" (TK_parseQuickAdd). A field picked by hand wins over
-// what the line says. Enter adds; Shift+Enter adds and opens the task.
+// The title line understands plain words ("for Sierra", "re Acme", "by Friday",
+// "the 15th", "for me") as well as @person (@me too), #client, !high or !low
+// and dates such as "fri" or "oct 14" (TK_parseQuickAdd). What it understood
+// shows as chips and a "Will add" line; the x on a chip puts the words back
+// in the title. A name that fits two people or two clients is never guessed:
+// "Did you mean" asks. A field picked by hand wins over what the line says.
+// Enter adds; Shift+Enter adds and opens the task.
 // With the new columns missing, it saves through the legacy staffItemsApi.
 // ----------------------------------------------------------------------------
 
@@ -17,6 +21,16 @@ var TK_QA_TOKEN_LABELS = { person: "Assignee", client: "Client", priority: "Prio
 
 function TK_qaToday() {
   return TK_dwToday();
+}
+
+// "Will add" line: the title and what the line and the fields below it say.
+function TK_qaWillAdd(parts) {
+  var bits = [];
+  if (parts.assigneeName) bits.push("for " + parts.assigneeName);
+  if (parts.clientName) bits.push("client " + parts.clientName);
+  if (parts.dueLabel) bits.push("due " + parts.dueLabel);
+  if (parts.priorityLabel && parts.priority !== "normal") bits.push(parts.priorityLabel.toLowerCase() + " priority");
+  return "Will add \u201c" + parts.title + "\u201d" + (bits.length ? ", " + bits.join(", ") : "") + ".";
 }
 
 function TK_qaCut(input, start, end) {
@@ -49,6 +63,9 @@ function TK_QuickAddDialog(props) {
   var errPair = React.useState("");
   var err = errPair[0];
   var setErr = errPair[1];
+  var ignoredPair = React.useState([]); // chips the person turned off (TK_qaIgnoreKey)
+  var ignored = ignoredPair[0];
+  var setIgnored = ignoredPair[1];
   var triedPair = React.useState(false);
   var tried = triedPair[0];
   var setTried = triedPair[1];
@@ -65,8 +82,10 @@ function TK_QuickAddDialog(props) {
           staff: staff.filter(function (s) { return s && s.active !== false; }),
           clients: base.project_id ? [] : clients,
           defaultClientId: base.client_id,
+          me: me,
+          ignore: ignored,
         })
-      : { text: input.trim(), client_id: base.client_id, assignee_email: null, due_date: null, priority: null, tokens: [], errors: input.trim() ? [] : ["Add a few words about the task."] };
+      : { text: input.trim(), client_id: base.client_id, assignee_email: null, due_date: null, priority: null, tokens: [], suggestions: [], errors: input.trim() ? [] : ["Add a few words about the task."] };
 
   var has = function (k) { return Object.prototype.hasOwnProperty.call(touched, k); };
   var projectId = base.project_id || null;
@@ -201,10 +220,25 @@ function TK_QuickAddDialog(props) {
     setTouched(next);
   };
 
+  // Turn a part of the line off: its words stay in the title and are not
+  // picked up again while they are typed.
   var removeToken = function (tok) {
-    var next = TK_qaCut(input, tok.start, tok.end);
-    setInput(next);
+    setIgnored(ignored.concat(TK_qaIgnoreKey(tok.kind, tok.raw)));
     setTimeout(function () { if (inputRef.current) inputRef.current.focus(); }, 0);
+  };
+
+  // "Did you mean": pick one. The words leave the title and the field is set.
+  var pickSuggestion = function (opt) {
+    setInput(TK_qaCut(input, opt.start, opt.end));
+    setField(opt.kind === "person" ? "assignee_email" : "client_id", opt.value);
+    setTimeout(function () { if (inputRef.current) inputRef.current.focus(); }, 0);
+  };
+  var skipSuggestion = function (sg) {
+    setIgnored(ignored.concat(sg.options.map(function (o) { return TK_qaIgnoreKey(o.kind, o.raw); })));
+    setTimeout(function () { if (inputRef.current) inputRef.current.focus(); }, 0);
+  };
+  var optionText = function (opt) {
+    return (opt.kind === "person" ? "Assign to " : "Client: ") + opt.label;
   };
 
   var tokenText = function (tok) {
@@ -251,7 +285,7 @@ function TK_QuickAddDialog(props) {
           className="tk-dw-input tk-qa-input"
           maxLength={500}
           autoComplete="off"
-          placeholder="Send the March statements @name #client fri !high"
+          placeholder="Send the March statements for Sierra by Friday"
           aria-describedby="tk-qa-help"
           aria-invalid={tried && titleError ? "true" : "false"}
           value={input}
@@ -268,7 +302,7 @@ function TK_QuickAddDialog(props) {
           }}
         />
         <p className="tk-dw-hint" id="tk-qa-help">
-          Use @ for a person, # for a client, ! for priority, and a day such as fri or oct 14.
+          Type it the way you'd say it: for a name, re a client, by Friday, the 15th. Or use @ for a person, # for a client, ! for priority.
         </p>
         {parsed.tokens && parsed.tokens.length > 0 && (
           <ul className="tk-qa-tokens" aria-label="Picked up from what you typed">
@@ -280,7 +314,8 @@ function TK_QuickAddDialog(props) {
                   <button
                     type="button"
                     className="tk-qa-token-x"
-                    aria-label={"Remove " + (TK_QA_TOKEN_LABELS[tok.kind] || tok.kind).toLowerCase() + " " + tokenText(tok)}
+                    aria-label={"Not " + (TK_QA_TOKEN_LABELS[tok.kind] || tok.kind).toLowerCase() + " " + tokenText(tok) + ": keep the words in the title"}
+                    title="Don't use this. Keep the words in the title."
                     onClick={function () { removeToken(tok); }}
                   >
                     ×
@@ -289,6 +324,41 @@ function TK_QuickAddDialog(props) {
               );
             })}
           </ul>
+        )}
+        {parsed.suggestions && parsed.suggestions.length > 0 &&
+          parsed.suggestions.map(function (sg) {
+            return (
+              <div key={"sg" + sg.start} className="tk-qa-suggest" role="group" aria-label="Did you mean">
+                <span className="tk-qa-suggest-q">Did you mean</span>
+                {sg.options.map(function (opt) {
+                  return (
+                    <button
+                      key={opt.kind + ":" + opt.value}
+                      type="button"
+                      className="tk-qa-suggest-opt"
+                      onClick={function () { pickSuggestion(opt); }}
+                    >
+                      {optionText(opt)}
+                    </button>
+                  );
+                })}
+                <button type="button" className="tk-qa-suggest-skip" onClick={function () { skipSuggestion(sg); }}>
+                  Neither
+                </button>
+              </div>
+            );
+          })}
+        {!titleError && ((parsed.tokens && parsed.tokens.length > 0) || (parsed.suggestions && parsed.suggestions.length > 0)) && (
+          <p className="tk-qa-preview" aria-live="polite">
+            {TK_qaWillAdd({
+              title: String(parsed.text).trim(),
+              assigneeName: assignee && assignee !== me ? nameOf(assignee) : "",
+              clientName: client ? client.name : "",
+              dueLabel: dueDate ? TK_dlShortDate(dueDate, today) : "",
+              priority: priority,
+              priorityLabel: typeof TK_PRIORITY_LABELS !== "undefined" && TK_PRIORITY_LABELS ? TK_PRIORITY_LABELS[priority] : priority,
+            })}
+          </p>
         )}
         {tried && titleError && (
           <p className="tk-dw-warn" role="alert">

@@ -525,6 +525,25 @@ var TK__QA_DATE_RULES = [
       var ny = p.m === 12 ? p.y + 1 : p.y;
       return TK_nthBusinessDay(ny, nm, n);
     } },
+  // Plain words (Phase 4, P4-1). `plain` rules switch off with { plain: false }.
+  { plain: true, re: "(end\\s+of\\s+(?:the\\s+)?month)", fn: function (m, today) {
+      var p = TK__ymdParts(today);
+      return p.y + "-" + TK__pad2(p.m) + "-" + TK__pad2(TK__daysInMonth(p.y, p.m));
+    } },
+  // "the 15th": this month when that day is today or later, else next month.
+  // A month without that day (the 31st in November) is not guessed.
+  // `restrict`: counts only after by / due / on, or as the last words, so
+  // "Review the 1st quarter numbers" stays a title.
+  { plain: true, restrict: true, re: "(?:the\\s+)?(\\d{1,2})(?:st|nd|rd|th)", fn: function (m, today) {
+      var d = Number(m[1]);
+      if (d < 1 || d > 31) return null;
+      var p = TK__ymdParts(today);
+      if (d >= p.d) return d <= TK__daysInMonth(p.y, p.m) ? TK__validYmd(p.y, p.m, d) : null;
+      var nm = p.m === 12 ? 1 : p.m + 1;
+      var ny = p.m === 12 ? p.y + 1 : p.y;
+      if (d <= TK__daysInMonth(ny, nm)) return TK__validYmd(ny, nm, d);
+      return null;
+    } },
 ];
 
 // Short forms that are also everyday words or names ("call Tom", "Sat with"):
@@ -534,7 +553,7 @@ var TK__QA_AMBIGUOUS = { tom: 1, sun: 1, mon: 1, sat: 1 };
 function TK__qaAmbiguousOk(source, hit) {
   if (!TK__QA_AMBIGUOUS[String(hit.raw).toLowerCase()]) return true;
   if (/^[\s),.;:!?]*$/.test(source.slice(hit.end))) return true;
-  return /(^|[\s(,])(due|on)\s+$/i.test(source.slice(0, hit.start));
+  return /(^|[\s(,])(due|on|by)\s+$/i.test(source.slice(0, hit.start));
 }
 
 function TK__qaMatchAll(source, body, flags) {
@@ -578,12 +597,62 @@ function TK__qaPick(list, keyFns, wanted) {
   return { item: null, count: prefix.length };
 }
 
+// ---- Quick add, plain words (Phase 4, P4-1)
+// Key for a part of the line the person turned off ("Remove" on a chip), so
+// the same words stay in the title and are not picked up again as they type.
+function TK_qaIgnoreKey(kind, raw) {
+  return String(kind) + "|" + String(raw == null ? "" : raw).toLowerCase().replace(/\s+/g, " ").trim();
+}
+
+// Words with positions. `clean` drops brackets, quotes and end punctuation;
+// start/end cover the clean text; `tail` is the punctuation cut off the end.
+function TK__qaWords(source) {
+  var re = /\S+/g;
+  var out = [];
+  var m;
+  while ((m = re.exec(source)) !== null) {
+    var raw = m[0];
+    var lead = raw.match(/^[("'\[]+/);
+    lead = lead ? lead[0].length : 0;
+    var trail = raw.slice(lead).match(/[)\]"',.;:!?]+$/);
+    trail = trail ? trail[0].length : 0;
+    out.push({
+      clean: raw.slice(lead, raw.length - trail),
+      start: m.index + lead,
+      end: m.index + raw.length - trail,
+      tail: raw.slice(raw.length - trail),
+    });
+  }
+  return out;
+}
+
+// "Sierra Lima" -> "sierra"; the first word of a display name.
+function TK__qaFirstName(name) {
+  var first = String(name == null ? "" : name).trim().split(/\s+/)[0];
+  return TK_slug(first);
+}
+
+// Date words that follow by / due / on take those words with them.
+var TK__QA_DATE_PREFIX_RE = /(^|[\s(,])(due\s+on|due\s+by|due|by|on)\s+$/i;
+
+function TK__qaDatePrefixStart(source, start) {
+  var m = TK__QA_DATE_PREFIX_RE.exec(source.slice(0, start));
+  return m ? m.index + m[1].length : -1;
+}
+
 function TK_parseQuickAdd(input, opts) {
   opts = opts || {};
   var source = input == null ? "" : String(input);
   var today = opts.today || TK_ymd();
   var staff = Array.isArray(opts.staff) ? opts.staff : [];
   var clients = Array.isArray(opts.clients) ? opts.clients : [];
+  // Plain words ("for Sierra", "by Friday", "the 15th", "re Acme") are on
+  // unless { plain: false }. `me` is the current user's email ("@me", "for me").
+  var plain = opts.plain !== false;
+  var me = opts.me ? TK__lower(opts.me) : "";
+  var ignoreSet = {};
+  (Array.isArray(opts.ignore) ? opts.ignore : []).forEach(function (k) { ignoreSet[String(k)] = true; });
+  function ignored(kind, raw) { return ignoreSet[TK_qaIgnoreKey(kind, raw)] === true; }
   var result = {
     text: "",
     assignee_email: null,
@@ -591,6 +660,7 @@ function TK_parseQuickAdd(input, opts) {
     due_date: null,
     priority: null,
     tokens: [],
+    suggestions: [],
     errors: [],
   };
   var taken = [];
@@ -598,12 +668,15 @@ function TK_parseQuickAdd(input, opts) {
     for (var i = 0; i < taken.length; i++) if (a < taken[i][1] && b > taken[i][0]) return false;
     return true;
   }
-  function take(kind, hit, value) {
+  function take(kind, hit, value, isPlain) {
     taken.push([hit.start, hit.end]);
-    result.tokens.push({ kind: kind, raw: hit.raw, start: hit.start, end: hit.end, value: value });
+    var tok = { kind: kind, raw: hit.raw, start: hit.start, end: hit.end, value: value };
+    if (isPlain) tok.plain = true;
+    result.tokens.push(tok);
   }
 
   // @person: first one that resolves to exactly one staff member wins.
+  // @me is the current user.
   var personSet = false;
   TK__qaMatchAll(source, "@([A-Za-z0-9._-]+)").forEach(function (hit) {
     var handle = hit.m[2].toLowerCase().replace(/\.+$/, "");
@@ -611,10 +684,13 @@ function TK_parseQuickAdd(input, opts) {
       hit = { m: hit.m, start: hit.start, end: hit.start + 1 + handle.length, raw: "@" + hit.m[2].slice(0, handle.length) };
     }
     if (!handle) return;
-    var pick = TK__qaPick(staff, [
-      function (s) { return TK_handleOf(s && s.email); },
-      function (s) { return TK_slug(s && s.name); },
-    ], handle);
+    if (ignored("person", hit.raw)) return;
+    var pick = handle === "me" && me
+      ? { item: { email: me } }
+      : TK__qaPick(staff, [
+          function (s) { return TK_handleOf(s && s.email); },
+          function (s) { return TK_slug(s && s.name); },
+        ], handle);
     if (!pick.item) {
       result.errors.push("Who is @" + hit.raw.slice(1) + "?");
       return;
@@ -629,6 +705,7 @@ function TK_parseQuickAdd(input, opts) {
   var clientSet = false;
   TK__qaMatchAll(source, "#([A-Za-z0-9._-]+)").forEach(function (hit) {
     var raw = hit.m[2];
+    if (ignored("client", hit.raw)) return;
     var wanted = raw.toLowerCase();
     var byId = clients.filter(function (c) { return c && c.id != null && String(c.id) === raw; });
     var pick = byId.length === 1 ? { item: byId[0] } : TK__qaPick(clients, [function (c) { return TK_slug(c && c.name); }], wanted);
@@ -647,29 +724,193 @@ function TK_parseQuickAdd(input, opts) {
   var prioHits = TK__qaMatchAll(source, "!(high|h|low|l|normal|n)");
   for (var pi = 0; pi < prioHits.length; pi++) {
     if (!free(prioHits[pi].start, prioHits[pi].end)) continue;
+    if (ignored("priority", prioHits[pi].raw)) continue;
     result.priority = prioMap[prioHits[pi].m[2].toLowerCase()];
     take("priority", prioHits[pi], result.priority);
     break;
   }
 
+  var words = TK__qaWords(source);
+  function wordFree(w) { return w.clean !== "" && free(w.start, w.end); }
+
   // Dates: the earliest date word in the line wins (the longest on a tie).
-  var best = null;
-  for (var r = 0; r < TK__QA_DATE_RULES.length; r++) {
-    var rule = TK__QA_DATE_RULES[r];
-    var hits = TK__qaMatchAll(source, rule.re);
-    for (var h = 0; h < hits.length; h++) {
-      var hit = hits[h];
-      if (!free(hit.start, hit.end)) continue;
-      if (!TK__qaAmbiguousOk(source, hit)) continue;
-      if (best && (hit.start > best.hit.start || (hit.start === best.hit.start && hit.end <= best.hit.end))) continue;
-      var value = rule.fn(TK__qaGroups(hit), today);
-      if (!value) continue;
-      best = { hit: hit, value: value };
+  // by / due / on in front of a date go with it. Returns the best match
+  // without taking it; the client step below needs to see it first.
+  function atEnd(pos) {
+    for (var i = 0; i < words.length; i++) {
+      if (words[i].start >= pos && words[i].clean !== "" && free(words[i].start, words[i].end)) return false;
+    }
+    return true;
+  }
+  function findDate() {
+    var best = null;
+    for (var r = 0; r < TK__QA_DATE_RULES.length; r++) {
+      var rule = TK__QA_DATE_RULES[r];
+      if (rule.plain && !plain) continue;
+      var hits = TK__qaMatchAll(source, rule.re);
+      for (var h = 0; h < hits.length; h++) {
+        var hit = hits[h];
+        if (!free(hit.start, hit.end)) continue;
+        if (!TK__qaAmbiguousOk(source, hit)) continue;
+        var start = hit.start;
+        if (plain) {
+          var ps = TK__qaDatePrefixStart(source, hit.start);
+          if (ps >= 0 && free(ps, hit.start)) start = ps;
+        }
+        if (rule.restrict && start === hit.start && !atEnd(hit.end)) continue;
+        var raw = source.slice(start, hit.end);
+        if (ignored("date", raw) || ignored("date", hit.raw)) continue;
+        if (best && (start > best.start || (start === best.start && hit.end <= best.end))) continue;
+        var value = rule.fn(TK__qaGroups(hit), today);
+        if (!value) continue;
+        best = { start: start, end: hit.end, raw: raw, value: value, plainUsed: !!rule.plain || start !== hit.start };
+      }
+    }
+    return best;
+  }
+
+  // ---- Plain-words person and client ("for Sierra", "re Acme")
+  // A person: after for / to / assign(ed) (to), the words are exactly one
+  // active staff member's full name or first name, or "me". A client: after
+  // for / re / client or a dash, the words that finish the line (or, when the
+  // line opens with for / re / client, end at a colon, comma or dash) are one
+  // client's name or the start of it, at least 4 characters. Two or more
+  // matches, or a name that is both a person and a client, stay in the title
+  // and become a "Did you mean" suggestion. Nothing is guessed.
+  function phraseFree(from, to, span) {
+    for (var i = from; i <= to; i++) {
+      var w = words[i];
+      if (!wordFree(w)) return false;
+      if (span && w.start < span.end && w.end > span.start) return false;
+      if (i < to && /[,;:!?]/.test(w.tail)) return false;
+    }
+    return true;
+  }
+  function phraseText(from, to) {
+    var parts = [];
+    for (var i = from; i <= to; i++) parts.push(words[i].clean);
+    return parts.join(" ");
+  }
+  function personAt(k) {
+    var c = words[k].clean.toLowerCase();
+    var from = k + 1;
+    if (c === "assign" || c === "assigned") {
+      if (words[from] && wordFree(words[from]) && words[from].clean.toLowerCase() === "to") from++;
+    } else if (c !== "for" && c !== "to") {
+      return null;
+    }
+    if (from >= words.length) return null;
+    if (me && words[from].clean.toLowerCase() === "me" && wordFree(words[from])) {
+      return { start: words[k].start, end: words[from].end, matches: [{ email: me, name: "Me" }] };
+    }
+    for (var n = 3; n >= 1; n--) {
+      var last = from + n - 1;
+      if (last >= words.length) continue;
+      if (!phraseFree(from, last)) continue;
+      var phrase = TK_slug(phraseText(from, last));
+      if (!phrase) continue;
+      var ms = staff.filter(function (s) {
+        if (!s || !s.email || !s.name) return false;
+        if (TK_slug(s.name) === phrase) return true;
+        return n === 1 && TK__qaFirstName(s.name) === phrase;
+      });
+      if (ms.length) return { start: words[k].start, end: words[last].end, matches: ms };
+    }
+    return null;
+  }
+  function clientsFor(from, to) {
+    var phrase = TK_slug(phraseText(from, to));
+    if (phrase.replace(/-/g, "").length < 4) return [];
+    var live = clients.filter(function (c) { return c && c.id != null && c.name; });
+    var exact = live.filter(function (c) { return TK_slug(c.name) === phrase; });
+    if (exact.length) return exact;
+    return live.filter(function (c) { return TK_slug(c.name).indexOf(phrase + "-") === 0; });
+  }
+  var dateAhead = null;
+  function clientAt(k) {
+    var c = words[k].clean.toLowerCase();
+    var isDash = /^[-–—]+$/.test(c);
+    if (!isDash && c !== "for" && c !== "re" && c !== "client") return null;
+    var from = k + 1;
+    if (from >= words.length) return null;
+    // The line ends with the client (a date at the end may follow it).
+    var spans = [null];
+    if (dateAhead) spans.push(dateAhead);
+    for (var v = 0; v < spans.length; v++) {
+      var last = -1;
+      for (var i = words.length - 1; i >= from; i--) {
+        var w = words[i];
+        if (w.clean === "") continue;
+        if (!free(w.start, w.end)) continue;
+        if (spans[v] && w.start < spans[v].end && w.end > spans[v].start) continue;
+        last = i;
+        break;
+      }
+      if (last < from || !phraseFree(from, last, spans[v])) continue;
+      var ms = clientsFor(from, last);
+      if (ms.length) return { start: words[k].start, end: words[last].end, matches: ms };
+    }
+    // The line opens with it: "re Acme: statements", "for Acme - statements".
+    if (k === 0 && !isDash) {
+      for (var j = from; j < words.length && j < from + 8; j++) {
+        var nextDash = words[j + 1] && /^[-–—]+$/.test(words[j + 1].clean);
+        if (!/[:,]/.test(words[j].tail) && !nextDash) continue;
+        if (!phraseFree(from, j)) break;
+        var lead = clientsFor(from, j);
+        if (lead.length) return { start: words[k].start, end: words[j].end, matches: lead };
+        break;
+      }
+    }
+    return null;
+  }
+  if (plain) {
+    dateAhead = findDate();
+    for (var k = 0; k < words.length; k++) {
+      if (!wordFree(words[k])) continue;
+      var pc = personSet ? null : personAt(k);
+      var cc = clientSet ? null : clientAt(k);
+      var options = [];
+      if (pc) {
+        var praw = source.slice(pc.start, pc.end);
+        if (!ignored("person", praw)) {
+          pc.matches.forEach(function (s) {
+            options.push({ kind: "person", value: TK__lower(s.email), label: s.name || s.email, start: pc.start, end: pc.end, raw: praw });
+          });
+        }
+      }
+      if (cc) {
+        var craw = source.slice(cc.start, cc.end);
+        if (!ignored("client", craw)) {
+          cc.matches.forEach(function (c) {
+            options.push({ kind: "client", value: c.id, label: c.name, start: cc.start, end: cc.end, raw: craw });
+          });
+        }
+      }
+      if (!options.length) continue;
+      if (options.length === 1) {
+        var o = options[0];
+        take(o.kind, o, o.value, true);
+        if (o.kind === "person") {
+          personSet = true;
+          result.assignee_email = o.value;
+        } else {
+          clientSet = true;
+          result.client_id = o.value;
+        }
+        continue;
+      }
+      result.suggestions.push({
+        start: Math.min.apply(null, options.map(function (x) { return x.start; })),
+        end: Math.max.apply(null, options.map(function (x) { return x.end; })),
+        options: options.slice(0, 6),
+      });
     }
   }
+
+  var best = findDate();
   if (best) {
     result.due_date = best.value;
-    take("date", best.hit, best.value);
+    take("date", best, best.value, best.plainUsed);
   }
 
   // Text: the line minus every matched token, spaces collapsed.
@@ -682,14 +923,25 @@ function TK_parseQuickAdd(input, opts) {
   }
   text += source.slice(pos);
   // A comma or colon left dangling at either end by a removed token goes too.
-  result.text = text
+  text = text
     .replace(/\s+/g, " ")
     .trim()
     .replace(/^[,;:]\s*/, "")
     .replace(/\s*[,;:]$/, "")
     .replace(/\s+\.$/, "")
     .trim();
+  var anyPlain = result.tokens.some(function (x) { return x.plain === true; });
+  if (anyPlain) text = text.replace(/^[-\u2013\u2014]+\s+/, "").replace(/\s+[-\u2013\u2014]+$/, "").trim();
+  // A line that is only plain words ("for Sierra") keeps its words as the title.
+  if (!text && anyPlain) {
+    var again = {};
+    for (var key in opts) if (Object.prototype.hasOwnProperty.call(opts, key)) again[key] = opts[key];
+    again.plain = false;
+    return TK_parseQuickAdd(input, again);
+  }
+  result.text = text;
   result.tokens.sort(function (a, b) { return a.start - b.start; });
+  result.suggestions.sort(function (a, b) { return a.start - b.start; });
   if (!result.text) result.errors.push("Add a few words about the task.");
   return result;
 }
@@ -959,6 +1211,7 @@ if (typeof module !== "undefined" && module.exports) {
     TK_addBusinessDays: TK_addBusinessDays,
     TK_nthBusinessDay: TK_nthBusinessDay,
     TK_parseQuickAdd: TK_parseQuickAdd,
+    TK_qaIgnoreKey: TK_qaIgnoreKey,
     TK_slug: TK_slug,
     TK_mentionTokens: TK_mentionTokens,
     TK_handleOf: TK_handleOf,

@@ -684,6 +684,260 @@ t("qa: works without staff or clients", () => {
   assert.deepStrictEqual(r.errors, ["Who is @sierra?"]);
 });
 
+// ---- Quick add, plain words (Phase 4, P4-1)
+const PW_STAFF = [
+  { email: "ana@example.test", name: "Ana Delta" },
+  { email: "sierra@example.test", name: "Sierra Lima" },
+  { email: "sierra.w@example.test", name: "Sierra Wells" },
+  { email: "grace@example.test", name: "Grace Hopper" },
+  { email: "may@example.test", name: "May Zulu" },
+  { email: "pat@example.test", name: "Pat Quebec" },
+];
+const PW_CLIENTS = [
+  { id: "ex1", name: "Example Church" },
+  { id: "ex2", name: "Example Fellowship" },
+  { id: "sc", name: "Sample Chapel" },
+  { id: "gc", name: "Grace Church" },
+  { id: "sj", name: "Smith-Jones LLC" },
+  { id: "sun", name: "Sunday Church" },
+  { id: "ab", name: "Abe Co" },
+];
+function pw(s, extra) {
+  return L.TK_parseQuickAdd(s, Object.assign({ today: TODAY, staff: PW_STAFF, clients: PW_CLIENTS, me: "PAT@example.test" }, extra || {}));
+}
+t("pw: for / to / assign pick one staff member by first or full name", () => {
+  ["for Ana", "to Ana", "assign Ana", "assign to Ana", "assigned to Ana", "for ana delta", "FOR ANA"].forEach((tail) => {
+    const r = pw("Send statements " + tail);
+    assert.strictEqual(r.assignee_email, "ana@example.test", tail);
+    assert.strictEqual(r.text, "Send statements", tail);
+    assert.deepStrictEqual(r.suggestions, [], tail);
+  });
+  const mid = pw("Call for Ana about payroll");
+  assert.strictEqual(mid.assignee_email, "ana@example.test");
+  assert.strictEqual(mid.text, "Call about payroll");
+  assert.strictEqual(mid.tokens[0].raw, "for Ana");
+  assert.strictEqual(mid.tokens[0].plain, true);
+});
+t("pw: a full name settles a shared first name", () => {
+  const r = pw("Review for Sierra Wells");
+  assert.strictEqual(r.assignee_email, "sierra.w@example.test");
+  assert.strictEqual(r.text, "Review");
+});
+t("pw: a shared first name is a suggestion, never a guess", () => {
+  const r = pw("Review for Sierra");
+  assert.strictEqual(r.assignee_email, null);
+  assert.strictEqual(r.text, "Review for Sierra");
+  assert.deepStrictEqual(r.tokens, []);
+  assert.strictEqual(r.suggestions.length, 1);
+  assert.deepStrictEqual(r.suggestions[0].options.map((o) => [o.kind, o.value, o.label, o.raw]), [
+    ["person", "sierra@example.test", "Sierra Lima", "for Sierra"],
+    ["person", "sierra.w@example.test", "Sierra Wells", "for Sierra"],
+  ]);
+  assert.strictEqual(r.suggestions[0].start, 7);
+  assert.strictEqual(r.suggestions[0].end, 17);
+});
+t("pw: unknown names stay in the title with no error", () => {
+  const r = pw("Send the report to Dana");
+  assert.strictEqual(r.assignee_email, null);
+  assert.strictEqual(r.text, "Send the report to Dana");
+  assert.deepStrictEqual(r.errors, []);
+  assert.deepStrictEqual(r.suggestions, []);
+  assert.strictEqual(pw("Pay for the lunch").text, "Pay for the lunch");
+  assert.strictEqual(pw("Ana's report for Ana's team").assignee_email, null);
+});
+t("pw: names that are words only count after for / to / assign", () => {
+  const r = pw("Will May call Grace about it");
+  assert.strictEqual(r.assignee_email, null);
+  assert.strictEqual(r.client_id, null);
+  assert.strictEqual(r.text, "Will May call Grace about it");
+  assert.strictEqual(pw("Thank you for May").assignee_email, "may@example.test");
+});
+t("pw: me and @me", () => {
+  assert.strictEqual(pw("Call bank for me").assignee_email, "pat@example.test");
+  assert.strictEqual(pw("Call bank to me").text, "Call bank");
+  assert.strictEqual(pw("assign to me call bank").assignee_email, "pat@example.test");
+  assert.strictEqual(pw("Call bank @me").assignee_email, "pat@example.test");
+  assert.strictEqual(pw("Call bank @ME").text, "Call bank");
+  const noMe = pw("Call bank for me @me", { me: "" });
+  assert.strictEqual(noMe.assignee_email, null);
+  assert.deepStrictEqual(noMe.errors, ["Who is @me?"]);
+  assert.strictEqual(noMe.text, "Call bank for me @me");
+});
+t("pw: client after for / re / client / a dash, at the end of the line", () => {
+  ["Bank rec for Sample Chapel", "Bank rec re Sample Chapel", "Bank rec client Sample Chapel", "Bank rec - Sample Chapel", "Bank rec \u2013 Sample Chapel", "Bank rec for sample chapel"].forEach((s) => {
+    const r = pw(s);
+    assert.strictEqual(r.client_id, "sc", s);
+    assert.strictEqual(r.text, "Bank rec", s);
+  });
+  assert.strictEqual(pw("Bank rec for Sample").client_id, "sc"); // start of exactly one name
+  assert.strictEqual(pw("Bank rec for Smith-Jones LLC").client_id, "sj");
+  assert.strictEqual(pw("Bank rec for Smith Jones LLC").client_id, "sj");
+});
+t("pw: a client name in the middle of a title is not a client", () => {
+  const r = pw("Email Sample Chapel about the audit");
+  assert.strictEqual(r.client_id, null);
+  assert.strictEqual(r.text, "Email Sample Chapel about the audit");
+  assert.strictEqual(pw("Send for Sample Chapel the audit").client_id, null);
+  assert.strictEqual(pw("Bank rec Sample Chapel").client_id, null); // no for / re / client / dash
+});
+t("pw: client needs 4 characters, and can lead the line", () => {
+  assert.strictEqual(pw("Bank rec for Abe").client_id, null); // 3 characters
+  assert.strictEqual(pw("Bank rec for Abe Co").client_id, "ab");
+  const lead = pw("re Sample Chapel: send statements");
+  assert.strictEqual(lead.client_id, "sc");
+  assert.strictEqual(lead.text, "send statements");
+  assert.strictEqual(pw("for Sample Chapel - send statements").text, "send statements");
+  assert.strictEqual(pw("client Sample Chapel, send statements").client_id, "sc");
+  assert.strictEqual(pw("for Sample Chapel send statements").client_id, null); // no colon, comma or dash after it
+});
+t("pw: two clients match -> suggestion, words stay in the title", () => {
+  const r = pw("Bank rec for Example");
+  assert.strictEqual(r.client_id, null);
+  assert.strictEqual(r.text, "Bank rec for Example");
+  assert.deepStrictEqual(r.suggestions[0].options.map((o) => [o.kind, o.value, o.label]), [
+    ["client", "ex1", "Example Church"],
+    ["client", "ex2", "Example Fellowship"],
+  ]);
+  assert.strictEqual(pw("Bank rec for Example Church").client_id, "ex1"); // the whole name settles it
+});
+t("pw: a name that is a person and a client is a suggestion with both", () => {
+  const r = pw("Prep for Grace Church");
+  assert.strictEqual(r.assignee_email, null);
+  assert.strictEqual(r.client_id, null);
+  assert.strictEqual(r.text, "Prep for Grace Church");
+  assert.deepStrictEqual(r.suggestions[0].options.map((o) => [o.kind, o.value, o.raw]), [
+    ["person", "grace@example.test", "for Grace"],
+    ["client", "gc", "for Grace Church"],
+  ]);
+  const person = pw("Prep for Grace Hopper");
+  assert.strictEqual(person.assignee_email, "grace@example.test");
+});
+t("pw: a date at the end does not hide the client", () => {
+  const a = pw("Bank rec for Sample Chapel Friday");
+  assert.strictEqual(a.client_id, "sc");
+  assert.strictEqual(a.due_date, "2026-10-16");
+  assert.strictEqual(a.text, "Bank rec");
+  const b = pw("Bank rec for Sample Chapel by Friday");
+  assert.strictEqual(b.client_id, "sc");
+  assert.strictEqual(b.text, "Bank rec");
+  // The name wins over a date word inside it.
+  const c = pw("Bank rec for Sunday Church");
+  assert.strictEqual(c.client_id, "sun");
+  assert.strictEqual(c.due_date, null);
+});
+t("pw: by / due / on go with the date", () => {
+  [["by Friday", "2026-10-16"], ["due Friday", "2026-10-16"], ["due on Friday", "2026-10-16"], ["on Monday", "2026-10-19"], ["by tomorrow", "2026-10-15"], ["by 11/3", "2026-11-03"]].forEach((c) => {
+    const r = pw("Send statements " + c[0]);
+    assert.strictEqual(r.due_date, c[1], c[0]);
+    assert.strictEqual(r.text, "Send statements", c[0]);
+    assert.strictEqual(r.tokens[0].raw, c[0]);
+  });
+  assert.strictEqual(pw("Call Tom by mon").due_date, "2026-10-19"); // "mon" is a name-like word unless by / due / on is there
+});
+t("pw: the 15th, this month or next, never guessed", () => {
+  assert.strictEqual(pw("Pay vendors the 15th").due_date, "2026-10-15");
+  assert.strictEqual(pw("Pay vendors the 15th").text, "Pay vendors");
+  assert.strictEqual(pw("Pay vendors by the 15th").text, "Pay vendors");
+  assert.strictEqual(pw("Pay vendors on the 3rd").due_date, "2026-11-03"); // the 3rd has passed
+  assert.strictEqual(pw("Pay vendors 14th").due_date, "2026-10-14"); // today counts
+  assert.strictEqual(pw("Pay vendors on the 31st").due_date, "2026-10-31");
+  assert.strictEqual(pw("Pay vendors on the 31st", { today: "2026-11-05" }).due_date, null); // November has 30 days
+  assert.strictEqual(pw("Pay vendors on the 31st", { today: "2026-11-05" }).text, "Pay vendors on the 31st");
+  assert.strictEqual(pw("Pay vendors on the 3rd", { today: "2026-12-20" }).due_date, "2027-01-03");
+  assert.strictEqual(pw("Pay vendors by the 0th").due_date, null);
+  assert.strictEqual(pw("Pay vendors by the 32nd").due_date, null);
+});
+t("pw: a day number inside a title is left alone", () => {
+  const a = pw("Review the 1st quarter numbers");
+  assert.strictEqual(a.due_date, null);
+  assert.strictEqual(a.text, "Review the 1st quarter numbers");
+  assert.strictEqual(pw("Send the 15th invoice to the board").due_date, null);
+  assert.strictEqual(pw("Send the 15th invoice by Friday").due_date, "2026-10-16");
+  assert.strictEqual(pw("Send the 15th invoice by Friday").text, "Send the 15th invoice");
+});
+t("pw: end of month and next week", () => {
+  assert.strictEqual(pw("Close the books end of month").due_date, "2026-10-31");
+  assert.strictEqual(pw("Close the books end of the month").text, "Close the books");
+  assert.strictEqual(pw("Close the books by end of month").text, "Close the books");
+  assert.strictEqual(pw("Close the books next week").due_date, "2026-10-19");
+  assert.strictEqual(pw("Close the books next week").text, "Close the books");
+});
+t("pw: person, client and date together", () => {
+  const r = pw("Send statements for Ana re Sample Chapel by Friday");
+  assert.strictEqual(r.assignee_email, "ana@example.test");
+  assert.strictEqual(r.client_id, "sc");
+  assert.strictEqual(r.due_date, "2026-10-16");
+  assert.strictEqual(r.text, "Send statements");
+  assert.deepStrictEqual(r.tokens.map((x) => x.kind), ["person", "client", "date"]);
+  r.tokens.forEach((x) => assert.strictEqual("Send statements for Ana re Sample Chapel by Friday".slice(x.start, x.end), x.raw));
+});
+t("pw: symbols still win and mix with plain words", () => {
+  const r = pw("Call bank @ana for Sierra Wells #sample fri");
+  assert.strictEqual(r.assignee_email, "ana@example.test"); // @ came first; the plain person stays in the title
+  assert.strictEqual(r.client_id, "sc");
+  assert.strictEqual(r.text, "Call bank for Sierra Wells");
+  assert.strictEqual(pw("Call bank for Sample Chapel #example-ch").client_id, "ex1");
+  assert.strictEqual(pw("Call bank for Sample Chapel #example-ch").text, "Call bank for Sample Chapel");
+});
+t("pw: a default client stays unless the line names another", () => {
+  assert.strictEqual(pw("Call bank", { defaultClientId: "gc" }).client_id, "gc");
+  assert.strictEqual(pw("Call bank for Sample Chapel", { defaultClientId: "gc" }).client_id, "sc");
+  assert.strictEqual(pw("Call bank for Example", { defaultClientId: "gc" }).client_id, "gc"); // ambiguous: nothing changes
+});
+t("pw: a line that is only plain words keeps its words as the title", () => {
+  const a = pw("for Ana");
+  assert.strictEqual(a.text, "for Ana");
+  assert.strictEqual(a.assignee_email, null);
+  assert.deepStrictEqual(a.errors, []);
+  const b = pw("re Sample Chapel");
+  assert.strictEqual(b.text, "re Sample Chapel");
+  assert.strictEqual(b.client_id, null);
+  assert.strictEqual(pw("for me").text, "for me");
+  assert.deepStrictEqual(pw("today").errors, ["Add a few words about the task."]); // symbol-era behavior stays
+});
+t("pw: ignore keeps the words in the title and stops the parse", () => {
+  const k = L.TK_qaIgnoreKey;
+  const a = pw("Call bank for Ana", { ignore: [k("person", "for Ana")] });
+  assert.strictEqual(a.assignee_email, null);
+  assert.strictEqual(a.text, "Call bank for Ana");
+  const d = pw("Call bank by Friday", { ignore: [k("date", "by Friday")] });
+  assert.strictEqual(d.due_date, null);
+  assert.strictEqual(d.text, "Call bank by Friday");
+  const c = pw("Call bank for Sample Chapel", { ignore: [k("client", "FOR  sample chapel")] });
+  assert.strictEqual(c.client_id, null);
+  assert.strictEqual(c.text, "Call bank for Sample Chapel");
+  const sym = pw("Call bank @ana !h", { ignore: [k("person", "@ana"), k("priority", "!h")] });
+  assert.strictEqual(sym.assignee_email, null);
+  assert.strictEqual(sym.priority, null);
+  assert.strictEqual(sym.text, "Call bank @ana !h");
+  const sug = pw("Review for Sierra", { ignore: [k("person", "for Sierra")] });
+  assert.deepStrictEqual(sug.suggestions, []);
+  assert.strictEqual(L.TK_qaIgnoreKey("date", "  By   FRIDAY "), "date|by friday");
+});
+t("pw: plain:false is the symbol-only parser", () => {
+  const r = pw("Send statements for Ana by Friday the 15th", { plain: false });
+  assert.strictEqual(r.assignee_email, null);
+  assert.strictEqual(r.due_date, "2026-10-16");
+  assert.strictEqual(r.text, "Send statements for Ana by the 15th");
+  assert.deepStrictEqual(r.suggestions, []);
+  assert.strictEqual(pw("Bank rec for Sample Chapel", { plain: false }).client_id, null);
+});
+t("pw: tokens keep their order, positions and raw text", () => {
+  const s = "Bank rec - Sample Chapel, for Ana, due Friday";
+  const r = pw(s);
+  r.tokens.forEach((x) => assert.strictEqual(s.slice(x.start, x.end), x.raw));
+  for (let i = 1; i < r.tokens.length; i++) assert.ok(r.tokens[i].start >= r.tokens[i - 1].end);
+});
+t("pw: empty, odd and long input never throws", () => {
+  ["", "   ", "for", "to", "re", "-", "for -", "assign to", "by", "the 15th", "!!! for @@@", "for \u2014 \u2014"].forEach((s) => {
+    const r = pw(s);
+    assert.ok(Array.isArray(r.tokens) && Array.isArray(r.suggestions) && Array.isArray(r.errors), JSON.stringify(s));
+  });
+  const long = "word ".repeat(300) + "for Ana";
+  assert.strictEqual(pw(long).assignee_email, "ana@example.test");
+  assert.deepStrictEqual(pw(null).suggestions, []);
+});
+
 // ---- Routes
 t("parseRoute", () => {
   const P = L.TK_parseRoute;
