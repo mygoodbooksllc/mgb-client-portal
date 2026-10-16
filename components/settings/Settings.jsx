@@ -53,8 +53,6 @@ const ST_SAVE_DEBOUNCE_MS = 700;
 const ST_REFRESH_MS = 60000; // a tab back in view re-reads the server copy, at most this often
 const ST_FIELD_DEBOUNCE_MS = 600;
 const ST_AVATAR_BUCKET = "staff-avatars";
-const ST_AVATAR_MAX_BYTES = 2 * 1024 * 1024;
-const ST_AVATAR_TYPES = ["image/png", "image/jpeg", "image/webp"];
 const ST_SIGNATURE_MAX = 1000;
 const ST_NAME_MAX = 120;
 // Same rule as set_my_staff_name (supabase/staff-name-canonical.sql): control,
@@ -399,6 +397,14 @@ const ST_profile = (function () {
     loaded = true;
     emit();
   }
+  // A new profile photo (components/staff/staffPhotoApi.js fires sp:changed
+  // after a submit, replace or restore) moves staff_profiles.photo_path
+  // server-side, so re-read the row and re-sign the URL.
+  if (typeof window !== "undefined" && window.addEventListener) {
+    window.addEventListener(typeof SP_CHANGED_EVENT === "string" ? SP_CHANGED_EVENT : "sp:changed", () => {
+      if (email) load(email);
+    });
+  }
   return {
     ensure(forEmail) {
       const em = ST_lc(forEmail) || null;
@@ -417,6 +423,10 @@ const ST_profile = (function () {
     get state() {
       return { email, row, photoUrl, loaded };
     },
+    // Re-reads the row and the signed photo URL (after a photo change).
+    reload() {
+      return email ? load(email) : Promise.resolve();
+    },
     async save(patch) {
       const sb = window.mgbSupabase;
       if (!sb || !email) return { error: { message: "Not signed in" } };
@@ -426,7 +436,8 @@ const ST_profile = (function () {
           email,
           title: next.title || null,
           phone: next.phone || null,
-          photo_path: next.photo_path || null,
+          // photo_path is never sent: it changes only through the sp_* RPCs
+          // (supabase/staff-photo.sql), and the guard ignores it otherwise.
           birthday: next.birthday || null,
           start_date: next.start_date || null,
         },
@@ -434,7 +445,6 @@ const ST_profile = (function () {
       );
       if (!error) {
         row = next;
-        if ("photo_path" in patch) photoUrl = next.photo_path ? await signed(next.photo_path) : null;
         emit();
       }
       return { error };
@@ -467,12 +477,26 @@ function ST_initials(name) {
   );
 }
 
-function ST_Avatar({ name, url, size = 44 }) {
-  return url ? (
-    <img className="st-avatar" src={url} alt="" width={size} height={size} style={{ width: size, height: size }} />
-  ) : (
-    <span className="st-avatar st-avatar-initials" aria-hidden="true" style={{ width: size, height: size, fontSize: size * 0.36 }}>
-      {ST_initials(name)}
+// The one avatar everywhere (Settings, top bar, client contact cards, Team ›
+// Members). The wrap paints the brand navy circle (--avatar-bg) behind the
+// image, so a transparent PNG from an admin edit looks the same in every
+// place, and in the email signature (supabase/functions/_shared/signature.ts).
+// A photo that fails to load falls back to initials.
+function ST_Avatar({ name, url, size = 44, tone }) {
+  const [failed, setFailed] = React.useState(false);
+  React.useEffect(() => {
+    setFailed(false);
+  }, [url]);
+  const showPhoto = !!url && !failed;
+  return (
+    <span className="st-avatar-wrap" style={{ width: size, height: size }} data-tone={tone || undefined}>
+      {showPhoto ? (
+        <img className="st-avatar" src={url} alt="" loading="lazy" decoding="async" width={size} height={size} onError={() => setFailed(true)} />
+      ) : (
+        <span className="st-avatar st-avatar-initials" aria-hidden="true" style={{ fontSize: size * 0.36 }}>
+          {ST_initials(name)}
+        </span>
+      )}
     </span>
   );
 }
@@ -803,46 +827,76 @@ function ST_DateInput({ value, disabled, min, max, onSave, ariaLabel }) {
   );
 }
 
+// Profile photo block (docs/staff-photo-spec.md, G2). The photo is required:
+// there is no Remove, only Add / Change, which opens the same picker the
+// first-sign-in gate uses (components/staff/StaffPhotoGate.jsx). The server
+// keeps the original and every earlier version; an admin tidies the
+// background. photo_path changes only through the sp_* RPCs.
+function ST_ProfilePhoto({ staffUser, prof, name, readOnly }) {
+  const [open, setOpen] = React.useState(false);
+  const st = typeof SP_useMyStatus === "function" ? SP_useMyStatus(staffUser && staffUser.email) : { loaded: false, data: null };
+  const status = st && st.data ? st.data.status : "";
+  const hasPhoto = !!(prof.row && prof.row.photo_path);
+  const closeTimer = React.useRef(null);
+  React.useEffect(() => () => clearTimeout(closeTimer.current), []);
+  const pickerReady = typeof PG_PhotoPicker === "function";
+  const statusText =
+    status === "missing"
+      ? "Required: add a photo"
+      : status === "submitted"
+        ? "Saved. An admin will tidy the background."
+        : status === "edited"
+          ? "Edited by an admin"
+          : hasPhoto
+            ? "Saved"
+            : "";
+  return (
+    <div className="st-profile-head" id="st-profile-photo">
+      <ST_Avatar name={name} url={prof.photoUrl} size={72} />
+      <div className="st-profile-actions">
+        {pickerReady && (
+          <button type="button" className="btn-secondary st-btn-sm" disabled={!!readOnly} onClick={() => setOpen(true)}>
+            {hasPhoto ? "Change photo" : "Add photo"}
+          </button>
+        )}
+        <span className={"st-field-hint" + (status === "missing" ? " st-photo-required" : "")} role="status">
+          {statusText}
+        </span>
+      </div>
+      {open && pickerReady && (
+        <ModalShell onClose={() => setOpen(false)} labelledBy="st-photo-title" className="modal-panel-wide">
+          <div className="modal-header">
+            <h3 className="card-title" id="st-photo-title" style={{ margin: 0 }}>
+              {hasPhoto ? "Change your photo" : "Add your photo"}
+            </h3>
+            <button type="button" className="modal-close" aria-label="Close" onClick={() => setOpen(false)}>
+              ×
+            </button>
+          </div>
+          <div className="st-photo-modal-body">
+            <PG_PhotoPicker
+              email={staffUser.email}
+              compact
+              onDone={() => {
+                clearTimeout(closeTimer.current);
+                closeTimer.current = setTimeout(() => setOpen(false), 1600);
+              }}
+            />
+          </div>
+        </ModalShell>
+      )}
+    </div>
+  );
+}
+
 function ST_StaffProfileCard({ staffUser, readOnly }) {
   const prof = ST_useMyProfile(staffUser && staffUser.email);
   const [msg, setMsg] = React.useState("");
-  const [busy, setBusy] = React.useState(false);
-  const fileRef = React.useRef(null);
   const row = prof.row || {};
   const save = async (patch, okText) => {
     setMsg("Saving…");
     const { error } = await ST_profile.save(patch);
     setMsg(error ? "Couldn't save: " + (error.message || "try again") : okText || "Saved");
-  };
-  const onFile = async (e) => {
-    const file = e.target.files && e.target.files[0];
-    e.target.value = "";
-    if (!file) return;
-    if (!ST_AVATAR_TYPES.includes(file.type)) return setMsg("Use a PNG, JPEG or WebP image.");
-    if (file.size > ST_AVATAR_MAX_BYTES) return setMsg("That photo is over 2 MB. Try a smaller one.");
-    const sb = window.mgbSupabase;
-    if (!sb) return setMsg("Photos need a connection to the server.");
-    setBusy(true);
-    setMsg("Uploading…");
-    const ext = file.type === "image/png" ? "png" : file.type === "image/webp" ? "webp" : "jpg";
-    const path = `${ST_lc(staffUser.email)}/avatar-${Date.now()}.${ext}`;
-    const { error } = await sb.storage.from(ST_AVATAR_BUCKET).upload(path, file, { contentType: file.type, upsert: false });
-    if (error) {
-      setBusy(false);
-      return setMsg("Couldn't upload: " + error.message);
-    }
-    const old = row.photo_path;
-    await save({ photo_path: path }, "Photo updated");
-    if (old && old !== path) sb.storage.from(ST_AVATAR_BUCKET).remove([old]).then(() => {}, () => {});
-    setBusy(false);
-  };
-  const removePhoto = async () => {
-    const sb = window.mgbSupabase;
-    const old = row.photo_path;
-    setBusy(true);
-    await save({ photo_path: null }, "Photo removed");
-    if (sb && old) sb.storage.from(ST_AVATAR_BUCKET).remove([old]).then(() => {}, () => {});
-    setBusy(false);
   };
   // Name is public.staff.name, the one name the whole app reads. Staff can't
   // update that table, so it goes through set_my_staff_name (own row only),
@@ -877,21 +931,7 @@ function ST_StaffProfileCard({ staffUser, readOnly }) {
   return (
     <ST_Card title="Profile" sub="Clients see your name, title, phone and photo on their dashboard's bookkeeper card.">
       {readOnly && <ST_ReadOnlyNote text={readOnly} />}
-      <div className="st-profile-head">
-        <ST_Avatar name={name} url={prof.photoUrl} size={64} />
-        <div className="st-profile-actions">
-          <input ref={fileRef} type="file" accept={ST_AVATAR_TYPES.join(",")} hidden onChange={onFile} />
-          <button type="button" className="btn-secondary st-btn-sm" disabled={readOnly || busy} onClick={() => fileRef.current && fileRef.current.click()}>
-            {row.photo_path ? "Change photo" : "Add photo"}
-          </button>
-          {row.photo_path && (
-            <button type="button" className="st-link" disabled={readOnly || busy} onClick={removePhoto}>
-              Remove photo
-            </button>
-          )}
-          <span className="st-field-hint">PNG, JPEG or WebP, up to 2 MB.</span>
-        </div>
-      </div>
+      <ST_ProfilePhoto staffUser={staffUser} prof={prof} name={name} readOnly={readOnly} />
       <div className="st-grid">
         <ST_Field label="Name" hint="Changes it everywhere in the portal, for your team and your clients. Saves when you leave the field or press Enter.">
           <ST_AutoInput key={nameKey} value={name} maxLength={ST_NAME_MAX} disabled={!!readOnly} onSave={saveName} saveOnBlur autoComplete="name" />

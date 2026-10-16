@@ -35,7 +35,7 @@ The app doesn't send invitations. **Email invite** opens a pre-filled draft in G
 
 ### The Staff roster
 
-The roster is two cards: **Admins** and **Bookkeepers**, each with a headcount, people A to Z. Deactivated people stay in their role's card, dimmed, at the bottom. A bookkeeper with temporary admin access stays in **Bookkeepers** with a small **Temp admin** tag. Each row has Name, Email, Role, Active, Clients and Temp admin access. You can't change your own row. Change someone's **Role** and they move to the other card.
+The roster is two cards: **Admins** and **Bookkeepers**, each with a headcount, people A to Z. Deactivated people stay in their role's card, dimmed, at the bottom. A bookkeeper with temporary admin access stays in **Bookkeepers** with a small **Temp admin** tag. Each row has Name, Photo, Email, Role, Active, Clients and Temp admin access. The **Photo** column shows each person's profile photo and whether it still needs an edit; click it to download, replace or restore it. See [How do I manage staff profile photos?](#/help/staff-photos). You can't change your own row. Change someone's **Role** and they move to the other card.
 
 The owner also sees an **MGB (internal)** column on admin rows: untick it to stop that admin opening MyGoodBooks' own books. It's on for every admin by default and nobody else sees the column. See [What is MGB (internal), and who can open it?](#/help/mgb-internal).
 

@@ -980,6 +980,11 @@ const INFRA_LINKS = [
     note: "Project “MGB Client Portal” · org “Mygoodbooks LLC” · Auth: new sign-ups stay OFF; staff sign-in accounts are made by the staff-auth edge function (Team › Members › Fix sign-in) · credentials: 1Password vault “MGB Infra”",
   },
   {
+    name: "Supabase Storage (staff photos)",
+    url: "https://supabase.com/dashboard/project/xumsqmhccgfjnlmieqyu/storage/buckets/staff-avatars",
+    note: "Private bucket staff-avatars: one folder per staff email; photos are never deleted (originals, crops and admin edits all stay) · rules and RPCs in supabase/staff-photo.sql · email signatures use five-year signed links to the current photo",
+  },
+  {
     name: "Vercel",
     url: "https://vercel.com/dashboard",
     note: "Deploys app.mygoodbooks.org from main · credentials: 1Password vault “MGB Infra”",
@@ -13767,6 +13772,46 @@ function StaffAccessPage({ staffUser, onImpersonate, readOnly }) {
   const [tempAccessDurationFor, setTempAccessDurationFor] = useState({}); // row.id -> selected ms
   const [tempAccessBusyId, setTempAccessBusyId] = useState(null);
 
+  // Profile photos (components/staff/StaffPhotoAdmin.jsx, supabase/staff-photo.sql).
+  // The list RPC is admin-only: for a temp admin it errors, rows stay null and
+  // the Photo column shows a dash. Only a real admin (canActPhotos) gets
+  // downloads, Replace, Restore, Not required and History.
+  const canSeePhotos = typeof SP_useAdminList === "function";
+  const spList = canSeePhotos ? SP_useAdminList(true) : { loaded: false, rows: null };
+  const spByEmail = useMemo(() => {
+    const m = {};
+    (spList.rows || []).forEach((r) => {
+      m[String(r.email).toLowerCase()] = r;
+    });
+    return m;
+  }, [spList.rows]);
+  const canActPhotos = staffUser.role === "admin" && !readOnly;
+  const [photoEmail, setPhotoEmail] = useState(null); // whose photo drawer is open
+
+  // Today's "N profile photos to edit" item sends the admin here with a
+  // sessionStorage flag (the hash query is claimed by DeepLink.jsx): open the
+  // first person whose photo needs an edit.
+  useEffect(() => {
+    if (!canActPhotos || !spList.rows) return;
+    let flag = null;
+    try {
+      flag = window.sessionStorage.getItem("mgb-photo-open");
+    } catch (e) {}
+    if (flag !== "needs-edit") return;
+    try {
+      window.sessionStorage.removeItem("mgb-photo-open");
+    } catch (e) {}
+    const first = spList.rows.find((r) => r.active && r.status === "submitted");
+    if (!first) return;
+    setPhotoEmail(first.email);
+    setTimeout(() => {
+      try {
+        const el = document.querySelector('[data-photo-row="' + String(first.email).toLowerCase() + '"]');
+        if (el && el.scrollIntoView) el.scrollIntoView({ block: "center" });
+      } catch (e) {}
+    }, 80);
+  }, [canActPhotos, spList.rows, rows]);
+
   // MGB (internal) grants, owner only. internal_access holds one row per
   // admin who may open it; the owner can read every row, so a non-owner never
   // sees this column. Writes go through the owner-only set_internal_access().
@@ -14138,6 +14183,13 @@ function StaffAccessPage({ staffUser, onImpersonate, readOnly }) {
     const { error } = await supabase.from("staff").delete().eq("id", row.id);
     setBusyId(null);
     if (error) {
+      // Profile photo history is kept (staff_photo_versions FK, no cascade).
+      if (/staff_photo_versions/.test(error.message || "")) {
+        showToast(
+          `${row.name} has profile photos on file, which are kept. Switch them to Inactive instead.`,
+        );
+        return;
+      }
       showToast(`Couldn't remove ${row.email}: ${error.message}`);
       return;
     }
@@ -14315,6 +14367,13 @@ function StaffAccessPage({ staffUser, onImpersonate, readOnly }) {
         {loadError && <p className="card-subtitle negative">{loadError}</p>}
       </div>
 
+      {canSeePhotos && canActPhotos && spList.rows && typeof SPA_BulkBar === "function" && (
+        <SPA_BulkBar rows={spList.rows} canAct={canActPhotos} />
+      )}
+      {canSeePhotos && photoEmail && typeof SPA_PhotoDrawer === "function" && (
+        <SPA_PhotoDrawer email={photoEmail} canAct={canActPhotos} onClose={() => setPhotoEmail(null)} />
+      )}
+
       {rows && rows.length > 0 && [
         { key: "admin", title: "Admins", empty: "No admins yet." },
         { key: "bookkeeper", title: "Bookkeepers", empty: "No bookkeepers yet." },
@@ -14339,6 +14398,7 @@ function StaffAccessPage({ staffUser, onImpersonate, readOnly }) {
               <thead>
                 <tr>
                   <th>Name</th>
+                  {canSeePhotos && <th>Photo</th>}
                   <th>Email</th>
                   <th>Birthday</th>
                   <th>Start date</th>
@@ -14362,7 +14422,11 @@ function StaffAccessPage({ staffUser, onImpersonate, readOnly }) {
                     new Date(tempAccess.expires_at).getTime() > Date.now();
                   const tempBusy = tempAccessBusyId === row.id;
                   return (
-                    <tr key={row.id} className={row.active === false ? "staff-roster-inactive" : undefined}>
+                    <tr
+                      key={row.id}
+                      className={row.active === false ? "staff-roster-inactive" : undefined}
+                      data-photo-row={String(row.email).toLowerCase()}
+                    >
                       <td data-primary="">
                         {row.name}
                         {tempActive && row.role !== "admin" && (
@@ -14377,6 +14441,17 @@ function StaffAccessPage({ staffUser, onImpersonate, readOnly }) {
                           </span>
                         )}
                       </td>
+                      {canSeePhotos && (
+                        <td data-label="Photo">
+                          <SPA_PhotoCell
+                            row={spByEmail[String(row.email).toLowerCase()]}
+                            profileName={row.name}
+                            canAct={canActPhotos}
+                            onOpen={setPhotoEmail}
+                            tour={grp.key === (rows.some((r) => r.role === "admin") ? "admin" : "bookkeeper") && list[0] === row}
+                          />
+                        </td>
+                      )}
                       <td data-label="Email">{row.email}</td>
                       <td data-label="Birthday">
                         {typeof ST_DateInput === "function" ? (
@@ -29673,6 +29748,20 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
           {/* Client guided tour + Dashboard setup checklist (components/tour/Tour.jsx). */}
           {typeof TOUR_Root === "function" && !NON_CLIENT_PAGES.has(effectivePage) && (
             <TOUR_Root client={client} access={access} page={effectivePage} onSelectPage={setPage} onOpenSettings={openClientSettings} setMobileNavOpen={setMobileNavOpen} clientPortalUser={clientPortalUser} isStaffSession={isStaffSession} isPreviewingUser={Boolean(isPreviewingUser)} impersonating={Boolean(impersonating)} />
+          )}
+          {/* Required profile photo (components/staff/StaffPhotoGate.jsx). First in
+              line: tours, tips, announcements and Today's profile prompt wait for
+              it. Not limited to the staff rail, so the standalone Tasks window is
+              gated too; never shown in View as or a client preview. */}
+          {typeof PG_Gate === "function" && staffUser && !clientPortalUser && !isPreviewingUser && !impersonating && (
+            <PG_Gate
+              staffUser={staffUser}
+              impersonating={Boolean(impersonating)}
+              isPreviewingUser={Boolean(isPreviewingUser)}
+              page={effectivePage}
+              onOpenSettings={() => setPage("settings")}
+              onSignOut={onSignOut}
+            />
           )}
           {/* Staff tours: bookkeeper, admin, temporary admin and account
               manager (TOUR_StaffRoot, same file). Each starts by itself once

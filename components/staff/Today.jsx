@@ -70,6 +70,7 @@ const TD_KIND_LABEL = {
   bill: "Bills",
   review: "Review",
   handbook: "Handbook",
+  photos: "Photos",
   upgrade: "Upgrade",
   risk: "Health",
   coverage: "Coverage",
@@ -597,6 +598,27 @@ function TD_buildRows(x) {
     });
   });
 
+  // Admins: profile photos waiting for a background edit (Team › Members).
+  if (x.photosItem) {
+    const p = x.photosItem;
+    const openPhotos = () => {
+      try {
+        sessionStorage.setItem("mgb-photo-open", "needs-edit");
+      } catch (e) {}
+      NAV_go("team", "members");
+    };
+    now.push({
+      key: p.key,
+      kind: "photos",
+      rank: 3,
+      sort: 0,
+      title: p.title,
+      detail: p.detail,
+      onClick: openPhotos,
+      actions: [{ label: "Open", primary: true, onClick: openPhotos }],
+    });
+  }
+
   // Clients asking to move up a plan.
   (x.upgrades || []).forEach((r) => {
     const c = byId[r.client_id];
@@ -774,6 +796,13 @@ function TD_KindIcon({ kind }) {
           <path d="M6 3h9l3 3v15H6V3z" />
           <path d="M9 9h6M9 12h6" />
           <path d="M9 17.5c1-1.6 1.8-1.6 2.4 0s1.4 1.6 2.6-.5" />
+        </svg>
+      );
+    case "photos":
+      return (
+        <svg {...p}>
+          <circle cx="12" cy="9" r="3.5" />
+          <path d="M5 20c.8-3.6 3.6-5.5 7-5.5s6.2 1.9 7 5.5" />
         </svg>
       );
     case "upgrade":
@@ -1105,14 +1134,40 @@ function TD_TodayPage({ staffUser, clients, onNavigateToClient, onOpenClientMile
   // carries the reminder until both dates are filled in.
   const promptKey = "mgb-profile-prompt:" + me;
   const [profilePrompt, setProfilePrompt] = React.useState(false);
+  // The profile photo gate (#pg-gate) comes first. Wait for the photo status to
+  // load, then hold the prompt until the gate is gone (it unmounts a beat after
+  // the photo is saved, so re-check on the change event and on a short timer).
+  const photoMine = typeof SP_useMyStatus === "function" ? SP_useMyStatus(me) : null;
+  const photoReady = !photoMine || photoMine.loaded || !!photoMine.error;
   React.useEffect(() => {
-    if (!profileIncomplete || !me) return;
+    if (!profileIncomplete || !me || !photoReady) return undefined;
     let seen = false;
     try {
       seen = !!localStorage.getItem(promptKey);
     } catch (e) {}
-    if (!seen) setProfilePrompt(true);
-  }, [profileIncomplete, me]);
+    if (seen) return undefined;
+    let timer = null;
+    let cancelled = false;
+    const tryOpen = () => {
+      if (cancelled) return;
+      if (typeof document !== "undefined" && document.getElementById("pg-gate")) {
+        timer = setTimeout(tryOpen, 600);
+        return;
+      }
+      setProfilePrompt(true);
+    };
+    const onChanged = () => {
+      clearTimeout(timer);
+      timer = setTimeout(tryOpen, 300);
+    };
+    window.addEventListener("sp:changed", onChanged);
+    timer = setTimeout(tryOpen, 300);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+      window.removeEventListener("sp:changed", onChanged);
+    };
+  }, [profileIncomplete, me, photoReady]);
   const dismissProfilePrompt = () => {
     setProfilePrompt(false);
     try {
@@ -1222,6 +1277,15 @@ function TD_TodayPage({ staffUser, clients, onNavigateToClient, onOpenClientMile
   const handbookItems =
     handbook.me && !(typeof TR_isSomeoneElse === "function" && TR_isSomeoneElse(staffUser, handbook.me)) ? handbook.items : TD_NONE;
 
+  // Admin item: profile photos waiting for an edit. Derived from the shared
+  // list (also used by Team › Members); hidden in "View as" like the handbook.
+  const photoList = typeof SP_useAdminList === "function" ? SP_useAdminList(admin) : null;
+  const photosItem =
+    admin && photoList && photoList.rows && typeof SP_todayItem === "function" && !(typeof TR_isSomeoneElse === "function" && TR_isSomeoneElse(staffUser, (reviews && reviews.data && reviews.data.me) || handbook.me))
+      ? SP_todayItem(photoList.rows)
+      : null;
+  const photosKey = photosItem ? photosItem.key + ":" + photosItem.count + ":" + photosItem.detail : "";
+
   const celebrate = async (row, kind, action) => {
     const error = await cel.act(row, kind, action, me);
     showToast(error ? "Couldn't save: " + (error.message || "try again") : action === "gift" ? "Marked as gift sent" : "Dismissed");
@@ -1260,6 +1324,7 @@ function TD_TodayPage({ staffUser, clients, onNavigateToClient, onOpenClientMile
         blocked: closes.blocked,
         reviews: reviewData,
         handbook: handbookItems,
+        photosItem,
         upgrades: (upgrades.rows || []).filter(notHidden),
         upgradeBusyId: upgrades.busyId,
         setUpgradeStatus: upgrades.setStatus,
@@ -1286,6 +1351,7 @@ function TD_TodayPage({ staffUser, clients, onNavigateToClient, onOpenClientMile
       closes.blocked,
       reviewData,
       handbookItems,
+      photosKey,
       upgrades.rows,
       upgrades.busyId,
       health && health.status,

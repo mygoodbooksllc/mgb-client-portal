@@ -52,6 +52,13 @@ const AL_ACTIONS = {
   "handbook.published": "Handbook version published",
   "handbook.countersigner_changed": "Handbook countersigner changed",
   "handbook.exported": "Handbook signed copy filed or downloaded",
+  "staff_photo.submitted": "Profile photo submitted",
+  "staff_photo.replaced": "Profile photo replaced (edited)",
+  "staff_photo.restored": "Profile photo restored",
+  "staff_photo.exempt_on": "Photo marked not required",
+  "staff_photo.exempt_off": "Photo required again",
+  "staff_photo.version_hidden": "Photo version hidden",
+  "staff_photo.downloaded": "Profile photo downloaded",
 };
 
 // Action filter groups: value is a PostgREST "like" prefix.
@@ -68,6 +75,7 @@ const AL_ACTION_GROUPS = [
   { value: "view_as.", label: "View as" },
   { value: "portal_preview.", label: "Portal preview" },
   { value: "handbook.", label: "Staff Handbook" },
+  { value: "staff_photo.", label: "Profile photos" },
 ];
 
 function AL_actionLabel(a) {
@@ -117,6 +125,10 @@ function AL_summary(row) {
     return [d.policy ? `${d.policy}${d.version_no ? " v" + d.version_no : ""}` : "", a === "handbook.published" ? (d.requires_resign ? "needs re-signing" : "minor edit") : "", d.staff_email]
       .filter(Boolean)
       .join(" · ");
+  if (a === "staff_photo.downloaded") return [d.what, Array.isArray(d.emails) && d.emails.length > 1 ? d.emails.length + " people" : ""].filter(Boolean).join(" · ");
+  if (a === "staff_photo.replaced") return d.note || "";
+  if (a === "staff_photo.exempt_on") return d.reason || "";
+  if (a === "staff_photo.submitted") return d.resubmit ? "Resubmitted after an edit" : "";
   return "";
 }
 

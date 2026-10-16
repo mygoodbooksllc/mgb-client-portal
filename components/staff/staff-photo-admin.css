@@ -1,0 +1,144 @@
+/* Staff profile photos, admin side (StaffPhotoAdmin.jsx): the Photo column on
+   Team > Members, the per-person drawer and the bulk bar. Classes use the
+   spa- prefix. --avatar-bg (settings.css) is the navy circle behind photos. */
+
+.spa-cell {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 2px 4px;
+  margin: -2px -4px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  cursor: pointer;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+}
+.spa-cell:hover { background: var(--hover-bg); }
+.spa-cell:focus-visible { outline: 2px solid var(--selected-outline); outline-offset: 2px; }
+.spa-cell-initials {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--avatar-bg, #233746);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+}
+.spa-chip { white-space: nowrap; }
+
+/* ---- Drawer ---- */
+.modal-panel.spa-modal { max-width: 640px; }
+.spa-body { gap: 16px; }
+.spa-note { margin: 0; }
+.spa-status-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+.spa-previews { display: flex; flex-wrap: wrap; gap: 20px 28px; align-items: flex-start; }
+.spa-fig { margin: 0; display: flex; flex-direction: column; gap: 8px; align-items: center; max-width: 200px; }
+.spa-fig figcaption { font-size: 12px; color: var(--text-muted); text-align: center; }
+
+.spa-circle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  border-radius: 50%;
+  overflow: hidden;
+  background: var(--avatar-bg, #233746);
+}
+.spa-circle img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.spa-circle-initials { color: #fff; font-weight: 700; font-family: var(--font-heading); }
+
+.spa-original {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 160px;
+  height: 160px;
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+}
+.spa-original img { max-width: 100%; max-height: 100%; object-fit: contain; display: block; }
+.spa-original-empty { color: var(--text-muted); font-size: 13px; }
+
+.spa-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.spa-file { position: absolute; width: 1px; height: 1px; opacity: 0; overflow: hidden; pointer-events: none; }
+.spa-section { border-top: 1px solid var(--border); padding-top: 14px; display: flex; flex-direction: column; gap: 10px; }
+.spa-h { margin: 0; font-size: 14px; font-family: var(--font-heading); }
+.spa-pending { display: flex; flex-direction: column; gap: 12px; }
+.spa-pending-top { display: flex; align-items: center; gap: 14px; }
+.spa-pending-text { display: flex; flex-direction: column; gap: 2px; }
+.spa-note-label { display: flex; flex-direction: column; gap: 4px; font-size: 13px; }
+.spa-note-label input { width: 100%; }
+.spa-warn {
+  margin: 0;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: var(--warm-bg);
+  border: 1px solid var(--warm-border);
+  color: var(--warm-text);
+  font-size: 13px;
+}
+.spa-error {
+  margin: 0;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: var(--bad-soft);
+  color: var(--bad);
+  font-size: 13px;
+}
+.spa-confirm {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--surface-2);
+}
+.spa-confirm p { margin: 0; }
+.spa-switch { align-self: flex-start; }
+
+.spa-history { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.spa-hist-row {
+  display: grid;
+  grid-template-columns: 40px 1fr auto;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--border);
+}
+.spa-hist-row:last-child { border-bottom: none; }
+.spa-thumb {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  overflow: hidden;
+  background: var(--avatar-bg, #233746);
+  display: inline-block;
+}
+.spa-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.spa-hist-main { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; min-width: 0; font-size: 13px; }
+.spa-hist-actions { display: flex; flex-wrap: wrap; gap: 6px; justify-content: flex-end; }
+.spa-confirm-inline { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; justify-content: flex-end; font-size: 13px; }
+
+/* ---- Bulk bar ---- */
+.spa-bulk-row { display: flex; flex-wrap: wrap; gap: 12px 20px; align-items: center; justify-content: space-between; }
+.spa-bulk-controls { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.spa-bulk-select select { padding: 8px 10px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface-2); color: var(--text); font: inherit; }
+.spa-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+@media (max-width: 600px) {
+  .spa-previews { justify-content: center; }
+  .spa-hist-row { grid-template-columns: 40px 1fr; }
+  .spa-hist-actions { grid-column: 1 / -1; justify-content: flex-start; }
+  .spa-bulk-controls { width: 100%; }
+  .spa-bulk-controls > * { flex: 1 1 100%; }
+  .spa-bulk-select select { width: 100%; }
+  .spa-actions > .btn-primary, .spa-actions > .btn-secondary { flex: 1 1 100%; }
+}

@@ -5,7 +5,7 @@ audience: admin
 keywords: [handbook signatures, audit log, history, who changed, export csv, filters, access changes, fees, rates, mappings, view as]
 sort: 530
 ---
-The **Audit log** (**Settings → Firm settings → Audit log**, admins only) records who changed access, fees, rates, mappings, client settings and staff names, and when. The database writes it, so nobody can edit or delete entries.
+The **Audit log** (**Settings → Firm settings → Audit log**, admins only) records who changed access, fees, rates, mappings, client settings, staff names and staff profile photos, and when. The database writes it, so nobody can edit or delete entries.
 
 ### Find something
 
@@ -14,7 +14,7 @@ Use the filters at the top:
 - Search (email, client id, action…)
 - **Person**: Everyone, System, or a staff member
 - **Client**
-- **Action group**: Client assignments, Temporary access, Staff changes, Client fees, Cost rates, Profitability settings, QuickBooks, Clients, View as, Portal preview, Staff Handbook
+- **Action group**: Client assignments, Temporary access, Staff changes, Client fees, Cost rates, Profitability settings, QuickBooks, Clients, View as, Portal preview, Staff Handbook, Profile photos
 - **From** / **To** dates
 
 **Clear filters** resets them. The table shows When, Person, Action, Client, Target and Details (click **Raw** for the full record). It shows 50 rows per page; use **Newer** / **Older**.

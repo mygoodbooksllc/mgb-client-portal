@@ -46,6 +46,8 @@ If you're also a client's account manager, the **Account manager tour** comes ne
 3. **Review** in the Tasks sidebar (`#/tasks/review`): approve or send back work waiting for you, oldest first. See [How does task review work?](#/help/task-review).
 4. **Waiting on client** in the Tasks sidebar (`#/tasks/waiting`): anything marked **No reply** needs a call. See [How do I ask a client something from a task?](#/help/ask-client).
 
+5. **Today** may show **N profile photos to edit**: download each, remove the background and replace it on **Team › Members**. See [How do I manage staff profile photos?](#/help/staff-photos).
+
 **Every week**
 
 1. Read the weekly digest email.

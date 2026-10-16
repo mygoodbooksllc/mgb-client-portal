@@ -16,6 +16,11 @@ export type Signoff = { text: string | null; photoUrl: string | null };
 const PHOTO_BUCKET = "staff-avatars";
 const PHOTO_URL_SECONDS = 60 * 60 * 24 * 365 * 5; // five years
 const PHOTO_PX = 56;
+// The brand-color circle behind the photo, the same navy as the app's avatars
+// (--avatar-bg in components/settings/settings.css), so a transparent PNG from
+// an admin edit looks identical everywhere. Outlook desktop ignores
+// border-radius and shows a navy square tile; that is accepted.
+const PHOTO_BG = L.T.logoNavy;
 
 /** Sign-offs keyed by lower-cased staff email. Staff without a signature get no entry. */
 export async function loadSignoffs(db: SupabaseClient, emails: string[]): Promise<Map<string, Signoff>> {
@@ -33,6 +38,9 @@ export async function loadSignoffs(db: SupabaseClient, emails: string[]): Promis
     if (settings.signature_photo === true) wantPhoto.push(email);
   }
   if (!wantPhoto.length) return map;
+  // Signs the *current* photo_path. Old emails keep their own URL: objects in
+  // staff-avatars are never deleted (staff-photo.sql), so a replace or restore
+  // only changes what new emails show.
   const { data: profiles } = await db.from("staff_profiles").select("email, photo_path").in("email", wantPhoto);
   for (const pr of profiles || []) {
     const s = map.get(String(pr.email).toLowerCase());
@@ -54,8 +62,13 @@ export function signoffHtml(s: Signoff | null | undefined, name: string | null, 
   if (!s.photoUrl) return L.p(text, { size });
   return (
     `<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;margin:0 0 16px 0;"><tr>` +
-    `<td valign="top" style="padding:2px 14px 0 0;"><img src="${esc(s.photoUrl)}" width="${PHOTO_PX}" height="${PHOTO_PX}" alt="" ` +
-    `style="display:block;width:${PHOTO_PX}px;height:${PHOTO_PX}px;border-radius:${PHOTO_PX / 2}px;border:0;"></td>` +
+    `<td valign="top" style="padding:2px 14px 0 0;">` +
+    `<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;"><tr>` +
+    `<td width="${PHOTO_PX}" height="${PHOTO_PX}" bgcolor="${PHOTO_BG}" ` +
+    `style="width:${PHOTO_PX}px;height:${PHOTO_PX}px;background-color:${PHOTO_BG};border-radius:${PHOTO_PX / 2}px;overflow:hidden;line-height:0;font-size:0;">` +
+    `<img src="${esc(s.photoUrl)}" width="${PHOTO_PX}" height="${PHOTO_PX}" alt="" ` +
+    `style="display:block;width:${PHOTO_PX}px;height:${PHOTO_PX}px;border-radius:${PHOTO_PX / 2}px;border:0;object-fit:cover;"></td>` +
+    `</tr></table></td>` +
     `<td valign="top">${L.p(text, { size, margin: "0" })}</td>` +
     `</tr></table>`
   );

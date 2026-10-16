@@ -83,6 +83,7 @@ because some work happens in Claude Code web sessions. Run `git fetch` and compa
 | `components/pro/` | Pro budget and report tools: `ProBudget.jsx` (Budget vs. Actual tabs, next year's draft with approval) and `ProReports.jsx` (board reports suite and the public share page), each with its own CSS. Loaded before `app.jsx`; `app.jsx` falls back to the old pages if either is missing. |
 | `components/inbox/` | `StaffInbox.jsx` (the unified staff inbox, the staff chat drawer and launcher, and `SI_useClientMessaging` for the client Messages page) and `staff-inbox.css`. Loaded before `app.jsx`; every name is `SI_`/`si`/`StaffInbox` prefixed. Without it, `app.jsx` falls back to the old Team Chat page and sample client threads. |
 | `components/staff/` | Staff-only features, each with its own CSS and a name prefix (`CS_` client switcher, `HLP_` Help, `TB_` top bar, ...). `TopBar.jsx` + `top-bar.css` is the staff top bar (see "Staff top bar" under Main features). All loaded before `app.jsx`. |
+| `components/staff/` (profile photos, 2026-10-16) | Staff profile photos; spec `docs/staff-photo-spec.md`, database `supabase/staff-photo.sql`. `staffPhotoLogic.js` (`SP_`, pure rules, the zip writer, node test `staffPhotoLogic.test.js`), `staffPhotoApi.js` (`SP_api` RPC and storage wrappers, the shared `SP_useMyStatus` / `SP_useAdminList` stores, `SP_changed()`), `staffPhotoImage.js` (`SPI_` canvas crop and re-encode, HEIC detection, download), `StaffPhotoGate.jsx` + `staff-photo.css` (`PG_`: the required-photo gate and the shared picker), `StaffPhotoAdmin.jsx` + `staff-photo-admin.css` (`SPA_`: the Team › Members Photo column, per-person drawer and Download all). |
 | `components/handbook/` | The Staff Handbook (2026-10-13; spec `docs/staff-handbook-spec.md`), Team › Handbook. Every name is `HB_`/`hb-` prefixed. `HB_api.js` (RPC wrappers, the PDF download, the shared `hb_status` store), `HB_PolicyView.jsx` (one policy, sign and countersign), `HB_HandbookTab.jsx` (the tab, its routes and the deep-link claim), `HB_Admin.jsx` (admin status grid, not-filed list with Retry filing, publish editor), `hb.css`. Loaded after `TeamReviewsAdmin.jsx` and before `app.jsx`. |
 | `components/files/` | `DriveFiles.js`: browser helpers for client files in Google Drive (`DRV_` prefix), calling the `drive-files` edge function. Holds the one fallback switch `DRV_STORAGE_FALLBACK`. Loaded before `StaffInbox.jsx` and `app.jsx`. |
 | `components/tasks/` | The Tasks module (2026-10-11; spec `docs/tasks-phase1-spec.md`). Every name is `TK_`/`tk-` prefixed. Logic with node tests: `TK_logic.js` (statuses, grouping, the quick-add parser, keys), `TK_viewLogic.js`, `TK_drawerLogic.js`, `TK_clientLogic.js` (the client strip and panel rules), `TK_reviewLogic.js` (Phase 2 S3: review roles, the review queue groups and a JS copy of the on-time rule), `TK_store.js`, `TK_recurrenceLogic.js` (Phase 2: the business calendar, due rules and periods; fixtures in `TK_recurrence.fixtures.js`), `TK_templateLogic.js` (Phase 2 S4: template form checks, next due dates, period labels, preview rows and error text), `TK_requestLogic.js` (Phase 2 S5: Ask client form checks, request chips and actions, waiting groups and error text), `TK_coverageLogic.js` (Phase 2 S7: time-off hand-off preview groups, skip copy and Covering for labels). Data: `TK_api.js` (Supabase calls), `TK_sync.js` (Realtime plus a `BroadcastChannel` between windows). Views: `TK_App.jsx` (the `#/tasks/...` page and the `/tasks` shell), `TK_Sidebar.jsx`, `TK_MyTasks.jsx`, `TK_List.jsx`, `TK_ClientHeader.jsx`, `TK_ClientDrawer.jsx` (the client task strip and panel, and Follow my client), `TK_TaskRow.jsx`, `TK_StandaloneBar.jsx`, `TK_keys.jsx`, `TK_ReviewQueue.jsx` (`#/tasks/review`), `TK_Templates.jsx` (`#/tasks/templates`, recurring templates), `TK_WaitingList.jsx` (`#/tasks/waiting`, open Ask client requests). Task details: `TK_AskClientModal.jsx` (Client requests and the Ask client window), `TK_ClientContacts.jsx` (Phase 2 S6: the client drawer's Client contacts section), `TK_Drawer.jsx`, `TK_QuickAdd.jsx`, `TK_Comments.jsx`, `TK_Attachments.jsx`, `TK_Activity.jsx`. Styles: `tk-views.css`, `tk-drawer.css`, `tk-client.css`, `tk-requests.css`. Loaded after `components/client/QboGiving.jsx` and before `components/tour/Tour.jsx`. |
@@ -1092,6 +1093,51 @@ goes through `security definer` RPCs that call `tr_me()` / `tr_require_admin()` 
 - **Docs and upkeep:** staff guide `ledger-review.md`; tour steps in `Tour.jsx` (`client-ledger`,
   Work and Team tab steps); tip `ledger-flags` in `Tips.jsx`; help slug `ledger-review`; Dev Tools links.
 
+### Staff profile photos (added 2026-10-16)
+
+Every active staff member must have a profile photo. An admin removes the background so the team
+matches. Spec `docs/staff-photo-spec.md`; database `supabase/staff-photo.sql` (re-runnable).
+
+- **Storage.** Bucket `staff-avatars` (private, 5 MB limit). Staff can only add objects under
+  their own `<email>/` folder; the staff `update` and `delete` policies are dropped. **Objects are
+  never deleted**, so old emails' signed URLs keep working. Versions are only soft-deleted
+  (`staff_photo_versions.deleted_at`). `staff_profiles.photo_path` is still the current-photo
+  pointer, so `bookkeeper_public_profile`, `client_team_profiles`, `signature.ts`, `ST_profile`
+  and `AM_usePhoto` are unchanged.
+- **Statuses (derived, never stored).** `missing`, `exempt` (no photo and an admin marked **Not
+  required**, table `staff_photo_exemptions`), `submitted` (shown as **Needs edit**: the current
+  version is the person's own) and `edited` (shown as **Done**: an admin edit is current). A new
+  upload after an edit goes back to `submitted`.
+- **RPCs.** Staff: `sp_my_photo_status`, `sp_submit_my_photo`. Admin (`is_active_staff_admin()`,
+  so no temp admins): `sp_admin_photo_list`, `sp_admin_photo_history`,
+  `sp_admin_replace_staff_photo`, `sp_admin_restore_staff_photo`, `sp_admin_set_photo_exempt`,
+  `sp_admin_hide_photo_version`, `sp_admin_log_photo_download`. Helpers: `sp_status_for`,
+  `sp_audit`, `sp_can_read_avatar`. Every change writes `audit_write('staff_photo.<verb>', ...)`
+  (Audit log, group **Profile photos**) and a `staff_audit_log` row (Dev Tools).
+- **The guard rule.** `staff_profiles_guard` ignores any change to `photo_path` unless the RPC set
+  the transaction-local flag `mgb.staff_photo_rpc = 'on'`, so `photo_path` only moves through the
+  `sp_*` functions.
+- **Files.** The browser re-encodes through canvas (strips EXIF and GPS): original JPEG, longest
+  side 2048 px; current 512 x 512 JPEG; admin edit 512 x 512 PNG with alpha. Input up to 15 MB,
+  crop at least 400 x 400.
+- **The gate.** `PG_Gate` (mounted in `app.jsx` before the staff tours) is a full-page overlay
+  `#pg-gate` for any active, non-exempt staffer with no photo. Not shown while viewing as someone,
+  previewing a client, or on Settings. **Continue for now** (after a failed upload) hides it for
+  that page load only. If the status can't load, it fails open. **Order:** photo gate, Today's
+  first-sign-in profile prompt, role tour, announcements and tips; each waits while `#pg-gate`
+  exists.
+- **Admin UI.** Team › Members has a **Photo** column (`data-tour="members-photo"` on the first
+  row), a per-person drawer (download original or current, **Replace with edited photo**,
+  **Restore original**, **Not required**, History with **Hide**) and **Download all (zip)**
+  (`mgb-staff-photos-<date>.zip`, logged once). Temp admins see the column read-only. Admins also
+  get a Today row, **N profile photos to edit** (rank 3); it opens Team › Members at the first
+  one through `sessionStorage` `mgb-photo-open` (the hash query is claimed by `DeepLink.jsx`).
+- **Staff side.** Settings › Profile now has **Change photo** only (no remove). New hires get the
+  onboarding step `profile-photo` ("Add your profile photo", guide article `profile-photo`);
+  admins manage photos per `staff-photos`.
+- **Launch.** Announcement `staff-profile-photos` (admins and bookkeepers); guide articles
+  `profile-photo` and `staff-photos`.
+
 ### Staff Handbook (added 2026-10-13)
 
 **Team › Handbook** (`#/team/handbook`): the firm's staff policies, each with versions. Spec:
@@ -1644,6 +1690,11 @@ Team Reviews files.
     `components/staff/Coverage.jsx` (**Hand my tasks to backups** / **Hand off tasks**, **Hand back
     now**), the **Covering for** chip in `TK_Drawer.jsx` and on Today. Tour targets
     `cv-my-timeoff`, `cv-coverage`; launch notice `ooo-handoff`. No edge function changes.
+- **Staff profile photos** (`supabase/staff-photo.sql`, re-runnable; see "Staff profile photos"
+  under Main features). `staff_photo_versions` and `staff_photo_exemptions` (RLS, no direct writes),
+  the `sp_*` RPCs, the `staff_profiles_guard` change (`photo_path` moves only through RPCs), the
+  `staff-avatars` bucket limit raised to 5 MB with the staff update and delete policies dropped,
+  the onboarding step `profile-photo` and a backfill for staff who already have a photo.
 - **Staff Handbook** (`supabase/staff-handbook.sql`, applied 2026-10-13). Re-runnable. Four
   `handbook_*` tables with RLS and no direct writes, the `hb_*` RPCs, two new outbox kinds
   (`handbook_sign_needed`, `handbook_countersign_needed`) added to both email check constraints,

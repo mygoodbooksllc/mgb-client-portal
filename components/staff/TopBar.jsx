@@ -1383,8 +1383,9 @@ function TB_AvatarMenu({
         aria-expanded={menu.open}
         onClick={() => menu.setOpen(!menu.open)}
       >
-        {photoUrl ? (
-          <img className="staff-user-avatar tb-avatar-photo" src={photoUrl} alt="" />
+        {photoUrl && typeof ST_Avatar === "function" ? (
+          // The one avatar component: photo on the brand navy circle, initials if it fails to load.
+          <ST_Avatar name={staffUser.name || staffUser.email} url={photoUrl} size={30} />
         ) : (
           <span className="staff-user-avatar">{initials}</span>
         )}

@@ -1449,6 +1449,15 @@ let TOUR_staffAutoStarted = false;
 // may be about to open: the staffer's profile, which decides that, is
 // still loading (ST_profile, Settings.jsx; given up on after `tries`).
 function TOUR_staffHold(email, tries) {
+  // The required profile photo gate (components/staff/StaffPhotoGate.jsx) goes first.
+  if (document.getElementById("pg-gate")) return true;
+  // ...and may be about to open: the photo status is still loading
+  // (SP_myStore, staffPhotoApi.js; given up on after `tries`, like the profile).
+  if (
+    typeof SP_myStore !== "undefined" && SP_myStore && email && tries < 15 &&
+    SP_myStore.email === String(email).toLowerCase() && !SP_myStore.loaded
+  )
+    return true;
   if (document.getElementById("td-profile-title")) return true;
   const p = typeof ST_profile !== "undefined" && ST_profile ? ST_profile.state : null;
   return !!p && !!email && p.email === email && !p.loaded && tries < 15;
@@ -1464,7 +1473,13 @@ let TOUR_staffState = { open: false, launching: false, autoPending: false };
 // True while a staff tour is open, starting or still to start by itself,
 // or any tour (the client or Pro tour too) is on screen.
 function TOUR_staffBusy() {
-  return TOUR_staffState.open || TOUR_staffState.launching || TOUR_staffState.autoPending || !!document.querySelector(".tour-root");
+  return (
+    TOUR_staffState.open ||
+    TOUR_staffState.launching ||
+    TOUR_staffState.autoPending ||
+    !!document.querySelector(".tour-root") ||
+    !!document.getElementById("pg-gate")
+  );
 }
 
 // Who's signed in, for the launchers. TOUR_StaffRoot keeps it current.

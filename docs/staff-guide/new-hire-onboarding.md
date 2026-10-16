@@ -7,6 +7,10 @@ sort: 15
 ---
 Everyone on the team gets a short **onboarding checklist**: the first things to learn and do at MyGoodBooks. Each step can link to the Staff guide article that explains it.
 
+### Your first sign-in
+
+Before anything else, a full-page **Add your profile photo** screen asks for a clear picture of your face and shoulders. Upload one or take one, crop it, and you're through; it takes about a minute. After that comes the short welcome (birthday and start date) and your tour. See [How do I add or change my profile photo?](#/help/profile-photo).
+
 ### Work through your checklist
 
 - **Team › Onboarding** (`#/team/onboarding`) lists your steps under **Your onboarding**, with a bar showing how many you've done.

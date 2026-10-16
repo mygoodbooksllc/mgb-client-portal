@@ -1,0 +1,204 @@
+/* Required staff profile photo (components/staff/StaffPhotoGate.jsx).
+   Tokens only, so light and dark both follow styles.css. The circle behind a
+   photo is --avatar-bg (settings.css), shared with every avatar. */
+
+/* ---- Gate ---- */
+.pg-gate {
+  position: fixed;
+  inset: 0;
+  /* Above tours (9000, tour.css), modals (2100) and the top bar. */
+  z-index: 9100;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+  color: var(--text);
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+.pg-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 24px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+  flex: none;
+}
+.pg-wordmark {
+  font-family: "Lato", var(--font-body, sans-serif);
+  font-weight: 900;
+  font-size: 22px;
+  letter-spacing: -0.01em;
+  color: var(--ink-strong, var(--text));
+}
+.pg-wordmark-good { color: var(--gold-deep, #8a6d34); }
+.pg-head-actions { display: flex; align-items: center; gap: 8px; }
+.pg-head-btn { padding: 8px 14px; font-size: 13.5px; }
+
+.pg-main {
+  flex: 1 0 auto;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 32px 24px 48px;
+}
+.pg-card {
+  width: 100%;
+  max-width: 640px;
+  box-sizing: border-box;
+  padding: 28px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+}
+.pg-title {
+  margin: 0 0 8px;
+  font: 700 26px/1.2 var(--font-heading);
+  color: var(--ink-strong, var(--text));
+}
+.pg-title:focus { outline: none; }
+.pg-title:focus-visible { outline: 2px solid var(--gold); outline-offset: 4px; border-radius: 4px; }
+.pg-lead { margin: 0 0 14px; font-size: 15px; line-height: 1.55; color: var(--text); }
+.pg-guide {
+  margin: 0 0 20px;
+  padding: 12px 16px 12px 32px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface-2, var(--bg));
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--text);
+}
+.pg-guide li + li { margin-top: 4px; }
+
+/* ---- Picker (also used inside the Settings modal) ---- */
+.pg-picker { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+.pg-alert {
+  padding: 10px 12px;
+  border: 1px solid var(--bad);
+  border-radius: 10px;
+  background: var(--bad-soft);
+  color: var(--bad);
+  font-size: 13.5px;
+  line-height: 1.5;
+}
+.pg-alert-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+
+.pg-drop {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 28px 18px;
+  border: 2px dashed var(--border);
+  border-radius: 12px;
+  text-align: center;
+  background: var(--surface-2, transparent);
+}
+.pg-drop-over { border-color: var(--gold); background: var(--hover-bg); }
+.pg-drop-text { margin: 0; font-size: 14.5px; color: var(--text); }
+.pg-drop-hint { margin: 0; font-size: 12.5px; color: var(--text-muted); }
+
+.pg-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 10px; }
+.pg-btn { min-height: 40px; }
+.pg-btn:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+
+/* Crop: square viewport, round mask over a dimmed square. */
+.pg-crop { display: flex; flex-wrap: wrap; gap: 20px; align-items: flex-start; justify-content: center; }
+.pg-crop-box {
+  position: relative;
+  flex: none;
+  width: min(80vw, 320px);
+  aspect-ratio: 1 / 1;
+  overflow: hidden;
+  border-radius: 8px;
+  background: #000;
+  touch-action: none;
+  cursor: grab;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.pg-crop-box:active { cursor: grabbing; }
+.pg-crop-box:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
+.pg-crop-canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; pointer-events: none; }
+.pg-crop-ring {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.9);
+  box-shadow: 0 0 0 999px rgba(0, 0, 0, 0.55);
+  pointer-events: none;
+}
+.pg-crop-side { display: flex; flex-direction: column; gap: 16px; flex: 1 1 200px; min-width: 0; }
+.pg-zoom { display: flex; flex-direction: column; gap: 6px; font-size: 13px; font-weight: 600; color: var(--text); }
+.pg-zoom input[type="range"] { width: 100%; accent-color: var(--gold-deep, var(--gold)); }
+.pg-zoom input[type="range"]:focus-visible { outline: 2px solid var(--gold); outline-offset: 3px; }
+.pg-preview-row { display: flex; align-items: center; gap: 12px; }
+.pg-preview {
+  display: inline-flex;
+  flex: none;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  overflow: hidden;
+  background: var(--avatar-bg);
+}
+.pg-preview canvas { width: 100%; height: 100%; display: block; }
+.pg-preview-text { font-size: 13px; color: var(--text-muted); }
+.pg-saving { margin: 0; font-size: 13.5px; color: var(--text-muted); text-align: center; }
+.pg-crop-side .pg-actions { justify-content: flex-start; }
+
+.pg-done {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 28px 16px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface-2, transparent);
+  font: 600 16px/1.4 var(--font-heading);
+  color: var(--ink-strong, var(--text));
+}
+.pg-check {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: var(--good, #3f6b52);
+  color: #fff;
+  font-size: 18px;
+  font-weight: 700;
+}
+
+/* Webcam */
+.pg-webcam { display: flex; flex-direction: column; gap: 14px; align-items: center; }
+.pg-video-box { width: 100%; max-width: 420px; aspect-ratio: 4 / 3; border-radius: 10px; overflow: hidden; background: #000; }
+.pg-video { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+/* Settings modal: a smaller crop box. */
+.pg-picker-compact .pg-drop { padding: 20px 14px; }
+.pg-picker-compact .pg-crop-box { width: min(72vw, 260px); }
+.pg-picker-compact .pg-crop { justify-content: center; }
+
+/* Phones */
+@media (max-width: 600px) {
+  .pg-head { padding: 12px 16px; }
+  .pg-wordmark { font-size: 19px; }
+  .pg-main { padding: 16px 16px 32px; }
+  .pg-card { padding: 20px 16px; border-radius: 12px; }
+  .pg-title { font-size: 22px; }
+  .pg-actions { flex-direction: column; align-items: stretch; width: 100%; }
+  .pg-actions .pg-btn { width: 100%; }
+  .pg-crop { flex-direction: column; align-items: center; }
+  .pg-crop-side { width: 100%; flex: none; }
+  .pg-crop-side .pg-actions { justify-content: stretch; }
+  .pg-alert-actions { flex-direction: column; }
+  .pg-alert-actions .pg-btn { width: 100%; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pg-gate * { transition: none !important; animation: none !important; }
+}

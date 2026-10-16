@@ -132,11 +132,22 @@
 .st-shortcuts dd { margin: 0; color: var(--text-muted); font-size: 14px; }
 .st-shortcuts kbd { display: inline-block; min-width: 1.6em; padding: 2px 6px; border: 1px solid var(--border); border-bottom-width: 2px; border-radius: 6px; background: var(--surface-2); font: 600 12px/1.4 var(--font-body); text-align: center; color: var(--text); }
 
-/* Avatars */
-.st-avatar { border-radius: 50%; object-fit: cover; flex: none; display: inline-block; }
+/* Avatars. One component (ST_Avatar) everywhere: the wrap paints the brand
+   navy circle, so a transparent PNG (an admin's edited staff photo) looks the
+   same in the app and in the email signature. The same navy in light and dark
+   on purpose. */
+:root { --avatar-bg: #233746; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) { --avatar-bg: #233746; }
+}
+:root[data-theme="dark"] { --avatar-bg: #233746; }
+.st-avatar-wrap { display: inline-flex; flex: none; border-radius: 50%; overflow: hidden; background: var(--avatar-bg); }
+.st-avatar { border-radius: 50%; object-fit: cover; flex: none; display: inline-block; width: 100%; height: 100%; }
 .st-avatar-initials { display: inline-flex; align-items: center; justify-content: center; background: var(--navy-deep); color: #fff; font-weight: 700; font-family: var(--font-heading); }
 .st-profile-head { display: flex; align-items: center; gap: 16px; margin-bottom: 16px; }
 .st-profile-actions { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.st-photo-required { color: var(--bad); font-weight: 600; }
+.st-photo-modal-body { min-height: 0; overflow-y: auto; padding-top: 4px; }
 
 /* Bookkeeper card (client Dashboard) */
 .st-bk-card { display: flex; align-items: center; gap: 16px; padding: 16px 20px; margin-top: 16px; }
@@ -193,8 +204,10 @@
   .st-list-row { flex-wrap: wrap; }
 }
 
-/* Top bar avatar menu: profile photo and Preview plan check marks. */
-.tb-avatar-photo { object-fit: cover; padding: 0; }
+/* Top bar avatar menu: profile photo (ST_Avatar) and Preview plan check marks. */
+.tb-avatar-btn .st-avatar-wrap { box-sizing: border-box; }
+.tb-avatar-btn:hover .st-avatar-wrap,
+.tb-avatar-btn[aria-expanded="true"] .st-avatar-wrap { box-shadow: 0 0 0 2px var(--tb-chip-hover); }
 .tb-menu-check { display: inline-block; width: 14px; margin-left: -18px; color: var(--gold-deep, var(--gold)); font-weight: 700; }
 .tb-menu-checked { font-weight: 600; }
 

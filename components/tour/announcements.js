@@ -342,6 +342,51 @@ var ANN_REGISTRY = [
       },
     ],
   },
+  {
+    id: "staff-profile-photos",
+    date: "2026-10-16",
+    title: "Profile photos",
+    summary: "Everyone now adds a profile photo, and admins tidy the background so every photo matches.",
+    roles: ["admin", "bookkeeper"],
+    hash: "#/settings",
+    steps: (ctx) => [
+      {
+        id: "ann-welcome",
+        title: "Profile photos for the whole team",
+        body: () =>
+          ctx && ctx.isAdmin
+            ? "Everyone now adds a profile photo. You can download each one, remove the background, and put the edited photo back so the team matches. About a minute."
+            : "Everyone now adds a profile photo, so clients see the same tidy look from all of us. An admin removes the background for you. About a minute.",
+      },
+      {
+        id: "ann-settings",
+        go: () => {
+          if (!/^#\/settings(\?|$)/.test(window.location.hash || "")) window.location.hash = "#/settings";
+        },
+        targets: ["#st-profile-photo"],
+        wait: true,
+        title: "Your photo lives in Settings",
+        body: () => "Change photo opens the same picker any time. Your original is kept, and an admin will tidy the background.",
+      },
+      TOUR_tabStep(
+        "team",
+        "members",
+        "Team › Members",
+        "The Photo column shows who still needs an edit. Click a photo to download it, replace it with your edited version or restore the original.",
+        // A temporary admin sees Members but can't act on photos.
+        (c) => !!(c && c.isAdmin),
+      ),
+      {
+        id: "ann-photo-cell",
+        when: (c) => !!(c && c.isAdmin),
+        targets: ["members-photo"],
+        wait: true,
+        title: "Download, edit, replace",
+        body: () =>
+          "Download the original, remove the background in your editor, save it as a PNG with a transparent background, then choose Replace with edited photo.",
+      },
+    ],
+  },
 ];
 
 if (typeof module !== "undefined" && module.exports) module.exports = { ANN_REGISTRY: ANN_REGISTRY };
