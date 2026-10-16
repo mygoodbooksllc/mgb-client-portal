@@ -64,14 +64,15 @@ function TK_vTrack(name) {
   } catch (e) {}
 }
 
-function TK_vToast(text) {
+// action (optional): { label, onClick } shows a button on the toast (Undo).
+function TK_vToast(text, action) {
   if (!text) return;
   try {
-    if (typeof TK_toast === "function") {
+    if (typeof TK_toast === "function" && !action) {
       TK_toast(text);
       return;
     }
-    window.dispatchEvent(new CustomEvent("mgb:toast", { detail: { text: text } }));
+    window.dispatchEvent(new CustomEvent("mgb:toast", { detail: { text: text, action: action || null } }));
   } catch (e) {}
 }
 

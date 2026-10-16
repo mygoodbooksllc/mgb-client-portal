@@ -69,6 +69,31 @@ Here is every tip, in the order they're considered when two fit the same page (t
 | Settings | Choose where you land after signing in: Today, Work › Tasks or the last client you opened. It's under Appearance & start page. | [How do I change my settings (profile, notifications, theme, signature)?](#/help/staff-settings) |
 | Any client page | Search (or Ctrl+K, ⌘K on a Mac) also looks inside the open client: transactions, budget lines, documents and messages, as well as clients, SOPs and help. | [What's on the bar at the top of the page?](#/help/top-bar) |
 
+#### Everyone: Tasks
+
+These show on **Work › Tasks** (the Tasks pages), after the tips above. The two newest are **Group by** and **Manage projects**.
+
+| Page | Tip | Learn more |
+|---|---|---|
+| Tasks | Press q on any staff page to add a task (on a touch screen, tap Add task). Type it in one line: @name assigns it, #client files it, fri or 10/31 sets the date, and !high marks it urgent. | [How do I add and manage my tasks?](#/help/my-tasks) |
+| Tasks | Click a group's heading to fold it; it stays that way next time. Done starts folded, and View can turn the Today group off. | [How do I add and manage my tasks?](#/help/my-tasks) |
+| Tasks | Click a status to change it. On a task that needs review, Done becomes Send for review; an admin who didn't do the work approves it or sends it back with a note. | [What's in a task's details?](#/help/task-details) |
+| Tasks | Recurring holds the templates that make monthly, quarterly and yearly tasks for each client. Tasks they make show a Recurring tag. | [How do recurring tasks from templates work?](#/help/task-templates) |
+| Tasks | Waiting on client lists everything you've asked a client for from a task, longest wait first. Ask client is in a client task's details. | [How do I ask a client something from a task?](#/help/ask-client) |
+| Tasks (new) | Group by Client lists your tasks one client at a time instead of by due date. The portal remembers your choice (My Tasks and a person's list each remember their own). | [How do I add and manage my tasks?](#/help/my-tasks) |
+| Tasks | Nobody is on this task yet. Claim takes it: it moves into your groups and the team sees your name on it. | [How do I add and manage my tasks?](#/help/my-tasks) |
+| Tasks | Projects are shared lists. SOPs and 90 Day are open to all staff, so anyone can add to them. Each client you can see has its own list too. | [How do client task lists and projects work?](#/help/task-lists-and-projects) |
+| Tasks (not on a touch screen) | Open in own window keeps Tasks in a slim window beside your work. Dock in portal brings it back. | [Can I keep Tasks in its own window?](#/help/tasks-own-window) |
+| Any client page | Your next task for this client. Click All tasks, or press t, to see them all without leaving the page. | [How do I see a client's tasks without leaving the page?](#/help/client-tasks-drawer) |
+
+#### Admins: Tasks
+
+| Page | Tip | Learn more |
+|---|---|---|
+| Tasks | Review lists the work waiting for an admin's approval, oldest first. The number is what you can approve now. | [How does task review work?](#/help/task-review) |
+| Tasks (new) | Manage projects lists every project, including archived ones and the trash. Rename, archive, trash or restore from there. | [How do I rename, archive or trash a project?](#/help/manage-projects) |
+| Tasks | No team yet lists clients brought over from Asana with no bookkeeper. Open one and click Assign team to give it one; no email is sent. | [How do client task lists and projects work?](#/help/task-lists-and-projects) |
+
 #### Bookkeepers
 
 | Page | Tip | Learn more |

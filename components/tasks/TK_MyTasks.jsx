@@ -18,8 +18,9 @@ var TK_vGROUPBY_KEY = "mgb_tk_groupby_v1";
 
 // "Group by: Due date | Client", remembered per signed-in person (localStorage,
 // never the server). Used by My Tasks and a person's list.
-function TK_vUseGroupBy(email) {
-  var key = TK_vGROUPBY_KEY + ":" + (email || "");
+function TK_vUseGroupBy(email, scope) {
+  // a person's list ("person") remembers its own choice, apart from My Tasks
+  var key = typeof TK_groupByKey === "function" ? TK_groupByKey(email, scope) : TK_vGROUPBY_KEY + ":" + (scope === "person" ? "person:" : "") + (email || "");
   var pair = React.useState(function () {
     var v = TK_vLsGet(key, "due");
     return typeof TK_normalizeGroupBy === "function" ? TK_normalizeGroupBy(v) : v === "client" ? "client" : "due";

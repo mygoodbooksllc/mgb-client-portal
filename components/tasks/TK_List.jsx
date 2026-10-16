@@ -612,6 +612,9 @@ function TK_vProjectHeader(props) {
   var oPair = React.useState(null);
   var modal = oPair[0];
   var setModal = oPair[1];
+  var cPair = React.useState(null);
+  var counts = cPair[0];
+  var setCounts = cPair[1];
 
   if (!project) return null;
   var archived = !!project.archived_at;
@@ -653,11 +656,44 @@ function TK_vProjectHeader(props) {
     );
   };
 
+  // Open the trash confirm, then fetch the task counts for it (the project row
+  // carries none). Until they arrive the confirm says "all its tasks, including
+  // other people's".
+  var askTrash = function () {
+    setCounts(null);
+    setModal("trash");
+    var id = project.id;
+    if (typeof TK_api.projectTaskCounts !== "function") return;
+    TK_api.projectTaskCounts(id).then(
+      function (c) {
+        if (c) setCounts(c);
+      },
+      function () {},
+    );
+  };
   var trash = function () {
     setModal(null);
-    TK_api.trashProject(project.id).then(
+    var id = project.id;
+    TK_api.trashProject(id).then(
       function () {
-        TK_vToast("Moved to the trash. " + (isAdmin ? "Restore it from Manage projects." : "An admin can restore it."));
+        // Undo works right away: the restore RPC lets the project's owner back in
+        // even though the project is hidden from direct reads while trashed.
+        TK_vToast("Moved to the trash. " + (isAdmin ? "Restore it from Manage projects." : "An admin can restore it."), {
+          label: "Undo",
+          onClick: function () {
+            TK_api.restoreProject(id).then(
+              function () {
+                TK_vToast("Restored.");
+                try {
+                  TK_navigate({ view: "project", projectId: id });
+                } catch (e4) {}
+              },
+              function (e5) {
+                TK_vToast(typeof TK_manageErrorText === "function" ? TK_manageErrorText(e5) : TK_vErrText(e5, "saveError"));
+              },
+            );
+          },
+        });
         try {
           TK_navigate({ view: "my" });
         } catch (e3) {}
@@ -822,7 +858,7 @@ function TK_vProjectHeader(props) {
                     className="tk-menu-item tk-menu-danger"
                     onClick={function () {
                       close();
-                      setModal("trash");
+                      askTrash();
                     }}
                   >
                     Move to trash
@@ -878,8 +914,8 @@ function TK_vProjectHeader(props) {
       ) : null}
       {modal === "trash" ? (
         <TK_vConfirm
-          title={TK_manageTrashConfirm(project).title}
-          body={TK_manageTrashConfirm(project).body}
+          title={TK_manageTrashConfirm(Object.assign({}, project, counts || {})).title}
+          body={TK_manageTrashConfirm(Object.assign({}, project, counts || {})).body}
           confirmLabel="Move to trash"
           onCancel={function () {
             setModal(null);
@@ -952,7 +988,7 @@ function TK_vListBody(props) {
     return s ? s.drawerId : null;
   });
   // Person lists can group by client (remembered per signed-in person).
-  var gbPair = TK_vUseGroupBy(email);
+  var gbPair = TK_vUseGroupBy(email, "person");
   var byClient = route.view === "person" && gbPair[0] === "client" && typeof TK_groupByClient === "function";
 
   var scopeInfo = TK_listScopeOf(route, { staff: staff || [] });

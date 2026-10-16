@@ -65,7 +65,7 @@ var TK_api = (function () {
     "tk_has_open_requests", "tk_email_off", "tk_no_recipients", "tk_bad_recipient", "tk_legacy_request",
     "tk_reply_required", "tk_not_open", "tk_not_answered", "tk_contact_exists", "tk_bad_contact", "tk_bad_request",
     "tk_already_assigned", "tk_bad_assignee", "tk_has_team",
-    "tk_project_trashed", "tk_bad_name", "tk_trash_expired",
+    "tk_project_trashed", "tk_bad_name", "tk_trash_expired", "tk_restore_name_taken", "tk_task_in_trash",
   ];
   var COPY_FALLBACK = {
     sentForReview: "Sent for review. An admin will approve it.",
@@ -1370,6 +1370,17 @@ var TK_api = (function () {
   api.setProjectArchived = function (id, archive) {
     return rpcWrite("tk_project_archive", { p_project: id, p_archive: archive !== false }, "archiveProject").then(function (v) {
       return afterProjectManage().then(function () { return v; });
+    });
+  };
+
+  // { open_tasks, done_tasks, other_tasks } for the "Move to trash" confirm
+  // (admin or project manager only; a refusal rejects with tk_forbidden).
+  api.projectTaskCounts = function (id) {
+    return run(function (c) {
+      return c.rpc("tk_project_task_counts", { p_project: id });
+    }, { where: "projectTaskCounts" }).then(function (rows) {
+      var r = Array.isArray(rows) ? rows[0] : rows;
+      return r ? { open_tasks: Number(r.open_tasks) || 0, done_tasks: Number(r.done_tasks) || 0, other_tasks: Number(r.other_tasks) || 0 } : null;
     });
   };
 

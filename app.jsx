@@ -386,10 +386,13 @@ const useToast = () => useContext(ToastContext);
 function ToastProvider({ children }) {
   const [toasts, setToasts] = useState([]);
 
-  const showToast = (text) => {
+  // action (optional): { label, onClick } puts a button on the toast (Undo) and
+  // keeps it up longer.
+  const showToast = (text, action) => {
     const id = Date.now() + Math.random();
-    setToasts((t) => [...t, { id, text }]);
-    setTimeout(() => setToasts((t) => t.filter((x) => x.id !== id)), 3200);
+    const act = action && typeof action.onClick === "function" ? action : null;
+    setToasts((t) => [...t, { id, text, action: act }]);
+    setTimeout(() => setToasts((t) => t.filter((x) => x.id !== id)), act ? 10000 : 3200);
   };
 
   // Deep-link fallbacks (DeepLink.jsx LK_toast) and other code outside React
@@ -397,7 +400,7 @@ function ToastProvider({ children }) {
   useEffect(() => {
     const onToast = (e) => {
       const text = e && e.detail && e.detail.text;
-      if (text) showToast(String(text));
+      if (text) showToast(String(text), e.detail.action);
     };
     window.addEventListener("mgb:toast", onToast);
     return () => window.removeEventListener("mgb:toast", onToast);
@@ -410,6 +413,18 @@ function ToastProvider({ children }) {
         {toasts.map((t) => (
           <div className="toast" key={t.id}>
             {t.text}
+            {t.action ? (
+              <button
+                type="button"
+                className="toast-action"
+                onClick={() => {
+                  setToasts((list) => list.filter((x) => x.id !== t.id));
+                  t.action.onClick();
+                }}
+              >
+                {t.action.label || "Undo"}
+              </button>
+            ) : null}
           </div>
         ))}
       </div>
@@ -1027,7 +1042,7 @@ const INFRA_LINKS = [
   {
     name: "Supabase SQL (Tasks manage projects)",
     url: "https://supabase.com/dashboard/project/xumsqmhccgfjnlmieqyu/sql/new",
-    note: "supabase/tasks-p3-manage-projects.sql (self-test: tasks-p3-manage-projects-tests.sql, rolls back): tk_projects trashed_at / trashed_by / trash_expired_at and staff_reminders.trashed_with_project; RPCs tk_project_rename, tk_project_archive, tk_project_trash, tk_project_restore and admin-only tk_admin_list_projects (the Manage projects screen) · trash reuses staff_reminders.deleted_at so every list, digest and score already hides it; restore revives only the tasks the trash hid · 30 days only marks a project expired (an admin can still restore); nothing is purged · trash is refused while a task has an open Ask client request (tk_has_open_requests) · audit actions tk_project.renamed / archived / unarchived / trashed / restored / trash_expired",
+    note: "supabase/tasks-p3-manage-projects.sql + tasks-p3-manage-projects-fixes.sql (task-in-trash guard, tk_project_task_counts, tk_restore_name_taken, import skips trashed projects) (self-test: tasks-p3-manage-projects-tests.sql, rolls back): tk_projects trashed_at / trashed_by / trash_expired_at and staff_reminders.trashed_with_project; RPCs tk_project_rename, tk_project_archive, tk_project_trash, tk_project_restore and admin-only tk_admin_list_projects (the Manage projects screen) · trash reuses staff_reminders.deleted_at so every list, digest and score already hides it; restore revives only the tasks the trash hid · 30 days only marks a project expired (an admin can still restore); nothing is purged · trash is refused while a task has an open Ask client request (tk_has_open_requests) · audit actions tk_project.renamed / archived / unarchived / trashed / restored / trash_expired",
   },
   {
     name: "Supabase SQL (Tasks unassigned + Asana import)",

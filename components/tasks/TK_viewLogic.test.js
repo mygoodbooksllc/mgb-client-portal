@@ -585,7 +585,30 @@ t("manageTrashConfirm names the project and task counts", () => {
   assert.ok(c.body.indexOf("5 tasks (3 open, 2 done)") >= 0);
   assert.ok(/Nothing is deleted/.test(c.body));
   assert.strictEqual(c.confirm, "Move to trash");
-  assert.ok(L.TK_manageTrashConfirm({ name: "Empty" }).body.indexOf("disappear from every list") >= 0);
+  assert.ok(L.TK_manageTrashConfirm({ name: "Empty", open_tasks: 0, done_tasks: 0 }).body.indexOf("disappear from every list") >= 0);
+});
+t("manageTrashConfirm without counts warns about other people's tasks", () => {
+  const b = L.TK_manageTrashConfirm({ name: "Unknown" }).body;
+  assert.ok(/all its tasks, including other people's/.test(b));
+  assert.ok(/Nothing is deleted/.test(L.TK_manageTrashConfirm({ name: "Unknown" }).body));
+});
+t("manageTrashConfirm says how many tasks belong to other people", () => {
+  const some = L.TK_manageTrashConfirm({ name: "P", open_tasks: 3, done_tasks: 1, other_tasks: 2 }).body;
+  assert.ok(/4 tasks \(3 open, 1 done\)/.test(some) && /2 of them belong to other people/.test(some));
+  assert.ok(/All of them belong to other people/.test(L.TK_manageTrashConfirm({ name: "P", open_tasks: 1, done_tasks: 1, other_tasks: 2 }).body));
+  assert.ok(/1 of them belongs to other people/.test(L.TK_manageTrashConfirm({ name: "P", open_tasks: 2, done_tasks: 1, other_tasks: 1 }).body));
+  assert.ok(!/other people/.test(L.TK_manageTrashConfirm({ name: "P", open_tasks: 2, done_tasks: 1, other_tasks: 0 }).body));
+});
+t("restore into a taken name has its own message", () => {
+  const m = L.TK_manageErrorText({ reason: "tk_restore_name_taken" });
+  assert.ok(/Rename or archive the active project with this name first/.test(m));
+  assert.notStrictEqual(m, L.TK_manageErrorText({ reason: "tk_name_taken" }));
+});
+t("person lists remember Group by apart from My Tasks", () => {
+  assert.strictEqual(L.TK_groupByKey("a@x.org"), "mgb_tk_groupby_v1:a@x.org");
+  assert.strictEqual(L.TK_groupByKey("a@x.org", "person"), "mgb_tk_groupby_v1:person:a@x.org");
+  assert.notStrictEqual(L.TK_groupByKey("a@x.org"), L.TK_groupByKey("a@x.org", "person"));
+  assert.strictEqual(L.TK_groupByKey(null, "person"), "mgb_tk_groupby_v1:person:");
 });
 t("manageErrorText maps the server reasons", () => {
   assert.ok(/already a project/.test(L.TK_manageErrorText({ reason: "tk_name_taken" })));

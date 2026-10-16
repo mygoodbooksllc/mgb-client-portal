@@ -2,7 +2,7 @@
 title: How do I rename, archive or trash a project?
 section: Daily work
 audience: admin
-keywords: [manage projects, #/tasks/manage, rename project, archive project, unarchive, trash, move to trash, restore project, restore from trash, delete project, deleted project, trashed project, trash tab, 30 days, expired trash, project owner, project list, all projects, open requests, tk_has_open_requests, projects admin]
+keywords: [manage projects, #/tasks/manage, rename project, archive project, unarchive, trash, move to trash, restore project, restore from trash, delete project, deleted project, trashed project, trash tab, 30 days, expired trash, project owner, project list, all projects, open requests, tk_has_open_requests, restore name taken, rename or archive the active project, undo trash, projects admin]
 sort: 115
 ---
 **Manage projects** is the admin screen for every project in Tasks, including archived ones and the trash. Open it from **Manage projects** under **Projects** in the Tasks sidebar (`#/tasks/manage`). Only admins see it; anyone else who opens the link gets a note that it's for admins.
@@ -32,10 +32,11 @@ If any task in the project has a client request that is **open** or **answered**
 
 ### Project owners
 
-A project's owner can also use **Move to trash** in the **Project options** menu on the project's own page. After that only an admin can restore it, from **Manage projects**. Everything is recorded in the **Audit log** (`tk_project.renamed`, `archived`, `unarchived`, `trashed`, `restored`).
+A project's owner can also use **Move to trash** in the **Project options** menu on the project's own page. The confirm says how many tasks go with the project and how many of them belong to other people. Changed your mind? Click **Undo** in the message that appears right after (it stays for about 10 seconds); the project and its tasks come straight back. After that, only an admin can restore it, from **Manage projects**. Everything is recorded in the **Audit log** (`tk_project.renamed`, `archived`, `unarchived`, `trashed`, `restored`).
 
 ### Troubleshooting
 
 - **"There's already a project with that name. Try another name."** Names are unique.
+- **Restore says "Rename or archive the active project with this name first."** A project that is not in the trash already uses the trashed project's name. Rename or archive that one (or rename this one before trashing next time), then click **Restore** again. A different name is allowed while a project is in the trash, so this can happen.
 - **A trashed project's link says "We couldn't find that list."** That's expected. Restore it from **Manage projects › Trash**.
 - **I can't see Manage projects.** It's admins only. Temporary admins don't see it.

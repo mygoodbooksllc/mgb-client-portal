@@ -15,6 +15,7 @@ Each new launch also has a **Launches** list above, with **Open** and **Take the
 - **Admins: Manage projects.** Under **Projects** in the Tasks sidebar, **Manage projects** lists every project (active, archived and in the trash) with its owner and task counts. Rename, archive, unarchive, move to trash or restore. See [How do I rename, archive or trash a project?](#/help/manage-projects).
 - **Move to trash** hides a project and its tasks from every list, My Tasks, Waiting on client, counts, digests and performance. Nothing is deleted; **Restore** brings back exactly what the trash hid. It's refused while a task is waiting on a client request. Project owners can trash their own project from **Project options**; only an admin can restore it.
 - The **Admin tour** now stops at **Tasks › Manage projects**.
+- **Move to trash by a project owner.** The confirm now says how many tasks go with the project and how many belong to other people, and the message afterwards has an **Undo** button. A restore blocked by a name another project is using now says *Rename or archive the active project with this name first.*
 
 ### 2026-10-16: Your Asana tasks are in Tasks
 

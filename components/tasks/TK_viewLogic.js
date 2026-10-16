@@ -576,6 +576,13 @@ function TK_normalizeGroupBy(v) {
   return v === "client" ? "client" : "due";
 }
 
+// localStorage key for the remembered choice. My Tasks and a person's list keep
+// separate choices (scope "person"), both under the same prefix so Dev Tools'
+// reset still finds them.
+function TK_groupByKey(email, scope) {
+  return "mgb_tk_groupby_v1:" + (scope === "person" ? "person:" : "") + (email || "");
+}
+
 // TK_groupMyTasks output -> one flat list, in group order (Overdue first,
 // Done last), so a client's group still reads most urgent first. Done tasks
 // are left out when opts.showDone === false.
@@ -746,9 +753,17 @@ function TK_manageTrashConfirm(row) {
   var open = row && typeof row.open_tasks === "number" ? row.open_tasks : 0;
   var done = row && typeof row.done_tasks === "number" ? row.done_tasks : 0;
   var tasks = open + done;
-  var body = tasks
-    ? TK_managePlural(tasks, "task", "tasks") + " (" + open + " open, " + done + " done) will disappear from every list, including My Tasks, with the project."
-    : "The project will disappear from every list.";
+  var counted = row && typeof row.open_tasks === "number" && typeof row.done_tasks === "number";
+  var others = row && typeof row.other_tasks === "number" ? row.other_tasks : 0;
+  var body;
+  if (!counted) {
+    body = "The project and all its tasks, including other people's, will disappear from every list, including My Tasks.";
+  } else if (tasks) {
+    body = TK_managePlural(tasks, "task", "tasks") + " (" + open + " open, " + done + " done) will disappear from every list, including My Tasks, with the project.";
+    if (others) body += " " + (others === tasks ? "All of them" : others + " of them") + " belong" + (others === 1 ? "s" : "") + " to other people.";
+  } else {
+    body = "The project will disappear from every list.";
+  }
   return {
     title: "Move “" + name + "” to the trash?",
     body: body + " Nothing is deleted. An admin can restore it from Manage projects.",
@@ -759,6 +774,7 @@ function TK_manageTrashConfirm(row) {
 // Friendly text for an RPC error from rename, archive, trash or restore.
 function TK_manageErrorText(err) {
   var why = err && (err.reason || err.code) ? String(err.reason || err.code) : "";
+  if (why === "tk_restore_name_taken") return "Rename or archive the active project with this name first, then restore this one.";
   if (why === "tk_name_taken" || why === "23505") return "There's already a project with that name. Try another name.";
   if (why === "tk_bad_name") return "A project name needs 1 to 120 characters.";
   if (why === "tk_has_open_requests") {
@@ -804,6 +820,7 @@ if (typeof module !== "undefined" && module.exports) {
     TK_searchRowToTask: TK_searchRowToTask,
     TK_GROUP_BY_VALUES: TK_GROUP_BY_VALUES,
     TK_normalizeGroupBy: TK_normalizeGroupBy,
+    TK_groupByKey: TK_groupByKey,
     TK_flattenMyGroups: TK_flattenMyGroups,
     TK_NO_CLIENT_KEY: TK_NO_CLIENT_KEY,
     TK_groupByClient: TK_groupByClient,

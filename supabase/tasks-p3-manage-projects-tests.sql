@@ -15,6 +15,12 @@
 -- "expired", an admin can still restore it); same name as a trashed project
 -- is allowed, restore into a taken name is refused; every action is in the
 -- audit log; no email.
+--
+-- Review fixes (tasks-p3-manage-projects-fixes.sql): a trashed task cannot be
+-- undeleted or moved by one UPDATE (project_id null + deleted_at null), other
+-- columns of it can still change (offboarding / hand-off), the task counts
+-- RPC for the trash confirm, restore into a taken name has its own error,
+-- the Asana import functions ignore trashed projects.
 -- =====================================================================
 begin;
 
@@ -179,6 +185,18 @@ select pg_temp.ok((select open_tasks = 1 and done_tasks = 1 and trashed_tasks = 
                   'admin list: P1 active with 1 open and 1 done task (the individually deleted one is not counted)');
 select pg_temp.as_user(null);
 
+-- 3b. Counts for the trash confirm (open / done / other people's)
+select pg_temp.as_user(pg_temp.ctx('bk1'));
+select pg_temp.ok((select open_tasks = 1 and done_tasks = 1 and other_tasks = 0 from public.tk_project_task_counts(pg_temp.id('P1'))),
+                  'counts: the owner sees 1 open, 1 done, none belonging to other people');
+select pg_temp.expect_err($$select * from public.tk_project_task_counts(pg_temp.id('P2'))$$, 'tk_forbidden', 'counts: a non-manager is refused');
+select pg_temp.as_user(pg_temp.ctx('a1'));
+select pg_temp.ok((select open_tasks = 1 and done_tasks = 1 and other_tasks = 2 from public.tk_project_task_counts(pg_temp.id('P1'))),
+                  'counts: an admin sees the same tasks as other people''s');
+select pg_temp.as_user(null);
+select pg_temp.expect_err($$select * from public.tk_project_task_counts(pg_temp.id('P1'))$$, 'tk_forbidden', 'counts: no caller identity is refused');
+select pg_temp.ok(not has_function_privilege('anon', 'public.tk_project_task_counts(uuid)', 'execute'), 'counts: anon cannot execute');
+
 -- 4. Trash ---------------------------------------------------------------------------------------
 select pg_temp.as_user(pg_temp.ctx('bk1'));
 select pg_temp.ok(public.tk_project_trash(pg_temp.id('P1')) = 2, 'owner trashes P1; two live tasks went with it');
@@ -209,10 +227,31 @@ select pg_temp.expect_err($$select public.tk_project_rename(pg_temp.id('P1'), 'O
 select pg_temp.expect_err($$select public.tk_project_archive(pg_temp.id('P1'), true)$$, 'tk_project_trashed', 'a trashed project cannot be archived');
 select pg_temp.as_user(null);
 select pg_temp.expect_err($$select pg_temp.mk('T6', pg_temp.ctx('bk1'), pg_temp.id('P1'))$$, 'tk_project_trashed', 'no new live task in a trashed project');
-select pg_temp.expect_err($$update staff_reminders set deleted_at = null where id = pg_temp.id('T1')$$, 'tk_project_trashed',
+select pg_temp.expect_err($$update staff_reminders set deleted_at = null where id = pg_temp.id('T1')$$, 'tk_task_in_trash',
                           'a task of a trashed project cannot be undeleted on its own');
 select pg_temp.expect_err($$update staff_reminders set project_id = pg_temp.id('P1'), deleted_at = null where id = pg_temp.id('T5')$$, 'tk_project_trashed',
                           'a task cannot be moved into a trashed project');
+-- review fix: the exact statement that used to slip through (project cleared AND undeleted at once)
+select pg_temp.expect_err($$update staff_reminders set project_id = null, deleted_at = null where id = pg_temp.id('T1')$$, 'tk_task_in_trash',
+                          'a trashed task cannot be pulled out with project_id = null and deleted_at = null');
+select pg_temp.expect_err($$update staff_reminders set project_id = pg_temp.id('P2') where id = pg_temp.id('T2')$$, 'tk_task_in_trash',
+                          'a trashed task cannot be moved to another project');
+select pg_temp.expect_err($$update staff_reminders set deleted_at = null, trashed_with_project = null where id = pg_temp.id('T2')$$, 'tk_task_in_trash',
+                          'a trashed task cannot be undeleted while clearing its marker');
+select pg_temp.ok((pg_temp.row('T1')).deleted_at is not null and (pg_temp.row('T1')).project_id = pg_temp.id('P1')
+                  and (pg_temp.row('T1')).trashed_with_project = pg_temp.id('P1'), 'the refused statements changed nothing');
+-- other columns still change (offboarding / hand-off reassign every not-done task); the task stays hidden
+update staff_reminders set assignee_email = pg_temp.ctx('bk2') where id = pg_temp.id('T1');
+select pg_temp.ok((pg_temp.row('T1')).assignee_email = pg_temp.ctx('bk2') and (pg_temp.row('T1')).deleted_at is not null
+                  and (pg_temp.row('T1')).trashed_with_project = pg_temp.id('P1'),
+                  'a reassignment of a trashed task still works and keeps it hidden and marked');
+update staff_reminders set assignee_email = pg_temp.ctx('bk1') where id = pg_temp.id('T1');
+-- the Asana import functions ignore trashed projects
+select pg_temp.ok(position('trashed_at is null' in pg_get_functiondef('public.tk_import_assign_team(text,text)'::regprocedure)) > 0,
+                  'tk_import_assign_team ignores trashed projects');
+select pg_temp.ok((select position('archived_at is null and trashed_at is null' in pg_get_functiondef(p.oid)) > 0
+                     from pg_proc p where p.pronamespace = 'public'::regnamespace and p.proname = 'tk_import_asana_apply'),
+                  'tk_import_asana_apply ignores trashed projects');
 -- the API cannot forge or clear the trash columns
 select pg_temp.as_user(pg_temp.ctx('a1'));
 set local role authenticated;
@@ -227,7 +266,7 @@ select pg_temp.ok((select trashed_with_project is null from staff_reminders wher
 select pg_temp.mkproj('P3', 'P3 manage test Alpha 2', pg_temp.ctx('a2'));
 select pg_temp.ok(pg_temp.id('P3') is not null, 'a new project may reuse the name of a trashed one');
 select pg_temp.as_user(pg_temp.ctx('a1'));
-select pg_temp.expect_err($$select public.tk_project_restore(pg_temp.id('P1'))$$, 'tk_name_taken', 'restore into a taken name is refused');
+select pg_temp.expect_err($$select public.tk_project_restore(pg_temp.id('P1'))$$, 'tk_restore_name_taken', 'restore into a taken name is refused (its own error)');
 select pg_temp.as_user(null);
 update tk_projects set name = 'P3 manage test Gamma' where id = pg_temp.id('P3');
 

@@ -786,7 +786,7 @@ hours, fees and revenue all use it. See "MGB (internal) and flagged clients" und
   - **Version:** `MGB_VERSION` `2026-10-11b`, "Tasks: client task strip and panel, t shortcut, Follow my
     client".
   - Local storage (all cleared by Developer Tools › Reset local state, which takes every
-    `mgb_` key): `mgb_tk_groups_v1`, `mgb_tk_view_v1`, `mgb_tk_groupby_v1:<email>`, `mgb_tk_sort_v1`, `mgb_tk_popout_v1`, `mgb_tk_follow_v1`.
+    `mgb_` key): `mgb_tk_groups_v1`, `mgb_tk_view_v1`, `mgb_tk_groupby_v1:<email>`, `mgb_tk_groupby_v1:person:<email>`, `mgb_tk_sort_v1`, `mgb_tk_popout_v1`, `mgb_tk_follow_v1`.
     In `sessionStorage`, per tab and ending with it: the shell flag `mgb_shell_v1` and
     `mgb_tk_keys_used_v1` (`TK_keys.jsx`).
   - Guide articles: `my-tasks`, `task-details`, `task-lists-and-projects`, `tasks-own-window`, `client-tasks-drawer`.
@@ -1791,8 +1791,17 @@ Team Reviews files.
     (`data-tour` `tk-groupby`): clients A to Z, then **No client**, then test, then internal
     (`CF_flag`). Remembered per signed-in person in `localStorage` `mgb_tk_groupby_v1:<email>`
     (cleared by Developer Tools › Reset local state).
-  - Known gaps: a project owner who isn't an admin can trash from the project header but can't see or
-    restore it afterward (Manage projects is admin only); `tk_can_see_project` still resolves for
+  - **Review fixes** (`supabase/tasks-p3-manage-projects-fixes.sql`, applied; same self-test file): a task
+    trashed with its project can no longer be undeleted or moved to another project by a direct UPDATE
+    (`tk_task_in_trash`, outside the trash/restore RPCs; other columns still change so offboarding and
+    hand-offs don't abort); `tk_project_task_counts(project)` feeds the owner's Move to trash confirm
+    (open, done, other people's); the Move to trash toast has an **Undo** (toast actions: the
+    `mgb:toast` event and `showToast(text, {label, onClick})` in `app.jsx`) that calls the restore
+    RPC, which lets the owner back in; restore into a taken name is `tk_restore_name_taken`;
+    `tk_import_asana_apply` / `tk_import_assign_team` skip trashed projects. A person's list keeps its
+    own Group by choice in `mgb_tk_groupby_v1:person:<email>` (`TK_groupByKey`).
+  - Known gaps: a project owner who isn't an admin can trash from the project header (and Undo from the
+    toast) but can't see or restore it afterward (Manage projects is admin only); `tk_can_see_project` still resolves for
     admins on a trashed project (its tasks stay hidden).
   - Upkeep: launch announcement `tasks-manage-projects`, What's new, guide article `manage-projects`
     (admin) plus `task-lists-and-projects`, `my-tasks`, `admin-guide`, Admin tour stop
