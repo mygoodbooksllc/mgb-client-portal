@@ -63,7 +63,7 @@ You can also type it in plain words. The box shows a **Will add** line with what
 | *for*, *re* or *client* a client's name | Files it under that client (type the whole name; at the end of the line, or at the start before a colon). | `Statements re Example Church`, `re Example Church: reconcile` |
 | *by Friday*, *due the 15th*, *the 15th*, *end of month* | Sets the due date. | `Send invoices by Friday` |
 
-If a name matches more than one person or client, or both a person and a client, nothing is picked: the words stay in the title and a **Did you mean** line lets you pick. Click **×** on a chip to put its words back in the title. The inline add box on a project or client list still reads only the symbols (**@**, **#**, **!**) and dates.
+If a name matches more than one person or client, or both a person and a client, nothing is picked: the words stay in the title and a **Did you mean** line lets you pick. Click **×** on a plain-words chip to put its words back in the title (on an **@**, **#** or **!** chip it removes the symbol). The inline add box on a project or client list still reads only the symbols (**@**, **#**, **!**) and dates.
 
 - A weekday such as `fri` means the next one, never today.
 - `tom`, `sun`, `mon` and `sat` are also everyday words, so they only count as dates right after "due" or "on", or as the last word. *Call Tom about payroll* stays as you typed it.
