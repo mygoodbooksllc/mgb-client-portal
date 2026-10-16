@@ -217,8 +217,11 @@ security definer
 set search_path = public
 as $$
 declare
-  v_old jsonb := case when tg_op = 'UPDATE' then to_jsonb(old) -> 'client_request_enabled' end;
-  v_new jsonb := to_jsonb(new) -> 'client_request_enabled';
+  -- An inserted row compares against "off", so creating the settings row with
+  -- the switch off (the column default) is not an owner-only change.
+  v_old jsonb := case when tg_op = 'UPDATE' then to_jsonb(old) -> 'client_request_enabled'
+                      else 'false'::jsonb end;
+  v_new jsonb := coalesce(to_jsonb(new) -> 'client_request_enabled', 'false'::jsonb);
 begin
   if v_new is not distinct from v_old then
     return new;

@@ -598,7 +598,7 @@ function TK_StatusPill(props) {
     function () {
       return typeof TK_nextStatuses === "function" ? TK_nextStatuses(task, { isAdmin: !!props.isAdmin, me: props.me || TK_vMe() }) : [];
     },
-    [task, props.isAdmin],
+    [task, props.isAdmin, props.me],
   );
   var canEdit = props.canEdit !== false && !!props.onChange && items.length > 0;
 

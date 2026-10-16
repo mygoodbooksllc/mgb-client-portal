@@ -660,8 +660,11 @@ function TK_dwReview(props) {
   var reviewerName = task.reviewer_email ? TK_dlNameOf(task.reviewer_email, staff) : "any admin";
   var wait = inReview && typeof TK_reviewWaitLabel === "function" ? TK_reviewWaitLabel(task) : "";
   var assignee = TK_dwLower(task.assignee_email || task.staff_email);
+  // tk_set_reviewer refuses the assignee, and the submitter while in review.
+  var submitter = inReview ? TK_dwLower(task.submitted_by) : "";
   var admins = staff.filter(function (s) {
-    return s && s.active !== false && s.role === "admin" && TK_dwLower(s.email) !== assignee;
+    var em = s ? TK_dwLower(s.email) : "";
+    return s && s.active !== false && s.role === "admin" && em !== assignee && (!submitter || em !== submitter);
   });
   var picker = p.isAdmin && !p.readOnly && (
     <label className="tk-dw-review-pick">
