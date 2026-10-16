@@ -2,7 +2,7 @@
 title: How do client task lists and projects work?
 section: Daily work
 audience: staff
-keywords: [manage projects, move to trash, trash a project, restore project, group by client, person list group by, tasks page, sidebar, lists, review, review queue, review count, client list, client tasks, projects, internal work, sops project, directors, owners, 90 day, open to all staff, members, add member, project owner, new project, sections, weekly, monthly, quarterly, annual, archive project, rename, people, person view, search tasks, filters, assignee, status, columns, coverage, temporary access, onboarding project, client header, drive folder, contacts, unassigned, claim, no team yet, assign team, no bookkeeper, asana import, imported clients]
+keywords: [project color, project colors, change color, color dot, subtasks inline, manage projects, move to trash, trash a project, restore project, group by client, person list group by, tasks page, sidebar, lists, review, review queue, review count, client list, client tasks, projects, internal work, sops project, directors, owners, 90 day, open to all staff, members, add member, project owner, new project, sections, weekly, monthly, quarterly, annual, archive project, rename, people, person view, search tasks, filters, assignee, status, columns, coverage, temporary access, onboarding project, client header, drive folder, contacts, unassigned, claim, no team yet, assign team, no bookkeeper, asana import, imported clients]
 sort: 114
 ---
 The **Tasks** page (the **Tasks** button in the top bar, or `#/tasks/my`) has a sidebar of lists down the left. Below about 900 pixels wide, the sidebar sits behind the **Lists** button at the top of the page.
@@ -18,6 +18,8 @@ The **Tasks** page (the **Tasks** button in the top bar, or `#/tasks/my`) has a 
 - **No team yet** (admins only, above Clients): clients brought over from Asana that have no bookkeeper, with how many tasks each has. It hides when there are none. See *Clients with no team yet* below.
 
 ### A list
+
+A task with subtasks has an arrow and a count (for example **2/5**). Click the row to open its subtasks right under it; click the task's name to open its details. See [How do I add and manage my tasks?](#/help/my-tasks).
 
 Each list shows its tasks with **Task**, **Assignee**, **Due**, **Status** and **Priority** columns, grouped into sections. Click a column heading to sort by it. Each section ends with an **Add task** row, so a new task lands in that section.
 
@@ -61,9 +63,11 @@ Projects hold internal work that isn't for one client. Four are set up for you:
 
 **Open to all staff** means everyone on staff can see the project and add tasks to it. Otherwise, a project is seen by its members and by admins. Only admins can switch Open to all staff on or off.
 
+**Project colors.** Every project has a color, shown as a dot next to its name in the sidebar, at the top of the project and on its tasks in My Tasks. New projects get the color fewest other projects use, and the existing ones were colored once, oldest first. A project's owner or an admin can change it: **Project options › Change color** on the project's page, or **Color** on its row in **Manage projects**. Everyone sees the same color. The name is always beside the dot, so the color is a help, not the only clue.
+
 **Start a project**: click **New project** in the sidebar, type a **Name**, add **Sections (optional, one per line)**, and click **Create project**. You become its owner.
 
-**Manage a project** (its owners and admins): use **Add member** to add someone as a **Member** or as an **Owner (can manage the project)**, and the **Project options** menu to **Rename** it, edit its **Sections**, switch **Open to all staff** (admins), **Archive project** or **Move to trash**. Archiving takes it out of the sidebar and makes its tasks read-only. **Move to trash** hides the project and its tasks from every list until an admin restores it from **Manage projects**; it's refused while a task in the project is waiting on a client request. Nothing is deleted either way. See [How do I rename, archive or trash a project?](#/help/manage-projects).
+**Manage a project** (its owners and admins): use **Add member** to add someone as a **Member** or as an **Owner (can manage the project)**, and the **Project options** menu to **Rename** it, edit its **Sections**, **Change color**, switch **Open to all staff** (admins), **Archive project** or **Move to trash**. Archiving takes it out of the sidebar and makes its tasks read-only. **Move to trash** hides the project and its tasks from every list until an admin restores it from **Manage projects**; it's refused while a task in the project is waiting on a client request. Nothing is deleted either way. See [How do I rename, archive or trash a project?](#/help/manage-projects).
 
 ### Another person's tasks (admins)
 

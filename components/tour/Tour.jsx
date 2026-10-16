@@ -113,6 +113,10 @@
 //   tk-manage-nav    the sidebar's Manage projects item (admins; TK_Sidebar.jsx)
 //   tk-manage-head   Tasks › Manage projects' heading (TK_ManageProjects.jsx)
 //   tk-groupby       the Group by switch in My Tasks' toolbar (TK_MyTasks.jsx)
+//   tk-subtoggle     a task row's subtasks arrow and count (TK_TaskRow.jsx), only
+//                    when a visible task has subtasks (the first one is found)
+//   tk-project-dot   the color dot beside a project's name on its own page
+//                    (TK_List.jsx); the sidebar's project dots sit in tk-sidebar
 //   tk-waiting-nav   the sidebar's Waiting on client item (TK_Sidebar.jsx), same widths
 //   tk-waiting-head  Tasks › Waiting on client's heading (TK_WaitingList.jsx)
 //   tk-waiting-groups its client groups, only when something is waiting
@@ -1341,6 +1345,14 @@ function TOUR_tasksSteps() {
         "Overdue, Today, This week and Later, then Waiting on client, Unassigned (tasks on your clients nobody has claimed yet) and Done, which starts folded. Click a group's heading to fold or open it.",
     },
     {
+      id: "tk-subtasks",
+      targets: ["tk-subtoggle", "tk-groups"],
+      wait: true,
+      title: "Subtasks open in place",
+      body: () =>
+        "A task with subtasks shows an arrow and a count, like 2/5. Click the row and its subtasks open right under it; click the task's name to open its details. Tick a subtask off right there.",
+    },
+    {
       id: "tk-status",
       targets: ["tk-status"],
       wait: true,
@@ -1356,7 +1368,7 @@ function TOUR_tasksSteps() {
       title: "Lists and projects",
       body: () =>
         (window.innerWidth < 900 ? "The Lists button opens every list. " : "") +
-        "My Tasks (group it by due date or by client), Review (work waiting for an admin's approval), Waiting on client (everything you've asked a client for), Recurring (templates that make tasks on a schedule), Search, the firm's projects and each of your clients' lists. SOPs and 90 Day are projects open to all staff. Admins also get Manage projects.",
+        "My Tasks (group it by due date or by client), Review (work waiting for an admin's approval), Waiting on client (everything you've asked a client for), Recurring (templates that make tasks on a schedule), Search, the firm's projects (each with its own color dot) and each of your clients' lists. SOPs and 90 Day are projects open to all staff. Admins also get Manage projects.",
     },
     {
       id: "tk-review-nav",

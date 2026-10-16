@@ -1808,6 +1808,28 @@ Team Reviews files.
     `tasks-manage`, tips `tk-groupby` and `tk-manage-nav`, `?` Help for this page maps
     `#/tasks/manage` to `manage-projects`, Usage Stats label `Tasks › Manage projects`, INFRA_LINKS
     "Supabase SQL (Tasks manage projects)".
+  - **Subtasks open in place** (client-side only; no new table). Every Tasks list calls
+    `TK_vUseSubtasks(viewTasks)` (`TK_TaskRow.jsx`), which reads one firm-wide batch of subtasks
+    (`api.listSubtasks`, store list key `subtasks`, realtime through `TK_stMatches`), merges them with the
+    view's own tasks and returns `kidsOf / isOpen / toggle`. `TK_subNestGroups` (in `TK_viewLogic.js`)
+    nests kids under their parent inside the same group only; a kid whose parent is in another group
+    keeps its own row. Row body click toggles on a parent, the title opens the drawer, ArrowRight/Left
+    work (`TK_subRowClickAction`, `TK_subKeyAction`). Open state in `localStorage` `mgb_tk_subs_open_v1`
+    (cleared by Developer Tools › Reset local state). `data-tour` `tk-subtoggle`. Wired in My Tasks, `TK_List`,
+    `TK_ClientDrawer`; not nested in the drawer's own list, Waiting on client, Review or search.
+  - **Project colors** (`supabase/tasks-p3-project-colors.sql`, applied; self-test
+    `supabase/tasks-p3-project-colors-tests.sql`, rolls back). `tk_projects.color` is one of ten keys
+    (blue, teal, green, amber, coral, pink, purple, navy, olive, gray), NOT NULL with a check; the same list
+    is `TK_PROJECT_COLORS` in `TK_viewLogic.js` and a node test fails if they drift. Existing projects were
+    backfilled round robin by age; a new project gets the least-used live color. Changes go only through
+    `tk_project_set_color` (admin or project manager; refused on a trashed project; audit action
+    `tk_project.color_set`); a guard trigger `tk_projects_color_guard` ignores a direct UPDATE.
+    `tk_admin_list_projects()` also returns `color`. UI: `TK_vProjectDot` (sidebar, list header with
+    `data-tour` `tk-project-dot`, task chip), Project options › Change color (`TK_vColorModal`), and a Color
+    button in Manage projects. Tokens `--tk-pc-<key>` in `tk-views.css` (light plus both dark blocks).
+  - Upkeep: launch announcement `tasks-subtasks-colors`, What's new, guide articles `my-tasks`,
+    `task-lists-and-projects`, `manage-projects`, Tasks tour stop `tk-subtasks`, tips `tk-subtoggle` and
+    `tk-project-dot`, INFRA_LINKS "Supabase SQL (Tasks project colors)".
 - **Asana import ran live, 2026-10-16.** First `supabase/asana-import-roster-clients.sql` (61 roster
   clients), then run `49b3186a`: 1132 tasks (135 subtasks, 176 unassigned, 160 with no client),
   16 projects + 1 merged, 749 recurring templates as drafts (off). `asana_import_apply_enabled` is

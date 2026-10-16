@@ -71,7 +71,7 @@ Here is every tip, in the order they're considered when two fit the same page (t
 
 #### Everyone: Tasks
 
-These show on **Work › Tasks** (the Tasks pages), after the tips above. The two newest are **Group by** and **Manage projects**.
+These show on **Work › Tasks** (the Tasks pages), after the tips above. The newest are **Subtasks**, **project colors**, **Group by** and **Manage projects**.
 
 | Page | Tip | Learn more |
 |---|---|---|
@@ -81,6 +81,8 @@ These show on **Work › Tasks** (the Tasks pages), after the tips above. The tw
 | Tasks | Recurring holds the templates that make monthly, quarterly and yearly tasks for each client. Tasks they make show a Recurring tag. | [How do recurring tasks from templates work?](#/help/task-templates) |
 | Tasks | Waiting on client lists everything you've asked a client for from a task, longest wait first. Ask client is in a client task's details. | [How do I ask a client something from a task?](#/help/ask-client) |
 | Tasks (new) | Group by Client lists your tasks one client at a time instead of by due date. The portal remembers your choice (My Tasks and a person's list each remember their own). | [How do I add and manage my tasks?](#/help/my-tasks) |
+| Tasks (new) | This task has subtasks. Click its row and they open right under it; click the task's name to open its details instead. The count shows how many are done. | [How do I add and manage my tasks?](#/help/my-tasks) |
+| Tasks (new) | Every project has a color, shown beside its name here, in the sidebar and on its tasks. An owner or admin can change it under Project options. | [How do client task lists and projects work?](#/help/task-lists-and-projects) |
 | Tasks | Nobody is on this task yet. Claim takes it: it moves into your groups and the team sees your name on it. | [How do I add and manage my tasks?](#/help/my-tasks) |
 | Tasks | Projects are shared lists. SOPs and 90 Day are open to all staff, so anyone can add to them. Each client you can see has its own list too. | [How do client task lists and projects work?](#/help/task-lists-and-projects) |
 | Tasks (not on a touch screen) | Open in own window keeps Tasks in a slim window beside your work. Dock in portal brings it back. | [Can I keep Tasks in its own window?](#/help/tasks-own-window) |

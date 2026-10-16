@@ -1045,6 +1045,11 @@ const INFRA_LINKS = [
     note: "supabase/tasks-p3-manage-projects.sql + tasks-p3-manage-projects-fixes.sql (task-in-trash guard, tk_project_task_counts, tk_restore_name_taken, import skips trashed projects) (self-test: tasks-p3-manage-projects-tests.sql, rolls back): tk_projects trashed_at / trashed_by / trash_expired_at and staff_reminders.trashed_with_project; RPCs tk_project_rename, tk_project_archive, tk_project_trash, tk_project_restore and admin-only tk_admin_list_projects (the Manage projects screen) · trash reuses staff_reminders.deleted_at so every list, digest and score already hides it; restore revives only the tasks the trash hid · 30 days only marks a project expired (an admin can still restore); nothing is purged · trash is refused while a task has an open Ask client request (tk_has_open_requests) · audit actions tk_project.renamed / archived / unarchived / trashed / restored / trash_expired",
   },
   {
+    name: "Supabase SQL (Tasks project colors)",
+    url: "https://supabase.com/dashboard/project/xumsqmhccgfjnlmieqyu/sql/new",
+    note: "supabase/tasks-p3-project-colors.sql (self-test: tasks-p3-project-colors-tests.sql, rolls back): tk_projects.color (ten palette keys, NOT NULL + check, backfilled round robin), guard trigger tk_projects_color_guard (assigns the least-used live color on insert, ignores a direct UPDATE), RPC tk_project_set_color (admin or project manager, refused on a trashed project, audit action tk_project.color_set), tk_admin_list_projects now returns color. The palette also lives in components/tasks/TK_viewLogic.js (TK_PROJECT_COLORS); a node test fails if the two drift. Subtasks opening in place is client-side only (store list key subtasks, localStorage mgb_tk_subs_open_v1)",
+  },
+  {
     name: "Supabase SQL (Tasks unassigned + Asana import)",
     url: "https://supabase.com/dashboard/project/xumsqmhccgfjnlmieqyu/sql/new",
     note: "supabase/tasks-p2-10-asana-import-v2.sql: tasks can have no assignee (is_unassigned); tk_claim_task (Claim; only way a non-admin sets the assignee on an unassigned task) · tk_save_template takes assignee_email and leave_unassigned · tk_import_no_team_clients and tk_import_assign_team (admins: No team yet, Assign team; no email sent) · the import apply stays behind asana_import_apply_enabled (Tasks switches below) · ran once 2026-10-16: run 49b3186a (1132 tasks, 16 projects, 749 draft templates; roster clients from supabase/asana-import-roster-clients.sql); undo: select tk_import_asana_undo('<run id>', 'UNDO 49b3186a') · no edge function",
@@ -26356,7 +26361,7 @@ const PAGE_META = {
   },
   tasks: {
     title: "Tasks",
-    subtitle: "Your tasks (by due date or client), unassigned work to claim, review, waiting on client, recurring work, client lists and projects (admins: Manage projects)",
+    subtitle: "Your tasks (by due date or client), unassigned work to claim, review, waiting on client, recurring work, client lists and projects with color dots (admins: Manage projects), subtasks open in place under their task",
   },
   clients: {
     title: "Clients",

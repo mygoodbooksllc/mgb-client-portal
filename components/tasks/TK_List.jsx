@@ -748,7 +748,7 @@ function TK_vProjectHeader(props) {
             </form>
           ) : (
             <React.Fragment>
-              <TK_vProjectDot color={TK_projectColorOf(project)} size="lg" />
+              <TK_vProjectDot color={TK_projectColorOf(project)} size="lg" tour="tk-project-dot" />
               <h2 className="tk-head-name">{project.name || "Project"}</h2>
             </React.Fragment>
           )}

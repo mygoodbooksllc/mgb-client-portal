@@ -487,6 +487,50 @@ var ANN_REGISTRY = [
     ],
   },
   {
+    id: "tasks-subtasks-colors",
+    date: "2026-10-16",
+    title: "Subtasks open in place, and project colors",
+    summary: "Click a task with subtasks and they open right under it, and every project now has its own color.",
+    roles: ["admin", "bookkeeper"],
+    hash: "#/tasks/my",
+    steps: (ctx) => [
+      {
+        id: "ann-welcome",
+        title: "Two small Tasks upgrades",
+        body: () =>
+          "Subtasks now open right under their task, and every project has its own color. No more opening another window to find them. About a minute.",
+      },
+      {
+        id: "ann-subtasks",
+        go: () => {
+          if (!/^#\/tasks\/my(\?|$)/.test(window.location.hash || "")) window.location.hash = "#/tasks/my";
+        },
+        targets: ["tk-subtoggle", "tk-groups"],
+        wait: true,
+        title: "Click a task to see its subtasks",
+        body: () =>
+          "A task with subtasks shows a small arrow and a count like 2/5. Click the row, or the arrow, to open them underneath; click again to close. Tick a subtask right there. Click the task name to open the full details. The portal remembers what you left open.",
+      },
+      {
+        id: "ann-colors",
+        go: () => {
+          if (!/^#\/tasks\/my(\?|$)/.test(window.location.hash || "")) window.location.hash = "#/tasks/my";
+        },
+        targets: ["tk-sidebar"],
+        wait: true,
+        title: "Every project has a color",
+        body: () =>
+          "Each project in the sidebar has a color dot, and the same dot shows next to its tasks in every list. Change it from a project's Project options menu, or from Manage projects if you are an admin.",
+      },
+      {
+        id: "ann-done",
+        title: "Where to find it again",
+        body: () =>
+          "New projects pick a color on their own, and you can change it any time. To see this again, press ? and pick New: Subtasks open in place, and project colors tour.",
+      },
+    ],
+  },
+  {
     id: "staff-profile-photos",
     date: "2026-10-16",
     title: "Profile photos",

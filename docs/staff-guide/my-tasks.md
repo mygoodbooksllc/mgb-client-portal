@@ -2,7 +2,7 @@
 title: How do I add and manage my tasks?
 section: Daily work
 audience: staff
-keywords: [group by, group by client, by client, due date, client groups, no client, my tasks, tasks, work, tasks tab, task, reminder, to do, due, overdue, today, this week, later, waiting on client, done, show done, show older, today group, view, quick add, q, add task, at mention, hashtag, priority, high, low, business days, bd5, keyboard, shortcuts, j k, status, assign, by client, save as template, suggest template, checklist, subtasks, tasks page, lists, client task panel, t, waiting on client list, ask client, #/tasks/waiting, unassigned, claim, claim a task, nobody assigned, no assignee, unassigned group, asana import]
+keywords: [subtasks inline, open subtasks, expand subtasks, collapse subtasks, subtask count, 2/5, chevron, project color, project colors, color dot, group by, group by client, by client, due date, client groups, no client, my tasks, tasks, work, tasks tab, task, reminder, to do, due, overdue, today, this week, later, waiting on client, done, show done, show older, today group, view, quick add, q, add task, at mention, hashtag, priority, high, low, business days, bd5, keyboard, shortcuts, j k, status, assign, by client, save as template, suggest template, checklist, subtasks, tasks page, lists, client task panel, t, waiting on client list, ask client, #/tasks/waiting, unassigned, claim, claim a task, nobody assigned, no assignee, unassigned group, asana import]
 sort: 110
 ---
 **My Tasks** is one list of everything assigned to you, across every client and project. Open it from the **Tasks** button in the top bar (`#/tasks/my`), or from **Work › Tasks** (`#/work/tasks`), which shows the same list inside Work. The Tasks page also has a sidebar with every client list and project; see [How do client task lists and projects work?](#/help/task-lists-and-projects).
@@ -71,6 +71,20 @@ To add a reminder instead, use ⌘K → **New reminder**, or set **Type** to **R
 - Click the status (for example **To do**) to change it.
 - Click the task's name to open its details: dates, priority, comments, files, subtasks, the checklist and its history.
 - A task with checklist steps shows its progress, such as **3/5**.
+- A task with subtasks shows a small arrow and how many are done, such as **2/5**. See *Subtasks* below.
+- A task that belongs to a project shows the project's name with its color dot. See [How do client task lists and projects work?](#/help/task-lists-and-projects).
+
+### Subtasks
+
+A task with subtasks has a small arrow and a count, such as **2/5** (2 of its 5 subtasks are done), next to its name.
+
+- **Click the row** (anywhere that isn't its name, a button or a menu) and the subtasks open right under it, indented. Click the row again to close them.
+- **Click the task's name** to open its details instead. That's the one click that goes to the drawer; a row without subtasks opens the drawer from anywhere on the row.
+- You can also click the arrow itself, or focus the row and press **→** to open and **←** to close.
+- Each subtask has its own check box (click to mark it done, again to undo), its name, who it's assigned to and its due date. Click a subtask's name to open its details.
+- The portal remembers which tasks you opened, in this browser. A subtask that is done still shows under its parent while the parent is open, whatever the list's **Show done** says.
+- A subtask shows only under its parent. If its parent is in a different group or hidden (for example, the parent is due later), the subtask keeps its own row as well, so it never goes missing.
+- Subtasks work the same in My Tasks (by due date or by client), in client and project lists, in a person's list and in a client's task panel. Add and reorder subtasks in the task's details.
 
 ### Keyboard shortcuts
 
@@ -108,6 +122,7 @@ On a client's pages, a line under the tabs shows the next task, and **t** opens 
 
 ### Troubleshooting
 
+- **Clicking a row opened its subtasks, not the details.** That's how a task with subtasks works: click the row to open or close its subtasks, and click the task's name to open its details.
 - **Notes and SOPs used to be here.** They moved to **Work › Notes & SOPs**. See [How do I keep notes on a client?](#/help/notes).
 - **The By client view is gone.** Each client now has its own list in the Tasks sidebar, with the client's people, SOP and Drive folder at the top. Handoff summaries moved to **Work › Notes & SOPs → Handoff summaries**.
 - **"Tasks is being set up"**: the update is still finishing. Your tasks are safe; use the page again in a few minutes.

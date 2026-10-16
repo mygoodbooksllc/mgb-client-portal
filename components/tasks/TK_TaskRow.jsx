@@ -647,7 +647,7 @@ function TK_DuePill(props) {
 function TK_vProjectDot(props) {
   var key = props.color;
   if (typeof TK_isProjectColor === "function" ? !TK_isProjectColor(key) : !key) return null;
-  return <span className={"tk-pdot tk-pc-" + key + (props.size === "lg" ? " tk-pdot-lg" : "")} aria-hidden="true" />;
+  return <span className={"tk-pdot tk-pc-" + key + (props.size === "lg" ? " tk-pdot-lg" : "")} aria-hidden="true" data-tour={props.tour || undefined} />;
 }
 
 // Save a project's color; toasts a failure. Resolves with the key, or null.
@@ -1152,6 +1152,7 @@ function TK_TaskRow(props) {
       className={"tk-subtoggle" + (subOpen ? " is-open" : "")}
       aria-expanded={subOpen ? "true" : "false"}
       aria-label={TK_subToggleLabel(task.text, subCount, subOpen)}
+      data-tour="tk-subtoggle"
       onClick={function (e) {
         e.stopPropagation();
         if (props.onFocusRow) props.onFocusRow(id);

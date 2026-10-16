@@ -2,20 +2,21 @@
 title: How do I rename, archive or trash a project?
 section: Daily work
 audience: admin
-keywords: [manage projects, #/tasks/manage, rename project, archive project, unarchive, trash, move to trash, restore project, restore from trash, delete project, deleted project, trashed project, trash tab, 30 days, expired trash, project owner, project list, all projects, open requests, tk_has_open_requests, restore name taken, rename or archive the active project, undo trash, projects admin]
+keywords: [project color, change project color, color, color dot, manage projects, #/tasks/manage, rename project, archive project, unarchive, trash, move to trash, restore project, restore from trash, delete project, deleted project, trashed project, trash tab, 30 days, expired trash, project owner, project list, all projects, open requests, tk_has_open_requests, restore name taken, rename or archive the active project, undo trash, projects admin]
 sort: 115
 ---
 **Manage projects** is the admin screen for every project in Tasks, including archived ones and the trash. Open it from **Manage projects** under **Projects** in the Tasks sidebar (`#/tasks/manage`). Only admins see it; anyone else who opens the link gets a note that it's for admins.
 
 ### What you see
 
-One row per project with its name, a **Onboarding for {client}** or **Internal** label, the owner, and how many tasks are open and done. A row also says **Open to all staff** when that's on, and how many client requests are still open. The chips above the list switch between **All** (everything not in the trash), **Active**, **Archived** and **Trash**, each with a count. **Find a project, client or owner** narrows the list.
+One row per project with a color dot, its name, a **Onboarding for {client}** or **Internal** label, the owner, and how many tasks are open and done. A row also says **Open to all staff** when that's on, and how many client requests are still open. The chips above the list switch between **All** (everything not in the trash), **Active**, **Archived** and **Trash**, each with a count. **Find a project, client or owner** narrows the list.
 
 ### What each button does
 
 | Button | What happens |
 |---|---|
 | **Rename** | Type a new name and click **Save**. Project names must be unique among projects that aren't in the trash. |
+| **Color** | Opens ten color choices. Click one and the dot changes for everyone straight away. A project in the trash can't be recolored; restore it first. |
 | **Archive** | Takes the project out of the sidebar and makes its tasks read-only. **Unarchive** puts it back. |
 | **Move to trash** | After a confirm, hides the project and all its tasks everywhere. |
 | **Restore** | On a trashed project: brings the project and its tasks back. |
@@ -32,7 +33,7 @@ If any task in the project has a client request that is **open** or **answered**
 
 ### Project owners
 
-A project's owner can also use **Move to trash** in the **Project options** menu on the project's own page. The confirm says how many tasks go with the project and how many of them belong to other people. Changed your mind? Click **Undo** in the message that appears right after (it stays for about 10 seconds); the project and its tasks come straight back. After that, only an admin can restore it, from **Manage projects**. Everything is recorded in the **Audit log** (`tk_project.renamed`, `archived`, `unarchived`, `trashed`, `restored`).
+A project's owner can also use **Move to trash** in the **Project options** menu on the project's own page. The confirm says how many tasks go with the project and how many of them belong to other people. Changed your mind? Click **Undo** in the message that appears right after (it stays for about 10 seconds); the project and its tasks come straight back. After that, only an admin can restore it, from **Manage projects**. Everything is recorded in the **Audit log** (`tk_project.renamed`, `archived`, `unarchived`, `trashed`, `restored`, `color_set`). Owners change a project's color from **Project options › Change color**.
 
 ### Troubleshooting
 
