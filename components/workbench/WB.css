@@ -13,7 +13,7 @@
   --wb-week-soft: var(--warm-bg);
   --wb-week-text: var(--warm-text);
   --wb-clear: var(--good);
-  --wb-z-bar: 1380;
+  --wb-z-bar: 1830; /* above the scrim and panel so it stays clickable while open */
   --wb-z-scrim: 1810;
   --wb-z-panel: 1820;
   --wb-bar-h: 44px;
@@ -558,6 +558,10 @@ html.wb-drawer-on .chat-fab-wrap {
   font-size: 12.5px;
   color: var(--text-muted);
 }
+.wb-bar.is-open {
+  box-shadow: none;
+  background: var(--surface-2);
+}
 .wb-bar:hover {
   background: var(--hover-bg);
 }
@@ -611,7 +615,7 @@ html.wb-drawer-on .chat-fab-wrap {
   position: fixed;
   left: var(--wb-bar-left, 0px);
   right: 0;
-  bottom: 0;
+  bottom: calc(var(--wb-bar-h) + env(safe-area-inset-bottom, 0px)); /* sits above the bar */
   z-index: var(--wb-z-panel);
   box-sizing: border-box;
   max-height: min(78vh, 720px);
@@ -773,7 +777,7 @@ html.wb-drawer-on .chat-fab-wrap {
     display: none; /* no keyboard on a phone */
   }
   .wb-panel {
-    inset: 0;
+    inset: 0 0 calc(var(--wb-bar-h) + env(safe-area-inset-bottom, 0px)) 0;
     max-height: none;
     border-radius: 0;
     border-top: 0;

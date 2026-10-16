@@ -136,7 +136,7 @@ function WB_Drawer({ me, isAdmin }) {
         if (first) first.focus();
       }, 30);
     } else if (!open && wasOpen.current) {
-      if (barRef.current && panelRef.current && panelRef.current.contains(document.activeElement)) barRef.current.focus();
+      if (barRef.current) barRef.current.focus();
     }
     wasOpen.current = open;
   }, [open]);
@@ -159,26 +159,35 @@ function WB_Drawer({ me, isAdmin }) {
 
   return (
     <>
-      {!open && (
-        <button
-          ref={barRef}
-          type="button"
-          className={"wb-bar" + (allView.badge ? " has-due" : "")}
-          onClick={() => {
-            WB_store.setDrawerOpen(true);
-            WB_track("wb-drawer", "bar");
-          }}
-          aria-label={"Open " + WB_NAME + ", " + count + " item" + (count === 1 ? "" : "s")}
-          data-tour="wb-bar"
-        >
-          <span className="wb-bar-name">{WB_NAME}</span>
-          <span className="wb-bar-count">{loading ? "…" : count}</span>
-          <span className="wb-bar-next">{next ? next.title : loading ? "" : "All clear"}</span>
-          <span className="wb-bar-hint" aria-hidden="true">
-            Press <kbd className="wb-bar-kbd">W</kbd>
-          </span>
-        </button>
-      )}
+      <button
+        ref={barRef}
+        type="button"
+        className={"wb-bar" + (allView.badge ? " has-due" : "") + (open ? " is-open" : "")}
+        onClick={() => {
+          const willOpen = !WB_store.getState().drawerOpen;
+          WB_store.setDrawerOpen(willOpen);
+          if (willOpen) WB_track("wb-drawer", "bar");
+        }}
+        aria-expanded={open}
+        aria-haspopup="dialog"
+        aria-label={(open ? "Close " : "Open ") + WB_NAME + ", " + count + " item" + (count === 1 ? "" : "s")}
+        data-tour="wb-bar"
+      >
+        <span className="wb-bar-name">{WB_NAME}</span>
+        <span className="wb-bar-count">{loading ? "…" : count}</span>
+        <span className="wb-bar-next">{next ? next.title : loading ? "" : "All clear"}</span>
+        <span className="wb-bar-hint" aria-hidden="true">
+          {open ? (
+            <>
+              Press <kbd className="wb-bar-kbd">W</kbd> to close <span className="wb-bar-chev">&#9660;</span>
+            </>
+          ) : (
+            <>
+              Press <kbd className="wb-bar-kbd">W</kbd> <span className="wb-bar-chev">&#9650;</span>
+            </>
+          )}
+        </span>
+      </button>
       {open && (
         <>
           <div className="wb-scrim" onClick={() => WB_store.setDrawerOpen(false)} aria-hidden="true" />
