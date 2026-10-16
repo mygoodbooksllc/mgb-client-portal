@@ -281,6 +281,10 @@ function TK_vMyTasksBody(props) {
         flagOf: typeof CF_flag === "function" ? CF_flag : undefined,
       })
     : TK_myGroupsView(groups, { collapsed: collapsed, showDone: prefs.showDone });
+  // Subtasks open inline under their parent (a subtask whose parent is in the
+  // same group is shown there, not as its own row).
+  var subs = TK_vUseSubtasks(tasks);
+  view = TK_subNestGroups(view, subs.kidsOf);
   var ids = TK_focusIds(view);
   var byId = {};
   tasks.forEach(function (t) {
@@ -406,6 +410,8 @@ function TK_vMyTasksBody(props) {
                         today={today}
                         clientName={t.client_id != null ? clientNames[String(t.client_id)] || "" : ""}
                         projectName={t.project_id ? projectNames[t.project_id] || "" : ""}
+                        projectColor={t.project_id ? TK_projectColorById(projects, t.project_id) : ""}
+                        subs={subs}
                         showClient={!clientFilter && !byClient}
                         focused={focusedId === t.id}
                         checklist={counts[t.id] || null}

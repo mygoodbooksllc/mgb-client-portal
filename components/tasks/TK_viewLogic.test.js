@@ -647,4 +647,182 @@ t("works with TK_logic globals present", () => {
   }
 });
 
+// ---- Subtasks inline ------------------------------------------------------------------
+const sub = (id, parent, extra) => Object.assign({ id, parent_id: parent, text: "sub " + id, status: "todo", done: false }, extra || {});
+t("subIndex groups by parent, in sort_key then created_at order", () => {
+  const idx = L.TK_subIndex([
+    tk("p"),
+    sub("c3", "p", { sort_key: null, created_at: "2026-01-03" }),
+    sub("c2", "p", { sort_key: "b", created_at: "2026-01-01" }),
+    sub("c1", "p", { sort_key: "a", created_at: "2026-01-02" }),
+    sub("d1", "q", { created_at: "2026-01-01" }),
+  ]);
+  assert.deepStrictEqual(idx.p.map((x) => x.id), ["c1", "c2", "c3"]);
+  assert.deepStrictEqual(idx.q.map((x) => x.id), ["d1"]);
+  assert.strictEqual(idx.zzz, undefined);
+});
+t("subIndex leaves out deleted, self-parented and top-level rows", () => {
+  const idx = L.TK_subIndex([
+    tk("p"),
+    sub("gone", "p", { deleted_at: "2026-10-01T00:00:00Z" }),
+    sub("self", "self"),
+    sub("ok", "p"),
+    null,
+    { id: undefined, parent_id: "p" },
+    sub("blank", ""),
+  ]);
+  assert.deepStrictEqual(idx.p.map((x) => x.id), ["ok"]);
+  assert.strictEqual(Object.keys(idx).length, 1);
+});
+t("subIndex keeps the last copy of an id and tolerates bad input", () => {
+  const idx = L.TK_subIndex([sub("a", "p", { text: "old" }), sub("a", "p", { text: "new" })]);
+  assert.strictEqual(idx.p.length, 1);
+  assert.strictEqual(idx.p[0].text, "new");
+  assert.deepStrictEqual(L.TK_subIndex(null), {});
+  assert.deepStrictEqual(L.TK_subIndex("x"), {});
+});
+t("subIndex drops a subtask whose newest copy is deleted (trashed project)", () => {
+  const idx = L.TK_subIndex([sub("a", "p"), sub("a", "p", { deleted_at: "2026-10-16T00:00:00Z" })]);
+  assert.deepStrictEqual(idx, {});
+});
+t("subCount counts done by status, with the done flag as fallback", () => {
+  assert.deepStrictEqual(L.TK_subCount([sub("1", "p", { status: "done" }), sub("2", "p"), sub("3", "p", { status: undefined, done: true })]), { done: 2, total: 3 });
+  assert.deepStrictEqual(L.TK_subCount([]), { done: 0, total: 0 });
+  assert.deepStrictEqual(L.TK_subCount(null), { done: 0, total: 0 });
+});
+t("subChipText and subToggleLabel", () => {
+  assert.strictEqual(L.TK_subChipText({ done: 2, total: 5 }), "2/5");
+  assert.strictEqual(L.TK_subChipText({ done: 0, total: 0 }), "");
+  assert.strictEqual(L.TK_subChipText(null), "");
+  assert.strictEqual(L.TK_subToggleLabel("File taxes", { done: 2, total: 5 }, false), "Show 5 subtasks of File taxes, 2 of 5 done");
+  assert.strictEqual(L.TK_subToggleLabel("File taxes", { done: 0, total: 1 }, true), "Hide 1 subtask of File taxes, 0 of 1 done");
+  assert.strictEqual(L.TK_subToggleLabel("", { done: 0, total: 2 }, false), "Show 2 subtasks of this task, 0 of 2 done");
+});
+t("subNestGroups hides a subtask only when its parent is in the same group and lists it", () => {
+  const p = tk("p");
+  const a = sub("a", "p");
+  const b = sub("b", "p");
+  const other = sub("o", "elsewhere");
+  const kids = L.TK_subIndex([a, b, other]);
+  const groups = [
+    { key: "today", label: "Today", tasks: [p, a, other, tk("x")] },
+    { key: "later", label: "Later", tasks: [b, tk("y")] },
+  ];
+  const out = L.TK_subNestGroups(groups, kids);
+  assert.deepStrictEqual(out[0].tasks.map((x) => x.id), ["p", "o", "x"]);
+  assert.strictEqual(out[0].key, "today");
+  assert.strictEqual(out[0].label, "Today");
+  // b's parent is in another group: it keeps its own row, so it is not lost
+  assert.deepStrictEqual(out[1].tasks.map((x) => x.id), ["b", "y"]);
+  assert.strictEqual(out[1], groups[1]);
+  // input untouched
+  assert.strictEqual(groups[0].tasks.length, 4);
+});
+t("subNestGroups keeps a subtask the parent does not list, and tolerates odd input", () => {
+  const p = tk("p");
+  const a = sub("a", "p");
+  const out = L.TK_subNestGroups([{ key: "k", tasks: [p, a] }], {});
+  assert.deepStrictEqual(out[0].tasks.map((x) => x.id), ["p", "a"]);
+  assert.deepStrictEqual(L.TK_subNestGroups(null, {}), []);
+  assert.deepStrictEqual(L.TK_subNestGroups([null, { key: "n" }], null), [null, { key: "n" }]);
+});
+t("subNestGroups feeds focusIds only the visible rows", () => {
+  const p = tk("p");
+  const a = sub("a", "p");
+  const view = L.TK_subNestGroups([{ key: "g", collapsed: false, tasks: [p, a, tk("z")] }], L.TK_subIndex([a]));
+  assert.deepStrictEqual(L.TK_focusIds(view), ["p", "z"]);
+});
+t("subRowClickAction: body toggles when there are subtasks, else opens; title and controls do nothing here", () => {
+  assert.strictEqual(L.TK_subRowClickAction(true, "body"), "toggle");
+  assert.strictEqual(L.TK_subRowClickAction(false, "body"), "open");
+  assert.strictEqual(L.TK_subRowClickAction(true, "title"), "none");
+  assert.strictEqual(L.TK_subRowClickAction(false, "title"), "none");
+  assert.strictEqual(L.TK_subRowClickAction(true, "interactive"), "none");
+  assert.strictEqual(L.TK_subRowClickAction(false, "interactive"), "none");
+});
+t("subKeyAction: right opens, left closes, only with subtasks", () => {
+  assert.strictEqual(L.TK_subKeyAction("ArrowRight", true, false), "expand");
+  assert.strictEqual(L.TK_subKeyAction("ArrowRight", true, true), null);
+  assert.strictEqual(L.TK_subKeyAction("ArrowLeft", true, true), "collapse");
+  assert.strictEqual(L.TK_subKeyAction("ArrowLeft", true, false), null);
+  assert.strictEqual(L.TK_subKeyAction("ArrowRight", false, false), null);
+  assert.strictEqual(L.TK_subKeyAction("Enter", true, false), null);
+});
+t("subOpenRead keeps only true ids and survives bad storage", () => {
+  assert.deepStrictEqual(L.TK_subOpenRead({ a: true, b: false, c: 1, d: "yes" }), { a: true });
+  assert.deepStrictEqual(L.TK_subOpenRead(null), {});
+  assert.deepStrictEqual(L.TK_subOpenRead([1, 2]), {});
+  assert.deepStrictEqual(L.TK_subOpenRead("x"), {});
+});
+t("subOpenToggle opens, closes and caps the saved ids", () => {
+  let m = L.TK_subOpenToggle({}, "a");
+  assert.deepStrictEqual(m, { a: true });
+  m = L.TK_subOpenToggle(m, "b");
+  assert.deepStrictEqual(Object.keys(m), ["a", "b"]);
+  m = L.TK_subOpenToggle(m, "a");
+  assert.deepStrictEqual(m, { b: true });
+  const capped = L.TK_subOpenToggle({ x: true, y: true, z: true }, "w", 3);
+  assert.deepStrictEqual(Object.keys(capped), ["y", "z", "w"]);
+  assert.deepStrictEqual(L.TK_subOpenToggle(null, 7), { 7: true });
+  assert.ok(L.TK_SUBS_OPEN_KEY.indexOf("mgb_tk_") === 0, "the key is under the mgb_tk_ prefix so Dev Tools reset finds it");
+});
+
+// ---- Project colors ----------------------------------------------------------------------
+t("palette has ten unique, lower-case keys with labels", () => {
+  const keys = L.TK_projectColorKeys();
+  assert.strictEqual(keys.length, 10);
+  assert.strictEqual(new Set(keys).size, 10);
+  keys.forEach((k) => assert.ok(/^[a-z]+$/.test(k)));
+  L.TK_PROJECT_COLORS.forEach((c) => assert.ok(c.label && c.label[0] === c.label[0].toUpperCase()));
+});
+t("palette matches the database list in tasks-p3-project-colors.sql", () => {
+  const fs = require("fs");
+  const path = require("path");
+  const sql = fs.readFileSync(path.join(__dirname, "../../supabase/tasks-p3-project-colors.sql"), "utf8");
+  const lists = sql.match(/array\[('[a-z]+'(?:\s*,\s*'[a-z]+')+)\]/g) || [];
+  assert.ok(lists.length >= 3, "the SQL carries the palette in several places");
+  const wanted = L.TK_projectColorKeys().join(",");
+  lists.forEach((l) => assert.strictEqual(l.replace(/array\[|\]|'|\s/g, ""), wanted));
+  const check = /check \(color in \(([^)]*)\)\)/.exec(sql);
+  assert.ok(check);
+  assert.strictEqual(check[1].replace(/'|\s/g, ""), wanted);
+});
+t("isProjectColor accepts only palette keys", () => {
+  assert.strictEqual(L.TK_isProjectColor("teal"), true);
+  assert.strictEqual(L.TK_isProjectColor("Teal"), false);
+  assert.strictEqual(L.TK_isProjectColor("magenta"), false);
+  assert.strictEqual(L.TK_isProjectColor(""), false);
+  assert.strictEqual(L.TK_isProjectColor(null), false);
+  assert.strictEqual(L.TK_isProjectColor(3), false);
+});
+t("projectColorOf uses a valid color, else a stable pick from the id, else gray", () => {
+  assert.strictEqual(L.TK_projectColorOf({ id: "1", color: "coral" }), "coral");
+  const a = L.TK_projectColorOf({ id: "abc-123", color: "nope" });
+  assert.ok(L.TK_isProjectColor(a));
+  assert.strictEqual(L.TK_projectColorOf({ id: "abc-123" }), a);
+  assert.strictEqual(L.TK_projectColorOf({ id: "abc-123", color: null }), a);
+  assert.strictEqual(L.TK_projectColorOf(null), "gray");
+  assert.strictEqual(L.TK_projectColorOf({}), "gray");
+  // a spread of ids reaches more than one color
+  const seen = new Set();
+  for (let i = 0; i < 40; i++) seen.add(L.TK_projectColorOf({ id: "id-" + i }));
+  assert.ok(seen.size > 3);
+});
+t("projectColorById finds a project, and shows nothing for a task outside any", () => {
+  const ps = [{ id: "p1", color: "teal" }, { id: "p2", color: "olive" }];
+  assert.strictEqual(L.TK_projectColorById(ps, "p2"), "olive");
+  assert.strictEqual(L.TK_projectColorById(ps, "nope"), "");
+  assert.strictEqual(L.TK_projectColorById(ps, null), "");
+  assert.strictEqual(L.TK_projectColorById(null, "p1"), "");
+});
+t("projectColorLabel and projectColorError", () => {
+  assert.strictEqual(L.TK_projectColorLabel("coral"), "Coral");
+  assert.strictEqual(L.TK_projectColorLabel("zzz"), "Gray");
+  assert.ok(/isn't one of the choices/.test(L.TK_projectColorError({ code: "tk_bad_color" })));
+  assert.ok(/trash/.test(L.TK_projectColorError({ reason: "tk_project_trashed" })));
+  assert.ok(/can't change/.test(L.TK_projectColorError({ code: "tk_forbidden" })));
+  assert.ok(/offline/.test(L.TK_projectColorError({ code: "tk_offline" })));
+  assert.ok(/Couldn't save/.test(L.TK_projectColorError(null)));
+});
+
 console.log(n + " checks passed");

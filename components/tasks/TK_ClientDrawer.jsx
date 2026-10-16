@@ -439,6 +439,9 @@ function TK_ClientDrawerPanel(props) {
 
   var today = TK_vToday();
   var groups = TK_cdGroups(list.tasks, { today: today, page: page, showDone: showDone });
+  // Subtasks open inline under their parent (same group only).
+  var subs = TK_vUseSubtasks(list.tasks);
+  groups = TK_subNestGroups(groups, subs.kidsOf);
   var summary = TK_cdSummary(list.tasks, today);
   var ids = [];
   groups.forEach(function (g) {
@@ -524,6 +527,7 @@ function TK_ClientDrawerPanel(props) {
                             key={t.id}
                             task={t}
                             today={today}
+                            subs={subs}
                             showClient={false}
                             showAssignee={true}
                             assigneeName={t.assignee_email ? nameOf(t.assignee_email) : ""}

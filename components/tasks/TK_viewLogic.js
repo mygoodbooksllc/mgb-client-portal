@@ -16,6 +16,8 @@
 //   group by Due date | Client            TK_normalizeGroupBy, TK_flattenMyGroups, TK_groupByClient
 //   Manage projects (admin screen)        TK_manageCounts, TK_manageFilterRows, TK_manageActions,
 //                                         TK_manageTrashNote, TK_manageTrashConfirm, TK_manageErrorText
+//   subtasks inline                       TK_subIndex, TK_subCount, TK_subNestGroups, TK_subRowClickAction, TK_subOpenToggle
+//   project colors                        TK_PROJECT_COLORS, TK_projectColorOf, TK_projectColorError
 //   small display helpers                 TK_initials, TK_canManageProjectHint, TK_listScopeOf, TK_searchRowToTask
 //
 // TK_logic.js loads first, so TK_compareTasks, TK_isOldDone and
@@ -787,6 +789,207 @@ function TK_manageErrorText(err) {
   return "Couldn't save that change. Try again.";
 }
 
+// ---- Subtasks inline (tasks p3) -------------------------------------------------
+// A task with subtasks shows a chevron and a done count; the subtasks open
+// directly beneath it. One level only (a subtask has no subtasks).
+
+var TK_SUBS_OPEN_KEY = "mgb_tk_subs_open_v1";
+var TK_SUBS_OPEN_MAX = 400;
+
+// rows: any mix of tasks. Returns { [parentId]: [subtask] } with deleted rows
+// and self-parented rows left out, each id once (the last copy wins), in the
+// drawer's order: sort_key (empty last), then created_at, then id.
+function TK_subIndex(rows) {
+  var seen = {};
+  var list = [];
+  (Array.isArray(rows) ? rows : []).forEach(function (t) {
+    if (!t || t.id == null || t.parent_id == null || t.parent_id === "") return;
+    if (String(t.parent_id) === String(t.id)) return;
+    if (Object.prototype.hasOwnProperty.call(seen, t.id)) list[seen[t.id]] = t;
+    else {
+      seen[t.id] = list.length;
+      list.push(t);
+    }
+  });
+  var out = {};
+  list
+    .filter(function (t) {
+      return !t.deleted_at;
+    })
+    .sort(function (a, b) {
+      var k = TK_vNullsLast(a.sort_key, b.sort_key);
+      if (k) return k;
+      var c = TK_vNullsLast(a.created_at, b.created_at);
+      if (c) return c;
+      return String(a.id) < String(b.id) ? -1 : String(a.id) > String(b.id) ? 1 : 0;
+    })
+    .forEach(function (t) {
+      var pid = String(t.parent_id);
+      (out[pid] = out[pid] || []).push(t);
+    });
+  return out;
+}
+
+// { done, total } for a parent's subtasks.
+function TK_subCount(kids) {
+  var list = Array.isArray(kids) ? kids : [];
+  var done = 0;
+  list.forEach(function (t) {
+    if (TK_vStatus(t) === "done") done++;
+  });
+  return { done: done, total: list.length };
+}
+
+// "2/5"; "" when there are none.
+function TK_subChipText(count) {
+  if (!count || !count.total) return "";
+  return count.done + "/" + count.total;
+}
+
+// The spoken label of the expand button.
+function TK_subToggleLabel(title, count, open) {
+  var c = count || { done: 0, total: 0 };
+  var what = c.total === 1 ? "1 subtask" : c.total + " subtasks";
+  return (open ? "Hide " : "Show ") + what + " of " + (title || "this task") + ", " + c.done + " of " + c.total + " done";
+}
+
+// Rows that appear under a parent in the same group are not repeated as their
+// own row. A subtask whose parent is not in its group (another due-date group,
+// hidden, done) keeps its own row so it never disappears. groups: any array of
+// { tasks }; returns new groups (others keep their object), same order.
+function TK_subNestGroups(groups, kidsOf) {
+  var has = kidsOf || {};
+  return (Array.isArray(groups) ? groups : []).map(function (g) {
+    if (!g || !Array.isArray(g.tasks)) return g;
+    var ids = {};
+    g.tasks.forEach(function (t) {
+      if (t && t.id != null) ids[String(t.id)] = true;
+    });
+    var kept = g.tasks.filter(function (t) {
+      if (!t || t.parent_id == null || t.parent_id === "") return true;
+      var pid = String(t.parent_id);
+      if (!ids[pid] || !has[pid]) return true;
+      // only hide it when the parent will actually list it
+      return !has[pid].some(function (k) {
+        return k && String(k.id) === String(t.id);
+      });
+    });
+    if (kept.length === g.tasks.length) return g;
+    var out = {};
+    for (var key in g) if (Object.prototype.hasOwnProperty.call(g, key)) out[key] = g[key];
+    out.tasks = kept;
+    return out;
+  });
+}
+
+// What a click on a row does. hasKids: the row has subtasks. kind: "interactive"
+// (a button, link, input or menu inside the row), "title" (the title link) or
+// "body" (anything else). A row without subtasks opens the drawer from its body.
+function TK_subRowClickAction(hasKids, kind) {
+  if (kind === "interactive" || kind === "title") return "none";
+  return hasKids ? "toggle" : "open";
+}
+
+// Arrow keys on a focused row: right opens its subtasks, left closes them.
+function TK_subKeyAction(key, hasKids, open) {
+  if (!hasKids) return null;
+  if (key === "ArrowRight") return open ? null : "expand";
+  if (key === "ArrowLeft") return open ? "collapse" : null;
+  return null;
+}
+
+// Saved open state (a JSON object read from storage) -> { [id]: true }.
+function TK_subOpenRead(raw) {
+  var out = {};
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return out;
+  Object.keys(raw).forEach(function (id) {
+    if (raw[id] === true && id) out[id] = true;
+  });
+  return out;
+}
+
+// Flip one id. Keeps at most `max` open ids (the oldest-opened drop first).
+function TK_subOpenToggle(open, id, max) {
+  var cap = max || TK_SUBS_OPEN_MAX;
+  var cur = TK_subOpenRead(open);
+  var key = String(id);
+  var out = {};
+  var ids = Object.keys(cur).filter(function (k) {
+    return k !== key;
+  });
+  if (!cur[key]) ids.push(key);
+  ids = ids.slice(Math.max(0, ids.length - cap));
+  ids.forEach(function (k) {
+    out[k] = true;
+  });
+  return out;
+}
+
+// ---- Project colors (tasks p3) ---------------------------------------------------
+// The ten palette keys. The database holds the same list in
+// supabase/tasks-p3-project-colors.sql (a node test keeps the two equal). The
+// colors themselves are CSS tokens (--tk-pc-<key> in tk-views.css), so dark
+// mode follows the app's theme.
+var TK_PROJECT_COLORS = [
+  { key: "blue", label: "Blue" },
+  { key: "teal", label: "Teal" },
+  { key: "green", label: "Green" },
+  { key: "amber", label: "Amber" },
+  { key: "coral", label: "Coral" },
+  { key: "pink", label: "Pink" },
+  { key: "purple", label: "Purple" },
+  { key: "navy", label: "Navy" },
+  { key: "olive", label: "Olive" },
+  { key: "gray", label: "Gray" },
+];
+
+function TK_projectColorKeys() {
+  return TK_PROJECT_COLORS.map(function (c) {
+    return c.key;
+  });
+}
+
+function TK_isProjectColor(v) {
+  return typeof v === "string" && TK_projectColorKeys().indexOf(v) >= 0;
+}
+
+// The palette key to draw for a project: its own color when valid, else a
+// stable pick from its id (an old cached row, or one read before the column
+// existed), else gray. Never throws.
+function TK_projectColorOf(project) {
+  if (!project) return "gray";
+  if (TK_isProjectColor(project.color)) return project.color;
+  var s = String(project.id != null ? project.id : project.name != null ? project.name : "");
+  if (!s) return "gray";
+  var h = 0;
+  for (var i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) % 100003;
+  return TK_PROJECT_COLORS[h % TK_PROJECT_COLORS.length].key;
+}
+
+function TK_projectColorLabel(key) {
+  for (var i = 0; i < TK_PROJECT_COLORS.length; i++) if (TK_PROJECT_COLORS[i].key === key) return TK_PROJECT_COLORS[i].label;
+  return "Gray";
+}
+
+// A project's color by id from a project list ("" when the id is unknown or
+// not a project, so a task outside any project shows no dot).
+function TK_projectColorById(projects, id) {
+  if (id == null || id === "") return "";
+  var list = Array.isArray(projects) ? projects : [];
+  for (var i = 0; i < list.length; i++) if (list[i] && String(list[i].id) === String(id)) return TK_projectColorOf(list[i]);
+  return "";
+}
+
+// Friendly text for a failed color change (tk_project_set_color).
+function TK_projectColorError(err) {
+  var why = err && (err.reason || err.code) ? String(err.reason || err.code) : "";
+  if (why === "tk_bad_color") return "That color isn't one of the choices.";
+  if (why === "tk_project_trashed") return "That project is in the trash. Restore it first.";
+  if (why === "tk_forbidden") return "You can't change this project's color.";
+  if (why === "tk_offline") return "You're offline. Try again when you're back online.";
+  return "Couldn't save that color. Try again.";
+}
+
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {
     TK_POPOUT_DEFAULT: TK_POPOUT_DEFAULT,
@@ -831,5 +1034,23 @@ if (typeof module !== "undefined" && module.exports) {
     TK_manageTrashNote: TK_manageTrashNote,
     TK_manageTrashConfirm: TK_manageTrashConfirm,
     TK_manageErrorText: TK_manageErrorText,
+    TK_SUBS_OPEN_KEY: TK_SUBS_OPEN_KEY,
+    TK_SUBS_OPEN_MAX: TK_SUBS_OPEN_MAX,
+    TK_subIndex: TK_subIndex,
+    TK_subCount: TK_subCount,
+    TK_subChipText: TK_subChipText,
+    TK_subToggleLabel: TK_subToggleLabel,
+    TK_subNestGroups: TK_subNestGroups,
+    TK_subRowClickAction: TK_subRowClickAction,
+    TK_subKeyAction: TK_subKeyAction,
+    TK_subOpenRead: TK_subOpenRead,
+    TK_subOpenToggle: TK_subOpenToggle,
+    TK_PROJECT_COLORS: TK_PROJECT_COLORS,
+    TK_projectColorKeys: TK_projectColorKeys,
+    TK_isProjectColor: TK_isProjectColor,
+    TK_projectColorOf: TK_projectColorOf,
+    TK_projectColorLabel: TK_projectColorLabel,
+    TK_projectColorById: TK_projectColorById,
+    TK_projectColorError: TK_projectColorError,
   };
 }

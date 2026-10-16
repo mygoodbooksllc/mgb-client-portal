@@ -182,6 +182,7 @@ function TK_vNavItem(props) {
         }}
       >
         {props.icon ? <TK_vIcon name={props.icon} size={16} /> : null}
+        {props.dot ? <TK_vProjectDot color={props.dot} /> : null}
         <span className="tk-nav-label">{props.label}</span>
         {props.tag ? <span className="tk-nav-tag">{props.tag}</span> : null}
         {props.count ? (
@@ -330,6 +331,7 @@ function TK_Sidebar(props) {
                 key={p.id}
                 route={r}
                 label={p.name || "Project"}
+                dot={TK_projectColorOf(p)}
                 tag={p.kind === "onboarding" ? "Onboarding" : null}
                 active={TK_vSameRoute(route, r)}
                 onNavigate={nav}

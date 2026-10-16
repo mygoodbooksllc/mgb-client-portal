@@ -143,6 +143,24 @@ t("review list holds tasks in review and follows status changes (tasks p2 s3)", 
   done();
 });
 
+t("subtasks list holds every subtask, takes new ones, and drops a deleted one (inline subtasks)", () => {
+  const sub1 = task({ parent_id: "11111111-1111-1111-1111-111111111111", assignee_email: OTHER });
+  const sub2 = task({ parent_id: "11111111-1111-1111-1111-111111111111" });
+  const top = task();
+  let s = reduceAll(null, [{ type: "me", email: ME }, { type: "listLoaded", key: "subtasks", tasks: [sub1, top, sub2] }]);
+  assert.deepStrictEqual(s.lists.subtasks.ids, [sub1.id, sub2.id]);
+  const fresh = task({ parent_id: "22222222-2222-2222-2222-222222222222", assignee_email: OTHER });
+  s = S.TK_reduce(s, { type: "upsert", task: fresh });
+  assert.deepStrictEqual(s.lists.subtasks.ids, [sub1.id, sub2.id, fresh.id]);
+  // a trashed project's tasks arrive with deleted_at: they leave the list
+  s = S.TK_reduce(s, { type: "upsert", task: Object.assign({}, sub1, { deleted_at: "2026-10-16T00:00:00Z", updated_at: "2026-10-16T01:00:00Z" }) });
+  assert.deepStrictEqual(s.lists.subtasks.ids, [sub2.id, fresh.id]);
+  // a task made top level (parent cleared) leaves it too
+  s = S.TK_reduce(s, { type: "upsert", task: Object.assign({}, sub2, { parent_id: null, updated_at: "2026-10-16T02:00:00Z" }) });
+  assert.deepStrictEqual(s.lists.subtasks.ids, [fresh.id]);
+  done();
+});
+
 t("listLoading / listError", () => {
   let s = S.TK_reduce(S.TK_initialState(), { type: "listLoading", key: "mine" });
   assert.strictEqual(s.lists.mine.loading, true);

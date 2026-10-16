@@ -247,6 +247,7 @@ function TK_vReviewBody(props) {
                       today={today}
                       clientName={t.client_id != null ? clientNames[String(t.client_id)] || "" : ""}
                       projectName={t.project_id ? projectNames[t.project_id] || "" : ""}
+                      projectColor={t.project_id ? TK_projectColorById(projects, t.project_id) : ""}
                       showClient={true}
                       showAssignee={g.key !== "own"}
                       assigneeName={who ? nameOf(who) : ""}

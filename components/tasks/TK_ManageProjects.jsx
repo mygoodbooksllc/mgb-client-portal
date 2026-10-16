@@ -6,7 +6,8 @@
 //   Every project in one list: active, archived and in the trash. Filter chips
 //   (All, Active, Archived, Trash) and a search box (name, client, owner).
 //   Per row: Rename (inline), Archive or Unarchive, Move to trash (with a
-//   confirm), and Restore for anything in the trash. Trash hides a project and
+//   confirm), Color (a ten-color palette; the dot shows in the sidebar, the
+//   project header and task rows), and Restore for anything in the trash. Trash hides a project and
 //   its tasks from every list, My Tasks, Waiting, counts, digests and
 //   performance; nothing is deleted. Restore brings back exactly the tasks the
 //   trash hid. After 30 days a project is only marked as past the window; an
@@ -43,6 +44,9 @@ function TK_mpRow(props) {
   var ePair = React.useState("");
   var err = ePair[0];
   var setErr = ePair[1];
+  var cPair = React.useState(false);
+  var colorOpen = cPair[0];
+  var setColorOpen = cPair[1];
   var trashed = r.state === "trashed" || r.state === "expired";
   var note = trashed && typeof TK_manageTrashNote === "function" ? TK_manageTrashNote(r) : "";
   var owner = r.owner_name || r.owner_email || "";
@@ -91,6 +95,24 @@ function TK_mpRow(props) {
     return null;
   });
 
+  // A trashed project keeps its color (the server refuses to change it there).
+  if (!trashed) {
+    buttons.unshift(
+      <button
+        key="color"
+        type="button"
+        className="tk-tool-btn"
+        disabled={busy}
+        aria-expanded={colorOpen ? "true" : "false"}
+        onClick={function () {
+          setColorOpen(!colorOpen);
+        }}
+      >
+        Color
+      </button>,
+    );
+  }
+
   return (
     <li className={"tk-mp-row" + (trashed ? " is-trashed" : "") + (r.state === "archived" ? " is-archived" : "")}>
       <div className="tk-mp-main">
@@ -133,6 +155,7 @@ function TK_mpRow(props) {
           </form>
         ) : (
           <div className="tk-mp-title-line">
+            <TK_vProjectDot color={TK_projectColorOf(r)} size="lg" />
             {trashed ? (
               <span className="tk-mp-title">{r.name}</span>
             ) : (
@@ -166,6 +189,16 @@ function TK_mpRow(props) {
           {Number(r.open_requests) > 0 ? " · " + r.open_requests + (Number(r.open_requests) === 1 ? " client request open" : " client requests open") : ""}
         </p>
         {note ? <p className="tk-muted tk-mp-sub">{note}</p> : null}
+        {colorOpen && !trashed ? (
+          <TK_vColorPicker
+            label={"Color for " + (r.name || "project")}
+            value={TK_projectColorOf(r)}
+            disabled={busy}
+            onPick={function (key) {
+              props.onColor(r, key);
+            }}
+          />
+        ) : null}
       </div>
       <div className="tk-mp-actions">{buttons}</div>
     </li>
@@ -274,6 +307,13 @@ function TK_vManageBody(props) {
       return TK_api.renameProject(r.id, name);
     }, "Renamed.");
   };
+  var onColor = function (r, key) {
+    act(function () {
+      return TK_api.setProjectColor(r.id, key);
+    }, "Color updated.").catch(function (e) {
+      TK_vToast(TK_projectColorError(e));
+    });
+  };
   var onArchive = function (r, archive) {
     act(function () {
       return TK_api.setProjectArchived(r.id, archive);
@@ -322,7 +362,7 @@ function TK_vManageBody(props) {
     body = (
       <ul className="tk-mp-rows">
         {shown.map(function (r) {
-          return <TK_mpRow key={r.id} row={r} busy={busy || !online} onRename={onRename} onArchive={onArchive} onTrash={setTrashRow} onRestore={onRestore} />;
+          return <TK_mpRow key={r.id} row={r} busy={busy || !online} onRename={onRename} onColor={onColor} onArchive={onArchive} onTrash={setTrashRow} onRestore={onRestore} />;
         })}
       </ul>
     );

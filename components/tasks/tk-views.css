@@ -2225,3 +2225,270 @@ li.tk-empty-inline {
   font-size: 11.5px;
   font-weight: 500;
 }
+
+/* ---------------------------------------------------------------------------
+   Tasks p3: subtasks open inline, and project colors.
+   --------------------------------------------------------------------------- */
+
+/* ---- Subtasks inline ------------------------------------------------------- */
+
+.tk-row-titleline {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.tk-row-titleline .tk-row-title {
+  flex: 0 1 auto;
+  min-width: 0;
+}
+
+.tk-subtoggle {
+  position: relative;
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 2px;
+  min-height: 22px;
+  padding: 1px 8px 1px 4px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface-2);
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+/* A larger hit area around the small chip. */
+.tk-subtoggle::before {
+  content: "";
+  position: absolute;
+  inset: -9px -4px;
+}
+
+.tk-subtoggle:hover {
+  border-color: var(--muted-line);
+  color: var(--text);
+}
+
+.tk-subtoggle:focus-visible {
+  outline: 2px solid var(--selected-outline);
+  outline-offset: 1px;
+}
+
+.tk-subtoggle-chev {
+  transition: transform 0.15s ease;
+}
+
+.tk-subtoggle.is-open .tk-subtoggle-chev {
+  transform: rotate(90deg);
+}
+
+.tk-row.has-subs {
+  cursor: pointer;
+}
+
+/* A subtask: indented under its parent with a guide line. */
+.tk-subrow {
+  position: relative;
+  min-height: 40px;
+  padding-left: 42px;
+  background: var(--surface);
+}
+
+.tk-subrow::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 27px;
+  border-left: 2px solid var(--border);
+}
+
+.tk-subrow .tk-row-title {
+  font-size: 14px;
+  font-weight: 400;
+}
+
+.tk-subrow-end {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+@container tk-list (max-width: 960px) {
+  .tk-subrow .tk-who-name {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+}
+
+@media (max-width: 760px) {
+  .tk-subrow {
+    padding-left: 30px;
+  }
+  .tk-subrow::before {
+    left: 19px;
+  }
+  .tk-subrow .tk-who-name {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+  .tk-subtoggle {
+    min-height: 28px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tk-subtoggle-chev {
+    transition: none;
+  }
+}
+
+/* ---- Project colors ---------------------------------------------------------
+   Ten palette keys (the same list as TK_PROJECT_COLORS and the database check).
+   Light values clear 3:1 against the surface for the dot; the dark set is
+   lighter. Three blocks, the app's theme pattern (styles.css). */
+
+:root {
+  --tk-pc-blue: #2f6fd0;
+  --tk-pc-teal: #1d8a85;
+  --tk-pc-green: #3f8f5a;
+  --tk-pc-amber: #b87d00;
+  --tk-pc-coral: #d9573f;
+  --tk-pc-pink: #cc4a86;
+  --tk-pc-purple: #7b55c7;
+  --tk-pc-navy: #2b4560;
+  --tk-pc-olive: #7c8a2b;
+  --tk-pc-gray: #7a8591;
+  --tk-pc-on: #ffffff;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --tk-pc-blue: #6ea0f2;
+    --tk-pc-teal: #4fc4bd;
+    --tk-pc-green: #5fbf7a;
+    --tk-pc-amber: #e7b344;
+    --tk-pc-coral: #f0836c;
+    --tk-pc-pink: #ee82b4;
+    --tk-pc-purple: #a98cf0;
+    --tk-pc-navy: #7f9bb8;
+    --tk-pc-olive: #b5c35a;
+    --tk-pc-gray: #a1abb7;
+    --tk-pc-on: #10161c;
+  }
+}
+
+:root[data-theme="dark"] {
+  --tk-pc-blue: #6ea0f2;
+  --tk-pc-teal: #4fc4bd;
+  --tk-pc-green: #5fbf7a;
+  --tk-pc-amber: #e7b344;
+  --tk-pc-coral: #f0836c;
+  --tk-pc-pink: #ee82b4;
+  --tk-pc-purple: #a98cf0;
+  --tk-pc-navy: #7f9bb8;
+  --tk-pc-olive: #b5c35a;
+  --tk-pc-gray: #a1abb7;
+  --tk-pc-on: #10161c;
+}
+
+.tk-pc-blue { --tk-pc: var(--tk-pc-blue); }
+.tk-pc-teal { --tk-pc: var(--tk-pc-teal); }
+.tk-pc-green { --tk-pc: var(--tk-pc-green); }
+.tk-pc-amber { --tk-pc: var(--tk-pc-amber); }
+.tk-pc-coral { --tk-pc: var(--tk-pc-coral); }
+.tk-pc-pink { --tk-pc: var(--tk-pc-pink); }
+.tk-pc-purple { --tk-pc: var(--tk-pc-purple); }
+.tk-pc-navy { --tk-pc: var(--tk-pc-navy); }
+.tk-pc-olive { --tk-pc: var(--tk-pc-olive); }
+.tk-pc-gray { --tk-pc: var(--tk-pc-gray); }
+
+.tk-pdot {
+  display: inline-block;
+  flex: none;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--tk-pc, var(--muted-line));
+}
+
+.tk-pdot-lg {
+  width: 12px;
+  height: 12px;
+}
+
+.tk-meta-project {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+/* The sidebar dot sits where the other items' 16px icon sits. */
+.tk-nav-item > .tk-pdot {
+  margin: 0 3.5px;
+}
+
+.tk-menu-item .tk-pdot {
+  margin-right: 8px;
+}
+
+.tk-colorpick {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.tk-swatch {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 2px solid transparent;
+  border-radius: 50%;
+  background: var(--tk-pc, var(--muted-line));
+  color: var(--tk-pc-on);
+  cursor: pointer;
+}
+
+/* A 44px touch target around the 28px swatch. */
+.tk-swatch::before {
+  content: "";
+  position: absolute;
+  inset: -8px;
+}
+
+.tk-swatch:hover {
+  box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--tk-pc);
+}
+
+.tk-swatch.is-on {
+  box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--ink-strong);
+}
+
+.tk-swatch:focus-visible {
+  outline: 2px solid var(--selected-outline);
+  outline-offset: 3px;
+}
+
+.tk-swatch:disabled {
+  cursor: default;
+  opacity: 0.6;
+}

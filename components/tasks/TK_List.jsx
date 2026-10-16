@@ -747,7 +747,10 @@ function TK_vProjectHeader(props) {
               </button>
             </form>
           ) : (
-            <h2 className="tk-head-name">{project.name || "Project"}</h2>
+            <React.Fragment>
+              <TK_vProjectDot color={TK_projectColorOf(project)} size="lg" />
+              <h2 className="tk-head-name">{project.name || "Project"}</h2>
+            </React.Fragment>
           )}
           {project.kind === "onboarding" ? <span className="pill neutral">Onboarding</span> : null}
           {project.open_to_staff ? <span className="pill good tk-open-chip">{TK_vCopy("openToStaff", "Open to all staff")}</span> : null}
@@ -817,6 +820,19 @@ function TK_vProjectHeader(props) {
                   >
                     Sections
                   </button>,
+                  <button
+                    key="color"
+                    type="button"
+                    role="menuitem"
+                    className="tk-menu-item"
+                    onClick={function () {
+                      close();
+                      setModal("color");
+                    }}
+                  >
+                    <TK_vProjectDot color={TK_projectColorOf(project)} />
+                    Change color
+                  </button>,
                 ];
                 if (isAdmin) {
                   items.push(
@@ -884,6 +900,14 @@ function TK_vProjectHeader(props) {
         <TK_vSectionsModal
           projectId={project.id}
           sections={project.sections}
+          onClose={function () {
+            setModal(null);
+          }}
+        />
+      ) : null}
+      {modal === "color" ? (
+        <TK_vColorModal
+          project={project}
           onClose={function () {
             setModal(null);
           }}
@@ -1075,6 +1099,10 @@ function TK_vListBody(props) {
     : sort
     ? [{ key: "\u0000flat", name: "", tasks: sorted }]
     : TK_groupBySection(sorted, { kind: route.view === "project" ? "project" : "client", sections: project ? project.sections : [] });
+  // Subtasks open inline under their parent; one in the same group as its
+  // parent is shown there, not as its own row.
+  var subs = TK_vUseSubtasks(all);
+  groups = TK_subNestGroups(groups, subs.kidsOf);
   var ids = [];
   groups.forEach(function (g) {
     if (collapsed[g.key]) return;
@@ -1270,6 +1298,8 @@ function TK_vListBody(props) {
           columns={true}
           clientName={t.client_id != null ? clientNames[String(t.client_id)] || "" : ""}
           projectName={route.view !== "project" && t.project_id ? projectNames[t.project_id] || "" : ""}
+          projectColor={route.view !== "project" && t.project_id ? TK_projectColorById(projects, t.project_id) : ""}
+          subs={subs}
           showClient={route.view !== "client" && !byClient}
           showSection={!!sort}
           assigneeName={t.assignee_email ? nameOf(t.assignee_email) : ""}
@@ -1583,6 +1613,7 @@ function TK_vSearchBody(props) {
               today={today}
               clientName={t.client_id != null ? clientNames[String(t.client_id)] || "" : ""}
               projectName={t.project_id ? projectNames[t.project_id] || "" : ""}
+              projectColor={t.project_id ? TK_projectColorById(projects, t.project_id) : ""}
               snippet={r.snippet}
               focused={focusedId === t.id}
               isAdmin={isAdmin}

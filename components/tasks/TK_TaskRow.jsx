@@ -3,7 +3,9 @@
 // shared pieces every Tasks view uses (views slice, C6).
 //
 // Exports: TK_StatusPill, TK_DuePill, TK_TaskRow, TK_SetupCard,
-//          TK_vSkeletonRows, TK_vAvatar, TK_vIcon, TK_vSendBackModal
+//          TK_vSkeletonRows, TK_vAvatar, TK_vIcon, TK_vSendBackModal,
+//          TK_vUseSubtasks (inline subtasks), TK_vProjectDot, TK_vColorPicker,
+//          TK_vSetProjectColor, TK_vColorModal (project colors)
 // Shared helpers for the other view files (prefix TK_v, render time only):
 //   TK_vLsGet / TK_vLsSet / TK_vSsGet / TK_vSsSet   storage, always in try/catch
 //   TK_vTrack(name)                                MGB_track behind a guard
@@ -489,6 +491,58 @@ function TK_vUseChecklist(ids) {
   return {};
 }
 
+// ---- Subtasks inline (tasks p3) ---------------------------------------------------------
+// One batched read of every subtask the person can see (the store list
+// "subtasks", kept fresh by realtime and the sweep), so a list never asks per
+// parent. viewTasks are the view's own tasks; they are merged in so a subtask
+// created or edited a moment ago shows at once. Returns the object the rows
+// take as props.subs:
+//   { kidsOf: { [parentId]: [subtask] }, isOpen(id), toggle(id), nameOf(email) }
+// Open state is remembered per person in localStorage (mgb_tk_subs_open_v1).
+function TK_vSubLoader() {
+  if (typeof TK_api !== "undefined" && TK_api && typeof TK_api.listSubtasks === "function") return TK_api.listSubtasks();
+  return Promise.resolve([]);
+}
+
+function TK_vUseSubtasks(viewTasks) {
+  var list = TK_vUseList("subtasks", TK_vSubLoader);
+  var openPair = React.useState(function () {
+    return typeof TK_subOpenRead === "function" ? TK_subOpenRead(TK_vLsGet(TK_SUBS_OPEN_KEY, {})) : {};
+  });
+  var open = openPair[0];
+  var setOpen = openPair[1];
+  var base = list && Array.isArray(list.tasks) ? list.tasks : null;
+  var kidsOf = React.useMemo(
+    function () {
+      if (typeof TK_subIndex !== "function") return {};
+      return TK_subIndex((base || []).concat(Array.isArray(viewTasks) ? viewTasks : []));
+    },
+    [base, viewTasks],
+  );
+  var any = Object.keys(kidsOf).length > 0;
+  var staff = TK_vUseStaff(any);
+  var toggle = React.useCallback(function (id) {
+    setOpen(function (cur) {
+      var next = typeof TK_subOpenToggle === "function" ? TK_subOpenToggle(cur, id) : cur;
+      TK_vLsSet(TK_SUBS_OPEN_KEY, next);
+      return next;
+    });
+  }, []);
+  var nameOf = function (email) {
+    if (!email) return "";
+    if (typeof TK_vStaffName === "function") return TK_vStaffName(staff, email);
+    return String(email).split("@")[0];
+  };
+  return {
+    kidsOf: kidsOf,
+    isOpen: function (id) {
+      return open[String(id)] === true;
+    },
+    toggle: toggle,
+    nameOf: nameOf,
+  };
+}
+
 // ModalShell, or (if app.jsx's ModalShell is somehow missing) a plain overlay.
 function TK_vModal(props) {
   if (typeof ModalShell === "function") {
@@ -582,6 +636,167 @@ function TK_DuePill(props) {
     <span className={"tk-due" + (late ? " tk-due-late" : "")} title={late ? "Overdue, due " + task.due_date : "Due " + task.due_date}>
       {label}
     </span>
+  );
+}
+
+// ---- Project color dot and picker (tasks p3) ---------------------------------------------
+// The dot is decoration: the project's name always sits next to it, so the
+// color never carries meaning alone. The ten colors are CSS tokens
+// (--tk-pc-<key> in tk-views.css), dark-mode safe.
+
+function TK_vProjectDot(props) {
+  var key = props.color;
+  if (typeof TK_isProjectColor === "function" ? !TK_isProjectColor(key) : !key) return null;
+  return <span className={"tk-pdot tk-pc-" + key + (props.size === "lg" ? " tk-pdot-lg" : "")} aria-hidden="true" />;
+}
+
+// Save a project's color; toasts a failure. Resolves with the key, or null.
+function TK_vSetProjectColor(projectId, key) {
+  if (!projectId || typeof TK_api === "undefined" || !TK_api || typeof TK_api.setProjectColor !== "function") return Promise.resolve(null);
+  return TK_api.setProjectColor(projectId, key).catch(function (e) {
+    TK_vToast(typeof TK_projectColorError === "function" ? TK_projectColorError(e) : "Couldn't save that color. Try again.");
+    return null;
+  });
+}
+
+// props: { value, disabled, onPick(key), label }. Ten swatch buttons; the
+// chosen one has aria-pressed and a check. Each button is named by its color.
+function TK_vColorPicker(props) {
+  var colors = typeof TK_PROJECT_COLORS !== "undefined" ? TK_PROJECT_COLORS : [];
+  return (
+    <div className="tk-colorpick" role="group" aria-label={props.label || "Project color"}>
+      {colors.map(function (c) {
+        var on = props.value === c.key;
+        return (
+          <button
+            key={c.key}
+            type="button"
+            className={"tk-swatch tk-pc-" + c.key + (on ? " is-on" : "")}
+            aria-label={c.label}
+            aria-pressed={on ? "true" : "false"}
+            title={c.label}
+            disabled={!!props.disabled}
+            onClick={function (e) {
+              e.stopPropagation();
+              if (!on && props.onPick) props.onPick(c.key);
+            }}
+          >
+            {on ? <TK_vIcon name="check" size={12} /> : null}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+// A small dialog with the picker (the project header menu opens it). Picking
+// saves at once; Done closes it. props: { project, onClose }.
+function TK_vColorModal(props) {
+  var p = props.project || {};
+  var cur = typeof TK_projectColorOf === "function" ? TK_projectColorOf(p) : "gray";
+  var bPair = React.useState(false);
+  var busy = bPair[0];
+  var setBusy = bPair[1];
+  return (
+    <TK_vModal onClose={props.onClose} labelledBy="tk-color-title" className="tk-modal tk-color-modal">
+      <div className="modal-header">
+        <h3 className="card-title" id="tk-color-title" style={{ margin: 0 }}>
+          Project color
+        </h3>
+        <button type="button" className="modal-close" aria-label="Close" onClick={props.onClose}>
+          ×
+        </button>
+      </div>
+      <div className="modal-body">
+        <p className="tk-muted">
+          {"The color shows next to " + (p.name || "this project") + " in the sidebar, the project header and task rows. Everyone sees the same color."}
+        </p>
+        <TK_vColorPicker
+          value={cur}
+          disabled={busy}
+          onPick={function (key) {
+            setBusy(true);
+            TK_vSetProjectColor(p.id, key).then(function () {
+              setBusy(false);
+            });
+          }}
+        />
+      </div>
+      <div className="modal-footer tk-modal-footer">
+        <button type="button" className="btn-primary" onClick={props.onClose}>
+          Done
+        </button>
+      </div>
+    </TK_vModal>
+  );
+}
+
+// ---- Subtask row -------------------------------------------------------------------------
+// One subtask under its parent: a checkbox (completes or reopens it through the
+// same path as every row), the title (opens the drawer), the assignee and due
+// date. No status pill, no menu; the drawer has the rest.
+
+function TK_vSubRow(props) {
+  var t = props.task;
+  if (!t) return null;
+  var status = TK_vStatusOf(t);
+  var done = status === "done";
+  var today = props.today || TK_vToday();
+  var who = props.nameOf && t.assignee_email ? props.nameOf(t.assignee_email) : "";
+  var openClick = function (e) {
+    if (typeof TK_openTaskClick === "function") {
+      TK_openTaskClick(t.id)(e);
+      return;
+    }
+    if (!TK_vPlainClick(e)) return;
+    e.preventDefault();
+    if (props.onOpen) props.onOpen(t.id);
+  };
+  return (
+    <li
+      className={"tk-row tk-subrow" + (done ? " is-done" : "")}
+      role="row"
+      data-tk-sub={t.id}
+      onClick={function (e) {
+        var el = e.target;
+        if (el && el.closest && el.closest("a, button, input, select, textarea, label, [role='menu']")) return;
+        if (props.onOpen) props.onOpen(t.id);
+      }}
+    >
+      <div className="tk-cell tk-cell-check" role="gridcell">
+        {props.onToggleDone ? (
+          <button
+            type="button"
+            className={"tk-check" + (done ? " is-on" : "")}
+            role="checkbox"
+            aria-checked={done ? "true" : "false"}
+            aria-label={(done ? "Mark not done: " : "Mark done: ") + (t.text || "Untitled subtask")}
+            onClick={function (e) {
+              e.stopPropagation();
+              props.onToggleDone(t);
+            }}
+          >
+            {done ? <TK_vIcon name="check" size={13} /> : null}
+          </button>
+        ) : (
+          <span className={"tk-dot tk-st-" + status} aria-hidden="true" />
+        )}
+      </div>
+      <div className="tk-cell tk-cell-main" role="gridcell">
+        <a className="tk-row-title" href={TK_vTaskHref(t.id)} onClick={openClick}>
+          {t.text || "Untitled subtask"}
+        </a>
+      </div>
+      <div className="tk-cell tk-subrow-end" role="gridcell">
+        {who ? (
+          <span className="tk-who" title={who}>
+            <TK_vAvatar name={who} size="sm" decorative />
+            <span className="tk-who-name">{who}</span>
+          </span>
+        ) : null}
+        <TK_DuePill task={t} today={today} />
+      </div>
+    </li>
   );
 }
 
@@ -822,6 +1037,9 @@ function TK_StatusPill(props) {
 //   me (the signed-in email; else the store's),
 //   onClaim(task) (S8b: an open Unassigned row shows "Unassigned" and Claim),
 //   showUnassigned (false hides that label off the columns layout), tourClaim.
+// Tasks p3: subs (from TK_vUseSubtasks; a task with subtasks shows a chevron and a
+//   done count and opens them beneath it; no subs = no nesting, as in the drawer's
+//   own subtask list), projectColor (a palette key; a dot before the project name).
 
 function TK_TaskRow(props) {
   var task = props.task;
@@ -868,11 +1086,28 @@ function TK_TaskRow(props) {
     e.preventDefault();
     if (props.onOpen) props.onOpen(id);
   };
+  // Tasks p3: subtasks inline. A row with subtasks opens/closes them from its
+  // body; the title link still opens the drawer.
+  var subs = props.subs || null;
+  var kids = subs && subs.kidsOf && subs.kidsOf[String(id)] ? subs.kidsOf[String(id)] : null;
+  var hasKids = !!(kids && kids.length);
+  var subOpen = hasKids && subs.isOpen(id);
+  var subCount = hasKids ? TK_subCount(kids) : null;
   var onRowClick = function (e) {
     var t = e.target;
-    if (t && t.closest && t.closest("a, button, input, select, textarea, label, [role='menu']")) return;
+    var kind = t && t.closest && t.closest("a, button, input, select, textarea, label, [role='menu']") ? "interactive" : "body";
+    var act = TK_subRowClickAction(hasKids, kind);
+    if (act === "none") return;
     if (props.onFocusRow) props.onFocusRow(id);
-    if (props.onOpen) props.onOpen(id);
+    if (act === "toggle") subs.toggle(id);
+    else if (props.onOpen) props.onOpen(id);
+  };
+  var onRowKeyDown = function (e) {
+    if (!hasKids || e.target !== e.currentTarget) return;
+    var act = TK_subKeyAction(e.key, hasKids, subOpen);
+    if (!act) return;
+    e.preventDefault();
+    subs.toggle(id);
   };
   var cl = props.checklist && props.checklist.total ? props.checklist : null;
   var priority = task.priority === "high" || task.priority === "low" ? task.priority : "normal";
@@ -897,7 +1132,13 @@ function TK_TaskRow(props) {
   );
   var meta = [];
   if (showClient && props.clientName) meta.push(<span key="c" className="tk-meta-client">{props.clientName}</span>);
-  if (props.projectName) meta.push(<span key="p" className="tk-meta-project">{props.projectName}</span>);
+  if (props.projectName)
+    meta.push(
+      <span key="p" className="tk-meta-project">
+        <TK_vProjectDot color={props.projectColor} />
+        {props.projectName}
+      </span>,
+    );
   if (task.section && props.showSection) meta.push(<span key="s">{task.section}</span>);
   if (cl) meta.push(<span key="cl" className="tk-meta-check" title="Checklist">{cl.done + "/" + cl.total}</span>);
   // tasks p2 s4: made by a recurring template
@@ -905,16 +1146,34 @@ function TK_TaskRow(props) {
   if (props.snippet) meta.push(<span key="sn" className="tk-meta-snippet">{"In a comment: " + props.snippet}</span>);
   if (props.note) meta.push(<span key="nt" className="tk-meta-note">{props.note}</span>);
 
-  return (
+  var toggleBtn = hasKids ? (
+    <button
+      type="button"
+      className={"tk-subtoggle" + (subOpen ? " is-open" : "")}
+      aria-expanded={subOpen ? "true" : "false"}
+      aria-label={TK_subToggleLabel(task.text, subCount, subOpen)}
+      onClick={function (e) {
+        e.stopPropagation();
+        if (props.onFocusRow) props.onFocusRow(id);
+        subs.toggle(id);
+      }}
+    >
+      <TK_vIcon name="chevron" size={14} className="tk-subtoggle-chev" />
+      <span className="tk-subtoggle-count">{TK_subChipText(subCount)}</span>
+    </button>
+  ) : null;
+
+  var parentRow = (
     <li
       ref={ref}
-      className={"tk-row" + (focused ? " is-focused" : "") + (done ? " is-done" : "") + (props.columns ? " tk-row-cols" : "")}
+      className={"tk-row" + (focused ? " is-focused" : "") + (done ? " is-done" : "") + (props.columns ? " tk-row-cols" : "") + (hasKids ? " has-subs" + (subOpen ? " is-subs-open" : "") : "")}
       data-lk={"task:" + id}
       data-tk-id={id}
       role="row"
       aria-selected={focused ? "true" : "false"}
       tabIndex={focused ? 0 : -1}
       onClick={onRowClick}
+      onKeyDown={onRowKeyDown}
     >
       <div className="tk-cell tk-cell-check" role="gridcell">
         {props.onToggleDone ? (
@@ -936,9 +1195,12 @@ function TK_TaskRow(props) {
         )}
       </div>
       <div className="tk-cell tk-cell-main" role="gridcell">
-        <a className="tk-row-title" href={href} onClick={openClick}>
-          {task.text || "Untitled task"}
-        </a>
+        <div className="tk-row-titleline">
+          <a className="tk-row-title" href={href} onClick={openClick}>
+            {task.text || "Untitled task"}
+          </a>
+          {toggleBtn}
+        </div>
         <div className="tk-row-meta">
           {meta}
           {props.columns ? null : <TK_DuePill task={task} today={today} />}
@@ -985,6 +1247,29 @@ function TK_TaskRow(props) {
         </div>
       )}
     </li>
+  );
+  if (!subOpen) return parentRow;
+  return (
+    <React.Fragment>
+      {parentRow}
+      {kids.map(function (k) {
+        return (
+          <TK_vSubRow
+            key={k.id}
+            task={k}
+            today={today}
+            nameOf={subs.nameOf}
+            onOpen={function (kid) {
+              if (props.onFocusRow) props.onFocusRow(id);
+              TK_vOpenTask(kid, { from: "list" });
+            }}
+            onToggleDone={props.onToggleDone && props.canEdit !== false ? function (kid) {
+              TK_vComplete(kid, props.isAdmin);
+            } : undefined}
+          />
+        );
+      })}
+    </React.Fragment>
   );
 }
 

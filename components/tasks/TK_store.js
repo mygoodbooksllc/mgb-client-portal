@@ -35,7 +35,8 @@ function TK_initialState() {
   };
 }
 
-// "mine", "review" (everything in review), "client:<id>", "clientcd:<id>" (the client tasks panel's own copy of
+// "mine", "review" (everything in review), "subtasks" (every subtask the
+// viewer can see, for the inline expand on task rows), "client:<id>", "clientcd:<id>" (the client tasks panel's own copy of
 // a client's list), "project:<uuid>", "person:<staff uuid>",
 // "children:<uuid>". Accepts a ready key string, or a scope object
 // { mine } | { clientId } | { projectId } | { personId } | { parentId }.
@@ -165,6 +166,7 @@ function TK_stMatches(state, key, task) {
   if (!task || task.deleted_at) return false;
   if (key === "mine") return state.me ? TK_stIsMine(task, state.me) || TK_stIsOpenUnassigned(task) : null;
   if (key === "review") return task.status === "ready_for_review"; // the review queue (tasks p2 s3)
+  if (key === "subtasks") return task.parent_id != null && task.parent_id !== ""; // every subtask I can see (inline subtasks, tasks p3)
   var i = key.indexOf(":");
   if (i < 0) return null;
   var kind = key.slice(0, i);

@@ -48,7 +48,7 @@ var TK_api = (function () {
   var ACTIVITY_COLS = "id, task_id, actor_email, kind, from_value, to_value, meta, created_at";
   var FOLLOWER_COLS = "task_id, staff_email, added_by, added_at";
   var ATTACH_COLS = "id, task_id, kind, client_file_id, storage_path, url, name, size, mime, added_by, created_at, removed_at";
-  var PROJECT_COLS = "id, name, kind, client_id, owner_email, open_to_staff, sections, archived_at, created_at, updated_at";
+  var PROJECT_COLS = "id, name, kind, client_id, owner_email, open_to_staff, sections, archived_at, created_at, updated_at, color";
   var MEMBER_COLS = "project_id, staff_email, role, added_by, added_at";
   var STAFF_COLS = "id, email, name, role, active";
   var PROJECT_UPDATE_FIELDS = ["name", "sections", "open_to_staff", "archived_at"];
@@ -66,6 +66,7 @@ var TK_api = (function () {
     "tk_reply_required", "tk_not_open", "tk_not_answered", "tk_contact_exists", "tk_bad_contact", "tk_bad_request",
     "tk_already_assigned", "tk_bad_assignee", "tk_has_team",
     "tk_project_trashed", "tk_bad_name", "tk_trash_expired", "tk_restore_name_taken", "tk_task_in_trash",
+    "tk_bad_color",
   ];
   var COPY_FALLBACK = {
     sentForReview: "Sent for review. An admin will approve it.",
@@ -467,6 +468,25 @@ var TK_api = (function () {
 
   api.listChildren = function (parentId) {
     return api.listScope({ parentId: parentId }, { showDone: true, showOlder: true });
+  };
+
+  // Every subtask the viewer can see, in ONE read, for the inline expand on
+  // task rows (the store's "subtasks" list). The tk_tasks view already leaves
+  // out deleted tasks, which includes tasks hidden by a trashed project. Done
+  // ones come too (the "2/5" count). Bounded at 1000; rows past that simply
+  // keep showing as their own rows.
+  api.listSubtasks = function () {
+    return run(function (c) {
+      return c
+        .from("tk_tasks")
+        .select(TK_TASK_COLS)
+        .not("parent_id", "is", null)
+        .order("sort_key", { ascending: true, nullsFirst: false })
+        .order("created_at", { ascending: true })
+        .limit(1000);
+    }, { where: "listSubtasks" }).then(function (rows) {
+      return (rows || []).map(normalize);
+    });
   };
 
   // From the base table, so a deleted task can still be shown and restored.
@@ -1381,6 +1401,18 @@ var TK_api = (function () {
     }, { where: "projectTaskCounts" }).then(function (rows) {
       var r = Array.isArray(rows) ? rows[0] : rows;
       return r ? { open_tasks: Number(r.open_tasks) || 0, done_tasks: Number(r.done_tasks) || 0, other_tasks: Number(r.other_tasks) || 0 } : null;
+    });
+  };
+
+  // Set a project's color (a palette key; the server checks it). Admin or
+  // project manager; audited. Resolves with the saved key. The store's project
+  // row is updated at once and the list re-read after, so every dot follows.
+  api.setProjectColor = function (id, color) {
+    return rpcWrite("tk_project_set_color", { p_project: id, p_color: String(color == null ? "" : color).trim().toLowerCase() }, "setProjectColor").then(function (v) {
+      var key = typeof v === "string" ? v : String(color);
+      var cur = (store().getState().projects || []).filter(function (p) { return p && p.id === id; })[0];
+      if (cur) putProject(Object.assign({}, cur, { color: key }));
+      return afterProjectManage().then(function () { return key; });
     });
   };
 
