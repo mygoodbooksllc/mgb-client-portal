@@ -309,15 +309,35 @@ function WB_nextRow(view) {
 }
 
 // ---- Hub (Workbench Hub spec H1) ---------------------------------------------
-// The panel's tabs. Only Inbox is live in H1; the rest come in H2 and H4
-// and are saved/restored safely before then (a tab that isn't live falls
+// The panel's tabs. Inbox (H1) and My tasks (H2) are live; Client comes in
+// H4 and is saved/restored safely before then (a tab that isn't live falls
 // back to Inbox).
 var WB_HUB_TABS = [
   { id: "inbox", label: "Inbox", live: true },
-  { id: "tasks", label: "My tasks", live: false },
+  { id: "tasks", label: "My tasks", live: true },
   { id: "client", label: "Client", live: false },
 ];
-var WB_HUB_KEY = "mgb_wb_hub"; // localStorage; the mgb_ prefix lets Dev Tools reset clear it
+// localStorage. The saved state is per signed-in person: "mgb_wb_hub:<email>"
+// (WB_hubKey), so someone else on the same browser never inherits a filter,
+// scroll or open panel. WB_HUB_KEY alone is the old unscoped key: it is never
+// read again and is removed on first sign-in. The mgb_ prefix lets Dev Tools
+// Reset local state clear both.
+var WB_HUB_KEY = "mgb_wb_hub";
+function WB_hubKey(email) {
+  var e = String(email == null ? "" : email).trim().toLowerCase();
+  return e ? WB_HUB_KEY + ":" + e : null;
+}
+// The page a saved panel belongs to: the hash without its query. A saved
+// open panel comes back only on the same page and not on a link that brings
+// you to an item (?item=...).
+function WB_hubRoute(hash) {
+  var h = String(hash == null ? "" : hash);
+  var i = h.indexOf("?");
+  return (i >= 0 ? h.slice(0, i) : h).slice(0, 120);
+}
+function WB_hubArrival(hash) {
+  return /[?&]item=/.test(String(hash == null ? "" : hash));
+}
 var WB_HUB_OPEN_MS = 5 * 60 * 1000; // a reload inside this window reopens the hub
 var WB_HUB_SCROLL_MS = 30 * 60 * 1000; // scroll positions older than this are dropped
 
@@ -330,7 +350,20 @@ function WB_hubTabIds(live) {
 }
 
 function WB_hubDefault() {
-  return { open: false, tab: "inbox", chip: "all", clientId: null, scroll: { inbox: 0, tasks: 0, client: 0 }, lastFocus: null };
+  return { open: false, tab: "inbox", chip: "all", clientId: null, scroll: { inbox: 0, tasks: 0, client: 0 }, collapsed: {}, lastFocus: null };
+}
+
+// My tasks groups the hub can collapse (never done or unassigned).
+var WB_HUB_TASK_GROUPS = ["overdue", "today", "week", "later", "waiting"];
+
+function WB__collapsedClean(c) {
+  var out = {};
+  var x = c && typeof c === "object" ? c : {};
+  WB_HUB_TASK_GROUPS.forEach(function (k) {
+    if (x[k] === true) out[k] = true;
+    else if (x[k] === false) out[k] = false;
+  });
+  return out;
 }
 
 function WB__scrollNum(v) {
@@ -352,6 +385,7 @@ function WB_hubClean(h) {
     chip: chipOk ? x.chip : d.chip,
     clientId: typeof x.clientId === "string" && x.clientId.length < 80 ? x.clientId : null,
     scroll: { inbox: WB__scrollNum(sc.inbox), tasks: WB__scrollNum(sc.tasks), client: WB__scrollNum(sc.client) },
+    collapsed: WB__collapsedClean(x.collapsed),
     lastFocus: typeof x.lastFocus === "string" ? x.lastFocus : null,
   };
 }
@@ -362,18 +396,33 @@ function WB_hubMerge(hub, patch) {
   var p = patch && typeof patch === "object" ? patch : {};
   var next = Object.assign({}, cur, p);
   if (p.scroll && typeof p.scroll === "object") next.scroll = Object.assign({}, cur.scroll, p.scroll);
+  if (p.collapsed && typeof p.collapsed === "object") next.collapsed = Object.assign({}, cur.collapsed, p.collapsed);
   return WB_hubClean(next);
 }
 
-// What goes to localStorage. lastFocus stays in memory.
-function WB_hubSerialize(hub, now) {
+// What goes to localStorage. lastFocus stays in memory. route is the page
+// the panel was open on (WB_hubRoute).
+function WB_hubSerialize(hub, now, route) {
   var h = WB_hubClean(hub);
-  return JSON.stringify({ v: 1, at: now, open: h.open, tab: h.tab, chip: h.chip, clientId: h.clientId, scroll: h.scroll });
+  return JSON.stringify({
+    v: 1,
+    at: now,
+    route: typeof route === "string" ? WB_hubRoute(route) : null,
+    open: h.open,
+    tab: h.tab,
+    chip: h.chip,
+    clientId: h.clientId,
+    scroll: h.scroll,
+    collapsed: h.collapsed,
+  });
 }
 
-// Saved text in, hub state out. Never throws. Old saves don't reopen the
-// hub and don't bring back a scroll position.
-function WB_hubParse(raw, now) {
+// Saved text in, hub state out. Never throws. Old saves (more than 5 minutes)
+// don't reopen the hub, a save from the future is not trusted, and 30 minutes
+// drops the scroll position. ctx = { hash } (the page's current hash): the
+// panel reopens only when it was saved on that same page and the link does
+// not carry an item (?item=...). Without ctx only the clock decides.
+function WB_hubParse(raw, now, ctx) {
   var d = WB_hubDefault();
   if (!raw) return d;
   var o;
@@ -387,8 +436,35 @@ function WB_hubParse(raw, now) {
   var age = Number(now) - Number(o.at);
   if (!isFinite(age) || age < 0 || age > WB_HUB_OPEN_MS) h.open = false;
   if (!isFinite(age) || age < 0 || age > WB_HUB_SCROLL_MS) h.scroll = d.scroll;
+  if (ctx && typeof ctx === "object") {
+    var hash = ctx.hash == null ? "" : String(ctx.hash);
+    if (WB_hubArrival(hash) || typeof o.route !== "string" || o.route !== WB_hubRoute(hash)) h.open = false;
+  }
   h.lastFocus = null;
   return h;
+}
+
+// ---- My tasks tab (H2) -------------------------------------------------------
+var WB_HUB_TASK_CAP = 200; // rows shown before "Show all on My Tasks"
+
+// TK_myGroupsView output in, the hub's groups out: only open groups assigned
+// to me (no Done, no Unassigned), then at most `cap` tasks in order. Each
+// group keeps its full count in `total`. Returns
+// { groups, total, shown, more } where total counts every open task.
+function WB_hubTaskGroups(view, cap) {
+  var max = cap == null ? WB_HUB_TASK_CAP : Math.max(0, Math.floor(Number(cap)) || 0);
+  var groups = [];
+  var total = 0;
+  var shown = 0;
+  (Array.isArray(view) ? view : []).forEach(function (g) {
+    if (!g || WB_HUB_TASK_GROUPS.indexOf(g.key) < 0 || !Array.isArray(g.tasks) || !g.tasks.length) return;
+    var room = Math.max(0, max - shown);
+    var tasks = g.tasks.slice(0, room);
+    total += g.tasks.length;
+    shown += tasks.length;
+    if (tasks.length) groups.push({ key: g.key, label: g.label, tasks: tasks, total: g.tasks.length, collapsed: !!g.collapsed });
+  });
+  return { groups: groups, total: total, shown: shown, more: total - shown };
 }
 
 // Arrow keys on the tab list (ARIA tabs): returns the tab to move to, or null.
@@ -725,6 +801,12 @@ if (typeof module !== "undefined" && module.exports) {
     WB_DRAWER_TABS: WB_DRAWER_TABS,
     WB_HUB_TABS: WB_HUB_TABS,
     WB_HUB_KEY: WB_HUB_KEY,
+    WB_HUB_TASK_CAP: WB_HUB_TASK_CAP,
+    WB_HUB_TASK_GROUPS: WB_HUB_TASK_GROUPS,
+    WB_hubKey: WB_hubKey,
+    WB_hubRoute: WB_hubRoute,
+    WB_hubArrival: WB_hubArrival,
+    WB_hubTaskGroups: WB_hubTaskGroups,
     WB_HUB_OPEN_MS: WB_HUB_OPEN_MS,
     WB_HUB_SCROLL_MS: WB_HUB_SCROLL_MS,
     WB_LAYERS: WB_LAYERS,

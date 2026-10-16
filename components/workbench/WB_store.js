@@ -74,7 +74,7 @@ var WB_store = (function () {
     isAdmin: false,
     undo: null, // { id, text, run, until }
     drawerOpen: false,
-    hub: WB_hubDefault(), // tab, chip, client, scroll per tab (spec 2.2); saved in mgb_wb_hub
+    hub: WB_hubDefault(), // tab, chip, client, scroll per tab (spec 2.2); saved per person in mgb_wb_hub:<email>
   };
   var users = 0;
   var timer = null;
@@ -86,6 +86,7 @@ var WB_store = (function () {
   var undoTimer = null;
   var cleanups = [];
   var hubTimer = null;
+  var hubUser = ""; // whose saved hub (mgb_wb_hub:<email>) the hub state belongs to
 
   function emit() {
     listeners.slice().forEach(function (fn) {
@@ -298,6 +299,7 @@ var WB_store = (function () {
   function join(me, isAdmin) {
     var email = String(me || "").toLowerCase();
     var changed = email !== state.me || !!isAdmin !== state.isAdmin;
+    adoptHub(email);
     if (changed) {
       var scope = isAdmin && WB__ls("mgb_wb_scope_" + email) === "everyone" ? "everyone" : "mine";
       set({ me: email, isAdmin: !!isAdmin, scope: scope, rows: email === state.me ? state.rows : [], at: email === state.me ? state.at : 0 });
@@ -511,20 +513,30 @@ var WB_store = (function () {
   }
 
   // ---- Hub state (spec 2.2): survives route changes because the store is a
-  // module singleton; saved in localStorage (mgb_wb_hub, try/catch) so a
-  // reload keeps the tab, chip and scroll. Writes are throttled to 500 ms.
+  // module singleton; saved per signed-in person in localStorage
+  // (mgb_wb_hub:<email>, try/catch) so a reload keeps the tab, chip and
+  // scroll and another person on this browser never inherits them. Writes are
+  // throttled to one per 500 ms and flushed when the page is hidden.
+  function hubHash() {
+    try {
+      return window.location && window.location.hash ? String(window.location.hash) : "";
+    } catch (e) {
+      return "";
+    }
+  }
   function saveHub() {
-    if (hubTimer) return;
+    if (hubTimer || !hubUser) return;
     hubTimer = setTimeout(flushHub, 500);
   }
   function flushHub() {
     if (hubTimer) clearTimeout(hubTimer);
     hubTimer = null;
+    if (!hubUser) return; // nobody signed in to this store yet: nothing to save
     var h = Object.assign({}, state.hub, { open: state.drawerOpen });
-    WB__lsSet(WB_HUB_KEY, WB_hubSerialize(h, Date.now()));
+    WB__lsSet(WB_hubKey(hubUser), WB_hubSerialize(h, Date.now(), hubHash()));
   }
-  // patch: { tab, chip, clientId, scroll: { tab: n }, lastFocus }. silent
-  // saves without re-rendering (scroll position, focus row).
+  // patch: { tab, chip, clientId, scroll: { tab: n }, collapsed: { group: b },
+  // lastFocus }. silent saves without re-rendering (scroll position, focus row).
   function setHub(patch, silent) {
     var next = WB_hubMerge(state.hub, patch);
     var hub = Object.assign({}, next, { open: state.drawerOpen });
@@ -538,14 +550,23 @@ var WB_store = (function () {
     if (!open) flushHub();
     else saveHub();
   }
-  // First read of the saved hub (one browser tab or window at a time is
-  // fine: last writer wins). Reopens only inside the freshness window.
-  function restoreHub() {
-    var h = WB_hubParse(WB__ls(WB_HUB_KEY), Date.now());
-    state = Object.assign({}, state, { hub: h, drawerOpen: h.open });
+  // The first read of a person's saved hub, when they join (and again if
+  // someone else signs in without a reload). The old unscoped key is never
+  // read; it is removed so nobody can inherit it. Reopens only inside the
+  // freshness window, on the same page, and not on an arrival link.
+  function adoptHub(email) {
+    if (!email || email === hubUser) return;
+    if (hubUser) flushHub(); // the previous person's state goes to their own key
+    else if (hubTimer) {
+      clearTimeout(hubTimer);
+      hubTimer = null;
+    }
+    hubUser = email;
+    WB__lsSet(WB_HUB_KEY, null);
+    var h = WB_hubParse(WB__ls(WB_hubKey(email)), Date.now(), { hash: hubHash() });
+    set({ hub: h, drawerOpen: h.open });
   }
 
-  restoreHub();
   if (typeof window !== "undefined" && window.addEventListener) {
     window.addEventListener("pagehide", flushHub);
   }
@@ -576,6 +597,7 @@ var WB_store = (function () {
     setDrawerOpen: setDrawerOpen,
     setHub: setHub,
     flushHub: flushHub,
+    adoptHub: adoptHub,
   };
 })();
 
@@ -613,12 +635,31 @@ function WB_go(row, action) {
   else if (typeof LK_href === "function") window.location.hash = LK_href(link.t);
 }
 
+// True when the task drawer will really open (its data is ready and its host
+// is mounted), the same test TK_openTask makes. Otherwise TK_openTask would
+// send the browser to the Tasks page instead.
+function WB__taskDrawerReady() {
+  if (typeof TK_openTask !== "function") return false;
+  var host = false;
+  try {
+    host = window.TK_drawerHostReady === true;
+  } catch (e) {}
+  if (typeof TK_dlOpenTarget !== "function") return host;
+  var st = null;
+  try {
+    st = typeof TK_dwState === "function" ? TK_dwState() : null;
+  } catch (e) {}
+  return TK_dlOpenTarget({ schema: st ? st.schema : "unknown", hostReady: host }) === "drawer";
+}
+
 // Hub rows (spec 2.4): a task or review opens in the task drawer on top of
-// the hub, so the page underneath never changes. Anything else, or a hub
-// that is closed (Today's own list), goes where it lives as before.
+// the hub, so the page underneath never changes. Anything else, a hub that is
+// closed (Today's own list) or a task drawer that can't open goes where it
+// lives as before (WB_go logs it as a normal open). Returns true only when the
+// drawer was opened in place.
 function WB_hubOpen(row, action) {
   var a = WB_hubAction(row);
-  if (a.type === "task" && typeof TK_openTask === "function" && WB_store.getState().drawerOpen) {
+  if (a.type === "task" && WB_store.getState().drawerOpen && WB__taskDrawerReady()) {
     WB_store.setHub({ lastFocus: row.item_key }, true);
     WB_track("wb-action", (row.kind || "other") + ":open-in-place");
     TK_openTask(a.taskId, { from: "wb-hub" });

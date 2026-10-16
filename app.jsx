@@ -16954,6 +16954,7 @@ const USAGE_ACTION_LABELS = {
   "wb-filter": "Workbench filters and drawer tabs",
   "wb-scope": "Workbench Mine / Everyone switches",
   "wb-drawer": "Workbench drawer opened",
+  "wb-hub": "Workbench hub: My tasks tab opened",
 };
 const USAGE_DEVICE_LABELS = { desktop: "Desktop", mobile: "Phone", installed: "Installed app", unknown: "Unknown" };
 
@@ -29912,7 +29913,7 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
           {typeof WB_Drawer === "function" && showStaffRail && !tkShell && !isPreviewingUser && !impersonating && staffUser && staffUser.email && (
             // Mine / Everyone is for real admins only (wb_inbox refuses
             // Everyone to a temporary admin).
-            <WB_Drawer me={String(staffUser.email).toLowerCase()} isAdmin={staffUser.role === "admin"} />
+            <WB_Drawer me={String(staffUser.email).toLowerCase()} isAdmin={staffUser.role === "admin"} clients={visibleClients} />
           )}
           {/* The page body. A tab panel of the in-client tab row when a row
               tab is open (CL_ClientTabs ids are "client-tab-<key>"). */}

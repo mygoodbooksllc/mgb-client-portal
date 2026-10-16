@@ -2,7 +2,9 @@
 // WB_Drawer: Workbench as a bottom drawer on every staff page (spec addendum
 // 2026-10-16, owner approved).
 //
-// The open panel is WB_Hub (WB_Hub.jsx): tabs, stack protocol, saved state.
+// The open panel is WB_Hub (WB_Hub.jsx): tabs (Inbox, My tasks), stack
+// protocol, saved state. `clients` (the staff member's client list) gives the
+// My tasks rows their client names.
 //
 // Collapsed: a 44px bar across the whole bottom of the content area (beside
 // the left nav, above the phone's safe area) with the count, the next item
@@ -18,7 +20,7 @@
 // someone or previewing; it renders nothing while Workbench is off.
 // ----------------------------------------------------------------------------
 
-function WB_Drawer({ me, isAdmin }) {
+function WB_Drawer({ me, isAdmin, clients }) {
   const on = WB_useSwitch();
   const s = WB_useStore(me, isAdmin, on);
   const open = s.drawerOpen;
@@ -147,7 +149,7 @@ function WB_Drawer({ me, isAdmin }) {
         </span>
       </button>
       {open && (
-        <WB_Hub s={s} isAdmin={isAdmin} panelRef={panelRef} view={view} allView={allView} chip={chip} today={today} now={now} count={count} loading={loading} />
+        <WB_Hub s={s} me={me} isAdmin={isAdmin} clients={clients} panelRef={panelRef} view={view} allView={allView} chip={chip} today={today} now={now} count={count} loading={loading} />
       )}
       <WB_UndoBar />
     </>

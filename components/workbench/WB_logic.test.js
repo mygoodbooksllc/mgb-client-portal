@@ -361,7 +361,7 @@ t("hub: tab keys", () => {
   assert.strictEqual(L.WB_tabMove(ids, "tasks", "End"), "client");
   assert.strictEqual(L.WB_tabMove(ids, "tasks", "x"), null);
   assert.strictEqual(L.WB_tabMove([], "tasks", "Home"), null);
-  assert.deepStrictEqual(L.WB_hubTabIds(true), ["inbox"]); // only Inbox is live in H1
+  assert.deepStrictEqual(L.WB_hubTabIds(true), ["inbox", "tasks"]); // Inbox + My tasks live (H2)
   assert.deepStrictEqual(L.WB_hubTabIds(false), ["inbox", "tasks", "client"]);
 });
 
@@ -371,6 +371,7 @@ t("hub: state clean, merge and persistence", () => {
   assert.deepStrictEqual(L.WB_hubClean("junk"), d);
   // A tab that isn't live yet, or a made-up chip, falls back.
   assert.strictEqual(L.WB_hubClean({ tab: "client" }).tab, "inbox"); // not live until H4
+  assert.strictEqual(L.WB_hubClean({ tab: "tasks" }).tab, "tasks");
   assert.strictEqual(L.WB_hubClean({ tab: "nope" }).tab, "inbox");
   assert.strictEqual(L.WB_hubClean({ chip: "gl" }).chip, "all"); // gl is not a drawer chip
   assert.strictEqual(L.WB_hubClean({ chip: "doc" }).chip, "doc");
@@ -406,6 +407,85 @@ t("hub: state clean, merge and persistence", () => {
     if (raw === '{"v":1,"at":"x","open":true}') assert.strictEqual(r.open, false);
   });
   assert.strictEqual(L.WB_HUB_KEY, "mgb_wb_hub");
+});
+
+t("hub: parse edges at 5 and 30 minutes and a future save", () => {
+  const saved = L.WB_hubSerialize({ open: true, tab: "tasks", chip: "task", scroll: { inbox: 10, tasks: 77, client: 0 } }, NOW);
+  const at = (ms) => L.WB_hubParse(saved, NOW + ms);
+  // Exactly 5 minutes still reopens; one millisecond more does not.
+  assert.strictEqual(at(L.WB_HUB_OPEN_MS).open, true);
+  assert.strictEqual(at(L.WB_HUB_OPEN_MS + 1).open, false);
+  assert.strictEqual(at(L.WB_HUB_OPEN_MS + 1).tab, "tasks");
+  // Exactly 30 minutes still keeps the scroll; one millisecond more drops it.
+  assert.strictEqual(at(L.WB_HUB_SCROLL_MS).scroll.tasks, 77);
+  assert.strictEqual(at(L.WB_HUB_SCROLL_MS + 1).scroll.tasks, 0);
+  assert.strictEqual(at(L.WB_HUB_SCROLL_MS + 1).tab, "tasks");
+  // A save from the future (clock moved back) is not trusted: closed, no scroll.
+  const fut = at(-1000);
+  assert.strictEqual(fut.open, false);
+  assert.strictEqual(fut.scroll.tasks, 0);
+  assert.strictEqual(fut.chip, "task");
+});
+
+t("hub: saved state is per person and reopens only on the same page", () => {
+  assert.strictEqual(L.WB_hubKey("Pat@Example.com "), "mgb_wb_hub:pat@example.com");
+  assert.strictEqual(L.WB_hubKey(""), null);
+  assert.strictEqual(L.WB_hubKey(null), null);
+  assert.ok(L.WB_hubKey("a@b.co").indexOf("mgb_") === 0, "kept under mgb_ so Dev Tools reset clears it");
+  assert.strictEqual(L.WB_hubRoute("#/clients/abc?item=task:1"), "#/clients/abc");
+  assert.strictEqual(L.WB_hubRoute("#/today"), "#/today");
+  assert.strictEqual(L.WB_hubArrival("#/tasks/my?item=task:9"), true);
+  assert.strictEqual(L.WB_hubArrival("#/tasks/my?x=1&item=task:9"), true);
+  assert.strictEqual(L.WB_hubArrival("#/tasks/my"), false);
+  const saved = L.WB_hubSerialize({ open: true, tab: "inbox" }, NOW, "#/today");
+  const near = NOW + 60000;
+  assert.strictEqual(L.WB_hubParse(saved, near, { hash: "#/today" }).open, true);
+  assert.strictEqual(L.WB_hubParse(saved, near, { hash: "#/clients" }).open, false);
+  assert.strictEqual(L.WB_hubParse(saved, near, { hash: "#/today?item=task:1" }).open, false);
+  // Another page or an arrival still keeps the tab and chip.
+  assert.strictEqual(L.WB_hubParse(saved, near, { hash: "#/clients" }).tab, "inbox");
+  // A save with no route (older) does not reopen when the page is known.
+  assert.strictEqual(L.WB_hubParse(L.WB_hubSerialize({ open: true }, NOW), near, { hash: "#/today" }).open, false);
+  // No context: the clock alone decides (as before).
+  assert.strictEqual(L.WB_hubParse(saved, near).open, true);
+});
+
+t("hub: ref_id equal to source_id has no task to open", () => {
+  const same = { source: "task", kind: "client_answered", source_id: "r1", ref_id: "r1" };
+  assert.strictEqual(L.WB_hubAction(same).type, "go");
+  assert.strictEqual(L.WB_hubAction({ source: "task", kind: "doc_request", source_id: "r2", ref_id: "r2" }).type, "go");
+  assert.deepStrictEqual(L.WB_hubAction({ source: "task", kind: "client_answered", source_id: "r1", ref_id: "t9" }), { type: "task", taskId: "t9" });
+  assert.strictEqual(L.WB_hubAction({ source: "task", kind: "client_answered", source_id: "r1", ref_id: null }).type, "go");
+});
+
+t("hub: collapsed groups clean and merge", () => {
+  assert.deepStrictEqual(L.WB_hubClean({ collapsed: { overdue: true, week: false, done: true, junk: 1, later: "x" } }).collapsed, { overdue: true, week: false });
+  assert.deepStrictEqual(L.WB_hubMerge({ collapsed: { overdue: true } }, { collapsed: { later: true } }).collapsed, { overdue: true, later: true });
+  assert.deepStrictEqual(L.WB_hubMerge({ collapsed: { overdue: true } }, { collapsed: { overdue: false } }).collapsed, { overdue: false });
+  const back = L.WB_hubParse(L.WB_hubSerialize({ collapsed: { today: true } }, NOW), NOW);
+  assert.deepStrictEqual(back.collapsed, { today: true });
+});
+
+t("hub: My tasks groups drop Done and Unassigned and cap the rows", () => {
+  const g = (key, n, collapsed) => ({ key, label: key, collapsed: !!collapsed, tasks: Array.from({ length: n }, (_, i) => ({ id: key + i })) });
+  const view = [g("overdue", 3), g("today", 2), g("unassigned", 4), g("week", 1, true), g("later", 5), g("done", 2)];
+  const r = L.WB_hubTaskGroups(view, 100);
+  assert.deepStrictEqual(r.groups.map((x) => x.key), ["overdue", "today", "week", "later"]);
+  assert.strictEqual(r.total, 11);
+  assert.strictEqual(r.shown, 11);
+  assert.strictEqual(r.more, 0);
+  assert.strictEqual(r.groups[2].collapsed, true);
+  // The cap cuts across groups in order and every group keeps its full total.
+  const c = L.WB_hubTaskGroups(view, 4);
+  assert.deepStrictEqual(c.groups.map((x) => x.tasks.length), [3, 1]);
+  assert.deepStrictEqual(c.groups.map((x) => x.total), [3, 2]);
+  assert.strictEqual(c.total, 11);
+  assert.strictEqual(c.more, 7);
+  assert.strictEqual(L.WB_HUB_TASK_CAP, 200);
+  const big = L.WB_hubTaskGroups([g("later", 250)]);
+  assert.strictEqual(big.shown, 200);
+  assert.strictEqual(big.more, 50);
+  assert.deepStrictEqual(L.WB_hubTaskGroups(null), { groups: [], total: 0, shown: 0, more: 0 });
 });
 
 console.log("WB_logic: " + n + " checks passed");

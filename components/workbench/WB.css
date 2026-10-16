@@ -853,3 +853,51 @@ html.wb-stacked .wb-scrim {
     display: none !important;
   }
 }
+
+/* ---- Hub: My tasks tab (Workbench Hub spec H2) ----
+   The rows are TK_TaskRow, so they use tk-views.css as they are; this only
+   spaces the pane inside the panel and styles its footer. */
+.wb-hub-pane[hidden] {
+  display: none;
+}
+.wb-hub-tasks {
+  padding-top: 8px;
+}
+.wb-hub-tasks .tk-group-head {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  background: var(--surface);
+}
+.wb-hub-tasks .wb-later {
+  margin-top: 8px;
+}
+.wb-hub-tasks .wb-offline-line {
+  margin: 4px 2px 8px;
+  font-size: 12.5px;
+  color: var(--text-muted);
+}
+.wb-hub-tasks-foot {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin: 12px 2px 6px;
+}
+.wb-hub-add {
+  min-height: 36px;
+}
+.wb-hub-link {
+  font-size: 13px;
+  color: var(--accent);
+}
+@media (max-width: 767px) {
+  .wb-hub-add {
+    min-height: 44px;
+  }
+  .wb-hub-link {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+  }
+}

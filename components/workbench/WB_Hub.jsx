@@ -1,8 +1,9 @@
 // ----------------------------------------------------------------------------
 // WB_Hub: the open Workbench panel (Workbench Hub spec, slice H1).
 //
-// The panel is a hub: tabs (Inbox now; My tasks and Client arrive in later
-// slices), the Inbox list with its filter chips, and the stack protocol that
+// The panel is a hub: tabs (Inbox and My tasks now; Client arrives in a later
+// slice), the Inbox list with its filter chips, the My tasks pane
+// (WB_HubTasks.jsx), and the stack protocol that
 // lets a task drawer, the client drawer, the chat drawer or a dialog sit on
 // top of it without the page underneath changing.
 //
@@ -73,9 +74,14 @@ function WB_useHubKeys(live, panelRef) {
         return;
       }
       const inPanel = panel && e.target && panel.contains(e.target);
-      if (!inPanel && WB_keyBlocked(e)) return;
+      // This listener runs in the window's capture phase, ahead of the page's
+      // own handlers. If something earlier already claimed W (preventDefault),
+      // that must not block the hub toggle, so the check below ignores
+      // defaultPrevented; typing, modifiers, dialogs and menus still block it.
+      if (!inPanel && WB_keyBlocked({ key: e.key, target: e.target, ctrlKey: e.ctrlKey, metaKey: e.metaKey, altKey: e.altKey, isComposing: e.isComposing, keyCode: e.keyCode, defaultPrevented: false })) return;
       if (inPanel && e.target && /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName || "")) return;
       e.preventDefault();
+      e.stopPropagation(); // the hub owns W; a page handler must not act on it too
       const willOpen = !open;
       WB_store.setDrawerOpen(willOpen);
       if (willOpen) WB_track("wb-drawer", "key");
@@ -100,10 +106,14 @@ function WB_useHubLayers(open, panelRef) {
       const key = WB_store.getState().hub.lastFocus;
       let el = null;
       if (key) {
-        const rows = panel.querySelectorAll("[data-wb-key]");
-        for (let i = 0; i < rows.length && !el; i++) if (rows[i].getAttribute("data-wb-key") === key) el = rows[i];
+        // Inbox rows carry data-wb-key; My tasks rows (TK_TaskRow) are "tk:<id>".
+        const tk = key.indexOf("tk:") === 0;
+        const attr = tk ? "data-tk-id" : "data-wb-key";
+        const want = tk ? key.slice(3) : key;
+        const rows = panel.querySelectorAll("[" + attr + "]");
+        for (let i = 0; i < rows.length && !el; i++) if (rows[i].getAttribute(attr) === want) el = rows[i];
       }
-      if (!el) el = panel.querySelector(".wb-row[tabindex='0']") || panel.querySelector('[role="tab"][aria-selected="true"]') || panel.querySelector(".wb-tab.is-on") || panel;
+      if (!el) el = panel.querySelector(".wb-row[tabindex='0']") || panel.querySelector(".tk-row[tabindex='0']") || panel.querySelector('[role="tab"][aria-selected="true"]') || panel.querySelector(".wb-tab.is-on") || panel;
       if (el && typeof el.focus === "function") el.focus();
     };
     const check = () => {
@@ -161,14 +171,24 @@ function WB_HubTabs({ tab, onPick, counts }) {
   );
 }
 
-// props: s (store state), isAdmin, panelRef, allView, view, chip, today, now,
-// count, loading.
-function WB_Hub({ s, isAdmin, panelRef, view, allView, chip, today, now, count, loading }) {
+// props: s (store state), me, isAdmin, clients, panelRef, allView, view, chip,
+// today, now, count, loading.
+function WB_Hub({ s, me, isAdmin, clients, panelRef, view, allView, chip, today, now, count, loading }) {
   const hub = s.hub;
   const tab = hub.tab;
   const bodyRef = React.useRef(null);
   const restored = React.useRef(null);
   const tabbed = WB_HUB_TABS.filter((t) => t.live).length > 1;
+  // My tasks mounts the first time its tab opens, then stays mounted (hidden)
+  // while the hub is open, so switching back is instant. Its count and
+  // "rows are on screen" flag come up from the pane.
+  const [tasksSeen, setTasksSeen] = React.useState(tab === "tasks");
+  const [tasksCount, setTasksCount] = React.useState(null);
+  const [tasksReady, setTasksReady] = React.useState(false);
+  React.useEffect(() => {
+    if (tab === "tasks") setTasksSeen(true);
+  }, [tab]);
+  const paneReady = tab === "tasks" ? tasksReady : !loading;
 
   const setChip = (id) => {
     WB_store.setHub({ chip: id });
@@ -178,17 +198,18 @@ function WB_Hub({ s, isAdmin, panelRef, view, allView, chip, today, now, count, 
     if (id === tab) return;
     WB_store.setHub({ tab: id });
     WB_track("wb-filter", "hub:" + id);
+    if (id === "tasks") WB_track("wb-hub", "tasks");
   };
 
   // Restore the pane's scroll once its rows are on screen, then save it as
   // it moves (silent: no re-render; the store throttles the write).
   React.useEffect(() => {
-    if (loading) return;
+    if (!paneReady) return;
     if (restored.current === tab) return;
     restored.current = tab;
     const el = bodyRef.current;
     if (el) el.scrollTop = hub.scroll[tab] || 0;
-  }, [tab, loading]);
+  }, [tab, paneReady]);
   const onScroll = (e) => {
     if (restored.current !== tab) return;
     WB_store.setHub({ scroll: { [tab]: e.currentTarget.scrollTop } }, true);
@@ -210,8 +231,8 @@ function WB_Hub({ s, isAdmin, panelRef, view, allView, chip, today, now, count, 
             ×
           </button>
         </div>
-        <WB_HubTabs tab={tab} onPick={setTab} counts={{ inbox: count }} />
-        <div className="wb-panel-tools">
+        <WB_HubTabs tab={tab} onPick={setTab} counts={{ inbox: count, tasks: tasksCount }} />
+        {tab === "inbox" && <div className="wb-panel-tools">
           <div className="wb-tabs wb-hub-chips" role="group" aria-label="Filter">
             {WB_DRAWER_TABS.map((t) => (
               <button key={t.id} type="button" aria-pressed={chip === t.id} className={"wb-tab" + (chip === t.id ? " is-on" : "")} onClick={() => setChip(t.id)}>
@@ -229,51 +250,62 @@ function WB_Hub({ s, isAdmin, panelRef, view, allView, chip, today, now, count, 
               ))}
             </div>
           )}
-        </div>
-        <div
-          ref={bodyRef}
-          className="wb-panel-body"
-          onScroll={onScroll}
-          {...(tabbed ? { role: "tabpanel", id: "wb-hub-pane-" + tab, "aria-labelledby": "wb-hub-tab-" + tab } : {})}
-        >
-          {s.error && (
-            <div className="wb-error" role="alert">
-              <span>Couldn't refresh.</span>
-              <button type="button" className="btn-secondary" onClick={() => WB_store.refresh()}>
-                Retry
-              </button>
+        </div>}
+        <div ref={bodyRef} className="wb-panel-body" onScroll={onScroll}>
+          <div className="wb-hub-pane" hidden={tab !== "inbox"} {...(tabbed ? { role: "tabpanel", id: "wb-hub-pane-inbox", "aria-labelledby": "wb-hub-tab-inbox" } : {})}>
+            {s.error && (
+              <div className="wb-error" role="alert">
+                <span>Couldn't refresh.</span>
+                <button type="button" className="btn-secondary" onClick={() => WB_store.refresh()}>
+                  Retry
+                </button>
+              </div>
+            )}
+            {loading ? (
+              <ul className="wb-skeleton" aria-label="Loading" role="status">
+                {[0, 1, 2, 3, 4].map((i) => (
+                  <li key={i} className="wb-skel-row" />
+                ))}
+              </ul>
+            ) : view.visible === 0 ? (
+              <p className="wb-filtered-empty" role="status">
+                {chip === "all" ? "Nothing needs you right now." : "Nothing here."}
+              </p>
+            ) : (
+              <WB_List
+                view={view}
+                today={today}
+                now={now}
+                compact
+                hub
+                showOwner={s.scope === "everyone"}
+                listId="wb-dl"
+                onChip={(c) => setChip(WB_DRAWER_TABS.some((t) => t.id === c) ? c : "all")}
+              />
+            )}
+            {view.later > 0 && (
+              <p className="wb-later">
+                {view.later} more later · <a href="#/tasks">My Tasks</a>
+              </p>
+            )}
+          </div>
+          {tasksSeen && (
+            <div className="wb-hub-pane" hidden={tab !== "tasks"} {...(tabbed ? { role: "tabpanel", id: "wb-hub-pane-tasks", "aria-labelledby": "wb-hub-tab-tasks" } : {})}>
+              <WB_HubTasks
+                me={me}
+                isAdmin={isAdmin}
+                clients={clients}
+                collapsed={hub.collapsed}
+                onCollapse={(key, isCollapsed) => WB_store.setHub({ collapsed: { [key]: isCollapsed } })}
+                onCount={setTasksCount}
+                onReady={() => setTasksReady(true)}
+              />
             </div>
-          )}
-          {loading ? (
-            <ul className="wb-skeleton" aria-label="Loading" role="status">
-              {[0, 1, 2, 3, 4].map((i) => (
-                <li key={i} className="wb-skel-row" />
-              ))}
-            </ul>
-          ) : view.visible === 0 ? (
-            <p className="wb-filtered-empty" role="status">
-              {chip === "all" ? "Nothing needs you right now." : "Nothing here."}
-            </p>
-          ) : (
-            <WB_List
-              view={view}
-              today={today}
-              now={now}
-              compact
-              hub
-              showOwner={s.scope === "everyone"}
-              listId="wb-dl"
-              onChip={(c) => setChip(WB_DRAWER_TABS.some((t) => t.id === c) ? c : "all")}
-            />
-          )}
-          {view.later > 0 && (
-            <p className="wb-later">
-              {view.later} more later · <a href="#/tasks">My Tasks</a>
-            </p>
           )}
         </div>
         <p className="wb-panel-foot">
           <kbd>W</kbd> opens and closes · <kbd>Esc</kbd> closes one layer at a time
+          {tab === "tasks" && <> · <kbd>↑</kbd> <kbd>↓</kbd> move between tasks · use <b>+ Add task</b> to add one</>}
         </p>
       </div>
     </>
