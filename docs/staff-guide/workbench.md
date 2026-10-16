@@ -2,7 +2,7 @@
 title: How do I use the Workbench?
 section: Getting started
 audience: staff
-keywords: [workbench, today, needs you, inbox, one list, drawer, bottom drawer, press w, w key, keyboard shortcuts, snooze, snoozed, no reply needed, mark checked, undo, needs reply, due today, overdue, reviews waiting, ledger flags, documents, new files, client files, mine, everyone, covering, classic today, workbench preview, j k, next item, open a task without leaving the page, stacked drawer, esc closes one layer, panel remembers, reopens where you left it]
+keywords: [workbench, my tasks tab, tasks tab, tick done from the list, today, needs you, inbox, one list, drawer, bottom drawer, press w, w key, keyboard shortcuts, snooze, snoozed, no reply needed, mark checked, undo, needs reply, due today, overdue, reviews waiting, ledger flags, documents, new files, client files, mine, everyone, covering, classic today, workbench preview, j k, next item, open a task without leaving the page, stacked drawer, esc closes one layer, panel remembers, reopens where you left it]
 sort: 41
 ---
 The **Workbench** is one list of everything that needs you, in order: your tasks, work waiting for your review, client messages with no reply, Ledger flags, new client files, and the rest of what used to be on Today. It takes over **Today** (the first place in the left rail, which is then called **Workbench**; the address stays `#/today`) and also sits in a drawer at the bottom of every staff page. Press **W** anywhere to open it.
@@ -60,6 +60,17 @@ In the drawer, **Open** (or **Review**) on a task opens its details in the task 
 - **W** does nothing while a task drawer or dialog is open on top, so it can't close the Workbench from under it. **q** (quick add) does nothing while the Workbench is open; a **+ Task** button for it is coming.
 - On a task you haven't started, **Start** moves into the **⋯** menu, next to **Snooze** and **Open full page** (which goes to the task's page, as before).
 - Client messages, files and Ledger items still take you to where they live for now.
+
+### My tasks in the Workbench
+
+The Workbench panel has two tabs, **Inbox** and **My tasks**. **My tasks** lists every open task assigned to you, grouped **Overdue**, **Today**, **This week**, **Later** and **Waiting on client**, the same way My Tasks does. Tasks that are done or unassigned don't show here.
+
+- Click a row to open the task drawer on top; closing it puts you back on the row. Tick the circle to mark it done from the list. The count on the tab is your open tasks.
+- Click a group's name to fold it; the panel remembers which groups you folded.
+- **+ Add task** opens quick add. **My Tasks page** goes to the full page.
+- It shows up to 200 tasks. If you have more, a line says how many more there are and links to **My Tasks**.
+- **Show older** on My Tasks doesn't change this tab, and this tab doesn't change My Tasks.
+- Your filter, scroll and open tab are remembered for you only, on this browser. If you share a computer, the next person starts clean.
 
 ### Keyboard shortcuts
 

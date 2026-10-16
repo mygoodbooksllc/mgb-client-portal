@@ -207,7 +207,7 @@ const TIPS_CATALOG = [
     match: (r) => r.page === "today",
     target: "wb-row-action",
     snug: true,
-    text: "The button does the next thing. The ⋯ beside it has Snooze, and No reply needed or Mark checked; each has Undo. Press W on any page for this list in a drawer.",
+    text: "The button does the next thing. The ⋯ beside it has Snooze, and No reply needed or Mark checked; each has Undo. Press W on any page for this list in a drawer; its My tasks tab has your tasks.",
     slug: "workbench",
   },
   {

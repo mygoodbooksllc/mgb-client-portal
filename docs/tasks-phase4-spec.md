@@ -307,6 +307,7 @@ Owner's suggested order (quick add, Close checklist, bulk) is kept for the first
 | announcements.js | yes | yes | every slice (append-only entries) |
 | index.html MGB_VERSION | yes | yes | every slice (always re-bump on rebase) |
 | notification-emails fn | – | – | P4-7 only |
+| WB_HubTasks.jsx (reads TK_TaskRow, TK_groupMyTasks, TK_myGroupsView) | Hub H2 | – | P4-3, P4-6: WB_HubTasks renders TK_TaskRow and calls TK_groupMyTasks/TK_myGroupsView; keep them backward compatible; run the hub smoke test. |
 
 Rule: one P4 slice in flight at a time; all start after subcolor merges and rebase after Workbench lands. P4-1 and P4-7 touch few shared files and may overlap one other slice.
 
