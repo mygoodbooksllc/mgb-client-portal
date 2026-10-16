@@ -1,4 +1,13 @@
 {
   "_comment": "Owner decisions for the Asana import (S8b, 2026-10-16). First names only; buildDryRun.js resolves them to active staff.",
-  "user_remap": { "naomi": "sonya" }
+  "user_remap": { "naomi": "sonya" },
+  "split_projects": {
+    "1206194958299283": {
+      "note": "Hosanna Church holds two real clients: Hosanna Woodlands and Hosanna LA. A task goes to the client in its section, else the client in its title (Weekly - Both).",
+      "clients": [
+        { "client_id": "hosanna-woodlands", "name": "Hosanna Woodlands", "match": "woodlands" },
+        { "client_id": "hosanna-la", "name": "Hosanna LA", "match": "\\bLA\\b" }
+      ]
+    }
+  }
 }

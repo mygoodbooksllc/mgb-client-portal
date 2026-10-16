@@ -470,4 +470,82 @@ t("plan: date anomalies", function () {
   assert.ok(kinds("42").indexOf("due_on_weekend") >= 0);
 });
 
+// ---- Split project: Hosanna Church = Hosanna Woodlands + Hosanna LA ----
+var HOS_SPLIT = {
+  h1: {
+    clients: [
+      { client_id: "hosanna-woodlands", name: "Hosanna Woodlands", match: "woodlands" },
+      { client_id: "hosanna-la", name: "Hosanna LA", match: "\\bLA\\b" },
+    ],
+  },
+};
+function hosSnap() {
+  return {
+    snapshot_at: "2026-10-16T17:00:00Z",
+    users: [],
+    teams: [{ gid: "t9", name: "Debra's Clients" }],
+    projects: [{ gid: "h1", name: "Hosanna Church", team: "Debra's Clients", archived: false }],
+    tasks: [
+      { g: "h-a", p: "h1", n: "QBO feed - Woodlands", d: "2026-10-12", sec: "Weekly - Both", cf: {} },
+      { g: "h-b", p: "h1", n: "QBO feed - LA", d: "2026-10-15", sec: "Weekly - Both", cf: {} },
+      { g: "h-c", p: "h1", n: "Month-end close", d: "2026-10-31", sec: "Monthly - Woodlands", cf: {} },
+      { g: "h-d", p: "h1", n: "Month-end close", d: "2026-10-31", sec: "Monthly - LA", cf: {} },
+      { g: "h-e", p: "h1", n: "Mystery", d: "2026-10-31", sec: "Weekly - Both", cf: {} },
+    ],
+    subtasks: [{ g: "h-c1", par: "h-c", n: "Review payroll", d: "2026-10-30" }],
+  };
+}
+var HOS_CLIENTS = [
+  { id: "hosanna-woodlands", name: "Hosanna Woodlands" },
+  { id: "hosanna-la", name: "Hosanna LA" },
+];
+
+t("split: section picks the client, title decides in 'Weekly - Both'", function () {
+  var pl = P.AI_plan(hosSnap(), ctx({ clients: HOS_CLIENTS, splits: HOS_SPLIT }));
+  assert.strictEqual(byGid(pl, "h-a").client_id, "hosanna-woodlands");
+  assert.strictEqual(byGid(pl, "h-b").client_id, "hosanna-la");
+  assert.strictEqual(byGid(pl, "h-c").client_id, "hosanna-woodlands");
+  assert.strictEqual(byGid(pl, "h-d").client_id, "hosanna-la");
+  assert.strictEqual(byGid(pl, "h-c1").client_id, "hosanna-woodlands");
+});
+
+t("split: 'Woodlands' never reads as LA, and an unclear task is skipped", function () {
+  var pl = P.AI_plan(hosSnap(), ctx({ clients: HOS_CLIENTS, splits: HOS_SPLIT }));
+  assert.ok(!byGid(pl, "h-e"));
+  assert.ok(pl.skipped.some(function (x) { return x.gid === "h-e" && x.reason === "split_client_unclear"; }));
+});
+
+t("split: recurring templates follow each task's client", function () {
+  var pl = P.AI_plan(hosSnap(), ctx({ clients: HOS_CLIENTS, splits: HOS_SPLIT }));
+  var closes = pl.templates.filter(function (x) { return x.title === "Month-end close"; });
+  assert.deepStrictEqual(closes.map(function (x) { return x.client_id; }).sort(), ["hosanna-la", "hosanna-woodlands"]);
+  var feeds = pl.templates.filter(function (x) { return /QBO feed/.test(x.title); });
+  assert.deepStrictEqual(feeds.map(function (x) { return x.client_id; }).sort(), ["hosanna-la", "hosanna-woodlands"]);
+});
+
+t("split: client missing from the client list skips the task", function () {
+  var pl = P.AI_plan(hosSnap(), ctx({ clients: [], splits: HOS_SPLIT }));
+  assert.ok(!byGid(pl, "h-a"));
+  assert.ok(pl.skipped.some(function (x) { return x.gid === "h-a" && x.reason === "client_missing"; }));
+});
+
+t("split: roster has one entry per client, each on its own QBO customer, no 'hosanna-church'", function () {
+  var live = P.AI_plan(hosSnap(), ctx({ clients: [], splits: HOS_SPLIT }));
+  var r = P.AI_buildRoster({
+    projects: live.project_map,
+    qbo: [
+      { id: "323", name: "Hosanna LA", display: "Hosanna LA", active: true },
+      { id: "40", name: "Hosanna Woodlands", display: "Hosanna Woodlands", active: true },
+    ],
+    staff: STAFF,
+  });
+  var ids = r.entries.map(function (e) { return e.proposed_client_id; }).sort();
+  assert.deepStrictEqual(ids, ["hosanna-la", "hosanna-woodlands"]);
+  var byId = {};
+  r.entries.forEach(function (e) { byId[e.proposed_client_id] = e; });
+  assert.strictEqual(byId["hosanna-la"].qbo.id, "323");
+  assert.strictEqual(byId["hosanna-woodlands"].qbo.id, "40");
+  assert.strictEqual(byId["hosanna-la"].team, "Debra's Clients");
+});
+
 console.log(pass + " passed" + (process.exitCode ? ", some FAILED" : ""));

@@ -218,8 +218,16 @@ function AI_buildRoster(input) {
   var projects = (input.projects || []).filter(function (p) {
     return p.target_kind === "client" || p.target_kind === "onboarding";
   });
-  var sources = projects.map(function (p) {
-    return { name: p.name, kind: p.target_kind, gid: p.gid, team: p.team || null, archived: !!p.archived };
+  var sources = [];
+  projects.forEach(function (p) {
+    // a split project is several real clients: one source (so one roster entry) per client
+    if (p.split && p.split.length) {
+      p.split.forEach(function (c) {
+        sources.push({ name: c.name, kind: p.target_kind, gid: p.gid, team: p.team || null, archived: !!p.archived });
+      });
+      return;
+    }
+    sources.push({ name: p.name, kind: p.target_kind, gid: p.gid, team: p.team || null, archived: !!p.archived });
   });
   (input.trackerSections || []).forEach(function (s) {
     if (AI_clean(s)) sources.push({ name: AI_clean(s), kind: "tracker_section", gid: null, team: null, archived: false });
@@ -428,6 +436,22 @@ function AI_rosterClients(roster) {
   });
 }
 
+// Which client of a split project a task belongs to: the section decides first
+// ("Monthly - Woodlands"), then the title ("QBO feed - LA" in "Weekly - Both").
+// split = [{client_id, name, match: "<regex source>"}]. Returns the entry, or null
+// when nothing (or more than one client) matches.
+function AI_splitClient(split, task) {
+  function hits(text) {
+    return (split || []).filter(function (c) {
+      return new RegExp(c.match, "i").test(text || "");
+    });
+  }
+  var bySec = hits(AI_clean(task.sec || ""));
+  if (bySec.length) return bySec.length === 1 ? bySec[0] : null;
+  var byTitle = hits(AI_clean(task.n || ""));
+  return byTitle.length === 1 ? byTitle[0] : null;
+}
+
 // Step 1: what each Asana project becomes. Owner overrides win:
 // overrides[gid] = {target_kind, client_id, note}.
 function AI_classifyProject(p, ctx) {
@@ -450,6 +474,16 @@ function AI_classifyProject(p, ctx) {
     candidates: [],
     reason: null,
   };
+  var split = (ctx.splits || {})[p.gid];
+  if (split && split.clients && split.clients.length) {
+    // One Asana project that holds several real clients (Hosanna Church = Woodlands + LA):
+    // each task is routed to a client by its section, then by its title (see AI_splitClient).
+    out.target_kind = "client";
+    out.confidence = "owner";
+    out.reason = split.note || "owner split: one Asana project, several clients";
+    out.split = split.clients;
+    return out;
+  }
   if (o && o.target_kind) {
     out.target_kind = o.target_kind;
     out.client_id = o.client_id || null;
@@ -603,7 +637,7 @@ function AI_plan(snapshot, ctx) {
 
   // 1. Projects
   var projects = (snapshot.projects || []).map(function (p) {
-    return AI_classifyProject(p, { clients: ctx.clients, staff: ctx.staff, teams: snapshot.teams, overrides: ctx.overrides });
+    return AI_classifyProject(p, { clients: ctx.clients, staff: ctx.staff, teams: snapshot.teams, overrides: ctx.overrides, splits: ctx.splits });
   });
   var projByGid = {};
   projects.forEach(function (p) {
@@ -805,6 +839,17 @@ function AI_plan(snapshot, ctx) {
       }
       clientId = m.client_id;
       projectGid = "tracker:" + t.p + ":" + AI_slug(t.sec);
+    } else if (kind === "client" && proj.split) {
+      var sc = AI_splitClient(proj.split, t);
+      if (!sc) {
+        skip(t.g, t.p, "split_client_unclear", { section: t.sec || null });
+        return;
+      }
+      if (!clientById[sc.client_id]) {
+        skip(t.g, t.p, "client_missing", { client_id: sc.client_id });
+        return;
+      }
+      clientId = sc.client_id;
     } else if (kind === "client") {
       if (!proj.client_id) {
         skip(t.g, t.p, proj.reason || "client_missing");
@@ -1285,6 +1330,7 @@ if (typeof module !== "undefined" && module.exports) {
     AI_matchClient: AI_matchClient,
     AI_teamBookkeeper: AI_teamBookkeeper,
     AI_dueRule: AI_dueRule,
+    AI_splitClient: AI_splitClient,
     AI_buildRoster: AI_buildRoster,
     AI_rosterClients: AI_rosterClients,
     AI_qboClean: AI_qboClean,

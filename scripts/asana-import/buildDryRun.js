@@ -427,6 +427,7 @@ function main() {
     fallbackEmail: ctxFile.fallbackEmail,
     today: ctxFile.today,
     overrides: ctxFile.overrides || {},
+    splits: decisions.split_projects || {},
     importedKeys: ctxFile.importedKeys || [],
     userRemap: resolveRemap(decisions.user_remap, ctxFile.staff),
   };

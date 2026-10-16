@@ -27,14 +27,15 @@ This Asana team does not name a bookkeeper, so these clients have none yet eithe
 | space-city-church | Space City Church | Space City | Space City Church (#342) | high | - |
 | the-plant-california-initiative | The Plant California Initiative | The Plant California Initiative | The Plant California Initiative (#255) | high | - |
 
-## Debra's Clients (6)
+## Debra's Clients (7)
 
 | Proposed id | Client name | Asana projects | QuickBooks | Match | Bookkeeper |
 |---|---|---|---|---|---|
 | 99-network | 99 Network | 99 Network | 99 Network (#280) | high | Debra |
 | church-at-the-shores | Church at the Shores | Church at the Shores | Church at the Shores (#275) | high | Debra |
 | faith-family-church-baytown | Faith Family Church - Baytown | Faith Family Church | Faith Family Church - Baytown (#55) | medium | Debra |
-| hosanna-church | Hosanna Church | Hosanna Church | Hosanna LA #323 or Hosanna Woodlands #40 | ambiguous | Debra |
+| hosanna-la | Hosanna LA | Hosanna LA | Hosanna LA (#323) | high | Debra |
+| hosanna-woodlands | Hosanna Woodlands | Hosanna Woodlands | Hosanna Woodlands (#40) | high | Debra |
 | pathway-community-church | Pathway Community Church | Pathway Church | Pathway Community Church (#132) | medium | Debra |
 | vida-church | Vida Church | Vida Church | Vida Church (#208) | high | Debra |
 
