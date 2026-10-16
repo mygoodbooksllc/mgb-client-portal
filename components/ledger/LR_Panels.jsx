@@ -178,7 +178,7 @@ function LR_LineTable({ lines }) {
 
 // The flag list. flags: stored rows (with .run) or run flags. renderActions(f)
 // and renderMeta(f) add the per-row buttons and status lines.
-function LR_FlagList({ flags, ym, renderActions, renderMeta, emptyText, idPrefix }) {
+function LR_FlagList({ flags, ym, renderActions, renderMeta, emptyText, idPrefix, selected, onToggle }) {
   const [openId, setOpenId] = useState(null);
   if (!flags.length) return <p className="lr-empty">{emptyText || "Nothing here."}</p>;
   return (
@@ -194,6 +194,15 @@ function LR_FlagList({ flags, ym, renderActions, renderMeta, emptyText, idPrefix
           <li key={id} className={"lr-flag sev-" + f.severity}>
             <div className="lr-flag-main">
               <div className="lr-flag-head">
+                {onToggle && f.id && (f.status === "open" || f.status === "asked") && (
+                  <input
+                    type="checkbox"
+                    className="lr-pick"
+                    checked={!!(selected && selected.has(f.id))}
+                    onChange={() => onToggle(f.id)}
+                    aria-label={`Select ${LR_typeLabel(f.flag_type)} ${f.name || f.memo || "flag"}`}
+                  />
+                )}
                 <span className={"lr-sev sev-" + f.severity}>{LR_SEV_LABEL[f.severity] || f.severity}</span>
                 <span className="lr-flag-type">{LR_typeLabel(f.flag_type)}</span>
                 {since && <span className="lr-since">{since}</span>}

@@ -155,6 +155,36 @@ function LR_ClearDialog({ flag, clientName, onCancel, onSubmit }) {
   );
 }
 
+function LR_BulkClearDialog({ count, onCancel, onSubmit }) {
+  const [reason, setReason] = useState("");
+  const [note, setNote] = useState("");
+  return (
+    <LR_Dialog
+      id="lr-bulk-clear"
+      title={`Clear ${count} flag${count === 1 ? "" : "s"}`}
+      submitLabel={`Clear ${count}`}
+      canSubmit={!!reason && note.length <= 2000}
+      onCancel={onCancel}
+      onSubmit={() => onSubmit({ reason, note: note.trim() })}
+    >
+      <p className="lr-hint">The same reason and note go on every selected flag. To stop a flag coming back, clear it on its own with "Stop flagging".</p>
+      <fieldset className="lr-fieldset">
+        <legend className="ct-legend">Reason</legend>
+        {LR_logic.CLEAR_REASONS.map((r) => (
+          <label key={r.key} className="lr-radio">
+            <input type="radio" name="lr-bulk-reason" value={r.key} checked={reason === r.key} onChange={() => setReason(r.key)} />
+            {r.label}
+          </label>
+        ))}
+      </fieldset>
+      <label className="ct-legend" htmlFor="lr-bulk-note">
+        Note (optional)
+      </label>
+      <textarea id="lr-bulk-note" className="ct-notes" rows={3} maxLength={2000} value={note} onChange={(e) => setNote(e.target.value)} />
+    </LR_Dialog>
+  );
+}
+
 function LR_AskDialog({ flag, portalUsers, portalMissing, contactEmail, onCancel, onSubmit }) {
   const hasPortal = portalUsers.length > 0;
   const [via, setVia] = useState(hasPortal ? "portal" : "email");
@@ -295,6 +325,7 @@ function LR_LedgerTab({ client, staffUser, isAdmin, onNavigate }) {
   const [pull, setPull] = useState({ phase: "idle" });
   const [rulesChanged, setRulesChanged] = useState(false);
   const [tab, setTab] = useState("open");
+  const [sel, setSel] = useState(() => new Set());
   const [type, setType] = useState("all");
   const [dialog, setDialog] = useState(null);
   const [actionBusy, setActionBusy] = useState(false);
@@ -516,6 +547,11 @@ function LR_LedgerTab({ client, staffUser, isAdmin, onNavigate }) {
   const counts = LR_logic.tabCounts(flags, ym);
   const chips = LR_logic.typeCounts(flags, ym, tab);
   const shown = LR_logic.viewFlags(flags, { ym, tab, type });
+  useEffect(() => { setSel(new Set()); }, [tab, type, ym, client.id]);
+  const pickable = shown.filter((f) => f.id && (f.status === "open" || f.status === "asked"));
+  const nSel = pickable.filter((f) => sel.has(f.id)).length;
+  const toggleSel = (id) => setSel((s) => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n; });
+  const toggleAll = () => setSel(nSel === pickable.length ? new Set() : new Set(pickable.map((f) => f.id)));
   const holdingRows = useMemo(() => (run ? GLR_checks.holdingTotals(run.lines, { period: ym }) : null), [run, ym]);
   const holding = holdingRows ? LR_logic.holdingSplit(holdingRows) : null;
   const monthLines = run ? run.lines.filter((l) => String(l.date).slice(0, 7) === ym).length : null;
@@ -575,6 +611,36 @@ function LR_LedgerTab({ client, staffUser, isAdmin, onNavigate }) {
         await afterFlagChange();
       },
     });
+
+  // Clear every selected flag with one reason. One RPC per flag (the server
+  // re-checks each one), so a failure on one never blocks the others.
+  const onBulkClear = () => {
+    const ids = shown.filter((f) => f.id && sel.has(f.id) && (f.status === "open" || f.status === "asked")).map((f) => f.id);
+    if (!ids.length) return;
+    setDialog({
+      kind: "bulkclear",
+      count: ids.length,
+      submit: async ({ reason, note }) => {
+        let ok = 0;
+        let firstErr = "";
+        const failed = new Set();
+        for (const id of ids) {
+          try {
+            await LR_api.clear(id, reason, note, false);
+            ok += 1;
+          } catch (e) {
+            failed.add(id);
+            if (!firstErr) firstErr = (e && e.message) || "";
+          }
+        }
+        setDialog(null);
+        setSel(failed);
+        const bad = ids.length - ok;
+        toast(bad ? `Cleared ${ok}. ${bad} couldn't be cleared${firstErr ? ": " + firstErr : "."}` : `Cleared ${ok} flag${ok === 1 ? "" : "s"}.`);
+        await afterFlagChange();
+      },
+    });
+  };
 
   const onAsk = (f) =>
     setDialog({
@@ -1046,7 +1112,20 @@ function LR_LedgerTab({ client, staffUser, isAdmin, onNavigate }) {
       <LR_StatusTabs tabs={tabs} current={tab} onSelect={setTab} idPrefix="lr-st" controls="lr-flag-panel" />
       <div id="lr-flag-panel" role="tabpanel" aria-labelledby={"lr-st-tab-" + tab}>
         <LR_TypeChips chips={chips} current={type} onSelect={setType} total={chips.reduce((s, c) => s + c.n, 0)} idPrefix="lr" />
-        <LR_FlagList flags={shown} ym={ym} renderMeta={renderMeta} renderActions={renderActions} emptyText={emptyText} idPrefix="lr" />
+        {pickable.length > 0 && (
+          <div className="lr-bulkbar">
+            <label className="lr-check">
+              <input type="checkbox" checked={nSel === pickable.length} ref={(el) => { if (el) el.indeterminate = nSel > 0 && nSel < pickable.length; }} onChange={toggleAll} disabled={actionBusy} aria-label="Select all open flags" />
+              <span>{nSel ? `${nSel} selected` : `Select all ${pickable.length}`}</span>
+            </label>
+            {nSel > 0 && (
+              <button type="button" className="btn-secondary lr-btn-sm" disabled={actionBusy} onClick={onBulkClear}>
+                Clear {nSel} selected
+              </button>
+            )}
+          </div>
+        )}
+        <LR_FlagList flags={shown} ym={ym} renderMeta={renderMeta} renderActions={renderActions} emptyText={emptyText} idPrefix="lr" selected={sel} onToggle={toggleSel} />
       </div>
     </section>
   );
@@ -1162,6 +1241,7 @@ function LR_LedgerTab({ client, staffUser, isAdmin, onNavigate }) {
     const close = () => setDialog(null);
     if (dialog.kind === "clear")
       dialogEl = <LR_ClearDialog flag={dialog.flag} clientName={clientName} onCancel={close} onSubmit={dialog.submit} />;
+    else if (dialog.kind === "bulkclear") dialogEl = <LR_BulkClearDialog count={dialog.count} onCancel={close} onSubmit={dialog.submit} />;
     else if (dialog.kind === "ask")
       dialogEl = (
         <LR_AskDialog

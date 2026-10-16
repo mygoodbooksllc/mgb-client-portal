@@ -34,6 +34,7 @@ Each flag is one transaction (or one account) that a check picked out. The check
 What you can do with a flag:
 
 - **Clear** it. Pick a reason (*Expected, nothing wrong*, *Reviewed, it's fine*, *Fixed it in QuickBooks*, *The client answered* or *Other*) and add a note if it helps. Your name and the time are recorded.
+- **Clear several at once.** Tick the box on each flag (or **Select all** above the list), then **Clear N selected**. Pick one reason and note for all of them. It clears what's on screen, so use the check chips first to narrow the list. Use **Stop flagging this** on a single flag, not in bulk.
 - **Stop flagging this** (in the Clear box). A rule is saved for this client only, so the same pattern stays quiet from now on. The rules are listed on the tab. You can remove one any time, or accept or dismiss a rule the tab suggests.
 - **Ask client** when only they can say what a charge was. The question is pre-filled and you can edit it. You choose **In the portal** (replies come back in Messages; only portal users who can see the whole company are offered, never someone limited to certain accounts) or **By email** to their contact email (see Client setup below; replies come to your own email). The flag moves to **Asked**.
 - **Got an answer** when the client replies. Then clear it.
