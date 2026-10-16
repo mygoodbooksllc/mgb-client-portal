@@ -49,6 +49,16 @@
 --  12. Cron task-templates-daily now runs select public.tk_generate().
 --      Plain SQL job, no secret, nothing for the owner to paste.
 --
+-- Review fixes (2026-10-16), marked "review fix":
+--   major 1: tk_template_sets.live_since, stamped when standard_set_live
+--            turns on; real clients start at the later of activation and it.
+--   major 2: tk_save_template refuses a new cadence / year basis once a
+--            template has been on or made a task (tk_cadence_locked).
+--   major 3: a non-admin's override save keeps an admin's "no approval".
+--   major 4: tk_issue_missed links an existing task; the UI shows skips.
+--   minors:  standard_set_live read leniently (tk__jsonb_bool, warning, run
+--            still logged); dismissed / issued periods are not re-listed.
+--
 -- Test clients: a cron or roster run never touches test_only or internal
 -- clients. Only a run that names one (p_client_id) reaches it.
 --
@@ -94,6 +104,56 @@ grant select on table public.tk_template_sets to authenticated;
 drop policy if exists "tk template sets staff read" on public.tk_template_sets;
 create policy "tk template sets staff read" on public.tk_template_sets
   for select to authenticated using (public.is_active_staff());
+-- S4 review fix (major 1): when the owner turns standard_set_live on, real
+-- clients start from that moment, not from each template's activation (an
+-- earlier activation on test clients must not flood real clients with
+-- missed rows and overdue tasks). Stamped by tk_settings_set_live_since
+-- below; staff read it, only definer code writes it.
+alter table public.tk_template_sets add column if not exists live_since timestamptz;
+
+-- Lenient jsonb -> boolean for settings: true / "true" / "on" / 1 ... ;
+-- null when the value is not a yes or no (callers treat that as off and
+-- log a warning instead of aborting the run).
+create or replace function public.tk__jsonb_bool(p jsonb)
+returns boolean
+language sql
+immutable
+set search_path = public
+as $$
+  select case jsonb_typeof(p)
+    when 'boolean' then (p #>> '{}')::boolean
+    when 'number' then (p #>> '{}')::numeric <> 0
+    when 'string' then case
+      when lower(btrim(p #>> '{}')) in ('true', 't', 'yes', 'y', 'on', '1') then true
+      when lower(btrim(p #>> '{}')) in ('false', 'f', 'no', 'n', 'off', '0', '') then false
+    end
+  end;
+$$;
+
+create or replace function public.tk_settings_set_live_since()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_on boolean := coalesce(public.tk__jsonb_bool(new.value), false);
+  v_was boolean := case when tg_op = 'UPDATE' then coalesce(public.tk__jsonb_bool(old.value), false) else false end;
+begin
+  if new.key = 'standard_set_live' and v_on and not v_was then
+    -- off -> on (again): real clients start now; paused months are neither made nor missed
+    update tk_template_sets set live_since = now(), updated_at = now() where deleted_at is null;
+  end if;
+  return null;
+end $$;
+revoke all on function public.tk_settings_set_live_since() from public, anon, authenticated;
+drop trigger if exists tk_settings_set_live_since on public.tk_settings;
+create trigger tk_settings_set_live_since after insert or update on public.tk_settings
+  for each row execute function public.tk_settings_set_live_since();
+-- already live before this column existed: start from now (never backdate)
+update public.tk_template_sets set live_since = now()
+ where live_since is null and deleted_at is null
+   and coalesce(public.tk__jsonb_bool((select s.value from public.tk_settings s where s.key = 'standard_set_live')), false);
 
 -- 2. task_templates columns ----------------------------------------------
 alter table public.task_templates add column if not exists template_set_id uuid references public.tk_template_sets(id);
@@ -488,8 +548,12 @@ declare
   v_today date := coalesce(p_today, (now() at time zone 'America/Chicago')::date);
   v_dry boolean := coalesce(p_dry_run, false) or p_only_template is not null;
   v_horizon int := greatest(coalesce(p_horizon_days, 0), 0);
-  v_set_live boolean := coalesce((select (value #>> '{}')::boolean from tk_settings where key = 'standard_set_live'), false);
+  -- review fix (minor): a value that isn't a yes/no counts as off and is warned about, never aborts the run
+  v_set_live_raw jsonb := (select value from tk_settings where key = 'standard_set_live');
+  v_set_live boolean := coalesce(public.tk__jsonb_bool(v_set_live_raw), false);
   v_named_test boolean := false;
+  v_live_since date;
+  v_act_c date;
   -- critique m3: nothing due before on_time_since (S3 ship date) is listed as missed
   v_miss_floor date := (select (s.value #>> '{}')::date from tk_settings s where s.key = 'on_time_since');
   t public.task_templates%rowtype;
@@ -530,15 +594,21 @@ begin
         or (p_only_template is null and tt.active and tt.status = 'active')
      order by tt.created_at, tt.id
   loop
+    v_live_since := null;
     if t.template_set_id is not null and p_only_template is null then
-      select s.deleted_at, s.is_standard into v_set from tk_template_sets s where s.id = t.template_set_id;
+      select s.deleted_at, s.is_standard, s.live_since into v_set from tk_template_sets s where s.id = t.template_set_id;
       if v_set.deleted_at is not null then continue; end if;
       -- set members generate only when the owner turned the set on, or for a named test client
       if not v_set_live and not (p_client_id is not null and v_named_test) then continue; end if;
+      v_live_since := (v_set.live_since at time zone 'America/Chicago')::date;   -- review fix (major 1)
     end if;
     v_act := case when p_only_template is not null then v_today
                   else coalesce((t.activated_at at time zone 'America/Chicago')::date,
                                 (t.created_at at time zone 'America/Chicago')::date) end;
+    -- review fix (major 1): a real client reaches a set member from the later of
+    -- its activation and the moment the set went live; a named test client from activation.
+    v_act_c := case when v_live_since is not null and not (p_client_id is not null and v_named_test)
+                    then greatest(v_act, v_live_since) else v_act end;
 
     for c in
       select cl.id from clients cl
@@ -551,19 +621,23 @@ begin
       v_eff := public.tk__template_eff(t, c.id);
       if (v_eff ->> 'skip')::boolean then continue; end if;
       v_kind := v_eff ->> 'kind';
-      v_floor := greatest(public.tk_period_start_for(v_kind, v_act, v_eff ->> 'fye'),
+      v_floor := greatest(public.tk_period_start_for(v_kind, v_act_c, v_eff ->> 'fye'),
                           public.tk_period_start_for(v_kind, v_today - 365, v_eff ->> 'fye'));
       -- a period whose due date was before activation is neither created nor missed
       v_start := public.tk_period_start_for(v_kind, v_floor - 1, v_eff ->> 'fye');
       while v_start <= v_today + greatest(t.lead_days, v_horizon) + 130 loop
         v_end := public.tk__period_end(v_kind, v_start);
         v_due := public.tk_resolve_due(v_eff -> 'rule', v_start, v_end);
-        if v_due is not null and v_due >= v_act then
+        if v_due is not null and v_due >= v_act_c then
           if v_due < v_today - 7 then
             -- owner Q7: past the 7-day grace -> listed, never created
             if (v_miss_floor is null or v_due >= v_miss_floor)
                and not exists (select 1 from task_template_issued i
-                            where i.template_id = t.id and i.client_id = c.id and i.period = v_start) then
+                            where i.template_id = t.id and i.client_id = c.id and i.period = v_start)
+               -- review fix (minor): a dismissed (or hand-made) period is not listed again
+               and not exists (select 1 from tk_generate_missed m
+                            where m.template_id = t.id and m.client_id = c.id and m.period_start = v_start
+                              and (m.dismissed_at is not null or m.issued_at is not null)) then
               if jsonb_array_length(v_missed) < 300 then
                 v_missed := v_missed || jsonb_build_object('template', t.id, 'title', v_eff ->> 'title', 'client', c.id,
                                                            'period', v_start, 'label', public.tk__period_label(v_kind, v_start), 'due', v_due);
@@ -611,6 +685,9 @@ begin
   select max(h.day) into v_max_hol from tk_holidays h;
   if v_max_hol is null or v_max_hol < v_today + 365 then
     v_warn := v_warn || to_jsonb('Firm holidays run out on ' || coalesce(v_max_hol::text, 'never set') || '. Add next year''s holidays.'::text);
+  end if;
+  if v_set_live_raw is not null and public.tk__jsonb_bool(v_set_live_raw) is null then
+    v_warn := v_warn || to_jsonb('The standard set switch has an unreadable value, so it counts as off. The owner can switch it again.'::text);
   end if;
 
   v_result := jsonb_build_object('created', v_created, 'by_assignee', v_by, 'skipped', v_skipped, 'missed', v_missed,
@@ -722,6 +799,7 @@ declare
   v_tiers text[];
   v_clients text[];
   v_rule jsonb;
+  v_old task_templates%rowtype;   -- review fix (major 2)
 begin
   if not public.is_active_staff_admin() then
     raise exception 'tk_forbidden' using errcode = '42501';
@@ -753,6 +831,21 @@ begin
             coalesce(p_tpl ->> 'period_basis', 'calendar'), 'draft', true, v_me, v_me, 'manual')
     returning id into v_id;
   else
+    -- review fix (major 2): periods are keyed by their start date, so once a
+    -- template has been on (or made a task) a new cadence or year basis would
+    -- skip or double periods (monthly -> quarterly never makes Q4; calendar ->
+    -- fiscal makes a second yearly task). Retire it and make a new one.
+    select * into v_old from task_templates where id = v_id for update;
+    if not found then
+      raise exception 'tk_not_found' using errcode = 'P0002';
+    end if;
+    if (v_old.status <> 'draft' or v_old.activated_at is not null
+        or exists (select 1 from task_template_issued i where i.template_id = v_id))
+       and public.tk__template_kind(coalesce(p_tpl ->> 'cadence', v_old.cadence),
+                                    coalesce(p_tpl ->> 'period_basis', v_old.period_basis))
+           is distinct from public.tk__template_kind(v_old.cadence, v_old.period_basis) then
+      raise exception 'tk_cadence_locked' using errcode = '22023';
+    end if;
     update task_templates set
       title = btrim(coalesce(p_tpl ->> 'title', title)),
       cadence = coalesce(p_tpl ->> 'cadence', cadence),
@@ -828,6 +921,7 @@ as $$
 declare
   v_o jsonb := coalesce(p_override, '{}'::jsonb);
   k text;
+  v_admin_review jsonb;   -- review fix (major 3)
 begin
   if not public.is_active_staff() or not public.can_access_client(p_client_id) then
     raise exception 'tk_forbidden' using errcode = '42501';
@@ -855,10 +949,21 @@ begin
   if v_o ? 'checklist' and (jsonb_typeof(v_o -> 'checklist') <> 'array' or jsonb_array_length(v_o -> 'checklist') > 50) then
     raise exception 'tk_bad_override' using errcode = '22023';
   end if;
-  -- only admins switch review off for a client
-  if v_o ? 'review_required' and not coalesce((v_o ->> 'review_required')::boolean, true)
-     and not public.is_active_staff_admin() then
-    raise exception 'tk_forbidden' using errcode = '42501';
+  if v_o ? 'review_required' and jsonb_typeof(v_o -> 'review_required') <> 'boolean' then
+    raise exception 'tk_bad_override' using errcode = '22023';
+  end if;
+  -- only admins switch review off for a client. Review fix (major 3): when an
+  -- admin already switched it off, a non-admin's save keeps that setting as
+  -- it is (whatever the call sends), so they can still skip or change the rest.
+  if not public.is_active_staff_admin() then
+    select (o.override -> 'review_required') into v_admin_review
+      from tk_client_template_overrides o
+     where o.client_id = p_client_id and o.template_id = p_template_id;
+    if v_admin_review = 'false'::jsonb then
+      v_o := jsonb_set(v_o, '{review_required}', 'false'::jsonb);
+    elsif v_o -> 'review_required' = 'false'::jsonb then
+      raise exception 'tk_review_admin_only' using errcode = '42501';
+    end if;
   end if;
   insert into tk_client_template_overrides (client_id, template_id, skip, override, updated_by, updated_at)
   values (p_client_id, p_template_id, coalesce(p_skip, false), v_o, lower(auth.jwt() ->> 'email'), now())
@@ -893,6 +998,13 @@ begin
   perform set_config('mgb.tk_generate', 'on', true);
   v_r := public.tk__issue_period(v_t, public.tk__template_eff(v_t, p_client_id), p_client_id, p_period_start, false);
   perform set_config('mgb.tk_generate', '', true);
+  -- Review fix (major 4): 'created' and 'exists' close the row (an existing
+  -- task is linked). 'skipped' leaves it open and the caller shows the reason.
+  if v_r ->> 'status' = 'exists' and nullif(v_r ->> 'reminder_id', '') is null then
+    v_r := v_r || jsonb_build_object('reminder_id',
+             (select i.reminder_id from task_template_issued i
+               where i.template_id = p_template_id and i.client_id = p_client_id and i.period = p_period_start));
+  end if;
   if v_r ->> 'status' in ('created', 'exists') then
     update tk_generate_missed set issued_at = now(), issued_by = v_me,
            reminder_id = nullif(v_r ->> 'reminder_id', '')::uuid
@@ -1015,6 +1127,7 @@ set search_path = public
 as $$ select 5 $$;
 
 -- 16. Grants -------------------------------------------------------------
+revoke all on function public.tk__jsonb_bool(jsonb) from public, anon, authenticated;
 revoke all on function public.tk__client_people(text) from public, anon, authenticated;
 revoke all on function public.tk_client_people(text) from public, anon, authenticated;
 revoke all on function public.tk__template_kind(text, text) from public, anon, authenticated;

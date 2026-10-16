@@ -275,4 +275,89 @@ t("error text covers every template reason the SQL raises", () => {
   assert.strictEqual(T.TK_tplErrorText(null), null);
 });
 
+t("TK_api passes every template reason the SQL raises", () => {
+  const api = fs.readFileSync(path.join(__dirname, "TK_api.js"), "utf8");
+  const list = /var TK_REASONS = \[([\s\S]*?)\];/.exec(api)[1];
+  const raised = new Set((SQL.match(/raise exception '(tk_[a-z_]+)'/g) || []).map((m) => m.match(/'(tk_[a-z_]+)'/)[1]));
+  raised.forEach((r) => assert.ok(list.indexOf('"' + r + '"') >= 0, "TK_REASONS lacks " + r));
+});
+
+// ---- review fixes (2026-10-16) ----
+
+t("cadence lock: new and never-on drafts are open; on, paused, retired, once-on or made-a-task are locked", () => {
+  assert.strictEqual(T.TK_tplCadenceLocked({ id: null, status: "draft" }, 0), false);
+  assert.strictEqual(T.TK_tplCadenceLocked({ id: "a", status: "draft", activated_at: null }, 0), false);
+  assert.strictEqual(T.TK_tplCadenceLocked({ id: "a", status: "active", activated_at: "2026-10-01T17:00:00Z" }, 0), true);
+  assert.strictEqual(T.TK_tplCadenceLocked({ id: "a", status: "retired" }, 0), true);
+  assert.strictEqual(T.TK_tplCadenceLocked({ id: "a", status: "draft", activated_at: "2026-10-01T17:00:00Z" }, 0), true);
+  assert.strictEqual(T.TK_tplCadenceLocked({ id: "a", status: "draft" }, 2), true);
+  const d = T.TK_tplFromRow({ id: "a", status: "draft", activated_at: "2026-10-01T17:00:00Z" });
+  assert.strictEqual(T.TK_tplCadenceLocked(d, 0), true, "the editor draft keeps activated_at");
+  assert.ok(!("activated_at" in T.TK_tplToPayload(d)), "activated_at is never sent");
+  assert.ok(T.TK_tplErrorText({ reason: "tk_cadence_locked" }).indexOf("Retire it") >= 0);
+});
+
+t("Central date: an evening UTC timestamp is still the Central day", () => {
+  assert.strictEqual(T.TK_tplCentralDate("2026-10-02T03:30:00Z"), "2026-10-01");
+  assert.strictEqual(T.TK_tplCentralDate("2026-10-01T17:00:00Z"), "2026-10-01");
+  assert.strictEqual(T.TK_tplCentralDate("2026-01-01T05:59:00Z"), "2025-12-31");
+  assert.strictEqual(T.TK_tplCentralDate(null), null);
+  assert.strictEqual(T.TK_tplCentralDate("nope"), null);
+});
+
+t("activatedOn: later of activation and set live_since for real clients; activation for test clients", () => {
+  const tpl = { activated_at: "2026-10-01T17:00:00Z", template_set_id: "s1" };
+  const set = { id: "s1", live_since: "2026-12-01T18:00:00Z" };
+  assert.strictEqual(T.TK_tplActivatedOn(tpl, { set }), "2026-12-01");
+  assert.strictEqual(T.TK_tplActivatedOn(tpl, { set, testClient: true }), "2026-10-01");
+  assert.strictEqual(T.TK_tplActivatedOn(tpl, { set: { id: "s1", live_since: "2026-09-01T18:00:00Z" } }), "2026-10-01");
+  assert.strictEqual(T.TK_tplActivatedOn(tpl, { set: { id: "s1", live_since: null } }), "2026-10-01");
+  assert.strictEqual(T.TK_tplActivatedOn({ activated_at: "2026-10-02T03:30:00Z" }, { set }), "2026-10-01", "firm template: no set");
+  // the preview then lists nothing from before the set went live
+  const rows = T.TK_tplUpcoming(
+    { cadence: "monthly", due_rule: { type: "offset", days: 10 }, lead_days: 14 },
+    { today: "2026-12-15", activatedOn: T.TK_tplActivatedOn(tpl, { set }), count: 3, withMissed: true },
+  );
+  assert.ok(rows.every((r) => r.due >= "2026-12-01"), JSON.stringify(rows));
+});
+
+t("standard_set_live reads like tk__jsonb_bool", () => {
+  assert.strictEqual(T.TK_tplBool(true), true);
+  assert.strictEqual(T.TK_tplBool("true"), true);
+  assert.strictEqual(T.TK_tplBool(" Yes "), true);
+  assert.strictEqual(T.TK_tplBool(1), true);
+  assert.strictEqual(T.TK_tplBool("off"), false);
+  assert.strictEqual(T.TK_tplBool(0), false);
+  assert.strictEqual(T.TK_tplBool("maybe"), null);
+  assert.strictEqual(T.TK_tplBool(null), null);
+  assert.strictEqual(T.TK_tplBool(undefined), null);
+  assert.ok(/'true', 't', 'yes', 'y', 'on', '1'/.test(SQL) && /'false', 'f', 'no', 'n', 'off', '0', ''/.test(SQL), "word lists match the SQL");
+});
+
+t("override payload: a non-admin never sends or changes the admin's no-approval", () => {
+  const stored = { review_required: false, title: "Admin title", checklist: ["a"] };
+  const bk = T.TK_tplOverridePayload({ title: "BK title", review: "no" }, { isAdmin: false, stored });
+  assert.deepStrictEqual(bk, { title: "BK title", checklist: ["a"] });
+  const bkYes = T.TK_tplOverridePayload({ review: "yes" }, { isAdmin: false, stored });
+  assert.ok(!("review_required" in bkYes), "locked: the select can't switch it back on either");
+  assert.deepStrictEqual(T.TK_tplOverridePayload({ review: "no" }, { isAdmin: false, stored: {} }), {}, "a non-admin can't send false");
+  assert.deepStrictEqual(T.TK_tplOverridePayload({ review: "yes" }, { isAdmin: false, stored: {} }), { review_required: true });
+  assert.deepStrictEqual(T.TK_tplOverridePayload({ review: "no", role: "backup" }, { isAdmin: true, stored }), {
+    assignee_role: "backup",
+    review_required: false,
+    checklist: ["a"],
+  });
+  assert.deepStrictEqual(T.TK_tplOverridePayload({ review: "" }, { isAdmin: true, stored }), { checklist: ["a"] }, "admin: blank clears it");
+  assert.strictEqual(T.TK_tplOverridePayload({ title: "Close · Sep 2026" }, {}).title, "Close");
+});
+
+t("Make task outcome: created / exists close the row; skipped keeps it with the reason", () => {
+  assert.deepStrictEqual(T.TK_tplIssueOutcome({ status: "created", reminder_id: "x" }), { closed: true, text: "Task made." });
+  assert.strictEqual(T.TK_tplIssueOutcome({ status: "exists" }).closed, true);
+  const s = T.TK_tplIssueOutcome({ status: "skipped", reason: "no_assignee" });
+  assert.strictEqual(s.closed, false);
+  assert.ok(s.text.indexOf("Nobody to give it to") >= 0, s.text);
+  assert.strictEqual(T.TK_tplIssueOutcome(null).closed, false);
+});
+
 console.log("TK_templateLogic: " + n + " tests passed");

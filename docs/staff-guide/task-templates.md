@@ -2,7 +2,7 @@
 title: How do recurring tasks from templates work?
 section: Month-end and recurring work
 audience: staff
-keywords: [templates, recurring, recurring tasks, repeat, weekly, monthly, quarterly, annually, fiscal year, generate, make due tasks now, automatic tasks, task templates, suggestions, suggested templates, save as template, checklist, due rule, business day, last business day, lead days, draft, turn on, pause, resume, retire, missed periods, skip for this client, change for this client, standard set, standard close set, preview, recurring badge, #/tasks/templates]
+keywords: [templates, recurring, recurring tasks, repeat, weekly, monthly, quarterly, annually, fiscal year, generate, make due tasks now, automatic tasks, task templates, suggestions, suggested templates, save as template, checklist, due rule, business day, last business day, lead days, draft, turn on, pause, resume, retire, missed periods, dismissed, skip for this client, repeats locked, live for real clients, change for this client, standard set, standard close set, preview, recurring badge, #/tasks/templates]
 sort: 320
 ---
 Some work happens for every client on a schedule, like reconciling bank accounts each month. Instead of typing those tasks by hand, an admin sets up a **recurring template** once, and the portal makes the task for each client on its own every morning.
@@ -37,7 +37,7 @@ Business days skip weekends and the firm's holidays. The editor shows the next t
 Everyone can open **Tasks › Recurring** to see the templates. Under **One client**, pick a client you look after to see which templates reach them and when the next one is due. You can also:
 
 - **Skip a template for that client** with its switch. It stops making tasks for that client only.
-- **Change** it for that client: a different title, due date, who does it, or whether it needs approval. Only an admin can turn approval off for a client.
+- **Change** it for that client: a different title, due date, who does it, or whether it needs approval. Only an admin can turn approval off for a client. If an admin already turned it off, you can still skip or change the rest; the admin's setting stays as it is.
 - **Preview 60 days** to see what's coming for that client.
 
 ### Setting up a template (admins)
@@ -55,17 +55,23 @@ Everyone can open **Tasks › Recurring** to see the templates. Under **One clie
 
 **New templates are drafts.** Nothing is made until you click **Turn on**. When you turn one on, it only makes tasks for periods from now on. Use **Pause** and **Resume** to stop and restart it, and **Retire** when it's no longer needed (tasks it already made stay). A retired template can go **Back to draft**.
 
+**How often it repeats is fixed once a template has been on.** After it has been turned on (or has made a task), **Repeats** and **Year** can't be changed, because each period is counted from its start date. To change them, **Retire** it and make a new template. Everything else, like the title, due date and checklist, can still change.
+
 Before turning one on, click **Preview** on its row to see what it would make for every client today. **Preview 30 days** shows what all templates that are on will make in the next 30 days. Nothing is created by a preview.
 
 **Make due tasks now** runs the morning job straight away. It only makes what's already due to show up; anything already made is left alone.
 
 ### Missed periods (admins)
 
-If a period's due date is more than 7 days ago when a template first reaches it (for example, you turned one on late), it isn't made on its own. It's listed under **Missed periods** at the top of the page. Click **Make task** if the work still needs doing, or **Dismiss**.
+If a period's due date is more than 7 days ago when a template first reaches it (for example, you turned one on late), it isn't made on its own. It's listed under **Missed periods** at the top of the page. Click **Make task** if the work still needs doing, or **Dismiss**. A dismissed period isn't listed again.
+
+If **Make task** can't make it, for example the client has nobody to give it to, it says why and the period stays listed so you can fix that and try again. If the period already has a task, it's linked to that task and leaves the list.
 
 ### The standard close set (admins and owner)
 
 The firm's standard month-end templates are grouped at the top as a set. They come as drafts. Even when an admin turns them on, they only reach **test clients** until the owner switches the set to **Live for real clients**. The owner can switch it back off at any time.
+
+Real clients start from the day the owner switches the set live: earlier months aren't made and aren't listed as missed. Switching it off and on again starts them from the new day. Test clients still start from the day each template was turned on.
 
 ### Templates from tasks and suggestions
 

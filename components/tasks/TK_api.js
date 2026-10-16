@@ -61,7 +61,7 @@ var TK_api = (function () {
     "tk_self_review", "tk_needs_approval", "tk_in_review", "tk_reason_required", "tk_bad_reviewer",
     "tk_server_owned", "tk_owner_only",
     "tk_bad_due_rule", "tk_bad_template", "tk_checklist_too_long", "tk_bad_override", "tk_bad_action",
-    "tk_template_retired", "tk_not_found",
+    "tk_template_retired", "tk_not_found", "tk_cadence_locked", "tk_review_admin_only",
   ];
   var COPY_FALLBACK = {
     sentForReview: "Sent for review. An admin will approve it.",
@@ -1388,7 +1388,7 @@ var TK_api = (function () {
 
   api.listTemplateSets = function () {
     return run(function (c) {
-      return c.from("tk_template_sets").select("id, name, is_standard, deleted_at").order("name", { ascending: true });
+      return c.from("tk_template_sets").select("id, name, is_standard, deleted_at, live_since").order("name", { ascending: true });
     }, { where: "listTemplateSets" }).then(function (rows) { return rows || []; });
   };
 

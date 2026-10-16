@@ -310,6 +310,7 @@ function TK_tplFromRow(row) {
   d.status = r.status || "draft";
   d.active = r.active !== false;
   d.template_set_id = r.template_set_id || null;
+  d.activated_at = r.activated_at || null;
   return d;
 }
 
@@ -443,7 +444,96 @@ var TK_TPL_ERR_TEXT = {
   tk_not_found: "That template is gone. Refresh the page.",
   tk_bad_reviewer: "Pick an active admin as the reviewer.",
   tk_offline: "You're offline. Try again when you're back online.",
+  tk_cadence_locked: "How often it repeats can't change once a template has been on. Retire it and make a new one.",
+  tk_review_admin_only: "Only an admin can turn approval off for a client.",
 };
+
+var TK_TPL_CADENCE_LOCK_NOTE = "How often it repeats can't change once a template has been on. Retire it and make a new one.";
+
+// Review fix (major 2): once a template has been on (or made a task) its
+// cadence and year basis are fixed; tk_save_template refuses a change.
+function TK_tplCadenceLocked(t, issuedCount) {
+  if (!t || !t.id) return false;
+  var status = t.status || "draft";
+  return status !== "draft" || !!t.activated_at || Number(issuedCount) > 0;
+}
+
+// A timestamp -> its 'YYYY-MM-DD' in the firm's time zone (America/Chicago),
+// the same date SQL takes with `at time zone 'America/Chicago'`.
+function TK_tplCentralDate(ts) {
+  if (!ts) return null;
+  var d = new Date(ts);
+  if (isNaN(d.getTime())) return null;
+  try {
+    var parts = new Intl.DateTimeFormat("en-US", { timeZone: "America/Chicago", year: "numeric", month: "2-digit", day: "2-digit" }).formatToParts(d);
+    var m = {};
+    parts.forEach(function (p) {
+      m[p.type] = p.value;
+    });
+    return m.year + "-" + m.month + "-" + m.day;
+  } catch (e) {
+    return d.toISOString().slice(0, 10);
+  }
+}
+
+// The same reading SQL's tk__jsonb_bool gives a tk_settings value: true,
+// false, or null when it isn't a yes/no (the generator then treats it as off).
+function TK_tplBool(v) {
+  if (typeof v === "boolean") return v;
+  if (typeof v === "number") return v !== 0;
+  if (typeof v === "string") {
+    var s = v.trim().toLowerCase();
+    if (["true", "t", "yes", "y", "on", "1"].indexOf(s) >= 0) return true;
+    if (["false", "f", "no", "n", "off", "0", ""].indexOf(s) >= 0) return false;
+  }
+  return null;
+}
+
+// The first day tk__generate counts for a template (review fix, major 1):
+// its activation date (Central), or for a standard-set member reaching a
+// real client, the later of that and the day the set went live.
+// opts: { set (row with live_since), testClient }.
+function TK_tplActivatedOn(t, opts) {
+  var o = opts || {};
+  if (!t) return null;
+  var act = TK_tplCentralDate(t.activated_at || t.created_at);
+  if (!act) return null;
+  if (t.template_set_id && o.set && o.set.live_since && !o.testClient) {
+    var live = TK_tplCentralDate(o.set.live_since);
+    if (live && live > act) return live;
+  }
+  return act;
+}
+
+// tk_set_client_override's p_override from the modal's choices. A
+// non-admin never sends review_required when an admin already turned
+// approval off (the server keeps it), and never sends false.
+function TK_tplOverridePayload(choice, opts) {
+  var c = choice || {};
+  var o = opts || {};
+  var next = {};
+  var tt = TK_tplStripPeriod(c.title);
+  if (tt) next.title = tt;
+  if (c.rule) next.due_rule = c.rule;
+  if (c.role) next.assignee_role = c.role;
+  var adminOff = o.stored && o.stored.review_required === false;
+  if (o.isAdmin || !adminOff) {
+    if (c.review === "yes") next.review_required = true;
+    if (c.review === "no" && o.isAdmin) next.review_required = false;
+  }
+  if (o.stored && Array.isArray(o.stored.checklist)) next.checklist = o.stored.checklist;
+  return next;
+}
+
+// tk_issue_missed's answer -> what the Missed periods row shows (major 4).
+// closed: the row leaves the list; text: the toast (or the inline reason).
+function TK_tplIssueOutcome(res) {
+  var r = res || {};
+  if (r.status === "created") return { closed: true, text: "Task made." };
+  if (r.status === "exists") return { closed: true, text: "That period already had a task, so it's linked to it now." };
+  if (r.status === "skipped") return { closed: false, text: "Not made. " + TK_tplSkipReasonText(r.reason) };
+  return { closed: false, text: "Nothing was made. Refresh and try again." };
+}
 
 function TK_tplErrorText(err) {
   if (!err) return null;
@@ -488,5 +578,12 @@ if (typeof module !== "undefined" && module.exports) {
     TK_tplRunSummary: TK_tplRunSummary,
     TK_tplGroups: TK_tplGroups,
     TK_tplAppliesTo: TK_tplAppliesTo,
+    TK_TPL_CADENCE_LOCK_NOTE: TK_TPL_CADENCE_LOCK_NOTE,
+    TK_tplCadenceLocked: TK_tplCadenceLocked,
+    TK_tplCentralDate: TK_tplCentralDate,
+    TK_tplBool: TK_tplBool,
+    TK_tplActivatedOn: TK_tplActivatedOn,
+    TK_tplOverridePayload: TK_tplOverridePayload,
+    TK_tplIssueOutcome: TK_tplIssueOutcome,
   };
 }

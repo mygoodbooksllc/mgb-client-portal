@@ -250,7 +250,7 @@ select public.tk_set_client_override('grace-community', pg_temp.ctx('T7')::uuid,
 select pg_temp.ok((public.tk__template_eff((select t from task_templates t where t.id = pg_temp.ctx('T7')::uuid), 'grace-community') ->> 'skip')::boolean,
                   'per-client skip saved by a bookkeeper with access');
 select pg_temp.expect_err(format('select public.tk_set_client_override(%L, %L, false, %L)', 'grace-community', pg_temp.ctx('T7'), '{"review_required":false}'),
-                          'tk_forbidden', 'only an admin turns review off for a client');
+                          'tk_review_admin_only', 'only an admin turns review off for a client');
 set local role authenticated;
 do $$ begin
   begin
@@ -284,6 +284,110 @@ select pg_temp.ok((select count(*) = 0 from notification_outbox o join staff_rem
                   'admin manual run queues no assignment email');
 select pg_temp.ok((select count(*) = 1 from tk_generator_runs where trigger = 'manual' and ran_by = pg_temp.ctx('a1')), 'manual run logged with the admin');
 select pg_temp.ok(coalesce(current_setting('mgb.tk_generate', true), '') = '', 'generator flag cleared after the run');
+
+-- 14. Review fixes (2026-10-16) ----------------------------------------------------
+-- major 2: cadence / year basis locked once a template has been on
+select pg_temp.expect_err(format('select public.tk_save_template(%L, %L)', pg_temp.ctx('T6'), '{"cadence":"quarterly"}'),
+                          'tk_cadence_locked', 'active template: cadence change refused');
+select pg_temp.expect_err(format('select public.tk_save_template(%L, %L)', pg_temp.ctx('T3'), '{"period_basis":"calendar"}'),
+                          'tk_cadence_locked', 'active annual template: fiscal -> calendar refused');
+select public.tk_save_template(pg_temp.ctx('T6')::uuid, '{"title":"S4 test T6 renamed","cadence":"monthly","period_basis":"fiscal"}');
+select pg_temp.ok((select title = 'S4 test T6 renamed' and cadence = 'monthly' from task_templates where id = pg_temp.ctx('T6')::uuid),
+                  'active template: title edit (same cadence, basis irrelevant for monthly) still saves');
+insert into t_ctx select 'D1', public.tk_save_template(null, '{"title":"S4 test D1","cadence":"monthly","due_rule":{"type":"offset","days":10}}')::text;
+select public.tk_save_template(pg_temp.ctx('D1')::uuid, '{"cadence":"quarterly"}');
+select pg_temp.ok((select cadence = 'quarterly' from task_templates where id = pg_temp.ctx('D1')::uuid), 'a never-on draft can still change cadence');
+select public.tk_set_template_status(pg_temp.ctx('D1')::uuid, 'retire');
+select public.tk_set_template_status(pg_temp.ctx('D1')::uuid, 'draft');
+select pg_temp.ok((select status = 'draft' from task_templates where id = pg_temp.ctx('D1')::uuid), 'retired -> back to draft');
+select public.tk_set_template_status(pg_temp.ctx('D1')::uuid, 'activate');
+select public.tk_set_template_status(pg_temp.ctx('D1')::uuid, 'retire');
+select public.tk_set_template_status(pg_temp.ctx('D1')::uuid, 'draft');
+select pg_temp.expect_err(format('select public.tk_save_template(%L, %L)', pg_temp.ctx('D1'), '{"cadence":"monthly"}'),
+                          'tk_cadence_locked', 'a draft that was on once keeps its cadence');
+
+-- major 4: a skipped issue leaves the row open; an existing task closes it
+update clients set assigned_bookkeeper_email = null where id = 'grace-community';
+select pg_temp.ok((public.tk_issue_missed(pg_temp.ctx('T1')::uuid, 'grace-community', date '2026-07-01') ->> 'status') = 'skipped',
+                  'issue with nobody to assign: status skipped, not raised');
+select pg_temp.ok((select issued_at is null and dismissed_at is null from tk_generate_missed
+                    where template_id = pg_temp.ctx('T1')::uuid and client_id = 'grace-community' and period_start = date '2026-07-01'),
+                  'skipped issue: missed row stays open');
+update clients set assigned_bookkeeper_email = pg_temp.ctx('bk') where id = 'grace-community';
+insert into task_template_issued (template_id, client_id, period, reminder_id, assignee)
+values (pg_temp.ctx('T1')::uuid, 'grace-community', date '2026-08-01', pg_temp.ctx('h1')::uuid, pg_temp.ctx('bk'));
+select pg_temp.ok((public.tk_issue_missed(pg_temp.ctx('T1')::uuid, 'grace-community', date '2026-08-01') ->> 'reminder_id') = pg_temp.ctx('h1'),
+                  'issue when the period already has a task: exists, linked');
+select pg_temp.ok((select issued_at is not null and reminder_id = pg_temp.ctx('h1')::uuid from tk_generate_missed
+                    where template_id = pg_temp.ctx('T1')::uuid and client_id = 'grace-community' and period_start = date '2026-08-01'),
+                  'exists: missed row closed and linked to the task');
+
+-- minor: dismissed periods are not listed again
+select pg_temp.as_user(null);
+insert into t_ctx select 'r9', public.tk_generate(date '2026-10-15', true, 'grace-community', 0)::text;
+select pg_temp.ok((select count(*) = 0 from jsonb_array_elements(pg_temp.ctx('r9')::jsonb -> 'missed') e
+                    where e ->> 'template' = pg_temp.ctx('T1') and e ->> 'period' in ('2026-05-01', '2026-06-01', '2026-08-01')),
+                  'dismissed and hand-made periods are not re-listed');
+
+-- major 3: a bookkeeper can skip / change a template an admin set to "no approval"
+select pg_temp.as_user(pg_temp.ctx('a1'));
+select public.tk_set_client_override('grace-community', pg_temp.ctx('T2')::uuid, false, '{"review_required":false,"title":"Admin title"}');
+select pg_temp.as_user(pg_temp.ctx('bk'));
+select public.tk_set_client_override('grace-community', pg_temp.ctx('T2')::uuid, true, '{"title":"BK title"}');
+select pg_temp.ok((select skip and override ->> 'title' = 'BK title' and override -> 'review_required' = 'false'::jsonb
+                     from tk_client_template_overrides where client_id = 'grace-community' and template_id = pg_temp.ctx('T2')::uuid),
+                  'bookkeeper skip + title save keeps the admin''s no-approval');
+select public.tk_set_client_override('grace-community', pg_temp.ctx('T2')::uuid, false, '{"review_required":false}');
+select public.tk_set_client_override('grace-community', pg_temp.ctx('T2')::uuid, false, '{"review_required":true}');
+select pg_temp.ok((select not skip and override -> 'review_required' = 'false'::jsonb
+                     from tk_client_template_overrides where client_id = 'grace-community' and template_id = pg_temp.ctx('T2')::uuid),
+                  'bookkeeper resend (false or true) leaves the admin''s setting as it is');
+
+-- major 1 + minor: live_since and a lenient standard_set_live
+select pg_temp.as_user(null);
+select set_config('mgb.tk_owner_override', 'on', true);
+insert into tk_settings (key, value) values ('standard_set_live', 'false') on conflict (key) do update set value = excluded.value;
+insert into tk_settings (key, value) values ('standard_set_live', 'true') on conflict (key) do update set value = excluded.value;
+select pg_temp.ok((select live_since >= now() - interval '1 minute' from tk_template_sets where name = 'MGB Standard Monthly Close'),
+                  'turning the set live stamps live_since');
+update tk_template_sets set live_since = timestamptz '2026-12-01 12:00-06' where name = 'MGB Standard Monthly Close';
+insert into tk_settings (key, value) values ('standard_set_live', '"true"') on conflict (key) do update set value = excluded.value;
+select pg_temp.ok((select live_since = timestamptz '2026-12-01 12:00-06' from tk_template_sets where name = 'MGB Standard Monthly Close'),
+                  'already on ("true" string): live_since kept');
+-- basic-test stands in for a real client (flags cleared inside this rolled-back
+-- transaction; dry runs only, so nothing is made or sent for it).
+update clients set test_only = false, is_internal = false where id = 'basic-test';
+insert into t_ctx values ('real', 'basic-test');
+select pg_temp.ok((select public.is_roster_client(cl) from clients cl where cl.id = pg_temp.ctx('real')), 'stand-in real client is on the roster');
+update tk_template_sets set live_since = null where name = 'MGB Standard Monthly Close';
+insert into t_ctx select 'r10a', public.tk_generate(date '2026-12-01', true, pg_temp.ctx('real'), 0)::text;
+select pg_temp.ok((select count(*) >= 1 from jsonb_array_elements(pg_temp.ctx('r10a')::jsonb -> 'missed') e
+                    where e ->> 'template' = (select id::text from task_templates where close_key = 'sent'
+                                               and template_set_id = (select id from tk_template_sets where name = 'MGB Standard Monthly Close'))),
+                  'control: without live_since a real client would list periods from activation as missed');
+update tk_template_sets set live_since = timestamptz '2026-12-01 12:00-06' where name = 'MGB Standard Monthly Close';
+insert into t_ctx select 'r10', public.tk_generate(date '2026-12-01', true, pg_temp.ctx('real'), 0)::text;
+select pg_temp.ok((select count(*) = 0 from jsonb_array_elements(pg_temp.ctx('r10')::jsonb -> 'missed') e
+                    where e ->> 'template' = (select id::text from task_templates where close_key = 'sent'
+                                               and template_set_id = (select id from tk_template_sets where name = 'MGB Standard Monthly Close'))),
+                  'set live Dec 1 (activated Oct 1): a real client gets no missed periods from before live (dry run)');
+update clients set test_only = true where id = 'basic-test';
+insert into t_ctx select 'r11', public.tk_generate(date '2026-12-01', true, 'grace-community', 0)::text;
+select pg_temp.ok((select count(*) >= 1 from jsonb_array_elements(pg_temp.ctx('r11')::jsonb -> 'missed') e
+                    where e ->> 'template' = (select id::text from task_templates where close_key = 'sent'
+                                               and template_set_id = (select id from tk_template_sets where name = 'MGB Standard Monthly Close'))
+                      and e ->> 'period' = '2026-10-01'),
+                  'a named test client still starts from activation (Oct 2026 close listed as missed)');
+insert into tk_settings (key, value) values ('standard_set_live', '"maybe"') on conflict (key) do update set value = excluded.value;
+insert into t_ctx values ('c14', pg_temp.counts());
+insert into t_ctx select 'r12', public.tk_generate(date '2026-10-15', false, null)::text;
+select pg_temp.ok((pg_temp.ctx('r12')::jsonb ->> 'created')::int = 0
+                  and (pg_temp.ctx('r12')::jsonb -> 'warnings')::text like '%unreadable value%',
+                  'unreadable standard_set_live: run completes, counts as off, warns');
+select pg_temp.ok(split_part(pg_temp.counts(), '/', 3)::int = split_part(pg_temp.ctx('c14'), '/', 3)::int + 1
+                  and split_part(pg_temp.counts(), '/', 2) = split_part(pg_temp.ctx('c14'), '/', 2),
+                  'unreadable standard_set_live: run still logged, no tasks made');
+select set_config('mgb.tk_owner_override', '', true);
 
 select 'S4 self-test passed' as result;
 rollback;

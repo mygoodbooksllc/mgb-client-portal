@@ -372,6 +372,8 @@ function TK_tplEditor(props) {
   var isNew = !d.id;
   var inSet = !!d.template_set_id;
   var status = TK_tplStatus(d);
+  // once it has been on, cadence + year basis are fixed (the server refuses a change)
+  var cadenceLocked = TK_tplCadenceLocked(d, props.issuedCount);
 
   var set = function (patch) {
     setD(function (cur) {
@@ -478,6 +480,8 @@ function TK_tplEditor(props) {
               <select
                 className="tk-select"
                 value={d.cadence}
+                disabled={cadenceLocked}
+                aria-describedby={cadenceLocked ? "tk-tpl-ed-lock" : undefined}
                 onChange={function (e) {
                   var c = e.target.value;
                   var allowed = TK_TPL_RULES_BY_CADENCE[c] || [];
@@ -500,6 +504,8 @@ function TK_tplEditor(props) {
                 <select
                   className="tk-select"
                   value={d.period_basis}
+                  disabled={cadenceLocked}
+                  aria-describedby={cadenceLocked ? "tk-tpl-ed-lock" : undefined}
                   onChange={function (e) {
                     set({ period_basis: e.target.value });
                   }}
@@ -510,6 +516,11 @@ function TK_tplEditor(props) {
               </label>
             ) : null}
           </div>
+          {cadenceLocked ? (
+            <p className="tk-field-help" id="tk-tpl-ed-lock">
+              {TK_TPL_CADENCE_LOCK_NOTE}
+            </p>
+          ) : null}
 
           <TK_tplRuleBuilder
             id="tk-tpl-ed-rule"
@@ -867,16 +878,12 @@ function TK_tplOverrideModal(props) {
   var setMsg = mPair[1];
   var titleId = "tk-tpl-ov-title";
 
+  // an admin turned approval off for this client: only an admin changes that
+  var reviewLocked = !props.isAdmin && o.review_required === false;
+
   var save = function (e) {
     e.preventDefault();
-    var next = {};
-    var tt = TK_tplStripPeriod(title);
-    if (tt) next.title = tt;
-    if (rule) next.due_rule = rule;
-    if (role) next.assignee_role = role;
-    if (review === "yes") next.review_required = true;
-    if (review === "no") next.review_required = false;
-    if (Array.isArray(o.checklist)) next.checklist = o.checklist;
+    var next = TK_tplOverridePayload({ title: title, rule: rule, role: role, review: review }, { isAdmin: props.isAdmin, stored: o });
     setBusy(true);
     setMsg("");
     TK_api.setClientOverride(props.clientId, t.id, !!props.skip, next).then(
@@ -962,15 +969,20 @@ function TK_tplOverrideModal(props) {
             <select
               className="tk-select"
               value={review}
+              disabled={reviewLocked}
               onChange={function (e) {
                 setReview(e.target.value);
               }}
             >
               <option value="">{"Same as the template (" + (t.review_required ? "needs approval" : "no approval") + ")"}</option>
               <option value="yes">Needs an admin to approve</option>
-              {props.isAdmin ? <option value="no">No approval for this client</option> : null}
+              {props.isAdmin || reviewLocked ? <option value="no">No approval for this client</option> : null}
             </select>
-            {!props.isAdmin ? <span className="tk-field-help">Only an admin can turn approval off.</span> : null}
+            {reviewLocked ? (
+              <span className="tk-field-help">An admin turned approval off for this client. Only an admin can change that; your other changes still save.</span>
+            ) : !props.isAdmin ? (
+              <span className="tk-field-help">Only an admin can turn approval off.</span>
+            ) : null}
           </label>
           {rule ? (
             <div className="tk-field tk-tpl-preview" aria-live="polite">
@@ -1039,6 +1051,12 @@ function TK_tplClientPanel(props) {
 
   var client = null;
   for (var i = 0; i < clients.length; i++) if (clients[i] && clients[i].id === clientId) client = clients[i];
+  // tk__generate's "named test client": test-only or the internal company
+  var testClient = !!(client && (client.test_only || client.testOnly || client.is_internal || client.isInternal));
+  var setById = {};
+  (props.sets || []).forEach(function (s) {
+    if (s && s.id) setById[s.id] = s;
+  });
   var byTpl = {};
   st.rows.forEach(function (r) {
     byTpl[r.template_id] = r;
@@ -1051,7 +1069,13 @@ function TK_tplClientPanel(props) {
 
   var setSkip = function (t, skip) {
     var cur = byTpl[t.id];
-    TK_api.setClientOverride(clientId, t.id, skip, cur ? cur.override || {} : {}).then(
+    var ov = {};
+    var stored = cur ? cur.override || {} : {};
+    for (var k in stored) {
+      // an admin's "no approval" is admin-only; a non-admin's save leaves it as it is on the server
+      if (k !== "review_required" || props.isAdmin || stored[k] !== false) ov[k] = stored[k];
+    }
+    TK_api.setClientOverride(clientId, t.id, skip, ov).then(
       function () {
         TK_vToast(skip ? "Skipped for " + (client.name || "this client") + "." : "Back on for " + (client.name || "this client") + ".");
         setTick(tick + 1);
@@ -1136,7 +1160,8 @@ function TK_tplClientPanel(props) {
               count: 1,
               override: override,
               fye: st.fye || "12-31",
-              activatedOn: t.activated_at ? String(t.activated_at).slice(0, 10) : props.today,
+              // Central date; a standard-set member reaches a real client from when the set went live
+              activatedOn: t.activated_at ? TK_tplActivatedOn(t, { set: setById[t.template_set_id], testClient: testClient }) || props.today : props.today,
             });
             return (
               <li key={t.id} className={"tk-tpl-row" + (skip ? " is-skipped" : "")}>
@@ -1357,7 +1382,12 @@ function TK_vTemplatesBody(props) {
     return staffNames[k] || k.split("@")[0];
   };
 
-  var setLive = data.settings && (data.settings.standard_set_live === true || data.settings.standard_set_live === "true");
+  // read the way the generator reads it (tk__jsonb_bool): anything not a yes/no counts as off
+  var setLive = !!data.settings && TK_tplBool(data.settings.standard_set_live) === true;
+  var setById = {};
+  (data.sets || []).forEach(function (s) {
+    if (s && s.id) setById[s.id] = s;
+  });
   var groups = TK_tplGroups(data.templates, data.sets);
   var tplById = {};
   data.templates.forEach(function (t) {
@@ -1467,12 +1497,28 @@ function TK_vTemplatesBody(props) {
     reload();
   };
 
+  // Make task answers created / exists / skipped (review fix, major 4): a
+  // skipped period stays listed with the reason on its row.
+  var mnPair = React.useState({});
+  var missedNote = mnPair[0];
+  var setMissedNote = mnPair[1];
+  var missedKey = function (m) {
+    return m.template_id + "|" + m.client_id + "|" + m.period_start;
+  };
   var missedAct = function (m, issue) {
+    var key = missedKey(m);
     var p = issue ? TK_api.issueMissed(m.template_id, m.client_id, m.period_start) : TK_api.dismissMissed(m.template_id, m.client_id, m.period_start);
     p.then(
-      function () {
-        TK_vToast(issue ? "Task made." : "Dismissed.");
-        reload();
+      function (res) {
+        var out = issue ? TK_tplIssueOutcome(res) : { closed: true, text: "Dismissed." };
+        TK_vToast(out.text);
+        setMissedNote(function (cur) {
+          var next = {};
+          for (var k in cur) if (k !== key) next[k] = cur[k];
+          if (!out.closed) next[key] = out.text;
+          return next;
+        });
+        if (out.closed) reload();
       },
       function (err) {
         TK_vToast(TK_tplErr(err));
@@ -1493,8 +1539,11 @@ function TK_vTemplatesBody(props) {
             holidays: data.holidays,
             count: 1,
             fye: "12-31",
-            activatedOn: status === "active" && t.activated_at ? String(t.activated_at).slice(0, 10) : today,
+            // Central date, and for a standard-set member the later of that and when the set went live
+            activatedOn: status === "active" && t.activated_at ? TK_tplActivatedOn(t, { set: setById[t.template_set_id] }) || today : today,
           });
+    // the list has no client, so a fiscal-year template is shown for a Dec 31 year end
+    var fyNote = t.cadence === "annually" && t.period_basis === "fiscal" ? " (for a Dec 31 year end)" : "";
     var tiers = t.plan_tiers || [];
     var ids = t.client_ids || [];
     var applies = !tiers.length && !ids.length ? "All clients" : "";
@@ -1536,7 +1585,7 @@ function TK_vTemplatesBody(props) {
               TK_tplLabelOf(TK_TPL_ROLES, t.assignee_role || "bookkeeper")}
           </div>
           <div className="tk-tpl-meta">
-            {next && next.length ? (status === "active" ? "Next: " : "If turned on today, next: ") + next[0].label + ", due " + TK_tplFmtDate(next[0].due) : ""}
+            {next && next.length ? (status === "active" ? "Next: " : "If turned on today, next: ") + next[0].label + ", due " + TK_tplFmtDate(next[0].due) + fyNote : ""}
             {count ? <span className="tk-muted">{(next && next.length ? " · " : "") + "Made " + count + " so far"}</span> : null}
           </div>
         </div>
@@ -1730,6 +1779,11 @@ function TK_vTemplatesBody(props) {
                   <div className="tk-tpl-main">
                     <span className="tk-tpl-title">{(t ? t.title : "Template") + " · " + (m.label || m.period_start)}</span>
                     <div className="tk-tpl-meta tk-muted">{(clientNames[String(m.client_id)] || m.client_id) + " · was due " + TK_tplFmtDate(m.due_date)}</div>
+                    {missedNote[missedKey(m)] ? (
+                      <div className="tk-tpl-meta tk-field-error" role="status">
+                        {missedNote[missedKey(m)]}
+                      </div>
+                    ) : null}
                   </div>
                   <div className="tk-tpl-actions">
                     <button
@@ -1765,6 +1819,7 @@ function TK_vTemplatesBody(props) {
       <TK_tplClientPanel
         clients={props.clients}
         templates={data.templates}
+        sets={data.sets}
         isAdmin={isAdmin}
         online={online}
         today={today}
@@ -1811,6 +1866,7 @@ function TK_vTemplatesBody(props) {
       {editing ? (
         <TK_tplEditor
           draft={editing}
+          issuedCount={editing.id ? data.counts[editing.id] || 0 : 0}
           clients={props.clients}
           today={today}
           holidays={data.holidays}

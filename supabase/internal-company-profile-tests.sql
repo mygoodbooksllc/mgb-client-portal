@@ -363,8 +363,9 @@ do $$
 declare v_rc text := (select id from _rc); v_t uuid; n_bad bigint; n_rc bigint;
 begin
   perform pg_temp.claims((select email from _who where k = 'owner'));
-  insert into task_templates (title, cadence, due_offset_days, lead_days, client_ids, active)
-    values ('icp template', 'monthly', 0, 40, array['mygoodbooks','basic-test','grace-community', v_rc], true)
+  -- templates default to draft since Tasks p2 S4; this control needs one that is on
+  insert into task_templates (title, cadence, due_offset_days, lead_days, client_ids, active, status, activated_at)
+    values ('icp template', 'monthly', 0, 40, array['mygoodbooks','basic-test','grace-community', v_rc], true, 'active', now())
     returning id into v_t;
   perform public.tt_generate_template_tasks(current_date);
   select count(*) into n_bad from task_template_issued where template_id = v_t and client_id in ('mygoodbooks','basic-test','grace-community');
