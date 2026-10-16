@@ -1256,6 +1256,53 @@ a.ct-client-name:focus-visible {
 .clc-go:focus-visible {
   text-decoration: underline;
 }
+/* P4-2: a step linked to a month-end task (assignee + status chip) and the
+   "Looks done" suggestion from QuickBooks. */
+.clc-step.linked,
+.clc-step:has(.clc-looks-done) {
+  flex-wrap: wrap;
+}
+.clc-task-chip {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 50%;
+  padding: 2px 8px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface-2, transparent);
+  color: var(--ink-strong);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+.clc-task-chip:hover,
+.clc-task-chip:focus-visible {
+  border-color: var(--gold-deep);
+}
+.clc-task-who {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.clc-task-st {
+  font-weight: 600;
+  color: var(--gold-deep);
+  white-space: nowrap;
+}
+.clc-task-chip.st-done .clc-task-st {
+  color: var(--good);
+}
+.clc-task-chip.st-waiting_client .clc-task-st {
+  color: var(--text-muted);
+}
+.clc-looks-done {
+  flex: 1 0 100%;
+  margin: -4px 0 8px 28px;
+  font-size: 12.5px;
+  color: var(--text-muted);
+}
 .clc-next-step {
   display: inline-block;
   margin-left: 8px;

@@ -129,6 +129,8 @@
 //   cv-coverage      Team › People's Coverage card, admins (Coverage.jsx
 //                    CV_CoverageTab); each time off has Hand off tasks
 //   tk-recurring-client  Tasks › Recurring's One client card (TK_Templates.jsx)
+//   tk-close-optin   One client's Create month-end tasks from the Close
+//                    checklist switch, once a client is picked (TK_Templates.jsx)
 //   tk-recurring-actions New template / Preview / Make due tasks now (admins)
 //   tk-recurring-list    the template groups, once loaded
 //   tk-recurring-standard the standard close set note (when the set exists)

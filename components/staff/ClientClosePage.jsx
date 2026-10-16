@@ -611,7 +611,7 @@ function CLC_ClientClosePage({ client, staffUser, isAdmin, onNavigate }) {
 
   const stepsSection = (
     <div className="clc-steps-wrap clc-o-steps" data-lk="at:close-steps">
-      <CloseChecklistCard client={client} period={ym} />
+      <CloseChecklistCard client={client} period={ym} checks={check && check.checks} />
     </div>
   );
 

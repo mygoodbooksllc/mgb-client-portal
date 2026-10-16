@@ -432,6 +432,16 @@ const TIPS_CATALOG = [
     slug: "quick-actions",
   },
   {
+    id: "tk-close-optin",
+    roles: "all",
+    match: (r) => r.page === "tasks",
+    target: "tk-close-optin",
+    snug: true,
+    text: "Turn this on and the client's Close steps (bank feed, bank rec, card rec, entries, review) become tasks each month. Ticking a step moves its task. Admins and the client's account manager can change it.",
+    slug: "close-checklist-tasks",
+    ready: () => !!document.querySelector('[data-tour="tk-close-optin"]'),
+  },
+  {
     id: "tk-subtoggle",
     roles: "all",
     match: (r) => r.page === "tasks",

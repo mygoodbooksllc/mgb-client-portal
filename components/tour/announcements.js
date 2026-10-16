@@ -34,6 +34,53 @@
 
 var ANN_REGISTRY = [
   {
+    id: "close-checklist-tasks",
+    date: "2026-10-16",
+    title: "Close steps can be tasks",
+    summary: "For a client that has it turned on, five Close steps become month-end tasks, and ticking a step moves its task. Off for every client to start.",
+    roles: ["admin", "bookkeeper"],
+    hash: "#/tasks/templates",
+    steps: (ctx) => [
+      {
+        id: "ann-welcome",
+        title: "Close steps can be tasks",
+        body: () =>
+          "For a client that has it turned on, bank feed, bank rec, card rec, entries and review become tasks each month, and the step and its task stay in step. It's off for every client while the firm tries it on one or two. About a minute.",
+      },
+      {
+        id: "ann-steps",
+        when: (c) => !!(c && c.myClient),
+        go: () => {
+          if (typeof TOUR_openClient === "function" && ctx && ctx.myClient) TOUR_openClient(ctx.myClient.id, "close")();
+        },
+        targets: ["close-steps"],
+        wait: true,
+        spot: "top",
+        title: "On the Close tab",
+        body: () =>
+          "A step with a task shows who has it and its status; click it to open the task. Ticking the step moves the task, and a message says what happened (Sent for review, Ask an admin to reopen). When QuickBooks shows bank feed or bank rec is done, a Looks done line offers Mark done. It never ticks by itself.",
+      },
+      {
+        id: "ann-switch",
+        go: () => {
+          if (!/^#\/tasks\/templates(\?|$)/.test(window.location.hash || "")) window.location.hash = "#/tasks/templates";
+        },
+        targets: ["tk-recurring-client"],
+        wait: true,
+        spot: "top",
+        title: "Turning it on for a client",
+        body: () =>
+          "Under One client, pick the client and turn on Create month-end tasks from the Close checklist (admins and the client's account manager). The first tasks are next month's close unless you tick Also this month. If the client already has templates that look like month-end work, you'll be told so you can skip them.",
+      },
+      {
+        id: "ann-done",
+        title: "That's it",
+        body: () =>
+          "The guide has the full list of what a tick does in each case: How do Close checklist steps become tasks? To see this again, press ? and pick New: Close steps can be tasks tour.",
+      },
+    ],
+  },
+  {
     id: "tasks-quick-add-plain-words",
     date: "2026-10-16",
     title: "Quick add understands plain words",

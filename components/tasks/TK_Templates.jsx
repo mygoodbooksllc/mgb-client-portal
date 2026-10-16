@@ -1068,6 +1068,105 @@ function TK_tplOverrideModal(props) {
 
 // ---- Per-client panel -------------------------------------------------------------------
 
+// P4-2: the per-client "Create month-end tasks from the Close checklist"
+// switch (tk_client_close_optin). Admin or that client's account manager can
+// change it; everyone else sees it read-only. Turning it on makes bank feed,
+// bank rec, card rec, entries and review tasks each month (from next month,
+// or this one with "Also this month") even while the standard set is off for
+// everyone else. Warns when the client already has recurring templates that
+// look like month-end work.
+function TK_tplCloseOptin(props) {
+  var status = props.status;
+  var aPair = React.useState(false);
+  var alsoThis = aPair[0];
+  var setAlsoThis = aPair[1];
+  var bPair = React.useState(false);
+  var busy = bPair[0];
+  var setBusy = bPair[1];
+  if (!status) return null;
+  var on = !!status.enabled;
+  var canEdit = !!status.can_edit;
+  var overlaps = Array.isArray(status.overlaps) ? status.overlaps : [];
+  var change = function (v) {
+    if (busy || !canEdit) return;
+    setBusy(true);
+    TK_api.setCloseOptin(props.clientId, v, v && alsoThis).then(
+      function (next) {
+        setBusy(false);
+        setAlsoThis(false);
+        try {
+          if (typeof MGB_track === "function") MGB_track("tasks-close-optin", { on: !!v });
+        } catch (e) {}
+        var n = next && Array.isArray(next.overlaps) ? next.overlaps.length : 0;
+        TK_vToast(
+          v
+            ? "Month-end tasks on for " + (props.clientName || "this client") + "." + (n ? " " + TK_closeOverlapText(n) : "")
+            : "Month-end tasks off for " + (props.clientName || "this client") + ". Tasks already made stay.",
+        );
+        props.onChanged(next || null);
+      },
+      function (err) {
+        setBusy(false);
+        TK_vToast(TK_tplErr(err));
+      },
+    );
+  };
+  return (
+    <div className="tk-tpl-close-optin" data-tour="tk-close-optin">
+      <TK_vSwitch
+        checked={on}
+        disabled={!canEdit || !props.online || busy}
+        label="Create month-end tasks from the Close checklist"
+        onChange={change}
+      />
+      {!on && canEdit ? (
+        <label className="tk-tpl-close-also">
+          <input
+            type="checkbox"
+            checked={alsoThis}
+            disabled={!props.online || busy}
+            onChange={function (e) {
+              setAlsoThis(!!e.target.checked);
+            }}
+          />{" "}
+          Also this month
+        </label>
+      ) : null}
+      <p className="tk-muted tk-tpl-close-note">
+        {on
+          ? TK_closeOptinStartsText(status) || "On."
+          : "Off. When on, bank feed, bank rec, card rec, entries and review become tasks each month, and ticking a step on the Close tab moves its task."}
+        {!canEdit ? " Only an admin or this client's account manager can change this." : ""}
+      </p>
+      {on && overlaps.length ? (
+        <div className="tk-tpl-close-warn" role="note">
+          <p>
+            {TK_closeOverlapText(overlaps.length)}{" "}
+            <a
+              href="#tk-tpl-client-rows"
+              className="link-btn"
+              onClick={function (e) {
+                var el = document.getElementById("tk-tpl-client-rows");
+                if (!el) return;
+                e.preventDefault();
+                el.scrollIntoView({ block: "start", behavior: "smooth" });
+              }}
+            >
+              See this client's templates
+            </a>
+          </p>
+          <ul>
+            {overlaps.slice(0, 8).map(function (o) {
+              return <li key={o.id}>{o.title}</li>;
+            })}
+            {overlaps.length > 8 ? <li>{"and " + (overlaps.length - 8) + " more"}</li> : null}
+          </ul>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 function TK_tplClientPanel(props) {
   var clients = Array.isArray(props.clients) ? props.clients : [];
   var cPair = React.useState("");
@@ -1085,6 +1184,29 @@ function TK_tplClientPanel(props) {
   var kPair = React.useState(0);
   var tick = kPair[0];
   var setTick = kPair[1];
+  // P4-2: { forId, status } from tk_close_optin_status (null before the SQL runs)
+  var coPair = React.useState({ forId: null, status: null });
+  var optin = coPair[0].forId === clientId ? coPair[0].status : null;
+  var setOptin = coPair[1];
+
+  React.useEffect(
+    function () {
+      if (!clientId || typeof TK_api.closeOptinStatus !== "function") return undefined;
+      var live = true;
+      TK_api.closeOptinStatus(clientId).then(
+        function (res) {
+          if (live) setOptin({ forId: clientId, status: res || null });
+        },
+        function () {
+          if (live) setOptin({ forId: clientId, status: null });
+        },
+      );
+      return function () {
+        live = false;
+      };
+    },
+    [clientId, tick],
+  );
 
   React.useEffect(
     function () {
@@ -1194,6 +1316,18 @@ function TK_tplClientPanel(props) {
           </button>
         ) : null}
       </div>
+      {clientId && optin ? (
+        <TK_tplCloseOptin
+          status={optin}
+          clientId={clientId}
+          clientName={client ? client.name : ""}
+          online={props.online}
+          onChanged={function (next) {
+            if (next) setOptin({ forId: clientId, status: next });
+            setTick(tick + 1);
+          }}
+        />
+      ) : null}
       {!clientId ? (
         <p className="tk-muted">Pick a client to see which templates reach them, when the next ones are due, and to skip or change one just for them.</p>
       ) : st.loading ? (
@@ -1205,7 +1339,7 @@ function TK_tplClientPanel(props) {
       ) : !tpls.length ? (
         <p className="tk-muted">No templates reach this client.</p>
       ) : (
-        <ul className="tk-tpl-rows">
+        <ul className="tk-tpl-rows" id="tk-tpl-client-rows">
           {tpls.map(function (t) {
             var ov = byTpl[t.id];
             var skip = !!(ov && ov.skip);
@@ -1219,6 +1353,9 @@ function TK_tplClientPanel(props) {
               fye: st.fye || "12-31",
               // Central date; a standard-set member reaches a real client from when the set went live
               activatedOn: t.activated_at ? TK_tplActivatedOn(t, { set: setById[t.template_set_id], testClient: testClient }) || props.today : props.today,
+              // P4-2: an opted-in client gets set members from its first close month on
+              periodFloor:
+                t.template_set_id && optin && optin.enabled && !optin.set_live && !testClient && optin.starts ? String(optin.starts).slice(0, 10) : null,
             });
             return (
               <li key={t.id} className={"tk-tpl-row" + (skip ? " is-skipped" : "")}>
@@ -1467,9 +1604,34 @@ function TK_vTemplatesBody(props) {
     );
   };
 
-  var askStatus = function (t, action) {
+  var askStatus = function (t, action, askOpts) {
+    var opts = askOpts || {};
     if (action === "pause" || action === "draft") {
       doStatus(t, action);
+      return;
+    }
+    // P4-2: turning on something that looks like month-end work for a client
+    // that already gets month-end tasks from the Close checklist: warn first.
+    if ((action === "activate" || action === "resume") && TK_closeOverlaps(t) && !opts.optinChecked && typeof TK_api.closeOptinClients === "function") {
+      TK_api.closeOptinClients().then(
+        function (ids) {
+          var want = {};
+          (ids || []).forEach(function (id) {
+            want[String(id)] = true;
+          });
+          var names = (Array.isArray(props.clients) ? props.clients : [])
+            .filter(function (c) {
+              return c && want[String(c.id)] && TK_tplAppliesTo(t, c);
+            })
+            .map(function (c) {
+              return c.name || c.id;
+            });
+          askStatus(t, action, { optinChecked: true, closeWarn: TK_closeActivateWarning(t, names) });
+        },
+        function () {
+          askStatus(t, action, { optinChecked: true });
+        },
+      );
       return;
     }
     var inSet = !!t.template_set_id;
@@ -1484,7 +1646,8 @@ function TK_vTemplatesBody(props) {
         (Number(t.lead_days) || 0) +
         " days before it's due. Periods due more than 7 days ago aren't made; they're listed under Missed periods for you to decide." +
         (inSet && !setLive ? " This is a standard template: it only reaches real clients once the owner turns the standard set on. Test clients can try it now." : "") +
-        " Nothing is emailed to clients.";
+        " Nothing is emailed to clients." +
+        (opts.closeWarn ? " " + opts.closeWarn : "");
     } else {
       title = "Retire “" + t.title + "”?";
       label = "Retire";
@@ -1710,7 +1873,7 @@ function TK_vTemplatesBody(props) {
                   <span className="tk-muted">
                     {setLive
                       ? " The owner turned the standard set on. Templates that are on reach every matching client."
-                      : " Until the owner turns the set on, these only reach test clients, even when turned on."}
+                      : " Until the owner turns the set on, these only reach test clients and clients with month-end tasks turned on (One client below), even when turned on."}
                   </span>
                 </div>
               ) : null}

@@ -260,6 +260,97 @@ function TK_dwGo(route, href) {
   } catch (e) {}
 }
 
+// P4-2: a month-end task made from the Close checklist links back to its
+// checklist step ("Close checklist: Bank rec, November 2026"). For bank feed
+// and bank rec it also shows the 14.2 "Looks done" line when QuickBooks'
+// close checks pass; Mark done goes through tk_close_tick (never automatic).
+function TK_dwCloseLink(props) {
+  var task = props.task;
+  var id = task && task.id;
+  var templated = !!(task && task.source === "template" && task.client_id && !task.parent_id);
+  var linkPair = React.useState(null);
+  var link = linkPair[0];
+  var setLink = linkPair[1];
+  var checksPair = React.useState(null);
+  var checks = checksPair[0];
+  var setChecks = checksPair[1];
+  var busyPair = React.useState(false);
+  var busy = busyPair[0];
+  var setBusy = busyPair[1];
+  React.useEffect(
+    function () {
+      var live = true;
+      setLink(null);
+      setChecks(null);
+      var api = TK_dwApi();
+      if (!templated || !api || typeof api.closeLinkForTask !== "function") return undefined;
+      api.closeLinkForTask(id).then(function (row) {
+        if (!live || !row) return;
+        setLink(row);
+        if ((row.close_key === "bank_feed" || row.close_key === "bank_rec") && typeof api.closeChecks === "function") {
+          api.closeChecks(row.client_id, row.period_start).then(function (c) {
+            if (live) setChecks(c);
+          });
+        }
+      });
+      return function () {
+        live = false;
+      };
+    },
+    // re-fetch when the task moves client/month or gains/loses its close_key
+    [id, templated, task && task.client_id, task && task.period_start, task && task.close_key],
+  );
+  if (!link || typeof TK_closeLinkText !== "function") return null;
+  var ym = String(link.period_start || "").slice(0, 7);
+  var target = { clientId: link.client_id, tab: "close", month: ym, item: "step:" + link.close_key };
+  var href = typeof LK_href === "function" ? LK_href(target) : "#";
+  var status = TK_dwEffectiveStatus(task);
+  var hint = status !== "done" && status !== "ready_for_review" && !props.readOnly && checks && typeof TK_closeLooksDone === "function"
+    ? TK_closeLooksDone(link.close_key, checks)
+    : null;
+  var markDone = function () {
+    var api = TK_dwApi();
+    if (!api || typeof api.closeTick !== "function" || busy) return;
+    setBusy(true);
+    api.closeTick(link.client_id, ym, link.close_key, true).then(
+      function (res) {
+        setBusy(false);
+        var msg = typeof TK_closeTickToast === "function" ? TK_closeTickToast(res, true) : "";
+        if (msg) TK_dwToast(msg);
+      },
+      function (e) {
+        setBusy(false);
+        TK_dwSaveError(e);
+      },
+    );
+  };
+  return (
+    <div className="tk-dw-close">
+      <p className="tk-dw-parent">
+        <a
+          href={href}
+          className="link-btn"
+          onClick={function (e) {
+            if (typeof LK_onClick !== "function") return;
+            TK_dwDispatch({ type: "drawer", id: null });
+            LK_onClick(target)(e);
+          }}
+        >
+          {TK_closeLinkText(link.close_key, link.period_start)}
+        </a>
+      </p>
+      {hint && (
+        <p className="tk-dw-close-hint">
+          {hint.text}{" "}
+          <button type="button" className="link-btn" disabled={busy} onClick={markDone}>
+            Mark done
+          </button>
+        </p>
+      )}
+    </div>
+  );
+}
+
 function TK_dwStatusLabel(status) {
   if (typeof TK_STATUS_LABELS !== "undefined" && TK_STATUS_LABELS && TK_STATUS_LABELS[status]) return TK_STATUS_LABELS[status];
   return status ? String(status).replace(/_/g, " ") : "";
@@ -1746,6 +1837,7 @@ function TK_Drawer(props) {
             </a>
           </p>
         )}
+        <TK_dwCloseLink task={task} readOnly={readOnly} />
 
         <div className="tk-dw-fields">
           <label className="tk-dw-label" htmlFor="tk-dw-assignee">

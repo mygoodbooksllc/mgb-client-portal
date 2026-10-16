@@ -1846,6 +1846,29 @@ Team Reviews files.
     buttons; tests are the `pw:` group in `TK_logic.test.js`. Usage Stats event `tasks-quick-add-plain`.
   - Upkeep (P4-1): launch announcement `tasks-quick-add-plain-words`, tip `tk-quick-plain` on the `+` button,
     What's new, guide articles `quick-actions` and `my-tasks`.
+  - **Close checklist linked to tasks** (Phase 4 P4-2; Phase 2 items 14.1 + 14.2;
+    `supabase/tasks-p4-2-close-checklist.sql`, applied; self-test `tasks-p4-2-close-checklist-tests.sql`, rolled
+    back). Per-client opt-in `tk_client_close_optin` (off by default; soft off via `disabled_at`), written only by
+    `tk_set_close_optin` (admin or that client's account manager) and read by `tk_close_optin_status` (enabled,
+    first close month `starts`, `can_edit`, `set_live`, `overlaps` = active non-set templates reaching the client
+    that look like month-end work). `tk__generate` now checks the standard-set gate inside the client loop, so the
+    five linked set members (`bank_feed`, `bank_rec`, `card_rec`, `entries`, `review`; now active, `sent` stays a
+    draft) reach an opted-in client while `standard_set_live` stays off; period floor = the opt-in month's next
+    month (or that month with `include_current_month`), and earlier periods are never logged as missed.
+    `staff_reminders.close_key` is stamped from the template on insert (cleared on move or for subtasks; unique
+    live task per client/period/key, `uq_close_task`). `tk_close_tick(client, 'YYYY-MM', key, done)` is the only
+    writer of a linked item (guard trigger raises `tk_use_close_tick` otherwise; the sync runs with `mgb.tk_close`
+    set and reset) and returns `{status, linked_task_id, task_status, done, message}`; a plain AFTER UPDATE trigger
+    on `staff_reminders` ticks the item from the task status (an `of status` trigger misses `complete_staff_item`)
+    and logs activity `close_checklist`. UI: `CloseChecklistCard` (app.jsx) shows the task chip (assignee +
+    status, opens the drawer) and the 14.2 *Looks done* line (`close_checks`: bank_feed <- bank_active +
+    uncategorized, bank_rec <- reconciled; never auto-ticks), drawer link back `TK_dwCloseLink`, toggle
+    `TK_tplCloseOptin` on Tasks › Recurring › One client, activation warning in `askStatus`. Logic in
+    `TK_templateLogic.js` (`TK_close*`), API `TK_api.closeTick/closeLinks/closeLinkForTask/closeChecks/
+    closeOptinStatus/setCloseOptin/closeOptinClients`. Usage Stats `tasks-close-tick`, `tasks-close-optin`.
+  - Upkeep (P4-2): launch announcement `close-checklist-tasks` with a stop on the Close steps card, tip
+    `tk-close-optin`, guide article `close-checklist-tasks` (and `client-close`, `month-end-close`,
+    `task-templates`), What's new, Dev Tools count of opted-in clients and INFRA_LINKS entry.
 - **Workbench (Tasks Phase 3), 2026-10-16** (`supabase/workbench-1-core.sql`, applied; self-test
   `workbench-1-core-tests.sql`, rolled back; spec `docs/workbench-phase3-spec.md` with "Build notes
   2026-10-16"). Off until the owner sets `tk_settings.wb_enabled` to true; no code sets it.

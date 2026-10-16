@@ -1055,6 +1055,11 @@ const INFRA_LINKS = [
     note: "MGB shared drive holding client documents, and the admin-only reviews drive (review PDFs, signed Staff Handbook PDFs under Handbook, and Inventory exports) · service account in Supabase secrets",
   },
   {
+    name: "Supabase SQL (Tasks close checklist)",
+    url: "https://supabase.com/dashboard/project/xumsqmhccgfjnlmieqyu/sql/new",
+    note: "supabase/tasks-p4-2-close-checklist.sql (self-test: tasks-p4-2-close-checklist-tests.sql, rolls back): table tk_client_close_optin (per-client Create month-end tasks from the Close checklist; off by default; soft off) · staff_reminders.close_key (stamped from the template; uq_close_task, one live task per client, month and step) · tk__generate makes the five linked standard-set members (bank_feed, bank_rec, card_rec, entries, review) for opted-in clients while standard_set_live stays off, from the first close month after opt-in (or this month with Also this month) · tk_close_tick (checklist tick moves the task), sync trigger (task status ticks the item), guard client_close_items_guard_linked (raises tk_use_close_tick on a direct write to a linked item) · tk_close_optin_status, tk_set_close_optin (admin or that client's account manager) · tk_schema_version 11 · no email, no edge function",
+  },
+  {
     name: "Supabase SQL (Workbench)",
     url: "https://supabase.com/dashboard/project/xumsqmhccgfjnlmieqyu/sql/new",
     note: "supabase/workbench-1-core.sql (self-test: workbench-1-core-tests.sql, rolls back): tables wb_item_state (snooze, per person), wb_thread_noreply (No reply needed on a client thread) and client_file_checks (Mark checked on a client upload) · RPCs wb_inbox (one ordered list: tasks, reviews, Ask client answers, client messages, Ledger flags, new client files; Mine or Everyone for admins), wb_snooze, wb_unsnooze, wb_mark_no_reply, wb_undo_no_reply, wb_mark_file_checked, wb_undo_file_checked, wb_schema_version · switches wb_enabled, wb_gl_due_bday, wb_doc_check_from in tk_settings (Tasks switches below) · client_messages and staff_reminders are in the realtime publication · no email, no edge function",
@@ -6600,11 +6605,85 @@ function closeShortDate(iso) {
   const d = new Date(iso);
   return isNaN(d) ? "" : d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
-function CloseChecklistCard({ client, period: periodProp, onToggled, compact }) {
+// P4-2 (supabase/tasks-p4-2-close-checklist.sql): for a client opted into
+// month-end tasks, bank feed, bank rec, card rec, entries and review each have
+// a task. A linked row shows the task's assignee and status (click opens the
+// task), its checkbox follows the task (done only when the task is done) and
+// a tick goes through tk_close_tick, which moves the task and says what
+// happened ("Sent for review", "Ask an admin to reopen" ...). Every one of
+// those five items ticks through tk_close_tick (it writes the item directly
+// when there is no task); "sent" and Ledger reviewed keep their own writers.
+// `checks` (close_checks.checks for this month, optional) drives the 14.2
+// "Looks done" line on bank feed and bank rec; it never ticks by itself.
+function useCloseLinks(clientId, period) {
+  const [state, setState] = useState({ forKey: null, rows: [] });
+  const key = clientId + "|" + period;
+  const keyRef = useRef(key);
+  keyRef.current = key;
+  const load = useCallback(() => {
+    if (typeof TK_api === "undefined" || !TK_api || typeof TK_api.closeLinks !== "function") return;
+    const k = clientId + "|" + period;
+    TK_api.closeLinks(clientId, period).then((rows) => {
+      if (k === keyRef.current) setState({ forKey: k, rows: rows || [] });
+    });
+  }, [clientId, period]);
+  useEffect(() => {
+    load();
+    window.addEventListener(STAFF_TOOLS_EVENT, load);
+    window.addEventListener(STAFF_ITEMS_CHANGED_EVENT, load);
+    return () => {
+      window.removeEventListener(STAFF_TOOLS_EVENT, load);
+      window.removeEventListener(STAFF_ITEMS_CHANGED_EVENT, load);
+    };
+  }, [load]);
+  // A linked task changed in the Tasks store (drawer, realtime): follow it.
+  const rows = state.forKey === key ? state.rows : [];
+  const rowsRef = useRef(rows);
+  rowsRef.current = rows;
+  const ids = rows.map((r) => r.id).join(",");
+  useEffect(() => {
+    if (!ids || typeof TK_store === "undefined" || !TK_store || typeof TK_store.subscribe !== "function") return undefined;
+    const check = () => {
+      const tasks = (TK_store.getState() || {}).tasks || {};
+      const stale = rowsRef.current.some((r) => {
+        const t = tasks[r.id];
+        return t && (t.status !== r.status || (t.assignee_email || null) !== (r.assignee_email || null) || !!t.deleted_at);
+      });
+      if (stale) load();
+    };
+    return TK_store.subscribe(check);
+  }, [ids, load]);
+  const byKey = {};
+  rows.forEach((r) => {
+    if (r && r.close_key) byKey[r.close_key] = r;
+  });
+  return { byKey, reload: load };
+}
+function useCloseStaffNames() {
+  const [staff, setStaff] = useState([]);
+  useEffect(() => {
+    let live = true;
+    if (typeof TK_api !== "undefined" && TK_api && typeof TK_api.listStaff === "function") {
+      TK_api.listStaff().then(
+        (l) => {
+          if (live) setStaff(l || []);
+        },
+        () => {},
+      );
+    }
+    return () => {
+      live = false;
+    };
+  }, []);
+  return staff;
+}
+function CloseChecklistCard({ client, period: periodProp, onToggled, compact, checks }) {
   const { staffUser } = useContext(StaffToolsContext);
   const showToast = useToast();
   const period = String(periodProp || closePeriodFor()).slice(0, 7);
   const list = useStaffToolList((sb, id) => staffToolsApi.closeItems(sb, id, period), client.id);
+  const links = useCloseLinks(client.id, period);
+  const staffNames = useCloseStaffNames();
   const lastPeriod = useRef(period);
   useEffect(() => {
     if (lastPeriod.current === period) return;
@@ -6645,23 +6724,61 @@ function CloseChecklistCard({ client, period: periodProp, onToggled, compact }) 
   const isDone = (key) =>
     key === CLOSE_LEDGER_STEP.key && signoff
       ? signoff.status === "reviewed" || signoff.status === "approved"
-      : !!(byKey[key] && byKey[key].done);
+      : links.byKey[key]
+        ? TK_closeRowDone(links.byKey[key], byKey[key])
+        : !!(byKey[key] && byKey[key].done);
   const doneCount = steps.filter((i) => isDone(i.key)).length;
   const month = closeMonthName(period);
-  async function toggle(item) {
+  // P4-2: the five linked items tick through tk_close_tick. Resolves
+  // { done } when it ran, or null to fall back to the direct write (the RPC
+  // isn't there yet).
+  async function tickLinked(item, want) {
+    if (!TK_closeIsLinkedKey(item.key) || typeof TK_api === "undefined" || !TK_api || !TK_api.closeTick) return null;
+    try {
+      const res = await TK_api.closeTick(client.id, period, item.key, want);
+      if (res && res.linked_task_id && typeof MGB_track === "function") {
+        try {
+          MGB_track("tasks-close-tick", { key: item.key, done: want, status: res.status || "" });
+        } catch (e) {}
+      }
+      const msg = TK_closeTickToast(res, want);
+      if (msg) showToast(msg);
+      // no reload here: toggle() calls notifyStaffTools() next, and the store subscriber reloads the links
+      return { done: !!(res && res.done) };
+    } catch (e) {
+      const code = e && e.code;
+      if (code === "tk_schema_missing" || code === "PGRST202" || code === "42883") return null;
+      showToast(code === "tk_offline" ? "You're offline. Try again when you're back." : code === "tk_forbidden" ? "You can't change this client's checklist." : "Couldn't save that.");
+      return { done: null };
+    }
+  }
+  async function toggle(item, forceDone) {
     if (item.key === CLOSE_LEDGER_STEP.key) return; // set by the sign-off RPCs only
-    const done = !(byKey[item.key] && byKey[item.key].done);
+    const wasDone = isDone(item.key);
+    const want = forceDone === undefined ? !wasDone : !!forceDone;
     const hadOtherDone = steps.some((i) => i.key !== item.key && isDone(i.key));
     setBusy(item.key);
-    const { error } = await staffToolsApi.setCloseItem(
-      window.mgbSupabase, client.id, period, item.key, done, staffUser && staffUser.email,
-    );
-    setBusy(null);
-    if (error) {
-      showToast(isMissingTableError(error) ? STAFF_TOOLS_SETUP_MSG : "Couldn't save that.");
-      return;
+    const linked = await tickLinked(item, want);
+    let done = want;
+    if (linked) {
+      setBusy(null);
+      if (linked.done === null) return;
+      notifyStaffTools();
+      // Only a real change counts (a task sent for review leaves the item unticked).
+      if (linked.done === wasDone) return;
+      done = linked.done;
+    } else {
+      const { error } = await staffToolsApi.setCloseItem(
+        window.mgbSupabase, client.id, period, item.key, want, staffUser && staffUser.email,
+      );
+      setBusy(null);
+      if (error) {
+        const lk = error && String(error.message || "").indexOf("tk_use_close_tick") >= 0;
+        showToast(isMissingTableError(error) ? STAFF_TOOLS_SETUP_MSG : lk ? "This step has a task now. Refresh and tick it again." : "Couldn't save that.");
+        return;
+      }
+      notifyStaffTools();
     }
-    notifyStaffTools();
     if (done) {
       const r = await CT_applyFirstTick({ sb: window.mgbSupabase, clientId: client.id, period, hadOtherDone });
       if (r.changed) showToast(`${month} is now In progress.`);
@@ -6733,8 +6850,13 @@ function CloseChecklistCard({ client, period: periodProp, onToggled, compact }) 
             const done = isDone(item.key);
             const ledger = item.key === CLOSE_LEDGER_STEP.key;
             const sub = ledger ? closeLedgerSubline(signoff) : "";
+            const link = links.byKey[item.key] || null;
+            const chip = link ? TK_closeChip(link) : null;
+            const who = link && link.assignee_email ? firstNameOf(TK_dlNameOf(link.assignee_email, staffNames)) : "";
+            // 14.2: QuickBooks says this step looks done. A suggestion only.
+            const hint = !done && !compact && checks ? TK_closeLooksDone(item.key, checks) : null;
             return (
-              <li key={item.key} className="clc-step" data-lk={"step:" + item.key}>
+              <li key={item.key} className={"clc-step" + (link ? " linked" : "")} data-lk={"step:" + item.key}>
                 <label
                   className={"close-item" + (done ? " done" : "")}
                   title={ledger ? "Set from the Ledger review tab (Mark reviewed)." : undefined}
@@ -6759,7 +6881,32 @@ function CloseChecklistCard({ client, period: periodProp, onToggled, compact }) 
                     )
                   )}
                 </label>
+                {link && (
+                  <button
+                    type="button"
+                    className={"clc-task-chip st-" + chip.status}
+                    onClick={() => typeof TK_openTask === "function" && TK_openTask(link.id, { from: "close" })}
+                    title="Open this step's task"
+                    aria-label={`Open task: ${item.label}, ${chip.label}${who ? ", " + who : ""}`}
+                  >
+                    {who ? <span className="clc-task-who">{who}</span> : null}
+                    <span className="clc-task-st">{chip.label}</span>
+                  </button>
+                )}
                 {!compact && goFor(item)}
+                {hint && (
+                  <p className="clc-looks-done">
+                    {hint.text}{" "}
+                    <button
+                      type="button"
+                      className="link-btn"
+                      disabled={busy === item.key}
+                      onClick={() => toggle(item, true)}
+                    >
+                      Mark done
+                    </button>
+                  </p>
+                )}
               </li>
             );
           })}
@@ -14939,6 +15086,17 @@ function DeveloperToolsPage({ staffUser, readOnly }) {
   // standard_set_live on Tasks › Recurring.
   const [tkSettings, setTkSettings] = useState(null); // null = loading
   const [tkSettingsError, setTkSettingsError] = useState("");
+  // P4-2: how many clients get month-end tasks from the Close checklist
+  // (tk_client_close_optin, set per client on Tasks › Recurring › One client).
+  const [closeOptinCount, setCloseOptinCount] = useState(null); // null = loading or missing
+  useEffect(() => {
+    if (!supabase) return;
+    supabase
+      .from("tk_client_close_optin")
+      .select("client_id", { count: "exact", head: true })
+      .is("disabled_at", null)
+      .then(({ count, error }) => setCloseOptinCount(error ? null : count || 0));
+  }, [supabase]);
 
   useEffect(() => {
     if (!supabase) return;
@@ -15156,8 +15314,9 @@ function DeveloperToolsPage({ staffUser, readOnly }) {
             ["wb_enabled", "Workbench on for staff", "Off (or missing, the default) keeps Today and the nav as they were for everyone. Owner turns it on (true) to give every staff member the Workbench list on Today and the bottom drawer (press W). Each person can still opt out with Classic Today in Feature flags, or try it early with Workbench preview."],
             ["wb_gl_due_bday", "Workbench Ledger flags due (business day)", "Business day of the month after a period when open Ledger flags count as due on the Workbench. Not set means 10."],
             ["wb_doc_check_from", "Workbench new files from", "Client uploads before this date never show as new files on the Workbench. Not set means 2026-10-16."],
+            ["__close_optin_count", "Clients with month-end tasks from the Close checklist (visible to you)", "How many clients you can see are turned on (tk_client_close_optin, disabled_at empty). Set per client by an admin or that client's account manager on Tasks › Recurring › One client; off by default. Works while the standard close set is off."],
           ].map(([key, label, desc]) => {
-            const row = tkSettings[key];
+            const row = key === "__close_optin_count" ? (closeOptinCount === null ? null : { value: closeOptinCount }) : tkSettings[key];
             const raw = row ? row.value : undefined;
             const val = raw === undefined || raw === null ? "Not set" : raw === true ? "On" : raw === false ? "Off" : String(raw);
             return (
@@ -16941,6 +17100,8 @@ const USAGE_ACTION_LABELS = {
   "tasks-search": "Task searches",
   "tasks-shortcut": "Task keyboard shortcuts used",
   "tasks-popout": "Tasks opened in its own window",
+  "tasks-close-tick": "Close steps ticked that moved a task",
+  "tasks-close-optin": "Month-end tasks from the Close checklist turned on or off",
   "tasks-dock": "Tasks docked back in the portal",
   "tasks-client-drawer": "Client task panel opened",
   "tasks-follow": "Tasks window set to follow your client",
@@ -26410,7 +26571,7 @@ const PAGE_META = {
   },
   tasks: {
     title: "Tasks",
-    subtitle: "Your tasks (by due date or client), unassigned work to claim, review, waiting on client, recurring work, client lists and projects with color dots (admins: Manage projects), subtasks open in place under their task, quick add that reads plain words (for Sierra, re a client, by Friday)",
+    subtitle: "Your tasks (by due date or client), unassigned work to claim, review, waiting on client, recurring work, client lists and projects with color dots (admins: Manage projects), subtasks open in place under their task, quick add that reads plain words (for Sierra, re a client, by Friday), month-end tasks from a client's Close checklist (per client, Recurring › One client)",
   },
   clients: {
     title: "Clients",

@@ -239,7 +239,8 @@ function TK_tplUpcoming(tpl, opts) {
     } catch (e) {
       return null;
     }
-    if (due && due >= act) {
+    // periodFloor (P4-2): a client opted into month-end tasks starts at a period, not a due date
+    if (due && due >= act && (!o.periodFloor || start >= o.periodFloor)) {
       var startOn = TK_tplAddDays(due, -lead);
       var when = due < TK_tplAddDays(today, -7) ? "missed" : startOn <= today ? "now" : "later";
       if (when !== "missed" || o.withMissed) {
@@ -591,6 +592,156 @@ function TK_tplAppliesTo(t, client) {
   return tiers.indexOf(client.plan) >= 0 || ids.indexOf(client.id) >= 0;
 }
 
+// ---- Close checklist linked to tasks (P4-2, supabase/tasks-p4-2-close-checklist.sql) ----
+// Five checklist items get a task each month for a client that is opted in.
+// "Reports sent" ticks itself from Send reports and "Ledger reviewed" is GL-owned:
+// neither is ever linked.
+var TK_CLOSE_LINKED_KEYS = ["bank_feed", "bank_rec", "card_rec", "entries", "review"];
+// Same words as app.jsx CLOSE_CHECKLIST (the labels staff see on the Close tab).
+var TK_CLOSE_ITEM_LABELS = {
+  bank_feed: "Bank feed categorized",
+  bank_rec: "Bank accounts reconciled",
+  card_rec: "Credit cards reconciled",
+  entries: "Payroll and journal entries posted",
+  review: "Reports reviewed",
+};
+// Title words that look like month-end work. Mirrors the SQL in
+// tk_close_optin_status: \m(rec|recs|reconcil\w*|bank|card|close)\M
+var TK_CLOSE_OVERLAP_RE = /\b(rec|recs|reconcil\w*|bank|card|close)\b/i;
+// 14.2: which QuickBooks close_checks keys must all pass for "Looks done".
+// Nothing maps to card_rec (close_checks has no card key).
+var TK_CLOSE_SUGGEST_MAP = { bank_feed: ["bank_active", "uncategorized"], bank_rec: ["reconciled"] };
+var TK_CLOSE_MONTHS = [
+  "January", "February", "March", "April", "May", "June",
+  "July", "August", "September", "October", "November", "December",
+];
+
+function TK_closeIsLinkedKey(key) {
+  return TK_CLOSE_LINKED_KEYS.indexOf(String(key || "")) >= 0;
+}
+
+// "2026-11" or "2026-11-01" -> "November 2026"
+function TK_closeMonthLabel(ym) {
+  var m = /^(\d{4})-(\d{2})/.exec(String(ym || ""));
+  if (!m) return "";
+  var mi = Number(m[2]) - 1;
+  if (mi < 0 || mi > 11) return "";
+  return TK_CLOSE_MONTHS[mi] + " " + m[1];
+}
+
+// "2026-11-01" -> "2026-12-01"
+function TK_closeNextMonth(ymd) {
+  var m = /^(\d{4})-(\d{2})/.exec(String(ymd || ""));
+  if (!m) return "";
+  var y = Number(m[1]);
+  var mo = Number(m[2]) + 1;
+  if (mo > 12) {
+    mo = 1;
+    y += 1;
+  }
+  return y + "-" + (mo < 10 ? "0" : "") + mo + "-01";
+}
+
+// A recurring template's title that looks like month-end work.
+function TK_closeOverlapTitle(title) {
+  return TK_CLOSE_OVERLAP_RE.test(String(title || ""));
+}
+
+// Would this template overlap the linked close tasks? (close_key, or title words)
+// Standard-set members are the linked tasks themselves, so never count.
+function TK_closeOverlaps(t) {
+  if (!t || t.template_set_id) return false;
+  return !!t.close_key || TK_closeOverlapTitle(t.title);
+}
+
+// The warning when turning the toggle on (spec 2.2 Overlap warning).
+function TK_closeOverlapText(n) {
+  var k = Number(n) || 0;
+  if (k <= 0) return "";
+  return (
+    "This client has " + k + (k === 1 ? " recurring template that looks" : " recurring templates that look") +
+    " like month-end work (bank rec, reconcile, close). Turn " + (k === 1 ? "it" : "them") +
+    " off or you may get duplicates."
+  );
+}
+
+// The same warning when an admin turns on a draft for a client that is opted in.
+function TK_closeActivateWarning(t, optedInNames) {
+  var names = (optedInNames || []).filter(Boolean);
+  if (!names.length || !TK_closeOverlaps(t)) return "";
+  var who = names.length === 1 ? names[0] : names.length + " clients";
+  return (
+    "This looks like month-end work, and " + who + (names.length === 1 ? " gets" : " get") +
+    " month-end tasks from the Close checklist. Turning it on may give " +
+    (names.length === 1 ? "them" : "those clients") + " duplicates."
+  );
+}
+
+// 14.2 "Looks done": { text } when every mapped QuickBooks check passed, else null.
+// checks: close_checks.checks, an array of { key, ok, label }. Read-only; never ticks.
+function TK_closeLooksDone(itemKey, checks) {
+  var want = TK_CLOSE_SUGGEST_MAP[String(itemKey || "")];
+  if (!want || !Array.isArray(checks)) return null;
+  var labels = [];
+  for (var i = 0; i < want.length; i++) {
+    var hit = null;
+    for (var j = 0; j < checks.length; j++) {
+      if (checks[j] && checks[j].key === want[i]) hit = checks[j];
+    }
+    if (!hit || hit.ok !== true) return null;
+    var label = String(hit.label || want[i]).trim();
+    labels.push(labels.length ? label.charAt(0).toLowerCase() + label.slice(1) : label);
+  }
+  return { keys: want.slice(), text: "Looks done. QuickBooks shows " + labels.join(" and ") + "." };
+}
+
+// Task drawer back link: "Close checklist: Bank feed categorized, November 2026"
+function TK_closeLinkText(closeKey, periodStart) {
+  var label = TK_CLOSE_ITEM_LABELS[String(closeKey || "")];
+  var month = TK_closeMonthLabel(periodStart);
+  if (!label || !month) return "";
+  return "Close checklist: " + label + ", " + month;
+}
+
+// The chip a linked checklist row shows for its task.
+function TK_closeChip(task) {
+  if (!task) return null;
+  var s = task.status || (task.done ? "done" : "todo");
+  var labels = {
+    todo: "To do",
+    in_progress: "In progress",
+    waiting_client: "Waiting on client",
+    ready_for_review: "In review",
+    done: task.approved_at ? "Approved" : "Done",
+  };
+  return { status: s, label: labels[s] || s };
+}
+
+// The checkbox state for a linked row: done only when the task is done.
+function TK_closeRowDone(task, item) {
+  if (task) return (task.status || (task.done ? "done" : "todo")) === "done";
+  return !!(item && item.done);
+}
+
+// tk_close_tick's answer -> the toast text.
+function TK_closeTickToast(res, done) {
+  var r = res || {};
+  if (r.message) return String(r.message);
+  if (r.status === "saved") return done ? "Checked." : "Unchecked.";
+  return "";
+}
+
+// The "starts" line under the toggle. status: tk_close_optin_status.
+function TK_closeOptinStartsText(status) {
+  var s = status || {};
+  if (!s.enabled) return "";
+  if (s.set_live) return "The standard close set is live for every client, so this client gets these tasks anyway.";
+  if (!s.starts) return "";
+  var month = TK_closeMonthLabel(s.starts);
+  var due = TK_closeMonthLabel(TK_closeNextMonth(s.starts));
+  return "First tasks: the " + month + " close, due early " + due + ".";
+}
+
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {
     TK_TPL_CADENCES: TK_TPL_CADENCES,
@@ -629,5 +780,22 @@ if (typeof module !== "undefined" && module.exports) {
     TK_tplActivatedOn: TK_tplActivatedOn,
     TK_tplOverridePayload: TK_tplOverridePayload,
     TK_tplIssueOutcome: TK_tplIssueOutcome,
+    TK_CLOSE_LINKED_KEYS: TK_CLOSE_LINKED_KEYS,
+    TK_CLOSE_ITEM_LABELS: TK_CLOSE_ITEM_LABELS,
+    TK_CLOSE_OVERLAP_RE: TK_CLOSE_OVERLAP_RE,
+    TK_CLOSE_SUGGEST_MAP: TK_CLOSE_SUGGEST_MAP,
+    TK_closeIsLinkedKey: TK_closeIsLinkedKey,
+    TK_closeMonthLabel: TK_closeMonthLabel,
+    TK_closeNextMonth: TK_closeNextMonth,
+    TK_closeOverlapTitle: TK_closeOverlapTitle,
+    TK_closeOverlaps: TK_closeOverlaps,
+    TK_closeOverlapText: TK_closeOverlapText,
+    TK_closeActivateWarning: TK_closeActivateWarning,
+    TK_closeLooksDone: TK_closeLooksDone,
+    TK_closeLinkText: TK_closeLinkText,
+    TK_closeChip: TK_closeChip,
+    TK_closeRowDone: TK_closeRowDone,
+    TK_closeTickToast: TK_closeTickToast,
+    TK_closeOptinStartsText: TK_closeOptinStartsText,
   };
 }

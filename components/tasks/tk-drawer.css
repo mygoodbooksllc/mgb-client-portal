@@ -1221,3 +1221,16 @@
 
 /* Out-of-office hand-off label under Assignee (Tasks Phase 2 S7; chip style in team-ops.css) */
 .tk-dw-cover { margin: 6px 0 0; }
+
+/* P4-2: link back to the Close checklist step + the "Looks done" line. */
+.tk-dw-close .tk-dw-parent {
+  margin-bottom: 4px;
+}
+.tk-dw-close {
+  margin: 0 0 12px;
+}
+.tk-dw-close-hint {
+  margin: 0;
+  font-size: 13px;
+  color: var(--text-muted);
+}

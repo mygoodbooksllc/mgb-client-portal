@@ -66,7 +66,7 @@ var TK_api = (function () {
     "tk_reply_required", "tk_not_open", "tk_not_answered", "tk_contact_exists", "tk_bad_contact", "tk_bad_request",
     "tk_already_assigned", "tk_bad_assignee", "tk_has_team",
     "tk_project_trashed", "tk_bad_name", "tk_trash_expired", "tk_restore_name_taken", "tk_task_in_trash",
-    "tk_bad_color",
+    "tk_bad_color", "tk_use_close_tick",
   ];
   var COPY_FALLBACK = {
     sentForReview: "Sent for review. An admin will approve it.",
@@ -1854,6 +1854,106 @@ var TK_api = (function () {
       return refresh(id).then(function (t) { if (t) afterWrite({ type: "upsert", task: t }); });
     })).catch(function () {});
   }
+
+  // ---- Close checklist linked to tasks (P4-2) --------------------------------
+  // supabase/tasks-p4-2-close-checklist.sql. A client opted in gets one task
+  // per month for five Close checklist items; the item and its task stay in
+  // step both ways. Reads fail soft (no linked tasks, no toggle) so the Close
+  // tab works the same before the SQL runs.
+
+  // Tick or untick a Close checklist item. Resolves
+  // { status, linked_task_id, task_status, done, message }; the server turns
+  // every state it can't change into a message instead of an error.
+  api.closeTick = function (clientId, period, itemKey, done) {
+    return rpcWrite(
+      "tk_close_tick",
+      { p_client_id: String(clientId), p_period: String(period).slice(0, 7), p_item_key: String(itemKey), p_done: !!done },
+      "closeTick",
+    ).then(function (res) {
+      var id = res && res.linked_task_id;
+      if (!id) return res;
+      return refresh(id).then(function (t) {
+        if (t) afterWrite({ type: "upsert", task: t });
+        return res;
+      });
+    });
+  };
+
+  // The live linked tasks for one client and month: [{ id, close_key, status,
+  // assignee_email, approved_at, submitted_by }]. [] when there are none or
+  // the column isn't there yet.
+  api.closeLinks = function (clientId, period) {
+    if (!clientId || !period) return Promise.resolve([]);
+    var ym = String(period).slice(0, 7);
+    return run(function (c) {
+      return c
+        .from("tk_tasks")
+        .select("id, close_key, status, done, assignee_email, approved_at, submitted_by, review_required")
+        .eq("client_id", String(clientId))
+        .eq("period_start", ym + "-01")
+        .not("close_key", "is", null)
+        .is("parent_id", null)
+        .is("deleted_at", null);
+    }, { where: "closeLinks" }).then(
+      function (rows) { return rows || []; },
+      function () { return []; },
+    );
+  };
+
+  // { close_key, period_start, client_id } for the task drawer's link back, or null.
+  api.closeLinkForTask = function (id) {
+    if (!id) return Promise.resolve(null);
+    return run(function (c) {
+      return c.from("tk_tasks").select("client_id, close_key, period_start").eq("id", id).maybeSingle();
+    }, { where: "closeLinkForTask" }).then(
+      function (row) { return row && row.close_key ? row : null; },
+      function () { return null; },
+    );
+  };
+
+  // close_checks.checks for (client, 'YYYY-MM'), read-only, for the 14.2
+  // "Looks done" line in the drawer. Soft-fails to null.
+  api.closeChecks = function (clientId, period) {
+    var ym = String(period || "").slice(0, 7);
+    if (!clientId || !/^\d{4}-\d{2}$/.test(ym)) return Promise.resolve(null);
+    return run(function (c) {
+      return c.from("close_checks").select("checks").eq("client_id", String(clientId)).eq("period", ym + "-01").maybeSingle();
+    }, { where: "closeChecks" }).then(
+      function (row) { return (row && row.checks) || null; },
+      function () { return null; },
+    );
+  };
+
+  // { enabled, include_current_month, starts, can_edit, set_live, overlaps[] }
+  // for one client, or null before the SQL runs.
+  api.closeOptinStatus = function (clientId) {
+    if (!clientId) return Promise.resolve(null);
+    return run(function (c) {
+      return c.rpc("tk_close_optin_status", { p_client_id: String(clientId) });
+    }, { where: "closeOptinStatus" }).then(null, function (err) {
+      if (err && (err.code === "tk_schema_missing" || err.code === "PGRST202" || err.code === "42883")) return null;
+      throw err;
+    });
+  };
+
+  // Admin, or that client's account manager. Resolves the new status.
+  api.setCloseOptin = function (clientId, enabled, includeCurrent) {
+    return rpcWrite(
+      "tk_set_close_optin",
+      { p_client_id: String(clientId), p_enabled: !!enabled, p_include_current: !!includeCurrent },
+      "setCloseOptin",
+    );
+  };
+
+  // Client ids opted in (that you can see): for the activation warning and Dev Tools.
+  api.closeOptinClients = function () {
+    return run(function (c) {
+      return c.from("tk_client_close_optin").select("client_id").is("disabled_at", null).limit(1000);
+    }, { where: "closeOptinClients" }).then(
+      function (rows) { return (rows || []).map(function (r) { return r.client_id; }); },
+      function () { return []; },
+    );
+  };
 
   // ---- Exposed for TK_sync and tests ----------------------------------------
   api.normalize = normalize;

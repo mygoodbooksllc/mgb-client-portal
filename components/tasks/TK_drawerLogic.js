@@ -188,6 +188,9 @@ function TK_activityText(entry, opts) {
       return to ? "Reassigned to " + nameOf(to) + " while out of office" : "Reassigned while out of office";
     case "imported":
       return "Imported";
+    case "close_checklist":
+      // P4-2: the linked Close checklist step followed this task.
+      return "Close checklist updated";
     default:
       return "Changed";
   }

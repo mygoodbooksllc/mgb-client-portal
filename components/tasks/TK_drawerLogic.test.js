@@ -154,6 +154,7 @@ t("activityText vectors", () => {
     [{ kind: "reassigned_ooo", to_value: "bk@example.test", meta: { direction: "out" } }, "Reassigned to Pat Bookkeeper while out of office"],
     [{ kind: "reassigned_ooo", to_value: "bk@example.test", meta: { direction: "back" } }, "Handed back to Pat Bookkeeper after time off"],
     [{ kind: "imported" }, "Imported"],
+    [{ kind: "close_checklist", to_value: "true", meta: { item_key: "bank_rec", period: "2026-11" } }, "Close checklist updated"],
     [{ kind: "something_new" }, "Changed"],
   ];
   v.forEach(([entry, want]) => assert.strictEqual(L.TK_activityText(entry, actOpts), want, entry.kind));

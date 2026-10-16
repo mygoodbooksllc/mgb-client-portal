@@ -396,4 +396,129 @@ t("Make task outcome: created / exists close the row; skipped keeps it with the 
   assert.strictEqual(T.TK_tplIssueOutcome(null).closed, false);
 });
 
+// ---- P4-2: Close checklist linked to tasks ----------------------------------------
+const SQL_P42 = fs.readFileSync(path.join(__dirname, "../../supabase/tasks-p4-2-close-checklist.sql"), "utf8");
+
+t("P4-2: the five linked keys match the SQL activation list; sent is never linked", () => {
+  assert.deepStrictEqual(T.TK_CLOSE_LINKED_KEYS, ["bank_feed", "bank_rec", "card_rec", "entries", "review"]);
+  assert.ok(SQL_P42.indexOf("('bank_feed', 'bank_rec', 'card_rec', 'entries', 'review')") >= 0, "SQL activates the same five");
+  assert.strictEqual(T.TK_closeIsLinkedKey("sent"), false);
+  assert.strictEqual(T.TK_closeIsLinkedKey("ledger_reviewed"), false);
+  assert.strictEqual(T.TK_closeIsLinkedKey("bank_rec"), true);
+  T.TK_CLOSE_LINKED_KEYS.forEach((k) => assert.ok(T.TK_CLOSE_ITEM_LABELS[k], k));
+});
+
+t("P4-2: labels match app.jsx CLOSE_CHECKLIST", () => {
+  const app = fs.readFileSync(path.join(__dirname, "../../app.jsx"), "utf8");
+  T.TK_CLOSE_LINKED_KEYS.forEach((k) => {
+    assert.ok(app.indexOf('{ key: "' + k + '", label: "' + T.TK_CLOSE_ITEM_LABELS[k] + '" }') >= 0, k);
+  });
+});
+
+t("P4-2: overlap words mirror the SQL and match whole words only", () => {
+  assert.ok(SQL_P42.indexOf("\\m(rec|recs|reconcil\\w*|bank|card|close)\\M") >= 0, "SQL regex");
+  assert.strictEqual(T.TK_CLOSE_OVERLAP_RE.source, "\\b(rec|recs|reconcil\\w*|bank|card|close)\\b");
+  ["Bank rec", "Reconcile checking", "Month-end close", "Credit card statements", "Monthly recs", "BANK FEED"].forEach((s) =>
+    assert.ok(T.TK_closeOverlapTitle(s), s),
+  );
+  ["Payroll", "Recurring invoices", "Closed captioning", "Record donations", "Disclosure letter", "Cardinal grant", ""].forEach((s) =>
+    assert.ok(!T.TK_closeOverlapTitle(s), s),
+  );
+  assert.ok(!T.TK_closeOverlapTitle(null));
+});
+
+t("P4-2: overlap counts close_key or title, never a standard-set member", () => {
+  assert.ok(T.TK_closeOverlaps({ title: "Bank rec" }));
+  assert.ok(T.TK_closeOverlaps({ title: "Monthly thing", close_key: "entries" }));
+  assert.ok(!T.TK_closeOverlaps({ title: "Bank rec", template_set_id: "s1" }));
+  assert.ok(!T.TK_closeOverlaps({ title: "Payroll" }));
+  assert.ok(!T.TK_closeOverlaps(null));
+});
+
+t("P4-2: overlap warning text", () => {
+  assert.strictEqual(T.TK_closeOverlapText(0), "");
+  assert.strictEqual(
+    T.TK_closeOverlapText(3),
+    "This client has 3 recurring templates that look like month-end work (bank rec, reconcile, close). Turn them off or you may get duplicates.",
+  );
+  assert.strictEqual(
+    T.TK_closeOverlapText(1),
+    "This client has 1 recurring template that looks like month-end work (bank rec, reconcile, close). Turn it off or you may get duplicates.",
+  );
+});
+
+t("P4-2: activation warning only for month-end-looking templates and opted-in clients", () => {
+  assert.strictEqual(T.TK_closeActivateWarning({ title: "Bank rec" }, []), "");
+  assert.strictEqual(T.TK_closeActivateWarning({ title: "Payroll" }, ["Acme"]), "");
+  assert.ok(T.TK_closeActivateWarning({ title: "Bank rec" }, ["Acme"]).indexOf("Acme gets month-end tasks") >= 0);
+  assert.ok(T.TK_closeActivateWarning({ title: "Close" }, ["A", "B"]).indexOf("2 clients get") >= 0);
+});
+
+t("P4-2: 14.2 Looks done mapping", () => {
+  const ok = [
+    { key: "bank_active", ok: true, label: "Bank accounts active through month end" },
+    { key: "uncategorized", ok: true, label: "Uncategorized is zero" },
+    { key: "reconciled", ok: true, label: "Reconciled through month end" },
+    { key: "undeposited", ok: false, label: "Undeposited funds cleared" },
+  ];
+  assert.strictEqual(
+    T.TK_closeLooksDone("bank_feed", ok).text,
+    "Looks done. QuickBooks shows Bank accounts active through month end and uncategorized is zero.",
+  );
+  assert.strictEqual(T.TK_closeLooksDone("bank_rec", ok).text, "Looks done. QuickBooks shows Reconciled through month end.");
+  assert.strictEqual(T.TK_closeLooksDone("card_rec", ok), null, "nothing maps to card_rec");
+  assert.strictEqual(T.TK_closeLooksDone("entries", ok), null);
+  assert.strictEqual(T.TK_closeLooksDone("sent", ok), null);
+  const half = ok.map((c) => (c.key === "uncategorized" ? { ...c, ok: false } : c));
+  assert.strictEqual(T.TK_closeLooksDone("bank_feed", half), null, "both checks must pass");
+  assert.strictEqual(T.TK_closeLooksDone("bank_feed", ok.filter((c) => c.key !== "bank_active")), null, "missing check");
+  assert.strictEqual(T.TK_closeLooksDone("bank_rec", [{ key: "reconciled", ok: "true" }]), null, "only a real true");
+  assert.strictEqual(T.TK_closeLooksDone("bank_rec", null), null);
+});
+
+t("P4-2: month labels, drawer link text, starts line", () => {
+  assert.strictEqual(T.TK_closeMonthLabel("2026-11"), "November 2026");
+  assert.strictEqual(T.TK_closeMonthLabel("2026-01-01"), "January 2026");
+  assert.strictEqual(T.TK_closeMonthLabel("2026-13"), "");
+  assert.strictEqual(T.TK_closeMonthLabel(null), "");
+  assert.strictEqual(T.TK_closeNextMonth("2026-12-01"), "2027-01-01");
+  assert.strictEqual(T.TK_closeNextMonth("2026-09-01"), "2026-10-01");
+  assert.strictEqual(T.TK_closeLinkText("bank_rec", "2026-11-01"), "Close checklist: Bank accounts reconciled, November 2026");
+  assert.strictEqual(T.TK_closeLinkText("sent", "2026-11-01"), "");
+  assert.strictEqual(T.TK_closeLinkText("bank_rec", null), "");
+  assert.strictEqual(T.TK_closeOptinStartsText({ enabled: false, starts: "2026-11-01" }), "");
+  assert.strictEqual(
+    T.TK_closeOptinStartsText({ enabled: true, starts: "2026-11-01" }),
+    "First tasks: the November 2026 close, due early December 2026.",
+  );
+  assert.ok(T.TK_closeOptinStartsText({ enabled: true, starts: "2026-11-01", set_live: true }).indexOf("live for every client") >= 0);
+});
+
+t("P4-2: row chip, checked state and toast", () => {
+  assert.strictEqual(T.TK_closeChip({ status: "ready_for_review" }).label, "In review");
+  assert.strictEqual(T.TK_closeChip({ status: "done", approved_at: "x" }).label, "Approved");
+  assert.strictEqual(T.TK_closeChip({ status: "waiting_client" }).label, "Waiting on client");
+  assert.strictEqual(T.TK_closeChip(null), null);
+  assert.strictEqual(T.TK_closeRowDone({ status: "ready_for_review" }, { done: true }), false, "the task wins");
+  assert.strictEqual(T.TK_closeRowDone({ status: "done" }, null), true);
+  assert.strictEqual(T.TK_closeRowDone(null, { done: true }), true, "no task: the item");
+  assert.strictEqual(T.TK_closeTickToast({ status: "review", message: "Sent for review" }, true), "Sent for review");
+  assert.strictEqual(T.TK_closeTickToast({ status: "saved" }, true), "Checked.");
+  assert.strictEqual(T.TK_closeTickToast({ status: "saved" }, false), "Unchecked.");
+  assert.strictEqual(T.TK_closeTickToast({ status: "unchanged" }, true), "");
+});
+
+t("P4-2: periodFloor skips periods before the opt-in month", () => {
+  const tpl = { cadence: "monthly", due_rule: { type: "business_day", n: 5 }, lead_days: 7 };
+  const base = { today: "2026-10-16", activatedOn: "2026-09-01", count: 2, holidays: [] };
+  const all = T.TK_tplUpcoming(tpl, base);
+  assert.ok(all && all.length === 2, "unfloored list");
+  assert.strictEqual(all[0].start, "2026-10-01", "October close first (September is past the grace window)");
+  const floored = T.TK_tplUpcoming(tpl, { ...base, periodFloor: "2026-11-01" });
+  assert.strictEqual(floored.length, 2);
+  floored.forEach((p) => assert.ok(p.start >= "2026-11-01", p.start));
+  assert.strictEqual(floored[0].start, "2026-11-01");
+  assert.strictEqual(floored[0].due.slice(0, 7), "2026-12", "the November close is due in December");
+});
+
 console.log("TK_templateLogic: " + n + " tests passed");

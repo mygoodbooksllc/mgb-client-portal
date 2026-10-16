@@ -2,7 +2,7 @@
 title: What's on a client's Close tab?
 section: Working with a client
 audience: staff
-keywords: [close tab, client close, month-end close, sign off, signed off, ready for sign-off, reopen reason, admin sign-off, close steps, checklist, ledger reviewed, ledger review, approve, send back, mark reviewed, in progress, mark done, reopen, n/a, quickbooks check, sync now, sent to client, reports sent, balance sheet, month end balance sheet, balance sheet from quickbooks, email, reports are ready, late, status, notes, month picker, monthly close steps]
+keywords: [close checklist tasks, linked task, looks done, month-end tasks, close tab, client close, month-end close, sign off, signed off, ready for sign-off, reopen reason, admin sign-off, close steps, checklist, ledger reviewed, ledger review, approve, send back, mark reviewed, in progress, mark done, reopen, n/a, quickbooks check, sync now, sent to client, reports sent, balance sheet, month end balance sheet, balance sheet from quickbooks, email, reports are ready, late, status, notes, month picker, monthly close steps]
 sort: 205
 ---
 The **Close** tab is where you close one client's month. It holds the month's status, the QuickBooks check, the close steps (six, or seven with **Ledger reviewed**), what you've sent the client, and the client's own written close steps from their SOP. Staff only. The client never sees this tab.
@@ -37,6 +37,8 @@ For a client with QuickBooks connected, from the month Ledger review started, th
 Each tick records who ticked it and when. Most steps have a **Go →** link that opens the right place for that month: Bank filtered to uncategorized transactions, Bank filtered to not-reconciled rows, or Reports. The payroll and journal entries step says **See your steps →** and scrolls to the client's monthly close steps.
 
 **Your first tick sets the month to In progress.** It only does that when the month is **Not started** (or has no record yet) and no other step is ticked. You'll see *{Month} is now In progress.* Unticking a step never changes the status.
+
+**Steps with a task.** For a client with **Create month-end tasks from the Close checklist** turned on (off for every client to start), the first five steps each have a month-end task. The step shows who has the task and its status (click it to open the task), it's ticked only when the task is done, and ticking it moves the task: a task that needs approval goes to review and the step shows **In review** until it's approved. A message says what happened, for example *Ask an admin to reopen*. When the month's QuickBooks check shows bank feed or bank rec is done, the step shows *Looks done. QuickBooks shows ...* with **Mark done**; it never ticks by itself. See [How do Close checklist steps become tasks?](#/help/close-checklist-tasks).
 
 ### Ready for sign-off, then an admin signs off
 

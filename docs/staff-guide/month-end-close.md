@@ -2,7 +2,7 @@
 title: How do I track month-end close?
 section: Month-end and recurring work
 audience: staff
-keywords: [month-end close, close tracker, sign off, signed off, ready for sign-off, admin sign-off, reopen, work, close tab, client close tab, mark done, six steps, seven steps, ledger reviewed, ledger review, quickbooks checks, ready, blocked, behind, no data, stale bank, bank feed, uncategorized, ask my accountant, undeposited funds, unreconciled, stale bank after, checklist, reconcile, reconciled, late, not started, in progress, review, done, n/a, late after day]
+keywords: [close checklist tasks, month-end close, close tracker, sign off, signed off, ready for sign-off, admin sign-off, reopen, work, close tab, client close tab, mark done, six steps, seven steps, ledger reviewed, ledger review, quickbooks checks, ready, blocked, behind, no data, stale bank, bank feed, uncategorized, ask my accountant, undeposited funds, unreconciled, stale bank after, checklist, reconcile, reconciled, late, not started, in progress, review, done, n/a, late after day]
 sort: 310
 ---
 There are two places to work on month-end close, and they show the same record. A change in one shows in the other.
@@ -25,7 +25,7 @@ Open the client and click **Close** in the tab row. It opens on last month, the 
 
 For a client with QuickBooks connected, from the month Ledger review started, there's a seventh step, **Ledger reviewed**, after **Reports reviewed**. You don't tick it by hand: it's ticked when someone clicks **Mark reviewed** on the client's **Ledger review** tab (or the **Ledger review** card on the Close tab), and an admin then approves it. Signing off the month before it's approved asks first: *Ledger review isn't approved. Sign off anyway?*
 
-Each ticked step records who ticked it and when. Your first tick sets a **Not started** month to **In progress**. When your part is finished, mark it **Ready for sign-off**. **Done** is an admin's sign-off, and signing off emails the client's people that the reports are ready. See [Who signs off a month, quarter or year?](#/help/period-sign-off). The full walk-through is in [What's on a client's Close tab?](#/help/client-close).
+Each ticked step records who ticked it and when. For a client with month-end tasks turned on, five steps also have a task, and ticking the step moves it (see [How do Close checklist steps become tasks?](#/help/close-checklist-tasks)). Your first tick sets a **Not started** month to **In progress**. When your part is finished, mark it **Ready for sign-off**. **Done** is an admin's sign-off, and signing off emails the client's people that the reports are ready. See [Who signs off a month, quarter or year?](#/help/period-sign-off). The full walk-through is in [What's on a client's Close tab?](#/help/client-close).
 
 The Client overview shows a one-line summary, for example *September 2026 close · In progress · 3 of 6 steps* (or *of 7* when the client has the Ledger reviewed step). Click it to open the tab. Today's **Closes open** tile counts your clients' unfinished closes, and late or blocked ones show as rows in **Needs you**.
 

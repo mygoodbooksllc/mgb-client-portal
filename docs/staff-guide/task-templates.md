@@ -2,7 +2,7 @@
 title: How do recurring tasks from templates work?
 section: Month-end and recurring work
 audience: staff
-keywords: [templates, recurring, recurring tasks, repeat, weekly, monthly, quarterly, annually, fiscal year, generate, make due tasks now, automatic tasks, task templates, suggestions, suggested templates, save as template, checklist, due rule, business day, last business day, lead days, draft, turn on, pause, resume, retire, missed periods, dismissed, skip for this client, repeats locked, live for real clients, change for this client, standard set, standard close set, preview, recurring badge, #/tasks/templates, assign to, named person, leave unassigned, unassigned, claim, from asana, asana import]
+keywords: [create month-end tasks from the close checklist, close checklist tasks, also this month, templates, recurring, recurring tasks, repeat, weekly, monthly, quarterly, annually, fiscal year, generate, make due tasks now, automatic tasks, task templates, suggestions, suggested templates, save as template, checklist, due rule, business day, last business day, lead days, draft, turn on, pause, resume, retire, missed periods, dismissed, skip for this client, repeats locked, live for real clients, change for this client, standard set, standard close set, preview, recurring badge, #/tasks/templates, assign to, named person, leave unassigned, unassigned, claim, from asana, asana import]
 sort: 320
 ---
 Some work happens for every client on a schedule, like reconciling bank accounts each month. Instead of typing those tasks by hand, an admin sets up a **recurring template** once, and the portal makes the task for each client on its own every morning.
@@ -74,6 +74,8 @@ If **Make task** can't make it, for example the client has nobody to give it to,
 The firm's standard month-end templates are grouped at the top as a set. They come as drafts. Even when an admin turns them on, they only reach **test clients** until the owner switches the set to **Live for real clients**. The owner can switch it back off at any time.
 
 Real clients start from the day the owner switches the set live: earlier months aren't made and aren't listed as missed. Switching it off and on again starts them from the new day. Test clients still start from the day each template was turned on.
+
+**One client at a time, before the set is live.** Under **One client**, an admin or the client's account manager can turn on **Create month-end tasks from the Close checklist** for one client. That client then gets the five close-step templates (bank feed, bank rec, card rec, entries, review) from its first close month on, while the set stays off for everyone else. **Reports sent** is never made as a task. See [How do Close checklist steps become tasks?](#/help/close-checklist-tasks).
 
 ### Templates from tasks and suggestions
 
