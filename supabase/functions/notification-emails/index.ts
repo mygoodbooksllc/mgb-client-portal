@@ -38,7 +38,9 @@ const BATCH = 500;
 type Kind =
   | "staff_client_message" | "staff_doc_upload" | "staff_task_assigned" | "staff_task_due"
   | "staff_feedback_status" | "staff_tech_request" | "client_message" | "client_reports_ready"
-  | "handbook_sign_needed" | "handbook_countersign_needed";
+  | "handbook_sign_needed" | "handbook_countersign_needed"
+  | "staff_task_review_ready" | "staff_task_sent_back" | "staff_task_mention" | "staff_task_client_answered"
+  | "staff_task_batch";
 
 // Settings key and default for each kind (matches components/settings/Settings.jsx).
 const PREF: Record<Kind, { key: string; def: boolean }> = {
@@ -52,6 +54,12 @@ const PREF: Record<Kind, { key: string; def: boolean }> = {
   client_reports_ready: { key: "reports_ready", def: true },
   handbook_sign_needed: { key: "handbook", def: true },
   handbook_countersign_needed: { key: "handbook", def: true },
+  // Tasks Phase 2 (supabase/tasks-p2-3-review.sql and later slices).
+  staff_task_review_ready: { key: "task_review", def: true },
+  staff_task_sent_back: { key: "task_sent_back", def: true },
+  staff_task_mention: { key: "task_mention", def: true },
+  staff_task_client_answered: { key: "task_client_answered", def: true },
+  staff_task_batch: { key: "task_batch", def: true },
 };
 const isClientKind = (k: Kind) => k === "client_message" || k === "client_reports_ready";
 
@@ -91,6 +99,85 @@ function clientLink(clientId: string | null, page: string) {
 // ---------------------------------------------------------------------------
 type Email = { subject: string; html: string; text: string };
 const p = (html: string, tone: "text" | "muted" = "text", size = 15) => L.p(html, { tone, size });
+
+// Tasks links stay inside the app: only "#/tasks..." hashes from the payload.
+function taskHash(h: unknown): string {
+  const s = String(h || "");
+  return /^#\/tasks(\/[A-Za-z0-9_\-\/]*)?(\?item=task:[0-9a-f-]{36})?$/.test(s) ? `${APP_URL}${s}` : `${APP_URL}#/tasks/my`;
+}
+function taskLink(id: unknown): string {
+  const s = String(id || "");
+  return /^[0-9a-f-]{36}$/.test(s) ? `${APP_URL}#/tasks/my?item=task:${s}` : `${APP_URL}#/tasks/my`;
+}
+const PERIOD_KIND: Record<string, string> = { month: "month", quarter: "quarter", year: "year" };
+function periodLabel(p: unknown, kind: unknown): string {
+  const m = /^(\d{4})-(\d{2})/.exec(String(p || ""));
+  if (!m) return "A period";
+  const k = PERIOD_KIND[String(kind || "month")] || "month";
+  if (k === "year") return `FY ${m[1]}`;
+  if (k === "quarter") return `Q${Math.floor((Number(m[2]) - 1) / 3) + 1} ${m[1]}`;
+  return new Date(Date.UTC(Number(m[1]), Number(m[2]) - 1, 15)).toLocaleDateString("en-US", { month: "long", year: "numeric", timeZone: "UTC" });
+}
+
+// Review loop and @mention emails (Tasks Phase 2 S3). Payload: text, by,
+// task_id (ref_id), and reason (sent back), excerpt (mention), or
+// kind='period' + period/period_kind (a month marked Ready for sign-off).
+function taskEmail(kind: Kind, list: any[], cname: string | null): Email | null {
+  const rows = list.slice(0, 15).map((r: any) => ({ id: r.ref_id, ...(r.payload || {}) }));
+  if (!rows.length) return null;
+  const one = rows.length === 1 ? rows[0] : null;
+  const by = [...new Set(rows.map((r: any) => String(r.by || "").trim()).filter(Boolean))];
+  const who = by.length === 1 ? by[0] : "Your team";
+  const forClient = cname ? ` for ${cname}` : "";
+  const forClientH = cname ? ` for <b>${esc(cname)}</b>` : "";
+  const label = (r: any) => (r.kind === "period" ? `${periodLabel(r.period, r.period_kind)} close` : String(r.text || "A task").slice(0, 200));
+  if (kind === "staff_task_review_ready") {
+    const periods = rows.every((r: any) => r.kind === "period");
+    return staffEmail({
+      subject: one ? `Ready for your review: ${label(one)}${cname ? ` (${cname})` : ""}` : `${rows.length} items ready for your review`,
+      preheader: rows.map(label).join(", ").slice(0, 140),
+      lines: [`${esc(who)} marked ${one ? "this" : "these"} ready for review${forClientH}:`, L.bullets(rows.map((r: any) => esc(label(r))))],
+      textLines: [`${who} marked ${one ? "this" : "these"} ready for review${forClient}:`, ...rows.map((r: any) => `- ${label(r)}`)],
+      cta: periods ? "Open Work › Close" : "Open the review queue",
+      href: periods ? `${APP_URL}#/work/close` : `${APP_URL}#/tasks/review`,
+    });
+  }
+  if (kind === "staff_task_sent_back") {
+    return staffEmail({
+      subject: one ? `Sent back: ${label(one)}` : `${rows.length} tasks sent back to you`,
+      preheader: one ? String(one.reason || "").slice(0, 140) : rows.map(label).join(", ").slice(0, 140),
+      lines: [
+        `${esc(who)} sent ${one ? "a task" : `${rows.length} tasks`} back to you${forClientH}:`,
+        L.bullets(rows.map((r: any) => `<b>${esc(label(r))}</b>${r.reason ? `<br>${L.tone(esc(String(r.reason).slice(0, 600)), "muted")}` : ""}`)),
+      ],
+      textLines: [`${who} sent ${one ? "a task" : `${rows.length} tasks`} back to you${forClient}:`, ...rows.map((r: any) => `- ${label(r)}${r.reason ? `\n  ${String(r.reason).slice(0, 600)}` : ""}`)],
+      cta: one ? "Open the task" : "Open your tasks",
+      href: one ? taskLink(one.id) : `${APP_URL}#/tasks/my`,
+    });
+  }
+  if (kind === "staff_task_mention") {
+    return staffEmail({
+      subject: one ? `${who} mentioned you: ${label(one)}` : `${rows.length} task mentions`,
+      preheader: one ? String(one.excerpt || "").slice(0, 140) : rows.map(label).join(", ").slice(0, 140),
+      lines: [
+        `${esc(who)} mentioned you on ${one ? "a task" : `${rows.length} tasks`}${forClientH}:`,
+        L.bullets(rows.map((r: any) => `<b>${esc(label(r))}</b>${r.excerpt ? `<br>${L.tone(esc(String(r.excerpt).slice(0, 300)), "muted")}` : ""}`)),
+      ],
+      textLines: [`${who} mentioned you on ${one ? "a task" : `${rows.length} tasks`}${forClient}:`, ...rows.map((r: any) => `- ${label(r)}${r.excerpt ? `\n  ${String(r.excerpt).slice(0, 300)}` : ""}`)],
+      cta: one ? "Open the task" : "Open your tasks",
+      href: one ? taskLink(one.id) : `${APP_URL}#/tasks/my`,
+    });
+  }
+  // staff_task_client_answered
+  return staffEmail({
+    subject: one ? `Client answered: ${label(one)}` : `${rows.length} client answers on your tasks`,
+    preheader: rows.map(label).join(", ").slice(0, 140),
+    lines: [`${cname ? `<b>${esc(cname)}</b>` : "Your client"} answered ${one ? "a question" : `${rows.length} questions`} on your tasks:`, L.bullets(rows.map((r: any) => esc(label(r))))],
+    textLines: [`${cname || "Your client"} answered ${one ? "a question" : `${rows.length} questions`} on your tasks:`, ...rows.map((r: any) => `- ${label(r)}`)],
+    cta: one ? "Open the task" : "Open your tasks",
+    href: one ? taskLink(one.id) : `${APP_URL}#/tasks/my`,
+  });
+}
 
 function staffEmail(o: { subject: string; preheader: string; lines: string[]; textLines: string[]; cta: string; href: string }): Email {
   const settingsUrl = `${APP_URL}#/settings`;
@@ -328,14 +415,6 @@ Deno.serve(async (req) => {
   summary.skipped += stale.length;
   const fresh = pending.filter((r: any) => now - Date.parse(r.created_at) <= STALE_MS);
 
-  for (const r of fresh) {
-    // Loop-ins and @mentions (payload.loop_in, supabase/account-manager.sql)
-    // share kind staff_client_message but get their own email.
-    const key = `${r.kind}|${r.recipient_email}|${r.client_id || ""}${r.payload?.loop_in ? "|loop" : ""}`;
-    if (!groups.has(key)) groups.set(key, []);
-    groups.get(key)!.push(r);
-  }
-
   const clientIds = [...new Set(fresh.map((r: any) => r.client_id).filter(Boolean))];
   const clients = new Map<string, any>();
   const clientPrefs = new Map<string, any>();
@@ -469,6 +548,29 @@ Deno.serve(async (req) => {
           ],
           cta: "Open your tasks",
           href: `${APP_URL}#/work/tasks`,
+        });
+      } else if (kind === "staff_task_review_ready" || kind === "staff_task_sent_back" || kind === "staff_task_mention" || kind === "staff_task_client_answered") {
+        const e2 = taskEmail(kind, list, client ? cname : null);
+        if (!e2) {
+          await skip("Nothing to send");
+          continue;
+        }
+        email = e2;
+      } else if (kind === "staff_task_batch") {
+        // One summary per person per run (generator digest, OOO handoff and return).
+        const pl = list[list.length - 1].payload || {};
+        const items: string[] = list.flatMap((r: any) => (Array.isArray(r.payload?.items) ? r.payload.items : [])).map((x: any) => String(x || "").slice(0, 200)).filter(Boolean);
+        const shown = items.slice(0, 25);
+        const more = items.length - shown.length;
+        const title = String(pl.title || "Task update").slice(0, 120);
+        const intro = String(pl.intro || "").slice(0, 400);
+        email = staffEmail({
+          subject: title,
+          preheader: (intro || shown.join(", ")).slice(0, 140),
+          lines: [...(intro ? [esc(intro)] : []), ...(shown.length ? [L.bullets([...shown.map((t) => esc(t)), ...(more > 0 ? [L.tone(`and ${more} more`, "muted")] : [])])] : [])],
+          textLines: [...(intro ? [intro] : []), ...shown.map((t) => `- ${t}`), ...(more > 0 ? [`and ${more} more`] : [])],
+          cta: "Open your tasks",
+          href: taskHash(pl.hash),
         });
       } else if (kind === "staff_tech_request") {
         const items = list.slice(0, 15).map((r: any) => {

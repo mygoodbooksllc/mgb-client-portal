@@ -68,6 +68,11 @@ const ST_STAFF_EMAIL_PREFS = [
   { key: "doc_upload", label: "A client uploads a requested document", sub: "When a document request changes to Uploaded.", def: true },
   { key: "task_assigned", label: "Someone assigns me a task", sub: "Not for tasks you give yourself or recurring template tasks.", def: true },
   { key: "task_due", label: "Tasks due today", sub: "One morning email listing your open tasks due that day.", def: false },
+  { key: "task_review", label: "Work is ready for my review", sub: "Admins: a task, or a month marked Ready for sign-off, is waiting for you.", def: true },
+  { key: "task_sent_back", label: "My task is sent back", sub: "When a reviewer sends your task back, with their reason.", def: true },
+  { key: "task_mention", label: "Someone @mentions me on a task", sub: "Not for your own comments.", def: true },
+  { key: "task_client_answered", label: "A client answers my question", sub: "When a client replies to a question on one of your tasks.", def: true },
+  { key: "task_batch", label: "Task summaries", sub: "One email per run for task batches, like new recurring tasks or tasks handed over while someone is away.", def: true },
   { key: "feedback_status", label: "My feedback changes status", sub: "When an admin marks your feedback planned, done or declined.", def: true },
   { key: "handbook", label: "Staff Handbook signatures", sub: "When a policy needs your signature or countersignature.", def: true },
 ];
