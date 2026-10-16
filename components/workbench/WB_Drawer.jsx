@@ -8,11 +8,11 @@
 // the left nav, above the phone's safe area) with the count, the next item
 // and "Press W".
 // Open: the panel rises from the bar, the full width of the content area,
-// with a scrim; tabs All / Tasks / Reviews
-// / Messages / Files; Mine / Everyone for admins; rows grouped Overdue /
+// with a scrim; filter chips All / Tasks / Reviews
+// / Messages / Files (WB_Hub.jsx); Mine / Everyone for admins; rows grouped Overdue /
 // Today / This week with one quick action each. Phones get a full-height
 // sheet. W toggles it (never while typing, in a dialog, a menu or a tour);
-// Esc closes it. Same store and wb_inbox call as the page.
+// Esc closes one layer at a time. Same store and wb_inbox call as the page.
 //
 // app.jsx mounts it for a signed-in staff member who isn't viewing as
 // someone or previewing; it renders nothing while Workbench is off.

@@ -39,10 +39,16 @@ function WB_useHubKeys(live, panelRef) {
       if (!isW && !open) return;
       // A layer above the hub (task drawer, client drawer, chat drawer, a
       // dialog, a tour, a row's menu) gets the key first.
-      if (WB_layerAbove(WB_layersPresent(WB__has))) return;
+      const present = WB_layersPresent(WB__has);
+      if (e.key === "Tab") {
+        // A row's menu sits inside the panel, so Tab stays trapped; only a
+        // drawer, dialog or tour above takes Tab over.
+        if (WB_isStacked(present) || present.indexOf("tour") >= 0) return;
+      } else if (WB_layerAbove(present)) return;
       const panel = panelRef.current;
       if (e.key === "Escape") {
         e.preventDefault();
+        e.stopPropagation();
         WB_store.setDrawerOpen(false);
         return;
       }
@@ -97,7 +103,7 @@ function WB_useHubLayers(open, panelRef) {
         const rows = panel.querySelectorAll("[data-wb-key]");
         for (let i = 0; i < rows.length && !el; i++) if (rows[i].getAttribute("data-wb-key") === key) el = rows[i];
       }
-      if (!el) el = panel.querySelector('[role="tab"][aria-selected="true"]') || panel.querySelector(".wb-tab.is-on") || panel.querySelector(".wb-row[tabindex='0']") || panel;
+      if (!el) el = panel.querySelector(".wb-row[tabindex='0']") || panel.querySelector('[role="tab"][aria-selected="true"]') || panel.querySelector(".wb-tab.is-on") || panel;
       if (el && typeof el.focus === "function") el.focus();
     };
     const check = () => {
