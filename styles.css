@@ -115,30 +115,30 @@
     color-scheme: dark;
 
     /* Chrome keeps its role, just darker than the cream-era navy. */
-    --navy: #1f2a24;
-    --navy-deep: #131a16;
+    --navy: #243746;
+    --navy-deep: #0f181f;
     --gold: #c7ae86;
     --gold-deep: #d8c39f;
-    --on-gold: #0b100e;
-  --on-gold-deep: #0b100e;
-    --on-gold-deep: #0b100e;
+    --on-gold: #0c1318;
+  --on-gold-deep: #0c1318;
+    --on-gold-deep: #0c1318;
 
-    --bg: #0f1512;
-    --surface: #161d1a;
-    --border: #293530;
-    --text: #e9ece6;
-    --text-muted: #9aa59c;
-    --ink-strong: #f2f5ef;
+    --bg: #101920;
+    --surface: #17222b;
+    --border: #2d3f4d;
+    --text: #e8ebed;
+    --text-muted: #a4afb7;
+    --ink-strong: #f2f4f5;
 
-    --sidebar-bg: #0b100e;
-    --sidebar-text: #aab4ac;
+    --sidebar-bg: #0c1318;
+    --sidebar-text: #aab5bd;
     --sidebar-text-active: #ffffff;
     /* Dark: the top bar matches the sidebar; the page keeps --bg below it. */
     --topbar-bg: var(--sidebar-bg);
     --topbar-border: rgba(255, 255, 255, 0.08);
 
     --accent: var(--gold);
-    --accent-soft: #1f2a22;
+    --accent-soft: #1f2d38;
     --good: #5fbf7a;
     --good-soft: #16261c;
     --bad: #e2635f;
@@ -147,12 +147,12 @@
     --shadow: none;
     --shadow-hover: none;
 
-    --surface-2: #1c2420;
-    --hover-bg: #1f2a22;
-    --muted-line: #374139;
-    --sidebar-text-muted: #8b968d;
-    --warm-bg: #1f2a22;
-    --warm-border: #3f4f42;
+    --surface-2: #1f2d38;
+    --hover-bg: #1f2d38;
+    --muted-line: #3a4e5c;
+    --sidebar-text-muted: #8b99a3;
+    --warm-bg: #1f2d38;
+    --warm-border: #3a5060;
     --warm-text: #d8c9a4;
     --glass-bg: var(--surface);
     --glass-border: var(--border);
@@ -161,13 +161,13 @@
     --selected-outline: var(--gold);
     /* Still frosted glass, but tinted *lighter* than the page instead of
        darker — a navy tint over near-black has no presence at all. */
-    --referral-bg: #2c3a33;
+    --referral-bg: #293a47;
     --referral-border: rgba(199, 174, 134, 0.38);
-    --mesh-1: #3f4f42;
+    --mesh-1: #3a5060;
     --mesh-2: #4a3a2a;
     --mesh-3: #2a3a45;
     /* §168: dark needs markedly less. These three sit well above --bg
-       (#0f1512) in lightness, so at the light-mode 0.55 they read as three
+       (#101920) in lightness, so at the light-mode 0.55 they read as three
        distinct glowing shapes rather than as ambient depth — the near-black
        ground gives them far more contrast to work with than cream does. */
     --mesh-opacity: 0.3;
@@ -191,27 +191,27 @@
 :root[data-theme="dark"] {
   color-scheme: dark;
 
-  --navy: #1f2a24;
-  --navy-deep: #131a16;
+  --navy: #243746;
+  --navy-deep: #0f181f;
   --gold: #c7ae86;
   --gold-deep: #d8c39f;
-  --on-gold: #0b100e;
+  --on-gold: #0c1318;
 
-  --bg: #0f1512;
-  --surface: #161d1a;
-  --border: #293530;
-  --text: #e9ece6;
-  --text-muted: #9aa59c;
-  --ink-strong: #f2f5ef;
+  --bg: #101920;
+  --surface: #17222b;
+  --border: #2d3f4d;
+  --text: #e8ebed;
+  --text-muted: #a4afb7;
+  --ink-strong: #f2f4f5;
 
-  --sidebar-bg: #0b100e;
-  --sidebar-text: #aab4ac;
+  --sidebar-bg: #0c1318;
+  --sidebar-text: #aab5bd;
   --sidebar-text-active: #ffffff;
   --topbar-bg: var(--sidebar-bg);
   --topbar-border: rgba(255, 255, 255, 0.08);
 
   --accent: var(--gold);
-  --accent-soft: #1f2a22;
+  --accent-soft: #1f2d38;
   --good: #5fbf7a;
   --good-soft: #16261c;
   --bad: #e2635f;
@@ -220,21 +220,21 @@
   --shadow: none;
   --shadow-hover: none;
 
-  --surface-2: #1c2420;
-  --hover-bg: #1f2a22;
-  --muted-line: #374139;
-  --sidebar-text-muted: #8b968d;
-  --warm-bg: #1f2a22;
-  --warm-border: #3f4f42;
+  --surface-2: #1f2d38;
+  --hover-bg: #1f2d38;
+  --muted-line: #3a4e5c;
+  --sidebar-text-muted: #8b99a3;
+  --warm-bg: #1f2d38;
+  --warm-border: #3a5060;
   --warm-text: #d8c9a4;
   --glass-bg: var(--surface);
   --glass-border: var(--border);
   --tint-on-surface: rgba(255, 255, 255, 0.1);
   --chart-income: #8fb4d6;
   --selected-outline: var(--gold);
-  --referral-bg: #2c3a33;
+  --referral-bg: #293a47;
   --referral-border: rgba(199, 174, 134, 0.38);
-  --mesh-1: #3f4f42;
+  --mesh-1: #3a5060;
   --mesh-2: #4a3a2a;
   --mesh-3: #2a3a45;
   --mesh-opacity: 0.3;
@@ -3129,7 +3129,7 @@ body:has(.modal-overlay, [aria-modal="true"], .si-drawer-scrim) .global-search {
   background: var(--navy);
 }
 
-/* Dark mode: --navy (#1f2a24) barely shows on the dark card, so primary
+/* Dark mode: --navy (#243746) barely shows on the dark card, so primary
    buttons take the gold fill with on-gold ink. :where() keeps specificity at
    one class, so local overrides (referral card) still win; the Daily Close
    danger button keeps its red. */
