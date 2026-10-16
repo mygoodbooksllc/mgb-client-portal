@@ -295,4 +295,117 @@ t("bar left edge follows the nav", () => {
   assert.strictEqual(L.WB_barLeft([R(0, 72.4)], 1440), 72);
 });
 
+// ---- Hub (H1) ------------------------------------------------------------------
+t("hub: row action per kind", () => {
+  const a = (over) => L.WB_hubAction(row(over));
+  assert.deepStrictEqual(a({ kind: "task", source_id: "t1" }), { type: "task", taskId: "t1" });
+  assert.deepStrictEqual(a({ kind: "task_sent_back", source_id: "t2" }), { type: "task", taskId: "t2" });
+  assert.deepStrictEqual(a({ kind: "task_review", source: "review", source_id: "t3" }), { type: "task", taskId: "t3" });
+  assert.deepStrictEqual(a({ kind: "client_answered", source_id: "r1", ref_id: "t4" }), { type: "task", taskId: "t4" });
+  assert.deepStrictEqual(a({ kind: "doc_request", source_id: "r2", ref_id: "r2" }), { type: "go" });
+  assert.deepStrictEqual(a({ kind: "message", source: "message", source_id: "m1" }), { type: "go" });
+  assert.deepStrictEqual(a({ kind: "doc_upload", source: "doc", source_id: "f1" }), { type: "go" });
+  assert.deepStrictEqual(a({ kind: "gl_flags", source: "gl", source_id: "g1" }), { type: "go" });
+  assert.deepStrictEqual(a({ kind: "task", source_id: null }), { type: "go" });
+  assert.deepStrictEqual(a({ kind: "other", source: "other" }), { type: "own" });
+  assert.deepStrictEqual(L.WB_hubAction(null), { type: "own" });
+});
+t("hub: primary and menu for task rows", () => {
+  const todo = row({ kind: "task", status: "todo", source_id: "t1" });
+  assert.deepStrictEqual(L.WB_hubPrimary(todo), { id: "open", label: "Open" });
+  assert.deepStrictEqual(
+    L.WB_hubMenu(todo).map((x) => x.id),
+    ["start", "snooze", "fullpage"],
+  );
+  const doing = row({ kind: "task", status: "in_progress", source_id: "t1" });
+  assert.deepStrictEqual(L.WB_hubPrimary(doing), { id: "open", label: "Open" });
+  assert.deepStrictEqual(
+    L.WB_hubMenu(doing).map((x) => x.id),
+    ["snooze", "fullpage"],
+  );
+  const rv = row({ kind: "task_review", source: "review", source_id: "t3" });
+  assert.deepStrictEqual(L.WB_hubPrimary(rv), { id: "open", label: "Review" });
+  // A message keeps its usual button and menu.
+  const msg = row({ kind: "message", source: "message", source_id: "m1" });
+  assert.deepStrictEqual(L.WB_hubPrimary(msg), L.WB_primaryAction(msg));
+  assert.deepStrictEqual(L.WB_hubMenu(msg), L.WB_menuActions(msg));
+});
+
+t("hub: layer selectors and order", () => {
+  const sels = L.WB_LAYER_SELECTORS;
+  [".tk-dw-layer", ".tk-cd-layer", ".si-drawer-layer", ".modal-overlay", '[aria-modal="true"]:not(.wb-panel)', ".tour-root", ".wb-menu"].forEach((x) =>
+    assert.ok(sels.indexOf(x) >= 0, "missing " + x),
+  );
+  const has = (...on) => (sel) => on.indexOf(sel) >= 0;
+  assert.deepStrictEqual(L.WB_layersPresent(has()), []);
+  assert.strictEqual(L.WB_layerAbove(L.WB_layersPresent(has())), false);
+  // Task drawer over chat drawer over hub: task drawer is the top layer.
+  assert.deepStrictEqual(L.WB_layersPresent(has(".si-drawer-layer", ".tk-dw-layer")), ["task-drawer", "chat-drawer"]);
+  assert.deepStrictEqual(L.WB_layersPresent(has(".tk-cd-layer", ".modal-overlay", ".wb-menu")), ["menu", "modal", "client-drawer"]);
+  assert.strictEqual(L.WB_layerAbove(["menu"]), true);
+  // A menu or tour alone is not a stacked drawer (the hub scrim keeps clicks).
+  assert.strictEqual(L.WB_isStacked(["menu"]), false);
+  assert.strictEqual(L.WB_isStacked(["tour"]), false);
+  assert.strictEqual(L.WB_isStacked(["menu", "task-drawer"]), true);
+  assert.strictEqual(L.WB_isStacked([]), false);
+  // The hub's own panel is never a layer above it.
+  assert.ok(L.WB_LAYER_SELECTORS.every((x) => !/^\.wb-panel/.test(x)));
+});
+
+t("hub: tab keys", () => {
+  const ids = ["inbox", "tasks", "client"];
+  assert.strictEqual(L.WB_tabMove(ids, "inbox", "ArrowRight"), "tasks");
+  assert.strictEqual(L.WB_tabMove(ids, "client", "ArrowRight"), "inbox");
+  assert.strictEqual(L.WB_tabMove(ids, "inbox", "ArrowLeft"), "client");
+  assert.strictEqual(L.WB_tabMove(ids, "tasks", "Home"), "inbox");
+  assert.strictEqual(L.WB_tabMove(ids, "tasks", "End"), "client");
+  assert.strictEqual(L.WB_tabMove(ids, "tasks", "x"), null);
+  assert.strictEqual(L.WB_tabMove([], "tasks", "Home"), null);
+  assert.deepStrictEqual(L.WB_hubTabIds(true), ["inbox"]); // only Inbox is live in H1
+  assert.deepStrictEqual(L.WB_hubTabIds(false), ["inbox", "tasks", "client"]);
+});
+
+t("hub: state clean, merge and persistence", () => {
+  const d = L.WB_hubDefault();
+  assert.deepStrictEqual(L.WB_hubClean(null), d);
+  assert.deepStrictEqual(L.WB_hubClean("junk"), d);
+  // A tab that isn't live yet, or a made-up chip, falls back.
+  assert.strictEqual(L.WB_hubClean({ tab: "client" }).tab, "inbox"); // not live until H4
+  assert.strictEqual(L.WB_hubClean({ tab: "nope" }).tab, "inbox");
+  assert.strictEqual(L.WB_hubClean({ chip: "gl" }).chip, "all"); // gl is not a drawer chip
+  assert.strictEqual(L.WB_hubClean({ chip: "doc" }).chip, "doc");
+  assert.strictEqual(L.WB_hubClean({ open: "yes" }).open, false);
+  assert.deepStrictEqual(L.WB_hubClean({ scroll: { inbox: -5, tasks: "x", client: 12.6 } }).scroll, { inbox: 0, tasks: 0, client: 13 });
+  const m = L.WB_hubMerge({ tab: "inbox", chip: "task", scroll: { inbox: 40, tasks: 0, client: 0 } }, { scroll: { client: 9 }, open: true });
+  assert.strictEqual(m.open, true);
+  assert.strictEqual(m.chip, "task");
+  assert.deepStrictEqual(m.scroll, { inbox: 40, tasks: 0, client: 9 });
+
+  const saved = L.WB_hubSerialize({ open: true, tab: "inbox", chip: "message", scroll: { inbox: 220, tasks: 0, client: 0 }, lastFocus: "task:task:1" }, NOW);
+  assert.ok(saved.indexOf("lastFocus") < 0, "focus row is not saved");
+  // Fresh: reload inside 5 minutes restores everything.
+  const back = L.WB_hubParse(saved, NOW + 60000);
+  assert.strictEqual(back.open, true);
+  assert.strictEqual(back.chip, "message");
+  assert.strictEqual(back.scroll.inbox, 220);
+  assert.strictEqual(back.lastFocus, null);
+  // Older than 5 minutes: stays closed but keeps the tab, chip and scroll.
+  const mid = L.WB_hubParse(saved, NOW + L.WB_HUB_OPEN_MS + 1000);
+  assert.strictEqual(mid.open, false);
+  assert.strictEqual(mid.chip, "message");
+  assert.strictEqual(mid.scroll.inbox, 220);
+  // Older than 30 minutes: scroll is dropped too.
+  const old = L.WB_hubParse(saved, NOW + L.WB_HUB_SCROLL_MS + 1000);
+  assert.strictEqual(old.open, false);
+  assert.strictEqual(old.chip, "message");
+  assert.strictEqual(old.scroll.inbox, 0);
+  // Bad input never throws and gives the default.
+  [null, "", "{not json", "[]", '{"v":2}', "123", '{"v":1,"at":"x","open":true}'].forEach((raw) => {
+    const r = L.WB_hubParse(raw, NOW);
+    assert.strictEqual(r.tab, "inbox");
+    if (raw === '{"v":1,"at":"x","open":true}') assert.strictEqual(r.open, false);
+  });
+  assert.strictEqual(L.WB_HUB_KEY, "mgb_wb_hub");
+});
+
 console.log("WB_logic: " + n + " checks passed");

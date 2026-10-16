@@ -2,6 +2,8 @@
 // WB_Drawer: Workbench as a bottom drawer on every staff page (spec addendum
 // 2026-10-16, owner approved).
 //
+// The open panel is WB_Hub (WB_Hub.jsx): tabs, stack protocol, saved state.
+//
 // Collapsed: a 44px bar across the whole bottom of the content area (beside
 // the left nav, above the phone's safe area) with the count, the next item
 // and "Press W".
@@ -20,7 +22,6 @@ function WB_Drawer({ me, isAdmin }) {
   const on = WB_useSwitch();
   const s = WB_useStore(me, isAdmin, on);
   const open = s.drawerOpen;
-  const [tab, setTab] = React.useState("all");
   const panelRef = React.useRef(null);
   const barRef = React.useRef(null);
   const live = on && s.status !== "missing" && !!me;
@@ -34,7 +35,7 @@ function WB_Drawer({ me, isAdmin }) {
 
   const now = Date.now();
   const today = WB_today(now);
-  const chip = WB_drawerChip(tab);
+  const chip = WB_drawerChip(s.hub.chip);
   const view = React.useMemo(() => WB_build(s.rows, { today, now, chip }), [s.rows, today, chip, open, tick]);
   const allView = React.useMemo(() => (chip === "all" ? view : WB_build(s.rows, { today, now, chip: "all" })), [view, s.rows, today, chip, tick]);
   const next = WB_nextRow(allView);
@@ -83,48 +84,9 @@ function WB_Drawer({ me, isAdmin }) {
     };
   }, [live]);
 
-  // W toggles; Esc closes.
-  React.useEffect(() => {
-    if (!live) return undefined;
-    const onKey = (e) => {
-      if (e.key === "Escape" && WB_store.getState().drawerOpen) {
-        if (document.querySelector(".wb-menu")) return; // the row's menu closes first
-        e.preventDefault();
-        WB_store.setDrawerOpen(false);
-        return;
-      }
-      if (e.key === "Tab" && WB_store.getState().drawerOpen && panelRef.current) {
-        // Keep Tab inside the open panel (it is a modal dialog).
-        const f = Array.prototype.filter.call(
-          panelRef.current.querySelectorAll('button:not([disabled]), a[href], [tabindex="0"], input, select, textarea'),
-          (el) => el.offsetParent !== null,
-        );
-        if (!f.length) return;
-        const firstEl = f[0];
-        const lastEl = f[f.length - 1];
-        const inside = panelRef.current.contains(document.activeElement);
-        if (e.shiftKey && (document.activeElement === firstEl || !inside)) {
-          e.preventDefault();
-          lastEl.focus();
-        } else if (!e.shiftKey && (document.activeElement === lastEl || !inside)) {
-          e.preventDefault();
-          firstEl.focus();
-        }
-        return;
-      }
-      if (e.key !== "w" && e.key !== "W") return;
-      if (WB_store.getState().drawerOpen && document.querySelector(".wb-menu")) return; // a row's menu is open
-      const inPanel = panelRef.current && e.target && panelRef.current.contains(e.target);
-      if (!inPanel && WB_keyBlocked(e)) return;
-      if (inPanel && e.target && /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName || "")) return;
-      e.preventDefault();
-      const willOpen = !WB_store.getState().drawerOpen;
-      WB_store.setDrawerOpen(willOpen);
-      if (willOpen) WB_track("wb-drawer", "key");
-    };
-    document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
-  }, [live]);
+  // W toggles; Esc closes the top layer; Tab stays in it (WB_Hub.jsx).
+  WB_useHubKeys(live, panelRef);
+  WB_useHubLayers(open && live, panelRef);
 
   // Focus moves into the panel on open and back to the bar on close.
   const wasOpen = React.useRef(false);
@@ -151,10 +113,6 @@ function WB_Drawer({ me, isAdmin }) {
 
   if (!live) return null;
 
-  const setTabTracked = (id) => {
-    setTab(id);
-    WB_track("wb-filter", "drawer:" + id);
-  };
   const loading = !s.at && (s.status === "loading" || s.status === "idle");
 
   return (
@@ -189,88 +147,7 @@ function WB_Drawer({ me, isAdmin }) {
         </span>
       </button>
       {open && (
-        <>
-          <div className="wb-scrim" onClick={() => WB_store.setDrawerOpen(false)} aria-hidden="true" />
-          <div ref={panelRef} className="wb-panel" role="dialog" aria-modal="true" aria-labelledby="wb-panel-title" tabIndex={-1} data-tk-keyscope="drawer">
-            <div className="wb-panel-head">
-              <h2 className="wb-panel-title" id="wb-panel-title">
-                {WB_NAME} <span className="wb-chip-n">{count}</span>
-              </h2>
-              {s.offline && <span className="wb-offline">Offline</span>}
-              <a className="wb-panel-full" href="#/today" onClick={() => WB_store.setDrawerOpen(false)}>
-                Full page
-              </a>
-              <button type="button" className="wb-icon-btn" aria-label={"Close " + WB_NAME} onClick={() => WB_store.setDrawerOpen(false)}>
-                ×
-              </button>
-            </div>
-            <div className="wb-panel-tools">
-              <div className="wb-tabs" role="tablist" aria-label="Filter">
-                {WB_DRAWER_TABS.map((t) => (
-                  <button
-                    key={t.id}
-                    type="button"
-                    role="tab"
-                    aria-selected={tab === t.id}
-                    className={"wb-tab" + (tab === t.id ? " is-on" : "")}
-                    onClick={() => setTabTracked(t.id)}
-                  >
-                    {t.label}
-                    <span className="wb-chip-n">{allView.counts[t.id === "all" ? "all" : t.id]}</span>
-                  </button>
-                ))}
-              </div>
-              {isAdmin && (
-                <div className="wb-scope" role="group" aria-label="Whose items">
-                  {["mine", "everyone"].map((k) => (
-                    <button key={k} type="button" className={"wb-scope-btn" + (s.scope === k ? " is-on" : "")} aria-pressed={s.scope === k} onClick={() => WB_store.setScope(k)}>
-                      {k === "mine" ? "Mine" : "Everyone"}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-            <div className="wb-panel-body">
-              {s.error && (
-                <div className="wb-error" role="alert">
-                  <span>Couldn't refresh.</span>
-                  <button type="button" className="btn-secondary" onClick={() => WB_store.refresh()}>
-                    Retry
-                  </button>
-                </div>
-              )}
-              {loading ? (
-                <ul className="wb-skeleton" aria-label="Loading" role="status">
-                  {[0, 1, 2, 3, 4].map((i) => (
-                    <li key={i} className="wb-skel-row" />
-                  ))}
-                </ul>
-              ) : view.visible === 0 ? (
-                <p className="wb-filtered-empty" role="status">
-                  {chip === "all" ? "Nothing needs you right now." : "Nothing here."}
-                </p>
-              ) : (
-                <WB_List
-                  view={view}
-                  today={today}
-                  now={now}
-                  compact
-                  showOwner={s.scope === "everyone"}
-                  listId="wb-dl"
-                  onChip={(c) => setTabTracked(WB_DRAWER_TABS.some((t) => t.id === c) ? c : "all")}
-                />
-              )}
-              {view.later > 0 && (
-                <p className="wb-later">
-                  {view.later} more later · <a href="#/tasks">My Tasks</a>
-                </p>
-              )}
-            </div>
-            <p className="wb-panel-foot">
-              <kbd>W</kbd> opens and closes · <kbd>Esc</kbd> closes
-            </p>
-          </div>
-        </>
+        <WB_Hub s={s} isAdmin={isAdmin} panelRef={panelRef} view={view} allView={allView} chip={chip} today={today} now={now} count={count} loading={loading} />
       )}
       <WB_UndoBar />
     </>

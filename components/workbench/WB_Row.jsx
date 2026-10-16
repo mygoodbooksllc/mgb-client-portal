@@ -109,8 +109,8 @@ function WB_SnoozeMenu({ row, onClose, labelledBy }) {
   );
 }
 
-function WB_RowMenu({ row, onAction, onClose, labelledBy }) {
-  const items = WB_menuActions(row);
+function WB_RowMenu({ row, onAction, onClose, labelledBy, hub }) {
+  const items = hub ? WB_hubMenu(row) : WB_menuActions(row);
   const firstRef = React.useRef(null);
   React.useEffect(() => {
     if (firstRef.current) firstRef.current.focus();
@@ -148,7 +148,7 @@ function WB_RowMenu({ row, onAction, onClose, labelledBy }) {
 }
 
 // ---- Row -------------------------------------------------------------------
-function WB_Row({ row, today, now, isCur, focused, compact, menu, setMenu, onFocusRow, showOwner, firstAction }) {
+function WB_Row({ row, today, now, isCur, focused, compact, hub, menu, setMenu, onFocusRow, showOwner, firstAction }) {
   const ref = React.useRef(null);
   const menuBtn = React.useRef(null);
   const id = "wb-row-" + row.item_key.replace(/[^A-Za-z0-9_-]/g, "_");
@@ -179,8 +179,8 @@ function WB_Row({ row, today, now, isCur, focused, compact, menu, setMenu, onFoc
 
   const other = row.source === "other";
   const td = other ? row._td : null;
-  const primary = WB_primaryAction(row);
-  const menuItems = WB_menuActions(row);
+  const primary = hub ? WB_hubPrimary(row) : WB_primaryAction(row);
+  const menuItems = hub ? WB_hubMenu(row) : WB_menuActions(row);
   const snoozed = WB_isSnoozed(row);
   const when = WB_whenText(row, today, now);
   const meta = [row.client_name, row.period ? WB_periodLabel(row.period) : null, when].filter(Boolean).join(" · ");
@@ -193,6 +193,7 @@ function WB_Row({ row, today, now, isCur, focused, compact, menu, setMenu, onFoc
     }
     if (!primary) return;
     if (primary.id === "start") WB_store.startTask(row);
+    else if (hub) WB_hubOpen(row, "open");
     else WB_go(row, "open");
   };
   const onAction = (aid) => {
@@ -203,8 +204,10 @@ function WB_Row({ row, today, now, isCur, focused, compact, menu, setMenu, onFoc
     setMenu(null);
     if (aid === "noreply") WB_store.noReply(row);
     else if (aid === "checked") WB_store.fileChecked(row);
+    else if (aid === "start") WB_store.startTask(row);
     else if (aid === "request") WB_go(row, "request");
-    else WB_go(row, "open");
+    else if (aid === "open" && hub) WB_hubOpen(row, "open");
+    else WB_go(row, "open"); // "Open full page" and, outside the hub, Open
   };
   const closeMenu = (restore) => {
     setMenu(null);
@@ -276,7 +279,7 @@ function WB_Row({ row, today, now, isCur, focused, compact, menu, setMenu, onFoc
           </button>
         )}
       </div>
-      {menu && menu.kind === "menu" && <WB_RowMenu row={row} onAction={onAction} onClose={closeMenu} labelledBy={id + "-more"} />}
+      {menu && menu.kind === "menu" && <WB_RowMenu row={row} hub={hub} onAction={onAction} onClose={closeMenu} labelledBy={id + "-more"} />}
       {menu && menu.kind === "snooze" && <WB_SnoozeMenu row={row} onClose={closeMenu} labelledBy={id + "-more"} />}
     </li>
   );
@@ -284,7 +287,7 @@ function WB_Row({ row, today, now, isCur, focused, compact, menu, setMenu, onFoc
 
 // ---- List with keys (spec D4) -----------------------------------------------
 // view: WB_build output. onChip(id) for 0-6. onHelp for "?".
-function WB_List({ view, today, now, compact, onChip, onHelp, showOwner, listId }) {
+function WB_List({ view, today, now, compact, hub, onChip, onHelp, showOwner, listId }) {
   const flat = React.useMemo(() => {
     const out = [];
     (view.groups || []).forEach((g) => g.rows.forEach((r) => out.push(r)));
@@ -406,6 +409,7 @@ function WB_List({ view, today, now, compact, onChip, onHelp, showOwner, listId 
                   today={today}
                   now={now}
                   compact={compact}
+                  hub={hub}
                   showOwner={showOwner}
                   firstAction={isFirst && !compact}
                   isCur={!!cur && cur.item_key === r.item_key}
@@ -464,7 +468,7 @@ function WB_KeysSheet({ onClose }) {
     ["s", "Snooze"],
     ["e", "No reply needed (message) or Mark checked (file)"],
     ["1-6, 0", "Pick a filter, 0 for All"],
-    ["Esc", "Close a menu or the drawer"],
+    ["Esc", "Close the top layer: a menu, a task or chat drawer, then the " + WB_NAME],
   ];
   return typeof ModalShell === "function" ? (
     <ModalShell onClose={onClose} labelledBy="wb-keys-title" className="confirm-modal">

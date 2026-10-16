@@ -74,6 +74,7 @@ var WB_store = (function () {
     isAdmin: false,
     undo: null, // { id, text, run, until }
     drawerOpen: false,
+    hub: WB_hubDefault(), // tab, chip, client, scroll per tab (spec 2.2); saved in mgb_wb_hub
   };
   var users = 0;
   var timer = null;
@@ -84,6 +85,7 @@ var WB_store = (function () {
   var again = false;
   var undoTimer = null;
   var cleanups = [];
+  var hubTimer = null;
 
   function emit() {
     listeners.slice().forEach(function (fn) {
@@ -508,9 +510,44 @@ var WB_store = (function () {
     );
   }
 
+  // ---- Hub state (spec 2.2): survives route changes because the store is a
+  // module singleton; saved in localStorage (mgb_wb_hub, try/catch) so a
+  // reload keeps the tab, chip and scroll. Writes are throttled to 500 ms.
+  function saveHub() {
+    if (hubTimer) return;
+    hubTimer = setTimeout(flushHub, 500);
+  }
+  function flushHub() {
+    if (hubTimer) clearTimeout(hubTimer);
+    hubTimer = null;
+    var h = Object.assign({}, state.hub, { open: state.drawerOpen });
+    WB__lsSet(WB_HUB_KEY, WB_hubSerialize(h, Date.now()));
+  }
+  // patch: { tab, chip, clientId, scroll: { tab: n }, lastFocus }. silent
+  // saves without re-rendering (scroll position, focus row).
+  function setHub(patch, silent) {
+    var next = WB_hubMerge(state.hub, patch);
+    var hub = Object.assign({}, next, { open: state.drawerOpen });
+    if (silent) state.hub = hub;
+    else set({ hub: hub });
+    saveHub();
+  }
   function setDrawerOpen(open) {
     if (!!open === state.drawerOpen) return;
     set({ drawerOpen: !!open });
+    if (!open) flushHub();
+    else saveHub();
+  }
+  // First read of the saved hub (one browser tab or window at a time is
+  // fine: last writer wins). Reopens only inside the freshness window.
+  function restoreHub() {
+    var h = WB_hubParse(WB__ls(WB_HUB_KEY), Date.now());
+    state = Object.assign({}, state, { hub: h, drawerOpen: h.open });
+  }
+
+  restoreHub();
+  if (typeof window !== "undefined" && window.addEventListener) {
+    window.addEventListener("pagehide", flushHub);
   }
 
   return {
@@ -537,6 +574,8 @@ var WB_store = (function () {
     runUndo: runUndo,
     dismissUndo: dismissUndo,
     setDrawerOpen: setDrawerOpen,
+    setHub: setHub,
+    flushHub: flushHub,
   };
 })();
 
@@ -572,4 +611,19 @@ function WB_go(row, action) {
   } catch (e) {}
   if (typeof LK_go === "function") LK_go(link.t, link.hint || null);
   else if (typeof LK_href === "function") window.location.hash = LK_href(link.t);
+}
+
+// Hub rows (spec 2.4): a task or review opens in the task drawer on top of
+// the hub, so the page underneath never changes. Anything else, or a hub
+// that is closed (Today's own list), goes where it lives as before.
+function WB_hubOpen(row, action) {
+  var a = WB_hubAction(row);
+  if (a.type === "task" && typeof TK_openTask === "function" && WB_store.getState().drawerOpen) {
+    WB_store.setHub({ lastFocus: row.item_key }, true);
+    WB_track("wb-action", (row.kind || "other") + ":open-in-place");
+    TK_openTask(a.taskId, { from: "wb-hub" });
+    return true;
+  }
+  WB_go(row, action || "open");
+  return false;
 }

@@ -716,6 +716,55 @@ html.wb-drawer-on .chat-fab-wrap {
   color: var(--text-muted);
 }
 
+/* ---- Hub: tabs, stacking (Workbench Hub spec 2.3) ---- */
+.wb-hub-tabs {
+  display: flex;
+  gap: 2px;
+  padding-inline: max(16px, calc((100% - var(--wb-panel-max)) / 2));
+  border-bottom: 1px solid var(--border);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.wb-hub-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 36px;
+  padding: 4px 12px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 13.5px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.wb-hub-tab:hover {
+  color: var(--text);
+}
+.wb-hub-tab.is-on {
+  color: var(--ink-strong);
+  border-bottom-color: var(--accent);
+}
+.wb-panel-tools .wb-hub-chips {
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+/* While the hub is open the chat drawer sits above the panel and the bar
+   (it is normally at 1800, below the panel); the client drawer (1840) and
+   the task drawer (1850) already sit above both. */
+html.wb-hub-open .si-drawer-layer {
+  z-index: 1835;
+}
+/* While a drawer or dialog is stacked over the hub, the hub's scrim stops
+   taking clicks so a click outside closes only that drawer. */
+html.wb-stacked .wb-scrim {
+  pointer-events: none;
+}
+
 /* ---- 760px and phones (spec D3) ---- */
 @media (max-width: 760px) {
   .wb-chips {
@@ -744,6 +793,7 @@ html.wb-drawer-on .chat-fab-wrap {
   }
   .wb-chip,
   .wb-tab,
+  .wb-hub-tab,
   .wb-scope-btn,
   .wb-btn,
   .wb-more,

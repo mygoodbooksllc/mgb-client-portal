@@ -308,6 +308,179 @@ function WB_nextRow(view) {
   return view.groups[0].rows[0] || null;
 }
 
+// ---- Hub (Workbench Hub spec H1) ---------------------------------------------
+// The panel's tabs. Only Inbox is live in H1; the rest come in H2 and H4
+// and are saved/restored safely before then (a tab that isn't live falls
+// back to Inbox).
+var WB_HUB_TABS = [
+  { id: "inbox", label: "Inbox", live: true },
+  { id: "tasks", label: "My tasks", live: false },
+  { id: "client", label: "Client", live: false },
+];
+var WB_HUB_KEY = "mgb_wb_hub"; // localStorage; the mgb_ prefix lets Dev Tools reset clear it
+var WB_HUB_OPEN_MS = 5 * 60 * 1000; // a reload inside this window reopens the hub
+var WB_HUB_SCROLL_MS = 30 * 60 * 1000; // scroll positions older than this are dropped
+
+function WB_hubTabIds(live) {
+  return WB_HUB_TABS.filter(function (t) {
+    return !live || t.live;
+  }).map(function (t) {
+    return t.id;
+  });
+}
+
+function WB_hubDefault() {
+  return { open: false, tab: "inbox", chip: "all", clientId: null, scroll: { inbox: 0, tasks: 0, client: 0 }, lastFocus: null };
+}
+
+function WB__scrollNum(v) {
+  var n = Math.round(Number(v));
+  return isFinite(n) && n > 0 ? Math.min(n, 1000000) : 0;
+}
+
+// Any object in, a valid hub state out. Unknown tabs and chips fall back.
+function WB_hubClean(h) {
+  var d = WB_hubDefault();
+  var x = h && typeof h === "object" ? h : {};
+  var sc = x.scroll && typeof x.scroll === "object" ? x.scroll : {};
+  var chipOk = WB_DRAWER_TABS.some(function (t) {
+    return t.id === x.chip;
+  });
+  return {
+    open: x.open === true,
+    tab: WB_hubTabIds(true).indexOf(x.tab) >= 0 ? x.tab : d.tab,
+    chip: chipOk ? x.chip : d.chip,
+    clientId: typeof x.clientId === "string" && x.clientId.length < 80 ? x.clientId : null,
+    scroll: { inbox: WB__scrollNum(sc.inbox), tasks: WB__scrollNum(sc.tasks), client: WB__scrollNum(sc.client) },
+    lastFocus: typeof x.lastFocus === "string" ? x.lastFocus : null,
+  };
+}
+
+// Merge a patch (scroll merges per tab) and clean the result.
+function WB_hubMerge(hub, patch) {
+  var cur = WB_hubClean(hub);
+  var p = patch && typeof patch === "object" ? patch : {};
+  var next = Object.assign({}, cur, p);
+  if (p.scroll && typeof p.scroll === "object") next.scroll = Object.assign({}, cur.scroll, p.scroll);
+  return WB_hubClean(next);
+}
+
+// What goes to localStorage. lastFocus stays in memory.
+function WB_hubSerialize(hub, now) {
+  var h = WB_hubClean(hub);
+  return JSON.stringify({ v: 1, at: now, open: h.open, tab: h.tab, chip: h.chip, clientId: h.clientId, scroll: h.scroll });
+}
+
+// Saved text in, hub state out. Never throws. Old saves don't reopen the
+// hub and don't bring back a scroll position.
+function WB_hubParse(raw, now) {
+  var d = WB_hubDefault();
+  if (!raw) return d;
+  var o;
+  try {
+    o = JSON.parse(raw);
+  } catch (e) {
+    return d;
+  }
+  if (!o || typeof o !== "object" || o.v !== 1) return d;
+  var h = WB_hubClean(o);
+  var age = Number(now) - Number(o.at);
+  if (!isFinite(age) || age < 0 || age > WB_HUB_OPEN_MS) h.open = false;
+  if (!isFinite(age) || age < 0 || age > WB_HUB_SCROLL_MS) h.scroll = d.scroll;
+  h.lastFocus = null;
+  return h;
+}
+
+// Arrow keys on the tab list (ARIA tabs): returns the tab to move to, or null.
+function WB_tabMove(ids, cur, key) {
+  if (!ids || !ids.length) return null;
+  var i = Math.max(0, ids.indexOf(cur));
+  if (key === "ArrowRight") return ids[(i + 1) % ids.length];
+  if (key === "ArrowLeft") return ids[(i - 1 + ids.length) % ids.length];
+  if (key === "Home") return ids[0];
+  if (key === "End") return ids[ids.length - 1];
+  return null;
+}
+
+// Layers that can sit above the hub (spec 2.3). z is the stacking order, high
+// on top; stacked layers are the drawers and dialogs (they dim the page
+// themselves, so the hub's own scrim stops taking clicks while one is open).
+var WB_LAYERS = [
+  { id: "menu", sel: ".wb-menu", z: 3000, stacked: false },
+  { id: "tour", sel: ".tour-root", z: 2900, stacked: false },
+  { id: "modal", sel: ".modal-overlay", z: 2000, stacked: true },
+  { id: "aria-modal", sel: '[aria-modal="true"]:not(.wb-panel)', z: 1900, stacked: true },
+  { id: "task-drawer", sel: ".tk-dw-layer", z: 1850, stacked: true },
+  { id: "client-drawer", sel: ".tk-cd-layer", z: 1840, stacked: true },
+  { id: "chat-drawer", sel: ".si-drawer-layer", z: 1835, stacked: true },
+];
+var WB_LAYER_SELECTORS = WB_LAYERS.map(function (l) {
+  return l.sel;
+});
+
+// has(selector) -> boolean. Returns the ids present, top layer first.
+function WB_layersPresent(has) {
+  return WB_LAYERS.filter(function (l) {
+    return !!has(l.sel);
+  })
+    .sort(function (a, b) {
+      return b.z - a.z;
+    })
+    .map(function (l) {
+      return l.id;
+    });
+}
+// Any layer above the hub: it gets Esc, Tab and W first.
+function WB_layerAbove(ids) {
+  return !!ids && ids.length > 0;
+}
+// A drawer or dialog is stacked over the hub.
+function WB_isStacked(ids) {
+  return (ids || []).some(function (id) {
+    return WB_LAYERS.some(function (l) {
+      return l.id === id && l.stacked;
+    });
+  });
+}
+
+// What a row does in the hub (spec 2.4). Tasks and reviews open in the task
+// drawer on top of the hub; everything else keeps going where it lives
+// (messages and files get their own hub actions in H3).
+function WB_hubAction(row) {
+  if (!row || row.source === "other") return { type: "own" };
+  switch (row.kind) {
+    case "task":
+    case "task_sent_back":
+    case "task_review":
+      return row.source_id ? { type: "task", taskId: String(row.source_id) } : { type: "go" };
+    case "client_answered":
+    case "doc_request":
+      return row.ref_id && row.ref_id !== row.source_id ? { type: "task", taskId: String(row.ref_id) } : { type: "go" };
+    default:
+      return { type: "go" };
+  }
+}
+
+// The hub's main button: tasks Open (a todo task's Start moves to the menu).
+function WB_hubPrimary(row) {
+  var p = WB_primaryAction(row);
+  if (p && p.id === "start" && WB_hubAction(row).type === "task") return { id: "open", label: "Open" };
+  return p;
+}
+
+// The hub's menu: Start, Snooze, Open full page for task rows.
+function WB_hubMenu(row) {
+  var items = WB_menuActions(row);
+  if (!row || row.source === "other" || WB_hubAction(row).type !== "task") return items;
+  var out = [];
+  if (row.kind === "task" && row.status === "todo") out.push({ id: "start", label: "Start" });
+  items.forEach(function (a) {
+    if (a.id !== "open") out.push(a);
+  });
+  out.push({ id: "fullpage", label: "Open full page" });
+  return out;
+}
+
 // ---- Feed Today's other rows in (spec E1) ----------------------------------
 // Today kinds Workbench already covers from the server stay out.
 var WB_TD_SKIP = { reply: 1, task: 1 };
@@ -550,6 +723,25 @@ if (typeof module !== "undefined" && module.exports) {
     WB_SOON_DAYS: WB_SOON_DAYS,
     WB_CHIPS: WB_CHIPS,
     WB_DRAWER_TABS: WB_DRAWER_TABS,
+    WB_HUB_TABS: WB_HUB_TABS,
+    WB_HUB_KEY: WB_HUB_KEY,
+    WB_HUB_OPEN_MS: WB_HUB_OPEN_MS,
+    WB_HUB_SCROLL_MS: WB_HUB_SCROLL_MS,
+    WB_LAYERS: WB_LAYERS,
+    WB_LAYER_SELECTORS: WB_LAYER_SELECTORS,
+    WB_hubTabIds: WB_hubTabIds,
+    WB_hubDefault: WB_hubDefault,
+    WB_hubClean: WB_hubClean,
+    WB_hubMerge: WB_hubMerge,
+    WB_hubSerialize: WB_hubSerialize,
+    WB_hubParse: WB_hubParse,
+    WB_tabMove: WB_tabMove,
+    WB_layersPresent: WB_layersPresent,
+    WB_layerAbove: WB_layerAbove,
+    WB_isStacked: WB_isStacked,
+    WB_hubAction: WB_hubAction,
+    WB_hubPrimary: WB_hubPrimary,
+    WB_hubMenu: WB_hubMenu,
     WB_today: WB_today,
     WB_addDays: WB_addDays,
     WB_addBusinessDays: WB_addBusinessDays,

@@ -2,7 +2,7 @@
 title: How do I use the Workbench?
 section: Getting started
 audience: staff
-keywords: [workbench, today, needs you, inbox, one list, drawer, bottom drawer, press w, w key, keyboard shortcuts, snooze, snoozed, no reply needed, mark checked, undo, needs reply, due today, overdue, reviews waiting, ledger flags, documents, new files, client files, mine, everyone, covering, classic today, workbench preview, j k, next item]
+keywords: [workbench, today, needs you, inbox, one list, drawer, bottom drawer, press w, w key, keyboard shortcuts, snooze, snoozed, no reply needed, mark checked, undo, needs reply, due today, overdue, reviews waiting, ledger flags, documents, new files, client files, mine, everyone, covering, classic today, workbench preview, j k, next item, open a task without leaving the page, stacked drawer, esc closes one layer, panel remembers, reopens where you left it]
 sort: 41
 ---
 The **Workbench** is one list of everything that needs you, in order: your tasks, work waiting for your review, client messages with no reply, Ledger flags, new client files, and the rest of what used to be on Today. It takes over **Today** (the first place in the left rail, which is then called **Workbench**; the address stays `#/today`) and also sits in a drawer at the bottom of every staff page. Press **W** anywhere to open it.
@@ -45,18 +45,31 @@ Items also leave by themselves when the work is done: you reply, finish or appro
 
 ### The drawer on every page
 
-A bar runs across the whole bottom of every staff page, beside the left menu, and shows your count, the next item and **Press W**. Click it or press **W** and the list slides up from it, the full width of the page, with the rest of the page dimmed behind it. It has tabs (**All**, **Tasks**, **Reviews**, **Messages**, **Files**) and the same buttons as the full page. **Full page** goes to Today. **Esc** or **W** closes it. On a phone it opens as a full-screen sheet.
+A bar runs across the whole bottom of every staff page, beside the left menu, and shows your count, the next item and **Press W**. Click it or press **W** and the list slides up from it, the full width of the page, with the rest of the page dimmed behind it. It has filters (**All**, **Tasks**, **Reviews**, **Messages**, **Files**) and the same buttons as the full page. **Full page** goes to Today. **Esc** or **W** closes it. On a phone it opens as a full-screen sheet.
+
+The panel remembers where you were: the filter you picked and how far you had scrolled. If you leave it open and reload the page within a few minutes it opens again where you left it; after that it stays closed but keeps your filter. **Reset local state** under Dev Tools clears what it remembers.
 
 The **Workbench** item in the left rail shows how many items are overdue or due today (a dot when the rail is narrow).
+
+### Open a task without leaving the page
+
+In the drawer, **Open** (or **Review**) on a task opens its details in the task drawer on top of the Workbench. The page behind it does not change. Edit it, comment, tick it done, reassign it or approve it there.
+
+- **Esc** closes one layer at a time: a row's **⋯** menu first, then the task drawer, then the Workbench. Clicking the dimmed page behind a task drawer closes only the task drawer.
+- Closing the task drawer puts you back on the row you opened it from.
+- **W** does nothing while a task drawer or dialog is open on top, so it can't close the Workbench from under it. **q** (quick add) does nothing while the Workbench is open; a **+ Task** button for it is coming.
+- On a task you haven't started, **Start** moves into the **⋯** menu, next to **Snooze** and **Open full page** (which goes to the task's page, as before).
+- Client messages, files and Ledger items still take you to where they live for now.
 
 ### Keyboard shortcuts
 
 Click **?** at the top of the Workbench and pick **Keyboard shortcuts**. They work when you're not typing in a box:
 
-- **W** opens or closes the drawer.
+- **W** opens or closes the drawer (not while a task drawer, dialog or menu is open on top of it).
 - **j** and **k** move to the next and previous item; **Enter** does the main action; **o** opens it where it lives.
 - **s** snoozes; **e** is **No reply needed** on a message or **Mark checked** on a file.
 - **1** to **6** pick a filter on the full page, **0** goes back to All.
+- **Esc** closes the top layer: a menu, then a drawer or dialog on top, then the Workbench.
 
 ### Admins: Mine or Everyone
 
