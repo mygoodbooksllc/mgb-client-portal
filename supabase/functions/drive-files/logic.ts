@@ -19,13 +19,34 @@ export const ALLOWED_TYPES: Record<string, string> = {
   xls: "application/vnd.ms-excel",
   docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
 };
-const ALLOWED_MIMES = new Set(Object.values(ALLOWED_TYPES));
+// Other types browsers really send for an allowed extension (Windows with
+// Excel installed calls a .csv "application/vnd.ms-excel"; iOS may say heif).
+const MIME_ALIASES: Record<string, string[]> = {
+  csv: ["application/vnd.ms-excel", "application/csv", "text/x-csv", "text/plain"],
+  heic: ["image/heif"],
+  jpg: ["image/pjpeg"],
+  jpeg: ["image/pjpeg"],
+};
+// "I don't know" from the browser: the extension alone decides.
+const GENERIC_MIMES = new Set(["", "application/octet-stream", "binary/octet-stream"]);
 
-/** The file's allowed MIME type, or null if it isn't one we take. */
+/**
+ * The file's allowed MIME type, or null if it isn't one we take. The name
+ * must end in an allowed extension AND the declared type (when the browser
+ * declares one) must agree with it: no invoice.pdf.exe sent as
+ * application/pdf, no invoice.pdf sent as text/html. Returns the extension's
+ * canonical type.
+ */
 export function typeOf(name: string, mime: string | null | undefined): string | null {
-  if (mime && ALLOWED_MIMES.has(mime)) return mime;
-  const ext = (String(name || "").split(".").pop() || "").toLowerCase();
-  return ALLOWED_TYPES[ext] || null;
+  const base = String(name || "");
+  const dot = base.lastIndexOf(".");
+  if (dot < 1 || dot === base.length - 1) return null;
+  const ext = base.slice(dot + 1).toLowerCase();
+  const canonical = Object.prototype.hasOwnProperty.call(ALLOWED_TYPES, ext) ? ALLOWED_TYPES[ext] : null;
+  if (!canonical) return null;
+  const declared = String(mime || "").split(";")[0].trim().toLowerCase();
+  if (GENERIC_MIMES.has(declared) || declared === canonical) return canonical;
+  return (MIME_ALIASES[ext] || []).includes(declared) ? canonical : null;
 }
 
 // Types a browser can show safely inline from the functions domain. Anything

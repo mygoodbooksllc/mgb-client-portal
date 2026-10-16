@@ -96,7 +96,25 @@ await t("drive refs in old path columns", () => {
 
 await t("file types and disposition", () => {
   assert.equal(L.typeOf("a.PDF", ""), "application/pdf");
-  assert.equal(L.typeOf("a.bin", "application/pdf"), "application/pdf");
+  // S6 review: extension and declared type must agree.
+  assert.equal(L.typeOf("a.bin", "application/pdf"), null);
+  assert.equal(L.typeOf("invoice.pdf.exe", "application/pdf"), null);
+  assert.equal(L.typeOf("invoice.exe", "application/pdf"), null);
+  assert.equal(L.typeOf("invoice.pdf", "text/html"), null);
+  assert.equal(L.typeOf("invoice.pdf", "image/png"), null);
+  assert.equal(L.typeOf("photo.png", "application/pdf"), null);
+  assert.equal(L.typeOf("pdf", "application/pdf"), null); // no extension
+  assert.equal(L.typeOf(".pdf", "application/pdf"), null);
+  assert.equal(L.typeOf("a.", "application/pdf"), null);
+  assert.equal(L.typeOf("a.constructor", ""), null);
+  assert.equal(L.typeOf("invoice.exe.pdf", "application/pdf"), "application/pdf");
+  assert.equal(L.typeOf("scan.pdf", "application/octet-stream"), "application/pdf");
+  assert.equal(L.typeOf("scan.pdf", "Application/PDF; charset=binary"), "application/pdf");
+  assert.equal(L.typeOf("bank.csv", "application/vnd.ms-excel"), "text/csv");
+  assert.equal(L.typeOf("bank.xls", "application/vnd.ms-excel"), L.ALLOWED_TYPES.xls);
+  assert.equal(L.typeOf("bank.xlsx", "text/csv"), null);
+  assert.equal(L.typeOf("IMG_1.HEIC", "image/heif"), "image/heic");
+  assert.equal(L.typeOf("a.jpg", "image/jpeg"), "image/jpeg");
   assert.equal(L.typeOf("a.html", "text/html"), null);
   assert.equal(L.typeOf("a.exe", ""), null);
   assert.match(L.contentDisposition("Q3 report.pdf", "application/pdf"), /^inline; filename="Q3 report.pdf"/);

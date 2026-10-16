@@ -533,7 +533,10 @@ begin
                                      and f.uploaded_by = v_actor and f.trashed_at is null)) then
     return jsonb_build_object('ok', false, 'error', 'bad_request');
   end if;
-  select count(*) into v_linked from client_files f where f.client_request_id = r.id and f.trashed_at is null;
+  -- Only this link's own files count (S6 review): a portal user's or another
+  -- contact's upload on the same request does not answer for this person.
+  select count(*) into v_linked from client_files f
+   where f.client_request_id = r.id and f.uploaded_by = v_actor and f.trashed_at is null;
   if v_reply is null and v_linked = 0 then
     return jsonb_build_object('ok', false, 'error', 'reply_required');
   end if;
@@ -545,6 +548,12 @@ begin
 end $$;
 
 drop function if exists public.tk_stop_nudges_by_token(bytea);
+-- "Stop reminders" (S6 review): one reminder email can list several requests
+-- but carries one stop link, so the stop is per person: it pauses every open
+-- request on this client that lists this link's contact (or address). It
+-- still works after that link was used, expired or replaced (stopping is
+-- harmless and the link proves who it is), but not on an unknown link or one
+-- staff revoked on purpose (revoked by staff, or the contact was retired).
 create or replace function public.tk_stop_nudges_by_token(p_hash bytea, p_ip_hash text)
 returns jsonb
 language plpgsql
@@ -555,6 +564,7 @@ declare
   t tk_request_tokens;
   r client_requests;
   v_state text;
+  v_n int;
   v_ip text := left(p_ip_hash, 128);
 begin
   select * into t from tk_request_tokens where token_hash = p_hash;
@@ -562,17 +572,23 @@ begin
     insert into tk_request_token_events (event, ip_hash) values ('invalid', v_ip);
     return jsonb_build_object('ok', false, 'error', 'invalid');
   end if;
-  select * into r from client_requests where id = t.request_id for update;
+  select * into r from client_requests where id = t.request_id;
   v_state := public.tk__token_state(t, r);
-  if v_state <> 'ok' then
+  if v_state = 'invalid' or t.revoke_reason in ('staff', 'contact_retired') then
     insert into tk_request_token_events (token_id, request_id, event, ip_hash)
-    values (t.id, t.request_id, public.tk__token_event_for(v_state), v_ip);
-    return jsonb_build_object('ok', false, 'error', v_state);
+    values (t.id, t.request_id, public.tk__token_event_for(case when v_state = 'invalid' then 'invalid' else 'revoked' end), v_ip);
+    return jsonb_build_object('ok', false, 'error', case when v_state = 'invalid' then 'invalid' else 'revoked' end);
   end if;
-  update client_requests set nudge_paused = true, updated_at = now() where id = r.id;
-  insert into tk_request_token_events (token_id, request_id, event, ip_hash)
-  values (t.id, r.id, 'stop_nudges', v_ip);
-  return jsonb_build_object('ok', true);
+  with u as (
+    update client_requests q set nudge_paused = true, updated_at = now()
+     where q.client_id = r.client_id and q.status = 'open' and q.deleted_at is null and not q.nudge_paused
+       and (case when t.contact_id is not null then t.contact_id = any (q.contact_ids)
+                 else lower(t.recipient_email) = any (q.recipient_emails) end)
+    returning q.id)
+  select count(*) into v_n from u;
+  insert into tk_request_token_events (token_id, request_id, event, ip_hash, detail)
+  values (t.id, r.id, 'stop_nudges', v_ip, jsonb_build_object('paused', v_n));
+  return jsonb_build_object('ok', true, 'paused', v_n);
 end $$;
 
 -- 6. Sender ---------------------------------------------------------------------

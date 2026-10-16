@@ -10,8 +10,10 @@ import {
   delayFor,
   errorCode,
   ipHash,
-  isBadToken,
   LIMITS,
+  onBadToken,
+  type RateFns,
+  resolveToken,
   MAX_BYTES,
   MAX_JSON_BYTES,
   parseAnswer,
@@ -19,7 +21,6 @@ import {
   readCapped,
   SECURITY_HEADERS,
   statusFor,
-  TOKEN_RE,
   viewPayload,
 } from "./logic.ts";
 
@@ -39,8 +40,11 @@ import {
 //   answer        JSON {reply?, file_ids?[]} -> {ok}. Single use.
 //   stop_nudges   -> {ok}. Pauses reminders for this request.
 //
-// Order of checks (M8): method/action/size/type from headers, then the IP and
-// global rate limits, then the token, and only then the body.
+// Order of checks (M8): method/action/size/type from headers, then the
+// caller's per-network limits, then the token, and only then the body. The
+// global invalid-token breaker only sheds load and alerts; it never refuses a
+// valid token (logic.ts resolveToken), so junk from many networks cannot lock
+// every client out.
 // Errors: {error: code} with 400 bad_request | reply_required | too_many,
 // 404 invalid, 410 expired | revoked | answered_already | cancelled,
 // 413 too_large, 415 bad_type, 429 rate_limited, 503 not_connected. Every
@@ -63,12 +67,12 @@ async function logEvent(admin: SupabaseClient, tokenId: string | null, requestId
   await admin.rpc("tk_log_token_event", { p_token_id: tokenId, p_request_id: requestId, p_event: event, p_ip_hash: ip, p_detail: detail });
 }
 
-/** A bad or expired token: count it per IP and (invalid only) globally. */
-async function badHit(admin: SupabaseClient, ip: string, code: string) {
-  await rateHit(admin, `ipbad:${ip}`, LIMITS.ipbad);
-  if (code === "invalid" && !(await rateHit(admin, "global", LIMITS.global))) {
-    await logEvent(admin, null, null, "rate_limited", ip, { scope: "global" });
-  }
+function rateFns(admin: SupabaseClient, ip: string): RateFns {
+  return {
+    hit: (k, l) => rateHit(admin, k, l),
+    peek: (k, l) => ratePeek(admin, k, l),
+    log: (event, detail) => logEvent(admin, null, null, event, ip, detail),
+  };
 }
 
 async function rpcJson(admin: SupabaseClient, fn: string, args: Record<string, unknown>): Promise<any> {
@@ -101,32 +105,26 @@ Deno.serve(async (req) => {
   const admin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, { auth: { persistSession: false } });
   try {
     const ip = await ipHash(clientIp((n) => req.headers.get(n)), chicagoDate());
-    if (!(await rateHit(admin, `ip:${ip}`, LIMITS.ip))) {
-      await logEvent(admin, null, null, "rate_limited", ip, { scope: "ip" });
-      return fail("rate_limited");
-    }
-    if (!(await ratePeek(admin, `ipbad:${ip}`, LIMITS.ipbad)) || !(await ratePeek(admin, "global", LIMITS.global))) {
-      return fail("rate_limited");
-    }
-
+    const rate = rateFns(admin, ip);
     const token = req.headers.get("x-mgb-token") || "";
-    if (!TOKEN_RE.test(token)) {
-      // Same work as an unknown token: hash it, ask the database, count it.
-      const h = await tokenHashParam(token.slice(0, 64) || "x");
-      await rpcJson(admin, "tk_token_lookup", { p_hash: h, p_ip_hash: ip }).catch(() => null);
-      await badHit(admin, ip, "invalid");
-      return fail("invalid");
-    }
-    const hash = await tokenHashParam(token);
+    const dummy = async () => {
+      // Same work as an unknown token: hash it and ask the database.
+      await rpcJson(admin, "tk_token_lookup", { p_hash: await tokenHashParam(token.slice(0, 64) || "x"), p_ip_hash: ip });
+    };
+    const lookupWith = (fn: string, stateOf: (r: any) => string | null | undefined) => async (t: string) => {
+      const r = await rpcJson(admin, fn, { p_hash: await tokenHashParam(t), p_ip_hash: ip });
+      return { code: errorCode(stateOf(r)), data: r };
+    };
 
     if (action === "view") {
-      const r = await rpcJson(admin, "tk_token_lookup", { p_hash: hash, p_ip_hash: ip });
-      const code = errorCode(r.state);
-      if (code) {
-        if (isBadToken(code)) await badHit(admin, ip, code);
+      const v = await resolveToken(rate, ip, token, lookupWith("tk_token_lookup", (r) => r.state), dummy);
+      if (v.error) {
         // A real link that is closed may show the asker's first name (C6).
-        return code === "invalid" ? fail(code) : fail(code, { asked_by_first_name: r.view?.asked_by_first_name ?? null });
+        return v.error === "invalid" || v.error === "rate_limited"
+          ? fail(v.error)
+          : fail(v.error, { asked_by_first_name: v.data?.view?.asked_by_first_name ?? null });
       }
+      const r = v.data;
       if (!(await rateHit(admin, `tokview:${r.token_id}`, LIMITS.tokview))) {
         await logEvent(admin, r.token_id, r.request_id, "rate_limited", ip, { scope: "tokview" });
         return fail("rate_limited");
@@ -135,20 +133,17 @@ Deno.serve(async (req) => {
     }
 
     if (action === "stop_nudges") {
-      const r = await rpcJson(admin, "tk_stop_nudges_by_token", { p_hash: hash, p_ip_hash: ip });
-      if (r.ok === true) return send(200, { ok: true });
-      const code = errorCode(r.error)!;
-      if (isBadToken(code)) await badHit(admin, ip, code);
-      return fail(code);
+      const v = await resolveToken(rate, ip, token, lookupWith("tk_stop_nudges_by_token", (r) => (r.ok === true ? "ok" : r.error)), dummy);
+      return v.error ? fail(v.error) : send(200, { ok: true });
     }
 
+    // answer and upload: gate the token before reading the body.
+    const gv = await resolveToken(rate, ip, token, lookupWith("tk_token_gate", (r) => r.state), dummy);
+    if (gv.error) return fail(gv.error);
+    const g = gv.data;
+    const hash = await tokenHashParam(token);
+
     if (action === "answer") {
-      const g = await rpcJson(admin, "tk_token_gate", { p_hash: hash, p_ip_hash: ip });
-      const gcode = errorCode(g.state);
-      if (gcode) {
-        if (isBadToken(gcode)) await badHit(admin, ip, gcode);
-        return fail(gcode);
-      }
       const raw = await readCapped(req.body, MAX_JSON_BYTES);
       if (!raw) return fail("too_large");
       let parsed: unknown;
@@ -166,18 +161,10 @@ Deno.serve(async (req) => {
         p_ip_hash: ip,
       });
       if (r.ok === true) return send(200, { ok: true });
-      const code = errorCode(r.error)!;
-      if (isBadToken(code)) await badHit(admin, ip, code);
-      return fail(code);
+      return fail(await onBadToken(rate, ip, errorCode(r.error)!));
     }
 
     // upload
-    const g = await rpcJson(admin, "tk_token_gate", { p_hash: hash, p_ip_hash: ip });
-    const gcode = errorCode(g.state);
-    if (gcode) {
-      if (isBadToken(gcode)) await badHit(admin, ip, gcode);
-      return fail(gcode);
-    }
     if (!g.needs_upload) return fail("bad_request");
     if (!(Number(g.files_left) > 0)) return fail("too_many");
     if (!secretsPresent()) return fail("not_connected");

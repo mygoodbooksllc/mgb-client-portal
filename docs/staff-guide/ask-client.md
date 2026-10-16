@@ -26,7 +26,7 @@ In the Ask client window, click **+ Add contact**, then enter a name, an email a
 
 - **Portal users** get an email with an **Open in the portal** button. It opens **Messages › Requests** in their portal, headed **What we need from you**, with your request at the top. They type an answer, attach files and click **Send**. Home also shows *Your bookkeeper is waiting on {n} items from you* with **Answer**.
 - **Contacts** get a **Reply or upload** button that opens a page for just that request, with no sign-in. The link works for 14 days and for one answer.
-- Reminder emails have a **Stop reminders** link for contacts. Clicking it pauses reminders for that request.
+- Reminder emails have a **Stop reminders** link for contacts. Clicking it pauses reminders for every open request for that client that lists them, even if the email covered several.
 
 ### Follow up
 

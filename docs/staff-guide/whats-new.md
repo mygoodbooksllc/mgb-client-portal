@@ -13,6 +13,7 @@ Each new launch also has a **Launches** list above, with **Open** and **Take the
 
 - **In the portal.** A client's **Messages › Requests** is now **What we need from you**: every question, document or approval you asked for, from **Ask client** or the Documents tab. They type an answer, attach files and click **Send**, and Home says *Your bookkeeper is waiting on {n} items from you*. Their **?** menu has **What we need from you** too.
 - **By link, with no login.** A client contact (a treasurer, a pastor) gets a link that opens just that one request. It works for 14 days and one answer. See [How do I add a client contact who answers by link?](#/help/client-contacts).
+- **Stop reminders** in a reminder email pauses every open request for that client that lists the person, not just one.
 - **Client contacts** have their own section in each client's tasks drawer: add, edit, remove, and untick **Can answer requests by email link** to stop their links.
 - **When they answer**, the request leaves **Waiting on client** and the task comes back with their reply and files.
 - **Emails still wait for the owner's switch.** Until then **Email again** and **Send reminder** are a dry run, and a test client gets one **[Test]** copy sent to you only. See [How do I ask a client something from a task?](#/help/ask-client).

@@ -1578,7 +1578,17 @@ Team Reviews files.
 - **Tasks Phase 2, S6 Clients answer** (`supabase/tasks-p2-6-tokens.sql`, applied 2026-10-16; spec S6
   and critique M8, M13). Re-runnable; run it after S5 (`tk_schema_version()` becomes 7). Tests:
   `supabase/tasks-p2-6-tokens-tests.sql` (one transaction, rolls back),
-  `node --test tests/edge/tk_requests.test.mjs tests/edge/tk_request_respond.test.mjs tests/edge/respond_page.test.mjs`.
+  `node --test tests/edge/*.test.mjs` (incl. `tk_request_respond`, `tk_client_requests`, `resend_webhook`,
+  `respond_page`) and `node supabase/functions/drive-files/logic.test.mjs`.
+  - **Review fixes (2026-10-16d)**: the global invalid-token breaker only sheds load and alerts
+    (`logic.ts` `resolveToken`); a valid token is never refused by it, only by its own network's
+    `ip` / `ipbad` limits. **Stop reminders** (`tk_stop_nudges_by_token`) is per person: it pauses
+    every open request on that client that lists the link's contact or address, and works after
+    the link was used, expired or replaced (not after a staff revoke or a retired contact). An
+    answer with no note needs a file this link's own person uploaded. `drive-files` refuses an
+    upload whose extension and Content-Type disagree. `resend-webhook/logic.ts` drops clicked
+    links and redacts `t=` values before saving to `email_events`; keep Resend **click tracking
+    off** for the sending domain.
   - `client_doc_requests` is **read-only to the browser**: staff writes go through
     `tk_add_doc_request` / `tk_set_doc_request_status` (app.jsx `staffToolsApi`), which keep
     `client_requests` in step. Readers are unchanged.

@@ -19,8 +19,81 @@ export const LIMITS = {
   ip: { window: 600, max: 30 }, // every call from one /24 or /48
   ipbad: { window: 900, max: 10 }, // invalid or expired tokens
   tokview: { window: 3600, max: 20 }, // views of one link
-  global: { window: 3600, max: 600 }, // invalid hits from anywhere (circuit breaker)
+  // Invalid hits from anywhere. A load-shedding alarm only: once open, junk
+  // (malformed) tokens skip the database and over-limit hits stop being
+  // counted or logged. It NEVER refuses a token that would otherwise be
+  // accepted, so junk from many networks cannot lock real clients out.
+  global: { window: 3600, max: 600 },
 };
+
+export type Limit = { window: number; max: number };
+export type RateFns = {
+  /** Counts a hit; true while still within the limit. */
+  hit: (key: string, l: Limit) => Promise<boolean>;
+  /** True while under the limit, without counting. */
+  peek: (key: string, l: Limit) => Promise<boolean>;
+  log: (event: string, detail: Record<string, unknown>) => Promise<void>;
+};
+
+/**
+ * Before the token is looked at: the per-network limits only (the caller's
+ * own /24 or /48). The global breaker is deliberately not consulted here.
+ */
+export async function preTokenGate(r: RateFns, ip: string): Promise<string | null> {
+  if (!(await r.hit(`ip:${ip}`, LIMITS.ip))) {
+    await r.log("rate_limited", { scope: "ip" });
+    return "rate_limited";
+  }
+  if (!(await r.peek(`ipbad:${ip}`, LIMITS.ipbad))) return "rate_limited";
+  return null;
+}
+
+/**
+ * A refused token: counted against the caller's network, and (invalid only)
+ * against the global breaker. Returns the code to send, which is always the
+ * token's own code: the breaker never turns an answer into a refusal.
+ */
+export async function onBadToken(r: RateFns, ip: string, code: string): Promise<string> {
+  if (!isBadToken(code)) return code;
+  await r.hit(`ipbad:${ip}`, LIMITS.ipbad);
+  if (code === "invalid" && (await r.peek("global", LIMITS.global))) {
+    // Count up to max, then stop (peek turns false). Asking hit() against
+    // max - 1 makes it report false on exactly the hit that opens the
+    // breaker, so the alarm is logged once per window.
+    if (!(await r.hit("global", { window: LIMITS.global.window, max: LIMITS.global.max - 1 }))) {
+      await r.log("rate_limited", { scope: "global" });
+    }
+  }
+  return code;
+}
+
+export type Lookup = { code: string | null; data: any };
+
+/**
+ * The whole token gate (M8 order): per-network limits, then the token. A
+ * well-formed token is always looked up, so a real link keeps working while
+ * the global breaker is open. `lookup` is the action's own RPC.
+ */
+export async function resolveToken(
+  r: RateFns,
+  ip: string,
+  token: string,
+  lookup: (token: string) => Promise<Lookup>,
+  dummyLookup: () => Promise<void>,
+): Promise<{ error?: string; data?: any }> {
+  const pre = await preTokenGate(r, ip);
+  if (pre) return { error: pre };
+  if (!TOKEN_RE.test(token)) {
+    // Malformed: do the same work as an unknown token, unless the breaker is
+    // open, in which case it is shed without touching the database.
+    if (await r.peek("global", LIMITS.global)) await dummyLookup().catch(() => {});
+    return { error: await onBadToken(r, ip, "invalid") };
+  }
+  const l = await lookup(token);
+  // data rides along on a refusal too: a closed real link may show the asker's first name.
+  if (l.code) return { error: await onBadToken(r, ip, l.code), data: l.data };
+  return { data: l.data };
+}
 
 export const STATUS: Record<string, number> = {
   bad_request: 400,

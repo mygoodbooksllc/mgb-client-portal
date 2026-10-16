@@ -214,12 +214,20 @@ select pg_temp.ok(pg_temp.ctx('lk2') = 'invalid'
 select pg_temp.ok((public.tk_token_lookup(pg_temp.hash('h_a1'), 's6-ip') -> 'view') = jsonb_build_object('asked_by_first_name',
                     (select nullif(split_part(btrim(coalesce(s.name, '')), ' ', 1), '') from staff s where lower(s.email) = pg_temp.ctx('a1'))),
                   'a retired link shows only the asker''s first name');
+-- Stop reminders (S6 review): still works on a used, expired or replaced link
+-- (stopping is harmless and the link proves who it is); not on an unknown
+-- link or one staff revoked on purpose.
 update tk_request_tokens set expires_at = now() - interval '1 minute' where id = pg_temp.ctx('t_b1')::uuid;
-select pg_temp.ok((public.tk_stop_nudges_by_token(pg_temp.hash('h_b1'), 's6-ip') ->> 'error') = 'expired'
+insert into t_ctx values ('stop_exp', public.tk_stop_nudges_by_token(pg_temp.hash('h_b1'), 's6-ip')::text);
+select pg_temp.ok((pg_temp.ctx('stop_exp')::jsonb ->> 'ok')::boolean
+                  and (select nudge_paused from client_requests where id = pg_temp.ctx('req')::uuid),
+                  'an expired link can still stop reminders');
+update client_requests set nudge_paused = false where id = pg_temp.ctx('req')::uuid;
+update tk_request_tokens set revoked_at = now(), revoke_reason = 'staff' where id = pg_temp.ctx('t_b1')::uuid;
+select pg_temp.ok((public.tk_stop_nudges_by_token(pg_temp.hash('h_b1'), 's6-ip') ->> 'error') = 'revoked'
+                  and (public.tk_stop_nudges_by_token(extensions.gen_random_bytes(32), 's6-ip') ->> 'error') = 'invalid'
                   and not (select nudge_paused from client_requests where id = pg_temp.ctx('req')::uuid),
-                  'an expired link cannot stop reminders');
-select pg_temp.ok((public.tk_stop_nudges_by_token(pg_temp.hash('h_a1'), 's6-ip') ->> 'error') = 'revoked',
-                  'a retired link cannot stop reminders');
+                  'a staff-revoked or unknown link cannot stop reminders');
 select pg_temp.ok((public.tk_token_gate(pg_temp.hash('h_a1'), 's6-ip') ->> 'state') = 'revoked'
                   and (public.tk_token_gate(extensions.gen_random_bytes(32), 's6-ip') ->> 'state') = 'invalid',
                   'gate refuses bad links before any upload');
@@ -235,11 +243,23 @@ select pg_temp.ok((public.tk_answer_request_by_token(pg_temp.hash('h_c1'), repea
                   and (public.tk_answer_request_by_token(pg_temp.hash('h_c1'), 'ok', null, 's6-ip') ->> 'error') = 'rate_limited',
                   'three attempts, then the link is locked');
 select pg_temp.ok((public.tk_token_gate(pg_temp.hash('h_c1'), 's6-ip') ->> 'state') = 'rate_limited', 'gate also refuses a locked link');
-insert into t_ctx values ('stop', public.tk_stop_nudges_by_token(pg_temp.hash('h_a7'), 's6-ip') ->> 'ok');
-select pg_temp.ok(pg_temp.ctx('stop')::boolean
-                  and (select nudge_paused from client_requests where id = pg_temp.ctx('req')::uuid)
-                  and exists (select 1 from tk_request_token_events where token_id = pg_temp.ctx('t_a7')::uuid and event = 'stop_nudges'
-                                and ip_hash = 's6-ip'), 'control: a good link stops reminders, logged with ip_hash');
+-- Per-person stop (S6 review): a reminder lists several requests but carries
+-- one stop link, so it pauses every open request on the client that lists
+-- that person. req3 is a second ask to the contact ct.
+select pg_temp.as_user(pg_temp.ctx('a1'));
+set local role authenticated;
+insert into t_ctx values ('req3', public.tk_ask_client('grace-community', pg_temp.ctx('task')::uuid, 'S6 second ask', 'Second question.',
+                                                      'question', false, null, array[pg_temp.ctx('cm2')], array[pg_temp.ctx('ct')::uuid])::text);
+reset role;
+-- c1 (contact ct, on req) is locked for answers; it can still stop reminders.
+insert into t_ctx values ('stop', public.tk_stop_nudges_by_token(pg_temp.hash('h_c1'), 's6-ip')::text);
+select pg_temp.ok((pg_temp.ctx('stop')::jsonb ->> 'ok')::boolean and (pg_temp.ctx('stop')::jsonb ->> 'paused')::int = 2
+                  and (select bool_and(nudge_paused) from client_requests where id in (pg_temp.ctx('req')::uuid, pg_temp.ctx('req3')::uuid))
+                  and exists (select 1 from tk_request_token_events where token_id = pg_temp.ctx('t_c1')::uuid and event = 'stop_nudges'
+                                and ip_hash = 's6-ip'),
+                  'one stop link pauses every open request on the client that lists the person, logged with ip_hash');
+select pg_temp.ok(not (select bool_or(nudge_paused) from client_requests where id in (pg_temp.ctx('req2')::uuid, pg_temp.ctx('reqm')::uuid)),
+                  'control: requests that do not list that person keep their reminders');
 insert into t_ctx values ('ans', public.tk_answer_request_by_token(pg_temp.hash('h_a7'), 'Balance confirmed.', null, 's6-ip') ->> 'ok');
 select pg_temp.ok(pg_temp.ctx('ans')::boolean
                   and (select status = 'answered' and answered_via = 'link' and answered_by = 'contact:' || pg_temp.ctx('cm')
@@ -275,6 +295,25 @@ select pg_temp.ok((select count(*) = 1 from public.client_requests_for_client('g
                     where x.id = pg_temp.ctx('req2')::uuid and x.file_count = 1 and not x.legacy),
                   'client list shows the file count and legacy flag');
 
+-- reply_required counts only this link's own files (S6 review): cm uploads to
+-- a request shared with cm2; cm2's empty answer is still refused.
+select pg_temp.as_user(pg_temp.ctx('a1'));
+set local role authenticated;
+insert into t_ctx values ('req4', public.tk_ask_client('grace-community', pg_temp.ctx('task')::uuid, 'S6 shared upload', 'Upload the form.',
+                                                      'document', true, null, array[pg_temp.ctx('cm'), pg_temp.ctx('cm2')], '{}')::text);
+reset role;
+select pg_temp.issue('e1', 'req4', null, pg_temp.ctx('cm'), 'send');
+select pg_temp.issue('e2', 'req4', null, pg_temp.ctx('cm2'), 'send');
+insert into t_ctx values ('f4', public.tk_stage_request_file_by_token(pg_temp.hash('h_e1'),
+                     jsonb_build_object('drive_file_id', 'S6selftestDriveFile04', 'name', 'form.pdf', 'mime', 'application/pdf',
+                                        'size', 99, 'year', 2026, 'doc_type', 'Tax forms'), 's6-ip') ->> 'file_id');
+select pg_temp.ok((public.tk_answer_request_by_token(pg_temp.hash('h_e2'), null, null, 's6-ip') ->> 'error') = 'reply_required'
+                  and (select status = 'open' from client_requests where id = pg_temp.ctx('req4')::uuid),
+                  'someone else''s upload does not answer for this link');
+insert into t_ctx values ('ans4', public.tk_answer_request_by_token(pg_temp.hash('h_e1'), null, null, 's6-ip') ->> 'ok');
+select pg_temp.ok(pg_temp.ctx('ans4')::boolean and (select status = 'answered' from client_requests where id = pg_temp.ctx('req4')::uuid),
+                  'control: the uploader''s own file counts as the answer');
+
 -- 9. Staff list follows the task's current client --------------------------------------------
 update client_requests set client_id = 'basic-test' where id = pg_temp.ctx('reqm')::uuid;
 select pg_temp.as_user(pg_temp.ctx('a1'));
@@ -283,7 +322,7 @@ insert into t_ctx values ('list2', public.tk_list_client_requests(pg_temp.ctx('t
 insert into t_ctx values ('list1', public.tk_list_client_requests(pg_temp.ctx('task')::uuid)::text);
 reset role;
 select pg_temp.ok(jsonb_array_length(pg_temp.ctx('list2')::jsonb) = 0, 'a request on another client is left out of the task list');
-select pg_temp.ok(jsonb_array_length(pg_temp.ctx('list1')::jsonb) = 2, 'control: the task''s own requests are listed');
+select pg_temp.ok(jsonb_array_length(pg_temp.ctx('list1')::jsonb) = 4, 'control: the task''s own requests are listed');
 update client_requests set client_id = 'grace-community' where id = pg_temp.ctx('reqm')::uuid;
 
 -- 10. Sender ------------------------------------------------------------------------------------------

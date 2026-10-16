@@ -1002,7 +1002,7 @@ const INFRA_LINKS = [
   {
     name: "Resend",
     url: "https://resend.com/overview",
-    note: "Sends every portal email (digest, client notices, reminders, Ask client requests, ledger questions and summaries) · credentials: 1Password vault “MGB Infra”",
+    note: "Sends every portal email (digest, client notices, reminders, Ask client requests, ledger questions and summaries) · keep click tracking OFF for the sending domain (answer links carry a login-free token; the resend-webhook also drops clicked links) · credentials: 1Password vault “MGB Infra”",
   },
   {
     name: "Supabase edge functions (Ask client)",

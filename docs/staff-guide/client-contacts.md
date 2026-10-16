@@ -23,7 +23,7 @@ The email has a **Reply or upload** button. It opens a plain MyGoodBooks page wi
 
 - A link works for **14 days** and for **one answer**. After that the page says the link has closed and offers an email to MyGoodBooks.
 - **Email again** sends a fresh link; the older link stops working.
-- Reminder emails have a **Stop reminders** link. If they click it, reminders stop for that request (you'll see reminders paused on it).
+- Reminder emails have a **Stop reminders** link. If they click it, reminders stop for every open request for that client that lists them (you'll see reminders paused on each).
 - The page never shows anything else about the client, and the link only works for that one request.
 
 ### Troubleshooting

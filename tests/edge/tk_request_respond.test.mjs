@@ -153,3 +153,117 @@ test("the endpoint source never logs or echoes the token", async () => {
   assert.ok(!/searchParams\.get\("t(oken)?"\)/.test(src), "token must not come from the URL");
   assert.ok(/x-mgb-token/.test(src));
 });
+
+// ---------------------------------------------------------------------------
+// Rate limits and the global breaker (S6 review MAJOR 1)
+// ---------------------------------------------------------------------------
+// In-memory twin of tk_rate_hit / tk_rate_peek (one window, no expiry).
+function memRate() {
+  const counts = new Map();
+  const logs = [];
+  return {
+    counts,
+    logs,
+    hit: async (k, l) => {
+      const n = (counts.get(k) || 0) + 1;
+      counts.set(k, n);
+      return n <= l.max;
+    },
+    peek: async (k, l) => (counts.get(k) || 0) < l.max,
+    log: async (event, detail) => {
+      logs.push({ event, ...detail });
+    },
+  };
+}
+const GOOD = "A".repeat(43);
+const UNKNOWN = "B".repeat(43);
+function fakeDb() {
+  const calls = { lookup: 0, dummy: 0 };
+  return {
+    calls,
+    lookup: async (t) => {
+      calls.lookup++;
+      return t === GOOD ? { code: null, data: { token_id: "t1" } } : { code: "invalid", data: {} };
+    },
+    dummy: async () => {
+      calls.dummy++;
+    },
+  };
+}
+
+test("lockout scenario: 700 junk tokens from 70 networks never lock out a real link", async () => {
+  const r = memRate();
+  const db = fakeDb();
+  for (let net = 0; net < 70; net++) {
+    for (let i = 0; i < 10; i++) {
+      const tok = i % 2 ? UNKNOWN : "junk";
+      const out = await L.resolveToken(r, `net${net}`, tok, db.lookup, db.dummy);
+      assert.equal(out.error, "invalid");
+    }
+  }
+  assert.ok(r.counts.get("global") >= L.LIMITS.global.max, "the breaker is open");
+  // A client on a fresh network still gets in, while the breaker is open.
+  const ok = await L.resolveToken(r, "client-net", GOOD, db.lookup, db.dummy);
+  assert.equal(ok.error, undefined);
+  assert.deepEqual(ok.data, { token_id: "t1" });
+  // ...and a junk token from that same fresh network is still just "invalid".
+  assert.equal((await L.resolveToken(r, "other-net", "junk", db.lookup, db.dummy)).error, "invalid");
+});
+
+test("the breaker opens once: one log line, then over-limit hits stop counting", async () => {
+  const r = memRate();
+  const db = fakeDb();
+  for (let i = 0; i < L.LIMITS.global.max + 50; i++) {
+    await L.resolveToken(r, `n${Math.floor(i / 5)}`, UNKNOWN, db.lookup, db.dummy);
+  }
+  assert.equal(r.logs.filter((x) => x.scope === "global").length, 1);
+  assert.equal(r.counts.get("global"), L.LIMITS.global.max);
+});
+
+test("malformed tokens skip the database once the breaker is open; well-formed ones are always looked up", async () => {
+  const r = memRate();
+  const db = fakeDb();
+  await L.resolveToken(r, "n0", "junk", db.lookup, db.dummy);
+  assert.equal(db.calls.dummy, 1);
+  r.counts.set("global", L.LIMITS.global.max + 1);
+  await L.resolveToken(r, "n1", "junk", db.lookup, db.dummy);
+  assert.equal(db.calls.dummy, 1, "shed without a database call");
+  const before = db.calls.lookup;
+  await L.resolveToken(r, "n2", GOOD, db.lookup, db.dummy);
+  assert.equal(db.calls.lookup, before + 1);
+});
+
+test("per-network limits still hold: 10 bad tokens lock that /24 out, even with a good token", async () => {
+  const r = memRate();
+  const db = fakeDb();
+  for (let i = 0; i < L.LIMITS.ipbad.max; i++) {
+    assert.equal((await L.resolveToken(r, "evil", UNKNOWN, db.lookup, db.dummy)).error, "invalid");
+  }
+  assert.equal((await L.resolveToken(r, "evil", GOOD, db.lookup, db.dummy)).error, "rate_limited");
+  // Another network is unaffected.
+  assert.equal((await L.resolveToken(r, "fine", GOOD, db.lookup, db.dummy)).error, undefined);
+});
+
+test("per-network call limit: the 31st call in the window is refused before the token is read", async () => {
+  const r = memRate();
+  const db = fakeDb();
+  for (let i = 0; i < L.LIMITS.ip.max; i++) {
+    assert.equal((await L.resolveToken(r, "busy", GOOD, db.lookup, db.dummy)).error, undefined);
+  }
+  const n = db.calls.lookup;
+  assert.equal((await L.resolveToken(r, "busy", GOOD, db.lookup, db.dummy)).error, "rate_limited");
+  assert.equal(db.calls.lookup, n, "no lookup after the network limit");
+  assert.deepEqual(r.logs.at(-1), { event: "rate_limited", scope: "ip" });
+});
+
+test("expired counts per network but not globally; closed-link data rides along", async () => {
+  const r = memRate();
+  const out = await L.resolveToken(r, "n", GOOD, async () => ({ code: "expired", data: { view: { asked_by_first_name: "Jo" } } }), async () => {});
+  assert.equal(out.error, "expired");
+  assert.equal(out.data.view.asked_by_first_name, "Jo");
+  assert.equal(r.counts.get("ipbad:n"), 1);
+  assert.equal(r.counts.get("global"), undefined);
+  // Non-token refusals (e.g. reply_required) are not counted at all.
+  assert.equal(await L.onBadToken(r, "n", "reply_required"), "reply_required");
+  assert.equal(r.counts.get("ipbad:n"), 1);
+});

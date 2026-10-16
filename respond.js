@@ -217,7 +217,7 @@
     call("stop_nudges").then(function (r) {
       if (r.status === 200 && r.body.ok) {
         text("stop-title", "Reminders stopped");
-        text("stop-sub", "We won't send more reminders about this request. Your bookkeeper can still reach you directly.");
+        text("stop-sub", "We won't send you more reminders about these requests. Your bookkeeper can still reach you directly.");
         $("stop-go").hidden = true;
         return;
       }

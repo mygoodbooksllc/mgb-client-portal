@@ -8,7 +8,11 @@
 // is rejected, so nothing can be written by a stranger.
 //
 // Deploy: npx supabase@latest functions deploy resend-webhook --project-ref <ref> --no-verify-jwt
+//
+// Click tracking must stay OFF for the sending domain: answer links carry a
+// token. logic.ts safePayload() drops clicked links and redacts t= values.
 import { createClient } from "jsr:@supabase/supabase-js@2";
+import { safePayload, safeSubject } from "./logic.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -78,9 +82,9 @@ Deno.serve(async (req) => {
       event_type: type,
       email_id: data.email_id ? String(data.email_id) : null,
       to_email: to ? String(to).slice(0, 320) : null,
-      subject: data.subject ? String(data.subject).slice(0, 300) : null,
+      subject: safeSubject(data.subject),
       occurred_at: evt?.created_at || new Date().toISOString(),
-      payload: { type: evt?.type, from: data.from, tags: data.tags, click: data.click, bounce: data.bounce },
+      payload: safePayload(evt),
     },
     { onConflict: "email_id,event_type,occurred_at", ignoreDuplicates: true },
   );

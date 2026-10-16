@@ -1,10 +1,9 @@
-// Ask-client links, tokens and emails (supabase/functions/_shared/tk_requests.ts)
-// and the staff send envelopes (supabase/functions/tk-client-requests/send_plan.ts).
+// Ask-client links, tokens and emails (supabase/functions/_shared/tk_requests.ts).
+// The staff send envelopes are in tk_client_requests.test.mjs.
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import * as T from "../../supabase/functions/_shared/tk_requests.ts";
-import * as S from "../../supabase/functions/tk-client-requests/send_plan.ts";
 
 test("tokens are 32 random bytes, base64url, and only their sha256 is stored", async () => {
   const a = T.newToken();
@@ -72,36 +71,4 @@ test("dates: long form and Chicago expiry", () => {
   assert.equal(T.longDate("2026-01-05"), "January 5, 2026");
   assert.equal(T.longDate(null), "");
   assert.equal(T.expiresOn(14, new Date("2026-10-16T12:00:00Z")), "2026-10-30");
-});
-
-const contact = { type: "contact", email: "Pat@Example.invalid", name: "Pat", contact_id: "c1" };
-const portal = { type: "portal", email: "lee@example.invalid", name: "Lee" };
-
-test("dry run, preview and off send nothing", () => {
-  assert.deepEqual(S.envelopes({ mode: "dry_run", needs_sender: false, targets: [contact], client_id: "g" }, "me@x"), []);
-  assert.deepEqual(S.envelopes({ mode: "live", needs_sender: false, targets: [contact], client_id: "g" }, "me@x"), []);
-  assert.deepEqual(S.envelopes({ mode: "off", needs_sender: true, targets: [contact], client_id: "g" }, "me@x"), []);
-});
-
-test("a test client sends ONE copy to the caller, with a real test link when there is a contact", () => {
-  const e = S.envelopes({ mode: "test", needs_sender: true, targets: [portal, contact], client_id: "basic-test" }, "me@mgb.example");
-  assert.deepEqual(e, [{ to: "me@mgb.example", name: null, via: "link", contactId: "c1", test: true }]);
-  const p = S.envelopes({ mode: "test", needs_sender: true, targets: [portal], client_id: "basic-test" }, "me@mgb.example");
-  assert.deepEqual(p, [{ to: "me@mgb.example", name: null, via: "portal", contactId: null, test: true }]);
-});
-
-test("live: one email per target, contacts by link, portal users by sign-in", () => {
-  const e = S.envelopes({ mode: "live", needs_sender: true, targets: [portal, contact, contact], client_id: "g" }, "me@x");
-  assert.deepEqual(e, [
-    { to: "lee@example.invalid", name: "Lee", via: "portal", contactId: null, test: false },
-    { to: "pat@example.invalid", name: "Pat", via: "link", contactId: "c1", test: false },
-  ]);
-  // a contact target without an id never gets a link
-  assert.deepEqual(S.envelopes({ mode: "live", needs_sender: true, targets: [{ type: "contact", email: "x@y" }], client_id: "g" }, "me@x"), []);
-});
-
-test("RPC errors become short codes", () => {
-  assert.equal(S.rpcErrorCode("tk_too_soon"), "too_soon");
-  assert.equal(S.rpcErrorCode("ERROR: tk_email_off"), "email_off");
-  assert.equal(S.rpcErrorCode("weird"), "error");
 });

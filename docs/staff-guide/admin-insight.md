@@ -2,7 +2,7 @@
 title: Usage stats and Developer tools
 section: Admin
 audience: staff
-keywords: [announcements, launch notice, who toured, usage stats, usage, analytics, page views, active users, last seen, quiet clients, developer tools, dev tools, feature flags, unreleased, scheduled jobs, cron, run now, errors, error log, test email, app version, reload, where things live, export csv, delivery, opened, clicked, webhook]
+keywords: [announcements, launch notice, who toured, usage stats, usage, analytics, page views, active users, last seen, quiet clients, developer tools, dev tools, feature flags, unreleased, scheduled jobs, cron, run now, errors, error log, test email, app version, reload, where things live, export csv, delivery, opened, clicked, webhook, click tracking]
 sort: 560
 ---
 Two admin pages under **Settings › Firm settings › Insight and records**, next to the [Audit log](#/help/audit-log). Search (**Ctrl+K** / **⌘K**) jumps to each one too.
@@ -35,3 +35,5 @@ Counts come straight from the database for the range you pick (7, 30 or 90 days,
 ### Emails › Delivery
 
 The **Emails** page shows delivered, opened, clicked and bounced counts for the last 30 days once the Resend webhook is set up (Resend › Webhooks, pointed at the portal's `resend-webhook` function). Until then the card says so.
+
+Keep **click tracking off** for the sending domain in Resend (Domains › your domain › Configuration). Ask-client emails carry a link that answers a request with no login, and click tracking would route that link through Resend. The webhook only stores when a click happened and the browser, never the link itself. Open tracking is fine.

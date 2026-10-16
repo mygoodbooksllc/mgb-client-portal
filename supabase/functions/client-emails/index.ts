@@ -393,6 +393,8 @@ async function nudgeJob(db: SupabaseClient) {
         if (iErr) continue;
         tokenIds.push({ id: tid as string, request: it.request_id });
         links.push({ title: it.title, href: respondLink(token) });
+        // One stop link per email: tk_stop_nudges_by_token pauses every open
+        // request on this client that lists this contact, not just this one.
         if (!stopHref) stopHref = respondLink(token, true);
       }
     } else {
