@@ -151,6 +151,13 @@ function TB_clientHash(id, tab) {
   return "#/client/" + encodeURIComponent(id) + (tab ? "/" + tab : "");
 }
 
+// #/tasks/<sub> -> its guide article (null keeps the Tasks default, my-tasks).
+const TB_TASKS_HELP = { review: "task-review", waiting: "ask-client", templates: "task-templates", c: "task-lists-and-projects", p: "task-lists-and-projects" };
+function TB_tasksHelpSlug(hash) {
+  const m = /^#\/tasks\/([^/?#]+)/.exec(hash || "");
+  return (m && TB_TASKS_HELP[m[1]]) || null;
+}
+
 // The guide article for the page that's open, or null. Work and Team resolve
 // through the hash (#/work/close -> month-end-close) because a tab switch
 // rewrites the hash without re-rendering the bar, so callers ask at click
@@ -163,6 +170,8 @@ function TB_helpSlugFor(page, isAdmin) {
     const tab = sub && place.tabs ? place.tabs.find((t) => t.key === sub) : null;
     slug = (tab && tab.help) || place.help || slug;
   }
+  // Tasks isn't a NAV place: pick the article from its sub-route.
+  if (page === "tasks") slug = TB_tasksHelpSlug(window.location.hash || "") || slug;
   if (slug && TB_ADMIN_ARTICLES.has(slug) && !isAdmin) slug = null;
   return slug;
 }

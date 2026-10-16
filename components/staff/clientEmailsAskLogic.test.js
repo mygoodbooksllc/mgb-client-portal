@@ -101,6 +101,18 @@ t("last change line", () => {
   assert.strictEqual(L.CEA_lastChange({ new_value: false, changed_by: "system" }), "Turned off by a database admin");
 });
 
+t("a client marked is_internal is never a real client, even without mgbIsInternalClient", () => {
+  const cs = [
+    { id: "a", name: "A" },
+    { id: "mygoodbooks", name: "MGB (internal)", is_internal: true },
+    { id: "t", name: "T", test_only: true },
+  ];
+  assert.deepStrictEqual(L.CEA_realClients(cs).map((c) => c.id), ["a"]);
+  assert.strictEqual(L.CEA_pilotStatus("all", cs).count, 1);
+  assert.strictEqual(L.CEA_pilotStatus(["mygoodbooks"], cs).kind, "none");
+  assert.strictEqual(L.CEA_pilotStatus(["a", "mygoodbooks"], cs).count, 1);
+});
+
 t("save errors", () => {
   assert.strictEqual(L.CEA_saveError({ message: "tk_owner_only" }), "Only the owner can turn Ask client emails on or off.");
   assert.strictEqual(L.CEA_saveError({ message: "boom" }), "Couldn't save: boom");

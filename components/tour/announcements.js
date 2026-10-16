@@ -256,9 +256,9 @@ var ANN_REGISTRY = [
       },
       {
         id: "ann-done",
-        title: "Nothing is emailed yet",
+        title: "Check before you count on the email",
         body: () =>
-          "Client emails for requests are a dry run until the owner switches them on, so tell the client yourself and use Record answer when they reply. To see this again, press ? and pick New: Ask client tour.",
+          "Client emails for requests go only to clients the owner has put on the pilot list; for every other client they are a dry run, so tell the client yourself and use Record answer when they reply. To see this again, press ? and pick New: Ask client tour.",
       },
     ],
   },
@@ -295,9 +295,9 @@ var ANN_REGISTRY = [
       },
       {
         id: "ann-done",
-        title: "Emails still wait for the owner",
+        title: "Emails only go to pilot clients",
         body: () =>
-          "Until the owner switches client emails on, Email again and Send reminder are a dry run (or a test copy to you only). To see this again, press ? and pick New: Clients answer requests tour.",
+          "Email again and Send reminder only email clients the owner has switched on (the pilot list on the Emails page). For other clients they are a dry run, and test clients get a test copy sent to you only. To see this again, press ? and pick New: Clients answer requests tour.",
       },
     ],
   },
@@ -396,6 +396,48 @@ var ANN_REGISTRY = [
         title: "Anywhere you see Unassigned",
         body: () =>
           "Client and project lists say Unassigned in the Assignee column, the Assignee filter has an Unassigned choice, and a task's details show an Unassigned chip with Claim. To see this again, press ? and pick New: Unassigned tasks and Claim tour.",
+      },
+    ],
+  },
+  {
+    id: "asana-import",
+    date: "2026-10-16",
+    title: "Your Asana tasks are in Tasks",
+    summary: "Open Asana tasks were copied into Tasks on Oct 16, each on the person it was assigned to, with a link back to the Asana task. Asana itself was not changed.",
+    roles: ["admin", "bookkeeper"],
+    hash: "#/tasks/my",
+    steps: (ctx) => [
+      {
+        id: "ann-welcome",
+        title: "Your Asana tasks came over",
+        body: () =>
+          "The open tasks in Asana were copied into Tasks once, on Oct 16, each on the person it was assigned to and on its client where we could match one. Asana itself was not changed. About a minute.",
+      },
+      {
+        id: "ann-groups",
+        go: () => {
+          if (!/^#\/tasks\/my(\?|$)/.test(window.location.hash || "")) window.location.hash = "#/tasks/my";
+        },
+        targets: ["tk-groups"],
+        wait: true,
+        title: "They're on My Tasks",
+        body: () =>
+          "Imported tasks sit in your groups by due date like any other task. Open one and its details say Imported from Asana, with a link to the original. Tasks with no assignee in Asana show as Unassigned for anyone on the client to claim.",
+      },
+      {
+        id: "ann-no-team",
+        when: (c) => !!(c && c.isAdmin),
+        targets: ["tk-no-team", "tk-sidebar"],
+        wait: true,
+        title: "Admins: clients with no team",
+        body: () =>
+          "Clients that came over from Asana without a bookkeeper are listed under No team yet in the Tasks sidebar. Open one and use Assign team; no email is sent.",
+      },
+      {
+        id: "ann-done",
+        title: "What didn't come over",
+        body: () =>
+          "Anything added or changed in Asana after Oct 16 is not in Tasks. Repeating Asana tasks came over as draft recurring templates that are switched off until an admin reviews them, so nothing new is made from them yet. No emails were sent. To see this again, press ? and pick New: Your Asana tasks are in Tasks tour.",
       },
     ],
   },

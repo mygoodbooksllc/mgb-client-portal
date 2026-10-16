@@ -98,7 +98,7 @@ function CE_ClientEmailSettings({ onSent } = {}) {
     if (!sb) return setSt((s) => ({ ...s, loading: false }));
     const [s, c, p, u, l, own, pil, aud] = await Promise.all([
       sb.from("client_email_settings").select("enabled, doc_chaser_enabled, value_report_enabled, reply_to, updated_at, updated_by, client_request_enabled").eq("id", true).maybeSingle(),
-      sb.from("clients").select("id, name, test_only").order("name"),
+      sb.from("clients").select("id, name, test_only, is_internal").order("name"),
       sb.from("client_email_prefs").select("client_id, opt_out_all, opt_out_doc_chaser, opt_out_value_report, chaser_paused"),
       sb.from("client_email_recipients").select("client_id, email, opted_out_at, opted_out_via").not("opted_out_at", "is", null).order("opted_out_at", { ascending: false }),
       sb.from("client_email_log").select("id, created_at, feature, trigger, client_id, status, reason, recipients, requested_by").order("created_at", { ascending: false }).limit(15),
@@ -115,7 +115,7 @@ function CE_ClientEmailSettings({ onSent } = {}) {
     for (const r of (p && p.data) || []) prefs[r.client_id] = r;
     // MGB (internal) is the firm's own books, not a client: no client email settings.
     const clients = ((c && c.data) || [])
-      .filter((x) => !(typeof window.mgbIsInternalClient === "function" && window.mgbIsInternalClient(x.id)))
+      .filter((x) => x.is_internal !== true && !(typeof window.mgbIsInternalClient === "function" && window.mgbIsInternalClient(x.id)))
       .map((x) => ({ ...x, testOnly: x.test_only === true }));
     setSt({
       loading: false,
@@ -151,7 +151,15 @@ function CE_ClientEmailSettings({ onSent } = {}) {
   // OFF is immediate. The database refuses anyone but the owner.
   async function saveAskSwitch(v) {
     if (v) {
-      const pilot = CEA_pilotStatus(st.pilot, st.clients);
+      // Read the pilot list again so the confirm names who gets emailed now,
+      // not when the page loaded. A failed read falls back to the loaded one.
+      let current = st.pilot;
+      try {
+        const r = await window.mgbSupabase.from("tk_settings").select("value").eq("key", "client_request_pilot").maybeSingle();
+        if (r && !r.error) current = r.data ? r.data.value : null;
+      } catch (e) {}
+      if (current !== st.pilot) setSt((x) => ({ ...x, pilot: current }));
+      const pilot = CEA_pilotStatus(current, st.clients);
       if (!window.confirm(CEA_confirmText({ pilot, masterOn: !!(st.settings && st.settings.enabled) }))) return;
     }
     setBusy("settings");
@@ -239,7 +247,20 @@ function CE_ClientEmailSettings({ onSent } = {}) {
 
   // Test clients last with a tag; hidden unless "Show test clients" is on (the picked one stays).
   const shownClients = CF_usePicked(st.clients, null, pick);
-  if (st.loading || st.error || !st.settings) return null;
+  if (st.loading) return null;
+  if (st.error || !st.settings) {
+    return (
+      <div className="card" style={{ marginBottom: 20 }}>
+        <h3 className="card-title" style={{ margin: 0 }}>Client emails</h3>
+        <p className="tp-muted" style={{ margin: "6px 0 10px" }}>
+          Couldn't load the client email settings{st.error && st.error.message ? ": " + st.error.message : "."}
+        </p>
+        <button type="button" className="btn-secondary" onClick={() => { setSt((x) => ({ ...x, loading: true, error: null })); load(); }}>
+          Retry
+        </button>
+      </div>
+    );
+  }
   const s = st.settings;
   const nameOf = (id) => (st.clients.find((c) => c.id === id) || {}).name || id || "All clients";
   const off = !s.enabled;
@@ -280,7 +301,7 @@ function CE_ClientEmailSettings({ onSent } = {}) {
             const pilot = CEA_pilotStatus(st.pilot, st.clients);
             const last = CEA_lastChange(st.askAudit, CE_when);
             return (
-              <div data-tour="ce-ask-live">
+              <div>
                 <CE_Toggle
                   checked={s.client_request_enabled}
                   disabled={!rs.canToggle}

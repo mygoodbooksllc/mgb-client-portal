@@ -1767,6 +1767,12 @@ Team Reviews files.
     unassigned series unassigned. `tk_import_assign_team` only takes real (not test) clients that
     have imported (`source = 'asana'`) tasks. The planner's first-name remap never beats an active
     email match and only applies when one Asana user has that first name.
+- **Asana import ran live, 2026-10-16.** First `supabase/asana-import-roster-clients.sql` (61 roster
+  clients), then run `49b3186a`: 1132 tasks (135 subtasks, 176 unassigned, 160 with no client),
+  16 projects + 1 merged, 749 recurring templates as drafts (off). `asana_import_apply_enabled` is
+  back to false. No emails; Asana was only read. Undo (admin, soft): `select
+  public.tk_import_asana_undo('<run id>', 'UNDO 49b3186a');`. Staff notice: `asana-import` in
+  `components/tour/announcements.js`; full record at the end of `docs/asana-import-dry-run-report.md`.
 - **Staff Handbook** (`supabase/staff-handbook.sql`, applied 2026-10-13). Re-runnable. Four
   `handbook_*` tables with RLS and no direct writes, the `hb_*` RPCs, two new outbox kinds
   (`handbook_sign_needed`, `handbook_countersign_needed`) added to both email check constraints,
@@ -1978,7 +1984,7 @@ work email + emailed code in the first (client) form; `RootGate` then routes the
 The staff guide (`#/help`, opened from the **?** menu in the top bar: Help for this page, Staff
 guide, Send feedback, What's new, Tips while you learn, the tours; also from ⌘K) is a searchable how-to guide for
 staff. The per-page slugs are `TB_HELP_FOR_PAGE` in `TopBar.jsx` and the `help` field on each
-`NAV_PLACES` place and tab in `StaffNav.jsx`; every slug must exist as a file. `whats-new.md` is the
+`NAV_PLACES` place and tab in `StaffNav.jsx`, plus `TB_TASKS_HELP` for the Tasks sub-routes (`#/tasks/review` -> task-review and so on); every slug must exist as a file. `whats-new.md` is the
 staff-facing changelog: add an entry with every change staff would notice.
 
 - **Source:** one markdown file per article in `docs/staff-guide/*.md`, with frontmatter `title`,

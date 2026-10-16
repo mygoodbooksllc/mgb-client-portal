@@ -1110,6 +1110,18 @@ function TOUR_adminSteps(ctx) {
     team("feedback", "Team › Feedback", "Bug reports and ideas from staff and clients. Only admins see all of it."),
     team("inventory", "Team › Inventory", "Admins also get Requests, Items, a Roster of who's missing what, the staff Directory and Export to Google Sheet."),
     {
+      id: "tasks-review",
+      when: (c) => c.isAdmin && window.innerWidth >= 900,
+      go: () => {
+        if (!/^#\/tasks\/review(\?|$)/.test(window.location.hash || "")) window.location.hash = "#/tasks/review";
+      },
+      targets: ["tk-review-nav"],
+      wait: true,
+      title: "Tasks › Review",
+      body: () =>
+        "Work your team sent for review lands here: approve it or send it back with a note, oldest first. You never review your own work. The same page shows each person's on-time and review numbers for the last 30 days.",
+    },
+    {
       id: "firm",
       when: (c) => c.isAdmin,
       go: () => {
@@ -1311,7 +1323,7 @@ function TOUR_tasksSteps() {
       spot: "top",
       title: "Grouped by when it's due",
       body: () =>
-        "Overdue, Today, This week and Later, then Waiting on client and Done, which starts folded. Click a group's heading to fold or open it.",
+        "Overdue, Today, This week and Later, then Waiting on client, Unassigned (tasks on your clients nobody has claimed yet) and Done, which starts folded. Click a group's heading to fold or open it.",
     },
     {
       id: "tk-status",
@@ -1329,7 +1341,16 @@ function TOUR_tasksSteps() {
       title: "Lists and projects",
       body: () =>
         (window.innerWidth < 900 ? "The Lists button opens every list. " : "") +
-        "My Tasks, Review (work waiting for an admin's approval), Waiting on client (everything you've asked a client for), Search, the firm's projects and each of your clients' lists. SOPs and 90 Day are projects open to all staff.",
+        "My Tasks, Review (work waiting for an admin's approval), Waiting on client (everything you've asked a client for), Recurring (templates that make tasks on a schedule), Search, the firm's projects and each of your clients' lists. SOPs and 90 Day are projects open to all staff.",
+    },
+    {
+      id: "tk-review-nav",
+      when: () => window.innerWidth >= 900,
+      targets: ["tk-review-nav"],
+      wait: true,
+      title: "Review",
+      body: () =>
+        "Work sent for review waits here for a named reviewer, never the person who did it. The number is how many are waiting. A send-back always comes with a note.",
     },
     {
       id: "tk-waiting-nav",

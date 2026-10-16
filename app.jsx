@@ -1015,9 +1015,9 @@ const INFRA_LINKS = [
     note: "tk-client-requests (staff sends, JWT on) · tk-request-respond (the public /respond answer page, JWT off; token in a header, hashed, rate-limited) · client-emails runs the client-request-nudge cron · drive-files takes portal uploads to a request · no extra secrets (RESEND_API_KEY, Google service account)",
   },
   {
-    name: "Supabase cron (time-off task hand-off)",
+    name: "Supabase cron (Tasks: recurring + time-off hand-off)",
     url: "https://supabase.com/dashboard/project/xumsqmhccgfjnlmieqyu/integrations/cron/jobs",
-    note: "tk-ooo-daily (11:00 UTC) runs tk_ooo_daily(): hands tasks back after time off; hands them off on the first day only if ooo_auto_apply = true (off by default) · logs in tk_ooo_runs (admins) · ledger tk_ooo_reassignments · switch ooo_auto_apply in tk_settings · no edge function",
+    note: "task-templates-daily (10:15 UTC) makes due tasks from active recurring templates (Asana templates stay draft/off until an admin turns one on) · tk-ooo-daily (11:00 UTC) runs tk_ooo_daily(): hands tasks back after time off; hands them off on the first day only if ooo_auto_apply = true (off by default) · logs in tk_ooo_runs (admins) · ledger tk_ooo_reassignments · switch ooo_auto_apply in tk_settings · no edge function",
   },
   {
     name: "Google Drive (client files)",
@@ -1027,7 +1027,7 @@ const INFRA_LINKS = [
   {
     name: "Supabase SQL (Tasks unassigned + Asana import)",
     url: "https://supabase.com/dashboard/project/xumsqmhccgfjnlmieqyu/sql/new",
-    note: "supabase/tasks-p2-10-asana-import-v2.sql: tasks can have no assignee (is_unassigned); tk_claim_task (Claim; only way a non-admin sets the assignee on an unassigned task) · tk_save_template takes assignee_email and leave_unassigned · tk_import_no_team_clients and tk_import_assign_team (admins: No team yet, Assign team; no email sent) · the import apply stays behind asana_import_apply_enabled (Tasks switches below) · no edge function",
+    note: "supabase/tasks-p2-10-asana-import-v2.sql: tasks can have no assignee (is_unassigned); tk_claim_task (Claim; only way a non-admin sets the assignee on an unassigned task) · tk_save_template takes assignee_email and leave_unassigned · tk_import_no_team_clients and tk_import_assign_team (admins: No team yet, Assign team; no email sent) · the import apply stays behind asana_import_apply_enabled (Tasks switches below) · ran once 2026-10-16: run 49b3186a (1132 tasks, 16 projects, 749 draft templates; roster clients from supabase/asana-import-roster-clients.sql); undo: select tk_import_asana_undo('<run id>', 'UNDO 49b3186a') · no edge function",
   },
   {
     name: "Intuit developer (QuickBooks)",
@@ -16841,6 +16841,21 @@ const USAGE_TAB_LABELS = {
   giving: "Giving & funds",
   packet: "Board packet",
 };
+// Tab labels that only apply on one page (checked before USAGE_TAB_LABELS):
+// Tasks logs its sub-route as the tab (#/tasks/review -> "review").
+const USAGE_PAGE_TAB_LABELS = {
+  tasks: {
+    my: "My tasks",
+    review: "Review",
+    waiting: "Waiting on client",
+    templates: "Recurring",
+    c: "Client list",
+    p: "Project",
+    u: "Person",
+    search: "Search",
+  },
+  messages: { requests: "What we need from you" },
+};
 // Action buckets MGB_track() writes (see the hooks in TopBar, StaffGuide,
 // Tour). Add a label here when a new call site is added.
 const USAGE_ACTION_LABELS = {
@@ -16865,6 +16880,8 @@ const USAGE_ACTION_LABELS = {
   "tasks-follow": "Tasks window set to follow your client",
   "tasks-comment": "Task comments posted",
   "tasks-attach": "Files attached to tasks",
+  "client-needs-answer": "Client answers to requests (portal)",
+  "client-needs-upload": "Client uploads to requests (portal)",
 };
 const USAGE_DEVICE_LABELS = { desktop: "Desktop", mobile: "Phone", installed: "Installed app", unknown: "Unknown" };
 
@@ -17026,6 +17043,7 @@ function UsageStatsPage() {
     const base = (PAGE_META[key] && PAGE_META[key].title) || key;
     if (!tab) return base;
     const t =
+      (USAGE_PAGE_TAB_LABELS[key] && USAGE_PAGE_TAB_LABELS[key][tab]) ||
       USAGE_TAB_LABELS[tab] ||
       tab.charAt(0).toUpperCase() + tab.slice(1).replace(/-/g, " ");
     return base + " › " + t;

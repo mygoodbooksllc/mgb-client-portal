@@ -11,7 +11,7 @@ As an admin you see everything a bookkeeper sees, plus the pages that run the fi
 
 - It starts by itself once, the first time you sign in as an admin. If you're new to the portal, it opens with the basics first (the five places, search and the **?** menu), so you learn to get around before the admin pages.
 - Run it again any time from **?** → **Admin tour**, from **Ctrl+K** (**⌘K** on a Mac) by typing "admin tour", or from **Settings › Help**.
-- It opens each admin page in turn and points at it: **Team › Members**, **Hours**, **Reply times**, **Performance**, **Reviews**, **Handbook**, **Ledger review**, **Feedback** and **Inventory**, then **Settings › Firm settings** and **Today**. About two minutes, a little longer with the basics.
+- It opens each admin page in turn and points at it: **Team › Members**, **Hours**, **Reply times**, **Performance**, **Reviews**, **Handbook**, **Ledger review**, **Feedback** and **Inventory**, then **Tasks › Review**, **Settings › Firm settings** and **Today**. About two minutes, a little longer with the basics.
 - To see what your bookkeepers see, run the **Bookkeeper tour** from **?**. It's the same walk they get. Inside **View as**, it only visits the pages View as can open (Today, Clients and a client's pages); other stops are skipped. See [Bookkeeper guide](#/help/bookkeeper-guide).
 
 If you're also a client's account manager, the **Account manager tour** comes next. See [Account manager guide](#/help/account-manager-guide).
@@ -46,8 +46,8 @@ If you're also a client's account manager, the **Account manager tour** comes ne
 2. Glance at admin@mygoodbooks.org for any **"MyGoodBooks alert:"** email and deal with it first. See [What are the health-check alert emails?](#/help/health-alerts).
 3. **Review** in the Tasks sidebar (`#/tasks/review`): approve or send back work waiting for you, oldest first. See [How does task review work?](#/help/task-review).
 4. **Waiting on client** in the Tasks sidebar (`#/tasks/waiting`): anything marked **No reply** needs a call. See [How do I ask a client something from a task?](#/help/ask-client).
-
 5. **Today** may show **N profile photos to edit**: download each, remove the background and replace it on **Team › Members**. See [How do I manage staff profile photos?](#/help/staff-photos).
+6. **No team yet** in the Tasks sidebar: clients that came over from Asana without a bookkeeper. Open each and use **Assign team** so its tasks have an owner. See [How do client task lists and projects work?](#/help/task-lists-and-projects).
 
 **Every week**
 

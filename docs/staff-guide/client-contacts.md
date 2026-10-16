@@ -30,4 +30,4 @@ The email has a **Reply or upload** button. It opens a plain MyGoodBooks page wi
 
 - **"Link not recognized" or "This link was replaced".** They used an older email. Send **Email again** and ask them to use the newest one.
 - **"Too many tries".** The page was opened or sent too many times in a short while. Waiting a few minutes fixes it.
-- **Nothing arrived.** Until the owner switches client request emails on, sending is a dry run (or a test copy to you for a test client). See [How do I ask a client something from a task?](#/help/ask-client).
+- **Nothing arrived.** Request emails only go to clients the owner has switched on (**Ask client emails live** plus the pilot list on the Emails page). For any other client, sending is a dry run (or a test copy to you for a test client). See [How do I ask a client something from a task?](#/help/ask-client).

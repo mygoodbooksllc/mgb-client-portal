@@ -20,9 +20,15 @@ function CEA__isInternal(id) {
   }
 }
 
+// MGB (internal): the row says so (clients.is_internal), or the app's
+// mgbIsInternalClient knows the id.
+function CEA__internalRow(c) {
+  return !!c && (c.is_internal === true || c.isInternal === true || CEA__isInternal(c.id));
+}
+
 // Real clients only: not test_only, not MGB (internal).
 function CEA_realClients(clients) {
-  return (clients || []).filter((c) => c && c.id && c.test_only !== true && c.testOnly !== true && !CEA__isInternal(c.id));
+  return (clients || []).filter((c) => c && c.id && c.test_only !== true && c.testOnly !== true && !CEA__internalRow(c));
 }
 
 // tk_settings.client_request_pilot (jsonb) -> what the row shows.
@@ -41,7 +47,8 @@ function CEA_pilotStatus(pilot, clients) {
     // A test client in the list is still a test client (one [Test] copy to the
     // sender), so it doesn't count as a real client getting email.
     const testIds = new Set((clients || []).filter((c) => c && (c.test_only === true || c.testOnly === true)).map((c) => c.id));
-    const realIds = ids.filter((id) => !testIds.has(id) && !CEA__isInternal(id));
+    const internalIds = new Set((clients || []).filter(CEA__internalRow).map((c) => c.id));
+    const realIds = ids.filter((id) => !testIds.has(id) && !internalIds.has(id) && !CEA__isInternal(id));
     if (!realIds.length) return { kind: "none", count: 0, names: [], label: "empty" };
     const names = realIds.map(nameOf);
     return { kind: "list", count: realIds.length, names, label: `${realIds.length} client${realIds.length === 1 ? "" : "s"}: ${names.join(", ")}` };

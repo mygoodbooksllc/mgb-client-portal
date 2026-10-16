@@ -27,7 +27,7 @@ In the **Client emails** card:
 Requests sent from a task (**Ask client**) and their reminders are a dry run, logged as *skipped*, until the owner turns on **Ask client emails live**. It is the last row under **Send client emails**.
 
 - **Who can flip it.** Only the owner. Everyone else sees the row greyed out with **Owner only**. The database refuses anyone else too.
-- **Turning it on** asks you to confirm and says exactly who will be emailed: the real clients in the **pilot list**, to the portal users and contacts picked on each request. Every other real client stays a dry run. **Turning it off** is immediate.
+- **Turning it on** reads the pilot list again, then asks you to confirm and says exactly who will be emailed: the real clients in the **pilot list**, to the portal users and contacts picked on each request. Every other real client stays a dry run. **Turning it off** is immediate.
 - **Pilot.** The line under the row shows the pilot list: **not set** or **empty** (no real client gets these emails, even with the switch on), **All real clients (N)**, or **N clients** with their names.
 - **Test clients** always get one **[Test]** copy, sent only to the staff member who clicked send. They get no automatic reminders.
 - **Send client emails** must be on too.
@@ -54,3 +54,4 @@ At the bottom: every digest run and client email attempt, newest first. Filter b
 
 - **"Wouldn't send right now: …"** The preview explains why (for example the client is opted out or it's a test client).
 - **"Email isn't configured yet…"** Only the owner can fix this.
+- **"Couldn't load the client email settings"** in place of the **Client emails** card. Click **Retry**. If it keeps happening, report it with **Send feedback**.

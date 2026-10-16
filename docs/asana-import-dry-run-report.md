@@ -4,7 +4,7 @@ Snapshot taken 2026-10-16T17:00:00Z from the MGB Asana workspace (read-only). Bu
 
 This committed copy is aggregate only: no emails, staff by first name, person names in titles replaced with [name]. The named report and the machine-readable plans stay in the session scratchpad, not in git.
 
-**Nothing has been written to the database or to Asana.** The apply RPC exists but is switched off (see Apply plan).
+**Update 2026-10-16: the import was applied once (run `49b3186a`, see the end of this report) and the apply switch is off again. Asana itself was never written to.** The plan below is the dry run as it was reviewed before that.
 
 ## Headline
 
