@@ -7,16 +7,19 @@
 // lets a task drawer, the client drawer, the chat drawer or a dialog sit on
 // top of it without the page underneath changing.
 //
-//   WB_useHubKeys     W / Esc / Tab for the hub. Checks at keydown time (window
+//   WB_useHubKeys     D / Esc / Tab for the hub. Checks at keydown time (window
 //                     capture, before any other handler) whether a layer is
 //                     above the hub; if so the hub does nothing, so one Esc
-//                     closes exactly one layer and Tab stays in the top layer.
+//                     closes exactly one layer. D3: the docked Desk is
+//                     non-modal, so Esc acts only with focus inside it
+//                     (WB_deskEscStep) and Tab is trapped only in the phone sheet.
 //   WB_useHubLayers   html.wb-hub-open (lifts the chat drawer above the panel),
-//                     html.wb-stacked (hub scrim stops taking clicks while a
-//                     drawer is over it) and the focus return when the stacked
-//                     drawer closes. A body-level MutationObserver runs only
+//                     html.wb-stacked (a drawer is over the hub) and the focus
+//                     return when the stacked drawer closes, only if focus was
+//                     inside the Desk. A body-level MutationObserver runs only
 //                     while the hub is open.
-//   WB_Hub            the panel itself. WB_Drawer keeps the bar.
+//   WB_Hub            the panel itself, with the resize handle (dock only).
+//                     WB_Drawer keeps the bar, the height and the drag.
 //
 // Pure rules (layers, state, row actions) live in WB_logic.js; state lives in
 // WB_store (saved in mgb_wb_hub). Browser file; loads after WB_Drawer.jsx.
@@ -30,49 +33,38 @@ function WB__has(sel) {
   }
 }
 
-function WB_useHubKeys(live, panelRef) {
+// deskRef.current (owned by WB_Drawer): { mode: "dock"|"sheet", zone:
+// "desk"|"bar"|"page", dragging, cancel() }.
+function WB_useHubKeys(live, panelRef, deskRef) {
   React.useEffect(() => {
     if (!live) return undefined;
     const onKey = (e) => {
-      const isW = e.key === "w" || e.key === "W";
-      if (e.key !== "Escape" && e.key !== "Tab" && !isW) return;
+      const isD = WB_deskToggleKey(e);
+      if (e.key !== "Escape" && e.key !== "Tab" && !isD) return;
       const open = WB_store.getState().drawerOpen;
-      if (!isW && !open) return;
+      if (!isD && !open) return;
+      const dk = (deskRef && deskRef.current) || {};
+      const sheet = dk.mode === "sheet";
+      const panel = panelRef.current;
+      const tgt = e.target;
+      const inPanel = !!(panel && tgt && tgt.nodeType === 1 && panel.contains(tgt));
+      // Esc while dragging the top edge puts the start height back.
+      if (e.key === "Escape" && dk.dragging && typeof dk.cancel === "function") {
+        e.preventDefault();
+        e.stopPropagation();
+        dk.cancel();
+        return;
+      }
       // A layer above the hub (task drawer, client drawer, chat drawer, a
-      // dialog, a tour, a row's menu) gets the key first.
+      // dialog, a tour, a row's menu, the client picker list) gets the key first.
       const present = WB_layersPresent(WB__has);
       if (e.key === "Tab") {
+        // Only the phone sheet is modal and keeps Tab inside; the docked Desk
+        // is part of the page's Tab order (page, bar, Desk, browser).
+        if (!sheet || !panel) return;
         // A row's menu sits inside the panel, so Tab stays trapped; only a
         // drawer, dialog or tour above takes Tab over.
         if (WB_isStacked(present) || present.indexOf("tour") >= 0) return;
-      } else if (WB_layerAbove(present)) return;
-      const panel = panelRef.current;
-      if (e.key === "Escape") {
-        // A self-clearing field with text (the add row, the client picker)
-        // clears itself first; any other field lets Esc close the hub.
-        const tgt = e.target;
-        let clears = false;
-        try {
-          clears = !!(tgt && tgt.matches && tgt.matches(WB_ESC_CLEARS_SEL));
-        } catch (err) {}
-        if (
-          WB_escKeepsField({
-            tag: tgt && tgt.tagName,
-            type: tgt && tgt.type,
-            value: tgt && tgt.value,
-            inPanel: !!(panel && tgt && panel.contains(tgt)),
-            clears,
-          })
-        )
-          return;
-        e.preventDefault();
-        e.stopPropagation();
-        WB_store.setDrawerOpen(false);
-        return;
-      }
-      if (e.key === "Tab") {
-        // Keep Tab inside the open panel (it is a modal dialog).
-        if (!panel) return;
         const f = Array.prototype.filter.call(
           panel.querySelectorAll('button:not([disabled]), a[href], [tabindex="0"], input, select, textarea'),
           (el) => el.offsetParent !== null,
@@ -90,19 +82,48 @@ function WB_useHubKeys(live, panelRef) {
         }
         return;
       }
-      const inPanel = panel && e.target && panel.contains(e.target);
+      if (e.key === "Escape") {
+        // The dock: Esc is the Desk's only while focus is inside it; with focus
+        // on the page it belongs to the page. The sheet covers the page, so a
+        // lost focus (body) still counts as inside.
+        const onBody = !tgt || tgt === document.body || tgt === document.documentElement;
+        if (!inPanel && !(sheet && onBody)) return;
+        let clears = false;
+        try {
+          clears = !!(tgt && tgt.matches && tgt.matches(WB_ESC_CLEARS_SEL));
+        } catch (err) {}
+        const step = WB_deskEscStep({
+          layerAbove: present.some((id) => id !== "picker"),
+          pickerOpen: present.indexOf("picker") >= 0,
+          // A self-clearing field with text (the add row, the client picker)
+          // clears itself first; any other field lets Esc close the Desk.
+          fieldKeeps: WB_escKeepsField({ tag: tgt && tgt.tagName, type: tgt && tgt.type, value: tgt && tgt.value, inPanel, clears }),
+          drillInner: false, // D4
+          drillDepth: 0, // D4
+        });
+        // layer / picker / field: the element's own handler acts (this runs
+        // in the capture phase, so leaving the event alone lets it through).
+        if (step !== "close") return;
+        e.preventDefault();
+        e.stopPropagation();
+        WB_store.setDrawerOpen(false);
+        return;
+      }
+      // D opens and closes the Desk from anywhere, never while typing, with a
+      // modifier, or under a dialog, menu or tour.
+      if (WB_layerAbove(present)) return;
       // This listener runs in the window's capture phase, so page handlers
       // (bubble phase) have not seen the key yet; only another capture listener
       // registered earlier could have set defaultPrevented. The check below
-      // ignores it so such a listener cannot block the hub toggle; typing,
+      // ignores it so such a listener cannot block the toggle; typing,
       // modifiers, dialogs and menus still block it, and stopPropagation below
-      // keeps later handlers from acting on W as well.
-      if (!inPanel && WB_keyBlocked({ key: e.key, target: e.target, ctrlKey: e.ctrlKey, metaKey: e.metaKey, altKey: e.altKey, isComposing: e.isComposing, keyCode: e.keyCode, defaultPrevented: false })) return;
-      if (inPanel && e.target && /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName || "")) return;
+      // keeps later handlers from acting on D as well.
+      if (!inPanel && WB_keyBlocked({ key: e.key, target: tgt, ctrlKey: e.ctrlKey, metaKey: e.metaKey, altKey: e.altKey, isComposing: e.isComposing, keyCode: e.keyCode, defaultPrevented: false })) return;
+      if (inPanel && tgt && (/^(INPUT|TEXTAREA|SELECT)$/.test(tgt.tagName || "") || tgt.isContentEditable)) return;
       e.preventDefault();
-      e.stopPropagation(); // the hub owns W; a page handler must not act on it too
+      e.stopPropagation(); // the Desk owns D; a page handler must not act on it too
       const willOpen = !open;
-      WB_store.setDrawerOpen(willOpen);
+      WB_store.setDrawerOpen(willOpen, "key");
       if (willOpen) WB_track("wb-drawer", "key");
     };
     window.addEventListener("keydown", onKey, true);
@@ -139,7 +160,7 @@ function WB_hubFocusTarget(panel, key) {
   return el || panel.querySelector('[role="tab"][aria-selected="true"]') || panel.querySelector(".wb-tab.is-on") || panel;
 }
 
-function WB_useHubLayers(open, panelRef) {
+function WB_useHubLayers(open, panelRef, deskRef) {
   React.useEffect(() => {
     if (!open) return undefined;
     const root = document.documentElement;
@@ -149,6 +170,12 @@ function WB_useHubLayers(open, panelRef) {
     const giveFocusBack = () => {
       const panel = panelRef.current;
       if (!panel) return;
+      // The docked Desk is non-modal: a drawer opened from the page gives focus
+      // back to the page (its own restore), not to the Desk. Only focus that was
+      // inside the Desk before the layer opened comes back here (focus inside
+      // the layer itself is not counted, see WB_Drawer's focus tracker).
+      const dk = (deskRef && deskRef.current) || {};
+      if (dk.mode !== "sheet" && dk.zone !== "desk") return;
       const ae = document.activeElement;
       if (ae && ae !== document.body && panel.contains(ae)) return; // the drawer already put it back
       const key = WB_store.getState().hub.lastFocus;
@@ -213,7 +240,11 @@ function WB_HubTabs({ tab, onPick, counts }) {
 // props: s (store state), me, isAdmin, clients, panelRef, allView, view, chip,
 // today, now, count, loading, currentClientId (the client page I am on, or
 // null), page (the route page, for the Client tab's "For this page" group).
-function WB_Hub({ s, me, isAdmin, clients, panelRef, view, allView, chip, today, now, count, loading, currentClientId, page }) {
+// mode: "dock" | "sheet". handle (dock only): { show, pct, valueText,
+// onPointerDown, onPointerMove, onPointerUp, onPointerCancel,
+// onLostPointerCapture, onKeyDown } from WB_Drawer's drag controller.
+function WB_Hub({ s, me, isAdmin, clients, panelRef, view, allView, chip, today, now, count, loading, currentClientId, page, mode, handle }) {
+  const dock = mode !== "sheet";
   const hub = s.hub;
   const tab = hub.tab;
   const bodyRef = React.useRef(null);
@@ -264,8 +295,39 @@ function WB_Hub({ s, me, isAdmin, clients, panelRef, view, allView, chip, today,
 
   return (
     <>
-      <div className="wb-scrim" onClick={() => WB_store.setDrawerOpen(false)} aria-hidden="true" />
-      <div ref={panelRef} className="wb-panel wb-glass" role="dialog" aria-modal="true" aria-labelledby="wb-panel-title" tabIndex={-1} data-tk-keyscope="drawer">
+      {/* D3: no scrim. The dock is a region beside the page (non-modal); the phone sheet stays a modal dialog. */}
+      <section
+        ref={panelRef}
+        id="wb-panel"
+        className={"wb-panel wb-glass" + (dock ? " is-dock" : " is-sheet")}
+        {...(dock ? { role: "region" } : { role: "dialog", "aria-modal": "true" })}
+        aria-labelledby="wb-panel-title"
+        tabIndex={-1}
+        data-tk-keyscope="drawer"
+      >
+        {dock && handle && handle.show && (
+          <div
+            className="wb-desk-handle"
+            role="separator"
+            aria-orientation="horizontal"
+            aria-controls="wb-panel"
+            aria-label={"Resize " + WORKBENCH_NAME}
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-valuenow={handle.pct}
+            aria-valuetext={handle.valueText}
+            tabIndex={0}
+            data-tour="wb-desk-handle"
+            onPointerDown={handle.onPointerDown}
+            onPointerMove={handle.onPointerMove}
+            onPointerUp={handle.onPointerUp}
+            onPointerCancel={handle.onPointerCancel}
+            onLostPointerCapture={handle.onLostPointerCapture}
+            onKeyDown={handle.onKeyDown}
+          >
+            <span className="wb-desk-grip" aria-hidden="true" />
+          </div>
+        )}
         <div className="wb-panel-head">
           <h2 className="wb-panel-title" id="wb-panel-title">
             {WB_NAME} <span className="wb-chip-n">{count}</span>
@@ -365,11 +427,12 @@ function WB_Hub({ s, me, isAdmin, clients, panelRef, view, allView, chip, today,
           </div>
         </div>
         <p className="wb-panel-foot">
-          <kbd>W</kbd> opens and closes · <kbd>Esc</kbd> closes one layer at a time
+          <kbd>D</kbd> opens and closes · <kbd>Esc</kbd> goes back one step
+          {dock && handle && handle.show && <> · drag the top edge to resize</>}
           {tab === "tasks" && <> · <kbd>↑</kbd> <kbd>↓</kbd> move between tasks · use <b>Add to your {WB_SLATE}</b> to add one</>}
           {tab === "client" && <> · type in the box to find a client · the <b>☆</b> pins one to the top</>}
         </p>
-      </div>
+      </section>
     </>
   );
 }

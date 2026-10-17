@@ -461,7 +461,8 @@ function WB_NavBadge({ expanded = true }) {
 // ---- Shortcut sheet ------------------------------------------------------------
 function WB_KeysSheet({ onClose }) {
   const rows = [
-    ["W", "Open or close the " + WB_NAME],
+    ["D", "Open or close the " + WB_NAME],
+    ["↑ / ↓", "With the " + WB_NAME + "'s top edge focused, make it shorter or taller (Home / End: shortest / tallest)"],
     ["j / k", "Next / previous item"],
     ["Enter", "Main action"],
     ["o", "Open where it lives"],
@@ -469,7 +470,7 @@ function WB_KeysSheet({ onClose }) {
     ["e", "No reply needed (message) or Mark checked (file)"],
     ["1-6, 0", "Pick a filter, 0 for All"],
     ["← / →", "With a tab selected, move between the Desk's tabs (Inbox, Slate, Client)"],
-    ["Esc", "Close the top layer: a menu, the client list, a task or chat drawer, then the " + WB_NAME],
+    ["Esc", "With focus in the " + WB_NAME + ", close the top layer: a menu, the client list, a task or chat drawer, then the " + WB_NAME],
   ];
   return typeof ModalShell === "function" ? (
     <ModalShell onClose={onClose} labelledBy="wb-keys-title" className="confirm-modal">

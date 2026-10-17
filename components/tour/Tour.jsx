@@ -149,7 +149,9 @@
 //   wb-list          its grouped list (the full page, not the drawer)
 //   wb-row-action    the first row's main button and ⋯ menu (WB_Row.jsx)
 //   wb-bar           the drawer's collapsed bar at the bottom of every staff
-//                    page (WB_Drawer.jsx), hidden while it is open
+//                    page (WB_Drawer.jsx)
+//   wb-desk-handle   the docked Desk's top resize edge (WB_Hub.jsx), only
+//                    while the Desk is open, wider than 760px and tall enough
 //   si-noreply       No reply needed in Inbox's thread header (StaffInbox.jsx),
 //                    while the Workbench is on and the client wrote last
 // A role-tour step can `go` somewhere first (NAV_go to a place and tab, or
@@ -322,11 +324,12 @@ function TOUR_stickyTop() {
 }
 
 // How much of the bottom of the screen the client's phone tab bar
-// (.client-tabbar, fixed) or the Workbench drawer bar (.wb-bar, fixed, the
-// bottom of every staff page) covers. 0 when neither shows.
+// (.client-tabbar, fixed), the Desk bar (.wb-bar, fixed, the bottom of every
+// staff page) or the open docked Desk (.wb-panel.is-dock, fixed above the
+// bar, non-modal) covers. 0 when none shows.
 function TOUR_stickyBottom() {
   let top = window.innerHeight;
-  document.querySelectorAll(".client-tabbar, .wb-bar").forEach((bar) => {
+  document.querySelectorAll(".client-tabbar, .wb-bar, .wb-panel.is-dock").forEach((bar) => {
     if (!bar.getClientRects().length || window.getComputedStyle(bar).position !== "fixed") return;
     top = Math.min(top, bar.getBoundingClientRect().top);
   });
@@ -340,7 +343,7 @@ function TOUR_stickyBottom() {
 // lines up just under the bars. Targets in the drawer or the bars
 // themselves just use scrollIntoView.
 function TOUR_scrollIntoView(el, step, key) {
-  const pinned = TOUR_inSidebar(el) || !!(el.closest && el.closest(".mobile-topbar, .tb-bar, .client-tabbar, .wb-bar"));
+  const pinned = TOUR_inSidebar(el) || !!(el.closest && el.closest(".mobile-topbar, .tb-bar, .client-tabbar, .wb-bar, .wb-panel"));
   const top = pinned ? 0 : TOUR_stickyTop();
   const bottomBar = pinned ? 0 : TOUR_stickyBottom();
   const room = window.innerHeight - bottomBar;

@@ -1066,6 +1066,213 @@ function WB_barLeft(rails, vw) {
   return left > max ? 0 : Math.max(0, Math.round(left));
 }
 
+// ---- D3: the docked, resizable Desk (spec 4.1-4.3) ----
+// Mode: a full sheet on phones (the existing 760px breakpoint, kept by D2),
+// a non-modal dock above it. A bad width counts as desktop.
+var WB_DESK_SHEET_MAX = 760;
+function WB_deskMode(width) {
+  var w = Number(width);
+  if (width == null || !isFinite(w)) return "dock";
+  return w <= WB_DESK_SHEET_MAX ? "sheet" : "dock";
+}
+
+// Height preference: a sibling of the hub blob (that one is rewritten every
+// 500ms and expires after 5 minutes; a height is a lasting preference). Only
+// the snap name is stored, never px, so every window size recomputes its own.
+var WB_DESK_KEY = "mgb_wb_desk";
+var WB_DESK_STRIP = 148; // head 44 + tabs 40 + one row 56 + 8
+var WB_DESK_SNAPS = ["strip", "medium", "tall"];
+var WB_DESK_TINY = 360; // under this much room, all three points merge and the handle hides
+function WB_deskKey(email) {
+  var e = String(email || "").trim().toLowerCase();
+  return e ? WB_DESK_KEY + ":" + e : null;
+}
+
+// vh = the room above the bar (window height minus the sticky top bar and the
+// bar itself). Medium keeps at least 80px over strip; tall closer than 100px
+// to medium merges into it (the spec's "+40" left a 84px gap at vh 400, too
+// small to be worth a stop). Under WB_DESK_TINY everything is one height.
+function WB_deskPoints(vh) {
+  var v = Number(vh);
+  if (!isFinite(v) || v <= 0) v = 0;
+  var strip = WB_DESK_STRIP;
+  if (v < WB_DESK_TINY) {
+    var one = Math.max(0, Math.min(v - 16, Math.max(strip, Math.round(0.78 * v))));
+    return { strip: one, medium: one, tall: one, merged: true };
+  }
+  var medium = Math.max(Math.round(0.45 * v), strip + 80);
+  var tall = Math.min(Math.round(0.78 * v), v - 16);
+  if (tall - medium < 100) tall = medium;
+  if (medium > tall) medium = tall;
+  return { strip: strip, medium: medium, tall: tall, merged: false };
+}
+
+// Keep a dragged height inside the room: never under strip, never closer than
+// 16px to the top. A window too short for even the strip gets what fits.
+function WB_deskClamp(h, vh) {
+  var n = Number(h);
+  var v = Number(vh);
+  var hi = isFinite(v) ? v - 16 : Infinity;
+  if (hi < WB_DESK_STRIP) return Math.max(0, Math.round(hi));
+  if (!isFinite(n)) return WB_DESK_STRIP;
+  return Math.round(Math.min(hi, Math.max(WB_DESK_STRIP, n)));
+}
+
+function WB_deskSnapName(snap) {
+  return WB_DESK_SNAPS.indexOf(snap) >= 0 ? snap : "medium";
+}
+function WB_deskHeight(snap, points) {
+  var p = points || {};
+  var h = Number(p[WB_deskSnapName(snap)]);
+  return isFinite(h) ? h : WB_DESK_STRIP;
+}
+// The distinct stops, low to high, each with the first snap name at that height.
+function WB__deskLevels(points) {
+  var out = [];
+  WB_DESK_SNAPS.forEach(function (s) {
+    var h = Number((points || {})[s]);
+    if (!isFinite(h)) return;
+    if (!out.some(function (l) { return l.h === h; })) out.push({ h: h, snap: s });
+  });
+  return out.sort(function (a, b) {
+    return a.h - b.h;
+  });
+}
+
+// Where a released drag lands. h = the height at release; vy = how fast the
+// height was growing in px/ms (positive = taller). A fling (|vy| > 0.6) goes
+// to the next stop in that direction from h; otherwise the nearest stop wins
+// and a tie goes up.
+var WB_DESK_FLING = 0.6;
+function WB_deskSnap(h, vy, points) {
+  var levels = WB__deskLevels(points);
+  if (!levels.length) return "medium";
+  var n = Number(h);
+  if (!isFinite(n)) n = levels[0].h;
+  var v = Number(vy);
+  if (isFinite(v) && Math.abs(v) > WB_DESK_FLING) {
+    if (v > 0) {
+      var up = levels.filter(function (l) { return l.h > n; })[0];
+      return (up || levels[levels.length - 1]).snap;
+    }
+    var downs = levels.filter(function (l) { return l.h < n; });
+    return (downs.length ? downs[downs.length - 1] : levels[0]).snap;
+  }
+  var best = levels[0];
+  levels.forEach(function (l) {
+    var d = Math.abs(l.h - n);
+    var bd = Math.abs(best.h - n);
+    if (d < bd || (d === bd && l.h > best.h)) best = l;
+  });
+  return best.snap;
+}
+
+// Keys on the focused separator: ArrowUp/PageUp up one stop, ArrowDown/
+// PageDown down one, Home strip, End tall. Unknown keys and no-op moves keep
+// the snap as given; merged stops are stepped over.
+function WB_deskStep(snap, key, points) {
+  var cur = WB_deskSnapName(snap);
+  var levels = WB__deskLevels(points);
+  if (!levels.length) return cur;
+  if (key === "Home") return "strip";
+  if (key === "End") return "tall";
+  var h = WB_deskHeight(cur, points);
+  var i = -1;
+  levels.forEach(function (l, j) {
+    if (l.h === h) i = j;
+  });
+  if (i < 0) return cur;
+  var j = i;
+  if (key === "ArrowUp" || key === "PageUp") j = Math.min(levels.length - 1, i + 1);
+  else if (key === "ArrowDown" || key === "PageDown") j = Math.max(0, i - 1);
+  else return cur;
+  return j === i ? cur : levels[j].snap;
+}
+
+// The separator's value, as a percent of the room, and words for it.
+function WB_deskPct(h, vh) {
+  var v = Number(vh);
+  var n = Number(h);
+  if (!isFinite(v) || v <= 0 || !isFinite(n)) return 0;
+  return Math.max(0, Math.min(100, Math.round((100 * n) / v)));
+}
+function WB_deskValueText(snap) {
+  var s = WB_deskSnapName(snap);
+  if (s === "strip") return "Short, about one row";
+  if (s === "tall") return "Tall, most of the window";
+  return "Medium, about half the window";
+}
+
+function WB_deskParse(raw) {
+  var fallback = { v: 1, snap: "medium" };
+  if (raw == null || raw === "") return fallback;
+  var o = null;
+  try {
+    o = typeof raw === "string" ? JSON.parse(raw) : raw;
+  } catch (e) {
+    return fallback;
+  }
+  if (!o || typeof o !== "object" || o.v !== 1) return fallback;
+  return { v: 1, snap: WB_DESK_SNAPS.indexOf(o.snap) >= 0 ? o.snap : "medium" };
+}
+function WB_deskSerialize(st) {
+  return JSON.stringify({ v: 1, snap: WB_deskSnapName(st && st.snap) });
+}
+
+// Bottom room the page needs so its end is reachable above the Desk. pad is
+// the extra space under .main (60 is the closed bar's long-standing value);
+// lift is how far the toast and chat button rise. The sheet covers the page,
+// so it needs neither.
+function WB_deskPagePad(o) {
+  var x = o || {};
+  var h = Number(x.h);
+  if (!x.open || x.mode === "sheet" || !isFinite(h) || h <= 0) return { pad: 60, lift: 0 };
+  var r = Math.round(h);
+  return { pad: r, lift: r };
+}
+
+// Esc with focus inside the Desk, one step at a time (spec 4.2). D3 has no
+// drill-in, so drillInner/drillDepth are always empty here; D4 fills them.
+function WB_deskEscStep(o) {
+  var x = o || {};
+  if (x.layerAbove) return "layer";
+  if (x.pickerOpen) return "picker";
+  if (x.fieldKeeps) return "field";
+  if (x.drillInner) return "inner";
+  if (Number(x.drillDepth) > 0) return "back";
+  return "close";
+}
+
+// The Desk shows only the signed-in person's own items, so it never mounts
+// under View as, a preview or impersonation, nor inside the own-window Slate.
+function WB_deskMounts(o) {
+  var x = o || {};
+  if (!x.showStaffRail || x.tkShell || x.previewing || x.impersonating) return false;
+  return !!String(x.email || "").trim();
+}
+
+// The open/close key: plain D (caps lock D counts; Shift+D, Ctrl, Cmd and Alt
+// do not, so browser and OS shortcuts stay free).
+function WB_deskToggleKey(e) {
+  var x = e || {};
+  if (x.ctrlKey || x.metaKey || x.altKey || x.shiftKey) return false;
+  return x.key === "d" || x.key === "D";
+}
+
+// Where focus sits: inside the Desk, on its bar, or on the page. Focus inside
+// a stacked layer (a modal over the Desk) is none of these, so it is ignored.
+function WB_deskFocusZone(f) {
+  var x = f || {};
+  if (x.inLayer) return null;
+  if (x.inPanel) return "desk";
+  if (x.onBar) return "bar";
+  return "page";
+}
+// After close: focus goes to the bar only if it was inside the Desk.
+function WB_deskCloseFocus(zone) {
+  return zone === "desk" ? "bar" : "stay";
+}
+
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {
     WORKBENCH_NAME: WORKBENCH_NAME,
@@ -1130,6 +1337,30 @@ if (typeof module !== "undefined" && module.exports) {
     WB_drawerChip: WB_drawerChip,
     WB_nextRow: WB_nextRow,
     WB_barLeft: WB_barLeft,
+    WB_DESK_SHEET_MAX: WB_DESK_SHEET_MAX,
+    WB_DESK_KEY: WB_DESK_KEY,
+    WB_DESK_STRIP: WB_DESK_STRIP,
+    WB_DESK_SNAPS: WB_DESK_SNAPS,
+    WB_DESK_TINY: WB_DESK_TINY,
+    WB_DESK_FLING: WB_DESK_FLING,
+    WB_deskMode: WB_deskMode,
+    WB_deskKey: WB_deskKey,
+    WB_deskPoints: WB_deskPoints,
+    WB_deskClamp: WB_deskClamp,
+    WB_deskSnapName: WB_deskSnapName,
+    WB_deskHeight: WB_deskHeight,
+    WB_deskSnap: WB_deskSnap,
+    WB_deskStep: WB_deskStep,
+    WB_deskPct: WB_deskPct,
+    WB_deskValueText: WB_deskValueText,
+    WB_deskParse: WB_deskParse,
+    WB_deskSerialize: WB_deskSerialize,
+    WB_deskPagePad: WB_deskPagePad,
+    WB_deskEscStep: WB_deskEscStep,
+    WB_deskMounts: WB_deskMounts,
+    WB_deskToggleKey: WB_deskToggleKey,
+    WB_deskFocusZone: WB_deskFocusZone,
+    WB_deskCloseFocus: WB_deskCloseFocus,
     WB_fromToday: WB_fromToday,
     WB_primaryAction: WB_primaryAction,
     WB_menuActions: WB_menuActions,

@@ -41,6 +41,16 @@ function ANN_deskOn() {
   }
 }
 
+// True on a window wide enough for the docked Desk (the phone sheet below
+// 760px has no resize edge).
+function ANN_deskDocked() {
+  try {
+    return typeof window !== "undefined" && !!window.matchMedia && !window.matchMedia("(max-width: 760px)").matches;
+  } catch (e) {
+    return false;
+  }
+}
+
 var ANN_REGISTRY = [
   {
     id: "late-task-grace",
@@ -67,6 +77,53 @@ var ANN_REGISTRY = [
         title: "When it changes",
         body: () =>
           "The owner decides when late tasks start to count, probably when Slate fully rolls out next quarter. Only tasks due after that day will count, so nothing from the past is held against anyone. To see this again, press ? and pick New: No late-task penalties yet tour.",
+      },
+    ],
+  },
+  {
+    id: "desk-launch",
+    date: "2026-10-17",
+    title: "The Desk: glass, resizable, D to open",
+    summary:
+      "The Desk now sits over the page as a glass panel you can drag taller or shorter, and the page behind it keeps working. Press D to open and close it (W no longer does).",
+    roles: ["admin", "bookkeeper"],
+    hash: "#/today",
+    // Only for people who have the Desk on.
+    ready: () => ANN_deskOn(),
+    steps: (ctx) => [
+      {
+        id: "ann-welcome",
+        title: "Your Desk, updated",
+        body: () =>
+          "The Workbench is now called the Desk, it has a new glass look, you can make it taller or shorter, and the page stays usable while it is open. The shortcut is now D. About a minute.",
+      },
+      {
+        id: "ann-bar",
+        targets: ["wb-bar"],
+        wait: true,
+        title: "Press D, or click the bar",
+        body: () =>
+          "The bar at the bottom of every page is the Desk. Click it or press D (not while typing) to open and close it. W no longer opens it. Your Inbox, your Slate and one Client are tabs inside, as before.",
+      },
+      {
+        id: "ann-handle",
+        when: () => ANN_deskDocked(),
+        go: () => {
+          try {
+            if (typeof WB_store !== "undefined" && !WB_store.getState().drawerOpen) WB_store.setDrawerOpen(true, "tour");
+          } catch (e) {}
+        },
+        targets: ["wb-desk-handle"],
+        wait: true,
+        title: "Drag the top edge to resize",
+        body: () =>
+          "Drag the top edge of the Desk up or down. It settles at short (about one row), medium or tall, and remembers your choice next time. You can also drag up on the closed bar to open it, or focus the edge and use the arrow keys.",
+      },
+      {
+        id: "ann-page",
+        title: "The page keeps working",
+        body: () =>
+          "Nothing is dimmed behind the Desk any more: scroll, click and use page shortcuts like q while it is open. Esc goes back one step only while you are working inside the Desk. On a phone it still opens full height. To see this again, press ? and pick the New: tour for this change.",
       },
     ],
   },
@@ -100,7 +157,7 @@ var ANN_REGISTRY = [
         wait: true,
         title: "The Desk",
         body: () =>
-          "The bar at the bottom of the page is the Desk. Click it or press W and it opens with tabs for your Inbox, your Slate and one Client. The full-page list on Today is still called Today, with the list titled Needs you.",
+          "The bar at the bottom of the page is the Desk. Click it or press D and it opens with tabs for your Inbox, your Slate and one Client. The full-page list on Today is still called Today, with the list titled Needs you.",
       },
       {
         id: "ann-done",
@@ -225,7 +282,7 @@ var ANN_REGISTRY = [
     id: "workbench-launch",
     date: "2026-10-16",
     title: "The Workbench",
-    summary: "Today is now one ordered list of everything that needs you (tasks, reviews, client messages, Ledger flags and new client files), and a drawer at the bottom of every page shows it too. Press W.",
+    summary: "Today is now one ordered list of everything that needs you (tasks, reviews, client messages, Ledger flags and new client files), and a drawer at the bottom of every page shows it too. Press D.",
     roles: ["admin", "bookkeeper"],
     hash: "#/today",
     // Only once the Workbench is on for this person (the owner's wb_enabled
@@ -281,7 +338,7 @@ var ANN_REGISTRY = [
           wait: true,
           title: "The drawer, on every page",
           body: () =>
-            "This bar, the Desk, runs across the bottom of the page and shows your count and the next item. Click it or press W anywhere (not while typing) and the list slides up from it, full width, with tabs for your Inbox, Slate and one Client's tasks; Esc closes it.",
+            "This bar, the Desk, runs across the bottom of the page and shows your count and the next item. Click it or press D anywhere (not while typing) and the Desk slides up from it, with tabs for your Inbox, Slate and one Client's tasks; Esc closes it.",
         },
         {
           id: "ann-done",

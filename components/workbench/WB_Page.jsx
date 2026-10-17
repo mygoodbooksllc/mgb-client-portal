@@ -69,7 +69,7 @@ function WB_Page({ me, isAdmin, td, fallback }) {
             <h2 className="card-title" id="wb-page-title">
               Needs you
             </h2>
-            <p className="card-subtitle">Everything that needs you, in order. Press W for your Desk on any page.</p>
+            <p className="card-subtitle">Everything that needs you, in order. Press D for your Desk on any page.</p>
           </div>
           <div className="wb-head-right">
             {s.offline && <span className="wb-offline">Offline</span>}

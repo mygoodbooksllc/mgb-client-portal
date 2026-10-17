@@ -293,4 +293,22 @@ t("registry: late-task-grace is a plain notice with the grace-period wording", (
   assert.ok(a.steps({}).some((x) => /Filing deadlines/.test(x.body())));
 });
 
+t("registry: desk-launch waits for the Desk and points at the resize edge", () => {
+  const a = ANN_REGISTRY.find((x) => x.id === "desk-launch");
+  assert.ok(a && typeof a.ready === "function");
+  assert.deepStrictEqual(a.roles, ["admin", "bookkeeper"]);
+  // node has no WB_store: the Desk is off, so the notice waits
+  assert.strictEqual(L.ANN_ready(a, admin), false);
+  const steps = a.steps({});
+  assert.deepStrictEqual(
+    steps.map((s) => s.id),
+    ["ann-welcome", "ann-bar", "ann-handle", "ann-page"],
+  );
+  assert.deepStrictEqual(steps[1].targets, ["wb-bar"]);
+  assert.deepStrictEqual(steps[2].targets, ["wb-desk-handle"]);
+  // node has no window: not docked, so the handle step drops out
+  assert.strictEqual(steps[2].when(), false);
+  assert.ok(/\bD\b/.test(steps[1].body()) && !/press W/.test(steps[1].body()));
+});
+
 console.log("announcementsLogic: " + n + " checks passed");

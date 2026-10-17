@@ -712,4 +712,189 @@ t("Client tab: the picker list is a layer above the hub, not a stacked one", () 
   assert.strictEqual(L.WB_isStacked(p), false);
 });
 
+// ---- D3: docked, resizable Desk ----
+t("Desk mode: sheet at the 760px phone breakpoint, dock above", () => {
+  assert.strictEqual(L.WB_deskMode(760), "sheet");
+  assert.strictEqual(L.WB_deskMode(761), "dock");
+  assert.strictEqual(L.WB_deskMode(375), "sheet");
+  assert.strictEqual(L.WB_deskMode(1440), "dock");
+  assert.strictEqual(L.WB_deskMode(NaN), "dock");
+  assert.strictEqual(L.WB_deskMode(undefined), "dock");
+});
+
+t("Desk points: strip, medium, tall and the merges", () => {
+  const p = L.WB_deskPoints(900);
+  assert.deepStrictEqual([p.strip, p.medium, p.tall], [148, 405, 702]);
+  assert.strictEqual(p.merged, false);
+  // vh 400: medium and tall merge, strip stays its own stop.
+  const q = L.WB_deskPoints(400);
+  assert.strictEqual(q.strip, 148);
+  assert.strictEqual(q.medium, q.tall);
+  assert.ok(q.medium - q.strip >= 80);
+  // vh 300: all three merge (the handle hides).
+  const r = L.WB_deskPoints(300);
+  assert.ok(r.strip === r.medium && r.medium === r.tall);
+  assert.strictEqual(r.merged, true);
+  assert.ok(r.tall <= 300 - 16);
+  // tall never comes closer than 16px to the top.
+  [360, 420, 500, 640, 800, 1000, 1400, 2200].forEach((vh) => {
+    const s = L.WB_deskPoints(vh);
+    assert.ok(s.tall <= vh - 16, "tall at " + vh);
+    assert.ok(s.strip <= s.medium && s.medium <= s.tall, "order at " + vh);
+  });
+  // Garbage room does not throw.
+  const z = L.WB_deskPoints("x");
+  assert.ok(z.tall >= 0);
+});
+
+t("Desk clamp: strip floor, 16px from the top, NaN goes to strip", () => {
+  assert.strictEqual(L.WB_deskClamp(20, 900), 148);
+  assert.strictEqual(L.WB_deskClamp(5000, 900), 884);
+  assert.strictEqual(L.WB_deskClamp(NaN, 900), 148);
+  assert.strictEqual(L.WB_deskClamp(400.4, 900), 400);
+  // A window too short for the strip gets what fits.
+  assert.strictEqual(L.WB_deskClamp(300, 120), 104);
+  assert.strictEqual(L.WB_deskClamp(300, 10), 0);
+});
+
+t("Desk snap: nearest stop, ties go up, flings move one stop", () => {
+  const p = L.WB_deskPoints(900); // 148 / 405 / 702
+  assert.strictEqual(L.WB_deskSnap(160, 0, p), "strip");
+  assert.strictEqual(L.WB_deskSnap(390, 0, p), "medium");
+  assert.strictEqual(L.WB_deskSnap(800, 0, p), "tall");
+  // Midpoint of 148 and 405 is 276.5; of 405 and 702 is 553.5.
+  const tie = L.WB_deskSnap(276.5, 0, p);
+  assert.strictEqual(tie, "medium");
+  assert.strictEqual(L.WB_deskSnap(553.5, 0, p), "tall");
+  // A fling up from strip goes to medium, not tall.
+  assert.strictEqual(L.WB_deskSnap(150, 1.2, p), "medium");
+  // A fling down from tall goes to medium.
+  assert.strictEqual(L.WB_deskSnap(700, -1.2, p), "medium");
+  // 0.59 is not a fling.
+  assert.strictEqual(L.WB_deskSnap(150, 0.59, p), "strip");
+  assert.strictEqual(L.WB_deskSnap(700, -0.59, p), "tall");
+  // A fling past the end stays at the end.
+  assert.strictEqual(L.WB_deskSnap(702, 2, p), "tall");
+  assert.strictEqual(L.WB_deskSnap(148, -2, p), "strip");
+  // Merged points: the first name at that height.
+  const q = L.WB_deskPoints(400);
+  assert.strictEqual(L.WB_deskSnap(q.tall, 0, q), "medium");
+  assert.strictEqual(L.WB_deskSnap(100, 0, {}), "medium");
+});
+
+t("Desk step: arrows, page keys, Home and End, merged stops", () => {
+  const p = L.WB_deskPoints(900);
+  assert.strictEqual(L.WB_deskStep("tall", "ArrowUp", p), "tall");
+  assert.strictEqual(L.WB_deskStep("medium", "ArrowUp", p), "tall");
+  assert.strictEqual(L.WB_deskStep("medium", "PageUp", p), "tall");
+  assert.strictEqual(L.WB_deskStep("medium", "ArrowDown", p), "strip");
+  assert.strictEqual(L.WB_deskStep("tall", "PageDown", p), "medium");
+  assert.strictEqual(L.WB_deskStep("strip", "ArrowDown", p), "strip");
+  assert.strictEqual(L.WB_deskStep("tall", "Home", p), "strip");
+  assert.strictEqual(L.WB_deskStep("strip", "End", p), "tall");
+  assert.strictEqual(L.WB_deskStep("medium", "Enter", p), "medium");
+  assert.strictEqual(L.WB_deskStep("medium", "x", p), "medium");
+  // Merged medium/tall: up from strip lands on medium, and up again stays.
+  const q = L.WB_deskPoints(400);
+  assert.strictEqual(L.WB_deskStep("strip", "ArrowUp", q), "medium");
+  assert.strictEqual(L.WB_deskStep("medium", "ArrowUp", q), "medium");
+  assert.strictEqual(L.WB_deskStep("tall", "ArrowUp", q), "tall");
+  assert.strictEqual(L.WB_deskStep("tall", "ArrowDown", q), "strip");
+  // All merged: nothing moves.
+  const r = L.WB_deskPoints(300);
+  assert.strictEqual(L.WB_deskStep("medium", "ArrowDown", r), "medium");
+  // A bad snap name counts as medium.
+  assert.strictEqual(L.WB_deskStep("huge", "ArrowUp", p), "tall");
+});
+
+t("Desk height, percent and words", () => {
+  const p = L.WB_deskPoints(900);
+  assert.strictEqual(L.WB_deskHeight("strip", p), 148);
+  assert.strictEqual(L.WB_deskHeight("nope", p), 405);
+  assert.strictEqual(L.WB_deskPct(405, 900), 45);
+  assert.strictEqual(L.WB_deskPct(405, 0), 0);
+  assert.strictEqual(L.WB_deskPct(5000, 900), 100);
+  assert.ok(/Medium/.test(L.WB_deskValueText("medium")));
+  assert.ok(/Short/.test(L.WB_deskValueText("strip")));
+  assert.ok(/Tall/.test(L.WB_deskValueText("tall")));
+  assert.ok(/Medium/.test(L.WB_deskValueText(null)));
+});
+
+t("Desk persist: round trip, bad values fall back to medium, key lowercases", () => {
+  assert.strictEqual(L.WB_deskSerialize({ snap: "medium" }), '{"v":1,"snap":"medium"}');
+  ["strip", "medium", "tall"].forEach((s) => {
+    assert.deepStrictEqual(L.WB_deskParse(L.WB_deskSerialize({ snap: s })), { v: 1, snap: s });
+  });
+  assert.deepStrictEqual(L.WB_deskParse("{not json"), { v: 1, snap: "medium" });
+  assert.deepStrictEqual(L.WB_deskParse('{"v":2,"snap":"tall"}'), { v: 1, snap: "medium" });
+  assert.deepStrictEqual(L.WB_deskParse('{"v":1,"snap":"huge"}'), { v: 1, snap: "medium" });
+  assert.deepStrictEqual(L.WB_deskParse(null), { v: 1, snap: "medium" });
+  assert.deepStrictEqual(L.WB_deskParse("null"), { v: 1, snap: "medium" });
+  assert.deepStrictEqual(L.WB_deskParse('"tall"'), { v: 1, snap: "medium" });
+  assert.strictEqual(L.WB_deskSerialize(null), '{"v":1,"snap":"medium"}');
+  assert.strictEqual(L.WB_deskKey("A@x.com"), "mgb_wb_desk:a@x.com");
+  assert.strictEqual(L.WB_deskKey(" A@X.com ").split(":")[1], L.WB_hubKey("A@X.com").split(":")[1]);
+  assert.strictEqual(L.WB_deskKey(""), null);
+  // The hub blob is untouched by D3: no height, no snap in it.
+  const hub = L.WB_hubSerialize(L.WB_hubDefault(), 1000);
+  assert.ok(hub.indexOf("snap") < 0 && hub.indexOf("height") < 0);
+});
+
+t("Desk page padding: the dock lifts the page, closed and sheet do not", () => {
+  assert.deepStrictEqual(L.WB_deskPagePad({ open: false, mode: "dock", h: 400 }), { pad: 60, lift: 0 });
+  assert.deepStrictEqual(L.WB_deskPagePad({ open: true, mode: "sheet", h: 400 }), { pad: 60, lift: 0 });
+  assert.deepStrictEqual(L.WB_deskPagePad({ open: true, mode: "dock", h: 404.6 }), { pad: 405, lift: 405 });
+  assert.deepStrictEqual(L.WB_deskPagePad({ open: true, mode: "dock", h: NaN }), { pad: 60, lift: 0 });
+  assert.deepStrictEqual(L.WB_deskPagePad(null), { pad: 60, lift: 0 });
+});
+
+t("Desk Esc ladder: layer > picker > field > inner > back > close", () => {
+  const E = L.WB_deskEscStep;
+  const all = { layerAbove: true, pickerOpen: true, fieldKeeps: true, drillInner: true, drillDepth: 2 };
+  assert.strictEqual(E(all), "layer");
+  assert.strictEqual(E(Object.assign({}, all, { layerAbove: false })), "picker");
+  assert.strictEqual(E(Object.assign({}, all, { layerAbove: false, pickerOpen: false })), "field");
+  assert.strictEqual(E({ drillInner: true, drillDepth: 1 }), "inner");
+  assert.strictEqual(E({ drillDepth: 1 }), "back");
+  assert.strictEqual(E({ drillDepth: 0 }), "close");
+  assert.strictEqual(E({}), "close");
+  assert.strictEqual(E(null), "close");
+});
+
+t("Desk mounts only for the signed-in person's own view", () => {
+  const ok = { showStaffRail: true, tkShell: false, previewing: false, impersonating: false, email: "a@x.com" };
+  assert.strictEqual(L.WB_deskMounts(ok), true);
+  assert.strictEqual(L.WB_deskMounts(Object.assign({}, ok, { previewing: true })), false);
+  assert.strictEqual(L.WB_deskMounts(Object.assign({}, ok, { impersonating: true })), false);
+  assert.strictEqual(L.WB_deskMounts(Object.assign({}, ok, { tkShell: true })), false);
+  assert.strictEqual(L.WB_deskMounts(Object.assign({}, ok, { email: "" })), false);
+  assert.strictEqual(L.WB_deskMounts(Object.assign({}, ok, { email: null })), false);
+  assert.strictEqual(L.WB_deskMounts(Object.assign({}, ok, { showStaffRail: false })), false);
+  assert.strictEqual(L.WB_deskMounts(null), false);
+});
+
+t("Desk key is plain D; W no longer toggles", () => {
+  const K = L.WB_deskToggleKey;
+  assert.strictEqual(K({ key: "d" }), true);
+  assert.strictEqual(K({ key: "D" }), true); // caps lock
+  assert.strictEqual(K({ key: "D", shiftKey: true }), false);
+  assert.strictEqual(K({ key: "d", metaKey: true }), false);
+  assert.strictEqual(K({ key: "d", ctrlKey: true }), false);
+  assert.strictEqual(K({ key: "d", altKey: true }), false);
+  assert.strictEqual(K({ key: "w" }), false);
+  assert.strictEqual(K({ key: "W" }), false);
+  assert.strictEqual(K(null), false);
+});
+
+t("Desk focus zone and where focus goes on close", () => {
+  assert.strictEqual(L.WB_deskFocusZone({ inPanel: true }), "desk");
+  assert.strictEqual(L.WB_deskFocusZone({ onBar: true }), "bar");
+  assert.strictEqual(L.WB_deskFocusZone({}), "page");
+  assert.strictEqual(L.WB_deskFocusZone({ inLayer: true, inPanel: true }), null);
+  assert.strictEqual(L.WB_deskCloseFocus("desk"), "bar");
+  assert.strictEqual(L.WB_deskCloseFocus("page"), "stay");
+  assert.strictEqual(L.WB_deskCloseFocus("bar"), "stay");
+  assert.strictEqual(L.WB_deskCloseFocus(null), "stay");
+});
+
 console.log("WB_logic: " + n + " checks passed");

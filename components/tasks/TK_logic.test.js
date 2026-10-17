@@ -1120,6 +1120,14 @@ t("shouldHandleKey scopes", () => {
     assert.strictEqual(hits.length, 1);
   });
 });
+t("shouldHandleKey embedded drawer scope (the non-modal Desk) never takes keys from the page body", () => {
+  // The stand-alone drawer still takes keys from the body (focus lost after a click)...
+  assert.strictEqual(ok(key({ target: BODY }), { scope: "drawer" }), true);
+  // ...but a task shown inside the Desk does not: the page owns body focus.
+  assert.strictEqual(ok(key({ target: BODY }), { scope: "drawer", embedded: true }), false);
+  assert.strictEqual(ok(key({ target: LIST_ROW }), { scope: "drawer", embedded: true }), false);
+  assert.strictEqual(ok(key({ target: IN_DRAWER }), { scope: "drawer", embedded: true }), true);
+});
 t("shouldHandleKey tolerates odd input", () => {
   assert.strictEqual(L.TK_shouldHandleKey({}, {}), true);
   assert.strictEqual(L.TK_shouldHandleKey(null, null), true);

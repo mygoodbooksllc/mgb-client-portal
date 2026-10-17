@@ -988,7 +988,7 @@ const FEATURE_FLAGS = [
     key: "mgb_wb_preview",
     label: "Desk preview",
     description:
-      "Turns the Desk on for you only, in this browser, while the firm-wide wb_enabled switch is off: Today gets the Needs you list and the Desk (press W) shows at the bottom of every staff page. Classic Today below wins if both are on. The page reloads when you toggle it.",
+      "Turns the Desk on for you only, in this browser, while the firm-wide wb_enabled switch is off: Today gets the Needs you list and the Desk (press D) shows at the bottom of every staff page. Classic Today below wins if both are on. The page reloads when you toggle it.",
     reloads: true,
   },
   {
@@ -13948,7 +13948,8 @@ function resettableLocalStorageKeys() {
   try {
     // Both key families: the original "mygoodbooks_" keys and the newer
     // "mgb-"/"mgb_" ones (nav, tour, tips, profile prompt, bell, client
-    // switcher, inbox context). Feature flags are kept on purpose, including
+    // switcher, inbox context, the Desk's mgb_wb_hub:<email>,
+    // mgb_wb_pins:<email> and its height mgb_wb_desk:<email>). Feature flags are kept on purpose, including
     // the ones without the mygoodbooks_ff_ prefix (mgb_wb_preview,
     // mgb_wb_classic).
     return Object.keys(localStorage).filter(
@@ -15333,7 +15334,7 @@ function DeveloperToolsPage({ staffUser, readOnly }) {
             ["late_tasks_effective_from", "Late tasks counted from", "Set when the owner turns the switch on: only tasks due on or after this date count, so the imported backlog is never held against anyone. Not set while the switch has never been on."],
             ["ooo_auto_apply", "Time off hands tasks to backups", "Off (false or not set, the default): only the manual Hand my tasks to backups button moves tasks. Set to true and the tk-ooo-daily cron (11:00 UTC) also moves open tasks due during someone's time off to each client's backup on their first day off (never re-taking a task someone handed back). Handing back after the time off always runs."],
             ["asana_import_apply_enabled", "Asana import apply", "Off (or missing) blocks tk_import_asana_apply, the one-time Asana import. Turn on only for the import, then off again. Undo works with it off."],
-            ["wb_enabled", "Desk and new Today on for staff", "Off (or missing, the default) keeps Today and the nav as they were for everyone. Owner turns it on (true) to give every staff member the Needs you list on Today and the Desk (press W). Each person can still opt out with Classic Today in Feature flags, or try it early with Desk preview."],
+            ["wb_enabled", "Desk and new Today on for staff", "Off (or missing, the default) keeps Today and the nav as they were for everyone. Owner turns it on (true) to give every staff member the Needs you list on Today and the Desk (press D). Each person can still opt out with Classic Today in Feature flags, or try it early with Desk preview."],
             ["wb_gl_due_bday", "Desk Ledger flags due (business day)", "Business day of the month after a period when open Ledger flags count as due on the Desk. Not set means 10."],
             ["wb_doc_check_from", "Desk new files from", "Client uploads before this date never show as new files on the Desk. Not set means 2026-10-16."],
             ["__close_optin_count", "Clients with month-end tasks from the Close checklist (visible to you)", "How many clients you can see are turned on (tk_client_close_optin, disabled_at empty). Set per client by an admin or that client's account manager on Slate › Recurring › One client; off by default. Works while the standard close set is off."],
@@ -17147,6 +17148,7 @@ const USAGE_ACTION_LABELS = {
   "wb-drawer": "Desk opened",
   "wb-hub": "Desk: Slate and Client tabs opened, clients picked",
   "wb-pin": "Desk Client tab: clients pinned or unpinned",
+  "wb-resize": "Desk resized (drag or keys)",
 };
 const USAGE_DEVICE_LABELS = { desktop: "Desktop", mobile: "Phone", installed: "Installed app", unknown: "Unknown" };
 
@@ -30118,9 +30120,13 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
             />
           )}
           {/* Desk (was Workbench; components/workbench/WB_Drawer.jsx): a bar at the
-              bottom of every staff page, W opens it. Renders nothing while
-              Workbench is off; never while viewing as someone or previewing. */}
-          {typeof WB_Drawer === "function" && showStaffRail && !tkShell && !isPreviewingUser && !impersonating && staffUser && staffUser.email && (
+              bottom of every staff page, D opens it. Renders nothing while
+              the Desk is off; never while viewing as someone, previewing or
+              impersonating (WB_deskMounts, node-tested in WB_logic.test.js). */}
+          {typeof WB_Drawer === "function" &&
+            typeof WB_deskMounts === "function" &&
+            staffUser &&
+            WB_deskMounts({ showStaffRail, tkShell, previewing: isPreviewingUser, impersonating, email: staffUser.email }) && (
             // Mine / Everyone is for real admins only (wb_inbox refuses
             // Everyone to a temporary admin).
             // currentClientId: the client page I am on (the hub's Client tab

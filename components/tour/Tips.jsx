@@ -207,8 +207,27 @@ const TIPS_CATALOG = [
     match: (r) => r.page === "today",
     target: "wb-row-action",
     snug: true,
-    text: "The button does the next thing. The ⋯ beside it has Snooze, and No reply needed or Mark checked; each has Undo. Press W on any page for your Desk; its Slate tab has your tasks, and its Client tab one client's tasks (☆ pins a client).",
+    text: "The button does the next thing. The ⋯ beside it has Snooze, and No reply needed or Mark checked; each has Undo. Press D on any page for your Desk; its Slate tab has your tasks, and its Client tab one client's tasks (☆ pins a client).",
     slug: "workbench",
+  },
+  {
+    // The Desk bar (WB_Drawer.jsx), on every staff page while the Desk is on.
+    // Tips never show with the Desk open (.wb-panel is in TIPS_BUSY), so this
+    // one points at the closed bar. Docked Desk only (wider than 760px): the
+    // phone sheet has no resize edge.
+    id: "desk-resize",
+    roles: "all",
+    match: () => true,
+    target: "wb-bar",
+    text: "Drag the top edge of your Desk to make it shorter or taller. You can also drag up on this bar to open it, and it remembers your height.",
+    slug: "workbench",
+    ready: () => {
+      try {
+        return !!window.matchMedia && !window.matchMedia("(max-width: 760px)").matches;
+      } catch (e) {
+        return false;
+      }
+    },
   },
   {
     id: "clients-mine",
@@ -775,7 +794,7 @@ function TIPS_part(el, part) {
 // Targets in the bars themselves (the top bar, the phone bars, the rails)
 // aren't covered by them.
 function TIPS_pinned(el) {
-  return !!(el.closest && el.closest(".tb-bar, .mobile-topbar, .client-tabbar, .wb-bar, .sidebar, .staff-rail"));
+  return !!(el.closest && el.closest(".tb-bar, .mobile-topbar, .client-tabbar, .wb-bar, .wb-panel, .sidebar, .staff-rail"));
 }
 
 function TIPS_barTop(el) {

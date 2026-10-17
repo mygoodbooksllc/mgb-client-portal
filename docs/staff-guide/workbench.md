@@ -2,10 +2,10 @@
 title: How do I use the Desk?
 section: Getting started
 audience: staff
-keywords: [workbench, desk, slate, the desk, slate tab, reply without leaving the page, reply from the workbench, open file, open file from the workbench, files open in drive, chat drawer, my tasks tab, tasks tab, tick done from the list, today, needs you, inbox, one list, drawer, bottom drawer, press w, w key, keyboard shortcuts, snooze, snoozed, no reply needed, mark checked, undo, needs reply, due today, overdue, reviews waiting, ledger flags, documents, new files, client files, mine, everyone, covering, classic today, workbench preview, j k, next item, open a task without leaving the page, stacked drawer, esc closes one layer, panel remembers, reopens where you left it, client tab, look up a client, client tasks from the workbench, pick a client, pinned clients, pin a client, star, unpin, recent clients, open client, + task]
+keywords: [workbench, desk, slate, the desk, slate tab, reply without leaving the page, reply from the workbench, open file, open file from the workbench, files open in drive, chat drawer, my tasks tab, tasks tab, tick done from the list, today, needs you, inbox, one list, drawer, bottom drawer, press d, d key, w key, resize, resize the desk, drag the top edge, taller, shorter, desk height, short strip, page stays usable, keyboard shortcuts, snooze, snoozed, no reply needed, mark checked, undo, needs reply, due today, overdue, reviews waiting, ledger flags, documents, new files, client files, mine, everyone, covering, classic today, workbench preview, j k, next item, open a task without leaving the page, stacked drawer, esc closes one layer, panel remembers, reopens where you left it, client tab, look up a client, client tasks from the workbench, pick a client, pinned clients, pin a client, star, unpin, recent clients, open client, + task]
 sort: 41
 ---
-The **Desk** (it was called the Workbench) is a bar at the bottom of every staff page. Press **W** anywhere to open it: one list of everything that needs you, in order, with tabs for your **Inbox**, your **Slate** (it was called Tasks) and one **Client**. The same ordered list is on **Today** (the first place in the left rail; the address stays `#/today`) in a card called **Needs you**, and Today keeps its name.
+The **Desk** (it was called the Workbench) is a bar at the bottom of every staff page. Press **D** anywhere to open it (**W** no longer does): one list of everything that needs you, in order, with tabs for your **Inbox**, your **Slate** (it was called Tasks) and one **Client**. The same ordered list is on **Today** (the first place in the left rail; the address stays `#/today`) in a card called **Needs you**, and Today keeps its name.
 
 The owner turns the Desk and the new Today on for the whole team. Until then Today looks as it always has. See [What's on my Today page?](#/help/home-page).
 
@@ -45,9 +45,27 @@ Items also leave by themselves when the work is done: you reply, finish or appro
 
 ### The Desk, on every page
 
-A bar runs across the whole bottom of every staff page, beside the left menu, and shows your count, the next item and **Press W**. Click it or press **W** and the Desk slides up from it, the full width of the page, with the rest of the page dimmed behind it. Its **Inbox** tab has filters (**All**, **Tasks**, **Reviews**, **Messages**, **Files**) and the same buttons as the Needs you list on Today. **Open Today** goes to Today. **Esc** or **W** closes it. On a phone it opens as a full-screen sheet.
+A bar runs along the bottom of every staff page and shows your count, the next item and **Press D**. Click it or press **D** and the Desk slides up from it as a glass panel in the middle of the page. Its **Inbox** tab has filters (**All**, **Tasks**, **Reviews**, **Messages**, **Files**) and the same buttons as the Needs you list on Today. **Open Today** goes to Today. **D** closes it, and so does **Esc** while you're working inside it.
 
-The panel remembers where you were: the filter you picked and how far you had scrolled. If you leave it open and reload the page within a few minutes it opens again where you left it; after that it stays closed but keeps your filter. **Reset local state** under Dev Tools clears what it remembers.
+**The page keeps working while the Desk is open.** Nothing is dimmed: you can scroll the page, click on it and use its shortcuts (like **q** for quick add, or **j** and **k** on a list) with the Desk still open. The page gets extra room at the bottom so nothing ends up hidden behind the Desk. **Tab** moves from the page to the bar and then into the Desk.
+
+On a phone (or a window narrower than about 760 pixels) the Desk opens as a full-height sheet instead, covers the page, and can't be resized.
+
+The panel remembers where you were: the filter you picked and how far you had scrolled. If you leave it open and reload the page within a few minutes it opens again where you left it; after that it stays closed but keeps your filter. **Reset local state** under Dev Tools clears what it remembers, including its height.
+
+### Resize the Desk
+
+Drag the top edge of the Desk up to make it taller or down to make it shorter. When you let go it settles at one of three heights:
+
+- **Short**: about one row plus the tabs, so it stays out of the way while you work on the page. The filters and the line at the bottom are hidden at this height.
+- **Medium**: about half the window (where it starts).
+- **Tall**: most of the window.
+
+A quick flick up or down moves it one height in that direction. With the Desk closed, you can also drag up on the bar to open it at the height you want.
+
+The Desk remembers your height for you, on this browser, and opens at it next time. If you make the window smaller it shrinks to fit; on a very short window it has one height only and no edge to drag.
+
+From the keyboard: press **Tab** until the top edge is selected, then use the up and down arrows (or **Page Up** and **Page Down**) to step between the heights, **Home** for the shortest and **End** for the tallest. Screen readers hear it as a resize control with its current height.
 
 The **Today** item in the left rail shows how many items are overdue or due today (a dot when the rail is narrow).
 
@@ -55,9 +73,10 @@ The **Today** item in the left rail shows how many items are overdue or due toda
 
 In the drawer, **Open** (or **Review**) on a task opens its details in the task drawer on top of the Desk. The page behind it does not change. Edit it, comment, tick it done, reassign it or approve it there.
 
-- **Esc** closes one layer at a time: a row's **⋯** menu first, then the task drawer, then the Desk. Clicking the dimmed page behind a task drawer closes only the task drawer.
+- **Esc** closes one layer at a time: a row's **⋯** menu first, then the task drawer, then the Desk (the Desk itself only closes on **Esc** while you're working inside it). Clicking the dimmed page behind a task drawer closes only the task drawer.
 - Closing the task drawer puts you back on the row you opened it from.
-- **W** does nothing while a task drawer or dialog is open on top, so it can't close the Desk from under it. **q** (quick add) does nothing while the Desk is open; use **Add to your Slate** on the Slate tab or **+ Task** on the Client tab instead.
+- **D** does nothing while a task drawer or dialog is open on top, so it can't close the Desk from under it.
+- **q** (quick add) works while the Desk is open, as long as you're not typing in a box. **Add to your Slate** on the Slate tab and **+ Task** on the Client tab work too.
 - On a task you haven't started, **Start** moves into the **⋯** menu, next to **Snooze** and **Open full page** (which goes to the task's page, as before).
 - Ledger items still take you to where they live. Client messages and new files stay on the page too; see the next section.
 
@@ -98,12 +117,13 @@ The **Client** tab shows one client's open tasks without leaving the page you're
 
 Click **?** at the top of Today's Needs you card and pick **Keyboard shortcuts**. They work when you're not typing in a box:
 
-- **W** opens or closes the Desk (not while a task drawer, dialog or menu is open on top of it).
+- **D** opens or closes the Desk (not while you're typing, with Ctrl, Cmd, Alt or Shift held, or while a task drawer, dialog, menu or tour is open on top of it). **W** no longer does anything.
+- With the Desk's top edge selected, the up and down arrows make it taller or shorter; **Home** and **End** go to the shortest and tallest.
 - **j** and **k** move to the next and previous item; **Enter** does the main action; **o** opens it where it lives.
 - **s** snoozes; **e** is **No reply needed** on a message or **Mark checked** on a file.
 - **1** to **6** pick a filter on the full page, **0** goes back to All.
 - The left and right arrows move between the Desk's tabs (**Inbox**, **Slate**, **Client**) while a tab is selected.
-- **Esc** closes the top layer: a menu or the client list, then a drawer or dialog on top, then the Desk.
+- **Esc** closes the top layer: a menu or the client list, then a drawer or dialog on top, then the Desk. With focus on the page instead of the Desk, **Esc** belongs to the page and leaves the Desk open.
 
 ### Admins: Mine or Everyone
 

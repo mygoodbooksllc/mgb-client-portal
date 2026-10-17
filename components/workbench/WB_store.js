@@ -116,6 +116,8 @@ var WB_store = (function () {
     isAdmin: false,
     undo: null, // { id, text, run, until }
     drawerOpen: false,
+    openedBy: "", // who opened the Desk last: "restore" (page load reopen) keeps focus where it is (spec 4.2)
+    desk: { snap: "medium" }, // D3 height preference, saved per person in mgb_wb_desk:<email> (no TTL)
     hub: WB_hubDefault(), // tab, chip, client, scroll per tab (spec 2.2); saved per person in mgb_wb_hub:<email>
   };
   var users = 0;
@@ -586,9 +588,11 @@ var WB_store = (function () {
     else set({ hub: hub });
     saveHub();
   }
-  function setDrawerOpen(open) {
+  // by: "bar" | "key" | "drag" | "restore" | "" (who opened it; the focus
+  // rule reads it). Closing clears it.
+  function setDrawerOpen(open, by) {
     if (!!open === state.drawerOpen) return;
-    set({ drawerOpen: !!open });
+    set({ drawerOpen: !!open, openedBy: open ? String(by || "") : "" });
     if (!open) flushHub();
     else saveHub();
   }
@@ -606,7 +610,15 @@ var WB_store = (function () {
     hubUser = email;
     WB__lsSet(WB_HUB_KEY, null);
     var h = WB_hubParse(WB__ls(WB_hubKey(email)), Date.now(), { hash: hubHash() });
-    set({ hub: h, drawerOpen: h.open });
+    var d = WB_deskParse(WB__ls(WB_deskKey(email)));
+    set({ hub: h, drawerOpen: h.open, openedBy: h.open ? "restore" : "", desk: { snap: d.snap } });
+  }
+  // D3: the Desk height (a snap name). Saved at once, no throttle: it changes
+  // only when a drag ends or a key is pressed on the handle.
+  function setDeskSnap(snap) {
+    var s = WB_deskSnapName(snap);
+    if (s !== state.desk.snap) set({ desk: { snap: s } });
+    if (hubUser) WB__lsSet(WB_deskKey(hubUser), WB_deskSerialize({ snap: s }));
   }
 
   if (typeof window !== "undefined" && window.addEventListener) {
@@ -640,6 +652,7 @@ var WB_store = (function () {
     setHub: setHub,
     flushHub: flushHub,
     adoptHub: adoptHub,
+    setDeskSnap: setDeskSnap,
   };
 })();
 

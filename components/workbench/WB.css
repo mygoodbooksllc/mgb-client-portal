@@ -3,8 +3,9 @@
    drawer (a bar across the whole bottom of the content area, beside the left
    nav; --wb-bar-left is set by WB_Drawer from the staff rail's width). App tokens only (styles.css); red = late or waiting on you, amber =
    coming up, always paired with words. Layers: the bar (1380) sits under the
-   Tasks bulk bar (1450) and tips (1550); the open panel (1820) and its scrim
-   (1810) sit under the task drawer (1840/1850) and modals (2100).
+   Tasks bulk bar (1450) and tips (1550); the open panel (1820, no scrim since
+   D3: the docked Desk is non-modal) sits under the task drawer (1840/1850)
+   and modals (2100).
    --------------------------------------------------------------------------- */
 :root {
   --wb-now: var(--bad);
@@ -13,8 +14,7 @@
   --wb-week-soft: var(--warm-bg);
   --wb-week-text: var(--warm-text);
   --wb-clear: var(--good);
-  --wb-z-bar: 1830; /* above the scrim and panel so it stays clickable while open */
-  --wb-z-scrim: 1810;
+  --wb-z-bar: 1830; /* above the panel so it stays clickable while open */
   --wb-z-panel: 1820;
   --wb-bar-h: 44px;
   --wb-bar-left: 0px;
@@ -448,7 +448,7 @@
 .wb-undo {
   position: fixed;
   left: 50%;
-  bottom: 60px;
+  bottom: calc(60px + var(--desk-lift, 0px)); /* D3: above the docked Desk while it is open */
   transform: translateX(-50%);
   z-index: 2050;
   display: flex;
@@ -546,17 +546,21 @@
 }
 
 /* ---- Drawer: collapsed bar ---- */
-/* Room under the page so the bar never covers content or the footer. */
+/* Room under the page so the bar (and the open dock, D3) never covers content
+   or the footer. WB_Drawer writes --desk-pad (60px closed, the Desk height
+   while docked open) and --desk-lift (0 closed, the Desk height docked) on
+   <html> from WB_deskPagePad; the phone sheet covers the page, so it keeps 60. */
 html.wb-drawer-on .main {
-  padding-bottom: calc(60px + var(--wb-bar-h) + 8px + env(safe-area-inset-bottom, 0px));
+  padding-bottom: calc(var(--desk-pad, 60px) + var(--wb-bar-h) + 8px + env(safe-area-inset-bottom, 0px));
 }
-/* Floating things that live in the bottom corner sit above the bar. */
+/* Floating things that live in the bottom corner sit above the bar, and
+   above the docked Desk while it is open. */
 html.wb-drawer-on .toast-stack {
-  bottom: calc(24px + var(--wb-bar-h) + env(safe-area-inset-bottom, 0px));
+  bottom: calc(24px + var(--desk-lift, 0px) + var(--wb-bar-h) + env(safe-area-inset-bottom, 0px));
 }
 html.wb-drawer-on .si-launcher,
 html.wb-drawer-on .chat-fab-wrap {
-  bottom: calc(16px + var(--wb-bar-h) + env(safe-area-inset-bottom, 0px));
+  bottom: calc(16px + var(--desk-lift, 0px) + var(--wb-bar-h) + env(safe-area-inset-bottom, 0px));
 }
 .wb-bar {
   position: fixed;
@@ -584,6 +588,9 @@ html.wb-drawer-on .chat-fab-wrap {
   font-size: 13.5px;
   cursor: pointer;
   text-align: left;
+  /* D3: a drag up on the closed bar opens the Desk at that height, so touch
+     must not scroll the page from here (the phone sheet resets this). */
+  touch-action: none;
 }
 .wb-bar-hint {
   flex: none;
@@ -638,13 +645,12 @@ html.wb-drawer-on .chat-fab-wrap {
   color: var(--text);
 }
 
-/* ---- Drawer: open panel ---- */
-.wb-scrim {
-  position: fixed;
-  inset: 0;
-  z-index: var(--wb-z-scrim);
-  background: var(--tk-scrim, rgba(26, 40, 48, 0.28));
-}
+/* ---- Drawer: open panel ----
+   D3: no scrim. The docked Desk is non-modal: the page behind stays
+   scrollable and clickable. Its height is --desk-h (px, written on <html> by
+   WB_Drawer from the snap point; straight from the pointer while dragging);
+   max-height backs the JS up so it never reaches the sticky top bar
+   (--desk-top, measured) even before the first measure. */
 .wb-panel {
   position: fixed;
   left: var(--wb-bar-left, 0px);
@@ -654,7 +660,9 @@ html.wb-drawer-on .chat-fab-wrap {
   bottom: calc(var(--wb-bar-h) + env(safe-area-inset-bottom, 0px)); /* sits above the bar */
   z-index: var(--wb-z-panel);
   box-sizing: border-box;
-  max-height: min(78vh, 720px);
+  height: var(--desk-h, min(45vh, 720px));
+  max-height: calc(100vh - var(--desk-top, 0px) - var(--wb-bar-h) - 16px - env(safe-area-inset-bottom, 0px) - env(safe-area-inset-top, 0px));
+  max-height: calc(100dvh - var(--desk-top, 0px) - var(--wb-bar-h) - 16px - env(safe-area-inset-bottom, 0px) - env(safe-area-inset-top, 0px));
   display: flex;
   flex-direction: column;
   border: 1px solid var(--desk-glass-edge);
@@ -664,6 +672,62 @@ html.wb-drawer-on .chat-fab-wrap {
   box-shadow: var(--shadow-hover, 0 -8px 28px rgba(0, 0, 0, 0.2));
   outline: none;
   animation: wb-rise 0.16s ease-out;
+  transition: height 0.18s ease-out;
+}
+/* ---- D3: the resize handle (role=separator) on the dock's top edge ----
+   A 12px hit strip with a visible 36x4 grip. Pointer events only; touch-action
+   none so a touch drag resizes instead of scrolling the page. */
+.wb-desk-handle {
+  position: relative;
+  flex: 0 0 12px;
+  height: 12px;
+  margin-bottom: -6px; /* the head keeps its own spacing */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: ns-resize;
+  touch-action: none;
+  border-radius: var(--desk-radius) var(--desk-radius) 0 0;
+  outline: none;
+  z-index: 1;
+}
+.wb-desk-grip {
+  width: 36px;
+  height: 4px;
+  border-radius: 999px;
+  background: var(--desk-grip);
+  transition: background 0.12s ease-out, width 0.12s ease-out;
+}
+.wb-desk-handle:hover .wb-desk-grip,
+.wb-desk-handle:focus-visible .wb-desk-grip,
+html.wb-desk-dragging .wb-desk-grip {
+  width: 48px;
+  background: var(--accent, var(--ink-strong));
+}
+.wb-desk-handle:focus-visible {
+  box-shadow: inset 0 0 0 2px var(--accent, var(--ink-strong));
+}
+/* While dragging: no transitions (the panel follows the pointer), no text
+   selection, the resize cursor everywhere. */
+html.wb-desk-dragging,
+html.wb-desk-dragging * {
+  cursor: ns-resize !important;
+  user-select: none !important;
+  -webkit-user-select: none !important;
+}
+html.wb-desk-dragging .wb-panel {
+  transition: none;
+  animation: none;
+}
+/* At strip height only the head, tabs and one row show: the filter chips and
+   the key hints step aside (WB_Drawer sets the class from the height). */
+html.wb-desk-strip .wb-panel .wb-panel-tools,
+html.wb-desk-strip .wb-panel .wb-panel-foot {
+  display: none;
+}
+/* Wheel and touch scrolling inside the Desk never scroll the page. */
+.wb-panel-body {
+  overscroll-behavior: contain;
 }
 /* Full-width panel, readable list: head, tools, body and foot share one
    centered column (the rules between them still run edge to edge). */
@@ -761,6 +825,10 @@ html.wb-drawer-on .chat-fab-wrap {
 @media (prefers-reduced-motion: reduce) {
   .wb-panel {
     animation: none;
+    transition: none; /* D3: a snap jumps */
+  }
+  .wb-desk-grip {
+    transition: none;
   }
 }
 .wb-panel-head {
@@ -871,11 +939,6 @@ html.wb-drawer-on .chat-fab-wrap {
 html.wb-hub-open .si-drawer-layer {
   z-index: 1835;
 }
-/* While a drawer or dialog is stacked over the hub, the hub's scrim stops
-   taking clicks so a click outside closes only that drawer. */
-html.wb-stacked .wb-scrim {
-  pointer-events: none;
-}
 
 /* ---- 760px and phones (spec D3) ---- */
 @media (max-width: 760px) {
@@ -943,11 +1006,21 @@ html.wb-stacked .wb-scrim {
   .wb-bar-hint {
     display: none; /* no keyboard on a phone */
   }
+  .wb-bar {
+    touch-action: manipulation; /* no drag-to-open on the sheet */
+  }
+  /* The phone sheet is modal (aria-modal, Tab kept inside): the page behind
+     does not scroll. Full height, no handle, no resize. */
+  html.wb-hub-open body {
+    overflow: hidden;
+  }
   .wb-panel {
     inset: 0 0 calc(var(--wb-bar-h) + env(safe-area-inset-bottom, 0px)) 0;
     width: auto;
     margin-inline: 0;
+    height: auto;
     max-height: none;
+    transition: none;
     border: 0;
     border-radius: 0;
     padding-bottom: env(safe-area-inset-bottom, 0px);
@@ -978,7 +1051,6 @@ html.wb-stacked .wb-scrim {
 @media print {
   .wb-bar,
   .wb-panel,
-  .wb-scrim,
   .wb-undo {
     display: none !important;
   }

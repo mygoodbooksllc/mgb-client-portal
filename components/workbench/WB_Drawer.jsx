@@ -1,24 +1,95 @@
 // ----------------------------------------------------------------------------
-// WB_Drawer: Workbench as a bottom drawer on every staff page (spec addendum
-// 2026-10-16, owner approved).
+// WB_Drawer: the Desk (was Workbench) at the bottom of every staff page (spec
+// addendum 2026-10-16, owner approved; Desk spec D3 2026-10-17).
 //
-// The open panel is WB_Hub (WB_Hub.jsx): tabs (Inbox, My tasks), stack
+// The open panel is WB_Hub (WB_Hub.jsx): tabs (Inbox, Slate, Client), stack
 // protocol, saved state. `clients` (the staff member's client list) gives the
-// My tasks rows their client names.
+// Slate rows their client names.
 //
-// Collapsed: a 44px bar across the whole bottom of the content area (beside
-// the left nav, above the phone's safe area) with the count, the next item
-// and "Press W".
-// Open: the panel rises from the bar, the full width of the content area,
-// with a scrim; filter chips All / Tasks / Reviews
-// / Messages / Files (WB_Hub.jsx); Mine / Everyone for admins; rows grouped Overdue /
-// Today / This week with one quick action each. Phones get a full-height
-// sheet. W toggles it (never while typing, in a dialog, a menu or a tour);
-// Esc closes one layer at a time. Same store and wb_inbox call as the page.
+// Collapsed: a 44px glass bar, centered right of the left nav (--desk-max-w
+// wide), above the phone's safe area, with the count, the next item and
+// "Press D".
+// Open, desktop and tablet ("dock", wider than 760px): the panel rises from
+// the bar, the same width, with NO scrim. It is non-modal: the page behind
+// stays scrollable and clickable, and gets bottom padding equal to the Desk
+// height (--desk-pad) so its end is reachable. The top edge is a resize
+// handle (role=separator): drag it, or focus it and use the arrow keys, Home
+// and End, to snap between strip (one row), medium and tall. A drag up on the
+// closed bar opens it at that height. The height (a snap name) is saved per
+// person in mgb_wb_desk:<email>.
+// Open, phones (760px and under, "sheet"): the full-height modal sheet as
+// before (aria-modal, Tab kept inside, page scroll locked), no handle.
+// D toggles it (never while typing, in a dialog, a menu or a tour, or with a
+// modifier); Esc, with focus inside the Desk, goes back one step. Same store
+// and wb_inbox call as the page.
 //
-// app.jsx mounts it for a signed-in staff member who isn't viewing as
-// someone or previewing; it renders nothing while Workbench is off.
+// The bar and panel are portaled to <body>, so the Tab order runs page, bar,
+// Desk, then out to the browser.
+//
+// app.jsx mounts it only when WB_deskMounts(...) says so (a signed-in staff
+// member who isn't viewing as someone, previewing or impersonating); it
+// renders nothing while the Desk is off.
 // ----------------------------------------------------------------------------
+
+// "sheet" at the phone breakpoint, "dock" above it, kept current.
+function WB_useDeskMode() {
+  const q = "(max-width: " + WB_DESK_SHEET_MAX + "px)";
+  const read = () => {
+    try {
+      if (window.matchMedia) return window.matchMedia(q).matches ? "sheet" : "dock";
+      return WB_deskMode(window.innerWidth);
+    } catch (e) {
+      return "dock";
+    }
+  };
+  const [mode, setMode] = React.useState(read);
+  React.useEffect(() => {
+    let mq = null;
+    try {
+      mq = window.matchMedia ? window.matchMedia(q) : null;
+    } catch (e) {}
+    if (!mq) return undefined;
+    const on = () => setMode(mq.matches ? "sheet" : "dock");
+    on();
+    if (mq.addEventListener) mq.addEventListener("change", on);
+    else if (mq.addListener) mq.addListener(on);
+    return () => {
+      if (mq.removeEventListener) mq.removeEventListener("change", on);
+      else if (mq.removeListener) mq.removeListener(on);
+    };
+  }, []);
+  return mode;
+}
+
+// The room the Desk can grow into: from the bottom of the sticky staff tool
+// bar (top) to the top of the Desk bar. Both are measured, so the safe areas
+// and a preview bar are already counted.
+function WB__deskRoom(bar) {
+  let top = 0;
+  try {
+    const tb = document.querySelector(".tb-bar");
+    if (tb) {
+      const r = tb.getBoundingClientRect();
+      if (r.height > 0) top = Math.max(0, Math.round(r.bottom));
+    }
+  } catch (e) {}
+  let bottom = (window.innerHeight || 0) - 44;
+  if (bar) {
+    const r = bar.getBoundingClientRect();
+    if (r.height > 0) bottom = r.top;
+  }
+  return { room: Math.max(0, Math.round(bottom - top)), top };
+}
+
+// Stacked layers and the tour: focus inside them is not "the page" and not
+// "the Desk" (WB_deskFocusZone ignores it).
+var WB_DESK_LAYER_SEL = WB_LAYERS.filter(function (l) {
+  return l.stacked || l.id === "tour";
+})
+  .map(function (l) {
+    return l.sel;
+  })
+  .join(", ");
 
 function WB_Drawer({ me, isAdmin, clients, currentClientId, page }) {
   const on = WB_useSwitch();
@@ -27,6 +98,11 @@ function WB_Drawer({ me, isAdmin, clients, currentClientId, page }) {
   const panelRef = React.useRef(null);
   const barRef = React.useRef(null);
   const live = on && s.status !== "missing" && !!me;
+  const mode = WB_useDeskMode();
+  // Shared with WB_useHubKeys / WB_useHubLayers: the mode, where focus is,
+  // and the drag (so Esc can cancel it).
+  const deskRef = React.useRef({ mode: mode, zone: "page", dragging: false, cancel: null });
+  deskRef.current.mode = mode;
   // Regroup every 30 s so Overdue / Today and "waited" times stay current.
   const [tick, setTick] = React.useState(0);
   React.useEffect(() => {
@@ -44,7 +120,7 @@ function WB_Drawer({ me, isAdmin, clients, currentClientId, page }) {
   const count = allView.counts.all;
 
   // Room for the bar at the bottom of the page, and where it starts: the
-  // bar and the open panel span the content area, beside the left nav
+  // bar and the open panel sit in the content area, beside the left nav
   // (--wb-bar-left, measured from the staff rail so it follows the rail
   // collapsing or expanding; 0 on phones, where the nav is off-canvas).
   React.useEffect(() => {
@@ -86,21 +162,254 @@ function WB_Drawer({ me, isAdmin, clients, currentClientId, page }) {
     };
   }, [live]);
 
-  // W toggles; Esc closes the top layer; Tab stays in it (WB_Hub.jsx).
-  WB_useHubKeys(live, panelRef);
-  WB_useHubLayers(open && live, panelRef);
+  // ---- D3: height. The room is re-measured on open, on window resize
+  // (rAF-throttled) and once a second while open (a banner can appear); the
+  // snap name stays, so a smaller window re-clamps by itself.
+  const [room, setRoom] = React.useState(() => (typeof window !== "undefined" ? Math.max(0, (window.innerHeight || 0) - 120) : 600));
+  const [top, setTop] = React.useState(0);
+  const roomRef = React.useRef(room);
+  roomRef.current = room;
+  React.useEffect(() => {
+    if (!live || !open) return undefined;
+    let raf = 0;
+    const measure = () => {
+      raf = 0;
+      const m = WB__deskRoom(barRef.current);
+      setRoom(m.room);
+      setTop(m.top);
+    };
+    const later = () => {
+      if (!raf) raf = requestAnimationFrame(measure);
+    };
+    measure();
+    window.addEventListener("resize", later);
+    const id = setInterval(later, 1000);
+    return () => {
+      window.removeEventListener("resize", later);
+      clearInterval(id);
+      if (raf) cancelAnimationFrame(raf);
+    };
+  }, [live, open]);
+  const snap = s.desk ? s.desk.snap : "medium";
+  const points = WB_deskPoints(room);
+  const h = WB_deskClamp(WB_deskHeight(snap, points), room);
+  const dock = mode === "dock";
+  const [commits, setCommits] = React.useState(0); // re-run the write below after a drag ends
 
-  // Focus moves into the panel on open and back to the bar on close.
+  // --desk-h / --desk-pad / --desk-lift / --desk-top on <html> (WB.css reads
+  // them), and html.wb-desk-strip at strip height. Skipped mid-drag: the
+  // drag writes --desk-h itself.
+  React.useLayoutEffect(() => {
+    const el = document.documentElement;
+    if (!live) return undefined;
+    const pad = WB_deskPagePad({ open, mode, h });
+    el.style.setProperty("--desk-pad", pad.pad + "px");
+    el.style.setProperty("--desk-lift", pad.lift + "px");
+    el.style.setProperty("--desk-top", top + "px");
+    if (!deskRef.current.dragging) {
+      el.style.setProperty("--desk-h", h + "px");
+      el.classList.toggle("wb-desk-strip", open && dock && h < WB_DESK_STRIP + 30);
+    }
+    return undefined;
+  }, [live, open, mode, h, top, commits]);
+  React.useEffect(
+    () => () => {
+      const el = document.documentElement;
+      ["--desk-h", "--desk-pad", "--desk-lift", "--desk-top"].forEach((k) => el.style.removeProperty(k));
+      el.classList.remove("wb-desk-strip", "wb-desk-dragging");
+    },
+    [],
+  );
+
+  // ---- D3: drag. Pointer Events (mouse, touch and pen share one path) with
+  // pointer capture; the height is written straight to --desk-h in a rAF (no
+  // React render mid-drag); the release snaps with the last 80 ms of speed.
+  const drag = React.useRef(null);
+  const paint = (hh) => {
+    const el = document.documentElement;
+    el.style.setProperty("--desk-h", hh + "px");
+    el.classList.toggle("wb-desk-strip", hh < WB_DESK_STRIP + 30);
+  };
+  const stamp = (e) => (e && e.timeStamp ? e.timeStamp : typeof performance !== "undefined" ? performance.now() : Date.now());
+  const beginDrag = (e, el, startH, fromBar) => {
+    // Measure now: a drag from the closed bar starts before the open measure.
+    const m = WB__deskRoom(barRef.current);
+    roomRef.current = m.room;
+    setRoom(m.room);
+    setTop(m.top);
+    const first = WB_deskClamp(startH, m.room);
+    drag.current = { id: e.pointerId, el, startY: e.clientY, startH, h: first, fromBar, samples: [{ t: stamp(e), h: first }], raf: 0 };
+    try {
+      el.setPointerCapture(e.pointerId);
+    } catch (err) {}
+    document.documentElement.classList.add("wb-desk-dragging");
+    deskRef.current.dragging = true;
+    paint(first);
+  };
+  const moveDrag = (e) => {
+    const d = drag.current;
+    if (!d || e.pointerId !== d.id) return;
+    const hh = WB_deskClamp(d.startH + (d.startY - e.clientY), roomRef.current);
+    const t = stamp(e);
+    d.h = hh;
+    d.samples.push({ t, h: hh });
+    while (d.samples.length > 2 && t - d.samples[0].t > 80) d.samples.shift();
+    if (!d.raf) {
+      d.raf = requestAnimationFrame(() => {
+        d.raf = 0;
+        if (drag.current === d) paint(d.h);
+      });
+    }
+  };
+  const endDrag = (commit) => {
+    const d = drag.current;
+    if (!d) return;
+    drag.current = null;
+    if (d.raf) cancelAnimationFrame(d.raf);
+    try {
+      if (d.el.hasPointerCapture && d.el.hasPointerCapture(d.id)) d.el.releasePointerCapture(d.id);
+    } catch (err) {}
+    document.documentElement.classList.remove("wb-desk-dragging");
+    deskRef.current.dragging = false;
+    if (!commit) {
+      // Esc: put the start height back (a drag that opened the Desk closes it).
+      if (d.fromBar) WB_store.setDrawerOpen(false);
+      setCommits((n) => n + 1);
+      return;
+    }
+    const a = d.samples[0];
+    const b = d.samples[d.samples.length - 1];
+    const dt = b.t - a.t;
+    const vy = dt > 0 ? (b.h - a.h) / dt : 0;
+    const to = WB_deskSnap(d.h, vy, WB_deskPoints(roomRef.current));
+    WB_store.setDeskSnap(to);
+    setCommits((n) => n + 1);
+    WB_track("wb-resize", "drag:" + to);
+  };
+  deskRef.current.cancel = () => endDrag(false);
+
+  const handle = {
+    show: dock && !points.merged,
+    pct: WB_deskPct(h, room),
+    valueText: WB_deskValueText(snap),
+    onPointerDown: (e) => {
+      if (e.button !== 0 || e.isPrimary === false || drag.current) return;
+      e.preventDefault(); // no text selection; focus the handle ourselves
+      try {
+        e.currentTarget.focus();
+      } catch (err) {}
+      beginDrag(e, e.currentTarget, h, false);
+    },
+    onPointerMove: moveDrag,
+    onPointerUp: (e) => {
+      if (drag.current && e.pointerId === drag.current.id) endDrag(true);
+    },
+    onPointerCancel: (e) => {
+      if (drag.current && e.pointerId === drag.current.id) endDrag(true);
+    },
+    onLostPointerCapture: (e) => {
+      if (drag.current && e.pointerId === drag.current.id) endDrag(true);
+    },
+    onKeyDown: (e) => {
+      if (["ArrowUp", "ArrowDown", "PageUp", "PageDown", "Home", "End"].indexOf(e.key) < 0) return;
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
+      e.preventDefault();
+      e.stopPropagation();
+      const to = WB_deskStep(snap, e.key, WB_deskPoints(roomRef.current));
+      if (to === snap) return;
+      WB_store.setDeskSnap(to);
+      WB_track("wb-resize", "key:" + to);
+    },
+  };
+
+  // The closed bar: a drag up of more than 12px opens the Desk and continues
+  // as a drag (the panel's top follows the pointer); a click still toggles,
+  // but never after a drag (movement over 6px swallows the click). Dock only.
+  const press = React.useRef(null);
+  const barEvents = dock
+    ? {
+        onPointerDown: (e) => {
+          if (e.button !== 0 || e.isPrimary === false) return;
+          press.current = { id: e.pointerId, x: e.clientX, y: e.clientY, moved: false, wasOpen: WB_store.getState().drawerOpen };
+        },
+        onPointerMove: (e) => {
+          if (drag.current) {
+            moveDrag(e);
+            return;
+          }
+          const p = press.current;
+          if (!p || p.id !== e.pointerId) return;
+          const dy = p.y - e.clientY;
+          if (Math.abs(dy) > 6 || Math.abs(e.clientX - p.x) > 6) p.moved = true;
+          if (p.wasOpen || dy <= 12 || !barRef.current) return;
+          const barTop = barRef.current.getBoundingClientRect().top;
+          beginDrag(e, barRef.current, barTop - e.clientY, true);
+          WB_store.setDrawerOpen(true, "drag");
+          WB_track("wb-drawer", "drag");
+        },
+        onPointerUp: (e) => {
+          if (drag.current && e.pointerId === drag.current.id) endDrag(true);
+        },
+        onPointerCancel: (e) => {
+          if (drag.current && e.pointerId === drag.current.id) endDrag(true);
+          press.current = null;
+        },
+        onLostPointerCapture: (e) => {
+          if (drag.current && e.pointerId === drag.current.id) endDrag(true);
+        },
+      }
+    : {};
+
+  // Where focus is (spec 4.2): inside the Desk, on its bar, or on the page.
+  // Focus inside a stacked drawer, a dialog or the tour does not count, so
+  // "where it was before the layer opened" survives the layer. A click on a
+  // non-focusable part of the page counts as the page.
+  React.useEffect(() => {
+    if (!live) return undefined;
+    const track = (e) => {
+      const t = e.target;
+      if (!t || t.nodeType !== 1) return;
+      let inLayer = false;
+      try {
+        inLayer = !!(WB_DESK_LAYER_SEL && t.closest(WB_DESK_LAYER_SEL));
+      } catch (err) {}
+      const panel = panelRef.current;
+      const bar = barRef.current;
+      const z = WB_deskFocusZone({ inLayer, inPanel: !!(panel && panel.contains(t)), onBar: !!(bar && bar.contains(t)) });
+      if (z) deskRef.current.zone = z;
+    };
+    document.addEventListener("focusin", track, true);
+    document.addEventListener("pointerdown", track, true);
+    return () => {
+      document.removeEventListener("focusin", track, true);
+      document.removeEventListener("pointerdown", track, true);
+    };
+  }, [live]);
+
+  // D toggles; Esc goes back one step with focus inside; Tab stays in the
+  // phone sheet (WB_Hub.jsx).
+  WB_useHubKeys(live, panelRef, deskRef);
+  WB_useHubLayers(open && live, panelRef, deskRef);
+
+  // Open by the bar, D or a drag: focus moves into the Desk. A page-load
+  // reopen (openedBy "restore") and a launch tour opening it ("tour") leave
+  // focus where it is. Close: focus goes to the bar only if it was inside the
+  // Desk (always, on the phone sheet).
   const wasOpen = React.useRef(false);
   React.useEffect(() => {
     if (open && !wasOpen.current) {
       if (Date.now() - s.at > 20000) WB_store.refresh();
-      setTimeout(() => {
-        const first = panelRef.current && WB_hubFocusTarget(panelRef.current, null);
-        if (first) first.focus();
-      }, 30);
+      const by = WB_store.getState().openedBy;
+      if (by !== "restore" && by !== "tour") {
+        setTimeout(() => {
+          const first = panelRef.current && WB_hubFocusTarget(panelRef.current, null);
+          if (first) first.focus();
+        }, 30);
+      }
     } else if (!open && wasOpen.current) {
-      if (barRef.current) barRef.current.focus();
+      if (drag.current) endDrag(false);
+      const where = mode === "sheet" ? "bar" : WB_deskCloseFocus(deskRef.current.zone);
+      if (where === "bar" && barRef.current) barRef.current.focus();
     }
     wasOpen.current = open;
   }, [open]);
@@ -117,19 +426,24 @@ function WB_Drawer({ me, isAdmin, clients, currentClientId, page }) {
 
   const loading = !s.at && (s.status === "loading" || s.status === "idle");
 
-  return (
+  const desk = (
     <>
       <button
         ref={barRef}
         type="button"
         className={"wb-bar" + (allView.badge ? " has-due" : "") + (open ? " is-open" : "")}
         onClick={() => {
+          const p = press.current;
+          press.current = null;
+          if (p && p.moved) return; // the end of a drag, not a click
           const willOpen = !WB_store.getState().drawerOpen;
-          WB_store.setDrawerOpen(willOpen);
+          WB_store.setDrawerOpen(willOpen, "bar");
           if (willOpen) WB_track("wb-drawer", "bar");
         }}
+        {...barEvents}
         aria-expanded={open}
-        aria-haspopup="dialog"
+        {...(dock ? {} : { "aria-haspopup": "dialog" })}
+        {...(open ? { "aria-controls": "wb-panel" } : {})}
         aria-label={(open ? "Close " : "Open ") + WB_NAME + ", " + count + " item" + (count === 1 ? "" : "s")}
         data-tour="wb-bar"
       >
@@ -139,18 +453,41 @@ function WB_Drawer({ me, isAdmin, clients, currentClientId, page }) {
         <span className="wb-bar-hint" aria-hidden="true">
           {open ? (
             <>
-              Press <kbd className="wb-bar-kbd">W</kbd> to close <span className="wb-bar-chev">&#9660;</span>
+              Press <kbd className="wb-bar-kbd">D</kbd> to close <span className="wb-bar-chev">&#9660;</span>
             </>
           ) : (
             <>
-              Press <kbd className="wb-bar-kbd">W</kbd> <span className="wb-bar-chev">&#9650;</span>
+              Press <kbd className="wb-bar-kbd">D</kbd> <span className="wb-bar-chev">&#9650;</span>
             </>
           )}
         </span>
       </button>
       {open && (
-        <WB_Hub s={s} me={me} isAdmin={isAdmin} clients={clients} panelRef={panelRef} view={view} allView={allView} chip={chip} today={today} now={now} count={count} loading={loading} currentClientId={currentClientId} page={page} />
+        <WB_Hub
+          s={s}
+          me={me}
+          isAdmin={isAdmin}
+          clients={clients}
+          panelRef={panelRef}
+          view={view}
+          allView={allView}
+          chip={chip}
+          today={today}
+          now={now}
+          count={count}
+          loading={loading}
+          currentClientId={currentClientId}
+          page={page}
+          mode={mode}
+          handle={handle}
+        />
       )}
+    </>
+  );
+
+  return (
+    <>
+      {typeof ReactDOM !== "undefined" && ReactDOM.createPortal && typeof document !== "undefined" ? ReactDOM.createPortal(desk, document.body) : desk}
       <WB_UndoBar />
     </>
   );

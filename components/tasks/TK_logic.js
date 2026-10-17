@@ -1076,7 +1076,10 @@ function TK__isTypingTarget(el) {
 }
 
 // ctx: { modalOpen, menuOpen, tourOpen, scope: "list"|"drawer"|"global",
-//        activeElement?, body? } (the last two default to document's).
+//        embedded?, activeElement?, body? } (the last two default to document's).
+// embedded (Desk, D3+): the drawer keys belong to a task shown inside the
+// non-modal Desk, so focus on the page body must not reach them; the target
+// has to be inside the keyscope itself.
 function TK_shouldHandleKey(event, ctx) {
   var e = event || {};
   var c = ctx || {};
@@ -1092,7 +1095,7 @@ function TK_shouldHandleKey(event, ctx) {
   if (c.scope === "list" || c.scope === "drawer") {
     var inDrawer = !!TK__closest(target, '[data-tk-keyscope="drawer"]');
     if (c.scope === "list" && inDrawer) return false;
-    if (c.scope === "drawer" && !inDrawer && !(target && body && target === body)) return false;
+    if (c.scope === "drawer" && !inDrawer && (c.embedded || !(target && body && target === body))) return false;
   }
   return true;
 }

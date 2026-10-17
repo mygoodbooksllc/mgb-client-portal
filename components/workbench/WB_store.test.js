@@ -492,6 +492,51 @@ t("Client tab recents: the client switcher's own per-person list, when it is loa
   assert.strictEqual(lsKeys[0], "mgb-client-switcher-recent:pat@mgb.com");
 });
 
+t("D3 Desk height: per person, saved at once, bad values read as medium", () => {
+  const D = (e) => "mgb_wb_desk:" + e;
+  const c = load();
+  // Before anyone joins: the state changes but nothing is written.
+  c.S.setDeskSnap("tall");
+  assert.strictEqual(c.S.getState().desk.snap, "tall");
+  assert.strictEqual(Object.keys(c.store).length, 0);
+  c.store[D("pat@example.com")] = '{"v":1,"snap":"strip"}';
+  c.S.join("pat@example.com", false);
+  assert.strictEqual(c.S.getState().desk.snap, "strip", "Pat's saved height is read on join");
+  c.S.setDeskSnap("tall");
+  assert.strictEqual(c.store[D("pat@example.com")], '{"v":1,"snap":"tall"}', "saved at once, no throttle");
+  c.S.setDeskSnap("huge");
+  assert.strictEqual(c.S.getState().desk.snap, "medium");
+  // Sam on the same browser has their own height (none saved: medium).
+  c.S.join("sam@example.com", false);
+  assert.strictEqual(c.S.getState().desk.snap, "medium");
+  c.store[D("lee@example.com")] = "garbage";
+  c.S.join("lee@example.com", false);
+  assert.strictEqual(c.S.getState().desk.snap, "medium");
+  // The hub blob never carries the height.
+  c.S.setDrawerOpen(true);
+  c.S.flushHub();
+  assert.ok(c.store[K("lee@example.com")].indexOf("snap") < 0);
+});
+
+t("D3 openedBy: a page-load reopen says restore; a click or key says who", () => {
+  const c = load({ hash: "#/today" });
+  c.store[K("pat@example.com")] = c.sandbox.WB_hubSerialize({ open: true, tab: "tasks" }, c.now() - 60000, "#/today");
+  c.S.join("pat@example.com", false);
+  assert.strictEqual(c.S.getState().drawerOpen, true);
+  assert.strictEqual(c.S.getState().openedBy, "restore");
+  c.S.setDrawerOpen(false);
+  assert.strictEqual(c.S.getState().openedBy, "");
+  c.S.setDrawerOpen(true, "key");
+  assert.strictEqual(c.S.getState().openedBy, "key");
+  c.S.setDrawerOpen(false);
+  c.S.setDrawerOpen(true);
+  assert.strictEqual(c.S.getState().openedBy, "");
+  const closed = load({ hash: "#/clients" });
+  closed.store[K("pat@example.com")] = closed.sandbox.WB_hubSerialize({ open: true }, closed.now() - 60000, "#/today");
+  closed.S.join("pat@example.com", false);
+  assert.strictEqual(closed.S.getState().openedBy, "");
+});
+
 Promise.all(later).then(
   () => console.log("WB_store: " + n + " checks passed"),
   (e) => {
