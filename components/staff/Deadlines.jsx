@@ -235,7 +235,7 @@ function DL_TaskButton({ it, made }) {
     });
     setBusy(false);
     if (res && res.error) return showToast("Couldn't add the task: " + (res.error.message || "error"));
-    showToast("Task added to Work → Tasks");
+    showToast("Task added to Work → Slate");
     DL_load(true);
   }
   return (

@@ -58,7 +58,7 @@ Give a bookkeeper short-term access to the admin pages, for example while you're
 
 The cell then shows **Until {date, time}** with a **Revoke** button. It ends on its own at that time.
 
-It unlocks the admin tabs of **Team** (the Members tab opens **read-only**), and **Task templates**, **Client roster**, **Usage stats** and **Developer tools** under **Settings → Firm settings**. Task templates (Tasks › Recurring), Client roster and Developer tools open **read-only**. **Audit log**, **Emails**, **Feedback** and the QuickBooks API usage card stay real-admin-only. Offboarding also ends it.
+It unlocks the admin tabs of **Team** (the Members tab opens **read-only**), and **Task templates**, **Client roster**, **Usage stats** and **Developer tools** under **Settings → Firm settings**. Task templates (Slate › Recurring), Client roster and Developer tools open **read-only**. **Audit log**, **Emails**, **Feedback** and the QuickBooks API usage card stay real-admin-only. Offboarding also ends it.
 
 ### View as
 

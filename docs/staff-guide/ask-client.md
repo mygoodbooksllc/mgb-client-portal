@@ -52,7 +52,7 @@ While a task has open requests it stays in **Waiting on client**. To move it on,
 
 ### Waiting on client
 
-**Tasks › Waiting on client** (the hourglass in the Tasks sidebar, `#/tasks/waiting`) lists every open request for the clients you work on, grouped by client with the longest wait first. **Just my tasks** shows only tasks you own. Click a request to open its task, or use **Send reminder**, **Email again** or **Cancel** right there.
+**Slate › Waiting on client** (the hourglass in the Slate sidebar, `#/tasks/waiting`) lists every open request for the clients you work on, grouped by client with the longest wait first. **Just my tasks** shows only tasks you own. Click a request to open its task, or use **Send reminder**, **Email again** or **Cancel** right there.
 
 ### Document requests on the Documents tab
 

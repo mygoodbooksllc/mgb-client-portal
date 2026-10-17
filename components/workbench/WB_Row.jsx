@@ -461,14 +461,14 @@ function WB_NavBadge({ expanded = true }) {
 // ---- Shortcut sheet ------------------------------------------------------------
 function WB_KeysSheet({ onClose }) {
   const rows = [
-    ["W", "Open or close the " + WB_NAME + " drawer"],
+    ["W", "Open or close the " + WB_NAME],
     ["j / k", "Next / previous item"],
     ["Enter", "Main action"],
     ["o", "Open where it lives"],
     ["s", "Snooze"],
     ["e", "No reply needed (message) or Mark checked (file)"],
     ["1-6, 0", "Pick a filter, 0 for All"],
-    ["← / →", "With a tab selected, move between the drawer's tabs (Inbox, My tasks, Client)"],
+    ["← / →", "With a tab selected, move between the Desk's tabs (Inbox, Slate, Client)"],
     ["Esc", "Close the top layer: a menu, the client list, a task or chat drawer, then the " + WB_NAME],
   ];
   return typeof ModalShell === "function" ? (

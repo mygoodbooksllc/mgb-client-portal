@@ -157,7 +157,7 @@ function TK_MyTasks(props) {
   if (schema !== "ok") {
     return (
       <div className={"tk-view tk-my" + (props.embedded ? " tk-embedded" : "")}>
-        {props.embedded ? null : <h2 className="tk-view-title">My Tasks</h2>}
+        {props.embedded ? null : <h2 className="tk-view-title">Slate</h2>}
         <TK_vSkeletonRows count={6} />
       </div>
     );
@@ -465,8 +465,8 @@ function TK_vMyTasksBody(props) {
   return (
     <div className={"tk-view tk-my" + (embedded ? " tk-embedded" : "")}>
       <div className="tk-view-head">
-        {embedded ? null : <h2 className="tk-view-title">My Tasks</h2>}
-        <div className="tk-toolbar" role="toolbar" aria-label="My Tasks options">
+        {embedded ? null : <h2 className="tk-view-title">Slate</h2>}
+        <div className="tk-toolbar" role="toolbar" aria-label="Slate options">
           <button type="button" className="btn-primary tk-add-btn" data-tour="tk-add" onClick={addTask}>
             <TK_vIcon name="plus" size={15} />
             <span>Add task</span>

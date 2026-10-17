@@ -764,9 +764,9 @@ function TK_manageTrashConfirm(row) {
   var others = row && typeof row.other_tasks === "number" ? row.other_tasks : 0;
   var body;
   if (!counted) {
-    body = "The project and all its tasks, including other people's, will disappear from every list, including My Tasks.";
+    body = "The project and all its tasks, including other people's, will disappear from every list, including Slate.";
   } else if (tasks) {
-    body = TK_managePlural(tasks, "task", "tasks") + " (" + open + " open, " + done + " done) will disappear from every list, including My Tasks, with the project.";
+    body = TK_managePlural(tasks, "task", "tasks") + " (" + open + " open, " + done + " done) will disappear from every list, including Slate, with the project.";
     if (others) body += " " + (others === tasks ? "All of them" : others + " of them") + " belong" + (others === 1 ? "s" : "") + " to other people.";
   } else {
     body = "The project will disappear from every list.";

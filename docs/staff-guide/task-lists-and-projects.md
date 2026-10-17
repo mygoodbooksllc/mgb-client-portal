@@ -2,12 +2,12 @@
 title: How do client task lists and projects work?
 section: Daily work
 audience: staff
-keywords: [project color, project colors, change color, color dot, subtasks inline, manage projects, move to trash, trash a project, restore project, group by client, person list group by, tasks page, sidebar, lists, review, review queue, review count, client list, client tasks, projects, internal work, sops project, directors, owners, 90 day, open to all staff, members, add member, project owner, new project, sections, weekly, monthly, quarterly, annual, archive project, rename, people, person view, search tasks, filters, assignee, status, columns, coverage, temporary access, onboarding project, client header, drive folder, contacts, unassigned, claim, no team yet, assign team, no bookkeeper, asana import, imported clients]
+keywords: [project color, project colors, change color, color dot, subtasks inline, manage projects, move to trash, trash a project, restore project, group by client, person list group by, tasks page, sidebar, lists, review, review queue, review count, client list, client tasks, projects, internal work, sops project, directors, owners, 90 day, open to all staff, members, add member, project owner, new project, sections, weekly, monthly, quarterly, annual, archive project, rename, people, person view, search tasks, filters, assignee, status, columns, coverage, temporary access, onboarding project, client header, drive folder, contacts, unassigned, claim, no team yet, assign team, no bookkeeper, asana import, imported clients, slate]
 sort: 114
 ---
-The **Tasks** page (the **Tasks** button in the top bar, or `#/tasks/my`) has a sidebar of lists down the left. Below about 900 pixels wide, the sidebar sits behind the **Lists** button at the top of the page.
+The **Slate** page (the **Slate** button in the top bar, or `#/tasks/my`) has a sidebar of lists down the left. Below about 900 pixels wide, the sidebar sits behind the **Lists** button at the top of the page.
 
-- **My Tasks**: everything assigned to you. See [How do I add and manage my tasks?](#/help/my-tasks).
+- **Slate**: everything assigned to you. See [How do I use my Slate?](#/help/my-tasks).
 - **Review**: work waiting for an admin's approval, with a count for admins. See [How does task review work?](#/help/task-review).
 - **Recurring**: the templates that make monthly, quarterly, yearly and weekly tasks on their own. See [How do recurring tasks from templates work?](#/help/task-templates).
 - **Search**: searches task names, descriptions and comments.
@@ -19,7 +19,7 @@ The **Tasks** page (the **Tasks** button in the top bar, or `#/tasks/my`) has a 
 
 ### A list
 
-A task with subtasks has an arrow and a count (for example **2/5**). Click the row to open its subtasks right under it; click the task's name to open its details. See [How do I add and manage my tasks?](#/help/my-tasks).
+A task with subtasks has an arrow and a count (for example **2/5**). Click the row to open its subtasks right under it; click the task's name to open its details. See [How do I use my Slate?](#/help/my-tasks).
 
 Each list shows its tasks with **Task**, **Assignee**, **Due**, **Status** and **Priority** columns, grouped into sections. Click a column heading to sort by it. Each section ends with an **Add task** row, so a new task lands in that section.
 
@@ -34,7 +34,7 @@ A client's list starts with the things you reach for most:
 - The client's **Bookkeeper**, **Backup** and **Account Manager**.
 - **New onboarding project** for a new client.
 
-A task nobody is on shows **Unassigned** in the Assignee column with a **Claim** button. See [How do I add and manage my tasks?](#/help/my-tasks).
+A task nobody is on shows **Unassigned** in the Assignee column with a **Claim** button. See [How do I use my Slate?](#/help/my-tasks).
 
 Client tasks sit in sections such as **Weekly**, **Monthly**, **Quarterly**, **Annual** and **Occasional**.
 
@@ -63,7 +63,7 @@ Projects hold internal work that isn't for one client. Four are set up for you:
 
 **Open to all staff** means everyone on staff can see the project and add tasks to it. Otherwise, a project is seen by its members and by admins. Only admins can switch Open to all staff on or off.
 
-**Project colors.** Every project has a color, shown as a dot next to its name in the sidebar, at the top of the project and on its tasks in My Tasks. New projects get the color fewest other projects use, and the existing ones were colored once, oldest first. A project's owner or an admin can change it: **Project options › Change color** on the project's page, or **Color** on its row in **Manage projects**. Everyone sees the same color. The name is always beside the dot, so the color is a help, not the only clue.
+**Project colors.** Every project has a color, shown as a dot next to its name in the sidebar, at the top of the project and on its tasks in Slate. New projects get the color fewest other projects use, and the existing ones were colored once, oldest first. A project's owner or an admin can change it: **Project options › Change color** on the project's page, or **Color** on its row in **Manage projects**. Everyone sees the same color. The name is always beside the dot, so the color is a help, not the only clue.
 
 **Start a project**: click **New project** in the sidebar, type a **Name**, add **Sections (optional, one per line)**, and click **Create project**. You become its owner.
 
@@ -78,5 +78,5 @@ The toolbar has a **Group by** switch: **Default** (the list's sections) or **Cl
 ### Troubleshooting
 
 - **A client is missing from the sidebar.** You only see clients you're assigned to, covering, or have temporary access to. Ask an admin.
-- **"We couldn't find that list."** The project was archived or moved to the trash, or you don't have access to it. An admin can restore a trashed one from **Manage projects**. Click **Go to My Tasks**.
+- **"We couldn't find that list."** The project was archived or moved to the trash, or you don't have access to it. An admin can restore a trashed one from **Manage projects**. Click **Go to Slate**.
 - **"There's already a project with that name. Try another name."** Project names must be unique.

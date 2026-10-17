@@ -272,7 +272,7 @@ function WB_Hub({ s, me, isAdmin, clients, panelRef, view, allView, chip, today,
           </h2>
           {s.offline && <span className="wb-offline">Offline</span>}
           <a className="wb-panel-full" href="#/today" onClick={() => WB_store.setDrawerOpen(false)}>
-            Full page
+            Open Today
           </a>
           <button type="button" className="wb-icon-btn" aria-label={"Close " + WB_NAME} onClick={() => WB_store.setDrawerOpen(false)}>
             ×
@@ -332,7 +332,7 @@ function WB_Hub({ s, me, isAdmin, clients, panelRef, view, allView, chip, today,
             )}
             {view.later > 0 && (
               <p className="wb-later">
-                {view.later} more later · <a href="#/tasks">My Tasks</a>
+                {view.later} more later · <a href="#/tasks">Slate</a>
               </p>
             )}
           </div>
@@ -366,7 +366,7 @@ function WB_Hub({ s, me, isAdmin, clients, panelRef, view, allView, chip, today,
         </div>
         <p className="wb-panel-foot">
           <kbd>W</kbd> opens and closes · <kbd>Esc</kbd> closes one layer at a time
-          {tab === "tasks" && <> · <kbd>↑</kbd> <kbd>↓</kbd> move between tasks · use <b>+ Add task</b> to add one</>}
+          {tab === "tasks" && <> · <kbd>↑</kbd> <kbd>↓</kbd> move between tasks · use <b>Add to your {WB_SLATE}</b> to add one</>}
           {tab === "client" && <> · type in the box to find a client · the <b>☆</b> pins one to the top</>}
         </p>
       </div>

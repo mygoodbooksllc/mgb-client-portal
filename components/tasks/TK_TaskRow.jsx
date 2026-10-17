@@ -1335,11 +1335,11 @@ function TK_vSkeletonRows(props) {
 function TK_SetupCard(props) {
   return (
     <div className={"tk-setup card" + (props.embedded ? " tk-setup-embedded" : "")} role="status">
-      <h2 className="tk-setup-title">{TK_vCopy("setupTitle", "Tasks is being set up")}</h2>
+      <h2 className="tk-setup-title">{TK_vCopy("setupTitle", "Slate is being set up")}</h2>
       <p className="tk-setup-body">{TK_vCopy("setupBody")}</p>
       {props.embedded ? null : (
         <a className="btn-secondary tk-setup-link" href="#/work/tasks">
-          Open Work › Tasks
+          Open Work › Slate
         </a>
       )}
     </div>

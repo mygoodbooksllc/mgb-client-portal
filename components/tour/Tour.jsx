@@ -1042,7 +1042,7 @@ function TOUR_bookkeeperSteps(ctx) {
     TOUR_tabStep(
       "work",
       "tasks",
-      "Work › Tasks",
+      "Work › Slate",
       "Your tasks, grouped by when they're due. Notes and client SOPs are on the Notes & SOPs tab next to it.",
     ),
     TOUR_tabStep(
@@ -1140,7 +1140,7 @@ function TOUR_adminSteps(ctx) {
       },
       targets: ["tk-review-nav"],
       wait: true,
-      title: "Tasks › Review",
+      title: "Slate › Review",
       body: () =>
         "Work your team sent for review lands here: approve it or send it back with a note, oldest first. You never review your own work. The same page shows each person's on-time and review numbers for the last 30 days.",
     },
@@ -1152,7 +1152,7 @@ function TOUR_adminSteps(ctx) {
       },
       targets: ["tk-manage-head", "tk-manage-nav"],
       wait: true,
-      title: "Tasks › Manage projects",
+      title: "Slate › Manage projects",
       body: () =>
         "Every project in one list, with its owner and task counts. Rename or archive one, or move it to the trash: a trashed project and its tasks leave every list until you restore it from the Trash tab. Nothing is deleted.",
     },
@@ -1166,7 +1166,7 @@ function TOUR_adminSteps(ctx) {
       press: true,
       title: "Settings › Firm settings",
       body: () =>
-        "The firm-wide pages: Task templates (they open Tasks › Recurring), Client roster (where a new client is added), Emails, QuickBooks usage, Usage stats, the Audit log and Developer tools.",
+        "The firm-wide pages: Task templates (they open Slate › Recurring), Client roster (where a new client is added), Emails, QuickBooks usage, Usage stats, the Audit log and Developer tools.",
     },
     {
       id: "today",
@@ -1336,9 +1336,9 @@ function TOUR_tasksSteps() {
   return [
     {
       id: "welcome",
-      title: "The Tasks tour",
+      title: "The Slate tour",
       body: () =>
-        "Tasks is where your to-dos, each client's list and the firm's projects live. This tour opens My Tasks and shows the main pieces. About a minute.",
+        "Slate is where your to-dos, each client's list and the firm's projects live. This tour opens Slate and shows the main pieces. About a minute.",
     },
     {
       id: "tk-add",
@@ -1384,7 +1384,7 @@ function TOUR_tasksSteps() {
       title: "Lists and projects",
       body: () =>
         (window.innerWidth < 900 ? "The Lists button opens every list. " : "") +
-        "My Tasks (group it by due date or by client), Review (work waiting for an admin's approval), Waiting on client (everything you've asked a client for), Recurring (templates that make tasks on a schedule), Search, the firm's projects (each with its own color dot) and each of your clients' lists. SOPs and 90 Day are projects open to all staff. Admins also get Manage projects.",
+        "Slate (group it by due date or by client), Review (work waiting for an admin's approval), Waiting on client (everything you've asked a client for), Recurring (templates that make tasks on a schedule), Search, the firm's projects (each with its own color dot) and each of your clients' lists. SOPs and 90 Day are projects open to all staff. Admins also get Manage projects.",
     },
     {
       id: "tk-review-nav",
@@ -1413,7 +1413,7 @@ function TOUR_tasksSteps() {
       wait: true,
       title: "Its own window",
       body: () =>
-        "Open in own window puts Tasks in a slim window beside your work. Dock in portal brings it back here.",
+        "Open in own window puts Slate in a slim window beside your work. Dock in portal brings it back here.",
     },
     {
       id: "tk-client",
@@ -1421,18 +1421,18 @@ function TOUR_tasksSteps() {
       body: () =>
         touch
           ? "On a client's tabs, a line under the tabs shows the next task. All tasks opens every task for that client."
-          : "On a client's tabs, a line under the tabs shows the next task. Press t, or click Tasks in the top bar, for every task for that client.",
+          : "On a client's tabs, a line under the tabs shows the next task. Press t, or click Slate in the top bar, for every task for that client.",
     },
     {
       id: "tk-keys",
       when: () => !touch,
       title: "Keys",
       body: () =>
-        "On a list, j and k move, Enter opens a task, x marks it done and s changes its status. t opens a client's tasks from anywhere. Press ? on Tasks for the whole list. They pause while you type.",
+        "On a list, j and k move, Enter opens a task, x marks it done and s changes its status. t opens a client's tasks from anywhere. Press ? on Slate for the whole list. They pause while you type.",
     },
     {
       id: "done",
-      title: "That's Tasks",
+      title: "That's Slate",
       body: () =>
         "Click any task to open its details: comments, files, subtasks and who's following. Take this tour again from the ? menu.",
     },
@@ -1487,8 +1487,8 @@ const TOUR_STAFF_TOURS = [
     // Tasks module's tables answer (TK_store schema "ok").
     key: "tasks",
     setting: "tasksTour",
-    label: "Tasks tour",
-    sub: "My Tasks, statuses, lists and projects",
+    label: "Slate tour",
+    sub: "Slate, statuses, lists and projects",
     available: (ctx) =>
       !ctx.impersonating &&
       typeof TK_App === "function" &&

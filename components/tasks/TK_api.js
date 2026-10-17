@@ -361,7 +361,7 @@ var TK_api = (function () {
     }
     if (isMissingColumn(error) || isMissingFunction(error)) {
       return reprobe().then(function (v) {
-        if (v === "missing") throw errOf("tk_schema_missing", "Tasks is being set up");
+        if (v === "missing") throw errOf("tk_schema_missing", "Slate is being set up");
         logError(error, context);
         throw errOf(String(error.code || "tk_error"), error.message, { reason: reasonOf(error), details: error.details || null });
       });
@@ -851,7 +851,7 @@ var TK_api = (function () {
   // fallback). staffItemsApi.toggleDone flips item.done, so pass the current one.
   function completeLegacy(task, done) {
     if (typeof staffItemsApi === "undefined" || !staffItemsApi || typeof staffItemsApi.toggleDone !== "function") {
-      return Promise.reject(errOf("tk_schema_missing", "Tasks is being set up"));
+      return Promise.reject(errOf("tk_schema_missing", "Slate is being set up"));
     }
     var item = Object.assign({}, task, { done: !done });
     return Promise.resolve(staffItemsApi.toggleDone(db(), me() || lower(task.staff_email), item)).then(function (res) {
@@ -1226,7 +1226,7 @@ var TK_api = (function () {
     var who = me();
     return reviewCall(id, "tk_claim_task", { p_id: id }, "claim", who ? { assignee_email: who, is_unassigned: false } : null).then(
       function (r) {
-        TK_toast("It's yours. Find it in My Tasks.");
+        TK_toast("It's yours. Find it in Slate.");
         return r.task;
       },
       function (e) {

@@ -2,19 +2,19 @@
 title: What's on my Today page?
 section: Getting started
 audience: staff
-keywords: [workbench, press w, handbook, sign policy, countersign, today, home, start page, tasks, task details, needs you, needs you now, now, this week, replies waiting, tasks due today, overdue, closes open, tiles, reminders, milestones to review, recently viewed, also show, show everything, access requests, upgrade requests, bills, deadlines, client at risk, review due, sop, coverage, all clear, nothing needs you]
+keywords: [workbench, press w, handbook, sign policy, countersign, today, home, start page, tasks, task details, needs you, needs you now, now, this week, replies waiting, tasks due today, overdue, closes open, tiles, reminders, milestones to review, recently viewed, also show, show everything, access requests, upgrade requests, bills, deadlines, client at risk, review due, sop, coverage, all clear, nothing needs you, desk, slate]
 sort: 40
 ---
 **Today** is your starting point: one list of everything waiting on you across every client you can see, most urgent first. It's the first of the five places in the left rail (**Today**, **Inbox**, **Work**, **Clients**, **Team**), and it opens when you sign in unless you picked another start page in [Settings](#/help/staff-settings).
 
-**Workbench:** once the owner turns it on, the tiles and the **Needs you** list below are replaced by the Workbench: one list of your tasks, reviews, client messages, Ledger flags and new client files, with **Snooze**, **No reply needed** and **Mark checked**, and a drawer on every page (press **W**). The greeting and **Also show** stay. See [How do I use the Workbench?](#/help/workbench).
+**New Today and the Desk:** once the owner turns them on, the tiles and the **Needs you** list below are replaced by one list of your tasks, reviews, client messages, Ledger flags and new client files, with **Snooze**, **No reply needed** and **Mark checked**, and the Desk, a bar at the bottom of every page (press **W**). The greeting and **Also show** stay. See [How do I use the Desk?](#/help/workbench).
 
 ### The top of the page
 
 A greeting, a line such as **3 need you now**, and four tiles:
 
 - **Replies waiting**: client conversations with no reply from us yet. Opens the **Inbox**.
-- **Tasks due today** and **Overdue**: your own tasks. Open **Work › Tasks**.
+- **Tasks due today** and **Overdue**: your own tasks. Open **Work › Slate**.
 - **Closes open**: your clients' month-end closes that aren't finished. Opens **Work › Close**.
 
 A tile shows a green **0** when there's nothing to do. Click any tile to go to what it counts.
@@ -43,7 +43,7 @@ Each band shows its first few rows. **Show everything** lists the rest, and **Sh
 
 Under the list, **Also show** has three switches for cards you may want on Today. Your choice is remembered.
 
-- **Reminders**: the **Your reminders** card, a quick list with a box to add one. For times, repeats and sharing, open the reminder's details from **Work › Tasks**.
+- **Reminders**: the **Your reminders** card, a quick list with a box to add one. For times, repeats and sharing, open the reminder's details from **Work › Slate**.
 - **Milestones**: the **Milestones to review** card: clients whose numbers point to a different pricing milestone, aren't confirmed yet, or are close to the next one.
 - **Recently viewed**: the clients you opened lately. Click one to go back.
 

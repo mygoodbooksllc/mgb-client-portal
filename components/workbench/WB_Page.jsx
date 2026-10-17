@@ -67,9 +67,9 @@ function WB_Page({ me, isAdmin, td, fallback }) {
         <div className="wb-card-head">
           <div>
             <h2 className="card-title" id="wb-page-title">
-              {WB_NAME}
+              Needs you
             </h2>
-            <p className="card-subtitle">Everything that needs you, in order. Press W for the drawer on any page.</p>
+            <p className="card-subtitle">Everything that needs you, in order. Press W for your Desk on any page.</p>
           </div>
           <div className="wb-head-right">
             {s.offline && <span className="wb-offline">Offline</span>}
@@ -79,7 +79,7 @@ function WB_Page({ me, isAdmin, td, fallback }) {
             <button type="button" className="wb-icon-btn" aria-label="Refresh" title="Refresh" onClick={() => WB_store.refresh()}>
               ↻
             </button>
-            <button type="button" className="wb-icon-btn" aria-label={WB_NAME + " help and shortcuts"} title="Help and shortcuts" onClick={() => setHelp(true)}>
+            <button type="button" className="wb-icon-btn" aria-label="Today help and shortcuts" title="Help and shortcuts" onClick={() => setHelp(true)}>
               ?
             </button>
           </div>
@@ -113,7 +113,7 @@ function WB_Page({ me, isAdmin, td, fallback }) {
 
         {s.error && (
           <div className="wb-error" role="alert">
-            <span>Couldn't refresh {WB_NAME}. {s.at ? "Showing the last list." : ""}</span>
+            <span>Couldn't refresh this list. {s.at ? "Showing the last list." : ""}</span>
             <button type="button" className="btn-secondary" onClick={() => WB_store.refresh()}>
               Retry
             </button>
@@ -136,7 +136,7 @@ function WB_Page({ me, isAdmin, td, fallback }) {
                 <strong>Nothing needs you right now.</strong>
                 <span>
                   New messages, tasks, reviews and files show up here as they come in.{" "}
-                  <a href="#/tasks">My Tasks</a> · <a href="#/inbox">Messages</a>
+                  <a href="#/tasks">Slate</a> · <a href="#/inbox">Messages</a>
                 </span>
               </span>
             </div>
@@ -154,7 +154,7 @@ function WB_Page({ me, isAdmin, td, fallback }) {
 
         {view.later > 0 && chip !== "snoozed" && (
           <p className="wb-later">
-            {view.later} more later · <a href="#/tasks">My Tasks</a>
+            {view.later} more later · <a href="#/tasks">Slate</a>
           </p>
         )}
       </section>
@@ -174,7 +174,7 @@ function WB_HelpSheet({ onClose }) {
     <ModalShell onClose={onClose} labelledBy="wb-help-title" className="confirm-modal">
       <div className="modal-header">
         <h3 className="card-title" id="wb-help-title" style={{ margin: 0 }}>
-          {WB_NAME} help
+          Today help
         </h3>
         <button type="button" className="modal-close" onClick={onClose} aria-label="Close">
           ×

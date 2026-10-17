@@ -139,7 +139,7 @@ const TIPS_DISMISS = { got: true, esc: true, click: true, more: true, off: true 
 // portal's new-message popup, the onboarding checklist), the chat drawer,
 // the phone nav drawer.
 const TIPS_BUSY =
-  ".tour-root, .modal-overlay, [aria-modal='true'], .tb-panel, [role='menu'], .notif-panel, .notif-popup, .inote-pop, .ob-pop, .si-drawer, .sidebar-scrim.visible, aside.sidebar.open";
+  ".tour-root, .modal-overlay, [aria-modal='true'], .wb-panel, .tb-panel, [role='menu'], .notif-panel, .notif-popup, .inote-pop, .ob-pop, .si-drawer, .sidebar-scrim.visible, aside.sidebar.open";
 // What the card shouldn't sit on when another side fits.
 const TIPS_CONTROL =
   "a[href], button, input, select, textarea, summary, [role='tab'], [role='button'], [role='link'], [role='checkbox'], [role='switch'], [role='menuitem']";
@@ -201,13 +201,13 @@ const TIPS_CATALOG = [
     slug: "home-page",
   },
   {
-    // Workbench (components/workbench): only on screen while it's on.
+    // Desk (was the Workbench; components/workbench): only on screen while it's on.
     id: "wb-more",
     roles: "all",
     match: (r) => r.page === "today",
     target: "wb-row-action",
     snug: true,
-    text: "The button does the next thing. The ⋯ beside it has Snooze, and No reply needed or Mark checked; each has Undo. Press W on any page for this list in a drawer; its My tasks tab has your tasks, and its Client tab one client's tasks (☆ pins a client).",
+    text: "The button does the next thing. The ⋯ beside it has Snooze, and No reply needed or Mark checked; each has Undo. Press W on any page for your Desk; its Slate tab has your tasks, and its Client tab one client's tasks (☆ pins a client).",
     slug: "workbench",
   },
   {
@@ -287,12 +287,12 @@ const TIPS_CATALOG = [
     slug: "inbox",
   },
   {
-    // Only shows while the Workbench is on (StaffInbox renders it then).
+    // Only shows while the Desk is on (StaffInbox renders it then).
     id: "wb-noreply",
     roles: "all",
     match: (r) => r.page === "inbox",
     target: "si-noreply",
-    text: "A client's last message just says thanks? No reply needed takes the thread off your Workbench without sending anything. A new message from them puts it back.",
+    text: "A client's last message just says thanks? No reply needed takes the thread off your Desk without sending anything. A new message from them puts it back.",
     slug: "workbench",
   },
   {
@@ -511,7 +511,7 @@ const TIPS_CATALOG = [
     match: (r) => r.page === "tasks",
     target: "tk-popout",
     snug: true,
-    text: "Open in own window keeps Tasks in a slim window beside your work. Dock in portal brings it back.",
+    text: "Open in own window keeps Slate in a slim window beside your work. Dock in portal brings it back.",
     slug: "tasks-own-window",
     ready: () => !TIPS_touch(),
   },
@@ -596,7 +596,7 @@ const TIPS_CATALOG = [
     roles: "all",
     match: (r) => r.page === "settings",
     target: "#st-tab-appearance",
-    text: "Choose where you land after signing in: Today, Work › Tasks or the last client you opened. It's under Appearance & start page.",
+    text: "Choose where you land after signing in: Today, Work › Slate or the last client you opened. It's under Appearance & start page.",
     slug: "staff-settings",
   },
   {

@@ -598,7 +598,7 @@ function TK_ClientDrawerPanel(props) {
               <p>Open a client to see its tasks.</p>
               <p className="tk-cd-empty-sub">
                 <a href="#/tasks/my" onClick={go({ view: "my" })}>
-                  Go to My Tasks
+                  Go to Slate
                 </a>
               </p>
             </div>
@@ -624,7 +624,7 @@ function TK_ClientDrawerPanel(props) {
               </a>
             ) : null}
             <a href="#/tasks/my" onClick={go({ view: "my" })}>
-              My Tasks
+              Slate
             </a>
           </nav>
           {touch ? null : (

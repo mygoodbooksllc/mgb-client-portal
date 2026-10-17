@@ -66,7 +66,7 @@ On **Team › People**, each person's time off has **Hand off tasks**:
 - **Pick someone to cover (admins)**: for a client with no backup, a backup who is out or one without access, choose a person, then **Check again**.
 - **{n} tasks with backups** and **Hand back now** show while tasks are out.
 
-The automatic hand-off is **off** unless the `ooo_auto_apply` setting is `true` (Dev Tools › **Tasks switches** shows it). When it's on, the **tk-ooo-daily** cron hands tasks off early on the first day off. It never takes back a task someone handed back. Handing back after the last day off always runs.
+The automatic hand-off is **off** unless the `ooo_auto_apply` setting is `true` (Dev Tools › **Slate switches** shows it). When it's on, the **tk-ooo-daily** cron hands tasks off early on the first day off. It never takes back a task someone handed back. Handing back after the last day off always runs.
 
 ### Related
 

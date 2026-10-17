@@ -1,13 +1,13 @@
 ---
-title: How do I use the Workbench?
+title: How do I use the Desk?
 section: Getting started
 audience: staff
-keywords: [workbench, reply without leaving the page, reply from the workbench, open file, open file from the workbench, files open in drive, chat drawer, my tasks tab, tasks tab, tick done from the list, today, needs you, inbox, one list, drawer, bottom drawer, press w, w key, keyboard shortcuts, snooze, snoozed, no reply needed, mark checked, undo, needs reply, due today, overdue, reviews waiting, ledger flags, documents, new files, client files, mine, everyone, covering, classic today, workbench preview, j k, next item, open a task without leaving the page, stacked drawer, esc closes one layer, panel remembers, reopens where you left it, client tab, look up a client, client tasks from the workbench, pick a client, pinned clients, pin a client, star, unpin, recent clients, open client, + task]
+keywords: [workbench, desk, slate, the desk, slate tab, reply without leaving the page, reply from the workbench, open file, open file from the workbench, files open in drive, chat drawer, my tasks tab, tasks tab, tick done from the list, today, needs you, inbox, one list, drawer, bottom drawer, press w, w key, keyboard shortcuts, snooze, snoozed, no reply needed, mark checked, undo, needs reply, due today, overdue, reviews waiting, ledger flags, documents, new files, client files, mine, everyone, covering, classic today, workbench preview, j k, next item, open a task without leaving the page, stacked drawer, esc closes one layer, panel remembers, reopens where you left it, client tab, look up a client, client tasks from the workbench, pick a client, pinned clients, pin a client, star, unpin, recent clients, open client, + task]
 sort: 41
 ---
-The **Workbench** is one list of everything that needs you, in order: your tasks, work waiting for your review, client messages with no reply, Ledger flags, new client files, and the rest of what used to be on Today. It takes over **Today** (the first place in the left rail, which is then called **Workbench**; the address stays `#/today`) and also sits in a drawer at the bottom of every staff page. Press **W** anywhere to open it.
+The **Desk** (it was called the Workbench) is a bar at the bottom of every staff page. Press **W** anywhere to open it: one list of everything that needs you, in order, with tabs for your **Inbox**, your **Slate** (it was called Tasks) and one **Client**. The same ordered list is on **Today** (the first place in the left rail; the address stays `#/today`) in a card called **Needs you**, and Today keeps its name.
 
-The owner turns the Workbench on for the whole team. Until then Today looks as it always has. See [What's on my Today page?](#/help/home-page).
+The owner turns the Desk and the new Today on for the whole team. Until then Today looks as it always has. See [What's on my Today page?](#/help/home-page).
 
 ### The four tiles
 
@@ -18,7 +18,7 @@ The owner turns the Workbench on for the whole team. Until then Today looks as i
 
 ### The list
 
-Items are grouped **Overdue**, **Today** and **This week**, most urgent first. A client message is due the next business day after it arrives, and a new client file two business days after it's uploaded, so an unanswered message turns overdue after that. Anything due more than a week out is counted under the list as **N more later**, with a link to **My Tasks**.
+Items are grouped **Overdue**, **Today** and **This week**, most urgent first. A client message is due the next business day after it arrives, and a new client file two business days after it's uploaded, so an unanswered message turns overdue after that. Anything due more than a week out is counted under the list as **N more later**, with a link to **Slate**.
 
 The chips above the list filter by where an item came from: **All**, **Tasks**, **Reviews**, **Messages**, **Ledger**, **Documents** and **Other** (deadlines, bills, handbook signatures and the other Today rows), each with a count. **Snoozed** appears when you have snoozed something.
 
@@ -26,7 +26,7 @@ Each row says what it is, which client, and how long it has waited or when it's 
 
 ### Doing the next thing
 
-Each row has one main button (in the bottom drawer, **Reply** and **Open file** stay on the page; see "Reply without leaving the page" below):
+Each row has one main button (in the Desk, **Reply** and **Open file** stay on the page; see "Reply without leaving the page" below):
 
 - **Reply** on a client message opens the conversation in the Inbox.
 - **Start** or **Open** on a task opens its details.
@@ -36,74 +36,74 @@ Each row has one main button (in the bottom drawer, **Reply** and **Open file** 
 The **⋯** menu next to it has the rest:
 
 - **Snooze**: **Later today**, **Tomorrow 8am**, **Next Monday 8am** or **Pick a date**. The item leaves the list until then. If something changes on it first (the client writes again, the due date moves), it comes back early.
-- **No reply needed** (messages): the client's last message doesn't need an answer, like a thank-you. The thread leaves the Workbench without sending anything. A new message from the client puts it back. The same button is in the Inbox thread header.
-- **Mark checked** (client files): you've looked at the upload. It leaves everyone's Workbench.
+- **No reply needed** (messages): the client's last message doesn't need an answer, like a thank-you. The thread leaves the Desk without sending anything. A new message from the client puts it back. The same button is in the Inbox thread header.
+- **Mark checked** (client files): you've looked at the upload. It leaves everyone's Desk.
 
 Each of these shows **Undo** at the bottom of the screen for a few seconds.
 
 Items also leave by themselves when the work is done: you reply, finish or approve the task, or clear the Ledger flags.
 
-### The drawer on every page
+### The Desk, on every page
 
-A bar runs across the whole bottom of every staff page, beside the left menu, and shows your count, the next item and **Press W**. Click it or press **W** and the list slides up from it, the full width of the page, with the rest of the page dimmed behind it. It has filters (**All**, **Tasks**, **Reviews**, **Messages**, **Files**) and the same buttons as the full page. **Full page** goes to Today. **Esc** or **W** closes it. On a phone it opens as a full-screen sheet.
+A bar runs across the whole bottom of every staff page, beside the left menu, and shows your count, the next item and **Press W**. Click it or press **W** and the Desk slides up from it, the full width of the page, with the rest of the page dimmed behind it. Its **Inbox** tab has filters (**All**, **Tasks**, **Reviews**, **Messages**, **Files**) and the same buttons as the Needs you list on Today. **Open Today** goes to Today. **Esc** or **W** closes it. On a phone it opens as a full-screen sheet.
 
 The panel remembers where you were: the filter you picked and how far you had scrolled. If you leave it open and reload the page within a few minutes it opens again where you left it; after that it stays closed but keeps your filter. **Reset local state** under Dev Tools clears what it remembers.
 
-The **Workbench** item in the left rail shows how many items are overdue or due today (a dot when the rail is narrow).
+The **Today** item in the left rail shows how many items are overdue or due today (a dot when the rail is narrow).
 
 ### Open a task without leaving the page
 
-In the drawer, **Open** (or **Review**) on a task opens its details in the task drawer on top of the Workbench. The page behind it does not change. Edit it, comment, tick it done, reassign it or approve it there.
+In the drawer, **Open** (or **Review**) on a task opens its details in the task drawer on top of the Desk. The page behind it does not change. Edit it, comment, tick it done, reassign it or approve it there.
 
-- **Esc** closes one layer at a time: a row's **⋯** menu first, then the task drawer, then the Workbench. Clicking the dimmed page behind a task drawer closes only the task drawer.
+- **Esc** closes one layer at a time: a row's **⋯** menu first, then the task drawer, then the Desk. Clicking the dimmed page behind a task drawer closes only the task drawer.
 - Closing the task drawer puts you back on the row you opened it from.
-- **W** does nothing while a task drawer or dialog is open on top, so it can't close the Workbench from under it. **q** (quick add) does nothing while the Workbench is open; use **+ Add task** on the My tasks tab or **+ Task** on the Client tab instead.
+- **W** does nothing while a task drawer or dialog is open on top, so it can't close the Desk from under it. **q** (quick add) does nothing while the Desk is open; use **Add to your Slate** on the Slate tab or **+ Task** on the Client tab instead.
 - On a task you haven't started, **Start** moves into the **⋯** menu, next to **Snooze** and **Open full page** (which goes to the task's page, as before).
 - Ledger items still take you to where they live. Client messages and new files stay on the page too; see the next section.
 
 ### Reply without leaving the page
 
-In the Workbench drawer, a client message has **Reply** and a new client file has **Open file**. Neither one changes the page behind the drawer.
+In the Desk, a client message has **Reply** and a new client file has **Open file**. Neither one changes the page behind the drawer.
 
-- **Reply** opens the Messages chat drawer on top of the Workbench, already on that person's thread. Type and send as usual. Once you reply, the item leaves your list within a couple of seconds.
+- **Reply** opens the Messages chat drawer on top of the Desk, already on that person's thread. Type and send as usual. Once you reply, the item leaves your list within a couple of seconds.
 - **Esc**, or a click on the dimmed page, closes the chat drawer and puts you back on the row you came from. Your filter, tab and scroll are as you left them.
-- **Open file** opens or downloads the file in a new browser tab: a PDF or an image shows in the tab, while a spreadsheet, Word file or CSV downloads. The Workbench stays open. The item stays in your list until you tick **Mark checked** in its **⋯** menu (there's an Undo).
+- **Open file** opens or downloads the file in a new browser tab: a PDF or an image shows in the tab, while a spreadsheet, Word file or CSV downloads. The Desk stays open. The item stays in your list until you tick **Mark checked** in its **⋯** menu (there's an Undo).
 - If your browser blocks the new tab, allow pop-ups for this site and click **Open file** again. If Drive can't find the file, a message says so; **Open full page** in the **⋯** menu goes to the client's Files tab.
 - The **⋯** menu on a message or file also has **Open full page**, which goes to the thread or the Files tab as before. On the Messages page itself, **Reply** goes to the thread instead of stacking a second inbox.
 - The Messages drawer only lists clients you can open. If you've lost access to a client, or the person isn't in that client's list, a message says it couldn't find the conversation (use **Open full page** in the **⋯** menu), and nothing from another client shows in its place.
 
-### My tasks in the Workbench
+### Your Slate in the Desk
 
-The Workbench panel has three tabs: **Inbox**, **My tasks** and **Client** (see the next section). With a tab selected, the left and right arrow keys move between them. **My tasks** lists every open task assigned to you, grouped **Overdue**, **Today**, **This week**, **Later** and **Waiting on client**, the same way My Tasks does. Tasks that are done or unassigned don't show here.
+The Desk has three tabs: **Inbox**, **Slate** and **Client** (see the next section). With a tab selected, the left and right arrow keys move between them. **Slate** lists every open task assigned to you, grouped **Overdue**, **Today**, **This week**, **Later** and **Waiting on client**, the same way the Slate page does. Tasks that are done or unassigned don't show here.
 
 - Click a row to open the task drawer on top; closing it puts you back on the row. Tick the circle to mark it done from the list. The count on the tab is your open tasks.
 - Click a group's name to fold it; the panel remembers which groups you folded.
-- **+ Add task** opens quick add. **My Tasks page** goes to the full page.
-- It shows up to 200 tasks. If you have more, a line says how many more there are and links to **My Tasks**.
-- **Show older** on My Tasks doesn't change this tab, and this tab doesn't change My Tasks.
+- **Add to your Slate** opens quick add. **Slate page** goes to the full page.
+- It shows up to 200 tasks. If you have more, a line says how many more there are and links to **Slate**.
+- **Show older** on the Slate page doesn't change this tab, and this tab doesn't change the Slate page.
 - Your filter, scroll and open tab are remembered for you only, on this browser. If you share a computer, the next person starts clean.
 
-### Look up a client from the Workbench
+### Look up a client from the Desk
 
 The **Client** tab shows one client's open tasks without leaving the page you're on.
 
 - **Picking a client.** On a client's page, the tab starts on that client. Anywhere else it shows the client you looked at last. To pick another, click the box at the top and type part of the name, or use the up and down arrows and press **Enter**. The list shows your **Pinned** clients first, then **Recent** ones, then all of them. It only lists clients you can open, and leaves out MGB's own record and test clients (unless **Show test clients** is on). If there are more than 50, the last row says **Showing 50 of** the total; type to narrow it.
 - **Pins.** The **☆** next to the client's name pins it to the top of the list (it turns into **★**); click it again to unpin. You can pin up to 8. Pinning a ninth unpins the oldest, and a message says which one. Pins are yours alone and only on this browser.
 - **The tasks.** These are the same tasks, groups and contacts as the client's tasks panel (**t**). Add a task in the row at the top, tick a circle to mark it done, or click a row to open the task drawer on top; closing it puts you back in the tab. Private tasks show only to the people who can already see them.
-- **+ Task** opens quick add for this client. **Open client** goes to the client's page and closes the Workbench.
-- **Esc** closes the client list first, then clears what you typed, then closes the Workbench.
+- **+ Task** opens quick add for this client. **Open client** goes to the client's page and closes the Desk.
+- **Esc** closes the client list first, then clears what you typed, then closes the Desk.
 - If a client you looked at before is no longer yours, the tab says **You don't have access to this client** and hides it from your pins. The pin comes back if you get access again.
 
 ### Keyboard shortcuts
 
-Click **?** at the top of the Workbench and pick **Keyboard shortcuts**. They work when you're not typing in a box:
+Click **?** at the top of Today's Needs you card and pick **Keyboard shortcuts**. They work when you're not typing in a box:
 
-- **W** opens or closes the drawer (not while a task drawer, dialog or menu is open on top of it).
+- **W** opens or closes the Desk (not while a task drawer, dialog or menu is open on top of it).
 - **j** and **k** move to the next and previous item; **Enter** does the main action; **o** opens it where it lives.
 - **s** snoozes; **e** is **No reply needed** on a message or **Mark checked** on a file.
 - **1** to **6** pick a filter on the full page, **0** goes back to All.
-- The left and right arrows move between the drawer's tabs (**Inbox**, **My tasks**, **Client**) while a tab is selected.
-- **Esc** closes the top layer: a menu or the client list, then a drawer or dialog on top, then the Workbench.
+- The left and right arrows move between the Desk's tabs (**Inbox**, **Slate**, **Client**) while a tab is selected.
+- **Esc** closes the top layer: a menu or the client list, then a drawer or dialog on top, then the Desk.
 
 ### Admins: Mine or Everyone
 
@@ -111,6 +111,6 @@ Admins get **Mine** and **Everyone** next to the chips. **Everyone** shows every
 
 ### Troubleshooting
 
-- **Something I expected isn't there.** The Workbench only shows clients you can open, and tasks waiting on the client stay on My Tasks. Check **Snoozed** too.
+- **Something I expected isn't there.** The Desk and the Needs you list only show clients you can open, and tasks waiting on the client stay on Slate. Check **Snoozed** too.
 - **It says Couldn't refresh.** Click **Retry**. The last list stays on screen meanwhile. **Offline** means your connection dropped; it refreshes when you're back.
-- **I'd rather have the old Today.** Click **?** at the top of the Workbench and pick **Use classic Today in this browser**. Today then has **Switch back to the Workbench** at the top. It only changes this browser. (Admins: it's also **Classic Today** under Dev Tools › Feature flags.)
+- **I'd rather have the old Today.** Click **?** at the top of Today's Needs you card and pick **Use classic Today in this browser**. Today then has **Switch back to the new Today** at the top. It only changes this browser. (Admins: it's also **Classic Today** under Dev Tools › Feature flags.)

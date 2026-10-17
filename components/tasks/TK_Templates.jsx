@@ -573,7 +573,7 @@ function TK_tplEditor(props) {
                 {d.assign_mode === "person"
                   ? "Every client's task goes to this person."
                   : d.assign_mode === "unassigned"
-                    ? "Tasks show as Unassigned. Anyone on the client's team can claim one from My Tasks."
+                    ? "Tasks show as Unassigned. Anyone on the client's team can claim one from Slate."
                     : "If nobody has that role, it goes to the bookkeeper, then the account manager."}
               </span>
             </label>

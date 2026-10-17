@@ -5,11 +5,16 @@
 // grouping, ranking, chip counts, the action per kind and the link per kind
 // live here. `node components/workbench/WB_logic.test.js` guards them.
 //
-// The name is not final (owner question K-Q1): every UI string reads
-// WB_NAME, so a rename is one line.
+// The bottom dock is called the Desk (it was the Workbench). Every UI string
+// reads WORKBENCH_NAME, so a rename is one line; WB_NAME is the alias the
+// older references keep using. Identifiers (wb-*, mgb_wb_*, wb_*) never change.
 // ----------------------------------------------------------------------------
 
-var WB_NAME = "Workbench";
+var WORKBENCH_NAME = "Desk"; // the bottom dock's display name, the one place it lives
+var WB_NAME = WORKBENCH_NAME; // alias, so the existing references keep working
+// The task module's name (SLATE_NAME in components/tasks/TK_logic.js, loaded
+// first in the browser; node tests load this file alone).
+var WB_SLATE = typeof SLATE_NAME !== "undefined" ? SLATE_NAME : "Slate";
 var WB_SOON_DAYS = 7; // same window as TD_SOON_DAYS / TK_SOON_DAYS and the RPC
 var WB_TZ = "America/Chicago";
 var WB_REFRESH_MS = 120000; // 2-minute poll fallback, paused while hidden
@@ -309,11 +314,11 @@ function WB_nextRow(view) {
 }
 
 // ---- Hub (Workbench Hub spec H1) ---------------------------------------------
-// The panel's tabs: Inbox (H1), My tasks (H2) and Client (H4). A tab that
+// The panel's tabs: Inbox (H1), Slate (H2) and Client (H4). A tab that
 // isn't live falls back to Inbox when a saved state is read.
 var WB_HUB_TABS = [
   { id: "inbox", label: "Inbox", live: true },
-  { id: "tasks", label: "My tasks", live: true },
+  { id: "tasks", label: WB_SLATE, live: true },
   { id: "client", label: "Client", live: true },
 ];
 // localStorage. The saved state is per signed-in person: "mgb_wb_hub:<email>"
@@ -451,7 +456,7 @@ function WB_hubParse(raw, now, ctx) {
 }
 
 // ---- My tasks tab (H2) -------------------------------------------------------
-var WB_HUB_TASK_CAP = 200; // rows shown before "Show all on My Tasks"
+var WB_HUB_TASK_CAP = 200; // rows shown before "Show all on Slate"
 
 // TK_myGroupsView output in, the hub's groups out: only open groups assigned
 // to me (no Done, no Unassigned), then at most `cap` tasks in order. Each
@@ -1063,7 +1068,9 @@ function WB_barLeft(rails, vw) {
 
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {
+    WORKBENCH_NAME: WORKBENCH_NAME,
     WB_NAME: WB_NAME,
+    WB_SLATE: WB_SLATE,
     WB_SOON_DAYS: WB_SOON_DAYS,
     WB_CHIPS: WB_CHIPS,
     WB_DRAWER_TABS: WB_DRAWER_TABS,

@@ -50,7 +50,7 @@ Here is every tip, in the order they're considered when two fit the same page (t
 | Page | Tip | Learn more |
 |---|---|---|
 | Today | The tiles in this row are shortcuts: Replies waiting opens Inbox, Closes open opens Work › Close, and Overdue jumps to the Now list. | [What's on my Today page?](#/help/home-page) |
-| Today (only while the Workbench is on) | The button does the next thing. The ⋯ beside it has Snooze, and No reply needed or Mark checked; each has Undo. Press W on any page for this list in a drawer; its My tasks tab has your tasks, and its Client tab one client's tasks (☆ pins a client). | [How do I use the Workbench?](#/help/workbench) |
+| Today (only while the Desk is on) | The button does the next thing. The ⋯ beside it has Snooze, and No reply needed or Mark checked; each has Undo. Press W on any page for your Desk; its Slate tab has your tasks, and its Client tab one client's tasks (☆ pins a client). | [How do I use the Desk?](#/help/workbench) |
 | Clients | Mine also includes clients you're the backup for and ones an admin gave you access to, not only those assigned to you. | [How do I use the Clients page?](#/help/clients-page) |
 | Clients | Hover a Health score to see what's costing it points. The same reasons are listed on the client's Overview. | [What does client health mean?](#/help/client-health) |
 | A client's Close | Tick each close step as you finish it; it records who and when. Your first tick sets the month to In progress. When your part is done, mark it Ready for sign-off; an admin signs it off, and that emails the client. | [What's on a client's Close tab?](#/help/client-close) |
@@ -59,47 +59,47 @@ Here is every tip, in the order they're considered when two fit the same page (t
 | A client's Overview | Set this client's backup under Edit dates and coverage. A backup doesn't get in automatically; they can request access, or an admin can give it. | [How do I add time off and make sure my clients are covered?](#/help/time-off-coverage) |
 | A client's SOP | After 180 days an SOP shows as stale. Read it through; if it's still right, Mark as still accurate resets the clock. | [How do I write or update a client's SOP?](#/help/client-sops) |
 | Inbox, or a client's Messages | Loop in emails the assigned bookkeeper and adds a staff-only note. @name in a Note does the same; in a Reply the client sees the @name. | [How do I message a client or a teammate?](#/help/inbox) |
-| Inbox (only while the Workbench is on) | A client's last message just says thanks? No reply needed takes the thread off your Workbench without sending anything. A new message from them puts it back. | [How do I use the Workbench?](#/help/workbench) |
+| Inbox (only while the Desk is on) | A client's last message just says thanks? No reply needed takes the thread off your Desk without sending anything. A new message from them puts it back. | [How do I use the Desk?](#/help/workbench) |
 | A client's Messages | Click i for this client's portal logins, open requests, pinned notes, SOP and recent portal visits, right beside the thread. | [How do I message a client or a teammate?](#/help/inbox) |
 | Any client page | The sync pill: QuickBooks syncs on the plan's schedule (Basic monthly, Pro every hour). Staff can click it to Sync now on any plan after changing something in QuickBooks. | [How do I connect a client's QuickBooks and use Sync now?](#/help/quickbooks-connection) |
 | Any client page | Client view shows the client's own pages. View as client, at the bottom of it, shows them exactly as one of the client's people sees them. Nothing changes for them; Exit preview brings you back. | [How do I see the portal the way a client sees it?](#/help/preview-as) |
-| Work › Tasks | Pick a client and tick Share with this client's team so other staff on it can see and tick off the task. Repeat needs a Due date. | [How do I add and manage my tasks?](#/help/my-tasks) |
+| Work › Slate | Pick a client and tick Share with this client's team so other staff on it can see and tick off the task. Repeat needs a Due date. | [How do I use my Slate?](#/help/my-tasks) |
 | Work › Close | Click a cell to set the month's status and add a note, like waiting on a bank statement. The cell shows who changed it and when. | [How do I track month-end close?](#/help/month-end-close) |
 | Work › Deadlines | Weekend due dates move to Monday, but holidays don't, so verify each date before filing. Mark filed shows the team who filed it. | [How do I track filing deadlines?](#/help/deadlines) |
 | Team › Reviews | Your self-review saves as a draft as you go. You and your reviewer can't see each other's scores until both forms are in. Other admins can follow along. | [How do quarterly reviews work?](#/help/quarterly-reviews) |
 | Today | On a computer you can install MyGoodBooks as an app. In Chrome or Edge, click the install icon at the right end of the address bar. | [How do I install MyGoodBooks as an app?](#/help/get-the-app) |
-| Settings | Choose where you land after signing in: Today, Work › Tasks or the last client you opened. It's under Appearance & start page. | [How do I change my settings (profile, notifications, theme, signature)?](#/help/staff-settings) |
+| Settings | Choose where you land after signing in: Today, Work › Slate or the last client you opened. It's under Appearance & start page. | [How do I change my settings (profile, notifications, theme, signature)?](#/help/staff-settings) |
 | Any client page | Search (or Ctrl+K, ⌘K on a Mac) also looks inside the open client: transactions, budget lines, documents and messages, as well as clients, SOPs and help. | [What's on the bar at the top of the page?](#/help/top-bar) |
 
-#### Everyone: Tasks
+#### Everyone: Slate
 
-These show on **Work › Tasks** (the Tasks pages), after the tips above. The newest are **Select many tasks**, **Month-end tasks from the Close checklist**, **Quick add in plain words**, **Subtasks**, **project colors**, **Group by** and **Manage projects**.
+These show on **Work › Slate** (the Slate pages), after the tips above. The newest are **Select many tasks**, **Month-end tasks from the Close checklist**, **Quick add in plain words**, **Subtasks**, **project colors**, **Group by** and **Manage projects**.
 
 | Page | Tip | Learn more |
 |---|---|---|
-| Tasks | Press q on any staff page to add a task (on a touch screen, tap Add task). Type it in one line: @name assigns it, #client files it, fri or 10/31 sets the date, and !high marks it urgent. | [How do I add and manage my tasks?](#/help/my-tasks) |
-| Tasks | Click a group's heading to fold it; it stays that way next time. Done starts folded, and View can turn the Today group off. | [How do I add and manage my tasks?](#/help/my-tasks) |
-| Tasks | Click a status to change it. On a task that needs review, Done becomes Send for review; an admin who didn't do the work approves it or sends it back with a note. | [What's in a task's details?](#/help/task-details) |
-| Tasks | Recurring holds the templates that make monthly, quarterly and yearly tasks for each client. Tasks they make show a Recurring tag. | [How do recurring tasks from templates work?](#/help/task-templates) |
-| Tasks | Waiting on client lists everything you've asked a client for from a task, longest wait first. Ask client is in a client task's details. | [How do I ask a client something from a task?](#/help/ask-client) |
-| Tasks (new) | Group by Client lists your tasks one client at a time instead of by due date. The portal remembers your choice (My Tasks and a person's list each remember their own). | [How do I add and manage my tasks?](#/help/my-tasks) |
-| Tasks › Recurring, One client (new) | Turn this on and the client's Close steps (bank feed, bank rec, card rec, entries, review) become tasks each month. Ticking a step moves its task. Admins and the client's account manager can change it. | [How do Close checklist steps become tasks?](#/help/close-checklist-tasks) |
-| Tasks (new) | Tick this box (or press v) on several tasks to complete, reassign, move, reschedule or delete them together. Each change has Undo for 10 seconds, or press Ctrl+Z. On a touch screen it leaves out the keys. | [How do I change many tasks at once, and undo a change?](#/help/select-many-tasks) |
-| Tasks (new) | Add a task in plain words: Send the payroll summary for Sierra re Example Church by Friday. Quick add shows what it understood before you save. | [How do I add a task, note or document request, or message a client?](#/help/quick-actions) |
-| Tasks (new) | This task has subtasks. Click its row and they open right under it; click the task's name to open its details instead. The count shows how many are done. | [How do I add and manage my tasks?](#/help/my-tasks) |
-| Tasks (new) | Every project has a color, shown beside its name here, in the sidebar and on its tasks. An owner or admin can change it under Project options. | [How do client task lists and projects work?](#/help/task-lists-and-projects) |
-| Tasks | Nobody is on this task yet. Claim takes it: it moves into your groups and the team sees your name on it. | [How do I add and manage my tasks?](#/help/my-tasks) |
-| Tasks | Projects are shared lists. SOPs and 90 Day are open to all staff, so anyone can add to them. Each client you can see has its own list too. | [How do client task lists and projects work?](#/help/task-lists-and-projects) |
-| Tasks (not on a touch screen) | Open in own window keeps Tasks in a slim window beside your work. Dock in portal brings it back. | [Can I keep Tasks in its own window?](#/help/tasks-own-window) |
+| Slate | Press q on any staff page to add a task (on a touch screen, tap Add task). Type it in one line: @name assigns it, #client files it, fri or 10/31 sets the date, and !high marks it urgent. | [How do I use my Slate?](#/help/my-tasks) |
+| Slate | Click a group's heading to fold it; it stays that way next time. Done starts folded, and View can turn the Today group off. | [How do I use my Slate?](#/help/my-tasks) |
+| Slate | Click a status to change it. On a task that needs review, Done becomes Send for review; an admin who didn't do the work approves it or sends it back with a note. | [What's in a task's details?](#/help/task-details) |
+| Slate | Recurring holds the templates that make monthly, quarterly and yearly tasks for each client. Tasks they make show a Recurring tag. | [How do recurring tasks from templates work?](#/help/task-templates) |
+| Slate | Waiting on client lists everything you've asked a client for from a task, longest wait first. Ask client is in a client task's details. | [How do I ask a client something from a task?](#/help/ask-client) |
+| Slate (new) | Group by Client lists your tasks one client at a time instead of by due date. The portal remembers your choice (Slate and a person's list each remember their own). | [How do I use my Slate?](#/help/my-tasks) |
+| Slate › Recurring, One client (new) | Turn this on and the client's Close steps (bank feed, bank rec, card rec, entries, review) become tasks each month. Ticking a step moves its task. Admins and the client's account manager can change it. | [How do Close checklist steps become tasks?](#/help/close-checklist-tasks) |
+| Slate (new) | Tick this box (or press v) on several tasks to complete, reassign, move, reschedule or delete them together. Each change has Undo for 10 seconds, or press Ctrl+Z. On a touch screen it leaves out the keys. | [How do I change many tasks at once, and undo a change?](#/help/select-many-tasks) |
+| Slate (new) | Add a task in plain words: Send the payroll summary for Sierra re Example Church by Friday. Quick add shows what it understood before you save. | [How do I add a task, note or document request, or message a client?](#/help/quick-actions) |
+| Slate (new) | This task has subtasks. Click its row and they open right under it; click the task's name to open its details instead. The count shows how many are done. | [How do I use my Slate?](#/help/my-tasks) |
+| Slate (new) | Every project has a color, shown beside its name here, in the sidebar and on its tasks. An owner or admin can change it under Project options. | [How do client task lists and projects work?](#/help/task-lists-and-projects) |
+| Slate | Nobody is on this task yet. Claim takes it: it moves into your groups and the team sees your name on it. | [How do I use my Slate?](#/help/my-tasks) |
+| Slate | Projects are shared lists. SOPs and 90 Day are open to all staff, so anyone can add to them. Each client you can see has its own list too. | [How do client task lists and projects work?](#/help/task-lists-and-projects) |
+| Slate (not on a touch screen) | Open in own window keeps Slate in a slim window beside your work. Dock in portal brings it back. | [Can I keep Slate in its own window?](#/help/tasks-own-window) |
 | Any client page | Your next task for this client. Click All tasks, or press t, to see them all without leaving the page. | [How do I see a client's tasks without leaving the page?](#/help/client-tasks-drawer) |
 
-#### Admins: Tasks
+#### Admins: Slate
 
 | Page | Tip | Learn more |
 |---|---|---|
-| Tasks | Review lists the work waiting for an admin's approval, oldest first. The number is what you can approve now. | [How does task review work?](#/help/task-review) |
-| Tasks (new) | Manage projects lists every project, including archived ones and the trash. Rename, archive, trash or restore from there. | [How do I rename, archive or trash a project?](#/help/manage-projects) |
-| Tasks | No team yet lists clients brought over from Asana with no bookkeeper. Open one and click Assign team to give it one; no email is sent. | [How do client task lists and projects work?](#/help/task-lists-and-projects) |
+| Slate | Review lists the work waiting for an admin's approval, oldest first. The number is what you can approve now. | [How does task review work?](#/help/task-review) |
+| Slate (new) | Manage projects lists every project, including archived ones and the trash. Rename, archive, trash or restore from there. | [How do I rename, archive or trash a project?](#/help/manage-projects) |
+| Slate | No team yet lists clients brought over from Asana with no bookkeeper. Open one and click Assign team to give it one; no email is sent. | [How do client task lists and projects work?](#/help/task-lists-and-projects) |
 
 #### Bookkeepers
 

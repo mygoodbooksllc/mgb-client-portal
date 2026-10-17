@@ -5,28 +5,28 @@ audience: staff
 keywords: [task details, details panel, drawer, open task, status, to do, in progress, waiting on client, ready for review, done, review, needs review, approve, send back, take back, review strip, review queue, reviewer, assignee, due, start, priority, section, repeat, remind me, sharing, private, share with the client's team, sop section, description, subtasks, checklist, comments, mentions, at mention, followers, follow, files, attachments, links, google drive, activity, history, copy link, delete, restore, deleted, client requests, ask client, record answer, accept answer]
 sort: 112
 ---
-Click a task anywhere (My Tasks, a client or project list, Today, a client's Overview, the bell or search) and its details slide in from the right. On a phone they fill the screen. Press **Esc** or click **Close** to put them away. Changes save as you make them.
+Click a task anywhere (Slate, a client or project list, Today, a client's Overview, the bell or search) and its details slide in from the right. On a phone they fill the screen. Press **Esc** or click **Close** to put them away. Changes save as you make them.
 
 ### The header
 
 - **Status**: click it to change it (see below).
 - **Title**: click to edit.
 - **Copy link**: copies a link that opens this task after sign-in. You'll see *Link copied.* Links in older emails keep working too.
-- **More actions**: **Save as template** (admins) or **Suggest as template** (everyone else), and **Delete**. See [How do I add and manage my tasks?](#/help/my-tasks).
+- **More actions**: **Save as template** (admins) or **Suggest as template** (everyone else), and **Delete**. See [How do I use my Slate?](#/help/my-tasks).
 
 ### Status and review
 
 Every task has one of five statuses: **To do**, **In progress**, **Waiting on client**, **Ready for review** and **Done**.
 
-- **Waiting on client** pauses the task. It moves to the Waiting on client group on My Tasks and never shows as overdue. **Ask client** (below) sets it for you, and while a request is open the task stays waiting until the client answers or you cancel the request.
+- **Waiting on client** pauses the task. It moves to the Waiting on client group on Slate and never shows as overdue. **Ask client** (below) sets it for you, and while a request is open the task stays waiting until the client answers or you cancel the request.
 - A task with **Needs review before it's done** ticked has a review step, for admins too. When you finish it, the status menu says **Send for review** and the task goes to **Ready for review**. You'll see *Sent for review. An admin will approve it.* A strip at the top of the details shows the reviewer (**any admin** if nobody is named), how long it has waited and how often it was sent back.
 - On a task that's **Ready for review**, the reviewer (any admin who didn't do the work) sees **Approve** (it becomes Done) and **Send back**, which asks *What needs another look?* (a short note is required) and moves the task back to **In progress** with your note as a comment. The person who did the work sees **Take back** instead, and can't change the assignee until it's out of review.
 - Anyone who can edit a task can tick **Needs review**. Only an admin can turn it off.
-- All the work waiting for review is on **Review** in the Tasks sidebar. See [How does task review work?](#/help/task-review).
+- All the work waiting for review is on **Review** in the Slate sidebar. See [How does task review work?](#/help/task-review).
 
 ### The fields
 
-- **Assignee**: who does it. It shows on their My Tasks. If they can't see the task's client, you'll see *They can't see this client yet, so they won't see this task.*
+- **Assignee**: who does it. It shows on their Slate. If they can't see the task's client, you'll see *They can't see this client yet, so they won't see this task.*
 - **Due**, with an optional time, and **Start**.
 - **Priority**: **High**, **Normal** or **Low**.
 - **Section**: where it sits on the client's or project's list, such as Weekly or Monthly.

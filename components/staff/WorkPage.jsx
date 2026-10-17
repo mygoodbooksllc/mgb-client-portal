@@ -96,7 +96,7 @@ function WK_WorkPage({ clients, taskClients, staffUser, statusOverrides, canMana
         onOpenTemplates={onOpenTemplates}
       />
     ) : (
-      <p className="card-subtitle">Tasks aren't available right now.</p>
+      <p className="card-subtitle">Slate isn't available right now.</p>
     );
   } else if (tab === "notes") {
     body =

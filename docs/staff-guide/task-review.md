@@ -40,7 +40,7 @@ You can also use the status menu on the row: **Approve** and **Send back** are t
 
 ### The review queue
 
-Click **Review** in the Tasks sidebar (or go to `#/tasks/review`). Admins see everything waiting, oldest first, in groups:
+Click **Review** in the Slate sidebar (or go to `#/tasks/review`). Admins see everything waiting, oldest first, in groups:
 
 - **Waiting on you**: you're the named reviewer.
 - **Any admin**: no reviewer named.

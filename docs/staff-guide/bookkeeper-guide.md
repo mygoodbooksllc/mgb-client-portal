@@ -11,7 +11,7 @@ As a bookkeeper you look after your own clients: you keep their books, answer th
 
 - It starts by itself once, the first time you open the portal. If you did the older staff tour, you still get this one, because it's new.
 - Run it again any time from **?** → **Bookkeeper tour**, from **Ctrl+K** (**⌘K** on a Mac) by typing "bookkeeper tour", or from **Settings › Help**.
-- It opens each part of your day in turn and points at it: **Today**, **Clients**, a client's **Overview** and **Close** tab, the **+** button, the **Inbox**, **Work › Tasks** and **Close** (which points you to **Deadlines**), **Team › People**, **Reviews** and **Handbook**, search and the **?** menu. About three minutes.
+- It opens each part of your day in turn and points at it: **Today**, **Clients**, a client's **Overview** and **Close** tab, the **+** button, the **Inbox**, **Work › Slate** and **Close** (which points you to **Deadlines**), **Team › People**, **Reviews** and **Handbook**, search and the **?** menu. About three minutes.
 - Admins can run it from the **?** menu too. During **View as**, it only visits the pages View as can open (Today, Clients and a client's pages); the Inbox, Work and Team stops are skipped.
 
 If you're also a client's account manager, the **Account manager tour** comes next. If you have temporary admin access, you'll get the **Temporary admin tour** first. See [Account manager guide](#/help/account-manager-guide) and [Temporary access](#/help/temporary-access).
@@ -46,7 +46,7 @@ See [How do I message a client or a teammate?](#/help/inbox).
 
 ### 5. Work
 
-- **Tasks**: your own tasks, plus your **Notes** and **SOPs** cards. See [How do I add and manage my tasks?](#/help/my-tasks).
+- **Slate**: your own tasks, plus your **Notes** and **SOPs** cards. See [How do I use my Slate?](#/help/my-tasks).
 - **Close**: month-end close, one row per client and one column per month. Click a cell to set the **Status** and **Save**, or click a client's name to open their **Close** tab. The QuickBooks badges tell you what's still blocking a month. See [How do I track month-end close?](#/help/month-end-close).
 - **Deadlines**: 990s, 1099s and the other filing dates for your clients, with **Mark filed** and **Create task**. See [How do I track filing deadlines?](#/help/deadlines).
 
@@ -68,7 +68,7 @@ See [How do I message a client or a teammate?](#/help/inbox).
 
 1. **Today**: clear what's marked **Now**.
 2. **Inbox**: reply to every client waiting on you.
-3. **Work › Tasks**: finish what's due. Anything sent back from review is back in your list as **In progress**, with the reviewer's note in its comments. See [How does task review work?](#/help/task-review). Tasks with a **Recurring** tag come from a template each period; see [How do recurring tasks from templates work?](#/help/task-templates). Stuck on the client? Use **Ask client** in the task's details, and check **Tasks › Waiting on client** for anything that needs a nudge; see [How do I ask a client something from a task?](#/help/ask-client).
+3. **Work › Slate**: finish what's due. Anything sent back from review is back in your list as **In progress**, with the reviewer's note in its comments. See [How does task review work?](#/help/task-review). Tasks with a **Recurring** tag come from a template each period; see [How do recurring tasks from templates work?](#/help/task-templates). Stuck on the client? Use **Ask client** in the task's details, and check **Slate › Waiting on client** for anything that needs a nudge; see [How do I ask a client something from a task?](#/help/ask-client).
 
 **Every week**
 

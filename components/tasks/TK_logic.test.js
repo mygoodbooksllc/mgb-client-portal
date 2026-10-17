@@ -64,10 +64,11 @@ t("SOP section ids match app.jsx CLIENT_SOP_SECTIONS", () => {
   assert.deepStrictEqual(ids, L.TK_SOP_SECTION_IDS);
 });
 t("copy strings are final", () => {
-  assert.strictEqual(L.TK_COPY.setupTitle, "Tasks is being set up");
+  assert.strictEqual(L.SLATE_NAME, "Slate");
+  assert.strictEqual(L.TK_COPY.setupTitle, "Slate is being set up");
   assert.strictEqual(L.TK_COPY.sentForReview, "Sent for review. An admin will approve it.");
   assert.strictEqual(L.TK_COPY.taskAdded, "Task added.");
-  assert.ok(/Work › Tasks\.$/.test(L.TK_COPY.setupBody));
+  assert.ok(/Work › Slate\.$/.test(L.TK_COPY.setupBody));
   Object.keys(L.TK_COPY).forEach((k) => assert.ok(!/!/.test(L.TK_COPY[k]), k + " has no exclamation mark"));
   assert.strictEqual(Object.keys(L.TK_COPY).length, 39);
   assert.strictEqual(L.TK_COPY.selfReview, "You can't approve your own work. Another admin will review it.");
@@ -1242,7 +1243,7 @@ t("the file is pure: no React, DOM writes, Supabase or lookbehind", () => {
   assert.ok(!/React|mgbSupabase|localStorage|sessionStorage|addEventListener|\(\?<[=!]/.test(src));
   assert.ok(!/^(const|let|class) /m.test(src), "top level uses var and function only");
   const tops = src.match(/^(?:var|function) ([A-Za-z_$][\w$]*)/gm) || [];
-  tops.forEach((d) => assert.ok(/ TK_/.test(d), d));
+  tops.forEach((d) => assert.ok(/ (TK_|SLATE_NAME$)/.test(d), d)); // SLATE_NAME is the one shared constant
 });
 
 console.log(n + " checks passed");

@@ -986,16 +986,16 @@ const FEATURE_FLAGS = [
   {
     // Read by WB_store (components/workbench/WB_store.js).
     key: "mgb_wb_preview",
-    label: "Workbench preview",
+    label: "Desk preview",
     description:
-      "Turns the Workbench on for you only, in this browser, while the firm-wide wb_enabled switch is off: Today becomes the Workbench list and the bottom drawer (press W) shows on every staff page. Classic Today below wins if both are on. The page reloads when you toggle it.",
+      "Turns the Desk on for you only, in this browser, while the firm-wide wb_enabled switch is off: Today gets the Needs you list and the Desk (press W) shows at the bottom of every staff page. Classic Today below wins if both are on. The page reloads when you toggle it.",
     reloads: true,
   },
   {
     key: "mgb_wb_classic",
     label: "Classic Today",
     description:
-      "Turns the Workbench off for you only, in this browser, even after the owner switches it on for everyone: Today goes back to its old tiles and list and the drawer is hidden. The page reloads when you toggle it.",
+      "Turns the Desk off for you only, in this browser, even after the owner switches it on for everyone: Today goes back to its old tiles and list and the Desk is hidden. The page reloads when you toggle it.",
     reloads: true,
   },
 ];
@@ -2803,7 +2803,7 @@ function MyTasksDueCount({ due }) {
     <span
       className="nav-due-counts"
       role="img"
-      aria-label={`My Tasks: ${label}`}
+      aria-label={`Slate: ${label}`}
       title={label}
     >
       {due.overdue > 0 && (
@@ -15120,7 +15120,7 @@ function DeveloperToolsPage({ staffUser, readOnly }) {
       .select("key, value, updated_by, updated_at")
       .then(({ data, error }) => {
         if (error) {
-          setTkSettingsError("Couldn't load Tasks switches. " + error.message);
+          setTkSettingsError("Couldn't load Slate switches. " + error.message);
           setTkSettings({});
           return;
         }
@@ -15309,9 +15309,9 @@ function DeveloperToolsPage({ staffUser, readOnly }) {
       )}
 
       <div className="card" style={{ marginBottom: 20 }}>
-        <h3 className="card-title">Tasks switches</h3>
+        <h3 className="card-title">Slate switches</h3>
         <p className="card-subtitle">
-          Firm-wide, from tk_settings (and the Ask client switch from client_email_settings). Read-only here: the owner flips the standard close set on Tasks › Recurring and Ask client emails live on Settings › Firm settings › Emails (Client emails card).
+          Firm-wide, from tk_settings (and the Ask client switch from client_email_settings). Read-only here: the owner flips the standard close set on Slate › Recurring and Ask client emails live on Settings › Firm settings › Emails (Client emails card).
         </p>
         {tkSettingsError ? <p className="card-subtitle">{tkSettingsError}</p> : null}
         {tkSettings === null ? (
@@ -15326,10 +15326,10 @@ function DeveloperToolsPage({ staffUser, readOnly }) {
             ["on_time_since", "On-time counted since", "Start date for on-time stats and the missed-periods floor."],
             ["ooo_auto_apply", "Time off hands tasks to backups", "Off (false or not set, the default): only the manual Hand my tasks to backups button moves tasks. Set to true and the tk-ooo-daily cron (11:00 UTC) also moves open tasks due during someone's time off to each client's backup on their first day off (never re-taking a task someone handed back). Handing back after the time off always runs."],
             ["asana_import_apply_enabled", "Asana import apply", "Off (or missing) blocks tk_import_asana_apply, the one-time Asana import. Turn on only for the import, then off again. Undo works with it off."],
-            ["wb_enabled", "Workbench on for staff", "Off (or missing, the default) keeps Today and the nav as they were for everyone. Owner turns it on (true) to give every staff member the Workbench list on Today and the bottom drawer (press W). Each person can still opt out with Classic Today in Feature flags, or try it early with Workbench preview."],
-            ["wb_gl_due_bday", "Workbench Ledger flags due (business day)", "Business day of the month after a period when open Ledger flags count as due on the Workbench. Not set means 10."],
-            ["wb_doc_check_from", "Workbench new files from", "Client uploads before this date never show as new files on the Workbench. Not set means 2026-10-16."],
-            ["__close_optin_count", "Clients with month-end tasks from the Close checklist (visible to you)", "How many clients you can see are turned on (tk_client_close_optin, disabled_at empty). Set per client by an admin or that client's account manager on Tasks › Recurring › One client; off by default. Works while the standard close set is off."],
+            ["wb_enabled", "Desk and new Today on for staff", "Off (or missing, the default) keeps Today and the nav as they were for everyone. Owner turns it on (true) to give every staff member the Needs you list on Today and the Desk (press W). Each person can still opt out with Classic Today in Feature flags, or try it early with Desk preview."],
+            ["wb_gl_due_bday", "Desk Ledger flags due (business day)", "Business day of the month after a period when open Ledger flags count as due on the Desk. Not set means 10."],
+            ["wb_doc_check_from", "Desk new files from", "Client uploads before this date never show as new files on the Desk. Not set means 2026-10-16."],
+            ["__close_optin_count", "Clients with month-end tasks from the Close checklist (visible to you)", "How many clients you can see are turned on (tk_client_close_optin, disabled_at empty). Set per client by an admin or that client's account manager on Slate › Recurring › One client; off by default. Works while the standard close set is off."],
           ].map(([key, label, desc]) => {
             const row = key === "__close_optin_count" ? (closeOptinCount === null ? null : { value: closeOptinCount }) : tkSettings[key];
             const raw = row ? row.value : undefined;
@@ -17067,7 +17067,7 @@ const USAGE_STATS_RANGES = [
 ];
 // Tab keys that don't read well title-cased; everything else is capitalised.
 const USAGE_TAB_LABELS = {
-  tasks: "Tasks",
+  tasks: "Slate",
   notes: "Notes & SOPs",
   qbo: "QuickBooks",
   sop: "SOP",
@@ -17083,7 +17083,7 @@ const USAGE_TAB_LABELS = {
 // Tasks logs its sub-route as the tab (#/tasks/review -> "review").
 const USAGE_PAGE_TAB_LABELS = {
   tasks: {
-    my: "My tasks",
+    my: "Slate",
     review: "Review",
     waiting: "Waiting on client",
     templates: "Recurring",
@@ -17114,7 +17114,7 @@ const USAGE_ACTION_LABELS = {
   "tasks-quick-add-plain": "Quick adds that used plain words",
   "tasks-search": "Task searches",
   "tasks-shortcut": "Task keyboard shortcuts used",
-  "tasks-popout": "Tasks opened in its own window",
+  "tasks-popout": "Slate opened in its own window",
   "tasks-bulk-complete": "Bulk: tasks completed together",
   "tasks-bulk-reopen": "Bulk: tasks reopened together",
   "tasks-bulk-delete": "Bulk: tasks deleted together",
@@ -17125,21 +17125,21 @@ const USAGE_ACTION_LABELS = {
   "tasks-undo-click": "Tasks undone with the toast's Undo button",
   "tasks-close-tick": "Close steps ticked that moved a task",
   "tasks-close-optin": "Month-end tasks from the Close checklist turned on or off",
-  "tasks-dock": "Tasks docked back in the portal",
+  "tasks-dock": "Slate docked back in the portal",
   "tasks-client-drawer": "Client task panel opened",
-  "tasks-follow": "Tasks window set to follow your client",
+  "tasks-follow": "Slate window set to follow your client",
   "tasks-comment": "Task comments posted",
   "tasks-attach": "Files attached to tasks",
   "client-needs-answer": "Client answers to requests (portal)",
   "client-needs-upload": "Client uploads to requests (portal)",
-  "wb-action": "Workbench row actions",
-  "wb-snooze": "Workbench items snoozed",
+  "wb-action": "Desk row actions",
+  "wb-snooze": "Desk items snoozed",
   "wb-noreply": "Threads marked No reply needed",
-  "wb-filter": "Workbench filters and drawer tabs",
-  "wb-scope": "Workbench Mine / Everyone switches",
-  "wb-drawer": "Workbench drawer opened",
-  "wb-hub": "Workbench hub: My tasks and Client tabs opened, clients picked",
-  "wb-pin": "Workbench Client tab: clients pinned or unpinned",
+  "wb-filter": "Desk filters and tabs",
+  "wb-scope": "Desk Mine / Everyone switches",
+  "wb-drawer": "Desk opened",
+  "wb-hub": "Desk: Slate and Client tabs opened, clients picked",
+  "wb-pin": "Desk Client tab: clients pinned or unpinned",
 };
 const USAGE_DEVICE_LABELS = { desktop: "Desktop", mobile: "Phone", installed: "Installed app", unknown: "Unknown" };
 
@@ -19732,7 +19732,7 @@ const staffItemsApi = {
     const msg = /tk_self_review/.test(m)
       ? "You can't approve your own work. Another admin will review it."
       : /tk_forbidden|tk_needs_approval|42501/.test(m + " " + (res.error.code || ""))
-        ? "It's waiting for an admin to approve it. Open it in Tasks › Review."
+        ? "It's waiting for an admin to approve it. Open it in Slate › Review."
         : m;
     return { data: null, error: { code: res.error.code, message: msg, friendly: msg !== m } };
   },
@@ -20488,7 +20488,7 @@ function ClientSopView({ client, readOnly, onEditInMyTasks, section }) {
         <div className="sop-toolbar-actions">
           {readOnly && onEditInMyTasks && (
             <button type="button" className="btn-primary" onClick={onEditInMyTasks}>
-              Edit in My Tasks
+              Edit in Slate
             </button>
           )}
           <button
@@ -21944,7 +21944,7 @@ function MyTasksPage({
             <RepeatIcon />
             <span>Manage templates</span>
           </button>
-          <span className="tasks-manage-hint">Recurring tasks, in Tasks › Recurring</span>
+          <span className="tasks-manage-hint">Recurring tasks, in Slate › Recurring</span>
         </div>
       )}
       <div className="card" style={{ marginBottom: 20 }}>
@@ -26583,7 +26583,7 @@ const PAGE_META = {
   // the same word.
   today: {
     title: "Today",
-    subtitle: "What needs you, in order (the Workbench list when it's on)",
+    subtitle: "What needs you, in order (the Needs you list when it's on)",
   },
   inbox: {
     title: "Inbox",
@@ -26591,10 +26591,10 @@ const PAGE_META = {
   },
   work: {
     title: "Work",
-    subtitle: "Tasks, notes and SOPs, month-end close and deadlines",
+    subtitle: "Slate, notes and SOPs, month-end close and deadlines",
   },
   tasks: {
-    title: "Tasks",
+    title: "Slate",
     subtitle: "Your tasks (by due date or client), unassigned work to claim, review, waiting on client, recurring work, client lists and projects with color dots (admins: Manage projects), subtasks open in place under their task, quick add that reads plain words (for Sierra, re a client, by Friday), month-end tasks from a client's Close checklist (per client, Recurring › One client), select many tasks to complete, reassign, move, reschedule or delete together, with Undo",
   },
   clients: {
@@ -26638,7 +26638,7 @@ const PAGE_META = {
   },
   "task-templates": {
     title: "Recurring tasks",
-    subtitle: "Moved to Tasks › Recurring (#/tasks/templates)",
+    subtitle: "Moved to Slate › Recurring (#/tasks/templates)",
   },
   milestone: {
     title: "Milestone",
@@ -30110,7 +30110,7 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
               page={effectivePage}
             />
           )}
-          {/* Workbench drawer (components/workbench/WB_Drawer.jsx): a bar at the
+          {/* Desk (was Workbench; components/workbench/WB_Drawer.jsx): a bar at the
               bottom of every staff page, W opens it. Renders nothing while
               Workbench is off; never while viewing as someone or previewing. */}
           {typeof WB_Drawer === "function" && showStaffRail && !tkShell && !isPreviewingUser && !impersonating && staffUser && staffUser.email && (
@@ -30455,7 +30455,7 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
               />
             ) : (
               <div className="card">
-                <p className="card-subtitle">Tasks didn't load. Refresh the page to try again.</p>
+                <p className="card-subtitle">Slate didn't load. Refresh the page to try again.</p>
               </div>
             ))}
           {/* Work (components/staff/WorkPage.jsx): Tasks, Notes & SOPs, Close, Deadlines. */}

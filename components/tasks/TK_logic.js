@@ -24,9 +24,13 @@ var TK_SOON_DAYS = 7;
 var TK_OLD_DONE_MONTHS = 12;
 var TK_CLIENT_SECTION_ORDER = ["Weekly", "Monthly", "Quarterly", "Annual", "Occasional"];
 
+// The task module's display name (it was "Tasks"). Identifiers (TK_*, tk_*,
+// #/tasks) never change; code outside TK_ reads it with a typeof guard.
+var SLATE_NAME = "Slate";
+
 var TK_COPY = {
-  setupTitle: "Tasks is being set up",
-  setupBody: "Your tasks are safe. This page fills in as soon as the update is finished. Until then, use Work › Tasks.",
+  setupTitle: SLATE_NAME + " is being set up",
+  setupBody: "Your tasks are safe. This page fills in as soon as the update is finished. Until then, use Work › " + SLATE_NAME + ".",
   offline: "You're offline. Showing what was already loaded. Changes are paused until you're back online.",
   loadError: "Couldn't load your tasks.",
   retry: "Try again",
@@ -1213,6 +1217,7 @@ if (typeof module !== "undefined" && module.exports) {
     TK_SOON_DAYS: TK_SOON_DAYS,
     TK_OLD_DONE_MONTHS: TK_OLD_DONE_MONTHS,
     TK_CLIENT_SECTION_ORDER: TK_CLIENT_SECTION_ORDER,
+    SLATE_NAME: SLATE_NAME,
     TK_COPY: TK_COPY,
     TK_effectiveStatus: TK_effectiveStatus,
     TK_canTransition: TK_canTransition,

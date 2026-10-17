@@ -46,7 +46,7 @@ function WB_HubClient(props) {
   if (!ok) {
     return (
       <p className="wb-filtered-empty" role="status">
-        Client tasks aren't available here yet. <a href="#/tasks/my">My Tasks</a>
+        Client tasks aren't available here yet. <a href="#/tasks/my">Slate</a>
       </p>
     );
   }
@@ -66,7 +66,7 @@ function WB_HubClientGate(props) {
   if (schema === "missing") {
     return (
       <p className="wb-filtered-empty" role="status">
-        Tasks is being set up. Try again in a little while.
+        Slate is being set up. Try again in a little while.
       </p>
     );
   }

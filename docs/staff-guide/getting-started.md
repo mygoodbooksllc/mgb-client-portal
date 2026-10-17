@@ -23,7 +23,7 @@ The dark rail on the left has five places. Everything you do lives in one of the
 
 - **Today**: what needs you, most urgent first. See [What's on my Today page?](#/help/home-page).
 - **Inbox**: client conversations and team chat in one place. See [How do I message a client or a teammate?](#/help/inbox).
-- **Work**: your **Tasks**, the month-end **Close** and filing **Deadlines**. See [What's on the Work page?](#/help/work-page).
+- **Work**: your **Slate**, the month-end **Close** and filing **Deadlines**. See [What's on the Work page?](#/help/work-page).
 - **Clients**: every client you can see, and the way into a client's pages. See [How do I use the Clients page?](#/help/clients-page).
 - **Team**: **People** (who's out, your backups, time off, shout-outs), **Reviews**, **Onboarding** and **Handbook** (staff policies to read and sign). Admins also see **Hours**, **Reply times**, **Feedback** and **Members**. See [What's on the Team page?](#/help/team-page).
 
@@ -33,7 +33,7 @@ Every page looks the same: a title, one row of tabs, and the content. The tab is
 
 ### The top bar
 
-Across the top: the client picker, the sync pill (client pages), search (**Ctrl+K** / **⌘K**, which also jumps to any page or action), the bell, **Tasks**, **+** (add a task, note or document request, or message the client), **?** (help for this page, the staff guide, **Send feedback**, **What's new**, **Tips while you learn** and the tours) and your initials (dark mode, Preview as and **Sign out**). See [What's on the bar at the top of the page?](#/help/top-bar).
+Across the top: the client picker, the sync pill (client pages), search (**Ctrl+K** / **⌘K**, which also jumps to any page or action), the bell, **Slate**, **+** (add a task, note or document request, or message the client), **?** (help for this page, the staff guide, **Send feedback**, **What's new**, **Tips while you learn** and the tours) and your initials (dark mode, Preview as and **Sign out**). See [What's on the bar at the top of the page?](#/help/top-bar).
 
 ### Inside a client
 

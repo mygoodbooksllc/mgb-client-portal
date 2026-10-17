@@ -33,7 +33,7 @@ If a name could be two people, a person and a client, or more than one client, n
 
 With a client picked, **Share with the client's team** is ticked, so the other staff on this client can see it. Untick it to keep it private.
 
-Press **Enter** to add it, or **Shift+Enter** to add it and open its details. You'll see *Task added.* The task shows on the assignee's My Tasks and on the client's task list. More in [How do I add and manage my tasks?](#/help/my-tasks).
+Press **Enter** to add it, or **Shift+Enter** to add it and open its details. You'll see *Task added.* The task shows on the assignee's Slate and on the client's task list. More in [How do I use my Slate?](#/help/my-tasks).
 
 ### New note
 

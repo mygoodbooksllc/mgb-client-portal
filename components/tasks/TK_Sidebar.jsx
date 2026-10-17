@@ -299,7 +299,7 @@ function TK_Sidebar(props) {
   return (
     <nav className="tk-sidebar" aria-label="Task lists" data-tour="tk-sidebar">
       <ul className="tk-nav">
-        <TK_vNavItem route={{ view: "my" }} label="My Tasks" icon="home" active={route.view === "my"} onNavigate={nav} />
+        <TK_vNavItem route={{ view: "my" }} label="Slate" icon="home" active={route.view === "my"} onNavigate={nav} />
         <TK_vNavItem route={{ view: "review" }} label="Review" icon="check" count={reviewCount} tour="tk-review-nav" active={route.view === "review"} onNavigate={nav} />
         <TK_vNavItem route={{ view: "waiting" }} label="Waiting on client" icon="hourglass" count={waitCount} tour="tk-waiting-nav" active={route.view === "waiting"} onNavigate={nav} />
         <TK_vNavItem route={{ view: "templates" }} label="Recurring" icon="repeat" tour="tk-recurring-nav" active={route.view === "templates"} onNavigate={nav} />

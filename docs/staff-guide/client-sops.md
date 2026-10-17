@@ -7,13 +7,13 @@ sort: 130
 ---
 A client's **SOP** (standard operating procedure) explains how their books are run, so anyone on the team can step in. SOPs are **staff-only** and every change is saved in history.
 
-Not the same as the **SOPs** project on the Tasks page: that's a shared task list, open to all staff, for work on writing and updating SOPs. See [How do client task lists and projects work?](#/help/task-lists-and-projects).
+Not the same as the **SOPs** project on the Slate page: that's a shared task list, open to all staff, for work on writing and updating SOPs. See [How do client task lists and projects work?](#/help/task-lists-and-projects).
 
 ### Open a client's SOP
 
 - The client's **SOP** tab: open the client and click **SOP** in the tab row (after **Reports**).
-- **Work › Notes & SOPs → SOPs** card (`#/work/notes`; it used to sit under Work › Tasks): search for the client and click it. Use **Change client** to switch.
-- A client's task list (on the Tasks page) has an **SOP** button at the top. A task's details can link to one **SOP section**: **View SOP section** shows it without leaving the task. See [What's in a task's details?](#/help/task-details).
+- **Work › Notes & SOPs → SOPs** card (`#/work/notes`; it used to sit under Work › Slate): search for the client and click it. Use **Change client** to switch.
+- A client's task list (on the Slate page) has an **SOP** button at the top. A task's details can link to one **SOP section**: **View SOP section** shows it without leaving the task. See [What's in a task's details?](#/help/task-details).
 - Or **Client details → SOP** (the client's **Client setup** gear → **Access and details** → **Client details**) shows it read-only. To change it, open the client's **SOP** tab or **Work › Notes & SOPs → SOPs**.
 
 ### The seven sections

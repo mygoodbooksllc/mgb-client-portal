@@ -7,11 +7,11 @@ sort: 320
 ---
 Some work happens for every client on a schedule, like reconciling bank accounts each month. Instead of typing those tasks by hand, an admin sets up a **recurring template** once, and the portal makes the task for each client on its own every morning.
 
-Templates live in **Tasks › Recurring** (`#/tasks/templates`). The old **Task templates** link in Settings, and `#/templates`, take you there.
+Templates live in **Slate › Recurring** (`#/tasks/templates`). The old **Task templates** link in Settings, and `#/templates`, take you there.
 
 ### What bookkeepers see
 
-- The tasks appear on your **My Tasks** (and on the client's task list) for the clients you look after. A template picks who does it in **Assign to**: the client's **bookkeeper** (the default), **backup bookkeeper**, **account manager** or **reviewer**; **a named person** for every client; or **Leave unassigned (anyone on the client can claim it)**. If nobody has the chosen role, it goes to the bookkeeper, then the account manager. An unassigned task shows in the **Unassigned** group of **My Tasks** for everyone on the client, and **Claim** takes it (see [How do I add and manage my tasks?](#/help/my-tasks)).
+- The tasks appear on your **Slate** (and on the client's task list) for the clients you look after. A template picks who does it in **Assign to**: the client's **bookkeeper** (the default), **backup bookkeeper**, **account manager** or **reviewer**; **a named person** for every client; or **Leave unassigned (anyone on the client can claim it)**. If nobody has the chosen role, it goes to the bookkeeper, then the account manager. An unassigned task shows in the **Unassigned** group of **Slate** for everyone on the client, and **Claim** takes it (see [How do I use my Slate?](#/help/my-tasks)).
 - The task name ends with the period, for example **"Reconcile bank accounts · Sep 2026"**, **"· Q3 2026"**, **"· FY 2027"** or **"· Wk of Sep 7"**.
 - Each one shows a small **Recurring** tag on the row and in its details.
 - It shows up a set number of days before it's due (the template's "show it early" days), not months ahead.
@@ -34,7 +34,7 @@ Business days skip weekends and the firm's holidays. The editor shows the next t
 
 ### What you can see (all staff)
 
-Everyone can open **Tasks › Recurring** to see the templates. Under **One client**, pick a client you look after to see which templates reach them and when the next one is due. You can also:
+Everyone can open **Slate › Recurring** to see the templates. Under **One client**, pick a client you look after to see which templates reach them and when the next one is due. You can also:
 
 - **Skip a template for that client** with its switch. It stops making tasks for that client only.
 - **Change** it for that client: a different title, due date, who does it, or whether it needs approval. Only an admin can turn approval off for a client. If an admin already turned it off, you can still skip or change the rest; the admin's setting stays as it is.
@@ -42,7 +42,7 @@ Everyone can open **Tasks › Recurring** to see the templates. Under **One clie
 
 ### Setting up a template (admins)
 
-1. In **Tasks › Recurring**, click **New template**.
+1. In **Slate › Recurring**, click **New template**.
 2. Type the **Title**, for example *Reconcile bank accounts*. Don't add the month; it's added for you.
 3. Pick how often it **Repeats**: **Weekly**, **Monthly**, **Quarterly** or **Annually**. Annual templates can follow the calendar year or **each client's fiscal year**.
 4. Pick when it's **Due** (see above).
@@ -79,10 +79,10 @@ Real clients start from the day the owner switches the set live: earlier months 
 
 ### Templates from tasks and suggestions
 
-Any task can become a template: open it and pick **More actions** → **Save as template** (see [How do I add and manage my tasks?](#/help/my-tasks)).
+Any task can become a template: open it and pick **More actions** → **Save as template** (see [How do I use my Slate?](#/help/my-tasks)).
 
-- Admins go straight to the editor on **Tasks › Recurring**, pre-filled with the title (the period is removed), priority, the task's client and its checklist. Nothing is saved until you click **Save draft**.
-- Other staff send a suggestion instead. Pending suggestions show at the top of **Tasks › Recurring** under **Suggested by staff**, and in admins' bell. Click **Make template** to open the pre-filled editor (the suggestion is marked done when you save), or **Dismiss**.
+- Admins go straight to the editor on **Slate › Recurring**, pre-filled with the title (the period is removed), priority, the task's client and its checklist. Nothing is saved until you click **Save draft**.
+- Other staff send a suggestion instead. Pending suggestions show at the top of **Slate › Recurring** under **Suggested by staff**, and in admins' bell. Click **Make template** to open the pre-filled editor (the suggestion is marked done when you save), or **Dismiss**.
 
 ### Troubleshooting
 

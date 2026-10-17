@@ -942,7 +942,7 @@ function TD_RemindersCard({ me, items, error, onAdd, onToggle, onRemove, today }
       <p className="card-subtitle">
         Private to you and admins unless you share one with a client's team. For times, repeats and sharing, open{" "}
         <button type="button" className="td-link" onClick={() => NAV_go("work", "tasks")}>
-          Work › Tasks
+          Work › Slate
         </button>
         .
       </p>
@@ -1410,7 +1410,7 @@ function TD_TodayPage({ staffUser, clients, onNavigateToClient, onOpenClientMile
       label: "Tasks due today",
       value: mine.items ? dueToday : "…",
       tone: dueToday > 0 ? "week" : "calm",
-      sub: dueToday > 0 ? "open Work › Tasks" : "nothing due today",
+      sub: dueToday > 0 ? "open Work › Slate" : "nothing due today",
       go: () => NAV_go("work", "tasks"),
     },
     {
@@ -1571,7 +1571,7 @@ function TD_TodayPage({ staffUser, clients, onNavigateToClient, onOpenClientMile
               window.location.reload();
             }}
           >
-            Switch back to the Workbench
+            Switch back to the new Today
           </button>
         </p>
       )}

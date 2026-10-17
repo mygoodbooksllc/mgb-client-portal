@@ -971,7 +971,7 @@ function TK_vNotice(props) {
     <div className="tk-state" role="status">
       <p>{props.text}</p>
       <a className="btn-secondary" href="#/tasks/my">
-        Go to My Tasks
+        Go to Slate
       </a>
     </div>
   );

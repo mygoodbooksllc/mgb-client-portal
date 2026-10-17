@@ -104,7 +104,7 @@ function TK_App(props) {
             navigate({ view: "my" });
           }}
         >
-          Go to My Tasks
+          Go to Slate
         </a>
       </div>
     );
@@ -113,7 +113,7 @@ function TK_App(props) {
   var needBar = !rail && !bottomBar;
   return (
     <div className={"tk-app" + (shell ? " is-shell" : "") + (rail ? " has-rail" : "") + (bottomBar ? " has-bottom-bar" : "") + (layout.compact ? " is-compact" : "")}>
-      <h1 className="tk-sr">Tasks</h1>
+      <h1 className="tk-sr">Slate</h1>
       {rail ? <aside className="tk-app-rail">{sidebar}</aside> : null}
       <div className="tk-app-main">
         {needBar || showPopOut ? (
@@ -137,7 +137,7 @@ function TK_App(props) {
                 type="button"
                 className="tk-tool-btn tk-popout-btn"
                 data-tour="tk-popout"
-                title="Open Tasks in its own window"
+                title="Open Slate in its own window"
                 onClick={function () {
                   var h = "";
                   try {
@@ -183,7 +183,7 @@ function TK_App(props) {
       ) : null}
 
       {bottomBar ? (
-        <nav className="tk-bottom-bar" aria-label="Tasks">
+        <nav className="tk-bottom-bar" aria-label="Slate">
           <a
             className={"tk-bb-item" + (route.view === "my" ? " is-active" : "")}
             href="#/tasks/my"
@@ -195,7 +195,7 @@ function TK_App(props) {
             }}
           >
             <TK_vIcon name="home" size={20} />
-            <span>My Tasks</span>
+            <span>Slate</span>
           </a>
           <button
             type="button"

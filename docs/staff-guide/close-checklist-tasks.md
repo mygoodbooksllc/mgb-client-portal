@@ -11,7 +11,7 @@ It's off for every client to start. The firm is trying it on one or two clients 
 
 ### Turning it on for a client (admins and account managers)
 
-1. Go to **Work › Tasks › Recurring** and pick the client under **One client**.
+1. Go to **Work › Slate › Recurring** and pick the client under **One client**.
 2. Turn on **Create month-end tasks from the Close checklist**.
 3. Tick **Also this month** first if you want tasks for the month you're in. Without it, the first tasks are next month's close.
 
@@ -39,7 +39,7 @@ Ticking a linked step moves its task, and a message says what happened:
 
 Anyone who works on the client can tick a linked step, the same as changing that client's tasks. If you can't change the task, the step says so and nothing changes.
 
-Your first tick on the Close tab still sets a **Not started** month to **In progress**, as before. Finishing a task from the Tasks page ticks its step but doesn't change the month's status. A task made for a step someone already ticked starts done. Reassigning a task doesn't change the step. Reopening a month doesn't reopen its tasks.
+Your first tick on the Close tab still sets a **Not started** month to **In progress**, as before. Finishing a task from the Slate page ticks its step but doesn't change the month's status. A task made for a step someone already ticked starts done. Reassigning a task doesn't change the step. Reopening a month doesn't reopen its tasks.
 
 ### Looks done (from QuickBooks)
 

@@ -50,7 +50,7 @@ Click **Refresh** on the card to recalculate after you've fixed something.
 
 ### Manual status override
 
-An admin can store a manual status (green, yellow or red) with a reason for a client, for example *needs follow-up on missing August bank statement*. While one is set it's shown instead of the calculated score: on **Work › Tasks → By client** the card shows the note and who set it, and the client's status dot everywhere uses the override's color.
+An admin can store a manual status (green, yellow or red) with a reason for a client, for example *needs follow-up on missing August bank statement*. While one is set it's shown instead of the calculated score: on **Work › Slate → By client** the card shows the note and who set it, and the client's status dot everywhere uses the override's color.
 
 There is no button for setting or clearing one in the app right now (it used to live on the old Home page). Ask an admin if a client's status looks wrong and a note needs to go with it.
 

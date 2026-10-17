@@ -55,12 +55,12 @@ const NAV_PLACES = [
     key: "work",
     slug: "work",
     label: "Work",
-    hint: "Tasks, month-end close and deadlines",
+    hint: "Slate, month-end close and deadlines",
     help: "work-page",
     icon: () => <ChecklistIcon width="16" height="16" strokeWidth="1.8" />,
     visible: (ctx) => !ctx.impersonating,
     tabs: [
-      { key: "tasks", label: "Tasks", help: "my-tasks" },
+      { key: "tasks", label: "Slate", help: "my-tasks" },
       // Client notes and SOPs (#/work/notes), which used to sit under the task
       // list (Tasks module, 2026-10-11).
       { key: "notes", label: "Notes & SOPs", help: "notes" },

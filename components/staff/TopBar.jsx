@@ -379,8 +379,8 @@ function TB_pageRows(ctx, onOpenSettings) {
   });
   if (ctx.isAdmin) {
     [
-      ["templates", "Recurring tasks", "Task templates, in Tasks › Recurring"],
-      ["tasks/manage", "Manage projects", "Rename, archive or trash projects, in Tasks"],
+      ["templates", "Recurring tasks", "Task templates, in Slate › Recurring"],
+      ["tasks/manage", "Manage projects", "Rename, archive or trash projects, in Slate"],
       ["client-access", "Client roster", "Who at each organization can sign in"],
       ["emails", "Emails", "Sending, the weekly digest and the send log"],
       ["usage-stats", "Usage stats", "Which pages and features get used"],
@@ -406,14 +406,14 @@ function TB_actionRows({ client, showMine, effectiveTheme, onToggleTheme, onSign
     rows.push({
       key: "a:task",
       title: "New task",
-      sub: client ? "For " + client.name : tk ? "Quick add, for any client" : "On Work › Tasks",
+      sub: client ? "For " + client.name : tk ? "Quick add, for any client" : "On Work › Slate",
       go: () => (TB_tkQuickReady() ? TB_tkQuickAdd(client ? { client_id: client.id } : {}) : quick("task")()),
     });
     rows.push({ key: "a:note", title: "New note", sub: client ? "For " + client.name : "On Work › Notes & SOPs", go: quick("note") });
     rows.push({
       key: "a:reminder",
       title: "New reminder",
-      sub: tk ? "Quick add" : "On Work › Tasks",
+      sub: tk ? "Quick add" : "On Work › Slate",
       go: () => (TB_tkQuickReady() ? TB_tkQuickAdd({ kind: "reminder" }) : TB_go("#/work/tasks")),
     });
   }
@@ -997,7 +997,7 @@ function TB_useBellItems({ clients, items, me, isAdmin, page }) {
         id: "task:" + t.id,
         at: t.created_at,
         title: `Assigned to you: ${t.text}`,
-        sub: [t.client_id ? nameOf(t.client_id) : "", t.due_date ? "Due " + fmtDate(t.due_date) : ""].filter(Boolean).join(" · ") || "Work › Tasks",
+        sub: [t.client_id ? nameOf(t.client_id) : "", t.due_date ? "Due " + fmtDate(t.due_date) : ""].filter(Boolean).join(" · ") || "Work › Slate",
         go: () => lkGo({ place: "work", tab: "tasks", item: "task:" + t.id }),
       }),
     );
@@ -1043,7 +1043,7 @@ function TB_useBellItems({ clients, items, me, isAdmin, page }) {
       title: `Template suggestion: ${row.title}`,
       sub:
         [String(row.suggested_by || "").split("@")[0], row.client_id ? nameOf(row.client_id) : ""].filter(Boolean).join(" · ") ||
-        "Tasks › Recurring",
+        "Slate › Recurring",
       go: () => TB_go("#/tasks/templates"),
     }),
   );
@@ -1138,7 +1138,7 @@ function TB_TasksBadge({ items, me, client }) {
       : !t.done && t.kind !== "note" && (TB_lc(t.staff_email) === TB_lc(me) || TB_lc(t.assignee_email) === TB_lc(me)),
   );
   const overdue = mine.filter((t) => (tk ? TK_isOverdue(t, today) : t.due_date && t.due_date < today)).length;
-  const label = `Tasks: ${mine.length} open` + (overdue ? `, ${overdue} overdue` : "");
+  const label = `Slate: ${mine.length} open` + (overdue ? `, ${overdue} overdue` : "");
   const full = toClient ? `${label}. Opens ${client.name}'s tasks.` : label;
   const openTasks = () => {
     if (toClient && TB_tkCdReady()) {
@@ -1157,7 +1157,7 @@ function TB_TasksBadge({ items, me, client }) {
       aria-haspopup={toClient ? "dialog" : undefined}
     >
       <ChecklistIcon width="16" height="16" strokeWidth="1.8" />
-      <span className="tb-tasks-label">Tasks</span>
+      <span className="tb-tasks-label">Slate</span>
       <span className="tb-count">{mine.length}</span>
       {overdue > 0 && <span className="tb-count overdue">{overdue}</span>}
     </button>

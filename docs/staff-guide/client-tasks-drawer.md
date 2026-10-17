@@ -16,16 +16,16 @@ On a client's tabs (Overview, Messages, Documents, Bank, Close, Reports, SOP and
 - **All tasks** opens the panel.
 - With nothing open, the strip says so and has an **Add task** button.
 
-The strip doesn't show on the Client view pages (the ones that copy what the client sees). The panel still opens from **Tasks** in the top bar there.
+The strip doesn't show on the Client view pages (the ones that copy what the client sees). The panel still opens from **Slate** in the top bar there.
 
 ### The panel
 
-Press **t**, click **All tasks**, or click **Tasks** in the top bar while a client is open. The panel slides in from the right (on a phone it's a sheet from the bottom) and lists every open task for the client:
+Press **t**, click **All tasks**, or click **Slate** in the top bar while a client is open. The panel slides in from the right (on a phone it's a sheet from the bottom) and lists every open task for the client:
 
 - in groups: Overdue, Today, This week, Later, Waiting on client and Ready for review;
 - with an add box at the top that picks this client for you;
 - with **Show done**, to see finished tasks too;
-- with **Full list** (the client's list on the Tasks page) and **My Tasks** at the bottom.
+- with **Full list** (the client's list on the Slate page) and **Slate** at the bottom.
 
 It stays open as you move between the client's tabs, and it follows you to another client. On a staff page, **t** shows the last client you opened, and says so (or asks you to open a client first, if you haven't opened one yet). Press **Esc**, press **t** again or click **×** to close it.
 
@@ -47,10 +47,10 @@ The task just moves up; nothing is hidden, and it never shows twice. The portal 
 
 ### Follow my client
 
-In the Tasks window (see [Can I keep Tasks in its own window?](#/help/tasks-own-window)), turn on **Follow my client** and its list switches to whichever client you open in the portal. On a phone or tablet the switch is in the account menu. Your choice is remembered in that browser.
+In the Slate window (see [Can I keep Slate in its own window?](#/help/tasks-own-window)), turn on **Follow my client** and its list switches to whichever client you open in the portal. On a phone or tablet the switch is in the account menu. Your choice is remembered in that browser.
 
 ### Troubleshooting
 
-- **There's no strip.** You're on a Client view page, previewing as a client, or Tasks isn't set up yet.
+- **There's no strip.** You're on a Client view page, previewing as a client, or Slate isn't set up yet.
 - **t does nothing.** You're typing in a box, a menu or dialog is open, or a task's details are open. Press **Esc** first.
 - **Follow doesn't switch.** Both windows need to be open in the same browser.

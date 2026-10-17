@@ -141,7 +141,7 @@ function TT_TaskTemplatesPage() {
   return (
     <div className="card" role="status" style={{ padding: 16 }}>
       <p style={{ margin: 0 }}>
-        Recurring templates moved to <a href="#/tasks/templates">Tasks › Recurring</a>.
+        Recurring templates moved to <a href="#/tasks/templates">Slate › Recurring</a>.
       </p>
     </div>
   );

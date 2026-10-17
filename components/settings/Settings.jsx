@@ -93,7 +93,7 @@ const ST_BELL_PREFS = [
 // pages were renamed in the 2026-10 nav redesign, saved choices were not.
 const ST_START_PAGES = [
   { value: "home", label: "Today", sub: "What needs you, in order." },
-  { value: "tasks", label: "Work › Tasks", sub: "Straight to your task list." },
+  { value: "tasks", label: "Work › Slate", sub: "Straight to your task list." },
   { value: "last-client", label: "Last client opened", sub: "Pick up where you left off." },
 ];
 const ST_THEMES = [
@@ -986,7 +986,7 @@ function ST_firmGroups(isAdmin, hasTempAdminAccess) {
     {
       title: "People and work",
       rows: [
-        { key: "templates", page: "task-templates", label: "Task templates", sub: "Recurring tasks for each client, now in Tasks › Recurring.", icon: icon("RepeatIcon"), show: anyAdmin },
+        { key: "templates", page: "task-templates", label: "Task templates", sub: "Recurring tasks for each client, now in Slate › Recurring.", icon: icon("RepeatIcon"), show: anyAdmin },
         { key: "roster", page: "client-access", label: "Client roster", sub: "Who at each organization is registered to sign in.", icon: icon("ClientRosterIcon"), show: anyAdmin },
       ],
     },
@@ -1293,7 +1293,7 @@ function ST_StaffSettingsPage({
             </ST_Card>
           )}
           {key === "shortcuts" && typeof TK_KEYMAP !== "undefined" && Array.isArray(TK_KEYMAP) && TK_KEYMAP.length > 0 && (
-            <ST_Card title="Tasks shortcuts" sub="Single keys for task lists and a task's details, plus q to add a task and t to open a client's tasks from the portal (not the Tasks window). They don't fire while you're typing.">
+            <ST_Card title="Slate shortcuts" sub="Single keys for task lists and a task's details, plus q to add a task and t to open a client's tasks from the portal (not the Slate window). They don't fire while you're typing.">
               <dl className="st-shortcuts">
                 {TK_KEYMAP.map((k) => (
                   <React.Fragment key={k.key + ":" + k.label}>

@@ -33,7 +33,7 @@ function WB_HubTasks(props) {
   if (!ok) {
     return (
       <p className="wb-filtered-empty" role="status">
-        Tasks isn't available here yet. <a href="#/tasks/my">My Tasks</a>
+        Slate isn't available here yet. <a href="#/tasks/my">Slate</a>
       </p>
     );
   }
@@ -45,7 +45,7 @@ function WB_HubTasksGate(props) {
   if (schema === "missing") {
     return (
       <p className="wb-filtered-empty" role="status">
-        Tasks is being set up. Try again in a little while.
+        Slate is being set up. Try again in a little while.
       </p>
     );
   }
@@ -325,15 +325,15 @@ function WB_HubTasksBody(props) {
       {body}
       {shown.more > 0 ? (
         <p className="wb-later">
-          {shown.more} more not shown · <a href="#/tasks/my">Show all on My Tasks</a>
+          {shown.more} more not shown · <a href="#/tasks/my">Show all on Slate</a>
         </p>
       ) : null}
       <div className="wb-hub-tasks-foot">
         <button type="button" className="btn-secondary wb-hub-add" onClick={addTask}>
-          + Add task
+          Add to your {WB_SLATE}
         </button>
         <a className="wb-hub-link" href="#/tasks/my">
-          My Tasks page
+          Slate page
         </a>
       </div>
     </div>

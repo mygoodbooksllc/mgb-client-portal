@@ -34,6 +34,37 @@
 
 var ANN_REGISTRY = [
   {
+    id: "desk-rename",
+    date: "2026-10-17",
+    title: "Workbench is now Desk, Tasks is now Slate",
+    summary: "Two names changed and nothing else: the Workbench is now the Desk, and Tasks is now Slate. Your tasks, lists and shortcuts are all where they were.",
+    roles: ["admin", "bookkeeper"],
+    hash: "#/tasks/my",
+    steps: (ctx) => [
+      {
+        id: "ann-welcome",
+        title: "Two new names",
+        body: () =>
+          "The Workbench is now the Desk, and Tasks is now Slate. Only the names changed: your tasks, lists, projects and keyboard shortcuts work the same. About a minute.",
+      },
+      {
+        id: "ann-bar",
+        when: () => typeof WB_store !== "undefined" && !!WB_store.getState().on,
+        targets: ["wb-bar"],
+        wait: true,
+        title: "The Desk",
+        body: () =>
+          "The bar at the bottom of the page is the Desk. Click it or press W and it opens with tabs for your Inbox, your Slate and one Client. The full-page list on Today is still called Today, with the list titled Needs you.",
+      },
+      {
+        id: "ann-done",
+        title: "Slate is Tasks",
+        body: () =>
+          "Work › Slate and the Slate button in the top bar are where Work › Tasks and the Tasks button used to be, and old links still work. The guide articles use the new names too. To see this again, press ? and pick New: Workbench is now Desk, Tasks is now Slate tour.",
+      },
+    ],
+  },
+  {
     id: "tasks-bulk-undo",
     date: "2026-10-16",
     title: "Select many tasks, with Undo",
@@ -204,7 +235,7 @@ var ANN_REGISTRY = [
           wait: true,
           title: "The drawer, on every page",
           body: () =>
-            "This bar runs across the bottom of the page and shows your count and the next item. Click it or press W anywhere (not while typing) and the list slides up from it, full width, with tabs for your Inbox, My tasks and one Client's tasks; Esc closes it.",
+            "This bar, the Desk, runs across the bottom of the page and shows your count and the next item. Click it or press W anywhere (not while typing) and the list slides up from it, full width, with tabs for your Inbox, Slate and one Client's tasks; Esc closes it.",
         },
         {
           id: "ann-done",

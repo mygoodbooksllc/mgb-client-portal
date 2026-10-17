@@ -9,7 +9,7 @@ Client notes are **staff-only**. Clients never see them. The same notes show up 
 
 ### Where to add a note
 
-- **Work › Notes & SOPs → Notes** card (`#/work/notes`; it used to sit under Work › Tasks): pick a **Client** and a **Category** (General, Status, Handoff, Call or Meeting), type the note and click **Add note**.
+- **Work › Notes & SOPs → Notes** card (`#/work/notes`; it used to sit under Work › Slate): pick a **Client** and a **Category** (General, Status, Handoff, Call or Meeting), type the note and click **Add note**.
 - **+** → **New note** in the top bar on any client page. In ⌘K, **New note** with no client open goes to **Work › Notes & SOPs**.
 - **Client details → Notes** (the client's **Client setup** gear → **Access and details** → **Client details**): a scratchpad for things like billing quirks or how a client likes to be contacted.
 - **Client overview → Activity → Log a call**: saves a quick call note.
@@ -19,7 +19,7 @@ Client notes are **staff-only**. Clients never see them. The same notes show up 
 
 - **Pin** / **Unpin**: pinned notes show on the Client overview under **Pinned notes**.
 - **Edit** or **Delete** (deleting can't be undone).
-- **Make task**: turns the note into a private task, linked both ways. The note then shows the task's status, and the task shows on your My Tasks.
+- **Make task**: turns the note into a private task, linked both ways. The note then shows the task's status, and the task shows on your Slate.
 
 Use the **All clients** and **All categories** filters on the Notes card to find things.
 

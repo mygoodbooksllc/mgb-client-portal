@@ -5,7 +5,7 @@ audience: admin
 keywords: [project color, change project color, color, color dot, manage projects, #/tasks/manage, rename project, archive project, unarchive, trash, move to trash, restore project, restore from trash, delete project, deleted project, trashed project, trash tab, 30 days, expired trash, project owner, project list, all projects, open requests, tk_has_open_requests, restore name taken, rename or archive the active project, undo trash, projects admin]
 sort: 115
 ---
-**Manage projects** is the admin screen for every project in Tasks, including archived ones and the trash. Open it from **Manage projects** under **Projects** in the Tasks sidebar (`#/tasks/manage`). Only admins see it; anyone else who opens the link gets a note that it's for admins.
+**Manage projects** is the admin screen for every project in Slate, including archived ones and the trash. Open it from **Manage projects** under **Projects** in the Slate sidebar (`#/tasks/manage`). Only admins see it; anyone else who opens the link gets a note that it's for admins.
 
 ### What you see
 
@@ -23,7 +23,7 @@ One row per project with a color dot, its name, a **Onboarding for {client}** or
 
 ### What the trash does
 
-**Move to trash** deletes nothing. The project and its tasks disappear from every list, My Tasks, Waiting on client, counts, email digests and performance scores, and nobody can add a task to it. **Restore** brings back exactly the tasks the trash hid. A task someone deleted on its own before the trash stays deleted.
+**Move to trash** deletes nothing. The project and its tasks disappear from every list, Slate, Waiting on client, counts, email digests and performance scores, and nobody can add a task to it. **Restore** brings back exactly the tasks the trash hid. A task someone deleted on its own before the trash stays deleted.
 
 A project can sit in the trash as long as you like. After 30 days its row says **Past the 30-day mark**, but you can still restore it; nothing is ever purged on its own.
 

@@ -279,7 +279,9 @@ t("switch: setting, preview, classic", () => {
   assert.strictEqual(L.WB_isOn({ on: true }, false, false), true);
   assert.strictEqual(L.WB_isOn(false, true, false), true);
   assert.strictEqual(L.WB_isOn(true, true, true), false);
-  assert.strictEqual(L.WB_NAME, "Workbench");
+  assert.strictEqual(L.WORKBENCH_NAME, "Desk");
+  assert.strictEqual(L.WB_NAME, L.WORKBENCH_NAME);
+  assert.strictEqual(L.WB_SLATE, "Slate");
 });
 
 t("bar left edge follows the nav", () => {

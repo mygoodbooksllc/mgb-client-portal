@@ -173,7 +173,7 @@ function TK_KeysSheet(props) {
   var where = function (k) {
     var s = Array.isArray(k.scopes) ? k.scopes : [k.scope];
     // t opens the client panel, which the Tasks window doesn't have.
-    if (k.key === "t") return "In the portal (not the Tasks window)";
+    if (k.key === "t") return "In the portal (not the Slate window)";
     if (s.indexOf("global") >= 0) return "Anywhere in the portal";
     if (s.indexOf("list") >= 0 && s.indexOf("drawer") >= 0) return "Lists and task details";
     if (s.indexOf("drawer") >= 0) return "Task details";

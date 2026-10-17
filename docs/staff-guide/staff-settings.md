@@ -2,7 +2,7 @@
 title: How do I change my settings (profile, notifications, theme, signature)?
 section: Getting started
 audience: staff
-keywords: [change my name, rename, my name, name, handbook emails, tasks shortcuts, mentions on tasks, tasks tour, settings, help, tips, turn off tips, my settings, profile, photo, avatar, title, phone, notifications, email notifications, bell, dark mode, light mode, theme, match my computer, start page, signature, email signature, dashboards, reset layout, financial overview, board-ready, live report, shortcuts, keyboard, firm settings, gear]
+keywords: [change my name, rename, my name, name, handbook emails, tasks shortcuts, mentions on tasks, tasks tour, settings, help, tips, turn off tips, my settings, profile, photo, avatar, title, phone, notifications, email notifications, bell, dark mode, light mode, theme, match my computer, start page, signature, email signature, dashboards, reset layout, financial overview, board-ready, live report, shortcuts, keyboard, firm settings, gear, slate]
 sort: 27
 ---
 Your Settings page holds everything that's just about you. To open it, click **Settings** at the bottom of the left rail, or your initials at the top right of the page, then **Settings**. (On a phone, open the menu and tap **Settings**.) Changes save on their own a moment after you make them. You'll see **Saved** at the top when they have.
@@ -36,7 +36,7 @@ The emails only say what happened and link to the portal. They never include the
 ### Appearance & start page
 
 - **Theme**: **Light**, **Dark** or **Match my computer** (follows your computer's light or dark setting). The **Light mode** / **Dark mode** item in the account menu still works as a quick switch, and it saves here too.
-- **Start page**: where you land when you sign in: **Today**, **Work › Tasks** (My Tasks inside Work) or **Last client opened**. A link you open (for example from an email) still goes straight to its page.
+- **Start page**: where you land when you sign in: **Today**, **Work › Slate** (Slate inside Work) or **Last client opened**. A link you open (for example from an email) still goes straight to its page.
 
 ### Email signature
 
@@ -52,17 +52,17 @@ Lists every board where you've moved or hidden cards (a client's Dashboard or Fi
 
 A list of keyboard shortcuts: **Ctrl+K** (**⌘K** on a Mac) to search, **↑** / **↓** to move through menus and results, **Enter** to open, **Esc** to close.
 
-**Tasks shortcuts** lists the single keys for task lists and a task's details: **j** / **k** to move, **Enter** to open, **x** done, **s** status, **a** assign, **q** to add a task from any staff page, **t** to open a client's task panel, **Esc** to close and **?** for the list. They don't fire while you're typing. See [How do I add and manage my tasks?](#/help/my-tasks).
+**Slate shortcuts** lists the single keys for task lists and a task's details: **j** / **k** to move, **Enter** to open, **x** done, **s** status, **a** assign, **q** to add a task from any staff page, **t** to open a client's task panel, **Esc** to close and **?** for the list. They don't fire while you're typing. See [How do I use my Slate?](#/help/my-tasks).
 
 ### Help
 
-Start a tour (the **Tasks tour** is here too), open the Staff guide or **Send feedback**. The last row, **Tips while you learn**, is the switch for the small first-30-days tips: it shows how many days are left, and turning it off and on again starts another 30 days. See [How do tips work?](#/help/tips).
+Start a tour (the **Slate tour** is here too), open the Staff guide or **Send feedback**. The last row, **Tips while you learn**, is the switch for the small first-30-days tips: it shows how many days are left, and turning it off and on again starts another 30 days. See [How do tips work?](#/help/tips).
 
 ### Firm settings (admins)
 
 The firm-wide admin pages, in three groups. Click a row to open the page. Search (**Ctrl+K** / **⌘K**) jumps to them too.
 
-- **People and work**: **Task templates** (it opens **Tasks › Recurring**) and **Client roster**.
+- **People and work**: **Task templates** (it opens **Slate › Recurring**) and **Client roster**.
 - **Email and QuickBooks**: **Emails**, with a chip showing whether sending works (**Domain verified**, **Domain pending**, **Needs attention** or **Not checked yet**), and **QuickBooks usage and limits**, with this month's **% used**. It opens the usage card on the Team page.
 - **Insight and records**: **Usage stats**, **Audit log** and **Developer tools**.
 

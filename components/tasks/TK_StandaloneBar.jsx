@@ -259,7 +259,7 @@ function TK_StandaloneBar(props) {
       <a
         className="tk-sbar-brand"
         href="#/tasks/my"
-        aria-label="Tasks home"
+        aria-label="Slate home"
         onClick={function (e) {
           if (!TK_vPlainClick(e)) return;
           e.preventDefault();
@@ -269,7 +269,7 @@ function TK_StandaloneBar(props) {
         <span className="tk-sbar-badge">
           <span className="staff-rail-mark brand-logo-box" aria-hidden="true" />
         </span>
-        <span className="tk-sbar-word">Tasks</span>
+        <span className="tk-sbar-word">Slate</span>
       </a>
       <span className="tk-sbar-live tk-sr" aria-live="polite">
         {follow.liveText}

@@ -20,7 +20,7 @@ sort: 258
 
 Click **Mark filed**, add a note if you like (for example "e-filed, confirmation 1234"), then **Save**. The whole team sees who filed it and when. Made a mistake? Click **Undo**.
 
-**Create task** adds the deadline to **Work › Tasks** with the due date.
+**Create task** adds the deadline to **Work › Slate** with the due date.
 
 ### Which deadlines a client gets
 
