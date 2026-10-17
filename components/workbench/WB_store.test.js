@@ -423,6 +423,56 @@ ta("Open file falls back to the Files page when Drive helpers aren't loaded or t
   assert.strictEqual(b.opens.length, 0);
 });
 
+// ---- Client tab (H4) ----
+t("Client tab pins: saved per person, newest first, capped, cleared when empty, tracked", () => {
+  const c = load({ ls: { "mgb_wb_pins:sam@mgb.com": '{"v":1,"pins":["z9"]}' } });
+  const P = (e) => "mgb_wb_pins:" + e;
+  assert.deepStrictEqual(plain(c.sandbox.WB_pinsRead("Pat@MGB.com")), []);
+  let r = c.sandbox.WB_pinToggle("Pat@MGB.com", "c1");
+  assert.strictEqual(r.on, true);
+  r = c.sandbox.WB_pinToggle("pat@mgb.com", "c2");
+  assert.deepStrictEqual(plain(r.pins), ["c2", "c1"]);
+  assert.deepStrictEqual(JSON.parse(c.store[P("pat@mgb.com")]), { v: 1, pins: ["c2", "c1"] });
+  // Someone else on this browser keeps their own pins.
+  assert.deepStrictEqual(plain(c.sandbox.WB_pinsRead("sam@mgb.com")), ["z9"]);
+  for (let i = 0; i < 10; i++) c.sandbox.WB_pinToggle("pat@mgb.com", "x" + i);
+  assert.strictEqual(c.sandbox.WB_pinsRead("pat@mgb.com").length, 8);
+  assert.strictEqual(c.sandbox.WB_pinsRead("pat@mgb.com")[0], "x9");
+  // Unpinning the last one removes the key.
+  c.sandbox.WB_pinsWrite("pat@mgb.com", ["c1"]);
+  r = c.sandbox.WB_pinToggle("pat@mgb.com", "c1");
+  assert.strictEqual(r.on, false);
+  assert.ok(!Object.prototype.hasOwnProperty.call(c.store, P("pat@mgb.com")));
+  assert.deepStrictEqual(plain(c.tracked.slice(0, 2)), [
+    ["wb-pin", "on"],
+    ["wb-pin", "on"],
+  ]);
+  assert.deepStrictEqual(plain(c.tracked[c.tracked.length - 1]), ["wb-pin", "off"]);
+  // No email: nothing is written.
+  c.sandbox.WB_pinToggle("", "c1");
+  assert.ok(Object.keys(c.store).every((k) => k.indexOf("mgb_wb_pins:") !== 0 || k === P("sam@mgb.com")));
+});
+
+t("Client tab recents: the client switcher's own per-person list, when it is loaded", () => {
+  const c = load();
+  assert.deepStrictEqual(plain(c.sandbox.WB_recentsRead("pat@mgb.com")), []); // switcher not loaded
+  assert.deepStrictEqual(plain(c.sandbox.WB_recentsPush("pat@mgb.com", "c1")), []);
+  const lsKeys = [];
+  c.sandbox.CS_RECENT_KEY = "mgb-client-switcher-recent";
+  c.sandbox.CS_readRecent = (k) => {
+    lsKeys.push(k);
+    return JSON.parse(c.store[k] || "[]");
+  };
+  c.sandbox.CS_pushRecent = (k, id) => {
+    const next = [id].concat(JSON.parse(c.store[k] || "[]").filter((x) => x !== id));
+    c.store[k] = JSON.stringify(next);
+    return next;
+  };
+  assert.deepStrictEqual(plain(c.sandbox.WB_recentsPush("Pat@MGB.com", 7)), ["7"]);
+  assert.deepStrictEqual(plain(c.sandbox.WB_recentsRead("pat@mgb.com")), ["7"]);
+  assert.strictEqual(lsKeys[0], "mgb-client-switcher-recent:pat@mgb.com");
+});
+
 Promise.all(later).then(
   () => console.log("WB_store: " + n + " checks passed"),
   (e) => {

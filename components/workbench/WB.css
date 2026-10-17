@@ -902,3 +902,136 @@ html.wb-stacked .wb-scrim {
     min-height: 44px;
   }
 }
+
+/* ---- Hub: Client tab (Workbench Hub spec H4) ----
+   The task rows and groups are the client panel's body (tk-client.css), so
+   this only lays out the picker, the header and the body inside the panel
+   (the panel body scrolls; the reused .tk-cd-body must not scroll again). */
+.wb-hub-client {
+  padding-top: 8px;
+}
+.wb-pick {
+  position: relative;
+}
+.wb-pick-input {
+  width: 100%;
+  min-height: 36px;
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  font-size: 14px;
+}
+.wb-pick-input:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+.wb-pick-list {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: calc(100% + 4px);
+  z-index: 30;
+  max-height: 320px;
+  overflow: auto;
+  overscroll-behavior: contain;
+  padding: 4px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  box-shadow: var(--shadow-hover, 0 8px 24px rgba(0, 0, 0, 0.16));
+}
+.wb-pick-sec-head {
+  padding: 8px 8px 4px;
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.wb-pick-opt {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 34px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  color: var(--text);
+  cursor: pointer;
+}
+.wb-pick-opt.is-active {
+  background: var(--hover-bg);
+}
+.wb-pick-opt.is-current .wb-pick-name {
+  font-weight: 600;
+}
+.wb-pick-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.wb-pick-star {
+  color: var(--accent);
+}
+.wb-pick-none {
+  padding: 10px 8px;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+.wb-hub-client-head {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 12px 2px 4px;
+}
+.wb-hub-client-name {
+  margin: 0;
+  min-width: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--ink-strong);
+  overflow-wrap: anywhere;
+}
+.wb-hub-client-gap {
+  flex: 1;
+}
+.wb-pin {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: none;
+  color: var(--text-muted);
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+}
+.wb-pin:hover {
+  background: var(--hover-bg);
+}
+.wb-pin.is-on {
+  color: var(--accent);
+}
+.wb-hub-client-body.tk-cd-body {
+  flex: none;
+  overflow: visible;
+  padding: 4px 0 8px;
+}
+@media (max-width: 767px) {
+  .wb-pick-input,
+  .wb-pick-opt {
+    min-height: 44px;
+  }
+  .wb-pin {
+    width: 44px;
+    height: 44px;
+  }
+}

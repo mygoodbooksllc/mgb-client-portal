@@ -59,6 +59,42 @@ function WB_track(name, detail) {
   } catch (e) {}
 }
 
+// ---- Client tab pins and recents (H4) ----
+// Pins: mgb_wb_pins:<email> (WB_pinsKey), this browser only. Recents are the
+// client switcher's own list (CS_readRecent / CS_pushRecent, per person), so
+// a client picked here also shows as recent in the switcher.
+function WB_pinsRead(email) {
+  var k = WB_pinsKey(email);
+  return k ? WB_pinsParse(WB__ls(k)) : [];
+}
+function WB_pinsWrite(email, pins) {
+  var k = WB_pinsKey(email);
+  var clean = WB_pinsClean(pins);
+  if (k) WB__lsSet(k, clean.length ? WB_pinsSerialize(clean) : null);
+  return clean;
+}
+// Pin or unpin one client. Returns { pins, on, dropped } (WB_pinsToggle).
+function WB_pinToggle(email, id) {
+  var r = WB_pinsToggle(WB_pinsRead(email), id);
+  r.pins = WB_pinsWrite(email, r.pins);
+  WB_track("wb-pin", r.on ? "on" : "off");
+  return r;
+}
+function WB__recentKey(email) {
+  var e = String(email == null ? "" : email).trim().toLowerCase();
+  if (!e || typeof CS_RECENT_KEY !== "string") return null;
+  return CS_RECENT_KEY + ":" + e;
+}
+function WB_recentsRead(email) {
+  var k = WB__recentKey(email);
+  return k && typeof CS_readRecent === "function" ? CS_readRecent(k) : [];
+}
+function WB_recentsPush(email, id) {
+  var k = WB__recentKey(email);
+  if (!k || typeof CS_pushRecent !== "function" || id == null || id === "") return WB_recentsRead(email);
+  return CS_pushRecent(k, String(id));
+}
+
 var WB_store = (function () {
   var listeners = [];
   var state = {

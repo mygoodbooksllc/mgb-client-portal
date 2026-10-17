@@ -204,7 +204,7 @@ var ANN_REGISTRY = [
           wait: true,
           title: "The drawer, on every page",
           body: () =>
-            "This bar runs across the bottom of the page and shows your count and the next item. Click it or press W anywhere (not while typing) and the list slides up from it, full width; Esc closes it.",
+            "This bar runs across the bottom of the page and shows your count and the next item. Click it or press W anywhere (not while typing) and the list slides up from it, full width, with tabs for your Inbox, My tasks and one Client's tasks; Esc closes it.",
         },
         {
           id: "ann-done",

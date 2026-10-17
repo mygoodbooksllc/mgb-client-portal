@@ -208,6 +208,28 @@ t("clientcd:<id> (the client panel's list) follows a client's tasks like client:
   done();
 });
 
+t("wb:client:<id> (the Workbench hub's Client tab) follows a client's tasks; wb:mine stays as loaded", () => {
+  const x = task({ client_id: "7" });
+  let s = reduceAll(null, [
+    { type: "me", email: ME },
+    { type: "listLoaded", key: "wb:client:7", tasks: [x] },
+    { type: "listLoaded", key: "wb:mine", tasks: [] },
+  ]);
+  const added = task({ client_id: "7" });
+  const other = task({ client_id: "70" });
+  s = S.TK_reduce(s, { type: "upsert", task: added });
+  s = S.TK_reduce(s, { type: "upsert", task: other });
+  assert.ok(s.lists["wb:client:7"].ids.indexOf(added.id) >= 0);
+  assert.ok(s.lists["wb:client:7"].ids.indexOf(other.id) < 0);
+  // Moved to another client: it leaves the tab's list.
+  s = S.TK_reduce(s, { type: "upsert", task: Object.assign({}, added, { client_id: "8", updated_at: "2026-10-17T10:00:00.000001Z" }) });
+  assert.ok(s.lists["wb:client:7"].ids.indexOf(added.id) < 0);
+  // wb:mine is not a client key: membership stays as the last load set it.
+  assert.ok(s.lists["wb:mine"].ids.indexOf(added.id) < 0);
+  assert.ok(s.lists["wb:client:7"].ids.indexOf(x.id) >= 0);
+  done();
+});
+
 t("upsert of a deleted row removes it from lists, keeps it in tasks", () => {
   const x = task({ client_id: "7" });
   let s = reduceAll(null, [

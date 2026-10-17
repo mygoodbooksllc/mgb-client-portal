@@ -17138,7 +17138,8 @@ const USAGE_ACTION_LABELS = {
   "wb-filter": "Workbench filters and drawer tabs",
   "wb-scope": "Workbench Mine / Everyone switches",
   "wb-drawer": "Workbench drawer opened",
-  "wb-hub": "Workbench hub: My tasks tab opened",
+  "wb-hub": "Workbench hub: My tasks and Client tabs opened, clients picked",
+  "wb-pin": "Workbench Client tab: clients pinned or unpinned",
 };
 const USAGE_DEVICE_LABELS = { desktop: "Desktop", mobile: "Phone", installed: "Installed app", unknown: "Unknown" };
 
@@ -30115,7 +30116,15 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
           {typeof WB_Drawer === "function" && showStaffRail && !tkShell && !isPreviewingUser && !impersonating && staffUser && staffUser.email && (
             // Mine / Everyone is for real admins only (wb_inbox refuses
             // Everyone to a temporary admin).
-            <WB_Drawer me={String(staffUser.email).toLowerCase()} isAdmin={staffUser.role === "admin"} clients={visibleClients} />
+            // currentClientId: the client page I am on (the hub's Client tab
+            // picks it), the same rule the client tasks panel uses.
+            <WB_Drawer
+              me={String(staffUser.email).toLowerCase()}
+              isAdmin={staffUser.role === "admin"}
+              clients={visibleClients}
+              currentClientId={staffClientTabs && client ? client.id : null}
+              page={effectivePage}
+            />
           )}
           {/* The page body. A tab panel of the in-client tab row when a row
               tab is open (CL_ClientTabs ids are "client-tab-<key>"). */}

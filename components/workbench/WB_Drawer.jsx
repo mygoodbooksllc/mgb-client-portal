@@ -20,7 +20,7 @@
 // someone or previewing; it renders nothing while Workbench is off.
 // ----------------------------------------------------------------------------
 
-function WB_Drawer({ me, isAdmin, clients }) {
+function WB_Drawer({ me, isAdmin, clients, currentClientId, page }) {
   const on = WB_useSwitch();
   const s = WB_useStore(me, isAdmin, on);
   const open = s.drawerOpen;
@@ -149,7 +149,7 @@ function WB_Drawer({ me, isAdmin, clients }) {
         </span>
       </button>
       {open && (
-        <WB_Hub s={s} me={me} isAdmin={isAdmin} clients={clients} panelRef={panelRef} view={view} allView={allView} chip={chip} today={today} now={now} count={count} loading={loading} />
+        <WB_Hub s={s} me={me} isAdmin={isAdmin} clients={clients} panelRef={panelRef} view={view} allView={allView} chip={chip} today={today} now={now} count={count} loading={loading} currentClientId={currentClientId} page={page} />
       )}
       <WB_UndoBar />
     </>

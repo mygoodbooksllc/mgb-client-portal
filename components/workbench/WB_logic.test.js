@@ -377,8 +377,8 @@ t("hub: layer selectors and order", () => {
   assert.strictEqual(L.WB_isStacked(["tour"]), false);
   assert.strictEqual(L.WB_isStacked(["menu", "task-drawer"]), true);
   assert.strictEqual(L.WB_isStacked([]), false);
-  // The hub's own panel is never a layer above it.
-  assert.ok(L.WB_LAYER_SELECTORS.every((x) => !/^\.wb-panel/.test(x) || /\.tk-menu/.test(x)));
+  // The hub's own panel is never a layer above it (only a menu or list inside it is).
+  assert.ok(L.WB_LAYER_SELECTORS.every((x) => !/^\.wb-panel/.test(x) || /\.tk-menu|\.wb-pick-list/.test(x)));
   // A My tasks row's status menu inside the panel is a layer above the hub: Esc closes it first.
   const tkMenu = ".wb-panel .tk-menu[role='menu']";
   assert.ok(sels.indexOf(tkMenu) >= 0);
@@ -406,7 +406,7 @@ t("hub: tab keys", () => {
   assert.strictEqual(L.WB_tabMove(ids, "tasks", "End"), "client");
   assert.strictEqual(L.WB_tabMove(ids, "tasks", "x"), null);
   assert.strictEqual(L.WB_tabMove([], "tasks", "Home"), null);
-  assert.deepStrictEqual(L.WB_hubTabIds(true), ["inbox", "tasks"]); // Inbox + My tasks live (H2)
+  assert.deepStrictEqual(L.WB_hubTabIds(true), ["inbox", "tasks", "client"]); // all three live (H4)
   assert.deepStrictEqual(L.WB_hubTabIds(false), ["inbox", "tasks", "client"]);
 });
 
@@ -414,8 +414,8 @@ t("hub: state clean, merge and persistence", () => {
   const d = L.WB_hubDefault();
   assert.deepStrictEqual(L.WB_hubClean(null), d);
   assert.deepStrictEqual(L.WB_hubClean("junk"), d);
-  // A tab that isn't live yet, or a made-up chip, falls back.
-  assert.strictEqual(L.WB_hubClean({ tab: "client" }).tab, "inbox"); // not live until H4
+  // A made-up tab or chip falls back; Client is live since H4.
+  assert.strictEqual(L.WB_hubClean({ tab: "client" }).tab, "client");
   assert.strictEqual(L.WB_hubClean({ tab: "tasks" }).tab, "tasks");
   assert.strictEqual(L.WB_hubClean({ tab: "nope" }).tab, "inbox");
   assert.strictEqual(L.WB_hubClean({ chip: "gl" }).chip, "all"); // gl is not a drawer chip
@@ -544,6 +544,109 @@ t("WB_hubShouldReload: once per distinct missing set", () => {
   assert.strictEqual(L.WB_hubShouldReload("a,b", "a,b", true), false);
   assert.strictEqual(L.WB_hubShouldReload("a,b", "a", true), true);
   assert.strictEqual(L.WB_hubShouldReload("a", "", false), false);
+});
+
+// ---- Client tab (H4) ----
+const CL = [
+  { id: "c1", name: "Acme Books" },
+  { id: "c2", name: "Bayside Church" },
+  { id: "c3", name: "Zion Food Pantry" },
+  { id: "c4", name: "acorn Club" },
+  { id: "c5", name: "The Acme Trust" },
+];
+
+t("Client tab: pins key, parse, serialize, cap", () => {
+  assert.strictEqual(L.WB_pinsKey(" Pat@MGB.com "), "mgb_wb_pins:pat@mgb.com");
+  assert.strictEqual(L.WB_pinsKey(""), null);
+  assert.strictEqual(L.WB_PINS_KEY.indexOf("mgb_"), 0); // Reset local state clears it
+  assert.deepStrictEqual(L.WB_pinsParse(null), []);
+  assert.deepStrictEqual(L.WB_pinsParse("{bad"), []);
+  assert.deepStrictEqual(L.WB_pinsParse('{"v":1,"pins":["c1","c1",7,"",null,{}]}'), ["c1", "7"]);
+  assert.deepStrictEqual(L.WB_pinsParse('["c2","c1"]'), ["c2", "c1"]);
+  const many = Array.from({ length: 12 }, (_, i) => "x" + i);
+  assert.strictEqual(L.WB_pinsParse(JSON.stringify(many)).length, L.WB_PINS_CAP);
+  assert.deepStrictEqual(L.WB_pinsParse(L.WB_pinsSerialize(["c3", "c1"])), ["c3", "c1"]);
+  assert.deepStrictEqual(L.WB_pinsClean(["a".repeat(90), "ok"]), ["ok"]);
+});
+
+t("Client tab: pin toggle puts the newest first and drops the oldest past the cap", () => {
+  let r = L.WB_pinsToggle([], "c1");
+  assert.deepStrictEqual(r, { pins: ["c1"], on: true, dropped: null });
+  r = L.WB_pinsToggle(r.pins, "c2");
+  assert.deepStrictEqual(r.pins, ["c2", "c1"]);
+  r = L.WB_pinsToggle(r.pins, "c1");
+  assert.deepStrictEqual(r, { pins: ["c2"], on: false, dropped: null });
+  r = L.WB_pinsToggle(["a", "b", "c"], "d", 3);
+  assert.deepStrictEqual(r, { pins: ["d", "a", "b"], on: true, dropped: "c" });
+  assert.deepStrictEqual(L.WB_pinsToggle(["a"], null), { pins: ["a"], on: false, dropped: null });
+  assert.deepStrictEqual(L.WB_pinsToggle(["a"], 5).pins, ["5", "a"]); // numeric ids become strings
+});
+
+t("Client tab: pins I can't open are pruned, but not before the list loads", () => {
+  assert.deepStrictEqual(L.WB_pinsPrune(["c1", "gone", "c3"], CL), ["c1", "c3"]);
+  assert.deepStrictEqual(L.WB_pinsPrune(["c1", "gone"], []), ["c1", "gone"]);
+  assert.deepStrictEqual(L.WB_pinsPrune(["c1", "gone"], null), ["c1", "gone"]);
+});
+
+t("Client tab: the route client wins, then the saved one; no access never shows a name", () => {
+  assert.deepStrictEqual(L.WB_hubPickClient("c2", "c1", CL), { id: "c1", from: "route", access: true, client: CL[0] });
+  assert.deepStrictEqual(L.WB_hubPickClient("c2", null, CL), { id: "c2", from: "saved", access: true, client: CL[1] });
+  assert.deepStrictEqual(L.WB_hubPickClient("c2", "", CL).from, "saved");
+  assert.deepStrictEqual(L.WB_hubPickClient(null, null, CL), { id: null, from: null, access: null, client: null });
+  assert.deepStrictEqual(L.WB_hubPickClient("secret", null, CL), { id: "secret", from: "saved", access: false, client: null });
+  assert.deepStrictEqual(L.WB_hubPickClient("c1", null, []), { id: "c1", from: "saved", access: null, client: null });
+  assert.strictEqual(L.WB_hubPickClient("c1", 3, [{ id: 3, name: "Three" }]).access, true); // numeric route id
+});
+
+t("Client tab: picker rows with no query are Pinned, Recent, then All clients", () => {
+  const o = L.WB_hubClientOptions(CL, ["c3", "gone"], ["c3", "c2", "nope", "c1"], "");
+  assert.deepStrictEqual(
+    o.sections.map((s) => [s.id, s.items.map((i) => i.id)]),
+    [
+      ["pinned", ["c3"]],
+      ["recent", ["c2", "c1"]],
+      ["all", ["c4", "c5"]],
+    ],
+  );
+  assert.strictEqual(o.items[0].pinned, true);
+  assert.strictEqual(o.items[1].pinned, false);
+  assert.deepStrictEqual(o.items.map((i) => i.id), ["c3", "c2", "c1", "c4", "c5"]);
+  // The limit counts every row across sections.
+  const lim = L.WB_hubClientOptions(CL, ["c3"], [], "", 2);
+  assert.deepStrictEqual(lim.items.map((i) => i.id), ["c3", "c1"]); // Acme Books sorts before acorn Club
+  // Recent shows at most WB_HUB_RECENT_MAX.
+  const lots = Array.from({ length: 9 }, (_, i) => ({ id: "r" + i, name: "R " + i }));
+  const r = L.WB_hubClientOptions(lots, [], lots.map((c) => c.id), "");
+  assert.strictEqual(r.sections[0].items.length, L.WB_HUB_RECENT_MAX);
+  assert.deepStrictEqual(L.WB_hubClientOptions([], ["c1"], ["c1"], ""), { sections: [], items: [] });
+});
+
+t("Client tab: a query lists starts-with first, then contains, by name; only my clients", () => {
+  const o = L.WB_hubClientOptions(CL, ["c5"], [], "  ac ");
+  assert.deepStrictEqual(o.sections.map((s) => s.id), ["matches"]);
+  assert.deepStrictEqual(o.items.map((i) => i.id), ["c1", "c4", "c5"]);
+  assert.strictEqual(o.items[2].pinned, true);
+  assert.deepStrictEqual(L.WB_hubClientOptions(CL, [], [], "zzz").items, []);
+});
+
+t("Client tab: own list key, Esc in a field with text", () => {
+  assert.strictEqual(L.WB_hubClientListKey("c1"), "wb:client:c1");
+  assert.strictEqual(L.WB_hubClientListKey(7), "wb:client:7");
+  assert.strictEqual(L.WB_hubClientListKey(""), null);
+  assert.strictEqual(L.WB_hubClientListKey(null), null);
+  assert.strictEqual(L.WB_escKeepsField("INPUT", "abc", true), true);
+  assert.strictEqual(L.WB_escKeepsField("textarea", "x", true), true);
+  assert.strictEqual(L.WB_escKeepsField("INPUT", "", true), false);
+  assert.strictEqual(L.WB_escKeepsField("INPUT", "abc", false), false);
+  assert.strictEqual(L.WB_escKeepsField("BUTTON", "abc", true), false);
+});
+
+t("Client tab: the picker list is a layer above the hub, not a stacked one", () => {
+  const has = (...sels) => (sel) => sels.indexOf(sel) >= 0;
+  const p = L.WB_layersPresent(has(".wb-panel .wb-pick-list"));
+  assert.deepStrictEqual(p, ["picker"]);
+  assert.strictEqual(L.WB_layerAbove(p), true);
+  assert.strictEqual(L.WB_isStacked(p), false);
 });
 
 console.log("WB_logic: " + n + " checks passed");

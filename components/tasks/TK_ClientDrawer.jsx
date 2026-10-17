@@ -284,6 +284,109 @@ function TK_cdFocusables(root) {
   return out;
 }
 
+// ---- Client tasks body ---------------------------------------------------------------------
+// One client's tasks: the add row, the groups (subtasks inline), the empty,
+// loading and error states, and the client's contacts. The client panel (t)
+// and the Workbench hub's Client tab both draw it, each with its own list
+// (props.list is { tasks, loaded, error, reload }), so one surface's filters
+// never touch the other's.
+// props: clientId, clientName, staffUser, isAdmin, clients, list, showDone,
+// page (the route page, for the "For this page" group, or null), from (the
+// TK_openTask source), onOpen(id) (optional; replaces the default open).
+function TK_ClientTasksBody(props) {
+  var clientId = props.clientId || null;
+  var name = props.clientName || "";
+  var staffUser = props.staffUser || {};
+  var isAdmin = !!props.isAdmin;
+  var list = props.list || { tasks: [], loaded: false };
+  var tasks = Array.isArray(list.tasks) ? list.tasks : [];
+  var from = props.from || "client-drawer";
+  var online = TK_vUseOnline();
+  var touch = TK_vUseTouch();
+  var staff = TK_vUseStaff(true) || [];
+  var today = TK_vToday();
+  var groups = TK_cdGroups(tasks, { today: today, page: props.page || null, showDone: !!props.showDone });
+  // Subtasks open inline under their parent (same group only).
+  var subs = TK_vUseSubtasks(tasks);
+  groups = TK_subNestGroups(groups, subs.kidsOf);
+  var summary = TK_cdSummary(tasks, today);
+  var ids = [];
+  groups.forEach(function (g) {
+    g.tasks.forEach(function (t) {
+      ids.push(t.id);
+    });
+  });
+  var counts = TK_vUseChecklist(ids);
+  var nameOf = function (email) {
+    return typeof TK_vStaffName === "function" ? TK_vStaffName(staff, email) : email || "";
+  };
+  var failed = !!list.error && !tasks.length;
+  var showLoading = !list.loaded && !failed;
+  var empty = !!clientId && list.loaded && !failed && summary.open === 0;
+  var open = function (id) {
+    if (typeof props.onOpen === "function") props.onOpen(id);
+    else TK_openTask(id, { from: from });
+  };
+
+  return (
+    <React.Fragment>
+      <ul className="tk-rows tk-cd-add" role="grid" aria-label="Add a task">
+        <TK_vAddRow
+          ctx={{ clientId: clientId, email: staffUser.email, staff: staff, clients: props.clients || [] }}
+          sectionName={name}
+          disabled={!online}
+        />
+      </ul>
+      {online ? null : <TK_vOfflineBanner />}
+      {showLoading ? <TK_vSkeletonRows count={5} /> : null}
+      {failed ? <TK_vErrorState text="Couldn't load tasks." onRetry={list.reload} /> : null}
+      {empty ? (
+        <div className="tk-cd-empty">
+          <p>{"No open tasks for " + name + "."}</p>
+          <p className="tk-cd-empty-sub">{touch ? "Add one above." : "Add one above, or press q."}</p>
+        </div>
+      ) : null}
+      {groups.map(function (g) {
+        return (
+          <section className="tk-cd-group" data-group={g.id} key={g.id}>
+            <h3 className="tk-cd-group-head">
+              <span>{g.label}</span> <span className="tk-cd-group-n">{g.tasks.length}</span>
+            </h3>
+            <ul className="tk-rows" role="grid" aria-label={g.label}>
+              {g.tasks.map(function (t) {
+                return (
+                  <TK_TaskRow
+                    key={t.id}
+                    task={t}
+                    today={today}
+                    subs={subs}
+                    showClient={false}
+                    showAssignee={true}
+                    assigneeName={t.assignee_email ? nameOf(t.assignee_email) : ""}
+                    onClaim={online ? TK_vClaim : undefined}
+                    isAdmin={isAdmin}
+                    canEdit={online}
+                    columns={false}
+                    checklist={counts[t.id] || null}
+                    onOpen={open}
+                    onToggleDone={function (task) {
+                      TK_vComplete(task, isAdmin);
+                    }}
+                    onStatus={function (task, s, note) {
+                      TK_vSetStatus(task, s, note, isAdmin);
+                    }}
+                  />
+                );
+              })}
+            </ul>
+          </section>
+        );
+      })}
+      {typeof TK_ClientContacts === "function" ? <TK_ClientContacts clientId={clientId} online={online} /> : null}
+    </React.Fragment>
+  );
+}
+
 function TK_ClientDrawerPanel(props) {
   var clientId = props.clientId || null;
   var name = props.clientName || "";
@@ -291,9 +394,7 @@ function TK_ClientDrawerPanel(props) {
   var isAdmin = !!props.isAdmin;
   var page = props.page || null;
   var onClose = props.onClose;
-  var online = TK_vUseOnline();
   var touch = TK_vUseTouch();
-  var staff = TK_vUseStaff(true) || [];
   var list = TK_cdUseClientList(clientId);
   var asideRef = React.useRef(null);
   var sPair = React.useState(function () {
@@ -438,21 +539,7 @@ function TK_ClientDrawerPanel(props) {
   }, []);
 
   var today = TK_vToday();
-  var groups = TK_cdGroups(list.tasks, { today: today, page: page, showDone: showDone });
-  // Subtasks open inline under their parent (same group only).
-  var subs = TK_vUseSubtasks(list.tasks);
-  groups = TK_subNestGroups(groups, subs.kidsOf);
   var summary = TK_cdSummary(list.tasks, today);
-  var ids = [];
-  groups.forEach(function (g) {
-    g.tasks.forEach(function (t) {
-      ids.push(t.id);
-    });
-  });
-  var counts = TK_vUseChecklist(ids);
-  var nameOf = function (email) {
-    return typeof TK_vStaffName === "function" ? TK_vStaffName(staff, email) : email || "";
-  };
 
   var go = function (route) {
     return function (e) {
@@ -464,10 +551,6 @@ function TK_ClientDrawerPanel(props) {
   };
   var fullRoute = clientId ? { view: "client", clientId: clientId } : null;
   var fullHref = fullRoute ? TK_formatRoute(fullRoute) : "";
-
-  var failed = !!list.error && !list.tasks.length;
-  var showLoading = !list.loaded && !failed;
-  var empty = !!clientId && list.loaded && !failed && summary.open === 0;
 
   var panel = (
     <div className="tk-cd-layer">
@@ -497,63 +580,17 @@ function TK_ClientDrawerPanel(props) {
         </header>
         <div className="tk-cd-body">
           {clientId ? (
-            <React.Fragment>
-              <ul className="tk-rows tk-cd-add" role="grid" aria-label="Add a task">
-                <TK_vAddRow
-                  ctx={{ clientId: clientId, email: staffUser.email, staff: staff, clients: props.clients || [] }}
-                  sectionName={name}
-                  disabled={!online}
-                />
-              </ul>
-              {online ? null : <TK_vOfflineBanner />}
-              {showLoading ? <TK_vSkeletonRows count={5} /> : null}
-              {failed ? <TK_vErrorState text="Couldn't load tasks." onRetry={list.reload} /> : null}
-              {empty ? (
-                <div className="tk-cd-empty">
-                  <p>{"No open tasks for " + name + "."}</p>
-                  <p className="tk-cd-empty-sub">{touch ? "Add one above." : "Add one above, or press q."}</p>
-                </div>
-              ) : null}
-              {groups.map(function (g) {
-                return (
-                  <section className="tk-cd-group" data-group={g.id} key={g.id}>
-                    <h3 className="tk-cd-group-head">
-                      <span>{g.label}</span> <span className="tk-cd-group-n">{g.tasks.length}</span>
-                    </h3>
-                    <ul className="tk-rows" role="grid" aria-label={g.label}>
-                      {g.tasks.map(function (t) {
-                        return (
-                          <TK_TaskRow
-                            key={t.id}
-                            task={t}
-                            today={today}
-                            subs={subs}
-                            showClient={false}
-                            showAssignee={true}
-                            assigneeName={t.assignee_email ? nameOf(t.assignee_email) : ""}
-                            onClaim={online ? TK_vClaim : undefined}
-                            isAdmin={isAdmin}
-                            canEdit={online}
-                            columns={false}
-                            checklist={counts[t.id] || null}
-                            onOpen={function (id) {
-                              TK_openTask(id, { from: "client-drawer" });
-                            }}
-                            onToggleDone={function (task) {
-                              TK_vComplete(task, isAdmin);
-                            }}
-                            onStatus={function (task, s, note) {
-                              TK_vSetStatus(task, s, note, isAdmin);
-                            }}
-                          />
-                        );
-                      })}
-                    </ul>
-                  </section>
-                );
-              })}
-              {typeof TK_ClientContacts === "function" ? <TK_ClientContacts clientId={clientId} online={online} /> : null}
-            </React.Fragment>
+            <TK_ClientTasksBody
+              clientId={clientId}
+              clientName={name}
+              staffUser={staffUser}
+              isAdmin={isAdmin}
+              clients={props.clients}
+              list={list}
+              showDone={showDone}
+              page={page}
+              from="client-drawer"
+            />
           ) : (
             <div className="tk-cd-empty">
               <p>Open a client to see its tasks.</p>

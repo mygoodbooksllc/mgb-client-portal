@@ -468,7 +468,8 @@ function WB_KeysSheet({ onClose }) {
     ["s", "Snooze"],
     ["e", "No reply needed (message) or Mark checked (file)"],
     ["1-6, 0", "Pick a filter, 0 for All"],
-    ["Esc", "Close the top layer: a menu, a task or chat drawer, then the " + WB_NAME],
+    ["← / →", "With a tab selected, move between the drawer's tabs (Inbox, My tasks, Client)"],
+    ["Esc", "Close the top layer: a menu, the client list, a task or chat drawer, then the " + WB_NAME],
   ];
   return typeof ModalShell === "function" ? (
     <ModalShell onClose={onClose} labelledBy="wb-keys-title" className="confirm-modal">

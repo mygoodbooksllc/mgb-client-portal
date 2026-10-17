@@ -2,7 +2,7 @@
 title: How do I use the Workbench?
 section: Getting started
 audience: staff
-keywords: [workbench, reply without leaving the page, reply from the workbench, open file, open file from the workbench, files open in drive, chat drawer, my tasks tab, tasks tab, tick done from the list, today, needs you, inbox, one list, drawer, bottom drawer, press w, w key, keyboard shortcuts, snooze, snoozed, no reply needed, mark checked, undo, needs reply, due today, overdue, reviews waiting, ledger flags, documents, new files, client files, mine, everyone, covering, classic today, workbench preview, j k, next item, open a task without leaving the page, stacked drawer, esc closes one layer, panel remembers, reopens where you left it]
+keywords: [workbench, reply without leaving the page, reply from the workbench, open file, open file from the workbench, files open in drive, chat drawer, my tasks tab, tasks tab, tick done from the list, today, needs you, inbox, one list, drawer, bottom drawer, press w, w key, keyboard shortcuts, snooze, snoozed, no reply needed, mark checked, undo, needs reply, due today, overdue, reviews waiting, ledger flags, documents, new files, client files, mine, everyone, covering, classic today, workbench preview, j k, next item, open a task without leaving the page, stacked drawer, esc closes one layer, panel remembers, reopens where you left it, client tab, look up a client, client tasks from the workbench, pick a client, pinned clients, pin a client, star, unpin, recent clients, open client, + task]
 sort: 41
 ---
 The **Workbench** is one list of everything that needs you, in order: your tasks, work waiting for your review, client messages with no reply, Ledger flags, new client files, and the rest of what used to be on Today. It takes over **Today** (the first place in the left rail, which is then called **Workbench**; the address stays `#/today`) and also sits in a drawer at the bottom of every staff page. Press **W** anywhere to open it.
@@ -57,7 +57,7 @@ In the drawer, **Open** (or **Review**) on a task opens its details in the task 
 
 - **Esc** closes one layer at a time: a row's **⋯** menu first, then the task drawer, then the Workbench. Clicking the dimmed page behind a task drawer closes only the task drawer.
 - Closing the task drawer puts you back on the row you opened it from.
-- **W** does nothing while a task drawer or dialog is open on top, so it can't close the Workbench from under it. **q** (quick add) does nothing while the Workbench is open; a **+ Task** button for it is coming.
+- **W** does nothing while a task drawer or dialog is open on top, so it can't close the Workbench from under it. **q** (quick add) does nothing while the Workbench is open; use **+ Add task** on the My tasks tab or **+ Task** on the Client tab instead.
 - On a task you haven't started, **Start** moves into the **⋯** menu, next to **Snooze** and **Open full page** (which goes to the task's page, as before).
 - Ledger items still take you to where they live. Client messages and new files stay on the page too; see the next section.
 
@@ -74,7 +74,7 @@ In the Workbench drawer, a client message has **Reply** and a new client file ha
 
 ### My tasks in the Workbench
 
-The Workbench panel has two tabs, **Inbox** and **My tasks**. **My tasks** lists every open task assigned to you, grouped **Overdue**, **Today**, **This week**, **Later** and **Waiting on client**, the same way My Tasks does. Tasks that are done or unassigned don't show here.
+The Workbench panel has three tabs: **Inbox**, **My tasks** and **Client** (see the next section). With a tab selected, the left and right arrow keys move between them. **My tasks** lists every open task assigned to you, grouped **Overdue**, **Today**, **This week**, **Later** and **Waiting on client**, the same way My Tasks does. Tasks that are done or unassigned don't show here.
 
 - Click a row to open the task drawer on top; closing it puts you back on the row. Tick the circle to mark it done from the list. The count on the tab is your open tasks.
 - Click a group's name to fold it; the panel remembers which groups you folded.
@@ -82,6 +82,17 @@ The Workbench panel has two tabs, **Inbox** and **My tasks**. **My tasks** lists
 - It shows up to 200 tasks. If you have more, a line says how many more there are and links to **My Tasks**.
 - **Show older** on My Tasks doesn't change this tab, and this tab doesn't change My Tasks.
 - Your filter, scroll and open tab are remembered for you only, on this browser. If you share a computer, the next person starts clean.
+
+### Look up a client from the Workbench
+
+The **Client** tab shows one client's open tasks without leaving the page you're on.
+
+- **Picking a client.** On a client's page, the tab starts on that client. Anywhere else it shows the client you looked at last. To pick another, click the box at the top and type part of the name, or use the up and down arrows and press **Enter**. The list shows your **Pinned** clients first, then **Recent** ones, then all of them. It only lists clients you can open.
+- **Pins.** The **☆** next to the client's name pins it to the top of the list (it turns into **★**); click it again to unpin. You can pin up to 8. Pinning a ninth unpins the oldest, and a message says which one. Pins are yours alone and only on this browser.
+- **The tasks.** These are the same tasks, groups and contacts as the client's tasks panel (**t**). Add a task in the row at the top, tick a circle to mark it done, or click a row to open the task drawer on top; closing it puts you back in the tab. Private tasks show only to the people who can already see them.
+- **+ Task** opens quick add for this client. **Open client** goes to the client's page and closes the Workbench.
+- **Esc** closes the client list first, then clears what you typed, then closes the Workbench.
+- If a client you looked at before is no longer yours, the tab says **You don't have access to this client** and removes it from your pins.
 
 ### Keyboard shortcuts
 
@@ -91,7 +102,8 @@ Click **?** at the top of the Workbench and pick **Keyboard shortcuts**. They wo
 - **j** and **k** move to the next and previous item; **Enter** does the main action; **o** opens it where it lives.
 - **s** snoozes; **e** is **No reply needed** on a message or **Mark checked** on a file.
 - **1** to **6** pick a filter on the full page, **0** goes back to All.
-- **Esc** closes the top layer: a menu, then a drawer or dialog on top, then the Workbench.
+- The left and right arrows move between the drawer's tabs (**Inbox**, **My tasks**, **Client**) while a tab is selected.
+- **Esc** closes the top layer: a menu or the client list, then a drawer or dialog on top, then the Workbench.
 
 ### Admins: Mine or Everyone
 

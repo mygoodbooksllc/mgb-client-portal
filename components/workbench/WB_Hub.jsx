@@ -1,9 +1,9 @@
 // ----------------------------------------------------------------------------
 // WB_Hub: the open Workbench panel (Workbench Hub spec, slice H1).
 //
-// The panel is a hub: tabs (Inbox and My tasks now; Client arrives in a later
-// slice), the Inbox list with its filter chips, the My tasks pane
-// (WB_HubTasks.jsx), and the stack protocol that
+// The panel is a hub: tabs (Inbox, My tasks, Client), the Inbox list with its
+// filter chips, the My tasks pane (WB_HubTasks.jsx), the Client pane
+// (WB_HubClient.jsx), and the stack protocol that
 // lets a task drawer, the client drawer, the chat drawer or a dialog sit on
 // top of it without the page underneath changing.
 //
@@ -48,6 +48,9 @@ function WB_useHubKeys(live, panelRef) {
       } else if (WB_layerAbove(present)) return;
       const panel = panelRef.current;
       if (e.key === "Escape") {
+        // A field with text (the add row, the client picker) clears itself first.
+        const tgt = e.target;
+        if (WB_escKeepsField(tgt && tgt.tagName, tgt && tgt.value, !!(panel && tgt && panel.contains(tgt)))) return;
         e.preventDefault();
         e.stopPropagation();
         WB_store.setDrawerOpen(false);
@@ -194,8 +197,9 @@ function WB_HubTabs({ tab, onPick, counts }) {
 }
 
 // props: s (store state), me, isAdmin, clients, panelRef, allView, view, chip,
-// today, now, count, loading.
-function WB_Hub({ s, me, isAdmin, clients, panelRef, view, allView, chip, today, now, count, loading }) {
+// today, now, count, loading, currentClientId (the client page I am on, or
+// null), page (the route page, for the Client tab's "For this page" group).
+function WB_Hub({ s, me, isAdmin, clients, panelRef, view, allView, chip, today, now, count, loading, currentClientId, page }) {
   const hub = s.hub;
   const tab = hub.tab;
   const bodyRef = React.useRef(null);
@@ -207,10 +211,14 @@ function WB_Hub({ s, me, isAdmin, clients, panelRef, view, allView, chip, today,
   const [tasksSeen, setTasksSeen] = React.useState(tab === "tasks");
   const [tasksCount, setTasksCount] = React.useState(null);
   const [tasksReady, setTasksReady] = React.useState(false);
+  // Client works the same way (mounts on first visit, stays while open).
+  const [clientSeen, setClientSeen] = React.useState(tab === "client");
+  const [clientReady, setClientReady] = React.useState(false);
   React.useEffect(() => {
     if (tab === "tasks") setTasksSeen(true);
+    if (tab === "client") setClientSeen(true);
   }, [tab]);
-  const paneReady = tab === "tasks" ? tasksReady : !loading;
+  const paneReady = tab === "tasks" ? tasksReady : tab === "client" ? clientReady : !loading;
 
   const setChip = (id) => {
     WB_store.setHub({ chip: id });
@@ -220,7 +228,7 @@ function WB_Hub({ s, me, isAdmin, clients, panelRef, view, allView, chip, today,
     if (id === tab) return;
     WB_store.setHub({ tab: id });
     WB_track("wb-filter", "hub:" + id);
-    if (id === "tasks") WB_track("wb-hub", "tasks");
+    if (id === "tasks" || id === "client") WB_track("wb-hub", id);
   };
 
   // Restore the pane's scroll once its rows are on screen, then save it as
@@ -325,10 +333,24 @@ function WB_Hub({ s, me, isAdmin, clients, panelRef, view, allView, chip, today,
               />
             )}
           </div>
+          <div className="wb-hub-pane" hidden={tab !== "client"} {...(tabbed ? { role: "tabpanel", id: "wb-hub-pane-client", "aria-labelledby": "wb-hub-tab-client" } : {})}>
+            {clientSeen && typeof WB_HubClient === "function" && (
+              <WB_HubClient
+                me={me}
+                isAdmin={isAdmin}
+                clients={clients}
+                clientId={hub.clientId}
+                currentClientId={currentClientId}
+                page={page}
+                onReady={() => setClientReady(true)}
+              />
+            )}
+          </div>
         </div>
         <p className="wb-panel-foot">
           <kbd>W</kbd> opens and closes · <kbd>Esc</kbd> closes one layer at a time
           {tab === "tasks" && <> · <kbd>↑</kbd> <kbd>↓</kbd> move between tasks · use <b>+ Add task</b> to add one</>}
+          {tab === "client" && <> · type in the box to find a client · the <b>☆</b> pins one to the top</>}
         </p>
       </div>
     </>

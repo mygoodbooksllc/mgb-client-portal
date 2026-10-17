@@ -174,6 +174,9 @@ function TK_stMatches(state, key, task) {
   // "clientcd" is the client tasks panel and strip's own list of the same
   // client (TK_ClientDrawer.jsx), so its filters never touch the full list.
   if (kind === "client" || kind === "clientcd") return task.client_id != null && String(task.client_id) === val;
+  // "wb:client:<id>" is the Workbench hub's Client tab (WB_HubClient.jsx): the
+  // same client's tasks under the hub's own key. Other "wb:" keys stay null.
+  if (kind === "wb" && val.indexOf("client:") === 0) return task.client_id != null && String(task.client_id) === val.slice(7);
   if (kind === "project") return task.project_id != null && String(task.project_id) === val;
   if (kind === "children") return task.parent_id != null && String(task.parent_id) === val;
   if (kind === "person") {

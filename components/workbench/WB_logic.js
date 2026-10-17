@@ -309,13 +309,12 @@ function WB_nextRow(view) {
 }
 
 // ---- Hub (Workbench Hub spec H1) ---------------------------------------------
-// The panel's tabs. Inbox (H1) and My tasks (H2) are live; Client comes in
-// H4 and is saved/restored safely before then (a tab that isn't live falls
-// back to Inbox).
+// The panel's tabs: Inbox (H1), My tasks (H2) and Client (H4). A tab that
+// isn't live falls back to Inbox when a saved state is read.
 var WB_HUB_TABS = [
   { id: "inbox", label: "Inbox", live: true },
   { id: "tasks", label: "My tasks", live: true },
-  { id: "client", label: "Client", live: false },
+  { id: "client", label: "Client", live: true },
 ];
 // localStorage. The saved state is per signed-in person: "mgb_wb_hub:<email>"
 // (WB_hubKey), so someone else on the same browser never inherits a filter,
@@ -490,6 +489,211 @@ function WB_hubTasksReady(listState, sawLoading) {
   return !!sawLoading && !l.loading;
 }
 
+// ---- Client tab (H4) ---------------------------------------------------------
+// Pinned clients are per person, in their own key next to the hub state:
+// "mgb_wb_pins:<email>" (mgb_ so Dev Tools Reset local state clears it). At
+// most WB_PINS_CAP; the newest pin is first and pinning one more drops the
+// oldest. This browser only (no cross-computer sync yet).
+var WB_PINS_KEY = "mgb_wb_pins";
+var WB_PINS_CAP = 8;
+var WB_HUB_RECENT_MAX = 5; // recents shown in the picker
+var WB_HUB_PICK_LIMIT = 50; // rows the picker lists at most
+
+function WB_pinsKey(email) {
+  var e = String(email == null ? "" : email).trim().toLowerCase();
+  return e ? WB_PINS_KEY + ":" + e : null;
+}
+
+function WB__idOk(v) {
+  return typeof v === "string" && v.length > 0 && v.length < 80;
+}
+
+// Clean list of client ids: strings, no repeats, at most cap.
+function WB_pinsClean(list, cap) {
+  var max = cap == null ? WB_PINS_CAP : Math.max(0, Math.floor(Number(cap)) || 0);
+  var out = [];
+  (Array.isArray(list) ? list : []).forEach(function (v) {
+    var id = typeof v === "number" && isFinite(v) ? String(v) : v;
+    if (WB__idOk(id) && out.indexOf(id) < 0 && out.length < max) out.push(id);
+  });
+  return out;
+}
+
+// Saved text in, pins out. Never throws.
+function WB_pinsParse(raw) {
+  if (!raw) return [];
+  try {
+    var o = JSON.parse(raw);
+    return WB_pinsClean(o && typeof o === "object" && !Array.isArray(o) ? o.pins : o);
+  } catch (e) {
+    return [];
+  }
+}
+function WB_pinsSerialize(pins) {
+  return JSON.stringify({ v: 1, pins: WB_pinsClean(pins) });
+}
+
+// Pin or unpin `id`. Returns { pins, on, dropped } where on is the new state
+// and dropped is the id pushed off the end (or null).
+function WB_pinsToggle(pins, id, cap) {
+  var max = cap == null ? WB_PINS_CAP : Math.max(1, Math.floor(Number(cap)) || 1);
+  var cur = WB_pinsClean(pins, 1000);
+  var key = id == null ? "" : String(id);
+  if (!WB__idOk(key)) return { pins: cur.slice(0, max), on: false, dropped: null };
+  var at = cur.indexOf(key);
+  if (at >= 0) {
+    cur.splice(at, 1);
+    return { pins: cur.slice(0, max), on: false, dropped: null };
+  }
+  var next = [key].concat(cur);
+  var dropped = next.length > max ? next[max] : null;
+  return { pins: next.slice(0, max), on: true, dropped: dropped };
+}
+
+function WB__clientIndex(clients) {
+  var byId = {};
+  (Array.isArray(clients) ? clients : []).forEach(function (c) {
+    if (c && c.id != null && c.id !== "") byId[String(c.id)] = c;
+  });
+  return byId;
+}
+
+// Pins I can no longer open are dropped. While the client list is empty (not
+// loaded yet) nothing is dropped.
+function WB_pinsPrune(pins, clients) {
+  var cur = WB_pinsClean(pins);
+  if (!Array.isArray(clients) || !clients.length) return cur;
+  var byId = WB__clientIndex(clients);
+  return cur.filter(function (id) {
+    return !!byId[id];
+  });
+}
+
+// Which client the tab shows: the client page I am on wins, then the one the
+// tab last showed. access is true (in my client list), false (not in it: the
+// tab says "You don't have access to this client" and never shows a name) or
+// null (the list is not loaded yet). from is "route", "saved" or null.
+function WB_hubPickClient(savedId, routeId, clients) {
+  var route = routeId == null || routeId === "" ? null : String(routeId);
+  var saved = savedId == null || savedId === "" ? null : String(savedId);
+  var id = WB__idOk(route) ? route : WB__idOk(saved) ? saved : null;
+  var from = id == null ? null : id === route ? "route" : "saved";
+  if (id == null) return { id: null, from: null, access: null, client: null };
+  if (!Array.isArray(clients) || !clients.length) return { id: id, from: from, access: null, client: null };
+  var c = WB__clientIndex(clients)[id] || null;
+  return { id: id, from: from, access: !!c, client: c };
+}
+
+function WB__clientName(c) {
+  return String((c && c.name) || "").trim();
+}
+function WB__byName(a, b) {
+  var x = WB__clientName(a).toLowerCase();
+  var y = WB__clientName(b).toLowerCase();
+  if (x !== y) return x < y ? -1 : 1;
+  return String(a.id) < String(b.id) ? -1 : String(a.id) > String(b.id) ? 1 : 0;
+}
+
+// The picker's rows. No query: Pinned (pin order), Recent (not pinned, at most
+// WB_HUB_RECENT_MAX), then All clients by name. A query: Matches across every
+// client I can see, names that start with it first, then names that contain
+// it, each by name. Only clients in `clients` ever show (no server query).
+// Returns { sections: [{ id, label, items: [{ id, name, pinned }] }], items }
+// where items is every row in order (for arrow keys), at most `limit`.
+function WB_hubClientOptions(clients, pins, recents, query, limit) {
+  var max = limit == null ? WB_HUB_PICK_LIMIT : Math.max(1, Math.floor(Number(limit)) || 1);
+  var byId = WB__clientIndex(clients);
+  var pinIds = WB_pinsClean(pins).filter(function (id) {
+    return !!byId[id];
+  });
+  var pinned = {};
+  pinIds.forEach(function (id) {
+    pinned[id] = 1;
+  });
+  var all = Object.keys(byId)
+    .map(function (id) {
+      return byId[id];
+    })
+    .filter(function (c) {
+      return WB__clientName(c);
+    });
+  var item = function (c) {
+    return { id: String(c.id), name: WB__clientName(c), pinned: !!pinned[String(c.id)] };
+  };
+  var used = 0;
+  var take = function (list) {
+    var room = Math.max(0, max - used);
+    var out = list.slice(0, room);
+    used += out.length;
+    return out;
+  };
+  var sections = [];
+  var push = function (id, label, list) {
+    var items = take(list);
+    if (items.length) sections.push({ id: id, label: label, items: items });
+  };
+  var q = String(query == null ? "" : query).trim().toLowerCase();
+  if (q) {
+    var starts = [];
+    var has = [];
+    all.forEach(function (c) {
+      var n = WB__clientName(c).toLowerCase();
+      var at = n.indexOf(q);
+      if (at === 0) starts.push(c);
+      else if (at > 0) has.push(c);
+    });
+    starts.sort(WB__byName);
+    has.sort(WB__byName);
+    push("matches", "Matches", starts.concat(has).map(item));
+  } else {
+    var seen = {};
+    var pinRows = pinIds
+      .map(function (id) {
+        seen[id] = 1;
+        return byId[id];
+      })
+      .filter(function (c) {
+        return WB__clientName(c);
+      });
+    push("pinned", "Pinned", pinRows.map(item));
+    var recentRows = [];
+    WB_pinsClean(recents, 1000).forEach(function (id) {
+      if (seen[id] || !byId[id] || !WB__clientName(byId[id]) || recentRows.length >= WB_HUB_RECENT_MAX) return;
+      seen[id] = 1;
+      recentRows.push(byId[id]);
+    });
+    push("recent", "Recent", recentRows.map(item));
+    push(
+      "all",
+      "All clients",
+      all
+        .filter(function (c) {
+          return !seen[String(c.id)];
+        })
+        .sort(WB__byName)
+        .map(item),
+    );
+  }
+  var items = [];
+  sections.forEach(function (sec) {
+    items = items.concat(sec.items);
+  });
+  return { sections: sections, items: items };
+}
+
+// The Client tab's own list key (TK_stMatches places tasks in it by client).
+function WB_hubClientListKey(id) {
+  return WB__idOk(id == null ? null : String(id)) ? "wb:client:" + String(id) : null;
+}
+
+// Esc in a text field that still has text clears the field first (the add
+// row and the picker do that themselves); the hub closes on the next Esc.
+function WB_escKeepsField(tag, value, inPanel) {
+  if (!inPanel) return false;
+  var t = String(tag || "").toUpperCase();
+  return (t === "INPUT" || t === "TEXTAREA") && String(value == null ? "" : value) !== "";
+}
+
 // Arrow keys on the tab list (ARIA tabs): returns the tab to move to, or null.
 function WB_tabMove(ids, cur, key) {
   if (!ids || !ids.length) return null;
@@ -508,6 +712,8 @@ var WB_LAYERS = [
   { id: "menu", sel: ".wb-menu", z: 3000, stacked: false },
   // A My tasks row's status menu (TK_TaskRow) lives inside the panel; Esc must close it before the hub.
   { id: "tk-menu", sel: ".wb-panel .tk-menu[role='menu']", z: 3000, stacked: false },
+  // The Client tab's client picker list (H4): Esc closes the list before the hub.
+  { id: "picker", sel: ".wb-panel .wb-pick-list", z: 3000, stacked: false },
   { id: "tour", sel: ".tour-root", z: 2900, stacked: false },
   { id: "modal", sel: ".modal-overlay", z: 2000, stacked: true },
   { id: "aria-modal", sel: '[aria-modal="true"]:not(.wb-panel)', z: 1900, stacked: true },
@@ -848,6 +1054,20 @@ if (typeof module !== "undefined" && module.exports) {
     WB_hubTaskGroups: WB_hubTaskGroups,
     WB_hubTasksReady: WB_hubTasksReady,
     WB_hubShouldReload: WB_hubShouldReload,
+    WB_PINS_KEY: WB_PINS_KEY,
+    WB_PINS_CAP: WB_PINS_CAP,
+    WB_HUB_RECENT_MAX: WB_HUB_RECENT_MAX,
+    WB_HUB_PICK_LIMIT: WB_HUB_PICK_LIMIT,
+    WB_pinsKey: WB_pinsKey,
+    WB_pinsClean: WB_pinsClean,
+    WB_pinsParse: WB_pinsParse,
+    WB_pinsSerialize: WB_pinsSerialize,
+    WB_pinsToggle: WB_pinsToggle,
+    WB_pinsPrune: WB_pinsPrune,
+    WB_hubPickClient: WB_hubPickClient,
+    WB_hubClientOptions: WB_hubClientOptions,
+    WB_hubClientListKey: WB_hubClientListKey,
+    WB_escKeepsField: WB_escKeepsField,
     WB_HUB_OPEN_MS: WB_HUB_OPEN_MS,
     WB_HUB_SCROLL_MS: WB_HUB_SCROLL_MS,
     WB_LAYERS: WB_LAYERS,

@@ -50,6 +50,7 @@ Here is every tip, in the order they're considered when two fit the same page (t
 | Page | Tip | Learn more |
 |---|---|---|
 | Today | The tiles in this row are shortcuts: Replies waiting opens Inbox, Closes open opens Work › Close, and Overdue jumps to the Now list. | [What's on my Today page?](#/help/home-page) |
+| Today (only while the Workbench is on) | The button does the next thing. The ⋯ beside it has Snooze, and No reply needed or Mark checked; each has Undo. Press W on any page for this list in a drawer; its My tasks tab has your tasks, and its Client tab one client's tasks (☆ pins a client). | [How do I use the Workbench?](#/help/workbench) |
 | Clients | Mine also includes clients you're the backup for and ones an admin gave you access to, not only those assigned to you. | [How do I use the Clients page?](#/help/clients-page) |
 | Clients | Hover a Health score to see what's costing it points. The same reasons are listed on the client's Overview. | [What does client health mean?](#/help/client-health) |
 | A client's Close | Tick each close step as you finish it; it records who and when. Your first tick sets the month to In progress. When your part is done, mark it Ready for sign-off; an admin signs it off, and that emails the client. | [What's on a client's Close tab?](#/help/client-close) |
@@ -58,6 +59,7 @@ Here is every tip, in the order they're considered when two fit the same page (t
 | A client's Overview | Set this client's backup under Edit dates and coverage. A backup doesn't get in automatically; they can request access, or an admin can give it. | [How do I add time off and make sure my clients are covered?](#/help/time-off-coverage) |
 | A client's SOP | After 180 days an SOP shows as stale. Read it through; if it's still right, Mark as still accurate resets the clock. | [How do I write or update a client's SOP?](#/help/client-sops) |
 | Inbox, or a client's Messages | Loop in emails the assigned bookkeeper and adds a staff-only note. @name in a Note does the same; in a Reply the client sees the @name. | [How do I message a client or a teammate?](#/help/inbox) |
+| Inbox (only while the Workbench is on) | A client's last message just says thanks? No reply needed takes the thread off your Workbench without sending anything. A new message from them puts it back. | [How do I use the Workbench?](#/help/workbench) |
 | A client's Messages | Click i for this client's portal logins, open requests, pinned notes, SOP and recent portal visits, right beside the thread. | [How do I message a client or a teammate?](#/help/inbox) |
 | Any client page | The sync pill: QuickBooks syncs on the plan's schedule (Basic monthly, Pro every hour). Staff can click it to Sync now on any plan after changing something in QuickBooks. | [How do I connect a client's QuickBooks and use Sync now?](#/help/quickbooks-connection) |
 | Any client page | Client view shows the client's own pages. View as client, at the bottom of it, shows them exactly as one of the client's people sees them. Nothing changes for them; Exit preview brings you back. | [How do I see the portal the way a client sees it?](#/help/preview-as) |
