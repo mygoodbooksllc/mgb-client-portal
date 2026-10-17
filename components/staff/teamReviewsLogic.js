@@ -42,7 +42,7 @@ var TR_ITEMS = [
       "Gmail: respond to clients within 24 hours (when working)",
       "Google Chat: respond to the team within 1 hour when working",
       "Google Calendar: working hours and off hours managed",
-      "Asana: no overdue tasks, ever",
+      "Asana: tasks kept up to date (late tasks are not held against anyone yet, while Slate rolls out)",
       "Google Drive: statements, reports and client documents stored",
       "Internal Client Detail Sheet: kept up to date",
     ],

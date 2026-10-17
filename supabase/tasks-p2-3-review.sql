@@ -159,7 +159,8 @@ language sql
 immutable
 set search_path = public
 as $$
-  select p_key in ('client_request_enabled', 'client_request_pilot', 'standard_set_live');
+  select p_key in ('client_request_enabled', 'client_request_pilot', 'standard_set_live',
+                   'late_tasks_count_against_staff', 'late_tasks_effective_from');   -- grace period keys: keep in sync with tasks-grace-period.sql (re-run that file after this one)
 $$;
 
 create or replace function public.tk_settings_before_write()

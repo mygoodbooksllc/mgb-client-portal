@@ -66,6 +66,8 @@ The firm-wide admin pages, in three groups. Click a row to open the page. Search
 - **Email and QuickBooks**: **Emails**, with a chip showing whether sending works (**Domain verified**, **Domain pending**, **Needs attention** or **Not checked yet**), and **QuickBooks usage and limits**, with this month's **% used**. It opens the usage card on the Team page.
 - **Insight and records**: **Usage stats**, **Audit log** and **Developer tools**.
 
+- **Late tasks** (a card on the same page): **Count late tasks in scores and reports**. **Off by default** (a grace period while everyone settles into Slate). While it is off, late and overdue tasks are not counted in the performance score, client health, on-time rates, the weekly digest or the Team page's Overdue columns, and the review rubric doesn't hold them against anyone. Filing deadlines are not tasks and keep counting. **Only the owner** can turn it on; everyone else sees it greyed out with a note. When the owner turns it on, today becomes its start date: only tasks due on or after that day count, so the imported backlog never counts against anyone. Each change is recorded in the audit log.
+
 Staff with temporary admin access see Task templates (read-only), Client roster, Usage stats and Developer tools. **Team › Feedback** stays admin-only.
 
 ### Sign out

@@ -144,7 +144,9 @@ function TP_taskState(t, today, range) {
     const c = TP_completedYmd(t);
     return c && c >= range.from && c <= range.to ? "completed" : "done-earlier";
   }
-  return t.due_date && t.due_date < today ? "overdue" : "open";
+  // Once late tasks count, only tasks due on or after the start date can be overdue.
+  const from = typeof TK_lateCountsCache !== "undefined" ? TK_lateCountsCache.from : null;
+  return t.due_date && t.due_date < today && (!from || t.due_date >= from) ? "overdue" : "open";
 }
 
 // Everything the page shows, from the raw rows. Pure, so it can be exercised
@@ -363,6 +365,7 @@ function TP_HoursBars({ entries, range }) {
 }
 
 function TP_TaskGroups({ tasks, today, range, clientName, ownerName, emptyText }) {
+  const lateOn = TK_useLateCounts();   // grace period: past-due tasks are listed, but not flagged red
   const groups = useMemo(() => {
     const g = { overdue: [], open: [], completed: [] };
     (tasks || []).forEach((t) => {
@@ -392,7 +395,7 @@ function TP_TaskGroups({ tasks, today, range, clientName, ownerName, emptyText }
     <div className="tp-task-groups">
       {sections.map((s) => (
         <div key={s.key} className="tp-task-group">
-          <h4 className={"tp-task-group-title" + (s.key === "overdue" ? " bad" : "")}>
+          <h4 className={"tp-task-group-title" + (lateOn && s.key === "overdue" ? " bad" : "")}>
             {s.label} <span className="tp-muted">({groups[s.key].length})</span>
           </h4>
           {groups[s.key].length === 0 ? (
@@ -412,7 +415,7 @@ function TP_TaskGroups({ tasks, today, range, clientName, ownerName, emptyText }
                         Done {fmtDate(TP_completedYmd(t))}
                       </span>
                     ) : t.due_date ? (
-                      <span className={"task-chip" + (s.key === "overdue" ? " bad" : "")}>
+                      <span className={"task-chip" + (lateOn && s.key === "overdue" ? " bad" : "")}>
                         Due {fmtDate(t.due_date)}
                       </span>
                     ) : (
@@ -857,6 +860,7 @@ function TP_MyBackupsCard({ staffUser, clients }) {
 }
 
 function TP_TeamPage({ clients }) {
+  const lateOn = TK_useLateCounts();
   const supabase = window.mgbSupabase;
   const [period, setPeriod] = useState("month");
   const [customFrom, setCustomFrom] = useState("");
@@ -1185,7 +1189,7 @@ function TP_TeamPage({ clients }) {
             { label: "In app", value: TP_fmtHM(qPerson.appMinutes || 0) },
             { label: "Clients", value: qPerson.assignedCount + (qPerson.tempCount ? ` +${qPerson.tempCount}` : "") },
             { label: "Open tasks", value: qPerson.open },
-            { label: "Overdue", value: qPerson.overdue, bad: qPerson.overdue > 0 },
+            ...(lateOn ? [{ label: "Overdue", value: qPerson.overdue, bad: qPerson.overdue > 0 }] : []),
             { label: "Completed", value: qPerson.completed },
           ]}
           spec={{ kind: "staff", email: qPerson.email }}
@@ -1247,7 +1251,7 @@ function TP_TeamPage({ clients }) {
                 })()
               : []),
             { label: "Open tasks", value: r.open },
-            { label: "Overdue", value: r.overdue, bad: r.overdue > 0 },
+            ...(lateOn ? [{ label: "Overdue", value: r.overdue, bad: r.overdue > 0 }] : []),
           ]}
           note={
             r.trend ? (

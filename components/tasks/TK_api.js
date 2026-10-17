@@ -2040,6 +2040,23 @@ var TK_api = (function () {
     }, { where: "setSetting" });
   };
 
+  // Grace period for late tasks (supabase/tasks-grace-period.sql). The date
+  // late tasks count from, or null while the switch is off (the default).
+  api.lateCountFrom = function () {
+    return run(function (c) {
+      return c.rpc("tk_late_count_from");
+    }, { where: "lateCountFrom" }).then(function (d) { return d ? String(d).slice(0, 10) : null; });
+  };
+
+  // Owner only. Turning it on stamps today as the effective-from date.
+  api.setLateTasksCount = function (on) {
+    var off = requireOnline();
+    if (off) return off;
+    return run(function (c) {
+      return c.rpc("tk_set_late_tasks_count", { p_on: !!on });
+    }, { where: "setLateTasksCount" });
+  };
+
   api.clientFiscalYearEnd = function (clientId) {
     if (!clientId) return Promise.resolve(null);
     return run(function (c) {
@@ -2348,3 +2365,27 @@ var TK_api = (function () {
 
   return api;
 })();
+
+// Shared by the admin Team views: do late tasks count against people yet?
+// false (the default) during the grace period, until the owner flips the
+// switch; reads once per page load and stays false if the call fails.
+var TK_lateCountsCache = { on: false, from: null, promise: null };
+function TK_useLateCounts() {
+  var st = React.useState(TK_lateCountsCache.on);
+  var setOn = st[1];
+  React.useEffect(function () {
+    var alive = true;
+    if (!TK_lateCountsCache.promise && typeof TK_api !== "undefined") {
+      TK_lateCountsCache.promise = Promise.resolve(TK_api.lateCountFrom()).then(function (d) {
+        TK_lateCountsCache.on = !!d;
+        TK_lateCountsCache.from = d ? String(d).slice(0, 10) : null;
+        return TK_lateCountsCache.on;
+      }, function () { return false; });
+    }
+    if (TK_lateCountsCache.promise) {
+      TK_lateCountsCache.promise.then(function (v) { if (alive) setOn(v); });
+    }
+    return function () { alive = false; };
+  }, []);
+  return st[0];
+}

@@ -129,4 +129,10 @@ t("year-end draft", () => {
   assert.ok(/narrowed/.test(d.alignment), d.alignment);
 });
 
+t("rubric: late tasks are not held against anyone during the grace period", () => {
+  const src = require("fs").readFileSync(require("path").join(__dirname, "teamReviewsLogic.js"), "utf8");
+  assert.ok(!/no overdue tasks, ever/i.test(src));
+  assert.ok(/late tasks are not held against anyone yet/.test(src));
+});
+
 console.log("teamReviewsLogic: " + n + " checks passed");

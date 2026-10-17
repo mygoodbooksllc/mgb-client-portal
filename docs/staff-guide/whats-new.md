@@ -9,6 +9,11 @@ The newest changes to the staff side, newest first. For how anything works, sear
 
 Each new launch also has a **Launches** list above, with **Open** and **Take the tour**, so a tour is never lost once its notice is gone.
 
+### 2026-10-17: No late-task penalties yet while everyone settles in
+
+- **A grace period.** Late and overdue tasks are not counted against anyone yet: not in the performance score, client health, on-time rates, the weekly digest or the Team page's Overdue columns. Filing deadlines are not tasks, so they still count. Your own Slate still shows what is due, as a reminder.
+- **Admins:** **Settings › Firm settings › Late tasks** has **Count late tasks in scores and reports**, off by default. Only the owner can turn it on, and only tasks due after that day will count. See [Staff settings](#/help/staff-settings) and [How is my score worked out?](#/help/performance).
+
 ### 2026-10-17: The Desk is frosted glass (still off until the owner turns it on)
 
 - **Look only.** The Desk panel and its bar at the bottom are now see-through frosted glass, centered about 640 pixels wide beside the left menu, so you can still make out the page behind them. Rows sit on a lighter layer so the text stays easy to read.

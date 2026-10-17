@@ -1071,10 +1071,67 @@ function ST_ChevronIcon() {
   );
 }
 
-function ST_FirmSettings({ groups, isAdmin, onSelectPage }) {
+// Owner-only switch for the late-task grace period (supabase/tasks-grace-period.sql).
+// Off by default: late tasks do not count in scores, client health, the weekly
+// email or on-time rates until the full Slate rollout. Turning it on counts
+// only tasks that come due from that day on, never the earlier backlog.
+function ST_LateTasksCard({ isOwner }) {
+  const [state, setState] = React.useState({ loaded: false, from: null });
+  const [busy, setBusy] = React.useState(false);
+  const [msg, setMsg] = React.useState("");
+  const load = React.useCallback(() => {
+    if (typeof TK_api === "undefined") return;
+    Promise.resolve(TK_api.lateCountFrom()).then(
+      (d) => setState({ loaded: true, from: d }),
+      () => setState({ loaded: true, from: null, failed: true })
+    );
+  }, []);
+  React.useEffect(load, [load]);
+  const on = !!state.from;
+  const change = (next) => {
+    if (busy || !isOwner) return;
+    setBusy(true);
+    setMsg("");
+    Promise.resolve(TK_api.setLateTasksCount(next)).then(
+      () => {
+        TK_lateCountsCache.promise = null;
+        setBusy(false);
+        setMsg(next ? "Saved. Late tasks now count, starting today." : "Saved. Late tasks no longer count.");
+        load();
+      },
+      (e) => {
+        setBusy(false);
+        setMsg(e && /tk_owner_only/.test(String(e.message || e)) ? "Only the owner can change this." : "Could not save. Try again.");
+      }
+    );
+  };
+  return (
+    <ST_Card
+      title="Late tasks"
+      sub="Off until the full Slate rollout, so nobody is marked down while everyone settles in."
+    >
+      <ST_Toggle
+        label="Count late tasks in scores and reports"
+        sub={
+          on
+            ? "On. Tasks that came due on or after " + state.from + " count in Performance scores, client health, the weekly email and on-time rates. Earlier tasks, including the imported ones, never count."
+            : "Off. Late tasks are left out of Performance scores, client health, the weekly email and on-time rates. Filing deadlines still count."
+        }
+        checked={on}
+        disabled={!isOwner || busy || !state.loaded}
+        onChange={change}
+      />
+      {!isOwner && <p className="st-muted">Only the owner can change this.</p>}
+      <p className="st-muted" aria-live="polite">{msg}</p>
+    </ST_Card>
+  );
+}
+
+function ST_FirmSettings({ groups, isAdmin, onSelectPage, isOwner }) {
   const status = ST_useFirmStatus(!!isAdmin);
   return (
     <>
+      {isAdmin && typeof TK_api !== "undefined" && <ST_LateTasksCard isOwner={!!isOwner} />}
       {groups.map((g) => (
         <ST_Card key={g.title} title={g.title}>
           <ul className="st-firm-list">
@@ -1328,7 +1385,7 @@ function ST_StaffSettingsPage({
             </ST_Card>
           )}
           {key === "firm" && (
-            <ST_FirmSettings groups={firmGroups} isAdmin={isAdmin} onSelectPage={onSelectPage} />
+            <ST_FirmSettings groups={firmGroups} isAdmin={isAdmin} onSelectPage={onSelectPage} isOwner={!!(staffUser && staffUser.isInternalOwner) && !ro} />
           )}
         </>
       )}

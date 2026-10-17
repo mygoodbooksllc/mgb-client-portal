@@ -43,6 +43,8 @@ Temporary admins see the tab without the money figures.
 - **QB hours** come only from QuickBooks Time. Nobody logs time in this app.
 - **In app** is automatic active time on client pages. It is not billed time.
 
+**Late tasks:** while the late-task grace period is on (the default), the Overdue columns, tiles and CSV columns on this page are hidden, because late tasks are not counted against anyone yet. They come back when the owner turns counting on in **Settings › Firm settings**.
+
 ### People table
 
 Name, QB hours, In app, Billable, On clients, unmapped customer hours, Open, Overdue, Completed tasks, and Clients (with "+N temporary"). Rows tagged **Unmapped**, **Ignored**, **No customer** or **No person** collect hours that aren't matched yet; click **Map them** to fix.

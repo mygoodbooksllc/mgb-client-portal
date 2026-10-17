@@ -285,4 +285,12 @@ t("registry: desk-rename is Slate-only when the Desk is off", () => {
   assert.strictEqual(steps[2].title, "Same place, new name");
 });
 
+t("registry: late-task-grace is a plain notice with the grace-period wording", () => {
+  const a = ANN_REGISTRY.find((x) => x.id === "late-task-grace");
+  assert.ok(a);
+  assert.ok(/No late-task penalties yet/.test(a.summary));
+  assert.ok(!/colour/i.test(JSON.stringify(a.steps({}).map((x) => x.body()))));
+  assert.ok(a.steps({}).some((x) => /Filing deadlines/.test(x.body())));
+});
+
 console.log("announcementsLogic: " + n + " checks passed");

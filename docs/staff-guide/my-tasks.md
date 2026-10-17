@@ -11,7 +11,7 @@ A task is yours when it's assigned to you. A task you give someone else shows on
 
 ### The groups
 
-- **Overdue**: past its due date.
+- **Overdue**: past its due date. Overdue is only a reminder for you right now: during the late-task grace period, late tasks aren't counted in anyone's score or reports.
 - **Today**: due today. To fold these into This week, open **View** and untick **Today group**.
 - **This week**: due in the next 7 days.
 - **Later**: due after that, or with no due date.

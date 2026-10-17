@@ -1869,6 +1869,18 @@ Team Reviews files.
   - Upkeep (P4-2): launch announcement `close-checklist-tasks` with a stop on the Close steps card, tip
     `tk-close-optin`, guide article `close-checklist-tasks` (and `client-close`, `month-end-close`,
     `task-templates`), What's new, Dev Tools count of opted-in clients and INFRA_LINKS entry.
+  - **Late-task grace period** (owner rule 2026-10-17: no late-task penalties for bookkeepers until the full
+    Slate rollout, probably next quarter; `supabase/tasks-grace-period.sql`, applied as migration
+    `tasks_grace_period`; self-test `tasks-grace-period-tests.sql`, rolled back). Two owner-only `tk_settings`
+    keys: `late_tasks_count_against_staff` (default false = grace period on) and `late_tasks_effective_from`
+    (stamped to today by `tk_set_late_tasks_count(true)`, so the imported backlog never counts). While off,
+    `staff_performance` drops task rows (the Tasks input is filings on time only, or left out and the rest
+    re-weighted), `client_health` has no overdue factor, `tk_on_time_stats` is empty, `digest_weekly_data` has
+    no overdue count (`late_counts_on` false; `weekly-admin-digest` hides the figure) and the Team Overdue
+    columns, tiles and CSV columns are hidden (`TK_useLateCounts`). Filing deadlines are not tasks and always
+    count. Own-task lists and badges are unchanged (a reminder, not a penalty). Settings › Firm settings ›
+    Late tasks card; launch notice `late-task-grace`; guide `staff-settings`, `performance`, `client-health`,
+    `team-page`, `capacity`, `weekly-digest`, What's new; Dev Tools Slate switches rows.
   - **Bulk actions + undo log** (Phase 4 P4-3; spec 2.3, critique B2/M2/M3;
     `supabase/tasks-p4-3-bulk-undo.sql`, applied as migration `tasks_p4_3_bulk_undo`, `tk_schema_version` 12;
     self-test `tasks-p4-3-bulk-undo-tests.sql`, rolled back). Table `tk_undo_ops` (RLS on, no policies, no

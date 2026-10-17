@@ -492,6 +492,7 @@ function TP_QBucketTag({ bucket }) {
 }
 
 function TP_QboPeopleTable({ people, hours, qboOn, onOpenPerson, onOpenBucket, onOpenMapping }) {
+  const lateOn = TK_useLateCounts();   // grace period: no per-person overdue until the owner turns it on
   const loadingPeople = people == null;
   const { rows, bucketRows, total } = useMemo(
     () => TP_qPeopleRows(people || [], hours.byStaff),
@@ -507,7 +508,7 @@ function TP_QboPeopleTable({ people, hours, qboOn, onOpenPerson, onOpenBucket, o
   const unmappedTotal = bucketRows
     .filter((b) => b.bucket === "unmapped")
     .reduce((n, b) => n + TP_qNum(b.q.total_minutes), 0);
-  const cols = 10;
+  const cols = lateOn ? 10 : 9;
   const dash = <span className="tp-muted">–</span>;
   return (
     <div className="card" style={{ marginBottom: 20 }}>
@@ -517,7 +518,7 @@ function TP_QboPeopleTable({ people, hours, qboOn, onOpenPerson, onOpenBucket, o
           ? `QuickBooks Time hours for the period${total ? ` (${TP_qHours(total)} in all)` : ""}. `
           : "QuickBooks Time isn't connected, so there are no hours yet. "}
         In app is automatic active time in the app{appTotal ? ` (${TP_qHours(appTotal)} in all)` : ""}, not billed
-        hours. Open and overdue are as of today; completed is within the period. Select a row for details.
+        hours. Open{lateOn ? " and overdue" : ""} are as of today; completed is within the period. Select a row for details.
       </p>
       <div className="table-scroll">
         <table className="tx-table tx-table-labeled tp-table">
@@ -530,7 +531,7 @@ function TP_QboPeopleTable({ people, hours, qboOn, onOpenPerson, onOpenBucket, o
               <th className="num">On clients</th>
               <th className="num" title="Hours on QuickBooks customers not yet mapped to a client">Unmapped cust.</th>
               <th className="num">Open</th>
-              <th className="num">Overdue</th>
+              {lateOn && <th className="num">Overdue</th>}
               <th className="num">Completed</th>
               <th className="num">Clients</th>
             </tr>
@@ -574,7 +575,7 @@ function TP_QboPeopleTable({ people, hours, qboOn, onOpenPerson, onOpenBucket, o
                         {q && TP_qNum(q.unmapped_customer_minutes) ? TP_qHours(q.unmapped_customer_minutes) : "–"}
                       </td>
                       <td className="num" data-label="Open">{p.open}</td>
-                      <td className={"num" + (p.overdue ? " tp-bad" : "")} data-label="Overdue">{p.overdue}</td>
+                      {lateOn && <td className={"num" + (p.overdue ? " tp-bad" : "")} data-label="Overdue">{p.overdue}</td>}
                       <td className="num" data-label="Completed">{p.completed}</td>
                       <td className="num" data-label="Clients">
                         {p.assignedCount}
@@ -609,7 +610,7 @@ function TP_QboPeopleTable({ people, hours, qboOn, onOpenPerson, onOpenBucket, o
                         {TP_qNum(b.q.unmapped_customer_minutes) ? TP_qHours(b.q.unmapped_customer_minutes) : "–"}
                       </td>
                       <td className="num tp-muted" data-label="Open">–</td>
-                      <td className="num tp-muted" data-label="Overdue">–</td>
+                      {lateOn && <td className="num tp-muted" data-label="Overdue">–</td>}
                       <td className="num tp-muted" data-label="Completed">–</td>
                       <td className="num tp-muted" data-label="Clients">{TP_qNum(b.q.client_count) || "–"}</td>
                     </tr>
@@ -713,6 +714,7 @@ function TP_QTrend({ trend }) {
 // profit: TP_PF_useProfit() state, passed only for admins. Without it the
 // fee, rate, cost, profit and margin columns are not rendered at all.
 function TP_QboClientsTable({ clientRows, hours, qboOn, range, today, avg, onOpenClient, onOpenBucket, onOpenMapping, profit }) {
+  const lateOn = TK_useLateCounts();
   const showMoney = !!profit;
   const pv = (id) => TP_PF_rowView(profit, qboOn, id);
   // Hours budget (HoursBudget.jsx): admins only, always this calendar month.
@@ -774,7 +776,7 @@ function TP_QboClientsTable({ clientRows, hours, qboOn, range, today, avg, onOpe
   const clientMin = built.rows.reduce((n, r) => n + r.qMinutes, 0);
   const otherMin = built.total - clientMin - unmappedMin;
   const appTotal = built.rows.reduce((n, r) => n + TP_qNum(r.appMinutes), 0);
-  const cols = showMoney ? 15 : 9;
+  const cols = (showMoney ? 15 : 9) - (lateOn ? 0 : 1);
   const dash = <span className="tp-muted">–</span>;
   const leastFirst = sort.key === "margin" && sort.dir === "asc";
 
@@ -893,7 +895,7 @@ function TP_QboClientsTable({ clientRows, hours, qboOn, range, today, avg, onOpe
                 </>
               )}
               <th className="num">Open</th>
-              <th className="num">Overdue</th>
+              {lateOn && <th className="num">Overdue</th>}
             </tr>
           </thead>
           <tbody>
@@ -963,7 +965,7 @@ function TP_QboClientsTable({ clientRows, hours, qboOn, range, today, avg, onOpe
                       </>
                     )}
                     <td className="num" data-label="Open">{r.open}</td>
-                    <td className={"num" + (r.overdue ? " tp-bad" : "")} data-label="Overdue">{r.overdue}</td>
+                    {lateOn && <td className={"num" + (r.overdue ? " tp-bad" : "")} data-label="Overdue">{r.overdue}</td>}
                   </tr>
                   );
                 })}
@@ -1001,7 +1003,7 @@ function TP_QboClientsTable({ clientRows, hours, qboOn, range, today, avg, onOpe
                       </>
                     )}
                     <td className="num tp-muted" data-label="Open">–</td>
-                    <td className="num tp-muted" data-label="Overdue">–</td>
+                    {lateOn && <td className="num tp-muted" data-label="Overdue">–</td>}
                   </tr>
                 ))}
               </>
@@ -1790,12 +1792,13 @@ function TP_qExportPeople(filename, people, byStaff, qboOn) {
   const { rows, bucketRows } = TP_qPeopleRows(people, byStaff);
   const h = (m) => (TP_qNum(m) / 60).toFixed(2);
   const qh = (m) => (qboOn ? h(m) : "");
+  const late = !!TK_lateCountsCache.on;   // grace period: the Overdue column only exists once late tasks count
   TP_downloadCsv(
     filename,
-    ["Name", "Email", "Role", "Bucket", "QuickBooks hours", TP_APP_CSV_HEAD, "Billable hours", "Hours on mapped clients", "Hours on unmapped customers", "Open tasks", "Overdue tasks", "Completed in period", "Assigned clients", "Temporary clients"],
+    ["Name", "Email", "Role", "Bucket", "QuickBooks hours", TP_APP_CSV_HEAD, "Billable hours", "Hours on mapped clients", "Hours on unmapped customers", "Open tasks", ...(late ? ["Overdue tasks"] : []), "Completed in period", "Assigned clients", "Temporary clients"],
     [
-      ...rows.map((p) => [p.name, p.email, TP_roleLabel(p.role), "staff", qh(p.q && p.q.total_minutes), h(p.appMinutes), qh(p.q && p.q.billable_minutes), qh(p.q && p.q.client_minutes), qh(p.q && p.q.unmapped_customer_minutes), p.open, p.overdue, p.completed, p.assignedCount, p.tempCount]),
-      ...bucketRows.map((b) => [b.label, "", "", b.bucket, h(b.q.total_minutes), "", h(b.q.billable_minutes), h(b.q.client_minutes), h(b.q.unmapped_customer_minutes), "", "", "", "", ""]),
+      ...rows.map((p) => [p.name, p.email, TP_roleLabel(p.role), "staff", qh(p.q && p.q.total_minutes), h(p.appMinutes), qh(p.q && p.q.billable_minutes), qh(p.q && p.q.client_minutes), qh(p.q && p.q.unmapped_customer_minutes), p.open, ...(late ? [p.overdue] : []), p.completed, p.assignedCount, p.tempCount]),
+      ...bucketRows.map((b) => [b.label, "", "", b.bucket, h(b.q.total_minutes), "", h(b.q.billable_minutes), h(b.q.client_minutes), h(b.q.unmapped_customer_minutes), "", ...(late ? [""] : []), "", "", ""]),
     ],
   );
 }
@@ -1806,9 +1809,10 @@ function TP_qExportClients(filename, args, avgLabel, qboOn, staffName, profit) {
   const h = (m) => (TP_qNum(m) / 60).toFixed(2);
   const qh = (m) => (qboOn ? h(m) : "");
   const nameOf = staffName || ((e) => String(e || "").split("@")[0]);
+  const late = !!TK_lateCountsCache.on;   // grace period: no Overdue column until late tasks count
   TP_downloadCsv(
     filename,
-    ["Client", "Bucket", "Plan", "QuickBooks hours", TP_APP_CSV_HEAD, "In-app hours by staffer", `Avg hours / month (${avgLabel})`, "Billable hours", "Billable value", ...(profit ? ["Effective rate / hour", ...TP_PF_CSV_HEAD] : []), "Trend", "Open tasks", "Overdue tasks"],
+    ["Client", "Bucket", "Plan", "QuickBooks hours", TP_APP_CSV_HEAD, "In-app hours by staffer", `Avg hours / month (${avgLabel})`, "Billable hours", "Billable value", ...(profit ? ["Effective rate / hour", ...TP_PF_CSV_HEAD] : []), "Trend", "Open tasks", ...(late ? ["Overdue tasks"] : [])],
     [
       ...rows
         .filter((r) => r.qMinutes || r.qAvgMinutes || r.appMinutes || r.open)
@@ -1833,9 +1837,9 @@ function TP_qExportClients(filename, args, avgLabel, qboOn, staffName, profit) {
             : []),
           r.trend ? (r.trend.dir === "new" ? "new" : `${r.trend.dir} ${r.trend.pct}%`) : "",
           r.open,
-          r.overdue,
+          ...(late ? [r.overdue] : []),
         ]),
-      ...bucketRows.map((b) => [b.label, b.bucket, "", h(b.q.total_minutes), "", "", "", h(b.q.billable_minutes), TP_qNum(b.q.billable_value).toFixed(2), ...(profit ? ["", ...TP_PF_CSV_HEAD.map(() => "")] : []), "", "", ""]),
+      ...bucketRows.map((b) => [b.label, b.bucket, "", h(b.q.total_minutes), "", "", "", h(b.q.billable_minutes), TP_qNum(b.q.billable_value).toFixed(2), ...(profit ? ["", ...TP_PF_CSV_HEAD.map(() => "")] : []), "", ...(late ? ["", ""] : [""])]),
     ],
   );
 }

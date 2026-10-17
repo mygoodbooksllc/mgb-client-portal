@@ -158,6 +158,7 @@ function HL_HealthCard({ clientId }) {
 // (or { href, onClick }) or null; `filter(reason)` returns false to hide a
 // reason, and when any is hidden the list ends with an admins-only line.
 function HL_Reasons({ health, onRefresh, linkFor, filter }) {
+  const lateOn = typeof TK_useLateCounts === "function" ? TK_useLateCounts() : false;
   const h = health;
   const all = (h && h.reasons) || [];
   const shown = filter ? all.filter((r) => filter(r)) : all;
@@ -191,7 +192,7 @@ function HL_Reasons({ health, onRefresh, linkFor, filter }) {
       )}
       {h && hidden > 0 && <p className="ov-foot">Other reasons are shown to admins only.</p>}
       <p className="ov-foot">
-        Score out of 100 from overdue tasks, QuickBooks connection, staff activity in the last 30 days, month-end close,
+        Score out of 100 from {lateOn ? "overdue tasks, " : ""}QuickBooks connection, staff activity in the last 30 days, month-end close,
         overdue document requests, client replies waiting, and the SOP.{" "}
         {onRefresh && (
           <button type="button" className="link-btn hl-refresh" onClick={onRefresh}>

@@ -11,7 +11,7 @@ The **Capacity** card on **Team** (admins only) compares each person's QuickBook
 
 Columns: Name, **Target / wk**, This week, **Avg / wk (4 wks)**, **Utilisation**, Clients, Open and Overdue tasks.
 
-Open and Overdue count by who the task is assigned to now. While someone is out, tasks handed to a backup count for the backup until they go back. See [What happens to my tasks while I'm out?](#/help/out-of-office-handoff).
+Open and Overdue count by who the task is assigned to now. (The Overdue column is hidden during the late-task grace period.) While someone is out, tasks handed to a backup count for the backup until they go back. See [What happens to my tasks while I'm out?](#/help/out-of-office-handoff).
 
 Utilisation uses the 4-week average:
 

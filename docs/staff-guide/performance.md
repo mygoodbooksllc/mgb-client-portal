@@ -14,7 +14,7 @@ Six signals, each a percentage for the last 30 or 90 days (switch at the top rig
 - **Replies within goal (25%)** — share of client replies sent inside the firm's reply-time goal. Same numbers as **Team › Reply times**.
 - **Month-ends closed on time (25%)** — months whose late day fell in the period, closed (done or N/A) by that day. The late day is set in **Work › Close**.
 - **Health of assigned clients (20%)** — the average client health score across their assigned clients, with the number of red clients shown.
-- **Tasks and deadlines (15%)** — tasks finished plus filings made on time, over those plus overdue tasks.
+- **Tasks and deadlines (15%)** — tasks finished plus filings made on time, over those plus overdue tasks. **During the grace period** (the default until the owner turns late-task counting on in **Settings › Firm settings**), late and overdue tasks are not counted at all: this signal is only filings made on time, and when there are none it is left out and the other signals share its weight. Filing deadlines are not tasks, so they always count.
 - **Hours vs capacity (10%)** — how close logged hours (QuickBooks Time, otherwise time entries) came to their weekly target times the weeks in the period. 100 means right on target; over and under both cost points.
 - **Latest quarterly review (5%)** — the manager's total from their most recent signed review, out of 30.
 

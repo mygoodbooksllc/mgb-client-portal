@@ -29,7 +29,7 @@ Every client starts at 100. Points come off for each problem, and the score neve
 
 | Problem | Points off |
 |---|---|
-| Overdue tasks on the client | 10 each, up to 30 |
+| Overdue tasks on the client | 10 each, up to 30 (0 during the late-task grace period) |
 | QuickBooks not connected or has an error | 25 |
 | QuickBooks hasn't synced in over 3 days | 10 |
 | No staff time logged in 30 days | 20 |
@@ -39,6 +39,8 @@ Every client starts at 100. Points come off for each problem, and the score neve
 | SOP not edited or marked accurate in 180 days ("SOP not reviewed in N days"), or under half its sections filled | 5 |
 | Margin below target (admins only) | 15 |
 | Over the monthly hours budget (admins only) | 10 |
+
+**Grace period:** until the owner turns late-task counting on (**Settings › Firm settings › Late tasks**), overdue tasks take no points off, and "overdue tasks" is left out of the explanation. Overdue document requests and filing deadlines still count.
 
 Bookkeepers never see the margin or hours budget reasons, and those points aren't taken off in their view.
 

@@ -30,7 +30,11 @@ const PF_SIGNALS = [
     key: "tasks",
     label: "Tasks and deadlines",
     pct: (r) => r.tasks_pct,
-    detail: (r) => `${r.tasks_done} task${r.tasks_done === 1 ? "" : "s"} done · ${r.tasks_overdue} overdue · ${r.deadlines_on_time} of ${r.deadlines_total} filings on time`,
+    // During the late-task grace period tasks are left out (both counts are 0), so only filings show.
+    detail: (r) =>
+      r.tasks_done || r.tasks_overdue || (typeof TK_lateCountsCache !== "undefined" && TK_lateCountsCache.on)
+        ? `${r.tasks_done} task${r.tasks_done === 1 ? "" : "s"} done · ${r.tasks_overdue} overdue · ${r.deadlines_on_time} of ${r.deadlines_total} filings on time`
+        : `${r.deadlines_on_time} of ${r.deadlines_total} filings on time · tasks not counted yet`,
   },
   {
     key: "hours",
@@ -113,6 +117,7 @@ function PF_Inputs({ row, weights }) {
 }
 
 function PF_How({ open, onToggle, weights, days }) {
+  const lateOn = TK_useLateCounts();
   return (
     <div className="pf-how">
       <button type="button" className="link-btn" aria-expanded={open} onClick={onToggle}>
@@ -138,7 +143,9 @@ function PF_How({ open, onToggle, weights, days }) {
               assigned clients.
             </li>
             <li>
-              <b>Tasks and deadlines ({weights.tasks}%)</b> — tasks finished plus filings made on time, over those plus overdue tasks.
+              <b>Tasks and deadlines ({weights.tasks}%)</b> — {lateOn
+                ? "tasks finished plus filings made on time, over those plus overdue tasks. Only tasks that came due on or after the switch-on date can count as overdue."
+                : "filings made on time. Late tasks are not counted yet while everyone settles in with Slate, so nobody is marked down for them. With no filings in the period this part is left out and the other parts are re-weighted."}
             </li>
             <li>
               <b>Hours vs capacity ({weights.hours}%)</b> — how close logged hours (QuickBooks time, else time entries) came to their

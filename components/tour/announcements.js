@@ -43,6 +43,34 @@ function ANN_deskOn() {
 
 var ANN_REGISTRY = [
   {
+    id: "late-task-grace",
+    date: "2026-10-17",
+    title: "No late-task penalties yet",
+    summary: "No late-task penalties yet while everyone settles in. Late and overdue tasks are not counted in scores or reports until the owner turns it on. Filing deadlines still count.",
+    roles: ["admin", "bookkeeper"],
+    hash: "#/tasks/my",
+    steps: (ctx) => [
+      {
+        id: "ann-welcome",
+        title: "A grace period for late tasks",
+        body: () =>
+          "No late-task penalties yet while everyone settles in. For now, a late or overdue task is not counted in your performance score, client health, on-time rates or the weekly digest. About a minute.",
+      },
+      {
+        id: "ann-still",
+        title: "What still counts",
+        body: () =>
+          "Filing deadlines are not tasks, so they still count. Your own Slate still shows what is due and what is overdue, as a reminder for you.",
+      },
+      {
+        id: "ann-done",
+        title: "When it changes",
+        body: () =>
+          "The owner decides when late tasks start to count, probably when Slate fully rolls out next quarter. Only tasks due after that day will count, so nothing from the past is held against anyone. To see this again, press ? and pick New: No late-task penalties yet tour.",
+      },
+    ],
+  },
+  {
     id: "desk-rename",
     date: "2026-10-17",
     // Wording follows whether the Desk is on for this person: someone who

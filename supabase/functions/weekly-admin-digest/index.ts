@@ -471,16 +471,18 @@ function buildSections(d: any): Section[] {
   // 6. Staff scorecard
   {
     const rows: any[] = d.scorecard || [];
+    // Grace period (tasks-grace-period.sql): no overdue figure until the owner turns late-task counting on.
+    const lateOn = rows.some((r) => r.late_counts_on === true);
     const html = rows.length
       ? tableHtml(
-          ["Person", "QB hours", "Tasks done", "Open / overdue", "In app"],
+          ["Person", "QB hours", "Tasks done", lateOn ? "Open / overdue" : "Open", "In app"],
           rows.map((r) => {
             const under = Number(r.qbo_hours) < Number(r.target_hours);
             return [
               esc(r.staff_name),
               `<b>${(under && firmOn ? warn : ink)(hrs(r.qbo_hours))}</b> ${muted(`/ ${hrs(r.target_hours)}`)}`,
               esc(r.tasks_done),
-              `${esc(r.tasks_open)} / ${(Number(r.tasks_overdue) ? bad : ink)(esc(r.tasks_overdue))}`,
+              lateOn ? `${esc(r.tasks_open)} / ${(Number(r.tasks_overdue) ? bad : ink)(esc(r.tasks_overdue))}` : esc(r.tasks_open),
               hrs(r.app_hours),
             ];
           }),
@@ -489,7 +491,7 @@ function buildSections(d: any): Section[] {
       : empty();
     const text = rows.length
       ? textTable(rows.map((r) =>
-        `${r.staff_name}: ${hrs(r.qbo_hours)}/${hrs(r.target_hours)} QB, ${r.tasks_done} done, ${r.tasks_open} open (${r.tasks_overdue} overdue), ${hrs(r.app_hours)} in app`
+        `${r.staff_name}: ${hrs(r.qbo_hours)}/${hrs(r.target_hours)} QB, ${r.tasks_done} done, ${r.tasks_open} open${lateOn ? ` (${r.tasks_overdue} overdue)` : ""}, ${hrs(r.app_hours)} in app`
       ))
       : "  Nothing this week.";
     out.push({ title: "Staff scorecard", html, text, link: team });

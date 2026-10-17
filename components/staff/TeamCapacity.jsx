@@ -233,6 +233,7 @@ function TP_CapTarget({ email, target, explicit }) {
 
 // Team page card: each person against their weekly target.
 function TP_CapacityCard({ people, qboOn, onOpenPerson }) {
+  const lateOn = TK_useLateCounts();   // grace period: no per-person overdue until the owner turns it on
   const cap = TP_useCapacity(true);
   const rows = useMemo(() => {
     if (!people) return null;
@@ -243,7 +244,7 @@ function TP_CapacityCard({ people, qboOn, onOpenPerson }) {
       .map((p) => ({ ...p, c: TP_capFor(cap, p.email, !qboOn) }))
       .sort((a, b) => (b.c.util == null ? -1 : b.c.util) - (a.c.util == null ? -1 : a.c.util) || a.name.localeCompare(b.name));
   }, [people, cap, qboOn]);
-  const cols = 8;
+  const cols = lateOn ? 8 : 7;
   const note = !cap
     ? null
     : !cap.ok
@@ -284,7 +285,7 @@ function TP_CapacityCard({ people, qboOn, onOpenPerson }) {
               <th>Utilisation</th>
               <th className="num">Clients</th>
               <th className="num">Open</th>
-              <th className="num">Overdue</th>
+              {lateOn && <th className="num">Overdue</th>}
             </tr>
           </thead>
           <tbody>
@@ -335,7 +336,7 @@ function TP_CapacityCard({ people, qboOn, onOpenPerson }) {
                     {p.role === "admin" && !p.assignedCount ? <span className="tp-muted">All</span> : p.assignedCount}
                   </td>
                   <td className="num" data-label="Open">{p.open}</td>
-                  <td className={"num" + (p.overdue ? " tp-bad" : "")} data-label="Overdue">{p.overdue}</td>
+                  {lateOn && <td className={"num" + (p.overdue ? " tp-bad" : "")} data-label="Overdue">{p.overdue}</td>}
                 </tr>
               ))
             )}
