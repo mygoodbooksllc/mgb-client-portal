@@ -719,6 +719,7 @@ html.wb-drawer-on .chat-fab-wrap {
 /* ---- Hub: tabs, stacking (Workbench Hub spec 2.3) ---- */
 .wb-hub-tabs {
   display: flex;
+  flex: 0 0 auto; /* overflow-x:auto lets a flex child shrink to nothing in a short panel */
   gap: 2px;
   padding-inline: max(16px, calc((100% - var(--wb-panel-max)) / 2));
   border-bottom: 1px solid var(--border);
