@@ -168,6 +168,11 @@ function TK_dwIsTyping(el) {
 // One toast per error code (C5). Returns the code.
 function TK_dwSaveError(e) {
   var code = e && e.code;
+  // P4-3: a one-task bulk call the server skipped says why.
+  if (code === "tk_skipped" && e.message) {
+    TK_dwToast("Not changed. " + e.message);
+    return code;
+  }
   // Ask client refusals (tasks p2 s5), e.g. leaving Waiting with open requests.
   if (e && e.reason && typeof TK_REQUEST_ERROR_COPY !== "undefined" && TK_REQUEST_ERROR_COPY[e.reason] && e.reason !== "tk_forbidden") {
     TK_dwToast(TK_REQUEST_ERROR_COPY[e.reason]);
@@ -1606,10 +1611,8 @@ function TK_Drawer(props) {
     setModal(null);
     var api = TK_dwApi();
     if (!api || !task) return;
-    api.remove(task.id).then(
-      function () { TK_dwToast(TK_dwCopy("deleted", "Task deleted.")); },
-      TK_dwSaveError,
-    );
+    // P4-3: remove() raises the toast itself (with Undo on schema 12+).
+    api.remove(task.id, { toast: TK_dwCopy("deleted", "Task deleted.") }).then(null, TK_dwSaveError);
   };
 
   var doRestore = function () {
@@ -1857,7 +1860,17 @@ function TK_Drawer(props) {
                     ? "Only the task's owner or an admin can reassign it."
                     : undefined
               }
-              onChange={function (e) { if (e.target.value) save({ assignee_email: e.target.value }); }}
+              onChange={function (e) {
+                var v = e.target.value;
+                if (!v) return;
+                // P4-3: on schema 12+ a reassign has an Undo toast.
+                var api = TK_dwApi();
+                if (api && typeof api.bulkReady === "function" && api.bulkReady() && typeof api.reassign === "function" && task && TK_dwLower(v) !== curAssignee) {
+                  api.reassign(task.id, v, { toast: "Reassigned to " + nameOf(v) + "." }).catch(TK_dwSaveError);
+                  return;
+                }
+                save({ assignee_email: v });
+              }}
             >
               {curAssignee ? null : (
                 <option value="" disabled>

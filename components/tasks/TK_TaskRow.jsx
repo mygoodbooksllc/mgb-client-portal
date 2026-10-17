@@ -90,6 +90,9 @@ function TK_vErrText(err, fallbackKey) {
   var code = err && err.code ? String(err.code) : "";
   var rk = typeof TK_reviewErrorKey === "function" ? TK_reviewErrorKey(err) : null; // tasks p2 s3
   if (rk && TK_vCopy(rk)) return TK_vCopy(rk);
+  // P4-3: a one-row bulk call the server skipped; the message is the reason.
+  if (code === "tk_skipped") return "Not changed. " + (err.message || "");
+  if (code === "tk_too_many") return err.message || "Pick 100 tasks or fewer.";
   if (code === "tk_offline") return TK_vCopy("offline");
   if (code === "tk_conflict") return TK_vCopy("conflict");
   if (code === "tk_reverted" || code === "tk_forbidden") return TK_vCopy("reverted");
@@ -1040,6 +1043,9 @@ function TK_StatusPill(props) {
 // Tasks p3: subs (from TK_vUseSubtasks; a task with subtasks shows a chevron and a
 //   done count and opens them beneath it; no subs = no nesting, as in the drawer's
 //   own subtask list), projectColor (a palette key; a dot before the project name).
+// P4-3 (all optional; rows without onSelect look and work as before, e.g. the
+//   Workbench hub): onSelect(id, shiftKey) shows a select box before the title
+//   (on hover, or always once anything is selected: `selecting`), selected.
 
 function TK_TaskRow(props) {
   var task = props.task;
@@ -1164,10 +1170,38 @@ function TK_TaskRow(props) {
     </button>
   ) : null;
 
+  var selectable = typeof props.onSelect === "function";
+  var selected = selectable && !!props.selected;
+  var selectBox = selectable ? (
+    <input
+      type="checkbox"
+      className="tk-sel"
+      data-tour="tk-select"
+      checked={selected}
+      aria-label={(selected ? "Unselect " : "Select ") + (task.text || "this task")}
+      title="Select (v). Shift-click selects a range."
+      onChange={function () {}}
+      onClick={function (e) {
+        e.stopPropagation();
+        if (props.onFocusRow) props.onFocusRow(id);
+        props.onSelect(id, !!e.shiftKey);
+      }}
+    />
+  ) : null;
+
   var parentRow = (
     <li
       ref={ref}
-      className={"tk-row" + (focused ? " is-focused" : "") + (done ? " is-done" : "") + (props.columns ? " tk-row-cols" : "") + (hasKids ? " has-subs" + (subOpen ? " is-subs-open" : "") : "")}
+      className={
+        "tk-row" +
+        (focused ? " is-focused" : "") +
+        (done ? " is-done" : "") +
+        (props.columns ? " tk-row-cols" : "") +
+        (hasKids ? " has-subs" + (subOpen ? " is-subs-open" : "") : "") +
+        (selectable ? " is-selectable" : "") +
+        (selected ? " is-selected" : "") +
+        (selectable && props.selecting ? " is-selecting" : "")
+      }
       data-lk={"task:" + id}
       data-tk-id={id}
       role="row"
@@ -1197,6 +1231,7 @@ function TK_TaskRow(props) {
       </div>
       <div className="tk-cell tk-cell-main" role="gridcell">
         <div className="tk-row-titleline">
+          {selectBox}
           <a className="tk-row-title" href={href} onClick={openClick}>
             {task.text || "Untitled task"}
           </a>

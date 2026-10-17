@@ -319,11 +319,16 @@ function TK_vMyTasksBody(props) {
     [all, clientNames, props.clients, myBook, isAdmin, email],
   );
 
+  // P4-3: multi-select (schema 12+ only; v / Shift+V, checkbox, Shift+click).
+  var bulk = TK_useBulkSelect({ ids: ids, pool: Object.keys(byId), enabled: online, keys: !drawerId });
+  var bulkStaff = TK_vUseStaff(bulk.count > 0);
+
   var keys = TK_useKeys({
     ids: ids,
     focusedId: focusedId,
     setFocusedId: setFocusedId,
     enabled: !drawerId,
+    onSelect: bulk.ready ? bulk.toggle : undefined,
     onOpen: function (id) {
       TK_vOpenTask(id, { from: "keys" });
     },
@@ -440,6 +445,9 @@ function TK_vMyTasksBody(props) {
                         }
                         onClaim={online ? TK_vClaim : undefined}
                         tourClaim={claimTour}
+                        onSelect={bulk.ready ? bulk.toggle : undefined}
+                        selected={bulk.has(t.id)}
+                        selecting={bulk.count > 0}
                       />
                     );
                   })}
@@ -523,6 +531,7 @@ function TK_vMyTasksBody(props) {
       </div>
       {!online ? <TK_vOfflineBanner /> : null}
       {body}
+      <TK_BulkBar select={bulk} tasksById={byId} staff={bulkStaff} projects={projects} readOnly={!online} />
       {keys.sheet}
     </div>
   );

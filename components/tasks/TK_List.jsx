@@ -1153,11 +1153,22 @@ function TK_vListBody(props) {
   };
   var readOnly = archived || !online;
 
+  // P4-3: multi-select (schema 12+ only; v / Shift+V, checkbox, Shift+click).
+  var bulk = TK_useBulkSelect({
+    ids: ids,
+    pool: shown.map(function (t) {
+      return t && t.id != null ? String(t.id) : "";
+    }),
+    enabled: !readOnly,
+    keys: !drawerId,
+  });
+
   var keys = TK_useKeys({
     ids: ids,
     focusedId: focusedId,
     setFocusedId: setFocusedId,
     enabled: !drawerId,
+    onSelect: bulk.ready ? bulk.toggle : undefined,
     onOpen: function (id) {
       TK_vOpenTask(id, { from: "keys" });
     },
@@ -1328,6 +1339,9 @@ function TK_vListBody(props) {
                   TK_vSetStatus(task, s, note, isAdmin);
                 }
           }
+          onSelect={bulk.ready ? bulk.toggle : undefined}
+          selected={bulk.has(t.id)}
+          selecting={bulk.count > 0}
         />
       );
     };
@@ -1393,6 +1407,7 @@ function TK_vListBody(props) {
       {toolbar}
       {!online ? <TK_vOfflineBanner /> : null}
       {body}
+      <TK_BulkBar select={bulk} tasksById={byId} staff={staff} projects={projects} readOnly={readOnly} />
       {filtersOpen && phone ? (
         <TK_vModal
           onClose={function () {

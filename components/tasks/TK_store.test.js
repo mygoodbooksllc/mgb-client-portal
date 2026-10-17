@@ -1219,6 +1219,237 @@ t("normalize keeps exactly the Task shape", () => {
   done();
 });
 
+// ---- P4-3: bulk actions + undo (schema 12) -----------------------------------
+
+// Schema 12 env: rpc answers come from `answers[name]` (a value or a function
+// of args); queries return the rows in `rows` matching an .in("id", …).
+async function bulkEnv(answers, rowsById) {
+  const a = answers || {};
+  const rows = rowsById || {};
+  const env = makeEnv({
+    rpc: (name, args) => {
+      if (name === "tk_schema_version") return { data: 12, error: null };
+      const v = a[name];
+      if (typeof v === "function") return v(args);
+      if (v && v.error) return v;
+      return { data: v === undefined ? null : v, error: null };
+    },
+    query: (q) => {
+      if (q.table !== "staff_reminders") return { data: [], error: null };
+      const inOp = q.ops.find((o) => o[0] === "in");
+      if (inOp) return { data: inOp[2].map((id) => rows[id]).filter(Boolean), error: null };
+      if (q.single === "maybeSingle") return { data: rows[q.filters.id] || null, error: null };
+      return { data: [], error: null };
+    },
+  });
+  env.store.dispatch({ type: "me", email: ME });
+  await env.api.probe();
+  return env;
+}
+
+t("bulk: bulkReady needs schema 12; version 1 stays on the old paths", async () => {
+  const old = makeEnv();
+  await old.api.probe();
+  assert.strictEqual(old.api.bulkReady(), false);
+  assert.strictEqual(old.api.schemaVersion(), 1);
+  const env = await bulkEnv();
+  assert.strictEqual(env.api.bulkReady(), true);
+  assert.strictEqual(env.api.schemaVersion(), 12);
+  done();
+});
+
+t("bulk: a single tick goes through tk_bulk_complete and offers Undo", async () => {
+  const x = row();
+  const doneRow = Object.assign({}, x, { status: "done", done: true, updated_at: "2026-10-11T15:00:00Z" });
+  const env = await bulkEnv({ tk_bulk_complete: { op_id: "op-1", done: [x.id], review: [], skipped: [], spawned: [] } }, { [x.id]: doneRow });
+  env.store.dispatch({ type: "listLoaded", key: "mine", tasks: [env.api.normalize(x)] });
+  const r = await env.api.complete(env.api.normalize(x), { done: true });
+  assert.strictEqual(r.status, "done");
+  assert.strictEqual(r.opId, "op-1");
+  const calls = env.counts.rpcs.filter((c) => c.name === "tk_bulk_complete");
+  assert.strictEqual(calls.length, 1);
+  same(calls[0].args.p_ids, [x.id]);
+  assert.strictEqual(env.counts.rpcs.filter((c) => c.name === "tk_set_status").length, 0);
+  const toasts = env.events("mgb:toast");
+  assert.strictEqual(toasts.length, 1);
+  assert.strictEqual(toasts[0].detail.text, "Done.");
+  assert.strictEqual(toasts[0].detail.action.label, "Undo");
+  assert.ok(toasts[0].detail.key);
+  assert.ok(env.api.liveUndo(), "the undo is live");
+  assert.strictEqual(env.store.getState().tasks[x.id].done, true);
+  same(env.store.getState().pending, {});
+  done();
+});
+
+t("bulk: a skipped single tick rolls back and rejects tk_skipped with the reason", async () => {
+  const x = row({ status: "in_progress" });
+  const env = await bulkEnv({ tk_bulk_complete: { op_id: null, done: [], review: [], skipped: [{ id: x.id, reason: "no_access" }], spawned: [] } }, { [x.id]: x });
+  env.store.dispatch({ type: "listLoaded", key: "mine", tasks: [env.api.normalize(x)] });
+  await assert.rejects(env.api.complete(env.api.normalize(x), { done: true }), (e) => e.code === "tk_skipped" && e.reason === "no_access");
+  await flush();
+  const s = env.store.getState();
+  assert.strictEqual(s.tasks[x.id].status, "in_progress");
+  same(s.pending, {});
+  assert.strictEqual(env.events("mgb:toast").length, 0, "the caller toasts the reason");
+  done();
+});
+
+t("bulk: waiting and review rows keep the old tk_set_status path", async () => {
+  const x = row({ status: "waiting_client" });
+  const env = await bulkEnv({ tk_set_status: null }, { [x.id]: Object.assign({}, x, { status: "in_progress" }) });
+  env.store.dispatch({ type: "upsert", task: env.api.normalize(x) });
+  await env.api.complete(env.api.normalize(x), { done: true }).catch(() => null);
+  assert.strictEqual(env.counts.rpcs.filter((c) => c.name === "tk_bulk_complete").length, 0);
+  done();
+});
+
+t("bulk: bulkRun reports done, review and skipped, never silently", async () => {
+  const a = row();
+  const b = row();
+  const c = row({ status: "waiting_client" });
+  const env = await bulkEnv(
+    { tk_bulk_complete: { op_id: "op-2", done: [a.id], review: [b.id], skipped: [{ id: c.id, reason: "waiting_client" }], spawned: [] } },
+    { [a.id]: a, [b.id]: b, [c.id]: c },
+  );
+  const r = await env.api.bulkRun("complete", [a.id, b.id, c.id, a.id]);
+  same(env.counts.rpcs.filter((x) => x.name === "tk_bulk_complete")[0].args.p_ids, [a.id, b.id, c.id], "ids are de-duplicated");
+  assert.strictEqual(r.skipped.length, 1);
+  assert.strictEqual(r.skipped[0].reason, "waiting_client");
+  const toast = env.events("mgb:toast").pop();
+  assert.ok(/1 skipped/.test(toast.detail.text), toast.detail.text);
+  assert.strictEqual(toast.detail.action.label, "Undo");
+  const reread = env.counts.queries.filter((q) => q.ops.some((o) => o[0] === "in"));
+  assert.strictEqual(reread.length, 1, "one batched re-read");
+  done();
+});
+
+t("bulk: more than 100 ids rejects tk_too_many without a request", async () => {
+  const env = await bulkEnv();
+  const ids = [];
+  for (let i = 0; i < 101; i++) ids.push(uuid(i + 500));
+  await assert.rejects(env.api.bulkRun("delete", ids), (e) => e.code === "tk_too_many");
+  assert.strictEqual(env.counts.rpcs.filter((x) => x.name === "tk_bulk_delete").length, 0);
+  done();
+});
+
+t("bulk: bulkUpdate takes exactly one field and lowercases the email", async () => {
+  const x = row();
+  const env = await bulkEnv({ tk_bulk_update: { op_id: "op-3", kind: "reassign", done: [x.id], skipped: [] } }, { [x.id]: x });
+  await assert.rejects(env.api.bulkUpdate([x.id], { due_date: null, project_id: null }), (e) => e.code === "tk_bad_patch");
+  await env.api.bulkUpdate([x.id], { assignee_email: "Ann@Example.com" });
+  const call = env.counts.rpcs.filter((c) => c.name === "tk_bulk_update")[0];
+  same(call.args.p_patch, { assignee_email: "ann@example.com" });
+  done();
+});
+
+t("bulk: the live undo expires after 10 s", async () => {
+  const x = row();
+  const env = await bulkEnv({ tk_bulk_delete: { op_id: "op-4", done: [x.id], skipped: [] } }, { [x.id]: x });
+  await env.api.bulkRun("delete", [x.id]);
+  assert.ok(env.api.liveUndo());
+  await env.advance(9000);
+  assert.ok(env.api.liveUndo(), "still live at 9 s");
+  await env.advance(1500);
+  assert.strictEqual(env.api.liveUndo(), null, "gone after 10 s");
+  assert.strictEqual(await env.api.undoLive(), null, "nothing to undo");
+  assert.strictEqual(env.counts.rpcs.filter((c) => c.name === "tk_undo").length, 0);
+  done();
+});
+
+t("bulk: undoLive calls tk_undo once, closes the toast and says what happened", async () => {
+  const x = row();
+  const env = await bulkEnv(
+    {
+      tk_bulk_delete: { op_id: "op-5", done: [x.id], skipped: [] },
+      tk_undo: { op_id: "op-5", kind: "delete", done: [x.id], skipped: [], spawned_removed: 0, spawned_kept: [], emails_cancelled: 0, already_emailed: [] },
+    },
+    { [x.id]: x },
+  );
+  await env.api.bulkRun("delete", [x.id]);
+  const key = env.events("mgb:toast").pop().detail.key;
+  const p1 = env.api.undoLive();
+  const p2 = env.api.undoLive();
+  const [r1] = await Promise.all([p1, p2]);
+  assert.strictEqual(env.counts.rpcs.filter((c) => c.name === "tk_undo").length, 1);
+  assert.strictEqual(env.counts.rpcs.filter((c) => c.name === "tk_undo")[0].args.p_op, "op-5");
+  assert.strictEqual(r1.done.length, 1);
+  assert.ok(env.events("mgb:toast-dismiss").some((e) => e.detail.key === key), "the Undo toast is closed");
+  assert.strictEqual(env.events("mgb:toast").pop().detail.text, "Undone.");
+  assert.strictEqual(env.api.liveUndo(), null);
+  done();
+});
+
+t("bulk: an expired undo on the server says it's too late", async () => {
+  const x = row();
+  const env = await bulkEnv(
+    {
+      tk_bulk_delete: { op_id: "op-6", done: [x.id], skipped: [] },
+      tk_undo: { data: null, error: { code: "22023", message: "tk_undo_expired" } },
+    },
+    { [x.id]: x },
+  );
+  await env.api.bulkRun("delete", [x.id]);
+  const res = await env.api.undoLive();
+  assert.strictEqual(res, null);
+  assert.strictEqual(env.events("mgb:toast").pop().detail.text, "Too late to undo that one.");
+  done();
+});
+
+t("bulk: a newer action replaces the live undo and closes the older toast", async () => {
+  const a = row();
+  const b = row();
+  let n = 0;
+  const env = await bulkEnv(
+    { tk_bulk_delete: (args) => ({ data: { op_id: "op-" + ++n, done: args.p_ids, skipped: [] }, error: null }) },
+    { [a.id]: a, [b.id]: b },
+  );
+  await env.api.bulkRun("delete", [a.id]);
+  const first = env.events("mgb:toast").pop().detail.key;
+  await env.api.bulkRun("delete", [b.id]);
+  assert.ok(env.events("mgb:toast-dismiss").some((e) => e.detail.key === first));
+  assert.strictEqual(env.api.liveUndo().opId, "op-2");
+  done();
+});
+
+t("bulk: remove goes through tk_bulk_delete with an Undo toast", async () => {
+  const x = row();
+  const env = await bulkEnv({ tk_bulk_delete: { op_id: "op-7", done: [x.id], skipped: [] } }, { [x.id]: Object.assign({}, x, { deleted_at: "2026-10-11T15:00:00Z" }) });
+  env.store.dispatch({ type: "upsert", task: env.api.normalize(x) });
+  await env.api.remove(x.id, { toast: "Task deleted." });
+  assert.strictEqual(env.counts.rpcs.filter((c) => c.name === "tk_bulk_delete").length, 1);
+  const toast = env.events("mgb:toast").pop();
+  assert.strictEqual(toast.detail.text, "Task deleted.");
+  assert.strictEqual(toast.detail.action.label, "Undo");
+  assert.strictEqual(env.counts.queries.filter((q) => q.op === "update").length, 0, "no direct soft-delete write");
+  done();
+});
+
+t("bulk: a single skipped delete rejects tk_skipped", async () => {
+  const x = row();
+  const env = await bulkEnv({ tk_bulk_delete: { op_id: null, done: [], skipped: [{ id: x.id, reason: "no_access" }] } }, { [x.id]: x });
+  await assert.rejects(env.api.remove(x.id, { toast: "Task deleted." }), (e) => e.code === "tk_skipped");
+  assert.strictEqual(env.events("mgb:toast").length, 0);
+  done();
+});
+
+t("bulk: reassign on schema 12 uses tk_bulk_update with an Undo toast", async () => {
+  const x = row();
+  const env = await bulkEnv({ tk_bulk_update: { op_id: "op-8", kind: "reassign", done: [x.id], skipped: [] } }, { [x.id]: Object.assign({}, x, { assignee_email: OTHER }) });
+  env.store.dispatch({ type: "upsert", task: env.api.normalize(x) });
+  await env.api.reassign(x.id, OTHER, { toast: "Reassigned." });
+  same(env.counts.rpcs.filter((c) => c.name === "tk_bulk_update")[0].args.p_patch, { assignee_email: OTHER });
+  assert.strictEqual(env.events("mgb:toast").pop().detail.action.label, "Undo");
+  done();
+});
+
+t("bulk: offline bulk calls reject tk_offline without a request", async () => {
+  const env = await bulkEnv();
+  env.ctx.navigator.onLine = false;
+  await assert.rejects(env.api.bulkRun("complete", [uuid(900)]), (e) => e.code === "tk_offline");
+  assert.strictEqual(env.counts.rpcs.filter((c) => c.name === "tk_bulk_complete").length, 0);
+  done();
+});
+
 // ===========================================================================
 
 (async () => {

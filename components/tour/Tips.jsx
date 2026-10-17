@@ -432,6 +432,19 @@ const TIPS_CATALOG = [
     slug: "quick-actions",
   },
   {
+    id: "tk-select",
+    roles: "all",
+    match: (r) => r.page === "tasks" || (r.page === "work" && TIPS_tab("wk-tab-tasks")),
+    target: "tk-select",
+    snug: true,
+    text: (env) =>
+      env.touch
+        ? "Tick this box on several tasks to complete, reassign, move, reschedule or delete them together. Each change has Undo for 10 seconds."
+        : "Tick this box (or press v) on several tasks to complete, reassign, move, reschedule or delete them together. Each change has Undo for 10 seconds, or press Ctrl+Z.",
+    slug: "select-many-tasks",
+    ready: () => !!document.querySelector('[data-tour="tk-select"]'),
+  },
+  {
     id: "tk-close-optin",
     roles: "all",
     match: (r) => r.page === "tasks",

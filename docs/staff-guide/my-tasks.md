@@ -2,7 +2,7 @@
 title: How do I add and manage my tasks?
 section: Daily work
 audience: staff
-keywords: [plain words, quick add plain words, for me, re client, by friday, did you mean, will add, subtasks inline, open subtasks, expand subtasks, collapse subtasks, subtask count, 2/5, chevron, project color, project colors, color dot, group by, group by client, by client, due date, client groups, no client, my tasks, tasks, work, tasks tab, task, reminder, to do, due, overdue, today, this week, later, waiting on client, done, show done, show older, today group, view, quick add, q, add task, at mention, hashtag, priority, high, low, business days, bd5, keyboard, shortcuts, j k, status, assign, by client, save as template, suggest template, checklist, subtasks, tasks page, lists, client task panel, t, waiting on client list, ask client, #/tasks/waiting, unassigned, claim, claim a task, nobody assigned, no assignee, unassigned group, asana import]
+keywords: [select many, bulk, multi-select, undo, ctrl z, v, select a task, plain words, quick add plain words, for me, re client, by friday, did you mean, will add, subtasks inline, open subtasks, expand subtasks, collapse subtasks, subtask count, 2/5, chevron, project color, project colors, color dot, group by, group by client, by client, due date, client groups, no client, my tasks, tasks, work, tasks tab, task, reminder, to do, due, overdue, today, this week, later, waiting on client, done, show done, show older, today group, view, quick add, q, add task, at mention, hashtag, priority, high, low, business days, bd5, keyboard, shortcuts, j k, status, assign, by client, save as template, suggest template, checklist, subtasks, tasks page, lists, client task panel, t, waiting on client list, ask client, #/tasks/waiting, unassigned, claim, claim a task, nobody assigned, no assignee, unassigned group, asana import]
 sort: 110
 ---
 **My Tasks** is one list of everything assigned to you, across every client and project. Open it from the **Tasks** button in the top bar (`#/tasks/my`), or from **Work › Tasks** (`#/work/tasks`), which shows the same list inside Work. The Tasks page also has a sidebar with every client list and project; see [How do client task lists and projects work?](#/help/task-lists-and-projects).
@@ -77,7 +77,8 @@ To add a reminder instead, use ⌘K → **New reminder**, or set **Type** to **R
 
 ### Work with a task
 
-- Click the check box at the start of a row to mark a task done, and again to undo. On a task that needs review, your Done sends it to an admin instead. See [What's in a task's details?](#/help/task-details) and [How does task review work?](#/help/task-review).
+- Click the done box on a row to mark a task done, and again to undo. On a task that needs review, your Done sends it to an admin instead. See [What's in a task's details?](#/help/task-details) and [How does task review work?](#/help/task-review). The message that follows has **Undo** for 10 seconds (or press **Ctrl+Z** / **⌘Z**).
+- To change several tasks at once, tick the small select box at the far left of each row (it shows when you point at the row), or press **v**. A bar at the bottom completes, reopens, reassigns, moves, reschedules or deletes them together. See [How do I change many tasks at once, and undo a change?](#/help/select-many-tasks).
 - Click the status (for example **To do**) to change it.
 - Click the task's name to open its details: dates, priority, comments, files, subtasks, the checklist and its history.
 - A task with checklist steps shows its progress, such as **3/5**.
@@ -105,6 +106,8 @@ A task with subtasks has a small arrow and a count, such as **2/5** (2 of its 5 
 | **x** | Mark done or not done |
 | **s** | Change status |
 | **a** | Assign |
+| **v** | Select the task (**Shift+V** selects a range); **Esc** clears |
+| **Ctrl+Z** / **⌘Z** | Undo your last change while its Undo message shows |
 | **q** | Add a task (works on every staff page) |
 | **t** | Open or close the client's task panel (works on every staff page) |
 | **Esc** | Close the details |

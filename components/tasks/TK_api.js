@@ -67,6 +67,7 @@ var TK_api = (function () {
     "tk_already_assigned", "tk_bad_assignee", "tk_has_team",
     "tk_project_trashed", "tk_bad_name", "tk_trash_expired", "tk_restore_name_taken", "tk_task_in_trash",
     "tk_bad_color", "tk_use_close_tick",
+    "tk_too_many", "tk_bad_patch", "tk_project_missing", "tk_project_archived", "tk_undo_used", "tk_undo_expired",
   ];
   var COPY_FALLBACK = {
     sentForReview: "Sent for review. An admin will approve it.",
@@ -78,7 +79,7 @@ var TK_api = (function () {
 
   // ---- small helpers -------------------------------------------------------
   var api = {};
-  var probeState = { value: "unknown", promise: null, at: 0, retryTimer: null, onlineBound: false };
+  var probeState = { value: "unknown", version: 0, promise: null, at: 0, retryTimer: null, onlineBound: false };
   var completing = {}; // task id -> in-flight complete() promise (double-click guard)
   var staffCache = null;
 
@@ -307,6 +308,7 @@ var TK_api = (function () {
       .then(
         function (res) {
           if (res && !res.error && Number(res.data) >= 1) {
+            probeState.version = Number(res.data);
             setSchema("ok");
             return "ok";
           }
@@ -632,9 +634,27 @@ var TK_api = (function () {
     });
   };
 
-  api.remove = function (id) {
+  // remove(id, { toast }): on schema 12+ through tk_bulk_delete, and when
+  // opts.toast is given it shows that text with Undo. Before 12 a plain soft
+  // delete (opts.toast then shows without Undo).
+  api.remove = function (id, opts) {
     var off = requireOnline();
     if (off) return off;
+    var o = opts || {};
+    if (id && api.bulkReady()) {
+      return api.bulkDelete([id]).then(function (r) {
+        if (!r.done.length) throw skippedError(r);
+        if (o.toast) api.offerUndo(o.toast, r, { ids: [id] });
+        var s = store();
+        return (s && s.getState().tasks[id]) || null;
+      });
+    }
+    if (o.toast) {
+      return api.remove(id).then(function (t) {
+        TK_toast(o.toast);
+        return t;
+      });
+    }
     return writeTask(id, { deleted_at: nowIso() }, {}).catch(function (e) {
       // deleted_at is a stamp: the server's value differs from ours by design.
       if (e && e.code === "tk_reverted" && e.task && e.task.deleted_at) return e.task;
@@ -739,6 +759,11 @@ var TK_api = (function () {
           opId: opId,
           patch: { status: guess, done: guess === "done", completed_at: guess === "done" ? nowIso() : null },
         });
+        // P4-3: to do / in progress -> done and done -> reopen go through the
+        // bulk RPCs with one id, so the tick gets an Undo. Waiting and review
+        // rows keep tk_set_status (the bulk call would only skip them).
+        var viaBulk = api.bulkReady() && ((done && (current === "todo" || current === "in_progress")) || (!done && current === "done"));
+        if (viaBulk) return completeViaBulk(task, done, opId, opts);
         return statusRpc(task.id, target, null).then(
           function (result) {
             var sentForReview = done && result === "ready_for_review";
@@ -777,6 +802,51 @@ var TK_api = (function () {
     return p;
   };
 
+  // One tick through tk_bulk_complete / tk_bulk_reopen. A skip rejects with
+  // code tk_skipped and .reason (the optimistic status is rolled back).
+  // opts.undo === false: no toast at all (the caller says something itself).
+  function completeViaBulk(task, done, opId, opts) {
+    var name = done ? "tk_bulk_complete" : "tk_bulk_reopen";
+    return bulkRpc(name, { p_ids: [task.id], p_today: todayYmd() }, done ? "complete" : "reopen").then(
+      function (r) {
+        if (!r.done.length && !r.review.length) {
+          dispatch({ type: "rollback", opId: opId });
+          refresh(task.id);
+          throw skippedError(r);
+        }
+        var sentForReview = done && r.review.length > 0;
+        var fallback = done ? (sentForReview ? "ready_for_review" : "done") : "todo";
+        return api.get(task.id).then(
+          function (t) { return t; },
+          function () { return null; },
+        ).then(function (t) {
+          dispatch({ type: "commit", opId: opId, task: t || undefined });
+          if (!t) dispatch({ type: "upsert", task: Object.assign({}, task, { status: fallback, done: fallback === "done" }) });
+          if (t) {
+            var s = sync();
+            if (s) {
+              try { s.post({ type: "upsert", task: t }); } catch (e) {}
+            }
+          }
+          var finish = function (wrote) {
+            if (!wrote) afterWrite(null); // refreshMany already ran the after-write sequence
+            if (!(opts && opts.undo === false)) {
+              var text = sentForReview ? copy("sentForReview") : done ? "Done." : "Reopened.";
+              api.offerUndo(text, r, { ids: [task.id] });
+            }
+            return { status: t ? effectiveStatus(t) : fallback, sentForReview: sentForReview, nextId: r.spawned[0] || null, opId: r.opId };
+          };
+          if (!r.spawned.length) return finish(false);
+          return refreshMany(r.spawned).then(function () { return finish(true); });
+        });
+      },
+      function (e) {
+        dispatch({ type: "rollback", opId: opId });
+        throw e;
+      },
+    );
+  }
+
   // Schema missing: the legacy toggle (complete_staff_item, or its client-side
   // fallback). staffItemsApi.toggleDone flips item.done, so pass the current one.
   function completeLegacy(task, done) {
@@ -796,6 +866,304 @@ var TK_api = (function () {
   api.toggleDone = function (task, opts) {
     return api.complete(task, { done: isOpen(task), isAdmin: opts && opts.isAdmin }).then(function (r) {
       return r.status;
+    });
+  };
+
+  // ---- Bulk actions + Undo (P4-3) ---------------------------------------------
+  // tk_bulk_complete / tk_bulk_reopen / tk_bulk_delete / tk_bulk_update work
+  // row by row on the server and never fail the whole batch for one row: each
+  // returns { op_id, done:[ids], review:[ids], skipped:[{id, reason}],
+  // spawned:[ids] }. tk_undo(op_id) puts the rows back (10 minutes, once, the
+  // same person). The UI offers Undo only while its toast is up (10 s).
+  var BULK_MIN_VERSION = 12;
+  var BULK_MAX = 100;
+  var UNDO_MS = 10000;
+  var undoState = { live: null, running: null, seq: 0 };
+
+  api.BULK_MAX = BULK_MAX;
+  api.schemaVersion = function () {
+    return probeState.version || 0;
+  };
+  // The feature shows only when the server has it (schema 12+).
+  api.bulkReady = function () {
+    return probeState.value === "ok" && (probeState.version || 0) >= BULK_MIN_VERSION;
+  };
+
+  function idList(ids) {
+    var seen = {};
+    var out = [];
+    (Array.isArray(ids) ? ids : ids ? [ids] : []).forEach(function (id) {
+      var k = id == null ? "" : String(id);
+      if (k && !seen[k]) {
+        seen[k] = 1;
+        out.push(k);
+      }
+    });
+    return out;
+  }
+
+  function arr(v) {
+    return Array.isArray(v) ? v : [];
+  }
+
+  function skippedList(v) {
+    return arr(v).map(function (s) {
+      return { id: String((s && s.id) || ""), reason: String((s && s.reason) || "error") };
+    });
+  }
+
+  function parseJson(d) {
+    var x = d;
+    if (typeof x === "string") {
+      try { x = JSON.parse(x); } catch (e) { x = {}; }
+    }
+    return x || {};
+  }
+
+  function bulkResult(d) {
+    var x = parseJson(d);
+    return {
+      opId: x.op_id || null,
+      kind: x.kind || null,
+      done: arr(x.done).map(String),
+      review: arr(x.review).map(String),
+      skipped: skippedList(x.skipped),
+      spawned: arr(x.spawned).map(String),
+    };
+  }
+
+  function bulkRpc(name, args, where) {
+    var off = requireOnline();
+    if (off) return off;
+    if (!args.p_ids.length) return Promise.resolve(bulkResult(null));
+    if (args.p_ids.length > BULK_MAX) {
+      return Promise.reject(errOf("tk_too_many", "Pick " + BULK_MAX + " tasks or fewer.", { reason: "tk_too_many" }));
+    }
+    return run(function (c) {
+      return c.rpc(name, args);
+    }, { where: where }).then(bulkResult);
+  }
+
+  // Re-read many rows after a bulk write: one select, a store upsert and a
+  // TK_sync.post per row, then markOwnWrite and one legacy notify.
+  function refreshMany(ids) {
+    var list = idList(ids);
+    if (!list.length) return Promise.resolve([]);
+    return run(function (c) {
+      return c.from("staff_reminders").select(TK_TASK_COLS).in("id", list);
+    }, { where: "refreshMany" }).then(
+      function (rows) {
+        var out = arr(rows).map(normalize).filter(Boolean);
+        var s = sync();
+        out.forEach(function (t) {
+          dispatch({ type: "upsert", task: t });
+          if (s) {
+            try { s.post({ type: "upsert", task: t }); } catch (e) {}
+          }
+        });
+        afterWrite(null);
+        return out;
+      },
+      function () {
+        afterWrite(null);
+        return [];
+      },
+    );
+  }
+  api.refreshMany = refreshMany;
+
+  api.bulkComplete = function (ids) {
+    var list = idList(ids);
+    return bulkRpc("tk_bulk_complete", { p_ids: list, p_today: todayYmd() }, "bulkComplete").then(function (r) {
+      return refreshMany(list.concat(r.spawned)).then(function () { return r; });
+    });
+  };
+
+  api.bulkReopen = function (ids) {
+    var list = idList(ids);
+    return bulkRpc("tk_bulk_reopen", { p_ids: list, p_today: todayYmd() }, "bulkReopen").then(function (r) {
+      return refreshMany(list).then(function () { return r; });
+    });
+  };
+
+  api.bulkDelete = function (ids) {
+    var list = idList(ids);
+    return bulkRpc("tk_bulk_delete", { p_ids: list }, "bulkDelete").then(function (r) {
+      return refreshMany(list).then(function () { return r; });
+    });
+  };
+
+  // patch: exactly one of { assignee_email } { project_id } (null = no
+  // project) { due_date } (null = no date) { due_shift_days }.
+  api.bulkUpdate = function (ids, patch) {
+    var list = idList(ids);
+    var p = {};
+    var src = patch || {};
+    ["assignee_email", "project_id", "due_date", "due_shift_days"].forEach(function (k) {
+      if (Object.prototype.hasOwnProperty.call(src, k)) p[k] = src[k];
+    });
+    if (p.assignee_email) p.assignee_email = lower(p.assignee_email);
+    if (Object.keys(p).length !== 1) return Promise.reject(errOf("tk_bad_patch", "One change at a time.", { reason: "tk_bad_patch" }));
+    return bulkRpc("tk_bulk_update", { p_ids: list, p_patch: p }, "bulkUpdate").then(function (r) {
+      return refreshMany(list).then(function () { return r; });
+    });
+  };
+
+  // hint: { ids, spawned } to re-read afterwards (the op's rows).
+  api.undo = function (opId, hint) {
+    var off = requireOnline();
+    if (off) return off;
+    if (!opId) return Promise.reject(errOf("tk_not_found", "Nothing to undo"));
+    return run(function (c) {
+      return c.rpc("tk_undo", { p_op: opId });
+    }, { where: "undo" }).then(function (d) {
+      var x = parseJson(d);
+      var res = {
+        opId: x.op_id || opId,
+        kind: x.kind || null,
+        done: arr(x.done).map(String),
+        skipped: skippedList(x.skipped),
+        spawnedRemoved: Number(x.spawned_removed) || 0,
+        spawnedKept: arr(x.spawned_kept).map(String),
+        emailsCancelled: Number(x.emails_cancelled) || 0,
+        alreadyEmailed: arr(x.already_emailed).map(String),
+      };
+      var h = hint || {};
+      return refreshMany(arr(h.ids).concat(arr(h.spawned), res.done)).then(function () { return res; });
+    });
+  };
+
+  function summaryText(kind, r) {
+    if (typeof TK_bulkSummary === "function") return TK_bulkSummary(kind, r);
+    var n = r.done.length + r.review.length;
+    return n + (n === 1 ? " task" : " tasks") + " updated" + (r.skipped.length ? ", " + r.skipped.length + " skipped" : "") + ".";
+  }
+
+  function undoText(res) {
+    if (typeof TK_undoSummary === "function") return TK_undoSummary(res);
+    return res.skipped.length ? "Undone, except " + res.skipped.length + "." : "Undone.";
+  }
+
+  function raiseToast(text, action, key) {
+    if (!text) return;
+    try {
+      window.dispatchEvent(new CustomEvent("mgb:toast", { detail: { text: String(text), action: action || null, key: key || null } }));
+    } catch (e) {}
+  }
+
+  function dismissToast(key) {
+    if (!key) return;
+    try {
+      window.dispatchEvent(new CustomEvent("mgb:toast-dismiss", { detail: { key: key } }));
+    } catch (e) {}
+  }
+
+  // Show text with an Undo button (when the op recorded anything) and make it
+  // the one live undo (Ctrl/Cmd+Z) for the next 10 s. hint: { ids, spawned }.
+  api.offerUndo = function (text, result, hint) {
+    var r = result || {};
+    if (undoState.live) dismissToast(undoState.live.key);
+    if (!r.opId) {
+      undoState.live = null;
+      raiseToast(text);
+      return null;
+    }
+    var key = "tk-undo-" + ++undoState.seq;
+    var live = {
+      key: key,
+      opId: r.opId,
+      hint: { ids: arr(hint && hint.ids), spawned: arr(hint && hint.spawned).concat(arr(r.spawned)) },
+      until: Date.now() + UNDO_MS,
+    };
+    undoState.live = live;
+    raiseToast(text, { label: "Undo", onClick: function () { runUndo(live); } }, key);
+    return live;
+  };
+
+  // The live undo while its toast is up, else null.
+  api.liveUndo = function () {
+    var l = undoState.live;
+    if (!l) return null;
+    if (Date.now() > l.until) {
+      undoState.live = null;
+      return null;
+    }
+    return l;
+  };
+
+  function undoErrText(e) {
+    var why = (e && (e.reason || e.code)) || "";
+    if (why === "tk_undo_expired") return "Too late to undo that one.";
+    if (why === "tk_undo_used") return "That was already undone.";
+    if (why === "tk_offline") return "You're offline. Undo when you're back.";
+    return "Couldn't undo that. Try again.";
+  }
+
+  function runUndo(live) {
+    if (!live) return Promise.resolve(null);
+    if (undoState.running) return undoState.running;
+    if (undoState.live === live) undoState.live = null;
+    dismissToast(live.key);
+    var p = api
+      .undo(live.opId, live.hint)
+      .then(
+        function (res) {
+          raiseToast(undoText(res));
+          return res;
+        },
+        function (e) {
+          raiseToast(undoErrText(e));
+          return null;
+        },
+      )
+      .then(function (res) {
+        undoState.running = null;
+        return res;
+      });
+    undoState.running = p;
+    return p;
+  }
+
+  // Undo the live op (Ctrl/Cmd+Z). Resolves null when nothing is live.
+  api.undoLive = function () {
+    return runUndo(api.liveUndo());
+  };
+
+  // Run a bulk action from the bar and toast its summary with Undo.
+  // kind: complete | reopen | delete | reassign | move_project | set_due.
+  api.bulkRun = function (kind, ids, patch) {
+    var list = idList(ids);
+    var call =
+      kind === "complete" ? api.bulkComplete(list)
+      : kind === "reopen" ? api.bulkReopen(list)
+      : kind === "delete" ? api.bulkDelete(list)
+      : api.bulkUpdate(list, patch);
+    return call.then(function (r) {
+      api.offerUndo(summaryText(kind, r), r, { ids: list });
+      return r;
+    });
+  };
+
+  // A skipped single row: reject with the reason so callers toast it.
+  function skippedError(r) {
+    var why = r.skipped.length ? r.skipped[0].reason : "error";
+    var text = typeof TK_bulkReasonText === "function" ? TK_bulkReasonText(why) : "Skipped.";
+    return errOf("tk_skipped", text, { reason: why, skipped: r.skipped });
+  }
+
+  // Reassign one task. On schema 12+ through tk_bulk_update (one email, Undo
+  // toast); before that a plain update. Resolves with the task.
+  api.reassign = function (id, email, opts) {
+    var who = lower(email);
+    if (!id) return Promise.reject(errOf("tk_not_found", "No task"));
+    if (!api.bulkReady() || !who) return api.update(id, { assignee_email: who || null }, opts);
+    return api.bulkUpdate([id], { assignee_email: who }).then(function (r) {
+      if (!r.done.length) throw skippedError(r);
+      var s = store();
+      var t = s && s.getState().tasks[id];
+      var o = opts || {};
+      if (o.undo !== false) api.offerUndo(o.toast || "Reassigned.", r, { ids: [id] });
+      return t || null;
     });
   };
 

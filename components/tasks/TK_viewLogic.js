@@ -375,7 +375,8 @@ function TK_focusIds(view) {
 }
 
 // ---- List keys (Row 3.6) -------------------------------------------------------
-var TK_vLIST_KEYS = { j: "next", k: "prev", Enter: "open", x: "toggle", s: "status", a: "assign", q: "add", "?": "help" };
+// v (P4-3) selects the focused row; Shift+V selects the range from the last pick.
+var TK_vLIST_KEYS = { j: "next", k: "prev", Enter: "open", x: "toggle", s: "status", a: "assign", q: "add", "?": "help", v: "select", V: "select" };
 
 function TK_listKeyAction(key) {
   return Object.prototype.hasOwnProperty.call(TK_vLIST_KEYS, key) ? TK_vLIST_KEYS[key] : null;
@@ -436,6 +437,10 @@ function TK_makeListKeyHandler(o) {
         fn(cur);
         acted = true;
       }
+    } else if (action === "select") {
+      if (cur == null || typeof opts.onSelect !== "function") return;
+      opts.onSelect(cur, !!e.shiftKey);
+      acted = true;
     } else if (action === "add") {
       if (typeof opts.onQuickAdd === "function") {
         opts.onQuickAdd();
@@ -990,6 +995,239 @@ function TK_projectColorError(err) {
   return "Couldn't save that color. Try again.";
 }
 
+// ---- Multi-select + bulk results (P4-3) -------------------------------------------
+// Selection is { ids: { id: true }, anchor: id | null }, a plain value: every
+// helper returns a new object (or the same one when nothing changed).
+
+function TK_selEmpty() {
+  return { ids: {}, anchor: null };
+}
+
+function TK_selCount(sel) {
+  return sel && sel.ids ? Object.keys(sel.ids).length : 0;
+}
+
+function TK_selHas(sel, id) {
+  return !!(sel && sel.ids && id != null && Object.prototype.hasOwnProperty.call(sel.ids, String(id)));
+}
+
+// Selected ids in list order first, then any not on the list (kept in the
+// order they were picked).
+function TK_selList(sel, order) {
+  if (!sel || !sel.ids) return [];
+  var out = [];
+  var seen = {};
+  (Array.isArray(order) ? order : []).forEach(function (id) {
+    var k = String(id);
+    if (sel.ids[k] && !seen[k]) {
+      seen[k] = 1;
+      out.push(k);
+    }
+  });
+  Object.keys(sel.ids).forEach(function (k) {
+    if (!seen[k]) out.push(k);
+  });
+  return out;
+}
+
+// Click or v: toggle one row. Shift (click or Shift+V) with an anchor on the
+// list: select every row from the anchor to this one (adds; never clears).
+// max caps the selection (the server takes 100 ids at a time).
+function TK_selToggle(sel, id, order, shift, max) {
+  if (id == null) return sel || TK_selEmpty();
+  var cur = sel && sel.ids ? sel : TK_selEmpty();
+  var k = String(id);
+  var ids = {};
+  Object.keys(cur.ids).forEach(function (x) { ids[x] = true; });
+  var cap = Number(max) > 0 ? Number(max) : Infinity;
+  var list = (Array.isArray(order) ? order : []).map(String);
+  var a = cur.anchor != null ? list.indexOf(String(cur.anchor)) : -1;
+  var b = list.indexOf(k);
+  if (shift && a >= 0 && b >= 0) {
+    var lo = Math.min(a, b);
+    var hi = Math.max(a, b);
+    for (var i = lo; i <= hi; i++) {
+      if (!ids[list[i]] && Object.keys(ids).length >= cap) break;
+      ids[list[i]] = true;
+    }
+    return { ids: ids, anchor: cur.anchor };
+  }
+  if (ids[k]) delete ids[k];
+  else {
+    if (Object.keys(ids).length >= cap) return cur;
+    ids[k] = true;
+  }
+  return { ids: ids, anchor: k };
+}
+
+// Drop ids that left the list (filtered, deleted, moved). Same object back
+// when nothing changed, so a React state set is a no-op.
+function TK_selPrune(sel, visibleIds) {
+  if (!sel || !sel.ids) return TK_selEmpty();
+  var keep = {};
+  (Array.isArray(visibleIds) ? visibleIds : []).forEach(function (id) { keep[String(id)] = 1; });
+  var changed = false;
+  var ids = {};
+  Object.keys(sel.ids).forEach(function (k) {
+    if (keep[k]) ids[k] = true;
+    else changed = true;
+  });
+  var anchor = sel.anchor != null && keep[String(sel.anchor)] ? sel.anchor : null;
+  if (!changed && anchor === sel.anchor) return sel;
+  return { ids: ids, anchor: anchor };
+}
+
+// How many of the selected tasks each action could touch (the server still
+// decides; this only labels the bar).
+function TK_bulkCounts(tasks) {
+  var out = { total: 0, open: 0, done: 0, review: 0, waiting: 0 };
+  (Array.isArray(tasks) ? tasks : []).forEach(function (t) {
+    if (!t) return;
+    out.total++;
+    var st = t.status || (t.done ? "done" : "todo");
+    if (st === "done") out.done++;
+    else if (st === "ready_for_review") out.review++;
+    else if (st === "waiting_client") out.waiting++;
+    else out.open++;
+  });
+  return out;
+}
+
+// Why the server skipped a row (tk_bulk_* / tk_undo reason codes).
+var TK_BULK_REASONS = {
+  no_access: "You can't change it.",
+  deleted: "It was deleted.",
+  in_trash: "Its project is in the trash.",
+  in_review: "It's in review. Approve it in Review.",
+  waiting_client: "It's waiting on the client.",
+  already_done: "It's already done.",
+  not_done: "It isn't done.",
+  approved_admin_only: "It was approved. Only an admin can reopen it.",
+  owner_only: "Only the person who made it or an admin can change that.",
+  assignee_no_access: "That person can't see its client.",
+  project_client: "That project belongs to another client.",
+  project_archived: "That project is archived.",
+  project_trashed: "That project is in the trash.",
+  no_due_date: "It has no due date to move.",
+  no_change: "Nothing to change.",
+  has_open_requests: "It has open client requests.",
+  bad_transition: "Its status can't change that way.",
+  changed_since: "It changed after your action.",
+  error: "Something went wrong with this one.",
+};
+
+function TK_bulkReasonText(code) {
+  var k = code == null ? "" : String(code);
+  return Object.prototype.hasOwnProperty.call(TK_BULK_REASONS, k) ? TK_BULK_REASONS[k] : TK_BULK_REASONS.error;
+}
+
+var TK_BULK_VERBS = {
+  complete: "completed",
+  reopen: "reopened",
+  delete: "deleted",
+  reassign: "reassigned",
+  move_project: "moved",
+  set_due: "rescheduled",
+};
+
+function TK__tasks(n) {
+  return n + (n === 1 ? " task" : " tasks");
+}
+
+// "7 tasks completed." / "5 completed, 1 sent for review, 2 skipped." /
+// "Nothing changed: 3 skipped."
+function TK_bulkSummary(kind, r) {
+  var res = r || {};
+  var done = Array.isArray(res.done) ? res.done.length : 0;
+  var review = Array.isArray(res.review) ? res.review.length : 0;
+  var skipped = Array.isArray(res.skipped) ? res.skipped.length : 0;
+  var verb = TK_BULK_VERBS[kind] || "updated";
+  if (!done && !review) return skipped ? "Nothing changed: " + skipped + " skipped." : "Nothing changed.";
+  if (!review && !skipped) return TK__tasks(done) + " " + verb + ".";
+  var parts = [];
+  if (done) parts.push(done + " " + verb);
+  if (review) parts.push(review + " sent for review");
+  if (skipped) parts.push(skipped + " skipped");
+  return parts.join(", ") + ".";
+}
+
+function TK__names(list) {
+  var a = (Array.isArray(list) ? list : []).filter(Boolean).map(String);
+  if (!a.length) return "";
+  if (a.length === 1) return a[0];
+  if (a.length === 2) return a[0] + " and " + a[1];
+  return a.slice(0, -1).join(", ") + " and " + a[a.length - 1];
+}
+
+// After tk_undo: "Undone." plus what could not be put back and who was
+// already emailed.
+function TK_undoSummary(res) {
+  var r = res || {};
+  var skipped = Array.isArray(r.skipped) ? r.skipped.length : 0;
+  var done = Array.isArray(r.done) ? r.done.length : 0;
+  var out = !done && skipped ? "Couldn't undo: " + (skipped === 1 ? "the task" : "the tasks") + " changed since." : "Undone.";
+  if (done && skipped) out += " " + TK__tasks(skipped) + " changed since and stayed as they are.";
+  var kept = Array.isArray(r.spawnedKept) ? r.spawnedKept.length : 0;
+  if (kept) out += kept === 1 ? " The next repeat was kept because someone used it." : " " + kept + " next repeats were kept because someone used them.";
+  var names = TK__names(r.alreadyEmailed);
+  if (names) out += " " + names + (Array.isArray(r.alreadyEmailed) && r.alreadyEmailed.length > 1 ? " were" : " was") + " already emailed.";
+  return out;
+}
+
+// Skipped rows grouped by reason for the "N skipped" list:
+// [{ reason, text, items: [{ id, name }] }], biggest group first.
+function TK_skipGroups(skipped, nameOf) {
+  var by = {};
+  var order = [];
+  (Array.isArray(skipped) ? skipped : []).forEach(function (s) {
+    if (!s) return;
+    var reason = String(s.reason || "error");
+    if (!by[reason]) {
+      by[reason] = { reason: reason, text: TK_bulkReasonText(reason), items: [] };
+      order.push(reason);
+    }
+    var name = typeof nameOf === "function" ? nameOf(s.id) : "";
+    by[reason].items.push({ id: String(s.id || ""), name: name || "A task" });
+  });
+  return order
+    .map(function (k, i) { return { g: by[k], i: i }; })
+    .sort(function (x, y) { return y.g.items.length - x.g.items.length || x.i - y.i; })
+    .map(function (x) { return x.g; });
+}
+
+// Ctrl/Cmd+Z (no Shift, no Alt), and never while typing in a field.
+function TK_isUndoKey(e) {
+  if (!e || e.shiftKey || e.altKey) return false;
+  if (!(e.ctrlKey || e.metaKey)) return false;
+  if (e.key !== "z" && e.key !== "Z") return false;
+  var el = e.target || null;
+  if (el) {
+    var tag = String(el.tagName || "").toUpperCase();
+    if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return false;
+    if (el.isContentEditable) return false;
+    var ce = typeof el.getAttribute === "function" ? el.getAttribute("contenteditable") : null;
+    if (ce === "" || ce === "true" || ce === "plaintext-only") return false;
+    var role = typeof el.getAttribute === "function" ? el.getAttribute("role") : null;
+    if (role === "textbox") return false;
+  }
+  return true;
+}
+
+// Due date choices for the bulk bar: a date or a shift in days.
+function TK_bulkDuePatch(choice, value) {
+  if (choice === "shift") {
+    var n = parseInt(value, 10);
+    if (!n || isNaN(n) || n < -365 || n > 365) return null;
+    return { due_shift_days: n };
+  }
+  if (choice === "clear") return { due_date: null };
+  if (choice === "date") {
+    var v = value == null ? "" : String(value);
+    return /^\d{4}-\d{2}-\d{2}$/.test(v) ? { due_date: v } : null;
+  }
+  return null;
+}
+
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {
     TK_POPOUT_DEFAULT: TK_POPOUT_DEFAULT,
@@ -1052,5 +1290,19 @@ if (typeof module !== "undefined" && module.exports) {
     TK_projectColorLabel: TK_projectColorLabel,
     TK_projectColorById: TK_projectColorById,
     TK_projectColorError: TK_projectColorError,
+    TK_selEmpty: TK_selEmpty,
+    TK_selCount: TK_selCount,
+    TK_selHas: TK_selHas,
+    TK_selList: TK_selList,
+    TK_selToggle: TK_selToggle,
+    TK_selPrune: TK_selPrune,
+    TK_bulkCounts: TK_bulkCounts,
+    TK_BULK_REASONS: TK_BULK_REASONS,
+    TK_bulkReasonText: TK_bulkReasonText,
+    TK_bulkSummary: TK_bulkSummary,
+    TK_undoSummary: TK_undoSummary,
+    TK_skipGroups: TK_skipGroups,
+    TK_isUndoKey: TK_isUndoKey,
+    TK_bulkDuePatch: TK_bulkDuePatch,
   };
 }

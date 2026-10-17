@@ -115,6 +115,10 @@
 //   tk-groupby       the Group by switch in My Tasks' toolbar (TK_MyTasks.jsx)
 //   tk-subtoggle     a task row's subtasks arrow and count (TK_TaskRow.jsx), only
 //                    when a visible task has subtasks (the first one is found)
+//   tk-select        a task row's select checkbox (TK_TaskRow.jsx), only once
+//                    the bulk actions schema (v12) is live; the first is found
+//   tk-bulkbar       the bar of bulk actions (TK_BulkBar.jsx), only while
+//                    tasks are selected or a skipped report is showing
 //   tk-project-dot   the color dot beside a project's name on its own page
 //                    (TK_List.jsx); the sidebar's project dots sit in tk-sidebar
 //   tk-waiting-nav   the sidebar's Waiting on client item (TK_Sidebar.jsx), same widths

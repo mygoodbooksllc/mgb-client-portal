@@ -388,10 +388,12 @@ function ToastProvider({ children }) {
 
   // action (optional): { label, onClick } puts a button on the toast (Undo) and
   // keeps it up longer.
-  const showToast = (text, action) => {
+  // key (optional): a name the sender can later close the toast by, through
+  // the "mgb:toast-dismiss" window event (Tasks Undo after Ctrl/Cmd+Z).
+  const showToast = (text, action, key) => {
     const id = Date.now() + Math.random();
     const act = action && typeof action.onClick === "function" ? action : null;
-    setToasts((t) => [...t, { id, text, action: act }]);
+    setToasts((t) => [...t, { id, text, action: act, key: key || null }]);
     setTimeout(() => setToasts((t) => t.filter((x) => x.id !== id)), act ? 10000 : 3200);
   };
 
@@ -400,10 +402,18 @@ function ToastProvider({ children }) {
   useEffect(() => {
     const onToast = (e) => {
       const text = e && e.detail && e.detail.text;
-      if (text) showToast(String(text), e.detail.action);
+      if (text) showToast(String(text), e.detail.action, e.detail.key);
+    };
+    const onDismiss = (e) => {
+      const key = e && e.detail && e.detail.key;
+      if (key) setToasts((t) => t.filter((x) => x.key !== key));
     };
     window.addEventListener("mgb:toast", onToast);
-    return () => window.removeEventListener("mgb:toast", onToast);
+    window.addEventListener("mgb:toast-dismiss", onDismiss);
+    return () => {
+      window.removeEventListener("mgb:toast", onToast);
+      window.removeEventListener("mgb:toast-dismiss", onDismiss);
+    };
   }, []);
 
   return (
@@ -1053,6 +1063,11 @@ const INFRA_LINKS = [
     name: "Google Drive (client files)",
     url: "https://drive.google.com/drive/shared-drives",
     note: "MGB shared drive holding client documents, and the admin-only reviews drive (review PDFs, signed Staff Handbook PDFs under Handbook, and Inventory exports) · service account in Supabase secrets",
+  },
+  {
+    name: "Supabase SQL (Tasks bulk actions + undo)",
+    url: "https://supabase.com/dashboard/project/xumsqmhccgfjnlmieqyu/sql/new",
+    note: "supabase/tasks-p4-3-bulk-undo.sql (self-test: tasks-p4-3-bulk-undo-tests.sql, rolls back): table tk_undo_ops (one row per undoable action, 10 minutes, the caller's own rows older than a day are cleared on the next bulk call; RLS on, no grants) · RPCs tk_bulk_complete, tk_bulk_reopen, tk_bulk_delete, tk_bulk_update (assignee, project, due date or a due shift), up to 100 tasks, per-task skips with a reason (in review and waiting on the client are never completed) · tk_undo (same person, once, within 10 minutes; tasks changed since are left alone; unsent assignment emails are cancelled) · single ticks, deletes and reassigns use the same calls so they get an Undo too · notify_enqueue_task_assigned stays quiet for bulk, roll-forward and undo · tk_schema_version 12 · no edge function",
   },
   {
     name: "Supabase SQL (Tasks close checklist)",
@@ -17100,6 +17115,13 @@ const USAGE_ACTION_LABELS = {
   "tasks-search": "Task searches",
   "tasks-shortcut": "Task keyboard shortcuts used",
   "tasks-popout": "Tasks opened in its own window",
+  "tasks-bulk-complete": "Bulk: tasks completed together",
+  "tasks-bulk-reopen": "Bulk: tasks reopened together",
+  "tasks-bulk-delete": "Bulk: tasks deleted together",
+  "tasks-bulk-reassign": "Bulk: tasks reassigned together",
+  "tasks-bulk-move_project": "Bulk: tasks moved to a project together",
+  "tasks-bulk-set_due": "Bulk: due dates changed together",
+  "tasks-undo-key": "Tasks undone with Ctrl or Cmd + Z",
   "tasks-close-tick": "Close steps ticked that moved a task",
   "tasks-close-optin": "Month-end tasks from the Close checklist turned on or off",
   "tasks-dock": "Tasks docked back in the portal",
@@ -26571,7 +26593,7 @@ const PAGE_META = {
   },
   tasks: {
     title: "Tasks",
-    subtitle: "Your tasks (by due date or client), unassigned work to claim, review, waiting on client, recurring work, client lists and projects with color dots (admins: Manage projects), subtasks open in place under their task, quick add that reads plain words (for Sierra, re a client, by Friday), month-end tasks from a client's Close checklist (per client, Recurring › One client)",
+    subtitle: "Your tasks (by due date or client), unassigned work to claim, review, waiting on client, recurring work, client lists and projects with color dots (admins: Manage projects), subtasks open in place under their task, quick add that reads plain words (for Sierra, re a client, by Friday), month-end tasks from a client's Close checklist (per client, Recurring › One client), select many tasks to complete, reassign, move, reschedule or delete together, with Undo",
   },
   clients: {
     title: "Clients",

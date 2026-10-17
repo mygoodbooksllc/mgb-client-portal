@@ -825,4 +825,158 @@ t("projectColorLabel and projectColorError", () => {
   assert.ok(/Couldn't save/.test(L.TK_projectColorError(null)));
 });
 
+// ---- Multi-select + bulk results (P4-3) ---------------------------------------
+t("v and Shift+V map to select; the handler passes shift", () => {
+  assert.strictEqual(L.TK_listKeyAction("v"), "select");
+  assert.strictEqual(L.TK_listKeyAction("V"), "select");
+  assert.strictEqual(L.TK_listKeyAction("x"), "toggle", "x stays mark done");
+  assert.strictEqual(L.TK_listKeyAction("s"), "status", "s stays status");
+  assert.strictEqual(L.TK_listKeyAction("z"), null, "z is not taken by this slice");
+  const calls = [];
+  const mk = (focusedId, onSelect) =>
+    L.TK_makeListKeyHandler({ getState: () => ({ ids: ["a", "b"], focusedId }), onSelect });
+  const ev = (key, extra) => Object.assign({ key, target: { tagName: "DIV", getAttribute: () => null }, preventDefault() { this.prevented = true; } }, extra || {});
+  const e1 = ev("v");
+  mk("a", (id, shift) => calls.push([id, shift]))(e1);
+  const e2 = ev("V", { shiftKey: true });
+  mk("b", (id, shift) => calls.push([id, shift]))(e2);
+  assert.deepStrictEqual(calls, [["a", false], ["b", true]]);
+  assert.ok(e1.prevented && e2.prevented);
+  const e3 = ev("v");
+  mk(null, (id) => calls.push([id]))(e3);
+  assert.strictEqual(calls.length, 2, "no focused row, nothing selected");
+  assert.ok(!e3.prevented);
+  const e4 = ev("v");
+  mk("a", undefined)(e4);
+  assert.ok(!e4.prevented, "a list without selection leaves v alone");
+});
+
+t("selToggle: click toggles, shift selects a range from the anchor", () => {
+  const order = ["a", "b", "c", "d", "e"];
+  let s = L.TK_selEmpty();
+  s = L.TK_selToggle(s, "b", order, false);
+  assert.deepStrictEqual(L.TK_selList(s, order), ["b"]);
+  assert.strictEqual(s.anchor, "b");
+  s = L.TK_selToggle(s, "d", order, true);
+  assert.deepStrictEqual(L.TK_selList(s, order), ["b", "c", "d"]);
+  assert.strictEqual(s.anchor, "b", "a range keeps the anchor");
+  s = L.TK_selToggle(s, "a", order, true);
+  assert.deepStrictEqual(L.TK_selList(s, order), ["a", "b", "c", "d"], "a range upward adds, never clears");
+  s = L.TK_selToggle(s, "c", order, false);
+  assert.deepStrictEqual(L.TK_selList(s, order), ["a", "b", "d"]);
+  assert.strictEqual(s.anchor, "c");
+  assert.strictEqual(L.TK_selCount(s), 3);
+  assert.ok(L.TK_selHas(s, "a") && !L.TK_selHas(s, "c") && !L.TK_selHas(s, "toString"));
+  // Shift with no anchor on the list is a plain toggle.
+  const s2 = L.TK_selToggle({ ids: {}, anchor: "gone" }, "e", order, true);
+  assert.deepStrictEqual(L.TK_selList(s2, order), ["e"]);
+  // The cap.
+  let c = L.TK_selEmpty();
+  c = L.TK_selToggle(c, "a", order, false, 2);
+  c = L.TK_selToggle(c, "e", order, true, 2);
+  assert.strictEqual(L.TK_selCount(c), 2);
+  const same = L.TK_selToggle(c, "e", order, false, 2);
+  assert.strictEqual(L.TK_selCount(same), 2, "a click past the cap adds nothing");
+});
+
+t("selPrune drops rows that left the list and keeps identity when nothing changed", () => {
+  let s = L.TK_selEmpty();
+  s = L.TK_selToggle(s, "a", ["a", "b"], false);
+  s = L.TK_selToggle(s, "b", ["a", "b"], false);
+  assert.strictEqual(L.TK_selPrune(s, ["a", "b", "c"]), s);
+  const p = L.TK_selPrune(s, ["a"]);
+  assert.deepStrictEqual(L.TK_selList(p, ["a"]), ["a"]);
+  assert.strictEqual(p.anchor, null, "the anchor (b) left");
+  assert.deepStrictEqual(L.TK_selList(L.TK_selPrune(null, ["a"]), []), []);
+  // Off-list picks still come back from selList (after the ordered ones).
+  assert.deepStrictEqual(L.TK_selList({ ids: { z: true, a: true }, anchor: null }, ["a"]), ["a", "z"]);
+});
+
+t("bulkCounts", () => {
+  const c = L.TK_bulkCounts([
+    { status: "todo" }, { status: "in_progress" }, { status: "done" }, { done: true },
+    { status: "ready_for_review" }, { status: "waiting_client" }, null,
+  ]);
+  assert.deepStrictEqual(c, { total: 6, open: 2, done: 2, review: 1, waiting: 1 });
+});
+
+t("bulkReasonText covers every server reason", () => {
+  ["no_access", "deleted", "in_trash", "in_review", "waiting_client", "already_done", "not_done",
+    "approved_admin_only", "owner_only", "assignee_no_access", "project_client", "project_archived",
+    "project_trashed", "no_due_date", "no_change", "has_open_requests", "bad_transition", "changed_since", "error"]
+    .forEach((k) => assert.ok(L.TK_bulkReasonText(k) && L.TK_bulkReasonText(k) !== L.TK_BULK_REASONS.error || k === "error", k));
+  assert.ok(/Review/.test(L.TK_bulkReasonText("in_review")));
+  assert.strictEqual(L.TK_bulkReasonText("toString"), L.TK_BULK_REASONS.error);
+  assert.strictEqual(L.TK_bulkReasonText(null), L.TK_BULK_REASONS.error);
+  assert.ok(!/colour/i.test(JSON.stringify(L.TK_BULK_REASONS)));
+});
+
+t("bulkSummary: plain, mixed, all skipped", () => {
+  assert.strictEqual(L.TK_bulkSummary("complete", { done: ["1", "2", "3", "4", "5", "6", "7"], review: [], skipped: [] }), "7 tasks completed.");
+  assert.strictEqual(L.TK_bulkSummary("complete", { done: ["1"], review: [], skipped: [] }), "1 task completed.");
+  assert.strictEqual(
+    L.TK_bulkSummary("complete", { done: ["1", "2", "3", "4", "5"], review: ["6"], skipped: [{ id: "7" }, { id: "8" }] }),
+    "5 completed, 1 sent for review, 2 skipped.",
+  );
+  assert.strictEqual(L.TK_bulkSummary("complete", { done: [], review: ["1"], skipped: [] }), "1 sent for review.");
+  assert.strictEqual(L.TK_bulkSummary("delete", { done: [], skipped: [{}, {}, {}] }), "Nothing changed: 3 skipped.");
+  assert.strictEqual(L.TK_bulkSummary("reassign", { done: ["1", "2"], skipped: [{}] }), "2 reassigned, 1 skipped.");
+  assert.strictEqual(L.TK_bulkSummary("set_due", { done: ["1", "2"] }), "2 tasks rescheduled.");
+  assert.strictEqual(L.TK_bulkSummary("move_project", {}), "Nothing changed.");
+});
+
+t("undoSummary: changed rows, kept repeats, already emailed", () => {
+  assert.strictEqual(L.TK_undoSummary({ done: ["1"], skipped: [] }), "Undone.");
+  assert.strictEqual(L.TK_undoSummary({ done: [], skipped: [{ id: "1" }] }), "Couldn't undo: the task changed since.");
+  assert.strictEqual(
+    L.TK_undoSummary({ done: ["1"], skipped: [{ id: "2" }, { id: "3" }] }),
+    "Undone. 2 tasks changed since and stayed as they are.",
+  );
+  assert.strictEqual(
+    L.TK_undoSummary({ done: ["1"], skipped: [], spawnedKept: ["s"], alreadyEmailed: ["Ann"] }),
+    "Undone. The next repeat was kept because someone used it. Ann was already emailed.",
+  );
+  assert.ok(/Ann, Bo and Cy were already emailed\.$/.test(L.TK_undoSummary({ done: ["1"], alreadyEmailed: ["Ann", "Bo", "Cy"] })));
+});
+
+t("skipGroups groups by reason, biggest first, with names", () => {
+  const names = { a: "Payroll", b: "Bank rec", c: "Close" };
+  const g = L.TK_skipGroups(
+    [{ id: "a", reason: "in_review" }, { id: "b", reason: "waiting_client" }, { id: "c", reason: "waiting_client" }, { id: "x" }],
+    (id) => names[id],
+  );
+  assert.deepStrictEqual(g.map((x) => x.reason), ["waiting_client", "in_review", "error"]);
+  assert.deepStrictEqual(g[0].items.map((x) => x.name), ["Bank rec", "Close"]);
+  assert.strictEqual(g[2].items[0].name, "A task");
+  assert.deepStrictEqual(L.TK_skipGroups(null), []);
+});
+
+t("isUndoKey: Ctrl/Cmd+Z only, never while typing", () => {
+  const div = { tagName: "DIV", getAttribute: () => null };
+  assert.ok(L.TK_isUndoKey({ key: "z", ctrlKey: true, target: div }));
+  assert.ok(L.TK_isUndoKey({ key: "z", metaKey: true, target: div }));
+  assert.ok(L.TK_isUndoKey({ key: "Z", metaKey: true, target: null }));
+  assert.ok(!L.TK_isUndoKey({ key: "z", target: div }), "plain z");
+  assert.ok(!L.TK_isUndoKey({ key: "z", metaKey: true, shiftKey: true, target: div }), "redo");
+  assert.ok(!L.TK_isUndoKey({ key: "z", ctrlKey: true, altKey: true, target: div }));
+  assert.ok(!L.TK_isUndoKey({ key: "y", ctrlKey: true, target: div }));
+  ["INPUT", "TEXTAREA", "SELECT"].forEach((tag) =>
+    assert.ok(!L.TK_isUndoKey({ key: "z", metaKey: true, target: { tagName: tag, getAttribute: () => null } }), tag));
+  assert.ok(!L.TK_isUndoKey({ key: "z", metaKey: true, target: { tagName: "DIV", isContentEditable: true, getAttribute: () => null } }));
+  assert.ok(!L.TK_isUndoKey({ key: "z", metaKey: true, target: { tagName: "DIV", getAttribute: (a) => (a === "contenteditable" ? "true" : null) } }));
+  assert.ok(!L.TK_isUndoKey({ key: "z", metaKey: true, target: { tagName: "DIV", getAttribute: (a) => (a === "role" ? "textbox" : null) } }));
+  assert.ok(!L.TK_isUndoKey(null));
+});
+
+t("bulkDuePatch", () => {
+  assert.deepStrictEqual(L.TK_bulkDuePatch("date", "2026-10-20"), { due_date: "2026-10-20" });
+  assert.strictEqual(L.TK_bulkDuePatch("date", "10/20/2026"), null);
+  assert.deepStrictEqual(L.TK_bulkDuePatch("clear"), { due_date: null });
+  assert.deepStrictEqual(L.TK_bulkDuePatch("shift", "7"), { due_shift_days: 7 });
+  assert.deepStrictEqual(L.TK_bulkDuePatch("shift", -1), { due_shift_days: -1 });
+  assert.strictEqual(L.TK_bulkDuePatch("shift", 0), null);
+  assert.strictEqual(L.TK_bulkDuePatch("shift", 400), null);
+  assert.strictEqual(L.TK_bulkDuePatch("nope", 1), null);
+});
+
 console.log(n + " checks passed");

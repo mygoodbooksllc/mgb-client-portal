@@ -71,7 +71,7 @@ Here is every tip, in the order they're considered when two fit the same page (t
 
 #### Everyone: Tasks
 
-These show on **Work › Tasks** (the Tasks pages), after the tips above. The newest are **Month-end tasks from the Close checklist**, **Quick add in plain words**, **Subtasks**, **project colors**, **Group by** and **Manage projects**.
+These show on **Work › Tasks** (the Tasks pages), after the tips above. The newest are **Select many tasks**, **Month-end tasks from the Close checklist**, **Quick add in plain words**, **Subtasks**, **project colors**, **Group by** and **Manage projects**.
 
 | Page | Tip | Learn more |
 |---|---|---|
@@ -82,6 +82,7 @@ These show on **Work › Tasks** (the Tasks pages), after the tips above. The ne
 | Tasks | Waiting on client lists everything you've asked a client for from a task, longest wait first. Ask client is in a client task's details. | [How do I ask a client something from a task?](#/help/ask-client) |
 | Tasks (new) | Group by Client lists your tasks one client at a time instead of by due date. The portal remembers your choice (My Tasks and a person's list each remember their own). | [How do I add and manage my tasks?](#/help/my-tasks) |
 | Tasks › Recurring, One client (new) | Turn this on and the client's Close steps (bank feed, bank rec, card rec, entries, review) become tasks each month. Ticking a step moves its task. Admins and the client's account manager can change it. | [How do Close checklist steps become tasks?](#/help/close-checklist-tasks) |
+| Tasks (new) | Tick this box (or press v) on several tasks to complete, reassign, move, reschedule or delete them together. Each change has Undo for 10 seconds, or press Ctrl+Z. On a touch screen it leaves out the keys. | [How do I change many tasks at once, and undo a change?](#/help/select-many-tasks) |
 | Tasks (new) | Add a task in plain words: Send the payroll summary for Sierra re Example Church by Friday. Quick add shows what it understood before you save. | [How do I add a task, note or document request, or message a client?](#/help/quick-actions) |
 | Tasks (new) | This task has subtasks. Click its row and they open right under it; click the task's name to open its details instead. The count shows how many are done. | [How do I add and manage my tasks?](#/help/my-tasks) |
 | Tasks (new) | Every project has a color, shown beside its name here, in the sidebar and on its tasks. An owner or admin can change it under Project options. | [How do client task lists and projects work?](#/help/task-lists-and-projects) |

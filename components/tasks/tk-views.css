@@ -2492,3 +2492,205 @@ li.tk-empty-inline {
   cursor: default;
   opacity: 0.6;
 }
+
+/* ---------------------------------------------------------------------------
+   Phase 4 P4-3: multi-select and the bulk bar (TK_BulkBar.jsx).
+   --------------------------------------------------------------------------- */
+
+/* The select box shows on hover or focus, and on every row once one is
+   picked. Touch screens always show it (no hover). It keeps its space, so
+   rows don't jump. */
+.tk-sel {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: var(--accent);
+  cursor: pointer;
+  visibility: hidden;
+}
+
+.tk-row:hover .tk-sel,
+.tk-row:focus-within .tk-sel,
+.tk-row.is-focused .tk-sel,
+.tk-row.is-selecting .tk-sel,
+.tk-row.is-selected .tk-sel {
+  visibility: visible;
+}
+
+@media (hover: none) {
+  .tk-sel {
+    visibility: visible;
+    width: 20px;
+    height: 20px;
+  }
+}
+
+.tk-row.is-selected,
+.tk-row.is-selected:hover {
+  background: var(--accent-soft);
+}
+
+.tk-bulkbar {
+  position: sticky;
+  bottom: 12px;
+  z-index: 30;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 10px;
+  margin: 12px 0 0;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius, 10px);
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+}
+
+/* The shell's bottom bar (56px) sits under the list on phones. */
+@media (max-width: 760px) {
+  body.tk-shell .tk-bulkbar {
+    bottom: calc(68px + env(safe-area-inset-bottom, 0px));
+  }
+}
+
+.tk-bulkbar.is-report {
+  box-shadow: none;
+}
+
+.tk-bulk-count {
+  font-weight: 600;
+  color: var(--ink-strong);
+  white-space: nowrap;
+}
+
+.tk-bulk-actions,
+.tk-bulk-confirm,
+.tk-bulk-date {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.tk-bulk-date .tk-input {
+  width: auto;
+  min-height: 34px;
+  padding: 6px 10px;
+}
+
+.tk-bulk-btn {
+  min-height: 34px;
+}
+
+.tk-bulk-pick {
+  display: inline-flex;
+  min-width: 0;
+}
+
+.tk-bulk-pick .tk-select {
+  max-width: 200px;
+}
+
+.tk-bulk-danger,
+.tk-bulk-delete {
+  color: var(--bad);
+}
+
+.tk-bulk-danger {
+  border-color: var(--bad);
+  background: var(--bad-soft);
+}
+
+.tk-bulk-clear {
+  margin-left: auto;
+}
+
+.tk-bulk-skips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  flex-basis: 100%;
+}
+
+.tk-bulkbar.is-report .tk-bulk-skips {
+  flex-basis: auto;
+  flex: 1 1 auto;
+}
+
+.tk-bulk-skipbtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 30px;
+  padding: 4px 10px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--bad-soft);
+  color: var(--bad);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.tk-bulk-dismiss {
+  width: 30px;
+  height: 30px;
+}
+
+.tk-bulk-skiplist {
+  flex-basis: 100%;
+  max-height: 240px;
+  overflow-y: auto;
+  padding: 4px 2px;
+}
+
+.tk-bulk-skipgroup + .tk-bulk-skipgroup {
+  margin-top: 8px;
+}
+
+.tk-bulk-skipwhy {
+  margin: 0 0 4px;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.tk-bulk-skipgroup ul {
+  margin: 0;
+  padding: 0 0 0 18px;
+}
+
+.tk-bulk-skipname {
+  padding: 2px 0;
+  border: 0;
+  background: none;
+  color: var(--text);
+  font: inherit;
+  font-size: 13.5px;
+  text-align: left;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+
+.tk-bulk-skipname:hover {
+  color: var(--accent);
+}
+
+@media (max-width: 760px) {
+  .tk-bulk-clear {
+    margin-left: 0;
+  }
+
+  .tk-bulk-pick .tk-select {
+    max-width: 100%;
+  }
+}
+
+.tk-keys-note kbd + kbd {
+  margin-left: 2px;
+}

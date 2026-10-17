@@ -34,6 +34,40 @@
 
 var ANN_REGISTRY = [
   {
+    id: "tasks-bulk-undo",
+    date: "2026-10-16",
+    title: "Select many tasks, with Undo",
+    summary: "Tick several tasks to complete, reassign, move, reschedule or delete them together. Done, delete and reassign now come with Undo.",
+    roles: ["admin", "bookkeeper"],
+    hash: "#/tasks/my",
+    steps: (ctx) => [
+      {
+        id: "ann-welcome",
+        title: "Select many tasks at once",
+        body: () =>
+          "In My Tasks and every list you can now pick several tasks and act on them together: complete, reopen, reassign, move to a project, change the due date or delete. And most changes can be undone. About a minute.",
+      },
+      {
+        id: "ann-select",
+        go: () => {
+          if (!/^#\/tasks\/my(\?|$)/.test(window.location.hash || "")) window.location.hash = "#/tasks/my";
+        },
+        targets: ["tk-select", "tk-groups"],
+        wait: true,
+        spot: "top",
+        title: "Tick to select",
+        body: () =>
+          "Each row has a checkbox at its left (it shows when you point at the row). Tick it, or press v on the focused row; Shift-click or Shift+V picks a whole run. A bar at the bottom shows how many you picked and what you can do. Esc clears.",
+      },
+      {
+        id: "ann-done",
+        title: "Skips are listed, and Undo",
+        body: () =>
+          "Complete never touches a task that's in review or waiting on a client; the bar says how many it skipped and why, and you can open each one. After a change, the message has Undo for 10 seconds, or press Ctrl+Z (Cmd+Z on a Mac). To see this again, press ? and pick New: Select many tasks, with Undo tour.",
+      },
+    ],
+  },
+  {
     id: "close-checklist-tasks",
     date: "2026-10-16",
     title: "Close steps can be tasks",

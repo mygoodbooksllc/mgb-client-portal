@@ -14,6 +14,10 @@
 //
 // t (TK_ClientDrawerHost) toggles the client tasks panel; list keys pause while it's open.
 //
+// v (P4-3) selects the focused row on lists that pass onSelect (Shift+V: the
+// range). Ctrl/Cmd+Z undoes the last Tasks action only while its Undo toast
+// is up (TK_api.liveUndo) and never while typing in a field.
+//
 // Globals: window.TK_listContext holds the active list's quick add context
 // (client, project and section, or null) while that list has its keys
 // enabled, and is null otherwise. Nothing reads it today; the tk:quick-add
@@ -66,7 +70,7 @@ function TK_vKeyCtx() {
 }
 
 // opts: { ids, focusedId, setFocusedId, onOpen(id), onToggleDone(id),
-//         onStatusMenu(id), onAssign(id), enabled,
+//         onStatusMenu(id), onAssign(id), onSelect(id, shift), enabled,
 //         quickAdd: { client_id?, project_id?, section? } | () => detail }
 // Returns { sheet }: the shortcuts sheet element while `?` has it open.
 function TK_useKeys(opts) {
@@ -106,6 +110,12 @@ function TK_useKeys(opts) {
           if (ref.current.onAssign) ref.current.onAssign(id);
           else TK_vOpenTask(id, { from: "keys", focus: "assignee" });
         },
+        // Lists without selection leave v alone (no onSelect: not handled).
+        onSelect: o.onSelect
+          ? function (id, shift) {
+              if (ref.current.onSelect) ref.current.onSelect(id, shift);
+            }
+          : undefined,
         onQuickAdd: function () {
           var qa = ref.current.quickAdd;
           var detail = typeof qa === "function" ? qa() : qa || {};
@@ -120,7 +130,8 @@ function TK_useKeys(opts) {
       });
       return off || undefined;
     },
-    [enabled],
+    // Rebinds when selection turns on (the schema probe can land after mount).
+    [enabled, !!o.onSelect],
   );
 
   // The list's quick add context, for a QuickAddHost that wants to read it.
@@ -193,11 +204,33 @@ function TK_KeysSheet(props) {
             })}
           </tbody>
         </table>
+        <p className="tk-keys-note">
+          <kbd className="tk-kbd">Ctrl</kbd> or <kbd className="tk-kbd">⌘</kbd> + <kbd className="tk-kbd">Z</kbd> undoes your last
+          Tasks action while its Undo message is on screen.
+        </p>
         <p className="tk-keys-note">Shortcuts pause while you type in a box or have a menu open.</p>
       </div>
     </TK_vModal>
   );
 }
+
+// ---- Undo key (P4-3) --------------------------------------------------------------
+// One document listener for the page: Ctrl/Cmd+Z runs TK_api.undoLive() only
+// while an Undo toast is live; otherwise the key is left to the browser.
+var TK_vUndoKeyBound = false;
+function TK_vBindUndoKey() {
+  if (TK_vUndoKeyBound || typeof document === "undefined") return;
+  TK_vUndoKeyBound = true;
+  document.addEventListener("keydown", function (e) {
+    if (e.defaultPrevented) return;
+    if (typeof TK_isUndoKey !== "function" || !TK_isUndoKey(e)) return;
+    if (typeof TK_api === "undefined" || !TK_api || typeof TK_api.liveUndo !== "function" || !TK_api.liveUndo()) return;
+    e.preventDefault();
+    TK_api.undoLive();
+    TK_vTrack("tasks-undo-key");
+  });
+}
+TK_vBindUndoKey();
 
 // ---- Routes ---------------------------------------------------------------------
 

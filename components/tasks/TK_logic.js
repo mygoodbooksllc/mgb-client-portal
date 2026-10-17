@@ -1042,6 +1042,7 @@ var TK_KEYMAP = [
   { key: "x", display: "x", label: "Mark done or not done", scope: "any", scopes: ["list", "drawer"] },
   { key: "s", display: "s", label: "Change status", scope: "any", scopes: ["list", "drawer"] },
   { key: "a", display: "a", label: "Assign", scope: "any", scopes: ["list", "drawer"] },
+  { key: "v", display: "v", label: "Select a task (Shift+V selects a range)", scope: "list", scopes: ["list"] },
   { key: "q", display: "q", label: "Add a task", scope: "any", scopes: ["global"] },
   { key: "t", display: "t", label: "Open or close this client's tasks", scope: "any", scopes: ["global"] },
   { key: "Escape", display: "Esc", label: "Close details", scope: "drawer", scopes: ["drawer"] },
