@@ -62,7 +62,9 @@ function TK_vKeyCtx() {
   } catch (e) {}
   if (q(".tb-search-list")) menuOpen = true;
   return {
-    modalOpen: !!q(".modal-overlay") || !!q(".tk-cd-layer"),
+    // any open dialog (the Workbench hub, the inbox drawer, …) is a layer:
+    // list keys like v and x never act on the list behind it
+    modalOpen: !!q(".modal-overlay") || !!q(".tk-cd-layer") || !!q('[aria-modal="true"]'),
     menuOpen: menuOpen,
     tourOpen: !!q(".tour-root"),
     scope: "list",

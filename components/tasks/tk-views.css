@@ -2510,11 +2510,15 @@ li.tk-empty-inline {
   visibility: hidden;
 }
 
+/* While a tour step or a tip is up (the last two lines), every box shows, so
+   the one it points at is never an empty spot. */
 .tk-row:hover .tk-sel,
 .tk-row:focus-within .tk-sel,
 .tk-row.is-focused .tk-sel,
 .tk-row.is-selecting .tk-sel,
-.tk-row.is-selected .tk-sel {
+.tk-row.is-selected .tk-sel,
+body:has(.tour-root) .tk-row .tk-sel,
+body:has(.ltip-ring.ltip-on) .tk-row .tk-sel {
   visibility: visible;
 }
 

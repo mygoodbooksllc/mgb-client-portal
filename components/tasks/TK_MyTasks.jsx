@@ -320,7 +320,9 @@ function TK_vMyTasksBody(props) {
   );
 
   // P4-3: multi-select (schema 12+ only; v / Shift+V, checkbox, Shift+click).
-  var bulk = TK_useBulkSelect({ ids: ids, pool: Object.keys(byId), enabled: online, keys: !drawerId });
+  // Only rows on screen stay selected (a collapsed group or hidden done
+  // tasks drop out), so Delete or Reassign never touch a row you can't see.
+  var bulk = TK_useBulkSelect({ ids: ids, enabled: online, keys: !drawerId });
   var bulkStaff = TK_vUseStaff(bulk.count > 0);
 
   var keys = TK_useKeys({

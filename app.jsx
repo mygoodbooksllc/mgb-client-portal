@@ -17122,6 +17122,7 @@ const USAGE_ACTION_LABELS = {
   "tasks-bulk-move_project": "Bulk: tasks moved to a project together",
   "tasks-bulk-set_due": "Bulk: due dates changed together",
   "tasks-undo-key": "Tasks undone with Ctrl or Cmd + Z",
+  "tasks-undo-click": "Tasks undone with the toast's Undo button",
   "tasks-close-tick": "Close steps ticked that moved a task",
   "tasks-close-optin": "Month-end tasks from the Close checklist turned on or off",
   "tasks-dock": "Tasks docked back in the portal",

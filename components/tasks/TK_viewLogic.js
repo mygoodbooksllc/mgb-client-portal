@@ -1030,6 +1030,23 @@ function TK_selList(sel, order) {
   return out;
 }
 
+// Selected ids that are on the list (rows on screen), in list order. Bulk
+// actions use this, so a selected row that was hidden or collapsed is never
+// acted on.
+function TK_selOnList(sel, order) {
+  if (!sel || !sel.ids) return [];
+  var out = [];
+  var seen = {};
+  (Array.isArray(order) ? order : []).forEach(function (id) {
+    var k = String(id);
+    if (sel.ids[k] && !seen[k]) {
+      seen[k] = 1;
+      out.push(k);
+    }
+  });
+  return out;
+}
+
 // Click or v: toggle one row. Shift (click or Shift+V) with an anchor on the
 // list: select every row from the anchor to this one (adds; never clears).
 // max caps the selection (the server takes 100 ids at a time).
@@ -1203,7 +1220,10 @@ function TK_isUndoKey(e) {
   var el = e.target || null;
   if (el) {
     var tag = String(el.tagName || "").toUpperCase();
-    if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return false;
+    var type = String(el.type || (typeof el.getAttribute === "function" ? el.getAttribute("type") : "") || "").toLowerCase();
+    // a checkbox or radio has no text to undo: Ctrl+Z still undoes the task change
+    if (tag === "INPUT" && type !== "checkbox" && type !== "radio") return false;
+    if (tag === "TEXTAREA" || tag === "SELECT") return false;
     if (el.isContentEditable) return false;
     var ce = typeof el.getAttribute === "function" ? el.getAttribute("contenteditable") : null;
     if (ce === "" || ce === "true" || ce === "plaintext-only") return false;
@@ -1294,6 +1314,7 @@ if (typeof module !== "undefined" && module.exports) {
     TK_selCount: TK_selCount,
     TK_selHas: TK_selHas,
     TK_selList: TK_selList,
+    TK_selOnList: TK_selOnList,
     TK_selToggle: TK_selToggle,
     TK_selPrune: TK_selPrune,
     TK_bulkCounts: TK_bulkCounts,

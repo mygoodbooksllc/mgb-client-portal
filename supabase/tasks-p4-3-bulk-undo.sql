@@ -21,6 +21,11 @@
 --      reopens the task and soft-deletes the roll-forward copy only when
 --      nobody touched it. Queued emails not sent yet are marked
 --      skipped/undone; ones already sent are named back to the caller.
+--      Review fixes (applied as migration tasks_p4_3_review_fixes, which
+--      re-created tk__bulk_entry and tk_undo only): undoing a reassign drops
+--      the follower row the reassign added; undoing a first due date set by
+--      a non-admin puts due_date_original back; review-ready emails count as
+--      already sent.
 --   4. notify_enqueue_task_assigned (from the LIVE body) also stays quiet
 --      under mgb.tk_bulk (the bulk call queues its own, with the extra
 --      test/internal-client rule), mgb.tk_rollforward (a roll-forward copy
@@ -134,7 +139,8 @@ as $$
     'approved_by', b.approved_by, 'approved_at', b.approved_at,
     'updated_at_after', a.updated_at, 'spawned', p_spawned,
     'after', jsonb_build_object('status', a.status, 'assignee_email', a.assignee_email,
-                                'project_id', a.project_id, 'due_date', a.due_date, 'deleted_at', a.deleted_at))
+                                'project_id', a.project_id, 'due_date', a.due_date, 'deleted_at', a.deleted_at,
+                                'due_date_original', a.due_date_original))
 $$;
 
 -- Writes the log row (or nothing when no task changed) and returns its id.
@@ -518,6 +524,7 @@ declare
   v_reason text;
   v_sp uuid;
   v_keep_series boolean;
+  v_orig_back boolean;
   v_admin boolean := public.is_active_staff_admin();
   v_done jsonb := '[]'::jsonb;
   v_skipped jsonb := '[]'::jsonb;
@@ -597,14 +604,35 @@ begin
         update public.staff_reminders set deleted_at = null where id = v_id;
       elsif o.kind = 'reassign' then
         update public.staff_reminders set assignee_email = e ->> 'assignee_email' where id = v_id;
+        -- the autofollow trigger made the new assignee a follower; take that
+        -- back (it would still let them read the task and get its notices),
+        -- unless they were already following, own the task or had it before
+        delete from public.tk_followers f
+         where f.task_id = v_id
+           and lower(f.staff_email) = lower(e -> 'after' ->> 'assignee_email')
+           and f.added_at >= o.created_at
+           and lower(f.staff_email) <> lower(coalesce(r.staff_email, ''))
+           and lower(f.staff_email) <> lower(coalesce(e ->> 'assignee_email', ''));
       elsif o.kind = 'move_project' then
         update public.staff_reminders set project_id = (e ->> 'project_id')::uuid where id = v_id;
       elsif o.kind = 'set_due' then
+        -- due_date_original: an admin gets the old value back; for anyone
+        -- else it goes back only when this op set it (it was empty before
+        -- and still holds what the op wrote). The trigger owns the column,
+        -- so that one write runs with mgb.tk_migrate.
+        v_orig_back := v_admin
+          or (e ->> 'due_date_original' is null
+              and r.due_date_original is not distinct from
+                  coalesce((e -> 'after' ->> 'due_date_original')::date, (e -> 'after' ->> 'due_date')::date));
+        if v_orig_back and not v_admin then
+          perform set_config('mgb.tk_migrate', 'on', true);
+        end if;
         update public.staff_reminders
            set due_date = (e ->> 'due_date')::date,
                due_at = (e ->> 'due_at')::timestamptz,
-               due_date_original = case when v_admin then (e ->> 'due_date_original')::date else due_date_original end
+               due_date_original = case when v_orig_back then (e ->> 'due_date_original')::date else due_date_original end
          where id = v_id;
+        perform set_config('mgb.tk_migrate', '', true);
       end if;
     exception when others then
       v_reason := public.tk__bulk_reason(sqlerrm);
@@ -627,7 +655,8 @@ begin
   select coalesce(jsonb_agg(distinct coalesce(st.name, n.recipient_email)), '[]'::jsonb) into v_emailed
     from public.notification_outbox n
     left join public.staff st on lower(st.email) = n.recipient_email
-   where n.id = any (o.outbox_ids) and n.status = 'sent' and n.kind = 'staff_task_assigned';
+   where n.id = any (o.outbox_ids) and n.status = 'sent'
+     and n.kind in ('staff_task_assigned', 'staff_task_review_ready');
 
   return jsonb_build_object('op_id', o.id, 'kind', o.kind, 'done', v_done, 'skipped', v_skipped,
                             'spawned_removed', v_removed, 'spawned_kept', v_kept,

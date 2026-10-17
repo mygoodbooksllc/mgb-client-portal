@@ -1154,11 +1154,9 @@ function TK_vListBody(props) {
   var readOnly = archived || !online;
 
   // P4-3: multi-select (schema 12+ only; v / Shift+V, checkbox, Shift+click).
+  // Only rows on screen stay selected (a collapsed section drops out).
   var bulk = TK_useBulkSelect({
     ids: ids,
-    pool: shown.map(function (t) {
-      return t && t.id != null ? String(t.id) : "";
-    }),
     enabled: !readOnly,
     keys: !drawerId,
   });

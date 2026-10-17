@@ -1076,7 +1076,15 @@ var TK_api = (function () {
       until: Date.now() + UNDO_MS,
     };
     undoState.live = live;
-    raiseToast(text, { label: "Undo", onClick: function () { runUndo(live); } }, key);
+    raiseToast(text, {
+      label: "Undo",
+      onClick: function () {
+        runUndo(live);
+        try {
+          if (typeof TK_vTrack === "function") TK_vTrack("tasks-undo-click");
+        } catch (e) {}
+      },
+    }, key);
     return live;
   };
 

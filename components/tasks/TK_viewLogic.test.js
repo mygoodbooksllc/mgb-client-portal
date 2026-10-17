@@ -892,6 +892,24 @@ t("selPrune drops rows that left the list and keeps identity when nothing change
   assert.deepStrictEqual(L.TK_selList({ ids: { z: true, a: true }, anchor: null }, ["a"]), ["a", "z"]);
 });
 
+t("a selection pruned to the rows on screen drops collapsed and hidden rows", () => {
+  // a, b in an open group; c in a group that gets collapsed; d done and hidden
+  const view = [
+    { key: "g1", tasks: [{ id: "a" }, { id: "b" }] },
+    { key: "g2", collapsed: true, tasks: [{ id: "c" }] },
+  ];
+  const onScreen = L.TK_focusIds(view);
+  assert.deepStrictEqual(onScreen, ["a", "b"]);
+  const s = { ids: { a: true, c: true, d: true }, anchor: "c" };
+  assert.deepStrictEqual(L.TK_selOnList(s, onScreen), ["a"], "only on-screen rows are acted on");
+  const p = L.TK_selPrune(s, onScreen);
+  assert.deepStrictEqual(Object.keys(p.ids), ["a"]);
+  assert.strictEqual(p.anchor, null);
+  assert.deepStrictEqual(L.TK_selOnList(p, onScreen), ["a"]);
+  assert.deepStrictEqual(L.TK_selOnList(null, onScreen), []);
+  assert.deepStrictEqual(L.TK_selOnList({ ids: { b: true, a: true }, anchor: null }, ["a", "b", "a"]), ["a", "b"], "list order, once each");
+});
+
 t("bulkCounts", () => {
   const c = L.TK_bulkCounts([
     { status: "todo" }, { status: "in_progress" }, { status: "done" }, { done: true },
@@ -966,6 +984,10 @@ t("isUndoKey: Ctrl/Cmd+Z only, never while typing", () => {
   assert.ok(!L.TK_isUndoKey({ key: "z", metaKey: true, target: { tagName: "DIV", getAttribute: (a) => (a === "contenteditable" ? "true" : null) } }));
   assert.ok(!L.TK_isUndoKey({ key: "z", metaKey: true, target: { tagName: "DIV", getAttribute: (a) => (a === "role" ? "textbox" : null) } }));
   assert.ok(!L.TK_isUndoKey(null));
+  // a checkbox or radio has no text to undo
+  assert.ok(L.TK_isUndoKey({ key: "z", metaKey: true, target: { tagName: "INPUT", type: "checkbox", getAttribute: () => null } }), "checkbox");
+  assert.ok(L.TK_isUndoKey({ key: "z", ctrlKey: true, target: { tagName: "INPUT", getAttribute: (a) => (a === "type" ? "radio" : null) } }), "radio");
+  assert.ok(!L.TK_isUndoKey({ key: "z", metaKey: true, target: { tagName: "INPUT", type: "text", getAttribute: () => null } }), "text input");
 });
 
 t("bulkDuePatch", () => {

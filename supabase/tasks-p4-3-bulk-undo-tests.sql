@@ -265,6 +265,9 @@ select pg_temp.ok(pg_temp.reason('r6', 'r_bk') = 'assignee_no_access' and (pg_te
 select pg_temp.as_user(null);
 update clients set test_only = false where id = 'basic-test';   -- a real-looking client, this transaction only
 select pg_temp.mk('m1', 'a1', 'basic-test', 'shared');
+-- bk already followed r_noc before the reassign: undo must keep that row
+insert into tk_followers (task_id, staff_email, added_by, added_at)
+values (pg_temp.id('r_noc'), pg_temp.ctx('bk'), pg_temp.ctx('a1'), now() - interval '1 hour') on conflict do nothing;
 select pg_temp.as_user(pg_temp.ctx('a1'));
 insert into t_ctx select 'r7', public.tk_bulk_update(array[pg_temp.id('m1'), pg_temp.id('r_noc')], jsonb_build_object('assignee_email', pg_temp.ctx('bk')))::text;
 select pg_temp.as_user(null);
@@ -283,6 +286,9 @@ select pg_temp.ok(pg_temp.mails('m2') = 0, 'internal client: no bulk email');
 update clients set is_internal = false where id = 'basic-test';
 update clients set is_internal = true where id = pg_temp.ctx('internal');
 
+select pg_temp.ok(exists (select 1 from tk_followers where task_id = pg_temp.id('m1') and lower(staff_email) = pg_temp.ctx('bk')),
+                  'the new assignee follows the task');
+
 -- race: the sender already sent m1's email; r_noc's is still queued
 update notification_outbox set status = 'sent', processed_at = now()
  where ref_id = pg_temp.ctx('m1') and kind = 'staff_task_assigned';
@@ -297,6 +303,11 @@ select pg_temp.ok((select status = 'sent' from notification_outbox where ref_id 
               and jsonb_array_length(pg_temp.res('u7') -> 'already_emailed') = 1 and (pg_temp.res('u7') ->> 'emails_cancelled')::int = 1,
                   'sent email stays sent and is named back');
 select pg_temp.ok(pg_temp.mails('m1') = 1 and pg_temp.mails('r_noc') = 1, 'undo queues no new email');
+select pg_temp.ok(not exists (select 1 from tk_followers where task_id = pg_temp.id('m1') and lower(staff_email) = pg_temp.ctx('bk')),
+                  'undo reassign drops the follower row the reassign added');
+select pg_temp.ok(exists (select 1 from tk_followers where task_id = pg_temp.id('r_noc') and lower(staff_email) = pg_temp.ctx('bk'))
+              and exists (select 1 from tk_followers where task_id = pg_temp.id('m1') and lower(staff_email) = pg_temp.ctx('a1')),
+                  'undo keeps an older follower row and the owner''s row');
 
 -- 7. The assignment trigger: each flag still suppresses -------------------------------
 select pg_temp.mk('n1', 'a1', 'basic-test', 'shared');
@@ -360,6 +371,11 @@ select pg_temp.ok((pg_temp.task('d1')).due_date = date '2026-10-20' and (pg_temp
                   'undo restores date and time');
 insert into t_ctx select 'r11', public.tk_bulk_update(array[pg_temp.id('d2')], '{"due_date":"2026-11-02"}')::text;
 select pg_temp.ok((pg_temp.task('d2')).due_date = date '2026-11-02', 'set a due date');
+select pg_temp.ok((pg_temp.task('d2')).due_date_original = date '2026-11-02', 'a first due date also sets the original date');
+insert into t_ctx select 'u11', public.tk_undo((pg_temp.res('r11') ->> 'op_id')::uuid)::text;
+select pg_temp.ok((pg_temp.task('d2')).due_date is null and (pg_temp.task('d2')).due_date_original is null
+              and coalesce(current_setting('mgb.tk_migrate', true), '') = '',
+                  'a non-admin undo of a first due date clears the original too, and drops the bypass flag');
 select pg_temp.as_user(null);
 
 -- 10. Reopen: approved rows need an admin; undo puts the approval back --------------------

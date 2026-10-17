@@ -1890,7 +1890,18 @@ Team Reviews files.
     `data-tour="tk-select"` in `TK_TaskRow.jsx`; keys `v` / Shift+V (range), Esc clears, Ctrl/Cmd+Z undoes
     while the toast shows (`TK_vBindUndoKey`); toasts take `action` + `key` and `mgb:toast-dismiss`. Tests in
     `TK_viewLogic.test.js`, `TK_logic.test.js`, `TK_store.test.js`. Usage Stats `tasks-bulk-<kind>`,
-    `tasks-undo-key`.
+    `tasks-undo-key`, `tasks-undo-click` (the toast's Undo button).
+  - Review fixes (P4-3), migration `tasks_p4_3_review_fixes` (same SQL file; `tk__bulk_entry` + `tk_undo`):
+    undoing a reassign also drops the follower row the reassign added for the new assignee (an older row,
+    the owner and the person it went back to keep theirs); undoing a due date a non-admin set first puts
+    `due_date_original` back too (written under `mgb.tk_migrate`); the "already emailed" names also count
+    `staff_task_review_ready`. Client: the selection only keeps rows on screen (`TK_selOnList`, pruned
+    against the focus order), so collapsed or hidden rows are never acted on; the 100-task cap notice is
+    raised outside the state updater; any `[aria-modal="true"]` layer (the Workbench hub) pauses list keys;
+    Ctrl/Cmd+Z still undoes from a check box or radio; the row check boxes show while a tour step or tip is
+    up. Deferred: an email sent in the gap after undo (needs a `notification-emails` change), the
+    roll-forward copy showing in Trash after undo, a project-membership check on bulk reassign, and the
+    `tk__bulk_record` race.
   - Upkeep (P4-3): launch announcement `tasks-bulk-undo` (3 steps), tip `tk-select`, guide article
     `select-many-tasks` (and `my-tasks`, `tips`, `whats-new`), Dev Tools INFRA_LINKS entry and PAGE_META.
 - **Workbench (Tasks Phase 3), 2026-10-16** (`supabase/workbench-1-core.sql`, applied; self-test

@@ -17,10 +17,14 @@
 // stays up with an "N skipped" button that lists them by reason.
 // ----------------------------------------------------------------------------
 
-// opts: { ids: row order (focus order), pool: every id still on the list,
+// opts: { ids: the rows on screen, in focus order (collapsed groups and
+//         hidden done tasks left out),
 //         enabled: false to switch it off (read-only lists),
 //         keys: false while list keys are paused (Esc then left alone) }
 // Returns { ready, count, sel, ids(), has(id), toggle(id, shift), clear() }.
+// Only rows on screen stay selected: a row that is filtered out, hidden,
+// collapsed, deleted or moved leaves the selection, so a bulk action never
+// touches a task the person cannot see.
 function TK_useBulkSelect(opts) {
   var o = opts || {};
   // Re-render when the schema probe lands (bulkReady reads its version).
@@ -32,18 +36,16 @@ function TK_useBulkSelect(opts) {
   var sel = pair[0];
   var setSel = pair[1];
   var order = Array.isArray(o.ids) ? o.ids : [];
-  var pool = Array.isArray(o.pool) ? o.pool : order;
-  var poolKey = pool.join("|");
+  var orderKey = order.join("|");
 
-  // Rows that left the list (filtered, deleted, moved) leave the selection.
   React.useEffect(
     function () {
       setSel(function (s) {
-        return TK_selPrune(s, pool);
+        return TK_selPrune(s, order);
       });
     },
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [poolKey],
+    [orderKey],
   );
   React.useEffect(
     function () {
@@ -52,15 +54,25 @@ function TK_useBulkSelect(opts) {
     [ready],
   );
 
-  var count = ready ? TK_selCount(sel) : 0;
+  // Counted and acted on against the rows on screen, even in the one render
+  // before the prune above lands.
+  var visible = ready ? TK_selOnList(sel, order) : [];
+  var count = visible.length;
   var orderRef = React.useRef(order);
   orderRef.current = order;
+  var selRef = React.useRef(sel);
+  selRef.current = sel;
   var toggle = React.useCallback(function (id, shift) {
+    var max = typeof TK_api !== "undefined" && TK_api && TK_api.BULK_MAX ? TK_api.BULK_MAX : 100;
+    var cur = selRef.current;
+    // The cap notice is shown here, not inside the state updater (React may
+    // run an updater twice).
+    if (TK_selToggle(cur, id, orderRef.current, !!shift, max) === cur && !TK_selHas(cur, id)) {
+      TK_vToast("You can select up to " + max + " tasks at a time.");
+      return;
+    }
     setSel(function (s) {
-      var max = typeof TK_api !== "undefined" && TK_api && TK_api.BULK_MAX ? TK_api.BULK_MAX : 100;
-      var next = TK_selToggle(s, id, orderRef.current, !!shift, max);
-      if (next === s && !TK_selHas(s, id)) TK_vToast("You can select up to " + max + " tasks at a time.");
-      return next;
+      return TK_selToggle(s, id, orderRef.current, !!shift, max);
     });
   }, []);
   var clear = React.useCallback(function () {
@@ -98,10 +110,10 @@ function TK_useBulkSelect(opts) {
     count: count,
     sel: sel,
     ids: function () {
-      return TK_selList(sel, orderRef.current);
+      return visible.slice();
     },
     has: function (id) {
-      return ready && TK_selHas(sel, id);
+      return ready && id != null && visible.indexOf(String(id)) >= 0;
     },
     toggle: toggle,
     clear: clear,

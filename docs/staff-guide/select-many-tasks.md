@@ -13,7 +13,7 @@ In **My Tasks**, a client's or project's list and a person's list, you can pick 
 - On the keyboard, move to a row with **j** / **k** and press **v** to select it. **Shift+V** selects every task from the last one you picked to this one. **Shift-click** on a check box does the same.
 - Selected rows are shaded, and a bar at the bottom of the page says how many you picked.
 - **Esc**, or **Clear** in the bar, clears the selection. You can pick up to 100 tasks at a time.
-- A task in a folded group stays selected while the group is folded.
+- Only tasks you can see stay selected. Folding a group, hiding done tasks or filtering a task out unselects it, so a change never reaches a task that's off screen.
 
 The check boxes only show while you're online.
 
@@ -23,7 +23,7 @@ The check boxes only show while you're online.
 |---|---|
 | **Complete** | Marks the selected tasks done. A task that needs review goes to review instead, as it would if you ticked it. |
 | **Reopen** | Shows when some selected tasks are done. Moves them back to **To do**. |
-| **Reassign** | Pick a teammate to give them the tasks. They get the usual assignment email. |
+| **Reassign** | Pick a teammate to give them the tasks. They get the usual assignment email, except on a test client or MGB (internal). That's the same when you reassign one task from its details. |
 | **Move to project** | Pick a project, or **No project**. A task never changes client this way. |
 | **Due date** | **+1 day**, **+1 week**, **−1 day**, **No due date**, or **Pick a date…** for one date for all of them. |
 | **Delete** | Asks *Delete N tasks?* first. Deleted tasks can be restored from the task's details, as before. |
@@ -43,7 +43,7 @@ After you complete, reopen, reassign, move, reschedule or delete tasks (many, or
 - Ticking one task's done box, and deleting or reassigning one task from its details, can be undone the same way.
 - Undo puts back what the action changed. A task someone changed in the meantime is left as it is, and the message says so.
 - Undoing a done recurring task also removes the next copy it made, unless someone already worked on that copy.
-- An assignment email that hasn't gone out yet is cancelled. One that already went is named in the message, so you can tell the person.
+- An assignment email that hasn't gone out yet is cancelled. One that already went is named in the message, so you can tell the person. Undoing a reassign also takes the new person off the task's followers.
 - If the message has gone, the change stays. *Too late to undo that one.* means the moment passed; change the tasks back by hand.
 
 ### Troubleshooting
