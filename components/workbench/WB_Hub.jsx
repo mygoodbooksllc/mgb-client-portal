@@ -265,7 +265,7 @@ function WB_Hub({ s, me, isAdmin, clients, panelRef, view, allView, chip, today,
   return (
     <>
       <div className="wb-scrim" onClick={() => WB_store.setDrawerOpen(false)} aria-hidden="true" />
-      <div ref={panelRef} className="wb-panel" role="dialog" aria-modal="true" aria-labelledby="wb-panel-title" tabIndex={-1} data-tk-keyscope="drawer">
+      <div ref={panelRef} className="wb-panel wb-glass" role="dialog" aria-modal="true" aria-labelledby="wb-panel-title" tabIndex={-1} data-tk-keyscope="drawer">
         <div className="wb-panel-head">
           <h2 className="wb-panel-title" id="wb-panel-title">
             {WB_NAME} <span className="wb-chip-n">{count}</span>

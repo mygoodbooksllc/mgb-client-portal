@@ -19,6 +19,36 @@
   --wb-bar-h: 44px;
   --wb-bar-left: 0px;
   --wb-panel-max: 1100px; /* the list's reading width inside the full-width panel */
+  /* Desk glass (spec D2): light set here, dark sets below (twice, the styles.css pattern). */
+  --desk-max-w: 640px; /* Desk + bar width; set to 100vw to go back to full width */
+  --desk-radius: 16px;
+  --desk-glass-blur: 22px;
+  --desk-glass-sat: 1.6;
+  --desk-glass-bg: rgba(255, 255, 255, 0.62);
+  --desk-glass-edge: rgba(255, 255, 255, 0.7);
+  --desk-glass-shadow: 0 -10px 36px rgba(15, 23, 42, 0.16), inset 0 1px 0 rgba(255, 255, 255, 0.55);
+  --desk-row-bg: rgba(255, 255, 255, 0.8);
+  --desk-row-bg-hover: rgba(255, 255, 255, 0.94);
+  --desk-solid-bg: var(--surface);
+  --desk-grip: rgba(15, 23, 42, 0.28);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --desk-glass-bg: rgba(22, 28, 40, 0.58);
+    --desk-glass-edge: rgba(255, 255, 255, 0.12);
+    --desk-glass-shadow: 0 -10px 36px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+    --desk-row-bg: rgba(255, 255, 255, 0.06);
+    --desk-row-bg-hover: rgba(255, 255, 255, 0.1);
+    --desk-grip: rgba(255, 255, 255, 0.3);
+  }
+}
+:root[data-theme="dark"] {
+  --desk-glass-bg: rgba(22, 28, 40, 0.58);
+  --desk-glass-edge: rgba(255, 255, 255, 0.12);
+  --desk-glass-shadow: 0 -10px 36px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  --desk-row-bg: rgba(255, 255, 255, 0.06);
+  --desk-row-bg-hover: rgba(255, 255, 255, 0.1);
+  --desk-grip: rgba(255, 255, 255, 0.3);
 }
 
 /* ---- Page card ---- */
@@ -533,6 +563,8 @@ html.wb-drawer-on .chat-fab-wrap {
   left: var(--wb-bar-left, 0px);
   right: 0;
   bottom: 0;
+  width: min(var(--desk-max-w), calc(100vw - var(--wb-bar-left, 0px) - 32px));
+  margin-inline: auto; /* centered in the space right of the rail */
   z-index: var(--wb-z-bar);
   box-sizing: border-box;
   height: calc(var(--wb-bar-h) + env(safe-area-inset-bottom, 0px));
@@ -540,11 +572,14 @@ html.wb-drawer-on .chat-fab-wrap {
   align-items: center;
   gap: 10px;
   padding: 0 20px env(safe-area-inset-bottom, 0px);
-  border: 0;
-  border-top: 1px solid var(--border);
-  background: var(--surface);
+  border: 1px solid var(--desk-glass-edge);
+  border-bottom: 0;
+  border-radius: var(--desk-radius) var(--desk-radius) 0 0;
+  background: var(--desk-glass-bg);
+  -webkit-backdrop-filter: blur(var(--desk-glass-blur)) saturate(var(--desk-glass-sat));
+  backdrop-filter: blur(var(--desk-glass-blur)) saturate(var(--desk-glass-sat));
   color: var(--text);
-  box-shadow: 0 -4px 16px rgba(26, 40, 48, 0.08);
+  box-shadow: var(--desk-glass-shadow);
   font: inherit;
   font-size: 13.5px;
   cursor: pointer;
@@ -560,10 +595,9 @@ html.wb-drawer-on .chat-fab-wrap {
 }
 .wb-bar.is-open {
   box-shadow: none;
-  background: var(--surface-2);
 }
 .wb-bar:hover {
-  background: var(--hover-bg);
+  background: var(--desk-row-bg-hover);
 }
 .wb-bar-name {
   font-weight: 700;
@@ -615,16 +649,18 @@ html.wb-drawer-on .chat-fab-wrap {
   position: fixed;
   left: var(--wb-bar-left, 0px);
   right: 0;
+  width: min(var(--desk-max-w), calc(100vw - var(--wb-bar-left, 0px) - 32px));
+  margin-inline: auto; /* same width as the bar, centered right of the rail */
   bottom: calc(var(--wb-bar-h) + env(safe-area-inset-bottom, 0px)); /* sits above the bar */
   z-index: var(--wb-z-panel);
   box-sizing: border-box;
   max-height: min(78vh, 720px);
   display: flex;
   flex-direction: column;
-  border: 0;
-  border-top: 1px solid var(--border);
-  border-radius: 14px 14px 0 0;
-  background: var(--surface);
+  border: 1px solid var(--desk-glass-edge);
+  border-bottom: 0;
+  border-radius: var(--desk-radius) var(--desk-radius) 0 0;
+  background: var(--desk-solid-bg);
   box-shadow: var(--shadow-hover, 0 -8px 28px rgba(0, 0, 0, 0.2));
   outline: none;
   animation: wb-rise 0.16s ease-out;
@@ -636,6 +672,81 @@ html.wb-drawer-on .chat-fab-wrap {
 .wb-panel-body,
 .wb-panel-foot {
   padding-inline: max(16px, calc((100% - var(--wb-panel-max)) / 2));
+}
+/* ---- Desk glass (spec D2): only the Desk panel and its collapsed bar ----
+   Menus, modals, tours, the search palette, drawers and the picker list stay
+   solid. The panel is solid by default and turns to glass on .wb-glass. */
+.wb-panel.wb-glass {
+  background: var(--desk-glass-bg);
+  -webkit-backdrop-filter: blur(var(--desk-glass-blur)) saturate(var(--desk-glass-sat));
+  backdrop-filter: blur(var(--desk-glass-blur)) saturate(var(--desk-glass-sat));
+  box-shadow: var(--desk-glass-shadow);
+}
+/* Inner layer: rows, the quick add and the picker input sit on a lighter
+   layer so text keeps 4.5:1 over a busy page. */
+.wb-panel.wb-glass .tk-rows {
+  background: var(--desk-row-bg);
+  border-radius: 10px;
+}
+.wb-panel.wb-glass .tk-row,
+.wb-panel.wb-glass .wb-row {
+  background: transparent;
+}
+.wb-panel.wb-glass .tk-row:hover,
+.wb-panel.wb-glass .wb-row:hover,
+.wb-panel.wb-glass .tk-row.is-focused,
+.wb-panel.wb-glass .tk-row:focus-visible {
+  background: var(--desk-row-bg-hover);
+}
+.wb-panel.wb-glass .wb-pick-input {
+  background: var(--desk-row-bg);
+  border-radius: 10px;
+}
+.wb-panel.wb-glass .wb-hub-tasks .tk-group-head {
+  background: var(--desk-glass-bg);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+}
+/* Solid fallbacks: no backdrop-filter, reduced transparency, forced colors,
+   and the phone sheet (it covers the page, so glass adds cost, no benefit). */
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .wb-panel.wb-glass,
+  .wb-bar,
+  .wb-panel.wb-glass .wb-hub-tasks .tk-group-head {
+    background: var(--desk-solid-bg);
+  }
+  .wb-panel.wb-glass .tk-rows,
+  .wb-panel.wb-glass .wb-pick-input {
+    background: var(--surface-2);
+  }
+  .wb-bar:hover {
+    background: var(--hover-bg);
+  }
+}
+@media (prefers-reduced-transparency: reduce) {
+  .wb-panel.wb-glass,
+  .wb-bar,
+  .wb-panel.wb-glass .wb-hub-tasks .tk-group-head {
+    background: var(--desk-solid-bg);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+  .wb-panel.wb-glass .tk-rows,
+  .wb-panel.wb-glass .wb-pick-input {
+    background: var(--surface-2);
+  }
+  .wb-bar:hover {
+    background: var(--hover-bg);
+  }
+}
+@media (forced-colors: active) {
+  .wb-panel.wb-glass,
+  .wb-bar,
+  .wb-panel.wb-glass .wb-hub-tasks .tk-group-head {
+    background: var(--desk-solid-bg);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
 }
 @keyframes wb-rise {
   from {
@@ -822,6 +933,11 @@ html.wb-stacked .wb-scrim {
      panel is a full-height sheet. */
   .wb-bar {
     left: 0;
+    width: auto;
+    margin-inline: 0;
+    border-left: 0;
+    border-right: 0;
+    border-radius: 0;
     padding-inline: 14px;
   }
   .wb-bar-hint {
@@ -829,10 +945,23 @@ html.wb-stacked .wb-scrim {
   }
   .wb-panel {
     inset: 0 0 calc(var(--wb-bar-h) + env(safe-area-inset-bottom, 0px)) 0;
+    width: auto;
+    margin-inline: 0;
     max-height: none;
+    border: 0;
     border-radius: 0;
-    border-top: 0;
     padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  /* The sheet covers the page: solid, no blur. */
+  .wb-panel.wb-glass,
+  .wb-panel.wb-glass .wb-hub-tasks .tk-group-head {
+    background: var(--desk-solid-bg);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+  .wb-panel.wb-glass .tk-rows,
+  .wb-panel.wb-glass .wb-pick-input {
+    background: var(--surface);
   }
   .wb-panel-head,
   .wb-panel-tools,
