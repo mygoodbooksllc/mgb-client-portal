@@ -582,10 +582,61 @@ t("Client tab: pin toggle puts the newest first and drops the oldest past the ca
   assert.deepStrictEqual(L.WB_pinsToggle(["a"], 5).pins, ["5", "a"]); // numeric ids become strings
 });
 
-t("Client tab: pins I can't open are pruned, but not before the list loads", () => {
-  assert.deepStrictEqual(L.WB_pinsPrune(["c1", "gone", "c3"], CL), ["c1", "c3"]);
-  assert.deepStrictEqual(L.WB_pinsPrune(["c1", "gone"], []), ["c1", "gone"]);
-  assert.deepStrictEqual(L.WB_pinsPrune(["c1", "gone"], null), ["c1", "gone"]);
+t("Client tab: pins missing from a (partial) client list are hidden, never removed", () => {
+  const pins = ["c1", "gone", "c3"];
+  const partial = CL.filter((c) => c.id === "c3");
+  const o = L.WB_hubClientOptions(partial, pins, [], "");
+  assert.deepStrictEqual(o.sections[0].items.map((i) => i.id), ["c3"]);
+  assert.deepStrictEqual(pins, ["c1", "gone", "c3"]); // the saved list is untouched
+  assert.deepStrictEqual(L.WB_hubClientOptions([], pins, [], "").items, []);
+  // Once the full list is in, c1 is listed as pinned again.
+  assert.deepStrictEqual(L.WB_hubClientOptions(CL, pins, [], "").sections[0].items.map((i) => i.id), ["c1", "c3"]);
+  assert.strictEqual(typeof L.WB_pinsPrune, "undefined"); // nothing rewrites pins from a list
+});
+
+t("Client tab: the picker hides MGB (internal) and, unless shown, test clients", () => {
+  const list = [
+    { id: "a", name: "Acme" },
+    { id: "m", name: "MGB", isInternal: true },
+    { id: "t", name: "Test Co", testOnly: true },
+    null,
+  ];
+  assert.deepStrictEqual(L.WB_hubPickerPool(list, false, null).map((c) => c.id), ["a"]);
+  assert.deepStrictEqual(L.WB_hubPickerPool(list, true, null).map((c) => c.id), ["a", "t"]);
+  assert.deepStrictEqual(L.WB_hubPickerPool(list, false, "t").map((c) => c.id), ["a", "t"]); // the one on screen stays
+  assert.deepStrictEqual(L.WB_hubPickerPool(list, true, "m").map((c) => c.id), ["a", "t"]); // internal never listed
+  assert.deepStrictEqual(L.WB_hubPickerPool(null, true, null), []);
+  // Access is still decided by the full list.
+  assert.strictEqual(L.WB_hubPickClient("m", null, list.filter(Boolean)).access, true);
+});
+
+t("Client tab: a capped picker says how many there are", () => {
+  const lots = Array.from({ length: 70 }, (_, i) => ({ id: "k" + i, name: "Kay " + String(i).padStart(2, "0") }));
+  const o = L.WB_hubClientOptions(lots, ["k5"], ["k6"], "");
+  assert.strictEqual(o.items.length, L.WB_HUB_PICK_LIMIT);
+  assert.strictEqual(o.total, 70);
+  assert.strictEqual(o.capped, true);
+  const q = L.WB_hubClientOptions(lots, [], [], "kay 1");
+  assert.strictEqual(q.total, 10);
+  assert.strictEqual(q.capped, false);
+});
+
+t("Client tab: the saved scroll belongs to its client; another client starts at the top", () => {
+  const h = L.WB_hubClean({ clientId: "a", scrollClientId: "a", scroll: { client: 300, tasks: 40 } });
+  assert.strictEqual(h.scroll.client, 300);
+  assert.strictEqual(h.scrollClientId, "a");
+  const moved = L.WB_hubMerge(h, { clientId: "b" });
+  assert.strictEqual(moved.scroll.client, 0);
+  assert.strictEqual(moved.scrollClientId, null);
+  assert.strictEqual(moved.scroll.tasks, 40); // other tabs keep theirs
+  assert.strictEqual(L.WB_hubClean({ clientId: "b", scrollClientId: "a", scroll: { client: 300 } }).scroll.client, 0);
+  // Saved and read back with the client it belongs to.
+  const raw = L.WB_hubSerialize(h, 1000, "#/today");
+  const back = L.WB_hubParse(raw, 2000, { hash: "#/today" });
+  assert.strictEqual(back.scroll.client, 300);
+  assert.strictEqual(back.scrollClientId, "a");
+  const other = L.WB_hubParse(raw.replace('"clientId":"a"', '"clientId":"b"'), 2000, { hash: "#/today" });
+  assert.strictEqual(other.scroll.client, 0);
 });
 
 t("Client tab: the route client wins, then the saved one; no access never shows a name", () => {
@@ -618,7 +669,7 @@ t("Client tab: picker rows with no query are Pinned, Recent, then All clients", 
   const lots = Array.from({ length: 9 }, (_, i) => ({ id: "r" + i, name: "R " + i }));
   const r = L.WB_hubClientOptions(lots, [], lots.map((c) => c.id), "");
   assert.strictEqual(r.sections[0].items.length, L.WB_HUB_RECENT_MAX);
-  assert.deepStrictEqual(L.WB_hubClientOptions([], ["c1"], ["c1"], ""), { sections: [], items: [] });
+  assert.deepStrictEqual(L.WB_hubClientOptions([], ["c1"], ["c1"], ""), { sections: [], items: [], total: 0, capped: false });
 });
 
 t("Client tab: a query lists starts-with first, then contains, by name; only my clients", () => {
@@ -634,11 +685,21 @@ t("Client tab: own list key, Esc in a field with text", () => {
   assert.strictEqual(L.WB_hubClientListKey(7), "wb:client:7");
   assert.strictEqual(L.WB_hubClientListKey(""), null);
   assert.strictEqual(L.WB_hubClientListKey(null), null);
-  assert.strictEqual(L.WB_escKeepsField("INPUT", "abc", true), true);
-  assert.strictEqual(L.WB_escKeepsField("textarea", "x", true), true);
-  assert.strictEqual(L.WB_escKeepsField("INPUT", "", true), false);
-  assert.strictEqual(L.WB_escKeepsField("INPUT", "abc", false), false);
-  assert.strictEqual(L.WB_escKeepsField("BUTTON", "abc", true), false);
+  const esc = (f) => L.WB_escKeepsField(Object.assign({ tag: "INPUT", type: "text", value: "abc", inPanel: true, clears: true }, f));
+  // The add row and the picker (they clear themselves on Esc) keep Esc while they have text.
+  assert.strictEqual(esc({}), true);
+  assert.strictEqual(esc({ tag: "textarea", type: "textarea", value: "x" }), true);
+  assert.strictEqual(esc({ value: "" }), false);
+  assert.strictEqual(esc({ inPanel: false }), false);
+  assert.strictEqual(esc({ tag: "BUTTON" }), false);
+  // A checked checkbox or radio has a value but never clears: Esc closes the hub.
+  assert.strictEqual(esc({ type: "checkbox", value: "on" }), false);
+  assert.strictEqual(esc({ type: "radio", value: "on" }), false);
+  // A filled contacts-form field (not self-clearing) lets Esc close the hub.
+  assert.strictEqual(esc({ clears: false, value: "pat@example.com", type: "email" }), false);
+  assert.strictEqual(L.WB_escKeepsField(null), false);
+  // The selector names the self-clearing fields.
+  [".tk-add-input", ".wb-pick-input", "[data-esc-clears]"].forEach((s) => assert.ok(L.WB_ESC_CLEARS_SEL.indexOf(s) >= 0));
 });
 
 t("Client tab: the picker list is a layer above the hub, not a stacked one", () => {

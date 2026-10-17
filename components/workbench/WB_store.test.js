@@ -453,6 +453,25 @@ t("Client tab pins: saved per person, newest first, capped, cleared when empty, 
   assert.ok(Object.keys(c.store).every((k) => k.indexOf("mgb_wb_pins:") !== 0 || k === P("sam@mgb.com")));
 });
 
+t("Client tab pins: toggle works from the pins on screen, so unpin works while storage is blocked", () => {
+  const c = load();
+  const blocked = () => {
+    throw new Error("SecurityError");
+  };
+  c.win.localStorage = { getItem: blocked, setItem: blocked, removeItem: blocked };
+  // Storage reads as empty, but the tab's own pins say c1 is pinned.
+  assert.deepStrictEqual(plain(c.sandbox.WB_pinsRead("pat@mgb.com")), []);
+  let r = c.sandbox.WB_pinToggle("pat@mgb.com", "c1", ["c1", "c2"]);
+  assert.strictEqual(r.on, false);
+  assert.deepStrictEqual(plain(r.pins), ["c2"]);
+  r = c.sandbox.WB_pinToggle("pat@mgb.com", "c3", plain(r.pins));
+  assert.strictEqual(r.on, true);
+  assert.deepStrictEqual(plain(r.pins), ["c3", "c2"]);
+  // Pins for clients missing from a partial list are never touched by a toggle.
+  r = c.sandbox.WB_pinToggle("pat@mgb.com", "c9", ["gone1", "gone2"]);
+  assert.deepStrictEqual(plain(r.pins), ["c9", "gone1", "gone2"]);
+});
+
 t("Client tab recents: the client switcher's own per-person list, when it is loaded", () => {
   const c = load();
   assert.deepStrictEqual(plain(c.sandbox.WB_recentsRead("pat@mgb.com")), []); // switcher not loaded

@@ -292,7 +292,9 @@ function TK_cdFocusables(root) {
 // never touch the other's.
 // props: clientId, clientName, staffUser, isAdmin, clients, list, showDone,
 // page (the route page, for the "For this page" group, or null), from (the
-// TK_openTask source), onOpen(id) (optional; replaces the default open).
+// TK_openTask source), onOpen(id) (optional; replaces the default open),
+// hideQuickKey (the empty state leaves out "press q": the Workbench hub turns
+// q off while it is open).
 function TK_ClientTasksBody(props) {
   var clientId = props.clientId || null;
   var name = props.clientName || "";
@@ -343,7 +345,7 @@ function TK_ClientTasksBody(props) {
       {empty ? (
         <div className="tk-cd-empty">
           <p>{"No open tasks for " + name + "."}</p>
-          <p className="tk-cd-empty-sub">{touch ? "Add one above." : "Add one above, or press q."}</p>
+          <p className="tk-cd-empty-sub">{touch || props.hideQuickKey ? "Add one above." : "Add one above, or press q."}</p>
         </div>
       ) : null}
       {groups.map(function (g) {

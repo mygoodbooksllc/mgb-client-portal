@@ -48,9 +48,23 @@ function WB_useHubKeys(live, panelRef) {
       } else if (WB_layerAbove(present)) return;
       const panel = panelRef.current;
       if (e.key === "Escape") {
-        // A field with text (the add row, the client picker) clears itself first.
+        // A self-clearing field with text (the add row, the client picker)
+        // clears itself first; any other field lets Esc close the hub.
         const tgt = e.target;
-        if (WB_escKeepsField(tgt && tgt.tagName, tgt && tgt.value, !!(panel && tgt && panel.contains(tgt)))) return;
+        let clears = false;
+        try {
+          clears = !!(tgt && tgt.matches && tgt.matches(WB_ESC_CLEARS_SEL));
+        } catch (err) {}
+        if (
+          WB_escKeepsField({
+            tag: tgt && tgt.tagName,
+            type: tgt && tgt.type,
+            value: tgt && tgt.value,
+            inPanel: !!(panel && tgt && panel.contains(tgt)),
+            clears,
+          })
+        )
+          return;
         e.preventDefault();
         e.stopPropagation();
         WB_store.setDrawerOpen(false);
@@ -242,7 +256,10 @@ function WB_Hub({ s, me, isAdmin, clients, panelRef, view, allView, chip, today,
   }, [tab, paneReady]);
   const onScroll = (e) => {
     if (restored.current !== tab) return;
-    WB_store.setHub({ scroll: { [tab]: e.currentTarget.scrollTop } }, true);
+    const patch = { scroll: { [tab]: e.currentTarget.scrollTop } };
+    // The Client tab's scroll is kept with the client it belongs to.
+    if (tab === "client") patch.scrollClientId = hub.clientId || null;
+    WB_store.setHub(patch, true);
   };
 
   return (

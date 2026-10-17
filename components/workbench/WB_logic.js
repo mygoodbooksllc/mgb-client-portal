@@ -349,7 +349,7 @@ function WB_hubTabIds(live) {
 }
 
 function WB_hubDefault() {
-  return { open: false, tab: "inbox", chip: "all", clientId: null, scroll: { inbox: 0, tasks: 0, client: 0 }, collapsed: {}, lastFocus: null };
+  return { open: false, tab: "inbox", chip: "all", clientId: null, scrollClientId: null, scroll: { inbox: 0, tasks: 0, client: 0 }, collapsed: {}, lastFocus: null };
 }
 
 // My tasks groups the hub can collapse (never done or unassigned).
@@ -378,12 +378,18 @@ function WB_hubClean(h) {
   var chipOk = WB_DRAWER_TABS.some(function (t) {
     return t.id === x.chip;
   });
+  var clientId = typeof x.clientId === "string" && x.clientId.length < 80 ? x.clientId : null;
+  // The Client tab's scroll belongs to the client it was saved on
+  // (scrollClientId); another client starts at the top.
+  var scrollFor = typeof x.scrollClientId === "string" && x.scrollClientId.length < 80 ? x.scrollClientId : null;
+  var clientScroll = scrollFor === clientId ? WB__scrollNum(sc.client) : 0;
   return {
     open: x.open === true,
     tab: WB_hubTabIds(true).indexOf(x.tab) >= 0 ? x.tab : d.tab,
     chip: chipOk ? x.chip : d.chip,
-    clientId: typeof x.clientId === "string" && x.clientId.length < 80 ? x.clientId : null,
-    scroll: { inbox: WB__scrollNum(sc.inbox), tasks: WB__scrollNum(sc.tasks), client: WB__scrollNum(sc.client) },
+    clientId: clientId,
+    scrollClientId: clientScroll ? scrollFor : null,
+    scroll: { inbox: WB__scrollNum(sc.inbox), tasks: WB__scrollNum(sc.tasks), client: clientScroll },
     collapsed: WB__collapsedClean(x.collapsed),
     lastFocus: typeof x.lastFocus === "string" ? x.lastFocus : null,
   };
@@ -411,6 +417,7 @@ function WB_hubSerialize(hub, now, route) {
     tab: h.tab,
     chip: h.chip,
     clientId: h.clientId,
+    scrollClientId: h.scrollClientId,
     scroll: h.scroll,
     collapsed: h.collapsed,
   });
@@ -558,16 +565,9 @@ function WB__clientIndex(clients) {
   return byId;
 }
 
-// Pins I can no longer open are dropped. While the client list is empty (not
-// loaded yet) nothing is dropped.
-function WB_pinsPrune(pins, clients) {
-  var cur = WB_pinsClean(pins);
-  if (!Array.isArray(clients) || !clients.length) return cur;
-  var byId = WB__clientIndex(clients);
-  return cur.filter(function (id) {
-    return !!byId[id];
-  });
-}
+// A pin for a client that isn't in my list (no access, or the list is still
+// loading or partial) is never deleted: WB_hubClientOptions just doesn't list
+// it, and it shows again once the client is in the list.
 
 // Which client the tab shows: the client page I am on wins, then the one the
 // tab last showed. access is true (in my client list), false (not in it: the
@@ -621,7 +621,9 @@ function WB_hubClientOptions(clients, pins, recents, query, limit) {
     return { id: String(c.id), name: WB__clientName(c), pinned: !!pinned[String(c.id)] };
   };
   var used = 0;
+  var total = 0; // rows before the cap
   var take = function (list) {
+    total += list.length;
     var room = Math.max(0, max - used);
     var out = list.slice(0, room);
     used += out.length;
@@ -678,7 +680,20 @@ function WB_hubClientOptions(clients, pins, recents, query, limit) {
   sections.forEach(function (sec) {
     items = items.concat(sec.items);
   });
-  return { sections: sections, items: items };
+  return { sections: sections, items: items, total: total, capped: total > items.length };
+}
+
+// The clients the picker lists: MGB (internal) left out, and test clients
+// hidden while my "Show test clients" switch is off (the same rule as CF_pick
+// in components/staff/ClientFlags.jsx), except the one the tab shows (keepId).
+// Access is still decided by the full list (WB_hubPickClient), not this one.
+function WB_hubPickerPool(clients, showTest, keepId) {
+  var keep = keepId == null ? null : String(keepId);
+  return (Array.isArray(clients) ? clients : []).filter(function (c) {
+    if (!c || c.isInternal === true) return false;
+    if (c.testOnly !== true || showTest) return true;
+    return keep != null && String(c.id) === keep;
+  });
 }
 
 // The Client tab's own list key (TK_stMatches places tasks in it by client).
@@ -686,12 +701,20 @@ function WB_hubClientListKey(id) {
   return WB__idOk(id == null ? null : String(id)) ? "wb:client:" + String(id) : null;
 }
 
-// Esc in a text field that still has text clears the field first (the add
-// row and the picker do that themselves); the hub closes on the next Esc.
-function WB_escKeepsField(tag, value, inPanel) {
-  if (!inPanel) return false;
-  var t = String(tag || "").toUpperCase();
-  return (t === "INPUT" || t === "TEXTAREA") && String(value == null ? "" : value) !== "";
+// Esc in a field that clears itself on Esc and still has text (the add row
+// .tk-add-input, the client picker .wb-pick-input, or a field marked
+// data-esc-clears) clears it first; the hub closes on the next Esc. Any other
+// field (a filled contacts form, a checkbox) lets Esc close the hub as before.
+// f = { tag, type, value, inPanel, clears }: clears says the element matches
+// WB_ESC_CLEARS_SEL.
+var WB_ESC_CLEARS_SEL = ".tk-add-input, .wb-pick-input, [data-esc-clears]";
+function WB_escKeepsField(f) {
+  var x = f && typeof f === "object" ? f : {};
+  if (!x.inPanel || !x.clears) return false;
+  var t = String(x.tag || "").toUpperCase();
+  var type = String(x.type || "text").toLowerCase();
+  if (t === "INPUT" && (type === "checkbox" || type === "radio" || type === "button" || type === "submit")) return false;
+  return (t === "INPUT" || t === "TEXTAREA") && String(x.value == null ? "" : x.value) !== "";
 }
 
 // Arrow keys on the tab list (ARIA tabs): returns the tab to move to, or null.
@@ -1063,11 +1086,12 @@ if (typeof module !== "undefined" && module.exports) {
     WB_pinsParse: WB_pinsParse,
     WB_pinsSerialize: WB_pinsSerialize,
     WB_pinsToggle: WB_pinsToggle,
-    WB_pinsPrune: WB_pinsPrune,
     WB_hubPickClient: WB_hubPickClient,
     WB_hubClientOptions: WB_hubClientOptions,
     WB_hubClientListKey: WB_hubClientListKey,
     WB_escKeepsField: WB_escKeepsField,
+    WB_ESC_CLEARS_SEL: WB_ESC_CLEARS_SEL,
+    WB_hubPickerPool: WB_hubPickerPool,
     WB_HUB_OPEN_MS: WB_HUB_OPEN_MS,
     WB_HUB_SCROLL_MS: WB_HUB_SCROLL_MS,
     WB_LAYERS: WB_LAYERS,

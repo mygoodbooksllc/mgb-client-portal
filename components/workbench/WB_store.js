@@ -74,9 +74,15 @@ function WB_pinsWrite(email, pins) {
   return clean;
 }
 // Pin or unpin one client. Returns { pins, on, dropped } (WB_pinsToggle).
-function WB_pinToggle(email, id) {
-  var r = WB_pinsToggle(WB_pinsRead(email), id);
-  r.pins = WB_pinsWrite(email, r.pins);
+// current: the pins on screen (the tab's state). The toggle works from them,
+// not from storage, and the write is best effort, so pin and unpin still work
+// for this visit when the browser blocks localStorage.
+function WB_pinToggle(email, id, current) {
+  var r = WB_pinsToggle(Array.isArray(current) ? current : WB_pinsRead(email), id);
+  r.pins = WB_pinsClean(r.pins);
+  try {
+    WB_pinsWrite(email, r.pins);
+  } catch (e) {}
   WB_track("wb-pin", r.on ? "on" : "off");
   return r;
 }

@@ -87,12 +87,12 @@ The Workbench panel has three tabs: **Inbox**, **My tasks** and **Client** (see 
 
 The **Client** tab shows one client's open tasks without leaving the page you're on.
 
-- **Picking a client.** On a client's page, the tab starts on that client. Anywhere else it shows the client you looked at last. To pick another, click the box at the top and type part of the name, or use the up and down arrows and press **Enter**. The list shows your **Pinned** clients first, then **Recent** ones, then all of them. It only lists clients you can open.
+- **Picking a client.** On a client's page, the tab starts on that client. Anywhere else it shows the client you looked at last. To pick another, click the box at the top and type part of the name, or use the up and down arrows and press **Enter**. The list shows your **Pinned** clients first, then **Recent** ones, then all of them. It only lists clients you can open, and leaves out MGB's own record and test clients (unless **Show test clients** is on). If there are more than 50, the last row says **Showing 50 of** the total; type to narrow it.
 - **Pins.** The **☆** next to the client's name pins it to the top of the list (it turns into **★**); click it again to unpin. You can pin up to 8. Pinning a ninth unpins the oldest, and a message says which one. Pins are yours alone and only on this browser.
 - **The tasks.** These are the same tasks, groups and contacts as the client's tasks panel (**t**). Add a task in the row at the top, tick a circle to mark it done, or click a row to open the task drawer on top; closing it puts you back in the tab. Private tasks show only to the people who can already see them.
 - **+ Task** opens quick add for this client. **Open client** goes to the client's page and closes the Workbench.
 - **Esc** closes the client list first, then clears what you typed, then closes the Workbench.
-- If a client you looked at before is no longer yours, the tab says **You don't have access to this client** and removes it from your pins.
+- If a client you looked at before is no longer yours, the tab says **You don't have access to this client** and hides it from your pins. The pin comes back if you get access again.
 
 ### Keyboard shortcuts
 

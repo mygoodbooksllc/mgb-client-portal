@@ -10,8 +10,11 @@
 //   The client         On a client page that client is picked when the tab
 //                      mounts or the page changes; otherwise the one the tab
 //                      showed last (hub.clientId, saved with the hub).
-//   Pins               mgb_wb_pins:<email>, at most 8 (WB_pinToggle). A pin
-//                      for a client I can no longer open is dropped.
+//   Pins               mgb_wb_pins:<email>, at most 8 (WB_pinToggle, from the
+//                      pins on screen). A pin for a client I can't open is
+//                      hidden, never deleted (the list may still be partial).
+//   Picker list        WB_hubPickerPool: no MGB (internal); test clients only
+//                      with "Show test clients" on. Access uses the full list.
 //   Recents            the client switcher's own list (WB_recentsRead/Push).
 //   The list           TK_vUseList("wb:client:<id>", ...): its OWN key, so the
 //                      client panel's Show done never reloads this tab and
@@ -24,6 +27,19 @@
 //
 // Browser file; loads after WB_HubTasks.jsx. Uses TK_* globals at render time.
 // ----------------------------------------------------------------------------
+
+// "Show test clients" (CF_useShowTest in components/staff/ClientFlags.jsx),
+// read the way CF_usePicked does; off when ClientFlags isn't loaded. The
+// choice is made on the first render (every file is loaded by then) and then
+// kept, so the hook order never changes.
+function WB__noShowTest() {
+  return [false];
+}
+var WB__showTestHook = null;
+function WB__useShowTest(email) {
+  if (!WB__showTestHook) WB__showTestHook = typeof CF_useShowTest === "function" ? CF_useShowTest : WB__noShowTest;
+  return WB__showTestHook((typeof window !== "undefined" && window.mgbViewerEmail) || email);
+}
 
 function WB_HubClient(props) {
   var ok = typeof TK_vUseSchema === "function" && typeof TK_vUseList === "function" && typeof TK_ClientTasksBody === "function";
@@ -97,18 +113,22 @@ function WB_HubClientBody(props) {
     [routeId],
   );
 
-  // Pins for clients I can no longer open are dropped once my list is in.
-  React.useEffect(
-    function () {
-      if (!clients.length) return;
-      var kept = WB_pinsPrune(pins, clients);
-      if (kept.length !== pins.length) setPins(WB_pinsWrite(email, kept));
-    },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [clients.length, pins.join(",")],
-  );
+  // A pin for a client I can't open (or that isn't in the list yet) is only
+  // hidden: the picker lists pins found in the client list, and saved pins
+  // are never rewritten from a list that may still be partial.
+
+  // The picker lists my clients without MGB (internal), and without test
+  // clients while my "Show test clients" switch is off (ClientFlags.jsx);
+  // the full list (clients) still decides access.
+  var showTest = WB__useShowTest(email)[0];
 
   var id = pick.access === true ? pick.id : null;
+  var pickerClients = React.useMemo(
+    function () {
+      return WB_hubPickerPool(clients, !!showTest, id);
+    },
+    [clients, showTest, id],
+  );
   var name = pick.client ? String(pick.client.name || "") : "";
   var pinned = id != null && pins.indexOf(id) >= 0;
 
@@ -134,7 +154,7 @@ function WB_HubClientBody(props) {
   };
   var togglePin = function () {
     if (id == null) return;
-    var r = WB_pinToggle(email, id);
+    var r = WB_pinToggle(email, id, pins);
     setPins(r.pins);
     if (r.on && r.dropped) {
       var gone = clients.find(function (c) {
@@ -206,7 +226,7 @@ function WB_HubClientBody(props) {
 
   return (
     <div className="wb-hub-client" ref={paneRef} data-tour="wb-hub-client">
-      <WB_HubClientPicker clients={clients} pins={pins} recents={recents} currentId={id} onPick={choose} />
+      <WB_HubClientPicker clients={pickerClients} pins={pins} recents={recents} currentId={id} onPick={choose} />
       {id != null ? (
         <div className="wb-hub-client-head">
           <h3 className="wb-hub-client-name">{name}</h3>
@@ -296,6 +316,7 @@ function WB_HubClientTasks(props) {
         showDone={false}
         page={props.page}
         from="wb-hub"
+        hideQuickKey={true}
         onOpen={open}
       />
     </div>
@@ -453,6 +474,11 @@ function WB_HubClientPicker(props) {
               {query ? "No client matches “" + query.trim() + "”." : "No clients yet."}
             </div>
           )}
+          {opts.capped ? (
+            <div className="wb-pick-more" role="presentation">
+              {"Showing " + items.length + " of " + opts.total + ", type to narrow"}
+            </div>
+          ) : null}
         </div>
       ) : null}
     </div>

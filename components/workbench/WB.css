@@ -982,6 +982,12 @@ html.wb-stacked .wb-scrim {
   color: var(--text-muted);
   font-size: 13px;
 }
+.wb-pick-more {
+  padding: 8px;
+  border-top: 1px solid var(--border);
+  color: var(--text-muted);
+  font-size: 12px;
+}
 .wb-hub-client-head {
   display: flex;
   align-items: center;
