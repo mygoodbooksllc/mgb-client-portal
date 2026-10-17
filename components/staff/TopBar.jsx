@@ -368,7 +368,7 @@ function TB_pageRows(ctx, onOpenSettings) {
   NAV_visiblePlaces(ctx).forEach((p) => {
     rows.push({ key: "p:" + p.key, title: p.label, sub: p.hint || "", go: () => NAV_go(p.key) });
     NAV_visibleTabs(p, ctx).forEach((t) =>
-      rows.push({ key: "p:" + p.key + "/" + t.key, title: `${p.label} › ${t.label}`, sub: "", go: () => NAV_go(p.key, t.key) }),
+      rows.push({ key: "p:" + p.key + "/" + t.key, title: `${p.label} › ${t.label}`, sub: "", keywords: t.keywords, go: () => NAV_go(p.key, t.key) }),
     );
   });
   rows.push({
@@ -659,7 +659,7 @@ function TB_Search({ clients, items, showMine, isAdmin, clientSearch, navCtx, cl
   }
   // Pages and Actions: the whole list on an empty query (⌘K as a jump
   // menu), the matching rows once something is typed.
-  const byQuery = (r) => !ql || TB_lc(r.title).includes(ql);
+  const byQuery = (r) => !ql || TB_lc(r.title).includes(ql) || (r.keywords || []).some((k) => TB_lc(k).includes(ql));
   groups.push({ key: "pages", label: "Pages", items: TB_pageRows(navCtx || { isAdmin }, onOpenSettings).filter(byQuery) });
   groups.push({
     key: "actions",

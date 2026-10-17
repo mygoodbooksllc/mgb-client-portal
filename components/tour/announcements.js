@@ -32,24 +32,42 @@
 //            Use it when the feature only makes sense once the person has
 //            met it, like "unassigned-tasks" (mgb_tk_seen_unassigned_v1).
 
+// True when the Desk is on for this person (WB_store loads after this file).
+function ANN_deskOn() {
+  try {
+    return typeof WB_store !== "undefined" && !!WB_store.getState().on;
+  } catch (e) {
+    return false;
+  }
+}
+
 var ANN_REGISTRY = [
   {
     id: "desk-rename",
     date: "2026-10-17",
-    title: "Workbench is now Desk, Tasks is now Slate",
-    summary: "Two names changed and nothing else: the Workbench is now the Desk, and Tasks is now Slate. Your tasks, lists and shortcuts are all where they were.",
+    // Wording follows whether the Desk is on for this person: someone who
+    // never had the Workbench only hears about Slate.
+    get title() {
+      return ANN_deskOn() ? "Workbench is now Desk, Tasks is now Slate" : "Tasks is now Slate";
+    },
+    get summary() {
+      return ANN_deskOn()
+        ? "Two names changed and nothing else: the Workbench is now the Desk, and Tasks is now Slate. Your tasks, lists and shortcuts are all where they were."
+        : "One name changed and nothing else: Tasks is now Slate. Your tasks, lists and shortcuts are all where they were.";
+    },
     roles: ["admin", "bookkeeper"],
     hash: "#/tasks/my",
     steps: (ctx) => [
       {
         id: "ann-welcome",
-        title: "Two new names",
+        title: ANN_deskOn() ? "Two new names" : "Tasks is now Slate",
         body: () =>
-          "The Workbench is now the Desk, and Tasks is now Slate. Only the names changed: your tasks, lists, projects and keyboard shortcuts work the same. About a minute.",
+          (ANN_deskOn() ? "The Workbench is now the Desk, and Tasks is now Slate." : "Tasks is now Slate.") +
+          " Only the names changed: your tasks, lists, projects and keyboard shortcuts work the same. About a minute.",
       },
       {
         id: "ann-bar",
-        when: () => typeof WB_store !== "undefined" && !!WB_store.getState().on,
+        when: () => ANN_deskOn(),
         targets: ["wb-bar"],
         wait: true,
         title: "The Desk",
@@ -58,9 +76,9 @@ var ANN_REGISTRY = [
       },
       {
         id: "ann-done",
-        title: "Slate is Tasks",
+        title: "Same place, new name",
         body: () =>
-          "Work › Slate and the Slate button in the top bar are where Work › Tasks and the Tasks button used to be, and old links still work. The guide articles use the new names too. To see this again, press ? and pick New: Workbench is now Desk, Tasks is now Slate tour.",
+          "Work › Slate and the Slate button in the top bar are where Work › Tasks and the Tasks button used to be, and old links still work. The guide articles use the new names too. To see this again, press ? and pick the New: tour for this change in that menu.",
       },
     ],
   },

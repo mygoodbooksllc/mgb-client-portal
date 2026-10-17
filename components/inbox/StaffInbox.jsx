@@ -1792,7 +1792,7 @@ function StaffInbox({
                   className="btn-secondary si-noreply"
                   data-tour="si-noreply"
                   disabled={wbMarked === wbLast.id}
-                  title={"Take this thread off " + WB_NAME + " without replying"}
+                  title={"Take this thread off your " + WB_NAME + " without replying"}
                   onClick={wbNoReply}
                 >
                   {wbMarked === wbLast.id ? "No reply needed ✓" : "No reply needed"}

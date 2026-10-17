@@ -273,4 +273,16 @@ t("registry: unassigned-tasks is gated on having seen an Unassigned task", () =>
   assert.strictEqual(L.ANN_ready(a, admin), false);
 });
 
+t("registry: desk-rename is Slate-only when the Desk is off", () => {
+  const a = ANN_REGISTRY.find((x) => x.id === "desk-rename");
+  assert.ok(a);
+  // node has no WB_store: the Desk is off
+  assert.strictEqual(a.title, "Tasks is now Slate");
+  assert.ok(!/Workbench|Desk/.test(a.summary));
+  const steps = a.steps({});
+  assert.ok(!/Workbench|Desk/.test(steps[0].body()));
+  assert.strictEqual(steps[1].when(), false);
+  assert.strictEqual(steps[2].title, "Same place, new name");
+});
+
 console.log("announcementsLogic: " + n + " checks passed");

@@ -65,7 +65,7 @@ Widen the window and everything comes back.
 
 ### Troubleshooting
 
-- **The bell or Tasks button is missing.** They're hidden while an admin is using **View as**, because they'd show the admin's own items.
+- **The bell or Slate button is missing.** They're hidden while an admin is using **View as**, because they'd show the admin's own items.
 - **The + button is missing.** It's hidden in the tightest narrow window, and while you use **Preview as**. Press **q** to add a task instead.
 - **Search says "Nothing matches".** Search looks at page names, client names, your own open tasks and notes, SOP text and help articles, plus the open client's transactions, budget categories, documents and messages. On a staff page no client is open, so open the client first to search their data.
 - **The bell number came back after I cleared it.** Something new arrived, or you're on a different browser or computer (what you've seen is remembered per browser).

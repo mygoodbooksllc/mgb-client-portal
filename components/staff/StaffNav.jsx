@@ -28,11 +28,9 @@ const NAV_PLACES = [
   {
     key: "today",
     slug: "today",
-    // Workbench (components/workbench/, spec E3): while it's on, Today is
-    // named WB_NAME and its help is the Workbench article. The slug stays.
-    get label() {
-      return NAV_wbOn() ? WB_NAME : "Today";
-    },
+    // Desk (components/workbench/, spec E3): while it's on, Today's help is
+    // the Desk article. The name stays "Today" either way.
+    label: "Today",
     get hint() {
       return NAV_wbOn() ? "Everything that needs you, in order" : "What needs you, in order";
     },
@@ -60,7 +58,7 @@ const NAV_PLACES = [
     icon: () => <ChecklistIcon width="16" height="16" strokeWidth="1.8" />,
     visible: (ctx) => !ctx.impersonating,
     tabs: [
-      { key: "tasks", label: "Slate", help: "my-tasks" },
+      { key: "tasks", label: "Slate", keywords: ["tasks", "my tasks", "to-do"], help: "my-tasks" },
       // Client notes and SOPs (#/work/notes), which used to sit under the task
       // list (Tasks module, 2026-10-11).
       { key: "notes", label: "Notes & SOPs", help: "notes" },

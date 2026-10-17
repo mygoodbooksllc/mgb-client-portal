@@ -17083,7 +17083,7 @@ const USAGE_TAB_LABELS = {
 // Tasks logs its sub-route as the tab (#/tasks/review -> "review").
 const USAGE_PAGE_TAB_LABELS = {
   tasks: {
-    my: "Slate",
+    my: "Your list",
     review: "Review",
     waiting: "Waiting on client",
     templates: "Recurring",

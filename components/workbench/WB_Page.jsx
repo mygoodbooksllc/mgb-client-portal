@@ -189,7 +189,7 @@ function WB_HelpSheet({ onClose }) {
           className="wb-help-item"
           onClick={() => {
             onClose();
-            if (typeof TOUR_startStaff === "function") TOUR_startStaff("ann:workbench-launch");
+            if (typeof TOUR_startStaff === "function") TOUR_startStaff("ann:desk-rename");
           }}
         >
           Take the 1-minute tour
