@@ -461,3 +461,28 @@ Weekly-usage estimates assume the 85% weekly cap and about 12% a day.
 - **The handle overlays page content** on the right edge. Tuck, auto-tuck under 900px and the 248px width keep this small. If the owner finds it in the way, the fallback is decision 3's top-bar pill.
 - **Two docks double the visual test surface** (R1b cost). One shared component keeps the logic single.
 - **Flipping `wb_enabled`** changes task opening for every staff member at once. The modal fallback is the rollback.
+
+---
+
+## 17. After the Desk: Slate differentiators (backlog, owner brainstorm 2026-10-18)
+
+Source: claude.ai artifact "Where Slate can win" (TS3fpfXacNpXUB85cD6TAb): complaints about Asana, ClickUp, Monday, Notion, Trello/Basecamp/Planner, Todoist, Motion/Sunsama, Karbon, TaxDome and Financial Cents, and what only a task manager inside the books and client portal can do. Not part of the Desk build. Each becomes its own spec when picked. Where an idea touches work already planned, the hook is noted.
+
+| # | Idea | Hook into this plan | Status in the app |
+|---|---|---|---|
+| 1 | Tasks that check themselves (task or template step linked to a `close_checks` / reconciliation status; green "QuickBooks agrees", amber if new activity lands after the tick) | New row chip in T1 (leave room for a status chip on the row) | Partly built (close_checks, qbo_account_status) |
+| 2 | One "what we need from you" checklist per client (upload resolves the staff task, reminders escalate) | Desk Client tab and handle "waiting on you" icons read the same data | Partly built (Ask client S5/S6) |
+| 3 | Work that starts when inputs arrive ("Waiting on bank", never red) | Template triggers | Partly built (recurrence engine) |
+| 4 | Tasks carry their evidence (typed links to GL flag, transaction, file, message; grounded client-question draft) | Task pane (T3) gets a "Linked" section | Partly built |
+| 5 | Close progress the client can check ("7 of 10 steps, waiting on 1 from you") | Client dashboard card | Mostly built |
+| 6 | Nonprofit calendar template packs by client type | Templates | Partly built |
+| 7 | Capacity: task size, weekly totals against QuickBooks Time hours and the client budget, warning at assign time (suggest only, never auto-move) | Size field in the T3 grid; weekly total can be a Desk glance item (R3) | Hours budget built; size new |
+| 8 | Treasurer turnover (requests addressed to a role) | Client contacts | Partly built |
+| 9 | Quiet by default notifications (daily digest) | Settings | Bell and emails built |
+| 10 | Weekly reset for anything overdue 7+ days | Desk could host it as an Inbox mode | Bulk bar and hand-off built |
+| 11 | One lead, many helpers | Avatars in T1 show lead plus helper stack | Followers built |
+| 12 | Fast and simple, full export of tasks, comments, files | Keep the T1 to T3 pass light | Lists, keys, search built |
+
+Guardrails from the same brainstorm: no ClickUp-style feature sprawl, no endless custom fields, AI drafts and suggests but never acts on its own, stay specific to bookkeeping for churches and nonprofits.
+
+Suggested order after the Desk ships: 1, then 2 and 8, then 3 and 6, then 9 and 10, then 7, 4, 5, 11 as staff ask. Test the top three with two or three bookkeepers and one volunteer treasurer before building.
