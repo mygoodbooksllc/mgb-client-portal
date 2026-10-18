@@ -25,6 +25,7 @@ Base: main at 67e28ea. Builds on `docs/desk-spec.md` (D1 rename, D2 glass, D3 re
 13. **Client drawer overlap** (the 420px client tasks drawer opened by `t`, the strip and the Slate pill on a client page). *Recommend:* while the Desk is live these open the Desk's Client tab for that client. The modal client drawer stays as the fallback.
 14. **Widget edit mode** (dashboard widgets push 360px from the right). *Recommend:* entering edit mode closes the Desk and hides the handle; leaving it restores them.
 15. **Order with P4-4 (snooze, saved filters).** *Recommend:* land R0 (the TK_Drawer split) first; P4-4 rebases onto it. The two never run in parallel.
+16. **Task UX pass before the Desk build (owner request 2026-10-18: tasks are less obvious to use than Asana).** *Recommend:* yes, build slices T1 to T3 (section 15) first, so the Desk task view reuses the finished row and pane and the task UI is built once. What Asana does that ours does not: every field is visible even when empty (dashed assignee circle, faint date icon, priority always shown); every cell edits in place with a small picker; hover shows a "…" menu, subtask and comment counts; a "+ Add task" row under each group; people are initials avatars; the task pane is a labeled grid (Assignee, Due, Client, Project, Priority, Status) above the description. Board view by status (with drag between columns) and drag-to-reorder are separate follow-ups, T4 and T5, owner to decide later.
 
 ---
 
@@ -430,6 +431,11 @@ Weekly-usage estimates assume the 85% weekly cap and about 12% a day.
 
 | Slice | What | Size | Build / review / checks | Est. weekly usage |
 |---|---|---|---|---|
+| T1 | Task row pass (`TK_TaskRow`): initials avatar for assignee, dashed placeholders for empty assignee and date, due chip (red overdue, amber today), priority always visible, in-place pickers on every cell, hover "…" menu with subtask and comment counts; same row in Slate, My Tasks, client pages and the Desk | M | Sonnet builds, Opus reviews, Haiku sweep (all list hosts) | 4–5% |
+| T2 | "+ Add task" row at the bottom of each group (Slate, My Tasks, client pages), inline title entry, Enter adds and keeps going | S | Sonnet builds, Opus reviews | 1–2% |
+| T3 | Labeled field grid at the top of the task pane (Assignee, Due, Client, Project, Priority, Status), description, subtasks, comments, Ask client below; done inside `TK_DrawerContent` right after R0 so the modal drawer and the Desk both get it | M | Sonnet builds, Opus reviews, Haiku sweep (modal + Desk) | 3–4% |
+| T4 (later, owner call) | Board view by status with drag between columns | L | Opus builds and critiques | 8–10% |
+| T5 (later, owner call) | Drag to reorder within a group | S | Sonnet builds | 1–2% |
 | R0 | TK_Drawer split into `TK_DrawerContent` + chrome, no behavior change (section 10) | M | Opus builds (high), Opus reviews, Haiku runs tests and the DOM-snapshot diff | 5–7% |
 | R1 | Right-dock shell: `WB_deskLayout`, push/overlay/sheet, width grip + magnets + drag-to-close, v2 storage + migration, closed handle (Short tier: counts, next, `+`), tuck, z and toast/chat/Undo shifts, D/F6/Esc list level, focus return, widget edit mode | L | Opus builds, Opus critiques, Haiku screenshot sweep | 10–12% |
 | R1b | Bottom dock kept as an option: `dock` prop, `.is-bottom` scoping, drag-down close, dock switch by head drag + preview, `WB_deskDockTarget` | M | Sonnet builds, Opus reviews, Haiku sweep (both docks) | 4–6% |
@@ -441,7 +447,8 @@ Weekly-usage estimates assume the 85% weekly cap and about 12% a day.
 
 - **Total**: about 46–61% of a week, roughly 4–5 working days at the current pace. Plan it over two weeks next to other work.
 - **Without the bottom dock** (decision 10 = no): drop R1b (about −5%).
-- **Order**: R0 → (P4-4) → R1 → R1b → R2 → R3 → R4 → R4b → R5. R1b can run in parallel with R2 in separate worktrees only if R1 has landed; they touch different blocks of WB.css and WB_Drawer.jsx, so merge with care.
+- **Order (updated 2026-10-18)**: T1 → T2 → R0 → T3 → (P4-4) → R1 → R1b → R2 → R3 → R4 → R4b → R5. T1 and T2 touch `TK_TaskRow`/list hosts only and need no R0. T3 follows R0 because it edits `TK_DrawerContent`. T1 to T3 add about 8–11% to the total (now about 54–72%, with T4 and T5 optional on top). R1b can run in parallel with R2 in separate worktrees only if R1 has landed; they touch different blocks of WB.css and WB_Drawer.jsx, so merge with care.
+- **Upkeep for T1 to T3** (same commit each): staff guide Tasks articles, Tasks tour stops (row, add row, task pane), tips targets that point at row cells, What's-new entry and announcement, Dev Tools MGB_VERSION, README.
 
 ---
 
