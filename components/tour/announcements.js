@@ -53,6 +53,36 @@ function ANN_deskDocked() {
 
 var ANN_REGISTRY = [
   {
+    id: "rail-default",
+    date: "2026-10-17",
+    title: "The sidebar starts as icons",
+    summary: "The left sidebar now opens as the narrow icon rail so pages get more room. Hover or tab to an icon for its name, and click Expand to keep the names showing; it remembers your choice.",
+    roles: ["admin", "bookkeeper"],
+    hash: "#/today",
+    steps: (ctx) => [
+      {
+        id: "ann-welcome",
+        title: "More room for the page",
+        body: () =>
+          "The left sidebar now starts as a narrow icon rail, with the name under each icon, so the page beside it has more room. About a minute.",
+      },
+      {
+        id: "ann-rail",
+        title: "Names on hover",
+        body: () =>
+          "Hover over an icon, or tab to it, to see its full name. Today, Inbox, Work, Clients and Team work exactly as before.",
+        targets: ["staff-nav"],
+      },
+      {
+        id: "ann-expand",
+        title: "Expand it if you like",
+        body: () =>
+          "Click Expand at the bottom of the sidebar to show the full names. It stays that way for you until you click Collapse, and Settings and your name now sit right under the places. To see this again, press ? and pick New: The sidebar starts as icons tour.",
+        targets: ["staff-nav-settings"],
+      },
+    ],
+  },
+  {
     id: "dup-smart",
     date: "2026-10-17",
     title: "Smarter duplicate checks",

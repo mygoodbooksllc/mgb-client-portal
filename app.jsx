@@ -2525,8 +2525,11 @@ function StaffRail({
             className="sidebar-collapse-toggle staff-rail-collapse"
             onClick={onToggleCollapse}
             aria-label={expanded ? "Collapse sidebar" : "Expand sidebar"}
+            aria-expanded={expanded}
             onMouseEnter={(e) => showTip(e, "Expand")}
             onMouseLeave={hideTip}
+            onFocus={(e) => showTip(e, "Expand")}
+            onBlur={hideTip}
           >
             <ChevronDownIcon className="sidebar-collapse-toggle-icon" />
             {expanded && <span>Collapse</span>}
@@ -13949,7 +13952,8 @@ function resettableLocalStorageKeys() {
     // Both key families: the original "mygoodbooks_" keys and the newer
     // "mgb-"/"mgb_" ones (nav, tour, tips, profile prompt, bell, client
     // switcher, inbox context, the Desk's mgb_wb_hub:<email>,
-    // mgb_wb_pins:<email> and its height mgb_wb_desk:<email>). Feature flags are kept on purpose, including
+    // mgb_wb_pins:<email> and its height mgb_wb_desk:<email>, and the staff
+    // sidebar choice mgb_rail_expanded:<email>). Feature flags are kept on purpose, including
     // the ones without the mygoodbooks_ff_ prefix (mgb_wb_preview,
     // mgb_wb_classic).
     return Object.keys(localStorage).filter(
@@ -26083,6 +26087,38 @@ function loadSidebarCollapsed(isClientPortal) {
   }
 }
 
+// Staff left sidebar (2026-10-17f): the icon rail is the default for every
+// staff member until they expand it, and the choice is remembered per person
+// (not per browser): "1" = expanded, "0" = collapsed, nothing = never chose.
+// The old shared key above is ignored for staff (it only ever held the old
+// default-expanded choice) and still drives the client portal's sidebar.
+// Cleared by Dev Tools' Reset local state (the mgb_ prefix).
+const STAFF_RAIL_KEY_PREFIX = "mgb_rail_expanded:";
+
+function staffRailKey(email) {
+  return STAFF_RAIL_KEY_PREFIX + String(email || "").trim().toLowerCase();
+}
+
+// true = expanded, false = collapsed, null = no saved choice (or no storage).
+function loadStaffRailExpanded(email) {
+  if (!email) return null;
+  try {
+    const raw = localStorage.getItem(staffRailKey(email));
+    if (raw === "1") return true;
+    if (raw === "0") return false;
+    return null;
+  } catch (e) {
+    return null;
+  }
+}
+
+function saveStaffRailExpanded(email, expanded) {
+  if (!email) return;
+  try {
+    localStorage.setItem(staffRailKey(email), expanded ? "1" : "0");
+  } catch (e) {}
+}
+
 const PAGE_STORAGE_KEY = "mygoodbooks_page_v1";
 
 // Which tab the viewer was last on, so a refresh doesn't dump them back on the
@@ -27606,15 +27642,24 @@ function App({ staffUser, onSignOut, clientPortalUser }) {
     };
   }, [theme]);
 
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(() =>
-    loadSidebarCollapsed(!!clientPortalUser),
-  );
+  // Staff: the icon rail unless this person expanded it (saved per email).
+  // Client portal users keep the old shared preference.
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
+    if (!clientPortalUser && staffUser) {
+      return loadStaffRailExpanded(staffUser.email) !== true;
+    }
+    return loadSidebarCollapsed(!!clientPortalUser);
+  });
   const toggleSidebarCollapsed = () => {
     setSidebarCollapsed((prev) => {
       const next = !prev;
-      try {
-        localStorage.setItem(SIDEBAR_COLLAPSED_STORAGE_KEY, next ? "1" : "0");
-      } catch (e) {}
+      if (!clientPortalUser && staffUser) {
+        saveStaffRailExpanded(staffUser.email, !next);
+      } else {
+        try {
+          localStorage.setItem(SIDEBAR_COLLAPSED_STORAGE_KEY, next ? "1" : "0");
+        } catch (e) {}
+      }
       return next;
     });
   };

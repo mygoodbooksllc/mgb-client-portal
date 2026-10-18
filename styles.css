@@ -8256,8 +8256,9 @@ body:has(.modal-overlay) .chat-fab-wrap {
 
 /* ---------------- Staff sidebar (StaffRail) ----------------
    The one sidebar a staff member sees: five places (Today, Inbox, Work,
-   Clients, Team — components/staff/StaffNav.jsx), 224px with labels or 72px
-   icons + captions, the same on staff pages and on a client's pages (where
+   Clients, Team — components/staff/StaffNav.jsx), 220px with labels or 72px
+   icons + captions (the icon rail is the default until someone expands it;
+   the choice is remembered per person), the same on staff pages and on a client's pages (where
    the client's tabs run across the top instead — html.staff-client-tabs in
    clients-page.css hides the client sidebar). Hidden while previewing as a
    client user. Desktop and mouse windows only; phones use the drawer. */
@@ -8283,7 +8284,7 @@ body:has(.modal-overlay) .chat-fab-wrap {
     transition: width 0.28s cubic-bezier(0.4, 0, 0.2, 1);
   }
   .staff-rail.expanded {
-    width: 224px;
+    width: 220px;
     align-items: stretch;
     padding: 24px 16px 16px;
     border-right: 0;
@@ -8339,7 +8340,11 @@ body:has(.modal-overlay) .chat-fab-wrap {
   flex-direction: column;
   gap: 2px;
   width: 100%;
-  flex: 1;
+  /* Sized to its items (not flex: 1) so Settings and the user block sit
+     right under the places instead of a tall empty gap; it still shrinks
+     and scrolls in a short window. */
+  flex: 0 1 auto;
+  min-height: 0;
   overflow-y: auto;
 }
 .staff-rail-item {
@@ -8449,8 +8454,15 @@ body:has(.modal-overlay) .chat-fab-wrap {
   flex-direction: column;
   gap: 2px;
   width: 100%;
+  flex: none;
+  margin-top: 12px;
   padding-top: 10px;
   border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+@media (prefers-reduced-motion: reduce) {
+  .staff-rail {
+    transition: none;
+  }
 }
 .staff-rail-user {
   display: flex;

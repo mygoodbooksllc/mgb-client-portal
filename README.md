@@ -349,7 +349,7 @@ hours, fees and revenue all use it. See "MGB (internal) and flagged clients" und
   bottom, and every page is "title, one row of tabs, content".
   - **Rail and tabs:** `components/staff/StaffNav.jsx` (`NAV_`) + `staff-nav.css`. `NAV_PLACES` is
     the single source for places, tabs, routes, admin-only flags, tour ids and the help slug each
-    page opens from the **?** menu. The rail is collapsible (default expanded) and becomes the
+    page opens from the **?** menu. The rail is collapsible (default collapsed to icons since 2026-10-17f; the choice is saved per person) and becomes the
     drawer on touch phones; `NAV_TabRow` is the shared tab row; `NAV_useHashSub` lets a hub own its
     tab in the URL (`replaceState`). App pushes real history entries (`pushState` with `{ mgbNav }`)
     so Back returns from a client to Clients, and sets `document.title` per place.
@@ -572,7 +572,7 @@ hours, fees and revenue all use it. See "MGB (internal) and flagged clients" und
     access.
 
 - **Staff rail** (`components/staff/StaffNav.jsx`, desktop and mouse windows): the five places
-  (Today, Inbox, Work, Clients, Team) with Settings at the bottom and Collapse, default expanded.
+  (Today, Inbox, Work, Clients, Team) with Settings at the bottom and Collapse/Expand. It opens as the 72px icon rail (with a caption and a hover/focus tooltip on each icon) until a person expands it to 220px; the choice is saved per person in `localStorage` `mgb_rail_expanded:<email>` (`"1"` expanded; no value = icon rail; the old shared `mygoodbooks_sidebar_collapsed_v1` is ignored for staff and still drives the client portal; cleared by Reset local state via the `mgb_` prefix). Settings and the user block sit right under the places, not pinned to the bottom of the window.
   It stays beside a client's pages too (staff get the breadcrumb and tab row instead of the client
   sidebar). Hidden while you preview as one of the client's people or use View as client, so the
   preview shows only what they see. On touch phones the drawer has the same places.
@@ -1962,6 +1962,16 @@ Team Reviews files.
     `wb-more` and `wb-noreply`, `data-tour` keys `wb-tiles`, `wb-chips`, `wb-list`, `wb-row-action`,
     `wb-bar`, `si-noreply`, Usage Stats labels `wb-*`, Dev Tools Tasks switches rows, INFRA_LINKS
     "Supabase SQL (Workbench)", MGB_VERSION `2026-10-16p`.
+- **Staff sidebar defaults to the icon rail, 2026-10-17f:** `app.jsx` (`loadStaffRailExpanded`,
+  `saveStaffRailExpanded`, `STAFF_RAIL_KEY_PREFIX`; `sidebarCollapsed` starts from the per-email key for
+  staff and from the old shared key for client portal users), `.staff-rail` in `styles.css` (expanded
+  width 220px, was 224px; `.staff-rail-nav` is `flex: 0 1 auto` and `.staff-rail-foot` has a 12px top
+  margin so there is no tall empty gap; width transition off under `prefers-reduced-motion`). The
+  Expand control also shows its tooltip on keyboard focus and has `aria-expanded`. Rail items keep
+  `aria-label` plus the caption and tooltip, so no hover-expand overlay was added. `.main` already has no
+  max-width, so page content fills the freed width; its 40px gutters are shared with the top bar's
+  negative margins and were left alone. Upkeep: launch announcement `rail-default`, guide
+  `getting-started` and `whats-new`, `MGB_VERSION` `2026-10-17f`; no new Usage Stats event.
 - **Desk D3: resizable docked Desk, D key, 2026-10-17** (spec `docs/desk-spec.md` §4.1-4.3; client
   only, no SQL, no edge functions; still off until `wb_enabled`).
   - **Modes:** `WB_deskMode(innerWidth)`: above 760px the Desk docks (centered, `--desk-max-w`),

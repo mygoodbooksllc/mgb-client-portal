@@ -320,4 +320,15 @@ t("registry: dup-smart is an admin and bookkeeper notice naming Smart and Strict
   assert.strictEqual(a.steps({})[0].targets, undefined);
 });
 
+t("registry: rail-default is an admin and bookkeeper notice pointing at the rail", () => {
+  const a = ANN_REGISTRY.find((x) => x.id === "rail-default");
+  assert.ok(a);
+  assert.deepStrictEqual(a.roles, ["admin", "bookkeeper"]);
+  const steps = a.steps({});
+  assert.strictEqual(steps.length, 3);
+  assert.strictEqual(steps[0].targets, undefined);
+  assert.deepStrictEqual(steps[1].targets, ["staff-nav"]);
+  assert.ok(!/colour/i.test(JSON.stringify(steps.map((x) => x.body()))));
+});
+
 console.log("announcementsLogic: " + n + " checks passed");
