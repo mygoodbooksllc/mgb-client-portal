@@ -2,7 +2,7 @@
 title: How do I change my settings (profile, notifications, theme, signature)?
 section: Getting started
 audience: staff
-keywords: [change my name, rename, my name, name, handbook emails, tasks shortcuts, mentions on tasks, tasks tour, settings, help, tips, turn off tips, my settings, profile, photo, avatar, title, phone, notifications, email notifications, bell, dark mode, light mode, theme, match my computer, start page, signature, email signature, dashboards, reset layout, financial overview, board-ready, live report, shortcuts, keyboard, firm settings, gear, slate]
+keywords: [possible duplicates, smart mode, strict mode, ledger review settings, change my name, rename, my name, name, handbook emails, tasks shortcuts, mentions on tasks, tasks tour, settings, help, tips, turn off tips, my settings, profile, photo, avatar, title, phone, notifications, email notifications, bell, dark mode, light mode, theme, match my computer, start page, signature, email signature, dashboards, reset layout, financial overview, board-ready, live report, shortcuts, keyboard, firm settings, gear, slate]
 sort: 27
 ---
 Your Settings page holds everything that's just about you. To open it, click **Settings** at the bottom of the left rail, or your initials at the top right of the page, then **Settings**. (On a phone, open the menu and tap **Settings**.) Changes save on their own a moment after you make them. You'll see **Saved** at the top when they have.
@@ -67,6 +67,7 @@ The firm-wide admin pages, in three groups. Click a row to open the page. Search
 - **Insight and records**: **Usage stats**, **Audit log** and **Developer tools**.
 
 - **Late tasks** (a card on the same page): **Count late tasks in scores and reports**. **Off by default** (a grace period while everyone settles into Slate). While it is off, late and overdue tasks are not counted in the performance score, client health, on-time rates, the weekly digest or the Team page's Overdue columns, and the review rubric doesn't hold them against anyone. Filing deadlines are not tasks and keep counting. **Only the owner** can turn it on; everyone else sees it greyed out with a note. When the owner turns it on, today becomes its start date: only tasks due on or after that day count, so the imported backlog never counts against anyone. Each change is recorded in the audit log.
+- **Possible duplicates** (Ledger review settings, **Team › Ledger review**): **Smart (fewer false alarms)** or **Strict (flag every same-date, same-amount match)**. Smart is the default. This is the firm default for every client; an admin can set a different choice for one client on that client's Ledger review tab. Admins only, and every change is written to the Audit log (*Ledger review* group). A change to Smart applies on the next Pull; Strict brings hidden flags back right away. See [How does Ledger review work?](#/help/ledger-review).
 
 Staff with temporary admin access see Task templates (read-only), Client roster, Usage stats and Developer tools. **Team › Feedback** stays admin-only.
 

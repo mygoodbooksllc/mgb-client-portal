@@ -240,3 +240,19 @@ test("ignored flags never count: cleared is out of open/asked, rule-hidden open 
   assert.equal(c.cleared, 2);
   assert.equal(L.dropRuleHidden(flags, []).length, flags.length);
 });
+
+test("effectiveDupMode: override, then firm, then smart", () => {
+  assert.equal(L.effectiveDupMode("strict", "smart"), "smart");
+  assert.equal(L.effectiveDupMode("smart", "strict"), "strict");
+  assert.equal(L.effectiveDupMode("strict", null), "strict");
+  assert.equal(L.effectiveDupMode(null, undefined), "smart");
+  assert.equal(L.effectiveDupMode("loose", "bogus"), "smart");
+  assert.equal(L.effectiveDupMode("strict", "bogus"), "strict");
+});
+
+test("dupAsideKeys is unique and isDupSmartHidden needs fixed + dup_smart", () => {
+  assert.deepEqual(L.dupAsideKeys([{ key: "a:1" }, { key: "a:1" }, { key: "b:2" }, {}]), ["a:1", "b:2"]);
+  assert.equal(L.isDupSmartHidden({ status: "fixed", fixed_by: "dup_smart" }), true);
+  assert.equal(L.isDupSmartHidden({ status: "fixed", fixed_by: "system" }), false);
+  assert.equal(L.isDupSmartHidden({ status: "open", fixed_by: "dup_smart" }), false);
+});

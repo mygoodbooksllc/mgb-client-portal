@@ -123,6 +123,10 @@ function LR_SettingsPanel({ staffUser, isAdmin }) {
   const [from, setFrom] = useState("");
   const [saving, setSaving] = useState(false);
   const [saveErr, setSaveErr] = useState("");
+  const [dupMode, setDupMode] = useState("smart");
+  const [dupSaving, setDupSaving] = useState(false);
+  const [dupErr, setDupErr] = useState("");
+  const [dupMsg, setDupMsg] = useState("");
   const [add, setAdd] = useState({ pattern: "", category: "other", note: "" });
   const [addBusy, setAddBusy] = useState(false);
   const [addErr, setAddErr] = useState("");
@@ -136,6 +140,7 @@ function LR_SettingsPanel({ staffUser, isAdmin }) {
       setGate(s.done_gate || "warn");
       setWin(s.pull_window || "rolling14");
       setFrom(s.effective_from ? String(s.effective_from).slice(0, 7) : "");
+      setDupMode(LR_logic.effectiveDupMode(s.dup_mode, null));
     } catch (e) {
       setState({ loading: false, error: (e && e.message) || "Couldn't load the settings.", settings: null, watch: [] });
     }
@@ -163,6 +168,30 @@ function LR_SettingsPanel({ staffUser, isAdmin }) {
       setSaveErr((x && x.message) || "Couldn't save.");
     } finally {
       setSaving(false);
+    }
+  };
+  // Possible duplicates: its own save (gl_review_save_dup_mode), firm default.
+  const saveDup = async (e) => {
+    e.preventDefault();
+    if (!isAdmin || dupSaving) return;
+    setDupSaving(true);
+    setDupErr("");
+    setDupMsg("");
+    try {
+      const r = await LR_api.saveDupMode(dupMode, null);
+      const n = (r && r.restored) || 0;
+      setDupMsg(
+        dupMode === "strict"
+          ? "Saved. Strict is on" + (n ? ": " + n + " hidden flag" + (n === 1 ? " is" : "s are") + " open again." : ".")
+          : "Saved. Smart applies on the next pull for each client.",
+      );
+      toast("Possible duplicates setting saved.");
+      if (typeof closeStepsLoad === "function") closeStepsLoad(true);
+      await load();
+    } catch (x) {
+      setDupErr((x && x.message) || "Couldn't save.");
+    } finally {
+      setDupSaving(false);
     }
   };
   const saveWatch = async (id, v) => {
@@ -264,6 +293,54 @@ function LR_SettingsPanel({ staffUser, isAdmin }) {
                   {s.updated_by ? " by " + LR_logic.who(s.updated_by) : ""}
                 </span>
               )}
+            </div>
+          )}
+        </form>
+      </section>
+
+      <section className="card lr-panel" aria-labelledby="lrd-h">
+        <h3 className="card-title" id="lrd-h">
+          Possible duplicates
+        </h3>
+        <p className="card-subtitle">
+          The firm default for every client. An admin can set a different choice for one client on that client's Ledger review tab.
+        </p>
+        <form onSubmit={saveDup}>
+          <fieldset className="lr-fieldset" disabled={ro}>
+            <legend className="ct-legend">How strict the duplicate check is</legend>
+            <label className="lr-radio">
+              <input type="radio" name="lrs-dup" value="smart" checked={dupMode === "smart"} onChange={() => setDupMode("smart")} />
+              <span>
+                Smart (fewer false alarms)
+                <span className="lr-hint">Flags a match only when more than the date, name and amount agree. Skips small amounts and different types.</span>
+              </span>
+            </label>
+            <label className="lr-radio">
+              <input type="radio" name="lrs-dup" value="strict" checked={dupMode === "strict"} onChange={() => setDupMode("strict")} />
+              <span>
+                Strict (flag every same-date, same-amount match)
+                <span className="lr-hint">The original rule. Expect more flags that turn out to be fine.</span>
+              </span>
+            </label>
+          </fieldset>
+          <p className="lr-hint">
+            Switching to Strict restores hidden flags right away. Switching to Smart applies on the next pull (ledger lines aren't stored).
+          </p>
+          {dupErr && (
+            <p className="lr-error" role="alert">
+              {dupErr}
+            </p>
+          )}
+          {dupMsg && (
+            <p className="lr-hint" role="status">
+              {dupMsg}
+            </p>
+          )}
+          {!ro && (
+            <div className="lr-inline">
+              <button type="submit" className="btn-primary" disabled={dupSaving || dupMode === LR_logic.effectiveDupMode(s.dup_mode, null)}>
+                {dupSaving ? "Saving…" : "Save"}
+              </button>
             </div>
           )}
         </form>

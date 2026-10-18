@@ -59,6 +59,7 @@ const AL_ACTIONS = {
   "staff_photo.exempt_off": "Photo required again",
   "staff_photo.version_hidden": "Photo version hidden",
   "staff_photo.downloaded": "Profile photo downloaded",
+  "gl_review.dup_mode": "Ledger review possible duplicates mode changed",
 };
 
 // Action filter groups: value is a PostgREST "like" prefix.
@@ -76,6 +77,7 @@ const AL_ACTION_GROUPS = [
   { value: "portal_preview.", label: "Portal preview" },
   { value: "handbook.", label: "Staff Handbook" },
   { value: "staff_photo.", label: "Profile photos" },
+  { value: "gl_review.", label: "Ledger review" },
 ];
 
 function AL_actionLabel(a) {
@@ -125,6 +127,7 @@ function AL_summary(row) {
     return [d.policy ? `${d.policy}${d.version_no ? " v" + d.version_no : ""}` : "", a === "handbook.published" ? (d.requires_resign ? "needs re-signing" : "minor edit") : "", d.staff_email]
       .filter(Boolean)
       .join(" · ");
+  if (a === "gl_review.dup_mode") return `${d.scope === "client" ? "This client" : "Firm default"}: ${d.from || "firm default"} → ${d.to || "firm default"}`;
   if (a === "staff_photo.downloaded") return [d.what, Array.isArray(d.emails) && d.emails.length > 1 ? d.emails.length + " people" : ""].filter(Boolean).join(" · ");
   if (a === "staff_photo.replaced") return d.note || "";
   if (a === "staff_photo.exempt_on") return d.reason || "";

@@ -258,7 +258,7 @@ unique (client_id, period, kind, captured_at)
 
 ### 4.9 `gl_review_settings` (single row)
 
-`id boolean pk`, `done_gate text check (in ('warn','block')) default 'warn'`, `pull_window text default 'rolling14'`, `updated_by/at`. Admins update, active staff read. Same pattern as `month_close_settings`.
+`id boolean pk`, `done_gate text check (in ('warn','block')) default 'warn'`, `pull_window text default 'rolling14'`, `updated_by/at`. Admins update, active staff read. Same pattern as `month_close_settings`. Added 2026-10-17 (`supabase/gl-review-5-dup-mode.sql`): `dup_mode text check (in ('smart','strict')) default 'smart'`, the firm default for the duplicate check (7.1). Per-client override in `gl_review_client_settings (client_id pk, dup_mode, created_*/updated_*)`, staff read, writes only through `gl_review_save_dup_mode`.
 
 ### 4.10 `client_profile` additions
 
@@ -345,6 +345,21 @@ All in new files under `components/ledger/` with the `LR_` name prefix, added to
 Ten prototype checks (suspense/uncategorized, OBE, duplicate, negative bank balance, manual JE to cash, check gap, unusually large, round dollar, weekend, no name or memo), deduped to one flag per transaction per type, plus the Cleared/Reconciliation panel, P&L-only trends, and pass-through. Phase 2 (step 4 in the plan) adds: swing "why" lines with One-time / Seasonal, vendor-account, loan-draw and watch-list checks. The data for all of them is in the section 2 pull, so no re-pull.
 
 ---
+
+### 7.1 Possible duplicates: Smart and Strict (2026-10-17)
+
+The duplicate check has two modes. **Strict** is the original rule: flag every entry that has the same date, same name, same amount and same account as an entry on a different transaction. **Smart** (the default) starts from the same candidates and does NOT flag a pair when:
+
+- the amount is under the floor (default $1, configurable);
+- the two entries are different kinds of transaction that move money through a holding account (a Payment and a Deposit on Undeposited Funds, or a transfer between a bank and a clearing account). Two entries of the same kind, or both money-out kinds (Expense, Check, Bill, Bill Payment, card charge), or both money-in kinds (Invoice, Sales Receipt, Deposit, Payment), can still pair;
+- both memos are filled in and different, or both document numbers are filled in and different (two invoices with different numbers);
+- they are lines of the same transaction (split lines).
+
+Different dates never match, in either mode, so monthly recurring payments never flag. When in doubt Smart still flags: two same-kind entries on the same day for the same amount with blank or identical memos flag. The flag text names the other entry and the evidence (same memo, same number, or nothing tells them apart).
+
+**Setting.** `gl_review_settings.dup_mode` is the firm default; `gl_review_client_settings.dup_mode` overrides it for one client (a client can be Strict while the firm is Smart). Both are written only by `gl_review_save_dup_mode(p_mode, p_client_id)` (admins only, SECURITY DEFINER), which writes `audit_write('gl_review.dup_mode', ...)` with `from`, `to` and `scope` (Audit log group Ledger review). A null mode with a client clears the override.
+
+**When it applies.** Ledger lines are not stored, so a change to Smart takes effect on the next Pull: the browser computes the entries Smart sets aside, and `gl_review_hide_dup_flags(client, pull_id, keys)` moves open `dup` flags it no longer detects to status `fixed` with `fixed_by = 'dup_smart'`, shown as "No longer flagged (Smart mode)", hidden from the open list and not counted toward the Close step. Only `open` flags move; asked, cleared, approved flags and notes are never touched. A change to Strict restores those flags right away (`fixed_by = 'dup_smart'` back to `open`, inside `gl_review_save_dup_mode`), and a later Strict pull reopens any that remain. The UI shows a "Possible duplicates: Smart/Strict" chip on the tab and, in Smart mode, how many entries were set aside with a list.
 
 ## 8. Account types and rules in the checks
 

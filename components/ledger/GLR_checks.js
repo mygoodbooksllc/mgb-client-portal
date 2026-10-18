@@ -2,7 +2,8 @@
 // GLR_checks: the Ledger review checks (spec 7 "Phase 1 checks", Bailley's
 // standard in PLAN.md) over normalized lines from GLR_parse.
 //
-//   runChecks(lines, ctx) -> { flags, suppressed, passThrough, recon, lines }
+//   runChecks(lines, ctx) -> { flags, suppressed, passThrough, recon, lines,
+//     dupMode, dupSetAside (Smart: lines Strict would flag but Smart set aside) }
 //   reconciliation(lines, ctx) -> the Reconciliation panel data
 //   holdingTotals(lines, { period }) -> Uncategorized / Ask My Accountant $
 //   toUpsertRows(flags) -> jsonb rows for gl_review_upsert_flags
@@ -11,7 +12,8 @@
 // ctx: { rules: gl_review_rules rows, watchVendors: [{pattern, category,
 //   active}], clearedAvailable: bool, reviewPeriod: 'YYYY-MM' (defaults to
 //   the latest month in the lines), dedupe: true (false = prototype parity,
-//   one flag per line) }
+//   one flag per line), dupMode: 'smart' | 'strict' (default 'strict', the
+//   original rule; the app passes the firm/client setting) }
 //
 // A flag:
 //   { id, flag_type, severity, label, why, txn_key, period 'YYYY-MM-01',
@@ -142,8 +144,53 @@
     return out;
   }
 
+  // ---- Possible duplicate, Smart mode (docs/gl-review-spec.md "Possible
+  // duplicates"). Strict is the original date + name + amount + account rule,
+  // untouched in collectHits. Smart uses the same buckets and keeps a
+  // pair only when ALL of these hold:
+  //   1. the amount is at least T.dupSmartMinAbs (default $1);
+  //   2. the two are the same transaction type, or both are money-out
+  //      (Expense, Check, Bill, Bill Payment, card charge) or both money-in
+  //      (Invoice, Sales Receipt, Deposit, Payment), and neither line sits in
+  //      Undeposited Funds or a clearing account unless the types match;
+  //   3. nothing proves they are different: both memos filled in and not the
+  //      same, or both document numbers filled in and not the same. Blank on
+  //      either side proves nothing, so two entries with no memo and no
+  //      number still count (when in doubt, flag).
+  // Lines of one transaction (same key) never pair; different dates never
+  // share a bucket (monthly patterns).
+  var DUP_OUT = /^(expense|check|bill|bill payment|credit card (expense|charge)|cash expense|purchase)\b/;
+  var DUP_IN = /^(invoice|sales receipt|deposit|payment)$/;
+  var DUP_CLEARING = /undeposited|payments? to deposit|clearing/i;
+  function dupGroup(t) { return DUP_OUT.test(t) ? "out" : DUP_IN.test(t) ? "in" : ""; }
+  var dupNorm = function (s) { return low(s).replace(/\s+/g, " ").replace(/[\s.,;:]+$/, ""); };
+  function dupPair(m, x) {
+    if (abs(x.cents) < Math.round(T.dupSmartMinAbs * 100)) return false;
+    var tm = low(m.type), tx = low(x.type);
+    if (tm !== tx) {
+      if (DUP_CLEARING.test(m.acct) || DUP_CLEARING.test(x.acct)) return false;
+      var g = dupGroup(tm);
+      if (!g || g !== dupGroup(tx)) return false;
+    }
+    var mm = dupNorm(m.memo), mx = dupNorm(x.memo);
+    if (mm && mx && mm !== mx) return false;
+    var nm = dupNorm(m.num), nx = dupNorm(x.num);
+    if (nm && nx && nm !== nx) return false;
+    return true;
+  }
+  function dupWhy(m, x) {
+    var other = (m.type || "entry") + (m.num ? " #" + m.num : "");
+    var mm = dupNorm(m.memo), mx = dupNorm(x.memo);
+    var nm = dupNorm(m.num), nx = dupNorm(x.num);
+    var why = "Same date, name, amount and account as another " + other + ". ";
+    if (mm && mm === mx) why += "Same memo too.";
+    else if (nm && nm === nx) why += "Same number too.";
+    else why += "Nothing in the memo or number tells the two apart.";
+    return why;
+  }
+
   // ---- The checks. Each hit: { t, x (line), why, key?, severity? }.
-  function collectHits(L, ctx, pt, recon) {
+  function collectHits(L, ctx, pt, recon, dupInfo) {
     var hits = [];
     var add = function (t, x, why, extra) { hits.push(Object.assign({ t: t, x: x, why: why }, extra || {})); };
 
@@ -157,6 +204,7 @@
     var isRecur = function (x) { var s = recur.get(low(x.name) + "|" + abs(x.cents)); return !!s && s.size >= T.recurMinTxns; };
 
     var dupSeen = new Map();
+    var dupBucket = new Map();
     var watch = (ctx.watchVendors || C.DEFAULT_WATCH_VENDORS).filter(function (w) {
       return w && w.active !== false && low(w.pattern).length >= 2;
     });
@@ -166,7 +214,24 @@
       var where = x.acct + " " + x.split;
       if (RX.suspense.test(x.acct)) add("suspense", x, "Posted to a holding account. Needs a real category.");
       if (RX.obe.test(x.acct)) add("obe", x, "Activity in Opening Balance Equity usually means a setup or reconciliation issue.");
-      if (x.cents !== 0) {
+      if (x.cents !== 0 && dupInfo.mode === "smart") {
+        // Smart: same buckets as Strict, a pair counts only with stronger evidence (dupPair).
+        var sk = [x.date, x.cents, low(x.name), R.acctKey(x)].join("|");
+        var bucket = dupBucket.get(sk);
+        if (!bucket) { bucket = []; dupBucket.set(sk, bucket); }
+        var strictHit = bucket.length > 0 && bucket[0].key !== x.key;
+        var matched = null;
+        for (var bi = 0; bi < bucket.length && !matched; bi++) {
+          if (bucket[bi].key !== x.key && dupPair(bucket[bi], x)) matched = bucket[bi];
+        }
+        if (matched) {
+          add("dup", x, dupWhy(matched, x));
+          dupInfo.flagged[x.key] = true;
+        } else if (strictHit) {
+          dupInfo.aside.push(x);
+        }
+        bucket.push(x);
+      } else if (x.cents !== 0) {
         var dk = [x.date, x.cents, low(x.name), R.acctKey(x)].join("|");
         var prev = dupSeen.get(dk);
         if (prev && prev.key !== x.key) {
@@ -355,7 +420,8 @@
     var L = R.applyAccountTypes((lines || []).filter(function (l) { return l && l.date; }), ctx.rules);
     var pt = R.passThrough(L, ctx.rules);
     var recon = reconciliation(L, Object.assign({}, ctx, { _prepared: true, _pt: pt }));
-    var hits = collectHits(L, ctx, pt, recon);
+    var dupInfo = { mode: ctx.dupMode === "smart" ? "smart" : "strict", flagged: {}, aside: [] };
+    var hits = collectHits(L, ctx, pt, recon, dupInfo);
     var flags = ctx.dedupe === false
       ? hits.map(function (h) { return makeFlag(h, [h]); })
       : dedupe(hits, pt);
@@ -370,7 +436,16 @@
       if (rule) { suppressed.push({ flag: f, reason: "stop_flagging", rule_id: rule.id || null }); return; }
       kept.push(f);
     });
-    return { flags: sortFlags(kept), suppressed: suppressed, passThrough: pt.accounts, recon: recon, lines: L };
+    // Smart only: transactions Strict would flag that Smart set aside (and no
+    // other line of the same transaction flagged), one entry per transaction.
+    var aside = [], asideSeen = {};
+    dupInfo.aside.forEach(function (x) {
+      if (dupInfo.flagged[x.key] || asideSeen[x.key]) return;
+      asideSeen[x.key] = true;
+      aside.push(x);
+    });
+    return { flags: sortFlags(kept), suppressed: suppressed, passThrough: pt.accounts, recon: recon, lines: L,
+      dupMode: dupInfo.mode, dupSetAside: aside };
   }
 
   function countByType(flags) {

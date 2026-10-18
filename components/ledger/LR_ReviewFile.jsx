@@ -20,6 +20,8 @@ function LR_ReviewFilePage({ staffUser }) {
   const [err, setErr] = useState("");
   const [drag, setDrag] = useState(false);
   const [watch, setWatch] = useState(undefined);
+  // Firm default for Possible duplicates (files aren't tied to a client, so no override).
+  const [dupMode, setDupMode] = useState("smart");
   const [edits, setEdits] = useState({ passThrough: {}, types: {} });
   const [ym, setYm] = useState("");
   const [onlyMonth, setOnlyMonth] = useState(false);
@@ -38,6 +40,9 @@ function LR_ReviewFilePage({ staffUser }) {
     if (typeof LR_api === "undefined") return;
     LR_api.loadWatchVendors()
       .then((w) => alive.current && setWatch(w && w.length ? w : undefined))
+      .catch(() => {});
+    LR_api.loadFirmDupMode()
+      .then((m) => alive.current && setDupMode(m))
       .catch(() => {});
   }, []);
 
@@ -87,8 +92,9 @@ function LR_ReviewFilePage({ staffUser }) {
       watchVendors: watch,
       clearedAvailable: file.cleared_available,
       reviewPeriod: ym,
+      dupMode,
     });
-  }, [file, rules, watch, ym]);
+  }, [file, rules, watch, ym, dupMode]);
 
   const flags = useMemo(
     () => (run ? run.flags.map((f) => ({ ...f, id: null, status: "open", first_period: f.period, run: f })) : []),

@@ -1131,7 +1131,7 @@ function TOUR_adminSteps(ctx) {
     team(
       "ledger",
       "Team › Ledger review",
-      "Ledger review settings: whether an unapproved review only warns or blocks marking a month done, how far back a pull looks, and the vendor watch list.",
+      "Ledger review settings: whether an unapproved review only warns or blocks marking a month done, how far back a pull looks, how strict the duplicate check is (Smart or Strict), and the vendor watch list.",
     ),
     team("feedback", "Team › Feedback", "Bug reports and ideas from staff and clients. Only admins see all of it."),
     team("inventory", "Team › Inventory", "Admins also get Requests, Items, a Roster of who's missing what, the staff Directory and Export to Google Sheet."),

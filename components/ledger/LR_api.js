@@ -19,7 +19,7 @@ const LR_FLAG_COLS =
   "id, client_id, period, txn_key, flag_type, severity, why, txn_date, amount, name, memo, account_name, " +
   "account_qbo_id, other_side, class_name, location_name, status, cleared_reason, note, stop_flagging, reviewer, " +
   "cleared_by, cleared_at, question_id, sent_back_note, first_period, first_seen_at, last_seen_at, last_pull_at, " +
-  "fixed_at, checks_version";
+  "fixed_at, fixed_by, checks_version";
 const LR_RULE_COLS =
   "id, client_id, kind, status, flag_type, match_name, account_qbo_id, account_name, account_type_override, params, source, note, created_by, created_at";
 const LR_PULL_COLS = "client_id, pull_id, status, window_kind, window_start, window_end, started_at, finished_at, calls, line_count, error, pulled_by";
@@ -87,14 +87,16 @@ const LR_api = {
   // soft: a missing table or a failed read leaves that part null.
   async loadContext(clientId) {
     const sb = LR_sb();
-    const [conn, settings, watch, rules, pull, users, profile] = await Promise.all([
+    const [conn, settings, watch, rules, pull, users, profile, dupOverride] = await Promise.all([
       LR_soft(sb.from("qbo_connections").select("client_id, status").eq("client_id", clientId).maybeSingle()),
-      LR_soft(sb.from("gl_review_settings").select("done_gate, pull_window, effective_from, updated_by, updated_at").maybeSingle()),
+      LR_soft(sb.from("gl_review_settings").select("done_gate, pull_window, effective_from, dup_mode, updated_by, updated_at").maybeSingle()),
       LR_soft(sb.from("gl_review_watch_vendors").select("id, pattern, category, note, active").order("pattern")),
       LR_soft(sb.from("gl_review_rules").select(LR_RULE_COLS).eq("client_id", clientId).order("created_at")),
       LR_soft(sb.from("gl_review_pulls").select(LR_PULL_COLS).eq("client_id", clientId).maybeSingle()),
       LR_api.loadPortalAddressees(clientId),
       LR_soft(sb.from("client_profile").select("greeting_name, contact_email").eq("client_id", clientId).maybeSingle()),
+      // Per-client Possible duplicates override; null when none (or the SQL isn't applied yet).
+      LR_soft(sb.from("gl_review_client_settings").select("dup_mode").eq("client_id", clientId).maybeSingle()),
     ]);
     return {
       connected: !!(conn.data && conn.data.status === "connected"),
@@ -104,6 +106,7 @@ const LR_api = {
       rules: rules.data || [],
       rulesError: rules.error ? LR_toError(rules.error).message : null,
       pull: pull.data || null,
+      dupOverride: (dupOverride.data && dupOverride.data.dup_mode) || null,
       portalUsers: users.list,
       portalUsersMissing: users.missing,
       profile: profile.data || {},
@@ -187,7 +190,7 @@ const LR_api = {
   async loadSettings() {
     const sb = LR_sb();
     const [settings, watch] = await Promise.all([
-      LR_soft(sb.from("gl_review_settings").select("done_gate, pull_window, effective_from, updated_by, updated_at").maybeSingle()),
+      LR_soft(sb.from("gl_review_settings").select("done_gate, pull_window, effective_from, dup_mode, updated_by, updated_at").maybeSingle()),
       LR_soft(sb.from("gl_review_watch_vendors").select("id, pattern, category, note, active, updated_by, updated_at").order("pattern")),
     ]);
     if (settings.error && watch.error) throw LR_toError(settings.error);
@@ -199,6 +202,12 @@ const LR_api = {
   async loadWatchVendors() {
     const r = await LR_soft(LR_sb().from("gl_review_watch_vendors").select("pattern, category, active").eq("active", true));
     return r.error ? null : r.data || [];
+  },
+
+  // Firm default Possible duplicates mode ('smart' when unset or unreadable).
+  async loadFirmDupMode() {
+    const r = await LR_soft(LR_sb().from("gl_review_settings").select("dup_mode").maybeSingle());
+    return LR_logic.effectiveDupMode(r.data && r.data.dup_mode, null);
   },
 
   // ---- Pull -----------------------------------------------------------------
@@ -240,6 +249,20 @@ const LR_api = {
       total.reopened += (r && r.reopened) || 0;
     }
     return total;
+  },
+  // Smart mode: soft-hide the open dup flags Smart set aside. `keys` are the
+  // set-aside lines' keys (same format as txn_key). Resolves { hidden }.
+  async hideDupFlags(clientId, pullId, keys) {
+    const list = Array.from(new Set((keys || []).filter(Boolean)));
+    if (!list.length) return { hidden: 0 };
+    let hidden = 0;
+    let mode = "smart";
+    for (const part of LR_logic.chunk(list, 2000)) {
+      const r = await LR_rpc("gl_review_hide_dup_flags", { p_client_id: clientId, p_pull_id: pullId, p_keys: part });
+      hidden += (r && r.hidden) || 0;
+      if (r && r.mode === "strict") mode = "strict";
+    }
+    return { hidden, mode };
   },
   markFixed(clientId, pullId, checksVersion) {
     return LR_rpc("gl_review_mark_fixed", { p_client_id: clientId, p_pull_id: pullId, p_checks_version: checksVersion });
@@ -329,6 +352,17 @@ const LR_api = {
       p_pull_window: pullWindow || null,
       p_effective_from: effectiveFrom || null,
     });
+  },
+
+  // Possible duplicates mode. Admin only. mode 'smart' | 'strict'; clientId
+  // null = firm default; with a client, mode null clears that client's
+  // override. Resolves { restored }: dup flags reopened right away (Strict).
+  saveDupMode(mode, clientId) {
+    return LR_rpc("gl_review_save_dup_mode", { p_mode: mode || null, p_client_id: clientId || null });
+  },
+  // override -> firm -> 'smart'.
+  effectiveDupMode(firm, override) {
+    return LR_logic.effectiveDupMode(firm, override);
   },
 
   notifyChanged(clientId, period) {

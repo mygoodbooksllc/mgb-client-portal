@@ -2,7 +2,7 @@
 title: How does Ledger review work?
 section: Working with a client
 audience: staff
-keywords: [ledger review, general ledger, GL review, gl, flags, pull from quickbooks, pull again, clear a flag, ask client, got an answer, stop flagging, reconciliation, month vs the year, summary for the client, send via portal, send by email, greeting name, contact email, mark reviewed, approve, send back, ledger reviewed, warn, block, review a file, copy for excel, watch list, vendor watch list, uncategorized, suspense, opening balance equity, duplicate, check gap, round dollar, weekend, high priority]
+keywords: [ledger review, general ledger, GL review, gl, flags, pull from quickbooks, pull again, clear a flag, ask client, got an answer, stop flagging, reconciliation, month vs the year, summary for the client, send via portal, send by email, greeting name, contact email, mark reviewed, approve, send back, ledger reviewed, warn, block, review a file, copy for excel, watch list, vendor watch list, uncategorized, suspense, opening balance equity, duplicate, possible duplicates, smart mode, strict mode, no longer flagged, set aside, undeposited funds, split lines, check gap, round dollar, weekend, high priority]
 sort: 207
 ---
 **Ledger review** checks one month of a client's General Ledger for things worth a second look, before you close the month. It lives on the client's **Ledger review** tab, right after **Close**. Staff only. The client never sees this tab, and nothing in it changes their QuickBooks.
@@ -41,6 +41,29 @@ What you can do with a flag:
 - **Send back** (admins) on a cleared flag you disagree with. It goes back to **Open**.
 
 An asked question can show the amount and the question text in the email. It never shows our fees, rates or margins.
+
+### Possible duplicates: Smart or Strict
+
+The **Possible duplicate** check looks for entries with the same date, name, amount and account on different transactions. It has two modes. A small chip near the top of the tab says which one applies: **Possible duplicates: Smart** or **Possible duplicates: Strict**, and whether it is the firm default or set for this client.
+
+- **Smart** (the default) skips look-alikes that are clearly not duplicates, so there are fewer false alarms.
+- **Strict** is the original rule: it flags every same-date, same-name, same-amount, same-account match on a different transaction.
+
+What Smart does **not** flag:
+
+- **Different dates.** A monthly recurring payment never flags, because each one is on its own date. (Strict doesn't flag these either.)
+- **Under $1.** A $0.50 fee that repeats isn't worth a look. The floor is $1.
+- **A Payment and a Deposit on Undeposited Funds.** Two different kinds of entry that pass through a holding account, like a customer Payment and the bank Deposit that holds it, or a transfer between a bank and a clearing account, aren't a pair. Two entries of the same kind can still pair, and so can two money-out kinds (Expense, Check, Bill, Bill Payment, card charge) or two money-in kinds (Invoice, Sales Receipt, Deposit, Payment).
+- **Different memos or different numbers.** If both entries have a memo and the memos differ, or both have a document number and the numbers differ (two invoices numbered 1041 and 1042), they're treated as separate.
+- **Split lines.** Lines of the same transaction aren't a duplicate of each other.
+
+What still flags in Smart mode: when in doubt, it flags. Two entries of the same kind, on the same day, for the same amount, with blank or identical memos still flag. The flag names the other entry and says what it found: *same memo*, *same number* or *nothing tells them apart*.
+
+In Smart mode the tab says how many possible duplicates it set aside and lists them (date, name, type, amount), so you can see what was skipped. **Show** opens the list.
+
+**When a change applies.** The ledger lines aren't stored, so a change to Smart applies on the **next Pull from QuickBooks**. A change to Strict also brings hidden flags back right away. A duplicate flag that was open and that Smart no longer detects is not deleted. It's marked **No longer flagged (Smart mode)**, hidden from the open list and left out of the count the Close step uses. Your decisions (Ask client, Clear, Stop flagging, Approve, notes) are never touched. Switching back to Strict reopens those flags.
+
+An admin picks the mode for the firm in **Team › Ledger review** (see Settings below), and can set a different mode for one client from the chip on that client's Ledger review tab, for example Strict for one client while the firm uses Smart.
 
 ### Reconciliation
 
@@ -98,6 +121,7 @@ The file is read in your browser. Nothing is uploaded, stored or sent to QuickBo
 - **Marking a month done**: *Warn* (the default) or *Block*. With Block, a month can't be signed off until its review is approved, and an admin can override with a reason.
 - **Go back to**: the usual range for every pull, 14 months back (recommended) or this year so far. Staff can go further back for one pull on the client's tab.
 - **Count the Close step from**: the first month the Ledger reviewed step applies to, so older months don't suddenly look behind.
+- **Possible duplicates**: **Smart (fewer false alarms)** or **Strict (flag every same-date, same-amount match)**, the firm default for every client, with **Save**. Each change is written to **Settings › Firm settings › Audit log**. A single client can be set differently from their Ledger review tab (admins only). See *Possible duplicates: Smart or Strict* above.
 - **Vendor watch list**: names that get a *Watch-list vendor* flag for every client. Add a name with a category, edit it, or turn it off.
 
 ### Troubleshooting
@@ -107,5 +131,7 @@ The file is read in your browser. Nothing is uploaded, stored or sent to QuickBo
 - **Send via portal is greyed out.** The client has no active portal users who can see the whole company. If it says *portal users couldn't load*, the database update isn't applied yet; email still works.
 - **"The firm watch list didn't load."** That pull used the built-in list, so nothing was marked fixed. Pull from QuickBooks again later.
 - **I can't tick Ledger reviewed.** That's on purpose. Click **Mark reviewed**.
+- **A duplicate flag I expected is missing.** In Smart mode it may have been set aside; open the list under the **Possible duplicates** chip, or ask an admin to switch the client to Strict.
+- **A flag says No longer flagged (Smart mode).** A later pull found that Smart no longer calls it a duplicate. It stays on record, and switching to Strict reopens it.
 - **A flag keeps coming back.** Clear it with **Stop flagging this** to keep that pattern quiet for this client.
 - **A message says the database update isn't applied.** An admin needs to run the Ledger review database update. See [the FAQ](#/help/faq).

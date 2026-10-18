@@ -52,6 +52,7 @@
   // ---- Thresholds (prototype README "Checks", plus Bailley's checks)
   var T = {
     dupMinAbs: 0.01, // amount != 0
+    dupSmartMinAbs: 1, // Smart duplicate mode ignores amounts under this ($)
     gapMin: 2, // a jump of 2..25 between check numbers is a gap
     gapMax: 25, // larger jumps are new check stock
     largeMinLines: 8, // per account, non-zero lines needed before "large" runs

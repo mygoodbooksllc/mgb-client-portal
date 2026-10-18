@@ -71,7 +71,7 @@ function LR_Dialog({ id, title, children, submitLabel, canSubmit, onSubmit, onCa
     }
   };
   return (
-    <ModalShell onClose={busy ? () => {} : onCancel} labelledBy={id + "-title"} className="lr-dialog">
+    <ModalShell onClose={busy ? () => {} : onCancel} labeledBy={id + "-title"} className="lr-dialog">
       <form onSubmit={submit}>
         <div className="modal-header">
           <h3 className="card-title" id={id + "-title"} style={{ margin: 0 }}>
@@ -429,12 +429,16 @@ function LR_LedgerTab({ client, staffUser, isAdmin, onNavigate }) {
         // built-in list; then nothing is marked fixed this time, so a
         // watch_vendor flag isn't retired just because the list was missing.
         const watchFallback = c.watchVendors == null;
+        const pullDupMode = LR_logic.effectiveDupMode(c.settings && c.settings.dup_mode, c.dupOverride);
+        let dupHideError = "";
+        let skipMarkFixed = false;
         try {
           const run = GLR_checks.runChecks(parsed.lines, {
             rules: c.rules,
             watchVendors: c.watchVendors || undefined,
             clearedAvailable: parsed.cleared_available,
             reviewPeriod: saveYm,
+            dupMode: pullDupMode,
           });
           // A custom pull has less history, so only window-independent flag
           // types are saved (the in-memory run still shows everything).
@@ -443,7 +447,22 @@ function LR_LedgerTab({ client, staffUser, isAdmin, onNavigate }) {
           if (!pid || !pid.pull_id) throw new Error("This pull couldn't be matched to its record, so the flags weren't saved. Pull again.");
           pulledKind = pid.window_kind;
           await LR_api.upsertFlags(client.id, pid.pull_id, GLR_config.CHECKS_VERSION, rows);
-          if (pid.window_kind === "rolling14" && !watchFallback) {
+          // Smart: open dup flags it now sets aside become "No longer flagged".
+          // Before mark_fixed so they aren't labeled fixed in QuickBooks. A
+          // failure here must not break the pull.
+          if (run.dupMode === "smart" && run.dupSetAside && run.dupSetAside.length) {
+            try {
+              const hr = await LR_api.hideDupFlags(client.id, pid.pull_id, LR_logic.dupAsideKeys(run.dupSetAside));
+              // The database says Strict applies (the setting changed mid-pull
+              // or didn't load): leave those flags open, don't mark them fixed.
+              if (hr && hr.mode === "strict") skipMarkFixed = true;
+            } catch (e) {
+              skipMarkFixed = true;
+              dupHideError = (e && e.message) || "Couldn't update the duplicate flags.";
+              if (typeof console !== "undefined") console.warn("Ledger review: hide dup flags failed", e);
+            }
+          }
+          if (pid.window_kind === "rolling14" && !watchFallback && !skipMarkFixed) {
             const r = await LR_api.markFixed(client.id, pid.pull_id, GLR_config.CHECKS_VERSION);
             fixed = (r && r.fixed) || 0;
           }
@@ -460,7 +479,7 @@ function LR_LedgerTab({ client, staffUser, isAdmin, onNavigate }) {
           pullFromRef.current = "";
           setPullFrom("");
         }
-        setPull({ phase: "done", saveError, fixed, watchFallback, custom: pulledKind === "custom", covers: pullRow ? LR_logic.coveredLabel(pullRow) : "" });
+        setPull({ phase: "done", saveError, dupHideError, fixed, watchFallback, custom: pulledKind === "custom", covers: pullRow ? LR_logic.coveredLabel(pullRow) : "" });
         LR_api.notifyChanged(client.id, LR_logic.toPeriod(ymRef.current));
       } catch (e) {
         if (alive.current) setPull({ phase: "error", error: (e && e.message) || "The ledger pull didn't finish." });
@@ -509,6 +528,9 @@ function LR_LedgerTab({ client, staffUser, isAdmin, onNavigate }) {
 
   // ---- Derived -------------------------------------------------------------
   const rules = (ctx && ctx.rules) || [];
+  const firmDupMode = ctx && ctx.settings ? ctx.settings.dup_mode : null;
+  const dupOverride = (ctx && ctx.dupOverride) || null;
+  const dupMode = LR_logic.effectiveDupMode(firmDupMode, dupOverride);
   const run = useMemo(() => {
     if (!data || !ctx) return null;
     return GLR_checks.runChecks(data.lines, {
@@ -516,9 +538,10 @@ function LR_LedgerTab({ client, staffUser, isAdmin, onNavigate }) {
       watchVendors: ctx.watchVendors || undefined,
       clearedAvailable: data.cleared_available,
       reviewPeriod: ym,
+      dupMode,
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [data, ctx && ctx.rules, ctx && ctx.watchVendors, ym]);
+  }, [data, ctx && ctx.rules, ctx && ctx.watchVendors, ym, dupMode]);
 
   // The pull on screen: the one just run, else the last saved pull row.
   const winStart = (data && data.window && data.window.start) || (ctx && ctx.pull && ctx.pull.status === "ok" && ctx.pull.window_start) || "";
@@ -598,6 +621,13 @@ function LR_LedgerTab({ client, staffUser, isAdmin, onNavigate }) {
     await reloadFlags();
     LR_api.notifyChanged(client.id, period);
   };
+  // Admin: this client's Possible duplicates override (null = firm default).
+  const onDupOverride = (mode) =>
+    act(async () => {
+      const r = await LR_api.saveDupMode(mode, client.id);
+      if (alive.current) setCtx((x) => (x ? { ...x, dupOverride: mode || null } : x));
+      if (r && r.restored) await afterFlagChange();
+    }, "Possible duplicates setting saved for this client.");
 
   const onClear = (f) =>
     setDialog({
@@ -946,6 +976,12 @@ function LR_LedgerTab({ client, staffUser, isAdmin, onNavigate }) {
         </div>
       </div>
     );
+  } else if (pull.phase === "done" && !pull.saveError && pull.dupHideError) {
+    banner = (
+      <p className="lr-note is-warn" role="status">
+        The flags were saved, but Smart mode couldn't hide the duplicate flags it set aside ({pull.dupHideError}). They'll be hidden on the next pull.
+      </p>
+    );
   } else if (pull.phase === "done" && !pull.saveError && pull.watchFallback) {
     banner = (
       <p className="lr-note is-warn" role="status">
@@ -1028,7 +1064,13 @@ function LR_LedgerTab({ client, staffUser, isAdmin, onNavigate }) {
           {f.note ? <span className="lr-meta-note">{f.note}</span> : null}
         </p>,
       );
-    if (f.status === "fixed")
+    if (LR_logic.isDupSmartHidden(f))
+      out.push(
+        <p key="x" className="lr-meta">
+          No longer flagged (Smart mode){f.fixed_at ? " · " + LR_when(f.fixed_at) : ""}
+        </p>,
+      );
+    else if (f.status === "fixed")
       out.push(
         <p key="x" className="lr-meta is-good">
           Fixed in QuickBooks{f.fixed_at ? " · gone from the pull on " + LR_when(f.fixed_at) : ""}
@@ -1083,7 +1125,7 @@ function LR_LedgerTab({ client, staffUser, isAdmin, onNavigate }) {
         : `Nothing cleared for ${GLR_config.monthLabel(ym)} yet.`;
 
   const flagsCard = (
-    <section className="card lr-panel lr-flags-card" aria-labelledby="lr-flags-h" data-tour="ledger-flags">
+    <section className="card lr-panel lr-flags-card" aria-labeledby="lr-flags-h" data-tour="ledger-flags">
       <div className="lr-panel-head">
         <h3 className="card-title" id="lr-flags-h">
           Flags
@@ -1110,7 +1152,7 @@ function LR_LedgerTab({ client, staffUser, isAdmin, onNavigate }) {
         </p>
       )}
       <LR_StatusTabs tabs={tabs} current={tab} onSelect={setTab} idPrefix="lr-st" controls="lr-flag-panel" />
-      <div id="lr-flag-panel" role="tabpanel" aria-labelledby={"lr-st-tab-" + tab}>
+      <div id="lr-flag-panel" role="tabpanel" aria-labeledby={"lr-st-tab-" + tab}>
         <LR_TypeChips chips={chips} current={type} onSelect={setType} total={chips.reduce((s, c) => s + c.n, 0)} idPrefix="lr" />
         {pickable.length > 0 && (
           <div className="lr-bulkbar">
@@ -1192,7 +1234,7 @@ function LR_LedgerTab({ client, staffUser, isAdmin, onNavigate }) {
   const signoffBar = (
     <section
       className={"card lr-signoff is-" + so.key + (isPhone ? " is-phone" : "")}
-      aria-labelledby="lr-signoff-h"
+      aria-labeledby="lr-signoff-h"
       data-tour="ledger-signoff"
     >
       <div className="lr-signoff-text">
@@ -1315,6 +1357,15 @@ function LR_LedgerTab({ client, staffUser, isAdmin, onNavigate }) {
         </ul>
       )}
       {strip}
+      <LR_DupModeBar
+        mode={dupMode}
+        firmMode={LR_logic.effectiveDupMode(firmDupMode, null)}
+        override={dupOverride}
+        aside={run ? run.dupSetAside : null}
+        isAdmin={realAdmin}
+        busy={actionBusy}
+        onChange={onDupOverride}
+      />
       {flagsCard}
       <div className="lr-grid">
         <LR_ReconPanel recon={run ? run.recon : null} hasData={!!run} />
@@ -1356,7 +1407,7 @@ function LR_RulesCard({
   const keyOf = (l) => (l.acct_id != null ? "id:" + l.acct_id : "n:" + l.acct);
   const auto = passThrough.filter((a) => a.source === "auto");
   return (
-    <section className="card lr-panel" aria-labelledby="lr-rules-h">
+    <section className="card lr-panel" aria-labeledby="lr-rules-h">
       <h3 className="card-title" id="lr-rules-h">
         Pass-through accounts and rules
       </h3>
@@ -1664,7 +1715,7 @@ function LR_SummaryCard({
       </>
     );
   return (
-    <section className="card lr-panel" aria-labelledby="lr-summary-h" data-tour="ledger-summary">
+    <section className="card lr-panel" aria-labeledby="lr-summary-h" data-tour="ledger-summary">
       <h3 className="card-title" id="lr-summary-h">
         Summary for the client
       </h3>

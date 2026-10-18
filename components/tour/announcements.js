@@ -53,6 +53,40 @@ function ANN_deskDocked() {
 
 var ANN_REGISTRY = [
   {
+    id: "dup-smart",
+    date: "2026-10-17",
+    title: "Smarter duplicate checks",
+    summary: "Ledger review's Possible duplicate check now has a Smart mode (the new default) that sets aside look-alikes that are clearly not duplicates, and a Strict mode that flags every same-date, same-amount match.",
+    roles: ["admin", "bookkeeper"],
+    hash: "#/team/ledger",
+    steps: (ctx) => [
+      {
+        id: "ann-welcome",
+        title: "Fewer false duplicate flags",
+        body: () =>
+          "Ledger review now has two ways to check for a Possible duplicate. Smart is the new default and skips look-alikes that are clearly not duplicates. Strict is the old rule. About a minute.",
+      },
+      {
+        id: "ann-skips",
+        title: "What Smart sets aside",
+        body: () =>
+          "Smart leaves out amounts under $1, a Payment and a Deposit that pass through Undeposited Funds, entries with different memos or different invoice numbers, and the lines of one split transaction. Different dates never match, so monthly payments don't flag.",
+      },
+      TOUR_tabStep(
+        "team",
+        "ledger",
+        "Smart or Strict",
+        "Admins pick Smart or Strict here in Ledger review settings for the whole firm, and a client can be set differently. A change to Smart applies on the next Pull; Strict brings hidden flags back right away. Each change is written to the Audit log.",
+      ),
+      {
+        id: "ann-done",
+        title: "Nothing is lost",
+        body: () =>
+          "Each client's Ledger review shows a Smart or Strict chip, and Smart lists the flags it set aside. Anything unclear still flags, and your Ask, Clear and note decisions are never touched. To see this again, press ? and pick New: Smarter duplicate checks tour.",
+      },
+    ],
+  },
+  {
     id: "late-task-grace",
     date: "2026-10-17",
     title: "No late-task penalties yet",

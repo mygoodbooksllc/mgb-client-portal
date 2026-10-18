@@ -137,6 +137,85 @@ function LR_Strip({ items, note }) {
   );
 }
 
+// Possible duplicates: which mode is active, the entries Smart set aside, and
+// (admins) this client's override. aside is null until a pull is loaded.
+// onChange(mode|null) is only passed from the client tab.
+function LR_DupModeBar({ mode, firmMode, override, aside, isAdmin, busy, onChange }) {
+  const [open, setOpen] = useState(false);
+  const smart = mode === "smart";
+  const label = LR_logic.DUP_MODE_LABEL[mode] || "Smart";
+  const n = aside ? aside.length : 0;
+  const tip = smart
+    ? "Smart mode flags a possible duplicate only when the type, memo or number also match. Strict flags every same-date, same-name, same-amount match."
+    : "Strict mode flags every entry with the same date, name, amount and account.";
+  const list = aside ? aside.slice().sort((a, b) => String(a.date).localeCompare(String(b.date))) : [];
+  const shownList = list.slice(0, 100);
+  return (
+    <div className="lr-dupmode">
+      <p className="lr-meta">
+        <span className="lr-kind" title={tip}>
+          Possible duplicates: {label}
+        </span>
+        {override ? <span className="lr-hint"> · Set for this client</span> : <span className="lr-hint"> · Firm default</span>}
+        {smart && aside ? (
+          <>
+            {" "}
+            {n === 0 ? (
+              <span className="lr-hint">Smart mode set aside no possible duplicates.</span>
+            ) : (
+              <>
+                <span>Smart mode set aside {n} possible duplicate{n === 1 ? "" : "s"}.</span>{" "}
+                <button type="button" className="link-btn lr-btn-sm" aria-expanded={open} onClick={() => setOpen((v) => !v)}>
+                  {open ? "Hide" : "Show"}
+                </button>
+              </>
+            )}
+          </>
+        ) : null}
+      </p>
+      {open && n > 0 && (
+        <div className="lr-table-wrap">
+          <table className="lr-table lr-lines">
+            <caption className="lr-sr">Entries Smart mode set aside</caption>
+            <thead>
+              <tr>
+                <th scope="col">Date</th>
+                <th scope="col">Name</th>
+                <th scope="col">Type</th>
+                <th scope="col" className="lr-num">
+                  Amount
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {shownList.map((l, i) => (
+                <tr key={(l.key || "") + i}>
+                  <td>{l.date}</td>
+                  <td>{l.name || "(no name)"}</td>
+                  <td>{l.type}</td>
+                  <td className="lr-num">{LR_money(l.amt != null ? l.amt : l.cents / 100)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {list.length > shownList.length && <p className="lr-hint">Showing the first {shownList.length} of {list.length}.</p>}
+        </div>
+      )}
+      {onChange && isAdmin && (
+        <label className="lr-field">
+          <span className="lr-month-label">Possible duplicates for this client</span>
+          <select className="lr-select" value={override || ""} disabled={busy} onChange={(e) => onChange(e.target.value || null)}>
+            <option value="">Use firm default ({LR_logic.DUP_MODE_LABEL[firmMode] || "Smart"})</option>
+            <option value="smart">Smart</option>
+            <option value="strict">Strict</option>
+          </select>
+          <span className="lr-hint">Switching to Strict restores hidden flags right away. Switching to Smart applies on the next pull.</span>
+        </label>
+      )}
+    </div>
+  );
+}
+
 // Lines behind one flag (from the in-memory pull or the file).
 function LR_LineTable({ lines }) {
   if (!lines || !lines.length) return null;

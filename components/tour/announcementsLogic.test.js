@@ -311,4 +311,13 @@ t("registry: desk-launch waits for the Desk and points at the resize edge", () =
   assert.ok(/\bD\b/.test(steps[1].body()) && !/press W/.test(steps[1].body()));
 });
 
+t("registry: dup-smart is an admin and bookkeeper notice naming Smart and Strict", () => {
+  const a = ANN_REGISTRY.find((x) => x.id === "dup-smart");
+  assert.ok(a);
+  assert.deepStrictEqual(a.roles, ["admin", "bookkeeper"]);
+  assert.ok(/Smart/.test(a.summary) && /Strict/.test(a.summary));
+  assert.ok(!/colour/i.test(JSON.stringify(a.steps({}).map((x) => x.body ? x.body() : ""))));
+  assert.strictEqual(a.steps({})[0].targets, undefined);
+});
+
 console.log("announcementsLogic: " + n + " checks passed");

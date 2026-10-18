@@ -29,7 +29,7 @@ If you're also a client's account manager, the **Account manager tour** comes ne
 | **Team › Reviews › Team status** | Open and run the quarterly review cycle | [Review cycles](#/help/review-cycles) |
 | **Team › Handbook** | Staff policies bookkeepers sign; who countersigns, each bookkeeper's state and their signed copies | [Staff Handbook](#/help/staff-handbook) |
 | **Team › Feedback** | Bug reports and ideas from staff and clients | [Feedback](#/help/feedback-page) |
-| **Team › Ledger review** | Ledger review settings: warn or block when a month is marked done unapproved, how much ledger to pull, and the vendor watch list | [Ledger review](#/help/ledger-review) |
+| **Team › Ledger review** | Ledger review settings: warn or block when a month is marked done unapproved, how much ledger to pull, Smart or Strict duplicate checks, and the vendor watch list | [Ledger review](#/help/ledger-review) |
 | **Team › Inventory** | Equipment **Requests**, **Items**, the **Roster** of who's missing what, the staff **Directory** and **Export to Google Sheet** | [Inventory](#/help/tech-inventory) |
 | **MGB (internal)** in the left rail | MyGoodBooks' own books, set up like a client. Open to every admin by default; the owner can switch it off for a person in **Team › Members**. Never counted in client numbers | [MGB (internal)](#/help/mgb-internal) |
 | **Slate › Waiting on client** | Every open Ask client request for every client, longest wait first, with **Send reminder**, **Email again** and **Cancel** | [Ask client](#/help/ask-client) |

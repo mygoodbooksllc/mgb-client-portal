@@ -13,6 +13,7 @@
 //   toTsv / flagsToTsv / compareToTsv     "Copy for Excel"
 //   pullFromOptions / pullWindowFrom / chunk / pullWindowLabel / ruleLabel / fileRules / holdingSplit
 //   signoffSummary / chartBars
+//   effectiveDupMode / isDupSmartHidden / dupAsideKeys   Possible duplicates mode
 //
 // UMD like the GLR_ files: window.LR_logic in the browser, require() in Node.
 // No React, no DOM.
@@ -226,6 +227,28 @@
   function toTsv(rows) {
     return (rows || []).map(function (r) { return (r || []).map(cell).join("\t"); }).join("\n");
   }
+  // Possible-duplicates mode: the client's override, else the firm default,
+  // else 'smart'. Anything that isn't 'smart' or 'strict' is ignored.
+  function effectiveDupMode(firm, override) {
+    var ok = function (m) { return m === "smart" || m === "strict" ? m : ""; };
+    return ok(override) || ok(firm) || "smart";
+  }
+  var DUP_MODE_LABEL = { smart: "Smart", strict: "Strict" };
+  // Flags Smart mode retired (gl_review_hide_dup_flags): status 'fixed' with
+  // fixed_by 'dup_smart'. They are not open, so they never count toward Close.
+  function isDupSmartHidden(f) {
+    return !!f && f.status === "fixed" && f.fixed_by === "dup_smart";
+  }
+  // Unique flag keys (same format as the saved flags) for the entries Smart
+  // set aside, ready for gl_review_hide_dup_flags.
+  function dupAsideKeys(aside) {
+    var seen = {}, out = [];
+    (aside || []).forEach(function (x) {
+      var k = String((x && x.key) || "").slice(0, 200);
+      if (k && !seen[k]) { seen[k] = true; out.push(k); }
+    });
+    return out;
+  }
   var STATUS_LABEL = { open: "Open", asked: "Asked", cleared: "Cleared", fixed: "Fixed in QuickBooks" };
   function flagsToTsv(flags) {
     var rows = [["Date", "Check", "Priority", "Name", "Memo", "Account", "Other side", "Amount", "Why", "Status"]];
@@ -240,7 +263,7 @@
         f.other_side || "",
         typeof f.amount === "number" ? Math.round(f.amount * 100) / 100 : f.amount == null ? "" : Number(f.amount),
         f.why || "",
-        STATUS_LABEL[f.status || "open"] || f.status || "Open",
+        isDupSmartHidden(f) ? "No longer flagged (Smart mode)" : STATUS_LABEL[f.status || "open"] || f.status || "Open",
       ]);
     });
     return toTsv(rows);
@@ -434,6 +457,10 @@
     CLEAR_REASONS: CLEAR_REASONS,
     clearReasonLabel: clearReasonLabel,
     STATUS_LABEL: STATUS_LABEL,
+    effectiveDupMode: effectiveDupMode,
+    DUP_MODE_LABEL: DUP_MODE_LABEL,
+    isDupSmartHidden: isDupSmartHidden,
+    dupAsideKeys: dupAsideKeys,
     toTsv: toTsv,
     flagsToTsv: flagsToTsv,
     compareToTsv: compareToTsv,

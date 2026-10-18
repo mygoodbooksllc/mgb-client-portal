@@ -902,3 +902,6 @@ ul.lr-note {
 
 .lr-bulkbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; padding: 8px 0; }
 .lr-pick { width: 18px; height: 18px; margin: 0 8px 0 0; cursor: pointer; }
+
+.lr-dupmode { margin: 8px 0 12px; }
+.lr-dupmode .lr-kind { margin-left: 0; }
