@@ -86,7 +86,12 @@ function load(opts) {
     },
     setInterval: () => 0,
     clearInterval: () => {},
-    TK_openTask: (id, opts) => opened.push([id, opts]),
+    // Like TK_DrawerHost: answers with tk:drawer-open in the same dispatch,
+    // unless the test says the host is not listening.
+    TK_openTask: (id, opts) => {
+      opened.push([id, opts]);
+      if (o.hostAnswers !== false) win.dispatchEvent({ type: "tk:drawer-open", detail: { id: String(id) } });
+    },
     TK_dwState: () => ({ schema: o.schema || "ok" }),
     TK_dlOpenTarget: (c) => (c.schema === "ok" && c.hostReady === true ? "drawer" : "legacy"),
     LK_go: (t, hint) => went.push([t, hint]),
@@ -278,6 +283,17 @@ t("WB_hubOpen logs open-in-place only when the task drawer really opens", () => 
   d.S.setDrawerOpen(true);
   assert.strictEqual(d.sandbox.WB_hubOpen(row, "open"), false);
   assert.deepStrictEqual(JSON.parse(JSON.stringify(d.tracked)), [["wb-action", "task:open"]]);
+
+  // Host looks ready but nothing answers tk:open-task: the click must not do
+  // nothing. It goes to the task's page (closing the Desk) instead.
+  const f = load({ hostAnswers: false });
+  f.S.join("pat@example.com", false);
+  f.S.setDrawerOpen(true);
+  assert.strictEqual(f.sandbox.WB_hubOpen(row, "open"), false);
+  assert.strictEqual(f.opened.length, 1);
+  assert.deepStrictEqual(JSON.parse(JSON.stringify(f.tracked)), [["wb-action", "task:open"]]);
+  assert.deepStrictEqual(JSON.parse(JSON.stringify(f.went)), [[{ place: "work", tab: "tasks", item: "task:t1" }, null]]);
+  assert.strictEqual(f.S.getState().drawerOpen, false);
 
   // Hub closed (Today's own list): normal open, never in place.
   const e = load();

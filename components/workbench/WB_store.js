@@ -707,6 +707,28 @@ function WB__taskDrawerReady() {
   return TK_dlOpenTarget({ schema: st ? st.schema : "unknown", hostReady: host }) === "drawer";
 }
 
+// Opens the task drawer in place and says whether it really opened.
+// TK_DrawerHost answers tk:open-task with tk:drawer-open inside the same
+// dispatch (listeners run synchronously), so the answer is known when
+// TK_openTask returns. false: nothing took the request.
+function WB__openTaskInPlace(taskId) {
+  var id = String(taskId);
+  var took = false;
+  var on = function (e) {
+    if (e && e.detail && String(e.detail.id) === id) took = true;
+  };
+  try {
+    window.addEventListener("tk:drawer-open", on);
+  } catch (e) {}
+  try {
+    TK_openTask(id, { from: "wb-hub" });
+  } catch (e) {}
+  try {
+    window.removeEventListener("tk:drawer-open", on);
+  } catch (e) {}
+  return took;
+}
+
 // Asks the app to open the staff chat drawer on a client and person
 // (listener in app.jsx). The listener sets detail.handled = true when it took
 // the request; it declines when staff chat isn't available (View as, preview,
@@ -775,9 +797,12 @@ function WB_hubOpen(row, action) {
   var open = WB_store.getState().drawerOpen;
   if (a.type === "task" && open && WB__taskDrawerReady()) {
     WB_store.setHub({ lastFocus: row.item_key }, true);
-    WB_track("wb-action", (row.kind || "other") + ":open-in-place");
-    TK_openTask(a.taskId, { from: "wb-hub" });
-    return true;
+    if (WB__openTaskInPlace(a.taskId)) {
+      WB_track("wb-action", (row.kind || "other") + ":open-in-place");
+      return true;
+    }
+    // The drawer host did not take it: go to the task's page (below) rather
+    // than leave the click doing nothing.
   }
   if (a.type === "chat" && open) {
     WB_store.setHub({ lastFocus: row.item_key }, true);
