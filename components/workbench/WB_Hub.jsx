@@ -85,9 +85,14 @@ function WB_useHubKeys(live, panelRef, deskRef) {
       if (e.key === "Escape") {
         // The dock: Esc is the Desk's only while focus is inside it; with focus
         // on the page it belongs to the page. The sheet covers the page, so a
-        // lost focus (body) still counts as inside.
+        // lost focus (body) and focus on the bar (just below the sheet, still
+        // reachable) count as inside.
         const onBody = !tgt || tgt === document.body || tgt === document.documentElement;
-        if (!inPanel && !(sheet && onBody)) return;
+        let onBar = false;
+        try {
+          onBar = !!(tgt && tgt.nodeType === 1 && tgt.closest && tgt.closest(".wb-bar"));
+        } catch (err) {}
+        if (!inPanel && !(sheet && (onBody || onBar))) return;
         let clears = false;
         try {
           clears = !!(tgt && tgt.matches && tgt.matches(WB_ESC_CLEARS_SEL));
@@ -122,6 +127,7 @@ function WB_useHubKeys(live, panelRef, deskRef) {
       if (inPanel && tgt && (/^(INPUT|TEXTAREA|SELECT)$/.test(tgt.tagName || "") || tgt.isContentEditable)) return;
       e.preventDefault();
       e.stopPropagation(); // the Desk owns D; a page handler must not act on it too
+      if (e.repeat) return; // a held D toggles once, not open-close-open
       const willOpen = !open;
       WB_store.setDrawerOpen(willOpen, "key");
       if (willOpen) WB_track("wb-drawer", "key");

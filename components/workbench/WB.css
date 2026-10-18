@@ -2,10 +2,15 @@
    Workbench (components/workbench/): the Today page list and the bottom
    drawer (a bar across the whole bottom of the content area, beside the left
    nav; --wb-bar-left is set by WB_Drawer from the staff rail's width). App tokens only (styles.css); red = late or waiting on you, amber =
-   coming up, always paired with words. Layers: the bar (1380) sits under the
-   Tasks bulk bar (1450) and tips (1550); the open panel (1820, no scrim since
-   D3: the docked Desk is non-modal) sits under the task drawer (1840/1850)
-   and modals (2100).
+   coming up, always paired with words. Layers: the bar and panel render in
+   .wb-desk-root at the end of .app-shell (WB_Drawer), inside the shell's
+   stacking context, so everything portaled to <body> (the task, client and
+   chat drawers, tips, the tour) is above them. Docked (above 760px) the bar
+   is 690 and the panel 680 (no scrim since D3: the docked Desk is non-modal),
+   under the sticky top bar (700) and its menus, the search, the nav, the
+   notes and alerts popovers, the chat button (900), modals (2000), the Undo
+   bar (2050) and toasts (2100). The phone sheet is modal and covers the page,
+   so there the bar is 1830 and the panel 1820, still under modals.
    --------------------------------------------------------------------------- */
 :root {
   --wb-now: var(--bad);
@@ -14,8 +19,8 @@
   --wb-week-soft: var(--warm-bg);
   --wb-week-text: var(--warm-text);
   --wb-clear: var(--good);
-  --wb-z-bar: 1830; /* above the panel so it stays clickable while open */
-  --wb-z-panel: 1820;
+  --wb-z-bar: 690; /* above the panel so it stays clickable while open; 1830 on the phone sheet */
+  --wb-z-panel: 680; /* under the top bar (700) and its menus; 1820 on the phone sheet */
   --wb-bar-h: 44px;
   --wb-bar-left: 0px;
   --wb-panel-max: 1100px; /* the list's reading width inside the full-width panel */
@@ -600,11 +605,28 @@ html.wb-drawer-on .chat-fab-wrap {
   font-size: 12.5px;
   color: var(--text-muted);
 }
-.wb-bar.is-open {
-  box-shadow: none;
-}
 .wb-bar:hover {
   background: var(--desk-row-bg-hover);
+}
+/* Open: the bar is the Desk's foot, one piece with the panel above it. Square
+   top corners, no top edge or shadow, and the panel's background (on hover
+   too; the hint darkens instead). --wb-bar-open-bg turns solid wherever the
+   panel does (the fallbacks and the phone sheet below). */
+.wb-bar.is-open,
+.wb-bar.is-open:hover {
+  border-top-color: transparent;
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+  background: var(--wb-bar-open-bg, var(--desk-glass-bg));
+  box-shadow: none;
+}
+.wb-bar.is-open:hover .wb-bar-hint {
+  color: var(--text);
+}
+/* The Desk's own container at the end of .app-shell; the bar and panel are
+   fixed, so it takes no room in the shell's flex row. */
+.wb-desk-root {
+  display: contents;
 }
 .wb-bar-name {
   font-weight: 700;
@@ -673,6 +695,11 @@ html.wb-drawer-on .chat-fab-wrap {
   outline: none;
   animation: wb-rise 0.16s ease-out;
   transition: height 0.18s ease-out;
+}
+/* The docked panel's shadow stops at its bottom edge, so it does not show
+   through the glass bar below as a seam. */
+.wb-panel.is-dock {
+  clip-path: inset(-64px -64px 0 -64px);
 }
 /* ---- D3: the resize handle (role=separator) on the dock's top edge ----
    A 12px hit strip with a visible 36x4 grip. Pointer events only; touch-action
@@ -774,6 +801,9 @@ html.wb-desk-strip .wb-panel .wb-panel-foot {
 /* Solid fallbacks: no backdrop-filter, reduced transparency, forced colors,
    and the phone sheet (it covers the page, so glass adds cost, no benefit). */
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  :root {
+    --wb-bar-open-bg: var(--desk-solid-bg);
+  }
   .wb-panel.wb-glass,
   .wb-bar,
   .wb-panel.wb-glass .wb-hub-tasks .tk-group-head {
@@ -788,6 +818,9 @@ html.wb-desk-strip .wb-panel .wb-panel-foot {
   }
 }
 @media (prefers-reduced-transparency: reduce) {
+  :root {
+    --wb-bar-open-bg: var(--desk-solid-bg);
+  }
   .wb-panel.wb-glass,
   .wb-bar,
   .wb-panel.wb-glass .wb-hub-tasks .tk-group-head {
@@ -804,6 +837,9 @@ html.wb-desk-strip .wb-panel .wb-panel-foot {
   }
 }
 @media (forced-colors: active) {
+  :root {
+    --wb-bar-open-bg: var(--desk-solid-bg);
+  }
   .wb-panel.wb-glass,
   .wb-bar,
   .wb-panel.wb-glass .wb-hub-tasks .tk-group-head {
@@ -933,15 +969,24 @@ html.wb-desk-strip .wb-panel .wb-panel-foot {
   overflow-x: auto;
   scrollbar-width: none;
 }
-/* While the hub is open the chat drawer sits above the panel and the bar
-   (it is normally at 1800, below the panel); the client drawer (1840) and
-   the task drawer (1850) already sit above both. */
+/* While the hub is open the chat drawer sits above the phone sheet and its
+   bar (it is normally at 1800, below them; the docked Desk at 680/690 is
+   under it anyway); the client drawer (1840) and the task drawer (1850)
+   already sit above both. */
 html.wb-hub-open .si-drawer-layer {
   z-index: 1835;
 }
 
 /* ---- 760px and phones (spec D3) ---- */
 @media (max-width: 760px) {
+  /* The phone sheet is modal and covers the page: above the phone top bars
+     (1400-1500) and the nav drawer (1700), under modals (2000). Its open bar
+     is solid like the sheet. */
+  :root {
+    --wb-z-bar: 1830;
+    --wb-z-panel: 1820;
+    --wb-bar-open-bg: var(--desk-solid-bg);
+  }
   .wb-chips {
     flex-wrap: nowrap;
     overflow-x: auto;
