@@ -541,7 +541,7 @@ function WB_Drawer({ me, isAdmin, clients, currentClientId, page }) {
       >
         <span className="wb-bar-name">{WB_NAME}</span>
         <span className="wb-bar-count">{loading ? "…" : count}</span>
-        <span className="wb-bar-next">{next ? next.title : loading ? "" : "All clear"}</span>
+        <span className="wb-bar-next">{next ? next.title : loading ? "" : "Clean slate"}</span>
         <span className="wb-bar-hint" aria-hidden="true">
           {open ? (
             <>

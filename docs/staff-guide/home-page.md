@@ -37,7 +37,7 @@ Everything waiting on you, in two bands: **Now** (late, or waiting on us) and **
 - **Your quarterly review** when it's due: **Open**. See [How do quarterly reviews work?](#/help/quarterly-reviews).
 - **Sign: <policy> v<n>** (bookkeepers) when a Staff Handbook policy needs your signature, with its due date or **Overdue**, and **Countersign: <name>, <policy> v<n>** for the countersigner: **Sign** or **Countersign** opens the policy. See [How do I sign the Staff Handbook?](#/help/staff-handbook).
 
-Each band shows its first few rows. **Show everything** lists the rest, and **Show less** folds it back. When nothing is waiting, the list says **Nothing needs you right now.**
+Each band shows its first few rows. **Show everything** lists the rest, and **Show less** folds it back. When nothing is waiting, the list says **Clean slate. Nothing needs you right now.**
 
 ### Also show
 

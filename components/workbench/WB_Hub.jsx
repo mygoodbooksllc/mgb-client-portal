@@ -384,7 +384,7 @@ function WB_Hub({ s, me, isAdmin, clients, panelRef, view, allView, chip, today,
               </ul>
             ) : view.visible === 0 ? (
               <p className="wb-filtered-empty" role="status">
-                {chip === "all" ? "Nothing needs you right now." : "Nothing here."}
+                {chip === "all" ? "Clean slate. Nothing needs you right now." : "Nothing here."}
               </p>
             ) : (
               <WB_List

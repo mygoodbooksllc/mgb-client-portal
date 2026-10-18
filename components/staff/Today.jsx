@@ -1553,7 +1553,7 @@ function TD_TodayPage({ staffUser, clients, onNavigateToClient, onOpenClientMile
           <div className="td-chips">
             {rows.now.length > 0 && chip("now", `${rows.now.length} need${rows.now.length === 1 ? "s" : ""} you now`, jumpToNow)}
             {rows.week.length > 0 && chip("week", `${rows.week.length} this week`)}
-            {empty && chip("clear", "All clear")}
+            {empty && chip("clear", "Clean slate")}
           </div>
         )}
       </div>

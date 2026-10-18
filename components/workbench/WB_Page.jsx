@@ -133,7 +133,7 @@ function WB_Page({ me, isAdmin, td, fallback }) {
                 ✓
               </span>
               <span className="td-empty-text">
-                <strong>Nothing needs you right now.</strong>
+                <strong>Clean slate. Nothing needs you right now.</strong>
                 <span>
                   New messages, tasks, reviews and files show up here as they come in.{" "}
                   <a href="#/tasks">Slate</a> · <a href="#/inbox">Messages</a>
