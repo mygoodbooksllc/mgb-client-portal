@@ -902,16 +902,26 @@ html.wb-desk-strip .wb-panel .wb-panel-foot {
 }
 .wb-panel-tools {
   display: flex;
-  flex-direction: column;
-  gap: 6px;
+  flex-direction: row; /* filter pills and Mine/Everyone share one line: saves a row when the Desk is short */
+  align-items: center;
+  gap: 10px;
   padding-top: 0;
   padding-bottom: 8px;
   border-bottom: 1px solid var(--border);
 }
 .wb-panel-tools .wb-tabs {
+  flex: 1 1 auto;
   flex-wrap: nowrap;
   overflow-x: auto;
   scrollbar-width: none;
+}
+.wb-panel-tools .wb-tab,
+.wb-panel-tools .wb-scope-btn {
+  flex: none;
+  white-space: nowrap;
+}
+.wb-panel-tools .wb-scope {
+  flex: none;
 }
 .wb-panel-tools .wb-tab {
   padding: 2px 9px;
