@@ -567,6 +567,17 @@ html.wb-drawer-on .si-launcher,
 html.wb-drawer-on .chat-fab-wrap {
   bottom: calc(16px + var(--desk-lift, 0px) + var(--wb-bar-h) + env(safe-area-inset-bottom, 0px));
 }
+/* Wide windows: the centered Desk never reaches the bottom-right corner, so the
+   chat button and toasts stay put instead of riding up with it. */
+@media (min-width: 1100px) {
+  html.wb-drawer-on .si-launcher,
+  html.wb-drawer-on .chat-fab-wrap {
+    bottom: calc(16px + var(--wb-bar-h) + env(safe-area-inset-bottom, 0px));
+  }
+  html.wb-drawer-on .toast-stack {
+    bottom: calc(24px + var(--wb-bar-h) + env(safe-area-inset-bottom, 0px));
+  }
+}
 .wb-bar {
   position: fixed;
   left: var(--wb-bar-left, 0px);
