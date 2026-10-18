@@ -715,7 +715,8 @@
       pledges: [],
       donors: [],
       fundTransfers: [],
-      payroll: null,
+      // Test-only clients keep the sample payroll so staff can try the page.
+      payroll: client.testOnly === true ? client.payroll || null : null,
       bankReconciliations: [],
       documents: [],
       // Tithes and offerings from the QuickBooks P&L (see mgbBuildQboGiving
