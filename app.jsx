@@ -14747,6 +14747,7 @@ function StaffAccessPage({ staffUser, onImpersonate, readOnly }) {
                         </td>
                       )}
                       <td data-label="">
+                        <div className="staff-row-actions">
                         {!isSelf && row.role !== "admin" && row.active && (
                           <button
                             className="btn-secondary staff-view-as-btn"
@@ -14759,6 +14760,7 @@ function StaffAccessPage({ staffUser, onImpersonate, readOnly }) {
                         {!isSelf && !readOnly && row.active && typeof OFF_OffboardButton === "function" && (
                           <OFF_OffboardButton row={row} staffRows={rows} onDone={load} disabled={busy} />
                         )}
+                        </div>
                       </td>
                       <td data-label="">
                         {!isSelf && !readOnly && (

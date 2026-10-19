@@ -166,7 +166,18 @@
 /* ---- Offboarding ---- */
 .off-btn {
   padding: 6px 12px;
-  margin-left: 6px;
+}
+/* View as + Offboard share a roster cell: same width, even gap, wrap cleanly */
+.staff-row-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+.staff-row-actions > button {
+  min-width: 92px;
+  margin: 0;
 }
 .off-modal {
   width: min(560px, calc(100vw - 32px));
