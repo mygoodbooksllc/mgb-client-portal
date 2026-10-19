@@ -298,9 +298,7 @@ function TK_vAssignMenu(props) {
                   pick(p);
                 }}
               >
-                <span className={"tk-avatar tk-avatar-sm" + TK_vRowToneClass(em)} aria-hidden="true">
-                  {typeof TK_initials === "function" ? TK_initials(p.name || em) : "?"}
-                </span>
+                <TK_vAvatar name={p.name || em} email={em} size="sm" className={TK_vRowToneClass(em).trim()} title="" decorative />
                 <span className="tk-menu-label">{p.name || em}</span>
               </button>
             );
@@ -686,16 +684,59 @@ function TK_vIcon(props) {
 
 // ---- Avatar ---------------------------------------------------------------------------
 
+// A person's uploaded profile photo (admins can see everyone's, from the same
+// list the Members photo column uses; everyone else falls back to initials).
+// Matches by email, then by name. Safe where the photo files are not loaded.
+function TK_vPhotoUrl(email, name) {
+  var list = typeof SP_useAdminList === "function" ? SP_useAdminList(true) : { rows: null };
+  var em = String(email || "").trim().toLowerCase();
+  var nm = String(name || "").trim().toLowerCase();
+  var path = null;
+  var rows = (list && list.rows) || [];
+  for (var i = 0; i < rows.length; i++) {
+    var r = rows[i];
+    if (!r || !r.current_path) continue;
+    if ((em && String(r.email || "").toLowerCase() === em) || (!em && nm && String(r.name || "").trim().toLowerCase() === nm)) {
+      path = r.current_path;
+      break;
+    }
+  }
+  var url = typeof SPA_useSignedUrl === "function" ? SPA_useSignedUrl(path) : null;
+  return url || null;
+}
+
 function TK_vAvatar(props) {
   var label = props.name || props.email || "";
   var initials = typeof TK_initials === "function" ? TK_initials(label) : String(label).slice(0, 2).toUpperCase();
+  var url = TK_vPhotoUrl(props.email, props.name);
+  var failPair = React.useState(false);
+  var failed = failPair[0];
+  var setFailed = failPair[1];
+  React.useEffect(
+    function () {
+      setFailed(false);
+    },
+    [url],
+  );
   return (
     <span
-      className={"tk-avatar" + (props.size === "sm" ? " tk-avatar-sm" : "") + (props.className ? " " + props.className : "")}
+      className={"tk-avatar" + (props.size === "sm" ? " tk-avatar-sm" : "") + (url && !failed ? " tk-avatar-photo" : "") + (props.className ? " " + props.className : "")}
       title={props.title || label || undefined}
       aria-hidden={props.decorative ? "true" : undefined}
     >
-      {initials}
+      {url && !failed ? (
+        <img
+          src={url}
+          alt=""
+          loading="lazy"
+          decoding="async"
+          onError={function () {
+            setFailed(true);
+          }}
+        />
+      ) : (
+        initials
+      )}
     </span>
   );
 }
@@ -1246,9 +1287,7 @@ function TK_vRowAssignee(props) {
   );
 
   var face = email ? (
-    <span className={"tk-avatar tk-avatar-sm" + TK_vRowToneClass(email)} aria-hidden="true">
-      {typeof TK_initials === "function" ? TK_initials(name || email) : String(name || email).slice(0, 2).toUpperCase()}
-    </span>
+    <TK_vAvatar name={name || email} email={email} size="sm" className={TK_vRowToneClass(email).trim()} title="" decorative />
   ) : (
     <span className="tk-avatar tk-avatar-sm tk-avatar-empty" aria-hidden="true">
       <TK_vIcon name="user" size={13} />
@@ -1318,9 +1357,7 @@ function TK_vRowAssignee(props) {
                   pick(p);
                 }}
               >
-                <span className={"tk-avatar tk-avatar-sm" + TK_vRowToneClass(em)} aria-hidden="true">
-                  {typeof TK_initials === "function" ? TK_initials(p.name || em) : "?"}
-                </span>
+                <TK_vAvatar name={p.name || em} email={em} size="sm" className={TK_vRowToneClass(em).trim()} title="" decorative />
                 <span className="tk-menu-label">{p.name || em}</span>
                 {on ? <TK_vIcon name="check" size={14} /> : null}
               </button>

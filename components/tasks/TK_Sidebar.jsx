@@ -166,15 +166,6 @@ function TK_vSameRoute(a, b) {
   return true;
 }
 
-// A person's uploaded profile photo (the same round avatar and signed link the
-// rest of the app uses), or their initials until they upload one. Safe where the
-// photo files are not loaded: it falls back to initials.
-function TK_vPersonAvatar(props) {
-  var url = typeof SPA_useSignedUrl === "function" ? SPA_useSignedUrl(props.path || null) : null;
-  if (url && typeof ST_Avatar === "function") return <ST_Avatar name={props.name} url={url} size={24} />;
-  return <TK_vAvatar name={props.name} size="sm" decorative />;
-}
-
 function TK_vNavItem(props) {
   var r = props.route;
   var href = typeof TK_formatRoute === "function" ? TK_formatRoute(r) : "#/tasks/my";
@@ -192,7 +183,7 @@ function TK_vNavItem(props) {
       >
         {props.icon ? <TK_vIcon name={props.icon} size={16} /> : null}
         {props.dot ? <TK_vProjectDot color={props.dot} /> : null}
-        {props.avatarName ? <TK_vPersonAvatar name={props.avatarName} path={props.avatarPath} /> : null}
+        {props.avatarName ? <TK_vAvatar name={props.avatarName} email={props.avatarEmail} size="sm" decorative /> : null}
         <span className="tk-nav-label">{props.label}</span>
         {props.tag ? <span className="tk-nav-tag">{props.tag}</span> : null}
         {props.count ? (
@@ -215,12 +206,6 @@ function TK_Sidebar(props) {
     };
   var projects = TK_vUseProjects();
   var staff = TK_vUseStaff(isAdmin);
-  // Admin-only list of current photo paths (the Members photo column's source); null elsewhere.
-  var photoList = typeof SP_useAdminList === "function" ? SP_useAdminList(isAdmin) : { rows: null };
-  var photoByEmail = {};
-  ((photoList && photoList.rows) || []).forEach(function (r) {
-    if (r && r.email && r.current_path) photoByEmail[String(r.email).toLowerCase()] = r.current_path;
-  });
   var fPair = React.useState("");
   var filter = fPair[0];
   var setFilter = fPair[1];
@@ -331,7 +316,7 @@ function TK_Sidebar(props) {
             {staff == null ? <li className="tk-nav-empty">Loading…</li> : null}
             {people.map(function (s) {
               var r = { view: "person", staffId: s.id };
-              return <TK_vNavItem key={s.id} route={r} label={s.name || "Staff member"} avatarName={s.name || "Staff member"} avatarPath={photoByEmail[String(s.email || "").toLowerCase()]} active={TK_vSameRoute(route, r)} onNavigate={nav} />;
+              return <TK_vNavItem key={s.id} route={r} label={s.name || "Staff member"} avatarName={s.name || "Staff member"} avatarEmail={s.email} active={TK_vSameRoute(route, r)} onNavigate={nav} />;
             })}
           </ul>
         </div>

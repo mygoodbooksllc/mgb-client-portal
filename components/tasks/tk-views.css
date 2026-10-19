@@ -3027,3 +3027,16 @@ body:has(.ltip-ring.ltip-on) .tk-row .tk-sel {
 .tk-nav-item .tk-avatar {
   flex: 0 0 auto;
 }
+
+/* Profile photo inside an avatar circle (falls back to initials). */
+.tk-avatar-photo {
+  overflow: hidden;
+  padding: 0;
+}
+.tk-avatar-photo img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+}
