@@ -5,18 +5,19 @@
 // surface): Today shows ONE "Do next" card, the top row of the Desk's ordered
 // list, in place of the long Needs you list, the source chips and the four
 // count tiles. Slate and the Desk own the lists. The card itself is shared
-// with classic Today (TD_DoNextCard in components/staff/Today.jsx), and the
-// counts for Today's header line go up through onSummary.
+// with classic Today (TD_DoNextCard in components/staff/Today.jsx). Today's
+// count line is Today's own (tasks, deadlines, bills) on both paths.
 //
 // td: Today's rows (kinds Workbench doesn't fetch: deadlines, close blocked,
 // bills, team reviews, handbook, upgrades, health, coverage, SOPs, access,
 // profile, celebrations) come in as the Other source, ranked with the rest.
 // fallback: Today's classic Do next card, shown while wb_inbox isn't live
 // (the rollout safety net).
-// deskOn: kept for callers; the tiles it used to hide are gone either way.
+// deskOn: the Desk is live, so "N more in your Desk" can open it (and the
+// wb-more tip has its target).
 // ----------------------------------------------------------------------------
 
-function WB_Page({ me, isAdmin, td, fallback, deskOn, onSummary }) {
+function WB_Page({ me, isAdmin, td, fallback, deskOn }) {
   const s = WB_useStore(me, isAdmin, true);
   const [help, setHelp] = React.useState(false);
   const [tick, setTick] = React.useState(0);
@@ -27,19 +28,17 @@ function WB_Page({ me, isAdmin, td, fallback, deskOn, onSummary }) {
   const now = Date.now();
   const today = WB_today(now);
   const other = React.useMemo(() => WB_fromToday(td), [td]);
-  // An admin on "Everyone" still gets their own next item here.
+  // An admin on "Everyone" still gets their own next item here: the same
+  // rule wb_inbox uses for Mine (owner is me, I'm covering, or an admin row
+  // with no owner).
   const all = React.useMemo(() => {
-    const mineOnly = (r) => !(s.scope === "everyone" && r.owner_email && String(r.owner_email).toLowerCase() !== String(me || "").toLowerCase());
-    return s.rows.filter(mineOnly).concat(other);
-  }, [s.rows, other, s.scope, me]);
+    const lc = (v) => String(v || "").toLowerCase();
+    const mine = (r) => lc(r.owner_email) === lc(me) || !!r.covered_for || (!!r.any_admin && !!isAdmin);
+    return (s.scope === "everyone" ? s.rows.filter(mine) : s.rows).concat(other);
+  }, [s.rows, other, s.scope, me, isAdmin]);
   const view = React.useMemo(() => WB_build(all, { today, now, chip: "all" }), [all, today, tick, s.rows]);
-  const t = view.tiles;
   const loading = (s.status === "loading" || s.status === "idle") && !s.at;
   const missing = s.status === "missing";
-
-  React.useEffect(() => {
-    if (typeof onSummary === "function" && !missing && !loading) onSummary({ due: t.dueToday, late: t.overdue });
-  }, [t.dueToday, t.overdue, missing, loading]);
 
   if (missing) return fallback || null;
 
@@ -51,11 +50,12 @@ function WB_Page({ me, isAdmin, td, fallback, deskOn, onSummary }) {
   const isOther = !!topRow && topRow.source === "other";
   const tdr = isOther ? topRow._td : null;
   const meta = topRow ? [topRow.client_name, topRow.period ? WB_periodLabel(topRow.period) : null, WB_whenText(topRow, today, now), isOther ? topRow.detail : null].filter(Boolean).join(" · ") : "";
+  // Today's own rows: the same label-and-action pair as classic Today.
+  const tdDo = isOther && typeof TD_doNext === "function" ? TD_doNext(tdr) : null;
   const open = () => {
     if (!topRow) return;
     if (isOther) {
-      if (tdr && tdr.onClick) tdr.onClick();
-      else if (tdr && tdr.actions && tdr.actions[0] && tdr.actions[0].onClick) tdr.actions[0].onClick();
+      if (tdDo && tdDo.run) tdDo.run();
       return;
     }
     if (topRow.kind === "task" && topRow.source_id != null) {
@@ -67,7 +67,10 @@ function WB_Page({ me, isAdmin, td, fallback, deskOn, onSummary }) {
     }
     WB_go(topRow, "open");
   };
-  const label = isOther ? (tdr && tdr.actions && tdr.actions.find((a) => a.primary) ? tdr.actions.find((a) => a.primary).label : "Open") : primary ? primary.label : "Open";
+  // "N more in your Desk": only rows the Desk lists. Today's own rows
+  // (access, upgrades, handbook...) are under Also needs you instead.
+  const deskMore = Math.max(0, flat.filter((r) => r.source !== "other").length - (topRow && !isOther ? 1 : 0)) + (view.later || 0);
+  const label = isOther ? (tdDo ? tdDo.label : "Open") : primary ? primary.label : "Open";
 
   if (typeof TD_DoNextCard !== "function") return fallback || null;
   return (
@@ -76,7 +79,8 @@ function WB_Page({ me, isAdmin, td, fallback, deskOn, onSummary }) {
         loading={loading}
         top={topRow ? { title: topRow.title, meta, label } : null}
         next={nextRow ? nextRow.title : ""}
-        more={Math.max(0, view.visible - 1) + (view.later || 0)}
+        more={deskMore}
+        onDesk={deskOn ? () => WB_store.setDrawerOpen(true, "today") : undefined}
         onOpen={open}
         onHelp={() => setHelp(true)}
         offline={s.offline}

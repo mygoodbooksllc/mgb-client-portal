@@ -85,7 +85,7 @@ var ANN_REGISTRY = [
         wait: true,
         title: "Do next",
         body: () =>
-          "Your top item, with what comes after it. The button starts or opens it. The rest of your list is one click away in Slate, or press D for your Desk.",
+          "Your top item, with what comes after it. The button starts or opens it. The rest of your list is one click away in Slate (and in the Desk, once it's on).",
       },
       {
         id: "ann-summary",

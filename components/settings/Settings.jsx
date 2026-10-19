@@ -92,7 +92,7 @@ const ST_BELL_PREFS = [
 // Values are stored as-is ("home" is Today, "tasks" is Work › Tasks): the
 // pages were renamed in the 2026-10 nav redesign, saved choices were not.
 const ST_START_PAGES = [
-  { value: "home", label: "Today", sub: "What needs you, in order." },
+  { value: "home", label: "Today", sub: "What to do next, and what is waiting." },
   { value: "tasks", label: "Work › Slate", sub: "Straight to your task list." },
   { value: "last-client", label: "Last client opened", sub: "Pick up where you left off." },
 ];

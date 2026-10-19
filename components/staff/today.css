@@ -581,6 +581,34 @@ button.td-row-main:hover {
 .td-more-wrap .td-list::before {
   display: none;
 }
+.td-more-wrap .td-list[hidden] {
+  display: none;
+}
+.td-more-wrap .td-more {
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.td-more-wrap .td-more:hover {
+  text-decoration: underline;
+}
+.td-more-chev {
+  display: inline-block;
+  width: 1em;
+  font-size: 11px;
+}
+.td-row:focus {
+  outline: none;
+}
+.td-row:focus-visible {
+  outline: 2px solid var(--gold-deep);
+  outline-offset: 2px;
+}
+.td-next-more .wb-linkish {
+  color: var(--gold-deep);
+  font-weight: 600;
+}
 
 /* Cards: compact lines, a client or item on the left, reason chips beside. */
 .td-mini-list {

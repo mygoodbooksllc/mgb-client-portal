@@ -403,6 +403,8 @@ function TD_buildRows(x) {
     now.push({
       key: "grant-" + g.id,
       kind: "access",
+      // A yes/no decision: Do next reveals this row instead of guessing.
+      decide: true,
       rank: 0,
       sort: new Date(g.requested_at || 0).getTime(),
       title: `${who} wants ${nameOf(g.client_id)} for ${CS_durationLabel(g.duration_days)}`,
@@ -878,11 +880,7 @@ function TD_Band({ tone, title, rows, expanded }) {
             </>
           );
           return (
-            <li
-              className={"td-row" + (r.actions && r.actions.length > 1 ? " td-row-stack" : "")}
-              key={r.key}
-              data-tour={r.kind === "upgrade" ? "today-upgrade" : undefined}
-            >
+            <li className={"td-row" + (r.actions && r.actions.length > 1 ? " td-row-stack" : "")} key={r.key} data-td-key={r.key} tabIndex={-1}>
               {r.onClick ? (
                 <button type="button" className="td-row-main" onClick={r.onClick}>
                   {body}
@@ -1062,10 +1060,27 @@ function TD_RecentCard({ clients }) {
   );
 }
 
+// What Do next's button says and does for one of Today's rows, so the label
+// always matches the action. Tasks open in the task drawer. A yes/no row
+// (a teammate's access request) is never decided from here: "Review" opens
+// Also needs you on that row, where Approve and Deny sit side by side.
+function TD_doNext(r) {
+  if (!r) return null;
+  if (r.taskId != null && typeof TK_openTask === "function") return { label: "Open", run: () => TK_openTask(String(r.taskId), { from: "today" }) };
+  if (r.decide) return { label: "Review", run: () => window.dispatchEvent(new CustomEvent("td:reveal", { detail: { key: r.key } })) };
+  const primary = (r.actions || []).find((a) => a.primary && !a.disabled);
+  if (primary) return { label: primary.label, run: primary.onClick };
+  if (r.onClick) return { label: r.kind === "reply" ? "Reply" : "Open", run: r.onClick };
+  const first = (r.actions || []).find((a) => !a.disabled);
+  return first ? { label: first.label, run: first.onClick } : null;
+}
+
 // "Do next": the single top item from the ranked list (Today's own order, or
 // the Desk's when it's on), the one after it, and the button that opens it.
 // Slate and the Desk own the full lists (desk-right-spec decision 28).
-function TD_DoNextCard({ loading, top, next, more, onOpen, onHelp, error, onRetry, offline, updated }) {
+// more: how many more, moreText: what they are ("tasks in"), onDesk: set on
+// the Desk path (the rest live in the Desk; the wb-more tip points here).
+function TD_DoNextCard({ loading, top, next, more, moreText, onDesk, onOpen, onHelp, error, onRetry, offline, updated }) {
   return (
     <section className="card td-next" id="td-list" data-tour="today-list" aria-labelledby="td-next-title">
       <div className="td-next-head">
@@ -1104,14 +1119,22 @@ function TD_DoNextCard({ loading, top, next, more, onOpen, onHelp, error, onRetr
               {top.meta && <p className="td-next-meta">{top.meta}</p>}
               {next && <p className="td-next-then">then: {next}</p>}
             </div>
-            <button type="button" className="btn-primary td-next-btn" onClick={onOpen} {...{ "data-tour": "wb-row-action" }}>
+            <button type="button" className="btn-primary td-next-btn" onClick={onOpen} {...(onDesk ? { "data-tour": "wb-row-action" } : {})}>
               {top.label || "Open"}
             </button>
           </div>
           <p className="td-next-more">
-            {more > 0 ? (
+            {more > 0 && onDesk ? (
               <>
-                {more} more in <a href="#/tasks">Slate</a>
+                {more} more in your{" "}
+                <button type="button" className="wb-linkish" onClick={onDesk}>
+                  Desk
+                </button>{" "}
+                · <a href="#/tasks">Slate</a>
+              </>
+            ) : more > 0 ? (
+              <>
+                {more} more {moreText || "in"} <a href="#/tasks">Slate</a>
               </>
             ) : (
               <>
@@ -1329,8 +1352,6 @@ function TD_TodayPage({ staffUser, clients, onNavigateToClient, onOpenClientMile
   };
 
   const [moreOpen, setMoreOpen] = React.useState(false);
-  // Late/due counts from the Desk's own list when it's on (WB_Page reports).
-  const [wbSummary, setWbSummary] = React.useState(null);
   const [grantBusy, setGrantBusy] = React.useState(null);
   const [grantError, setGrantError] = React.useState("");
 
@@ -1533,27 +1554,54 @@ function TD_TodayPage({ staffUser, clients, onNavigateToClient, onOpenClientMile
     const by = {};
     const nameOf = {};
     allClients.forEach((c) => (nameOf[c.id] = c.name));
-    const add = (id, tone, text) => {
+    // go: where a click lands; the first (most urgent) reason wins.
+    const add = (id, tone, text, go) => {
       if (!id || !nameOf[id]) return;
-      const e = by[id] || (by[id] = { id, name: nameOf[id], chips: [], score: 0 });
+      const e = by[id] || (by[id] = { id, name: nameOf[id], chips: [], score: 0, go: null });
       if (e.chips.some((c) => c.text === text)) return;
       e.chips.push({ tone, text });
       e.score += tone === "now" ? 2 : 1;
+      if (!e.go && go) e.go = go;
     };
     const replies = {};
-    waiting.rows.forEach((r) => (replies[r.client_id] = (replies[r.client_id] || 0) + 1));
-    Object.keys(replies).forEach((id) => add(id, "now", replies[id] === 1 ? "Reply waiting" : replies[id] + " replies waiting"));
-    (closes.blocked || []).forEach((r) => add(r.client_id, "now", "Close blocked"));
-    (coverage.gaps || []).forEach((g) => add(g.client && g.client.client_id, "week", "No backup while out"));
+    const firstReply = {};
+    waiting.rows.forEach((r) => {
+      replies[r.client_id] = (replies[r.client_id] || 0) + 1;
+      if (!firstReply[r.client_id]) firstReply[r.client_id] = r;
+    });
+    Object.keys(replies).forEach((id) => {
+      const r = firstReply[id];
+      add(id, "now", replies[id] === 1 ? "Reply waiting" : replies[id] + " replies waiting", () => LK_go({ clientId: id, tab: "messages", item: "msg:" + r.id }, { email: r.participant_email }));
+    });
+    (closes.blocked || []).forEach((r) => add(r.client_id, "now", "Close blocked", () => LK_go({ clientId: r.client_id, tab: "close", item: "at:close-qbo" })));
+    if (health && health.status === "ready" && health.byId) {
+      allClients.forEach((c) => {
+        const h = health.byId[c.id];
+        if (!h || h.band === "green") return;
+        add(c.id, h.band === "red" ? "now" : "week", HL_LABEL[h.band] || h.band, () => LK_go({ clientId: c.id, tab: "overview", item: "at:ov-why" }));
+      });
+    }
+    (coverage.gaps || []).forEach((g) => add(g.client && g.client.client_id, "week", "No backup while out", () => NAV_go("team", "people")));
     return Object.values(by)
       .sort((a, b) => b.score - a.score || a.name.localeCompare(b.name))
-      .map((e) => ({ key: e.id, title: e.name, chips: e.chips, onClick: () => onNavigateToClient(e.id) }));
-  }, [allClients, waiting.rows, closes.blocked, coverage.gaps, onNavigateToClient]);
+      .map((e) => ({ key: e.id, title: e.name, chips: e.chips, onClick: e.go || (() => onNavigateToClient(e.id)) }));
+  }, [allClients, waiting.rows, closes.blocked, coverage.gaps, health && health.status, health && health.byId, onNavigateToClient]);
+  // Open Also needs you on one row (Do next's Review, Waiting on others).
+  const reveal = (key) => window.dispatchEvent(new CustomEvent("td:reveal", { detail: { key } }));
   // Waiting on others: access and upgrade requests, and replies to chase.
   const waitingLines = React.useMemo(() => {
     const nameOf = {};
     allClients.forEach((c) => (nameOf[c.id] = c.name));
     const out = [];
+    // Teammates asking me for temporary access: Approve or Deny on the row.
+    (grants && grants.status === "ready" ? grants.toApprove.filter(notHidden) : []).forEach((g) =>
+      out.push({
+        key: "grant-" + g.id,
+        title: (g.staff_name || g.staff_email) + " · " + (nameOf[g.client_id] || g.client_id),
+        chips: [{ tone: "now", text: "Wants access" }],
+        onClick: () => reveal("grant-" + g.id),
+      }),
+    );
     (access.rows || []).filter(notHidden).forEach((r) =>
       out.push({
         key: "acc-" + r.id,
@@ -1579,18 +1627,44 @@ function TD_TodayPage({ staffUser, clients, onNavigateToClient, onOpenClientMile
         onClick: () => NAV_go("inbox"),
       });
     return out;
-  }, [allClients, access.rows, upgrades.rows, waiting.rows, hiddenIds]);
+  }, [allClients, grants && grants.status, grants && grants.toApprove, access.rows, upgrades.rows, waiting.rows, hiddenIds]);
   const celebrationRows = rows.now.concat(rows.week).filter((r) => r.kind === "celebrate");
-  // Everything the old list also carried that Slate and the Desk don't:
-  // approvals, handbook, deadlines, reviews... kept behind one fold.
-  const moreNow = rows.now.filter((r) => r.kind !== "task" && r.kind !== "reply");
-  const moreWeek = rows.week.filter((r) => r.kind !== "task" && r.kind !== "reply");
 
   // Optional cards: saved per person; a toggle still works for this visit
   // when settings can't save (e.g. "View as").
   const saved = st && st.email === me && TD_isObj(st.settings && st.settings.todayCards) ? st.settings.todayCards : {};
   const [cardOverride, setCardOverride] = React.useState(null);
   const cards = { ...TD_CARD_DEFAULTS, ...saved, ...(cardOverride || {}) };
+
+  // Everything the old list also carried that Slate and the Desk don't:
+  // approvals, handbook, deadlines, reviews... kept behind one fold.
+  // Celebrations stay here only while the This week card is off.
+  const inFold = (r) => r.kind !== "task" && r.kind !== "reply" && !(r.kind === "celebrate" && cards.milestones);
+  const moreNow = rows.now.filter(inFold);
+  const moreWeek = rows.week.filter(inFold);
+  const moreCount = moreNow.length + moreWeek.length;
+  // td:reveal opens the fold and moves focus to that row.
+  const [revealKey, setRevealKey] = React.useState(null);
+  React.useEffect(() => {
+    const on = (e) => {
+      setMoreOpen(true);
+      setRevealKey((e.detail && e.detail.key) || null);
+    };
+    window.addEventListener("td:reveal", on);
+    return () => window.removeEventListener("td:reveal", on);
+  }, []);
+  React.useEffect(() => {
+    if (!revealKey || !moreOpen) return;
+    const el = document.querySelector('[data-td-key="' + String(revealKey).replace(/"/g, "") + '"]');
+    if (el) {
+      if (el.scrollIntoView) el.scrollIntoView({ block: "center", behavior: "smooth" });
+      const btn = el.querySelector(".td-row-actions .btn-primary") || el;
+      try {
+        btn.focus({ preventScroll: true });
+      } catch (err) {}
+    }
+    setRevealKey(null);
+  }, [revealKey, moreOpen]);
   const toggleCard = (key) => {
     const next = { ...cards, [key]: !cards[key] };
     setCardOverride(next);
@@ -1602,24 +1676,25 @@ function TD_TodayPage({ staffUser, clients, onNavigateToClient, onOpenClientMile
   // Do next from Today's own order (classic, and the Desk's fallback while
   // wb_inbox isn't live): first row of Now, then This week.
   const ranked = rows.now.concat(rows.week);
-  const openRow = (r) => {
-    if (r.taskId != null && typeof TK_openTask === "function") TK_openTask(r.taskId, { from: "today" });
-    else if (r.onClick) r.onClick();
-    else if (r.actions && r.actions[0] && r.actions[0].onClick) r.actions[0].onClick();
-  };
   const topRow = ranked[0] || null;
+  const topDo = TD_doNext(topRow);
+  // "N more tasks in Slate": only what Slate holds; the rest is in the fold.
+  const moreTasks = ranked.filter((r, i) => i > 0 && r.kind === "task").length;
   const classicBody = () => (
     <TD_DoNextCard
       loading={!settled && !topRow}
-      top={topRow ? { title: topRow.title, meta: topRow.detail, label: topRow.kind === "task" ? "Open" : (topRow.actions && topRow.actions.find((a) => a.primary) && topRow.actions.find((a) => a.primary).label) || "Open" } : null}
+      top={topRow ? { title: topRow.title, meta: topRow.detail, label: topDo ? topDo.label : "Open" } : null}
       next={ranked[1] ? ranked[1].title : ""}
-      more={Math.max(0, ranked.length - 1)}
-      onOpen={() => topRow && openRow(topRow)}
+      more={moreTasks}
+      moreText={moreTasks === 1 ? "task in" : "tasks in"}
+      onOpen={() => topDo && topDo.run && topDo.run()}
     />
   );
-  const sumDue = wbOn && wbSummary ? wbSummary.due : dueToday;
-  const sumLate = wbOn && wbSummary ? wbSummary.late : overdue;
-  const sumReady = wbOn && wbSummary ? true : !!mine.items;
+  // Same counts with the Desk on: the line is about your tasks (and late
+  // deadlines and bills), next to Open Slate. The Desk's bar has its own.
+  const sumDue = dueToday;
+  const sumLate = overdue;
+  const sumReady = !!mine.items;
 
   return (
     <div className="td-page">
@@ -1679,23 +1754,28 @@ function TD_TodayPage({ staffUser, clients, onNavigateToClient, onOpenClientMile
           </button>
         </p>
       )}
-      {wbOn ? <WB_Page me={me} isAdmin={!!(staffUser && staffUser.role === "admin")} td={rows} fallback={classicBody()} deskOn={!!deskOn} onSummary={setWbSummary} /> : classicBody()}
+      {wbOn ? <WB_Page me={me} isAdmin={!!(staffUser && staffUser.role === "admin")} td={rows} fallback={classicBody()} deskOn={!!deskOn} /> : classicBody()}
       {errors.map((e) => (
         <p className="card-subtitle negative td-error" key={e}>
           {e}
         </p>
       ))}
-      {moreNow.length + moreWeek.length > 0 && (
+      {moreCount > 0 && (
         <div className="td-more-wrap">
           <button type="button" className="td-more" onClick={() => setMoreOpen((v) => !v)} aria-expanded={moreOpen} aria-controls="td-more-list">
-            {moreOpen ? "Hide" : "Also needs you"} ({moreNow.length + moreWeek.length})
+            <span className="td-more-chev" aria-hidden="true">
+              {moreOpen ? "▾" : "▸"}
+            </span>
+            Also needs you ({moreCount})
           </button>
-          {moreOpen && (
-            <div className="card td-list" id="td-more-list">
-              <TD_Band tone="now" title="Now" rows={moreNow} expanded={true} />
-              <TD_Band tone="week" title="This week" rows={moreWeek} expanded={true} />
-            </div>
-          )}
+          <div className="card td-list" id="td-more-list" hidden={!moreOpen}>
+            {moreOpen && (
+              <>
+                <TD_Band tone="now" title="Now" rows={moreNow} expanded={true} />
+                <TD_Band tone="week" title="This week" rows={moreWeek} expanded={true} />
+              </>
+            )}
+          </div>
         </div>
       )}
 
@@ -1705,7 +1785,7 @@ function TD_TodayPage({ staffUser, clients, onNavigateToClient, onOpenClientMile
             <TD_ListCard
               id="td-attention-title"
               title="Clients needing attention"
-              subtitle="Replies waiting, blocked closes and coverage gaps."
+              subtitle="Replies waiting, blocked closes, health and coverage gaps."
               lines={attentionLines}
               loaded={settled}
               emptyText="No client needs a nudge."
@@ -1713,7 +1793,7 @@ function TD_TodayPage({ staffUser, clients, onNavigateToClient, onOpenClientMile
             />
           )}
           {cards.waiting && (
-            <TD_ListCard id="td-waiting-title" title="Waiting on others" subtitle="Requests and replies that are not yours to finish." lines={waitingLines} loaded={settled} emptyText="Nothing is waiting." />
+            <TD_ListCard id="td-waiting-title" title="Waiting on others" subtitle="Teammates and clients waiting on the firm: access and upgrade requests, and replies." lines={waitingLines} loaded={settled} emptyText="Nothing is waiting." />
           )}
           {cards.reminders && <TD_RemindersCard me={me} items={mine.items} error={mine.error} today={today} onAdd={addItem} onToggle={toggleItem} onRemove={removeItem} />}
           {cards.milestones && <TD_MilestonesCard clients={allClients} onOpenClientMilestone={onOpenClientMilestone} celebrations={celebrationRows} />}

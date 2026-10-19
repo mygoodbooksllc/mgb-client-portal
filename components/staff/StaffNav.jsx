@@ -32,7 +32,7 @@ const NAV_PLACES = [
     // the Desk article. The name stays "Today" either way.
     label: "Today",
     get hint() {
-      return NAV_wbOn() ? "Everything that needs you, in order" : "What needs you, in order";
+      return "What to do next, and what is waiting";
     },
     get help() {
       return NAV_wbOn() ? "workbench" : "home-page";

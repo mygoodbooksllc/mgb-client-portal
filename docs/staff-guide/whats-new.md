@@ -11,9 +11,9 @@ Each new launch also has a **Launches** list above, with **Open** and **Take the
 
 ### 2026-10-19: A calmer Today
 
-- **One Do next card.** Today now leads with your top item (what, which client, when it's due, and **then:** the one after it) and a button that starts or opens it. The long **Needs you** list, the filter buttons and the four number tiles are gone from Today; **Work › Slate** and the Desk (press **D**) hold the full list. **N more in Slate** links there.
+- **One Do next card.** Today now leads with your top item (what, which client, when it's due, and **then:** the one after it) and a button that starts or opens it. The long **Needs you** list, the filter buttons and the four number tiles are gone from Today; **Work › Slate** and the Desk (press **D**) hold the full list. **N more tasks in Slate** (or **N more in your Desk**) links there.
 - **A count line.** Under the greeting: **3 due today · 1 late · Open Slate**.
-- **Small cards.** **Clients needing attention** (reply waiting, close blocked, no backup), **Waiting on others** (access and upgrade requests, replies), **Your reminders** and **This week** (birthdays, anniversaries and milestones to review), then a **Recent clients** line. **Also show** at the bottom switches each one off; all start on.
+- **Small cards.** **Clients needing attention** (reply waiting, close blocked, client health, no backup), **Waiting on others** (access and upgrade requests, replies), **Your reminders** and **This week** (birthdays, anniversaries and milestones to review), then a **Recent clients** line. **Also show** at the bottom switches each one off; all start on.
 - **Approvals and other less common items** (handbook, deadlines, bills, access approvals, upgrades) sit under **Also needs you** on Today. A short tour comes with it; rerun it from **?** → **New: A calmer Today tour**. See [What's on my Today page?](#/help/home-page).
 
 ### 2026-10-19: Right now, at the top of the Desk (still off until the owner turns it on)

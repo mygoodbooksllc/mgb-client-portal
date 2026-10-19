@@ -11,20 +11,20 @@ Today no longer repeats your whole list. The full list lives in **Work › Slate
 
 ### The top of the page
 
-A greeting, the date, and one line: **3 due today · 1 late · Open Slate**. Late counts your own overdue tasks, filing deadlines and bills. **Open Slate** goes to **Work › Slate**.
+A greeting, the date, and one line: **3 due today · 1 late · Open Slate**. **Due today** counts your own tasks due today, and **late** your own overdue tasks, filing deadlines and bills (with the Desk on too; the Desk's bar has its own counts). **Open Slate** goes to **Work › Slate**.
 
 ### Do next
 
-One card with your top item: what it is, the client, when it's due, and **then:** the item after it. The button does the next thing (**Start** or **Open** on a task, **Reply** on a client message, **Review**, **Approve**...). Under it, **N more in Slate** links to the rest. The order is the same ranking your list has always used, most urgent first (late or waiting on us, then coming up). When nothing is waiting, the card says **Clean slate. Nothing needs you right now.**
+One card with your top item: what it is, the client, when it's due, and **then:** the item after it. The button does the next thing (**Start** or **Open** on a task, **Reply** on a client message, **Sign**, **Open**...). A teammate asking for temporary access shows **Review**: it opens that request under **Also needs you**, where **Approve** and **Deny** sit side by side. Under the card, **N more tasks in Slate** links to the rest of your tasks (with the Desk on: **N more in your Desk**, which opens it, and a **Slate** link). The order is the same ranking your list has always used, most urgent first (late or waiting on us, then coming up). Admins who picked **Everyone** in the Desk still get their own top item here. When nothing is waiting, the card says **Clean slate. Nothing needs you right now.**
 
-Items that need a decision, such as access and upgrade requests, handbook signatures, deadlines, bills, closes, reviews and celebrations, sit under **Also needs you (N)** below the card. Click it to open them, with their **Approve**, **Contacted**, **Sign** and other buttons right on the row. Messages and tasks are not repeated there.
+Items that need a decision, such as access and upgrade requests, handbook signatures, deadlines, bills, closes, client health, reviews and SOPs, sit under **Also needs you (N)** below the card (birthdays and anniversaries too, while the **This week** card is off). Click it to open them, with their **Approve**, **Contacted**, **Sign** and other buttons right on the row. Messages and tasks are not repeated there.
 
 ### The cards
 
 Under Do next, a row of small cards that fits your window (side by side on a computer, stacked on a phone):
 
-- **Clients needing attention**: up to four clients, each with why: **Reply waiting**, **Close blocked**, or **No backup while out** (admins). Click one to open the client.
-- **Waiting on others**: client portal access requests, upgrade and Add Payroll requests, and a count of client replies waiting on us. Click a line to go to it. Clients on Basic can look over what Pro adds first with the Pro tour; see [How does the Pro tour work?](#/help/pro-tour).
+- **Clients needing attention**: up to four clients, each with why: **Reply waiting**, **Close blocked**, **At risk** or **Watch** (client health), or **No backup while out** (admins). Click one to go to the first reason: the conversation, the Close tab, or the health reasons on the client's Overview.
+- **Waiting on others**: teammates asking you for temporary access (click to open the request under **Also needs you**), client portal access requests, upgrade and Add Payroll requests, and a count of client replies waiting on us. Click a line to go to it. Clients on Basic can look over what Pro adds first with the Pro tour; see [How does the Pro tour work?](#/help/pro-tour).
 - **Your reminders**: a quick list with a box to add one. For times, repeats and sharing, open the reminder from **Work › Slate**.
 - **This week**: birthdays and work anniversaries coming up (admins; send a shout-out), and **Milestones to review**: clients whose numbers point to a different pricing milestone, aren't confirmed yet, or are close to the next one.
 
