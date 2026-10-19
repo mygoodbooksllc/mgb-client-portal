@@ -36,11 +36,11 @@ function TK_vUseGroupBy(email, scope) {
 function TK_vGroupBySwitch(props) {
   return (
     <label className="tk-select-wrap tk-groupby" data-tour="tk-groupby">
-      <span className="tk-groupby-label">Group by</span>
+      <span className="tk-groupby-label">Sort by</span>
       <select
         className="tk-select"
         value={props.value}
-        aria-label="Group by"
+        aria-label="Sort by"
         onChange={function (e) {
           props.onChange(e.target.value);
         }}

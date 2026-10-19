@@ -198,7 +198,7 @@ Each new launch also has a **Launches** list above, with **Open** and **Take the
 
 ### 2026-10-16: Group tasks by client, and manage projects
 
-- **Group by Client.** My Tasks has a **Group by** switch: **Due date** or **Client**. Clients are listed A to Z, then **No client**, then test and internal clients. Admins get the same switch on a person's list under **People** (**Default** or **Client**). The portal remembers your choice. See [How do I add and manage my tasks?](#/help/my-tasks).
+- **Group by Client.** My Tasks has a **Sort by** switch: **Due date** or **Client**. Clients are listed A to Z, then **No client**, then test and internal clients. Admins get the same switch on a person's list under **People** (**Default** or **Client**). The portal remembers your choice. See [How do I add and manage my tasks?](#/help/my-tasks).
 - **Admins: Manage projects.** Under **Projects** in the Tasks sidebar, **Manage projects** lists every project (active, archived and in the trash) with its owner and task counts. Rename, archive, unarchive, move to trash or restore. See [How do I rename, archive or trash a project?](#/help/manage-projects).
 - **Move to trash** hides a project and its tasks from every list, My Tasks, Waiting on client, counts, digests and performance. Nothing is deleted; **Restore** brings back exactly what the trash hid. It's refused while a task is waiting on a client request. Project owners can trash their own project from **Project options**; only an admin can restore it.
 - The **Admin tour** now stops at **Tasks › Manage projects**.

@@ -35,7 +35,7 @@ Each picker is a small menu: arrow keys move, **Enter** picks, **Esc** closes. I
 
 ### Group by client
 
-The toolbar's **Group by** switch changes **Due date** (the groups above) to **Client**. Your tasks are then grouped one client at a time, clients A to Z, with **No client** after them and test and internal clients last (tagged **Test** or **Internal**). Inside a client the most urgent task comes first, and **Show done** still applies. The client filter still works. The portal remembers your choice, per person, in this browser. An admin's switch on a person's list under **People** is remembered separately from the one on Slate.
+The toolbar's **Sort by** switch changes **Due date** (the groups above) to **Client**. Your tasks are then grouped one client at a time, clients A to Z, with **No client** after them and test and internal clients last (tagged **Test** or **Internal**). Inside a client the most urgent task comes first, and **Show done** still applies. The client filter still works. The portal remembers your choice, per person, in this browser. An admin's switch on a person's list under **People** is remembered separately from the one on Slate.
 
 The toolbar has **Add task**, a client filter (**All clients**, or one client), **Show done** and, once Show done is on, **Show older**. Done tasks finished more than 12 months ago stay hidden unless you turn on **Show older**. Nothing is deleted.
 

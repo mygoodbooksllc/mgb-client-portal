@@ -73,7 +73,7 @@ Projects hold internal work that isn't for one client. Four are set up for you:
 
 Under **People**, pick a staff member to see their list. It's useful for covering or checking someone's load. Only admins can open it; anyone else sees *Only admins can see another person's list.*
 
-The toolbar has a **Group by** switch: **Default** (the list's sections) or **Client**, which groups the person's tasks one client at a time, clients A to Z, then **No client**, then test and internal clients. The portal remembers your choice.
+The toolbar has a **Sort by** switch: **Due date** (the list's sections) or **Client**, which groups the person's tasks one client at a time, clients A to Z, then **No client**, then test and internal clients. The portal remembers your choice.
 
 ### Troubleshooting
 

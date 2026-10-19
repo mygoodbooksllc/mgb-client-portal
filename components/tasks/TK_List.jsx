@@ -1297,7 +1297,7 @@ function TK_vListBody(props) {
       ) : (
         <TK_vFilters value={filters} onChange={patchFilters} people={people} hideAssignee={route.view === "person"} />
       )}
-      {route.view === "person" ? <TK_vGroupBySwitch value={gbPair[0]} dueLabel="Default" onChange={gbPair[1]} /> : null}
+      {route.view === "person" ? <TK_vGroupBySwitch value={gbPair[0]} dueLabel="Due date" onChange={gbPair[1]} /> : null}
       {sort && !byClient ? (
         <button
           type="button"
