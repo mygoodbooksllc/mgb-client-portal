@@ -795,8 +795,10 @@ $$;
 -- changes. Month-dependent checks are never auto-fixed: their detection
 -- depends on the review month open in the browser, not on the pull window, so
 -- "this pull didn't see it" doesn't mean "fixed". Today that is
--- recon_uncleared (GLR_checks.reconciliation uses ctx.reviewPeriod); add any
--- new check whose detection reads the review month to v_month_types.
+-- recon_uncleared (GLR_checks.reconciliation uses ctx.reviewPeriod) and swing
+-- (GLR_checks swingHits compares the review month with earlier months); add
+-- any new check whose detection reads the review month to v_month_types (and
+-- to GLR_config.MONTH_DEPENDENT_TYPES).
 create or replace function public.gl_review_mark_fixed(p_client_id text, p_pull_id uuid, p_checks_version int)
 returns jsonb
 language plpgsql
@@ -805,7 +807,7 @@ set search_path = public
 as $$
 declare
   v_email text := public.gl_review_require_staff(p_client_id);
-  v_month_types text[] := array['recon_uncleared'];
+  v_month_types text[] := array['recon_uncleared', 'swing'];
   p public.gl_review_pulls;
   v_rule int := 0;
   v_fixed int := 0;

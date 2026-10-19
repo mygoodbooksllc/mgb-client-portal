@@ -2,7 +2,7 @@
 title: How does Ledger review work?
 section: Working with a client
 audience: staff
-keywords: [ledger review, general ledger, GL review, gl, flags, pull from quickbooks, pull again, clear a flag, ask client, got an answer, stop flagging, reconciliation, month vs the year, summary for the client, send via portal, send by email, greeting name, contact email, mark reviewed, approve, send back, ledger reviewed, warn, block, review a file, copy for excel, watch list, vendor watch list, uncategorized, suspense, opening balance equity, duplicate, possible duplicates, smart mode, strict mode, no longer flagged, set aside, undeposited funds, split lines, check gap, round dollar, weekend, high priority]
+keywords: [ledger review, general ledger, GL review, gl, flags, pull from quickbooks, pull again, clear a flag, ask client, got an answer, stop flagging, reconciliation, month vs the year, summary for the client, send via portal, send by email, greeting name, contact email, mark reviewed, approve, send back, ledger reviewed, warn, block, review a file, copy for excel, watch list, vendor watch list, uncategorized, suspense, opening balance equity, duplicate, possible duplicates, smart mode, strict mode, no longer flagged, set aside, undeposited funds, split lines, check gap, round dollar, weekend, month swing, swing, big change from usual, high priority]
 sort: 207
 ---
 **Ledger review** checks one month of a client's General Ledger for things worth a second look, before you close the month. It lives on the client's **Ledger review** tab, right after **Close**. Staff only. The client never sees this tab, and nothing in it changes their QuickBooks.
@@ -25,7 +25,7 @@ Across the top: ledger lines, open flags, high priority, asked, and the dollars 
 
 ### Flags
 
-Each flag is one transaction (or one account) that a check picked out. The checks include suspense or uncategorized, opening balance equity, possible duplicates, a negative bank balance, a manual journal entry to cash, check number gaps, unusually large amounts, round dollars, weekend dates, no name or memo, and accounts that aren't reconciled. **Watch-list vendor** flags come from the list an admin keeps (see Settings below). **Changed after close** flags a month that was already closed.
+Each flag is one transaction (or one account) that a check picked out. The checks include suspense or uncategorized, opening balance equity, possible duplicates, a negative bank balance, a manual journal entry to cash, check number gaps, unusually large amounts, round dollars, weekend dates, no name or memo, accounts that aren't reconciled, and a **Month swing** on an income or expense account (below). **Watch-list vendor** flags come from the list an admin keeps (see Settings below). **Changed after close** flags a month that was already closed.
 
 - Filter by check with the chips, and by state with the **Open**, **Asked** and **Cleared** tabs.
 - Each flag says **Open since {month}**, so one that carries over month after month is easy to spot.
@@ -41,6 +41,14 @@ What you can do with a flag:
 - **Send back** (admins) on a cleared flag you disagree with. It goes back to **Open**.
 
 An asked question can show the amount and the question text in the email. It never shows our fees, rates or margins.
+
+### Month swing
+
+**Month swing** is a low priority flag on an income or expense account whose total for the month is very different from usual. It compares the month you're reviewing with the average of the up to three months just before it, using the ledger lines in the pull. A month the pull covers but the account has nothing in counts as zero.
+
+It flags an account when the change is at least **$1,000** and at least **50%** of that average, up or down. Accounts whose average is under about $50 are skipped, since a percentage of nothing doesn't mean much. The flag says the account, this month's total, the earlier average and the percent change, for example *6620 Ministry Supplies is $4,200 this month vs a $1,100 average over the last 3 months (+282%).* There is one flag per account per month.
+
+It needs at least **two earlier months** in the pull, so a year-to-date pull in January or February won't show it; the usual 14-month pull does. The account also needs activity in at least two of those months, so a one-time bill doesn't flag the months after it. Like **Not reconciled**, it's saved as of the last completed month, whichever month you're looking at, so it isn't saved from a one-off **Go back to** pull. Clear it when the change is expected (a big event, a seasonal bill), or use **Stop flagging** to quiet one account.
 
 ### Possible duplicates: Smart or Strict
 

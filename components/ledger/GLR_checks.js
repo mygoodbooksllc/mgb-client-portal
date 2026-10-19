@@ -349,7 +349,56 @@
         }
       });
     }
+
+    // Month swing (spec 7 "Phase 2 checks"): see swingHits.
+    swingHits(L, ctx, add);
     return hits;
+  }
+
+  // ---- Month swing. For each income / expense / COGS account, net activity
+  // per month (signed cents) from the lines in the pull. The reviewed month R
+  // is compared with the average of up to T.swingBaseMonths calendar months
+  // just before it that the pull covers (a covered month = any line in the
+  // ledger, any account); a covered month with no lines for the account counts
+  // as zero. Needs T.swingMinMonths covered months, so a short pull never runs
+  // it, and the account must have had activity in that many of them. Flags a change of at least T.swingMinAbs dollars AND T.swingPct of the
+  // average. An average near zero has no meaningful percentage: no flag.
+  function swingHits(L, ctx, add) {
+    var whole = function (c) { return (c < 0 ? "-" : "") + "$" + Math.round(abs(c) / 100).toLocaleString("en-US"); };
+    var period = ctx.reviewPeriod || latestMonth(L);
+    if (!period) return;
+    var covered = {};
+    L.forEach(function (x) { covered[C.ym(x.date)] = true; });
+    if (!covered[period]) return; // nothing posted that month: every account would look like a drop
+    var r = C.monthIndex(period), base = [];
+    for (var i = 1; i <= T.swingBaseMonths; i++) {
+      var m = C.ymFromIndex(r - i);
+      if (covered[m]) base.push(m);
+    }
+    if (base.length < T.swingMinMonths) return;
+    groupBy(L.filter(function (x) { return C.isPL(x.classification); }), R.acctKey).forEach(function (list) {
+      var sum = {}, rep = null, repIsCur = false;
+      list.forEach(function (x) {
+        var m = C.ym(x.date);
+        sum[m] = (sum[m] || 0) + x.cents;
+        var cur = m === period;
+        // a line in the reviewed month stands for the account; else the latest earlier line
+        if (!rep || (cur && !repIsCur) || (cur === repIsCur && x.date > rep.date)) { rep = x; repIsCur = cur; }
+      });
+      var cents = sum[period] || 0;
+      var avg = base.reduce(function (s, m) { return s + (sum[m] || 0); }, 0) / base.length;
+      var diff = cents - avg;
+      if (abs(avg) < T.swingNearZero * 100) return;
+      // a one-off entry in a single earlier month is not a pattern (else its absence flags for months)
+      var active = base.filter(function (m) { return sum[m]; }).length;
+      if (active < T.swingMinMonths) return;
+      if (abs(diff) < T.swingMinAbs * 100 || abs(diff) < T.swingPct * abs(avg)) return;
+      var pct = Math.round(diff / abs(avg) * 100);
+      var line = Object.assign({}, rep, { amt: cents / 100, cents: cents, date: C.monthEnd(period), name: "", memo: "", split: "", cls: "", loc: "" });
+      add("swing", line,
+        rep.acct + " is " + whole(cents) + " this month vs a " + whole(avg) + " average over the last " + base.length + " months (" + (pct > 0 ? "+" : "") + pct + "%).",
+        { keyExtra: { month: period }, period: period });
+    });
   }
 
   function makeFlag(h, group) {

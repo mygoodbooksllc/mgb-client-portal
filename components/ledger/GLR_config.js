@@ -39,14 +39,19 @@
     loan_expense: { label: "Possible loan booked as income or expense", severity: "medium", side: "category", key: "txn" },
     watch_vendor: { label: "Watch-list vendor", severity: "medium", side: "category", key: "txn" },
     recon_uncleared: { label: "Not reconciled", severity: "medium", side: "bank", key: "acct" },
-    // Phase 2/4, keys only (no check code yet)
+    // Phase 2: month swing
     swing: { label: "Month swing", severity: "low", side: "category", key: "acct" },
+    // Phase 4, key only (no check code yet)
     changed_after_close: { label: "Changed after close", severity: "high", side: "category", key: "month" },
   };
   var TYPE_ORDER = [
     "suspense", "obe", "dup", "negbank", "recon_uncleared", "jecash", "gap", "large",
-    "loan_expense", "watch_vendor", "vendor_acct", "round", "weekend", "blank",
+    "loan_expense", "watch_vendor", "vendor_acct", "round", "weekend", "blank", "swing",
   ];
+  // Types whose result depends on the review month, not only on the pull
+  // window. The screen only lists the saved month's flags for these, and
+  // gl_review_mark_fixed never auto-fixes them (keep that SQL list in step).
+  var MONTH_DEPENDENT_TYPES = ["recon_uncleared", "swing"];
   var SEVERITY_RANK = { high: 0, medium: 1, low: 2 };
 
   // ---- Thresholds (prototype README "Checks", plus Bailley's checks)
@@ -78,6 +83,16 @@
     // Reconciliation panel: an unreconciled line older than this many days
     // before the "through" date is stale.
     reconStaleDays: 60,
+    // swing: a P&L account's net activity for the review month against the
+    // average of up to swingBaseMonths earlier months in the pull. Needs
+    // swingMinMonths of them; flags a change of at least swingMinAbs dollars
+    // AND swingPct of the average. An average within swingNearZero dollars of
+    // zero has no meaningful percentage, so it is never flagged.
+    swingBaseMonths: 3,
+    swingMinMonths: 2,
+    swingMinAbs: 1000,
+    swingPct: 0.5,
+    swingNearZero: 50,
   };
 
   // ---- Month vs. the year (prototype CMP)
@@ -251,6 +266,7 @@
     CHECKS_VERSION: CHECKS_VERSION,
     TYPES: TYPES,
     TYPE_ORDER: TYPE_ORDER,
+    MONTH_DEPENDENT_TYPES: MONTH_DEPENDENT_TYPES,
     SEVERITY_RANK: SEVERITY_RANK,
     T: T,
     CMP: CMP,

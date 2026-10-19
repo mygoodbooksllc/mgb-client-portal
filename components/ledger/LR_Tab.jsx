@@ -22,7 +22,7 @@
 //      fixed (gl_review_mark_fixed, rolling 14-month pulls only, and only
 //      when the firm watch list loaded).
 //      The saved set never depends on the month picker: the month-dependent
-//      check (recon_uncleared) is always run as of the last complete month
+//      checks (recon_uncleared, swing) are always run as of the last complete month
 //      (saveYm below). The screen re-runs the checks for the picked month
 //      for display only.
 //   4. The screen shows stored flags (their status is the truth) with the
@@ -548,13 +548,13 @@ function LR_LedgerTab({ client, staffUser, isAdmin, onNavigate }) {
   const allFlags = useMemo(() => {
     const merged = LR_logic.attachRun(stored || [], run ? run.flags : []);
     const have = new Set(merged.map((f) => f.txn_key + "|" + f.flag_type));
-    // A month-dependent flag (recon_uncleared) for a month other than
+    // A month-dependent flag (recon_uncleared, swing) for a month other than
     // saveYm is never saved, so it isn't listed as "Not saved yet"; the
     // Reconciliation panel still shows that month.
     const unsaved = run
       ? run.flags
           .filter((f) => !have.has(f.txn_key + "|" + f.flag_type))
-          .filter((f) => f.flag_type !== "recon_uncleared" || LR_logic.ymOf(f.period) === saveYm)
+          .filter((f) => GLR_config.MONTH_DEPENDENT_TYPES.indexOf(f.flag_type) < 0 || LR_logic.ymOf(f.period) === saveYm)
           .map((f) => ({ ...f, id: null, status: "open", first_period: f.period, run: f, unsaved: true }))
       : [];
     return LR_logic.dropRuleHidden(merged.concat(unsaved), rules).map((f) => {

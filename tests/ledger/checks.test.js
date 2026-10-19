@@ -13,15 +13,16 @@ const ofType = (res, t) => res.flags.filter((f) => f.flag_type === t);
 
 test("sample church: raw counts match the prototype README", () => {
   const res = K.runChecks(sample(), { dedupe: false, watchVendors: [] });
+  // swing (phase 2, not in the prototype): 6520 Building Repairs drops to $0 in the last month
   assert.deepEqual(K.countByType(res.flags), {
-    suspense: 2, dup: 2, obe: 1, large: 1, gap: 1, jecash: 1, weekend: 10, round: 6, blank: 2,
+    suspense: 2, dup: 2, obe: 1, large: 1, gap: 1, jecash: 1, swing: 1, weekend: 10, round: 6, blank: 2,
   });
 });
 
 test("sample church: deduped to one flag per transaction per type", () => {
   const res = K.runChecks(sample(), { watchVendors: [] });
   assert.deepEqual(K.countByType(res.flags), {
-    suspense: 2, dup: 1, obe: 1, large: 1, gap: 1, jecash: 1, weekend: 5, round: 3, blank: 1,
+    suspense: 2, dup: 1, obe: 1, large: 1, gap: 1, jecash: 1, swing: 1, weekend: 5, round: 3, blank: 1,
   });
   // the category side is shown for transaction checks, the bank side for bank checks
   const wk = ofType(res, "weekend").map((f) => f.account_name);

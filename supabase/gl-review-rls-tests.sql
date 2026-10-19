@@ -78,6 +78,9 @@ values
   -- Month-dependent (review month in the browser): never auto-fixed (30c).
   ('gltest-a', date_trunc('month', current_date)::date, 'acct:77:' || to_char(current_date, 'YYYY-MM'),
    'recon_uncleared', 'medium', 'Stale uncleared items', current_date, 300.00, null,
+   date_trunc('month', current_date)::date, now(), now() - interval '1 hour', 1),
+  ('gltest-a', date_trunc('month', current_date)::date, 'acct:78:' || to_char(current_date, 'YYYY-MM'),
+   'swing', 'low', 'Month swing', current_date, 4200.00, null,
    date_trunc('month', current_date)::date, now(), now() - interval '1 hour', 1);
 
 -- A client-asked question on client B (the stamp trigger takes created_by
@@ -100,7 +103,7 @@ declare n int; v jsonb;
 begin
   -- 1. Reads own client's flags, not client B's.
   select count(*) into n from public.gl_review_flags where client_id = 'gltest-a';
-  if n <> 3 then raise exception 'FAIL 1a: bookkeeper A sees % flags for A', n; end if;
+  if n <> 4 then raise exception 'FAIL 1a: bookkeeper A sees % flags for A', n; end if;
   select count(*) into n from public.gl_review_flags where client_id = 'gltest-b';
   if n <> 0 then raise exception 'FAIL 1b: bookkeeper A sees % flags for B', n; end if;
 
@@ -210,8 +213,9 @@ begin
      or (select status from public.gl_review_flags where txn_key = 'Purchase:9001' and flag_type = 'suspense') <> 'open' then
     raise exception 'FAIL 30e: mark_fixed fixed a flag the pull just saw';
   end if;
-  if (select status from public.gl_review_flags where flag_type = 'recon_uncleared' and client_id = 'gltest-a') <> 'open' then
-    raise exception 'FAIL 30f: mark_fixed auto-fixed a month-dependent recon_uncleared flag';
+  if (select count(*) from public.gl_review_flags
+       where flag_type in ('recon_uncleared', 'swing') and client_id = 'gltest-a' and status = 'open') <> 2 then
+    raise exception 'FAIL 30f: mark_fixed auto-fixed a month-dependent recon_uncleared or swing flag';
   end if;
   -- The latest pull sees Purchase:9010 again: it reopens.
   v := public.gl_review_upsert_flags('gltest-a', '6c1e0000-0000-4000-8000-0000000000a1', 1, jsonb_build_array(
