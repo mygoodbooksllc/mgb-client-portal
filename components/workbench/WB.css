@@ -166,17 +166,17 @@
   color: var(--ink-strong);
 }
 /* Inbox filter pills: a colored outline per kind (all stays neutral). */
-.wb-tab-tasks { --wb-kind: #3b82c4; }
-.wb-tab-reviews { --wb-kind: #c98a1f; }
-.wb-tab-messages { --wb-kind: #2f9e6f; }
-.wb-tab-files { --wb-kind: #8a63c9; }
-.wb-tab[class*="wb-tab-"]:not(.wb-tab-all) {
+.wb-tab-task { --wb-kind: #3b82c4; }
+.wb-tab-review { --wb-kind: #c98a1f; }
+.wb-tab-message { --wb-kind: #2f9e6f; }
+.wb-tab-doc { --wb-kind: #8a63c9; }
+.wb-tab:is(.wb-tab-task, .wb-tab-review, .wb-tab-message, .wb-tab-doc) {
   border-color: color-mix(in srgb, var(--wb-kind) 55%, transparent);
 }
-.wb-tab[class*="wb-tab-"]:not(.wb-tab-all):hover {
+.wb-tab:is(.wb-tab-task, .wb-tab-review, .wb-tab-message, .wb-tab-doc):hover {
   border-color: var(--wb-kind);
 }
-.wb-tab[class*="wb-tab-"]:not(.wb-tab-all).is-on {
+.wb-tab:is(.wb-tab-task, .wb-tab-review, .wb-tab-message, .wb-tab-doc).is-on {
   border-color: var(--wb-kind);
   background: color-mix(in srgb, var(--wb-kind) 14%, var(--surface));
   box-shadow: 0 0 0 1px var(--wb-kind);
