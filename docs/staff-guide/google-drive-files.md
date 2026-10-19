@@ -7,7 +7,7 @@ sort: 566
 ---
 Client files live in the firm's Google Drive, in a Shared Drive called **~ MGB: Client Files (Portal)**. The portal only keeps a link to each file. Clients never get Google access: every file they open goes through the portal.
 
-This covers files uploaded on a client's **Documents** page, files a Basic client drops on their **Home** (the button they pick sets the document type),  files dropped anywhere in the staff app, uploads into a **document request**, and files attached to **messages**. Staff chat attachments, profile photos and Feedback screenshots stay in the portal's own storage.
+This covers files uploaded on a client's **Documents** page, files a Basic client drops on their **Home** (the button they pick sets the document type), files dropped anywhere in the staff app, uploads into a **document request**, and files attached to **messages**. Staff chat attachments, profile photos and Feedback screenshots stay in the portal's own storage.
 
 ### Where files land
 

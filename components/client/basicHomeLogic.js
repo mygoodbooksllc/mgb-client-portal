@@ -81,6 +81,11 @@ function BH_checkFile(file) {
   return null;
 }
 
+// Same name, size and modified time: the same file picked or dropped twice.
+function BH_fileSig(f) {
+  return String((f && f.name) || "") + "|" + (Number(f && f.size) || 0) + "|" + ((f && f.lastModified) || 0);
+}
+
 // Splits a dropped or chosen list into what can be uploaded and what can't.
 function BH_pickFiles(list) {
   var accepted = [];
@@ -93,7 +98,7 @@ function BH_pickFiles(list) {
       return;
     }
     // The same file dropped twice in one go.
-    var sig = f.name + "|" + f.size + "|" + (f.lastModified || 0);
+    var sig = BH_fileSig(f);
     if (seen[sig]) return;
     seen[sig] = true;
     accepted.push(f);
@@ -157,6 +162,7 @@ if (typeof module !== "undefined" && module.exports) {
     BH_labelFor: BH_labelFor,
     BH_sizeLabel: BH_sizeLabel,
     BH_checkFile: BH_checkFile,
+    BH_fileSig: BH_fileSig,
     BH_pickFiles: BH_pickFiles,
     BH_dragHasFiles: BH_dragHasFiles,
     BH_summary: BH_summary,

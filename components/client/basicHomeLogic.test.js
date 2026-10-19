@@ -78,6 +78,14 @@ t("pickFiles splits and drops exact duplicates", () => {
   assert.strictEqual(r.rejected[0].name, "b.zip");
   assert.deepStrictEqual(L.BH_pickFiles(null), { accepted: [], rejected: [] });
 });
+t("fileSig matches the same file only", () => {
+  const a = Object.assign(f("a.pdf", 5, "application/pdf"), { lastModified: 1 });
+  const b = Object.assign(f("a.pdf", 5, "application/pdf"), { lastModified: 1 });
+  const c = Object.assign(f("a.pdf", 6, "application/pdf"), { lastModified: 1 });
+  assert.strictEqual(L.BH_fileSig(a), L.BH_fileSig(b));
+  assert.notStrictEqual(L.BH_fileSig(a), L.BH_fileSig(c));
+  assert.strictEqual(typeof L.BH_fileSig(null), "string");
+});
 t("sizeLabel", () => {
   assert.strictEqual(L.BH_sizeLabel(500), "500 B");
   assert.strictEqual(L.BH_sizeLabel(2048), "2 KB");

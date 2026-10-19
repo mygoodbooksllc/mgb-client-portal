@@ -24,9 +24,10 @@
 .bh-pro-actions { display: flex; gap: 14px; }
 .bh-link { background: none; border: 0; padding: 4px 0; font: inherit; font-weight: 600; color: var(--accent-text, var(--accent)); cursor: pointer; text-decoration: underline; }
 
-/* Full-page drop overlay */
+/* Full-page drop overlay: above the chooser (so dropping more files into an
+   open chooser shows it), under toasts (2100) only by a hair. */
 .bh-drop {
-  position: fixed; inset: 0; z-index: 2900; pointer-events: none;
+  position: fixed; inset: 0; z-index: 2050; pointer-events: none;
   display: flex; align-items: center; justify-content: center;
   background: color-mix(in srgb, var(--surface) 82%, transparent);
   border: 3px dashed var(--accent); outline-offset: -14px;
@@ -36,7 +37,10 @@
 .bh-drop-box span { color: var(--text-muted); }
 
 /* "Where should this go?" */
-.bh-scrim { position: fixed; inset: 0; z-index: 3000; background: rgba(0,0,0,0.45); display: flex; align-items: center; justify-content: center; padding: 16px; }
+/* Same layer as .modal-overlay (2000): toasts (2100) show on top of it, the
+   tour (9000) above both. */
+.bh-scrim { position: fixed; inset: 0; z-index: 2000; background: rgba(0,0,0,0.45); display: flex; align-items: center; justify-content: center; padding: 16px; }
+.bh-chooser:focus { outline: none; }
 .bh-chooser { width: min(560px, 100%); max-height: calc(100dvh - 32px); overflow-y: auto; background: var(--surface); border-radius: var(--radius); padding: 20px; display: grid; gap: 14px; box-shadow: 0 12px 40px rgba(0,0,0,0.3); }
 .bh-chooser-title { margin: 0; font-size: 20px; color: var(--ink-strong); }
 .bh-rejected { font-size: 13px; padding: 10px 12px; border: 1px solid var(--warm-border); border-radius: var(--radius); color: var(--warm-text); }

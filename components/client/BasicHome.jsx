@@ -26,29 +26,71 @@ function BH_Spinner() {
 }
 
 // The "Where should this go?" chooser. items: [{ id, file, status, error }]
-// (status: pending | uploading | done | failed).
-function BH_Chooser({ items, rejected, busy, dest, onPick, onAddMore, onClose, onRemove }) {
+// (status: pending | uploading | done | failed). progress: { at, of } while
+// busy. A modal: focus starts on the first destination, Tab stays inside,
+// Esc closes it (not while uploading) and focus goes back where it was.
+function BH_Chooser({ items, rejected, busy, dest, progress, onPick, onAddMore, onClose, onRemove, returnFocus }) {
   const ref = React.useRef(null);
-  React.useEffect(() => {
-    const el = ref.current && ref.current.querySelector("button.bh-dest");
-    if (el) el.focus();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-  React.useEffect(() => {
-    const onKey = (e) => {
-      if (e.key === "Escape" && !busy) onClose();
-    };
-    document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
-  }, [busy, onClose]);
+  const prevFocus = React.useRef(null);
   const failed = items.filter((i) => i.status === "failed");
   const waiting = items.filter((i) => i.status === "pending");
-  const total = items.length;
   const doneN = items.filter((i) => i.status === "done").length;
   const showPicker = !busy && (waiting.length > 0 || failed.length > 0);
+  React.useEffect(() => {
+    prevFocus.current = document.activeElement;
+    return () => {
+      // Back to what had focus (the Choose files button for a picked file),
+      // or the Choose files button after a drop.
+      const back = prevFocus.current && document.contains(prevFocus.current) && prevFocus.current !== document.body ? prevFocus.current : returnFocus && returnFocus();
+      if (back && typeof back.focus === "function") back.focus();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  // Focus the first destination (or the one that just failed); while the
+  // buttons are hidden for the upload, the dialog itself keeps focus.
+  React.useEffect(() => {
+    const box = ref.current;
+    if (!box) return;
+    const el = busy ? box : box.querySelector("button.bh-dest.is-last") || box.querySelector("button.bh-dest") || box.querySelector(".bh-chooser-foot button:not([disabled])");
+    if (el) el.focus();
+  }, [busy, showPicker]);
+  React.useEffect(() => {
+    const onKey = (e) => {
+      const box = ref.current;
+      if (!box) return;
+      if (e.key === "Escape") {
+        // Capture phase, so the Desk or a page behind doesn't also take Esc.
+        e.stopPropagation();
+        e.preventDefault();
+        if (!busy) onClose();
+        return;
+      }
+      if (e.key !== "Tab") return;
+      const f = Array.from(box.querySelectorAll("button:not([disabled])"));
+      if (!f.length) {
+        e.preventDefault();
+        box.focus();
+        return;
+      }
+      const first = f[0];
+      const lastEl = f[f.length - 1];
+      if (!box.contains(document.activeElement)) {
+        e.preventDefault();
+        first.focus();
+      } else if (e.shiftKey && (document.activeElement === first || document.activeElement === box)) {
+        e.preventDefault();
+        lastEl.focus();
+      } else if (!e.shiftKey && document.activeElement === lastEl) {
+        e.preventDefault();
+        first.focus();
+      }
+    };
+    window.addEventListener("keydown", onKey, true);
+    return () => window.removeEventListener("keydown", onKey, true);
+  }, [busy, onClose]);
   return (
     <div className="bh-scrim" role="presentation">
-      <div className="bh-chooser" role="dialog" aria-modal="true" aria-labelledby="bh-chooser-title" ref={ref}>
+      <div className="bh-chooser" role="dialog" aria-modal="true" aria-labelledby="bh-chooser-title" aria-busy={busy || undefined} tabIndex={-1} ref={ref}>
         <h3 id="bh-chooser-title" className="bh-chooser-title">
           {failed.length && !waiting.length && !busy ? "Some files didn't upload" : "Where should this go?"}
         </h3>
@@ -91,7 +133,7 @@ function BH_Chooser({ items, rejected, busy, dest, onPick, onAddMore, onClose, o
         </ul>
         {busy && (
           <p className="bh-progress" role="status">
-            Uploading to {BH_labelFor(dest)}: {Math.min(total, doneN + 1)} of {total}. Please keep this page open.
+            Uploading to {BH_labelFor(dest)}: {progress ? progress.at + " of " + progress.of : "starting"}. Please keep this page open.
           </p>
         )}
         {showPicker && (
@@ -135,9 +177,11 @@ function BasicHome({ client, access, messages, live, canUpload, onGo, onSeePlans
   const [queue, setQueue] = React.useState({ open: false, items: [], rejected: [] });
   const [busy, setBusy] = React.useState(false);
   const [dest, setDest] = React.useState(null);
+  const [progress, setProgress] = React.useState(null);
   const [recent, setRecent] = React.useState(null);
   const [tick, setTick] = React.useState(0);
   const inputRef = React.useRef(null);
+  const chooseRef = React.useRef(null);
   const idRef = React.useRef(0);
   const busyRef = React.useRef(false);
   busyRef.current = busy;
@@ -157,7 +201,10 @@ function BasicHome({ client, access, messages, live, canUpload, onGo, onSeePlans
       }
       setQueue((q) => {
         const base = q.open ? q.items.filter((i) => i.status !== "done") : [];
-        const items = base.concat(accepted.map((file) => ({ id: ++idRef.current, file, status: "pending", error: null })));
+        // The same file dropped again while the chooser is open isn't added twice.
+        const have = new Set(base.map((i) => BH_fileSig(i.file)));
+        const fresh = accepted.filter((f) => !have.has(BH_fileSig(f)));
+        const items = base.concat(fresh.map((file) => ({ id: ++idRef.current, file, status: "pending", error: null })));
         if (!items.length) return q.open ? q : { open: false, items: [], rejected: [] };
         return { open: true, items, rejected: (q.open ? q.rejected : []).concat(rejected) };
       });
@@ -165,46 +212,97 @@ function BasicHome({ client, access, messages, live, canUpload, onGo, onSeePlans
     [showToast],
   );
 
-  // Page-wide drop. Only for a signed-in client; staff previewing don't get it.
+  // Page-wide drop. Only for a signed-in client; staff previewing don't get it
+  // (and in the staff app PD_PageDrop owns page drops, so we stay out of it).
+  // Only file drags count, never selected text or a link. A page drop zone
+  // that already took the event (defaultPrevented) keeps it. The overlay
+  // follows a dragenter/dragleave count (dragenter on the new element fires
+  // before dragleave on the old, so moving across the page never hits 0) and
+  // a short timer that dragover keeps alive, so it can't stick if the browser
+  // drops a dragleave.
   React.useEffect(() => {
     if (!canUpload) return;
-    const onOver = (e) => {
-      // A drop zone on the page that already claimed it keeps it.
-      if (!BH_dragHasFiles(e.dataTransfer) || e.defaultPrevented) return;
+    let depth = 0;
+    let timer = null;
+    const hide = () => {
+      depth = 0;
+      clearTimeout(timer);
+      setDragging(false);
+    };
+    // Another dialog (not our chooser) is up: don't open ours over it.
+    const otherDialog = () =>
+      Array.from(document.querySelectorAll(".modal-overlay, [aria-modal='true']")).some((el) => !el.closest(".bh-scrim"));
+    const claim = (e) => {
+      if (!BH_dragHasFiles(e.dataTransfer) || e.defaultPrevented) return false;
+      // Ours from here: stop the browser opening the file in place of the app.
       e.preventDefault();
-      if (e.dataTransfer) e.dataTransfer.dropEffect = "copy";
+      const ok = !busyRef.current && !otherDialog();
+      if (e.dataTransfer) e.dataTransfer.dropEffect = ok ? "copy" : "none";
+      return ok;
+    };
+    const show = () => {
       setDragging(true);
+      clearTimeout(timer);
+      timer = setTimeout(hide, 800);
+    };
+    const onEnter = (e) => {
+      if (!BH_dragHasFiles(e.dataTransfer)) return;
+      depth += 1;
+      if (claim(e)) show();
+    };
+    const onOver = (e) => {
+      if (claim(e)) show();
+      else if (BH_dragHasFiles(e.dataTransfer)) setDragging(false);
     };
     const onLeave = (e) => {
-      // Leaving the window (no element entered), not moving between elements.
-      if (!e.relatedTarget) setDragging(false);
+      if (!BH_dragHasFiles(e.dataTransfer)) return;
+      depth = Math.max(0, depth - 1);
+      if (!depth) hide();
     };
     const onDrop = (e) => {
-      if (!BH_dragHasFiles(e.dataTransfer) || e.defaultPrevented) return;
+      const has = BH_dragHasFiles(e.dataTransfer);
+      hide();
+      if (!has || e.defaultPrevented) return;
       e.preventDefault();
-      setDragging(false);
+      if (otherDialog()) return;
+      // addFiles says so when an upload is still running.
       addFiles(e.dataTransfer.files);
     };
-    const off = () => setDragging(false);
-    window.addEventListener("dragenter", onOver);
+    window.addEventListener("dragenter", onEnter);
     window.addEventListener("dragover", onOver);
     window.addEventListener("dragleave", onLeave);
     window.addEventListener("drop", onDrop);
-    window.addEventListener("dragend", off);
+    window.addEventListener("dragend", hide);
+    window.addEventListener("blur", hide);
     return () => {
-      window.removeEventListener("dragenter", onOver);
+      clearTimeout(timer);
+      window.removeEventListener("dragenter", onEnter);
       window.removeEventListener("dragover", onOver);
       window.removeEventListener("dragleave", onLeave);
       window.removeEventListener("drop", onDrop);
-      window.removeEventListener("dragend", off);
+      window.removeEventListener("dragend", hide);
+      window.removeEventListener("blur", hide);
+      setDragging(false);
     };
   }, [canUpload, addFiles]);
+
+  // Leaving or reloading the page mid-upload asks first.
+  React.useEffect(() => {
+    if (!busy) return;
+    const onUnload = (e) => {
+      e.preventDefault();
+      e.returnValue = "";
+    };
+    window.addEventListener("beforeunload", onUnload);
+    return () => window.removeEventListener("beforeunload", onUnload);
+  }, [busy]);
 
   // Upload every file that isn't done, one at a time, through the Documents
   // page's own call. Failures keep the chooser open.
   const run = async (destKey, items) => {
-    if (busyRef.current) return;
+    if (busyRef.current || !items.length) return;
     setDest(destKey);
+    setProgress({ at: 1, of: items.length });
     setBusy(true);
     busyRef.current = true;
     const patch = (id, p) =>
@@ -213,16 +311,19 @@ function BasicHome({ client, access, messages, live, canUpload, onGo, onSeePlans
     let bad = 0;
     let stop = null;
     try {
-      await DRV_useStorage();
+      // true would mean "use the old Storage path", which Home doesn't have.
+      if (await DRV_useStorage()) stop = "Uploads aren't available here right now. Use Documents, or try again later.";
     } catch (e) {
       stop = "Uploads are paused for a moment. Please try again later.";
     }
-    for (const it of items) {
+    for (let k = 0; k < items.length; k++) {
+      const it = items[k];
       if (stop) {
         bad += 1;
         patch(it.id, { status: "failed", error: stop });
         continue;
       }
+      setProgress({ at: k + 1, of: items.length });
       patch(it.id, { status: "uploading", error: null });
       try {
         await DRV_upload({ file: it.file, clientId: client.id, visibility: "shared", docType: BH_docTypeFor(destKey) });
@@ -235,6 +336,7 @@ function BasicHome({ client, access, messages, live, canUpload, onGo, onSeePlans
     }
     busyRef.current = false;
     setBusy(false);
+    setProgress(null);
     showToast(BH_summary(ok, bad, destKey));
     if (ok) setTick((n) => n + 1);
     // All good: close. Otherwise the chooser stays with the failures.
@@ -246,7 +348,7 @@ function BasicHome({ client, access, messages, live, canUpload, onGo, onSeePlans
   const remove = (id) =>
     setQueue((q) => {
       const items = q.items.filter((i) => i.id !== id);
-      return items.length || q.rejected.length ? { ...q, items } : { open: false, items: [], rejected: [] };
+      return items.length ? { ...q, items } : { open: false, items: [], rejected: [] };
     });
 
   // Newest files for the "Your files" card.
@@ -289,7 +391,7 @@ function BasicHome({ client, access, messages, live, canUpload, onGo, onSeePlans
                 : "Your client signs in to upload files here."}
             </p>
           </div>
-          <button type="button" className="btn-primary bh-choose" disabled={!canUpload} onClick={() => inputRef.current && inputRef.current.click()}>
+          <button ref={chooseRef} type="button" className="btn-primary bh-choose" disabled={!canUpload} onClick={() => inputRef.current && inputRef.current.click()}>
             Choose files
           </button>
           <input
@@ -323,7 +425,7 @@ function BasicHome({ client, access, messages, live, canUpload, onGo, onSeePlans
               </>
             ) : (
               <p className="card-subtitle" style={{ margin: 0 }}>
-                No messages yet. Say hello any time.
+                {live ? "No messages yet. Say hello any time." : "The client's latest message from you shows here."}
               </p>
             )}
             <button type="button" className="btn-secondary btn-sm" onClick={() => onGo("messages")}>
@@ -380,15 +482,18 @@ function BasicHome({ client, access, messages, live, canUpload, onGo, onSeePlans
         </span>
       </div>
 
-      {dragging && canUpload && (
+      {/* Both go to <body>: .app-shell is its own stacking layer (z-index 1),
+          so inside it the phone tab bar and chat button would sit on top. */}
+      {dragging && canUpload && ReactDOM.createPortal(
         <div className="bh-drop" aria-hidden="true">
           <div className="bh-drop-box">
-            <strong>Drop to upload</strong>
-            <span>You will pick where it goes next.</span>
+            <strong>{queue.open ? "Drop to add them" : "Drop to upload"}</strong>
+            <span>{queue.open ? "They join the list, then pick where they go." : "You will pick where it goes next."}</span>
           </div>
-        </div>
+        </div>,
+        document.body,
       )}
-      {queue.open && (
+      {queue.open && ReactDOM.createPortal(
         <BH_Chooser
           items={queue.items}
           rejected={queue.rejected}
@@ -398,7 +503,10 @@ function BasicHome({ client, access, messages, live, canUpload, onGo, onSeePlans
           onAddMore={() => inputRef.current && inputRef.current.click()}
           onClose={close}
           onRemove={remove}
-        />
+          progress={progress}
+          returnFocus={() => chooseRef.current}
+        />,
+        document.body,
       )}
     </div>
   );
